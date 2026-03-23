@@ -154,7 +154,7 @@ export default function MapSearchPage() {
           map.panTo(position);
         });
 
-        // 마커 (클러,��터용)
+        // 마커 (클러스터용)
         const marker = new window.kakao.maps.Marker({ position });
         marker._overlay = overlay;
         marker._listing = listing;
