@@ -9,8 +9,8 @@ import type { Metadata } from 'next';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'ì¤ë¬¼ê²ì',
-  description: 'ìì¸ ê´ìêµ¬ ì ë¦¼ëÂ·ë´ì²ë ìë£¸, í¬ë£¼, ì¤í¼ì¤í ë§¤ë¬¼ì ê²ìíì¸ì.',
+  title: '욤물검색',
+  description: '서울 관악구 신림동·봉천동 원룸, 투룼, 오피스텔 매물을 검색하세요.',
 };
 
 interface SearchParams {
@@ -32,8 +32,8 @@ export default async function ListingsPage({
   const page = parseInt(params.page || '1', 10);
   const pageSize = 12;
 
-  // íí° ì¡°ê±´ êµ¬ì±
-  const conditions = [eq(listings.status, 'ê°ì©')];
+  // 필터 조건 구성
+  const conditions = [eq(listings.status, '가용')];
 
   if (params.deal) {
     conditions.push(eq(listings.deal, params.deal as any));
@@ -51,12 +51,12 @@ export default async function ListingsPage({
     conditions.push(lte(listings.deposit, parseInt(params.maxDeposit)));
   }
 
-  // ì ë ¬
+  // 정렬
   const orderBy = params.sort === 'price' ? listings.deposit
     : params.sort === 'area' ? listings.area
     : listings.createdAt;
 
-  // ë§¤ë¬¼ ì¡°í
+  // 매물 조회
   const allListings = await db
     .select()
     .from(listings)
@@ -65,39 +65,39 @@ export default async function ListingsPage({
     .limit(pageSize)
     .offset((page - 1) * pageSize);
 
-  // ëë³ ëª©ë¡ (íí°ì©)
+  // 동별 목록 (필터용)
   const dongResults = await db
     .select({ dong: listings.dong })
     .from(listings)
-    .where(eq(listings.status, 'ê°ì©'))
+    .where(eq(listings.status, '가용'))
     .groupBy(listings.dong);
 
   const dongs = dongResults.map(r => r.dong);
 
   return (
     <div className="pt-16 min-h-screen">
-      {/* íì´ì§ í¤ë */}
+      {/* 페이지 헤더 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-wishes-primary">ë§¤ë¬¼ ê²ì</h1>
+          <h1 className="text-2xl font-bold text-wishes-primary">매물 검색</h1>
           <p className="text-sm text-gray-500 mt-1">
-            ê´ìêµ¬ ì ë¦¼ëÂ·ë´ì²ë ì§ì­ ë§¤ë¬¼ì ê²ìíì¸ì
+            관악구 신림동·봉천동 지역 매물을 검색하세요
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* íí° */}
+        {/* 필터 */}
         <ListingFilters
           dongs={dongs}
           currentFilters={params}
         />
 
-        {/* ê²°ê³¼ */}
+        {/* 결과 */}
         {allListings.length > 0 ? (
           <>
             <p className="text-sm text-gray-500 mb-4">
-              ì´ <strong className="text-wishes-primary">{allListings.length}</strong>ê±´ì ë§¤ë¬¼
+              총 <strong className="text-wishes-primary">{allListings.length}</strong>건의 매물
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {allListings.map((listing) => (
@@ -105,14 +105,14 @@ export default async function ListingsPage({
               ))}
             </div>
 
-            {/* íì´ì§ë¤ì´ì (ê°ë¨ ë²ì ) */}
+            {/* 페이지네이션 (간단 버전) */}
             <div className="flex justify-center gap-2 mt-10">
               {page > 1 && (
                 <a
                   href={`/listings?${new URLSearchParams({ ...params, page: String(page - 1) })}`}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
                 >
-                  ì´ì 
+                  이전
                 </a>
               )}
               <span className="px-4 py-2 bg-wishes-primary text-white rounded-lg text-sm">
@@ -123,7 +123,7 @@ export default async function ListingsPage({
                   href={`/listings?${new URLSearchParams({ ...params, page: String(page + 1) })}`}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
                 >
-                  ë¤ì
+                  다음
                 </a>
               )}
             </div>
@@ -131,8 +131,8 @@ export default async function ListingsPage({
         ) : (
           <div className="text-center py-20 bg-white rounded-xl border border-gray-200 mt-4">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">ê²ì ì¡°ê±´ì ë§ë ë§¤ë¬¼ì´ ììµëë¤</p>
-            <p className="text-sm text-gray-400 mt-1">íí°ë¥¼ ë³ê²½í´ë³´ì¸ì</p>
+            <p className="text-gray-500 font-medium">검색 조건에 맞는 매물이 없습니다</p>
+            <p className="text-sm text-gray-400 mt-1">필터를 변경해보세요</p>
           </div>
         )}
       </div>

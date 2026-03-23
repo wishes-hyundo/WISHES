@@ -5,16 +5,16 @@ import { z } from 'zod';
 
 export const dynamic = 'force-dynamic';
 
-// ìë ¥ê° ì í¨ì± ê²ì¬ ì¤í¤ë§
+// 입력값 유효성 검사 스키마
 const contactSchema = z.object({
-  name: z.string().min(1, 'ì´ë¦ì ìë ¥í´ì£¼ì¸ì'),
-  phone: z.string().min(1, 'ì°ë½ì²ë¥¼ ìë ¥í´ì£¼ì¸ì'),
-  email: z.string().email('ì¬ë°ë¥¸ ì´ë©ì¼ íìì´ ìëëë¤').optional().or(z.literal('')),
+  name: z.string().min(1, '이름을 입력해주세요'),
+  phone: z.string().min(1, '연락처를 입력해주세요'),
+  email: z.string().email('윬바른 이메일 형식이 아닙니다').optional().or(z.literal('')),
   message: z.string().optional(),
   listingId: z.number().nullable().optional(),
 });
 
-// POST /api/contacts - ìë´ ë¬¸ì ë±ë¡
+// POST /api/contacts - 상담 문의 등록
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -42,9 +42,9 @@ export async function POST(request: NextRequest) {
       data: result,
     }, { status: 201 });
   } catch (error) {
-    console.error('ë¬¸ì ë±ë¡ ì¤ë¥:', error);
+    console.error('문의 등록 오류:', error);
     return NextResponse.json(
-      { success: false, error: 'ë¬¸ì ë±ë¡ì ì¤í¨íìµëë¤' },
+      { success: false, error: '문의 등록에 실패했습니다' },
       { status: 500 }
     );
   }

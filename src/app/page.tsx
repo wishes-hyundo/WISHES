@@ -8,51 +8,51 @@ import { ListingCard } from '@/components/ListingCard';
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  // ìµì  ë§¤ë¬¼ 6ê±´ ì¡°í
+  // 최신 매물 6건 조회
   const latestListings = await db
     .select()
     .from(listings)
-    .where(eq(listings.status, 'ê°ì©'))
+    .where(eq(listings.status, '가용'))
     .orderBy(desc(listings.createdAt))
     .limit(6);
 
   return (
     <div className="pt-16">
-      {/* âââ íì´ë¡ ì¹ì âââ */}
+      {/* ━━━ 히어로 섹션 ━━━ */}
       <section className="relative bg-gradient-to-br from-wishes-primary via-wishes-secondary to-blue-700 text-white py-20 md:py-32">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <h1 className="text-3xl md:text-5xl font-bold leading-tight">
-            ìì¸ ê´ìêµ¬<br className="md:hidden" /> ë¶ëì°ì ìë¡ì´ ê¸°ì¤
+            서울 관악구<br className="md:hidden" /> 부동산의 새로운 기준
           </h1>
           <p className="mt-4 text-lg text-blue-200 max-w-2xl mx-auto">
-            ì ë¦¼ëÂ·ë´ì²ë ì§ì­ ì ë¬¸ ììì¤ë¶ëì°ì´<br />
-            ê³ ê°ëì ìì¤í ë³´ê¸ìë¦¬ë¥¼ ì°¾ìëë¦½ëë¤
+            신림동·봉천동 지역 전문 위시스부동산이<br />
+            고객님의 소중한 보금자리를 찾아드립니다
           </p>
 
-          {/* ë¹ ë¥¸ ê²ì */}
+          {/* 빠른 검색 */}
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
             <Link
               href="/map"
               className="flex items-center justify-center gap-2 bg-white text-wishes-primary px-6 py-3 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all"
             >
               <MapPin className="w-5 h-5" />
-              ì§ëë¡ ë§¤ë¬¼ ê²ì
+              지도로 매물 검색
             </Link>
             <Link
               href="/listings"
               className="flex items-center justify-center gap-2 bg-white/20 text-white px-6 py-3 rounded-xl font-bold text-lg border border-white/30 hover:bg-white/30 transition-all"
             >
               <Search className="w-5 h-5" />
-              ì ì²´ ë§¤ë¬¼ ë³´ê¸°
+              전체 매물 보기
             </Link>
           </div>
 
-          {/* íµê³ */}
+          {/* 통계 */}
           <div className="mt-12 flex justify-center gap-8 md:gap-16 text-center">
             {[
-              { label: 'ë±ë¡ ë§¤ë¬¼', value: `${latestListings.length}+`, icon: Building2 },
-              { label: 'ì ë¬¸ ìë´ì¬', value: '5ëª', icon: Users },
-              { label: 'ê³ ê° ë§ì¡±ë', value: '98%', icon: Shield },
+              { label: '등록 매물', value: `${latestListings.length}+`, icon: Building2 },
+              { label: '전문 상담사', value: '5명', icon: Users },
+              { label: '고객 만족도', value: '98%', icon: Shield },
             ].map((stat) => (
               <div key={stat.label} className="flex flex-col items-center">
                 <stat.icon className="w-6 h-6 text-blue-300 mb-1" />
@@ -63,7 +63,7 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* íë¨ ì¨ì´ë¸ */}
+        {/* 하단 웨이브 */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg viewBox="0 0 1440 60" className="w-full h-12 md:h-16 text-wishes-bg">
             <path fill="currentColor" d="M0,40 C360,80 1080,0 1440,40 L1440,60 L0,60 Z" />
@@ -71,18 +71,18 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* âââ ìµì  ë§¤ë¬¼ ì¹ì âââ */}
+      {/* ━━━ 최신 매물 섹션 ━━━ */}
       <section className="max-w-7xl mx-auto px-4 py-16">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h2 className="text-2xl font-bold text-wishes-primary">ìµì  ë§¤ë¬¼</h2>
-            <p className="text-sm text-gray-500 mt-1">ê´ìêµ¬ ì ë¦¼ëÂ·ë´ì²ë ì§ì­ ìµì  ë§¤ë¬¼ìëë¤</p>
+            <h2 className="text-2xl font-bold text-wishes-primary">최신 매물</h2>
+            <p className="text-sm text-gray-500 mt-1">관악구 신림동·봉천동 지역 최신 매물입니다</p>
           </div>
           <Link
             href="/listings"
             className="flex items-center gap-1 text-sm font-medium text-wishes-secondary hover:underline"
           >
-            ì ì²´ë³´ê¸° <ArrowRight className="w-4 h-4" />
+            전체보기 <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
 
@@ -95,33 +95,33 @@ export default async function HomePage() {
         ) : (
           <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">ë±ë¡ë ë§¤ë¬¼ì´ ììµëë¤</p>
-            <p className="text-sm text-gray-400 mt-1">ê³§ ìë¡ì´ ë§¤ë¬¼ì´ ë±ë¡ë©ëë¤</p>
+            <p className="text-gray-500">등록된 매물이 없습니다</p>
+            <p className="text-sm text-gray-400 mt-1">곧 새로운 매물이 등록됩니다</p>
           </div>
         )}
       </section>
 
-      {/* âââ ìë¹ì¤ í¹ì§ âââ */}
+      {/* ━━━ 서비스 특징 ━━━ */}
       <section className="bg-white py-16">
         <div className="max-w-7xl mx-auto px-4">
           <h2 className="text-2xl font-bold text-wishes-primary text-center mb-12">
-            ììì¤ë¶ëì°ì ì íí´ì¼ íë ì´ì 
+            위시스부동산을 선택해야 하는 이유
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
-                title: 'ì§ë ê¸°ë° ë§¤ë¬¼ ê²ì',
-                desc: 'ì¹´ì¹´ì¤ë§µìì ìíë ìì¹ì ë§¤ë¬¼ì ì¤ìê°ì¼ë¡ íì¸íì¸ì. ì§ëë¥¼ ì´ëíë©´ í´ë¹ ì§ì­ì ë§¤ë¬¼ì´ ìëì¼ë¡ íìë©ëë¤.',
+                title: '지도 기반 매물 검색',
+                desc: '카카오맵에서 원하는 위치의 매물을 실시간으로 확인하세요. 지도를 이동하면 해당 지역의 매물이 자동으로 표시됩니다.',
                 icon: MapPin,
               },
               {
-                title: 'ì§ì­ ì ë¬¸ ìë´',
-                desc: 'ê´ìêµ¬ ì ë¦¼ëÂ·ë´ì²ë ì§ì­ì ëí ê¹ì ì´í´ë¥¼ ë°íì¼ë¡ ìµì ì ë§¤ë¬¼ì ì¶ì²í´ëë¦½ëë¤.',
+                title: '지역 전문 상담',
+                desc: '관악구 신림동·봉천동 지역에 대한 깊은 이해를 바탕으로 최적의 매물을 추천해드립니다.',
                 icon: Users,
               },
               {
-                title: 'ìì í ê±°ë',
-                desc: 'ê³µì¸ì¤ê°ì¬ê° ì§ì  ê±°ëë¥¼ ì§ííë©°, ëª¨ë  ê³ì½ ê³¼ì ìì ê³ ê°ëì ê¶ë¦¬ë¥¼ ë³´í¸í©ëë¤.',
+                title: '안전한 거래',
+                desc: '공인중개사가 직접 거래를 진행하며, 모든 계약 과정에서 고객님의 권리를 보호합니다.',
                 icon: Shield,
               },
             ].map((feature) => (
@@ -137,14 +137,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* âââ CTA ì¹ì âââ */}
+      {/* ━━━ CTA 섹션 ━━━ */}
       <section className="bg-gradient-to-r from-wishes-primary to-wishes-secondary text-white py-16">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-2xl md:text-3xl font-bold mb-4">
-            ìíë ë§¤ë¬¼ì ëª» ì°¾ì¼ì¨ëì?
+            원하는 매물을 못 찾으셨나요?
           </h2>
           <p className="text-blue-200 mb-8">
-            ì ë¬¸ ìë´ì¬ê° ê³ ê°ëì ì¡°ê±´ì ë§ë ë§¤ë¬¼ì ì§ì  ì°¾ìëë¦½ëë¤
+            전문 상담사가 고객님의 조건에 맞는 매물을 직접 찾아드립니다
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <a
@@ -152,13 +152,13 @@ export default async function HomePage() {
               className="flex items-center justify-center gap-2 bg-white text-wishes-primary px-8 py-3 rounded-xl font-bold hover:shadow-lg transition-all"
             >
               <Phone className="w-5 h-5" />
-              ì í ìë´ 1533-9580
+              전화 상담 1533-9580
             </a>
             <Link
               href="/contact"
               className="flex items-center justify-center gap-2 border-2 border-white text-white px-8 py-3 rounded-xl font-bold hover:bg-white/10 transition-all"
             >
-              ì¨ë¼ì¸ ìë´ ì ì²­
+              온라인 상담 신청
             </Link>
           </div>
         </div>
