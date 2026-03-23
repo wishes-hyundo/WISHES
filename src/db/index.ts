@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
+import { seedListings } from './seed-data';
 
 const isVercel = !!process.env.VERCEL;
 const DB_PATH = isVercel
@@ -82,6 +83,48 @@ try {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  // Auto-seed if listings table is empty (Vercel cold start)
+  const countResult = sqlite.prepare('SELECT COUNT(*) as cnt FROM listings').get() as { cnt: number };
+  if (countResult.cnt === 0 && seedListings.length > 0) {
+    console.log('DB is empty, auto-seeding ' + seedListings.length + ' listings...');
+    
+    const insertListing = sqlite.prepare(`
+      INSERT INTO listings (title, type, deal, deposit, monthly, price, area, floor, address, dong, description, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '가용')
+    `);
+    
+    const insertImage = sqlite.prepare(`
+      INSERT INTO listing_images (listing_id, url, alt, "order")
+      VALUES (?, ?, ?, 0)
+    `);
+
+    const seedAll = sqlite.transaction(() => {
+      for (const item of seedListings) {
+        const title = item.type + ' ' + item.deal + ' ' + item.dong;
+        const result = insertListing.run(
+          title,
+          item.type,
+          item.deal,
+          item.deposit,
+          item.monthly || null,
+          item.price || null,
+          item.area,
+          item.floor,
+          item.address,
+          item.dong,
+          item.description
+        );
+        
+        if (item.image) {
+          insertImage.run(result.lastInsertRowid, item.image, title);
+        }
+      }
+    });
+    
+    seedAll();
+    console.log('Auto-seed complete: ' + seedListings.length + ' listings inserted');
+  }
 } catch (e) {
   console.error('DB init error:', e);
   sqlite = new Database(':memory:');
