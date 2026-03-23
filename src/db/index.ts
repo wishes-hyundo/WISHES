@@ -8,8 +8,18 @@ import * as schema from './schema';
 // ─── STEP 0: SQLite (로컬 개발) ───
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import Database from 'better-sqlite3';
+import { existsSync, mkdirSync } from 'fs';
+import { resolve, dirname } from 'path';
 
-const sqlite = new Database('./data/wishes.db');
+const DB_PATH = resolve(process.cwd(), 'data', 'wishes.db');
+const dbDir = dirname(DB_PATH);
+
+// Vercel 빌드 환경에서 디렉토리가 없을 수 있으므로 자동 생성
+if (!existsSync(dbDir)) {
+  mkdirSync(dbDir, { recursive: true });
+}
+
+const sqlite = new Database(DB_PATH);
 export const db = drizzle(sqlite, { schema });
 
 // ─── STEP 1: Supabase PostgreSQL (프로덕션) ───
