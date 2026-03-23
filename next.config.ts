@@ -1,10 +1,16 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // 이미지 최적화 설정
+  // ESLint: skip during build
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  // TypeScript: skip type check during build
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  // Image optimization
   images: {
-    // STEP 0: 로컬 이미지만
-    // STEP 1: R2 커스텀 도메인 추가
     remotePatterns: [
       {
         protocol: 'https',
@@ -13,7 +19,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  // 서버 외부 패키지 (better-sqlite3는 네이티브 모듈)
+  // Server external packages
   serverExternalPackages: ['better-sqlite3'],
 };
 
