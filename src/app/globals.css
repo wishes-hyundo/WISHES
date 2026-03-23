@@ -1,10 +1,12 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 /* WISHES v2 글로벌 스타일                      */
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 
-@theme {
+:root {
   /* 위시스 브랜드 컬러 */
   --color-wishes-primary: #1a365d;
   --color-wishes-secondary: #2b6cb0;
@@ -34,7 +36,7 @@
 }
 
 .map-marker-label.deal-전세 { border-color: #3182ce; color: #3182ce; }
-.map-marker-label.deal-월세 { border-color: #38a169; color: #38a169; }
+.map-marker-label.deal-웈세 { border-color: #38a169; color: #38a169; }
 .map-marker-label.deal-매매 { border-color: #dd6b20; color: #dd6b20; }
 
 /* 스크롤바 스타일 */
