@@ -26,14 +26,14 @@ export default function ListingsPage() {
 
   const deals = ['전세', '월세', '매매'];
   const types = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
-  const dongs = [...new Set(listings.map(l => l.dong))];
+  const dongs = Array.from(new Set(listings.map(l => l.dong)));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       {/* Page Header */}
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold text-navy-800 mb-2">전체 매물</h1>
-        <p className="text-sm text-gray-500">서울 관악구 신림동 · 봉천동 일대</p>
+        <p className="text-sm text-gray-500">서울 관악구 싨림동 · 봉천동 일대</p>
       </div>
 
       {/* Filters */}
