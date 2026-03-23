@@ -1,28 +1,45 @@
 {
-  "name": "wishes-site",
-  "version": "1.0.0",
+  "name": "wishes-v2",
+  "version": "2.0.0",
   "private": true,
+  "description": "위시스부동산중개법인 기업 웹사이트 v2 - Next.js + Drizzle + Kakao Maps",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:generate": "drizzle-kit generate",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "tsx scripts/seed.ts",
+    "geocode": "tsx scripts/geocode-listings.ts"
   },
   "dependencies": {
-    "next": "^14.2.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "react-icons": "^5.3.0"
+    "next": "^15.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "drizzle-orm": "^0.39.0",
+    "better-sqlite3": "^11.8.0",
+    "zod": "^3.24.0",
+    "lucide-react": "^0.475.0",
+    "date-fns": "^4.1.0",
+    "sharp": "^0.33.0",
+    "clsx": "^2.1.0"
   },
   "devDependencies": {
-    "@types/node": "^20.14.0",
-    "@types/react": "^18.3.0",
-    "@types/react-dom": "^18.3.0",
-    "autoprefixer": "^10.4.0",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.0",
-    "postcss": "^8.4.0",
-    "tailwindcss": "^3.4.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/better-sqlite3": "^7.6.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "postcss": "^8.5.0",
+    "drizzle-kit": "^0.30.0",
+    "tsx": "^4.19.0",
+    "eslint": "^9.0.0",
+    "eslint-config-next": "^15.2.0",
+    "@eslint/eslintrc": "^3.0.0"
   }
 }

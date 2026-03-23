@@ -1,72 +1,94 @@
 import Link from 'next/link';
-import { Listing, formatPrice } from '@/data/listings';
+import { MapPin, Maximize, Building2, Calendar } from 'lucide-react';
+import { cn, getFormattedPrice, getDealColor, sqmToPyeong, timeAgo } from '@/lib/utils';
+import type { Listing } from '@/types';
 
-export default function ListingCard({ listing }: { listing: Listing }) {
-  const dealColors = {
-    '전세': 'bg-blue-500',
-    '월세': 'bg-emerald-500',
-    '매매': 'bg-orange-500',
-  };
+interface ListingCardProps {
+  listing: Listing;
+  compact?: boolean;
+  onHover?: (id: number | null) => void;
+}
+
+export function ListingCard({ listing, compact = false, onHover }: ListingCardProps) {
+  const price = getFormattedPrice(listing.deal, listing.deposit, listing.monthly, listing.price);
+  const thumbUrl = listing.images?.[0]?.url || '/images/placeholder.svg';
 
   return (
-    <Link href={`/listings/${listing.id}`} className="block card-hover">
-      <div className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-        {/* Image */}
-        <div className="relative aspect-[4/3] bg-gradient-to-br from-navy-100 to-navy-200 overflow-hidden">
-          <div className="absolute inset-0 flex items-center justify-center text-navy-300">
-            <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
-            </svg>
-          </div>
-          {/* Status Badge */}
-          {listing.status === '계약중' && (
-            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <span className="bg-red-500 text-white px-4 py-1.5 rounded-full text-sm font-bold">계약중</span>
+    <Link
+      href={`/listings/${listing.id}`}
+      className={cn(
+        'group block bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-wishes-secondary/30 transition-all',
+        compact ? 'flex' : ''
+      )}
+      onMouseEnter={() => onHover?.(listing.id)}
+      onMouseLeave={() => onHover?.(null)}
+    >
+      {/* 이미지 */}
+      <div className={cn(
+        'relative overflow-hidden bg-gray-100',
+        compact ? 'w-32 h-28 shrink-0' : 'aspect-[4/3]'
+      )}>
+        <img
+          src={thumbUrl}
+          alt={listing.title}
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+        {/* 거래 유형 배지 */}
+        <span className={cn(
+          'absolute top-2 left-2 px-2 py-0.5 text-xs font-bold rounded-md',
+          getDealColor(listing.deal)
+        )}>
+          {listing.deal}
+        </span>
+        {/* 매물 유형 */}
+        <span className="absolute top-2 right-2 px-2 py-0.5 text-xs font-medium bg-black/50 text-white rounded-md">
+          {listing.type}
+        </span>
+      </div>
+
+      {/* 정보 */}
+      <div className={cn('p-3', compact ? 'flex-1 min-w-0' : '')}>
+        {/* 가격 */}
+        <p className="text-lg font-bold text-wishes-primary truncate">
+          {price.main}
+        </p>
+
+        {/* 제목 */}
+        <p className="text-sm text-gray-700 truncate mt-0.5">{listing.title}</p>
+
+        {/* 상세 정보 */}
+        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
+          <span className="flex items-center gap-1">
+            <Maximize className="w-3 h-3" />
+            {listing.area}㎡ ({sqmToPyeong(listing.area)}평)
+          </span>
+          <span className="flex items-center gap-1">
+            <Building2 className="w-3 h-3" />
+            {listing.floor}
+          </span>
+        </div>
+
+        {/* 위치 */}
+        <div className="flex items-center gap-1 mt-1.5 text-xs text-gray-400">
+          <MapPin className="w-3 h-3" />
+          <span className="truncate">{listing.dong} · {listing.address.split(' ').slice(-1)[0]}</span>
+        </div>
+
+        {!compact && (
+          <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+            {/* 옵션 태그 */}
+            <div className="flex gap-1">
+              {listing.parking && <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">주차</span>}
+              {listing.elevator && <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">엘리베이터</span>}
+              {listing.pet && <span className="text-xs px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded">반려동물</span>}
             </div>
-          )}
-          {/* Deal Type Badge */}
-          <span className={`absolute top-3 left-3 ${dealColors[listing.deal]} text-white text-xs font-bold px-3 py-1 rounded-full`}>
-            {listing.deal}
-          </span>
-          {/* Type Badge */}
-          <span className="absolute top-3 right-3 bg-white/90 backdrop-blur text-navy-800 text-xs font-medium px-2.5 py-1 rounded-full">
-            {listing.type}
-          </span>
-        </div>
-
-        {/* Info */}
-        <div className="p-4 sm:p-5">
-          {/* Price */}
-          <p className="text-lg sm:text-xl font-bold text-navy-800 mb-1">
-            {formatPrice(listing)}
-          </p>
-
-          {/* Title */}
-          <h3 className="text-sm font-medium text-gray-700 mb-2 line-clamp-1">
-            {listing.title}
-          </h3>
-
-          {/* Details */}
-          <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
-            <span>{listing.area}㎡</span>
-            <span className="w-px h-3 bg-gray-200" />
-            <span>{listing.floor}</span>
-            <span className="w-px h-3 bg-gray-200" />
-            <span>{listing.dong}</span>
+            {/* 등록일 */}
+            <span className="flex items-center gap-1 text-xs text-gray-400">
+              <Calendar className="w-3 h-3" />
+              {timeAgo(listing.createdAt)}
+            </span>
           </div>
-
-          {/* Features */}
-          <div className="flex flex-wrap gap-1.5">
-            {listing.features.slice(0, 4).map((f) => (
-              <span key={f} className="bg-gray-50 text-gray-500 text-[11px] px-2 py-0.5 rounded-md">
-                {f}
-              </span>
-            ))}
-            {listing.features.length > 4 && (
-              <span className="text-gray-400 text-[11px] px-1">+{listing.features.length - 4}</span>
-            )}
-          </div>
-        </div>
+        )}
       </div>
     </Link>
   );
