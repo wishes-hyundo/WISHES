@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar } from 'lucide-react';
 import { cn, getFormattedPrice, getDealColor, sqmToPyeong, timeAgo } from '@/lib/utils';

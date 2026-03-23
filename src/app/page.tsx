@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import ClientLink from '@/components/ClientLink';
 import { MapPin, Search, Phone, ArrowRight, Building2, Shield, Users } from 'lucide-react';
 import { db } from '@/db';
 import { listings } from '@/db/schema';
@@ -31,20 +31,20 @@ export default async function HomePage() {
 
           {/* 빠른 검색 */}
           <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto">
-            <Link
+            <ClientLink
               href="/map"
               className="flex items-center justify-center gap-2 bg-white text-wishes-primary px-6 py-3 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl hover:scale-105 transition-all"
             >
               <MapPin className="w-5 h-5" />
               지도로 매물 검색
-            </Link>
-            <Link
+            </ClientLink>
+            <ClientLink
               href="/listings"
               className="flex items-center justify-center gap-2 bg-white/20 text-white px-6 py-3 rounded-xl font-bold text-lg border border-white/30 hover:bg-white/30 transition-all"
             >
               <Search className="w-5 h-5" />
               전체 매물 보기
-            </Link>
+            </ClientLink>
           </div>
 
           {/* 통계 */}
@@ -78,12 +78,12 @@ export default async function HomePage() {
             <h2 className="text-2xl font-bold text-wishes-primary">최신 매물</h2>
             <p className="text-sm text-gray-500 mt-1">관악구 신림동·봉천동 지역 최신 매물입니다</p>
           </div>
-          <Link
+          <ClientLink
             href="/listings"
             className="flex items-center gap-1 text-sm font-medium text-wishes-secondary hover:underline"
           >
             전체보기 <ArrowRight className="w-4 h-4" />
-          </Link>
+          </ClientLink>
         </div>
 
         {latestListings.length > 0 ? (
@@ -154,12 +154,12 @@ export default async function HomePage() {
               <Phone className="w-5 h-5" />
               전화 상담 1533-9580
             </a>
-            <Link
+            <ClientLink
               href="/contact"
               className="flex items-center justify-center gap-2 border-2 border-white text-white px-8 py-3 rounded-xl font-bold hover:bg-white/10 transition-all"
             >
               온라인 상담 신청
-            </Link>
+            </ClientLink>
           </div>
         </div>
       </section>
