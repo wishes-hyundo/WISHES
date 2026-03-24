@@ -267,7 +267,7 @@ export default function AdminPage() {
     );
   }
 
-  // 대시보드 �m
+  // 대시보드 탭
   if (tab === 'dashboard') {
     return (
       <div>
@@ -592,7 +592,7 @@ export default function AdminPage() {
     );
   }
 
-  // 상담 관리 �m
+  // 상담 관리 탭
   if (tab === 'contacts') {
     return (
       <div>
