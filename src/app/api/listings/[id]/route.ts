@@ -1,8 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/db';
-import { listings, listingImages, listingFeatures } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/listings/[id] - 매물 상세 조회
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase';
+
+/**
+ * 매물 상세 조회 (이미지, 특징 포함)
+ * @param id - 매물 ID
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -10,15 +16,56 @@ export async function GET(
   try {
     const { id } = await params;
     const listingId = parseInt(id);
-    const [listing] = await db.select().from(listings).where(eq(listings.id, listingId)).limit(1);
-    if (!listing) {
-      return NextResponse.json({ success: false, error: '매물을 찾을 수 없습니다' }, { status: 404 });
+
+    if (isNaN(listingId)) {
+      return NextResponse.json(
+        { success: false, error: '유효하지 않은 매물 ID입니다' },
+        { status: 400 }
+      );
     }
-    const images = await db.select().from(listingImages).where(eq(listingImages.listingId, listingId)).orderBy(listingImages.order);
-    const features = await db.select().from(listingFeatures).where(eq(listingFeatures.listingId, listingId));
-    return NextResponse.json({ success: true, data: { ...listing, images, features: features.map((f) => f.feature) } });
+
+    const supabase = createClient();
+
+    // 매물 조회
+    const { data: listing, error: listingError } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', listingId)
+      .single();
+
+    if (listingError || !listing) {
+      return NextResponse.json(
+        { success: false, error: '매물을 찾을 수 없습니다' },
+        { status: 404 }
+      );
+    }
+
+    // 이미지 조회
+    const { data: images = [] } = await supabase
+      .from('listing_images')
+      .select('*')
+      .eq('listing_id', listingId)
+      .order('sort_order', { ascending: true });
+
+    // 특징 조회
+    const { data: features = [] } = await supabase
+      .from('listing_features')
+      .select('feature')
+      .eq('listing_id', listingId);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...listing,
+        images: images || [],
+        features: features?.map((f) => f.feature) || [],
+      },
+    });
   } catch (error) {
     console.error('매물 상세 조회 오류:', error);
-    return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다' }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: '매물 조회에 실패했습니다' },
+      { status: 500 }
+    );
   }
 }
