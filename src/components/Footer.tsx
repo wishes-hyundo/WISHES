@@ -150,7 +150,7 @@ export function Footer() {
           {/* 저작권 */}
           <div className="text-center text-xs text-white/50">
             <p>&copy; {currentYear} WISHES Corp. All rights reserved.</p>
-            <p className="mt-2">서울특별시 중개사혍회 | 공인중개사 신고번호</p>
+            <p className="mt-2">서울특별시 중개사협회 | 공인중개사 신고번호</p>
           </div>
         </div>
       </div>
