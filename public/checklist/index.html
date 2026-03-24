@@ -182,7 +182,7 @@ button{font-family:inherit}
 
 
 
-/* ── PAGE ── */
+body>.card,body>.page{max-width:860px;margin-left:auto;margin-right:auto;padding-left:20px;padding-right:20px;box-sizing:border-box}/* ── PAGE ── */
 
 .page{display:none;animation:slideUp .3s ease}
 
@@ -295,25 +295,25 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
 
 .chip.on-gold{background:var(--gold);border-color:var(--gold);color:var(--navy);box-shadow:0 2px 8px rgba(200,150,12,.25)}
 
-.chip.on-green{background:var(--green);border-color:var(--green);color:#fff}
+.chip.on-green{background:#E8FBF3;border-color:var(--green);color:#047857;font-weight:700;box-shadow:0 2px 8px rgba(16,185,129,.15)}
 
 .chip.on-red{background:var(--red);border-color:var(--red);color:#fff}
 
 /* deal type big chips */
 
-.deal-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.deal-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 
 .deal-chip{
 
-  padding:20px 12px;border-radius:var(--r-md);border:2px solid var(--gray200);
+  padding:14px 10px;border-radius:var(--r-md);border:2px solid var(--gray200);
 
   text-align:center;cursor:pointer;background:#fff;transition:all .2s;
 
 }
 
-.deal-chip .dc-icon{font-size:1.2rem;margin-bottom:4px}
+.deal-chip .dc-icon{font-size:1rem;margin-bottom:2px}
 
-.deal-chip .dc-label{font-size:0.9rem;font-weight:700;color:var(--gray700)}
+.deal-chip .dc-label{font-size:0.85rem;font-weight:700;color:var(--gray700)}
 
 .deal-chip.on{border-color:var(--navy);background:linear-gradient(135deg,#EFF4FF,#F8FAFF)}
 
