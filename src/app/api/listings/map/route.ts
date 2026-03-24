@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     // 지도 바운드 내 매물 조회
     let query = supabase
       .from('listings')
-      .select('id, title, type, deal, deposit, monthly, price, lat, lng, status, area_m2, floor_current, floor_total, dong, address, description, images, features')
+      .select('*')
       .neq('status', '계약완료')
       .gte('lat', swLat)
       .lte('lat', neLat)
