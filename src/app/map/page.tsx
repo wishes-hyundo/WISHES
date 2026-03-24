@@ -185,13 +185,13 @@ function CheckboxDropdownPanel({ options, selected, onToggle, onClose }: {
   );
 }
 
-// ─── 매물 카드 (지도 사이드패널용) ──────────────────
+// ─── 매물 카드 (지도 사이드 패널용) ──────────────────
 function MapListingCard({ listing }: { listing: Listing }) {
   const priceText = formatPrice(listing.deal, listing.deposit, listing.monthly, listing.price);
   return (
     <Link href={`/listings/${listing.id}`} className="block">
       <div className="flex gap-3 p-3 border-b border-gray-100 hover:bg-gray-50 transition cursor-pointer">
-        {/* 썸네일 */}
+        {/* 션네일 */}
         <div className="relative w-24 h-24 rounded-lg overflow-hidden bg-gray-100 shrink-0">
           <div className={`absolute top-1.5 left-1.5 text-[10px] text-white px-1.5 py-0.5 rounded font-bold ${dealColor(listing.deal)}`}>
             {listing.deal}
@@ -200,7 +200,7 @@ function MapListingCard({ listing }: { listing: Listing }) {
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
             </svg>
-          </div>
+            </div>
         </div>
         {/* 정보 */}
         <div className="flex-1 min-w-0">
@@ -283,7 +283,7 @@ export default function MapPage() {
             mapRef.current = map;
             setMapReady(true);
 
-            // 지도 이동/줌 시 매물 다시 조회
+            // 지도 이동/줌 시 매뫼 다시 조회
             window.kakao.maps.event.addListener(map, 'idle', () => {
               const b = map.getBounds();
               const sw = b.getSouthWest();
@@ -470,7 +470,7 @@ export default function MapPage() {
   const featureLabel = featureFilters.size === 0 ? '추가필터' : `추가필터 ${featureFilters.size}`;
 
   return (
-    <div className="pt-16 h-screen flex flex-col bg-white">
+    <div className="pt-20 h-screen flex flex-col bg-white">
       {/* ─── 필터 바 ─── */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 shrink-0 z-30">
         <div className="flex items-center gap-2 flex-wrap" data-filter-group>
@@ -602,10 +602,32 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* ─── 메인 컨텐츠: 목록 + 지도 ─── */}
+      {/* ─── 메인 컨텐츠: 지도(좌측) + 목록(우측) ─── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* 좌측 매물 목록 패널 */}
-        <div className="w-[380px] shrink-0 border-r border-gray-200 flex flex-col bg-white">
+        {/* 좌측 지도 */}
+        <div className="flex-1 relative">
+          <div ref={mapContainerRef} className="w-full h-full" />
+
+          {/* 현재 위치 버튼 */}
+          <button
+            onClick={() => {
+              if (mapRef.current) {
+                mapRef.current.setCenter(new window.kakao.maps.LatLng(37.4833, 126.9283));
+                mapRef.current.setLevel(5);
+              }
+            }}
+            className="absolute bottom-6 left-6 bg-white w-10 h-10 rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition z-10"
+            title="기본 위치로 이동"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </button>
+        </div>
+
+        {/* 우측 매물 목록 패널 */}
+        <div className="w-[380px] shrink-0 border-l border-gray-200 flex flex-col bg-white">
           {/* 매물 수 헤더 */}
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -636,28 +658,6 @@ export default function MapPage() {
               ))
             )}
           </div>
-        </div>
-
-        {/* 우측 지도 */}
-        <div className="flex-1 relative">
-          <div ref={mapContainerRef} className="w-full h-full" />
-
-          {/* 현재 위치 버튼 */}
-          <button
-            onClick={() => {
-              if (mapRef.current) {
-                mapRef.current.setCenter(new window.kakao.maps.LatLng(37.4833, 126.9283));
-                mapRef.current.setLevel(5);
-              }
-            }}
-            className="absolute bottom-6 right-6 bg-white w-10 h-10 rounded-full shadow-lg border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition z-10"
-            title="기본 위치로 이동"
-          >
-            <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
         </div>
       </div>
     </div>
