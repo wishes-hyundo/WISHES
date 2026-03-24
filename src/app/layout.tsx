@@ -6,14 +6,14 @@ import { ConditionalLayout } from '@/components/ConditionalLayout';
 export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
   title: {
-    default: '위시스부동산 | 서울 관악구 신림동·봉천동 전문 부동산',
+    default: '위시스부동산 | 서울·경기 종합부동산 서비스',
     template: '%s | 위시스부동산',
   },
-  description: '서울 관악구 신림동·봉천동 원룸, 투룸, 오피스텔, 아파트 전문 부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요. 전화상담 1533-9580',
-  keywords: ['관악구 부동산', '신림동 원룸', '봉천동 전세', '신림역 월세', '관악구 오피스텔', '서울대입구 부동산', '위시스부동산', '관악구 매매'],
+  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요. 전화상담 1533-9580',
+  keywords: ['서울 부동산', '경기 부동산', '원룸 전세', '월세 매물', '오피스텔', '아파트 매매', '위시스부동산', '종합부동산'],
   openGraph: {
-    title: '위시스부동산 | 서울 관악구 전문 부동산',
-    description: '서울 관악구 신림동·봉천동 전문 부동산. 지도로 매물을 쉽게 찾아보세요. 1533-9580',
+    title: '위시스부동산 | 서울·경기 종합부동산',
+    description: '서울·경기 전 지역 종합부동산. 지도로 매물을 쉽게 찾아보세요. 1533-9580',
     url: 'https://wishes.co.kr',
     siteName: '위시스부동산',
     locale: 'ko_KR',
@@ -22,13 +22,13 @@ export const metadata: Metadata = {
       url: '/og-image.png',
       width: 1200,
       height: 630,
-      alt: '위시스부동산 - 서울 관악구 전문',
+      alt: '위시스부동산 - 서울·경기 종합부동산',
     }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: '위시스부동산 | 서울 관악구 전문 부동산',
-    description: '서울 관악구 신림동·봉천동 전문 부동산. 1533-9580',
+    title: '위시스부동산 | 서울·경기 종합부동산',
+    description: '서울·경기 전 지역 종합부동산 서비스. 1533-9580',
     images: ['/og-image.png'],
   },
   alternates: {
@@ -65,7 +65,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-        {/* 카카오맵 SDK */}
+        {/* 카카오맴 SDK */}
         <Script
           src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=services,clusterer&autoload=false`}
           strategy="beforeInteractive"
@@ -130,8 +130,8 @@ export default function RootLayout({
               },
               openingHours: 'Mo-Fr 09:00-19:00',
               areaServed: {
-                '@type': 'City',
-                name: '서울특별시 관악구',
+                '@type': 'State',
+                name: '서울특별시 및 경기도',
               },
             }),
           }}
