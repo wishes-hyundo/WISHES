@@ -374,7 +374,7 @@ export default function HomePage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
             <Testimonial
               name="김민준"
-              role="신림동 거주 | 전세 계약"
+              role="강남구 거주 | 전세 계약"
               text="처음 부동산 계약이라 걱정 많았는데, 전문가답게 하나하나 설명해주셜서 안심할 수 있었습니다."
             />
             <Testimonial
