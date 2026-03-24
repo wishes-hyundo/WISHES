@@ -110,22 +110,15 @@ export function Footer() {
         {/* 구분선 */}
         <div className="border-t border-white/10 py-8">
           {/* 회사 정보 */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 text-center">
-            <div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12 mb-8">
+            <div className="text-center">
               <p className="text-xs text-white/60 mb-1">회사명</p>
               <p className="text-sm text-white font-medium">WISHES Corp.</p>
             </div>
-            <div>
-              <p className="text-xs text-white/60 mb-1">대표자</p>
-              <p className="text-sm text-white font-medium">김현도</p>
-            </div>
-            <div>
+            <div className="hidden sm:block w-px h-8 bg-white/20"></div>
+            <div className="text-center">
               <p className="text-xs text-white/60 mb-1">사업자등록번호</p>
               <p className="text-sm text-white font-medium">445-86-01981</p>
-            </div>
-            <div>
-              <p className="text-xs text-white/60 mb-1">중개사무소등록번호</p>
-              <p className="text-sm text-white font-medium">제11680-2024-00123호</p>
             </div>
           </div>
 
