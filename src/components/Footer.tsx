@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MapPin, Phone, Mail, Clock, MapIcon, BookOpen, Instagram } from 'lucide-react';
+import { MapPin, MapIcon, BookOpen, Instagram } from 'lucide-react';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -97,33 +97,10 @@ export function Footer() {
             <h3 className="text-sm font-bold text-white/90 uppercase tracking-wider">연락처</h3>
             <ul className="space-y-4 text-sm">
               <li className="flex items-start gap-3 group cursor-pointer">
-                <Phone className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                <div className="leading-relaxed">
-                  <p className="text-white/60 text-xs">전화</p>
-                  <p className="text-white">전화 문의</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 group cursor-pointer">
                 <MapIcon className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                 <div className="leading-relaxed">
                   <p className="text-white/60 text-xs">주소</p>
                   <p className="text-white">서울특별시 관악구<br />신림로64길 23, 8층</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 group cursor-pointer">
-                <Mail className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                <div className="leading-relaxed">
-                  <p className="text-white/60 text-xs">이메일</p>
-                  <a href="mailto:wishes@wishes.co.kr" className="text-white hover:text-wishes-accent">
-                    wishes@wishes.co.kr
-                  </a>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 group cursor-pointer">
-                <Clock className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                <div className="leading-relaxed">
-                  <p className="text-white/60 text-xs">운영시간</p>
-                  <p className="text-white">평일 09:00~19:00<br />(주말 예약상담)</p>
                 </div>
               </li>
             </ul>
