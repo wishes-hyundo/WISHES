@@ -226,7 +226,7 @@ function MapListingCard({ listing }: { listing: Listing }) {
   );
 }
 
-// ─── 메인 페이냰 컴포넌트 ──────────────────────────
+// ─── 메인 페이지 컴포넌트 ──────────────────────────
 export default function MapPage() {
   // 필터 상태
   const [dealFilter, setDealFilter] = useState('전체');
@@ -473,7 +473,7 @@ export default function MapPage() {
     <div className="pt-16 h-screen flex flex-col bg-white">
       {/* ─── 필터 바 ─── */}
       <div className="bg-white border-b border-gray-200 px-4 py-3 shrink-0 z-30">
-        <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide" data-filter-group>
+        <div className="flex items-center gap-2 flex-wrap" data-filter-group>
           {/* 거래유형 */}
           <div className="relative">
             <FilterButton
