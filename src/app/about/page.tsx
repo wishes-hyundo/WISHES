@@ -85,7 +85,6 @@ export default function AboutPage() {
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-wishes-secondary shrink-0" />
-                <a href="mailto:wishes@wishes.co.kr" className="text-wishes-secondary">wishes@wishes.co.kr</a>
               </div>
               <div className="flex items-center gap-3">
                 <Clock className="w-4 h-4 text-wishes-secondary shrink-0" />
