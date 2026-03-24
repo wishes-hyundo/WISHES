@@ -106,7 +106,7 @@ export default async function ListingsPage({
               ))}
             </div>
 
-            {/* 페이지네이션 (ꂄ단 버전) */}
+            {/* 페이지네이션 (간단 버전) */}
             <div className="flex justify-center gap-2 mt-10">
               {page > 1 && (
                 <a
