@@ -82,8 +82,6 @@ export default function AboutPage() {
                 <span>서울특별시 관악구 신림로64길 23, 8층(신림동)</span>
               </div>
               <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-wishes-secondary shrink-0" />
-                <a href="tel:1533-9580" className="text-wishes-secondary font-medium">1533-9580</a>
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-wishes-secondary shrink-0" />
