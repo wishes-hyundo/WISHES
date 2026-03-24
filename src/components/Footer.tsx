@@ -27,7 +27,7 @@ export function Footer() {
               </div>
             </div>
             <p className="text-sm text-white/70 leading-relaxed">
-              15년의 경험과 싨뢰로<br />
+              15년의 경험과 신뢰로<br />
               서울·경기 전 지역<br />
               최고의 부동산 서비스를<br />
               제공하고 있습니다.
