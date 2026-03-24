@@ -1,7 +1,5 @@
 import { Suspense } from 'react';
-import { db } from '@/db';
-import { listings } from '@/db/schema';
-import { eq, desc, and, gte, lte, like } from 'drizzle-orm';
+import { createClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
 import { ListingFilters } from '@/components/ListingFilters';
 import { Building2 } from 'lucide-react';
@@ -30,48 +28,54 @@ export default async function ListingsPage({
   const params = await searchParams;
   const page = parseInt(params.page || '1', 10);
   const pageSize = 12;
+  const offset = (page - 1) * pageSize;
 
-  // 필터 조건 구성
-  const conditions = [eq(listings.status, '가용')];
+  const supabase = createClient();
 
+  // 매물 조회 쿼리 구성
+  let query = supabase
+    .from('listings')
+    .select('*')
+    .eq('status', '가용');
+
+  // 필터 조건 적용
   if (params.deal) {
-    conditions.push(eq(listings.deal, params.deal as any));
+    query = query.eq('deal', params.deal);
   }
   if (params.type) {
-    conditions.push(eq(listings.type, params.type as any));
+    query = query.eq('type', params.type);
   }
   if (params.dong) {
-    conditions.push(eq(listings.dong, params.dong));
+    query = query.eq('dong', params.dong);
   }
   if (params.minDeposit) {
-    conditions.push(gte(listings.deposit, parseInt(params.minDeposit)));
+    query = query.gte('deposit', parseInt(params.minDeposit));
   }
   if (params.maxDeposit) {
-    conditions.push(lte(listings.deposit, parseInt(params.maxDeposit)));
+    query = query.lte('deposit', parseInt(params.maxDeposit));
   }
 
   // 정렬
-  const orderBy = params.sort === 'price' ? listings.deposit
-    : params.sort === 'area' ? listings.area
-    : listings.createdAt;
+  const sortColumn = params.sort === 'price' ? 'deposit'
+    : params.sort === 'area' ? 'area_m2'
+    : 'created_at';
 
-  // 매물 조회
-  const allListings = await db
-    .select()
-    .from(listings)
-    .where(and(...conditions))
-    .orderBy(desc(orderBy))
-    .limit(pageSize)
-    .offset((page - 1) * pageSize);
+  query = query.order(sortColumn, { ascending: false });
+
+  // 페이지네이션
+  query = query.range(offset, offset + pageSize - 1);
+
+  const { data: allListings } = await query;
+  const listings = allListings || [];
 
   // 동별 목록 (필터용)
-  const dongResults = await db
-    .select({ dong: listings.dong })
-    .from(listings)
-    .where(eq(listings.status, '가용'))
-    .groupBy(listings.dong);
+  const { data: dongResults } = await supabase
+    .from('listings')
+    .select('dong')
+    .eq('status', '가용');
 
-  const dongs = dongResults.map(r => r.dong);
+  // 중복 제거
+  const dongs = [...new Set((dongResults || []).map(r => r.dong))];
 
   return (
     <div className="pt-16 min-h-screen">
@@ -95,13 +99,13 @@ export default async function ListingsPage({
         </Suspense>
 
         {/* 결과 */}
-        {allListings.length > 0 ? (
+        {listings.length > 0 ? (
           <>
             <p className="text-sm text-gray-500 mb-4">
-              총 <strong className="text-wishes-primary">{allListings.length}</strong>건의 매물
+              총 <strong className="text-wishes-primary">{listings.length}</strong>건의 매물
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {allListings.map((listing) => (
+              {listings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing as any} />
               ))}
             </div>
@@ -119,7 +123,7 @@ export default async function ListingsPage({
               <span className="px-4 py-2 bg-wishes-primary text-white rounded-lg text-sm">
                 {page}
               </span>
-              {allListings.length === pageSize && (
+              {listings.length === pageSize && (
                 <a
                   href={`/listings?${new URLSearchParams({ ...params, page: String(page + 1) })}`}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
