@@ -159,13 +159,7 @@ export default async function ListingDetailPage({ params }: Props) {
             <div className="bg-white rounded-xl border border-gray-200 p-6 sticky top-24">
               <h3 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h3>
 
-              <a
-                href="tel:1533-9580"
-                className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors"
-              >
-                <Phone className="w-5 h-5" />
-                전화 상담
-              </a>
+              
 
               <a
                 href={`https://pf.kakao.com/_DxdSJs`}
