@@ -841,39 +841,25 @@ textarea.finput{min-height:80px;resize:vertical}
 
           <label class="flabel">연락처 <span class="req">*</span></label>
 
-          <input type="tel" id="cPhone" placeholder="010-0000-0000"/>
+          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)" maxlength="13"/>
 
         </div>
 
       </div>
 
+
       <div class="frow c2">
-
         <div class="fg">
-
-          <label class="flabel">상담 일자</label>
-
+          <label class="flabel">방문 일정</label>
           <input type="date" id="cDate"/>
-
         </div>
-
         <div class="fg">
-
-          <label class="flabel">상담 방법</label>
-
-          <div class="chips" id="g-consultType">
-
-            <div class="chip" onclick="pick(this,'g-consultType',1)">🚪 방문</div>
-
-            <div class="chip" onclick="pick(this,'g-consultType',1)">📞 전화</div>
-
-            <div class="chip" onclick="pick(this,'g-consultType',1)">💬 카카오</div>
-
-            <div class="chip" onclick="pick(this,'g-consultType',1)">🌐 온라인</div>
-
+          <label class="flabel">&nbsp;</label>
+          <div id="visitToggle" onclick="toggleVisit(this)" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:10px;border:2px solid #ddd;background:#fff;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s;margin-top:2px;">
+            🏢 현장방문
           </div>
-
         </div>
+      </div>
 
       </div>
 
@@ -2048,7 +2034,7 @@ const TOTAL = 3;
 
     now.getFullYear()+'.'+(now.getMonth()+1).toString().padStart(2,'0')+'.'+now.getDate().toString().padStart(2,'0');
 
-  document.getElementById('cDate').value = now.toISOString().split('T')[0];
+  // 방문 일정은 고객이 직접 선택 (자동 설정 제거)
 
   // Check URL hash for shared data
 
@@ -2371,7 +2357,7 @@ function generateResult(){
 
   document.getElementById('rPropType').textContent = prop !== '—' ? prop : '매물유형 미선택';
 
-  document.getElementById('rDate').textContent = gv('cDate') || '—';
+  document.getElementById('rDate').textContent = document.getElementById('visitToggle') && document.getElementById('visitToggle').classList.contains('active') ? '현장방문' : (gv('cDate') || '—');
 
 
 
@@ -2421,9 +2407,9 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">연락처</div><div class="sc-val">${gv('cPhone')||'—'}</div></div>
 
-        <div class="sc-row"><div class="sc-key">상담일자</div><div class="sc-val">${gv('cDate')||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">방문일정</div><div class="sc-val">${gv('cDate')||'—'}</div></div>
 
-        <div class="sc-row"><div class="sc-key">상담방법</div><div class="sc-val">${gc('g-consultType')}</div></div>
+        
 
       </div>
 
@@ -2606,7 +2592,7 @@ function collectData(){
 
   return {
 
-    cName:gv('cName'),cPhone:gv('cPhone'),cDate:gv('cDate'),
+    cName:gv('cName'),cPhone:gv('cPhone'),cDate:document.getElementById('visitToggle')&&document.getElementById('visitToggle').classList.contains('active')?'현장방문':gv('cDate'),
 
     reg1:gv('reg1'),reg2:gv('reg2'),reg3:gv('reg3'),
 
@@ -2844,9 +2830,9 @@ function buildShareText(withLink){
 
   t += `📋 WISHES 부동산 고객 상담 결과서\n${divider}\n`;
 
-  t += `📅 상담일: ${d.cDate||'—'}  `;
+  t += `📅 방문일정: ${document.getElementById('visitToggle')&&document.getElementById('visitToggle').classList.contains('active')?'현장방문':(d.cDate||'—')}  `;
 
-  t += `상담방법: ${gc('g-consultType')}\n`;
+  // 상담방법 제거됨
 
   t += `\n👤 고객 정보\n`;
 
@@ -3247,6 +3233,40 @@ function resetAll(){
 <script>
 // Initialize first page
   goPage(1);
+
+
+    // === 연락처 자동 포맷팅 ===
+    function formatPhone(el){
+      let v = el.value.replace(/[^0-9]/g, '');
+      if(v.length > 11) v = v.slice(0, 11);
+      if(v.length <= 3){
+        el.value = v;
+      } else if(v.length <= 7){
+        el.value = v.slice(0,3) + '-' + v.slice(3);
+      } else {
+        el.value = v.slice(0,3) + '-' + v.slice(3,7) + '-' + v.slice(7);
+      }
+    }
+
+    // === 현장방문 토글 ===
+    function toggleVisit(el){
+      const dateInput = document.getElementById('cDate');
+      const isActive = el.classList.toggle('active');
+      if(isActive){
+        el.style.background = '#0B1F4B';
+        el.style.color = '#fff';
+        el.style.borderColor = '#0B1F4B';
+        dateInput.value = '';
+        dateInput.disabled = true;
+        dateInput.style.opacity = '0.4';
+      } else {
+        el.style.background = '#fff';
+        el.style.color = '#333';
+        el.style.borderColor = '#ddd';
+        dateInput.disabled = false;
+        dateInput.style.opacity = '1';
+      }
+    }
 
 function sendToNaverWorks(){
   var text = buildShareText();
