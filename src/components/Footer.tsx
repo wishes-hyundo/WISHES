@@ -99,7 +99,8 @@ export function Footer() {
               <li className="flex items-start gap-3 group cursor-pointer">
                 <Phone className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                 <div className="leading-relaxed">
-                  </a>
+                  <p className="text-white/60 text-xs">전화</p>
+                  <p className="text-white">전화 문의</p>
                 </div>
               </li>
               <li className="flex items-start gap-3 group cursor-pointer">
