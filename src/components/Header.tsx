@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, X, MapPin } from 'lucide-react';
+import { Menu, X, MapPin, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AuthModal } from '@/components/AuthModal';
 
 const navItems = [
   { label: '홈', href: '/' },
@@ -16,6 +17,7 @@ const navItems = [
 
 export function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [authOpen, setAuthOpen] = useState(false);
   const pathname = usePathname();
 
   const isActive = (href: string) => {
@@ -48,6 +50,15 @@ export function Header() {
               </Link>
             ))}
           </nav>
+          {/* 로그인 버튼 */}
+          <button
+            onClick={() => setAuthOpen(true)}
+            className="hidden md:flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-wishes-secondary hover:bg-blue-50 rounded-xl transition-colors"
+          >
+            <User className="w-4 h-4" />
+            로그인
+          </button>
+
           <button className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setIsOpen(!isOpen)} aria-label="메뉴 열기">
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -62,6 +73,7 @@ export function Header() {
           </nav>
         </div>
       </div>
+      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
     </header>
   );
 }
