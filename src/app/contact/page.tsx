@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Phone, Mail, MapPin, Send, CheckCircle, MessageCircle } from 'lucide-react';
+import { Mail, MapPin, Send, CheckCircle, MessageCircle } from 'lucide-react';
 
 function ContactFormContent() {
   const searchParams = useSearchParams();
@@ -78,16 +78,7 @@ function ContactFormContent() {
       {/* Contact Methods */}
       <section className="py-16 sm:py-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Phone */}
-            <a href="tel:15339580" className="block bg-white rounded-2xl p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-md transition-shadow text-center">
-              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Phone className="w-8 h-8 text-blue-600" />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">전화 상담</h3>
-              <p className="text-2xl font-bold text-blue-600 mb-2">전화 문의</p>
-              <p className="text-xs text-gray-500">평일 09:00~19:00 / 토 10:00~17:00</p>
-            </a>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
 
             {/* KakaoTalk */}
             <a href="https://pf.kakao.com/_DxdSJs" target="_blank" rel="noopener noreferrer" className="block bg-white rounded-2xl p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-md transition-shadow text-center">
@@ -96,7 +87,7 @@ function ContactFormContent() {
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">카카오톡 채널</h3>
               <p className="text-sm text-gray-600 mb-2">실시간 채팅 상담</p>
-              <p className="text-xs text-gray-500">24시간 문의 가능 (답변은 영업시간)</p>
+              
             </a>
 
             {/* Email */}
@@ -106,7 +97,7 @@ function ContactFormContent() {
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">이메일</h3>
               <p className="text-sm text-blue-600 font-medium mb-2">wishes@wishes.co.kr</p>
-              <p className="text-xs text-gray-500">영업일 기준 24시간 이내 회신</p>
+              
             </a>
           </div>
         </div>
@@ -123,7 +114,7 @@ function ContactFormContent() {
               <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
                 <h3 className="font-bold text-green-900 mb-1">상담 신청 완료</h3>
-                <p className="text-sm text-green-800">빠른 시인 내에 연락드리겠습니다.<br/>급한신 경우 전화로 문의해 주세요.</p>
+                <p className="text-sm text-green-800">빠른 시인 내에 연락드리겠습니다.</p>
               </div>
             </div>
           )}
@@ -226,20 +217,6 @@ function ContactFormContent() {
             <div className="bg-gray-50 rounded-2xl p-6 sm:p-8">
               <h3 className="font-bold text-gray-900 mb-4">연락처</h3>
               <div className="space-y-3 text-sm">
-                <div className="flex items-start gap-3">
-                  <Phone className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-gray-600">전화 상담</p>
-                    <p className="font-bold text-gray-900">전화 문의</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <div>
-                    <p className="text-gray-600">이메일</p>
-                    <p className="font-bold text-gray-900">wishes@wishes.co.kr</p>
-                  </div>
-                </div>
               </div>
             </div>
 
