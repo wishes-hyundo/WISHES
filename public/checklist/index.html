@@ -734,6 +734,19 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
 
 }
 
+
+.chip{min-width:90px;min-height:44px;padding:10px 16px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+.type-card{min-height:90px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.page{transition:opacity .3s ease,transform .3s ease}
+.page:not(.active){opacity:0;transform:translateX(20px);pointer-events:none;position:absolute}
+.page.active{opacity:1;transform:translateX(0);position:relative}
+.step-btn{min-width:100px;padding:10px 16px;font-size:14px;transition:all .3s ease}
+.card{margin-bottom:20px}
+textarea.finput{min-height:80px;resize:vertical}
+#bottomNav,#resultNav{gap:12px;padding:12px 16px}
+.send-btn{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);color:#fff;border:none;border-radius:12px;padding:16px 32px;font-size:16px;font-weight:700;cursor:pointer;width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s,box-shadow .2s}
+.send-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(37,99,235,.4)}
+.send-btn:active{transform:translateY(0)}
 </style>
 
 </head>
@@ -781,9 +794,9 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
 <!-- ══ STEP NAV ══ -->
 
 <div class="step-nav" id="stepNav">
-      <button class="step-btn active" data-step="1" onclick="goPage(1)"><span class="step-badge">1</span>필수상담</button>
-      <button class="step-btn" data-step="2" onclick="goPage(2)"><span class="step-badge">2</span>매물상세</button>
-      <button class="step-btn" data-step="3" onclick="goPage(3)"><span class="step-badge">3</span>정밀상담</button>
+      <button class="step-btn active" data-step="1" onclick="goPage(1)"><span class="step-badge">1</span>기본상담</button>
+      <button class="step-btn" data-step="2" onclick="goPage(2)"><span class="step-badge">2</span>매물조건</button>
+      <button class="step-btn" data-step="3" onclick="goPage(3)"><span class="step-badge">3</span>추가상담</button>
     </div>
 
 
@@ -1134,8 +1147,7 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
     </div>
   </div>
 
-  <div class="page" id="page-2">
-<div class="card">
+  <div class="card">
 
     <div class="card-head">
 
@@ -1210,6 +1222,9 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
     </div>
 
   </div>
+<div class="page" id="page-2">
+<div style="background:linear-gradient(135deg,#e8f0fe,#d4e4fc);border-radius:12px;padding:14px 20px;margin:0 0 20px;font-size:13px;color:#1a3a6b;display:flex;align-items:center;gap:10px"><span style="font-size:20px">🏠</span><span>고객님의 매물 조건을 구체적으로 입력해주세요</span></div>
+
 
 <div class="card">
 
@@ -1568,8 +1583,7 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
     </div>
   </div>
 
-  <div class="page" id="page-3">
-<div class="card">
+  <div class="card">
 
     <div class="card-head">
 
@@ -1636,6 +1650,9 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
     </div>
 
   </div>
+<div class="page" id="page-3">
+<div style="background:linear-gradient(135deg,#f0f4e8,#e4ecd4);border-radius:12px;padding:14px 20px;margin:0 0 20px;font-size:13px;color:#3a5a1a;display:flex;align-items:center;gap:10px"><span style="font-size:20px">💬</span><span>더 정확한 매물 추천을 위해 추가 정보를 입력해주세요 <em style="opacity:0.7">(선택사항)</em></span></div>
+
 
 
 
@@ -1845,9 +1862,9 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
 
             <div class="chip" onclick="pick(this,'g-spec',0)">🐾 반려동물</div>
 
-            <div class="chip" onclick="pick(this,'g-spec',0)">👶 영유아</div>
+            <div class="chip" onclick="pick(this,'g-spec',0)">🔌 전기차 충전</div>
 
-            <div class="chip" onclick="pick(this,'g-spec',0)">🧓 노약자</div>
+            <div class="chip" onclick="pick(this,'g-spec',0)">🅿️ 전기차 주차</div>
 
             <div class="chip" onclick="pick(this,'g-spec',0)">🏠 재택근무</div>
 
@@ -2009,6 +2026,11 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
     </div>
 
   </div>
+<div style="padding:0 20px 20px">
+  <button class="send-btn" onclick="sendToNaverWorks()">
+    <span>📤</span> 중개사에게 전송 (네이버웍스)
+  </button>
+</div>
 
 
 
@@ -2149,6 +2171,7 @@ function goPage(n){
   document.getElementById('resultNav').style.display='none';
 
   updateTopBar(n);
+  updateBottomNavText(n);
 
   updateStepNav(n);
 
@@ -2186,7 +2209,7 @@ function updateTopBar(n){
 
   }
 
-  const labels=['필수상담','매물상세','정밀상담'];
+  const labels=['기본상담','매물조건','추가상담'];
 
   document.getElementById('topStep').textContent='STEP '+n+' / '+TOTAL+' — '+labels[n-1];
 
@@ -3286,6 +3309,35 @@ function resetAll(){
 <script src="naver_works_integration.js?v=20260324c">
   // Initialize first page
   goPage(1);
+
+function sendToNaverWorks(){
+  var text = buildShareText();
+  if(!text){ alert('상담 내용을 먼저 입력해주세요.'); return; }
+  if(typeof postToNaverWorks === 'function'){
+    var btn = event.target.closest('.send-btn');
+    var origText = btn.innerHTML;
+    btn.innerHTML = '<span>⏳</span> 전송 중...';
+    btn.disabled = true;
+    postToNaverWorks(text).then(function(){
+      btn.innerHTML = '<span>✅</span> 전송 완료!';
+      setTimeout(function(){ btn.innerHTML = origText; btn.disabled = false; }, 2000);
+    }).catch(function(err){
+      btn.innerHTML = '<span>❌</span> 전송 실패';
+      alert('전송에 실패했습니다: ' + err.message);
+      setTimeout(function(){ btn.innerHTML = origText; btn.disabled = false; }, 2000);
+    });
+  } else {
+    alert('네이버웍스 연동이 설정되지 않았습니다.');
+  }
+}
+
+function updateBottomNavText(n){
+  var nextBtn = document.querySelector('#bottomNav .nav-next');
+  if(!nextBtn) return;
+  if(n === 1) nextBtn.innerHTML = '매물 조건 입력 →';
+  else if(n === 2) nextBtn.innerHTML = '추가 상담 (선택) →';
+  else if(n === 3) nextBtn.innerHTML = '상담 완료';
+}
 </script>
 
 </body>
