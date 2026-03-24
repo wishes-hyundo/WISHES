@@ -20,30 +20,6 @@ export default function AboutPage() {
       </section>
 
       <div className="max-w-5xl mx-auto px-4 py-12 space-y-12">
-        {/* 회사 정보 */}
-        <section className="bg-white rounded-xl border border-gray-200 p-8">
-          <h2 className="text-xl font-bold text-wishes-primary mb-6 flex items-center gap-2">
-            <Building2 className="w-6 h-6" />
-            회사 정보
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            {[
-              { label: '상호', value: '주식회사 위시스부동산중개법인' },
-              { label: '대표이사', value: '전유진' },
-              { label: '사업자등록번호', value: '445-86-01981' },
-              { label: '소재지', value: '서울특별시 관악구 신림로64길 23, 8층(신림동)' },
-              { label: '대표전화', value: '1533-9580' },
-              { label: '이메일', value: 'wishes@wishes.co.kr' },
-              { label: '영업시간', value: '평일 09:00 ~ 19:00 (주말 예약상담)' },
-              { label: '취급지역', value: '서울 전 지역 및 경기권' },
-            ].map((item) => (
-              <div key={item.label} className="flex gap-3 py-2 border-b border-gray-100">
-                <span className="text-gray-500 w-28 shrink-0">{item.label}</span>
-                <span className="text-gray-800 font-medium">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </section>
 
         {/* 취급 매물 */}
         <section className="bg-white rounded-xl border border-gray-200 p-8">
@@ -118,9 +94,18 @@ export default function AboutPage() {
                 <span>평일 09:00 ~ 19:00 (주말 예약상담)</span>
               </div>
             </div>
-            {/* 지도 placeholder - 카카오맵 정적 지도 삽입 가능 */}
-            <div className="aspect-[16/10] bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
-              <MapPin className="w-8 h-8" />
+            {/* 카카오맵 */}
+            <div className="aspect-[16/10] rounded-lg overflow-hidden">
+              <iframe
+                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3165.8!2d126.9269!3d37.4847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x357c9e!2z7ISc7Jq47Yq567OE7IucIOq0gOyVheq1rCDsi6DrprzroZw2NOq4uCAyMyw4Uikg7JyE7Iuc7Iqk67aA64-Z7IKw!5e0!3m2!1sko!2skr"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+                title="위시스부동산 위치"
+              />
             </div>
           </div>
         </section>
