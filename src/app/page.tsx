@@ -9,7 +9,7 @@ import { ListingCard } from '@/components/ListingCard';
 const latestListings = [
   {
     id: 1,
-    title: '신림역 근처 깔끔한 원룸',
+    title: '신림역 근첨 깔끔한 원룸',
     address: '서울특별시 관악구 신림동',
     dong: '신림동',
     type: '원룸',
@@ -222,7 +222,7 @@ export default function HomePage() {
           {/* 메인 타이틀 */}
           <div className="space-y-6">
             <div className="inline-block px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">위시스부동산 | 관악구 전문</p>
+              <p className="text-sm font-medium text-white/80">위시스부동산 | 종합부동산 서비스</p>
             </div>
 
             <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
@@ -230,7 +230,7 @@ export default function HomePage() {
             </h1>
 
             <p className="text-xl md:text-2xl text-white/70 max-w-3xl mx-auto leading-relaxed font-light">
-              신림동·봉천동 부동산 전문가가<br />
+              서울·경기 부동산 전문가가<br />
               <span className="text-white">최고의 매물을 찾아드립니다</span>
             </p>
           </div>
@@ -287,7 +287,7 @@ export default function HomePage() {
               <h2 className="text-3xl md:text-4xl font-bold text-wishes-primary">
                 최신 매물
               </h2>
-              <p className="text-wishes-muted mt-2">신림동·봉천동 최신 등록 매물</p>
+              <p className="text-wishes-muted mt-2">최신 등록 매물을 확인하세요</p>
             </div>
             <Link
               href="/listings"
@@ -335,7 +335,7 @@ export default function HomePage() {
             <ServiceFeature
               icon={Users}
               title="지역 전문가"
-              desc="신림·봉천 지역에 대한 15년의 깊은 이해로 최적의 매물을 추천합니다."
+              desc="서울·경기 전 지역에 대한 15년의 깊은 이해로 최적의 매물을 추처합니다."
             />
             <ServiceFeature
               icon={Shield}
@@ -355,7 +355,7 @@ export default function HomePage() {
             <ServiceFeature
               icon={CheckCircle}
               title="투명한 정보"
-              desc="숨겨진 정보 없이 매물에 대한 모든 정보를 명확하게 공개합니다."
+              desc="숨겠진 정보 없이 매물에 대한 모든 정보를 명확하게 공개합니다."
             />
           </div>
         </div>
@@ -375,17 +375,17 @@ export default function HomePage() {
             <Testimonial
               name="김민준"
               role="신림동 거주 | 전세 계약"
-              text="처음 부동산 계약이라 걱정 많았는데, 전문가답게 하나하나 설명해주셔서 안심할 수 있었습니다."
+              text="처음 부동산 계약이라 걱정 많았는데, 전문가답게 하나하나 설명해주셜서 안심할 수 있었습니다."
             />
             <Testimonial
               name="이지은"
-              role="봉천동 거주 | 월세 계약"
+              role="봉천동 거주 | 원세 계약"
               text="지도로 위치를 확인하고 빠르게 계약할 수 있었어요. 정말 편리합니다!"
             />
             <Testimonial
               name="박준호"
-              role="신림역 근처 | 투자 매매"
-              text="시장 정보가 정확하고 전문적인 조언이 정말 도움이 많이 됐습니다. 감사합니다!"
+              role="신림역 근처 | 투자 맠매"
+              text="시장 정보가 정확하고 전문적인 조언이 정말 도움이 많이 되습니다. 감사합니다!"
             />
           </div>
         </div>
@@ -403,7 +403,7 @@ export default function HomePage() {
           </h2>
 
           <p className="text-xl text-white/80 max-w-2xl mx-auto">
-            전문 상담사가 고객님의 조건에 맞춰 최적의 매물을 직접 찾아드립니다
+            전문 상담사가 고객님의 조건에 맞춰 최적의 매물을 직접 찾앀드립니다
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
