@@ -80,12 +80,12 @@ function ContactFormContent() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Phone */}
-            <a href="tel:1533-9580" className="block bg-white rounded-2xl p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-md transition-shadow text-center">
+            <a href="tel:15339580" className="block bg-white rounded-2xl p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-md transition-shadow text-center">
               <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <Phone className="w-8 h-8 text-blue-600" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-2">전화 상담</h3>
-              <p className="text-2xl font-bold text-blue-600 mb-2">1533-9580</p>
+              <p className="text-2xl font-bold text-blue-600 mb-2">전화 문의</p>
               <p className="text-xs text-gray-500">평일 09:00~19:00 / 토 10:00~17:00</p>
             </a>
 
@@ -230,7 +230,7 @@ function ContactFormContent() {
                   <Phone className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
                   <div>
                     <p className="text-gray-600">전화 상담</p>
-                    <p className="font-bold text-gray-900">1533-9580</p>
+                    <p className="font-bold text-gray-900">전화 문의</p>
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
