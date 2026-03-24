@@ -9,7 +9,7 @@ import type { Metadata } from 'next';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: '욤물검색',
+  title: '매물검색',
   description: '서울 관악구 신림동·봉천동 원룸, 투룼, 오피스텔 매물을 검색하세요.',
 };
 
