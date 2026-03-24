@@ -164,7 +164,7 @@ export default async function ListingDetailPage({ params }: Props) {
                 className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors"
               >
                 <Phone className="w-5 h-5" />
-                전화 상담 1533-9580
+                전화 상담
               </a>
 
               <a
