@@ -110,22 +110,33 @@ export function Footer() {
         {/* 구분선 */}
         <div className="border-t border-white/10 py-8">
           {/* 회사 정보 */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12 mb-8">
-            <div className="text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 text-center">
+            <div>
               <p className="text-xs text-white/60 mb-1">회사명</p>
               <p className="text-sm text-white font-medium">WISHES Corp.</p>
             </div>
-            <div className="hidden sm:block w-px h-8 bg-white/20"></div>
-            <div className="text-center">
+            <div>
+              <p className="text-xs text-white/60 mb-1">대표자</p>
+              <p className="text-sm text-white font-medium">김현도</p>
+            </div>
+            <div>
               <p className="text-xs text-white/60 mb-1">사업자등록번호</p>
               <p className="text-sm text-white font-medium">445-86-01981</p>
+            </div>
+            <div>
+              <p className="text-xs text-white/60 mb-1">중개사무소등록번호</p>
+              <p className="text-sm text-white font-medium">제11680-2024-00123호</p>
             </div>
           </div>
 
           {/* 저작권 */}
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <a href="/privacy" className="text-xs text-white/60 hover:text-wishes-accent transition-colors">개인정보처리방침</a>
+            <span className="text-white/30">|</span>
+            <a href="/terms" className="text-xs text-white/60 hover:text-wishes-accent transition-colors">이용약관</a>
+          </div>
           <div className="text-center text-xs text-white/50">
             <p>&copy; {currentYear} WISHES Corp. All rights reserved.</p>
-            <p className="mt-2">서울특별시 중개사협회 | 공인중개사 신고번호</p>
           </div>
         </div>
       </div>
