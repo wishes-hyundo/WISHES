@@ -310,9 +310,9 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
 
 }
 
-.deal-chip .dc-icon{font-size:2rem;margin-bottom:8px}
+.deal-chip .dc-icon{font-size:1.4rem;margin-bottom:4px}
 
-.deal-chip .dc-label{font-size:1rem;font-weight:700;color:var(--gray700)}
+.deal-chip .dc-label{font-size:0.9rem;font-weight:700;color:var(--gray700)}
 
 .deal-chip.on{border-color:var(--navy);background:linear-gradient(135deg,#EFF4FF,#F8FAFF)}
 
@@ -322,6 +322,17 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
 
 /* ── RANGE ── */
 
+      .budget-field{margin-bottom:8px}
+      .budget-label{font-size:.9rem;font-weight:600;color:var(--gray700);margin-bottom:6px}
+      .budget-control{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+      .budget-btn{width:40px;height:40px;border-radius:50%;border:2px solid var(--gray200);background:#fff;font-size:1.2rem;font-weight:700;color:var(--primary);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+      .budget-btn:active{background:var(--primary);color:#fff}
+      .budget-input{flex:1;text-align:center;font-size:1.1rem;font-weight:700;border:2px solid var(--gray200);border-radius:var(--r-md);padding:8px;color:var(--gray800);outline:none}
+      .budget-input:focus{border-color:var(--primary)}
+      .budget-unit{font-size:.85rem;color:var(--gray500);flex-shrink:0}
+      .budget-slider{width:100%;height:6px;-webkit-appearance:none;appearance:none;border-radius:3px;background:var(--gray200);outline:none;margin-bottom:4px}
+      .budget-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:var(--primary);cursor:pointer;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+      .budget-hint{font-size:.75rem;color:var(--gray400);text-align:center}
 .range-row{display:flex;align-items:center;gap:8px}
 
 .range-row input{flex:1;min-width:0}
@@ -761,213 +772,30 @@ textarea.finput{min-height:80px;resize:vertical}
 
   <div class="logo">
 
-    <div class="logo-mark">W</div>
-
-    <div class="logo-text">
-
-      <div class="logo-name">WISHES</div>
-
-      <div class="logo-sub">REAL ESTATE</div>
-
-    </div>
-
-  </div>
-
-  <div class="topbar-right">
-
-    <div class="topbar-date" id="topDate"></div>
-
-    <div class="topbar-step" id="topStep">STEP 1 / 3</div>
-
-  </div>
-
-</div>
-
-<div class="progress-track">
-
-  <div class="progress-fill" id="pBar" style="width:20%"></div>
-
-</div>
-
-
-
-<!-- ══ STEP NAV ══ -->
-
-<div class="step-nav" id="stepNav">
-      <button class="step-btn active" data-step="1" onclick="goPage(1)"><span class="step-badge">1</span>기본상담</button>
-      <button class="step-btn" data-step="2" onclick="goPage(2)"><span class="step-badge">2</span>매물조건</button>
-      <button class="step-btn" data-step="3" onclick="goPage(3)"><span class="step-badge">3</span>추가상담</button>
-    </div>
-
-
-
-<!-- ══ LAYOUT ══ -->
-
-<div class="layout">
-
-
-
-<!-- ────────────────────
-
-     STEP 1 : 기본정보
-
-──────────────────── -->
-
-
-  <div class="page active" id="page-1">
-<div class="card">
-
-    <div class="card-head">
-
-      <div class="card-icon">👤</div>
-
-      <div class="card-title">고객 기본 정보</div>
-
-    </div>
-
-    <div class="card-body">
-
-      <div class="frow c2">
-
-        <div class="fg">
-
-          <label class="flabel">고객명 <span class="req">*</span></label>
-
-          <input type="text" id="cName" placeholder="홍길동"/>
-
-        </div>
-
-        <div class="fg">
-
-          <label class="flabel">연락처 <span class="req">*</span></label>
-
-          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)" maxlength="13"/>
-
-        </div>
-
-      </div>
-
-
-      <div class="frow c2">
-        <div class="fg">
-          <label class="flabel">방문 일정</label>
-          <input type="date" id="cDate"/>
-        </div>
-        <div class="fg">
-          <label class="flabel">&nbsp;</label>
-          <div id="visitToggle" onclick="toggleVisit(this)" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:10px;border:2px solid #ddd;background:#fff;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s;margin-top:2px;">
-            🏢 현장방문
+    <div class="logo-mark">W</div><div id="bBuy" style="display:none">
+        <div class="budget-field">
+          <div class="budget-label">매매 최소 금액</div>
+          <div class="budget-control">
+            <button type="button" class="budget-btn" onclick="adjBudget('buyMin',-1000)">−</button>
+            <input type="text" class="budget-input" id="buyMin" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <span class="budget-unit">만원</span>
+            <button type="button" class="budget-btn" onclick="adjBudget('buyMin',1000)">+</button>
           </div>
+          <input type="range" id="buyMinSlider" class="budget-slider" min="0" max="200000" step="1000" value="0" oninput="syncBudget(this,'buyMin')"/>
+          <div class="budget-hint">0 ~ 200,000 만원</div>
         </div>
-      </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-
-
-  <div class="card">
-
-    <div class="card-head">
-
-      <div class="card-icon">🏷️</div>
-
-      <div class="card-title">거래 유형 <span class="req">*</span></div>
-
-    </div>
-
-    <div class="card-body">
-
-      <div class="deal-chips" id="g-dealType">
-
-        <div class="deal-chip" onclick="pickDeal(this,'전세')">
-
-          <div class="dc-icon">🔑</div>
-
-          <div class="dc-label">전세</div>
-
+        <div class="budget-field" style="margin-top:12px">
+          <div class="budget-label">매매 최대 금액</div>
+          <div class="budget-control">
+            <button type="button" class="budget-btn" onclick="adjBudget('buyMax',-1000)">−</button>
+            <input type="text" class="budget-input" id="buyMax" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <span class="budget-unit">만원</span>
+            <button type="button" class="budget-btn" onclick="adjBudget('buyMax',1000)">+</button>
+          </div>
+          <input type="range" id="buyMaxSlider" class="budget-slider" min="0" max="200000" step="1000" value="0" oninput="syncBudget(this,'buyMax')"/>
+          <div class="budget-hint">0 ~ 200,000 만원</div>
         </div>
-
-        <div class="deal-chip" onclick="pickDeal(this,'월세')">
-
-          <div class="dc-icon">💸</div>
-
-          <div class="dc-label">월세</div>
-
-        </div>
-
-        <div class="deal-chip" onclick="pickDeal(this,'매매')">
-
-          <div class="dc-icon">🏷️</div>
-
-          <div class="dc-label">매매</div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-
-
-  <div class="card">
-
-    <div class="card-head">
-
-      <div class="card-icon">🏗️</div>
-
-      <div class="card-title">매물 유형 <span class="req">*</span></div>
-
-    </div>
-
-    <div class="card-body">
-
-      <div class="chips" id="g-propType">
-
-        <div class="chip" onclick="pick(this,'g-propType',0)">🏢 아파트</div>
-
-        <div class="chip" onclick="pick(this,'g-propType',0)">🏘️ 빌라·다세대</div>
-
-        <div class="chip" onclick="pick(this,'g-propType',0)">🏨 오피스텔</div>
-
-        <div class="chip" onclick="pick(this,'g-propType',0)">🏡 단독주택</div>
-
-        <div class="chip" onclick="pick(this,'g-propType',0)">🏪 상가</div>
-
-        <div class="chip" onclick="pick(this,'g-propType',0)">🖥️ 사무실</div>
-
-        <div class="chip" onclick="pick(this,'g-propType',0)">📦 창고·공장</div>
-
-        <div class="chip" onclick="pick(this,'g-propType',0)">🌳 토지</div>
-
-        <div class="chip" onclick="pick(this,'g-propType',0)">📋 기타</div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-<div class="card">
-
-    <div class="card-head">
-
-      <div class="card-icon">💰</div>
-
-      <div class="card-title">예산 범위</div>
-
-    </div>
-
-    <div class="card-body">
-
-      <!-- 매매 -->
-
-      <div id="bBuy" style="display:none">
+      </div><div id="bBuy" style="display:none">
 
         <div class="fg" style="margin-bottom:12px">
 
@@ -1010,83 +838,63 @@ textarea.finput{min-height:80px;resize:vertical}
       <!-- 전세 -->
 
       <div id="bJeon" style="display:none">
-
-        <div class="fg" style="margin-bottom:12px">
-
-          <label class="flabel">전세 보증금</label>
-
-          <div class="range-row">
-
-            <input type="number" id="jMin" placeholder="최소" min="0" step="500"/>
-
-            <span class="range-sep">~</span>
-
-            <input type="number" id="jMax" placeholder="최대" min="0" step="500"/>
-
-            <div class="unit">만원</div>
-
+        <div class="budget-field">
+          <div class="budget-label">전세 최소 금액</div>
+          <div class="budget-control">
+            <button type="button" class="budget-btn" onclick="adjBudget('jMin',-500)">−</button>
+            <input type="text" class="budget-input" id="jMin" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <span class="budget-unit">만원</span>
+            <button type="button" class="budget-btn" onclick="adjBudget('jMin',500)">+</button>
           </div>
-
-          <div class="hint">예: 15,000 ~ 25,000 만원 (1.5억~2.5억)</div>
-
+          <input type="range" id="jMinSlider" class="budget-slider" min="0" max="100000" step="500" value="0" oninput="syncBudget(this,'jMin')"/>
+          <div class="budget-hint">0 ~ 100,000 만원</div>
         </div>
-
-        <div class="fg">
-
-          <label class="flabel">전세자금대출 이용</label>
-
-          <div class="chips" id="g-jloan">
-
-            <div class="chip on-green" onclick="pick(this,'g-jloan',1)">✅ 이용 예정</div>
-
-            <div class="chip" onclick="pick(this,'g-jloan',1)">❌ 미이용</div>
-
-            <div class="chip" onclick="pick(this,'g-jloan',1)">미정</div>
-
+        <div class="budget-field" style="margin-top:12px">
+          <div class="budget-label">전세 최대 금액</div>
+          <div class="budget-control">
+            <button type="button" class="budget-btn" onclick="adjBudget('jMax',-500)">−</button>
+            <input type="text" class="budget-input" id="jMax" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <span class="budget-unit">만원</span>
+            <button type="button" class="budget-btn" onclick="adjBudget('jMax',500)">+</button>
           </div>
-
+          <input type="range" id="jMaxSlider" class="budget-slider" min="0" max="100000" step="500" value="0" oninput="syncBudget(this,'jMax')"/>
+          <div class="budget-hint">0 ~ 100,000 만원</div>
         </div>
-
+        <div class="budget-field" style="margin-top:12px">
+          <div class="budget-label">전세자금대출 이용</div>
+          <div class="chips" id="g-jeonLoan">
+            <div class="chip" onclick="pick(this,'g-jeonLoan',1)">예</div>
+            <div class="chip" onclick="pick(this,'g-jeonLoan',1)">아니오</div>
+            <div class="chip" onclick="pick(this,'g-jeonLoan',1)">미정</div>
+          </div>
+        </div>
       </div>
 
       <!-- 월세 -->
 
       <div id="bMonth" style="display:none">
-
-        <div class="frow c2">
-
-          <div class="fg">
-
-            <label class="flabel">보증금</label>
-
-            <div class="range-row">
-
-              <input type="number" id="mDep" placeholder="금액" min="0" step="100"/>
-
-              <div class="unit">만원</div>
-
-            </div>
-
+        <div class="budget-field">
+          <div class="budget-label">보증금 (만원)</div>
+          <div class="budget-control">
+            <button type="button" class="budget-btn" onclick="adjBudget('mDep',-100)">−</button>
+            <input type="text" id="mDep" class="budget-input" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <span class="budget-unit">만원</span>
+            <button type="button" class="budget-btn" onclick="adjBudget('mDep',100)">+</button>
           </div>
-
-          <div class="fg">
-
-            <label class="flabel">월세 한도</label>
-
-            <div class="range-row">
-
-              <input type="number" id="mRent" placeholder="금액" min="0" step="5"/>
-
-              <div class="unit">만원/월</div>
-
-            </div>
-
-          </div>
-
+          <input type="range" id="mDepSlider" class="budget-slider" min="0" max="50000" step="100" value="0" oninput="syncBudget(this,'mDep')"/>
+          <div class="budget-hint">0 ~ 50,000 만원</div>
         </div>
-
-        <div class="hint" style="margin-top:4px">예: 보증금 1,000만원 / 월세 70만원</div>
-
+        <div class="budget-field" style="margin-top:12px">
+          <div class="budget-label">월세 한도 (만원/월)</div>
+          <div class="budget-control">
+            <button type="button" class="budget-btn" onclick="adjBudget('mRent',-5)">−</button>
+            <input type="text" id="mRent" class="budget-input" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <span class="budget-unit">만원/월</span>
+            <button type="button" class="budget-btn" onclick="adjBudget('mRent',5)">+</button>
+          </div>
+          <input type="range" id="mRentSlider" class="budget-slider" min="0" max="500" step="5" value="0" oninput="syncBudget(this,'mRent')"/>
+          <div class="budget-hint">0 ~ 500 만원/월</div>
+        </div>
       </div>
 
       <div id="bDefault" class="info-note">
@@ -1100,6 +908,44 @@ textarea.finput{min-height:80px;resize:vertical}
   </div>
 
     <div class="card">
+
+    <div class="card-head">
+
+      <div class="card-icon">🏗️</div>
+
+      <div class="card-title">매물 유형 <span class="req">*</span></div>
+
+    </div>
+
+    <div class="card-body">
+
+      <div class="chips" id="g-propType">
+
+        <div class="chip" onclick="pick(this,'g-propType',0)">🏢 아파트</div>
+
+        <div class="chip" onclick="pick(this,'g-propType',0)">🏘️ 빌라·다세대</div>
+
+        <div class="chip" onclick="pick(this,'g-propType',0)">🏨 오피스텔</div>
+
+        <div class="chip" onclick="pick(this,'g-propType',0)">🏡 단독주택</div>
+
+        <div class="chip" onclick="pick(this,'g-propType',0)">🏪 상가</div>
+
+        <div class="chip" onclick="pick(this,'g-propType',0)">🖥️ 사무실</div>
+
+        <div class="chip" onclick="pick(this,'g-propType',0)">📦 창고·공장</div>
+
+        <div class="chip" onclick="pick(this,'g-propType',0)">🌳 토지</div>
+
+        <div class="chip" onclick="pick(this,'g-propType',0)">📋 기타</div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+<div class="card">
       <div class="card-head">
         <div class="card-icon">📅</div>
         <div class="card-title">입주 및 계약</div>
@@ -1115,8 +961,6 @@ textarea.finput{min-height:80px;resize:vertical}
             <div class="chips" id="g-moveFlex">
               <div class="chip" onclick="pick(this,'g-moveFlex',1)">즉시 입주</div>
               <div class="chip" onclick="pick(this,'g-moveFlex',1)">1개월 이내</div>
-              <div class="chip" onclick="pick(this,'g-moveFlex',1)">3개월 이내</div>
-              <div class="chip" onclick="pick(this,'g-moveFlex',1)">6개월 이내</div>
               <div class="chip" onclick="pick(this,'g-moveFlex',1)">협의 가능</div>
             </div>
           </div>
@@ -2367,19 +2211,19 @@ function generateResult(){
 
   if(deal==='매매'){
 
-    const mn=gv('buyMin'), mx=gv('buyMax');
+    const mn=gvNum('buyMin'), mx=gvNum('buyMax');
 
     if(mn||mx) budget=(mn||'?')+' ~ '+(mx||'?')+' 만원';
 
   }else if(deal==='전세'){
 
-    const mn=gv('jMin'), mx=gv('jMax');
+    const mn=gvNum('jMin'), mx=gvNum('jMax');
 
     if(mn||mx) budget=(mn||'?')+' ~ '+(mx||'?')+' 만원';
 
   }else if(deal==='월세'){
 
-    const dep=gv('mDep'), rent=gv('mRent');
+    const dep=gvNum('mDep'), rent=gvNum('mRent');
 
     if(dep||rent) budget='보증금 '+(dep||'?')+'만원 / 월세 '+(rent||'?')+'만원';
 
@@ -2596,11 +2440,11 @@ function collectData(){
 
     reg1:gv('reg1'),reg2:gv('reg2'),reg3:gv('reg3'),
 
-    buyMin:gv('buyMin'),buyMax:gv('buyMax'),
+    buyMin:gvNum('buyMin'),buyMax:gvNum('buyMax'),
 
-    jMin:gv('jMin'),jMax:gv('jMax'),
+    jMin:gvNum('jMin'),jMax:gvNum('jMax'),
 
-    mDep:gv('mDep'),mRent:gv('mRent'),
+    mDep:gvNum('mDep'),mRent:gvNum('mRent'),
 
     sMin:gv('sMin'),sMax:gv('sMax'),sizeLabel:S.sizeLabel,
 
@@ -3236,6 +3080,37 @@ function resetAll(){
 
 
     // === 연락처 자동 포맷팅 ===
+    // === 예산 슬라이더/입력 제어 ===
+    function adjBudget(id, delta) {
+      var el = document.getElementById(id);
+      var val = parseInt(el.value.replace(/,/g, '')) || 0;
+      val = Math.max(0, val + delta);
+      el.value = val.toLocaleString();
+      var slider = document.getElementById(id + 'Slider');
+      if(slider) slider.value = val;
+    }
+
+    function fmtBudget(el) {
+      var raw = el.value.replace(/[^0-9]/g, '');
+      if(raw === '') { el.value = ''; return; }
+      var num = parseInt(raw);
+      el.value = num.toLocaleString();
+      var slider = document.getElementById(el.id + 'Slider');
+      if(slider) slider.value = num;
+    }
+
+    function syncBudget(slider, id) {
+      var el = document.getElementById(id);
+      el.value = parseInt(slider.value).toLocaleString();
+    }
+
+    // === 숫자 값 가져오기 (콤마 제거) ===
+    function gvNum(id) {
+      var el = document.getElementById(id);
+      if(!el) return '';
+      return el.value.replace(/,/g, '');
+    }
+
     function formatPhone(el){
       let v = el.value.replace(/[^0-9]/g, '');
       if(v.length > 11) v = v.slice(0, 11);
