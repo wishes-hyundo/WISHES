@@ -95,7 +95,7 @@ export default function AboutPage() {
             {/* 카카오맵 */}
             <div className="aspect-[16/10] rounded-lg overflow-hidden">
               <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3165.8!2d126.9269!3d37.4847!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x357c9e!2z7ISc7Jq47Yq567OE7IucIOq0gOyVheq1rCDsi6DrprzroZw2NOq4uCAyMyw4Uikg7JyE7Iuc7Iqk67aA64-Z7IKw!5e0!3m2!1sko!2skr"
+                src="https://maps.google.com/maps?q=%EC%84%9C%EC%9A%B8%ED%8A%B9%EB%B3%84%EC%8B%9C+%EA%B4%80%EC%95%85%EA%B5%AC+%EC%8B%A0%EB%A6%BC%EB%A1%9C64%EA%B8%B8+23&t=&z=17&ie=UTF8&iwloc=B&output=embed"
                 width="100%"
                 height="100%"
                 style={{ border: 0 }}
