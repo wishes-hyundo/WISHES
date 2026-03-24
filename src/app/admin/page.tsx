@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Stats {
@@ -16,12 +16,33 @@ interface Listing {
   title: string;
   type: string;
   deal: string;
-  address: string;
-  status: '가용' | '계약중' | '계약완료';
   deposit: number;
-  monthly?: number;
-  price?: number;
-  createdAt: string;
+  monthly?: number | null;
+  price?: number | null;
+  maintenance_fee?: number;
+  area_m2: number;
+  area_supply_m2?: number | null;
+  floor_current: string;
+  floor_total?: string | null;
+  rooms?: number | null;
+  bathrooms?: number | null;
+  direction?: string | null;
+  heating_type?: string | null;
+  address: string;
+  address_detail?: string | null;
+  dong: string;
+  description?: string | null;
+  available_date?: string | null;
+  built_year?: string | null;
+  parking?: boolean;
+  elevator?: boolean;
+  pet?: boolean;
+  balcony?: boolean;
+  full_option?: boolean;
+  loan_available?: boolean;
+  status: '가용' | '계약중' | '계약완료';
+  created_at: string;
+  updated_at?: string;
 }
 
 interface Contact {
@@ -32,8 +53,40 @@ interface Contact {
   message?: string;
   listingTitle?: string;
   status: '접수' | '처리중' | '완료';
-  createdAt: string;
+  createdAt?: string;
+  created_at?: string;
 }
+
+const INITIAL_LISTING = {
+  title: '',
+  type: '원룸' as const,
+  deal: '월세' as const,
+  deposit: 0,
+  monthly: 0,
+  price: undefined as number | undefined,
+  maintenance_fee: 0,
+  area_m2: 0,
+  area_supply_m2: undefined as number | undefined,
+  floor_current: '',
+  floor_total: '',
+  rooms: 1,
+  bathrooms: 1,
+  direction: '',
+  heating_type: '개별난방',
+  address: '',
+  address_detail: '',
+  dong: '',
+  description: '',
+  available_date: '',
+  built_year: '',
+  parking: false,
+  elevator: false,
+  pet: false,
+  balcony: false,
+  full_option: false,
+  loan_available: true,
+  status: '가용' as const,
+};
 
 export default function AdminPage() {
   const router = useRouter();
@@ -52,35 +105,16 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
 
   // 폼 상태
-  const [editingId, setEditingId] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newListing, setNewListing] = useState<{
-    title: string;
-    type: '원룸' | '투룸' | '쓰리룸+' | '오피스텔' | '아파트' | '빌라' | '상가' | '사무실';
-    deal: '전세' | '월세' | '매매';
-    deposit: number;
-    monthly: number | undefined;
-    price: number | undefined;
-    area: number;
-    floor: string;
-    address: string;
-    dong: string;
-    status: '가용' | '계약중' | '완료';
-    description: string;
-  }>({
-    title: '',
-    type: '원룸',
-    deal: '전세',
-    deposit: 0,
-    monthly: undefined,
-    price: undefined,
-    area: 0,
-    floor: '1층',
-    address: '',
-    dong: '',
-    status: '가용',
-    description: '',
-  });
+  const [newListing, setNewListing] = useState({ ...INITIAL_LISTING });
+  const [submitLoading, setSubmitLoading] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const [submitSuccess, setSubmitSuccess] = useState('');
+
+  // 이미지 업로드
+  const [uploadingImages, setUploadingImages] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<{ url: string; path: string }[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getAuthHeader = () => `Bearer ${password}`;
 
@@ -118,22 +152,20 @@ export default function AdminPage() {
     try {
       const headers = { authorization: `Bearer ${pwd}` };
 
-      // 통계 조회
-      const statsRes = await fetch('/api/admin/stats', { headers });
+      const [statsRes, listingsRes, contactsRes] = await Promise.all([
+        fetch('/api/admin/stats', { headers }),
+        fetch('/api/admin/listings', { headers }),
+        fetch('/api/admin/contacts', { headers }),
+      ]);
+
       if (statsRes.ok) {
         const data = await statsRes.json();
         setStats(data.data);
       }
-
-      // 매물 조회
-      const listingsRes = await fetch('/api/admin/listings', { headers });
       if (listingsRes.ok) {
         const data = await listingsRes.json();
         setListings(data.data);
       }
-
-      // 상담 조회
-      const contactsRes = await fetch('/api/admin/contacts', { headers });
       if (contactsRes.ok) {
         const data = await contactsRes.json();
         setContacts(data.data);
@@ -145,39 +177,127 @@ export default function AdminPage() {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingImages(true);
+    const newImages: { url: string; path: string }[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const formData = new FormData();
+      formData.append('file', files[i]);
+
+      try {
+        const response = await fetch('/api/admin/upload', {
+          method: 'POST',
+          headers: { authorization: getAuthHeader() },
+          body: formData,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          newImages.push({ url: data.data.url, path: data.data.path });
+        }
+      } catch (error) {
+        console.error('이미지 업로드 오류:', error);
+      }
+    }
+
+    setUploadedImages([...uploadedImages, ...newImages]);
+    setUploadingImages(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleAddListing = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitLoading(true);
+    setSubmitError('');
+    setSubmitSuccess('');
+
     try {
+      // API에 맞게 데이터 정리
+      const payload: Record<string, any> = {
+        title: newListing.title,
+        type: newListing.type,
+        deal: newListing.deal,
+        deposit: newListing.deposit || 0,
+        area_m2: newListing.area_m2,
+        floor_current: newListing.floor_current,
+        address: newListing.address,
+        dong: newListing.dong,
+        status: newListing.status,
+      };
+
+      // 선택 필드 (값이 있을 때만 전송)
+      if (newListing.monthly) payload.monthly = newListing.monthly;
+      if (newListing.price) payload.price = newListing.price;
+      if (newListing.maintenance_fee) payload.maintenance_fee = newListing.maintenance_fee;
+      if (newListing.area_supply_m2) payload.area_supply_m2 = newListing.area_supply_m2;
+      if (newListing.floor_total) payload.floor_total = newListing.floor_total;
+      if (newListing.rooms) payload.rooms = newListing.rooms;
+      if (newListing.bathrooms) payload.bathrooms = newListing.bathrooms;
+      if (newListing.direction) payload.direction = newListing.direction;
+      if (newListing.heating_type) payload.heating_type = newListing.heating_type;
+      if (newListing.address_detail) payload.address_detail = newListing.address_detail;
+      if (newListing.description) payload.description = newListing.description;
+      if (newListing.available_date) payload.available_date = newListing.available_date;
+      if (newListing.built_year) payload.built_year = newListing.built_year;
+
+      // 불린 필드
+      payload.parking = newListing.parking;
+      payload.elevator = newListing.elevator;
+      payload.pet = newListing.pet;
+      payload.balcony = newListing.balcony;
+      payload.full_option = newListing.full_option;
+      payload.loan_available = newListing.loan_available;
+
       const response = await fetch('/api/admin/listings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           authorization: getAuthHeader(),
         },
-        body: JSON.stringify(newListing),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setListings([...listings, data.data]);
-        setNewListing({
-          title: '',
-          type: '원룸',
-          deal: '전세',
-          deposit: 0,
-          monthly: undefined,
-          price: undefined,
-          area: 0,
-          floor: '1층',
-          address: '',
-          dong: '',
-          status: '가용',
-          description: '',
-        });
+
+        // 이미지가 업로드되었으면 매물에 연결
+        if (uploadedImages.length > 0 && data.data?.id) {
+          for (let i = 0; i < uploadedImages.length; i++) {
+            await fetch('/api/admin/upload', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                authorization: getAuthHeader(),
+              },
+              body: JSON.stringify({
+                listingId: data.data.id,
+                url: uploadedImages[i].url,
+                sort_order: i,
+                is_thumbnail: i === 0,
+              }),
+            });
+          }
+        }
+
+        setListings([data.data, ...listings]);
+        setNewListing({ ...INITIAL_LISTING });
+        setUploadedImages([]);
         setShowAddForm(false);
+        setSubmitSuccess('매매이 성공적으로 등록되었습니다!');
+        setTimeout(() => setSubmitSuccess(''), 3000);
+      } else {
+        const errData = await response.json();
+        setSubmitError(errData.error || '매물 등록에 실패했습니다');
       }
     } catch (error) {
       console.error('매물 추가 오류:', error);
+      setSubmitError('매물 등록 중 오류가 발생했습니다');
+    } finally {
+      setSubmitLoading(false);
     }
   };
 
@@ -238,7 +358,17 @@ export default function AdminPage() {
     }
   };
 
-  // 로그인 화면
+  // 가격 표시 헬퍼
+  const formatPrice = (listing: Listing) => {
+    if (listing.deal === '매매') return `매매 ${(listing.price || 0).toLocaleString()}만원`;
+    if (listing.deal === '전세') return `전세 ${listing.deposit.toLocaleString()}만원`;
+    return `${listing.deposit.toLocaleString()}/${listing.monthly || 0}만원`;
+  };
+
+  const inputClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary text-sm';
+  const labelClass = 'block text-xs font-medium text-gray-600 mb-1';
+
+  // ─── 로그인 화면 ───
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-wishes-primary to-wishes-secondary p-4">
@@ -267,7 +397,7 @@ export default function AdminPage() {
     );
   }
 
-  // 대시보드 탭
+  // ─── 대시보드 탭 ───
   if (tab === 'dashboard') {
     return (
       <div>
@@ -277,60 +407,37 @@ export default function AdminPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             <div className="card-premium p-6">
               <p className="text-gray-600 text-sm font-medium mb-2">전체 매물</p>
-              <p className="text-3xl font-bold text-wishes-primary">
-                {stats.totalListings}
-              </p>
+              <p className="text-3xl font-bold text-wishes-primary">{stats.totalListings}</p>
             </div>
             <div className="card-premium p-6">
               <p className="text-gray-600 text-sm font-medium mb-2">가용</p>
-              <p className="text-3xl font-bold text-green-600">
-                {stats.activeListings}
-              </p>
+              <p className="text-3xl font-bold text-green-600">{stats.activeListings}</p>
             </div>
             <div className="card-premium p-6">
               <p className="text-gray-600 text-sm font-medium mb-2">계약중</p>
-              <p className="text-3xl font-bold text-wishes-accent">
-                {stats.contractingListings}
-              </p>
+              <p className="text-3xl font-bold text-wishes-accent">{stats.contractingListings}</p>
             </div>
             <div className="card-premium p-6">
               <p className="text-gray-600 text-sm font-medium mb-2">계약완료</p>
-              <p className="text-3xl font-bold text-blue-600">
-                {stats.completedListings}
-              </p>
+              <p className="text-3xl font-bold text-blue-600">{stats.completedListings}</p>
             </div>
             <div className="card-premium p-6">
-              <p className="text-gray-600 text-sm font-medium mb-2">
-                미처리 상담
-              </p>
-              <p className="text-3xl font-bold text-red-600">
-                {stats.pendingContacts}
-              </p>
+              <p className="text-gray-600 text-sm font-medium mb-2">미처리 상담</p>
+              <p className="text-3xl font-bold text-red-600">{stats.pendingContacts}</p>
             </div>
           </div>
         )}
 
-        {/* 빠른 링크 */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <a
-            href="/admin?tab=listings"
-            className="card-premium p-6 cursor-pointer"
-          >
+          <a href="/admin?tab=listings" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
             <p className="text-2xl mb-2">🏠</p>
             <h3 className="font-bold text-wishes-primary mb-2">매물 관리</h3>
-            <p className="text-sm text-gray-600">
-              {listings.length}개의 매물 관리
-            </p>
+            <p className="text-sm text-gray-600">{listings.length}개의 매물 관리</p>
           </a>
-          <a
-            href="/admin?tab=contacts"
-            className="card-premium p-6 cursor-pointer"
-          >
+          <a href="/admin?tab=contacts" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
             <p className="text-2xl mb-2">📞</p>
             <h3 className="font-bold text-wishes-primary mb-2">상담 관리</h3>
-            <p className="text-sm text-gray-600">
-              {contacts.length}개의 상담 기록
-            </p>
+            <p className="text-sm text-gray-600">{contacts.length}개의 상담 기록</p>
           </a>
           <div className="card-premium p-6">
             <p className="text-2xl mb-2">⚙️</p>
@@ -342,245 +449,460 @@ export default function AdminPage() {
     );
   }
 
-  // 매물 관리 탭
+  // ─── 매물 관리 탭 ───
   if (tab === 'listings') {
     return (
       <div>
-        <div className="flex justify-between items-center mb-8">
-          <h2 className="text-3xl font-bold text-wishes-primary">매물 관리</h2>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-wishes-primary">매물 관리</h2>
           <button
-            onClick={() => setShowAddForm(!showAddForm)}
+            onClick={() => {
+              setShowAddForm(!showAddForm);
+              setSubmitError('');
+              setSubmitSuccess('');
+            }}
             className="bg-wishes-secondary text-white px-6 py-2 rounded-lg hover:bg-wishes-primary transition font-semibold"
           >
-            {showAddForm ? '취소' : '매물 추가'}
+            {showAddForm ? '취소' : '+ 새 매물 등록'}
           </button>
         </div>
 
-        {/* 추가 폼 */}
+        {submitSuccess && (
+          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
+            {submitSuccess}
+          </div>
+        )}
+
+        {/* ── 매물 추가 폼 ── */}
         {showAddForm && (
-          <div className="card-premium p-6 mb-8">
-            <form onSubmit={handleAddListing} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  placeholder="제목"
-                  value={newListing.title}
-                  onChange={(e) =>
-                    setNewListing({ ...newListing, title: e.target.value })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary"
-                  required
-                />
-                <select
-                  value={newListing.type}
-                  onChange={(e) =>
-                    setNewListing({
-                      ...newListing,
-                      type: e.target.value as any,
-                    })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary"
-                >
-                  <option>원룸</option>
-                  <option>투룸</option>
-                  <option>쓰리룸</option>
-                  <option>오피스텔</option>
-                  <option>아파트</option>
-                  <option>상가</option>
-                  <option>사무실</option>
-                </select>
+          <div className="card-premium p-6 mb-6">
+            <h3 className="text-lg font-bold text-wishes-primary mb-4">새 매물 등록</h3>
+
+            {submitError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                {submitError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddListing} className="space-y-5">
+              {/* 기본 정보 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">기본 정보</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="md:col-span-3">
+                    <label className={labelClass}>매물 제목 *</label>
+                    <input
+                      type="text"
+                      placeholder="예: 신림동 역세권 신축 원룸"
+                      value={newListing.title}
+                      onChange={(e) => setNewListing({ ...newListing, title: e.target.value })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>매물 유형 *</label>
+                    <select
+                      value={newListing.type}
+                      onChange={(e) => setNewListing({ ...newListing, type: e.target.value as any })}
+                      className={inputClass}
+                    >
+                      <option value="원룸">원룸</option>
+                      <option value="투룸">투룸</option>
+                      <option value="쓰리룸">쓰리룸</option>
+                      <option value="오피스텔">오피스텔</option>
+                      <option value="아파트">아파트</option>
+                      <option value="상가">상가</option>
+                      <option value="사무실">사무실</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>거래 유형 *</label>
+                    <select
+                      value={newListing.deal}
+                      onChange={(e) => setNewListing({ ...newListing, deal: e.target.value as any })}
+                      className={inputClass}
+                    >
+                      <option value="전세">전세</option>
+                      <option value="월세">월세</option>
+                      <option value="매매">매매</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>상태</label>
+                    <select
+                      value={newListing.status}
+                      onChange={(e) => setNewListing({ ...newListing, status: e.target.value as any })}
+                      className={inputClass}
+                    >
+                      <option value="가용">가용</option>
+                      <option value="계약중">계약중</option>
+                      <option value="계약완료">계약완료</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <select
-                  value={newListing.deal}
-                  onChange={(e) =>
-                    setNewListing({
-                      ...newListing,
-                      deal: e.target.value as any,
-                    })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option>전세</option>
-                  <option>월세</option>
-                  <option>매매</option>
-                </select>
-                <input
-                  type="number"
-                  placeholder="보증금"
-                  value={newListing.deposit}
-                  onChange={(e) =>
-                    setNewListing({
-                      ...newListing,
-                      deposit: parseInt(e.target.value),
-                    })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
-                <input
-                  type="number"
-                  placeholder="월세"
-                  value={newListing.monthly || ''}
-                  onChange={(e) =>
-                    setNewListing({
-                      ...newListing,
-                      monthly: e.target.value ? parseInt(e.target.value) : undefined,
-                    })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
+              {/* 가격 정보 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">가격 정보 (만원)</p>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className={labelClass}>보증금 *</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={newListing.deposit || ''}
+                      onChange={(e) => setNewListing({ ...newListing, deposit: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>월세</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={newListing.monthly || ''}
+                      onChange={(e) => setNewListing({ ...newListing, monthly: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>매매가</label>
+                    <input
+                      type="number"
+                      placeholder="매매시 입력"
+                      value={newListing.price || ''}
+                      onChange={(e) => setNewListing({ ...newListing, price: e.target.value ? parseInt(e.target.value) : undefined })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>관리비</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={newListing.maintenance_fee || ''}
+                      onChange={(e) => setNewListing({ ...newListing, maintenance_fee: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 위치 정보 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">위치 정보</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="md:col-span-2">
+                    <label className={labelClass}>주소 *</label>
+                    <input
+                      type="text"
+                      placeholder="예: 서울 관악구 신림로 267"
+                      value={newListing.address}
+                      onChange={(e) => setNewListing({ ...newListing, address: e.target.value })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>동 *</label>
+                    <input
+                      type="text"
+                      placeholder="예: 신림동"
+                      value={newListing.dong}
+                      onChange={(e) => setNewListing({ ...newListing, dong: e.target.value })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className={labelClass}>상세 주소</label>
+                    <input
+                      type="text"
+                      placeholder="예: 301호"
+                      value={newListing.address_detail}
+                      onChange={(e) => setNewListing({ ...newListing, address_detail: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 면적/층수 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">펨적 / 층사 / 구조</p>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                  <div>
+                    <label className={labelClass}>전용면적(m2) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="19.83"
+                      value={newListing.area_m2 || ''}
+                      onChange={(e) => setNewListing({ ...newListing, area_m2: parseFloat(e.target.value) || 0 })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>공급면적(m2)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="26.45"
+                      value={newListing.area_supply_m2 || ''}
+                      onChange={(e) => setNewListing({ ...newListing, area_supply_m2: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>해당 층 *</label>
+                    <input
+                      type="text"
+                      placeholder="3"
+                      value={newListing.floor_current}
+                      onChange={(e) => setNewListing({ ...newListing, floor_current: e.target.value })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>총 층</label>
+                    <input
+                      type="text"
+                      placeholder="5"
+                      value={newListing.floor_total}
+                      onChange={(e) => setNewListing({ ...newListing, floor_total: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>방 수</label>
+                    <input
+                      type="number"
+                      placeholder="1"
+                      value={newListing.rooms || ''}
+                      onChange={(e) => setNewListing({ ...newListing, rooms: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>욕실 수</label>
+                    <input
+                      type="number"
+                      placeholder="1"
+                      value={newListing.bathrooms || ''}
+                      onChange={(e) => setNewListing({ ...newListing, bathrooms: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 추가 정보 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">추가 정보</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className={labelClass}>방향</label>
+                    <select
+                      value={newListing.direction}
+                      onChange={(e) => setNewListing({ ...newListing, direction: e.target.value })}
+                      className={inputClass}
+                    >
+                      <option value="">선택</option>
+                      <option value="동향">동향</option>
+                      <option value="서향">서향</option>
+                      <option value="남향">남향</option>
+                      <option value="북향">북향</option>
+                      <option value="남동향">남동향</option>
+                      <option value="남서향">남서향</option>
+                      <option value="북동향">북동향</option>
+                      <option value="북서향">북서향</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>난방 방식</label>
+                    <select
+                      value={newListing.heating_type}
+                      onChange={(e) => setNewListing({ ...newListing, heating_type: e.target.value })}
+                      className={inputClass}
+                    >
+                      <option value="">선택</option>
+                      <option value="개별난방">개별난방</option>
+                      <option value="중앙난방">중앙난방</option>
+                      <option value="지역난방">지역난방</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>입주가능일</label>
+                    <input
+                      type="text"
+                      placeholder="즉시입주 / 2026-04-01"
+                      value={newListing.available_date}
+                      onChange={(e) => setNewListing({ ...newListing, available_date: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>준공연도</label>
+                    <input
+                      type="text"
+                      placeholder="2020"
+                      value={newListing.built_year}
+                      onChange={(e) => setNewListing({ ...newListing, built_year: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 편의시설 옵션 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">편의시설 / 옵션</p>
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    { key: 'parking', label: '주차' },
+                    { key: 'elevator', label: '엘리베이터' },
+                    { key: 'pet', label: '반려동물' },
+                    { key: 'balcony', label: '베란다/발코니' },
+                    { key: 'full_option', label: '풀옵션' },
+                    { key: 'loan_available', label: '대출가능' },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={(newListing as any)[key]}
+                        onChange={(e) => setNewListing({ ...newListing, [key]: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 설명 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">매물 설명</p>
+                <textarea
+                  placeholder="매물에 대한 상세 설명을 입력하세요"
+                  value={newListing.description}
+                  onChange={(e) => setNewListing({ ...newListing, description: e.target.value })}
+                  className={inputClass}
+                  rows={4}
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* 이미지 업로드 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">매물 이미지</p>
                 <input
-                  type="text"
-                  placeholder="주소"
-                  value={newListing.address}
-                  onChange={(e) =>
-                    setNewListing({ ...newListing, address: e.target.value })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-wishes-secondary file:text-white hover:file:bg-wishes-primary"
                 />
-                <input
-                  type="text"
-                  placeholder="동"
-                  value={newListing.dong}
-                  onChange={(e) =>
-                    setNewListing({ ...newListing, dong: e.target.value })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
+                {uploadingImages && <p className="text-sm text-gray-500 mt-2">업로드 중...</p>}
+                {uploadedImages.length > 0 && (
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    {uploadedImages.map((img, i) => (
+                      <div key={i} className="relative">
+                        <img src={img.url} alt={`업로드 ${i + 1}`} className="w-20 h-20 object-cover rounded-lg border" />
+                        <button
+                          type="button"
+                          onClick={() => setUploadedImages(uploadedImages.filter((_, idx) => idx !== i))}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                        >
+                          X
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <input
-                  type="number"
-                  placeholder="면적"
-                  step="0.1"
-                  value={newListing.area}
-                  onChange={(e) =>
-                    setNewListing({
-                      ...newListing,
-                      area: parseFloat(e.target.value),
-                    })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                  required
-                />
-                <input
-                  type="text"
-                  placeholder="층"
-                  value={newListing.floor}
-                  onChange={(e) =>
-                    setNewListing({ ...newListing, floor: e.target.value })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                />
-                <select
-                  value={newListing.status}
-                  onChange={(e) =>
-                    setNewListing({
-                      ...newListing,
-                      status: e.target.value as any,
-                    })
-                  }
-                  className="px-4 py-2 border border-gray-300 rounded-lg"
-                >
-                  <option>가용</option>
-                  <option>계약중</option>
-                  <option>계약완료</option>
-                </select>
-              </div>
-
-              <textarea
-                placeholder="설명"
-                value={newListing.description}
-                onChange={(e) =>
-                  setNewListing({ ...newListing, description: e.target.value })
-                }
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                rows={3}
-              />
-
+              {/* 등록 버튼 */}
               <button
                 type="submit"
-                className="w-full bg-wishes-secondary text-white py-2 rounded-lg hover:bg-wishes-primary transition font-semibold"
+                disabled={submitLoading}
+                className="w-full bg-wishes-secondary text-white py-3 rounded-lg hover:bg-wishes-primary transition font-bold text-lg disabled:opacity-50"
               >
-                매물 추가
+                {submitLoading ? '등록 중...' : '매물 등록하기'}
               </button>
             </form>
           </div>
         )}
 
-        {/* 매물 목록 */}
-        <div className="space-y-4">
+        {/* ── 매물 목록 ── */}
+        <div className="space-y-3">
           {listings.length === 0 ? (
             <div className="card-premium p-8 text-center text-gray-600">
-              매물이 없습니다
+              등록된 매물이 없습니다. 위의 &quot;새 매물 등록&quot; 버튼을 클릭해서 매물을 추가해보세요.
             </div>
           ) : (
             listings.map((listing) => (
-              <div key={listing.id} className="card-premium p-6">
-                <div className="flex justify-between items-start mb-4">
+              <div key={listing.id} className="card-premium p-5">
+                <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-wishes-primary">
-                      {listing.title}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <h3 className="text-base font-bold text-wishes-primary">{listing.title}</h3>
+                    <p className="text-sm text-gray-500 mt-1">
                       {listing.address} | {listing.type} | {listing.deal}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 items-center ml-4">
                     <select
                       value={listing.status}
-                      onChange={(e) =>
-                        handleStatusChange(listing.id, e.target.value)
-                      }
-                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+                      onChange={(e) => handleStatusChange(listing.id, e.target.value)}
+                      className={`px-2 py-1 border rounded-lg text-xs font-medium ${
+                        listing.status === '가용'
+                          ? 'border-green-300 text-green-700 bg-green-50'
+                          : listing.status === '계약중'
+                          ? 'border-orange-300 text-orange-700 bg-orange-50'
+                          : 'border-blue-300 text-blue-700 bg-blue-50'
+                      }`}
                     >
-                      <option>가용</option>
-                      <option>계약중</option>
-                      <option>계약완료</option>
+                      <option value="가용">가용</option>
+                      <option value="계약중">계약중</option>
+                      <option value="계약완료">계약완료</option>
                     </select>
                     <button
                       onClick={() => handleDeleteListing(listing.id)}
-                      className="px-4 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm"
+                      className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs"
                     >
                       삭제
                     </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                   <div>
-                    <p className="text-gray-600">보증금</p>
-                    <p className="font-semibold text-wishes-primary">
-                      {listing.deposit}만원
+                    <p className="text-gray-500 text-xs">가격</p>
+                    <p className="font-semibold text-wishes-primary">{formatPrice(listing)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">면적</p>
+                    <p className="font-semibold">{listing.area_m2}m²</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">층</p>
+                    <p className="font-semibold">
+                      {listing.floor_current}{listing.floor_total ? `/${listing.floor_total}` : ''}층
                     </p>
                   </div>
-                  {listing.monthly && (
-                    <div>
-                      <p className="text-gray-600">월세</p>
-                      <p className="font-semibold text-wishes-primary">
-                        {listing.monthly}만원
-                      </p>
-                    </div>
-                  )}
-                  {listing.price && (
-                    <div>
-                      <p className="text-gray-600">매매가</p>
-                      <p className="font-semibold text-wishes-primary">
-                        {listing.price}만원
-                      </p>
-                    </div>
-                  )}
                   <div>
-                    <p className="text-gray-600">면적</p>
-                    <p className="font-semibold text-wishes-primary">
-                      {listing.area}m²
+                    <p className="text-gray-500 text-xs">방/욕실</p>
+                    <p className="font-semibold">
+                      {listing.rooms || '-'}방 / {listing.bathrooms || '-'}욕실
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 text-xs">등록일</p>
+                    <p className="font-semibold text-xs">
+                      {new Date(listing.created_at).toLocaleDateString('ko-KR')}
                     </p>
                   </div>
                 </div>
@@ -592,26 +914,24 @@ export default function AdminPage() {
     );
   }
 
-  // 상담 관리 탭
+  // ─── 상담 관리 탭 ───
   if (tab === 'contacts') {
     return (
       <div>
-        <h2 className="text-3xl font-bold text-wishes-primary mb-8">상담 관리</h2>
+        <h2 className="text-2xl font-bold text-wishes-primary mb-6">상담 관리</h2>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {contacts.length === 0 ? (
             <div className="card-premium p-8 text-center text-gray-600">
-              상담이 없습니다
+              상담 내역이 없습니다
             </div>
           ) : (
             contacts.map((contact) => (
-              <div key={contact.id} className="card-premium p-6">
-                <div className="flex justify-between items-start mb-4">
+              <div key={contact.id} className="card-premium p-5">
+                <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
-                    <h3 className="text-lg font-bold text-wishes-primary">
-                      {contact.name}
-                    </h3>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <h3 className="text-base font-bold text-wishes-primary">{contact.name}</h3>
+                    <p className="text-sm text-gray-500 mt-1">
                       {contact.phone}
                       {contact.email && ` | ${contact.email}`}
                     </p>
@@ -623,25 +943,29 @@ export default function AdminPage() {
                   </div>
                   <select
                     value={contact.status}
-                    onChange={(e) =>
-                      handleContactStatusChange(contact.id, e.target.value)
-                    }
-                    className="px-3 py-1 border border-gray-300 rounded-lg text-sm"
+                    onChange={(e) => handleContactStatusChange(contact.id, e.target.value)}
+                    className={`px-2 py-1 border rounded-lg text-xs font-medium ${
+                      contact.status === '접수'
+                        ? 'border-red-300 text-red-700 bg-red-50'
+                        : contact.status === '처리중'
+                        ? 'border-yellow-300 text-yellow-700 bg-yellow-50'
+                        : 'border-green-300 text-green-700 bg-green-50'
+                    }`}
                   >
-                    <option>접수</option>
-                    <option>처리중</option>
-                    <option>완료</option>
+                    <option value="접수">접수</option>
+                    <option value="처리중">처리중</option>
+                    <option value="완료">완료</option>
                   </select>
                 </div>
 
                 {contact.message && (
-                  <p className="text-gray-700 mb-4 p-3 bg-gray-50 rounded-lg">
+                  <p className="text-gray-700 text-sm mb-3 p-3 bg-gray-50 rounded-lg">
                     {contact.message}
                   </p>
                 )}
 
-                <p className="text-xs text-gray-500">
-                  {new Date(contact.createdAt).toLocaleString('ko-KR')}
+                <p className="text-xs text-gray-400">
+                  {new Date(contact.createdAt || contact.created_at || '').toLocaleString('ko-KR')}
                 </p>
               </div>
             ))
