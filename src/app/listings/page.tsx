@@ -7,7 +7,7 @@ import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: '매물검색',
-  description: '서울 관악구 신림동·봉천동 원룸, 투룸, 오피스텔 매물을 검색하세요.',
+  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔 매물을 검색하세요.',
 };
 
 interface SearchParams {
@@ -84,7 +84,7 @@ export default async function ListingsPage({
         <div className="max-w-7xl mx-auto px-4 py-6">
           <h1 className="text-2xl font-bold text-wishes-primary">매물 검색</h1>
           <p className="text-sm text-gray-500 mt-1">
-            관악구 신림동·봉천동 지역 매물을 검색하세요
+            원하시는 지역의 매물을 검색하세요
           </p>
         </div>
       </div>
