@@ -70,6 +70,13 @@ export function Header() {
                 {item.label}
               </Link>
             ))}
+              <button
+                onClick={() => { setIsOpen(false); setAuthOpen(true); }}
+                className="flex items-center justify-center gap-2 mx-2 mt-2 px-4 py-3 text-sm font-semibold text-white bg-wishes-primary rounded-xl hover:bg-wishes-secondary transition-colors"
+              >
+                <User className="w-4 h-4" />
+                로그인
+              </button>
           </nav>
         </div>
       </div>
