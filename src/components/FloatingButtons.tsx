@@ -27,23 +27,23 @@ export function FloatingButtons() {
           'w-12 h-12 rounded-full bg-gray-700 text-white flex items-center justify-center shadow-lg hover:bg-gray-600 transition-all',
           showScrollTop ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
         )}
-        aria-label="맨 위로"
+        aria-label="ë§¨ ìë¡"
       >
         <ArrowUp className="w-5 h-5" />
       </button>
       <a
         href="tel:1533-9580"
         className="w-12 h-12 rounded-full bg-wishes-primary text-white flex items-center justify-center shadow-lg hover:bg-wishes-secondary transition-colors"
-        aria-label="전화하기"
+        aria-label="ì ííê¸°"
       >
         <Phone className="w-5 h-5" />
       </a>
       <a
-        href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL || 'https://pf.kakao.com/_xnxaxjxj'}
+        href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL || 'https://pf.kakao.com/_DxdSJs'}
         target="_blank"
         rel="noopener noreferrer"
         className="w-12 h-12 rounded-full bg-yellow-400 text-yellow-900 flex items-center justify-center shadow-lg hover:bg-yellow-300 transition-colors"
-        aria-label="카카오톡 상담"
+        aria-label="ì¹´ì¹´ì¤í¡ ìë´"
       >
         <MessageCircle className="w-5 h-5" />
       </a>
