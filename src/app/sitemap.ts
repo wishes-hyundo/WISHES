@@ -17,36 +17,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   return [
-    {
-      url: 'https://wishes.co.kr',
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 1,
-    },
-    {
-      url: 'https://wishes.co.kr/listings',
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: 'https://wishes.co.kr/map',
-      lastModified: new Date(),
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
-    {
-      url: 'https://wishes.co.kr/about',
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.5,
-    },
-    {
-      url: 'https://wishes.co.kr/contact',
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
+    { url: 'https://wishes.co.kr', lastModified: new Date(), changeFrequency: 'daily', priority: 1 },
+    { url: 'https://wishes.co.kr/listings', lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    { url: 'https://wishes.co.kr/map', lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    { url: 'https://wishes.co.kr/about', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+    { url: 'https://wishes.co.kr/contact', lastModified: new Date(), changeFrequency: 'monthly', priority: 0.7 },
     ...listingUrls,
   ];
 }

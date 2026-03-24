@@ -1,20 +1,8 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// WISHES v2 타입 정의
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-// 매물 유형
 export type ListingType = '원룸' | '투룸' | '쓰리룸' | '오피스텔' | '아파트' | '상가' | '사무실';
-
-// 거래 유형
 export type DealType = '전세' | '월세' | '매매';
-
-// 매물 상태
 export type ListingStatus = '가용' | '계약중' | '계약완료';
-
-// 문의 상태
 export type ContactStatus = '접수' | '처리중' | '완료';
 
-// 매물 인터페이스
 export interface Listing {
   id: number;
   title: string;
@@ -43,7 +31,6 @@ export interface Listing {
   features?: string[];
 }
 
-// 매물 이미지
 export interface ListingImage {
   id: number;
   listingId: number;
@@ -52,7 +39,6 @@ export interface ListingImage {
   order: number;
 }
 
-// 상담 문의
 export interface Contact {
   id: number;
   name: string;
@@ -64,7 +50,6 @@ export interface Contact {
   createdAt: string;
 }
 
-// 지도 바운드 (카카오맵)
 export interface MapBounds {
   swLat: number;
   swLng: number;
@@ -72,7 +57,6 @@ export interface MapBounds {
   neLng: number;
 }
 
-// 매물 필터
 export interface ListingFilter {
   deal?: DealType;
   type?: ListingType;
@@ -84,7 +68,6 @@ export interface ListingFilter {
   status?: ListingStatus;
 }
 
-// API 응답 래퍼
 export interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -92,7 +75,6 @@ export interface ApiResponse<T> {
   total?: number;
 }
 
-// 가격 포맷 헬퍼 타입
 export interface FormattedPrice {
   label: string;
   main: string;

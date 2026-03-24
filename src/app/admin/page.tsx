@@ -552,7 +552,7 @@ export default function AdminPage() {
                     <div>
                       <p className="text-gray-600">월세</p>
                       <p className="font-semibold text-wishes-primary">
-                        {listing.monthly}만�
+                        {listing.monthly}만원
                       </p>
                     </div>
                   )}
@@ -604,7 +604,7 @@ export default function AdminPage() {
                     </p>
                     {contact.listingTitle && (
                       <p className="text-sm text-wishes-secondary font-medium mt-1">
-                        🌍 {contact.listingTitle}
+                        📍 {contact.listingTitle}
                       </p>
                     )}
                   </div>

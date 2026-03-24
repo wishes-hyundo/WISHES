@@ -28,7 +28,7 @@ export function ListingFilters({ dongs, currentFilters }: ListingFiltersProps) {
     } else {
       params.delete(key);
     }
-    params.delete('page'); // 필터 변경 시 1페이지로
+    params.delete('page');
     router.push(`/listings?${params.toString()}`);
   }, [router, searchParams]);
 
@@ -38,53 +38,21 @@ export function ListingFilters({ dongs, currentFilters }: ListingFiltersProps) {
         <SlidersHorizontal className="w-4 h-4 text-gray-500" />
         <span className="text-sm font-medium text-gray-700">필터</span>
       </div>
-
       <div className="flex flex-wrap gap-3">
-        {/* 거래유형 */}
-        <select
-          value={currentFilters.deal || ''}
-          onChange={(e) => updateFilter('deal', e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
-        >
+        <select value={currentFilters.deal || ''} onChange={(e) => updateFilter('deal', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
           <option value="">거래유형 전체</option>
-          {dealTypes.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
+          {dealTypes.map((t) => (<option key={t} value={t}>{t}</option>))}
         </select>
-
-        {/* 매물유형 */}
-        <select
-          value={currentFilters.type || ''}
-          onChange={(e) => updateFilter('type', e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
-        >
+        <select value={currentFilters.type || ''} onChange={(e) => updateFilter('type', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
           <option value="">매물유형 전체</option>
-          {listingTypes.map((t) => (
-            <option key={t} value={t}>{t}</option>
-          ))}
+          {listingTypes.map((t) => (<option key={t} value={t}>{t}</option>))}
         </select>
-
-        {/* 동 선택 */}
-        <select
-          value={currentFilters.dong || ''}
-          onChange={(e) => updateFilter('dong', e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
-        >
+        <select value={currentFilters.dong || ''} onChange={(e) => updateFilter('dong', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
           <option value="">지역 전체</option>
-          {dongs.map((d) => (
-            <option key={d} value={d}>{d}</option>
-          ))}
+          {dongs.map((d) => (<option key={d} value={d}>{d}</option>))}
         </select>
-
-        {/* 정렬 */}
-        <select
-          value={currentFilters.sort || 'latest'}
-          onChange={(e) => updateFilter('sort', e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
-        >
-          {sortOptions.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
+        <select value={currentFilters.sort || 'latest'} onChange={(e) => updateFilter('sort', e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
+          {sortOptions.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
         </select>
       </div>
     </div>

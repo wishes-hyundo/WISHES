@@ -39,7 +39,7 @@ export function useMapListings() {
       } finally {
         setLoading(false);
       }
-    }, 300); // 300ms 디바운싱
+    }, 300);
   }, []);
 
   return { listings, loading, total, fetchListings };
