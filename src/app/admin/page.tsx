@@ -54,10 +54,23 @@ export default function AdminPage() {
   // 폼 상태
   const [editingId, setEditingId] = useState<number | null>(null);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newListing, setNewListing] = useState({
+  const [newListing, setNewListing] = useState<{
+    title: string;
+    type: '원룸' | '투룸' | '쓰리룸+' | '오피스텔' | '아파트' | '빌라' | '상가' | '사무실';
+    deal: '전세' | '월세' | '매매';
+    deposit: number;
+    monthly: number | undefined;
+    price: number | undefined;
+    area: number;
+    floor: string;
+    address: string;
+    dong: string;
+    status: '가용' | '계약중' | '완료';
+    description: string;
+  }>({
     title: '',
-    type: '원룸' as const,
-    deal: '전세' as const,
+    type: '원룸',
+    deal: '전세',
     deposit: 0,
     monthly: undefined,
     price: undefined,
@@ -65,7 +78,7 @@ export default function AdminPage() {
     floor: '1층',
     address: '',
     dong: '',
-    status: '가용' as const,
+    status: '가용',
     description: '',
   });
 
@@ -254,7 +267,7 @@ export default function AdminPage() {
     );
   }
 
-  // 대시보드 탭
+  // 대시보드 �m
   if (tab === 'dashboard') {
     return (
       <div>
@@ -579,7 +592,7 @@ export default function AdminPage() {
     );
   }
 
-  // 상담 관리 탭
+  // 상담 관리 �m
   if (tab === 'contacts') {
     return (
       <div>
