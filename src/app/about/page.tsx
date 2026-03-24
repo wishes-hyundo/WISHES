@@ -88,7 +88,6 @@ export default function AboutPage() {
               </div>
               <div className="flex items-center gap-3">
                 <Clock className="w-4 h-4 text-wishes-secondary shrink-0" />
-                <span>평일 09:00 ~ 19:00 (주말 예약상담)</span>
               </div>
             </div>
             {/* 카카오맵 */}
