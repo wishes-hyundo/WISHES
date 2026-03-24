@@ -99,9 +99,6 @@ export function Footer() {
               <li className="flex items-start gap-3 group cursor-pointer">
                 <Phone className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                 <div className="leading-relaxed">
-                  <p className="text-white/60 text-xs">전화상담</p>
-                  <a href="tel:1533-9580" className="text-white hover:text-wishes-accent font-semibold">
-                    1533-9580
                   </a>
                 </div>
               </li>
