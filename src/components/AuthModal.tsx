@@ -78,6 +78,16 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     alert('Kakao login coming soon');
   };
 
+  const handleNaverLogin = () => {
+    // TODO: Supabase Naver OAuth
+    alert('Naver login coming soon');
+  };
+
+  const handleGoogleLogin = () => {
+    // TODO: Supabase Google OAuth
+    alert('Google login coming soon');
+  };
+
   const timerText = timer > 0 ? Math.floor(timer / 60) + ':' + String(timer % 60).padStart(2, '0') : '';
 
   return (
@@ -106,6 +116,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           {/* Main step */}
           {step === 'main' && (
             <div className="space-y-3">
+              {/* Kakao */}
               <button
                 onClick={handleKakaoLogin}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm transition-colors"
@@ -114,12 +125,30 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 카카오톡으로 시작하기
               </button>
 
+              {/* Naver */}
+              <button
+                onClick={handleNaverLogin}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-colors"
+                style={{ backgroundColor: '#03C75A' }}
+              >
+                네이버로 시작하기
+              </button>
+
+              {/* Google */}
+              <button
+                onClick={handleGoogleLogin}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Google로 시작하기
+              </button>
+
               <div className="flex items-center gap-3 py-2">
                 <div className="flex-1 h-px bg-gray-200" />
                 <span className="text-xs text-gray-400">또는</span>
                 <div className="flex-1 h-px bg-gray-200" />
               </div>
 
+              {/* Phone */}
               <button
                 onClick={() => setStep('phone-input')}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm bg-wishes-primary text-white hover:bg-wishes-secondary transition-colors"
