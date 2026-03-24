@@ -1,30 +1,55 @@
-'use client';
-
 import Link from 'next/link';
-import { MapPin, Phone, Mail, Clock } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, MapIcon, BookOpen, Instagram } from 'lucide-react';
 
 export function Footer() {
+  const currentYear = new Date().getFullYear();
+
   return (
-    <footer className="bg-wishes-primary text-white">
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* 브랜드 */}
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <MapPin className="w-6 h-6 text-blue-300" />
-              <span className="text-xl font-bold">WISHES</span>
+    <footer className="relative bg-gradient-to-br from-wishes-primary via-wishes-primary to-wishes-secondary text-white">
+      {/* 배경 장식 */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-0 w-96 h-96 bg-wishes-accent/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-wishes-secondary/5 rounded-full blur-3xl"></div>
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-4 py-16">
+        {/* 메인 그리드 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-12">
+          {/* 브랜드 정보 */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-wishes-accent to-wishes-gold flex items-center justify-center">
+                <MapPin className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <p className="text-lg font-bold">WISHES</p>
+                <p className="text-xs text-white/60">위시스부동산</p>
+              </div>
             </div>
-            <p className="text-sm text-blue-200 leading-relaxed">
-              서울 관악구 신림동·봉천동 지역 전문<br />
-              위시스부동산중개법인이<br />
-              고객님의 소중한 보금자리를 찾아드립니다.
+            <p className="text-sm text-white/70 leading-relaxed">
+              15년의 경험과 신뢰로<br />
+              서울 관악구 신림동·봉천동<br />
+              최고의 부동산 서비스를<br />
+              제공하고 있습니다.
             </p>
+            {/* 소셜 링크 */}
+            <div className="flex gap-3 pt-2">
+              <a href="#" className="w-10 h-10 rounded-lg bg-white/10 hover:bg-wishes-accent/20 flex items-center justify-center transition-colors" aria-label="Kakao">
+                <span className="text-xs font-bold">ۉ�</span>
+              </a>
+              <a href="#" className="w-10 h-10 rounded-lg bg-white/10 hover:bg-wishes-accent/20 flex items-center justify-center transition-colors" aria-label="Blog">
+                <BookOpen className="w-5 h-5" />
+              </a>
+              <a href="#" className="w-10 h-10 rounded-lg bg-white/10 hover:bg-wishes-accent/20 flex items-center justify-center transition-colors" aria-label="Instagram">
+                <Instagram className="w-5 h-5" />
+              </a>
+            </div>
           </div>
 
           {/* 빠른 링크 */}
-          <div>
-            <h3 className="text-sm font-semibold mb-4 text-blue-200">빠른 링크</h3>
-            <ul className="space-y-2 text-sm">
+          <div className="space-y-6">
+            <h3 className="text-sm font-bold text-white/90 uppercase tracking-wider">빠른 링크</h3>
+            <ul className="space-y-3 text-sm">
               {[
                 { label: '매물검색', href: '/listings' },
                 { label: '지도검색', href: '/map' },
@@ -34,8 +59,9 @@ export function Footer() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className="text-blue-200 hover:text-white transition-colors"
+                    className="text-white/70 hover:text-wishes-accent transition-colors duration-200 inline-flex items-center group"
                   >
+                    <span className="w-1 h-1 rounded-full bg-wishes-accent mr-2 opacity-0 group-hover:opacity-100 transition-opacity"></span>
                     {item.label}
                   </Link>
                 </li>
@@ -43,42 +69,92 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* 회사 정보 */}
-          <div>
-            <h3 className="text-sm font-semibold mb-4 text-blue-200">회사 정보</h3>
-            <ul className="space-y-2 text-sm text-blue-200">
-              <li>(주)위시스부동산중개법인</li>
-              <li>대표이사: 전유진</li>
-              <li>사업자등록번호: 445-86-01981</li>
+          {/* 서비스 */}
+          <div className="space-y-6">
+            <h3 className="text-sm font-bold text-white/90 uppercase tracking-wider">서비스</h3>
+            <ul className="space-y-3 text-sm">
+              {[
+                { label: '원룸/투룸', href: '#' },
+                { label: '아파트', href: '#' },
+                { label: '오피스텔', href: '#' },
+                { label: '전세/월세', href: '#' },
+              ].map((item) => (
+                <li key={item.label}>
+                  <Link
+                    href={item.href}
+                    className="text-white/70 hover:text-wishes-accent transition-colors duration-200 inline-flex items-center group"
+                  >
+                    <span className="w-1 h-1 rounded-full bg-wishes-accent mr-2 opacity-0 group-hover:opacity-100 transition-opacity"></span>
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
           {/* 연락처 */}
-          <div>
-            <h3 className="text-sm font-semibold mb-4 text-blue-200">연락처</h3>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-2 text-blue-200">
-                <MapPin className="w-4 h-4 mt-0.5 shrink-0" />
-                <span>서울특赼시 관악구 신림로64길 23, 8층</span>
+          <div className="space-y-6">
+            <h3 className="text-sm font-bold text-white/90 uppercase tracking-wider">연락처</h3>
+            <ul className="space-y-4 text-sm">
+              <li className="flex items-start gap-3 group cursor-pointer">
+                <Phone className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div className="leading-relaxed">
+                  <p className="text-white/60 text-xs">전화상담</p>
+                  <a href="tel:1533-9580" className="text-white hover:text-wishes-accent font-semibold">
+                    1533-9580
+                  </a>
+                </div>
               </li>
-              <li className="flex items-center gap-2 text-blue-200">
-                <Phone className="w-4 h-4 shrink-0" />
-                <a href="tel:1533-9580" className="hover:text-white">1533-9580</a>
+              <li className="flex items-start gap-3 group cursor-pointer">
+                <MapIcon className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div className="leading-relaxed">
+                  <p className="text-white/60 text-xs">주소</p>
+                  <p className="text-white">서울특별시 관악구<br />신림로64길 23, 8층</p>
+                </div>
               </li>
-              <li className="flex items-center gap-2 text-blue-200">
-                <Mail className="w-4 h-4 shrink-0" />
-                <a href="mailto:wishes@wishes.co.kr" className="hover:text-white">wishes@wishes.co.kr</a>
+              <li className="flex items-start gap-3 group cursor-pointer">
+                <Mail className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div className="leading-relaxed">
+                  <p className="text-white/60 text-xs">이메일</p>
+                  <a href="mailto:wishes@wishes.co.kr" className="text-white hover:text-wishes-accent">
+                    wishes@wishes.co.kr
+                  </a>
+                </div>
               </li>
-              <li className="flex items-center gap-2 text-blue-200">
-                <Clock className="w-4 h-4 shrink-0" />
-                <span>평일 09:00 ~ 19:00 (주말 예약상담)</span>
+              <li className="flex items-start gap-3 group cursor-pointer">
+                <Clock className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div className="leading-relaxed">
+                  <p className="text-white/60 text-xs">운영시간</p>
+                  <p className="text-white">평일 09:00~19:00<br />(주말 예약상담)</p>
+                </div>
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="border-t border-blue-800 mt-8 pt-6 text-center text-xs text-blue-300">
-          <p>&copy; {new Date().getFullYear()} 주식회사 위시스부동산중개법인. All rights reserved.</p>
+        {/* 구분선 */}
+        <div className="border-t border-white/10 py-8">
+          {/* 회사 정보 */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div>
+              <p className="text-xs text-white/60 mb-1">회사명</p>
+              <p className="text-sm text-white">주식회사 위시스부동산중개법인</p>
+            </div>
+            <div>
+              <p className="text-xs text-white/60 mb-1">대표이사</p>
+              <p className="text-sm text-white">전유진</p>
+            </div>
+            <div>
+              <p className="text-xs text-white/60 mb-1">사업자등록번호</p>
+              <p className="text-sm text-white">445-86-01981</p>
+            </div>
+          </div>
+
+          {/* 저작권 */}
+          <div className="text-center text-xs text-white/50">
+            <p>&copy; {currentYear} 주식회사 위시스부동산중개법인. All rights reserved.</p>
+            <p className="mt-2">서울특별시 중개사협혌 | 공인중개사 신고번호</p>
+          </div>
         </div>
       </div>
     </footer>

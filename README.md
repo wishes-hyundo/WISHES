@@ -1,6 +1,6 @@
 # WISHES v2 - 위시스부동산 웹사이트
 
-서울 관악구 전문 부동산 중개 웹사이트 (Next.js 15 + Drizzle ORM + Kakao Maps)
+서울 관악구 전문 뵠동산 중개 웹사이트 (Next.js 15 + Drizzle ORM + Kakao Maps)
 
 ## 빠른 시작
 

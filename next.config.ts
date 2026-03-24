@@ -1,15 +1,6 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  // ESLint: skip during build
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  // TypeScript: skip type check during build
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  // Image optimization
   images: {
     remotePatterns: [
       {
@@ -17,10 +8,24 @@ const nextConfig: NextConfig = {
         hostname: 'images.wishes.co.kr',
         pathname: '/listings/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        pathname: '/**',
+      },
     ],
   },
-  // Server external packages
   serverExternalPackages: ['better-sqlite3'],
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.wishes.co.kr' }],
+        destination: 'https://wishes.co.kr/:path*',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

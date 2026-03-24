@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { listings, listingImages, listingFeatures } from '@/db/schema';
+import { listings, listingImages, listingFeatures } from 'A/db/schema';
 import { eq, desc, and, gte, lte } from 'drizzle-orm';
-
-export const dynamic = 'force-dynamic';
 
 // GET /api/listings - 매물 목록 조회
 export async function GET(request: NextRequest) {
@@ -18,7 +16,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    // 필터 조건
+    // 아터 조건
     const conditions = [eq(listings.status, '가용')];
     if (deal) conditions.push(eq(listings.deal, deal as any));
     if (type) conditions.push(eq(listings.type, type as any));

@@ -7,8 +7,6 @@ import { MapPin, Maximize, Building2, Calendar, Phone, ArrowLeft, Check, X } fro
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
 import type { Metadata } from 'next';
 
-export const dynamic = 'force-dynamic';
-
 interface Props {
   params: Promise<{ id: string }>;
 }
@@ -164,7 +162,7 @@ export default async function ListingDetailPage({ params }: Props) {
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
                 <p className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  딱록일: {new Date(listing.createdAt).toLocaleDateString('ko-KR')}
+                  등록일: {new Date(listing.createdAt).toLocaleDateString('ko-KR')}
                 </p>
                 <p className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />

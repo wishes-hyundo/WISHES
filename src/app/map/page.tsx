@@ -14,10 +14,10 @@ declare global {
   }
 }
 
-const dealTypes: DealType[] = ['전세', '월세', '매매'];
+const dealTypes: DealType[] = ['전세', '월세', '맠매'];
 const listingTypes: ListingType[] = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
 
-// 기본 중심: 서울 관악구 신림동
+// 기본 중심: 서울 관악구 싣림동
 const DEFAULT_CENTER = { lat: 37.4847, lng: 126.9293 };
 const DEFAULT_ZOOM = 5; // 카카오맵 레벨 (작을수록 상세)
 

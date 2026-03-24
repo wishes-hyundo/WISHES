@@ -43,11 +43,6 @@ export function getFormattedPrice(
         label: '매매',
         main: formatPrice(price ?? 0),
       };
-    default:
-      return {
-        label: deal,
-        main: formatPrice(deposit),
-      };
   }
 }
 
@@ -59,28 +54,19 @@ export function sqmToPyeong(sqm: number): string {
 // 거래 유형별 배지 색상
 export function getDealColor(deal: DealType): string {
   switch (deal) {
-    case '전세':
-      return 'bg-blue-500 text-white';
-    case '월세':
-      return 'bg-emerald-500 text-white';
-    case '매매':
-      return 'bg-orange-500 text-white';
-    default:
-      return 'bg-gray-500 text-white';
+    case '전세': return 'bg-blue-500 text-white';
+    case '월세': return 'bg-emerald-500 text-white';
+    case '매매': return 'bg-orange-500 text-white';
   }
 }
 
 // 상태 배지 색상
 export function getStatusColor(status: string): string {
   switch (status) {
-    case '가용':
-      return 'bg-green-100 text-green-800';
-    case '계약중':
-      return 'bg-yellow-100 text-yellow-800';
-    case '계약완료':
-      return 'bg-gray-100 text-gray-600';
-    default:
-      return 'bg-gray-100 text-gray-600';
+    case '가용': return 'bg-green-100 text-green-800';
+    case '계약중': return 'bg-yellow-100 text-yellow-800';
+    case '계약완료': return 'bg-gray-100 text-gray-600';
+    default: return 'bg-gray-100 text-gray-600';
   }
 }
 

@@ -1,71 +1,108 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-/* WISHES v2 글로벌 스타일                      */
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-
 :root {
-  /* 위시스 브랜드 컬러 */
-  --color-wishes-primary: #1a365d;
-  --color-wishes-secondary: #2b6cb0;
-  --color-wishes-accent: #e53e3e;
-  --color-wishes-gold: #d69e2e;
-  --color-wishes-bg: #f7fafc;
-  --color-wishes-text: #2d3748;
+  --color-wishes-primary: #0f172a;
+  --color-wishes-secondary: #1e40af;
+  --color-wishes-accent: #f59e0b;
+  --color-wishes-gold: #d97706;
+  --color-wishes-bg: #f8fafc;
+  --color-wishes-text: #1e293b;
 }
 
-/* 카카오맵 컨테이너 */
+body {
+  font-feature-settings: 'ss01' on, 'ss02' on;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Premium card styles */
+.card-premium {
+  @apply bg-white rounded-2xl border border-gray-100 shadow-card transition-all duration-300;
+}
+.card-premium:hover {
+  @apply shadow-card-hover border-gray-200 -translate-y-0.5;
+}
+
+/* Glass effect */
+.glass {
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+/* Kakao map styles */
 .kakao-map-container {
   width: 100%;
   height: 100%;
 }
 
-/* 커스텀 마커 스타일 */
 .map-marker-label {
   background: white;
-  border: 2px solid #1a365d;
-  border-radius: 8px;
-  padding: 4px 8px;
+  border: 2px solid #0f172a;
+  border-radius: 10px;
+  padding: 5px 10px;
   font-size: 12px;
   font-weight: 700;
-  color: #1a365d;
+  color: #0f172a;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  font-family: 'Pretendard', sans-serif;
 }
+.map-marker-label.deal-전세 { border-color: #1e40af; color: #1e40af; }
+.map-marker-label.deal-월세 { border-color: #059669; color: #059669; }
+.map-marker-label.deal-매매 { border-color: #d97706; color: #d97706; }
 
-.map-marker-label.deal-전세 { border-color: #3182ce; color: #3182ce; }
-.map-marker-label.deal-웈세 { border-color: #38a169; color: #38a169; }
-.map-marker-label.deal-매매 { border-color: #dd6b20; color: #dd6b20; }
-
-/* 스크롤바 스타일 */
+/* Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: transparent;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e0;
+  background: #cbd5e1;
   border-radius: 3px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a0aec0;
+  background: #94a3b8;
 }
 
-/* 페이드 인 애니메이션 */
+/* Animations */
 @keyframes fadeInUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
-
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
 .animate-fade-in-up {
-  animation: fadeInUp 0.5s ease-out forwards;
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+/* Premium gradient text */
+.text-gradient {
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 50%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }

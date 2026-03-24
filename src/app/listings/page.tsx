@@ -6,11 +6,9 @@ import { ListingFilters } from '@/components/ListingFilters';
 import { Building2 } from 'lucide-react';
 import type { Metadata } from 'next';
 
-export const dynamic = 'force-dynamic';
-
 export const metadata: Metadata = {
   title: '매물검색',
-  description: '서울 관악구 신림동·봉천동 원룸, 투룼, 오피스텔 매물을 검색하세요.',
+  description: '서울 관악구 신림동·봉첝동 원룸, 투룸, 오피스텔 매물을 검색하세요.',
 };
 
 interface SearchParams {
@@ -81,7 +79,7 @@ export default async function ListingsPage({
         <div className="max-w-7xl mx-auto px-4 py-6">
           <h1 className="text-2xl font-bold text-wishes-primary">매물 검색</h1>
           <p className="text-sm text-gray-500 mt-1">
-            관악구 신림동·봉천동 지역 매물을 검색하세요
+            관악구 신림동·봉첝동 지역 매물을 검색하세요
           </p>
         </div>
       </div>

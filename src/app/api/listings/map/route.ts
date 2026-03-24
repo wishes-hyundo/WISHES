@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       total: results.length,
     });
   } catch (error) {
-    console.error('지도 매물 조회 오류:', error);
+    console.error('맀도 매물 조회 오류:', error);
     return NextResponse.json(
       { success: false, error: '매물 조회에 실패했습니다' },
       { status: 500 }

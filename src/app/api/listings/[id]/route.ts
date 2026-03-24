@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { listings, listingImages, listingFeatures } from '@/db/schema';
+import { listings, listingImages, listingFeatures } from 'A/db/schema';
 import { eq } from 'drizzle-orm';
 
 // GET /api/listings/[id] - 매물 상세 조회

@@ -10,7 +10,7 @@ interface ListingFiltersProps {
 }
 
 const dealTypes = ['전세', '월세', '매매'];
-const listingTypes = ['원룸', '투룸', '쓰리룷', '오피스텔', '아파트', '상가', '사무실'];
+const listingTypes = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
 const sortOptions = [
   { value: 'latest', label: '최신순' },
   { value: 'price', label: '가격순' },

@@ -17,7 +17,7 @@ export const listings = sqliteTable('listings', {
   // 기본 정보
   title: text('title').notNull(),
   type: text('type', {
-    enum: ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'],
+    enum: ['원룸', '투룸', '쓰리룷', '오피스텔', '아파트', '상가', '사무실'],
   }).notNull(),
   deal: text('deal', {
     enum: ['전세', '월세', '매매'],
@@ -70,7 +70,7 @@ export const listingImages = sqliteTable('listing_images', {
 });
 
 // ─────────────────────────────────────────────
-// 매물 옵쥔/특징 테이블
+// 매물 옵션/특징 테이블
 // ─────────────────────────────────────────────
 export const listingFeatures = sqliteTable('listing_features', {
   id: integer('id').primaryKey({ autoIncrement: true }),

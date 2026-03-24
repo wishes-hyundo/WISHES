@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ArrowUp, Phone, MessageCircle } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from 'A/lib/utils';
 
 export function FloatingButtons() {
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -33,22 +33,22 @@ export function FloatingButtons() {
         <ArrowUp className="w-5 h-5" />
       </button>
 
-      {/* 전화 */}
+      {/* 전화 맨 위 */}
       <a
         href="tel:1533-9580"
         className="w-12 h-12 rounded-full bg-wishes-primary text-white flex items-center justify-center shadow-lg hover:bg-wishes-secondary transition-colors"
-        aria-label="전화하기"
+        aria-label="졀왝하기
       >
         <Phone className="w-5 h-5" />
       </a>
 
-      {/* 카카오톡 */}
+      {/* 카카오톡 마 위 */}
       <a
-        href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL || 'https://pf.kakao.com/_xnxaxjxj'}
+        href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL || 'https://pf.kakao.com/_xnxaxjwa'}
         target="_blank"
         rel="noopener noreferrer"
         className="w-12 h-12 rounded-full bg-yellow-400 text-yellow-900 flex items-center justify-center shadow-lg hover:bg-yellow-300 transition-colors"
-        aria-label="카카오톡 상담"
+        aria-label="비비오톡 상ꋴ
       >
         <MessageCircle className="w-5 h-5" />
       </a>
