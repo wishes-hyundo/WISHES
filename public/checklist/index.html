@@ -392,6 +392,9 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
 /* ── HINT / NOTE ── */
 
 .hint{font-size:.78rem;color:var(--gray500);margin-top:4px;line-height:1.5}
+.loan-product-input{width:100%;padding:10px 14px;border:2px solid var(--gray200);border-radius:var(--r-md);font-size:.95rem;outline:none;transition:border-color .2s}
+.loan-product-input:focus{border-color:var(--primary)}
+.loan-product-input::placeholder{color:var(--gray400)}
 
 .note{
 
@@ -969,16 +972,17 @@ textarea.finput{min-height:80px;resize:vertical}
 
         <div class="fg">
 
-          <label class="flabel">주택담보대출 이용</label>
+          <label class="flabel">대출 이용</label>
 
           <div class="chips" id="g-loan">
 
-            <div class="chip on-green" onclick="pick(this,'g-loan',1)">✅ 이용 예정</div>
+            <div class="chip on-green" onclick="pickLoan(this,'g-loan','loanProduct')">✅ 이용 예정</div>
 
-            <div class="chip" onclick="pick(this,'g-loan',1)">❌ 미이용</div>
+            <div class="chip" onclick="pickLoan(this,'g-loan','loanProduct')">해당없음</div>
 
-            <div class="chip" onclick="pick(this,'g-loan',1)">미정</div>
-
+          </div>
+          <div id="loanProduct" style="display:none;margin-top:8px">
+            <input type="text" id="loanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요"/>
           </div>
 
         </div>
@@ -1011,11 +1015,13 @@ textarea.finput{min-height:80px;resize:vertical}
           <div class="budget-hint">0 ~ 100,000 만원</div>
         </div>
         <div class="budget-field" style="margin-top:12px">
-          <div class="budget-label">전세자금대출 이용</div>
+          <div class="budget-label">대출 이용</div>
           <div class="chips" id="g-jeonLoan">
-            <div class="chip" onclick="pick(this,'g-jeonLoan',1)">예</div>
-            <div class="chip" onclick="pick(this,'g-jeonLoan',1)">아니오</div>
-            <div class="chip" onclick="pick(this,'g-jeonLoan',1)">미정</div>
+            <div class="chip on-green" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">✅ 이용 예정</div>
+            <div class="chip" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">해당없음</div>
+          </div>
+          <div id="jloanProduct" style="display:none;margin-top:8px">
+            <input type="text" id="jloanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요"/>
           </div>
         </div>
       </div>
@@ -1167,388 +1173,7 @@ textarea.finput{min-height:80px;resize:vertical}
 
       </div>
 
-      <div class="divider"></div>
-
-      <div class="fg">
-
-        <label class="flabel">권역 선택 (복수 가능)</label>
-
-        <div class="chips" id="g-regPref">
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">서울 도심</div>
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">강남권</div>
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">강북권</div>
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">서남권</div>
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">동북권</div>
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">경기 남부</div>
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">경기 북부</div>
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">경기 동부</div>
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">경기 서부</div>
-
-          <div class="chip" onclick="pick(this,'g-regPref',0)">인천</div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-<div class="page" id="page-2">
-<div style="background:linear-gradient(135deg,#e8f0fe,#d4e4fc);border-radius:12px;padding:14px 20px;margin:0 0 20px;font-size:13px;color:#1a3a6b;display:flex;align-items:center;gap:10px"><span style="font-size:20px">🏠</span><span>고객님의 매물 조건을 구체적으로 입력해주세요</span></div>
-
-
-<div class="card">
-
-    <div class="card-head">
-
-      <div class="card-icon">📐</div>
-
-      <div class="card-title">면적 및 구조</div>
-
-    </div>
-
-    <div class="card-body">
-
-      <div class="fg" style="margin-bottom:12px">
-
-        <label class="flabel">평형 빠른 선택</label>
-
-        <div class="chips" id="g-sizeQ">
-
-          <div class="chip" onclick="qSize(this,'~10평',0,33)">~10평</div>
-
-          <div class="chip" onclick="qSize(this,'10~15평',33,50)">10~15평</div>
-
-          <div class="chip" onclick="qSize(this,'15~20평',50,66)">15~20평</div>
-
-          <div class="chip" onclick="qSize(this,'20~25평',66,83)">20~25평</div>
-
-          <div class="chip" onclick="qSize(this,'25~30평',83,99)">25~30평</div>
-
-          <div class="chip" onclick="qSize(this,'30~40평',99,132)">30~40평</div>
-
-          <div class="chip" onclick="qSize(this,'40~50평',132,165)">40~50평</div>
-
-          <div class="chip" onclick="qSize(this,'50평+',165,999)">50평+</div>
-
-        </div>
-
-      </div>
-
-      <div class="frow c2">
-
-        <div class="fg">
-
-          <label class="flabel">최소 면적</label>
-
-          <div class="range-row">
-
-            <input type="number" id="sMin" placeholder="0" min="0"/>
-
-            <div class="unit">㎡</div>
-
-          </div>
-
-        </div>
-
-        <div class="fg">
-
-          <label class="flabel">최대 면적</label>
-
-          <div class="range-row">
-
-            <input type="number" id="sMax" placeholder="0" min="0"/>
-
-            <div class="unit">㎡</div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      <div class="hint">※ 10평≈33㎡ · 20평≈66㎡ · 30평≈99㎡ · 40평≈132㎡</div>
-
-      <div class="divider"></div>
-
-      <div class="frow c2">
-
-        <div class="fg">
-
-          <label class="flabel">방 개수</label>
-
-          <div class="chips" id="g-room">
-
-            <div class="chip" onclick="pick(this,'g-room',1)">원룸</div>
-
-            <div class="chip" onclick="pick(this,'g-room',1)">1.5룸</div>
-
-            <div class="chip" onclick="pick(this,'g-room',1)">2룸</div>
-
-            <div class="chip" onclick="pick(this,'g-room',1)">3룸</div>
-
-            <div class="chip" onclick="pick(this,'g-room',1)">4룸+</div>
-
-          </div>
-
-        </div>
-
-        <div class="fg">
-
-          <label class="flabel">화장실</label>
-
-          <div class="chips" id="g-bath">
-
-            <div class="chip" onclick="pick(this,'g-bath',1)">1개</div>
-
-            <div class="chip" onclick="pick(this,'g-bath',1)">2개</div>
-
-            <div class="chip" onclick="pick(this,'g-bath',1)">3개+</div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-
-
-  <div class="card">
-
-    <div class="card-head">
-
-      <div class="card-icon">🏗️</div>
-
-      <div class="card-title">건물 조건</div>
-
-    </div>
-
-    <div class="card-body">
-
-      <div class="frow c2">
-
-        <div class="fg">
-
-          <label class="flabel">희망 층수</label>
-
-          <div class="chips" id="g-floor">
-
-            <div class="chip" onclick="pick(this,'g-floor',0)">저층 1~3F</div>
-
-            <div class="chip" onclick="pick(this,'g-floor',0)">중층 4~10F</div>
-
-            <div class="chip" onclick="pick(this,'g-floor',0)">고층 11F+</div>
-
-            <div class="chip" onclick="pick(this,'g-floor',0)">상관없음</div>
-
-          </div>
-
-        </div>
-
-        <div class="fg">
-
-          <label class="flabel">방향 선호</label>
-
-          <div class="chips" id="g-dir">
-
-            <div class="chip" onclick="pick(this,'g-dir',0)">남향</div>
-
-            <div class="chip" onclick="pick(this,'g-dir',0)">남동향</div>
-
-            <div class="chip" onclick="pick(this,'g-dir',0)">동향</div>
-
-            <div class="chip" onclick="pick(this,'g-dir',0)">서향</div>
-
-            <div class="chip" onclick="pick(this,'g-dir',0)">무관</div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      <div class="frow c2">
-
-        <div class="fg">
-
-          <label class="flabel">건축 연도</label>
-
-          <div class="chips" id="g-age">
-
-            <div class="chip" onclick="pick(this,'g-age',1)">신축 ~5년</div>
-
-            <div class="chip" onclick="pick(this,'g-age',1)">준신축 5~10년</div>
-
-            <div class="chip" onclick="pick(this,'g-age',1)">10~20년</div>
-
-            <div class="chip" onclick="pick(this,'g-age',1)">20년+</div>
-
-            <div class="chip" onclick="pick(this,'g-age',1)">무관</div>
-
-          </div>
-
-        </div>
-
-        <div class="fg">
-
-          <label class="flabel">주차</label>
-
-          <div class="chips" id="g-park">
-
-            <div class="chip" onclick="pick(this,'g-park',1)">필수</div>
-
-            <div class="chip" onclick="pick(this,'g-park',1)">1대 이상</div>
-
-            <div class="chip" onclick="pick(this,'g-park',1)">2대 이상</div>
-
-            <div class="chip" onclick="pick(this,'g-park',1)">무관</div>
-
-          </div>
-
-        </div>
-
-        <div class="fg">
-
-          <label class="flabel">🚗 차량 종류</label>
-
-          <div class="chips" id="g-carType">
-
-            <div class="chip" onclick="pick(this,'g-carType',0)">🚗 승용차</div>
-
-            <div class="chip" onclick="pick(this,'g-carType',0)">🚙 SUV</div>
-
-            <div class="chip" onclick="pick(this,'g-carType',0)">⚡ 전기차</div>
-
-            <div class="chip" onclick="pick(this,'g-carType',0)">🚐 대형·기타</div>
-
-            <div class="chip" onclick="pick(this,'g-carType',1)">없음</div>
-
-          </div>
-
-          <div id="evChargerBox" style="display:none;margin-top:8px">
-
-            <label class="flabel">⚡ 전기차 충전</label>
-
-            <div class="chips" id="g-evCharger">
-
-              <div class="chip" onclick="pick(this,'g-evCharger',1)">세대 내 충전 필수</div>
-
-              <div class="chip" onclick="pick(this,'g-evCharger',1)">공용 충전기 가능</div>
-
-              <div class="chip" onclick="pick(this,'g-evCharger',1)">무관</div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-
-
-  <!-- 상가·사무실 전용 (동적 표시) -->
-
-  <div class="card" id="commercialCard" style="display:none">
-
-    <div class="card-head">
-
-      <div class="card-icon">🏪</div>
-
-      <div class="card-title">상가 · 사무실 전용 조건</div>
-
-    </div>
-
-    <div class="card-body">
-
-      <div class="frow c2">
-
-        <div class="fg">
-
-          <label class="flabel">업종 · 용도</label>
-
-          <input type="text" id="bizType" placeholder="예: 카페, IT 사무실, 학원"/>
-
-        </div>
-
-        <div class="fg">
-
-          <label class="flabel">권리금</label>
-
-          <div class="chips" id="g-key">
-
-            <div class="chip on-green" onclick="pick(this,'g-key',1)">있어도 됨</div>
-
-            <div class="chip on-red" onclick="pick(this,'g-key',1)">없어야 함</div>
-
-            <div class="chip" onclick="pick(this,'g-key',1)">무관</div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      <div class="frow c2">
-
-        <div class="fg">
-
-          <label class="flabel">층수</label>
-
-          <div class="chips" id="g-comFloor">
-
-            <div class="chip" onclick="pick(this,'g-comFloor',1)">1층 필수</div>
-
-            <div class="chip" onclick="pick(this,'g-comFloor',1)">지하 가능</div>
-
-            <div class="chip" onclick="pick(this,'g-comFloor',1)">무관</div>
-
-          </div>
-
-        </div>
-
-        <div class="fg">
-
-          <label class="flabel">간판 설치</label>
-
-          <div class="chips" id="g-sign">
-
-            <div class="chip" onclick="pick(this,'g-sign',1)">필요</div>
-
-            <div class="chip" onclick="pick(this,'g-sign',1)">불필요</div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </div>
-
-  </div>
-
-    <div class="card">
-      <div class="card-head">
-        <div class="card-icon">📋</div>
-        <div class="card-title">계약 기간</div>
-      </div>
+      
       <div class="card-body">
         <div class="fg">
           <div class="chips" id="g-contractPeriod">
@@ -2183,6 +1808,14 @@ function pick(el, gid, single){
 
 
 
+function pickLoan(el, gid, productId){
+  document.querySelectorAll('#'+gid+' .chip').forEach(function(c){c.classList.remove('on','on-gold','on-green','on-red')});
+  el.classList.add('on');
+  S.chips[gid] = el.textContent.trim();
+  var wrap = document.getElementById(productId);
+  if(wrap) wrap.style.display = el.textContent.trim().indexOf('이용 예정')>=0 ? 'block' : 'none';
+}
+
 function pickDeal(el, val){
 
   document.querySelectorAll('#g-dealType .deal-chip').forEach(c=>c.classList.remove('on'));
@@ -2423,9 +2056,9 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">예산</div><div class="sc-val"><strong style="color:var(--navy)">${budget}</strong></div></div>
 
-        ${deal==='매매'?'<div class="sc-row"><div class="sc-key">대출 이용</div><div class="sc-val">'+gc('g-loan')+'</div></div>':''}
+        ${deal==='매매'?'<div class="sc-row"><div class="sc-key">대출 이용</div><div class="sc-val">'+gc('g-loan')+(gv('loanProductName')?' ('+gv('loanProductName')+')':'')+'</div></div>':''}
 
-        ${deal==='전세'?'<div class="sc-row"><div class="sc-key">전세 대출</div><div class="sc-val">'+gc('g-jloan')+'</div></div>':''}
+        ${deal==='전세'?'<div class="sc-row"><div class="sc-key">전세 대출</div><div class="sc-val">'+gc('g-jeonLoan')+(gv('jloanProductName')?' ('+gv('jloanProductName')+')':'')+'</div></div>':''}
 
       </div>
 
@@ -2445,7 +2078,7 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">3순위</div><div class="sc-val">${gv('reg3')||'—'}</div></div>
 
-        <div class="sc-row"><div class="sc-key">권역</div><div class="sc-val">${gc('g-regPref')}</div></div>
+        
 
       </div>
 
@@ -2842,16 +2475,15 @@ function buildShareText(withLink){
 
   t += `  예산: ${budget}\n`;
 
-  if(d.deal==='매매') t += `  대출이용: ${gc('g-loan')}\n`;
+  if(d.deal==='매매'){ t += `  대출이용: ${gc('g-loan')}`; if(gv('loanProductName')) t += ` (${gv('loanProductName')})`; t += '\n'; }
 
-  if(d.deal==='전세') t += `  전세대출: ${gc('g-jloan')}\n`;
+  if(d.deal==='전세'){ t += `  대출이용: ${gc('g-jeonLoan')}`; if(gv('jloanProductName')) t += ` (${gv('jloanProductName')})`; t += '\n'; }
 
 
 
   if(regions.length) t += `\n📍 희망지역: ${regions.join(' · ')}\n`;
 
-  const regPref = gc('g-regPref'); if(regPref!=='—') t += `  권역선호: ${regPref}\n`;
-
+  
 
 
   t += `\n📐 매물 상세 조건\n`;
