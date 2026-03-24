@@ -4,195 +4,272 @@ import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Phone, Mail, MapPin, Send, CheckCircle, MessageCircle } from 'lucide-react';
 
-export default function ContactPage() {
-  return (
-    <Suspense fallback={<div className="pt-16 min-h-screen flex items-center justify-center"><p className="text-gray-500">ë¡ë© ì¤...</p></div>}>
-      <ContactPageInner />
-    </Suspense>
-  );
-}
-
-function ContactPageInner() {
+function ContactFormContent() {
   const searchParams = useSearchParams();
   const listingId = searchParams.get('listing');
 
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     name: '',
     phone: '',
     email: '',
-    message: listingId ? `ë§¤ë¬¼ #${listingId}ì ëí´ ìë´ ìì²­í©ëë¤.\n\n` : '',
+    message: listingId ? `매물 #${listingId}에 대해 상담 요청합니다.\n\n` : '',
   });
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
+    setIsSubmitting(true);
+    setSubmitError('');
 
     try {
-      const res = await fetch('/api/contacts', {
+      const response = await fetch('/api/contacts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          listingId: listingId ? parseInt(listingId) : null,
-        }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
       });
 
-      if (res.ok) {
-        setSubmitted(true);
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
       }
+
+      setSubmitSuccess(true);
+      setFormData({
+        name: '',
+        phone: '',
+        email: '',
+        message: listingId ? `매물 #${listingId}에 대해 상담 요청합니다.\n\n` : '',
+      });
+
+      setTimeout(() => setSubmitSuccess(false), 5000);
     } catch (error) {
-      console.error('ìë´ ì ì²­ ì¤í¨:', error);
+      console.error('상담 신청 실패:', error);
+      setSubmitError('상담 신청헐 실패했습니다. 다시 시도해주세요.');
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (submitted) {
-    return (
-      <div className="pt-16 min-h-screen flex items-center justify-center">
-        <div className="text-center p-8">
-          <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-wishes-primary mb-2">ìë´ ì ì²­ ìë£</h2>
-          <p className="text-gray-600 mb-6">
-            ë¹ ë¥¸ ìì¼ ë´ì ì°ë½ëë¦¬ê² ìµëë¤.<br />
-            ê¸íì  ê²½ì° ì íë¡ ë¬¸ìí´ ì£¼ì¸ì.
-          </p>
-          <a
-            href="tel:1533-9580"
-            className="inline-flex items-center gap-2 bg-wishes-primary text-white px-6 py-3 rounded-xl font-bold"
-          >
-            <Phone className="w-5 h-5" />
-            1533-9580
-          </a>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="pt-16 min-h-screen">
-      {/* í¤ë */}
-      <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-12">
-        <div className="max-w-5xl mx-auto px-4 text-center">
-          <h1 className="text-3xl font-bold">ìë´ ë¬¸ì</h1>
-          <p className="mt-2 text-blue-200">ììì¤ë¶ëì°ì ë¬¸ìíì¸ì</p>
+    <>
+      {/* Hero Section */}
+      <section className="bg-navy-800 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-5" style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23ffffff'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/svg%3E")`,
+        }} />
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-16 sm:py-24 text-center">
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-4">상담 문의</h1>
+          <p className="text-white/60 text-base sm:text-lg">위시스부동산에 문의하세요</p>
         </div>
       </section>
 
-      <div className="max-w-5xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* ì°ë½ì² ì ë³´ */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-bold text-wishes-primary mb-4">ì°ë½ì²</h2>
-
-            <a href="tel:1533-9580" className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-wishes-secondary transition-colors">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Phone className="w-5 h-5 text-wishes-secondary" />
+      {/* Contact Methods */}
+      <section className="py-16 sm:py-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Phone */}
+            <a href="tel:1533-9580" className="block bg-white rounded-2xl p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-md transition-shadow text-center">
+              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Phone className="w-8 h-8 text-blue-600" />
               </div>
-              <div>
-                <p className="text-xs text-gray-500">ì í ìë´</p>
-                <p className="font-bold text-wishes-primary">1533-9580</p>
-              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">전화 상담</h3>
+              <p className="text-2xl font-bold text-blue-600 mb-2">1533-9580</p>
+              <p className="text-xs text-gray-500">평일 09:00~19:00 / 토 10:00~17:00</p>
             </a>
 
-            <a href="https://pf.kakao.com/_DxdSJs" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-yellow-400 transition-colors">
-              <div className="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
-                <MessageCircle className="w-5 h-5 text-yellow-600" />
+            {/* KakaoTalk */}
+            <a href="https://pf.kakao.com/_DxdSJs" target="_blank" rel="noopener noreferrer" className="block bg-white rounded-2xl p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-md transition-shadow text-center">
+              <div className="w-16 h-16 bg-yellow-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <MessageCircle className="w-8 h-8 text-yellow-600" />
               </div>
-              <div>
-                <p className="text-xs text-gray-500">ì¹´ì¹´ì¤í¡ ìë´</p>
-                <p className="font-bold text-yellow-700">ì¹´ì¹´ì¤í¡ ì±ë</p>
-              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">카카오톡 채널</h3>
+              <p className="text-sm text-gray-600 mb-2">실시간 채팅 상담</p>
+              <p className="text-xs text-gray-500">24시간 문의 가능 (답변은 영업시간)</p>
             </a>
 
-            <a href="mailto:wishes@wishes.co.kr" className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-wishes-secondary transition-colors">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Mail className="w-5 h-5 text-wishes-secondary" />
+            {/* Email */}
+            <a href="mailto:wishes@wishes.co.kr" className="block bg-white rounded-2xl p-6 sm:p-8 border border-gray-100 shadow-sm hover:shadow-md transition-shadow text-center">
+              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Mail className="w-8 h-8 text-blue-600" />
               </div>
-              <div>
-                <p className="text-xs text-gray-500">ì´ë©ì¼</p>
-                <p className="font-bold text-wishes-primary">wishes@wishes.co.kr</p>
-              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">이메일</h3>
+              <p className="text-sm text-blue-600 font-medium mb-2">wishes@wishes.co.kr</p>
+              <p className="text-xs text-gray-500">영업일 기준 24시간 이내 회신</p>
             </a>
+          </div>
+        </div>
+      </section>
 
-            <div className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <MapPin className="w-5 h-5 text-wishes-secondary" />
-              </div>
+      {/* Contact Form */}
+      <section className="py-16 sm:py-20 bg-gray-50">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2 text-center">온라인 상담 신청</h2>
+          <p className="text-gray-600 text-center mb-8">아래 양식을 작성해주시면 빠르게 연락드리겠습니다.</p>
+
+          {submitSuccess && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-xl flex items-start gap-3">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-xs text-gray-500">ë°©ë¬¸ ìë´</p>
-                <p className="text-sm font-medium text-gray-700">ê´ìêµ¬ ì ë¦¼ë¡64ê¸¸ 23, 8ì¸µ</p>
+                <h3 className="font-bold text-green-900 mb-1">상담 신청 완료</h3>
+                <p className="text-sm text-green-800">빠른 시인 내에 연락드리겠습니다.<br/>급한신 경우 전화로 문의해 주세요.</p>
+              </div>
+            </div>
+          )}
+
+          {submitError && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+              <p className="text-sm text-red-800">{submitError}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm border border-gray-100">
+            {/* Name */}
+            <div className="mb-6">
+              <label htmlFor="name" className="block text-sm font-bold text-gray-900 mb-2">
+                이름 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                placeholder="홍길동"
+                required
+                value={formData.name}
+                onChange={handleChange}
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </div>
+
+            {/* Phone */}
+            <div className="mb-6">
+              <label htmlFor="phone" className="block text-sm font-bold text-gray-900 mb-2">
+                연락처 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                id="phone"
+                name="phone"
+                placeholder="010-0000-0000"
+                required
+                value={formData.phone}
+                onChange={handleChange}
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="mb-6">
+              <label htmlFor="email" className="block text-sm font-bold text-gray-900 mb-2">
+                이메일
+              </label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                placeholder="email@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </div>
+
+            {/* Message */}
+            <div className="mb-8">
+              <label htmlFor="message" className="block text-sm font-bold text-gray-900 mb-2">
+                문의 내용
+              </label>
+              <textarea
+                id="message"
+                name="message"
+                placeholder="원하시는 매물 조건이나 문의 내용을 적어주세요"
+                rows={5}
+                value={formData.message}
+                onChange={handleChange}
+                disabled={isSubmitting}
+                className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none disabled:bg-gray-50 disabled:text-gray-500"
+              />
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <Send className="w-4 h-4" />
+              {isSubmitting ? '전송 중...' : '상담 신청하기'}
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* Visit Info */}
+      <section className="py-16 sm:py-20 bg-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-8 text-center">방문 상담</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-gray-50 rounded-2xl p-6 sm:p-8">
+              <h3 className="font-bold text-gray-900 mb-4">연락처</h3>
+              <div className="space-y-3 text-sm">
+                <div className="flex items-start gap-3">
+                  <Phone className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-gray-600">전화 상담</p>
+                    <p className="font-bold text-gray-900">1533-9580</p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-gray-600">이메일</p>
+                    <p className="font-bold text-gray-900">wishes@wishes.co.kr</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gray-50 rounded-2xl p-6 sm:p-8">
+              <h3 className="font-bold text-gray-900 mb-4">찾아오시는 길</h3>
+              <div className="space-y-3 text-sm text-gray-600">
+                <div className="flex items-start gap-3">
+                  <MapPin className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-gray-900">서울특별시 관악구 신림로64길 23, 8층</p>
+                    <div className="space-y-1 mt-2">
+                      <p><span className="font-medium text-blue-600">지하철:</span> 2호선 신림역 3번 출구 도보 5분</p>
+                      <p><span className="font-medium text-blue-600">버스:</span> 신림역 정류장 하차</p>
+                      <p><span className="font-medium text-blue-600">주차:</span> 건물 내 주차 가능 (사전 연락)</p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-
-          {/* ìë´ ì ì²­ í¼ */}
-          <div className="lg:col-span-2">
-            <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-8">
-              <h2 className="text-lg font-bold text-wishes-primary mb-6">ì¨ë¼ì¸ ìë´ ì ì²­</h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ì´ë¦ *</label>
-                  <input
-                    type="text"
-                    required
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary"
-                    placeholder="íê¸¸ë"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ì°ë½ì² *</label>
-                  <input
-                    type="tel"
-                    required
-                    value={form.phone}
-                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary"
-                    placeholder="010-0000-0000"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ì´ë©ì¼</label>
-                  <input
-                    type="email"
-                    value={form.email}
-                    onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary"
-                    placeholder="email@example.com"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">ë¬¸ì ë´ì©</label>
-                  <textarea
-                    rows={5}
-                    value={form.message}
-                    onChange={(e) => setForm({ ...form, message: e.target.value })}
-                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary resize-none"
-                    placeholder="ìíìë ë§¤ë¬¼ ì¡°ê±´ì´ë ë¬¸ì ë´ì©ì ì ì´ì£¼ì¸ì"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full flex items-center justify-center gap-2 bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors disabled:opacity-50"
-                >
-                  <Send className="w-4 h-4" />
-                  {submitting ? 'ì ì¡ ì¤...' : 'ìë´ ì ì²­íê¸°'}
-                </button>
-              </div>
-            </form>
-          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </>
+  );
+}
+
+export default function ContactPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20 text-gray-500">로딩 중...</div>}>
+      <ContactFormContent />
+    </Suspense>
   );
 }
