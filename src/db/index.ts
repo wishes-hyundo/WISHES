@@ -11,12 +11,13 @@ import Database from 'better-sqlite3';
 import { count } from 'drizzle-orm';
 import { existsSync, mkdirSync } from 'fs';
 
-// data 폴더 생성
-if (!existsSync('./data')) {
-  mkdirSync('./data', { recursive: true });
+// data 폴더 생성 (Vercel은 /tmp만 쓰기 가능)
+const dataDir = process.env.VERCEL ? '/tmp/data' : './data';
+if (!existsSync(dataDir)) {
+  mkdirSync(dataDir, { recursive: true });
 }
 
-const sqlite = new Database('./data/wishes.db');
+const sqlite = new Database(`${dataDir}/wishes.db`);
 export const db = drizzle(sqlite, { schema });
 
 // ─── STEP 1: Supabase PostgreSQL (프로덕션) ───
