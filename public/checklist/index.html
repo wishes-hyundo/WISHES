@@ -1159,32 +1159,52 @@ textarea.finput{min-height:80px;resize:vertical}
 
     </div>
 
+        <div class="card">
+      <div class="card-head">
+        <div class="card-icon">📅</div>
+        <div class="card-title">입주 및 계약</div>
+      </div>
+      <div class="card-body">
+        <div class="frow c2">
+          <div class="fg">
+            <label class="flabel">희망 입주일</label>
+            <input type="date" class="finput" id="f-moveDate">
+          </div>
+          <div class="fg">
+            <label class="flabel">입주 유연성</label>
+            <div class="chips" id="g-moveFlex">
+              <div class="chip" onclick="pick(this,'g-moveFlex',1)">즉시 입주</div>
+              <div class="chip" onclick="pick(this,'g-moveFlex',1)">1개월 이내</div>
+              <div class="chip" onclick="pick(this,'g-moveFlex',1)">협의 가능</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-head">
         <span class="card-icon">🚗</span> 주차 / 반려동물
       </div>
       <div class="card-body">
-        <div class="frow c2">
-          <div class="fg">
-            <label class="flabel">주차 필요 유무</label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <div class="chips" id="g-parking" style="flex:0 0 auto">
-                <div class="chip" onclick="pick(this,'g-parking',1)">필요</div>
-                <div class="chip" onclick="pick(this,'g-parking',1)">불필요</div>
-              </div>
-              <input type="text" id="parkingNote" placeholder="차종/특이사항" style="flex:1;padding:8px 12px;border-radius:10px;border:2px solid #ddd;font-size:13px;background:#fff"/>
+        <div class="fg" style="margin-bottom:14px">
+          <label class="flabel">주차 필요 유무</label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <div class="chips" id="g-parking" style="flex:0 0 auto">
+              <div class="chip" onclick="pick(this,'g-parking',1)">필요</div>
+              <div class="chip" onclick="pick(this,'g-parking',1)">불필요</div>
             </div>
+            <input type="text" id="parkingNote" placeholder="차종/특이사항" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:2px solid #ddd;font-size:14px;background:#fff"/>
           </div>
-          <div class="fg">
-            <label class="flabel">반려동물</label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <div class="chips" id="g-petType" style="flex:0 0 auto">
-                <div class="chip" onclick="pick(this,'g-petType',1)">🐶 강아지</div>
-                <div class="chip" onclick="pick(this,'g-petType',1)">🐱 고양이</div>
-                <div class="chip" onclick="pick(this,'g-petType',1)">없음</div>
-              </div>
-              <input type="text" id="petNote" placeholder="기타/특이사항" style="flex:1;padding:8px 12px;border-radius:10px;border:2px solid #ddd;font-size:13px;background:#fff"/>
+        </div>
+        <div class="fg">
+          <label class="flabel">반려동물</label>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <div class="chips" id="g-petType" style="flex:0 0 auto">
+              <div class="chip" onclick="pick(this,'g-petType',1)">🐶 강아지</div>
+              <div class="chip" onclick="pick(this,'g-petType',1)">🐱 고양이</div>
+              <div class="chip" onclick="pick(this,'g-petType',1)">없음</div>
             </div>
+            <input type="text" id="petNote" placeholder="기타/특이사항" style="flex:1;min-width:120px;padding:10px 14px;border-radius:10px;border:2px solid #ddd;font-size:14px;background:#fff"/>
           </div>
         </div>
       </div>
@@ -1250,28 +1270,6 @@ textarea.finput{min-height:80px;resize:vertical}
 
   </div>
 
-<div class="card">
-      <div class="card-head">
-        <div class="card-icon">📅</div>
-        <div class="card-title">입주 및 계약</div>
-      </div>
-      <div class="card-body">
-        <div class="frow c2">
-          <div class="fg">
-            <label class="flabel">희망 입주일</label>
-            <input type="date" class="finput" id="f-moveDate">
-          </div>
-          <div class="fg">
-            <label class="flabel">입주 유연성</label>
-            <div class="chips" id="g-moveFlex">
-              <div class="chip" onclick="pick(this,'g-moveFlex',1)">즉시 입주</div>
-              <div class="chip" onclick="pick(this,'g-moveFlex',1)">1개월 이내</div>
-              <div class="chip" onclick="pick(this,'g-moveFlex',1)">협의 가능</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
   <div class="card">
 
     <div class="card-head">
@@ -1796,6 +1794,7 @@ function goPage(n){
   }
 
   cur = n;
+      var lay=document.querySelector('.layout');if(lay)lay.style.display=(n===1||n==='1')?'':'none';
 
   document.getElementById('page-'+n).classList.add('active');
 
