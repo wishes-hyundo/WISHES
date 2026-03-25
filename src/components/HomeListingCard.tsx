@@ -26,6 +26,11 @@ const getDealBgGradient = (deal: string) => {
   }
 };
 
+// 서버/클라이언트 동일한 숫자 포맷 (hydration 안전)
+const formatNumber = (num: number): string => {
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+};
+
 const formatPrice = (listing: any) => {
   const deposit = listing.deposit || 0;
   const monthly = listing.monthly || 0;
@@ -35,18 +40,31 @@ const formatPrice = (listing: any) => {
     if (price >= 10000) {
       const uk = Math.floor(price / 10000);
       const man = price % 10000;
-      return man > 0 ? `${uk}억 ${man.toLocaleString()}` : `${uk}억`;
+      return man > 0 ? `${uk}억 ${formatNumber(man)}` : `${uk}억`;
     }
-    return `${price.toLocaleString()}`;
+    return `${formatNumber(price)}`;
   } else if (listing.deal === '전세') {
     if (deposit >= 10000) {
       const uk = Math.floor(deposit / 10000);
       const man = deposit % 10000;
-      return `전세 ${man > 0 ? `${uk}억 ${man.toLocaleString()}` : `${uk}억`}`;
+      return `전세 ${man > 0 ? `${uk}억 ${formatNumber(man)}` : `${uk}억`}`;
     }
-    return `전세 ${deposit.toLocaleString()}`;
+    return `전세 ${formatNumber(deposit)}`;
   } else {
-    return `${deposit.toLocaleString()}/${monthly}`;
+    return `${formatNumber(deposit)}/${monthly}`;
+  }
+};
+
+// 서버/클라이언트 동일한 날짜 포맷 (hydration 안전)
+const formatDate = (dateStr: string | null | undefined): string => {
+  if (!dateStr) return '방금 전';
+  try {
+    const date = new Date(dateStr);
+    const month = date.getUTCMonth() + 1;
+    const day = date.getUTCDate();
+    return `${month}월 ${day}일`;
+  } catch {
+    return '방금 전';
   }
 };
 
@@ -59,6 +77,7 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
   // Supabase에서 가져온 이미지 (listing_images 조인)
   const images = listing.listing_images || [];
   const thumbUrl = images.length > 0 ? images[0].url : null;
+
   const price = formatPrice(listing);
   const area = listing.area_m2 || listing.area || 0;
   const floor = listing.floor_current || listing.floor || '';
@@ -83,6 +102,7 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
             }}
           />
         ) : null}
+
         {/* 이미지 없을 때 / 에러 시 플레이스홀더 */}
         <div className={cn(
           'absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200',
@@ -105,7 +125,6 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
           )}>
             {listing.deal}
           </span>
-
           <div className="flex gap-2">
             {listing.elevator && (
               <span className="px-2 py-1 text-xs font-semibold bg-white/80 text-wishes-secondary rounded-lg shadow-sm">
@@ -190,7 +209,7 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '방금 전'}
+            {formatDate(listing.created_at)}
           </span>
         </div>
       </div>
