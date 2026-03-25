@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
 import ShareButton from '@/components/ShareButton';
+import RecentlyViewedTracker from '@/components/RecentlyViewedTracker';
 import type { Metadata } from 'next';
 
 interface Props {
@@ -91,6 +92,7 @@ export default async function ListingDetailPage({ params }: Props) {
 
   return (
     <div className="pt-16 min-h-screen bg-wishes-bg">
+      <RecentlyViewedTracker listingId={id} />
       {/* 상단 네비 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
