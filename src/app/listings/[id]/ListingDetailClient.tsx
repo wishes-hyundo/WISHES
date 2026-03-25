@@ -176,7 +176,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
                   </button>
                   <button onClick={() => handleShare('clipboard')} className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2">
                     <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M85a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                     </svg>
                     {'\uB9C1\uD06C \uBCF5\uC0AC'}
                   </button>
@@ -185,7 +185,80 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
                       <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                       </svg>
-                      {'\uB354\uBCF4\uAE3´Áƒpan-2 space-y-6">
+                      {'\uB354\uBCF4\uAE30'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Image Gallery */}
+      <div className="relative bg-gray-900">
+        <div className="max-w-6xl mx-auto">
+          <div
+            className="relative aspect-[16/9] md:aspect-[21/9] cursor-pointer group"
+            onClick={() => setShowGallery(true)}
+          >
+            <img
+              src={images[currentImageIndex]}
+              alt={listing.title}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(prev => prev > 0 ? prev - 1 : images.length - 1); }}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(prev => prev < images.length - 1 ? prev + 1 : 0); }}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </button>
+              </>
+            )}
+
+            <div className="absolute bottom-4 right-4 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
+              {currentImageIndex + 1} / {images.length}
+            </div>
+          </div>
+
+          {/* Thumbnail strip */}
+          {images.length > 1 && (
+            <div className="flex gap-1 p-2 overflow-x-auto bg-gray-900">
+              {images.map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentImageIndex(idx)}
+                  className={`flex-shrink-0 w-16 h-12 rounded overflow-hidden border-2 transition-colors ${
+                    idx === currentImageIndex ? 'border-blue-500' : 'border-transparent opacity-60 hover:opacity-100'
+                  }`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-6xl mx-auto px-4 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Main Info - Left Column */}
+          <div className="lg:col-span-2 space-y-6">
             {/* Title & Price */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <div className="flex items-center gap-2 mb-2">
@@ -298,7 +371,7 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             {/* Map Placeholder */}
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-4">{'\uC704\uCE58'}</h2>
-              <div className="aspect-[16:9] bg-gray-100 rounded-lg flex items-center justify-center">
+              <div className="aspect-[16/9] bg-gray-100 rounded-lg flex items-center justify-center">
                 <div className="text-center text-gray-400">
                   <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
