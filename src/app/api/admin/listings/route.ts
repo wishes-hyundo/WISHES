@@ -40,6 +40,8 @@ const createListingSchema = z.object({
   full_option: z.boolean().default(false).optional(),
   loan_available: z.boolean().default(true).optional(),
   status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
+  // 이미지 URL 배열 (Supabase Storage에 이미 업로드된 URL들)
+  images: z.array(z.string()).optional(),
 });
 
 /**
@@ -85,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     const { data, error } = await supabase
       .from('listings')
-      .select('*')
+      .select('*, listing_images(*)')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -218,6 +220,9 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
+    // images는 별도 처리 (listings 테이블에는 포함되지 않음)
+    const { images: imageUrls, ...listingFields } = parsed.data;
+
     const { data, error } = await supabase
       .from('listings')
       .insert({
@@ -294,10 +299,36 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 이미지 URL이 있으면 listing_images 테이블에 연결
+    let imageResults = [];
+    if (imageUrls && imageUrls.length > 0 && data?.id) {
+      const imageInserts = imageUrls.map((url, index) => ({
+        listing_id: data.id,
+        url: url,
+        alt: data.title + ' 이미지 ' + (index + 1),
+        sort_order: index,
+        is_thumbnail: index === 0,
+      }));
+
+      const { data: imgData, error: imgError } = await supabase
+        .from('listing_images')
+        .insert(imageInserts)
+        .select();
+
+      if (imgError) {
+        console.error('이미지 연결 오류:', imgError);
+      } else {
+        imageResults = imgData || [];
+      }
+    }
+
     return NextResponse.json(
       {
         success: true,
-        data,
+        data: {
+          ...data,
+          listing_images: imageResults,
+        },
       },
       { status: 201 }
     );
