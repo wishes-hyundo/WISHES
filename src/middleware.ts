@@ -19,9 +19,9 @@ export function middleware(request: NextRequest) {
     [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://t1.daumcdn.net https://dapi.kakao.com https://www.googletagmanager.com https://www.google-analytics.com https://wcs.naver.net",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://t1.daumcdn.net https://map*.daumcdn.net",
-      "font-src 'self' https://fonts.gstatic.com",
+      "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
       "connect-src 'self' https://*.supabase.co https://dapi.kakao.com https://www.google-analytics.com https://wcs.naver.net https://api.anthropic.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
