@@ -24,6 +24,7 @@ interface FormData {
   description: string;
   images: string[];
   status: string;
+  dong: string;
   // 건축물대장 정보
   buildingName: string;
   buildingStructure: string;
@@ -85,6 +86,7 @@ export default function NewListingPage() {
     description: '',
     images: [],
     status: '가용',
+    dong: '',
     buildingName: '',
     buildingStructure: '',
     buildingPurpose: '',
@@ -147,6 +149,7 @@ export default function NewListingPage() {
 
       const params = new URLSearchParams({
         address: formData.address,
+        dong: formData.dong || (formData.address.match(/([\uAC00-\uD7AF]{1,5}\ub3d9)/) || [])[1] || '',
         sigungu: sigungu,
         bun: bun || '0',
         ji: ji || '0',
