@@ -3,8 +3,8 @@
 function formatMessage(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-    .replace(/^[\u2022\-\*]\s+(.+)/gm, '<div class="flex gap-1.5 mb-1"><span class="text-wishes-primary">\u2022</span><span>$1</span></div>')
-    .replace(/^(\d+)\.\s+(.+)/gm, '<div class="flex gap-1.5 mb-1"><span class="text-wishes-primary font-medium">$1.</span><span>$2</span></div>')
+    .replace(/^[\u2022\-\*]\s+(.+)/gm, '<div class="flex gap-1.5 mb-1"><span class="text-amber-500">\u2022</span><span>$1</span></div>')
+    .replace(/^(\d+)\.\s+(.+)/gm, '<div class="flex gap-1.5 mb-1"><span class="text-amber-500 font-medium">$1.</span><span>$2</span></div>')
     .replace(/\n\n/g, '</p><p class="mt-2">')
     .replace(/\n/g, '<br/>');
 }
@@ -20,14 +20,14 @@ interface Message {
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  content: 'ìëíì¸ì! ð ììì¤ë¶ëì° AI ìë´ì¬ìëë¤.\n\nìì¸Â·ê²½ê¸° ì§ì­ ë¶ëì°ì ëí´ ê¶ê¸í ì ì í¸íê² ë¬¼ì´ë´ì£¼ì¸ì!\n\nð¬ ì´ë° ì§ë¬¸ì´ ê°ë¥í©ëë¤:\nâ¢ ë§¤ë¬¼ ê²ì ë° ì¶ì²\nâ¢ ì ì¸/ìì¸/ë§¤ë§¤ ìì¸\nâ¢ ëì¶ ë° ì¸ê¸ ìë´\nâ¢ ê³ì½ ì ì°¨ ìë´\nâ¢ ì ì¸ì¬ê¸° ìë°©ë²',
+  content: '안녕하세요! 😊 위시스부동산 AI 상담사입니다.\n\n서울·경기 지역 부동산에 대해 궁금한 점을 편하게 물어봐주세요!\n\n💬 이런 질문이 가능합니다:\n• 매물 검색 및 추천\n• 전세/월세/매매 시세\n• 대출 및 세금 안내\n• 계약 절차 안내\n• 전세사기 예방법',
 };
 
 const QUICK_QUESTIONS = [
-  'ë§¤ë¬¼ ê²ìì ì´ë»ê² íëì?',
-  'ì ì¸ì¬ê¸° ìë°©ë² ìë ¤ì£¼ì¸ì',
-  'ë¶ëì° ê±°ë ì ì°¨ê° ê¶ê¸í´ì',
-  'ëì¶ ìë´ì´ íìí©ëë¤',
+  '매물 검색은 어떻게 하나요?',
+  '전세사기 예방법 알려주세요',
+  '부동산 거래 절차가 궁금해요',
+  '대출 상담이 필요합니다',
 ];
 
 export default function AIChatBot() {
@@ -80,7 +80,7 @@ export default function AIChatBot() {
         ...prev,
         {
           role: 'assistant',
-          content: 'ì£ì¡í©ëë¤. ì¼ìì ì¸ ì¤ë¥ê° ë°ìíìµëë¤. ì ì í ë¤ì ìëí´ì£¼ì¸ì. ê¸´ê¸ ìë´ì´ íìíìë©´ ìë´ë¬¸ì íì´ì§ë¥¼ ì´ì©í´ì£¼ì¸ì.',
+          content: '죄송합니다. 일시적인 오류가 발생했습니다. 잠시 후 다시 시도해주세요. 긴급 상담이 필요하시면 상담문의 페이지를 이용해주세요.',
         },
       ]);
     } finally {
@@ -100,7 +100,7 @@ export default function AIChatBot() {
       <button
         onClick={() => setIsOpen(true)}
         className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center group"
-        aria-label="AI ìë´ ì´ê¸°"
+        aria-label="AI 상담 열기"
       >
         <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
         <span className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white animate-pulse" />
@@ -125,9 +125,9 @@ export default function AIChatBot() {
               <Bot className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">WISHES AI ìë´</h3>
+              <h3 className="font-semibold text-sm">WISHES AI 상담</h3>
               {!isMinimized && (
-                <p className="text-xs text-gray-300">ë¶ëì° ì ë¬¸ AI ì´ìì¤í´í¸</p>
+                <p className="text-xs text-gray-300">부동산 전문 AI 어시스턴트</p>
               )}
             </div>
           </div>
@@ -135,14 +135,14 @@ export default function AIChatBot() {
             <button
               onClick={() => setIsMinimized(!isMinimized)}
               className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-              aria-label={isMinimized ? 'íë' : 'ìµìí'}
+              aria-label={isMinimized ? '확대' : '최소화'}
             >
               <Minimize2 className="w-4 h-4" />
             </button>
             <button
               onClick={() => setIsOpen(false)}
               className="p-1.5 hover:bg-white/10 rounded-lg transition-colors"
-              aria-label="ë«ê¸°"
+              aria-label="닫기"
             >
               <X className="w-4 h-4" />
             </button>
@@ -173,7 +173,7 @@ export default function AIChatBot() {
                         ? 'bg-blue-500 text-white rounded-br-md'
                         : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-md'
                     }`}>
-                      {msg.role === "user" ? (
+                      {msg.role === 'user' ? (
                       <span>{msg.content}</span>
                     ) : (
                       <span dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }} />
@@ -199,7 +199,7 @@ export default function AIChatBot() {
               {/* Quick questions - only show at start */}
               {messages.length === 1 && !isLoading && (
                 <div className="space-y-2">
-                  <p className="text-xs text-gray-500 px-1">ìì£¼ ë¬»ë ì§ë¬¸</p>
+                  <p className="text-xs text-gray-500 px-1">자주 묻는 질문</p>
                   {QUICK_QUESTIONS.map((q, i) => (
                     <button
                       key={i}
@@ -224,7 +224,7 @@ export default function AIChatBot() {
                   value={input}
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="ê¶ê¸í ì ì ë¬¼ì´ë³´ì¸ì..."
+                  placeholder="궁금한 점을 물어보세요..."
                   className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white transition-colors"
                   disabled={isLoading}
                 />
@@ -232,13 +232,13 @@ export default function AIChatBot() {
                   onClick={() => sendMessage(input)}
                   disabled={!input.trim() || isLoading}
                   className="w-10 h-10 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 text-white rounded-full flex items-center justify-center transition-colors"
-                  aria-label="ì ì¡"
+                  aria-label="전송"
                 >
                   <Send className="w-4 h-4" />
                 </button>
               </div>
               <p className="text-[10px] text-gray-400 text-center mt-2">
-                AIê° ì ê³µíë ì ë³´ë ì°¸ê³ ì©ì´ë©°, ì íí ìë´ì ì ë¬¸ê°ìê² ë¬¸ìíì¸ì.
+                AI가 제공하는 정보는 참고용이며, 정확한 상담은 전문가에게 문의하세요.
               </p>
             </div>
           </>
