@@ -4,10 +4,11 @@ import { ListingCard } from '@/components/ListingCard';
 import { ListingFilters } from '@/components/ListingFilters';
 import { Building2 } from 'lucide-react';
 import type { Metadata } from 'next';
+import ListingCardActions from '@/components/ListingCardActions';
 
 export const metadata: Metadata = {
-  title: '매물검색',
-  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔 매물을 검색하세요.',
+  title: 'ë§¤ë¬¼ê²ì',
+  description: 'ìì¸Â·ê²½ê¸° ì  ì§ì­ ìë£¸, í¬ë£¸, ì¤í¼ì¤í ë§¤ë¬¼ì ê²ìíì¸ì.',
 };
 
 interface SearchParams {
@@ -32,13 +33,13 @@ export default async function ListingsPage({
 
   const supabase = createClient();
 
-  // 매물 조회 쿼리 구성
+  // ë§¤ë¬¼ ì¡°í ì¿¼ë¦¬ êµ¬ì±
   let query = supabase
     .from('listings')
     .select('*')
-    .eq('status', '가용');
+    .eq('status', 'ê°ì©');
 
-  // 필터 조건 적용
+  // íí° ì¡°ê±´ ì ì©
   if (params.deal) {
     query = query.eq('deal', params.deal);
   }
@@ -55,42 +56,42 @@ export default async function ListingsPage({
     query = query.lte('deposit', parseInt(params.maxDeposit));
   }
 
-  // 정렬
+  // ì ë ¬
   const sortColumn = params.sort === 'price' ? 'deposit'
     : params.sort === 'area' ? 'area_m2'
     : 'created_at';
 
   query = query.order(sortColumn, { ascending: false });
 
-  // 페이지네이션
+  // íì´ì§ë¤ì´ì
   query = query.range(offset, offset + pageSize - 1);
 
   const { data: allListings } = await query;
   const listings = allListings || [];
 
-  // 동별 목록 (필터용)
+  // ëë³ ëª©ë¡ (íí°ì©)
   const { data: dongResults } = await supabase
     .from('listings')
     .select('dong')
-    .eq('status', '가용');
+    .eq('status', 'ê°ì©');
 
-  // 중복 제거
+  // ì¤ë³µ ì ê±°
   const dongs = [...new Set((dongResults || []).map(r => r.dong))];
 
   return (
     <div className="pt-16 min-h-screen">
-      {/* 페이지 헤더 */}
+      {/* íì´ì§ í¤ë */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-wishes-primary">매물 검색</h1>
+          <h1 className="text-2xl font-bold text-wishes-primary">ë§¤ë¬¼ ê²ì</h1>
           <p className="text-sm text-gray-500 mt-1">
-            원하시는 지역의 매물을 검색하세요
+            ìíìë ì§ì­ì ë§¤ë¬¼ì ê²ìíì¸ì
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* 필터 */}
+        {/* íí° */}
         <Suspense fallback={<div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 animate-pulse h-16" />}>
           <ListingFilters
             dongs={dongs}
@@ -98,11 +99,11 @@ export default async function ListingsPage({
           />
         </Suspense>
 
-        {/* 결과 */}
+        {/* ê²°ê³¼ */}
         {listings.length > 0 ? (
           <>
             <p className="text-sm text-gray-500 mb-4">
-              총 <strong className="text-wishes-primary">{listings.length}</strong>건의 매물
+              ì´ <strong className="text-wishes-primary">{listings.length}</strong>ê±´ì ë§¤ë¬¼
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {listings.map((listing) => (
@@ -110,14 +111,15 @@ export default async function ListingsPage({
               ))}
             </div>
 
-            {/* 페이지네이션 (간단 버전) */}
-            <div className="flex justify-center gap-2 mt-10">
+            {/* íì´ì§ë¤ì´ì (ê°ë¨ ë²ì ) */}
+            <div className="relative flex justify-center gap-2 mt-10">
+            <ListingCardActions listingId={listing.id} />
               {page > 1 && (
                 <a
                   href={`/listings?${new URLSearchParams({ ...params, page: String(page - 1) })}`}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
                 >
-                  이전
+                  ì´ì 
                 </a>
               )}
               <span className="px-4 py-2 bg-wishes-primary text-white rounded-lg text-sm">
@@ -128,7 +130,7 @@ export default async function ListingsPage({
                   href={`/listings?${new URLSearchParams({ ...params, page: String(page + 1) })}`}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
                 >
-                  다음
+                  ë¤ì
                 </a>
               )}
             </div>
@@ -136,8 +138,8 @@ export default async function ListingsPage({
         ) : (
           <div className="text-center py-20 bg-white rounded-xl border border-gray-200 mt-4">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">검색 조건에 맞는 매물이 없습니다</p>
-            <p className="text-sm text-gray-400 mt-1">필터를 변경해보세요</p>
+            <p className="text-gray-500 font-medium">ê²ì ì¡°ê±´ì ë§ë ë§¤ë¬¼ì´ ììµëë¤</p>
+            <p className="text-sm text-gray-400 mt-1">íí°ë¥¼ ë³ê²½í´ë³´ì¸ì</p>
           </div>
         )}
       </div>
