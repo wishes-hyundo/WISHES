@@ -4,49 +4,17 @@ import { NextRequest, NextResponse } from 'next/server';
 const BUILDING_API_BASE = 'https://apis.data.go.kr/1613000/BldRgstHubService';
 
 const SIGUNGU_CODES: Record<string, string> = {
-  '관악구': '11620',
-  '강남구': '11680',
-  '강동구': '11740',
-  '강북구': '11305',
-  '강서구': '11500',
-  '구로구': '11530',
-  '금천구': '11545',
-  '노원구': '11350',
-  '도봉구': '11320',
-  '동대문구': '11230',
-  '동작구': '11590',
-  '마포구': '11440',
-  '서대문구': '11410',
-  '서초구': '11650',
-  '성동구': '11200',
-  '성북구': '11290',
-  '송파구': '11710',
-  '양천구': '11470',
-  '영등포구': '11560',
-  '용산구': '11170',
-  '은평구': '11380',
-  '종로구': '11110',
-  '중구': '11140',
-  '중랑구': '11260',
-  '광명시': '41210',
-  '과천시': '41290',
-  '구리시': '41310',
-  '군포시': '41410',
-  '김포시': '41570',
-  '남양주시': '41360',
-  '부천시': '41190',
-  '성남시': '41130',
-  '수원시': '41110',
-  '시흥시': '41390',
-  '안산시': '41270',
-  '안양시': '41170',
-  '용인시': '41460',
-  '의왕시': '41430',
-  '의정부시': '41150',
-  '파주시': '41480',
-  '하남시': '41450',
-  '화성시': '41590',
-  '고양시': '41280',
+  '관악구': '11620', '강남구': '11680', '강동구': '11740', '강북구': '11305',
+  '강서구': '11500', '구로구': '11530', '금천구': '11545', '노원구': '11350',
+  '도봉구': '11320', '동대문구': '11230', '동작구': '11590', '마포구': '11440',
+  '서대문구': '11410', '서초구': '11650', '성동구': '11200', '성북구': '11290',
+  '송파구': '11710', '양천구': '11470', '영등포구': '11560', '용산구': '11170',
+  '은평구': '11380', '종로구': '11110', '중구': '11140', '중랑구': '11260',
+  '광명시': '41210', '과천시': '41290', '구리시': '41310', '군포시': '41410',
+  '김포시': '41570', '남양주시': '41360', '부천시': '41190', '성남시': '41130',
+  '수원시': '41110', '시흥시': '41390', '안산시': '41270', '안양시': '41170',
+  '용인시': '41460', '의왕시': '41430', '의정부시': '41150', '파주시': '41480',
+  '하남시': '41450', '화성시': '41590', '고양시': '41280',
 };
 
 function parseXMLValue(xml: string, tag: string): string {
@@ -74,7 +42,6 @@ export async function GET(request: NextRequest) {
   const ji = searchParams.get('ji') || '';
 
   const apiKey = process.env.DATA_GO_KR_API_KEY;
-
   if (!apiKey) {
     return NextResponse.json({
       success: false,
@@ -108,29 +75,49 @@ export async function GET(request: NextRequest) {
       serviceKey: apiKey,
       sigunguCd,
       bjdongCd: bjdong || '10300',
+      platGbCd: '0',
       bun: bun.padStart(4, '0'),
       ji: ji.padStart(4, '0'),
       numOfRows: '10',
       pageNo: '1',
     });
 
-    const resp = await fetch(`${BUILDING_API_BASE}/getBrTitleInfo?${params}`);
-    const xml = await resp.text();
-    console.log('Building API response (first 500):', xml.substring(0, 500));
+    // 기본개요 먼저 시도, 없으면 표제부 조회
+    const endpoints = ['getBrBasisOulnInfo', 'getBrTitleInfo', 'getBrRecapTitleInfo'];
+    let xml = '';
+    let items: string[] = [];
 
-    // 에러 응답 체크
-    const resultCode = parseXMLValue(xml, 'resultCode');
-    if (resultCode && resultCode !== '00') {
-      const resultMsg = parseXMLValue(xml, 'resultMsg');
-      console.error('Building API error:', resultCode, resultMsg);
-      return NextResponse.json({
-        success: false,
-        message: `건축물대장 API 오류: ${resultMsg || '알 수 없는 오류'}`,
-        estimatedData: generateEstimatedData(address),
-      });
+    for (const endpoint of endpoints) {
+      const url = `${BUILDING_API_BASE}/${endpoint}?${params}`;
+      console.log('Trying endpoint:', endpoint, 'URL:', url.substring(0, 200));
+      const resp = await fetch(url);
+      xml = await resp.text();
+      console.log('Response for', endpoint, '(first 500):', xml.substring(0, 500));
+
+      const resultCode = parseXMLValue(xml, 'resultCode');
+      if (resultCode && resultCode !== '00') {
+        console.error('API error for', endpoint, ':', resultCode, parseXMLValue(xml, 'resultMsg'));
+        continue;
+      }
+
+      items = parseXMLItems(xml);
+      if (items.length > 0) {
+        console.log('Found', items.length, 'items from', endpoint);
+        break;
+      }
     }
 
-    const items = parseXMLItems(xml);
+    if (items.length === 0) {
+      // platGbCd '1' (산) 도 시도
+      params.set('platGbCd', '1');
+      for (const endpoint of endpoints) {
+        const url = `${BUILDING_API_BASE}/${endpoint}?${params}`;
+        const resp = await fetch(url);
+        xml = await resp.text();
+        items = parseXMLItems(xml);
+        if (items.length > 0) break;
+      }
+    }
 
     if (items.length === 0) {
       return NextResponse.json({
@@ -141,7 +128,6 @@ export async function GET(request: NextRequest) {
     }
 
     const item = items[0];
-
     const building = {
       buildingName: parseXMLValue(item, 'bldNm'),
       mainPurpose: parseXMLValue(item, 'mainPurpsCdNm'),
@@ -155,9 +141,8 @@ export async function GET(request: NextRequest) {
       dongCount: parseInt(parseXMLValue(item, 'dongCnt')) || 0,
       unitCount: parseInt(parseXMLValue(item, 'hoCnt')) || 0,
       elevatorCount: parseInt(parseXMLValue(item, 'rideUseElvtCnt')) || 0,
-      parkingCount:
-        (parseInt(parseXMLValue(item, 'indrAutoUtcnt')) || 0) +
-        (parseInt(parseXMLValue(item, 'oudrAutoUtcnt')) || 0),
+      parkingCount: (parseInt(parseXMLValue(item, 'indrAutoUtcnt')) || 0) +
+                     (parseInt(parseXMLValue(item, 'oudrAutoUtcnt')) || 0),
       address: parseXMLValue(item, 'platPlc'),
       newAddress: parseXMLValue(item, 'newPlatPlc'),
     };
@@ -179,10 +164,9 @@ export async function GET(request: NextRequest) {
 function generateEstimatedData(address: string) {
   const isApt = address.includes('아파트');
   const isOfficetel = address.includes('오피스텔');
-
   return {
     buildingType: isApt ? '아파트' : isOfficetel ? '오피스텔' : '다세대주택',
     structure: '철근콘크리트구조',
-    note: '건축물대장 API 키가 없어 추정 데이터입니다. data.go.kr에서 API 키를 발급받아주세요.',
+    note: '건축물대장 API에서 데이터를 찾을 수 없어 추정 데이터입니다.',
   };
 }
