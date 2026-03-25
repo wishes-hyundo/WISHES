@@ -40,7 +40,7 @@ export default async function HomePage() {
             </div>
 
             <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
-              당싨의 꿈, 우리의<span className="text-wishes-accent"> 약속</span>
+              당신의 꿈, 우리의<span className="text-wishes-accent"> 약속</span>
             </h1>
 
             <p className="text-xl md:text-2xl text-white/70 max-w-3xl mx-auto leading-relaxed font-light">
