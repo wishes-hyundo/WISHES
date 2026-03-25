@@ -15,7 +15,7 @@ interface ListingData {
   bathrooms: number;
   direction: string;
   moveInDate: string;
-  features: string[];
+  features: string[] | string;
   buildingInfo?: {
     buildingName: string;
     mainPurpose: string;
@@ -25,6 +25,14 @@ interface ListingData {
     parkingCount: number;
   };
   additionalNotes?: string;
+}
+
+// Helper: ensure features is always an array
+function ensureFeaturesArray(features: string[] | string | undefined): string[] {
+  if (!features) return [];
+  if (Array.isArray(features)) return features;
+  if (typeof features === 'string') return features.split(',').map(s => s.trim()).filter(Boolean);
+  return [];
 }
 
 export async function POST(request: NextRequest) {
@@ -61,7 +69,7 @@ export async function POST(request: NextRequest) {
         success: true,
         description: generateTemplate(data),
         source: 'template',
-        message: 'AI API 호출 실패로 템플릿 기반으로 생성되었습니다.',
+        message: 'AI API 오류로 템플릿 기반으로 생성되었습니다.',
       });
     }
 
@@ -84,10 +92,11 @@ function buildPrompt(data: ListingData): string {
   const pt = data.transactionType === '월세'
     ? `보증금 ${data.deposit.toLocaleString()}만원 / 월세 ${data.monthlyRent.toLocaleString()}만원`
     : data.transactionType === '전세'
-      ? `전세 ${data.price.toLocaleString()}만원`
-      : `매매 ${data.price.toLocaleString()}만원`;
+    ? `전세 ${data.price.toLocaleString()}만원`
+    : `매매 ${data.price.toLocaleString()}만원`;
 
-  const features = data.features.length > 0 ? `특징: ${data.features.join(', ')}` : '';
+  const featArr = ensureFeaturesArray(data.features);
+  const features = featArr.length > 0 ? `특징: ${featArr.join(', ')}` : '';
   const bldg = data.buildingInfo ? `
 건축물 정보:
 - 건물명: ${data.buildingInfo.buildingName || '없음'}
@@ -96,17 +105,17 @@ function buildPrompt(data: ListingData): string {
 - 엘리베이터: ${data.buildingInfo.elevatorCount}대
 - 주차: ${data.buildingInfo.parkingCount}대` : '';
 
-  return `당신은 서울매경기 전문 부동산 중개사입니다. 아래 매물 정보로 매력적이고 전문적인 소개글을 작성해주세요.
+  return `당신은 서울/경기 전문 부동산 중개사입니다. 아래 매물 정보로 매력적이고 전문적인 소개글을 작성해주세요.
 
 매물 정보:
 - 거래유형: ${data.transactionType}
-- 매물유형: ${data.propertyType}
+- 부동산 유형: ${data.propertyType}
 - 주소: ${data.address}
-- 면적: ${data.area}㎡ (약 ${Math.round(data.area * 0.3025)}평)
-- 층수: ${data.floor}층/총 ${data.totalFloors}층
-- 가격: ${pt}
-- 방/욕실: ${data.rooms}개/${data.bathrooms}개
+- 면적: ${data.area}m² (약 ${Math.round(data.area * 0.3025)}평)
+- 층수: ${data.floor}/${data.totalFloors}층
+- 방: ${data.rooms}개, 욕실: ${data.bathrooms}개
 - 방향: ${data.direction}
+- 가격: ${pt}
 - 입주가능일: ${data.moveInDate}
 ${features}
 ${bldg}
@@ -119,19 +128,20 @@ function generateTemplate(data: ListingData): string {
   const pt = data.transactionType === '월세'
     ? `보증금 ${data.deposit.toLocaleString()}만원 / 월세 ${data.monthlyRent.toLocaleString()}만원`
     : data.transactionType === '전세'
-      ? `전세 ${data.price.toLocaleString()}만원`
-      : `매매 ${data.price.toLocaleString()}만원`;
+    ? `전세 ${data.price.toLocaleString()}만원`
+    : `매매 ${data.price.toLocaleString()}만원`;
 
   const py = Math.round(data.area * 0.3025);
   let desc = `${data.address} 인근 ${data.propertyType} ${data.transactionType} 매물을 소개합니다.\n\n`;
-  desc += `${data.area}㎡(약 ${py}평) 규모의 `;
+  desc += `${data.area}m²(약 ${py}평) 규모의 `;
   if (data.rooms > 0) desc += `방 ${data.rooms}개, `;
   if (data.bathrooms > 0) desc += `욕실 ${data.bathrooms}개 `;
   desc += `구조로, ${data.floor}층/${data.totalFloors}층에 위치해 있습니다. `;
   if (data.direction) desc += `${data.direction} 방향으로 채광이 좋습니다.\n\n`;
   desc += `${pt}이며, `;
   if (data.moveInDate) desc += `${data.moveInDate} 입주 가능합니다. `;
-  if (data.features.length > 0) desc += `\n\n주요 특징: ${data.features.join(', ')}`;
+  const featArr = ensureFeaturesArray(data.features);
+  if (featArr.length > 0) desc += `\n\n주요 특징: ${featArr.join(', ')}`;
   desc += '\n\n자세한 상담은 위시스부동산으로 문의해주세요.';
   return desc;
 }
