@@ -1,3 +1,5 @@
+'use client';
+
 import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
