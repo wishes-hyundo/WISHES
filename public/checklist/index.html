@@ -1181,6 +1181,22 @@ textarea.finput{min-height:80px;resize:vertical}
 
     </div>
 
+    <div class="card">
+      <div class="card-head">
+        <span class="card-icon">📋</span> 금일 계약 진행
+      </div>
+      <div class="card-body">
+        <div class="fg">
+          <label class="flabel">금일 계약 진행 가능 여부</label>
+          <div class="chips" id="g-contractToday">
+            <div class="chip" onclick="pick(this,'g-contractToday',1)">✅ 가능</div>
+            <div class="chip" onclick="pick(this,'g-contractToday',1)">❌ 불가</div>
+            <div class="chip" onclick="pick(this,'g-contractToday',1)">협의 필요</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   </div>
@@ -1243,14 +1259,6 @@ textarea.finput{min-height:80px;resize:vertical}
               <div class="chip" onclick="pick(this,'g-moveFlex',1)">1개월 이내</div>
               <div class="chip" onclick="pick(this,'g-moveFlex',1)">협의 가능</div>
             </div>
-          </div>
-        </div>
-        <div class="fg">
-          <label class="flabel">금일 계약 진행 가능 여부</label>
-          <div class="chips" id="g-contractToday">
-            <div class="chip" onclick="pick(this,'g-contractToday',1)">✅ 가능</div>
-            <div class="chip" onclick="pick(this,'g-contractToday',1)">❌ 불가</div>
-            <div class="chip" onclick="pick(this,'g-contractToday',1)">협의 필요</div>
           </div>
         </div>
       </div>
