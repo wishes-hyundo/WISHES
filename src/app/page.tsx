@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MapPin, Search, Phone, ArrowRight, Building2, Shield, Users, Clock, Zap, CheckCircle } from 'lucide-react';
+import { MapPin, Search, ArrowRight, Building2, Shield, Users, Clock, Zap, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { HomeListingCard } from '@/components/HomeListingCard';
 import { StatCounterSection } from '@/components/StatCounterSection';
@@ -174,7 +174,7 @@ export default async function HomePage() {
             <ServiceFeature
               icon={Zap}
               title="빠른 상담"
-              desc="24시간 언제든 전화, 카톡, 온라인으로 신속한 상담을 받으세요."
+              desc="24시간 언제든 온라인으로 신속한 상담을 받으세요."
             />
             <ServiceFeature
               icon={Clock}
