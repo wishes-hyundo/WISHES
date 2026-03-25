@@ -132,7 +132,6 @@ export async function POST(request: NextRequest) {
       await supabase.from('listing_images').insert({
         listing_id: parseInt(listingId),
         image_url: wmUrl.publicUrl,
-        original_url: origUrl.publicUrl,
         display_order: 0,
       });
     }
