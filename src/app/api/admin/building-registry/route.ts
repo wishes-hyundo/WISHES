@@ -116,6 +116,7 @@ export async function GET(request: NextRequest) {
 
     const resp = await fetch(`${BUILDING_API_BASE}/getBrTitleInfo?${params}`);
     const xml = await resp.text();
+    console.log('Building API response (first 500):', xml.substring(0, 500));
 
     // 에러 응답 체크
     const resultCode = parseXMLValue(xml, 'resultCode');
