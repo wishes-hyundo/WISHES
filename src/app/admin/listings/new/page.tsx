@@ -356,57 +356,38 @@ export default function NewListingPage() {
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
     
     const modal = document.createElement('div');
-    modal.style.cssText = 'background:white;border-radius:16px;width:500px;max-width:90vw;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+    modal.style.cssText = 'background:white;border-radius:16px;width:500px;max-width:90vw;height:560px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
     
     const header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee;';
-    header.innerHTML = '<span style="font-weight:700;font-size:16px;">\uD83D\uDD0D \uC8FC\uC18C \uAC80\uC0C9</span><button id="addr-close-btn" style="background:none;border:none;font-size:24px;cursor:pointer;color:#666;">&times;</button>';
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee;flex-shrink:0;';
+    header.innerHTML = '<span style="font-weight:700;font-size:16px;">\uD83D\uDD0D \uC8FC\uC18C \uAC80\uC0C9</span><button style="background:none;border:none;font-size:24px;cursor:pointer;color:#666;" onclick="this.closest(\'[id=address-search-overlay]\').remove()">&times;</button>';
     
-    const container = document.createElement('div');
-    container.id = 'address-embed-container';
-    container.style.cssText = 'width:100%;height:470px;';
+    const iframe = document.createElement('iframe');
+    iframe.src = '/api/address-search';
+    iframe.style.cssText = 'width:100%;flex:1;border:none;';
     
     modal.appendChild(header);
-    modal.appendChild(container);
+    modal.appendChild(iframe);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     
-    // Close handlers
-    const closeModal = () => {
-      const el = document.getElementById('address-search-overlay');
-      if (el) el.remove();
-    };
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => { 
+      if (e.target === overlay) overlay.remove(); 
+    });
     
-    // Load and embed Daum Postcode
-    const loadAndEmbed = () => {
-      new (window as any).daum.Postcode({
-        oncomplete: (data: any) => {
-          const fullAddr = data.roadAddress || data.jibunAddress;
-          const dong = data.bname || '';
-          updateField('address', fullAddr);
-          if (dong) updateField('dong', dong);
-          closeModal();
-        },
-        width: '100%',
-        height: '100%',
-      }).embed(container);
-      
-      // Attach close button event after render
-      setTimeout(() => {
-        const closeBtn = document.getElementById('addr-close-btn');
-        if (closeBtn) closeBtn.addEventListener('click', closeModal);
-      }, 100);
+    // Listen for postMessage from iframe
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'address-selected') {
+        const fullAddr = event.data.roadAddress || event.data.jibunAddress;
+        const dong = event.data.bname || '';
+        updateField('address', fullAddr);
+        if (dong) updateField('dong', dong);
+        overlay.remove();
+        window.removeEventListener('message', handleMessage);
+      }
     };
-    
-    if ((window as any).daum && (window as any).daum.Postcode) {
-      loadAndEmbed();
-    } else {
-      const script = document.createElement('script');
-      script.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-      script.onload = loadAndEmbed;
-      document.head.appendChild(script);
-    }
+    window.addEventListener('message', handleMessage);
   };
 
   // 특징 토글
