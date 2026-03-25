@@ -477,6 +477,7 @@ export default function NewListingPage() {
         bathrooms: formData.bathrooms || null,
         direction: formData.direction || null,
         address: formData.address,
+        dong: formData.dong || (formData.address.match(/([\uAC00-\uD7AF]{1,5}\ub3d9)/) || [])[1] || '',
         address_detail: formData.addressDetail || null,
         description: formData.description || null,
         available_date: formData.moveInDate || null,
