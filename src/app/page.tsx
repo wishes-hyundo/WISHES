@@ -236,18 +236,11 @@ export default async function HomePage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-            <a
-              href="tel:1533-9580"
-              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-wishes-accent text-wishes-primary font-bold text-lg shadow-lg shadow-wishes-accent/30 hover:shadow-xl hover:scale-105 transition-all group"
-            >
-              <Phone className="w-5 h-5 group-hover:scale-110 transition-transform" />
-              전화상담 1533-9580
-            </a>
             <Link
               href="/contact"
-              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-white/10 text-white font-bold text-lg border border-white/30 hover:bg-white/20 backdrop-blur-sm transition-all group"
+              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-wishes-accent text-wishes-primary font-bold text-lg shadow-lg shadow-wishes-accent/30 hover:shadow-xl hover:scale-105 transition-all group"
             >
-              온라인 상담
+              온라인 상담 신청
             </Link>
           </div>
         </div>
