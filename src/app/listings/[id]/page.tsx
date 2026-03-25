@@ -1,4 +1,5 @@
-import { Metadata } from 'next';-import { notFound } from 'next/navigation';
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 import ListingDetailClient from './ListingDetailClient';
@@ -99,7 +100,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     },
     other: {
       'naver-site-verification': '',
-    }
+    },
   };
 }
 
