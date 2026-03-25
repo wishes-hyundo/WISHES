@@ -195,7 +195,8 @@ export default function NewListingPage() {
             parking: info.parkingCount > 0 ? true : prev.parking,
             builtYear: info.approvalDate ? info.approvalDate.substring(0, 4) : prev.builtYear,
           };
-        })        setBuildingError('');
+        });
+        setBuildingError('');
       } else {
         setBuildingError(result.message || '건축물대장 정보를 찾을 수 없습니다.');
         if (result.estimatedData) {
