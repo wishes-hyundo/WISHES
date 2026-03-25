@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X, Share2 } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
 import type { Metadata } from 'next';
 
@@ -199,35 +199,14 @@ export default async function ListingDetailPage({ params }: Props) {
                 온라인 상담 신청
               </Link>
 
-              <button
-                onClick={() => {
-                  if (typeof window !== 'undefined' && window.Kakao) {
-                    if (!window.Kakao.isInitialized()) {
-                      window.Kakao.init('YOUR_KAKAO_JS_KEY');
-                    }
-                    window.Kakao.Share.sendDefault({
-                      objectType: 'feed',
-                      content: {
-                        title: listing.title || '위시스부동산 매물',
-                        description: `${listing.deal || ''} ${listing.type || ''} - ${listing.dong || ''}`,
-                        imageUrl: listing.images?.[0] || 'https://wishes.co.kr/og-image.png',
-                        link: {
-                          mobileWebUrl: `https://wishes.co.kr/listings/${listing.id}`,
-                          webUrl: `https://wishes.co.kr/listings/${listing.id}`,
-                        },
-                      },
-                    });
-                  } else {
-                    // Fallback: copy link
-                    navigator.clipboard.writeText(`https://wishes.co.kr/listings/${listing.id}`);
-                    alert('링크가 복사되었습니다!');
-                  }
-                }}
+              <a
+                href={`https://story.kakao.com/share?url=${encodeURIComponent(`https://wishes.co.kr/listings/${listing.id}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="flex items-center justify-center gap-2 w-full bg-yellow-400 text-yellow-900 py-3 rounded-xl font-bold mt-3 hover:bg-yellow-300 transition-colors"
               >
-                <Share2 className="w-5 h-5" />
                 카카오톡 공유하기
-              </button>
+              </a>
 
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
                 <p className="flex items-center gap-1">
