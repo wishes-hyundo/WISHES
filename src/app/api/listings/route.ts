@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // RLS에서 status = '가용' 자동 적용
     let query = supabase
       .from('listings')
-      .select('*', { count: 'exact' });
+      .select('*, listing_images(*)', { count: 'exact' });
 
     // 매물번호 검색 (ID 직접 검색)
     if (listingNumber) {
