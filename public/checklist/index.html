@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+h<!DOCTYPE html>
 
 <html lang="ko">
 
@@ -2078,11 +2078,11 @@ function generateResult(){
 
   document.getElementById('rName').textContent = name+'님';
 
-  document.getElementById('rDealType').textContent = deal ? deal : '거래유형 미선택';
+  var elDeal=document.getElementById('rDealType'); if(elDeal) elDeal.textContent = deal ? deal : '거래유형 미선택';
 
-  document.getElementById('rPropType').textContent = prop !== '—' ? prop : '매물유형 미선택';
+  var elProp=document.getElementById('rPropType'); if(elProp) elProp.textContent = prop !== '—' ? prop : '매물유형 미선택';
 
-  document.getElementById('rDate').textContent = document.getElementById('visitToggle') && document.getElementById('visitToggle').classList.contains('active') ? '현장방문' : (gv('cDate') || '—');
+  var elDate=document.getElementById('rDate'); if(elDate) elDate.textContent = document.getElementById('visitToggle') && document.getElementById('visitToggle').classList.contains('active') ? '현장방문' : (gv('cDate') || '—');
 
 
 
@@ -2305,7 +2305,7 @@ function generateResult(){
 
   document.getElementById('resultCards').innerHTML = html;
 
-  generateShareLink();
+  if(typeof generateShareLink==='function') try{generateShareLink();}catch(e){}
 
 }
 
