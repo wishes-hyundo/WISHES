@@ -1,5 +1,3 @@
-'use client';
-
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -16,10 +14,13 @@ export function createClient() {
   });
 }
 
-// 싱글터 인증 클라이언트 (소셜 로그인용)
+// 싱글터 인증 클라이언트 (소셜 로그인용, 클라이언트 컴포너트에서만 사용)
 let authClientInstance: ReturnType<typeof createSupabaseClient> | null = null;
 
 export function createAuthClient() {
+  if (typeof window === 'undefined') {
+    throw new Error('createAuthClient can only be called on the client');
+  }
   if (authClientInstance) return authClientInstance;
   authClientInstance = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
     auth: {
