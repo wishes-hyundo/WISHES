@@ -2839,6 +2839,60 @@ function resetAll(){
 
 }
 
+    /* ========== AUTO-SAVE (localStorage) ========== */
+    const LS_KEY = 'wishes_checklist_draft';
+    
+    function autoSave(){
+      try {
+        const d = collectData();
+        localStorage.setItem(LS_KEY, JSON.stringify(d));
+      } catch(e){ /* quota exceeded or private mode */ }
+    }
+    
+    function autoRestore(){
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if(!raw) return false;
+        const d = JSON.parse(raw);
+        if(!d || !d.cName) return false;
+        restoreState(d);
+        return true;
+      } catch(e){ return false; }
+    }
+    
+    function clearAutoSave(){
+      try { localStorage.removeItem(LS_KEY); } catch(e){}
+    }
+    
+    /* attach auto-save listeners to all form inputs */
+    (function initAutoSave(){
+      const inputs = document.querySelectorAll('input, select, textarea');
+      inputs.forEach(function(el){
+        el.addEventListener('input', autoSave);
+        el.addEventListener('change', autoSave);
+      });
+      /* also save on chip/star/deal clicks via MutationObserver */
+      const observer = new MutationObserver(function(){ setTimeout(autoSave, 100); });
+      document.querySelectorAll('.chip-group, .star-group, .deal-chip, [class*=chip], [class*=star]').forEach(function(el){
+        observer.observe(el, { attributes: true, subtree: true, childList: true });
+      });
+    })();
+    
+    /* restore on load if no hash data present */
+    if(!location.hash || location.hash.length < 3){
+      autoRestore();
+    }
+    
+    /* clear auto-save when resetAll is called */
+    (function patchResetAll(){
+      const origReset = resetAll;
+      window.resetAll = function(){
+        clearAutoSave();
+        origReset();
+      };
+    })();
+
+
 </script>
 
 <script>
