@@ -2953,7 +2953,7 @@ function resetAll(){
         el.addEventListener('change', debouncedAutoSave);
       });
       /* also save on chip/star/deal clicks via MutationObserver */
-      const observer = new MutationObserver(fundebouncedAutoSave()ave, 100); });
+      const observer = new MutationObserver(function(){ debouncedAutoSave(); });
       document.querySelectorAll('.chip-group, .star-group, .deal-chip, [class*=chip], [class*=star]').forEach(function(el){
         observer.observe(el, { attributes: true, subtree: true, childList: true });
       });
