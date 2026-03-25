@@ -39,99 +39,77 @@
         var name=getVal('cName')||'N/A';
         var sections=[];
 
-        // 1. 고객 기본 정보
+        // 1. \uACE0\uAC1D \uAE30\uBCF8 \uC815\uBCF4
         sections.push({
             title:'1. \uACE0\uAC1D \uAE30\uBCF8 \uC815\uBCF4',
             rows:[
                 ['\uACE0\uAC1D\uBA85',name],
                 ['\uC5F0\uB77D\uCC98',getVal('cPhone')],
-                ['\uC0C1\uB2F4\uC77C\uC790',getVal('cDate')],
-                ['\uC0C1\uB2F4\uBC29\uBC95',getChips('g-consultType')],
+                ['\uBC29\uBB38\uC77C\uC815',getVal('cDate')],
                 ['\uAC70\uB798\uC720\uD615',deal],
-                ['\uBB3C\uAC74\uC720\uD615',prop]
+                ['\uB9E4\uBB3C\uC720\uD615',prop],
+                ['\uAE08\uC77C\uACC4\uC57D\uC9C4\uD589',getChips('g-contractToday')]
             ]
         });
 
-        // 2. 지역 및 예산
+        // 2. \uC608\uC0B0 \uBC0F \uC9C0\uC5ED
         var budgetRows=[
             ['1\uC21C\uC704 \uC9C0\uC5ED',getVal('reg1')],
             ['2\uC21C\uC704 \uC9C0\uC5ED',getVal('reg2')],
-            ['3\uC21C\uC704 \uC9C0\uC5ED',getVal('reg3')],
-            ['\uAD8C\uC5ED',getChips('g-regPref')]
+            ['3\uC21C\uC704 \uC9C0\uC5ED',getVal('reg3')]
         ];
         if(deal==='\uB9E4\uB9E4'){
             var bMin=getVal('buyMin'),bMax=getVal('buyMax');
-            if(bMin||bMax)budgetRows.push(['\uB9E4\uB9E4 \uD76C\uB9DD\uAC00',bMin+'~'+bMax+'\uB9CC\uC6D0']);
-            budgetRows.push(['\uB300\uCD9C \uC774\uC6A9',getChips('g-loan')]);
+            if(bMin||bMax)budgetRows.push(['\uB9E4\uB9E4\uC608\uC0B0',bMin+'~'+bMax+'\uB9CC\uC6D0']);
+            budgetRows.push(['\uB300\uCD9C\uC774\uC6A9',getChips('g-loan')]);
         }
         if(deal==='\uC804\uC138'){
             var jMin=getVal('jMin'),jMax=getVal('jMax');
-            if(jMin||jMax)budgetRows.push(['\uC804\uC138 \uBCF4\uC99D\uAE08',jMin+'~'+jMax+'\uB9CC\uC6D0']);
-            budgetRows.push(['\uC804\uC138\uC790\uAE08\uB300\uCD9C',getChips('g-jloan')]);
+            if(jMin||jMax)budgetRows.push(['\uC804\uC138\uC608\uC0B0',jMin+'~'+jMax+'\uB9CC\uC6D0']);
+            budgetRows.push(['\uC804\uC138\uB300\uCD9C',getChips('g-jeonLoan')]);
         }
         if(deal==='\uC6D4\uC138'){
             budgetRows.push(['\uBCF4\uC99D\uAE08',getVal('mDep')+'\uB9CC\uC6D0']);
-            budgetRows.push(['\uC6D4\uC138',getVal('mRent')+'\uB9CC\uC6D0']);
+            budgetRows.push(['\uC6D4\uC138',getVal('mRent')+'\uB9CC\uC6D0/\uC6D4']);
         }
-        sections.push({title:'2. \uC9C0\uC5ED \uBC0F \uC608\uC0B0',rows:budgetRows});
+        sections.push({title:'2. \uC608\uC0B0 \uBC0F \uC9C0\uC5ED',rows:budgetRows});
 
-        // 3. 매물 조건
+        // 3. \uB9E4\uBB3C \uC870\uAC74
         var detailRows=[
-            ['\uBA74\uC801',(getVal('sMin')||'?')+'~'+(getVal('sMax')||'?')+'\uD3C9'],
-            ['\uBC29 \uAC1C\uC218',getChips('g-room')],
-            ['\uD654\uC7A5\uC2E4',getChips('g-bath')],
-            ['\uD76C\uB9DD \uCE35\uC218',getChips('g-floor')],
-            ['\uBC29\uD5A5',getChips('g-dir')],
-            ['\uAC74\uCD95\uC5F0\uB3C4',getChips('g-age')],
-            ['\uC8FC\uCC28',getChips('g-park')]
+            ['\uB9E4\uBB3C\uC720\uD615',getChips('g-propType')],
+            ['\uC785\uC8FC\uAC00\uB2A5\uC77C',getVal('f-moveDate')],
+            ['\uC785\uC8FC\uC720\uC5F0\uC131',getChips('g-moveFlex')]
         ];
-        var carType=getChips('g-carType');
-        if(carType) detailRows.push(['\uCC28\uB7C9 \uC885\uB958',carType]);
-        var evCharger=getChips('g-evCharger');
-        if(evCharger) detailRows.push(['\uC804\uAE30\uCC28 \uCDA9\uC804',evCharger]);
-        if(prop.indexOf('\uC0C1\uAC00')!==-1||prop.indexOf('\uC0AC\uBB34\uC2E4')!==-1){
-            detailRows.push(['\uC5C5\uC885/\uC6A9\uB3C4',getVal('bizType')]);
-            detailRows.push(['\uAD8C\uB9AC\uAE08',getChips('g-key')]);
-            detailRows.push(['\uCE35\uC218',getChips('g-comFloor')]);
-            detailRows.push(['\uAC04\uD310 \uC124\uCE58',getChips('g-sign')]);
-        }
         sections.push({title:'3. \uB9E4\uBB3C \uC870\uAC74',rows:detailRows});
 
-        // 4. 교통 및 편의시설
+        // 4. \uAD50\uD1B5 \uBC0F \uD3B8\uC758\uC2DC\uC124
         var transRows=[
-            ['\uC9C0\uD558\uCCA0 \uB3C4\uBCF4',getChips('g-subway')],
+            ['\uC9C0\uD558\uCCA0 \uB3C4\uBCF4\uAC70\uB9AC',getChips('g-subway')],
             ['\uC8FC\uC694 \uC774\uB3D9\uC218\uB2E8',getChips('g-trans')],
-            ['\uC9C1\uC7A5/\uD559\uAD50',getVal('workplace')],
-            ['\uD544\uC218 \uC8FC\uBCC0\uC2DC\uC124',getChips('g-fac')],
-            ['\uD76C\uB9DD \uC635\uC158',getChips('g-opt')]
+            ['\uC9C1\uC7A5/\uD559\uAD50 \uC704\uCE58',getVal('workplace')]
         ];
-        var petType=getChips('g-pet');
-        if(petType) transRows.push(['\uBC18\uB824\uB3D9\uBB3C \uC885\uB958',petType]);
         sections.push({title:'4. \uAD50\uD1B5 \uBC0F \uD3B8\uC758\uC2DC\uC124',rows:transRows});
 
-        // 5. 입주 및 특이사항
-        sections.push({
-            title:'5. \uC785\uC8FC \uBC0F \uD2B9\uC774\uC0AC\uD56D',
-            rows:[
-                ['\uD76C\uB9DD \uC785\uC8FC\uC77C',getVal('moveDate')],
-                ['\uC785\uC8FC \uC720\uC5F0\uC131',getChips('g-flex')],
-                ['\uACC4\uC57D \uAE30\uAC04',getChips('g-period')],
-                ['\uAC70\uC8FC \uC720\uD615',getChips('g-house')],
-                ['\uD2B9\uBCC4 \uC870\uAC74',getChips('g-spec')],
-                ['\uACE0\uAC1D \uC694\uCCAD\uC0AC\uD56D',getVal('addReq')],
-                ['\uC911\uAC1C\uC0AC \uBA54\uBAA8',getVal('memo')]
-            ]
-        });
+        // 5. \uC785\uC8FC \uBC0F \uD2B9\uC774\uC0AC\uD56D
+        var livingRows=[
+            ['\uD3B8\uC758\uC2DC\uC124',getChips('g-fac')],
+            ['\uC635\uC158',getChips('g-opt')],
+            ['\uBC18\uB824\uB3D9\uBB3C',getChips('g-pet')],
+            ['\uAC70\uC8FC\uC720\uD615',getChips('g-house')],
+            ['\uD2B9\uBCC4\uC870\uAC74',getChips('g-spec')],
+            ['\uACE0\uAC1D \uC694\uCCAD\uC0AC\uD56D',getVal('addReq')]
+        ];
+        sections.push({title:'5. \uC785\uC8FC \uBC0F \uD2B9\uC774\uC0AC\uD56D',rows:livingRows});
 
-        // 6. 매물 선택 우선순위 (별점)
+        // 6. \uB9E4\uBB3C \uC120\uD0DD \uC6B0\uC120\uC21C\uC704 (\uBCC4\uC810)
         sections.push({
             title:'6. \uB9E4\uBB3C \uC120\uD0DD \uC6B0\uC120\uC21C\uC704',
             rows:[
-                ['\uD83D\uDCB0 \uAC00\uACA9/\uC608\uC0B0', getStars('price')],
-                ['\uD83D\uDCCD \uC704\uCE58/\uAD50\uD1B5', getStars('loc')],
-                ['\uD83D\uDCD0 \uBA74\uC801/\uAD6C\uC870', getStars('size')],
-                ['\uD83C\uDFD7\uFE0F \uAC74\uBB3C \uC0C1\uD0DC', getStars('bld')],
-                ['\uD83C\uDFEB \uD559\uAD70/\uD658\uACBD', getStars('env')]
+                ['\uAC00\uACA9/\uC608\uC0B0', getStars('price')],
+                ['\uC704\uCE58/\uAD50\uD1B5', getStars('loc')],
+                ['\uD3C9\uC218/\uADDC\uBAA8', getStars('size')],
+                ['\uAC74\uBB3C \uC0C1\uD0DC', getStars('bld')],
+                ['\uD658\uACBD/\uC8FC\uBCC0', getStars('env')]
             ]
         });
 
