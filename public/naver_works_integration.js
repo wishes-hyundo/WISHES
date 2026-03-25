@@ -37,85 +37,97 @@
         var deal=getDeal();
         var prop=getProp();
         var name=getVal('cName')||'N/A';
+        var visitDate=getVal('cDate');
+        var visitTime=getVal('cTime');
+        var visitSchedule=visitDate;
+        if(visitTime)visitSchedule+=' '+visitTime;
         var sections=[];
 
-        // 1. \uACE0\uAC1D \uAE30\uBCF8 \uC815\uBCF4
+        // 1. 고객 기본 정보
         sections.push({
-            title:'1. \uACE0\uAC1D \uAE30\uBCF8 \uC815\uBCF4',
+            title:'1. 고객 기본 정보',
             rows:[
-                ['\uACE0\uAC1D\uBA85',name],
-                ['\uC5F0\uB77D\uCC98',getVal('cPhone')],
-                ['\uBC29\uBB38\uC77C\uC815',getVal('cDate')],
-                ['\uAC70\uB798\uC720\uD615',deal],
-                ['\uB9E4\uBB3C\uC720\uD615',prop],
-                ['\uAE08\uC77C\uACC4\uC57D\uC9C4\uD589',getChips('g-contractToday')]
+                ['고객명',name],
+                ['연락처',getVal('cPhone')],
+                ['방문일정',visitSchedule],
+                ['거래유형',deal],
+                ['매물유형',prop],
+                ['금일계약진행',getChips('g-contractToday')]
             ]
         });
 
-        // 2. \uC608\uC0B0 \uBC0F \uC9C0\uC5ED
+        // 2. 예산 및 지역
         var budgetRows=[
-            ['1\uC21C\uC704 \uC9C0\uC5ED',getVal('reg1')],
-            ['2\uC21C\uC704 \uC9C0\uC5ED',getVal('reg2')],
-            ['3\uC21C\uC704 \uC9C0\uC5ED',getVal('reg3')]
+            ['1순위 지역',getVal('reg1')],
+            ['2순위 지역',getVal('reg2')],
+            ['3순위 지역',getVal('reg3')]
         ];
-        if(deal==='\uB9E4\uB9E4'){
-            var bMin=getVal('buyMin'),bMax=getVal('buyMax');
-            if(bMin||bMax)budgetRows.push(['\uB9E4\uB9E4\uC608\uC0B0',bMin+'~'+bMax+'\uB9CC\uC6D0']);
-            budgetRows.push(['\uB300\uCD9C\uC774\uC6A9',getChips('g-loan')]);
+        if(deal==='매매'){
+            var bMax=getVal('buyMax');
+            if(bMax)budgetRows.push(['매매금액',bMax+'만원']);
+            budgetRows.push(['대출이용',getChips('g-loan')]);
         }
-        if(deal==='\uC804\uC138'){
-            var jMin=getVal('jMin'),jMax=getVal('jMax');
-            if(jMin||jMax)budgetRows.push(['\uC804\uC138\uC608\uC0B0',jMin+'~'+jMax+'\uB9CC\uC6D0']);
-            budgetRows.push(['\uC804\uC138\uB300\uCD9C',getChips('g-jeonLoan')]);
+        if(deal==='전세'){
+            var jMax=getVal('jMax');
+            if(jMax)budgetRows.push(['전세금액',jMax+'만원']);
+            budgetRows.push(['전세대출',getChips('g-jeonLoan')]);
         }
-        if(deal==='\uC6D4\uC138'){
-            budgetRows.push(['\uBCF4\uC99D\uAE08',getVal('mDep')+'\uB9CC\uC6D0']);
-            budgetRows.push(['\uC6D4\uC138',getVal('mRent')+'\uB9CC\uC6D0/\uC6D4']);
+        if(deal==='월세'){
+            budgetRows.push(['보증금',getVal('mDep')+'만원']);
+            budgetRows.push(['월세',getVal('mRent')+'만원/월']);
         }
-        sections.push({title:'2. \uC608\uC0B0 \uBC0F \uC9C0\uC5ED',rows:budgetRows});
+        sections.push({title:'2. 예산 및 지역',rows:budgetRows});
 
-        // 3. \uB9E4\uBB3C \uC870\uAC74
+        // 3. 주차 / 반려동물
+        var parkPetRows=[
+            ['주차필요',getChips('g-parking')],
+            ['차종/특이사항',getVal('parkingNote')],
+            ['반려동물',getChips('g-petType')],
+            ['반려동물 비고',getVal('petNote')]
+        ];
+        sections.push({title:'3. 주차 / 반려동물',rows:parkPetRows});
+
+        // 4. 매물 조건
         var detailRows=[
-            ['\uB9E4\uBB3C\uC720\uD615',getChips('g-propType')],
-            ['\uC785\uC8FC\uAC00\uB2A5\uC77C',getVal('f-moveDate')],
-            ['\uC785\uC8FC\uC720\uC5F0\uC131',getChips('g-moveFlex')]
+            ['매물유형',getChips('g-propType')],
+            ['입주가능일',getVal('f-moveDate')],
+            ['입주유연성',getChips('g-moveFlex')]
         ];
-        sections.push({title:'3. \uB9E4\uBB3C \uC870\uAC74',rows:detailRows});
+        sections.push({title:'4. 매물 조건',rows:detailRows});
 
-        // 4. \uAD50\uD1B5 \uBC0F \uD3B8\uC758\uC2DC\uC124
+        // 5. 교통 및 편의시설
         var transRows=[
-            ['\uC9C0\uD558\uCCA0 \uB3C4\uBCF4\uAC70\uB9AC',getChips('g-subway')],
-            ['\uC8FC\uC694 \uC774\uB3D9\uC218\uB2E8',getChips('g-trans')],
-            ['\uC9C1\uC7A5/\uD559\uAD50 \uC704\uCE58',getVal('workplace')]
+            ['지하철 도보거리',getChips('g-subway')],
+            ['주요 이동수단',getChips('g-trans')],
+            ['직장/학교 위치',getVal('workplace')]
         ];
-        sections.push({title:'4. \uAD50\uD1B5 \uBC0F \uD3B8\uC758\uC2DC\uC124',rows:transRows});
+        sections.push({title:'5. 교통 및 편의시설',rows:transRows});
 
-        // 5. \uC785\uC8FC \uBC0F \uD2B9\uC774\uC0AC\uD56D
+        // 6. 입주 및 특이사항
         var livingRows=[
-            ['\uD3B8\uC758\uC2DC\uC124',getChips('g-fac')],
-            ['\uC635\uC158',getChips('g-opt')],
-            ['\uBC18\uB824\uB3D9\uBB3C',getChips('g-pet')],
-            ['\uAC70\uC8FC\uC720\uD615',getChips('g-house')],
-            ['\uD2B9\uBCC4\uC870\uAC74',getChips('g-spec')],
-            ['\uACE0\uAC1D \uC694\uCCAD\uC0AC\uD56D',getVal('addReq')]
+            ['편의시설',getChips('g-fac')],
+            ['옵션',getChips('g-opt')],
+            ['반려동물(상세)',getChips('g-pet')],
+            ['거주유형',getChips('g-house')],
+            ['특별조건',getChips('g-spec')],
+            ['고객 요청사항',getVal('addReq')]
         ];
-        sections.push({title:'5. \uC785\uC8FC \uBC0F \uD2B9\uC774\uC0AC\uD56D',rows:livingRows});
+        sections.push({title:'6. 입주 및 특이사항',rows:livingRows});
 
-        // 6. \uB9E4\uBB3C \uC120\uD0DD \uC6B0\uC120\uC21C\uC704 (\uBCC4\uC810)
+        // 7. 매물 선택 우선순위 (별점)
         sections.push({
-            title:'6. \uB9E4\uBB3C \uC120\uD0DD \uC6B0\uC120\uC21C\uC704',
+            title:'7. 매물 선택 우선순위',
             rows:[
-                ['\uAC00\uACA9/\uC608\uC0B0', getStars('price')],
-                ['\uC704\uCE58/\uAD50\uD1B5', getStars('loc')],
-                ['\uD3C9\uC218/\uADDC\uBAA8', getStars('size')],
-                ['\uAC74\uBB3C \uC0C1\uD0DC', getStars('bld')],
-                ['\uD658\uACBD/\uC8FC\uBCC0', getStars('env')]
+                ['가격/예산', getStars('price')],
+                ['위치/교통', getStars('loc')],
+                ['평수/규모', getStars('size')],
+                ['건물 상태', getStars('bld')],
+                ['환경/주변', getStars('env')]
             ]
         });
 
         return {cName:name,cPhone:getVal('cPhone'),deal:deal,prop:prop,sections:sections};
     }
-
     function sendToNW(){
         var btn=document.getElementById('nwSendBtn');
         if(btn){btn.disabled=true;btn.textContent='\uC804\uC1A1 \uC911...';}
