@@ -763,6 +763,16 @@ textarea.finput{min-height:80px;resize:vertical}
 .send-btn{background:linear-gradient(135deg,#1a3a6b 0%,#2563eb 100%);color:#fff;border:none;border-radius:12px;padding:16px 32px;font-size:16px;font-weight:700;cursor:pointer;width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .2s,box-shadow .2s}
 .send-btn:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(37,99,235,.4)}
 .send-btn:active{transform:translateY(0)}
+
+    /* Edit dropdown menu */
+    .edit-menu.show { display:block !important; }
+    .edit-menu button:hover { background:#f0f4ff !important; color:var(--navy); }
+    
+    /* Validation shake animation */
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-5px)} 75%{transform:translateX(5px)} }
+    .shake { animation: shake 0.3s ease-in-out; border-color: #e74c3c !important; }
+    .field-error { color: #e74c3c; font-size: 12px; margin-top: 4px; }
+
 </style>
 
 </head>
@@ -1608,7 +1618,14 @@ textarea.finput{min-height:80px;resize:vertical}
 
   <button class="btn btn-outline" onclick="resetAll()">🔄 새 상담</button>
 
-  <button class="btn btn-ghost" onclick="goPage(3)">← 수정</button>
+          <div class="edit-dropdown" style="position:relative;display:inline-block">
+            <button class="btn btn-ghost" onclick="this.nextElementSibling.classList.toggle('show')">← 수정</button>
+            <div class="edit-menu" style="display:none;position:absolute;bottom:100%;left:0;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:8px 0;min-width:160px;z-index:100">
+              <button onclick="goPage(1);this.parentElement.classList.remove('show')" style="display:block;width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:14px">📋 기본상담 (STEP 1)</button>
+              <button onclick="goPage(2);this.parentElement.classList.remove('show')" style="display:block;width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:14px">🏠 매물조건 (STEP 2)</button>
+              <button onclick="goPage(3);this.parentElement.classList.remove('show')" style="display:block;width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:14px">➕ 추가상담 (STEP 3)</button>
+            </div>
+          </div>
 
   <button class="btn btn-gold" onclick="window.print()">🖨️ 인쇄</button>
 
@@ -2891,6 +2908,59 @@ function resetAll(){
         origReset();
       };
     })();
+
+    /* ========== PHONE NUMBER AUTO-FORMAT ========== */
+    (function initPhoneFormat(){
+      const phone = document.getElementById('cPhone');
+      if(!phone) return;
+      phone.addEventListener('input', function(e){
+        let v = this.value.replace(/[^0-9]/g, '');
+        if(v.length > 11) v = v.substring(0, 11);
+        if(v.length > 7) v = v.substring(0,3) + '-' + v.substring(3,7) + '-' + v.substring(7);
+        else if(v.length > 3) v = v.substring(0,3) + '-' + v.substring(3);
+        this.value = v;
+      });
+    })();
+    
+    /* ========== FORM VALIDATION ========== */
+    (function initValidation(){
+      const origNextPage = nextPage;
+      window.nextPage = function(){
+        const cur = window.cur || 1;
+        if(cur === 1){
+          const name = document.getElementById('cName');
+          const phone = document.getElementById('cPhone');
+          const dealChips = document.querySelectorAll('.deal-chip.selected, .deal-chip.active, [class*="deal"][class*="selected"]');
+          let valid = true;
+          
+          // Clear previous errors
+          document.querySelectorAll('.field-error').forEach(function(el){ el.remove(); });
+          document.querySelectorAll('.shake').forEach(function(el){ el.classList.remove('shake'); });
+          
+          if(!name || !name.value.trim()){
+            if(name){ name.classList.add('shake'); name.focus(); }
+            valid = false;
+          }
+          if(!phone || !phone.value.trim()){
+            if(phone) phone.classList.add('shake');
+            valid = false;
+          }
+          
+          if(!valid){
+            setTimeout(function(){ document.querySelectorAll('.shake').forEach(function(el){ el.classList.remove('shake'); }); }, 600);
+            return;
+          }
+        }
+        origNextPage();
+      };
+    })();
+    
+    /* Close edit dropdown when clicking outside */
+    document.addEventListener('click', function(e){
+      if(!e.target.closest('.edit-dropdown')){
+        document.querySelectorAll('.edit-menu.show').forEach(function(m){ m.classList.remove('show'); });
+      }
+    });
 
 
 </script>
