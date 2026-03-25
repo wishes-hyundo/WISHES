@@ -17,29 +17,31 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = parseInt(searchParams.get('offset') || '0');
 
+    // RLS에서 status = '가용' 자동 적용
     let query = supabase
       .from('listings')
-      .select('*, listing_images(id, image_url, display_order), listing_features(feature)', { count: 'exact' })
-      .in('status', ['가용', '계약중']);
+      .select('*', { count: 'exact' });
 
-    // Listing number search (exact or partial match)
+    // 매물번호 검색 (ID 직접 검색)
     if (listingNumber) {
       query = query.eq('id', parseInt(listingNumber));
     }
 
-    // Keyword search (title, address, dong, description)
+    // 키워드 검색 (제목, 주소, 동, 설명)
     if (search) {
-      query = query.or(`title.ilike.%${search}%,address.ilike.%${search}%,dong.ilike.%${search}%,description.ilike.%${search}%`);
+      query = query.or(
+        `title.ilike.%${search}%,address.ilike.%${search}%,dong.ilike.%${search}%,description.ilike.%${search}%`
+      );
     }
 
-    // Filters
+    // 필터
     if (deal) query = query.eq('deal', deal);
     if (type) query = query.eq('type', type);
     if (dong) query = query.eq('dong', dong);
     if (minDeposit) query = query.gte('price', parseInt(minDeposit));
     if (maxDeposit) query = query.lte('price', parseInt(maxDeposit));
 
-    // Sorting
+    // 정렬
     switch (sort) {
       case 'price_asc':
         query = query.order('price', { ascending: true });
@@ -60,17 +62,19 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Listings query error:', error);
-      return NextResponse.json({ error: '매물 조회 중 오류가 발생했습니다.' }, { status: 500 });
+      return NextResponse.json(
+        { error: '매물 조회 중 오류가 발생했습니다.' },
+        { status: 500 }
+      );
     }
 
-    // Get unique dongs for filter options
+    // 동 목록 조회 (필터용)
     const { data: dongs } = await supabase
       .from('listings')
       .select('dong')
-      .in('status', ['가용', '계약중'])
       .not('dong', 'is', null);
 
-    const uniqueDongs = [...new Set((dongs || []).map(d => d.dong).filter(Boolean))].sort();
+    const uniqueDongs = [...new Set((dongs || []).map((d: any) => d.dong).filter(Boolean))].sort();
 
     return NextResponse.json({
       success: true,
@@ -85,6 +89,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Listings API error:', error);
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+    return NextResponse.json(
+      { error: '서버 오류가 발생했습니다.' },
+      { status: 500 }
+    );
   }
 }
