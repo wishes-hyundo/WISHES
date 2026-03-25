@@ -7,11 +7,11 @@ import { Menu, X, Phone, MapPin } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
-  { label: 'ë§¤ë¬¼ê²ì', href: '/listings' },
-  { label: 'ì§ëê²ì', href: '/map' },
-  { label: 'ëì¶ê³ì°ê¸°', href: '/calculator' },
-  { label: 'íì¬ìê°', href: '/about' },
-  { label: 'ìë´ë¬¸ì', href: '/contact' },
+  { label: '매물검색', href: '/listings' },
+  { label: '지도검색', href: '/map' },
+  { label: '대출계산기', href: '/calculator' },
+  { label: '회사소개', href: '/about' },
+  { label: '상담문의', href: '/contact' },
 ];
 
 export default function Header() {
@@ -29,21 +29,21 @@ export default function Header() {
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 glass border-b border-gray-100/50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
-          {/* ë¡ê³  */}
+          {/* 로고 */}
           <Link href="/" className="flex items-center gap-2 group">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-wishes-secondary to-wishes-accent flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-shadow">
               <MapPin className="w-5 h-5" />
             </div>
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-wishes-primary leading-none">WISHES</p>
-              <p className="text-xs text-wishes-muted">ììì¤ë¶ëì°</p>
+              <p className="text-xs text-wishes-muted">위시스부동산</p>
             </div>
             <div className="sm:hidden">
               <p className="text-base font-bold text-wishes-primary">WISHES</p>
             </div>
           </Link>
 
-          {/* ë°ì¤í¬í ë¤ë¹ê²ì´ì */}
+          {/* 데스크탑 네비게이션 */}
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
@@ -68,7 +68,7 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* CTA ë²í¼ */}
+          {/* CTA 버튼 */}
           <div className="hidden md:flex items-center gap-3">
             <a
               href="tel:1533-9580"
@@ -79,17 +79,17 @@ export default function Header() {
             </a>
           </div>
 
-          {/* ëª¨ë°ì¼ ë©ë´ í ê¸ */}
+          {/* 모바일 메뉴 토글 */}
           <button
             className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors"
             onClick={() => setIsOpen(!isOpen)}
-            aria-label="ë©ë´ ì´ê¸°"
+            aria-label="메뉴 열기"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
-        {/* ëª¨ë°ì¼ ë©ë´ */}
+        {/* 모바일 메뉴 */}
         <div
           className={cn(
             'md:hidden overflow-hidden border-t border-gray-100/50 bg-white/50 backdrop-blur-sm transition-all duration-300 ease-out',
@@ -118,7 +118,7 @@ export default function Header() {
                 className="flex items-center justify-center gap-2 mt-3 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:scale-105 transition-all duration-200 group"
               >
                 <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                ìë´ 1533-9580
+                상담 1533-9580
               </a>
             </div>
           </nav>
