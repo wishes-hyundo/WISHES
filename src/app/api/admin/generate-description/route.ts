@@ -27,7 +27,6 @@ interface ListingData {
   additionalNotes?: string;
 }
 
-// Helper: ensure features is always an array
 function ensureFeaturesArray(features: string[] | string | undefined): string[] {
   if (!features) return [];
   if (Array.isArray(features)) return features;
@@ -58,18 +57,20 @@ export async function POST(request: NextRequest) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6-20250320',
         max_tokens: 1500,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     if (!resp.ok) {
+      const errorBody = await resp.text();
+      console.error('Anthropic API error:', resp.status, errorBody);
       return NextResponse.json({
         success: true,
         description: generateTemplate(data),
         source: 'template',
-        message: 'AI API 오류로 템플릿 기반으로 생성되었습니다.',
+        message: `AI API 오류(${resp.status})로 템플릿 기반으로 생성되었습니다.`,
       });
     }
 
