@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, BadgeCheck } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFavorites } from '@/contexts/FavoritesContext';
 
 interface HomeListingCardProps {
   listing: any;
@@ -74,6 +75,9 @@ const sqmToPyeong = (area: number | null | undefined) => {
 };
 
 export function HomeListingCard({ listing }: HomeListingCardProps) {
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const fav = isFavorite(listing.id);
+
   // Supabase에서 가져온 이미지 (listing_images 조인)
   const images = listing.listing_images || [];
   const thumbUrl = images.length > 0 ? images[0].url : null;
@@ -82,6 +86,12 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
   const area = listing.area_m2 || listing.area || 0;
   const floor = listing.floor_current || listing.floor || '';
   const pyeong = sqmToPyeong(area);
+
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleFavorite(listing.id);
+  };
 
   return (
     <Link
@@ -125,12 +135,25 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
           )}>
             {listing.deal}
           </span>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             {listing.elevator && (
               <span className="px-2 py-1 text-xs font-semibold bg-white/80 text-wishes-secondary rounded-lg shadow-sm">
                 엘리베이터
               </span>
             )}
+            {/* 찜(하트) 버튼 */}
+            <button
+              onClick={handleFavoriteClick}
+              className={cn(
+                'w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-110',
+                fav
+                  ? 'bg-red-500 text-white'
+                  : 'bg-white/90 text-gray-400 hover:text-red-500'
+              )}
+              aria-label={fav ? '찜 해제' : '찜하기'}
+            >
+              <Heart className={cn('w-4 h-4', fav && 'fill-white')} />
+            </button>
           </div>
         </div>
 
@@ -186,17 +209,17 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
         <div className="flex flex-wrap gap-2 pt-2">
           {listing.parking && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-secondary/10 text-wishes-secondary rounded-full border border-wishes-secondary/20">
-              🚗 주차
+              주차
             </span>
           )}
           {listing.elevator && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-accent/10 text-wishes-accent rounded-full border border-wishes-accent/20">
-              🚡 엘리베이터
+              엘리베이터
             </span>
           )}
           {listing.pet && (
             <span className="px-2.5 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20">
-              🐾 반려동물
+              반려동물
             </span>
           )}
         </div>
