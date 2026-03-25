@@ -34,9 +34,6 @@ export function Footer() {
             </p>
             {/* 소셜 링크 */}
             <div className="flex gap-3 pt-2">
-              <a href="#" className="w-10 h-10 rounded-lg bg-white/10 hover:bg-wishes-accent/20 flex items-center justify-center transition-colors" aria-label="Kakao">
-                <span className="text-xs font-bold">카</span>
-              </a>
               <a href="#" className="w-10 h-10 rounded-lg bg-white/10 hover:bg-wishes-accent/20 flex items-center justify-center transition-colors" aria-label="Blog">
                 <BookOpen className="w-5 h-5" />
               </a>
