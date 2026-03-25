@@ -6,6 +6,25 @@ export async function GET(request: NextRequest) {
     const supabase = createClient();
     const { searchParams } = new URL(request.url);
 
+    // IDs로 직접 조회 (마이페이지 찜/최근 본 매물)
+    const ids = searchParams.get('ids');
+    if (ids) {
+      const idList = ids.split(',').map(Number).filter(n => !isNaN(n) && n > 0);
+      if (idList.length === 0) {
+        return NextResponse.json({ listings: [] });
+      }
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*, listing_images(*)')
+        .in('id', idList);
+
+      if (error) {
+        console.error('Listings by IDs error:', error);
+        return NextResponse.json({ listings: [] });
+      }
+      return NextResponse.json({ listings: data || [] });
+    }
+
     const deal = searchParams.get('deal');
     const type = searchParams.get('type');
     const dong = searchParams.get('dong');
@@ -85,7 +104,9 @@ export async function GET(request: NextRequest) {
         offset,
         hasMore: (count || 0) > offset + limit,
       },
-      filters: { dongs: uniqueDongs },
+      filters: {
+        dongs: uniqueDongs,
+      },
     });
   } catch (error) {
     console.error('Listings API error:', error);
