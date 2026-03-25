@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// 건축HUB 서비스 엔드포인트 (2024년 변경)
+// 건축HUB 서비스 엔드포인트
 const BUILDING_API_BASE = 'https://apis.data.go.kr/1613000/BldRgstHubService';
 
 const SIGUNGU_CODES: Record<string, string> = {
@@ -82,33 +82,25 @@ export async function GET(request: NextRequest) {
       pageNo: '1',
     });
 
-    // 기본개요 먼저 시도, 없으면 표제부 조회
+    // 여러 엔드포인트 순차 시도 (기본개요 → 표제부 → 총괄표제부)
     const endpoints = ['getBrBasisOulnInfo', 'getBrTitleInfo', 'getBrRecapTitleInfo'];
     let xml = '';
     let items: string[] = [];
 
     for (const endpoint of endpoints) {
       const url = `${BUILDING_API_BASE}/${endpoint}?${params}`;
-      console.log('Trying endpoint:', endpoint, 'URL:', url.substring(0, 200));
       const resp = await fetch(url);
       xml = await resp.text();
-      console.log('Response for', endpoint, '(first 500):', xml.substring(0, 500));
 
       const resultCode = parseXMLValue(xml, 'resultCode');
-      if (resultCode && resultCode !== '00') {
-        console.error('API error for', endpoint, ':', resultCode, parseXMLValue(xml, 'resultMsg'));
-        continue;
-      }
+      if (resultCode && resultCode !== '00') continue;
 
       items = parseXMLItems(xml);
-      if (items.length > 0) {
-        console.log('Found', items.length, 'items from', endpoint);
-        break;
-      }
+      if (items.length > 0) break;
     }
 
+    // 대지(0)에서 못 찾으면 산(1)도 시도
     if (items.length === 0) {
-      // platGbCd '1' (산) 도 시도
       params.set('platGbCd', '1');
       for (const endpoint of endpoints) {
         const url = `${BUILDING_API_BASE}/${endpoint}?${params}`;
