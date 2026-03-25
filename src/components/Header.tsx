@@ -8,11 +8,11 @@ import { cn } from '@/lib/utils';
 import { AuthModal } from '@/components/AuthModal';
 
 const navItems = [
-  { label: 'í', href: '/' },
-  { label: 'ë§¤ë¬¼ê²ì', href: '/listings' },
-  { label: 'ì§ëê²ì', href: '/map' },
-  { label: 'íì¬ìê°', href: '/about' },
-  { label: 'ìë´ë¬¸ì', href: '/contact' },
+  { label: 'Ã­ÂÂ', href: '/' },
+  { label: 'Ã«Â§Â¤Ã«Â¬Â¼ÃªÂ²ÂÃ¬ÂÂ', href: '/listings' },
+  { label: 'Ã¬Â§ÂÃ«ÂÂÃªÂ²ÂÃ¬ÂÂ', href: '/map' },
+  { label: 'Ã­ÂÂÃ¬ÂÂ¬Ã¬ÂÂÃªÂ°Â', href: '/about' },
+  { label: 'Ã¬ÂÂÃ«ÂÂ´Ã«Â¬Â¸Ã¬ÂÂ', href: '/contact' },
 ];
 
 export function Header() {
@@ -36,7 +36,7 @@ export function Header() {
             </div>
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-wishes-primary leading-none">WISHES</p>
-              <p className="text-xs text-wishes-muted">ììì¤ë¶ëì°</p>
+              <p className="text-xs text-wishes-muted">Ã¬ÂÂÃ¬ÂÂÃ¬ÂÂ¤Ã«Â¶ÂÃ«ÂÂÃ¬ÂÂ°</p>
             </div>
             <div className="sm:hidden">
               <p className="text-base font-bold text-wishes-primary">WISHES</p>
@@ -51,16 +51,16 @@ export function Header() {
               </Link>
             ))}
           </nav>
-          {/* ë¡ê·¸ì¸ ë²í¼ */}
+          {/* Ã«Â¡ÂÃªÂ·Â¸Ã¬ÂÂ¸ Ã«Â²ÂÃ­ÂÂ¼ */}
           <button
             onClick={() => setAuthOpen(true)}
             className="hidden md:flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-wishes-secondary hover:bg-blue-50 rounded-xl transition-colors"
           >
             <User className="w-4 h-4" />
-            ë¡ê·¸ì¸
+            Ã«Â¡ÂÃªÂ·Â¸Ã¬ÂÂ¸
           </button>
 
-          <button className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setIsOpen(!isOpen)} aria-label="ë©ë´ ì´ê¸°">
+          <button className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setIsOpen(!isOpen)} aria-label="Ã«Â©ÂÃ«ÂÂ´ Ã¬ÂÂ´ÃªÂ¸Â°">
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
@@ -76,7 +76,7 @@ export function Header() {
                 className="flex items-center justify-center gap-2 mx-2 mt-2 px-4 py-3 text-sm font-semibold text-white bg-wishes-primary rounded-xl hover:bg-wishes-secondary transition-colors"
               >
                 <User className="w-4 h-4" />
-                ë¡ê·¸ì¸
+                Ã«Â¡ÂÃªÂ·Â¸Ã¬ÂÂ¸
               </button>
           </nav>
         </div>
