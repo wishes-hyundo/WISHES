@@ -350,40 +350,28 @@ export default function NewListingPage() {
   const openAddressSearch = () => {
     if (typeof window === 'undefined') return;
     
-    // Create modal overlay
-    const overlay = document.createElement('div');
-    overlay.id = 'address-search-overlay';
-    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    const width = 500;
+    const height = 600;
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
     
-    const modal = document.createElement('div');
-    modal.style.cssText = 'background:white;border-radius:16px;width:500px;max-width:90vw;height:560px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);display:flex;flex-direction:column;';
+    const popup = window.open(
+      '/api/address-search',
+      'addressSearch',
+      \`width=\${width},height=\${height},left=\${left},top=\${top},scrollbars=no,resizable=yes\`
+    );
     
-    const header = document.createElement('div');
-    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee;flex-shrink:0;';
-    header.innerHTML = '<span style="font-weight:700;font-size:16px;">\uD83D\uDD0D \uC8FC\uC18C \uAC80\uC0C9</span><button style="background:none;border:none;font-size:24px;cursor:pointer;color:#666;" onclick="this.closest(\'[id=address-search-overlay]\').remove()">&times;</button>';
+    if (!popup) {
+      alert('팝업이 차단되었습니다. 팝업 차단을 해제해 주세요.');
+      return;
+    }
     
-    const iframe = document.createElement('iframe');
-    iframe.src = '/api/address-search';
-    iframe.style.cssText = 'width:100%;flex:1;border:none;';
-    
-    modal.appendChild(header);
-    modal.appendChild(iframe);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    
-    // Close on overlay click
-    overlay.addEventListener('click', (e) => { 
-      if (e.target === overlay) overlay.remove(); 
-    });
-    
-    // Listen for postMessage from iframe
     const handleMessage = (event: MessageEvent) => {
       if (event.data && event.data.type === 'address-selected') {
         const fullAddr = event.data.roadAddress || event.data.jibunAddress;
         const dong = event.data.bname || '';
         updateField('address', fullAddr);
         if (dong) updateField('dong', dong);
-        overlay.remove();
         window.removeEventListener('message', handleMessage);
       }
     };
