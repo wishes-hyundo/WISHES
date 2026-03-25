@@ -242,37 +242,73 @@ export default function NewListingPage() {
   };
 
   // 이미지 업로드
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const optimizeImage = (file: File, maxWidth = 1920, quality = 0.85): Promise<File> => {
+    return new Promise((resolve) => {
+      // 2MB 이하면 최적화 스킵
+      if (file.size <= 2 * 1024 * 1024) { resolve(file); return; }
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(file); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob || blob.size >= file.size) { resolve(file); return; }
+          const optimized = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+          resolve(optimized);
+        }, 'image/jpeg', quality);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  };
+
+  const processFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
 
     setIsUploadingImages(true);
     const newImages: string[] = [];
     const newPreviews: string[] = [];
 
     try {
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+
+        // 클라이언트 이미지 최적화
+        const optimizedFile = await optimizeImage(file);
 
         // 미리보기 생성
-        const reader = new FileReader();
         const preview = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
           reader.onload = (ev) => resolve(ev.target?.result as string);
-          reader.readAsDataURL(file);
+          reader.readAsDataURL(optimizedFile);
         });
         newPreviews.push(preview);
 
-        // 서버 업로드
+        // 서버 업로드 (인증 헤더 포함)
         const uploadFormData = new FormData();
-        uploadFormData.append('file', file);
+        uploadFormData.append('file', optimizedFile);
 
         const response = await fetch('/api/admin/upload', {
           method: 'POST',
+          headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` },
           body: uploadFormData,
         });
 
         const result = await response.json();
-        if (result.success && result.url) {
+        if (result.success && result.data?.url) {
+          newImages.push(result.data.url);
+        } else if (result.url) {
           newImages.push(result.url);
         }
       }
@@ -289,13 +325,18 @@ export default function NewListingPage() {
     }
   };
 
-  // 이미지 삭제
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    await processFiles(files);
+  };
+
   const handleRemoveImage = (index: number) => {
     setFormData(prev => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index),
+      images: prev.images.filter((_: string, i: number) => i !== index),
     }));
-    setPreviewImages(prev => prev.filter((_, i) => i !== index));
+    setPreviewImages(prev => prev.filter((_: string, i: number) => i !== index));
   };
 
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); };
@@ -303,10 +344,7 @@ export default function NewListingPage() {
   const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault(); e.stopPropagation(); setIsDragOver(false);
     const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      const fakeEvent = { target: { files } } as React.ChangeEvent<HTMLInputElement>;
-      await handleImageUpload(fakeEvent);
-    }
+    if (files && files.length > 0) { await processFiles(files); }
   };
 
   // 특징 토글
