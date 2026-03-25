@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
+import ImageProtection from '@/components/ImageProtection';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
@@ -138,6 +139,7 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col">
+          <ImageProtection />
         <ConditionalLayout>
           {children}
         </ConditionalLayout>
