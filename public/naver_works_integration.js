@@ -194,4 +194,6 @@
     else{injectButton();}
 
     new MutationObserver(function(){injectButton();}).observe(document.body,{childList:true,subtree:true});
+
+  window.sendToNW = sendToNW;
 })();
