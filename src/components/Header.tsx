@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, X, MapPin } from 'lucide-react';
+import { Menu, X, Phone, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { label: '매물검색', href: '/listings' },
@@ -14,9 +15,37 @@ const navItems = [
   { label: '상담문의', href: '/contact' },
 ];
 
-export default function Header() {
+export function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
+  const { user, loading, signOut, setShowAuthModal } = useAuth();
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // 사용자 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getUserDisplayName = () => {
+    if (!user) return '';
+    return user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '회원';
+  };
+
+  const getUserAvatar = () => {
+    return user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
+  };
 
   const isActive = (href: string) => {
     if (href === '/') {
@@ -68,7 +97,73 @@ export default function Header() {
             ))}
           </nav>
 
+          {/* CTA 버튼 + 로그인 */}
+          <div className="hidden md:flex items-center gap-3">
+            <a
+              href="tel:1533-9580"
+              className="flex items-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:shadow-wishes-secondary/50 hover:scale-105 transition-all duration-200 group"
+            >
+              <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>1533-9580</span>
+            </a>
 
+            {/* 로그인/사용자 메뉴 - mounted 후에만 렌더링 (hydration 방지) */}
+            {mounted && !loading && (
+              user ? (
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
+                  >
+                    {getUserAvatar() ? (
+                      <img src={getUserAvatar()!} alt="" className="w-8 h-8 rounded-full border-2 border-wishes-secondary/20" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-wishes-secondary/10 flex items-center justify-center">
+                        <User className="w-4 h-4 text-wishes-secondary" />
+                      </div>
+                    )}
+                    <span className="text-sm font-medium text-gray-700 max-w-[80px] truncate">
+                      {getUserDisplayName()}
+                    </span>
+                    <ChevronDown className={cn('w-3.5 h-3.5 text-gray-400 transition-transform', userMenuOpen && 'rotate-180')} />
+                  </button>
+
+                  {/* 드롭다운 메뉴 */}
+                  {userMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                      <div className="px-4 py-2.5 border-b border-gray-100">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{getUserDisplayName()}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                      </div>
+                      <Link
+                        href="/mypage"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <Heart className="w-4 h-4 text-gray-400" />
+                        찜한 매물
+                      </Link>
+                      <button
+                        onClick={() => { signOut(); setUserMenuOpen(false); }}
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4 text-gray-400" />
+                        로그아웃
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-wishes-secondary border-2 border-wishes-secondary/20 hover:bg-wishes-secondary/5 hover:border-wishes-secondary/40 transition-all duration-200"
+                >
+                  <User className="w-4 h-4" />
+                  로그인
+                </button>
+              )
+            )}
+          </div>
 
           {/* 모바일 메뉴 토글 */}
           <button
@@ -103,7 +198,45 @@ export default function Header() {
                 {item.label}
               </Link>
             ))}
-
+            <div className="pt-3 mt-3 border-t border-gray-100 space-y-2">
+              {mounted && !loading && (
+                user ? (
+                  <div className="flex items-center justify-between px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      {getUserAvatar() ? (
+                        <img src={getUserAvatar()!} alt="" className="w-7 h-7 rounded-full" />
+                      ) : (
+                        <div className="w-7 h-7 rounded-full bg-wishes-secondary/10 flex items-center justify-center">
+                          <User className="w-3.5 h-3.5 text-wishes-secondary" />
+                        </div>
+                      )}
+                      <span className="text-sm font-medium text-gray-700">{getUserDisplayName()}</span>
+                    </div>
+                    <button
+                      onClick={() => { signOut(); setIsOpen(false); }}
+                      className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setShowAuthModal(true); setIsOpen(false); }}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-wishes-secondary border-2 border-wishes-secondary/20 hover:bg-wishes-secondary/5 transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    간편 로그인
+                  </button>
+                )
+              )}
+              <a
+                href="tel:1533-9580"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:scale-105 transition-all duration-200 group"
+              >
+                <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                상담 1533-9580
+              </a>
+            </div>
           </nav>
         </div>
       </div>
