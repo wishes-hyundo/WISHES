@@ -355,11 +355,8 @@ export default function NewListingPage() {
     const left = (window.screen.width - width) / 2;
     const top = (window.screen.height - height) / 2;
     
-    const popup = window.open(
-      '/api/address-search',
-      'addressSearch',
-      \`width=\${width},height=\${height},left=\${left},top=\${top},scrollbars=no,resizable=yes\`
-    );
+    const features = 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=no,resizable=yes';
+    const popup = window.open('/api/address-search', 'addressSearch', features);
     
     if (!popup) {
       alert('팝업이 차단되었습니다. 팝업 차단을 해제해 주세요.');
