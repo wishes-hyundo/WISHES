@@ -1658,21 +1658,20 @@ const TOTAL = 3;
 
   if(location.hash && location.hash.length>2){
 
-    try{
-
-      const raw = JSON.parse(atob(decodeURIComponent(location.hash.slice(1))));
-
-      // 압축된 키(단일 문자) 감지 후 복원
-
-      const isCompressed = Object.keys(raw).some(k=>k.length===1);
-
-      const data = isCompressed ? _decompress(raw) : raw;
-
-      restoreState(data);
-
-    }catch(e){}
-
-  }
+    try {
+      const h = decodeURIComponent(location.hash.substring(1));
+      if (h) {
+        const raw = decodeURIComponent(escape(atob(h)));
+        let data = JSON.parse(raw);
+        /* backward compat: old compact keys -> full keys */
+        if(data.a !== undefined && data.cName === undefined){
+          data = {cName:data.a||'', cPhone:data.b||'', chips:data.u||{}, stars:data.v||{}, deal:data.w||''};
+        }
+        restoreState(data);
+      }
+    } catch(e) {
+      console.warn('hash restore failed:', e);
+    }
 
 })();
 
@@ -2254,39 +2253,26 @@ function _decompress(data){const o={};for(const k in data){const s=_KD[k]||k;o[s
 
 
 
-function generateShareLink(){
+  function generateShareLink(){
 
-  try{
+      try{
+        const d = collectData();
+        const json = JSON.stringify(d);
+        const encoded = btoa(unescape(encodeURIComponent(json)));
+        const url = location.origin + location.pathname + '#' + encoded;
 
-    const data = collectData();
+        const inp = document.getElementById('shareUrl');
+        if(inp) inp.value = url;
 
-    const compact = _compress(data);
+        /* short-url input clear */
+        const shortInp = document.getElementById('shortUrl');
+        if(shortInp) shortInp.value = '';
+        const shortBtn = document.getElementById('btnShort');
+        if(shortBtn){ shortBtn.textContent = '🔗 단축 URL'; shortBtn.disabled = false; }
 
-    // 빈 값 제거
+      }catch(e){ console.warn('generateShareLink error', e); }
 
-    Object.keys(compact).forEach(k=>{ if(compact[k]===''||compact[k]===null||compact[k]===undefined) delete compact[k]; });
-
-    const json = JSON.stringify(compact);
-
-    const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))));
-
-    const url = location.origin + location.pathname + '#' + encoded;
-
-    document.getElementById('shareLink').value = url;
-
-    document.getElementById('shortLink').value = '';
-
-    document.getElementById('shortBtn').textContent = '🔗 단축 URL';
-
-    document.getElementById('shortBtn').classList.remove('loading');
-
-  }catch(e){
-
-    document.getElementById('shareLink').value = '링크 생성 실패 — 데이터를 확인해주세요';
-
-  }
-
-}
+    }
 
 
 
