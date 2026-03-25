@@ -169,7 +169,42 @@ export async function POST(request: NextRequest) {
       };
     } else {
       // JSON 처리 (기존 API 호환)
-      listingData = await request.json();
+      const rawData = await request.json();
+      // Map frontend field names to API field names
+      listingData = {
+        title: rawData.title || '',
+        type: rawData.type || rawData.propertyType || '',
+        deal: rawData.deal || rawData.transactionType || '',
+        deposit: Number(rawData.deposit) || 0,
+        monthly: rawData.monthly || rawData.monthlyRent || null,
+        price: rawData.price || null,
+        maintenance_fee: Number(rawData.maintenance_fee) || 0,
+        maintenance_includes: rawData.maintenance_includes || rawData.features || null,
+        area_m2: Number(rawData.area_m2 || rawData.area) || 0,
+        floor_current: rawData.floor_current || rawData.floor || null,
+        floor_total: rawData.floor_total || rawData.totalFloors || null,
+        rooms: rawData.rooms ? Number(rawData.rooms) : null,
+        bathrooms: rawData.bathrooms ? Number(rawData.bathrooms) : null,
+        direction: rawData.direction || null,
+        address: rawData.address || '',
+        address_detail: rawData.address_detail || rawData.addressDetail || null,
+        dong: rawData.dong || null,
+        description: rawData.description || null,
+        available_date: rawData.available_date || rawData.moveInDate || null,
+        built_year: rawData.built_year || rawData.approvalDate || null,
+        parking: rawData.parking || false,
+        elevator: rawData.elevator || false,
+        pet: rawData.pet || false,
+        balcony: rawData.balcony || false,
+        full_option: rawData.full_option || false,
+        loan_available: rawData.loan_available !== undefined ? rawData.loan_available : true,
+        status: rawData.status || '\uAC00\uC6A9',
+        heating_type: rawData.heating_type || null,
+        lat: rawData.lat || null,
+        lng: rawData.lng || null,
+        area_supply_m2: rawData.area_supply_m2 ? Number(rawData.area_supply_m2) : null,
+        area_land_m2: rawData.area_land_m2 ? Number(rawData.area_land_m2) : null,
+      };
     }
 
     const parsed = createListingSchema.safeParse(listingData);
