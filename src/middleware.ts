@@ -2,6 +2,11 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
+  // Skip CSP for address search page (needs unrestricted script loading for Daum Postcode)
+  if (request.nextUrl.pathname === '/api/address-search') {
+    return NextResponse.next();
+  }
+
   const response = NextResponse.next();
   const { pathname } = request.nextUrl;
 
