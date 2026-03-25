@@ -423,7 +423,7 @@ export default function NewListingPage() {
     e.preventDefault();
 
     if (!formData.title || !formData.address) {
-      setSubmitMessage({ type: 'error', text: '제목과 주소는 필수 입력 항목입니다.' });
+      setSubmitMessage({ type: 'error', text: `필수 입력 항목을 확인해주세요: ${!formData.title ? '제목' : ''}${!formData.title && !formData.address ? ', ' : ''}${!formData.address ? '주소' : ''} 항목이 비어있습니다.` });
       return;
     }
 
@@ -439,15 +439,22 @@ export default function NewListingPage() {
 
       const result = await response.json();
 
+      if (!response.ok) {
+        const errorDetail = result.message || result.error || JSON.stringify(result);
+        setSubmitMessage({ type: 'error', text: `매물 등록 실패 (HTTP ${response.status}): ${errorDetail}` });
+        setIsSubmitting(false);
+        return;
+      }
+
       if (result.success) {
         setSubmitMessage({ type: 'success', text: '매물이 성공적으로 등록되었습니다!' });
         setTimeout(() => router.push('/admin'), 2000);
       } else {
-        setSubmitMessage({ type: 'error', text: result.message || '매물 등록에 실패했습니다.' });
+        setSubmitMessage({ type: 'error', text: `매물 등록 실패: ${result.message || result.error || '서버 오류가 발생했습니다.'} (응답코드: ${response.status})` });
       }
     } catch (error) {
       console.error('Submit error:', error);
-      setSubmitMessage({ type: 'error', text: '매물 등록 중 오류가 발생했습니다.' });
+      setSubmitMessage({ type: 'error', text: `매물 등록 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '네트워크 연결을 확인해주세요.'}` });
     } finally {
       setIsSubmitting(false);
     }
