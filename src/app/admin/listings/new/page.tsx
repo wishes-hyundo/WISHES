@@ -84,7 +84,7 @@ export default function NewListingPage() {
     features: [],
     description: '',
     images: [],
-    status: 'active',
+    status: '가용',
     buildingName: '',
     buildingStructure: '',
     buildingPurpose: '',
@@ -458,10 +458,33 @@ export default function NewListingPage() {
     setSubmitMessage({ type: '', text: '' });
 
     try {
+      // formData를 API 스키마에 맞게 변환
+      const statusMap: Record<string, string> = { 'active': '가용', '계약중': '계약중', '계약완료': '계약완료', '가용': '가용' };
+      const apiPayload = {
+        title: formData.title,
+        type: formData.propertyType,
+        deal: formData.transactionType,
+        deposit: formData.deposit,
+        monthly: formData.monthlyRent || null,
+        price: formData.price || null,
+        area_m2: formData.area,
+        floor_current: formData.floor ? String(formData.floor) : null,
+        floor_total: formData.totalFloors ? String(formData.totalFloors) : null,
+        rooms: formData.rooms || null,
+        bathrooms: formData.bathrooms || null,
+        direction: formData.direction || null,
+        address: formData.address,
+        address_detail: formData.addressDetail || null,
+        description: formData.description || null,
+        available_date: formData.moveInDate || null,
+        status: statusMap[formData.status] || '가용',
+        images: formData.images || [],
+      };
+
       const response = await fetch('/api/admin/listings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(apiPayload),
       });
 
       const result = await response.json();
