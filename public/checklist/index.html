@@ -2261,13 +2261,13 @@ function _decompress(data){const o={};for(const k in data){const s=_KD[k]||k;o[s
         const encoded = btoa(unescape(encodeURIComponent(json)));
         const url = location.origin + location.pathname + '#' + encoded;
 
-        const inp = document.getElementById('shareUrl');
+        const inp = document.getElementById('shareLink');
         if(inp) inp.value = url;
 
         /* short-url input clear */
-        const shortInp = document.getElementById('shortUrl');
+        const shortInp = document.getElementById('shortLink');
         if(shortInp) shortInp.value = '';
-        const shortBtn = document.getElementById('btnShort');
+        const shortBtn = document.getElementById('shortBtn');
         if(shortBtn){ shortBtn.textContent = '🔗 단축 URL'; shortBtn.disabled = false; }
 
       }catch(e){ console.warn('generateShareLink error', e); }
