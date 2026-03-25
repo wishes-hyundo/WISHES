@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Listing } from '@/types';
+import ListingCardActions from './ListingCardActions';
 
 interface ListingCardProps {
   listing: Listing;
@@ -52,7 +53,6 @@ const formatPrice = (listing: Listing) => {
 };
 
 export function ListingCard({ listing, compact = false, onHover }: ListingCardProps) {
-  // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
   const listingImages = (listing as any).listing_images || listing.images || [];
   const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
   const price = formatPrice(listing);
@@ -65,28 +65,19 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
         onMouseEnter={() => onHover?.(listing.id)}
         onMouseLeave={() => onHover?.(null)}
       >
-        {/* 이미지 */}
         <div className="w-28 h-28 shrink-0 relative overflow-hidden bg-gray-100">
           {thumbUrl ? (
-            <img
-              src={thumbUrl}
-              alt={listing.title}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-            />
+            <img src={thumbUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">
               <Building2 className="w-8 h-8 text-gray-300" />
             </div>
           )}
-          <span className={cn(
-            'absolute top-1 left-1 px-2 py-0.5 text-xs font-bold rounded-md',
-            getDealColor(listing.deal)
-          )}>
+          <span className={cn('absolute top-1 left-1 px-2 py-0.5 text-xs font-bold rounded-md', getDealColor(listing.deal))}>
             {listing.deal}
           </span>
+          <ListingCardActions listingId={String(listing.id)} />
         </div>
-
-        {/* 정보 */}
         <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
           <div className="min-w-0">
             <p className="text-sm font-bold text-wishes-primary truncate">{price}</p>
@@ -109,39 +100,21 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      {/* 이미지 영역 */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
-        {/* 배경 이미지 */}
         {thumbUrl ? (
-          <img
-            src={thumbUrl}
-            alt={listing.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
-            loading="lazy"
-          />
+          <img src={thumbUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" loading="lazy" />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
             <Building2 className="w-12 h-12 text-gray-400" />
           </div>
         )}
 
-        {/* 그래디언트 오버레이 */}
-        <div className={cn(
-          'absolute inset-0 bg-gradient-to-t transition-opacity group-hover:opacity-60 duration-300',
-          getDealBgGradient(listing.deal)
-        )}></div>
+        <div className={cn('absolute inset-0 bg-gradient-to-t transition-opacity group-hover:opacity-60 duration-300', getDealBgGradient(listing.deal))}></div>
 
-        {/* 배지들 */}
         <div className="absolute inset-0 flex items-start justify-between p-3">
-          {/* 거래 유형 배지 */}
-          <span className={cn(
-            'px-3 py-1 text-xs font-bold rounded-lg shadow-lg backdrop-blur-sm',
-            getDealColor(listing.deal)
-          )}>
+          <span className={cn('px-3 py-1 text-xs font-bold rounded-lg shadow-lg backdrop-blur-sm', getDealColor(listing.deal))}>
             {listing.deal}
           </span>
-
-          {/* 우측 배지 */}
           <div className="flex gap-2">
             {listing.elevator && (
               <span className="px-2 py-1 text-xs font-semibold bg-white/80 text-wishes-secondary rounded-lg shadow-sm">
@@ -151,7 +124,8 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           </div>
         </div>
 
-        {/* 우측 하단 타입 배지 */}
+        <ListingCardActions listingId={String(listing.id)} />
+
         <div className="absolute bottom-3 right-3">
           <span className="px-3 py-1 text-xs font-semibold bg-white/90 text-wishes-primary rounded-lg shadow-md backdrop-blur-sm">
             {listing.type}
@@ -159,9 +133,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
         </div>
       </div>
 
-      {/* 정보 영역 */}
       <div className="p-4 space-y-4">
-        {/* 가격 */}
         <div className="space-y-1">
           <div className="flex items-baseline gap-2">
             <p className="text-2xl font-bold text-wishes-primary">{price}</p>
@@ -171,12 +143,10 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           </div>
         </div>
 
-        {/* 제목 */}
         <p className="text-sm font-semibold text-wishes-text line-clamp-2 group-hover:text-wishes-secondary transition-colors">
           {listing.title}
         </p>
 
-        {/* 기본 정보 */}
         <div className="flex items-center gap-4 text-xs text-wishes-muted">
           {(listing.area_m2 || listing.area) ? (
             <div className="flex items-center gap-1">
@@ -193,13 +163,11 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           )}
         </div>
 
-        {/* 위치 */}
         <div className="flex items-center gap-1 text-xs text-wishes-muted">
           <MapPin className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
           <span className="truncate">{listing.dong} · {listing.address.split(' ').slice(-1)[0]}</span>
         </div>
 
-        {/* 옵션 태그 */}
         <div className="flex flex-wrap gap-2 pt-2">
           {listing.parking && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-secondary/10 text-wishes-secondary rounded-full border border-wishes-secondary/20 hover:bg-wishes-secondary/20 transition-colors">
@@ -218,7 +186,6 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           )}
         </div>
 
-        {/* 하단 정보 */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
             <BadgeCheck className="w-4 h-4 text-wishes-secondary/60" />
