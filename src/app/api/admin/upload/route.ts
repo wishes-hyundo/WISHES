@@ -11,38 +11,7 @@ function verifyAuth(request: NextRequest) {
   return auth.split(' ')[1] === (process.env.ADMIN_TOKEN || 'wishes2026');
 }
 
-// WISHES 공식 로고 SVG (기하학적 건물 디자인 + 틸 그린)
-function createLogoSvg(size: number): string {
-  const s = size;
-  const c = '#2A6B5E'; // 틸 그린
-  const g = 3; // gap
-  return `<svg width="${s}" height="${s * 1.15}" viewBox="0 0 200 230" xmlns="http://www.w3.org/2000/svg">
-    <!-- 상단 건물 기하학 패턴 -->
-    <!-- 좌측 상단 사각형 -->
-    <rect x="5" y="55" width="55" height="55" rx="3" fill="${c}"/>
-    <!-- 원형 창문 -->
-    <circle cx="32" cy="82" r="15" fill="none" stroke="white" stroke-width="4"/>
-    <!-- 좌측 하단 사각형들 -->
-    <rect x="5" y="113" width="25" height="25" rx="2" fill="${c}"/>
-    <rect x="33" y="113" width="27" height="25" rx="2" fill="${c}"/>
-    <!-- 중앙 지붕 섹션 -->
-    <path d="M63 55 L63 138 L100 138 L100 55 Z" fill="${c}"/>
-    <path d="M68 82 L82 60 L96 82" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/>
-    <line x1="82" y1="60" x2="82" y2="82" stroke="white" stroke-width="4"/>
-    <!-- 우측 섹션 -->
-    <path d="M103 25 L195 25 Q198 25 198 28 L198 138 L103 138 Z" fill="${c}"/>
-    <!-- 우측 지붕 패턴 -->
-    <path d="M110 82 L135 55 L160 82" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/>
-    <path d="M160 82 L185 55" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/>
-    <!-- 하단 바 -->
-    <rect x="5" y="141" width="193" height="25" rx="3" fill="${c}"/>
-    <line x1="5" y1="153" x2="198" y2="153" stroke="white" stroke-width="3" stroke-dasharray="12,8"/>
-    <!-- WISHES 텍스트 -->
-    <text x="100" y="205" text-anchor="middle" fill="${c}" font-family="Arial, sans-serif" font-size="32" font-weight="bold" letter-spacing="12">WISHES</text>
-  </svg>`;
-}
-
-// 워터마크 SVG 생성 (로고 포함)
+// WISHES 공식 로고 워터마크 SVG
 function createWatermarkSvg(width: number, height: number): Buffer {
   const fontSize = Math.max(Math.round(width * 0.035), 14);
   const logoAreaH = Math.round(height * 0.12);
@@ -59,8 +28,6 @@ function createWatermarkSvg(width: number, height: number): Buffer {
       <stop offset="100%" stop-color="rgba(30,70,60,0.7)"/>
     </linearGradient>
   </defs>
-
-  <!-- 대각선 반복 워터마크 -->
   <g transform="rotate(-25, ${width/2}, ${height/2})">
     ${Array.from({length: Math.ceil(height / (fontSize * 5))}, (_, row) =>
       Array.from({length: Math.ceil(width / (fontSize * 9))}, (_, col) => {
@@ -71,13 +38,9 @@ function createWatermarkSvg(width: number, height: number): Buffer {
       }).join('')
     ).join('')}
   </g>
-
-  <!-- 하단 로고 배지 -->
-  <rect x="${Math.round(width * 0.015)}" y="${height - logoAreaH - Math.round(height * 0.015)}" 
-        width="${Math.round(Math.min(logoSize * 5, width * 0.32))}" height="${logoAreaH}" 
+  <rect x="${Math.round(width * 0.015)}" y="${height - logoAreaH - Math.round(height * 0.015)}"
+        width="${Math.round(Math.min(logoSize * 5, width * 0.32))}" height="${logoAreaH}"
         rx="8" fill="url(#logoBg)" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
-  
-  <!-- 미니 로고 아이콘 (기하학적 건물) -->
   <g transform="translate(${Math.round(width * 0.015) + Math.round(logoAreaH * 0.15)}, ${height - logoAreaH - Math.round(height * 0.015) + Math.round(logoAreaH * 0.12)}) scale(${logoSize * 0.008})">
     <rect x="2" y="22" width="22" height="22" rx="2" fill="rgba(255,255,255,0.7)"/>
     <circle cx="13" cy="33" r="6" fill="none" stroke="rgba(20,50,45,0.9)" stroke-width="2"/>
@@ -90,23 +53,17 @@ function createWatermarkSvg(width: number, height: number): Buffer {
     <path d="M68 33 L78 20" fill="none" stroke="rgba(20,50,45,0.9)" stroke-width="2"/>
     <rect x="2" y="58" width="78" height="10" rx="2" fill="rgba(255,255,255,0.7)"/>
   </g>
-
-  <!-- WISHES 텍스트 -->
-  <text x="${Math.round(width * 0.015) + Math.round(logoSize * 1.6)}" 
-        y="${height - logoAreaH * 0.5 - Math.round(height * 0.015) + Math.round(fontSize * 0.15)}" 
-        fill="rgba(255,255,255,0.9)" font-family="Arial, sans-serif" 
+  <text x="${Math.round(width * 0.015) + Math.round(logoSize * 1.6)}"
+        y="${height - logoAreaH * 0.5 - Math.round(height * 0.015) + Math.round(fontSize * 0.15)}"
+        fill="rgba(255,255,255,0.9)" font-family="Arial, sans-serif"
         font-size="${Math.round(fontSize * 0.85)}px" font-weight="bold" letter-spacing="4px">WISHES</text>
-  
-  <!-- wishes.co.kr -->
-  <text x="${Math.round(width * 0.015) + Math.round(logoSize * 1.6)}" 
-        y="${height - logoAreaH * 0.5 - Math.round(height * 0.015) + Math.round(fontSize * 0.7)}" 
-        fill="rgba(255,255,255,0.55)" font-family="Arial, sans-serif" 
+  <text x="${Math.round(width * 0.015) + Math.round(logoSize * 1.6)}"
+        y="${height - logoAreaH * 0.5 - Math.round(height * 0.015) + Math.round(fontSize * 0.7)}"
+        fill="rgba(255,255,255,0.55)" font-family="Arial, sans-serif"
         font-size="${Math.round(fontSize * 0.38)}px">wishes.co.kr  |  서울도 종합부동산</text>
-
 </svg>`;
   return Buffer.from(svg);
 }
-
 export async function POST(request: NextRequest) {
   try {
     if (!verifyAuth(request)) {
@@ -165,7 +122,7 @@ export async function POST(request: NextRequest) {
       .toBuffer();
 
     // === STEP 3: 원본 업로드 (관리자용) ===
-    const originalPath = \`originals/listing-\${timestamp}-\${random}.jpg\`;
+    const originalPath = `originals/listing-${timestamp}-${random}.jpg`;
     const { error: origError } = await supabase.storage
       .from('listing-images')
       .upload(originalPath, optimizedBuffer, {
@@ -176,7 +133,7 @@ export async function POST(request: NextRequest) {
     if (origError) throw origError;
 
     // === STEP 4: 워터마크 버전 업로드 (공개용) ===
-    const watermarkedPath = \`watermarked/listing-\${timestamp}-\${random}.jpg\`;
+    const watermarkedPath = `watermarked/listing-${timestamp}-${random}.jpg`;
     const { error: wmError } = await supabase.storage
       .from('listing-images')
       .upload(watermarkedPath, watermarkedBuffer, {
@@ -207,7 +164,7 @@ export async function POST(request: NextRequest) {
       originalSize: buffer.length,
       optimizedSize: optimizedBuffer.length,
       watermarkedSize: watermarkedBuffer.length,
-      compressionRatio: \`\${compressionRatio}% 절감\`,
+      compressionRatio: `${compressionRatio}% 절감`,
       dimensions: { width: wmWidth, height: wmHeight },
     });
   } catch (error) {
