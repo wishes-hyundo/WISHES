@@ -109,7 +109,6 @@
             ['옵션',getChips('g-opt')],
             ['반려동물(상세)',getChips('g-pet')],
             ['거주유형',getChips('g-house')],
-            ['특별조건',getChips('g-spec')],
             ['고객 요청사항',getVal('addReq')]
         ];
         sections.push({title:'6. 입주 및 특이사항',rows:livingRows});
