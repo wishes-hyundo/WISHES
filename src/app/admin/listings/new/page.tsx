@@ -349,21 +349,64 @@ export default function NewListingPage() {
 
   const openAddressSearch = () => {
     if (typeof window === 'undefined') return;
-    const script = document.createElement('script');
-    script.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-    script.onload = () => {
+    
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'address-search-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = 'background:white;border-radius:16px;width:500px;max-width:90vw;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3);';
+    
+    const header = document.createElement('div');
+    header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #eee;';
+    header.innerHTML = '<span style="font-weight:700;font-size:16px;">\uD83D\uDD0D \uC8FC\uC18C \uAC80\uC0C9</span><button id="addr-close-btn" style="background:none;border:none;font-size:24px;cursor:pointer;color:#666;">&times;</button>';
+    
+    const container = document.createElement('div');
+    container.id = 'address-embed-container';
+    container.style.cssText = 'width:100%;height:470px;';
+    
+    modal.appendChild(header);
+    modal.appendChild(container);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Close handlers
+    const closeModal = () => {
+      const el = document.getElementById('address-search-overlay');
+      if (el) el.remove();
+    };
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    
+    // Load and embed Daum Postcode
+    const loadAndEmbed = () => {
       new (window as any).daum.Postcode({
         oncomplete: (data: any) => {
           const fullAddr = data.roadAddress || data.jibunAddress;
           const dong = data.bname || '';
           updateField('address', fullAddr);
           if (dong) updateField('dong', dong);
+          closeModal();
         },
         width: '100%',
         height: '100%',
-      }).open();
+      }).embed(container);
+      
+      // Attach close button event after render
+      setTimeout(() => {
+        const closeBtn = document.getElementById('addr-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', closeModal);
+      }, 100);
     };
-    document.head.appendChild(script);
+    
+    if ((window as any).daum && (window as any).daum.Postcode) {
+      loadAndEmbed();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+      script.onload = loadAndEmbed;
+      document.head.appendChild(script);
+    }
   };
 
   // 특징 토글
