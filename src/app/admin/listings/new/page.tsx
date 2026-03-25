@@ -103,6 +103,9 @@ export default function NewListingPage() {
   const [descSource, setDescSource] = useState('');
   const [submitMessage, setSubmitMessage] = useState({ type: '', text: '' });
   const [activeStep, setActiveStep] = useState(1);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const ADMIN_TOKEN = 'wishes2026';
   const [previewImages, setPreviewImages] = useState<string[]>([]);
 
   // 주소에서 시군구, 번지 정보 추출
@@ -194,7 +197,7 @@ export default function NewListingPage() {
     try {
       const response = await fetch('/api/admin/generate-description', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
         body: JSON.stringify({
           title: formData.title,
           transactionType: formData.transactionType,
@@ -305,7 +308,49 @@ export default function NewListingPage() {
   };
 
   // 폼 제출
-  const handleSubmit = async (e: React.FormEvent) => {
+
+  // Smart AI Analysis
+  const handleSmartAnalyze = async () => {
+    if (!formData.address) return;
+    setIsAnalyzing(true);
+    setAnalysisResult(null);
+    try {
+      const price = formData.transactionType === '\uC6D4\uC138' ? formData.deposit : formData.price;
+      const response = await fetch('/api/admin/smart-analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
+        body: JSON.stringify({
+          address: formData.address,
+          transactionType: formData.transactionType,
+          propertyType: formData.propertyType,
+          price: price,
+        }),
+      });
+      const result = await response.json();
+      if (result.success !== false) {
+        setAnalysisResult(result);
+        if (result.suggestedValues) {
+          const sv = result.suggestedValues;
+          setFormData(prev => ({
+            ...prev,
+            rooms: sv.rooms || prev.rooms,
+            bathrooms: sv.bathrooms || prev.bathrooms,
+            direction: sv.direction || prev.direction,
+          }));
+        }
+        if (result.suggestedDescription && !formData.description) {
+          setFormData(prev => ({ ...prev, description: result.suggestedDescription }));
+          setDescSource('AI \uC2A4\uB9C8\uD2B8 \uBD84\uC11D\uC73C\uB85C \uC790\uB3D9 \uC0DD\uC131');
+        }
+      }
+    } catch (error) {
+      console.error('Smart analyze error:', error);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+    const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.title || !formData.address) {
@@ -319,7 +364,7 @@ export default function NewListingPage() {
     try {
       const response = await fetch('/api/admin/listings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
         body: JSON.stringify(formData),
       });
 
@@ -567,7 +612,25 @@ export default function NewListingPage() {
                 </div>
               </div>
 
-              {buildingError && (
+              
+            {analysisResult && analysisResult.areaAnalysis && (
+              <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <h4 className="text-sm font-bold text-purple-800">AI \uC2A4\uB9C8\uD2B8 \uBD84\uC11D \uACB0\uACFC</h4>
+                </div>
+                <p className="text-sm text-purple-700 whitespace-pre-line">{analysisResult.areaAnalysis}</p>
+                {analysisResult.suggestedDescription && (
+                  <div className="mt-3 pt-3 border-t border-purple-200">
+                    <p className="text-xs font-medium text-purple-600 mb-1">\uC790\uB3D9 \uC0DD\uC131\uB41C \uB9E4\uBB3C \uC124\uBA85:</p>
+                    <p className="text-sm text-purple-700">{analysisResult.suggestedDescription.substring(0, 150)}...</p>
+                  </div>
+                )}
+              </div>
+            )}
+            {buildingError && (
                 <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
                   <div className="flex items-start gap-2">
                     <svg className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
