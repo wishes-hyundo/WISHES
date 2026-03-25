@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const BUILDING_API_BASE = 'http://apis.data.go.kr/1613000/BldRgstService_v2';
+// 건축HUB 서비스 엔드포인트 (2024년 변경)
+const BUILDING_API_BASE = 'https://apis.data.go.kr/1613000/BldRgstHubService';
 
 const SIGUNGU_CODES: Record<string, string> = {
   '관악구': '11620',
-  '괕남구': '11680',
-  '괕동구': '11740',
-  '괕북구': '11305',
-  '괕서구': '11500',
+  '강남구': '11680',
+  '강동구': '11740',
+  '강북구': '11305',
+  '강서구': '11500',
   '구로구': '11530',
   '금천구': '11545',
   '노원구': '11350',
@@ -88,7 +89,10 @@ export async function GET(request: NextRequest) {
       sigunguCd = SIGUNGU_CODES[sigungu];
     } else {
       for (const [key, code] of Object.entries(SIGUNGU_CODES)) {
-        if (address.includes(key)) { sigunguCd = code; break; }
+        if (address.includes(key)) {
+          sigunguCd = code;
+          break;
+        }
       }
     }
 
@@ -101,13 +105,30 @@ export async function GET(request: NextRequest) {
     }
 
     const params = new URLSearchParams({
-      serviceKey: apiKey, sigunguCd, bjdongCd: bjdong || '10300',
-      bun: bun.padStart(4, '0'), ji: ji.padStart(4, '0'),
-      numOfRows: '10', pageNo: '1',
+      serviceKey: apiKey,
+      sigunguCd,
+      bjdongCd: bjdong || '10300',
+      bun: bun.padStart(4, '0'),
+      ji: ji.padStart(4, '0'),
+      numOfRows: '10',
+      pageNo: '1',
     });
 
     const resp = await fetch(`${BUILDING_API_BASE}/getBrTitleInfo?${params}`);
     const xml = await resp.text();
+
+    // 에러 응답 체크
+    const resultCode = parseXMLValue(xml, 'resultCode');
+    if (resultCode && resultCode !== '00') {
+      const resultMsg = parseXMLValue(xml, 'resultMsg');
+      console.error('Building API error:', resultCode, resultMsg);
+      return NextResponse.json({
+        success: false,
+        message: `건축물대장 API 오류: ${resultMsg || '알 수 없는 오류'}`,
+        estimatedData: generateEstimatedData(address),
+      });
+    }
+
     const items = parseXMLItems(xml);
 
     if (items.length === 0) {
@@ -119,6 +140,7 @@ export async function GET(request: NextRequest) {
     }
 
     const item = items[0];
+
     const building = {
       buildingName: parseXMLValue(item, 'bldNm'),
       mainPurpose: parseXMLValue(item, 'mainPurpsCdNm'),
@@ -132,26 +154,31 @@ export async function GET(request: NextRequest) {
       dongCount: parseInt(parseXMLValue(item, 'dongCnt')) || 0,
       unitCount: parseInt(parseXMLValue(item, 'hoCnt')) || 0,
       elevatorCount: parseInt(parseXMLValue(item, 'rideUseElvtCnt')) || 0,
-      parkingCount: (parseInt(parseXMLValue(item, 'indrAutoUtcnt')) || 0) + (parseInt(parseXMLValue(item, 'oudrAutoUtcnt')) || 0),
+      parkingCount:
+        (parseInt(parseXMLValue(item, 'indrAutoUtcnt')) || 0) +
+        (parseInt(parseXMLValue(item, 'oudrAutoUtcnt')) || 0),
       address: parseXMLValue(item, 'platPlc'),
       newAddress: parseXMLValue(item, 'newPlatPlc'),
     };
 
     return NextResponse.json({ success: true, building });
-
   } catch (error) {
     console.error('Building registry error:', error);
-    return NextResponse.json({
-      success: false,
-      message: '건축물대장 조회 중 오류가 발생했습니다.',
-      estimatedData: generateEstimatedData(address),
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        message: '건축물대장 조회 중 오류가 발생했습니다.',
+        estimatedData: generateEstimatedData(address),
+      },
+      { status: 500 }
+    );
   }
 }
 
 function generateEstimatedData(address: string) {
   const isApt = address.includes('아파트');
   const isOfficetel = address.includes('오피스텔');
+
   return {
     buildingType: isApt ? '아파트' : isOfficetel ? '오피스텔' : '다세대주택',
     structure: '철근콘크리트구조',
