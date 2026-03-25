@@ -1446,6 +1446,9 @@ textarea.finput{min-height:80px;resize:vertical}
 
         <div class="chips" id="g-opt">
 
+          <div class="chip" onclick="pickFull()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:700;border:none">🌟 풀옵션</div>
+
+
           <div class="chip" onclick="pick(this,'g-opt',0)">에어컨</div>
 
           <div class="chip" onclick="pick(this,'g-opt',0)">냉장고</div>
@@ -1596,23 +1599,6 @@ textarea.finput{min-height:80px;resize:vertical}
 
         </div>
 
-        <div class="fg">
-
-          <label class="flabel">특별 조건</label>
-
-          <div class="chips" id="g-spec">
-
-            <div class="chip" onclick="pick(this,'g-spec',0)">🐾 반려동물</div>
-
-            <div class="chip" onclick="pick(this,'g-spec',0)">🔌 전기차 충전</div>
-
-            <div class="chip" onclick="pick(this,'g-spec',0)">🅿️ 전기차 주차</div>
-
-            <div class="chip" onclick="pick(this,'g-spec',0)">🏠 재택근무</div>
-
-          </div>
-
-        </div>
 
       </div>
 
@@ -2948,6 +2934,19 @@ function resetAll(){
     
     /* Debounce utility */
     var _saveTimer = null;
+    function pickFull(){
+      var btn=document.querySelector('#g-opt .chip[onclick="pickFull()"]');
+      var isOn=btn.classList.contains('on');
+      var targets=['에어컨','냉장고','세탁기','붙박이장'];
+      document.querySelectorAll('#g-opt .chip').forEach(function(c){
+        if(targets.indexOf(c.textContent.trim())!==-1){
+          if(!isOn){c.classList.add('on');}else{c.classList.remove('on');}
+        }
+      });
+      if(!isOn){btn.classList.add('on');}else{btn.classList.remove('on');}
+      S.chips['g-opt']=[].map.call(document.querySelectorAll('#g-opt .chip.on'),function(c){return c.textContent.trim()}).filter(function(t){return t!=='🌟 풀옵션'});
+    }
+
     function debouncedAutoSave(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(autoSave, 500); }
 
     function autoSave(){
