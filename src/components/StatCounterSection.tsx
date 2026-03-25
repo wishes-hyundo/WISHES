@@ -1,32 +1,51 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 function StatCounter({ value, label }: { value: string; label: string }) {
-  const [count, setCount] = useState(0);
+  const numValue = parseInt(value) || 0;
+  const [count, setCount] = useState(numValue);
+  const [hasAnimated, setHasAnimated] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const numValue = parseInt(value) || 0;
-    if (numValue === 0) return;
+    if (hasAnimated || numValue === 0) return;
 
-    let current = 0;
-    const increment = Math.ceil(numValue / 20);
-    const interval = setInterval(() => {
-      current += increment;
-      if (current >= numValue) {
-        setCount(numValue);
-        clearInterval(interval);
-      } else {
-        setCount(current);
-      }
-    }, 30);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setHasAnimated(true);
+          // 0부터 시작하여 카운트업 애니메이션
+          setCount(0);
+          let current = 0;
+          const increment = Math.ceil(numValue / 30);
+          const interval = setInterval(() => {
+            current += increment;
+            if (current >= numValue) {
+              setCount(numValue);
+              clearInterval(interval);
+            } else {
+              setCount(current);
+            }
+          }, 25);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
 
-    return () => clearInterval(interval);
-  }, [value]);
+    if (ref.current) {
+      observer.observe(ref.current);
+    }
+
+    return () => observer.disconnect();
+  }, [numValue, hasAnimated]);
 
   return (
-    <div className="text-center">
-      <div className="text-4xl md:text-5xl font-bold text-wishes-accent mb-2">{count}{value.includes('+') ? '+' : ''}</div>
+    <div className="text-center" ref={ref}>
+      <div className="text-4xl md:text-5xl font-bold text-wishes-accent mb-2" suppressHydrationWarning>
+        {count}{value.includes('+') ? '+' : ''}
+      </div>
       <p className="text-sm text-wishes-muted">{label}</p>
     </div>
   );
