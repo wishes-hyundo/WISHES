@@ -174,10 +174,14 @@ export default function AIChatBot() {
                         : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-md'
                     }`}>
                       {msg.role === 'user' ? (
-                      <span>{msg.content}</span>
-                    ) : (
-                      <span dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }} />
-                    )}
+                        <span>{msg.content}</span>
+                      ) : (
+                        <span dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }} />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
 
               {isLoading && (
                 <div className="flex justify-start">
