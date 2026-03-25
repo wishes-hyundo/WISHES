@@ -69,7 +69,7 @@ export function ListingFilters({ dongs, currentFilters }: ListingFiltersProps) {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="\uB9E4\uBB3C\uBC88\uD638 \uB610\uB294 \uD0A4\uC6CC\uB4DC\uB85C \uAC80\uC0C9 (\uC608: 1234 \uB610\uB294 \uAD00\uC545\uAD6C \uC6D0\uB8F8)"
+            placeholder="매물번호 또는 키워드로 검색 (예: 1234 또는 관악구 원룸)"
             className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary"
           />
         </div>
@@ -78,14 +78,14 @@ export function ListingFilters({ dongs, currentFilters }: ListingFiltersProps) {
           className="px-5 py-2.5 bg-wishes-primary text-white rounded-lg text-sm font-medium hover:bg-wishes-primary/90 transition-colors flex items-center gap-1.5"
         >
           <Search className="w-4 h-4" />
-          \uAC80\uC0C9
+          검색
         </button>
       </div>
 
       {/* Filters */}
       <div className="flex items-center gap-2 mb-3">
         <SlidersHorizontal className="w-4 h-4 text-gray-500" />
-        <span className="text-sm font-medium text-gray-700">\uD544\uD130</span>
+        <span className="text-sm font-medium text-gray-700">필터</span>
       </div>
       <div className="flex flex-wrap gap-3">
         <select
@@ -93,7 +93,7 @@ export function ListingFilters({ dongs, currentFilters }: ListingFiltersProps) {
           onChange={(e) => updateFilter('deal', e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
         >
-          <option value="">\uAC70\uB798\uC720\uD615 \uC804\uCCB4</option>
+          <option value="">거래유형 전체</option>
           {dealTypes.map((t) => (<option key={t} value={t}>{t}</option>))}
         </select>
         <select
@@ -101,7 +101,7 @@ export function ListingFilters({ dongs, currentFilters }: ListingFiltersProps) {
           onChange={(e) => updateFilter('type', e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
         >
-          <option value="">\uB9E4\uBB3C\uC720\uD615 \uC804\uCCB4</option>
+          <option value="">매물유형 전체</option>
           {listingTypes.map((t) => (<option key={t} value={t}>{t}</option>))}
         </select>
         <select
@@ -109,7 +109,7 @@ export function ListingFilters({ dongs, currentFilters }: ListingFiltersProps) {
           onChange={(e) => updateFilter('dong', e.target.value)}
           className="px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
         >
-          <option value="">\uC9C0\uC5ED \uC804\uCCB4</option>
+          <option value="">지역 전체</option>
           {dongs.map((d) => (<option key={d} value={d}>{d}</option>))}
         </select>
         <select
