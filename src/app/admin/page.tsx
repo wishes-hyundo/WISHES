@@ -40,7 +40,7 @@ interface Listing {
   balcony?: boolean;
   full_option?: boolean;
   loan_available?: boolean;
-  status: 'ê°ì©' | 'ê³ì½ì¤' | 'ê³ì½ìë£';
+  status: '가용' | '계약중' | '계약완료';
   created_at: string;
   updated_at?: string;
 }
@@ -52,15 +52,15 @@ interface Contact {
   email?: string;
   message?: string;
   listingTitle?: string;
-  status: 'ì ì' | 'ì²ë¦¬ì¤' | 'ìë£';
+  status: '접수' | '처리중' | '완료';
   createdAt?: string;
   created_at?: string;
 }
 
 const INITIAL_LISTING = {
   title: '',
-  type: 'ìë£¸' as const,
-  deal: 'ìì¸' as const,
+  type: '원룸' as const,
+  deal: '월세' as const,
   deposit: 0,
   monthly: 0,
   price: undefined as number | undefined,
@@ -72,7 +72,7 @@ const INITIAL_LISTING = {
   rooms: 1,
   bathrooms: 1,
   direction: '',
-  heating_type: 'ê°ë³ëë°©',
+  heating_type: '개별난방',
   address: '',
   address_detail: '',
   dong: '',
@@ -85,7 +85,7 @@ const INITIAL_LISTING = {
   balcony: false,
   full_option: false,
   loan_available: true,
-  status: 'ê°ì©' as const,
+  status: '가용' as const,
 };
 
 export default function AdminPage() {
@@ -93,25 +93,25 @@ export default function AdminPage() {
   const searchParams = useSearchParams();
   const tab = searchParams.get('tab') || 'dashboard';
 
-  // ì¸ì¦
+  // 인증
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authError, setAuthError] = useState('');
 
-  // ë°ì´í°
+  // 데이터
   const [stats, setStats] = useState<Stats | null>(null);
   const [listings, setListings] = useState<Listing[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // í¼ ìí
+  // 폼 상태
   const [showAddForm, setShowAddForm] = useState(false);
   const [newListing, setNewListing] = useState({ ...INITIAL_LISTING });
   const [submitLoading, setSubmitLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [submitSuccess, setSubmitSuccess] = useState('');
 
-  // ì´ë¯¸ì§ ìë¡ë
+  // 이미지 업로드
   const [uploadingImages, setUploadingImages] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<{ url: string; path: string }[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -120,7 +120,7 @@ export default function AdminPage() {
 
   const getAuthHeader = () => `Bearer ${password}`;
 
-  // ì¸ì¦ ì²´í¬
+  // 인증 체크
   useEffect(() => {
     const savedPassword = localStorage.getItem('admin_password');
     if (savedPassword) {
@@ -142,10 +142,10 @@ export default function AdminPage() {
         setAuthError('');
         fetchData(password);
       } else {
-        setAuthError('ìí¸ê° ì¬ë°ë¥´ì§ ììµëë¤');
+        setAuthError('암호가 올바르지 않습니다');
       }
     } catch (error) {
-      setAuthError('ì¸ì¦ì ì¤í¨íìµëë¤');
+      setAuthError('인증에 실패했습니다');
     }
   };
 
@@ -173,7 +173,7 @@ export default function AdminPage() {
         setContacts(data.data);
       }
     } catch (error) {
-      console.error('ë°ì´í° ì¡°í ì¤ë¥:', error);
+      console.error('데이터 조회 오류:', error);
     } finally {
       setLoading(false);
     }
@@ -234,7 +234,7 @@ export default function AdminPage() {
     setSubmitSuccess('');
 
     try {
-      // APIì ë§ê² ë°ì´í° ì ë¦¬
+      // API에 맞게 데이터 정리
       const payload: Record<string, any> = {
         title: newListing.title,
         type: newListing.type,
@@ -247,7 +247,7 @@ export default function AdminPage() {
         status: newListing.status,
       };
 
-      // ì í íë (ê°ì´ ìì ëë§ ì ì¡)
+      // 선택 필드 (값이 있을 때만 전송)
       if (newListing.monthly) payload.monthly = newListing.monthly;
       if (newListing.price) payload.price = newListing.price;
       if (newListing.maintenance_fee) payload.maintenance_fee = newListing.maintenance_fee;
@@ -262,7 +262,7 @@ export default function AdminPage() {
       if (newListing.available_date) payload.available_date = newListing.available_date;
       if (newListing.built_year) payload.built_year = newListing.built_year;
 
-      // ë¶ë¦° íë
+      // 불린 필드
       payload.parking = newListing.parking;
       payload.elevator = newListing.elevator;
       payload.pet = newListing.pet;
@@ -282,7 +282,7 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json();
 
-        // ì´ë¯¸ì§ê° ìë¡ëëìì¼ë©´ ë§¤ë¬¼ì ì°ê²°
+        // 이미지가 업로드되었으면 매물에 연결
         if (uploadedImages.length > 0 && data.data?.id) {
           for (let i = 0; i < uploadedImages.length; i++) {
             await fetch('/api/admin/upload', {
@@ -305,22 +305,22 @@ export default function AdminPage() {
         setNewListing({ ...INITIAL_LISTING });
         setUploadedImages([]);
         setShowAddForm(false);
-        setSubmitSuccess('ë§¤ë§¤ì´ ì±ê³µì ì¼ë¡ ë±ë¡ëììµëë¤!');
+        setSubmitSuccess('매매이 성공적으로 등록되었습니다!');
         setTimeout(() => setSubmitSuccess(''), 3000);
       } else {
         const errData = await response.json();
-        setSubmitError(errData.error || 'ë§¤ë¬¼ ë±ë¡ì ì¤í¨íìµëë¤');
+        setSubmitError(errData.error || '매물 등록에 실패했습니다');
       }
     } catch (error) {
-      console.error('ë§¤ë¬¼ ì¶ê° ì¤ë¥:', error);
-      setSubmitError('ë§¤ë¬¼ ë±ë¡ ì¤ ì¤ë¥ê° ë°ìíìµëë¤');
+      console.error('매물 추가 오류:', error);
+      setSubmitError('매물 등록 중 오류가 발생했습니다');
     } finally {
       setSubmitLoading(false);
     }
   };
 
   const handleDeleteListing = async (id: number) => {
-    if (!confirm('ì ë§ ì­ì íìê² ìµëê¹?')) return;
+    if (!confirm('정말 삭제하시겠습니까?')) return;
 
     try {
       const response = await fetch(`/api/admin/listings/${id}`, {
@@ -332,7 +332,7 @@ export default function AdminPage() {
         setListings(listings.filter((l) => l.id !== id));
       }
     } catch (error) {
-      console.error('ì­ì  ì¤ë¥:', error);
+      console.error('삭제 오류:', error);
     }
   };
 
@@ -352,7 +352,7 @@ export default function AdminPage() {
         setListings(listings.map((l) => (l.id === id ? data.data : l)));
       }
     } catch (error) {
-      console.error('ìí ë³ê²½ ì¤ë¥:', error);
+      console.error('상태 변경 오류:', error);
     }
   };
 
@@ -372,32 +372,32 @@ export default function AdminPage() {
         setContacts(contacts.map((c) => (c.id === id ? data.data : c)));
       }
     } catch (error) {
-      console.error('ìí ë³ê²½ ì¤ë¥:', error);
+      console.error('상태 변경 오류:', error);
     }
   };
 
-  // ê°ê²© íì í¬í¼
+  // 가격 표시 헬퍼
   const formatPrice = (listing: Listing) => {
-    if (listing.deal === 'ë§¤ë§¤') return `ë§¤ë§¤ ${(listing.price || 0).toLocaleString()}ë§ì`;
-    if (listing.deal === 'ì ì¸') return `ì ì¸ ${listing.deposit.toLocaleString()}ë§ì`;
-    return `${listing.deposit.toLocaleString()}/${listing.monthly || 0}ë§ì`;
+    if (listing.deal === '매매') return `매매 ${(listing.price || 0).toLocaleString()}만원`;
+    if (listing.deal === '전세') return `전세 ${listing.deposit.toLocaleString()}만원`;
+    return `${listing.deposit.toLocaleString()}/${listing.monthly || 0}만원`;
   };
 
   const inputClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary text-sm';
   const labelClass = 'block text-xs font-medium text-gray-600 mb-1';
 
-  // âââ ë¡ê·¸ì¸ íë©´ âââ
+  // ─── 로그인 화면 ───
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-wishes-primary to-wishes-secondary p-4">
         <div className="bg-white rounded-2xl shadow-premium p-8 w-full max-w-md">
           <h1 className="text-3xl font-bold text-wishes-primary mb-2">WISHES</h1>
-          <p className="text-gray-600 mb-6">ê´ë¦¬ì ë¡ê·¸ì¸</p>
+          <p className="text-gray-600 mb-6">관리자 로그인</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <input
               type="password"
-              placeholder="ìí¸ë¥¼ ìë ¥íì¸ì"
+              placeholder="암호를 입력하세요"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary"
@@ -407,7 +407,7 @@ export default function AdminPage() {
               type="submit"
               className="w-full bg-wishes-secondary text-white py-3 rounded-lg font-semibold hover:bg-wishes-primary transition"
             >
-              ë¡ê·¸ì¸
+              로그인
             </button>
           </form>
         </div>
@@ -415,32 +415,32 @@ export default function AdminPage() {
     );
   }
 
-  // âââ ëìë³´ë í­ âââ
+  // ─── 대시보드 탭 ───
   if (tab === 'dashboard') {
     return (
       <div>
-        <h2 className="text-3xl font-bold text-wishes-primary mb-8">ëìë³´ë</h2>
+        <h2 className="text-3xl font-bold text-wishes-primary mb-8">대시보드</h2>
 
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
             <div className="card-premium p-6">
-              <p className="text-gray-600 text-sm font-medium mb-2">ì ì²´ ë§¤ë¬¼</p>
+              <p className="text-gray-600 text-sm font-medium mb-2">전체 매물</p>
               <p className="text-3xl font-bold text-wishes-primary">{stats.totalListings}</p>
             </div>
             <div className="card-premium p-6">
-              <p className="text-gray-600 text-sm font-medium mb-2">ê°ì©</p>
+              <p className="text-gray-600 text-sm font-medium mb-2">가용</p>
               <p className="text-3xl font-bold text-green-600">{stats.activeListings}</p>
             </div>
             <div className="card-premium p-6">
-              <p className="text-gray-600 text-sm font-medium mb-2">ê³ì½ì¤</p>
+              <p className="text-gray-600 text-sm font-medium mb-2">계약중</p>
               <p className="text-3xl font-bold text-wishes-accent">{stats.contractingListings}</p>
             </div>
             <div className="card-premium p-6">
-              <p className="text-gray-600 text-sm font-medium mb-2">ê³ì½ìë£</p>
+              <p className="text-gray-600 text-sm font-medium mb-2">계약완료</p>
               <p className="text-3xl font-bold text-blue-600">{stats.completedListings}</p>
             </div>
             <div className="card-premium p-6">
-              <p className="text-gray-600 text-sm font-medium mb-2">ë¯¸ì²ë¦¬ ìë´</p>
+              <p className="text-gray-600 text-sm font-medium mb-2">미처리 상담</p>
               <p className="text-3xl font-bold text-red-600">{stats.pendingContacts}</p>
             </div>
           </div>
@@ -448,31 +448,31 @@ export default function AdminPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <a href="/admin?tab=listings" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
-            <p className="text-2xl mb-2">ð </p>
-            <h3 className="font-bold text-wishes-primary mb-2">ë§¤ë¬¼ ê´ë¦¬</h3>
-            <p className="text-sm text-gray-600">{listings.length}ê°ì ë§¤ë¬¼ ê´ë¦¬</p>
+            <p className="text-2xl mb-2">🏠</p>
+            <h3 className="font-bold text-wishes-primary mb-2">매물 관리</h3>
+            <p className="text-sm text-gray-600">{listings.length}개의 매물 관리</p>
           </a>
           <a href="/admin?tab=contacts" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
-            <p className="text-2xl mb-2">ð</p>
-            <h3 className="font-bold text-wishes-primary mb-2">ìë´ ê´ë¦¬</h3>
-            <p className="text-sm text-gray-600">{contacts.length}ê°ì ìë´ ê¸°ë¡</p>
+            <p className="text-2xl mb-2">📞</p>
+            <h3 className="font-bold text-wishes-primary mb-2">상담 관리</h3>
+            <p className="text-sm text-gray-600">{contacts.length}개의 상담 기록</p>
           </a>
           <div className="card-premium p-6">
-            <p className="text-2xl mb-2">âï¸</p>
-            <h3 className="font-bold text-wishes-primary mb-2">ì¤ì </h3>
-            <p className="text-sm text-gray-600">ì¬ì´í¸ ì¤ì  ê´ë¦¬</p>
+            <p className="text-2xl mb-2">⚙️</p>
+            <h3 className="font-bold text-wishes-primary mb-2">설정</h3>
+            <p className="text-sm text-gray-600">사이트 설정 관리</p>
           </div>
         </div>
       </div>
     );
   }
 
-  // âââ ë§¤ë¬¼ ê´ë¦¬ í­ âââ
+  // ─── 매물 관리 탭 ───
   if (tab === 'listings') {
     return (
       <div>
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-wishes-primary">ë§¤ë¬¼ ê´ë¦¬</h2>
+          <h2 className="text-2xl font-bold text-wishes-primary">매물 관리</h2>
           <button
             onClick={() => {
               setShowAddForm(!showAddForm);
@@ -481,7 +481,7 @@ export default function AdminPage() {
             }}
             className="bg-wishes-secondary text-white px-6 py-2 rounded-lg hover:bg-wishes-primary transition font-semibold"
           >
-            {showAddForm ? 'ì·¨ì' : '+ ì ë§¤ë¬¼ ë±ë¡'}
+            {showAddForm ? '취소' : '+ 새 매물 등록'}
           </button>
         </div>
 
@@ -491,10 +491,10 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ââ ë§¤ë¬¼ ì¶ê° í¼ ââ */}
+        {/* ── 매물 추가 폼 ── */}
         {showAddForm && (
           <div className="card-premium p-6 mb-6">
-            <h3 className="text-lg font-bold text-wishes-primary mb-4">ì ë§¤ë¬¼ ë±ë¡</h3>
+            <h3 className="text-lg font-bold text-wishes-primary mb-4">새 매물 등록</h3>
 
             {submitError && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
@@ -503,15 +503,15 @@ export default function AdminPage() {
             )}
 
             <form onSubmit={handleAddListing} className="space-y-5">
-              {/* ê¸°ë³¸ ì ë³´ */}
+              {/* 기본 정보 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">ê¸°ë³¸ ì ë³´</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">기본 정보</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="md:col-span-3">
-                    <label className={labelClass}>ë§¤ë¬¼ ì ëª© *</label>
+                    <label className={labelClass}>매물 제목 *</label>
                     <input
                       type="text"
-                      placeholder="ì: ì ë¦¼ë ì­ì¸ê¶ ì ì¶ ìë£¸"
+                      placeholder="예: 신림동 역세권 신축 원룸"
                       value={newListing.title}
                       onChange={(e) => setNewListing({ ...newListing, title: e.target.value })}
                       className={inputClass}
@@ -519,54 +519,54 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ë§¤ë¬¼ ì í *</label>
+                    <label className={labelClass}>매물 유형 *</label>
                     <select
                       value={newListing.type}
                       onChange={(e) => setNewListing({ ...newListing, type: e.target.value as any })}
                       className={inputClass}
                     >
-                      <option value="ìë£¸">ìë£¸</option>
-                      <option value="í¬ë£¸">í¬ë£¸</option>
-                      <option value="ì°ë¦¬ë£¸">ì°ë¦¬ë£¸</option>
-                      <option value="ì¤í¼ì¤í">ì¤í¼ì¤í</option>
-                      <option value="ìíí¸">ìíí¸</option>
-                      <option value="ìê°">ìê°</option>
-                      <option value="ì¬ë¬´ì¤">ì¬ë¬´ì¤</option>
+                      <option value="원룸">원룸</option>
+                      <option value="투룸">투룸</option>
+                      <option value="쓰리룸">쓰리룸</option>
+                      <option value="오피스텔">오피스텔</option>
+                      <option value="아파트">아파트</option>
+                      <option value="상가">상가</option>
+                      <option value="사무실">사무실</option>
                     </select>
                   </div>
                   <div>
-                    <label className={labelClass}>ê±°ë ì í *</label>
+                    <label className={labelClass}>거래 유형 *</label>
                     <select
                       value={newListing.deal}
                       onChange={(e) => setNewListing({ ...newListing, deal: e.target.value as any })}
                       className={inputClass}
                     >
-                      <option value="ì ì¸">ì ì¸</option>
-                      <option value="ìì¸">ìì¸</option>
-                      <option value="ë§¤ë§¤">ë§¤ë§¤</option>
+                      <option value="전세">전세</option>
+                      <option value="월세">월세</option>
+                      <option value="매매">매매</option>
                     </select>
                   </div>
                   <div>
-                    <label className={labelClass}>ìí</label>
+                    <label className={labelClass}>상태</label>
                     <select
                       value={newListing.status}
                       onChange={(e) => setNewListing({ ...newListing, status: e.target.value as any })}
                       className={inputClass}
                     >
-                      <option value="ê°ì©">ê°ì©</option>
-                      <option value="ê³ì½ì¤">ê³ì½ì¤</option>
-                      <option value="ê³ì½ìë£">ê³ì½ìë£</option>
+                      <option value="가용">가용</option>
+                      <option value="계약중">계약중</option>
+                      <option value="계약완료">계약완료</option>
                     </select>
                   </div>
                 </div>
               </div>
 
-              {/* ê°ê²© ì ë³´ */}
+              {/* 가격 정보 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">ê°ê²© ì ë³´ (ë§ì)</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">가격 정보 (만원)</p>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                   <div>
-                    <label className={labelClass}>ë³´ì¦ê¸ *</label>
+                    <label className={labelClass}>보증금 *</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -576,7 +576,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ìì¸</label>
+                    <label className={labelClass}>월세</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -586,17 +586,17 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ë§¤ë§¤ê°</label>
+                    <label className={labelClass}>매매가</label>
                     <input
                       type="number"
-                      placeholder="ë§¤ë§¤ì ìë ¥"
+                      placeholder="매매시 입력"
                       value={newListing.price || ''}
                       onChange={(e) => setNewListing({ ...newListing, price: e.target.value ? parseInt(e.target.value) : undefined })}
                       className={inputClass}
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ê´ë¦¬ë¹</label>
+                    <label className={labelClass}>관리비</label>
                     <input
                       type="number"
                       placeholder="0"
@@ -608,15 +608,15 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* ìì¹ ì ë³´ */}
+              {/* 위치 정보 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">ìì¹ ì ë³´</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">위치 정보</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="md:col-span-2">
-                    <label className={labelClass}>ì£¼ì *</label>
+                    <label className={labelClass}>주소 *</label>
                     <input
                       type="text"
-                      placeholder="ì: ìì¸ ê´ìêµ¬ ì ë¦¼ë¡ 267"
+                      placeholder="예: 서울 관악구 신림로 267"
                       value={newListing.address}
                       onChange={(e) => setNewListing({ ...newListing, address: e.target.value })}
                       className={inputClass}
@@ -624,10 +624,10 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ë *</label>
+                    <label className={labelClass}>동 *</label>
                     <input
                       type="text"
-                      placeholder="ì: ì ë¦¼ë"
+                      placeholder="예: 신림동"
                       value={newListing.dong}
                       onChange={(e) => setNewListing({ ...newListing, dong: e.target.value })}
                       className={inputClass}
@@ -635,10 +635,10 @@ export default function AdminPage() {
                     />
                   </div>
                   <div className="md:col-span-3">
-                    <label className={labelClass}>ìì¸ ì£¼ì</label>
+                    <label className={labelClass}>상세 주소</label>
                     <input
                       type="text"
-                      placeholder="ì: 301í¸"
+                      placeholder="예: 301호"
                       value={newListing.address_detail}
                       onChange={(e) => setNewListing({ ...newListing, address_detail: e.target.value })}
                       className={inputClass}
@@ -647,12 +647,12 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* ë©´ì /ì¸µì */}
+              {/* 면적/층수 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">í¨ì  / ì¸µì¬ / êµ¬ì¡°</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">펨적 / 층사 / 구조</p>
                 <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
                   <div>
-                    <label className={labelClass}>ì ì©ë©´ì (m2) *</label>
+                    <label className={labelClass}>전용면적(m2) *</label>
                     <input
                       type="number"
                       step="0.01"
@@ -664,7 +664,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ê³µê¸ë©´ì (m2)</label>
+                    <label className={labelClass}>공급면적(m2)</label>
                     <input
                       type="number"
                       step="0.01"
@@ -675,7 +675,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>í´ë¹ ì¸µ *</label>
+                    <label className={labelClass}>해당 층 *</label>
                     <input
                       type="text"
                       placeholder="3"
@@ -686,7 +686,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ì´ ì¸µ</label>
+                    <label className={labelClass}>총 층</label>
                     <input
                       type="text"
                       placeholder="5"
@@ -696,7 +696,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ë°© ì</label>
+                    <label className={labelClass}>방 수</label>
                     <input
                       type="number"
                       placeholder="1"
@@ -706,7 +706,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ìì¤ ì</label>
+                    <label className={labelClass}>욕실 수</label>
                     <input
                       type="number"
                       placeholder="1"
@@ -718,53 +718,53 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* ì¶ê° ì ë³´ */}
+              {/* 추가 정보 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">ì¶ê° ì ë³´</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">추가 정보</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div>
-                    <label className={labelClass}>ë°©í¥</label>
+                    <label className={labelClass}>방향</label>
                     <select
                       value={newListing.direction}
                       onChange={(e) => setNewListing({ ...newListing, direction: e.target.value })}
                       className={inputClass}
                     >
-                      <option value="">ì í</option>
-                      <option value="ëí¥">ëí¥</option>
-                      <option value="ìí¥">ìí¥</option>
-                      <option value="ë¨í¥">ë¨í¥</option>
-                      <option value="ë¶í¥">ë¶í¥</option>
-                      <option value="ë¨ëí¥">ë¨ëí¥</option>
-                      <option value="ë¨ìí¥">ë¨ìí¥</option>
-                      <option value="ë¶ëí¥">ë¶ëí¥</option>
-                      <option value="ë¶ìí¥">ë¶ìí¥</option>
+                      <option value="">선택</option>
+                      <option value="동향">동향</option>
+                      <option value="서향">서향</option>
+                      <option value="남향">남향</option>
+                      <option value="북향">북향</option>
+                      <option value="남동향">남동향</option>
+                      <option value="남서향">남서향</option>
+                      <option value="북동향">북동향</option>
+                      <option value="북서향">북서향</option>
                     </select>
                   </div>
                   <div>
-                    <label className={labelClass}>ëë°© ë°©ì</label>
+                    <label className={labelClass}>난방 방식</label>
                     <select
                       value={newListing.heating_type}
                       onChange={(e) => setNewListing({ ...newListing, heating_type: e.target.value })}
                       className={inputClass}
                     >
-                      <option value="">ì í</option>
-                      <option value="ê°ë³ëë°©">ê°ë³ëë°©</option>
-                      <option value="ì¤ìëë°©">ì¤ìëë°©</option>
-                      <option value="ì§ì­ëë°©">ì§ì­ëë°©</option>
+                      <option value="">선택</option>
+                      <option value="개별난방">개별난방</option>
+                      <option value="중앙난방">중앙난방</option>
+                      <option value="지역난방">지역난방</option>
                     </select>
                   </div>
                   <div>
-                    <label className={labelClass}>ìì£¼ê°ë¥ì¼</label>
+                    <label className={labelClass}>입주가능일</label>
                     <input
                       type="text"
-                      placeholder="ì¦ììì£¼ / 2026-04-01"
+                      placeholder="즉시입주 / 2026-04-01"
                       value={newListing.available_date}
                       onChange={(e) => setNewListing({ ...newListing, available_date: e.target.value })}
                       className={inputClass}
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>ì¤ê³µì°ë</label>
+                    <label className={labelClass}>준공연도</label>
                     <input
                       type="text"
                       placeholder="2020"
@@ -776,17 +776,17 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* í¸ììì¤ ìµì */}
+              {/* 편의시설 옵션 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">í¸ììì¤ / ìµì</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">편의시설 / 옵션</p>
                 <div className="flex flex-wrap gap-4">
                   {[
-                    { key: 'parking', label: 'ì£¼ì°¨' },
-                    { key: 'elevator', label: 'ìë¦¬ë² ì´í°' },
-                    { key: 'pet', label: 'ë°ë ¤ëë¬¼' },
-                    { key: 'balcony', label: 'ë² ëë¤/ë°ì½ë' },
-                    { key: 'full_option', label: 'íìµì' },
-                    { key: 'loan_available', label: 'ëì¶ê°ë¥' },
+                    { key: 'parking', label: '주차' },
+                    { key: 'elevator', label: '엘리베이터' },
+                    { key: 'pet', label: '반려동물' },
+                    { key: 'balcony', label: '베란다/발코니' },
+                    { key: 'full_option', label: '풀옵션' },
+                    { key: 'loan_available', label: '대출가능' },
                   ].map(({ key, label }) => (
                     <label key={key} className="flex items-center gap-2 cursor-pointer text-sm">
                       <input
@@ -801,11 +801,11 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* ì¤ëª */}
+              {/* 설명 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">ë§¤ë¬¼ ì¤ëª</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">매물 설명</p>
                 <textarea
-                  placeholder="ë§¤ë¬¼ì ëí ìì¸ ì¤ëªì ìë ¥íì¸ì"
+                  placeholder="매물에 대한 상세 설명을 입력하세요"
                   value={newListing.description}
                   onChange={(e) => setNewListing({ ...newListing, description: e.target.value })}
                   className={inputClass}
@@ -813,7 +813,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* ì´ë¯¸ì§ ìë¡ë */}
+              {/* 이미지 업로드 */}
               <div className="border-b pb-4">
                 <p className="text-sm font-bold text-gray-700 mb-3">매물 이미지</p>
                 <div
@@ -852,7 +852,7 @@ export default function AdminPage() {
                       <p className="text-sm text-gray-600">업로드 중... {uploadProgress}%</p>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div className="bg-gradient-to-r from-blue-500 to-yellow-400 h-2 rounded-full transition-all duration-300" style={{ width: uploadProgress + '%' }} />
+                      <div className="bg-gradient-to-r from-blue-500 to-yellow-400 h-2 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
                     </div>
                   </div>
                 )}
@@ -875,23 +875,23 @@ export default function AdminPage() {
                 )}
               </div>
 
-              {/* ë±ë¡ ë²í¼ */}
+              {/* 등록 버튼 */}
               <button
                 type="submit"
                 disabled={submitLoading}
                 className="w-full bg-wishes-secondary text-white py-3 rounded-lg hover:bg-wishes-primary transition font-bold text-lg disabled:opacity-50"
               >
-                {submitLoading ? 'ë±ë¡ ì¤...' : 'ë§¤ë¬¼ ë±ë¡íê¸°'}
+                {submitLoading ? '등록 중...' : '매물 등록하기'}
               </button>
             </form>
           </div>
         )}
 
-        {/* ââ ë§¤ë¬¼ ëª©ë¡ ââ */}
+        {/* ── 매물 목록 ── */}
         <div className="space-y-3">
           {listings.length === 0 ? (
             <div className="card-premium p-8 text-center text-gray-600">
-              ë±ë¡ë ë§¤ë¬¼ì´ ììµëë¤. ìì &quot;ì ë§¤ë¬¼ ë±ë¡&quot; ë²í¼ì í´ë¦­í´ì ë§¤ë¬¼ì ì¶ê°í´ë³´ì¸ì.
+              등록된 매물이 없습니다. 위의 &quot;새 매물 등록&quot; 버튼을 클릭해서 매물을 추가해보세요.
             </div>
           ) : (
             listings.map((listing) => (
@@ -908,49 +908,49 @@ export default function AdminPage() {
                       value={listing.status}
                       onChange={(e) => handleStatusChange(listing.id, e.target.value)}
                       className={`px-2 py-1 border rounded-lg text-xs font-medium ${
-                        listing.status === 'ê°ì©'
+                        listing.status === '가용'
                           ? 'border-green-300 text-green-700 bg-green-50'
-                          : listing.status === 'ê³ì½ì¤'
+                          : listing.status === '계약중'
                           ? 'border-orange-300 text-orange-700 bg-orange-50'
                           : 'border-blue-300 text-blue-700 bg-blue-50'
                       }`}
                     >
-                      <option value="ê°ì©">ê°ì©</option>
-                      <option value="ê³ì½ì¤">ê³ì½ì¤</option>
-                      <option value="ê³ì½ìë£">ê³ì½ìë£</option>
+                      <option value="가용">가용</option>
+                      <option value="계약중">계약중</option>
+                      <option value="계약완료">계약완료</option>
                     </select>
                     <button
                       onClick={() => handleDeleteListing(listing.id)}
                       className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs"
                     >
-                      ì­ì 
+                      삭제
                     </button>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
                   <div>
-                    <p className="text-gray-500 text-xs">ê°ê²©</p>
+                    <p className="text-gray-500 text-xs">가격</p>
                     <p className="font-semibold text-wishes-primary">{formatPrice(listing)}</p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-xs">ë©´ì </p>
-                    <p className="font-semibold">{listing.area_m2}mÂ²</p>
+                    <p className="text-gray-500 text-xs">면적</p>
+                    <p className="font-semibold">{listing.area_m2}m²</p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-xs">ì¸µ</p>
+                    <p className="text-gray-500 text-xs">층</p>
                     <p className="font-semibold">
-                      {listing.floor_current}{listing.floor_total ? `/${listing.floor_total}` : ''}ì¸µ
+                      {listing.floor_current}{listing.floor_total ? `/${listing.floor_total}` : ''}층
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-xs">ë°©/ìì¤</p>
+                    <p className="text-gray-500 text-xs">방/욕실</p>
                     <p className="font-semibold">
-                      {listing.rooms || '-'}ë°© / {listing.bathrooms || '-'}ìì¤
+                      {listing.rooms || '-'}방 / {listing.bathrooms || '-'}욕실
                     </p>
                   </div>
                   <div>
-                    <p className="text-gray-500 text-xs">ë±ë¡ì¼</p>
+                    <p className="text-gray-500 text-xs">등록일</p>
                     <p className="font-semibold text-xs">
                       {new Date(listing.created_at).toLocaleDateString('ko-KR')}
                     </p>
@@ -964,16 +964,16 @@ export default function AdminPage() {
     );
   }
 
-  // âââ ìë´ ê´ë¦¬ í­ âââ
+  // ─── 상담 관리 탭 ───
   if (tab === 'contacts') {
     return (
       <div>
-        <h2 className="text-2xl font-bold text-wishes-primary mb-6">ìë´ ê´ë¦¬</h2>
+        <h2 className="text-2xl font-bold text-wishes-primary mb-6">상담 관리</h2>
 
         <div className="space-y-3">
           {contacts.length === 0 ? (
             <div className="card-premium p-8 text-center text-gray-600">
-              ìë´ ë´ì­ì´ ììµëë¤
+              상담 내역이 없습니다
             </div>
           ) : (
             contacts.map((contact) => (
@@ -987,7 +987,7 @@ export default function AdminPage() {
                     </p>
                     {contact.listingTitle && (
                       <p className="text-sm text-wishes-secondary font-medium mt-1">
-                        ð {contact.listingTitle}
+                        📍 {contact.listingTitle}
                       </p>
                     )}
                   </div>
@@ -995,16 +995,16 @@ export default function AdminPage() {
                     value={contact.status}
                     onChange={(e) => handleContactStatusChange(contact.id, e.target.value)}
                     className={`px-2 py-1 border rounded-lg text-xs font-medium ${
-                      contact.status === 'ì ì'
+                      contact.status === '접수'
                         ? 'border-red-300 text-red-700 bg-red-50'
-                        : contact.status === 'ì²ë¦¬ì¤'
+                        : contact.status === '처리중'
                         ? 'border-yellow-300 text-yellow-700 bg-yellow-50'
                         : 'border-green-300 text-green-700 bg-green-50'
                     }`}
                   >
-                    <option value="ì ì">ì ì</option>
-                    <option value="ì²ë¦¬ì¤">ì²ë¦¬ì¤</option>
-                    <option value="ìë£">ìë£</option>
+                    <option value="접수">접수</option>
+                    <option value="처리중">처리중</option>
+                    <option value="완료">완료</option>
                   </select>
                 </div>
 
