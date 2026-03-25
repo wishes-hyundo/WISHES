@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowUp, Phone } from 'lucide-react';
+import { ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function FloatingButtons() {
@@ -31,13 +31,6 @@ export function FloatingButtons() {
       >
         <ArrowUp className="w-5 h-5" />
       </button>
-      <a
-        href="tel:1533-9580"
-        className="w-12 h-12 rounded-full bg-wishes-primary text-white flex items-center justify-center shadow-lg hover:bg-wishes-secondary transition-colors"
-        aria-label="전화하기"
-      >
-        <Phone className="w-5 h-5" />
-      </a>
     </div>
   );
 }
