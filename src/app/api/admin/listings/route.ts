@@ -16,10 +16,10 @@ const createListingSchema = z.object({
   price: z.number().int().nonnegative().optional().nullable(),
   maintenance_fee: z.number().int().nonnegative().default(0).optional(),
   maintenance_includes: z.array(z.string()).optional().nullable(),
-  area_m2: z.number().positive(),
+  area_m2: z.number().nonnegative().default(0),
   area_supply_m2: z.number().positive().optional().nullable(),
   area_land_m2: z.number().positive().optional().nullable(),
-  floor_current: z.string().min(1),
+  floor_current: z.string().optional().nullable(),
   floor_total: z.string().optional().nullable(),
   rooms: z.number().int().positive().optional().nullable(),
   bathrooms: z.number().int().positive().optional().nullable(),
@@ -27,7 +27,7 @@ const createListingSchema = z.object({
   heating_type: z.string().optional().nullable(),
   address: z.string().min(1),
   address_detail: z.string().optional().nullable(),
-  dong: z.string().min(1),
+  dong: z.string().optional().nullable(),
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   description: z.string().optional().nullable(),
@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors[0].message },
+        { success: false, error: parsed.error.errors.map(function(e) { return (e.path.join('.') || '알수없음') + ': ' + e.message; }).join(', '), message: parsed.error.errors.map(function(e) { return (e.path.join('.') || '알수없음') + ': ' + e.message; }).join(', ') },
         { status: 400 }
       );
     }
