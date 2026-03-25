@@ -315,7 +315,7 @@ export default function NewListingPage() {
     setIsAnalyzing(true);
     setAnalysisResult(null);
     try {
-      const price = formData.transactionType === '\uC6D4\uC138' ? formData.deposit : formData.price;
+      const price = formData.transactionType === '월세' ? formData.deposit : formData.price;
       const response = await fetch('/api/admin/smart-analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
@@ -340,7 +340,7 @@ export default function NewListingPage() {
         }
         if (result.suggestedDescription && !formData.description) {
           setFormData(prev => ({ ...prev, description: result.suggestedDescription }));
-          setDescSource('AI \uC2A4\uB9C8\uD2B8 \uBD84\uC11D\uC73C\uB85C \uC790\uB3D9 \uC0DD\uC131');
+          setDescSource('AI 스마트 분석으로 자동 생성');
         }
       }
     } catch (error) {
@@ -551,6 +551,59 @@ export default function NewListingPage() {
         {activeStep === 2 && (
           <div className="space-y-6">
             {/* 주소 입력 */}
+            
+            {/* AI 스마트 분석 */}
+            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-purple-900">AI 스마트 분석</h3>
+                    <p className="text-xs text-purple-600">주소를 입력하면 AI가 주변 환경을 분석하고 매물 설명을 자동 생성합니다</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSmartAnalyze}
+                  disabled={isAnalyzing || !formData.address}
+                  className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      분석중...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      AI 분석 시작
+                    </>
+                  )}
+                </button>
+              </div>
+              {analysisResult && analysisResult.areaAnalysis && (
+                <div className="mt-4 pt-4 border-t border-purple-200">
+                  <h4 className="text-xs font-bold text-purple-800 mb-2">분석 결과</h4>
+                  <p className="text-sm text-purple-700 whitespace-pre-line leading-relaxed">{analysisResult.areaAnalysis}</p>
+                  {analysisResult.suggestedDescription && (
+                    <div className="mt-3 bg-white rounded-lg p-3 border border-purple-100">
+                      <p className="text-xs font-medium text-purple-600 mb-1">자동 생성된 매물 설명 (설명 & 등록 탭에서 확인)</p>
+                      <p className="text-sm text-gray-700">{analysisResult.suggestedDescription.substring(0, 200)}...</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
@@ -619,12 +672,12 @@ export default function NewListingPage() {
                   <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  <h4 className="text-sm font-bold text-purple-800">AI \uC2A4\uB9C8\uD2B8 \uBD84\uC11D \uACB0\uACFC</h4>
+                  <h4 className="text-sm font-bold text-purple-800">AI 스마트 분석 결과</h4>
                 </div>
                 <p className="text-sm text-purple-700 whitespace-pre-line">{analysisResult.areaAnalysis}</p>
                 {analysisResult.suggestedDescription && (
                   <div className="mt-3 pt-3 border-t border-purple-200">
-                    <p className="text-xs font-medium text-purple-600 mb-1">\uC790\uB3D9 \uC0DD\uC131\uB41C \uB9E4\uBB3C \uC124\uBA85:</p>
+                    <p className="text-xs font-medium text-purple-600 mb-1">자동 생성된 매물 설명:</p>
                     <p className="text-sm text-purple-700">{analysisResult.suggestedDescription.substring(0, 150)}...</p>
                   </div>
                 )}
@@ -977,7 +1030,7 @@ export default function NewListingPage() {
                         : 'bg-gray-100 text-gray-600 border border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    {formData.features.includes(feature) ? '\u2713 ' : ''}{feature}
+                    {formData.features.includes(feature) ? '✓ ' : ''}{feature}
                   </button>
                 ))}
               </div>
