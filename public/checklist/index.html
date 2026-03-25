@@ -2167,35 +2167,7 @@ function generateResult(){
 
 
 
-    <div class="summary-card">
-
-      <div class="sc-head">📐 매물 상세 조건</div>
-
-      <div class="sc-body">
-
-        <div class="sc-row"><div class="sc-key">면적</div><div class="sc-val">${sizeStr}</div></div>
-
-        <div class="sc-row"><div class="sc-key">방 / 화장실</div><div class="sc-val">${gc('g-room')} / ${gc('g-bath')}</div></div>
-
-        <div class="sc-row"><div class="sc-key">층수</div><div class="sc-val">${gc('g-floor')}</div></div>
-
-        <div class="sc-row"><div class="sc-key">방향</div><div class="sc-val">${gc('g-dir')}</div></div>
-
-        <div class="sc-row"><div class="sc-key">건축 연도</div><div class="sc-val">${gc('g-age')}</div></div>
-
-        <div class="sc-row"><div class="sc-key">주차</div><div class="sc-val">${gc('g-park')}</div></div>
-
-        ${gc('g-carType')!=='—'?'<div class="sc-row"><div class="sc-key">차량 종류</div><div class="sc-val">'+gc('g-carType')+'</div></div>':''}
-
-        ${gc('g-evCharger')!=='—'?'<div class="sc-row"><div class="sc-key">전기차 충전</div><div class="sc-val">'+gc('g-evCharger')+'</div></div>':''}
-
-        ${gv('bizType')?'<div class="sc-row"><div class="sc-key">업종·용도</div><div class="sc-val">'+gv('bizType')+'</div></div>':''}
-
-      </div>
-
-    </div>
-
-
+    
 
     <div class="summary-card">
 
