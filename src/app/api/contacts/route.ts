@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 
 const contactSchema = z.object({
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { name, phone, email, message, listingId } = parsed.data;
-    const supabase = createClient();
+    const supabase = createServerClient();
 
     const { data, error } = await supabase
       .from('contacts')
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('contacts insert error:', error);
       return NextResponse.json(
-        { success: false, error: '문의 등록에 실패했습니다', detail: error.message, code: error.code },
+        { success: false, error: '문의 등록에 실패했습니다', detail: error.message },
         { status: 500 }
       );
     }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('contacts error:', error);
     return NextResponse.json(
-      { success: false, error: '문의 등록에 실패했습니다', detail: String(error) },
+      { success: false, error: '문의 등록에 실패했습니다' },
       { status: 500 }
     );
   }
