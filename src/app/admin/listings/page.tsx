@@ -1,44 +1,52 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Listing {
   id: number;
   title: string;
-  type: string;
-  deal: string;
-  deposit: number;
-  monthly: number;
-  price: number | null;
   address: string;
   dong: string;
+  type: string;
+  transaction_type: string;
+  price: string;
   status: string;
   created_at: string;
-  views: number;
-  area_m2: number;
-  floor_current: string;
-  rooms: number;
-  bathrooms: number;
 }
+
+type StatusFilter = '전체' | '가용' | '계약중' | '계약완료';
+
+const STATUS_OPTIONS: StatusFilter[] = ['전체', '가용', '계약중', '계약완료'];
+
+const STATUS_COLORS: Record<string, string> = {
+  '가용': 'bg-green-100 text-green-800 border-green-200',
+  '계약중': 'bg-yellow-100 text-yellow-800 border-yellow-200',
+  '계약완료': 'bg-gray-100 text-gray-600 border-gray-200',
+};
 
 export default function AdminListingsPage() {
   const router = useRouter();
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('전체');
+  const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   const fetchListings = useCallback(async () => {
-    setLoading(true);
     try {
-      const res = await fetch('/api/admin/listings');
-      const data = await res.json();
-      if (data.success) {
-        setListings(data.data || []);
-      }
+      setLoading(true);
+      setError(null);
+      const res = await fetch('/api/admin/listings', {
+        headers: { 'Authorization': 'Bearer wishes2026' },
+      });
+      if (!res.ok) throw new Error('API 오류: ' + res.status);
+      const json = await res.json();
+      setListings(json.data || []);
     } catch (err) {
-      console.error('Failed to fetch listings:', err);
+      setError(err instanceof Error ? err.message : '매물을 불러올 수 없습니다');
     } finally {
       setLoading(false);
     }
@@ -48,94 +56,91 @@ export default function AdminListingsPage() {
     fetchListings();
   }, [fetchListings]);
 
+  const filtered = listings.filter((l) => {
+    if (statusFilter !== '전체' && l.status !== statusFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      return (
+        String(l.id).includes(q) ||
+        (l.title || '').toLowerCase().includes(q) ||
+        (l.address || '').toLowerCase().includes(q) ||
+        (l.dong || '').toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
+  const countByStatus = (s: string) =>
+    s === '전체' ? listings.length : listings.filter((l) => l.status === s).length;
+
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
-      const res = await fetch(`/api/admin/listings/${id}`, {
+      setUpdatingId(id);
+      const res = await fetch('/api/admin/listings/' + id, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': 'Bearer wishes2026',
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (res.ok) {
-        setListings(prev => prev.map(l => l.id === id ? { ...l, status: newStatus } : l));
-      }
+      if (!res.ok) throw new Error('상태 변경 실패');
+      setListings((prev) =>
+        prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
+      );
     } catch (err) {
-      console.error('Status update failed:', err);
+      alert('상태 변경 오류: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
+    } finally {
+      setUpdatingId(null);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (typeof window !== 'undefined' && !window.confirm('\uc815\ub9d0 \uc0ad\uc81c\ud558\uc2dc\uaca0\uc2b5\ub2c8\uae4c?')) return;
+    if (!confirm('매물 #' + id + '을(를) 정말 삭제하시겠습니까?')) return;
     try {
-      const res = await fetch(`/api/admin/listings/${id}`, { method: 'DELETE' });
-      if (res.ok) {
-        setListings(prev => prev.filter(l => l.id !== id));
-      }
+      setDeletingId(id);
+      const res = await fetch('/api/admin/listings/' + id, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer wishes2026' },
+      });
+      if (!res.ok) throw new Error('삭제 실패');
+      setListings((prev) => prev.filter((l) => l.id !== id));
     } catch (err) {
-      console.error('Delete failed:', err);
+      alert('삭제 오류: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
+    } finally {
+      setDeletingId(null);
     }
-  };
-
-  const filteredListings = listings.filter(l => {
-    const matchesFilter = filter === 'all' || l.status === filter;
-    const matchesSearch = !searchTerm || 
-      l.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      l.dong?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(l.id).includes(searchTerm);
-    return matchesFilter && matchesSearch;
-  });
-
-  const statusColors: Record<string, string> = {
-    '\uac00\uc6a9': 'bg-green-100 text-green-800',
-    '\uacc4\uc57d\uc911': 'bg-yellow-100 text-yellow-800',
-    '\uacc4\uc57d\uc644\ub8cc': 'bg-gray-100 text-gray-600',
-  };
-
-  const formatPrice = (listing: Listing) => {
-    if (listing.deal === '\ub9e4\ub9e4' && listing.price) {
-      return `${(listing.price / 10000).toFixed(0)}\uc5b5`;
-    }
-    if (listing.deal === '\uc804\uc138') {
-      return `\uc804\uc138 ${listing.deposit >= 10000 ? (listing.deposit / 10000).toFixed(1) + '\uc5b5' : listing.deposit + '\ub9cc'}`;
-    }
-    return `${listing.deposit}/${listing.monthly}\ub9cc`;
-  };
-
-  const statusCounts = {
-    all: listings.length,
-    '\uac00\uc6a9': listings.filter(l => l.status === '\uac00\uc6a9').length,
-    '\uacc4\uc57d\uc911': listings.filter(l => l.status === '\uacc4\uc57d\uc911').length,
-    '\uacc4\uc57d\uc644\ub8cc': listings.filter(l => l.status === '\uacc4\uc57d\uc644\ub8cc').length,
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6 max-w-full">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">\ub9e4\ubb3c \uad00\ub9ac</h1>
-          <p className="text-gray-500 mt-1">\uc804\uccb4 {listings.length}\uac1c\uc758 \ub9e4\ubb3c</p>
+          <h1 className="text-2xl font-bold text-gray-900">매물 관리</h1>
+          <p className="text-gray-500 text-sm mt-1">총 {listings.length}건의 매물</p>
         </div>
         <button
           onClick={() => router.push('/admin/listings/new')}
-          className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg transition-colors flex items-center gap-2"
         >
-          <span>+</span> \uc0c8 \ub9e4\ubb3c \ub4f1\ub85d
+          <span>+</span> 새 매물 등록
         </button>
       </div>
 
-      {/* Status filter tabs */}
-      <div className="flex gap-2 mb-4">
-        {Object.entries(statusCounts).map(([key, count]) => (
+      {/* Status Tabs */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {STATUS_OPTIONS.map((s) => (
           <button
-            key={key}
-            onClick={() => setFilter(key)}
+            key={s}
+            onClick={() => setStatusFilter(s)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === key
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              statusFilter === s
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
             }`}
           >
-            {key === 'all' ? '\uc804\uccb4' : key} ({count})
+            {s} ({countByStatus(s)})
           </button>
         ))}
       </div>
@@ -144,71 +149,91 @@ export default function AdminListingsPage() {
       <div className="mb-6">
         <input
           type="text"
-          placeholder="\ub9e4\ubb3c\ubc88\ud638, \uc81c\ubaa9, \uc8fc\uc18c, \ub3d9\uba85\uc73c\ub85c \uac80\uc0c9..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          placeholder="매물번호, 제목, 주소, 동으로 검색..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
         />
       </div>
 
-      {/* Listings table */}
+      {/* Error */}
+      {error && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+          {error}
+          <button onClick={fetchListings} className="ml-3 underline">다시 시도</button>
+        </div>
+      )}
+
+      {/* Loading */}
       {loading ? (
-        <div className="text-center py-12 text-gray-500">\ub85c\ub529 \uc911...</div>
-      ) : filteredListings.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">\ub9e4\ubb3c\uc774 \uc5c6\uc2b5\ub2c8\ub2e4</div>
+        <div className="bg-white rounded-lg shadow p-12 text-center">
+          <div className="animate-spin inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+          <p className="mt-4 text-gray-500">매물을 불러오는 중...</p>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="bg-white rounded-lg shadow p-12 text-center text-gray-500">
+          {searchQuery ? '검색 결과가 없습니다' : '등록된 매물이 없습니다'}
+        </div>
       ) : (
-        <div className="bg-white rounded-xl shadow overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">No</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">\ub9e4\ubb3c\uc815\ubcf4</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">\uc720\ud615</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">\uac00\uaca9</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">\uc0c1\ud0dc</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">\ub4f1\ub85d\uc77c</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">\uad00\ub9ac</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredListings.map((listing) => (
-                <tr key={listing.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-sm text-gray-500">{listing.id}</td>
-                  <td className="px-4 py-3">
-                    <div className="text-sm font-medium text-gray-900">{listing.title || '(\uc81c\ubaa9 \uc5c6\uc74c)'}</div>
-                    <div className="text-xs text-gray-500">{listing.address} {listing.dong}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded">{listing.type}</span>
-                    <span className="text-xs bg-orange-50 text-orange-700 px-2 py-1 rounded ml-1">{listing.deal}</span>
-                  </td>
-                  <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatPrice(listing)}</td>
-                  <td className="px-4 py-3">
-                    <select
-                      value={listing.status}
-                      onChange={(e) => handleStatusChange(listing.id, e.target.value)}
-                      className={`text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer ${statusColors[listing.status] || 'bg-gray-100'}`}
-                    >
-                      <option value="\uac00\uc6a9">\uac00\uc6a9</option>
-                      <option value="\uacc4\uc57d\uc911">\uacc4\uc57d\uc911</option>
-                      <option value="\uacc4\uc57d\uc644\ub8cc">\uacc4\uc57d\uc644\ub8cc</option>
-                    </select>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-gray-500">
-                    {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR') : '-'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <button
-                      onClick={() => handleDelete(listing.id)}
-                      className="text-xs text-red-500 hover:text-red-700 px-2 py-1"
-                    >
-                      \uc0ad\uc81c
-                    </button>
-                  </td>
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">ID</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">제목</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">주소</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">동</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">유형</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">거래</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">가격</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">상태</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">작업</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map((listing) => (
+                  <tr key={listing.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-4 py-3 text-sm text-gray-500 font-mono">#{listing.id}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900 max-w-[200px] truncate">
+                      {listing.title}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[180px] truncate">{listing.address}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{listing.dong}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{listing.type}</td>
+                    <td className="px-4 py-3 text-sm text-gray-600">{listing.transaction_type}</td>
+                    <td className="px-4 py-3 text-sm font-semibold text-gray-900">{listing.price}</td>
+                    <td className="px-4 py-3 text-sm">
+                      <select
+                        value={listing.status}
+                        onChange={(e) => handleStatusChange(listing.id, e.target.value)}
+                        disabled={updatingId === listing.id}
+                        className={`px-2 py-1 rounded text-xs font-medium border cursor-pointer ${
+                          STATUS_COLORS[listing.status] || 'bg-gray-100 text-gray-600 border-gray-200'
+                        } ${updatingId === listing.id ? 'opacity-50' : ''}`}
+                      >
+                        <option value="가용">가용</option>
+                        <option value="계약중">계약중</option>
+                        <option value="계약완료">계약완료</option>
+                      </select>
+                    </td>
+                    <td className="px-4 py-3 text-sm">
+                      <button
+                        onClick={() => handleDelete(listing.id)}
+                        disabled={deletingId === listing.id}
+                        className="text-red-600 hover:text-red-800 font-medium text-xs disabled:opacity-50"
+                      >
+                        {deletingId === listing.id ? '삭제중...' : '삭제'}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="bg-gray-50 px-4 py-2 border-t text-xs text-gray-500">
+            표시: {filtered.length}건 / 전체: {listings.length}건
+          </div>
         </div>
       )}
     </div>
