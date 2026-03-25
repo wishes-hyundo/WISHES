@@ -19,10 +19,9 @@ export async function GET(
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const admin = isAdmin(request);
 
-    // Fetch image record
     const { data: image, error } = await supabase
       .from('listing_images')
-      .select('image_url, original_url')
+      .select('image_url')
       .eq('id', parseInt(id))
       .single();
 
@@ -30,11 +29,15 @@ export async function GET(
       return NextResponse.json({ error: '이미지를 찾을 수 없습니다.' }, { status: 404 });
     }
 
-    // Admin gets original, public gets watermarked
-    const imageUrl = admin && image.original_url ? image.original_url : image.image_url;
+    let targetUrl = image.image_url;
 
-    // Redirect to the appropriate image
-    return NextResponse.redirect(imageUrl, { status: 302 });
+    // Admin gets original (non-watermarked) version
+    // Derive original path from watermarked path using naming convention
+    if (admin && targetUrl && targetUrl.includes('/watermarked/')) {
+      targetUrl = targetUrl.replace('/watermarked/', '/originals/');
+    }
+
+    return NextResponse.redirect(targetUrl, { status: 302 });
   } catch (error) {
     console.error('Image serve error:', error);
     return NextResponse.json({ error: '오류가 발생했습니다.' }, { status: 500 });
