@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         success: true,
         description: generateTemplate(data),
         source: 'template',
-        message: 'AI API 키가 없어 템플릿 기반으로 생성되었습니다.',
+        message: 'AI API í¤ê° ìì´ ííë¦¿ ê¸°ë°ì¼ë¡ ìì±ëììµëë¤.',
       });
     }
 
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6-20250320',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 1500,
         messages: [{ role: 'user', content: prompt }],
       }),
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
         success: true,
         description: generateTemplate(data),
         source: 'template',
-        message: `AI API 오류(${resp.status})로 템플릿 기반으로 생성되었습니다.`,
+        message: `AI API ì¤ë¥(${resp.status})ë¡ ííë¦¿ ê¸°ë°ì¼ë¡ ìì±ëììµëë¤.`,
       });
     }
 
@@ -83,66 +83,66 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Description generation error:', error);
     return NextResponse.json(
-      { success: false, message: '설명 생성 중 오류가 발생했습니다.' },
+      { success: false, message: 'ì¤ëª ìì± ì¤ ì¤ë¥ê° ë°ìíìµëë¤.' },
       { status: 500 }
     );
   }
 }
 
 function buildPrompt(data: ListingData): string {
-  const pt = data.transactionType === '월세'
-    ? `보증금 ${data.deposit.toLocaleString()}만원 / 월세 ${data.monthlyRent.toLocaleString()}만원`
-    : data.transactionType === '전세'
-    ? `전세 ${data.price.toLocaleString()}만원`
-    : `매매 ${data.price.toLocaleString()}만원`;
+  const pt = data.transactionType === 'ìì¸'
+    ? `ë³´ì¦ê¸ ${data.deposit.toLocaleString()}ë§ì / ìì¸ ${data.monthlyRent.toLocaleString()}ë§ì`
+    : data.transactionType === 'ì ì¸'
+    ? `ì ì¸ ${data.price.toLocaleString()}ë§ì`
+    : `ë§¤ë§¤ ${data.price.toLocaleString()}ë§ì`;
 
   const featArr = ensureFeaturesArray(data.features);
-  const features = featArr.length > 0 ? `특징: ${featArr.join(', ')}` : '';
+  const features = featArr.length > 0 ? `í¹ì§: ${featArr.join(', ')}` : '';
   const bldg = data.buildingInfo ? `
-건축물 정보:
-- 건물명: ${data.buildingInfo.buildingName || '없음'}
-- 구조: ${data.buildingInfo.structure || '철근콘크리트'}
-- 승인일: ${data.buildingInfo.approvalDate || '미확인'}
-- 엘리베이터: ${data.buildingInfo.elevatorCount}대
-- 주차: ${data.buildingInfo.parkingCount}대` : '';
+ê±´ì¶ë¬¼ ì ë³´:
+- ê±´ë¬¼ëª: ${data.buildingInfo.buildingName || 'ìì'}
+- êµ¬ì¡°: ${data.buildingInfo.structure || 'ì² ê·¼ì½í¬ë¦¬í¸'}
+- ì¹ì¸ì¼: ${data.buildingInfo.approvalDate || 'ë¯¸íì¸'}
+- ìë¦¬ë² ì´í°: ${data.buildingInfo.elevatorCount}ë
+- ì£¼ì°¨: ${data.buildingInfo.parkingCount}ë` : '';
 
-  return `당신은 서울/경기 전문 부동산 중개사입니다. 아래 매물 정보로 매력적이고 전문적인 소개글을 작성해주세요.
+  return `ë¹ì ì ìì¸/ê²½ê¸° ì ë¬¸ ë¶ëì° ì¤ê°ì¬ìëë¤. ìë ë§¤ë¬¼ ì ë³´ë¡ ë§¤ë ¥ì ì´ê³  ì ë¬¸ì ì¸ ìê°ê¸ì ìì±í´ì£¼ì¸ì.
 
-매물 정보:
-- 거래유형: ${data.transactionType}
-- 부동산 유형: ${data.propertyType}
-- 주소: ${data.address}
-- 면적: ${data.area}m² (약 ${Math.round(data.area * 0.3025)}평)
-- 층수: ${data.floor}/${data.totalFloors}층
-- 방: ${data.rooms}개, 욕실: ${data.bathrooms}개
-- 방향: ${data.direction}
-- 가격: ${pt}
-- 입주가능일: ${data.moveInDate}
+ë§¤ë¬¼ ì ë³´:
+- ê±°ëì í: ${data.transactionType}
+- ë¶ëì° ì í: ${data.propertyType}
+- ì£¼ì: ${data.address}
+- ë©´ì : ${data.area}mÂ² (ì½ ${Math.round(data.area * 0.3025)}í)
+- ì¸µì: ${data.floor}/${data.totalFloors}ì¸µ
+- ë°©: ${data.rooms}ê°, ìì¤: ${data.bathrooms}ê°
+- ë°©í¥: ${data.direction}
+- ê°ê²©: ${pt}
+- ìì£¼ê°ë¥ì¼: ${data.moveInDate}
 ${features}
 ${bldg}
-${data.additionalNotes ? `추가 메모: ${data.additionalNotes}` : ''}
+${data.additionalNotes ? `ì¶ê° ë©ëª¨: ${data.additionalNotes}` : ''}
 
-규칙: 3~5문단, 300~500자, 이모지 미사용, 거짓 정보 미포함, 전문적+친근한 톤`;
+ê·ì¹: 3~5ë¬¸ë¨, 300~500ì, ì´ëª¨ì§ ë¯¸ì¬ì©, ê±°ì§ ì ë³´ ë¯¸í¬í¨, ì ë¬¸ì +ì¹ê·¼í í¤`;
 }
 
 function generateTemplate(data: ListingData): string {
-  const pt = data.transactionType === '월세'
-    ? `보증금 ${data.deposit.toLocaleString()}만원 / 월세 ${data.monthlyRent.toLocaleString()}만원`
-    : data.transactionType === '전세'
-    ? `전세 ${data.price.toLocaleString()}만원`
-    : `매매 ${data.price.toLocaleString()}만원`;
+  const pt = data.transactionType === 'ìì¸'
+    ? `ë³´ì¦ê¸ ${data.deposit.toLocaleString()}ë§ì / ìì¸ ${data.monthlyRent.toLocaleString()}ë§ì`
+    : data.transactionType === 'ì ì¸'
+    ? `ì ì¸ ${data.price.toLocaleString()}ë§ì`
+    : `ë§¤ë§¤ ${data.price.toLocaleString()}ë§ì`;
 
   const py = Math.round(data.area * 0.3025);
-  let desc = `${data.address} 인근 ${data.propertyType} ${data.transactionType} 매물을 소개합니다.\n\n`;
-  desc += `${data.area}m²(약 ${py}평) 규모의 `;
-  if (data.rooms > 0) desc += `방 ${data.rooms}개, `;
-  if (data.bathrooms > 0) desc += `욕실 ${data.bathrooms}개 `;
-  desc += `구조로, ${data.floor}층/${data.totalFloors}층에 위치해 있습니다. `;
-  if (data.direction) desc += `${data.direction} 방향으로 채광이 좋습니다.\n\n`;
-  desc += `${pt}이며, `;
-  if (data.moveInDate) desc += `${data.moveInDate} 입주 가능합니다. `;
+  let desc = `${data.address} ì¸ê·¼ ${data.propertyType} ${data.transactionType} ë§¤ë¬¼ì ìê°í©ëë¤.\n\n`;
+  desc += `${data.area}mÂ²(ì½ ${py}í) ê·ëª¨ì `;
+  if (data.rooms > 0) desc += `ë°© ${data.rooms}ê°, `;
+  if (data.bathrooms > 0) desc += `ìì¤ ${data.bathrooms}ê° `;
+  desc += `êµ¬ì¡°ë¡, ${data.floor}ì¸µ/${data.totalFloors}ì¸µì ìì¹í´ ììµëë¤. `;
+  if (data.direction) desc += `${data.direction} ë°©í¥ì¼ë¡ ì±ê´ì´ ì¢ìµëë¤.\n\n`;
+  desc += `${pt}ì´ë©°, `;
+  if (data.moveInDate) desc += `${data.moveInDate} ìì£¼ ê°ë¥í©ëë¤. `;
   const featArr = ensureFeaturesArray(data.features);
-  if (featArr.length > 0) desc += `\n\n주요 특징: ${featArr.join(', ')}`;
-  desc += '\n\n자세한 상담은 위시스부동산으로 문의해주세요.';
+  if (featArr.length > 0) desc += `\n\nì£¼ì í¹ì§: ${featArr.join(', ')}`;
+  desc += '\n\nìì¸í ìë´ì ììì¤ë¶ëì°ì¼ë¡ ë¬¸ìí´ì£¼ì¸ì.';
   return desc;
 }
