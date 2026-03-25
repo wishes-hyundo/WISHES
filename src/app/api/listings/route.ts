@@ -1,19 +1,19 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// GET /api/listings - 매물 목록 조회
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ââââââââââââââââââââââââââââââââââââââââ
+// GET /api/listings - ë§¤ë¬¼ ëª©ë¡ ì¡°í
+// ââââââââââââââââââââââââââââââââââââââââ
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 
 /**
- * 매물 목록 조회
- * @query deal - 거래 유형 (전세/월세/매매)
- * @query type - 매물 유형 (원룸/투룸/쓰리룸/오피스텔/아파트/상가/사무실)
- * @query dong - 동 이름
- * @query minDeposit - 최소 보증금 (만원)
- * @query maxDeposit - 최대 보증금 (만원)
- * @query limit - 페이지당 결과 수 (기본값: 20)
- * @query offset - 오프셋 (기본값: 0)
+ * ë§¤ë¬¼ ëª©ë¡ ì¡°í
+ * @query deal - ê±°ë ì í (ì ì¸/ìì¸/ë§¤ë§¤)
+ * @query type - ë§¤ë¬¼ ì í (ìë£¸/í¬ë£¸/ì°ë¦¬ë£¸/ì¤í¼ì¤í/ìíí¸/ìê°/ì¬ë¬´ì¤)
+ * @query dong - ë ì´ë¦
+ * @query minDeposit - ìµì ë³´ì¦ê¸ (ë§ì)
+ * @query maxDeposit - ìµë ë³´ì¦ê¸ (ë§ì)
+ * @query limit - íì´ì§ë¹ ê²°ê³¼ ì (ê¸°ë³¸ê°: 20)
+ * @query offset - ì¤íì (ê¸°ë³¸ê°: 0)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -27,15 +27,32 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
+    
+    // 비교 매물 조회 (ids 파라미터)
+    const ids = searchParams.get('ids');
+    if (ids) {
+      const idList = ids.split(',').map(Number).filter(Boolean);
+      const supabaseIds = createClient();
+      const { data: compareData, error: compareError } = await supabaseIds
+        .from('listings')
+        .select('*')
+        .in('id', idList);
+      
+      if (compareError) {
+        return NextResponse.json({ success: false, error: '매물 조회 실패' }, { status: 500 });
+      }
+      return NextResponse.json({ success: true, data: compareData || [] });
+    }
+
     const supabase = createClient();
 
-    // 기본 쿼리 (status = '가용'읁 RLS에서 자동 적용)
+    // ê¸°ë³¸ ì¿¼ë¦¬ (status = 'ê°ì©'ì RLSìì ìë ì ì©)
     let query = supabase
       .from('listings')
       .select('*')
       .order('created_at', { ascending: false });
 
-    // 필터 조건 적용
+    // íí° ì¡°ê±´ ì ì©
     if (deal) {
       query = query.eq('deal', deal);
     }
@@ -52,15 +69,15 @@ export async function GET(request: NextRequest) {
       query = query.lte('deposit', parseInt(maxDeposit));
     }
 
-    // 페이지네이션
+    // íì´ì§ë¤ì´ì
     query = query.range(offset, offset + limit - 1);
 
     const { data, error, count } = await query;
 
     if (error) {
-      console.error('Supabase 쿼리 오류:', error);
+      console.error('Supabase ì¿¼ë¦¬ ì¤ë¥:', error);
       return NextResponse.json(
-        { success: false, error: '매물 조회에 실패했습니다' },
+        { success: false, error: 'ë§¤ë¬¼ ì¡°íì ì¤í¨íìµëë¤' },
         { status: 500 }
       );
     }
@@ -71,9 +88,9 @@ export async function GET(request: NextRequest) {
       total: count || 0,
     });
   } catch (error) {
-    console.error('매물 조회 오류:', error);
+    console.error('ë§¤ë¬¼ ì¡°í ì¤ë¥:', error);
     return NextResponse.json(
-      { success: false, error: '매물 조회에 실패했습니다' },
+      { success: false, error: 'ë§¤ë¬¼ ì¡°íì ì¤í¨íìµëë¤' },
       { status: 500 }
     );
   }
