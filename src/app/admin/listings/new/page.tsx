@@ -350,29 +350,42 @@ export default function NewListingPage() {
   const openAddressSearch = () => {
     if (typeof window === 'undefined') return;
     
-    const width = 500;
-    const height = 600;
-    const left = (window.screen.width - width) / 2;
-    const top = (window.screen.height - height) / 2;
-    
-    const features = 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=no,resizable=yes';
-    const popup = window.open('/api/address-search', 'addressSearch', features);
-    
-    if (!popup) {
-      alert('팝업이 차단되었습니다. 팝업 차단을 해제해 주세요.');
-      return;
-    }
-    
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'address-selected') {
-        const fullAddr = event.data.roadAddress || event.data.jibunAddress;
-        const dong = event.data.bname || '';
-        updateField('address', fullAddr);
-        if (dong) updateField('dong', dong);
-        window.removeEventListener('message', handleMessage);
+    const loadAndOpen = () => {
+      // @ts-ignore
+      if (window.daum && window.daum.Postcode) {
+        // @ts-ignore
+        new window.daum.Postcode({
+          oncomplete: function(data: { roadAddress: string; jibunAddress: string; bname: string; buildingName: string; zonecode: string }) {
+            const fullAddr = data.roadAddress || data.jibunAddress;
+            const dong = data.bname || '';
+            updateField('address', fullAddr);
+            if (dong) updateField('dong', dong);
+          },
+          width: '100%',
+          height: '100%'
+        }).open({ autoClose: true });
+        return;
       }
+      
+      const script = document.createElement('script');
+      script.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+      script.onload = () => {
+        // @ts-ignore
+        new window.daum.Postcode({
+          oncomplete: function(data: { roadAddress: string; jibunAddress: string; bname: string; buildingName: string; zonecode: string }) {
+            const fullAddr = data.roadAddress || data.jibunAddress;
+            const dong = data.bname || '';
+            updateField('address', fullAddr);
+            if (dong) updateField('dong', dong);
+          },
+          width: '100%',
+          height: '100%'
+        }).open({ autoClose: true });
+      };
+      document.head.appendChild(script);
     };
-    window.addEventListener('message', handleMessage);
+    
+    loadAndOpen();
   };
 
   // 특징 토글
