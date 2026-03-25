@@ -748,7 +748,13 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
 
   }
 
-}
+
+      .edit-dropdown, .edit-menu, #historyPanel { display:none !important; }
+      .result-card { break-inside:avoid; }
+      .card { box-shadow:none !important; border:1px solid #ddd !important; }
+      body { background:#fff !important; color:#000 !important; }
+      .header { background:#0B1F4B !important; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    }
 
 
 .chip{min-width:90px;min-height:44px;padding:10px 16px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
@@ -819,6 +825,12 @@ textarea.finput{min-height:80px;resize:vertical}
       .edit-menu button:hover { background: #253345 !important; }
     }
 
+
+    /* ========== PERFORMANCE & MOBILE ========== */
+    .page-section { will-change: opacity; }
+    .chip, .deal-chip, .star-btn, .btn { touch-action: manipulation; }
+    html { scroll-behavior: smooth; }
+    .card { contain: content; }
 </style>
 
 </head>
@@ -1744,6 +1756,7 @@ const TOTAL = 3;
 /* ═══════════════ NAVIGATION ═══════════════ */
 
 function goPage(n){
+      window.scrollTo(0,0);
 
   document.getElementById('page-'+cur)?.classList.remove('active');
 
@@ -1918,7 +1931,7 @@ origPropType.querySelectorAll('.chip').forEach(c=>{
 
     const isComm = selected.some(s=>s.includes('상가')||s.includes('사무실')||s.includes('창고'));
 
-    document.getElementById('commercialCard').style.display = isComm?'block':'none';
+    var _cc=document.getElementById('commercialCard'); if(_cc) _cc.style.display = isComm ? '' : 'none';
 
   });
 
@@ -2906,6 +2919,10 @@ function resetAll(){
     /* ========== AUTO-SAVE (localStorage) ========== */
     const LS_KEY = 'wishes_checklist_draft';
     
+    /* Debounce utility */
+    var _saveTimer = null;
+    function debouncedAutoSave(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(autoSave, 500); }
+
     function autoSave(){
       try {
         const d = collectData();
@@ -2932,11 +2949,11 @@ function resetAll(){
     (function initAutoSave(){
       const inputs = document.querySelectorAll('input, select, textarea');
       inputs.forEach(function(el){
-        el.addEventListener('input', autoSave);
-        el.addEventListener('change', autoSave);
+        el.addEventListener('input', debouncedAutoSave);
+        el.addEventListener('change', debouncedAutoSave);
       });
       /* also save on chip/star/deal clicks via MutationObserver */
-      const observer = new MutationObserver(function(){ setTimeout(autoSave, 100); });
+      const observer = new MutationObserver(fundebouncedAutoSave()ave, 100); });
       document.querySelectorAll('.chip-group, .star-group, .deal-chip, [class*=chip], [class*=star]').forEach(function(el){
         observer.observe(el, { attributes: true, subtree: true, childList: true });
       });
