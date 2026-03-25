@@ -260,7 +260,7 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('매물 생성 오류:', error);
       return NextResponse.json(
-        { success: false, error: '매물 생성에 실패했습니다' },
+        { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
         { status: 500 }
       );
     }
