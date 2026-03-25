@@ -267,6 +267,7 @@ export default function NewListingPage() {
 
   // 이미지 업로드
   const optimizeImage = (file: File, maxWidth = 1920, quality = 0.85): Promise<File> => {
+    if (typeof window === 'undefined') return null;
     return new Promise((resolve) => {
       // 2MB 이하면 최적화 스킵
       if (file.size <= 2 * 1024 * 1024) { resolve(file); return; }
@@ -372,6 +373,7 @@ export default function NewListingPage() {
   };
 
   const openAddressSearch = () => {
+    if (typeof window === 'undefined') return;
     if (typeof window === 'undefined') return;
     
     // window.open으로 주소 검색 페이지 열기 (CSP 우회)
