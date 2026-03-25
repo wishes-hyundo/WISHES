@@ -1,8 +1,10 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import { Menu, X, Phone, MapPin } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 const navItems = [
   { label: '매물검색', href: '/listings' },
@@ -12,79 +14,115 @@ const navItems = [
   { label: '상담문의', href: '/contact' },
 ];
 
-export default function Header() {
+export function Header() {
+  const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const isActive = (href: string) => {
+    if (href === '/') {
+      return pathname === '/';
+    }
+    return pathname.startsWith(href);
+  };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-amber-500 rounded-full flex items-center justify-center">
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 glass border-b border-gray-100/50">
+      <div className="max-w-7xl mx-auto px-4">
+        <div className="flex items-center justify-between h-16 md:h-20">
+          {/* 로고 */}
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-wishes-secondary to-wishes-accent flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-shadow">
+              <MapPin className="w-5 h-5" />
             </div>
-            <div>
-              <span className="font-bold text-lg text-gray-900">WISHES</span>
-              <p className="text-[10px] text-gray-500 -mt-1">서울·경기 종합부동산 서비스</p>
+            <div className="hidden sm:block">
+              <p className="text-sm font-bold text-wishes-primary leading-none">WISHES</p>
+              <p className="text-xs text-wishes-muted">위시스부동산</p>
+            </div>
+            <div className="sm:hidden">
+              <p className="text-base font-bold text-wishes-primary">WISHES</p>
             </div>
           </Link>
 
-          {/* Desktop Nav */}
+          {/* 데스크탑 네비게이션 */}
           <nav className="hidden md:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  pathname === item.href
-                    ? 'bg-amber-50 text-amber-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
+                className={cn(
+                  'px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 relative group',
+                  isActive(item.href)
+                    ? 'text-wishes-secondary'
+                    : 'text-wishes-text hover:text-wishes-secondary'
+                )}
               >
                 {item.label}
+                {isActive(item.href) && (
+                  <div className="absolute bottom-1 left-4 right-4 h-0.5 bg-wishes-accent rounded-full"></div>
+                )}
+                <div className={cn(
+                  'absolute inset-0 rounded-lg bg-wishes-secondary/5 -z-10 transition-opacity duration-200',
+                  isActive(item.href) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                )}></div>
               </Link>
             ))}
           </nav>
 
-          {/* Mobile menu button */}
+          {/* CTA 버튼 */}
+          <div className="hidden md:flex items-center gap-3">
+            <a
+              href="tel:1533-9580"
+              className="flex items-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:shadow-wishes-secondary/50 hover:scale-105 transition-all duration-200 group"
+            >
+              <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>1533-9580</span>
+            </a>
+          </div>
+
+          {/* 모바일 메뉴 토글 */}
           <button
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors"
+            onClick={() => setIsOpen(!isOpen)}
+            aria-label="메뉴 열기"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              {mobileMenuOpen ? (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              ) : (
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-              )}
-            </svg>
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
 
-        {/* Mobile Nav */}
-        {mobileMenuOpen && (
-          <nav className="md:hidden py-3 border-t border-gray-100">
+        {/* 모바일 메뉴 */}
+        <div
+          className={cn(
+            'md:hidden overflow-hidden border-t border-gray-100/50 bg-white/50 backdrop-blur-sm transition-all duration-300 ease-out',
+            isOpen ? 'max-h-96' : 'max-h-0'
+          )}
+        >
+          <nav className="flex flex-col gap-0 pt-2 pb-4 px-2">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className={`block px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  pathname === item.href
-                    ? 'bg-amber-50 text-amber-600'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-                }`}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={() => setIsOpen(false)}
+                className={cn(
+                  'px-4 py-3 text-sm font-semibold rounded-lg transition-all duration-200',
+                  isActive(item.href)
+                    ? 'text-wishes-secondary bg-wishes-secondary/10'
+                    : 'text-wishes-text hover:bg-gray-100'
+                )}
               >
                 {item.label}
               </Link>
             ))}
+            <div className="pt-3 mt-3 border-t border-gray-100">
+              <a
+                href="tel:1533-9580"
+                className="flex items-center justify-center gap-2 mt-3 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:scale-105 transition-all duration-200 group"
+              >
+                <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                상담 1533-9580
+              </a>
+            </div>
           </nav>
-        )}
+        </div>
       </div>
     </header>
   );
