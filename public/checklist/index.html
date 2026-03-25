@@ -3006,6 +3006,8 @@ function resetAll(){
     document.addEventListener('click', function(e){
       if(!e.target.closest('.edit-dropdown')){
         document.querySelectorAll('.edit-menu.show').forEach(function(m){ m.classList.remove('show'); });
+      }
+    });
 
     /* ========== PDF EXPORT ========== */
     function exportPDF(){
