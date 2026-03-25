@@ -3,21 +3,23 @@
 /* Gmarket Sans - 기본 글씨체 */
 @font-face {
   font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansLight.woff') format('woff');
+  src: url('https://cdn.jsdelivr.net/gh/fonts-archive/GmarketSans/GmarketSansLight.woff2') format('woff2');
   font-weight: 300;
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');
+  src: url('https://cdn.jsdelivr.net/gh/fonts-archive/GmarketSans/GmarketSansMedium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
+
 @font-face {
   font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff');
+  src: url('https://cdn.jsdelivr.net/gh/fonts-archive/GmarketSans/GmarketSansBold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -46,6 +48,7 @@ body {
 .card-premium {
   @apply bg-white rounded-2xl border border-gray-100 shadow-card transition-all duration-300;
 }
+
 .card-premium:hover {
   @apply shadow-card-hover border-gray-200 -translate-y-0.5;
 }
@@ -75,21 +78,36 @@ body {
   box-shadow: 0 4px 12px rgba(0,0,0,0.12);
   font-family: 'GmarketSans', 'Pretendard', sans-serif;
 }
-.map-marker-label.deal-전세 { border-color: #1e40af; color: #1e40af; }
-.map-marker-label.deal-월세 { border-color: #059669; color: #059669; }
-.map-marker-label.deal-매매 { border-color: #d97706; color: #d97706; }
+
+.map-marker-label.deal-전세 {
+  border-color: #1e40af;
+  color: #1e40af;
+}
+
+.map-marker-label.deal-월세 {
+  border-color: #059669;
+  color: #059669;
+}
+
+.map-marker-label.deal-매매 {
+  border-color: #d97706;
+  color: #d97706;
+}
 
 /* Scrollbar */
 .custom-scrollbar::-webkit-scrollbar {
   width: 6px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-track {
   background: transparent;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 3px;
 }
+
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
@@ -105,6 +123,7 @@ body {
     transform: translateY(0);
   }
 }
+
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -115,9 +134,11 @@ body {
     transform: translateX(0);
   }
 }
+
 .animate-fade-in-up {
   animation: fadeInUp 0.4s ease-out forwards;
 }
+
 .animate-slide-in-right {
   animation: slideInRight 0.3s ease-out forwards;
 }
