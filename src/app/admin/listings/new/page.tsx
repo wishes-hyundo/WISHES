@@ -107,6 +107,7 @@ export default function NewListingPage() {
   const [analysisResult, setAnalysisResult] = useState<any>(null);
   const ADMIN_TOKEN = 'wishes2026';
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // 주소에서 시군구, 번지 정보 추출
   const parseAddress = (address: string) => {
@@ -297,6 +298,17 @@ export default function NewListingPage() {
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); };
+  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); };
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation(); setIsDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      const fakeEvent = { target: { files } } as React.ChangeEvent<HTMLInputElement>;
+      await handleImageUpload(fakeEvent);
+    }
+  };
+
   // 특징 토글
   const toggleFeature = (feature: string) => {
     setFormData(prev => ({
@@ -477,14 +489,24 @@ export default function NewListingPage() {
 
             {/* 이미지 업로드 영역 */}
             <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all"
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${isDragOver ? 'border-yellow-400 bg-yellow-50 scale-[1.02] shadow-lg' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'}`}
             >
-              <svg className="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <p className="text-gray-600 font-medium">클릭하여 사진을 선택하세요</p>
-              <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP (최대 10MB)</p>
+              {isDragOver ? (
+                <>
+                  <svg className="w-12 h-12 text-yellow-500 animate-bounce mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                  <p className="text-lg font-bold text-gray-800 mt-2">여기에 놓으세요!</p>
+                </>
+              ) : (
+                <>
+                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <p className="text-gray-600 font-medium">사진을 드래그하여 놓거나 클릭하세요</p>
+                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP / 최대 10MB / 여러 장 동시 업로드 가능</p>
+                </>
+              )}
               <input
                 ref={fileInputRef}
                 type="file"
