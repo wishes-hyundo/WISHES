@@ -6,6 +6,7 @@ import { Footer } from '@/components/Footer';
 import { FloatingButtons } from '@/components/FloatingButtons';
 import AIChatBot from '@/components/AIChatBot';
 import { FavoritesProvider } from '@/contexts/FavoritesContext';
+import CompareBar from './CompareBar';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
