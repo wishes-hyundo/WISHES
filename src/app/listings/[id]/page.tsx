@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
+import ShareButton from '@/components/ShareButton';
 import type { Metadata } from 'next';
 
 interface Props {
@@ -199,14 +200,12 @@ export default async function ListingDetailPage({ params }: Props) {
                 온라인 상담 신청
               </Link>
 
-              <a
-                href={`https://story.kakao.com/share?url=${encodeURIComponent(`https://wishes.co.kr/listings/${listing.id}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-yellow-400 text-yellow-900 py-3 rounded-xl font-bold mt-3 hover:bg-yellow-300 transition-colors"
-              >
-                카카오톡 공유하기
-              </a>
+
+              <ShareButton
+                url={`https://wishes.co.kr/listings/${listing.id}`}
+                title={listing.title || '위시스부동산 매물'}
+                description={`${listing.deal || ''} ${listing.type || ''} - ${listing.dong || ''}`}
+              />
 
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
                 <p className="flex items-center gap-1">
