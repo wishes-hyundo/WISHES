@@ -95,6 +95,7 @@ export default function NewListingPage() {
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
   const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [isFetchingBuilding, setIsFetchingBuilding] = useState(false);
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
@@ -349,43 +350,71 @@ export default function NewListingPage() {
 
   const openAddressSearch = () => {
     if (typeof window === 'undefined') return;
+    setShowAddressModal(true);
     
-    const loadAndOpen = () => {
-      // @ts-ignore
-      if (window.daum && window.daum.Postcode) {
-        // @ts-ignore
-        new window.daum.Postcode({
-          oncomplete: function(data: { roadAddress: string; jibunAddress: string; bname: string; buildingName: string; zonecode: string }) {
-            const fullAddr = data.roadAddress || data.jibunAddress;
-            const dong = data.bname || '';
-            updateField('address', fullAddr);
-            if (dong) updateField('dong', dong);
-          },
-          width: '100%',
-          height: '100%'
-        }).open({ autoClose: true });
-        return;
-      }
+    setTimeout(() => {
+      const container = document.getElementById('postcode-embed-container');
+      if (!container) return;
+      container.innerHTML = '';
       
-      const script = document.createElement('script');
-      script.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-      script.onload = () => {
+      const loadAndEmbed = () => {
         // @ts-ignore
-        new window.daum.Postcode({
-          oncomplete: function(data: { roadAddress: string; jibunAddress: string; bname: string; buildingName: string; zonecode: string }) {
-            const fullAddr = data.roadAddress || data.jibunAddress;
-            const dong = data.bname || '';
-            updateField('address', fullAddr);
-            if (dong) updateField('dong', dong);
-          },
-          width: '100%',
-          height: '100%'
-        }).open({ autoClose: true });
+        if (window.daum && window.daum.Postcode) {
+          // @ts-ignore
+          new window.daum.Postcode({
+            oncomplete: function(data: { roadAddress: string; jibunAddress: string; bname: string; buildingName: string; zonecode: string }) {
+              const fullAddr = data.roadAddress || data.jibunAddress;
+              const dong = data.bname || '';
+              updateField('address', fullAddr);
+              if (dong) updateField('dong', dong);
+              if (data.buildingName) updateField('buildingName', data.buildingName);
+              setShowAddressModal(false);
+              // Auto fetch building info
+              if (fullAddr) {
+                fetchBuildingInfo(fullAddr);
+              }
+            },
+            onclose: function() {
+              setShowAddressModal(false);
+            },
+            width: '100%',
+            height: '100%'
+          }).embed(container);
+          return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+        script.onload = () => {
+          // @ts-ignore
+          new window.daum.Postcode({
+            oncomplete: function(data: { roadAddress: string; jibunAddress: string; bname: string; buildingName: string; zonecode: string }) {
+              const fullAddr = data.roadAddress || data.jibunAddress;
+              const dong = data.bname || '';
+              updateField('address', fullAddr);
+              if (dong) updateField('dong', dong);
+              if (data.buildingName) updateField('buildingName', data.buildingName);
+              setShowAddressModal(false);
+              if (fullAddr) {
+                fetchBuildingInfo(fullAddr);
+              }
+            },
+            onclose: function() {
+              setShowAddressModal(false);
+            },
+            width: '100%',
+            height: '100%'
+          }).embed(container);
+        };
+        script.onerror = () => {
+          alert('주소 검색 스크립트를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
+          setShowAddressModal(false);
+        };
+        document.head.appendChild(script);
       };
-      document.head.appendChild(script);
-    };
-    
-    loadAndOpen();
+      
+      loadAndEmbed();
+    }, 100);
   };
 
   // 특징 토글
@@ -1303,6 +1332,19 @@ export default function NewListingPage() {
           </div>
         )}
       </form>
-    </div>
+    
+      {/* 주소 검색 모달 */}
+      {showAddressModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAddressModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b bg-gradient-to-r from-blue-600 to-blue-700">
+              <h3 className="text-lg font-bold text-white">주소 검색</h3>
+              <button onClick={() => setShowAddressModal(false)} className="text-white/80 hover:text-white text-2xl leading-none">&times;</button>
+            </div>
+            <div id="postcode-embed-container" style={{ height: '470px', overflow: 'hidden' }}></div>
+          </div>
+        </div>
+      )}
+</div>
   );
 }
