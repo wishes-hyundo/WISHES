@@ -1,22 +1,23 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calculator, Building2, Home, TrendingDown, Info, ChevronDown } from 'lucide-react';
 
+import { createClient } from '@/lib/supabase';
 type LoanType = 'mortgage' | 'jeonse';
 type RepaymentType = 'equal_principal_interest' | 'equal_principal' | 'bullet';
 
-const RATE_PRESETS = {
+const DEFAULT_RATE_PRESETS = {
   mortgage: [
-    { label: '시중은행 주담대', rate: 3.5 },
-    { label: '특례보금자리론', rate: 4.15 },
-    { label: '디딤돌대출', rate: 2.45 },
-    { label: '신혼부부 특례', rate: 2.15 },
+    { label: '시중은행 주담대', rate: 4.5 },
+    { label: '특례보금자리론', rate: 4.2 },
+    { label: '디딜돌대출', rate: 2.45 },
+    { label: '신혼부부 특례', rate: 2.2 },
   ],
   jeonse: [
-    { label: '버팀목 전세대출', rate: 2.1 },
-    { label: '카카오뱅크 전세', rate: 3.8 },
-    { label: '시중은행 전세', rate: 4.2 },
+    { label: '버팀목 전세대출', rate: 2.3 },
+    { label: '카카오뱅크 전세', rate: 3.9 },
+    { label: '시중은행 전세', rate: 4.5 },
     { label: '청년전용 버팀목', rate: 1.8 },
   ],
 };
@@ -41,6 +42,36 @@ export default function LoanCalculatorPage() {
   const [years, setYears] = useState('30');
   const [repaymentType, setRepaymentType] = useState<RepaymentType>('equal_principal_interest');
   const [showSchedule, setShowSchedule] = useState(false);
+  const [ratePresets, setRatePresets] = useState(DEFAULT_RATE_PRESETS);
+  const [ratesLastUpdated, setRatesLastUpdated] = useState<string>('');
+
+  // Supabase에서 최신 금리 가져오기
+  useEffect(() => {
+    async function fetchLatestRates() {
+      try {
+        const supabase = createClient();
+        const { data, error } = await supabase
+          .from('loan_rates')
+          .select('*')
+          .order('updated_at', { ascending: false })
+          .limit(1);
+        if (data && data.length > 0 && !error) {
+          const row = data[0];
+          if (row.mortgage_rates && row.jeonse_rates) {
+            setRatePresets({
+              mortgage: row.mortgage_rates,
+              jeonse: row.jeonse_rates,
+            });
+            setRatesLastUpdated(new Date(row.updated_at).toLocaleDateString('ko-KR'));
+          }
+        }
+      } catch (e) {
+        // Supabase 연결 실패 시 기본값 사용
+        console.log('Using default rates');
+      }
+    }
+    fetchLatestRates();
+  }, []);
 
   const result = useMemo(() => {
     const P = Number(amount) * 10000; // 만원 → 원
@@ -159,7 +190,7 @@ export default function LoanCalculatorPage() {
           <div className="mb-6">
             <p className="text-sm text-gray-600 mb-2">금리 프리셋 (2026년 기준 참고용)</p>
             <div className="flex flex-wrap gap-2">
-              {RATE_PRESETS[loanType].map((preset) => (
+              {ratePresets[loanType].map((preset) => (
                 <button
                   key={preset.label}
                   onClick={() => setRate(String(preset.rate))}
@@ -173,6 +204,9 @@ export default function LoanCalculatorPage() {
                 </button>
               ))}
             </div>
+          {ratesLastUpdated && (
+            <p className="text-xs text-wishes-muted mt-1">금리 기준일: {ratesLastUpdated} (자동 업데이트)</p>
+          )}
           </div>
 
           {/* Input Fields */}
