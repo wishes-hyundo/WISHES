@@ -8,11 +8,11 @@ import { cn } from '@/lib/utils';
 import { AuthModal } from '@/components/AuthModal';
 
 const navItems = [
-  { label: '홈', href: '/' },
-  { label: '매물검색', href: '/listings' },
-  { label: '지도검색', href: '/map' },
-  { label: '회사소개', href: '/about' },
-  { label: '상담문의', href: '/contact' },
+  { label: 'í', href: '/' },
+  { label: 'ë§¤ë¬¼ê²ì', href: '/listings' },
+  { label: 'ì§ëê²ì', href: '/map' },
+  { label: 'íì¬ìê°', href: '/about' },
+  { label: 'ìë´ë¬¸ì', href: '/contact' },
 ];
 
 export function Header() {
@@ -36,7 +36,7 @@ export function Header() {
             </div>
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-wishes-primary leading-none">WISHES</p>
-              <p className="text-xs text-wishes-muted">위시스부동산</p>
+              <p className="text-xs text-wishes-muted">ììì¤ë¶ëì°</p>
             </div>
             <div className="sm:hidden">
               <p className="text-base font-bold text-wishes-primary">WISHES</p>
@@ -51,16 +51,16 @@ export function Header() {
               </Link>
             ))}
           </nav>
-          {/* 로그인 버튼 */}
+          {/* ë¡ê·¸ì¸ ë²í¼ */}
           <button
             onClick={() => setAuthOpen(true)}
             className="hidden md:flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-wishes-secondary hover:bg-blue-50 rounded-xl transition-colors"
           >
             <User className="w-4 h-4" />
-            로그인
+            ë¡ê·¸ì¸
           </button>
 
-          <button className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setIsOpen(!isOpen)} aria-label="메뉴 열기">
+          <button className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors" onClick={() => setIsOpen(!isOpen)} aria-label="ë©ë´ ì´ê¸°">
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
         </div>
@@ -76,7 +76,7 @@ export function Header() {
                 className="flex items-center justify-center gap-2 mx-2 mt-2 px-4 py-3 text-sm font-semibold text-white bg-wishes-primary rounded-xl hover:bg-wishes-secondary transition-colors"
               >
                 <User className="w-4 h-4" />
-                로그인
+                ë¡ê·¸ì¸
               </button>
           </nav>
         </div>
