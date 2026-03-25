@@ -1,4 +1,4 @@
-h<!DOCTYPE html>
+<!DOCTYPE html>
 
 <html lang="ko">
 
@@ -178,7 +178,7 @@ button{font-family:inherit}
 
 /* ── LAYOUT ── */
 
-.layout{max-width:860px;margin:0 auto;padding:24px 20px 100px}
+.layout{max-width:860px;margin:0 auto;padding:24px 20px 140px}
 
 
 
@@ -706,7 +706,6 @@ textarea{resize:vertical;min-height:86px;line-height:1.6}
 
   .topbar,.progress-track,.step-nav,.bottom-nav,.link-box,.send-box,
 
-  #resultNav,#bottomNav,.result-hero::before,.fab-send{display:none!important}
 
   .layout{padding:0!important}
 
@@ -1626,13 +1625,6 @@ textarea.finput{min-height:80px;resize:vertical}
 
       </div>
 
-      <div class="fg">
-
-        <label class="flabel">중개사 내부 메모</label>
-
-        <textarea id="memo" placeholder="상담 시 특이사항, 고객 성향 등 내부 메모" style="background:#FFFEF5;border-color:#F5C84255"></textarea>
-
-      </div>
 
     </div>
 
@@ -1671,9 +1663,6 @@ textarea.finput{min-height:80px;resize:vertical}
 
 
   <!-- Floating Send Button -->
-  <button class="fab-send" id="fabSend" onclick="sendToNaverWorks()" title="네이버웍스로 전송">
-    📨 전송
-  </button>
   </div><!-- /layout -->
 
 
@@ -1685,6 +1674,7 @@ textarea.finput{min-height:80px;resize:vertical}
   <button class="btn btn-ghost" id="prevBtn" onclick="prevPage()" style="display:none">← 이전</button>
 
   <button class="btn btn-primary" id="nextBtn" onclick="nextPage()">다음 단계 →</button>
+  <button class="btn btn-send agent-only" id="navSendBtn" onclick="sendToNaverWorks()" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:50px;padding:12px 20px;font-weight:700;box-shadow:0 2px 8px rgba(37,99,235,0.3);">📨 전송</button>
 
 </div>
 
@@ -1708,6 +1698,7 @@ textarea.finput{min-height:80px;resize:vertical}
   <button class="btn btn-gold" onclick="window.print()">🖨️ 인쇄</button>
 
           <button class="agent-only btn btn-ghost" onclick="toggleHistoryPanel()" style="margin-left:8px">📋 이력</button>
+  <button class="btn btn-send agent-only" id="resultSendBtn" onclick="sendToNaverWorks()" style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:50px;padding:12px 20px;font-weight:700;box-shadow:0 2px 8px rgba(37,99,235,0.3);">📨 전송</button>
 </div>
 
 
@@ -1776,8 +1767,6 @@ const TOTAL = 3;
 /* ═══════════════ NAVIGATION ═══════════════ */
 
 function goPage(n){
-    const fab = document.getElementById('fabSend');
-    if(fab) fab.classList.toggle('visible', n >= 2 || n === 'result');
       window.scrollTo(0,0);
 
   document.getElementById('page-'+cur)?.classList.remove('active');
@@ -1796,7 +1785,7 @@ function goPage(n){
 
     generateResult();
 
-    { let _fab2=document.getElementById('fabSend');if(_fab2)_fab2.classList.add('visible'); }
+    
       window.scrollTo({top:0,behavior:'smooth'});
 
     return;
@@ -2283,7 +2272,7 @@ function generateResult(){
 
 
 
-    ${(gv('addReq')||gv('memo'))?`
+    ${gv('addReq')?`
 
     <div class="summary-card">
 
@@ -2293,7 +2282,6 @@ function generateResult(){
 
         ${gv('addReq')?'<div class="sc-row"><div class="sc-key">요청사항</div><div class="sc-val">'+gv('addReq')+'</div></div>':''}
 
-        ${gv('memo')?'<div class="sc-row"><div class="sc-key">내부 메모</div><div class="sc-val" style="color:#7A5A00;background:#FFFEF5;border-radius:6px;padding:8px">'+gv('memo')+'</div></div>':''}
 
       </div>
 
@@ -2331,7 +2319,7 @@ function collectData(){
 
     bizType:gv('bizType'),workplace:gv('workplace'),
 
-    moveDate:gv('moveDate'),addReq:gv('addReq'),memo:gv('memo'),
+    moveDate:gv('moveDate'),addReq:gv('addReq'),
 
     chips:S.chips, stars:S.stars, deal:S.deal, prop:S.prop
 
@@ -2823,7 +2811,6 @@ function restoreState(data){
 
   setVal('bizType',data.bizType);setVal('workplace',data.workplace);
 
-  setVal('moveDate',data.moveDate);setVal('addReq',data.addReq);setVal('memo',data.memo);
 
   S.sizeLabel = data.sizeLabel||'';
 
@@ -3221,26 +3208,7 @@ function resetAll(){
       }
     }
 
-function sendToNaverWorks(){
-  var text = buildShareText();
-  if(!text){ alert('상담 내용을 먼저 입력해주세요.'); return; }
-  if(typeof postToNaverWorks === 'function'){
-    var btn = event.target.closest('.send-btn');
-    var origText = btn.innerHTML;
-    btn.innerHTML = '<span>⏳</span> 전송 중...';
-    btn.disabled = true;
-    postToNaverWorks(text).then(function(){
-      btn.innerHTML = '<span>✅</span> 전송 완료!';
-      setTimeout(function(){ btn.innerHTML = origText; btn.disabled = false; }, 2000);
-    }).catch(function(err){
-      btn.innerHTML = '<span>❌</span> 전송 실패';
-      alert('전송에 실패했습니다: ' + err.message);
-      setTimeout(function(){ btn.innerHTML = origText; btn.disabled = false; }, 2000);
-    });
-  } else {
-    alert('네이버웍스 연동이 설정되지 않았습니다.');
-  }
-}
+function sendToNaverWorks(){ if(typeof sendToNW==='function'){sendToNW();return;} var text=buildShareText(); if(!text){alert('상담 내용을 먼저 입력해주세요.');return;} alert('네이버웍스 연동을 확인해주세요.'); }
 
 function updateBottomNavText(n){
   var nextBtn = document.querySelector('#bottomNav .nav-next');
@@ -3264,8 +3232,6 @@ function updateBottomNavText(n){
           }
         });
         document.body.classList.add('agent-mode');
-        var fab=document.getElementById('fabSend');
-        if(fab){fab.classList.add('visible');}
       } catch(e){console.warn('Agent mode error:',e);}
     })()
 
