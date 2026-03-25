@@ -1777,7 +1777,7 @@ const TOTAL = 3;
 
 function goPage(n){
     const fab = document.getElementById('fabSend');
-    if(fab) fab.classList.toggle('visible', n >= 2);
+    if(fab) fab.classList.toggle('visible', n >= 2 || n === 'result');
       window.scrollTo(0,0);
 
   document.getElementById('page-'+cur)?.classList.remove('active');
