@@ -4,7 +4,7 @@ import AboutKakaoMap from '@/components/AboutKakaoMap';
 
 export const metadata: Metadata = {
   title: '회사소개',
-  description: '위시스부동산중개법인 회사소개 - 서울·경기 종합부동산',
+  description: 'WISHES 회사소개 - 서울·경기 종합부동산',
 };
 
 export default function AboutPage() {
@@ -16,7 +16,7 @@ export default function AboutPage() {
           <p className="text-sm font-semibold text-white/40 tracking-widest uppercase mb-3">About Us</p>
           <h1 className="text-3xl md:text-4xl font-bold">회사 소개</h1>
           <p className="mt-3 text-white/50">
-            서울·경기 종합부동산, 위시스부동산중개법인
+            서울·경기 종합부동산 서비스
           </p>
         </div>
       </section>
@@ -30,7 +30,7 @@ export default function AboutPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
             {[
-              { label: '상호', value: '주식회사 위시스부동산중개법인' },
+              { label: '상호', value: 'WISHES Corp.' },
               { label: '대표이사', value: '전유진' },
               { label: '사업자등록번호', value: '445-86-01981' },
               { label: '소재지', value: '서울특별시 관악구 신림로64길 23, 8층(신림동)' },
@@ -53,7 +53,7 @@ export default function AboutPage() {
             취급 매물
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'].map((type) => (
+            {['원룸', '투룷', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'].map((type) => (
               <div key={type} className="text-center p-4 bg-blue-50 rounded-xl">
                 <Building2 className="w-8 h-8 text-wishes-secondary mx-auto mb-2" />
                 <span className="text-sm font-medium text-gray-700">{type}</span>
@@ -65,7 +65,7 @@ export default function AboutPage() {
         {/* 강점 */}
         <section>
           <h2 className="text-xl font-bold text-wishes-primary mb-6 text-center">
-            위시스부동산의 강점
+            WISHES의 강점
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {[
