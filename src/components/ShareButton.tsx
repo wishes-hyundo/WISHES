@@ -97,7 +97,7 @@ export default function ShareButton({ url, title, description }: ShareButtonProp
                 className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-green-50 transition-colors text-sm font-medium text-gray-700 border border-gray-100"
               >
                 <MessageCircle className="w-4 h-4 text-green-500" />
-                문자 보내기
+                문자 전송
               </button>
               <button
                 onClick={shareEmail}
