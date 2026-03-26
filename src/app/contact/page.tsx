@@ -6,7 +6,7 @@ import { Mail, MapPin, Send, CheckCircle, MessageCircle } from 'lucide-react';
 
 export default function ContactPage() {
   return (
-    <Suspense fallback={<div className="pt-16 min-h-screen flex items-center justify-center"><p className="text-gray-500">로딩 중...</p></div>}>
+    <Suspense fallback={<div className="pt-16 min-h-screen flex items-center justify-center"><p className="text-gray-500">ë¡ë© ì¤...</p></div>}>
       <ContactPageInner />
     </Suspense>
   );
@@ -20,7 +20,7 @@ function ContactPageInner() {
     name: '',
     phone: '',
     email: '',
-    message: listingId ? `매물 #${listingId}에 대해 상담 요청합니다.\n\n` : '',
+    message: listingId ? `ë§¤ë¬¼ #${listingId}ì ëí´ ìë´ ìì²­í©ëë¤.\n\n` : '',
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -43,7 +43,7 @@ function ContactPageInner() {
         setSubmitted(true);
       }
     } catch (error) {
-      console.error('상담 신청 실패:', error);
+      console.error('ìë´ ì ì²­ ì¤í¨:', error);
     } finally {
       setSubmitting(false);
     }
@@ -54,10 +54,10 @@ function ContactPageInner() {
       <div className="pt-16 min-h-screen flex items-center justify-center">
         <div className="text-center p-8">
           <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-wishes-primary mb-2">상담 신청 완료</h2>
+          <h2 className="text-2xl font-bold text-wishes-primary mb-2">ìë´ ì ì²­ ìë£</h2>
           <p className="text-gray-600 mb-6">
-            빠른 시일 내에 연락드리겠습니다.<br />
-            급하신 경우 전화로 문의해 주세요.
+            ë¹ ë¥¸ ìì¼ ë´ì ì°ë½ëë¦¬ê² ìµëë¤.<br />
+            ê¸íì  ê²½ì° ì íë¡ ë¬¸ìí´ ì£¼ì¸ì.
           </p>
           
         </div>
@@ -67,19 +67,19 @@ function ContactPageInner() {
 
   return (
     <div className="pt-16 min-h-screen">
-      {/* 헤더 */}
+      {/* í¤ë */}
       <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
         <div className="max-w-5xl mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold drop-shadow-lg">상담 문의</h1>
-          <p className="mt-3 text-lg text-white/90 drop-shadow-md">위시스부동산에 문의하세요</p>
+          <h1 className="text-3xl md:text-4xl font-bold">ìë´ ë¬¸ì</h1>
+          <p className="mt-3 text-white/80">ììì¤ë¶ëì°ì ë¬¸ìíì¸ì</p>
         </div>
       </section>
 
       <div className="max-w-5xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 연락처 정보 */}
+          {/* ì°ë½ì² ì ë³´ */}
           <div className="space-y-4">
-            <h2 className="text-lg font-bold text-wishes-primary mb-4">연락처</h2>
+            <h2 className="text-lg font-bold text-wishes-primary mb-4">ì°ë½ì²</h2>
 
             
 
@@ -88,8 +88,8 @@ function ContactPageInner() {
                 <MessageCircle className="w-5 h-5 text-yellow-600" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">카카오톡 상담</p>
-                <p className="font-bold text-yellow-700">카카오톡 채널</p>
+                <p className="text-xs text-gray-500">ì¹´ì¹´ì¤í¡ ìë´</p>
+                <p className="font-bold text-yellow-700">ì¹´ì¹´ì¤í¡ ì±ë</p>
               </div>
             </a>
 
@@ -98,7 +98,7 @@ function ContactPageInner() {
                 <Mail className="w-5 h-5 text-wishes-secondary" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">이메일</p>
+                <p className="text-xs text-gray-500">ì´ë©ì¼</p>
                 <p className="font-bold text-wishes-primary">wishes@wishes.co.kr</p>
               </div>
             </a>
@@ -108,32 +108,32 @@ function ContactPageInner() {
                 <MapPin className="w-5 h-5 text-wishes-secondary" />
               </div>
               <div>
-                <p className="text-xs text-gray-500">방문 상담</p>
-                <p className="text-sm font-medium text-gray-700">관악구 신림로64길 23, 8층</p>
+                <p className="text-xs text-gray-500">ë°©ë¬¸ ìë´</p>
+                <p className="text-sm font-medium text-gray-700">ê´ìêµ¬ ì ë¦¼ë¡64ê¸¸ 23, 8ì¸µ</p>
               </div>
             </div>
           </div>
 
-          {/* 상담 신청 폼 */}
+          {/* ìë´ ì ì²­ í¼ */}
           <div className="lg:col-span-2">
             <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-gray-200 p-8">
-              <h2 className="text-lg font-bold text-wishes-primary mb-6">온라인 상담 신청</h2>
+              <h2 className="text-lg font-bold text-wishes-primary mb-6">ì¨ë¼ì¸ ìë´ ì ì²­</h2>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">이름 *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ì´ë¦ *</label>
                   <input
                     type="text"
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary"
-                    placeholder="홍길동"
+                    placeholder="íê¸¸ë"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">연락처 *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ì°ë½ì² *</label>
                   <input
                     type="tel"
                     required
@@ -145,7 +145,7 @@ function ContactPageInner() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ì´ë©ì¼</label>
                   <input
                     type="email"
                     value={form.email}
@@ -156,13 +156,13 @@ function ContactPageInner() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">문의 내용</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">ë¬¸ì ë´ì©</label>
                   <textarea
                     rows={5}
                     value={form.message}
                     onChange={(e) => setForm({ ...form, message: e.target.value })}
                     className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary resize-none"
-                    placeholder="원하시는 매물 조건이나 문의 내용을 적어주세요"
+                    placeholder="ìíìë ë§¤ë¬¼ ì¡°ê±´ì´ë ë¬¸ì ë´ì©ì ì ì´ì£¼ì¸ì"
                   />
                 </div>
 
@@ -172,7 +172,7 @@ function ContactPageInner() {
                   className="w-full flex items-center justify-center gap-2 bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors disabled:opacity-50"
                 >
                   <Send className="w-4 h-4" />
-                  {submitting ? '전송 중...' : '상담 신청하기'}
+                  {submitting ? 'ì ì¡ ì¤...' : 'ìë´ ì ì²­íê¸°'}
                 </button>
               </div>
             </form>
