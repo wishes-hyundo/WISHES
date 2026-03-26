@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: '위시스부동산 | 서울·경기 종합부동산',
-    description: '서울·경기 전 지역 종합부동산 서비스. 1533-9580',
+    description: '서울·경기 전 지역 종합부동산 서비스. ',
     images: ['/og-image.png'],
   },
   alternates: {
@@ -113,9 +113,7 @@ export default function RootLayout({
               '@context': 'https://schema.org',
               '@type': 'RealEstateAgent',
               name: '위시스부동산중개법인',
-              url: 'https://wishes.co.kr',
-              telephone: '1533-9580',
-              email: 'wishes@wishes.co.kr',
+              url: 'https://wishes.co.kr',              email: 'wishes@wishes.co.kr',
               address: {
                 '@type': 'PostalAddress',
                 streetAddress: '신림로64길 23, 8층',
