@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Heart } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, BadgeCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useFavorites } from '@/contexts/FavoritesContext';
 
 interface HomeListingCardProps {
   listing: any;
@@ -27,11 +26,6 @@ const getDealBgGradient = (deal: string) => {
   }
 };
 
-// 서버/클라이언트 동일한 숫자 포맷 (hydration 안전)
-const formatNumber = (num: number): string => {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-};
-
 const formatPrice = (listing: any) => {
   const deposit = listing.deposit || 0;
   const monthly = listing.monthly || 0;
@@ -41,31 +35,18 @@ const formatPrice = (listing: any) => {
     if (price >= 10000) {
       const uk = Math.floor(price / 10000);
       const man = price % 10000;
-      return man > 0 ? `${uk}억 ${formatNumber(man)}` : `${uk}억`;
+      return man > 0 ? `${uk}억 ${man.toLocaleString()}` : `${uk}억`;
     }
-    return `${formatNumber(price)}`;
+    return `${price.toLocaleString()}`;
   } else if (listing.deal === '전세') {
     if (deposit >= 10000) {
       const uk = Math.floor(deposit / 10000);
       const man = deposit % 10000;
-      return `전세 ${man > 0 ? `${uk}억 ${formatNumber(man)}` : `${uk}억`}`;
+      return `전세 ${man > 0 ? `${uk}억 ${man.toLocaleString()}` : `${uk}억`}`;
     }
-    return `전세 ${formatNumber(deposit)}`;
+    return `전세 ${deposit.toLocaleString()}`;
   } else {
-    return `${formatNumber(deposit)}/${monthly}`;
-  }
-};
-
-// 서버/클라이언트 동일한 날짜 포맷 (hydration 안전)
-const formatDate = (dateStr: string | null | undefined): string => {
-  if (!dateStr) return '방금 전';
-  try {
-    const date = new Date(dateStr);
-    const month = date.getUTCMonth() + 1;
-    const day = date.getUTCDate();
-    return `${month}월 ${day}일`;
-  } catch {
-    return '방금 전';
+    return `${deposit.toLocaleString()}/${monthly}`;
   }
 };
 
@@ -75,23 +56,13 @@ const sqmToPyeong = (area: number | null | undefined) => {
 };
 
 export function HomeListingCard({ listing }: HomeListingCardProps) {
-  const { isFavorite, toggleFavorite } = useFavorites();
-  const fav = isFavorite(listing.id);
-
   // Supabase에서 가져온 이미지 (listing_images 조인)
   const images = listing.listing_images || [];
   const thumbUrl = images.length > 0 ? images[0].url : null;
-
   const price = formatPrice(listing);
   const area = listing.area_m2 || listing.area || 0;
   const floor = listing.floor_current || listing.floor || '';
   const pyeong = sqmToPyeong(area);
-
-  const handleFavoriteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    toggleFavorite(listing.id);
-  };
 
   return (
     <Link
@@ -101,7 +72,7 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
       {/* 이미지 영역 */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
         {thumbUrl ? (
-          <Image
+          <img
             src={thumbUrl}
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
@@ -110,12 +81,8 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
               (e.target as HTMLImageElement).style.display = 'none';
               (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
             }}
-          
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : null}
-
         {/* 이미지 없을 때 / 에러 시 플레이스홀더 */}
         <div className={cn(
           'absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200',
@@ -133,30 +100,18 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
         {/* 배지들 */}
         <div className="absolute inset-0 flex items-start justify-between p-3">
           <span className={cn(
-            'px-3 py-1 text-xs font-bold rounded-lg shadow-lg backdrop-blur-sm',
+            'px-3 py-1 text-xs font-bold rounded-full shadow-lg backdrop-blur-sm',
             getDealColor(listing.deal)
           )}>
             {listing.deal}
           </span>
-          <div className="flex items-center gap-2">
+
+          <div className="flex gap-2">
             {listing.elevator && (
               <span className="px-2 py-1 text-xs font-semibold bg-white/80 text-wishes-secondary rounded-lg shadow-sm">
                 엘리베이터
               </span>
             )}
-            {/* 찜(하트) 버튼 */}
-            <button
-              onClick={handleFavoriteClick}
-              className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center shadow-md transition-all duration-200 hover:scale-110',
-                fav
-                  ? 'bg-red-500 text-white'
-                  : 'bg-white/90 text-gray-400 hover:text-red-500'
-              )}
-              aria-label={fav ? '찜 해제' : '찜하기'}
-            >
-              <Heart className={cn('w-4 h-4', fav && 'fill-white')} />
-            </button>
           </div>
         </div>
 
@@ -212,17 +167,17 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
         <div className="flex flex-wrap gap-2 pt-2">
           {listing.parking && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-secondary/10 text-wishes-secondary rounded-full border border-wishes-secondary/20">
-              주차
+              🚗 주차
             </span>
           )}
           {listing.elevator && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-accent/10 text-wishes-accent rounded-full border border-wishes-accent/20">
-              엘리베이터
+              🚡 엘리베이터
             </span>
           )}
           {listing.pet && (
             <span className="px-2.5 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20">
-              반려동물
+              🐾 반려동물
             </span>
           )}
         </div>
@@ -235,7 +190,7 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {formatDate(listing.created_at)}
+            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '방금 전'}
           </span>
         </div>
       </div>
