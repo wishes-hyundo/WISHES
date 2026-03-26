@@ -60,7 +60,7 @@ export default function Header() {
             </div>
             <div className="hidden sm:block">
               <p className="text-sm font-bold text-wishes-primary leading-none">WISHES</p>
-              <p className="text-xs text-wishes-muted">위시스부동산</p>
+              <p className="text-xs text-wishes-muted">Real Estate</p>
             </div>
             <div className="sm:hidden">
               <p className="text-base font-bold text-wishes-primary">WISHES</p>
@@ -128,7 +128,7 @@ export default function Header() {
                         className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                       >
                         <Heart className="w-4 h-4 text-gray-400" />
-                        찜한 매물
+                        찘한 매물
                       </Link>
                       <button
                         onClick={() => { signOut(); setUserMenuOpen(false); }}
@@ -212,7 +212,7 @@ export default function Header() {
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-wishes-secondary border-2 border-wishes-secondary/20 hover:bg-wishes-secondary/5 transition-colors"
                   >
                     <User className="w-4 h-4" />
-                    간편 로그인
+                    ꂄ편 로그인
                   </button>
                 )
               )}
