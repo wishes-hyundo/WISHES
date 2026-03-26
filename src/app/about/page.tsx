@@ -1,4 +1,4 @@
-import { MapPin, Phone, Mail, Clock, Award, Users, Shield, Building2 } from 'lucide-react';
+import { MapPin, MessageCircle, Mail, Clock, Award, Users, Shield, Building2 } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -10,22 +10,46 @@ export default function AboutPage() {
   return (
     <div className="pt-16 min-h-screen">
       {/* 히어로 */}
-      <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
+      <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16">
         <div className="max-w-5xl mx-auto px-4 text-center">
           <h1 className="text-3xl md:text-4xl font-bold">회사 소개</h1>
-          <p className="mt-3 text-white/80">
-            서울·경기 종합부동산, 위시스부동산중개법인
+          <p className="mt-3 text-blue-200">
+            서울·경기 종핫부동산, 위시스부동산중개법인
           </p>
         </div>
       </section>
 
       <div className="max-w-5xl mx-auto px-4 py-12 space-y-12">
+        {/* 회사 정보 */}
+        <section className="bg-white rounded-xl border border-gray-200 p-8">
+          <h2 className="text-xl font-bold text-wishes-primary mb-6 flex items-center gap-2">
+            <Building2 className="w-6 h-6" />
+            회사 정보
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            {[
+              { label: '상호', value: '주식회사 위시스부동산중개법인' },
+              { label: '대표이사', value: '전유진' },
+              { label: '사업자등록번호', value: '445-86-01981' },
+              { label: '소재지', value: '서울특별시 관악구 신림로64길 23, 8층(신림동)' },
+              { label: '상담채널', value: '카카오톡 채널 (위시스부동산)' },
+              { label: '이메일', value: 'wishes@wishes.co.kr' },
+              { label: '영업시간', value: '평일 09:00 ~ 19:00 (주말 예약상담)' },
+              { label: '취급지역', value: '서울 전 지역 및 경기권' },
+            ].map((item) => (
+              <div key={item.label} className="flex gap-3 py-2 border-b border-gray-100">
+                <span className="text-gray-500 w-28 shrink-0">{item.label}</span>
+                <span className="text-gray-800 font-medium">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </section>
 
-        {/* 취급 매물 */}
+        {/* 취급 매뫸 */}
         <section className="bg-white rounded-xl border border-gray-200 p-8">
           <h2 className="text-xl font-bold text-wishes-primary mb-6 flex items-center gap-2">
             <Award className="w-6 h-6" />
-            취급 매물
+            취급 매뫸
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'].map((type) => (
@@ -82,26 +106,21 @@ export default function AboutPage() {
                 <span>서울특별시 관악구 신림로64길 23, 8층(신림동)</span>
               </div>
               <div className="flex items-center gap-3">
+                <MessageCircle className="w-4 h-4 text-wishes-secondary shrink-0" />
+                <a href="https://pf.kakao.com/_DxdSJs" target="_blank" rel="noopener noreferrer" className="text-wishes-secondary font-medium">카카오톡 상담</a>
               </div>
               <div className="flex items-center gap-3">
                 <Mail className="w-4 h-4 text-wishes-secondary shrink-0" />
+                <a href="mailto:wishes@wishes.co.kr" className="text-wishes-secondary">wishes@wishes.co.kr</a>
               </div>
               <div className="flex items-center gap-3">
                 <Clock className="w-4 h-4 text-wishes-secondary shrink-0" />
+                <span>평일 09:00 ~ 19:00 (주말 예약상담)</span>
               </div>
             </div>
-            {/* 카카오맵 */}
-            <div className="aspect-[16/10] rounded-lg overflow-hidden">
-              <iframe
-                src="https://maps.google.com/maps?q=%EC%84%9C%EC%9A%B8%ED%8A%B9%EB%B3%84%EC%8B%9C+%EA%B4%80%EC%95%85%EA%B5%AC+%EC%8B%A0%EB%A6%BC%EB%A1%9C64%EA%B8%B8+23&t=&z=17&ie=UTF8&iwloc=B&output=embed"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="위시스부동산 위치"
-              />
+            {/* 지도 placeholder - 카카오맵 적적 지도 삽입 가능 */}
+            <div className="aspect-[16/10] bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-sm">
+              <MapPin className="w-8 h-8" />
             </div>
           </div>
         </section>
