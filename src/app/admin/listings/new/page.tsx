@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -159,6 +159,43 @@ export default function NewListingPage() {
   const ADMIN_TOKEN = 'wishes2026';
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [toneStyle, setToneStyle] = useState<string>('warm_professional');
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // localStorage 자동 임시저장 - 복원
+  useEffect(() => {
+    const saved = localStorage.getItem('listing_draft');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setFormData(prev => ({ ...prev, ...parsed }));
+      } catch (e) {
+        console.error('임시저장 복원 실패:', e);
+      }
+    }
+  }, []);
+
+  // formData 변경 시 자동 저장 (1초 디바운스)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const dataToSave = { ...formData, images: [] };
+      localStorage.setItem('listing_draft', JSON.stringify(dataToSave));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [formData]);
+
+  // 페이지 이탈 방지
+  useEffect(() => {
+    const hasData = formData.title || formData.address || formData.description || formData.images.length > 0;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasData) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [formData.title, formData.address, formData.description, formData.images]);
 
   // 주소에서 시군구, 번지 정보 추출
   const parseAddress = (address: string) => {
@@ -353,6 +390,7 @@ export default function NewListingPage() {
             totalFloorArea: buildingData.totalFloorArea,
           } : undefined,
           additionalNotes: formData.description || undefined,
+          toneStyle,
         }),
       });
 
@@ -570,7 +608,7 @@ export default function NewListingPage() {
           totalFloors: formData.totalFloors,
           direction: formData.direction,
           features: formData.features,
-          toneStyle: 'warm_professional',
+          toneStyle,
         }),
       });
       const result = await response.json();
@@ -600,8 +638,19 @@ export default function NewListingPage() {
     const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.title || !formData.address) {
-      setSubmitMessage({ type: 'error', text: `필수 입력 항목을 확인해주세요: ${!formData.title ? '제목' : ''}${!formData.title && !formData.address ? ', ' : ''}${!formData.address ? '주소' : ''} 항목이 비어있습니다.` });
+    // 필수 입력 유효성 검사
+    const errors: string[] = [];
+    if (!formData.title) errors.push('제목');
+    if (!formData.address) errors.push('주소');
+    if (!formData.transactionType) errors.push('거래유형');
+    if (!formData.propertyType) errors.push('매물유형');
+    if (formData.transactionType === '매매' && !formData.price) errors.push('매매가');
+    if (formData.transactionType === '전세' && !formData.deposit) errors.push('보증금');
+    if (formData.transactionType === '월세' && (!formData.deposit || !formData.monthlyRent)) errors.push('보증금/월세');
+    if (formData.images.length === 0) errors.push('매물 이미지(최소 1장)');
+    setValidationErrors(errors);
+    if (errors.length > 0) {
+      setSubmitMessage({ type: 'error', text: `필수 입력 항목을 확인해주세요: ${errors.join(', ')} 항목이 비어있습니다.` });
       return;
     }
 
@@ -650,6 +699,7 @@ export default function NewListingPage() {
 
       if (result.success) {
         setSubmitMessage({ type: 'success', text: '매물이 성공적으로 등록되었습니다!' });
+        localStorage.removeItem('listing_draft');
         setTimeout(() => router.push('/admin'), 2000);
       } else {
         setSubmitMessage({ type: 'error', text: `매물 등록 실패: ${result.message || result.error || '서버 오류가 발생했습니다.'} (응답코드: ${response.status})` });
@@ -1468,6 +1518,28 @@ export default function NewListingPage() {
                 </div>
               )}
 
+              <div className="flex items-center gap-3 mb-3">
+                <label className="text-sm font-medium text-gray-700">AI 톤 스타일:</label>
+                <select
+                  value={toneStyle}
+                  onChange={(e) => setToneStyle(e.target.value)}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                >
+                  <option value="warm_professional">따뜻하고 전문적인</option>
+                  <option value="formal">격식있는 공식 톤</option>
+                  <option value="friendly">친근하고 편안한</option>
+                  <option value="luxury">고급스럽고 프리미엄</option>
+                  <option value="concise">간결하고 핵심적인</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={() => { if (confirm('임시저장된 내용을 삭제하시겠습니까?')) { localStorage.removeItem('listing_draft'); window.location.reload(); } }}
+                  className="ml-auto text-xs text-gray-400 hover:text-red-500 transition-colors"
+                >
+                  임시저장 삭제
+                </button>
+              </div>
+
               <textarea
                 value={formData.description}
                 onChange={(e) => updateField('description', e.target.value)}
@@ -1592,6 +1664,15 @@ export default function NewListingPage() {
                 </div>
               </div>
             </div>
+
+            {validationErrors.length > 0 && (
+              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-3">
+                <p className="text-sm font-medium text-amber-800 mb-2">다음 항목을 확인해주세요:</p>
+                <ul className="list-disc list-inside text-sm text-amber-700 space-y-1">
+                  {validationErrors.map((err, i) => <li key={i}>{err}</li>)}
+                </ul>
+              </div>
+            )}
 
             {submitMessage.text && (
               <div className={`p-4 rounded-lg text-sm ${
