@@ -35,18 +35,18 @@ const formatPrice = (listing: any) => {
     if (price >= 10000) {
       const uk = Math.floor(price / 10000);
       const man = price % 10000;
-      return man > 0 ? `${uk}억 ${man.toLocaleString()}` : `${uk}억`;
+      return man > 0 ? `${uk}억 ${man.toLocaleString('ko-KR')}` : `${uk}억`;
     }
-    return `${price.toLocaleString()}`;
+    return `${price.toLocaleString('ko-KR')}`;
   } else if (listing.deal === '전세') {
     if (deposit >= 10000) {
       const uk = Math.floor(deposit / 10000);
       const man = deposit % 10000;
-      return `전세 ${man > 0 ? `${uk}억 ${man.toLocaleString()}` : `${uk}억`}`;
+      return `전세 ${man > 0 ? `${uk}억 ${man.toLocaleString('ko-KR')}` : `${uk}억`}`;
     }
-    return `전세 ${deposit.toLocaleString()}`;
+    return `전세 ${deposit.toLocaleString('ko-KR')}`;
   } else {
-    return `${deposit.toLocaleString()}/${monthly}`;
+    return `${deposit.toLocaleString('ko-KR')}/${monthly}`;
   }
 };
 

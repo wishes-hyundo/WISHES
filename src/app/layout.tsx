@@ -137,7 +137,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col">
+      <body suppressHydrationWarning className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col">
         <ConditionalLayout>
           {children}
         </ConditionalLayout>

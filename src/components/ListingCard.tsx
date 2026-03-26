@@ -45,9 +45,9 @@ const formatAmount = (amount: number) => {
   if (amount >= 10000) {
     const uk = Math.floor(amount / 10000);
     const man = amount % 10000;
-    return man > 0 ? `${uk}억 ${man.toLocaleString()}` : `${uk}억`;
+    return man > 0 ? `${uk}억 ${man.toLocaleString('ko-KR')}` : `${uk}억`;
   }
-  return `${amount.toLocaleString()}`;
+  return `${amount.toLocaleString('ko-KR')}`;
 };
 
 const formatPrice = (listing: Listing) => {
