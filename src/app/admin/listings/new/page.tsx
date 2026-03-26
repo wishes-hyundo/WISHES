@@ -791,7 +791,6 @@ export default function NewListingPage() {
                 </div>
               </div>
               </div>
-            )}
             {buildingError && (
                 <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
                   <div className="flex items-start gap-2">
