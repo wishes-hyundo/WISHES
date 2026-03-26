@@ -971,6 +971,12 @@ export default function AdminPage() {
                       <option value="계약완료">계약완료</option>
                     </select>
                     <button
+                      onClick={() => router.push(`/admin/listings/${listing.id}/edit`)}
+                      className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs"
+                    >
+                      수정
+                    </button>
+                    <button
                       onClick={() => handleDeleteListing(listing.id)}
                       className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs"
                     >
