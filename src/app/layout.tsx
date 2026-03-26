@@ -7,14 +7,14 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
   manifest: '/manifest.json',
   title: {
-    default: 'WISHES | ìì¸Â·ê²½ê¸° ì¢í©ë¶ëì° ìë¹ì¤',
+    default: 'WISHES | 서울·경기 종합부동산 서비스',
     template: '%s | WISHES',
   },
-  description: 'ìì¸Â·ê²½ê¸° ì  ì§ì­ ìë£¸, í¬ë£¸, ì¤í¼ì¤í, ìíí¸ ì¢í©ë¶ëì° ì¤ê°. ì ì¸, ìì¸, ë§¤ë§¤ ë§¤ë¬¼ì ì§ëìì ì½ê² ì°¾ìë³´ì¸ì.',
-  keywords: ['ìì¸ ë¶ëì°', 'ê²½ê¸° ë¶ëì°', 'ìë£¸ ì ì¸', 'ìì¸ ë§¤ë¬¼', 'ì¤í¼ì¤í', 'ìíí¸ ë§¤ë§¤', 'WISHES', 'ì¢í©ë¶ëì°'],
+  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요.',
+  keywords: ['서울 부동산', '경기 부동산', '원룸 전세', '월세 매물', '오피스텔', '아파트 매매', 'WISHES', '종합부동산'],
   openGraph: {
-    title: 'WISHES | ìì¸Â·ê²½ê¸° ì¢í©ë¶ëì°',
-    description: 'ìì¸Â·ê²½ê¸° ì  ì§ì­ ì¢í©ë¶ëì°. ì§ëë¡ ë§¤ë¬¼ì ì½ê² ì°¾ìë³´ì¸ì.',
+    title: 'WISHES | 서울·경기 종합부동산',
+    description: '서울·경기 전 지역 종합부동산. 지도로 매물을 쉽게 찾아보세요.',
     url: 'https://wishes.co.kr',
     siteName: 'WISHES',
     locale: 'ko_KR',
@@ -23,13 +23,13 @@ export const metadata: Metadata = {
       url: '/og-image.png',
       width: 1200,
       height: 630,
-      alt: 'WISHES - ìì¸Â·ê²½ê¸° ì¢í©ë¶ëì°',
+      alt: 'WISHES - 서울·경기 종합부동산',
     }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'WISHES | ìì¸Â·ê²½ê¸° ì¢í©ë¶ëì°',
-    description: 'ìì¸Â·ê²½ê¸° ì  ì§ì­ ì¢í©ë¶ëì° ìë¹ì¤.',
+    title: 'WISHES | 서울·경기 종합부동산',
+    description: '서울·경기 전 지역 종합부동산 서비스.',
     images: ['/og-image.png'],
   },
   alternates: {
@@ -66,17 +66,13 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-        {/* ì¹´ì¹´ì¤ë§µ SDK */}
+        {/* 카카오맵 SDK */}
         <Script
-          strategy="beforeInteractive"
-        />
-
-                <Script
           src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=services,clusterer&autoload=false`}
           strategy="beforeInteractive"
         />
 
-          {/* Google Analytics */}
+        {/* Google Analytics */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"
           strategy="afterInteractive"
@@ -122,9 +118,9 @@ export default function RootLayout({
               sameAs: 'https://wishes.co.kr',
               address: {
                 '@type': 'PostalAddress',
-                streetAddress: 'ì ë¦¼ë¡64ê¸¸ 23, 8ì¸µ',
-                addressLocality: 'ê´ìêµ¬',
-                addressRegion: 'ìì¸í¹ë³ì',
+                streetAddress: '신림로64길 23, 8층',
+                addressLocality: '관악구',
+                addressRegion: '서울특별시',
                 postalCode: '08776',
                 addressCountry: 'KR',
               },
@@ -136,7 +132,7 @@ export default function RootLayout({
               openingHours: 'Mo-Fr 09:00-19:00',
               areaServed: {
                 '@type': 'State',
-                name: 'ìì¸í¹ë³ì ë° ê²½ê¸°ë',
+                name: '서울특별시 및 경기도',
               },
             }),
           }}
