@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase';
+import { createClient, createServerClient } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X, Eye, Hash } from 'lucide-react';
@@ -42,12 +42,18 @@ export default async function ListingDetailPage({ params }: Props) {
 
   if (!listing) notFound();
 
-  // 조회수 증가 (비동기, 실패해도 페이지 렌더링에 영향 없음)
-  supabase
-    .from('listings')
-    .update({ views: (listing.views || 0) + 1 })
-    .eq('id', listingId)
-    .then(() => {})
+  // 조회수 증가 (서버 클라이언트 사용 - RLS 우회)
+  try {
+    const serverSupabase = createServerClient();
+    serverSupabase
+      .from('listings')
+      .update({ views: (listing.views || 0) + 1 })
+      .eq('id', listingId)
+      .then(() => {})
+      .catch(() => {});
+  } catch (e) {
+    // service role key 없을 때 무시
+  }
     .catch(() => {});
 
   const { data: images } = await supabase
