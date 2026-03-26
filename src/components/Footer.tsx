@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MapPin, MapIcon, BookOpen, Instagram } from 'lucide-react';
+import { MapPin, MessageCircle, Mail, Clock, MapIcon, BookOpen, Instagram } from 'lucide-react';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -34,6 +34,9 @@ export function Footer() {
             </p>
             {/* 소셜 링크 */}
             <div className="flex gap-3 pt-2">
+              <a href="#" className="w-10 h-10 rounded-lg bg-white/10 hover:bg-wishes-accent/20 flex items-center justify-center transition-colors" aria-label="Kakao">
+                <span className="text-xs font-bold">카</span>
+              </a>
               <a href="#" className="w-10 h-10 rounded-lg bg-white/10 hover:bg-wishes-accent/20 flex items-center justify-center transition-colors" aria-label="Blog">
                 <BookOpen className="w-5 h-5" />
               </a>
@@ -94,10 +97,35 @@ export function Footer() {
             <h3 className="text-sm font-bold text-white/90 uppercase tracking-wider">연락처</h3>
             <ul className="space-y-4 text-sm">
               <li className="flex items-start gap-3 group cursor-pointer">
+                <MessageCircle className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div className="leading-relaxed">
+                  <p className="text-white/60 text-xs">카카오톡 상담</p>
+                  <a href="https://pf.kakao.com/_DxdSJs" target="_blank" rel="noopener noreferrer" className="text-white hover:text-wishes-accent font-semibold">
+                    카카오톡 채널
+                  </a>
+                </div>
+              </li>
+              <li className="flex items-start gap-3 group cursor-pointer">
                 <MapIcon className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                 <div className="leading-relaxed">
                   <p className="text-white/60 text-xs">주소</p>
                   <p className="text-white">서울특별시 관악구<br />신림로64길 23, 8층</p>
+                </div>
+              </li>
+              <li className="flex items-start gap-3 group cursor-pointer">
+                <Mail className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div className="leading-relaxed">
+                  <p className="text-white/60 text-xs">이메일</p>
+                  <a href="mailto:wishes@wishes.co.kr" className="text-white hover:text-wishes-accent">
+                    wishes@wishes.co.kr
+                  </a>
+                </div>
+              </li>
+              <li className="flex items-start gap-3 group cursor-pointer">
+                <Clock className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
+                <div className="leading-relaxed">
+                  <p className="text-white/60 text-xs">운영시간</p>
+                  <p className="text-white">평일 09:00~19:00<br />(주말 예약상담)</p>
                 </div>
               </li>
             </ul>
@@ -120,13 +148,9 @@ export function Footer() {
           </div>
 
           {/* 저작권 */}
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <a href="/privacy" className="text-xs text-white/60 hover:text-wishes-accent transition-colors">개인정보처리방침</a>
-            <span className="text-white/30">|</span>
-            <a href="/terms" className="text-xs text-white/60 hover:text-wishes-accent transition-colors">이용약관</a>
-          </div>
           <div className="text-center text-xs text-white/50">
             <p>&copy; {currentYear} WISHES Corp. All rights reserved.</p>
+            <p className="mt-2">서울특별시 중개사협회 | 공인중개사 신고번호</p>
           </div>
         </div>
       </div>
