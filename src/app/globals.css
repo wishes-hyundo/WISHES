@@ -40,9 +40,12 @@
 }
 
 body {
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', 'Apple SD Gothic Neo', sans-serif;
   font-feature-settings: 'ss01' on, 'ss02' on;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+  word-break: keep-all;
 }
 
 /* Premium card styles */
