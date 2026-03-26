@@ -6,6 +6,7 @@ import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/
 import ShareButton from '@/components/ShareButton';
 import RecentlyViewedTracker from '@/components/RecentlyViewedTracker';
 import type { Metadata } from 'next';
+import Image from 'next/image';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -179,11 +180,14 @@ export default async function ListingDetailPage({ params }: Props) {
             <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
               <div className="aspect-[16/10] bg-gray-100 relative">
                 {imageList.length > 0 && imageList[0].url ? (
-                  <img
+                  <Image
                     src={imageList[0].url}
                     alt={imageList[0].alt || listing.title}
                     className="w-full h-full object-cover"
-                  />
+                  
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gradient-to-br from-gray-100 to-gray-200">
                     <Building2 className="w-16 h-16 mb-2" />
@@ -200,12 +204,15 @@ export default async function ListingDetailPage({ params }: Props) {
               {imageList.length > 1 && (
                 <div className="flex gap-1 p-2 overflow-x-auto">
                   {imageList.map((img) => (
-                    <img
+                    <Image
                       key={img.id}
                       src={img.url}
                       alt={img.alt || ''}
                       className="w-20 h-16 object-cover rounded-lg border-2 border-transparent hover:border-wishes-secondary cursor-pointer"
-                    />
+                    
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+              />
                   ))}
                 </div>
               )}
