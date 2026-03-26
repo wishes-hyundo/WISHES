@@ -101,7 +101,7 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
       {/* 이미지 영역 */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
         {thumbUrl ? (
-          <img
+          <Image
             src={thumbUrl}
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
@@ -110,6 +110,9 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
               (e.target as HTMLImageElement).style.display = 'none';
               (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
             }}
+          
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : null}
 
