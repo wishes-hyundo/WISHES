@@ -18,6 +18,7 @@ const navItems = [
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, loading, signOut, setShowAuthModal } = useAuth();
@@ -106,8 +107,8 @@ export default function Header() {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
                   >
-                    {getUserAvatar() ? (
-                      <img src={getUserAvatar()!} alt="" className="w-8 h-8 rounded-full border-2 border-wishes-secondary/20" />
+                    {getUserAvatar() && !avatarError ? (
+                      <img src={getUserAvatar()!} alt="" className="w-8 h-8 rounded-full border-2 border-wishes-secondary/20" onError={() => setAvatarError(true)} />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-wishes-secondary/10 flex items-center justify-center">
                         <User className="w-4 h-4 text-wishes-secondary" />
@@ -194,8 +195,8 @@ export default function Header() {
                 user ? (
                   <div className="flex items-center justify-between px-4 py-2">
                     <div className="flex items-center gap-2">
-                      {getUserAvatar() ? (
-                        <img src={getUserAvatar()!} alt="" className="w-7 h-7 rounded-full" />
+                      {getUserAvatar() && !avatarError ? (
+                        <img src={getUserAvatar()!} alt="" className="w-7 h-7 rounded-full" onError={() => setAvatarError(true)} />
                       ) : (
                         <div className="w-7 h-7 rounded-full bg-wishes-secondary/10 flex items-center justify-center">
                           <User className="w-3.5 h-3.5 text-wishes-secondary" />
@@ -216,7 +217,7 @@ export default function Header() {
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-wishes-secondary border-2 border-wishes-secondary/20 hover:bg-wishes-secondary/5 transition-colors"
                   >
                     <User className="w-4 h-4" />
-                    ꂄ편 로그인
+                    간편 로그인
                   </button>
                 )
               )}
