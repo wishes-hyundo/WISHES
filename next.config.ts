@@ -35,6 +35,10 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'phinf.pstatic.net',
+        },
+        {
+          protocol: 'https',
+          hostname: 'pub-e16c7a50584c4db7be35717d6cd80716.r2.dev',
       },
     ],
   },
