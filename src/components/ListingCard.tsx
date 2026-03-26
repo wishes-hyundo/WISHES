@@ -17,11 +17,11 @@ const sqmToPyeong = (area: number) => {
 
 const getDealColor = (deal: string) => {
   switch (deal) {
-    case 'ì ì¸':
+    case '전세':
       return 'bg-wishes-secondary text-white';
-    case 'ìì¸':
+    case '월세':
       return 'bg-emerald-500 text-white';
-    case 'ë§¤ë§¤':
+    case '매매':
       return 'bg-wishes-accent text-white';
     default:
       return 'bg-gray-400 text-white';
@@ -30,11 +30,11 @@ const getDealColor = (deal: string) => {
 
 const getDealBgGradient = (deal: string) => {
   switch (deal) {
-    case 'ì ì¸':
+    case '전세':
       return 'from-wishes-secondary/20 to-wishes-secondary/0';
-    case 'ìì¸':
+    case '월세':
       return 'from-emerald-500/20 to-emerald-500/0';
-    case 'ë§¤ë§¤':
+    case '매매':
       return 'from-wishes-accent/20 to-wishes-accent/0';
     default:
       return 'from-gray-400/20 to-gray-400/0';
@@ -45,23 +45,23 @@ const formatAmount = (amount: number) => {
   if (amount >= 10000) {
     const uk = Math.floor(amount / 10000);
     const man = amount % 10000;
-    return man > 0 ? `${uk}ìµ ${man.toLocaleString()}` : `${uk}ìµ`;
+    return man > 0 ? `${uk}억 ${man.toLocaleString()}` : `${uk}억`;
   }
   return `${amount.toLocaleString()}`;
 };
 
 const formatPrice = (listing: Listing) => {
-  if (listing.deal === 'ë§¤ë§¤') {
+  if (listing.deal === '매매') {
     return formatAmount(listing.price || 0);
-  } else if (listing.deal === 'ì ì¸') {
-    return `ì ì¸ ${formatAmount(listing.deposit)}`;
+  } else if (listing.deal === '전세') {
+    return `전세 ${formatAmount(listing.deposit)}`;
   } else {
     return `${formatAmount(listing.deposit)}/${listing.monthly || 0}`;
   }
 };
 
 export function ListingCard({ listing, compact = false, onHover }: ListingCardProps) {
-  // Supabase ì¡°ì¸ ê²°ê³¼(listing_images) ëë ê¸°ì¡´ images íëìì ì´ë¯¸ì§ ì¶ì¶
+  // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
   const listingImages = (listing as any).listing_images || listing.images || [];
   const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
   const price = formatPrice(listing);
@@ -74,7 +74,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
         onMouseEnter={() => onHover?.(listing.id)}
         onMouseLeave={() => onHover?.(null)}
       >
-        {/* ì´ë¯¸ì§ */}
+        {/* 이미지 */}
         <div className="w-28 h-28 shrink-0 relative overflow-hidden bg-gray-100">
           {thumbUrl ? (
             <img
@@ -95,7 +95,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           </span>
         </div>
 
-        {/* ì ë³´ */}
+        {/* 정보 */}
         <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -105,12 +105,12 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
             <p className="text-xs text-gray-600 truncate mt-0.5">{listing.title}</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-wishes-muted">
-            <span>{listing.area_m2 || listing.area || 0}ã¡</span>
-            <span>Â·</span>
+            <span>{listing.area_m2 || listing.area || 0}㎡</span>
+            <span>·</span>
             <span>{listing.floor_current || listing.floor || ''}</span>
             {(listing as any).views > 0 && (
               <>
-                <span>Â·</span>
+                <span>·</span>
                 <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" />{(listing as any).views}</span>
               </>
             )}
@@ -127,9 +127,9 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      {/* ì´ë¯¸ì§ ìì­ */}
+      {/* 이미지 영역 */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
-        {/* ë°°ê²½ ì´ë¯¸ì§ */}
+        {/* 배경 이미지 */}
         {thumbUrl ? (
           <img
             src={thumbUrl}
@@ -143,15 +143,15 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           </div>
         )}
 
-        {/* ê·¸ëëì¸í¸ ì¤ë²ë ì´ */}
+        {/* 그래디언트 오버레이 */}
         <div className={cn(
           'absolute inset-0 bg-gradient-to-t transition-opacity group-hover:opacity-60 duration-300',
           getDealBgGradient(listing.deal)
         )}></div>
 
-        {/* ë°°ì§ë¤ */}
+        {/* 배지들 */}
         <div className="absolute inset-0 flex items-start justify-between p-3">
-          {/* ê±°ë ì í ë°°ì§ */}
+          {/* 거래 유형 배지 */}
           <span className={cn(
             'px-3 py-1 text-xs font-bold rounded-lg shadow-lg backdrop-blur-sm',
             getDealColor(listing.deal)
@@ -159,17 +159,17 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
             {listing.deal}
           </span>
 
-          {/* ì°ì¸¡ ë°°ì§ */}
+          {/* 우측 배지 */}
           <div className="flex gap-2">
             {listing.elevator && (
               <span className="px-2 py-1 text-xs font-semibold bg-white/80 text-wishes-secondary rounded-lg shadow-sm">
-                ìë¦¬ë² ì´í°
+                엘리베이터
               </span>
             )}
           </div>
         </div>
 
-        {/* ì°ì¸¡ íë¨ íì ë°°ì§ */}
+        {/* 우측 하단 타입 배지 */}
         <div className="absolute bottom-3 right-3">
           <span className="px-3 py-1 text-xs font-semibold bg-white/90 text-wishes-primary rounded-lg shadow-md backdrop-blur-sm">
             {listing.type}
@@ -177,30 +177,30 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
         </div>
       </div>
 
-      {/* ì ë³´ ìì­ */}
+      {/* 정보 영역 */}
       <div className="p-4 space-y-4">
-        {/* ê°ê²© */}
+        {/* 가격 */}
         <div className="space-y-1">
           <div className="flex items-baseline gap-2">
             <p className="text-2xl font-bold text-wishes-primary">{price}</p>
-            {listing.deal === 'ìì¸' && (
-              <p className="text-sm text-wishes-muted">/ ì</p>
+            {listing.deal === '월세' && (
+              <p className="text-sm text-wishes-muted">/ 월</p>
             )}
           </div>
         </div>
 
-        {/* ì ëª© */}
+        {/* 제목 */}
         <p className="text-sm font-semibold text-wishes-text line-clamp-2 group-hover:text-wishes-secondary transition-colors">
           {listing.title}
         </p>
 
-        {/* ê¸°ë³¸ ì ë³´ */}
+        {/* 기본 정보 */}
         <div className="flex items-center gap-4 text-xs text-wishes-muted">
           {(listing.area_m2 || listing.area) ? (
             <div className="flex items-center gap-1">
               <Maximize className="w-4 h-4 text-wishes-secondary/60" />
-              <span>{listing.area_m2 || listing.area}ã¡</span>
-              <span className="text-gray-400">({sqmToPyeong(listing.area_m2 || listing.area)}í)</span>
+              <span>{listing.area_m2 || listing.area}㎡</span>
+              <span className="text-gray-400">({sqmToPyeong(listing.area_m2 || listing.area)}평)</span>
             </div>
           ) : null}
           {(listing.floor_current || listing.floor) && (
@@ -211,32 +211,32 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           )}
         </div>
 
-        {/* ìì¹ */}
+        {/* 위치 */}
         <div className="flex items-center gap-1 text-xs text-wishes-muted">
           <MapPin className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
-          <span className="truncate">{listing.dong} Â· {listing.address.split(' ').slice(-1)[0]}</span>
+          <span className="truncate">{listing.dong} · {listing.address.split(' ').slice(-1)[0]}</span>
         </div>
 
-        {/* ìµì íê·¸ */}
+        {/* 옵션 태그 */}
         <div className="flex flex-wrap gap-2 pt-2">
           {listing.parking && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-secondary/10 text-wishes-secondary rounded-full border border-wishes-secondary/20 hover:bg-wishes-secondary/20 transition-colors">
-              ð ì£¼ì°¨
+              🚗 주차
             </span>
           )}
           {listing.elevator && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-accent/10 text-wishes-accent rounded-full border border-wishes-accent/20 hover:bg-wishes-accent/20 transition-colors">
-              ð¡ ìë¦¬ë² ì´í°
+              💡 엘리베이터
             </span>
           )}
           {listing.pet && (
             <span className="px-2.5 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
-              ð¾ ë°ë ¤ëë¬¼
+              🐾 반려동물
             </span>
           )}
         </div>
 
-        {/* íë¨ ì ë³´ */}
+        {/* 하단 정보 */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
             <span className="text-wishes-muted font-mono flex items-center gap-1">
@@ -252,7 +252,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : 'ë°©ê¸ ì '}
+            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '방금 전'}
           </span>
         </div>
       </div>
