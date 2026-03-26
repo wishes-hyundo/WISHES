@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, BadgeCheck } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Eye, Hash } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HomeListingCardProps {
@@ -184,9 +184,17 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
 
         {/* 하단 정보 */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <BadgeCheck className="w-4 h-4 text-wishes-secondary/60" />
-            <span className="text-wishes-muted">신뢰거래</span>
+          <div className="flex items-center gap-3">
+            <span className="text-wishes-muted font-mono flex items-center gap-1">
+              <Hash className="w-3 h-3" />
+              W-{listing.id}
+            </span>
+            {listing.views > 0 && (
+              <span className="text-wishes-muted flex items-center gap-1">
+                <Eye className="w-3 h-3" />
+                {listing.views}
+              </span>
+            )}
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />

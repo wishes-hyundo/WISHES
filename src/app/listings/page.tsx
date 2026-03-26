@@ -1,53 +1,146 @@
 import { Suspense } from 'react';
+import { createClient } from '@/lib/supabase';
+import { ListingCard } from '@/components/ListingCard';
+import { ListingFilters } from '@/components/ListingFilters';
+import { Building2 } from 'lucide-react';
 import type { Metadata } from 'next';
-import ListingsClient from './ListingsClient';
 
 export const metadata: Metadata = {
   title: '매물검색',
   description: '서울·경기 전 지역 원룸, 투룸, 오피스텔 매물을 검색하세요.',
 };
 
-function ListingsSkeleton() {
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-6">
-        <div className="h-10 bg-gray-100 rounded-lg animate-pulse mb-4" />
-        <div className="flex gap-3">
-          <div className="h-9 w-28 bg-gray-100 rounded-lg animate-pulse" />
-          <div className="h-9 w-28 bg-gray-100 rounded-lg animate-pulse" />
-          <div className="h-9 w-24 bg-gray-100 rounded-lg animate-pulse" />
-          <div className="h-9 w-24 bg-gray-100 rounded-lg animate-pulse" />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 animate-pulse">
-            <div className="h-48 bg-gray-200" />
-            <div className="p-4 space-y-3">
-              <div className="h-4 bg-gray-200 rounded w-1/3" />
-              <div className="h-6 bg-gray-200 rounded w-2/3" />
-              <div className="h-4 bg-gray-200 rounded w-full" />
-              <div className="h-4 bg-gray-200 rounded w-1/2" />
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+interface SearchParams {
+  deal?: string;
+  type?: string;
+  dong?: string;
+  minDeposit?: string;
+  maxDeposit?: string;
+  sort?: string;
+  page?: string;
 }
 
-export default function ListingsPage() {
+export default async function ListingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+  const page = parseInt(params.page || '1', 10);
+  const pageSize = 12;
+  const offset = (page - 1) * pageSize;
+
+  const supabase = createClient();
+
+  // 매물 조회 쿼리 구성
+  let query = supabase
+    .from('listings')
+    .select('*, listing_images(*)')
+    .eq('status', '가용');
+
+  // 필터 조건 적용
+  if (params.deal) {
+    query = query.eq('deal', params.deal);
+  }
+  if (params.type) {
+    query = query.eq('type', params.type);
+  }
+  if (params.dong) {
+    query = query.eq('dong', params.dong);
+  }
+  if (params.minDeposit) {
+    query = query.gte('deposit', parseInt(params.minDeposit));
+  }
+  if (params.maxDeposit) {
+    query = query.lte('deposit', parseInt(params.maxDeposit));
+  }
+
+  // 정렬
+  const sortColumn = params.sort === 'price' ? 'deposit'
+    : params.sort === 'area' ? 'area_m2'
+    : 'created_at';
+
+  query = query.order(sortColumn, { ascending: false });
+
+  // 페이지네이션
+  query = query.range(offset, offset + pageSize - 1);
+
+  const { data: allListings } = await query;
+  const listings = allListings || [];
+
+  // 동별 목록 (필터용)
+  const { data: dongResults } = await supabase
+    .from('listings')
+    .select('dong')
+    .eq('status', '가용');
+
+  // 중복 제거
+  const dongs = [...new Set((dongResults || []).map(r => r.dong))];
+
   return (
     <div className="pt-16 min-h-screen">
+      {/* 페이지 헤더 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <h1 className="text-2xl font-bold text-wishes-primary">매물 검색</h1>
-          <p className="text-sm text-gray-500 mt-1">원하시는 지역의 매물을 검색하세요</p>
+          <p className="text-sm text-gray-500 mt-1">
+            원하시는 지역의 매물을 검색하세요
+          </p>
         </div>
       </div>
-      <Suspense fallback={<ListingsSkeleton />}>
-        <ListingsClient />
-      </Suspense>
+
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* 필터 */}
+        <Suspense fallback={<div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 animate-pulse h-16" />}>
+          <ListingFilters
+            dongs={dongs}
+            currentFilters={params}
+          />
+        </Suspense>
+
+        {/* 결과 */}
+        {listings.length > 0 ? (
+          <>
+            <p className="text-sm text-gray-500 mb-4">
+              총 <strong className="text-wishes-primary">{listings.length}</strong>건의 매물
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {listings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing as any} />
+              ))}
+            </div>
+
+            {/* 페이지네이션 (간단 버전) */}
+            <div className="flex justify-center gap-2 mt-10">
+              {page > 1 && (
+                <a
+                  href={`/listings?${new URLSearchParams({ ...params, page: String(page - 1) })}`}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                >
+                  이전
+                </a>
+              )}
+              <span className="px-4 py-2 bg-wishes-primary text-white rounded-lg text-sm">
+                {page}
+              </span>
+              {listings.length === pageSize && (
+                <a
+                  href={`/listings?${new URLSearchParams({ ...params, page: String(page + 1) })}`}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                >
+                  다음
+                </a>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-20 bg-white rounded-xl border border-gray-200 mt-4">
+            <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">검색 조건에 맞는 매물이 없습니다</p>
+            <p className="text-sm text-gray-400 mt-1">필터를 변경해보세요</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

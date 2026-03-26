@@ -1,6 +1,6 @@
-// ────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Admin API: GET, POST, PUT /api/admin/listings
-// ────────────────────────────────────────
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
@@ -9,14 +9,14 @@ import { z } from 'zod';
 // 요청 검증 스키마
 const createListingSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요'),
-  type: z.enum(['원룸', '투룸', '쓰리룸+', '오피스텔', '아파트', '상가', '사무실']),
+  type: z.enum(['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실']),
   deal: z.enum(['전세', '월세', '매매']),
   deposit: z.number().int().nonnegative().default(0),
   monthly: z.number().int().nonnegative().optional().nullable(),
   price: z.number().int().nonnegative().optional().nullable(),
   maintenance_fee: z.number().int().nonnegative().default(0).optional(),
   maintenance_includes: z.array(z.string()).optional().nullable(),
-  area_m2: z.number().nonnegative().default(0),
+  area_m2: z.number().positive(),
   area_supply_m2: z.number().positive().optional().nullable(),
   area_land_m2: z.number().positive().optional().nullable(),
   floor_current: z.string().optional().nullable(),
@@ -27,7 +27,7 @@ const createListingSchema = z.object({
   heating_type: z.string().optional().nullable(),
   address: z.string().min(1),
   address_detail: z.string().optional().nullable(),
-  dong: z.string().optional().nullable(),
+  dong: z.string().min(1),
   lat: z.number().optional().nullable(),
   lng: z.number().optional().nullable(),
   description: z.string().optional().nullable(),
@@ -50,25 +50,7 @@ const createListingSchema = z.object({
 function verifyAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
   const password = authHeader?.replace('Bearer ', '');
-  // 쿠키 기반 인증도 허용 (admin 세션)
-  const adminCookie = request.cookies.get('admin_session')?.value;
-  return password === 'wishes2026' || adminCookie === 'wishes2026';
-}
-
-/**
- * FormData에서 숫자 파싱 (빈 문자열은 null 반환)
- */
-function parseNumber(value: string | null): number | null {
-  if (!value || value === '' || value === '0') return value === '0' ? 0 : null;
-  const num = Number(value);
-  return isNaN(num) ? null : num;
-}
-
-/**
- * FormData에서 boolean 파싱
- */
-function parseBool(value: string | null): boolean {
-  return value === 'true';
+  return password === 'wishes2026';
 }
 
 /**
@@ -93,7 +75,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('매물 조회 오류:', error);
       return NextResponse.json(
-        { success: false, error: '매물 조회에 실패했습니다' },
+        { success: false, error: '매물 조회에 실패했습니다', detail: error?.message || String(error) },
         { status: 500 }
       );
     }
@@ -112,108 +94,24 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/admin/listings - 매물 생성 (JSON + FormData 모두 지원)
+ * POST /api/admin/listings - 매물 생성
+ * 이미지 URL 배열이 포함된 경우, 매물 생성 후 listing_images 테이블에 연결
  */
 export async function POST(request: NextRequest) {
   try {
-    // Content-Type 확인
-    const contentType = request.headers.get('content-type') || '';
-    let listingData: Record<string, any>;
-    let imageFiles: File[] = [];
-
-    if (contentType.includes('multipart/form-data')) {
-      // FormData 처리 (매물등록 폼에서 전송)
-      const formData = await request.formData();
-
-      // 이미지 파일 추출
-      const images = formData.getAll('images');
-      imageFiles = images.filter(img => img instanceof File) as File[];
-
-      // features, maintenance_includes JSON 파싱
-      let maintenanceIncludes: string[] = [];
-      let features: string[] = [];
-      try {
-        maintenanceIncludes = JSON.parse(formData.get('maintenance_includes') as string || '[]');
-      } catch { maintenanceIncludes = []; }
-      try {
-        features = JSON.parse(formData.get('features') as string || '[]');
-      } catch { features = []; }
-
-      listingData = {
-        title: formData.get('title') as string || '',
-        type: formData.get('type') as string || '',
-        deal: formData.get('deal') as string || '',
-        deposit: parseNumber(formData.get('deposit') as string) ?? 0,
-        monthly: parseNumber(formData.get('monthly') as string),
-        price: parseNumber(formData.get('price') as string),
-        maintenance_fee: parseNumber(formData.get('maintenance_fee') as string) ?? 0,
-        maintenance_includes: maintenanceIncludes.length > 0 ? maintenanceIncludes : null,
-        area_m2: parseNumber(formData.get('area_m2') as string) ?? 0,
-        area_supply_m2: parseNumber(formData.get('area_supply_m2') as string),
-        rooms: parseNumber(formData.get('rooms') as string),
-        bathrooms: parseNumber(formData.get('bathrooms') as string),
-        floor_current: formData.get('floor_current') as string || '',
-        floor_total: formData.get('floor_total') as string || null,
-        direction: formData.get('direction') as string || null,
-        heating_type: formData.get('heating_type') as string || null,
-        address: formData.get('address') as string || '',
-        address_detail: formData.get('address_detail') as string || null,
-        dong: formData.get('dong') as string || '',
-        description: formData.get('description') as string || null,
-        available_date: formData.get('available_date') as string || null,
-        built_year: formData.get('built_year') as string || null,
-        parking: parseBool(formData.get('parking') as string),
-        elevator: parseBool(formData.get('elevator') as string),
-        pet: parseBool(formData.get('pet') as string),
-        balcony: parseBool(formData.get('balcony') as string),
-        full_option: parseBool(formData.get('full_option') as string),
-        loan_available: parseBool(formData.get('loan_available') as string),
-      };
-    } else {
-      // JSON 처리 (기존 API 호환)
-      const rawData = await request.json();
-      // Map frontend field names to API field names
-      listingData = {
-        title: rawData.title || '',
-        type: rawData.type || rawData.propertyType || '',
-        deal: rawData.deal || rawData.transactionType || '',
-        deposit: Number(rawData.deposit) || 0,
-        monthly: rawData.monthly || rawData.monthlyRent || null,
-        price: rawData.price || null,
-        maintenance_fee: Number(rawData.maintenance_fee) || 0,
-        maintenance_includes: rawData.maintenance_includes || rawData.features || null,
-        area_m2: Number(rawData.area_m2 || rawData.area) || 0,
-        floor_current: rawData.floor_current || rawData.floor || null,
-        floor_total: rawData.floor_total || rawData.totalFloors || null,
-        rooms: rawData.rooms ? Number(rawData.rooms) : null,
-        bathrooms: rawData.bathrooms ? Number(rawData.bathrooms) : null,
-        direction: rawData.direction || null,
-        address: rawData.address || '',
-        address_detail: rawData.address_detail || rawData.addressDetail || null,
-        dong: rawData.dong || null,
-        description: rawData.description || null,
-        available_date: rawData.available_date || rawData.moveInDate || null,
-        built_year: rawData.built_year || rawData.approvalDate || null,
-        parking: rawData.parking || false,
-        elevator: rawData.elevator || false,
-        pet: rawData.pet || false,
-        balcony: rawData.balcony || false,
-        full_option: rawData.full_option || false,
-        loan_available: rawData.loan_available !== undefined ? rawData.loan_available : true,
-        status: rawData.status || '\uAC00\uC6A9',
-        heating_type: rawData.heating_type || null,
-        lat: rawData.lat || null,
-        lng: rawData.lng || null,
-        area_supply_m2: rawData.area_supply_m2 ? Number(rawData.area_supply_m2) : null,
-        area_land_m2: rawData.area_land_m2 ? Number(rawData.area_land_m2) : null,
-      };
+    if (!verifyAuth(request)) {
+      return NextResponse.json(
+        { success: false, error: '인증 실패' },
+        { status: 401 }
+      );
     }
 
-    const parsed = createListingSchema.safeParse(listingData);
+    const body = await request.json();
+    const parsed = createListingSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors.map(function(e) { return (e.path.join('.') || '알수없음') + ': ' + e.message; }).join(', '), message: parsed.error.errors.map(function(e) { return (e.path.join('.') || '알수없음') + ': ' + e.message; }).join(', ') },
+        { success: false, error: parsed.error.errors[0].message, detail: JSON.stringify(parsed.error.errors) },
         { status: 400 }
       );
     }
@@ -221,43 +119,43 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
 
     // images는 별도 처리 (listings 테이블에는 포함되지 않음)
-    const { images: imageUrls, ...listingFields } = parsed.data;
+    const { images, ...listingData } = parsed.data;
 
     const { data, error } = await supabase
       .from('listings')
       .insert({
-        title: parsed.data.title,
-        type: parsed.data.type,
-        deal: parsed.data.deal,
-        deposit: parsed.data.deposit,
-        monthly: parsed.data.monthly || null,
-        price: parsed.data.price || null,
-        maintenance_fee: parsed.data.maintenance_fee || 0,
-        maintenance_includes: parsed.data.maintenance_includes || null,
-        area_m2: parsed.data.area_m2,
-        area_supply_m2: parsed.data.area_supply_m2 || null,
-        area_land_m2: parsed.data.area_land_m2 || null,
-        floor_current: parsed.data.floor_current,
-        floor_total: parsed.data.floor_total || null,
-        rooms: parsed.data.rooms || null,
-        bathrooms: parsed.data.bathrooms || null,
-        direction: parsed.data.direction || null,
-        heating_type: parsed.data.heating_type || null,
-        address: parsed.data.address,
-        address_detail: parsed.data.address_detail || null,
-        dong: parsed.data.dong,
-        lat: parsed.data.lat || null,
-        lng: parsed.data.lng || null,
-        description: parsed.data.description || null,
-        available_date: parsed.data.available_date || null,
-        built_year: parsed.data.built_year || null,
-        parking: parsed.data.parking || false,
-        elevator: parsed.data.elevator || false,
-        pet: parsed.data.pet || false,
-        balcony: parsed.data.balcony || false,
-        full_option: parsed.data.full_option || false,
-        loan_available: parsed.data.loan_available ?? true,
-        status: parsed.data.status || '가용',
+        title: listingData.title,
+        type: listingData.type,
+        deal: listingData.deal,
+        deposit: listingData.deposit,
+        monthly: listingData.monthly || null,
+        price: listingData.price || null,
+        maintenance_fee: listingData.maintenance_fee || 0,
+        maintenance_includes: listingData.maintenance_includes || null,
+        area_m2: listingData.area_m2,
+        area_supply_m2: listingData.area_supply_m2 || null,
+        area_land_m2: listingData.area_land_m2 || null,
+        floor_current: listingData.floor_current || null,
+        floor_total: listingData.floor_total || null,
+        rooms: listingData.rooms || null,
+        bathrooms: listingData.bathrooms || null,
+        direction: listingData.direction || null,
+        heating_type: listingData.heating_type || null,
+        address: listingData.address,
+        address_detail: listingData.address_detail || null,
+        dong: listingData.dong,
+        lat: listingData.lat || null,
+        lng: listingData.lng || null,
+        description: listingData.description || null,
+        available_date: listingData.available_date || null,
+        built_year: listingData.built_year || null,
+        parking: listingData.parking || false,
+        elevator: listingData.elevator || false,
+        pet: listingData.pet || false,
+        balcony: listingData.balcony || false,
+        full_option: listingData.full_option || false,
+        loan_available: listingData.loan_available ?? true,
+        status: listingData.status || '가용',
       })
       .select()
       .single();
@@ -270,44 +168,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 이미지 파일이 있으면 Supabase Storage에 업로드
-    if (imageFiles.length > 0 && data?.id) {
-      const uploadedUrls: string[] = [];
-      for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        const ext = file.name.split('.').pop() || 'jpg';
-        const filePath = `listings/${data.id}/${i + 1}.${ext}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('listing-images')
-          .upload(filePath, file, { upsert: true });
-
-        if (!uploadError) {
-          const { data: urlData } = supabase.storage
-            .from('listing-images')
-            .getPublicUrl(filePath);
-          uploadedUrls.push(urlData.publicUrl);
-        }
-      }
-
-      // 이미지 URL을 listings 테이블에 업데이트
-      if (uploadedUrls.length > 0) {
-        await supabase
-          .from('listings')
-          .update({ images: uploadedUrls })
-          .eq('id', data.id);
-      }
-    }
-
     // 이미지 URL이 있으면 listing_images 테이블에 연결
-    let imageResults = [];
-    if (imageUrls && imageUrls.length > 0 && data?.id) {
-      const imageInserts = imageUrls.map((url, index) => ({
+    let imageResults: any[] = [];
+    if (images && images.length > 0 && data?.id) {
+      const imageInserts = images.map((url: string, index: number) => ({
         listing_id: data.id,
         url: url,
-        alt: data.title + ' 이미지 ' + (index + 1),
+        alt: `${listingData.title} 이미지 ${index + 1}`,
         sort_order: index,
-        is_thumbnail: index === 0,
+        is_thumbnail: index === 0, // 첫 번째 이미지를 대표 이미지로
       }));
 
       const { data: imgData, error: imgError } = await supabase
@@ -317,6 +186,7 @@ export async function POST(request: NextRequest) {
 
       if (imgError) {
         console.error('이미지 연결 오류:', imgError);
+        // 매물은 생성되었으므로 이미지 연결 실패는 경고만 반환
       } else {
         imageResults = imgData || [];
       }
@@ -332,10 +202,10 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error('매물 생성 오류:', error);
     return NextResponse.json(
-      { success: false, error: '매물 생성에 실패했습니다' },
+      { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
       { status: 500 }
     );
   }
@@ -354,7 +224,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, ...updateData } = body;
+    const { id, images, ...updateData } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -374,33 +244,76 @@ export async function PUT(request: NextRequest) {
 
     const supabase = createServerClient();
 
+    // 업데이트할 필드 준비 (undefined 제거)
     const updateValues: Record<string, any> = {};
     Object.entries(parsed.data).forEach(([key, value]) => {
-      if (value !== undefined) {
+      if (value !== undefined && key !== 'images') {
         updateValues[key] = value;
       }
     });
 
-    if (Object.keys(updateValues).length === 0) {
+    if (Object.keys(updateValues).length === 0 && !images) {
       return NextResponse.json(
         { success: false, error: '수정할 필드가 없습니다' },
         { status: 400 }
       );
     }
 
-    const { data, error } = await supabase
-      .from('listings')
-      .update(updateValues)
-      .eq('id', id)
-      .select()
-      .single();
+    let data = null;
 
-    if (error) {
-      console.error('매물 수정 오류:', error);
-      return NextResponse.json(
-        { success: false, error: '매물 수정에 실패했습니다' },
-        { status: 500 }
-      );
+    // 매물 기본 정보 수정
+    if (Object.keys(updateValues).length > 0) {
+      const { data: updatedData, error } = await supabase
+        .from('listings')
+        .update(updateValues)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('매물 수정 오류:', error);
+        return NextResponse.json(
+          { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
+          { status: 500 }
+        );
+      }
+
+      data = updatedData;
+    }
+
+    // 이미지 배열이 제공된 경우, 기존 이미지를 교체
+    if (images && Array.isArray(images)) {
+      // 기존 이미지 삭제
+      await supabase
+        .from('listing_images')
+        .delete()
+        .eq('listing_id', id);
+
+      // 새 이미지 삽입
+      if (images.length > 0) {
+        const imageInserts = images.map((url: string, index: number) => ({
+          listing_id: id,
+          url: url,
+          alt: `매물 이미지 ${index + 1}`,
+          sort_order: index,
+          is_thumbnail: index === 0,
+        }));
+
+        await supabase
+          .from('listing_images')
+          .insert(imageInserts);
+      }
+    }
+
+    if (!data) {
+      // 이미지만 수정한 경우 매물 데이터 다시 조회
+      const { data: fetchedData } = await supabase
+        .from('listings')
+        .select('*, listing_images(*)')
+        .eq('id', id)
+        .single();
+
+      data = fetchedData;
     }
 
     if (!data) {
@@ -414,10 +327,10 @@ export async function PUT(request: NextRequest) {
       success: true,
       data,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('매물 수정 오류:', error);
     return NextResponse.json(
-      { success: false, error: '매물 수정에 실패했습니다' },
+      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
       { status: 500 }
     );
   }

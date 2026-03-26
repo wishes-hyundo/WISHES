@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X, Eye, Hash } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
 import ImageGallery from '@/components/ImageGallery';
 import type { Metadata } from 'next';
@@ -41,6 +41,14 @@ export default async function ListingDetailPage({ params }: Props) {
     .single();
 
   if (!listing) notFound();
+
+  // 조회수 증가 (비동기, 실패해도 페이지 렌더링에 영향 없음)
+  supabase
+    .from('listings')
+    .update({ views: (listing.views || 0) + 1 })
+    .eq('id', listingId)
+    .then(() => {})
+    .catch(() => {});
 
   const { data: images } = await supabase
     .from('listing_images')
@@ -87,6 +95,16 @@ export default async function ListingDetailPage({ params }: Props) {
 
             {/* 상세 정보 */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <div className="flex items-center gap-3 mb-1">
+                <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
+                  <Hash className="w-3 h-3" /> W-{listing.id}
+                </span>
+                {listing.views > 0 && (
+                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                    <Eye className="w-3 h-3" /> 조회 {listing.views}
+                  </span>
+                )}
+              </div>
               <h1 className="text-2xl font-bold text-wishes-primary">{listing.title}</h1>
               <p className="text-3xl font-bold text-wishes-accent mt-2">{price.main}</p>
 
@@ -103,7 +121,7 @@ export default async function ListingDetailPage({ params }: Props) {
 
               {/* 옵션 */}
               <div className="mt-6 pt-6 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시섰</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h3>
                 <div className="flex flex-wrap gap-2">
                   <OptionBadge label="주차" available={listing.parking ?? false} />
                   <OptionBadge label="엘리베이터" available={listing.elevator ?? false} />

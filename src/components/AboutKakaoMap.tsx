@@ -38,7 +38,7 @@ export default function AboutKakaoMap() {
           map,
         });
 
-        // 인포위도우
+        // 인포윈도우
         const infowindow = new kakao.maps.InfoWindow({
           content: `<div style="padding:8px 12px;font-size:13px;font-weight:600;white-space:nowrap;">WISHES</div>`,
         });

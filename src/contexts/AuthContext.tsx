@@ -39,9 +39,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        if (session?.user) {
-          setShowAuthModal(false);
-        }
       }
     );
 
@@ -57,16 +54,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
     });
     if (error) {
-      console.error('OAuth error:', error.message);
+      console.error('소셜 로그인 오류:', error.message);
     }
   }, []);
 
+  // 네이버는 Supabase 네이티브 미지원 → Custom OIDC 또는 별도 처리
   const signInWithNaver = useCallback(() => {
-    const clientId = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
-    const redirectUri = encodeURIComponent(`${window.location.origin}/auth/callback?provider=naver`);
-    const state = Math.random().toString(36).substring(7);
-    const naverAuthUrl = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${clientId}&redirect_uri=${redirectUri}&state=${state}`;
-    window.location.href = naverAuthUrl;
+    const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || '';
+    const REDIRECT_URI = `${window.location.origin}/auth/callback?provider=naver`;
+    const STATE = Math.random().toString(36).substring(7);
+
+    // 네이버 로그인 페이지로 리다이렉트
+    window.location.href =
+      `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}`;
   }, []);
 
   const signOut = useCallback(async () => {
@@ -77,16 +77,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{
-      user,
-      session,
-      loading,
-      signInWithProvider,
-      signInWithNaver,
-      signOut,
-      showAuthModal,
-      setShowAuthModal,
-    }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        session,
+        loading,
+        signInWithProvider,
+        signInWithNaver,
+        signOut,
+        showAuthModal,
+        setShowAuthModal,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

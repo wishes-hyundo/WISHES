@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase';
 /**
  * 매물 목록 조회
  * @query ids - 매물 ID 목록 (콤마 구분, 비교 페이지용)
- * @query deal - 거래 유형 (전세/월세/맠매)
+ * @query deal - 거래 유형 (전세/월세/매매)
  * @query type - 매물 유형 (원룸/투룸/쓰리룸/오피스텔/아파트/상가/사무실)
  * @query dong - 동 이름
  * @query minDeposit - 최소 보증금 (만원)
