@@ -160,18 +160,9 @@ export default async function ListingDetailPage({ params }: Props) {
             <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-24">
               <h3 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h3>
 
-              <a
-                href={`https://pf.kakao.com/_DxdSJs`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full bg-yellow-400 text-yellow-900 py-3 rounded-xl font-bold hover:bg-yellow-300 transition-colors"
-              >
-                카카오톡 상담
-              </a>
-
               <Link
                 href={`/contact?listing=${listing.id}`}
-                className="flex items-center justify-center gap-2 w-full border-2 border-wishes-primary text-wishes-primary py-3 rounded-xl font-bold mt-3 hover:bg-blue-50 transition-colors"
+                className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors"
               >
                 온라인 상담 신청
               </Link>
