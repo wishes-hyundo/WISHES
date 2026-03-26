@@ -33,18 +33,18 @@ export default function ListingsClient() {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
 
-  const page = parseInt(searchParams.get('page') || '1', 10);
+  const page = parseInt(searchParams?.get('page') || '1', 10);
   const pageSize = 12;
 
   const currentFilters: Record<string, string | undefined> = {
-    search: searchParams.get('search') || undefined,
-    deal: searchParams.get('deal') || undefined,
-    type: searchParams.get('type') || undefined,
-    dong: searchParams.get('dong') || undefined,
-    sort: searchParams.get('sort') || undefined,
-    listingNumber: searchParams.get('listingNumber') || undefined,
-    minDeposit: searchParams.get('minDeposit') || undefined,
-    maxDeposit: searchParams.get('maxDeposit') || undefined,
+    search: searchParams?.get('search') || undefined,
+    deal: searchParams?.get('deal') || undefined,
+    type: searchParams?.get('type') || undefined,
+    dong: searchParams?.get('dong') || undefined,
+    sort: searchParams?.get('sort') || undefined,
+    listingNumber: searchParams?.get('listingNumber') || undefined,
+    minDeposit: searchParams?.get('minDeposit') || undefined,
+    maxDeposit: searchParams?.get('maxDeposit') || undefined,
   };
 
   const fetchListings = useCallback(async () => {
