@@ -126,7 +126,7 @@ export default function Header() {
                         <User className="w-4 h-4 text-wishes-accent" />
                       </div>
                     )}
-                    <span className="text-sm font-medium text-wishes-text max-w-[120px] truncate">
+                    <span className="text-sm font-medium text-wishes-text max-w-[200px] truncate">
                       {getUserDisplayName()}
                     </span>
                     <ChevronDown className={cn('w-3.5 h-3.5 text-wishes-muted transition-transform duration-200', userMenuOpen && 'rotate-180')} />

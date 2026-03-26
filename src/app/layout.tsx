@@ -2,9 +2,11 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
+import KakaoChatButton from '@/components/KakaoChatButton';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
+  manifest: '/manifest.json',
   title: {
     default: 'WISHES | 서울·경기 종합부동산 서비스',
     template: '%s | WISHES',
@@ -141,6 +143,7 @@ export default function RootLayout({
         <ConditionalLayout>
           {children}
         </ConditionalLayout>
+              <KakaoChatButton />
       </body>
     </html>
   );
