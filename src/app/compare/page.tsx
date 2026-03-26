@@ -29,7 +29,7 @@ export default function ComparePage() {
         const data = json.data || json.listings || [];
         setListings(data);
       } catch (error) {
-        console.error('맜물 조회 실패:', error);
+        console.error('매물 조회 실패:', error);
         setListings([]);
       } finally {
         setLoading(false);
@@ -49,7 +49,7 @@ export default function ComparePage() {
       <div className="pt-16 min-h-screen flex items-center justify-center bg-wishes-bg">
         <div className="text-center">
           <Loader2 className="w-8 h-8 text-wishes-secondary animate-spin mx-auto mb-3" />
-          <p className="text-wishes-muted text-sm">징닰 정보를 불러오는 중...</p>
+          <p className="text-wishes-muted text-sm">매물 정보를 불러오는 중...</p>
         </div>
       </div>
     );
@@ -167,11 +167,11 @@ export default function ComparePage() {
         </div>
       </section>
 
-      {/* 비교 테이블 */}
+      {/* 비교 테이블 - 데스크톱 */}
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="overflow-x-auto">
+        {/* 데스크톱: 테이블 레이아웃 */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full border-collapse">
-            {/* 매물 카드 헤더 */}
             <thead>
               <tr>
                 <th className="w-32 md:w-40 p-3 text-left text-sm font-semibold text-wishes-muted bg-white rounded-tl-xl border-b border-gray-100">
@@ -214,8 +214,6 @@ export default function ComparePage() {
                 })}
               </tr>
             </thead>
-
-            {/* 비교 항목 */}
             <tbody>
               {compareFields.map((field, idx) => (
                 <tr key={field.label} className={idx % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}>
@@ -231,6 +229,51 @@ export default function ComparePage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* 모바일: 카드 레이아웃 */}
+        <div className="md:hidden space-y-4">
+          {listings.map((listing) => {
+            const img = listing.listing_images?.[0] || (listing as any).images?.[0];
+            return (
+              <div key={listing.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="relative">
+                  <button
+                    onClick={() => handleRemove(listing.id)}
+                    className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/80 hover:bg-red-100 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors"
+                    title="비교에서 제거"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                  {img?.url ? (
+                    <div className="w-full h-40 overflow-hidden">
+                      <img src={img.url} alt={listing.title} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="w-full h-40 bg-gray-100 flex items-center justify-center">
+                      <Building2 className="w-10 h-10 text-gray-300" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-4">
+                  <Link
+                    href={`/listings/${listing.id}`}
+                    className="text-base font-bold text-wishes-primary hover:text-wishes-secondary transition-colors"
+                  >
+                    {listing.title}
+                  </Link>
+                  <div className="mt-3 space-y-2">
+                    {compareFields.map((field) => (
+                      <div key={field.label} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
+                        <span className="text-xs font-semibold text-wishes-muted">{field.label}</span>
+                        <span className="text-sm text-wishes-text">{field.render(listing)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
         {/* 하단 액션 */}
