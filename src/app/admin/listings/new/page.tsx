@@ -1049,6 +1049,7 @@ export default function NewListingPage() {
                 )}
               </div>
             )}
+          </div>
 
         <div className="flex justify-between mt-8">
           <button onClick={() => setActiveStep(2)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
@@ -1374,7 +1375,6 @@ export default function NewListingPage() {
             다음 →
           </button>
         </div>
-          </div>
         )}
 
         {/* ========== STEP 7: 매물 제목 + 매물 설명 ========== */}
@@ -1490,6 +1490,7 @@ export default function NewListingPage() {
                 ))}
               </div>
             </div>
+          </div>
 
 
         <div className="flex justify-between mt-8">
