@@ -49,12 +49,10 @@ export default async function ListingDetailPage({ params }: Props) {
       .from('listings')
       .update({ views: (listing.views || 0) + 1 })
       .eq('id', listingId)
-      .then(() => {})
-      .catch(() => {});
+      .then(() => {});
   } catch (e) {
-    // service role key 없을 때 무시
+    // service role key missing - skip
   }
-    .catch(() => {});
 
   const { data: images } = await supabase
     .from('listing_images')
