@@ -1596,7 +1596,7 @@ export default function NewListingPage() {
                     등록중...
                   </>
                 ) : (
-                    매물 등록하기
+                    '매물 등록하기'
                 )}
               </button>
             </div>
