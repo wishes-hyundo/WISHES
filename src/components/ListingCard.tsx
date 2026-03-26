@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Listing } from '@/types';
@@ -67,7 +68,10 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
       >
         <div className="w-28 h-28 shrink-0 relative overflow-hidden bg-gray-100">
           {thumbUrl ? (
-            <img src={thumbUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" />
+            <Image src={thumbUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" 
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">
               <Building2 className="w-8 h-8 text-gray-300" />
@@ -102,7 +106,10 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
     >
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
         {thumbUrl ? (
-          <img src={thumbUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" loading="lazy" />
+          <Image src={thumbUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out" loading="lazy" 
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
             <Building2 className="w-12 h-12 text-gray-400" />
