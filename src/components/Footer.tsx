@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { MapPin, MessageCircle, Mail, Clock, MapIcon, BookOpen, Instagram } from 'lucide-react';
+import { MapPin, Mail, Clock, MapIcon, BookOpen, Instagram } from 'lucide-react';
 
 export function Footer() {
   const currentYear = new Date().getFullYear();
@@ -9,7 +9,7 @@ export function Footer() {
       {/* 배경 장식 */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-0 right-0 w-96 h-96 bg-wishes-accent/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-wishes-secondary/5 rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-80 h-80 bg-wishes-secondary/5 rounded-full blur-3xk"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 py-16">
@@ -97,15 +97,6 @@ export function Footer() {
             <h3 className="text-sm font-bold text-white/90 uppercase tracking-wider">연락처</h3>
             <ul className="space-y-4 text-sm">
               <li className="flex items-start gap-3 group cursor-pointer">
-                <MessageCircle className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
-                <div className="leading-relaxed">
-                  <p className="text-white/60 text-xs">카카오톡 상담</p>
-                  <a href="https://pf.kakao.com/_DxdSJs" target="_blank" rel="noopener noreferrer" className="text-white hover:text-wishes-accent font-semibold">
-                    카카오톡 채널
-                  </a>
-                </div>
-              </li>
-              <li className="flex items-start gap-3 group cursor-pointer">
                 <MapIcon className="w-5 h-5 text-wishes-accent shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
                 <div className="leading-relaxed">
                   <p className="text-white/60 text-xs">주소</p>
@@ -148,7 +139,7 @@ export function Footer() {
           </div>
 
           {/* 저작권 */}
-          <div className="text-center text-xs text-white/50">
+          <div className="text-center text-xs text-white-50">
             <p>&copy; {currentYear} WISHES Corp. All rights reserved.</p>
             <p className="mt-2">서울특별시 중개사협회 | 공인중개사 신고번호</p>
           </div>
