@@ -8,11 +8,14 @@ interface RecentlyViewedTrackerProps {
 }
 
 export default function RecentlyViewedTracker({ listingId }: RecentlyViewedTrackerProps) {
-  const { addToRecentlyViewed } = useFavorites();
+  const { addRecentlyViewed } = useFavorites();
 
   useEffect(() => {
-    addToRecentlyViewed(listingId);
-  }, [listingId, addToRecentlyViewed]);
+    const numId = parseInt(listingId);
+    if (!isNaN(numId)) {
+      addRecentlyViewed(numId);
+    }
+  }, [listingId, addRecentlyViewed]);
 
   return null;
 }
