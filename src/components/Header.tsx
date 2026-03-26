@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
+import { Menu, X, Phone, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -15,17 +15,12 @@ const navItems = [
   { label: '상담문의', href: '/contact' },
 ];
 
-export function Header() {
+export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, loading, signOut, setShowAuthModal } = useAuth();
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   // 사용자 메뉴 외부 클릭 시 닫기
   useEffect(() => {
@@ -57,7 +52,7 @@ export function Header() {
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 glass border-b border-gray-100/50">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16 md:h-20">
+        <div className="flex items-center justify-between h-16">
           {/* 로고 */}
           <Link href="/" className="flex items-center gap-2 group">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-wishes-secondary to-wishes-accent flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-shadow">
@@ -99,9 +94,16 @@ export function Header() {
 
           {/* CTA 버튼 + 로그인 */}
           <div className="hidden md:flex items-center gap-3">
+            <a
+              href="tel:1533-9580"
+              className="flex items-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:shadow-wishes-secondary/50 hover:scale-105 transition-all duration-200 group"
+            >
+              <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>1533-9580</span>
+            </a>
 
-            {/* 로그인/사용자 메뉴 - mounted 후에만 렌더링 (hydration 방지) */}
-            {mounted && !loading && (
+            {/* 로그인/사용자 메뉴 */}
+            {!loading && (
               user ? (
                 <div className="relative" ref={userMenuRef}>
                   <button
@@ -192,7 +194,7 @@ export function Header() {
               </Link>
             ))}
             <div className="pt-3 mt-3 border-t border-gray-100 space-y-2">
-              {mounted && !loading && (
+              {!loading && (
                 user ? (
                   <div className="flex items-center justify-between px-4 py-2">
                     <div className="flex items-center gap-2">
@@ -218,10 +220,17 @@ export function Header() {
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-wishes-secondary border-2 border-wishes-secondary/20 hover:bg-wishes-secondary/5 transition-colors"
                   >
                     <User className="w-4 h-4" />
-                    간편 로그인
+                    ꄄ편 로그인
                   </button>
                 )
               )}
+              <a
+                href="tel:1533-9580"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:scale-105 transition-all duration-200 group"
+              >
+                <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                상담 1533-9580
+              </a>
             </div>
           </nav>
         </div>
