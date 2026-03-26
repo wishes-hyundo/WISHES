@@ -7,6 +7,7 @@ import { Heart, Clock, User, LogOut, Building2, MapPin, Maximize, ArrowLeft, Loa
 import { useAuth } from '@/contexts/AuthContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { cn } from '@/lib/utils';
+import Image from 'next/image';
 
 type TabType = 'favorites' | 'recent';
 
@@ -74,12 +75,15 @@ function MypageListingCard({ listing, onRemoveFavorite }: { listing: ListingData
         {/* 이미지 */}
         <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
           {thumbUrl ? (
-            <img
+            <Image
               src={thumbUrl}
               alt={listing.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
-            />
+            
+                  fill
+                  sizes="(max-width: 768px) 50vw, 25vw"
+                />
           ) : (
             <div className="absolute inset-0 flex items-center justify-center">
               <Building2 className="w-12 h-12 text-gray-400" />
@@ -202,10 +206,13 @@ export default function MyPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {user.user_metadata?.avatar_url ? (
-                <img
+                <Image
                   src={user.user_metadata.avatar_url}
                   alt=""
                   className="w-14 h-14 rounded-full border-2 border-wishes-secondary/20"
+                
+                  fill
+                  sizes="(max-width: 768px) 50vw, 25vw"
                 />
               ) : (
                 <div className="w-14 h-14 rounded-full bg-wishes-secondary/10 flex items-center justify-center">
