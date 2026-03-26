@@ -128,7 +128,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
       onMouseLeave={() => onHover?.(null)}
     >
       {/* 이미지 영역 */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
+      <div className="relative overflow-hidden bg-gradient-to-br from-wishes-light/60 to-wishes-accent/20 aspect-[16/10]">
         {/* 배경 이미지 */}
         {thumbUrl ? (
           <img
@@ -139,7 +139,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-            <Building2 className="w-12 h-12 text-gray-400" />
+            <Building2 className="w-10 h-10 text-wishes-green/30" />
           </div>
         )}
 
