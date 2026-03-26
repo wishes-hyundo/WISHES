@@ -64,7 +64,7 @@ export default function ShareButton({ url, title, description }: ShareButtonProp
         className="flex items-center justify-center gap-2 w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold mt-3 hover:bg-gray-200 transition-colors"
       >
         <Share2 className="w-5 h-5" />
-        공유하기
+        공유
       </button>
 
       {showMenu && (
