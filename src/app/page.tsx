@@ -55,7 +55,7 @@ export default async function HomePage() {
               className="inline-flex items-center justify-center gap-2.5 px-8 py-4 rounded-xl bg-wishes-accent text-wishes-primary font-bold text-base shadow-lg shadow-wishes-accent/25 hover:shadow-xl hover:shadow-wishes-accent/35 hover:brightness-110 transition-all duration-200 group"
             >
               <MapPin className="w-5 h-5" />
-              지도로 검색
+              지도 검색
             </Link>
             <Link
               href="/listings"
