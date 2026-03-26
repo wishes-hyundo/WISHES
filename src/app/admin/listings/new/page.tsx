@@ -946,9 +946,6 @@ export default function NewListingPage() {
         {/* ========== STEP 3: 사진 등록 + AI 스마트 분석 ========== */}
         {activeStep === 3 && (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h2 className="text-lg font-bold mb-1 flex items-center gap-2">📸 매물 사진 등록</h2>
-              <p className="text-sm text-gray-500 mb-4">매물 사진을 등록하면 자동으로 최적화되어 업로드됩니다. 최대 20장까지 등록 가능합니다.</p>
           <div className="bg-white rounded-xl shadow-sm border p-6">
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -1271,7 +1268,6 @@ export default function NewListingPage() {
               )}
             </div>
 
-            </div>
 
         <div className="flex justify-between mt-8">
           <button onClick={() => setActiveStep(4)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
