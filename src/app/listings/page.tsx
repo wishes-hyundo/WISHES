@@ -8,25 +8,21 @@ import { Building2 } from 'lucide-react';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '매물검색 | 위시스부동산',
-  description: '서울·경기 원룸, 빌라, 오피스텔, 사무실 매물을 검색하세요.',
-  openGraph: {
-    title: '매물검색 | 위시스부동산',
-    description: '서울·경기 원룸, 빌라, 오피스텔, 사무실 매물을 검색하세요.',
-  },
+  title: '매물검색',
+  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔 매물을 검색하세요.',
 };
 
-type SearchParams = {
-  page?: string;
-  search?: string;
+interface SearchParams {
   deal?: string;
   type?: string;
   dong?: string;
-  sort?: string;
   minDeposit?: string;
   maxDeposit?: string;
+  sort?: string;
+  page?: string;
+  search?: string;
   listingNumber?: string;
-};
+}
 
 const LISTING_COLUMNS = 'id,deal,price,deposit,monthly,images,title,area_m2,area,floor_current,floor,elevator,type,dong,address,parking,pet,status,created_at';
 
@@ -42,7 +38,7 @@ export default async function ListingsPage({
 
   const supabase = createClient();
 
-  // Dong list query (shared by both branches) - runs in parallel
+  // Dong list query (shared) - will run in parallel
   const dongQuery = supabase.from('listings').select('dong').eq('status', '가용');
 
   // If searching by listing number, do exact ID match
@@ -67,7 +63,7 @@ export default async function ListingsPage({
           </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 py-6">
-          <ListingFilters dongs={dongs} />
+          <ListingFilters dongs={dongs} currentFilters={params} />
           {listings.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
               {listings.map((l) => (<ListingCard key={l.id} listing={l as any} />))}
@@ -86,7 +82,6 @@ export default async function ListingsPage({
   // Regular search with filters
   let query = supabase.from('listings').select(LISTING_COLUMNS).eq('status', '가용');
 
-  // Apply filters
   if (params.search) {
     const s = params.search;
     query = query.or(`title.ilike.%${s}%,address.ilike.%${s}%,dong.ilike.%${s}%,type.ilike.%${s}%`);
@@ -101,7 +96,7 @@ export default async function ListingsPage({
   query = query.order(sortColumn, { ascending: false });
   query = query.range(offset, offset + pageSize - 1);
 
-  // Run listings + dong queries in PARALLEL
+  // Run listings + dong queries in PARALLEL (performance optimization)
   const [{ data: allListings }, { data: dongResults }] = await Promise.all([
     query,
     dongQuery,
@@ -121,7 +116,7 @@ export default async function ListingsPage({
         </div>
       </div>
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <ListingFilters dongs={dongs} />
+        <ListingFilters dongs={dongs} currentFilters={params} />
         {listings.length > 0 ? (
           <>
             <p className="text-sm text-gray-500 mt-4 mb-4">총 <strong className="text-wishes-dark">{totalCount}건</strong>의 매물</p>
@@ -133,7 +128,7 @@ export default async function ListingsPage({
                 {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map((p) => (
                   <a
                     key={p}
-                    href={`/listings?${new URLSearchParams({ ...params, page: String(p) }).toString()}`}
+                    href={`/listings?${new URLSearchParams(Object.fromEntries(Object.entries({...params, page: String(p)}).filter(([_, v]) => v !== undefined))).toString()}`}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
                       p === page
                         ? 'bg-wishes-primary text-white'
