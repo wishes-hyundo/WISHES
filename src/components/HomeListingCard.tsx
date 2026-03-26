@@ -198,7 +198,7 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '방금 전'}
+            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'short', day: 'numeric' }) : '방금 전'}
           </span>
         </div>
       </div>
