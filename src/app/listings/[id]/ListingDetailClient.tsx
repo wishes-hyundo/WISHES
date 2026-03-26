@@ -72,6 +72,17 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
         await navigator.clipboard.writeText(url);
         alert('\uB9C1\uD06C\uAC00 \uBCF5\uC0AC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.');
         break;
+      case 'sms': {
+        const smsBody = encodeURIComponent(text + ' ' + url);
+        window.open('sms:?body=' + smsBody, '_self');
+        break;
+      }
+      case 'email': {
+        const subject = encodeURIComponent(listing.title);
+        const body = encodeURIComponent(text + '\n\n' + url);
+        window.open('mailto:?subject=' + subject + '&body=' + body, '_self');
+        break;
+      }
       case 'native':
         if (navigator.share) {
           await navigator.share({ title: text, url });
@@ -141,7 +152,25 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
                     </svg>
                     {'\uB9C1\uD06C \uBCF5\uC0AC'}
                   </button>
-                  {typeof navigator !== 'undefined' && navigator.share && (
+                  <button
+                      onClick={() => handleShare('sms')}
+                      className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                      </svg>
+                      {'문자 보내기'}
+                    </button>
+                    <button
+                      onClick={() => handleShare('email')}
+                      className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                      {'이메일'}
+                    </button>
+                    {typeof navigator !== 'undefined' && navigator.share && (
                     <button onClick={() => handleShare('native')} className="w-full px-4 py-2 text-sm text-left hover:bg-gray-50 flex items-center gap-2">
                       <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -303,10 +332,10 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
                 <p className="text-sm text-gray-500">{'\uC11C\uC6B8\xB7\uACBD\uAE30 \uC804\uBB38 \uBD80\uB3D9\uC0B0 \uC911\uAC1C'}</p>
               </div>
 
-              <a
-                href="tel:02-XXX-XXXX"
-                className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium text-center block mb-3 hover:bg-blue-700 transition-colors"
-              >
+              <Link
+              href="/contact"
+              className="w-full bg-blue-600 text-white py-3 rounded-lg font-medium text-center block mb-3 hover:bg-blue-700 transition-colors"
+            >
                 <span className="flex items-center justify-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -367,9 +396,15 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
           </svg>
         </button>
-        <a href="tel:02-XXX-XXXX" className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium text-center">
-          {'\uC804\uD654 \uBB38\uC758'}
-        </a>
+        <Link
+            href="/contact"
+            className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-medium text-center flex items-center justify-center gap-1"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            {'상담신청'}
+          </Link>
         <button className="flex-1 bg-yellow-400 text-yellow-900 py-3 rounded-lg font-medium text-center">
           {'\uCE74\uCE74\uC624\uD1A1'}
         </button>
