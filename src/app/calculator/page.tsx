@@ -9,16 +9,16 @@ type RepaymentType = 'equal_principal_interest' | 'equal_principal' | 'bullet';
 
 const DEFAULT_RATE_PRESETS = {
   mortgage: [
-    { label: '시중은행 주담대', rate: 4.5 },
-    { label: '특례보금자리론', rate: 4.2 },
-    { label: '디딜돌대출', rate: 2.45 },
-    { label: '신혼부부 특례', rate: 2.2 },
+    { label: 'ìì¤ìí ì£¼ë´ë', rate: 4.5 },
+    { label: 'í¹ë¡ë³´ê¸ìë¦¬ë¡ ', rate: 4.2 },
+    { label: 'ëëëëì¶', rate: 2.45 },
+    { label: 'ì í¼ë¶ë¶ í¹ë¡', rate: 2.2 },
   ],
   jeonse: [
-    { label: '버팀목 전세대출', rate: 2.3 },
-    { label: '카카오뱅크 전세', rate: 3.9 },
-    { label: '시중은행 전세', rate: 4.5 },
-    { label: '청년전용 버팀목', rate: 1.8 },
+    { label: 'ë²íëª© ì ì¸ëì¶', rate: 2.3 },
+    { label: 'ì¹´ì¹´ì¤ë±í¬ ì ì¸', rate: 3.9 },
+    { label: 'ìì¤ìí ì ì¸', rate: 4.5 },
+    { label: 'ì²­ëì ì© ë²íëª©', rate: 1.8 },
   ],
 };
 
@@ -30,9 +30,9 @@ function formatWon(num: number): string {
   if (num >= 10000) {
     const eok = Math.floor(num / 10000);
     const man = num % 10000;
-    return man > 0 ? `${eok}억 ${formatNumber(man)}만원` : `${eok}억원`;
+    return man > 0 ? `${eok}ìµ ${formatNumber(man)}ë§ì` : `${eok}ìµì`;
   }
-  return `${formatNumber(num)}만원`;
+  return `${formatNumber(num)}ë§ì`;
 }
 
 export default function LoanCalculatorPage() {
@@ -45,7 +45,7 @@ export default function LoanCalculatorPage() {
   const [ratePresets, setRatePresets] = useState(DEFAULT_RATE_PRESETS);
   const [ratesLastUpdated, setRatesLastUpdated] = useState<string>('');
 
-  // Supabase에서 최신 금리 가져오기
+  // Supabaseìì ìµì  ê¸ë¦¬ ê°ì ¸ì¤ê¸°
   useEffect(() => {
     async function fetchLatestRates() {
       try {
@@ -66,7 +66,7 @@ export default function LoanCalculatorPage() {
           }
         }
       } catch (e) {
-        // Supabase 연결 실패 시 기본값 사용
+        // Supabase ì°ê²° ì¤í¨ ì ê¸°ë³¸ê° ì¬ì©
         console.log('Using default rates');
       }
     }
@@ -74,9 +74,9 @@ export default function LoanCalculatorPage() {
   }, []);
 
   const result = useMemo(() => {
-    const P = Number(amount) * 10000; // 만원 → 원
-    const r = Number(rate) / 100 / 12; // 월이율
-    const n = Number(years) * 12; // 총 개월수
+    const P = Number(amount) * 10000; // ë§ì â ì
+    const r = Number(rate) / 100 / 12; // ìì´ì¨
+    const n = Number(years) * 12; // ì´ ê°ìì
 
     if (!P || !r || !n || P <= 0 || r <= 0 || n <= 0) return null;
 
@@ -86,7 +86,7 @@ export default function LoanCalculatorPage() {
     const schedule: { month: number; payment: number; principal: number; interest: number; balance: number }[] = [];
 
     if (repaymentType === 'equal_principal_interest') {
-      // 원리금균등
+      // ìë¦¬ê¸ê· ë±
       monthlyPayment = P * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
       let balance = P;
       for (let i = 1; i <= n; i++) {
@@ -104,7 +104,7 @@ export default function LoanCalculatorPage() {
       totalPayment = monthlyPayment * n;
       totalInterest = totalPayment - P;
     } else if (repaymentType === 'equal_principal') {
-      // 원금균등
+      // ìê¸ê· ë±
       const monthlyPrincipal = P / n;
       let balance = P;
       for (let i = 1; i <= n; i++) {
@@ -123,7 +123,7 @@ export default function LoanCalculatorPage() {
       }
       monthlyPayment = schedule[0]?.payment || 0;
     } else {
-      // 만기일시
+      // ë§ê¸°ì¼ì
       const monthlyInterest = P * r;
       monthlyPayment = monthlyInterest;
       totalInterest = monthlyInterest * n;
@@ -149,18 +149,14 @@ export default function LoanCalculatorPage() {
   }, [amount, rate, years, repaymentType]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="pt-16 min-h-screen bg-gray-50">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 mb-4">
-            <Calculator className="w-5 h-5 text-amber-400" />
-            <span className="text-sm">부동산 대출 시뮬레이션</span>
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold mb-3">대출 계산기</h1>
-          <p className="text-gray-300">주택담보대출, 전세자금대출 월 상환액을 미리 계산해보세요</p>
+      <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
+        <div className="max-w-5xl mx-auto px-4 text-center">
+<h1 className="text-3xl md:text-4xl font-bold">ëì¶ ê³ì°ê¸°</h1>
+          <p className="mt-3 text-white/80">ì£¼íë´ë³´ëì¶, ì ì¸ìê¸ëì¶ ì ìíì¡ì ë¯¸ë¦¬ ê³ì°í´ë³´ì¸ì</p>
         </div>
-      </div>
+      </section>
 
       <div className="max-w-4xl mx-auto px-4 -mt-6 pb-16">
         <div className="bg-white rounded-2xl shadow-lg p-6 md:p-8">
@@ -173,7 +169,7 @@ export default function LoanCalculatorPage() {
               }`}
             >
               <Home className="w-4 h-4" />
-              주택담보대출
+              ì£¼íë´ë³´ëì¶
             </button>
             <button
               onClick={() => { setLoanType('jeonse'); setRate('3.8'); setYears('2'); setRepaymentType('bullet'); }}
@@ -182,13 +178,13 @@ export default function LoanCalculatorPage() {
               }`}
             >
               <Building2 className="w-4 h-4" />
-              전세자금대출
+              ì ì¸ìê¸ëì¶
             </button>
           </div>
 
           {/* Rate Presets */}
           <div className="mb-6">
-            <p className="text-sm text-gray-600 mb-2">금리 프리셋 (2026년 기준 참고용)</p>
+            <p className="text-sm text-gray-600 mb-2">ê¸ë¦¬ íë¦¬ì (2026ë ê¸°ì¤ ì°¸ê³ ì©)</p>
             <div className="flex flex-wrap gap-2">
               {ratePresets[loanType].map((preset) => (
                 <button
@@ -205,7 +201,7 @@ export default function LoanCalculatorPage() {
               ))}
             </div>
           {ratesLastUpdated && (
-            <p className="text-xs text-wishes-muted mt-1">금리 기준일: {ratesLastUpdated} (자동 업데이트)</p>
+            <p className="text-xs text-wishes-muted mt-1">ê¸ë¦¬ ê¸°ì¤ì¼: {ratesLastUpdated} (ìë ìë°ì´í¸)</p>
           )}
           </div>
 
@@ -213,7 +209,7 @@ export default function LoanCalculatorPage() {
           <div className="grid md:grid-cols-2 gap-6 mb-8">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                대출금액 (만원)
+                ëì¶ê¸ì¡ (ë§ì)
               </label>
               <div className="relative">
                 <input
@@ -231,7 +227,7 @@ export default function LoanCalculatorPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                연이율 (%)
+                ì°ì´ì¨ (%)
               </label>
               <input
                 type="number"
@@ -245,7 +241,7 @@ export default function LoanCalculatorPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                대출기간 (년)
+                ëì¶ê¸°ê° (ë)
               </label>
               <div className="flex gap-2">
                 {(loanType === 'mortgage' ? [10, 15, 20, 30, 40] : [1, 2, 3, 4]).map(y => (
@@ -258,7 +254,7 @@ export default function LoanCalculatorPage() {
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                   >
-                    {y}년
+                    {y}ë
                   </button>
                 ))}
               </div>
@@ -266,13 +262,13 @@ export default function LoanCalculatorPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                상환방식
+                ìíë°©ì
               </label>
               <div className="flex gap-2">
                 {[
-                  { value: 'equal_principal_interest', label: '원리금균등' },
-                  { value: 'equal_principal', label: '원금균등' },
-                  { value: 'bullet', label: '만기일시' },
+                  { value: 'equal_principal_interest', label: 'ìë¦¬ê¸ê· ë±' },
+                  { value: 'equal_principal', label: 'ìê¸ê· ë±' },
+                  { value: 'bullet', label: 'ë§ê¸°ì¼ì' },
                 ].map(opt => (
                   <button
                     key={opt.value}
@@ -295,32 +291,32 @@ export default function LoanCalculatorPage() {
             <div className="border-t pt-16">
               <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <TrendingDown className="w-5 h-5 text-amber-500" />
-                계산 결과
+                ê³ì° ê²°ê³¼
               </h2>
 
               <div className="grid md:grid-cols-3 gap-4 mb-6">
                 <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 text-center border border-amber-100">
                   <p className="text-sm text-gray-600 mb-1">
-                    {repaymentType === 'equal_principal' ? '첫 달' : '월'} 상환액
+                    {repaymentType === 'equal_principal' ? 'ì²« ë¬' : 'ì'} ìíì¡
                   </p>
                   <p className="text-2xl md:text-3xl font-bold text-amber-600">
                     {formatNumber(Math.round(result.monthlyPayment / 10000))}
-                    <span className="text-base font-normal">만원</span>
+                    <span className="text-base font-normal">ë§ì</span>
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    ({formatNumber(result.monthlyPayment)}원)
+                    ({formatNumber(result.monthlyPayment)}ì)
                   </p>
                 </div>
 
                 <div className="bg-gray-50 rounded-2xl p-6 text-center border border-gray-100">
-                  <p className="text-sm text-gray-600 mb-1">총 상환금액</p>
+                  <p className="text-sm text-gray-600 mb-1">ì´ ìíê¸ì¡</p>
                   <p className="text-2xl md:text-3xl font-bold text-gray-800">
                     {formatWon(Math.round(result.totalPayment / 10000))}
                   </p>
                 </div>
 
                 <div className="bg-red-50 rounded-2xl p-6 text-center border border-red-100">
-                  <p className="text-sm text-gray-600 mb-1">총 이자</p>
+                  <p className="text-sm text-gray-600 mb-1">ì´ ì´ì</p>
                   <p className="text-2xl md:text-3xl font-bold text-red-500">
                     {formatWon(Math.round(result.totalInterest / 10000))}
                   </p>
@@ -330,8 +326,8 @@ export default function LoanCalculatorPage() {
               {/* Interest ratio bar */}
               <div className="mb-6">
                 <div className="flex justify-between text-xs text-gray-500 mb-1">
-                  <span>원금 비율</span>
-                  <span>이자 비율</span>
+                  <span>ìê¸ ë¹ì¨</span>
+                  <span>ì´ì ë¹ì¨</span>
                 </div>
                 <div className="h-4 bg-red-200 rounded-full overflow-hidden">
                   <div
@@ -341,10 +337,10 @@ export default function LoanCalculatorPage() {
                 </div>
                 <div className="flex justify-between text-xs mt-1">
                   <span className="text-amber-600 font-medium">
-                    원금 {((result.principal / result.totalPayment) * 100).toFixed(1)}%
+                    ìê¸ {((result.principal / result.totalPayment) * 100).toFixed(1)}%
                   </span>
                   <span className="text-red-500 font-medium">
-                    이자 {((result.totalInterest / result.totalPayment) * 100).toFixed(1)}%
+                    ì´ì {((result.totalInterest / result.totalPayment) * 100).toFixed(1)}%
                   </span>
                 </div>
               </div>
@@ -355,7 +351,7 @@ export default function LoanCalculatorPage() {
                 className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors mx-auto"
               >
                 <ChevronDown className={`w-4 h-4 transition-transform ${showSchedule ? 'rotate-180' : ''}`} />
-                상환 스케줄 {showSchedule ? '숨기기' : '보기'}
+                ìí ì¤ì¼ì¤ {showSchedule ? 'ì¨ê¸°ê¸°' : 'ë³´ê¸°'}
               </button>
 
               {showSchedule && (
@@ -363,24 +359,24 @@ export default function LoanCalculatorPage() {
                   <table className="w-full text-sm">
                     <thead className="bg-gray-50 sticky top-0">
                       <tr>
-                        <th className="px-4 py-3 text-left text-gray-600">회차</th>
-                        <th className="px-4 py-3 text-right text-gray-600">상환액</th>
-                        <th className="px-4 py-3 text-right text-gray-600">원금</th>
-                        <th className="px-4 py-3 text-right text-gray-600">이자</th>
-                        <th className="px-4 py-3 text-right text-gray-600">잔액</th>
+                        <th className="px-4 py-3 text-left text-gray-600">íì°¨</th>
+                        <th className="px-4 py-3 text-right text-gray-600">ìíì¡</th>
+                        <th className="px-4 py-3 text-right text-gray-600">ìê¸</th>
+                        <th className="px-4 py-3 text-right text-gray-600">ì´ì</th>
+                        <th className="px-4 py-3 text-right text-gray-600">ìì¡</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {result.schedule.filter((_, i) => {
-                        // 연 단위로 표시 (12개월마다) + 첫 달
+                        // ì° ë¨ìë¡ íì (12ê°ìë§ë¤) + ì²« ë¬
                         return i === 0 || (i + 1) % 12 === 0 || i === result.schedule.length - 1;
                       }).map(row => (
                         <tr key={row.month} className="hover:bg-gray-50">
-                          <td className="px-4 py-2 text-gray-800">{row.month}회</td>
-                          <td className="px-4 py-2 text-right">{formatNumber(row.payment)}원</td>
-                          <td className="px-4 py-2 text-right text-amber-600">{formatNumber(row.principal)}원</td>
-                          <td className="px-4 py-2 text-right text-red-500">{formatNumber(row.interest)}원</td>
-                          <td className="px-4 py-2 text-right text-gray-600">{formatNumber(row.balance)}원</td>
+                          <td className="px-4 py-2 text-gray-800">{row.month}í</td>
+                          <td className="px-4 py-2 text-right">{formatNumber(row.payment)}ì</td>
+                          <td className="px-4 py-2 text-right text-amber-600">{formatNumber(row.principal)}ì</td>
+                          <td className="px-4 py-2 text-right text-red-500">{formatNumber(row.interest)}ì</td>
+                          <td className="px-4 py-2 text-right text-gray-600">{formatNumber(row.balance)}ì</td>
                         </tr>
                       ))}
                     </tbody>
@@ -391,8 +387,8 @@ export default function LoanCalculatorPage() {
               <div className="mt-6 bg-blue-50 rounded-xl p-4 flex gap-3">
                 <Info className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-800">
-                  <p className="font-medium mb-1">참고 안내</p>
-                  <p>본 계산기는 참고용이며 실제 대출 조건은 금융기관별로 다를 수 있습니다. 정확한 대출 한도 및 금리는 해당 은행에 직접 문의하시기 바랍니다. 위시스부동산에서 대출 상담 연계도 가능합니다.</p>
+                  <p className="font-medium mb-1">ì°¸ê³  ìë´</p>
+                  <p>ë³¸ ê³ì°ê¸°ë ì°¸ê³ ì©ì´ë©° ì¤ì  ëì¶ ì¡°ê±´ì ê¸ìµê¸°ê´ë³ë¡ ë¤ë¥¼ ì ììµëë¤. ì íí ëì¶ íë ë° ê¸ë¦¬ë í´ë¹ ìíì ì§ì  ë¬¸ìíìê¸° ë°ëëë¤. ììì¤ë¶ëì°ìì ëì¶ ìë´ ì°ê³ë ê°ë¥í©ëë¤.</p>
                 </div>
               </div>
             </div>
