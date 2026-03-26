@@ -17,6 +17,15 @@ interface FormData {
   deposit: number;
   monthlyRent: number;
   maintenanceFee: number;
+  maintenanceFeeIncludes: string[];
+  heatingType: string;
+  exclusiveArea: number;
+  supplyArea: number;
+  floorType: string;
+  roomLayout: string;
+  moveInType: string;
+  parkingAvailable: string;
+  petAllowed: string;
   rooms: number;
   bathrooms: number;
   direction: string;
@@ -73,12 +82,14 @@ interface BuildingInfo {
 const TRANSACTION_TYPES = ['매매', '전세', '월세'];
 const PROPERTY_TYPES = ['아파트', '오피스텔', '빌라', '원룸', '투룸', '상가', '사무실', '토지', '기타'];
 const DIRECTIONS = ['동향', '서향', '남향', '북향', '남동향', '남서향', '북동향', '북서향'];
-const FEATURES_LIST = [
-  '주차가능', '엘리베이터', '반려동물', '풀옵션', '베란다',
-  '테라스', '복층', '분리형', '신축', '리모델링',
-  '역세권', '학군', '공원인접', '대로변', '보안시설',
-  '에어컨', '세탁기', '냉장고', '인덕션', '가스레인지'
+const FEATURES_CATEGORIES: { category: string; icon: string; items: string[] }[] = [
+  { category: '생활시설', icon: '🏠', items: ['냉장고', '세탁기', '건조기', '싱크대', '에어컨', '인덕션', '가스레인지', '전자레인지', '침대', '책상', '옷장', '붙박이장', '신발장', '식탁', '소파', 'TV'] },
+  { category: '보안시설', icon: '🔒', items: ['CCTV', '현관보안', '비디오폰', '인터폰', '카드키', '방범창', '경비원', '공동현관'] },
+  { category: '편의시설', icon: '✨', items: ['엘리베이터', '주차가능', '베란다', '테라스', '마당', '무인택배함', '화재경보기', '분리수거장'] },
+  { category: '매물특징', icon: '🏗️', items: ['풀옵션', '복층', '분리형', '신축', '리모델링', '올수리', '탑층', '저층'] },
+  { category: '주변환경', icon: '📍', items: ['역세권', '학군', '공원인접', '대로변', '조용한동네', '편의점가까움', '마트인접', '병원가까움'] },
 ];
+const FEATURES_LIST = FEATURES_CATEGORIES.flatMap(c => c.items);
 
 export default function NewListingPage() {
   const router = useRouter();
@@ -97,6 +108,15 @@ export default function NewListingPage() {
     deposit: 0,
     monthlyRent: 0,
     maintenanceFee: 0,
+    maintenanceFeeIncludes: [],
+    heatingType: '',
+    exclusiveArea: 0,
+    supplyArea: 0,
+    floorType: '',
+    roomLayout: '',
+    moveInType: '',
+    parkingAvailable: '',
+    petAllowed: '',
     rooms: 1,
     bathrooms: 1,
     direction: '남향',
@@ -341,6 +361,12 @@ export default function NewListingPage() {
       if (result.success) {
         setFormData(prev => ({ ...prev, description: result.description }));
         setDescSource(result.source === 'ai' ? 'AI가 작성했습니다' : '템플릿 기반으로 생성되었습니다');
+        if (result.title) {
+          setFormData(prev => ({ ...prev, title: prev.title || result.title }));
+        } else if (!formData.title && formData.address) {
+          const autoTitle = `${formData.propertyType || '매물'} ${formData.transactionType || ''} ${formData.address.split(' ').slice(0, 3).join(' ')}`.trim();
+          setFormData(prev => ({ ...prev, title: prev.title || autoTitle }));
+        }
       }
     } catch (error) {
       console.error('Description generation error:', error);
@@ -535,6 +561,16 @@ export default function NewListingPage() {
           transactionType: formData.transactionType,
           propertyType: formData.propertyType,
           price: price,
+          exclusiveArea: formData.exclusiveArea,
+          supplyArea: formData.supplyArea,
+          heatingType: formData.heatingType,
+          rooms: formData.rooms,
+          bathrooms: formData.bathrooms,
+          floor: formData.floor,
+          totalFloors: formData.totalFloors,
+          direction: formData.direction,
+          features: formData.features,
+          toneStyle: 'warm_professional',
         }),
       });
       const result = await response.json();
@@ -705,58 +741,7 @@ export default function NewListingPage() {
             <div className="bg-white rounded-2xl shadow-sm border p-6">
               <h2 className="text-lg font-bold mb-4 flex items-center gap-2">📍 소재지 입력</h2>
             
-            {/* AI 스마트 분석 */}
-            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-purple-900">AI 스마트 분석</h3>
-                    <p className="text-xs text-purple-600">주소를 입력하면 AI가 주변 환경을 분석하고 매물 설명을 자동 생성합니다</p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSmartAnalyze}
-                  disabled={isAnalyzing || !formData.address}
-                  className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-medium hover:from-purple-700 hover:to-indigo-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all flex items-center gap-2"
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      분석중...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      AI 분석 시작
-                    </>
-                  )}
-                </button>
-              </div>
-              {analysisResult && analysisResult.areaAnalysis && (
-                <div className="mt-4 pt-4 border-t border-purple-200">
-                  <h4 className="text-xs font-bold text-purple-800 mb-2">분석 결과</h4>
-                  <p className="text-sm text-purple-700 whitespace-pre-line leading-relaxed">{analysisResult.areaAnalysis}</p>
-                  {analysisResult.suggestedDescription && (
-                    <div className="mt-3 bg-white rounded-lg p-3 border border-purple-100">
-                      <p className="text-xs font-medium text-purple-600 mb-1">자동 생성된 매물 설명 (설명 & 등록 탭에서 확인)</p>
-                      <p className="text-sm text-gray-700">{analysisResult.suggestedDescription.substring(0, 200)}...</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
+            
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
@@ -805,23 +790,6 @@ export default function NewListingPage() {
                   />
                 </div>
               </div>
-
-              
-            {analysisResult && analysisResult.areaAnalysis && (
-              <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  <h4 className="text-sm font-bold text-purple-800">AI 스마트 분석 결과</h4>
-                </div>
-                <p className="text-sm text-purple-700 whitespace-pre-line">{analysisResult.areaAnalysis}</p>
-                {analysisResult.suggestedDescription && (
-                  <div className="mt-3 pt-3 border-t border-purple-200">
-                    <p className="text-xs font-medium text-purple-600 mb-1">자동 생성된 매물 설명:</p>
-                    <p className="text-sm text-purple-700">{analysisResult.suggestedDescription.substring(0, 150)}...</p>
-                  </div>
-                )}
               </div>
             )}
             {buildingError && (
@@ -930,6 +898,33 @@ export default function NewListingPage() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="관리비를 입력하세요" />
               </div>
+              
+              {/* 관리비 포함항목 */}
+              {formData.maintenanceFee > 0 && (
+              <div className="mt-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-3">관리비 포함항목</label>
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {['수도', '전기', '가스', '인터넷', 'TV', '청소비', '주차비', '난방비'].map(item => (
+                    <label key={item} className="flex items-center gap-2 p-2.5 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all">
+                      <input
+                        type="checkbox"
+                        checked={formData.maintenanceFeeIncludes.includes(item)}
+                        onChange={(e) => {
+                          const current = formData.maintenanceFeeIncludes;
+                          if (e.target.checked) {
+                            updateField('maintenanceFeeIncludes', [...current, item]);
+                          } else {
+                            updateField('maintenanceFeeIncludes', current.filter((i: string) => i !== item));
+                          }
+                        }}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">{item}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              )}
             </div>
 
         <div className="flex justify-between mt-8">
@@ -1286,85 +1281,121 @@ export default function NewListingPage() {
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border p-6">
               <h2 className="text-lg font-bold mb-4 flex items-center gap-2">📐 세부 정보</h2>
-              <h3 className="text-md font-bold text-gray-900 mb-4">세부 정보</h3>
+              {/* 면적 정보 */}
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">면적 정보</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">전용면적 (㎡)</label>
+                    <input type="number" value={formData.exclusiveArea || ''} onChange={(e) => updateField('exclusiveArea', parseFloat(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" step="0.01" placeholder="전용면적" />
+                    {formData.exclusiveArea > 0 && <p className="text-xs text-gray-400 mt-1">약 {Math.round(formData.exclusiveArea * 0.3025)}평</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">공급면적 (㎡)</label>
+                    <input type="number" value={formData.supplyArea || ''} onChange={(e) => updateField('supplyArea', parseFloat(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" step="0.01" placeholder="공급면적" />
+                    {formData.supplyArea > 0 && <p className="text-xs text-gray-400 mt-1">약 {Math.round(formData.supplyArea * 0.3025)}평</p>}
+                  </div>
+                </div>
+              </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">면적 (㎡)</label>
-                  <input
-                    type="number"
-                    value={formData.area || ''}
-                    onChange={(e) => updateField('area', parseFloat(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    step="0.01"
-                  />
-                  {formData.area > 0 && (
-                    <p className="text-xs text-gray-400 mt-1">약 {Math.round(formData.area * 0.3025)}평</p>
-                  )}
+              {/* 층/방/욕실 정보 */}
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">층/방/욕실</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">해당층</label>
+                    <input type="number" value={formData.floor || ''} onChange={(e) => updateField('floor', parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">총층수</label>
+                    <input type="number" value={formData.totalFloors || ''} onChange={(e) => updateField('totalFloors', parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">방 수</label>
+                    <input type="number" value={formData.rooms} onChange={(e) => updateField('rooms', parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" min="0" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">욕실 수</label>
+                    <input type="number" value={formData.bathrooms} onChange={(e) => updateField('bathrooms', parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" min="0" />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">해당층</label>
-                  <input
-                    type="number"
-                    value={formData.floor || ''}
-                    onChange={(e) => updateField('floor', parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">총층수</label>
-                  <input
-                    type="number"
-                    value={formData.totalFloors || ''}
-                    onChange={(e) => updateField('totalFloors', parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">방 수</label>
-                  <input
-                    type="number"
-                    value={formData.rooms}
-                    onChange={(e) => updateField('rooms', parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">욕실 수</label>
-                  <input
-                    type="number"
-                    value={formData.bathrooms}
-                    onChange={(e) => updateField('bathrooms', parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">방향</label>
-                  <select
-                    value={formData.direction}
-                    onChange={(e) => updateField('direction', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
-                    {DIRECTIONS.map(dir => (
-                      <option key={dir} value={dir}>{dir}</option>
+                <div className="mt-3">
+                  <label className="block text-xs font-medium text-gray-500 mb-2">해당층 유형</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['일반', '옥탑', '지하', '반지하', '복층'].map(type => (
+                      <button key={type} type="button" onClick={() => updateField('floorType', formData.floorType === type ? '' : type)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.floorType === type ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{type}</button>
                     ))}
-                  </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">입주가능일</label>
-                  <input
-                    type="date"
-                    value={formData.moveInDate}
-                    onChange={(e) => updateField('moveInDate', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
+              </div>
+
+              {/* 방향/난방/거실형태 */}
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">기본 정보</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-2">방향</label>
+                    <select value={formData.direction} onChange={(e) => updateField('direction', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+                      {DIRECTIONS.map(dir => (<option key={dir} value={dir}>{dir}</option>))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-2">난방방식</label>
+                    <div className="flex gap-2">
+                      {['개별난방', '중앙난방', '지역난방'].map(type => (
+                        <button key={type} type="button" onClick={() => updateField('heatingType', type)} className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all ${formData.heatingType === type ? 'bg-orange-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{type}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-2">방/거실 구조</label>
+                    <div className="flex gap-2">
+                      {['오픈형', '분리형'].map(type => (
+                        <button key={type} type="button" onClick={() => updateField('roomLayout', formData.roomLayout === type ? '' : type)} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${formData.roomLayout === type ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{type}</button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 입주가능일 */}
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">입주 정보</h3>
+                <div className="flex items-end gap-3">
+                  <div className="flex-1">
+                    <label className="block text-xs font-medium text-gray-500 mb-1">입주가능일</label>
+                    <input type="date" value={formData.moveInDate} onChange={(e) => { updateField('moveInDate', e.target.value); updateField('moveInType', ''); }} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
+                  </div>
+                  <button type="button" onClick={() => { updateField('moveInType', '즉시입주'); updateField('moveInDate', new Date().toISOString().split('T')[0]); }} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${formData.moveInType === '즉시입주' ? 'bg-green-600 text-white shadow-sm' : 'bg-green-50 text-green-700 border border-green-300 hover:bg-green-100'}`}>즉시입주</button>
+                  <button type="button" onClick={() => { updateField('moveInType', '협의가능'); updateField('moveInDate', ''); }} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${formData.moveInType === '협의가능' ? 'bg-yellow-500 text-white shadow-sm' : 'bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100'}`}>협의가능</button>
+                </div>
+              </div>
+
+              {/* 주차/반려동물 */}
+              <div className="mb-2">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">추가 정보</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-2">주차 가능 여부</label>
+                    <div className="flex gap-2">
+                      {['가능', '불가능'].map(v => (
+                        <button key={v} type="button" onClick={() => updateField('parkingAvailable', v)} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${formData.parkingAvailable === v ? (v === '가능' ? 'bg-blue-600 text-white' : 'bg-red-500 text-white') : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{v}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-2">반려동물 가능 여부</label>
+                    <div className="flex gap-2">
+                      {['가능', '불가능'].map(v => (
+                        <button key={v} type="button" onClick={() => updateField('petAllowed', v)} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${formData.petAllowed === v ? (v === '가능' ? 'bg-blue-600 text-white' : 'bg-red-500 text-white') : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{v}</button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* 특지 선택 */}
+{/* 특지 선택 */}
 
         <div className="flex justify-between mt-8">
           <button onClick={() => setActiveStep(5)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
@@ -1470,30 +1501,29 @@ export default function NewListingPage() {
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border p-6">
               <h2 className="text-lg font-bold mb-4 flex items-center gap-2">⭐ 특징 선택</h2>
-              <p className="text-sm text-gray-500 mb-4">매물의 특징을 선택하면 검색 필터에 노출됩니다.</p>
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h3 className="text-md font-bold text-gray-900 mb-4">특징 선택</h3>
-              <div className="flex flex-wrap gap-2">
-                {FEATURES_LIST.map(feature => (
-                  <button
-                    key={feature}
-                    type="button"
-                    onClick={() => toggleFeature(feature)}
-                    className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                      formData.features.includes(feature)
-                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                        : 'bg-gray-100 text-gray-600 border border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {formData.features.includes(feature) ? '✓ ' : ''}{feature}
-                  </button>
+              <p className="text-sm text-gray-500 mb-4">매물의 특징을 선택하면 검색 필터에 노출됩니다. 선택된 항목: {formData.features.length}개</p>
+              <div className="space-y-5">
+                {FEATURES_CATEGORIES.map(cat => (
+                  <div key={cat.category} className="bg-gray-50 rounded-xl p-4">
+                    <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                      <span>{cat.icon}</span> {cat.category}
+                      <span className="text-xs font-normal text-gray-400">({cat.items.filter((f: string) => formData.features.includes(f)).length}/{cat.items.length})</span>
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {cat.items.map((feature: string) => (
+                        <button key={feature} type="button" onClick={() => toggleFeature(feature)}
+                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.features.includes(feature) ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`}>
+                          {formData.features.includes(feature) ? '✓ ' : ''}{feature}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>
           </div>
 
-
-        <div className="flex justify-between mt-8">
+          <div className="flex justify-between mt-8">
           <button onClick={() => setActiveStep(7)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
             ← 이전
           </button>
