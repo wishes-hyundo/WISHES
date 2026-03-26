@@ -33,6 +33,18 @@ interface FormData {
   elevatorCount: number;
   parkingCount: number;
   totalFloorArea: number;
+  // 건축물대장 API용 코드 (다음 주소 API에서 자동 제공)
+  sigunguCode: string;
+  bcode: string;
+  // 건축물대장 추가 정보
+  siteArea: number;
+  buildingCoverageRatio: number;
+  floorAreaRatio: number;
+  undergroundFloors: number;
+  householdCount: number;
+  unitCount: number;
+  roadAddress: string;
+  jibunAddress: string;
 }
 
 interface BuildingInfo {
@@ -50,6 +62,11 @@ interface BuildingInfo {
   parkingCount: number;
   address: string;
   jibun: string;
+  // 추가 필드
+  siteArea?: number;
+  buildingCoverageRatio?: number;
+  floorAreaRatio?: number;
+  householdCount?: number;
 }
 
 const TRANSACTION_TYPES = ['매매', '전세', '월세'];
@@ -94,6 +111,16 @@ export default function NewListingPage() {
     elevatorCount: 0,
     parkingCount: 0,
     totalFloorArea: 0,
+    sigunguCode: '',
+    bcode: '',
+    siteArea: 0,
+    buildingCoverageRatio: 0,
+    floorAreaRatio: 0,
+    undergroundFloors: 0,
+    householdCount: 0,
+    unitCount: 0,
+    roadAddress: '',
+    jibunAddress: '',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -147,19 +174,65 @@ export default function NewListingPage() {
     try {
       const { sigungu, bun, ji } = parseAddress(formData.address);
 
-      const params = new URLSearchParams({
-        address: formData.address,
-        dong: formData.dong || (formData.address.match(/([\uAC00-\uD7AF]{1,5}\ub3d9)/) || [])[1] || '',
-        sigungu: sigungu,
-        bun: bun || '0',
-        ji: ji || '0',
-      });
+      const params = new URLSearchParams();
+      params.set('address', formData.address);
+
+      // 다음 주소 API에서 받은 코드를 직접 전달 (가장 정확)
+      if (formData.sigunguCode) {
+        params.set('sigunguCd', formData.sigunguCode);
+      }
+      if (formData.bcode) {
+        params.set('bjdongCd', formData.bcode.substring(5, 10));
+      }
+      if (formData.dong) {
+        params.set('dong', formData.dong);
+      } else {
+        const dongMatch = formData.address.match(/([\uAC00-\uD7AF]{1,5}\ub3d9)/);
+        if (dongMatch) params.set('dong', dongMatch[1]);
+      }
+
+      // 지번주소에서 번지 추출
+      const jibunAddr = formData.jibunAddress || formData.address;
+      const bunJiMatch = jibunAddr.match(/(\d+)(?:-(\d+))?\s*$/);
+      if (bunJiMatch) {
+        params.set('bun', bunJiMatch[1].padStart(4, '0'));
+        params.set('ji', (bunJiMatch[2] || '0').padStart(4, '0'));
+      } else {
+        if (bun) params.set('bun', bun);
+        if (ji) params.set('ji', ji);
+      }
+
+      // 하위 호환성: sigungu 파라미터도 전달
+      if (sigungu) params.set('sigungu', sigungu);
 
       const response = await fetch(`/api/admin/building-registry?${params.toString()}`);
       const result = await response.json();
 
-      if (result.success && result.building) {
-        const building: BuildingInfo = result.building;
+      if (result.success && result.data) {
+        const d = result.data;
+        const building: BuildingInfo = {
+          buildingName: d.buildingName || '',
+          mainPurpose: d.buildingPurpose || '',
+          buildingStructure: d.buildingStructure || '',
+          roofStructure: d.roofStructure || '',
+          totalFloorArea: parseFloat(d.totalFloorArea || '0'),
+          buildingArea: parseFloat(d.buildingArea || '0'),
+          floors: {
+            underground: parseInt(d.undergroundFloors || '0'),
+            aboveGround: parseInt(d.totalFloors || '0'),
+          },
+          approvalDate: d.approvalDate || '',
+          dongCount: 1,
+          unitCount: parseInt(d.unitCount || d.householdCount || '0'),
+          elevatorCount: parseInt(d.elevatorCount || '0'),
+          parkingCount: parseInt(d.parkingCount || '0'),
+          address: d.roadAddress || formData.address,
+          jibun: d.jibunAddress || '',
+          siteArea: parseFloat(d.siteArea || '0'),
+          buildingCoverageRatio: parseFloat(d.buildingCoverageRatio || '0'),
+          floorAreaRatio: parseFloat(d.floorAreaRatio || '0'),
+          householdCount: parseInt(d.householdCount || '0'),
+        };
         setBuildingData(building);
 
         // 폼 데이터 자동 채우기
@@ -187,6 +260,13 @@ export default function NewListingPage() {
             parkingCount: info.parkingCount || prev.parkingCount,
             totalFloorArea: info.totalFloorArea || prev.totalFloorArea,
             totalFloors: info.floors?.aboveGround || prev.totalFloors,
+            // 건축물대장 추가 정보
+            siteArea: info.siteArea || prev.siteArea,
+            buildingCoverageRatio: info.buildingCoverageRatio || prev.buildingCoverageRatio,
+            floorAreaRatio: info.floorAreaRatio || prev.floorAreaRatio,
+            undergroundFloors: info.floors?.underground || prev.undergroundFloors,
+            householdCount: info.householdCount || prev.householdCount,
+            unitCount: info.unitCount || prev.unitCount,
             // 매물 정보 자동 설정
             propertyType: matchedType ? matchedType[1] : prev.propertyType,
             area: info.totalFloorArea || prev.area,
@@ -401,9 +481,14 @@ export default function NewListingPage() {
         updateField('address', fullAddr);
         if (dong) updateField('dong', dong);
         if (data.buildingName) updateField('buildingName', data.buildingName);
+        // 다음 주소 API에서 제공하는 코드 저장
+        if (data.sigunguCode) updateField('sigunguCode', data.sigunguCode);
+        if (data.bcode) updateField('bcode', data.bcode);
+        if (data.roadAddress) updateField('roadAddress', data.roadAddress);
+        if (data.jibunAddress) updateField('jibunAddress', data.jibunAddress);
         // 자동으로 건축물대장 조회
         if (fullAddr) {
-          fetchBuildingInfo(fullAddr);
+          setTimeout(() => handleBuildingLookup(), 300);
         }
         window.removeEventListener('message', handleMessage);
       }
@@ -964,9 +1049,51 @@ export default function NewListingPage() {
                       <span className="ml-1 font-medium">{buildingData.totalFloorArea ? buildingData.totalFloorArea.toLocaleString() + '㎡' : '-'}</span>
                     </div>
                     <div>
-                      <span className="text-gray-500">세대수:</span>
-                      <span className="ml-1 font-medium">{buildingData.unitCount || '-'}세대</span>
+                      <span className="text-gray-500">대지면적:</span>
+                      <span className="ml-1 font-medium">{buildingData.siteArea ? buildingData.siteArea.toLocaleString() + '㎡' : '-'}</span>
                     </div>
+                    <div>
+                      <span className="text-gray-500">건폐율:</span>
+                      <span className="ml-1 font-medium">{buildingData.buildingCoverageRatio ? buildingData.buildingCoverageRatio + '%' : '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">용적률:</span>
+                      <span className="ml-1 font-medium">{buildingData.floorAreaRatio ? buildingData.floorAreaRatio + '%' : '-'}</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">세대수:</span>
+                      <span className="ml-1 font-medium">{buildingData.householdCount || buildingData.unitCount || '-'}세대</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-500">호수:</span>
+                      <span className="ml-1 font-medium">{buildingData.unitCount || '-'}호</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const blob = new Blob([JSON.stringify(buildingData, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `건축물대장_${formData.address || 'data'}.json`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                      }}
+                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
+                    >
+                      데이터 저장 (JSON)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.open('https://www.gov.kr/mw/AA020InfoCappView.do?HighCtgCD=A09002&CappBizCD=13100000015', '_blank');
+                      }}
+                      className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs"
+                    >
+                      원본 발급 (정부24)
+                    </button>
                   </div>
                 </div>
               )}
