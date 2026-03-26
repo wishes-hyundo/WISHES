@@ -1519,7 +1519,6 @@ export default function NewListingPage() {
                 ))}
               </div>
             </div>
-          </div>
 
           <div className="flex justify-between mt-8">
           <button onClick={() => setActiveStep(7)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
