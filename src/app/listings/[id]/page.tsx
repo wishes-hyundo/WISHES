@@ -272,7 +272,7 @@ export default async function ListingDetailPage({ params }: Props) {
                 href={`/contact?listing=${listing.id}`}
                 className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors"
               >
-                온라인 상담 신청
+                상담신청
               </Link>
 
               <ShareButton
