@@ -35,6 +35,7 @@ function createWatermarkSvg(width: number, height: number): Buffer {
     'wishes.co.kr' +
     '</text>' +
     '</svg>';
+
   return Buffer.from(svg);
 }
 
@@ -45,16 +46,16 @@ export async function POST(request: NextRequest) {
 
   try {
     const formData = await request.formData();
-    const files = formData.getAll('files') as File[];
-    const listingId = formData.get('listingId') as string;
+    // Support both 'files' (plural) and 'file' (singular) field names
+    let files = formData.getAll('files') as File[];
+    if (files.length === 0) {
+      files = formData.getAll('file') as File[];
+    }
+    const listingId = (formData.get('listingId') as string) || ('temp_' + Date.now());
     const addWatermark = formData.get('watermark') !== 'false';
 
     if (!files || files.length === 0) {
       return NextResponse.json({ error: 'No files provided' }, { status: 400 });
-    }
-
-    if (!listingId) {
-      return NextResponse.json({ error: 'listingId is required' }, { status: 400 });
     }
 
     const uploadedUrls: string[] = [];
@@ -96,6 +97,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       urls: uploadedUrls,
+      url: uploadedUrls[0],
+      data: { url: uploadedUrls[0], urls: uploadedUrls },
       count: uploadedUrls.length,
     });
   } catch (error: unknown) {
