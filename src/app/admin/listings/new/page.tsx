@@ -16,6 +16,7 @@ interface FormData {
   price: number;
   deposit: number;
   monthlyRent: number;
+  maintenanceFee: number;
   rooms: number;
   bathrooms: number;
   direction: string;
@@ -95,6 +96,7 @@ export default function NewListingPage() {
     price: 0,
     deposit: 0,
     monthlyRent: 0,
+    maintenanceFee: 0,
     rooms: 1,
     bathrooms: 1,
     direction: '남향',
@@ -631,7 +633,7 @@ export default function NewListingPage() {
   // 스텝 진행률
   const stepProgress = () => {
     let filled = 0;
-    const total = 8;
+    const total = 12;
     if (formData.images.length > 0) filled++;
     if (formData.address) filled++;
     if (formData.title) filled++;
@@ -643,164 +645,65 @@ export default function NewListingPage() {
     return Math.round((filled / total) * 100);
   };
 
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 헤더 */}
       <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin" className="text-gray-500 hover:text-gray-700">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
+        <div className="max-w-5xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <Link href="/admin/listings" className="text-gray-600 hover:text-gray-900 text-2xl">
+              &larr;
             </Link>
-            <h1 className="text-xl font-bold text-gray-900">스마트 매물 등록</h1>
-          </div>
-          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold">스마트 매물 등록</h1>
             <div className="text-sm text-gray-500">
               진행률 <span className="font-bold text-blue-600">{stepProgress()}%</span>
-            </div>
-            <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                style={{ width: `${stepProgress()}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 스텝 네비게이션 */}
-      <div className="bg-white border-b">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="flex">
-            {[
-              { num: 1, label: '사진 등록' },
-              { num: 2, label: '주소 & 건축물대장' },
-              { num: 3, label: '매물 정보' },
-              { num: 4, label: '설명 & 등록' },
-            ].map(step => (
-              <button
-                key={step.num}
-                onClick={() => setActiveStep(step.num)}
-                className={`flex-1 py-3 text-center text-sm font-medium border-b-2 transition-colors ${
-                  activeStep === step.num
-                    ? 'border-blue-600 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs mr-2 ${
-                  activeStep === step.num ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {step.num}
-                </span>
-                {step.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} className="max-w-5xl mx-auto px-4 py-6">
-        {/* ========== STEP 1: 사진 등록 ========== */}
-        {activeStep === 1 && (
-          <div className="bg-white rounded-xl shadow-sm border p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
+              <div className="w-32 h-2 bg-gray-200 rounded-full ml-2 inline-block align-middle">
+                <div className="h-2 bg-blue-600 rounded-full transition-all" style={{ width: `${stepProgress()}%` }} />
               </div>
-              <h2 className="text-lg font-bold text-gray-900">매물 사진 등록</h2>
             </div>
-            <p className="text-sm text-gray-500 mb-6">매물 사진을 등록하면 자동으로 최적화되어 업로드됩니다. 최대 20장까지 등록 가능핫니다.</p>
+          </div>
+        </div>
+      </div>
 
-            {/* 이미지 업로드 영역 */}
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${isDragOver ? 'border-yellow-400 bg-yellow-50 scale-[1.02] shadow-lg' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'}`}
+      <div className="max-w-5xl mx-auto px-4 py-6">
+        {/* 스텝 네비게이션 */}
+        <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
+          {[
+            { num: 1, label: '소재지' },
+            { num: 2, label: '거래/가격' },
+            { num: 3, label: '사진/AI' },
+            { num: 4, label: '매물유형' },
+            { num: 5, label: '건축물대장' },
+            { num: 6, label: '세부정보' },
+            { num: 7, label: '제목/설명' },
+            { num: 8, label: '특징' },
+            { num: 9, label: '등록' },
+          ].map(step => (
+            <button
+              key={step.num}
+              onClick={() => setActiveStep(step.num)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-all ${
+                activeStep === step.num
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-white text-gray-600 hover:bg-gray-100 border'
+              }`}
             >
-              {isDragOver ? (
-                <>
-                  <svg className="w-12 h-12 text-yellow-500 animate-bounce mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
-                  <p className="text-lg font-bold text-gray-800 mt-2">여기에 놓으세요!</p>
-                </>
-              ) : (
-                <>
-                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  <p className="text-gray-600 font-medium">사진을 드래그하여 놓거나 클릭하세요</p>
-                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP / 최대 10MB / 여러 장 동시 업로드 가능</p>
-                </>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </div>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                activeStep === step.num ? 'bg-white text-blue-600' : 'bg-gray-200 text-gray-600'
+              }`}>
+                {step.num}
+              </span>
+              {step.label}
+            </button>
+          ))}
+        </div>
 
-            {isUploadingImages && (
-              <div className="mt-4 flex items-center gap-2 text-blue-600">
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                <span className="text-sm">이미지 업로드 중...</span>
-              </div>
-            )}
-
-            {/* 이미지 미리보기 */}
-            {previewImages.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">등록된 사진 ({previewImages.length}장)</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {previewImages.map((src, index) => (
-                    <div key={index} className="relative group aspect-[4/3] rounded-lg overflow-hidden bg-gray-100">
-                      <img src={src} alt={`매물 사진 ${index + 1}`} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); handleRemoveImage(index); }}
-                          className="bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                      {index === 0 && (
-                        <span className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded">
-                          대표사진
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setActiveStep(2)}
-                className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                다음: 주소 입력
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ========== STEP 2: 주소 & 건축물대장 ========== */}
-        {activeStep === 2 && (
+        {/* ========== STEP 1: 소재지 입력 ========== */}
+        {activeStep === 1 && (
           <div className="space-y-6">
-            {/* 주소 입력 */}
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">📍 소재지 입력</h2>
             
             {/* AI 스마트 분석 */}
             <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-xl border border-purple-200 p-5">
@@ -934,7 +837,283 @@ export default function NewListingPage() {
             </div>
 
             {/* 건축물대장 정보 */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
+            </div>
+
+        <div className="flex justify-end mt-8">
+          <button onClick={() => setActiveStep(2)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
+            다음 →
+          </button>
+        </div>
+          </div>
+        )}
+
+        {/* ========== STEP 2: 거래 유형 및 가격 정보 ========== */}
+        {activeStep === 2 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">💰 거래 유형 및 가격 정보</h2>
+              
+              {/* 거래 유형 */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">거래 유형 *</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {TRANSACTION_TYPES.map(type => (
+                    <button key={type} onClick={() => updateField('transactionType', type)}
+                      className={`py-3 rounded-xl border-2 font-medium transition-all ${
+                        formData.transactionType === type 
+                          ? 'border-blue-500 bg-blue-50 text-blue-700' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}>
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <h3 className="text-md font-bold text-gray-900 mb-4">가격 정보</h3>
+
+              {formData.transactionType === '매매' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">매매가 (만원)</label>
+                  <input
+                    type="number"
+                    value={formData.price || ''}
+                    onChange={(e) => updateField('price', parseInt(e.target.value) || 0)}
+                    placeholder="매매가"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              )}
+
+              {formData.transactionType === '전세' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">전세금 (만원)</label>
+                  <input
+                    type="number"
+                    value={formData.price || ''}
+                    onChange={(e) => updateField('price', parseInt(e.target.value) || 0)}
+                    placeholder="전세금"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              )}
+
+              {formData.transactionType === '월세' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">보증금 (만원)</label>
+                    <input
+                      type="number"
+                      value={formData.deposit || ''}
+                      onChange={(e) => updateField('deposit', parseInt(e.target.value) || 0)}
+                      placeholder="보증금"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">월세 (만원)</label>
+                    <input
+                      type="number"
+                      value={formData.monthlyRent || ''}
+                      onChange={(e) => updateField('monthlyRent', parseInt(e.target.value) || 0)}
+                      placeholder="월세"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 세부 정보 */}
+
+              {/* 관리비 */}
+              <div className="mt-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">관리비 (만원)</label>
+                <input type="number" value={formData.maintenanceFee || ''} 
+                  onChange={(e) => updateField('maintenanceFee', Number(e.target.value))}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="관리비를 입력하세요" />
+              </div>
+            </div>
+
+        <div className="flex justify-between mt-8">
+          <button onClick={() => setActiveStep(1)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
+            ← 이전
+          </button>
+          <button onClick={() => setActiveStep(3)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
+            다음 →
+          </button>
+        </div>
+          </div>
+        )}
+
+        {/* ========== STEP 3: 사진 등록 + AI 스마트 분석 ========== */}
+        {activeStep === 3 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold mb-1 flex items-center gap-2">📸 매물 사진 등록</h2>
+              <p className="text-sm text-gray-500 mb-4">매물 사진을 등록하면 자동으로 최적화되어 업로드됩니다. 최대 20장까지 등록 가능합니다.</p>
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h2 className="text-lg font-bold text-gray-900">매물 사진 등록</h2>
+            </div>
+            <p className="text-sm text-gray-500 mb-6">매물 사진을 등록하면 자동으로 최적화되어 업로드됩니다. 최대 20장까지 등록 가능핫니다.</p>
+
+            {/* 이미지 업로드 영역 */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${isDragOver ? 'border-yellow-400 bg-yellow-50 scale-[1.02] shadow-lg' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'}`}
+            >
+              {isDragOver ? (
+                <>
+                  <svg className="w-12 h-12 text-yellow-500 animate-bounce mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                  <p className="text-lg font-bold text-gray-800 mt-2">여기에 놓으세요!</p>
+                </>
+              ) : (
+                <>
+                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                  <p className="text-gray-600 font-medium">사진을 드래그하여 놓거나 클릭하세요</p>
+                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP / 최대 10MB / 여러 장 동시 업로드 가능</p>
+                </>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+              />
+            </div>
+
+            {isUploadingImages && (
+              <div className="mt-4 flex items-center gap-2 text-blue-600">
+                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                <span className="text-sm">이미지 업로드 중...</span>
+              </div>
+            )}
+
+            {/* 이미지 미리보기 */}
+            {previewImages.length > 0 && (
+              <div className="mt-6">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">등록된 사진 ({previewImages.length}장)</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {previewImages.map((src, index) => (
+                    <div key={index} className="relative group aspect-[4/3] rounded-lg overflow-hidden bg-gray-100">
+                      <img src={src} alt={`매물 사진 ${index + 1}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); handleRemoveImage(index); }}
+                          className="bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                      {index === 0 && (
+                        <span className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded">
+                          대표사진
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setActiveStep(2)}
+            </div>
+
+            {/* AI 스마트 분석 */}
+            {formData.images.length > 0 && (
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl shadow-sm border border-purple-200 p-6">
+                <h3 className="text-lg font-bold mb-2 flex items-center gap-2">🤖 AI 스마트 분석</h3>
+                <p className="text-sm text-gray-600 mb-4">사진과 매물 정보를 AI가 분석하여 제목, 설명, 매물 유형을 자동으로 추천합니다.</p>
+                <button
+                  onClick={handleSmartAnalyze}
+                  disabled={isAnalyzing || formData.images.length === 0}
+                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 font-bold text-lg shadow-lg transition-all"
+                >
+                  {isAnalyzing ? '🔄 AI 분석 중...' : '✨ AI 분석 시작'}
+                </button>
+                {analysisResult && (
+                  <div className="mt-4 p-4 bg-white rounded-xl border">
+                    <p className="text-sm font-semibold text-green-600 mb-2">✅ AI 분석 완료!</p>
+                    {analysisResult.title && <p className="text-sm"><span className="font-medium">추천 제목:</span> {analysisResult.title}</p>}
+                    {analysisResult.description && <p className="text-sm mt-1"><span className="font-medium">추천 설명:</span> {analysisResult.description.substring(0, 100)}...</p>}
+                  </div>
+                )}
+              </div>
+            )}
+
+        <div className="flex justify-between mt-8">
+          <button onClick={() => setActiveStep(2)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
+            ← 이전
+          </button>
+          <button onClick={() => setActiveStep(4)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
+            다음 →
+          </button>
+        </div>
+          </div>
+        )}
+
+        {/* ========== STEP 4: 매물 유형 ========== */}
+        {activeStep === 4 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">🏢 매물 유형</h2>
+              <label className="block text-sm font-semibold text-gray-700 mb-3">매물 유형을 선택하세요 *</label>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                {PROPERTY_TYPES.map(type => (
+                  <button key={type} onClick={() => updateField('propertyType', type)}
+                    className={`py-3 px-2 rounded-xl border-2 font-medium text-sm transition-all ${
+                      formData.propertyType === type 
+                        ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}>
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+        <div className="flex justify-between mt-8">
+          <button onClick={() => setActiveStep(3)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
+            ← 이전
+          </button>
+          <button onClick={() => setActiveStep(5)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
+            다음 →
+          </button>
+        </div>
+          </div>
+        )}
+
+        {/* ========== STEP 5: 건축물대장 정보 ========== */}
+        {activeStep === 5 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">📋 건축물대장 정보</h2>
+              {!formData.address && (
+                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl mb-4">
+                  <p className="text-sm text-yellow-700">⚠️ 먼저 1단계에서 소재지를 입력해주세요.</p>
+                </div>
+              )}
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                   <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1101,146 +1280,24 @@ export default function NewListingPage() {
               )}
             </div>
 
-            <div className="flex justify-between">
-              <button
-                type="button"
-                onClick={() => setActiveStep(1)}
-                className="text-gray-600 px-6 py-2.5 rounded-lg font-medium hover:bg-gray-100 transition-colors"
-              >
-                이전
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveStep(3)}
-                className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                다음: 매물 정보
-              </button>
             </div>
+
+        <div className="flex justify-between mt-8">
+          <button onClick={() => setActiveStep(4)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
+            ← 이전
+          </button>
+          <button onClick={() => setActiveStep(6)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
+            다음 →
+          </button>
+        </div>
           </div>
         )}
 
-        {/* ========== STEP 3: 매물 정보 ========== */}
-        {activeStep === 3 && (
+        {/* ========== STEP 6: 세부 정보 ========== */}
+        {activeStep === 6 && (
           <div className="space-y-6">
-            {/* 기본 정보 */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                <h2 className="text-lg font-bold text-gray-900">기본 정보</h2>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">매물 제목 *</label>
-                  <input
-                    type="text"
-                    value={formData.title}
-                    onChange={(e) => updateField('title', e.target.value)}
-                    placeholder="예: 관악구 신축 투룸 전세"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">거래유형</label>
-                    <div className="flex gap-2">
-                      {TRANSACTION_TYPES.map(type => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => updateField('transactionType', type)}
-                          className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                            formData.transactionType === type
-                              ? 'bg-blue-600 text-white border-blue-600'
-                              : 'bg-white text-gray-600 border-gray-300 hover:border-blue-300'
-                          }`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">매물유형</label>
-                    <select
-                      value={formData.propertyType}
-                      onChange={(e) => updateField('propertyType', e.target.value)}
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    >
-                      {PROPERTY_TYPES.map(type => (
-                        <option key={type} value={type}>{type}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* 가격 정보 */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h3 className="text-md font-bold text-gray-900 mb-4">가격 정보</h3>
-
-              {formData.transactionType === '매매' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">매매가 (만원)</label>
-                  <input
-                    type="number"
-                    value={formData.price || ''}
-                    onChange={(e) => updateField('price', parseInt(e.target.value) || 0)}
-                    placeholder="매매가"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              )}
-
-              {formData.transactionType === '전세' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">전세금 (만원)</label>
-                  <input
-                    type="number"
-                    value={formData.price || ''}
-                    onChange={(e) => updateField('price', parseInt(e.target.value) || 0)}
-                    placeholder="전세금"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              )}
-
-              {formData.transactionType === '월세' && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">보증금 (만원)</label>
-                    <input
-                      type="number"
-                      value={formData.deposit || ''}
-                      onChange={(e) => updateField('deposit', parseInt(e.target.value) || 0)}
-                      placeholder="보증금"
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">월세 (만원)</label>
-                    <input
-                      type="number"
-                      value={formData.monthlyRent || ''}
-                      onChange={(e) => updateField('monthlyRent', parseInt(e.target.value) || 0)}
-                      placeholder="월세"
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 세부 정보 */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">📐 세부 정보</h2>
               <h3 className="text-md font-bold text-gray-900 mb-4">세부 정보</h3>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1320,48 +1377,40 @@ export default function NewListingPage() {
             </div>
 
             {/* 특지 선택 */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <h3 className="text-md font-bold text-gray-900 mb-4">특징 선택</h3>
-              <div className="flex flex-wrap gap-2">
-                {FEATURES_LIST.map(feature => (
-                  <button
-                    key={feature}
-                    type="button"
-                    onClick={() => toggleFeature(feature)}
-                    className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                      formData.features.includes(feature)
-                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
-                        : 'bg-gray-100 text-gray-600 border border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {formData.features.includes(feature) ? '✓ ' : ''}{feature}
-                  </button>
-                ))}
-              </div>
             </div>
 
-            <div className="flex justify-between">
-              <button
-                type="button"
-                onClick={() => setActiveStep(2)}
-                className="text-gray-600 px-6 py-2.5 rounded-lg font-medium hover:bg-gray-100 transition-colors"
-              >
-                이전
-              </button>
-              <button
-                type="button"
-                onClick={() => setActiveStep(4)}
-                className="bg-blue-600 text-white px-6 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-              >
-                다음: 설명 작성
-              </button>
-            </div>
+        <div className="flex justify-between mt-8">
+          <button onClick={() => setActiveStep(5)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
+            ← 이전
+          </button>
+          <button onClick={() => setActiveStep(7)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
+            다음 →
+          </button>
+        </div>
           </div>
         )}
 
-        {/* ========== STEP 4: 설명 & 등록 ========== */}
-        {activeStep === 4 && (
+        {/* ========== STEP 7: 매물 제목 + 매물 설명 ========== */}
+        {activeStep === 7 && (
           <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">✏️ 매물 제목 & 설명</h2>
+              
+              {/* 매물 제목 */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">매물 제목 *</label>
+                <input type="text" value={formData.title}
+                  onChange={(e) => updateField('title', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                  placeholder="예: 역세권 신축 투룸 전세" />
+                {analysisResult?.title && formData.title !== analysisResult.title && (
+                  <button onClick={() => updateField('title', analysisResult.title)}
+                    className="mt-2 text-sm text-purple-600 hover:text-purple-800">
+                    🤖 AI 추천 제목 적용: &quot;{analysisResult.title}&quot;
+                  </button>
+                )}
+              </div>
+
             <div className="bg-white rounded-xl shadow-sm border p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
@@ -1416,7 +1465,65 @@ export default function NewListingPage() {
             </div>
 
             {/* 등록 상태 */}
+            </div>
+
+        <div className="flex justify-between mt-8">
+          <button onClick={() => setActiveStep(6)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
+            ← 이전
+          </button>
+          <button onClick={() => setActiveStep(8)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
+            다음 →
+          </button>
+        </div>
+          </div>
+        )}
+
+        {/* ========== STEP 8: 특징 선택 ========== */}
+        {activeStep === 8 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">⭐ 특징 선택</h2>
+              <p className="text-sm text-gray-500 mb-4">매물의 특징을 선택하면 검색 필터에 노출됩니다.</p>
             <div className="bg-white rounded-xl shadow-sm border p-6">
+              <h3 className="text-md font-bold text-gray-900 mb-4">특징 선택</h3>
+              <div className="flex flex-wrap gap-2">
+                {FEATURES_LIST.map(feature => (
+                  <button
+                    key={feature}
+                    type="button"
+                    onClick={() => toggleFeature(feature)}
+                    className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
+                      formData.features.includes(feature)
+                        ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                        : 'bg-gray-100 text-gray-600 border border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {formData.features.includes(feature) ? '✓ ' : ''}{feature}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-between">
+              <button
+            </div>
+
+        <div className="flex justify-between mt-8">
+          <button onClick={() => setActiveStep(7)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
+            ← 이전
+          </button>
+          <button onClick={() => setActiveStep(9)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
+            다음 →
+          </button>
+        </div>
+          </div>
+        )}
+
+        {/* ========== STEP 9: 등록 상태 ========== */}
+        {activeStep === 9 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">🚀 등록 상태</h2>
               <h3 className="text-md font-bold text-gray-900 mb-4">등록 상태</h3>
               <div className="flex gap-3">
                 {['active', 'pending', 'closed'].map(status => (
@@ -1440,6 +1547,11 @@ export default function NewListingPage() {
 
             {/* 등록 요약 */}
             <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
+            </div>
+
+            {/* 등록 요약 */}
+            <div className="bg-white rounded-2xl shadow-sm border p-6">
+              <h3 className="text-lg font-bold mb-4">📋 등록 요약</h3>
               <h3 className="text-md font-bold text-blue-900 mb-3">등록 요약</h3>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                 <div>
@@ -1499,19 +1611,27 @@ export default function NewListingPage() {
                     등록중...
                   </>
                 ) : (
-                  <>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    매물 등록하기
-                  </>
-                )}
-              </button>
             </div>
+
+            {submitMessage.text && (
+              <div className={`p-4 rounded-xl ${submitMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                {submitMessage.text}
+              </div>
+            )}
+
+
+        <div className="flex justify-between mt-8">
+          <button onClick={() => setActiveStep(8)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
+            ← 이전
+          </button>
+          <button onClick={handleSubmit} disabled={isSubmitting} className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-400 font-bold text-lg shadow-lg">
+            {isSubmitting ? '등록 중...' : '🏠 매물 등록하기'}
+          </button>
+        </div>
           </div>
         )}
-      </form>
-    
-</div>
+
+      </div>
+    </div>
   );
 }
