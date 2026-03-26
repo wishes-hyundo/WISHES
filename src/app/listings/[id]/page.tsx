@@ -64,7 +64,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ListingDetailPage({ params }: Props) {
   const { id } = await params;
   const listingId = parseInt(id);
-
   const supabase = createClient();
 
   const { data: listing } = await supabase
@@ -90,9 +89,78 @@ export default async function ListingDetailPage({ params }: Props) {
   const imageList = images || [];
   const featureList = features || [];
 
+  // Schema.org JSON-LD 구조화 데이터
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'RealEstateListing',
+    name: listing.title,
+    description: listing.description || `${listing.dong} ${listing.type} ${listing.deal}`,
+    url: `https://wishes.co.kr/listings/${listing.id}`,
+    datePosted: listing.created_at,
+    ...(imageList.length > 0 && { image: imageList.map((img: any) => img.url) }),
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'KRW',
+      price: listing.deal === '매매' ? (listing.price || 0) * 10000 : (listing.deposit || 0) * 10000,
+      availability: listing.status === '가용' ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+      ...(listing.deal === '월세' && {
+        priceSpecification: {
+          '@type': 'UnitPriceSpecification',
+          price: (listing.monthly || 0) * 10000,
+          priceCurrency: 'KRW',
+          unitText: '월',
+          referenceQuantity: {
+            '@type': 'QuantitativeValue',
+            value: 1,
+            unitCode: 'MON',
+          },
+        },
+      }),
+    },
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: listing.address || '',
+      addressLocality: listing.dong || '',
+      addressRegion: '서울특별시',
+      addressCountry: 'KR',
+    },
+    ...(listing.area_m2 && {
+      floorSize: {
+        '@type': 'QuantitativeValue',
+        value: listing.area_m2,
+        unitCode: 'MTK',
+        unitText: '㎡',
+      },
+    }),
+    ...(listing.floor_current && {
+      numberOfRooms: listing.floor_current,
+    }),
+    additionalProperty: [
+      { '@type': 'PropertyValue', name: '거래유형', value: listing.deal },
+      { '@type': 'PropertyValue', name: '매물유형', value: listing.type },
+      ...(listing.parking ? [{ '@type': 'PropertyValue', name: '주차', value: '가능' }] : []),
+      ...(listing.elevator ? [{ '@type': 'PropertyValue', name: '엘리베이터', value: '있음' }] : []),
+      ...(listing.pet ? [{ '@type': 'PropertyValue', name: '반려동물', value: '가능' }] : []),
+      ...(listing.built_year ? [{ '@type': 'PropertyValue', name: '준공년도', value: listing.built_year }] : []),
+    ],
+    broker: {
+      '@type': 'RealEstateAgent',
+      name: '위시스부동산중개법인',
+      url: 'https://wishes.co.kr',
+      telephone: '1533-9580',
+    },
+  };
+
   return (
     <div className="pt-16 min-h-screen bg-wishes-bg">
       <RecentlyViewedTracker listingId={id} />
+
+      {/* Schema.org 구조화 데이터 */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* 상단 네비 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
@@ -153,7 +221,7 @@ export default async function ListingDetailPage({ params }: Props) {
               <div className="grid grid-cols-2 gap-4 mt-6">
                 <InfoRow label="매물유형" value={listing.type} />
                 <InfoRow label="거래유형" value={listing.deal} />
-                <InfoRow label="전용면적" value={listing.area_m2 ? `${listing.area_m2}펡 (${sqmToPyeong(listing.area_m2)}평)` : '정보 없음'} />
+                <InfoRow label="전용면적" value={listing.area_m2 ? `${listing.area_m2}㎡ (${sqmToPyeong(listing.area_m2)}평)` : '정보 없음'} />
                 <InfoRow label="층수" value={listing.floor_current} />
                 <InfoRow label="주소" value={listing.address} fullWidth />
                 <InfoRow label="동" value={listing.dong} />
@@ -163,7 +231,7 @@ export default async function ListingDetailPage({ params }: Props) {
 
               {/* 옵션 */}
               <div className="mt-6 pt-6 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시섰</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h3>
                 <div className="flex flex-wrap gap-2">
                   <OptionBadge label="주차" available={listing.parking ?? false} />
                   <OptionBadge label="엘리베이터" available={listing.elevator ?? false} />
@@ -201,7 +269,6 @@ export default async function ListingDetailPage({ params }: Props) {
               >
                 온라인 상담 신청
               </Link>
-
 
               <ShareButton
                 url={`https://wishes.co.kr/listings/${listing.id}`}
