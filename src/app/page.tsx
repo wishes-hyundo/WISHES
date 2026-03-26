@@ -129,20 +129,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ━━━ 간결한 하단 CTA ━━━ */}
-      <section className="py-16 bg-wishes-bg">
-        <div className="max-w-3xl mx-auto px-4 text-center animate-fade-in-up">
-          <p className="text-lg text-wishes-muted mb-6">
-            원하시는 매물을 찾지 못하셨나요?
-          </p>
-          <Link
-            href="/contact"
-            className="inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-wishes-primary text-white font-semibold text-lg hover:bg-wishes-secondary hover:shadow-lg hover:-translate-y-0.5 transition-all"
-          >
-            상담 문의하기 <ArrowRight className="w-5 h-5" />
-          </Link>
-        </div>
-      </section>
     </div>
   );
 }
