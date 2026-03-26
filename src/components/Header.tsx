@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
+import { Menu, X, MessageCircle, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -94,6 +94,15 @@ export default function Header() {
 
           {/* CTA 버튼 + 로그인 */}
           <div className="hidden md:flex items-center gap-3">
+            <a
+              href="https://pf.kakao.com/_DxdSJs"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:shadow-wishes-secondary/50 hover:scale-105 transition-all duration-200 group"
+            >
+              <MessageCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>카카오 상담</span>
+            </a>
 
             {/* 로그인/사용자 메뉴 */}
             {!loading && (
@@ -129,7 +138,7 @@ export default function Header() {
                         className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                       >
                         <Heart className="w-4 h-4 text-gray-400" />
-                        찜한 매물
+                        찘한 매물
                       </Link>
                       <button
                         onClick={() => { signOut(); setUserMenuOpen(false); }}
@@ -217,6 +226,15 @@ export default function Header() {
                   </button>
                 )
               )}
+              <a
+                href="https://pf.kakao.com/_DxdSJs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:scale-105 transition-all duration-200 group"
+              >
+                <MessageCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                카카오 상담
+              </a>
             </div>
           </nav>
         </div>
