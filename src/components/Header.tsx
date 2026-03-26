@@ -20,11 +20,14 @@ export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, loading, signOut, setShowAuthModal } = useAuth();
 
   // 스크롤 감지
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll, { passive: true });
@@ -103,7 +106,9 @@ export default function Header() {
           {/* 데스크탑 우측: 로그인 */}
           <div className="hidden lg:flex items-center gap-3">
             {!loading && (
-              user ? (
+              !mounted ? (
+                <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
+              ) : user ? (
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
