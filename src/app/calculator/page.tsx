@@ -151,7 +151,7 @@ export default function LoanCalculatorPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero */}
-      <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-blue-900 text-white py-12">
+      <div className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-2 mb-4">
             <Calculator className="w-5 h-5 text-amber-400" />
@@ -292,7 +292,7 @@ export default function LoanCalculatorPage() {
 
           {/* Results */}
           {result && (
-            <div className="border-t pt-8">
+            <div className="border-t pt-16">
               <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                 <TrendingDown className="w-5 h-5 text-amber-500" />
                 계산 결과
