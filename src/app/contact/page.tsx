@@ -57,9 +57,17 @@ function ContactPageInner() {
           <h2 className="text-2xl font-bold text-wishes-primary mb-2">상담 신청 완료</h2>
           <p className="text-gray-600 mb-6">
             빠른 시일 내에 연락드리겠습니다.<br />
-            급하신 경우 전화로 문의해 주세요.
+            급하신 경우 카카오톡으로 문의해 주세요.
           </p>
-          
+          <a
+            href="https://pf.kakao.com/_DxdSJs"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-wishes-primary text-white px-6 py-3 rounded-xl font-bold"
+          >
+            <MessageCircle className="w-5 h-5" />
+            카카오톡 상담
+          </a>
         </div>
       </div>
     );
@@ -70,8 +78,8 @@ function ContactPageInner() {
       {/* 헤더 */}
       <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
         <div className="max-w-5xl mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold">상담 문의</h1>
-          <p className="mt-3 text-white/80">위시스부동산에 문의하세요</p>
+          <h1 className="text-3xl md:text-4xl font-bold drop-shadow-lg">상담 문의</h1>
+          <p className="mt-3 text-lg text-white/90 drop-shadow-md">위시스부동산에 문의하세요</p>
         </div>
       </section>
 
@@ -80,8 +88,6 @@ function ContactPageInner() {
           {/* 연락처 정보 */}
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-wishes-primary mb-4">연락처</h2>
-
-            
 
             <a href="https://pf.kakao.com/_DxdSJs" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-yellow-400 transition-colors">
               <div className="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
