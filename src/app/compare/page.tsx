@@ -122,7 +122,7 @@ export default function ComparePage() {
     {
       label: '관리비',
       render: (l: Listing) =>
-        l.maintenance_fee ? `${l.maintenance_fee.toLocaleString()}만원` : '-',
+        l.maintenance_fee ? `${l.maintenance_fee.toLocaleString('ko-KR')}만원` : '-',
     },
     {
       label: '주차',

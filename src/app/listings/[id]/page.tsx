@@ -167,11 +167,11 @@ export default async function ListingDetailPage({ params }: Props) {
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
                 <p className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  등록일: {new Date(listing.created_at).toLocaleDateString('ko-KR')}
+                  등록일: {new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                 </p>
                 <p className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
-                  수정일: {new Date(listing.updated_at).toLocaleDateString('ko-KR')}
+                  수정일: {new Date(listing.updated_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                 </p>
               </div>
             </div>

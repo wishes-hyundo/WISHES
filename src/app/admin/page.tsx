@@ -392,9 +392,9 @@ export default function AdminPage() {
 
   // 가격 표시 헬퍼
   const formatPrice = (listing: Listing) => {
-    if (listing.deal === '매매') return `매매 ${(listing.price || 0).toLocaleString()}만원`;
-    if (listing.deal === '전세') return `전세 ${listing.deposit.toLocaleString()}만원`;
-    return `${listing.deposit.toLocaleString()}/${listing.monthly || 0}만원`;
+    if (listing.deal === '매매') return `매매 ${(listing.price || 0).toLocaleString('ko-KR')}만원`;
+    if (listing.deal === '전세') return `전세 ${listing.deposit.toLocaleString('ko-KR')}만원`;
+    return `${listing.deposit.toLocaleString('ko-KR')}/${listing.monthly || 0}만원`;
   };
 
   const inputClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary text-sm';
@@ -1003,7 +1003,7 @@ export default function AdminPage() {
                   <div>
                     <p className="text-gray-500 text-xs">등록일</p>
                     <p className="font-semibold text-xs">
-                      {new Date(listing.created_at).toLocaleDateString('ko-KR')}
+                      {new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                     </p>
                   </div>
                 </div>
@@ -1066,7 +1066,7 @@ export default function AdminPage() {
                 )}
 
                 <p className="text-xs text-gray-400">
-                  {new Date(contact.createdAt || contact.created_at || '').toLocaleString('ko-KR')}
+                  {new Date(contact.createdAt || contact.created_at || '').toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}
                 </p>
               </div>
             ))
