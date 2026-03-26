@@ -183,30 +183,44 @@ export default function AdminPage() {
     const fileArray = Array.from(files);
     const validFiles = fileArray.filter(f => {
       const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
-      if (!validTypes.includes(f.type)) { alert(f.name + ' - JPG, PNG, WebP만 가능합니다.'); return false; }
-      if (f.size > 5 * 1024 * 1024) { alert(f.name + ' - 5MB를 초과합니다.'); return false; }
+      if (!validTypes.includes(f.type)) {
+        alert(`\"${f.name}\" - 지원하지 않는 형식입니다. (JPG, PNG, WebP만 가능)`);
+        return false;
+      }
+      if (f.size > 5 * 1024 * 1024) {
+        alert(`\"${f.name}\" - 파일 크기가 5MB를 초과합니다.`);
+        return false;
+      }
       return true;
     });
+
     if (validFiles.length === 0) return;
+
     setUploadingImages(true);
     setUploadProgress(0);
     const newImages: { url: string; path: string }[] = [];
+
     for (let i = 0; i < validFiles.length; i++) {
       const formData = new FormData();
       formData.append('file', validFiles[i]);
+
       try {
         const response = await fetch('/api/admin/upload', {
           method: 'POST',
           headers: { authorization: getAuthHeader() },
           body: formData,
         });
+
         if (response.ok) {
           const data = await response.json();
           newImages.push({ url: data.data.url, path: data.data.path });
         }
-      } catch (error) { console.error('Upload error:', error); }
+      } catch (error) {
+        console.error('이미지 업로드 오류:', error);
+      }
       setUploadProgress(Math.round(((i + 1) / validFiles.length) * 100));
     }
+
     setUploadedImages(prev => [...prev, ...newImages]);
     setUploadingImages(false);
     setUploadProgress(0);
@@ -219,12 +233,26 @@ export default function AdminPage() {
     await processFiles(files);
   };
 
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); };
-  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); };
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+  };
+
   const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation(); setIsDragOver(false);
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
     const files = e.dataTransfer.files;
-    if (files && files.length > 0) { await processFiles(files); }
+    if (files && files.length > 0) {
+      await processFiles(files);
+    }
   };
 
   const handleAddListing = async (e: React.FormEvent) => {
@@ -234,7 +262,7 @@ export default function AdminPage() {
     setSubmitSuccess('');
 
     try {
-      // API에 맞게 데이터 정리
+      // API에 맞겎 데이터 정리
       const payload: Record<string, any> = {
         title: newListing.title,
         type: newListing.type,
@@ -270,6 +298,11 @@ export default function AdminPage() {
       payload.full_option = newListing.full_option;
       payload.loan_available = newListing.loan_available;
 
+      // 업로드된 이미지 URL 배열을 payload에 포함 (서버에서 listing_images에 자동 연결)
+      if (uploadedImages.length > 0) {
+        payload.images = uploadedImages.map((img: { url: string; path: string }) => img.url);
+      }
+
       const response = await fetch('/api/admin/listings', {
         method: 'POST',
         headers: {
@@ -282,30 +315,11 @@ export default function AdminPage() {
       if (response.ok) {
         const data = await response.json();
 
-        // 이미지가 업로드되었으면 매물에 연결
-        if (uploadedImages.length > 0 && data.data?.id) {
-          for (let i = 0; i < uploadedImages.length; i++) {
-            await fetch('/api/admin/upload', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                authorization: getAuthHeader(),
-              },
-              body: JSON.stringify({
-                listingId: data.data.id,
-                url: uploadedImages[i].url,
-                sort_order: i,
-                is_thumbnail: i === 0,
-              }),
-            });
-          }
-        }
-
         setListings([data.data, ...listings]);
         setNewListing({ ...INITIAL_LISTING });
         setUploadedImages([]);
         setShowAddForm(false);
-        setSubmitSuccess('매매이 성공적으로 등록되었습니다!');
+        setSubmitSuccess('매물이 성공적으로 등록되었습니다!');
         setTimeout(() => setSubmitSuccess(''), 3000);
       } else {
         const errData = await response.json();
@@ -391,7 +405,7 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-wishes-primary to-wishes-secondary p-4">
         <div className="bg-white rounded-2xl shadow-premium p-8 w-full max-w-md">
-          <h1 className="text-3xl font-bold text-wishes-primary mb-2">WISHES</h1>
+          <h1 className="text-3xl font-bold text-wishes-primary">WISHES</h1>
           <p className="text-gray-600 mb-6">관리자 로그인</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -467,18 +481,22 @@ export default function AdminPage() {
     );
   }
 
-  // ─── 매물 관리 탭 ───
+  // ─── 매물 관ub9ac 탭 ───
   if (tab === 'listings') {
     return (
       <div>
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-wishes-primary">매물 관리</h2>
           <button
-                onClick={() => router.push('/admin/listings/new')}
-                className="bg-wishes-secondary text-white px-6 py-3 rounded-lg hover:bg-wishes-primary transition font-semibold"
-              >
-                + 스마트 매물 등록
-              </button>
+            onClick={() => {
+              setShowAddForm(!showAddForm);
+              setSubmitError('');
+              setSubmitSuccess('');
+            }}
+            className="bg-wishes-secondary text-white px-6 py-2 rounded-lg hover:bg-wishes-primary transition font-semibold"
+          >
+            {showAddForm ? '취소' : '+ 새 매물 등록'}
+          </button>
         </div>
 
         {submitSuccess && (
@@ -488,7 +506,434 @@ export default function AdminPage() {
         )}
 
         {/* ── 매물 추가 폼 ── */}
-        {/* 매물 등록은 스마트 매물 등록 페이지에서 진행 */}
+        {showAddForm && (
+          <div className="card-premium p-6 mb-6">
+            <h3 className="text-lg font-bold text-wishes-primary mb-4">새 매물 등록</h3>
+
+            {submitError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
+                {submitError}
+              </div>
+            )}
+
+            <form onSubmit={handleAddListing} className="space-y-5">
+              {/* 기본 정보 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">기본 정보</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="md:col-span-3">
+                    <label className={labelClass}>매물 제목 *</label>
+                    <input
+                      type="text"
+                      placeholder="예: 신림동 역세권 신축 원룸"
+                      value={newListing.title}
+                      onChange={(e) => setNewListing({ ...newListing, title: e.target.value })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>매물 유형 *</label>
+                    <select
+                      value={newListing.type}
+                      onChange={(e) => setNewListing({ ...newListing, type: e.target.value as any })}
+                      className={inputClass}
+                    >
+                      <option value="원룸">원룸</option>
+                      <option value="투룸">투룸</option>
+                      <option value="쓰리룸">쓰리룸</option>
+                      <option value="오피스터">오피스터</option>
+                      <option value="아파트">아파트</option>
+                      <option value="상가">상가</option>
+                      <option value="사무실">사무실</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>거래 유형 *</label>
+                    <select
+                      value={newListing.deal}
+                      onChange={(e) => setNewListing({ ...newListing, deal: e.target.value as any })}
+                      className={inputClass}
+                    >
+                      <option value="전세">전세</option>
+                      <option value="월세">월세</option>
+                      <option value="매매">매매</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>상태</label>
+                    <select
+                      value={newListing.status}
+                      onChange={(e) => setNewListing({ ...newListing, status: e.target.value as any })}
+                      className={inputClass}
+                    >
+                      <option value="가용">가용</option>
+                      <option value="계약중">계약중</option>
+                     <option value="계약완료">계약완료</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* 가격 정보 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">가격 정보 (만원)</p>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className={labelClass}>보증금 *</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={newListing.deposit || ''}
+                      onChange={(e) => setNewListing({ ...newListing, deposit: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>월세</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={newListing.monthly || ''}
+                      onChange={(e) => setNewListing({ ...newListing, monthly: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>매매가</label>
+                    <input
+                      type="number"
+                      placeholder="매매시 입력"
+                      value={newListing.price || ''}
+                      onChange={(e) => setNewListing({ ...newListing, price: e.target.value ? parseInt(e.target.value) : undefined })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>관리비</label>
+                    <input
+                      type="number"
+                      placeholder="0"
+                      value={newListing.maintenance_fee || ''}
+                      onChange={(e) => setNewListing({ ...newListing, maintenance_fee: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 위치 정보 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">위치 정보</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div className="md:col-span-2">
+                    <label className={labelClass}>주소 *</label>
+                    <input
+                      type="text"
+                      placeholder="예: 서울 관악구 신림로 267"
+                      value={newListing.address}
+                      onChange={(e) => setNewListing({ ...newListing, address: e.target.value })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>동 *</label>
+                    <input
+                      type="text"
+                      placeholder="예: 신림동"
+                      value={newListing.dong}
+                      onChange={(e) => setNewListing({ ...newListing, dong: e.target.value })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className={labelClass}>상세 주소</label>
+                    <input
+                      type="text"
+                      placeholder="예: 301호"
+                      value={newListing.address_detail}
+                      onChange={(e) => setNewListing({ ...newListing, address_detail: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 면적/층수 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">면적 / 층수 / 구조</p>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                  <div>
+                    <label className={labelClass}>전용면적(m2) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="19.83"
+                      value={newListing.area_m2 || ''}
+                      onChange={(e) => setNewListing({ ...newListing, area_m2: parseFloat(e.target.value) || 0 })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>공급면적(m2)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="26.45"
+                      value={newListing.area_supply_m2 || ''}
+                      onChange={(e) => setNewListing({ ...newListing, area_supply_m2: e.target.value ? parseFloat(e.target.value) : undefined })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>현재 층 *</label>
+                    <input
+                      type="text"
+                      placeholder="3"
+                      value={newListing.floor_current}
+                      onChange={(e) => setNewListing({ ...newListing, floor_current: e.target.value })}
+                      className={inputClass}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>총 층</label>
+                    <input
+                      type="text"
+                      placeholder="5"
+                      value={newListing.floor_total}
+                      onChange={(e) => setNewListing({ ...newListing, floor_total: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>방 수</label>
+                    <input
+                      type="number"
+                      placeholder="1"
+                      value={newListing.rooms || ''}
+                      onChange={(e) => setNewListing({ ...newListing, rooms: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>욕실 수</label>
+                    <input
+                      type="number"
+                      placeholder="1"
+                      value={newListing.bathrooms || ''}
+                      onChange={(e) => setNewListing({ ...newListing, bathrooms: parseInt(e.target.value) || 0 })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 추가 정보 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">추가 정보</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className={labelClass}>방향</label>
+                    <select
+                      value={newListing.direction}
+                      onChange={(e) => setNewListing({ ...newListing, direction: e.target.value })}
+                      className={inputClass}
+                    >
+                      <option value="">선택</option>
+                      <option value="동향">동향</option>
+                      <option value="서향">서향</option>
+                      <option value="남향">남향</option>
+                      <option value="북향">북향</option>
+                      <option value="남동향">남동향</option>
+                      <option value="남서향">남서향</option>
+                      <option value="북동향">북동향</option>
+                      <option value="북서향">북서향</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>난방 방식</label>
+                    <select
+                      value={newListing.heating_type}
+                      onChange={(e) => setNewListing({ ...newListing, heating_type: e.target.value })}
+                      className={inputClass}
+                    >
+                      <option value="">선택</option>
+                      <option value="개별난방">개별난방</option>
+                      <option value="중앙난방">중앙난방</option>
+                      <option value="지역난방">지역난방</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelClass}>입주가능일</label>
+                    <input
+                      type="text"
+                      placeholder="즉시입주 / 2026-04-01"
+                      value={newListing.available_date}
+                      onChange={(e) => setNewListing({ ...newListing, available_date: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClass}>준공연도</label>
+                    <input
+                      type="text"
+                      placeholder="2020"
+                      value={newListing.built_year}
+                      onChange={(e) => setNewListing({ ...newListing, built_year: e.target.value })}
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 편의시설 옵션 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">편의시설 / 옵션</p>
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    { key: 'parking', label: '주차' },
+                    { key: 'elevator', label: '엘리베이터' },
+                    { key: 'pet', label: '반려동물' },
+                    { key: 'balcony', label: '베란다/발코니' },
+                    { key: 'full_option', label: '풀옵션' },
+                    { key: 'loan_available', label: '대출가능' },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 cursor-pointer text-sm">
+                      <input
+                        type="checkbox"
+                        checked={(newListing as any)[key]}
+                        onChange={(e) => setNewListing({ ...newListing, [key]: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* 설명 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">매물 설명</p>
+                <textarea
+                  placeholder="매물에 대한 상세 설명을 입력하세요"
+                  value={newListing.description}
+                  onChange={(e) => setNewListing({ ...newListing, description: e.target.value })}
+                  className={inputClass}
+                  rows={4}
+                />
+              </div>
+
+              {/* 이미지 업로드 - 드래그앤드롭 */}
+              <div className="border-b pb-4">
+                <p className="text-sm font-bold text-gray-700 mb-3">매물 이미지</p>
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${
+                    isDragOver
+                      ? 'border-wishes-accent bg-yellow-50 scale-[1.02] shadow-lg'
+                      : 'border-gray-300 hover:border-wishes-secondary hover:bg-gray-50'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                  <div className="flex flex-col items-center gap-3">
+                    {isDragOver ? (
+                      <>
+                        <svg className="w-12 h-12 text-wishes-accent animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        <p className="text-lg font-bold text-wishes-primary">여기에 놓으세요!</p>
+                      </>
+                    ) : (
+                      <>
+                        <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-700">사진을 드래그하여 놓거나 클릭하세요</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP / 최대 5MB / 여러 장 동시 업로드 가능</p>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* 업로드 진행바 */}
+                {uploadingImages && (
+                  <div className="mt-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <svg className="w-4 h-4 text-wishes-secondary animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <p className="text-sm text-gray-600">업로드 중... {uploadProgress}%</p>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div
+                        className="bg-gradient-to-r from-wishes-secondary to-wishes-accent h-2 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* 업로드된 이미지 미리보기 */}
+                {uploadedImages.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-xs text-gray-500 mb-2">업로드된 이미지 ({uploadedImages.length}장)</p>
+                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
+                      {uploadedImages.map((img, i) => (
+                        <div key={i} className="relative group aspect-square">
+                          <img
+                            src={img.url}
+                            alt={`매물 사진 ${i + 1}`}
+                            className="w-full h-full object-cover rounded-lg border border-gray-200 shadow-sm group-hover:shadow-md transition"
+                          />
+                          {i === 0 && (
+                            <span className="absolute top-1 left-1 bg-wishes-accent text-wishes-primary text-[10px] font-bold px-1.5 py-0.5 rounded">
+                              대표
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setUploadedImages(uploadedImages.filter((_, idx) => idx !== i)); }}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 등록 버튼 */}
+              <button
+                type="submit"
+                disabled={submitLoading}
+                className="w-full bg-wishes-secondary text-white py-3 rounded-lg hover:bg-wishes-primary transition font-bold text-lg disabled:opacity-50"
+              >
+                {submitLoading ? '등록 중...' : '매물 등록하기'}
+              </button>
+            </form>
+          </div>
+        )}
 
         {/* ── 매물 목록 ── */}
         <div className="space-y-3">
@@ -501,7 +946,10 @@ export default function AdminPage() {
               <div key={listing.id} className="card-premium p-5">
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
-                    <h3 className="text-base font-bold text-wishes-primary">{listing.title}</h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">W-{listing.id}</span>
+                      <h3 className="text-base font-bold text-wishes-primary">{listing.title}</h3>
+                    </div>
                     <p className="text-sm text-gray-500 mt-1">
                       {listing.address} | {listing.type} | {listing.deal}
                     </p>
@@ -590,7 +1038,7 @@ export default function AdminPage() {
                     </p>
                     {contact.listingTitle && (
                       <p className="text-sm text-wishes-secondary font-medium mt-1">
-                        📍 {contact.listingTitle}
+                        📋 {contact.listingTitle}
                       </p>
                     )}
                   </div>
