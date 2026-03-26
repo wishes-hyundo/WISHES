@@ -10,7 +10,7 @@ export default function AboutPage() {
   return (
     <div className="pt-16 min-h-screen">
       {/* 히어로 */}
-      <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16">
+      <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
         <div className="max-w-5xl mx-auto px-4 text-center">
           <h1 className="text-3xl md:text-4xl font-bold">회사 소개</h1>
           <p className="mt-3 text-blue-200">
