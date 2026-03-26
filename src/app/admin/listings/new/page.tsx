@@ -804,7 +804,6 @@ export default function NewListingPage() {
             </div>
 
             {/* 건축물대장 정보 */}
-            </div>
 
         <div className="flex justify-end mt-8">
           <button onClick={() => setActiveStep(2)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
