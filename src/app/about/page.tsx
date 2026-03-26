@@ -121,7 +121,7 @@ export default function AboutPage() {
                 height="100%"
                 style={{ border: 0 }}
                 allowFullScreen
-                loading="lazy"
+                loading="eager"
                 referrerPolicy="no-referrer-when-downgrade"
                 title="위시스부동산 위치"
               />
