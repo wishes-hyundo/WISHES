@@ -922,10 +922,6 @@ export default function NewListingPage() {
                   </div>
                 </div>
               )}
-            </div>
-
-            {/* 세부 정보 */}
-
               {/* 관리비 */}
               <div className="mt-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">관리비 (만원)</label>
