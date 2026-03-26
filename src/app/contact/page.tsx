@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Phone, Mail, MapPin, Send, CheckCircle, MessageCircle } from 'lucide-react';
+import { Mail, MapPin, Send, CheckCircle, MessageCircle } from 'lucide-react';
 
 export default function ContactPage() {
   return (
@@ -59,13 +59,7 @@ function ContactPageInner() {
             빠른 시일 내에 연락드리겠습니다.<br />
             급하신 경우 전화로 문의해 주세요.
           </p>
-          <a
-            href="tel:1533-9580"
-            className="inline-flex items-center gap-2 bg-wishes-primary text-white px-6 py-3 rounded-xl font-bold"
-          >
-            <Phone className="w-5 h-5" />
-            1533-9580
-          </a>
+          
         </div>
       </div>
     );
@@ -87,15 +81,7 @@ function ContactPageInner() {
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-wishes-primary mb-4">연락처</h2>
 
-            <a href="tel:1533-9580" className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-wishes-secondary transition-colors">
-              <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Phone className="w-5 h-5 text-wishes-secondary" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">전화 상담</p>
-                <p className="font-bold text-wishes-primary">1533-9580</p>
-              </div>
-            </a>
+            
 
             <a href="https://pf.kakao.com/_DxdSJs" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-white rounded-xl border border-gray-200 hover:border-yellow-400 transition-colors">
               <div className="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
