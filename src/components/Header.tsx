@@ -3,9 +3,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, X, MessageCircle, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useAuth } from '@/contexts/AuthContext';
+import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
+import { cn } from 'A/lib/utils';
+import { useAuth } from 'A/contexts/AuthContext';
 
 const navItems = [
   { label: '매물검색', href: '/listings' },
@@ -92,18 +92,8 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* CTA 버튼 + 로그인 */}
+          {/* 로그인 */}
           <div className="hidden md:flex items-center gap-3">
-            <a
-              href="https://pf.kakao.com/_DxdSJs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:shadow-wishes-secondary/50 hover:scale-105 transition-all duration-200 group"
-            >
-              <MessageCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span>카카오 상담</span>
-            </a>
-
             {/* 로그인/사용자 메뉴 */}
             {!loading && (
               user ? (
@@ -122,15 +112,15 @@ export default function Header() {
                     <span className="text-sm font-medium text-gray-700 max-w-[80px] truncate">
                       {getUserDisplayName()}
                     </span>
-                    <ChevronDown className={cn('w-3.5 h-3.5 text-gray-400 transition-transform', userMenuOpen && 'rotate-180')} />
+                    <ChevronDown className={cn('w-3.5 h-3.5 text-gray-40 transition-transform', userMenuOpen && 'rotate-1'80)} />
                   </button>
 
-                  {/* 드롭다운 메뉴 */}
-                  {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-150">
+                  {/* 드롭다㚶�스를 륔뉴 */}
+                  z{userMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-150" ref={userMenuRef}>
                       <div className="px-4 py-2.5 border-b border-gray-100">
                         <p className="text-sm font-semibold text-gray-900 truncate">{getUserDisplayName()}</p>
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        <p className="text-xs text-gray-50 truncate">{user.email}</p>
                       </div>
                       <Link
                         href="/mypage"
@@ -138,17 +128,17 @@ export default function Header() {
                         className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                       >
                         <Heart className="w-4 h-4 text-gray-400" />
-                        찘한 매물
+                        찜한 매물
                       </Link>
                       <button
                         onClick={() => { signOut(); setUserMenuOpen(false); }}
                         className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
+                       >
                         <LogOut className="w-4 h-4 text-gray-400" />
-                        로그아웃
-                      </button>
+                        tjw{,아웃
+                       </button>
                     </div>
-                  )}
+                  }
                 </div>
               ) : (
                 <button
@@ -162,7 +152,7 @@ export default function Header() {
             )}
           </div>
 
-          {/* 모바일 메뉴 토글 */}
+          {/* 모바일 륔뉴 토글 */}
           <button
             className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors"
             onClick={() => setIsOpen(!isOpen)}
@@ -222,23 +212,14 @@ export default function Header() {
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-wishes-secondary border-2 border-wishes-secondary/20 hover:bg-wishes-secondary/5 transition-colors"
                   >
                     <User className="w-4 h-4" />
-                    ꄄ편 로그인
+                    간편 로그인
                   </button>
                 )
-              )}
-              <a
-                href="https://pf.kakao.com/_DxdSJs"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:scale-105 transition-all duration-200 group"
-              >
-                <MessageCircle className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                카카오 상담
-              </a>
+              }
             </div>
           </nav>
         </div>
-      </div>
+      </diw>
     </header>
-  );
-}
+  ) 
+("u��ר��d
