@@ -39,7 +39,12 @@ export default function Header() {
   };
 
   const getUserAvatar = () => {
-    return user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
+    const url = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
+    // 카카오 프로필 이미지 HTTP → HTTPS 변환 (mixed content 방지)
+    if (url && url.startsWith('http://')) {
+      return url.replace('http://', 'https://');
+    }
+    return url;
   };
 
   const isActive = (href: string) => {
@@ -108,7 +113,7 @@ export default function Header() {
                         <User className="w-4 h-4 text-wishes-secondary" />
                       </div>
                     )}
-                    <span className="text-sm font-medium text-gray-700 max-w-[80px] truncate">
+                    <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
                       {getUserDisplayName()}
                     </span>
                     <ChevronDown className={cn('w-3.5 h-3.5 text-gray-400 transition-transform', userMenuOpen && 'rotate-180')} />
@@ -211,7 +216,7 @@ export default function Header() {
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-wishes-secondary border-2 border-wishes-secondary/20 hover:bg-wishes-secondary/5 transition-colors"
                   >
                     <User className="w-4 h-4" />
-                    간편 로그인
+                    ꂄ편 로그인
                   </button>
                 )
               )}
