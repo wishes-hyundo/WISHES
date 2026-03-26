@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { FloatingButtons } from '@/components/FloatingButtons';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { FavoritesProvider } from '@/contexts/FavoritesContext';
 import AuthModal from '@/components/AuthModal';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
@@ -17,11 +18,13 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthProvider>
-      <Header />
-      <main className="flex-1">{children}</main>
-      <Footer />
-      <FloatingButtons />
-      <AuthModal />
+      <FavoritesProvider>
+        <Header />
+        <main className="flex-1">{children}</main>
+        <Footer />
+        <FloatingButtons />
+        <AuthModal />
+      </FavoritesProvider>
     </AuthProvider>
   );
 }
