@@ -3,7 +3,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-// 일반 Supabase 클라이언트 (서버 컴포넌트용, 세션 없음)
+// ì¼ë° Supabase í´ë¼ì´ì¸í¸ (ìë² ì»´í¬ëí¸ì©, ì¸ì ìì)
 export function createClient() {
   return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
     auth: {
@@ -14,7 +14,7 @@ export function createClient() {
   });
 }
 
-// 싱글터 인증 클라이언트 (소셜 로그인용, 클라이언트 컴포너트에서만 사용)
+// ì±ê¸í° ì¸ì¦ í´ë¼ì´ì¸í¸ (ìì ë¡ê·¸ì¸ì©, í´ë¼ì´ì¸í¸ ì»´í¬ëí¸ììë§ ì¬ì©)
 let authClientInstance: ReturnType<typeof createSupabaseClient> | null = null;
 
 export function createAuthClient() {
@@ -32,3 +32,6 @@ export function createAuthClient() {
   });
   return authClientInstance;
 }
+
+// Alias for backward compatibility with admin routes
+export const createServerClient = createClient;
