@@ -1030,11 +1030,6 @@ export default function NewListingPage() {
               </div>
             )}
 
-            <div className="mt-6 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setActiveStep(2)}
-            </div>
 
             {/* AI 스마트 분석 */}
             {formData.images.length > 0 && (
@@ -1500,9 +1495,6 @@ export default function NewListingPage() {
               </div>
             </div>
 
-            <div className="flex justify-between">
-              <button
-            </div>
 
         <div className="flex justify-between mt-8">
           <button onClick={() => setActiveStep(7)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
