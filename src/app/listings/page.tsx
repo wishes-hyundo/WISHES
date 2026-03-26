@@ -1,4 +1,6 @@
 import { Suspense } from 'react';
+
+export const revalidate = 60;
 import { createClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
 import { ListingFilters } from '@/components/ListingFilters';
