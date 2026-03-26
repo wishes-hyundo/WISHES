@@ -34,7 +34,7 @@ export default async function HomePage() {
         <div className="relative max-w-5xl mx-auto px-4 text-center space-y-8 animate-fade-in-up">
           <div className="space-y-6">
             <div className="inline-block px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-sm">
-              <p className="text-sm font-medium text-white/80">위시스부동산 | 종합봀동산 서비스</p>
+              <p className="text-sm font-medium text-white/80">위시스부동산 | 종합부동산 서비스</p>
             </div>
 
             <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
