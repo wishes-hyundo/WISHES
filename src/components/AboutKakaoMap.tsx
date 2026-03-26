@@ -38,9 +38,9 @@ export default function AboutKakaoMap() {
           map,
         });
 
-        // 인포윈도우
+        // 인포위도우
         const infowindow = new kakao.maps.InfoWindow({
-          content: '<div style="padding:8px 12px;font-size:13px;font-weight:600;white-space:nowrap;">위시스부동산중개법인</div>',
+          content: `<div style="padding:8px 12px;font-size:13px;font-weight:600;white-space:nowrap;">WISHES</div>`,
         });
         infowindow.open(map, marker);
 
@@ -50,9 +50,11 @@ export default function AboutKakaoMap() {
       });
     };
 
+    // SDK가 이미 로드된 경우
     if (window.kakao?.maps) {
       initMap();
     } else {
+      // SDK 로드 대기
       const interval = setInterval(() => {
         if (window.kakao?.maps) {
           clearInterval(interval);
