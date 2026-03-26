@@ -115,7 +115,7 @@ export default function Header() {
                     <ChevronDown className={cn('w-3.5 h-3.5 text-gray-40 transition-transform', userMenuOpen && 'rotate-1'80)} />
                   </button>
 
-                  {/* 드롭다㚶�스를 륔뉴 */}
+                  {/* 드롭다운 메뉴 */}
                   z{userMenuOpen && (
                     <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-150" ref={userMenuRef}>
                       <div className="px-4 py-2.5 border-b border-gray-100">
@@ -219,7 +219,7 @@ export default function Header() {
             </div>
           </nav>
         </div>
-      </diw>
+      </div>
     </header>
-  ) 
-("u��ר��d
+  );
+}
