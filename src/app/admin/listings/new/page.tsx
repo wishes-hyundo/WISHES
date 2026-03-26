@@ -822,7 +822,7 @@ export default function NewListingPage() {
               {/* 거래 유형 */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">거래 유형 *</label>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                   {TRANSACTION_TYPES.map(type => (
                     <button key={type} onClick={() => updateField('transactionType', type)}
                       className={`py-3 rounded-xl border-2 font-medium transition-all ${
@@ -865,7 +865,7 @@ export default function NewListingPage() {
               )}
 
               {formData.transactionType === '월세' && (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">보증금 (만원)</label>
                     <input
@@ -1282,7 +1282,7 @@ export default function NewListingPage() {
               {/* 면적 정보 */}
               <div className="mb-6">
                 <h3 className="text-sm font-bold text-gray-900 mb-3">면적 정보</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-1">전용면적 (㎡)</label>
                     <input type="number" value={formData.exclusiveArea || ''} onChange={(e) => updateField('exclusiveArea', parseFloat(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" step="0.01" placeholder="전용면적" />
@@ -1339,7 +1339,7 @@ export default function NewListingPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-2">난방방식</label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {['개별난방', '중앙난방', '지역난방'].map(type => (
                         <button key={type} type="button" onClick={() => updateField('heatingType', type)} className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all ${formData.heatingType === type ? 'bg-orange-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{type}</button>
                       ))}
@@ -1359,7 +1359,7 @@ export default function NewListingPage() {
               {/* 입주가능일 */}
               <div className="mb-6">
                 <h3 className="text-sm font-bold text-gray-900 mb-3">입주 정보</h3>
-                <div className="flex items-end gap-3">
+                <div className="flex flex-wrap items-end gap-2 sm:gap-3">
                   <div className="flex-1">
                     <label className="block text-xs font-medium text-gray-500 mb-1">입주가능일</label>
                     <input type="date" value={formData.moveInDate} onChange={(e) => { updateField('moveInDate', e.target.value); updateField('moveInType', ''); }} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
@@ -1372,7 +1372,7 @@ export default function NewListingPage() {
               {/* 주차/반려동물 */}
               <div className="mb-2">
                 <h3 className="text-sm font-bold text-gray-900 mb-3">추가 정보</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-medium text-gray-500 mb-2">주차 가능 여부</label>
                     <div className="flex gap-2">
