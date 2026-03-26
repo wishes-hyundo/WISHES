@@ -226,7 +226,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           )}
           {listing.elevator && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-accent/10 text-wishes-accent rounded-full border border-wishes-accent/20 hover:bg-wishes-accent/20 transition-colors">
-              💡 엘리베이터
+              🚡 엘리베이터
             </span>
           )}
           {listing.pet && (
