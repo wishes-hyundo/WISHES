@@ -24,8 +24,6 @@ interface SearchParams {
   listingNumber?: string;
 }
 
-const LISTING_COLUMNS = 'id,deal,price,deposit,monthly,images,title,area_m2,area,floor_current,floor,elevator,type,dong,address,parking,pet,status,created_at';
-
 export default async function ListingsPage({
   searchParams,
 }: {
@@ -38,12 +36,13 @@ export default async function ListingsPage({
 
   const supabase = createClient();
 
-  // Dong list query (shared) - will run in parallel
+  // Dong list query (shared) - runs in parallel with main query
   const dongQuery = supabase.from('listings').select('dong').eq('status', '가용');
 
   // If searching by listing number, do exact ID match
   if (params.listingNumber) {
     const listingId = parseInt(params.listingNumber, 10);
+    // Run both queries in PARALLEL instead of sequential
     const [{ data: listing }, { data: dongResults }] = await Promise.all([
       supabase.from('listings').select('*').eq('id', listingId).eq('status', '가용').single(),
       dongQuery,
@@ -80,7 +79,7 @@ export default async function ListingsPage({
   }
 
   // Regular search with filters
-  let query = supabase.from('listings').select(LISTING_COLUMNS).eq('status', '가용');
+  let query = supabase.from('listings').select('*').eq('status', '가용');
 
   if (params.search) {
     const s = params.search;
