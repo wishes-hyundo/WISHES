@@ -4,8 +4,8 @@ import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
-import { cn } from 'A/lib/utils';
-import { useAuth } from 'A/contexts/AuthContext';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { label: '매물검색', href: '/listings' },
@@ -112,15 +112,15 @@ export default function Header() {
                     <span className="text-sm font-medium text-gray-700 max-w-[80px] truncate">
                       {getUserDisplayName()}
                     </span>
-                    <ChevronDown className={cn('w-3.5 h-3.5 text-gray-40 transition-transform', userMenuOpen && 'rotate-1'80)} />
+                    <ChevronDown className={cn('w-3.5 h-3.5 text-gray-400 transition-transform', userMenuOpen && 'rotate-180')} />
                   </button>
 
                   {/* 드롭다운 메뉴 */}
-                  z{userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-150" ref={userMenuRef}>
+                  {userMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-150">
                       <div className="px-4 py-2.5 border-b border-gray-100">
                         <p className="text-sm font-semibold text-gray-900 truncate">{getUserDisplayName()}</p>
-                        <p className="text-xs text-gray-50 truncate">{user.email}</p>
+                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
                       </div>
                       <Link
                         href="/mypage"
@@ -133,12 +133,12 @@ export default function Header() {
                       <button
                         onClick={() => { signOut(); setUserMenuOpen(false); }}
                         className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                       >
+                      >
                         <LogOut className="w-4 h-4 text-gray-400" />
-                        tjw{,아웃
-                       </button>
+                        로그아웃
+                      </button>
                     </div>
-                  }
+                  )}
                 </div>
               ) : (
                 <button
@@ -152,7 +152,7 @@ export default function Header() {
             )}
           </div>
 
-          {/* 모바일 륔뉴 토글 */}
+          {/* 모바일 메뉴 토글 */}
           <button
             className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors"
             onClick={() => setIsOpen(!isOpen)}
@@ -215,7 +215,7 @@ export default function Header() {
                     간편 로그인
                   </button>
                 )
-              }
+              )}
             </div>
           </nav>
         </div>
