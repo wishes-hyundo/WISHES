@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import ImageGallery from '@/components/ImageGallery';
 
 interface ListingData {
   id: string;
@@ -36,8 +37,6 @@ interface ListingData {
 }
 
 export default function ListingDetailClient({ listing }: { listing: ListingData }) {
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showGallery, setShowGallery] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -103,44 +102,6 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Full Screen Gallery Modal */}
-      {showGallery && (
-        <div className="fixed inset-0 z-50 bg-black flex items-center justify-center">
-          <button
-            onClick={() => setShowGallery(false)}
-            className="absolute top-4 right-4 text-white bg-black/50 rounded-full p-2 hover:bg-black/70 z-10"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-          <button
-            onClick={() => setCurrentImageIndex(prev => prev > 0 ? prev - 1 : images.length - 1)}
-            className="absolute left-4 text-white bg-black/50 rounded-full p-3 hover:bg-black/70"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <img
-            src={images[currentImageIndex]}
-            alt={`${listing.title} - ${currentImageIndex + 1}`}
-            className="max-w-full max-h-full object-contain"
-          />
-          <button
-            onClick={() => setCurrentImageIndex(prev => prev < images.length - 1 ? prev + 1 : 0)}
-            className="absolute right-4 text-white bg-black/50 rounded-full p-3 hover:bg-black/70"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          <div className="absolute bottom-6 text-white text-sm">
-            {currentImageIndex + 1} / {images.length}
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="bg-white border-b sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -195,64 +156,8 @@ export default function ListingDetailClient({ listing }: { listing: ListingData 
         </div>
       </div>
 
-      {/* Image Gallery */}
-      <div className="relative bg-gray-900">
-        <div className="max-w-6xl mx-auto">
-          <div
-            className="relative aspect-[16/9] md:aspect-[21/9] cursor-pointer group"
-            onClick={() => setShowGallery(true)}
-          >
-            <img
-              src={images[currentImageIndex]}
-              alt={listing.title}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-
-            {images.length > 1 && (
-              <>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(prev => prev > 0 ? prev - 1 : images.length - 1); }}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); setCurrentImageIndex(prev => prev < images.length - 1 ? prev + 1 : 0); }}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                  </svg>
-                </button>
-              </>
-            )}
-
-            <div className="absolute bottom-4 right-4 bg-black/60 text-white text-sm px-3 py-1 rounded-full">
-              {currentImageIndex + 1} / {images.length}
-            </div>
-          </div>
-
-          {/* Thumbnail strip */}
-          {images.length > 1 && (
-            <div className="flex gap-1 p-2 overflow-x-auto bg-gray-900">
-              {images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentImageIndex(idx)}
-                  className={`flex-shrink-0 w-16 h-12 rounded overflow-hidden border-2 transition-colors ${
-                    idx === currentImageIndex ? 'border-blue-500' : 'border-transparent opacity-60 hover:opacity-100'
-                  }`}
-                >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+            {/* Image Gallery */}
+      <ImageGallery images={images} title={listing.title} />
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-4 py-6">
