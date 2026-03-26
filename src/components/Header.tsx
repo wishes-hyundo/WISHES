@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, X, Phone, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
+import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -99,13 +99,6 @@ export function Header() {
 
           {/* CTA 버튼 + 로그인 */}
           <div className="hidden md:flex items-center gap-3">
-            <a
-              href="tel:1533-9580"
-              className="flex items-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:shadow-wishes-secondary/50 hover:scale-105 transition-all duration-200 group"
-            >
-              <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
-              <span>1533-9580</span>
-            </a>
 
             {/* 로그인/사용자 메뉴 - mounted 후에만 렌더링 (hydration 방지) */}
             {mounted && !loading && (
@@ -229,13 +222,6 @@ export function Header() {
                   </button>
                 )
               )}
-              <a
-                href="tel:1533-9580"
-                className="flex items-center justify-center gap-2 bg-gradient-to-r from-wishes-secondary to-wishes-secondary/80 text-white px-4 py-3 rounded-xl text-sm font-semibold shadow-lg shadow-wishes-secondary/30 hover:shadow-lg hover:scale-105 transition-all duration-200 group"
-              >
-                <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                상담 1533-9580
-              </a>
             </div>
           </nav>
         </div>
