@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
-import ImageProtection from '@/components/ImageProtection';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
@@ -10,8 +9,8 @@ export const metadata: Metadata = {
     default: '위시스부동산 | 서울·경기 종합부동산 서비스',
     template: '%s | 위시스부동산',
   },
-  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요.',
-  keywords: ['서울 부동산', '경기 부동산', '원룸 전세', '월세 매물', '오피스텔', '아파트 매매', '위시스부동산', '종합부동산'],
+  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요. 카카오톡 상담 가능',
+  keywords: ['서울 부동산', '경기 부동산', '원룸 전세', '월세 매물', '오피스텔', '아파트 맠매', '위시스부동산', '종합부동산'],
   openGraph: {
     title: '위시스부동산 | 서울·경기 종합부동산',
     description: '서울·경기 전 지역 종합부동산. 지도로 매물을 쉽게 찾아보세요.',
@@ -29,7 +28,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: '위시스부동산 | 서울·경기 종합부동산',
-    description: '서울·경기 전 지역 종합부동산 서비스. ',
+    description: '서울·경기 전 지역 종합부동산 서비스.',
     images: ['/og-image.png'],
   },
   alternates: {
@@ -113,7 +112,9 @@ export default function RootLayout({
               '@context': 'https://schema.org',
               '@type': 'RealEstateAgent',
               name: '위시스부동산중개법인',
-              url: 'https://wishes.co.kr',              email: 'wishes@wishes.co.kr',
+              url: 'https://wishes.co.kr',
+              email: 'wishes@wishes.co.kr',
+              sameAs: 'https://pf.kakao.com/_DxdSJs',
               address: {
                 '@type': 'PostalAddress',
                 streetAddress: '신림로64길 23, 8층',
@@ -137,7 +138,6 @@ export default function RootLayout({
         />
       </head>
       <body className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col">
-        <ImageProtection />
         <ConditionalLayout>
           {children}
         </ConditionalLayout>
