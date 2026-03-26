@@ -19,9 +19,17 @@ export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, loading, signOut, setShowAuthModal } = useAuth();
+
+  // 스크롤 감지
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // 사용자 메뉴 외부 클릭 시 닫기
   useEffect(() => {
@@ -41,7 +49,6 @@ export default function Header() {
 
   const getUserAvatar = () => {
     const url = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
-    // 카카오 프로필 이미지 HTTP → HTTPS 변환 (mixed content 방지)
     if (url && url.startsWith('http://')) {
       return url.replace('http://', 'https://');
     }
@@ -49,97 +56,97 @@ export default function Header() {
   };
 
   const isActive = (href: string) => {
-    if (href === '/') {
-      return pathname === '/';
-    }
+    if (href === '/') return pathname === '/';
     return pathname.startsWith(href);
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 glass border-b border-gray-100/50">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
+    <header
+      className={cn(
+        'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
+        scrolled
+          ? 'bg-white/95 backdrop-blur-xl shadow-sm border-b border-wishes-border/50'
+          : 'bg-white/80 backdrop-blur-md'
+      )}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-[72px]">
           {/* 로고 */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-wishes-secondary to-wishes-accent flex items-center justify-center text-white shadow-lg group-hover:shadow-xl transition-shadow">
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-10 h-10 bg-gradient-to-br from-wishes-secondary to-wishes-accent flex items-center justify-center text-white shadow-droplet group-hover:shadow-lg transition-all duration-300 group-hover:scale-105" style={{ borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%' }}>
               <MapPin className="w-5 h-5" />
             </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-bold text-wishes-primary leading-none">WISHES</p>
-            </div>
-            <div className="sm:hidden">
-              <p className="text-base font-bold text-wishes-primary">WISHES</p>
-            </div>
+            <span className="text-lg font-bold tracking-tight text-wishes-primary">WISHES</span>
           </Link>
 
           {/* 데스크탑 네비게이션 */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  'px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 relative group',
+                  'relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200',
                   isActive(item.href)
-                    ? 'text-wishes-secondary'
-                    : 'text-wishes-text hover:text-wishes-secondary'
+                    ? 'text-wishes-accent'
+                    : 'text-wishes-text/70 hover:text-wishes-text'
                 )}
               >
                 {item.label}
                 {isActive(item.href) && (
-                  <div className="absolute bottom-1 left-4 right-4 h-0.5 bg-wishes-accent rounded-full"></div>
+                  <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-wishes-accent" />
                 )}
-                <div className={cn(
-                  'absolute inset-0 rounded-lg bg-wishes-secondary/5 -z-10 transition-opacity duration-200',
-                  isActive(item.href) ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                )}></div>
               </Link>
             ))}
           </nav>
 
-          {/* 로그인 */}
-          <div className="hidden md:flex items-center gap-3">
-            {/* 로그인/사용자 메뉴 */}
+          {/* 데스크탑 우측: 로그인 */}
+          <div className="hidden lg:flex items-center gap-3">
             {!loading && (
               user ? (
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-wishes-cream/60 transition-colors"
                   >
                     {getUserAvatar() && !avatarError ? (
-                      <img src={getUserAvatar()!} alt="" className="w-8 h-8 rounded-full border-2 border-wishes-secondary/20" onError={() => setAvatarError(true)} />
+                      <img
+                        src={getUserAvatar()!}
+                        alt=""
+                        className="w-8 h-8 rounded-full border-2 border-wishes-accent/20 object-cover"
+                        onError={() => setAvatarError(true)}
+                      />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-wishes-secondary/10 flex items-center justify-center">
-                        <User className="w-4 h-4 text-wishes-secondary" />
+                      <div className="w-8 h-8 rounded-full bg-wishes-accent/10 flex items-center justify-center">
+                        <User className="w-4 h-4 text-wishes-accent" />
                       </div>
                     )}
-                    <span className="text-sm font-medium text-gray-700 max-w-[120px] truncate">
+                    <span className="text-sm font-medium text-wishes-text max-w-[120px] truncate">
                       {getUserDisplayName()}
                     </span>
-                    <ChevronDown className={cn('w-3.5 h-3.5 text-gray-400 transition-transform', userMenuOpen && 'rotate-180')} />
+                    <ChevronDown className={cn('w-3.5 h-3.5 text-wishes-muted transition-transform duration-200', userMenuOpen && 'rotate-180')} />
                   </button>
 
-                  {/* 드롭다운 메뉴 */}
+                  {/* 드롭다운 */}
                   {userMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden py-1 animate-in fade-in slide-in-from-top-2 duration-150">
-                      <div className="px-4 py-2.5 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{getUserDisplayName()}</p>
-                        <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-premium border border-wishes-border/60 overflow-hidden py-1 animate-fade-in-up">
+                      <div className="px-4 py-3 border-b border-wishes-border/40">
+                        <p className="text-sm font-bold text-wishes-text truncate">{getUserDisplayName()}</p>
+                        <p className="text-xs text-wishes-muted truncate mt-0.5">{user.email}</p>
                       </div>
                       <Link
                         href="/mypage"
                         onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-wishes-text/80 hover:bg-wishes-cream/50 transition-colors"
                       >
-                        <Heart className="w-4 h-4 text-gray-400" />
+                        <Heart className="w-4 h-4 text-wishes-accent/60" />
                         찜한 매물
                       </Link>
                       <button
                         onClick={() => { signOut(); setUserMenuOpen(false); }}
-                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-wishes-text/80 hover:bg-wishes-cream/50 transition-colors"
                       >
-                        <LogOut className="w-4 h-4 text-gray-400" />
+                        <LogOut className="w-4 h-4 text-wishes-muted" />
                         로그아웃
                       </button>
                     </div>
@@ -148,7 +155,7 @@ export default function Header() {
               ) : (
                 <button
                   onClick={() => setShowAuthModal(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-wishes-secondary border-2 border-wishes-secondary/20 hover:bg-wishes-secondary/5 hover:border-wishes-secondary/40 transition-all duration-200"
+                  className="btn-accent text-sm px-5 py-2.5"
                 >
                   <User className="w-4 h-4" />
                   로그인
@@ -159,54 +166,61 @@ export default function Header() {
 
           {/* 모바일 메뉴 토글 */}
           <button
-            className="md:hidden p-2 text-wishes-primary hover:bg-gray-100 rounded-lg transition-colors"
+            className="lg:hidden p-2.5 text-wishes-primary hover:bg-wishes-cream/60 rounded-xl transition-colors"
             onClick={() => setIsOpen(!isOpen)}
             aria-label="메뉴 열기"
           >
-            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
 
         {/* 모바일 메뉴 */}
         <div
           className={cn(
-            'md:hidden overflow-hidden border-t border-gray-100/50 bg-white/50 backdrop-blur-sm transition-all duration-300 ease-out',
-            isOpen ? 'max-h-96' : 'max-h-0'
+            'lg:hidden overflow-hidden transition-all duration-300 ease-out',
+            isOpen ? 'max-h-[480px] pb-4' : 'max-h-0'
           )}
         >
-          <nav className="flex flex-col gap-0 pt-2 pb-4 px-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setIsOpen(false)}
-                className={cn(
-                  'px-4 py-3 text-sm font-semibold rounded-lg transition-all duration-200',
-                  isActive(item.href)
-                    ? 'text-wishes-secondary bg-wishes-secondary/10'
-                    : 'text-wishes-text hover:bg-gray-100'
-                )}
-              >
-                {item.label}
-              </Link>
-            ))}
-            <div className="pt-3 mt-3 border-t border-gray-100 space-y-2">
+          <div className="border-t border-wishes-border/30 pt-3">
+            <nav className="flex flex-col gap-0.5 px-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsOpen(false)}
+                  className={cn(
+                    'px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200',
+                    isActive(item.href)
+                      ? 'text-wishes-accent bg-wishes-accent/5'
+                      : 'text-wishes-text/70 hover:bg-wishes-cream/50 hover:text-wishes-text'
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            <div className="pt-3 mt-3 border-t border-wishes-border/30 px-3">
               {!loading && (
                 user ? (
-                  <div className="flex items-center justify-between px-4 py-2">
-                    <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between px-2 py-2">
+                    <div className="flex items-center gap-2.5">
                       {getUserAvatar() && !avatarError ? (
-                        <img src={getUserAvatar()!} alt="" className="w-7 h-7 rounded-full" onError={() => setAvatarError(true)} />
+                        <img
+                          src={getUserAvatar()!}
+                          alt=""
+                          className="w-8 h-8 rounded-full object-cover"
+                          onError={() => setAvatarError(true)}
+                        />
                       ) : (
-                        <div className="w-7 h-7 rounded-full bg-wishes-secondary/10 flex items-center justify-center">
-                          <User className="w-3.5 h-3.5 text-wishes-secondary" />
+                        <div className="w-8 h-8 rounded-full bg-wishes-accent/10 flex items-center justify-center">
+                          <User className="w-4 h-4 text-wishes-accent" />
                         </div>
                       )}
-                      <span className="text-sm font-medium text-gray-700">{getUserDisplayName()}</span>
+                      <span className="text-sm font-medium text-wishes-text">{getUserDisplayName()}</span>
                     </div>
                     <button
                       onClick={() => { signOut(); setIsOpen(false); }}
-                      className="text-xs text-gray-500 hover:text-gray-700 font-medium"
+                      className="text-xs text-wishes-muted hover:text-wishes-text font-medium px-3 py-1.5 rounded-lg hover:bg-wishes-cream/50 transition-colors"
                     >
                       로그아웃
                     </button>
@@ -214,15 +228,15 @@ export default function Header() {
                 ) : (
                   <button
                     onClick={() => { setShowAuthModal(true); setIsOpen(false); }}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold text-wishes-secondary border-2 border-wishes-secondary/20 hover:bg-wishes-secondary/5 transition-colors"
+                    className="w-full btn-accent text-sm py-3"
                   >
                     <User className="w-4 h-4" />
-                    간편 로그인
+                    ꄎ편 로그인
                   </button>
                 )
               )}
             </div>
-          </nav>
+          </div>
         </div>
       </div>
     </header>
