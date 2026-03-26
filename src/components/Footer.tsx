@@ -17,11 +17,11 @@ export function Footer() {
               </div>
               <div>
                 <p className="text-base font-bold tracking-wide">WISHES</p>
-                <p className="text-[11px] text-white/40">위시스부동산중개법인</p>
+                <p className="text-[11px] text-white/40">Real Estate</p>
               </div>
             </div>
             <p className="text-[13px] text-white/45 leading-relaxed">
-              15년의 경험과 신뢰로<br />
+              15년의 경험과 싨뢰로<br />
               서울·경기 전 지역 최고의<br />
               부동산 서비스를 제공합니다.
             </p>
