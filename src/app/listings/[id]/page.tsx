@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
+import ImageGallery from '@/components/ImageGallery';
 import type { Metadata } from 'next';
 
 interface Props {
@@ -75,40 +76,14 @@ export default async function ListingDetailPage({ params }: Props) {
           {/* 좌측: 이미지 + 상세 */}
           <div className="lg:col-span-2 space-y-6">
             {/* 이미지 갤러리 */}
-            <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
-              <div className="aspect-[16/10] bg-gray-100 relative">
-                {imageList.length > 0 && imageList[0].url ? (
-                  <img
-                    src={imageList[0].url}
-                    alt={imageList[0].alt || listing.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gradient-to-br from-gray-100 to-gray-200">
-                    <Building2 className="w-16 h-16 mb-2" />
-                    <p className="text-sm">이미지 준비 중</p>
-                  </div>
-                )}
-                <span className={`absolute top-4 left-4 px-3 py-1 text-sm font-bold rounded-lg ${getDealColor(listing.deal)}`}>
-                  {listing.deal}
-                </span>
-                <span className={`absolute top-4 right-4 px-3 py-1 text-sm font-medium rounded-lg ${getStatusColor(listing.status)}`}>
-                  {listing.status}
-                </span>
-              </div>
-              {imageList.length > 1 && (
-                <div className="flex gap-1 p-2 overflow-x-auto">
-                  {imageList.map((img) => (
-                    <img
-                      key={img.id}
-                      src={img.url}
-                      alt={img.alt || ''}
-                      className="w-20 h-16 object-cover rounded-lg border-2 border-transparent hover:border-wishes-secondary cursor-pointer"
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
+            <ImageGallery
+              images={imageList}
+              title={listing.title}
+              deal={listing.deal}
+              status={listing.status}
+              dealColor={getDealColor(listing.deal)}
+              statusColor={getStatusColor(listing.status)}
+            />
 
             {/* 상세 정보 */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
@@ -128,7 +103,7 @@ export default async function ListingDetailPage({ params }: Props) {
 
               {/* 옵션 */}
               <div className="mt-6 pt-6 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시섰</h3>
                 <div className="flex flex-wrap gap-2">
                   <OptionBadge label="주차" available={listing.parking ?? false} />
                   <OptionBadge label="엘리베이터" available={listing.elevator ?? false} />
