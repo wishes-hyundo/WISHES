@@ -1,11 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Phone, MessageCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFavorites } from '@/contexts/FavoritesContext';
 
 export function FloatingButtons() {
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const { compareList } = useFavorites();
+  const hasCompareItems = compareList.length > 0;
 
   useEffect(() => {
     const handleScroll = () => {
@@ -20,7 +23,11 @@ export function FloatingButtons() {
   };
 
   return (
-    <div className="fixed bottom-24 right-6 flex flex-col gap-3 z-40">
+    <div className={cn(
+      'fixed right-6 flex flex-col gap-3 z-50 transition-all duration-300',
+      hasCompareItems ? 'bottom-20' : 'bottom-6'
+    )}>
+      {/* 스크롤 맨 위 */}
       <button
         onClick={scrollToTop}
         className={cn(
@@ -31,6 +38,17 @@ export function FloatingButtons() {
       >
         <ArrowUp className="w-5 h-5" />
       </button>
+
+      {/* 카카오톡 */}
+      <a
+        href={process.env.NEXT_PUBLIC_KAKAO_CHANNEL || 'https://pf.kakao.com/_DxdSJs'}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-12 h-12 rounded-full bg-yellow-400 text-yellow-900 flex items-center justify-center shadow-lg hover:bg-yellow-300 transition-colors"
+        aria-label="카카오톡 상담"
+      >
+        <MessageCircle className="w-5 h-5" />
+      </a>
     </div>
   );
 }
