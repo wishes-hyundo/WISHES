@@ -1,5 +1,6 @@
 import { MapPin, Mail, Clock, Award, Users, Shield, Building2 } from 'lucide-react';
 import type { Metadata } from 'next';
+import AboutKakaoMap from '@/components/AboutKakaoMap';
 
 export const metadata: Metadata = {
   title: '회사소개',
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className="pt-16 min-h-screen">
-      {/* 헤더 */}
+      {/* 히어로 */}
       <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16">
         <div className="max-w-5xl mx-auto px-4 text-center">
           <h1 className="text-3xl md:text-4xl font-bold">회사 소개</h1>
@@ -113,18 +114,9 @@ export default function AboutPage() {
                 <span>평일 09:00 ~ 19:00 (주말 예약상담)</span>
               </div>
             </div>
-            {/* Google Maps embed */}
+            {/* 카카오맵 - 신림로64길 23 */}
             <div className="aspect-[16/10] rounded-lg overflow-hidden border border-gray-200">
-              <iframe
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3165.8!2d126.9310274!3d37.4851975!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x357c9fbe416cc1ab%3A0xd209eb010059415c!2z7ISc7Jq47Yq567OE7IucIOq0gOyVheq1rCDsi6DrprzroZw2NOq4uCAyMw!5e0!3m2!1sko!2skr!4v1711500000000"
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="eager"
-                referrerPolicy="no-referrer-when-downgrade"
-                title="위시스부동산 위치"
-              />
+              <AboutKakaoMap />
             </div>
           </div>
         </section>
