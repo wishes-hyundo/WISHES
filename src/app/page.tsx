@@ -17,7 +17,7 @@ export default async function HomePage() {
 
   return (
     <div className="pt-16 bg-wishes-bg">
-      {/* 히어로 섹션 */}
+      {/* ━━━ 히어로 섹션 ━━━ */}
       <section className="relative min-h-[80vh] flex items-center justify-center pt-12 pb-28 overflow-hidden">
         {/* 배경 */}
         <div className="absolute inset-0 bg-gradient-to-b from-wishes-primary to-[#162044]">
@@ -38,8 +38,8 @@ export default async function HomePage() {
               <p className="text-sm font-medium text-white/70 tracking-wide">서울·경기 종합부동산 서비스</p>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.15] tracking-tight">
-              당신의 꾿,<br className="sm:hidden" /> 우리의<span className="text-wishes-accent"> 약속</span>
+            <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.2] tracking-tight">
+              당신의 꿈, 우리의<span className="text-wishes-accent"> 약속</span>
             </h1>
 
             <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed">
@@ -68,12 +68,12 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 신뢰 배지 섹션 */}
+      {/* ━━━ 신뢰 배지 섹션 ━━━ */}
       <section className="max-w-4xl mx-auto px-4 -mt-14 relative z-10 mb-20 animate-fade-in-up">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           {[
             { Icon: Calendar, label: '15년 경력', desc: '신뢰의 기록' },
-            { Icon: UserCheck, label: '전문 상담', desc: '고객 맞춤형' },
+            { Icon: UserCheck, label: '전문 상담', desc: '고객 맞춦형' },
             { Icon: ShieldCheck, label: '안전 거래', desc: '계약 보호' },
             { Icon: Clock, label: '신속 대응', desc: '항시 상담 가능' },
           ].map((badge) => (
@@ -88,7 +88,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* 최신 매물 섹션 */}
+      {/* ━━━ 최신 매물 섹션 ━━━ */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-10 animate-fade-in-up">
