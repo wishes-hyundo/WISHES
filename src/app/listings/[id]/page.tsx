@@ -146,9 +146,7 @@ export default async function ListingDetailPage({ params }: Props) {
     broker: {
       '@type': 'RealEstateAgent',
       name: '위시스부동산중개법인',
-      url: 'https://wishes.co.kr',
-      telephone: '1533-9580',
-    },
+      url: 'https://wishes.co.kr',    },
   };
 
   return (
