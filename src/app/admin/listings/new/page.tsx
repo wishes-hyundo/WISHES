@@ -250,32 +250,32 @@ export default function NewListingPage() {
             '업무시설': '사무실',
           };
           const matchedType = Object.entries(purposeToType).find(([key]) => 
-            info.mainPurpose?.includes(key)
+            building.mainPurpose?.includes(key)
           );
           
           return {
             ...prev,
-            buildingName: info.buildingName || prev.buildingName,
-            buildingStructure: info.buildingStructure || prev.buildingStructure,
-            buildingPurpose: info.mainPurpose || prev.buildingPurpose,
-            approvalDate: info.approvalDate || prev.approvalDate,
-            elevatorCount: info.elevatorCount || prev.elevatorCount,
-            parkingCount: info.parkingCount || prev.parkingCount,
-            totalFloorArea: info.totalFloorArea || prev.totalFloorArea,
-            totalFloors: info.floors?.aboveGround || prev.totalFloors,
+            buildingName: building.buildingName || prev.buildingName,
+            buildingStructure: building.buildingStructure || prev.buildingStructure,
+            buildingPurpose: building.mainPurpose || prev.buildingPurpose,
+            approvalDate: building.approvalDate || prev.approvalDate,
+            elevatorCount: building.elevatorCount || prev.elevatorCount,
+            parkingCount: building.parkingCount || prev.parkingCount,
+            totalFloorArea: building.totalFloorArea || prev.totalFloorArea,
+            totalFloors: building.floors?.aboveGround || prev.totalFloors,
             // 건축물대장 추가 정보
-            siteArea: info.siteArea || prev.siteArea,
-            buildingCoverageRatio: info.buildingCoverageRatio || prev.buildingCoverageRatio,
-            floorAreaRatio: info.floorAreaRatio || prev.floorAreaRatio,
-            undergroundFloors: info.floors?.underground || prev.undergroundFloors,
-            householdCount: info.householdCount || prev.householdCount,
-            unitCount: info.unitCount || prev.unitCount,
+            siteArea: building.siteArea || prev.siteArea,
+            buildingCoverageRatio: building.buildingCoverageRatio || prev.buildingCoverageRatio,
+            floorAreaRatio: building.floorAreaRatio || prev.floorAreaRatio,
+            undergroundFloors: building.floors?.underground || prev.undergroundFloors,
+            householdCount: building.householdCount || prev.householdCount,
+            unitCount: building.unitCount || prev.unitCount,
             // 매물 정보 자동 설정
             propertyType: matchedType ? matchedType[1] : prev.propertyType,
-            area: info.totalFloorArea || prev.area,
+            area: building.totalFloorArea || prev.area,
             floor: prev.floor,
-            elevator: info.elevatorCount > 0 ? true : prev.elevator,
-            parking: info.parkingCount > 0 ? true : prev.parking,
+            elevator: building.elevatorCount > 0 ? true : prev.elevator,
+            parking: building.parkingCount > 0 ? true : prev.parking,
                       };
         });
         setBuildingError('');
