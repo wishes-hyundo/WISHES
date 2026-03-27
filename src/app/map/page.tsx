@@ -1,4 +1,4 @@
-h'use client';
+'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useMapListings } from '@/hooks/useMapListings';
