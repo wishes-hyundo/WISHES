@@ -899,8 +899,8 @@ ${floorRows}</table></div>` : ''}
 
       if (model === 'template') {
         // 빠른생성: 로컬 템플릿 기반
-        const newTitle = generateStyledTitle(style);
-        const newDesc = generateStyledDescription(style);
+        const newTitle = generateStyledTitle(form, buildingInfo, style);
+        const newDesc = generateStyledDescription(form, buildingInfo, style);
         updateForm({ title: newTitle, description: newDesc });
       } else {
         // AI 생성: API 호출 (best=Opus, latest=Sonnet)
@@ -933,7 +933,7 @@ ${floorRows}</table></div>` : ''}
         if (data.success && data.title) {
           updateForm({ title: data.title, description: data.description || '' });
         } else if (data.success && data.description) {
-          const newTitle = generateStyledTitle(style);
+          const newTitle = generateStyledTitle(form, buildingInfo, style);
           updateForm({ title: newTitle, description: data.description });
         } else {
           throw new Error(data.error || 'AI 생성 실패');
@@ -942,8 +942,8 @@ ${floorRows}</table></div>` : ''}
     } catch (err) {
       console.error('AI auto fill error:', err);
       // AI 실패시 템플릿 폴백
-      const newTitle = generateStyledTitle(style);
-      const newDesc = generateStyledDescription(style);
+      const newTitle = generateStyledTitle(form, buildingInfo, style);
+      const newDesc = generateStyledDescription(form, buildingInfo, style);
       updateForm({ title: newTitle, description: newDesc });
     } finally {
       setAiGenerating(false);
