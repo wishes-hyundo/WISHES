@@ -453,19 +453,46 @@ export default function SmartListingNewPage() {
   const [drafts, setDrafts] = useState<DraftListing[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [showAddressModal, setShowAddressModal] = useState(false);
-  const addressEmbedRef = useRef<HTMLDivElement>(null);
+  // 주소 검색은 팝업 윈도우 방식 (iframe 제한 우회)
 
-  /* ── 다음 주소 API 스크립트 로드 ── */
+  /* ── 주소 검색 팝업 메시지 수신 ── */
   useEffect(() => {
-    if (typeof window !== 'undefined' && !document.getElementById('daum-postcode')) {
-      const script = document.createElement('script');
-      script.id = 'daum-postcode';
-      script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
-      document.head.appendChild(script);
-    }
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'WISHES_ADDRESS_SELECTED') {
+        const data = event.data.data;
+        const addr: AddressData = {
+          roadAddress: data.roadAddress || '',
+          jibunAddress: data.jibunAddress || data.autoJibunAddress || '',
+          zonecode: data.zonecode || '',
+          sigunguCode: data.sigunguCode || '',
+          bcode: data.bcode || '',
+          buildingName: data.buildingName || '',
+          bun: '', ji: '',
+          sido: data.sido || '',
+          sigungu: data.sigungu || '',
+          bname: data.bname || '',
+        };
+        const jibunMatch = addr.jibunAddress.match(/(\d+)(?:-(\d+))?$/);
+        if (jibunMatch) {
+          addr.bun = jibunMatch[1].padStart(4, '0');
+          addr.ji = (jibunMatch[2] || '0').padStart(4, '0');
+        }
+        setAddressData(addr);
+        updateForm({
+          address: addr.roadAddress || addr.jibunAddress,
+          dong: addr.bname || '',
+          road_address: addr.roadAddress,
+          jibun_address: addr.jibunAddress,
+          sigungu_code: addr.sigunguCode,
+          bcode: addr.bcode,
+          building_name: addr.buildingName || '',
+        });
+      }
+    };
+    window.addEventListener('message', handleMessage);
     // 임시저장 목록 불러오기
     loadDrafts();
+    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   /* ── Toast 자동 닫기 ── */
@@ -523,53 +550,49 @@ export default function SmartListingNewPage() {
     setForm(prev => ({ ...prev, ...updates }));
   };
 
-  /* ── Step 1: 주소 검색 (embed 모달 방식) ── */
+  /* ── Step 1: 주소 검색 (팝업 윈도우 방식 — iframe 제한 우회) ── */
   const openAddressSearch = () => {
-    if (!window.daum?.Postcode) {
-      setToast({ type: 'error', text: '주소 검색 로딩 중입니다. 잠시 후 다시 시도해주세요.' });
+    const w = 500, h = 600;
+    const left = (window.screen.width - w) / 2;
+    const top = (window.screen.height - h) / 2;
+    const popup = window.open('', 'wishesAddressSearch',
+      `width=${w},height=${h},left=${left},top=${top},scrollbars=no,resizable=yes`);
+    if (!popup) {
+      setToast({ type: 'error', text: '팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.' });
       return;
     }
-    setShowAddressModal(true);
-    setTimeout(() => {
-      if (!addressEmbedRef.current) return;
-      addressEmbedRef.current.innerHTML = '';
-      new window.daum.Postcode({
-        oncomplete: (data: any) => {
-          const addr: AddressData = {
-            roadAddress: data.roadAddress || '',
-            jibunAddress: data.jibunAddress || data.autoJibunAddress || '',
-            zonecode: data.zonecode || '',
-            sigunguCode: data.sigunguCode || '',
-            bcode: data.bcode || '',
-            buildingName: data.buildingName || '',
-            bun: '', ji: '',
-            sido: data.sido || '',
-            sigungu: data.sigungu || '',
-            bname: data.bname || '',
-          };
-
-          const jibunMatch = addr.jibunAddress.match(/(\d+)(?:-(\d+))?$/);
-          if (jibunMatch) {
-            addr.bun = jibunMatch[1].padStart(4, '0');
-            addr.ji = (jibunMatch[2] || '0').padStart(4, '0');
-          }
-
-          setAddressData(addr);
-          updateForm({
-            address: addr.roadAddress || addr.jibunAddress,
-            dong: addr.bname || '',
-            road_address: addr.roadAddress,
-            jibun_address: addr.jibunAddress,
-            sigungu_code: addr.sigunguCode,
-            bcode: addr.bcode,
-            building_name: addr.buildingName || '',
-          });
-          setShowAddressModal(false);
-        },
-        width: '100%',
-        height: '100%',
-      }).embed(addressEmbedRef.current);
-    }, 100);
+    popup.document.write(`<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WISHES 주소 검색</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8faf8}
+.header{background:#15803d;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 48px);gap:12px;color:#666}
+.spinner{width:36px;height:36px;border:3px solid #e5e7eb;border-top:3px solid #15803d;border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+#wrap{height:calc(100vh - 48px)}</style></head>
+<body>
+<div class="header">\u{1F4CD} WISHES 주소 검색</div>
+<div id="wrap"><div class="loading"><div class="spinner"></div><span>주소 검색 로딩 중...</span></div></div>
+<script>
+var s=document.createElement("script");
+s.src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
+s.onload=function(){
+  document.getElementById("wrap").innerHTML="";
+  new daum.Postcode({
+    oncomplete:function(data){
+      if(window.opener){window.opener.postMessage({type:"WISHES_ADDRESS_SELECTED",data:data},"*")}
+      window.close();
+    },
+    onclose:function(state){if(state==="FORCE_CLOSE"){window.close()}},
+    width:"100%",height:"100%"
+  }).embed(document.getElementById("wrap"));
+};
+s.onerror=function(){
+  document.getElementById("wrap").innerHTML='<div class="loading" style="color:#dc2626"><b>스크립트 로드 실패</b><br>네트워크를 확인해주세요.</div>';
+};
+document.head.appendChild(s);
+</script></body></html>`);
+    popup.document.close();
   };
 
   /* ── Step 2: 건축물대장 자동 조회 ── */
@@ -1660,18 +1683,7 @@ export default function SmartListingNewPage() {
         )}
       </div>
 
-      {/* 주소 검색 모달 (embed 방식) */}
-      {showAddressModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAddressModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-[480px] max-w-[95vw] overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-3 bg-green-700 text-white">
-              <h3 className="font-semibold text-sm">📍 주소 검색</h3>
-              <button onClick={() => setShowAddressModal(false)} className="text-white/80 hover:text-white text-lg font-bold">✕</button>
-            </div>
-            <div ref={addressEmbedRef} style={{ width: '100%', height: '460px' }} />
-          </div>
-        </div>
-      )}
+      {/* 주소 검색: 팝업 윈도우 방식으로 변경 (embed 모달 제거) */}
     </div>
   );
 }
