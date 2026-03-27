@@ -209,9 +209,8 @@ export default async function ListingDetailPage({ params }: Props) {
                       src={img.url}
                       alt={img.alt || ''}
                       className="w-20 h-16 object-cover rounded-lg border-2 border-transparent hover:border-wishes-secondary cursor-pointer"
-                    
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
+                width={80}
+                height={64}
               />
                   ))}
                 </div>
