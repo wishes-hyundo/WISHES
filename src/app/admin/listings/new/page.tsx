@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
-/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   íì ì ì
-âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   타입 정의
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 interface AddressData {
   roadAddress: string;
   jibunAddress: string;
@@ -21,42 +21,42 @@ interface AddressData {
 }
 
 interface BuildingInfo {
-  ê±´ë¬¼ëª: string;
-  ì£¼ì©ë: string;
-  ê¸°íì©ë: string;
-  ê±´ë¬¼êµ¬ì¡°: string;
-  ì§ë¶êµ¬ì¡°: string;
-  ëì§ë©´ì : number;
-  ê±´ì¶ë©´ì : number;
-  ì°ë©´ì : number;
-  ì©ì ë¥ ì°ì ì°ë©´ì : number;
-  ê±´íì¨: number;
-  ì©ì ë¥ : number;
-  ì§ìì¸µì: number;
-  ì§íì¸µì: number;
-  ì¹ì©ìë¦¬ë² ì´í°: number;
-  ë¹ìì©ìë¦¬ë² ì´í°: number;
-  ì´ì£¼ì°¨ëì: number;
-  ì¥ë´ê¸°ê³ìì£¼ì°¨: number;
-  ì¥ë´ìì£¼ìì£¼ì°¨: number;
-  ì¥ì¸ê¸°ê³ìì£¼ì°¨: number;
-  ì¥ì¸ìì£¼ìì£¼ì°¨: number;
-  íê°ì¼: string;
-  ì°©ê³µì¼: string;
-  ì¬ì©ì¹ì¸ì¼: string;
-  ëì¥êµ¬ë¶: string;
-  ëì¥ì¢ë¥: string;
-  ëë¡ëªì£¼ì: string;
-  ì§ë²ì£¼ì: string;
-  ì¸ëì: number;
-  í¸ì: number;
-  ê°êµ¬ì: number;
-  ì¸µë³ê°ì: Array<{ ì¸µë²í¸: string; ì¸µêµ¬ë¶: string; ì¸µì©ë: string; ë©´ì : number }>;
+  건물명: string;
+  주용도: string;
+  기타용도: string;
+  건물구조: string;
+  지붕구조: string;
+  대지면적: number;
+  건축면적: number;
+  연면적: number;
+  용적률산정연면적: number;
+  건폐율: number;
+  용적률: number;
+  지상층수: number;
+  지하층수: number;
+  승용엘리베이터: number;
+  비상용엘리베이터: number;
+  총주차대수: number;
+  옥내기계식주차: number;
+  옥내자주식주차: number;
+  옥외기계식주차: number;
+  옥외자주식주차: number;
+  허가일: string;
+  착공일: string;
+  사용승인일: string;
+  대장구분: string;
+  대장종류: string;
+  도로명주소: string;
+  지번주소: string;
+  세대수: number;
+  호수: number;
+  가구수: number;
+  층별개요: Array<{ 층번호: string; 층구분: string; 층용도: string; 면적: number }>;
   _raw: Record<string, any>;
 }
 
 interface FormData {
-  // ââ íì 3í­ëª© ââ
+  // ── 필수 3항목 ──
   address: string;
   addressDetail: string;
   dong: string;
@@ -65,7 +65,7 @@ interface FormData {
   monthly: number | null;
   price: number | null;
   type: string;
-  // ââ ê±´ì¶ë¬¼ëì¥ ìëìë ¥ ââ
+  // ── 건축물대장 자동입력 ──
   building_name: string;
   building_purpose: string;
   building_structure: string;
@@ -84,7 +84,7 @@ interface FormData {
   jibun_address: string;
   sigungu_code: string;
   bcode: string;
-  // ââ ì¸ë¶ì ë³´ ââ
+  // ── 세부정보 ──
   area_m2: number | null;
   area_supply_m2: number | null;
   floor_current: string;
@@ -100,12 +100,12 @@ interface FormData {
   pet_allowed: boolean;
   parking_available: boolean;
   features: string[];
-  // ââ AI ìì± ââ
+  // ── AI 생성 ──
   title: string;
   description: string;
-  // ââ ì´ë¯¸ì§ ââ
+  // ── 이미지 ──
   images: string[];
-  // ââ ìí ââ
+  // ── 상태 ──
   status: string;
 }
 
@@ -130,27 +130,27 @@ declare global {
   }
 }
 
-/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   ìì
-âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
-const PROPERTY_TYPES = ['ìë£¸', 'í¬ë£¸', 'ì°ë¦¬ë£¸+', 'ì¤í¼ì¤í', 'ìíí¸', 'ë¹ë¼', 'ìê°', 'ì¬ë¬´ì¤'];
-const DEAL_TYPES = ['ìì¸', 'ì ì¸', 'ë§¤ë§¤'];
-const DIRECTIONS = ['ë', 'ì', 'ë¨', 'ë¶', 'ëë¨', 'ëë¶', 'ìë¨', 'ìë¶'];
-const HEATING_TYPES = ['ê°ë³ëë°©', 'ì¤ìëë°©', 'ì§ì­ëë°©'];
-const MAINTENANCE_OPTIONS = ['ìë', 'ì ê¸°', 'ê°ì¤', 'ì¸í°ë·', 'TV', 'ì²­ìë¹', 'ì£¼ì°¨ë¹', 'ìë¦¬ë² ì´í°ì ì§ë¹'];
-const FEATURES_OPTIONS = ['íìµì', 'ì ì¶', 'ì­ì¸ê¶', 'ì£¼ì°¨ê°ë¥', 'ë°ë ¤ëë¬¼', 'ë² ëë¤', 'ìë¦¬ë² ì´í°', 'CCTV', 'ë¶ë¦¬ìê±°', 'ë¬´ì¸íë°°', 'ê±´ì¡°ê¸°', 'ì¸íê¸°'];
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   상수
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const PROPERTY_TYPES = ['원룸', '투룸', '쓰리룸+', '오피스텔', '아파트', '빌라', '상가', '사무실'];
+const DEAL_TYPES = ['월세', '전세', '매매'];
+const DIRECTIONS = ['동', '서', '남', '북', '동남', '동북', '서남', '서북'];
+const HEATING_TYPES = ['개별난방', '중앙난방', '지역난방'];
+const MAINTENANCE_OPTIONS = ['수도', '전기', '가스', '인터넷', 'TV', '청소비', '주차비', '엘리베이터유지비'];
+const FEATURES_OPTIONS = ['풀옵션', '신축', '역세권', '주차가능', '반려동물', '베란다', '엘리베이터', 'CCTV', '분리수거', '무인택배', '건조기', '세탁기'];
 
 const STEPS = [
-  { id: 1, label: 'íìì ë³´', icon: 'ð', desc: 'ìì¬ì§Â·ê±°ëÂ·ì í' },
-  { id: 2, label: 'ê±´ì¶ë¬¼ëì¥', icon: 'ðï¸', desc: 'ìëì¡°íÂ·ì¸ë¶ì ë³´' },
-  { id: 3, label: 'ì¬ì§ë±ë¡', icon: 'ð¸', desc: 'ì´ë¯¸ì§Â·íì§ê°ì ' },
-  { id: 4, label: 'AIë±ë¡', icon: 'ð¤', desc: 'ìëìì±Â·ìë¡ë' },
+  { id: 1, label: '필수정보', icon: '📋', desc: '소재지·거래·유형' },
+  { id: 2, label: '건축물대장', icon: '🏛️', desc: '자동조회·세부정보' },
+  { id: 3, label: '사진등록', icon: '📸', desc: '이미지·품질개선' },
+  { id: 4, label: 'AI등록', icon: '🤖', desc: '자동완성·업로드' },
 ];
 
 const AUTH_TOKEN = 'wishes2026';
 
 const INITIAL_FORM: FormData = {
-  address: '', addressDetail: '', dong: '', deal: 'ìì¸',
+  address: '', addressDetail: '', dong: '', deal: '월세',
   deposit: null, monthly: null, price: null, type: '',
   building_name: '', building_purpose: '', building_structure: '',
   approval_date: '', site_area: null, total_floor_area: null,
@@ -160,25 +160,25 @@ const INITIAL_FORM: FormData = {
   road_address: '', jibun_address: '', sigungu_code: '', bcode: '',
   area_m2: null, area_supply_m2: null, floor_current: '', floor_total: '',
   rooms: null, bathrooms: null, direction: '', heating_type: '',
-  maintenance_fee: null, maintenance_includes: [], move_in_type: 'ì¦ì',
+  maintenance_fee: null, maintenance_includes: [], move_in_type: '즉시',
   move_in_date: '', pet_allowed: false, parking_available: false,
-  features: [], title: '', description: '', images: [], status: 'ììì ì¥',
+  features: [], title: '', description: '', images: [], status: '임시저장',
 };
 
-/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   ì í¸ë¦¬í° í¨ì
-âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   유틸리티 함수
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 const formatAmount = (num: number | null | undefined): string => {
   if (num === null || num === undefined || num === 0) return '';
-  if (num >= 10000) return `${(num / 10000).toFixed(num % 10000 === 0 ? 0 : 1)}ìµ`;
-  if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}ì²ë§`;
-  return `${num}ë§`;
+  if (num >= 10000) return `${(num / 10000).toFixed(num % 10000 === 0 ? 0 : 1)}억`;
+  if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}천만`;
+  return `${num}만`;
 };
 
 const formatArea = (m2: number | null): string => {
   if (!m2) return '-';
   const py = (m2 / 3.3058).toFixed(1);
-  return `${m2.toFixed(1)}ã¡ (${py}í)`;
+  return `${m2.toFixed(1)}㎡ (${py}평)`;
 };
 
 const formatDate = (dateStr: string): string => {
@@ -186,7 +186,7 @@ const formatDate = (dateStr: string): string => {
   return `${dateStr.substring(0, 4)}.${dateStr.substring(4, 6)}.${dateStr.substring(6, 8)}`;
 };
 
-/* ââ ì´ë¯¸ì§ ìë íì§ ê°ì  (Canvas API) ââ */
+/* ── 이미지 자동 품질 개선 (Canvas API) ── */
 function enhanceImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -200,40 +200,40 @@ function enhanceImage(file: File): Promise<string> {
         canvas.width = img.width;
         canvas.height = img.height;
 
-        // 1ë¨ê³: ìë³¸ ê·¸ë¦¬ê¸°
+        // 1단계: 원본 그리기
         ctx.drawImage(img, 0, 0);
 
-        // 2ë¨ê³: ë°ê¸° + ëë¹ ë³´ì 
+        // 2단계: 밝기 + 대비 보정
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const data = imageData.data;
 
-        // íì¤í ê·¸ë¨ ë¶ì (ìë ë°ê¸° ë³´ì )
+        // 히스토그램 분석 (자동 밝기 보정)
         let sum = 0;
         for (let i = 0; i < data.length; i += 4) {
           sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
         }
         const avgBrightness = sum / (data.length / 4);
 
-        // ì ìí ë°ê¸° ë³´ì  (ì´ëì´ ì¬ì§ì¼ìë¡ ë ë°ê²)
+        // 적응형 밝기 보정 (어두운 사진일수록 더 밝게)
         const brightnessAdjust = avgBrightness < 100 ? 25 : avgBrightness < 130 ? 10 : 0;
-        // ëë¹ ê°í ê³ì
+        // 대비 강화 계수
         const contrastFactor = 1.15;
         const contrastCenter = 128;
-        // ì±ë ê°í
+        // 채도 강화
         const saturationBoost = 1.12;
 
         for (let i = 0; i < data.length; i += 4) {
           let r = data[i], g = data[i + 1], b = data[i + 2];
 
-          // ë°ê¸° ë³´ì 
+          // 밝기 보정
           r += brightnessAdjust; g += brightnessAdjust; b += brightnessAdjust;
 
-          // ëë¹ ë³´ì 
+          // 대비 보정
           r = contrastCenter + (r - contrastCenter) * contrastFactor;
           g = contrastCenter + (g - contrastCenter) * contrastFactor;
           b = contrastCenter + (b - contrastCenter) * contrastFactor;
 
-          // ì±ë ê°í (HSL ê¸°ë° ê°ìí)
+          // 채도 강화 (HSL 기반 간소화)
           const gray = 0.299 * r + 0.587 * g + 0.114 * b;
           r = gray + (r - gray) * saturationBoost;
           g = gray + (g - gray) * saturationBoost;
@@ -246,16 +246,16 @@ function enhanceImage(file: File): Promise<string> {
 
         ctx.putImageData(imageData, 0, 0);
 
-        // 3ë¨ê³: ì¤íë (ì¸ì¤í ë§ì¤í¬ ê°ìí)
+        // 3단계: 샤프닝 (언샤프 마스크 간소화)
         const sharpCanvas = document.createElement('canvas');
         const sharpCtx = sharpCanvas.getContext('2d');
         if (sharpCtx) {
           sharpCanvas.width = canvas.width;
           sharpCanvas.height = canvas.height;
-          // ë¸ë¬ í ì°¨ì´ í©ì±ì¼ë¡ ì¤íë í¨ê³¼
+          // 블러 후 차이 합성으로 샤프닝 효과
           sharpCtx.filter = 'blur(1px)';
           sharpCtx.drawImage(canvas, 0, 0);
-          // ìë³¸ê³¼ ë¸ë¬ì ì°¨ì´ë¥¼ ìë³¸ì í©ì±
+          // 원본과 블러의 차이를 원본에 합성
           ctx.globalCompositeOperation = 'source-over';
           ctx.globalAlpha = 0.15;
           ctx.drawImage(canvas, 0, 0);
@@ -263,7 +263,7 @@ function enhanceImage(file: File): Promise<string> {
           ctx.globalCompositeOperation = 'source-over';
         }
 
-        // ìµë í´ìë ì í (2048px)
+        // 최대 해상도 제한 (2048px)
         let finalCanvas = canvas;
         if (canvas.width > 2048 || canvas.height > 2048) {
           finalCanvas = document.createElement('canvas');
@@ -274,7 +274,7 @@ function enhanceImage(file: File): Promise<string> {
           fCtx.drawImage(canvas, 0, 0, finalCanvas.width, finalCanvas.height);
         }
 
-        // 4ë¨ê³: WISHES ìí°ë§í¬ ì ì©
+        // 4단계: WISHES 워터마크 적용
         const wCtx = finalCanvas.getContext('2d');
         if (wCtx) {
           const w = finalCanvas.width;
@@ -283,7 +283,7 @@ function enhanceImage(file: File): Promise<string> {
           wCtx.save();
           wCtx.font = `bold ${fontSize}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
           wCtx.textBaseline = 'middle';
-          // ë°í¬ëª ë°°ê²½ ë°°ë (íë¨ ì°ì¸¡)
+          // 반투명 배경 배너 (하단 우측)
           const text = 'WISHES';
           const subText = 'wishes.co.kr';
           const tm = wCtx.measureText(text);
@@ -295,7 +295,7 @@ function enhanceImage(file: File): Promise<string> {
           const bannerH = fontSize * 2.6 + padY * 2;
           const bx = w - bannerW - fontSize * 0.6;
           const by = h - bannerH - fontSize * 0.6;
-          // ë¥ê·¼ ì¬ê°í ë°°ê²½
+          // 둥근 사각형 배경
           wCtx.globalAlpha = 0.55;
           wCtx.fillStyle = '#1a3a1a';
           wCtx.beginPath();
@@ -311,7 +311,7 @@ function enhanceImage(file: File): Promise<string> {
           wCtx.quadraticCurveTo(bx, by, bx + r, by);
           wCtx.closePath();
           wCtx.fill();
-          // íì¤í¸
+          // 텍스트
           wCtx.globalAlpha = 0.9;
           wCtx.fillStyle = '#ffffff';
           wCtx.font = `bold ${fontSize}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
@@ -331,110 +331,110 @@ function enhanceImage(file: File): Promise<string> {
   });
 }
 
-/* ââ AI ë§¤ë¬¼ ì ëª© ìì± ââ */
+/* ── AI 매물 제목 생성 ── */
 function generateTitle(form: FormData, buildingInfo: BuildingInfo | null): string {
   const parts: string[] = [];
 
-  // ë ì´ë¦ ì¶ì¶
-  const dong = form.dong || form.address.split(' ').find(s => s.endsWith('ë')) || '';
+  // 동 이름 추출
+  const dong = form.dong || form.address.split(' ').find(s => s.endsWith('동')) || '';
   if (dong) parts.push(dong);
 
-  // ì­ì¸ê¶/í¹ì§
-  if (form.features.includes('ì­ì¸ê¶')) parts.push('ì­ì¸ê¶');
-  if (form.features.includes('ì ì¶')) parts.push('ì ì¶');
-  else if (buildingInfo?.ì¬ì©ì¹ì¸ì¼) {
-    const year = parseInt(buildingInfo.ì¬ì©ì¹ì¸ì¼.substring(0, 4));
-    if (year >= new Date().getFullYear() - 3) parts.push('ì ì¶');
+  // 역세권/특징
+  if (form.features.includes('역세권')) parts.push('역세권');
+  if (form.features.includes('신축')) parts.push('신축');
+  else if (buildingInfo?.사용승인일) {
+    const year = parseInt(buildingInfo.사용승인일.substring(0, 4));
+    if (year >= new Date().getFullYear() - 3) parts.push('신축');
   }
 
-  // ë§¤ë¬¼ì í
+  // 매물유형
   if (form.type) parts.push(form.type);
 
-  // ê±°ëì í
+  // 거래유형
   if (form.deal) parts.push(form.deal);
 
-  // ê°ê²© ìì½
-  if (form.deal === 'ë§¤ë§¤' && form.price) {
+  // 가격 요약
+  if (form.deal === '매매' && form.price) {
     parts.push(formatAmount(form.price));
-  } else if (form.deal === 'ì ì¸' && form.deposit) {
+  } else if (form.deal === '전세' && form.deposit) {
     parts.push(formatAmount(form.deposit));
-  } else if (form.deal === 'ìì¸') {
+  } else if (form.deal === '월세') {
     if (form.deposit !== null && form.monthly !== null) {
       parts.push(`${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`);
     }
   }
 
-  return parts.join(' ') || 'ì ë§¤ë¬¼';
+  return parts.join(' ') || '새 매물';
 }
 
-/* ââ AI ë§¤ë¬¼ ì¤ëª ìì± (ìì¬ì§/ë©´ì /ì¸µ ë± ê±´ëì¥ ë°ì´í° ì ì¸) ââ */
+/* ── AI 매물 설명 생성 (소재지/면적/층 등 건대장 데이터 제외) ── */
 function generateDescription(form: FormData, buildingInfo: BuildingInfo | null): string {
   const lines: string[] = [];
 
-  // êµíµ í¸ìì± (ì£¼ììì ì­/ì ë¥ì¥ ì¶ë¡ )
+  // 교통 편의성 (주소에서 역/정류장 추론)
   const address = form.address || '';
-  if (address.includes('ì­')) {
-    const stationMatch = address.match(/(\S+ì­)/);
-    if (stationMatch) lines.push(`${stationMatch[1]} ëë³´ ì´ì© ê°ë¥í ì­ì¸ê¶ ë§¤ë¬¼ìëë¤.`);
+  if (address.includes('역')) {
+    const stationMatch = address.match(/(\S+역)/);
+    if (stationMatch) lines.push(`${stationMatch[1]} 도보 이용 가능한 역세권 매물입니다.`);
   }
 
-  // í¹ì¥ì 
+  // 특장점
   const highlights: string[] = [];
-  if (form.features.includes('íìµì')) highlights.push('íìµì(ìì´ì»¨, ëì¥ê³ , ì¸íê¸° ë± êµ¬ë¹)');
-  if (form.features.includes('ì ì¶')) highlights.push('ê¹¨ëí ì ì¶ ê±´ë¬¼');
-  if (form.features.includes('ì£¼ì°¨ê°ë¥') || form.parking_available) highlights.push('ì£¼ì°¨ ê°ë¥');
-  if (form.features.includes('ë°ë ¤ëë¬¼') || form.pet_allowed) highlights.push('ë°ë ¤ëë¬¼ ëë° ê°ë¥');
-  if (form.features.includes('ìë¦¬ë² ì´í°')) highlights.push('ìë¦¬ë² ì´í° ìë¹');
-  if (form.features.includes('ë² ëë¤')) highlights.push('ëì ë² ëë¤');
-  if (form.features.includes('CCTV')) highlights.push('CCTV ë³´ì ìì¤í');
-  if (form.features.includes('ë¬´ì¸íë°°')) highlights.push('ë¬´ì¸íë°°í¨ ì¤ì¹');
-  if (form.features.includes('ë¶ë¦¬ìê±°')) highlights.push('ë¶ë¦¬ìê±° ìì¤ ìë¹');
+  if (form.features.includes('풀옵션')) highlights.push('풀옵션(에어컨, 냉장고, 세탁기 등 구비)');
+  if (form.features.includes('신축')) highlights.push('깨끗한 신축 건물');
+  if (form.features.includes('주차가능') || form.parking_available) highlights.push('주차 가능');
+  if (form.features.includes('반려동물') || form.pet_allowed) highlights.push('반려동물 동반 가능');
+  if (form.features.includes('엘리베이터')) highlights.push('엘리베이터 완비');
+  if (form.features.includes('베란다')) highlights.push('넓은 베란다');
+  if (form.features.includes('CCTV')) highlights.push('CCTV 보안 시스템');
+  if (form.features.includes('무인택배')) highlights.push('무인택배함 설치');
+  if (form.features.includes('분리수거')) highlights.push('분리수거 시설 완비');
 
   if (highlights.length > 0) {
-    lines.push(`ì£¼ì í¹ì§: ${highlights.join(', ')}`);
+    lines.push(`주요 특징: ${highlights.join(', ')}`);
   }
 
-  // ëë°©
-  if (form.heating_type) lines.push(`${form.heating_type} ë°©ìì¼ë¡ ì¾ì í ì¤ë´íê²½ì ì ì§í©ëë¤.`);
+  // 난방
+  if (form.heating_type) lines.push(`${form.heating_type} 방식으로 쾌적한 실내환경을 유지합니다.`);
 
-  // ê´ë¦¬ë¹
+  // 관리비
   if (form.maintenance_fee && form.maintenance_fee > 0) {
     const includes = form.maintenance_includes.length > 0
-      ? ` (${form.maintenance_includes.join(', ')} í¬í¨)`
+      ? ` (${form.maintenance_includes.join(', ')} 포함)`
       : '';
-    lines.push(`ê´ë¦¬ë¹ ${form.maintenance_fee}ë§ì${includes}`);
+    lines.push(`관리비 ${form.maintenance_fee}만원${includes}`);
   }
 
-  // ìì£¼
-  if (form.move_in_type === 'ì¦ì') {
-    lines.push('ì¦ì ìì£¼ ê°ë¥í©ëë¤.');
+  // 입주
+  if (form.move_in_type === '즉시') {
+    lines.push('즉시 입주 가능합니다.');
   } else if (form.move_in_date) {
-    lines.push(`${form.move_in_date} ì´í ìì£¼ ê°ë¥í©ëë¤.`);
+    lines.push(`${form.move_in_date} 이후 입주 가능합니다.`);
   }
 
-  // ë°©í¥
-  if (form.direction) lines.push(`${form.direction}í¥ì¼ë¡ ì±ê´ì´ ì¢ìµëë¤.`);
+  // 방향
+  if (form.direction) lines.push(`${form.direction}향으로 채광이 좋습니다.`);
 
-  // ì£¼ë³íê²½ (ì£¼ì ê¸°ë° ì¶ë¡ )
-  if (address.includes('ëí') || address.includes('íêµ')) {
-    lines.push('íêµ ì¸ê·¼ì ìì¹íì¬ íµíì´ í¸ë¦¬í©ëë¤.');
+  // 주변환경 (주소 기반 추론)
+  if (address.includes('대학') || address.includes('학교')) {
+    lines.push('학교 인근에 위치하여 통학이 편리합니다.');
   }
 
   if (lines.length === 0) {
-    lines.push('ê¹¨ëíê³  ê´ë¦¬ ì ë ë§¤ë¬¼ìëë¤. ìì¸í ì¬í­ì ë¬¸ì ë°ëëë¤.');
+    lines.push('깨끗하고 관리 잘 된 매물입니다. 자세한 사항은 문의 바랍니다.');
   }
 
   return lines.join('\n');
 }
 
-/* âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-   ë©ì¸ ì»´í¬ëí¸
-âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   메인 컴포넌트
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 export default function SmartListingNewPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  /* ââ State ââ */
+  /* ── State ── */
   const [currentStep, setCurrentStep] = useState(1);
   const [form, setForm] = useState<FormData>({ ...INITIAL_FORM });
   const [addressData, setAddressData] = useState<AddressData | null>(null);
@@ -456,7 +456,7 @@ export default function SmartListingNewPage() {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const postcodeContainerRef = useRef<HTMLDivElement>(null);
 
-  /* ââ ì£¼ì ê²ì íì ë©ìì§ ìì  ââ */
+  /* ── 주소 검색 팝업 메시지 수신 ── */
   useEffect(() => {
     const script = document.createElement('script');
     script.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
@@ -467,12 +467,12 @@ export default function SmartListingNewPage() {
     };
   }, [])
 
-  /* ââ Toast ìë ë«ê¸° ââ */
+  /* ── Toast 자동 닫기 ── */
   useEffect(() => {
     if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }
   }, [toast]);
 
-  /* ââ ììì ì¥ ê´ë¦¬ (localStorage) ââ */
+  /* ── 임시저장 관리 (localStorage) ── */
   const loadDrafts = () => {
     try {
       const saved = localStorage.getItem('wishes_drafts');
@@ -494,7 +494,7 @@ export default function SmartListingNewPage() {
     setDrafts(newDrafts);
     setDraftId(id);
     localStorage.setItem('wishes_drafts', JSON.stringify(newDrafts));
-    setToast({ type: 'success', text: 'ììì ì¥ ìë£' });
+    setToast({ type: 'success', text: '임시저장 완료' });
     return id;
   }, [form, buildingInfo, draftId, drafts]);
 
@@ -503,11 +503,11 @@ export default function SmartListingNewPage() {
     setBuildingInfo(draft.buildingInfo);
     setDraftId(draft.id);
     setShowDrafts(false);
-    // ë¨ê³ ìë íë¨
+    // 단계 자동 판단
     if (draft.formData.images.length > 0) setCurrentStep(4);
     else if (draft.formData.building_name || draft.buildingInfo) setCurrentStep(3);
     else setCurrentStep(1);
-    setToast({ type: 'info', text: 'ììì ì¥ ë§¤ë¬¼ì ë¶ë¬ììµëë¤' });
+    setToast({ type: 'info', text: '임시저장 매물을 불러왔습니다' });
   };
 
   const deleteDraft = (id: string) => {
@@ -517,12 +517,12 @@ export default function SmartListingNewPage() {
     if (draftId === id) setDraftId(null);
   };
 
-  /* ââ í¼ ìë°ì´í¸ í¬í¼ ââ */
+  /* ── 폼 업데이트 헬퍼 ── */
   const updateForm = (updates: Partial<FormData>) => {
     setForm(prev => ({ ...prev, ...updates }));
   };
 
-  /* ââ Step 1: ì£¼ì ê²ì (embed ëª¨ë¬ ë°©ì) ââ */
+  /* ── Step 1: 주소 검색 (embed 모달 방식) ── */
   const openAddressSearch = () => {
     setShowAddressModal(true);
     setTimeout(() => {
@@ -530,7 +530,7 @@ export default function SmartListingNewPage() {
       if (!container) return;
       const w = window as unknown as { daum?: { Postcode: new (opts: Record<string, unknown>) => { embed: (el: HTMLElement) => void } } };
       if (!w.daum?.Postcode) {
-        alert('ì£¼ì ê²ì ì¤í¬ë¦½í¸ë¥¼ ë¡ë© ì¤ìëë¤. ì ì í ë¤ì ìëí´ì£¼ì¸ì.');
+        alert('주소 검색 스크립트를 로딩 중입니다. 잠시 후 다시 시도해주세요.');
         setShowAddressModal(false);
         return;
       }
@@ -565,7 +565,7 @@ export default function SmartListingNewPage() {
     }, 100);
   };
 
-  /* ââ Step 2: ê±´ì¶ë¬¼ëì¥ ìë ì¡°í ââ */
+  /* ── Step 2: 건축물대장 자동 조회 ── */
   const fetchBuildingLedger = async () => {
     if (!addressData) return;
 
@@ -589,43 +589,43 @@ export default function SmartListingNewPage() {
       });
 
       const result = await res.json();
-      if (!result.success) throw new Error(result.error || 'ê±´ì¶ë¬¼ëì¥ ì¡°í ì¤í¨');
+      if (!result.success) throw new Error(result.error || '건축물대장 조회 실패');
 
       const info: BuildingInfo = result.extracted;
       setBuildingInfo(info);
       setBuildingRawData(result.data);
 
-      // í¼ ìë ìë ¥
+      // 폼 자동 입력
       updateForm({
-        building_name: info.ê±´ë¬¼ëª || form.building_name,
-        building_purpose: info.ì£¼ì©ë,
-        building_structure: info.ê±´ë¬¼êµ¬ì¡°,
-        approval_date: info.ì¬ì©ì¹ì¸ì¼,
-        site_area: info.ëì§ë©´ì  || null,
-        total_floor_area: info.ì°ë©´ì  || null,
-        building_coverage_ratio: info.ê±´íì¨ || null,
-        floor_area_ratio: info.ì©ì ë¥  || null,
-        elevator_count: (info.ì¹ì©ìë¦¬ë² ì´í° || 0) + (info.ë¹ìì©ìë¦¬ë² ì´í° || 0),
-        parking_count: info.ì´ì£¼ì°¨ëì || null,
-        underground_floors: info.ì§íì¸µì || null,
-        household_count: info.ì¸ëì || null,
-        unit_count: info.í¸ì || null,
-        ground_floors: info.ì§ìì¸µì || null,
-        floor_total: info.ì§ìì¸µì ? `${info.ì§ìì¸µì}` : '',
+        building_name: info.건물명 || form.building_name,
+        building_purpose: info.주용도,
+        building_structure: info.건물구조,
+        approval_date: info.사용승인일,
+        site_area: info.대지면적 || null,
+        total_floor_area: info.연면적 || null,
+        building_coverage_ratio: info.건폐율 || null,
+        floor_area_ratio: info.용적률 || null,
+        elevator_count: (info.승용엘리베이터 || 0) + (info.비상용엘리베이터 || 0),
+        parking_count: info.총주차대수 || null,
+        underground_floors: info.지하층수 || null,
+        household_count: info.세대수 || null,
+        unit_count: info.호수 || null,
+        ground_floors: info.지상층수 || null,
+        floor_total: info.지상층수 ? `${info.지상층수}` : '',
       });
 
-      // ìë ììì ì¥
+      // 자동 임시저장
       await saveDraft();
-      setToast({ type: 'success', text: 'ê±´ì¶ë¬¼ëì¥ ì¡°í ìë£ Â· ììì ì¥ë¨' });
+      setToast({ type: 'success', text: '건축물대장 조회 완료 · 임시저장됨' });
     } catch (err: any) {
-      setBuildingError(err.message || 'ê±´ì¶ë¬¼ëì¥ ì¡°í ì¤ ì¤ë¥');
-      setToast({ type: 'error', text: err.message || 'ê±´ì¶ë¬¼ëì¥ ì¡°í ì¤í¨' });
+      setBuildingError(err.message || '건축물대장 조회 중 오류');
+      setToast({ type: 'error', text: err.message || '건축물대장 조회 실패' });
     } finally {
       setBuildingLoading(false);
     }
   };
 
-  /* ââ Step 2 â 3 ì í ì ìë ì¡°í ââ */
+  /* ── Step 2 → 3 전환 시 자동 조회 ── */
   const goToStep2 = async () => {
     setCurrentStep(2);
     if (addressData && !buildingInfo) {
@@ -633,7 +633,7 @@ export default function SmartListingNewPage() {
     }
   };
 
-  /* ââ Step 3: ì´ë¯¸ì§ ìë¡ë + ìë íì§ ê°ì  ââ */
+  /* ── Step 3: 이미지 업로드 + 자동 품질 개선 ── */
   const handleImageFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
     if (fileArray.length === 0) return;
@@ -647,7 +647,7 @@ export default function SmartListingNewPage() {
 
     setUploadedImages(prev => [...prev, ...newImages]);
 
-    // ìë íì§ ê°ì 
+    // 자동 품질 개선
     for (let i = 0; i < fileArray.length; i++) {
       try {
         const enhanced = await enhanceImage(fileArray[i]);
@@ -687,70 +687,70 @@ export default function SmartListingNewPage() {
     });
   };
 
-  /* ââ Step 4: AI ìë ìì± ââ */
+  /* ── Step 4: AI 자동 완성 ── */
   const runAiAutoFill = async () => {
     setAiGenerating(true);
     try {
-      // AI ì ëª© ìì±
+      // AI 제목 생성
       const title = generateTitle(form, buildingInfo);
-      // AI ì¤ëª ìì± (ìì¬ì§/ë©´ì  ë± ê±´ëì¥ ë°ì´í° ì ì¸)
+      // AI 설명 생성 (소재지/면적 등 건대장 데이터 제외)
       const description = generateDescription(form, buildingInfo);
 
-      // ëë¨¸ì§ íë ìë ì¶ë¡ 
+      // 나머지 필드 자동 추론
       const autoFill: Partial<FormData> = { title, description };
 
-      // ë°©/ìì¤ ìë ì¶ë¡  (ë§¤ë¬¼ì í ê¸°ë°)
+      // 방/욕실 자동 추론 (매물유형 기반)
       if (!form.rooms) {
-        if (form.type === 'ìë£¸') autoFill.rooms = 1;
-        else if (form.type === 'í¬ë£¸') autoFill.rooms = 2;
-        else if (form.type === 'ì°ë¦¬ë£¸+') autoFill.rooms = 3;
+        if (form.type === '원룸') autoFill.rooms = 1;
+        else if (form.type === '투룸') autoFill.rooms = 2;
+        else if (form.type === '쓰리룸+') autoFill.rooms = 3;
       }
       if (!form.bathrooms) {
         autoFill.bathrooms = (form.rooms || autoFill.rooms || 1) <= 2 ? 1 : 2;
       }
 
-      // ì£¼ì°¨ ê°ë¥ ì¬ë¶ ìë
-      if (buildingInfo && buildingInfo.ì´ì£¼ì°¨ëì > 0) {
+      // 주차 가능 여부 자동
+      if (buildingInfo && buildingInfo.총주차대수 > 0) {
         autoFill.parking_available = true;
-        if (!form.features.includes('ì£¼ì°¨ê°ë¥')) {
-          autoFill.features = [...form.features, 'ì£¼ì°¨ê°ë¥'];
+        if (!form.features.includes('주차가능')) {
+          autoFill.features = [...form.features, '주차가능'];
         }
       }
 
-      // ìë¦¬ë² ì´í° ìë
-      if (buildingInfo && (buildingInfo.ì¹ì©ìë¦¬ë² ì´í° > 0) && !form.features.includes('ìë¦¬ë² ì´í°')) {
-        autoFill.features = [...(autoFill.features || form.features), 'ìë¦¬ë² ì´í°'];
+      // 엘리베이터 자동
+      if (buildingInfo && (buildingInfo.승용엘리베이터 > 0) && !form.features.includes('엘리베이터')) {
+        autoFill.features = [...(autoFill.features || form.features), '엘리베이터'];
       }
 
-      // ì ì¶ íë¨
-      if (buildingInfo?.ì¬ì©ì¹ì¸ì¼) {
-        const year = parseInt(buildingInfo.ì¬ì©ì¹ì¸ì¼.substring(0, 4));
-        if (year >= new Date().getFullYear() - 3 && !form.features.includes('ì ì¶')) {
-          autoFill.features = [...(autoFill.features || form.features), 'ì ì¶'];
+      // 신축 판단
+      if (buildingInfo?.사용승인일) {
+        const year = parseInt(buildingInfo.사용승인일.substring(0, 4));
+        if (year >= new Date().getFullYear() - 3 && !form.features.includes('신축')) {
+          autoFill.features = [...(autoFill.features || form.features), '신축'];
         }
       }
 
       updateForm(autoFill);
 
-      // ìë®¬ë ì´ì ëë ì´ (AI ì²ë¦¬ ëë)
+      // 시뮬레이션 딜레이 (AI 처리 느낌)
       await new Promise(r => setTimeout(r, 1500));
 
-      setToast({ type: 'success', text: 'AI ìëìì± ìë£! ì ëª©ê³¼ ì¤ëªì´ ìì±ëììµëë¤.' });
+      setToast({ type: 'success', text: 'AI 자동완성 완료! 제목과 설명이 생성되었습니다.' });
     } catch {
-      setToast({ type: 'error', text: 'AI ìëìì± ì¤ ì¤ë¥ ë°ì' });
+      setToast({ type: 'error', text: 'AI 자동완성 중 오류 발생' });
     } finally {
       setAiGenerating(false);
     }
   };
 
-  /* ââ ë§¤ë¬¼ ìë¡ë (ìë² ë±ë¡) ââ */
+  /* ── 매물 업로드 (서버 등록) ── */
   const publishListing = async (mode: 'instant' | 'review') => {
     setIsPublishing(true);
     try {
-      // TODO: ì¤ì  ì´ë¯¸ì§ ìë¡ë ë¡ì§ (Supabase Storage)
-      // íì¬ë ì´ë¯¸ì§ URL ìì´ ë§¤ë¬¼ ë°ì´í°ë§ ë±ë¡
+      // TODO: 실제 이미지 업로드 로직 (Supabase Storage)
+      // 현재는 이미지 URL 없이 매물 데이터만 등록
 
-      const status = mode === 'instant' ? 'ê³µê°' : 'ë¹ê³µê°';
+      const status = mode === 'instant' ? '공개' : '비공개';
       const payload = {
         title: form.title || generateTitle(form, buildingInfo),
         address: form.address,
@@ -800,31 +800,31 @@ export default function SmartListingNewPage() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error('ë§¤ë¬¼ ë±ë¡ ì¤í¨');
+      if (!res.ok) throw new Error('매물 등록 실패');
 
-      // ììì ì¥ ì­ì 
+      // 임시저장 삭제
       if (draftId) deleteDraft(draftId);
 
-      const modeText = mode === 'instant' ? 'ì¦ì ê³µê°' : 'ê²ì ëê¸°(ë¹ê³µê°)';
-      setToast({ type: 'success', text: `ë§¤ë¬¼ì´ ${modeText} ìíë¡ ë±ë¡ëììµëë¤!` });
+      const modeText = mode === 'instant' ? '즉시 공개' : '검수 대기(비공개)';
+      setToast({ type: 'success', text: `매물이 ${modeText} 상태로 등록되었습니다!` });
 
       setTimeout(() => router.push('/admin/listings'), 1500);
     } catch (err: any) {
-      setToast({ type: 'error', text: err.message || 'ë§¤ë¬¼ ë±ë¡ ì¤í¨' });
+      setToast({ type: 'error', text: err.message || '매물 등록 실패' });
     } finally {
       setIsPublishing(false);
     }
   };
 
-  /* ââ íìí­ëª© ì²´í¬ ââ */
+  /* ── 필수항목 체크 ── */
   const isStep1Valid = form.address && form.deal && form.type &&
-    ((form.deal === 'ë§¤ë§¤' && form.price) ||
-     (form.deal === 'ì ì¸' && form.deposit) ||
-     (form.deal === 'ìì¸' && form.deposit !== null && form.monthly !== null));
+    ((form.deal === '매매' && form.price) ||
+     (form.deal === '전세' && form.deposit) ||
+     (form.deal === '월세' && form.deposit !== null && form.monthly !== null));
 
-  /* ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-     ë ëë§
-  ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     렌더링
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Toast */}
@@ -836,7 +836,7 @@ export default function SmartListingNewPage() {
         </div>
       )}
 
-      {/* í¤ë */}
+      {/* 헤더 */}
       <div className="bg-white border-b sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -846,12 +846,12 @@ export default function SmartListingNewPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
-            <h1 className="text-xl font-bold text-gray-900">ì¤ë§í¸ ë§¤ë¬¼ ë±ë¡</h1>
+            <h1 className="text-xl font-bold text-gray-900">스마트 매물 등록</h1>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowDrafts(!showDrafts)}
               className="relative px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 transition">
-              ð ììì ì¥ ëª©ë¡
+              📂 임시저장 목록
               {drafts.length > 0 && (
                 <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
                   {drafts.length}
@@ -860,12 +860,12 @@ export default function SmartListingNewPage() {
             </button>
             <button onClick={() => saveDraft()}
               className="px-3 py-2 text-sm bg-gray-100 rounded-lg hover:bg-gray-200 transition">
-              ð¾ ììì ì¥
+              💾 임시저장
             </button>
           </div>
         </div>
 
-        {/* ì¤í ì¸ëì¼ì´í° */}
+        {/* 스텝 인디케이터 */}
         <div className="max-w-6xl mx-auto px-6 pb-4">
           <div className="flex items-center gap-1">
             {STEPS.map((step, i) => (
@@ -895,24 +895,24 @@ export default function SmartListingNewPage() {
         </div>
       </div>
 
-      {/* ììì ì¥ ëë¡­ë¤ì´ */}
+      {/* 임시저장 드롭다운 */}
       {showDrafts && (
         <div className="fixed inset-0 z-30" onClick={() => setShowDrafts(false)}>
           <div className="absolute top-24 right-6 w-96 bg-white rounded-xl shadow-2xl border max-h-[500px] overflow-y-auto"
                onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b font-semibold text-gray-800">ð ììì ì¥ ëª©ë¡ ({drafts.length}ê±´)</div>
+            <div className="p-4 border-b font-semibold text-gray-800">📂 임시저장 목록 ({drafts.length}건)</div>
             {drafts.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 text-sm">ììì ì¥ë ë§¤ë¬¼ì´ ììµëë¤</div>
+              <div className="p-8 text-center text-gray-400 text-sm">임시저장된 매물이 없습니다</div>
             ) : (
               drafts.map(draft => (
                 <div key={draft.id} className="p-4 border-b hover:bg-gray-50 transition">
                   <div className="flex justify-between items-start">
                     <div className="flex-1 cursor-pointer" onClick={() => loadDraft(draft)}>
                       <div className="font-medium text-sm text-gray-900">
-                        {draft.formData.address || 'ì£¼ì ë¯¸ìë ¥'}
+                        {draft.formData.address || '주소 미입력'}
                       </div>
                       <div className="text-xs text-gray-500 mt-0.5">
-                        {draft.formData.type || 'ì í ë¯¸ì í'} Â· {draft.formData.deal} Â·{' '}
+                        {draft.formData.type || '유형 미선택'} · {draft.formData.deal} ·{' '}
                         {new Date(draft.updatedAt).toLocaleString('ko-KR')}
                       </div>
                     </div>
@@ -930,25 +930,25 @@ export default function SmartListingNewPage() {
         </div>
       )}
 
-      {/* ë©ì¸ ì»¨íì¸  */}
+      {/* 메인 컨텐츠 */}
       <div className="max-w-6xl mx-auto px-6 py-8">
 
-        {/* ââââ STEP 1: íìì ë³´ ìë ¥ ââââ */}
+        {/* ━━━━ STEP 1: 필수정보 입력 ━━━━ */}
         {currentStep === 1 && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">1</span>
-                  íì ì ë³´ ìë ¥
+                  필수 정보 입력
                 </h2>
-                <p className="text-sm text-gray-500 mt-1 ml-10">3ê°ì§ íì í­ëª©ë§ ìë ¥íë©´ ëë¨¸ì§ë ìëì¼ë¡ ì±ìì§ëë¤</p>
+                <p className="text-sm text-gray-500 mt-1 ml-10">3가지 필수 항목만 입력하면 나머지는 자동으로 채워집니다</p>
               </div>
 
-              {/* ìì¬ì§ */}
+              {/* 소재지 */}
               <div className="mb-8">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  ð ìì¬ì§ <span className="text-red-500">*</span>
+                  📍 소재지 <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-2">
                   <div className="flex-1">
@@ -956,36 +956,36 @@ export default function SmartListingNewPage() {
                       type="text"
                       value={form.address}
                       readOnly
-                      placeholder="ì£¼ìë¥¼ ê²ìí´ì£¼ì¸ì"
+                      placeholder="주소를 검색해주세요"
                       className="w-full px-4 py-3 border rounded-xl bg-gray-50 text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500"
                       onClick={openAddressSearch}
                     />
                     {addressData && (
                       <div className="mt-2 text-xs text-gray-500 space-y-0.5">
-                        <div>ëë¡ëª: {addressData.roadAddress}</div>
-                        <div>ì§ë²: {addressData.jibunAddress}</div>
-                        <div>ë: {form.dong} | ì°í¸ë²í¸: {addressData.zonecode}</div>
+                        <div>도로명: {addressData.roadAddress}</div>
+                        <div>지번: {addressData.jibunAddress}</div>
+                        <div>동: {form.dong} | 우편번호: {addressData.zonecode}</div>
                       </div>
                     )}
                   </div>
                   <button onClick={openAddressSearch}
                     className="px-5 py-3 bg-green-700 text-white rounded-xl font-medium hover:bg-green-800 transition shrink-0">
-                    ð ì£¼ì ê²ì
+                    🔍 주소 검색
                   </button>
                 </div>
                 <input
                   type="text"
                   value={form.addressDetail}
                   onChange={e => updateForm({ addressDetail: e.target.value })}
-                  placeholder="ìì¸ì£¼ì (ë/í¸ì)"
+                  placeholder="상세주소 (동/호수)"
                   className="w-full mt-2 px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
 
-              {/* ê±°ëê°ê²© */}
+              {/* 거래가격 */}
               <div className="mb-8">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  ð° ê±°ëì í ë° ê°ê²© <span className="text-red-500">*</span>
+                  💰 거래유형 및 가격 <span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-2 mb-3">
                   {DEAL_TYPES.map(d => (
@@ -998,45 +998,45 @@ export default function SmartListingNewPage() {
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  {(form.deal === 'ìì¸' || form.deal === 'ì ì¸') && (
+                  {(form.deal === '월세' || form.deal === '전세') && (
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ë³´ì¦ê¸ (ë§ì)</label>
-                      <input type="number" value={form.deposit ?? ''} placeholder="ì: 1000"
+                      <label className="text-xs text-gray-500 mb-1 block">보증금 (만원)</label>
+                      <input type="number" value={form.deposit ?? ''} placeholder="예: 1000"
                         onChange={e => updateForm({ deposit: e.target.value ? Number(e.target.value) : null })}
                         className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
                     </div>
                   )}
-                  {form.deal === 'ìì¸' && (
+                  {form.deal === '월세' && (
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ìì¸ (ë§ì)</label>
-                      <input type="number" value={form.monthly ?? ''} placeholder="ì: 50"
+                      <label className="text-xs text-gray-500 mb-1 block">월세 (만원)</label>
+                      <input type="number" value={form.monthly ?? ''} placeholder="예: 50"
                         onChange={e => updateForm({ monthly: e.target.value ? Number(e.target.value) : null })}
                         className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
                     </div>
                   )}
-                  {form.deal === 'ë§¤ë§¤' && (
+                  {form.deal === '매매' && (
                     <div className="col-span-2">
-                      <label className="text-xs text-gray-500 mb-1 block">ë§¤ë§¤ê° (ë§ì)</label>
-                      <input type="number" value={form.price ?? ''} placeholder="ì: 30000"
+                      <label className="text-xs text-gray-500 mb-1 block">매매가 (만원)</label>
+                      <input type="number" value={form.price ?? ''} placeholder="예: 30000"
                         onChange={e => updateForm({ price: e.target.value ? Number(e.target.value) : null })}
                         className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
                     </div>
                   )}
                 </div>
-                {/* ê°ê²© ë¯¸ë¦¬ë³´ê¸° */}
+                {/* 가격 미리보기 */}
                 {(form.deposit || form.monthly || form.price) && (
                   <div className="mt-2 text-sm text-green-700 font-medium">
-                    ðµ {form.deal === 'ë§¤ë§¤' ? `ë§¤ë§¤ê° ${formatAmount(form.price)}` :
-                         form.deal === 'ì ì¸' ? `ì ì¸ ${formatAmount(form.deposit)}` :
-                         `ë³´ì¦ê¸ ${formatAmount(form.deposit)} / ìì¸ ${formatAmount(form.monthly)}`}
+                    💵 {form.deal === '매매' ? `매매가 ${formatAmount(form.price)}` :
+                         form.deal === '전세' ? `전세 ${formatAmount(form.deposit)}` :
+                         `보증금 ${formatAmount(form.deposit)} / 월세 ${formatAmount(form.monthly)}`}
                   </div>
                 )}
               </div>
 
-              {/* ë§¤ë¬¼ì í */}
+              {/* 매물유형 */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  ð  ë§¤ë¬¼ì í <span className="text-red-500">*</span>
+                  🏠 매물유형 <span className="text-red-500">*</span>
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {PROPERTY_TYPES.map(t => (
@@ -1050,38 +1050,38 @@ export default function SmartListingNewPage() {
                 </div>
               </div>
 
-              {/* ë¤ì ë²í¼ */}
+              {/* 다음 버튼 */}
               <div className="flex justify-end pt-4 border-t">
                 <button onClick={goToStep2} disabled={!isStep1Valid}
                   className={`px-8 py-3 rounded-xl font-semibold text-white transition ${
                     isStep1Valid ? 'bg-green-700 hover:bg-green-800 shadow-lg' : 'bg-gray-300 cursor-not-allowed'
                   }`}>
-                  ë¤ì â ê±´ì¶ë¬¼ëì¥ ìëì¡°í
+                  다음 → 건축물대장 자동조회
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ââââ STEP 2: ê±´ì¶ë¬¼ëì¥ + ì¸ë¶ì ë³´ ââââ */}
+        {/* ━━━━ STEP 2: 건축물대장 + 세부정보 ━━━━ */}
         {currentStep === 2 && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* ì¢ì¸¡: ê±´ì¶ë¬¼ëì¥ */}
+            {/* 좌측: 건축물대장 */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-sm border p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                     <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">2</span>
-                    ê±´ì¶ë¬¼ëì¥ ì ë³´
+                    건축물대장 정보
                   </h2>
                   <div className="flex gap-2">
                     <button onClick={fetchBuildingLedger} disabled={buildingLoading}
                       className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition">
-                      {buildingLoading ? 'â³ ì¡°í ì¤...' : 'ð ì¬ì¡°í'}
+                      {buildingLoading ? '⏳ 조회 중...' : '🔄 재조회'}
                     </button>
                     <button onClick={() => setShowBuildingDoc(!showBuildingDoc)}
                       className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
-                      ð {showBuildingDoc ? 'ì ë³´ ë³´ê¸°' : 'ìë³¸ ë³´ê¸°'}
+                      📄 {showBuildingDoc ? '정보 보기' : '원본 보기'}
                     </button>
                   </div>
                 </div>
@@ -1089,70 +1089,70 @@ export default function SmartListingNewPage() {
                 {buildingLoading && (
                   <div className="flex items-center justify-center py-12">
                     <div className="animate-spin w-8 h-8 border-3 border-green-700 border-t-transparent rounded-full" />
-                    <span className="ml-3 text-gray-500">ê±´ì¶ë¬¼ëì¥ ì¡°í ì¤...</span>
+                    <span className="ml-3 text-gray-500">건축물대장 조회 중...</span>
                   </div>
                 )}
 
                 {buildingError && (
                   <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm">
-                    â ï¸ {buildingError}
-                    <button onClick={fetchBuildingLedger} className="ml-2 underline">ì¬ìë</button>
+                    ⚠️ {buildingError}
+                    <button onClick={fetchBuildingLedger} className="ml-2 underline">재시도</button>
                   </div>
                 )}
 
                 {buildingInfo && !showBuildingDoc && (
                   <div className="space-y-4 text-sm">
-                    {/* ê¸°ë³¸ ì ë³´ */}
+                    {/* 기본 정보 */}
                     <div className="bg-gray-50 rounded-xl p-4">
-                      <h3 className="font-semibold text-gray-800 mb-2">ð¢ ê±´ë¬¼ ê¸°ë³¸ì ë³´</h3>
+                      <h3 className="font-semibold text-gray-800 mb-2">🏢 건물 기본정보</h3>
                       <div className="grid grid-cols-2 gap-2 text-gray-600">
-                        <div><span className="text-gray-400">ê±´ë¬¼ëª:</span> {buildingInfo.ê±´ë¬¼ëª || '-'}</div>
-                        <div><span className="text-gray-400">ì£¼ì©ë:</span> {buildingInfo.ì£¼ì©ë || '-'}</div>
-                        <div><span className="text-gray-400">êµ¬ì¡°:</span> {buildingInfo.ê±´ë¬¼êµ¬ì¡° || '-'}</div>
-                        <div><span className="text-gray-400">ì§ë¶:</span> {buildingInfo.ì§ë¶êµ¬ì¡° || '-'}</div>
-                        <div><span className="text-gray-400">ì¬ì©ì¹ì¸:</span> {formatDate(buildingInfo.ì¬ì©ì¹ì¸ì¼)}</div>
-                        <div><span className="text-gray-400">ëì¥êµ¬ë¶:</span> {buildingInfo.ëì¥êµ¬ë¶ || '-'}</div>
+                        <div><span className="text-gray-400">건물명:</span> {buildingInfo.건물명 || '-'}</div>
+                        <div><span className="text-gray-400">주용도:</span> {buildingInfo.주용도 || '-'}</div>
+                        <div><span className="text-gray-400">구조:</span> {buildingInfo.건물구조 || '-'}</div>
+                        <div><span className="text-gray-400">지붕:</span> {buildingInfo.지붕구조 || '-'}</div>
+                        <div><span className="text-gray-400">사용승인:</span> {formatDate(buildingInfo.사용승인일)}</div>
+                        <div><span className="text-gray-400">대장구분:</span> {buildingInfo.대장구분 || '-'}</div>
                       </div>
                     </div>
 
-                    {/* ë©´ì /ë¹ì¨ */}
+                    {/* 면적/비율 */}
                     <div className="bg-gray-50 rounded-xl p-4">
-                      <h3 className="font-semibold text-gray-800 mb-2">ð ë©´ì  Â· ë¹ì¨</h3>
+                      <h3 className="font-semibold text-gray-800 mb-2">📐 면적 · 비율</h3>
                       <div className="grid grid-cols-2 gap-2 text-gray-600">
-                        <div><span className="text-gray-400">ëì§ë©´ì :</span> {formatArea(buildingInfo.ëì§ë©´ì )}</div>
-                        <div><span className="text-gray-400">ê±´ì¶ë©´ì :</span> {formatArea(buildingInfo.ê±´ì¶ë©´ì )}</div>
-                        <div><span className="text-gray-400">ì°ë©´ì :</span> {formatArea(buildingInfo.ì°ë©´ì )}</div>
-                        <div><span className="text-gray-400">ê±´íì¨:</span> {buildingInfo.ê±´íì¨?.toFixed(1)}%</div>
-                        <div><span className="text-gray-400">ì©ì ë¥ :</span> {buildingInfo.ì©ì ë¥ ?.toFixed(1)}%</div>
+                        <div><span className="text-gray-400">대지면적:</span> {formatArea(buildingInfo.대지면적)}</div>
+                        <div><span className="text-gray-400">건축면적:</span> {formatArea(buildingInfo.건축면적)}</div>
+                        <div><span className="text-gray-400">연면적:</span> {formatArea(buildingInfo.연면적)}</div>
+                        <div><span className="text-gray-400">건폐율:</span> {buildingInfo.건폐율?.toFixed(1)}%</div>
+                        <div><span className="text-gray-400">용적률:</span> {buildingInfo.용적률?.toFixed(1)}%</div>
                       </div>
                     </div>
 
-                    {/* ì¸µì/ì¹ê°ê¸°/ì£¼ì°¨ */}
+                    {/* 층수/승강기/주차 */}
                     <div className="bg-gray-50 rounded-xl p-4">
-                      <h3 className="font-semibold text-gray-800 mb-2">ð¢ ì¸µì Â· ìì¤</h3>
+                      <h3 className="font-semibold text-gray-800 mb-2">🔢 층수 · 시설</h3>
                       <div className="grid grid-cols-2 gap-2 text-gray-600">
-                        <div><span className="text-gray-400">ì§ì/ì§í:</span> {buildingInfo.ì§ìì¸µì}ì¸µ / B{buildingInfo.ì§íì¸µì}</div>
-                        <div><span className="text-gray-400">ì¹ê°ê¸°:</span> {(buildingInfo.ì¹ì©ìë¦¬ë² ì´í°||0) + (buildingInfo.ë¹ìì©ìë¦¬ë² ì´í°||0)}ë</div>
-                        <div><span className="text-gray-400">ì£¼ì°¨:</span> {buildingInfo.ì´ì£¼ì°¨ëì}ë</div>
-                        <div><span className="text-gray-400">ì¸ë/í¸ì:</span> {buildingInfo.ì¸ëì}ì¸ë / {buildingInfo.í¸ì}í¸</div>
+                        <div><span className="text-gray-400">지상/지하:</span> {buildingInfo.지상층수}층 / B{buildingInfo.지하층수}</div>
+                        <div><span className="text-gray-400">승강기:</span> {(buildingInfo.승용엘리베이터||0) + (buildingInfo.비상용엘리베이터||0)}대</div>
+                        <div><span className="text-gray-400">주차:</span> {buildingInfo.총주차대수}대</div>
+                        <div><span className="text-gray-400">세대/호수:</span> {buildingInfo.세대수}세대 / {buildingInfo.호수}호</div>
                       </div>
                     </div>
 
-                    {/* ì¸µë³ ê°ì */}
-                    {buildingInfo.ì¸µë³ê°ì && buildingInfo.ì¸µë³ê°ì.length > 0 && (
+                    {/* 층별 개요 */}
+                    {buildingInfo.층별개요 && buildingInfo.층별개요.length > 0 && (
                       <div className="bg-gray-50 rounded-xl p-4">
-                        <h3 className="font-semibold text-gray-800 mb-2">ð ì¸µë³ê°ì</h3>
+                        <h3 className="font-semibold text-gray-800 mb-2">📊 층별개요</h3>
                         <div className="max-h-40 overflow-y-auto">
                           <table className="w-full text-xs">
                             <thead><tr className="text-gray-400 border-b">
-                              <th className="text-left py-1">ì¸µ</th><th className="text-left py-1">êµ¬ë¶</th>
-                              <th className="text-left py-1">ì©ë</th><th className="text-right py-1">ë©´ì (ã¡)</th>
+                              <th className="text-left py-1">층</th><th className="text-left py-1">구분</th>
+                              <th className="text-left py-1">용도</th><th className="text-right py-1">면적(㎡)</th>
                             </tr></thead>
                             <tbody>
-                              {buildingInfo.ì¸µë³ê°ì.map((f, i) => (
+                              {buildingInfo.층별개요.map((f, i) => (
                                 <tr key={i} className="text-gray-600 border-b border-gray-100">
-                                  <td className="py-1">{f.ì¸µë²í¸}</td><td className="py-1">{f.ì¸µêµ¬ë¶}</td>
-                                  <td className="py-1">{f.ì¸µì©ë}</td><td className="text-right py-1">{f.ë©´ì ?.toFixed(1)}</td>
+                                  <td className="py-1">{f.층번호}</td><td className="py-1">{f.층구분}</td>
+                                  <td className="py-1">{f.층용도}</td><td className="text-right py-1">{f.면적?.toFixed(1)}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1163,175 +1163,175 @@ export default function SmartListingNewPage() {
                   </div>
                 )}
 
-                {/* ê±´ì¶ë¬¼ëì¥ ìë³¸ ì´ë¯¸ì§ (ê³µë¬¸ì ì¤íì¼) */}
+                {/* 건축물대장 원본 이미지 (공문서 스타일) */}
                 {buildingInfo && showBuildingDoc && (
                   <div className="border-2 border-gray-800 rounded-lg bg-white p-6 text-sm font-['Batang','serif']">
                     <div className="text-center mb-4">
-                      <div className="text-xs text-gray-500 mb-1">êµ­í êµíµë¶ ê±´ì¶ë¬¼ëì¥ ì ë³´</div>
-                      <h3 className="text-lg font-bold border-b-2 border-black pb-2">ê±´ ì¶ ë¬¼ ë ì¥</h3>
+                      <div className="text-xs text-gray-500 mb-1">국토교통부 건축물대장 정보</div>
+                      <h3 className="text-lg font-bold border-b-2 border-black pb-2">건 축 물 대 장</h3>
                       <div className="text-xs text-gray-400 mt-1">
-                        (ê±´ì¶ë¬¼ëì¥HUB ìë¹ì¤ API ì¡°í ê²°ê³¼)
+                        (건축물대장HUB 서비스 API 조회 결과)
                       </div>
                     </div>
 
                     <table className="w-full border-collapse text-xs">
                       <tbody>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 w-24 border-r border-gray-600">ëì¥ êµ¬ë¶</td>
-                          <td className="p-2 border-r border-gray-600">{buildingInfo.ëì¥êµ¬ë¶}</td>
-                          <td className="bg-gray-100 font-bold p-2 w-24 border-r border-gray-600">ëì¥ ì¢ë¥</td>
-                          <td className="p-2">{buildingInfo.ëì¥ì¢ë¥}</td>
+                          <td className="bg-gray-100 font-bold p-2 w-24 border-r border-gray-600">대장 구분</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.대장구분}</td>
+                          <td className="bg-gray-100 font-bold p-2 w-24 border-r border-gray-600">대장 종류</td>
+                          <td className="p-2">{buildingInfo.대장종류}</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ëë¡ëªì£¼ì</td>
-                          <td className="p-2" colSpan={3}>{buildingInfo.ëë¡ëªì£¼ì || form.road_address}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">도로명주소</td>
+                          <td className="p-2" colSpan={3}>{buildingInfo.도로명주소 || form.road_address}</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì§ë²ì£¼ì</td>
-                          <td className="p-2" colSpan={3}>{buildingInfo.ì§ë²ì£¼ì || form.jibun_address}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">지번주소</td>
+                          <td className="p-2" colSpan={3}>{buildingInfo.지번주소 || form.jibun_address}</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ê±´ë¬¼ëª</td>
-                          <td className="p-2 border-r border-gray-600">{buildingInfo.ê±´ë¬¼ëª || '-'}</td>
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì£¼ì©ë</td>
-                          <td className="p-2">{buildingInfo.ì£¼ì©ë}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">건물명</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.건물명 || '-'}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">주용도</td>
+                          <td className="p-2">{buildingInfo.주용도}</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ê±´ë¬¼êµ¬ì¡°</td>
-                          <td className="p-2 border-r border-gray-600">{buildingInfo.ê±´ë¬¼êµ¬ì¡°}</td>
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì§ë¶êµ¬ì¡°</td>
-                          <td className="p-2">{buildingInfo.ì§ë¶êµ¬ì¡° || '-'}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">건물구조</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.건물구조}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">지붕구조</td>
+                          <td className="p-2">{buildingInfo.지붕구조 || '-'}</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ëì§ë©´ì </td>
-                          <td className="p-2 border-r border-gray-600">{buildingInfo.ëì§ë©´ì ?.toFixed(2)}ã¡</td>
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ê±´ì¶ë©´ì </td>
-                          <td className="p-2">{buildingInfo.ê±´ì¶ë©´ì ?.toFixed(2)}ã¡</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">대지면적</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.대지면적?.toFixed(2)}㎡</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">건축면적</td>
+                          <td className="p-2">{buildingInfo.건축면적?.toFixed(2)}㎡</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì°ë©´ì </td>
-                          <td className="p-2 border-r border-gray-600">{buildingInfo.ì°ë©´ì ?.toFixed(2)}ã¡</td>
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ê±´íì¨</td>
-                          <td className="p-2">{buildingInfo.ê±´íì¨?.toFixed(2)}%</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">연면적</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.연면적?.toFixed(2)}㎡</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">건폐율</td>
+                          <td className="p-2">{buildingInfo.건폐율?.toFixed(2)}%</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì©ì ë¥ </td>
-                          <td className="p-2 border-r border-gray-600">{buildingInfo.ì©ì ë¥ ?.toFixed(2)}%</td>
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì¬ì©ì¹ì¸ì¼</td>
-                          <td className="p-2">{formatDate(buildingInfo.ì¬ì©ì¹ì¸ì¼)}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">용적률</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.용적률?.toFixed(2)}%</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">사용승인일</td>
+                          <td className="p-2">{formatDate(buildingInfo.사용승인일)}</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì§ìì¸µì</td>
-                          <td className="p-2 border-r border-gray-600">{buildingInfo.ì§ìì¸µì}ì¸µ</td>
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì§íì¸µì</td>
-                          <td className="p-2">{buildingInfo.ì§íì¸µì}ì¸µ</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">지상층수</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.지상층수}층</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">지하층수</td>
+                          <td className="p-2">{buildingInfo.지하층수}층</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì¹ê°ê¸°</td>
-                          <td className="p-2 border-r border-gray-600">ì¹ì© {buildingInfo.ì¹ì©ìë¦¬ë² ì´í°}ë / ë¹ì {buildingInfo.ë¹ìì©ìë¦¬ë² ì´í°}ë</td>
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì´ì£¼ì°¨</td>
-                          <td className="p-2">{buildingInfo.ì´ì£¼ì°¨ëì}ë</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">승강기</td>
+                          <td className="p-2 border-r border-gray-600">승용 {buildingInfo.승용엘리베이터}대 / 비상 {buildingInfo.비상용엘리베이터}대</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">총주차</td>
+                          <td className="p-2">{buildingInfo.총주차대수}대</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì¸ëì</td>
-                          <td className="p-2 border-r border-gray-600">{buildingInfo.ì¸ëì}ì¸ë</td>
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">í¸ì</td>
-                          <td className="p-2">{buildingInfo.í¸ì}í¸</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">세대수</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.세대수}세대</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">호수</td>
+                          <td className="p-2">{buildingInfo.호수}호</td>
                         </tr>
                         <tr className="border border-gray-600">
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">íê°ì¼</td>
-                          <td className="p-2 border-r border-gray-600">{formatDate(buildingInfo.íê°ì¼)}</td>
-                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">ì°©ê³µì¼</td>
-                          <td className="p-2">{formatDate(buildingInfo.ì°©ê³µì¼)}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">허가일</td>
+                          <td className="p-2 border-r border-gray-600">{formatDate(buildingInfo.허가일)}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">착공일</td>
+                          <td className="p-2">{formatDate(buildingInfo.착공일)}</td>
                         </tr>
                       </tbody>
                     </table>
 
                     <div className="mt-4 text-center text-xs text-gray-400">
-                      ì¡°íì¼ì: {new Date().toLocaleString('ko-KR')} | ì¶ì²: êµ­í êµíµë¶ ê±´ì¶ë¬¼ëì¥ì ë³´ ìë¹ì¤
+                      조회일시: {new Date().toLocaleString('ko-KR')} | 출처: 국토교통부 건축물대장정보 서비스
                     </div>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* ì°ì¸¡: ì¸ë¶ì ë³´ */}
+            {/* 우측: 세부정보 */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-sm border p-6">
-                <h3 className="font-bold text-gray-900 mb-4">ð ì¸ë¶ì ë³´ (ìì  ê°ë¥)</h3>
+                <h3 className="font-bold text-gray-900 mb-4">📝 세부정보 (수정 가능)</h3>
 
                 <div className="space-y-4">
-                  {/* ë©´ì  */}
+                  {/* 면적 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ì ì©ë©´ì  (ã¡)</label>
-                      <input type="number" step="0.1" value={form.area_m2 ?? ''} placeholder="ì: 33.5"
+                      <label className="text-xs text-gray-500 mb-1 block">전용면적 (㎡)</label>
+                      <input type="number" step="0.1" value={form.area_m2 ?? ''} placeholder="예: 33.5"
                         onChange={e => updateForm({ area_m2: e.target.value ? Number(e.target.value) : null })}
                         className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ê³µê¸ë©´ì  (ã¡)</label>
-                      <input type="number" step="0.1" value={form.area_supply_m2 ?? ''} placeholder="ì: 45.2"
+                      <label className="text-xs text-gray-500 mb-1 block">공급면적 (㎡)</label>
+                      <input type="number" step="0.1" value={form.area_supply_m2 ?? ''} placeholder="예: 45.2"
                         onChange={e => updateForm({ area_supply_m2: e.target.value ? Number(e.target.value) : null })}
                         className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
                     </div>
                   </div>
 
-                  {/* ì¸µ */}
+                  {/* 층 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">í´ë¹ì¸µ</label>
-                      <input type="text" value={form.floor_current} placeholder="ì: 5"
+                      <label className="text-xs text-gray-500 mb-1 block">해당층</label>
+                      <input type="text" value={form.floor_current} placeholder="예: 5"
                         onChange={e => updateForm({ floor_current: e.target.value })}
                         className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ì ì²´ì¸µ</label>
+                      <label className="text-xs text-gray-500 mb-1 block">전체층</label>
                       <input type="text" value={form.floor_total} readOnly
                         className="w-full px-3 py-2.5 border rounded-lg bg-gray-50 text-sm text-gray-500" />
                     </div>
                   </div>
 
-                  {/* ë°©/ìì¤ */}
+                  {/* 방/욕실 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ë°© ê°ì</label>
-                      <input type="number" value={form.rooms ?? ''} placeholder="ì: 2"
+                      <label className="text-xs text-gray-500 mb-1 block">방 개수</label>
+                      <input type="number" value={form.rooms ?? ''} placeholder="예: 2"
                         onChange={e => updateForm({ rooms: e.target.value ? Number(e.target.value) : null })}
                         className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ìì¤ ì</label>
-                      <input type="number" value={form.bathrooms ?? ''} placeholder="ì: 1"
+                      <label className="text-xs text-gray-500 mb-1 block">욕실 수</label>
+                      <input type="number" value={form.bathrooms ?? ''} placeholder="예: 1"
                         onChange={e => updateForm({ bathrooms: e.target.value ? Number(e.target.value) : null })}
                         className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
                     </div>
                   </div>
 
-                  {/* ë°©í¥ / ëë°© */}
+                  {/* 방향 / 난방 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ë°©í¥</label>
+                      <label className="text-xs text-gray-500 mb-1 block">방향</label>
                       <select value={form.direction} onChange={e => updateForm({ direction: e.target.value })}
                         className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
-                        <option value="">ì í</option>
+                        <option value="">선택</option>
                         {DIRECTIONS.map(d => <option key={d} value={d}>{d}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ëë°©ë°©ì</label>
+                      <label className="text-xs text-gray-500 mb-1 block">난방방식</label>
                       <select value={form.heating_type} onChange={e => updateForm({ heating_type: e.target.value })}
                         className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
-                        <option value="">ì í</option>
+                        <option value="">선택</option>
                         {HEATING_TYPES.map(h => <option key={h} value={h}>{h}</option>)}
                       </select>
                     </div>
                   </div>
 
-                  {/* ê´ë¦¬ë¹ */}
+                  {/* 관리비 */}
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">ê´ë¦¬ë¹ (ë§ì)</label>
-                    <input type="number" value={form.maintenance_fee ?? ''} placeholder="ì: 5"
+                    <label className="text-xs text-gray-500 mb-1 block">관리비 (만원)</label>
+                    <input type="number" value={form.maintenance_fee ?? ''} placeholder="예: 5"
                       onChange={e => updateForm({ maintenance_fee: e.target.value ? Number(e.target.value) : null })}
                       className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
                     <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1351,20 +1351,20 @@ export default function SmartListingNewPage() {
                     </div>
                   </div>
 
-                  {/* ìì£¼ */}
+                  {/* 입주 */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-gray-500 mb-1 block">ìì£¼ì í</label>
+                      <label className="text-xs text-gray-500 mb-1 block">입주유형</label>
                       <select value={form.move_in_type} onChange={e => updateForm({ move_in_type: e.target.value })}
                         className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
-                        <option value="ì¦ì">ì¦ì ìì£¼</option>
-                        <option value="íì">íì</option>
-                        <option value="ë ì§ì§ì ">ë ì§ ì§ì </option>
+                        <option value="즉시">즉시 입주</option>
+                        <option value="협의">협의</option>
+                        <option value="날짜지정">날짜 지정</option>
                       </select>
                     </div>
-                    {form.move_in_type === 'ë ì§ì§ì ' && (
+                    {form.move_in_type === '날짜지정' && (
                       <div>
-                        <label className="text-xs text-gray-500 mb-1 block">ìì£¼ìì ì¼</label>
+                        <label className="text-xs text-gray-500 mb-1 block">입주예정일</label>
                         <input type="date" value={form.move_in_date}
                           onChange={e => updateForm({ move_in_date: e.target.value })}
                           className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
@@ -1372,9 +1372,9 @@ export default function SmartListingNewPage() {
                     )}
                   </div>
 
-                  {/* í¹ì§ */}
+                  {/* 특징 */}
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">í¹ì§ íê·¸</label>
+                    <label className="text-xs text-gray-500 mb-1 block">특징 태그</label>
                     <div className="flex flex-wrap gap-1.5">
                       {FEATURES_OPTIONS.map(f => (
                         <button key={f} onClick={() => {
@@ -1396,43 +1396,43 @@ export default function SmartListingNewPage() {
                 </div>
               </div>
 
-              {/* ë¤ì ë²í¼ */}
+              {/* 다음 버튼 */}
               <div className="flex justify-between">
                 <button onClick={() => setCurrentStep(1)}
                   className="px-6 py-3 rounded-xl border text-gray-600 hover:bg-gray-50 transition">
-                  â ì´ì 
+                  ← 이전
                 </button>
                 <button onClick={() => { saveDraft(); setCurrentStep(3); }}
                   className="px-8 py-3 rounded-xl bg-green-700 text-white font-semibold hover:bg-green-800 transition shadow-lg">
-                  ë¤ì â ì¬ì§ ë±ë¡
+                  다음 → 사진 등록
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* ââââ STEP 3: ì¬ì§ ë±ë¡ + ìë íì§ ê°ì  ââââ */}
+        {/* ━━━━ STEP 3: 사진 등록 + 자동 품질 개선 ━━━━ */}
         {currentStep === 3 && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                   <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">3</span>
-                  ì¬ì§ ë±ë¡
+                  사진 등록
                 </h2>
                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                   <input type="checkbox" checked={useEnhanced} onChange={e => setUseEnhanced(e.target.checked)}
                     className="accent-green-700 w-4 h-4" />
-                  <span className="text-gray-700">â¨ ìë íì§ ê°ì  ì¬ì©</span>
+                  <span className="text-gray-700">✨ 자동 품질 개선 사용</span>
                 </label>
               </div>
 
               <p className="text-sm text-gray-500 mb-4">
-                ì¬ì§ì ìë¡ëíë©´ <strong>ë°ê¸°, ëë¹, ì ëªë, ìê°</strong>ì´ ìëì¼ë¡ ë³´ì ë©ëë¤.
-                ìë³¸ê³¼ ë³´ì ë³¸ì ë¹êµíê³  ì íí  ì ììµëë¤.
+                사진을 업로드하면 <strong>밝기, 대비, 선명도, 색감</strong>이 자동으로 보정됩니다.
+                원본과 보정본을 비교하고 선택할 수 있습니다.
               </p>
 
-              {/* ëëê·¸ ì¤ ëë¡­ ìì­ */}
+              {/* 드래그 앤 드롭 영역 */}
               <div
                 className={`border-2 border-dashed rounded-2xl p-8 text-center transition cursor-pointer ${
                   isDragOver ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
@@ -1442,21 +1442,21 @@ export default function SmartListingNewPage() {
                 onDrop={e => { e.preventDefault(); setIsDragOver(false); handleImageFiles(e.dataTransfer.files); }}
                 onClick={() => fileInputRef.current?.click()}
               >
-                <div className="text-4xl mb-2">ð·</div>
+                <div className="text-4xl mb-2">📷</div>
                 <div className="text-sm text-gray-600 font-medium">
-                  í´ë¦­íì¬ ì¬ì§ì ì ííê±°ë, ì¬ê¸°ì ëëê·¸íì¸ì
+                  클릭하여 사진을 선택하거나, 여기에 드래그하세요
                 </div>
-                <div className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP ì§ì Â· ìµë 20ì¥</div>
+                <div className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP 지원 · 최대 20장</div>
                 <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden"
                   onChange={e => e.target.files && handleImageFiles(e.target.files)} />
               </div>
 
-              {/* ìë¡ëë ì´ë¯¸ì§ */}
+              {/* 업로드된 이미지 */}
               {uploadedImages.length > 0 && (
                 <div className="mt-6">
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-gray-800 text-sm">
-                      ìë¡ëë ì¬ì§ ({uploadedImages.length}ì¥)
+                      업로드된 사진 ({uploadedImages.length}장)
                     </h3>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1467,41 +1467,41 @@ export default function SmartListingNewPage() {
                             <div className="w-full h-full flex items-center justify-center bg-gray-50">
                               <div className="text-center">
                                 <div className="animate-spin w-6 h-6 border-2 border-green-700 border-t-transparent rounded-full mx-auto" />
-                                <div className="text-xs text-gray-400 mt-2">íì§ ê°ì  ì¤...</div>
+                                <div className="text-xs text-gray-400 mt-2">품질 개선 중...</div>
                               </div>
                             </div>
                           ) : (
                             <img
                               src={(useEnhanced && img.enhanced) ? img.enhanced : img.preview}
-                              alt={`ì¬ì§ ${i + 1}`}
+                              alt={`사진 ${i + 1}`}
                               className="w-full h-full object-cover"
                             />
                           )}
                         </div>
 
-                        {/* ìë³¸/ê°ì  í ê¸ ë°°ì§ */}
+                        {/* 원본/개선 토글 배지 */}
                         {img.enhanced && !img.isEnhancing && (
                           <div className="absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-medium rounded bg-green-600 text-white">
-                            {useEnhanced ? 'â¨ ê°ì ' : 'ìë³¸'}
+                            {useEnhanced ? '✨ 개선' : '원본'}
                           </div>
                         )}
 
-                        {/* ìì íì */}
+                        {/* 순서 표시 */}
                         <div className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white text-xs rounded-full flex items-center justify-center">
                           {i + 1}
                         </div>
 
-                        {/* í¸ë² ì¡ì */}
+                        {/* 호버 액션 */}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition rounded-xl flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                           {i > 0 && (
                             <button onClick={() => moveImage(i, i - 1)}
-                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow text-sm">â</button>
+                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow text-sm">←</button>
                           )}
                           <button onClick={() => removeImage(i)}
-                            className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow text-sm">â</button>
+                            className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow text-sm">✕</button>
                           {i < uploadedImages.length - 1 && (
                             <button onClick={() => moveImage(i, i + 1)}
-                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow text-sm">â</button>
+                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow text-sm">→</button>
                           )}
                         </div>
                       </div>
@@ -1514,98 +1514,98 @@ export default function SmartListingNewPage() {
             <div className="flex justify-between">
               <button onClick={() => setCurrentStep(2)}
                 className="px-6 py-3 rounded-xl border text-gray-600 hover:bg-gray-50 transition">
-                â ì´ì 
+                ← 이전
               </button>
               <button onClick={() => { saveDraft(); setCurrentStep(4); }}
                 className="px-8 py-3 rounded-xl bg-green-700 text-white font-semibold hover:bg-green-800 transition shadow-lg">
-                ë¤ì â AI ìëë±ë¡
+                다음 → AI 자동등록
               </button>
             </div>
           </div>
         )}
 
-        {/* ââââ STEP 4: AI ìëë±ë¡ ââââ */}
+        {/* ━━━━ STEP 4: AI 자동등록 ━━━━ */}
         {currentStep === 4 && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
                 <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">4</span>
-                AI ìëë±ë¡
+                AI 자동등록
               </h2>
 
-              {/* AI ìëìì± ë²í¼ */}
+              {/* AI 자동완성 버튼 */}
               {!form.title && (
                 <div className="text-center py-8 bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl mb-6">
-                  <div className="text-5xl mb-3">ð¤</div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-1">AIê° ë§¤ë¬¼ ì ë³´ë¥¼ ìë ìì±í©ëë¤</h3>
-                  <p className="text-sm text-gray-500 mb-4">ì ëª©, ì¤ëª, í¹ì§ ë±ì ìëì¼ë¡ ìì±í©ëë¤</p>
+                  <div className="text-5xl mb-3">🤖</div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-1">AI가 매물 정보를 자동 완성합니다</h3>
+                  <p className="text-sm text-gray-500 mb-4">제목, 설명, 특징 등을 자동으로 생성합니다</p>
                   <button onClick={runAiAutoFill} disabled={aiGenerating}
                     className="px-8 py-3 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition shadow-lg disabled:bg-gray-400">
                     {aiGenerating ? (
                       <span className="flex items-center gap-2">
                         <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                        AI ë¶ì ì¤...
+                        AI 분석 중...
                       </span>
-                    ) : 'ð¤ AI ìëìì± ì¤í'}
+                    ) : '🤖 AI 자동완성 실행'}
                   </button>
                 </div>
               )}
 
-              {/* ë§¤ë¬¼ ì ëª© */}
+              {/* 매물 제목 */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  ð ë§¤ë¬¼ ì ëª© {form.title && <span className="text-green-600 text-xs font-normal ml-1">AI ìì±ë¨</span>}
+                  📌 매물 제목 {form.title && <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span>}
                 </label>
                 <input type="text" value={form.title}
                   onChange={e => updateForm({ title: e.target.value })}
-                  placeholder="ì: ì ë¦¼ì­ ì­ì¸ê¶ ì ì¶ ìë£¸ ìì¸"
+                  placeholder="예: 신림역 역세권 신축 원룸 월세"
                   className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
 
-              {/* ë§¤ë¬¼ ì¤ëª */}
+              {/* 매물 설명 */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  ð ë§¤ë¬¼ ì¤ëª {form.description && <span className="text-green-600 text-xs font-normal ml-1">AI ìì±ë¨</span>}
+                  📝 매물 설명 {form.description && <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span>}
                 </label>
-                <p className="text-xs text-gray-400 mb-1">â» ìì¬ì§, ë©´ì , ì¸µì ë± ê±´ì¶ë¬¼ëì¥ìì íì¸ ê°ë¥í ì ë³´ë ì ì¸ë©ëë¤</p>
+                <p className="text-xs text-gray-400 mb-1">※ 소재지, 면적, 층수 등 건축물대장에서 확인 가능한 정보는 제외됩니다</p>
                 <textarea value={form.description}
                   onChange={e => updateForm({ description: e.target.value })}
-                  placeholder="ë§¤ë¬¼ì í¹ì¥ì , ì£¼ë³ í¸ììì¤, êµíµ ë±ì ìë ¥íì¸ì"
+                  placeholder="매물의 특장점, 주변 편의시설, 교통 등을 입력하세요"
                   rows={6}
                   className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 resize-y" />
               </div>
 
-              {/* ë±ë¡ ìì½ ë¯¸ë¦¬ë³´ê¸° */}
+              {/* 등록 요약 미리보기 */}
               <div className="bg-gray-50 rounded-xl p-5 mb-6">
-                <h3 className="font-semibold text-gray-800 text-sm mb-3">ð ë±ë¡ ì ë³´ ìì½</h3>
+                <h3 className="font-semibold text-gray-800 text-sm mb-3">📋 등록 정보 요약</h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                   <div className="bg-white rounded-lg p-3">
-                    <div className="text-gray-400 text-xs">ìì¬ì§</div>
+                    <div className="text-gray-400 text-xs">소재지</div>
                     <div className="font-medium text-gray-800 truncate">{form.address || '-'}</div>
                   </div>
                   <div className="bg-white rounded-lg p-3">
-                    <div className="text-gray-400 text-xs">ê±°ë</div>
+                    <div className="text-gray-400 text-xs">거래</div>
                     <div className="font-medium text-gray-800">
-                      {form.deal === 'ë§¤ë§¤' ? `ë§¤ë§¤ ${formatAmount(form.price)}` :
-                       form.deal === 'ì ì¸' ? `ì ì¸ ${formatAmount(form.deposit)}` :
-                       `ìì¸ ${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`}
+                      {form.deal === '매매' ? `매매 ${formatAmount(form.price)}` :
+                       form.deal === '전세' ? `전세 ${formatAmount(form.deposit)}` :
+                       `월세 ${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`}
                     </div>
                   </div>
                   <div className="bg-white rounded-lg p-3">
-                    <div className="text-gray-400 text-xs">ì í</div>
+                    <div className="text-gray-400 text-xs">유형</div>
                     <div className="font-medium text-gray-800">{form.type || '-'}</div>
                   </div>
                   <div className="bg-white rounded-lg p-3">
-                    <div className="text-gray-400 text-xs">ë©´ì </div>
-                    <div className="font-medium text-gray-800">{form.area_m2 ? `${form.area_m2}ã¡` : '-'}</div>
+                    <div className="text-gray-400 text-xs">면적</div>
+                    <div className="font-medium text-gray-800">{form.area_m2 ? `${form.area_m2}㎡` : '-'}</div>
                   </div>
                   <div className="bg-white rounded-lg p-3">
-                    <div className="text-gray-400 text-xs">ì¸µ</div>
-                    <div className="font-medium text-gray-800">{form.floor_current || '-'}ì¸µ / {form.floor_total || '-'}ì¸µ</div>
+                    <div className="text-gray-400 text-xs">층</div>
+                    <div className="font-medium text-gray-800">{form.floor_current || '-'}층 / {form.floor_total || '-'}층</div>
                   </div>
                   <div className="bg-white rounded-lg p-3">
-                    <div className="text-gray-400 text-xs">ì¬ì§</div>
-                    <div className="font-medium text-gray-800">{uploadedImages.length}ì¥</div>
+                    <div className="text-gray-400 text-xs">사진</div>
+                    <div className="font-medium text-gray-800">{uploadedImages.length}장</div>
                   </div>
                 </div>
                 {form.features.length > 0 && (
@@ -1617,28 +1617,28 @@ export default function SmartListingNewPage() {
                 )}
               </div>
 
-              {/* ë±ë¡ ë°©ì ì í */}
+              {/* 등록 방식 선택 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button onClick={() => publishListing('instant')} disabled={isPublishing || !form.title}
                   className="p-6 border-2 border-green-600 rounded-2xl hover:bg-green-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
-                  <div className="text-2xl mb-2">ð</div>
-                  <h3 className="font-bold text-green-800 text-lg">ì¦ì ìë¡ë</h3>
+                  <div className="text-2xl mb-2">🚀</div>
+                  <h3 className="font-bold text-green-800 text-lg">즉시 업로드</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    ë°ë¡ <span className="text-green-600 font-semibold">ê³µê°</span> ìíë¡ ë§¤ë¬¼ì ë±ë¡í©ëë¤.
-                    ì¦ì ííì´ì§ì ë¸ì¶ë©ëë¤.
+                    바로 <span className="text-green-600 font-semibold">공개</span> 상태로 매물을 등록합니다.
+                    즉시 홈페이지에 노출됩니다.
                   </p>
-                  {isPublishing && <div className="mt-2 text-xs text-green-600">ë±ë¡ ì¤...</div>}
+                  {isPublishing && <div className="mt-2 text-xs text-green-600">등록 중...</div>}
                 </button>
 
                 <button onClick={() => publishListing('review')} disabled={isPublishing || !form.title}
                   className="p-6 border-2 border-blue-400 rounded-2xl hover:bg-blue-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
-                  <div className="text-2xl mb-2">ð</div>
-                  <h3 className="font-bold text-blue-800 text-lg">ê²ì í ìë¡ë</h3>
+                  <div className="text-2xl mb-2">🔍</div>
+                  <h3 className="font-bold text-blue-800 text-lg">검수 후 업로드</h3>
                   <p className="text-sm text-gray-500 mt-1">
-                    <span className="text-blue-600 font-semibold">ë¹ê³µê°</span> ìíë¡ ì ì¥ í ê²ìí©ëë¤.
-                    íì¸ í ìëì¼ë¡ ê³µê° ì íí©ëë¤.
+                    <span className="text-blue-600 font-semibold">비공개</span> 상태로 저장 후 검수합니다.
+                    확인 후 수동으로 공개 전환합니다.
                   </p>
-                  {isPublishing && <div className="mt-2 text-xs text-blue-600">ì ì¥ ì¤...</div>}
+                  {isPublishing && <div className="mt-2 text-xs text-blue-600">저장 중...</div>}
                 </button>
               </div>
             </div>
@@ -1646,7 +1646,7 @@ export default function SmartListingNewPage() {
             <div className="flex justify-between">
               <button onClick={() => setCurrentStep(3)}
                 className="px-6 py-3 rounded-xl border text-gray-600 hover:bg-gray-50 transition">
-                â ì´ì 
+                ← 이전
               </button>
             </div>
           </div>
@@ -1658,7 +1658,7 @@ export default function SmartListingNewPage() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddressModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden" style={{ width: '420px', height: '520px', maxWidth: '95vw', maxHeight: '90vh' }}>
             <div className="flex items-center justify-between px-4 py-3 bg-green-700 text-white">
-              <span className="font-semibold text-sm flex items-center gap-2">{String.fromCodePoint(0x1F4CD)} ì£¼ì ê²ì</span>
+              <span className="font-semibold text-sm flex items-center gap-2">{String.fromCodePoint(0x1F4CD)} 주소 검색</span>
               <button onClick={() => setShowAddressModal(false)} className="text-white/80 hover:text-white text-xl leading-none">&times;</button>
             </div>
             <div ref={postcodeContainerRef} className="w-full" style={{ height: 'calc(100% - 48px)' }} />
