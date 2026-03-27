@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '개인정보처리방침 | WISHES',
+  title: '개인정보처리방침',
   description: '주식회사 위시스부동산중개법인 개인정보처리방침',
 };
 
 const sections = [
   {
     title: '제1조 (개인정보의 처리 목적)',
-    text: '(주)위시스부동산중개법인(이하 “회사”)은 다음의 목적을 위해 개인정보를 처리합니다.',
+    text: '(주)위시스부동산중개법인(이하 "회사")은 다음의 목적을 위해 개인정보를 처리합니다.',
     items: ['부동산 중개 상담 접수 및 회신', '물건 안내 및 계약 관련 연락', '서비스 개선 및 통계 분석']
   },
   {
@@ -47,12 +47,14 @@ const sections = [
     items: ['보호책임자: 전유진', '이메일: wishes@wishes.co.kr']
   },
 ];
+
 export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-white pt-24 pb-16">
       <div className="max-w-3xl mx-auto px-4">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">개인정보처리방침</h1>
         <p className="text-sm text-gray-400 mb-10">시행일: 2026년 3월 27일</p>
+
         <div className="space-y-8 text-sm text-gray-700 leading-relaxed">
           {sections.map((sec, i) => (
             <section key={i}>
@@ -65,6 +67,7 @@ export default function PrivacyPage() {
               </ul>
             </section>
           ))}
+
           <section>
             <h2 className="text-base font-semibold text-gray-900 mb-2">제9조 (방침 변경)</h2>
             <p>이 개인정보처리방침은 2026년 3월 27일부터 적용됩니다. 변경 사항이 있을 경우 웹사이트를 통해 공지하겠습니다.</p>
