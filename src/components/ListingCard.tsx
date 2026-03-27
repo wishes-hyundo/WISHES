@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Zap, Eye, Hash } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Zap, Eye, Hash , GitCompareArrows } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Listing } from '@/types';
+import { useFavorites } from '@/contexts/FavoritesContext';
 
 interface ListingCardProps {
   listing: Listing;
@@ -12,6 +13,9 @@ interface ListingCardProps {
 }
 
 const sqmToPyeong = (area: number) => {
+    const { isInCompare, addToCompare, removeFromCompare } = useFavorites();
+  const inCompare = isInCompare(listing.id);
+
   return (area / 3.3).toFixed(1);
 };
 
@@ -93,6 +97,13 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           )}>
             {listing.deal}
           </span>
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id); }}
+            className={`absolute top-1 right-1 p-1.5 rounded-full transition-all ${inCompare ? 'bg-wishes-green text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-green'}`}
+            title={inCompare ? '비교 해제' : '비교 담기'}
+          >
+            <GitCompareArrows className="w-4 h-4" />
+          </button>
         </div>
 
         {/* 정보 */}

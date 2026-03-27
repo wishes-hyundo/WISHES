@@ -4,6 +4,7 @@ import { ListingCard } from '@/components/ListingCard';
 import { ListingFilters } from '@/components/ListingFilters';
 import { Building2 } from 'lucide-react';
 import type { Metadata } from 'next';
+import CompareFloatingBar from '@/components/CompareFloatingBar';
 
 export const metadata: Metadata = {
   title: '매물검색',
@@ -141,6 +142,7 @@ export default async function ListingsPage({
           </div>
         )}
       </div>
-    </div>
+    <CompareFloatingBar />
+      </div>
   );
 }

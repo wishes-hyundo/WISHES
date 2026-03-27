@@ -5,6 +5,8 @@ import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X, Eye, Hash }
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
 import ImageGallery from '@/components/ImageGallery';
 import type { Metadata } from 'next';
+import { useFavorites } from '@/contexts/FavoritesContext';
+import { GitCompareArrows } from 'lucide-react';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -68,6 +70,9 @@ export default async function ListingDetailPage({ params }: Props) {
   const price = getFormattedPrice(listing.deal, listing.deposit, listing.monthly, listing.price);
   const imageList = images || [];
   const featureList = features || [];
+
+  const { isInCompare, addToCompare, removeFromCompare } = useFavorites();
+  const inCompare = listing ? isInCompare(listing.id) : false;
 
   return (
     <div className="pt-16 min-h-screen bg-wishes-bg">
@@ -163,6 +168,17 @@ export default async function ListingDetailPage({ params }: Props) {
               >
                 온라인 상담 신청
               </Link>
+              <button
+                onClick={() => inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id)}
+                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
+                  inCompare 
+                    ? 'bg-wishes-green text-white' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-wishes-light hover:text-wishes-green'
+                }`}
+              >
+                <GitCompareArrows className="w-5 h-5" />
+                {inCompare ? '비교 해제' : '비교 담기'}
+              </button>
 
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
                 <p className="flex items-center gap-1">
@@ -192,6 +208,17 @@ function InfoRow({ label, value, fullWidth }: { label: string; value: string; fu
 }
 
 function OptionBadge({ label, available }: { label: string; available: boolean }) {
+  // Track recently viewed
+  useEffect(() => {
+    if (!listing) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem('wishes_recent_viewed') || '[]');
+      const filtered = stored.filter((item) => item.id !== listing.id);
+      filtered.unshift({ id: listing.id, visitedAt: Date.now() });
+      localStorage.setItem('wishes_recent_viewed', JSON.stringify(filtered.slice(0, 20)));
+    } catch (e) { /* ignore */ }
+  }, [listing]);
+
   return (
     <span className={`flex items-center gap-1 px-3 py-1 text-sm rounded-full ${
       available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400 line-through'

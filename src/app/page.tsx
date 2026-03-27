@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { MapPin, Search, ArrowRight, Building2, Droplets, ShieldCheck, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { HomeListingCard } from '@/components/HomeListingCard';
+import RecentlyViewed from '@/components/RecentlyViewed';
 
 export default async function HomePage() {
   // Supabase에서 최신 매물 6건 가져오기
