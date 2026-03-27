@@ -17,6 +17,7 @@ export function Footer() {
             </div>
             <span className="text-lg font-bold tracking-tight">WISHES</span>
           </div>
+
           <nav className="flex flex-wrap justify-center gap-6 text-sm text-white/50">
             {[
               { label: '매물검색', href: '/listings' },
@@ -34,16 +35,22 @@ export function Footer() {
         {/* 구분선 */}
         <div className="border-t border-white/10" />
 
-        {/* 하단: 정보 + 저작권 */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 text-xs text-white/30">
-          <div className="flex flex-col md:flex-row items-center gap-2 md:gap-4">
-            <span>서울특별시 관악구 신림로64길 23, 8층</span>
-            <span className="hidden md:inline text-white/15">|</span>
-            <span>wishes@wishes.co.kr</span>
-            <span className="hidden md:inline text-white/15">|</span>
-            <span>평일 09:00 – 19:00</span>
-          </div>
+        {/* 사업자 정보 */}
+        <div className="pt-8 pb-6 text-xs text-white/40 text-center md:text-left space-y-1">
+          <p>주식회사 위시스부동산중개법인 | 대표자: 전유진</p>
+          <p>사업자등록번호: 445-86-01981 | 중개사무소 등록번호: 제 11620-2021-00078 호</p>
+          <p>서울특별시 관악구 신림로64길 23, 8층 | wishes@wishes.co.kr | 평일 09:00 – 19:00</p>
+        </div>
+
+        {/* 구분선 */}
+        <div className="border-t border-white/10" />
+
+        {/* 하단: 저작권 + 개인정보처리방침 */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-6 text-xs text-white/30">
           <p>© 2026 WISHES. All rights reserved.</p>
+          <Link href="/privacy" className="hover:text-white/60 transition-colors">
+            개인정보처리방침
+          </Link>
         </div>
       </div>
     </footer>
