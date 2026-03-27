@@ -956,7 +956,7 @@ ${floorRows}</table></div>` : ''}
         bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
         direction: form.direction,
         description: form.description || generateDescription(form, buildingInfo),
-        maintenance_includes: form.features?.length > 0 ? form.features : null
+        maintenance_includes: form.features?.length > 0 ? form.features : null,
         parking: !!(form.parking_available || (form.parking_count && form.parking_count > 0)),
         elevator: !!(form.elevator_count && form.elevator_count > 0),
         built_year: form.approval_date || null,
