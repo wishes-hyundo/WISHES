@@ -1,4 +1,4 @@
-h// ────────────────────────────────────────
+// ────────────────────────────────────────
 // Admin API: GET, POST, PUT /api/admin/listings
 // ────────────────────────────────────────
 
@@ -13,7 +13,7 @@ const createListingSchema = z.object({
   deal: z.enum(['전세', '월세', '매매']),
   deposit: z.number().int().nonnegative().default(0),
   monthly: z.number().int().nonnegative().optional().nullable(),
-  price: z.number().int().nonnegative().optional().nullable(),h
+  price: z.number().int().nonnegative().optional().nullable(),
   maintenance_fee: z.number().int().nonnegative().default(0).optional(),
   maintenance_includes: z.array(z.string()).optional().nullable(),
   area_m2: z.number().nonnegative().default(0),
