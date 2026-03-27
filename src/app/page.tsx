@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { MapPin, Search, ArrowRight, Building2, Shield, Users, Clock, Zap, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { HomeListingCard } from '@/components/HomeListingCard';
-import { StatCounterSection } from '@/components/StatCounterSection';
 import HeroBackground from '@/components/HeroBackground';
 
 export default async function HomePage() {
@@ -81,20 +80,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ━━━ 통계 섹션 ━━━ */}
-      <section className="py-20 bg-white">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-3xl md:text-4xl font-bold text-wishes-primary mb-4">
-              위시스부동산의 성과
-            </h2>
-            <p className="text-lg text-wishes-muted">신뢰의 기록으로 더 나은 내일을 만들어갑니다</p>
-          </div>
-
-          <StatCounterSection />
-        </div>
-      </section>
-
       {/* ━━━ 최신 매물 섹션 ━━━ */}
       <section className="py-24 bg-wishes-bg">
         <div className="max-w-7xl mx-auto px-4">
@@ -139,106 +124,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ━━━ 서비스 특징 섹션 ━━━ */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-3xl md:text-4xl font-bold text-wishes-primary mb-4">
-              위시스부동산이 특별한 이유
-            </h2>
-            <p className="text-lg text-wishes-muted">고객 중심, 실뢰 기반의 서비스를 제공합니다</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
-            <ServiceFeature
-              icon={MapPin}
-              title="스마트 매물 검색"
-              desc="카카오맵 기반의 직관적 검색으로 원하는 위치의 매물을 실시간으로 확인하세요."
-            />
-            <ServiceFeature
-              icon={Users}
-              title="지역 전문가"
-              desc="서울·경기 전 지역에 대한 15년의 깊은 이해로 최적의 매물을 추척합니다."
-            />
-            <ServiceFeature
-              icon={Shield}
-              title="안전한 거래"
-              desc="공인중개사 직접 거래로 계약 과정의 모든 단계에서 고객 권리를 보호합니다."
-            />
-            <ServiceFeature
-              icon={Zap}
-              title="빠른 상담"
-              desc="24시간 언제든 온라인으로 신속한 상담을 받으세요."
-            />
-            <ServiceFeature
-              icon={Clock}
-              title="유연한 일정"
-              desc="주말·야간 예약상담으로 바쁜 일정에 맞춰 편하게 상담합니다."
-            />
-            <ServiceFeature
-              icon={CheckCircle}
-              title="투명한 정보"
-              desc="술격진 정보 없이 매물에 대한 모든 정보를 명확하게 공개합니다."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ━━━ 고객 후기 섹션 ━━━ */}
-      <section className="py-24 bg-wishes-bg">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-3xl md:text-4xl font-bold text-wishes-primary mb-4">
-              고객 후기
-            </h2>
-            <p className="text-lg text-wishes-muted">실제 고객의 소중한 피드백입니다</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
-            <Testimonial
-              name="김민준"
-              role="신림동 거주 | 전세 계약"
-              text="처음 부동산 계약이라 걱정 많았는데, 전문가답게 하나하나 설명해주셤서 안심할 수 있었습니다."
-            />
-            <Testimonial
-              name="이지은"
-              role="봉천동 거주 | 원세 계약"
-              text="지도로 위치를 확인하고 빠르게 계약할 수 있었어요. 정말 편리합니다!"
-            />
-            <Testimonial
-              name="박준호"
-              role="신릴역 근처 | 투자 맠매"
-              text="시장 정보가 정확하고 전문적인 조언이 정말 도움이 많이 됐습니다. 감사합니다!"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* ━━━ 최종 CTA 섹션 ━━━ */}
-      <section className="relative py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-wishes-primary via-wishes-primary to-wishes-secondary">
-          <div className="absolute top-0 right-0 w-80 h-80 bg-wishes-accent/10 rounded-full blur-3xl"></div>
-        </div>
-
-        <div className="relative max-w-4xl mx-auto px-4 text-center space-y-8 animate-fade-in-up">
-          <h2 className="text-4xl md:text-5xl font-bold text-white leading-tight">
-            원하는 매물이 없으신가요?
-          </h2>
-
-          <p className="text-xl text-white/80 max-w-2xl mx-auto">
-            전문 상담사가 고객님의 조건에 맞춰 최적의 매물을 직접 찾아드립니다
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center pt-8">
-            <Link
-              href="/contact"
-              className="flex items-center justify-center gap-2 px-8 py-4 rounded-xl bg-wishes-accent text-wishes-primary font-bold text-lg shadow-lg shadow-wishes-accent/30 hover:shadow-xl hover:scale-105 transition-all group"
-            >
-              온라인 상담 신청
-            </Link>
-          </div>
-        </div>
-      </section>
     </div>
   );
 }
