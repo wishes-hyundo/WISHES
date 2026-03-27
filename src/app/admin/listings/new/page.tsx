@@ -453,7 +453,7 @@ export default function SmartListingNewPage() {
   const [drafts, setDrafts] = useState<DraftListing[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  // 주소 검색은 팝업 윈도우 방식 (iframe 제한 우회)
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
   /* ── 주소 검색 팝업 메시지 수신 ── */
   useEffect(() => {
@@ -478,6 +478,7 @@ export default function SmartListingNewPage() {
           addr.ji = (jibunMatch[2] || '0').padStart(4, '0');
         }
         setAddressData(addr);
+        setShowAddressModal(false);
         updateForm({
           address: addr.roadAddress || addr.jibunAddress,
           dong: addr.bname || '',
@@ -550,49 +551,9 @@ export default function SmartListingNewPage() {
     setForm(prev => ({ ...prev, ...updates }));
   };
 
-  /* ── Step 1: 주소 검색 (팝업 윈도우 방식 — iframe 제한 우회) ── */
+  /* ── Step 1: 주소 검색 (embed 모달 방식) ── */
   const openAddressSearch = () => {
-    const w = 500, h = 600;
-    const left = (window.screen.width - w) / 2;
-    const top = (window.screen.height - h) / 2;
-    const popup = window.open('', 'wishesAddressSearch',
-      `width=${w},height=${h},left=${left},top=${top},scrollbars=no,resizable=yes`);
-    if (!popup) {
-      setToast({ type: 'error', text: '팝업이 차단되었습니다. 팝업 허용 후 다시 시도해주세요.' });
-      return;
-    }
-    popup.document.write(`<!DOCTYPE html>
-<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WISHES 주소 검색</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8faf8}
-.header{background:#15803d;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
-.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 48px);gap:12px;color:#666}
-.spinner{width:36px;height:36px;border:3px solid #e5e7eb;border-top:3px solid #15803d;border-radius:50%;animation:spin 0.8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-#wrap{height:calc(100vh - 48px)}</style></head>
-<body>
-<div class="header">\u{1F4CD} WISHES 주소 검색</div>
-<div id="wrap"><div class="loading"><div class="spinner"></div><span>주소 검색 로딩 중...</span></div></div>
-<script>
-var s=document.createElement("script");
-s.src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js";
-s.onload=function(){
-  document.getElementById("wrap").innerHTML="";
-  new daum.Postcode({
-    oncomplete:function(data){
-      if(window.opener){window.opener.postMessage({type:"WISHES_ADDRESS_SELECTED",data:data},"*")}
-      window.close();
-    },
-    onclose:function(state){if(state==="FORCE_CLOSE"){window.close()}},
-    width:"100%",height:"100%"
-  }).embed(document.getElementById("wrap"));
-};
-s.onerror=function(){
-  document.getElementById("wrap").innerHTML='<div class="loading" style="color:#dc2626"><b>스크립트 로드 실패</b><br>네트워크를 확인해주세요.</div>';
-};
-document.head.appendChild(s);
-</script></body></html>`);
-    popup.document.close();
+    setShowAddressModal(true);
   };
 
   /* ── Step 2: 건축물대장 자동 조회 ── */
@@ -1683,7 +1644,24 @@ document.head.appendChild(s);
         )}
       </div>
 
-      {/* 주소 검색: 팝업 윈도우 방식으로 변경 (embed 모달 제거) */}
+      {/* ── 주소 검색 embed 모달 ── */}
+      {showAddressModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddressModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden" style={{ width: '420px', height: '520px', maxWidth: '95vw', maxHeight: '90vh' }}>
+            <div className="flex items-center justify-between px-4 py-3 bg-green-700 text-white">
+              <span className="font-semibold text-sm flex items-center gap-2">\ud83d\udccd 주소 검색</span>
+              <button onClick={() => setShowAddressModal(false)} className="text-white/80 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            <iframe
+              src="/address-search.html"
+              className="w-full border-0"
+              style={{ height: 'calc(100% - 48px)' }}
+              title="주소 검색"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
