@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Building2, Calendar, ArrowLeft, Check, X, Eye, Hash } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
+import ImageGallery from '@/components/ImageGallery';
 import type { Metadata } from 'next';
 
 interface Props {
@@ -28,23 +29,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const ogTitle = `${listing.title} | ${listing.deal} ${listing.type}`;
   const ogDesc = `${listing.dong} ${listing.type} ${listing.deal} - ${listing.address}`;
   return {
-    title: ogTitle,
-    description: ogDesc,
-    openGraph: {
-      title: ogTitle,
-      description: ogDesc,
-      url: `https://wishes.co.kr/listings/${id}`,
-      siteName: '위시스부동산',
-      images: [{ url: ogImage, width: 1200, height: 630, alt: listing.title }],
-      locale: 'ko_KR',
-      type: 'article',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: ogTitle,
-      description: ogDesc,
-      images: [ogImage],
-    },
+    title: ogTitle, description: ogDesc,
+    openGraph: { title: ogTitle, description: ogDesc, url: `https://wishes.co.kr/listings/${id}`, siteName: '위시스부동산', images: [{ url: ogImage, width: 1200, height: 630, alt: listing.title }], locale: 'ko_KR', type: 'article' },
+    twitter: { card: 'summary_large_image', title: ogTitle, description: ogDesc, images: [ogImage] },
   };
 }
 
@@ -52,22 +39,12 @@ export default async function ListingDetailPage({ params }: Props) {
   const { id } = await params;
   const listingId = parseInt(id);
   const supabase = createClient();
-  const { data: listing } = await supabase
-    .from('listings')
-    .select('*')
-    .eq('id', listingId)
-    .single();
+  const { data: listing } = await supabase.from('listings').select('*').eq('id', listingId).single();
   if (!listing) notFound();
-  const { data: images } = await supabase
-    .from('listing_images')
-    .select('*')
-    .eq('listing_id', listingId)
-    .order('sort_order', { ascending: true });
-  const { data: features } = await supabase
-    .from('listing_features')
-    .select('*')
-    .eq('listing_id', listingId);
+  const { data: images } = await supabase.from('listing_images').select('*').eq('listing_id', listingId).order('sort_order', { ascending: true });
+  const { data: features } = await supabase.from('listing_features').select('*').eq('listing_id', listingId);
   const price = getFormattedPrice(listing.deal, listing.deposit, listing.monthly, listing.price);
+  const imageList = images || [];
   const featureList = features || [];
 
   return (
@@ -85,12 +62,14 @@ export default async function ListingDetailPage({ params }: Props) {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            {/* 이미지 자리 - 클라이언트 컴포넌트 없이 테스트 */}
-            <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
-              <div className="aspect-[16/10] bg-gray-100 flex items-center justify-center text-gray-400">
-                <Building2 className="w-16 h-16" />
-              </div>
-            </div>
+            <ImageGallery
+              images={imageList}
+              title={listing.title}
+              deal={listing.deal}
+              status={listing.status}
+              dealColor={getDealColor(listing.deal)}
+              statusColor={getStatusColor(listing.status)}
+            />
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <div className="flex items-center gap-3 mb-1">
                 <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
@@ -123,9 +102,7 @@ export default async function ListingDetailPage({ params }: Props) {
                   <OptionBadge label="발코니" available={listing.balcony ?? false} />
                   <OptionBadge label="풀옵션" available={listing.full_option ?? false} />
                   {featureList.map((f) => (
-                    <span key={f.id} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
-                      {f.feature}
-                    </span>
+                    <span key={f.id} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">{f.feature}</span>
                   ))}
                 </div>
               </div>
@@ -140,21 +117,10 @@ export default async function ListingDetailPage({ params }: Props) {
           <div className="space-y-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-24">
               <h3 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h3>
-              <Link
-                href={`/contact?listing=${listing.id}`}
-                className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors"
-              >
-                온라인 상담 신청
-              </Link>
+              <Link href={`/contact?listing=${listing.id}`} className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors">온라인 상담 신청</Link>
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
-                <p className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  등록일: {new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
-                </p>
-                <p className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  수정일: {new Date(listing.updated_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
-                </p>
+                <p className="flex items-center gap-1"><Calendar className="w-3 h-3" />등록일: {new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
+                <p className="flex items-center gap-1"><Calendar className="w-3 h-3" />수정일: {new Date(listing.updated_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
               </div>
             </div>
           </div>
