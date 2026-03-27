@@ -56,8 +56,12 @@ html {
   scroll-behavior: smooth;
 }
 
+*, *::before, *::after {
+  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
 body {
-  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, 'Helvetica Neue', 'Apple SD Gothic Neo', sans-serif;
+  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--color-text);

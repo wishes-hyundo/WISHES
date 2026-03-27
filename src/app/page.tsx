@@ -62,23 +62,12 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ━━━ 신뢰도 배지 섹션 ━━━ */}
-      <section className="max-w-6xl mx-auto px-4 -mt-20 relative z-10 mb-32 animate-fade-in-up">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { icon: '📅', label: '15년 경력', desc: '신뢰의 기록' },
-            { icon: '👨‍💼', label: '전문 상담', desc: '고객 맞춤형' },
-            { icon: '🔒', label: '안전 거래', desc: '계약 보호' },
-            { icon: '24', label: '24시간', desc: '항시 대응' },
-          ].map((badge) => (
-            <div key={badge.label} className="flex flex-col items-center p-4 rounded-xl bg-white border border-gray-100 hover:border-wishes-accent/30 hover:shadow-sm transition-all">
-              <span className="text-3xl mb-2">{badge.icon}</span>
-              <p className="font-semibold text-sm text-wishes-primary">{badge.label}</p>
-              <p className="text-xs text-wishes-muted mt-1">{badge.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* ━━━ 시그니처 문구 ━━━ */}
+      <div className="py-12 bg-wishes-primary/[0.03]">
+        <p className="text-center text-sm md:text-base tracking-[0.15em] text-wishes-primary/40 font-light italic">
+          May your wishes be the seeds that bloom into beautiful realities.
+        </p>
+      </div>
 
       {/* ━━━ 최신 매물 섹션 ━━━ */}
       <section className="py-24 bg-wishes-bg">
