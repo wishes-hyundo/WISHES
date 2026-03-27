@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { MapPin, Search, ArrowRight, Building2, Droplets, ShieldCheck, Zap } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { HomeListingCard } from '@/components/HomeListingCard';
-import RecentlyViewed from '@/components/RecentlyViewed';
 
 export default async function HomePage() {
   // Supabase에서 최신 매물 6건 가져오기
@@ -63,39 +62,7 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* 빠른 검색 */}
-        <div className="mt-10 w-full max-w-3xl mx-auto">
-          <div className="bg-white/90 backdrop-blur-md rounded-2xl p-5 shadow-xl border border-wishes-green/10">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <select className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm text-wishes-text bg-white focus:outline-none focus:ring-2 focus:ring-wishes-green/30" defaultValue="">
-                <option value="" disabled>거래유형</option>
-                <option value="monthly">월세</option>
-                <option value="jeonse">전세</option>
-                <option value="sale">매매</option>
-              </select>
-              <select className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm text-wishes-text bg-white focus:outline-none focus:ring-2 focus:ring-wishes-green/30" defaultValue="">
-                <option value="" disabled>매물유형</option>
-                <option value="oneroom">원룸/투룸</option>
-                <option value="officetel">오피스텔</option>
-                <option value="apartment">아파트</option>
-                <option value="commercial">상가/사무실</option>
-              </select>
-              <select className="flex-1 px-4 py-3 rounded-xl border border-gray-200 text-sm text-wishes-text bg-white focus:outline-none focus:ring-2 focus:ring-wishes-green/30" defaultValue="">
-                <option value="" disabled>지역</option>
-                <option value="gwanak">관악구</option>
-                <option value="gangnam">강남구</option>
-                <option value="yeongdeungpo">영등포구</option>
-                <option value="suwon">수원시</option>
-                <option value="seongnam">성남시</option>
-              </select>
-              <Link href="/listings" className="px-8 py-3 rounded-xl bg-wishes-green text-white text-sm font-semibold hover:bg-wishes-green/90 transition-colors text-center whitespace-nowrap">
-                검색
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        {/* 하단 whisper */}
+        {/* 한단 whisper */}
         <p className="absolute bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-light tracking-[1.5px] text-wishes-secondary/[0.18] whitespace-nowrap pointer-events-none animate-fade-in" style={{ animationDelay: '3.5s' }}>
           May your wishes be the seeds that bloom into beautiful realities.
         </p>
