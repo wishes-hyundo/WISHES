@@ -13,9 +13,6 @@ interface ListingCardProps {
 }
 
 const sqmToPyeong = (area: number) => {
-    const { isInCompare, addToCompare, removeFromCompare } = useFavorites();
-  const inCompare = isInCompare(listing.id);
-
   return (area / 3.3).toFixed(1);
 };
 
@@ -71,7 +68,10 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
   const price = formatPrice(listing);
 
   if (compact) {
-    return (
+      const { isInCompare, addToCompare, removeFromCompare } = useFavorites();
+  const inCompare = isInCompare(listing.id);
+
+  return (
       <Link
         href={`/listings/${listing.id}`}
         className="group flex bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-wishes-secondary/30 transition-all h-28"
