@@ -1,4 +1,4 @@
- 'use client';
+'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -545,7 +545,7 @@ export default function SmartListingNewPage() {
             bcode: data.bcode || '',
             buildingName: data.buildingName || '',
             bun: (() => { const m = (data.jibunAddress || '').match(/(\d+)(-\d+)?$/); return m ? m[1].padStart(4, '0') : ''; })(),
-            ji: (() => { const m = (data.jibunAddress || '').match(/\d+-(\d+)$/); return m ? m[1].padStart(4, '0') : ''; })(),
+            ji: (() => { const m = (data.jibunAddress || '').match(/\d+-(\d+)$/); return m ? m[1].padStart(4, '0') : '0000'; })(),
             sido: data.sido || '',
             sigungu: data.sigungu || '',
             bname: data.bname || '',
