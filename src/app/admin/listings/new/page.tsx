@@ -453,6 +453,8 @@ export default function SmartListingNewPage() {
   const [drafts, setDrafts] = useState<DraftListing[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const postcodeContainerRef = useRef<HTMLDivElement>(null);
 
   /* ── 주소 검색 팝업 메시지 수신 ── */
   useEffect(() => {
@@ -522,37 +524,45 @@ export default function SmartListingNewPage() {
 
   /* ── Step 1: 주소 검색 (embed 모달 방식) ── */
   const openAddressSearch = () => {
-    const w = window as unknown as { daum?: { Postcode: new (opts: Record<string, unknown>) => { open: () => void } } };
-    if (!w.daum?.Postcode) {
-      alert('주소 검색 스크립트를 로딩 중입니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-    new w.daum.Postcode({
-      oncomplete: (data: AddressData & Record<string, string>) => {
-        const addr: AddressData = {
-          roadAddress: data.roadAddress || '',
-          jibunAddress: data.jibunAddress || '',
-          zonecode: data.zonecode || '',
-          sigugunCode: data.sigunguCode || '',
-          bcode: data.bcode || '',
-          buildingName: data.buildingName || '',
-          bun: data.bun || '',
-          ji: data.ji || '',
-          sido: data.sido || '',
-          sigungu: data.sigungu || '',
-          bname: data.bname || '',
-        };
-        setAddressData(addr);
-        updateForm({
-          address: data.roadAddress,
-          addressDetail: '',
-          jibunAddress: data.jibunAddress,
-          zonecode: data.zonecode,
-        });
-      },
-      width: '100%',
-      height: '100%',
-    }).open();
+    setShowAddressModal(true);
+    setTimeout(() => {
+      const container = postcodeContainerRef.current;
+      if (!container) return;
+      const w = window as unknown as { daum?: { Postcode: new (opts: Record<string, unknown>) => { embed: (el: HTMLElement) => void } } };
+      if (!w.daum?.Postcode) {
+        alert('주소 검색 스크립트를 로딩 중입니다. 잠시 후 다시 시도해주세요.');
+        setShowAddressModal(false);
+        return;
+      }
+      container.innerHTML = '';
+      new w.daum.Postcode({
+        oncomplete: (data: AddressData & Record<string, string>) => {
+          const addr: AddressData = {
+            roadAddress: data.roadAddress || '',
+            jibunAddress: data.jibunAddress || '',
+            zonecode: data.zonecode || '',
+            sigugunCode: data.sigunguCode || '',
+            bcode: data.bcode || '',
+            buildingName: data.buildingName || '',
+            bun: data.bun || '',
+            ji: data.ji || '',
+            sido: data.sido || '',
+            sigungu: data.sigungu || '',
+            bname: data.bname || '',
+          };
+          setAddressData(addr);
+          setShowAddressModal(false);
+          updateForm({
+            address: data.roadAddress,
+            addressDetail: '',
+            jibunAddress: data.jibunAddress,
+            zonecode: data.zonecode,
+          });
+        },
+        width: '100%',
+        height: '100%',
+      }).embed(container);
+    }, 100);
   };
 
   /* ── Step 2: 건축물대장 자동 조회 ── */
@@ -1643,7 +1653,18 @@ export default function SmartListingNewPage() {
         )}
       </div>
 
-      {/* ── 주소 검색 embed 모달 ── */}
+      {showAddressModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddressModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden" style={{ width: '420px', height: '520px', maxWidth: '95vw', maxHeight: '90vh' }}>
+            <div className="flex items-center justify-between px-4 py-3 bg-green-700 text-white">
+              <span className="font-semibold text-sm flex items-center gap-2">{String.fromCodePoint(0x1F4CD)} 주소 검색</span>
+              <button onClick={() => setShowAddressModal(false)} className="text-white/80 hover:text-white text-xl leading-none">&times;</button>
+            </div>
+            <div ref={postcodeContainerRef} className="w-full" style={{ height: 'calc(100% - 48px)' }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
