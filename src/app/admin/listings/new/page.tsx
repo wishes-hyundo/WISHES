@@ -274,6 +274,54 @@ function enhanceImage(file: File): Promise<string> {
           fCtx.drawImage(canvas, 0, 0, finalCanvas.width, finalCanvas.height);
         }
 
+        // 4단계: WISHES 워터마크 적용
+        const wCtx = finalCanvas.getContext('2d');
+        if (wCtx) {
+          const w = finalCanvas.width;
+          const h = finalCanvas.height;
+          const fontSize = Math.max(14, Math.round(Math.min(w, h) * 0.028));
+          wCtx.save();
+          wCtx.font = `bold ${fontSize}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
+          wCtx.textBaseline = 'middle';
+          // 반투명 배경 배너 (하단 우측)
+          const text = 'WISHES';
+          const subText = 'wishes.co.kr';
+          const tm = wCtx.measureText(text);
+          const sm = wCtx.measureText(subText);
+          const maxTw = Math.max(tm.width, sm.width);
+          const padX = fontSize * 0.8;
+          const padY = fontSize * 0.5;
+          const bannerW = maxTw + padX * 2;
+          const bannerH = fontSize * 2.6 + padY * 2;
+          const bx = w - bannerW - fontSize * 0.6;
+          const by = h - bannerH - fontSize * 0.6;
+          // 둥근 사각형 배경
+          wCtx.globalAlpha = 0.55;
+          wCtx.fillStyle = '#1a3a1a';
+          wCtx.beginPath();
+          const r = fontSize * 0.4;
+          wCtx.moveTo(bx + r, by);
+          wCtx.lineTo(bx + bannerW - r, by);
+          wCtx.quadraticCurveTo(bx + bannerW, by, bx + bannerW, by + r);
+          wCtx.lineTo(bx + bannerW, by + bannerH - r);
+          wCtx.quadraticCurveTo(bx + bannerW, by + bannerH, bx + bannerW - r, by + bannerH);
+          wCtx.lineTo(bx + r, by + bannerH);
+          wCtx.quadraticCurveTo(bx, by + bannerH, bx, by + bannerH - r);
+          wCtx.lineTo(bx, by + r);
+          wCtx.quadraticCurveTo(bx, by, bx + r, by);
+          wCtx.closePath();
+          wCtx.fill();
+          // 텍스트
+          wCtx.globalAlpha = 0.9;
+          wCtx.fillStyle = '#ffffff';
+          wCtx.font = `bold ${fontSize}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
+          wCtx.fillText(text, bx + padX, by + padY + fontSize * 0.6);
+          wCtx.font = `${Math.round(fontSize * 0.65)}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
+          wCtx.globalAlpha = 0.7;
+          wCtx.fillText(subText, bx + padX, by + padY + fontSize * 1.8);
+          wCtx.restore();
+        }
+
         resolve(finalCanvas.toDataURL('image/jpeg', 0.92));
       };
       img.src = e.target?.result as string;
@@ -405,6 +453,8 @@ export default function SmartListingNewPage() {
   const [drafts, setDrafts] = useState<DraftListing[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const addressEmbedRef = useRef<HTMLDivElement>(null);
 
   /* ── 다음 주소 API 스크립트 로드 ── */
   useEffect(() => {
@@ -473,46 +523,53 @@ export default function SmartListingNewPage() {
     setForm(prev => ({ ...prev, ...updates }));
   };
 
-  /* ── Step 1: 주소 검색 ── */
+  /* ── Step 1: 주소 검색 (embed 모달 방식) ── */
   const openAddressSearch = () => {
     if (!window.daum?.Postcode) {
       setToast({ type: 'error', text: '주소 검색 로딩 중입니다. 잠시 후 다시 시도해주세요.' });
       return;
     }
-    new window.daum.Postcode({
-      oncomplete: (data: any) => {
-        const addr: AddressData = {
-          roadAddress: data.roadAddress || '',
-          jibunAddress: data.jibunAddress || data.autoJibunAddress || '',
-          zonecode: data.zonecode || '',
-          sigunguCode: data.sigunguCode || '',
-          bcode: data.bcode || '',
-          buildingName: data.buildingName || '',
-          bun: '', ji: '',
-          sido: data.sido || '',
-          sigungu: data.sigungu || '',
-          bname: data.bname || '',
-        };
+    setShowAddressModal(true);
+    setTimeout(() => {
+      if (!addressEmbedRef.current) return;
+      addressEmbedRef.current.innerHTML = '';
+      new window.daum.Postcode({
+        oncomplete: (data: any) => {
+          const addr: AddressData = {
+            roadAddress: data.roadAddress || '',
+            jibunAddress: data.jibunAddress || data.autoJibunAddress || '',
+            zonecode: data.zonecode || '',
+            sigunguCode: data.sigunguCode || '',
+            bcode: data.bcode || '',
+            buildingName: data.buildingName || '',
+            bun: '', ji: '',
+            sido: data.sido || '',
+            sigungu: data.sigungu || '',
+            bname: data.bname || '',
+          };
 
-        // 지번에서 번/지 추출
-        const jibunMatch = addr.jibunAddress.match(/(\d+)(?:-(\d+))?$/);
-        if (jibunMatch) {
-          addr.bun = jibunMatch[1].padStart(4, '0');
-          addr.ji = (jibunMatch[2] || '0').padStart(4, '0');
-        }
+          const jibunMatch = addr.jibunAddress.match(/(\d+)(?:-(\d+))?$/);
+          if (jibunMatch) {
+            addr.bun = jibunMatch[1].padStart(4, '0');
+            addr.ji = (jibunMatch[2] || '0').padStart(4, '0');
+          }
 
-        setAddressData(addr);
-        updateForm({
-          address: addr.roadAddress || addr.jibunAddress,
-          dong: addr.bname || '',
-          road_address: addr.roadAddress,
-          jibun_address: addr.jibunAddress,
-          sigungu_code: addr.sigunguCode,
-          bcode: addr.bcode,
-          building_name: addr.buildingName || '',
-        });
-      }
-    }).open();
+          setAddressData(addr);
+          updateForm({
+            address: addr.roadAddress || addr.jibunAddress,
+            dong: addr.bname || '',
+            road_address: addr.roadAddress,
+            jibun_address: addr.jibunAddress,
+            sigungu_code: addr.sigunguCode,
+            bcode: addr.bcode,
+            building_name: addr.buildingName || '',
+          });
+          setShowAddressModal(false);
+        },
+        width: '100%',
+        height: '100%',
+      }).embed(addressEmbedRef.current);
+    }, 100);
   };
 
   /* ── Step 2: 건축물대장 자동 조회 ── */
@@ -1602,6 +1659,19 @@ export default function SmartListingNewPage() {
           </div>
         )}
       </div>
+
+      {/* 주소 검색 모달 (embed 방식) */}
+      {showAddressModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowAddressModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-[480px] max-w-[95vw] overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 bg-green-700 text-white">
+              <h3 className="font-semibold text-sm">📍 주소 검색</h3>
+              <button onClick={() => setShowAddressModal(false)} className="text-white/80 hover:text-white text-lg font-bold">✕</button>
+            </div>
+            <div ref={addressEmbedRef} style={{ width: '100%', height: '460px' }} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
