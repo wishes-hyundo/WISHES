@@ -27,8 +27,8 @@ export default function DetailClientActions({ listingId }: DetailClientActionsPr
       onClick={() => inCompare ? removeFromCompare(listingId) : addToCompare(listingId)}
       className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${
         inCompare 
-          ? 'bg-wishes-green text-white' 
-          : 'bg-gray-100 text-gray-600 hover:bg-wishes-light hover:text-wishes-green'
+          ? 'bg-wishes-primary text-white' 
+          : 'bg-gray-100 text-gray-600 hover:bg-wishes-secondary hover:text-white'
       }`}
     >
       <Scale className="w-5 h-5" />
