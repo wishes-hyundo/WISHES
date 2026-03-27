@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X, Eye, Hash } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
 import ImageGallery from '@/components/ImageGallery';
+import ShareButton from '@/components/ShareButton';
+import RecentlyViewedTracker from '@/components/RecentlyViewedTracker';
 import type { Metadata } from 'next';
 
 interface Props {
@@ -16,15 +18,47 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { data: listing } = await supabase
     .from('listings')
-    .select('title, deal, type, dong, address')
+    .select('*')
     .eq('id', parseInt(id))
     .single();
 
   if (!listing) return { title: '매물 없음' };
 
+  // OG 이미지 가져오기
+  const { data: images } = await supabase
+    .from('listing_images')
+    .select('url')
+    .eq('listing_id', parseInt(id))
+    .order('sort_order')
+    .limit(1);
+
+  const ogImage = images?.[0]?.url || '/og-image.png';
+  const ogTitle = `${listing.title} | ${listing.deal} ${listing.type}`;
+  const ogDesc = `${listing.dong} ${listing.type} ${listing.deal} - ${listing.address}`;
+
   return {
-    title: `${listing.title} | ${listing.deal} ${listing.type}`,
-    description: `${listing.dong} ${listing.type} ${listing.deal} - ${listing.address}`,
+    title: ogTitle,
+    description: ogDesc,
+    openGraph: {
+      title: ogTitle,
+      description: ogDesc,
+      url: `https://wishes.co.kr/listings/${id}`,
+      siteName: '위시스부동산',
+      images: [{
+        url: ogImage,
+        width: 1200,
+        height: 630,
+        alt: listing.title,
+      }],
+      locale: 'ko_KR',
+      type: 'article',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: ogTitle,
+      description: ogDesc,
+      images: [ogImage],
+    },
   };
 }
 
@@ -42,7 +76,7 @@ export default async function ListingDetailPage({ params }: Props) {
 
   if (!listing) notFound();
 
-  // 조회수 증가 (비동기, 실패해도 페이지 렌더링에 영향 없음)
+  // 조회수 증가 (비동기, 실패해도 페이지 렌더릁에 영향 없음)
   supabase
     .from('listings')
     .update({ views: (listing.views || 0) + 1 })
@@ -67,6 +101,9 @@ export default async function ListingDetailPage({ params }: Props) {
 
   return (
     <div className="pt-16 min-h-screen bg-wishes-bg">
+      {/* 최근 본 매물 트래커 */}
+      <RecentlyViewedTracker listingId={id} />
+
       {/* 상단 네비 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
@@ -148,7 +185,7 @@ export default async function ListingDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* 우측: 상담 CTA */}
+          {/* 우측: 상담 CTA + 공유 */}
           <div className="space-y-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-24">
               <h3 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h3>
@@ -159,6 +196,12 @@ export default async function ListingDetailPage({ params }: Props) {
               >
                 온라인 상담 신청
               </Link>
+
+              <ShareButton
+                url={`https://wishes.co.kr/listings/${listing.id}`}
+                title={listing.title || '위시스부동산 매물'}
+                description={`${listing.deal || ''} ${listing.type || ''} - ${listing.dong || ''}`}
+              />
 
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
                 <p className="flex items-center gap-1">
