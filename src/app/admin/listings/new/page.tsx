@@ -105,6 +105,9 @@ interface FormData {
   description: string;
   // ── 이미지 ──
   images: string[];
+  // ── 좌표 (Kakao Geocoder) ──
+  lat: number | null;
+  lng: number | null;
   // ── 상태 ──
   status: string;
 }
@@ -162,7 +165,7 @@ const INITIAL_FORM: FormData = {
   rooms: null, bathrooms: null, direction: '', heating_type: '',
   maintenance_fee: null, maintenance_includes: [], move_in_type: '즉시',
   move_in_date: '', pet_allowed: false, parking_available: false,
-  features: [], title: '', description: '', images: [], status: '임시저장',
+  features: [], title: '', description: '', images: [], lat: null, lng: null, status: '임시저장',
 };
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -353,16 +356,7 @@ function generateTitle(form: FormData, buildingInfo: BuildingInfo | null): strin
   // 거래유형
   if (form.deal) parts.push(form.deal);
 
-  // 가격 요약
-  if (form.deal === '매매' && form.price) {
-    parts.push(formatAmount(form.price));
-  } else if (form.deal === '전세' && form.deposit) {
-    parts.push(formatAmount(form.deposit));
-  } else if (form.deal === '월세') {
-    if (form.deposit !== null && form.monthly !== null) {
-      parts.push(`${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`);
-    }
-  }
+  // 금액은 제목에 포함하지 않음 (별도 표시)
 
   return parts.join(' ') || '새 매물';
 }
@@ -439,10 +433,7 @@ function generateStyledTitle(form: FormData, buildingInfo: BuildingInfo | null, 
   const hasStation = form.features.includes('역세권') || form.address.includes('역');
   const hasFull = form.features.includes('풀옵션');
   const hasParking = form.features.includes('주차가능') || form.parking_available || (buildingInfo && buildingInfo.총주차대수 > 0);
-  let priceStr = '';
-  if (form.deal === '매매' && form.price) priceStr = `매매 ${formatAmount(form.price)}`;
-  else if (form.deal === '전세' && form.deposit) priceStr = `전세 ${formatAmount(form.deposit)}`;
-  else if (form.deal === '월세' && form.deposit !== null && form.monthly !== null) priceStr = `월세 ${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`;
+  // 금액은 제목에 포함하지 않음 (별도 표시)
   // 랜덤 변형을 위한 헬퍼
   const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
@@ -460,10 +451,10 @@ function generateStyledTitle(form: FormData, buildingInfo: BuildingInfo | null, 
       const endings = ['꽀매물', '추천매물', '핫매물', '급매', '강추!', '필수 체크!'];
       const typeStr = form.type || '';
       const formats = [
-        `${dong ? dong + ' ' : ''}${allTags.join(' ')} ${typeStr} ${priceStr} ${pick(endings)}`,
-        `✨ ${dong} ${typeStr} ${priceStr} | ${allTags.length > 0 ? allTags.join(' · ') : pick(endings)}`,
-        `[${dong || '역세권'}] ${typeStr} ${priceStr} ${allTags.join(' ')} ${pick(endings)}`,
-        `${dong} ${pick(endings)} ${typeStr} ${priceStr}${allTags.length > 0 ? ' #' + allTags.join(' #') : ''}`,
+        `${dong ? dong + ' ' : ''}${allTags.join(' ')} ${typeStr} ${pick(endings)}`,
+        `✨ ${dong} ${typeStr} | ${allTags.length > 0 ? allTags.join(' · ') : pick(endings)}`,
+        `[${dong || '역세권'}] ${typeStr} ${allTags.join(' ')} ${pick(endings)}`,
+        `${dong} ${pick(endings)} ${typeStr} ${allTags.length > 0 ? ' #' + allTags.join(' #') : ''}`,
       ];
       return pick(formats).replace(/\s+/g, ' ').trim();
     }
@@ -475,9 +466,9 @@ function generateStyledTitle(form: FormData, buildingInfo: BuildingInfo | null, 
       if (form.direction) adj.push(form.direction);
       if (hasFull) adj.push('풀옵션');
       const formats = [
-        `${name} 프리미엄 ${adj.join(' ')} | ${priceStr}`,
-        `[${name}] ${adj.join(' ')} ${priceStr}`,
-        `${name} ${adj.join(' ')} - ${priceStr}`,
+        `${name} 프리미엄 ${adj.join(' ')}`,
+        `[${name}] ${adj.join(' ')} `,
+        `${name} ${adj.join(' ')}`,
       ];
       return pick(formats).trim();
     }
@@ -705,12 +696,31 @@ export default function SmartListingNewPage() {
           };
           setAddressData(addr);
           setShowAddressModal(false);
+          const selectedAddr = data.roadAddress || data.jibunAddress;
           updateForm({
-            address: data.roadAddress,
+            address: selectedAddr,
             addressDetail: '',
             jibunAddress: data.jibunAddress,
             zonecode: data.zonecode,
+            dong: data.bname || '',
           });
+
+          // Kakao Geocoder로 좌표 변환 (지도 마커용)
+          if (selectedAddr && typeof window !== 'undefined' && window.kakao?.maps?.services) {
+            try {
+              const geocoder = new window.kakao.maps.services.Geocoder();
+              geocoder.addressSearch(selectedAddr, (result: any[], status: string) => {
+                if (status === window.kakao.maps.services.Status.OK && result.length > 0) {
+                  const lat = parseFloat(result[0].y);
+                  const lng = parseFloat(result[0].x);
+                  updateForm({ lat, lng });
+                  console.log('[Geocoding] success:', { lat, lng });
+                }
+              });
+            } catch (e) {
+              console.warn('[Geocoding] error:', e);
+            }
+          }
         },
         width: '100%',
         height: '100%',
@@ -954,56 +964,55 @@ ${floorRows}</table></div>` : ''}
   const publishListing = async (mode: 'instant' | 'review') => {
     setIsPublishing(true);
     try {
-      // TODO: 실제 이미지 업로드 로직 (Supabase Storage)
-      // 현재는 이미지 URL 없이 매물 데이터만 등록
+      // FormData 구성 (이미지 파일 + 매물 데이터)
+      const fd = new window.FormData();
 
-      // 필수 필드 검증
-        if (!form.address || form.address.trim() === '') {
-          throw new Error('주소를 입력해주세요');
+      // 이미지 파일 추가 (enhanced 우선, 없으면 원본)
+      for (const img of uploadedImages) {
+        if (useEnhanced && img.enhanced) {
+          const resp = await fetch(img.enhanced);
+          const blob = await resp.blob();
+          fd.append('images', blob, img.file.name.replace(/\.\w+$/, '.webp'));
+        } else {
+          fd.append('images', img.file);
         }
-        if (!form.type) {
-          throw new Error('매물유형을 선택해주세요');
-        }
-        if (!form.deal) {
-          throw new Error('거래유형을 선택해주세요');
-        }
+      }
 
-        const payload = {
-        title: form.title || generateTitle(form, buildingInfo),
-        address: form.address,
-        address_detail: form.addressDetail,
-        dong: form.dong || form.address.split(' ').find((s: string) => s.endsWith('동')) || '',
-        type: form.type,
-        deal: form.deal,
-        deposit: Number(form.deposit) || 0,
-        monthly: form.monthly ? Number(form.monthly) : null,
-        price: form.price ? Number(form.price) : null,
-        maintenance_fee: Number(form.maintenance_fee) || 0,
-        area_m2: Number(form.area_m2) || 0,
-        area_supply_m2: form.area_supply_m2 ? Number(form.area_supply_m2) : null,
-        floor_current: form.floor_current || '',
-        floor_total: form.floor_total || '',
-        rooms: form.rooms ? Number(form.rooms) : 1,
-        bathrooms: form.bathrooms ? Number(form.bathrooms) : 1,
-        direction: form.direction || '',
-        description: form.description || generateDescription(form, buildingInfo),
-        maintenance_includes: form.features?.length > 0 ? form.features : null,
-        parking: !!(form.parking_available || (form.parking_count && form.parking_count > 0)),
-        elevator: !!(form.elevator_count && form.elevator_count > 0),
-        built_year: form.approval_date || '',
-          heating_type: form.heating_type || '',
-          status: '가용',
-      };
+      // 매물 데이터 필드
+      fd.append('title', form.title || generateTitle(form, buildingInfo));
+      fd.append('address', form.address.trim());
+      fd.append('address_detail', form.addressDetail || '');
+      fd.append('dong', form.dong || '');
+      fd.append('type', form.type);
+      fd.append('deal', form.deal);
+      fd.append('deposit', String(Number(form.deposit) || 0));
+      fd.append('monthly', form.monthly ? String(Number(form.monthly)) : '');
+      fd.append('price', form.price ? String(Number(form.price)) : '');
+      fd.append('maintenance_fee', String(Number(form.maintenance_fee) || 0));
+      fd.append('maintenance_includes', JSON.stringify(form.maintenance_includes?.length > 0 ? form.maintenance_includes : []));
+      fd.append('features', JSON.stringify(form.features || []));
+      fd.append('area_m2', String(Number(form.area_m2) || 0));
+      fd.append('area_supply_m2', form.area_supply_m2 ? String(Number(form.area_supply_m2)) : '');
+      fd.append('floor_current', form.floor_current || '');
+      fd.append('floor_total', form.floor_total || '');
+      fd.append('rooms', form.rooms ? String(Number(form.rooms)) : '');
+      fd.append('bathrooms', form.bathrooms ? String(Number(form.bathrooms)) : '');
+      fd.append('direction', form.direction || '');
+      fd.append('description', form.description || generateDescription(form, buildingInfo));
+      fd.append('parking', String(!!(form.parking_available || (form.parking_count && form.parking_count > 0))));
+      fd.append('elevator', String(!!(form.elevator_count && form.elevator_count > 0)));
+      fd.append('built_year', form.approval_date || '');
+      fd.append('heating_type', form.heating_type || '');
+      fd.append('pet', String(!!form.pet_allowed));
+      if (form.lat) fd.append('lat', String(form.lat));
+      if (form.lng) fd.append('lng', String(form.lng));
 
-      console.log('[publishListing] payload:', JSON.stringify(payload, null, 2));
+      console.log('[publishListing] FormData, images:', uploadedImages.length, 'coords:', form.lat, form.lng);
 
-        const res = await fetch('/api/admin/listings', {
+      const res = await fetch('/api/admin/listings', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${AUTH_TOKEN}`,
-        },
-        body: JSON.stringify(payload),
+        headers: { Authorization: `Bearer ${AUTH_TOKEN}` },
+        body: fd,
       });
 
       if (!res.ok) {
@@ -1212,24 +1221,39 @@ ${floorRows}</table></div>` : ''}
                   {(form.deal === '월세' || form.deal === '전세') && (
                     <div>
                       <label className="text-xs text-gray-500 mb-1 block">보증금 (만원)</label>
-                      <input type="number" value={form.deposit ?? ''} placeholder="예: 1000"
-                        onChange={e => updateForm({ deposit: e.target.value ? Number(e.target.value) : null })}
+                      <input type="text" inputMode="numeric"
+                        value={form.deposit != null ? form.deposit.toLocaleString() : ''}
+                        placeholder="예: 1,000"
+                        onChange={e => {
+                          const raw = e.target.value.replace(/[^0-9]/g, '');
+                          updateForm({ deposit: raw ? Number(raw) : null });
+                        }}
                         className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
                     </div>
                   )}
                   {form.deal === '월세' && (
                     <div>
                       <label className="text-xs text-gray-500 mb-1 block">월세 (만원)</label>
-                      <input type="number" value={form.monthly ?? ''} placeholder="예: 50"
-                        onChange={e => updateForm({ monthly: e.target.value ? Number(e.target.value) : null })}
+                      <input type="text" inputMode="numeric"
+                        value={form.monthly != null ? form.monthly.toLocaleString() : ''}
+                        placeholder="예: 50"
+                        onChange={e => {
+                          const raw = e.target.value.replace(/[^0-9]/g, '');
+                          updateForm({ monthly: raw ? Number(raw) : null });
+                        }}
                         className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
                     </div>
                   )}
                   {form.deal === '매매' && (
                     <div className="col-span-2">
                       <label className="text-xs text-gray-500 mb-1 block">매매가 (만원)</label>
-                      <input type="number" value={form.price ?? ''} placeholder="예: 30000"
-                        onChange={e => updateForm({ price: e.target.value ? Number(e.target.value) : null })}
+                      <input type="text" inputMode="numeric"
+                        value={form.price != null ? form.price.toLocaleString() : ''}
+                        placeholder="예: 30,000"
+                        onChange={e => {
+                          const raw = e.target.value.replace(/[^0-9]/g, '');
+                          updateForm({ price: raw ? Number(raw) : null });
+                        }}
                         className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
                     </div>
                   )}
@@ -1548,8 +1572,8 @@ ${floorRows}</table></div>` : ''}
                   {/* 관리비 */}
                   <div>
                     <label className="text-xs text-gray-500 mb-1 block">관리비 (만원)</label>
-                    <input type="number" value={form.maintenance_fee ?? ''} placeholder="예: 5"
-                      onChange={e => updateForm({ maintenance_fee: e.target.value ? Number(e.target.value) : null })}
+                    <input type="text" inputMode="numeric" value={form.maintenance_fee != null ? form.maintenance_fee.toLocaleString() : ''} placeholder="예: 5"
+                      onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); updateForm({ maintenance_fee: raw ? Number(raw) : null }); }}
                       className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {MAINTENANCE_OPTIONS.map(opt => (
