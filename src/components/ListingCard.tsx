@@ -106,7 +106,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
             role="button"
             tabIndex={0}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id); }}
-            className={`absolute top-1 right-1 p-1.5 rounded-full transition-all cursor-pointer ${inCompare ? 'bg-wishes-green text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-green'}`}
+            className={`absolute top-1 right-1 p-1.5 rounded-full transition-all cursor-pointer ${inCompare ? 'bg-wishes-primary text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-primary'}`}
             title={inCompare ? '비교 해제' : '비교 담기'}
           >
             <Scale className="w-4 h-4" />
@@ -157,7 +157,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-            <Building2 className="w-10 h-10 text-wishes-green/30" />
+            <Building2 className="w-10 h-10 text-wishes-primary/30" />
           </div>
         )}
 
@@ -202,7 +202,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id); }}
 
 
-          className={`absolute top-3 right-3 p-2 rounded-full transition-all cursor-pointer z-10 ${`{inCompare ? 'bg-wishes-green text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-green'}`}`}
+          className={`absolute top-3 right-3 p-2 rounded-full transition-all cursor-pointer z-10 ${`{inCompare ? 'bg-wishes-primary text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-primary'}`}`}
 
 
           title={inCompare ? '비교 해제' : '비교 담기'}
