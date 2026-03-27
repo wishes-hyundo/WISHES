@@ -11,7 +11,7 @@ const DEFAULT_RATE_PRESETS = {
   mortgage: [
     { label: '시중은행 주담대', rate: 4.5 },
     { label: '특례보금자리론', rate: 4.2 },
-    { label: '디딜돌대출', rate: 2.45 },
+    { label: '디딟돌대출', rate: 2.45 },
     { label: '신혼부부 특례', rate: 2.2 },
   ],
   jeonse: [
