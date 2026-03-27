@@ -25,7 +25,7 @@ export function FloatingButtons() {
   return (
     <div className={cn(
       'fixed right-6 flex flex-col gap-3 z-50 transition-all duration-300',
-      hasCompareItems ? 'bottom-20' : 'bottom-6'
+      hasCompareItems ? 'bottom-36' : 'bottom-24'
     )}>
       {/* 스크롤 맨 위 */}
       <button
