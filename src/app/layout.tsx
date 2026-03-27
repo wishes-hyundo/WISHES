@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
+import { FavoritesProvider } from '@/contexts/FavoritesContext';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
@@ -140,7 +141,7 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col">
         <ConditionalLayout>
-          {children}
+          <FavoritesProvider>{children}</FavoritesProvider>
         </ConditionalLayout>
       </body>
     </html>
