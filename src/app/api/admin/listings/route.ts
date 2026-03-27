@@ -1,4 +1,4 @@
-// ────────────────────────────────────────
+h// ────────────────────────────────────────
 // Admin API: GET, POST, PUT /api/admin/listings
 // ────────────────────────────────────────
 
@@ -13,7 +13,7 @@ const createListingSchema = z.object({
   deal: z.enum(['전세', '월세', '매매']),
   deposit: z.number().int().nonnegative().default(0),
   monthly: z.number().int().nonnegative().optional().nullable(),
-  price: z.number().int().nonnegative().optional().nullable(),
+  price: z.number().int().nonnegative().optional().nullable(),h
   maintenance_fee: z.number().int().nonnegative().default(0).optional(),
   maintenance_includes: z.array(z.string()).optional().nullable(),
   area_m2: z.number().nonnegative().default(0),
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
         direction: rawData.direction || null,
         address: rawData.address || '',
         address_detail: rawData.address_detail || rawData.addressDetail || null,
-        dong: rawData.dong || null,
+        dong: rawData.dong ?? '',
         description: rawData.description || null,
         available_date: rawData.available_date || rawData.moveInDate || null,
         built_year: rawData.built_year || rawData.approvalDate || null,
@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
         heating_type: parsed.data.heating_type || null,
         address: parsed.data.address,
         address_detail: parsed.data.address_detail || null,
-        dong: parsed.data.dong,
+        dong: parsed.data.dong || '',
         lat: parsed.data.lat || null,
         lng: parsed.data.lng || null,
         description: parsed.data.description || null,
