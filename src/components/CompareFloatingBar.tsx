@@ -2,7 +2,7 @@
 
 import { useFavorites } from '@/contexts/FavoritesContext';
 import Link from 'next/link';
-import { GitCompareArrows, X } from 'lucide-react';
+import { Scale, X } from 'lucide-react';
 
 export default function CompareFloatingBar() {
   const { compareList, removeFromCompare } = useFavorites();
@@ -14,7 +14,7 @@ export default function CompareFloatingBar() {
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-wishes-green">
-            <GitCompareArrows className="w-5 h-5" />
+            <Scale className="w-5 h-5" />
             <span className="font-semibold text-sm">비교 목록</span>
           </div>
           <div className="flex gap-2">

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Zap, Eye, Hash , GitCompareArrows } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Zap, Eye, Hash , Scale } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Listing } from '@/types';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -104,7 +104,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
             className={`absolute top-1 right-1 p-1.5 rounded-full transition-all cursor-pointer ${inCompare ? 'bg-wishes-green text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-green'}`}
             title={inCompare ? '비교 해제' : '비교 담기'}
           >
-            <GitCompareArrows className="w-4 h-4" />
+            <Scale className="w-4 h-4" />
           </span>
         </div>
 

@@ -6,7 +6,7 @@ import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/
 import ImageGallery from '@/components/ImageGallery';
 import type { Metadata } from 'next';
 import { useFavorites } from '@/contexts/FavoritesContext';
-import { GitCompareArrows } from 'lucide-react';
+import { Scale } from 'lucide-react';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -176,7 +176,7 @@ export default async function ListingDetailPage({ params }: Props) {
                     : 'bg-gray-100 text-gray-600 hover:bg-wishes-light hover:text-wishes-green'
                 }`}
               >
-                <GitCompareArrows className="w-5 h-5" />
+                <Scale className="w-5 h-5" />
                 {inCompare ? '비교 해제' : '비교 담기'}
               </button>
 
