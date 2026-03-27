@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 interface FavoritesContextType {
   favorites: number[];
@@ -39,47 +39,42 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('wishes_favorites', JSON.stringify(favorites));
-    } catch {}
+    try { localStorage.setItem('wishes_favorites', JSON.stringify(favorites)); } catch {}
   }, [favorites]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('wishes_compare', JSON.stringify(compareList));
-    } catch {}
+    try { localStorage.setItem('wishes_compare', JSON.stringify(compareList)); } catch {}
   }, [compareList]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('wishes_recently_viewed', JSON.stringify(recentlyViewed));
-    } catch {}
+    try { localStorage.setItem('wishes_recently_viewed', JSON.stringify(recentlyViewed)); } catch {}
   }, [recentlyViewed]);
 
-  const addFavorite = (id: number) => {
+  const addFavorite = useCallback((id: number) => {
     setFavorites(prev => prev.includes(id) ? prev : [...prev, id]);
-  };
+  }, []);
 
-  const removeFavorite = (id: number) => {
+  const removeFavorite = useCallback((id: number) => {
     setFavorites(prev => prev.filter(f => f !== id));
-  };
+  }, []);
 
-  const toggleFavorite = (id: number) => {
+  const toggleFavorite = useCallback((id: number) => {
     setFavorites(prev =>
       prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
     );
-  };
+  }, []);
 
-  const isFavorite = (id: number) => favorites.includes(id);
+  const isFavorite = useCallback((id: number) => favorites.includes(id), [favorites]);
 
-  const addRecentlyViewed = (id: number) => {
+  const addRecentlyViewed = useCallback((id: number) => {
     setRecentlyViewed(prev => {
+      if (prev[0] === id) return prev;
       const filtered = prev.filter(v => v !== id);
       return [id, ...filtered].slice(0, 20);
     });
-  };
+  }, []);
 
-  const addToCompare = (id: number) => {
+  const addToCompare = useCallback((id: number) => {
     setCompareList(prev => {
       if (prev.includes(id)) return prev;
       if (prev.length >= 4) {
@@ -88,36 +83,34 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, id];
     });
-  };
+  }, []);
 
-  const removeFromCompare = (id: number) => {
+  const removeFromCompare = useCallback((id: number) => {
     setCompareList(prev => prev.filter(c => c !== id));
-  };
+  }, []);
 
-  const clearCompare = () => {
+  const clearCompare = useCallback(() => {
     setCompareList([]);
-  };
+  }, []);
 
-  const isInCompare = (id: number) => compareList.includes(id);
+  const isInCompare = useCallback((id: number) => compareList.includes(id), [compareList]);
 
   return (
-    <FavoritesContext.Provider
-      value={{
-        favorites,
-        recentlyViewed,
-        compareList,
-        favoritesLoading,
-        addFavorite,
-        removeFavorite,
-        toggleFavorite,
-        isFavorite,
-        addRecentlyViewed,
-        addToCompare,
-        removeFromCompare,
-        clearCompare,
-        isInCompare,
-      }}
-    >
+    <FavoritesContext.Provider value={{
+      favorites,
+      recentlyViewed,
+      compareList,
+      favoritesLoading,
+      addFavorite,
+      removeFavorite,
+      toggleFavorite,
+      isFavorite,
+      addRecentlyViewed,
+      addToCompare,
+      removeFromCompare,
+      clearCompare,
+      isInCompare,
+    }}>
       {children}
     </FavoritesContext.Provider>
   );
