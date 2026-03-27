@@ -43,7 +43,7 @@ export function Footer() {
             <span className="hidden md:inline text-white/15">|</span>
             <span>평일 09:00 – 19:00</span>
           </div>
-          <p>© 2025 WISHES. All rights reserved.</p>
+          <p>© 2026 WISHES. All rights reserved.</p>
         </div>
       </div>
     </footer>
