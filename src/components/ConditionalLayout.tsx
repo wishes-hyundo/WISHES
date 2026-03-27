@@ -8,6 +8,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { FavoritesProvider } from '@/contexts/FavoritesContext';
 import AuthModal from '@/components/AuthModal';
 import AIChatBot from '@/components/AIChatBot';
+import CompareBar from '@/components/CompareBar';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -24,6 +25,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1">{children}</main>
         <Footer />
         <FloatingButtons />
+        <CompareBar />
         <AIChatBot />
         <AuthModal />
       </FavoritesProvider>
