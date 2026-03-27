@@ -20,7 +20,7 @@ interface AddressData {
   bname: string;
 }
 
-interface BuildingInfo {
+interface BuildingInfo {h
   건물명: string;
   주용도: string;
   기타용도: string;
@@ -633,6 +633,70 @@ export default function SmartListingNewPage() {
     }
   };
 
+  /* ── 건축물대장 PDF 다운로드 ── */
+  const downloadBuildingPdf = async () => {
+    if (!buildingInfo) return;
+    // html2pdf.js CDN 동적 로딩
+    if (!(window as any).html2pdf) {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.2/html2pdf.bundle.min.js';
+      document.head.appendChild(script);
+      await new Promise<void>((resolve, reject) => { script.onload = () => resolve(); script.onerror = reject; });
+    }
+    const bi = buildingInfo;
+    const fmtDate = (d: string) => d ? `${d.substring(0,4)}.${d.substring(4,6)}.${d.substring(6,8)}` : '-';
+    const fmtArea = (v: number) => v ? `${v.toFixed(2)}㎡` : '0.00㎡';
+    const container = document.createElement('div');
+    container.style.cssText = 'width:190mm;padding:15mm;font-family:Batang,serif;font-size:11px;color:#000;background:#fff;position:absolute;left:-9999px;top:0;';
+    const floorRows = (bi.층별개요 || []).map(f =>
+      `<tr style="border:1px solid #333;"><td style="padding:4px 6px;border-right:1px solid #333;text-align:center;">${f.층번호}</td><td style="padding:4px 6px;border-right:1px solid #333;">${f.층구분}</td><td style="padding:4px 6px;border-right:1px solid #333;">${f.층용도}</td><td style="padding:4px 6px;text-align:right;">${f.면적?.toFixed(2)}㎡</td></tr>`
+    ).join('');
+    container.innerHTML = `
+      <div style="text-align:center;margin-bottom:20px;">
+        <div style="font-size:9px;color:#888;">국토교통부 건축물대장 정보</div>
+        <h2 style="font-size:20px;font-weight:bold;border-bottom:3px double #000;padding-bottom:8px;margin:8px 0 4px;">건 축 물 대 장</h2>
+        <div style="font-size:9px;color:#aaa;">(건축물대장HUB 서비스 API 조회 결과)</div>
+      </div>
+      <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px;">
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;width:80px;border-right:1px solid #333;">대장 구분</td><td style="padding:6px 8px;border-right:1px solid #333;">${bi.대장구분||'-'}</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;width:80px;border-right:1px solid #333;">대장 종류</td><td style="padding:6px 8px;">${bi.대장종류||'-'}</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">도로명주소</td><td style="padding:6px 8px;" colspan="3">${bi.도로명주소||form.road_address||'-'}</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">지번주소</td><td style="padding:6px 8px;" colspan="3">${bi.지번주소||form.jibun_address||'-'}</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">건물명</td><td style="padding:6px 8px;border-right:1px solid #333;">${bi.건물명||'-'}</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">주용도</td><td style="padding:6px 8px;">${bi.주용도||'-'}</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">기타용도</td><td style="padding:6px 8px;" colspan="3">${bi.기타용도||'-'}</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">건물구조</td><td style="padding:6px 8px;border-right:1px solid #333;">${bi.건물구조||'-'}</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">지붕구조</td><td style="padding:6px 8px;">${bi.지붕구조||'-'}</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">대지면적</td><td style="padding:6px 8px;border-right:1px solid #333;">${fmtArea(bi.대지면적)}</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">건축면적</td><td style="padding:6px 8px;">${fmtArea(bi.건축면적)}</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">연면적</td><td style="padding:6px 8px;border-right:1px solid #333;">${fmtArea(bi.연면적)}</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">용적률산정연면적</td><td style="padding:6px 8px;">${fmtArea(bi.용적률산정연면적)}</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">건폐율</td><td style="padding:6px 8px;border-right:1px solid #333;">${bi.건폐율?.toFixed(2)||'0.00'}%</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">용적률</td><td style="padding:6px 8px;">${bi.용적률?.toFixed(2)||'0.00'}%</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">지상층수</td><td style="padding:6px 8px;border-right:1px solid #333;">${bi.지상층수}층</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">지하층수</td><td style="padding:6px 8px;">${bi.지하층수}층</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">승강기</td><td style="padding:6px 8px;border-right:1px solid #333;">승용 ${bi.승용엘리베이터}대 / 비상 ${bi.비상용엘리베이터}대</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">총주차</td><td style="padding:6px 8px;">${bi.총주차대수}대</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">세대수</td><td style="padding:6px 8px;border-right:1px solid #333;">${bi.세대수}세대</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">호수</td><td style="padding:6px 8px;">${bi.호수}호</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">허가일</td><td style="padding:6px 8px;border-right:1px solid #333;">${fmtDate(bi.허가일)}</td><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">착공일</td><td style="padding:6px 8px;">${fmtDate(bi.착공일)}</td></tr>
+        <tr style="border:1px solid #333;"><td style="background:#f0f0f0;font-weight:bold;padding:6px 8px;border-right:1px solid #333;">사용승인일</td><td style="padding:6px 8px;" colspan="3">${fmtDate(bi.사용승인일)}</td></tr>
+      </table>
+      ${floorRows ? `
+      <div style="margin-top:16px;">
+        <h3 style="font-size:13px;font-weight:bold;margin-bottom:8px;border-bottom:1px solid #333;padding-bottom:4px;">층별 개요</h3>
+        <table style="width:100%;border-collapse:collapse;font-size:10px;">
+          <tr style="border:1px solid #333;background:#f0f0f0;font-weight:bold;"><td style="padding:4px 6px;border-right:1px solid #333;text-align:center;width:60px;">층</td><td style="padding:4px 6px;border-right:1px solid #333;width:80px;">구분</td><td style="padding:4px 6px;border-right:1px solid #333;">용도</td><td style="padding:4px 6px;text-align:right;width:80px;">면적</td></tr>
+          ${floorRows}
+        </table>
+      </div>` : ''}
+      <div style="margin-top:20px;text-align:center;font-size:9px;color:#999;">
+        조회일시: ${new Date().toLocaleString('ko-KR')} | 출처: 국토교통부 건축물대장정보 서비스
+      </div>
+    `;
+    document.body.appendChild(container);
+    try {
+      await (window as any).html2pdf().set({
+        margin: [10, 10, 10, 10],
+        filename: `건축물대장_${(bi.건물명||bi.지번주소||'조회결과').replace(/[\/\\?%*:|"<>]/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).from(container).save();
+    } finally { document.body.removeChild(container); }
+  };
+
   /* ── Step 3: 이미지 업로드 + 자동 품질 개선 ── */
   const handleImageFiles = async (files: FileList | File[]) => {
     const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
@@ -1083,6 +1147,12 @@ export default function SmartListingNewPage() {
                       className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
                       📄 {showBuildingDoc ? '정보 보기' : '원본 보기'}
                     </button>
+                    {buildingInfo && (
+                      <button onClick={downloadBuildingPdf}
+                        className="px-3 py-1.5 text-xs bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition">
+                        📥 PDF 저장
+                      </button>
+                    )}
                   </div>
                 </div>
 
