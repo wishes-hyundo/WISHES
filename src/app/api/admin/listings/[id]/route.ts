@@ -150,7 +150,7 @@ export async function PATCH(
     const body = await request.json();
 
     const statusSchema = z.object({
-      status: z.enum(['ê°ì©', 'ê³ì½ì¤', 'ê³ì½ìë£']),
+      status: z.enum(['가용', '공개', '비공개', '계약중', '계약완료']),
     });
 
     const parsed = statusSchema.safeParse(body);
