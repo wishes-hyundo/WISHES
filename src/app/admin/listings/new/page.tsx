@@ -1,1732 +1,1606 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 
-interface FormData {
-  title: string;
-  transactionType: string;
-  propertyType: string;
-  address: string;
-  addressDetail: string;
-  area: number;
-  floor: number;
-  totalFloors: number;
-  price: number;
-  deposit: number;
-  monthlyRent: number;
-  maintenanceFee: number;
-  maintenanceFeeIncludes: string[];
-  heatingType: string;
-  exclusiveArea: number;
-  supplyArea: number;
-  floorType: string;
-  roomLayout: string;
-  moveInType: string;
-  parkingAvailable: string;
-  petAllowed: string;
-  rooms: number;
-  bathrooms: number;
-  direction: string;
-  moveInDate: string;
-  features: string[];
-  description: string;
-  images: string[];
-  status: string;
-  dong: string;
-  // 건축물대장 정보
-  buildingName: string;
-  buildingStructure: string;
-  buildingPurpose: string;
-  approvalDate: string;
-  elevatorCount: number;
-  parkingCount: number;
-  totalFloorArea: number;
-  // 건축물대장 API용 코드 (다음 주소 API에서 자동 제공)
-  sigunguCode: string;
-  bcode: string;
-  // 건축물대장 추가 정보
-  siteArea: number;
-  buildingCoverageRatio: number;
-  floorAreaRatio: number;
-  undergroundFloors: number;
-  householdCount: number;
-  unitCount: number;
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   타입 정의
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+interface AddressData {
   roadAddress: string;
   jibunAddress: string;
+  zonecode: string;
+  sigunguCode: string;
+  bcode: string;
+  buildingName: string;
+  bun: string;
+  ji: string;
+  sido: string;
+  sigungu: string;
+  bname: string;
 }
 
 interface BuildingInfo {
-  buildingName: string;
-  mainPurpose: string;
-  buildingStructure: string;
-  roofStructure: string;
-  totalFloorArea: number;
-  buildingArea: number;
-  floors: { underground: number; aboveGround: number };
-  approvalDate: string;
-  dongCount: number;
-  unitCount: number;
-  elevatorCount: number;
-  parkingCount: number;
-  address: string;
-  jibun: string;
-  // 추가 필드
-  siteArea?: number;
-  buildingCoverageRatio?: number;
-  floorAreaRatio?: number;
-  householdCount?: number;
+  건물명: string;
+  주용도: string;
+  기타용도: string;
+  건물구조: string;
+  지붕구조: string;
+  대지면적: number;
+  건축면적: number;
+  연면적: number;
+  용적률산정연면적: number;
+  건폐율: number;
+  용적률: number;
+  지상층수: number;
+  지하층수: number;
+  승용엘리베이터: number;
+  비상용엘리베이터: number;
+  총주차대수: number;
+  옥내기계식주차: number;
+  옥내자주식주차: number;
+  옥외기계식주차: number;
+  옥외자주식주차: number;
+  허가일: string;
+  착공일: string;
+  사용승인일: string;
+  대장구분: string;
+  대장종류: string;
+  도로명주소: string;
+  지번주소: string;
+  세대수: number;
+  호수: number;
+  가구수: number;
+  층별개요: Array<{ 층번호: string; 층구분: string; 층용도: string; 면적: number }>;
+  _raw: Record<string, any>;
 }
 
-const TRANSACTION_TYPES = ['매매', '전세', '월세'];
-const PROPERTY_TYPES = ['아파트', '오피스텔', '빌라', '원룸', '투룸', '상가', '사무실', '토지', '기타'];
-const DIRECTIONS = ['동향', '서향', '남향', '북향', '남동향', '남서향', '북동향', '북서향'];
-const FEATURES_CATEGORIES: { category: string; icon: string; items: string[] }[] = [
-  { category: '생활시설', icon: '🏠', items: ['냉장고', '세탁기', '건조기', '싱크대', '에어컨', '인덕션', '가스레인지', '전자레인지', '침대', '책상', '옷장', '붙박이장', '신발장', '식탁', '소파', 'TV'] },
-  { category: '보안시설', icon: '🔒', items: ['CCTV', '현관보안', '비디오폰', '인터폰', '카드키', '방범창', '경비원', '공동현관'] },
-  { category: '편의시설', icon: '✨', items: ['엘리베이터', '주차가능', '베란다', '테라스', '마당', '무인택배함', '화재경보기', '분리수거장'] },
-  { category: '매물특징', icon: '🏗️', items: ['풀옵션', '복층', '분리형', '신축', '리모델링', '올수리', '탑층', '저층'] },
-  { category: '주변환경', icon: '📍', items: ['역세권', '학군', '공원인접', '대로변', '조용한동네', '편의점가까움', '마트인접', '병원가까움'] },
-];
-const FEATURES_LIST = FEATURES_CATEGORIES.flatMap(c => c.items);
+interface FormData {
+  // ── 필수 3항목 ──
+  address: string;
+  addressDetail: string;
+  dong: string;
+  deal: string;
+  deposit: number | null;
+  monthly: number | null;
+  price: number | null;
+  type: string;
+  // ── 건축물대장 자동입력 ──
+  building_name: string;
+  building_purpose: string;
+  building_structure: string;
+  approval_date: string;
+  site_area: number | null;
+  total_floor_area: number | null;
+  building_coverage_ratio: number | null;
+  floor_area_ratio: number | null;
+  elevator_count: number | null;
+  parking_count: number | null;
+  underground_floors: number | null;
+  household_count: number | null;
+  unit_count: number | null;
+  ground_floors: number | null;
+  road_address: string;
+  jibun_address: string;
+  sigungu_code: string;
+  bcode: string;
+  // ── 세부정보 ──
+  area_m2: number | null;
+  area_supply_m2: number | null;
+  floor_current: string;
+  floor_total: string;
+  rooms: number | null;
+  bathrooms: number | null;
+  direction: string;
+  heating_type: string;
+  maintenance_fee: number | null;
+  maintenance_includes: string[];
+  move_in_type: string;
+  move_in_date: string;
+  pet_allowed: boolean;
+  parking_available: boolean;
+  features: string[];
+  // ── AI 생성 ──
+  title: string;
+  description: string;
+  // ── 이미지 ──
+  images: string[];
+  // ── 상태 ──
+  status: string;
+}
 
-export default function NewListingPage() {
+interface UploadedImage {
+  file: File;
+  preview: string;
+  enhanced: string | null;
+  isEnhancing: boolean;
+}
+
+interface DraftListing {
+  id: string;
+  formData: FormData;
+  buildingInfo: BuildingInfo | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+declare global {
+  interface Window {
+    daum: any;
+  }
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   상수
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const PROPERTY_TYPES = ['원룸', '투룸', '쓰리룸+', '오피스텔', '아파트', '빌라', '상가', '사무실'];
+const DEAL_TYPES = ['월세', '전세', '매매'];
+const DIRECTIONS = ['동', '서', '남', '북', '동남', '동북', '서남', '서북'];
+const HEATING_TYPES = ['개별난방', '중앙난방', '지역난방'];
+const MAINTENANCE_OPTIONS = ['수도', '전기', '가스', '인터넷', 'TV', '청소비', '주차비', '엘리베이터유지비'];
+const FEATURES_OPTIONS = ['풀옵션', '신축', '역세권', '주차가능', '반려동물', '베란다', '엘리베이터', 'CCTV', '분리수거', '무인택배', '건조기', '세탁기'];
+
+const STEPS = [
+  { id: 1, label: '필수정보', icon: '📋', desc: '소재지·거래·유형' },
+  { id: 2, label: '건축물대장', icon: '🏛️', desc: '자동조회·세부정보' },
+  { id: 3, label: '사진등록', icon: '📸', desc: '이미지·품질개선' },
+  { id: 4, label: 'AI등록', icon: '🤖', desc: '자동완성·업로드' },
+];
+
+const AUTH_TOKEN = 'wishes2026';
+
+const INITIAL_FORM: FormData = {
+  address: '', addressDetail: '', dong: '', deal: '월세',
+  deposit: null, monthly: null, price: null, type: '',
+  building_name: '', building_purpose: '', building_structure: '',
+  approval_date: '', site_area: null, total_floor_area: null,
+  building_coverage_ratio: null, floor_area_ratio: null,
+  elevator_count: null, parking_count: null, underground_floors: null,
+  household_count: null, unit_count: null, ground_floors: null,
+  road_address: '', jibun_address: '', sigungu_code: '', bcode: '',
+  area_m2: null, area_supply_m2: null, floor_current: '', floor_total: '',
+  rooms: null, bathrooms: null, direction: '', heating_type: '',
+  maintenance_fee: null, maintenance_includes: [], move_in_type: '즉시',
+  move_in_date: '', pet_allowed: false, parking_available: false,
+  features: [], title: '', description: '', images: [], status: '임시저장',
+};
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   유틸리티 함수
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+const formatAmount = (num: number | null | undefined): string => {
+  if (num === null || num === undefined || num === 0) return '';
+  if (num >= 10000) return `${(num / 10000).toFixed(num % 10000 === 0 ? 0 : 1)}억`;
+  if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}천만`;
+  return `${num}만`;
+};
+
+const formatArea = (m2: number | null): string => {
+  if (!m2) return '-';
+  const py = (m2 / 3.3058).toFixed(1);
+  return `${m2.toFixed(1)}㎡ (${py}평)`;
+};
+
+const formatDate = (dateStr: string): string => {
+  if (!dateStr || dateStr.length < 8) return '-';
+  return `${dateStr.substring(0, 4)}.${dateStr.substring(4, 6)}.${dateStr.substring(6, 8)}`;
+};
+
+/* ── 이미지 자동 품질 개선 (Canvas API) ── */
+function enhanceImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(img.src); return; }
+
+        canvas.width = img.width;
+        canvas.height = img.height;
+
+        // 1단계: 원본 그리기
+        ctx.drawImage(img, 0, 0);
+
+        // 2단계: 밝기 + 대비 보정
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // 히스토그램 분석 (자동 밝기 보정)
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+        }
+        const avgBrightness = sum / (data.length / 4);
+
+        // 적응형 밝기 보정 (어두운 사진일수록 더 밝게)
+        const brightnessAdjust = avgBrightness < 100 ? 25 : avgBrightness < 130 ? 10 : 0;
+        // 대비 강화 계수
+        const contrastFactor = 1.15;
+        const contrastCenter = 128;
+        // 채도 강화
+        const saturationBoost = 1.12;
+
+        for (let i = 0; i < data.length; i += 4) {
+          let r = data[i], g = data[i + 1], b = data[i + 2];
+
+          // 밝기 보정
+          r += brightnessAdjust; g += brightnessAdjust; b += brightnessAdjust;
+
+          // 대비 보정
+          r = contrastCenter + (r - contrastCenter) * contrastFactor;
+          g = contrastCenter + (g - contrastCenter) * contrastFactor;
+          b = contrastCenter + (b - contrastCenter) * contrastFactor;
+
+          // 채도 강화 (HSL 기반 간소화)
+          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+          r = gray + (r - gray) * saturationBoost;
+          g = gray + (g - gray) * saturationBoost;
+          b = gray + (b - gray) * saturationBoost;
+
+          data[i] = Math.max(0, Math.min(255, r));
+          data[i + 1] = Math.max(0, Math.min(255, g));
+          data[i + 2] = Math.max(0, Math.min(255, b));
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+
+        // 3단계: 샤프닝 (언샤프 마스크 간소화)
+        const sharpCanvas = document.createElement('canvas');
+        const sharpCtx = sharpCanvas.getContext('2d');
+        if (sharpCtx) {
+          sharpCanvas.width = canvas.width;
+          sharpCanvas.height = canvas.height;
+          // 블러 후 차이 합성으로 샤프닝 효과
+          sharpCtx.filter = 'blur(1px)';
+          sharpCtx.drawImage(canvas, 0, 0);
+          // 원본과 블러의 차이를 원본에 합성
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 0.15;
+          ctx.drawImage(canvas, 0, 0);
+          ctx.globalAlpha = 1.0;
+          ctx.globalCompositeOperation = 'source-over';
+        }
+
+        // 최대 해상도 제한 (2048px)
+        let finalCanvas = canvas;
+        if (canvas.width > 2048 || canvas.height > 2048) {
+          finalCanvas = document.createElement('canvas');
+          const fCtx = finalCanvas.getContext('2d')!;
+          const scale = Math.min(2048 / canvas.width, 2048 / canvas.height);
+          finalCanvas.width = canvas.width * scale;
+          finalCanvas.height = canvas.height * scale;
+          fCtx.drawImage(canvas, 0, 0, finalCanvas.width, finalCanvas.height);
+        }
+
+        resolve(finalCanvas.toDataURL('image/jpeg', 0.92));
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ── AI 매물 제목 생성 ── */
+function generateTitle(form: FormData, buildingInfo: BuildingInfo | null): string {
+  const parts: string[] = [];
+
+  // 동 이름 추출
+  const dong = form.dong || form.address.split(' ').find(s => s.endsWith('동')) || '';
+  if (dong) parts.push(dong);
+
+  // 역세권/특징
+  if (form.features.includes('역세권')) parts.push('역세권');
+  if (form.features.includes('신축')) parts.push('신축');
+  else if (buildingInfo?.사용승인일) {
+    const year = parseInt(buildingInfo.사용승인일.substring(0, 4));
+    if (year >= new Date().getFullYear() - 3) parts.push('신축');
+  }
+
+  // 매물유형
+  if (form.type) parts.push(form.type);
+
+  // 거래유형
+  if (form.deal) parts.push(form.deal);
+
+  // 가격 요약
+  if (form.deal === '매매' && form.price) {
+    parts.push(formatAmount(form.price));
+  } else if (form.deal === '전세' && form.deposit) {
+    parts.push(formatAmount(form.deposit));
+  } else if (form.deal === '월세') {
+    if (form.deposit !== null && form.monthly !== null) {
+      parts.push(`${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`);
+    }
+  }
+
+  return parts.join(' ') || '새 매물';
+}
+
+/* ── AI 매물 설명 생성 (소재지/면적/층 등 건대장 데이터 제외) ── */
+function generateDescription(form: FormData, buildingInfo: BuildingInfo | null): string {
+  const lines: string[] = [];
+
+  // 교통 편의성 (주소에서 역/정류장 추론)
+  const address = form.address || '';
+  if (address.includes('역')) {
+    const stationMatch = address.match(/(\S+역)/);
+    if (stationMatch) lines.push(`${stationMatch[1]} 도보 이용 가능한 역세권 매물입니다.`);
+  }
+
+  // 특장점
+  const highlights: string[] = [];
+  if (form.features.includes('풀옵션')) highlights.push('풀옵션(에어컨, 냉장고, 세탁기 등 구비)');
+  if (form.features.includes('신축')) highlights.push('깨끗한 신축 건물');
+  if (form.features.includes('주차가능') || form.parking_available) highlights.push('주차 가능');
+  if (form.features.includes('반려동물') || form.pet_allowed) highlights.push('반려동물 동반 가능');
+  if (form.features.includes('엘리베이터')) highlights.push('엘리베이터 완비');
+  if (form.features.includes('베란다')) highlights.push('넓은 베란다');
+  if (form.features.includes('CCTV')) highlights.push('CCTV 보안 시스템');
+  if (form.features.includes('무인택배')) highlights.push('무인택배함 설치');
+  if (form.features.includes('분리수거')) highlights.push('분리수거 시설 완비');
+
+  if (highlights.length > 0) {
+    lines.push(`주요 특징: ${highlights.join(', ')}`);
+  }
+
+  // 난방
+  if (form.heating_type) lines.push(`${form.heating_type} 방식으로 쾌적한 실내환경을 유지합니다.`);
+
+  // 관리비
+  if (form.maintenance_fee && form.maintenance_fee > 0) {
+    const includes = form.maintenance_includes.length > 0
+      ? ` (${form.maintenance_includes.join(', ')} 포함)`
+      : '';
+    lines.push(`관리비 ${form.maintenance_fee}만원${includes}`);
+  }
+
+  // 입주
+  if (form.move_in_type === '즉시') {
+    lines.push('즉시 입주 가능합니다.');
+  } else if (form.move_in_date) {
+    lines.push(`${form.move_in_date} 이후 입주 가능합니다.`);
+  }
+
+  // 방향
+  if (form.direction) lines.push(`${form.direction}향으로 채광이 좋습니다.`);
+
+  // 주변환경 (주소 기반 추론)
+  if (address.includes('대학') || address.includes('학교')) {
+    lines.push('학교 인근에 위치하여 통학이 편리합니다.');
+  }
+
+  if (lines.length === 0) {
+    lines.push('깨끗하고 관리 잘 된 매물입니다. 자세한 사항은 문의 바랍니다.');
+  }
+
+  return lines.join('\n');
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   메인 컴포넌트
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+export default function SmartListingNewPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState<FormData>({
-    title: '',
-    transactionType: '월세',
-    propertyType: '아파트',
-    address: '',
-    addressDetail: '',
-    area: 0,
-    floor: 0,
-    totalFloors: 0,
-    price: 0,
-    deposit: 0,
-    monthlyRent: 0,
-    maintenanceFee: 0,
-    maintenanceFeeIncludes: [],
-    heatingType: '',
-    exclusiveArea: 0,
-    supplyArea: 0,
-    floorType: '',
-    roomLayout: '',
-    moveInType: '',
-    parkingAvailable: '',
-    petAllowed: '',
-    rooms: 1,
-    bathrooms: 1,
-    direction: '남향',
-    moveInDate: '',
-    features: [],
-    description: '',
-    images: [],
-    status: '가용',
-    dong: '',
-    buildingName: '',
-    buildingStructure: '',
-    buildingPurpose: '',
-    approvalDate: '',
-    elevatorCount: 0,
-    parkingCount: 0,
-    totalFloorArea: 0,
-    sigunguCode: '',
-    bcode: '',
-    siteArea: 0,
-    buildingCoverageRatio: 0,
-    floorAreaRatio: 0,
-    undergroundFloors: 0,
-    householdCount: 0,
-    unitCount: 0,
-    roadAddress: '',
-    jibunAddress: '',
-  });
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploadingImages, setIsUploadingImages] = useState(false);
-  const [isFetchingBuilding, setIsFetchingBuilding] = useState(false);
-  const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
-  const [buildingData, setBuildingData] = useState<BuildingInfo | null>(null);
-  const [buildingError, setBuildingError] = useState('');
-  const [descSource, setDescSource] = useState('');
-  const [submitMessage, setSubmitMessage] = useState({ type: '', text: '' });
-  const [activeStep, setActiveStep] = useState(1);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
-  const ADMIN_TOKEN = 'wishes2026';
-  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  /* ── State ── */
+  const [currentStep, setCurrentStep] = useState(1);
+  const [form, setForm] = useState<FormData>({ ...INITIAL_FORM });
+  const [addressData, setAddressData] = useState<AddressData | null>(null);
+  const [buildingInfo, setBuildingInfo] = useState<BuildingInfo | null>(null);
+  const [buildingLoading, setBuildingLoading] = useState(false);
+  const [buildingError, setBuildingError] = useState<string | null>(null);
+  const [buildingRawData, setBuildingRawData] = useState<Record<string, any> | null>(null);
+  const [showBuildingDoc, setShowBuildingDoc] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [useEnhanced, setUseEnhanced] = useState(true);
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [toast, setToast] = useState<{ type: string; text: string } | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<DraftListing[]>([]);
+  const [showDrafts, setShowDrafts] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [toneStyle, setToneStyle] = useState<string>('warm_professional');
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  // localStorage 자동 임시저장 - 복원
+  /* ── 다음 주소 API 스크립트 로드 ── */
   useEffect(() => {
-    const saved = localStorage.getItem('listing_draft');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setFormData(prev => ({ ...prev, ...parsed }));
-      } catch (e) {
-        console.error('임시저장 복원 실패:', e);
-      }
+    if (typeof window !== 'undefined' && !document.getElementById('daum-postcode')) {
+      const script = document.createElement('script');
+      script.id = 'daum-postcode';
+      script.src = '//t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+      document.head.appendChild(script);
     }
+    // 임시저장 목록 불러오기
+    loadDrafts();
   }, []);
 
-  // formData 변경 시 자동 저장 (1초 디바운스)
+  /* ── Toast 자동 닫기 ── */
   useEffect(() => {
-    const timer = setTimeout(() => {
-      const dataToSave = { ...formData, images: [] };
-      localStorage.setItem('listing_draft', JSON.stringify(dataToSave));
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [formData]);
+    if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }
+  }, [toast]);
 
-  // 페이지 이탈 방지
-  useEffect(() => {
-    const hasData = formData.title || formData.address || formData.description || formData.images.length > 0;
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasData) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [formData.title, formData.address, formData.description, formData.images]);
-
-  // 주소에서 시군구, 번지 정보 추출
-  const parseAddress = (address: string) => {
-    const parts = address.trim().split(/\s+/);
-    let sigungu = '';
-    let bun = '';
-    let ji = '';
-
-    for (const part of parts) {
-      if (part.endsWith('구') || part.endsWith('시') || part.endsWith('군')) {
-        sigungu = part;
-      }
-      // 번지 패턴: 123-45 또는 123
-      const bunjiMatch = part.match(/^(\d+)(-(\d+))?$/);
-      if (bunjiMatch) {
-        bun = bunjiMatch[1];
-        ji = bunjiMatch[3] || '0';
-      }
-    }
-
-    return { sigungu, bun, ji };
+  /* ── 임시저장 관리 (localStorage) ── */
+  const loadDrafts = () => {
+    try {
+      const saved = localStorage.getItem('wishes_drafts');
+      if (saved) setDrafts(JSON.parse(saved));
+    } catch {}
   };
 
-  // 건축물대장 조회
-  const handleBuildingLookup = async (overrideParams?: { address?: string; sigunguCode?: string; bcode?: string; jibunAddress?: string; dong?: string }) => {
-    const addr = overrideParams?.address || formData.address;
-    if (!addr) {
-      setBuildingError('주소를 먼저 입력해주세요.');
+  const saveDraft = useCallback(async (formToSave?: FormData) => {
+    const data = formToSave || form;
+    const id = draftId || `draft_${Date.now()}`;
+    const draft: DraftListing = {
+      id, formData: data, buildingInfo,
+      createdAt: draftId ? (drafts.find(d => d.id === id)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    const existing = drafts.filter(d => d.id !== id);
+    const newDrafts = [draft, ...existing];
+    setDrafts(newDrafts);
+    setDraftId(id);
+    localStorage.setItem('wishes_drafts', JSON.stringify(newDrafts));
+    setToast({ type: 'success', text: '임시저장 완료' });
+    return id;
+  }, [form, buildingInfo, draftId, drafts]);
+
+  const loadDraft = (draft: DraftListing) => {
+    setForm(draft.formData);
+    setBuildingInfo(draft.buildingInfo);
+    setDraftId(draft.id);
+    setShowDrafts(false);
+    // 단계 자동 판단
+    if (draft.formData.images.length > 0) setCurrentStep(4);
+    else if (draft.formData.building_name || draft.buildingInfo) setCurrentStep(3);
+    else setCurrentStep(1);
+    setToast({ type: 'info', text: '임시저장 매물을 불러왔습니다' });
+  };
+
+  const deleteDraft = (id: string) => {
+    const newDrafts = drafts.filter(d => d.id !== id);
+    setDrafts(newDrafts);
+    localStorage.setItem('wishes_drafts', JSON.stringify(newDrafts));
+    if (draftId === id) setDraftId(null);
+  };
+
+  /* ── 폼 업데이트 헬퍼 ── */
+  const updateForm = (updates: Partial<FormData>) => {
+    setForm(prev => ({ ...prev, ...updates }));
+  };
+
+  /* ── Step 1: 주소 검색 ── */
+  const openAddressSearch = () => {
+    if (!window.daum?.Postcode) {
+      setToast({ type: 'error', text: '주소 검색 로딩 중입니다. 잠시 후 다시 시도해주세요.' });
       return;
     }
-
-    setIsFetchingBuilding(true);
-    setBuildingError('');
-    setBuildingData(null);
-
-    try {
-      const { sigungu, bun, ji } = parseAddress(formData.address);
-
-      const params = new URLSearchParams();
-      params.set('address', addr);
-
-      // 다음 주소 API에서 받은 코드를 직접 전달 (가장 정확)
-      const sigCode = overrideParams?.sigunguCode || formData.sigunguCode;
-      if (sigCode) {
-        params.set('sigunguCd', sigCode);
-      }
-      const bCode = overrideParams?.bcode || formData.bcode;
-      if (bCode) {
-        params.set('bjdongCd', bCode.substring(5, 10));
-      }
-      if (formData.dong) {
-        params.set('dong', overrideParams?.dong || formData.dong);
-      } else {
-        const dongMatch = formData.address.match(/([\uAC00-\uD7AF]{1,5}\ub3d9)/);
-        if (dongMatch) params.set('dong', dongMatch[1]);
-      }
-
-      // 지번주소에서 번지 추출
-      const jibunAddr = overrideParams?.jibunAddress || formData.jibunAddress || formData.address;
-      const bunJiMatch = jibunAddr.match(/(\d+)(?:-(\d+))?\s*$/);
-      if (bunJiMatch) {
-        params.set('bun', bunJiMatch[1].padStart(4, '0'));
-        params.set('ji', (bunJiMatch[2] || '0').padStart(4, '0'));
-      } else {
-        if (bun) params.set('bun', bun);
-        if (ji) params.set('ji', ji);
-      }
-
-      // 하위 호환성: sigungu 파라미터도 전달
-      if (sigungu) params.set('sigungu', sigungu);
-
-      const response = await fetch(`/api/admin/building-registry?${params.toString()}`);
-      const result = await response.json();
-
-      if (result.success && result.data) {
-        const d = result.data;
-        const building: BuildingInfo = {
-          buildingName: d.buildingName || '',
-          mainPurpose: d.buildingPurpose || '',
-          buildingStructure: d.buildingStructure || '',
-          roofStructure: d.roofStructure || '',
-          totalFloorArea: parseFloat(d.totalFloorArea || '0'),
-          buildingArea: parseFloat(d.buildingArea || '0'),
-          floors: {
-            underground: parseInt(d.undergroundFloors || '0'),
-            aboveGround: parseInt(d.totalFloors || '0'),
-          },
-          approvalDate: d.approvalDate || '',
-          dongCount: 1,
-          unitCount: parseInt(d.unitCount || d.householdCount || '0'),
-          elevatorCount: parseInt(d.elevatorCount || '0'),
-          parkingCount: parseInt(d.parkingCount || '0'),
-          address: d.roadAddress || addr,
-          jibun: d.jibunAddress || '',
-          siteArea: parseFloat(d.siteArea || '0'),
-          buildingCoverageRatio: parseFloat(d.buildingCoverageRatio || '0'),
-          floorAreaRatio: parseFloat(d.floorAreaRatio || '0'),
-          householdCount: parseInt(d.householdCount || '0'),
+    new window.daum.Postcode({
+      oncomplete: (data: any) => {
+        const addr: AddressData = {
+          roadAddress: data.roadAddress || '',
+          jibunAddress: data.jibunAddress || data.autoJibunAddress || '',
+          zonecode: data.zonecode || '',
+          sigunguCode: data.sigunguCode || '',
+          bcode: data.bcode || '',
+          buildingName: data.buildingName || '',
+          bun: '', ji: '',
+          sido: data.sido || '',
+          sigungu: data.sigungu || '',
+          bname: data.bname || '',
         };
-        setBuildingData(building);
 
-        // 폼 데이터 자동 채우기
-        setFormData(prev => {
-          // 건축물대장 기반 자동 기입 - 모든 매물 정보 자동 설정
-          const purposeToType: Record<string, string> = {
-            '단독주택': '원룸', '다중주택': '원룸', '다가구주택': '원룸',
-            '공동주택': '아파트', '아파트': '아파트',
-            '연립주택': '투룸', '다세대주택': '투룸',
-            '오피스텔': '오피스텔',
-            '근린생활시설': '상가', '제1종근린생활시설': '상가', '제2종근린생활시설': '상가',
-            '업무시설': '사무실',
-          };
-          const matchedType = Object.entries(purposeToType).find(([key]) => 
-            building.mainPurpose?.includes(key)
-          );
-          
-          return {
-            ...prev,
-            buildingName: building.buildingName || prev.buildingName,
-            buildingStructure: building.buildingStructure || prev.buildingStructure,
-            buildingPurpose: building.mainPurpose || prev.buildingPurpose,
-            approvalDate: building.approvalDate || prev.approvalDate,
-            elevatorCount: building.elevatorCount || prev.elevatorCount,
-            parkingCount: building.parkingCount || prev.parkingCount,
-            totalFloorArea: building.totalFloorArea || prev.totalFloorArea,
-            totalFloors: building.floors?.aboveGround || prev.totalFloors,
-            // 건축물대장 추가 정보
-            siteArea: building.siteArea || prev.siteArea,
-            buildingCoverageRatio: building.buildingCoverageRatio || prev.buildingCoverageRatio,
-            floorAreaRatio: building.floorAreaRatio || prev.floorAreaRatio,
-            undergroundFloors: building.floors?.underground || prev.undergroundFloors,
-            householdCount: building.householdCount || prev.householdCount,
-            unitCount: building.unitCount || prev.unitCount,
-            // 매물 정보 자동 설정
-            propertyType: matchedType ? matchedType[1] : prev.propertyType,
-            area: building.totalFloorArea || prev.area,
-            floor: prev.floor,
-            elevator: building.elevatorCount > 0 ? true : prev.elevator,
-            parking: building.parkingCount > 0 ? true : prev.parking,
-                      };
-        });
-        setBuildingError('');
-      } else {
-        setBuildingError(result.message || '건축물대장 정보를 찾을 수 없습니다.');
-        if (result.estimatedData) {
-          setFormData(prev => ({
-            ...prev,
-            buildingStructure: result.estimatedData.structure || prev.buildingStructure,
-          }));
+        // 지번에서 번/지 추출
+        const jibunMatch = addr.jibunAddress.match(/(\d+)(?:-(\d+))?$/);
+        if (jibunMatch) {
+          addr.bun = jibunMatch[1].padStart(4, '0');
+          addr.ji = (jibunMatch[2] || '0').padStart(4, '0');
         }
+
+        setAddressData(addr);
+        updateForm({
+          address: addr.roadAddress || addr.jibunAddress,
+          dong: addr.bname || '',
+          road_address: addr.roadAddress,
+          jibun_address: addr.jibunAddress,
+          sigungu_code: addr.sigunguCode,
+          bcode: addr.bcode,
+          building_name: addr.buildingName || '',
+        });
       }
-    } catch (error) {
-      console.error('Building lookup error:', error);
-      setBuildingError('건축물대장 조회 중 오류가 발생했습니다.');
-    } finally {
-      setIsFetchingBuilding(false);
-    }
+    }).open();
   };
 
-  // AI 매물 설명 자동 생성
-  const handleGenerateDescription = async () => {
-    setIsGeneratingDesc(true);
-    setDescSource('');
+  /* ── Step 2: 건축물대장 자동 조회 ── */
+  const fetchBuildingLedger = async () => {
+    if (!addressData) return;
+
+    setBuildingLoading(true);
+    setBuildingError(null);
 
     try {
-      const response = await fetch('/api/admin/generate-description', {
+      const sigunguCd = addressData.sigunguCode || addressData.bcode?.substring(0, 5) || '';
+      const bjdongCd = addressData.bcode?.substring(5, 10) || '';
+
+      const res = await fetch('/api/building-ledger', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: formData.title,
-          transactionType: formData.transactionType,
-          propertyType: formData.propertyType,
-          address: formData.address,
-          area: formData.area,
-          floor: formData.floor,
-          totalFloors: formData.totalFloors,
-          price: formData.price,
-          deposit: formData.deposit,
-          monthlyRent: formData.monthlyRent,
-          rooms: formData.rooms,
-          bathrooms: formData.bathrooms,
-          direction: formData.direction,
-          moveInDate: formData.moveInDate,
-          features: formData.features,
-          buildingInfo: buildingData ? {
-            buildingName: buildingData.buildingName,
-            mainPurpose: buildingData.mainPurpose,
-            buildingStructure: buildingData.buildingStructure,
-            approvalDate: buildingData.approvalDate,
-            elevatorCount: buildingData.elevatorCount,
-            parkingCount: buildingData.parkingCount,
-            totalFloorArea: buildingData.totalFloorArea,
-          } : undefined,
-          additionalNotes: formData.description || undefined,
-          toneStyle,
+          sigunguCd, bjdongCd,
+          platGbCd: '0',
+          bun: addressData.bun || '0000',
+          ji: addressData.ji || '0000',
+          operations: ['basis', 'recapTitle', 'title', 'floor'],
         }),
       });
 
-      const result = await response.json();
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error || '건축물대장 조회 실패');
 
-      if (result.success) {
-        setFormData(prev => ({ ...prev, description: result.description }));
-        setDescSource(result.source === 'ai' ? 'AI가 작성했습니다' : '템플릿 기반으로 생성되었습니다');
-        if (result.title) {
-          setFormData(prev => ({ ...prev, title: prev.title || result.title }));
-        } else if (!formData.title && formData.address) {
-          const autoTitle = `${formData.propertyType || '매물'} ${formData.transactionType || ''} ${formData.address.split(' ').slice(0, 3).join(' ')}`.trim();
-          setFormData(prev => ({ ...prev, title: prev.title || autoTitle }));
-        }
-      }
-    } catch (error) {
-      console.error('Description generation error:', error);
+      const info: BuildingInfo = result.extracted;
+      setBuildingInfo(info);
+      setBuildingRawData(result.data);
+
+      // 폼 자동 입력
+      updateForm({
+        building_name: info.건물명 || form.building_name,
+        building_purpose: info.주용도,
+        building_structure: info.건물구조,
+        approval_date: info.사용승인일,
+        site_area: info.대지면적 || null,
+        total_floor_area: info.연면적 || null,
+        building_coverage_ratio: info.건폐율 || null,
+        floor_area_ratio: info.용적률 || null,
+        elevator_count: (info.승용엘리베이터 || 0) + (info.비상용엘리베이터 || 0),
+        parking_count: info.총주차대수 || null,
+        underground_floors: info.지하층수 || null,
+        household_count: info.세대수 || null,
+        unit_count: info.호수 || null,
+        ground_floors: info.지상층수 || null,
+        floor_total: info.지상층수 ? `${info.지상층수}` : '',
+      });
+
+      // 자동 임시저장
+      await saveDraft();
+      setToast({ type: 'success', text: '건축물대장 조회 완료 · 임시저장됨' });
+    } catch (err: any) {
+      setBuildingError(err.message || '건축물대장 조회 중 오류');
+      setToast({ type: 'error', text: err.message || '건축물대장 조회 실패' });
     } finally {
-      setIsGeneratingDesc(false);
+      setBuildingLoading(false);
     }
   };
 
-  // 이미지 업로드
-  const optimizeImage = (file: File, maxWidth = 1920, quality = 0.85): Promise<File> => {
-    if (typeof window === 'undefined') return null;
-    return new Promise((resolve) => {
-      // 2MB 이하면 최적화 스킵
-      if (file.size <= 2 * 1024 * 1024) { resolve(file); return; }
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        let { width, height } = img;
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(file); return; }
-        ctx.drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
-          if (!blob || blob.size >= file.size) { resolve(file); return; }
-          const optimized = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
-          resolve(optimized);
-        }, 'image/jpeg', quality);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
-      img.src = url;
+  /* ── Step 2 → 3 전환 시 자동 조회 ── */
+  const goToStep2 = async () => {
+    setCurrentStep(2);
+    if (addressData && !buildingInfo) {
+      await fetchBuildingLedger();
+    }
+  };
+
+  /* ── Step 3: 이미지 업로드 + 자동 품질 개선 ── */
+  const handleImageFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (fileArray.length === 0) return;
+
+    const newImages: UploadedImage[] = fileArray.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      enhanced: null,
+      isEnhancing: true,
+    }));
+
+    setUploadedImages(prev => [...prev, ...newImages]);
+
+    // 자동 품질 개선
+    for (let i = 0; i < fileArray.length; i++) {
+      try {
+        const enhanced = await enhanceImage(fileArray[i]);
+        setUploadedImages(prev => {
+          const updated = [...prev];
+          const idx = updated.findIndex(img => img.file === fileArray[i]);
+          if (idx >= 0) { updated[idx] = { ...updated[idx], enhanced, isEnhancing: false }; }
+          return updated;
+        });
+      } catch {
+        setUploadedImages(prev => {
+          const updated = [...prev];
+          const idx = updated.findIndex(img => img.file === fileArray[i]);
+          if (idx >= 0) { updated[idx] = { ...updated[idx], isEnhancing: false }; }
+          return updated;
+        });
+      }
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages(prev => {
+      const updated = [...prev];
+      URL.revokeObjectURL(updated[index].preview);
+      updated.splice(index, 1);
+      return updated;
     });
   };
 
-  const processFiles = async (files: FileList | File[]) => {
-    const fileArray = Array.from(files);
-    if (fileArray.length === 0) return;
+  const moveImage = (from: number, to: number) => {
+    if (to < 0 || to >= uploadedImages.length) return;
+    setUploadedImages(prev => {
+      const updated = [...prev];
+      const [moved] = updated.splice(from, 1);
+      updated.splice(to, 0, moved);
+      return updated;
+    });
+  };
 
-    setIsUploadingImages(true);
-    const newImages: string[] = [];
-    const newPreviews: string[] = [];
-
+  /* ── Step 4: AI 자동 완성 ── */
+  const runAiAutoFill = async () => {
+    setAiGenerating(true);
     try {
-      for (let i = 0; i < fileArray.length; i++) {
-        const file = fileArray[i];
+      // AI 제목 생성
+      const title = generateTitle(form, buildingInfo);
+      // AI 설명 생성 (소재지/면적 등 건대장 데이터 제외)
+      const description = generateDescription(form, buildingInfo);
 
-        // 클라이언트 이미지 최적화
-        const optimizedFile = await optimizeImage(file);
+      // 나머지 필드 자동 추론
+      const autoFill: Partial<FormData> = { title, description };
 
-        // 미리보기 생성
-        const preview = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = (ev) => resolve(ev.target?.result as string);
-          reader.readAsDataURL(optimizedFile);
-        });
-        newPreviews.push(preview);
+      // 방/욕실 자동 추론 (매물유형 기반)
+      if (!form.rooms) {
+        if (form.type === '원룸') autoFill.rooms = 1;
+        else if (form.type === '투룸') autoFill.rooms = 2;
+        else if (form.type === '쓰리룸+') autoFill.rooms = 3;
+      }
+      if (!form.bathrooms) {
+        autoFill.bathrooms = (form.rooms || autoFill.rooms || 1) <= 2 ? 1 : 2;
+      }
 
-        // 서버 업로드 (인증 헤더 포함)
-        const uploadFormData = new FormData();
-        uploadFormData.append('file', optimizedFile);
-
-        const response = await fetch('/api/admin/upload', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${ADMIN_TOKEN}` },
-          body: uploadFormData,
-        });
-
-        const result = await response.json();
-        if (result.success && result.data?.url) {
-          newImages.push(result.data.url);
-        } else if (result.url) {
-          newImages.push(result.url);
+      // 주차 가능 여부 자동
+      if (buildingInfo && buildingInfo.총주차대수 > 0) {
+        autoFill.parking_available = true;
+        if (!form.features.includes('주차가능')) {
+          autoFill.features = [...form.features, '주차가능'];
         }
       }
 
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...newImages],
-      }));
-      setPreviewImages(prev => [...prev, ...newPreviews]);
-    } catch (error) {
-      console.error('Image upload error:', error);
+      // 엘리베이터 자동
+      if (buildingInfo && (buildingInfo.승용엘리베이터 > 0) && !form.features.includes('엘리베이터')) {
+        autoFill.features = [...(autoFill.features || form.features), '엘리베이터'];
+      }
+
+      // 신축 판단
+      if (buildingInfo?.사용승인일) {
+        const year = parseInt(buildingInfo.사용승인일.substring(0, 4));
+        if (year >= new Date().getFullYear() - 3 && !form.features.includes('신축')) {
+          autoFill.features = [...(autoFill.features || form.features), '신축'];
+        }
+      }
+
+      updateForm(autoFill);
+
+      // 시뮬레이션 딜레이 (AI 처리 느낌)
+      await new Promise(r => setTimeout(r, 1500));
+
+      setToast({ type: 'success', text: 'AI 자동완성 완료! 제목과 설명이 생성되었습니다.' });
+    } catch {
+      setToast({ type: 'error', text: 'AI 자동완성 중 오류 발생' });
     } finally {
-      setIsUploadingImages(false);
+      setAiGenerating(false);
     }
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    await processFiles(files);
-  };
-
-  const handleRemoveImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_: string, i: number) => i !== index),
-    }));
-    setPreviewImages(prev => prev.filter((_: string, i: number) => i !== index));
-  };
-
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(true); };
-  const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); setIsDragOver(false); };
-  const handleDrop = async (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation(); setIsDragOver(false);
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) { await processFiles(files); }
-  };
-
-  const openAddressSearch = () => {
-    if (typeof window === 'undefined') return;
-    if (typeof window === 'undefined') return;
-    
-    // window.open으로 주소 검색 페이지 열기 (CSP 우회)
-    const width = 500;
-    const height = 600;
-    const left = (window.screen.width - width) / 2;
-    const top = (window.screen.height - height) / 2;
-    const popup = window.open(
-      '/api/address-search',
-      'addressSearch',
-      'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',scrollbars=yes,resizable=yes'
-    );
-    
-    if (!popup) {
-      alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
-      return;
-    }
-    
-    // postMessage로 결과 수신
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data && event.data.type === 'ADDRESS_SELECTED') {
-        const data = event.data;
-        const fullAddr = data.roadAddress || data.jibunAddress || '';
-        const dong = data.bname || '';
-        updateField('address', fullAddr);
-        if (dong) updateField('dong', dong);
-        if (data.buildingName) updateField('buildingName', data.buildingName);
-        // 다음 주소 API에서 제공하는 코드 저장
-        if (data.sigunguCode) updateField('sigunguCode', data.sigunguCode);
-        if (data.bcode) updateField('bcode', data.bcode);
-        if (data.roadAddress) updateField('roadAddress', data.roadAddress);
-        if (data.jibunAddress) updateField('jibunAddress', data.jibunAddress);
-        // 자동으로 건축물대장 조회
-        if (fullAddr) {
-          setTimeout(() => handleBuildingLookup({ address: fullAddr, sigunguCode: data.sigunguCode, bcode: data.bcode, jibunAddress: data.jibunAddress, dong: dong }), 300);
-        }
-        window.removeEventListener('message', handleMessage);
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    
-    // 팝업이 닫히면 리스너 제거
-    const checkClosed = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(checkClosed);
-        window.removeEventListener('message', handleMessage);
-      }
-    }, 500);
-  };
-
-  // 특징 토글
-  const toggleFeature = (feature: string) => {
-    setFormData(prev => ({
-      ...prev,
-      features: prev.features.includes(feature)
-        ? prev.features.filter(f => f !== feature)
-        : [...prev.features, feature],
-    }));
-  };
-
-  // 폼 제출
-
-  // Smart AI Analysis
-  const handleSmartAnalyze = async () => {
-    if (!formData.address) return;
-    setIsAnalyzing(true);
-    setAnalysisResult(null);
+  /* ── 매물 업로드 (서버 등록) ── */
+  const publishListing = async (mode: 'instant' | 'review') => {
+    setIsPublishing(true);
     try {
-      const price = formData.transactionType === '월세' ? formData.deposit : formData.price;
-      const response = await fetch('/api/admin/smart-analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
-        body: JSON.stringify({
-          address: formData.address,
-          transactionType: formData.transactionType,
-          propertyType: formData.propertyType,
-          price: price,
-          exclusiveArea: formData.exclusiveArea,
-          supplyArea: formData.supplyArea,
-          heatingType: formData.heatingType,
-          rooms: formData.rooms,
-          bathrooms: formData.bathrooms,
-          floor: formData.floor,
-          totalFloors: formData.totalFloors,
-          direction: formData.direction,
-          features: formData.features,
-          toneStyle,
-        }),
-      });
-      const result = await response.json();
-      if (result.success !== false) {
-        setAnalysisResult(result);
-        if (result.suggestedValues) {
-          const sv = result.suggestedValues;
-          setFormData(prev => ({
-            ...prev,
-            rooms: sv.rooms || prev.rooms,
-            bathrooms: sv.bathrooms || prev.bathrooms,
-            direction: sv.direction || prev.direction,
-          }));
-        }
-        if (result.suggestedDescription && !formData.description) {
-          setFormData(prev => ({ ...prev, description: result.suggestedDescription }));
-          setDescSource('AI 스마트 분석으로 자동 생성');
-        }
-      }
-    } catch (error) {
-      console.error('Smart analyze error:', error);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  };
+      // TODO: 실제 이미지 업로드 로직 (Supabase Storage)
+      // 현재는 이미지 URL 없이 매물 데이터만 등록
 
-    const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    // 필수 입력 유효성 검사
-    const errors: string[] = [];
-    if (!formData.title) errors.push('제목');
-    if (!formData.address) errors.push('주소');
-    if (!formData.transactionType) errors.push('거래유형');
-    if (!formData.propertyType) errors.push('매물유형');
-    if (formData.transactionType === '매매' && !formData.price) errors.push('매매가');
-    if (formData.transactionType === '전세' && !formData.deposit) errors.push('보증금');
-    if (formData.transactionType === '월세' && (!formData.deposit || !formData.monthlyRent)) errors.push('보증금/월세');
-    if (formData.images.length === 0) errors.push('매물 이미지(최소 1장)');
-    setValidationErrors(errors);
-    if (errors.length > 0) {
-      setSubmitMessage({ type: 'error', text: `필수 입력 항목을 확인해주세요: ${errors.join(', ')} 항목이 비어있습니다.` });
-      return;
-    }
-
-    setIsSubmitting(true);
-    setSubmitMessage({ type: '', text: '' });
-
-    try {
-      // formData를 API 스키마에 맞게 변환
-      const statusMap: Record<string, string> = { 'active': '가용', '계약중': '계약중', '계약완료': '계약완료', '가용': '가용' };
-      const apiPayload = {
-        title: formData.title,
-        type: formData.propertyType,
-        deal: formData.transactionType,
-        deposit: formData.deposit,
-        monthly: formData.monthlyRent || null,
-        price: formData.price || null,
-        area_m2: formData.area,
-        floor_current: formData.floor ? String(formData.floor) : null,
-        floor_total: formData.totalFloors ? String(formData.totalFloors) : null,
-        rooms: formData.rooms || null,
-        bathrooms: formData.bathrooms || null,
-        direction: formData.direction || null,
-        address: formData.address,
-        dong: formData.dong || (formData.address.match(/([\uAC00-\uD7AF]{1,5}\ub3d9)/) || [])[1] || '',
-        address_detail: formData.addressDetail || null,
-        description: formData.description || null,
-        available_date: formData.moveInDate || null,
-        status: statusMap[formData.status] || '가용',
-        images: formData.images || [],
+      const status = mode === 'instant' ? '공개' : '비공개';
+      const payload = {
+        title: form.title || generateTitle(form, buildingInfo),
+        address: form.address,
+        address_detail: form.addressDetail,
+        dong: form.dong,
+        type: form.type,
+        deal: form.deal,
+        deposit: form.deposit,
+        monthly: form.monthly,
+        price: form.price,
+        maintenance_fee: form.maintenance_fee,
+        status,
+        area_m2: form.area_m2,
+        area_supply_m2: form.area_supply_m2,
+        floor_current: form.floor_current,
+        floor_total: form.floor_total,
+        rooms: form.rooms,
+        bathrooms: form.bathrooms,
+        direction: form.direction,
+        description: form.description || generateDescription(form, buildingInfo),
+        features: form.features,
+        building_name: form.building_name,
+        building_structure: form.building_structure,
+        building_purpose: form.building_purpose,
+        approval_date: form.approval_date,
+        elevator_count: form.elevator_count,
+        parking_count: form.parking_count,
+        site_area: form.site_area,
+        total_floor_area: form.total_floor_area,
+        building_coverage_ratio: form.building_coverage_ratio,
+        floor_area_ratio: form.floor_area_ratio,
+        underground_floors: form.underground_floors,
+        household_count: form.household_count,
+        unit_count: form.unit_count,
+        road_address: form.road_address,
+        jibun_address: form.jibun_address,
+        sigungu_code: form.sigungu_code,
+        bcode: form.bcode,
       };
 
-      const response = await fetch('/api/admin/listings', {
+      const res = await fetch('/api/admin/listings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ADMIN_TOKEN },
-        body: JSON.stringify(apiPayload),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${AUTH_TOKEN}`,
+        },
+        body: JSON.stringify(payload),
       });
 
-      const result = await response.json();
+      if (!res.ok) throw new Error('매물 등록 실패');
 
-      if (!response.ok) {
-        const errorDetail = result.message || result.error || JSON.stringify(result);
-        setSubmitMessage({ type: 'error', text: `매물 등록 실패 (HTTP ${response.status}): ${errorDetail}` });
-        setIsSubmitting(false);
-        return;
-      }
+      // 임시저장 삭제
+      if (draftId) deleteDraft(draftId);
 
-      if (result.success) {
-        setSubmitMessage({ type: 'success', text: '매물이 성공적으로 등록되었습니다!' });
-        localStorage.removeItem('listing_draft');
-        setTimeout(() => router.push('/admin'), 2000);
-      } else {
-        setSubmitMessage({ type: 'error', text: `매물 등록 실패: ${result.message || result.error || '서버 오류가 발생했습니다.'} (응답코드: ${response.status})` });
-      }
-    } catch (error) {
-      console.error('Submit error:', error);
-      setSubmitMessage({ type: 'error', text: `매물 등록 중 오류가 발생했습니다: ${error instanceof Error ? error.message : '네트워크 연결을 확인해주세요.'}` });
+      const modeText = mode === 'instant' ? '즉시 공개' : '검수 대기(비공개)';
+      setToast({ type: 'success', text: `매물이 ${modeText} 상태로 등록되었습니다!` });
+
+      setTimeout(() => router.push('/admin/listings'), 1500);
+    } catch (err: any) {
+      setToast({ type: 'error', text: err.message || '매물 등록 실패' });
     } finally {
-      setIsSubmitting(false);
+      setIsPublishing(false);
     }
   };
 
-  const updateField = (field: keyof FormData, value: FormData[keyof FormData]) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
+  /* ── 필수항목 체크 ── */
+  const isStep1Valid = form.address && form.deal && form.type &&
+    ((form.deal === '매매' && form.price) ||
+     (form.deal === '전세' && form.deposit) ||
+     (form.deal === '월세' && form.deposit !== null && form.monthly !== null));
 
-  // 스텝 진행률
-  const stepProgress = () => {
-    let filled = 0;
-    const total = 12;
-    if (formData.images.length > 0) filled++;
-    if (formData.address) filled++;
-    if (formData.title) filled++;
-    if (formData.transactionType && formData.price > 0) filled++;
-    if (formData.area > 0) filled++;
-    if (formData.rooms > 0) filled++;
-    if (formData.features.length > 0) filled++;
-    if (formData.description) filled++;
-    return Math.round((filled / total) * 100);
-  };
-
-
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     렌더링
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all ${
+          toast.type === 'success' ? 'bg-emerald-500' : toast.type === 'error' ? 'bg-red-500' : 'bg-blue-500'
+        }`}>
+          {toast.text}
+        </div>
+      )}
+
       {/* 헤더 */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <Link href="/admin/listings" className="text-gray-600 hover:text-gray-900 text-2xl">
-              &larr;
-            </Link>
-            <h1 className="text-xl font-bold">스마트 매물 등록</h1>
-            <div className="text-sm text-gray-500">
-              진행률 <span className="font-bold text-blue-600">{stepProgress()}%</span>
-              <div className="w-32 h-2 bg-gray-200 rounded-full ml-2 inline-block align-middle">
-                <div className="h-2 bg-blue-600 rounded-full transition-all" style={{ width: `${stepProgress()}%` }} />
-              </div>
-            </div>
+      <div className="bg-white border-b sticky top-0 z-40">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => router.push('/admin/listings')}
+              className="text-gray-400 hover:text-gray-600 transition">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <h1 className="text-xl font-bold text-gray-900">스마트 매물 등록</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setShowDrafts(!showDrafts)}
+              className="relative px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 transition">
+              📂 임시저장 목록
+              {drafts.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                  {drafts.length}
+                </span>
+              )}
+            </button>
+            <button onClick={() => saveDraft()}
+              className="px-3 py-2 text-sm bg-gray-100 rounded-lg hover:bg-gray-200 transition">
+              💾 임시저장
+            </button>
+          </div>
+        </div>
+
+        {/* 스텝 인디케이터 */}
+        <div className="max-w-6xl mx-auto px-6 pb-4">
+          <div className="flex items-center gap-1">
+            {STEPS.map((step, i) => (
+              <React.Fragment key={step.id}>
+                <button
+                  onClick={() => (step.id <= currentStep || (step.id === 2 && isStep1Valid)) && setCurrentStep(step.id)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    currentStep === step.id
+                      ? 'bg-green-700 text-white shadow-md'
+                      : step.id < currentStep
+                        ? 'bg-green-100 text-green-800 cursor-pointer hover:bg-green-200'
+                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  <span className="text-base">{step.icon}</span>
+                  <div className="text-left">
+                    <div className="font-semibold text-xs leading-tight">STEP {step.id}</div>
+                    <div className="text-[10px] leading-tight opacity-80">{step.label}</div>
+                  </div>
+                </button>
+                {i < STEPS.length - 1 && (
+                  <div className={`flex-1 h-0.5 ${step.id < currentStep ? 'bg-green-400' : 'bg-gray-200'}`} />
+                )}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* 스텝 네비게이션 */}
-        <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-2">
-          {[
-            { num: 1, label: '소재지' },
-            { num: 2, label: '거래/가격' },
-            { num: 3, label: '사진/AI' },
-            { num: 4, label: '매물유형' },
-            { num: 5, label: '건축물대장' },
-            { num: 6, label: '세부정보' },
-            { num: 7, label: '제목/설명' },
-            { num: 8, label: '특징' },
-            { num: 9, label: '등록' },
-          ].map(step => (
-            <button
-              key={step.num}
-              onClick={() => setActiveStep(step.num)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium transition-all ${
-                activeStep === step.num
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border'
-              }`}
-            >
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                activeStep === step.num ? 'bg-white text-blue-600' : 'bg-gray-200 text-gray-600'
-              }`}>
-                {step.num}
-              </span>
-              {step.label}
-            </button>
-          ))}
-        </div>
-
-        {/* ========== STEP 1: 소재지 입력 ========== */}
-        {activeStep === 1 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">📍 소재지 입력</h2>
-            
-            
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
+      {/* 임시저장 드롭다운 */}
+      {showDrafts && (
+        <div className="fixed inset-0 z-30" onClick={() => setShowDrafts(false)}>
+          <div className="absolute top-24 right-6 w-96 bg-white rounded-xl shadow-2xl border max-h-[500px] overflow-y-auto"
+               onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b font-semibold text-gray-800">📂 임시저장 목록 ({drafts.length}건)</div>
+            {drafts.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 text-sm">임시저장된 매물이 없습니다</div>
+            ) : (
+              drafts.map(draft => (
+                <div key={draft.id} className="p-4 border-b hover:bg-gray-50 transition">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 cursor-pointer" onClick={() => loadDraft(draft)}>
+                      <div className="font-medium text-sm text-gray-900">
+                        {draft.formData.address || '주소 미입력'}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {draft.formData.type || '유형 미선택'} · {draft.formData.deal} ·{' '}
+                        {new Date(draft.updatedAt).toLocaleString('ko-KR')}
+                      </div>
+                    </div>
+                    <button onClick={() => deleteDraft(draft.id)}
+                      className="text-red-400 hover:text-red-600 p-1">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <h2 className="text-lg font-bold text-gray-900">소재지 입력</h2>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 메인 컨텐츠 */}
+      <div className="max-w-6xl mx-auto px-6 py-8">
+
+        {/* ━━━━ STEP 1: 필수정보 입력 ━━━━ */}
+        {currentStep === 1 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-8">
+              <div className="mb-6">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">1</span>
+                  필수 정보 입력
+                </h2>
+                <p className="text-sm text-gray-500 mt-1 ml-10">3가지 필수 항목만 입력하면 나머지는 자동으로 채워집니다</p>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">주소 *</label>
-              <div className="flex gap-2">
-                <div
-                  onClick={openAddressSearch}
-                  className="flex-1 border border-gray-300 rounded-lg px-4 py-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all flex items-center"
-                >
-                  {formData.address ? (
-                    <span className="text-gray-900">{formData.address}</span>
-                  ) : (
-                    <span className="text-gray-400">클릭하여 주소를 검색하세요</span>
+              {/* 소재지 */}
+              <div className="mb-8">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📍 소재지 <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="text"
+                      value={form.address}
+                      readOnly
+                      placeholder="주소를 검색해주세요"
+                      className="w-full px-4 py-3 border rounded-xl bg-gray-50 text-gray-700 cursor-pointer focus:outline-none focus:ring-2 focus:ring-green-500"
+                      onClick={openAddressSearch}
+                    />
+                    {addressData && (
+                      <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                        <div>도로명: {addressData.roadAddress}</div>
+                        <div>지번: {addressData.jibunAddress}</div>
+                        <div>동: {form.dong} | 우편번호: {addressData.zonecode}</div>
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={openAddressSearch}
+                    className="px-5 py-3 bg-green-700 text-white rounded-xl font-medium hover:bg-green-800 transition shrink-0">
+                    🔍 주소 검색
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={form.addressDetail}
+                  onChange={e => updateForm({ addressDetail: e.target.value })}
+                  placeholder="상세주소 (동/호수)"
+                  className="w-full mt-2 px-4 py-2.5 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+
+              {/* 거래가격 */}
+              <div className="mb-8">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  💰 거래유형 및 가격 <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2 mb-3">
+                  {DEAL_TYPES.map(d => (
+                    <button key={d} onClick={() => updateForm({ deal: d, deposit: null, monthly: null, price: null })}
+                      className={`flex-1 py-3 rounded-xl font-semibold transition ${
+                        form.deal === d ? 'bg-green-700 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}>
+                      {d}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  {(form.deal === '월세' || form.deal === '전세') && (
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">보증금 (만원)</label>
+                      <input type="number" value={form.deposit ?? ''} placeholder="예: 1000"
+                        onChange={e => updateForm({ deposit: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
+                    </div>
+                  )}
+                  {form.deal === '월세' && (
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">월세 (만원)</label>
+                      <input type="number" value={form.monthly ?? ''} placeholder="예: 50"
+                        onChange={e => updateForm({ monthly: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
+                    </div>
+                  )}
+                  {form.deal === '매매' && (
+                    <div className="col-span-2">
+                      <label className="text-xs text-gray-500 mb-1 block">매매가 (만원)</label>
+                      <input type="number" value={form.price ?? ''} placeholder="예: 30000"
+                        onChange={e => updateForm({ price: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
+                    </div>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={openAddressSearch}
-                  className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium whitespace-nowrap flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                  주소 검색
-                </button>
-              </div>
-              <p className="text-xs text-gray-400 mt-1">동 이름이나 도로명을 입력하면 자동 검색됩니다</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">상세주소</label>
-                  <input
-                    type="text"
-                    value={formData.addressDetail}
-                    onChange={(e) => updateField('addressDetail', e.target.value)}
-                    placeholder="동/호수 (예: 101동 1203호)"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-              </div>
-            {buildingError && (
-                <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
-                  <div className="flex items-start gap-2">
-                    <svg className="w-5 h-5 text-yellow-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    <span>{buildingError}</span>
+                {/* 가격 미리보기 */}
+                {(form.deposit || form.monthly || form.price) && (
+                  <div className="mt-2 text-sm text-green-700 font-medium">
+                    💵 {form.deal === '매매' ? `매매가 ${formatAmount(form.price)}` :
+                         form.deal === '전세' ? `전세 ${formatAmount(form.deposit)}` :
+                         `보증금 ${formatAmount(form.deposit)} / 월세 ${formatAmount(form.monthly)}`}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
 
-            {/* 건축물대장 정보 */}
-
-        <div className="flex justify-end mt-8">
-          <button onClick={() => setActiveStep(2)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
-            다음 →
-          </button>
-        </div>
-          </div>
-        )}
-
-        {/* ========== STEP 2: 거래 유형 및 가격 정보 ========== */}
-        {activeStep === 2 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">💰 거래 유형 및 가격 정보</h2>
-              
-              {/* 거래 유형 */}
+              {/* 매물유형 */}
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">거래 유형 *</label>
-                <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                  {TRANSACTION_TYPES.map(type => (
-                    <button key={type} onClick={() => updateField('transactionType', type)}
-                      className={`py-3 rounded-xl border-2 font-medium transition-all ${
-                        formData.transactionType === type 
-                          ? 'border-blue-500 bg-blue-50 text-blue-700' 
-                          : 'border-gray-200 hover:border-gray-300'
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  🏠 매물유형 <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-4 gap-2">
+                  {PROPERTY_TYPES.map(t => (
+                    <button key={t} onClick={() => updateForm({ type: t })}
+                      className={`py-3 rounded-xl font-medium text-sm transition ${
+                        form.type === t ? 'bg-green-700 text-white shadow' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}>
-                      {type}
+                      {t}
                     </button>
                   ))}
                 </div>
               </div>
 
-              <h3 className="text-md font-bold text-gray-900 mb-4">가격 정보</h3>
-
-              {formData.transactionType === '매매' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">매매가 (만원)</label>
-                  <input
-                    type="number"
-                    value={formData.price || ''}
-                    onChange={(e) => updateField('price', parseInt(e.target.value) || 0)}
-                    placeholder="매매가"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              )}
-
-              {formData.transactionType === '전세' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">전세금 (만원)</label>
-                  <input
-                    type="number"
-                    value={formData.price || ''}
-                    onChange={(e) => updateField('price', parseInt(e.target.value) || 0)}
-                    placeholder="전세금"
-                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              )}
-
-              {formData.transactionType === '월세' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">보증금 (만원)</label>
-                    <input
-                      type="number"
-                      value={formData.deposit || ''}
-                      onChange={(e) => updateField('deposit', parseInt(e.target.value) || 0)}
-                      placeholder="보증금"
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">월세 (만원)</label>
-                    <input
-                      type="number"
-                      value={formData.monthlyRent || ''}
-                      onChange={(e) => updateField('monthlyRent', parseInt(e.target.value) || 0)}
-                      placeholder="월세"
-                      className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-              )}
-              {/* 관리비 */}
-              <div className="mt-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">관리비 (만원)</label>
-                <input type="number" value={formData.maintenanceFee || ''} 
-                  onChange={(e) => updateField('maintenanceFee', Number(e.target.value))}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="관리비를 입력하세요" />
-              </div>
-              
-              {/* 관리비 포함항목 */}
-              {formData.maintenanceFee > 0 && (
-              <div className="mt-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">관리비 포함항목</label>
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-                  {['수도', '전기', '가스', '인터넷', 'TV', '청소비', '주차비', '난방비'].map(item => (
-                    <label key={item} className="flex items-center gap-2 p-2.5 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-all">
-                      <input
-                        type="checkbox"
-                        checked={formData.maintenanceFeeIncludes.includes(item)}
-                        onChange={(e) => {
-                          const current = formData.maintenanceFeeIncludes;
-                          if (e.target.checked) {
-                            updateField('maintenanceFeeIncludes', [...current, item]);
-                          } else {
-                            updateField('maintenanceFeeIncludes', current.filter((i: string) => i !== item));
-                          }
-                        }}
-                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
-                      />
-                      <span className="text-sm text-gray-700">{item}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              )}
-            </div>
-
-        <div className="flex justify-between mt-8">
-          <button onClick={() => setActiveStep(1)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
-            ← 이전
-          </button>
-          <button onClick={() => setActiveStep(3)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
-            다음 →
-          </button>
-        </div>
-          </div>
-        )}
-
-        {/* ========== STEP 3: 사진 등록 + AI 스마트 분석 ========== */}
-        {activeStep === 3 && (
-          <div className="space-y-6">
-          <div className="bg-white rounded-xl shadow-sm border p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <h2 className="text-lg font-bold text-gray-900">매물 사진 등록</h2>
-            </div>
-            <p className="text-sm text-gray-500 mb-6">매물 사진을 등록하면 자동으로 최적화되어 업로드됩니다. 최대 20장까지 등록 가능핫니다.</p>
-
-            {/* 이미지 업로드 영역 */}
-            <div
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-300 ${isDragOver ? 'border-yellow-400 bg-yellow-50 scale-[1.02] shadow-lg' : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50'}`}
-            >
-              {isDragOver ? (
-                <>
-                  <svg className="w-12 h-12 text-yellow-500 animate-bounce mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
-                  <p className="text-lg font-bold text-gray-800 mt-2">여기에 놓으세요!</p>
-                </>
-              ) : (
-                <>
-                  <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-                  <p className="text-gray-600 font-medium">사진을 드래그하여 놓거나 클릭하세요</p>
-                  <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP / 최대 10MB / 여러 장 동시 업로드 가능</p>
-                </>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </div>
-
-            {isUploadingImages && (
-              <div className="mt-4 flex items-center gap-2 text-blue-600">
-                <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                </svg>
-                <span className="text-sm">이미지 업로드 중...</span>
-              </div>
-            )}
-
-            {/* 이미지 미리보기 */}
-            {previewImages.length > 0 && (
-              <div className="mt-6">
-                <h3 className="text-sm font-medium text-gray-700 mb-3">등록된 사진 ({previewImages.length}장)</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {previewImages.map((src, index) => (
-                    <div key={index} className="relative group aspect-[4/3] rounded-lg overflow-hidden bg-gray-100">
-                      <img src={src} alt={`매물 사진 ${index + 1}`} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); handleRemoveImage(index); }}
-                          className="bg-red-500 text-white rounded-full p-2 hover:bg-red-600"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                      {index === 0 && (
-                        <span className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-0.5 rounded">
-                          대표사진
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-
-            {/* AI 스마트 분석 */}
-            {formData.images.length > 0 && (
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl shadow-sm border border-purple-200 p-6">
-                <h3 className="text-lg font-bold mb-2 flex items-center gap-2">🤖 AI 스마트 분석</h3>
-                <p className="text-sm text-gray-600 mb-4">사진과 매물 정보를 AI가 분석하여 제목, 설명, 매물 유형을 자동으로 추천합니다.</p>
-                <button
-                  onClick={handleSmartAnalyze}
-                  disabled={isAnalyzing || formData.images.length === 0}
-                  className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 font-bold text-lg shadow-lg transition-all"
-                >
-                  {isAnalyzing ? '🔄 AI 분석 중...' : '✨ AI 분석 시작'}
+              {/* 다음 버튼 */}
+              <div className="flex justify-end pt-4 border-t">
+                <button onClick={goToStep2} disabled={!isStep1Valid}
+                  className={`px-8 py-3 rounded-xl font-semibold text-white transition ${
+                    isStep1Valid ? 'bg-green-700 hover:bg-green-800 shadow-lg' : 'bg-gray-300 cursor-not-allowed'
+                  }`}>
+                  다음 → 건축물대장 자동조회
                 </button>
-                {analysisResult && (
-                  <div className="mt-4 p-4 bg-white rounded-xl border">
-                    <p className="text-sm font-semibold text-green-600 mb-2">✅ AI 분석 완료!</p>
-                    {analysisResult.title && <p className="text-sm"><span className="font-medium">추천 제목:</span> {analysisResult.title}</p>}
-                    {analysisResult.description && <p className="text-sm mt-1"><span className="font-medium">추천 설명:</span> {analysisResult.description.substring(0, 100)}...</p>}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-        <div className="flex justify-between mt-8">
-          <button onClick={() => setActiveStep(2)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
-            ← 이전
-          </button>
-          <button onClick={() => setActiveStep(4)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
-            다음 →
-          </button>
-        </div>
-          </div>
-        )}
-
-        {/* ========== STEP 4: 매물 유형 ========== */}
-        {activeStep === 4 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">🏢 매물 유형</h2>
-              <label className="block text-sm font-semibold text-gray-700 mb-3">매물 유형을 선택하세요 *</label>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                {PROPERTY_TYPES.map(type => (
-                  <button key={type} onClick={() => updateField('propertyType', type)}
-                    className={`py-3 px-2 rounded-xl border-2 font-medium text-sm transition-all ${
-                      formData.propertyType === type 
-                        ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm' 
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}>
-                    {type}
-                  </button>
-                ))}
               </div>
             </div>
-
-        <div className="flex justify-between mt-8">
-          <button onClick={() => setActiveStep(3)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
-            ← 이전
-          </button>
-          <button onClick={() => setActiveStep(5)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
-            다음 →
-          </button>
-        </div>
           </div>
         )}
 
-        {/* ========== STEP 5: 건축물대장 정보 ========== */}
-        {activeStep === 5 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">📋 건축물대장 정보</h2>
-              {!formData.address && (
-                <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl mb-4">
-                  <p className="text-sm text-yellow-700">⚠️ 먼저 1단계에서 소재지를 입력해주세요.</p>
-                </div>
-              )}
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                </div>
-                <h2 className="text-lg font-bold text-gray-900">건축물대장 정보</h2>
-                
-                {/* 건축물대장 수동 조회 버튼 */}
-                {!buildingData && formData.address && (
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-blue-800">건축물대장 조회로 매물 정보를 자동으로 채울 수 있습니다</p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleBuildingLookup()}
-                        disabled={isFetchingBuilding}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 text-sm font-medium whitespace-nowrap"
-                      >
-                        {isFetchingBuilding ? '조회 중...' : '건축물대장 조회'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-{buildingData && (
-                  <span className="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">자동 입력됨</span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">건물명</label>
-                  <input
-                    type="text"
-                    value={formData.buildingName}
-                    onChange={(e) => updateField('buildingName', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="건물명"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">주용도</label>
-                  <input
-                    type="text"
-                    value={formData.buildingPurpose}
-                    onChange={(e) => updateField('buildingPurpose', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="주용도"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">건물구조</label>
-                  <input
-                    type="text"
-                    value={formData.buildingStructure}
-                    onChange={(e) => updateField('buildingStructure', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="예: 철근콘크리트구조"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">사용승인일</label>
-                  <input
-                    type="text"
-                    value={formData.approvalDate}
-                    onChange={(e) => updateField('approvalDate', e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="예: 20150301"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">엘리베이터</label>
-                  <input
-                    type="number"
-                    value={formData.elevatorCount}
-                    onChange={(e) => updateField('elevatorCount', parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">주차대수</label>
-                  <input
-                    type="number"
-                    value={formData.parkingCount}
-                    onChange={(e) => updateField('parkingCount', parseInt(e.target.value) || 0)}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    min="0"
-                  />
-                </div>
-              </div>
-
-              {buildingData && (
-                <div className="mt-4 bg-gray-50 rounded-lg p-4">
-                  <h4 className="text-xs font-medium text-gray-500 mb-2">조회된 상세 정보</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div>
-                      <span className="text-gray-500">지상층수:</span>
-                      <span className="ml-1 font-medium">{buildingData.floors?.aboveGround || '-'}층</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">지하층수:</span>
-                      <span className="ml-1 font-medium">{buildingData.floors?.underground || '-'}층</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">연면적:</span>
-                      <span className="ml-1 font-medium">{buildingData.totalFloorArea ? buildingData.totalFloorArea.toLocaleString() + '㎡' : '-'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">대지면적:</span>
-                      <span className="ml-1 font-medium">{buildingData.siteArea ? buildingData.siteArea.toLocaleString() + '㎡' : '-'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">건폐율:</span>
-                      <span className="ml-1 font-medium">{buildingData.buildingCoverageRatio ? buildingData.buildingCoverageRatio + '%' : '-'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">용적률:</span>
-                      <span className="ml-1 font-medium">{buildingData.floorAreaRatio ? buildingData.floorAreaRatio + '%' : '-'}</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">세대수:</span>
-                      <span className="ml-1 font-medium">{buildingData.householdCount || buildingData.unitCount || '-'}세대</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-500">호수:</span>
-                      <span className="ml-1 font-medium">{buildingData.unitCount || '-'}호</span>
-                    </div>
-                  </div>
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const blob = new Blob([JSON.stringify(buildingData, null, 2)], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = `건축물대장_${formData.address || 'data'}.json`;
-                        a.click();
-                        URL.revokeObjectURL(url);
-                      }}
-                      className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-xs"
-                    >
-                      데이터 저장 (JSON)
+        {/* ━━━━ STEP 2: 건축물대장 + 세부정보 ━━━━ */}
+        {currentStep === 2 && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 좌측: 건축물대장 */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm border p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">2</span>
+                    건축물대장 정보
+                  </h2>
+                  <div className="flex gap-2">
+                    <button onClick={fetchBuildingLedger} disabled={buildingLoading}
+                      className="px-3 py-1.5 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition">
+                      {buildingLoading ? '⏳ 조회 중...' : '🔄 재조회'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        window.open('https://www.gov.kr/mw/AA020InfoCappView.do?HighCtgCD=A09002&CappBizCD=13100000015', '_blank');
-                      }}
-                      className="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-xs"
-                    >
-                      원본 발급 (정부24)
+                    <button onClick={() => setShowBuildingDoc(!showBuildingDoc)}
+                      className="px-3 py-1.5 text-xs bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+                      📄 {showBuildingDoc ? '정보 보기' : '원본 보기'}
                     </button>
                   </div>
                 </div>
-              )}
+
+                {buildingLoading && (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-spin w-8 h-8 border-3 border-green-700 border-t-transparent rounded-full" />
+                    <span className="ml-3 text-gray-500">건축물대장 조회 중...</span>
+                  </div>
+                )}
+
+                {buildingError && (
+                  <div className="bg-red-50 text-red-700 p-4 rounded-xl text-sm">
+                    ⚠️ {buildingError}
+                    <button onClick={fetchBuildingLedger} className="ml-2 underline">재시도</button>
+                  </div>
+                )}
+
+                {buildingInfo && !showBuildingDoc && (
+                  <div className="space-y-4 text-sm">
+                    {/* 기본 정보 */}
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <h3 className="font-semibold text-gray-800 mb-2">🏢 건물 기본정보</h3>
+                      <div className="grid grid-cols-2 gap-2 text-gray-600">
+                        <div><span className="text-gray-400">건물명:</span> {buildingInfo.건물명 || '-'}</div>
+                        <div><span className="text-gray-400">주용도:</span> {buildingInfo.주용도 || '-'}</div>
+                        <div><span className="text-gray-400">구조:</span> {buildingInfo.건물구조 || '-'}</div>
+                        <div><span className="text-gray-400">지붕:</span> {buildingInfo.지붕구조 || '-'}</div>
+                        <div><span className="text-gray-400">사용승인:</span> {formatDate(buildingInfo.사용승인일)}</div>
+                        <div><span className="text-gray-400">대장구분:</span> {buildingInfo.대장구분 || '-'}</div>
+                      </div>
+                    </div>
+
+                    {/* 면적/비율 */}
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <h3 className="font-semibold text-gray-800 mb-2">📐 면적 · 비율</h3>
+                      <div className="grid grid-cols-2 gap-2 text-gray-600">
+                        <div><span className="text-gray-400">대지면적:</span> {formatArea(buildingInfo.대지면적)}</div>
+                        <div><span className="text-gray-400">건축면적:</span> {formatArea(buildingInfo.건축면적)}</div>
+                        <div><span className="text-gray-400">연면적:</span> {formatArea(buildingInfo.연면적)}</div>
+                        <div><span className="text-gray-400">건폐율:</span> {buildingInfo.건폐율?.toFixed(1)}%</div>
+                        <div><span className="text-gray-400">용적률:</span> {buildingInfo.용적률?.toFixed(1)}%</div>
+                      </div>
+                    </div>
+
+                    {/* 층수/승강기/주차 */}
+                    <div className="bg-gray-50 rounded-xl p-4">
+                      <h3 className="font-semibold text-gray-800 mb-2">🔢 층수 · 시설</h3>
+                      <div className="grid grid-cols-2 gap-2 text-gray-600">
+                        <div><span className="text-gray-400">지상/지하:</span> {buildingInfo.지상층수}층 / B{buildingInfo.지하층수}</div>
+                        <div><span className="text-gray-400">승강기:</span> {(buildingInfo.승용엘리베이터||0) + (buildingInfo.비상용엘리베이터||0)}대</div>
+                        <div><span className="text-gray-400">주차:</span> {buildingInfo.총주차대수}대</div>
+                        <div><span className="text-gray-400">세대/호수:</span> {buildingInfo.세대수}세대 / {buildingInfo.호수}호</div>
+                      </div>
+                    </div>
+
+                    {/* 층별 개요 */}
+                    {buildingInfo.층별개요 && buildingInfo.층별개요.length > 0 && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <h3 className="font-semibold text-gray-800 mb-2">📊 층별개요</h3>
+                        <div className="max-h-40 overflow-y-auto">
+                          <table className="w-full text-xs">
+                            <thead><tr className="text-gray-400 border-b">
+                              <th className="text-left py-1">층</th><th className="text-left py-1">구분</th>
+                              <th className="text-left py-1">용도</th><th className="text-right py-1">면적(㎡)</th>
+                            </tr></thead>
+                            <tbody>
+                              {buildingInfo.층별개요.map((f, i) => (
+                                <tr key={i} className="text-gray-600 border-b border-gray-100">
+                                  <td className="py-1">{f.층번호}</td><td className="py-1">{f.층구분}</td>
+                                  <td className="py-1">{f.층용도}</td><td className="text-right py-1">{f.면적?.toFixed(1)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 건축물대장 원본 이미지 (공문서 스타일) */}
+                {buildingInfo && showBuildingDoc && (
+                  <div className="border-2 border-gray-800 rounded-lg bg-white p-6 text-sm font-['Batang','serif']">
+                    <div className="text-center mb-4">
+                      <div className="text-xs text-gray-500 mb-1">국토교통부 건축물대장 정보</div>
+                      <h3 className="text-lg font-bold border-b-2 border-black pb-2">건 축 물 대 장</h3>
+                      <div className="text-xs text-gray-400 mt-1">
+                        (건축물대장HUB 서비스 API 조회 결과)
+                      </div>
+                    </div>
+
+                    <table className="w-full border-collapse text-xs">
+                      <tbody>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 w-24 border-r border-gray-600">대장 구분</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.대장구분}</td>
+                          <td className="bg-gray-100 font-bold p-2 w-24 border-r border-gray-600">대장 종류</td>
+                          <td className="p-2">{buildingInfo.대장종류}</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">도로명주소</td>
+                          <td className="p-2" colSpan={3}>{buildingInfo.도로명주소 || form.road_address}</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">지번주소</td>
+                          <td className="p-2" colSpan={3}>{buildingInfo.지번주소 || form.jibun_address}</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">건물명</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.건물명 || '-'}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">주용도</td>
+                          <td className="p-2">{buildingInfo.주용도}</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">건물구조</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.건물구조}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">지붕구조</td>
+                          <td className="p-2">{buildingInfo.지붕구조 || '-'}</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">대지면적</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.대지면적?.toFixed(2)}㎡</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">건축면적</td>
+                          <td className="p-2">{buildingInfo.건축면적?.toFixed(2)}㎡</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">연면적</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.연면적?.toFixed(2)}㎡</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">건폐율</td>
+                          <td className="p-2">{buildingInfo.건폐율?.toFixed(2)}%</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">용적률</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.용적률?.toFixed(2)}%</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">사용승인일</td>
+                          <td className="p-2">{formatDate(buildingInfo.사용승인일)}</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">지상층수</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.지상층수}층</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">지하층수</td>
+                          <td className="p-2">{buildingInfo.지하층수}층</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">승강기</td>
+                          <td className="p-2 border-r border-gray-600">승용 {buildingInfo.승용엘리베이터}대 / 비상 {buildingInfo.비상용엘리베이터}대</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">총주차</td>
+                          <td className="p-2">{buildingInfo.총주차대수}대</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">세대수</td>
+                          <td className="p-2 border-r border-gray-600">{buildingInfo.세대수}세대</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">호수</td>
+                          <td className="p-2">{buildingInfo.호수}호</td>
+                        </tr>
+                        <tr className="border border-gray-600">
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">허가일</td>
+                          <td className="p-2 border-r border-gray-600">{formatDate(buildingInfo.허가일)}</td>
+                          <td className="bg-gray-100 font-bold p-2 border-r border-gray-600">착공일</td>
+                          <td className="p-2">{formatDate(buildingInfo.착공일)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    <div className="mt-4 text-center text-xs text-gray-400">
+                      조회일시: {new Date().toLocaleString('ko-KR')} | 출처: 국토교통부 건축물대장정보 서비스
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
+            {/* 우측: 세부정보 */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm border p-6">
+                <h3 className="font-bold text-gray-900 mb-4">📝 세부정보 (수정 가능)</h3>
 
-        <div className="flex justify-between mt-8">
-          <button onClick={() => setActiveStep(4)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
-            ← 이전
-          </button>
-          <button onClick={() => setActiveStep(6)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
-            다음 →
-          </button>
-        </div>
-          </div>
-        )}
-
-        {/* ========== STEP 6: 세부 정보 ========== */}
-        {activeStep === 6 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">📐 세부 정보</h2>
-              {/* 면적 정보 */}
-              <div className="mb-6">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">면적 정보</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">전용면적 (㎡)</label>
-                    <input type="number" value={formData.exclusiveArea || ''} onChange={(e) => updateField('exclusiveArea', parseFloat(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" step="0.01" placeholder="전용면적" />
-                    {formData.exclusiveArea > 0 && <p className="text-xs text-gray-400 mt-1">약 {Math.round(formData.exclusiveArea * 0.3025)}평</p>}
+                <div className="space-y-4">
+                  {/* 면적 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">전용면적 (㎡)</label>
+                      <input type="number" step="0.1" value={form.area_m2 ?? ''} placeholder="예: 33.5"
+                        onChange={e => updateForm({ area_m2: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">공급면적 (㎡)</label>
+                      <input type="number" step="0.1" value={form.area_supply_m2 ?? ''} placeholder="예: 45.2"
+                        onChange={e => updateForm({ area_supply_m2: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+                    </div>
                   </div>
+
+                  {/* 층 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">해당층</label>
+                      <input type="text" value={form.floor_current} placeholder="예: 5"
+                        onChange={e => updateForm({ floor_current: e.target.value })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">전체층</label>
+                      <input type="text" value={form.floor_total} readOnly
+                        className="w-full px-3 py-2.5 border rounded-lg bg-gray-50 text-sm text-gray-500" />
+                    </div>
+                  </div>
+
+                  {/* 방/욕실 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">방 개수</label>
+                      <input type="number" value={form.rooms ?? ''} placeholder="예: 2"
+                        onChange={e => updateForm({ rooms: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">욕실 수</label>
+                      <input type="number" value={form.bathrooms ?? ''} placeholder="예: 1"
+                        onChange={e => updateForm({ bathrooms: e.target.value ? Number(e.target.value) : null })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+                    </div>
+                  </div>
+
+                  {/* 방향 / 난방 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">방향</label>
+                      <select value={form.direction} onChange={e => updateForm({ direction: e.target.value })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                        <option value="">선택</option>
+                        {DIRECTIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">난방방식</label>
+                      <select value={form.heating_type} onChange={e => updateForm({ heating_type: e.target.value })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                        <option value="">선택</option>
+                        {HEATING_TYPES.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 관리비 */}
                   <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">공급면적 (㎡)</label>
-                    <input type="number" value={formData.supplyArea || ''} onChange={(e) => updateField('supplyArea', parseFloat(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" step="0.01" placeholder="공급면적" />
-                    {formData.supplyArea > 0 && <p className="text-xs text-gray-400 mt-1">약 {Math.round(formData.supplyArea * 0.3025)}평</p>}
+                    <label className="text-xs text-gray-500 mb-1 block">관리비 (만원)</label>
+                    <input type="number" value={form.maintenance_fee ?? ''} placeholder="예: 5"
+                      onChange={e => updateForm({ maintenance_fee: e.target.value ? Number(e.target.value) : null })}
+                      className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {MAINTENANCE_OPTIONS.map(opt => (
+                        <button key={opt} onClick={() => {
+                          const arr = form.maintenance_includes.includes(opt)
+                            ? form.maintenance_includes.filter(o => o !== opt)
+                            : [...form.maintenance_includes, opt];
+                          updateForm({ maintenance_includes: arr });
+                        }}
+                          className={`px-2 py-1 text-xs rounded-md transition ${
+                            form.maintenance_includes.includes(opt) ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                          }`}>
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 입주 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">입주유형</label>
+                      <select value={form.move_in_type} onChange={e => updateForm({ move_in_type: e.target.value })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                        <option value="즉시">즉시 입주</option>
+                        <option value="협의">협의</option>
+                        <option value="날짜지정">날짜 지정</option>
+                      </select>
+                    </div>
+                    {form.move_in_type === '날짜지정' && (
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">입주예정일</label>
+                        <input type="date" value={form.move_in_date}
+                          onChange={e => updateForm({ move_in_date: e.target.value })}
+                          className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 특징 */}
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">특징 태그</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {FEATURES_OPTIONS.map(f => (
+                        <button key={f} onClick={() => {
+                          const arr = form.features.includes(f)
+                            ? form.features.filter(x => x !== f)
+                            : [...form.features, f];
+                          updateForm({ features: arr });
+                        }}
+                          className={`px-3 py-1.5 text-xs rounded-full transition ${
+                            form.features.includes(f)
+                              ? 'bg-green-700 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}>
+                          {f}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* 층/방/욕실 정보 */}
-              <div className="mb-6">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">층/방/욕실</h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">해당층</label>
-                    <input type="number" value={formData.floor || ''} onChange={(e) => updateField('floor', parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">총층수</label>
-                    <input type="number" value={formData.totalFloors || ''} onChange={(e) => updateField('totalFloors', parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">방 수</label>
-                    <input type="number" value={formData.rooms} onChange={(e) => updateField('rooms', parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" min="0" />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-1">욕실 수</label>
-                    <input type="number" value={formData.bathrooms} onChange={(e) => updateField('bathrooms', parseInt(e.target.value) || 0)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" min="0" />
-                  </div>
+              {/* 다음 버튼 */}
+              <div className="flex justify-between">
+                <button onClick={() => setCurrentStep(1)}
+                  className="px-6 py-3 rounded-xl border text-gray-600 hover:bg-gray-50 transition">
+                  ← 이전
+                </button>
+                <button onClick={() => { saveDraft(); setCurrentStep(3); }}
+                  className="px-8 py-3 rounded-xl bg-green-700 text-white font-semibold hover:bg-green-800 transition shadow-lg">
+                  다음 → 사진 등록
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ━━━━ STEP 3: 사진 등록 + 자동 품질 개선 ━━━━ */}
+        {currentStep === 3 && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-2xl shadow-sm border p-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">3</span>
+                  사진 등록
+                </h2>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" checked={useEnhanced} onChange={e => setUseEnhanced(e.target.checked)}
+                    className="accent-green-700 w-4 h-4" />
+                  <span className="text-gray-700">✨ 자동 품질 개선 사용</span>
+                </label>
+              </div>
+
+              <p className="text-sm text-gray-500 mb-4">
+                사진을 업로드하면 <strong>밝기, 대비, 선명도, 색감</strong>이 자동으로 보정됩니다.
+                원본과 보정본을 비교하고 선택할 수 있습니다.
+              </p>
+
+              {/* 드래그 앤 드롭 영역 */}
+              <div
+                className={`border-2 border-dashed rounded-2xl p-8 text-center transition cursor-pointer ${
+                  isDragOver ? 'border-green-500 bg-green-50' : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
+                }`}
+                onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+                onDragLeave={() => setIsDragOver(false)}
+                onDrop={e => { e.preventDefault(); setIsDragOver(false); handleImageFiles(e.dataTransfer.files); }}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <div className="text-4xl mb-2">📷</div>
+                <div className="text-sm text-gray-600 font-medium">
+                  클릭하여 사진을 선택하거나, 여기에 드래그하세요
                 </div>
-                <div className="mt-3">
-                  <label className="block text-xs font-medium text-gray-500 mb-2">해당층 유형</label>
-                  <div className="flex flex-wrap gap-2">
-                    {['일반', '옥탑', '지하', '반지하', '복층'].map(type => (
-                      <button key={type} type="button" onClick={() => updateField('floorType', formData.floorType === type ? '' : type)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.floorType === type ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{type}</button>
+                <div className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP 지원 · 최대 20장</div>
+                <input ref={fileInputRef} type="file" multiple accept="image/*" className="hidden"
+                  onChange={e => e.target.files && handleImageFiles(e.target.files)} />
+              </div>
+
+              {/* 업로드된 이미지 */}
+              {uploadedImages.length > 0 && (
+                <div className="mt-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-gray-800 text-sm">
+                      업로드된 사진 ({uploadedImages.length}장)
+                    </h3>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {uploadedImages.map((img, i) => (
+                      <div key={i} className="relative group">
+                        <div className="aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 border">
+                          {img.isEnhancing ? (
+                            <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                              <div className="text-center">
+                                <div className="animate-spin w-6 h-6 border-2 border-green-700 border-t-transparent rounded-full mx-auto" />
+                                <div className="text-xs text-gray-400 mt-2">품질 개선 중...</div>
+                              </div>
+                            </div>
+                          ) : (
+                            <img
+                              src={(useEnhanced && img.enhanced) ? img.enhanced : img.preview}
+                              alt={`사진 ${i + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          )}
+                        </div>
+
+                        {/* 원본/개선 토글 배지 */}
+                        {img.enhanced && !img.isEnhancing && (
+                          <div className="absolute top-2 left-2 px-1.5 py-0.5 text-[10px] font-medium rounded bg-green-600 text-white">
+                            {useEnhanced ? '✨ 개선' : '원본'}
+                          </div>
+                        )}
+
+                        {/* 순서 표시 */}
+                        <div className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white text-xs rounded-full flex items-center justify-center">
+                          {i + 1}
+                        </div>
+
+                        {/* 호버 액션 */}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition rounded-xl flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                          {i > 0 && (
+                            <button onClick={() => moveImage(i, i - 1)}
+                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow text-sm">←</button>
+                          )}
+                          <button onClick={() => removeImage(i)}
+                            className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow text-sm">✕</button>
+                          {i < uploadedImages.length - 1 && (
+                            <button onClick={() => moveImage(i, i + 1)}
+                              className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow text-sm">→</button>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
-              </div>
-
-              {/* 방향/난방/거실형태 */}
-              <div className="mb-6">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">기본 정보</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-2">방향</label>
-                    <select value={formData.direction} onChange={(e) => updateField('direction', e.target.value)} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
-                      {DIRECTIONS.map(dir => (<option key={dir} value={dir}>{dir}</option>))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-2">난방방식</label>
-                    <div className="flex flex-wrap gap-2">
-                      {['개별난방', '중앙난방', '지역난방'].map(type => (
-                        <button key={type} type="button" onClick={() => updateField('heatingType', type)} className={`flex-1 px-2 py-2 rounded-lg text-xs font-medium transition-all ${formData.heatingType === type ? 'bg-orange-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{type}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-2">방/거실 구조</label>
-                    <div className="flex gap-2">
-                      {['오픈형', '분리형'].map(type => (
-                        <button key={type} type="button" onClick={() => updateField('roomLayout', formData.roomLayout === type ? '' : type)} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${formData.roomLayout === type ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{type}</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* 입주가능일 */}
-              <div className="mb-6">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">입주 정보</h3>
-                <div className="flex flex-wrap items-end gap-2 sm:gap-3">
-                  <div className="flex-1">
-                    <label className="block text-xs font-medium text-gray-500 mb-1">입주가능일</label>
-                    <input type="date" value={formData.moveInDate} onChange={(e) => { updateField('moveInDate', e.target.value); updateField('moveInType', ''); }} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500" />
-                  </div>
-                  <button type="button" onClick={() => { updateField('moveInType', '즉시입주'); updateField('moveInDate', new Date().toISOString().split('T')[0]); }} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${formData.moveInType === '즉시입주' ? 'bg-green-600 text-white shadow-sm' : 'bg-green-50 text-green-700 border border-green-300 hover:bg-green-100'}`}>즉시입주</button>
-                  <button type="button" onClick={() => { updateField('moveInType', '협의가능'); updateField('moveInDate', ''); }} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${formData.moveInType === '협의가능' ? 'bg-yellow-500 text-white shadow-sm' : 'bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100'}`}>협의가능</button>
-                </div>
-              </div>
-
-              {/* 주차/반려동물 */}
-              <div className="mb-2">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">추가 정보</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-2">주차 가능 여부</label>
-                    <div className="flex gap-2">
-                      {['가능', '불가능'].map(v => (
-                        <button key={v} type="button" onClick={() => updateField('parkingAvailable', v)} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${formData.parkingAvailable === v ? (v === '가능' ? 'bg-blue-600 text-white' : 'bg-red-500 text-white') : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{v}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-500 mb-2">반려동물 가능 여부</label>
-                    <div className="flex gap-2">
-                      {['가능', '불가능'].map(v => (
-                        <button key={v} type="button" onClick={() => updateField('petAllowed', v)} className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all ${formData.petAllowed === v ? (v === '가능' ? 'bg-blue-600 text-white' : 'bg-red-500 text-white') : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>{v}</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
 
-{/* 특지 선택 */}
-
-        <div className="flex justify-between mt-8">
-          <button onClick={() => setActiveStep(5)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
-            ← 이전
-          </button>
-          <button onClick={() => setActiveStep(7)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
-            다음 →
-          </button>
-        </div>
+            <div className="flex justify-between">
+              <button onClick={() => setCurrentStep(2)}
+                className="px-6 py-3 rounded-xl border text-gray-600 hover:bg-gray-50 transition">
+                ← 이전
+              </button>
+              <button onClick={() => { saveDraft(); setCurrentStep(4); }}
+                className="px-8 py-3 rounded-xl bg-green-700 text-white font-semibold hover:bg-green-800 transition shadow-lg">
+                다음 → AI 자동등록
+              </button>
+            </div>
           </div>
         )}
 
-        {/* ========== STEP 7: 매물 제목 + 매물 설명 ========== */}
-        {activeStep === 7 && (
+        {/* ━━━━ STEP 4: AI 자동등록 ━━━━ */}
+        {currentStep === 4 && (
           <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">✏️ 매물 제목 & 설명</h2>
-              
-              {/* 매물 제목 */}
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">매물 제목 *</label>
-                <input type="text" value={formData.title}
-                  onChange={(e) => updateField('title', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
-                  placeholder="예: 역세권 신축 투룸 전세" />
-                {analysisResult?.title && formData.title !== analysisResult.title && (
-                  <button onClick={() => updateField('title', analysisResult.title)}
-                    className="mt-2 text-sm text-purple-600 hover:text-purple-800">
-                    🤖 AI 추천 제목 적용: &quot;{analysisResult.title}&quot;
+            <div className="bg-white rounded-2xl shadow-sm border p-8">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
+                <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">4</span>
+                AI 자동등록
+              </h2>
+
+              {/* AI 자동완성 버튼 */}
+              {!form.title && (
+                <div className="text-center py-8 bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl mb-6">
+                  <div className="text-5xl mb-3">🤖</div>
+                  <h3 className="text-lg font-bold text-gray-800 mb-1">AI가 매물 정보를 자동 완성합니다</h3>
+                  <p className="text-sm text-gray-500 mb-4">제목, 설명, 특징 등을 자동으로 생성합니다</p>
+                  <button onClick={runAiAutoFill} disabled={aiGenerating}
+                    className="px-8 py-3 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition shadow-lg disabled:bg-gray-400">
+                    {aiGenerating ? (
+                      <span className="flex items-center gap-2">
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                        AI 분석 중...
+                      </span>
+                    ) : '🤖 AI 자동완성 실행'}
                   </button>
-                )}
-              </div>
-
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </div>
-                  <h2 className="text-lg font-bold text-gray-900">매물 설명</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleGenerateDescription}
-                  disabled={isGeneratingDesc}
-                  className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-indigo-700 hover:to-purple-700 disabled:from-gray-400 disabled:to-gray-400 transition-all flex items-center gap-2"
-                >
-                  {isGeneratingDesc ? (
-                    <>
-                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                      AI 생성중...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                      </svg>
-                      AI 자동 생성
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {descSource && (
-                <div className="mb-3 text-xs text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg inline-block">
-                  {descSource}
                 </div>
               )}
 
-              <div className="flex items-center gap-3 mb-3">
-                <label className="text-sm font-medium text-gray-700">AI 톤 스타일:</label>
-                <select
-                  value={toneStyle}
-                  onChange={(e) => setToneStyle(e.target.value)}
-                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                >
-                  <option value="warm_professional">따뜻하고 전문적인</option>
-                  <option value="formal">격식있는 공식 톤</option>
-                  <option value="friendly">친근하고 편안한</option>
-                  <option value="luxury">고급스럽고 프리미엄</option>
-                  <option value="concise">간결하고 핵심적인</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={() => { if (confirm('임시저장된 내용을 삭제하시겠습니까?')) { localStorage.removeItem('listing_draft'); window.location.reload(); } }}
-                  className="ml-auto text-xs text-gray-400 hover:text-red-500 transition-colors"
-                >
-                  임시저장 삭제
-                </button>
+              {/* 매물 제목 */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📌 매물 제목 {form.title && <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span>}
+                </label>
+                <input type="text" value={form.title}
+                  onChange={e => updateForm({ title: e.target.value })}
+                  placeholder="예: 신림역 역세권 신축 원룸 월세"
+                  className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500" />
               </div>
 
-              <textarea
-                value={formData.description}
-                onChange={(e) => updateField('description', e.target.value)}
-                rows={10}
-                placeholder="매물 설명을 입력하거나, AI 자동 생성 버튼을 클릭하세요. 입력된 매물 정보와 건축물대장 데이터를 기반으로 전문적인 소개글이 자동 작성됩니다."
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-              />
-              <p className="text-xs text-gray-400 mt-1">
-                {formData.description.length}자 작성됨
-              </p>
-            </div>
+              {/* 매물 설명 */}
+              <div className="mb-6">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  📝 매물 설명 {form.description && <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span>}
+                </label>
+                <p className="text-xs text-gray-400 mb-1">※ 소재지, 면적, 층수 등 건축물대장에서 확인 가능한 정보는 제외됩니다</p>
+                <textarea value={form.description}
+                  onChange={e => updateForm({ description: e.target.value })}
+                  placeholder="매물의 특장점, 주변 편의시설, 교통 등을 입력하세요"
+                  rows={6}
+                  className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 resize-y" />
+              </div>
 
-            {/* 등록 상태 */}
-            </div>
-
-        <div className="flex justify-between mt-8">
-          <button onClick={() => setActiveStep(6)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
-            ← 이전
-          </button>
-          <button onClick={() => setActiveStep(8)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
-            다음 →
-          </button>
-        </div>
-          </div>
-        )}
-
-        {/* ========== STEP 8: 특징 선택 ========== */}
-        {activeStep === 8 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">⭐ 특징 선택</h2>
-              <p className="text-sm text-gray-500 mb-4">매물의 특징을 선택하면 검색 필터에 노출됩니다. 선택된 항목: {formData.features.length}개</p>
-              <div className="space-y-5">
-                {FEATURES_CATEGORIES.map(cat => (
-                  <div key={cat.category} className="bg-gray-50 rounded-xl p-4">
-                    <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                      <span>{cat.icon}</span> {cat.category}
-                      <span className="text-xs font-normal text-gray-400">({cat.items.filter((f: string) => formData.features.includes(f)).length}/{cat.items.length})</span>
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {cat.items.map((feature: string) => (
-                        <button key={feature} type="button" onClick={() => toggleFeature(feature)}
-                          className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${formData.features.includes(feature) ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300 hover:bg-blue-50'}`}>
-                          {formData.features.includes(feature) ? '✓ ' : ''}{feature}
-                        </button>
-                      ))}
+              {/* 등록 요약 미리보기 */}
+              <div className="bg-gray-50 rounded-xl p-5 mb-6">
+                <h3 className="font-semibold text-gray-800 text-sm mb-3">📋 등록 정보 요약</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="text-gray-400 text-xs">소재지</div>
+                    <div className="font-medium text-gray-800 truncate">{form.address || '-'}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="text-gray-400 text-xs">거래</div>
+                    <div className="font-medium text-gray-800">
+                      {form.deal === '매매' ? `매매 ${formatAmount(form.price)}` :
+                       form.deal === '전세' ? `전세 ${formatAmount(form.deposit)}` :
+                       `월세 ${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`}
                     </div>
                   </div>
-                ))}
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="text-gray-400 text-xs">유형</div>
+                    <div className="font-medium text-gray-800">{form.type || '-'}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="text-gray-400 text-xs">면적</div>
+                    <div className="font-medium text-gray-800">{form.area_m2 ? `${form.area_m2}㎡` : '-'}</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="text-gray-400 text-xs">층</div>
+                    <div className="font-medium text-gray-800">{form.floor_current || '-'}층 / {form.floor_total || '-'}층</div>
+                  </div>
+                  <div className="bg-white rounded-lg p-3">
+                    <div className="text-gray-400 text-xs">사진</div>
+                    <div className="font-medium text-gray-800">{uploadedImages.length}장</div>
+                  </div>
+                </div>
+                {form.features.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1">
+                    {form.features.map(f => (
+                      <span key={f} className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">{f}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 등록 방식 선택 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onClick={() => publishListing('instant')} disabled={isPublishing || !form.title}
+                  className="p-6 border-2 border-green-600 rounded-2xl hover:bg-green-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="text-2xl mb-2">🚀</div>
+                  <h3 className="font-bold text-green-800 text-lg">즉시 업로드</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    바로 <span className="text-green-600 font-semibold">공개</span> 상태로 매물을 등록합니다.
+                    즉시 홈페이지에 노출됩니다.
+                  </p>
+                  {isPublishing && <div className="mt-2 text-xs text-green-600">등록 중...</div>}
+                </button>
+
+                <button onClick={() => publishListing('review')} disabled={isPublishing || !form.title}
+                  className="p-6 border-2 border-blue-400 rounded-2xl hover:bg-blue-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
+                  <div className="text-2xl mb-2">🔍</div>
+                  <h3 className="font-bold text-blue-800 text-lg">검수 후 업로드</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    <span className="text-blue-600 font-semibold">비공개</span> 상태로 저장 후 검수합니다.
+                    확인 후 수동으로 공개 전환합니다.
+                  </p>
+                  {isPublishing && <div className="mt-2 text-xs text-blue-600">저장 중...</div>}
+                </button>
               </div>
             </div>
-
-          <div className="flex justify-between mt-8">
-          <button onClick={() => setActiveStep(7)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
-            ← 이전
-          </button>
-          <button onClick={() => setActiveStep(9)} className="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium shadow">
-            다음 →
-          </button>
-        </div>
-          </div>
-        )}
-
-        {/* ========== STEP 9: 등록 상태 ========== */}
-        {activeStep === 9 && (
-          <div className="space-y-6">
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h2 className="text-lg font-bold mb-4 flex items-center gap-2">🚀 등록 상태</h2>
-              <h3 className="text-md font-bold text-gray-900 mb-4">등록 상태</h3>
-              <div className="flex gap-3">
-                {['active', 'pending', 'closed'].map(status => (
-                  <button
-                    key={status}
-                    type="button"
-                    onClick={() => updateField('status', status)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                      formData.status === status
-                        ? status === 'active' ? 'bg-green-600 text-white border-green-600'
-                          : status === 'pending' ? 'bg-yellow-500 text-white border-yellow-500'
-                          : 'bg-gray-500 text-white border-gray-500'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    {status === 'active' ? '공개' : status === 'pending' ? '대기' : '마감'}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 등록 요약 */}
-            <div className="bg-blue-50 rounded-xl border border-blue-200 p-6">
-            </div>
-
-            {/* 등록 요약 */}
-            <div className="bg-white rounded-2xl shadow-sm border p-6">
-              <h3 className="text-lg font-bold mb-4">📋 등록 요약</h3>
-              <h3 className="text-md font-bold text-blue-900 mb-3">등록 요약</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                <div>
-                  <span className="text-blue-600">제목:</span>
-                  <span className="ml-1 text-blue-900 font-medium">{formData.title || '-'}</span>
-                </div>
-                <div>
-                  <span className="text-blue-600">거래:</span>
-                  <span className="ml-1 text-blue-900 font-medium">{formData.transactionType}</span>
-                </div>
-                <div>
-                  <span className="text-blue-600">유형:</span>
-                  <span className="ml-1 text-blue-900 font-medium">{formData.propertyType}</span>
-                </div>
-                <div>
-                  <span className="text-blue-600">주소:</span>
-                  <span className="ml-1 text-blue-900 font-medium">{formData.address || '-'}</span>
-                </div>
-                <div>
-                  <span className="text-blue-600">면적:</span>
-                  <span className="ml-1 text-blue-900 font-medium">{formData.area ? `${formData.area}㎡ (${Math.round(formData.area * 0.3025)}평)` : '-'}</span>
-                </div>
-                <div>
-                  <span className="text-blue-600">사진:</span>
-                  <span className="ml-1 text-blue-900 font-medium">{formData.images.length}장</span>
-                </div>
-              </div>
-            </div>
-
-            {validationErrors.length > 0 && (
-              <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 mb-3">
-                <p className="text-sm font-medium text-amber-800 mb-2">다음 항목을 확인해주세요:</p>
-                <ul className="list-disc list-inside text-sm text-amber-700 space-y-1">
-                  {validationErrors.map((err, i) => <li key={i}>{err}</li>)}
-                </ul>
-              </div>
-            )}
-
-            {submitMessage.text && (
-              <div className={`p-4 rounded-lg text-sm ${
-                submitMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-              }`}>
-                {submitMessage.text}
-              </div>
-            )}
 
             <div className="flex justify-between">
-              <button
-                type="button"
-                onClick={() => setActiveStep(3)}
-                className="text-gray-600 px-6 py-2.5 rounded-lg font-medium hover:bg-gray-100 transition-colors"
-              >
-                이전
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-lg font-bold hover:from-blue-700 hover:to-blue-800 disabled:from-gray-400 disabled:to-gray-400 transition-all flex items-center gap-2 shadow-lg"
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    등록중...
-                  </>
-                ) : (
-                    '매물 등록하기'
-                )}
+              <button onClick={() => setCurrentStep(3)}
+                className="px-6 py-3 rounded-xl border text-gray-600 hover:bg-gray-50 transition">
+                ← 이전
               </button>
             </div>
-
-            {submitMessage.text && (
-              <div className={`p-4 rounded-xl ${submitMessage.type === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                {submitMessage.text}
-              </div>
-            )}
-
-
-        <div className="flex justify-between mt-8">
-          <button onClick={() => setActiveStep(8)} className="px-6 py-3 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 font-medium">
-            ← 이전
-          </button>
-          <button onClick={handleSubmit} disabled={isSubmitting} className="px-8 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:bg-gray-400 font-bold text-lg shadow-lg">
-            {isSubmitting ? '등록 중...' : '🏠 매물 등록하기'}
-          </button>
-        </div>
           </div>
         )}
-
       </div>
     </div>
   );
