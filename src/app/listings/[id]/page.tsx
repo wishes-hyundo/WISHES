@@ -3,8 +3,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X, Eye, Hash } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
-import ImageGallery from '@/components/ImageGallery';
 import ListingActions from '@/components/ListingActions';
+import DynamicImageGallery from '@/components/DynamicImageGallery';
 import type { Metadata } from 'next';
 
 interface Props {
@@ -75,14 +75,6 @@ export default async function ListingDetailPage({ params }: Props) {
 
   if (!listing) notFound();
 
-  // 조회수 증가 (비동기, 실패해도 페이지 렌더릁에 영향 없음)
-  supabase
-    .from('listings')
-    .update({ views: (listing.views || 0) + 1 })
-    .eq('id', listingId)
-    .then(() => {})
-    .catch(() => {});
-
   const { data: images } = await supabase
     .from('listing_images')
     .select('*')
@@ -100,8 +92,6 @@ export default async function ListingDetailPage({ params }: Props) {
 
   return (
     <div className="pt-16 min-h-screen bg-wishes-bg">
-      {/* ListingActions: 공유 버튼 + 최근 본 매물 트래커 (dynamic import, ssr:false) */}
-
       {/* 상단 네비 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
@@ -119,7 +109,7 @@ export default async function ListingDetailPage({ params }: Props) {
           {/* 좌측: 이미지 + 상세 */}
           <div className="lg:col-span-2 space-y-6">
             {/* 이미지 갤러리 */}
-            <ImageGallery
+            <DynamicImageGallery
               images={imageList}
               title={listing.title}
               deal={listing.deal}
