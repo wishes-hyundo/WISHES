@@ -67,9 +67,14 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
   const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
   const price = formatPrice(listing);
 
-  if (compact) {
-      const { isInCompare, addToCompare, removeFromCompare } = useFavorites();
+  const { isInCompare, addToCompare, removeFromCompare } = useFavorites();
+
+
   const inCompare = isInCompare(listing.id);
+
+
+
+  if (compact) {
 
   return (
       <Link
@@ -181,6 +186,36 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
             )}
           </div>
         </div>
+
+        {/* 비교 담기 */}
+
+
+        <span
+
+
+          role="button"
+
+
+          tabIndex={0}
+
+
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id); }}
+
+
+          className={`absolute top-3 right-3 p-2 rounded-full transition-all cursor-pointer z-10 ${`{inCompare ? 'bg-wishes-green text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-green'}`}`}
+
+
+          title={inCompare ? '비교 해제' : '비교 담기'}
+
+
+        >
+
+
+          <Scale className="w-4 h-4" />
+
+
+        </span>
+
 
         {/* 우측 하단 타입 배지 */}
         <div className="absolute bottom-3 right-3">
