@@ -97,13 +97,15 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           )}>
             {listing.deal}
           </span>
-          <button
+          <span
+            role="button"
+            tabIndex={0}
             onClick={(e) => { e.preventDefault(); e.stopPropagation(); inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id); }}
-            className={`absolute top-1 right-1 p-1.5 rounded-full transition-all ${inCompare ? 'bg-wishes-green text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-green'}`}
+            className={`absolute top-1 right-1 p-1.5 rounded-full transition-all cursor-pointer ${inCompare ? 'bg-wishes-green text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-green'}`}
             title={inCompare ? '비교 해제' : '비교 담기'}
           >
             <GitCompareArrows className="w-4 h-4" />
-          </button>
+          </span>
         </div>
 
         {/* 정보 */}
