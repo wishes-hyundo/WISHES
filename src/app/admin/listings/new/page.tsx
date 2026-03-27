@@ -427,6 +427,113 @@ function generateDescription(form: FormData, buildingInfo: BuildingInfo | null):
   return lines.join('\n');
 }
 
+/* ── AI 스타일별 제목 생성 (2026 트렌드) ── */
+type AiStyle = 'trendy' | 'premium' | 'clean';
+
+function generateStyledTitle(form: FormData, buildingInfo: BuildingInfo | null, style: AiStyle): string {
+  const dong = form.dong || form.address.split(' ').find(s => s.endsWith('동')) || '';
+  const isNew = buildingInfo?.사용승인일
+    ? (parseInt(buildingInfo.사용승인일.substring(0, 4)) >= new Date().getFullYear() - 3)
+    : form.features.includes('신축');
+  const hasStation = form.features.includes('역세권') || form.address.includes('역');
+  const hasFull = form.features.includes('풀옵션');
+  const hasParking = form.features.includes('주차가능') || form.parking_available || (buildingInfo && buildingInfo.총주차대수 > 0);
+  let priceStr = '';
+  if (form.deal === '매매' && form.price) priceStr = `매매 ${formatAmount(form.price)}`;
+  else if (form.deal === '전세' && form.deposit) priceStr = `전세 ${formatAmount(form.deposit)}`;
+  else if (form.deal === '월세' && form.deposit !== null && form.monthly !== null) priceStr = `월세 ${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`;
+  switch (style) {
+    case 'trendy': {
+      const tags: string[] = [];
+      if (hasStation) tags.push('역세권');
+      if (isNew) tags.push('신축');
+      if (hasFull) tags.push('풀옵션');
+      const vibes: string[] = [];
+      if (form.direction === '남향' || form.direction === '남동향') vibes.push('채광맛집');
+      if (buildingInfo && buildingInfo.지상층수 >= 20) vibes.push('뷰맛집');
+      if (hasParking) vibes.push('주차OK');
+      const allTags = [...tags, ...vibes];
+      return `${dong ? dong + ' ' : ''}${allTags.join(' ')} ${form.type || ''} ${priceStr} 꿀매물`.replace(/\s+/g, ' ').trim();
+    }
+    case 'premium': {
+      const name = buildingInfo?.건물명 || dong;
+      const adj: string[] = [];
+      if (isNew) adj.push('신축');
+      adj.push(form.type || '매물');
+      if (form.direction) adj.push(form.direction);
+      if (hasFull) adj.push('풀옵션');
+      return `${name} 프리미엄 ${adj.join(' ')} | ${priceStr}`.trim();
+    }
+    case 'clean':
+    default:
+      return generateTitle(form, buildingInfo);
+  }
+}
+
+/* ── AI 스타일별 설명 생성 (건축물대장 정보 제외) ── */
+function generateStyledDescription(form: FormData, buildingInfo: BuildingInfo | null, style: AiStyle): string {
+  const isNew = buildingInfo?.사용승인일
+    ? (parseInt(buildingInfo.사용승인일.substring(0, 4)) >= new Date().getFullYear() - 3)
+    : form.features.includes('신축');
+  const hasStation = form.features.includes('역세권') || form.address.includes('역');
+  const station = form.address.match(/(\S+역)/);
+  switch (style) {
+    case 'trendy': {
+      const lines: string[] = [];
+      const hooks = ['자취생/직장인 주목!', '이 가격에 이 퀄리티? 실화?', '놓치면 후회할 꿀매물!'];
+      lines.push(hooks[(form.address.length + (form.deposit || 0)) % hooks.length]);
+      lines.push('');
+      if (hasStation) lines.push(`🚇 ${station ? station[1] : '지하철역'} 도보 이용 가능`);
+      if (form.features.includes('풀옵션')) lines.push('🏠 풀옵션 (에어컨·냉장고·세탁기·인덕션)');
+      if (isNew) lines.push('✨ 깔끔한 신축 컨디션');
+      if (form.parking_available || form.features.includes('주차가능')) lines.push('🅿️ 주차 가능');
+      if (form.features.includes('엘리베이터') || (buildingInfo && buildingInfo.승용엘리베이터 > 0)) lines.push('🛗 엘리베이터 완비');
+      if (form.direction === '남향' || form.direction === '남동향') lines.push('☀️ 남향 채광 최고');
+      if (form.features.includes('CCTV')) lines.push('📹 CCTV 보안');
+      if (form.features.includes('무인택배')) lines.push('📦 무인택배함');
+      if (form.features.includes('반려동물') || form.pet_allowed) lines.push('🐾 반려동물 OK');
+      lines.push('');
+      if (form.heating_type) lines.push(`🔥 ${form.heating_type}`);
+      if (form.maintenance_fee && form.maintenance_fee > 0) {
+        const inc = form.maintenance_includes.length > 0 ? ` (${form.maintenance_includes.join('·')})` : '';
+        lines.push(`💰 관리비 ${form.maintenance_fee}만원${inc}`);
+      }
+      if (form.move_in_type === '즉시') lines.push('📅 즉시 입주 가능!');
+      else if (form.move_in_date) lines.push(`📅 ${form.move_in_date} 입주 가능`);
+      lines.push('');
+      lines.push('궁금하신 점은 편하게 문의주세요 💬');
+      return lines.join('\n');
+    }
+    case 'premium': {
+      const lines: string[] = [];
+      const bName = buildingInfo?.건물명;
+      lines.push(bName ? `${bName} 내 프리미엄 매물을 소개드립니다.` : '엄선된 프리미엄 매물을 소개드립니다.');
+      lines.push('');
+      lines.push('[ 주요 특징 ]');
+      if (hasStation) lines.push(`• 교통: ${station ? station[1] : '지하철역'} 도보권 역세권 입지`);
+      if (form.direction) lines.push(`• 향: ${form.direction} 배치로 우수한 채광 확보`);
+      if (form.features.includes('풀옵션')) lines.push('• 옵션: 에어컨, 냉장고, 세탁기 등 풀옵션 완비');
+      if (form.parking_available || form.features.includes('주차가능')) lines.push('• 주차: 전용 주차 공간 확보');
+      if (form.features.includes('CCTV')) lines.push('• 보안: CCTV 설치');
+      lines.push('');
+      lines.push('[ 비용 안내 ]');
+      if (form.maintenance_fee && form.maintenance_fee > 0) {
+        const inc = form.maintenance_includes.length > 0 ? ` (${form.maintenance_includes.join(', ')} 포함)` : '';
+        lines.push(`• 관리비: 월 ${form.maintenance_fee}만원${inc}`);
+      }
+      if (form.heating_type) lines.push(`• 난방: ${form.heating_type}`);
+      lines.push('');
+      if (form.move_in_type === '즉시') lines.push('즉시 입주 가능하오니, 상세 문의는 연락 부탁드립니다.');
+      else if (form.move_in_date) lines.push(`${form.move_in_date} 이후 입주 가능합니다. 상세 문의는 연락 부탁드립니다.`);
+      else lines.push('상세 문의는 연락 부탁드립니다.');
+      return lines.join('\n');
+    }
+    case 'clean':
+    default:
+      return generateDescription(form, buildingInfo);
+  }
+}
+
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    메인 컴포넌트
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
@@ -453,6 +560,8 @@ export default function SmartListingNewPage() {
   const [drafts, setDrafts] = useState<DraftListing[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiStyleOption, setAiStyleOption] = useState<AiStyle>('trendy');
   const [showAddressModal, setShowAddressModal] = useState(false);
   const postcodeContainerRef = useRef<HTMLDivElement>(null);
 
@@ -736,14 +845,14 @@ ${floorRows}</table></div>` : ''}
     });
   };
 
-  /* ── Step 4: AI 자동 완성 ── */
-  const runAiAutoFill = async () => {
+  /* ── AI 자동 완성 (스타일별) ── */
+  const runAiAutoFill = async (style: AiStyle = 'trendy') => {
     setAiGenerating(true);
     try {
-      // AI 제목 생성
-      const title = generateTitle(form, buildingInfo);
-      // AI 설명 생성 (소재지/면적 등 건대장 데이터 제외)
-      const description = generateDescription(form, buildingInfo);
+      // AI 제목 생성 (스타일 적용)
+      const title = generateStyledTitle(form, buildingInfo, style);
+      // AI 설명 생성 (스타일 적용, 소재지/면적 등 건대장 데이터 제외)
+      const description = generateStyledDescription(form, buildingInfo, style);
 
       // 나머지 필드 자동 추론
       const autoFill: Partial<FormData> = { title, description };
@@ -1566,50 +1675,132 @@ ${floorRows}</table></div>` : ''}
               )}
             </div>
 
+            {/* ── 사진 등록 후: AI자동등록 / 직접 등록 선택 ── */}
+            {uploadedImages.length > 0 && !showAiPanel && (
+              <div className="bg-white rounded-2xl shadow-sm border p-8">
+                <h3 className="text-base font-bold text-gray-800 mb-4 text-center">매물 등록 방식을 선택하세요</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <button onClick={() => setShowAiPanel(true)}
+                    className="p-6 border-2 border-green-600 rounded-2xl hover:bg-green-50 transition text-left group">
+                    <div className="text-3xl mb-2">🤖</div>
+                    <h3 className="font-bold text-green-800 text-lg group-hover:text-green-900">AI 자동등록</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      AI가 <span className="text-green-600 font-semibold">제목과 설명</span>을 자동으로 생성합니다.
+                      2026 트렌드에 맞는 센스 있는 매물 소개글을 만들어 드립니다.
+                    </p>
+                  </button>
+                  <button onClick={() => { saveDraft(); setCurrentStep(4); }}
+                    className="p-6 border-2 border-gray-300 rounded-2xl hover:bg-gray-50 transition text-left group">
+                    <div className="text-3xl mb-2">✍️</div>
+                    <h3 className="font-bold text-gray-800 text-lg group-hover:text-gray-900">직접 등록</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      매물 제목과 설명을 <span className="text-gray-700 font-semibold">직접 작성</span>합니다.
+                      원하는 대로 자유롭게 입력할 수 있습니다.
+                    </p>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── AI 자동등록 패널 ── */}
+            {showAiPanel && (
+              <div className="bg-white rounded-2xl shadow-sm border p-8 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">🤖 AI 자동등록</h3>
+                  <button onClick={() => setShowAiPanel(false)} className="text-sm text-gray-400 hover:text-gray-600 transition">✕ 닫기</button>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-3">AI 스타일을 선택하세요</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    <button onClick={() => setAiStyleOption('trendy')} className={`p-4 rounded-xl border-2 text-left transition ${aiStyleOption === 'trendy' ? 'border-green-600 bg-green-50 ring-1 ring-green-200' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <div className="text-2xl mb-1">🔥</div>
+                      <div className="font-bold text-sm text-gray-800">트렌디 2026</div>
+                      <div className="text-xs text-gray-500 mt-0.5">MZ세대 감성, 꿀매물·맛집 등 트렌드 키워드</div>
+                    </button>
+                    <button onClick={() => setAiStyleOption('premium')} className={`p-4 rounded-xl border-2 text-left transition ${aiStyleOption === 'premium' ? 'border-green-600 bg-green-50 ring-1 ring-green-200' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <div className="text-2xl mb-1">✨</div>
+                      <div className="font-bold text-sm text-gray-800">프리미엄</div>
+                      <div className="text-xs text-gray-500 mt-0.5">고급스럽고 격식 있는 프로페셔널 톤</div>
+                    </button>
+                    <button onClick={() => setAiStyleOption('clean')} className={`p-4 rounded-xl border-2 text-left transition ${aiStyleOption === 'clean' ? 'border-green-600 bg-green-50 ring-1 ring-green-200' : 'border-gray-200 hover:border-gray-300'}`}>
+                      <div className="text-2xl mb-1">📋</div>
+                      <div className="font-bold text-sm text-gray-800">클린 정석</div>
+                      <div className="text-xs text-gray-500 mt-0.5">깔끔하고 정돈된 기본 포맷</div>
+                    </button>
+                  </div>
+                </div>
+                {!form.title && (
+                  <div className="text-center">
+                    <button onClick={() => runAiAutoFill(aiStyleOption)} disabled={aiGenerating} className="px-10 py-3.5 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition shadow-lg disabled:bg-gray-400 text-base">
+                      {aiGenerating ? (<span className="flex items-center gap-2"><div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />AI가 매물 정보를 분석 중...</span>) : '🤖 AI 자동완성 실행'}
+                    </button>
+                  </div>
+                )}
+                {form.title && (
+                  <>
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label className="text-sm font-semibold text-gray-700">📌 매물 제목 <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span></label>
+                        <button onClick={() => { updateForm({ title: '', description: '' }); }} className="text-xs text-gray-400 hover:text-red-500 transition">다시 생성</button>
+                      </div>
+                      <input type="text" value={form.title} onChange={e => updateForm({ title: e.target.value })} className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-base" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">📝 매물 설명 <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span></label>
+                      <p className="text-xs text-gray-400 mb-1">※ 소재지, 면적, 층수 등 건축물대장에서 확인 가능한 정보는 제외됩니다</p>
+                      <textarea value={form.description} onChange={e => updateForm({ description: e.target.value })} rows={8} className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 resize-y text-sm leading-relaxed" />
+                    </div>
+                    <div className="bg-gray-50 rounded-xl p-5">
+                      <h4 className="font-semibold text-gray-800 text-sm mb-3">📋 등록 정보 요약</h4>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                        <div className="bg-white rounded-lg p-3"><div className="text-gray-400 text-xs">소재지</div><div className="font-medium text-gray-800 truncate">{form.address || '-'}</div></div>
+                        <div className="bg-white rounded-lg p-3"><div className="text-gray-400 text-xs">거래</div><div className="font-medium text-gray-800">{form.deal === '매매' ? `매매 ${formatAmount(form.price)}` : form.deal === '전세' ? `전세 ${formatAmount(form.deposit)}` : `월세 ${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`}</div></div>
+                        <div className="bg-white rounded-lg p-3"><div className="text-gray-400 text-xs">유형</div><div className="font-medium text-gray-800">{form.type || '-'}</div></div>
+                        <div className="bg-white rounded-lg p-3"><div className="text-gray-400 text-xs">면적</div><div className="font-medium text-gray-800">{form.area_m2 ? `${form.area_m2}㎡` : '-'}</div></div>
+                        <div className="bg-white rounded-lg p-3"><div className="text-gray-400 text-xs">층</div><div className="font-medium text-gray-800">{form.floor_current || '-'}층 / {form.floor_total || '-'}층</div></div>
+                        <div className="bg-white rounded-lg p-3"><div className="text-gray-400 text-xs">사진</div><div className="font-medium text-gray-800">{uploadedImages.length}장</div></div>
+                      </div>
+                      {form.features.length > 0 && (<div className="mt-3 flex flex-wrap gap-1">{form.features.map(f => (<span key={f} className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">{f}</span>))}</div>)}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <button onClick={() => publishListing('instant')} disabled={isPublishing} className="p-6 border-2 border-green-600 rounded-2xl hover:bg-green-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
+                        <div className="text-2xl mb-2">🚀</div>
+                        <h4 className="font-bold text-green-800 text-lg">즉시 업로드</h4>
+                        <p className="text-sm text-gray-500 mt-1">바로 <span className="text-green-600 font-semibold">공개</span> 상태로 등록합니다. 즉시 홈페이지에 노출됩니다.</p>
+                        {isPublishing && <div className="mt-2 text-xs text-green-600 animate-pulse">등록 중...</div>}
+                      </button>
+                      <button onClick={() => publishListing('review')} disabled={isPublishing} className="p-6 border-2 border-blue-400 rounded-2xl hover:bg-blue-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
+                        <div className="text-2xl mb-2">🔍</div>
+                        <h4 className="font-bold text-blue-800 text-lg">검수 후 업로드</h4>
+                        <p className="text-sm text-gray-500 mt-1"><span className="text-blue-600 font-semibold">비공개</span> 상태로 저장 후 검수합니다. 확인 후 수동으로 공개 전환합니다.</p>
+                        {isPublishing && <div className="mt-2 text-xs text-blue-600 animate-pulse">저장 중...</div>}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             <div className="flex justify-between">
-              <button onClick={() => setCurrentStep(2)}
-                className="px-6 py-3 rounded-xl border text-gray-600 hover:bg-gray-50 transition">
-                ← 이전
-              </button>
-              <button onClick={() => { saveDraft(); setCurrentStep(4); }}
-                className="px-8 py-3 rounded-xl bg-green-700 text-white font-semibold hover:bg-green-800 transition shadow-lg">
-                다음 → AI 자동등록
-              </button>
+              <button onClick={() => { setShowAiPanel(false); setCurrentStep(2); }} className="px-6 py-3 rounded-xl border text-gray-600 hover:bg-gray-50 transition">← 이전</button>
+              {uploadedImages.length === 0 && (<div className="text-sm text-gray-400 flex items-center">사진을 업로드하면 등록 방식을 선택할 수 있습니다</div>)}
             </div>
           </div>
         )}
 
-        {/* ━━━━ STEP 4: AI 자동등록 ━━━━ */}
+        {/* ━━━━ STEP 4: 직접 등록 ━━━━ */}
         {currentStep === 4 && (
           <div className="space-y-6">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
                 <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">4</span>
-                AI 자동등록
+                직접 등록
               </h2>
-
-              {/* AI 자동완성 버튼 */}
-              {!form.title && (
-                <div className="text-center py-8 bg-gradient-to-br from-green-50 to-blue-50 rounded-2xl mb-6">
-                  <div className="text-5xl mb-3">🤖</div>
-                  <h3 className="text-lg font-bold text-gray-800 mb-1">AI가 매물 정보를 자동 완성합니다</h3>
-                  <p className="text-sm text-gray-500 mb-4">제목, 설명, 특징 등을 자동으로 생성합니다</p>
-                  <button onClick={runAiAutoFill} disabled={aiGenerating}
-                    className="px-8 py-3 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition shadow-lg disabled:bg-gray-400">
-                    {aiGenerating ? (
-                      <span className="flex items-center gap-2">
-                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                        AI 분석 중...
-                      </span>
-                    ) : '🤖 AI 자동완성 실행'}
-                  </button>
-                </div>
-              )}
 
               {/* 매물 제목 */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  📌 매물 제목 {form.title && <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span>}
+                  📌 매물 제목
                 </label>
                 <input type="text" value={form.title}
                   onChange={e => updateForm({ title: e.target.value })}
@@ -1620,9 +1811,9 @@ ${floorRows}</table></div>` : ''}
               {/* 매물 설명 */}
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  📝 매물 설명 {form.description && <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span>}
+                  📝 매물 설명
                 </label>
-                <p className="text-xs text-gray-400 mb-1">※ 소재지, 면적, 층수 등 건축물대장에서 확인 가능한 정보는 제외됩니다</p>
+                <p className="text-xs text-gray-400 mb-1">※ 소재지, 면적, 층수 등 건축물대장에서 확인 가능한 정보는 자동 포함되므로 별도 입력 불필요</p>
                 <textarea value={form.description}
                   onChange={e => updateForm({ description: e.target.value })}
                   placeholder="매물의 특장점, 주변 편의시설, 교통 등을 입력하세요"
