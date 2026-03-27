@@ -8,27 +8,31 @@ interface Listing {
   id: number;
   title: string;
   address: string;
+  address_detail?: string;
   dong: string;
   type: string;
-  transaction_type: string;
-  price: string;
-  deposit?: string;
-  monthly_rent?: string;
+  deal: string;          // DB: 'deal' (월세/전세/매매)
+  price: number | null;  // DB: number (매매가, 만원)
+  deposit: number | null; // DB: number (보증금, 만원)
+  monthly: number | null; // DB: number (월세, 만원)
+  maintenance_fee?: number;
   status: string;
   created_at: string;
   updated_at?: string;
   images?: string[];
-  area?: number;
-  exclusive_area?: number;
-  floor?: number;
+  area_m2?: number;        // DB: area_m2
+  area_supply_m2?: number; // DB: area_supply_m2
+  floor_current?: string;  // DB: floor_current
+  floor_total?: string;    // DB: floor_total
   rooms?: number;
   bathrooms?: number;
+  direction?: string;
   description?: string;
   features?: string[];
 }
 
 type StatusFilter = '전체' | '공개' | '비공개' | '계약중' | '계약완료';
-type SortField = 'id' | 'title' | 'address' | 'dong' | 'type' | 'transaction_type' | 'price' | 'status' | 'created_at';
+type SortField = 'id' | 'title' | 'address' | 'dong' | 'type' | 'deal' | 'price' | 'status' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 type ViewMode = 'table' | 'card';
 
@@ -84,14 +88,29 @@ const formatDate = (dateStr: string) => {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const formatPrice = (price: string | number | null | undefined) => {
-  if (!price && price !== 0) return '-';
-  const str = String(price);
-  const num = parseInt(str.replace(/[^0-9]/g, ''));
-  if (isNaN(num)) return String(price);
+const formatAmount = (num: number | null | undefined): string => {
+  if (num === null || num === undefined) return '';
   if (num >= 10000) return `${(num / 10000).toFixed(num % 10000 === 0 ? 0 : 1)}억`;
   if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}천만`;
   return `${num}만`;
+};
+
+/** 거래유형에 맞는 가경 문자열 생성 */
+const formatDealPrice = (listing: Listing): string => {
+  const { deal, deposit, monthly, price } = listing;
+  if (deal === '매매') {
+    return price ? formatAmount(price) : '-';
+  }
+  if (deal === '전세') {
+    return deposit ? formatAmount(deposit) : '-';
+  }
+  // 월세 (기본)
+  if (deposit !== null && deposit !== undefined && monthly !== null && monthly !== undefined) {
+    return `${formatAmount(deposit)}/${formatAmount(monthly)}`;
+  }
+  if (deposit) return formatAmount(deposit);
+  if (monthly) return `월 ${formatAmount(monthly)}`;
+  return '-';
 };
 
 /* ─── 토스트 컴포넌트 ─── */
@@ -220,7 +239,7 @@ export default function AdminListingsPage() {
       // 매물 유형 필터
       if (propertyTypeFilter !== '전체' && l.type !== propertyTypeFilter) return false;
       // 거래 유형 필터
-      if (transactionTypeFilter !== '전체' && l.transaction_type !== transactionTypeFilter) return false;
+      if (transactionTypeFilter !== '전체' && l.deal !== transactionTypeFilter) return false;
       // 검색어 필터
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -229,7 +248,7 @@ export default function AdminListingsPage() {
           (l.title || '').toLowerCase().includes(q) ||
           (l.address || '').toLowerCase().includes(q) ||
           (l.dong || '').toLowerCase().includes(q) ||
-          String(l.price || '').toLowerCase().includes(q)
+          StringformatDealPrice(l).toLowerCase().includes(q)
         );
       }
       return true;
@@ -246,8 +265,9 @@ export default function AdminListingsPage() {
         aVal = new Date(aVal || 0).getTime();
         bVal = new Date(bVal || 0).getTime();
       } else if (sortField === 'price') {
-        aVal = parseInt(String(aVal).replace(/[^0-9]/g, '') || '0');
-        bVal = parseInt(String(bVal).replace(/[^0-9]/g, '') || '0');
+        // 가경 정렬: 매매→price, 전세→deposit, 월세→deposit 기준
+        aVal = a.price || a.deposit || 0;
+        bVal = b.price || b.deposit || 0;
       } else {
         aVal = String(aVal || '').toLowerCase();
         bVal = String(bVal || '').toLowerCase();
@@ -760,7 +780,7 @@ export default function AdminListingsPage() {
                       { field: 'address' as SortField, label: '주소', width: 'min-w-[160px]' },
                       { field: 'dong' as SortField, label: '동', width: 'w-20' },
                       { field: 'type' as SortField, label: '유형', width: 'w-20' },
-                      { field: 'transaction_type' as SortField, label: '거래', width: 'w-16' },
+                      { field: 'deal' as SortField, label: '거래', width: 'w-16' },
                       { field: 'price' as SortField, label: '가격', width: 'w-24' },
                       { field: 'status' as SortField, label: '상태', width: 'w-28' },
                       { field: 'created_at' as SortField, label: '등록일', width: 'w-24' },
@@ -816,11 +836,11 @@ export default function AdminListingsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded">
-                          {listing.transaction_type || '-'}
+                          {listing.deal || '-'}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-sm font-semibold text-gray-900">
-                        {formatPrice(listing.price)}
+                        {formatDealPrice(listing)}
                       </td>
                       <td className="px-4 py-3">
                         <select
@@ -993,14 +1013,14 @@ export default function AdminListingsPage() {
 
                     <div className="flex items-center gap-2 mt-3">
                       <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded">{listing.type || '-'}</span>
-                      <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded">{listing.transaction_type || '-'}</span>
+                      <span className="text-xs px-2 py-0.5 bg-blue-50 text-blue-600 rounded">{listing.deal || '-'}</span>
                       {listing.dong && (
                         <span className="text-xs text-gray-400">{listing.dong}</span>
                       )}
                     </div>
 
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                      <span className="font-bold text-gray-900">{formatPrice(listing.price)}</span>
+                      <span className="font-bold text-gray-900">{formatDealPrice(listing)}</span>
                       <span className="text-xs text-gray-400">{formatDate(listing.created_at)}</span>
                     </div>
                   </div>
