@@ -17,7 +17,7 @@ if (!supabaseAnonKey) {
 
 /**
  * 브라우저 클라이언트 (Anonymous Key)
- * - 공개 API 엔듘포인트 사용
+ * - 공개 API 엔드포인트 사용
  * - RLS 정책 적용됨
  */
 export function createClient() {
@@ -59,7 +59,7 @@ export function createAuthClient() {
 
 /**
  * 서버 클라이언트 (Service Role Key)
- * - 관리자 API 엔듘포인트 사용
+ * - 관리자 API 엔드포인트 사용
  * - RLS 정책 우회
  * - 서버 사이드에서만 사용 (환경변수 보호)
  */
