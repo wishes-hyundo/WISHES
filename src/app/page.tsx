@@ -3,6 +3,7 @@ import { MapPin, Search, ArrowRight, Building2, Shield, Users, Clock, Zap, Check
 import { createClient } from '@/lib/supabase';
 import { HomeListingCard } from '@/components/HomeListingCard';
 import { StatCounterSection } from '@/components/StatCounterSection';
+import HeroBackground from '@/components/HeroBackground';
 
 export default async function HomePage() {
   // Supabase에서 최신 매물 6건 가져오기
@@ -20,17 +21,10 @@ export default async function HomePage() {
     <div className="pt-16 bg-wishes-bg">
       {/* ━━━ 프리미엄 히어로 섹션 ━━━ */}
       <section className="relative min-h-screen flex items-center justify-center pt-20 pb-32 overflow-hidden">
-        {/* 배경 패턴 */}
+        {/* 애니메이션 배경 */}
         <div className="absolute inset-0 bg-gradient-to-br from-wishes-primary via-wishes-primary to-wishes-secondary">
-          <div className="absolute inset-0 opacity-[0.03]" style={{
-            backgroundImage: 'radial-gradient(circle at 20% 50%, #fff 1px, transparent 1px)',
-            backgroundSize: '50px 50px'
-          }}></div>
+          <HeroBackground />
         </div>
-
-        {/* 배경 장식 */}
-        <div className="absolute top-20 left-10 w-72 h-72 bg-wishes-accent/5 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 right-20 w-96 h-96 bg-wishes-secondary/5 rounded-full blur-3xl"></div>
 
         <div className="relative max-w-5xl mx-auto px-4 text-center space-y-8 animate-fade-in-up">
           {/* 메인 타이틀 */}
