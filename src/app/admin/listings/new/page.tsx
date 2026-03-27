@@ -908,7 +908,6 @@ ${floorRows}</table></div>` : ''}
       // TODO: 실제 이미지 업로드 로직 (Supabase Storage)
       // 현재는 이미지 URL 없이 매물 데이터만 등록
 
-      const status = mode === 'instant' ? '공개' : '비공개';
       const payload = {
         title: form.title || generateTitle(form, buildingInfo),
         address: form.address,
@@ -916,12 +915,11 @@ ${floorRows}</table></div>` : ''}
         dong: form.dong,
         type: form.type,
         deal: form.deal,
-        deposit: form.deposit,
+        deposit: form.deposit ?? 0,
         monthly: form.monthly,
         price: form.price,
-        maintenance_fee: form.maintenance_fee,
-        status,
-        area_m2: form.area_m2,
+        maintenance_fee: form.maintenance_fee ?? 0,
+        area_m2: form.area_m2 ?? 0,
         area_supply_m2: form.area_supply_m2,
         floor_current: form.floor_current,
         floor_total: form.floor_total,
@@ -930,23 +928,9 @@ ${floorRows}</table></div>` : ''}
         direction: form.direction,
         description: form.description || generateDescription(form, buildingInfo),
         features: form.features,
-        building_name: form.building_name,
-        building_structure: form.building_structure,
-        building_purpose: form.building_purpose,
-        approval_date: form.approval_date,
-        elevator_count: form.elevator_count,
-        parking_count: form.parking_count,
-        site_area: form.site_area,
-        total_floor_area: form.total_floor_area,
-        building_coverage_ratio: form.building_coverage_ratio,
-        floor_area_ratio: form.floor_area_ratio,
-        underground_floors: form.underground_floors,
-        household_count: form.household_count,
-        unit_count: form.unit_count,
-        road_address: form.road_address,
-        jibun_address: form.jibun_address,
-        sigungu_code: form.sigungu_code,
-        bcode: form.bcode,
+        parking: form.parking_available || (form.parking_count ? form.parking_count > 0 : false),
+        elevator: form.elevator_count ? form.elevator_count > 0 : false,
+        built_year: form.approval_date || null,
       };
 
       const res = await fetch('/api/admin/listings', {
@@ -958,13 +942,17 @@ ${floorRows}</table></div>` : ''}
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error('매물 등록 실패');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => null);
+        const errMsg = errBody?.error || errBody?.message || `매물 등록 실패 (${res.status})`;
+        throw new Error(errMsg);
+      }
 
       // 임시저장 삭제
       if (draftId) deleteDraft(draftId);
 
-      const modeText = mode === 'instant' ? '즉시 공개' : '검수 대기(비공개)';
-      setToast({ type: 'success', text: `매물이 ${modeText} 상태로 등록되었습니다!` });
+      const modeText = mode === 'instant' ? '매물이 등록되었습니다!' : '매물이 저장되었습니다! (검수 대기)';
+      setToast({ type: 'success', text: modeText });
 
       setTimeout(() => router.push('/admin/listings'), 1500);
     } catch (err: any) {
@@ -1741,7 +1729,10 @@ ${floorRows}</table></div>` : ''}
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-semibold text-gray-700">📌 매물 제목 <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span></label>
-                        <button onClick={() => { updateForm({ title: '', description: '' }); }} className="text-xs text-gray-400 hover:text-red-500 transition">다시 생성</button>
+                        <button onClick={() => runAiAutoFill(aiStyleOption)}
+                          disabled={aiGenerating}
+                          className="text-xs text-gray-400 hover:text-green-600 transition disabled:opacity-50">
+                          {aiGenerating ? '생성 중...' : '🔄 다시 생성'}</button>
                       </div>
                       <input type="text" value={form.title} onChange={e => updateForm({ title: e.target.value })} className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500 text-base" />
                     </div>
