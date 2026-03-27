@@ -456,8 +456,15 @@ function generateStyledTitle(form: FormData, buildingInfo: BuildingInfo | null, 
       if (buildingInfo && buildingInfo.지상층수 >= 20) vibes.push(pick(['뷰맛집', '탁트인뷰', '전망좋은']));
       if (hasParking) vibes.push(pick(['주차OK', '주차가능', '주차편한']));
       const allTags = [...tags, ...vibes];
-      const endings = ['꽀매물', '추천매물', '핫매물', '급매', '강추!'];
-      return `${dong ? dong + ' ' : ''}${allTags.join(' ')} ${form.type || ''} ${priceStr} ${pick(endings)}`.replace(/\s+/g, ' ').trim();
+      const endings = ['꽀매물', '추천매물', '핫매물', '급매', '강추!', '필수 체크!'];
+      const typeStr = form.type || '';
+      const formats = [
+        `${dong ? dong + ' ' : ''}${allTags.join(' ')} ${typeStr} ${priceStr} ${pick(endings)}`,
+        `✨ ${dong} ${typeStr} ${priceStr} | ${allTags.length > 0 ? allTags.join(' · ') : pick(endings)}`,
+        `[${dong || '역세권'}] ${typeStr} ${priceStr} ${allTags.join(' ')} ${pick(endings)}`,
+        `${dong} ${pick(endings)} ${typeStr} ${priceStr}${allTags.length > 0 ? ' #' + allTags.join(' #') : ''}`,
+      ];
+      return pick(formats).replace(/\s+/g, ' ').trim();
     }
     case 'premium': {
       const name = buildingInfo?.건물명 || dong;
@@ -492,28 +499,51 @@ function generateStyledDescription(form: FormData, buildingInfo: BuildingInfo | 
   switch (style) {
     case 'trendy': {
       const lines: string[] = [];
-      const hooks = ['자취생/직장인 주목!', '이 가격에 이 퀴리티? 실화?', '놓치면 후회할 꽀매물!', '이거 진짜 빨리 나갑니다!', '가성비 끝판왕 매물!', '이 조건 다시 안나와요!'];
+      const hooks = ['자취생/직장인 주목!', '이 가격에 이 퀴리티? 실화?', '놓치면 후회할 꽀매물!', '이거 진짜 빨리 나갑니다!', '가성비 끝판왕 매물!', '이 조건 다시 안나와요!', '지금 바로 입주 가능!', '바로 입주 가능한 꽀매물!'];
       lines.push(pick(hooks));
       lines.push('');
+
+      // 기본 매물 정보 (항상 표시)
+      const dong = form.dong || form.address.split(' ').find((s: string) => s.endsWith('동')) || '';
+      if (dong) lines.push(`📍 위치: ${dong}${form.addressDetail ? ' ' + form.addressDetail : ''}`);
+
+      if (form.deal === '월세') {
+        lines.push(`💰 월세 ${form.deposit ? form.deposit + '/': ''}${form.monthly || ''}만원`);
+      } else if (form.deal === '전세') {
+        lines.push(`💰 전세 ${form.deposit || ''}만원`);
+      } else if (form.deal === '매매') {
+        lines.push(`💰 매매 ${form.price || ''}만원`);
+      }
+
+      if (form.area_m2) lines.push(`📏 전용면적 ${form.area_m2}㎡${form.area_supply_m2 ? ` (공급 ${form.area_supply_m2}㎡)` : ''}`);
+      if (form.type) lines.push(`🏠 매물유형: ${form.type}`);
+      lines.push('');
+
+      // 조건부 항목
       if (hasStation) lines.push(`🚇 ${station ? station[1] : '지하철역'} 도보 이용 가능`);
-      if (form.features.includes('풀옵션')) lines.push('🏠 풀옵션 (에어컨·냉장고·세탁기·인덕션)');
-      if (isNew) lines.push('✨ 깔끔한 신축 컨디션');
+      if (form.features.includes('풀옵션')) lines.push(pick(['🏠 풀옵션 (에어컨·냉장고·세탁기·인덕션)', '🏠 옵션 완비 - 입주 시 추가 비용 없음!']));
+      if (isNew) lines.push(pick(['✨ 깔끔한 신축 컨디션', '✨ 신축 건물로 상태 최상!']));
       if (form.parking_available || form.features.includes('주차가능')) lines.push('🅿️ 주차 가능');
       if (form.features.includes('엘리베이터') || (buildingInfo && buildingInfo.승용엘리베이터 > 0)) lines.push('🛗 엘리베이터 완비');
-      if (form.direction === '남향' || form.direction === '남동향') lines.push('☀️ 남향 채광 최고');
+      if (form.direction === '남향' || form.direction === '남동향') lines.push(pick(['☀️ 남향 채광 최고', '☀️ 햇살 가득한 남향 배치']));
       if (form.features.includes('CCTV')) lines.push('📹 CCTV 보안');
       if (form.features.includes('무인택배')) lines.push('📦 무인택배함');
       if (form.features.includes('반려동물') || form.pet_allowed) lines.push('🐾 반려동물 OK');
+      if (form.floor_current) lines.push(`🏢 ${form.floor_current}층${form.floor_total ? '/' + form.floor_total + '층' : ''}`);
+      if (form.rooms) lines.push(`🛏️ 방 ${form.rooms}개${form.bathrooms ? ' / 화장실 ' + form.bathrooms + '개' : ''}`);
+
       lines.push('');
-      if (form.heating_type) lines.push(`🔥 ${form.heating_type}`);
-      if (form.maintenance_fee && form.maintenance_fee > 0) {
-        const inc = form.maintenance_includes.length > 0 ? ` (${form.maintenance_includes.join('·')})` : '';
-        lines.push(`💰 관리비 ${form.maintenance_fee}만원${inc}`);
-      }
-      if (form.move_in_type === '즉시') lines.push('📅 즉시 입주 가능!');
-      else if (form.move_in_date) lines.push(`📅 ${form.move_in_date} 입주 가능`);
-      lines.push('');
-      lines.push('궁금하신 점은 편하게 문의주세요 💬');
+
+      // 마무리 멘트
+      const closings = [
+        '👉 문의주세요! 상담 바로 가능합니다.',
+        '👉 빠른 입주 원하시면 지금 문의하세요!',
+        '👉 상담 문의 환영합니다. 빠른 답변 드리겠습니다!',
+        '👉 좋은 조건, 만족스러운 입주! 문의하세요.',
+        '👉 상세 사진과 정보는 문의 시 안내드립니다!',
+      ];
+      lines.push(pick(closings));
+
       return lines.join('\n');
     }
     case 'premium': {
@@ -941,7 +971,7 @@ ${floorRows}</table></div>` : ''}
         title: form.title || generateTitle(form, buildingInfo),
         address: form.address,
         address_detail: form.addressDetail,
-        dong: form.dong,
+        dong: form.dong || form.address.split(' ').find((s: string) => s.endsWith('동')) || '',
         type: form.type,
         deal: form.deal,
         deposit: Number(form.deposit) || 0,
@@ -950,16 +980,18 @@ ${floorRows}</table></div>` : ''}
         maintenance_fee: Number(form.maintenance_fee) || 0,
         area_m2: Number(form.area_m2) || 0,
         area_supply_m2: form.area_supply_m2 ? Number(form.area_supply_m2) : null,
-        floor_current: form.floor_current,
-        floor_total: form.floor_total,
-        rooms: form.rooms ? Number(form.rooms) : null,
-        bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
-        direction: form.direction,
+        floor_current: form.floor_current || '',
+        floor_total: form.floor_total || '',
+        rooms: form.rooms ? Number(form.rooms) : 1,
+        bathrooms: form.bathrooms ? Number(form.bathrooms) : 1,
+        direction: form.direction || '',
         description: form.description || generateDescription(form, buildingInfo),
         maintenance_includes: form.features?.length > 0 ? form.features : null,
         parking: !!(form.parking_available || (form.parking_count && form.parking_count > 0)),
         elevator: !!(form.elevator_count && form.elevator_count > 0),
-        built_year: form.approval_date || null,
+        built_year: form.approval_date || '',
+          heating_type: form.heating_type || '',
+          status: '가용',
       };
 
       console.log('[publishListing] payload:', JSON.stringify(payload, null, 2));
