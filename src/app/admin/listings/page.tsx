@@ -76,10 +76,11 @@ const formatDate = (dateStr: string) => {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };
 
-const formatPrice = (price: string) => {
-  if (!price) return '-';
-  const num = parseInt(price.replace(/[^0-9]/g, ''));
-  if (isNaN(num)) return price;
+const formatPrice = (price: string | number | null | undefined) => {
+  if (!price && price !== 0) return '-';
+  const str = String(price);
+  const num = parseInt(str.replace(/[^0-9]/g, ''));
+  if (isNaN(num)) return String(price);
   if (num >= 10000) return `${(num / 10000).toFixed(num % 10000 === 0 ? 0 : 1)}억`;
   if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}천만`;
   return `${num}만`;
@@ -216,7 +217,7 @@ export default function AdminListingsPage() {
           (l.title || '').toLowerCase().includes(q) ||
           (l.address || '').toLowerCase().includes(q) ||
           (l.dong || '').toLowerCase().includes(q) ||
-          (l.price || '').toLowerCase().includes(q)
+          String(l.price || '').toLowerCase().includes(q)
         );
       }
       return true;
