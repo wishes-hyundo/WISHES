@@ -22,30 +22,6 @@ export default function AboutPage() {
       </section>
 
       <div className="max-w-5xl mx-auto px-4 py-12 space-y-12">
-        {/* 회사 정보 */}
-        <section className="bg-white rounded-xl border border-gray-200 p-8">
-          <h2 className="text-xl font-bold text-wishes-primary mb-6 flex items-center gap-2">
-            <Building2 className="w-6 h-6" />
-            회사 정보
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            {[
-              { label: '상호', value: 'WISHES Corp.' },
-              { label: '대표이사', value: '전유진' },
-              { label: '사업자등록번호', value: '445-86-01981' },
-              { label: '소재지', value: '서울특별시 관악구 신림로64길 23, 8층(신림동)' },
-              { label: '이메일', value: 'wishes@wishes.co.kr' },
-              { label: '영업시간', value: '평일 09:00 ~ 19:00 (주말 예약상담)' },
-              { label: '취급지역', value: '서울 전 지역 및 경기권' },
-            ].map((item) => (
-              <div key={item.label} className="flex gap-3 py-2 border-b border-gray-100">
-                <span className="text-gray-500 w-28 shrink-0">{item.label}</span>
-                <span className="text-gray-800 font-medium">{item.value}</span>
-              </div>
-            ))}
-          </div>
-        </section>
-
         {/* 취급 매물 */}
         <section className="bg-white rounded-xl border border-gray-200 p-8">
           <h2 className="text-xl font-bold text-wishes-primary mb-6 flex items-center gap-2">
@@ -53,7 +29,7 @@ export default function AboutPage() {
             취급 매물
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {['원룸', '투룷', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'].map((type) => (
+            {['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'].map((type) => (
               <div key={type} className="text-center p-4 bg-blue-50 rounded-xl">
                 <Building2 className="w-8 h-8 text-wishes-secondary mx-auto mb-2" />
                 <span className="text-sm font-medium text-gray-700">{type}</span>
