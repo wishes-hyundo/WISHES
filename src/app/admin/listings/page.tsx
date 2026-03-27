@@ -51,6 +51,14 @@ const STATUS_ICONS: Record<string, string> = {
   '계약완료': '✅',
 };
 
+/* DB 상태값 → 표시 상태값 정규화 (예: '가용' → '공개') */
+const normalizeStatus = (status: string): string => {
+  const STATUS_MAP: Record<string, string> = {
+    '가용': '공개',
+  };
+  return STATUS_MAP[status] || status;
+};
+
 const PROPERTY_TYPES = ['전체', '원룸', '투룸', '쓰리룸+', '오피스텔', '아파트', '빌라', '상가', '사무실'];
 const TRANSACTION_TYPES = ['전체', '월세', '전세', '매매'];
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
@@ -158,7 +166,11 @@ export default function AdminListingsPage() {
       });
       if (!res.ok) throw new Error('API 오류: ' + res.status);
       const json = await res.json();
-      setListings(json.data || []);
+      const data = (json.data || []).map((l: Listing) => ({
+        ...l,
+        status: normalizeStatus(l.status),
+      }));
+      setListings(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : '매물을 불러올 수 없습니다');
     } finally {
