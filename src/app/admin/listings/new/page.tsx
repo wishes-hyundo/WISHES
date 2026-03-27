@@ -453,48 +453,17 @@ export default function SmartListingNewPage() {
   const [drafts, setDrafts] = useState<DraftListing[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [showAddressModal, setShowAddressModal] = useState(false);
 
   /* ── 주소 검색 팝업 메시지 수신 ── */
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'WISHES_ADDRESS_SELECTED') {
-        const data = event.data.data;
-        const addr: AddressData = {
-          roadAddress: data.roadAddress || '',
-          jibunAddress: data.jibunAddress || data.autoJibunAddress || '',
-          zonecode: data.zonecode || '',
-          sigunguCode: data.sigunguCode || '',
-          bcode: data.bcode || '',
-          buildingName: data.buildingName || '',
-          bun: '', ji: '',
-          sido: data.sido || '',
-          sigungu: data.sigungu || '',
-          bname: data.bname || '',
-        };
-        const jibunMatch = addr.jibunAddress.match(/(\d+)(?:-(\d+))?$/);
-        if (jibunMatch) {
-          addr.bun = jibunMatch[1].padStart(4, '0');
-          addr.ji = (jibunMatch[2] || '0').padStart(4, '0');
-        }
-        setAddressData(addr);
-        setShowAddressModal(false);
-        updateForm({
-          address: addr.roadAddress || addr.jibunAddress,
-          dong: addr.bname || '',
-          road_address: addr.roadAddress,
-          jibun_address: addr.jibunAddress,
-          sigungu_code: addr.sigunguCode,
-          bcode: addr.bcode,
-          building_name: addr.buildingName || '',
-        });
-      }
+    const script = document.createElement('script');
+    script.src = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+    script.async = true;
+    document.head.appendChild(script);
+    return () => {
+      if (script.parentNode) script.parentNode.removeChild(script);
     };
-    window.addEventListener('message', handleMessage);
-    // 임시저장 목록 불러오기
-    loadDrafts();
-    return () => window.removeEventListener('message', handleMessage);
-  }, []);
+  }, [])
 
   /* ── Toast 자동 닫기 ── */
   useEffect(() => {
@@ -553,7 +522,37 @@ export default function SmartListingNewPage() {
 
   /* ── Step 1: 주소 검색 (embed 모달 방식) ── */
   const openAddressSearch = () => {
-    setShowAddressModal(true);
+    const w = window as unknown as { daum?: { Postcode: new (opts: Record<string, unknown>) => { open: () => void } } };
+    if (!w.daum?.Postcode) {
+      alert('주소 검색 스크립트를 로딩 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    new w.daum.Postcode({
+      oncomplete: (data: AddressData & Record<string, string>) => {
+        const addr: AddressData = {
+          roadAddress: data.roadAddress || '',
+          jibunAddress: data.jibunAddress || '',
+          zonecode: data.zonecode || '',
+          sigugunCode: data.sigunguCode || '',
+          bcode: data.bcode || '',
+          buildingName: data.buildingName || '',
+          bun: data.bun || '',
+          ji: data.ji || '',
+          sido: data.sido || '',
+          sigungu: data.sigungu || '',
+          bname: data.bname || '',
+        };
+        setAddressData(addr);
+        updateForm({
+          address: data.roadAddress,
+          addressDetail: '',
+          jibunAddress: data.jibunAddress,
+          zonecode: data.zonecode,
+        });
+      },
+      width: '100%',
+      height: '100%',
+    }).open();
   };
 
   /* ── Step 2: 건축물대장 자동 조회 ── */
@@ -1645,23 +1644,6 @@ export default function SmartListingNewPage() {
       </div>
 
       {/* ── 주소 검색 embed 모달 ── */}
-      {showAddressModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddressModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden" style={{ width: '420px', height: '520px', maxWidth: '95vw', maxHeight: '90vh' }}>
-            <div className="flex items-center justify-between px-4 py-3 bg-green-700 text-white">
-              <span className="font-semibold text-sm flex items-center gap-2">\ud83d\udccd 주소 검색</span>
-              <button onClick={() => setShowAddressModal(false)} className="text-white/80 hover:text-white text-xl leading-none">&times;</button>
-            </div>
-            <iframe
-              src="/address-search.html"
-              className="w-full border-0"
-              style={{ height: 'calc(100% - 48px)' }}
-              title="주소 검색"
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
