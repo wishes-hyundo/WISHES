@@ -442,18 +442,22 @@ function generateStyledTitle(form: FormData, buildingInfo: BuildingInfo | null, 
   if (form.deal === '매매' && form.price) priceStr = `매매 ${formatAmount(form.price)}`;
   else if (form.deal === '전세' && form.deposit) priceStr = `전세 ${formatAmount(form.deposit)}`;
   else if (form.deal === '월세' && form.deposit !== null && form.monthly !== null) priceStr = `월세 ${formatAmount(form.deposit)}/${formatAmount(form.monthly)}`;
+  // 랜덤 변형을 위한 헬퍼
+  const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
   switch (style) {
     case 'trendy': {
       const tags: string[] = [];
       if (hasStation) tags.push('역세권');
-      if (isNew) tags.push('신축');
-      if (hasFull) tags.push('풀옵션');
+      if (isNew) tags.push(pick(['신축', '새아파트', '신규']));
+      if (hasFull) tags.push(pick(['풀옵션', '올옵션']));
       const vibes: string[] = [];
-      if (form.direction === '남향' || form.direction === '남동향') vibes.push('채광맛집');
-      if (buildingInfo && buildingInfo.지상층수 >= 20) vibes.push('뷰맛집');
-      if (hasParking) vibes.push('주차OK');
+      if (form.direction === '남향' || form.direction === '남동향') vibes.push(pick(['채광맛집', '햇살가득', '남향채광']));
+      if (buildingInfo && buildingInfo.지상층수 >= 20) vibes.push(pick(['뷰맛집', '탁트인뷰', '전망좋은']));
+      if (hasParking) vibes.push(pick(['주차OK', '주차가능', '주차편한']));
       const allTags = [...tags, ...vibes];
-      return `${dong ? dong + ' ' : ''}${allTags.join(' ')} ${form.type || ''} ${priceStr} 꿀매물`.replace(/\s+/g, ' ').trim();
+      const endings = ['꽀매물', '추천매물', '핫매물', '급매', '강추!'];
+      return `${dong ? dong + ' ' : ''}${allTags.join(' ')} ${form.type || ''} ${priceStr} ${pick(endings)}`.replace(/\s+/g, ' ').trim();
     }
     case 'premium': {
       const name = buildingInfo?.건물명 || dong;
@@ -462,7 +466,12 @@ function generateStyledTitle(form: FormData, buildingInfo: BuildingInfo | null, 
       adj.push(form.type || '매물');
       if (form.direction) adj.push(form.direction);
       if (hasFull) adj.push('풀옵션');
-      return `${name} 프리미엄 ${adj.join(' ')} | ${priceStr}`.trim();
+      const formats = [
+        `${name} 프리미엄 ${adj.join(' ')} | ${priceStr}`,
+        `[${name}] ${adj.join(' ')} ${priceStr}`,
+        `${name} ${adj.join(' ')} - ${priceStr}`,
+      ];
+      return pick(formats).trim();
     }
     case 'clean':
     default:
@@ -477,11 +486,14 @@ function generateStyledDescription(form: FormData, buildingInfo: BuildingInfo | 
     : form.features.includes('신축');
   const hasStation = form.features.includes('역세권') || form.address.includes('역');
   const station = form.address.match(/(\S+역)/);
+  // 랜덤 변형을 위한 헬퍼
+  const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
   switch (style) {
     case 'trendy': {
       const lines: string[] = [];
-      const hooks = ['자취생/직장인 주목!', '이 가격에 이 퀄리티? 실화?', '놓치면 후회할 꿀매물!'];
-      lines.push(hooks[(form.address.length + (form.deposit || 0)) % hooks.length]);
+      const hooks = ['자취생/직장인 주목!', '이 가격에 이 퀴리티? 실화?', '놓치면 후회할 꽀매물!', '이거 진짜 빨리 나갑니다!', '가성비 끝판왕 매물!', '이 조건 다시 안나와요!'];
+      lines.push(pick(hooks));
       lines.push('');
       if (hasStation) lines.push(`🚇 ${station ? station[1] : '지하철역'} 도보 이용 가능`);
       if (form.features.includes('풀옵션')) lines.push('🏠 풀옵션 (에어컨·냉장고·세탁기·인덕션)');
@@ -849,7 +861,13 @@ ${floorRows}</table></div>` : ''}
   const runAiAutoFill = async (style: AiStyle = 'trendy') => {
     setAiGenerating(true);
     try {
-      // AI 제목 생성 (스타일 적용)
+      // 먼저 기존 제목/설명 초기화 (재생성 시 시각적 피드백)
+        updateForm({ title: '', description: '' });
+
+        // 짧은 딜레이로 초기화 표시
+        await new Promise(r => setTimeout(r, 300));
+
+        // AI 제목 생성 (스타일 적용)
       const title = generateStyledTitle(form, buildingInfo, style);
       // AI 설명 생성 (스타일 적용, 소재지/면적 등 건대장 데이터 제외)
       const description = generateStyledDescription(form, buildingInfo, style);
@@ -908,32 +926,45 @@ ${floorRows}</table></div>` : ''}
       // TODO: 실제 이미지 업로드 로직 (Supabase Storage)
       // 현재는 이미지 URL 없이 매물 데이터만 등록
 
-      const payload = {
+      // 필수 필드 검증
+        if (!form.address || form.address.trim() === '') {
+          throw new Error('주소를 입력해주세요');
+        }
+        if (!form.type) {
+          throw new Error('매물유형을 선택해주세요');
+        }
+        if (!form.deal) {
+          throw new Error('거래유형을 선택해주세요');
+        }
+
+        const payload = {
         title: form.title || generateTitle(form, buildingInfo),
         address: form.address,
         address_detail: form.addressDetail,
         dong: form.dong,
         type: form.type,
         deal: form.deal,
-        deposit: form.deposit ?? 0,
-        monthly: form.monthly,
-        price: form.price,
-        maintenance_fee: form.maintenance_fee ?? 0,
-        area_m2: form.area_m2 ?? 0,
-        area_supply_m2: form.area_supply_m2,
+        deposit: Number(form.deposit) || 0,
+        monthly: form.monthly ? Number(form.monthly) : null,
+        price: form.price ? Number(form.price) : null,
+        maintenance_fee: Number(form.maintenance_fee) || 0,
+        area_m2: Number(form.area_m2) || 0,
+        area_supply_m2: form.area_supply_m2 ? Number(form.area_supply_m2) : null,
         floor_current: form.floor_current,
         floor_total: form.floor_total,
-        rooms: form.rooms,
-        bathrooms: form.bathrooms,
+        rooms: form.rooms ? Number(form.rooms) : null,
+        bathrooms: form.bathrooms ? Number(form.bathrooms) : null,
         direction: form.direction,
         description: form.description || generateDescription(form, buildingInfo),
-        features: form.features,
-        parking: form.parking_available || (form.parking_count ? form.parking_count > 0 : false),
-        elevator: form.elevator_count ? form.elevator_count > 0 : false,
+        maintenance_includes: form.features?.length > 0 ? form.features : null
+        parking: !!(form.parking_available || (form.parking_count && form.parking_count > 0)),
+        elevator: !!(form.elevator_count && form.elevator_count > 0),
         built_year: form.approval_date || null,
       };
 
-      const res = await fetch('/api/admin/listings', {
+      console.log('[publishListing] payload:', JSON.stringify(payload, null, 2));
+
+        const res = await fetch('/api/admin/listings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -943,10 +974,11 @@ ${floorRows}</table></div>` : ''}
       });
 
       if (!res.ok) {
-        const errBody = await res.json().catch(() => null);
-        const errMsg = errBody?.error || errBody?.message || `매물 등록 실패 (${res.status})`;
-        throw new Error(errMsg);
-      }
+          const errBody = await res.json().catch(() => null);
+          console.error('[publishListing] 에러 응답:', errBody);
+          const errMsg = errBody?.error || errBody?.message || `매물 등록 실패 (${res.status})`;
+          throw new Error(errMsg);
+        }
 
       // 임시저장 삭제
       if (draftId) deleteDraft(draftId);
