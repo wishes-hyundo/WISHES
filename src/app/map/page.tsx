@@ -20,8 +20,8 @@ const DEFAULT_CENTER = { lat: 37.4847, lng: 126.9293 };
 const DEFAULT_ZOOM = 5;
 
 // WISHES 사무소 좌표
-const OFFICE_LAT = 37.4847;
-const OFFICE_LNG = 126.9293;
+const OFFICE_LAT = 37.4852227;
+const OFFICE_LNG = 126.9310212;
 
 // ─────────────────────────────────────────────────
 // 주소 파싱 유틸리티
