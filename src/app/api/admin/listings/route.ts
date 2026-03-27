@@ -168,6 +168,8 @@ export async function POST(request: NextRequest) {
         balcony: parseBool(formData.get('balcony') as string),
         full_option: parseBool(formData.get('full_option') as string),
         loan_available: parseBool(formData.get('loan_available') as string),
+      lat: parseNumber(formData.get('lat') as string),
+      lng: parseNumber(formData.get('lng') as string),
       };
     } else {
       // JSON 처리 (기존 API 호환)
@@ -296,6 +298,19 @@ export async function POST(request: NextRequest) {
           .from('listings')
           .update({ images: uploadedUrls })
           .eq('id', data.id);
+
+        // listing_images 테이블에도 삽입 (지도/목록 표시용)
+        const imgInserts = uploadedUrls.map((url, index) => ({
+          listing_id: data.id,
+          url: url,
+          alt: data.title + ' 이미지 ' + (index + 1),
+          sort_order: index,
+          is_thumbnail: index === 0,
+        }));
+        const { error: imgErr } = await supabase
+          .from('listing_images')
+          .insert(imgInserts);
+        if (imgErr) console.error('listing_images 삽입 오류:', imgErr);
       }
     }
 
