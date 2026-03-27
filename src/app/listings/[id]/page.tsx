@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, ArrowLeft, Check, X, Eye, Hash } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
 import ImageGallery from '@/components/ImageGallery';
-import ShareButton from '@/components/ShareButton';
-import RecentlyViewedTracker from '@/components/RecentlyViewedTracker';
+import ListingActions from '@/components/ListingActions';
 import type { Metadata } from 'next';
 
 interface Props {
@@ -101,8 +100,7 @@ export default async function ListingDetailPage({ params }: Props) {
 
   return (
     <div className="pt-16 min-h-screen bg-wishes-bg">
-      {/* 최근 본 매물 트래커 */}
-      <RecentlyViewedTracker listingId={id} />
+      {/* ListingActions: 공유 버튼 + 최근 본 매물 트래커 (dynamic import, ssr:false) */}
 
       {/* 상단 네비 */}
       <div className="bg-white border-b border-gray-200">
@@ -197,10 +195,11 @@ export default async function ListingDetailPage({ params }: Props) {
                 온라인 상담 신청
               </Link>
 
-              <ShareButton
-                url={`https://wishes.co.kr/listings/${listing.id}`}
-                title={listing.title || '위시스부동산 매물'}
-                description={`${listing.deal || ''} ${listing.type || ''} - ${listing.dong || ''}`}
+              <ListingActions
+                listingId={id}
+                shareUrl={`https://wishes.co.kr/listings/${listing.id}`}
+                shareTitle={listing.title || '위시스부동산 매물'}
+                shareDescription={`${listing.deal || ''} ${listing.type || ''} - ${listing.dong || ''}`}
               />
 
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
