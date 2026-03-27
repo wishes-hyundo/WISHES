@@ -429,6 +429,7 @@ function generateDescription(form: FormData, buildingInfo: BuildingInfo | null):
 
 /* ── AI 스타일별 제목 생성 (2026 트렌드) ── */
 type AiStyle = 'trendy' | 'premium' | 'clean';
+type AiModel = 'template' | 'best' | 'latest';
 
 function generateStyledTitle(form: FormData, buildingInfo: BuildingInfo | null, style: AiStyle): string {
   const dong = form.dong || form.address.split(' ').find(s => s.endsWith('동')) || '';
@@ -604,6 +605,7 @@ export default function SmartListingNewPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(false);
   const [aiStyleOption, setAiStyleOption] = useState<AiStyle>('trendy');
+  const [aiModel, setAiModel] = useState<AiModel>('template');
   const [showAddressModal, setShowAddressModal] = useState(false);
   const postcodeContainerRef = useRef<HTMLDivElement>(null);
 
@@ -888,62 +890,61 @@ ${floorRows}</table></div>` : ''}
   };
 
   /* ── AI 자동 완성 (스타일별) ── */
-  const runAiAutoFill = async (style: AiStyle = 'trendy') => {
+  const runAiAutoFill = async (style: AiStyle = 'trendy', model: AiModel = 'template') => {
     setAiGenerating(true);
     try {
-      // 먼저 기존 제목/설명 초기화 (재생성 시 시각적 피드백)
-        updateForm({ title: '', description: '' });
+      // 이전 결과 클리어
+      updateForm({ title: '', description: '' });
+      await new Promise(r => setTimeout(r, 300));
 
-        // 짧은 딜레이로 초기화 표시
-        await new Promise(r => setTimeout(r, 300));
-
-        // AI 제목 생성 (스타일 적용)
-      const title = generateStyledTitle(form, buildingInfo, style);
-      // AI 설명 생성 (스타일 적용, 소재지/면적 등 건대장 데이터 제외)
-      const description = generateStyledDescription(form, buildingInfo, style);
-
-      // 나머지 필드 자동 추론
-      const autoFill: Partial<FormData> = { title, description };
-
-      // 방/욕실 자동 추론 (매물유형 기반)
-      if (!form.rooms) {
-        if (form.type === '원룸') autoFill.rooms = 1;
-        else if (form.type === '투룸') autoFill.rooms = 2;
-        else if (form.type === '쓰리룸+') autoFill.rooms = 3;
-      }
-      if (!form.bathrooms) {
-        autoFill.bathrooms = (form.rooms || autoFill.rooms || 1) <= 2 ? 1 : 2;
-      }
-
-      // 주차 가능 여부 자동
-      if (buildingInfo && buildingInfo.총주차대수 > 0) {
-        autoFill.parking_available = true;
-        if (!form.features.includes('주차가능')) {
-          autoFill.features = [...form.features, '주차가능'];
+      if (model === 'template') {
+        // 빠른생성: 로컬 템플릿 기반
+        const newTitle = generateStyledTitle(style);
+        const newDesc = generateStyledDescription(style);
+        updateForm({ title: newTitle, description: newDesc });
+      } else {
+        // AI 생성: API 호출 (best=Opus, latest=Sonnet)
+        const res = await fetch('/api/admin/generate-description', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            address: form.address,
+            dong: form.dong,
+            type: form.type,
+            deal: form.deal,
+            deposit: form.deposit,
+            monthly: form.monthly,
+            price: form.price,
+            area_m2: form.area_m2,
+            area_supply_m2: form.area_supply_m2,
+            floor_current: form.floor_current,
+            floor_total: form.floor_total,
+            direction: form.direction,
+            rooms: form.rooms,
+            bathrooms: form.bathrooms,
+            features: form.features,
+            parking_available: form.parking_available,
+            buildingInfo: buildingInfo,
+            style: style,
+            aiModel: model,
+          }),
+        });
+        const data = await res.json();
+        if (data.success && data.title) {
+          updateForm({ title: data.title, description: data.description || '' });
+        } else if (data.success && data.description) {
+          const newTitle = generateStyledTitle(style);
+          updateForm({ title: newTitle, description: data.description });
+        } else {
+          throw new Error(data.error || 'AI 생성 실패');
         }
       }
-
-      // 엘리베이터 자동
-      if (buildingInfo && (buildingInfo.승용엘리베이터 > 0) && !form.features.includes('엘리베이터')) {
-        autoFill.features = [...(autoFill.features || form.features), '엘리베이터'];
-      }
-
-      // 신축 판단
-      if (buildingInfo?.사용승인일) {
-        const year = parseInt(buildingInfo.사용승인일.substring(0, 4));
-        if (year >= new Date().getFullYear() - 3 && !form.features.includes('신축')) {
-          autoFill.features = [...(autoFill.features || form.features), '신축'];
-        }
-      }
-
-      updateForm(autoFill);
-
-      // 시뮬레이션 딜레이 (AI 처리 느낌)
-      await new Promise(r => setTimeout(r, 1500));
-
-      setToast({ type: 'success', text: 'AI 자동완성 완료! 제목과 설명이 생성되었습니다.' });
-    } catch {
-      setToast({ type: 'error', text: 'AI 자동완성 중 오류 발생' });
+    } catch (err) {
+      console.error('AI auto fill error:', err);
+      // AI 실패시 템플릿 폴백
+      const newTitle = generateStyledTitle(style);
+      const newDesc = generateStyledDescription(style);
+      updateForm({ title: newTitle, description: newDesc });
     } finally {
       setAiGenerating(false);
     }
@@ -1780,10 +1781,52 @@ ${floorRows}</table></div>` : ''}
                       <div className="text-xs text-gray-500 mt-0.5">깔끔하고 정돈된 기본 포맷</div>
                     </button>
                   </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">AI 모델 선택</label>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => setAiModel('template')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                aiModel === 'template'
+                  ? 'bg-gray-600 text-white ring-2 ring-gray-400'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              📝 빠른생성
+            </button>
+            <button
+              type="button"
+              onClick={() => setAiModel('best')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                aiModel === 'best'
+                  ? 'bg-purple-600 text-white ring-2 ring-purple-400'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              ✨ 최고 AI
+            </button>
+            <button
+              type="button"
+              onClick={() => setAiModel('latest')}
+              className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                aiModel === 'latest'
+                  ? 'bg-blue-600 text-white ring-2 ring-blue-400'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              ⚡ 최신 AI
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            {aiModel === 'template' ? '템플릿 기반 즉시 생성' : aiModel === 'best' ? 'Claude Opus - 최고 품질 AI 작성' : 'Claude Sonnet - 빠르고 스마트한 AI'}
+          </p>
+        </div>
+
                 </div>
                 {!form.title && (
                   <div className="text-center">
-                    <button onClick={() => runAiAutoFill(aiStyleOption)} disabled={aiGenerating} className="px-10 py-3.5 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition shadow-lg disabled:bg-gray-400 text-base">
+                    <button onClick={() => runAiAutoFill(aiStyleOption, aiModel)} disabled={aiGenerating} className="px-10 py-3.5 bg-green-700 text-white rounded-xl font-semibold hover:bg-green-800 transition shadow-lg disabled:bg-gray-400 text-base">
                       {aiGenerating ? (<span className="flex items-center gap-2"><div className="animate-spin w-5 h-5 border-2 border-white border-t-transparent rounded-full" />AI가 매물 정보를 분석 중...</span>) : '🤖 AI 자동완성 실행'}
                     </button>
                   </div>
@@ -1793,7 +1836,7 @@ ${floorRows}</table></div>` : ''}
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <label className="text-sm font-semibold text-gray-700">📌 매물 제목 <span className="text-green-600 text-xs font-normal ml-1">AI 생성됨</span></label>
-                        <button onClick={() => runAiAutoFill(aiStyleOption)}
+                        <button onClick={() => runAiAutoFill(aiStyleOption, aiModel)}
                           disabled={aiGenerating}
                           className="text-xs text-gray-400 hover:text-green-600 transition disabled:opacity-50">
                           {aiGenerating ? '생성 중...' : '🔄 다시 생성'}</button>
