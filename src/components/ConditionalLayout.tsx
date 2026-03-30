@@ -13,6 +13,7 @@ import CompareBar from '@/components/CompareBar';
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith('/admin');
+  const isMapPage = pathname === '/map';
 
   if (isAdmin) {
     return <>{children}</>;
@@ -23,7 +24,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
       <FavoritesProvider>
         <Header />
         <main className="flex-1">{children}</main>
-        <Footer />
+        {!isMapPage && <Footer />}
         <FloatingButtons />
         <CompareBar />
         <AIChatBot />
