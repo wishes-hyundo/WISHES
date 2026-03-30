@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase';
 
 /**
  * 매물 상세 조회 (이미지, 특징 포함)
@@ -24,7 +24,7 @@ export async function GET(
       );
     }
 
-    const supabase = createClient();
+    const supabase = createServerClient();
 
     // 매물 조회
     const { data: listing, error: listingError } = await supabase
@@ -60,6 +60,8 @@ export async function GET(
         images: images || [],
         features: features?.map((f) => f.feature) || [],
       },
+    }, {
+      headers: { 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=120' },
     });
   } catch (error) {
     console.error('매물 상세 조회 오류:', error);
