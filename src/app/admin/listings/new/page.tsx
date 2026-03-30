@@ -1,4 +1,45 @@
 'use client';
+
+// Debounce utility
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+// Area conversion: pyeong <-> sqm
+function pyeongToSqm(p) { return (p * 3.305785).toFixed(2); }
+function sqmToPyeong(s) { return (s / 3.305785).toFixed(2); }
+
+// Retry wrapper for async operations
+async function withRetry(fn, maxRetries = 3, delay = 1000) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      await new Promise(r => setTimeout(r, delay * attempt));
+    }
+  }
+}
+
+// Loading skeleton for step transitions
+function StepSkeleton() {
+  return React.createElement('div', { className: 'animate-pulse space-y-4 p-6' },
+    React.createElement('div', { className: 'h-8 bg-gray-200 rounded w-1/3' }),
+    React.createElement('div', { className: 'space-y-3' },
+      React.createElement('div', { className: 'h-12 bg-gray-200 rounded' }),
+      React.createElement('div', { className: 'h-12 bg-gray-200 rounded' }),
+      React.createElement('div', { className: 'h-12 bg-gray-200 rounded w-2/3' })
+    )
+  );
+}
+
+
+
+
 // Last updated: 2026-03-31 via GitHub API
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -592,6 +633,8 @@ function SmartListingNewPage() {
   const [isPublishing, setIsPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [touchedFields, setTouchedFields] = useState({});
+  const [dragIndex, setDragIndex] = useState(null);
+  const abortRef = React.useRef(null);
 
   // Real-time field validation
   const fieldErrors = React.useMemo(() => {
@@ -663,6 +706,36 @@ function SmartListingNewPage() {
     const timer = setInterval(() => { saveDraft(); }, 30000);
     return () => clearInterval(timer);
   }, [saveDraft, form.address]);
+
+  
+  // Duplicate listing from existing draft
+  const duplicateListing = React.useCallback((draft) => {
+    if (!draft) return;
+    setForm(prev => ({
+      ...prev,
+      ...draft,
+      title: (draft.title || '') + ' (복사)',
+    }));
+    setCurrentStep(1);
+    setDraftId(null);
+    toast({ type: 'success', message: '매물이 복사되었습니다. 수정 후 등록해주세요.' });
+  }, [toast]);
+
+// Keyboard shortcuts: Ctrl+S save, Ctrl+Enter next step
+  React.useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveDraft();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (currentStep < 4) setCurrentStep(prev => Math.min(prev + 1, 4));
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [saveDraft, currentStep]);
 
   const loadDraft = (draft: DraftListing) => {
     setForm(draft.formData);
@@ -761,8 +834,11 @@ function SmartListingNewPage() {
       const sigunguCd = addressData.sigunguCode || addressData.bcode?.substring(0, 5) || '';
       const bjdongCd = addressData.bcode?.substring(5, 10) || '';
 
-      const res = await fetch('/api/building-ledger', {
-        method: 'POST',
+      if (abortRef.current) abortRef.current.abort();
+        abortRef.current = new AbortController();
+        const res = await fetch('/api/building-ledger', {
+        signal: abortRef.current.signal,
+          method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sigunguCd, bjdongCd,
@@ -938,6 +1014,7 @@ ${floorRows}</table></div>` : ''}
       } else {
         // AI 생성: API 호출 (best=Opus, latest=Sonnet)
         const res = await fetch('/api/admin/generate-description', {
+          signal: abortRef.current?.signal,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1743,7 +1820,19 @@ ${floorRows}</table></div>` : ''}
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {uploadedImages.map((img, i) => (
-                      <div key={i} className="relative group">
+                      <div key={i} className={`relative group ${dragIndex === i ? 'opacity-50 scale-95' : ''} transition-all cursor-grab active:cursor-grabbing`}
+                    draggable
+                    onDragStart={() => setDragIndex(i)}
+                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDrop={() => {
+                      if (dragIndex === null || dragIndex === i) return;
+                      const newImages = [...uploadedImages];
+                      const [moved] = newImages.splice(dragIndex, 1);
+                      newImages.splice(i, 0, moved);
+                      setUploadedImages(newImages);
+                      setDragIndex(null);
+                    }}
+                    onDragEnd={() => setDragIndex(null)}>
                         <div className="aspect-[4/3] rounded-xl overflow-hidden bg-gray-100 border">
                           {img.isEnhancing ? (
                             <div className="w-full h-full flex items-center justify-center bg-gray-50">
