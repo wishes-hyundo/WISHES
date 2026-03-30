@@ -1899,7 +1899,7 @@ ${floorRows}</table></div>` : ''}
                       </button>
                       <button onClick={() => publishListing('review')} disabled={isPublishing} className="p-6 border-2 border-blue-400 rounded-2xl hover:bg-blue-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
                         <div className="text-2xl mb-2">🔍</div>
-                        <h4 className="font-bold text-blue-800 text-lg">검수 후 업로드</h4>
+                        <h4 className="font-bold text-blue-800 text-lg">직접 등록</h4>
                         <p className="text-sm text-gray-500 mt-1"><span className="text-blue-600 font-semibold">비공개</span> 상태로 저장 후 검수합니다. 확인 후 수동으로 공개 전환합니다.</p>
                         {isPublishing && <div className="mt-2 text-xs text-blue-600 animate-pulse">저장 중...</div>}
                       </button>
@@ -2007,7 +2007,7 @@ ${floorRows}</table></div>` : ''}
                 <button onClick={() => publishListing('review')} disabled={isPublishing || !form.title}
                   className="p-6 border-2 border-blue-400 rounded-2xl hover:bg-blue-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
                   <div className="text-2xl mb-2">🔍</div>
-                  <h3 className="font-bold text-blue-800 text-lg">검수 후 업로드</h3>
+                  <h3 className="font-bold text-blue-800 text-lg">직접 등록</h3>
                   <p className="text-sm text-gray-500 mt-1">
                     <span className="text-blue-600 font-semibold">비공개</span> 상태로 저장 후 검수합니다.
                     확인 후 수동으로 공개 전환합니다.
