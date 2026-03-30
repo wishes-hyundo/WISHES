@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 
 /**
  * 매물 목록 조회
@@ -19,7 +19,7 @@ import { createServerClient } from '@/lib/supabase';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const supabase = createServerClient();
+    const supabase = createClient();
 
     // ━━━ ID 기반 조회 (비교 페이지용) ━━━
     const ids = searchParams.get('ids');
@@ -99,8 +99,6 @@ export async function GET(request: NextRequest) {
       success: true,
       data: data || [],
       total: count || 0,
-    }, {
-      headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' },
     });
   } catch (error) {
     console.error('매물 조회 오류:', error);
