@@ -1015,12 +1015,12 @@ ${floorRows}</table></div>` : ''}
 
       console.log('[publishListing] FormData, images:', uploadedImages.length, 'coords:', form.lat, form.lng);
 
-      const res = await fetch('/api/admin/listings', {h
+      const res = await fetch('/api/admin/listings', {
         method: 'POST',
         headers: { Authorization: `Bearer ${AUTH_TOKEN}` },
         body: fd,
       });
-h
+
       if (!res.ok) {
           const errBody = await res.json().catch(() => ({ error: 'Non-JSON response ' + res.status + ' ' + res.statusText }));
           console.error('[publishListing] 에러 응답:', errBody);
