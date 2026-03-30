@@ -6,6 +6,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 
+// 카카오 REST API 키
+const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
+
 // 요청 검증 스키마
 const createListingSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요'),
@@ -43,6 +46,28 @@ const createListingSchema = z.object({
   // 이미지 URL 배열 (Supabase Storage에 이미 업로드된 URL들)
   images: z.array(z.string()).optional(),
 });
+
+/**
+ * 주소 → 좌표 변환 (카카오 REST API)
+ */
+async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
+  if (!address || !KAKAO_REST_API_KEY) return null;
+  try {
+    const res = await fetch(
+      `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.documents && data.documents.length > 0) {
+      const doc = data.documents[0];
+      return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * 인증 검증 헬퍼 함수
@@ -84,7 +109,6 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createServerClient();
-
     const { data, error } = await supabase
       .from('listings')
       .select('*, listing_images(*)')
@@ -168,13 +192,13 @@ export async function POST(request: NextRequest) {
         balcony: parseBool(formData.get('balcony') as string),
         full_option: parseBool(formData.get('full_option') as string),
         loan_available: parseBool(formData.get('loan_available') as string),
-      lat: parseNumber(formData.get('lat') as string),
-      lng: parseNumber(formData.get('lng') as string),
+        lat: parseNumber(formData.get('lat') as string),
+        lng: parseNumber(formData.get('lng') as string),
       };
     } else {
       // JSON 처리 (기존 API 호환)
       const rawData = await request.json();
-      // Map frontend field names to API field names
+
       listingData = {
         title: rawData.title || '',
         type: rawData.type || rawData.propertyType || '',
@@ -202,7 +226,7 @@ export async function POST(request: NextRequest) {
         balcony: rawData.balcony || false,
         full_option: rawData.full_option || false,
         loan_available: rawData.loan_available !== undefined ? rawData.loan_available : true,
-        status: rawData.status || '\uAC00\uC6A9',
+        status: rawData.status || '가용',
         heating_type: rawData.heating_type || null,
         lat: rawData.lat || null,
         lng: rawData.lng || null,
@@ -211,11 +235,24 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    // ★ 자동 지오코딩: lat/lng가 없고 address가 있으면 카카오 API로 좌표 변환
+    if ((!listingData.lat || !listingData.lng) && listingData.address) {
+      const coords = await geocodeAddress(listingData.address);
+      if (coords) {
+        listingData.lat = coords.lat;
+        listingData.lng = coords.lng;
+      }
+    }
+
     const parsed = createListingSchema.safeParse(listingData);
 
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: parsed.error.errors.map(function(e) { return (e.path.join('.') || '알수없음') + ': ' + e.message; }).join(', '), message: parsed.error.errors.map(function(e) { return (e.path.join('.') || '알수없음') + ': ' + e.message; }).join(', ') },
+        {
+          success: false,
+          error: parsed.error.errors.map(function(e) { return (e.path.join('.') || '알수없음') + ': ' + e.message; }).join(', '),
+          message: parsed.error.errors.map(function(e) { return (e.path.join('.') || '알수없음') + ': ' + e.message; }).join(', ')
+        },
         { status: 400 }
       );
     }
@@ -275,6 +312,7 @@ export async function POST(request: NextRequest) {
     // 이미지 파일이 있으면 Supabase Storage에 업로드
     if (imageFiles.length > 0 && data?.id) {
       const uploadedUrls: string[] = [];
+
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
         const ext = file.name.split('.').pop() || 'jpg';
@@ -307,6 +345,7 @@ export async function POST(request: NextRequest) {
           sort_order: index,
           is_thumbnail: index === 0,
         }));
+
         const { error: imgErr } = await supabase
           .from('listing_images')
           .insert(imgInserts);
@@ -315,7 +354,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 이미지 URL이 있으면 listing_images 테이블에 연결
-    let imageResults = [];
+    let imageResults: any[] = [];
     if (imageUrls && imageUrls.length > 0 && data?.id) {
       const imageInserts = imageUrls.map((url, index) => ({
         listing_id: data.id,
@@ -395,6 +434,15 @@ export async function PUT(request: NextRequest) {
         updateValues[key] = value;
       }
     });
+
+    // ★ 수정 시에도 주소가 변경되고 좌표가 없으면 자동 지오코딩
+    if (updateValues.address && (!updateValues.lat || !updateValues.lng)) {
+      const coords = await geocodeAddress(updateValues.address);
+      if (coords) {
+        updateValues.lat = coords.lat;
+        updateValues.lng = coords.lng;
+      }
+    }
 
     if (Object.keys(updateValues).length === 0) {
       return NextResponse.json(
