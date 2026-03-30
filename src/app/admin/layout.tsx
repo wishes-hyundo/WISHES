@@ -22,15 +22,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isNewListing = pathname === '/admin/listings/new';
 
+  if (!isMounted) {
+    return (
+      <div className="flex h-screen bg-gray-50" suppressHydrationWarning>
+        <div className="w-64 bg-green-800" />
+        <main className="flex-1 overflow-auto">
+          <div className="p-8">
+            <div className="flex items-center justify-center h-full">
+              <p className="text-gray-500">로딩 중...</p>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-screen bg-gray-50" suppressHydrationWarning>
-      {/* 사이드바 */}
+    <div className="flex h-screen bg-gray-50">
       <aside
         className={`${
           sidebarOpen ? 'w-64' : 'w-20'
         } bg-wishes-primary text-white transition-all duration-300 flex flex-col`}
       >
-        {/* 헤더 */}
         <div className="p-4 border-b border-wishes-secondary flex items-center justify-between">
           {sidebarOpen && (
             <h1 className="text-xl font-bold">WISHES</h1>
@@ -43,7 +56,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
 
-        {/* 스마트 매물 등록 */}
         <div className="p-4">
           <Link
             href="/admin/listings/new"
@@ -57,7 +69,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
         </div>
 
-        {/* 네비게이션 */}
         <nav className="flex-1 p-4 space-y-2">
           {navItems.map((item) => (
             <Link
@@ -75,13 +86,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           ))}
         </nav>
 
-        {/* 로그아웃 */}
         <div className="p-4 border-t border-wishes-secondary">
           <button
             onClick={() => {
-              if (isMounted) {
-                localStorage.removeItem('admin_password');
-              }
+              localStorage.removeItem('admin_password');
               router.push('/');
             }}
             className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition font-medium text-sm"
@@ -91,7 +99,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* 메인 콘텐츠 */}
       <main className="flex-1 overflow-auto">
         <div className="p-8">
           <Suspense
