@@ -1023,12 +1023,6 @@ export default function AdminPage() {
                       수정
                     </button>
                     <button
-                      onClick={() => router.push(`/admin/listings/new?copyFrom=${listing.id}`)}
-                      className="px-3 py-1 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition text-xs"
-                    >
-                      복사
-                    </button>
-                    <button
                       onClick={() => handleDeleteListing(listing.id)}
                       className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs"
                     >
