@@ -913,6 +913,14 @@ function SmartListingNewPage() {
     }
   };
 
+    // Auto-fetch building ledger when address is selected
+    React.useEffect(() => {
+      if (addressData && !buildingInfo && !buildingLoading) {
+        fetchBuildingLedger();
+      }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [addressData]);
+
   /* ── 건축물대장 PDF 다운로드 ── */
   const downloadBuildingPdf = () => {
     if (!buildingInfo) return;
@@ -1173,7 +1181,18 @@ ${floorRows}</table></div>` : ''}
   };
 
   /* ── 필수항목 체크 ── */
-  const isStep1Valid = form.address && form.deal && form.type &&
+  // Step completion validation for checkmarks
+    const isStepComplete = (stepId: number): boolean => {
+      switch (stepId) {
+        case 1: return !!(form.address && form.deal && form.type && ((form.deal === '매매' && form.price) || (form.deal === '전세' && form.deposit) || (form.deal === '월세' && form.deposit !== null && form.monthly !== null)));
+        case 2: return !!buildingInfo;
+        case 3: return uploadedImages.length > 0;
+        case 4: return !!form.title;
+        default: return false;
+      }
+    };
+
+    const isStep1Valid = form.address && form.deal && form.type &&
     ((form.deal === '매매' && form.price) ||
      (form.deal === '전세' && form.deposit) ||
      (form.deal === '월세' && form.deposit !== null && form.monthly !== null));
@@ -1241,7 +1260,7 @@ ${floorRows}</table></div>` : ''}
                         : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                   }`}
                 >
-                  <span className="text-base">{step.icon}</span>
+                  <span className="text-base">{isStepComplete(step.id) && currentStep !== step.id ? '✅' : step.icon}</span>
                   <div className="text-left">
                     <div className="font-semibold text-xs leading-tight">STEP {step.id}</div>
                     <div className="text-[10px] leading-tight opacity-80">{step.label}</div>
@@ -2134,7 +2153,15 @@ ${floorRows}</table></div>` : ''}
                     바로 <span className="text-green-600 font-semibold">공개</span> 상태로 매물을 등록합니다.
                     즉시 홈페이지에 노출됩니다.
                   </p>
-                  {isPublishing && <div className="mt-2 text-xs text-green-600">${uploadProgress}/${uploadedImages.length} 처리중...</div>}
+                  {isPublishing && <div className="mt-3 space-y-1">
+                    <div className="flex justify-between text-xs text-green-700 font-medium">
+                      <span>업로드 진행중...</span>
+                      <span>${uploadProgress}/${uploadedImages.length}</span>
+                    </div>
+                    <div className="w-full bg-green-100 rounded-full h-2.5 overflow-hidden">
+                      <div className="bg-green-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadedImages.length > 0 ? (uploadProgress / uploadedImages.length) * 100 : 0}%` }} />
+                    </div>
+                  </div>}
                 </button>
 
                 <button onClick={() => publishListing('review')} disabled={isPublishing || !form.title}
@@ -2145,7 +2172,15 @@ ${floorRows}</table></div>` : ''}
                     <span className="text-blue-600 font-semibold">비공개</span> 상태로 저장 후 검수합니다.
                     확인 후 수동으로 공개 전환합니다.
                   </p>
-                  {isPublishing && <div className="mt-2 text-xs text-blue-600">${uploadProgress}/${uploadedImages.length} 처리중...</div>}
+                  {isPublishing && <div className="mt-3 space-y-1">
+                    <div className="flex justify-between text-xs text-blue-700 font-medium">
+                      <span>업로드 진행중...</span>
+                      <span>${uploadProgress}/${uploadedImages.length}</span>
+                    </div>
+                    <div className="w-full bg-blue-100 rounded-full h-2.5 overflow-hidden">
+                      <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadedImages.length > 0 ? (uploadProgress / uploadedImages.length) * 100 : 0}%` }} />
+                    </div>
+                  </div>}
                 </button>
               </div>
             </div>
