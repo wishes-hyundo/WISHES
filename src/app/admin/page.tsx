@@ -460,21 +460,67 @@ export default function AdminPage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <a href="/admin?tab=listings" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
-            <p className="text-2xl mb-2">🏠</p>
-            <h3 className="font-bold text-wishes-primary mb-2">매물 관리</h3>
-            <p className="text-sm text-gray-600">{listings.length}개의 매물 관리</p>
-          </a>
-          <a href="/admin?tab=contacts" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
-            <p className="text-2xl mb-2">📞</p>
-            <h3 className="font-bold text-wishes-primary mb-2">상담 관리</h3>
-            <p className="text-sm text-gray-600">{contacts.length}개의 상담 기록</p>
-          </a>
+        {/* 최근 매물 & 미처리 상담 위젯 */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* 최근 등록 매물 */}
           <div className="card-premium p-6">
-            <p className="text-2xl mb-2">⚙️</p>
-            <h3 className="font-bold text-wishes-primary mb-2">설정</h3>
-            <p className="text-sm text-gray-600">사이트 설정 관리</p>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-wishes-primary flex items-center gap-2">
+                <span className="text-lg">🏠</span> 최근 등록 매물
+              </h3>
+              <a href="/admin?tab=listings" className="text-xs text-wishes-primary hover:underline font-medium">전체보기 &rarr;</a>
+            </div>
+            {listings.length > 0 ? (
+              <div className="space-y-3">
+                {listings.slice(0, 4).map((item: Listing) => (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
+                      <p className="text-xs text-gray-500">{item.type} · {item.deal}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      item.status === '가용' ? 'bg-green-100 text-green-700' :
+                      item.status === '계약중' ? 'bg-orange-100 text-orange-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-6">등록된 매물이 없습니다</p>
+            )}
+          </div>
+
+          {/* 미처리 상담 */}
+          <div className="card-premium p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-wishes-primary flex items-center gap-2">
+                <span className="text-lg">📞</span> 미처리 상담
+              </h3>
+              <a href="/admin?tab=contacts" className="text-xs text-wishes-primary hover:underline font-medium">전체보기 &rarr;</a>
+            </div>
+            {contacts.filter((c: Contact) => c.status !== '완료').length > 0 ? (
+              <div className="space-y-3">
+                {contacts.filter((c: Contact) => c.status !== '완료').slice(0, 4).map((item: Contact) => (
+                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.name} ({item.phone})</p>
+                      {item.listingTitle && <p className="text-xs text-gray-500">{item.listingTitle}</p>}
+                    </div>
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                      item.status === '접수' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {item.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-400 text-center py-6">미처리 상담이 없습니다</p>
+            )}
           </div>
         </div>
       </div>
