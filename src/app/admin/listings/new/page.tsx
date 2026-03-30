@@ -150,7 +150,7 @@ const STEPS = [
   { id: 4, label: 'AI등록', icon: '🤖', desc: '자동완성·업로드' },
 ];
 
-const AUTH_TOKEN = 'wishes2026';
+const AUTH_TOKEN = process.env.NEXT_PUBLIC_AUTH_TOKEN || 'wishes2026';
 
 const INITIAL_FORM: FormData = {
   address: '', addressDetail: '', dong: '', deal: '월세',
@@ -571,7 +571,7 @@ function generateStyledDescription(form: FormData, buildingInfo: BuildingInfo | 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    메인 컴포넌트
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-export default function SmartListingNewPage() {
+function SmartListingNewPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -589,6 +589,20 @@ export default function SmartListingNewPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [touchedFields, setTouchedFields] = useState({});
+
+  // Real-time field validation
+  const fieldErrors = React.useMemo(() => {
+    const errors = {};
+    if (touchedFields.address && !form.address) errors.address = '주소를 입력해주세요';
+    if (touchedFields.type && !form.type) errors.type = '매물 유형을 선택해주세요';
+    if (touchedFields.deal && !form.deal) errors.deal = '거래 유형을 선택해주세요';
+    if (touchedFields.price && form.deal === 'sale' && !form.price) errors.price = '매매가를 입력해주세요';
+    if (touchedFields.deposit && (form.deal === 'jeonse' || form.deal === 'monthly') && !form.deposit) errors.deposit = '보증금을 입력해주세요';
+    if (touchedFields.monthly && form.deal === 'monthly' && !form.monthly) errors.monthly = '월세를 입력해주세요';
+    return errors;
+  }, [form, touchedFields]);
   const [toast, setToast] = useState<{ type: string; text: string } | null>(null);
   const [draftId, setDraftId] = useState<string | null>(null);
   const [drafts, setDrafts] = useState<DraftListing[]>([]);
@@ -641,6 +655,13 @@ export default function SmartListingNewPage() {
     setToast({ type: 'success', text: '임시저장 완료' });
     return id;
   }, [form, buildingInfo, draftId, drafts]);
+
+  // Auto-save every 30 seconds
+  React.useEffect(() => {
+    if (!form.address) return;
+    const timer = setInterval(() => { saveDraft(); }, 30000);
+    return () => clearInterval(timer);
+  }, [saveDraft, form.address]);
 
   const loadDraft = (draft: DraftListing) => {
     setForm(draft.formData);
@@ -980,7 +1001,9 @@ ${floorRows}</table></div>` : ''}
       const compressImage = async (f: File): Promise<Blob> => { if (!window.createImageBitmap) return f; const bmp = await createImageBitmap(f); const cv = document.createElement('canvas'); let w = bmp.width, h = bmp.height; if (w > 1600) { h = Math.round(h * 1600 / w); w = 1600; } if (h > 1600) { w = Math.round(w * 1600 / h); h = 1600; } cv.width = w; cv.height = h; const ctx = cv.getContext('2d')!; ctx.drawImage(bmp, 0, 0, w, h); bmp.close(); const wmImg = new Image(); wmImg.src = 'data:image/png;base64,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'; await new Promise(r => { if (wmImg.complete) r(undefined); else wmImg.onload = () => r(undefined); }); ctx.save(); ctx.globalAlpha = 0.10; const wmW = Math.round(w * 0.22); const wmH = Math.round(wmW * wmImg.naturalHeight / wmImg.naturalWidth); const diag = Math.sqrt(w * w + h * h); const step = Math.round(w * 0.3); ctx.translate(w / 2, h / 2); ctx.rotate(-Math.PI / 6); for (let y = -diag; y < diag; y += step) { for (let x = -diag; x < diag; x += step) { ctx.drawImage(wmImg, x - wmW / 2, y - wmH / 2, wmW, wmH); } } ctx.restore(); return new Promise(res => cv.toBlob(bl => res(bl!), 'image/jpeg', 0.7)); }; const fd = new window.FormData();
 
       // 이미지 파일 추가 (enhanced 우선, 없으면 원본)
+      setUploadProgress(0);
       for (const img of uploadedImages) {
+        setUploadProgress(prev => prev + 1);
         if (useEnhanced && img.enhanced) {
           try {
             const resp = await fetch(img.enhanced);
@@ -1108,7 +1131,7 @@ ${floorRows}</table></div>` : ''}
             {STEPS.map((step, i) => (
               <React.Fragment key={step.id}>
                 <button
-                  onClick={() => (step.id <= currentStep || (step.id === 2 && isStep1Valid)) && setCurrentStep(step.id)}
+                  onClick={() => (step.id <= currentStep + 1 || (step.id === 2 && isStep1Valid)) && setCurrentStep(step.id)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     currentStep === step.id
                       ? 'bg-green-700 text-white shadow-md'
@@ -1908,7 +1931,7 @@ ${floorRows}</table></div>` : ''}
 
             <div className="flex justify-between">
               <button onClick={() => { setShowAiPanel(false); setCurrentStep(2); }} className="px-6 py-3 rounded-xl border text-gray-600 hover:bg-gray-50 transition">← 이전</button>
-              {uploadedImages.length === 0 && (<div className="text-sm text-gray-400 flex items-center">사진을 업로드하면 등록 방식을 선택할 수 있습니다</div>)}
+              {<button onClick={() => { saveDraft(); setCurrentStep(4); }} className="px-6 py-3 rounded-xl bg-black text-white hover:bg-gray-800 transition">다음 →</button>}
             </div>
           </div>
         )}
@@ -1998,7 +2021,7 @@ ${floorRows}</table></div>` : ''}
                     바로 <span className="text-green-600 font-semibold">공개</span> 상태로 매물을 등록합니다.
                     즉시 홈페이지에 노출됩니다.
                   </p>
-                  {isPublishing && <div className="mt-2 text-xs text-green-600">등록 중...</div>}
+                  {isPublishing && <div className="mt-2 text-xs text-green-600">${uploadProgress}/${uploadedImages.length} 처리중...</div>}
                 </button>
 
                 <button onClick={() => publishListing('review')} disabled={isPublishing || !form.title}
@@ -2009,7 +2032,7 @@ ${floorRows}</table></div>` : ''}
                     <span className="text-blue-600 font-semibold">비공개</span> 상태로 저장 후 검수합니다.
                     확인 후 수동으로 공개 전환합니다.
                   </p>
-                  {isPublishing && <div className="mt-2 text-xs text-blue-600">저장 중...</div>}
+                  {isPublishing && <div className="mt-2 text-xs text-blue-600">${uploadProgress}/${uploadedImages.length} 처리중...</div>}
                 </button>
               </div>
             </div>
@@ -2039,3 +2062,28 @@ ${floorRows}</table></div>` : ''}
     </div>
   );
      }
+
+class ListingErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return React.createElement('div', {className: 'min-h-screen flex items-center justify-center'},
+        React.createElement('div', {className: 'text-center p-8'},
+          React.createElement('h2', {className: 'text-xl font-bold mb-4'}, '오류가 발생했습니다'),
+          React.createElement('button', {onClick: () => this.setState({hasError: false}), className: 'px-4 py-2 bg-black text-white rounded-lg'}, '다시 시도')
+        )
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function SmartListingNewPageWithErrorBoundary() {
+  return React.createElement(ListingErrorBoundary, null, React.createElement(SmartListingNewPage));
+}
