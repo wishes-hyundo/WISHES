@@ -679,7 +679,7 @@ function SmartListingNewPage() {
     if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }
   }, [toast]);
 
-  /* ── 키보드 단축키 ── */
+  /* ── 키보드 단축키 (Alt+좌우 화살표로 스텝 이동) ── */
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
@@ -1220,9 +1220,8 @@ ${floorRows}</table></div>` : ''}
   if (!isMounted) return null;
 
   return (
-    <>
-    <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
     <div className="min-h-screen bg-gray-50" suppressHydrationWarning>
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all ${
@@ -2252,7 +2251,5 @@ class ListingErrorBoundary extends React.Component {
 }
 
 export default function SmartListingNewPageWithErrorBoundary() {
-  return React.createElement(ListingErrorBoundary, null, React.createElement(SmartListingNewPage)
-    </>
-  );
+  return React.createElement(ListingErrorBoundary, null, React.createElement(SmartListingNewPage));
 }
