@@ -7,13 +7,25 @@ import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/
 import ImageGallery from '@/components/ImageGallery';
 import type { Metadata } from 'next';
 
-export const revalidate = 60; // ISR: 60초 캐싱
+export const revalidate = 3600; // ISR: 1시간 캐싱
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-// React.cache로 generateMetadata와 페이지 컴포넌트 간 쿼리 중복 제거
+// 빌드 시 모든 매물 페이지를 미리 정적 생성
+export async function generateStaticParams() {
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from('listings')
+    .select('id')
+    .eq('status', '가용');
+
+  return (data || []).map((listing) => ({
+    id: String(listing.id),
+  }));
+}
+
 const getListing = cache(async (id: number) => {
   const supabase = createServerClient();
   const { data } = await supabase
@@ -24,7 +36,6 @@ const getListing = cache(async (id: number) => {
   return data;
 });
 
-// 이미지 + 특징 병렬 조회
 const getListingData = cache(async (id: number) => {
   const supabase = createServerClient();
   const [imagesResult, featuresResult] = await Promise.all([
@@ -60,7 +71,6 @@ export default async function ListingDetailPage({ params }: Props) {
   const { id } = await params;
   const listingId = parseInt(id);
 
-  // 메인 데이터와 부가 데이터 병렬 로드
   const [listing, { images, features }] = await Promise.all([
     getListing(listingId),
     getListingData(listingId),
@@ -68,7 +78,6 @@ export default async function ListingDetailPage({ params }: Props) {
 
   if (!listing) notFound();
 
-  // 조회수 증가 (비동기, 실패해도 페이지 렌더링에 영향 없음)
   const supabase = createServerClient();
   supabase
     .from('listings')
@@ -78,12 +87,9 @@ export default async function ListingDetailPage({ params }: Props) {
     .catch(() => {});
 
   const price = getFormattedPrice(listing.deal, listing.deposit, listing.monthly, listing.price);
-  const imageList = images;
-  const featureList = features;
 
   return (
     <div className="pt-16 min-h-screen bg-wishes-bg">
-      {/* 상단 네비 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href="/listings" className="flex items-center gap-1 text-sm text-gray-500 hover:text-wishes-secondary">
@@ -97,11 +103,9 @@ export default async function ListingDetailPage({ params }: Props) {
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* 좌측: 이미지 + 상세 */}
           <div className="lg:col-span-2 space-y-6">
-            {/* 이미지 갤러리 */}
             <ImageGallery
-              images={imageList}
+              images={images}
               title={listing.title}
               deal={listing.deal}
               status={listing.status}
@@ -109,7 +113,6 @@ export default async function ListingDetailPage({ params }: Props) {
               statusColor={getStatusColor(listing.status)}
             />
 
-            {/* 상세 정보 */}
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <div className="flex items-center gap-3 mb-1">
                 <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
@@ -135,7 +138,6 @@ export default async function ListingDetailPage({ params }: Props) {
                 {listing.available_date && <InfoRow label="입주가능일" value={listing.available_date} />}
               </div>
 
-              {/* 옵션 */}
               <div className="mt-6 pt-6 border-t border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h3>
                 <div className="flex flex-wrap gap-2">
@@ -144,7 +146,7 @@ export default async function ListingDetailPage({ params }: Props) {
                   <OptionBadge label="반려동물" available={listing.pet ?? false} />
                   <OptionBadge label="발코니" available={listing.balcony ?? false} />
                   <OptionBadge label="풀옵션" available={listing.full_option ?? false} />
-                  {featureList.map((f) => (
+                  {features.map((f) => (
                     <span key={f.id} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
                       {f.feature}
                     </span>
@@ -152,7 +154,6 @@ export default async function ListingDetailPage({ params }: Props) {
                 </div>
               </div>
 
-              {/* 설명 */}
               {listing.description && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">상세 설명</h3>
@@ -164,7 +165,6 @@ export default async function ListingDetailPage({ params }: Props) {
             </div>
           </div>
 
-          {/* 우측: 상담 CTA */}
           <div className="space-y-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-24">
               <h3 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h3>
