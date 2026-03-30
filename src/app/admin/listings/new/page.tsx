@@ -941,7 +941,8 @@ ${floorRows}</table></div>` : ''}
         });
         const data = await res.json();
         if (data.success && data.title) {
-          updateForm({ title: data.title, description: data.description || '' });
+          const aiTitle = generateStyledTitle(form, buildingInfo, style);
+          updateForm({ title: aiTitle, description: data.description || '' });
         } else if (data.success && data.description) {
           const newTitle = generateStyledTitle(form, buildingInfo, style);
           updateForm({ title: newTitle, description: data.description });
@@ -970,9 +971,14 @@ ${floorRows}</table></div>` : ''}
       // 이미지 파일 추가 (enhanced 우선, 없으면 원본)
       for (const img of uploadedImages) {
         if (useEnhanced && img.enhanced) {
-          const resp = await fetch(img.enhanced);
-          const blob = await resp.blob();
-          fd.append('images', blob, img.file.name.replace(/\.\w+$/, '.webp'));
+          try {
+            const resp = await fetch(img.enhanced);
+            const blob = await resp.blob();
+            fd.append('images', blob, img.file.name.replace(/\.\w+$/, '.webp'));
+          } catch (e) {
+            console.warn('[Enhanced fetch failed, using original]', e);
+            fd.append('images', img.file);
+          }
         } else {
           fd.append('images', img.file);
         }
@@ -2035,4 +2041,4 @@ ${floorRows}</table></div>` : ''}
       )}
     </div>
   );
-}
+     }
