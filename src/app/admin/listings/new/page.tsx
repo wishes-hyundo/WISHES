@@ -1015,14 +1015,14 @@ ${floorRows}</table></div>` : ''}
 
       console.log('[publishListing] FormData, images:', uploadedImages.length, 'coords:', form.lat, form.lng);
 
-      const res = await fetch('/api/admin/listings', {
+      const res = await fetch('/api/admin/listings', {h
         method: 'POST',
         headers: { Authorization: `Bearer ${AUTH_TOKEN}` },
         body: fd,
       });
-
+h
       if (!res.ok) {
-          const errBody = await res.json().catch(() => null);
+          const errBody = await res.json().catch(() => ({ error: 'Non-JSON response ' + res.status + ' ' + res.statusText }));
           console.error('[publishListing] 에러 응답:', errBody);
           const errMsg = errBody?.error || errBody?.message || `매물 등록 실패 (${res.status})`;
           throw new Error(errMsg);
@@ -1036,7 +1036,7 @@ ${floorRows}</table></div>` : ''}
 
       setTimeout(() => router.push('/admin/listings'), 1500);
     } catch (err: any) {
-      setToast({ type: 'error', text: err.message || '매물 등록 실패' });
+            console.error('[publishListing] error:', err); setToast({ type: 'error', text: `매물 등록 실패: ${err?.message || String(err) || '알 수 없는 오류'}` });
     } finally {
       setIsPublishing(false);
     }
