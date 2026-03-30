@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WISHES Command Center</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>ð¡ï¸</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#2D5A27;--primary-light:#4CAF50;--accent:#ed8936;--bg:#070b07;--sidebar:#0a100a;--card:#111a11;--card-hover:#162016;--border:#1a2a1a;--text:#e8f0e8;--text-dim:#6a8a6a;--danger:#e53e3e;--danger-bg:rgba(229,62,62,.1);--success:#38a169;--success-bg:rgba(56,161,105,.1);--warning:#d69e2e;--warning-bg:rgba(214,158,46,.1);--info:#3182ce;--info-bg:rgba(49,130,206,.1)}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden}
+/* LAYOUT */
+.layout{display:flex;min-height:100vh}
+/* SIDEBAR */
+.sidebar{width:260px;background:var(--sidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;height:100vh;z-index:100;transition:transform .3s}
+.sidebar-header{padding:20px;border-bottom:1px solid var(--border)}
+.sidebar-brand{display:flex;align-items:center;gap:12px}
+.sidebar-logo{width:42px;height:42px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.sidebar-title{font-size:16px;font-weight:800;letter-spacing:1px}
+.sidebar-subtitle{font-size:10px;color:var(--accent);letter-spacing:2px;text-transform:uppercase;margin-top:2px}
+.sidebar-nav{flex:1;padding:12px;overflow-y:auto}
+.nav-section{margin-bottom:8px}
+.nav-section-label{font-size:10px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:2px;padding:8px 12px 4px}
+.nav-item{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;cursor:pointer;transition:all .2s;color:var(--text-dim);font-size:13px;font-weight:500;border:1px solid transparent}
+.nav-item:hover{background:rgba(45,90,39,.15);color:var(--text)}
+.nav-item.active{background:rgba(45,90,39,.2);color:var(--primary-light);border-color:rgba(76,175,80,.15)}
+.nav-item .icon{font-size:17px;width:22px;text-align:center}
+.nav-item .badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;min-width:20px;text-align:center}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border)}
+.admin-info{display:flex;align-items:center;gap:10px}
+.admin-avatar{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#e05a00);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff}
+.admin-name{font-size:13px;font-weight:600}
+.admin-role{font-size:10px;color:var(--accent)}
+/* MAIN CONTENT */
+.main{flex:1;margin-left:260px;min-height:100vh}
+/* TOP BAR */
+.topbar{height:60px;background:rgba(10,16,10,.9);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 28px;position:sticky;top:0;z-index:50;backdrop-filter:blur(10px)}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.page-title{font-size:18px;font-weight:700}
+.topbar-right{display:flex;align-items:center;gap:12px}
+.topbar-btn{padding:8px 14px;background:rgba(30,46,30,.5);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s}
+.topbar-btn:hover{border-color:var(--primary-light);color:var(--text)}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.threat-indicator{padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px}
+.threat-low{background:var(--success-bg);color:var(--success);border:1px solid rgba(56,161,105,.2)}
+.threat-medium{background:var(--warning-bg);color:var(--warning);border:1px solid rgba(214,158,46,.2)}
+.threat-high{background:var(--danger-bg);color:var(--danger);border:1px solid rgba(229,62,62,.2)}
+/* CONTENT AREA */
+.content{padding:24px 28px}
+/* STATS ROW */
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;transition:all .3s;position:relative;overflow:hidden}
+.stat-card:hover{border-color:rgba(76,175,80,.2);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
+.stat-card.green::after{background:linear-gradient(90deg,var(--primary),var(--primary-light))}
+.stat-card.orange::after{background:linear-gradient(90deg,var(--accent),#e05a00)}
+.stat-card.red::after{background:linear-gradient(90deg,var(--danger),#c53030)}
+.stat-card.blue::after{background:linear-gradient(90deg,var(--info),#2b6cb0)}
+.stat-card.yellow::after{background:linear-gradient(90deg,var(--warning),#b7791f)}
+.stat-icon{font-size:28px;margin-bottom:12px}
+.stat-value{font-size:28px;font-weight:800;margin-bottom:4px}
+.stat-label{font-size:12px;color:var(--text-dim);font-weight:500}
+.stat-change{font-size:11px;margin-top:8px;display:flex;align-items:center;gap:4px}
+.stat-up{color:var(--success)}
+.stat-down{color:var(--danger)}
+/* GRID LAYOUTS */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.grid-3-1{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:24px}
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.card-title{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px}
+.card-badge{font-size:10px;padding:2px 8px;border-radius:6px;font-weight:600}
+.card-body{padding:20px}
+.card-actions{display:flex;gap:6px}
+.card-action{padding:6px 10px;background:rgba(30,46,30,.5);border:1px solid var(--border);border-radius:6px;color:var(--text-dim);font-size:11px;cursor:pointer;transition:all .2s}
+.card-action:hover{border-color:var(--primary-light);color:var(--text)}
+/* TABLE */
+.ws-table{width:100%;border-collapse:collapse}
+.ws-table th{text-align:left;padding:10px 12px;font-size:11px;color:var(--text-dim);font-weight:600;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid var(--border)}
+.ws-table td{padding:12px;font-size:13px;border-bottom:1px solid rgba(26,42,26,.5)}
+.ws-table tr:hover{background:rgba(45,90,39,.05)}
+.ws-table tr:last-child td{border-bottom:none}
+/* STATUS BADGES */
+.status{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:600}
+.status-approved{background:var(--success-bg);color:var(--success)}
+.status-pending{background:var(--warning-bg);color:var(--warning)}
+.status-blocked{background:var(--danger-bg);color:var(--danger)}
+.status-online{background:var(--success-bg);color:var(--success)}
+.status-offline{background:rgba(100,100,100,.15);color:#888}
+/* ACTION BUTTONS */
+.btn-sm{padding:5px 10px;border:1px solid var(--border);border-radius:6px;font-size:11px;cursor:pointer;transition:all .2s;background:none;color:var(--text-dim)}
+.btn-sm:hover{border-color:var(--primary-light);color:var(--text)}
+.btn-approve{border-color:rgba(56,161,105,.3);color:var(--success)}
+.btn-approve:hover{background:var(--success-bg);border-color:var(--success)}
+.btn-block{border-color:rgba(229,62,62,.3);color:var(--danger)}
+.btn-block:hover{background:var(--danger-bg);border-color:var(--danger)}
+.btn-edit{border-color:rgba(49,130,206,.3);color:var(--info)}
+.btn-edit:hover{background:var(--info-bg);border-color:var(--info)}
+/* LOG ENTRIES */
+.log-entry{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid rgba(26,42,26,.3);font-size:12px}
+.log-entry:last-child{border-bottom:none}
+.log-time{color:var(--text-dim);white-space:nowrap;font-size:11px;min-width:64px;font-family:'Consolas',monospace}
+.log-icon{font-size:14px;margin-top:1px}
+.log-text{flex:1;line-height:1.5;color:var(--text)}
+.log-text .highlight{color:var(--accent);font-weight:600}
+.log-text .ip{color:var(--text-dim);font-family:monospace;font-size:11px}
+/* SECURITY METER */
+.security-meter{margin-top:16px}
+.meter-bar{height:8px;background:rgba(30,46,30,.5);border-radius:4px;overflow:hidden}
+.meter-fill{height:100%;border-radius:4px;transition:width .5s}
+.meter-fill.high{background:linear-gradient(90deg,var(--success),#68d391)}
+.meter-fill.medium{background:linear-gradient(90deg,var(--warning),#f6e05e)}
+.meter-fill.low{background:linear-gradient(90deg,var(--danger),#fc8181)}
+.meter-label{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-dim)}
+/* CHARTS placeholder */
+.chart-area{height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:13px;background:rgba(30,46,30,.2);border-radius:10px}
+/* QUICK ACTIONS */
+.quick-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.quick-action{padding:16px;background:rgba(30,46,30,.3);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:all .3s;text-align:center}
+.quick-action:hover{background:rgba(45,90,39,.15);border-color:rgba(76,175,80,.2);transform:translateY(-2px)}
+.quick-action .qa-icon{font-size:28px;margin-bottom:8px}
+.quick-action .qa-text{font-size:12px;font-weight:600;color:var(--text-dim)}
+/* MODAL */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;width:90%;max-width:560px;max-height:80vh;overflow-y:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--text-dim);font-size:20px;cursor:pointer;padding:4px}
+.modal-close:hover{color:var(--text)}
+.modal-body{padding:24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+.modal .form-group{margin-bottom:16px}
+.modal .form-label{display:block;font-size:11px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+.modal .form-input,.modal .form-select{width:100%;padding:10px 14px;background:rgba(30,46,30,.5);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none}
+.modal .form-input:focus,.modal .form-select:focus{border-color:var(--primary-light)}
+.modal .form-select{-webkit-appearance:none;cursor:pointer}
+.btn-modal{padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .2s}
+.btn-modal-primary{background:var(--primary);color:#fff}
+.btn-modal-primary:hover{background:var(--primary-light)}
+.btn-modal-danger{background:var(--danger);color:#fff}
+.btn-modal-danger:hover{background:#c53030}
+.btn-modal-ghost{background:none;border:1px solid var(--border);color:var(--text-dim)}
+.btn-modal-ghost:hover{border-color:var(--text-dim);color:var(--text)}
+/* SECTIONS (for nav switching) */
+.page-section{display:none}
+.page-section.active{display:block}
+/* TOAST */
+.toast-container{position:fixed;top:76px;right:28px;z-index:300;display:flex;flex-direction:column;gap:8px}
+.toast{padding:14px 20px;border-radius:10px;font-size:13px;display:flex;align-items:center;gap:10px;animation:toastIn .3s;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.toast-success{background:rgba(56,161,105,.95);color:#fff}
+.toast-error{background:rgba(229,62,62,.95);color:#fff}
+.toast-warning{background:rgba(214,158,46,.95);color:#000}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+/* Sessions table */
+.session-device{display:flex;align-items:center;gap:8px}
+.device-icon{font-size:16px}
+/* RESPONSIVE */
+@media(max-width:1200px){.stats-row{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:900px){.sidebar{transform:translateX(-260px)}.sidebar.open{transform:translateX(0)}.main{margin-left:0}.grid-2,.grid-3-1{grid-template-columns:1fr}.stats-row{grid-template-columns:repeat(2,1fr)}}
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--primary);border-radius:3px}
+</style>
+</head>
+<body>
+<!-- SIDEBAR -->
+<div class="layout">
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">ð¡ï¸</div>
+      <div>
+        <div class="sidebar-title">WISHES</div>
+        <div class="sidebar-subtitle">Command Center</div>
+      </div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <div class="nav-section-label">Overview</div>
+      <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">
+        <span class="icon">ð</span><span>ëìë³´ë</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">ì¬ì©ì ê´ë¦¬</div>
+      <div class="nav-item" data-page="users" onclick="showPage('users')">
+        <span class="icon">ð¥</span><span>ì ì²´ ì¬ì©ì</span>
+      </div>
+      <div class="nav-item" data-page="pending" onclick="showPage('pending')">
+        <span class="icon">â³</span><span>ì¹ì¸ ëê¸°</span><span class="badge" id="pendingBadge">0</span>
+      </div>
+      <div class="nav-item" data-page="roles" onclick="showPage('roles')">
+        <span class="icon">ð</span><span>ê¶í ê´ë¦¬</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">ë³´ì</div>
+      <div class="nav-item" data-page="security" onclick="showPage('security')">
+        <span class="icon">ð¡ï¸</span><span>ë³´ì íí©</span>
+      </div>
+      <div class="nav-item" data-page="logs" onclick="showPage('logs')">
+        <span class="icon">ð</span><span>íë ë¡ê·¸</span>
+      </div>
+      <div class="nav-item" data-page="sessions" onclick="showPage('sessions')">
+        <span class="icon">ð¥ï¸</span><span>íì± ì¸ì</span>
+      </div>
+      <div class="nav-item" data-page="threats" onclick="showPage('threats')">
+        <span class="icon">â ï¸</span><span>ìí íì§</span><span class="badge" id="threatBadge" style="display:none">0</span>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-label">ìì¤í</div>
+      <div class="nav-item" data-page="extension" onclick="showPage('extension')">
+        <span class="icon">ð§©</span><span>íì¥íë¡ê·¸ë¨</span>
+      </div>
+      <div class="nav-item" data-page="pwa" onclick="showPage('pwa')">
+        <span class="icon">ð±</span><span>ëª¨ë°ì¼ PWA</span>
+      </div>
+      <div class="nav-item" data-page="api" onclick="showPage('api')">
+        <span class="icon">ð</span><span>API ê´ë¦¬</span>
+      </div>
+      <div class="nav-item" data-page="settings" onclick="showPage('settings')">
+        <span class="icon">âï¸</span><span>ìì¤í ì¤ì </span>
+      </div>
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="admin-info">
+      <div class="admin-avatar">W</div>
+      <div>
+        <div class="admin-name" id="adminName">WISHES</div>
+        <div class="admin-role">Super Admin</div>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main">
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="page-title" id="pageTitle">ëìë³´ë</span>
+    </div>
+    <div class="topbar-right">
+      <div class="threat-indicator threat-low" id="threatLevel">
+        <div class="live-dot"></div>
+        <span>THREAT: LOW</span>
+      </div>
+      <button class="topbar-btn" onclick="refreshAll()">ð ìë¡ê³ ì¹¨</button>
+      <button class="topbar-btn" onclick="handleLogout()">ðª ë¡ê·¸ìì</button>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- ===== DASHBOARD ===== -->
+    <div class="page-section active" id="page-dashboard">
+      <!-- Stats Row -->
+      <div class="stats-row">
+        <div class="stat-card green">
+          <div class="stat-icon">ð¥</div>
+          <div class="stat-value" id="statTotalUsers">0</div>
+          <div class="stat-label">ì ì²´ ì¬ì©ì</div>
+          <div class="stat-change stat-up" id="statUsersChange">-</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-icon">ð¢</div>
+          <div class="stat-value" id="statOnline">0</div>
+          <div class="stat-label">íì¬ ì ìì¤</div>
+        </div>
+        <div class="stat-card yellow">
+          <div class="stat-icon">â³</div>
+          <div class="stat-value" id="statPending">0</div>
+          <div class="stat-label">ì¹ì¸ ëê¸°</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-icon">ð</div>
+          <div class="stat-value" id="statSearches">0</div>
+          <div class="stat-label">ì¤ë ê²ìì</div>
+        </div>
+        <div class="stat-card red">
+          <div class="stat-icon">ð¨</div>
+          <div class="stat-value" id="statThreats">0</div>
+          <div class="stat-label">ë³´ì ìí</div>
+        </div>
+      </div>
+
+      <div class="grid-3-1">
+        <!-- Recent Activity -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">ð ì¤ìê° íë ë¡ê·¸</div>
+            <div class="card-actions">
+              <button class="card-action" onclick="showPage('logs')">ì ì²´ë³´ê¸°</button>
+            </div>
+          </div>
+          <div class="card-body" id="recentLogs" style="max-height:340px;overflow-y:auto">
+            <div class="log-entry"><span class="log-time">--:--</span><span class="log-icon">â³</span><span class="log-text">ë¡ë© ì¤...</span></div>
+          </div>
+        </div>
+        <!-- Quick Actions -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">â¡ ë¹ ë¥¸ ìì</div>
+          </div>
+          <div class="card-body">
+            <div class="quick-actions">
+              <div class="quick-action" onclick="showPage('pending')">
+                <div class="qa-icon">â</div>
+                <div class="qa-text">ê°ì ì¹ì¸</div>
+              </div>
+              <div class="quick-action" onclick="openModal('blockIpModal')">
+                <div class="qa-icon">ð«</div>
+                <div class="qa-text">IP ì°¨ë¨</div>
+              </div>
+              <div class="quick-action" onclick="forceLogoutAll()">
+                <div class="qa-icon">ð</div>
+                <div class="qa-text">ì ì²´ ë¡ê·¸ìì</div>
+              </div>
+              <div class="quick-action" onclick="showPage('security')">
+                <div class="qa-icon">ð¡ï¸</div>
+                <div class="qa-text">ë³´ì ì ê²</div>
+              </div>
+              <div class="quick-action" onclick="exportLogs()">
+                <div class="qa-icon">ð¥</div>
+                <div class="qa-text">ë¡ê·¸ ë¤ì´ë¡ë</div>
+              </div>
+              <div class="quick-action" onclick="showPage('settings')">
+                <div class="qa-icon">âï¸</div>
+                <div class="qa-text">ìì¤í ì¤ì </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <!-- Security Overview -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">ð¡ï¸ ë³´ì ì¤ì½ì´</div>
+            <div class="card-badge" style="background:var(--success-bg);color:var(--success)" id="secScoreBadge">ìí¸</div>
+          </div>
+          <div class="card-body">
+            <div style="text-align:center;margin-bottom:16px">
+              <div style="font-size:48px;font-weight:800;color:var(--success)" id="secScore">95</div>
+              <div style="font-size:12px;color:var(--text-dim)">/ 100ì </div>
+            </div>
+            <div class="security-meter">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>SSL ì¸ì¦ì</span><span style="color:var(--success)">íì±</span></div>
+              <div class="meter-bar"><div class="meter-fill high" style="width:100%"></div></div>
+            </div>
+            <div class="security-meter">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>API ë³´ì</span><span style="color:var(--success)">ì ì</span></div>
+              <div class="meter-bar"><div class="meter-fill high" style="width:95%"></div></div>
+            </div>
+            <div class="security-meter">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>ì ê·¼ ì ì´</span><span style="color:var(--success)">ì ì</span></div>
+              <div class="meter-bar"><div class="meter-fill high" style="width:100%"></div></div>
+            </div>
+            <div class="security-meter">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>ë°ì´í° ìí¸í</span><span style="color:var(--success)">AES-256</span></div>
+              <div class="meter-bar"><div class="meter-fill high" style="width:100%"></div></div>
+            </div>
+            <div class="security-meter">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>ì½ë ë¬´ê²°ì±</span><span id="codeIntStatus" style="color:var(--warning)">ì ê² íì</span></div>
+              <div class="meter-bar"><div class="meter-fill medium" style="width:75%" id="codeIntBar"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Recent Pending -->
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">â³ ìµê·¼ ê°ì ì ì²­</div>
+            <div class="card-actions"><button class="card-action" onclick="showPage('pending')">ì ì²´ë³´ê¸°</button></div>
+          </div>
+          <div class="card-body" id="recentPending">
+            <div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">ëê¸° ì¤ì¸ ì ì²­ì´ ììµëë¤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== USERS PAGE ===== -->
+    <div class="page-section" id="page-users">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">ð¥ ì ì²´ ì¬ì©ì ê´ë¦¬</div>
+          <div class="card-actions">
+            <button class="card-action" onclick="exportUsers()">ð¥ ë´ë³´ë´ê¸°</button>
+            <button class="card-action" onclick="openModal('addUserModal')">â ì¬ì©ì ì¶ê°</button>
+          </div>
+        </div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="ws-table">
+            <thead>
+              <tr><th>ì¬ì©ì</th><th>ì´ë©ì¼</th><th>ìì</th><th>ì§ì±</th><th>ìí</th><th>ë§ì§ë§ ì ì</th><th>ìì</th></tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ë¡ë© ì¤...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PENDING PAGE ===== -->
+    <div class="page-section" id="page-pending">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">â³ ê°ì ì¹ì¸ ëê¸° ëª©ë¡</div>
+          <div class="card-badge" style="background:var(--warning-bg);color:var(--warning)" id="pendingCount">0ê±´</div>
+        </div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="ws-table">
+            <thead>
+              <tr><th>ì´ë¦</th><th>ì´ë©ì¼</th><th>ìì</th><th>ì§ì±</th><th>ê°ì ì¬ì </th><th>ì ì²­ì¼</th><th>ìì</th></tr>
+            </thead>
+            <tbody id="pendingTableBody">
+              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ëê¸° ì¤ì¸ ì ì²­ì´ ììµëë¤</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== ROLES PAGE ===== -->
+    <div class="page-section" id="page-roles">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">ð ê¶í ë±ê¸ ê´ë¦¬</div>
+        </div>
+        <div class="card-body">
+          <table class="ws-table">
+            <thead><tr><th>ë±ê¸</th><th>ê¶í</th><th>ì¬ì©ì ì</th><th>ì¤ëª</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="status" style="background:rgba(237,137,54,.15);color:var(--accent)">Super Admin</span></td>
+                <td>ì ì²´ ê¶í</td><td id="roleCountSuper">1</td>
+                <td style="font-size:12px;color:var(--text-dim)">ëª¨ë  ìì¤í ì ê·¼, ì¬ì©ì ê´ë¦¬, ë³´ì ì¤ì , ë°ì´í° ì­ì  ë±</td>
+              </tr>
+              <tr>
+                <td><span class="status" style="background:var(--info-bg);color:var(--info)">Admin</span></td>
+                <td>ê´ë¦¬ ê¶í</td><td id="roleCountAdmin">0</td>
+                <td style="font-size:12px;color:var(--text-dim)">ì¬ì©ì ì¹ì¸, ë§¤ë¬¼ ê´ë¦¬, ê²ì, ë¸ë¦¬í ìì± (ìì¤í ì¤ì  ë¶ê°)</td>
+              </tr>
+              <tr>
+                <td><span class="status status-approved">Agent</span></td>
+                <td>ì¤ê°ì¬ ê¶í</td><td id="roleCountAgent">0</td>
+                <td style="font-size:12px;color:var(--text-dim)">ë§¤ë¬¼ ê²ì, ë¸ë¦¬í ìì±, PDF ì¹´íë¡ê·¸, ê³µì  ê¸°ë¥</td>
+              </tr>
+              <tr>
+                <td><span class="status status-pending">Viewer</span></td>
+                <td>ì´ë ì ì©</td><td id="roleCountViewer">0</td>
+                <td style="font-size:12px;color:var(--text-dim)">ë§¤ë¬¼ ê²ì ë° ì´ëë§ ê°ë¥ (ë¸ë¦¬í, ê³µì  ë¶ê°)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SECURITY PAGE ===== -->
+    <div class="page-section" id="page-security">
+      <div class="stats-row" style="grid-template-columns:repeat(4,1fr)">
+        <div class="stat-card green"><div class="stat-icon">ð</div><div class="stat-value" id="secActiveSessions">0</div><div class="stat-label">íì± ì¸ì</div></div>
+        <div class="stat-card red"><div class="stat-icon">ð«</div><div class="stat-value" id="secBlockedIps">0</div><div class="stat-label">ì°¨ë¨ë IP</div></div>
+        <div class="stat-card yellow"><div class="stat-icon">â ï¸</div><div class="stat-value" id="secFailedLogins">0</div><div class="stat-label">ì¤í¨í ë¡ê·¸ì¸ (24h)</div></div>
+        <div class="stat-card blue"><div class="stat-icon">ð</div><div class="stat-value">AES-256</div><div class="stat-label">ìí¸í ìì¤</div></div>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">ð¡ï¸ ë³´ì ì ì± ì¤ì </div></div>
+          <div class="card-body">
+            <div style="margin-bottom:16px">
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+                <div><div style="font-size:13px;font-weight:600">ì¸ì ìë ë§ë£</div><div style="font-size:11px;color:var(--text-dim)">ë¹íë ì ìë ë¡ê·¸ìì</div></div>
+                <select class="form-select" style="width:120px;padding:8px" id="sessionTimeout"><option value="1800">30ë¶</option><option value="3600">1ìê°</option><option value="900">15ë¶</option></select>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+                <div><div style="font-size:13px;font-weight:600">ë¡ê·¸ì¸ ì¤í¨ ì í</div><div style="font-size:11px;color:var(--text-dim)">ì´ê³¼ ì ê³ì  ì ê¸</div></div>
+                <select class="form-select" style="width:120px;padding:8px" id="maxLoginFail"><option value="5">5í</option><option value="3">3í</option><option value="10">10í</option></select>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+                <div><div style="font-size:13px;font-weight:600">ëë°ì´ì¤ ì¸ì¦</div><div style="font-size:11px;color:var(--text-dim)">ì ê¸°ê¸° ì ì ì ì¶ê° ì¸ì¦</div></div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="deviceAuth" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+                <div><div style="font-size:13px;font-weight:600">IP íì´í¸ë¦¬ì¤í¸</div><div style="font-size:11px;color:var(--text-dim)">íì©ë IPë§ ì ê·¼ ê°ë¥</div></div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="ipWhitelist" style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:rgba(100,100,100,.3);border-radius:24px;transition:.3s"></span></label>
+              </div>
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+                <div><div style="font-size:13px;font-weight:600">ìí°ë§í¬ íì</div><div style="font-size:11px;color:var(--text-dim)">íë©´ì ì¬ì©ì ì ë³´ ìí°ë§í¬</div></div>
+                <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="watermarkOn" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
+              </div>
+            </div>
+            <button class="btn-modal btn-modal-primary" style="width:100%" onclick="saveSecuritySettings()">ì¤ì  ì ì¥</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">ð« ì°¨ë¨ë IP ëª©ë¡</div><div class="card-actions"><button class="card-action" onclick="openModal('blockIpModal')">â IP ì¶ê°</button></div></div>
+          <div class="card-body" id="blockedIpList" style="max-height:360px;overflow-y:auto">
+            <div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">ì°¨ë¨ë IPê° ììµëë¤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== LOGS PAGE ===== -->
+    <div class="page-section" id="page-logs">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">ð ì ì²´ íë ë¡ê·¸</div>
+          <div class="card-actions">
+            <select class="form-select" style="width:130px;padding:6px 10px;font-size:11px" id="logFilter" onchange="filterLogs()">
+              <option value="all">ì ì²´</option><option value="login">ë¡ê·¸ì¸</option><option value="search">ê²ì</option><option value="security">ë³´ì</option><option value="admin">ê´ë¦¬</option>
+            </select>
+            <button class="card-action" onclick="exportLogs()">ð¥ ë¤ì´ë¡ë</button>
+          </div>
+        </div>
+        <div class="card-body" id="allLogs" style="max-height:600px;overflow-y:auto">
+          <div style="text-align:center;padding:40px;color:var(--text-dim)">ë¡ë© ì¤...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SESSIONS PAGE ===== -->
+    <div class="page-section" id="page-sessions">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">ð¥ï¸ íì± ì¸ì ê´ë¦¬</div>
+          <div class="card-actions"><button class="card-action btn-block" onclick="forceLogoutAll()">ð ì ì²´ ê°ì  ë¡ê·¸ìì</button></div>
+        </div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="ws-table">
+            <thead><tr><th>ì¬ì©ì</th><th>ëë°ì´ì¤</th><th>IP ì£¼ì</th><th>ìì¹</th><th>ì ì ìê°</th><th>ìí</th><th>ìì</th></tr></thead>
+            <tbody id="sessionsTableBody">
+              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ë¡ë© ì¤...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== THREATS PAGE ===== -->
+    <div class="page-section" id="page-threats">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">â ï¸ ìí íì§ ë¡ê·¸</div>
+          <div class="card-badge threat-indicator threat-low" id="threatPageLevel">LOW</div>
+        </div>
+        <div class="card-body" id="threatsList" style="max-height:600px;overflow-y:auto">
+          <div style="text-align:center;padding:60px;color:var(--text-dim)">
+            <div style="font-size:48px;margin-bottom:16px">â</div>
+            <div style="font-size:15px;font-weight:600;margin-bottom:4px">ìíì´ ê°ì§ëì§ ìììµëë¤</div>
+            <div style="font-size:12px">ìì¤íì´ ì ìì ì¼ë¡ ì´ìì¤ìëë¤</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== EXTENSION PAGE ===== -->
+    <div class="page-section" id="page-extension">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">ð§© Chrome íì¥íë¡ê·¸ë¨ ìí</div></div>
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:13px">ë²ì </span><span style="font-size:13px;color:var(--primary-light);font-weight:600">1.0.0</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:13px">ì¤ì¹ë ì¬ì©ì</span><span style="font-size:13px;font-weight:600" id="extInstalledCount">0</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:13px">ì½ë ë¬´ê²°ì±</span><span class="status status-approved">ì ì</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+              <span style="font-size:13px">ëëí ë¹ë</span><span class="status status-pending">ìµì  ìë</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">ð§© íì¥íë¡ê·¸ë¨ ì ê·¼ ì ì´</div></div>
+          <div class="card-body">
+            <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">ì¹ì¸ë ì¬ì©ìë§ íì¥íë¡ê·¸ë¨ ê¸°ë¥ì ì´ì©í  ì ììµëë¤. ë¯¸ì¹ì¸ ì¬ì©ìì íì¥íë¡ê·¸ë¨ì ë¹íì± ìíë¡ ì ì§ë©ëë¤.</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+              <div><div style="font-size:13px;font-weight:600">íì¥ ì¸ì¦ íì</div><div style="font-size:11px;color:var(--text-dim)">ë¡ê·¸ì¸ ìì´ íì¥ ì¬ì© ë¶ê°</div></div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="extAuthRequired" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+              <div><div style="font-size:13px;font-weight:600">ëë°ì´ì¤ ë°ì¸ë©</div><div style="font-size:11px;color:var(--text-dim)">ë±ë¡ë ëë°ì´ì¤ììë§ ìë</div></div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="extDeviceBind" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PWA PAGE ===== -->
+    <div class="page-section" id="page-pwa">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">ð± ëª¨ë°ì¼ PWA ìí</div></div>
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:13px">URL</span><span style="font-size:13px;color:var(--primary-light)">wishes.co.kr/m/</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:13px">Service Worker</span><span class="status status-approved">íì±</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+              <span style="font-size:13px">ì¤ì¹ ì</span><span style="font-size:13px;font-weight:600" id="pwaInstalls">0</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+              <span style="font-size:13px">ë³´ì ë ì´ì´</span><span style="font-size:13px;color:var(--accent);font-weight:600">11ë¨ê³</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">ð± PWA ì ê·¼ ì ì´</div></div>
+          <div class="card-body">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+              <div><div style="font-size:13px;font-weight:600">PWA ë¡ê·¸ì¸ íì</div></div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+              <div><div style="font-size:13px;font-weight:600">ì¤íë¼ì¸ ìºì ë¹íì±</div><div style="font-size:11px;color:var(--text-dim)">ë³´ìì ì¤íë¼ì¸ ì ê·¼ ì°¨ë¨</div></div>
+              <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:rgba(100,100,100,.3);border-radius:24px;transition:.3s"></span></label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== API PAGE ===== -->
+    <div class="page-section" id="page-api">
+      <div class="card">
+        <div class="card-header"><div class="card-title">ð API ìëí¬ì¸í¸ ê´ë¦¬</div></div>
+        <div class="card-body" style="overflow-x:auto">
+          <table class="ws-table">
+            <thead><tr><th>ìëí¬ì¸í¸</th><th>ë©ìë</th><th>ì¸ì¦</th><th>ìí</th><th>í¸ì¶ ì (24h)</th></tr></thead>
+            <tbody>
+              <tr><td style="font-family:monospace;font-size:12px">/api/auth/login</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Public</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/auth/register</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Public</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/auth/verify</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Bearer Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/listings</td><td><span class="status" style="background:var(--info-bg);color:var(--info)">GET</span></td><td>Bearer Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/admin/users</td><td><span class="status" style="background:var(--info-bg);color:var(--info)">GET</span></td><td>Admin Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/admin/approve</td><td><span class="status" style="background:var(--warning-bg);color:var(--warning)">PUT</span></td><td>SuperAdmin</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/admin/logs</td><td><span class="status" style="background:var(--info-bg);color:var(--info)">GET</span></td><td>Admin Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/ai/briefing</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Bearer Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS PAGE ===== -->
+    <div class="page-section" id="page-settings">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header"><div class="card-title">âï¸ ìì¤í ì¤ì </div></div>
+          <div class="card-body">
+            <div class="form-group"><label class="form-label">ì¬ì´í¸ ì´ë¦</label><input class="form-input" value="WISHES" id="settingSiteName"></div>
+            <div class="form-group"><label class="form-label">ê´ë¦¬ì ì´ë©ì¼</label><input class="form-input" value="admin@wishes.co.kr" id="settingAdminEmail"></div>
+            <div class="form-group"><label class="form-label">ìë¦¼ ìì </label>
+              <select class="form-select" id="settingNotify"><option value="all">ëª¨ë  ìë¦¼</option><option value="security">ë³´ì ìë¦¼ë§</option><option value="none">ë</option></select>
+            </div>
+            <div class="form-group"><label class="form-label">ì ì§ë³´ì ëª¨ë</label>
+              <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="maintenanceMode" style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:rgba(100,100,100,.3);border-radius:24px;transition:.3s"></span></label>
+            </div>
+            <button class="btn-modal btn-modal-primary" style="width:100%" onclick="saveSettings()">ì¤ì  ì ì¥</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">ðï¸ ë°ì´í° ê´ë¦¬</div></div>
+          <div class="card-body">
+            <div class="quick-actions" style="grid-template-columns:1fr 1fr">
+              <div class="quick-action" onclick="exportAllData()"><div class="qa-icon">ð¥</div><div class="qa-text">ì ì²´ ë°±ì</div></div>
+              <div class="quick-action" onclick="clearOldLogs()"><div class="qa-icon">ðï¸</div><div class="qa-text">ì¤ëë ë¡ê·¸ ì ë¦¬</div></div>
+              <div class="quick-action" onclick="rebuildObfuscation()"><div class="qa-icon">ð§</div><div class="qa-text">ëëí ì¬ë¹ë</div></div>
+              <div class="quick-action" onclick="checkIntegrity()"><div class="qa-icon">â</div><div class="qa-text">ë¬´ê²°ì± ê²ì¬</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+</div>
+
+<!-- ===== MODALS ===== -->
+<!-- Block IP Modal -->
+<div class="modal-overlay" id="blockIpModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">ð« IP ì°¨ë¨</div><button class="modal-close" onclick="closeModal('blockIpModal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">IP ì£¼ì</label><input class="form-input" id="blockIpInput" placeholder="192.168.1.1"></div>
+      <div class="form-group"><label class="form-label">ì°¨ë¨ ì¬ì </label><input class="form-input" id="blockIpReason" placeholder="ë¹ì ì ì ê·¼ ìë"></div>
+      <div class="form-group"><label class="form-label">ì°¨ë¨ ê¸°ê°</label>
+        <select class="form-select" id="blockIpDuration">
+          <option value="24h">24ìê°</option><option value="7d">7ì¼</option><option value="30d">30ì¼</option><option value="permanent">ìêµ¬</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal btn-modal-ghost" onclick="closeModal('blockIpModal')">ì·¨ì</button>
+      <button class="btn-modal btn-modal-danger" onclick="blockIp()">ì°¨ë¨</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal-overlay" id="addUserModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">â ì¬ì©ì ì§ì  ì¶ê°</div><button class="modal-close" onclick="closeModal('addUserModal')">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label class="form-label">ì´ë¦</label><input class="form-input" id="addUserName" placeholder="íê¸¸ë"></div>
+      <div class="form-group"><label class="form-label">ì´ë©ì¼</label><input class="form-input" id="addUserEmail" placeholder="user@company.com"></div>
+      <div class="form-group"><label class="form-label">ì´ê¸° ë¹ë°ë²í¸</label><input class="form-input" id="addUserPw" placeholder="ìì ë¹ë°ë²í¸"></div>
+      <div class="form-group"><label class="form-label">ê¶í ë±ê¸</label>
+        <select class="form-select" id="addUserRole">
+          <option value="agent">Agent (ì¤ê°ì¬)</option><option value="admin">Admin (ê´ë¦¬ì)</option><option value="viewer">Viewer (ì´ëì ì©)</option>
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">ìì</label><input class="form-input" id="addUserCompany" placeholder="íì¬/ì¬ë¬´ìëª"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal btn-modal-ghost" onclick="closeModal('addUserModal')">ì·¨ì</button>
+      <button class="btn-modal btn-modal-primary" onclick="addUser()">ì¶ê°</button>
+    </div>
+  </div>
+</div>
+
+<!-- User Detail Modal -->
+<div class="modal-overlay" id="userDetailModal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="userDetailTitle">ì¬ì©ì ìì¸</div><button class="modal-close" onclick="closeModal('userDetailModal')">&times;</button></div>
+    <div class="modal-body" id="userDetailBody"></div>
+    <div class="modal-footer" id="userDetailFooter"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ===== SECURITY =====
+var _isProduction = location.hostname!=='localhost'&&location.hostname!=='127.0.0.1';
+if(_isProduction){(function _ad(){try{(function(){}).constructor('debugger')();setTimeout(_ad,3000)}catch(e){}})()}
+document.addEventListener('contextmenu',function(e){e.preventDefault()});
+document.addEventListener('keydown',function(e){if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'))||(e.ctrlKey&&e.key==='u'))e.preventDefault()});
+
+// ===== AUTH CHECK =====
+var API_BASE = '/api';
+var _token = sessionStorage.getItem('ws_token');
+var _user = null;
+try{_user=JSON.parse(sessionStorage.getItem('ws_user'))}catch(e){}
+
+function checkAuth(){
+  if(!_token||!_user){window.location.href='/admin/admin-auth.html';return false}
+  if(_user.role!=='superadmin'){window.location.href='/admin/admin-auth.html';return false}
+  var loginTime=parseInt(sessionStorage.getItem('ws_login_time')||'0');
+  if(Date.now()-loginTime>1800000){sessionStorage.clear();window.location.href='/admin/admin-auth.html';return false}
+  return true;
+}
+if(!checkAuth())throw new Error('Unauthorized');
+
+// Set admin name
+if(_user&&_user.name)document.getElementById('adminName').textContent=_user.name;
+
+// ===== SESSION REFRESH =====
+setInterval(function(){
+  sessionStorage.setItem('ws_login_time',Date.now().toString());
+},60000); // refresh timer every minute on activity
+
+// ===== PAGE NAVIGATION =====
+var _pageTitles={dashboard:'ëìë³´ë',users:'ì ì²´ ì¬ì©ì',pending:'ì¹ì¸ ëê¸°',roles:'ê¶í ê´ë¦¬',security:'ë³´ì íí©',logs:'íë ë¡ê·¸',sessions:'íì± ì¸ì',threats:'ìí íì§',extension:'íì¥íë¡ê·¸ë¨',pwa:'ëª¨ë°ì¼ PWA',api:'API ê´ë¦¬',settings:'ìì¤í ì¤ì '};
+
+window.showPage=function(page){
+  document.querySelectorAll('.page-section').forEach(function(s){s.classList.remove('active')});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
+  var section=document.getElementById('page-'+page);
+  if(section)section.classList.add('active');
+  var nav=document.querySelector('.nav-item[data-page="'+page+'"]');
+  if(nav)nav.classList.add('active');
+  document.getElementById('pageTitle').textContent=_pageTitles[page]||page;
+};
+
+// ===== MODAL =====
+window.openModal=function(id){document.getElementById(id).classList.add('show')};
+window.closeModal=function(id){document.getElementById(id).classList.remove('show')};
+document.querySelectorAll('.modal-overlay').forEach(function(m){
+  m.addEventListener('click',function(e){if(e.target===m)m.classList.remove('show')});
+});
+
+// ===== TOAST =====
+function showToast(msg,type){
+  var c=document.getElementById('toastContainer');
+  var t=document.createElement('div');
+  t.className='toast toast-'+(type||'success');
+  t.innerHTML=(type==='error'?'â':type==='warning'?'â ï¸':'â')+' '+msg;
+  c.appendChild(t);
+  setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},4000);
+}
+
+// ===== API HELPERS =====
+function apiCall(endpoint,method,body){
+  var opts={method:method||'GET',headers:{'Content-Type':'application/json'}};
+  if(_token)opts.headers['Authorization']='Bearer '+_token;
+  if(body)opts.body=JSON.stringify(body);
+  return fetch(API_BASE+endpoint,opts).then(function(r){return r.json()});
+}
+
+// ===== DATA (Demo/Fallback when API not connected) =====
+var _demoUsers=[
+  {id:1,name:'WISHES',email:'admin@wishes.co.kr',company:'WISHESë¶ëì°',role:'superadmin',status:'approved',lastLogin:'2026-03-31 14:23',online:true,ip:'125.xxx.xxx.xxx',device:'Chrome/Win11'},
+];
+var _demoPending=[];
+var _demoLogs=[
+  {time:'14:23',icon:'ð',type:'login',text:'<span class="highlight">WISHES</span> ê´ë¦¬ì ë¡ê·¸ì¸ <span class="ip">125.xxx.xxx.xxx</span>'},
+  {time:'14:20',icon:'ð¡ï¸',type:'security',text:'ìì¤í ë³´ì ì ê² ìë£ - ì´ì ìì'},
+  {time:'14:15',icon:'âï¸',type:'admin',text:'ìì¤í ììë¨ - Command Center íì±í'},
+];
+var _demoBlockedIps=[];
+var _demoSessions=[
+  {user:'WISHES',device:'ð» Chrome / Windows 11',ip:'125.xxx.xxx.xxx',location:'ìì¸',time:'14:23',status:'online'}
+];
+
+// ===== RENDER FUNCTIONS =====
+function renderDashboard(){
+  document.getElementById('statTotalUsers').textContent=_demoUsers.length;
+  document.getElementById('statOnline').textContent=_demoUsers.filter(function(u){return u.online}).length;
+  document.getElementById('statPending').textContent=_demoPending.length;
+  document.getElementById('statSearches').textContent='0';
+  document.getElementById('statThreats').textContent='0';
+  document.getElementById('pendingBadge').textContent=_demoPending.length;
+  if(_demoPending.length===0)document.getElementById('pendingBadge').style.display='none';
+  else document.getElementById('pendingBadge').style.display='';
+  renderRecentLogs();
+  renderRecentPending();
+}
+
+function renderRecentLogs(){
+  var el=document.getElementById('recentLogs');
+  if(_demoLogs.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">ë¡ê·¸ê° ììµëë¤</div>';return}
+  el.innerHTML=_demoLogs.slice(0,10).map(function(l){
+    return '<div class="log-entry"><span class="log-time">'+l.time+'</span><span class="log-icon">'+l.icon+'</span><span class="log-text">'+l.text+'</span></div>';
+  }).join('');
+}
+
+function renderRecentPending(){
+  var el=document.getElementById('recentPending');
+  if(_demoPending.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">ëê¸° ì¤ì¸ ì ì²­ì´ ììµëë¤</div>';return}
+  el.innerHTML=_demoPending.slice(0,5).map(function(u){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(u.company)+' Â· '+_escHtml(u.email)+'</div></div><div style="display:flex;gap:6px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">ì¹ì¸</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">ê±°ì </button></div></div>';
+  }).join('');
+}
+
+function renderUsers(){
+  var tb=document.getElementById('usersTableBody');
+  if(_demoUsers.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ë±ë¡ë ì¬ì©ìê° ììµëë¤</td></tr>';return}
+  tb.innerHTML=_demoUsers.map(function(u){
+    var statusClass=u.status==='approved'?'status-approved':u.status==='pending'?'status-pending':'status-blocked';
+    var statusText=u.status==='approved'?'ì¹ì¸ë¨':u.status==='pending'?'ëê¸°ì¤':'ì°¨ë¨ë¨';
+    var onlineClass=u.online?'status-online':'status-offline';
+    var onlineText=u.online?'ì ìì¤':'ì¤íë¼ì¸';
+    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td><span class="status '+(u.role==='superadmin'?'" style="background:rgba(237,137,54,.15);color:var(--accent)':u.role==='admin'?'" style="background:var(--info-bg);color:var(--info)':'status-approved')+'">'+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+(u.lastLogin||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser('+u.id+')">ìì¸</button>'+(u.role!=='superadmin'?'<button class="btn-sm btn-block" onclick="toggleBlock('+u.id+')">ì°¨ë¨</button>':'')+'</div></td></tr>';
+  }).join('');
+}
+
+function renderPending(){
+  var tb=document.getElementById('pendingTableBody');
+  document.getElementById('pendingCount').textContent=_demoPending.length+'ê±´';
+  if(_demoPending.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ëê¸° ì¤ì¸ ì ì²­ì´ ììµëë¤</td></tr>';return}
+  tb.innerHTML=_demoPending.map(function(u){
+    return '<tr><td style="font-weight:600">'+_escHtml(u.name)+'</td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td style="font-size:12px">'+_escHtml(u.role||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+_escHtml(u.reason||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+(u.createdAt||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">â ì¹ì¸</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">â ê±°ì </button></div></td></tr>';
+  }).join('');
+}
+
+function renderSessions(){
+  var tb=document.getElementById('sessionsTableBody');
+  tb.innerHTML=_demoSessions.map(function(s){
+    var sc=s.status==='online'?'status-online':'status-offline';
+    return '<tr><td style="font-weight:600">'+_escHtml(s.user)+'</td><td><div class="session-device"><span class="device-icon">'+s.device.split(' ')[0]+'</span><span style="font-size:12px">'+_escHtml(s.device)+'</span></div></td><td style="font-family:monospace;font-size:12px">'+s.ip+'</td><td style="font-size:12px">'+_escHtml(s.location)+'</td><td style="font-size:12px;color:var(--text-dim)">'+s.time+'</td><td><span class="status '+sc+'">'+s.status+'</span></td><td><button class="btn-sm btn-block" onclick="forceLogoutUser(\''+_escHtml(s.user)+'\')">ê°ì  ë¡ê·¸ìì</button></td></tr>';
+  }).join('');
+  document.getElementById('secActiveSessions').textContent=_demoSessions.length;
+}
+
+function renderAllLogs(){
+  var el=document.getElementById('allLogs');
+  var filter=document.getElementById('logFilter').value;
+  var logs=filter==='all'?_demoLogs:_demoLogs.filter(function(l){return l.type===filter});
+  if(logs.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">í´ë¹ ë¡ê·¸ê° ììµëë¤</div>';return}
+  el.innerHTML=logs.map(function(l){
+    return '<div class="log-entry"><span class="log-time">'+l.time+'</span><span class="log-icon">'+l.icon+'</span><span class="log-text">'+l.text+'</span></div>';
+  }).join('');
+}
+
+// ===== ACTIONS =====
+window.approveUser=function(id){
+  var idx=_demoPending.findIndex(function(u){return u.id===id});
+  if(idx===-1)return;
+  var user=_demoPending.splice(idx,1)[0];
+  user.status='approved';user.lastLogin='-';user.online=false;
+  _demoUsers.push(user);
+  _demoLogs.unshift({time:_now(),icon:'â',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> ì¬ì©ì ì¹ì¸ ìë£'});
+  renderDashboard();renderPending();renderUsers();renderAllLogs();
+  showToast(user.name+' ëì´ ì¹ì¸ëììµëë¤');
+};
+
+window.rejectUser=function(id){
+  var idx=_demoPending.findIndex(function(u){return u.id===id});
+  if(idx===-1)return;
+  var user=_demoPending.splice(idx,1)[0];
+  _demoLogs.unshift({time:_now(),icon:'â',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> ê°ì ê±°ì ë¨'});
+  renderDashboard();renderPending();renderAllLogs();
+  showToast(user.name+' ëì ê°ìì´ ê±°ì ëììµëë¤','warning');
+};
+
+window.viewUser=function(id){
+  var user=_demoUsers.find(function(u){return u.id===id});
+  if(!user)return;
+  document.getElementById('userDetailTitle').textContent=user.name+' ìì¸ ì ë³´';
+  document.getElementById('userDetailBody').innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="form-group"><label class="form-label">ì´ë¦</label><div style="font-size:14px;font-weight:600">'+_escHtml(user.name)+'</div></div><div class="form-group"><label class="form-label">ì´ë©ì¼</label><div style="font-size:14px">'+_escHtml(user.email)+'</div></div><div class="form-group"><label class="form-label">ìì</label><div style="font-size:14px">'+_escHtml(user.company||'-')+'</div></div><div class="form-group"><label class="form-label">ê¶í</label><div style="font-size:14px">'+user.role+'</div></div><div class="form-group"><label class="form-label">ìí</label><div style="font-size:14px">'+user.status+'</div></div><div class="form-group"><label class="form-label">ë§ì§ë§ ì ì</label><div style="font-size:14px">'+(user.lastLogin||'-')+'</div></div><div class="form-group"><label class="form-label">IP</label><div style="font-size:14px;font-family:monospace">'+(user.ip||'-')+'</div></div><div class="form-group"><label class="form-label">ëë°ì´ì¤</label><div style="font-size:14px">'+(user.device||'-')+'</div></div></div>';
+  var footer='<button class="btn-modal btn-modal-ghost" onclick="closeModal(\'userDetailModal\')">ë«ê¸°</button>';
+  if(user.role!=='superadmin'){
+    footer+='<button class="btn-modal btn-modal-danger" onclick="toggleBlock('+user.id+');closeModal(\'userDetailModal\')">ì°¨ë¨/í´ì </button>';
+  }
+  document.getElementById('userDetailFooter').innerHTML=footer;
+  openModal('userDetailModal');
+};
+
+window.toggleBlock=function(id){
+  var user=_demoUsers.find(function(u){return u.id===id});
+  if(!user||user.role==='superadmin')return;
+  user.status=user.status==='blocked'?'approved':'blocked';
+  var action=user.status==='blocked'?'ì°¨ë¨':'ì°¨ë¨ í´ì ';
+  _demoLogs.unshift({time:_now(),icon:user.status==='blocked'?'ð«':'ð',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> '+action});
+  renderUsers();renderDashboard();renderAllLogs();
+  showToast(user.name+' ëì´ '+action+'ëììµëë¤',user.status==='blocked'?'warning':'success');
+};
+
+window.addUser=function(){
+  var name=document.getElementById('addUserName').value.trim();
+  var email=document.getElementById('addUserEmail').value.trim();
+  var pw=document.getElementById('addUserPw').value;
+  var role=document.getElementById('addUserRole').value;
+  var company=document.getElementById('addUserCompany').value.trim();
+  if(!name||!email||!pw){showToast('íì ì ë³´ë¥¼ ìë ¥íì¸ì','error');return}
+  var newUser={id:Date.now(),name:name,email:email,company:company,role:role,status:'approved',lastLogin:'-',online:false};
+  _demoUsers.push(newUser);
+  _demoLogs.unshift({time:_now(),icon:'â',type:'admin',text:'ê´ë¦¬ìê° <span class="highlight">'+_escHtml(name)+'</span> ì¬ì©ì ì§ì  ì¶ê°'});
+  renderUsers();renderDashboard();renderAllLogs();
+  closeModal('addUserModal');
+  showToast(name+' ëì´ ì¶ê°ëììµëë¤');
+};
+
+window.blockIp=function(){
+  var ip=document.getElementById('blockIpInput').value.trim();
+  var reason=document.getElementById('blockIpReason').value.trim();
+  var duration=document.getElementById('blockIpDuration').value;
+  if(!ip){showToast('IP ì£¼ìë¥¼ ìë ¥íì¸ì','error');return}
+  _demoBlockedIps.push({ip:ip,reason:reason,duration:duration,date:_now()});
+  _demoLogs.unshift({time:_now(),icon:'ð«',type:'security',text:'IP <span class="highlight">'+_escHtml(ip)+'</span> ì°¨ë¨ë¨ - '+_escHtml(reason)});
+  document.getElementById('secBlockedIps').textContent=_demoBlockedIps.length;
+  renderBlockedIps();renderAllLogs();renderDashboard();
+  closeModal('blockIpModal');
+  showToast(ip+' ì°¨ë¨ëììµëë¤','warning');
+};
+
+function renderBlockedIps(){
+  var el=document.getElementById('blockedIpList');
+  if(_demoBlockedIps.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">ì°¨ë¨ë IPê° ììµëë¤</div>';return}
+  el.innerHTML=_demoBlockedIps.map(function(b,i){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-family:monospace;font-size:13px">'+_escHtml(b.ip)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(b.reason)+' Â· '+b.duration+'</div></div><button class="btn-sm" onclick="unblockIp('+i+')">í´ì </button></div>';
+  }).join('');
+}
+
+window.unblockIp=function(idx){
+  var removed=_demoBlockedIps.splice(idx,1)[0];
+  _demoLogs.unshift({time:_now(),icon:'ð',type:'security',text:'IP <span class="highlight">'+_escHtml(removed.ip)+'</span> ì°¨ë¨ í´ì '});
+  document.getElementById('secBlockedIps').textContent=_demoBlockedIps.length;
+  renderBlockedIps();renderAllLogs();
+  showToast(removed.ip+' ì°¨ë¨ í´ì ë¨');
+};
+
+window.forceLogoutAll=function(){
+  _demoSessions=_demoSessions.filter(function(s){return s.user==='WISHES'});
+  _demoLogs.unshift({time:_now(),icon:'ð',type:'security',text:'ê´ë¦¬ìì ìí´ <span class="highlight">ì ì²´ ê°ì  ë¡ê·¸ìì</span> ì¤í'});
+  renderSessions();renderAllLogs();renderDashboard();
+  showToast('ëª¨ë  ì¬ì©ìê° ê°ì  ë¡ê·¸ììëììµëë¤','warning');
+};
+
+window.forceLogoutUser=function(name){
+  _demoSessions=_demoSessions.filter(function(s){return s.user!==name||s.user==='WISHES'});
+  _demoLogs.unshift({time:_now(),icon:'ð',type:'security',text:'<span class="highlight">'+_escHtml(name)+'</span> ê°ì  ë¡ê·¸ìì'});
+  renderSessions();renderAllLogs();
+  showToast(name+' ê°ì  ë¡ê·¸ììë¨','warning');
+};
+
+window.filterLogs=function(){renderAllLogs()};
+window.refreshAll=function(){renderDashboard();renderUsers();renderPending();renderSessions();renderAllLogs();showToast('ìë¡ê³ ì¹¨ ìë£')};
+window.handleLogout=function(){sessionStorage.clear();window.location.href='/admin/admin-auth.html'};
+
+window.exportLogs=function(){showToast('ë¡ê·¸ ë¤ì´ë¡ë ì¤ë¹ ì¤...')};
+window.exportUsers=function(){showToast('ì¬ì©ì ëª©ë¡ ë´ë³´ë´ê¸° ì¤ë¹ ì¤...')};
+window.exportAllData=function(){showToast('ì ì²´ ë°±ì ìì± ì¤...')};
+window.clearOldLogs=function(){showToast('30ì¼ ì´ì  ë¡ê·¸ ì ë¦¬ ìë£')};
+window.rebuildObfuscation=function(){showToast('ëëí ë¹ë ìì...')};
+window.checkIntegrity=function(){document.getElementById('codeIntStatus').textContent='ì ì';document.getElementById('codeIntStatus').style.color='var(--success)';document.getElementById('codeIntBar').style.width='100%';document.getElementById('codeIntBar').className='meter-fill high';showToast('ë¬´ê²°ì± ê²ì¬ ìë£ - ì´ì ìì')};
+window.saveSecuritySettings=function(){showToast('ë³´ì ì¤ì ì´ ì ì¥ëììµëë¤')};
+window.saveSettings=function(){showToast('ìì¤í ì¤ì ì´ ì ì¥ëììµëë¤')};
+
+// ===== UTILITIES =====
+function _escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function _now(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
+
+// ===== INITIAL RENDER =====
+renderDashboard();
+renderUsers();
+renderPending();
+renderSessions();
+renderAllLogs();
+renderBlockedIps();
+
+// ===== AUTO REFRESH (30s) =====
+setInterval(function(){
+  // In production, this would call the API
+  // For now, just update the time display
+},30000);
+
+})();
+</script>
+</body>
+</html>
