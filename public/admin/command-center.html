@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>WISHES Command Center</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>ð¡ï¸</text></svg>">
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--primary:#2D5A27;--primary-light:#4CAF50;--accent:#ed8936;--bg:#070b07;--sidebar:#0a100a;--card:#111a11;--card-hover:#162016;--border:#1a2a1a;--text:#e8f0e8;--text-dim:#6a8a6a;--danger:#e53e3e;--danger-bg:rgba(229,62,62,.1);--success:#38a169;--success-bg:rgba(56,161,105,.1);--warning:#d69e2e;--warning-bg:rgba(214,158,46,.1);--info:#3182ce;--info-bg:rgba(49,130,206,.1)}
@@ -172,7 +172,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <div class="sidebar-brand">
-      <div class="sidebar-logo">ð¡ï¸</div>
+      <div class="sidebar-logo">🛡️</div>
       <div>
         <div class="sidebar-title">WISHES</div>
         <div class="sidebar-subtitle">Command Center</div>
@@ -183,49 +183,49 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="nav-section">
       <div class="nav-section-label">Overview</div>
       <div class="nav-item active" data-page="dashboard" onclick="showPage('dashboard')">
-        <span class="icon">ð</span><span>ëìë³´ë</span>
+        <span class="icon">📊</span><span>대시보드</span>
       </div>
     </div>
     <div class="nav-section">
-      <div class="nav-section-label">ì¬ì©ì ê´ë¦¬</div>
+      <div class="nav-section-label">사용자 관리</div>
       <div class="nav-item" data-page="users" onclick="showPage('users')">
-        <span class="icon">ð¥</span><span>ì ì²´ ì¬ì©ì</span>
+        <span class="icon">👥</span><span>전체 사용자</span>
       </div>
       <div class="nav-item" data-page="pending" onclick="showPage('pending')">
-        <span class="icon">â³</span><span>ì¹ì¸ ëê¸°</span><span class="badge" id="pendingBadge">0</span>
+        <span class="icon">⏳</span><span>승인 대기</span><span class="badge" id="pendingBadge">0</span>
       </div>
       <div class="nav-item" data-page="roles" onclick="showPage('roles')">
-        <span class="icon">ð</span><span>ê¶í ê´ë¦¬</span>
+        <span class="icon">🔑</span><span>권한 관리</span>
       </div>
     </div>
     <div class="nav-section">
-      <div class="nav-section-label">ë³´ì</div>
+      <div class="nav-section-label">보안</div>
       <div class="nav-item" data-page="security" onclick="showPage('security')">
-        <span class="icon">ð¡ï¸</span><span>ë³´ì íí©</span>
+        <span class="icon">🛡️</span><span>보안 현황</span>
       </div>
       <div class="nav-item" data-page="logs" onclick="showPage('logs')">
-        <span class="icon">ð</span><span>íë ë¡ê·¸</span>
+        <span class="icon">📋</span><span>활동 로그</span>
       </div>
       <div class="nav-item" data-page="sessions" onclick="showPage('sessions')">
-        <span class="icon">ð¥ï¸</span><span>íì± ì¸ì</span>
+        <span class="icon">🖥️</span><span>활성 세션</span>
       </div>
       <div class="nav-item" data-page="threats" onclick="showPage('threats')">
-        <span class="icon">â ï¸</span><span>ìí íì§</span><span class="badge" id="threatBadge" style="display:none">0</span>
+        <span class="icon">⚠️</span><span>위협 탐지</span><span class="badge" id="threatBadge" style="display:none">0</span>
       </div>
     </div>
     <div class="nav-section">
-      <div class="nav-section-label">ìì¤í</div>
+      <div class="nav-section-label">시스템</div>
       <div class="nav-item" data-page="extension" onclick="showPage('extension')">
-        <span class="icon">ð§©</span><span>íì¥íë¡ê·¸ë¨</span>
+        <span class="icon">🧩</span><span>형장프로그램</span>
       </div>
       <div class="nav-item" data-page="pwa" onclick="showPage('pwa')">
-        <span class="icon">ð±</span><span>ëª¨ë°ì¼ PWA</span>
+        <span class="icon">📱</span><span>모바일 PWA</span>
       </div>
       <div class="nav-item" data-page="api" onclick="showPage('api')">
-        <span class="icon">ð</span><span>API ê´ë¦¬</span>
+        <span class="icon">🔌</span><span>API 관리</span>
       </div>
       <div class="nav-item" data-page="settings" onclick="showPage('settings')">
-        <span class="icon">âï¸</span><span>ìì¤í ì¤ì </span>
+        <span class="icon">⚙️</span><span>시스템 설정</span>
       </div>
     </div>
   </nav>
@@ -245,15 +245,15 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
   <!-- TOP BAR -->
   <div class="topbar">
     <div class="topbar-left">
-      <span class="page-title" id="pageTitle">ëìë³´ë</span>
+      <span class="page-title" id="pageTitle">대시보드</span>
     </div>
     <div class="topbar-right">
       <div class="threat-indicator threat-low" id="threatLevel">
         <div class="live-dot"></div>
         <span>THREAT: LOW</span>
       </div>
-      <button class="topbar-btn" onclick="refreshAll()">ð ìë¡ê³ ì¹¨</button>
-      <button class="topbar-btn" onclick="handleLogout()">ðª ë¡ê·¸ìì</button>
+      <button class="topbar-btn" onclick="refreshAll()">🔄 새로고침</button>
+      <button class="topbar-btn" onclick="handleLogout()">🚪 로그아웃</button>
     </div>
   </div>
 
@@ -268,30 +268,30 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
       <!-- Stats Row -->
       <div class="stats-row">
         <div class="stat-card green">
-          <div class="stat-icon">ð¥</div>
+          <div class="stat-icon">👥</div>
           <div class="stat-value" id="statTotalUsers">0</div>
-          <div class="stat-label">ì ì²´ ì¬ì©ì</div>
+          <div class="stat-label">전체 사용자</div>
           <div class="stat-change stat-up" id="statUsersChange">-</div>
         </div>
         <div class="stat-card orange">
-          <div class="stat-icon">ð¢</div>
+          <div class="stat-icon">🟢</div>
           <div class="stat-value" id="statOnline">0</div>
-          <div class="stat-label">íì¬ ì ìì¤</div>
+          <div class="stat-label">현재 접속중</div>
         </div>
         <div class="stat-card yellow">
-          <div class="stat-icon">â³</div>
+          <div class="stat-icon">⏳</div>
           <div class="stat-value" id="statPending">0</div>
-          <div class="stat-label">ì¹ì¸ ëê¸°</div>
+          <div class="stat-label">승인 대기</div>
         </div>
         <div class="stat-card blue">
-          <div class="stat-icon">ð</div>
+          <div class="stat-icon">🔍</div>
           <div class="stat-value" id="statSearches">0</div>
-          <div class="stat-label">ì¤ë ê²ìì</div>
+          <div class="stat-label">오늘 검색수</div>
         </div>
         <div class="stat-card red">
-          <div class="stat-icon">ð¨</div>
+          <div class="stat-icon">🚨</div>
           <div class="stat-value" id="statThreats">0</div>
-          <div class="stat-label">ë³´ì ìí</div>
+          <div class="stat-label">보안 위협</div>
         </div>
       </div>
 
@@ -299,45 +299,45 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
         <!-- Recent Activity -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">ð ì¤ìê° íë ë¡ê·¸</div>
+            <div class="card-title">📋 실시간 활동 로그</div>
             <div class="card-actions">
-              <button class="card-action" onclick="showPage('logs')">ì ì²´ë³´ê¸°</button>
+              <button class="card-action" onclick="showPage('logs')">전체보기</button>
             </div>
           </div>
           <div class="card-body" id="recentLogs" style="max-height:340px;overflow-y:auto">
-            <div class="log-entry"><span class="log-time">--:--</span><span class="log-icon">â³</span><span class="log-text">ë¡ë© ì¤...</span></div>
+            <div class="log-entry"><span class="log-time">--:--</span><span class="log-icon">⏳</span><span class="log-text">로딩 중...</span></div>
           </div>
         </div>
         <!-- Quick Actions -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">â¡ ë¹ ë¥¸ ìì</div>
+            <div class="card-title">⚡ 빠른 작업</div>
           </div>
           <div class="card-body">
             <div class="quick-actions">
               <div class="quick-action" onclick="showPage('pending')">
-                <div class="qa-icon">â</div>
-                <div class="qa-text">ê°ì ì¹ì¸</div>
+                <div class="qa-icon">✅</div>
+                <div class="qa-text">가입 승인</div>
               </div>
               <div class="quick-action" onclick="openModal('blockIpModal')">
-                <div class="qa-icon">ð«</div>
-                <div class="qa-text">IP ì°¨ë¨</div>
+                <div class="qa-icon">🚫</div>
+                <div class="qa-text">IP 차단</div>
               </div>
               <div class="quick-action" onclick="forceLogoutAll()">
-                <div class="qa-icon">ð</div>
-                <div class="qa-text">ì ì²´ ë¡ê·¸ìì</div>
+                <div class="qa-icon">🔒</div>
+                <div class="qa-text">전체 로그아웃</div>
               </div>
               <div class="quick-action" onclick="showPage('security')">
-                <div class="qa-icon">ð¡ï¸</div>
-                <div class="qa-text">ë³´ì ì ê²</div>
+                <div class="qa-icon">🛡️</div>
+                <div class="qa-text">보안 점검</div>
               </div>
               <div class="quick-action" onclick="exportLogs()">
-                <div class="qa-icon">ð¥</div>
-                <div class="qa-text">ë¡ê·¸ ë¤ì´ë¡ë</div>
+                <div class="qa-icon">📥</div>
+                <div class="qa-text">로그 다운로드</div>
               </div>
               <div class="quick-action" onclick="showPage('settings')">
-                <div class="qa-icon">âï¸</div>
-                <div class="qa-text">ìì¤í ì¤ì </div>
+                <div class="qa-icon">⚙️</div>
+                <div class="qa-text">시스템 설정</div>
               </div>
             </div>
           </div>
@@ -348,32 +348,32 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
         <!-- Security Overview -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">ð¡ï¸ ë³´ì ì¤ì½ì´</div>
-            <div class="card-badge" style="background:var(--success-bg);color:var(--success)" id="secScoreBadge">ìí¸</div>
+            <div class="card-title">🛡️ 보안 스코어</div>
+            <div class="card-badge" style="background:var(--success-bg);color:var(--success)" id="secScoreBadge">양호</div>
           </div>
           <div class="card-body">
             <div style="text-align:center;margin-bottom:16px">
               <div style="font-size:48px;font-weight:800;color:var(--success)" id="secScore">95</div>
-              <div style="font-size:12px;color:var(--text-dim)">/ 100ì </div>
+              <div style="font-size:12px;color:var(--text-dim)">/ 100점</div>
             </div>
             <div class="security-meter">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>SSL ì¸ì¦ì</span><span style="color:var(--success)">íì±</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>SSL 인증서</span><span style="color:var(--success)">활성</span></div>
               <div class="meter-bar"><div class="meter-fill high" style="width:100%"></div></div>
             </div>
             <div class="security-meter">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>API ë³´ì</span><span style="color:var(--success)">ì ì</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>API 보안</span><span style="color:var(--success)">정상</span></div>
               <div class="meter-bar"><div class="meter-fill high" style="width:95%"></div></div>
             </div>
             <div class="security-meter">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>ì ê·¼ ì ì´</span><span style="color:var(--success)">ì ì</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>접근 제어</span><span style="color:var(--success)">정상</span></div>
               <div class="meter-bar"><div class="meter-fill high" style="width:100%"></div></div>
             </div>
             <div class="security-meter">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>ë°ì´í° ìí¸í</span><span style="color:var(--success)">AES-256</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>데이터 암호화</span><span style="color:var(--success)">AES-256</span></div>
               <div class="meter-bar"><div class="meter-fill high" style="width:100%"></div></div>
             </div>
             <div class="security-meter">
-              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>ì½ë ë¬´ê²°ì±</span><span id="codeIntStatus" style="color:var(--warning)">ì ê² íì</span></div>
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:6px"><span>코드 무결성</span><span id="codeIntStatus" style="color:var(--warning)">점검 필요</span></div>
               <div class="meter-bar"><div class="meter-fill medium" style="width:75%" id="codeIntBar"></div></div>
             </div>
           </div>
@@ -381,11 +381,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
         <!-- Recent Pending -->
         <div class="card">
           <div class="card-header">
-            <div class="card-title">â³ ìµê·¼ ê°ì ì ì²­</div>
-            <div class="card-actions"><button class="card-action" onclick="showPage('pending')">ì ì²´ë³´ê¸°</button></div>
+            <div class="card-title">⏳ 최근 가입 신청</div>
+            <div class="card-actions"><button class="card-action" onclick="showPage('pending')">전체보기</button></div>
           </div>
           <div class="card-body" id="recentPending">
-            <div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">ëê¸° ì¤ì¸ ì ì²­ì´ ììµëë¤</div>
+            <div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">대기 중인 신청이 없습니다</div>
           </div>
         </div>
       </div>
@@ -395,19 +395,19 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="page-section" id="page-users">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">ð¥ ì ì²´ ì¬ì©ì ê´ë¦¬</div>
+          <div class="card-title">👥 전체 사용자 관리</div>
           <div class="card-actions">
-            <button class="card-action" onclick="exportUsers()">ð¥ ë´ë³´ë´ê¸°</button>
-            <button class="card-action" onclick="openModal('addUserModal')">â ì¬ì©ì ì¶ê°</button>
+            <button class="card-action" onclick="exportUsers()">📥 내보내기</button>
+            <button class="card-action" onclick="openModal('addUserModal')">➕ 사용자 추가</button>
           </div>
         </div>
         <div class="card-body" style="overflow-x:auto">
           <table class="ws-table">
             <thead>
-              <tr><th>ì¬ì©ì</th><th>ì´ë©ì¼</th><th>ìì</th><th>ì§ì±</th><th>ìí</th><th>ë§ì§ë§ ì ì</th><th>ìì</th></tr>
+              <tr><th>사용자</th><th>이메일</th><th>소속</th><th>직책</th><th>상태</th><th>마지막 접속</th><th>작업</th></tr>
             </thead>
             <tbody id="usersTableBody">
-              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ë¡ë© ì¤...</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">로딩 중...</td></tr>
             </tbody>
           </table>
         </div>
@@ -418,16 +418,16 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="page-section" id="page-pending">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">â³ ê°ì ì¹ì¸ ëê¸° ëª©ë¡</div>
-          <div class="card-badge" style="background:var(--warning-bg);color:var(--warning)" id="pendingCount">0ê±´</div>
+          <div class="card-title">⏳ 가입 승인 대기 목록</div>
+          <div class="card-badge" style="background:var(--warning-bg);color:var(--warning)" id="pendingCount">0건</div>
         </div>
         <div class="card-body" style="overflow-x:auto">
           <table class="ws-table">
             <thead>
-              <tr><th>ì´ë¦</th><th>ì´ë©ì¼</th><th>ìì</th><th>ì§ì±</th><th>ê°ì ì¬ì </th><th>ì ì²­ì¼</th><th>ìì</th></tr>
+              <tr><th>이름</th><th>이메일</th><th>소속</th><th>직책</th><th>가입 사유</th><th>신청일</th><th>작업</th></tr>
             </thead>
             <tbody id="pendingTableBody">
-              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ëê¸° ì¤ì¸ ì ì²­ì´ ììµëë¤</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">대기 중인 신청이 없습니다</td></tr>
             </tbody>
           </table>
         </div>
@@ -438,31 +438,31 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="page-section" id="page-roles">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">ð ê¶í ë±ê¸ ê´ë¦¬</div>
+          <div class="card-title">🔑 권한 등급 관리</div>
         </div>
         <div class="card-body">
           <table class="ws-table">
-            <thead><tr><th>ë±ê¸</th><th>ê¶í</th><th>ì¬ì©ì ì</th><th>ì¤ëª</th></tr></thead>
+            <thead><tr><th>등급</th><th>권한</th><th>사용자 수</th><th>설명</th></tr></thead>
             <tbody>
               <tr>
                 <td><span class="status" style="background:rgba(237,137,54,.15);color:var(--accent)">Super Admin</span></td>
-                <td>ì ì²´ ê¶í</td><td id="roleCountSuper">1</td>
-                <td style="font-size:12px;color:var(--text-dim)">ëª¨ë  ìì¤í ì ê·¼, ì¬ì©ì ê´ë¦¬, ë³´ì ì¤ì , ë°ì´í° ì­ì  ë±</td>
+                <td>전체 권한</td><td id="roleCountSuper">1</td>
+                <td style="font-size:12px;color:var(--text-dim)">모든 시스템 접근, 사용자 관리, 보안 설정, 데이터 삭제 등</td>
               </tr>
               <tr>
                 <td><span class="status" style="background:var(--info-bg);color:var(--info)">Admin</span></td>
-                <td>ê´ë¦¬ ê¶í</td><td id="roleCountAdmin">0</td>
-                <td style="font-size:12px;color:var(--text-dim)">ì¬ì©ì ì¹ì¸, ë§¤ë¬¼ ê´ë¦¬, ê²ì, ë¸ë¦¬í ìì± (ìì¤í ì¤ì  ë¶ê°)</td>
+                <td>관리 권한</td><td id="roleCountAdmin">0</td>
+                <td style="font-size:12px;color:var(--text-dim)">사용자 승인, 매물 관리, 검색, 브리핑 생성 (시스템 설정 불가)</td>
               </tr>
               <tr>
                 <td><span class="status status-approved">Agent</span></td>
-                <td>ì¤ê°ì¬ ê¶í</td><td id="roleCountAgent">0</td>
-                <td style="font-size:12px;color:var(--text-dim)">ë§¤ë¬¼ ê²ì, ë¸ë¦¬í ìì±, PDF ì¹´íë¡ê·¸, ê³µì  ê¸°ë¥</td>
+                <td>중개사 권한</td><td id="roleCountAgent">0</td>
+                <td style="font-size:12px;color:var(--text-dim)">매물 검색, 브리핑 생성, PDF 카탈로그, 공유 기능</td>
               </tr>
               <tr>
                 <td><span class="status status-pending">Viewer</span></td>
-                <td>ì´ë ì ì©</td><td id="roleCountViewer">0</td>
-                <td style="font-size:12px;color:var(--text-dim)">ë§¤ë¬¼ ê²ì ë° ì´ëë§ ê°ë¥ (ë¸ë¦¬í, ê³µì  ë¶ê°)</td>
+                <td>열람 전용</td><td id="roleCountViewer">0</td>
+                <td style="font-size:12px;color:var(--text-dim)">매물 검색 및 열람만 가능 (브리핑, 공유 불가)</td>
               </tr>
             </tbody>
           </table>
@@ -473,44 +473,44 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <!-- ===== SECURITY PAGE ===== -->
     <div class="page-section" id="page-security">
       <div class="stats-row" style="grid-template-columns:repeat(4,1fr)">
-        <div class="stat-card green"><div class="stat-icon">ð</div><div class="stat-value" id="secActiveSessions">0</div><div class="stat-label">íì± ì¸ì</div></div>
-        <div class="stat-card red"><div class="stat-icon">ð«</div><div class="stat-value" id="secBlockedIps">0</div><div class="stat-label">ì°¨ë¨ë IP</div></div>
-        <div class="stat-card yellow"><div class="stat-icon">â ï¸</div><div class="stat-value" id="secFailedLogins">0</div><div class="stat-label">ì¤í¨í ë¡ê·¸ì¸ (24h)</div></div>
-        <div class="stat-card blue"><div class="stat-icon">ð</div><div class="stat-value">AES-256</div><div class="stat-label">ìí¸í ìì¤</div></div>
+        <div class="stat-card green"><div class="stat-icon">🔒</div><div class="stat-value" id="secActiveSessions">0</div><div class="stat-label">활성 세션</div></div>
+        <div class="stat-card red"><div class="stat-icon">🚫</div><div class="stat-value" id="secBlockedIps">0</div><div class="stat-label">차단된 IP</div></div>
+        <div class="stat-card yellow"><div class="stat-icon">⚠️</div><div class="stat-value" id="secFailedLogins">0</div><div class="stat-label">실패한 로그인 (24h)</div></div>
+        <div class="stat-card blue"><div class="stat-icon">🔐</div><div class="stat-value">AES-256</div><div class="stat-label">암호화 수준</div></div>
       </div>
       <div class="grid-2">
         <div class="card">
-          <div class="card-header"><div class="card-title">ð¡ï¸ ë³´ì ì ì± ì¤ì </div></div>
+          <div class="card-header"><div class="card-title">🛡️ 보안 정책 설정</div></div>
           <div class="card-body">
             <div style="margin-bottom:16px">
               <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-                <div><div style="font-size:13px;font-weight:600">ì¸ì ìë ë§ë£</div><div style="font-size:11px;color:var(--text-dim)">ë¹íë ì ìë ë¡ê·¸ìì</div></div>
-                <select class="form-select" style="width:120px;padding:8px" id="sessionTimeout"><option value="1800">30ë¶</option><option value="3600">1ìê°</option><option value="900">15ë¶</option></select>
+                <div><div style="font-size:13px;font-weight:600">세션 자동 만료</div><div style="font-size:11px;color:var(--text-dim)">비활동 시 자동 로그아웃</div></div>
+                <select class="form-select" style="width:120px;padding:8px" id="sessionTimeout"><option value="1800">30분</option><option value="3600">1시간</option><option value="900">15분</option></select>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-                <div><div style="font-size:13px;font-weight:600">ë¡ê·¸ì¸ ì¤í¨ ì í</div><div style="font-size:11px;color:var(--text-dim)">ì´ê³¼ ì ê³ì  ì ê¸</div></div>
-                <select class="form-select" style="width:120px;padding:8px" id="maxLoginFail"><option value="5">5í</option><option value="3">3í</option><option value="10">10í</option></select>
+                <div><div style="font-size:13px;font-weight:600">로그인 실패 제한</div><div style="font-size:11px;color:var(--text-dim)">초과 시 계정 잠금</div></div>
+                <select class="form-select" style="width:120px;padding:8px" id="maxLoginFail"><option value="5">5회</option><option value="3">3회</option><option value="10">10회</option></select>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-                <div><div style="font-size:13px;font-weight:600">ëë°ì´ì¤ ì¸ì¦</div><div style="font-size:11px;color:var(--text-dim)">ì ê¸°ê¸° ì ì ì ì¶ê° ì¸ì¦</div></div>
+                <div><div style="font-size:13px;font-weight:600">디바이스 인증</div><div style="font-size:11px;color:var(--text-dim)">새 기기 접속 시 추가 인증</div></div>
                 <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="deviceAuth" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-                <div><div style="font-size:13px;font-weight:600">IP íì´í¸ë¦¬ì¤í¸</div><div style="font-size:11px;color:var(--text-dim)">íì©ë IPë§ ì ê·¼ ê°ë¥</div></div>
+                <div><div style="font-size:13px;font-weight:600">IP 화이트리스트</div><div style="font-size:11px;color:var(--text-dim)">허용된 IP만 접근 가능</div></div>
                 <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="ipWhitelist" style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:rgba(100,100,100,.3);border-radius:24px;transition:.3s"></span></label>
               </div>
               <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
-                <div><div style="font-size:13px;font-weight:600">ìí°ë§í¬ íì</div><div style="font-size:11px;color:var(--text-dim)">íë©´ì ì¬ì©ì ì ë³´ ìí°ë§í¬</div></div>
+                <div><div style="font-size:13px;font-weight:600">워터마크 표시</div><div style="font-size:11px;color:var(--text-dim)">화면에 사용자 정보 워터마크</div></div>
                 <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="watermarkOn" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
               </div>
             </div>
-            <button class="btn-modal btn-modal-primary" style="width:100%" onclick="saveSecuritySettings()">ì¤ì  ì ì¥</button>
+            <button class="btn-modal btn-modal-primary" style="width:100%" onclick="saveSecuritySettings()">설정 저장</button>
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><div class="card-title">ð« ì°¨ë¨ë IP ëª©ë¡</div><div class="card-actions"><button class="card-action" onclick="openModal('blockIpModal')">â IP ì¶ê°</button></div></div>
+          <div class="card-header"><div class="card-title">🚫 차단된 IP 목록</div><div class="card-actions"><button class="card-action" onclick="openModal('blockIpModal')">➕ IP 추가</button></div></div>
           <div class="card-body" id="blockedIpList" style="max-height:360px;overflow-y:auto">
-            <div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">ì°¨ë¨ë IPê° ììµëë¤</div>
+            <div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">차단된 IP가 없습니다</div>
           </div>
         </div>
       </div>
@@ -520,16 +520,16 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="page-section" id="page-logs">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">ð ì ì²´ íë ë¡ê·¸</div>
+          <div class="card-title">📋 전체 활동 로그</div>
           <div class="card-actions">
             <select class="form-select" style="width:130px;padding:6px 10px;font-size:11px" id="logFilter" onchange="filterLogs()">
-              <option value="all">ì ì²´</option><option value="login">ë¡ê·¸ì¸</option><option value="search">ê²ì</option><option value="security">ë³´ì</option><option value="admin">ê´ë¦¬</option>
+              <option value="all">전체</option><option value="login">로그인</option><option value="search">검색</option><option value="security">보안</option><option value="admin">관리</option>
             </select>
-            <button class="card-action" onclick="exportLogs()">ð¥ ë¤ì´ë¡ë</button>
+            <button class="card-action" onclick="exportLogs()">📥 다운로드</button>
           </div>
         </div>
         <div class="card-body" id="allLogs" style="max-height:600px;overflow-y:auto">
-          <div style="text-align:center;padding:40px;color:var(--text-dim)">ë¡ë© ì¤...</div>
+          <div style="text-align:center;padding:40px;color:var(--text-dim)">로딩 중...</div>
         </div>
       </div>
     </div>
@@ -538,14 +538,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="page-section" id="page-sessions">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">ð¥ï¸ íì± ì¸ì ê´ë¦¬</div>
-          <div class="card-actions"><button class="card-action btn-block" onclick="forceLogoutAll()">ð ì ì²´ ê°ì  ë¡ê·¸ìì</button></div>
+          <div class="card-title">🖥️ 활성 세션 관리</div>
+          <div class="card-actions"><button class="card-action btn-block" onclick="forceLogoutAll()">🔒 전체 강제 로그아웃</button></div>
         </div>
         <div class="card-body" style="overflow-x:auto">
           <table class="ws-table">
-            <thead><tr><th>ì¬ì©ì</th><th>ëë°ì´ì¤</th><th>IP ì£¼ì</th><th>ìì¹</th><th>ì ì ìê°</th><th>ìí</th><th>ìì</th></tr></thead>
+            <thead><tr><th>사용자</th><th>디바이스</th><th>IP 주소</th><th>위치</th><th>접속 시간</th><th>상태</th><th>작업</th></tr></thead>
             <tbody id="sessionsTableBody">
-              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ë¡ë© ì¤...</td></tr>
+              <tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">로딩 중...</td></tr>
             </tbody>
           </table>
         </div>
@@ -556,14 +556,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="page-section" id="page-threats">
       <div class="card">
         <div class="card-header">
-          <div class="card-title">â ï¸ ìí íì§ ë¡ê·¸</div>
+          <div class="card-title">⚠️ 위협 탐지 로그</div>
           <div class="card-badge threat-indicator threat-low" id="threatPageLevel">LOW</div>
         </div>
         <div class="card-body" id="threatsList" style="max-height:600px;overflow-y:auto">
           <div style="text-align:center;padding:60px;color:var(--text-dim)">
-            <div style="font-size:48px;margin-bottom:16px">â</div>
-            <div style="font-size:15px;font-weight:600;margin-bottom:4px">ìíì´ ê°ì§ëì§ ìììµëë¤</div>
-            <div style="font-size:12px">ìì¤íì´ ì ìì ì¼ë¡ ì´ìì¤ìëë¤</div>
+            <div style="font-size:48px;margin-bottom:16px">✅</div>
+            <div style="font-size:15px;font-weight:600;margin-bottom:4px">위협이 감지되지 않았습니다</div>
+            <div style="font-size:12px">시스템이 정상적으로 운영중입니다</div>
           </div>
         </div>
       </div>
@@ -573,32 +573,32 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="page-section" id="page-extension">
       <div class="grid-2">
         <div class="card">
-          <div class="card-header"><div class="card-title">ð§© Chrome íì¥íë¡ê·¸ë¨ ìí</div></div>
+          <div class="card-header"><div class="card-title">🧩 Chrome 확장프로그램 상태</div></div>
           <div class="card-body">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-              <span style="font-size:13px">ë²ì </span><span style="font-size:13px;color:var(--primary-light);font-weight:600">1.0.0</span>
+              <span style="font-size:13px">버전</span><span style="font-size:13px;color:var(--primary-light);font-weight:600">1.0.0</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-              <span style="font-size:13px">ì¤ì¹ë ì¬ì©ì</span><span style="font-size:13px;font-weight:600" id="extInstalledCount">0</span>
+              <span style="font-size:13px">설치된 사용자</span><span style="font-size:13px;font-weight:600" id="extInstalledCount">0</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-              <span style="font-size:13px">ì½ë ë¬´ê²°ì±</span><span class="status status-approved">ì ì</span>
+              <span style="font-size:13px">코드 무결성</span><span class="status status-approved">정상</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
-              <span style="font-size:13px">ëëí ë¹ë</span><span class="status status-pending">ìµì  ìë</span>
+              <span style="font-size:13px">난독화 빌드</span><span class="status status-pending">최신 아님</span>
             </div>
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><div class="card-title">ð§© íì¥íë¡ê·¸ë¨ ì ê·¼ ì ì´</div></div>
+          <div class="card-header"><div class="card-title">🧩 확장프로그램 접근 제어</div></div>
           <div class="card-body">
-            <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">ì¹ì¸ë ì¬ì©ìë§ íì¥íë¡ê·¸ë¨ ê¸°ë¥ì ì´ì©í  ì ììµëë¤. ë¯¸ì¹ì¸ ì¬ì©ìì íì¥íë¡ê·¸ë¨ì ë¹íì± ìíë¡ ì ì§ë©ëë¤.</div>
+            <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px">승인된 사용자만 확장프로그램 기능을 이용할 수 있습니다. 미승인 사용자의 확장프로그램은 비활성 상태로 유지됩니다.</div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-              <div><div style="font-size:13px;font-weight:600">íì¥ ì¸ì¦ íì</div><div style="font-size:11px;color:var(--text-dim)">ë¡ê·¸ì¸ ìì´ íì¥ ì¬ì© ë¶ê°</div></div>
+              <div><div style="font-size:13px;font-weight:600">확장 인증 필수</div><div style="font-size:11px;color:var(--text-dim)">로그인 없이 확장 사용 불가</div></div>
               <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="extAuthRequired" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
-              <div><div style="font-size:13px;font-weight:600">ëë°ì´ì¤ ë°ì¸ë©</div><div style="font-size:11px;color:var(--text-dim)">ë±ë¡ë ëë°ì´ì¤ììë§ ìë</div></div>
+              <div><div style="font-size:13px;font-weight:600">디바이스 바인딩</div><div style="font-size:11px;color:var(--text-dim)">등록된 디바이스에서만 작동</div></div>
               <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="extDeviceBind" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
             </div>
           </div>
@@ -610,31 +610,31 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="page-section" id="page-pwa">
       <div class="grid-2">
         <div class="card">
-          <div class="card-header"><div class="card-title">ð± ëª¨ë°ì¼ PWA ìí</div></div>
+          <div class="card-header"><div class="card-title">📱 모바일 PWA 상태</div></div>
           <div class="card-body">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
               <span style="font-size:13px">URL</span><span style="font-size:13px;color:var(--primary-light)">wishes.co.kr/m/</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-              <span style="font-size:13px">Service Worker</span><span class="status status-approved">íì±</span>
+              <span style="font-size:13px">Service Worker</span><span class="status status-approved">활성</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-              <span style="font-size:13px">ì¤ì¹ ì</span><span style="font-size:13px;font-weight:600" id="pwaInstalls">0</span>
+              <span style="font-size:13px">설치 수</span><span style="font-size:13px;font-weight:600" id="pwaInstalls">0</span>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
-              <span style="font-size:13px">ë³´ì ë ì´ì´</span><span style="font-size:13px;color:var(--accent);font-weight:600">11ë¨ê³</span>
+              <span style="font-size:13px">보안 레이어</span><span style="font-size:13px;color:var(--accent);font-weight:600">11단계</span>
             </div>
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><div class="card-title">ð± PWA ì ê·¼ ì ì´</div></div>
+          <div class="card-header"><div class="card-title">📱 PWA 접근 제어</div></div>
           <div class="card-body">
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
-              <div><div style="font-size:13px;font-weight:600">PWA ë¡ê·¸ì¸ íì</div></div>
+              <div><div style="font-size:13px;font-weight:600">PWA 로그인 필수</div></div>
               <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" checked style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:var(--primary);border-radius:24px;transition:.3s"></span></label>
             </div>
             <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
-              <div><div style="font-size:13px;font-weight:600">ì¤íë¼ì¸ ìºì ë¹íì±</div><div style="font-size:11px;color:var(--text-dim)">ë³´ìì ì¤íë¼ì¸ ì ê·¼ ì°¨ë¨</div></div>
+              <div><div style="font-size:13px;font-weight:600">오프라인 캐시 비활성</div><div style="font-size:11px;color:var(--text-dim)">보안상 오프라인 접근 차단</div></div>
               <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:rgba(100,100,100,.3);border-radius:24px;transition:.3s"></span></label>
             </div>
           </div>
@@ -645,19 +645,19 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <!-- ===== API PAGE ===== -->
     <div class="page-section" id="page-api">
       <div class="card">
-        <div class="card-header"><div class="card-title">ð API ìëí¬ì¸í¸ ê´ë¦¬</div></div>
+        <div class="card-header"><div class="card-title">🔌 API 엔드포인트 관리</div></div>
         <div class="card-body" style="overflow-x:auto">
           <table class="ws-table">
-            <thead><tr><th>ìëí¬ì¸í¸</th><th>ë©ìë</th><th>ì¸ì¦</th><th>ìí</th><th>í¸ì¶ ì (24h)</th></tr></thead>
+            <thead><tr><th>엔드포인트</th><th>메소드</th><th>인증</th><th>상태</th><th>호출 수 (24h)</th></tr></thead>
             <tbody>
-              <tr><td style="font-family:monospace;font-size:12px">/api/auth/login</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Public</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
-              <tr><td style="font-family:monospace;font-size:12px">/api/auth/register</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Public</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
-              <tr><td style="font-family:monospace;font-size:12px">/api/auth/verify</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Bearer Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
-              <tr><td style="font-family:monospace;font-size:12px">/api/listings</td><td><span class="status" style="background:var(--info-bg);color:var(--info)">GET</span></td><td>Bearer Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
-              <tr><td style="font-family:monospace;font-size:12px">/api/admin/users</td><td><span class="status" style="background:var(--info-bg);color:var(--info)">GET</span></td><td>Admin Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
-              <tr><td style="font-family:monospace;font-size:12px">/api/admin/approve</td><td><span class="status" style="background:var(--warning-bg);color:var(--warning)">PUT</span></td><td>SuperAdmin</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
-              <tr><td style="font-family:monospace;font-size:12px">/api/admin/logs</td><td><span class="status" style="background:var(--info-bg);color:var(--info)">GET</span></td><td>Admin Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
-              <tr><td style="font-family:monospace;font-size:12px">/api/ai/briefing</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Bearer Token</td><td><span class="status status-approved">íì±</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/auth/login</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Public</td><td><span class="status status-approved">활성</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/auth/register</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Public</td><td><span class="status status-approved">활성</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/auth/verify</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Bearer Token</td><td><span class="status status-approved">활성</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/listings</td><td><span class="status" style="background:var(--info-bg);color:var(--info)">GET</span></td><td>Bearer Token</td><td><span class="status status-approved">활성</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/admin/users</td><td><span class="status" style="background:var(--info-bg);color:var(--info)">GET</span></td><td>Admin Token</td><td><span class="status status-approved">활성</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/admin/approve</td><td><span class="status" style="background:var(--warning-bg);color:var(--warning)">PUT</span></td><td>SuperAdmin</td><td><span class="status status-approved">활성</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/admin/logs</td><td><span class="status" style="background:var(--info-bg);color:var(--info)">GET</span></td><td>Admin Token</td><td><span class="status status-approved">활성</span></td><td>-</td></tr>
+              <tr><td style="font-family:monospace;font-size:12px">/api/ai/briefing</td><td><span class="status" style="background:var(--success-bg);color:var(--success)">POST</span></td><td>Bearer Token</td><td><span class="status status-approved">활성</span></td><td>-</td></tr>
             </tbody>
           </table>
         </div>
@@ -668,27 +668,27 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
     <div class="page-section" id="page-settings">
       <div class="grid-2">
         <div class="card">
-          <div class="card-header"><div class="card-title">âï¸ ìì¤í ì¤ì </div></div>
+          <div class="card-header"><div class="card-title">⚙️ 시스템 설정</div></div>
           <div class="card-body">
-            <div class="form-group"><label class="form-label">ì¬ì´í¸ ì´ë¦</label><input class="form-input" value="WISHES" id="settingSiteName"></div>
-            <div class="form-group"><label class="form-label">ê´ë¦¬ì ì´ë©ì¼</label><input class="form-input" value="admin@wishes.co.kr" id="settingAdminEmail"></div>
-            <div class="form-group"><label class="form-label">ìë¦¼ ìì </label>
-              <select class="form-select" id="settingNotify"><option value="all">ëª¨ë  ìë¦¼</option><option value="security">ë³´ì ìë¦¼ë§</option><option value="none">ë</option></select>
+            <div class="form-group"><label class="form-label">사이트 이름</label><input class="form-input" value="WISHES" id="settingSiteName"></div>
+            <div class="form-group"><label class="form-label">관리자 이메일</label><input class="form-input" value="admin@wishes.co.kr" id="settingAdminEmail"></div>
+            <div class="form-group"><label class="form-label">알림 수신</label>
+              <select class="form-select" id="settingNotify"><option value="all">모든 알림</option><option value="security">보안 알림만</option><option value="none">끄</option></select>
             </div>
-            <div class="form-group"><label class="form-label">ì ì§ë³´ì ëª¨ë</label>
+            <div class="form-group"><label class="form-label">유지보수 모드</label>
               <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" id="maintenanceMode" style="opacity:0;width:0;height:0"><span style="position:absolute;cursor:pointer;inset:0;background:rgba(100,100,100,.3);border-radius:24px;transition:.3s"></span></label>
             </div>
-            <button class="btn-modal btn-modal-primary" style="width:100%" onclick="saveSettings()">ì¤ì  ì ì¥</button>
+            <button class="btn-modal btn-modal-primary" style="width:100%" onclick="saveSettings()">설정 저장</button>
           </div>
         </div>
         <div class="card">
-          <div class="card-header"><div class="card-title">ðï¸ ë°ì´í° ê´ë¦¬</div></div>
+          <div class="card-header"><div class="card-title">🗄️ 데이터 관리</div></div>
           <div class="card-body">
             <div class="quick-actions" style="grid-template-columns:1fr 1fr">
-              <div class="quick-action" onclick="exportAllData()"><div class="qa-icon">ð¥</div><div class="qa-text">ì ì²´ ë°±ì</div></div>
-              <div class="quick-action" onclick="clearOldLogs()"><div class="qa-icon">ðï¸</div><div class="qa-text">ì¤ëë ë¡ê·¸ ì ë¦¬</div></div>
-              <div class="quick-action" onclick="rebuildObfuscation()"><div class="qa-icon">ð§</div><div class="qa-text">ëëí ì¬ë¹ë</div></div>
-              <div class="quick-action" onclick="checkIntegrity()"><div class="qa-icon">â</div><div class="qa-text">ë¬´ê²°ì± ê²ì¬</div></div>
+              <div class="quick-action" onclick="exportAllData()"><div class="qa-icon">📥</div><div class="qa-text">전체 백업</div></div>
+              <div class="quick-action" onclick="clearOldLogs()"><div class="qa-icon">🗑️</div><div class="qa-text">오래된 로그 정리</div></div>
+              <div class="quick-action" onclick="rebuildObfuscation()"><div class="qa-icon">🔧</div><div class="qa-text">난독화 재빌드</div></div>
+              <div class="quick-action" onclick="checkIntegrity()"><div class="qa-icon">✅</div><div class="qa-text">무결성 검사</div></div>
             </div>
           </div>
         </div>
@@ -703,19 +703,19 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <!-- Block IP Modal -->
 <div class="modal-overlay" id="blockIpModal">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title">ð« IP ì°¨ë¨</div><button class="modal-close" onclick="closeModal('blockIpModal')">&times;</button></div>
+    <div class="modal-header"><div class="modal-title">🚫 IP 차단</div><button class="modal-close" onclick="closeModal('blockIpModal')">&times;</button></div>
     <div class="modal-body">
-      <div class="form-group"><label class="form-label">IP ì£¼ì</label><input class="form-input" id="blockIpInput" placeholder="192.168.1.1"></div>
-      <div class="form-group"><label class="form-label">ì°¨ë¨ ì¬ì </label><input class="form-input" id="blockIpReason" placeholder="ë¹ì ì ì ê·¼ ìë"></div>
-      <div class="form-group"><label class="form-label">ì°¨ë¨ ê¸°ê°</label>
+      <div class="form-group"><label class="form-label">IP 주소</label><input class="form-input" id="blockIpInput" placeholder="192.168.1.1"></div>
+      <div class="form-group"><label class="form-label">차단 사유</label><input class="form-input" id="blockIpReason" placeholder="비정상 접근 시도"></div>
+      <div class="form-group"><label class="form-label">차단 기간</label>
         <select class="form-select" id="blockIpDuration">
-          <option value="24h">24ìê°</option><option value="7d">7ì¼</option><option value="30d">30ì¼</option><option value="permanent">ìêµ¬</option>
+          <option value="24h">24시간</option><option value="7d">7일</option><option value="30d">30일</option><option value="permanent">영구</option>
         </select>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-modal btn-modal-ghost" onclick="closeModal('blockIpModal')">ì·¨ì</button>
-      <button class="btn-modal btn-modal-danger" onclick="blockIp()">ì°¨ë¨</button>
+      <button class="btn-modal btn-modal-ghost" onclick="closeModal('blockIpModal')">취소</button>
+      <button class="btn-modal btn-modal-danger" onclick="blockIp()">차단</button>
     </div>
   </div>
 </div>
@@ -723,21 +723,21 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <!-- Add User Modal -->
 <div class="modal-overlay" id="addUserModal">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title">â ì¬ì©ì ì§ì  ì¶ê°</div><button class="modal-close" onclick="closeModal('addUserModal')">&times;</button></div>
+    <div class="modal-header"><div class="modal-title">➕ 사용자 직접 추가</div><button class="modal-close" onclick="closeModal('addUserModal')">&times;</button></div>
     <div class="modal-body">
-      <div class="form-group"><label class="form-label">ì´ë¦</label><input class="form-input" id="addUserName" placeholder="íê¸¸ë"></div>
-      <div class="form-group"><label class="form-label">ì´ë©ì¼</label><input class="form-input" id="addUserEmail" placeholder="user@company.com"></div>
-      <div class="form-group"><label class="form-label">ì´ê¸° ë¹ë°ë²í¸</label><input class="form-input" id="addUserPw" placeholder="ìì ë¹ë°ë²í¸"></div>
-      <div class="form-group"><label class="form-label">ê¶í ë±ê¸</label>
+      <div class="form-group"><label class="form-label">이름</label><input class="form-input" id="addUserName" placeholder="홍길동"></div>
+      <div class="form-group"><label class="form-label">이메일</label><input class="form-input" id="addUserEmail" placeholder="user@company.com"></div>
+      <div class="form-group"><label class="form-label">초기 비밀번호</label><input class="form-input" id="addUserPw" placeholder="임시 비밀번호"></div>
+      <div class="form-group"><label class="form-label">권한 등급</label>
         <select class="form-select" id="addUserRole">
-          <option value="agent">Agent (ì¤ê°ì¬)</option><option value="admin">Admin (ê´ë¦¬ì)</option><option value="viewer">Viewer (ì´ëì ì©)</option>
+          <option value="agent">Agent (중개사)</option><option value="admin">Admin (관리자)</option><option value="viewer">Viewer (열람전용)</option>
         </select>
       </div>
-      <div class="form-group"><label class="form-label">ìì</label><input class="form-input" id="addUserCompany" placeholder="íì¬/ì¬ë¬´ìëª"></div>
+      <div class="form-group"><label class="form-label">소속</label><input class="form-input" id="addUserCompany" placeholder="회사/사무소명"></div>
     </div>
     <div class="modal-footer">
-      <button class="btn-modal btn-modal-ghost" onclick="closeModal('addUserModal')">ì·¨ì</button>
-      <button class="btn-modal btn-modal-primary" onclick="addUser()">ì¶ê°</button>
+      <button class="btn-modal btn-modal-ghost" onclick="closeModal('addUserModal')">취소</button>
+      <button class="btn-modal btn-modal-primary" onclick="addUser()">추가</button>
     </div>
   </div>
 </div>
@@ -745,7 +745,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 <!-- User Detail Modal -->
 <div class="modal-overlay" id="userDetailModal">
   <div class="modal">
-    <div class="modal-header"><div class="modal-title" id="userDetailTitle">ì¬ì©ì ìì¸</div><button class="modal-close" onclick="closeModal('userDetailModal')">&times;</button></div>
+    <div class="modal-header"><div class="modal-title" id="userDetailTitle">사용자 상세</div><button class="modal-close" onclick="closeModal('userDetailModal')">&times;</button></div>
     <div class="modal-body" id="userDetailBody"></div>
     <div class="modal-footer" id="userDetailFooter"></div>
   </div>
@@ -785,7 +785,7 @@ setInterval(function(){
 },60000); // refresh timer every minute on activity
 
 // ===== PAGE NAVIGATION =====
-var _pageTitles={dashboard:'ëìë³´ë',users:'ì ì²´ ì¬ì©ì',pending:'ì¹ì¸ ëê¸°',roles:'ê¶í ê´ë¦¬',security:'ë³´ì íí©',logs:'íë ë¡ê·¸',sessions:'íì± ì¸ì',threats:'ìí íì§',extension:'íì¥íë¡ê·¸ë¨',pwa:'ëª¨ë°ì¼ PWA',api:'API ê´ë¦¬',settings:'ìì¤í ì¤ì '};
+var _pageTitles={dashboard:'대시보드',users:'전체 사용자',pending:'승인 대기',roles:'권한 관리',security:'보안 현황',logs:'활동 로그',sessions:'활성 세션',threats:'위협 탐지',extension:'확장프로그램',pwa:'모바일 PWA',api:'API 관리',settings:'시스템 설정'};
 
 window.showPage=function(page){
   document.querySelectorAll('.page-section').forEach(function(s){s.classList.remove('active')});
@@ -809,7 +809,7 @@ function showToast(msg,type){
   var c=document.getElementById('toastContainer');
   var t=document.createElement('div');
   t.className='toast toast-'+(type||'success');
-  t.innerHTML=(type==='error'?'â':type==='warning'?'â ï¸':'â')+' '+msg;
+  t.innerHTML=(type==='error'?'❌':type==='warning'?'⚠️':'✅')+' '+msg;
   c.appendChild(t);
   setTimeout(function(){t.style.opacity='0';setTimeout(function(){t.remove()},300)},4000);
 }
@@ -824,17 +824,17 @@ function apiCall(endpoint,method,body){
 
 // ===== DATA (Demo/Fallback when API not connected) =====
 var _demoUsers=[
-  {id:1,name:'WISHES',email:'admin@wishes.co.kr',company:'WISHESë¶ëì°',role:'superadmin',status:'approved',lastLogin:'2026-03-31 14:23',online:true,ip:'125.xxx.xxx.xxx',device:'Chrome/Win11'},
+  {id:1,name:'WISHES',email:'admin@wishes.co.kr',company:'WISHES부동산',role:'superadmin',status:'approved',lastLogin:'2026-03-31 14:23',online:true,ip:'125.xxx.xxx.xxx',device:'Chrome/Win11'},
 ];
 var _demoPending=[];
 var _demoLogs=[
-  {time:'14:23',icon:'ð',type:'login',text:'<span class="highlight">WISHES</span> ê´ë¦¬ì ë¡ê·¸ì¸ <span class="ip">125.xxx.xxx.xxx</span>'},
-  {time:'14:20',icon:'ð¡ï¸',type:'security',text:'ìì¤í ë³´ì ì ê² ìë£ - ì´ì ìì'},
-  {time:'14:15',icon:'âï¸',type:'admin',text:'ìì¤í ììë¨ - Command Center íì±í'},
+  {time:'14:23',icon:'🔑',type:'login',text:'<span class="highlight">WISHES</span> 관리자 로그인 <span class="ip">125.xxx.xxx.xxx</span>'},
+  {time:'14:20',icon:'🛡️',type:'security',text:'시스템 보안 점검 완료 - 이상 없음'},
+  {time:'14:15',icon:'⚙️',type:'admin',text:'시스템 시작됨 - Command Center 활성화'},
 ];
 var _demoBlockedIps=[];
 var _demoSessions=[
-  {user:'WISHES',device:'ð» Chrome / Windows 11',ip:'125.xxx.xxx.xxx',location:'ìì¸',time:'14:23',status:'online'}
+  {user:'WISHES',device:'💻 Chrome / Windows 11',ip:'125.xxx.xxx.xxx',location:'서울',time:'14:23',status:'online'}
 ];
 
 // ===== RENDER FUNCTIONS =====
@@ -853,7 +853,7 @@ function renderDashboard(){
 
 function renderRecentLogs(){
   var el=document.getElementById('recentLogs');
-  if(_demoLogs.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">ë¡ê·¸ê° ììµëë¤</div>';return}
+  if(_demoLogs.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">로그가 없습니다</div>';return}
   el.innerHTML=_demoLogs.slice(0,10).map(function(l){
     return '<div class="log-entry"><span class="log-time">'+l.time+'</span><span class="log-icon">'+l.icon+'</span><span class="log-text">'+l.text+'</span></div>';
   }).join('');
@@ -861,30 +861,30 @@ function renderRecentLogs(){
 
 function renderRecentPending(){
   var el=document.getElementById('recentPending');
-  if(_demoPending.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">ëê¸° ì¤ì¸ ì ì²­ì´ ììµëë¤</div>';return}
+  if(_demoPending.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">대기 중인 신청이 없습니다</div>';return}
   el.innerHTML=_demoPending.slice(0,5).map(function(u){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(u.company)+' Â· '+_escHtml(u.email)+'</div></div><div style="display:flex;gap:6px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">ì¹ì¸</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">ê±°ì </button></div></div>';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(u.company)+' · '+_escHtml(u.email)+'</div></div><div style="display:flex;gap:6px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">승인</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">거절</button></div></div>';
   }).join('');
 }
 
 function renderUsers(){
   var tb=document.getElementById('usersTableBody');
-  if(_demoUsers.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ë±ë¡ë ì¬ì©ìê° ììµëë¤</td></tr>';return}
+  if(_demoUsers.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">등록된 사용자가 없습니다</td></tr>';return}
   tb.innerHTML=_demoUsers.map(function(u){
     var statusClass=u.status==='approved'?'status-approved':u.status==='pending'?'status-pending':'status-blocked';
-    var statusText=u.status==='approved'?'ì¹ì¸ë¨':u.status==='pending'?'ëê¸°ì¤':'ì°¨ë¨ë¨';
+    var statusText=u.status==='approved'?'승인됨':u.status==='pending'?'대기중':'차단됨';
     var onlineClass=u.online?'status-online':'status-offline';
-    var onlineText=u.online?'ì ìì¤':'ì¤íë¼ì¸';
-    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td><span class="status '+(u.role==='superadmin'?'" style="background:rgba(237,137,54,.15);color:var(--accent)':u.role==='admin'?'" style="background:var(--info-bg);color:var(--info)':'status-approved')+'">'+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+(u.lastLogin||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser('+u.id+')">ìì¸</button>'+(u.role!=='superadmin'?'<button class="btn-sm btn-block" onclick="toggleBlock('+u.id+')">ì°¨ë¨</button>':'')+'</div></td></tr>';
+    var onlineText=u.online?'접속중':'오프라인';
+    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td><span class="status '+(u.role==='superadmin'?'" style="background:rgba(237,137,54,.15);color:var(--accent)':u.role==='admin'?'" style="background:var(--info-bg);color:var(--info)':'status-approved')+'">'+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+(u.lastLogin||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser('+u.id+')">상세</button>'+(u.role!=='superadmin'?'<button class="btn-sm btn-block" onclick="toggleBlock('+u.id+')">차단</button>':'')+'</div></td></tr>';
   }).join('');
 }
 
 function renderPending(){
   var tb=document.getElementById('pendingTableBody');
-  document.getElementById('pendingCount').textContent=_demoPending.length+'ê±´';
-  if(_demoPending.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">ëê¸° ì¤ì¸ ì ì²­ì´ ììµëë¤</td></tr>';return}
+  document.getElementById('pendingCount').textContent=_demoPending.length+'건';
+  if(_demoPending.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">대기 중인 신청이 없습니다</td></tr>';return}
   tb.innerHTML=_demoPending.map(function(u){
-    return '<tr><td style="font-weight:600">'+_escHtml(u.name)+'</td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td style="font-size:12px">'+_escHtml(u.role||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+_escHtml(u.reason||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+(u.createdAt||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">â ì¹ì¸</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">â ê±°ì </button></div></td></tr>';
+    return '<tr><td style="font-weight:600">'+_escHtml(u.name)+'</td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td style="font-size:12px">'+_escHtml(u.role||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+_escHtml(u.reason||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+(u.createdAt||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">✅ 승인</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">❌ 거절</button></div></td></tr>';
   }).join('');
 }
 
@@ -892,7 +892,7 @@ function renderSessions(){
   var tb=document.getElementById('sessionsTableBody');
   tb.innerHTML=_demoSessions.map(function(s){
     var sc=s.status==='online'?'status-online':'status-offline';
-    return '<tr><td style="font-weight:600">'+_escHtml(s.user)+'</td><td><div class="session-device"><span class="device-icon">'+s.device.split(' ')[0]+'</span><span style="font-size:12px">'+_escHtml(s.device)+'</span></div></td><td style="font-family:monospace;font-size:12px">'+s.ip+'</td><td style="font-size:12px">'+_escHtml(s.location)+'</td><td style="font-size:12px;color:var(--text-dim)">'+s.time+'</td><td><span class="status '+sc+'">'+s.status+'</span></td><td><button class="btn-sm btn-block" onclick="forceLogoutUser(\''+_escHtml(s.user)+'\')">ê°ì  ë¡ê·¸ìì</button></td></tr>';
+    return '<tr><td style="font-weight:600">'+_escHtml(s.user)+'</td><td><div class="session-device"><span class="device-icon">'+s.device.split(' ')[0]+'</span><span style="font-size:12px">'+_escHtml(s.device)+'</span></div></td><td style="font-family:monospace;font-size:12px">'+s.ip+'</td><td style="font-size:12px">'+_escHtml(s.location)+'</td><td style="font-size:12px;color:var(--text-dim)">'+s.time+'</td><td><span class="status '+sc+'">'+s.status+'</span></td><td><button class="btn-sm btn-block" onclick="forceLogoutUser(\''+_escHtml(s.user)+'\')">강제 로그아웃</button></td></tr>';
   }).join('');
   document.getElementById('secActiveSessions').textContent=_demoSessions.length;
 }
@@ -901,7 +901,7 @@ function renderAllLogs(){
   var el=document.getElementById('allLogs');
   var filter=document.getElementById('logFilter').value;
   var logs=filter==='all'?_demoLogs:_demoLogs.filter(function(l){return l.type===filter});
-  if(logs.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">í´ë¹ ë¡ê·¸ê° ììµëë¤</div>';return}
+  if(logs.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">해당 로그가 없습니다</div>';return}
   el.innerHTML=logs.map(function(l){
     return '<div class="log-entry"><span class="log-time">'+l.time+'</span><span class="log-icon">'+l.icon+'</span><span class="log-text">'+l.text+'</span></div>';
   }).join('');
@@ -914,28 +914,28 @@ window.approveUser=function(id){
   var user=_demoPending.splice(idx,1)[0];
   user.status='approved';user.lastLogin='-';user.online=false;
   _demoUsers.push(user);
-  _demoLogs.unshift({time:_now(),icon:'â',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> ì¬ì©ì ì¹ì¸ ìë£'});
+  _demoLogs.unshift({time:_now(),icon:'✅',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> 사용자 승인 완료'});
   renderDashboard();renderPending();renderUsers();renderAllLogs();
-  showToast(user.name+' ëì´ ì¹ì¸ëììµëë¤');
+  showToast(user.name+' 님이 승인되었습니다');
 };
 
 window.rejectUser=function(id){
   var idx=_demoPending.findIndex(function(u){return u.id===id});
   if(idx===-1)return;
   var user=_demoPending.splice(idx,1)[0];
-  _demoLogs.unshift({time:_now(),icon:'â',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> ê°ì ê±°ì ë¨'});
+  _demoLogs.unshift({time:_now(),icon:'❌',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> 가입 거절됨'});
   renderDashboard();renderPending();renderAllLogs();
-  showToast(user.name+' ëì ê°ìì´ ê±°ì ëììµëë¤','warning');
+  showToast(user.name+' 님의 가입이 거절되었습니다','warning');
 };
 
 window.viewUser=function(id){
   var user=_demoUsers.find(function(u){return u.id===id});
   if(!user)return;
-  document.getElementById('userDetailTitle').textContent=user.name+' ìì¸ ì ë³´';
-  document.getElementById('userDetailBody').innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="form-group"><label class="form-label">ì´ë¦</label><div style="font-size:14px;font-weight:600">'+_escHtml(user.name)+'</div></div><div class="form-group"><label class="form-label">ì´ë©ì¼</label><div style="font-size:14px">'+_escHtml(user.email)+'</div></div><div class="form-group"><label class="form-label">ìì</label><div style="font-size:14px">'+_escHtml(user.company||'-')+'</div></div><div class="form-group"><label class="form-label">ê¶í</label><div style="font-size:14px">'+user.role+'</div></div><div class="form-group"><label class="form-label">ìí</label><div style="font-size:14px">'+user.status+'</div></div><div class="form-group"><label class="form-label">ë§ì§ë§ ì ì</label><div style="font-size:14px">'+(user.lastLogin||'-')+'</div></div><div class="form-group"><label class="form-label">IP</label><div style="font-size:14px;font-family:monospace">'+(user.ip||'-')+'</div></div><div class="form-group"><label class="form-label">ëë°ì´ì¤</label><div style="font-size:14px">'+(user.device||'-')+'</div></div></div>';
-  var footer='<button class="btn-modal btn-modal-ghost" onclick="closeModal(\'userDetailModal\')">ë«ê¸°</button>';
+  document.getElementById('userDetailTitle').textContent=user.name+' 상세 정보';
+  document.getElementById('userDetailBody').innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="form-group"><label class="form-label">이름</label><div style="font-size:14px;font-weight:600">'+_escHtml(user.name)+'</div></div><div class="form-group"><label class="form-label">이메일</label><div style="font-size:14px">'+_escHtml(user.email)+'</div></div><div class="form-group"><label class="form-label">소속</label><div style="font-size:14px">'+_escHtml(user.company||'-')+'</div></div><div class="form-group"><label class="form-label">권한</label><div style="font-size:14px">'+user.role+'</div></div><div class="form-group"><label class="form-label">상태</label><div style="font-size:14px">'+user.status+'</div></div><div class="form-group"><label class="form-label">마지막 접속</label><div style="font-size:14px">'+(user.lastLogin||'-')+'</div></div><div class="form-group"><label class="form-label">IP</label><div style="font-size:14px;font-family:monospace">'+(user.ip||'-')+'</div></div><div class="form-group"><label class="form-label">디바이스</label><div style="font-size:14px">'+(user.device||'-')+'</div></div></div>';
+  var footer='<button class="btn-modal btn-modal-ghost" onclick="closeModal(\'userDetailModal\')">닫기</button>';
   if(user.role!=='superadmin'){
-    footer+='<button class="btn-modal btn-modal-danger" onclick="toggleBlock('+user.id+');closeModal(\'userDetailModal\')">ì°¨ë¨/í´ì </button>';
+    footer+='<button class="btn-modal btn-modal-danger" onclick="toggleBlock('+user.id+');closeModal(\'userDetailModal\')">차단/해제</button>';
   }
   document.getElementById('userDetailFooter').innerHTML=footer;
   openModal('userDetailModal');
@@ -945,10 +945,10 @@ window.toggleBlock=function(id){
   var user=_demoUsers.find(function(u){return u.id===id});
   if(!user||user.role==='superadmin')return;
   user.status=user.status==='blocked'?'approved':'blocked';
-  var action=user.status==='blocked'?'ì°¨ë¨':'ì°¨ë¨ í´ì ';
-  _demoLogs.unshift({time:_now(),icon:user.status==='blocked'?'ð«':'ð',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> '+action});
+  var action=user.status==='blocked'?'차단':'차단 해제';
+  _demoLogs.unshift({time:_now(),icon:user.status==='blocked'?'🚫':'🔓',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> '+action});
   renderUsers();renderDashboard();renderAllLogs();
-  showToast(user.name+' ëì´ '+action+'ëììµëë¤',user.status==='blocked'?'warning':'success');
+  showToast(user.name+' 님이 '+action+'되었습니다',user.status==='blocked'?'warning':'success');
 };
 
 window.addUser=function(){
@@ -957,70 +957,70 @@ window.addUser=function(){
   var pw=document.getElementById('addUserPw').value;
   var role=document.getElementById('addUserRole').value;
   var company=document.getElementById('addUserCompany').value.trim();
-  if(!name||!email||!pw){showToast('íì ì ë³´ë¥¼ ìë ¥íì¸ì','error');return}
+  if(!name||!email||!pw){showToast('필수 정보를 입력하세요','error');return}
   var newUser={id:Date.now(),name:name,email:email,company:company,role:role,status:'approved',lastLogin:'-',online:false};
   _demoUsers.push(newUser);
-  _demoLogs.unshift({time:_now(),icon:'â',type:'admin',text:'ê´ë¦¬ìê° <span class="highlight">'+_escHtml(name)+'</span> ì¬ì©ì ì§ì  ì¶ê°'});
+  _demoLogs.unshift({time:_now(),icon:'➕',type:'admin',text:'관리자가 <span class="highlight">'+_escHtml(name)+'</span> 사용자 직접 추가'});
   renderUsers();renderDashboard();renderAllLogs();
   closeModal('addUserModal');
-  showToast(name+' ëì´ ì¶ê°ëììµëë¤');
+  showToast(name+' 님이 추가되었습니다');
 };
 
 window.blockIp=function(){
   var ip=document.getElementById('blockIpInput').value.trim();
   var reason=document.getElementById('blockIpReason').value.trim();
   var duration=document.getElementById('blockIpDuration').value;
-  if(!ip){showToast('IP ì£¼ìë¥¼ ìë ¥íì¸ì','error');return}
+  if(!ip){showToast('IP 주소를 입력하세요','error');return}
   _demoBlockedIps.push({ip:ip,reason:reason,duration:duration,date:_now()});
-  _demoLogs.unshift({time:_now(),icon:'ð«',type:'security',text:'IP <span class="highlight">'+_escHtml(ip)+'</span> ì°¨ë¨ë¨ - '+_escHtml(reason)});
+  _demoLogs.unshift({time:_now(),icon:'🚫',type:'security',text:'IP <span class="highlight">'+_escHtml(ip)+'</span> 차단됨 - '+_escHtml(reason)});
   document.getElementById('secBlockedIps').textContent=_demoBlockedIps.length;
   renderBlockedIps();renderAllLogs();renderDashboard();
   closeModal('blockIpModal');
-  showToast(ip+' ì°¨ë¨ëììµëë¤','warning');
+  showToast(ip+' 차단되었습니다','warning');
 };
 
 function renderBlockedIps(){
   var el=document.getElementById('blockedIpList');
-  if(_demoBlockedIps.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">ì°¨ë¨ë IPê° ììµëë¤</div>';return}
+  if(_demoBlockedIps.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">차단된 IP가 없습니다</div>';return}
   el.innerHTML=_demoBlockedIps.map(function(b,i){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-family:monospace;font-size:13px">'+_escHtml(b.ip)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(b.reason)+' Â· '+b.duration+'</div></div><button class="btn-sm" onclick="unblockIp('+i+')">í´ì </button></div>';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-family:monospace;font-size:13px">'+_escHtml(b.ip)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(b.reason)+' · '+b.duration+'</div></div><button class="btn-sm" onclick="unblockIp('+i+')">해제</button></div>';
   }).join('');
 }
 
 window.unblockIp=function(idx){
   var removed=_demoBlockedIps.splice(idx,1)[0];
-  _demoLogs.unshift({time:_now(),icon:'ð',type:'security',text:'IP <span class="highlight">'+_escHtml(removed.ip)+'</span> ì°¨ë¨ í´ì '});
+  _demoLogs.unshift({time:_now(),icon:'🔓',type:'security',text:'IP <span class="highlight">'+_escHtml(removed.ip)+'</span> 차단 해제'});
   document.getElementById('secBlockedIps').textContent=_demoBlockedIps.length;
   renderBlockedIps();renderAllLogs();
-  showToast(removed.ip+' ì°¨ë¨ í´ì ë¨');
+  showToast(removed.ip+' 차단 해제됨');
 };
 
 window.forceLogoutAll=function(){
   _demoSessions=_demoSessions.filter(function(s){return s.user==='WISHES'});
-  _demoLogs.unshift({time:_now(),icon:'ð',type:'security',text:'ê´ë¦¬ìì ìí´ <span class="highlight">ì ì²´ ê°ì  ë¡ê·¸ìì</span> ì¤í'});
+  _demoLogs.unshift({time:_now(),icon:'🔒',type:'security',text:'관리자에 의해 <span class="highlight">전체 강제 로그아웃</span> 실행'});
   renderSessions();renderAllLogs();renderDashboard();
-  showToast('ëª¨ë  ì¬ì©ìê° ê°ì  ë¡ê·¸ììëììµëë¤','warning');
+  showToast('모든 사용자가 강제 로그아웃되었습니다','warning');
 };
 
 window.forceLogoutUser=function(name){
   _demoSessions=_demoSessions.filter(function(s){return s.user!==name||s.user==='WISHES'});
-  _demoLogs.unshift({time:_now(),icon:'ð',type:'security',text:'<span class="highlight">'+_escHtml(name)+'</span> ê°ì  ë¡ê·¸ìì'});
+  _demoLogs.unshift({time:_now(),icon:'🔒',type:'security',text:'<span class="highlight">'+_escHtml(name)+'</span> 강제 로그아웃'});
   renderSessions();renderAllLogs();
-  showToast(name+' ê°ì  ë¡ê·¸ììë¨','warning');
+  showToast(name+' 강제 로그아웃됨','warning');
 };
 
 window.filterLogs=function(){renderAllLogs()};
-window.refreshAll=function(){renderDashboard();renderUsers();renderPending();renderSessions();renderAllLogs();showToast('ìë¡ê³ ì¹¨ ìë£')};
+window.refreshAll=function(){renderDashboard();renderUsers();renderPending();renderSessions();renderAllLogs();showToast('새로고침 완료')};
 window.handleLogout=function(){sessionStorage.clear();window.location.href='/admin/admin-auth.html'};
 
-window.exportLogs=function(){showToast('ë¡ê·¸ ë¤ì´ë¡ë ì¤ë¹ ì¤...')};
-window.exportUsers=function(){showToast('ì¬ì©ì ëª©ë¡ ë´ë³´ë´ê¸° ì¤ë¹ ì¤...')};
-window.exportAllData=function(){showToast('ì ì²´ ë°±ì ìì± ì¤...')};
-window.clearOldLogs=function(){showToast('30ì¼ ì´ì  ë¡ê·¸ ì ë¦¬ ìë£')};
-window.rebuildObfuscation=function(){showToast('ëëí ë¹ë ìì...')};
-window.checkIntegrity=function(){document.getElementById('codeIntStatus').textContent='ì ì';document.getElementById('codeIntStatus').style.color='var(--success)';document.getElementById('codeIntBar').style.width='100%';document.getElementById('codeIntBar').className='meter-fill high';showToast('ë¬´ê²°ì± ê²ì¬ ìë£ - ì´ì ìì')};
-window.saveSecuritySettings=function(){showToast('ë³´ì ì¤ì ì´ ì ì¥ëììµëë¤')};
-window.saveSettings=function(){showToast('ìì¤í ì¤ì ì´ ì ì¥ëììµëë¤')};
+window.exportLogs=function(){showToast('로그 다운로드 준비 중...')};
+window.exportUsers=function(){showToast('사용자 목록 내보내기 준비 중...')};
+window.exportAllData=function(){showToast('전체 백업 생성 중...')};
+window.clearOldLogs=function(){showToast('30일 이전 로그 정리 완료')};
+window.rebuildObfuscation=function(){showToast('난독화 빌드 시작...')};
+window.checkIntegrity=function(){document.getElementById('codeIntStatus').textContent='정상';document.getElementById('codeIntStatus').style.color='var(--success)';document.getElementById('codeIntBar').style.width='100%';document.getElementById('codeIntBar').className='meter-fill high';showToast('무결성 검사 완료 - 이상 없음')};
+window.saveSecuritySettings=function(){showToast('보안 설정이 저장되었습니다')};
+window.saveSettings=function(){showToast('시스템 설정이 저장되었습니다')};
 
 // ===== UTILITIES =====
 function _escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
