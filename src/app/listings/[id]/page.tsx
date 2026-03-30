@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -7,22 +8,51 @@ import ImageGallery from '@/components/ImageGallery';
 import ListingActions from '@/components/ListingActions';
 import type { Metadata } from 'next';
 
+// ── ISR: 60초마다 재검증 (캐싱으로 반복 방문 즉시 로딩) ──
+export const revalidate = 60;
+
+// ── 데이터 페치 함수 (React cache로 중복 호출 방지) ──
+const getListing = cache(async (id: number) => {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('id', id)
+    .single();
+  return data;
+});
+
+const getListingData = cache(async (id: number) => {
+  const supabase = createClient();
+  // 이미지 + 피처 병렬 실행 (Promise.all)
+  const [imagesResult, featuresResult] = await Promise.all([
+    supabase
+      .from('listing_images')
+      .select('*')
+      .eq('listing_id', id)
+      .order('sort_order', { ascending: true }),
+    supabase
+      .from('listing_features')
+      .select('*')
+      .eq('listing_id', id),
+  ]);
+  return {
+    images: imagesResult.data || [],
+    features: featuresResult.data || [],
+  };
+});
+
 interface Props {
   params: Promise<{ id: string }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const supabase = createClient();
-
-  const { data: listing } = await supabase
-    .from('listings')
-    .select('*')
-    .eq('id', parseInt(id))
-    .single();
+  const listing = await getListing(parseInt(id));
 
   if (!listing) return { title: '매물 없음' };
 
+  const supabase = createClient();
   const { data: images } = await supabase
     .from('listing_images')
     .select('url')
@@ -31,8 +61,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .limit(1);
 
   const ogImage = images?.[0]?.url || '/og-image.png';
-  const ogTitle = `${listing.title} | ${listing.deal} ${listing.type}`;
-  const ogDesc = `${listing.dong} ${listing.type} ${listing.deal} - ${listing.address}`;
+  const ogTitle = listing.title + ' | ' + listing.deal + ' ' + listing.type;
+  const ogDesc = listing.dong + ' ' + listing.type + ' ' + listing.deal + ' - ' + listing.address;
 
   return {
     title: ogTitle,
@@ -40,14 +70,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: ogTitle,
       description: ogDesc,
-      url: `https://wishes.co.kr/listings/${id}`,
+      url: 'https://wishes.co.kr/listings/' + id,
       siteName: '위시스부동산',
-      images: [{
-        url: ogImage,
-        width: 1200,
-        height: 630,
-        alt: listing.title,
-      }],
+      images: [{ url: ogImage, width: 1200, height: 630, alt: listing.title }],
       locale: 'ko_KR',
       type: 'article',
     },
@@ -64,17 +89,16 @@ export default async function ListingDetailPage({ params }: Props) {
   const { id } = await params;
   const listingId = parseInt(id);
 
-  const supabase = createClient();
-
-  const { data: listing } = await supabase
-    .from('listings')
-    .select('*')
-    .eq('id', listingId)
-    .single();
+  // listing은 cache로 중복 호출 방지, images+features는 병렬
+  const [listing, { images: imageList, features: featureList }] = await Promise.all([
+    getListing(listingId),
+    getListingData(listingId),
+  ]);
 
   if (!listing) notFound();
 
   // 조회수 증가 (비동기, 실패해도 페이지 렌더링에 영향 없음)
+  const supabase = createClient();
   supabase
     .from('listings')
     .update({ views: (listing.views || 0) + 1 })
@@ -82,20 +106,7 @@ export default async function ListingDetailPage({ params }: Props) {
     .then(() => {})
     .catch(() => {});
 
-  const { data: images } = await supabase
-    .from('listing_images')
-    .select('*')
-    .eq('listing_id', listingId)
-    .order('sort_order', { ascending: true });
-
-  const { data: features } = await supabase
-    .from('listing_features')
-    .select('*')
-    .eq('listing_id', listingId);
-
   const price = getFormattedPrice(listing.deal, listing.deposit, listing.monthly, listing.price);
-  const imageList = images || [];
-  const featureList = features || [];
 
   return (
     <div className="pt-16 min-h-screen bg-wishes-bg">
@@ -129,11 +140,13 @@ export default async function ListingDetailPage({ params }: Props) {
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <div className="flex items-center gap-3 mb-1">
                 <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
-                  <Hash className="w-3 h-3" /> W-{listing.id}
+                  <Hash className="w-3 h-3" />
+                  W-{listing.id}
                 </span>
                 {listing.views > 0 && (
                   <span className="text-xs text-gray-400 flex items-center gap-1">
-                    <Eye className="w-3 h-3" /> 조회 {listing.views}
+                    <Eye className="w-3 h-3" />
+                    조회 {listing.views}
                   </span>
                 )}
               </div>
@@ -143,7 +156,10 @@ export default async function ListingDetailPage({ params }: Props) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6">
                 <InfoRow label="매물유형" value={listing.type} />
                 <InfoRow label="거래유형" value={listing.deal} />
-                <InfoRow label="전용면적" value={listing.area_m2 ? `${listing.area_m2}㎡ (${sqmToPyeong(listing.area_m2)}평)` : '정보 없음'} />
+                <InfoRow
+                  label="전용면적"
+                  value={listing.area_m2 ? listing.area_m2 + '㎡ (' + sqmToPyeong(listing.area_m2) + '평)' : '정보 없음'}
+                />
                 <InfoRow label="층수" value={listing.floor_current} />
                 <InfoRow label="주소" value={listing.address} fullWidth />
                 <InfoRow label="동" value={listing.dong} />
@@ -184,21 +200,18 @@ export default async function ListingDetailPage({ params }: Props) {
           <div className="space-y-4">
             <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-24">
               <h3 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h3>
-
               <Link
-                href={`/contact?listing=${listing.id}`}
+                href={'/contact?listing=' + listing.id}
                 className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors"
               >
                 상담 신청
               </Link>
-
               <ListingActions
                 listingId={id}
-                shareUrl={`https://wishes.co.kr/listings/${listing.id}`}
+                shareUrl={'https://wishes.co.kr/listings/' + listing.id}
                 shareTitle={listing.title || '위시스부동산 매물'}
-                shareDescription={`${listing.deal || ''} ${listing.type || ''} - ${listing.dong || ''}`}
+                shareDescription={(listing.deal || '') + ' ' + (listing.type || '') + ' - ' + (listing.dong || '')}
               />
-
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
                 <p className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
@@ -228,9 +241,8 @@ function InfoRow({ label, value, fullWidth }: { label: string; value: string; fu
 
 function OptionBadge({ label, available }: { label: string; available: boolean }) {
   return (
-    <span className={`flex items-center gap-1 px-3 py-1 text-sm rounded-full ${
-      available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400 line-through'
-    }`}>
+    <span className={'flex items-center gap-1 px-3 py-1 text-sm rounded-full ' +
+      (available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400 line-through')}>
       {available ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
       {label}
     </span>
