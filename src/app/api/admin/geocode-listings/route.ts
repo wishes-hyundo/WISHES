@@ -3,7 +3,7 @@
 // ────────────────────────────────────────
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase';
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 
@@ -39,7 +39,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    const supabase = createServerClient();
 
     // 좌표가 없는 매물 조회 (address 컬럼만 사용)
     const { data: listings, error: fetchError } = await supabase
