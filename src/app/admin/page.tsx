@@ -473,7 +473,7 @@ export default function AdminPage() {
             {listings.length > 0 ? (
               <div className="space-y-3">
                 {listings.slice(0, 4).map((item: Listing) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                  <div key={item.id} onClick={() => router.push(`/admin/listings`)} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer active:bg-gray-200">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
                       <p className="text-xs text-gray-500">{item.type} · {item.deal}</p>
@@ -504,7 +504,7 @@ export default function AdminPage() {
             {contacts.filter((c: Contact) => c.status !== '완료').length > 0 ? (
               <div className="space-y-3">
                 {contacts.filter((c: Contact) => c.status !== '완료').slice(0, 4).map((item: Contact) => (
-                  <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                  <div key={item.id} onClick={() => router.push(`/admin?tab=contacts`)} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer active:bg-gray-200">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{item.name} ({item.phone})</p>
                       {item.listingTitle && <p className="text-xs text-gray-500">{item.listingTitle}</p>}
