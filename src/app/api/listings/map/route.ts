@@ -83,8 +83,6 @@ export async function GET(request: NextRequest) {
       success: true,
       data: data || [],
       total: count || 0,
-    }, {
-      headers: { 'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60' },
     });
   } catch (error) {
     console.error('지도 매물 조회 오류:', error);
