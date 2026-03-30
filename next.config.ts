@@ -2,10 +2,10 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   experimental: {
-    // 클라이언트 라우터 캐시: 페이지 이동 시 서버 재요청 방지
+    // í´ë¼ì´ì¸í¸ ë¼ì°í° ìºì: íì´ì§ ì´ë ì ìë² ì¬ìì²­ ë°©ì§
     staleTimes: {
-      dynamic: 300,  // 동적 페이지 5분 캐시
-      static: 3600,  // 정적 페이지 1시간 캐시
+      dynamic: 300,  // ëì  íì´ì§ 5ë¶ ìºì
+      static: 3600,  // ì ì  íì´ì§ 1ìê° ìºì
     },
   },
   eslint: {
@@ -47,6 +47,17 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  headers: async () => [
+    {
+      source: '/api/listings/:path*',
+      headers: [
+        {
+          key: 'Cache-Control',
+          value: 'public, s-maxage=30, stale-while-revalidate=60',
+        },
+      ],
+    },
+  ],
 };
 
 export default nextConfig;
