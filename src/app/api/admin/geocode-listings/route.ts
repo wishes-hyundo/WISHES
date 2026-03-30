@@ -1,6 +1,6 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ────────────────────────────────────────
 // POST /api/admin/geocode-listings - 좌표 없는 매물 일괄 지오코딩
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ────────────────────────────────────────
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
@@ -17,24 +17,19 @@ interface GeoResult {
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   if (!address || !KAKAO_REST_API_KEY) return null;
-  
+
   try {
     const res = await fetch(
       `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
-      {
-        headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
-      }
+      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
     );
-    
+
     if (!res.ok) return null;
-    
+
     const data = await res.json();
     if (data.documents && data.documents.length > 0) {
       const doc = data.documents[0];
-      return {
-        lat: parseFloat(doc.y),
-        lng: parseFloat(doc.x),
-      };
+      return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
     }
     return null;
   } catch {
@@ -45,11 +40,11 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
 export async function POST(request: NextRequest) {
   try {
     const supabase = createClient();
-    
-    // 좌표가 없는 매물 조회
+
+    // 좌표가 없는 매물 조회 (address 컬럼만 사용)
     const { data: listings, error: fetchError } = await supabase
       .from('listings')
-      .select('id, address, road_address, lat, lng')
+      .select('id, address, lat, lng')
       .or('lat.is.null,lng.is.null')
       .order('id', { ascending: false });
 
@@ -64,15 +59,15 @@ export async function POST(request: NextRequest) {
     const results: GeoResult[] = [];
 
     for (const listing of listings) {
-      const address = listing.road_address || listing.address;
-      
+      const address = listing.address;
+
       if (!address) {
         results.push({ id: listing.id, address: '', lat: null, lng: null, status: 'no_address' });
         continue;
       }
 
       const coords = await geocodeAddress(address);
-      
+
       if (coords) {
         const { error: updateError } = await supabase
           .from('listings')
@@ -95,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     const successCount = results.filter(r => r.status === 'success').length;
-    
+
     return NextResponse.json({
       success: true,
       message: `${listings.length}개 매물 중 ${successCount}개 좌표 업데이트 완료`,
