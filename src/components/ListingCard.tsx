@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Zap, Eye, Hash , Scale } from 'lucide-react';
+import Image from 'next/image';
+import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Zap, Eye, Hash, Scale } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Listing } from '@/types';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -18,27 +19,19 @@ const sqmToPyeong = (area: number) => {
 
 const getDealColor = (deal: string) => {
   switch (deal) {
-    case '전세':
-      return 'bg-wishes-secondary text-white';
-    case '월세':
-      return 'bg-emerald-500 text-white';
-    case '매매':
-      return 'bg-wishes-accent text-white';
-    default:
-      return 'bg-gray-400 text-white';
+    case '전세': return 'bg-wishes-secondary text-white';
+    case '월세': return 'bg-emerald-500 text-white';
+    case '매매': return 'bg-wishes-accent text-white';
+    default: return 'bg-gray-400 text-white';
   }
 };
 
 const getDealBgGradient = (deal: string) => {
   switch (deal) {
-    case '전세':
-      return 'from-wishes-secondary/20 to-wishes-secondary/0';
-    case '월세':
-      return 'from-emerald-500/20 to-emerald-500/0';
-    case '매매':
-      return 'from-wishes-accent/20 to-wishes-accent/0';
-    default:
-      return 'from-gray-400/20 to-gray-400/0';
+    case '전세': return 'from-wishes-secondary/20 to-wishes-secondary/0';
+    case '월세': return 'from-emerald-500/20 to-emerald-500/0';
+    case '매매': return 'from-wishes-accent/20 to-wishes-accent/0';
+    default: return 'from-gray-400/20 to-gray-400/0';
   }
 };
 
@@ -62,21 +55,16 @@ const formatPrice = (listing: Listing) => {
 };
 
 export function ListingCard({ listing, compact = false, onHover }: ListingCardProps) {
-  // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
   const listingImages = (listing as any).listing_images || listing.images || [];
-  const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
+  const thumbUrl = listingImages.length > 0 && listingImages[0].url
+    ? listingImages[0].url
+    : null;
   const price = formatPrice(listing);
-
   const { isInCompare, addToCompare, removeFromCompare } = useFavorites();
-
-
   const inCompare = isInCompare(listing.id);
 
-
-
   if (compact) {
-
-  return (
+    return (
       <Link
         href={`/listings/${listing.id}`}
         className="group flex bg-white rounded-xl border border-gray-100 overflow-hidden hover:shadow-md hover:border-wishes-secondary/30 transition-all h-28"
@@ -86,10 +74,12 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
         {/* 이미지 */}
         <div className="w-28 h-28 shrink-0 relative overflow-hidden bg-gray-100">
           {thumbUrl ? (
-            <img
+            <Image
               src={thumbUrl}
               alt={listing.title}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+              fill
+              className="object-cover group-hover:scale-110 transition-transform duration-300"
+              sizes="112px"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -97,7 +87,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
             </div>
           )}
           <span className={cn(
-            'absolute top-1 left-1 px-2 py-0.5 text-xs font-bold rounded-md',
+            'absolute top-1 left-1 px-2 py-0.5 text-xs font-bold rounded-md z-[1]',
             getDealColor(listing.deal)
           )}>
             {listing.deal}
@@ -105,8 +95,12 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           <span
             role="button"
             tabIndex={0}
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id); }}
-            className={`absolute top-1 right-1 p-1.5 rounded-full transition-all cursor-pointer ${inCompare ? 'bg-wishes-primary text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-primary'}`}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id);
+            }}
+            className={`absolute top-1 right-1 p-1.5 rounded-full transition-all cursor-pointer z-[1] ${inCompare ? 'bg-wishes-primary text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-primary'}`}
             title={inCompare ? '비교 해제' : '비교 담기'}
           >
             <Scale className="w-4 h-4" />
@@ -147,13 +141,13 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
     >
       {/* 이미지 영역 */}
       <div className="relative overflow-hidden bg-gradient-to-br from-wishes-light/60 to-wishes-accent/20 aspect-[16/10]">
-        {/* 배경 이미지 */}
         {thumbUrl ? (
-          <img
+          <Image
             src={thumbUrl}
             alt={listing.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
-            loading="lazy"
+            fill
+            className="object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
@@ -169,15 +163,12 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
 
         {/* 배지들 */}
         <div className="absolute inset-0 flex items-start justify-between p-3">
-          {/* 거래 유형 배지 */}
           <span className={cn(
             'px-3 py-1 text-xs font-bold rounded-lg shadow-lg backdrop-blur-sm',
             getDealColor(listing.deal)
           )}>
             {listing.deal}
           </span>
-
-          {/* 우측 배지 */}
           <div className="flex gap-2">
             {listing.elevator && (
               <span className="px-2 py-1 text-xs font-semibold bg-white/80 text-wishes-secondary rounded-lg shadow-sm">
@@ -188,34 +179,19 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
         </div>
 
         {/* 비교 담기 */}
-
-
         <span
-
-
           role="button"
-
-
           tabIndex={0}
-
-
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id); }}
-
-
-          className={`absolute top-3 right-3 p-2 rounded-full transition-all cursor-pointer z-10 ${`{inCompare ? 'bg-wishes-primary text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-primary'}`}`}
-
-
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            inCompare ? removeFromCompare(listing.id) : addToCompare(listing.id);
+          }}
+          className={`absolute top-3 right-3 p-2 rounded-full transition-all cursor-pointer z-10 ${inCompare ? 'bg-wishes-primary text-white shadow-md' : 'bg-white/80 text-gray-400 hover:bg-white hover:text-wishes-primary'}`}
           title={inCompare ? '비교 해제' : '비교 담기'}
-
-
         >
-
-
           <Scale className="w-4 h-4" />
-
-
         </span>
-
 
         {/* 우측 하단 타입 배지 */}
         <div className="absolute bottom-3 right-3">
@@ -227,7 +203,6 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
 
       {/* 정보 영역 */}
       <div className="p-4 space-y-4">
-        {/* 가격 */}
         <div className="space-y-1">
           <div className="flex items-baseline gap-2">
             <p className="text-2xl font-bold text-wishes-primary">{price}</p>
@@ -237,12 +212,10 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           </div>
         </div>
 
-        {/* 제목 */}
         <p className="text-sm font-semibold text-wishes-text line-clamp-2 group-hover:text-wishes-secondary transition-colors">
           {listing.title}
         </p>
 
-        {/* 기본 정보 */}
         <div className="flex items-center gap-4 text-xs text-wishes-muted">
           {(listing.area_m2 || listing.area) ? (
             <div className="flex items-center gap-1">
@@ -259,13 +232,11 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           )}
         </div>
 
-        {/* 위치 */}
         <div className="flex items-center gap-1 text-xs text-wishes-muted">
           <MapPin className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
           <span className="truncate">{listing.dong} · {listing.address.split(' ').slice(-1)[0]}</span>
         </div>
 
-        {/* 옵션 태그 */}
         <div className="flex flex-wrap gap-2 pt-2">
           {listing.parking && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-secondary/10 text-wishes-secondary rounded-full border border-wishes-secondary/20 hover:bg-wishes-secondary/20 transition-colors">
@@ -284,7 +255,6 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           )}
         </div>
 
-        {/* 하단 정보 */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
             <span className="text-wishes-muted font-mono flex items-center gap-1">
@@ -300,7 +270,13 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'short', day: 'numeric' }) : '방금 전'}
+            {listing.created_at
+              ? new Date(listing.created_at).toLocaleDateString('ko-KR', {
+                  timeZone: 'Asia/Seoul',
+                  month: 'short',
+                  day: 'numeric',
+                })
+              : '방금 전'}
           </span>
         </div>
       </div>
