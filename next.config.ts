@@ -46,6 +46,11 @@ const nextConfig: NextConfig = {
         hostname: 'pub-e16c7a50584c4db7be35717d6cd80716.r2.dev',
       },
     ],
+    // 이미지 최적화 설정
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 86400, // 24시간 캐시
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
   },
   async headers() {
     return [
@@ -58,7 +63,7 @@ const nextConfig: NextConfig = {
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://dapi.kakao.com https://*.daumcdn.net https://t1.daumcdn.net https://www.googletagmanager.com https://www.google-analytics.com https://wcs.naver.net",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-              "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.daumcdn.net https://t1.daumcdn.net https://k.kakaocdn.net https://phinf.pstatic.net",
+              "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.daumcdn.net https://t1.daumcdn.net https://k.kakaocdn.net https://phinf.pstatic.net https://pub-e16c7a50584c4db7be35717d6cd80716.r2.dev https://lh3.googleusercontent.com",
               "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
               "connect-src 'self' https://*.supabase.co https://dapi.kakao.com https://*.daumcdn.net https://www.google-analytics.com https://wcs.naver.net https://api.anthropic.com",
               "frame-src 'self' https://*.daumcdn.net https://postcode.map.daum.net",
