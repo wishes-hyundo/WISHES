@@ -679,6 +679,23 @@ function SmartListingNewPage() {
     if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); }
   }, [toast]);
 
+  /* ── 키보드 단축키 ── */
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      if (e.altKey && e.key === 'ArrowRight' && currentStep < 4) {
+        e.preventDefault();
+        setCurrentStep(prev => Math.min(prev + 1, 4));
+      }
+      if (e.altKey && e.key === 'ArrowLeft' && currentStep > 1) {
+        e.preventDefault();
+        setCurrentStep(prev => Math.max(prev - 1, 1));
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentStep]);
+
   /* ── 임시저장 관리 (localStorage) ── */
   const loadDrafts = () => {
     try {
@@ -1203,6 +1220,8 @@ ${floorRows}</table></div>` : ''}
   if (!isMounted) return null;
 
   return (
+    <>
+    <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
     <div className="min-h-screen bg-gray-50" suppressHydrationWarning>
       {/* Toast */}
       {toast && (
@@ -1315,7 +1334,7 @@ ${floorRows}</table></div>` : ''}
 
         {/* ━━━━ STEP 1: 필수정보 입력 ━━━━ */}
         {currentStep === 1 && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-in-out]">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -1460,7 +1479,7 @@ ${floorRows}</table></div>` : ''}
 
         {/* ━━━━ STEP 2: 건축물대장 + 세부정보 ━━━━ */}
         {currentStep === 2 && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="animate-[fadeIn_0.3s_ease-in-out] grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 좌측: 건축물대장 */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-sm border p-6">
@@ -1814,7 +1833,7 @@ ${floorRows}</table></div>` : ''}
 
         {/* ━━━━ STEP 3: 사진 등록 + 자동 품질 개선 ━━━━ */}
         {currentStep === 3 && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-in-out]">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -2070,7 +2089,7 @@ ${floorRows}</table></div>` : ''}
 
         {/* ━━━━ STEP 4: 직접 등록 ━━━━ */}
         {currentStep === 4 && (
-          <div className="space-y-6">
+          <div className="space-y-6 animate-[fadeIn_0.3s_ease-in-out]">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
                 <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">4</span>
@@ -2233,5 +2252,7 @@ class ListingErrorBoundary extends React.Component {
 }
 
 export default function SmartListingNewPageWithErrorBoundary() {
-  return React.createElement(ListingErrorBoundary, null, React.createElement(SmartListingNewPage));
+  return React.createElement(ListingErrorBoundary, null, React.createElement(SmartListingNewPage)
+    </>
+  );
 }
