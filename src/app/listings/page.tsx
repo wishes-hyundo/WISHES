@@ -1,13 +1,11 @@
 import { Suspense } from 'react';
-import { createClient } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
 import { ListingFilters } from '@/components/ListingFilters';
 import { Building2 } from 'lucide-react';
 import type { Metadata } from 'next';
-import CompareFloatingBar from '@/components/CompareFloatingBar';
 
-// ── ISR: 60초마다 재검증 (캐싱으로 반복 방문 즉시 로딩) ──
-export const revalidate = 60;
+export const revalidate = 60; // ISR: 60초 캐싱
 
 export const metadata: Metadata = {
   title: '매물검색',
@@ -34,33 +32,49 @@ export default async function ListingsPage({
   const pageSize = 12;
   const offset = (page - 1) * pageSize;
 
-  const supabase = createClient();
+  const supabase = createServerClient();
 
   // 매물 조회 쿼리 구성
   let query = supabase
     .from('listings')
-    .select('*, listing_images(url, sort_order)')
+    .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, listing_images(url, sort_order)')
     .eq('status', '가용');
 
   // 필터 조건 적용
-  if (params.deal) query = query.eq('deal', params.deal);
-  if (params.type) query = query.eq('type', params.type);
-  if (params.dong) query = query.eq('dong', params.dong);
-  if (params.minDeposit) query = query.gte('deposit', parseInt(params.minDeposit));
-  if (params.maxDeposit) query = query.lte('deposit', parseInt(params.maxDeposit));
+  if (params.deal) {
+    query = query.eq('deal', params.deal);
+  }
+  if (params.type) {
+    query = query.eq('type', params.type);
+  }
+  if (params.dong) {
+    query = query.eq('dong', params.dong);
+  }
+  if (params.minDeposit) {
+    query = query.gte('deposit', parseInt(params.minDeposit));
+  }
+  if (params.maxDeposit) {
+    query = query.lte('deposit', parseInt(params.maxDeposit));
+  }
 
   // 정렬
-  const sortColumn = params.sort === 'price' ? 'deposit' : params.sort === 'area' ? 'area_m2' : 'created_at';
+  const sortColumn = params.sort === 'price' ? 'deposit'
+    : params.sort === 'area' ? 'area_m2'
+    : 'created_at';
+
   query = query.order(sortColumn, { ascending: false });
 
   // 페이지네이션
   query = query.range(offset, offset + pageSize - 1);
 
-  // ── 두 쿼리 병렬 실행 (Promise.all) ──
-  const [listingsResult, dongResult] = await Promise.all([
-    query,
-    supabase.from('listings').select('dong').eq('status', '가용'),
-  ]);
+  // 동별 목록 쿼리 (필터용) - 병렬 실행
+  const dongQuery = supabase
+    .from('listings')
+    .select('dong')
+    .eq('status', '가용');
+
+  // 두 쿼리를 병렬 실행
+  const [listingsResult, dongResult] = await Promise.all([query, dongQuery]);
 
   const listings = listingsResult.data || [];
   const dongs = [...new Set((dongResult.data || []).map(r => r.dong))];
@@ -80,7 +94,10 @@ export default async function ListingsPage({
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* 필터 */}
         <Suspense fallback={<div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 animate-pulse h-16" />}>
-          <ListingFilters dongs={dongs} currentFilters={params} />
+          <ListingFilters
+            dongs={dongs}
+            currentFilters={params}
+          />
         </Suspense>
 
         {/* 결과 */}
@@ -99,7 +116,7 @@ export default async function ListingsPage({
             <div className="flex justify-center gap-2 mt-10">
               {page > 1 && (
                 <a
-                  href={'/listings?' + new URLSearchParams({ ...params, page: String(page - 1) }).toString()}
+                  href={`/listings?${new URLSearchParams({ ...params, page: String(page - 1) })}`}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
                 >
                   이전
@@ -110,7 +127,7 @@ export default async function ListingsPage({
               </span>
               {listings.length === pageSize && (
                 <a
-                  href={'/listings?' + new URLSearchParams({ ...params, page: String(page + 1) }).toString()}
+                  href={`/listings?${new URLSearchParams({ ...params, page: String(page + 1) })}`}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
                 >
                   다음
@@ -126,7 +143,6 @@ export default async function ListingsPage({
           </div>
         )}
       </div>
-      <CompareFloatingBar />
     </div>
   );
 }
