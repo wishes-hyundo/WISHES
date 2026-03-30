@@ -27,7 +27,7 @@ const OFFICE_LNG = 126.9310212;
 // 주소 파싱 유틸리티
 // ─────────────────────────────────────────────────
 function extractCity(address: string): string {
-  if (!address) return '기타';
+  if (!address) return '';
   const parts = address.trim().split(/\s+/);
   if (parts[0]?.includes('서울')) return '서울';
   if (parts[0]?.includes('인천')) return '인천';
@@ -41,16 +41,16 @@ function extractCity(address: string): string {
     if (parts[1]) return parts[1].replace(/시$/, '') + '시';
     return '경기';
   }
-  return parts[0]?.replace(/(특별시|광역시|특별자치시|특별자치도|도)$/, '') || '기타';
+  return parts[0]?.replace(/(특별시|광역시|특별자치시|특별자치도|도)$/, '') || '';
 }
 
 function extractGu(address: string): string {
-  if (!address) return '기타';
+  if (!address) return '';
   const parts = address.trim().split(/\s+/);
   for (const part of parts) {
     if (part.endsWith('구') || part.endsWith('군')) return part;
   }
-  return parts[1] || '기타';
+  return parts[1] || '';
 }
 
 // ─────────────────────────────────────────────────
@@ -597,7 +597,7 @@ export default function MapSearchPage() {
       // ─────── 동 레벨 클러스터 (피터팬 스타일) ───────
       const dongGroups: Record<string, { listings: Listing[]; latSum: number; lngSum: number }> = {};
       validListings.forEach((listing) => {
-        const dong = listing.dong || '기타';
+        const dong = listing.dong || extractGu(listing.address || '');
         if (!dongGroups[dong]) dongGroups[dong] = { listings: [], latSum: 0, lngSum: 0 };
         dongGroups[dong].listings.push(listing);
         dongGroups[dong].latSum += listing.lat!;
