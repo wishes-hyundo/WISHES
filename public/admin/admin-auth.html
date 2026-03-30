@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WISHES Admin - Login</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--primary:#2D5A27;--primary-light:#4CAF50;--accent:#ed8936;--bg:#0a0f0a;--card:#111a11;--card-hover:#162016;--border:#1e2e1e;--text:#e8f0e8;--text-dim:#7a9a7a;--danger:#e53e3e;--success:#38a169;--warning:#d69e2e}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
+/* Animated background */
+.bg-grid{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;opacity:.08}
+.bg-grid::before{content:'';position:absolute;width:200%;height:200%;top:-50%;left:-50%;background:repeating-linear-gradient(0deg,transparent,transparent 49px,var(--primary) 49px,var(--primary) 50px),repeating-linear-gradient(90deg,transparent,transparent 49px,var(--primary) 49px,var(--primary) 50px);animation:gridMove 20s linear infinite}
+@keyframes gridMove{to{transform:translate(50px,50px)}}
+.bg-glow{position:fixed;width:500px;height:500px;border-radius:50%;filter:blur(120px);z-index:0}
+.bg-glow-1{top:-150px;left:-150px;background:rgba(45,90,39,.15)}
+.bg-glow-2{bottom:-150px;right:-150px;background:rgba(237,137,54,.08)}
+/* Auth Container */
+.auth-wrapper{position:relative;z-index:1;width:100%;max-width:460px;padding:20px}
+.auth-card{background:rgba(17,26,17,.95);border:1px solid var(--border);border-radius:20px;padding:48px 40px;backdrop-filter:blur(20px);box-shadow:0 25px 60px rgba(0,0,0,.5)}
+.logo-section{text-align:center;margin-bottom:36px}
+.logo-icon{width:72px;height:72px;margin:0 auto 16px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 8px 24px rgba(45,90,39,.3)}
+.logo-title{font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--primary-light),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
+.logo-sub{font-size:12px;color:var(--text-dim);margin-top:4px;letter-spacing:4px;text-transform:uppercase}
+/* Tabs */
+.auth-tabs{display:flex;gap:4px;background:rgba(30,46,30,.5);border-radius:12px;padding:4px;margin-bottom:32px}
+.auth-tab{flex:1;padding:12px;text-align:center;border:none;background:none;color:var(--text-dim);font-size:14px;font-weight:600;cursor:pointer;border-radius:10px;transition:all .3s}
+.auth-tab.active{background:var(--primary);color:#fff;box-shadow:0 4px 12px rgba(45,90,39,.3)}
+.auth-tab:hover:not(.active){color:var(--text)}
+/* Form */
+.form-section{display:none}
+.form-section.active{display:block}
+.form-group{margin-bottom:20px;position:relative}
+.form-label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+.form-input{width:100%;padding:14px 16px;background:rgba(30,46,30,.5);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;transition:all .3s;outline:none}
+.form-input:focus{border-color:var(--primary-light);box-shadow:0 0 0 3px rgba(76,175,80,.15)}
+.form-input::placeholder{color:rgba(122,154,122,.5)}
+.form-input.error{border-color:var(--danger)}
+.input-icon{position:absolute;right:14px;top:38px;color:var(--text-dim);font-size:16px}
+.password-toggle{position:absolute;right:14px;top:36px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;padding:4px}
+.password-toggle:hover{color:var(--text)}
+/* Select */
+.form-select{width:100%;padding:14px 16px;background:rgba(30,46,30,.5);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;transition:all .3s;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%237a9a7a'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center}
+.form-select:focus{border-color:var(--primary-light);box-shadow:0 0 0 3px rgba(76,175,80,.15)}
+.form-select option{background:#111a11;color:var(--text)}
+/* Button */
+.btn-primary{width:100%;padding:16px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(45,90,39,.4)}
+.btn-primary:active{transform:translateY(0)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-primary .spinner{display:none;width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin:0 auto}
+.btn-primary.loading .btn-text{display:none}
+.btn-primary.loading .spinner{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Messages */
+.msg{padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;display:none;align-items:center;gap:8px}
+.msg.show{display:flex}
+.msg-error{background:rgba(229,62,62,.1);border:1px solid rgba(229,62,62,.2);color:#fc8181}
+.msg-success{background:rgba(56,161,105,.1);border:1px solid rgba(56,161,105,.2);color:#68d391}
+.msg-warning{background:rgba(214,158,46,.1);border:1px solid rgba(214,158,46,.2);color:#f6e05e}
+.msg-icon{font-size:16px;flex-shrink:0}
+/* Checkbox */
+.checkbox-group{display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer}
+.checkbox-group input[type="checkbox"]{width:18px;height:18px;accent-color:var(--primary-light);cursor:pointer}
+.checkbox-group label{font-size:13px;color:var(--text-dim);cursor:pointer}
+/* Links */
+.auth-link{text-align:center;margin-top:20px;font-size:13px;color:var(--text-dim)}
+.auth-link a{color:var(--primary-light);text-decoration:none;font-weight:600}
+.auth-link a:hover{text-decoration:underline}
+/* Pending screen */
+.pending-screen{display:none;text-align:center;padding:20px 0}
+.pending-icon{font-size:64px;margin-bottom:20px}
+.pending-title{font-size:20px;font-weight:700;margin-bottom:8px}
+.pending-text{color:var(--text-dim);font-size:14px;line-height:1.6;margin-bottom:24px}
+.pending-status{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:rgba(214,158,46,.1);border:1px solid rgba(214,158,46,.2);border-radius:10px;color:var(--warning);font-size:13px;font-weight:600}
+.pending-status .dot{width:8px;height:8px;border-radius:50%;background:var(--warning);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+/* Footer */
+.auth-footer{text-align:center;margin-top:24px;padding-top:24px;border-top:1px solid var(--border)}
+.auth-footer span{font-size:11px;color:rgba(122,154,122,.4);letter-spacing:1px}
+/* Security badge */
+.security-badge{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px;font-size:11px;color:var(--text-dim)}
+.security-badge .lock{color:var(--primary-light)}
+/* Phone input */
+.phone-wrapper{display:flex;gap:8px}
+.phone-wrapper .form-input{flex:1}
+.btn-verify-phone{padding:14px 16px;background:var(--primary);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .3s}
+.btn-verify-phone:hover{background:var(--primary-light)}
+.btn-verify-phone:disabled{opacity:.5;cursor:not-allowed}
+/* Terms */
+.terms-box{max-height:120px;overflow-y:auto;background:rgba(30,46,30,.3);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:16px}
+.terms-box::-webkit-scrollbar{width:4px}
+.terms-box::-webkit-scrollbar-thumb{background:var(--primary);border-radius:2px}
+/* responsive */
+@media(max-width:480px){.auth-card{padding:32px 24px;border-radius:16px}.logo-icon{width:60px;height:60px;font-size:28px}.logo-title{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="bg-grid"></div>
+<div class="bg-glow bg-glow-1"></div>
+<div class="bg-glow bg-glow-2"></div>
+
+<div class="auth-wrapper">
+  <div class="auth-card">
+    <!-- Logo -->
+    <div class="logo-section">
+      <div class="logo-icon">🏠</div>
+      <div class="logo-title">WISHES</div>
+      <div class="logo-sub">Admin Control System</div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="auth-tabs" id="authTabs">
+      <button class="auth-tab active" data-tab="login" onclick="switchTab('login')">로그인</button>
+      <button class="auth-tab" data-tab="register" onclick="switchTab('register')">회원가입</button>
+    </div>
+
+    <!-- Messages -->
+    <div class="msg msg-error" id="msgError"><span class="msg-icon">⚠️</span><span id="msgErrorText"></span></div>
+    <div class="msg msg-success" id="msgSuccess"><span class="msg-icon">✅</span><span id="msgSuccessText"></span></div>
+    <div class="msg msg-warning" id="msgWarning"><span class="msg-icon">⏳</span><span id="msgWarningText"></span></div>
+
+    <!-- LOGIN FORM -->
+    <div class="form-section active" id="loginForm">
+      <div class="form-group">
+        <label class="form-label">이메일</label>
+        <input type="email" class="form-input" id="loginEmail" placeholder="admin@wishes.co.kr" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">비밀번호</label>
+        <input type="password" class="form-input" id="loginPassword" placeholder="비밀번호 입력" autocomplete="current-password">
+        <button type="button" class="password-toggle" onclick="togglePassword('loginPassword',this)">👁️</button>
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="rememberMe">
+        <label for="rememberMe">로그인 상태 유지 (30일)</label>
+      </div>
+      <button class="btn-primary" id="btnLogin" onclick="handleLogin()">
+        <span class="btn-text">로그인</span>
+        <div class="spinner"></div>
+      </button>
+      <div class="auth-link">
+        계정이 없으신가요? <a href="#" onclick="switchTab('register');return false">회원가입</a>
+      </div>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div class="form-section" id="registerForm">
+      <div class="form-group">
+        <label class="form-label">이름 (실명)</label>
+        <input type="text" class="form-input" id="regName" placeholder="홍길동">
+      </div>
+      <div class="form-group">
+        <label class="form-label">이메일</label>
+        <input type="email" class="form-input" id="regEmail" placeholder="name@company.com" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">비밀번호 (8자 이상, 영문+숫자+특수문자)</label>
+        <input type="password" class="form-input" id="regPassword" placeholder="비밀번호 설정">
+        <button type="button" class="password-toggle" onclick="togglePassword('regPassword',this)">👁️</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">비밀번호 확인</label>
+        <input type="password" class="form-input" id="regPasswordConfirm" placeholder="비밀번호 재입력">
+      </div>
+      <div class="form-group">
+        <label class="form-label">연락처</label>
+        <div class="phone-wrapper">
+          <input type="tel" class="form-input" id="regPhone" placeholder="010-0000-0000">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">소속 / 회사명</label>
+        <input type="text" class="form-input" id="regCompany" placeholder="부동산 중개사무소명">
+      </div>
+      <div class="form-group">
+        <label class="form-label">직책</label>
+        <select class="form-select" id="regRole">
+          <option value="">선택하세요</option>
+          <option value="agent">공인중개사</option>
+          <option value="staff">직원</option>
+          <option value="partner">협력업체</option>
+          <option value="other">기타</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">가입 사유 (관리자 승인 참고용)</label>
+        <input type="text" class="form-input" id="regReason" placeholder="ex) 매물 검색 시스템 이용">
+      </div>
+      <div class="terms-box">
+        <strong>[WISHES 이용약관 및 보안 동의]</strong><br><br>
+        1. 본 시스템은 관리자 승인을 받은 사용자만 이용 가능합니다.<br>
+        2. 시스템에서 제공되는 모든 데이터의 외부 유출, 복제, 무단 배포를 금지합니다.<br>
+        3. 로그인 세션은 보안 목적으로 30분 후 자동 만료됩니다.<br>
+        4. 모든 접속 기록과 활동 로그는 보안 감사를 위해 기록됩니다.<br>
+        5. 비정상적 접근 시도 시 계정이 자동 차단될 수 있습니다.<br>
+        6. 승인 취소 시 모든 접근 권한이 즉시 회수됩니다.<br>
+        7. 본 약관에 동의하지 않을 경우 서비스 이용이 제한됩니다.
+      </div>
+      <div class="checkbox-group">
+        <input type="checkbox" id="agreeTerms">
+        <label for="agreeTerms">이용약관 및 보안 동의에 동의합니다 (필수)</label>
+      </div>
+      <button class="btn-primary" id="btnRegister" onclick="handleRegister()">
+        <span class="btn-text">가입 신청</span>
+        <div class="spinner"></div>
+      </button>
+      <div class="auth-link">
+        이미 계정이 있으신가요? <a href="#" onclick="switchTab('login');return false">로그인</a>
+      </div>
+    </div>
+
+    <!-- PENDING APPROVAL SCREEN -->
+    <div class="pending-screen" id="pendingScreen">
+      <div class="pending-icon">🔒</div>
+      <div class="pending-title">관리자 승인 대기 중</div>
+      <div class="pending-text">
+        가입 신청이 완료되었습니다.<br>
+        관리자가 승인하면 이메일로 알림을 보내드립니다.<br>
+        승인 후 로그인하여 시스템을 이용하실 수 있습니다.
+      </div>
+      <div class="pending-status">
+        <span class="dot"></span>
+        <span>승인 대기중 (Pending Approval)</span>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="auth-footer">
+      <span>&copy; 2026 WISHES. All Rights Reserved.</span>
+    </div>
+    <div class="security-badge">
+      <span class="lock">🔐</span>
+      <span>256-bit SSL Encrypted | Device Fingerprint Protected</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+// ===== SECURITY LAYER =====
+// Anti-debugging (production only)
+var _isProduction = location.hostname !== 'localhost' && location.hostname !== '127.0.0.1';
+if(_isProduction){
+  (function _ad(){try{(function(){}).constructor('debugger')();setTimeout(_ad,3000)}catch(e){}})();
+}
+// Disable right-click
+document.addEventListener('contextmenu',function(e){e.preventDefault()});
+// Disable F12, Ctrl+Shift+I, Ctrl+U
+document.addEventListener('keydown',function(e){
+  if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'))||(e.ctrlKey&&e.key==='u'))e.preventDefault();
+});
+
+// ===== API BASE =====
+var API_BASE = '/api/auth';
+
+// ===== DEVICE FINGERPRINT =====
+function getDeviceFingerprint(){
+  var canvas=document.createElement('canvas');var ctx=canvas.getContext('2d');
+  ctx.textBaseline='top';ctx.font='14px Arial';ctx.fillText('WISHES-FP',2,2);
+  var fp=canvas.toDataURL();
+  var nav=navigator.userAgent+navigator.language+(screen.width+'x'+screen.height)+new Date().getTimezoneOffset();
+  return _simpleHash(fp+nav);
+}
+function _simpleHash(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}return Math.abs(h).toString(36)}
+
+// ===== TAB SWITCHING =====
+window.switchTab = function(tab){
+  document.querySelectorAll('.auth-tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab)});
+  document.getElementById('loginForm').classList.toggle('active',tab==='login');
+  document.getElementById('registerForm').classList.toggle('active',tab==='register');
+  document.getElementById('pendingScreen').style.display='none';
+  hideMessages();
+};
+
+// ===== PASSWORD TOGGLE =====
+window.togglePassword = function(id,btn){
+  var inp=document.getElementById(id);
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈'}
+  else{inp.type='password';btn.textContent='👁️'}
+};
+
+// ===== MESSAGES =====
+function showError(msg){hideMessages();var el=document.getElementById('msgError');document.getElementById('msgErrorText').textContent=msg;el.classList.add('show')}
+function showSuccess(msg){hideMessages();var el=document.getElementById('msgSuccess');document.getElementById('msgSuccessText').textContent=msg;el.classList.add('show')}
+function showWarning(msg){hideMessages();var el=document.getElementById('msgWarning');document.getElementById('msgWarningText').textContent=msg;el.classList.add('show')}
+function hideMessages(){document.querySelectorAll('.msg').forEach(function(m){m.classList.remove('show')})}
+
+// ===== VALIDATION =====
+function validateEmail(e){return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)}
+function validatePassword(p){return p.length>=8&&/[a-zA-Z]/.test(p)&&/[0-9]/.test(p)&&/[!@#$%^&*(),.?":{}|<>]/.test(p)}
+function validatePhone(p){return/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/.test(p.replace(/-/g,''))}
+
+// ===== RATE LIMITING =====
+var _loginAttempts=0;
+var _loginLockUntil=0;
+var _regAttempts=0;
+
+// ===== LOGIN =====
+window.handleLogin = function(){
+  hideMessages();
+  // Rate limit check
+  if(Date.now()<_loginLockUntil){
+    var remain=Math.ceil((_loginLockUntil-Date.now())/1000);
+    showError('너무 많은 시도입니다. '+remain+'초 후 다시 시도하세요.');
+    return;
+  }
+  var email=document.getElementById('loginEmail').value.trim();
+  var password=document.getElementById('loginPassword').value;
+  if(!email||!password){showError('이메일과 비밀번호를 입력하세요.');return}
+  if(!validateEmail(email)){showError('올바른 이메일 형식을 입력하세요.');return}
+
+  var btn=document.getElementById('btnLogin');
+  btn.classList.add('loading');btn.disabled=true;
+
+  var payload={
+    email:email,
+    password:password,
+    fingerprint:getDeviceFingerprint(),
+    remember:document.getElementById('rememberMe').checked,
+    timestamp:Date.now()
+  };
+
+  fetch(API_BASE+'/login',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  })
+  .then(function(r){return r.json()})
+  .then(function(data){
+    btn.classList.remove('loading');btn.disabled=false;
+    if(data.success){
+      _loginAttempts=0;
+      // Store session token (sessionStorage for web pages)
+      sessionStorage.setItem('ws_token',data.token);
+      sessionStorage.setItem('ws_user',JSON.stringify(data.user));
+      sessionStorage.setItem('ws_login_time',Date.now().toString());
+      // Also store in chrome.storage.local for extension content script access
+      if(typeof chrome!=='undefined'&&chrome.storage&&chrome.storage.local){
+        chrome.storage.local.set({ws_token:data.token,ws_user:JSON.stringify(data.user),ws_login_time:Date.now().toString()});
+      }
+      // Also broadcast to page for content scripts listening via postMessage
+      window.postMessage({type:'WS_AUTH_LOGIN',token:data.token,user:data.user},'*');
+      // Redirect based on role
+      if(data.user.role==='superadmin'){
+        window.location.href='/admin/command-center.html';
+      } else if(data.user.status==='approved'){
+        window.location.href='/admin/';
+      } else if(data.user.status==='pending'){
+        showPending();
+      } else {
+        showError('계정이 비활성 상태입니다. 관리자에게 문의하세요.');
+      }
+    } else {
+      _loginAttempts++;
+      if(_loginAttempts>=5){_loginLockUntil=Date.now()+300000;showError('5회 실패. 5분간 로그인이 제한됩니다.')}
+      else{showError(data.message||'로그인에 실패했습니다.')}
+    }
+  })
+  .catch(function(err){
+    btn.classList.remove('loading');btn.disabled=false;
+    showError('서버 연결에 실패했습니다. 잠시 후 다시 시도하세요.');
+  });
+};
+
+// ===== REGISTER =====
+window.handleRegister = function(){
+  hideMessages();
+  if(_regAttempts>=3){showError('가입 시도 횟수를 초과했습니다. 잠시 후 다시 시도하세요.');return}
+
+  var name=document.getElementById('regName').value.trim();
+  var email=document.getElementById('regEmail').value.trim();
+  var password=document.getElementById('regPassword').value;
+  var passwordConfirm=document.getElementById('regPasswordConfirm').value;
+  var phone=document.getElementById('regPhone').value.trim();
+  var company=document.getElementById('regCompany').value.trim();
+  var role=document.getElementById('regRole').value;
+  var reason=document.getElementById('regReason').value.trim();
+  var agree=document.getElementById('agreeTerms').checked;
+
+  // Validations
+  if(!name){showError('이름을 입력하세요.');return}
+  if(name.length<2){showError('이름은 2자 이상 입력하세요.');return}
+  if(!email){showError('이메일을 입력하세요.');return}
+  if(!validateEmail(email)){showError('올바른 이메일 형식을 입력하세요.');return}
+  if(!password){showError('비밀번호를 입력하세요.');return}
+  if(!validatePassword(password)){showError('비밀번호는 8자 이상, 영문+숫자+특수문자를 포함해야 합니다.');return}
+  if(password!==passwordConfirm){showError('비밀번호가 일치하지 않습니다.');return}
+  if(!phone){showError('연락처를 입력하세요.');return}
+  if(!validatePhone(phone)){showError('올바른 연락처 형식을 입력하세요. (010-0000-0000)');return}
+  if(!company){showError('소속/회사명을 입력하세요.');return}
+  if(!role){showError('직책을 선택하세요.');return}
+  if(!agree){showError('이용약관에 동의해주세요.');return}
+
+  var btn=document.getElementById('btnRegister');
+  btn.classList.add('loading');btn.disabled=true;
+
+  var payload={
+    name:name,email:email,password:password,
+    phone:phone,company:company,role:role,reason:reason,
+    fingerprint:getDeviceFingerprint(),
+    timestamp:Date.now(),
+    userAgent:navigator.userAgent
+  };
+
+  fetch(API_BASE+'/register',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload)
+  })
+  .then(function(r){return r.json()})
+  .then(function(data){
+    btn.classList.remove('loading');btn.disabled=false;
+    if(data.success){
+      _regAttempts++;
+      showPending();
+    } else {
+      showError(data.message||'가입에 실패했습니다.');
+    }
+  })
+  .catch(function(err){
+    btn.classList.remove('loading');btn.disabled=false;
+    showError('서버 연결에 실패했습니다.');
+  });
+};
+
+// ===== PENDING SCREEN =====
+function showPending(){
+  document.getElementById('loginForm').classList.remove('active');
+  document.getElementById('registerForm').classList.remove('active');
+  document.getElementById('authTabs').style.display='none';
+  document.getElementById('pendingScreen').style.display='block';
+  hideMessages();
+}
+
+// ===== SESSION CHECK ON LOAD =====
+function checkExistingSession(){
+  var token=sessionStorage.getItem('ws_token');
+  if(!token)return;
+  var loginTime=parseInt(sessionStorage.getItem('ws_login_time')||'0');
+  if(Date.now()-loginTime>1800000){sessionStorage.clear();return}// 30min expired
+  // Verify token
+  fetch(API_BASE+'/verify',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}
+  })
+  .then(function(r){return r.json()})
+  .then(function(data){
+    if(data.valid){
+      if(data.user.role==='superadmin')window.location.href='/admin/command-center.html';
+      else if(data.user.status==='approved')window.location.href='/admin/';
+    } else {sessionStorage.clear()}
+  })
+  .catch(function(){});
+}
+
+// Enter key support
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){
+    if(document.getElementById('loginForm').classList.contains('active'))handleLogin();
+    else if(document.getElementById('registerForm').classList.contains('active'))handleRegister();
+  }
+});
+
+checkExistingSession();
+})();
+</script>
+</body>
+</html>
