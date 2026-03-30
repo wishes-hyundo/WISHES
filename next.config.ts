@@ -1,6 +1,13 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  experimental: {
+    // 클라이언트 라우터 캐시: 페이지 이동 시 서버 재요청 방지
+    staleTimes: {
+      dynamic: 300,  // 동적 페이지 5분 캐시
+      static: 3600,  // 정적 페이지 1시간 캐시
+    },
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },
