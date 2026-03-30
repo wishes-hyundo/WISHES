@@ -634,7 +634,12 @@ function SmartListingNewPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [touchedFields, setTouchedFields] = useState({});
   const [dragIndex, setDragIndex] = useState(null);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
   const abortRef = React.useRef(null);
+
+  // Hydration fix
+  React.useEffect(() => { setIsMounted(true); }, []);
 
   // Real-time field validation
   const fieldErrors = React.useMemo(() => {
@@ -697,8 +702,21 @@ function SmartListingNewPage() {
     setDraftId(id);
     localStorage.setItem('wishes_drafts', JSON.stringify(newDrafts));
     setToast({ type: 'success', text: '임시저장 완료' });
+      setLastSavedAt(new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }));
     return id;
   }, [form, buildingInfo, draftId, drafts]);
+
+  // Warn before leaving with unsaved changes
+  React.useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (form.address || uploadedImages.length > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [form.address, uploadedImages.length]);
 
   // Auto-save every 30 seconds
   React.useEffect(() => {
@@ -1084,7 +1102,7 @@ ${floorRows}</table></div>` : ''}
         setUploadProgress(prev => prev + 1);
         if (useEnhanced && img.enhanced) {
           try {
-            const resp = await fetch(img.enhanced);
+            const resp = await withRetry(() => fetch(img.enhanced), 2, 500);
             const blob = await resp.blob();
             fd.append('images', blob, img.file.name.replace(/\.\w+$/, '.webp'));
           } catch (e) {
@@ -1127,11 +1145,11 @@ ${floorRows}</table></div>` : ''}
 
       // console.log('[publishListing] FormData, images:', uploadedImages.length, 'coords:', form.lat, form.lng);
 
-      const res = await fetch('/api/admin/listings', {
+      const res = await withRetry(() => fetch('/api/admin/listings', {
         method: 'POST',
         headers: { Authorization: `Bearer ${AUTH_TOKEN}` },
         body: fd,
-      });
+      }), 2, 1500);
 
       if (!res.ok) {
           const errBody = await res.json().catch(() => ({ error: 'Non-JSON response ' + res.status + ' ' + res.statusText }));
@@ -1163,8 +1181,10 @@ ${floorRows}</table></div>` : ''}
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
      렌더링
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  if (!isMounted) return null;
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" suppressHydrationWarning>
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all ${
@@ -1200,6 +1220,9 @@ ${floorRows}</table></div>` : ''}
               className="px-3 py-2 text-sm bg-gray-100 rounded-lg hover:bg-gray-200 transition">
               💾 임시저장
             </button>
+            {lastSavedAt && (
+              <span className="text-xs text-gray-400 hidden sm:inline">🟢 {lastSavedAt} 저장됨</span>
+            )}
           </div>
         </div>
 
