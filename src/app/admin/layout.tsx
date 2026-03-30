@@ -6,13 +6,22 @@ import { useRouter, usePathname } from 'next/navigation';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
+  useEffect(() => { setIsMounted(true); }, []);
+
+  // 모바일 메뉴 열림 시 body 스크롤 방지
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileMenuOpen]);
 
   const navItems = [
     { href: '/admin', label: '대시보드', icon: '📊' },
@@ -22,98 +31,145 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isNewListing = pathname === '/admin/listings/new';
 
-  return (
-    <div className="flex h-screen bg-gray-50">
-      {/* 사이드바 */}
-      <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} bg-wishes-primary text-white transition-all duration-300 flex flex-col shadow-lg`}>
-        {/* 헤더 */}
-        <div className="p-6 border-b border-wishes-secondary">
-          <div className="flex items-center justify-between">
-            {sidebarOpen && <h1 className="text-xl font-bold text-wishes-accent">WISHES</h1>}
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 hover:bg-wishes-secondary rounded-lg transition">
-              {sidebarOpen ? '◀' : '▶'}
-            </button>
-          </div>
-        </div>
+  // 1번: Admin → Command Center 인증 브릿지
+  const handleCommandCenter = () => {
+    try {
+      const adminPw = window.localStorage.getItem('admin_password');
+      if (adminPw) {
+        window.sessionStorage.setItem('ws_token', 'admin_bridge_' + Date.now());
+        window.sessionStorage.setItem('ws_user', JSON.stringify({ email: 'wishes@wishes.co.kr', role: 'superadmin', name: 'WISHES Admin' }));
+        window.sessionStorage.setItem('ws_login_time', new Date().toISOString());
+      }
+    } catch (e) { /* 실패 시 무시 - 사용자가 직접 로그인 */ }
+    window.location.href = '/admin/command-center.html';
+  };
 
-        {/* 스마트 매물 등록 버튼 */}
-        <div className="p-4">
-          <Link
-            href="/admin/listings/new"
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 shadow-md ${
-              isNewListing
-                ? 'bg-white text-wishes-primary shadow-lg scale-[1.02]'
-                : 'bg-gradient-to-r from-wishes-accent to-yellow-400 text-wishes-primary hover:shadow-lg hover:scale-[1.02]'
-            } ${!sidebarOpen ? 'justify-center' : ''}`}
-          >
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            {sidebarOpen && <span>스마트 매물 등록</span>}
+  const handleLogout = () => {
+    window.localStorage.removeItem('admin_password');
+    window.sessionStorage.clear();
+    router.push('/admin');
+    window.location.reload();
+  };
+
+  // 2번: Hydration 오류 방지 - 서버/클라이언트 HTML 불일치 해소
+  if (!isMounted) return null;
+
+  const isActive = (href: string) => {
+    if (href === '/admin') return pathname === '/admin' && !isNewListing;
+    return pathname.startsWith(href);
+  };
+
+  // 사이드바 컨텐츠 (PC/모바일 공용)
+  const SidebarContent = () => (
+    <>
+      {/* 헤더 */}
+      <div className="flex items-center justify-between px-4 py-4 border-b border-green-700/30">
+        {sidebarOpen && <h1 className="text-xl font-black tracking-wide text-wishes-accent">WISHES</h1>}
+        <button onClick={() => { setSidebarOpen(!sidebarOpen); setMobileMenuOpen(false); }}
+          className="p-2 rounded-lg hover:bg-white/10 transition hidden md:block" aria-label="사이드바 토글">
+          {sidebarOpen ? '◀' : '▶'}
+        </button>
+      </div>
+
+      {/* 스마트 매물 등록 버튼 */}
+      <div className="px-3 pt-4 pb-2">
+        <Link href="/admin/listings/new"
+          onClick={() => setMobileMenuOpen(false)}
+          className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 ${
+            isNewListing
+              ? 'bg-yellow-500 text-black shadow-lg scale-[1.02]'
+              : 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black hover:shadow-lg hover:scale-[1.02] active:scale-95'
+          }`}>
+          <span>+</span>
+          {sidebarOpen && <span>스마트 매물 등록</span>}
+        </Link>
+      </div>
+
+      {/* 네비게이션 */}
+      <nav className="flex-1 px-3 py-2 space-y-1.5 overflow-y-auto">
+        {navItems.map((item) => (
+          <Link key={item.href} href={item.href}
+            onClick={() => setMobileMenuOpen(false)}
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] ${
+              isActive(item.href)
+                ? 'bg-white/20 text-white shadow-inner font-bold'
+                : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
+            }`}>
+            <span className="text-lg flex-shrink-0">{item.icon}</span>
+            {sidebarOpen && <span>{item.label}</span>}
           </Link>
-        </div>
+        ))}
+      </nav>
 
-        {/* 네비게이션 */}
-        <nav className="flex-1 px-4 space-y-2">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/admin' && pathname.startsWith(item.href.split('?')[0]));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition text-sm font-medium ${
-                  isActive ? 'bg-wishes-secondary text-white' : 'hover:bg-wishes-secondary/60'
-                }`}
-              >
-                <span className="text-xl">{item.icon}</span>
-                {sidebarOpen && <span>{item.label}</span>}
-              </Link>
-            );
-          })}
-        </nav>
+      {/* Command Center 바로가기 - 인증 브릿지 적용 */}
+      <div className="px-3 pb-2">
+        <button onClick={handleCommandCenter}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-200 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 min-h-[48px] ${!sidebarOpen ? 'justify-center' : ''}`}>
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          </svg>
+          {sidebarOpen && (
+            <div className="flex flex-col text-left">
+              <span>Command Center</span>
+              <span className="text-[10px] font-normal opacity-75">통합 관리 센터</span>
+            </div>
+          )}
+        </button>
+      </div>
 
-        {/* Command Center 바로가기 */}
-        <div className="px-4 pb-2">
-          <a
-            href="/admin/command-center.html"
-            className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-sm transition-all duration-200 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 shadow-md hover:shadow-lg hover:scale-[1.02] ${!sidebarOpen ? 'justify-center' : ''}`}
-          >
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            {sidebarOpen && (
-              <div className="flex flex-col">
-                <span>Command Center</span>
-                <span className="text-[10px] font-normal opacity-75">통합 관리 센터</span>
-              </div>
-            )}
-          </a>
-        </div>
+      {/* 로그아웃 */}
+      <div className="px-3 pb-4">
+        <button onClick={handleLogout}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-red-500/30 transition-all duration-200 min-h-[48px] active:bg-red-500/50 ${!sidebarOpen ? 'justify-center' : ''}`}>
+          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+          </svg>
+          {sidebarOpen && <span>로그아웃</span>}
+        </button>
+      </div>
+    </>
+  );
 
-        {/* 로그아웃 */}
-        <div className="p-4 border-t border-wishes-secondary">
-          <button
-            onClick={() => {
-              localStorage.removeItem('admin_password');
-              router.push('/');
-            }}
-            className={`w-full flex items-center gap-3 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition font-medium text-sm ${!sidebarOpen ? 'justify-center' : ''}`}
-          >
-            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            {sidebarOpen ? '로그아웃' : ''}
-          </button>
-        </div>
+  return (
+    <div className="flex min-h-screen bg-wishes-bg">
+      {/* 6번: 모바일 햇버거 버튼 */}
+      <button onClick={() => setMobileMenuOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-50 p-2.5 bg-wishes-primary text-white rounded-xl shadow-lg active:scale-95 transition"
+        aria-label="메뉴 열기">
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* 6번: 모바일 오버레이 */}
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+          onClick={() => setMobileMenuOpen(false)} />
+      )}
+
+      {/* 사이드바 - PC */}
+      <aside className={`hidden md:flex flex-col bg-wishes-primary text-white transition-all duration-300 flex-shrink-0 ${sidebarOpen ? 'w-60' : 'w-20'}`}>
+        <SidebarContent />
       </aside>
 
-      {/* 메인 콘텐츠 */}
-      <main className="flex-1 overflow-auto">
-        <div className="p-8">
-          <Suspense fallback={<div className="flex items-center justify-center h-full"><p className="text-gray-500">로딩 중...</p></div>}>
-            {children}
-          </Suspense>
+      {/* 6번: 사이드바 - 모바일 (슬라이드 인) */}
+      <aside className={`md:hidden fixed inset-y-0 left-0 z-50 w-72 bg-wishes-primary text-white flex flex-col transform transition-transform duration-300 ease-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between px-4 pt-3">
+          <span></span>
+          <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-white/10 text-white/70" aria-label="메뉴 닫기">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
+        <SidebarContent />
+      </aside>
+
+      {/* 메인 컨텐츠 */}
+      <main className="flex-1 min-h-screen md:p-6 p-4 pt-14 md:pt-6 overflow-x-hidden">
+        <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-wishes-primary border-t-transparent rounded-full" /></div>}>
+          {children}
+        </Suspense>
       </main>
     </div>
   );
