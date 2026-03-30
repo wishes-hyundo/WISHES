@@ -37,7 +37,6 @@ let authClientInstance: ReturnType<typeof createSupabaseClient> | null = null;
 
 export function createAuthClient() {
   if (typeof window === 'undefined') {
-    // 서버사이드에서는 싱글턴 없이 새로 생성
     return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: false,
@@ -58,22 +57,37 @@ export function createAuthClient() {
 }
 
 /**
- * 서버 클라이언트 (Service Role Key)
+ * 서버 클라이언트 (Service Role Key) - 싱글톤
  * - 관리자 API 엔드포인트 사용
- * - RLS 정책 우회
+ * - RLS 정책 우회 → 더 빠른 쿼리
  * - 서버 사이드에서만 사용 (환경변수 보호)
+ * - 싱글톤으로 연결 재사용 → 성능 향상
  */
+let serverClientInstance: ReturnType<typeof createSupabaseClient> | null = null;
+
 export function createServerClient() {
   if (!supabaseServiceRoleKey) {
     throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
   }
 
-  return createSupabaseClient(supabaseUrl, supabaseServiceRoleKey, {
+  if (serverClientInstance) return serverClientInstance;
+
+  serverClientInstance = createSupabaseClient(supabaseUrl, supabaseServiceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
+    db: {
+      schema: 'public',
+    },
+    global: {
+      headers: {
+        'x-connection-pool': 'true',
+      },
+    },
   });
+
+  return serverClientInstance;
 }
 
 export default {
