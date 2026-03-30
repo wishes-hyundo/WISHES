@@ -966,7 +966,7 @@ ${floorRows}</table></div>` : ''}
     setIsPublishing(true);
     try {
       // FormData 구성 (이미지 파일 + 매물 데이터)
-      const fd = new window.FormData();
+      const compressImage = async (f: File): Promise<Blob> => { if (!window.createImageBitmap) return f; const bmp = await createImageBitmap(f); const cv = document.createElement('canvas'); let w = bmp.width, h = bmp.height; if (w > 1600) { h = Math.round(h * 1600 / w); w = 1600; } if (h > 1600) { w = Math.round(w * 1600 / h); h = 1600; } cv.width = w; cv.height = h; cv.getContext('2d')!.drawImage(bmp, 0, 0, w, h); bmp.close(); return new Promise(res => cv.toBlob(bl => res(bl!), 'image/jpeg', 0.7)); }; const fd = new window.FormData();
 
       // 이미지 파일 추가 (enhanced 우선, 없으면 원본)
       for (const img of uploadedImages) {
@@ -977,10 +977,10 @@ ${floorRows}</table></div>` : ''}
             fd.append('images', blob, img.file.name.replace(/\.\w+$/, '.webp'));
           } catch (e) {
             console.warn('[Enhanced fetch failed, using original]', e);
-            fd.append('images', img.file);
+            fd.append('images', await compressImage(img.file), img.file.name);
           }
         } else {
-          fd.append('images', img.file);
+          fd.append('images', await compressImage(img.file), img.file.name);
         }
       }
 
