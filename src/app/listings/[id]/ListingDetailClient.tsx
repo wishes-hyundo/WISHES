@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Calendar, ArrowLeft, Check, X, Eye, Hash } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
 import ImageGallery from '@/components/ImageGallery';
+import { Share2, Copy, Check, MapPin, Navigation } from 'lucide-react';
 
 export default function ListingDetailClient({ id }: { id: string }) {
   const [listing, setListing] = useState<any>(null);
@@ -13,6 +14,7 @@ export default function ListingDetailClient({ id }: { id: string }) {
   const [features, setFeatures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -46,46 +48,110 @@ export default function ListingDetailClient({ id }: { id: string }) {
     </div>
   );
 
-  if (notFound) return (<div className="pt-16 min-h-screen bg-wishes-bg flex items-center justify-center"><div className="text-center"><p className="text-gray-500 text-lg">매물을 찾을 수 없습니다</p><Link href="/listings" className="text-wishes-secondary hover:underline mt-2 inline-block">매물 목록으로</Link></div></div>);
+  if (notFound) return (<div className="pt-16 min-h-screen bg-wishes-bg flex items-center justify-center"><div className="text-center"><p className="text-gray-500 text-lg">ë§¤ë¬¼ì ì°¾ì ì ììµëë¤</p><Link href="/listings" className="text-wishes-secondary hover:underline mt-2 inline-block">ë§¤ë¬¼ ëª©ë¡ì¼ë¡</Link></div></div>);
 
   const price = getFormattedPrice(listing.deal, listing.deposit, listing.monthly, listing.price);
 
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* fallback */ }
+  };
+
+  const handleKakaoShare = () => {
+    if (typeof window !== 'undefined' && window.Kakao) {
+      if (!window.Kakao.isInitialized()) return;
+      const img = listing?.listing_images?.[0]?.url || listing?.images?.[0]?.url || '';
+      const priceText = listing?.deal === '매매'
+        ? (listing.price >= 10000 ? Math.floor(listing.price/10000)+'억' : listing.price?.toLocaleString()+'만원')
+        : listing?.deposit?.toLocaleString()+'/'+listing?.monthly?.toLocaleString();
+      window.Kakao.Share.sendDefault({
+        objectType: 'feed',
+        content: {
+          title: listing?.title || '매물 정보',
+          description: (listing?.dong||'')+' '+(listing?.type||'')+' '+(listing?.deal||'')+' '+priceText,
+          imageUrl: img,
+          link: { mobileWebUrl: window.location.href, webUrl: window.location.href },
+        },
+        buttons: [{ title: '매물 보기', link: { mobileWebUrl: window.location.href, webUrl: window.location.href } }],
+      });
+    }
+  };
   return (
     <div className="pt-16 min-h-screen bg-wishes-bg">
       <div className="bg-white border-b border-gray-200"><div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-        <Link href="/listings" className="flex items-center gap-1 text-sm text-gray-500 hover:text-wishes-secondary"><ArrowLeft className="w-4 h-4" />매물 목록</Link>
+        <Link href="/listings" className="flex items-center gap-1 text-sm text-gray-500 hover:text-wishes-secondary"><ArrowLeft className="w-4 h-4" />ë§¤ë¬¼ ëª©ë¡</Link>
         <span className="text-gray-300">/</span><span className="text-sm text-gray-700 font-medium truncate">{listing.title}</span>
       </div></div>
       <div className="max-w-5xl mx-auto px-4 py-8"><div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-6">
           <ImageGallery images={images} title={listing.title} deal={listing.deal} status={listing.status} dealColor={getDealColor(listing.deal)} statusColor={getStatusColor(listing.status)} />
           <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <div className="flex items-center gap-3 mb-1"><span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1"><Hash className="w-3 h-3" /> W-{listing.id}</span>{listing.views > 0 && <span className="text-xs text-gray-400 flex items-center gap-1"><Eye className="w-3 h-3" /> 조회 {listing.views}</span>}</div>
+            <div className="flex items-center gap-3 mb-1"><span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1"><Hash className="w-3 h-3" /> W-{listing.id}</span>{listing.views > 0 && <span className="text-xs text-gray-400 flex items-center gap-1"><Eye className="w-3 h-3" /> ì¡°í {listing.views}</span>}</div>
             <h1 className="text-2xl font-bold text-wishes-primary">{listing.title}</h1>
             <p className="text-3xl font-bold text-wishes-accent mt-2">{price.main}</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6">
-              <IR label="매물유형" value={listing.type} /><IR label="거래유형" value={listing.deal} />
-              <IR label="전용면적" value={listing.area_m2 ? listing.area_m2 + '㎡ (' + sqmToPyeong(listing.area_m2) + '평)' : '정보 없음'} />
-              <IR label="층수" value={listing.floor_current} /><IR label="주소" value={listing.address} fw /><IR label="동" value={listing.dong} />
-              {listing.built_year && <IR label="준공년도" value={listing.built_year} />}
-              {listing.available_date && <IR label="입주가능일" value={listing.available_date} />}
+              <IR label="ë§¤ë¬¼ì í" value={listing.type} /><IR label="ê±°ëì í" value={listing.deal} />
+              <IR label="ì ì©ë©´ì " value={listing.area_m2 ? listing.area_m2 + 'ã¡ (' + sqmToPyeong(listing.area_m2) + 'í)' : 'ì ë³´ ìì'} />
+              <IR label="ì¸µì" value={listing.floor_current} /><IR label="ì£¼ì" value={listing.address} fw /><IR label="ë" value={listing.dong} />
+              {listing.built_year && <IR label="ì¤ê³µëë" value={listing.built_year} />}
+              {listing.available_date && <IR label="ìì£¼ê°ë¥ì¼" value={listing.available_date} />}
             </div>
-            <div className="mt-6 pt-6 border-t border-gray-100"><h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h3><div className="flex flex-wrap gap-2">
-              <OB label="주차" a={listing.parking ?? false} /><OB label="엘리베이터" a={listing.elevator ?? false} /><OB label="반려동물" a={listing.pet ?? false} /><OB label="발코니" a={listing.balcony ?? false} /><OB label="풀옵션" a={listing.full_option ?? false} />
+            <div className="mt-6 pt-6 border-t border-gray-100"><h3 className="text-sm font-semibold text-gray-700 mb-3">ìµì / ìì¤</h3><div className="flex flex-wrap gap-2">
+              <OB label="ì£¼ì°¨" a={listing.parking ?? false} /><OB label="ìë¦¬ë² ì´í°" a={listing.elevator ?? false} /><OB label="ë°ë ¤ëë¬¼" a={listing.pet ?? false} /><OB label="ë°ì½ë" a={listing.balcony ?? false} /><OB label="íìµì" a={listing.full_option ?? false} />
               {features.map((f) => (<span key={f.id} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">{f.feature}</span>))}
             </div></div>
-            {listing.description && <div className="mt-6 pt-6 border-t border-gray-100"><h3 className="text-sm font-semibold text-gray-700 mb-3">상세 설명</h3><p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{listing.description}</p></div>}
+            {listing.description && <div className="mt-6 pt-6 border-t border-gray-100"><h3 className="text-sm font-semibold text-gray-700 mb-3">ìì¸ ì¤ëª</h3><p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{listing.description}</p></div>}
           </div>
         </div>
         <div className="space-y-4"><div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-24">
-          <h3 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h3>
-          <Link href={'/contact?listing=' + listing.id} className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors">온라인 상담 신청</Link>
+          <h3 className="text-lg font-bold text-wishes-primary mb-4">ì´ ë§¤ë¬¼ ë¬¸ìíê¸°</h3>
+          <Link href={'/contact?listing=' + listing.id} className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors">ì¨ë¼ì¸ ìë´ ì ì²­</Link>
           <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
-            <p className="flex items-center gap-1"><Calendar className="w-3 h-3" />등록일: {new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
-            <p className="flex items-center gap-1"><Calendar className="w-3 h-3" />수정일: {new Date(listing.updated_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
+            <p className="flex items-center gap-1"><Calendar className="w-3 h-3" />ë±ë¡ì¼: {new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
+            <p className="flex items-center gap-1"><Calendar className="w-3 h-3" />ìì ì¼: {new Date(listing.updated_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}</p>
           </div>
         </div></div>
       </div></div>
+
+      {/* Share & Map Section */}
+      <div className="mt-8 space-y-6">
+        {/* Share Buttons */}
+        <div className="bg-white rounded-xl border p-5">
+          <h3 className="text-lg font-bold mb-3 flex items-center gap-2"><Share2 className="w-5 h-5 text-green-600" /> 공유하기</h3>
+          <div className="flex gap-3">
+            <button onClick={handleCopyLink} className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg border hover:bg-gray-50 transition-colors text-sm font-medium">
+              {copied ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+              {copied ? '복사 완료!' : '링크 복사'}
+            </button>
+            <button onClick={handleKakaoShare} className="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg bg-[#FEE500] hover:bg-[#F5DC00] transition-colors text-sm font-medium text-[#3C1E1E]">
+              <svg viewBox="0 0 24 24" className="w-5 h-5" fill="#3C1E1E"><path d="M12 3C6.48 3 2 6.58 2 10.9c0 2.78 1.86 5.21 4.65 6.6-.15.56-.96 3.6-.99 3.83 0 0-.02.17.09.24.11.06.24.01.24.01.32-.04 3.7-2.44 4.28-2.86.55.08 1.13.13 1.73.13 5.52 0 10-3.58 10-7.95C22 6.58 17.52 3 12 3"/></svg>
+              카카오톡 공유
+            </button>
+          </div>
+        </div>
+
+        {/* Location Map */}
+        {listing?.lat && listing?.lng && (
+          <div className="bg-white rounded-xl border p-5">
+            <h3 className="text-lg font-bold mb-3 flex items-center gap-2"><MapPin className="w-5 h-5 text-green-600" /> 위치 정보</h3>
+            <p className="text-sm text-gray-600 mb-3">{listing.address}</p>
+            <div className="rounded-lg overflow-hidden border" style={{height:'280px'}}>
+              <iframe
+                src={`https://map.kakao.com/link/map/${encodeURIComponent(listing.title || '매물위치')},${listing.lat},${listing.lng}`}
+                width="100%" height="100%" style={{border:0}} loading="lazy" />
+            </div>
+            <a href={`https://map.kakao.com/link/to/${encodeURIComponent(listing.title || '매물위치')},${listing.lat},${listing.lng}`}
+              target="_blank" rel="noopener noreferrer"
+              className="mt-3 flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors text-sm font-medium">
+              <Navigation className="w-4 h-4" /> 카카오맵으로 길찾기
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
