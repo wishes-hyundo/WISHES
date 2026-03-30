@@ -661,6 +661,9 @@ function SmartListingNewPage() {
   const [aiStyleOption, setAiStyleOption] = useState<AiStyle>('trendy');
   const [aiModel, setAiModel] = useState<AiModel>('template');
   const [showAddressModal, setShowAddressModal] = useState(false);
+
+  const [formHistory, setFormHistory] = useState([]);
+  const [canUndo, setCanUndo] = useState(false);
   const postcodeContainerRef = useRef<HTMLDivElement>(null);
 
   /* ── 주소 검색 팝업 메시지 수신 ── */
@@ -682,6 +685,17 @@ function SmartListingNewPage() {
   /* ── 키보드 단축키 (Alt+좌우 화살표로 스텝 이동) ── */
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (formHistory.length > 0) {
+          const prev = formHistory[formHistory.length - 1];
+          setForm(prev);
+          setFormHistory(h => h.slice(0, -1));
+          setCanUndo(formHistory.length > 1);
+          setToast({ type: 'info', message: '되돌리기 완료' });
+        }
+        return;
+      }
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
       if (e.altKey && e.key === 'ArrowRight' && currentStep < 4) {
         e.preventDefault();
@@ -694,6 +708,16 @@ function SmartListingNewPage() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentStep]);
+
+  /* ── 스텝 변경 시 스크롤 & 포커스 ── */
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const timer = setTimeout(() => {
+      const firstInput = document.querySelector('.step-content input:not([type=hidden]), .step-content select, .step-content textarea');
+      if (firstInput) firstInput.focus();
+    }, 350);
+    return () => clearTimeout(timer);
   }, [currentStep]);
 
   /* ── 임시저장 관리 (localStorage) ── */
@@ -792,7 +816,23 @@ function SmartListingNewPage() {
   };
 
   /* ── 폼 업데이트 헬퍼 ── */
-  const updateForm = (updates: Partial<FormData>) => {
+    /* ── Undo 기능 (Ctrl+Z) ── */
+  const pushHistory = (prevForm) => {
+    setFormHistory(h => [...h.slice(-9), prevForm]);
+    setCanUndo(true);
+  };
+
+  const undoLastChange = () => {
+    if (formHistory.length === 0) return;
+    const prev = formHistory[formHistory.length - 1];
+    setForm(prev);
+    setFormHistory(h => h.slice(0, -1));
+    setCanUndo(formHistory.length > 1);
+    setToast({ type: 'info', message: '되돌리기 완료' });
+  };
+
+const updateForm = (updates: Partial<FormData>) => {
+    pushHistory(form);
     setForm(prev => ({ ...prev, ...updates }));
   };
 
@@ -1209,6 +1249,25 @@ ${floorRows}</table></div>` : ''}
       }
     };
 
+  /* ── 필드 유효성 시각 피드백 ── */
+  const fieldError = (fieldName) => {
+    if (!touchedFields[fieldName]) return '';
+    const value = form[fieldName];
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
+      return 'ring-2 ring-red-300 border-red-300';
+    }
+    return 'ring-2 ring-green-200 border-green-300';
+  };
+
+  const showFieldHint = (fieldName, label) => {
+    if (!touchedFields[fieldName]) return null;
+    const value = form[fieldName];
+    if (!value || (typeof value === 'string' && value.trim() === '')) {
+      return <span className="text-xs text-red-500 mt-1">{label} 입력이 필요합니다</span>;
+    }
+    return null;
+  };
+
     const isStep1Valid = form.address && form.deal && form.type &&
     ((form.deal === '매매' && form.price) ||
      (form.deal === '전세' && form.deposit) ||
@@ -1221,7 +1280,14 @@ ${floorRows}</table></div>` : ''}
 
   return (
     <div className="min-h-screen bg-gray-50" suppressHydrationWarning>
-      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <style>{`@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes pulse-border { 0%, 100% { border-color: #86efac; } 50% { border-color: #22c55e; } }
+        .field-success { animation: pulse-border 2s ease-in-out; }
+        .drag-overlay-active { backdrop-filter: blur(4px); }
+        .step-content { animation: fadeIn 0.3s ease-in-out; }
+        .image-card:hover { transform: scale(1.02); transition: transform 0.2s ease; }
+      `}</style>
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white text-sm font-medium transition-all ${
@@ -1244,7 +1310,31 @@ ${floorRows}</table></div>` : ''}
             <h1 className="text-xl font-bold text-gray-900">스마트 매물 등록</h1>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowDrafts(!showDrafts)}
+            {canUndo && (
+                <button
+                  type="button"
+                  onClick={undoLastChange}
+                  className="p-2 rounded-lg text-gray-400 hover:text-orange-600 hover:bg-orange-50 transition-colors"
+                  title="되돌리기 (Ctrl+Z)"
+                  aria-label="되돌리기"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4M3 10l4 4" /></svg>
+                </button>
+              )}
+              <div className="relative group">
+                <button type="button" className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors" aria-label="단축키 안내">
+                  <span className="text-sm font-mono">?</span>
+                </button>
+                <div className="absolute right-0 top-full mt-1 w-56 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                  <div className="font-semibold mb-2 text-green-400">단축키 안내</div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between"><span>다음 단계</span><kbd className="px-1 bg-gray-700 rounded">Alt + &rarr;</kbd></div>
+                    <div className="flex justify-between"><span>이전 단계</span><kbd className="px-1 bg-gray-700 rounded">Alt + &larr;</kbd></div>
+                    <div className="flex justify-between"><span>임시저장</span><kbd className="px-1 bg-gray-700 rounded">Ctrl + S</kbd></div>
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setShowDrafts(!showDrafts)}
               className="relative px-3 py-2 text-sm border rounded-lg hover:bg-gray-50 transition">
               📂 임시저장 목록
               {drafts.length > 0 && (
@@ -1263,8 +1353,16 @@ ${floorRows}</table></div>` : ''}
           </div>
         </div>
 
-        {/* 스텝 인디케이터 */}
-        <div className="max-w-6xl mx-auto px-6 pb-4">
+        
+            {/* 자동저장 상태 표시 */}
+            {lastSavedAt && (
+              <div className="flex items-center justify-end text-xs text-gray-400 mb-2 -mt-2">
+                <span className="inline-block w-2 h-2 rounded-full bg-green-400 mr-1.5 animate-pulse" />
+                자동저장됨 {new Date(lastSavedAt).toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit'})}
+              </div>
+            )}
+{/* 스텝 인디케이터 */}
+        <div role="navigation" aria-label="매물 등록 단계" className="max-w-6xl mx-auto px-6 pb-4">
           <div className="flex items-center gap-1">
             {STEPS.map((step, i) => (
               <React.Fragment key={step.id}>
@@ -1328,12 +1426,20 @@ ${floorRows}</table></div>` : ''}
         </div>
       )}
 
-      {/* 메인 컨텐츠 */}
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      
+            {/* 전체 진행률 바 */}
+            <div className="w-full bg-gray-100 rounded-full h-1 mb-6 overflow-hidden">
+              <div 
+                className="bg-gradient-to-r from-green-400 to-green-600 h-1 rounded-full transition-all duration-500 ease-out"
+                style={{ width: `${([1,2,3,4].filter(s => isStepComplete(s)).length / 4) * 100}%` }}
+              />
+            </div>
+{/* 메인 컨텐츠 */}
+      <div role="main" aria-label="매물 등록 폼" className="max-w-6xl mx-auto px-6 py-8">
 
         {/* ━━━━ STEP 1: 필수정보 입력 ━━━━ */}
         {currentStep === 1 && (
-          <div className="space-y-6 animate-[fadeIn_0.3s_ease-in-out]">
+          <div className="space-y-6 step-content animate-[fadeIn_0.3s_ease-in-out]">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <div className="mb-6">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -1463,6 +1569,15 @@ ${floorRows}</table></div>` : ''}
                 </div>
               </div>
 
+              {/* 입력 진행 상태 */}
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 text-sm">
+                <div className={`w-2 h-2 rounded-full ${form.address ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className={form.address ? 'text-green-700' : 'text-gray-400'}>소재지</span>
+                <div className={`w-2 h-2 rounded-full ${form.transactionType ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className={form.transactionType ? 'text-green-700' : 'text-gray-400'}>거래유형</span>
+                <div className={`w-2 h-2 rounded-full ${form.propertyType ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className={form.propertyType ? 'text-green-700' : 'text-gray-400'}>매물유형</span>
+              </div>
               {/* 다음 버튼 */}
               <div className="flex justify-end pt-4 border-t">
                 <button onClick={goToStep2} disabled={!isStep1Valid}
@@ -1478,7 +1593,7 @@ ${floorRows}</table></div>` : ''}
 
         {/* ━━━━ STEP 2: 건축물대장 + 세부정보 ━━━━ */}
         {currentStep === 2 && (
-          <div className="animate-[fadeIn_0.3s_ease-in-out] grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="step-content animate-[fadeIn_0.3s_ease-in-out] grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 좌측: 건축물대장 */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-sm border p-6">
@@ -1748,6 +1863,7 @@ ${floorRows}</table></div>` : ''}
                   </div>
 
                   {/* 관리비 */}
+              {/* 관리비 도움말 */}
                   <div>
                     <label className="text-xs text-gray-500 mb-1 block">관리비 (만원)</label>
                     <input type="text" inputMode="numeric" value={form.maintenance_fee != null ? form.maintenance_fee.toLocaleString() : ''} placeholder="예: 5"
@@ -1832,7 +1948,7 @@ ${floorRows}</table></div>` : ''}
 
         {/* ━━━━ STEP 3: 사진 등록 + 자동 품질 개선 ━━━━ */}
         {currentStep === 3 && (
-          <div className="space-y-6 animate-[fadeIn_0.3s_ease-in-out]">
+          <div className="space-y-6 step-content animate-[fadeIn_0.3s_ease-in-out]">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -1870,6 +1986,33 @@ ${floorRows}</table></div>` : ''}
                   onChange={e => e.target.files && handleImageFiles(e.target.files)} />
               </div>
 
+              {/* 이미지 일괄 작업 */}
+              {uploadedImages.length > 1 && (
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <span className="text-sm text-gray-500">{uploadedImages.length}장 업로드됨</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const sorted = [...uploadedImages].sort((a, b) => (b.enhanced ? 1 : 0) - (a.enhanced ? 1 : 0));
+                        setUploadedImages(sorted);
+                      }}
+                      className="text-xs px-2 py-1 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors"
+                      aria-label="개선된 사진 우선 정렬"
+                    >
+                      개선순 정렬
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { if (confirm('모든 사진을 삭제하시겠습니까?')) setUploadedImages([]); }}
+                      className="text-xs px-2 py-1 rounded bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                      aria-label="모든 사진 삭제"
+                    >
+                      전체 삭제
+                    </button>
+                  </div>
+                </div>
+              )}
               {/* 업로드된 이미지 */}
               {uploadedImages.length > 0 && (
                 <div className="mt-6">
@@ -1880,7 +2023,7 @@ ${floorRows}</table></div>` : ''}
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {uploadedImages.map((img, i) => (
-                      <div key={i} className={`relative group ${dragIndex === i ? 'opacity-50 scale-95' : ''} transition-all cursor-grab active:cursor-grabbing`}
+                      <div key={i} className={`image-card relative group ${dragIndex === i ? 'opacity-50 scale-95' : ''} transition-all cursor-grab active:cursor-grabbing`}
                     draggable
                     onDragStart={() => setDragIndex(i)}
                     onDragOver={(e) => { e.preventDefault(); }}
@@ -2088,7 +2231,7 @@ ${floorRows}</table></div>` : ''}
 
         {/* ━━━━ STEP 4: 직접 등록 ━━━━ */}
         {currentStep === 4 && (
-          <div className="space-y-6 animate-[fadeIn_0.3s_ease-in-out]">
+          <div className="space-y-6 step-content animate-[fadeIn_0.3s_ease-in-out]">
             <div className="bg-white rounded-2xl shadow-sm border p-8">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-6">
                 <span className="w-8 h-8 bg-green-700 text-white rounded-full flex items-center justify-center text-sm">4</span>
