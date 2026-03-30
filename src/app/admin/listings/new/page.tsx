@@ -1,4 +1,5 @@
 'use client';
+// Last updated: 2026-03-31 via GitHub API
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
