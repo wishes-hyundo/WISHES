@@ -42,8 +42,8 @@ function StepSkeleton() {
 
 // Last updated: 2026-03-31 via GitHub API
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    타입 정의
@@ -614,8 +614,75 @@ function generateStyledDescription(form: FormData, buildingInfo: BuildingInfo | 
    메인 컴포넌트
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 function SmartListingNewPage() {
-  const router = useRouter();
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [isCopyMode, setIsCopyMode] = useState(false)
+  const [copySourceId, setCopySourceId] = useState(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // === 복사 등록 (Copy Listing) Feature ===
+  useEffect(() => {
+    const copyFrom = searchParams.get('copyFrom');
+    if (!copyFrom) return;
+    setCopySourceId(copyFrom);
+    setIsCopyMode(true);
+    
+    const fetchListingForCopy = async () => {
+      try {
+        const res = await fetch('/api/admin/listings/' + copyFrom, {
+          headers: { 'x-auth-token': AUTH_TOKEN }
+        });
+        if (!res.ok) {
+          alert('복사할 매물을 불러올 수 없습니다.');
+          setIsCopyMode(false);
+          return;
+        }
+        const data = await res.json();
+        const listing = data.listing || data;
+        
+        setForm(prev => ({
+          ...prev,
+          type: listing.type || '',
+          deal: listing.deal || '',
+          address: listing.address || '',
+          addressDetail: '',
+          dong: listing.dong || '',
+          building_name: listing.building_name || '',
+          road_address: listing.road_address || '',
+          jibun_address: listing.jibun_address || '',
+          deposit: listing.deposit || '',
+          price: listing.price || '',
+          monthly: listing.monthly || '',
+          area_m2: listing.area_m2 || '',
+          area_supply_m2: listing.area_supply_m2 || '',
+          floor_current: '',
+          floor_total: listing.floor_total || '',
+          rooms: listing.rooms || '',
+          bathrooms: listing.bathrooms || '',
+          parking_available: listing.parking_available !== undefined ? listing.parking_available : '',
+          heating_type: listing.heating_type || '',
+          direction: listing.direction || '',
+          maintenance_fee: listing.maintenance_fee || '',
+          maintenance_includes: listing.maintenance_includes || '',
+          move_in_type: listing.move_in_type || '',
+          move_in_date: listing.move_in_date || '',
+          features: listing.features || '',
+          title: (listing.title ? listing.title + ' (복사)' : ''),
+          description: ''
+        }));
+        
+        if (listing.address) {
+          setAddressData({ address: listing.address, roadAddress: listing.road_address || '', jibunAddress: listing.jibun_address || '' });
+        }
+      } catch (err) {
+        alert('복사 중 오류가 발생했습니다: ' + err.message);
+        setIsCopyMode(false);
+      }
+    };
+    
+    fetchListingForCopy();
+  }, [searchParams]);
+
 
   /* ── State ── */
   const [currentStep, setCurrentStep] = useState(1);
@@ -993,6 +1060,46 @@ table{width:100%;border-collapse:collapse}td{padding:6px 8px;border:1px solid #3
 h2{font-size:20px;border-bottom:3px double #000;padding-bottom:8px;margin:8px 0 4px}
 @media print{body{padding:0}}</style></head><body>
 <div style="text-align:center;margin-bottom:20px">
+
+        {isCopyMode && (
+          <div style={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            marginBottom: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 4px 15px rgba(102,126,234,0.4)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <div>
+                <div style={{ fontWeight: '700', fontSize: '14px' }}>복사 등록 모드</div>
+                <div style={{ fontSize: '12px', opacity: 0.9 }}>기존 매물 정보가 자동 입력되었습니다. 호수/층수 등만 수정하세요.</div>
+              </div>
+            </div>
+            <button
+              onClick={() => { setIsCopyMode(false); setCopySourceId(null); window.history.replaceState({}, '', '/admin/listings/new'); }}
+              style={{
+                background: 'rgba(255,255,255,0.2)',
+                border: 'none',
+                color: 'white',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: '600'
+              }}
+            >
+              일반 등록으로 전환
+            </button>
+          </div>
+        )}
 <div style="font-size:9px;color:#888">국토교통부 건축물대장 정보</div>
 <h2>건 축 물 대 장</h2>
 <div style="font-size:9px;color:#aaa">(건축물대장HUB 서비스 API 조회 결과)</div></div>
@@ -2394,5 +2501,5 @@ class ListingErrorBoundary extends React.Component {
 }
 
 export default function SmartListingNewPageWithErrorBoundary() {
-  return React.createElement(ListingErrorBoundary, null, React.createElement(SmartListingNewPage));
+  return React.createElement(ListingErrorBoundary, null, React.createElement(Suspense, {fallback: React.createElement('div', {style:{padding:'40px',textAlign:'center'}}, '로딩 중...')}, React.createElement(SmartListingNewPage)));
 }
