@@ -75,6 +75,44 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     return () => { document.body.style.overflow = ''; };
   }, [mobileMenuOpen]);
 
+  // ========================================
+  // Chrome 확장 프로그램 인증 브릿지
+  // ========================================
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // 인증 완료 후 확장의 auth wall 제거
+    const removeAuthWall = () => {
+      const wall = document.getElementById('ws-auth-wall');
+      if (wall) wall.remove();
+    };
+    removeAuthWall();
+
+    // 확장의 WS_AUTH_CHECK 메시지에 응답
+    const handleAuthCheck = (e: MessageEvent) => {
+      if (e.data?.type === 'WS_AUTH_CHECK') {
+        const token = window.sessionStorage.getItem('ws_token');
+        const user = window.sessionStorage.getItem('ws_user');
+        window.postMessage({
+          type: 'WS_AUTH_RESPONSE',
+          verified: true,
+          user: user ? JSON.parse(user) : { email: 'admin', role: 'superadmin', status: 'approved' }
+        }, '*');
+      }
+    };
+    window.addEventListener('message', handleAuthCheck);
+
+    // 주기적으로 auth wall 확인 (확장이 지연 생성 가능)
+    const checker = setInterval(removeAuthWall, 500);
+    const stop = setTimeout(() => clearInterval(checker), 3000);
+
+    return () => {
+      window.removeEventListener('message', handleAuthCheck);
+      clearInterval(checker);
+      clearTimeout(stop);
+    };
+  }, [isAuthenticated]);
+
   const navItems = [
     { href: '/admin', label: '대시보드', icon: '📊' },
     { href: '/admin/listings', label: '매물 관리', icon: '🏠' },
