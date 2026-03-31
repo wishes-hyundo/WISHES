@@ -935,7 +935,19 @@ function renderUsers(){
     var onlineClass=isOnline?"status-online":"status-offline";
     var onlineText=isOnline?"접속중":"오프라인";
     var lastLogin=u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleString("ko-KR"):"-";
-    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name||u.email.split("@")[0])+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||"-")+'</td><td><span class="status '+(u.role==="superadmin"?'" style="background:rgba(237,137,54,.15);color:var(--accent)":u.role==="admin"?'" style="background:var(--info-bg);color:var(--info)":"status-approved")+"\">"+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+lastLogin+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+(u.role!=="superadmin"?"<button class=\"btn-sm btn-block\" onclick=\"toggleBlock('"+u.id+"')\">차단</button>":"")+'</div></td></tr>';
+    var roleStyle=u.role==="superadmin"?"background:rgba(237,137,54,.15);color:var(--accent)":u.role==="admin"?"background:var(--info-bg);color:var(--info)":"";
+    var roleAttr=roleStyle?' style="'+roleStyle+'"':' class="status status-approved"';
+    var displayName=u.name||u.email.split("@")[0];
+    var blockBtn=u.role!=="superadmin"?'<button class="btn-sm btn-block" onclick="toggleBlock(\''+u.id+'\')">'+((u.status==="blocked")?"해제":"차단")+'</button>':"";
+    return '<tr>'+
+      '<td><div style="font-weight:600">'+_escHtml(displayName)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td>'+
+      '<td style="font-size:12px">'+_escHtml(u.email)+'</td>'+
+      '<td style="font-size:12px">'+_escHtml(u.company||"-")+'</td>'+
+      '<td><span'+roleAttr+'>'+u.role+'</span></td>'+
+      '<td><span class="status '+statusClass+'">'+statusText+'</span></td>'+
+      '<td style="font-size:12px;color:var(--text-dim)">'+lastLogin+'</td>'+
+      '<td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+blockBtn+'</div></td>'+
+      '</tr>';
   }).join("");
 }
 
