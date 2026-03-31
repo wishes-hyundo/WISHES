@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { createAuthClient } from '@/lib/supabase';
 
 function AuthCallbackContent() {
   const router = useRouter();
@@ -57,12 +58,28 @@ function AuthCallbackContent() {
       return;
     }
 
+    // 에러 파라미터 확인
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
     if (error) {
       setStatus('error');
       setErrorMessage(errorDescription || '로그인 중 오류가 발생했습니다.');
       setTimeout(() => router.replace('/'), 3000);
+      return;
+    }
+
+    // Supabase PKCE 코드 교환 (카카오/구글)
+    const code = searchParams.get('code');
+    if (code) {
+      const supabase = createAuthClient();
+      supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
+        if (exchangeError) {
+          console.error('PKCE 코드 교환 실패:', exchangeError.message);
+          setStatus('error');
+          setErrorMessage('로그인 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
+          setTimeout(() => router.replace('/'), 3000);
+        }
+      });
       return;
     }
   }, [searchParams, router]);
@@ -79,7 +96,7 @@ function AuthCallbackContent() {
         setStatus('error');
         setErrorMessage('로그인 처리 시간이 초과되었습니다. 다시 시도해주세요.');
         setTimeout(() => router.replace('/'), 2000);
-      }, 5000);
+      }, 8000);
       return () => clearTimeout(timeout);
     }
   }, [user, loading, router, status]);
