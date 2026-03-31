@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ListingCard } from '@/components/ListingCard';
 import { ListingFilters } from '@/components/ListingFilters';
+import ListingCardActions from '@/components/ListingCardActions';
 import { Building2 } from 'lucide-react';
 
 interface Listing {
@@ -54,7 +55,6 @@ export default function ListingsClient() {
       const offset = (page - 1) * pageSize;
       params.set('limit', String(pageSize));
       params.set('offset', String(offset));
-      
       if (currentFilters.search) params.set('search', currentFilters.search);
       if (currentFilters.deal) params.set('deal', currentFilters.deal);
       if (currentFilters.type) params.set('type', currentFilters.type);
@@ -66,7 +66,6 @@ export default function ListingsClient() {
 
       const res = await fetch(`/api/listings?${params.toString()}`);
       const json = await res.json();
-      
       if (json.success) {
         setListings(json.data || []);
         setTotalCount(json.pagination?.total || json.data?.length || 0);
@@ -110,8 +109,14 @@ export default function ListingsClient() {
         <>
           <p className="text-sm text-gray-500 mt-4 mb-4">총 <strong className="text-wishes-dark">{totalCount}건</strong>의 매물</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {listings.map((listing) => (<ListingCard key={listing.id} listing={listing as any} />))}
+            {listings.map((listing) => (
+              <div key={listing.id} className="relative">
+                <ListingCardActions listingId={String(listing.id)} />
+                <ListingCard listing={listing as any} />
+              </div>
+            ))}
           </div>
+
           {totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-10">
               {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map((p) => (
