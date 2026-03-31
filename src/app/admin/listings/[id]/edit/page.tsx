@@ -144,7 +144,34 @@ export default function EditListingPage() {
     jibunAddress: '',
   });
 
-  // ── 매물 데이터 로드 ──
+  
+
+  // ── 자동저장 & 변경 하이라이트 ──
+  const [lastAutoSave, setLastAutoSave] = useState<string | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  const isFieldChanged = (field: string): boolean => {
+    if (!originalData) return false;
+    const originalVal = (originalData as any)[field];
+    const currentVal = (formData as any)[field];
+    if (originalVal == null && currentVal == null) return false;
+    if (originalVal == null && currentVal === '') return false;
+    if (originalVal === '' && currentVal == null) return false;
+    return String(originalVal ?? '') !== String(currentVal ?? '');
+  };
+
+
+  const getInputClass = (field: string): string => {
+    const base = 'w-full px-4 py-3 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+    return isFieldChanged(field) ? base + ' border-2 border-yellow-400 bg-yellow-50' : base + ' border';
+  };
+
+  const hasAnyChanges = (): boolean => {
+    if (!originalData) return false;
+    return Object.keys(formData).some(key => isFieldChanged(key));
+  };
+
+// ── 매물 데이터 로드 ──
   useEffect(() => {
     if (!listingId) return;
 
@@ -317,6 +344,36 @@ export default function EditListingPage() {
     if (files.length > 0) handleImageUpload(files);
   }, [handleImageUpload]);
 
+
+  // ── 자동저장 (30초 간격) ──
+  useEffect(() => {
+    if (!originalData || !listingId) return;
+    const interval = setInterval(async () => {
+      if (!hasAnyChanges() || isSubmitting) return;
+      try {
+        setAutoSaveStatus('saving');
+        const res = await fetch('/api/admin/listings', {
+          method: 'PUT',
+          headers: {
+            'Authorization': 'Bearer ' + (process.env.NEXT_PUBLIC_AUTH_TOKEN || 'wishes2026'),
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ id: listingId, ...formData }),
+        });
+        if (res.ok) {
+          setAutoSaveStatus('saved');
+          setLastAutoSave(new Date().toLocaleTimeString('ko-KR'));
+          setTimeout(() => setAutoSaveStatus('idle'), 3000);
+        } else {
+          setAutoSaveStatus('error');
+        }
+      } catch {
+        setAutoSaveStatus('error');
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [formData, originalData, listingId, isSubmitting]);
+
   // ── 수정 제출 ──
   const handleSubmit = async () => {
     // 필수 필드 검증
@@ -457,6 +514,13 @@ export default function EditListingPage() {
               ← 목록
             </button>
             <h1 className="text-lg font-bold text-gray-900">매물 수정 #{listingId}</h1>
+              {/* 자동저장 상태 */}
+              <div className="flex items-center gap-2 text-sm">
+                {autoSaveStatus === 'saving' && <span className="text-blue-500 animate-pulse">💾 자동저장 중...</span>}
+                {autoSaveStatus === 'saved' && <span className="text-green-500">✅ 자동저장 완료 ({lastAutoSave})</span>}
+                {autoSaveStatus === 'error' && <span className="text-red-500">⚠️ 자동저장 실패</span>}
+                {hasAnyChanges() && autoSaveStatus === 'idle' && <span className="text-yellow-500">● 변경사항 있음</span>}
+              </div>
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -599,7 +663,7 @@ export default function EditListingPage() {
                     type="text"
                     value={formData.address}
                     onChange={(e) => setFormData((p) => ({ ...p, address: e.target.value }))}
-                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={getInputClass('address')}
                     placeholder="예: 서울특별시 강남구 역삼동 123-45"
                   />
                 </div>
@@ -609,7 +673,7 @@ export default function EditListingPage() {
                     type="text"
                     value={formData.addressDetail}
                     onChange={(e) => setFormData((p) => ({ ...p, addressDetail: e.target.value }))}
-                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={getInputClass('addressDetail')}
                     placeholder="동/호수 (예: 101동 502호)"
                   />
                 </div>
@@ -620,7 +684,7 @@ export default function EditListingPage() {
                       type="text"
                       value={formData.dong}
                       onChange={(e) => setFormData((p) => ({ ...p, dong: e.target.value }))}
-                      className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={getInputClass('dong')}
                       placeholder="예: 역삼동"
                     />
                   </div>
@@ -630,7 +694,7 @@ export default function EditListingPage() {
                       type="text"
                       value={formData.buildingName}
                       onChange={(e) => setFormData((p) => ({ ...p, buildingName: e.target.value }))}
-                      className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className={getInputClass('buildingName')}
                       placeholder="건물명"
                     />
                   </div>
@@ -647,7 +711,7 @@ export default function EditListingPage() {
                     type="text"
                     value={formData.title}
                     onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
-                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className={getInputClass('title')}
                     placeholder="매물 제목"
                   />
                 </div>
@@ -710,7 +774,7 @@ export default function EditListingPage() {
                       type="number"
                       value={formData.price || ''}
                       onChange={(e) => setFormData((p) => ({ ...p, price: parseInt(e.target.value) || 0 }))}
-                      className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className={getInputClass('price')}
                       placeholder="매매가 입력"
                     />
                   </div>
@@ -722,7 +786,7 @@ export default function EditListingPage() {
                         type="number"
                         value={formData.deposit || ''}
                         onChange={(e) => setFormData((p) => ({ ...p, deposit: parseInt(e.target.value) || 0 }))}
-                        className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                        className={getInputClass('deposit')}
                         placeholder="보증금"
                       />
                     </div>
@@ -733,7 +797,7 @@ export default function EditListingPage() {
                           type="number"
                           value={formData.monthlyRent || ''}
                           onChange={(e) => setFormData((p) => ({ ...p, monthlyRent: parseInt(e.target.value) || 0 }))}
-                          className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          className={getInputClass('monthlyRent')}
                           placeholder="월세"
                         />
                       </div>
@@ -746,7 +810,7 @@ export default function EditListingPage() {
                     type="number"
                     value={formData.maintenanceFee || ''}
                     onChange={(e) => setFormData((p) => ({ ...p, maintenanceFee: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className={getInputClass('maintenanceFee')}
                     placeholder="관리비"
                   />
                 </div>
@@ -791,7 +855,7 @@ export default function EditListingPage() {
                     step="0.01"
                     value={formData.area || ''}
                     onChange={(e) => setFormData((p) => ({ ...p, area: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className={getInputClass('area')}
                     placeholder="전용면적"
                   />
                 </div>
@@ -802,7 +866,7 @@ export default function EditListingPage() {
                     step="0.01"
                     value={formData.supplyArea || ''}
                     onChange={(e) => setFormData((p) => ({ ...p, supplyArea: parseFloat(e.target.value) || 0 }))}
-                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    className={getInputClass('supplyArea')}
                     placeholder="공급면적"
                   />
                 </div>
