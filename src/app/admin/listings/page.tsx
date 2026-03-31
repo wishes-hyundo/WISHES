@@ -113,6 +113,18 @@ const formatDealPrice = (listing: Listing): string => {
   return '-';
 };
 
+/* ── 매물 등록 경과일 뱃지 (만료 알림 시스템) ── */
+const getListingAgeBadge = (dateStr: string) => {
+  if (!dateStr) return { label: '-', color: 'bg-gray-100 text-gray-500', days: -1, urgent: false };
+  const d = new Date(dateStr);
+  const now = new Date();
+  const days = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+  if (days <= 7) return { label: '신규', color: 'bg-emerald-100 text-emerald-700', days, urgent: false };
+  if (days <= 30) return { label: '양호', color: 'bg-blue-100 text-blue-700', days, urgent: false };
+  if (days <= 60) return { label: '점검필요', color: 'bg-amber-100 text-amber-700', days, urgent: true };
+  return { label: '갱신필요', color: 'bg-red-100 text-red-700', days, urgent: true };
+};
+
 /* ─── 토스트 컴포넌트 ─── */
 function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) {
   useEffect(() => {
@@ -666,7 +678,25 @@ export default function AdminListingsPage() {
           </div>
         </div>
 
-        {/* ─── 일괄 작업 바 ─── */}
+        {/* ─── 매물 갱신 알림 배너 ─── */}
+          {(() => {
+            const urgentCount = listings.filter(l => {
+              const b = getListingAgeBadge(l.created_at);
+              return b.urgent && l.status === '공개';
+            }).length;
+            if (urgentCount === 0) return null;
+            return (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div className="flex-1">
+                  <span className="font-semibold text-amber-800">갱신 필요 매물 {urgentCount}건</span>
+                  <span className="text-sm text-amber-600 ml-2">등록 후 30일 이상 경과된 공개 매물이 있습니다. 허위매물 방지를 위해 정보를 확인해주세요.</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* ─── 일괄 작업 바 ─── */}
         {selectedIds.size > 0 && (
           <div className="bg-blue-600 text-white rounded-xl p-3 mb-4 flex items-center justify-between shadow-lg animate-slide-in"
             style={{ animation: 'slideIn 0.2s ease-out' }}>
@@ -857,8 +887,10 @@ export default function AdminListingsPage() {
                           <option value="계약완료">✅ 계약완료</option>
                         </select>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500" title={listing.created_at}>
-                        {formatDate(listing.created_at)}
+                      <td className="px-4 py-3">
+                        <div className="text-xs text-gray-500">{formatDate(listing.created_at)}</div>
+                        {(() => { const b = getListingAgeBadge(listing.created_at); return b.days >= 0 ? <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${b.color}`}>{b.label}</span> : null; })()}
+                        {listing.updated_at && listing.updated_at !== listing.created_at && <div className="text-[10px] text-purple-500 mt-0.5" title={listing.updated_at}>수정됨</div>}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
@@ -881,16 +913,6 @@ export default function AdminListingsPage() {
                             <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
                           </svg>
                         </button>
-                        <button
-                    onClick={() => router.push(`/admin/listings/new?copyFrom=${listing.id}`)}
-                    className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                    title="복사 등록"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                  </button>
                   <button
                             onClick={() => handleDelete(listing.id)}
                             disabled={deletingId === listing.id}
@@ -1041,7 +1063,10 @@ export default function AdminListingsPage() {
 
                     <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                       <span className="font-bold text-gray-900">{formatDealPrice(listing)}</span>
-                      <span className="text-xs text-gray-400">{formatDate(listing.created_at)}</span>
+                      <div className="flex flex-col items-end gap-0.5">
+                        <span className="text-xs text-gray-400">{formatDate(listing.created_at)}</span>
+                        {(() => { const b = getListingAgeBadge(listing.created_at); return b.days >= 0 ? <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${b.color}`}>{b.label}</span> : null; })()}
+                      </div>
                     </div>
                   </div>
 
