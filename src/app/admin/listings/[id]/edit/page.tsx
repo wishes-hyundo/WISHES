@@ -516,7 +516,16 @@ export default function EditListingPage() {
             >
               ← 목록
             </button>
-            <h1 className="text-lg font-bold text-gray-900">매물 수정 #{listingId}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-bold text-gray-900">매물 수정 #{listingId}</h1>
+              <input
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData((p) => ({ ...p, title: e.target.value }))}
+                className="text-sm border border-gray-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none w-64"
+                placeholder="매물 제목 입력"
+              />
+            </div>
               {/* 자동저장 상태 */}
               <div className="flex items-center gap-2 text-sm">
                 {autoSaveStatus === 'saving' && <span className="text-blue-500 animate-pulse">💾 자동저장 중...</span>}
