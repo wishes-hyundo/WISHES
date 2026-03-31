@@ -48,7 +48,7 @@ export default function ContactsPage() {
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
-      setContacts(data.contacts || data || []);
+      setContacts(data.contacts || data.data || []);
     } catch {
       setToast({ message: '상담 목록을 불러오지 못했습니다.', type: 'error' });
     } finally {
