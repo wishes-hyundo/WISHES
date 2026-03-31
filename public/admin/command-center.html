@@ -118,6 +118,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .btn-approve:hover{background:var(--success-bg);border-color:var(--success)}
 .btn-block{border-color:rgba(229,62,62,.3);color:var(--danger)}
 .btn-block:hover{background:var(--danger-bg);border-color:var(--danger)}
+.btn-delete{border-color:rgba(255,68,68,.3);color:#ff4444}
+.btn-delete:hover{background:rgba(255,68,68,.1);border-color:#ff4444}
 .btn-edit{border-color:rgba(49,130,206,.3);color:var(--info)}
 .btn-edit:hover{background:var(--info-bg);border-color:var(--info)}
 /* LOG ENTRIES */
@@ -939,6 +941,7 @@ function renderUsers(){
     var roleAttr=roleStyle?' style="'+roleStyle+'"':' class="status status-approved"';
     var displayName=u.name||u.email.split("@")[0];
     var blockBtn=u.role!=="superadmin"?'<button class="btn-sm btn-block" onclick="toggleBlock(\''+u.id+'\')">'+((u.status==="blocked")?"해제":"차단")+'</button>':"";
+    var deleteBtn=u.role!=="superadmin"?'<button class="btn-sm btn-delete" onclick="deleteUser(\\x27'+u.id+'\\x27,\\x27'+_escHtml(displayName)+'\\x27)">\u{1F5D1} \uC0AD\uC81C</button>':"";
     return '<tr>'+
       '<td><div style="font-weight:600">'+_escHtml(displayName)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td>'+
       '<td style="font-size:12px">'+_escHtml(u.email)+'</td>'+
@@ -946,7 +949,7 @@ function renderUsers(){
       '<td>'+(u.role==='superadmin'?'<span'+roleAttr+'>'+u.role+'</span>':'<select id="roleSelect_'+u.id+'" onchange="changeRole(\x27'+u.id+'\x27)" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer"><option value="admin"'+(u.role==="admin"?' selected':'')+'>admin</option><option value="agent"'+(u.role==="agent"?' selected':'')+'>agent</option><option value="viewer"'+(u.role==="viewer"?' selected':'')+'>viewer</option></select>')+'</td>'+
       '<td><span class="status '+statusClass+'">'+statusText+'</span></td>'+
       '<td style="font-size:12px;color:var(--text-dim)">'+lastLogin+'</td>'+
-      '<td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+blockBtn+'</div></td>'+
+      '<td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+blockBtn+deleteBtn+'</div></td>'+
       '</tr>';
   }).join("");
 }
@@ -1038,6 +1041,21 @@ window.changeRole=function(id){
       closeModal("userDetailModal");fetchLiveData();
     }else{showToast(r.error||r.message||"변경 실패","error")}
   }).catch(function(e){showToast("오류: "+e.message,"error")});
+};
+
+window.deleteUser=function(id,name){
+  if(!confirm(name+" \uD68C\uC6D0\uC744 \uC815\uB9D0 \uC0AD\uC81C\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\uBAA8\uB4E0 \uB370\uC774\uD130\uAC00 \uC601\uAD6C\uC801\uC73C\uB85C \uC0AD\uC81C\uB429\uB2C8\uB2E4."))return;
+  showToast("\uC0AD\uC81C \uCC98\uB9AC \uC911...");
+  apiCall("/admin/users","DELETE",{userId:id}).then(function(r){
+    if(r.success){
+      showToast("\uC0AD\uC81C \uC644\uB8CC","success");
+      _logs.unshift({time:_now(),icon:"\uD83D\uDDD1",type:"action",msg:name+" \uD68C\uC6D0 \uC0AD\uC81C"});
+      renderLogs();
+      loadUsers();
+    }else{
+      showToast(r.message||"\uC0AD\uC81C \uC2E4\uD328","error");
+    }
+  });
 };
 
 window.toggleBlock=function(id){
