@@ -27,37 +27,53 @@ export async function POST(request: NextRequest) {
     });
 
     // Handle user already exists
-    if (authError) {
-      if (authError.message?.includes('already been registered')) {
-        if (isSuperAdmin) {
-          // Superadmin already exists - sign them in
+    if (authError && authError.message?.includes('already been registered')) {
+      if (isSuperAdmin) {
+        // Superadmin already exists - update password and sign in
+        const { data: { users } } = await supabase.auth.admin.listUsers();
+        const existingUser = users?.find((u: { email?: string }) => u.email === email.toLowerCase());
+
+        if (existingUser) {
+          // Update password and confirm email
+          await supabase.auth.admin.updateUserById(existingUser.id, {
+            password,
+            email_confirm: true,
+            user_metadata: { name, phone, company, role: 'superadmin' }
+          });
+
+          // Sign in with new password
           const { data: signIn, error: signInErr } = await supabase.auth.signInWithPassword({
             email: email.toLowerCase(),
             password,
           });
+
           if (signInErr) {
             return NextResponse.json(
-              { success: false, message: '이미 등록된 이메일입니다. 비밀번호를 확인해주세요.' },
+              { success: false, message: '로그인 처리 중 오류: ' + signInErr.message },
               { status: 400 }
             );
           }
+
           return NextResponse.json({
             success: true,
-            token: signIn.session?.access_token || signIn.user?.id,
+            token: signIn.session?.access_token || existingUser.id,
             user: {
-              id: signIn.user?.id,
-              name: signIn.user?.user_metadata?.name || name,
+              id: existingUser.id,
+              name,
               email: email.toLowerCase(),
               role: 'superadmin',
-              company: signIn.user?.user_metadata?.company || company,
+              company,
             }
           });
         }
-        return NextResponse.json(
-          { success: false, message: '이미 등록된 이메일입니다.' },
-          { status: 409 }
-        );
       }
+      return NextResponse.json(
+        { success: false, message: '이미 등록된 이메일입니다.' },
+        { status: 409 }
+      );
+    }
+
+    if (authError) {
       return NextResponse.json(
         { success: false, message: authError.message || '가입 중 오류가 발생했습니다.' },
         { status: 400 }
@@ -81,7 +97,7 @@ export async function POST(request: NextRequest) {
       console.error('admin_users insert skipped:', e);
     }
 
-    // Superadmin: return token for auto-login
+    // Superadmin: sign in and return token
     if (isSuperAdmin) {
       const { data: signIn } = await supabase.auth.signInWithPassword({
         email: email.toLowerCase(),
