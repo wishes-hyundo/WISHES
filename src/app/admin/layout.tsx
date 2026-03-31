@@ -1,4 +1,4 @@
-'use client';
+h'use client';
 
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
@@ -283,7 +283,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
       )}
 
-      <aside className={`hidden md:flex flex-col bg-wishes-primary text-white transition-all duration-300 flex-shrink-0 ${sidebarOpen ? 'w-60' : 'w-20'}`}>
+      <aside className={`hidden md:flex flex-col sticky top-0 h-screen bg-wishes-primary text-white transition-all duration-300 flex-shrink-0 ${sidebarOpen ? 'w-60' : 'w-20'}`}>
         <SidebarContent />
       </aside>
 
