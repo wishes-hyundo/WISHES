@@ -163,6 +163,7 @@ export default function AdminListingsPage() {
   const [propertyTypeFilter, setPropertyTypeFilter] = useState('전체');
   const [transactionTypeFilter, setTransactionTypeFilter] = useState('전체');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [dongFilter, setDongFilter] = useState<string>('전체');
 
   // 정렬 상태
   const [sortField, setSortField] = useState<SortField>('created_at');
@@ -244,12 +245,15 @@ export default function AdminListingsPage() {
   }, []);
 
   /* ─── 필터링, 정렬, 페이지네이션 ─── */
+  const uniqueDongs = Array.from(new Set(listings.map(l => l.dong).filter(Boolean))).sort();
+
   const filtered = useMemo(() => {
     let result = listings.filter((l) => {
       // 상태 필터
       if (statusFilter !== '전체' && l.status !== statusFilter) return false;
       // 매물 유형 필터
       if (propertyTypeFilter !== '전체' && l.type !== propertyTypeFilter) return false;
+      if (dongFilter !== '전체' && l.dong !== dongFilter) return false;
       // 거래 유형 필터
       if (transactionTypeFilter !== '전체' && l.deal !== transactionTypeFilter) return false;
       // 검색어 필터
@@ -290,7 +294,7 @@ export default function AdminListingsPage() {
     });
 
     return result;
-  }, [listings, statusFilter, propertyTypeFilter, transactionTypeFilter, searchQuery, sortField, sortDirection]);
+  }, [listings, statusFilter, propertyTypeFilter, transactionTypeFilter, searchQuery, sortField, sortDirection, dongFilter]);
 
   // 페이지네이션 계산
   const totalPages = Math.ceil(filtered.length / pageSize);
@@ -463,8 +467,37 @@ export default function AdminListingsPage() {
     setSearchQuery('');
     setStatusFilter('전체');
     setPropertyTypeFilter('전체');
-    setTransactionTypeFilter('전체');
+    setTransactionTypeFilter('전체'); setDongFilter('전체');
     setCurrentPage(1);
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['ID','제목','주소','상세주소','동','유형','거래','보증금','월세','매매가','관리비','상태','등록일'];
+    const rows = filtered.map(l => [
+      l.id,
+      (l.title || '').replace(/,/g, ' '),
+      (l.address || '').replace(/,/g, ' '),
+      (l.address_detail || '').replace(/,/g, ' '),
+      l.dong || '',
+      l.type || '',
+      l.deal || '',
+      l.deposit || '',
+      l.monthly || '',
+      l.price || '',
+      l.maintenance_fee || '',
+      l.status || '',
+      l.created_at ? new Date(l.created_at).toLocaleDateString('ko-KR') : ''
+    ]);
+    const bom = '\uFEFF';
+    const csv = bom + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'wishes_listings_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    setToast({ message: filtered.length + '건 매물 데이터가 CSV로 내보내기 되었습니다.', type: 'success' });
   };
 
   const isFiltered = searchQuery || statusFilter !== '전체' || propertyTypeFilter !== '전체' || transactionTypeFilter !== '전체';
@@ -528,6 +561,14 @@ export default function AdminListingsPage() {
               <span className="text-lg leading-none">+</span> 새 매물 등록
             </button>
             <button
+                onClick={handleExportCSV}
+                className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition shadow-sm"
+                title="CSV 내보내기"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                CSV 내보내기
+              </button>
+              <button
               onClick={() => router.push('/admin/listings/bulk-upload')}
               className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 transition shadow-sm"
             >
@@ -672,6 +713,19 @@ export default function AdminListingsPage() {
                     ))}
                   </select>
                 </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">동</label>
+                <select
+                  value={dongFilter}
+                  onChange={(e) => { setDongFilter(e.target.value); setCurrentPage(1); }}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+                  <option value="전체">전체</option>
+                  {uniqueDongs.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
                 <div className="flex items-end">
                   <button
                     onClick={handleResetFilters}
