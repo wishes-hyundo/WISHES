@@ -60,7 +60,7 @@ export default function ContactsPage() {
     setUpdatingId(id);
     try {
       const resp = await fetch('/api/admin/contacts', {
-        method: 'PUT',
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json', authorization: getAuthHeader() },
         body: JSON.stringify({ id, ...updates })
       });
