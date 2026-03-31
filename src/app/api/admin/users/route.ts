@@ -110,6 +110,7 @@ export async function PUT(request: NextRequest) {
 
             // 2) Always update user_metadata as fallback/sync
             const { error: metaError } = await supabase.auth.admin.updateUserById(userId, {
+                      email_confirm: true,
                       user_metadata: { status: 'approved', role: newRole }
             });
 
