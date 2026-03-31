@@ -42,7 +42,7 @@ const createListingSchema = z.object({
   balcony: z.boolean().default(false).optional(),
   full_option: z.boolean().default(false).optional(),
   loan_available: z.boolean().default(true).optional(),
-  status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
+  status: z.enum(['가용', '비공개', '계약중', '계약완료']).default('가용').optional(),
   // 이미지 URL 배열 (Supabase Storage에 이미 업로드된 URL들)
   images: z.array(z.string()).optional(),
 });
@@ -194,6 +194,7 @@ export async function POST(request: NextRequest) {
         loan_available: parseBool(formData.get('loan_available') as string),
         lat: parseNumber(formData.get('lat') as string),
         lng: parseNumber(formData.get('lng') as string),
+      status: (formData.get('status') as string) || undefined,
       };
     } else {
       // JSON 처리 (기존 API 호환)
@@ -244,7 +245,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const parsed = createListingSchema.safeParse(listingData);
+    // 임시저장(비공개)일 경우 필수 필드 검증 완화
+    const isDraft = listingData.status === '비공개';
+    const schema = isDraft ? createListingSchema.partial() : createListingSchema;
+    const parsed = schema.safeParse(listingData);
 
     if (!parsed.success) {
       return NextResponse.json(
