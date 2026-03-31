@@ -150,6 +150,8 @@ interface FormData {
   // ── 좌표 (Kakao Geocoder) ──
   lat: number | null;
   lng: number | null;
+  // ── 관리규약 ──
+  has_management_rules: boolean;
   // ── 상태 ──
   status: string;
 }
@@ -180,7 +182,7 @@ declare global {
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 const PROPERTY_TYPES = ['원룸', '투룸', '쓰리룸+', '오피스텔', '아파트', '빌라', '상가', '사무실'];
 const DEAL_TYPES = ['월세', '전세', '매매'];
-const DIRECTIONS = ['동', '서', '남', '북', '동남', '동북', '서남', '서북'];
+const DIRECTIONS = ['동', '서', '남', '북', '남동', '남서', '북동', '북서'];
 const HEATING_TYPES = ['개별난방', '중앙난방', '지역난방'];
 const MAINTENANCE_OPTIONS = ['수도', '전기', '가스', '인터넷', 'TV', '청소비', '주차비', '엘리베이터유지비'];
 const FEATURES_OPTIONS = ['풀옵션', '신축', '역세권', '주차가능', '반려동물', '베란다', '엘리베이터', 'CCTV', '분리수거', '무인택배', '건조기', '세탁기'];
@@ -207,7 +209,8 @@ const INITIAL_FORM: FormData = {
   rooms: null, bathrooms: null, direction: '', heating_type: '',
   maintenance_fee: null, maintenance_includes: [], move_in_type: '즉시',
   move_in_date: '', pet_allowed: false, parking_available: false,
-  features: [], title: '', description: '', images: [], lat: null, lng: null, status: '임시저장',
+  features: [], title: '', description: '', images: [], lat: null, lng: null, has_management_rules: false,
+  status: '임시저장',
 };
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -2003,6 +2006,21 @@ ${floorRows}</table></div>` : ''}
                       ))}
                     </div>
                   </div>
+
+
+                  {/* 관리규약 (오피스텔) */}
+                  {form.type === '오피스텔' && (
+                    <div className="flex items-center gap-2 mt-1 mb-2">
+                      <input
+                        type="checkbox"
+                        id="management_rules"
+                        checked={form.has_management_rules}
+                        onChange={e => updateForm({ has_management_rules: e.target.checked })}
+                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                      />
+                      <label htmlFor="management_rules" className="text-sm text-gray-700">관리규약 확인</label>
+                    </div>
+                  )}
 
                   {/* 입주 */}
                   <div className="grid grid-cols-2 gap-3">
