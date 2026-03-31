@@ -1934,7 +1934,7 @@
                     // Redirect
                     setTimeout(() => {
                         if (data.user.role === 'superadmin') {
-                            window.location.href = '/admin/command-center.html';
+                            window.location.href = '/admin/';
                         } else {
                             window.location.href = '/admin/';
                         }
@@ -2042,7 +2042,7 @@
                         updateScreenReader(sanitizeOutput(formData.name) + '님이 슈퍼관리자로 등록되었습니다.');
 
                         setTimeout(() => {
-                            window.location.href = '/admin/command-center.html';
+                            window.location.href = '/admin/';
                         }, 1500);
                     } else {
                         // 일반 사용자: 승인 대기 화면
