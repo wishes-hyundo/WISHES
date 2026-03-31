@@ -8,10 +8,62 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => { setIsMounted(true); }, []);
+
+  // ========================================
+  // 인증 가드 - 회원가입 + 승인 필수
+  // ========================================
+  useEffect(() => {
+    if (!isMounted) return;
+
+    const checkAuth = async () => {
+      try {
+        const token = window.sessionStorage.getItem('ws_token');
+        const userStr = window.sessionStorage.getItem('ws_user');
+        const loginTime = window.sessionStorage.getItem('ws_login_time');
+
+        // 세션 데이터가 없으면 로그인 페이지로
+        if (!token || !userStr || !loginTime) {
+          window.location.href = '/admin/admin-auth.html';
+          return;
+        }
+
+        // 세션 만료 체크 (30분)
+        const elapsed = Date.now() - new Date(loginTime).getTime();
+        if (elapsed > 30 * 60 * 1000) {
+          window.sessionStorage.clear();
+          window.location.href = '/admin/admin-auth.html';
+          return;
+        }
+
+        // 토큰 검증 (bridge 토큰은 스킵)
+        if (!token.startsWith('admin_bridge_')) {
+          const verifyRes = await fetch('/api/auth/verify', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+          if (!verifyRes.ok) {
+            window.sessionStorage.clear();
+            window.location.href = '/admin/admin-auth.html';
+            return;
+          }
+        }
+
+        setIsAuthenticated(true);
+      } catch (e) {
+        window.sessionStorage.clear();
+        window.location.href = '/admin/admin-auth.html';
+      } finally {
+        setIsAuthChecking(false);
+      }
+    };
+
+    checkAuth();
+  }, [isMounted]);
 
   // 모바일 메뉴 열림 시 body 스크롤 방지
   useEffect(() => {
@@ -31,28 +83,52 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isNewListing = pathname === '/admin/listings/new';
 
-  // 1번: Admin → Command Center 인증 브릿지
+  // Admin → Command Center 인증 브릿지
   const handleCommandCenter = () => {
     try {
-      const adminPw = window.localStorage.getItem('admin_password');
-      if (adminPw) {
-        window.sessionStorage.setItem('ws_token', 'admin_bridge_' + Date.now());
-        window.sessionStorage.setItem('ws_user', JSON.stringify({ email: 'wishes@wishes.co.kr', role: 'superadmin', name: 'WISHES Admin' }));
-        window.sessionStorage.setItem('ws_login_time', new Date().toISOString());
+      const token = window.sessionStorage.getItem('ws_token');
+      const userStr = window.sessionStorage.getItem('ws_user');
+      if (token && userStr) {
+        // 이미 새 인증 세션이 있으므로 그대로 이동
+      } else {
+        const adminPw = window.localStorage.getItem('admin_password');
+        if (adminPw) {
+          window.sessionStorage.setItem('ws_token', 'admin_bridge_' + Date.now());
+          window.sessionStorage.setItem('ws_user', JSON.stringify({
+            email: 'wishes@wishes.co.kr',
+            role: 'superadmin',
+            name: 'WISHES Admin'
+          }));
+          window.sessionStorage.setItem('ws_login_time', new Date().toISOString());
+        }
       }
-    } catch (e) { /* 실패 시 무시 - 사용자가 직접 로그인 */ }
+    } catch (e) { /* 실패 시 무시 */ }
     window.location.href = '/admin/command-center.html';
   };
 
   const handleLogout = () => {
     window.localStorage.removeItem('admin_password');
     window.sessionStorage.clear();
-    router.push('/admin');
-    window.location.reload();
+    window.location.href = '/admin/admin-auth.html';
   };
 
-  // 2번: Hydration 오류 방지 - 서버/클라이언트 HTML 불일치 해소
+  // Hydration 오류 방지
   if (!isMounted) return null;
+
+  // 인증 확인 중 로딩 화면
+  if (isAuthChecking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-wishes-bg">
+        <div className="text-center">
+          <div className="animate-spin w-10 h-10 border-4 border-wishes-primary border-t-transparent rounded-full mx-auto mb-4" />
+          <p className="text-white/60 text-sm">인증 확인 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // 미인증 시 빈 화면 (리다이렉트 중)
+  if (!isAuthenticated) return null;
 
   const isActive = (href: string) => {
     if (href === '/admin') return pathname === '/admin' && !isNewListing;
@@ -65,15 +141,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* 헤더 */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-green-700/30">
         {sidebarOpen && <h1 className="text-xl font-black tracking-wide text-wishes-accent">WISHES</h1>}
-        <button onClick={() => { setSidebarOpen(!sidebarOpen); setMobileMenuOpen(false); }}
-          className="p-2 rounded-lg hover:bg-white/10 transition hidden md:block" aria-label="사이드바 토글">
+        <button
+          onClick={() => { setSidebarOpen(!sidebarOpen); setMobileMenuOpen(false); }}
+          className="p-2 rounded-lg hover:bg-white/10 transition hidden md:block"
+          aria-label="사이드바 토글">
           {sidebarOpen ? '◀' : '▶'}
         </button>
       </div>
 
       {/* 스마트 매물 등록 버튼 */}
       <div className="px-3 pt-4 pb-2">
-        <Link href="/admin/listings/new"
+        <Link
+          href="/admin/listings/new"
           onClick={() => setMobileMenuOpen(false)}
           className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 ${
             isNewListing
@@ -88,7 +167,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* 네비게이션 */}
       <nav className="flex-1 px-3 py-2 space-y-1.5 overflow-y-auto">
         {navItems.map((item) => (
-          <Link key={item.href} href={item.href}
+          <Link
+            key={item.href}
+            href={item.href}
             onClick={() => setMobileMenuOpen(false)}
             className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] ${
               isActive(item.href)
@@ -101,9 +182,25 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         ))}
       </nav>
 
-      {/* Command Center 바로가기 - 인증 브릿지 적용 */}
+      {/* 매물 검색 버튼 */}
       <div className="px-3 pb-2">
-        <button onClick={handleCommandCenter}
+        <Link
+          href="/admin?tab=search"
+          onClick={() => setMobileMenuOpen(false)}
+          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] ${
+            pathname === '/admin' && false
+              ? 'bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-inner font-bold'
+              : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
+          }`}>
+          <span className="text-lg flex-shrink-0">🔍</span>
+          {sidebarOpen && <span>매물 검색</span>}
+        </Link>
+      </div>
+
+      {/* Command Center 바로가기 */}
+      <div className="px-3 pb-2">
+        <button
+          onClick={handleCommandCenter}
           className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-200 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 min-h-[48px] ${!sidebarOpen ? 'justify-center' : ''}`}>
           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
@@ -119,7 +216,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* 로그아웃 */}
       <div className="px-3 pb-4">
-        <button onClick={handleLogout}
+        <button
+          onClick={handleLogout}
           className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-red-500/30 transition-all duration-200 min-h-[48px] active:bg-red-500/50 ${!sidebarOpen ? 'justify-center' : ''}`}>
           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -132,8 +230,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen bg-wishes-bg">
-      {/* 6번: 모바일 햇버거 버튼 */}
-      <button onClick={() => setMobileMenuOpen(true)}
+      {/* 모바일 햄버거 버튼 */}
+      <button
+        onClick={() => setMobileMenuOpen(true)}
         className="md:hidden fixed top-3 left-3 z-50 p-2.5 bg-wishes-primary text-white rounded-xl shadow-lg active:scale-95 transition"
         aria-label="메뉴 열기">
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -141,10 +240,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </svg>
       </button>
 
-      {/* 6번: 모바일 오버레이 */}
+      {/* 모바일 오버레이 */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
-          onClick={() => setMobileMenuOpen(false)} />
+        <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
       )}
 
       {/* 사이드바 - PC */}
@@ -152,7 +250,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <SidebarContent />
       </aside>
 
-      {/* 6번: 사이드바 - 모바일 (슬라이드 인) */}
+      {/* 사이드바 - 모바일 */}
       <aside className={`md:hidden fixed inset-y-0 left-0 z-50 w-72 bg-wishes-primary text-white flex flex-col transform transition-transform duration-300 ease-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center justify-between px-4 pt-3">
           <span></span>
@@ -173,4 +271,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </main>
     </div>
   );
-}
+            }
