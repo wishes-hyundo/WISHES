@@ -247,6 +247,11 @@ export async function POST(request: NextRequest) {
 
     // 임시저장(비공개)일 경우 필수 필드 검증 완화
     const isDraft = listingData.status === '비공개';
+    if (isDraft) {
+      Object.keys(listingData).forEach(key => {
+        if ((listingData as any)[key] === '') delete (listingData as any)[key];
+      });
+    }
     const schema = isDraft ? createListingSchema.partial() : createListingSchema;
     const parsed = schema.safeParse(listingData);
 
