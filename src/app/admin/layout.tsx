@@ -26,6 +26,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     const checkAuth = async () => {
       try {
+        // Restore session from localStorage if sessionStorage is empty
+        if (!window.sessionStorage.getItem('ws_token') && window.localStorage.getItem('ws_token')) {
+          window.sessionStorage.setItem('ws_token', window.localStorage.getItem('ws_token') || '');
+          window.sessionStorage.setItem('ws_user', window.localStorage.getItem('ws_user') || '');
+          window.sessionStorage.setItem('ws_login_time', window.localStorage.getItem('ws_login_time') || '');
+        }
         const token = window.sessionStorage.getItem('ws_token');
         const userStr = window.sessionStorage.getItem('ws_user');
         const loginTime = window.sessionStorage.getItem('ws_login_time');
@@ -36,7 +42,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
 
         const elapsed = Date.now() - new Date(loginTime).getTime();
-        if (elapsed > 30 * 60 * 1000) {
+        const keepLogin = window.localStorage.getItem('ws_keep_login');
+        const maxAge = keepLogin === 'true' ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
+        if (elapsed > maxAge) {
           window.sessionStorage.clear();
           window.location.href = '/admin/admin-auth.html';
           return;
@@ -55,6 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   const cu = JSON.parse(userStr);
                   if (cu.role !== vData.user.role) {
                     cu.role = vData.user.role;
+                    window.sessionStorage.setItem('ws_login_time', new Date().toISOString());
                     window.sessionStorage.setItem('ws_user', JSON.stringify(cu));
                   }
                 } catch(re) {}
