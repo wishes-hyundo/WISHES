@@ -137,7 +137,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             role: 'superadmin',
             name: 'WISHES Admin'
           }));
-          window.sessionStorage.setItem('ws_login_time', new Date().toISOString());
+          window.sessionStorage.setItem('ws_login_time', Date.now().toString());
         }
       }
     } catch (e) { /* 실패 시 무시 */ }
