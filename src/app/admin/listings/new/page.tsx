@@ -638,7 +638,7 @@ function SmartListingNewPage() {
           return;
         }
         const data = await res.json();
-        const listing = data.listing || data;
+        const listing = data.data || data;
         
         setForm(prev => ({
           ...prev,
