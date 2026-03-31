@@ -860,194 +860,203 @@ function apiCall(endpoint,method,body){
 }
 
 // ===== DATA (Demo/Fallback when API not connected) =====
-var _demoUsers=[
-  {id:1,name:'WISHES',email:'admin@wishes.co.kr',company:'WISHES부동산',role:'superadmin',status:'approved',lastLogin:'2026-03-31 14:23',online:true,ip:'125.xxx.xxx.xxx',device:'Chrome/Win11'},
-];
-var _demoPending=[];
-var _demoLogs=[
-  {time:'14:23',icon:'🔑',type:'login',text:'<span class="highlight">WISHES</span> 관리자 로그인 <span class="ip">125.xxx.xxx.xxx</span>'},
-  {time:'14:20',icon:'🛡️',type:'security',text:'시스템 보안 점검 완료 - 이상 없음'},
-  {time:'14:15',icon:'⚙️',type:'admin',text:'시스템 시작됨 - Command Center 활성화'},
-];
-var _demoBlockedIps=[];
-var _demoSessions=[
-  {user:'WISHES',device:'💻 Chrome / Windows 11',ip:'125.xxx.xxx.xxx',location:'서울',time:'14:23',status:'online'}
-];
+// ===== DATA (Live from API) =====
+var _users=[];
+var _pendingUsers=[];
+var _blockedUsers=[];
+var _logs=[];
+var _blockedIps=[];
+var _sessions=[];
+var _dataLoaded=false;
 
-// ===== RENDER FUNCTIONS =====
+function fetchLiveData(){
+  apiCall("/admin/users").then(function(data){
+    if(!data.success){showToast("데이터 로드 실패","error");return}
+    var all=data.users||[];
+    _users=all.filter(function(u){return u.status==="approved"||u.status==="rejected"});
+    _pendingUsers=all.filter(function(u){return u.status==="pending"});
+    _blockedUsers=all.filter(function(u){return u.status==="blocked"});
+    _dataLoaded=true;
+    renderDashboard();renderUsers();renderPending();renderSessions();renderAllLogs();
+    if(!_logs.length){
+      _logs=[{time:_now(),icon:"✅",type:"admin",text:"Command Center 데이터 로드 완료 - 사용자 "+all.length+"명"}];
+      renderAllLogs();
+    }
+  }).catch(function(e){
+    console.error("fetchLiveData error:",e);
+    showToast("API 연결 실패","error");
+    _logs=[{time:_now(),icon:"❌",type:"error",text:"API 연결 실패: "+e.message}];
+    renderDashboard();renderAllLogs();
+  });
+}
+
 function renderDashboard(){
-  document.getElementById('statTotalUsers').textContent=_demoUsers.length;
-  document.getElementById('statOnline').textContent=_demoUsers.filter(function(u){return u.online}).length;
-  document.getElementById('statPending').textContent=_demoPending.length;
-  document.getElementById('statSearches').textContent='0';
-  document.getElementById('statThreats').textContent='0';
-  document.getElementById('pendingBadge').textContent=_demoPending.length;
-  if(_demoPending.length===0)document.getElementById('pendingBadge').style.display='none';
-  else document.getElementById('pendingBadge').style.display='';
+  var allUsers=_users.concat(_pendingUsers).concat(_blockedUsers);
+  document.getElementById("statTotalUsers").textContent=allUsers.length;
+  var onlineCount=_users.filter(function(u){
+    if(!u.last_sign_in_at)return false;
+    return(Date.now()-new Date(u.last_sign_in_at).getTime())<1800000;
+  }).length;
+  document.getElementById("statOnline").textContent=onlineCount;
+  document.getElementById("statPending").textContent=_pendingUsers.length;
+  document.getElementById("statSearches").textContent="0";
+  document.getElementById("statThreats").textContent=_blockedUsers.length;
+  document.getElementById("pendingBadge").textContent=_pendingUsers.length;
+  if(_pendingUsers.length===0)document.getElementById("pendingBadge").style.display="none";
+  else document.getElementById("pendingBadge").style.display="";
   renderRecentLogs();
   renderRecentPending();
 }
 
 function renderRecentLogs(){
   var el=document.getElementById('recentLogs');
-  if(_demoLogs.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">로그가 없습니다</div>';return}
-  el.innerHTML=_demoLogs.slice(0,10).map(function(l){
+  if(_logs.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">로그가 없습니다</div>';return}
+  el.innerHTML=_logs.slice(0,10).map(function(l){
     return '<div class="log-entry"><span class="log-time">'+l.time+'</span><span class="log-icon">'+l.icon+'</span><span class="log-text">'+l.text+'</span></div>';
   }).join('');
 }
 
 function renderRecentPending(){
-  var el=document.getElementById('recentPending');
-  if(_demoPending.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">대기 중인 신청이 없습니다</div>';return}
-  el.innerHTML=_demoPending.slice(0,5).map(function(u){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(u.company)+' · '+_escHtml(u.email)+'</div></div><div style="display:flex;gap:6px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">승인</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">거절</button></div></div>';
-  }).join('');
+  var el=document.getElementById("recentPending");
+  if(_pendingUsers.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">대기 중인 신청이 없습니다</div>';return}
+  el.innerHTML=_pendingUsers.slice(0,5).map(function(u){
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600">'+_escHtml(u.name||u.email.split("@")[0])+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(u.company||"")+' \u00b7 '+_escHtml(u.email)+'</div></div><div style="display:flex;gap:6px"><button class="btn-sm btn-approve" onclick="approveUser(\''+u.id+'\')">승인</button><button class="btn-sm btn-block" onclick="rejectUser(\''+u.id+'\')">거절</button></div></div>';
+  }).join("");
 }
 
 function renderUsers(){
-  var tb=document.getElementById('usersTableBody');
-  if(_demoUsers.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">등록된 사용자가 없습니다</td></tr>';return}
-  tb.innerHTML=_demoUsers.map(function(u){
-    var statusClass=u.status==='approved'?'status-approved':u.status==='pending'?'status-pending':'status-blocked';
-    var statusText=u.status==='approved'?'승인됨':u.status==='pending'?'대기중':'차단됨';
-    var onlineClass=u.online?'status-online':'status-offline';
-    var onlineText=u.online?'접속중':'오프라인';
-    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td><span class="status '+(u.role==='superadmin'?'" style="background:rgba(237,137,54,.15);color:var(--accent)':u.role==='admin'?'" style="background:var(--info-bg);color:var(--info)':'status-approved')+'">'+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+(u.lastLogin||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser('+u.id+')">상세</button>'+(u.role!=='superadmin'?'<button class="btn-sm btn-block" onclick="toggleBlock('+u.id+')">차단</button>':'')+'</div></td></tr>';
-  }).join('');
+  var tb=document.getElementById("usersTableBody");
+  var allUsers=_users.concat(_pendingUsers).concat(_blockedUsers);
+  if(allUsers.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">등록된 사용자가 없습니다</td></tr>';return}
+  tb.innerHTML=allUsers.map(function(u){
+    var statusClass=u.status==="approved"?"status-approved":u.status==="pending"?"status-pending":"status-blocked";
+    var statusText=u.status==="approved"?"승인됨":u.status==="pending"?"대기중":u.status==="rejected"?"거절됨":"차단됨";
+    var isOnline=u.last_sign_in_at&&(Date.now()-new Date(u.last_sign_in_at).getTime())<1800000;
+    var onlineClass=isOnline?"status-online":"status-offline";
+    var onlineText=isOnline?"접속중":"오프라인";
+    var lastLogin=u.last_sign_in_at?new Date(u.last_sign_in_at).toLocaleString("ko-KR"):"-";
+    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name||u.email.split("@")[0])+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||"-")+'</td><td><span class="status '+(u.role==="superadmin"?'" style="background:rgba(237,137,54,.15);color:var(--accent)":u.role==="admin"?'" style="background:var(--info-bg);color:var(--info)":"status-approved")+"\">"+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+lastLogin+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+(u.role!=="superadmin"?"<button class=\"btn-sm btn-block\" onclick=\"toggleBlock('"+u.id+"')\">차단</button>":"")+'</div></td></tr>';
+  }).join("");
 }
 
 function renderPending(){
-  var tb=document.getElementById('pendingTableBody');
-  document.getElementById('pendingCount').textContent=_demoPending.length+'건';
-  if(_demoPending.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">대기 중인 신청이 없습니다</td></tr>';return}
-  tb.innerHTML=_demoPending.map(function(u){
-    return '<tr><td style="font-weight:600">'+_escHtml(u.name)+'</td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td style="font-size:12px">'+_escHtml(u.role||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+_escHtml(u.reason||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+(u.createdAt||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">✅ 승인</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">❌ 거절</button></div></td></tr>';
-  }).join('');
+  var tb=document.getElementById("pendingTableBody");
+  document.getElementById("pendingCount").textContent=_pendingUsers.length+"건";
+  if(_pendingUsers.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">대기 중인 신청이 없습니다</td></tr>';return}
+  tb.innerHTML=_pendingUsers.map(function(u){
+    var created=u.created_at?new Date(u.created_at).toLocaleString("ko-KR"):"-";
+    return '<tr><td style="font-weight:600">'+_escHtml(u.name||u.email.split("@")[0])+'</td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||"-")+'</td><td style="font-size:12px">'+_escHtml(u.role||"-")+'</td><td style="font-size:12px;color:var(--text-dim)">'+_escHtml(u.reason||"-")+'</td><td style="font-size:12px;color:var(--text-dim)">'+created+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-approve" onclick="approveUser(\''+u.id+'\')">✅ 승인</button><button class="btn-sm btn-block" onclick="rejectUser(\''+u.id+'\')">❌ 거절</button></div></td></tr>';
+  }).join("");
 }
 
 function renderSessions(){
-  var tb=document.getElementById('sessionsTableBody');
-  tb.innerHTML=_demoSessions.map(function(s){
-    var sc=s.status==='online'?'status-online':'status-offline';
-    return '<tr><td style="font-weight:600">'+_escHtml(s.user)+'</td><td><div class="session-device"><span class="device-icon">'+s.device.split(' ')[0]+'</span><span style="font-size:12px">'+_escHtml(s.device)+'</span></div></td><td style="font-family:monospace;font-size:12px">'+s.ip+'</td><td style="font-size:12px">'+_escHtml(s.location)+'</td><td style="font-size:12px;color:var(--text-dim)">'+s.time+'</td><td><span class="status '+sc+'">'+s.status+'</span></td><td><button class="btn-sm btn-block" onclick="forceLogoutUser(\''+_escHtml(s.user)+'\')">강제 로그아웃</button></td></tr>';
-  }).join('');
-  document.getElementById('secActiveSessions').textContent=_demoSessions.length;
+  var tb=document.getElementById("sessionsTableBody");
+  // Build sessions from recently active users
+  var activeSessions=_users.filter(function(u){
+    return u.last_sign_in_at&&(Date.now()-new Date(u.last_sign_in_at).getTime())<86400000;
+  }).map(function(u){
+    var isOnline=(Date.now()-new Date(u.last_sign_in_at).getTime())<1800000;
+    return{user:u.name||u.email.split("@")[0],email:u.email,time:new Date(u.last_sign_in_at).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}),status:isOnline?"online":"offline"};
+  });
+  if(activeSessions.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">활성 세션이 없습니다</td></tr>';
+    document.getElementById("secActiveSessions").textContent="0";return}
+  tb.innerHTML=activeSessions.map(function(s){
+    var sc=s.status==="online"?"status-online":"status-offline";
+    return '<tr><td style="font-weight:600">'+_escHtml(s.user)+'</td><td style="font-size:12px">'+_escHtml(s.email)+'</td><td style="font-family:monospace;font-size:12px">-</td><td style="font-size:12px">-</td><td style="font-size:12px;color:var(--text-dim)">'+s.time+'</td><td><span class="status '+sc+'">'+s.status+'</span></td><td>-</td></tr>';
+  }).join("");
+  document.getElementById("secActiveSessions").textContent=activeSessions.length;
 }
 
 function renderAllLogs(){
   var el=document.getElementById('allLogs');
   var filter=document.getElementById('logFilter').value;
-  var logs=filter==='all'?_demoLogs:_demoLogs.filter(function(l){return l.type===filter});
+  var logs=filter==='all'?_logs:_logs.filter(function(l){return l.type===filter});
   if(logs.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim)">해당 로그가 없습니다</div>';return}
   el.innerHTML=logs.map(function(l){
     return '<div class="log-entry"><span class="log-time">'+l.time+'</span><span class="log-icon">'+l.icon+'</span><span class="log-text">'+l.text+'</span></div>';
   }).join('');
 }
 
-// ===== ACTIONS =====
+// ===== ACTIONS (Live API) =====
 window.approveUser=function(id){
-  var idx=_demoPending.findIndex(function(u){return u.id===id});
-  if(idx===-1)return;
-  var user=_demoPending.splice(idx,1)[0];
-  user.status='approved';user.lastLogin='-';user.online=false;
-  _demoUsers.push(user);
-  _demoLogs.unshift({time:_now(),icon:'✅',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> 사용자 승인 완료'});
-  renderDashboard();renderPending();renderUsers();renderAllLogs();
-  showToast(user.name+' 님이 승인되었습니다');
+  showToast("승인 처리 중...");
+  apiCall("/admin/users","PUT",{userId:id,action:"approve",role:"agent"}).then(function(r){
+    if(r.success){
+      _logs.unshift({time:_now(),icon:"✅",type:"admin",text:"사용자 승인 완료"});
+      showToast("승인 완료");fetchLiveData();
+    }else{showToast(r.error||r.message||"승인 실패","error")}
+  }).catch(function(e){showToast("오류: "+e.message,"error")});
 };
 
 window.rejectUser=function(id){
-  var idx=_demoPending.findIndex(function(u){return u.id===id});
-  if(idx===-1)return;
-  var user=_demoPending.splice(idx,1)[0];
-  _demoLogs.unshift({time:_now(),icon:'❌',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> 가입 거절됨'});
-  renderDashboard();renderPending();renderAllLogs();
-  showToast(user.name+' 님의 가입이 거절되었습니다','warning');
+  showToast("거절 처리 중...");
+  apiCall("/admin/users","PUT",{userId:id,action:"reject"}).then(function(r){
+    if(r.success){
+      _logs.unshift({time:_now(),icon:"❌",type:"admin",text:"가입 거절됨"});
+      showToast("거절 완료","warning");fetchLiveData();
+    }else{showToast(r.error||r.message||"거절 실패","error")}
+  }).catch(function(e){showToast("오류: "+e.message,"error")});
 };
 
 window.viewUser=function(id){
-  var user=_demoUsers.find(function(u){return u.id===id});
+  var allUsers=_users.concat(_pendingUsers).concat(_blockedUsers);
+  var user=allUsers.find(function(u){return u.id===id});
   if(!user)return;
-  document.getElementById('userDetailTitle').textContent=user.name+' 상세 정보';
-  document.getElementById('userDetailBody').innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="form-group"><label class="form-label">이름</label><div style="font-size:14px;font-weight:600">'+_escHtml(user.name)+'</div></div><div class="form-group"><label class="form-label">이메일</label><div style="font-size:14px">'+_escHtml(user.email)+'</div></div><div class="form-group"><label class="form-label">소속</label><div style="font-size:14px">'+_escHtml(user.company||'-')+'</div></div><div class="form-group"><label class="form-label">권한</label><div style="font-size:14px">'+user.role+'</div></div><div class="form-group"><label class="form-label">상태</label><div style="font-size:14px">'+user.status+'</div></div><div class="form-group"><label class="form-label">마지막 접속</label><div style="font-size:14px">'+(user.lastLogin||'-')+'</div></div><div class="form-group"><label class="form-label">IP</label><div style="font-size:14px;font-family:monospace">'+(user.ip||'-')+'</div></div><div class="form-group"><label class="form-label">디바이스</label><div style="font-size:14px">'+(user.device||'-')+'</div></div></div>';
+  document.getElementById("userDetailTitle").textContent=(user.name||user.email)+" 상세 정보";
+  var roleOptions=["superadmin","admin","agent","viewer"].map(function(r){return "<option value=\""+r+"\""+(r===user.role?" selected":"")+">"+r+"</option>"}).join("");
+  document.getElementById("userDetailBody").innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="form-group"><label class="form-label">이름</label><div style="font-size:14px;font-weight:600">'+_escHtml(user.name||"-")+'</div></div><div class="form-group"><label class="form-label">이메일</label><div style="font-size:14px">'+_escHtml(user.email)+'</div></div><div class="form-group"><label class="form-label">소속</label><div style="font-size:14px">'+_escHtml(user.company||"-")+'</div></div><div class="form-group"><label class="form-label">권한</label><div><select id="roleSelect_'+user.id+'" style="background:var(--card-bg);color:var(--text);border:1px solid var(--border);padding:4px 8px;border-radius:4px">'+roleOptions+'</select> <button class="btn-sm btn-approve" onclick="changeRole(\''+user.id+'\')">변경</button></div></div><div class="form-group"><label class="form-label">상태</label><div style="font-size:14px">'+user.status+'</div></div><div class="form-group"><label class="form-label">가입일</label><div style="font-size:14px">'+(user.created_at?new Date(user.created_at).toLocaleString("ko-KR"):"-")+'</div></div><div class="form-group"><label class="form-label">마지막 접속</label><div style="font-size:14px">'+(user.last_sign_in_at?new Date(user.last_sign_in_at).toLocaleString("ko-KR"):"-")+'</div></div><div class="form-group"><label class="form-label">전화번호</label><div style="font-size:14px">'+_escHtml(user.phone||"-")+'</div></div></div>';
   var footer='<button class="btn-modal btn-modal-ghost" onclick="closeModal(\'userDetailModal\')">닫기</button>';
-  if(user.role!=='superadmin'){
-    footer+='<button class="btn-modal btn-modal-danger" onclick="toggleBlock('+user.id+');closeModal(\'userDetailModal\')">차단/해제</button>';
+  if(user.role!=="superadmin"){
+    footer+='<button class="btn-modal btn-modal-danger" onclick="toggleBlock(\''+user.id+'\');closeModal(\'userDetailModal\')">차단/해제</button>';
   }
-  document.getElementById('userDetailFooter').innerHTML=footer;
-  openModal('userDetailModal');
+  document.getElementById("userDetailFooter").innerHTML=footer;
+  openModal("userDetailModal");
+};
+
+window.changeRole=function(id){
+  var sel=document.getElementById("roleSelect_"+id);
+  if(!sel)return;
+  var newRole=sel.value;
+  showToast("직책 변경 중...");
+  apiCall("/admin/users","PUT",{userId:id,action:"change_role",role:newRole}).then(function(r){
+    if(r.success){
+      _logs.unshift({time:_now(),icon:"🔄",type:"admin",text:"직책 변경: "+newRole});
+      showToast("직책이 "+newRole+"로 변경됨");
+      closeModal("userDetailModal");fetchLiveData();
+    }else{showToast(r.error||r.message||"변경 실패","error")}
+  }).catch(function(e){showToast("오류: "+e.message,"error")});
 };
 
 window.toggleBlock=function(id){
-  var user=_demoUsers.find(function(u){return u.id===id});
-  if(!user||user.role==='superadmin')return;
-  user.status=user.status==='blocked'?'approved':'blocked';
-  var action=user.status==='blocked'?'차단':'차단 해제';
-  _demoLogs.unshift({time:_now(),icon:user.status==='blocked'?'🚫':'🔓',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> '+action});
-  renderUsers();renderDashboard();renderAllLogs();
-  showToast(user.name+' 님이 '+action+'되었습니다',user.status==='blocked'?'warning':'success');
+  var allUsers=_users.concat(_blockedUsers);
+  var user=allUsers.find(function(u){return u.id===id});
+  if(!user||user.role==="superadmin")return;
+  var action=user.status==="blocked"?"unblock":"block";
+  var actionText=action==="block"?"차단":"차단 해제";
+  showToast(actionText+" 처리 중...");
+  apiCall("/admin/users","PUT",{userId:id,action:action}).then(function(r){
+    if(r.success){
+      _logs.unshift({time:_now(),icon:action==="block"?"🚫":"🔓",type:"admin",text:_escHtml(user.name||user.email)+" "+actionText});
+      showToast(actionText+" 완료",action==="block"?"warning":"success");fetchLiveData();
+    }else{showToast(r.error||r.message||actionText+" 실패","error")}
+  }).catch(function(e){showToast("오류: "+e.message,"error")});
 };
 
 window.addUser=function(){
-  var name=document.getElementById('addUserName').value.trim();
-  var email=document.getElementById('addUserEmail').value.trim();
-  var pw=document.getElementById('addUserPw').value;
-  var role=document.getElementById('addUserRole').value;
-  var company=document.getElementById('addUserCompany').value.trim();
-  if(!name||!email||!pw){showToast('필수 정보를 입력하세요','error');return}
-  var newUser={id:Date.now(),name:name,email:email,company:company,role:role,status:'approved',lastLogin:'-',online:false};
-  _demoUsers.push(newUser);
-  _demoLogs.unshift({time:_now(),icon:'➕',type:'admin',text:'관리자가 <span class="highlight">'+_escHtml(name)+'</span> 사용자 직접 추가'});
-  renderUsers();renderDashboard();renderAllLogs();
-  closeModal('addUserModal');
-  showToast(name+' 님이 추가되었습니다');
+  var name=document.getElementById("addUserName").value.trim();
+  var email=document.getElementById("addUserEmail").value.trim();
+  var pw=document.getElementById("addUserPw").value;
+  var role=document.getElementById("addUserRole").value;
+  var company=document.getElementById("addUserCompany").value.trim();
+  if(!name||!email||!pw){showToast("필수 정보를 입력하세요","error");return}
+  showToast("사용자 추가 중...");
+  // For now, just show toast - user creation requires server-side signup
+  _logs.unshift({time:_now(),icon:"➕",type:"admin",text:"관리자가 "+_escHtml(name)+" 사용자 추가 요청"});
+  renderAllLogs();closeModal("addUserModal");
+  showToast("사용자 추가 기능은 가입 시스템을 통해 처리됩니다","warning");
 };
-
-window.blockIp=function(){
-  var ip=document.getElementById('blockIpInput').value.trim();
-  var reason=document.getElementById('blockIpReason').value.trim();
-  var duration=document.getElementById('blockIpDuration').value;
-  if(!ip){showToast('IP 주소를 입력하세요','error');return}
-  _demoBlockedIps.push({ip:ip,reason:reason,duration:duration,date:_now()});
-  _demoLogs.unshift({time:_now(),icon:'🚫',type:'security',text:'IP <span class="highlight">'+_escHtml(ip)+'</span> 차단됨 - '+_escHtml(reason)});
-  document.getElementById('secBlockedIps').textContent=_demoBlockedIps.length;
-  renderBlockedIps();renderAllLogs();renderDashboard();
-  closeModal('blockIpModal');
-  showToast(ip+' 차단되었습니다','warning');
-};
-
-function renderBlockedIps(){
-  var el=document.getElementById('blockedIpList');
-  if(_demoBlockedIps.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">차단된 IP가 없습니다</div>';return}
-  el.innerHTML=_demoBlockedIps.map(function(b,i){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-family:monospace;font-size:13px">'+_escHtml(b.ip)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(b.reason)+' · '+b.duration+'</div></div><button class="btn-sm" onclick="unblockIp('+i+')">해제</button></div>';
-  }).join('');
-}
-
-window.unblockIp=function(idx){
-  var removed=_demoBlockedIps.splice(idx,1)[0];
-  _demoLogs.unshift({time:_now(),icon:'🔓',type:'security',text:'IP <span class="highlight">'+_escHtml(removed.ip)+'</span> 차단 해제'});
-  document.getElementById('secBlockedIps').textContent=_demoBlockedIps.length;
-  renderBlockedIps();renderAllLogs();
-  showToast(removed.ip+' 차단 해제됨');
-};
-
-window.forceLogoutAll=function(){
-  _demoSessions=_demoSessions.filter(function(s){return s.user==='WISHES'});
-  _demoLogs.unshift({time:_now(),icon:'🔒',type:'security',text:'관리자에 의해 <span class="highlight">전체 강제 로그아웃</span> 실행'});
-  renderSessions();renderAllLogs();renderDashboard();
-  showToast('모든 사용자가 강제 로그아웃되었습니다','warning');
-};
-
-window.forceLogoutUser=function(name){
-  _demoSessions=_demoSessions.filter(function(s){return s.user!==name||s.user==='WISHES'});
-  _demoLogs.unshift({time:_now(),icon:'🔒',type:'security',text:'<span class="highlight">'+_escHtml(name)+'</span> 강제 로그아웃'});
-  renderSessions();renderAllLogs();
-  showToast(name+' 강제 로그아웃됨','warning');
-};
-
 window.filterLogs=function(){renderAllLogs()};
-window.refreshAll=function(){renderDashboard();renderUsers();renderPending();renderSessions();renderAllLogs();showToast('새로고침 완료')};
+window.refreshAll=function(){fetchLiveData();showToast("새로고침 완료")};
 window.handleLogout=function(){sessionStorage.clear();window.location.href='/admin/admin-auth.html'};
 
 window.exportLogs=function(){showToast('로그 다운로드 준비 중...')};
@@ -1063,230 +1072,15 @@ window.saveSettings=function(){showToast('시스템 설정이 저장되었습니
 function _escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function _now(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 
-// ===== LIVE API INTEGRATION =====
-    window.fetchUsersFromAPI = async function() {
-      try {
-        var token = sessionStorage.getItem('ws_token');
-        var resp = await fetch('/api/admin/users', {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-        if (!resp.ok) throw new Error('API error: ' + resp.status);
-        var data = await resp.json();
-        if (data.success && data.users) {
-          window._liveUsers = data.users;
-          window._userStats = { total: data.total, pending: data.pending, approved: data.approved };
-          renderDashboardLive();
-          renderUsersLive();
-          renderPendingLive();
-        }
-      } catch(e) {
-        console.error('Failed to fetch users:', e);
-      }
-    }
+// ===== INITIAL LOAD =====
+fetchLiveData();
 
-    function renderDashboardLive() {
-      var stats = window._userStats || {};
-      var totalEl = document.getElementById('statTotalUsers');
-      var pendingEl = document.getElementById('statPending');
-      if (totalEl) totalEl.textContent = stats.total || 0;
-      if (pendingEl) pendingEl.textContent = stats.pending || 0;
-    }
+// ===== AUTO REFRESH (60s) =====
+setInterval(function(){
+  fetchLiveData();
+},60000);
 
-    function renderUsersLive() {
-      const container = document.getElementById('users-live-container');
-      if (!container) return;
-      if (!_liveUsers || _liveUsers.length === 0) {
-        container.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px 0;">ë±ë¡ë ì¬ì©ìê° ììµëë¤.</p>';
-        return;
-      }
-      const roleLabels = { superadmin: 'Super Admin', admin: 'ê´ë¦¬ì', agent: 'ì¤ê°ì¬', viewer: 'ì´ëì', user: 'ì¬ì©ì' };
-      const statusLabels = { approved: 'ì¹ì¸ë¨', pending: 'ëê¸°ì¤', rejected: 'ê±°ë¶ë¨', blocked: 'ì°¨ë¨ë¨' };
-      const statusColors = { approved: '#4ade80', pending: '#facc15', rejected: '#f87171', blocked: '#ef4444' };
-      let html = '<table style="width:100%;border-collapse:collapse;font-size:14px;">';
-      html += '<thead><tr style="border-bottom:2px solid #333;color:#ccc;text-align:left;">';
-      html += '<th style="padding:10px;">ì´ë¦</th><th style="padding:10px;">ì´ë©ì¼</th>';
-      html += '<th style="padding:10px;">ìí</th><th style="padding:10px;">ì§ì±</th>';
-      html += '<th style="padding:10px;">ì§ì± ë³ê²½</th><th style="padding:10px;">ê´ë¦¬</th></tr></thead><tbody>';
-      _liveUsers.forEach(u => {
-        const st = u.status || 'pending';
-        const rl = u.role || 'user';
-        html += '<tr style="border-bottom:1px solid #333;">';
-        html += '<td style="padding:10px;color:#fff;">' + _escHtml(u.name || '-') + '</td>';
-        html += '<td style="padding:10px;color:#aaa;">' + _escHtml(u.email || '-') + '</td>';
-        html += '<td style="padding:10px;"><span style="color:' + (statusColors[st]||'#aaa') + ';font-weight:bold;">' + (statusLabels[st]||st) + '</span></td>';
-        html += '<td style="padding:10px;color:#fff;">' + (roleLabels[rl]||rl) + '</td>';
-        html += '<td style="padding:10px;">';
-        html += '<select onchange="changeRole(\'' + u.id + '\', this.value)" style="background:#1a1a2e;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 8px;font-size:12px;">';
-        ['superadmin','admin','agent','viewer'].forEach(r => {
-          html += '<option value="' + r + '"' + (rl === r ? ' selected' : '') + '>' + (roleLabels[r]||r) + '</option>';
-        });
-        html += '</select></td>';
-        html += '<td style="padding:10px;">';
-        if (st === 'blocked') {
-          html += '<button onclick="unblockUser(\'' + u.id + '\')" style="background:#4ade80;color:#000;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">ì°¨ë¨í´ì </button>';
-        } else if (st === 'approved') {
-          html += '<button onclick="blockUser(\'' + u.id + '\')" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">ì°¨ë¨</button>';
-        } else if (st === 'pending') {
-          html += '<button onclick="approveUser(\'' + u.id + '\')" style="background:#4ade80;color:#000;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:bold;margin-right:4px;">ì¹ì¸</button>';
-          html += '<button onclick="rejectUser(\'' + u.id + '\')" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:bold;">ê±°ë¶</button>';
-        }
-        html += '</td></tr>';
-      });
-      html += '</tbody></table>';
-      container.innerHTML = html;
-    }
-
-    function renderPendingLive() {
-      const container = document.getElementById('pending-live-container');
-      if (!container) return;
-      const pending = (_liveUsers || []).filter(u => u.status === 'pending');
-      if (pending.length === 0) {
-        container.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px 0;">ëê¸° ì¤ì¸ ê°ì ìì²­ì´ ììµëë¤.</p>';
-        return;
-      }
-      let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
-      pending.forEach(u => {
-        html += '<div style="background:#1a1a2e;border:1px solid #333;border-radius:12px;padding:16px;display:flex;justify-content:space-between;align-items:center;">';
-        html += '<div><div style="color:#fff;font-weight:bold;">' + _escHtml(u.name || '-') + '</div>';
-        html += '<div style="color:#aaa;font-size:13px;">' + _escHtml(u.email || '') + '</div>';
-        if (u.company) html += '<div style="color:#888;font-size:12px;margin-top:2px;">' + _escHtml(u.company) + '</div>';
-        if (u.reason) html += '<div style="color:#666;font-size:12px;margin-top:2px;">ì¬ì : ' + _escHtml(u.reason) + '</div>';
-        html += '</div><div style="display:flex;gap:8px;">';
-        html += '<button onclick="approveUser(\'' + u.id + '\')" style="background:#4ade80;color:#000;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:bold;font-size:13px;">ì¹ì¸</button>';
-        html += '<button onclick="rejectUser(\'' + u.id + '\')" style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:bold;font-size:13px;">ê±°ë¶</button>';
-        html += '</div></div>';
-      });
-      html += '</div>';
-      container.innerHTML = html;
-    }
-
-    async function approveUser(userId) {
-      if (!confirm('ì´ ì¬ì©ìë¥¼ ì¹ì¸íìê² ìµëê¹?')) return;
-      try {
-        const token = sessionStorage.getItem('ws_token');
-        const res = await fetch('/api/admin/users', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ userId, action: 'approve', role: 'agent' })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast('ì¬ì©ìê° ì¹ì¸ëììµëë¤.', 'success');
-          await fetchLiveData();
-        } else {
-          showToast('ì¹ì¸ ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
-        }
-      } catch (e) {
-        showToast('ì¹ì¸ ìì²­ ì¤í¨: ' + e.message, 'error');
-      }
-    }
-
-    async function rejectUser(userId) {
-      if (!confirm('ì´ ì¬ì©ìë¥¼ ê±°ë¶íìê² ìµëê¹?')) return;
-      try {
-        const token = sessionStorage.getItem('ws_token');
-        const res = await fetch('/api/admin/users', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ userId, action: 'reject' })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast('ì¬ì©ìê° ê±°ë¶ëììµëë¤.', 'success');
-          await fetchLiveData();
-        } else {
-          showToast('ê±°ë¶ ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
-        }
-      } catch (e) {
-        showToast('ê±°ë¶ ìì²­ ì¤í¨: ' + e.message, 'error');
-      }
-    }
-
-    async function changeRole(userId, newRole) {
-      if (!confirm('ì§ì±ì ' + newRole + '(ì¼)ë¡ ë³ê²½íìê² ìµëê¹?')) {
-        await fetchLiveData();
-        return;
-      }
-      try {
-        const token = sessionStorage.getItem('ws_token');
-        const res = await fetch('/api/admin/users', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ userId, action: 'change_role', role: newRole })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast('ì§ì±ì´ ' + newRole + '(ì¼)ë¡ ë³ê²½ëììµëë¤.', 'success');
-          await fetchLiveData();
-        } else {
-          showToast('ì§ì± ë³ê²½ ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
-        }
-      } catch (e) {
-        showToast('ì§ì± ë³ê²½ ìì²­ ì¤í¨: ' + e.message, 'error');
-      }
-    }
-
-    async function blockUser(userId) {
-      if (!confirm('ì´ ì¬ì©ìë¥¼ ì°¨ë¨íìê² ìµëê¹?')) return;
-      try {
-        const token = sessionStorage.getItem('ws_token');
-        const res = await fetch('/api/admin/users', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ userId, action: 'block' })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast('ì¬ì©ìê° ì°¨ë¨ëììµëë¤.', 'success');
-          await fetchLiveData();
-        } else {
-          showToast('ì°¨ë¨ ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
-        }
-      } catch (e) {
-        showToast('ì°¨ë¨ ìì²­ ì¤í¨: ' + e.message, 'error');
-      }
-    }
-
-    async function unblockUser(userId) {
-      if (!confirm('ì´ ì¬ì©ìì ì°¨ë¨ì í´ì íìê² ìµëê¹?')) return;
-      try {
-        const token = sessionStorage.getItem('ws_token');
-        const res = await fetch('/api/admin/users', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-          body: JSON.stringify({ userId, action: 'unblock' })
-        });
-        const data = await res.json();
-        if (data.success) {
-          showToast('ì°¨ë¨ì´ í´ì ëììµëë¤.', 'success');
-          await fetchLiveData();
-        } else {
-          showToast('ì°¨ë¨ í´ì  ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
-        }
-      } catch (e) {
-        showToast('ì°¨ë¨ í´ì  ìì²­ ì¤í¨: ' + e.message, 'error');
-      }
-    }
-
-    async function fetchLiveData() {
-      try {
-        const token = sessionStorage.getItem('ws_token');
-        const res = await fetch('/api/admin/users', {
-          headers: { 'Authorization': 'Bearer ' + token }
-        });
-        const data = await res.json();
-        if (data.success && data.users) {
-          _liveUsers = data.users;
-          renderDashboardLive();
-          renderUsersLive();
-          renderPendingLive();
-        }
-      } catch (e) {
-        console.error('fetchLiveData error:', e);
-      }
-    }
-
-  })();
+})();
 </script>
 </body>
 </html>
