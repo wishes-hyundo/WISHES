@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const SERVICE_KEY = process.env.DATA_GO_KR_API_KEY || process.env.BUILDING_LEDGER_API_KEY || "";
+const SERVICE_KEY =
+  process.env.DATA_GO_KR_API_KEY || process.env.BUILDING_LEDGER_API_KEY || "";
+
 const BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService";
 
 const OPERATIONS: Record<string, string> = {
@@ -8,6 +10,7 @@ const OPERATIONS: Record<string, string> = {
   recapTitle: "getBrRecapTitleInfo",
   title: "getBrTitleInfo",
   floor: "getBrFlrOulnInfo",
+  exposPubuseArea: "getBrExposPubuseAreaInfo",
 };
 
 type OperationType = keyof typeof OPERATIONS;
@@ -31,7 +34,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const opsToFetch: string[] = operations || ["basis", "recapTitle", "title", "floor"];
+    const opsToFetch: string[] =
+      operations || ["basis", "recapTitle", "title", "floor"];
+
     const baseParams = {
       sigunguCd,
       bjdongCd,
@@ -48,12 +53,13 @@ export async function POST(request: NextRequest) {
         const params = new URLSearchParams({
           ServiceKey: decodeURIComponent(SERVICE_KEY),
           ...baseParams,
-          numOfRows: "100",
+          numOfRows: op === "exposPubuseArea" ? "500" : "100",
           pageNo: "1",
           _type: "json",
         });
 
         const url = BASE_URL + "/" + opName + "?" + params.toString();
+
         const res = await fetch(url, {
           headers: { Accept: "application/json" },
         });
@@ -108,6 +114,14 @@ function extractPropertyInfo(data: Record<string, any>) {
   const recapTitle = data.recapTitle?.items?.[0] || {};
   const title = data.title?.items?.[0] || {};
   const floors = data.floor?.items || [];
+  const exposItems = data.exposPubuseArea?.items || [];
+
+  const isCollectiveBuilding =
+    basis.regstrGbCdNm === "집합" ||
+    recapTitle.regstrGbCdNm === "집합" ||
+    title.regstrGbCdNm === "집합";
+
+  const exclusiveUnits = processExclusiveUnits(exposItems);
 
   return {
     건물명: basis.bldNm || title.bldNm || "",
@@ -146,6 +160,83 @@ function extractPropertyInfo(data: Record<string, any>) {
       층용도: f.mainPurpsCdNm || f.etcPurps,
       면적: parseFloat(f.area || "0"),
     })),
+    집합건물여부: isCollectiveBuilding,
+    전유부: exclusiveUnits,
     _raw: { basis, recapTitle, title },
   };
+}
+
+/**
+ * 전유부 데이터를 호실 단위로 가공
+ * exposPubuseGbCd: "1" = 전유, "2" = 공용
+ */
+function processExclusiveUnits(items: any[]) {
+  if (!items || items.length === 0) return [];
+
+  const exclusiveRecords = items.filter(
+    (item: any) =>
+      item.exposPubuseGbCdNm === "전유" || item.exposPubuseGbCd === "1"
+  );
+
+  const commonRecords = items.filter(
+    (item: any) =>
+      item.exposPubuseGbCdNm === "공용" || item.exposPubuseGbCd === "2"
+  );
+
+  const unitMap = new Map<
+    string,
+    {
+      dongNm: string;
+      hoNm: string;
+      flrNo: string;
+      flrNoNm: string;
+      exclusiveArea: number;
+      commonArea: number;
+      mainPurpsCdNm: string;
+      etcPurps: string;
+      strctCdNm: string;
+    }
+  >();
+
+  for (const record of exclusiveRecords) {
+    const key = (record.dongNm || "") + "_" + (record.hoNm || "");
+    if (!unitMap.has(key)) {
+      unitMap.set(key, {
+        dongNm: record.dongNm || "",
+        hoNm: record.hoNm || "",
+        flrNo: record.flrNo || "",
+        flrNoNm: record.flrNoNm || record.flrGbCdNm || "",
+        exclusiveArea: parseFloat(record.area || "0"),
+        commonArea: 0,
+        mainPurpsCdNm: record.mainPurpsCdNm || "",
+        etcPurps: record.etcPurps || "",
+        strctCdNm: record.strctCdNm || "",
+      });
+    } else {
+      const existing = unitMap.get(key)!;
+      existing.exclusiveArea += parseFloat(record.area || "0");
+    }
+  }
+
+  for (const record of commonRecords) {
+    const key = (record.dongNm || "") + "_" + (record.hoNm || "");
+    const unit = unitMap.get(key);
+    if (unit) {
+      unit.commonArea += parseFloat(record.area || "0");
+    }
+  }
+
+  return Array.from(unitMap.values())
+    .map((unit) => ({
+      ...unit,
+      exclusiveArea: parseFloat(unit.exclusiveArea.toFixed(2)),
+      commonArea: parseFloat(unit.commonArea.toFixed(2)),
+      totalArea: parseFloat((unit.exclusiveArea + unit.commonArea).toFixed(2)),
+      floorNum: parseInt(unit.flrNo) || 0,
+    }))
+    .sort((a, b) => {
+      if (a.dongNm !== b.dongNm) return a.dongNm.localeCompare(b.dongNm);
+      if (a.floorNum !== b.floorNum) return a.floorNum - b.floorNum;
+      return a.hoNm.localeCompare(b.hoNm);
+    });
 }
