@@ -1007,6 +1007,15 @@
                         >
                         <label for="rememberMe">30일 동안 로그인 유지</label>
                     </div>
+                    <div class="checkbox-group">
+                        <input
+                            type="checkbox"
+                            id="saveEmail"
+                            name="saveEmail"
+                            aria-label="아이디 저장"
+                        >
+                        <label for="saveEmail">아이디 저장</label>
+                    </div>
 
                     <!-- Forgot Password -->
                     <div class="forgot-password">
@@ -2357,5 +2366,44 @@
             init();
         }
     </script>
+<script>
+// 아이디 저장 (Save Email) Feature
+(function() {
+    var LS_KEY = "ws_saved_email";
+    var LS_FLAG = "ws_save_email_checked";
+    function initSaveEmail() {
+        var emailInput = document.getElementById("loginEmail");
+        var cb = document.getElementById("saveEmail");
+        if (!emailInput || !cb) return;
+        try {
+            var saved = localStorage.getItem(LS_KEY);
+            var flag = localStorage.getItem(LS_FLAG);
+            if (saved && flag === "true") {
+                emailInput.value = saved;
+                cb.checked = true;
+            }
+        } catch(e) {}
+        var form = document.getElementById("loginForm");
+        if (form) {
+            form.addEventListener("submit", function() {
+                try {
+                    if (cb.checked) {
+                        localStorage.setItem(LS_KEY, emailInput.value);
+                        localStorage.setItem(LS_FLAG, "true");
+                    } else {
+                        localStorage.removeItem(LS_KEY);
+                        localStorage.removeItem(LS_FLAG);
+                    }
+                } catch(e) {}
+            });
+        }
+    }
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initSaveEmail);
+    } else {
+        initSaveEmail();
+    }
+})();
+</script>
 </body>
 </html>
