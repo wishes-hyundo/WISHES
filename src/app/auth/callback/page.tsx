@@ -2,123 +2,119 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createAuthClient } from '@/lib/supabase';
-import { Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState('인증 처리 시작...');
-  const [debugInfo, setDebugInfo] = useState<string[]>([]);
-
-  const addDebug = (msg: string) => {
-    setDebugInfo(prev => [...prev, new Date().toLocaleTimeString() + ' ' + msg]);
-  };
+  const { user, loading } = useAuth();
+  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  const [errorMessage, setErrorMessage] = useState('');
 
   useEffect(() => {
-    const handleCallback = async () => {
-      const provider = searchParams.get('provider');
+    const provider = searchParams.get('provider');
+
+    // 네이버 OAuth 콜백 처리
+    if (provider === 'naver') {
       const code = searchParams.get('code');
-      const errorParam = searchParams.get('error');
-      const errorDesc = searchParams.get('error_description');
+      const state = searchParams.get('state');
+      const error = searchParams.get('error');
 
-      addDebug('provider=' + (provider || 'none') + ', code=' + (code ? code.substring(0, 10) + '...' : 'none'));
-
-      if (errorParam) {
-        addDebug('OAuth error: ' + errorParam + ' - ' + errorDesc);
-        setError(errorDesc || '로그인 중 오류가 발생했습니다.');
-        setTimeout(() => router.replace('/'), 3000);
+      if (error) {
+        setStatus('error');
+        setErrorMessage('네이버 로그인이 취소되었습니다.');
+        setTimeout(() => router.replace('/'), 2000);
         return;
       }
 
-      if (provider === 'naver' && code) {
-        try {
-          setStatus('네이버 인증 코드 수신 완료, 토큰 교환 중...');
-          addDebug('네이버 API 호출 시작');
-          const state = searchParams.get('state') || '';
-          const resp = await fetch('/api/auth/naver', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, state }),
-          });
-          const data = await resp.json();
-          addDebug('API 응답: ' + resp.status + ' ' + JSON.stringify(data).substring(0, 200));
-
-          if (resp.ok && data.redirect) {
-            setStatus('인증 성공! 로그인 완료 처리 중...');
-            addDebug('verify 페이지로 리다이렉트');
-            window.location.href = data.redirect;
-            return;
-          }
-          if (resp.ok && data.success) {
-            setStatus('로그인 성공!');
-            router.replace('/');
-            return;
-          }
-          addDebug('API 에러: ' + JSON.stringify(data));
-          setError(data.error || '네이버 로그인 처리 중 오류가 발생했습니다.');
-          setTimeout(() => router.replace('/'), 5000);
-        } catch (e: unknown) {
-          const errMsg = e instanceof Error ? e.message : String(e);
-          addDebug('예외 발생: ' + errMsg);
-          setError('네이버 로그인 처리 중 오류: ' + errMsg);
-          setTimeout(() => router.replace('/'), 5000);
-        }
-        return;
-      }
-
-      const supabase = createAuthClient();
       if (code) {
-        try {
-          setStatus('인증 코드 교환 중...');
-          addDebug('Supabase PKCE code exchange');
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (!exchangeError) {
-            setStatus('로그인 성공!');
-            router.replace('/');
-            return;
-          }
-          addDebug('Exchange error: ' + exchangeError.message);
-        } catch (e: unknown) {
-          const errMsg = e instanceof Error ? e.message : String(e);
-          addDebug('Auth error: ' + errMsg);
-        }
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        router.replace('/');
+        fetch('/api/auth/naver', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, state }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.url) {
+              window.location.href = data.url;
+            } else {
+              setStatus('error');
+              setErrorMessage(data.error || '네이버 로그인 처리 중 오류가 발생했습니다.');
+              setTimeout(() => router.replace('/'), 3000);
+            }
+          })
+          .catch(() => {
+            setStatus('error');
+            setErrorMessage('네이버 로그인 처리 중 오류가 발생했습니다.');
+            setTimeout(() => router.replace('/'), 3000);
+          });
         return;
       }
-      setError('로그인 처리 중 오류가 발생했습니다.');
-      setTimeout(() => router.replace('/'), 5000);
-    };
-    handleCallback();
-  }, [router, searchParams]);
+
+      setStatus('error');
+      setErrorMessage('네이버 인증 정보가 없습니다.');
+      setTimeout(() => router.replace('/'), 2000);
+      return;
+    }
+
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+    if (error) {
+      setStatus('error');
+      setErrorMessage(errorDescription || '로그인 중 오류가 발생했습니다.');
+      setTimeout(() => router.replace('/'), 3000);
+      return;
+    }
+  }, [searchParams, router]);
+
+  useEffect(() => {
+    if (!loading && user) {
+      setStatus('success');
+      const timer = setTimeout(() => router.replace('/'), 800);
+      return () => clearTimeout(timer);
+    }
+
+    if (!loading && !user && status === 'processing') {
+      const timeout = setTimeout(() => {
+        setStatus('error');
+        setErrorMessage('로그인 처리 시간이 초과되었습니다. 다시 시도해주세요.');
+        setTimeout(() => router.replace('/'), 2000);
+      }, 5000);
+      return () => clearTimeout(timeout);
+    }
+  }, [user, loading, router, status]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center max-w-md mx-auto p-6">
-        {error ? (
-          <div className="space-y-3">
-            <div className="w-12 h-12 mx-auto rounded-full bg-red-100 flex items-center justify-center"><span className="text-red-500 text-xl">!</span></div>
-            <p className="text-base font-medium text-gray-800">{error}</p>
-            <p className="text-xs text-gray-400">잠시 후 홈으로 이동합니다...</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto" />
-            <p className="text-sm font-medium text-gray-700">{status}</p>
-          </div>
+    <div className="min-h-screen flex items-center justify-center bg-wishes-bg">
+      <div className="text-center space-y-4 p-8">
+        {status === 'processing' && (
+          <>
+            <div className="w-12 h-12 mx-auto border-4 border-wishes-secondary border-t-transparent rounded-full animate-spin" />
+            <p className="text-lg font-medium text-gray-700">로그인 처리 중...</p>
+            <p className="text-sm text-gray-500">잠시만 기다려주세요</p>
+          </>
         )}
-        {debugInfo.length > 0 && (
-          <div className="mt-6 text-left bg-gray-100 rounded-lg p-3 max-h-40 overflow-y-auto">
-            <p className="text-xs font-bold text-gray-500 mb-1">처리 로그:</p>
-            {debugInfo.map((info, i) => (
-              <p key={i} className="text-xs text-gray-500 font-mono">{info}</p>
-            ))}
-          </div>
+        {status === 'success' && (
+          <>
+            <div className="w-12 h-12 mx-auto bg-green-100 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-lg font-medium text-gray-700">로그인 완료!</p>
+            <p className="text-sm text-gray-500">메인 페이지로 이동합니다</p>
+          </>
+        )}
+        {status === 'error' && (
+          <>
+            <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
+              <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <p className="text-lg font-medium text-gray-700">로그인 실패</p>
+            <p className="text-sm text-gray-500">{errorMessage}</p>
+          </>
         )}
       </div>
     </div>
@@ -127,14 +123,16 @@ function AuthCallbackContent() {
 
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin text-green-600 mx-auto" />
-          <p className="text-sm text-gray-600">로그인 처리 중...</p>
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-wishes-bg">
+          <div className="text-center space-y-4 p-8">
+            <div className="w-12 h-12 mx-auto border-4 border-wishes-secondary border-t-transparent rounded-full animate-spin" />
+            <p className="text-lg font-medium text-gray-700">로그인 처리 중...</p>
+          </div>
         </div>
-      </div>
-    }>
+      }
+    >
       <AuthCallbackContent />
     </Suspense>
   );
