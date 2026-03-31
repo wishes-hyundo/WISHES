@@ -1216,16 +1216,19 @@ ${floorRows}</table></div>` : ''}
   };
 
   /* ── 매물 업로드 (서버 등록) ── */
-  const publishListing = async (mode: 'instant' | 'review') => {
+  const publishListing = async (mode: 'instant' | 'review' | 'draft') => {
     setIsPublishing(true);
 
+    if (mode !== 'draft') {
     if (!form.address?.trim()) { setToast({ type: 'error', text: '주소를 입력해주세요.' }); setIsPublishing(false); return; }
-    if (!form.type) { setToast({ type: 'error', text: '매물 유형을 선택해주세요.' }); setIsPublishing(false); return; }
-    if (!form.deal) { setToast({ type: 'error', text: '거래 유형을 선택해주세요.' }); setIsPublishing(false); return; }
-    if (form.deal === '매매' && !form.price) { setToast({ type: 'error', text: '매매가를 입력해주세요.' }); setIsPublishing(false); return; }
-    if ((form.deal === '전세' || form.deal === '월세') && !form.deposit) { setToast({ type: 'error', text: '보증금을 입력해주세요.' }); setIsPublishing(false); return; }
-    if (form.deal === '월세' && !form.monthly) { setToast({ type: 'error', text: '월세를 입력해주세요.' }); setIsPublishing(false); return; }
-    if (uploadedImages.length === 0) { setToast({ type: 'error', text: '이미지를 1장 이상 등록해주세요.' }); setIsPublishing(false); return; }
+      if (!form.type) { setToast({ type: 'error', text: '매물 유형을 선택해주세요.' }); setIsPublishing(false); return; }
+      if (!form.deal) { setToast({ type: 'error', text: '거래 유형을 선택해주세요.' }); setIsPublishing(false); return; }
+      if (form.deal === '매매' && !form.price) { setToast({ type: 'error', text: '매매가를 입력해주세요.' }); setIsPublishing(false); return; }
+      if ((form.deal === '전세' || form.deal === '월세') && !form.deposit) { setToast({ type: 'error', text: '보증금을 입력해주세요.' }); setIsPublishing(false); return; }
+      if (form.deal === '월세' && !form.monthly) { setToast({ type: 'error', text: '월세를 입력해주세요.' }); setIsPublishing(false); return; }
+      if (uploadedImages.length === 0) { setToast({ type: 'error', text: '이미지를 1장 이상 등록해주세요.' }); setIsPublishing(false); return; }
+
+      }
 
     try {
       // FormData 구성 (이미지 파일 + 매물 데이터)
@@ -1277,6 +1280,9 @@ ${floorRows}</table></div>` : ''}
       fd.append('pet', String(!!form.pet_allowed));
       if (form.lat) fd.append('lat', String(form.lat));
       if (form.lng) fd.append('lng', String(form.lng));
+      if (mode === 'draft') {
+        fd.append('status', '비공개');
+      }
 
       // console.log('[publishListing] FormData, images:', uploadedImages.length, 'coords:', form.lat, form.lng);
 
@@ -1296,7 +1302,7 @@ ${floorRows}</table></div>` : ''}
       // 임시저장 삭제
       if (draftId) deleteDraft(draftId);
 
-      const modeText = mode === 'instant' ? '매물이 등록되었습니다!' : '매물이 저장되었습니다! (검수 대기)';
+      const modeText = mode === 'draft' ? '임시저장 완료! (비공개 상태)' : mode === 'instant' ? '매물이 등록되었습니다!' : '매물이 저장되었습니다! (검수 대기)';
       setToast({ type: 'success', text: modeText });
 
       setTimeout(() => router.push('/admin/listings'), 1500);
@@ -2431,7 +2437,15 @@ ${floorRows}</table></div>` : ''}
                     </button>
                   </div>
 
-                  {/* 등록 방식 선택 */}
+                  {/* 임시저장 */}
+                <div className="mb-4">
+                  <button onClick={() => publishListing('draft')} disabled={isPublishing} className="w-full p-3 rounded-lg border-2 border-dashed border-gray-300 text-gray-600 hover:border-yellow-400 hover:text-yellow-600 hover:bg-yellow-50 transition-all disabled:opacity-50">
+                    {isPublishing ? '저장 중...' : '💾 임시저장 (비공개)'}
+                    <span className="block text-xs mt-1 text-gray-400">정보 수집이 미흡할 때 임시로 저장합니다. 광고에 노출되지 않습니다.</span>
+                  </button>
+                </div>
+
+                {/* 등록 방식 선택 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button onClick={() => publishListing('instant')} disabled={isPublishing || !form.title}
                   className="p-6 border-2 border-green-600 rounded-2xl hover:bg-green-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
