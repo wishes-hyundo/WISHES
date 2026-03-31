@@ -12,7 +12,7 @@ const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 // 요청 검증 스키마
 const createListingSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요'),
-  type: z.enum(['원룸', '투룸', '쓰리룸+', '오피스텔', '아파트', '상가', '사무실']),
+  type: z.enum(['원룸', '1.5룸', '투룸', '쓰리룸+', '복층', '오피스텔', '아파트', '빌라', '상가', '사무실']),
   deal: z.enum(['전세', '월세', '매매']),
   deposit: z.number().int().nonnegative().default(0),
   monthly: z.number().int().nonnegative().optional().nullable(),
