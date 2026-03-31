@@ -11,13 +11,9 @@ interface AuthContextType {
   signInWithProvider: (provider: 'kakao' | 'google') => Promise<void>;
   signInWithNaver: () => void;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<{ success: boolean; error?: string }>;
   showAuthModal: boolean;
   setShowAuthModal: (show: boolean) => void;
-  showProfileCompletion: boolean;
-  setShowProfileCompletion: (show: boolean) => void;
-  profileCompleted: boolean;
-  authModalMessage: string;
-  setAuthModalMessage: (msg: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,74 +23,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showProfileCompletion, setShowProfileCompletion] = useState(false);
-  const [profileCompleted, setProfileCompleted] = useState(false);
-  const [authModalMessage, setAuthModalMessage] = useState('');
-
-  // 프로필 완성 여부 체크
-  const checkProfile = useCallback(async (accessToken: string) => {
-    try {
-      const resp = await fetch('/api/profile', {
-        headers: { 'Authorization': 'Bearer ' + accessToken },
-      });
-      if (resp.ok) {
-        const profile = await resp.json();
-        if (profile.profile_completed) {
-          setProfileCompleted(true);
-        } else {
-          setProfileCompleted(false);
-          setShowProfileCompletion(true);
-        }
-      }
-    } catch (e) { console.error('Profile check error:', e); }
-  }, []);
 
   useEffect(() => {
     const supabase = createAuthClient();
-    // 현재 세션 확인
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      if (session?.access_token) {
-        checkProfile(session.access_token);
-      }
     });
-    // 인증 상태 변경 리스너
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
-        if (event === 'SIGNED_IN' && session?.access_token) {
-          checkProfile(session.access_token);
-        }
-        if (event === 'SIGNED_OUT') {
-          setProfileCompleted(false);
-          setShowProfileCompletion(false);
-        }
       }
     );
     return () => subscription.unsubscribe();
-  }, [checkProfile]);
+  }, []);
 
   const signInWithProvider = useCallback(async (provider: 'kakao' | 'google') => {
     const supabase = createAuthClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: window.location.origin + '/auth/callback',
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
-    if (error) { console.error('소셜 로그인 오류:', error.message); }
+    if (error) console.error('소셜 로그인 오류:', error.message);
   }, []);
 
-  // 네이버는 Supabase 네이티브 미지원
   const signInWithNaver = useCallback(() => {
     const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || '';
-    const REDIRECT_URI = window.location.origin + '/auth/callback?provider=naver';
+    const REDIRECT_URI = `${window.location.origin}/auth/callback?provider=naver`;
     const STATE = Math.random().toString(36).substring(7);
-    window.location.href = 'https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=' + NAVER_CLIENT_ID + '&redirect_uri=' + encodeURIComponent(REDIRECT_URI) + '&state=' + STATE;
+    window.location.href = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}`;
   }, []);
 
   const signOut = useCallback(async () => {
@@ -104,15 +66,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSession(null);
   }, []);
 
+  const deleteAccount = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    if (!user) return { success: false, error: '로그인 상태가 아닙니다.' };
+    try {
+      const res = await fetch('/api/auth/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        const supabase = createAuthClient();
+        await supabase.auth.signOut();
+        setUser(null);
+        setSession(null);
+        return { success: true };
+      }
+      return { success: false, error: data.error || '탈퇴 처리에 실패했습니다.' };
+    } catch {
+      return { success: false, error: '서버와 통신 중 오류가 발생했습니다.' };
+    }
+  }, [user]);
+
   return (
     <AuthContext.Provider
       value={{
         user, session, loading,
-        signInWithProvider, signInWithNaver, signOut,
+        signInWithProvider, signInWithNaver, signOut, deleteAccount,
         showAuthModal, setShowAuthModal,
-        showProfileCompletion, setShowProfileCompletion,
-        profileCompleted,
-        authModalMessage, setAuthModalMessage,
       }}
     >
       {children}
@@ -122,8 +103,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }
