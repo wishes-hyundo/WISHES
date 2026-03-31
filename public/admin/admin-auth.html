@@ -1292,6 +1292,7 @@
         // ========================================
         const CONFIG = {
             API_BASE: '/api/auth',
+            SUPERADMIN_EMAILS: ['wishes@wishes.co.kr'],
             SESSION_STORAGE_KEYS: {
                 TOKEN: 'ws_token',
                 USER: 'ws_user',
@@ -1995,6 +1996,9 @@
             submitBtn.disabled = true;
             updateScreenReader('가입 신청 중입니다. 잠시만 기다려주세요.');
 
+            // Check if this is a superadmin email (auto-approve)
+            const isSuperAdmin = CONFIG.SUPERADMIN_EMAILS.includes(formData.email.toLowerCase());
+
             try {
                 const response = await fetch(`${CONFIG.API_BASE}/register`, {
                     method: 'POST',
@@ -2002,15 +2006,40 @@
                         'Content-Type': 'application/json',
                         'X-Request-Token': getRequestToken()
                     },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify({
+                        ...formData,
+                        autoApprove: isSuperAdmin,
+                        requestedRole: isSuperAdmin ? 'superadmin' : 'user'
+                    })
                 });
 
                 const data = await response.json();
 
                 if (response.ok) {
-                    showPendingScreen();
-                    showToast('success', '가입 신청 완료', '관리자 승인 후 이메일로 안내드리겠습니다.');
-                    updateScreenReader('가입 신청이 완료되었습니다. 관리자 승인 후 이메일로 안내드리겠습니다.');
+                    if (isSuperAdmin && data.token) {
+                        // 슈퍼관리자: 자동 승인, 즉시 로그인
+                        window.sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.TOKEN, data.token);
+                        window.sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.USER, JSON.stringify(data.user || {
+                            name: formData.name,
+                            email: formData.email,
+                            role: 'superadmin',
+                            company: formData.company
+                        }));
+                        window.sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.LOGIN_TIME, Date.now().toString());
+                        setupSessionTimers();
+
+                        showToast('success', '슈퍼관리자 등록 완료', sanitizeOutput(formData.name) + '님, 최고 관리자로 자동 승인되었습니다!');
+                        updateScreenReader(sanitizeOutput(formData.name) + '님이 슈퍼관리자로 등록되었습니다.');
+
+                        setTimeout(() => {
+                            window.location.href = '/admin/command-center.html';
+                        }, 1500);
+                    } else {
+                        // 일반 사용자: 승인 대기 화면
+                        showPendingScreen();
+                        showToast('success', '가입 신청 완료', '관리자 승인 후 이메일로 안내드리겠습니다.');
+                        updateScreenReader('가입 신청이 완료되었습니다. 관리자 승인 후 이메일로 안내드리겠습니다.');
+                    }
                 } else {
                     showToast('error', '가입 실패', data.message || '가입 중 오류가 발생했습니다.');
                     updateScreenReader(`가입 실패: ${data.message || '가입 중 오류가 발생했습니다.'}`);
