@@ -943,7 +943,7 @@ function renderUsers(){
       '<td><div style="font-weight:600">'+_escHtml(displayName)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td>'+
       '<td style="font-size:12px">'+_escHtml(u.email)+'</td>'+
       '<td style="font-size:12px">'+_escHtml(u.company||"-")+'</td>'+
-      '<td><span'+roleAttr+'>'+u.role+'</span></td>'+
+      '<td>'+(u.role==='superadmin'?'<span'+roleAttr+'>'+u.role+'</span>':'<select id="roleSelect_'+u.id+'" onchange="changeRole(\x27'+u.id+'\x27)" style="background:var(--card);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer"><option value="admin"'+(u.role==="admin"?' selected':'')+'>admin</option><option value="agent"'+(u.role==="agent"?' selected':'')+'>agent</option><option value="viewer"'+(u.role==="viewer"?' selected':'')+'>viewer</option></select>')+'</td>'+
       '<td><span class="status '+statusClass+'">'+statusText+'</span></td>'+
       '<td style="font-size:12px;color:var(--text-dim)">'+lastLogin+'</td>'+
       '<td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+blockBtn+'</div></td>'+
@@ -1020,6 +1020,7 @@ window.viewUser=function(id){
   var footer='<button class="btn-modal btn-modal-ghost" onclick="closeModal(\'userDetailModal\')">닫기</button>';
   if(user.role!=="superadmin"){
     footer+='<button class="btn-modal btn-modal-danger" onclick="toggleBlock(\''+user.id+'\');closeModal(\'userDetailModal\')">차단/해제</button>';
+      footer+='<button class="btn-modal" style="background:var(--accent);color:#fff" onclick="changeRole(\x27'+user.id+'\x27);closeModal(\x27userDetailModal\x27)">직책 변경</button>';
   }
   document.getElementById("userDetailFooter").innerHTML=footer;
   openModal("userDetailModal");
