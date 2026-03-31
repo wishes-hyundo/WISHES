@@ -1064,7 +1064,7 @@ function _escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,
 function _now(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 
 // ===== LIVE API INTEGRATION =====
-    async function fetchUsersFromAPI() {
+    window.fetchUsersFromAPI = async function() {
       try {
         var token = sessionStorage.getItem('ws_token');
         var resp = await fetch('/api/admin/users', {
@@ -1201,7 +1201,7 @@ setInterval(function(){
   // In production, this would call the API
   // For now, just update the time display
   fetchUsersFromAPI();
-    },30000);
+    },30000); window.fetchUsersFromAPI=fetchUsersFromAPI;window.approveUser=approveUser;window.rejectUser=rejectUser;window.renderPendingLive=renderPendingLive;window.renderDashboardLive=renderDashboardLive;window.renderUsersLive=renderUsersLive;
 
 })();
 </script>
