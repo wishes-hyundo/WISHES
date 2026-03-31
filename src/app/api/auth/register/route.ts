@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { notifyAdminNewRegistration } from '@/lib/email';
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
@@ -115,6 +116,9 @@ export async function POST(request: NextRequest) {
         }
       });
     }
+
+    // 관리자에게 새 가입 알림 이메일 발송 (비동기, 실패해도 가입은 성공)
+    notifyAdminNewRegistration({ name, email, phone, company, reason }).catch(console.error);
 
     return NextResponse.json({ success: true });
 
