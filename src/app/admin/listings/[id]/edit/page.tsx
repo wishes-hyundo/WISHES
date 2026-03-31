@@ -67,7 +67,7 @@ interface SubmitMessage {
 // 상수
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const PROPERTY_TYPES = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
+const PROPERTY_TYPES = ['원룸', '1.5룸', '투룸', '쓰리룸+', '복층', '오피스텔', '아파트', '빌라', '상가', '사무실'];
 const TRANSACTION_TYPES = ['전세', '월세', '매매'];
 const DIRECTIONS = ['동', '서', '남', '북', '남동', '남서', '북동', '북서'];
 const HEATING_TYPES = ['개별난방', '중앙난방', '지역난방'];
