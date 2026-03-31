@@ -96,7 +96,8 @@ export default function ListingDetailClient({ id }: { id: string }) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6">
               <IR label="매물유형" value={listing.type} /><IR label="거래유형" value={listing.deal} />
               <IR label="전용면적" value={listing.area_m2 ? listing.area_m2 + '㎡ (' + sqmToPyeong(listing.area_m2) + '평)' : '정보 없음'} />
-              <IR label="층수" value={listing.floor_current} /><IR label="주소" value={listing.address} fw /><IR label="동" value={listing.dong} />
+              <IR label="층수" value={listing.floor_current} /><IR label="주소 (동)" value={listing.dong ? listing.dong + (listing.address_detail ? ' ' + listing.address_detail : '') : listing.address} fw />
+              {listing.address && <details className="col-span-2"><summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-600">도로명 주소 보기</summary><p className="text-sm text-gray-700 mt-1 pl-1">{listing.address}{listing.address_detail ? ' ' + listing.address_detail : ''}</p></details>}
               {listing.built_year && <IR label="준공년도" value={listing.built_year} />}
               {listing.available_date && <IR label="입주가능일" value={listing.available_date} />}
             </div>
@@ -158,5 +159,6 @@ function IR({ label, value, fw }: { label: string; value: string; fw?: boolean }
 }
 
 function OB({ label, a }: { label: string; a: boolean }) {
-  return <span className={'flex items-center gap-1 px-3 py-1 text-sm rounded-full ' + (a ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400 line-through')}>{a ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}{label}</span>;
+  if (!a) return null;
+  return <span className="flex items-center gap-1 px-3 py-1 text-sm rounded-full bg-green-50 text-green-700"><Check className="w-3 h-3" />{label}</span>;
 }
