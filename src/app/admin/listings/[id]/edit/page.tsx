@@ -29,6 +29,7 @@ interface FormData {
   moveInType: string;
   parkingAvailable: boolean;
   petAllowed: boolean;
+  hasElevator: boolean;
   rooms: number;
   bathrooms: number;
   direction: string;
@@ -68,7 +69,7 @@ interface SubmitMessage {
 
 const PROPERTY_TYPES = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
 const TRANSACTION_TYPES = ['전세', '월세', '매매'];
-const DIRECTIONS = ['동', '서', '남', '북', '동남', '동북', '서남', '서북'];
+const DIRECTIONS = ['동', '서', '남', '북', '남동', '남서', '북동', '북서'];
 const HEATING_TYPES = ['개별난방', '중앙난방', '지역난방'];
 const MAINTENANCE_OPTIONS = ['수도', '전기', '가스', '인터넷', 'TV', '청소비', '주차비', '엘리베이터유지비'];
 const STATUS_OPTIONS = ['가용', '계약중', '계약완료'];
@@ -116,6 +117,7 @@ export default function EditListingPage() {
     moveInType: '',
     parkingAvailable: false,
     petAllowed: false,
+    hasElevator: false,
     rooms: 0,
     bathrooms: 0,
     direction: '',
@@ -218,7 +220,8 @@ export default function EditListingPage() {
           roomLayout: '',
           moveInType: '',
           parkingAvailable: d.parking || false,
-          petAllowed: d.pet || false,
+          petAllowed: d.pet,
+          hasElevator: d.elevator ?? false || false,
           rooms: d.rooms || 0,
           bathrooms: d.bathrooms || 0,
           direction: d.direction || '',
@@ -414,7 +417,7 @@ export default function EditListingPage() {
         heating_type: formData.heatingType || null,
         area_supply_m2: formData.supplyArea || null,
         parking: formData.parkingAvailable,
-        elevator: formData.elevatorCount > 0,
+        elevator: formData.hasElevator,
         pet: formData.petAllowed,
         built_year: formData.approvalDate || null,
         loan_available: true,
@@ -981,6 +984,7 @@ export default function EditListingPage() {
               <div className="mt-4 flex flex-wrap gap-4">
                 {[
                   { key: 'parkingAvailable', label: '주차 가능' },
+                  { key: 'hasElevator', label: '엘리베이터' },
                   { key: 'petAllowed', label: '반려동물 가능' },
                 ].map(({ key, label }) => (
                   <label key={key} className="flex items-center gap-2 cursor-pointer">
