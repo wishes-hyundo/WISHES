@@ -1489,14 +1489,14 @@
             // Auto-dismiss
             const timer = setTimeout(() => {
                 toast.classList.add('removing');
-                setTimeout(() => toast.remove(), 300);
+                setTimeout(() => toast.remove(), 4000);
             }, CONFIG.TOAST_DURATION);
 
             // Allow manual dismiss on click
             toast.addEventListener('click', () => {
                 clearTimeout(timer);
                 toast.classList.add('removing');
-                setTimeout(() => toast.remove(), 300);
+                setTimeout(() => toast.remove(), 4000);
             });
 
             // Update screen reader
