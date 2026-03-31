@@ -4,7 +4,7 @@
 <script>
 // WISHES Auth Guard
 (function() {
-  var token = sessionStorage.getItem('ws_tokhen');
+  var token = sessionStorage.getItem('ws_token');
   var user = sessionStorage.getItem('ws_user');
   if (!token || !user) {
     window.location.replace('/admin/admin-auth.html');
