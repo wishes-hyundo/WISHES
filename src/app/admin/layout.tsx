@@ -194,6 +194,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const handleLogout = () => {
     window.localStorage.removeItem('admin_password');
+    window.localStorage.removeItem('ws_token');
+    window.localStorage.removeItem('ws_user');
+    window.localStorage.removeItem('ws_login_time');
+    window.localStorage.removeItem('ws_keep_login');
     window.sessionStorage.clear();
     window.location.href = '/admin/admin-auth.html';
   };
