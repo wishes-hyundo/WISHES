@@ -1,109 +1,134 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Admin API: POST /api/admin/upload - 이미지 업로드
+// Cloudflare R2 + 자동 WebP 압축
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 import { NextRequest, NextResponse } from 'next/server';
-import { uploadToR2 } from '@/lib/r2';
+import { createServerClient } from '@/lib/supabase';
+import { storage } from '@/lib/storage';
 import sharp from 'sharp';
 
-function verifyAuth(request: NextRequest) {
-  const auth = request.headers.get('authorization');
-  if (auth === 'wishes2026') return true;
-  if (auth && auth.startsWith('Bearer ')) {
-    return auth.split(' ')[1] === (process.env.ADMIN_TOKEN || 'wishes2026');
-  }
-  const adminSession = request.cookies.get('admin_session');
-  if (adminSession?.value === 'wishes2026') return true;
-  return false;
+/**
+ * 인증 검증 �+퍼 함수
+ */
+function verifyAuth(request: NextRequest): boolean {
+  const authHeader = request.headers.get('authorization');
+  const password = authHeader?.replace('Bearer ', '');
+  return password === 'wishes2026';
 }
 
-// WISHES logo watermark SVG
-function createWatermarkSvg(width: number, height: number): Buffer {
-  const fontSize = Math.max(Math.round(width * 0.035), 14);
-  const logoAreaH = Math.round(height * 0.12);
-
-  const svg = '<svg width="' + width + '" height="' + height + '" xmlns="http://www.w3.org/2000/svg">' +
-    '<defs>' +
-    '<linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">' +
-    '<stop offset="0%" style="stop-color:rgba(0,0,0,0.45)"/>' +
-    '<stop offset="100%" style="stop-color:rgba(0,0,0,0.25)"/>' +
-    '</linearGradient>' +
-    '</defs>' +
-    '<rect x="0" y="' + (height - logoAreaH) + '" width="' + width + '" height="' + logoAreaH + '" fill="url(#g)"/>' +
-    '<text x="' + Math.round(width * 0.03) + '" y="' + Math.round(height - logoAreaH / 2 + fontSize / 3) + '" ' +
-    'font-family="Arial,Helvetica,sans-serif" font-size="' + fontSize + '" font-weight="bold" fill="white" opacity="0.9">' +
-    'WISHES' +
-    '</text>' +
-    '<text x="' + Math.round(width * 0.03 + fontSize * 4.2) + '" y="' + Math.round(height - logoAreaH / 2 + fontSize / 3) + '" ' +
-    'font-family="Arial,Helvetica,sans-serif" font-size="' + Math.round(fontSize * 0.65) + '" fill="white" opacity="0.7">' +
-    'wishes.co.kr' +
-    '</text>' +
-    '</svg>';
-
-  return Buffer.from(svg);
+/**
+ * 이미지 압축 및 WebP 변환
+ * - 최대 1920x1440 리사이즈
+ * - WebP 포맷 변환 (품질 80)
+ * - 결과: ~200-300KB
+ */
+async function compressImage(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .resize(1920, 1440, {
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .webp({ quality: 80 })
+    .toBuffer();
 }
 
+/**
+ * POST /api/admin/upload - 매물 이미지 업로드
+ * @body file - 이미지 파일 (multipart/form-data)
+ * @body listingId - 매물 ID (선택사항)
+ */
 export async function POST(request: NextRequest) {
-  if (!verifyAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   try {
+    if (!verifyAuth(request)) {
+      return NextResponse.json(
+        { success: false, error: '인증 실패' },
+        { status: 401 }
+      );
+    }
+
     const formData = await request.formData();
-    // Support both 'files' (plural) and 'file' (singular) field names
-    let files = formData.getAll('files') as File[];
-    if (files.length === 0) {
-      files = formData.getAll('file') as File[];
-    }
-    const listingId = (formData.get('listingId') as string) || ('temp_' + Date.now());
-    const addWatermark = formData.get('watermark') !== 'false';
+    const file = formData.get('file') as File;
+    const listingId = formData.get('listingId') as string;
 
-    if (!files || files.length === 0) {
-      return NextResponse.json({ error: 'No files provided' }, { status: 400 });
+    if (!file) {
+      return NextResponse.json(
+        { success: false, error: '파일이 필요합니다' },
+        { status: 400 }
+      );
     }
 
-    const uploadedUrls: string[] = [];
+    // 파일 검증
+    const validMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!validMimeTypes.includes(file.type)) {
+      return NextResponse.json(
+        { success: false, error: '지원하지 않는 파일 형식입니다 (JPEG, PNG, WebP, GIF)' },
+        { status: 400 }
+      );
+    }
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+    const maxSize = 10 * 1024 * 1024; // 원본 최대 10MB (압축 후 줄어듦)
+    if (file.size > maxSize) {
+      return NextResponse.json(
+        { success: false, error: '파일 크기가 너무 큽니다 (최대 10MB)' },
+        { status: 400 }
+      );
+    }
 
-      // Auto-rotate based on EXIF orientation, then resize to max 1920x1440
-      let processed = sharp(buffer).rotate().resize(1920, 1440, {
-        fit: 'inside',
-        withoutEnlargement: true,
-      });
+    // 파일 → Buffer → WebP 압축
+    const arrayBuffer = await file.arrayBuffer();
+    const originalBuffer = Buffer.from(arrayBuffer);
+    const compressedBuffer = await compressImage(originalBuffer);
 
-      // Get resized dimensions for watermark
-      const resizedBuf = await processed.clone().toBuffer({ resolveWithObject: true });
-      const finalW = resizedBuf.info.width;
-      const finalH = resizedBuf.info.height;
+    // 파일명 생성 (timestamp + random, 항상 .webp)
+    const timestamp = Date.now();
+    const random = Math.random().toString(36).substring(2, 10);
+    const fileName = `listings/listing-${timestamp}-${random}.webp`;
 
-      // Add watermark if enabled
-      if (addWatermark) {
-        const watermarkSvg = createWatermarkSvg(finalW, finalH);
-        processed = sharp(resizedBuf.data).composite([
-          { input: watermarkSvg, gravity: 'southeast' }
-        ]);
+    // R2에 업로드
+    const publicUrl = await storage.upload(compressedBuffer, fileName, 'image/webp');
+
+    // Supabase DB에 이미지 정보 저장
+    if (listingId) {
+      const listingIdNum = parseInt(listingId);
+      if (!isNaN(listingIdNum)) {
+        const supabase = createServerClient();
+        const { error: insertError } = await supabase
+          .from('listing_images')
+          .insert({
+            listing_id: listingIdNum,
+            url: publicUrl,
+            alt: file.name,
+            sort_order: 0,
+            is_thumbnail: false,
+          });
+
+        if (insertError) {
+          console.error('이미지 정보 저장 오류:', insertError);
+          // 업로드는 성공했으므로 URL 반환
+        }
       }
-
-      // Convert to WebP
-      const compressed = await processed.webp({ quality: 82 }).toBuffer();
-
-      const timestamp = Date.now();
-      const key = 'listings/' + listingId + '/' + timestamp + '_' + i + '.webp';
-
-      const url = await uploadToR2(key, compressed, 'image/webp');
-      uploadedUrls.push(url);
     }
 
-    return NextResponse.json({
-      success: true,
-      urls: uploadedUrls,
-      url: uploadedUrls[0],
-      data: { url: uploadedUrls[0], urls: uploadedUrls },
-      count: uploadedUrls.length,
-    });
-  } catch (error: unknown) {
-    console.error('Upload error:', error);
-    const message = error instanceof Error ? error.message : 'Upload failed';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          url: publicUrl,
+          path: fileName,
+          fileName: fileName,
+          originalSize: originalBuffer.length,
+          compressedSize: compressedBuffer.length,
+          compressionRatio: `${Math.round((1 - compressedBuffer.length / originalBuffer.length) * 100)}%`,
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error('파일 업로드 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '파일 업로드에 실패했습니다' },
+      { status: 500 }
+    );
   }
 }

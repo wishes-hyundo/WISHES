@@ -2,10 +2,10 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   experimental: {
-    // í´ë¼ì´ì¸í¸ ë¼ì°í° ìºì: íì´ì§ ì´ë ì ìë² ì¬ìì²­ ë°©ì§
+    // 클라이언트 라우터 캐시: 페이지 이동 시 서버 재요청 방지
     staleTimes: {
-      dynamic: 300,  // ëì  íì´ì§ 5ë¶ ìºì
-      static: 3600,  // ì ì  íì´ì§ 1ìê° ìºì
+      dynamic: 300,  // 동적 페이지 5분 캐시
+      static: 3600,  // 정적 페이지 1시간 캐시
     },
   },
   eslint: {
@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 86400,
+    minimumCacheTTL: 86400, // 24시간 이미지 캐시
     deviceSizes: [640, 750, 828, 1080, 1200],
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
     remotePatterns: [
@@ -35,6 +35,11 @@ const nextConfig: NextConfig = {
         hostname: '*.supabase.co',
         pathname: '/storage/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'pub-e16c7a50584c4db7be3571746cd80716.r2.dev',
+        pathname: '/**',
+      },
     ],
   },
   async redirects() {
@@ -47,17 +52,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  headers: async () => [
-    {
-      source: '/api/listings/:path*',
-      headers: [
-        {
-          key: 'Cache-Control',
-          value: 'public, s-maxage=30, stale-while-revalidate=60',
-        },
-      ],
-    },
-  ],
 };
 
 export default nextConfig;
