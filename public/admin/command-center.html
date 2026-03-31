@@ -1063,19 +1063,145 @@ window.saveSettings=function(){showToast('시스템 설정이 저장되었습니
 function _escHtml(s){if(!s)return'';return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function _now(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 
-// ===== INITIAL RENDER =====
+// ===== LIVE API INTEGRATION =====
+    async function fetchUsersFromAPI() {
+      try {
+        var token = sessionStorage.getItem('ws_token');
+        var resp = await fetch('/api/admin/users', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!resp.ok) throw new Error('API error: ' + resp.status);
+        var data = await resp.json();
+        if (data.success && data.users) {
+          window._liveUsers = data.users;
+          window._userStats = { total: data.total, pending: data.pending, approved: data.approved };
+          renderDashboardLive();
+          renderUsersLive();
+          renderPendingLive();
+        }
+      } catch(e) {
+        console.error('Failed to fetch users:', e);
+      }
+    }
+
+    function renderDashboardLive() {
+      var stats = window._userStats || {};
+      var totalEl = document.getElementById('statTotalUsers');
+      var pendingEl = document.getElementById('statPendingUsers');
+      if (totalEl) totalEl.textContent = stats.total || 0;
+      if (pendingEl) pendingEl.textContent = stats.pending || 0;
+    }
+
+    function renderUsersLive() {
+      var users = window._liveUsers || [];
+      var tbody = document.getElementById('usersTableBody');
+      if (!tbody) return;
+      
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;opacity:0.5;padding:20px;">등록된 사용자가 없습니다</td></tr>';
+        return;
+      }
+      
+      var roleMap = {superadmin:'Super Admin',admin:'Admin',agent:'Agent',user:'User',viewer:'Viewer'};
+      var statusMap = {approved:'승인됨',pending:'대기중',rejected:'거부됨'};
+      var statusColor = {approved:'#00ff88',pending:'#ffaa00',rejected:'#ff4444'};
+      
+      tbody.innerHTML = users.map(function(u) {
+        var statusBadge = '<span style="color:' + (statusColor[u.status]||'#888') + '">' + (statusMap[u.status]||u.status) + '</span>';
+        var lastSign = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString('ko-KR') : '-';
+        return '<tr>' +
+          '<td>' + _escHtml(u.name || '-') + '</td>' +
+          '<td>' + _escHtml(u.email || '-') + '</td>' +
+          '<td>' + _escHtml(u.company || '-') + '</td>' +
+          '<td>' + (roleMap[u.role] || u.role || '-') + '</td>' +
+          '<td>' + statusBadge + '</td>' +
+          '<td>' + lastSign + '</td>' +
+          '<td><button onclick="approveUser(\'' + u.id + '\',\'' + u.email + '\')" style="background:#00ff88;color:#000;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;" ' + (u.status==='approved'?'disabled style="opacity:0.3;background:#00ff88;color:#000;border:none;padding:4px 8px;border-radius:4px;"':'') + '>승인</button>' +
+          '<button onclick="rejectUser(\'' + u.id + '\',\'' + u.email + '\')" style="background:#ff4444;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;">거부</button></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    function renderPendingLive() {
+      var users = (window._liveUsers || []).filter(function(u){ return u.status === 'pending'; });
+      var tbody = document.getElementById('pendingTableBody');
+      var countEl = document.getElementById('pendingCount');
+      if (countEl) countEl.textContent = users.length + '건';
+      if (!tbody) return;
+      
+      if (users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;opacity:0.5;padding:20px;">대기 중인 신청이 없습니다</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = users.map(function(u) {
+        var created = u.created_at ? new Date(u.created_at).toLocaleString('ko-KR') : '-';
+        return '<tr>' +
+          '<td>' + _escHtml(u.name || '-') + '</td>' +
+          '<td>' + _escHtml(u.email || '-') + '</td>' +
+          '<td>' + _escHtml(u.company || '-') + '</td>' +
+          '<td>' + _escHtml(u.role || '-') + '</td>' +
+          '<td>' + _escHtml(u.reason || '-') + '</td>' +
+          '<td>' + created + '</td>' +
+          '<td><button onclick="approveUser(\'' + u.id + '\',\'' + u.email + '\')" style="background:#00ff88;color:#000;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin-right:4px;">✅ 승인</button>' +
+          '<button onclick="rejectUser(\'' + u.id + '\',\'' + u.email + '\')" style="background:#ff4444;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">❌ 거부</button></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    async function approveUser(userId, email) {
+      if (!confirm(email + ' 사용자를 승인하시겠습니까?')) return;
+      try {
+        var token = sessionStorage.getItem('ws_token');
+        var resp = await fetch('/api/admin/users', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId, action: 'approve', role: 'agent' })
+        });
+        var result = await resp.json();
+        if (result.success) {
+          alert('승인 완료: ' + email);
+          fetchUsersFromAPI();
+        } else {
+          alert('승인 실패: ' + (result.error || result.message));
+        }
+      } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    async function rejectUser(userId, email) {
+      if (!confirm(email + ' 사용자를 거부하시겠습니까?')) return;
+      try {
+        var token = sessionStorage.getItem('ws_token');
+        var resp = await fetch('/api/admin/users', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: userId, action: 'reject' })
+        });
+        var result = await resp.json();
+        if (result.success) {
+          alert('거부 완료: ' + email);
+          fetchUsersFromAPI();
+        } else {
+          alert('거부 실패: ' + (result.error || result.message));
+        }
+      } catch(e) { alert('오류: ' + e.message); }
+    }
+
+    // ===== INITIAL RENDER =====
 renderDashboard();
 renderUsers();
 renderPending();
 renderSessions();
 renderAllLogs();
 renderBlockedIps();
+    fetchUsersFromAPI();
 
 // ===== AUTO REFRESH (30s) =====
 setInterval(function(){
   // In production, this would call the API
   // For now, just update the time display
-},30000);
+  fetchUsersFromAPI();
+    },30000);
 
 })();
 </script>
