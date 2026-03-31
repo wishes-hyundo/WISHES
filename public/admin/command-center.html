@@ -1093,117 +1093,198 @@ function _now(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.
     }
 
     function renderUsersLive() {
-      var users = window._liveUsers || [];
-      var tbody = document.getElementById('usersTableBody');
-      if (!tbody) return;
-      
-      if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;opacity:0.5;padding:20px;">등록된 사용자가 없습니다</td></tr>';
+      const container = document.getElementById('users-live-container');
+      if (!container) return;
+      if (!_liveUsers || _liveUsers.length === 0) {
+        container.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px 0;">ë±ë¡ë ì¬ì©ìê° ììµëë¤.</p>';
         return;
       }
-      
-      var roleMap = {superadmin:'Super Admin',admin:'Admin',agent:'Agent',user:'User',viewer:'Viewer'};
-      var statusMap = {approved:'승인됨',pending:'대기중',rejected:'거부됨'};
-      var statusColor = {approved:'#00ff88',pending:'#ffaa00',rejected:'#ff4444'};
-      
-      tbody.innerHTML = users.map(function(u) {
-        var statusBadge = '<span style="color:' + (statusColor[u.status]||'#888') + '">' + (statusMap[u.status]||u.status) + '</span>';
-        var lastSign = u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleString('ko-KR') : '-';
-        return '<tr>' +
-          '<td>' + _escHtml(u.name || '-') + '</td>' +
-          '<td>' + _escHtml(u.email || '-') + '</td>' +
-          '<td>' + _escHtml(u.company || '-') + '</td>' +
-          '<td>' + (roleMap[u.role] || u.role || '-') + '</td>' +
-          '<td>' + statusBadge + '</td>' +
-          '<td>' + lastSign + '</td>' +
-          '<td><button onclick="approveUser(\'' + u.id + '\',\'' + u.email + '\')" style="background:#00ff88;color:#000;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;margin-right:4px;" ' + (u.status==='approved'?'disabled style="opacity:0.3;background:#00ff88;color:#000;border:none;padding:4px 8px;border-radius:4px;"':'') + '>승인</button>' +
-          '<button onclick="rejectUser(\'' + u.id + '\',\'' + u.email + '\')" style="background:#ff4444;color:#fff;border:none;padding:4px 8px;border-radius:4px;cursor:pointer;">거부</button></td>' +
-          '</tr>';
-      }).join('');
+      const roleLabels = { superadmin: 'Super Admin', admin: 'ê´ë¦¬ì', agent: 'ì¤ê°ì¬', viewer: 'ì´ëì', user: 'ì¬ì©ì' };
+      const statusLabels = { approved: 'ì¹ì¸ë¨', pending: 'ëê¸°ì¤', rejected: 'ê±°ë¶ë¨', blocked: 'ì°¨ë¨ë¨' };
+      const statusColors = { approved: '#4ade80', pending: '#facc15', rejected: '#f87171', blocked: '#ef4444' };
+      let html = '<table style="width:100%;border-collapse:collapse;font-size:14px;">';
+      html += '<thead><tr style="border-bottom:2px solid #333;color:#ccc;text-align:left;">';
+      html += '<th style="padding:10px;">ì´ë¦</th><th style="padding:10px;">ì´ë©ì¼</th>';
+      html += '<th style="padding:10px;">ìí</th><th style="padding:10px;">ì§ì±</th>';
+      html += '<th style="padding:10px;">ì§ì± ë³ê²½</th><th style="padding:10px;">ê´ë¦¬</th></tr></thead><tbody>';
+      _liveUsers.forEach(u => {
+        const st = u.status || 'pending';
+        const rl = u.role || 'user';
+        html += '<tr style="border-bottom:1px solid #333;">';
+        html += '<td style="padding:10px;color:#fff;">' + _escHtml(u.name || '-') + '</td>';
+        html += '<td style="padding:10px;color:#aaa;">' + _escHtml(u.email || '-') + '</td>';
+        html += '<td style="padding:10px;"><span style="color:' + (statusColors[st]||'#aaa') + ';font-weight:bold;">' + (statusLabels[st]||st) + '</span></td>';
+        html += '<td style="padding:10px;color:#fff;">' + (roleLabels[rl]||rl) + '</td>';
+        html += '<td style="padding:10px;">';
+        html += '<select onchange="changeRole(\'' + u.id + '\', this.value)" style="background:#1a1a2e;color:#fff;border:1px solid #444;border-radius:6px;padding:4px 8px;font-size:12px;">';
+        ['superadmin','admin','agent','viewer'].forEach(r => {
+          html += '<option value="' + r + '"' + (rl === r ? ' selected' : '') + '>' + (roleLabels[r]||r) + '</option>';
+        });
+        html += '</select></td>';
+        html += '<td style="padding:10px;">';
+        if (st === 'blocked') {
+          html += '<button onclick="unblockUser(\'' + u.id + '\')" style="background:#4ade80;color:#000;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">ì°¨ë¨í´ì </button>';
+        } else if (st === 'approved') {
+          html += '<button onclick="blockUser(\'' + u.id + '\')" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:12px;font-weight:bold;">ì°¨ë¨</button>';
+        } else if (st === 'pending') {
+          html += '<button onclick="approveUser(\'' + u.id + '\')" style="background:#4ade80;color:#000;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:bold;margin-right:4px;">ì¹ì¸</button>';
+          html += '<button onclick="rejectUser(\'' + u.id + '\')" style="background:#ef4444;color:#fff;border:none;border-radius:6px;padding:5px 10px;cursor:pointer;font-size:12px;font-weight:bold;">ê±°ë¶</button>';
+        }
+        html += '</td></tr>';
+      });
+      html += '</tbody></table>';
+      container.innerHTML = html;
     }
 
     function renderPendingLive() {
-      var users = (window._liveUsers || []).filter(function(u){ return u.status === 'pending'; });
-      var tbody = document.getElementById('pendingTableBody');
-      var countEl = document.getElementById('pendingCount');
-      if (countEl) countEl.textContent = users.length + '건';
-      if (!tbody) return;
-      
-      if (users.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;opacity:0.5;padding:20px;">대기 중인 신청이 없습니다</td></tr>';
+      const container = document.getElementById('pending-live-container');
+      if (!container) return;
+      const pending = (_liveUsers || []).filter(u => u.status === 'pending');
+      if (pending.length === 0) {
+        container.innerHTML = '<p style="color:#aaa;text-align:center;padding:40px 0;">ëê¸° ì¤ì¸ ê°ì ìì²­ì´ ììµëë¤.</p>';
         return;
       }
-      
-      tbody.innerHTML = users.map(function(u) {
-        var created = u.created_at ? new Date(u.created_at).toLocaleString('ko-KR') : '-';
-        return '<tr>' +
-          '<td>' + _escHtml(u.name || '-') + '</td>' +
-          '<td>' + _escHtml(u.email || '-') + '</td>' +
-          '<td>' + _escHtml(u.company || '-') + '</td>' +
-          '<td>' + _escHtml(u.role || '-') + '</td>' +
-          '<td>' + _escHtml(u.reason || '-') + '</td>' +
-          '<td>' + created + '</td>' +
-          '<td><button onclick="approveUser(\'' + u.id + '\',\'' + u.email + '\')" style="background:#00ff88;color:#000;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;margin-right:4px;">✅ 승인</button>' +
-          '<button onclick="rejectUser(\'' + u.id + '\',\'' + u.email + '\')" style="background:#ff4444;color:#fff;border:none;padding:6px 12px;border-radius:4px;cursor:pointer;">❌ 거부</button></td>' +
-          '</tr>';
-      }).join('');
+      let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
+      pending.forEach(u => {
+        html += '<div style="background:#1a1a2e;border:1px solid #333;border-radius:12px;padding:16px;display:flex;justify-content:space-between;align-items:center;">';
+        html += '<div><div style="color:#fff;font-weight:bold;">' + _escHtml(u.name || '-') + '</div>';
+        html += '<div style="color:#aaa;font-size:13px;">' + _escHtml(u.email || '') + '</div>';
+        if (u.company) html += '<div style="color:#888;font-size:12px;margin-top:2px;">' + _escHtml(u.company) + '</div>';
+        if (u.reason) html += '<div style="color:#666;font-size:12px;margin-top:2px;">ì¬ì : ' + _escHtml(u.reason) + '</div>';
+        html += '</div><div style="display:flex;gap:8px;">';
+        html += '<button onclick="approveUser(\'' + u.id + '\')" style="background:#4ade80;color:#000;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:bold;font-size:13px;">ì¹ì¸</button>';
+        html += '<button onclick="rejectUser(\'' + u.id + '\')" style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:bold;font-size:13px;">ê±°ë¶</button>';
+        html += '</div></div>';
+      });
+      html += '</div>';
+      container.innerHTML = html;
     }
 
-    async function approveUser(userId, email) {
-      if (!confirm(email + ' 사용자를 승인하시겠습니까?')) return;
+    async function approveUser(userId) {
+      if (!confirm('ì´ ì¬ì©ìë¥¼ ì¹ì¸íìê² ìµëê¹?')) return;
       try {
-        var token = sessionStorage.getItem('ws_token');
-        var resp = await fetch('/api/admin/users', {
+        const token = sessionStorage.getItem('ws_token');
+        const res = await fetch('/api/admin/users', {
           method: 'PUT',
-          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: userId, action: 'approve', role: 'agent' })
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ userId, action: 'approve', role: 'agent' })
         });
-        var result = await resp.json();
-        if (result.success) {
-          alert('승인 완료: ' + email);
-          fetchUsersFromAPI();
+        const data = await res.json();
+        if (data.success) {
+          showToast('ì¬ì©ìê° ì¹ì¸ëììµëë¤.', 'success');
+          await fetchLiveData();
         } else {
-          alert('승인 실패: ' + (result.error || result.message));
+          showToast('ì¹ì¸ ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
         }
-      } catch(e) { alert('오류: ' + e.message); }
+      } catch (e) {
+        showToast('ì¹ì¸ ìì²­ ì¤í¨: ' + e.message, 'error');
+      }
     }
 
-    async function rejectUser(userId, email) {
-      if (!confirm(email + ' 사용자를 거부하시겠습니까?')) return;
+    async function rejectUser(userId) {
+      if (!confirm('ì´ ì¬ì©ìë¥¼ ê±°ë¶íìê² ìµëê¹?')) return;
       try {
-        var token = sessionStorage.getItem('ws_token');
-        var resp = await fetch('/api/admin/users', {
+        const token = sessionStorage.getItem('ws_token');
+        const res = await fetch('/api/admin/users', {
           method: 'PUT',
-          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: userId, action: 'reject' })
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ userId, action: 'reject' })
         });
-        var result = await resp.json();
-        if (result.success) {
-          alert('거부 완료: ' + email);
-          fetchUsersFromAPI();
+        const data = await res.json();
+        if (data.success) {
+          showToast('ì¬ì©ìê° ê±°ë¶ëììµëë¤.', 'success');
+          await fetchLiveData();
         } else {
-          alert('거부 실패: ' + (result.error || result.message));
+          showToast('ê±°ë¶ ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
         }
-      } catch(e) { alert('오류: ' + e.message); }
+      } catch (e) {
+        showToast('ê±°ë¶ ìì²­ ì¤í¨: ' + e.message, 'error');
+      }
     }
 
-    // ===== INITIAL RENDER =====
-renderDashboard();
-renderUsers();
-renderPending();
-renderSessions();
-renderAllLogs();
-renderBlockedIps();
-    fetchUsersFromAPI();
+    async function changeRole(userId, newRole) {
+      if (!confirm('ì§ì±ì ' + newRole + '(ì¼)ë¡ ë³ê²½íìê² ìµëê¹?')) {
+        await fetchLiveData();
+        return;
+      }
+      try {
+        const token = sessionStorage.getItem('ws_token');
+        const res = await fetch('/api/admin/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ userId, action: 'change_role', role: newRole })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('ì§ì±ì´ ' + newRole + '(ì¼)ë¡ ë³ê²½ëììµëë¤.', 'success');
+          await fetchLiveData();
+        } else {
+          showToast('ì§ì± ë³ê²½ ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
+        }
+      } catch (e) {
+        showToast('ì§ì± ë³ê²½ ìì²­ ì¤í¨: ' + e.message, 'error');
+      }
+    }
 
-// ===== AUTO REFRESH (30s) =====
-setInterval(function(){
-  // In production, this would call the API
-  // For now, just update the time display
-  fetchUsersFromAPI();
-    },30000); window.fetchUsersFromAPI=fetchUsersFromAPI;window.approveUser=approveUser;window.rejectUser=rejectUser;window.renderPendingLive=renderPendingLive;window.renderDashboardLive=renderDashboardLive;window.renderUsersLive=renderUsersLive;
+    async function blockUser(userId) {
+      if (!confirm('ì´ ì¬ì©ìë¥¼ ì°¨ë¨íìê² ìµëê¹?')) return;
+      try {
+        const token = sessionStorage.getItem('ws_token');
+        const res = await fetch('/api/admin/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ userId, action: 'block' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('ì¬ì©ìê° ì°¨ë¨ëììµëë¤.', 'success');
+          await fetchLiveData();
+        } else {
+          showToast('ì°¨ë¨ ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
+        }
+      } catch (e) {
+        showToast('ì°¨ë¨ ìì²­ ì¤í¨: ' + e.message, 'error');
+      }
+    }
 
-})();
+    async function unblockUser(userId) {
+      if (!confirm('ì´ ì¬ì©ìì ì°¨ë¨ì í´ì íìê² ìµëê¹?')) return;
+      try {
+        const token = sessionStorage.getItem('ws_token');
+        const res = await fetch('/api/admin/users', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ userId, action: 'unblock' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showToast('ì°¨ë¨ì´ í´ì ëììµëë¤.', 'success');
+          await fetchLiveData();
+        } else {
+          showToast('ì°¨ë¨ í´ì  ì¤í¨: ' + (data.error || data.message || 'ì ì ìë ì¤ë¥'), 'error');
+        }
+      } catch (e) {
+        showToast('ì°¨ë¨ í´ì  ìì²­ ì¤í¨: ' + e.message, 'error');
+      }
+    }
+
+    async function fetchLiveData() {
+      try {
+        const token = sessionStorage.getItem('ws_token');
+        const res = await fetch('/api/admin/users', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const data = await res.json();
+        if (data.success && data.users) {
+          _liveUsers = data.users;
+          renderDashboardLive();
+          renderUsersLive();
+          renderPendingLive();
+        }
+      } catch (e) {
+        console.error('fetchLiveData error:', e);
+      }
+    }
 </script>
 </body>
 </html>
