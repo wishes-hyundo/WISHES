@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Send, CheckCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ContactPage() {
   return (
@@ -16,6 +17,7 @@ export default function ContactPage() {
 function ContactPageInner() {
   const searchParams = useSearchParams();
   const listingId = searchParams.get('listing');
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     name: '',
@@ -23,17 +25,25 @@ function ContactPageInner() {
     email: '',
     message: listingId ? `매물 #${listingId}에 대해 상담 요청합니다.\n\n` : '',
   });
-  const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // 로그인 사용자 정보 자동입력
+  useEffect(() => {
+    if (user) {
+      setForm((prev) => ({
+        ...prev,
+        name: prev.name || user.user_metadata?.full_name || user.user_metadata?.name || '',
+        email: prev.email || user.email || '',
+        phone: prev.phone || user.user_metadata?.phone || '',
+      }));
+    }
+  }, [user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!agreed) {
-      alert('개인정보 수집·이용에 동의해주세요.');
-      return;
-    }
     setSubmitting(true);
+
     try {
       const res = await fetch('/api/contacts', {
         method: 'POST',
@@ -43,6 +53,7 @@ function ContactPageInner() {
           listingId: listingId ? parseInt(listingId) : null,
         }),
       });
+
       if (res.ok) {
         setSubmitted(true);
       }
@@ -79,6 +90,7 @@ function ContactPageInner() {
 
   return (
     <div className="pt-16 min-h-screen bg-gray-50">
+      {/* 헤더 */}
       <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h1 className="text-3xl md:text-4xl font-bold drop-shadow-lg">상담 문의</h1>
@@ -90,6 +102,11 @@ function ContactPageInner() {
 
       <div className="max-w-2xl mx-auto px-4 -mt-8">
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 md:p-10">
+          {user && (
+            <div className="mb-5 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
+              로그인 정보로 자동 입력되었습니다. 수정이 필요하면 직접 변경해주세요.
+            </div>
+          )}
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
@@ -128,20 +145,6 @@ function ContactPageInner() {
             </div>
 
             <div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">문의 유형</label>
-                <select
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-wishes-green/30 focus:border-wishes-green text-sm bg-white"
-                  defaultValue=""
-                >
-                  <option value="" disabled>문의 유형을 선택해주세요</option>
-                  <option value="property">매물 문의</option>
-                  <option value="buy-sell">매도·매수 상담</option>
-                  <option value="rent">전·월세 상담</option>
-                  <option value="loan">대출 상담</option>
-                  <option value="other">기타 문의</option>
-                </select>
-              </div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">문의 내용</label>
               <textarea
                 rows={6}
@@ -152,27 +155,9 @@ function ContactPageInner() {
               />
             </div>
 
-            {/* 개인정보 수집 동의 */}
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-              <p className="text-xs text-gray-500 mb-3 leading-relaxed">
-                상담 접수를 위해 성명, 연락처, 이메일을 수집하며, 상담 완료 후 3년간 보관 후 파기합니다.
-                동의를 거부할 수 있으며, 거부 시 상담 신청이 제한됩니다.{' '}
-                <Link href="/privacy" className="text-wishes-secondary underline">개인정보처리방침 보기</Link>
-              </p>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary/30"
-                />
-                <span className="text-sm font-medium text-gray-700">개인정보 수집·이용에 동의합니다</span>
-              </label>
-            </div>
-
             <button
               type="submit"
-              disabled={submitting || !agreed}
+              disabled={submitting}
               className="w-full flex items-center justify-center gap-2 bg-wishes-primary text-white py-3.5 rounded-xl font-bold text-base hover:bg-wishes-secondary transition-colors disabled:opacity-50"
             >
               <Send className="w-4 h-4" />
@@ -181,6 +166,7 @@ function ContactPageInner() {
           </div>
         </form>
       </div>
+
       <div className="h-20" />
     </div>
   );
