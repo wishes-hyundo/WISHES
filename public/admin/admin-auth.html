@@ -9,7 +9,7 @@
     <meta name="description" content="WISHES 부동산 관리 시스템 - 전문 공인중개사 관리 플랫폼">
     <meta name="theme-color" content="#2D5A27">
 
-    <style>
+    <style>h
         :root {
             --primary: #2D5A27;
             --primary-light: #4CAF50;
@@ -1917,13 +1917,17 @@
                     // Store for admin compatibility
                     localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.ADMIN_PASSWORD, data.token);
 
-                    // Keep login persistence (30일 로그인 유지)
+                    // Always save to localStorage for cross-window persistence
+                    localStorage.setItem('ws_token', data.token);
+                    localStorage.setItem('ws_user', JSON.stringify(data.user));
+                    localStorage.setItem('ws_login_time', Date.now().toString());
+
+                    // Keep login flag (30일 로그인 유지)
                     var rememberCheckbox = document.getElementById('rememberMe');
                     if (rememberCheckbox && rememberCheckbox.checked) {
                         localStorage.setItem('ws_keep_login', 'true');
-                        localStorage.setItem('ws_token', data.token);
-                        localStorage.setItem('ws_user', JSON.stringify(data.user));
-                        localStorage.setItem('ws_login_time', Date.now().toString());
+                    } else {
+                        localStorage.removeItem('ws_keep_login');
                     }
 
                     // Setup session timers
