@@ -3,6 +3,7 @@ import { MapPin, Search, ArrowRight, Building2, Shield, Users, Clock, Zap, Check
 import { createClient } from '@/lib/supabase';
 import { HomeListingCard } from '@/components/HomeListingCard';
 import HeroBackground from '@/components/HeroBackground';
+import RecommendedListings from '@/components/RecommendedListings';
 
 export default async function HomePage() {
   // Supabase에서 최신 매물 6건 가져오기
@@ -13,6 +14,14 @@ export default async function HomePage() {
     .eq('status', '가용')
     .order('created_at', { ascending: false })
     .limit(6);
+
+  // 추천용 전체 매물 (최대 50건)
+  const { data: allListings } = await supabase
+    .from('listings')
+    .select('*, listing_images(url, alt, sort_order)')
+    .eq('status', '가용')
+    .order('created_at', { ascending: false })
+    .limit(50);
 
   const latestListings = listings || [];
 
@@ -69,6 +78,9 @@ export default async function HomePage() {
         </p>
       </div>
 
+      {/* ━━━ 맞춤 추천 매물 섹션 (로그인 사용자만) ━━━ */}
+      <RecommendedListings allListings={allListings || []} />
+
       {/* ━━━ 최신 매물 섹션 ━━━ */}
       <section className="py-24 bg-wishes-bg">
         <div className="max-w-7xl mx-auto px-4">
@@ -83,7 +95,8 @@ export default async function HomePage() {
               href="/listings"
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-wishes-secondary text-white font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all hidden md:flex"
             >
-              더보기 <ArrowRight className="w-4 h-4" />
+              더보기
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
 
@@ -107,12 +120,12 @@ export default async function HomePage() {
               href="/listings"
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-wishes-secondary text-white font-semibold hover:shadow-lg hover:-translate-y-0.5 transition-all"
             >
-              더보기 <ArrowRight className="w-4 h-4" />
+              더보기
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
       </section>
-
     </div>
   );
 }
