@@ -630,7 +630,7 @@ function SmartListingNewPage() {
     const fetchListingForCopy = async () => {
       try {
         const res = await fetch('/api/admin/listings/' + copyFrom, {
-          headers: { 'x-auth-token': AUTH_TOKEN }
+          headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN }
         });
         if (!res.ok) {
           alert('복사할 매물을 불러올 수 없습니다.');
