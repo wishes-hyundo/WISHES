@@ -1050,7 +1050,7 @@ window.deleteUser=function(id,name){
     if(r.success){
       showToast("\uC0AD\uC81C \uC644\uB8CC","success");
       _logs.unshift({time:_now(),icon:"\uD83D\uDDD1",type:"action",msg:name+" \uD68C\uC6D0 \uC0AD\uC81C"});
-      renderLogs();
+      
       loadUsers();
     }else{
       showToast(r.message||"\uC0AD\uC81C \uC2E4\uD328","error");
