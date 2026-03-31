@@ -1,472 +1,2331 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WISHES Admin - Login</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>">
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--primary:#2D5A27;--primary-light:#4CAF50;--accent:#ed8936;--bg:#0a0f0a;--card:#111a11;--card-hover:#162016;--border:#1e2e1e;--text:#e8f0e8;--text-dim:#7a9a7a;--danger:#e53e3e;--success:#38a169;--warning:#d69e2e}
-body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;overflow:hidden}
-/* Animated background */
-.bg-grid{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;opacity:.08}
-.bg-grid::before{content:'';position:absolute;width:200%;height:200%;top:-50%;left:-50%;background:repeating-linear-gradient(0deg,transparent,transparent 49px,var(--primary) 49px,var(--primary) 50px),repeating-linear-gradient(90deg,transparent,transparent 49px,var(--primary) 49px,var(--primary) 50px);animation:gridMove 20s linear infinite}
-@keyframes gridMove{to{transform:translate(50px,50px)}}
-.bg-glow{position:fixed;width:500px;height:500px;border-radius:50%;filter:blur(120px);z-index:0}
-.bg-glow-1{top:-150px;left:-150px;background:rgba(45,90,39,.15)}
-.bg-glow-2{bottom:-150px;right:-150px;background:rgba(237,137,54,.08)}
-/* Auth Container */
-.auth-wrapper{position:relative;z-index:1;width:100%;max-width:460px;padding:20px}
-.auth-card{background:rgba(17,26,17,.95);border:1px solid var(--border);border-radius:20px;padding:48px 40px;backdrop-filter:blur(20px);box-shadow:0 25px 60px rgba(0,0,0,.5)}
-.logo-section{text-align:center;margin-bottom:36px}
-.logo-icon{width:72px;height:72px;margin:0 auto 16px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:36px;box-shadow:0 8px 24px rgba(45,90,39,.3)}
-.logo-title{font-size:28px;font-weight:800;background:linear-gradient(135deg,var(--primary-light),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px}
-.logo-sub{font-size:12px;color:var(--text-dim);margin-top:4px;letter-spacing:4px;text-transform:uppercase}
-/* Tabs */
-.auth-tabs{display:flex;gap:4px;background:rgba(30,46,30,.5);border-radius:12px;padding:4px;margin-bottom:32px}
-.auth-tab{flex:1;padding:12px;text-align:center;border:none;background:none;color:var(--text-dim);font-size:14px;font-weight:600;cursor:pointer;border-radius:10px;transition:all .3s}
-.auth-tab.active{background:var(--primary);color:#fff;box-shadow:0 4px 12px rgba(45,90,39,.3)}
-.auth-tab:hover:not(.active){color:var(--text)}
-/* Form */
-.form-section{display:none}
-.form-section.active{display:block}
-.form-group{margin-bottom:20px;position:relative}
-.form-label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
-.form-input{width:100%;padding:14px 16px;background:rgba(30,46,30,.5);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;transition:all .3s;outline:none}
-.form-input:focus{border-color:var(--primary-light);box-shadow:0 0 0 3px rgba(76,175,80,.15)}
-.form-input::placeholder{color:rgba(122,154,122,.5)}
-.form-input.error{border-color:var(--danger)}
-.input-icon{position:absolute;right:14px;top:38px;color:var(--text-dim);font-size:16px}
-.password-toggle{position:absolute;right:14px;top:36px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:16px;padding:4px}
-.password-toggle:hover{color:var(--text)}
-/* Select */
-.form-select{width:100%;padding:14px 16px;background:rgba(30,46,30,.5);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:15px;transition:all .3s;outline:none;cursor:pointer;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%237a9a7a'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 16px center}
-.form-select:focus{border-color:var(--primary-light);box-shadow:0 0 0 3px rgba(76,175,80,.15)}
-.form-select option{background:#111a11;color:var(--text)}
-/* Button */
-.btn-primary{width:100%;padding:16px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border:none;border-radius:12px;color:#fff;font-size:16px;font-weight:700;cursor:pointer;transition:all .3s;position:relative;overflow:hidden}
-.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(45,90,39,.4)}
-.btn-primary:active{transform:translateY(0)}
-.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
-.btn-primary .spinner{display:none;width:20px;height:20px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;margin:0 auto}
-.btn-primary.loading .btn-text{display:none}
-.btn-primary.loading .spinner{display:block}
-@keyframes spin{to{transform:rotate(360deg)}}
-/* Messages */
-.msg{padding:12px 16px;border-radius:10px;font-size:13px;margin-bottom:16px;display:none;align-items:center;gap:8px}
-.msg.show{display:flex}
-.msg-error{background:rgba(229,62,62,.1);border:1px solid rgba(229,62,62,.2);color:#fc8181}
-.msg-success{background:rgba(56,161,105,.1);border:1px solid rgba(56,161,105,.2);color:#68d391}
-.msg-warning{background:rgba(214,158,46,.1);border:1px solid rgba(214,158,46,.2);color:#f6e05e}
-.msg-icon{font-size:16px;flex-shrink:0}
-/* Checkbox */
-.checkbox-group{display:flex;align-items:center;gap:10px;margin-bottom:20px;cursor:pointer}
-.checkbox-group input[type="checkbox"]{width:18px;height:18px;accent-color:var(--primary-light);cursor:pointer}
-.checkbox-group label{font-size:13px;color:var(--text-dim);cursor:pointer}
-/* Links */
-.auth-link{text-align:center;margin-top:20px;font-size:13px;color:var(--text-dim)}
-.auth-link a{color:var(--primary-light);text-decoration:none;font-weight:600}
-.auth-link a:hover{text-decoration:underline}
-/* Pending screen */
-.pending-screen{display:none;text-align:center;padding:20px 0}
-.pending-icon{font-size:64px;margin-bottom:20px}
-.pending-title{font-size:20px;font-weight:700;margin-bottom:8px}
-.pending-text{color:var(--text-dim);font-size:14px;line-height:1.6;margin-bottom:24px}
-.pending-status{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:rgba(214,158,46,.1);border:1px solid rgba(214,158,46,.2);border-radius:10px;color:var(--warning);font-size:13px;font-weight:600}
-.pending-status .dot{width:8px;height:8px;border-radius:50%;background:var(--warning);animation:pulse 2s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
-/* Footer */
-.auth-footer{text-align:center;margin-top:24px;padding-top:24px;border-top:1px solid var(--border)}
-.auth-footer span{font-size:11px;color:rgba(122,154,122,.4);letter-spacing:1px}
-/* Security badge */
-.security-badge{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:16px;font-size:11px;color:var(--text-dim)}
-.security-badge .lock{color:var(--primary-light)}
-/* Phone input */
-.phone-wrapper{display:flex;gap:8px}
-.phone-wrapper .form-input{flex:1}
-.btn-verify-phone{padding:14px 16px;background:var(--primary);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .3s}
-.btn-verify-phone:hover{background:var(--primary-light)}
-.btn-verify-phone:disabled{opacity:.5;cursor:not-allowed}
-/* Terms */
-.terms-box{max-height:120px;overflow-y:auto;background:rgba(30,46,30,.3);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:16px}
-.terms-box::-webkit-scrollbar{width:4px}
-.terms-box::-webkit-scrollbar-thumb{background:var(--primary);border-radius:2px}
-/* responsive */
-@media(max-width:480px){.auth-card{padding:32px 24px;border-radius:16px}.logo-icon{width:60px;height:60px;font-size:28px}.logo-title{font-size:24px}}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>WISHES 관리자 로그인 | 한국 부동산 관리 시스템</title>
+    <meta name="description" content="WISHES 부동산 관리 시스템 - 전문 공인중개사 관리 플랫폼">
+    <meta name="theme-color" content="#2D5A27">
+
+    <style>
+        :root {
+            --primary: #2D5A27;
+            --primary-light: #4CAF50;
+            --accent: #ed8936;
+            --bg: #0a0f0a;
+            --card: #111a11;
+            --border: #1e2e1e;
+            --text: #8f0e8;
+            --text-light: #a8c0a0;
+            --text-lighter: #6b7d6a;
+            --success: #4CAF50;
+            --error: #f44336;
+            --warning: #ff9800;
+            --info: #2196F3;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .bg-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(90deg, rgba(77, 175, 80, 0.03) 1px, transparent 1px),
+                linear-gradient(rgba(77, 175, 80, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: moveGrid 20s linear infinite;
+        }
+
+        .bg-glow {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(77, 175, 80, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(60px);
+            animation: float 15s ease-in-out infinite;
+        }
+
+        .bg-glow:nth-child(2) {
+            top: -50px;
+            left: -100px;
+            animation-delay: -5s;
+            width: 400px;
+            height: 400px;
+        }
+
+        .bg-glow:nth-child(3) {
+            bottom: -100px;
+            right: -50px;
+            animation-delay: -10s;
+            background: radial-gradient(circle, rgba(237, 137, 54, 0.1) 0%, transparent 70%);
+        }
+
+        @keyframes moveGrid {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(40px, 40px); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(30px, 30px); }
+        }
+
+        /* Main Container */
+        .container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: slideDown 0.6s ease-out;
+        }
+
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+            display: inline-block;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .brand {
+            font-size: 24px;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--primary-light), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 5px;
+        }
+
+        .tagline {
+            font-size: 12px;
+            color: var(--text-lighter);
+            letter-spacing: 1px;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        /* Card */
+        .auth-card {
+            width: 100%;
+            max-width: 420px;
+            background: rgba(17, 26, 17, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            animation: fadeInScale 0.6s ease-out 0.1s both;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        /* Tabs */
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 16px 20px;
+            background: transparent;
+            border: none;
+            color: var(--text-lighter);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .tab-btn:hover {
+            color: var(--text);
+            background: rgba(77, 175, 80, 0.05);
+        }
+
+        .tab-btn.active {
+            color: var(--primary-light);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-light), transparent);
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                width: 0;
+                left: 50%;
+            }
+            to {
+                width: 100%;
+                left: 0;
+            }
+        }
+
+        .tab-content {
+            padding: 30px 25px;
+            display: none;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 18px;
+            animation: slideInLeft 0.4s ease-out both;
+        }
+
+        .form-group:nth-child(1) { animation-delay: 0.1s; }
+        .form-group:nth-child(2) { animation-delay: 0.15s; }
+        .form-group:nth-child(3) { animation-delay: 0.2s; }
+        .form-group:nth-child(4) { animation-delay: 0.25s; }
+        .form-group:nth-child(5) { animation-delay: 0.3s; }
+        .form-group:nth-child(6) { animation-delay: 0.35s; }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--text-light);
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        input[type="tel"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 11px 12px;
+            background: rgba(45, 90, 39, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            transition: var(--transition);
+            outline: none;
+        }
+
+        input[type="text"]::placeholder,
+        input[type="email"]::placeholder,
+        input[type="password"]::placeholder,
+        input[type="tel"]::placeholder,
+        textarea::placeholder {
+            color: var(--text-lighter);
+        }
+
+        input[type="text"]:focus,
+        input[type="email"]:focus,
+        input[type="password"]:focus,
+        input[type="tel"]:focus,
+        select:focus,
+        textarea:focus {
+            border-color: var(--primary-light);
+            background: rgba(76, 175, 80, 0.1);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
+        }
+
+        input[type="text"].valid,
+        input[type="email"].valid,
+        input[type="password"].valid,
+        input[type="tel"].valid {
+            border-color: var(--success);
+            background: rgba(76, 175, 80, 0.05);
+        }
+
+        input[type="text"].invalid,
+        input[type="email"].invalid,
+        input[type="password"].invalid,
+        input[type="tel"].invalid {
+            border-color: var(--error);
+            background: rgba(244, 67, 54, 0.05);
+        }
+
+        /* Validation Indicator */
+        .validation-indicator {
+            position: absolute;
+            right: 12px;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .validation-indicator.show {
+            opacity: 1;
+        }
+
+        .validation-indicator.valid {
+            color: var(--success);
+        }
+
+        .validation-indicator.invalid {
+            color: var(--error);
+        }
+
+        /* Password Strength Meter */
+        .strength-meter {
+            margin-top: 6px;
+            height: 4px;
+            background: rgba(45, 90, 39, 0.2);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .strength-bar {
+            height: 100%;
+            width: 0;
+            transition: width 0.3s ease, background-color 0.3s ease;
+            border-radius: 2px;
+        }
+
+        .strength-text {
+            font-size: 12px;
+            margin-top: 4px;
+            color: var(--text-lighter);
+            transition: color 0.3s ease;
+        }
+
+        .strength-text.weak { color: var(--error); }
+        .strength-text.fair { color: var(--warning); }
+        .strength-text.good { color: var(--primary-light); }
+        .strength-text.strong { color: var(--info); }
+
+        /* Password Requirements */
+        .requirements-list {
+            background: rgba(45, 90, 39, 0.08);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .requirement {
+            display: flex;
+            align-items: center;
+            margin: 6px 0;
+            color: var(--text-lighter);
+            transition: color 0.2s;
+        }
+
+        .requirement.met {
+            color: var(--success);
+        }
+
+        .requirement-icon {
+            margin-right: 6px;
+            width: 14px;
+            text-align: center;
+        }
+
+        /* Phone Auto-Format */
+        .phone-input {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+        }
+
+        /* Validation Message */
+        .validation-message {
+            font-size: 12px;
+            margin-top: 4px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            min-height: 16px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .validation-message.show {
+            opacity: 1;
+        }
+
+        .validation-message.success {
+            color: var(--success);
+        }
+
+        .validation-message.error {
+            color: var(--error);
+        }
+
+        .validation-message.info {
+            color: var(--info);
+        }
+
+        /* Checkbox */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 12px 0;
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary-light);
+        }
+
+        .checkbox-group label {
+            margin: 0;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* Buttons */
+        .btn {
+            width: 100%;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--primary-light), #45a049);
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            text-transform: none;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: linear-gradient(135deg, #45a049, var(--primary-light));
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-loading {
+            position: relative;
+            color: transparent;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin: -8px 0 0 -8px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Secondary Button */
+        .btn-secondary {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-light);
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            border-color: var(--primary-light);
+            color: var(--primary-light);
+            background: rgba(76, 175, 80, 0.05);
+        }
+
+        /* Links */
+        .link {
+            color: var(--accent);
+            text-decoration: none;
+            cursor: pointer;
+            transition: var(--transition);
+            border-bottom: 1px solid transparent;
+            font-size: 13px;
+        }
+
+        .link:hover {
+            color: #f5a962;
+            border-bottom-color: #f5a962;
+        }
+
+        .forgot-password {
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        /* Forgot Password Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 15, 10, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .modal-content {
+            background: rgba(17, 26, 17, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 400px;
+            width: 100%;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: var(--text);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            background: none;
+            border: none;
+            color: var(--text-lighter);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 4px;
+        }
+
+        /* Toast Notifications */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            max-width: 400px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .toast {
+            background: rgba(17, 26, 17, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            min-width: 300px;
+            animation: slideInRight 0.3s ease-out;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(400px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast.removing {
+            animation: slideOutRight 0.3s ease-out forwards;
+        }
+
+        @keyframes slideOutRight {
+            to {
+                opacity: 0;
+                transform: translateX(400px);
+            }
+        }
+
+        .toast-icon {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            margin-top: 2px;
+        }
+
+        .toast-content {
+            flex: 1;
+            font-size: 13px;
+        }
+
+        .toast-title {
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .toast-message {
+            color: var(--text-lighter);
+            font-size: 12px;
+        }
+
+        .toast.success {
+            border-color: var(--success);
+        }
+
+        .toast.success .toast-icon {
+            color: var(--success);
+        }
+
+        .toast.error {
+            border-color: var(--error);
+        }
+
+        .toast.error .toast-icon {
+            color: var(--error);
+        }
+
+        .toast.warning {
+            border-color: var(--warning);
+        }
+
+        .toast.warning .toast-icon {
+            color: var(--warning);
+        }
+
+        .toast.info {
+            border-color: var(--info);
+        }
+
+        .toast.info .toast-icon {
+            color: var(--info);
+        }
+
+        /* Rate Limiting */
+        .rate-limit-warning {
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid var(--error);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 13px;
+            color: #ff8a80;
+            display: none;
+        }
+
+        .rate-limit-warning.show {
+            display: block;
+            animation: slideInLeft 0.3s ease-out;
+        }
+
+        /* Pending Approval Screen */
+        .pending-screen {
+            display: none;
+            padding: 40px 30px;
+            text-align: center;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .pending-screen.active {
+            display: block;
+        }
+
+        .pending-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .pending-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 10px;
+        }
+
+        .pending-message {
+            color: var(--text-lighter);
+            font-size: 13px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        /* Loading Skeleton */
+        .skeleton {
+            background: linear-gradient(90deg, rgba(76, 175, 80, 0.1) 0%, rgba(76, 175, 80, 0.05) 50%, rgba(76, 175, 80, 0.1) 100%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes loading {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .auth-card {
+                max-width: 100%;
+                border-radius: 16px;
+            }
+
+            .tab-btn {
+                padding: 14px 16px;
+                font-size: 13px;
+            }
+
+            .tab-content {
+                padding: 24px 20px;
+            }
+
+            .header {
+                margin-bottom: 30px;
+            }
+
+            .logo {
+                font-size: 40px;
+            }
+
+            .brand {
+                font-size: 20px;
+            }
+
+            input[type="text"],
+            input[type="email"],
+            input[type="password"],
+            input[type="tel"],
+            select,
+            textarea {
+                padding: 10px 11px;
+                font-size: 16px; /* Prevent zoom on iOS */
+            }
+
+            .btn {
+                padding: 11px 14px;
+                font-size: 13px;
+                min-height: 48px;
+            }
+
+            .toast-container {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+
+            .toast {
+                min-width: auto;
+            }
+
+            .modal-content {
+                padding: 24px;
+            }
+        }
+
+        /* Footer */
+        .footer {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-size: 10px;
+            color: var(--text-lighter);
+            opacity: 0.5;
+            z-index: 1;
+            max-width: 200px;
+            text-align: right;
+        }
+
+        .footer-text {
+            font-size: 8px;
+            line-height: 1.2;
+            word-break: break-all;
+        }
+
+        /* Accessibility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+        }
+
+        .focus-visible {
+            outline: 2px solid var(--primary-light);
+            outline-offset: 2px;
+        }
+
+        /* Dark mode (system preference) */
+        @media (prefers-color-scheme: dark) {
+            body {
+                color-scheme: dark;
+            }
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
 </head>
 <body>
-<div class="bg-grid"></div>
-<div class="bg-glow bg-glow-1"></div>
-<div class="bg-glow bg-glow-2"></div>
-
-<div class="auth-wrapper">
-  <div class="auth-card">
-    <!-- Logo -->
-    <div class="logo-section">
-      <div class="logo-icon">🏠</div>
-      <div class="logo-title">WISHES</div>
-      <div class="logo-sub">Admin Control System</div>
+    <!-- Animated Background -->
+    <div class="bg-container">
+        <div class="bg-grid"></div>
+        <div class="bg-glow"></div>
+        <div class="bg-glow"></div>
+        <div class="bg-glow"></div>
     </div>
 
-    <!-- Tabs -->
-    <div class="auth-tabs" id="authTabs">
-      <button class="auth-tab active" data-tab="login" onclick="switchTab('login')">로그인</button>
-      <button class="auth-tab" data-tab="register" onclick="switchTab('register')">회원가입</button>
-    </div>
-
-    <!-- Messages -->
-    <div class="msg msg-error" id="msgError"><span class="msg-icon">⚠️</span><span id="msgErrorText"></span></div>
-    <div class="msg msg-success" id="msgSuccess"><span class="msg-icon">✅</span><span id="msgSuccessText"></span></div>
-    <div class="msg msg-warning" id="msgWarning"><span class="msg-icon">⏳</span><span id="msgWarningText"></span></div>
-
-    <!-- LOGIN FORM -->
-    <div class="form-section active" id="loginForm">
-      <div class="form-group">
-        <label class="form-label">이메일</label>
-        <input type="email" class="form-input" id="loginEmail" placeholder="admin@wishes.co.kr" autocomplete="email">
-      </div>
-      <div class="form-group">
-        <label class="form-label">비밀번호</label>
-        <input type="password" class="form-input" id="loginPassword" placeholder="비밀번호 입력" autocomplete="current-password">
-        <button type="button" class="password-toggle" onclick="togglePassword('loginPassword',this)">👁️</button>
-      </div>
-      <div class="checkbox-group">
-        <input type="checkbox" id="rememberMe">
-        <label for="rememberMe">로그인 상태 유지 (30일)</label>
-      </div>
-      <button class="btn-primary" id="btnLogin" onclick="handleLogin()">
-        <span class="btn-text">로그인</span>
-        <div class="spinner"></div>
-      </button>
-      <div class="auth-link">
-        계정이 없으신가요? <a href="#" onclick="switchTab('register');return false">회원가입</a>
-      </div>
-    </div>
-
-    <!-- REGISTER FORM -->
-    <div class="form-section" id="registerForm">
-      <div class="form-group">
-        <label class="form-label">이름 (실명)</label>
-        <input type="text" class="form-input" id="regName" placeholder="홍길동">
-      </div>
-      <div class="form-group">
-        <label class="form-label">이메일</label>
-        <input type="email" class="form-input" id="regEmail" placeholder="name@company.com" autocomplete="email">
-      </div>
-      <div class="form-group">
-        <label class="form-label">비밀번호 (8자 이상, 영문+숫자+특수문자)</label>
-        <input type="password" class="form-input" id="regPassword" placeholder="비밀번호 설정">
-        <button type="button" class="password-toggle" onclick="togglePassword('regPassword',this)">👁️</button>
-      </div>
-      <div class="form-group">
-        <label class="form-label">비밀번호 확인</label>
-        <input type="password" class="form-input" id="regPasswordConfirm" placeholder="비밀번호 재입력">
-      </div>
-      <div class="form-group">
-        <label class="form-label">연락처</label>
-        <div class="phone-wrapper">
-          <input type="tel" class="form-input" id="regPhone" placeholder="010-0000-0000">
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">🏠</div>
+            <div class="brand">WISHES</div>
+            <div class="tagline">전문 부동산 관리 시스템</div>
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">소속 / 회사명</label>
-        <input type="text" class="form-input" id="regCompany" placeholder="부동산 중개사무소명">
-      </div>
-      <div class="form-group">
-        <label class="form-label">직책</label>
-        <select class="form-select" id="regRole">
-          <option value="">선택하세요</option>
-          <option value="agent">공인중개사</option>
-          <option value="staff">직원</option>
-          <option value="partner">협력업체</option>
-          <option value="other">기타</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label class="form-label">가입 사유 (관리자 승인 참고용)</label>
-        <input type="text" class="form-input" id="regReason" placeholder="ex) 매물 검색 시스템 이용">
-      </div>
-      <div class="terms-box">
-        <strong>[WISHES 이용약관 및 보안 동의]</strong><br><br>
-        1. 본 시스템은 관리자 승인을 받은 사용자만 이용 가능합니다.<br>
-        2. 시스템에서 제공되는 모든 데이터의 외부 유출, 복제, 무단 배포를 금지합니다.<br>
-        3. 로그인 세션은 보안 목적으로 30분 후 자동 만료됩니다.<br>
-        4. 모든 접속 기록과 활동 로그는 보안 감사를 위해 기록됩니다.<br>
-        5. 비정상적 접근 시도 시 계정이 자동 차단될 수 있습니다.<br>
-        6. 승인 취소 시 모든 접근 권한이 즉시 회수됩니다.<br>
-        7. 본 약관에 동의하지 않을 경우 서비스 이용이 제한됩니다.
-      </div>
-      <div class="checkbox-group">
-        <input type="checkbox" id="agreeTerms">
-        <label for="agreeTerms">이용약관 및 보안 동의에 동의합니다 (필수)</label>
-      </div>
-      <button class="btn-primary" id="btnRegister" onclick="handleRegister()">
-        <span class="btn-text">가입 신청</span>
-        <div class="spinner"></div>
-      </button>
-      <div class="auth-link">
-        이미 계정이 있으신가요? <a href="#" onclick="switchTab('login');return false">로그인</a>
-      </div>
+
+        <!-- Auth Card -->
+        <div class="auth-card">
+            <!-- Tab Navigation -->
+            <div class="tab-container">
+                <button class="tab-btn active" data-tab="login" aria-label="로그인 탭">로그인</button>
+                <button class="tab-btn" data-tab="register" aria-label="가입 탭">가입</button>
+            </div>
+
+            <!-- Login Tab -->
+            <div class="tab-content active" id="login-tab">
+                <div class="rate-limit-warning" id="rateLimitWarning">
+                    <div style="font-weight: 500; margin-bottom: 6px;">로그인 시도가 초과되었습니다</div>
+                    <div id="lockoutCountdown"></div>
+                </div>
+
+                <form id="loginForm" aria-label="로그인 폼">
+                    <!-- Email -->
+                    <div class="form-group">
+                        <label for="loginEmail">이메일</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="email"
+                                id="loginEmail"
+                                name="email"
+                                placeholder="your@email.com"
+                                required
+                                autocomplete="email"
+                                aria-required="true"
+                            >
+                            <span class="validation-indicator" aria-label="이메일 유효성"></span>
+                        </div>
+                        <div class="validation-message" role="alert"></div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="form-group">
+                        <label for="loginPassword">비밀번호</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="password"
+                                id="loginPassword"
+                                name="password"
+                                placeholder="••••••••"
+                                required
+                                autocomplete="current-password"
+                                aria-required="true"
+                            >
+                            <button
+                                type="button"
+                                class="toggle-password"
+                                data-target="loginPassword"
+                                aria-label="비밀번호 표시/숨김"
+                                style="background: none; border: none; color: var(--text-lighter); cursor: pointer; padding: 0; position: absolute; right: 12px; font-size: 18px;"
+                            >👁️</button>
+                        </div>
+                        <div class="validation-message" role="alert"></div>
+                    </div>
+
+                    <!-- Remember Me -->
+                    <div class="checkbox-group">
+                        <input
+                            type="checkbox"
+                            id="rememberMe"
+                            name="rememberMe"
+                            aria-label="30일 동안 로그인 유지"
+                        >
+                        <label for="rememberMe">30일 동안 로그인 유지</label>
+                    </div>
+
+                    <!-- Forgot Password -->
+                    <div class="forgot-password">
+                        <button
+                            type="button"
+                            class="link"
+                            id="forgotPasswordBtn"
+                            aria-label="비밀번호 찾기"
+                        >비밀번호 찾기</button>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn" aria-label="로그인 버튼" style="margin-top: 20px;">로그인</button>
+                </form>
+
+                <p style="text-align: center; font-size: 13px; color: var(--text-lighter); margin-top: 16px;">
+                    아직 계정이 없으신가요? <button type="button" class="link" onclick="switchTab('register')" style="border: none; background: none; padding: 0; cursor: pointer; font-size: 13px;">가입하기</button>
+                </p>
+            </div>
+
+            <!-- Register Tab -->
+            <div class="tab-content" id="register-tab">
+                <form id="registerForm" aria-label="가입 폼">
+                    <!-- Name -->
+                    <div class="form-group">
+                        <label for="registerName">이름</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="text"
+                                id="registerName"
+                                name="name"
+                                placeholder="홍길동"
+                                required
+                                autocomplete="name"
+                                aria-required="true"
+                            >
+                            <span class="validation-indicator" aria-label="이름 유효성"></span>
+                        </div>
+                        <div class="validation-message" role="alert"></div>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="form-group">
+                        <label for="registerEmail">이메일</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="email"
+                                id="registerEmail"
+                                name="email"
+                                placeholder="your@email.com"
+                                required
+                                autocomplete="email"
+                                aria-required="true"
+                            >
+                            <span class="validation-indicator" aria-label="이메일 유효성"></span>
+                        </div>
+                        <div class="validation-message" role="alert"></div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="form-group">
+                        <label for="registerPassword">비밀번호</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="password"
+                                id="registerPassword"
+                                name="password"
+                                placeholder="••••••••"
+                                required
+                                autocomplete="new-password"
+                                aria-required="true"
+                            >
+                            <button
+                                type="button"
+                                class="toggle-password"
+                                data-target="registerPassword"
+                                aria-label="비밀번호 표시/숨김"
+                                style="background: none; border: none; color: var(--text-lighter); cursor: pointer; padding: 0; position: absolute; right: 12px; font-size: 18px;"
+                            >👁️</button>
+                        </div>
+                        <div class="strength-meter">
+                            <div class="strength-bar"></div>
+                        </div>
+                        <div class="strength-text"></div>
+                        <div class="validation-message" role="alert"></div>
+
+                        <!-- Requirements Checklist -->
+                        <div class="requirements-list">
+                            <div class="requirement">
+                                <span class="requirement-icon">○</span>
+                                <span>8자 이상</span>
+                            </div>
+                            <div class="requirement">
+                                <span class="requirement-icon">○</span>
+                                <span>영문 포함</span>
+                            </div>
+                            <div class="requirement">
+                                <span class="requirement-icon">○</span>
+                                <span>숫자 포함</span>
+                            </div>
+                            <div class="requirement">
+                                <span class="requirement-icon">○</span>
+                                <span>특수문자 포함 (!@#$%^&*)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Confirm Password -->
+                    <div class="form-group">
+                        <label for="registerPasswordConfirm">비밀번호 확인</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="password"
+                                id="registerPasswordConfirm"
+                                name="confirmPassword"
+                                placeholder="••••••••"
+                                required
+                                autocomplete="new-password"
+                                aria-required="true"
+                            >
+                            <button
+                                type="button"
+                                class="toggle-password"
+                                data-target="registerPasswordConfirm"
+                                aria-label="비밀번호 표시/숨김"
+                                style="background: none; border: none; color: var(--text-lighter); cursor: pointer; padding: 0; position: absolute; right: 12px; font-size: 18px;"
+                            >👁️</button>
+                        </div>
+                        <div class="validation-message" role="alert"></div>
+                    </div>
+
+                    <!-- Phone -->
+                    <div class="form-group">
+                        <label for="registerPhone">휴대폰 번호</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="tel"
+                                id="registerPhone"
+                                name="phone"
+                                placeholder="010-1234-5678"
+                                required
+                                autocomplete="tel"
+                                aria-required="true"
+                                class="phone-input"
+                            >
+                            <span class="validation-indicator" aria-label="휴대폰 유효성"></span>
+                        </div>
+                        <div class="validation-message" role="alert"></div>
+                    </div>
+
+                    <!-- Company -->
+                    <div class="form-group">
+                        <label for="registerCompany">회사명</label>
+                        <div class="input-wrapper">
+                            <input
+                                type="text"
+                                id="registerCompany"
+                                name="company"
+                                placeholder="회사명 입력"
+                                required
+                                autocomplete="organization"
+                                aria-required="true"
+                            >
+                            <span class="validation-indicator" aria-label="회사명 유효성"></span>
+                        </div>
+                        <div class="validation-message" role="alert"></div>
+                    </div>
+
+                    <!-- Role -->
+                    <div class="form-group">
+                        <label for="registerRole">직급 / 역할</label>
+                        <select
+                            id="registerRole"
+                            name="role"
+                            required
+                            aria-required="true"
+                            style="padding-right: 30px;"
+                        >
+                            <option value="">역할 선택</option>
+                            <option value="공인중개사">공인중개사</option>
+                            <option value="직원">직원</option>
+                            <option value="협력업체">협력업체</option>
+                            <option value="기타">기타</option>
+                        </select>
+                    </div>
+
+                    <!-- Reason -->
+                    <div class="form-group">
+                        <label for="registerReason">가입 사유</label>
+                        <textarea
+                            id="registerReason"
+                            name="reason"
+                            placeholder="가입 이유를 간략히 설명해주세요"
+                            rows="3"
+                            aria-required="true"
+                        ></textarea>
+                    </div>
+
+                    <!-- Terms -->
+                    <div class="checkbox-group">
+                        <input
+                            type="checkbox"
+                            id="agreeTerms"
+                            name="agreeTerms"
+                            required
+                            aria-required="true"
+                            aria-label="이용약관 동의"
+                        >
+                        <label for="agreeTerms">
+                            <span>이용약관에 동의합니다</span>
+                            <button type="button" class="link" style="border: none; background: none; padding: 0; margin-left: 4px; font-size: 13px;">상세보기</button>
+                        </label>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn" aria-label="가입 버튼" style="margin-top: 20px;">가입 신청</button>
+                </form>
+
+                <p style="text-align: center; font-size: 13px; color: var(--text-lighter); margin-top: 16px;">
+                    이미 계정이 있으신가요? <button type="button" class="link" onclick="switchTab('login')" style="border: none; background: none; padding: 0; cursor: pointer; font-size: 13px;">로그인하기</button>
+                </p>
+            </div>
+
+            <!-- Pending Approval Screen -->
+            <div class="pending-screen" id="pendingScreen">
+                <div class="pending-icon">📧</div>
+                <div class="pending-title">가입 신청이 완료되었습니다</div>
+                <div class="pending-message">
+                    관리자 검토 후 승인되면 이메일로 안내드리겠습니다.<br>
+                    보통 24시간 이내에 처리됩니다.
+                </div>
+                <button type="button" class="btn btn-secondary" onclick="goBackToLogin()" style="margin-top: 20px;">로그인으로 돌아가기</button>
+            </div>
+        </div>
     </div>
 
-    <!-- PENDING APPROVAL SCREEN -->
-    <div class="pending-screen" id="pendingScreen">
-      <div class="pending-icon">🔒</div>
-      <div class="pending-title">관리자 승인 대기 중</div>
-      <div class="pending-text">
-        가입 신청이 완료되었습니다.<br>
-        관리자가 승인하면 이메일로 알림을 보내드립니다.<br>
-        승인 후 로그인하여 시스템을 이용하실 수 있습니다.
-      </div>
-      <div class="pending-status">
-        <span class="dot"></span>
-        <span>승인 대기중 (Pending Approval)</span>
-      </div>
+    <!-- Forgot Password Modal -->
+    <div class="modal" id="forgotPasswordModal">
+        <div class="modal-content" style="position: relative;">
+            <button class="modal-close" onclick="closeForgotPasswordModal()" aria-label="모달 닫기">✕</button>
+            <div class="modal-header">비밀번호 찾기</div>
+
+            <form id="forgotPasswordForm">
+                <div class="form-group">
+                    <label for="forgotEmail">가입하신 이메일</label>
+                    <div class="input-wrapper">
+                        <input
+                            type="email"
+                            id="forgotEmail"
+                            name="email"
+                            placeholder="your@email.com"
+                            required
+                            autocomplete="email"
+                            aria-required="true"
+                        >
+                        <span class="validation-indicator" aria-label="이메일 유효성"></span>
+                    </div>
+                    <div class="validation-message" role="alert"></div>
+                </div>
+
+                <p style="font-size: 12px; color: var(--text-lighter); margin: 16px 0 20px;">
+                    등록된 이메일로 비밀번호 재설정 링크를 보내드립니다.
+                </p>
+
+                <button type="submit" class="btn" aria-label="재설정 링크 전송">재설정 링크 전송</button>
+            </form>
+        </div>
     </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
 
     <!-- Footer -->
-    <div class="auth-footer">
-      <span>&copy; 2026 WISHES. All Rights Reserved.</span>
+    <div class="footer">
+        <div class="footer-text">256-bit SSL Encrypted | WISHES © 2026</div>
     </div>
-    <div class="security-badge">
-      <span class="lock">🔐</span>
-      <span>256-bit SSL Encrypted | Device Fingerprint Protected</span>
-    </div>
-  </div>
-</div>
 
-<script>
-(function(){
-'use strict';
+    <!-- Screen Reader Only Content -->
+    <div class="sr-only" role="status" aria-live="polite" aria-atomic="true" id="srLive"></div>
 
-// ===== SECURITY LAYER =====
-// Anti-debugging (production only)
-var _isProduction = location.hostname !== 'localhost' && location.hostname !== '127.0.0.1';
-if(_isProduction){
-  (function _ad(){try{(function(){}).constructor('debugger')();setTimeout(_ad,3000)}catch(e){}})();
-}
-// Disable right-click
-document.addEventListener('contextmenu',function(e){e.preventDefault()});
-// Disable F12, Ctrl+Shift+I, Ctrl+U
-document.addEventListener('keydown',function(e){
-  if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'))||(e.ctrlKey&&e.key==='u'))e.preventDefault();
-});
+    <script>
+        // ========================================
+        // Configuration & Constants
+        // ========================================
+        const CONFIG = {
+            API_BASE: '/api/auth',
+            SESSION_STORAGE_KEYS: {
+                TOKEN: 'ws_token',
+                USER: 'ws_user',
+                LOGIN_TIME: 'ws_login_time'
+            },
+            LOCAL_STORAGE_KEYS: {
+                ADMIN_PASSWORD: 'admin_password'
+            },
+            SESSION_DURATION: 30 * 60 * 1000, // 30 minutes
+            SESSION_REFRESH_INTERVAL: 25 * 60 * 1000, // 25 minutes
+            SESSION_WARNING_TIME: 5 * 60 * 1000, // 5 minutes before expiry
+            RATE_LIMIT: {
+                ATTEMPTS: [
+                    { count: 3, lockout: 30 * 1000 },      // 3 attempts → 30s
+                    { count: 5, lockout: 5 * 60 * 1000 },  // 5 attempts → 5min
+                    { count: 10, lockout: 30 * 60 * 1000 } // 10 attempts → 30min
+                ]
+            },
+            VALIDATION_DEBOUNCE: 300,
+            TOAST_DURATION: 5000,
+            PASSWORD_REQUIREMENTS: {
+                minLength: 8,
+                hasUppercase: /[A-Z]/,
+                hasLowercase: /[a-z]/,
+                hasNumber: /[0-9]/,
+                hasSpecial: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/
+            }
+        };
 
-// ===== API BASE =====
-var API_BASE = '/api/auth';
+        // ========================================
+        // State Management
+        // ========================================
+        const state = {
+            rateLimitAttempts: parseInt(localStorage.getItem('ws_rate_limit_attempts') || '0'),
+            rateLimitLockout: parseInt(localStorage.getItem('ws_rate_limit_lockout') || '0'),
+            sessionToken: sessionStorage.getItem(CONFIG.SESSION_STORAGE_KEYS.TOKEN),
+            sessionUser: sessionStorage.getItem(CONFIG.SESSION_STORAGE_KEYS.USER),
+            sessionLoginTime: parseInt(sessionStorage.getItem(CONFIG.SESSION_STORAGE_KEYS.LOGIN_TIME) || '0'),
+            deviceFingerprint: null,
+            sessionWarningShown: false,
+            sessionRefreshTimer: null,
+            sessionWarningTimer: null,
+            sessionExpiryTimer: null,
+            validationTimers: {}
+        };
 
-// ===== DEVICE FINGERPRINT =====
-function getDeviceFingerprint(){
-  var canvas=document.createElement('canvas');var ctx=canvas.getContext('2d');
-  ctx.textBaseline='top';ctx.font='14px Arial';ctx.fillText('WISHES-FP',2,2);
-  var fp=canvas.toDataURL();
-  var nav=navigator.userAgent+navigator.language+(screen.width+'x'+screen.height)+new Date().getTimezoneOffset();
-  return _simpleHash(fp+nav);
-}
-function _simpleHash(s){var h=0;for(var i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0}return Math.abs(h).toString(36)}
+        // ========================================
+        // Utility Functions
+        // ========================================
 
-// ===== TAB SWITCHING =====
-window.switchTab = function(tab){
-  document.querySelectorAll('.auth-tab').forEach(function(t){t.classList.toggle('active',t.dataset.tab===tab)});
-  document.getElementById('loginForm').classList.toggle('active',tab==='login');
-  document.getElementById('registerForm').classList.toggle('active',tab==='register');
-  document.getElementById('pendingScreen').style.display='none';
-  hideMessages();
-};
+        /**
+         * Generate device fingerprint using canvas and navigator info
+         */
+        function generateDeviceFingerprint() {
+            try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillText('WISHES Device Fingerprint', 2, 2);
+                const canvasData = canvas.toDataURL();
 
-// ===== PASSWORD TOGGLE =====
-window.togglePassword = function(id,btn){
-  var inp=document.getElementById(id);
-  if(inp.type==='password'){inp.type='text';btn.textContent='🙈'}
-  else{inp.type='password';btn.textContent='👁️'}
-};
+                const fingerprint = {
+                    canvas: canvasData.substring(0, 50),
+                    userAgent: navigator.userAgent,
+                    language: navigator.language,
+                    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                    timestamp: Date.now()
+                };
 
-// ===== MESSAGES =====
-function showError(msg){hideMessages();var el=document.getElementById('msgError');document.getElementById('msgErrorText').textContent=msg;el.classList.add('show')}
-function showSuccess(msg){hideMessages();var el=document.getElementById('msgSuccess');document.getElementById('msgSuccessText').textContent=msg;el.classList.add('show')}
-function showWarning(msg){hideMessages();var el=document.getElementById('msgWarning');document.getElementById('msgWarningText').textContent=msg;el.classList.add('show')}
-function hideMessages(){document.querySelectorAll('.msg').forEach(function(m){m.classList.remove('show')})}
+                return btoa(JSON.stringify(fingerprint));
+            } catch (e) {
+                console.warn('Device fingerprint generation failed:', e);
+                return btoa(JSON.stringify({ timestamp: Date.now() }));
+            }
+        }
 
-// ===== VALIDATION =====
-function validateEmail(e){return/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)}
-function validatePassword(p){return p.length>=8&&/[a-zA-Z]/.test(p)&&/[0-9]/.test(p)&&/[!@#$%^&*(),.?":{}|<>]/.test(p)}
-function validatePhone(p){return/^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/.test(p.replace(/-/g,''))}
+        /**
+         * Generate CSRF-like request token
+         */
+        function generateRequestToken() {
+            const token = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+            sessionStorage.setItem('ws_request_token', token);
+            return token;
+        }
 
-// ===== RATE LIMITING =====
-var _loginAttempts=0;
-var _loginLockUntil=0;
-var _regAttempts=0;
+        /**
+         * Get current request token
+         */
+        function getRequestToken() {
+            let token = sessionStorage.getItem('ws_request_token');
+            if (!token) {
+                token = generateRequestToken();
+            }
+            return token;
+        }
 
-// ===== LOGIN =====
-window.handleLogin = function(){
-  hideMessages();
-  // Rate limit check
-  if(Date.now()<_loginLockUntil){
-    var remain=Math.ceil((_loginLockUntil-Date.now())/1000);
-    showError('너무 많은 시도입니다. '+remain+'초 후 다시 시도하세요.');
-    return;
-  }
-  var email=document.getElementById('loginEmail').value.trim();
-  var password=document.getElementById('loginPassword').value;
-  if(!email||!password){showError('이메일과 비밀번호를 입력하세요.');return}
-  if(!validateEmail(email)){showError('올바른 이메일 형식을 입력하세요.');return}
+        /**
+         * XSS protection: sanitize input
+         */
+        function sanitizeInput(input) {
+            const div = document.createElement('div');
+            div.textContent = input;
+            return div.innerHTML;
+        }
 
-  var btn=document.getElementById('btnLogin');
-  btn.classList.add('loading');btn.disabled=true;
+        /**
+         * XSS protection: sanitize and display
+         */
+        function sanitizeOutput(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
-  var payload={
-    email:email,
-    password:password,
-    fingerprint:getDeviceFingerprint(),
-    remember:document.getElementById('rememberMe').checked,
-    timestamp:Date.now()
-  };
+        /**
+         * Format phone number automatically
+         */
+        function formatPhoneNumber(value) {
+            const digits = value.replace(/\D/g, '');
+            if (digits.length <= 3) return digits;
+            if (digits.length <= 7) return digits.slice(0, 3) + '-' + digits.slice(3);
+            return digits.slice(0, 3) + '-' + digits.slice(3, 7) + '-' + digits.slice(7, 11);
+        }
 
-  fetch(API_BASE+'/login',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(payload)
-  })
-  .then(function(r){return r.json()})
-  .then(function(data){
-    btn.classList.remove('loading');btn.disabled=false;
-    if(data.success){
-      _loginAttempts=0;
-      // Store session token (sessionStorage for web pages)
-      sessionStorage.setItem('ws_token',data.token);
-      sessionStorage.setItem('ws_user',JSON.stringify(data.user));
-      sessionStorage.setItem('ws_login_time',Date.now().toString());
-      // Also store in chrome.storage.local for extension content script access
-      if(typeof chrome!=='undefined'&&chrome.storage&&chrome.storage.local){
-        chrome.storage.local.set({ws_token:data.token,ws_user:JSON.stringify(data.user),ws_login_time:Date.now().toString()});
-      }
-      // Also broadcast to page for content scripts listening via postMessage
-      window.postMessage({type:'WS_AUTH_LOGIN',token:data.token,user:data.user},'*');
-      // Redirect based on role
-      if(data.user.role==='superadmin'){
-        window.location.href='/admin/command-center.html';
-      } else if(data.user.status==='approved'){
-        window.location.href='/admin/';
-      } else if(data.user.status==='pending'){
-        showPending();
-      } else {
-        showError('계정이 비활성 상태입니다. 관리자에게 문의하세요.');
-      }
-    } else {
-      _loginAttempts++;
-      if(_loginAttempts>=5){_loginLockUntil=Date.now()+300000;showError('5회 실패. 5분간 로그인이 제한됩니다.')}
-      else{showError(data.message||'로그인에 실패했습니다.')}
-    }
-  })
-  .catch(function(err){
-    btn.classList.remove('loading');btn.disabled=false;
-    showError('서버 연결에 실패했습니다. 잠시 후 다시 시도하세요.');
-  });
-};
+        /**
+         * Validate email
+         */
+        function validateEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
 
-// ===== REGISTER =====
-window.handleRegister = function(){
-  hideMessages();
-  if(_regAttempts>=3){showError('가입 시도 횟수를 초과했습니다. 잠시 후 다시 시도하세요.');return}
+        /**
+         * Validate password requirements
+         */
+        function validatePasswordRequirements(password) {
+            return {
+                minLength: password.length >= CONFIG.PASSWORD_REQUIREMENTS.minLength,
+                hasUppercase: CONFIG.PASSWORD_REQUIREMENTS.hasUppercase.test(password),
+                hasLowercase: CONFIG.PASSWORD_REQUIREMENTS.hasLowercase.test(password),
+                hasNumber: CONFIG.PASSWORD_REQUIREMENTS.hasNumber.test(password),
+                hasSpecial: CONFIG.PASSWORD_REQUIREMENTS.hasSpecial.test(password)
+            };
+        }
 
-  var name=document.getElementById('regName').value.trim();
-  var email=document.getElementById('regEmail').value.trim();
-  var password=document.getElementById('regPassword').value;
-  var passwordConfirm=document.getElementById('regPasswordConfirm').value;
-  var phone=document.getElementById('regPhone').value.trim();
-  var company=document.getElementById('regCompany').value.trim();
-  var role=document.getElementById('regRole').value;
-  var reason=document.getElementById('regReason').value.trim();
-  var agree=document.getElementById('agreeTerms').checked;
+        /**
+         * Calculate password strength
+         */
+        function calculatePasswordStrength(password) {
+            const requirements = validatePasswordRequirements(password);
+            const metRequirements = Object.values(requirements).filter(Boolean).length;
 
-  // Validations
-  if(!name){showError('이름을 입력하세요.');return}
-  if(name.length<2){showError('이름은 2자 이상 입력하세요.');return}
-  if(!email){showError('이메일을 입력하세요.');return}
-  if(!validateEmail(email)){showError('올바른 이메일 형식을 입력하세요.');return}
-  if(!password){showError('비밀번호를 입력하세요.');return}
-  if(!validatePassword(password)){showError('비밀번호는 8자 이상, 영문+숫자+특수문자를 포함해야 합니다.');return}
-  if(password!==passwordConfirm){showError('비밀번호가 일치하지 않습니다.');return}
-  if(!phone){showError('연락처를 입력하세요.');return}
-  if(!validatePhone(phone)){showError('올바른 연락처 형식을 입력하세요. (010-0000-0000)');return}
-  if(!company){showError('소속/회사명을 입력하세요.');return}
-  if(!role){showError('직책을 선택하세요.');return}
-  if(!agree){showError('이용약관에 동의해주세요.');return}
+            if (metRequirements <= 1) return { strength: 0, level: 'weak', text: '약함', color: '#f44336' };
+            if (metRequirements <= 2) return { strength: 33, level: 'fair', text: '보통', color: '#ff9800' };
+            if (metRequirements <= 3) return { strength: 66, level: 'good', text: '강함', color: '#4CAF50' };
+            return { strength: 100, level: 'strong', text: '매우 강함', color: '#2196F3' };
+        }
 
-  var btn=document.getElementById('btnRegister');
-  btn.classList.add('loading');btn.disabled=true;
+        /**
+         * Validate phone number
+         */
+        function validatePhone(phone) {
+            const digits = phone.replace(/\D/g, '');
+            return digits.length === 10 || digits.length === 11;
+        }
 
-  var payload={
-    name:name,email:email,password:password,
-    phone:phone,company:company,role:role,reason:reason,
-    fingerprint:getDeviceFingerprint(),
-    timestamp:Date.now(),
-    userAgent:navigator.userAgent
-  };
+        /**
+         * Show toast notification
+         */
+        function showToast(type, title, message = '') {
+            const toastContainer = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
 
-  fetch(API_BASE+'/register',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(payload)
-  })
-  .then(function(r){return r.json()})
-  .then(function(data){
-    btn.classList.remove('loading');btn.disabled=false;
-    if(data.success){
-      _regAttempts++;
-      showPending();
-    } else {
-      showError(data.message||'가입에 실패했습니다.');
-    }
-  })
-  .catch(function(err){
-    btn.classList.remove('loading');btn.disabled=false;
-    showError('서버 연결에 실패했습니다.');
-  });
-};
+            const icons = {
+                success: '✓',
+                error: '✕',
+                warning: '!',
+                info: 'ℹ'
+            };
 
-// ===== PENDING SCREEN =====
-function showPending(){
-  document.getElementById('loginForm').classList.remove('active');
-  document.getElementById('registerForm').classList.remove('active');
-  document.getElementById('authTabs').style.display='none';
-  document.getElementById('pendingScreen').style.display='block';
-  hideMessages();
-}
+            toast.innerHTML = `
+                <div class="toast-icon">${icons[type] || '✓'}</div>
+                <div class="toast-content">
+                    <div class="toast-title">${sanitizeOutput(title)}</div>
+                    ${message ? `<div class="toast-message">${sanitizeOutput(message)}</div>` : ''}
+                </div>
+            `;
 
-// ===== SESSION CHECK ON LOAD =====
-function checkExistingSession(){
-  var token=sessionStorage.getItem('ws_token');
-  if(!token)return;
-  var loginTime=parseInt(sessionStorage.getItem('ws_login_time')||'0');
-  if(Date.now()-loginTime>1800000){sessionStorage.clear();return}// 30min expired
-  // Verify token
-  fetch(API_BASE+'/verify',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}
-  })
-  .then(function(r){return r.json()})
-  .then(function(data){
-    if(data.valid){
-      if(data.user.role==='superadmin')window.location.href='/admin/command-center.html';
-      else if(data.user.status==='approved')window.location.href='/admin/';
-    } else {sessionStorage.clear()}
-  })
-  .catch(function(){});
-}
+            toastContainer.appendChild(toast);
 
-// Enter key support
-document.addEventListener('keydown',function(e){
-  if(e.key==='Enter'){
-    if(document.getElementById('loginForm').classList.contains('active'))handleLogin();
-    else if(document.getElementById('registerForm').classList.contains('active'))handleRegister();
-  }
-});
+            // Auto-dismiss
+            const timer = setTimeout(() => {
+                toast.classList.add('removing');
+                setTimeout(() => toast.remove(), 300);
+            }, CONFIG.TOAST_DURATION);
 
-checkExistingSession();
-})();
-</script>
+            // Allow manual dismiss on click
+            toast.addEventListener('click', () => {
+                clearTimeout(timer);
+                toast.classList.add('removing');
+                setTimeout(() => toast.remove(), 300);
+            });
+
+            // Update screen reader
+            updateScreenReader(`${type}: ${title}${message ? ' - ' + message : ''}`);
+        }
+
+        /**
+         * Update screen reader content
+         */
+        function updateScreenReader(message) {
+            const srLive = document.getElementById('srLive');
+            srLive.textContent = message;
+        }
+
+        // ========================================
+        // Rate Limiting
+        // ========================================
+
+        /**
+         * Check if user is rate limited
+         */
+        function isRateLimited() {
+            const lockoutTime = parseInt(localStorage.getItem('ws_rate_limit_lockout') || '0');
+            const now = Date.now();
+            return lockoutTime > now;
+        }
+
+        /**
+         * Get remaining lockout time
+         */
+        function getRemainingLockoutTime() {
+            const lockoutTime = parseInt(localStorage.getItem('ws_rate_limit_lockout') || '0');
+            const now = Date.now();
+            return Math.max(0, lockoutTime - now);
+        }
+
+        /**
+         * Apply rate limiting
+         */
+        function applyRateLimit() {
+            const attempts = parseInt(localStorage.getItem('ws_rate_limit_attempts') || '0') + 1;
+            localStorage.setItem('ws_rate_limit_attempts', attempts);
+
+            let lockoutDuration = 0;
+            for (const rule of CONFIG.RATE_LIMIT.ATTEMPTS) {
+                if (attempts >= rule.count) {
+                    lockoutDuration = rule.lockout;
+                }
+            }
+
+            if (lockoutDuration > 0) {
+                const lockoutTime = Date.now() + lockoutDuration;
+                localStorage.setItem('ws_rate_limit_lockout', lockoutTime);
+                showRateLimitWarning(lockoutDuration);
+                updateScreenReader(`로그인 시도가 초과되었습니다. ${Math.ceil(lockoutDuration / 1000)}초 동안 로그인을 시도할 수 없습니다.`);
+            }
+        }
+
+        /**
+         * Reset rate limiting
+         */
+        function resetRateLimit() {
+            localStorage.setItem('ws_rate_limit_attempts', '0');
+            localStorage.setItem('ws_rate_limit_lockout', '0');
+            hideRateLimitWarning();
+        }
+
+        /**
+         * Show rate limit warning
+         */
+        function showRateLimitWarning(duration) {
+            const warning = document.getElementById('rateLimitWarning');
+            const countdown = document.getElementById('lockoutCountdown');
+            warning.classList.add('show');
+
+            let remaining = Math.ceil(duration / 1000);
+            countdown.textContent = `${remaining}초 후에 다시 시도할 수 있습니다.`;
+
+            const timer = setInterval(() => {
+                remaining--;
+                countdown.textContent = `${remaining}초 후에 다시 시도할 수 있습니다.`;
+                if (remaining <= 0) {
+                    clearInterval(timer);
+                    hideRateLimitWarning();
+                }
+            }, 1000);
+        }
+
+        /**
+         * Hide rate limit warning
+         */
+        function hideRateLimitWarning() {
+            const warning = document.getElementById('rateLimitWarning');
+            warning.classList.remove('show');
+        }
+
+        // ========================================
+        // Session Management
+        // ========================================
+
+        /**
+         * Check session validity
+         */
+        function checkSession() {
+            const token = sessionStorage.getItem(CONFIG.SESSION_STORAGE_KEYS.TOKEN);
+            const loginTime = parseInt(sessionStorage.getItem(CONFIG.SESSION_STORAGE_KEYS.LOGIN_TIME) || '0');
+            const now = Date.now();
+
+            if (!token || !loginTime) {
+                clearSession();
+                return false;
+            }
+
+            const sessionAge = now - loginTime;
+            if (sessionAge > CONFIG.SESSION_DURATION) {
+                clearSession();
+                showToast('warning', '세션 만료', '다시 로그인해주세요.');
+                return false;
+            }
+
+            return true;
+        }
+
+        /**
+         * Clear session
+         */
+        function clearSession() {
+            sessionStorage.removeItem(CONFIG.SESSION_STORAGE_KEYS.TOKEN);
+            sessionStorage.removeItem(CONFIG.SESSION_STORAGE_KEYS.USER);
+            sessionStorage.removeItem(CONFIG.SESSION_STORAGE_KEYS.LOGIN_TIME);
+            clearSessionTimers();
+        }
+
+        /**
+         * Clear all session timers
+         */
+        function clearSessionTimers() {
+            if (state.sessionRefreshTimer) clearInterval(state.sessionRefreshTimer);
+            if (state.sessionWarningTimer) clearTimeout(state.sessionWarningTimer);
+            if (state.sessionExpiryTimer) clearTimeout(state.sessionExpiryTimer);
+        }
+
+        /**
+         * Setup session timers
+         */
+        function setupSessionTimers() {
+            clearSessionTimers();
+
+            // Auto-refresh session
+            state.sessionRefreshTimer = setInterval(() => {
+                if (checkSession()) {
+                    refreshSession();
+                }
+            }, CONFIG.SESSION_REFRESH_INTERVAL);
+
+            // Warning before expiry
+            state.sessionWarningTimer = setTimeout(() => {
+                if (checkSession() && !state.sessionWarningShown) {
+                    state.sessionWarningShown = true;
+                    showSessionExpiryWarning();
+                }
+            }, CONFIG.SESSION_DURATION - CONFIG.SESSION_WARNING_TIME);
+
+            // Auto-logout
+            state.sessionExpiryTimer = setTimeout(() => {
+                clearSession();
+            }, CONFIG.SESSION_DURATION);
+        }
+
+        /**
+         * Refresh session token
+         */
+        async function refreshSession() {
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/refresh`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Request-Token': getRequestToken(),
+                        'Authorization': `Bearer ${sessionStorage.getItem(CONFIG.SESSION_STORAGE_KEYS.TOKEN)}`
+                    },
+                    body: JSON.stringify({
+                        deviceFingerprint: state.deviceFingerprint
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.token) {
+                        sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.TOKEN, data.token);
+                        sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.LOGIN_TIME, Date.now());
+                        state.sessionWarningShown = false;
+                    }
+                }
+            } catch (error) {
+                console.warn('Session refresh failed:', error);
+            }
+        }
+
+        /**
+         * Show session expiry warning
+         */
+        function showSessionExpiryWarning() {
+            showToast('warning', '세션 만료 예정', '5분 후 자동 로그아웃됩니다.', false);
+
+            // Add option to extend session
+            const toastContainer = document.getElementById('toastContainer');
+            const lastToast = toastContainer.lastChild;
+            if (lastToast) {
+                lastToast.style.cursor = 'pointer';
+                lastToast.onclick = () => {
+                    refreshSession();
+                    state.sessionWarningShown = false;
+                    setupSessionTimers();
+                    showToast('success', '세션 연장', '세션이 30분 더 연장되었습니다.');
+                    lastToast.remove();
+                };
+            }
+        }
+
+        // ========================================
+        // Form Validation
+        // ========================================
+
+        /**
+         * Validate field with debouncing
+         */
+        function validateField(fieldId, type = 'text') {
+            if (state.validationTimers[fieldId]) {
+                clearTimeout(state.validationTimers[fieldId]);
+            }
+
+            state.validationTimers[fieldId] = setTimeout(() => {
+                const field = document.getElementById(fieldId);
+                const value = field.value.trim();
+                const messageEl = field.closest('.form-group').querySelector('.validation-message');
+                const indicatorEl = field.closest('.input-wrapper').querySelector('.validation-indicator');
+
+                let isValid = false;
+                let message = '';
+
+                switch (type) {
+                    case 'email':
+                        isValid = validateEmail(value) && value.length > 0;
+                        message = isValid ? '사용 가능한 이메일입니다' : '유효한 이메일을 입력하세요';
+                        break;
+                    case 'password':
+                        isValid = value.length >= 8;
+                        message = isValid ? '비밀번호가 요구사항을 충족합니다' : '8자 이상 입력하세요';
+                        break;
+                    case 'phone':
+                        isValid = validatePhone(value);
+                        message = isValid ? '유효한 번호입니다' : '유효한 휴대폰 번호를 입력하세요';
+                        break;
+                    case 'name':
+                        isValid = value.length >= 2;
+                        message = isValid ? '유효한 이름입니다' : '2자 이상 입력하세요';
+                        break;
+                    case 'company':
+                        isValid = value.length >= 2;
+                        message = isValid ? '유효한 회사명입니다' : '2자 이상 입력하세요';
+                        break;
+                    default:
+                        isValid = value.length > 0;
+                }
+
+                // Update field classes
+                field.classList.remove('valid', 'invalid');
+                if (value.length > 0) {
+                    field.classList.add(isValid ? 'valid' : 'invalid');
+                }
+
+                // Update indicator
+                if (indicatorEl) {
+                    indicatorEl.classList.remove('show', 'valid', 'invalid');
+                    if (value.length > 0) {
+                        indicatorEl.classList.add('show', isValid ? 'valid' : 'invalid');
+                        indicatorEl.textContent = isValid ? '✓' : '✕';
+                    }
+                }
+
+                // Update message
+                if (messageEl && value.length > 0) {
+                    messageEl.classList.remove('show', 'success', 'error', 'info');
+                    messageEl.classList.add('show', isValid ? 'success' : 'error');
+                    messageEl.textContent = message;
+                } else if (messageEl) {
+                    messageEl.classList.remove('show');
+                }
+            }, CONFIG.VALIDATION_DEBOUNCE);
+        }
+
+        /**
+         * Check email for duplicates
+         */
+        async function checkEmailDuplicate(email) {
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/check-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Request-Token': getRequestToken()
+                    },
+                    body: JSON.stringify({ email: sanitizeInput(email) })
+                });
+
+                const data = await response.json();
+                return !data.exists;
+            } catch (error) {
+                console.warn('Email check failed:', error);
+                return true; // Assume valid on error
+            }
+        }
+
+        /**
+         * Update password requirements checklist
+         */
+        function updatePasswordRequirements(password) {
+            const requirements = validatePasswordRequirements(password);
+            const requirementEls = document.querySelectorAll('#register-tab .requirement');
+
+            const checks = [
+                requirements.minLength,
+                requirements.hasLowercase,
+                requirements.hasNumber,
+                requirements.hasSpecial
+            ];
+
+            requirementEls.forEach((el, index) => {
+                el.classList.toggle('met', checks[index]);
+                el.querySelector('.requirement-icon').textContent = checks[index] ? '✓' : '○';
+            });
+        }
+
+        /**
+         * Update password strength meter
+         */
+        function updatePasswordStrength(password) {
+            const strength = calculatePasswordStrength(password);
+            const bar = document.querySelector('#register-tab .strength-bar');
+            const text = document.querySelector('#register-tab .strength-text');
+
+            bar.style.width = strength.strength + '%';
+            bar.style.backgroundColor = strength.color;
+            text.textContent = strength.text;
+            text.className = `strength-text ${strength.level}`;
+        }
+
+        // ========================================
+        // Form Submission
+        // ========================================
+
+        /**
+         * Handle login form submission
+         */
+        async function handleLoginSubmit(e) {
+            e.preventDefault();
+
+            if (isRateLimited()) {
+                const remaining = getRemainingLockoutTime();
+                showToast('error', '로그인 차단됨', `${Math.ceil(remaining / 1000)}초 후 다시 시도하세요.`);
+                updateScreenReader(`로그인이 ${Math.ceil(remaining / 1000)}초 동안 차단되었습니다.`);
+                return;
+            }
+
+            const form = document.getElementById('loginForm');
+            const email = sanitizeInput(form.email.value.trim());
+            const password = form.password.value;
+            const rememberMe = form.rememberMe.checked;
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            // Validation
+            if (!validateEmail(email) || password.length === 0) {
+                showToast('error', '입력 오류', '이메일과 비밀번호를 입력하세요.');
+                return;
+            }
+
+            // Loading state
+            submitBtn.classList.add('btn-loading');
+            submitBtn.disabled = true;
+            updateScreenReader('로그인 중입니다. 잠시만 기다려주세요.');
+
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Request-Token': getRequestToken()
+                    },
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        rememberMe,
+                        deviceFingerprint: state.deviceFingerprint
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.token) {
+                    resetRateLimit();
+
+                    // Store session
+                    sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.TOKEN, data.token);
+                    sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.USER, JSON.stringify(data.user));
+                    sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.LOGIN_TIME, Date.now());
+
+                    // Store for admin compatibility
+                    localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.ADMIN_PASSWORD, data.token);
+
+                    // Setup session timers
+                    setupSessionTimers();
+
+                    showToast('success', '로그인 성공', `${sanitizeOutput(data.user.name)}님 환영합니다!`);
+                    updateScreenReader(`${sanitizeOutput(data.user.name)}님 로그인 되었습니다.`);
+
+                    // Show last login if available
+                    if (data.lastLogin) {
+                        setTimeout(() => {
+                            const lastLoginDate = new Date(data.lastLogin).toLocaleString('ko-KR');
+                            showToast('info', '마지막 로그인', lastLoginDate);
+                        }, 1000);
+                    }
+
+                    // Redirect
+                    setTimeout(() => {
+                        if (data.user.role === 'superadmin') {
+                            window.location.href = '/admin/command-center.html';
+                        } else {
+                            window.location.href = '/admin/';
+                        }
+                    }, 1500);
+                } else {
+                    applyRateLimit();
+                    showToast('error', '로그인 실패', data.message || '이메일 또는 비밀번호가 잘못되었습니다.');
+                    updateScreenReader(`로그인 실패: ${data.message || '이메일 또는 비밀번호가 잘못되었습니다.'}`);
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                applyRateLimit();
+                showToast('error', '오류 발생', '로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+                updateScreenReader('로그인 중 오류가 발생했습니다.');
+            } finally {
+                submitBtn.classList.remove('btn-loading');
+                submitBtn.disabled = false;
+            }
+        }
+
+        /**
+         * Handle register form submission
+         */
+        async function handleRegisterSubmit(e) {
+            e.preventDefault();
+
+            const form = document.getElementById('registerForm');
+            const formData = {
+                name: sanitizeInput(form.name.value.trim()),
+                email: sanitizeInput(form.email.value.trim()),
+                password: form.password.value,
+                confirmPassword: form.confirmPassword.value,
+                phone: sanitizeInput(form.phone.value.replace(/\D/g, '')),
+                company: sanitizeInput(form.company.value.trim()),
+                role: form.role.value,
+                reason: sanitizeInput(form.reason.value.trim()),
+                agreeTerms: form.agreeTerms.checked,
+                deviceFingerprint: state.deviceFingerprint
+            };
+
+            // Validation
+            if (!validateEmail(formData.email)) {
+                showToast('error', '입력 오류', '유효한 이메일을 입력하세요.');
+                return;
+            }
+
+            if (formData.password.length < 8) {
+                showToast('error', '입력 오류', '비밀번호는 8자 이상이어야 합니다.');
+                return;
+            }
+
+            if (formData.password !== formData.confirmPassword) {
+                showToast('error', '입력 오류', '비밀번호가 일치하지 않습니다.');
+                return;
+            }
+
+            if (!validatePhone(formData.phone)) {
+                showToast('error', '입력 오류', '유효한 휴대폰 번호를 입력하세요.');
+                return;
+            }
+
+            if (!formData.agreeTerms) {
+                showToast('error', '입력 오류', '이용약관에 동의해주세요.');
+                return;
+            }
+
+            const submitBtn = form.querySelector('button[type="submit"]');
+            submitBtn.classList.add('btn-loading');
+            submitBtn.disabled = true;
+            updateScreenReader('가입 신청 중입니다. 잠시만 기다려주세요.');
+
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Request-Token': getRequestToken()
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    showPendingScreen();
+                    showToast('success', '가입 신청 완료', '관리자 승인 후 이메일로 안내드리겠습니다.');
+                    updateScreenReader('가입 신청이 완료되었습니다. 관리자 승인 후 이메일로 안내드리겠습니다.');
+                } else {
+                    showToast('error', '가입 실패', data.message || '가입 중 오류가 발생했습니다.');
+                    updateScreenReader(`가입 실패: ${data.message || '가입 중 오류가 발생했습니다.'}`);
+                }
+            } catch (error) {
+                console.error('Register error:', error);
+                showToast('error', '오류 발생', '가입 중 오류가 발생했습니다. 다시 시도해주세요.');
+                updateScreenReader('가입 중 오류가 발생했습니다.');
+            } finally {
+                submitBtn.classList.remove('btn-loading');
+                submitBtn.disabled = false;
+            }
+        }
+
+        /**
+         * Handle forgot password submission
+         */
+        async function handleForgotPasswordSubmit(e) {
+            e.preventDefault();
+
+            const form = document.getElementById('forgotPasswordForm');
+            const email = sanitizeInput(form.email.value.trim());
+            const submitBtn = form.querySelector('button[type="submit"]');
+
+            if (!validateEmail(email)) {
+                showToast('error', '입력 오류', '유효한 이메일을 입력하세요.');
+                return;
+            }
+
+            submitBtn.classList.add('btn-loading');
+            submitBtn.disabled = true;
+            updateScreenReader('재설정 링크를 발송 중입니다.');
+
+            try {
+                const response = await fetch(`${CONFIG.API_BASE}/forgot-password`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Request-Token': getRequestToken()
+                    },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    closeForgotPasswordModal();
+                    showToast('success', '이메일 발송 완료', '비밀번호 재설정 링크를 이메일로 보내드렸습니다.');
+                    updateScreenReader('비밀번호 재설정 링크를 이메일로 발송했습니다.');
+                } else {
+                    showToast('error', '발송 실패', data.message || '이메일 발송 중 오류가 발생했습니다.');
+                    updateScreenReader(`발송 실패: ${data.message || '이메일 발송 중 오류가 발생했습니다.'}`);
+                }
+            } catch (error) {
+                console.error('Forgot password error:', error);
+                showToast('error', '오류 발생', '이메일 발송 중 오류가 발생했습니다.');
+                updateScreenReader('이메일 발송 중 오류가 발생했습니다.');
+            } finally {
+                submitBtn.classList.remove('btn-loading');
+                submitBtn.disabled = false;
+            }
+        }
+
+        // ========================================
+        // UI Interactions
+        // ========================================
+
+        /**
+         * Switch between tabs
+         */
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            });
+
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === `${tabName}-tab`);
+            });
+
+            updateScreenReader(`${tabName === 'login' ? '로그인' : '가입'} 탭으로 전환되었습니다.`);
+        }
+
+        /**
+         * Show pending screen
+         */
+        function showPendingScreen() {
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('pendingScreen').classList.add('active');
+        }
+
+        /**
+         * Go back to login from pending screen
+         */
+        function goBackToLogin() {
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('registerForm').reset();
+            document.getElementById('pendingScreen').classList.remove('active');
+            switchTab('login');
+            updateScreenReader('로그인 탭으로 돌아갔습니다.');
+        }
+
+        /**
+         * Open forgot password modal
+         */
+        function openForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').classList.add('active');
+            document.getElementById('forgotEmail').focus();
+            updateScreenReader('비밀번호 찾기 모달을 열었습니다.');
+        }
+
+        /**
+         * Close forgot password modal
+         */
+        function closeForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').classList.remove('active');
+            document.getElementById('forgotPasswordForm').reset();
+            updateScreenReader('비밀번호 찾기 모달을 닫았습니다.');
+        }
+
+        /**
+         * Toggle password visibility
+         */
+        function togglePasswordVisibility(e) {
+            e.preventDefault();
+            const target = document.getElementById(e.target.dataset.target);
+            const isPassword = target.type === 'password';
+            target.type = isPassword ? 'text' : 'password';
+            e.target.textContent = isPassword ? '🙈' : '👁️';
+            updateScreenReader(`비밀번호 ${isPassword ? '표시됨' : '숨겨짐'}`);
+        }
+
+        // ========================================
+        // Security & Anti-Debugging
+        // ========================================
+
+        /**
+         * Disable developer tools and right-click
+         */
+        function setupSecurityMeasures() {
+            // Disable right-click
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                return false;
+            });
+
+            // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
+            document.addEventListener('keydown', (e) => {
+                if (
+                    e.key === 'F12' ||
+                    (e.ctrlKey && e.shiftKey && e.key === 'I') ||
+                    (e.ctrlKey && e.shiftKey && e.key === 'J') ||
+                    (e.ctrlKey && e.shiftKey && e.key === 'C')
+                ) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+
+            // Disable console warnings
+            Object.defineProperty(console, 'log', { value: () => {} });
+            Object.defineProperty(console, 'warn', { value: () => {} });
+            Object.defineProperty(console, 'error', { value: () => {} });
+        }
+
+        // ========================================
+        // Initialization
+        // ========================================
+
+        /**
+         * Initialize application
+         */
+        function init() {
+            // Generate device fingerprint
+            state.deviceFingerprint = generateDeviceFingerprint();
+            generateRequestToken();
+
+            // Setup security
+            setupSecurityMeasures();
+
+            // Check existing session
+            if (state.sessionToken) {
+                if (checkSession()) {
+                    setupSessionTimers();
+                    // Optionally redirect or show session status
+                    console.info('Active session detected');
+                } else {
+                    showToast('warning', '세션 만료', '다시 로그인해주세요.');
+                }
+            }
+
+            // Event listeners - Tabs
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            });
+
+            // Event listeners - Login Form
+            const loginForm = document.getElementById('loginForm');
+            loginForm.addEventListener('submit', handleLoginSubmit);
+
+            document.getElementById('loginEmail').addEventListener('blur', () => {
+                validateField('loginEmail', 'email');
+            });
+
+            document.getElementById('loginPassword').addEventListener('input', () => {
+                const value = document.getElementById('loginPassword').value;
+                if (value.length > 0) {
+                    validateField('loginPassword', 'password');
+                }
+            });
+
+            // Event listeners - Register Form
+            const registerForm = document.getElementById('registerForm');
+            registerForm.addEventListener('submit', handleRegisterSubmit);
+
+            document.getElementById('registerName').addEventListener('blur', () => {
+                validateField('registerName', 'name');
+            });
+
+            document.getElementById('registerEmail').addEventListener('blur', async () => {
+                validateField('registerEmail', 'email');
+                const email = document.getElementById('registerEmail').value.trim();
+                if (validateEmail(email)) {
+                    const isAvailable = await checkEmailDuplicate(email);
+                    const messageEl = document.getElementById('registerEmail').closest('.form-group').querySelector('.validation-message');
+                    if (!isAvailable) {
+                        messageEl.classList.add('show', 'error');
+                        messageEl.textContent = '이미 등록된 이메일입니다';
+                    }
+                }
+            });
+
+            document.getElementById('registerPassword').addEventListener('input', (e) => {
+                const value = e.target.value;
+                updatePasswordRequirements(value);
+                updatePasswordStrength(value);
+                if (value.length > 0) {
+                    validateField('registerPassword', 'password');
+                }
+            });
+
+            document.getElementById('registerPasswordConfirm').addEventListener('input', () => {
+                const password = document.getElementById('registerPassword').value;
+                const confirm = document.getElementById('registerPasswordConfirm').value;
+                const messageEl = document.getElementById('registerPasswordConfirm').closest('.form-group').querySelector('.validation-message');
+
+                if (confirm.length > 0) {
+                    if (password === confirm) {
+                        document.getElementById('registerPasswordConfirm').classList.remove('invalid');
+                        document.getElementById('registerPasswordConfirm').classList.add('valid');
+                        messageEl.classList.add('show', 'success');
+                        messageEl.textContent = '비밀번호가 일치합니다';
+                    } else {
+                        document.getElementById('registerPasswordConfirm').classList.remove('valid');
+                        document.getElementById('registerPasswordConfirm').classList.add('invalid');
+                        messageEl.classList.add('show', 'error');
+                        messageEl.textContent = '비밀번호가 일치하지 않습니다';
+                    }
+                }
+            });
+
+            document.getElementById('registerPhone').addEventListener('input', (e) => {
+                e.target.value = formatPhoneNumber(e.target.value);
+                validateField('registerPhone', 'phone');
+            });
+
+            document.getElementById('registerCompany').addEventListener('blur', () => {
+                validateField('registerCompany', 'company');
+            });
+
+            // Event listeners - Password Toggle
+            document.querySelectorAll('.toggle-password').forEach(btn => {
+                btn.addEventListener('click', togglePasswordVisibility);
+            });
+
+            // Event listeners - Forgot Password
+            document.getElementById('forgotPasswordBtn').addEventListener('click', openForgotPasswordModal);
+            document.getElementById('forgotPasswordForm').addEventListener('submit', handleForgotPasswordSubmit);
+            document.getElementById('forgotPasswordModal').addEventListener('click', (e) => {
+                if (e.target.id === 'forgotPasswordModal') {
+                    closeForgotPasswordModal();
+                }
+            });
+
+            // Event listeners - Enter key
+            loginForm.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                    handleLoginSubmit(e);
+                }
+            });
+
+            registerForm.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+                    handleRegisterSubmit(e);
+                }
+            });
+
+            // Accessibility - Focus management
+            document.querySelectorAll('input, select, button').forEach(el => {
+                el.addEventListener('focus', () => {
+                    el.classList.add('focus-visible');
+                });
+                el.addEventListener('blur', () => {
+                    el.classList.remove('focus-visible');
+                });
+            });
+
+            console.info('WISHES Auth System initialized successfully');
+        }
+
+        // Initialize on DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
 </body>
 </html>
