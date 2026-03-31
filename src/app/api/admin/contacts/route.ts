@@ -154,6 +154,7 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
+    const supabase = createServerClient();
     const body = await request.json();
     const { id, status } = body;
 
