@@ -701,6 +701,8 @@ function SmartListingNewPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [touchedFields, setTouchedFields] = useState({});
   const [dragIndex, setDragIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const abortRef = React.useRef(null);
@@ -2133,10 +2135,10 @@ ${floorRows}</table></div>` : ''}
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {uploadedImages.map((img, i) => (
-                      <div key={i} className={`image-card relative group ${dragIndex === i ? 'opacity-50 scale-95' : ''} transition-all cursor-grab active:cursor-grabbing`}
+                      <div key={i} className={`image-card relative group ${dragIndex === i ? 'opacity-40 scale-95' : ''} ${dragOverIndex === i && dragIndex !== i ? 'ring-2 ring-green-500 ring-offset-2 scale-[1.02]' : ''} transition-all cursor-grab active:cursor-grabbing`}
                     draggable
                     onDragStart={() => setDragIndex(i)}
-                    onDragOver={(e) => { e.preventDefault(); }}
+                    onDragOver={(e) => { e.preventDefault(); setDragOverIndex(i); }}
                     onDrop={() => {
                       if (dragIndex === null || dragIndex === i) return;
                       const newImages = [...uploadedImages];
@@ -2170,10 +2172,14 @@ ${floorRows}</table></div>` : ''}
                           </div>
                         )}
 
-                        {/* 순서 표시 */}
-                        <div className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white text-xs rounded-full flex items-center justify-center">
-                          {i + 1}
-                        </div>
+                        {/* 순서 표시 + 대표이미지 볃지 */}
+                        {i === 0 ? (
+                          <div className="absolute top-2 right-2 px-2 py-0.5 bg-green-600 text-white text-[10px] rounded-full font-bold shadow">대표</div>
+                        ) : (
+                          <div className="absolute top-2 right-2 w-6 h-6 bg-black/60 text-white text-xs rounded-full flex items-center justify-center">
+                            {i + 1}
+                          </div>
+                        )}
 
                         {/* 호버 액션 */}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition rounded-xl flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
@@ -2414,7 +2420,18 @@ ${floorRows}</table></div>` : ''}
                 )}
               </div>
 
-              {/* 등록 방식 선택 */}
+              {/* 미리보기 버튼 */}
+                  <div className="flex justify-center mb-6">
+                    <button
+                      onClick={() => setShowPreview(true)}
+                      className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl font-semibold hover:from-indigo-600 hover:to-purple-700 transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                      고객 화면 미리보기
+                    </button>
+                  </div>
+
+                  {/* 등록 방식 선택 */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button onClick={() => publishListing('instant')} disabled={isPublishing || !form.title}
                   className="p-6 border-2 border-green-600 rounded-2xl hover:bg-green-50 transition text-left disabled:opacity-50 disabled:cursor-not-allowed">
@@ -2465,6 +2482,68 @@ ${floorRows}</table></div>` : ''}
           </div>
         )}
       </div>
+
+      {/* ━━━━ 미리보기 모달 ━━━━ */}
+      {showPreview && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPreview(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            {/* 모달 헤더 */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+              <h2 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                고객 화면 미리보기
+              </h2>
+              <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-100 rounded-lg transition"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg></button>
+            </div>
+            {/* 이미지 슬라이드 */}
+            {uploadedImages.length > 0 && (
+              <div className="relative aspect-video bg-gray-100 overflow-hidden">
+                <img src={(useEnhanced && uploadedImages[0]?.enhanced) ? uploadedImages[0].enhanced : uploadedImages[0]?.preview} alt="대표 이미지" className="w-full h-full object-cover" />
+                <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1 rounded-full">사진 {uploadedImages.length}장</div>
+              </div>
+            )}
+            {/* 매물 정보 */}
+            <div className="p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">{form.deal || '월세'}</span>
+                <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">{form.type || '원룸'}</span>
+              </div>
+              <h1 className="text-xl font-bold text-gray-900 mb-2">{form.title || '(제목 미입력)'}</h1>
+              <p className="text-sm text-gray-500 mb-4">{form.address} {form.addressDetail}</p>
+              {/* 가격 */}
+              <div className="bg-green-50 rounded-xl p-4 mb-4">
+                <div className="text-2xl font-bold text-green-800">
+                  {form.deal === '매매' ? `매매 ${form.price ? (form.price >= 10000 ? (form.price/10000).toFixed(form.price%10000===0?0:1)+'억' : form.price+'만') + '원' : '-'}` : form.deal === '전세' ? `전세 ${form.deposit ? (form.deposit >= 10000 ? (form.deposit/10000).toFixed(form.deposit%10000===0?0:1)+'억' : form.deposit >= 1000 ? (form.deposit/1000).toFixed(form.deposit%1000===0?0:1)+'천만' : form.deposit+'만') + '원' : '-'}` : `보증금 ${form.deposit ? (form.deposit >= 10000 ? (form.deposit/10000).toFixed(form.deposit%10000===0?0:1)+'억' : form.deposit >= 1000 ? (form.deposit/1000).toFixed(form.deposit%1000===0?0:1)+'천만' : form.deposit+'만') + '원' : '-'} / 월세 ${form.monthly ? form.monthly+'만원' : '-'}`}
+                </div>
+                {form.maintenance_fee ? <div className="text-sm text-green-600 mt-1">관리비 {form.maintenance_fee}만원</div> : null}
+              </div>
+              {/* 상세 정보 그리드 */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {form.area_m2 && <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400">면적</div><div className="font-semibold text-gray-800">{form.area_m2}㎡ {form.area_supply_m2 ? `(공급 ${form.area_supply_m2}㎡)` : ''}</div></div>}
+                {form.floor_current && <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400">층수</div><div className="font-semibold text-gray-800">{form.floor_current}층{form.floor_total ? ` / ${form.floor_total}층` : ''}</div></div>}
+                {form.rooms && <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400">방/욕실</div><div className="font-semibold text-gray-800">{form.rooms}방 {form.bathrooms ? `/ ${form.bathrooms}욕실` : ''}</div></div>}
+                {form.direction && <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400">방향</div><div className="font-semibold text-gray-800">{form.direction}</div></div>}
+                {form.heating_type && <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400">난방</div><div className="font-semibold text-gray-800">{form.heating_type}</div></div>}
+                {form.move_in_date && <div className="bg-gray-50 rounded-lg p-3"><div className="text-xs text-gray-400">입주가능일</div><div className="font-semibold text-gray-800">{form.move_in_date}</div></div>}
+              </div>
+              {/* 특징 */}
+              {form.features.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {form.features.map(f => <span key={f} className="px-2.5 py-1 bg-green-100 text-green-700 text-xs rounded-full">{f}</span>)}
+                </div>
+              )}
+              {/* 설명 */}
+              {form.description && (
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold text-gray-800 mb-2">상세 설명</h3>
+                  <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{form.description}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showAddressModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
