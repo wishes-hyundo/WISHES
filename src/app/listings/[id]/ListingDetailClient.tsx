@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Calendar, ArrowLeft, Check, X, Eye, Hash, Share2, Copy, MapPin, Navigation } from 'lucide-react';
+import { Calendar, ArrowLeft, Check, Eye, Hash, Share2, Copy, MapPin, Navigation } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor } from '@/lib/utils';
 import ImageGallery from '@/components/ImageGallery';
 
