@@ -9,7 +9,7 @@ import { storage } from '@/lib/storage';
 import sharp from 'sharp';
 
 /**
- * 인증 검증 �+퍼 함수
+ * 인증 검증 여퍼 함수
  */
 function verifyAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');

@@ -87,7 +87,7 @@ class LocalStorage implements StorageAdapter {
     try {
       await unlink(fullPath);
     } catch {
-      // 파일이 없으메 무시
+      // 파일이 없으면 무시
     }
   }
 
