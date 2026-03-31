@@ -60,6 +60,7 @@ export async function POST(request: NextRequest) {
     const name = naverUser.name || naverUser.nickname || '';
     const avatarUrl = naverUser.profile_image || '';
     const naverId = naverUser.id;
+    const phone = naverUser.mobile || '';
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required from Naver' }, { status: 400 });
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
           ...existingUser.user_metadata,
           full_name: name || existingUser.user_metadata?.full_name,
           avatar_url: avatarUrl || existingUser.user_metadata?.avatar_url,
+          phone: phone || existingUser.user_metadata?.phone,
           provider: 'naver',
           naver_id: naverId,
         },
@@ -96,6 +98,7 @@ export async function POST(request: NextRequest) {
         user_metadata: {
           full_name: name,
           avatar_url: avatarUrl,
+          phone: phone,
           provider: 'naver',
           naver_id: naverId,
         },
