@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
 
     if (!name || !email || !password) {
       return NextResponse.json(
-        { success: false, message: '필수 항목을 입력해주세요.' },
+        { success: false, message: 'íì í­ëª©ì ìë ¥í´ì£¼ì¸ì.' },
         { status: 400 }
       );
     }
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
           if (signInErr) {
             return NextResponse.json(
-              { success: false, message: '로그인 처리 중 오류: ' + signInErr.message },
+              { success: false, message: 'ë¡ê·¸ì¸ ì²ë¦¬ ì¤ ì¤ë¥: ' + signInErr.message },
               { status: 400 }
             );
           }
@@ -69,14 +69,14 @@ export async function POST(request: NextRequest) {
         }
       }
       return NextResponse.json(
-        { success: false, message: '이미 등록된 이메일입니다.' },
+        { success: false, message: 'ì´ë¯¸ ë±ë¡ë ì´ë©ì¼ìëë¤.' },
         { status: 409 }
       );
     }
 
     if (authError) {
       return NextResponse.json(
-        { success: false, message: authError.message || '가입 중 오류가 발생했습니다.' },
+        { success: false, message: authError.message || 'ê°ì ì¤ ì¤ë¥ê° ë°ìíìµëë¤.' },
         { status: 400 }
       );
     }
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
         name,
         phone: phone || null,
         company: company || null,
-        role: isSuperAdmin ? 'superadmin' : (role || 'user'),
+        role: isSuperAdmin ? 'superadmin' : 'viewer',
         reason: reason || null,
         status: isSuperAdmin ? 'approved' : 'pending',
         created_at: new Date().toISOString(),
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 관리자에게 새 가입 알림 이메일 발송 (비동기, 실패해도 가입은 성공)
+    // ê´ë¦¬ììê² ì ê°ì ìë¦¼ ì´ë©ì¼ ë°ì¡ (ë¹ëê¸°, ì¤í¨í´ë ê°ìì ì±ê³µ)
     notifyAdminNewRegistration({ name, email, phone, company, reason }).catch(console.error);
 
     return NextResponse.json({ success: true });
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Register error:', error);
     return NextResponse.json(
-      { success: false, message: '서버 오류가 발생했습니다.' },
+      { success: false, message: 'ìë² ì¤ë¥ê° ë°ìíìµëë¤.' },
       { status: 500 }
     );
   }
