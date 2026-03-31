@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 
-// Superadmin emails that get auto-approved
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
 export async function POST(request: NextRequest) {
@@ -9,7 +8,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { name, email, password, phone, company, role, reason, autoApprove, requestedRole } = body;
 
-    // Basic validation
     if (!name || !email || !password) {
       return NextResponse.json(
         { success: false, message: '필수 항목을 입력해주세요.' },
@@ -20,45 +18,55 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const isSuperAdmin = SUPERADMIN_EMAILS.includes(email.toLowerCase());
 
-    // Check if user already exists
-    const { data: existingUser } = await supabase
-      .from('admin_users')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    if (existingUser) {
-      return NextResponse.json(
-        { success: false, message: '이미 등록된 이메일입니다.' },
-        { status: 409 }
-      );
-    }
-
-    // Hash password using Supabase Auth
+    // Try to create user in Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email.toLowerCase(),
-      password: password,
-      email_confirm: isSuperAdmin, // Auto-confirm superadmin
-      user_metadata: {
-        name,
-        phone,
-        company,
-        role: requestedRole || role,
-      }
+      password,
+      email_confirm: isSuperAdmin,
+      user_metadata: { name, phone, company, role: requestedRole || role }
     });
 
+    // Handle user already exists
     if (authError) {
-      console.error('Auth error:', authError);
+      if (authError.message?.includes('already been registered')) {
+        if (isSuperAdmin) {
+          // Superadmin already exists - sign them in
+          const { data: signIn, error: signInErr } = await supabase.auth.signInWithPassword({
+            email: email.toLowerCase(),
+            password,
+          });
+          if (signInErr) {
+            return NextResponse.json(
+              { success: false, message: '이미 등록된 이메일입니다. 비밀번호를 확인해주세요.' },
+              { status: 400 }
+            );
+          }
+          return NextResponse.json({
+            success: true,
+            token: signIn.session?.access_token || signIn.user?.id,
+            user: {
+              id: signIn.user?.id,
+              name: signIn.user?.user_metadata?.name || name,
+              email: email.toLowerCase(),
+              role: 'superadmin',
+              company: signIn.user?.user_metadata?.company || company,
+            }
+          });
+        }
+        return NextResponse.json(
+          { success: false, message: '이미 등록된 이메일입니다.' },
+          { status: 409 }
+        );
+      }
       return NextResponse.json(
         { success: false, message: authError.message || '가입 중 오류가 발생했습니다.' },
         { status: 400 }
       );
     }
 
-    // Insert into admin_users table
-    const { error: insertError } = await supabase
-      .from('admin_users')
-      .insert({
+    // Try insert into admin_users (gracefully handle if table doesn't exist)
+    try {
+      await supabase.from('admin_users').insert({
         id: authData.user.id,
         email: email.toLowerCase(),
         name,
@@ -69,38 +77,19 @@ export async function POST(request: NextRequest) {
         status: isSuperAdmin ? 'approved' : 'pending',
         created_at: new Date().toISOString(),
       });
-
-    if (insertError) {
-      console.error('Insert error:', insertError);
-      // If admin_users table doesn't exist, still return success for superadmin
-      if (isSuperAdmin) {
-        // Sign in to get session token
-        const { data: signInData, error: signInError } = await supabase.auth.admin.generateLink({
-          type: 'magiclink',
-          email: email.toLowerCase(),
-        });
-
-        return NextResponse.json({
-          success: true,
-          token: authData.user.id,
-          user: {
-            id: authData.user.id,
-            name,
-            email: email.toLowerCase(),
-            role: 'superadmin',
-            company,
-          }
-        });
-      }
-      // For regular users, still return success (pending)
-      return NextResponse.json({ success: true });
+    } catch (e) {
+      console.error('admin_users insert skipped:', e);
     }
 
-    // If superadmin, return token for auto-login
+    // Superadmin: return token for auto-login
     if (isSuperAdmin) {
+      const { data: signIn } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase(),
+        password,
+      });
       return NextResponse.json({
         success: true,
-        token: authData.user.id,
+        token: signIn?.session?.access_token || authData.user.id,
         user: {
           id: authData.user.id,
           name,
@@ -111,7 +100,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Regular user - return success without token (pending approval)
     return NextResponse.json({ success: true });
 
   } catch (error) {
