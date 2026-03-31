@@ -100,7 +100,7 @@ export default function ContactsPage() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case '접수': return 'bg-red-100 text-red-700';
-      case '진행중': return 'bg-blue-100 text-blue-700';
+      case '처리중': return 'bg-blue-100 text-blue-700';
       case '완료': return 'bg-green-100 text-green-700';
       default: return 'bg-gray-100 text-gray-600';
     }
@@ -142,7 +142,7 @@ export default function ContactsPage() {
 
       {/* 상태 탭 */}
       <div className="flex gap-2 mb-4 flex-wrap">
-        {['전체', '접수', '진행중', '완료'].map(status => (
+        {['전체', '접수', '처리중', '완료'].map(status => (
           <button
             key={status}
             onClick={() => setStatusFilter(status)}
@@ -260,7 +260,7 @@ export default function ContactsPage() {
                     className="px-3 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-green-500"
                   >
                     <option value="접수">접수</option>
-                    <option value="진행중">진행중</option>
+                    <option value="처리중">처리중</option>
                     <option value="완료">완료</option>
                   </select>
                   <button
