@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { notifyUserApproved, notifyUserRejected } from '@/lib/email';
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
@@ -129,6 +130,15 @@ export async function PUT(request: NextRequest) {
                       }, { status: 500 });
             }
 
+
+            // 승인 알림 이메일 발송
+            const approvedUser = (await supabase.auth.admin.getUserById(userId))?.data?.user;
+            notifyUserApproved({
+              email: approvedUser?.email || '',
+              name: approvedUser?.user_metadata?.name || '',
+              role: newRole,
+            }).catch(console.error);
+
             return NextResponse.json({
                       success: true,
                       message: '사용자가 승인되었습니다.',
@@ -168,6 +178,14 @@ export async function PUT(request: NextRequest) {
                                   details: { upsertError: upsertError?.message, metaError: metaError?.message }
                       }, { status: 500 });
             }
+
+
+            // 거부 알림 이메일 발송
+            const rejectedUser = (await supabase.auth.admin.getUserById(userId))?.data?.user;
+            notifyUserRejected({
+              email: rejectedUser?.email || '',
+              name: rejectedUser?.user_metadata?.name || '',
+            }).catch(console.error);
 
             return NextResponse.json({
                       success: true,
