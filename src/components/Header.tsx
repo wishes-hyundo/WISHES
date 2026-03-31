@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown } from 'lucide-react';
+import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown, UserX } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -20,13 +20,11 @@ export default function Header() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [avatarError, setAvatarError] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
-  const { user, loading, signOut, setShowAuthModal } = useAuth();
-
-  // 스크롤 감지
-  useEffect(() => { setMounted(true); }, []);
+  const { user, loading, signOut, deleteAccount, setShowAuthModal } = useAuth();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -34,7 +32,6 @@ export default function Header() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 사용자 메뉴 외부 클릭 시 닫기
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -64,6 +61,7 @@ export default function Header() {
   };
 
   return (
+    <>
     <header
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
@@ -74,7 +72,6 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-[72px]">
-          {/* 로고 */}
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="w-10 h-10 bg-gradient-to-br from-wishes-secondary to-wishes-accent flex items-center justify-center text-white shadow-droplet group-hover:shadow-lg transition-all duration-300 group-hover:scale-105" style={{ borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%' }}>
               <MapPin className="w-5 h-5" />
@@ -82,7 +79,6 @@ export default function Header() {
             <span className="text-lg font-bold tracking-tight text-wishes-primary">WISHES</span>
           </Link>
 
-          {/* 데스크탑 네비게이션 */}
           <nav className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
@@ -103,12 +99,9 @@ export default function Header() {
             ))}
           </nav>
 
-          {/* 데스크탑 우측: 로그인 */}
           <div className="hidden lg:flex items-center gap-3">
             {!loading && (
-              !mounted ? (
-                <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse" />
-              ) : user ? (
+              user ? (
                 <div className="relative" ref={userMenuRef}>
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -126,13 +119,12 @@ export default function Header() {
                         <User className="w-4 h-4 text-wishes-accent" />
                       </div>
                     )}
-                    <span className="text-sm font-medium text-wishes-text max-w-[200px] truncate">
+                    <span className="text-sm font-medium text-wishes-text max-w-[120px] truncate">
                       {getUserDisplayName()}
                     </span>
                     <ChevronDown className={cn('w-3.5 h-3.5 text-wishes-muted transition-transform duration-200', userMenuOpen && 'rotate-180')} />
                   </button>
 
-                  {/* 드롭다운 */}
                   {userMenuOpen && (
                     <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-premium border border-wishes-border/60 overflow-hidden py-1 animate-fade-in-up">
                       <div className="px-4 py-3 border-b border-wishes-border/40">
@@ -154,6 +146,14 @@ export default function Header() {
                         <LogOut className="w-4 h-4 text-wishes-muted" />
                         로그아웃
                       </button>
+                      <div className="border-t border-wishes-border/40" />
+                      <button
+                        onClick={() => { setShowDeleteConfirm(true); setUserMenuOpen(false); }}
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-xs text-red-400 hover:bg-red-50 transition-colors"
+                      >
+                        <UserX className="w-3.5 h-3.5" />
+                        회원 탈퇴
+                      </button>
                     </div>
                   )}
                 </div>
@@ -169,7 +169,6 @@ export default function Header() {
             )}
           </div>
 
-          {/* 모바일 메뉴 토글 */}
           <button
             className="lg:hidden p-2.5 text-wishes-primary hover:bg-wishes-cream/60 rounded-xl transition-colors"
             onClick={() => setIsOpen(!isOpen)}
@@ -179,7 +178,6 @@ export default function Header() {
           </button>
         </div>
 
-        {/* 모바일 메뉴 */}
         <div
           className={cn(
             'lg:hidden overflow-hidden transition-all duration-300 ease-out',
@@ -223,12 +221,20 @@ export default function Header() {
                       )}
                       <span className="text-sm font-medium text-wishes-text">{getUserDisplayName()}</span>
                     </div>
-                    <button
-                      onClick={() => { signOut(); setIsOpen(false); }}
-                      className="text-xs text-wishes-muted hover:text-wishes-text font-medium px-3 py-1.5 rounded-lg hover:bg-wishes-cream/50 transition-colors"
-                    >
-                      로그아웃
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => { setShowDeleteConfirm(true); setIsOpen(false); }}
+                        className="text-xs text-red-400 hover:text-red-500 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        탈퇴
+                      </button>
+                      <button
+                        onClick={() => { signOut(); setIsOpen(false); }}
+                        className="text-xs text-wishes-muted hover:text-wishes-text font-medium px-3 py-1.5 rounded-lg hover:bg-wishes-cream/50 transition-colors"
+                      >
+                        로그아웃
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <button
@@ -236,7 +242,7 @@ export default function Header() {
                     className="w-full btn-accent text-sm py-3"
                   >
                     <User className="w-4 h-4" />
-                    ꄎ편 로그인
+                    간편 로그인
                   </button>
                 )
               )}
@@ -245,5 +251,47 @@ export default function Header() {
         </div>
       </div>
     </header>
+
+    {showDeleteConfirm && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !isDeleting && setShowDeleteConfirm(false)} />
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-[360px] mx-4 p-6 text-center">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+            <UserX className="w-6 h-6 text-red-500" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">회원 탈퇴</h3>
+          <p className="text-sm text-gray-500 mb-1">정말 탈퇴하시겠습니까?</p>
+          <p className="text-xs text-red-400 mb-6">탈퇴 시 모든 회원 정보와 찜한 매물이 삭제되며,<br />복구할 수 없습니다.</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              취소
+            </button>
+            <button
+              onClick={async () => {
+                setIsDeleting(true);
+                const result = await deleteAccount();
+                if (result.success) {
+                  setShowDeleteConfirm(false);
+                  setIsDeleting(false);
+                  window.location.href = '/';
+                } else {
+                  alert(result.error || '탈퇴 처리에 실패했습니다.');
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? '처리 중...' : '탈퇴하기'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
