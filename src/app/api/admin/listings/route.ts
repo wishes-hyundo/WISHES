@@ -274,9 +274,9 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabase
       .from('listings')
       .insert({
-        title: parsed.data.title,
-        type: parsed.data.type,
-        deal: parsed.data.deal,
+        title: parsed.data.title || '(임시저장)',
+        type: parsed.data.type || '원룸',
+        deal: parsed.data.deal || '월세',
         deposit: parsed.data.deposit,
         monthly: parsed.data.monthly || null,
         price: parsed.data.price || null,
@@ -291,7 +291,7 @@ export async function POST(request: NextRequest) {
         bathrooms: parsed.data.bathrooms || null,
         direction: parsed.data.direction || null,
         heating_type: parsed.data.heating_type || null,
-        address: parsed.data.address,
+        address: parsed.data.address || '(주소 미입력)',
         address_detail: parsed.data.address_detail || null,
         dong: parsed.data.dong || '',
         lat: parsed.data.lat || null,
