@@ -145,3 +145,39 @@ export async function PATCH(request: NextRequest) {
     );
   }
 }
+
+
+export async function PUT(request: NextRequest) {
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader || authHeader !== `Bearer ${API_TOKEN}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const body = await request.json();
+    const { id, status, memo } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Contact ID is required' }, { status: 400 });
+    }
+
+    const updateData: Record<string, string> = {};
+    if (status) updateData.status = status;
+    if (memo !== undefined) updateData.memo = memo;
+
+    const { data, error } = await supabase
+      .from('contacts')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, contact: data });
+  } catch (err) {
+    return NextResponse.json({ error: 'Failed to update contact' }, { status: 500 });
+  }
+}
