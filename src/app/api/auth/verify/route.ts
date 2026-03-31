@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
     if (!token) {
       return NextResponse.json(
-        { success: false, error: 'No token provided' },
+        { success: false, valid: false, error: 'No token provided' },
         { status: 401 }
       );
     }
@@ -29,7 +29,8 @@ export async function POST(request: NextRequest) {
     if (token.startsWith('admin_bridge_')) {
       return NextResponse.json({
         success: true,
-        user: { role: 'admin', bridge: true }
+        valid: true,
+        user: { role: 'admin', status: 'approved', bridge: true }
       });
     }
 
@@ -39,24 +40,46 @@ export async function POST(request: NextRequest) {
 
     if (error || !user) {
       return NextResponse.json(
-        { success: false, error: 'Invalid or expired token' },
+        { success: false, valid: false, error: 'Invalid or expired token' },
         { status: 401 }
       );
     }
 
+    // admin_users 테이블에서 status 확인 (더 정확)
+    let userStatus = user.user_metadata?.status || 'pending';
+    let userRole = user.user_metadata?.role || 'user';
+
+    try {
+      const { data: adminRow } = await supabase
+        .from('admin_users')
+        .select('status, role')
+        .eq('id', user.id)
+        .single();
+
+      if (adminRow) {
+        userStatus = adminRow.status || userStatus;
+        userRole = adminRow.role || userRole;
+      }
+    } catch (e) {
+      // admin_users 테이블 조회 실패 시 user_metadata 사용
+    }
+
     return NextResponse.json({
       success: true,
+      valid: true,
       user: {
         id: user.id,
         email: user.email,
-        role: user.user_metadata?.role || 'user',
-        approved: user.user_metadata?.approved || false
+        role: userRole,
+        status: userStatus,
+        approved: userStatus === 'approved'
       }
     });
+
   } catch (error) {
     console.error('Token verification error:', error);
     return NextResponse.json(
-      { success: false, error: 'Verification failed' },
+      { success: false, valid: false, error: 'Verification failed' },
       { status: 500 }
     );
   }
@@ -64,10 +87,9 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
-  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json(
-      { success: false, error: 'No token provided' },
+      { success: false, valid: false, error: 'No token provided' },
       { status: 401 }
     );
   }
@@ -78,7 +100,8 @@ export async function GET(request: NextRequest) {
   if (token.startsWith('admin_bridge_')) {
     return NextResponse.json({
       success: true,
-      user: { role: 'admin', bridge: true }
+      valid: true,
+      user: { role: 'admin', status: 'approved', bridge: true }
     });
   }
 
@@ -88,24 +111,46 @@ export async function GET(request: NextRequest) {
 
     if (error || !user) {
       return NextResponse.json(
-        { success: false, error: 'Invalid or expired token' },
+        { success: false, valid: false, error: 'Invalid or expired token' },
         { status: 401 }
       );
     }
 
+    // admin_users 테이블에서 status 확인 (더 정확)
+    let userStatus = user.user_metadata?.status || 'pending';
+    let userRole = user.user_metadata?.role || 'user';
+
+    try {
+      const { data: adminRow } = await supabase
+        .from('admin_users')
+        .select('status, role')
+        .eq('id', user.id)
+        .single();
+
+      if (adminRow) {
+        userStatus = adminRow.status || userStatus;
+        userRole = adminRow.role || userRole;
+      }
+    } catch (e) {
+      // admin_users 테이블 조회 실패 시 user_metadata 사용
+    }
+
     return NextResponse.json({
       success: true,
+      valid: true,
       user: {
         id: user.id,
         email: user.email,
-        role: user.user_metadata?.role || 'user',
-        approved: user.user_metadata?.approved || false
+        role: userRole,
+        status: userStatus,
+        approved: userStatus === 'approved'
       }
     });
+
   } catch (error) {
     console.error('Token verification error:', error);
     return NextResponse.json(
-      { success: false, error: 'Verification failed' },
+      { success: false, valid: false, error: 'Verification failed' },
       { status: 500 }
     );
   }
