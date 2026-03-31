@@ -4,7 +4,7 @@
 <script>
 // WISHES Auth Guard
 (function() {
-  var token = sessionStorage.getItem('ws_token');
+  var token = sessionStorage.getItem('ws_tokhen');
   var user = sessionStorage.getItem('ws_user');
   if (!token || !user) {
     window.location.replace('/admin/admin-auth.html');
@@ -1087,7 +1087,7 @@ function _now(){var d=new Date();return ('0'+d.getHours()).slice(-2)+':'+('0'+d.
     function renderDashboardLive() {
       var stats = window._userStats || {};
       var totalEl = document.getElementById('statTotalUsers');
-      var pendingEl = document.getElementById('statPendingUsers');
+      var pendingEl = document.getElementById('statPending');
       if (totalEl) totalEl.textContent = stats.total || 0;
       if (pendingEl) pendingEl.textContent = stats.pending || 0;
     }
