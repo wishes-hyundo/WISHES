@@ -1,6 +1,12 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Lazy initialization - 빌드 시 API 키 없어도 에러 방지
+let _resend: Resend | null = null;
+function getResend(): Resend | null {
+  if (!process.env.RESEND_API_KEY) return null;
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 
 const FROM_EMAIL = process.env.EMAIL_FROM || 'WISHES <noreply@wishes.co.kr>';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'wishes@wishes.co.kr';
@@ -14,7 +20,8 @@ export async function notifyAdminNewRegistration(user: {
   company?: string;
   reason?: string;
 }) {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (!resend) {
     console.warn('[Email] RESEND_API_KEY not set, skipping notification');
     return null;
   }
@@ -23,45 +30,42 @@ export async function notifyAdminNewRegistration(user: {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: ADMIN_EMAIL,
-      subject: `[WISHES] 새 사용자 가입 승인 요청 - ${user.name}`,
+      subject: `[WISHES] 새 사용자 가입 요청 - ${user.name}`,
       html: `
-        <div style="font-family: 'Apple SD Gothic Neo', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #2d5016 0%, #4a7c23 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: #fff; margin: 0; font-size: 20px;">WISHES 새 가입 승인 요청</h1>
+        <div style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f8faf5;border-radius:12px">
+          <div style="background:#2d5016;color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+            <h1 style="margin:0;font-size:20px">WISHES 새 가입 요청</h1>
           </div>
-          <div style="background: #f9faf6; padding: 24px; border: 1px solid #e0e8d0; border-top: none; border-radius: 0 0 12px 12px;">
-            <p style="color: #333; font-size: 15px; line-height: 1.6;">새로운 사용자가 가입을 요청했습니다.</p>
-            <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
-              <tr><td style="padding: 8px 12px; background: #eef2e6; font-weight: 600; width: 100px; border-radius: 4px 0 0 4px;">이름</td><td style="padding: 8px 12px; background: #fff; border-radius: 0 4px 4px 0;">${user.name}</td></tr>
-              <tr><td style="padding: 8px 12px; background: #eef2e6; font-weight: 600; border-radius: 4px 0 0 4px;">이메일</td><td style="padding: 8px 12px; background: #fff; border-radius: 0 4px 4px 0;">${user.email}</td></tr>
-              ${user.phone ? `<tr><td style="padding: 8px 12px; background: #eef2e6; font-weight: 600; border-radius: 4px 0 0 4px;">연락처</td><td style="padding: 8px 12px; background: #fff; border-radius: 0 4px 4px 0;">${user.phone}</td></tr>` : ''}
-              ${user.company ? `<tr><td style="padding: 8px 12px; background: #eef2e6; font-weight: 600; border-radius: 4px 0 0 4px;">소속</td><td style="padding: 8px 12px; background: #fff; border-radius: 0 4px 4px 0;">${user.company}</td></tr>` : ''}
-              ${user.reason ? `<tr><td style="padding: 8px 12px; background: #eef2e6; font-weight: 600; border-radius: 4px 0 0 4px;">사유</td><td style="padding: 8px 12px; background: #fff; border-radius: 0 4px 4px 0;">${user.reason}</td></tr>` : ''}
+          <div style="background:white;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e2e8d0">
+            <p style="color:#333;font-size:15px;margin-bottom:16px">새로운 사용자가 가입을 요청했습니다.</p>
+            <table style="width:100%;border-collapse:collapse;font-size:14px">
+              <tr><td style="padding:8px;color:#666;width:80px">이름</td><td style="padding:8px;font-weight:600">${user.name}</td></tr>
+              <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">이메일</td><td style="padding:8px">${user.email}</td></tr>
+              <tr><td style="padding:8px;color:#666">전화</td><td style="padding:8px">${user.phone || '-'}</td></tr>
+              <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">소속</td><td style="padding:8px">${user.company || '-'}</td></tr>
+              <tr><td style="padding:8px;color:#666">사유</td><td style="padding:8px">${user.reason || '-'}</td></tr>
             </table>
-            <a href="${SITE_URL}/admin/command-center.html" style="display: inline-block; background: #4a7c23; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 8px;">Command Center에서 승인하기</a>
+            <div style="margin-top:20px;text-align:center">
+              <a href="${SITE_URL}/admin/command-center.html" style="display:inline-block;background:#4a7c23;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">관리자 센터에서 확인</a>
+            </div>
           </div>
         </div>
       `,
     });
-
-    if (error) {
-      console.error('[Email] Admin notification failed:', error);
-      return null;
-    }
+    if (error) { console.error('[Email] Admin notification failed:', error); return null; }
+    console.log('[Email] Admin notification sent:', data?.id);
     return data;
-  } catch (e) {
-    console.error('[Email] Admin notification error:', e);
-    return null;
-  }
+  } catch (e) { console.error('[Email] Admin notification error:', e); return null; }
 }
 
-// 사용자 승인 시 해당 사용자에게 알림
+// 사용자 승인 시 이메일 알림
 export async function notifyUserApproved(user: {
   email: string;
-  name?: string;
-  role?: string;
+  name: string;
+  role: string;
 }) {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (!resend) {
     console.warn('[Email] RESEND_API_KEY not set, skipping notification');
     return null;
   }
@@ -70,41 +74,36 @@ export async function notifyUserApproved(user: {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: user.email,
-      subject: '[WISHES] 계정이 승인되었습니다',
+      subject: '[WISHES] 가입이 승인되었습니다',
       html: `
-        <div style="font-family: 'Apple SD Gothic Neo', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #2d5016 0%, #4a7c23 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: #fff; margin: 0; font-size: 20px;">WISHES 계정 승인 완료</h1>
+        <div style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f8faf5;border-radius:12px">
+          <div style="background:#2d5016;color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+            <h1 style="margin:0;font-size:20px">WISHES 가입 승인</h1>
           </div>
-          <div style="background: #f9faf6; padding: 24px; border: 1px solid #e0e8d0; border-top: none; border-radius: 0 0 12px 12px;">
-            <p style="color: #333; font-size: 15px; line-height: 1.6;">${user.name || ''}님, 안녕하세요!</p>
-            <p style="color: #333; font-size: 15px; line-height: 1.6;">WISHES 관리자 계정이 <strong style="color: #4a7c23;">승인</strong>되었습니다.</p>
-            <p style="color: #333; font-size: 15px; line-height: 1.6;">이제 아래 버튼을 클릭하여 로그인하실 수 있습니다.</p>
-            ${user.role ? `<p style="color: #666; font-size: 14px;">승인된 직책: <strong>${user.role === 'agent' ? '중개사' : user.role === 'admin' ? '관리자' : user.role}</strong></p>` : ''}
-            <a href="${SITE_URL}/admin/admin-auth.html" style="display: inline-block; background: #4a7c23; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin-top: 8px;">로그인하기</a>
+          <div style="background:white;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e2e8d0">
+            <p style="color:#333;font-size:15px">${user.name}님, 환영합니다!</p>
+            <p style="color:#666;font-size:14px">WISHES 서비스 가입이 승인되었습니다. 지금 바로 로그인하여 서비스를 이용하실 수 있습니다.</p>
+            <p style="color:#666;font-size:14px">부여된 권한: <strong>${user.role}</strong></p>
+            <div style="margin-top:20px;text-align:center">
+              <a href="${SITE_URL}/admin" style="display:inline-block;background:#4a7c23;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">로그인하기</a>
+            </div>
           </div>
-          <p style="color: #999; font-size: 12px; margin-top: 16px; text-align: center;">WISHES - 서울 경기 종합부동산 서비스</p>
         </div>
       `,
     });
-
-    if (error) {
-      console.error('[Email] User approval notification failed:', error);
-      return null;
-    }
+    if (error) { console.error('[Email] Approval notification failed:', error); return null; }
+    console.log('[Email] Approval notification sent to:', user.email);
     return data;
-  } catch (e) {
-    console.error('[Email] User approval notification error:', e);
-    return null;
-  }
+  } catch (e) { console.error('[Email] Approval notification error:', e); return null; }
 }
 
-// 사용자 거부 시 해당 사용자에게 알림
+// 사용자 거부 시 이메일 알림
 export async function notifyUserRejected(user: {
   email: string;
-  name?: string;
+  name: string;
 }) {
-  if (!process.env.RESEND_API_KEY) {
+  const resend = getResend();
+  if (!resend) {
     console.warn('[Email] RESEND_API_KEY not set, skipping notification');
     return null;
   }
@@ -113,30 +112,22 @@ export async function notifyUserRejected(user: {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: user.email,
-      subject: '[WISHES] 계정 승인 결과 안내',
+      subject: '[WISHES] 가입 요청 결과 안내',
       html: `
-        <div style="font-family: 'Apple SD Gothic Neo', sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%); padding: 24px; border-radius: 12px 12px 0 0;">
-            <h1 style="color: #fff; margin: 0; font-size: 20px;">WISHES 계정 승인 결과</h1>
+        <div style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f8faf5;border-radius:12px">
+          <div style="background:#2d5016;color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center">
+            <h1 style="margin:0;font-size:20px">WISHES 가입 요청 결과</h1>
           </div>
-          <div style="background: #faf6f2; padding: 24px; border: 1px solid #e8d8c8; border-top: none; border-radius: 0 0 12px 12px;">
-            <p style="color: #333; font-size: 15px; line-height: 1.6;">${user.name || ''}님, 안녕하세요.</p>
-            <p style="color: #333; font-size: 15px; line-height: 1.6;">죄송합니다. 현재 계정 승인이 보류되었습니다.</p>
-            <p style="color: #333; font-size: 15px; line-height: 1.6;">문의사항이 있으시면 관리자에게 연락해주세요.</p>
-            <p style="color: #666; font-size: 14px; margin-top: 16px;">문의: wishes@wishes.co.kr</p>
+          <div style="background:white;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e2e8d0">
+            <p style="color:#333;font-size:15px">${user.name}님, 안녕하세요.</p>
+            <p style="color:#666;font-size:14px">죄송합니다. 현재 가입 요청이 승인되지 않았습니다.</p>
+            <p style="color:#666;font-size:14px">추가 문의사항이 있으시면 관리자에게 직접 연락해 주세요.</p>
           </div>
-          <p style="color: #999; font-size: 12px; margin-top: 16px; text-align: center;">WISHES - 서울 경기 종합부동산 서비스</p>
         </div>
       `,
     });
-
-    if (error) {
-      console.error('[Email] User rejection notification failed:', error);
-      return null;
-    }
+    if (error) { console.error('[Email] Rejection notification failed:', error); return null; }
+    console.log('[Email] Rejection notification sent to:', user.email);
     return data;
-  } catch (e) {
-    console.error('[Email] User rejection notification error:', e);
-    return null;
-  }
+  } catch (e) { console.error('[Email] Rejection notification error:', e); return null; }
 }
