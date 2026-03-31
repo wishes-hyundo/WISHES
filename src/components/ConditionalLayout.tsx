@@ -4,11 +4,18 @@ import { usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { FloatingButtons } from '@/components/FloatingButtons';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { FavoritesProvider } from '@/contexts/FavoritesContext';
 import AuthModal from '@/components/AuthModal';
 import AIChatBot from '@/components/AIChatBot';
 import CompareBar from '@/components/CompareBar';
+import ProfileCompletion from '@/components/ProfileCompletion';
+
+function ProfileCompletionWrapper() {
+  const { showProfileCompletion, setShowProfileCompletion } = useAuth();
+  if (!showProfileCompletion) return null;
+  return <ProfileCompletion onComplete={() => setShowProfileCompletion(false)} />;
+}
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -29,6 +36,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
         <CompareBar />
         <AIChatBot />
         <AuthModal />
+        <ProfileCompletionWrapper />
       </FavoritesProvider>
     </AuthProvider>
   );
