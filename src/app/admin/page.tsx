@@ -1139,5 +1139,29 @@ export default function AdminPage() {
     );
   }
 
+  // ─── 매물 검색 탭 (Chrome 확장프로그램 기반) ───
+  if (tab === 'search') {
+    return (
+      <div id="ws-search-container" style={{ minHeight: '70vh' }}>
+        {/* Chrome 확장프로그램이 이 영역에 검색 UI를 삽입합니다 */}
+        <div id="ws-search-fallback" className="text-center py-20">
+          <div className="text-6xl mb-6">🔍</div>
+          <h2 className="text-2xl font-bold text-white mb-4">매물 검색</h2>
+          <p className="text-white/60 mb-8 max-w-md mx-auto">
+            WISHES 매물검색 Chrome 확장프로그램이 검색 기능을 제공합니다.<br/>
+            확장프로그램이 로드되면 이 화면이 자동으로 전환됩니다.
+          </p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg text-white/50 text-sm">
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            확장프로그램 연결 대기중...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return null;
 }
