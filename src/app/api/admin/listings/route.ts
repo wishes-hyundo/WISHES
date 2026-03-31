@@ -453,6 +453,9 @@ export async function PUT(request: NextRequest) {
       }
     }
 
+    // images는 DB 컬럼이 아니므로 제거 (listing_images는 별도 처리)
+    delete updateValues.images;
+
     if (Object.keys(updateValues).length === 0) {
       return NextResponse.json(
         { success: false, error: '수정할 필드가 없습니다' },
