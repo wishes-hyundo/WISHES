@@ -150,20 +150,23 @@ export async function PATCH(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (!authHeader || authHeader !== `Bearer ${API_TOKEN}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
     const body = await request.json();
-    const { id, status, memo } = body;
+    const { id, status } = body;
 
     if (!id) {
-      return NextResponse.json({ error: 'Contact ID is required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'ID is required' }, { status: 400 });
     }
 
     const updateData: Record<string, string> = {};
     if (status) updateData.status = status;
-    if (memo !== undefined) updateData.memo = memo;
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json({ success: false, error: 'No fields to update' }, { status: 400 });
+    }
 
     const { data, error } = await supabase
       .from('contacts')
@@ -173,11 +176,11 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, contact: data });
-  } catch (err) {
-    return NextResponse.json({ error: 'Failed to update contact' }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err.message || 'Server error' }, { status: 500 });
   }
 }
