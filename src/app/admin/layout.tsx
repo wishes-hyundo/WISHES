@@ -12,6 +12,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
   const [hasExtension, setHasExtension] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -47,9 +48,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const verifyRes = await fetch('/api/auth/verify', {
               headers: { 'Authorization': 'Bearer ' + token }
             });
-            if (!verifyRes.ok) {
-              console.warn('Token verify failed, but session exists - continuing');
-              // Don't clear session - auth was already verified during login
+            if (verifyRes.ok) {
+              const vData = await verifyRes.json();
+              if (vData.user && vData.user.role && userStr) {
+                try {
+                  const cu = JSON.parse(userStr);
+                  if (cu.role !== vData.user.role) {
+                    cu.role = vData.user.role;
+                    window.sessionStorage.setItem('ws_user', JSON.stringify(cu));
+                  }
+                } catch(re) {}
+              }
+            } else {
+              console.warn('Token verify failed, continuing with existing role');
             }
           } catch (e) {
             console.warn('Token verify request failed:', e);
@@ -178,6 +189,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     window.location.href = '/admin/admin-auth.html';
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      const tk = window.sessionStorage.getItem('ws_token');
+      const uStr = window.sessionStorage.getItem('ws_user');
+      if (!tk || !uStr) return;
+      const u = JSON.parse(uStr);
+      const res = await fetch('/api/auth/delete-account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tk },
+        body: JSON.stringify({ userId: u.id })
+      });
+      if (res.ok) {
+        alert('회원탈퇴가 완료되었습니다.');
+        window.localStorage.clear();
+        window.sessionStorage.clear();
+        window.location.href = '/admin/admin-auth.html';
+      } else {
+        const err = await res.json();
+        alert('탈퇴 실패: ' + (err.message || '오류가 발생했습니다.'));
+      }
+    } catch (e) {
+      alert('탈퇴 처리 중 오류가 발생했습니다.');
+    }
+    setShowDeleteConfirm(false);
+  };
+
   if (!isMounted) return null;
 
   if (isAuthChecking) {
@@ -270,6 +307,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {sidebarOpen && <span>로그아웃</span>}
         </button>
       </div>
+      <div className="px-3 pb-2">
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className={`w-full flex items-center gap-3 px-4 py-2 rounded-xl text-xs font-medium text-white/40 hover:text-red-400 hover:bg-red-500/10 transition-all duration-200 ${!sidebarOpen ? 'justify-center' : ''}`}>
+          <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          {sidebarOpen && <span>회원탈퇴</span>}
+        </button>
+      </div>
     </>
   );
 
@@ -307,6 +354,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-wishes-primary border-t-transparent rounded-full" /></div>}>
           {children}
         </Suspense>
+
+
+      {/* 회원탈퇴 확인 모달 */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#1a2e1a] border border-red-500/30 rounded-2xl p-6 max-w-sm mx-4 shadow-2xl">
+            <h3 className="text-lg font-bold text-white mb-2">회원탈퇴</h3>
+            <p className="text-white/70 text-sm mb-1">정말 탈퇴하시겠습니까?</p>
+            <p className="text-red-400 text-xs mb-6">모든 데이터가 영구적으로 삭제되며 복구할 수 없습니다.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 px-4 py-2.5 rounded-xl bg-white/10 text-white text-sm hover:bg-white/20 transition">취소</button>
+              <button onClick={handleDeleteAccount} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-500 transition">탈퇴하기</button>
+            </div>
+          </div>
+        </div>
+      )}
       </main>
     </div>
   );
