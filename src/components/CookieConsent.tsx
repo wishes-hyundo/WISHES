@@ -1,5 +1,9 @@
 'use client';
 
-export default function CookieConsent() {
+import React from 'react';
+
+export function CookieConsent() {
   return null;
 }
+
+export default CookieConsent;
