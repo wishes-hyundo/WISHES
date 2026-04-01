@@ -134,9 +134,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // 확장프로그램 주입 매물검색 중복 제거
   useEffect(() => {
     const removeDuplicateSearch = () => {
-      const extLinks = document.querySelectorAll('nav a.hover\\:bg-wishes');
-      extLinks.forEach(a => {
-        if (a.textContent && a.textContent.includes('매물 검색')) {
+      document.querySelectorAll('nav a').forEach(a => {
+        if (a.textContent && a.textContent.includes('매물 검색') && a.classList.contains('rounded-lg')) {
           a.remove();
         }
       });
