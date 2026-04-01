@@ -167,9 +167,9 @@ export default function ComparePage() {
         </div>
       </section>
 
-      {/* 비교 테이블 - 데스크탑 */}
+      {/* 비교 테이블 - 데스크톱 */}
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* 데스크탑: 테이블 레이아웃 */}
+        {/* 데스크톱: 테이블 레이아웃 */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>

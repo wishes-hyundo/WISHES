@@ -8,12 +8,12 @@ import { SkeletonCard } from '@/components/SkeletonCard';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { Building2, SlidersHorizontal } from 'lucide-react';
 
-const dealTypes = ['ì „ì„¸', 'ì›”ì„¸', 'ë§¤ë§¤'];
-const listingTypes = ['ì›ë£¸', 'íˆ¬ë£·', 'ì“°ë¦¬ë£´', 'ì˜¤í”¼ìŠ¤í…”', 'ì•„íŒŒíŠ¸', 'ìƒê°€', 'ì‚¬ë¬´ì‹¤'];
+const dealTypes = ['전세', '월세', '매매'];
+const listingTypes = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
 const sortOptions = [
-  { value: 'latest', label: 'ìµœì‹ ìˆœ' },
-  { value: 'price', label: 'ê°€ê²©ìˆœ' },
-  { value: 'area', label: 'ë©”ì ìˆœ' },
+  { value: 'latest', label: '최신순' },
+  { value: 'price', label: '가격순' },
+  { value: 'area', label: '면적순' },
 ];
 
 interface ListingsClientProps {
@@ -33,7 +33,7 @@ export default function ListingsClient({
   const [listings, setListings] = useState<any[]>(initialListings);
   const [dongs, setDongs] = useState<string[]>(initialDongs);
   const [total, setTotal] = useState(totalCount);
-  // S2: SSR ì´ˆê¸° ë°ì´í„°ê°€ ìžˆìœ¼ë©” ë¡œë”© ìƒíƒœ ê±´ë„ˆëœ€
+  // S2: SSR 초기 데이터가 있으면 로딩 상태 건너뜀
   const [loading, setLoading] = useState(initialListings.length === 0 && totalCount === 0);
   const [page, setPage] = useState(1);
   const hasInitialData = useRef(initialListings.length > 0 || totalCount > 0);
@@ -45,12 +45,12 @@ export default function ListingsClient({
   const pageParam = searchParams.get('page') || '1';
   const pageSize = 12;
 
-  // ë°ì´í„° ë¡œë“œ (í•„í„° ë³€ê²½ ì‹œ í´ë¼ì´ì–¸íŠ¸ì—ì„œ ìž¬ë¡œë“œ)
+  // 데이터 로드 (필터 변경 시 클라이언트에서 재로드)
   useEffect(() => {
     const currentPage = parseInt(pageParam, 10) || 1;
     setPage(currentPage);
 
-    // ì²« ë Œë”ë§ ì‹œ SSR ë°ì´í„°ê°€ ìžˆìœ¼ë©´ ìŠ¤í‚µ
+    // 첫 렌더링 시 SSR 데이터가 있으면 스킵
     if (hasInitialData.current) {
       hasInitialData.current = false;
       return;
@@ -61,11 +61,11 @@ export default function ListingsClient({
       const supabase = createClient();
       const offset = (currentPage - 1) * pageSize;
 
-      // ë§¤ë¬¼ ì¿¼ë¦¬
+      // 매물 쿼리
       let query = supabase
         .from('listings')
         .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)')
-        .eq('status', 'ê°€ìš©');
+        .eq('status', '가용');
 
       if (deal) query = query.eq('deal', deal);
       if (type) query = query.eq('type', type);
@@ -75,23 +75,23 @@ export default function ListingsClient({
       query = query.order(sortColumn, { ascending: false });
       query = query.range(offset, offset + pageSize - 1);
 
-      // ë™ ëª©ë¡ ì¿¼ë¦¬
+      // 동 목록 쿼리
       const dongQuery = supabase
         .from('listings')
         .select('dong')
-        .eq('status', 'ê°€ìš©');
+        .eq('status', '가용');
 
-      // ì „ì²´ ê°œìˆ˜ ì¿¼ë¦¬
+      // 전체 개수 쿼리
       let countQuery = supabase
         .from('listings')
         .select('id', { count: 'exact', head: true })
-        .eq('status', 'ê°€ìš©');
+        .eq('status', '가용');
 
       if (deal) countQuery = countQuery.eq('deal', deal);
       if (type) countQuery = countQuery.eq('type', type);
       if (dong) countQuery = countQuery.eq('dong', dong);
 
-      // ë³‘ë ¬ ì‹¤í–‰
+      // 병렬 실행
       const [listingsResult, dongResult, countResult] = await Promise.all([query, dongQuery, countQuery]);
 
       setListings(listingsResult.data || []);
@@ -103,12 +103,12 @@ export default function ListingsClient({
     fetchData();
   }, [deal, type, dong, sort, pageParam]);
 
-  // â”€â”€ V4-05: ìŠ¤í¬ë¡¤ ìœ„ì¹˜ ì €ìž¥ / ë³µì› â”€â”€
+  // ─── V4-05: 스크롤 위치 저장 / 복원 ───
   const scrollSaved = useRef(false);
-  // ì²« ë Œë”ë§ ì—¬ë¶€ ì¶”ì : ìƒì„¸ â†’ ëª©ë¡ ë³µê·€ ì‹œ cleanupì´ sessionStorageë¥¼ ì§€ìš°ì§€ ì•Šë„ë¡
+  // 첫 렌더링 여부 추적: 상세 → 목록 복귀 시 cleanup이 sessionStorage를 지우지 않도록
   const isFirstRender = useRef(true);
 
-  // ìŠ¤í¬ë¡¤ ì´ë™ ì‹œ ìœ„ì¹˜ ì €ìž¥
+  // 스크롤 이동 시 위치 저장
   useEffect(() => {
     const SCROLL_KEY = 'listings_scroll';
     const handleScroll = () => {
@@ -121,7 +121,7 @@ export default function ListingsClient({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // ë°ì´í„° ë¡œë“œ ì™„ë£Œ í›„ ìŠ¤í¬ë¡¤ ë³µì› (ìƒì„¸ â†’ ëª©ë¡ ë³µê·€ ì‹œ)
+  // 데이터 로드 완료 후 스크롤 복원 (상세 → 목록 복귀 시)
   useEffect(() => {
     if (!loading && !scrollSaved.current) {
       scrollSaved.current = true;
@@ -139,7 +139,7 @@ export default function ListingsClient({
     }
   }, [loading]);
 
-  // í•„í„° ë³€ê²½ ì‹œ ìŠ¤í¬ë¡¤ ì €ìž¥ê°’ ì´ˆê¸°í™” (ì²« ë Œë”ë§ì€ ì œì™¸ â€” ë³µê·€ ì‹œ ìœ„ì¹˜ ë³´ì¡´)
+  // 필터 변경 시 스크롤 저장값 초기화 (첫 렌더링은 제외 — 복귀 시 위치 보존)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -164,25 +164,25 @@ export default function ListingsClient({
 
   return (
     <div className="pt-16 min-h-screen">
-      {/* íŽ˜ì´ì§€ í—¤ë” */}
+      {/* 페이지 헤더 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4">
-          <Breadcrumb items={[{ label: 'ë§¤ë¬¼ ê²€ìƒ‰' }]} />
+          <Breadcrumb items={[{ label: '매물 검색' }]} />
         </div>
         <div className="max-w-7xl mx-auto px-4 pb-6">
-          <h1 className="text-2xl font-bold text-wishes-primary">ë§¤ë¬¼ ê²€ìƒ‰</h1>
+          <h1 className="text-2xl font-bold text-wishes-primary">매물 검색</h1>
           <p className="text-sm text-gray-500 mt-1">
-            ì›í•˜ì‹œëŠ” ì§€ì—­ç²t ë§¤ë¬¼ì„ ê²€ìƒ‰í•˜ì„¸ìš”
+            원하시는 지역의 매물을 검색하세요
           </p>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
-        {/* í•„í„° */}
+        {/* 필터 */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <SlidersHorizontal className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">í•„í„°</span>
+            <span className="text-sm font-medium text-gray-700">필터</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <select
@@ -190,7 +190,7 @@ export default function ListingsClient({
               onChange={(e) => updateFilter('deal', e.target.value)}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
             >
-              <option value="">ê±°ëž˜ìœ í˜• ì „ì²´</option>
+              <option value="">거래유형 전체</option>
               {dealTypes.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
@@ -200,7 +200,7 @@ export default function ListingsClient({
               onChange={(e) => updateFilter('type', e.target.value)}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
             >
-              <option value="">ë§¤ë¬¼ìœ í˜• ì „ì²´</option>
+              <option value="">매물유형 전체</option>
               {listingTypes.map((t) => (
                 <option key={t} value={t}>{t}</option>
               ))}
@@ -210,7 +210,7 @@ export default function ListingsClient({
               onChange={(e) => updateFilter('dong', e.target.value)}
               className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
             >
-              <option value="">ì§€ì—­ ì „ì²´</option>
+              <option value="">지역 전체</option>
               {dongs.map((d) => (
                 <option key={d} value={d}>{d}</option>
               ))}
@@ -227,7 +227,7 @@ export default function ListingsClient({
           </div>
         </div>
 
-        {/* ê²°ê³¼ */}
+        {/* 결과 */}
         {loading ? (
           <div>
             <div className="h-4 w-24 bg-gray-100 rounded animate-pulse mb-4" />
@@ -240,7 +240,7 @@ export default function ListingsClient({
         ) : listings.length > 0 ? (
           <>
             <p className="text-sm text-gray-500 mb-4">
-              ì´ <strong className="text-wishes-primary">{total}</strong>ê±´ì˜ ë§¤ë¬¼
+              총 <strong className="text-wishes-primary">{total}</strong>건의 매물
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {listings.map((listing) => (
@@ -248,7 +248,7 @@ export default function ListingsClient({
               ))}
             </div>
 
-            {/* íŽ˜ì´ì§€ë„¤ì´ì…˜ */}
+            {/* 페이지네이션 */}
             {totalPages > 1 && (
               <div className="flex justify-center gap-2 mt-10">
                 {page > 1 && (
@@ -256,7 +256,7 @@ export default function ListingsClient({
                     href={`/listings?${new URLSearchParams({ ...(deal && { deal }), ...(type && { type }), ...(dong && { dong }), sort, page: String(page - 1) }).toString()}`}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
                   >
-                    ì´ì „
+                    이전
                   </a>
                 )}
                 {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -282,7 +282,7 @@ export default function ListingsClient({
                     href={`/listings?${new URLSearchParams({ ...(deal && { deal }), ...(type && { type }), ...(dong && { dong }), sort, page: String(page + 1) }).toString()}`}
                     className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
                   >
-                    ë‹¤ìŒ
+                    다음
                   </a>
                 )}
               </div>
@@ -291,8 +291,8 @@ export default function ListingsClient({
         ) : (
           <div className="text-center py-20 bg-white rounded-xl border border-gray-200 mt-4">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">ê²€ìƒ‰ ì¡°ê±´ì— ë§žëŠ” ë§¤ë¬¼ì´ ì—†ìŠµë‹ˆë‹¤</p>
-            <p className="text-sm text-gray-400 mt-1">í•„í„°ë¥¼ ë³€ê²½í•´ë³´ì„¸ìš”</p>
+            <p className="text-gray-500 font-medium">검색 조건에 맞는 매물이 없습니다</p>
+            <p className="text-sm text-gray-400 mt-1">필터를 변경해보세요</p>
           </div>
         )}
       </div>

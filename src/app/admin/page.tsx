@@ -686,9 +686,9 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 위칙 정보 */}
+              {/* 위치 정보 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">위칙 정보</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">위치 정보</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="md:col-span-2">
                     <label className={labelClass}>주소 *</label>
@@ -856,9 +856,9 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 편의시섰 옵션 */}
+              {/* 편의시설 옵션 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">편의시섰 / 옵션</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">편의시설 / 옵션</p>
                 <div className="flex flex-wrap gap-4">
                   {[
                     { key: 'parking', label: '주차' },
@@ -893,7 +893,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* 이미지 업로드 - 드래그애드롭 */}
+              {/* 이미지 업로드 - 드래그앤드롭 */}
               <div className="border-b pb-4">
                 <p className="text-sm font-bold text-gray-700 mb-3">매물 이미지</p>
                 <div
@@ -959,7 +959,7 @@ export default function AdminPage() {
                 {/* V3-14: 업로드된 이미지 미리보기 (드래그 정렬) */}
                 {uploadedImages.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-xs text-gray-500 mb-2">업로드된 이미지 ({uploadedImages.length}장) — 드래그하여 순섞 변경</p>
+                    <p className="text-xs text-gray-500 mb-2">업로드된 이미지 ({uploadedImages.length}장) — 드래그하여 순서 변경</p>
                     <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
                       {uploadedImages.map((img, i) => (
                         <div
@@ -1055,7 +1055,7 @@ export default function AdminPage() {
                     </label>
                     <label className="flex items-center gap-2">
                       <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
-                      Ꞅ판 설칙 가능 여부
+                      간판 설치 가능 여부
                     </label>
                     <label className="flex items-center gap-2">
                       <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />

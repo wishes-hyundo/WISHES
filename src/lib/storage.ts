@@ -1,18 +1,16 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 이미지 스토리지 추상화 레이어
-// Cloudflare R2 (S3 호환) 기반
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Image storage abstraction layer
+// Cloudflare R2 (S3 compatible) based
 
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
-// 스토리지 인터페이스
+// Storage interface
 export interface StorageAdapter {
   upload(buffer: Buffer, filePath: string, contentType?: string): Promise<string>;
   delete(filePath: string): Promise<void>;
   getUrl(filePath: string): string;
 }
 
-// R2 클라이언트 싱글톤
+// R2 client singleton
 let r2Client: S3Client | null = null;
 
 function getR2Client(): S3Client {
@@ -29,7 +27,7 @@ function getR2Client(): S3Client {
   return r2Client;
 }
 
-// ─── Cloudflare R2 스토리지 ───
+// Cloudflare R2 Storage
 class R2Storage implements StorageAdapter {
   private bucketName = process.env.R2_BUCKET_NAME || 'wishes-listings';
   private publicUrl = process.env.R2_PUBLIC_URL || 'https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev';
@@ -66,7 +64,7 @@ class R2Storage implements StorageAdapter {
   }
 }
 
-// ─── 로컬 파일 저장 (폴백) ───
+// Local file storage (fallback)
 class LocalStorage implements StorageAdapter {
   async upload(buffer: Buffer, filePath: string): Promise<string> {
     const { writeFile, mkdir } = await import('fs/promises');
@@ -87,7 +85,7 @@ class LocalStorage implements StorageAdapter {
     try {
       await unlink(fullPath);
     } catch {
-      // 파일이 없으면 무시
+      // File doesn't exist
     }
   }
 
@@ -96,7 +94,7 @@ class LocalStorage implements StorageAdapter {
   }
 }
 
-// 환경변수로 스토리지 전환 (기본값: R2)
+// Environment-based storage switch (default: R2)
 export const storage: StorageAdapter =
   process.env.STORAGE_TYPE === 'local'
     ? new LocalStorage()

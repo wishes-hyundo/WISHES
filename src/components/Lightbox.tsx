@@ -30,7 +30,7 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
     setZoomed(false);
   }, [images.length]);
 
-  // 키보드 네비게이션
+  // Keyboard navigation
   useEffect(() => {
     if (!isOpen) return;
 
@@ -63,7 +63,7 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
 
   return (
     <div className="fixed inset-0 z-[300] bg-black/95 flex flex-col" onClick={onClose}>
-      {/* 상단 바 */}
+      {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 text-white/80" onClick={(e) => e.stopPropagation()}>
         <span className="text-sm font-medium">
           {currentIndex + 1} / {images.length}
@@ -72,27 +72,27 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
           <button
             onClick={() => setZoomed(!zoomed)}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label={zoomed ? '축소' : '확대'}
+            aria-label={zoomed ? 'Zoom out' : 'Zoom in'}
           >
             {zoomed ? <ZoomOut className="w-5 h-5" /> : <ZoomIn className="w-5 h-5" />}
           </button>
           <button
             onClick={onClose}
             className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-            aria-label="닫기"
+            aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* 이미지 */}
+      {/* Image area */}
       <div className="flex-1 flex items-center justify-center px-4 relative" onClick={(e) => e.stopPropagation()}>
         {images.length > 1 && (
           <button
             onClick={handlePrev}
             className="absolute left-4 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
-            aria-label="이전 이미지"
+            aria-label="Previous image"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
@@ -100,7 +100,7 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
 
         <img
           src={current.url}
-          alt={current.alt || `이미지 ${currentIndex + 1}`}
+          alt={current.alt || `Image ${currentIndex + 1}`}
           className={cn(
             'max-h-[80vh] max-w-full object-contain transition-transform duration-300 rounded-lg',
             zoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'
@@ -112,14 +112,14 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
           <button
             onClick={handleNext}
             className="absolute right-4 p-3 bg-white/10 hover:bg-white/20 rounded-full text-white transition-colors z-10"
-            aria-label="다음 이미지"
+            aria-label="Next image"
           >
             <ChevronRight className="w-6 h-6" />
           </button>
         )}
       </div>
 
-      {/* 썸네일 바 */}
+      {/* Thumbnail bar */}
       {images.length > 1 && (
         <div className="flex justify-center gap-2 px-4 py-3 overflow-x-auto" onClick={(e) => e.stopPropagation()}>
           {images.map((img, idx) => (
@@ -135,7 +135,7 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
             >
               <img
                 src={img.url}
-                alt={img.alt || `썸네일 ${idx + 1}`}
+                alt={img.alt || `Thumbnail ${idx + 1}`}
                 className="w-full h-full object-cover"
               />
             </button>

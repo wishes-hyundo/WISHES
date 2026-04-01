@@ -1,340 +1,120 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { Upload, Download, AlertCircle, CheckCircle2, FileText, Trash2 } from 'lucide-react';
+import React, { useMemo } from 'react';
 import { cn } from '@/lib/utils';
 
-interface ExcelUploadProps {
-  onSubmit: (listings: any[]) => Promise<void>;
-  authHeader?: string;
+interface AdminDashboardChartsProps {
+  listings: Array<{
+    id: number;
+    type: string;
+    deal: string;
+    status: '가용' | '계약중' | '계약완료';
+    created_at: string;
+    deposit: number;
+    monthly?: number | null;
+    price?: number | null;
+    dong: string;
+  }>;
 }
 
-interface ParsedRow {
-  row: number;
-  data: Record<string, any>;
-  errors: string[];
-  isValid: boolean;
-}
-
-// 엑셀 셀 값을 한국 문자열로 변환 ("O"/"X" → boolean)
-const parseExcelValue = (value: any, fieldName: string): any => {
-  if (value === null || value === undefined || value === '') {
-    return null;
-  }
-
-  const stringValue = String(value).trim();
-
-  // Boolean 필드 처리 (O/X → true/false)
-  if (['parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available'].includes(fieldName)) {
-    return stringValue.toUpperCase() === 'O';
-  }
-
-  // 숫자 필드 처리
-  if (['deposit', 'monthly', 'price', 'maintenance_fee', 'area_m2', 'area_supply_m2', 'floor_current', 'floor_total', 'rooms', 'bathrooms', 'built_year'].includes(fieldName)) {
-    const num = parseInt(stringValue, 10);
-    return isNaN(num) ? null : num;
-  }
-
-  return stringValue;
+// Color palette
+const COLORS = {
+  primary: '#1b5e20',
+  secondary: '#2e7d32',
+  accent: '#66bb6a',
+  blue: '#42a5f5',
+  red: '#ef5350',
+  purple: '#ab47bc',
+  orange: '#f9a825',
+  light: '#a5d6a7',
 };
 
-// 엑셀에서 로드
-const loadXLSX = async () => {
-  if ((window as any).XLSX) return (window as any).XLSX;
-  return new Promise((resolve) => {
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-    script.onload = () => resolve((window as any).XLSX);
-    document.head.appendChild(script);
-  });
+const TYPE_COLORS: Record<string, string> = {
+  '원룸': '#42a5f5',
+  '투룸': '#66bb6a',
+  '오피스텔': '#f9a825',
+  '아파트': '#ef5350',
+  '상가': '#ab47bc',
+  '사무실': '#2e7d32',
 };
 
-// 엑셀 컬럼 매핑
-const COLUMN_MAPPING: Record<string, string> = {
-  '제목': 'title',
-  '유형': 'type',
-  '거래유형': 'deal',
-  '보증금': 'deposit',
-  '월세': 'monthly',
-  '매매가': 'price',
-  '관리비': 'maintenance_fee',
-  '전용면적': 'area_m2',
-  '공급면적': 'area_supply_m2',
-  '현층': 'floor_current',
-  '총층': 'floor_total',
-  '방수': 'rooms',
-  '욕실수': 'bathrooms',
-  '방향': 'direction',
-  '난방방식': 'heating_type',
-  '주소': 'address',
-  '동': 'dong',
-  '상세주소': 'address_detail',
-  '설명': 'description',
-  '입주가능일': 'available_date',
-  '준공연도': 'built_year',
-  '주차': 'parking',
-  '엘리베이터': 'elevator',
-  '반려동물': 'pet',
-  '발코니': 'balcony',
-  '풀옵션': 'full_option',
-  '대출가능': 'loan_available',
+// Utility to get color for property type
+const getTypeColor = (type: string): string => {
+  return TYPE_COLORS[type] || '#999999';
 };
 
-// 필수 필드
-const REQUIRED_FIELDS = ['title', 'type', 'deal', 'deposit', 'area_m2', 'floor_current', 'address', 'dong'];
+// Horizontal Bar Chart Component
+const HorizontalBarChart = ({
+  data,
+  title,
+  colors,
+}: {
+  data: Array<{ label: string; value: number }>;
+  title: string;
+  colors?: string[];
+}) => {
+  const maxValue = Math.max(...data.map((d) => d.value), 1);
+  const barHeight = 32;
+  const chartHeight = data.length * barHeight + 20;
 
-// 검증 함수
-const validateListing = (data: Record<string, any>, rowNumber: number): ParsedRow => {
-  const errors: string[] = [];
+  return (
+    <div className="card-premium rounded-2xl p-6 bg-wishes-card border border-wishes-border">
+      <h3 className="text-lg font-bold text-wishes-primary mb-6">{title}</h3>
+      <svg width="100%" height={chartHeight} viewBox={`0 0 300 ${chartHeight}`}>
+        {data.map((item, idx) => {
+          const barWidth = (item.value / maxValue) * 200;
+          const y = idx * barHeight + 10;
+          const color = colors?.[idx] || COLORS.secondary;
 
-  // 필수 필드 검증
-  REQUIRED_FIELDS.forEach((field) => {
-    if (!data[field]) {
-      errors.push(`필수 항목 미입력: ${field}`);
-    }
-  });
-
-  // 유형 검증
-  if (data.type && !['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'].includes(data.type)) {
-    errors.push(`유효하지 않은 유형: ${data.type}`);
-  }
-
-  // 거래유형 검증
-  if (data.deal && !['전세', '월세', '매매'].includes(data.deal)) {
-    errors.push(`유효하지 않은 거래유형: ${data.deal}`);
-  }
-
-  // 조건부 필수 필드
-  if (data.deal === '월세' && !data.monthly) {
-    errors.push('월세는 월세 금액이 필수입니다');
-  }
-  if (data.deal === '매매' && !data.price) {
-    errors.push('매매는 매매가가 필수입니다');
-  }
-
-  return {
-    row: rowNumber,
-    data,
-    errors,
-    isValid: errors.length === 0,
-  };
-};
-
-export function ExcelUpload({ onSubmit, authHeader }: ExcelUploadProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [parsedData, setParsedData] = useState<ParsedRow[]>([]);
-  const [showPreview, setShowPreview] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const processFile = useCallback(async (file: File) => {
-    setIsLoading(true);
-    try {
-      const XLSX = await loadXLSX();
-      const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[];
-
-      if (!rows || rows.length === 0) {
-        alert('파일이 비어있습니다');
-        return;
-      }
-
-      // 헤더 행 (첫 번째 행)
-      const headers = rows[0] as string[];
-      const columnMap: Record<number, string> = {};
-
-      headers.forEach((header, index) => {
-        if (header && COLUMN_MAPPING[header]) {
-          columnMap[index] = COLUMN_MAPPING[header];
-        }
-      });
-
-      // 데이터 행 파싱
-      const parsed: ParsedRow[] = [];
-      for (let i = 1; i < rows.length; i++) {
-        const row = rows[i] as any[];
-
-        // 빈 행 건너뛰기
-        if (!row || row.every((cell) => !cell)) {
-          continue;
-        }
-
-        const data: Record<string, any> = {};
-        row.forEach((cellValue, cellIndex) => {
-          const fieldName = columnMap[cellIndex];
-          if (fieldName) {
-            data[fieldName] = parseExcelValue(cellValue, fieldName);
-          }
-        });
-
-        const validation = validateListing(data, i + 1);
-        parsed.push(validation);
-      }
-
-      setParsedData(parsed);
-      setShowPreview(true);
-    } catch (error) {
-      alert(`파일 처리 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  const handleFileChange = useCallback(
-    async (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0];
-      if (file && file.name.endsWith('.xlsx')) {
-        await processFile(file);
-      } else {
-        alert('.xlsx 파일만 선택 가능합니다');
-      }
-    },
-    [processFile]
+          return (
+            <g key={idx}>
+              {/* Background bar */}
+              <rect
+                x="80"
+                y={y}
+                width="200"
+                height="24"
+                fill="#f0f0f0"
+                rx="4"
+              />
+              {/* Filled bar */}
+              <rect
+                x="80"
+                y={y}
+                width={barWidth}
+                height="24"
+                fill={color}
+                rx="4"
+              />
+              {/* Label */}
+              <text
+                x="8"
+                y={y + 16}
+                fontSize="12"
+                fontWeight="bold"
+                fill="#1b3a24"
+                fontFamily="GmarketSans, sans-serif"
+              >
+                {item.label}
+              </text>
+              {/* Value */}
+              <text
+                x={85 + barWidth + 8}
+                y={y + 16}
+                fontSize="12"
+                fontWeight="bold"
+                fill="#1b3a24"
+                fontFamily="GmarketSans, sans-serif"
+              >
+                {item.value}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
   );
-
-  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback(
-    async (e: React.DragEvent<HTMLDivElement>) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsDragging(false);
-
-      const file = e.dataTransfer.files?.[0];
-      if (file && file.name.endsWith('.xlsx')) {
-        await processFile(file);
-      } else {
-        alert('.xlsx 파일만 지원됩니다');
-      }
-    },
-    [processFile]
-  );
-
-  const handleSubmit = async () => {
-    const validListings = parsedData.filter((p) => p.isValid).map((p) => p.data);
-
-    if (validListings.length === 0) {
-      alert('유효한 매물 데이터가 없습니다');
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      await onSubmit(validListings);
-      alert(`${validListings.length}개의 매물이 등록되었습니다`);
-      setParsedData([]);
-      setShowPreview(false);
-    } catch (error) {
-      alert(`등록 중 오류 발생: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const downloadTemplate = async () => {
-    const XLSX = await loadXLSX();
-
-    // 헤더 행 생성
-    const headers = Object.keys(COLUMN_MAPPING);
-
-    // 샘플 데이터
-    const sampleData = [
-      {
-        '제목': '강남 원룸 우산동 신축',
-        '유형': '원룸',
-        '거래유형': '월세',
-        '보증금': '1000',
-        '월세': '45',
-        '매매가': '',
-        '관리비': '5',
-        '전용면적': '22',
-        '공급면적': '33',
-        '현층': '3',
-        '총층': '8',
-        '방수': '1',
-        '욕실수': '1',
-        '방향': '남향',
-        '난방방식': '중앙난방',
-        '주소': '서울시 강남구 우산동',
-        '동': '우산',
-        '상세주소': '우산빌 301호',
-        '설명': '신축 건물, 채광 좋음',
-        '입주가능일': '2026-04-15',
-        '준공연도': '2024',
-        '주차': 'O',
-        '엘리베이터': 'O',
-        '반려동물': 'X',
-        '발코니': 'O',
-        '풀옵션': 'O',
-        '대출가능': 'O',
-      },
-    ];
-
-    const worksheet = XLSX.utils.json_to_sheet([headers, ...sampleData], { header: 1 });
-
-    // 컬럼 너비 설정
-    worksheet['!cols'] = Array(headers.length).fill({ wch: 15 });
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, '매물등록');
-    XLSX.writeFile(workbook, 'wishes-listing-template.xlsx');
-  };
-
-  // 프리뷰 테이블
-  if (showPreview && parsedData.length > 0) {
-    const validCount = parsedData.filter((p) => p.isValid).length;
-    const errorCount = parsedData.filter((p) => !p.isValid).length;
-
-    return (
-      <div className="w-full space-y-6">
-        {/* 통계 */}
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-wishes-light/20 border border-wishes-accent rounded-xl p-4">
-            <p className="text-sm text-wishes-text font-medium">유효한 매물</p>
-            <p className="text-2xl font-bold text-wishes-primary mt-1">{validCount}</p>
-          </div>
-          <div className={cn(
-            'border rounded-xl p-4',
-            errorCount > 0 ? 'bg-red-50 border-red-200' : 'bg-wishes-light/20 border-wishes-accent'
-          )}>
-            <p className={cn('text-sm font-medium', errorCount > 0 ? 'text-red-700' : 'text-wishes-text')}>
-              오류
-            </p>
-            <p className={cn('text-2xl font-bold mt-1', errorCount > 0 ? 'text-red-600' : 'text-wishes-primary')}>
-              {errorCount}
-            </p>
-          </div>
-        </div>
-
-        {/* 프리뷰 테이블 */}
-        <div className="border border-wishes-border rounded-xl overflow-hidden">
-          <div className="overflow-x-auto max-h-96 overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-wishes-bg sticky top-0">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-wishes-text">행</th>
-                  <th className="px-4 py-3 text-left font-semibold text-wishes-text">제목</th>
-                  <th className="px-4 py-3 text-left font-semibold text-wishes-text">유형</th>
-                  <th className="px-4 py-3 text-left font-semibold text-wishes-text">거래</th>
-                  <th className="px-4 py-3 text-left font-semibold text-wishes-text">주소</th>
-                  <th className="px-4 py-3 text-left font-semibold text-wishes-text">상태</th>
-                  <th className="px-4 py-3 text-left font-semibold text-wishes-text">메시지</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-wishes-border">
-                {parsedData.map((row) => (
+};{parsedData.map((row) => (
                   <tr key={row.row} className={row.isValid ? '' : 'bg-red-50'}>
                     <td className="px-4 py-3 text-wishes-text">{row.row}</td>
                     <td className="px-4 py-3 text-wishes-text truncate max-w-xs">{row.data.title || '-'}</td>
@@ -455,7 +235,175 @@ export function ExcelUpload({ onSubmit, authHeader }: ExcelUploadProps) {
         )}
       </div>
 
-      {/* 샘플 다운로드 버튼 */}
+      {/* 샘플 다운로h}
+                fill={slice.item.color}
+                stroke="white"
+                strokeWidth="2"
+              />
+              <text
+                x={slice.labelX}
+                y={slice.labelY}
+                fontSize="11"
+                fontWeight="bold"
+                fill="white"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontFamily="GmarketSans, sans-serif"
+              >
+                {slice.percentage}%
+              </text>
+            </g>
+          ))}
+        </svg>
+        <div className="w-full space-y-2">
+          {data.map((item, idx) => (
+            <div key={idx} className="flex items-center justify-between text-sm">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-3 h-3 rounded"
+                  style={{ backgroundColor: item.color }}
+                />
+                <span className="text-wishes-text font-medium">{item.label}</span>
+              </div>
+              <span className="font-bold text-wishes-primary">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Simple Bar Chart Component
+const BarChart = ({
+  data,
+  title,
+}: {
+  data: Array<{ label: string; value: number }>;
+  title: string;
+}) => {
+  const maxValue = Math.max(...data.map((d) => d.value), 1);
+  const barWidth = 40;
+  const chartWidth = data.length * (barWidth + 10) + 40;
+  const chartHeight = 220;
+
+  return (
+    <div className="card-premium rounded-2xl p-6 bg-wishes-card border border-wishes-border">
+      <h3 className="text-lg font-bold text-wishes-primary mb-6">{title}</h3>
+      <svg width="100%" height={chartHeight} viewBox={`0 0 ${chartWidth} ${chartHeight}`}>
+        {/* Y-axis */}
+        <line x1="40" y1="10" x2="40" y2="180" stroke="#ddd" strokeWidth="1" />
+        {/* X-axis */}
+        <line x1="40" y1="180" x2={chartWidth - 20} y2="180" stroke="#ddd" strokeWidth="1" />
+
+        {/* Grid lines and labels */}
+        {[0, 0.25, 0.5, 0.75, 1].map((ratio, idx) => {
+          const y = 180 - ratio * 160;
+          const value = Math.round(maxValue * ratio);
+          return (
+            <g key={idx}>
+              <line x1="35" y1={y} x2={chartWidth - 20} y2={y} stroke="#f0f0f0" strokeWidth="1" />
+              <text
+                x="5"
+                y={y + 4}
+                fontSize="11"
+                fill="#999"
+                textAnchor="end"
+                fontFamily="GmarketSans, sans-serif"
+              >
+                {value}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Bars */}
+        {data.map((item, idx) => {
+          const barHeight = (item.value / maxValue) * 160;
+          const x = 40 + idx * (barWidth + 10) + 5;
+          const y = 180 - barHeight;
+
+          return (
+            <g key={idx}>
+              {/* Bar */}
+              <rect
+                x={x}
+                y={y}
+                width={barWidth}
+                height={barHeight}
+                fill={COLORS.secondary}
+                rx="4"
+              />
+              {/* Label */}
+              <text
+                x={x + barWidth / 2}
+                y="200"
+                fontSize="11"
+                fill="#1b3a24"
+                textAnchor="middle"
+                fontWeight="bold"
+                fontFamily="GmarketSans, sans-serif"
+              >
+                {item.label}
+              </text>
+              {/* Value */}
+              <text
+                x={x + barWidth / 2}
+                y={y - 4}
+                fontSize="11"
+                fill={COLORS.primary}
+                textAnchor="middle"
+                fontWeight="bold"
+                fontFamily="GmarketSans, sans-serif"
+              >
+                {item.value}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+};
+
+// Main Component
+export const AdminDashboardCharts: React.FC<AdminDashboardChartsProps> = ({ listings }) => {
+  const stats = useMemo(() => {
+    // Type distribution
+    const typeDistribution = listings.reduce(
+      (acc, listing) => {
+        const type = listing.type || '기타';
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    // Deal type distribution
+    const dealDistribution = listings.reduce(
+      (acc, listing) => {
+        const deal = listing.deal || '기타';
+        acc[deal] = (acc[deal] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    // Dong distribution
+    const dongDistribution = listings.reduce(
+      (acc, listing) => {
+        const dong = listing.dong || '미지정';
+        acc[dong] = (acc[dong] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>
+    );
+
+    // Monthly registration trend (last 6 months)
+    const now = new Date();
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+  드 버튼 */}
       <button
         onClick={downloadTemplate}
         disabled={isLoading}
