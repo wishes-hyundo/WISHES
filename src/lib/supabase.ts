@@ -1,7 +1,6 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Supabase 클라이언트 설정
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -11,6 +10,7 @@ const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!supabaseUrl) {
   throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
 }
+
 if (!supabaseAnonKey) {
   throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
 }
@@ -34,7 +34,6 @@ export function createClient() {
  * - localStorage에 세션 저장
  */
 let authClientInstance: ReturnType<typeof createSupabaseClient> | null = null;
-
 export function createAuthClient() {
   if (typeof window === 'undefined') {
     return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
@@ -43,7 +42,9 @@ export function createAuthClient() {
       },
     });
   }
+
   if (authClientInstance) return authClientInstance;
+
   authClientInstance = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
     auth: {
       persistSession: true,
@@ -53,41 +54,33 @@ export function createAuthClient() {
       detectSessionInUrl: true,
     },
   });
+
   return authClientInstance;
 }
 
 /**
- * 서버 클라이언트 (Service Role Key) - 싱글톤
+ * 서버 클라이언트 (Service Role Key)
  * - 관리자 API 엔드포인트 사용
- * - RLS 정책 우회 → 더 빠른 쿼리
+ * - RLS 정책 완전 우회
  * - 서버 사이드에서만 사용 (환경변수 보호)
- * - 싱글톤으로 연결 재사용 → 성능 향상
+ * - 매 요청마다 새 인스턴스 (Vercel 서버리스 안정성)
  */
-let serverClientInstance: ReturnType<typeof createSupabaseClient> | null = null;
-
 export function createServerClient() {
   if (!supabaseServiceRoleKey) {
+    console.error('[createServerClient] SUPABASE_SERVICE_ROLE_KEY is missing!');
     throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
   }
 
-  if (serverClientInstance) return serverClientInstance;
-
-  serverClientInstance = createSupabaseClient(supabaseUrl, supabaseServiceRoleKey, {
+  return createSupabaseClient(supabaseUrl!, supabaseServiceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
     db: {
       schema: 'public',
     },
-    global: {
-      headers: {
-        'x-connection-pool': 'true',
-      },
-    },
   });
-
-  return serverClientInstance;
 }
 
 export default {
