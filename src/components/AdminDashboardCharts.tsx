@@ -1,5 +1,9 @@
 'use client';
 
-export default function AdminDashboardCharts() {
+import React from 'react';
+
+export function AdminDashboardCharts() {
   return null;
 }
+
+export default AdminDashboardCharts;
