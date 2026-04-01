@@ -252,6 +252,15 @@ interface EnhanceAnalysisResult {
   };
 }
 
+interface MosaicDetection {
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  confidence: number;
+}
+
 // Default parameters when API is unavailable (optimized for real estate photos)
 const DEFAULT_ENHANCE_PARAMS = {
   shadow_lift: 0.6,
@@ -275,19 +284,29 @@ function enhanceImage(file: File): Promise<string> {
 
       // Step 1: Get AI analysis parameters
       let params = DEFAULT_ENHANCE_PARAMS;
+      let mosaicDetections: MosaicDetection[] = [];
       try {
-        const res = await fetch('/api/analyze-photo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: dataUrl, mode: 'enhance' }),
-        });
-        if (res.ok) {
-          const data: EnhanceAnalysisResult = await res.json();
+        const [enhanceRes, mosaicRes] = await Promise.all([
+          fetch('/api/analyze-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: dataUrl, mode: 'enhance' }),
+          }),
+          fetch('/api/analyze-photo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: dataUrl, mode: 'mosaic' }),
+          }),
+        ]);
+        if (enhanceRes.ok) {
+          const data: EnhanceAnalysisResult = await enhanceRes.json();
           if (data.parameters) params = data.parameters;
         }
-      } catch {
-        // Use default params if API fails
-      }
+        if (mosaicRes.ok) {
+          const mosaicData = await mosaicRes.json();
+          if (mosaicData.detections) mosaicDetections = mosaicData.detections;
+        }
+      } catch { /* Use defaults if API fails */ }
 
       // Step 2: Load image and apply 7-step pipeline
       const img = new Image();
@@ -394,6 +413,24 @@ function enhanceImage(file: File): Promise<string> {
           gradient.addColorStop(1, `rgba(0,0,0,${params.vignette_strength})`);
           ctx.fillStyle = gradient;
           ctx.fillRect(0, 0, w, h);
+
+          // Step 8: Privacy Mosaic - Auto-detect and blur faces, license plates, personal info
+          if (mosaicDetections.length > 0) {
+            const blockSize = 20;
+            mosaicDetections.forEach(det => {
+              const mx = Math.floor(det.x * w / 100);
+              const my = Math.floor(det.y * h / 100);
+              const mw = Math.floor(det.width * w / 100);
+              const mh = Math.floor(det.height * h / 100);
+              for (let by = my; by < my + mh; by += blockSize) {
+                for (let bx = mx; bx < mx + mw; bx += blockSize) {
+                  const pixel = ctx.getImageData(bx, by, 1, 1).data;
+                  ctx.fillStyle = `rgb(${pixel[0]},${pixel[1]},${pixel[2]})`;
+                  ctx.fillRect(bx, by, blockSize, blockSize);
+                }
+              }
+            });
+          }
 
           // Export as WebP 93% quality
           const result = canvas.toDataURL('image/webp', 0.93);
