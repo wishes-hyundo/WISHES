@@ -1,5 +1,9 @@
 'use client';
 
-export default function ContractRenewalAlert() {
+import React from 'react';
+
+export function ContractRenewalAlert() {
   return null;
 }
+
+export default ContractRenewalAlert;
