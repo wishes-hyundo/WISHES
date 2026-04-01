@@ -103,7 +103,7 @@ export default function ListingsClient({
     fetchData();
   }, [deal, type, dong, sort, pageParam]);
 
-  // ─── V4-05: 스크롤 위치 저장 / 복원 ───
+  // ── V4-05: 스크롤 위치 저장 / 복원 ──
   const scrollSaved = useRef(false);
   // 첫 렌더링 여부 추적: 상세 → 목록 복귀 시 cleanup이 sessionStorage를 지우지 않도록
   const isFirstRender = useRef(true);

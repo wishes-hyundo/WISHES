@@ -27,12 +27,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = createAuthClient();
 
+    // 현재 세션 확인
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
+    // 인증 상태 변경 리스너
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
@@ -61,7 +63,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || '';
     const REDIRECT_URI = `${window.location.origin}/auth/callback?provider=naver`;
     const STATE = Math.random().toString(36).substring(7);
-
     window.location.href =
       `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}`;
   }, []);

@@ -9,7 +9,10 @@ function Pulse({ className }: { className?: string }) {
 export function SkeletonCard() {
   return (
     <div className="card-premium overflow-hidden">
+      {/* 이미지 영역 */}
       <Pulse className="aspect-[16/10] rounded-none rounded-t-2xl" />
+
+      {/* 정보 영역 */}
       <div className="p-4 space-y-4">
         <div className="space-y-2">
           <Pulse className="h-3 w-12" />
