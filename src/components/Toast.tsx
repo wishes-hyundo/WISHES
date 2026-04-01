@@ -1,11 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import React from 'react';
+
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
 
 export function useToast() {
-  return { toast: () => {} };
+  return {
+    toast: (msg: string) => console.log(msg),
+    dismiss: () => {}
+  };
 }
 
-export default function Toast() {
-  return null;
-}
+export default ToastProvider;
