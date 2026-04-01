@@ -15,6 +15,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentTab = searchParams.get('tab');
 
   useEffect(() => { setIsMounted(true); }, []);
 
@@ -244,7 +246,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!isAuthenticated) return null;
 
   const isActive = (href: string) => {
-    if (href === '/admin') return pathname === '/admin' && !isNewListing;
+    if (href.includes('?tab=')) {
+      const tabValue = href.split('?tab=')[1];
+      return pathname === '/admin' && currentTab === tabValue;
+    }
+    if (href === '/admin') return pathname === '/admin' && !currentTab && !isNewListing;
+    if (href === '/admin/listings') return pathname === '/admin/listings';
     return pathname.startsWith(href);
   };
 
