@@ -13,6 +13,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [userRole, setUserRole] = useState<string>('');
   const [hasExtension, setHasExtension] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [currentTab, setCurrentTab] = useState<string | null>(typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -244,7 +245,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   if (!isAuthenticated) return null;
 
   const isActive = (href: string) => {
-    const tab = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null;
+    const tab = currentTab;
     if (href.includes('?tab=')) {
       const tabValue = href.split('?tab=')[1];
       return pathname === '/admin' && tab === tabValue;
@@ -265,7 +266,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       <div className="px-3 pt-4 pb-2">
-        <Link href="/admin/listings/new" onClick={() => setMobileMenuOpen(false)}
+        <Link href="/admin/listings/new" onClick={() => { setMobileMenuOpen(false); setCurrentTab(null); }}
           className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 ${
             isNewListing ? 'bg-yellow-500 text-black shadow-lg scale-[1.02]'
               : 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black hover:shadow-lg hover:scale-[1.02] active:scale-95'
@@ -277,7 +278,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <nav className="flex-1 px-3 py-2 space-y-1.5 overflow-y-auto">
         {navItems.map((item) => (
-          <Link key={item.href} href={item.href} onClick={() => setMobileMenuOpen(false)}
+          <Link key={item.href} href={item.href} onClick={() => { setMobileMenuOpen(false); setCurrentTab(item.href.includes('?tab=') ? item.href.split('?tab=')[1] : null); }}
             className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] ${
               isActive(item.href) ? 'bg-white/20 text-white shadow-inner font-bold'
                 : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
@@ -291,7 +292,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* 매물 검색 - 크롬 확장프로그램 설치 시에만 표시 */}
       {hasExtension && (
         <div className="px-3 pb-2">
-          <Link href="/admin?tab=search" onClick={() => setMobileMenuOpen(false)}
+          <Link href="/admin?tab=search" onClick={() => { setMobileMenuOpen(false); setCurrentTab('search'); }}
             className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15">
             <span className="text-lg flex-shrink-0">🔍</span>
             {sidebarOpen && <span>매물 검색</span>}
