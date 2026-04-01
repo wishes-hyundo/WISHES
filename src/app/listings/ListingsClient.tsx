@@ -1,150 +1,301 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
-import { ListingFilters } from '@/components/ListingFilters';
-import ListingCardActions from '@/components/ListingCardActions';
-import { Building2 } from 'lucide-react';
+import { SkeletonCard } from '@/components/SkeletonCard';
+import { Breadcrumb } from '@/components/Breadcrumb';
+import { Building2, SlidersHorizontal } from 'lucide-react';
 
-interface Listing {
-  id: number;
-  [key: string]: any;
+const dealTypes = ['전세', '월세', '매매'];
+const listingTypes = ['원룸', '투룷', '쓰리룴', '오피스텔', '아파트', '상가', '사무실'];
+const sortOptions = [
+  { value: 'latest', label: '최신순' },
+  { value: 'price', label: '가격순' },
+  { value: 'area', label: '메적순' },
+];
+
+interface ListingsClientProps {
+  initialListings?: any[];
+  initialDongs?: string[];
+  totalCount?: number;
 }
 
-function SkeletonCard() {
-  return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 animate-pulse">
-      <div className="h-48 bg-gray-200" />
-      <div className="p-4 space-y-3">
-        <div className="h-4 bg-gray-200 rounded w-1/3" />
-        <div className="h-6 bg-gray-200 rounded w-2/3" />
-        <div className="h-4 bg-gray-200 rounded w-full" />
-        <div className="h-4 bg-gray-200 rounded w-1/2" />
-      </div>
-    </div>
-  );
-}
-
-export default function ListingsClient() {
-  const searchParams = useSearchParams();
+export default function ListingsClient({
+  initialListings = [],
+  initialDongs = [],
+  totalCount = 0,
+}: ListingsClientProps) {
   const router = useRouter();
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [dongs, setDongs] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
+  const searchParams = useSearchParams();
 
-  const page = parseInt(searchParams?.get('page') || '1', 10);
+  const [listings, setListings] = useState<any[]>(initialListings);
+  const [dongs, setDongs] = useState<string[]>(initialDongs);
+  const [total, setTotal] = useState(totalCount);
+  // S2: SSR 초기 데이터가 있으메 로딩 상태 건너뜀
+  const [loading, setLoading] = useState(initialListings.length === 0 && totalCount === 0);
+  const [page, setPage] = useState(1);
+  const hasInitialData = useRef(initialListings.length > 0 || totalCount > 0);
+
+  const deal = searchParams.get('deal') || '';
+  const type = searchParams.get('type') || '';
+  const dong = searchParams.get('dong') || '';
+  const sort = searchParams.get('sort') || 'latest';
+  const pageParam = searchParams.get('page') || '1';
   const pageSize = 12;
 
-  const currentFilters: Record<string, string | undefined> = {
-    search: searchParams?.get('search') || undefined,
-    deal: searchParams?.get('deal') || undefined,
-    type: searchParams?.get('type') || undefined,
-    dong: searchParams?.get('dong') || undefined,
-    sort: searchParams?.get('sort') || undefined,
-    listingNumber: searchParams?.get('listingNumber') || undefined,
-    minDeposit: searchParams?.get('minDeposit') || undefined,
-    maxDeposit: searchParams?.get('maxDeposit') || undefined,
-  };
-
-  const fetchListings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      const offset = (page - 1) * pageSize;
-      params.set('limit', String(pageSize));
-      params.set('offset', String(offset));
-      if (currentFilters.search) params.set('search', currentFilters.search);
-      if (currentFilters.deal) params.set('deal', currentFilters.deal);
-      if (currentFilters.type) params.set('type', currentFilters.type);
-      if (currentFilters.dong) params.set('dong', currentFilters.dong);
-      if (currentFilters.sort) params.set('sort', currentFilters.sort);
-      if (currentFilters.listingNumber) params.set('listingNumber', currentFilters.listingNumber);
-      if (currentFilters.minDeposit) params.set('minDeposit', currentFilters.minDeposit);
-      if (currentFilters.maxDeposit) params.set('maxDeposit', currentFilters.maxDeposit);
-
-      const res = await fetch(`/api/listings?${params.toString()}`);
-      const json = await res.json();
-      if (json.success) {
-        setListings(json.data || []);
-        setTotalCount(json.pagination?.total || json.data?.length || 0);
-        setDongs(json.filters?.dongs || []);
-      } else {
-        setListings(json.listings || json.data || []);
-        setDongs([]);
-      }
-    } catch (err) {
-      console.error('Failed to fetch listings:', err);
-      setListings([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchParams.toString()]);
-
+  // 데이터 로드 (필터 변경 시 클라이언트에서 재로드)
   useEffect(() => {
-    fetchListings();
-  }, [fetchListings]);
+    const currentPage = parseInt(pageParam, 10) || 1;
+    setPage(currentPage);
 
-  const totalPages = Math.ceil(totalCount / pageSize);
+    // 첫 렌더링 시 SSR 데이터가 있으면 스킵
+    if (hasInitialData.current) {
+      hasInitialData.current = false;
+      return;
+    }
+
+    const fetchData = async () => {
+      setLoading(true);
+      const supabase = createClient();
+      const offset = (currentPage - 1) * pageSize;
+
+      // 매물 쿼리
+      let query = supabase
+        .from('listings')
+        .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)')
+        .eq('status', '가용');
+
+      if (deal) query = query.eq('deal', deal);
+      if (type) query = query.eq('type', type);
+      if (dong) query = query.eq('dong', dong);
+
+      const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
+      query = query.order(sortColumn, { ascending: false });
+      query = query.range(offset, offset + pageSize - 1);
+
+      // 동 목록 쿼리
+      const dongQuery = supabase
+        .from('listings')
+        .select('dong')
+        .eq('status', '가용');
+
+      // 전체 개수 쿼리
+      let countQuery = supabase
+        .from('listings')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', '가용');
+
+      if (deal) countQuery = countQuery.eq('deal', deal);
+      if (type) countQuery = countQuery.eq('type', type);
+      if (dong) countQuery = countQuery.eq('dong', dong);
+
+      // 병렬 실행
+      const [listingsResult, dongResult, countResult] = await Promise.all([query, dongQuery, countQuery]);
+
+      setListings(listingsResult.data || []);
+      setDongs([...new Set((dongResult.data || []).map((r: any) => r.dong))].sort());
+      setTotal(countResult.count || 0);
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [deal, type, dong, sort, pageParam]);
+
+  // ── V4-05: 스크롤 위치 저장 / 복원 ──
+  const scrollSaved = useRef(false);
+  // 첫 렌더링 여부 추적: 상세 → 목록 복귀 시 cleanup이 sessionStorage를 지우지 않도록
+  const isFirstRender = useRef(true);
+
+  // 스크롤 이동 시 위치 저장
+  useEffect(() => {
+    const SCROLL_KEY = 'listings_scroll';
+    const handleScroll = () => {
+      sessionStorage.setItem(SCROLL_KEY, JSON.stringify({
+        url: window.location.href,
+        y: window.scrollY,
+      }));
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // 데이터 로드 완료 후 스크롤 복원 (상세 → 목록 복귀 시)
+  useEffect(() => {
+    if (!loading && !scrollSaved.current) {
+      scrollSaved.current = true;
+      try {
+        const raw = sessionStorage.getItem('listings_scroll');
+        if (raw) {
+          const { url, y } = JSON.parse(raw);
+          if (url === window.location.href && y > 0) {
+            requestAnimationFrame(() => {
+              window.scrollTo({ top: y, behavior: 'instant' });
+            });
+          }
+        }
+      } catch {}
+    }
+  }, [loading]);
+
+  // 필터 변경 시 스크롤 저장값 초기화 (첫 렌더링은 제외 — 복귀 시 위치 보존)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    scrollSaved.current = false;
+    sessionStorage.removeItem('listings_scroll');
+  }, [deal, type, dong, sort, pageParam]);
+
+  const updateFilter = useCallback((key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set(key, value);
+    } else {
+      params.delete(key);
+    }
+    params.delete('page');
+    router.push(`/listings?${params.toString()}`);
+  }, [router, searchParams]);
+
+  const totalPages = Math.ceil(total / pageSize);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <ListingFilters dongs={dongs} currentFilters={currentFilters} />
+    <div className="pt-16 min-h-screen">
+      {/* 페이지 헤더 */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4">
+          <Breadcrumb items={[{ label: '매물 검색' }]} />
+        </div>
+        <div className="max-w-7xl mx-auto px-4 pb-6">
+          <h1 className="text-2xl font-bold text-wishes-primary">매물 검색</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            원하시는 지역�t 매물을 검색하세요
+          </p>
+        </div>
+      </div>
 
-      {currentFilters.listingNumber && (
-        <p className="text-sm text-gray-500 mt-2">
-          매물번호 <strong className="text-wishes-primary">#{currentFilters.listingNumber}</strong> 검색 결과
-        </p>
-      )}
-
-      {loading ? (
-        <>
-          <p className="text-sm text-gray-400 mt-4 mb-4 animate-pulse">매물을 불러오는 중...</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }).map((_, i) => (<SkeletonCard key={i} />))}
+      <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* 필터 */}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <SlidersHorizontal className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">필터</span>
           </div>
-        </>
-      ) : listings.length > 0 ? (
-        <>
-          <p className="text-sm text-gray-500 mt-4 mb-4">총 <strong className="text-wishes-dark">{totalCount}건</strong>의 매물</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {listings.map((listing) => (
-              <div key={listing.id} className="relative">
-                <ListingCardActions listingId={String(listing.id)} />
-                <ListingCard listing={listing as any} />
-              </div>
-            ))}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+            <select
+              value={deal}
+              onChange={(e) => updateFilter('deal', e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
+            >
+              <option value="">거래유형 전체</option>
+              {dealTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <select
+              value={type}
+              onChange={(e) => updateFilter('type', e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
+            >
+              <option value="">매물유형 전체</option>
+              {listingTypes.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <select
+              value={dong}
+              onChange={(e) => updateFilter('dong', e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
+            >
+              <option value="">지역 전체</option>
+              {dongs.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+            <select
+              value={sort}
+              onChange={(e) => updateFilter('sort', e.target.value)}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
+            >
+              {sortOptions.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
           </div>
+        </div>
 
-          {totalPages > 1 && (
-            <div className="flex justify-center gap-2 mt-10">
-              {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => i + 1).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => {
-                    const params = new URLSearchParams(searchParams.toString());
-                    params.set('page', String(p));
-                    router.push(`/listings?${params.toString()}`);
-                  }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition ${
-                    p === page
-                      ? 'bg-wishes-primary text-white'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {p}
-                </button>
+        {/* 결과 */}
+        {loading ? (
+          <div>
+            <div className="h-4 w-24 bg-gray-100 rounded animate-pulse mb-4" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <SkeletonCard key={i} />
               ))}
             </div>
-          )}
-        </>
-      ) : (
-        <div className="text-center py-20 text-gray-400">
-          <Building2 className="w-12 h-12 mx-auto mb-3 opacity-40" />
-          <p>검색 결과가 없습니다.</p>
-        </div>
-      )}
+          </div>
+        ) : listings.length > 0 ? (
+          <>
+            <p className="text-sm text-gray-500 mb-4">
+              총 <strong className="text-wishes-primary">{total}</strong>건의 매물
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+              {listings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing as any} />
+              ))}
+            </div>
+
+            {/* 페이지네이션 */}
+            {totalPages > 1 && (
+              <div className="flex justify-center gap-2 mt-10">
+                {page > 1 && (
+                  <a
+                    href={`/listings?${new URLSearchParams({ ...(deal && { deal }), ...(type && { type }), ...(dong && { dong }), sort, page: String(page - 1) }).toString()}`}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                  >
+                    이전
+                  </a>
+                )}
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const startPage = Math.max(1, Math.min(page - 2, totalPages - 4));
+                  const p = startPage + i;
+                  if (p > totalPages) return null;
+                  return (
+                    <a
+                      key={p}
+                      href={`/listings?${new URLSearchParams({ ...(deal && { deal }), ...(type && { type }), ...(dong && { dong }), sort, page: String(p) }).toString()}`}
+                      className={`px-4 py-2 rounded-lg text-sm ${
+                        p === page
+                          ? 'bg-wishes-primary text-white'
+                          : 'border border-gray-300 hover:bg-gray-50'
+                      }`}
+                    >
+                      {p}
+                    </a>
+                  );
+                })}
+                {page < totalPages && (
+                  <a
+                    href={`/listings?${new URLSearchParams({ ...(deal && { deal }), ...(type && { type }), ...(dong && { dong }), sort, page: String(page + 1) }).toString()}`}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
+                  >
+                    다음
+                  </a>
+                )}
+              </div>
+            )}
+          </>
+        ) : (
+          <div className="text-center py-20 bg-white rounded-xl border border-gray-200 mt-4">
+            <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 font-medium">검색 조건에 맞는 매물이 없습니다</p>
+            <p className="text-sm text-gray-400 mt-1">필터를 변경해보세요</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

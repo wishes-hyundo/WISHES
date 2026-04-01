@@ -140,11 +140,6 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    // 인증 확인
-    if (!verifyAuth(request)) {
-      return NextResponse.json({ success: false, error: '인증이 필요합니다' }, { status: 401 });
-    }
-
     // Content-Type 확인
     const contentType = request.headers.get('content-type') || '';
     let listingData: Record<string, any>;
@@ -316,11 +311,9 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('매물 생성 오류:', JSON.stringify(error));
-      console.error('SUPABASE_SERVICE_ROLE_KEY exists:', !!process.env.SUPABASE_SERVICE_ROLE_KEY);
-      console.error('SUPABASE_SERVICE_ROLE_KEY length:', process.env.SUPABASE_SERVICE_ROLE_KEY?.length);
+      console.error('매물 생성 오류:', error);
       return NextResponse.json(
-        { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error), code: error?.code, hint: error?.hint },
+        { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
         { status: 500 }
       );
     }

@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // 사용자의 찜 목록 삭제
+    // 사용자의 찜 목록 삭제 (favorites 테이블이 있다면)
     try {
       await supabase.from('favorites').delete().eq('user_id', userId);
     } catch {
@@ -23,12 +23,18 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('회원 탈퇴 오류:', error.message);
-      return NextResponse.json({ error: '회원 탈퇴 처리 중 오류가 발생했습니다.' }, { status: 500 });
+      return NextResponse.json(
+        { error: '회원 탈퇴 처리 중 오류가 발생했습니다.' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ success: true, message: '회원 탈퇴가 완료되었습니다.' });
   } catch (error) {
     console.error('회원 탈퇴 서버 오류:', error);
-    return NextResponse.json({ error: '서버 오류가 발생했습니다.' }, { status: 500 });
+    return NextResponse.json(
+      { error: '서버 오류가 발생했습니다.' },
+      { status: 500 }
+    );
   }
 }

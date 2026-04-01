@@ -11,12 +11,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
-  const [hasExtension, setHasExtension] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.sessionStorage.getItem('ws_has_extension') === 'true';
-    }
-    return false;
-  });
+  const [hasExtension, setHasExtension] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -108,14 +103,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const checkExtension = () => {
       const extEl = document.getElementById('wishes-search-extension') ||
                     document.querySelector('[data-wishes-extension]');
-      if (extEl) { setHasExtension(true); try { window.sessionStorage.setItem('ws_has_extension', 'true'); } catch(e){} return true; }
+      if (extEl) { setHasExtension(true); return true; }
       return false;
     };
 
     const handleExtMessage = (e: MessageEvent) => {
       if (e.data?.type === 'WS_EXTENSION_LOADED' || e.data?.type === 'WS_AUTH_CHECK') {
         setHasExtension(true);
-        try { window.sessionStorage.setItem('ws_has_extension', 'true'); } catch(e2){}
       }
     };
 
@@ -130,21 +124,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
     };
   }, [isMounted]);
-
-  // 확장프로그램 주입 매물검색 중복 제거
-  useEffect(() => {
-    const removeDuplicateSearch = () => {
-      document.querySelectorAll('nav a').forEach(a => {
-        if (a.textContent && a.textContent.includes('매물 검색') && a.classList.contains('rounded-lg')) {
-          a.style.display = 'none';
-        }
-      });
-    };
-    const observer = new MutationObserver(removeDuplicateSearch);
-    observer.observe(document.body, { childList: true, subtree: true });
-    removeDuplicateSearch();
-    return () => observer.disconnect();
-  }, []);
 
   // 모바일 메뉴 열림 시 body 스크롤 방지
   useEffect(() => {
@@ -190,7 +169,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin', label: '대시보드', icon: '📊' },
     { href: '/admin/listings', label: '매물 관리', icon: '🏠' },
     { href: '/admin?tab=contacts', label: '상담 관리', icon: '📞' },
-    { href: '/admin?tab=search', label: '매물 검색', icon: '🔍' },
   ];
 
   const isNewListing = pathname === '/admin/listings/new';
@@ -273,7 +251,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const SidebarContent = () => (
     <>
       <div className="flex items-center justify-between px-4 py-4 border-b border-green-700/30">
-        {sidebarOpen && <h1 className="text-xl font-black tracking-wide text-wishes-accent cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { window.location.href = '/admin'; }}>WISHES</h1>}
+        {sidebarOpen && <h1 className="text-xl font-black tracking-wide text-wishes-accent">WISHES</h1>}
         <button onClick={() => { setSidebarOpen(!sidebarOpen); setMobileMenuOpen(false); }}
           className="p-2 rounded-lg hover:bg-white/10 transition hidden md:block" aria-label="사이드바 토글">
           {sidebarOpen ? '◀' : '▶'}
@@ -304,7 +282,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         ))}
       </nav>
 
-            {/* Command Center - admin/superadmin만 표시 */}
+      {/* 매물 검색 - 크롬 확장프로그램 설치 시에만 표시 */}
+      {hasExtension && (
+        <div className="px-3 pb-2">
+          <Link href="/admin?tab=search" onClick={() => setMobileMenuOpen(false)}
+            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15">
+            <span className="text-lg flex-shrink-0">🔍</span>
+            {sidebarOpen && <span>매물 검색</span>}
+          </Link>
+        </div>
+      )}
+
+      {/* Command Center - admin/superadmin만 표시 */}
       {isAdminRole && (
         <div className="px-3 pb-2">
           <button onClick={handleCommandCenter}

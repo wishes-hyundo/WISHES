@@ -26,11 +26,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createAuthClient();
+
+    // 현재 세션 확인
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
+
+    // 인증 상태 변경 리스너
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setSession(session);
@@ -38,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
       }
     );
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -49,14 +54,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         redirectTo: `${window.location.origin}/auth/callback`,
       },
     });
-    if (error) console.error('소셜 로그인 오류:', error.message);
+    if (error) {
+      console.error('소셜 로그인 오류:', error.message);
+    }
   }, []);
 
+  // 네이버는 Supabase 네이티브 미지원 → Custom OIDC 또는 별도 처리
   const signInWithNaver = useCallback(() => {
     const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || '';
     const REDIRECT_URI = `${window.location.origin}/auth/callback?provider=naver`;
     const STATE = Math.random().toString(36).substring(7);
-    window.location.href = `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}`;
+
+    // 네이버 로그인 페이지로 리다이렉트
+    window.location.href =
+      `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}`;
   }, []);
 
   const signOut = useCallback(async () => {
@@ -91,9 +102,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user, session, loading,
-        signInWithProvider, signInWithNaver, signOut, deleteAccount,
-        showAuthModal, setShowAuthModal,
+        user,
+        session,
+        loading,
+        signInWithProvider,
+        signInWithNaver,
+        signOut,
+        deleteAccount,
+        showAuthModal,
+        setShowAuthModal,
       }}
     >
       {children}
@@ -103,6 +120,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
   return context;
 }

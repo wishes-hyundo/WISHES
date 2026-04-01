@@ -1,7 +1,17 @@
+'use client';
+
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, Eye, Hash } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, Eye, Hash, Flame, Sparkles, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFavorites } from '@/contexts/FavoritesContext';
 import type { Listing } from '@/types';
+
+// NEW: 7일 이내 등록 / HOT: 조회수 50 이상
+const isNew = (createdAt: string) => {
+  const diff = Date.now() - new Date(createdAt).getTime();
+  return diff < 7 * 24 * 60 * 60 * 1000;
+};
+const isHot = (views?: number) => (views || 0) >= 50;
 
 interface ListingCardProps {
   listing: Listing;
@@ -48,6 +58,14 @@ const formatAmount = (amount: number) => {
   return `${amount.toLocaleString('ko-KR')}`;
 };
 
+const formatFloor = (listing: Listing) => {
+  const current = listing.floor_current || listing.floor || '';
+  const total = listing.floor_total;
+  if (!current) return '';
+  if (total) return `${current}/${total}층`;
+  return current.includes('층') ? current : `${current}층`;
+};
+
 const formatPrice = (listing: Listing) => {
   if (listing.deal === '매매') {
     return formatAmount(listing.price || 0);
@@ -58,7 +76,15 @@ const formatPrice = (listing: Listing) => {
   }
 };
 
+const getPriceLabel = (listing: Listing) => {
+  if (listing.deal === '매매') return '매매가';
+  if (listing.deal === '전세') return '전세금';
+  return '보증금/월세';
+};
+
 export function ListingCard({ listing, compact = false, onHover }: ListingCardProps) {
+  const { isFavorite, toggleFavorite } = useFavorites();
+  const liked = isFavorite(listing.id);
   // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
   const listingImages = (listing as any).listing_images || listing.images || [];
   const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
@@ -105,7 +131,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           <div className="flex items-center gap-2 text-xs text-wishes-muted">
             <span>{listing.area_m2 || listing.area || 0}㎡</span>
             <span>·</span>
-            <span>{listing.floor_current || listing.floor || ''}</span>
+            <span>{formatFloor(listing)}</span>
             {(listing as any).views > 0 && (
               <>
                 <span>·</span>
@@ -157,13 +183,29 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
             {listing.deal}
           </span>
 
-          {/* 엘리베이터 배지 */}
-          {listing.elevator && (
-            <span className="px-2 py-1 text-xs font-semibold bg-white/80 text-wishes-secondary rounded-lg shadow-sm w-fit">
-              엘리베이터
+          {/* NEW 배지 */}
+          {isNew(listing.created_at) && (
+            <span className="flex items-center gap-0.5 px-2 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-lg shadow-sm w-fit">
+              <Sparkles className="w-3 h-3" /> NEW
+            </span>
+          )}
+
+          {/* HOT 배지 */}
+          {isHot((listing as any).views) && (
+            <span className="flex items-center gap-0.5 px-2 py-1 text-xs font-bold bg-red-500 text-white rounded-lg shadow-sm w-fit">
+              <Flame className="w-3 h-3" /> HOT
             </span>
           )}
         </div>
+
+        {/* 우측 상단 찜 버튼 (S3) */}
+        <button
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(listing.id); }}
+          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white transition-all z-10"
+          aria-label={liked ? '찜 해제' : '찜하기'}
+        >
+          <Heart className={cn('w-4.5 h-4.5 transition-colors', liked ? 'fill-red-500 text-red-500' : 'text-gray-400')} />
+        </button>
 
         {/* 우측 하단 타입 배지 */}
         <div className="absolute bottom-3 right-3">
@@ -177,10 +219,11 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
       <div className="p-4 space-y-4">
         {/* 가격 */}
         <div className="space-y-1">
+          <p className="text-[10px] font-semibold text-wishes-muted/80 uppercase tracking-wider">{getPriceLabel(listing)}</p>
           <div className="flex items-baseline gap-2">
             <p className="text-2xl font-bold text-wishes-primary">{price}</p>
             {listing.deal === '월세' && (
-              <p className="text-sm text-wishes-muted">/ 월</p>
+              <p className="text-sm text-wishes-muted">만원</p>
             )}
           </div>
         </div>
@@ -202,7 +245,7 @@ export function ListingCard({ listing, compact = false, onHover }: ListingCardPr
           {(listing.floor_current || listing.floor) && (
             <div className="flex items-center gap-1">
               <Building2 className="w-4 h-4 text-wishes-secondary/60" />
-              <span>{listing.floor_current || listing.floor}</span>
+              <span>{formatFloor(listing)}</span>
             </div>
           )}
         </div>

@@ -1,13 +1,16 @@
 export default function ListingsLoading() {
   return (
     <div className="pt-16 min-h-screen">
+      {/* 페이지 헤더 스켈레톤 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="h-8 w-32 bg-gray-200 rounded animate-pulse" />
           <div className="h-4 w-48 bg-gray-100 rounded animate-pulse mt-2" />
         </div>
       </div>
+
       <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* 필터 스켈레톤 */}
         <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 animate-pulse">
           <div className="flex gap-3">
             <div className="h-9 w-24 bg-gray-200 rounded-lg" />
@@ -15,6 +18,8 @@ export default function ListingsLoading() {
             <div className="h-9 w-24 bg-gray-200 rounded-lg" />
           </div>
         </div>
+
+        {/* 매물 카드 그리드 스켈레톤 */}
         <div className="h-4 w-24 bg-gray-100 rounded animate-pulse mb-4" />
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {Array.from({ length: 8 }).map((_, i) => (

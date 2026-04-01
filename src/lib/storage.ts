@@ -32,6 +32,7 @@ function getR2Client(): S3Client {
 // ─── Cloudflare R2 스토리지 ───
 class R2Storage implements StorageAdapter {
   private bucketName = process.env.R2_BUCKET_NAME || 'wishes-listings';
+  private publicUrl = process.env.R2_PUBLIC_URL || 'https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev';
 
   async upload(buffer: Buffer, filePath: string, contentType?: string): Promise<string> {
     const client = getR2Client();
@@ -60,9 +61,8 @@ class R2Storage implements StorageAdapter {
     );
   }
 
-  // R2 이미지 프록시 API를 통해 제공 (r2.dev 속도 제한 우회)
   getUrl(filePath: string): string {
-    return `/api/r2/${filePath}`;
+    return `${this.publicUrl}/${filePath}`;
   }
 }
 

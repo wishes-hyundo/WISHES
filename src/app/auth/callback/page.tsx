@@ -79,11 +79,13 @@ function AuthCallbackContent() {
           setErrorMessage('로그인 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
           setTimeout(() => router.replace('/'), 3000);
         }
+        // 성공 시 onAuthStateChange가 세션을 감지하여 아래 useEffect에서 처리
       });
       return;
     }
   }, [searchParams, router]);
 
+  // AuthProvider의 onAuthStateChange가 세션을 감지하면 리다이렉트
   useEffect(() => {
     if (!loading && user) {
       setStatus('success');
@@ -91,6 +93,7 @@ function AuthCallbackContent() {
       return () => clearTimeout(timer);
     }
 
+    // 로딩 완료 후 8초 이내에 세션이 없으면 타임아웃
     if (!loading && !user && status === 'processing') {
       const timeout = setTimeout(() => {
         setStatus('error');

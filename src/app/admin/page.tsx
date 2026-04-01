@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { AdminDashboardCharts } from '@/components/AdminDashboardCharts';
+import { ExcelUpload } from '@/components/ExcelUpload';
+import { ContractRenewalAlert } from '@/components/ContractRenewalAlert';
 
 interface Stats {
   totalListings: number;
@@ -116,6 +119,7 @@ export default function AdminPage() {
   const [uploadedImages, setUploadedImages] = useState<{ url: string; path: string }[]>([]);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showExcelUpload, setShowExcelUpload] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const getAuthHeader = () => `Bearer ${password}`;
@@ -127,17 +131,6 @@ export default function AdminPage() {
       setPassword(savedPassword);
       setIsAuthenticated(true);
       fetchData(savedPassword);
-    } else {
-      // New auth system (Supabase JWT) compatibility
-      const wsToken = sessionStorage.getItem('ws_token');
-      const wsUser = sessionStorage.getItem('ws_user');
-      if (wsToken && wsUser) {
-        const adminPw = 'wish' + 'es20' + '26';
-        localStorage.setItem('admin_' + 'password', adminPw);
-        setPassword(adminPw);
-        setIsAuthenticated(true);
-        fetchData(adminPw);
-      }
     }
   }, []);
 
@@ -195,11 +188,11 @@ export default function AdminPage() {
     const validFiles = fileArray.filter(f => {
       const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
       if (!validTypes.includes(f.type)) {
-        alert(`\"${f.name}\" - 지원하지 않는 형식입니다. (JPG, PNG, WebP만 가능)`);
+        alert(`"${f.name}" - 지원하지 않는 형식입니다. (JPG, PNG, WebP만 가능)`);
         return false;
       }
       if (f.size > 5 * 1024 * 1024) {
-        alert(`\"${f.name}\" - 파일 크기가 5MB를 초과합니다.`);
+        alert(`"${f.name}" - 파일 크기가 5MB를 초과합니다.`);
         return false;
       }
       return true;
@@ -273,7 +266,7 @@ export default function AdminPage() {
     setSubmitSuccess('');
 
     try {
-      // API에 맞겎 데이터 정리
+      // API에 맞게 데이터 정리
       const payload: Record<string, any> = {
         title: newListing.title,
         type: newListing.type,
@@ -416,7 +409,7 @@ export default function AdminPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-wishes-primary to-wishes-secondary p-4">
         <div className="bg-white rounded-2xl shadow-premium p-8 w-full max-w-md">
-          <h1 className="text-3xl font-bold text-wishes-primary">WISHES</h1>
+          <h1 className="text-3xl font-bold text-wishes-primary mb-2">WISHES</h1>
           <p className="text-gray-600 mb-6">관리자 로그인</p>
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -471,94 +464,104 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* 최근 매물 & 미처리 상담 위젯 */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* 최근 등록 매물 */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <a href="/admin?tab=listings" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
+            <p className="text-2xl mb-2">🏠</p>
+            <h3 className="font-bold text-wishes-primary mb-2">매물 관리</h3>
+            <p className="text-sm text-gray-600">{listings.length}개의 매물 관리</p>
+          </a>
+          <a href="/admin?tab=contacts" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
+            <p className="text-2xl mb-2">📞</p>
+            <h3 className="font-bold text-wishes-primary mb-2">상담 관리</h3>
+            <p className="text-sm text-gray-600">{contacts.length}개의 상담 기록</p>
+          </a>
           <div className="card-premium p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-wishes-primary flex items-center gap-2">
-                <span className="text-lg">🏠</span> 최근 등록 매물
-              </h3>
-              <a href="/admin?tab=listings" className="text-xs text-wishes-primary hover:underline font-medium">전체보기 &rarr;</a>
-            </div>
-            {listings.length > 0 ? (
-              <div className="space-y-3">
-                {listings.slice(0, 4).map((item: Listing) => (
-                  <div key={item.id} onClick={() => router.push(`/admin/listings`)} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer active:bg-gray-200">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-                      <p className="text-xs text-gray-500">{item.type} · {item.deal}</p>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      item.status === '가용' ? 'bg-green-100 text-green-700' :
-                      item.status === '계약중' ? 'bg-orange-100 text-orange-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 text-center py-6">등록된 매물이 없습니다</p>
-            )}
-          </div>
-
-          {/* 미처리 상담 */}
-          <div className="card-premium p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-bold text-wishes-primary flex items-center gap-2">
-                <span className="text-lg">📞</span> 미처리 상담
-              </h3>
-              <a href="/admin?tab=contacts" className="text-xs text-wishes-primary hover:underline font-medium">전체보기 &rarr;</a>
-            </div>
-            {contacts.filter((c: Contact) => c.status !== '완료').length > 0 ? (
-              <div className="space-y-3">
-                {contacts.filter((c: Contact) => c.status !== '완료').slice(0, 4).map((item: Contact) => (
-                  <div key={item.id} onClick={() => router.push(`/admin?tab=contacts`)} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer active:bg-gray-200">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{item.name} ({item.phone})</p>
-                      {item.listingTitle && <p className="text-xs text-gray-500">{item.listingTitle}</p>}
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                      item.status === '접수' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>
-                      {item.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-400 text-center py-6">미처리 상담이 없습니다</p>
-            )}
+            <p className="text-2xl mb-2">⚙️</p>
+            <h3 className="font-bold text-wishes-primary mb-2">설정</h3>
+            <p className="text-sm text-gray-600">사이트 설정 관리</p>
           </div>
         </div>
+
+        {/* V4-24: 계약 갱신 알림 */}
+        {listings.length > 0 && (
+          <div className="mb-8">
+            <ContractRenewalAlert listings={listings} />
+          </div>
+        )}
+
+        {/* V3-20: 통계 차트 */}
+        {listings.length > 0 && (
+          <AdminDashboardCharts listings={listings} />
+        )}
       </div>
     );
   }
 
-  // ─── 매물 관ub9ac 탭 ───
+  // ─── 매물 관리 탭 ───
   if (tab === 'listings') {
     return (
       <div>
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
           <h2 className="text-2xl font-bold text-wishes-primary">매물 관리</h2>
-          <button
-            onClick={() => {
-              setShowAddForm(!showAddForm);
-              setSubmitError('');
-              setSubmitSuccess('');
-            }}
-            className="bg-wishes-secondary text-white px-6 py-2 rounded-lg hover:bg-wishes-primary transition font-semibold"
-          >
-            {showAddForm ? '취소' : '+ 새 매물 등록'}
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowExcelUpload(!showExcelUpload)}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition font-semibold text-sm"
+            >
+              {showExcelUpload ? '닫기' : '📊 엑셀 일괄등록'}
+            </button>
+            <button
+              onClick={() => {
+                setShowAddForm(!showAddForm);
+                setSubmitError('');
+                setSubmitSuccess('');
+              }}
+              className="bg-wishes-secondary text-white px-6 py-2 rounded-lg hover:bg-wishes-primary transition font-semibold"
+            >
+              {showAddForm ? '취소' : '+ 새 매물 등록'}
+            </button>
+          </div>
         </div>
 
         {submitSuccess && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-4">
             {submitSuccess}
+          </div>
+        )}
+
+        {/* V4-19: 엑셀 일괄등록 */}
+        {showExcelUpload && (
+          <div className="mb-6">
+            <ExcelUpload
+              authHeader={getAuthHeader()}
+              onSubmit={async (parsedListings) => {
+                let successCount = 0;
+                let failCount = 0;
+                for (const listing of parsedListings) {
+                  try {
+                    const res = await fetch('/api/admin/listings', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        authorization: getAuthHeader(),
+                      },
+                      body: JSON.stringify(listing),
+                    });
+                    if (res.ok) {
+                      successCount++;
+                    } else {
+                      failCount++;
+                    }
+                  } catch {
+                    failCount++;
+                  }
+                }
+                setSubmitSuccess(`엑셀 일괄등록 완료: ${successCount}건 성공${failCount > 0 ? `, ${failCount}건 실패` : ''}`);
+                setTimeout(() => setSubmitSuccess(''), 5000);
+                setShowExcelUpload(false);
+                fetchData(password);
+              }}
+            />
           </div>
         )}
 
@@ -599,7 +602,7 @@ export default function AdminPage() {
                       <option value="원룸">원룸</option>
                       <option value="투룸">투룸</option>
                       <option value="쓰리룸">쓰리룸</option>
-                      <option value="오피스터">오피스터</option>
+                      <option value="오피스텔">오피스텔</option>
                       <option value="아파트">아파트</option>
                       <option value="상가">상가</option>
                       <option value="사무실">사무실</option>
@@ -626,7 +629,7 @@ export default function AdminPage() {
                     >
                       <option value="가용">가용</option>
                       <option value="계약중">계약중</option>
-                     <option value="계약완료">계약완료</option>
+                      <option value="계약완료">계약완료</option>
                     </select>
                   </div>
                 </div>
@@ -640,6 +643,7 @@ export default function AdminPage() {
                     <label className={labelClass}>보증금 *</label>
                     <input
                       type="number"
+                      inputMode="numeric"
                       placeholder="0"
                       value={newListing.deposit || ''}
                       onChange={(e) => setNewListing({ ...newListing, deposit: parseInt(e.target.value) || 0 })}
@@ -650,6 +654,7 @@ export default function AdminPage() {
                     <label className={labelClass}>월세</label>
                     <input
                       type="number"
+                      inputMode="numeric"
                       placeholder="0"
                       value={newListing.monthly || ''}
                       onChange={(e) => setNewListing({ ...newListing, monthly: parseInt(e.target.value) || 0 })}
@@ -660,6 +665,7 @@ export default function AdminPage() {
                     <label className={labelClass}>매매가</label>
                     <input
                       type="number"
+                      inputMode="numeric"
                       placeholder="매매시 입력"
                       value={newListing.price || ''}
                       onChange={(e) => setNewListing({ ...newListing, price: e.target.value ? parseInt(e.target.value) : undefined })}
@@ -670,6 +676,7 @@ export default function AdminPage() {
                     <label className={labelClass}>관리비</label>
                     <input
                       type="number"
+                      inputMode="numeric"
                       placeholder="0"
                       value={newListing.maintenance_fee || ''}
                       onChange={(e) => setNewListing({ ...newListing, maintenance_fee: parseInt(e.target.value) || 0 })}
@@ -679,9 +686,9 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 위치 정보 */}
+              {/* 위칙 정보 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">위치 정보</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">위칙 정보</p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div className="md:col-span-2">
                     <label className={labelClass}>주소 *</label>
@@ -746,7 +753,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>현재 층 *</label>
+                    <label className={labelClass}>해당 층 *</label>
                     <input
                       type="text"
                       placeholder="3"
@@ -770,6 +777,7 @@ export default function AdminPage() {
                     <label className={labelClass}>방 수</label>
                     <input
                       type="number"
+                      inputMode="numeric"
                       placeholder="1"
                       value={newListing.rooms || ''}
                       onChange={(e) => setNewListing({ ...newListing, rooms: parseInt(e.target.value) || 0 })}
@@ -780,6 +788,7 @@ export default function AdminPage() {
                     <label className={labelClass}>욕실 수</label>
                     <input
                       type="number"
+                      inputMode="numeric"
                       placeholder="1"
                       value={newListing.bathrooms || ''}
                       onChange={(e) => setNewListing({ ...newListing, bathrooms: parseInt(e.target.value) || 0 })}
@@ -847,9 +856,9 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              {/* 편의시설 옵션 */}
+              {/* 편의시섰 옵션 */}
               <div className="border-b pb-4">
-                <p className="text-sm font-bold text-gray-700 mb-3">편의시설 / 옵션</p>
+                <p className="text-sm font-bold text-gray-700 mb-3">편의시섰 / 옵션</p>
                 <div className="flex flex-wrap gap-4">
                   {[
                     { key: 'parking', label: '주차' },
@@ -884,7 +893,7 @@ export default function AdminPage() {
                 />
               </div>
 
-              {/* 이미지 업로드 - 드래그앤드롭 */}
+              {/* 이미지 업로드 - 드래그애드롭 */}
               <div className="border-b pb-4">
                 <p className="text-sm font-bold text-gray-700 mb-3">매물 이미지</p>
                 <div
@@ -947,18 +956,50 @@ export default function AdminPage() {
                   </div>
                 )}
 
-                {/* 업로드된 이미지 미리보기 */}
+                {/* V3-14: 업로드된 이미지 미리보기 (드래그 정렬) */}
                 {uploadedImages.length > 0 && (
                   <div className="mt-4">
-                    <p className="text-xs text-gray-500 mb-2">업로드된 이미지 ({uploadedImages.length}장)</p>
+                    <p className="text-xs text-gray-500 mb-2">업로드된 이미지 ({uploadedImages.length}장) — 드래그하여 순섞 변경</p>
                     <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
                       {uploadedImages.map((img, i) => (
-                        <div key={i} className="relative group aspect-square">
+                        <div
+                          key={img.path}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', String(i));
+                            (e.currentTarget as HTMLElement).style.opacity = '0.4';
+                          }}
+                          onDragEnd={(e) => {
+                            (e.currentTarget as HTMLElement).style.opacity = '1';
+                          }}
+                          onDragOver={(e) => {
+                            e.preventDefault();
+                            (e.currentTarget as HTMLElement).style.transform = 'scale(1.05)';
+                          }}
+                          onDragLeave={(e) => {
+                            (e.currentTarget as HTMLElement).style.transform = '';
+                          }}
+                          onDrop={(e) => {
+                            e.preventDefault();
+                            (e.currentTarget as HTMLElement).style.transform = '';
+                            const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+                            const toIdx = i;
+                            if (fromIdx === toIdx) return;
+                            const newImages = [...uploadedImages];
+                            const [moved] = newImages.splice(fromIdx, 1);
+                            newImages.splice(toIdx, 0, moved);
+                            setUploadedImages(newImages);
+                          }}
+                          className="relative group aspect-square cursor-grab active:cursor-grabbing"
+                        >
                           <img
                             src={img.url}
                             alt={`매물 사진 ${i + 1}`}
-                            className="w-full h-full object-cover rounded-lg border border-gray-200 shadow-sm group-hover:shadow-md transition"
+                            className="w-full h-full object-cover rounded-lg border border-gray-200 shadow-sm group-hover:shadow-md transition pointer-events-none"
                           />
+                          <span className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">
+                            {i + 1}
+                          </span>
                           {i === 0 && (
                             <span className="absolute top-1 left-1 bg-wishes-accent text-wishes-primary text-[10px] font-bold px-1.5 py-0.5 rounded">
                               대표
@@ -979,6 +1020,62 @@ export default function AdminPage() {
                   </div>
                 )}
               </div>
+
+              {/* V4-18: SEO 미리보기 */}
+              {newListing.title && (
+                <div className="border-b pb-4">
+                  <p className="text-sm font-bold text-gray-700 mb-3">🔍 검색엔진 미리보기</p>
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 max-w-xl">
+                    <p className="text-[#1a0dab] text-base font-medium hover:underline cursor-pointer truncate">
+                      {newListing.title} | WISHES
+                    </p>
+                    <p className="text-[#006621] text-xs mt-0.5">
+                      wishes.co.kr › listings › ...
+                    </p>
+                    <p className="text-[#545454] text-xs mt-1 line-clamp-2">
+                      {newListing.description || `${newListing.dong} ${newListing.type} ${newListing.deal} - 서울·경기 종합부동산 WISHES`}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* V4-17: 상업용 매물 체크리스트 */}
+              {(newListing.type === '상가' || newListing.type === '사무실') && (
+                <div className="border-b pb-4">
+                  <p className="text-sm font-bold text-gray-700 mb-3">🏢 상업용 매물 체크리스트</p>
+                  <div className="bg-yellow-50 rounded-lg p-4 text-sm text-yellow-800 space-y-2">
+                    <p className="font-semibold mb-2">아래 항목을 확인하세요:</p>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
+                      권리금 정보 확인
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
+                      업종 제한 확인 (음식점, 주류 등)
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
+                      Ꞅ판 설칙 가능 여부
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
+                      주차 공간 확인
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
+                      전기 용량 확인 (3상 전기 등)
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
+                      배수/하수 시설 확인
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
+                      유동인구 조사 완료
+                    </label>
+                  </div>
+                </div>
+              )}
 
               {/* 등록 버튼 */}
               <button
@@ -1027,12 +1124,6 @@ export default function AdminPage() {
                       <option value="계약중">계약중</option>
                       <option value="계약완료">계약완료</option>
                     </select>
-                    <button
-                      onClick={() => router.push(`/admin/listings/${listing.id}/edit`)}
-                      className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-xs"
-                    >
-                      수정
-                    </button>
                     <button
                       onClick={() => handleDeleteListing(listing.id)}
                       className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-xs"
@@ -1101,7 +1192,7 @@ export default function AdminPage() {
                     </p>
                     {contact.listingTitle && (
                       <p className="text-sm text-wishes-secondary font-medium mt-1">
-                        📋 {contact.listingTitle}
+                        📍 {contact.listingTitle}
                       </p>
                     )}
                   </div>
@@ -1134,30 +1225,6 @@ export default function AdminPage() {
               </div>
             ))
           )}
-        </div>
-      </div>
-    );
-  }
-
-  // ─── 매물 검색 탭 (Chrome 확장프로그램 기반) ───
-  if (tab === 'search') {
-    return (
-      <div id="ws-search-container" style={{ minHeight: '70vh' }}>
-        {/* Chrome 확장프로그램이 이 영역에 검색 UI를 삽입합니다 */}
-        <div id="ws-search-fallback" className="text-center py-20">
-          <div className="text-6xl mb-6">🔍</div>
-          <h2 className="text-2xl font-bold text-white mb-4">매물 검색</h2>
-          <p className="text-white/60 mb-8 max-w-md mx-auto">
-            WISHES 매물검색 Chrome 확장프로그램이 검색 기능을 제공합니다.<br/>
-            확장프로그램이 로드되면 이 화면이 자동으로 전환됩니다.
-          </p>
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg text-white/50 text-sm">
-            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            확장프로그램 연결 대기중...
-          </div>
         </div>
       </div>
     );
