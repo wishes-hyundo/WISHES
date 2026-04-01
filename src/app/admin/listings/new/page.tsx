@@ -2704,4 +2704,3 @@ class ListingErrorBoundary extends React.Component {
 export default function SmartListingNewPageWithErrorBoundary() {
   return React.createElement(ListingErrorBoundary, null, React.createElement(Suspense, {fallback: React.createElement('div', {style:{padding:'40px',textAlign:'center'}}, '로딩 중...')}, React.createElement(SmartListingNewPage)));
 }
-h
