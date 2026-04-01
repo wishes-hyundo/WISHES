@@ -238,146 +238,172 @@ const formatDate = (dateStr: string): string => {
 };
 
 /* ── 이미지 자동 품질 개선 (Canvas API) ── */
+interface EnhanceAnalysisResult {
+  parameters?: {
+    shadow_lift: number;
+    highlight_recovery: number;
+    contrast_strength: number;
+    dehaze_strength: number;
+    vibrance: number;
+    sharpen_detail: number;
+    sharpen_edge: number;
+    color_temperature: number;
+    vignette_strength: number;
+  };
+}
+
+// Default parameters when API is unavailable (optimized for real estate photos)
+const DEFAULT_ENHANCE_PARAMS = {
+  shadow_lift: 0.6,
+  highlight_recovery: 0.4,
+  contrast_strength: 0.3,
+  dehaze_strength: 0.5,
+  vibrance: 0.5,
+  sharpen_detail: 0.6,
+  sharpen_edge: 0.4,
+  color_temperature: 0.1,
+  vignette_strength: 0.15,
+};
+
 function enhanceImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onerror = () => reject(new Error('File read failed'));
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      if (!dataUrl) { reject(new Error('Empty file')); return; }
+
+      // Step 1: Get AI analysis parameters
+      let params = DEFAULT_ENHANCE_PARAMS;
+      try {
+        const res = await fetch('/api/analyze-photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: dataUrl, mode: 'enhance' }),
+        });
+        if (res.ok) {
+          const data: EnhanceAnalysisResult = await res.json();
+          if (data.parameters) params = data.parameters;
+        }
+      } catch {
+        // Use default params if API fails
+      }
+
+      // Step 2: Load image and apply 7-step pipeline
+      const img = new Image();
+      img.onerror = () => reject(new Error('Image load failed'));
       img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(img.src); return; }
+        try {
+          const canvas = document.createElement('canvas');
+          const maxW = 1600, maxH = 1200;
+          let w = img.width, h = img.height;
+          if (w > maxW || h > maxH) {
+            const scale = Math.min(maxW / w, maxH / h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+          }
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0, w, h);
 
-        canvas.width = img.width;
-        canvas.height = img.height;
+          // === 7-Step Enhancement Pipeline ===
+          const imageData = ctx.getImageData(0, 0, w, h);
+          const d = imageData.data;
+          const len = d.length;
 
-        // 1단계: 원본 그리기
-        ctx.drawImage(img, 0, 0);
+          for (let i = 0; i < len; i += 4) {
+            let r = d[i], g = d[i + 1], b = d[i + 2];
 
-        // 2단계: 밝기 + 대비 보정
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
+            // Step 1: HDR Shadow Lift
+            const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+            if (lum < 80) {
+              const lift = params.shadow_lift * (1 - lum / 80) * 40;
+              r = Math.min(255, r + lift);
+              g = Math.min(255, g + lift);
+              b = Math.min(255, b + lift);
+            }
 
-        // 히스토그램 분석 (자동 밝기 보정)
-        let sum = 0;
-        for (let i = 0; i < data.length; i += 4) {
-          sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
+            // Step 2: Highlight Recovery
+            if (lum > 200) {
+              const recovery = params.highlight_recovery * (lum - 200) / 55 * 30;
+              r = Math.max(0, r - recovery);
+              g = Math.max(0, g - recovery);
+              b = Math.max(0, b - recovery);
+            }
+
+            // Step 3: Cinematic S-Curve
+            const s = params.contrast_strength;
+            const sCurve = (v: number) => {
+              const n = v / 255;
+              return Math.min(255, Math.max(0, 255 * (n + s * Math.sin(Math.PI * n) * 0.5)));
+            };
+            r = sCurve(r);
+            g = sCurve(g);
+            b = sCurve(b);
+
+            // Step 4: Dehaze
+            const dh = params.dehaze_strength;
+            const minC = Math.min(r, g, b);
+            if (minC > 50) {
+              const haze = dh * (minC - 50) * 0.3;
+              r = Math.min(255, r + haze * 0.5);
+              g = Math.min(255, g + haze * 0.3);
+              b = Math.max(0, b - haze * 0.2);
+            }
+
+            // Step 5: Smart Vibrance
+            const avg = (r + g + b) / 3;
+            const maxC = Math.max(r, g, b);
+            const sat = maxC > 0 ? 1 - (Math.min(r, g, b) / maxC) : 0;
+            const vib = params.vibrance * (1 - sat) * 0.5;
+            r = Math.min(255, r + (r - avg) * vib);
+            g = Math.min(255, g + (g - avg) * vib);
+            b = Math.min(255, b + (b - avg) * vib);
+
+            // Step 6: Color Temperature
+            const temp = params.color_temperature;
+            r = Math.min(255, Math.max(0, r + temp * 15));
+            b = Math.min(255, Math.max(0, b - temp * 15));
+
+            d[i] = Math.min(255, Math.max(0, r));
+            d[i + 1] = Math.min(255, Math.max(0, g));
+            d[i + 2] = Math.min(255, Math.max(0, b));
+          }
+          ctx.putImageData(imageData, 0, 0);
+
+          // Step 7a: Unsharp Mask - 2-pass sharpening
+          const sharpData = ctx.getImageData(0, 0, w, h);
+          const sd = sharpData.data;
+          const copy = new Uint8ClampedArray(sd);
+          const amount = params.sharpen_detail;
+          for (let y = 1; y < h - 1; y++) {
+            for (let x = 1; x < w - 1; x++) {
+              const idx = (y * w + x) * 4;
+              for (let c = 0; c < 3; c++) {
+                const blur = (copy[idx + c - 4] + copy[idx + c + 4] + copy[idx + c - w * 4] + copy[idx + c + w * 4]) / 4;
+                sd[idx + c] = Math.min(255, Math.max(0, copy[idx + c] + (copy[idx + c] - blur) * amount));
+              }
+            }
+          }
+          ctx.putImageData(sharpData, 0, 0);
+
+          // Step 7b: Vignette
+          const gradient = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.8);
+          gradient.addColorStop(0, 'rgba(0,0,0,0)');
+          gradient.addColorStop(1, `rgba(0,0,0,${params.vignette_strength})`);
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, 0, w, h);
+
+          // Export as WebP 93% quality
+          const result = canvas.toDataURL('image/webp', 0.93);
+          resolve(result);
+        } catch (err) {
+          reject(err);
         }
-        const avgBrightness = sum / (data.length / 4);
-
-        // 적응형 밝기 보정 (어두운 사진일수록 더 밝게)
-        const brightnessAdjust = avgBrightness < 100 ? 25 : avgBrightness < 130 ? 10 : 0;
-        // 대비 강화 계수
-        const contrastFactor = 1.15;
-        const contrastCenter = 128;
-        // 채도 강화
-        const saturationBoost = 1.12;
-
-        for (let i = 0; i < data.length; i += 4) {
-          let r = data[i], g = data[i + 1], b = data[i + 2];
-
-          // 밝기 보정
-          r += brightnessAdjust; g += brightnessAdjust; b += brightnessAdjust;
-
-          // 대비 보정
-          r = contrastCenter + (r - contrastCenter) * contrastFactor;
-          g = contrastCenter + (g - contrastCenter) * contrastFactor;
-          b = contrastCenter + (b - contrastCenter) * contrastFactor;
-
-          // 채도 강화 (HSL 기반 간소화)
-          const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-          r = gray + (r - gray) * saturationBoost;
-          g = gray + (g - gray) * saturationBoost;
-          b = gray + (b - gray) * saturationBoost;
-
-          data[i] = Math.max(0, Math.min(255, r));
-          data[i + 1] = Math.max(0, Math.min(255, g));
-          data[i + 2] = Math.max(0, Math.min(255, b));
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-
-        // 3단계: 샤프닝 (언샤프 마스크 간소화)
-        const sharpCanvas = document.createElement('canvas');
-        const sharpCtx = sharpCanvas.getContext('2d');
-        if (sharpCtx) {
-          sharpCanvas.width = canvas.width;
-          sharpCanvas.height = canvas.height;
-          // 블러 후 차이 합성으로 샤프닝 효과
-          sharpCtx.filter = 'blur(1px)';
-          sharpCtx.drawImage(canvas, 0, 0);
-          // 원본과 블러의 차이를 원본에 합성
-          ctx.globalCompositeOperation = 'source-over';
-          ctx.globalAlpha = 0.15;
-          ctx.drawImage(canvas, 0, 0);
-          ctx.globalAlpha = 1.0;
-          ctx.globalCompositeOperation = 'source-over';
-        }
-
-        // 최대 해상도 제한 (2048px)
-        let finalCanvas = canvas;
-        if (canvas.width > 2048 || canvas.height > 2048) {
-          finalCanvas = document.createElement('canvas');
-          const fCtx = finalCanvas.getContext('2d')!;
-          const scale = Math.min(2048 / canvas.width, 2048 / canvas.height);
-          finalCanvas.width = canvas.width * scale;
-          finalCanvas.height = canvas.height * scale;
-          fCtx.drawImage(canvas, 0, 0, finalCanvas.width, finalCanvas.height);
-        }
-
-        // 4단계: WISHES 워터마크 적용
-        const wCtx = finalCanvas.getContext('2d');
-        if (wCtx) {
-          const w = finalCanvas.width;
-          const h = finalCanvas.height;
-          const fontSize = Math.max(14, Math.round(Math.min(w, h) * 0.028));
-          wCtx.save();
-          wCtx.font = `bold ${fontSize}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
-          wCtx.textBaseline = 'middle';
-          // 반투명 배경 배너 (하단 우측)
-          const text = 'WISHES';
-          const subText = 'wishes.co.kr';
-          const tm = wCtx.measureText(text);
-          const sm = wCtx.measureText(subText);
-          const maxTw = Math.max(tm.width, sm.width);
-          const padX = fontSize * 0.8;
-          const padY = fontSize * 0.5;
-          const bannerW = maxTw + padX * 2;
-          const bannerH = fontSize * 2.6 + padY * 2;
-          const bx = w - bannerW - fontSize * 0.6;
-          const by = h - bannerH - fontSize * 0.6;
-          // 둥근 사각형 배경
-          wCtx.globalAlpha = 0.55;
-          wCtx.fillStyle = '#1a3a1a';
-          wCtx.beginPath();
-          const r = fontSize * 0.4;
-          wCtx.moveTo(bx + r, by);
-          wCtx.lineTo(bx + bannerW - r, by);
-          wCtx.quadraticCurveTo(bx + bannerW, by, bx + bannerW, by + r);
-          wCtx.lineTo(bx + bannerW, by + bannerH - r);
-          wCtx.quadraticCurveTo(bx + bannerW, by + bannerH, bx + bannerW - r, by + bannerH);
-          wCtx.lineTo(bx + r, by + bannerH);
-          wCtx.quadraticCurveTo(bx, by + bannerH, bx, by + bannerH - r);
-          wCtx.lineTo(bx, by + r);
-          wCtx.quadraticCurveTo(bx, by, bx + r, by);
-          wCtx.closePath();
-          wCtx.fill();
-          // 텍스트
-          wCtx.globalAlpha = 0.9;
-          wCtx.fillStyle = '#ffffff';
-          wCtx.font = `bold ${fontSize}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
-          wCtx.fillText(text, bx + padX, by + padY + fontSize * 0.6);
-          wCtx.font = `${Math.round(fontSize * 0.65)}px "Pretendard", "Apple SD Gothic Neo", sans-serif`;
-          wCtx.globalAlpha = 0.7;
-          wCtx.fillText(subText, bx + padX, by + padY + fontSize * 1.8);
-          wCtx.restore();
-        }
-
-        resolve(finalCanvas.toDataURL('image/jpeg', 0.92));
       };
-      img.src = e.target?.result as string;
+      img.src = dataUrl;
     };
-    reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 }
