@@ -465,7 +465,7 @@ export default function AdminPage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <a href="/admin/listings" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
+          <a href="/admin?tab=listings" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
             <p className="text-2xl mb-2">🏠</p>
             <h3 className="font-bold text-wishes-primary mb-2">매물 관리</h3>
             <p className="text-sm text-gray-600">{listings.length}개의 매물 관리</p>
@@ -475,11 +475,11 @@ export default function AdminPage() {
             <h3 className="font-bold text-wishes-primary mb-2">상담 관리</h3>
             <p className="text-sm text-gray-600">{contacts.length}개의 상담 기록</p>
           </a>
-          <a href="/admin/command-center.html" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
+          <div className="card-premium p-6">
             <p className="text-2xl mb-2">⚙️</p>
             <h3 className="font-bold text-wishes-primary mb-2">설정</h3>
             <p className="text-sm text-gray-600">사이트 설정 관리</p>
-          </a>
+          </div>
         </div>
 
         {/* V4-24: 계약 갱신 알림 */}
