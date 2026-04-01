@@ -136,7 +136,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const removeDuplicateSearch = () => {
       document.querySelectorAll('nav a').forEach(a => {
         if (a.textContent && a.textContent.includes('매물 검색') && a.classList.contains('rounded-lg')) {
-          a.remove();
+          a.style.display = 'none';
         }
       });
     };
