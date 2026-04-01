@@ -10,11 +10,24 @@ import { Building2, SlidersHorizontal } from 'lucide-react';
 
 const dealTypes = ['전세', '월세', '매매'];
 const listingTypes = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
+
+// V4-03: 정렬 옵션 확장 — 최신순 / 가격 낮은 순 / 가격 높은 순 / 면적 넓은 순
 const sortOptions = [
   { value: 'latest', label: '최신순' },
-  { value: 'price', label: '가격순' },
-  { value: 'area', label: '면적순' },
+  { value: 'price_asc', label: '가격 낮은 순' },
+  { value: 'price_desc', label: '가격 높은 순' },
+  { value: 'area_desc', label: '면적 넓은 순' },
 ];
+
+// V4-03: sort 값에서 Supabase 쿼리용 컨피그 추출
+const getSortConfig = (sort: string): { column: string; ascending: boolean } => {
+  switch (sort) {
+    case 'price_asc':  return { column: 'deposit', ascending: true };
+    case 'price_desc': return { column: 'deposit', ascending: false };
+    case 'area_desc':  return { column: 'area_m2', ascending: false };
+    default:           return { column: 'created_at', ascending: false };
+  }
+};
 
 interface ListingsClientProps {
   initialListings?: any[];
@@ -71,8 +84,10 @@ export default function ListingsClient({
       if (type) query = query.eq('type', type);
       if (dong) query = query.eq('dong', dong);
 
-      const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
-      query = query.order(sortColumn, { ascending: false });
+      // V4-03: 확장된 정렬 로직
+      const { column: sortColumn, ascending: sortAsc } = getSortConfig(sort);
+      query = query.order(sortColumn, { ascending: sortAsc });
+
       query = query.range(offset, offset + pageSize - 1);
 
       // 동 목록 쿼리
@@ -105,10 +120,8 @@ export default function ListingsClient({
 
   // ── V4-05: 스크롤 위치 저장 / 복원 ──
   const scrollSaved = useRef(false);
-  // 첫 렌더링 여부 추적: 상세 → 목록 복귀 시 cleanup이 sessionStorage를 지우지 않도록
   const isFirstRender = useRef(true);
 
-  // 스크롤 이동 시 위치 저장
   useEffect(() => {
     const SCROLL_KEY = 'listings_scroll';
     const handleScroll = () => {
@@ -121,7 +134,6 @@ export default function ListingsClient({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // 데이터 로드 완료 후 스크롤 복원 (상세 → 목록 복귀 시)
   useEffect(() => {
     if (!loading && !scrollSaved.current) {
       scrollSaved.current = true;
@@ -139,7 +151,6 @@ export default function ListingsClient({
     }
   }, [loading]);
 
-  // 필터 변경 시 스크롤 저장값 초기화 (첫 렌더링은 제외 — 복귀 시 위치 보존)
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -215,6 +226,7 @@ export default function ListingsClient({
                 <option key={d} value={d}>{d}</option>
               ))}
             </select>
+            {/* V4-03: 확장된 정렬 드롭다운 */}
             <select
               value={sort}
               onChange={(e) => updateFilter('sort', e.target.value)}
