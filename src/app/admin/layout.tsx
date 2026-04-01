@@ -11,7 +11,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
-  const [hasExtension, setHasExtension] = useState(false);
+  const [hasExtension, setHasExtension] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.sessionStorage.getItem('ws_has_extension') === 'true';
+    }
+    return false;
+  });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -103,13 +108,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const checkExtension = () => {
       const extEl = document.getElementById('wishes-search-extension') ||
                     document.querySelector('[data-wishes-extension]');
-      if (extEl) { setHasExtension(true); return true; }
+      if (extEl) { setHasExtension(true); try { window.sessionStorage.setItem('ws_has_extension', 'true'); } catch(e){} return true; }
       return false;
     };
 
     const handleExtMessage = (e: MessageEvent) => {
       if (e.data?.type === 'WS_EXTENSION_LOADED' || e.data?.type === 'WS_AUTH_CHECK') {
         setHasExtension(true);
+        try { window.sessionStorage.setItem('ws_has_extension', 'true'); } catch(e2){}
       }
     };
 
