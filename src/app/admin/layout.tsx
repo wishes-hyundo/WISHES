@@ -251,7 +251,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const SidebarContent = () => (
     <>
       <div className="flex items-center justify-between px-4 py-4 border-b border-green-700/30">
-        {sidebarOpen && <h1 className="text-xl font-black tracking-wide text-wishes-accent">WISHES</h1>}
+        {sidebarOpen && <Link href="/admin" onClick={() => { setSelectedNav('/admin'); setMobileMenuOpen(false); }} className="text-xl font-black tracking-wide text-wishes-accent hover:opacity-80 transition-opacity cursor-pointer">WISHES</Link>}
         <button onClick={() => { setSidebarOpen(!sidebarOpen); setMobileMenuOpen(false); }}
           className="p-2 rounded-lg hover:bg-white/10 transition hidden md:block" aria-label="사이드바 토글">
           {sidebarOpen ? '◀' : '▶'}
