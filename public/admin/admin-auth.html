@@ -9,7 +9,7 @@
     <meta name="description" content="WISHES 부동산 관리 시스템 - 전문 공인중개사 관리 플랫폼">
     <meta name="theme-color" content="#2D5A27">
 
-    <style>h
+    <style>
         :root {
             --primary: #2D5A27;
             --primary-light: #4CAF50;
@@ -919,6 +919,60 @@
                 transition-duration: 0.01ms !important;
             }
         }
+    
+        /* ===== Light Theme Override for Readability ===== */
+        .auth-card {
+            background: rgba(255, 255, 255, 0.95) !important;
+            border: 1px solid #c8d8c4 !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+        }
+        .form-group input,
+        .form-group select {
+            background: rgba(245, 249, 245, 0.8) !important;
+            border: 1px solid #b8c8b4 !important;
+            color: #1a2e1a !important;
+        }
+        .form-group input:focus,
+        .form-group select:focus {
+            border-color: #2D5A27 !important;
+            background: #fff !important;
+        }
+        .form-group input::placeholder {
+            color: #8a9a88 !important;
+        }
+        .form-group label {
+            color: #2d3a2d !important;
+        }
+        .tab-btn {
+            color: #4a5a4a !important;
+        }
+        .tab-btn.active {
+            color: #2D5A27 !important;
+            border-bottom-color: #2D5A27 !important;
+        }
+        .checkbox-label,
+        .checkbox-label a {
+            color: #3a4a3a !important;
+        }
+        .forgot-password {
+            color: #4a6a4a !important;
+        }
+        .strength-meter {
+            background: rgba(230, 240, 228, 0.5) !important;
+        }
+        .requirements-list {
+            background: rgba(230, 240, 228, 0.3) !important;
+        }
+        .requirement {
+            color: #4a5a4a !important;
+        }
+        .auth-header h2 {
+            color: #1a2e1a !important;
+        }
+        .auth-header p {
+            color: #4a5a4a !important;
+        }
+
     </style>
 </head>
 <body>
