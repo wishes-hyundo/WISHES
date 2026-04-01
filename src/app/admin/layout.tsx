@@ -15,8 +15,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const currentTab = searchParams.get('tab');
+  const [currentTab, setCurrentTab] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setCurrentTab(params.get('tab'));
+  });
 
   useEffect(() => { setIsMounted(true); }, []);
 
