@@ -287,18 +287,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {sidebarOpen && <span>{item.label}</span>}
           </Link>
         ))}
-      </nav>
-
-      {/* 매물 검색 - 크롬 확장프로그램 설치 시에만 표시 */}
-      {hasExtension && (
-        <div className="px-3 pb-2">
-          <Link href="/admin?tab=search" onClick={() => { setMobileMenuOpen(false); setCurrentTab('search'); }}
-            className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15">
+      
+        {hasExtension && (
+          <Link
+            href="/admin?tab=search"
+            onClick={() => { setMobileMenuOpen(false); setCurrentTab('search'); }}
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] ${
+              isActive('/admin?tab=search')
+                ? 'bg-white/20 text-white shadow-inner font-bold'
+                : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
+            }`}>
             <span className="text-lg flex-shrink-0">🔍</span>
             {sidebarOpen && <span>매물 검색</span>}
           </Link>
-        </div>
-      )}
+        )}
+</nav>
+
+
 
       {/* Command Center - admin/superadmin만 표시 */}
       {isAdminRole && (
