@@ -13,11 +13,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [userRole, setUserRole] = useState<string>('');
   const [hasExtension, setHasExtension] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [currentTab, setCurrentTab] = useState<string | null>(typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null);
+  const [selectedNav, setSelectedNav] = useState<string>(() => { if (typeof window !== 'undefined') { const t = new URLSearchParams(window.location.search).get('tab'); if (t) return '/admin?tab=' + t; return window.location.pathname; } return '/admin'; });
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => { setIsMounted(true); }, []);
+
+  useEffect(() => { if (typeof window !== 'undefined') { const t = new URLSearchParams(window.location.search).get('tab'); setSelectedNav(t ? '/admin?tab=' + t : pathname); } }, [pathname]);
 
   // ========================================
   // 인증 가드 - 회원가입 + 승인 필수
@@ -244,16 +246,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (!isAuthenticated) return null;
 
-  const isActive = (href: string) => {
-    const tab = currentTab;
-    if (href.includes('?tab=')) {
-      const tabValue = href.split('?tab=')[1];
-      return pathname === '/admin' && tab === tabValue;
-    }
-    if (href === '/admin') return pathname === '/admin' && !tab && !isNewListing;
-    if (href === '/admin/listings') return pathname === '/admin/listings';
-    return pathname.startsWith(href);
-  };
+  const isActive = (href: string) => href === selectedNav;
 
   const SidebarContent = () => (
     <>
@@ -266,7 +259,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       <div className="px-3 pt-4 pb-2">
-        <Link href="/admin/listings/new" onClick={() => { setMobileMenuOpen(false); setCurrentTab(null); }}
+        <Link href="/admin/listings/new" onClick={() => { setMobileMenuOpen(false); setSelectedNav('/admin/listings/new'); }}
           className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 ${
             isNewListing ? 'bg-yellow-500 text-black shadow-lg scale-[1.02]'
               : 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black hover:shadow-lg hover:scale-[1.02] active:scale-95'
@@ -278,8 +271,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <nav className="flex-1 px-3 py-2 space-y-1.5 overflow-y-auto">
         {navItems.map((item) => (
-          <Link key={item.href} href={item.href} onClick={() => { setMobileMenuOpen(false); setCurrentTab(item.href.includes('?tab=') ? item.href.split('?tab=')[1] : null); }}
-            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] ${
+          <Link key={item.href} href={item.href} onClick={() => { setMobileMenuOpen(false); setSelectedNav(item.href); }}
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] ${
               isActive(item.href) ? 'bg-white/20 text-white shadow-inner font-bold'
                 : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
             }`}>
@@ -291,8 +284,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {hasExtension && (
           <Link
             href="/admin?tab=search"
-            onClick={() => { setMobileMenuOpen(false); setCurrentTab('search'); }}
-            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] ${
+            onClick={() => { setMobileMenuOpen(false); setSelectedNav('/admin?tab=search'); }}
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] ${
               isActive('/admin?tab=search')
                 ? 'bg-white/20 text-white shadow-inner font-bold'
                 : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
@@ -325,7 +318,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       <div className="px-3 pb-4">
         <button onClick={handleLogout}
-          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-red-500/30 transition-all duration-200 min-h-[48px] active:bg-red-500/50 ${!sidebarOpen ? 'justify-center' : ''}`}>
+          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium text-white/70 hover:text-white hover:bg-red-500/30 transition-colors duration-150 min-h-[48px] active:bg-red-500/50 ${!sidebarOpen ? 'justify-center' : ''}`}>
           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
