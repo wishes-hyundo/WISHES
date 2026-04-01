@@ -257,7 +257,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const SidebarContent = () => (
     <>
       <div className="flex items-center justify-between px-4 py-4 border-b border-green-700/30">
-        {sidebarOpen && <h1 className="text-xl font-black tracking-wide text-wishes-accent">WISHES</h1>}
+        {sidebarOpen && <h1 className="text-xl font-black tracking-wide text-wishes-accent cursor-pointer hover:opacity-80 transition-opacity" onClick={() => { window.location.href = '/admin'; }}>WISHES</h1>}
         <button onClick={() => { setSidebarOpen(!sidebarOpen); setMobileMenuOpen(false); }}
           className="p-2 rounded-lg hover:bg-white/10 transition hidden md:block" aria-label="사이드바 토글">
           {sidebarOpen ? '◀' : '▶'}
@@ -289,7 +289,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </nav>
 
       {/* 매물 검색 - 크롬 확장프로그램 설치 시에만 표시 */}
-      {hasExtension && (
+      {/* 매물 검색 - 항상 표시 */}
         <div className="px-3 pb-2">
           <Link href="/admin?tab=search" onClick={() => setMobileMenuOpen(false)}
             className="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-all duration-200 min-h-[48px] text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15">
@@ -297,7 +297,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {sidebarOpen && <span>매물 검색</span>}
           </Link>
         </div>
-      )}
 
       {/* Command Center - admin/superadmin만 표시 */}
       {isAdminRole && (
