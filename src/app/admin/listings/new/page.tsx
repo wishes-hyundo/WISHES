@@ -63,7 +63,7 @@ interface AddressData {
   bname: string;
 }
 
-interface BuildingInfo {h
+interface BuildingInfo {
   건물명: string;
   주용도: string;
   기타용도: string;
