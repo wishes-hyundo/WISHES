@@ -134,14 +134,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // 확장프로그램 주입 매물검색 중복 제거
   useEffect(() => {
     const removeDuplicateSearch = () => {
-      const navEls = document.querySelectorAll('nav');
-      navEls.forEach(nav => {
-        const links = Array.from(nav.querySelectorAll('a'));
-        const searchLinks = links.filter(a => a.textContent && a.textContent.includes('매물 검색'));
-        if (searchLinks.length > 1) {
-          for (let i = 1; i < searchLinks.length; i++) {
-            searchLinks[i].remove();
-          }
+      const extLinks = document.querySelectorAll('nav a.hover\\:bg-wishes');
+      extLinks.forEach(a => {
+        if (a.textContent && a.textContent.includes('매물 검색')) {
+          a.remove();
         }
       });
     };
