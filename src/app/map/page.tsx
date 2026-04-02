@@ -15,7 +15,7 @@ declare global {
 }
 
 const dealTypes: DealType[] = ['전세', '월세', '매매'];
-const listingTypes: ListingType[] = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
+const listingTypes: ListingType[] = ['원룸', '투룷', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
 
 const DEFAULT_CENTER = { lat: 37.4847, lng: 126.9293 };
 const DEFAULT_ZOOM = 5;
@@ -39,7 +39,7 @@ function extractCity(address: string): string {
     if (parts[1]) return parts[1].replace(/시$/, '') + '시';
     return '경기';
   }
-  return parts[0]?.replace(/(특별시|광역시|특별자치시|특별자치도|도)$/, '') || '기타';
+  return parts[0]?.replace(/(트별시|광역시|특별자치시|트별자치도|도)$/, '') || '기타';
 }
 
 function extractGu(address: string): string {
@@ -243,7 +243,7 @@ function createPriceMarkerContent(listing: Listing): HTMLElement {
   content.appendChild(dealBadge);
   content.appendChild(priceSpan);
 
-  // 말풕선 꼬리
+  // 말풍선 꼬리
   const tail = document.createElement('div');
   tail.style.cssText = `
     position: absolute; bottom: -7px; left: 50%;
@@ -286,7 +286,7 @@ export default function MapSearchPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
 
-  // 검색 필터된 리스트
+  // 검색 필터링된 리스트
   const filteredListings = useMemo(() => {
     if (!searchQuery.trim()) return listings;
     const q = searchQuery.toLowerCase();
@@ -351,7 +351,7 @@ export default function MapSearchPage() {
     });
   }, []);
 
-  // ━━━ 필터 변경 시 재검색 ━━━
+  // ━━━ 필터 변경 시 재가색 ━━━
   useEffect(() => {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
@@ -366,7 +366,7 @@ export default function MapSearchPage() {
     }, filters);
   }, [filters, fetchListings]);
 
-  // ━━━ 마커 업데이트 � 줌 레벨에 따라 단계별 전환 ━━━
+  // ━━━ 마커 업데이트 — 줌 레벨에 따라 단계별 전환 ━━━
   useEffect(() => {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
@@ -412,7 +412,7 @@ export default function MapSearchPage() {
       });
 
     } else if (level >= 7) {
-      // ━━━ 구/군 레벨 클러,��터 ━━━
+      // ━━━ 구/군 레벨 클러스터 ━━━
       const guGroups: Record<string, { listings: Listing[]; latSum: number; lngSum: number }> = {};
 
       validListings.forEach((listing) => {
@@ -647,7 +647,7 @@ export default function MapSearchPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="지역, 매뫼명, 키워드로 검색..."
+                placeholder="지역, 매물명, 키워드로 검색..."
                 className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary transition-all"
                 autoFocus
               />
@@ -665,7 +665,7 @@ export default function MapSearchPage() {
       </div>
 
       {/* ━━━ 지도 + 리스트 ━━━ */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* 카카오맵 영역 */}
         <div className={`relative ${mobileView === 'list' ? 'hidden md:block' : ''} flex-1`}>
           <div ref={mapRef} className="w-full h-full kakao-map-container" />
@@ -678,7 +678,7 @@ export default function MapSearchPage() {
             </div>
           )}
 
-          {/* 줌 레벨 표시 + 매뫼 카운트 */}
+          {/* 줌 레벨 표시 + 매물 카운트 */}
           {!loading && mapReady && (
             <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
               <div className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md text-xs font-medium text-gray-700 flex items-center gap-2">
@@ -697,76 +697,69 @@ export default function MapSearchPage() {
           )}
         </div>
 
-        {/* ━━━ 매뫼 리스트 / 상세 패널 (우측) ━━━ */}
-        <div className={`${mobileView === 'map' ? 'hidden md:block' : ''} w-full md:w-[380px] bg-white border-l border-gray-200 shrink-0 relative overflow-hidden`}>
-          {/* 매물 목록 */}
-          <div
-            className="absolute inset-0 overflow-y-auto custom-scrollbar transition-transform duration-300 ease-in-out"
-            style={{ transform: detailId ? 'translateX(-100%)' : 'translateX(0)' }}
-          >
-            <div className="p-4 space-y-3">
-              {/* 리스트 헤더 */}
-              <div className="flex items-center justify-between">
-                <div className="text-sm font-medium text-gray-700">
-                  매물 <strong className="text-wishes-primary">{searchQuery ? filteredListings.length : total}</strong>건
-                  {searchQuery && (
-                    <span className="ml-1 text-xs text-wishes-muted">
-                      &quot;{searchQuery}&quot; 가색결과
-                    </span>
-                  )}
-                </div>
+        {/* ━━━ 매물 리스트 (우측 고정) ━━━ */}
+        <div className={`${mobileView === 'map' ? 'hidden md:block' : ''} w-full md:w-[380px] bg-white border-l border-gray-200 shrink-0 overflow-y-auto custom-scrollbar`}>
+          <div className="p-4 space-y-3">
+            {/* 리스트 헤더 */}
+            <div className="flex items-center justify-between">
+              <div className="text-sm font-medium text-gray-700">
+                매물 <strong className="text-wishes-primary">{searchQuery ? filteredListings.length : total}</strong>건
+                {searchQuery && (
+                  <span className="ml-1 text-xs text-wishes-muted">
+                    &quot;{searchQuery}&quot; 검색결과
+                  </span>
+                )}
               </div>
-
-              {/* 매물 카드 리스트 */}
-              {filteredListings.length > 0 ? (
-                filteredListings.map((listing) => (
-                  <div
-                    key={listing.id}
-                    onClick={() => handleListingClick(listing.id)}
-                    className="cursor-pointer"
-                  >
-                    <ListingCard
-                      listing={listing}
-                      compact
-                      noLink
-                      onHover={handleCardHover}
-                    />
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-16 text-gray-400">
-                  <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                  <p className="text-sm font-medium">
-                    {loading ? '검색 중...' : searchQuery ? '검색 결과가 없습니다' : '이 영역에 매물이 없습니다'}
-                  </p>
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery('')}
-                      className="mt-2 text-xs text-wishes-secondary hover:underline"
-                    >
-                      검색어 초기화
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
-          </div>
 
-          {/* 매뫼 상세 슬라이드 패널 */}
-          <div
-            className="absolute inset-0 bg-white transition-transform duration-300 ease-in-out overflow-hidden"
-            style={{ transform: detailId ? 'translateX(0)' : 'translateX(100%)' }}
-          >
-            {detailId && (
-              <MapListingPanel
-                listingId={detailId}
-                onClose={() => setDetailId(null)}
-              />
+            {/* 매물 카드 리스트 */}
+            {filteredListings.length > 0 ? (
+              filteredListings.map((listing) => (
+                <div
+                  key={listing.id}
+                  onClick={() => handleListingClick(listing.id)}
+                  className={`cursor-pointer rounded-lg transition-all ${detailId === listing.id ? 'ring-2 ring-wishes-primary bg-wishes-primary/5' : ''}`}
+                >
+                  <ListingCard
+                    listing={listing}
+                    compact
+                    noLink
+                    onHover={handleCardHover}
+                  />
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-16 text-gray-400">
+                <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                <p className="text-sm font-medium">
+                  {loading ? '검색 중...' : searchQuery ? '검색 결과가 없습니다' : '이 영역에 매물이 없습니다'}
+                </p>
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className="mt-2 text-xs text-wishes-secondary hover:underline"
+                  >
+                    검색어 초기화
+                  </button>
+                )}
+              </div>
             )}
           </div>
+        </div>
+
+        {/* ━━━ 매물 상세 슬라이드 패널 (지도 위 오버레이, 목록 왼쪽) ━━━ */}
+        <div
+          className={`hidden md:block absolute top-0 bottom-0 right-[380px] z-30 bg-white border-r border-gray-200 shadow-2xl transition-transform duration-300 ease-in-out ${detailId ? 'translate-x-0' : 'translate-x-full'}`}
+          style={{ width: '420px' }}
+        >
+          {detailId && (
+            <MapListingPanel
+              listingId={detailId}
+              onClose={() => setDetailId(null)}
+            />
+          )}
         </div>
       </div>
     </div>
   );
 }
-
