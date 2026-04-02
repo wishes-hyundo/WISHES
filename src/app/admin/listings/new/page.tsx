@@ -274,6 +274,7 @@ const DEFAULT_ENHANCE_PARAMS = {
 };
 
 function enhanceImage(file: File): Promise<string> {
+  console.log('[ENHANCE] Starting for file:', file.name, file.size);
   return new Promise((resolve, reject) => {
     // Minifier-safe: store callbacks as object properties to prevent Terser variable shadowing
     const _cb = { resolve, reject };
@@ -330,7 +331,8 @@ function enhanceImage(file: File): Promise<string> {
           const mosaicData = await mosaicRes.json();
           if (mosaicData.detections) mosaicDetections = mosaicData.detections;
         }
-      } catch { /* Use defaults if API fails */ }
+      } catch (apiErr) { console.log('[ENHANCE] API error:', apiErr); }
+      console.log('[ENHANCE] Mosaic detections:', mosaicDetections.length, JSON.stringify(mosaicDetections));
 
       // Step 2: Load image and apply 7-step pipeline
       const img = new Image();
@@ -463,8 +465,10 @@ function enhanceImage(file: File): Promise<string> {
 
           // Export as WebP 93% quality
           const result = canvas.toDataURL('image/webp', 0.93);
+          console.log('[ENHANCE] Success! Result length:', result.length);
           _cb.resolve(result);
         } catch (err) {
+          console.error('[ENHANCE] Canvas error:', err);
           _cb.reject(err);
         }
       };
@@ -1277,6 +1281,7 @@ ${floorRows}</table></div>` : ''}
           return updated;
         });
       } catch {
+        console.error('[ENHANCE] enhanceImage FAILED for:', fileArray[i].name);
         setUploadedImages(prev => {
           const updated = [...prev];
           const idx = updated.findIndex(img => img.file === fileArray[i]);
