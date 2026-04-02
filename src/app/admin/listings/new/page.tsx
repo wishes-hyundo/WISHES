@@ -1159,8 +1159,13 @@ ${floorRows}</table></div>` : ''}
         setUploadProgress(prev => prev + 1);
         if (img.enhanced) { // Always use enhanced version (includes privacy mosaic)
           try {
-            const resp = await withRetry(() => fetch(img.enhanced), 2, 500);
-            const blob = await resp.blob();
+            // dataURL -> Blob (fetch() fails on large data URLs)
+                        const parts = img.enhanced.split(',');
+                    const mime = parts[0].match(/:(.*?);/)[1];
+                    const bstr = atob(parts[1]);
+                    const u8 = new Uint8Array(bstr.length);
+                    for (let k = 0; k < bstr.length; k++) u8[k] = bstr.charCodeAt(k);
+                    const blob = new Blob([u8], { type: mime });
             fd.append('images', blob, img.file.name.replace(/\.\w+$/, '.webp'));
           } catch (e) {
             // console.warn('[Enhanced fetch failed, using original]', e);
