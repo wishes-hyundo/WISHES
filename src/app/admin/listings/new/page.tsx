@@ -5,7 +5,7 @@ function debounce(fn, ms) {
   let timer;
   return (...args) => {
     clearTimeout(timer);
-    timer = setTimeout(() => fn(...args), ms);
+    timer = setTimeout(() =>h fn(...args), ms);
   };
 }
 
@@ -282,6 +282,29 @@ function enhanceImage(file: File): Promise<string> {
       const dataUrl = e.target?.result as string;
       if (!dataUrl) { reject(new Error('Empty file')); return; }
 
+      // Resize for API (Vercel 4.5MB body limit)
+      let apiDataUrl = dataUrl;
+      if (dataUrl.length > 3 * 1024 * 1024) {
+        const resizeImg = new Image();
+        apiDataUrl = await new Promise<string>((resImg) => {
+          resizeImg.onload = () => {
+            const maxDim = 1600;
+            let rw = resizeImg.width, rh = resizeImg.height;
+            if (rw > maxDim || rh > maxDim) {
+              const ratio = Math.min(maxDim / rw, maxDim / rh);
+              rw = Math.floor(rw * ratio);
+              rh = Math.floor(rh * ratio);
+            }
+            const rc = document.createElement('canvas');
+            rc.width = rw; rc.height = rh;
+            const rcx = rc.getContext('2d')!;
+            rcx.drawImage(resizeImg, 0, 0, rw, rh);
+            resImg(rc.toDataURL('image/jpeg', 0.7));
+          };
+          resizeImg.src = dataUrl;
+        });
+      }
+
       // Step 1: Get AI analysis parameters
       let params = DEFAULT_ENHANCE_PARAMS;
       let mosaicDetections: MosaicDetection[] = [];
@@ -290,12 +313,12 @@ function enhanceImage(file: File): Promise<string> {
           fetch('/api/analyze-photo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: dataUrl, mode: 'enhance' }),
+            body: JSON.stringify({ image: apiDataUrl, mode: 'enhance' }),
           }),
           fetch('/api/analyze-photo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ image: dataUrl, mode: 'mosaic' }),
+            body: JSON.stringify({ image: apiDataUrl, mode: 'mosaic' }),
           }),
         ]);
         if (enhanceRes.ok) {
