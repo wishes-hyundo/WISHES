@@ -243,7 +243,7 @@ function createPriceMarkerContent(listing: Listing): HTMLElement {
   content.appendChild(dealBadge);
   content.appendChild(priceSpan);
 
-  // 말풕선 꼬리
+  // 말풍선 꼬리
   const tail = document.createElement('div');
   tail.style.cssText = `
     position: absolute; bottom: -7px; left: 50%;
@@ -412,7 +412,7 @@ export default function MapSearchPage() {
       });
 
     } else if (level >= 7) {
-      // ━━━ 구/군 레벨 클러,��터 ━━━
+      // ━━━ 구/군 레벨 클러스터 ━━━
       const guGroups: Record<string, { listings: Listing[]; latSum: number; lngSum: number }> = {};
 
       validListings.forEach((listing) => {
@@ -732,7 +732,7 @@ export default function MapSearchPage() {
               <div className="text-center py-16 text-gray-400">
                 <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                 <p className="text-sm font-medium">
-                  {loading ? '검색 중...' : searchQuery ? '가색 결과가 없습니다' : '이 영역에 매물이 없습니다'}
+                  {loading ? '검색 중...' : searchQuery ? '검색 결과가 없습니다' : '이 영역에 매물이 없습니다'}
                 </p>
                 {searchQuery && (
                   <button
