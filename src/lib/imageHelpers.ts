@@ -102,30 +102,6 @@ function loadTesseract(): Promise<any> {
   return tesseractPromise;
 }
 
-// Pre-process image for better OCR: grayscale + binary threshold
-function preprocessForOCR(dataUrl: string): Promise<string> {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => {
-      const c = document.createElement('canvas');
-      c.width = img.width;
-      c.height = img.height;
-      const ctx = c.getContext('2d')!;
-      ctx.drawImage(img, 0, 0);
-      const id = ctx.getImageData(0, 0, c.width, c.height);
-      const d = id.data;
-      for (let i = 0; i < d.length; i += 4) {
-        const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
-        const val = gray < 128 ? 0 : 255;
-        d[i] = val; d[i + 1] = val; d[i + 2] = val;
-      }
-      ctx.putImageData(id, 0, 0);
-      resolve(c.toDataURL('image/png'));
-    };
-    img.src = dataUrl;
-  });
-}
-
 const PHONE_REGEX = /\d{2,4}[-. ]?\d{3,4}[-. ]?\d{4}/;
 const HP_REGEX = /[HhTt]\.?[PpEeLl]\.?/;
 
@@ -133,9 +109,7 @@ async function detectPhoneNumbersOCR(dataUrl: string): Promise<MosaicDetection[]
   console.log('[OCR] Starting Tesseract phone detection...');
   try {
     const Tesseract = await loadTesseract();
-    console.log('[OCR] Pre-processing image...');
-    const processedUrl = await preprocessForOCR(dataUrl);
-    console.log('[OCR] Creating worker...');
+    console.log('[OCR] Tesseract loaded, creating worker...');
     const worker = await Tesseract.createWorker('eng', 1, {
       logger: (m: any) => {
         if (m.status === 'recognizing text') {
@@ -143,16 +117,13 @@ async function detectPhoneNumbersOCR(dataUrl: string): Promise<MosaicDetection[]
         }
       },
     });
-    console.log('[OCR] Running recognition on pre-processed image...');
-    const { data } = await worker.recognize(processedUrl);
-
-    // Get original image dimensions for coordinate mapping
-    const origImg = await loadImage(dataUrl);
+    console.log('[OCR] Running recognition...');
+    const { data } = await worker.recognize(dataUrl);
     await worker.terminate();
 
     const detections: MosaicDetection[] = [];
-    const imgW = origImg.width;
-    const imgH = origImg.height;
+    const imgW = data.width || 1;
+    const imgH = data.height || 1;
 
     for (const line of (data.lines || [])) {
       const text = line.text.trim();
@@ -309,131 +280,6 @@ function applyMosaic(
       }
     }
   }
-  console.log('[MOSAIC] Complete');
-}
-// ====================================================
-// Enhancement Pipeline
-// ====================================================
-
-function applyEnhancement(
-  ctx: CanvasRenderingContext2D,
-  w: number,
-  h: number,
-  params: typeof DEFAULT_ENHANCE_PARAMS
-): void {
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const d = imageData.data;
-  for (let i = 0; i < d.length; i += 4) {
-    let r = d[i], g = d[i + 1], b = d[i + 2];
-    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-    if (lum < 80) {
-      const lift = params.shadow_lift * (1 - lum / 80) * 40;
-      r = Math.min(255, r + lift);
-      g = Math.min(255, g + lift);
-      b = Math.min(255, b + lift);
-    }
-    if (lum > 200) {
-      const rec = ((params.highlight_recovery * (lum - 200)) / 55) * 30;
-      r = Math.max(0, r - rec);
-      g = Math.max(0, g - rec);
-      b = Math.max(0, b - rec);
-    }
-    const cs = params.contrast_strength;
-    const sc = (v: number) => {
-      const n = v / 255;
-      return Math.min(255, Math.max(0, 255 * (n + cs * Math.sin(Math.PI * n) * 0.5)));
-    };
-    r = sc(r); g = sc(g); b = sc(b);
-    const mc = Math.min(r, g, b);
-    if (mc > 50) {
-      const hz = params.dehaze_strength * (mc - 50) * 0.3;
-      r = Math.min(255, r + hz * 0.5);
-      g = Math.min(255, g + hz * 0.3);
-      b = Math.max(0, b - hz * 0.2);
-    }
-    const avg = (r + g + b) / 3;
-    const mx = Math.max(r, g, b);
-    const sat = mx > 0 ? 1 - Math.min(r, g, b) / mx : 0;
-    const vb = params.vibrance * (1 - sat) * 0.5;
-    r = Math.min(255, r + (r - avg) * vb);
-    g = Math.min(255, g + (g - avg) * vb);
-    b = Math.min(255, b + (b - avg) * vb);
-    r = Math.min(255, Math.max(0, r + params.color_temperature * 15));
-    b = Math.min(255, Math.max(0, b - params.color_temperature * 15));
-    d[i] = Math.min(255, Math.max(0, r));
-    d[i + 1] = Math.min(255, Math.max(0, g));
-    d[i + 2] = Math.min(255, Math.max(0, b));
-  }
-  ctx.putImageData(imageData, 0, 0);
-  const sd = ctx.getImageData(0, 0, w, h);
-  const s = sd.data;
-  const cp = new Uint8ClampedArray(s);
-  const amt = params.sharpen_detail;
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const idx = (y * w + x) * 4;
-      for (let c = 0; c < 3; c++) {
-        const blur = (cp[idx + c - 4] + cp[idx + c + 4] + cp[idx + c - w * 4] + cp[idx + c + w * 4]) / 4;
-        s[idx + c] = Math.min(255, Math.max(0, cp[idx + c] + (cp[idx + c] - blur) * amt));
-      }
-    }
-  }
-  ctx.putImageData(sd, 0, 0);
-  const grad = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.8);
-  grad.addColorStop(0, 'rgba(0,0,0,0)');
-  grad.addColorStop(1, 'rgba(0,0,0,' + params.vignette_strength + ')');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, w, h);
-}
-// ====================================================
-// Main Export
-// ====================================================
-
-export async function enhanceImage(file: File): Promise<string> {
-  console.log('[ENHANCE] Starting:', file.name, file.size, 'bytes');
-  const dataUrl = await readFileAsDataURL(file);
-  const maxDim = 1600;
-  let apiDataUrl = dataUrl;
-  if (dataUrl.length > 3 * 1024 * 1024) {
-    apiDataUrl = await resizeImageForAPI(dataUrl, maxDim);
-  }
-  const img = await loadImage(dataUrl);
-  console.log('[ENHANCE] Image:', img.width, 'x', img.height);
-  const canvas = document.createElement('canvas');
-  let w = img.width, h = img.height;
-  if (w > maxDim || h > maxDim) {
-    const scale = Math.min(maxDim / w, maxDim / h);
-    w = Math.round(w * scale);
-    h = Math.round(h * scale);
-  }
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext('2d')!;
-  ctx.drawImage(img, 0, 0, w, h);
-
-  // Run all detections in parallel:
-  // 1. Tesseract OCR for phone numbers (precise pixel coordinates)
-  // 2. Claude API for faces/plates (grid-based)
-  // 3. Claude API for enhancement parameters
-  console.log('[ENHANCE] Starting parallel detection...');
-  const [ocrPhones, apiFacePlates, enhanceParams] = await Promise.all([
-    detectPhoneNumbersOCR(apiDataUrl),
-    detectFacesAndPlates(apiDataUrl),
-    fetchEnhanceParams(apiDataUrl),
-  ]);
-
-  const allDetections = [...ocrPhones, ...apiFacePlates];
-  const params = enhanceParams || DEFAULT_ENHANCE_PARAMS;
-  console.log('[ENHANCE] Total detections:', allDetections.length,
-    '(OCR phones:', ocrPhones.length, ', API faces/plates:', apiFacePlates.length, ')');
-
-  applyEnhancement(ctx, w, h, params);
-  applyMosaic(ctx, allDetections, w, h);
-
-  const result = canvas.toDataURL('image/webp', 0.93);
-  console.log('[ENHANCE] Done! Output:', result.length, 'bytes');
-  return result;
-              }
   console.log('[MOSAIC] Complete');
 }
 // ====================================================
