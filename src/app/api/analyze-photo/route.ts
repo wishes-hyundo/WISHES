@@ -18,26 +18,33 @@ export async function POST(request: NextRequest) {
 
     const systemPrompt =
       mode === 'mosaic'
-        ? `You are a privacy detection AI for a Korean real estate listing website.
-Your job is to find ALL privacy-sensitive elements in the photo.
+        ? `You are a precision privacy detection AI for Korean real estate photos.
+Find ALL privacy-sensitive items and return TIGHT bounding boxes around ONLY the sensitive content.
 
-DETECT ALL OF THESE:
-1. HUMAN FACES - any visible face, even partial or small
-2. PHONE NUMBERS - any text containing phone numbers (Korean format: 010-XXXX-XXXX, 02-XXX-XXXX, etc). Look for "H.P:", "TEL:", "T.", numbers on signs, banners, stickers
-3. VEHICLE LICENSE PLATES - any car/motorcycle plates
-4. PERSONAL DOCUMENTS - ID cards, contracts, resident registration numbers (XXXXXX-XXXXXXX)
-5. PERSONAL NAMES with phone numbers - if a person's name appears next to contact info
+WHAT TO DETECT:
+1. PHONE NUMBERS - Korean format like 010-XXXX-XXXX, 02-XXX-XXXX, 070-XXXX-XXXX. Also numbers after "H.P:", "TEL:", "T.", "HP." on signs, banners, stickers, papers. This is the HIGHEST priority.
+2. HUMAN FACES - any visible face, even partial, small, or in background
+3. VEHICLE LICENSE PLATES - Korean car/motorcycle plates
+4. PERSONAL ID INFO - resident registration numbers (XXXXXX-XXXXXXX), ID cards
 
-Be AGGRESSIVE in detection. It is much better to over-detect than to miss something.
-For phone numbers on signs/banners, make sure to cover the ENTIRE number including any prefix like "H.P:" or "TEL:".
+CRITICAL RULES:
+- For phone numbers: draw the box ONLY around the digits/number text, NOT the entire sign or banner
+- For faces: draw the box around the face only, not the entire person
+- Each detected item gets its OWN separate bounding box
+- If a sign has BOTH a phone number AND a name, return TWO separate detections
+- Do NOT return one giant box covering an entire sign - break it into individual items
+- Add about 5% padding around each item for safety margin
 
-COORDINATE FORMAT:
-- x, y = top-left corner as percentage (0-100) of image dimensions
-- width, height = size as percentage (0-100) of image dimensions
-- Make bounding boxes generous - add padding around detected items
+COORDINATE FORMAT (percentage of image, 0-100):
+x = left edge, y = top edge, width = box width, height = box height
+All values as percentage of total image dimensions.
+
+IMPORTANT: A phone number box should typically be width 15-40%, height 3-8% of image.
+A face box should typically be width 5-15%, height 5-15% of image.
+If your box is larger than 50% of the image in any dimension, you are probably doing it wrong.
 
 Return ONLY valid JSON:
-{"detections": [{"type": "face|phone|plate|document", "x": 0, "y": 0, "width": 0, "height": 0, "confidence": 0.0}]}
+{"detections": [{"type": "face|phone|plate|document", "x": 0, "y": 0, "width": 0, "height": 0, "confidence": 0.9}]}
 If nothing found: {"detections": []}`
         : `You are a professional real estate photo enhancement AI.
 Analyze this property photo and recommend enhancement parameters.
@@ -53,7 +60,7 @@ Return ONLY valid JSON with these parameters (values 0.0-1.0):
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        max_tokens: 2048,
         messages: [
           {
             role: 'user',
@@ -70,7 +77,7 @@ Return ONLY valid JSON with these parameters (values 0.0-1.0):
                 type: 'text',
                 text:
                   mode === 'mosaic'
-                    ? 'Detect ALL privacy-sensitive elements in this Korean real estate photo. Be thorough - check for faces, phone numbers on signs/banners/stickers, license plates, and personal documents. Return JSON with detections array.'
+                    ? 'Scan this Korean real estate photo carefully for privacy-sensitive content. Look especially for phone numbers on signs, banners, stickers, and papers. Also check for faces, license plates, and personal ID numbers. Return TIGHT bounding boxes around ONLY the sensitive items - do NOT box entire signs. Return JSON.'
                     : 'Analyze this real estate photo and recommend enhancement parameters. Return JSON.',
               },
             ],
@@ -83,7 +90,7 @@ Return ONLY valid JSON with these parameters (values 0.0-1.0):
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Anthropic API error:', response.status, errorText);
-      return NextResponse.json({ error: 'API call failed' }, { status: 500 });
+      return NextResponse.json({ error: 'API call failed', status: response.status }, { status: 500 });
     }
 
     const result = await response.json();
@@ -92,8 +99,27 @@ Return ONLY valid JSON with these parameters (values 0.0-1.0):
     // Parse JSON from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return NextResponse.json(parsed);
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        // Validate and clamp detection coordinates
+        if (parsed.detections && Array.isArray(parsed.detections)) {
+          parsed.detections = parsed.detections
+            .filter((d: any) => d.x != null && d.y != null && d.width != null && d.height != null)
+            .map((d: any) => ({
+              type: d.type || 'unknown',
+              x: Math.max(0, Math.min(100, Number(d.x) || 0)),
+              y: Math.max(0, Math.min(100, Number(d.y) || 0)),
+              width: Math.max(1, Math.min(100, Number(d.width) || 5)),
+              height: Math.max(1, Math.min(100, Number(d.height) || 5)),
+              confidence: Number(d.confidence) || 0.5,
+            }));
+          console.log('[MOSAIC-API] Detections:', parsed.detections.length,
+            parsed.detections.map((d: any) => `${d.type}(${d.x.toFixed(0)},${d.y.toFixed(0)},${d.width.toFixed(0)}x${d.height.toFixed(0)})`).join(', '));
+        }
+        return NextResponse.json(parsed);
+      } catch (parseErr) {
+        console.error('JSON parse error:', parseErr, 'raw:', text.substring(0, 200));
+      }
     }
 
     return NextResponse.json(
