@@ -59,11 +59,10 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function resizeImageForAPI(dataUrl: string): Promise<string> {
+function resizeImageForAPI(dataUrl: string, maxDim: number = 1600): Promise<string> {
   return new Promise((resolve) => {
     const resizeImg = new Image();
     resizeImg.onload = () => {
-      const maxDim = 1600;
       let rw = resizeImg.width;
       let rh = resizeImg.height;
       if (rw > maxDim || rh > maxDim) {
@@ -82,6 +81,33 @@ function resizeImageForAPI(dataUrl: string): Promise<string> {
   });
 }
 
+async function callMosaicAPI(apiDataUrl: string, retries: number = 2): Promise<MosaicDetection[]> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch('/api/analyze-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: apiDataUrl, mode: 'mosaic' }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.detections && data.detections.length > 0) {
+          return data.detections;
+        }
+      }
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (err) {
+      console.log('[MOSAIC] API attempt', attempt, 'failed:', err);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    }
+  }
+  return [];
+}
+
 export async function enhanceImage(file: File): Promise<string> {
   console.log('[ENHANCE] Starting for file:', file.name, file.size);
 
@@ -89,40 +115,42 @@ export async function enhanceImage(file: File): Promise<string> {
   const dataUrl = await readFileAsDataURL(file);
   console.log('[ENHANCE] File read OK, dataUrl length:', dataUrl.length);
 
+  // Use consistent maxDim for both API and canvas
+  const maxDim = 1600;
+
   // Resize for API (Vercel 4.5MB body limit)
   let apiDataUrl = dataUrl;
   if (dataUrl.length > 3 * 1024 * 1024) {
-    apiDataUrl = await resizeImageForAPI(dataUrl);
+    apiDataUrl = await resizeImageForAPI(dataUrl, maxDim);
     console.log('[ENHANCE] Resized for API, new length:', apiDataUrl.length);
   }
 
-  // Step 1: Get AI analysis parameters
+  // Step 1: Get AI analysis - enhance params + mosaic detections in parallel
   let params = DEFAULT_ENHANCE_PARAMS;
   let mosaicDetections: MosaicDetection[] = [];
+
   try {
-    const [enhanceRes, mosaicRes] = await Promise.all([
+    const [enhanceRes, mosaicDets] = await Promise.all([
       fetch('/api/analyze-photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: apiDataUrl, mode: 'enhance' }),
-      }),
-      fetch('/api/analyze-photo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: apiDataUrl, mode: 'mosaic' }),
-      }),
+      }).then(async (r) => {
+        if (r.ok) {
+          const data: EnhanceAnalysisResult = await r.json();
+          return data.parameters || null;
+        }
+        return null;
+      }).catch(() => null),
+      callMosaicAPI(apiDataUrl, 2),
     ]);
-    if (enhanceRes.ok) {
-      const data: EnhanceAnalysisResult = await enhanceRes.json();
-      if (data.parameters) params = data.parameters;
-    }
-    if (mosaicRes.ok) {
-      const mosaicData = await mosaicRes.json();
-      if (mosaicData.detections) mosaicDetections = mosaicData.detections;
-    }
+
+    if (enhanceRes) params = enhanceRes;
+    mosaicDetections = mosaicDets;
   } catch (apiErr) {
     console.log('[ENHANCE] API error, using defaults:', apiErr);
   }
+
   console.log('[ENHANCE] Params:', JSON.stringify(params));
   console.log('[ENHANCE] Mosaic detections:', mosaicDetections.length, JSON.stringify(mosaicDetections));
 
@@ -130,14 +158,12 @@ export async function enhanceImage(file: File): Promise<string> {
   const img = await loadImage(dataUrl);
   console.log('[ENHANCE] Image loaded:', img.width, 'x', img.height);
 
-  // Step 3: Canvas setup with size limits
+  // Step 3: Canvas setup - use same maxDim constraint for consistency with API
   const canvas = document.createElement('canvas');
-  const maxW = 1600;
-  const maxH = 1200;
   let w = img.width;
   let h = img.height;
-  if (w > maxW || h > maxH) {
-    const scale = Math.min(maxW / w, maxH / h);
+  if (w > maxDim || h > maxDim) {
+    const scale = Math.min(maxDim / w, maxDim / h);
     w = Math.round(w * scale);
     h = Math.round(h * scale);
   }
@@ -214,18 +240,20 @@ export async function enhanceImage(file: File): Promise<string> {
 
   ctx.putImageData(imageData, 0, 0);
 
-  // Step 7a: Unsharp Mask - 2-pass sharpening
+  // Step 7a: Unsharp Mask
   const sharpData = ctx.getImageData(0, 0, w, h);
   const sd = sharpData.data;
   const copy = new Uint8ClampedArray(sd);
   const amount = params.sharpen_detail;
+
   for (let y = 1; y < h - 1; y++) {
     for (let x = 1; x < w - 1; x++) {
       const idx = (y * w + x) * 4;
       for (let c = 0; c < 3; c++) {
-        const blur =
-          (copy[idx + c - 4] + copy[idx + c + 4] + copy[idx + c - w * 4] + copy[idx + c + w * 4]) / 4;
-        sd[idx + c] = Math.min(255, Math.max(0, copy[idx + c] + (copy[idx + c] - blur) * amount));
+        const blur = (copy[idx + c - 4] + copy[idx + c + 4] +
+                      copy[idx + c - w * 4] + copy[idx + c + w * 4]) / 4;
+        sd[idx + c] = Math.min(255, Math.max(0,
+          copy[idx + c] + (copy[idx + c] - blur) * amount));
       }
     }
   }
@@ -238,22 +266,49 @@ export async function enhanceImage(file: File): Promise<string> {
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, w, h);
 
-  // Step 8: Privacy Mosaic - Auto-detect and blur faces, license plates, personal info
+  // Step 8: Privacy Mosaic with generous padding
   if (mosaicDetections.length > 0) {
     console.log('[ENHANCE] Applying mosaic to', mosaicDetections.length, 'detections');
-    const blockSize = 20;
+    const blockSize = 12; // smaller blocks for finer mosaic
+    const PADDING = 0.4; // 40% padding on each side
+
     for (let di = 0; di < mosaicDetections.length; di++) {
       const det = mosaicDetections[di];
-      const mx = Math.floor(det.x * w / 100);
-      const my = Math.floor(det.y * h / 100);
-      const mw = Math.floor(det.width * w / 100);
-      const mh = Math.floor(det.height * h / 100);
-      console.log('[ENHANCE] Mosaic region', di, ':', mx, my, mw, mh, 'type:', det.type);
-      for (let by = my; by < my + mh; by += blockSize) {
-        for (let bx = mx; bx < mx + mw; bx += blockSize) {
-          const pixel = ctx.getImageData(bx, by, 1, 1).data;
+
+      // Convert percentage coords to pixels
+      let mx = det.x * w / 100;
+      let my = det.y * h / 100;
+      let mw = det.width * w / 100;
+      let mh = det.height * h / 100;
+
+      // Add generous padding (40% on each side)
+      const padX = mw * PADDING;
+      const padY = mh * PADDING;
+      mx = Math.max(0, mx - padX);
+      my = Math.max(0, my - padY);
+      mw = Math.min(w - mx, mw + padX * 2);
+      mh = Math.min(h - my, mh + padY * 2);
+
+      // Ensure minimum mosaic size (at least 40x20 pixels)
+      if (mw < 40) { mx = Math.max(0, mx - (40 - mw) / 2); mw = 40; }
+      if (mh < 20) { my = Math.max(0, my - (20 - mh) / 2); mh = 20; }
+
+      const fx = Math.floor(mx);
+      const fy = Math.floor(my);
+      const fw = Math.floor(mw);
+      const fh = Math.floor(mh);
+
+      console.log('[ENHANCE] Mosaic region', di, ':', fx, fy, fw, fh, 'type:', det.type, 'conf:', det.confidence);
+
+      for (let by = fy; by < fy + fh; by += blockSize) {
+        for (let bx = fx; bx < fx + fw; bx += blockSize) {
+          const sx = Math.min(bx, w - 1);
+          const sy = Math.min(by, h - 1);
+          const pixel = ctx.getImageData(sx, sy, 1, 1).data;
           ctx.fillStyle = `rgb(${pixel[0]},${pixel[1]},${pixel[2]})`;
-          ctx.fillRect(bx, by, blockSize, blockSize);
+          const bw = Math.min(blockSize, fx + fw - bx);
+          const bh = Math.min(blockSize, fy + fh - by);
+          ctx.fillRect(bx, by, bw, bh);
         }
       }
     }
@@ -267,4 +322,3 @@ export async function enhanceImage(file: File): Promise<string> {
   console.log('[ENHANCE] Success! Result length:', result.length);
   return result;
 }
-
