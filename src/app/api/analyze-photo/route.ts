@@ -13,63 +13,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
 
-    const systemPrompt = mode === 'mosaic'
-      ? `You are a privacy detection AI for a Korean real estate website. Your job is to find ALL areas containing phone numbers, personal information, or faces that must be blurred.
+    const systemPrompt =
+      mode === 'mosaic'
+        ? `You are a privacy detection AI for a Korean real estate listing website.
+Detect ONLY these two categories of privacy-sensitive visual elements:
 
-CRITICAL: You must detect ALL Korean phone numbers in the image. Phone numbers in Korea follow these formats:
-- 010-XXXX-XXXX (mobile)
-- 02-XXX-XXXX or 02-XXXX-XXXX (Seoul landline)
-- 0XX-XXX-XXXX or 0XX-XXXX-XXXX (other regions)
-- H.P: followed by numbers
-- Numbers on real estate signs (임대, 매매, 분양 signs)
+1. VEHICLE LICENSE PLATES
+   - Korean license plates on any vehicle (cars, motorcycles, trucks)
+   - Include the full plate area with 15% margin on each side
+   - Plates can be at various angles
 
-Also detect:
-1. Human faces (residents, visitors, pedestrians)
-2. Vehicle license plates
-3. Personal documents, ID numbers
-4. ANY text containing phone numbers, even if partially visible or at an angle
+2. PERSONAL DOCUMENTS
+   - Paper documents, contracts, letters visible on desks/tables/walls
+   - Whiteboards or screens showing personal information
+   - ID cards, business cards with personal details
+   - Any handwritten notes with personal content
 
-IMPORTANT RULES:
-- Be AGGRESSIVE in detection. It is better to over-detect than to miss a phone number.
-- For phone numbers on signs, include the ENTIRE phone number area with generous margins.
-- x,y coordinates are the TOP-LEFT corner of the detection area.
-- width,height define the size of the area from that top-left corner.
-- All values are PERCENTAGES (0-100) of the full image dimensions.
-- Make detection areas LARGE ENOUGH to fully cover the text. Add 10-15% extra margin.
+DO NOT DETECT (these are handled by other systems):
+- Human faces (handled by face-api.js)
+- Phone numbers or any text (handled by OCR)
+- Signs, banners, advertisements
+- Building numbers, addresses, prices
 
-Return ONLY a JSON object:
-{
-  "detections": [
-    {
-      "type": "face|plate|document|text",
-      "x": number,
-      "y": number, 
-      "width": number,
-      "height": number,
-      "confidence": number
-    }
-  ]
-}
+COORDINATE FORMAT:
+- x, y = top-left corner as percentage (0-100) of image dimensions
+- width, height = size as percentage (0-100)
+- Make detection boxes generous enough to cover the full item
 
-If nothing is detected, return {"detections": []}`
-      : `You are a professional photo enhancement AI for a real estate website (wishes.co.kr).
+Return ONLY valid JSON:
+{"detections": [{"type": "plate", "x": 0, "y": 0, "width": 0, "height": 0, "confidence": 0.0}]}
+
+If nothing found: {"detections": []}`
+        : `You are a professional photo enhancement AI for a real estate website (wishes.co.kr).
 Analyze this property photo and determine optimal enhancement parameters.
 
-Evaluate the image for:
-1. Shadow areas that need HDR lift
-2. Blown highlights that need recovery
-3. Overall contrast needs
-4. Haze/fog level
-5. Color vibrancy
-6. Sharpness
-7. Vignetting benefit
+Evaluate: shadows, highlights, contrast, haze, vibrancy, sharpness, vignetting.
 
-Return ONLY a JSON object with this exact format:
+Return ONLY JSON:
 {
-  "analysis": {
-    "overall_quality": "low|medium|high",
-    "issues": ["list of detected issues"]
-  },
   "parameters": {
     "shadow_lift": 0.0-1.0,
     "highlight_recovery": 0.0-1.0,
@@ -123,7 +104,6 @@ Return ONLY a JSON object with this exact format:
 
     const data = await response.json();
     const content = data.content?.[0]?.text || '{}';
-
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     const result = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
 
