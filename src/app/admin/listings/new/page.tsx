@@ -275,11 +275,13 @@ const DEFAULT_ENHANCE_PARAMS = {
 
 function enhanceImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
+    // Minifier-safe: store callbacks as object properties to prevent Terser variable shadowing
+    const _cb = { resolve, reject };
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error('File read failed'));
+    reader.onerror = () => _cb.reject(new Error('File read failed'));
     reader.onload = async (e) => {
       const dataUrl = e.target?.result as string;
-      if (!dataUrl) { reject(new Error('Empty file')); return; }
+      if (!dataUrl) { _cb.reject(new Error('Empty file')); return; }
 
       // Resize for API (Vercel 4.5MB body limit)
       let apiDataUrl = dataUrl;
@@ -332,7 +334,7 @@ function enhanceImage(file: File): Promise<string> {
 
       // Step 2: Load image and apply 7-step pipeline
       const img = new Image();
-      img.onerror = () => reject(new Error('Image load failed'));
+      img.onerror = () => _cb.reject(new Error('Image load failed'));
           // Store mosaic detections on img element to survive minifier variable shadowing
           (img as any)._privacyDetections = mosaicDetections;
 
@@ -461,9 +463,9 @@ function enhanceImage(file: File): Promise<string> {
 
           // Export as WebP 93% quality
           const result = canvas.toDataURL('image/webp', 0.93);
-          resolve(result);
+          _cb.resolve(result);
         } catch (err) {
-          reject(err);
+          _cb.reject(err);
         }
       };
       img.src = dataUrl;
@@ -1391,7 +1393,7 @@ ${floorRows}</table></div>` : ''}
       setUploadProgress(0);
       for (const img of uploadedImages) {
         setUploadProgress(prev => prev + 1);
-        if (useEnhanced && img.enhanced) {
+        if (img.enhanced) { // Always use enhanced version (includes privacy mosaic)
           try {
             const resp = await withRetry(() => fetch(img.enhanced), 2, 500);
             const blob = await resp.blob();
