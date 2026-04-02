@@ -1,8 +1,10 @@
 // src/lib/imageHelpers.ts
 // Privacy-first image enhancement with 3-tier detection:
-//   1. face-api.js  â Faces (neural network, pixel-accurate)
-//   2. Tesseract.js â Phone numbers, ID numbers (OCR, exact positions)
-//   3. Claude API   â License plates, documents (LLM vision)
+// 1. face-api.js → Faces (neural network, pixel-accurate)
+// 2. Tesseract.js → Phone numbers, ID numbers (OCR, exact positions)
+// 3. Claude API → License plates, documents (LLM vision)
+// 
+// NOTE: Uses npm packages (bundled) instead of CDN scripts to avoid CSP issues
 
 export interface MosaicDetection {
   type: string;
@@ -86,56 +88,27 @@ function resizeImageForAPI(dataUrl: string, maxDim: number = 1600): Promise<stri
   });
 }
 
-function loadScript(url: string, label: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector(`script[src="${url}"]`);
-    if (existing) { resolve(); return; }
-    console.log(`[PRIVACY] Loading ${label}...`);
-    const s = document.createElement('script');
-    s.src = url;
-    s.onload = () => { console.log(`[PRIVACY] ${label} loaded`); resolve(); };
-    s.onerror = () => reject(new Error(`Failed to load ${label}`));
-    document.head.appendChild(s);
-  });
-}
-
 // ====================================================
 // TIER 1-A: Face Detection (face-api.js neural network)
+// Uses npm package: @vladmandic/face-api
 // ====================================================
 
 let faceModelLoaded = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let faceapiModule: any = null;
 
 async function detectFaces(canvas: HTMLCanvasElement): Promise<MosaicDetection[]> {
   try {
-    const win = window as unknown as Record<string, unknown>;
-
-    // Load library
-    if (!win.faceapi) {
-      await loadScript(
-        'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/dist/face-api.js',
-        'face-api.js'
-      );
+    // Dynamic import from npm package (bundled by Next.js)
+    if (!faceapiModule) {
+      console.log('[FACE] Loading face-api.js from npm package...');
+      faceapiModule = await import('@vladmandic/face-api');
+      console.log('[FACE] face-api.js loaded from bundle');
     }
 
-    const faceapi = win.faceapi as {
-      nets: {
-        ssdMobilenetv1: { isLoaded: boolean; loadFromUri: (uri: string) => Promise<void> };
-        tinyFaceDetector: { isLoaded: boolean; loadFromUri: (uri: string) => Promise<void> };
-      };
-      detectAllFaces: (
-        input: HTMLCanvasElement,
-        options?: unknown
-      ) => { run: () => Promise<Array<{ detection: { box: { x: number; y: number; width: number; height: number } }; score: number }>> };
-      TinyFaceDetectorOptions: new (opts: { inputSize: number; scoreThreshold: number }) => unknown;
-      SsdMobilenetv1Options: new (opts: { minConfidence: number }) => unknown;
-    };
+    const faceapi = faceapiModule;
 
-    if (!faceapi) {
-      console.warn('[FACE] faceapi not available after load');
-      return [];
-    }
-
-    // Load face detection model
+    // Load face detection model (still from CDN - uses fetch, not script tag)
     if (!faceModelLoaded) {
       console.log('[FACE] Loading detection model...');
       const modelUrl = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.14/model';
@@ -156,14 +129,17 @@ async function detectFaces(canvas: HTMLCanvasElement): Promise<MosaicDetection[]
     if (faceapi.nets.ssdMobilenetv1.isLoaded) {
       detectorOptions = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.3 });
     } else {
-      detectorOptions = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.3 });
+      detectorOptions = new faceapi.TinyFaceDetectorOptions({
+        inputSize: 416,
+        scoreThreshold: 0.3,
+      });
     }
 
     const rawDetections = await faceapi.detectAllFaces(canvas, detectorOptions).run();
+
     const w = canvas.width;
     const h = canvas.height;
-
-    const results: MosaicDetection[] = rawDetections.map((det) => ({
+    const results: MosaicDetection[] = rawDetections.map((det: { detection: { box: { x: number; y: number; width: number; height: number } }; score: number }) => ({
       type: 'face',
       x: (det.detection.box.x / w) * 100,
       y: (det.detection.box.y / h) * 100,
@@ -182,6 +158,7 @@ async function detectFaces(canvas: HTMLCanvasElement): Promise<MosaicDetection[]
 
 // ====================================================
 // TIER 1-B: Text Privacy Detection (Tesseract.js OCR)
+// Uses npm package: tesseract.js
 // ====================================================
 
 // Korean phone: 010-3797-1280, 02-1234-5678, 031-123-4567
@@ -202,7 +179,7 @@ function findPrivacyText(
 ): MosaicDetection[] {
   if (!words || words.length === 0) return [];
 
-  // Sort words: topâbottom, leftâright
+  // Sort words: top→bottom, left→right
   const sorted = [...words].sort((a, b) => {
     const ha = a.bbox.y1 - a.bbox.y0 || 20;
     const dy = a.bbox.y0 - b.bbox.y0;
@@ -232,6 +209,7 @@ function findPrivacyText(
 
   for (const line of lines) {
     const raw = line.map((w) => w.text).join(' ');
+
     // Fix OCR misreads for digits
     const cleaned = raw
       .replace(/[OoQ]/g, '0')
@@ -245,8 +223,9 @@ function findPrivacyText(
 
     if (isPhone || isRRN) {
       const digitWords = line.filter(
-        (w) => /\d/.test(w.text) || /^[-.:]+$/.test(w.text.trim())
+        (w) => /\d/.test(w.text) || /^[-.:]+ $/.test(w.text.trim())
       );
+
       if (digitWords.length > 0) {
         const x0 = Math.min(...digitWords.map((w) => w.bbox.x0));
         const y0 = Math.min(...digitWords.map((w) => w.bbox.y0));
@@ -261,6 +240,7 @@ function findPrivacyText(
           height: ((y1 - y0) / ch) * 100,
           confidence: 0.95,
         });
+
         console.log('[OCR]', isRRN ? 'RRN' : 'Phone', 'found:', raw.trim());
       }
     }
@@ -272,31 +252,13 @@ function findPrivacyText(
 
 async function detectTextPrivacy(canvas: HTMLCanvasElement): Promise<MosaicDetection[]> {
   try {
-    const win = window as unknown as Record<string, unknown>;
-
-    if (!win.Tesseract) {
-      await loadScript(
-        'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js',
-        'Tesseract.js'
-      );
-    }
-
-    const Tess = win.Tesseract as {
-      createWorker: (lang: string) => Promise<{
-        recognize: (src: HTMLCanvasElement) => Promise<{
-          data: { words: OCRWord[]; text: string };
-        }>;
-        terminate: () => Promise<void>;
-      }>;
-    };
-
-    if (!Tess) {
-      console.warn('[OCR] Tesseract not available');
-      return [];
-    }
+    // Dynamic import from npm package (bundled by Next.js)
+    console.log('[OCR] Loading Tesseract.js from npm package...');
+    const Tesseract = await import('tesseract.js');
+    console.log('[OCR] Tesseract.js loaded from bundle');
 
     console.log('[OCR] Creating worker...');
-    const worker = await Tess.createWorker('eng');
+    const worker = await Tesseract.createWorker('eng');
 
     console.log('[OCR] Recognizing text on', canvas.width, 'x', canvas.height, '...');
     const { data } = await worker.recognize(canvas);
@@ -305,7 +267,7 @@ async function detectTextPrivacy(canvas: HTMLCanvasElement): Promise<MosaicDetec
     console.log('[OCR] Found', data.words?.length, 'words');
     if (data.text) console.log('[OCR] Text preview:', data.text.substring(0, 200));
 
-    return findPrivacyText(data.words, canvas.width, canvas.height);
+    return findPrivacyText(data.words as OCRWord[], canvas.width, canvas.height);
   } catch (err) {
     console.error('[OCR] Failed:', err);
     return [];
@@ -324,22 +286,25 @@ async function detectVisualPrivacy(apiDataUrl: string): Promise<MosaicDetection[
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: apiDataUrl, mode: 'mosaic' }),
       });
+
       if (res.ok) {
         const data = await res.json();
         if (data.detections && data.detections.length > 0) {
           // ONLY keep plate and document detections
-          // Faces â handled by face-api.js (more accurate)
-          // Text  â handled by Tesseract.js (more accurate)
           const visual = data.detections.filter(
             (d: MosaicDetection) => d.type === 'plate' || d.type === 'document'
           );
           console.log(
-            '[API] Returned', data.detections.length,
-            'total â kept', visual.length, 'visual (plate/document)'
+            '[API] Returned',
+            data.detections.length,
+            'total → kept',
+            visual.length,
+            'visual (plate/document)'
           );
           return visual;
         }
       }
+
       if (attempt < 2) await new Promise((r) => setTimeout(r, 1000));
     } catch (err) {
       console.log('[API] Attempt', attempt, 'failed:', err);
@@ -400,11 +365,7 @@ function applyMosaic(
     let rh = (det.height * h) / 100;
 
     // Padding varies by detection source
-    // face-api.js / Tesseract = already precise â small padding
-    // Claude API plates/docs = less precise â larger padding
-    const pad =
-      det.type === 'plate' || det.type === 'document' ? 0.35 : 0.2;
-
+    const pad = det.type === 'plate' || det.type === 'document' ? 0.35 : 0.2;
     const px = rw * pad;
     const py = rh * pad;
     rx = Math.max(0, rx - px);
@@ -413,8 +374,14 @@ function applyMosaic(
     rh = Math.min(h - ry, rh + py * 2);
 
     // Minimum sizes
-    if (rw < 25) { rx = Math.max(0, rx - (25 - rw) / 2); rw = 25; }
-    if (rh < 12) { ry = Math.max(0, ry - (12 - rh) / 2); rh = 12; }
+    if (rw < 25) {
+      rx = Math.max(0, rx - (25 - rw) / 2);
+      rw = 25;
+    }
+    if (rh < 12) {
+      ry = Math.max(0, ry - (12 - rh) / 2);
+      rh = 12;
+    }
 
     const fx = Math.floor(rx);
     const fy = Math.floor(ry);
@@ -432,7 +399,12 @@ function applyMosaic(
         const sy = Math.min(by, h - 1);
         const p = ctx.getImageData(sx, sy, 1, 1).data;
         ctx.fillStyle = `rgb(${p[0]},${p[1]},${p[2]})`;
-        ctx.fillRect(bx, by, Math.min(blockSize, fx + fw - bx), Math.min(blockSize, fy + fh - by));
+        ctx.fillRect(
+          bx,
+          by,
+          Math.min(blockSize, fx + fw - bx),
+          Math.min(blockSize, fy + fh - by)
+        );
       }
     }
   }
@@ -454,7 +426,9 @@ function applyEnhancement(
   const d = imageData.data;
 
   for (let i = 0; i < d.length; i += 4) {
-    let r = d[i], g = d[i + 1], b = d[i + 2];
+    let r = d[i],
+      g = d[i + 1],
+      b = d[i + 2];
 
     // 1: HDR Shadow Lift
     const lum = 0.299 * r + 0.587 * g + 0.114 * b;
@@ -467,7 +441,7 @@ function applyEnhancement(
 
     // 2: Highlight Recovery
     if (lum > 200) {
-      const rec = (params.highlight_recovery * (lum - 200)) / 55 * 30;
+      const rec = ((params.highlight_recovery * (lum - 200)) / 55) * 30;
       r = Math.max(0, r - rec);
       g = Math.max(0, g - rec);
       b = Math.max(0, b - rec);
@@ -479,7 +453,9 @@ function applyEnhancement(
       const n = v / 255;
       return Math.min(255, Math.max(0, 255 * (n + cs * Math.sin(Math.PI * n) * 0.5)));
     };
-    r = sc(r); g = sc(g); b = sc(b);
+    r = sc(r);
+    g = sc(g);
+    b = sc(b);
 
     // 4: Dehaze
     const mc = Math.min(r, g, b);
@@ -507,6 +483,7 @@ function applyEnhancement(
     d[i + 1] = Math.min(255, Math.max(0, g));
     d[i + 2] = Math.min(255, Math.max(0, b));
   }
+
   ctx.putImageData(imageData, 0, 0);
 
   // 7a: Unsharp Mask
@@ -520,7 +497,10 @@ function applyEnhancement(
       for (let c = 0; c < 3; c++) {
         const blur =
           (cp[idx + c - 4] + cp[idx + c + 4] + cp[idx + c - w * 4] + cp[idx + c + w * 4]) / 4;
-        s[idx + c] = Math.min(255, Math.max(0, cp[idx + c] + (cp[idx + c] - blur) * amt));
+        s[idx + c] = Math.min(
+          255,
+          Math.max(0, cp[idx + c] + (cp[idx + c] - blur) * amt)
+        );
       }
     }
   }
@@ -555,7 +535,8 @@ export async function enhanceImage(file: File): Promise<string> {
 
   // Canvas setup
   const canvas = document.createElement('canvas');
-  let w = img.width, h = img.height;
+  let w = img.width,
+    h = img.height;
   if (w > maxDim || h > maxDim) {
     const scale = Math.min(maxDim / w, maxDim / h);
     w = Math.round(w * scale);
@@ -568,10 +549,10 @@ export async function enhanceImage(file: File): Promise<string> {
 
   // ========================================
   // Run ALL 4 tasks in parallel:
-  //   1. Enhance params (Claude API)
-  //   2. Face detection (face-api.js)
-  //   3. Text privacy (Tesseract OCR)
-  //   4. Visual privacy (Claude API - plates/docs)
+  // 1. Enhance params (Claude API)
+  // 2. Face detection (face-api.js npm)
+  // 3. Text privacy (Tesseract OCR npm)
+  // 4. Visual privacy (Claude API - plates/docs)
   // ========================================
   console.log('[ENHANCE] Starting parallel detection...');
 
@@ -585,11 +566,16 @@ export async function enhanceImage(file: File): Promise<string> {
   const params = enhanceParams || DEFAULT_ENHANCE_PARAMS;
   const allDetections = [...faces, ...textDets, ...visualDets];
 
-  console.log('[ENHANCE] Detection complete:',
-    faces.length, 'faces,',
-    textDets.length, 'text,',
-    visualDets.length, 'visual,',
-    'â total:', allDetections.length
+  console.log(
+    '[ENHANCE] Detection complete:',
+    faces.length,
+    'faces,',
+    textDets.length,
+    'text,',
+    visualDets.length,
+    'visual,',
+    '→ total:',
+    allDetections.length
   );
 
   // Apply enhancement
@@ -601,5 +587,6 @@ export async function enhanceImage(file: File): Promise<string> {
   // Export
   const result = canvas.toDataURL('image/webp', 0.93);
   console.log('[ENHANCE] Done! Output:', result.length, 'bytes');
+
   return result;
-}
+                                     }
