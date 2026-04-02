@@ -14,21 +14,36 @@ export async function POST(request: NextRequest) {
     }
 
     const systemPrompt = mode === 'mosaic'
-      ? `You are an image analysis AI for a real estate website. Analyze this property photo and detect any privacy-sensitive areas that need to be blurred/mosaicked.
+      ? `You are a privacy detection AI for a Korean real estate website. Your job is to find ALL areas containing phone numbers, personal information, or faces that must be blurred.
 
-Look for:
-1. Human faces (residents, visitors)
-2. Vehicle license plates (parking lot, exterior photos)
-3. Personal documents (whiteboards, papers, contracts)
-4. Visible phone numbers, ID numbers, or personal text
+CRITICAL: You must detect ALL Korean phone numbers in the image. Phone numbers in Korea follow these formats:
+- 010-XXXX-XXXX (mobile)
+- 02-XXX-XXXX or 02-XXXX-XXXX (Seoul landline)
+- 0XX-XXX-XXXX or 0XX-XXXX-XXXX (other regions)
+- H.P: followed by numbers
+- Numbers on real estate signs (임대, 매매, 분양 signs)
 
-Return ONLY a JSON object with this exact format:
+Also detect:
+1. Human faces (residents, visitors, pedestrians)
+2. Vehicle license plates
+3. Personal documents, ID numbers
+4. ANY text containing phone numbers, even if partially visible or at an angle
+
+IMPORTANT RULES:
+- Be AGGRESSIVE in detection. It is better to over-detect than to miss a phone number.
+- For phone numbers on signs, include the ENTIRE phone number area with generous margins.
+- x,y coordinates are the TOP-LEFT corner of the detection area.
+- width,height define the size of the area from that top-left corner.
+- All values are PERCENTAGES (0-100) of the full image dimensions.
+- Make detection areas LARGE ENOUGH to fully cover the text. Add 10-15% extra margin.
+
+Return ONLY a JSON object:
 {
   "detections": [
     {
       "type": "face|plate|document|text",
       "x": number,
-      "y": number,
+      "y": number, 
       "width": number,
       "height": number,
       "confidence": number
@@ -36,9 +51,9 @@ Return ONLY a JSON object with this exact format:
   ]
 }
 
-Coordinates should be in percentages (0-100) of image dimensions.
 If nothing is detected, return {"detections": []}`
-      : `You are a professional photo enhancement AI for a real estate website (wishes.co.kr). Analyze this property photo and determine optimal enhancement parameters.
+      : `You are a professional photo enhancement AI for a real estate website (wishes.co.kr).
+Analyze this property photo and determine optimal enhancement parameters.
 
 Evaluate the image for:
 1. Shadow areas that need HDR lift
@@ -90,10 +105,7 @@ Return ONLY a JSON object with this exact format:
                   data: image.replace(/^data:image\/[^;]+;base64,/, ''),
                 },
               },
-              {
-                type: 'text',
-                text: systemPrompt
-              },
+              { type: 'text', text: systemPrompt },
             ],
           },
         ],
@@ -102,8 +114,9 @@ Return ONLY a JSON object with this exact format:
 
     if (!response.ok) {
       const errorData = await response.text();
+      console.error('Anthropic API error:', response.status, errorData.substring(0, 200));
       return NextResponse.json(
-        { error: 'Anthropic API error: ' + response.status, details: errorData },
+        { error: 'Anthropic API error: ' + response.status, details: errorData.substring(0, 200) },
         { status: response.status }
       );
     }
