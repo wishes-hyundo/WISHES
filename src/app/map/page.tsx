@@ -14,46 +14,46 @@ declare global {
   }
 }
 
-const dealTypes: DealType[] = ['전세', '월세', '매매'];
-const listingTypes: ListingType[] = ['원룸', '투룷', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
+const dealTypes: DealType[] = ['ì ì¸', 'ìì¸', 'ë§¤ë§¤'];
+const listingTypes: ListingType[] = ['ìë£¸', 'í¬ë£·', 'ì°ë¦¬ë£¸', 'ì¤í¼ì¤í', 'ìíí¸', 'ìê°', 'ì¬ë¬´ì¤'];
 
 const DEFAULT_CENTER = { lat: 37.4847, lng: 126.9293 };
 const DEFAULT_ZOOM = 5;
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 주소 파싱 유틸리티
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ââââââââââââââââââââââââââââââââââââââââ
+// ì£¼ì íì± ì í¸ë¦¬í°
+// ââââââââââââââââââââââââââââââââââââââââ
 function extractCity(address: string): string {
-  if (!address) return '기타';
+  if (!address) return 'ê¸°í';
   const parts = address.trim().split(/\s+/);
-  if (parts[0]?.includes('서울')) return '서울';
-  if (parts[0]?.includes('인천')) return '인천';
-  if (parts[0]?.includes('부산')) return '부산';
-  if (parts[0]?.includes('대구')) return '대구';
-  if (parts[0]?.includes('대전')) return '대전';
-  if (parts[0]?.includes('광주')) return '광주';
-  if (parts[0]?.includes('울산')) return '울산';
-  if (parts[0]?.includes('세종')) return '세종';
-  if (parts[0]?.includes('경기')) {
-    // 경기도 XX시 → "XX시"
-    if (parts[1]) return parts[1].replace(/시$/, '') + '시';
-    return '경기';
+  if (parts[0]?.includes('ìì¸')) return 'ìì¸';
+  if (parts[0]?.includes('ì¸ì²')) return 'ì¸ì²';
+  if (parts[0]?.includes('ë¶ì°')) return 'ë¶ì°';
+  if (parts[0]?.includes('ëêµ¬')) return 'ëêµ¬';
+  if (parts[0]?.includes('ëì ')) return 'ëì ';
+  if (parts[0]?.includes('ê´ì£¼')) return 'ê´ì£¼';
+  if (parts[0]?.includes('ì¸ì°')) return 'ì¸ì°';
+  if (parts[0]?.includes('ì¸ì¢')) return 'ì¸ì¢';
+  if (parts[0]?.includes('ê²½ê¸°')) {
+    // ê²½ê¸°ë XXì â "XXì"
+    if (parts[1]) return parts[1].replace(/ì$/, '') + 'ì';
+    return 'ê²½ê¸°';
   }
-  return parts[0]?.replace(/(트별시|광역시|특별자치시|트별자치도|도)$/, '') || '기타';
+  return parts[0]?.replace(/(í¸ë³ì|ê´ì­ì|í¹ë³ìì¹ì|í¸ë³ìì¹ë|ë)$/, '') || 'ê¸°í';
 }
 
 function extractGu(address: string): string {
-  if (!address) return '기타';
+  if (!address) return 'ê¸°í';
   const parts = address.trim().split(/\s+/);
   for (const part of parts) {
-    if (part.endsWith('구') || part.endsWith('군')) return part;
+    if (part.endsWith('êµ¬') || part.endsWith('êµ°')) return part;
   }
-  return parts[1] || '기타';
+  return parts[1] || 'ê¸°í';
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 시/도 클러스터 마커 (Level 9+)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ââââââââââââââââââââââââââââââââââââââââ
+// ì/ë í´ë¬ì¤í° ë§ì»¤ (Level 9+)
+// ââââââââââââââââââââââââââââââââââââââââ
 function createCityClusterContent(cityName: string, count: number): HTMLElement {
   const wrapper = document.createElement('div');
   wrapper.style.cssText = `
@@ -101,9 +101,9 @@ function createCityClusterContent(cityName: string, count: number): HTMLElement 
   return wrapper;
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 구 클러스터 마커 (Level 7-8)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ââââââââââââââââââââââââââââââââââââââââ
+// êµ¬ í´ë¬ì¤í° ë§ì»¤ (Level 7-8)
+// ââââââââââââââââââââââââââââââââââââââââ
 function createGuClusterContent(guName: string, count: number): HTMLElement {
   const wrapper = document.createElement('div');
   wrapper.style.cssText = `
@@ -151,9 +151,9 @@ function createGuClusterContent(guName: string, count: number): HTMLElement {
   return wrapper;
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 동 클러스터 마커 (Level 5-6, 피터팬 스타일)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ââââââââââââââââââââââââââââââââââââââââ
+// ë í´ë¬ì¤í° ë§ì»¤ (Level 5-6, í¼í°í¬ ì¤íì¼)
+// ââââââââââââââââââââââââââââââââââââââââ
 function createDongClusterContent(dongName: string, count: number): HTMLElement {
   const wrapper = document.createElement('div');
   wrapper.style.cssText = `
@@ -201,22 +201,22 @@ function createDongClusterContent(dongName: string, count: number): HTMLElement 
   return wrapper;
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 개별 매물 마커 (Level 1-4)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ââââââââââââââââââââââââââââââââââââââââ
+// ê°ë³ ë§¤ë¬¼ ë§ì»¤ (Level 1-4)
+// ââââââââââââââââââââââââââââââââââââââââ
 function createPriceMarkerContent(listing: Listing): HTMLElement {
-  const priceText = listing.deal === '매매'
+  const priceText = listing.deal === 'ë§¤ë§¤'
     ? formatPrice(listing.price || 0)
-    : listing.deal === '월세'
-    ? `${formatPrice(listing.deposit)}/${listing.monthly}만`
+    : listing.deal === 'ìì¸'
+    ? `${formatPrice(listing.deposit)}/${listing.monthly}ë§`
     : formatPrice(listing.deposit);
 
   const colorMap: Record<string, { bg: string; border: string; text: string; dot: string }> = {
-    '전세': { bg: '#EFF6FF', border: '#3B82F6', text: '#1D4ED8', dot: '#3B82F6' },
-    '월세': { bg: '#FFF7ED', border: '#F97316', text: '#C2410C', dot: '#F97316' },
-    '매매': { bg: '#F0FDF4', border: '#22C55E', text: '#15803D', dot: '#22C55E' },
+    'ì ì¸': { bg: '#EFF6FF', border: '#3B82F6', text: '#1D4ED8', dot: '#3B82F6' },
+    'ìì¸': { bg: '#FFF7ED', border: '#F97316', text: '#C2410C', dot: '#F97316' },
+    'ë§¤ë§¤': { bg: '#F0FDF4', border: '#22C55E', text: '#15803D', dot: '#22C55E' },
   };
-  const colors = colorMap[listing.deal] || colorMap['전세'];
+  const colors = colorMap[listing.deal] || colorMap['ì ì¸'];
 
   const content = document.createElement('div');
   content.style.cssText = `
@@ -243,7 +243,7 @@ function createPriceMarkerContent(listing: Listing): HTMLElement {
   content.appendChild(dealBadge);
   content.appendChild(priceSpan);
 
-  // 말풍선 꼬리
+  // ë§íì  ê¼¬ë¦¬
   const tail = document.createElement('div');
   tail.style.cssText = `
     position: absolute; bottom: -7px; left: 50%;
@@ -268,9 +268,9 @@ function createPriceMarkerContent(listing: Listing): HTMLElement {
   return content;
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 메인 지도 컴포넌트
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ââââââââââââââââââââââââââââââââââââââââ
+// ë©ì¸ ì§ë ì»´í¬ëí¸
+// ââââââââââââââââââââââââââââââââââââââââ
 export default function MapSearchPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
@@ -286,7 +286,7 @@ export default function MapSearchPage() {
   const [showSearch, setShowSearch] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
 
-  // 검색 필터링된 리스트
+  // ê²ì íí°ë§ë ë¦¬ì¤í¸
   const filteredListings = useMemo(() => {
     if (!searchQuery.trim()) return listings;
     const q = searchQuery.toLowerCase();
@@ -299,18 +299,18 @@ export default function MapSearchPage() {
     );
   }, [listings, searchQuery]);
 
-  // 줌 레벨 텍스트
+  // ì¤ ë ë²¨ íì¤í¸
   const zoomLevelLabel = useMemo(() => {
-    if (zoomLevel >= 9) return '시/도';
-    if (zoomLevel >= 7) return '구/군';
-    if (zoomLevel >= 5) return '동/읍면';
-    return '매물';
+    if (zoomLevel >= 9) return 'ì/ë';
+    if (zoomLevel >= 7) return 'êµ¬/êµ°';
+    if (zoomLevel >= 5) return 'ë/ìë©´';
+    return 'ë§¤ë¬¼';
   }, [zoomLevel]);
 
-  // ━━━ 카카오맵 초기화 ━━━
+  // âââ ì¹´ì¹´ì¤ë§µ ì´ê¸°í âââ
   useEffect(() => {
     if (!window.kakao?.maps) {
-      console.warn('카카오맵 SDK가 로드되지 않았습니다.');
+      console.warn('ì¹´ì¹´ì¤ë§µ SDKê° ë¡ëëì§ ìììµëë¤.');
       setMapReady(true);
       return;
     }
@@ -338,20 +338,20 @@ export default function MapSearchPage() {
         }, filters);
       };
 
-      // 줌 레벨 변경 감지
+      // ì¤ ë ë²¨ ë³ê²½ ê°ì§
       window.kakao.maps.event.addListener(map, 'zoom_changed', () => {
         setZoomLevel(map.getLevel());
       });
 
-      // idle 이벤트 (이동/줌 완료 후)
+      // idle ì´ë²¤í¸ (ì´ë/ì¤ ìë£ í)
       window.kakao.maps.event.addListener(map, 'idle', fetchBounds);
 
-      // 초기 로드
+      // ì´ê¸° ë¡ë
       fetchBounds();
     });
   }, []);
 
-  // ━━━ 필터 변경 시 재가색 ━━━
+  // âââ íí° ë³ê²½ ì ì¬ê°ì âââ
   useEffect(() => {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
@@ -366,12 +366,12 @@ export default function MapSearchPage() {
     }, filters);
   }, [filters, fetchListings]);
 
-  // ━━━ 마커 업데이트 — 줌 레벨에 따라 단계별 전환 ━━━
+  // âââ ë§ì»¤ ìë°ì´í¸ â ì¤ ë ë²¨ì ë°ë¼ ë¨ê³ë³ ì í âââ
   useEffect(() => {
     if (!mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
 
-    // 기존 오버레이 전부 제거
+    // ê¸°ì¡´ ì¤ë²ë ì´ ì ë¶ ì ê±°
     overlaysRef.current.forEach((o) => o.setMap(null));
     overlaysRef.current = [];
 
@@ -381,7 +381,7 @@ export default function MapSearchPage() {
     const level = map.getLevel();
 
     if (level >= 9) {
-      // ━━━ 시/도 레벨 클러스터 ━━━
+      // âââ ì/ë ë ë²¨ í´ë¬ì¤í° âââ
       const cityGroups: Record<string, { listings: Listing[]; latSum: number; lngSum: number }> = {};
 
       validListings.forEach((listing) => {
@@ -412,7 +412,7 @@ export default function MapSearchPage() {
       });
 
     } else if (level >= 7) {
-      // ━━━ 구/군 레벨 클러스터 ━━━
+      // âââ êµ¬/êµ° ë ë²¨ í´ë¬ì¤í° âââ
       const guGroups: Record<string, { listings: Listing[]; latSum: number; lngSum: number }> = {};
 
       validListings.forEach((listing) => {
@@ -443,11 +443,11 @@ export default function MapSearchPage() {
       });
 
     } else if (level >= 5) {
-      // ━━━ 동 레벨 클러스터 (피터팬 스타일) ━━━
+      // âââ ë ë ë²¨ í´ë¬ì¤í° (í¼í°í¬ ì¤íì¼) âââ
       const dongGroups: Record<string, { listings: Listing[]; latSum: number; lngSum: number }> = {};
 
       validListings.forEach((listing) => {
-        const dong = listing.dong || '기타';
+        const dong = listing.dong || 'ê¸°í';
         if (!dongGroups[dong]) dongGroups[dong] = { listings: [], latSum: 0, lngSum: 0 };
         dongGroups[dong].listings.push(listing);
         dongGroups[dong].latSum += listing.lat!;
@@ -474,7 +474,7 @@ export default function MapSearchPage() {
       });
 
     } else {
-      // ━━━ 개별 매물 마커 (줌인 상태) ━━━
+      // âââ ê°ë³ ë§¤ë¬¼ ë§ì»¤ (ì¤ì¸ ìí) âââ
       validListings.forEach((listing) => {
         const position = new window.kakao.maps.LatLng(listing.lat, listing.lng);
         const content = createPriceMarkerContent(listing);
@@ -495,7 +495,7 @@ export default function MapSearchPage() {
     }
   }, [listings, selectedId, zoomLevel]);
 
-  // ━━━ 리스트 카드 호버 ━━━
+  // âââ ë¦¬ì¤í¸ ì¹´ë í¸ë² âââ
   const handleCardHover = useCallback((id: number | null) => {
     setSelectedId(id);
     if (id && mapInstanceRef.current) {
@@ -507,7 +507,7 @@ export default function MapSearchPage() {
     }
   }, [listings]);
 
-  // ━━━ 매뫼 클릭 → 슬라이드 패널 열기 ━━━
+  // âââ ë§¤ë«¼ í´ë¦­ â ì¬ë¼ì´ë í¨ë ì´ê¸° âââ
   const handleListingClick = useCallback((id: number) => {
     setDetailId(id);
     setSelectedId(id);
@@ -520,7 +520,7 @@ export default function MapSearchPage() {
     }
   }, [listings]);
 
-  // ━━━ 필터 토글 핸들러 ━━━
+  // âââ íí° í ê¸ í¸ë¤ë¬ âââ
   const toggleDealFilter = (deal: DealType) => {
     setFilters((prev) => ({
       ...prev,
@@ -537,11 +537,11 @@ export default function MapSearchPage() {
 
   return (
     <div className="pt-20 h-screen flex flex-col">
-      {/* ━━━ 다방 스타일 필터 바 ━━━ */}
+      {/* âââ ë¤ë°© ì¤íì¼ íí° ë° âââ */}
       <div className="bg-white border-b border-gray-100 shadow-sm shrink-0">
-        {/* 1행: 거래유형 + 검색 */}
+        {/* 1í: ê±°ëì í + ê²ì */}
         <div className="px-4 pt-3 pb-2 flex items-center gap-2">
-          {/* 거래유형 필터 */}
+          {/* ê±°ëì í íí° */}
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
             <button
               onClick={() => setFilters((prev) => ({ ...prev, deal: undefined }))}
@@ -551,15 +551,15 @@ export default function MapSearchPage() {
                   : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
               }`}
             >
-              전체
+              ì ì²´
             </button>
             {dealTypes.map((deal) => {
               const dealColors: Record<string, { active: string; ring: string }> = {
-                '전세': { active: 'bg-blue-500 border-blue-500', ring: 'hover:border-blue-300 hover:text-blue-600' },
-                '월세': { active: 'bg-orange-500 border-orange-500', ring: 'hover:border-orange-300 hover:text-orange-600' },
-                '매매': { active: 'bg-emerald-500 border-emerald-500', ring: 'hover:border-emerald-300 hover:text-emerald-600' },
+                'ì ì¸': { active: 'bg-blue-500 border-blue-500', ring: 'hover:border-blue-300 hover:text-blue-600' },
+                'ìì¸': { active: 'bg-orange-500 border-orange-500', ring: 'hover:border-orange-300 hover:text-orange-600' },
+                'ë§¤ë§¤': { active: 'bg-emerald-500 border-emerald-500', ring: 'hover:border-emerald-300 hover:text-emerald-600' },
               };
-              const c = dealColors[deal] || dealColors['전세'];
+              const c = dealColors[deal] || dealColors['ì ì¸'];
               const isActive = filters.deal === deal;
 
               return (
@@ -579,7 +579,7 @@ export default function MapSearchPage() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 shrink-0">
-            {/* 검색 버튼 */}
+            {/* ê²ì ë²í¼ */}
             <button
               onClick={() => setShowSearch(!showSearch)}
               className={`p-2 rounded-full transition-all ${
@@ -589,7 +589,7 @@ export default function MapSearchPage() {
               <Search className="w-4 h-4" />
             </button>
 
-            {/* 모바일 뷰 토글 */}
+            {/* ëª¨ë°ì¼ ë·° í ê¸ */}
             <div className="md:hidden flex bg-gray-100 rounded-lg p-0.5">
               <button
                 onClick={() => setMobileView('map')}
@@ -597,7 +597,7 @@ export default function MapSearchPage() {
                   mobileView === 'map' ? 'bg-white shadow text-wishes-primary font-bold' : 'text-gray-500'
                 }`}
               >
-                <MapPin className="w-3 h-3 inline mr-1" />지도
+                <MapPin className="w-3 h-3 inline mr-1" />ì§ë
               </button>
               <button
                 onClick={() => setMobileView('list')}
@@ -605,13 +605,13 @@ export default function MapSearchPage() {
                   mobileView === 'list' ? 'bg-white shadow text-wishes-primary font-bold' : 'text-gray-500'
                 }`}
               >
-                <List className="w-3 h-3 inline mr-1" />목록
+                <List className="w-3 h-3 inline mr-1" />ëª©ë¡
               </button>
             </div>
           </div>
         </div>
 
-        {/* 2행: 매물유형 필터 */}
+        {/* 2í: ë§¤ë¬¼ì í íí° */}
         <div className="px-4 pb-2.5 flex gap-1.5 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setFilters((prev) => ({ ...prev, type: undefined }))}
@@ -621,7 +621,7 @@ export default function MapSearchPage() {
                 : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-gray-400'
             }`}
           >
-            전체
+            ì ì²´
           </button>
           {listingTypes.map((type) => (
             <button
@@ -638,7 +638,7 @@ export default function MapSearchPage() {
           ))}
         </div>
 
-        {/* 검색 입력창 (토글) */}
+        {/* ê²ì ìë ¥ì°½ (í ê¸) */}
         {showSearch && (
           <div className="px-4 pb-3 animate-fade-in-up">
             <div className="relative">
@@ -647,7 +647,7 @@ export default function MapSearchPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="지역, 매물명, 키워드로 검색..."
+                placeholder="ì§ì­, ë§¤ë¬¼ëª, í¤ìëë¡ ê²ì..."
                 className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary transition-all"
                 autoFocus
               />
@@ -664,26 +664,26 @@ export default function MapSearchPage() {
         )}
       </div>
 
-      {/* ━━━ 지도 + 리스트 ━━━ */}
+      {/* âââ ì§ë + ë¦¬ì¤í¸ âââ */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* 카카오맵 영역 */}
+        {/* ì¹´ì¹´ì¤ë§µ ìì­ */}
         <div className={`relative ${mobileView === 'list' ? 'hidden md:block' : ''} flex-1`}>
           <div ref={mapRef} className="w-full h-full kakao-map-container" />
 
-          {/* 로딩 인디케이터 */}
+          {/* ë¡ë© ì¸ëì¼ì´í° */}
           {loading && (
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur-md px-4 py-2 rounded-full shadow-lg flex items-center gap-2 text-sm z-20">
               <Loader2 className="w-4 h-4 animate-spin text-wishes-secondary" />
-              매물 검색 중...
+              ë§¤ë¬¼ ê²ì ì¤...
             </div>
           )}
 
-          {/* 줌 레벨 표시 + 매물 카운트 */}
+          {/* ì¤ ë ë²¨ íì + ë§¤ë¬¼ ì¹´ì´í¸ */}
           {!loading && mapReady && (
             <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
               <div className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md text-xs font-medium text-gray-700 flex items-center gap-2">
-                <span>현재 지도 영역</span>
-                <strong className="text-wishes-primary">{total}</strong>건
+                <span>íì¬ ì§ë ìì­</span>
+                <strong className="text-wishes-primary">{total}</strong>ê±´
               </div>
               <div className="bg-white/90 backdrop-blur-md px-3 py-1 rounded-full shadow text-[10px] font-semibold text-wishes-muted flex items-center gap-1.5">
                 <div className={`w-2 h-2 rounded-full ${
@@ -691,28 +691,28 @@ export default function MapSearchPage() {
                   zoomLevel >= 7 ? 'bg-blue-500' :
                   zoomLevel >= 5 ? 'bg-green-500' : 'bg-gray-500'
                 }`} />
-                {zoomLevelLabel} 단위 표시
+                {zoomLevelLabel} ë¨ì íì
               </div>
             </div>
           )}
         </div>
 
-        {/* ━━━ 매물 리스트 (우측 고정) ━━━ */}
+        {/* âââ ë§¤ë¬¼ ë¦¬ì¤í¸ (ì°ì¸¡ ê³ ì ) âââ */}
         <div className={`${mobileView === 'map' ? 'hidden md:block' : ''} w-full md:w-[380px] bg-white border-l border-gray-200 shrink-0 overflow-y-auto custom-scrollbar`}>
           <div className="p-4 space-y-3">
-            {/* 리스트 헤더 */}
+            {/* ë¦¬ì¤í¸ í¤ë */}
             <div className="flex items-center justify-between">
               <div className="text-sm font-medium text-gray-700">
-                매물 <strong className="text-wishes-primary">{searchQuery ? filteredListings.length : total}</strong>건
+                ë§¤ë¬¼ <strong className="text-wishes-primary">{searchQuery ? filteredListings.length : total}</strong>ê±´
                 {searchQuery && (
                   <span className="ml-1 text-xs text-wishes-muted">
-                    &quot;{searchQuery}&quot; 검색결과
+                    &quot;{searchQuery}&quot; ê²ìê²°ê³¼
                   </span>
                 )}
               </div>
             </div>
 
-            {/* 매물 카드 리스트 */}
+            {/* ë§¤ë¬¼ ì¹´ë ë¦¬ì¤í¸ */}
             {filteredListings.length > 0 ? (
               filteredListings.map((listing) => (
                 <div
@@ -732,14 +732,14 @@ export default function MapSearchPage() {
               <div className="text-center py-16 text-gray-400">
                 <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
                 <p className="text-sm font-medium">
-                  {loading ? '검색 중...' : searchQuery ? '검색 결과가 없습니다' : '이 영역에 매물이 없습니다'}
+                  {loading ? 'ê²ì ì¤...' : searchQuery ? 'ê²ì ê²°ê³¼ê° ììµëë¤' : 'ì´ ìì­ì ë§¤ë¬¼ì´ ììµëë¤'}
                 </p>
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
                     className="mt-2 text-xs text-wishes-secondary hover:underline"
                   >
-                    검색어 초기화
+                    ê²ìì´ ì´ê¸°í
                   </button>
                 )}
               </div>
@@ -747,9 +747,9 @@ export default function MapSearchPage() {
           </div>
         </div>
 
-        {/* ━━━ 매물 상세 슬라이드 패널 (지도 위 오버레이, 목록 왼쪽) ━━━ */}
+        {/* âââ ë§¤ë¬¼ ìì¸ ì¬ë¼ì´ë í¨ë (ì§ë ì ì¤ë²ë ì´, ëª©ë¡ ì¼ìª½) âââ */}
         <div
-          className={`hidden md:block absolute top-0 bottom-0 right-[380px] z-30 bg-white border-r border-gray-200 shadow-2xl transition-transform duration-300 ease-in-out ${detailId ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`hidden md:block absolute top-0 bottom-0 right-[380px] z-30 bg-white border-r border-gray-200 shadow-2xl transition-all duration-300 ease-in-out ${detailId ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}
           style={{ width: '420px' }}
         >
           {detailId && (
