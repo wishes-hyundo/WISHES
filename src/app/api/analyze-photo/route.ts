@@ -13,56 +13,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }
 
+    const base64Data = image.replace(/^data:image\/[^;]+;base64,/, '');
+    const mediaType = image.match(/^data:(image\/[^;]+);base64,/)?.[1] || 'image/jpeg';
+
     const systemPrompt =
       mode === 'mosaic'
         ? `You are a privacy detection AI for a Korean real estate listing website.
-Detect ONLY these two categories of privacy-sensitive visual elements:
+Your job is to find ALL privacy-sensitive elements in the photo.
 
-1. VEHICLE LICENSE PLATES
-   - Korean license plates on any vehicle (cars, motorcycles, trucks)
-   - Include the full plate area with 15% margin on each side
-   - Plates can be at various angles
+DETECT ALL OF THESE:
+1. HUMAN FACES - any visible face, even partial or small
+2. PHONE NUMBERS - any text containing phone numbers (Korean format: 010-XXXX-XXXX, 02-XXX-XXXX, etc). Look for "H.P:", "TEL:", "T.", numbers on signs, banners, stickers
+3. VEHICLE LICENSE PLATES - any car/motorcycle plates
+4. PERSONAL DOCUMENTS - ID cards, contracts, resident registration numbers (XXXXXX-XXXXXXX)
+5. PERSONAL NAMES with phone numbers - if a person's name appears next to contact info
 
-2. PERSONAL DOCUMENTS
-   - Paper documents, contracts, letters visible on desks/tables/walls
-   - Whiteboards or screens showing personal information
-   - ID cards, business cards with personal details
-   - Any handwritten notes with personal content
-
-DO NOT DETECT (these are handled by other systems):
-- Human faces (handled by face-api.js)
-- Phone numbers or any text (handled by OCR)
-- Signs, banners, advertisements
-- Building numbers, addresses, prices
+Be AGGRESSIVE in detection. It is much better to over-detect than to miss something.
+For phone numbers on signs/banners, make sure to cover the ENTIRE number including any prefix like "H.P:" or "TEL:".
 
 COORDINATE FORMAT:
 - x, y = top-left corner as percentage (0-100) of image dimensions
-- width, height = size as percentage (0-100)
-- Make detection boxes generous enough to cover the full item
+- width, height = size as percentage (0-100) of image dimensions
+- Make bounding boxes generous - add padding around detected items
 
 Return ONLY valid JSON:
-{"detections": [{"type": "plate", "x": 0, "y": 0, "width": 0, "height": 0, "confidence": 0.0}]}
-
+{"detections": [{"type": "face|phone|plate|document", "x": 0, "y": 0, "width": 0, "height": 0, "confidence": 0.0}]}
 If nothing found: {"detections": []}`
-        : `You are a professional photo enhancement AI for a real estate website (wishes.co.kr).
-Analyze this property photo and determine optimal enhancement parameters.
-
-Evaluate: shadows, highlights, contrast, haze, vibrancy, sharpness, vignetting.
-
-Return ONLY JSON:
-{
-  "parameters": {
-    "shadow_lift": 0.0-1.0,
-    "highlight_recovery": 0.0-1.0,
-    "contrast_strength": 0.0-0.5,
-    "dehaze_strength": 0.0-0.5,
-    "vibrance": 0.0-0.6,
-    "sharpen_detail": 0.0-1.0,
-    "sharpen_edge": 0.0-0.8,
-    "color_temperature": -0.3-0.3,
-    "vignette_strength": 0.0-0.4
-  }
-}`;
+        : `You are a professional real estate photo enhancement AI.
+Analyze this property photo and recommend enhancement parameters.
+Return ONLY valid JSON with these parameters (values 0.0-1.0):
+{"parameters": {"shadow_lift": 0.6, "highlight_recovery": 0.4, "contrast_strength": 0.3, "dehaze_strength": 0.5, "vibrance": 0.5, "sharpen_detail": 0.6, "sharpen_edge": 0.4, "color_temperature": 0.1, "vignette_strength": 0.15}}`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -82,37 +62,45 @@ Return ONLY JSON:
                 type: 'image',
                 source: {
                   type: 'base64',
-                  media_type: 'image/jpeg',
-                  data: image.replace(/^data:image\/[^;]+;base64,/, ''),
+                  media_type: mediaType,
+                  data: base64Data,
                 },
               },
-              { type: 'text', text: systemPrompt },
+              {
+                type: 'text',
+                text:
+                  mode === 'mosaic'
+                    ? 'Detect ALL privacy-sensitive elements in this Korean real estate photo. Be thorough - check for faces, phone numbers on signs/banners/stickers, license plates, and personal documents. Return JSON with detections array.'
+                    : 'Analyze this real estate photo and recommend enhancement parameters. Return JSON.',
+              },
             ],
           },
         ],
+        system: systemPrompt,
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.text();
-      console.error('Anthropic API error:', response.status, errorData.substring(0, 200));
-      return NextResponse.json(
-        { error: 'Anthropic API error: ' + response.status, details: errorData.substring(0, 200) },
-        { status: response.status }
-      );
+      const errorText = await response.text();
+      console.error('Anthropic API error:', response.status, errorText);
+      return NextResponse.json({ error: 'API call failed' }, { status: 500 });
     }
 
-    const data = await response.json();
-    const content = data.content?.[0]?.text || '{}';
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const result = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    const result = await response.json();
+    const text = result.content?.[0]?.text || '';
 
-    return NextResponse.json(result);
-  } catch (error) {
-    console.error('Photo analysis error:', error);
+    // Parse JSON from response
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      return NextResponse.json(parsed);
+    }
+
     return NextResponse.json(
-      { error: 'Failed to analyze photo', details: String(error) },
-      { status: 500 }
+      mode === 'mosaic' ? { detections: [] } : { parameters: null }
     );
+  } catch (error) {
+    console.error('analyze-photo error:', error);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
   }
 }
