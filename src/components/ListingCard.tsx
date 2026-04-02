@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import type { Listing } from '@/types';
 
-// NEW: 7ì¼ ì´ë‚´ ë“±ë¡ / HOT: ì¡°íšŒìˆ˜ 50 ì´ìƒ
+// NEW: 7일 이내 등록 / HOT: 조회수 50 이상
 const isNew = (createdAt: string) => {
   const diff = Date.now() - new Date(createdAt).getTime();
   return diff < 7 * 24 * 60 * 60 * 1000;
@@ -26,19 +26,27 @@ const sqmToPyeong = (area: number) => {
 
 const getDealColor = (deal: string) => {
   switch (deal) {
-    case 'ì „ì„¸': return 'bg-wishes-secondary text-white';
-    case 'ì›”ì„¸': return 'bg-emerald-500 text-white';
-    case 'ë§¤ë§¤': return 'bg-wishes-accent text-white';
-    default: return 'bg-gray-400 text-white';
+    case '전세':
+      return 'bg-wishes-secondary text-white';
+    case '월세':
+      return 'bg-emerald-500 text-white';
+    case '매매':
+      return 'bg-wishes-accent text-white';
+    default:
+      return 'bg-gray-400 text-white';
   }
 };
 
 const getDealBgGradient = (deal: string) => {
   switch (deal) {
-    case 'ì „ì„¸': return 'from-wishes-secondary/20 to-wishes-secondary/0';
-    case 'ì›”ì„¸': return 'from-emerald-500/20 to-emerald-500/0';
-    case 'ë§¤ë§¤': return 'from-wishes-accent/20 to-wishes-accent/0';
-    default: return 'from-gray-400/20 to-gray-400/0';
+    case '전세':
+      return 'from-wishes-secondary/20 to-wishes-secondary/0';
+    case '월세':
+      return 'from-emerald-500/20 to-emerald-500/0';
+    case '매매':
+      return 'from-wishes-accent/20 to-wishes-accent/0';
+    default:
+      return 'from-gray-400/20 to-gray-400/0';
   }
 };
 
@@ -46,7 +54,7 @@ const formatAmount = (amount: number) => {
   if (amount >= 10000) {
     const uk = Math.floor(amount / 10000);
     const man = amount % 10000;
-    return man > 0 ? `${uk}ì–µ ${man.toLocaleString('ko-KR')}` : `${uk}ì–µ`;
+    return man > 0 ? `${uk}억 ${man.toLocaleString('ko-KR')}` : `${uk}억`;
   }
   return `${amount.toLocaleString('ko-KR')}`;
 };
@@ -55,40 +63,39 @@ const formatFloor = (listing: Listing) => {
   const current = listing.floor_current || listing.floor || '';
   const total = listing.floor_total;
   if (!current) return '';
-  if (total) return `${current}/${total}ì¸µ`;
-  return current.includes('ì¸µ') ? current : `${current}Ü¸µ`;
+  if (total) return `${current}/${total}층`;
+  return current.includes('층') ? current : `${current}층`;
 };
 
 const formatPrice = (listing: Listing) => {
-  if (listing.deal === 'ë§¤ë§¤') {
+  if (listing.deal === '매매') {
     return formatAmount(listing.price || 0);
-  } else if (listing.deal === 'ì „ì„¸') {
-    return `ì „ì„¸ ${formatAmount(listing.deposit)}`;
+  } else if (listing.deal === '전세') {
+    return `전세 ${formatAmount(listing.deposit)}`;
   } else {
     return `${formatAmount(listing.deposit)}/${listing.monthly || 0}`;
   }
 };
 
 const getPriceLabel = (listing: Listing) => {
-  if (listing.deal === 'ë§¤ë§¤') return 'ë§¤ë§¤ê°€';
-  if (listing.deal === 'ì „ì„¸') return 'ì „ì„¸ê¸ˆ';
-  return 'ë³´ì¦ê¸ˆ/ì›”ì„¸';
+  if (listing.deal === '매매') return '매매가';
+  if (listing.deal === '전세') return '전세금';
+  return '보증금/월세';
 };
 
 export function ListingCard({ listing, compact = false, onHover, noLink = false }: ListingCardProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const liked = isFavorite(listing.id);
-
-  // Supabase ì¡°ì¸ ê²°ê³¼(listing_images) ë˜ëŠ” ê¸°ì¡´ images í•„ë“œì—ì„œ ì´ë¯¸ì§€ ì¶”ì¶œ
+  // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
   const listingImages = (listing as any).listing_images || listing.images || [];
-  const thumbUrl =
-    listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
-
+  const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
   const price = formatPrice(listing);
 
   if (compact) {
     const Wrapper = noLink ? 'div' : Link;
-    const wrapperProps = noLink ? {} : { href: `/listings/${listing.id}` };
+    const wrapperProps = noLink
+      ? {}
+      : { href: `/listings/${listing.id}` };
 
     return (
       <Wrapper
@@ -97,7 +104,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
         onMouseEnter={() => onHover?.(listing.id)}
         onMouseLeave={() => onHover?.(null)}
       >
-        {/* ì´ë¯¸ì§€ */}
+        {/* 이미지 */}
         <div className="w-28 h-28 shrink-0 relative overflow-hidden bg-gray-100">
           {thumbUrl ? (
             <img
@@ -110,16 +117,15 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
               <Building2 className="w-8 h-8 text-gray-300" />
             </div>
           )}
-          <span
-            className={cn(
-              'absolute top-1 left-1 px-2 py-0.5 text-xs font-bold rounded-md',
-              getDealColor(listing.deal)
-            )}
-          >
+          <span className={cn(
+            'absolute top-1 left-1 px-2 py-0.5 text-xs font-bold rounded-md',
+            getDealColor(listing.deal)
+          )}>
             {listing.deal}
           </span>
         </div>
-        {/* ì •ë³´ */}
+
+        {/* 정보 */}
         <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -129,16 +135,13 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
             <p className="text-xs text-gray-600 truncate mt-0.5">{listing.title}</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-wishes-muted">
-            <span>{listing.area_m2 || listing.area || 0}ãŽ¡</span>
-            <span>Â·</span>
+            <span>{listing.area_m2 || listing.area || 0}㎡</span>
+            <span>·</span>
             <span>{formatFloor(listing)}</span>
             {(listing as any).views > 0 && (
               <>
-                <span>Â·</span>
-                <span className="flex items-center gap-0.5">
-                  <Eye className="w-3 h-3" />
-                  {(listing as any).views}
-                </span>
+                <span>·</span>
+                <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" />{(listing as any).views}</span>
               </>
             )}
           </div>
@@ -154,9 +157,9 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      {/* ì´ë¯¸ì§€ ì˜ì—­ */}
+      {/* 이미지 영역 */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
-        {/* ë°°ê²½ ì´ë¯¸ì§€ */}
+        {/* 배경 이미지 */}
         {thumbUrl ? (
           <img
             src={thumbUrl}
@@ -170,60 +173,47 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           </div>
         )}
 
-        {/* ê·¸ëž˜ë””ì–¸íŠ¸ ì˜¤ë²„ë ˆì´ */}
-        <div
-          className={cn(
-            'absolute inset-0 bg-gradient-to-t transition-opacity group-hover:opacity-60 duration-300',
-            getDealBgGradient(listing.deal)
-          )}
-        ></div>
+        {/* 그래디언트 오버레이 */}
+        <div className={cn(
+          'absolute inset-0 bg-gradient-to-t transition-opacity group-hover:opacity-60 duration-300',
+          getDealBgGradient(listing.deal)
+        )}></div>
 
-        {/* ì¢Œì¸¡ ë°°ì§€ë“¤ */}
+        {/* 좌측 배지들 (우측은 ListingCardActions 영역) */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {/* ê±°ëž˜ ìœ í˜• ë°°ì§€ */}
-          <span
-            className={cn(
-              'px-3 py-1 text-xs font-bold rounded-lg shadow-lg backdrop-blur-sm w-fit',
-              getDealColor(listing.deal)
-            )}
-          >
+          {/* 거래 유형 배지 */}
+          <span className={cn(
+            'px-3 py-1 text-xs font-bold rounded-lg shadow-lg backdrop-blur-sm w-fit',
+            getDealColor(listing.deal)
+          )}>
             {listing.deal}
           </span>
-          {/* NEW ë°°ì§€ */}
+
+          {/* NEW 배지 */}
           {isNew(listing.created_at) && (
             <span className="flex items-center gap-0.5 px-2 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-lg shadow-sm w-fit">
-              <Sparkles className="w-3 h-3" />
-              NEW
+              <Sparkles className="w-3 h-3" /> NEW
             </span>
           )}
-          {/* HOT ë°°ì§€ */}
+
+          {/* HOT 배지 */}
           {isHot((listing as any).views) && (
             <span className="flex items-center gap-0.5 px-2 py-1 text-xs font-bold bg-red-500 text-white rounded-lg shadow-sm w-fit">
-              <Flame className="w-3 h-3" />
-              HOT
+              <Flame className="w-3 h-3" /> HOT
             </span>
           )}
         </div>
 
-        {/* ìš°ì¸¡ ìƒë‹¨ ì°œ ë²„íŠ¼ */}
+        {/* 우측 상단 찜 버튼 (S3) */}
         <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleFavorite(listing.id);
-          }}
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(listing.id); }}
           className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white transition-all z-10"
-          aria-label={liked ? 'ì°œ í•´ì œ' : 'ì°œí•˜ê¸°'}
+          aria-label={liked ? '찜 해제' : '찜하기'}
         >
-          <Heart
-            className={cn(
-              'w-4.5 h-4.5 transition-colors',
-              liked ? 'fill-red-500 text-red-500' : 'text-gray-400'
-            )}
-          />
+          <Heart className={cn('w-4.5 h-4.5 transition-colors', liked ? 'fill-red-500 text-red-500' : 'text-gray-400')} />
         </button>
 
-        {/* ìš°ì¸¡ í•˜ë‹¨ íƒ€ìž… ë°°ì§€ */}
+        {/* 우측 하단 타입 배지 */}
         <div className="absolute bottom-3 right-3">
           <span className="px-3 py-1 text-xs font-semibold bg-white/90 text-wishes-primary rounded-lg shadow-md backdrop-blur-sm">
             {listing.type}
@@ -231,33 +221,31 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
         </div>
       </div>
 
-      {/* ì •ë³´ ì˜ì—­ */}
+      {/* 정보 영역 */}
       <div className="p-4 space-y-4">
-        {/* ê°€ê²© */}
+        {/* 가격 */}
         <div className="space-y-1">
-          <p className="text-[10px] font-semibold text-wishes-muted/80 uppercase tracking-wider">
-            {getPriceLabel(listing)}
-          </p>
+          <p className="text-[10px] font-semibold text-wishes-muted/80 uppercase tracking-wider">{getPriceLabel(listing)}</p>
           <div className="flex items-baseline gap-2">
             <p className="text-2xl font-bold text-wishes-primary">{price}</p>
-            {listing.deal === 'ì›”ì„¸' && <p className="text-sm text-wishes-muted">ë§Œì›</p>}
+            {listing.deal === '월세' && (
+              <p className="text-sm text-wishes-muted">만원</p>
+            )}
           </div>
         </div>
 
-        {/* ì œëª© */}
+        {/* 제목 */}
         <p className="text-sm font-semibold text-wishes-text line-clamp-2 group-hover:text-wishes-secondary transition-colors">
           {listing.title}
         </p>
 
-        {/* ê¸°ë³¸ ì •ë³´ */}
+        {/* 기본 정보 */}
         <div className="flex items-center gap-4 text-xs text-wishes-muted">
-          {listing.area_m2 || listing.area ? (
+          {(listing.area_m2 || listing.area) ? (
             <div className="flex items-center gap-1">
               <Maximize className="w-4 h-4 text-wishes-secondary/60" />
-              <span>{listing.area_m2 || listing.area}ãŽ¡</span>
-              <span className="text-gray-400">
-                ({sqmToPyeong(listing.area_m2 || listing.area)}í‰)
-              </span>
+              <span>{listing.area_m2 || listing.area}㎡</span>
+              <span className="text-gray-400">({sqmToPyeong(listing.area_m2 || listing.area)}평)</span>
             </div>
           ) : null}
           {(listing.floor_current || listing.floor) && (
@@ -268,54 +256,48 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           )}
         </div>
 
-        {/* ìœ„ì¹˜ */}
+        {/* 위치 */}
         <div className="flex items-center gap-1 text-xs text-wishes-muted">
           <MapPin className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
-          <span className="truncate">
-            {listing.dong} Â· {listing.address.split(' ').slice(-1)[0]}
-          </span>
+          <span className="truncate">{listing.dong} · {listing.address.split(' ').slice(-1)[0]}</span>
         </div>
 
-        {/* ì˜µì…˜ íƒœê·¸ */}
+        {/* 옵션 태그 */}
         <div className="flex flex-wrap gap-2 pt-2">
           {listing.parking && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-secondary/10 text-wishes-secondary rounded-full border border-wishes-secondary/20 hover:bg-wishes-secondary/20 transition-colors">
-              ðŸš— ì£¼ì°¨
+              🚗 주차
             </span>
           )}
           {listing.elevator && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-accent/10 text-wishes-accent rounded-full border border-wishes-accent/20 hover:bg-wishes-accent/20 transition-colors">
-              ðŸš¡ ì—˜ë¦¬ë² ì´í„°
+              🚡 엘리베이터
             </span>
           )}
           {listing.pet && (
             <span className="px-2.5 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
-              ðŸ¾ ë°˜ë ¤ë™ë¬¼
+              🐾 반려동물
             </span>
           )}
         </div>
 
-        {/* í•˜ë‹¨ ì •ë³´ */}
+        {/* 하단 정보 */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
             <span className="text-wishes-muted font-mono flex items-center gap-1">
-              <Hash className="w-3 h-3" /> W-{listing.id}
+              <Hash className="w-3 h-3" />
+              W-{listing.id}
             </span>
             {(listing as any).views > 0 && (
               <span className="text-wishes-muted flex items-center gap-1">
-                <Eye className="w-3 h-3" /> {(listing as any).views}
+                <Eye className="w-3 h-3" />
+                {(listing as any).views}
               </span>
             )}
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {listing.created_at
-              ? new Date(listing.created_at).toLocaleDateString('ko-KR', {
-                  timeZone: 'Asia/Seoul',
-                  month: 'short',
-                  day: 'numeric',
-                })
-              : 'ë°©ê¸ˆ ì „'}
+            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'short', day: 'numeric' }) : '방금 전'}
           </span>
         </div>
       </div>
