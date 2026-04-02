@@ -169,8 +169,8 @@ function applyMosaic(
     let rw = (det.width * w) / 100;
     let rh = (det.height * h) / 100;
 
-    // Generous padding
-    const pad = 0.3;
+    // Tight padding
+    const pad = 0.05;
     const px = rw * pad;
     const py = rh * pad;
     rx = Math.max(0, rx - px);
