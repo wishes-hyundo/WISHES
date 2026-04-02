@@ -8,7 +8,6 @@ function debounce(fn, ms) {
     timer = setTimeout(() => fn(...args), ms);
   };
 }
-
 // Area conversion: pyeong <-> sqm
 function pyeongToSqm(p) { return (p * 3.305785).toFixed(2); }
 function sqmToPyeong(s) { return (s / 3.305785).toFixed(2); }
@@ -334,6 +333,9 @@ function enhanceImage(file: File): Promise<string> {
       // Step 2: Load image and apply 7-step pipeline
       const img = new Image();
       img.onerror = () => reject(new Error('Image load failed'));
+          // Store mosaic detections on img element to survive minifier variable shadowing
+          (img as any)._privacyDetections = mosaicDetections;
+
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
@@ -438,9 +440,11 @@ function enhanceImage(file: File): Promise<string> {
           ctx.fillRect(0, 0, w, h);
 
           // Step 8: Privacy Mosaic - Auto-detect and blur faces, license plates, personal info
-          if (mosaicDetections.length > 0) {
+          // Step 8: Privacy Mosaic (read from img property to avoid minifier variable shadowing bug)
+            const privacyDets: MosaicDetection[] = (img as any)._privacyDetections || [];
+            if (privacyDets.length > 0) {
             const blockSize = 20;
-            mosaicDetections.forEach(det => {
+            privacyDets.forEach(det => {
               const mx = Math.floor(det.x * w / 100);
               const my = Math.floor(det.y * h / 100);
               const mw = Math.floor(det.width * w / 100);
