@@ -47,30 +47,32 @@ export default function LoanCalculatorPage() {
 
   // Supabase에서 최신 금리 가져오기
   useEffect(() => {
-    async function fetchLatestRates() {
+    // DEFAULT_RATE_PRESETS를 우선 사용, DB에서 최신 데이터 있으면 덮어쓰기
+    setRatePresets(DEFAULT_RATE_PRESETS);
+    setRatesLastUpdated(new Date().toLocaleDateString('ko-KR'));
+    
+    const fetchRates = async () => {
       try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('loan_rates')
-          .select('*')
-          .order('updated_at', { ascending: false })
-          .limit(1);
-        if (data && data.length > 0 && !error) {
-          const row = data[0];
-          if (row.mortgage_rates && row.jeonse_rates) {
+        const response = await fetch('/api/rates');
+        const result = await response.json();
+        if (result.success && result.data) {
+          const dbRates = result.data;
+          if (dbRates.mortgage_rates?.length > 0 && dbRates.jeonse_rates?.length > 0) {
             setRatePresets({
-              mortgage: row.mortgage_rates,
-              jeonse: row.jeonse_rates,
+              mortgage: dbRates.mortgage_rates,
+              jeonse: dbRates.jeonse_rates,
             });
-            setRatesLastUpdated(new Date(row.updated_at).toLocaleDateString('ko-KR'));
+            if (dbRates.updated_at) {
+              setRatesLastUpdated(new Date(dbRates.updated_at).toLocaleDateString('ko-KR'));
+            }
           }
         }
       } catch (e) {
-        // Supabase 연결 실패 시 기본값 사용
-        console.log('Using default rates');
+        // DB 연결 실패 시 기본값 유지
+        console.log('Using default rate presets');
       }
-    }
-    fetchLatestRates();
+    };
+    fetchRates();
   }, []);
 
   const result = useMemo(() => {
