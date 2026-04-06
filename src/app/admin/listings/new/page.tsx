@@ -557,7 +557,7 @@ function SmartListingNewPage() {
   const [exclusiveUnits, setExclusiveUnits] = useState<ExclusiveUnit[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<ExclusiveUnit | null>(null);
   const [isCollectiveBuilding, setIsCollectiveBuilding] = useState(false);
-  const [ownerInfoList, setOwnerInfoList] = useState<Array<{ 소유자명: string; 소유자구분: string; 지분: string; 주민번호성별코드: string; 성별: string; 동명: string; 호명: string }>>([]);
+  const [ownerInfoList, setOwnerInfoList] = useState<Array<{ 소유자명: string; 소유자구분: string; 지분: string; 주민번호성별코드: string; 성별: string; 동명: string; 호명: string; 연락처: string }>>([]);
   const [showBuildingDoc, setShowBuildingDoc] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [useEnhanced, setUseEnhanced] = useState(true);
@@ -1773,31 +1773,40 @@ ${floorRows}</table></div>` : ''}
                 </div>
               )}
 
-              {/* 소유자 정보 (관리자 전용) */}
-              {ownerInfoList && ownerInfoList.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-bold text-amber-900 flex items-center gap-2 text-sm">소유자 정보 (관리자 전용)</h3>
-                    <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full font-medium">고객 비노출</span>
+              {/* 소유자정보 입력 (관리자 전용 - 고객 비노출) */}
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-bold text-amber-900 flex items-center gap-2 text-sm">👤 소유자 정보</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full font-medium">🔒 고객 비노출</span>
+                    <a href="https://www.gov.kr/mw/AA020InfoCappView.do?HighCtgCD=A01010&CappBizCD=13100000015" target="_blank" rel="noopener noreferrer" className="text-xs bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 transition font-medium">🏛️ 정부24 건축물대장 열람</a>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs border-collapse">
-                      <thead><tr className="bg-amber-100 text-amber-800">
-                        <th className="px-3 py-2 text-left">소유자명</th><th className="px-3 py-2 text-left">구분</th><th className="px-3 py-2 text-left">성별</th><th className="px-3 py-2 text-left">지분</th><th className="px-3 py-2 text-left">동/호</th>
-                      </tr></thead>
-                      <tbody>{ownerInfoList.map((owner, idx) => (
-                        <tr key={idx} className="border-b border-amber-100 hover:bg-amber-50">
-                          <td className="px-3 py-2 font-medium">{owner.소유자명}</td>
-                          <td className="px-3 py-2 text-gray-600">{owner.소유자구분}</td>
-                          <td className="px-3 py-2">{owner.성별 ? <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${owner.성별 === "남" ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700"}`}>{owner.성별} ({owner.주민번호성별코드})</span> : <span className="text-gray-400">-</span>}</td>
-                          <td className="px-3 py-2 text-gray-600">{owner.지분 || "-"}</td>
-                          <td className="px-3 py-2 text-gray-600">{owner.동명 || owner.호명 ? `${owner.동명} ${owner.호명}`.trim() : "-"}</td>
-                        </tr>))}</tbody>
-                    </table>
-                  </div>
-                  <p className="text-xs text-amber-600 mt-2">* 본 정보는 건축물대장 공공데이터에서 조회된 것이며, 관리자 화면에서만 표시됩니다.</p>
                 </div>
-              )}
+                {ownerInfoList.length > 0 && (
+                  <div className="space-y-3 mb-3">
+                    {ownerInfoList.map((owner, idx) => (
+                      <div key={idx} className="bg-white rounded-lg border border-amber-200 p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-amber-800">소유자 {idx + 1}</span>
+                          <button type="button" onClick={() => { setOwnerInfoList(ownerInfoList.filter((_, i) => i !== idx)); }} className="text-xs text-red-400 hover:text-red-600">✖ 삭제</button>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          <input type="text" placeholder="소유자명" value={owner.소유자명} onChange={(e) => { const list = [...ownerInfoList]; list[idx] = {...list[idx], 소유자명: e.target.value}; setOwnerInfoList(list); }} className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400" />
+                          <select value={owner.소유자구분} onChange={(e) => { const list = [...ownerInfoList]; list[idx] = {...list[idx], 소유자구분: e.target.value}; setOwnerInfoList(list); }} className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400">
+                            <option value="개인">개인</option>
+                            <option value="법인">법인</option>
+                            <option value="국가/지자체">국가/지자체</option>
+                          </select>
+                          <input type="text" placeholder="지분 (ex: 1/1)" value={owner.지분} onChange={(e) => { const list = [...ownerInfoList]; list[idx] = {...list[idx], 지분: e.target.value}; setOwnerInfoList(list); }} className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400" />
+                          <input type="text" placeholder="연락처" value={owner.연락처} onChange={(e) => { const list = [...ownerInfoList]; list[idx] = {...list[idx], 연락처: e.target.value}; setOwnerInfoList(list); }} className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button type="button" onClick={() => { setOwnerInfoList([...ownerInfoList, { 소유자명: "", 소유자구분: "개인", 지분: "", 주민번호성별코드: "", 성별: "", 동명: "", 호명: "", 연락처: "" }]); }} className="w-full py-2 border-2 border-dashed border-amber-300 rounded-lg text-sm text-amber-700 hover:bg-amber-100 hover:border-amber-400 transition font-medium">+ 소유자 추가</button>
+                <p className="text-xs text-amber-600 mt-2">* 소유자 개인정보는 관리자만 확인 가능하며, 고객에게 절대 노출되지 않습니다.</p>
+              </div>
 
                 {buildingInfo && showBuildingDoc && (
                   <div className="border-2 border-gray-800 rounded-lg bg-white p-6 text-sm font-['Batang','serif']">
