@@ -5,7 +5,7 @@ const SERVICE_KEY =
 
 const BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService";
 
-// 소유자정보는 HubService에 없을 수 있으므로 여러 서비스를 순차 시도
+// Owner info uses separate service: 1611000/OwnerInfoService (NOT 1613000/BldRgstHubService)
 const OWNER_API_URL = "https://apis.data.go.kr/1611000/OwnerInfoService/getArchitecturePossessionInfo";
 
 const OPERATIONS: Record<string, string> = {
@@ -257,37 +257,35 @@ function processExclusiveUnits(items: any[]) {
 }
 
 /**
- * 소유자정보 API를 여러 서비스 URL + 여러 인코딩 방식으로 순차 시도
- * ServiceKey 인코딩이 서비스마다 다를 수 있으므로 raw/decoded 모두 시도
+ * Fetch owner info from 1611000/OwnerInfoService
+ * Uses snake_case params: sigungu_cd, bjdong_cd, plat_gb_cd
+ * Tries both encoded and decoded service key
  */
 async function fetchOwnerInfoWithFallback(
   opName: string,
-  params: Record<string, string>
-): Promise<{ items: OwnerInfoItem[]; error?: string }> {
-  // 소유자 정보는 별도 서비스: 1611000/OwnerInfoService (NOT 1613000/BldRgstHubService)
-  // 파라미터도 snake_case 사용 (sigungu_cd, bjdong_cd 등)
+  baseParams: Record<string, string>
+) {
   const ownerParams: Record<string, string> = {
     serviceKey: SERVICE_KEY,
     numOfRows: "99999",
     pageNo: "1",
-    sigungu_cd: params.sigunguCd || "",
-    bjdong_cd: params.bjdongCd || "",
+    sigungu_cd: baseParams.sigunguCd || "",
+    bjdong_cd: baseParams.bjdongCd || "",
   };
-  if (params.bun) ownerParams.bun = params.bun;
-  if (params.ji) ownerParams.ji = params.ji;
-  if (params.platGbCd) ownerParams.plat_gb_cd = params.platGbCd;
+  if (baseParams.bun && baseParams.bun !== "0000") ownerParams.bun = baseParams.bun;
+  if (baseParams.ji && baseParams.ji !== "0000") ownerParams.ji = baseParams.ji;
+  if (baseParams.platGbCd) ownerParams.plat_gb_cd = baseParams.platGbCd;
 
   const errors: string[] = [];
 
-  // 시도 1: 인코딩된 키 그대로
+  // Attempt 1: encoded key
   try {
-    const url = OWNER_API_URL;
     const queryString = new URLSearchParams(ownerParams).toString();
-    const fullUrl = url + "?" + queryString;
-    console.log("[OwnerInfo] Trying encoded key:", url);
+    const fullUrl = OWNER_API_URL + "?" + queryString;
+    console.log("[OwnerInfo] Trying encoded key");
     const res = await fetch(fullUrl);
     if (!res.ok) {
-      errors.push(url + "(encoded) -> HTTP " + res.status);
+      errors.push("encoded -> HTTP " + res.status);
     } else {
       const text = await res.text();
       const parser = new (await import("fast-xml-parser")).XMLParser();
@@ -298,29 +296,28 @@ async function fetchOwnerInfoWithFallback(
         const rawItems = body?.items?.item;
         if (rawItems) {
           const items = Array.isArray(rawItems) ? rawItems : [rawItems];
-          return { items: items as OwnerInfoItem[] };
+          console.log("[OwnerInfo] Success with encoded key, items:", items.length);
+          return { operation: "ownerInfo", items, totalCount: body?.totalCount || 0, source: OWNER_API_URL, keyType: "encoded" };
         }
-        return { items: [] };
+        return { operation: "ownerInfo", items: [], totalCount: 0 };
       } else {
-        errors.push(url + "(encoded) -> code:" + header?.resultCode + " " + (header?.resultMsg || ""));
+        errors.push("encoded -> code:" + header?.resultCode + " " + (header?.resultMsg || ""));
       }
     }
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    errors.push("OwnerInfoService(encoded) -> " + msg);
+  } catch (e: any) {
+    errors.push("encoded -> " + (e.message || String(e)));
   }
 
-  // 시도 2: 디코딩된 키
+  // Attempt 2: decoded key
   try {
     const decodedKey = decodeURIComponent(SERVICE_KEY);
     const decodedParams = { ...ownerParams, serviceKey: decodedKey };
-    const url = OWNER_API_URL;
     const queryString = new URLSearchParams(decodedParams).toString();
-    const fullUrl = url + "?" + queryString;
-    console.log("[OwnerInfo] Trying decoded key:", url);
+    const fullUrl = OWNER_API_URL + "?" + queryString;
+    console.log("[OwnerInfo] Trying decoded key");
     const res = await fetch(fullUrl);
     if (!res.ok) {
-      errors.push(url + "(decoded) -> HTTP " + res.status);
+      errors.push("decoded -> HTTP " + res.status);
     } else {
       const text = await res.text();
       const parser = new (await import("fast-xml-parser")).XMLParser();
@@ -331,22 +328,20 @@ async function fetchOwnerInfoWithFallback(
         const rawItems = body?.items?.item;
         if (rawItems) {
           const items = Array.isArray(rawItems) ? rawItems : [rawItems];
-          return { items: items as OwnerInfoItem[] };
+          console.log("[OwnerInfo] Success with decoded key, items:", items.length);
+          return { operation: "ownerInfo", items, totalCount: body?.totalCount || 0, source: OWNER_API_URL, keyType: "decoded" };
         }
-        return { items: [] };
+        return { operation: "ownerInfo", items: [], totalCount: 0 };
       } else {
-        errors.push(url + "(decoded) -> code:" + header?.resultCode + " " + (header?.resultMsg || ""));
+        errors.push("decoded -> code:" + header?.resultCode + " " + (header?.resultMsg || ""));
       }
     }
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    errors.push("OwnerInfoService(decoded) -> " + msg);
+  } catch (e: any) {
+    errors.push("decoded -> " + (e.message || String(e)));
   }
 
-  return {
-    items: [],
-    error: "소유자정보 조회 실패 (시도: " + errors.join(" | ") + ")",
-  };
+  console.error("[OwnerInfo] All attempts failed:", errors);
+  throw new Error("Owner info lookup failed (" + errors.join(" | ") + ")");
 }
 
 /**
