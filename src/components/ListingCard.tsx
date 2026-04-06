@@ -5,6 +5,7 @@ import { MapPin, Maximize, Building2, Calendar, Eye, Flame, Sparkles, Heart } fr
 import { cn } from '@/lib/utils';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import type { Listing } from '@/types';
+import { getMosaicUrl } from '@/lib/getMosaicUrl';
 
 // NEW: 3일(72시간) 이내 등록 / HOT: 조회수 50 이상
 const isNew = (createdAt: string) => {
@@ -89,6 +90,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
   // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
   const listingImages = (listing as any).listing_images || listing.images || [];
   const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
+  const mosaicThumbUrl = thumbUrl ? getMosaicUrl(thumbUrl) : null;
   const price = formatPrice(listing);
 
   if (compact) {
@@ -106,9 +108,9 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
       >
         {/* 이미지 */}
         <div className="w-28 h-28 shrink-0 relative overflow-hidden bg-gray-100">
-          {thumbUrl ? (
+          {mosaicThumbUrl ? (
             <img
-              src={thumbUrl}
+              src={mosaicThumbUrl}
               alt={listing.title}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             />
@@ -157,9 +159,9 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
       {/* 이미지 영역 */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
         {/* 배경 이미지 */}
-        {thumbUrl ? (
+        {mosaicThumbUrl ? (
           <img
-            src={thumbUrl}
+            src={mosaicThumbUrl}
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
             loading="lazy"
