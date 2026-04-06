@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Send, CheckCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { useAuth } from '@/contexts/AuthContext';
 
 export default function ContactPage() {
   return (
@@ -17,7 +16,6 @@ export default function ContactPage() {
 function ContactPageInner() {
   const searchParams = useSearchParams();
   const listingId = searchParams.get('listing');
-  const { user } = useAuth();
 
   const [form, setForm] = useState({
     name: '',
@@ -28,17 +26,6 @@ function ContactPageInner() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // 로그인 사용자 정보 자동입력
-  useEffect(() => {
-    if (user) {
-      setForm((prev) => ({
-        ...prev,
-        name: prev.name || user.user_metadata?.full_name || user.user_metadata?.name || '',
-        email: prev.email || user.email || '',
-        phone: prev.phone || user.user_metadata?.phone || '',
-      }));
-    }
-  }, [user]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,11 +89,6 @@ function ContactPageInner() {
 
       <div className="max-w-2xl mx-auto px-4 -mt-8">
         <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8 md:p-10">
-          {user && (
-            <div className="mb-5 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-700">
-              로그인 정보로 자동 입력되었습니다. 수정이 필요하면 직접 변경해주세요.
-            </div>
-          )}
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
