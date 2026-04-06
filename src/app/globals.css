@@ -3,21 +3,24 @@
 /* Gmarket Sans - woff2 + woff (공식 CDN) */
 @font-face {
   font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansLight.woff') format('woff');
+  src: url('https://cdn.jsdelivr.net/gh/webfontworld/gmarket/GmarketSansLight.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/webfontworld/gmarket/GmarketSansLight.woff') format('woff');
   font-weight: 300;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');
+  src: url('https://cdn.jsdelivr.net/gh/webfontworld/gmarket/GmarketSansMedium.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/webfontworld/gmarket/GmarketSansMedium.woff') format('woff');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff');
+  src: url('https://cdn.jsdelivr.net/gh/webfontworld/gmarket/GmarketSansBold.woff2') format('woff2'),
+       url('https://cdn.jsdelivr.net/gh/webfontworld/gmarket/GmarketSansBold.woff') format('woff');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -53,16 +56,12 @@ html {
   scroll-behavior: smooth;
 }
 
-*, *::before, *::after {
-  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-}
-
 body {
-  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemEont, system-ui, 'Helvetica Neue', 'Apple SD Gothic Neo', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--color-text);
-  background-color: var(--color-bg);
+  background-color: var(--color-bf	;
   line-height: 1.7;
   letter-spacing: -0.01em;
   word-break: keep-all;
@@ -105,7 +104,7 @@ body {
     background-clip: text;
   }
 
-  /* Buttons — 물방울처럼 딥글고 통통한 */
+  /* Buttons — 물방울처럼 둥글고 통통한 */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full font-medium text-white transition-all duration-300;
     background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
@@ -185,7 +184,7 @@ body {
 .map-marker-label.deal-월세 { border-color: #2e7d32; color: #2e7d32; }
 .map-marker-label.deal-매매 { border-color: #e65100; color: #e65100; }
 
-/* === Scrollbar — 그린 톤 === */
+/* === Scrollbar — ���린 톤 === */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(102, 187, 106, 0.25); border-radius: 999px; }
@@ -220,6 +219,12 @@ body {
 }
 .animate-fade-in-up { animation: fadeInUp 0.5s ease-out forwards; }
 .animate-slide-in-right { animation: slideInRight 0.4s ease-out forwards; }
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.animate-slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
 /* === Mobile Touch === */
 @media (hover: none) {
