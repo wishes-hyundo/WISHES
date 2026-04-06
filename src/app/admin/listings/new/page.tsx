@@ -97,6 +97,7 @@ interface BuildingInfo {
   층별개요: Array<{ 층번호: string; 층구분: string; 층용도: string; 면적: number }>;
   집합건물여부: boolean;
   전유부: ExclusiveUnit[];
+  소유자정보: Array<{ 소유자명: string; 소유자구분: string; 지분: string; 주민번호성별코드: string; 성별: string; 동명: string; 호명: string }>;
   _raw: Record<string, any>;
 }
 
@@ -556,6 +557,7 @@ function SmartListingNewPage() {
   const [exclusiveUnits, setExclusiveUnits] = useState<ExclusiveUnit[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<ExclusiveUnit | null>(null);
   const [isCollectiveBuilding, setIsCollectiveBuilding] = useState(false);
+  const [ownerInfoList, setOwnerInfoList] = useState<Array<{ 소유자명: string; 소유자구분: string; 지분: string; 주민번호성별코드: string; 성별: string; 동명: string; 호명: string }>>([]);
   const [showBuildingDoc, setShowBuildingDoc] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [useEnhanced, setUseEnhanced] = useState(true);
@@ -888,7 +890,7 @@ const updateForm = (updates: Partial<FormData>) => {
               platGbCd: '0',
               bun: addressData.bun || '0000',
               ji: addressData.ji || '0000',
-              operations: ['exposPubuseArea'],
+              operations: ['exposPubuseArea', 'ownerInfo'],
             }),
           });
           if (exRes.ok) {
@@ -905,6 +907,10 @@ const updateForm = (updates: Partial<FormData>) => {
 
       if (info.전유부 && info.전유부.length > 0) {
         setExclusiveUnits(info.전유부);
+      }
+
+      if (info.소유자정보 && info.소유자정보.length > 0) {
+        setOwnerInfoList(info.소유자정보);
       }
 
       setBuildingInfo(info);
@@ -1764,6 +1770,32 @@ ${floorRows}</table></div>` : ''}
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-3 mt-3 text-xs text-gray-500 flex items-center gap-2">
                   <span>ℹ️</span>
                   <span>일반건축물입니다. 면적 정보를 직접 입력합니다.</span>
+                </div>
+              )}
+
+              {/* 소유자 정보 (관리자 전용) */}
+              {ownerInfoList && ownerInfoList.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-bold text-amber-900 flex items-center gap-2 text-sm">소유자 정보 (관리자 전용)</h3>
+                    <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded-full font-medium">고객 비노출</span>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs border-collapse">
+                      <thead><tr className="bg-amber-100 text-amber-800">
+                        <th className="px-3 py-2 text-left">소유자명</th><th className="px-3 py-2 text-left">구분</th><th className="px-3 py-2 text-left">성별</th><th className="px-3 py-2 text-left">지분</th><th className="px-3 py-2 text-left">동/호</th>
+                      </tr></thead>
+                      <tbody>{ownerInfoList.map((owner, idx) => (
+                        <tr key={idx} className="border-b border-amber-100 hover:bg-amber-50">
+                          <td className="px-3 py-2 font-medium">{owner.소유자명}</td>
+                          <td className="px-3 py-2 text-gray-600">{owner.소유자구분}</td>
+                          <td className="px-3 py-2">{owner.성별 ? <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${owner.성별 === "남" ? "bg-blue-100 text-blue-700" : "bg-pink-100 text-pink-700"}`}>{owner.성별} ({owner.주민번호성별코드})</span> : <span className="text-gray-400">-</span>}</td>
+                          <td className="px-3 py-2 text-gray-600">{owner.지분 || "-"}</td>
+                          <td className="px-3 py-2 text-gray-600">{owner.동명 || owner.호명 ? `${owner.동명} ${owner.호명}`.trim() : "-"}</td>
+                        </tr>))}</tbody>
+                    </table>
+                  </div>
+                  <p className="text-xs text-amber-600 mt-2">* 본 정보는 건축물대장 공공데이터에서 조회된 것이며, 관리자 화면에서만 표시됩니다.</p>
                 </div>
               )}
 
