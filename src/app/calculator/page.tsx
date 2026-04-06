@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Calculator, Building2, Home, TrendingDown, Info, ChevronDown } from 'lucide-react';
 
-import { createClient } from '@/lib/supabase';
 type LoanType = 'mortgage' | 'jeonse';
 type RepaymentType = 'equal_principal_interest' | 'equal_principal' | 'bullet';
 
@@ -47,32 +46,8 @@ export default function LoanCalculatorPage() {
 
   // Supabase에서 최신 금리 가져오기
   useEffect(() => {
-    // DEFAULT_RATE_PRESETS를 우선 사용, DB에서 최신 데이터 있으면 덮어쓰기
     setRatePresets(DEFAULT_RATE_PRESETS);
     setRatesLastUpdated(new Date().toLocaleDateString('ko-KR'));
-    
-    const fetchRates = async () => {
-      try {
-        const response = await fetch('/api/rates');
-        const result = await response.json();
-        if (result.success && result.data) {
-          const dbRates = result.data;
-          if (dbRates.mortgage_rates?.length > 0 && dbRates.jeonse_rates?.length > 0) {
-            setRatePresets({
-              mortgage: dbRates.mortgage_rates,
-              jeonse: dbRates.jeonse_rates,
-            });
-            if (dbRates.updated_at) {
-              setRatesLastUpdated(new Date(dbRates.updated_at).toLocaleDateString('ko-KR'));
-            }
-          }
-        }
-      } catch (e) {
-        // DB 연결 실패 시 기본값 유지
-        console.log('Using default rate presets');
-      }
-    };
-    fetchRates();
   }, []);
 
   const result = useMemo(() => {
