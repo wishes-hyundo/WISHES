@@ -13,7 +13,12 @@ interface ImageGalleryProps {
 }
 
 function getMosaicUrl(url: string): string {
-  if (url && url.includes('supabase.co/storage/')) {
+  if (!url) return url;
+  if (url.startsWith('/api/mosaic-image')) return url;
+  const isSupabase = url.includes('supabase.co/storage/');
+  const isR2Proxy = url.includes('/api/images/');
+  const isR2Direct = url.includes('pub-e16c7a50584c4db7be3571746cd80716.r2.dev');
+  if (isSupabase || isR2Proxy || isR2Direct) {
     return '/api/mosaic-image?url=' + encodeURIComponent(url);
   }
   return url;
