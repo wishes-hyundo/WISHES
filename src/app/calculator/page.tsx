@@ -15,8 +15,8 @@ interface RatePreset {
 const DEFAULT_MORTGAGE_PRESETS: RatePreset[] = [
   { label: '시중은행 주담대(고정)', rate: 4.8, description: '시중은행 평균 고정금리' },
   { label: '보금자리론', rate: 4.5, description: '한국주택금융공사 고정금리' },
-  { label: '디딸돌대출', rate: 3.5, description: '주택도시기금 정책대출' },
-  { label: '신혼부부 디딸돌', rate: 2.7, description: '주택도시기금 신혼부부 우대' },
+  { label: '디딤돌대출', rate: 3.5, description: '주택도시기금 정책대출' },
+  { label: '신혼부부 디딤돌', rate: 2.7, description: '주택도시기금 신혼부부 우대' },
 ];
 
 const DEFAULT_JEONSE_PRESETS: RatePreset[] = [
@@ -118,7 +118,7 @@ function LoanCalculator() {
           <div className="text-xs text-blue-700 space-y-1">
             <p className="font-semibold">금리 출처 안내 (자동 업데이트)</p>
             <p>기준금리 · 주택담보대출: 한국은행 ECOS (경제통계시스템)</p>
-            <p>보금자리론 · 디딸돌: 한국주택금융공사 / 주택도시기금</p>
+            <p>보금자리론 · 디딤돌: 한국주택금융공사 / 주택도시기금</p>
             <p>전세대출: 전국은행연합회 소비자포털 참고</p>
             {ratesLastUpdated && <p className="text-blue-500">최종 업데이트: {ratesLastUpdated} ({ratesSource})</p>}
           </div>
