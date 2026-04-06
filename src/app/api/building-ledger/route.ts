@@ -5,12 +5,8 @@ const SERVICE_KEY =
 
 const BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService";
 
-// 소유자정보는 HubService에 없을 수 있으므로 여러 서비스를 순차 시도
-const OWNER_API_URLS = [
-  "https://apis.data.go.kr/1613000/BldRgstHubService",
-  "https://apis.data.go.kr/1613000/BldRgstService_v2",
-  "https://apis.data.go.kr/1613000/BldRgstService",
-];
+// ìì ìì ë³´ë HubServiceì ìì ì ìì¼ë¯ë¡ ì¬ë¬ ìë¹ì¤ë¥¼ ìì°¨ ìë
+const OWNER_API_URL = "https://apis.data.go.kr/1611000/OwnerInfoService/getArchitecturePossessionInfo";
 
 const OPERATIONS: Record<string, string> = {
   basis: "getBrBasisOulnInfo",
@@ -30,14 +26,14 @@ export async function POST(request: NextRequest) {
 
     if (!sigunguCd || !bjdongCd) {
       return NextResponse.json(
-        { error: "시군구코드와 법정동코드는 필수입니다." },
+        { error: "ìêµ°êµ¬ì½ëì ë²ì ëì½ëë íììëë¤." },
         { status: 400 }
       );
     }
 
     if (!SERVICE_KEY) {
       return NextResponse.json(
-        { error: "건축물대장 API 키가 설정되지 않았습니다." },
+        { error: "ê±´ì¶ë¬¼ëì¥ API í¤ê° ì¤ì ëì§ ìììµëë¤." },
         { status: 500 }
       );
     }
@@ -58,7 +54,7 @@ export async function POST(request: NextRequest) {
         const opName = OPERATIONS[op];
         if (!opName) throw new Error("Invalid operation: " + op);
 
-        // 소유자정보는 여러 서비스 URL + 여러 인코딩 방식 순차 시도
+        // ìì ìì ë³´ë ì¬ë¬ ìë¹ì¤ URL + ì¬ë¬ ì¸ì½ë© ë°©ì ìì°¨ ìë
         if (op === "ownerInfo") {
           return await fetchOwnerInfoWithFallback(opName, baseParams);
         }
@@ -106,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     const extracted = extractPropertyInfo(combinedResult);
 
-    // 소유자정보가 있으면 성별 등 추가 처리
+    // ìì ìì ë³´ê° ìì¼ë©´ ì±ë³ ë± ì¶ê° ì²ë¦¬
     if (combinedResult.ownerInfo?.items?.length > 0) {
       combinedResult.ownerInfo.items = processOwnerInfo(
 combinedResult.ownerInfo.items
@@ -121,7 +117,7 @@ combinedResult.ownerInfo.items
   } catch (error: any) {
     console.error("[building-ledger] error:", error);
     return NextResponse.json(
-      { error: error.message || "건축물대장 조회 중 오류 발생" },
+      { error: error.message || "ê±´ì¶ë¬¼ëì¥ ì¡°í ì¤ ì¤ë¥ ë°ì" },
       { status: 500 }
     );
   }
@@ -135,55 +131,55 @@ function extractPropertyInfo(data: Record<string, any>) {
   const exposItems = data.exposPubuseArea?.items || [];
 
   const isCollectiveBuilding =
-    basis.regstrGbCdNm === "집합" ||
-    recapTitle.regstrGbCdNm === "집합" ||
-    title.regstrGbCdNm === "집합";
+    basis.regstrGbCdNm === "ì§í©" ||
+    recapTitle.regstrGbCdNm === "ì§í©" ||
+    title.regstrGbCdNm === "ì§í©";
 
   const exclusiveUnits = processExclusiveUnits(exposItems);
 
   return {
-    건물명: basis.bldNm || title.bldNm || "",
-    주용도: basis.mainPurpsCdNm || title.mainPurpsCdNm || "",
-    기타용도: basis.etcPurps || "",
-    건물구조: basis.strctCdNm || title.strctCdNm || "",
-    지붕구조: basis.roofCdNm || "",
-    대지면적: parseFloat(recapTitle.platArea || basis.platArea || "0"),
-    건축면적: parseFloat(recapTitle.archArea || basis.archArea || "0"),
-    연면적: parseFloat(recapTitle.totArea || basis.totArea || "0"),
-    건폐율: parseFloat(recapTitle.bcRat || basis.bcRat || "0"),
-    용적률: parseFloat(recapTitle.vlRat || basis.vlRat || "0"),
-    지상층수: parseInt(basis.grndFlrCnt || title.grndFlrCnt || "0"),
-    지하층수: parseInt(basis.ugrndFlrCnt || title.ugrndFlrCnt || "0"),
-    승용엘리베이터: parseInt(
+    ê±´ë¬¼ëª: basis.bldNm || title.bldNm || "",
+    ì£¼ì©ë: basis.mainPurpsCdNm || title.mainPurpsCdNm || "",
+    ê¸°íì©ë: basis.etcPurps || "",
+    ê±´ë¬¼êµ¬ì¡°: basis.strctCdNm || title.strctCdNm || "",
+    ì§ë¶êµ¬ì¡°: basis.roofCdNm || "",
+    ëì§ë©´ì : parseFloat(recapTitle.platArea || basis.platArea || "0"),
+    ê±´ì¶ë©´ì : parseFloat(recapTitle.archArea || basis.archArea || "0"),
+    ì°ë©´ì : parseFloat(recapTitle.totArea || basis.totArea || "0"),
+    ê±´íì¨: parseFloat(recapTitle.bcRat || basis.bcRat || "0"),
+    ì©ì ë¥ : parseFloat(recapTitle.vlRat || basis.vlRat || "0"),
+    ì§ìì¸µì: parseInt(basis.grndFlrCnt || title.grndFlrCnt || "0"),
+    ì§íì¸µì: parseInt(basis.ugrndFlrCnt || title.ugrndFlrCnt || "0"),
+    ì¹ì©ìë¦¬ë² ì´í°: parseInt(
       basis.rideUseElvtCnt || title.rideUseElvtCnt || "0"
     ),
-    비상용엘리베이터: parseInt(
+    ë¹ìì©ìë¦¬ë² ì´í°: parseInt(
       basis.emgenUseElvtCnt || title.emgenUseElvtCnt || "0"
     ),
-    옥내기계식주차: parseInt(basis.indrMechUtcnt || "0"),
-    옥내자주식주차: parseInt(basis.indrAutoUtcnt || "0"),
-    옥외기계식주차: parseInt(basis.oudrMechUtcnt || "0"),
-    옥외자주식주차: parseInt(basis.oudrAutoUtcnt || "0"),
-    총주차대수:
+    ì¥ë´ê¸°ê³ìì£¼ì°¨: parseInt(basis.indrMechUtcnt || "0"),
+    ì¥ë´ìì£¼ìì£¼ì°¨: parseInt(basis.indrAutoUtcnt || "0"),
+    ì¥ì¸ê¸°ê³ìì£¼ì°¨: parseInt(basis.oudrMechUtcnt || "0"),
+    ì¥ì¸ìì£¼ìì£¼ì°¨: parseInt(basis.oudrAutoUtcnt || "0"),
+    ì´ì£¼ì°¨ëì:
       parseInt(basis.indrMechUtcnt || "0") +
       parseInt(basis.indrAutoUtcnt || "0") +
       parseInt(basis.oudrMechUtcnt || "0") +
       parseInt(basis.oudrAutoUtcnt || "0"),
-    허가일: basis.pmsDay || "",
-    사용승인일: basis.useAprDay || title.useAprDay || "",
-    대장구분: basis.regstrGbCdNm || "",
-    도로명주소: basis.newPlatPlc || title.newPlatPlc || "",
-    지번주소: basis.platPlc || title.platPlc || "",
-    세대수: parseInt(basis.hhldCnt || recapTitle.hhldCnt || "0"),
-    호수: parseInt(basis.hoCnt || recapTitle.hoCnt || "0"),
-    층별개요: floors.map((f: any) => ({
-      층번호: f.flrNo,
-      층구분: f.flrGbCdNm,
-      층용도: f.mainPurpsCdNm || f.etcPurps,
-      면적: parseFloat(f.area || "0"),
+    íê°ì¼: basis.pmsDay || "",
+    ì¬ì©ì¹ì¸ì¼: basis.useAprDay || title.useAprDay || "",
+    ëì¥êµ¬ë¶: basis.regstrGbCdNm || "",
+    ëë¡ëªì£¼ì: basis.newPlatPlc || title.newPlatPlc || "",
+    ì§ë²ì£¼ì: basis.platPlc || title.platPlc || "",
+    ì¸ëì: parseInt(basis.hhldCnt || recapTitle.hhldCnt || "0"),
+    í¸ì: parseInt(basis.hoCnt || recapTitle.hoCnt || "0"),
+    ì¸µë³ê°ì: floors.map((f: any) => ({
+      ì¸µë²í¸: f.flrNo,
+      ì¸µêµ¬ë¶: f.flrGbCdNm,
+      ì¸µì©ë: f.mainPurpsCdNm || f.etcPurps,
+      ë©´ì : parseFloat(f.area || "0"),
     })),
-    집합건물여부: isCollectiveBuilding,
-    전유부: exclusiveUnits,
+    ì§í©ê±´ë¬¼ì¬ë¶: isCollectiveBuilding,
+    ì ì ë¶: exclusiveUnits,
     _raw: { basis, recapTitle, title },
   };
 }
@@ -193,11 +189,11 @@ function processExclusiveUnits(items: any[]) {
 
   const exclusiveRecords = items.filter(
     (item: any) =>
-      item.exposPubuseGbCdNm === "전유" || item.exposPubuseGbCd === "1"
+      item.exposPubuseGbCdNm === "ì ì " || item.exposPubuseGbCd === "1"
   );
   const commonRecords = items.filter(
     (item: any) =>
-      item.exposPubuseGbCdNm === "공용" || item.exposPubuseGbCd === "2"
+      item.exposPubuseGbCdNm === "ê³µì©" || item.exposPubuseGbCd === "2"
   );
 
   const unitMap = new Map<
@@ -261,140 +257,100 @@ function processExclusiveUnits(items: any[]) {
 }
 
 /**
- * 소유자정보 API를 여러 서비스 URL + 여러 인코딩 방식으로 순차 시도
- * ServiceKey 인코딩이 서비스마다 다를 수 있으므로 raw/decoded 모두 시도
+ * ìì ìì ë³´ APIë¥¼ ì¬ë¬ ìë¹ì¤ URL + ì¬ë¬ ì¸ì½ë© ë°©ìì¼ë¡ ìì°¨ ìë
+ * ServiceKey ì¸ì½ë©ì´ ìë¹ì¤ë§ë¤ ë¤ë¥¼ ì ìì¼ë¯ë¡ raw/decoded ëª¨ë ìë
  */
 async function fetchOwnerInfoWithFallback(
   opName: string,
-  baseParams: Record<string, string>
-) {
+  params: Record<string, string>
+): Promise<{ items: OwnerInfoItem[]; error?: string }> {
+  // 소유자 정보는 별도 서비스: 1611000/OwnerInfoService (NOT 1613000/BldRgstHubService)
+  // 파라미터도 snake_case 사용 (sigungu_cd, bjdong_cd 등)
+  const ownerParams: Record<string, string> = {
+    serviceKey: SERVICE_KEY,
+    numOfRows: "99999",
+    pageNo: "1",
+    sigungu_cd: params.sigunguCd || "",
+    bjdong_cd: params.bjdongCd || "",
+  };
+  if (params.bun) ownerParams.bun = params.bun;
+  if (params.ji) ownerParams.ji = params.ji;
+  if (params.platGbCd) ownerParams.plat_gb_cd = params.platGbCd;
+
   const errors: string[] = [];
 
-  // ServiceKey를 여러 방식으로 준비
-  const rawKey = SERVICE_KEY;
-  let decodedKey: string;
+  // 시도 1: 인코딩된 키 그대로
   try {
-    decodedKey = decodeURIComponent(SERVICE_KEY);
-  } catch {
-    decodedKey = SERVICE_KEY;
-  }
-
-  // 각 URL에 대해 raw key와 decoded key 모두 시도
-  for (const baseUrl of OWNER_API_URLS) {
-    const keyVariants = [
-      { label: "raw", key: rawKey },
-      { label: "decoded", key: decodedKey },
-    ];
-
-    for (const variant of keyVariants) {
-      try {
-        // URLSearchParams를 사용하지 않고 직접 URL 구성 (인코딩 제어)
-        const queryParts = [
-          "ServiceKey=" + variant.key,
-          "sigunguCd=" + baseParams.sigunguCd,
-          "bjdongCd=" + baseParams.bjdongCd,
-          "platGbCd=" + (baseParams.platGbCd || "0"),
-          "bun=" + (baseParams.bun || "0000"),
-          "ji=" + (baseParams.ji || "0000"),
-          "numOfRows=100",
-          "pageNo=1",
-          "_type=json",
-        ];
-        const url = baseUrl + "/" + opName + "?" + queryParts.join("&");
-
-        console.log(
-          "[ownerInfo] trying:",
-          baseUrl,
-          "key:",
-          variant.label
-        );
-
-        const res = await fetch(url, {
-          headers: { Accept: "application/json" },
-        });
-
-        if (!res.ok) {
-          errors.push(
-            baseUrl +
-"(" +
-              variant.label +
-              ") -> HTTP " +
-              res.status
-          );
-          continue;
+    const url = OWNER_API_URL;
+    const queryString = new URLSearchParams(ownerParams).toString();
+    const fullUrl = url + "?" + queryString;
+    console.log("[OwnerInfo] Trying encoded key:", url);
+    const res = await fetch(fullUrl);
+    if (!res.ok) {
+      errors.push(url + "(encoded) -> HTTP " + res.status);
+    } else {
+      const text = await res.text();
+      const parser = new (await import("fast-xml-parser")).XMLParser();
+      const json = parser.parse(text);
+      const header = json?.response?.header;
+      if (header?.resultCode === "00") {
+        const body = json?.response?.body;
+        const rawItems = body?.items?.item;
+        if (rawItems) {
+          const items = Array.isArray(rawItems) ? rawItems : [rawItems];
+          return { items: items as OwnerInfoItem[] };
         }
-
-        const text = await res.text();
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch {
-          errors.push(
-            baseUrl +
-              "(" +
-              variant.label +
-              ") -> not JSON: " +
-              text.substring(0, 80)
-          );
-          continue;
-        }
-
-        // API 응답 내 에러코드 확인
-        const resultCode = data?.response?.header?.resultCode;
-        if (resultCode && resultCode !== "00") {
-          errors.push(
-            baseUrl +
-              "(" +
-              variant.label +
-              ") -> code:" +
-              resultCode +
-              " " +
-              (data?.response?.header?.resultMsg || "")
-          );
-          continue;
-        }
-
-        const items = data?.response?.body?.items?.item || [];
-        const itemArray = Array.isArray(items)
-          ? items
-          : items
-          ? [items]
-          : [];
-
-        console.log(
-          "[ownerInfo] success from:",
-          baseUrl,
-          "key:",
-          variant.label,
-          "items:",
-          itemArray.length
-        );
-
-        return {
-          operation: "ownerInfo",
-          items: itemArray,
-          totalCount: data?.response?.body?.totalCount || 0,
-          source: baseUrl,
-          keyType: variant.label,
-        };
-      } catch (e: any) {
-        errors.push(
-          baseUrl + "(" + variant.label + ") -> " + e.message
-        );
-        continue;
+        return { items: [] };
+      } else {
+        errors.push(url + "(encoded) -> code:" + header?.resultCode + " " + (header?.resultMsg || ""));
       }
     }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    errors.push("OwnerInfoService(encoded) -> " + msg);
   }
 
-  // 모든 시도 실패 시
-  console.error("[ownerInfo] all attempts failed:", errors);
-  throw new Error(
-    "소유자정보 조회 실패 (시도: " + errors.join(" | ") + ")"
-  );
+  // 시도 2: 디코딩된 키
+  try {
+    const decodedKey = decodeURIComponent(SERVICE_KEY);
+    const decodedParams = { ...ownerParams, serviceKey: decodedKey };
+    const url = OWNER_API_URL;
+    const queryString = new URLSearchParams(decodedParams).toString();
+    const fullUrl = url + "?" + queryString;
+    console.log("[OwnerInfo] Trying decoded key:", url);
+    const res = await fetch(fullUrl);
+    if (!res.ok) {
+      errors.push(url + "(decoded) -> HTTP " + res.status);
+    } else {
+      const text = await res.text();
+      const parser = new (await import("fast-xml-parser")).XMLParser();
+      const json = parser.parse(text);
+      const header = json?.response?.header;
+      if (header?.resultCode === "00") {
+        const body = json?.response?.body;
+        const rawItems = body?.items?.item;
+        if (rawItems) {
+          const items = Array.isArray(rawItems) ? rawItems : [rawItems];
+          return { items: items as OwnerInfoItem[] };
+        }
+        return { items: [] };
+      } else {
+        errors.push(url + "(decoded) -> code:" + header?.resultCode + " " + (header?.resultMsg || ""));
+      }
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    errors.push("OwnerInfoService(decoded) -> " + msg);
+  }
+
+  return {
+    items: [],
+    error: "소유자정보 조회 실패 (시도: " + errors.join(" | ") + ")",
+  };
 }
 
 /**
- * 소유자정보에 성별 정보 추가
+ * ìì ìì ë³´ì ì±ë³ ì ë³´ ì¶ê°
  */
 function processOwnerInfo(items: any[]) {
   return items.map((item: any) => {
@@ -425,17 +381,17 @@ function extractGenderDigit(item: any): string {
 function getGenderText(digit: string): string {
   switch (digit) {
     case "1":
-      return "남";
+      return "ë¨";
     case "2":
-      return "여";
+      return "ì¬";
     case "3":
-      return "남";
+      return "ë¨";
     case "4":
-      return "여";
+      return "ì¬";
     case "5":
-      return "남(외국인)";
+      return "ë¨(ì¸êµ­ì¸)";
     case "6":
-      return "여(외국인)";
+      return "ì¬(ì¸êµ­ì¸)";
     default:
       return "";
   }
