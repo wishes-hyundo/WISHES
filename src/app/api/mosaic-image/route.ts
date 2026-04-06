@@ -9,7 +9,7 @@ const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY!;
 
-const ALLOWED_ORIGINS = ['xbjgdsyukjdkfvcbzmjc.supabase.co'];
+const ALLOWED_ORIGINS = ['xbjgdsyukjdkfvcbzmjc.supabase.co', 'pub-e16c7a50584c4db7be3571746cd80716.r2.dev'];
 const CACHE_BUCKET = 'mosaic-cache';
 
 // ─── 캐시 키 생성 ───
