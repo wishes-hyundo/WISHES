@@ -1,8 +1,10 @@
 {
+  "framework": "nextjs",
+  "buildCommand": "next build",
   "crons": [
     {
-      "path": "/api/alerts/send",
-      "schedule": "0 9 * * *"
+      "path": "/api/cron/update-rates",
+      "schedule": "0 0 * * *"
     }
   ]
 }
