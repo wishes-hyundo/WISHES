@@ -4,7 +4,7 @@ const SERVICE_KEY =
   process.env.DATA_GO_KR_API_KEY || process.env.BUILDING_LEDGER_API_KEY || "";
 
 const BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService";
-const BASE_URL_OWNER = "https://apis.data.go.kr/1613000/BldRgstService";
+const BASE_URL_OWNER = "https://apis.data.go.kr/1613000/BldRgstService_v2";
 
 const OPERATIONS: Record<string, string> = {
   basis: "getBrBasisOulnInfo",
