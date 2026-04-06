@@ -5,7 +5,7 @@ const SERVICE_KEY =
 
 const BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService";
 
-// ìì ìì ë³´ë HubServiceì ìì ì ìì¼ë¯ë¡ ì¬ë¬ ìë¹ì¤ë¥¼ ìì°¨ ìë
+// 소유자정보는 HubService에 없을 수 있으므로 여러 서비스를 순차 시도
 const OWNER_API_URL = "https://apis.data.go.kr/1611000/OwnerInfoService/getArchitecturePossessionInfo";
 
 const OPERATIONS: Record<string, string> = {
@@ -26,14 +26,14 @@ export async function POST(request: NextRequest) {
 
     if (!sigunguCd || !bjdongCd) {
       return NextResponse.json(
-        { error: "ìêµ°êµ¬ì½ëì ë²ì ëì½ëë íììëë¤." },
+        { error: "시군구코드와 법정동코드는 필수입니다." },
         { status: 400 }
       );
     }
 
     if (!SERVICE_KEY) {
       return NextResponse.json(
-        { error: "ê±´ì¶ë¬¼ëì¥ API í¤ê° ì¤ì ëì§ ìììµëë¤." },
+        { error: "건축물대장 API 키가 설정되지 않았습니다." },
         { status: 500 }
       );
     }
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         const opName = OPERATIONS[op];
         if (!opName) throw new Error("Invalid operation: " + op);
 
-        // ìì ìì ë³´ë ì¬ë¬ ìë¹ì¤ URL + ì¬ë¬ ì¸ì½ë© ë°©ì ìì°¨ ìë
+        // 소유자정보는 여러 서비스 URL + 여러 인코딩 방식 순차 시도
         if (op === "ownerInfo") {
           return await fetchOwnerInfoWithFallback(opName, baseParams);
         }
@@ -102,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     const extracted = extractPropertyInfo(combinedResult);
 
-    // ìì ìì ë³´ê° ìì¼ë©´ ì±ë³ ë± ì¶ê° ì²ë¦¬
+    // 소유자정보가 있으면 성별 등 추가 처리
     if (combinedResult.ownerInfo?.items?.length > 0) {
       combinedResult.ownerInfo.items = processOwnerInfo(
 combinedResult.ownerInfo.items
@@ -117,7 +117,7 @@ combinedResult.ownerInfo.items
   } catch (error: any) {
     console.error("[building-ledger] error:", error);
     return NextResponse.json(
-      { error: error.message || "ê±´ì¶ë¬¼ëì¥ ì¡°í ì¤ ì¤ë¥ ë°ì" },
+      { error: error.message || "건축물대장 조회 중 오류 발생" },
       { status: 500 }
     );
   }
@@ -131,55 +131,55 @@ function extractPropertyInfo(data: Record<string, any>) {
   const exposItems = data.exposPubuseArea?.items || [];
 
   const isCollectiveBuilding =
-    basis.regstrGbCdNm === "ì§í©" ||
-    recapTitle.regstrGbCdNm === "ì§í©" ||
-    title.regstrGbCdNm === "ì§í©";
+    basis.regstrGbCdNm === "집합" ||
+    recapTitle.regstrGbCdNm === "집합" ||
+    title.regstrGbCdNm === "집합";
 
   const exclusiveUnits = processExclusiveUnits(exposItems);
 
   return {
-    ê±´ë¬¼ëª: basis.bldNm || title.bldNm || "",
-    ì£¼ì©ë: basis.mainPurpsCdNm || title.mainPurpsCdNm || "",
-    ê¸°íì©ë: basis.etcPurps || "",
-    ê±´ë¬¼êµ¬ì¡°: basis.strctCdNm || title.strctCdNm || "",
-    ì§ë¶êµ¬ì¡°: basis.roofCdNm || "",
-    ëì§ë©´ì : parseFloat(recapTitle.platArea || basis.platArea || "0"),
-    ê±´ì¶ë©´ì : parseFloat(recapTitle.archArea || basis.archArea || "0"),
-    ì°ë©´ì : parseFloat(recapTitle.totArea || basis.totArea || "0"),
-    ê±´íì¨: parseFloat(recapTitle.bcRat || basis.bcRat || "0"),
-    ì©ì ë¥ : parseFloat(recapTitle.vlRat || basis.vlRat || "0"),
-    ì§ìì¸µì: parseInt(basis.grndFlrCnt || title.grndFlrCnt || "0"),
-    ì§íì¸µì: parseInt(basis.ugrndFlrCnt || title.ugrndFlrCnt || "0"),
-    ì¹ì©ìë¦¬ë² ì´í°: parseInt(
+    건물명: basis.bldNm || title.bldNm || "",
+    주용도: basis.mainPurpsCdNm || title.mainPurpsCdNm || "",
+    기타용도: basis.etcPurps || "",
+    건물구조: basis.strctCdNm || title.strctCdNm || "",
+    지붕구조: basis.roofCdNm || "",
+    대지면적: parseFloat(recapTitle.platArea || basis.platArea || "0"),
+    건축면적: parseFloat(recapTitle.archArea || basis.archArea || "0"),
+    연면적: parseFloat(recapTitle.totArea || basis.totArea || "0"),
+    건폐율: parseFloat(recapTitle.bcRat || basis.bcRat || "0"),
+    용적률: parseFloat(recapTitle.vlRat || basis.vlRat || "0"),
+    지상층수: parseInt(basis.grndFlrCnt || title.grndFlrCnt || "0"),
+    지하층수: parseInt(basis.ugrndFlrCnt || title.ugrndFlrCnt || "0"),
+    승용엘리베이터: parseInt(
       basis.rideUseElvtCnt || title.rideUseElvtCnt || "0"
     ),
-    ë¹ìì©ìë¦¬ë² ì´í°: parseInt(
+    비상용엘리베이터: parseInt(
       basis.emgenUseElvtCnt || title.emgenUseElvtCnt || "0"
     ),
-    ì¥ë´ê¸°ê³ìì£¼ì°¨: parseInt(basis.indrMechUtcnt || "0"),
-    ì¥ë´ìì£¼ìì£¼ì°¨: parseInt(basis.indrAutoUtcnt || "0"),
-    ì¥ì¸ê¸°ê³ìì£¼ì°¨: parseInt(basis.oudrMechUtcnt || "0"),
-    ì¥ì¸ìì£¼ìì£¼ì°¨: parseInt(basis.oudrAutoUtcnt || "0"),
-    ì´ì£¼ì°¨ëì:
+    옥내기계식주차: parseInt(basis.indrMechUtcnt || "0"),
+    옥내자주식주차: parseInt(basis.indrAutoUtcnt || "0"),
+    옥외기계식주차: parseInt(basis.oudrMechUtcnt || "0"),
+    옥외자주식주차: parseInt(basis.oudrAutoUtcnt || "0"),
+    총주차대수:
       parseInt(basis.indrMechUtcnt || "0") +
       parseInt(basis.indrAutoUtcnt || "0") +
       parseInt(basis.oudrMechUtcnt || "0") +
       parseInt(basis.oudrAutoUtcnt || "0"),
-    íê°ì¼: basis.pmsDay || "",
-    ì¬ì©ì¹ì¸ì¼: basis.useAprDay || title.useAprDay || "",
-    ëì¥êµ¬ë¶: basis.regstrGbCdNm || "",
-    ëë¡ëªì£¼ì: basis.newPlatPlc || title.newPlatPlc || "",
-    ì§ë²ì£¼ì: basis.platPlc || title.platPlc || "",
-    ì¸ëì: parseInt(basis.hhldCnt || recapTitle.hhldCnt || "0"),
-    í¸ì: parseInt(basis.hoCnt || recapTitle.hoCnt || "0"),
-    ì¸µë³ê°ì: floors.map((f: any) => ({
-      ì¸µë²í¸: f.flrNo,
-      ì¸µêµ¬ë¶: f.flrGbCdNm,
-      ì¸µì©ë: f.mainPurpsCdNm || f.etcPurps,
-      ë©´ì : parseFloat(f.area || "0"),
+    허가일: basis.pmsDay || "",
+    사용승인일: basis.useAprDay || title.useAprDay || "",
+    대장구분: basis.regstrGbCdNm || "",
+    도로명주소: basis.newPlatPlc || title.newPlatPlc || "",
+    지번주소: basis.platPlc || title.platPlc || "",
+    세대수: parseInt(basis.hhldCnt || recapTitle.hhldCnt || "0"),
+    호수: parseInt(basis.hoCnt || recapTitle.hoCnt || "0"),
+    층별개요: floors.map((f: any) => ({
+      층번호: f.flrNo,
+      층구분: f.flrGbCdNm,
+      층용도: f.mainPurpsCdNm || f.etcPurps,
+      면적: parseFloat(f.area || "0"),
     })),
-    ì§í©ê±´ë¬¼ì¬ë¶: isCollectiveBuilding,
-    ì ì ë¶: exclusiveUnits,
+    집합건물여부: isCollectiveBuilding,
+    전유부: exclusiveUnits,
     _raw: { basis, recapTitle, title },
   };
 }
@@ -189,11 +189,11 @@ function processExclusiveUnits(items: any[]) {
 
   const exclusiveRecords = items.filter(
     (item: any) =>
-      item.exposPubuseGbCdNm === "ì ì " || item.exposPubuseGbCd === "1"
+      item.exposPubuseGbCdNm === "전유" || item.exposPubuseGbCd === "1"
   );
   const commonRecords = items.filter(
     (item: any) =>
-      item.exposPubuseGbCdNm === "ê³µì©" || item.exposPubuseGbCd === "2"
+      item.exposPubuseGbCdNm === "공용" || item.exposPubuseGbCd === "2"
   );
 
   const unitMap = new Map<
@@ -257,8 +257,8 @@ function processExclusiveUnits(items: any[]) {
 }
 
 /**
- * ìì ìì ë³´ APIë¥¼ ì¬ë¬ ìë¹ì¤ URL + ì¬ë¬ ì¸ì½ë© ë°©ìì¼ë¡ ìì°¨ ìë
- * ServiceKey ì¸ì½ë©ì´ ìë¹ì¤ë§ë¤ ë¤ë¥¼ ì ìì¼ë¯ë¡ raw/decoded ëª¨ë ìë
+ * 소유자정보 API를 여러 서비스 URL + 여러 인코딩 방식으로 순차 시도
+ * ServiceKey 인코딩이 서비스마다 다를 수 있으므로 raw/decoded 모두 시도
  */
 async function fetchOwnerInfoWithFallback(
   opName: string,
@@ -350,7 +350,7 @@ async function fetchOwnerInfoWithFallback(
 }
 
 /**
- * ìì ìì ë³´ì ì±ë³ ì ë³´ ì¶ê°
+ * 소유자정보에 성별 정보 추가
  */
 function processOwnerInfo(items: any[]) {
   return items.map((item: any) => {
@@ -381,17 +381,17 @@ function extractGenderDigit(item: any): string {
 function getGenderText(digit: string): string {
   switch (digit) {
     case "1":
-      return "ë¨";
+      return "남";
     case "2":
-      return "ì¬";
+      return "여";
     case "3":
-      return "ë¨";
+      return "남";
     case "4":
-      return "ì¬";
+      return "여";
     case "5":
-      return "ë¨(ì¸êµ­ì¸)";
+      return "남(외국인)";
     case "6":
-      return "ì¬(ì¸êµ­ì¸)";
+      return "여(외국인)";
     default:
       return "";
   }
