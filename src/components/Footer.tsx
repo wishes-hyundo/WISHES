@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-export default function Footer() {
+export function Footer() {
   return (
     <footer className="bg-wishes-primary text-white">
       <div className="max-w-6xl mx-auto px-4 py-6">
@@ -54,3 +54,5 @@ export default function Footer() {
     </footer>
   );
 }
+
+export default Footer;
