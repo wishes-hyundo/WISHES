@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase';
 
-// Vercel Cron - runs daily at 9:00 AM KST (0:00 UTC)
+// Vercel Cron - 매일 오전 9시(KST) 자동 실행
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -29,28 +29,36 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const supabase = createClient();
+    // 서버 클라이언트 (service_role key) 사용 - RLS 우회
+    const supabase = createServerClient();
     
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('loan_rates')
       .insert({
         mortgage_rates: LATEST_MORTGAGE_RATES,
         jeonse_rates: LATEST_JEONSE_RATES,
         updated_at: new Date().toISOString(),
-      });
+      })
+      .select();
 
     if (error) {
-      console.error('Supabase insert error:', error);
-      return NextResponse.json({ error: 'DB update failed', detail: error.message }, { status: 500 });
+      return NextResponse.json({ 
+        error: 'DB update failed', 
+        detail: error.message,
+        code: error.code 
+      }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
       updated_at: new Date().toISOString(),
-      message: 'Rates updated successfully',
+      message: '금리 업데이트 완료',
+      data: data,
     });
-  } catch (error) {
-    console.error('Cron job error:', error);
-    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ 
+      error: 'Internal error', 
+      detail: error?.message 
+    }, { status: 500 });
   }
 }
