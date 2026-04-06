@@ -4,6 +4,7 @@ const SERVICE_KEY =
   process.env.DATA_GO_KR_API_KEY || process.env.BUILDING_LEDGER_API_KEY || "";
 
 const BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService";
+const BASE_URL_OWNER = "https://apis.data.go.kr/1613000/BldRgstService";
 
 const OPERATIONS: Record<string, string> = {
   basis: "getBrBasisOulnInfo",
@@ -62,7 +63,8 @@ export async function POST(request: NextRequest) {
           _type: "json",
         });
 
-        const url = BASE_URL + "/" + opName + "?" + params.toString();
+        const baseUrl = op === "ownerInfo" ? BASE_URL_OWNER : BASE_URL;
+        const url = baseUrl + "/" + opName + "?" + params.toString();
 
         const res = await fetch(url, {
           headers: { Accept: "application/json" },
