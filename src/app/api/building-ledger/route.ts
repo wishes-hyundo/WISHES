@@ -5,8 +5,13 @@ const SERVICE_KEY =
 
 const BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService";
 
-// Owner info uses separate service: 1611000/OwnerInfoService (NOT 1613000/BldRgstHubService)
-const OWNER_API_URL = "https://apis.data.go.kr/1611000/OwnerInfoService/getArchitecturePossessionInfo";
+// Owner info: try 1613000 services first (JSON), then 1611000 (XML) as fallback
+const OWNER_API_URLS = [
+  "https://apis.data.go.kr/1613000/BldRgstHubService",
+  "https://apis.data.go.kr/1613000/BldRgstService_v2",
+  "https://apis.data.go.kr/1613000/BldRgstService",
+];
+const OWNER_1611_URL = "https://apis.data.go.kr/1611000/OwnerInfoService/getArchitecturePossessionInfo";
 
 const OPERATIONS: Record<string, string> = {
   basis: "getBrBasisOulnInfo",
@@ -257,91 +262,119 @@ function processExclusiveUnits(items: any[]) {
 }
 
 /**
- * Fetch owner info from 1611000/OwnerInfoService
- * Uses snake_case params: sigungu_cd, bjdong_cd, plat_gb_cd
- * Tries both encoded and decoded service key
+ * Fetch owner info with fallback across multiple services
+ * 1) Try 1613000 services (getBrOwnJtInfo) - JSON response
+ * 2) Try 1611000/OwnerInfoService - XML response (needs separate API key registration)
  */
 async function fetchOwnerInfoWithFallback(
   opName: string,
   baseParams: Record<string, string>
 ) {
-  const ownerParams: Record<string, string> = {
-    serviceKey: SERVICE_KEY,
-    numOfRows: "99999",
-    pageNo: "1",
-    sigungu_cd: baseParams.sigunguCd || "",
-    bjdong_cd: baseParams.bjdongCd || "",
-  };
-  if (baseParams.bun && baseParams.bun !== "0000") ownerParams.bun = baseParams.bun;
-  if (baseParams.ji && baseParams.ji !== "0000") ownerParams.ji = baseParams.ji;
-  if (baseParams.platGbCd) ownerParams.plat_gb_cd = baseParams.platGbCd;
-
   const errors: string[] = [];
 
-  // Attempt 1: encoded key
-  try {
-    const queryString = new URLSearchParams(ownerParams).toString();
-    const fullUrl = OWNER_API_URL + "?" + queryString;
-    console.log("[OwnerInfo] Trying encoded key");
-    const res = await fetch(fullUrl);
-    if (!res.ok) {
-      errors.push("encoded -> HTTP " + res.status);
-    } else {
-      const text = await res.text();
-      const parser = new (await import("fast-xml-parser")).XMLParser();
-      const json = parser.parse(text);
-      const header = json?.response?.header;
-      if (header?.resultCode === "00") {
-        const body = json?.response?.body;
-        const rawItems = body?.items?.item;
-        if (rawItems) {
-          const items = Array.isArray(rawItems) ? rawItems : [rawItems];
-          console.log("[OwnerInfo] Success with encoded key, items:", items.length);
-          return { operation: "ownerInfo", items, totalCount: body?.totalCount || 0, source: OWNER_API_URL, keyType: "encoded" };
-        }
-        return { operation: "ownerInfo", items: [], totalCount: 0 };
-      } else {
-        errors.push("encoded -> code:" + header?.resultCode + " " + (header?.resultMsg || ""));
+  // === Phase 1: Try 1613000 services (JSON, same API key) ===
+  for (const baseUrl of OWNER_API_URLS) {
+    try {
+      const params = new URLSearchParams({
+        ServiceKey: decodeURIComponent(SERVICE_KEY),
+        sigunguCd: baseParams.sigunguCd || "",
+        bjdongCd: baseParams.bjdongCd || "",
+        platGbCd: baseParams.platGbCd || "0",
+        bun: baseParams.bun || "0000",
+        ji: baseParams.ji || "0000",
+        numOfRows: "99999",
+        pageNo: "1",
+        _type: "json",
+      });
+      const url = baseUrl + "/" + opName + "?" + params.toString();
+      console.log("[OwnerInfo] Trying 1613000:", baseUrl.split("/").pop());
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) {
+        errors.push(baseUrl.split("/").pop() + " -> HTTP " + res.status);
+        continue;
       }
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { errors.push(baseUrl.split("/").pop() + " -> not JSON"); continue; }
+      const items = data?.response?.body?.items?.item;
+      if (items) {
+        const arr = Array.isArray(items) ? items : [items];
+        if (arr.length > 0) {
+          console.log("[OwnerInfo] Success from", baseUrl.split("/").pop(), "items:", arr.length);
+          return { operation: "ownerInfo", items: arr, totalCount: data?.response?.body?.totalCount || 0, source: baseUrl };
+        }
+      }
+      // resultCode check
+      const code = data?.response?.header?.resultCode;
+      if (code && code !== "00") {
+        errors.push(baseUrl.split("/").pop() + " -> code:" + code);
+      } else {
+        errors.push(baseUrl.split("/").pop() + " -> empty");
+      }
+    } catch (e: any) {
+      errors.push(baseUrl.split("/").pop() + " -> " + (e.message || String(e)));
     }
-  } catch (e: any) {
-    errors.push("encoded -> " + (e.message || String(e)));
   }
 
-  // Attempt 2: decoded key
-  try {
-    const decodedKey = decodeURIComponent(SERVICE_KEY);
-    const decodedParams = { ...ownerParams, serviceKey: decodedKey };
-    const queryString = new URLSearchParams(decodedParams).toString();
-    const fullUrl = OWNER_API_URL + "?" + queryString;
-    console.log("[OwnerInfo] Trying decoded key");
-    const res = await fetch(fullUrl);
-    if (!res.ok) {
-      errors.push("decoded -> HTTP " + res.status);
-    } else {
-      const text = await res.text();
-      const parser = new (await import("fast-xml-parser")).XMLParser();
-      const json = parser.parse(text);
-      const header = json?.response?.header;
-      if (header?.resultCode === "00") {
-        const body = json?.response?.body;
-        const rawItems = body?.items?.item;
-        if (rawItems) {
-          const items = Array.isArray(rawItems) ? rawItems : [rawItems];
-          console.log("[OwnerInfo] Success with decoded key, items:", items.length);
-          return { operation: "ownerInfo", items, totalCount: body?.totalCount || 0, source: OWNER_API_URL, keyType: "decoded" };
+  // === Phase 2: Try 1611000/OwnerInfoService (XML response) ===
+  for (const keyType of ["encoded", "decoded"]) {
+    try {
+      const svcKey = keyType === "decoded" ? decodeURIComponent(SERVICE_KEY) : SERVICE_KEY;
+      const ownerParams: Record<string, string> = {
+        serviceKey: svcKey,
+        numOfRows: "99999",
+        pageNo: "1",
+        sigungu_cd: baseParams.sigunguCd || "",
+        bjdong_cd: baseParams.bjdongCd || "",
+      };
+      if (baseParams.bun && baseParams.bun !== "0000") ownerParams.bun = baseParams.bun;
+      if (baseParams.ji && baseParams.ji !== "0000") ownerParams.ji = baseParams.ji;
+      if (baseParams.platGbCd) ownerParams.plat_gb_cd = baseParams.platGbCd;
+
+      const qs = new URLSearchParams(ownerParams).toString();
+      const fullUrl = OWNER_1611_URL + "?" + qs;
+      console.log("[OwnerInfo] Trying 1611000 with", keyType, "key");
+      const res = await fetch(fullUrl);
+      if (!res.ok) { errors.push("1611000_" + keyType + " -> HTTP " + res.status); continue; }
+      const xml = await res.text();
+      // Simple XML parsing without external library
+      const codeMatch = xml.match(/<resultCode>(\d+)<\/resultCode>/);
+      if (codeMatch && codeMatch[1] === "00") {
+        const items = parseXmlItems(xml);
+        if (items.length > 0) {
+          console.log("[OwnerInfo] Success from 1611000", keyType, "items:", items.length);
+          return { operation: "ownerInfo", items, totalCount: items.length, source: OWNER_1611_URL, keyType };
         }
         return { operation: "ownerInfo", items: [], totalCount: 0 };
       } else {
-        errors.push("decoded -> code:" + header?.resultCode + " " + (header?.resultMsg || ""));
+        const msgMatch = xml.match(/<resultMsg>([^<]*)<\/resultMsg>/);
+        errors.push("1611000_" + keyType + " -> code:" + (codeMatch?.[1] || "?") + " " + (msgMatch?.[1] || ""));
       }
+    } catch (e: any) {
+      errors.push("1611000_" + keyType + " -> " + (e.message || String(e)));
     }
-  } catch (e: any) {
-    errors.push("decoded -> " + (e.message || String(e)));
   }
 
   console.error("[OwnerInfo] All attempts failed:", errors);
   throw new Error("Owner info lookup failed (" + errors.join(" | ") + ")");
+}
+
+/** Simple XML item parser for OwnerInfoService response */
+function parseXmlItems(xml: string): Record<string, string>[] {
+  const items: Record<string, string>[] = [];
+  const itemRegex = /<item>(.*?)<\/item>/gs;
+  let match;
+  while ((match = itemRegex.exec(xml)) !== null) {
+    const itemXml = match[1];
+    const item: Record<string, string> = {};
+    const fieldRegex = /<(\w+)>([^<]*)<\/\1>/g;
+    let fieldMatch;
+    while ((fieldMatch = fieldRegex.exec(itemXml)) !== null) {
+      item[fieldMatch[1]] = fieldMatch[2];
+    }
+    items.push(item);
+  }
+  return items;
 }
 
 /**
