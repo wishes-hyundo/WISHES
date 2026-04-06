@@ -132,10 +132,12 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               src={mainImage}
               alt={listing.title}
               className="w-full h-full object-cover"
+              loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-300">
-              <Building2 className="w-12 h-12" />
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
+              <Building2 className="w-14 h-14 mb-2" />
+              <span className="text-xs text-gray-400">이미지 준비 중</span>
             </div>
           )}
 
@@ -156,13 +158,13 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -240,7 +242,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </Link>
         </div>
 
-        {/* ── 상세 설명 (중개사 코멘트) ── */}
+        {/* ── 상세 설명 (중개사 코멘트, 옵션 만료 스살 레이아웃 적용) ── */}
         {listing.description && (
           <div className="p-4 border-b border-gray-100">
             <h3 className="text-sm font-bold text-gray-700 mb-2.5">중개사 코멘트</h3>
@@ -269,10 +271,10 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               <InfoItem icon={Banknote} label="거래유형" value={listing.deal} />
             )}
             {listing.area_m2 && (
-              <InfoItem icon={Maximize2} label="전용면적" value={`${listing.area_m2} (${sqmToPyeong(listing.area_m2)}평)`} />
+              <InfoItem icon={Maximize2} label="전용면적" value={`${listing.area_m2}㎡ (${sqmToPyeong(listing.area_m2)}평)`} />
             )}
             {listing.area_supply_m2 && (
-              <InfoItem icon={Layers} label="공급면적" value={`${listing.area_supply_m2}ㆡ (${sqmToPyeong(listing.area_supply_m2)}평)`} />
+              <InfoItem icon={Layers} label="공급면적" value={`${listing.area_supply_m2}㎡ (${sqmToPyeong(listing.area_supply_m2)}평)`} />
             )}
             {listing.floor_current && (
               <InfoItem icon={Building2} label="층수" value={`${listing.floor_current}${listing.floor_total ? ` / ${listing.floor_total}층` : ''}`} />
@@ -409,7 +411,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
             href={`/contact?listing_id=${listing.id}&listing_title=${encodeURIComponent(listing.title)}`}
             className="block w-full py-3.5 rounded-xl bg-wishes-primary text-white text-center text-sm font-bold shadow-md hover:shadow-lg hover:bg-wishes-primary/90 transition-all"
           >
-            온라인 상담 신청
+            오라인 상담 신청
           </Link>
         </div>
       </div>
