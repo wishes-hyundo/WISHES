@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, Eye, Hash, Flame, Sparkles, Heart } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, Eye, Flame, Sparkles, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import type { Listing } from '@/types';
@@ -130,7 +130,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-sm font-bold text-wishes-primary truncate">{price}</p>
-              <span className="text-[10px] text-wishes-secondary/70 font-mono font-medium shrink-0 bg-wishes-secondary/10 px-1.5 py-0.5 rounded">W-{listing.id}</span>
+              <span className="text-[10px] text-wishes-secondary/70 font-mono font-medium shrink-0 bg-wishes-secondary/10 px-1.5 py-0.5 rounded">매물번호 W-{listing.id}</span>
             </div>
             <p className="text-xs text-gray-600 truncate mt-0.5">{listing.title}</p>
           </div>
@@ -282,8 +282,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
             <span className="text-wishes-secondary/80 font-mono font-medium flex items-center gap-1 bg-wishes-secondary/10 px-1.5 py-0.5 rounded">
-              <Hash className="w-3 h-3" />
-              W-{listing.id}
+              매물번호 W-{listing.id}
             </span>
             <span className="text-wishes-primary/60 font-medium flex items-center gap-1">
                 <Eye className="w-3 h-3" />
