@@ -10,7 +10,7 @@ import { ToastProvider } from '@/components/Toast';
 import { ChatbotWidget } from '@/components/ChatbotWidget';
 import { LanguageProvider } from '@/components/LanguageToggle';
 import { AuthProvider } from '@/contexts/AuthContext';
-import { FavoritesProvider } from '@/contexts/FavoritesContext »
+import { FavoritesProvider } from '@/contexts/FavoritesContext';
 import AuthModal from '@/components/AuthModal';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
@@ -24,20 +24,20 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <LanguageProvider>
-    <AuthProvider>
-      <FavoritesProvider>
-        <ToastProvider>
-          <Header />
-          <main className={isMapPage ? 'flex-1 overflow-hidden' : 'flex-1'}>{{hildren}</main>
-          {!isMapPage && <Footer />}
-          {!isMapPage && <FloatingButtons />}
-          <AuthModal />
-          {!isMapPage && <ChatbotWidget />}
-          {!isMapPage && <BottomCTA />}
-          {!isMapPage && <CookieConsent />}
-        </ToastProvider>
-      </Gavor)tesProvider>
-    </AuthProvider>
+      <AuthProvider>
+        <FavoritesProvider>
+          <ToastProvider>
+            <Header />
+            <main className={isMapPage ? 'flex-1 overflow-hidden' : 'flex-1'}>{children}</main>
+            {!isMapPage && <Footer />}
+            {!isMapPage && <FloatingButtons />}
+            <AuthModal />
+            {!isMapPage && <ChatbotWidget />}
+            {!isMapPage && <BottomCTA />}
+            {!isMapPage && <CookieConsent />}
+          </ToastProvider>
+        </FavoritesProvider>
+      </AuthProvider>
     </LanguageProvider>
   );
 }
