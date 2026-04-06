@@ -138,13 +138,10 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
             <span>{listing.area_m2 || listing.area || 0}㎡</span>
             <span>·</span>
             <span>{formatFloor(listing)}</span>
-            {(listing as any).views > 0 && (
-              <>
-                <span>·</span>
-                <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" />{(listing as any).views}</span>
-              </>
-            )}
-          </div>
+           <>
+                  <span>·</span>
+                  <span className="flex items-center gap-0.5 text-wishes-primary/50"><Eye className="w-3 h-3" />{(listing as any).views || 0}회</span>
+                </>          </div>
         </div>
       </Wrapper>
     );
@@ -288,12 +285,10 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
               <Hash className="w-3 h-3" />
               W-{listing.id}
             </span>
-            {(listing as any).views > 0 && (
-              <span className="text-wishes-muted flex items-center gap-1">
+            <span className="text-wishes-primary/60 font-medium flex items-center gap-1">
                 <Eye className="w-3 h-3" />
-                {(listing as any).views}
+                {(listing as any).views || 0}회
               </span>
-            )}
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />
