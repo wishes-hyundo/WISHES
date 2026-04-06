@@ -11,6 +11,7 @@ const OPERATIONS: Record<string, string> = {
   title: "getBrTitleInfo",
   floor: "getBrFlrOulnInfo",
   exposPubuseArea: "getBrExposPubuseAreaInfo",
+  ownerInfo: "getBrOwnJtInfo",
 };
 
 type OperationType = keyof typeof OPERATIONS;
@@ -50,10 +51,13 @@ export async function POST(request: NextRequest) {
         const opName = OPERATIONS[op];
         if (!opName) throw new Error("Invalid operation: " + op);
 
+        const numOfRows =
+          op === "exposPubuseArea" ? "500" : op === "ownerInfo" ? "100" : "100";
+
         const params = new URLSearchParams({
           ServiceKey: decodeURIComponent(SERVICE_KEY),
           ...baseParams,
-          numOfRows: op === "exposPubuseArea" ? "500" : "100",
+          numOfRows,
           pageNo: "1",
           _type: "json",
         });
@@ -115,6 +119,7 @@ function extractPropertyInfo(data: Record<string, any>) {
   const title = data.title?.items?.[0] || {};
   const floors = data.floor?.items || [];
   const exposItems = data.exposPubuseArea?.items || [];
+  const ownerItems = data.ownerInfo?.items || [];
 
   const isCollectiveBuilding =
     basis.regstrGbCdNm === "집합" ||
@@ -122,6 +127,7 @@ function extractPropertyInfo(data: Record<string, any>) {
     title.regstrGbCdNm === "집합";
 
   const exclusiveUnits = processExclusiveUnits(exposItems);
+  const owners = processOwnerInfo(ownerItems);
 
   return {
     건물명: basis.bldNm || title.bldNm || "",
@@ -137,7 +143,9 @@ function extractPropertyInfo(data: Record<string, any>) {
     지상층수: parseInt(basis.grndFlrCnt || title.grndFlrCnt || "0"),
     지하층수: parseInt(basis.ugrndFlrCnt || title.ugrndFlrCnt || "0"),
     승용엘리베이터: parseInt(basis.rideUseElvtCnt || title.rideUseElvtCnt || "0"),
-    비상용엘리베이터: parseInt(basis.emgenUseElvtCnt || title.emgenUseElvtCnt || "0"),
+    비상용엘리베이터: parseInt(
+      basis.emgenUseElvtCnt || title.emgenUseElvtCnt || "0"
+    ),
     옥내기계식주차: parseInt(basis.indrMechUtcnt || "0"),
     옥내자주식주차: parseInt(basis.indrAutoUtcnt || "0"),
     옥외기계식주차: parseInt(basis.oudrMechUtcnt || "0"),
@@ -162,8 +170,82 @@ function extractPropertyInfo(data: Record<string, any>) {
     })),
     집합건물여부: isCollectiveBuilding,
     전유부: exclusiveUnits,
+    소유자정보: owners,
     _raw: { basis, recapTitle, title },
   };
+}
+
+/**
+ * 소유자 정보 가공
+ * - 소유자명, 소유자구분, 지분, 주민번호 성별자리(뒷자리 첫번째)만 추출
+ */
+function processOwnerInfo(items: any[]) {
+  if (!items || items.length === 0) return [];
+
+  return items.map((item: any) => {
+    const genderDigit = extractGenderDigit(item.jm || item.ownrNo || "");
+    const genderText = getGenderText(genderDigit);
+
+    return {
+      소유자명: item.ownrNm || "",
+      소유자구분: item.ownrRgstSeCdNm || "",
+      지분:
+        item.ownrMnnm && item.ownrSlno
+          ? item.ownrMnnm + "/" + item.ownrSlno
+          : "",
+      주민번호성별코드: genderDigit,
+      성별: genderText,
+      동명: item.dongNm || "",
+      호명: item.hoNm || "",
+    };
+  });
+}
+
+/**
+ * 주민번호에서 뒷자리 첫번째(성별) 숫자만 추출
+ * 형식: 000000-0****** 또는 0000000****** 또는 마스킹된 형태
+ */
+function extractGenderDigit(jm: string): string {
+  if (!jm) return "";
+  const cleaned = jm.replace(/[^0-9*-]/g, "");
+
+  // 하이픈 포함: 000000-0
+  if (cleaned.includes("-")) {
+    const parts = cleaned.split("-");
+    if (parts.length === 2 && parts[1].length > 0) {
+      const digit = parts[1].charAt(0);
+      if (/[1-4]/.test(digit)) return digit;
+    }
+    return "";
+  }
+
+  // 하이픈 없이 13자리 또는 7자리 이상
+  if (cleaned.length >= 7) {
+    const digit = cleaned.charAt(6);
+    if (/[1-4]/.test(digit)) return digit;
+  }
+
+  return "";
+}
+
+/**
+ * 성별코드 → 텍스트 변환
+ * 1: 남성(1900년대생), 2: 여성(1900년대생)
+ * 3: 남성(2000년대생), 4: 여성(2000년대생)
+ */
+function getGenderText(digit: string): string {
+  switch (digit) {
+    case "1":
+      return "남";
+    case "2":
+      return "여";
+    case "3":
+      return "남";
+    case "4":
+      return "여";
+    default:
+      return "";
+  }
 }
 
 /**
