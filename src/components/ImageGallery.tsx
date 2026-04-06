@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { Building2, ChevronLeft, ChevronRight, X, ZoomIn, Images } from 'lucide-react';
+import { getMosaicUrl } from '@/lib/getMosaicUrl';
 
 interface ImageGalleryProps {
   images: { id: number; url: string; alt: string | null }[];
@@ -48,7 +49,7 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
           {hasImages ? (
             <>
               <img
-                src={images[currentIdx].url}
+                src={getMosaicUrl(images[currentIdx].url)}
                 alt={images[currentIdx].alt || title}
                 className="w-full h-full object-cover transition-transform duration-300"
               />
@@ -117,7 +118,7 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
                     : 'border-transparent hover:border-gray-300 opacity-70 hover:opacity-100'
                 }`}
               >
-                <img src={img.url} alt={img.alt || ''} className="w-full h-full object-cover" />
+                <img src={getMosaicUrl(img.url)} alt={img.alt || ''} className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
@@ -147,7 +148,7 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
           {/* 메인 이미지 */}
           <div className="max-w-[90vw] max-h-[85vh] relative" onClick={(e) => e.stopPropagation()}>
             <img
-              src={images[currentIdx].url}
+              src={getMosaicUrl(images[currentIdx].url)}
               alt={images[currentIdx].alt || title}
               className="max-w-full max-h-[85vh] object-contain rounded-lg"
             />
@@ -186,7 +187,7 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
                       : 'border-transparent opacity-50 hover:opacity-80'
                   }`}
                 >
-                  <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  <img src={getMosaicUrl(img.url)} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
