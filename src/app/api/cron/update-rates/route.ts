@@ -68,8 +68,8 @@ function calculateAllRates(baseRate: number, mortgageRate: number) {
   const mortgage_rates = [
     { label: '시중은행 주담대(고정)', rate: round(mortgageRate + JEONSE_SPREADS.FIXED_PREMIUM), description: 'ECOS 주담대 평균 + 고정금리 프리미엄' },
     { label: '보금자리론', rate: round(baseRate + POLICY_SPREADS.BOGEUMJARI), description: '한국주택금융공사 고정금리' },
-    { label: '디딸돌대출', rate: round(baseRate + POLICY_SPREADS.DIDIMDOL), description: '주택도시기금 정책대출' },
-    { label: '신혼부부 디딸돌', rate: round(baseRate + POLICY_SPREADS.NEWLYWED_DIDIMDOL), description: '주택도시기금 신혼부부 우대' },
+    { label: '디딤돌대출', rate: round(baseRate + POLICY_SPREADS.DIDIMDOL), description: '주택도시기금 정책대출' },
+    { label: '신혼부부 디딤돌', rate: round(baseRate + POLICY_SPREADS.NEWLYWED_DIDIMDOL), description: '주택도시기금 신혼부부 우대' },
   ];
 
   const jeonse_rates = [
