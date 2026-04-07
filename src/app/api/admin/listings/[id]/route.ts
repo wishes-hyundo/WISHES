@@ -1,13 +1,14 @@
-// ââââââââââââââââââââââââââââââââââââââââ
-// Admin API: GET, DELETE, PATCH /api/admin/listings/[id]
-// ââââââââââââââââââââââââââââââââââââââââ
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Admin API: DELETE, PATCH /api/admin/listings/[id]
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 
 /**
- * ì¸ì¦ ê²ì¦ í¬í¼ í¨ì
+ * 인증 검증 여퍼 함수
  */
 function verifyAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
@@ -16,61 +17,7 @@ function verifyAuth(request: NextRequest): boolean {
 }
 
 /**
- * GET /api/admin/listings/[id] - ë¨ì¼ ë§¤ë¬¼ ì¡°í
- */
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    if (!verifyAuth(request)) {
-      return NextResponse.json(
-        { success: false, error: 'ì¸ì¦ ì¤í¨' },
-        { status: 401 }
-      );
-    }
-
-    const { id } = await params;
-    const listingId = parseInt(id);
-
-    if (isNaN(listingId)) {
-      return NextResponse.json(
-        { success: false, error: 'ì í¨íì§ ìì ë§¤ë¬¼ IDìëë¤' },
-        { status: 400 }
-      );
-    }
-
-    const supabase = createServerClient();
-
-    const { data, error } = await supabase
-      .from('listings')
-      .select('*, listing_images(*)')
-      .eq('id', listingId)
-      .single();
-
-    if (error) {
-      console.error('ë§¤ë¬¼ ì¡°í ì¤ë¥:', error);
-      return NextResponse.json(
-        { success: false, error: 'ë§¤ë¬¼ì ì°¾ì ì ììµëë¤' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data,
-    });
-  } catch (error) {
-    console.error('ë§¤ë¬¼ ì¡°í ì¤ë¥:', error);
-    return NextResponse.json(
-      { success: false, error: 'ë§¤ë¬¼ ì¡°íì ì¤í¨íìµëë¤' },
-      { status: 500 }
-    );
-  }
-}
-
-/**
- * DELETE /api/admin/listings/[id] - ë§¤ë¬¼ ì­ì 
+ * DELETE /api/admin/listings/[id] - 매물 삭제
  */
 export async function DELETE(
   request: NextRequest,
@@ -79,7 +26,7 @@ export async function DELETE(
   try {
     if (!verifyAuth(request)) {
       return NextResponse.json(
-        { success: false, error: 'ì¸ì¦ ì¤í¨' },
+        { success: false, error: '인증 실패' },
         { status: 401 }
       );
     }
@@ -89,7 +36,7 @@ export async function DELETE(
 
     if (isNaN(listingId)) {
       return NextResponse.json(
-        { success: false, error: 'ì í¨íì§ ìì ë§¤ë¬¼ IDìëë¤' },
+        { success: false, error: '유효하지 않은 매물 ID입니다' },
         { status: 400 }
       );
     }
@@ -102,28 +49,34 @@ export async function DELETE(
       .eq('id', listingId);
 
     if (error) {
-      console.error('ë§¤ë¬¼ ì­ì  ì¤ë¥:', error);
+      console.error('매물 삭제 오류:', error);
       return NextResponse.json(
-        { success: false, error: 'ë§¤ë¬¼ ì­ì ì ì¤í¨íìµëë¤' },
+        { success: false, error: '매물 삭제에 실패했습니다' },
         { status: 500 }
       );
     }
 
+    // 캐시 즉시 무효화 — 홈, 매물목록, 지도, 개별 매물 페이지
+    revalidatePath('/', 'layout');
+    revalidatePath('/listings', 'page');
+    revalidatePath('/map', 'page');
+    revalidatePath(`/listings/${listingId}`, 'page');
+
     return NextResponse.json({
       success: true,
-      message: 'ë§¤ë¬¼ì´ ì­ì ëììµëë¤',
+      message: '매물이 삭제되었습니다',
     });
   } catch (error) {
-    console.error('ë§¤ë¬¼ ì­ì  ì¤ë¥:', error);
+    console.error('매물 삭제 오류:', error);
     return NextResponse.json(
-      { success: false, error: 'ë§¤ë¬¼ ì­ì ì ì¤í¨íìµëë¤' },
+      { success: false, error: '매물 삭제에 실패했습니다' },
       { status: 500 }
     );
   }
 }
 
 /**
- * PATCH /api/admin/listings/[id] - ë§¤ë¬¼ ìí ë³ê²½
+ * PATCH /api/admin/listings/[id] - 매물 상태 변경
  */
 export async function PATCH(
   request: NextRequest,
@@ -132,7 +85,7 @@ export async function PATCH(
   try {
     if (!verifyAuth(request)) {
       return NextResponse.json(
-        { success: false, error: 'ì¸ì¦ ì¤í¨' },
+        { success: false, error: '인증 실패' },
         { status: 401 }
       );
     }
@@ -142,21 +95,20 @@ export async function PATCH(
 
     if (isNaN(listingId)) {
       return NextResponse.json(
-        { success: false, error: 'ì í¨íì§ ìì ë§¤ë¬¼ IDìëë¤' },
+        { success: false, error: '유효하지 않은 매물 ID입니다' },
         { status: 400 }
       );
     }
 
     const body = await request.json();
-
     const statusSchema = z.object({
-      status: z.enum(['가용', '공개', '비공개', '계약중', '계약완료']),
+      status: z.enum(['가용', '계약중', '계약완료']),
     });
 
     const parsed = statusSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
-        { success: false, error: 'ì í¨íì§ ìì ìíìëë¤' },
+        { success: false, error: '유효하지 않은 상태입니다' },
         { status: 400 }
       );
     }
@@ -165,34 +117,42 @@ export async function PATCH(
 
     const { data, error } = await supabase
       .from('listings')
-      .update({ status: parsed.data.status })
+      .update({
+        status: parsed.data.status,
+      })
       .eq('id', listingId)
       .select()
       .single();
 
     if (error) {
-      console.error('ë§¤ë¬¼ ìí ë³ê²½ ì¤ë¥:', error);
+      console.error('매물 상태 변경 오류:', error);
       return NextResponse.json(
-        { success: false, error: 'ìí ë³ê²½ì ì¤í¨íìµëë¤' },
+        { success: false, error: '상태 변경에 실패했습니다' },
         { status: 500 }
       );
     }
 
     if (!data) {
       return NextResponse.json(
-        { success: false, error: 'ë§¤ë¬¼ì ì°¾ì ì ììµëë¤' },
+        { success: false, error: '매물을 찾을 수 없습니다' },
         { status: 404 }
       );
     }
+
+    // 캐시 즉시 무효화
+    revalidatePath('/', 'layout');
+    revalidatePath('/listings', 'page');
+    revalidatePath('/map', 'page');
+    revalidatePath(`/listings/${listingId}`, 'page');
 
     return NextResponse.json({
       success: true,
       data,
     });
   } catch (error) {
-    console.error('ë§¤ë¬¼ ìí ë³ê²½ ì¤ë¥:', error);
+    console.error('매물 상태 변경 오류:', error);
     return NextResponse.json(
-      { success: false, error: 'ìí ë³ê²½ì ì¤í¨íìµëë¤' },
+      { success: false, error: '상태 변경에 실패했습니다' },
       { status: 500 }
     );
   }
