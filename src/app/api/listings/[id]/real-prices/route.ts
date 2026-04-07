@@ -52,7 +52,6 @@ const RENT_ENDPOINTS: Record<string, string> = {
   '단독주택': `${API_BASE}/RTMSDataSvcSHRent/getRTMSDataSvcSHRent`,
 };
 
-// 매물 유형 정규화 (원룸, 투룸 등 → API에 맞는 유형으로 매핑)
 function normalizePropertyType(type: string): string {
   const mapping: Record<string, string> = {
     '원룸': '오피스텔',
@@ -67,7 +66,6 @@ function normalizePropertyType(type: string): string {
   return mapping[type] || type;
 }
 
-// XML 태그 값 추출 헬퍼
 function parseXmlValues(xml: string, tagName: string): string[] {
   const regex = new RegExp(`<${tagName}>([^<]*)</${tagName}>`, 'g');
   const values: string[] = [];
@@ -78,7 +76,6 @@ function parseXmlValues(xml: string, tagName: string): string[] {
   return values;
 }
 
-// 최근 N개월 YYYYMM 목록 생성
 function getRecentMonths(n: number): string[] {
   const months: string[] = [];
   const now = new Date();
@@ -90,7 +87,6 @@ function getRecentMonths(n: number): string[] {
   return months;
 }
 
-// 시군구 코드 가져오기 (주소 기반 + 동 이름 보완)
 function getLawdCd(address: string, dong: string): string {
   const codes: Record<string, string> = {
     '강남구': '11680', '강동구': '11740', '강북구': '11305', '강서구': '11500',
@@ -180,13 +176,13 @@ function getLawdCd(address: string, dong: string): string {
   return '11680';
 }
 
-// MOLIT API 데이터 호출 (매매/임대 모두 지원)
+// MOLIT API 데이터 호출 - 디버그 정보 포함
 async function fetchMolitData(
   apiUrl: string,
   lawdCd: string,
   dealYmd: string,
   isRent: boolean
-): Promise<any[]> {
+): Promise<{ data: any[]; debugInfo?: any }> {
   try {
     const url = `${apiUrl}?serviceKey=${DATA_GO_KR_KEY}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&numOfRows=1000&pageNo=1`;
     const response = await fetch(url, {
@@ -194,9 +190,16 @@ async function fetchMolitData(
       headers: { 'Accept': 'application/xml' }
     });
 
-    if (!response.ok) return [];
-
     const xml = await response.text();
+    const debugInfo = {
+      status: response.status,
+      statusText: response.statusText,
+      xmlPreview: xml.substring(0, 500),
+      xmlLength: xml.length,
+      dealYmd,
+    };
+
+    if (!response.ok) return { data: [], debugInfo };
 
     if (isRent) {
       const deposits = parseXmlValues(xml, '보증금액');
@@ -204,35 +207,40 @@ async function fetchMolitData(
       const years = parseXmlValues(xml, '년');
       const months = parseXmlValues(xml, '월');
 
-      if (deposits.length === 0) return [];
+      if (deposits.length === 0) return { data: [], debugInfo };
 
-      return deposits.map((dep, i) => {
-        const deposit = parseInt(dep.replace(/,/g, '')) || 0;
-        const monthlyRent = parseInt((monthlyRents[i] || '0').replace(/,/g, '')) || 0;
-        return {
-          amount: deposit > 0 ? deposit : monthlyRent,
-          deposit,
-          monthlyRent,
-          year: years[i] || '',
-          month: months[i] || '',
-        };
-      });
+      return {
+        data: deposits.map((dep, i) => {
+          const deposit = parseInt(dep.replace(/,/g, '')) || 0;
+          const monthlyRent = parseInt((monthlyRents[i] || '0').replace(/,/g, '')) || 0;
+          return {
+            amount: deposit > 0 ? deposit : monthlyRent,
+            deposit,
+            monthlyRent,
+            year: years[i] || '',
+            month: months[i] || '',
+          };
+        }),
+        debugInfo
+      };
     } else {
       const amounts = parseXmlValues(xml, '거래금액');
       const years = parseXmlValues(xml, '년');
       const months = parseXmlValues(xml, '월');
 
-      if (amounts.length === 0) return [];
+      if (amounts.length === 0) return { data: [], debugInfo };
 
-      return amounts.map((amt, i) => ({
-        amount: parseInt(amt.replace(/,/g, '')) || 0,
-        year: years[i] || '',
-        month: months[i] || '',
-      }));
+      return {
+        data: amounts.map((amt, i) => ({
+          amount: parseInt(amt.replace(/,/g, '')) || 0,
+          year: years[i] || '',
+          month: months[i] || '',
+        })),
+        debugInfo
+      };
     }
-  } catch (error) {
-    console.error('MOLIT API error:', error);
-    return [];
+  } catch (error: any) {
+    return { data: [], debugInfo: { error: error.message } };
   }
 }
 
@@ -246,7 +254,6 @@ export async function GET(
       return NextResponse.json({ success: false, error: '잘못된 매물 ID' }, { status: 400 });
     }
 
-    // DB에서 매물 정보 조회
     const { data: listing, error } = await supabase
       .from('listings')
       .select('type, deal, address, dong')
@@ -264,15 +271,12 @@ export async function GET(
     const dong = listing.dong || '';
     const isRent = dealType === '전세' || dealType === '월세';
 
-    // API 키 확인
     if (!DATA_GO_KR_KEY) {
       return NextResponse.json({ success: false, error: 'API 키가 설정되지 않았습니다' }, { status: 500 });
     }
 
-    // 법정동 코드 가져오기
     const lawdCd = getLawdCd(address, dong);
 
-    // API 엔드포인트 결정
     let apiUrl: string;
     let label: string;
     if (isRent) {
@@ -284,25 +288,27 @@ export async function GET(
       label = endpoint.label;
     }
 
-    // 최근 12개월 데이터 수집
     const recentMonths = getRecentMonths(12);
     const allData: any[] = [];
+    let firstApiDebug: any = null;
 
-    // 병렬로 API 호출 (3개씩 배치)
+    // 첫 번째 API 호출에서 디버그 정보 수집
     for (let i = 0; i < recentMonths.length; i += 3) {
       const batch = recentMonths.slice(i, i + 3);
       const results = await Promise.all(
         batch.map(ym => fetchMolitData(apiUrl, lawdCd, ym, isRent))
       );
-      results.forEach((data, idx) => {
+      results.forEach((result, idx) => {
         const ym = batch[idx];
-        data.forEach(item => {
+        if (!firstApiDebug && result.debugInfo) {
+          firstApiDebug = result.debugInfo;
+        }
+        result.data.forEach(item => {
           allData.push({ ...item, yearMonth: ym });
         });
       });
     }
 
-    // 월별 집계
     const monthlyMap = new Map<string, { total: number; count: number }>();
     recentMonths.forEach(ym => {
       monthlyMap.set(ym, { total: 0, count: 0 });
@@ -320,7 +326,6 @@ export async function GET(
       }
     });
 
-    // 결과 포맷팅
     const chartData = recentMonths.map(ym => {
       const data = monthlyMap.get(ym)!;
       const year = ym.substring(2, 4);
@@ -332,7 +337,6 @@ export async function GET(
       };
     }).filter(d => d.avgPrice > 0 || d.count > 0);
 
-    // 데이터가 없으면 빈 결과 반환
     if (chartData.length === 0) {
       return NextResponse.json({
         success: false,
@@ -352,6 +356,7 @@ export async function GET(
           allDataCount: allData.length,
           hasApiKey: !!DATA_GO_KR_KEY,
           apiKeyLength: DATA_GO_KR_KEY.length,
+          firstApiResponse: firstApiDebug,
         },
       });
     }
