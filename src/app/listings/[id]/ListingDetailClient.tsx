@@ -6,7 +6,7 @@ import {
   Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer,
   Compass, DoorOpen, Banknote, Train, TrendingUp, MapPin, Navigation, Share2, Copy
 } from 'lucide-react';
-import CompassDirection from '@/components/CompassDirection';
+import CompassDirection from '@/components/CompassDirection'; // v2-text-commit
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPrice } from '@/lib/utils';
 import ImageGallery from '@/components/ImageGallery';
 import { ListingCard } from '@/components/ListingCard';
