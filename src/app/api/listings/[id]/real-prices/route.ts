@@ -5,7 +5,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 const supabase = createClient(supabaseUrl!, supabaseKey);
 
-const DATA_GO_KR_KEY = process.env.DATA_GO_KR_API_KEY || '';
+const DATA_GO_KR_KEY = (process.env.DATA_GO_KR_API_KEY || '').trim();
 
 // 새 API 베이스 URL (apis.data.go.kr - HTTPS)
 const API_BASE = 'https://apis.data.go.kr/1613000';
@@ -176,7 +176,7 @@ function getLawdCd(address: string, dong: string): string {
   return '11680';
 }
 
-// MOLIT API 데이터 호출 - 디버그 정보 포함
+// MOLIT API 데이터 호출 - 다중 폴백 + 진단 정보
 async function fetchMolitData(
   apiUrl: string,
   lawdCd: string,
@@ -184,21 +184,39 @@ async function fetchMolitData(
   isRent: boolean
 ): Promise<{ data: any[]; debugInfo?: any }> {
   try {
-    // serviceKey를 URL 인코딩하여 +, = 등 특수문자 처리
-    const encodedKey = encodeURIComponent(DATA_GO_KR_KEY);
-    const url = `${apiUrl}?serviceKey=${encodedKey}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&numOfRows=1000&pageNo=1`;
-    let response = await fetch(url, {
-      next: { revalidate: 3600 },
-      headers: { 'Accept': 'application/xml' }
-    });
+    const keyInfo = {
+      len: DATA_GO_KR_KEY.length,
+      first4: DATA_GO_KR_KEY.substring(0, 4),
+      last4: DATA_GO_KR_KEY.substring(DATA_GO_KR_KEY.length - 4),
+      hasPercent: DATA_GO_KR_KEY.includes('%'),
+      hasPlus: DATA_GO_KR_KEY.includes('+'),
+      hasEqual: DATA_GO_KR_KEY.includes('='),
+      hasSlash: DATA_GO_KR_KEY.includes('/'),
+    };
 
-    // 403이면 인코딩 없이 재시도 (이미 인코딩된 키일 수 있음)
+    // 시도 1: 키를 encodeURIComponent로 인코딩
+    const encodedKey = encodeURIComponent(DATA_GO_KR_KEY);
+    const baseParams = `&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&numOfRows=1000&pageNo=1`;
+    let url = `${apiUrl}?serviceKey=${encodedKey}${baseParams}`;
+    let response = await fetch(url, { next: { revalidate: 3600 } });
+    let attempt = 'encoded';
+
+    // 시도 2: 403이면 인코딩 없이 원본 키 사용
     if (response.status === 403) {
-      const url2 = `${apiUrl}?serviceKey=${DATA_GO_KR_KEY}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&numOfRows=1000&pageNo=1`;
-      response = await fetch(url2, {
-        next: { revalidate: 3600 },
-        headers: { 'Accept': 'application/xml' }
-      });
+      url = `${apiUrl}?serviceKey=${DATA_GO_KR_KEY}${baseParams}`;
+      response = await fetch(url, { next: { revalidate: 3600 } });
+      attempt = 'raw';
+    }
+
+    // 시도 3: 여전히 403이면 키가 이미 인코딩된 상태일 수 있으므로 디코딩 후 재인코딩
+    if (response.status === 403 && keyInfo.hasPercent) {
+      try {
+        const decodedKey = decodeURIComponent(DATA_GO_KR_KEY);
+        const reEncodedKey = encodeURIComponent(decodedKey);
+        url = `${apiUrl}?serviceKey=${reEncodedKey}${baseParams}`;
+        response = await fetch(url, { next: { revalidate: 3600 } });
+        attempt = 'decode-reencode';
+      } catch(e) { /* decodeURIComponent failed, skip */ }
     }
 
     const xml = await response.text();
@@ -208,7 +226,9 @@ async function fetchMolitData(
       xmlPreview: xml.substring(0, 500),
       xmlLength: xml.length,
       dealYmd,
-      usedEncodedKey: true,
+      attempt,
+      keyInfo,
+      apiUrl,
     };
 
     if (!response.ok) return { data: [], debugInfo };
