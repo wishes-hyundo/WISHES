@@ -85,7 +85,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
     { key: 'elevator', label: '엘리베이터', icon: Building2, value: listing.elevator },
     { key: 'pet', label: '반려동물', icon: Dog, value: listing.pet },
     { key: 'balcony', label: '발코니', icon: Warehouse, value: listing.balcony },
-    { key: 'full_option', label: '풀옵션', icon: Zap, value: listing.full_option },
+    { key: 'full_option', label: '퐀옵션', icon: Zap, value: listing.full_option },
     { key: 'loan_available', label: '대출가능', icon: CreditCard, value: listing.loan_available },
   ];
 
@@ -132,10 +132,12 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               src={mainImage}
               alt={listing.title}
               className="w-full h-full object-cover"
+              loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-300">
-              <Building2 className="w-12 h-12" />
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
+              <Building2 className="w-14 h-14 mb-2" />
+              <span className="text-xs text-gray-400">이미지 준비 중</span>
             </div>
           )}
 
@@ -156,13 +158,13 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity"
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity"
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
@@ -258,7 +260,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         )}
 
-        {/* ── 핵심 정보 그리드 ── */}
+        {/* ── 핵쌬 정보 그리드 ── */}
         <div className="p-4 border-b border-gray-100">
           <h3 className="text-sm font-bold text-gray-700 mb-3">매물 정보</h3>
           <div className="grid grid-cols-2 gap-y-4 gap-x-3">
@@ -269,10 +271,10 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               <InfoItem icon={Banknote} label="거래유형" value={listing.deal} />
             )}
             {listing.area_m2 && (
-              <InfoItem icon={Maximize2} label="전용면적" value={`${listing.area_m2} (${sqmToPyeong(listing.area_m2)}평)`} />
+              <InfoItem icon={Maximize2} label="전용면적" value={`${listing.area_m2}㎡ (${sqmToPyeong(listing.area_m2)}평)`} />
             )}
             {listing.area_supply_m2 && (
-              <InfoItem icon={Layers} label="공급면적" value={`${listing.area_supply_m2}ㆡ (${sqmToPyeong(listing.area_supply_m2)}평)`} />
+              <InfoItem icon={Layers} label="공급면적" value={`${listing.area_supply_m2}㎡ (${sqmToPyeong(listing.area_supply_m2)}평)`} />
             )}
             {listing.floor_current && (
               <InfoItem icon={Building2} label="층수" value={`${listing.floor_current}${listing.floor_total ? ` / ${listing.floor_total}층` : ''}`} />
@@ -334,31 +336,9 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         )}
 
-        {/* ── 주변 교통 정보 ── */}
+        {/* ── 주변 교통 정보 (실시간 API) ── */}
         {listing.lat && listing.lng && (
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
-              <Train className="w-4 h-4 text-blue-500/70" />
-              주변 교통
-            </h3>
-            <div className="bg-blue-50/50 rounded-xl p-3.5">
-              {listing.nearby_stations?.length > 0 ? (
-                <div className="space-y-2">
-                  {listing.nearby_stations.map((station: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center font-bold">{station.line}</span>
-                        <span className="text-sm font-medium text-gray-800">{station.name}역</span>
-                      </div>
-                      <span className="text-xs text-gray-500">도보 약 {station.walkMin}분</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400">교통 정보가 준비 중입니다.</p>
-              )}
-            </div>
-          </div>
+          <NearbyStationsSection listingId={listing.id} />
         )}
 
         {/* ── 실거래가 동향 ── */}
@@ -369,18 +349,17 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               {listing.dong} 실거래가 동향
             </h3>
             <div className="bg-green-50/50 rounded-xl p-3.5">
-              {listing.real_prices?.length > 0 ? (
-                <div className="space-y-2">
-                  {listing.real_prices.map((rp: any, idx: number) => (
-                    <div key={idx} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{rp.date}</span>
-                      <span className="font-semibold text-wishes-primary">{rp.price}만원</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-gray-400">실거래가 데이터 준비 중</p>
-              )}
+              <a
+                href="https://rt.molit.go.kr/pt/xls/xls.do#tabNm=6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors font-medium"
+              >
+                <TrendingUp className="w-3 h-3" />
+                국토교통부 실거래가 조회
+                <ChevronRight className="w-3 h-3" />
+              </a>
+              <p className="text-xs text-gray-400 mt-2">상담 시 최신 실거래가를 안내드립니다.</p>
             </div>
           </div>
         )}
@@ -397,7 +376,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
                 <span className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   수정 {new Date(listing.updated_at).toLocaleDateString('ko-KR')}
-                </span>
+                </span>
               )}
             </div>
           </div>
@@ -425,6 +404,66 @@ function InfoItem({ icon: Icon, label, value }: { icon: any; label: string; valu
       <div>
         <p className="text-[10px] text-gray-400 font-medium">{label}</p>
         <p className="text-sm font-semibold text-gray-800">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+// ── 주변 교통 정보 서브 컴포넌트 ──
+function NearbyStationsSection({ listingId }: { listingId: number }) {
+  const [stations, setStations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStations = async () => {
+      try {
+        const res = await fetch(`/api/listings/${listingId}/nearby`);
+        const json = await res.json();
+        if (json.success && json.data?.stations) {
+          setStations(json.data.stations);
+        }
+      } catch {
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStations();
+  }, [listingId]);
+
+  return (
+    <div className="p-4 border-b border-gray-100">
+      <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
+        <Train className="w-4 h-4 text-blue-500/70" />
+        주변 교통
+      </h3>
+      <div className="bg-blue-50/50 rounded-xl p-3.5">
+        {loading ? (
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <div key={i} className="flex items-center justify-between animate-pulse">
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 rounded-full bg-blue-200" />
+                  <div className="h-3.5 w-16 bg-blue-100 rounded" />
+                </div>
+                <div className="h-3 w-14 bg-blue-100 rounded" />
+              </div>
+            ))}
+          </div>
+        ) : stations.length > 0 ? (
+          <div className="space-y-2">
+            {stations.map((station: any, idx: number) => (
+              <div key={idx} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center font-bold">{station.line}</span>
+                  <span className="text-sm font-medium text-gray-800">{station.name}역</span>
+                </div>
+                <span className="text-xs text-blue-600 font-medium">도보 {station.walkMin}분</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400">반경 2km 내 지하철역 없음</p>
+        )}
       </div>
     </div>
   );
