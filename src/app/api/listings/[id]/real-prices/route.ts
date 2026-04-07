@@ -13,7 +13,7 @@ const API_BASE = 'https://apis.data.go.kr/1613000';
 // 매물 유형별 매매 API 엔드포인트
 const SALE_ENDPOINTS: Record<string, { url: string; label: string }> = {
   '아파트': {
-    url: `${API_BASE}/RTMSDataSvcAptTradeDev/getRTMSDataSvcAptTradeDev`,
+    url: `${API_BASE}/RTMSDataSvcAptTrade/getRTMSDataSvcAptTrade`,
     label: '아파트 매매',
   },
   '오피스텔': {
