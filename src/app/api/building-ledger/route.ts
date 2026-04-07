@@ -356,7 +356,7 @@ async function fetchOwnerInfoWithFallback(
   }
 
   console.error("[OwnerInfo] All attempts failed:", errors);
-  throw new Error("Owner info lookup failed (" + errors.join(" | ") + ")");
+  return { operation: "ownerInfo", items: [], totalCount: 0 };
 }
 
 /** Simple XML item parser for OwnerInfoService response */
