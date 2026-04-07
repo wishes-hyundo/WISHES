@@ -152,7 +152,7 @@ function getLawdCd(address: string, dong: string): string {
     '흑석동': '동작구', '노량진동': '동작구', '상도동': '동작구', '사당동': '동작구',
     '대방동': '동작구', '신대방동': '동작구',
     '독산동': '금천구', '시흥동': '금천구', '가산동': '금천구',
-    '수색동': '은평구', '응암동': '은평구', '녹번동': '은평구', '불광동': '은평구',
+    '수샘동': '은평구', '응암동': '은평구', '녹번동': '은평구', '봈광동': '은평구',
     '진관동': '은평구', '갈현동': '은평구',
     '북아현동': '서대문구', '신촌동': '서대문구', '연희동': '서대문구',
     '남가좌동': '서대문구', '북가좌동': '서대문구', '홍은동': '서대문구',
@@ -184,11 +184,22 @@ async function fetchMolitData(
   isRent: boolean
 ): Promise<{ data: any[]; debugInfo?: any }> {
   try {
-    const url = `${apiUrl}?serviceKey=${DATA_GO_KR_KEY}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&numOfRows=1000&pageNo=1`;
-    const response = await fetch(url, {
+    // serviceKey를 URL 인코딩하여 +, = 등 특수문자 처리
+    const encodedKey = encodeURIComponent(DATA_GO_KR_KEY);
+    const url = `${apiUrl}?serviceKey=${encodedKey}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&numOfRows=1000&pageNo=1`;
+    let response = await fetch(url, {
       next: { revalidate: 3600 },
       headers: { 'Accept': 'application/xml' }
     });
+
+    // 403이면 인코딩 없이 재시도 (이미 인코딩된 키일 수 있음)
+    if (response.status === 403) {
+      const url2 = `${apiUrl}?serviceKey=${DATA_GO_KR_KEY}&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&numOfRows=1000&pageNo=1`;
+      response = await fetch(url2, {
+        next: { revalidate: 3600 },
+        headers: { 'Accept': 'application/xml' }
+      });
+    }
 
     const xml = await response.text();
     const debugInfo = {
@@ -197,6 +208,7 @@ async function fetchMolitData(
       xmlPreview: xml.substring(0, 500),
       xmlLength: xml.length,
       dealYmd,
+      usedEncodedKey: true,
     };
 
     if (!response.ok) return { data: [], debugInfo };
