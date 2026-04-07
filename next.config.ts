@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   experimental: {
     // 클라이언트 라우터 캐시: 페이지 이동 시 서버 재요청 방지
     staleTimes: {
-      dynamic: 300,  // 동적 페이지 5분 캐시
-      static: 3600,  // 정적 페이지 1시간 캐시
+      dynamic: 0,    // 동적 페이지 캐시 비활성화 (매물 변경 즉시 반영)
+      static: 60,    // 정적 페이지 1분 캐시
     },
   },
   eslint: {
