@@ -234,10 +234,10 @@ async function fetchMolitData(
     if (!response.ok) return { data: [], debugInfo };
 
     if (isRent) {
-      const deposits = parseXmlValues(xml, '보증금액');
-      const monthlyRents = parseXmlValues(xml, '월세금액');
-      const years = parseXmlValues(xml, '년');
-      const months = parseXmlValues(xml, '월');
+      const deposits = parseXmlValues(xml, 'deposit');
+      const monthlyRents = parseXmlValues(xml, 'monthlyRent');
+      const years = parseXmlValues(xml, 'dealYear');
+      const months = parseXmlValues(xml, 'dealMonth');
 
       if (deposits.length === 0) return { data: [], debugInfo };
 
@@ -256,9 +256,9 @@ async function fetchMolitData(
         debugInfo
       };
     } else {
-      const amounts = parseXmlValues(xml, '거래금액');
-      const years = parseXmlValues(xml, '년');
-      const months = parseXmlValues(xml, '월');
+      const amounts = parseXmlValues(xml, 'dealAmount');
+      const years = parseXmlValues(xml, 'dealYear');
+      const months = parseXmlValues(xml, 'dealMonth');
 
       if (amounts.length === 0) return { data: [], debugInfo };
 
