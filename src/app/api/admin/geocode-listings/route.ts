@@ -15,22 +15,42 @@ interface GeoResult {
   status: 'success' | 'failed' | 'no_address';
 }
 
+/**
+ * 주소를 위도/경도로 변환 (카카오 Maps API)
+ * 1차: 주소 검색 API → 2차: 키워드 검색 API (폴백)
+ */
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   if (!address || !KAKAO_REST_API_KEY) return null;
 
   try {
+    // 1차: 주소 검색 API
     const res = await fetch(
       `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
       { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
     );
 
-    if (!res.ok) return null;
-
-    const data = await res.json();
-    if (data.documents && data.documents.length > 0) {
-      const doc = data.documents[0];
-      return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+    if (res.ok) {
+      const data = await res.json();
+      if (data.documents && data.documents.length > 0) {
+        const doc = data.documents[0];
+        return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+      }
     }
+
+    // 2차: 키워드 검색 API (주소 검색 실패 시 폴백)
+    const kwRes = await fetch(
+      `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(address)}`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
+    );
+
+    if (kwRes.ok) {
+      const kwData = await kwRes.json();
+      if (kwData.documents && kwData.documents.length > 0) {
+        const doc = kwData.documents[0];
+        return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+      }
+    }
+
     return null;
   } catch {
     return null;
@@ -41,7 +61,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient();
 
-    // 좌표가 없는 매물 조회 (address 컬럼만 사용)
+    // 좌표가 없는 매물 조회
     const { data: listings, error: fetchError } = await supabase
       .from('listings')
       .select('id, address, lat, lng')
@@ -85,7 +105,7 @@ export async function POST(request: NextRequest) {
         results.push({ id: listing.id, address, lat: null, lng: null, status: 'failed' });
       }
 
-      // API 레이트 리밋 방지 (100ms 딜레이)
+      // Rate limiting: 100ms 딜레이
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
@@ -103,3 +123,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: '지오코딩에 실패했습니다' }, { status: 500 });
   }
 }
+
+// GET 핸들러: 좌표 없는 매물 수 확인 (모니터링용)
+export async function GET(request: NextRequest) {
+  try {
+    const supabase = createServerClient();
+
+    const { count, error } = await supabase
+      .from('listings')
+      .select('id', { count: 'exact', head: true })
+      .or('lat.is.null,lng.is.null');
+
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      pendingCount: count || 0,
+      message: count ? `${count}개 매물의 좌표가 누락되어 있습니다` : '모든 매물에 좌표가 설정되어 있습니다',
+    });
+  } catch (error) {
+    console.error('좌표 확인 오류:', error);
+    return NextResponse.json({ success: false, error: '확인에 실패했습니다' }, { status: 500 });
+  }
+                                        }
