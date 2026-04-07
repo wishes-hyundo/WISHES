@@ -1802,7 +1802,7 @@ ${floorRows}</table></div>` : ''}
                         </div>
                       <div>
                         <select
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:ring-1 focus:ring-amber-400 focus:border-amber-400"
+                          className="w-full px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400"
                           value={owner.성별}
                           onChange={(e) => {
                             const updated = [...ownerInfoList];
@@ -1817,7 +1817,7 @@ ${floorRows}</table></div>` : ''}
                       </div>
                       <div>
                         <select
-                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:ring-1 focus:ring-amber-400 focus:border-amber-400"
+                          className="w-full px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400"
                           value={owner.통신사}
                           onChange={(e) => {
                             const updated = [...ownerInfoList];
@@ -1829,7 +1829,7 @@ ${floorRows}</table></div>` : ''}
                           <option value="SKT">SKT</option>
                           <option value="KT">KT</option>
                           <option value="LG U+">LG U+</option>
-                          <option value="알뜨폰">알뜨폰</option>
+                          <option value="알뜰폰">알뜰폰</option>
                         </select>
                       </div>
                       </div>
