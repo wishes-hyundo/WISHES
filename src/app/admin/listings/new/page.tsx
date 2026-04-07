@@ -557,7 +557,7 @@ function SmartListingNewPage() {
   const [exclusiveUnits, setExclusiveUnits] = useState<ExclusiveUnit[]>([]);
   const [selectedUnit, setSelectedUnit] = useState<ExclusiveUnit | null>(null);
   const [isCollectiveBuilding, setIsCollectiveBuilding] = useState(false);
-  const [ownerInfoList, setOwnerInfoList] = useState<Array<{ 소유자명: string; 소유자구분: string; 지분: string; 주민번호성별코드: string; 성별: string; 동명: string; 호명: string; 연락처: string }>>([]);
+  const [ownerInfoList, setOwnerInfoList] = useState<Array<{ 소유자명: string; 소유자구분: string; 지분: string; 주민번호성별코드: string; 성별: string; 동명: string; 호명: string; 연락처: string; 통신사: string }>>([]);
   const [showBuildingDoc, setShowBuildingDoc] = useState(false);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
   const [useEnhanced, setUseEnhanced] = useState(true);
@@ -1790,7 +1790,7 @@ ${floorRows}</table></div>` : ''}
                           <span className="text-xs font-bold text-amber-800">소유자 {idx + 1}</span>
                           <button type="button" onClick={() => { setOwnerInfoList(ownerInfoList.filter((_, i) => i !== idx)); }} className="text-xs text-red-400 hover:text-red-600">✖ 삭제</button>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                           <input type="text" placeholder="소유자명" value={owner.소유자명} onChange={(e) => { const list = [...ownerInfoList]; list[idx] = {...list[idx], 소유자명: e.target.value}; setOwnerInfoList(list); }} className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400" />
                           <select value={owner.소유자구분} onChange={(e) => { const list = [...ownerInfoList]; list[idx] = {...list[idx], 소유자구분: e.target.value}; setOwnerInfoList(list); }} className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400">
                             <option value="개인">개인</option>
@@ -1800,11 +1800,43 @@ ${floorRows}</table></div>` : ''}
                           <input type="text" placeholder="지분 (ex: 1/1)" value={owner.지분} onChange={(e) => { const list = [...ownerInfoList]; list[idx] = {...list[idx], 지분: e.target.value}; setOwnerInfoList(list); }} className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400" />
                           <input type="text" placeholder="연락처" value={owner.연락처} onChange={(e) => { const list = [...ownerInfoList]; list[idx] = {...list[idx], 연락처: e.target.value}; setOwnerInfoList(list); }} className="px-2 py-1.5 text-xs border border-amber-200 rounded-lg focus:ring-1 focus:ring-amber-400 focus:border-amber-400" />
                         </div>
+                      <div>
+                        <select
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:ring-1 focus:ring-amber-400 focus:border-amber-400"
+                          value={owner.성별}
+                          onChange={(e) => {
+                            const updated = [...ownerInfoList];
+                            updated[idx] = { ...owner, 성별: e.target.value };
+                            setOwnerInfoList(updated);
+                          }}
+                        >
+                          <option value="">성별</option>
+                          <option value="남">남</option>
+                          <option value="여">여</option>
+                        </select>
+                      </div>
+                      <div>
+                        <select
+                          className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-sm text-white focus:ring-1 focus:ring-amber-400 focus:border-amber-400"
+                          value={owner.통신사}
+                          onChange={(e) => {
+                            const updated = [...ownerInfoList];
+                            updated[idx] = { ...owner, 통신사: e.target.value };
+                            setOwnerInfoList(updated);
+                          }}
+                        >
+                          <option value="">통신사</option>
+                          <option value="SKT">SKT</option>
+                          <option value="KT">KT</option>
+                          <option value="LG U+">LG U+</option>
+                          <option value="알뜨폰">알뜨폰</option>
+                        </select>
+                      </div>
                       </div>
                     ))}
                   </div>
                 )}
-                <button type="button" onClick={() => { setOwnerInfoList([...ownerInfoList, { 소유자명: "", 소유자구분: "개인", 지분: "", 주민번호성별코드: "", 성별: "", 동명: "", 호명: "", 연락처: "" }]); }} className="w-full py-2 border-2 border-dashed border-amber-300 rounded-lg text-sm text-amber-700 hover:bg-amber-100 hover:border-amber-400 transition font-medium">+ 소유자 추가</button>
+                <button type="button" onClick={() => { setOwnerInfoList([...ownerInfoList, { 소유자명: "", 소유자구분: "개인", 지분: "", 주민번호성별코드: "", 성별: "", 동명: "", 호명: "", 연락처: "", 통신사: "" }]); }} className="w-full py-2 border-2 border-dashed border-amber-300 rounded-lg text-sm text-amber-700 hover:bg-amber-100 hover:border-amber-400 transition font-medium">+ 소유자 추가</button>
                 <p className="text-xs text-amber-600 mt-2">* 소유자 개인정보는 관리자만 확인 가능하며, 고객에게 절대 노출되지 않습니다.</p>
               </div>
 
