@@ -9,7 +9,7 @@ import { createServerClient } from '@/lib/supabase';
  * 지도 바운드 범위 내 매물 조회
  * @query swLat - 남서쪽 위도
  * @query swLng - 남서쪽 경도
- * @query neLat - 북동쪽 위도
+ * @query neLat - 북동쪽 위도h
  * @query neLng - 북동쪽 경도
  * @query deal - 거래 유형 (선택사항)
  * @query type - 매물 유형 (선택사항)
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 성능을 위해 최대 100건 제한
-    query = query.limit(100);
+    query = query.limit(5000);
 
     const { data, error, count } = await query;
 
