@@ -1,22 +1,51 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase';
+import { formatPrice } from '@/lib/utils';
 import {
-  ArrowLeft, ChevronLeft, ChevronRight, MapPin, Maximize2, Home,
-  Building2, Layers, Compass, Bath, DoorOpen, Thermometer, Banknote,
-  Check, X, Eye, Calendar, Train, TrendingUp, Hash, Clock, Ruler,
-  ParkingCircle, Dog, Warehouse, Zap, CreditCard
+  ArrowLeft,
+  Maximize2,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  Layers,
+  Home,
+  Compass,
+  Flame as FlameIcon,
+  Eye,
+  ExternalLink,
+  Train,
+  TrendingUp,
 } from 'lucide-react';
-import { getFormattedPrice, getDealColor, sqmToPyeong, formatPrice } from '@/lib/utils';
-import CompassDirection from '@/components/CompassDirection';
 import Link from 'next/link';
-import type { Listing } from '@/types';
 
 interface MapListingPanelProps {
   listingId: number;
   onClose: () => void;
 }
+
+const supabase = createClient();
+
+const sqmToPyeong = (area: number) => (area / 3.3).toFixed(1);
+
+const formatAmount = (amount: number) => {
+  if (amount >= 10000) {
+    const uk = Math.floor(amount / 10000);
+    const man = amount % 10000;
+    return man > 0 ? `${uk}억 ${man.toLocaleString('ko-KR')}` : `${uk}억`;
+  }
+  return `${amount.toLocaleString('ko-KR')}만`;
+};
+
+const getDealColor = (deal: string) => {
+  switch (deal) {
+    case '전세': return 'bg-blue-500';
+    case '월세': return 'bg-orange-500';
+    case '매매': return 'bg-emerald-500';
+    default: return 'bg-gray-400';
+  }
+};
 
 export default function MapListingPanel({ listingId, onClose }: MapListingPanelProps) {
   const [listing, setListing] = useState<any>(null);
@@ -24,371 +53,298 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   const [features, setFeatures] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [showFullDescription, setShowFullDescription] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     setCurrentImageIndex(0);
-    setShowFullDescription(false);
+
     const fetchData = async () => {
-      const supabase = createClient();
-      const [listingResult, imagesResult, featuresResult] = await Promise.all([
+      const [listingRes, imagesRes, featuresRes] = await Promise.all([
         supabase.from('listings').select('*').eq('id', listingId).single(),
-        supabase.from('listing_images').select('id, url, sort_order').eq('listing_id', listingId).order('sort_order', { ascending: true }),
-        supabase.from('listing_features').select('id, feature').eq('listing_id', listingId),
+        supabase
+          .from('listing_images')
+          .select('*')
+          .eq('listing_id', listingId)
+          .order('sort_order', { ascending: true }),
+        supabase.from('listing_features').select('*').eq('listing_id', listingId),
       ]);
-      setListing(listingResult.data);
-      setImages(imagesResult.data || []);
-      setFeatures(featuresResult.data || []);
+
+      if (listingRes.data) setListing(listingRes.data);
+      if (imagesRes.data) setImages(imagesRes.data);
+      if (featuresRes.data) setFeatures(featuresRes.data);
       setLoading(false);
     };
+
     fetchData();
   }, [listingId]);
 
   if (loading) {
     return (
-      <div className="h-full flex flex-col animate-pulse">
-        <div className="p-3 border-b border-gray-100 flex items-center gap-2">
-          <div className="w-8 h-8 bg-gray-200 rounded-lg" />
-          <div className="h-4 w-32 bg-gray-200 rounded" />
-        </div>
-        <div className="aspect-[16/10] bg-gray-200" />
-        <div className="p-4 space-y-3">
-          <div className="h-5 w-20 bg-gray-200 rounded" />
-          <div className="h-7 w-40 bg-gray-200 rounded" />
-          <div className="h-4 w-56 bg-gray-200 rounded" />
-        </div>
+      <div className="flex items-center justify-center h-full">
+        <div className="animate-spin w-8 h-8 border-3 border-wishes-primary border-t-transparent rounded-full" />
       </div>
     );
   }
 
   if (!listing) {
     return (
-      <div className="h-full flex flex-col items-center justify-center text-gray-400 p-6">
-        <Building2 className="w-10 h-10 mb-2" />
+      <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
+        <Building2 className="w-10 h-10" />
         <p className="text-sm">매물 정보를 불러올 수 없습니다</p>
-        <button onClick={onClose} className="mt-3 text-xs text-wishes-secondary hover:underline">목록으로 돌아가기</button>
+        <button onClick={onClose} className="text-xs text-wishes-secondary underline">
+          돌아가기
+        </button>
       </div>
     );
   }
 
-  const price = getFormattedPrice(listing.deal, listing.deposit, listing.monthly, listing.price);
-  const dealColorMap: Record<string, string> = {
-    '전세': 'bg-blue-500',
-    '월세': 'bg-orange-500',
-    '매매': 'bg-emerald-500',
-  };
-  const dealBgColor = dealColorMap[listing.deal] || 'bg-gray-500';
-
-  const optionItems = [
-    { key: 'parking', label: '주차', icon: ParkingCircle, value: listing.parking },
-    { key: 'elevator', label: '엘리베이터', icon: Building2, value: listing.elevator },
-    { key: 'pet', label: '반려동물', icon: Dog, value: listing.pet },
-    { key: 'balcony', label: '발코니', icon: Warehouse, value: listing.balcony },
-    { key: 'full_option', label: '퐀옵션', icon: Zap, value: listing.full_option },
-    { key: 'loan_available', label: '대출가능', icon: CreditCard, value: listing.loan_available },
-  ];
-
-  const hasOptions = optionItems.some(opt => opt.value);
-
-  const mainImage = images.length > 0 ? images[currentImageIndex]?.url : null;
-
-  const nextImage = () => {
-    if (images.length > 1) setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  };
-  const prevImage = () => {
-    if (images.length > 1) setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
+  const priceDisplay =
+    listing.deal === '매매'
+      ? formatAmount(listing.price || 0)
+      : listing.deal === '전세'
+        ? formatAmount(listing.deposit)
+        : `${formatAmount(listing.deposit)} / 월 ${listing.monthly || 0}만`;
 
   return (
-    <div className="h-full flex flex-col">
-      {/* ── 헤더: 뒤로가기 + 등록번호 ── */}
-      <div className="p-3 border-b border-gray-100 flex items-center gap-2 shrink-0 bg-white sticky top-0 z-10">
+    <div className="flex flex-col h-full">
+      {/* 헤더 */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-white shrink-0">
         <button
           onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
-          title="목록으로 돌아가기"
+          className="flex items-center gap-1 text-sm text-gray-600 hover:text-wishes-primary transition-colors"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-4 h-4" />
+          <span className="font-medium">목록</span>
         </button>
-        <div className="flex-1 min-w-0 flex items-center gap-2">
-          <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
-            <Hash className="w-3 h-3" /> W-{listing.id}
-          </span>
-          {listing.views > 0 && (
-            <span className="text-xs text-gray-400 flex items-center gap-1">
-              <Eye className="w-3 h-3" /> {listing.views}
-            </span>
-          )}
-        </div>
+        <Link
+          href={`/listings/${listing.id}`}
+          className="flex items-center gap-1 text-xs text-wishes-secondary hover:underline"
+        >
+          상세보기 <ExternalLink className="w-3 h-3" />
+        </Link>
       </div>
 
-      {/* ── 스크롤 영역 ── */}
+      {/* 스크롤 가능 영역 */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
-        {/* ── 이미지 슬라이더 ── */}
-        <div className="relative aspect-[16/10] bg-gray-100 overflow-hidden group">
-          {mainImage ? (
-            <img
-              src={mainImage}
-              alt={listing.title}
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
-              <Building2 className="w-14 h-14 mb-2" />
-              <span className="text-xs text-gray-400">이미지 준비 중</span>
-            </div>
-          )}
-
-          {/* 거래유형 뱃지 */}
-          <div className={`absolute top-3 left-3 ${dealBgColor} text-white text-xs font-bold px-2.5 py-1 rounded-md shadow-sm`}>
-            {listing.deal}
-          </div>
-
-          {/* 상태 뱃지 */}
-          {listing.status !== '가용' && (
-            <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-md shadow-sm">
-              {listing.status}
-            </div>
-          )}
-
-          {/* 이미지 네비게이션 */}
-          {images.length > 1 && (
+        {/* 이미지 슬라이더 */}
+        <div className="relative aspect-[4/3] bg-gray-100">
+          {images.length > 0 ? (
             <>
-              <button
-                onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/40 hover:bg-black/60 text-white rounded-full flex items-center justify-center md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </button>
-              <div className="absolute bottom-3 right-3 bg-black/50 text-white text-[11px] font-medium px-2.5 py-1 rounded-full">
-                {currentImageIndex + 1} / {images.length}
-              </div>
+              <img
+                src={images[currentImageIndex]?.url}
+                alt={listing.title}
+                className="w-full h-full object-cover"
+              />
+              {images.length > 1 && (
+                <>
+                  <button
+                    onClick={() =>
+                      setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1))
+                    }
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      setCurrentImageIndex((prev) => (prev === images.length - 1 ? 0 : prev + 1))
+                    }
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                  <div className="absolute bottom-2 right-2 bg-black/50 text-white text-xs px-2 py-0.5 rounded-full">
+                    {currentImageIndex + 1} / {images.length}
+                  </div>
+                </>
+              )}
             </>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Building2 className="w-12 h-12 text-gray-300" />
+            </div>
           )}
-        </div>
-
-        {/* ── 제목 & 가격 ── */}
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-            <span>{listing.type}</span>
-            <span>·</span>
-            <span>{listing.dong}</span>
-            {listing.floor_current && (
-              <>
-                <span>·</span>
-                <span>지상 {listing.floor_current}층</span>
-              </>
-            )}
-            {listing.area_m2 && (
-              <>
-                <span>·</span>
-                <span>전용 {listing.area_m2}㎡</span>
-              </>
-            )}
-          </div>
-          <p className="text-base font-bold text-gray-900 leading-snug">{listing.title}</p>
-          <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
-            <MapPin className="w-3 h-3" />
-            <span>{listing.address}</span>
-          </div>
-        </div>
-
-        {/* ── 가격 정보 (네모 스타일) ── */}
-        <div className="p-4 border-b border-gray-100">
-          <div className="space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">{listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : '월세'}</span>
-              <span className="text-lg font-extrabold text-gray-900">{price.main}</span>
-            </div>
-            {listing.deal === '월세' && listing.deposit > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">보증금</span>
-                <span className="text-sm font-semibold text-gray-700">{formatPrice(listing.deposit)}</span>
-              </div>
-            )}
-            {listing.maintenance_fee > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">관리비</span>
-                <span className="text-sm font-semibold text-gray-700">월 {listing.maintenance_fee.toLocaleString()}만원</span>
-              </div>
-            )}
-            {listing.maintenance_includes?.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {listing.maintenance_includes.map((item: string) => (
-                  <span key={item} className="px-2 py-0.5 text-[10px] bg-gray-100 text-gray-500 rounded-md">
-                    {item}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── 상담 신청 버튼 ── */}
-        <div className="p-4 border-b border-gray-100">
-          <Link
-            href={`/contact?listing_id=${listing.id}&listing_title=${encodeURIComponent(listing.title)}`}
-            className="block w-full py-3 rounded-xl bg-wishes-primary text-white text-center text-sm font-bold shadow-md hover:shadow-lg hover:bg-wishes-primary/90 transition-all"
+          {/* 거래유형 배지 */}
+          <span
+            className={`absolute top-3 left-3 px-3 py-1 text-xs font-bold text-white rounded-lg shadow-md ${getDealColor(
+              listing.deal
+            )}`}
           >
-            문의하기
-          </Link>
+            {listing.deal}
+          </span>
         </div>
 
-        {/* ── 상세 설명 (중개사 코멘트) ── */}
-        {listing.description && (
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-2.5">중개사 코멘트</h3>
-            <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!showFullDescription ? 'line-clamp-4' : ''}`}>
-              {listing.description}
-            </p>
-            {listing.description.length > 120 && (
-              <button
-                onClick={() => setShowFullDescription(!showFullDescription)}
-                className="mt-2 text-xs text-wishes-secondary hover:underline font-medium"
-              >
-                {showFullDescription ? '접기' : '더보기'}
-              </button>
-            )}
-          </div>
-        )}
+        {/* 가격 */}
+        <div className="px-4 py-4 border-b border-gray-100">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">
+            {listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : '보증금/월세'}
+          </p>
+          <p className="text-2xl font-bold text-wishes-primary">{priceDisplay}</p>
+          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{listing.title}</p>
+        </div>
 
-        {/* ── 핵쌬 정보 그리드 ── */}
-        <div className="p-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-gray-700 mb-3">매물 정보</h3>
-          <div className="grid grid-cols-2 gap-y-4 gap-x-3">
-            {listing.type && (
-              <InfoItem icon={Home} label="매물유형" value={listing.type} />
-            )}
-            {listing.deal && (
-              <InfoItem icon={Banknote} label="거래유형" value={listing.deal} />
-            )}
-            {listing.area_m2 && (
-              <InfoItem icon={Maximize2} label="전용면적" value={`${listing.area_m2}㎡ (${sqmToPyeong(listing.area_m2)}평)`} />
-            )}
-            {listing.area_supply_m2 && (
-              <InfoItem icon={Layers} label="공급면적" value={`${listing.area_supply_m2}㎡ (${sqmToPyeong(listing.area_supply_m2)}평)`} />
-            )}
-            {listing.floor_current && (
-              <InfoItem icon={Building2} label="층수" value={`${listing.floor_current}${listing.floor_total ? ` / ${listing.floor_total}층` : ''}`} />
-            )}
-            {listing.rooms && (
-              <InfoItem icon={DoorOpen} label="방/욕실" value={`${listing.rooms}방${listing.bathrooms ? ` / ${listing.bathrooms}욕실` : ''}`} />
-            )}
-            {listing.direction && (
-              <InfoItem icon={Compass} label="방향" value={listing.direction} />
-            )}
-            {listing.heating_type && (
-              <InfoItem icon={Thermometer} label="난방" value={listing.heating_type} />
-            )}
-            {listing.built_year && (
-              <InfoItem icon={Calendar} label="준공년도" value={listing.built_year} />
-            )}
-            {listing.available_date && (
-              <InfoItem icon={Clock} label="입주가능일" value={listing.available_date} />
-            )}
+        {/* 기본 정보 그리드 */}
+        <div className="px-4 py-4 border-b border-gray-100">
+          <div className="grid grid-cols-2 gap-3">
+            {(listing.area_m2 || listing.area) ? (
+              <div className="flex items-center gap-2 text-sm">
+                <Maximize2 className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
+                <div>
+                  <p className="text-gray-400 text-[10px]">면적</p>
+                  <p className="font-medium text-gray-800">
+                    {listing.area_m2 || listing.area}m&sup2; ({sqmToPyeong(listing.area_m2 || listing.area)}평)
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            {(listing.floor_current || listing.floor) ? (
+              <div className="flex items-center gap-2 text-sm">
+                <Layers className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
+                <div>
+                  <p className="text-gray-400 text-[10px]">층수</p>
+                  <p className="font-medium text-gray-800">
+                    {listing.floor_current || listing.floor}
+                    {listing.floor_total ? `/${listing.floor_total}층` : '층'}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            {listing.rooms ? (
+              <div className="flex items-center gap-2 text-sm">
+                <Home className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
+                <div>
+                  <p className="text-gray-400 text-[10px]">방/욕실</p>
+                  <p className="font-medium text-gray-800">
+                    {listing.rooms}방 {listing.bathrooms ? `/ ${listing.bathrooms}욕실` : ''}
+                  </p>
+                </div>
+              </div>
+            ) : null}
+            {listing.direction ? (
+              <div className="flex items-center gap-2 text-sm">
+                <Compass className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
+                <div>
+                  <p className="text-gray-400 text-[10px]">방향</p>
+                  <p className="font-medium text-gray-800">{listing.direction}</p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
-        {/* ── 방향 나침반 ── */}
-        {listing.direction && (
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
-              <Compass className="w-4 h-4 text-wishes-secondary/60" />
-              방향
-            </h3>
-            <CompassDirection direction={listing.direction} />
-          </div>
-        )}
-
-        {/* ── 옵션/시설 ── */}
-        {(hasOptions || features.length > 0) && (
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-3">옵션 · 시설</h3>
+        {/* 옵션/편의시섰 */}
+        {features.length > 0 && (
+          <div className="px-4 py-4 border-b border-gray-100">
+            <p className="text-xs font-bold text-gray-500 mb-2">옵션/편의시설</p>
             <div className="flex flex-wrap gap-1.5">
-              {optionItems.map((opt) => (
+              {features.map((f: any, i: number) => (
                 <span
-                  key={opt.key}
-                  className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border font-medium ${
-                    opt.value
-                      ? 'bg-wishes-primary/5 text-wishes-primary border-wishes-primary/20'
-                      : 'bg-gray-50 text-gray-300 border-gray-100'
-                  }`}
+                  key={i}
+                  className="px-2.5 py-1 text-xs bg-gray-50 text-gray-600 rounded-full border border-gray-200"
                 >
-                  {opt.value ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                  {opt.label}
-                </span>
-              ))}
-              {features.map((f: any) => (
-                <span key={f.id} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border bg-wishes-primary/5 text-wishes-primary border-wishes-primary/20 font-medium">
-                  <Check className="w-3 h-3" />
-                  {f.feature}
+                  {f.feature || f.name}
                 </span>
               ))}
             </div>
           </div>
         )}
 
-        {/* ── 주변 교통 정보 (실시간 API) ── */}
-        {listing.lat && listing.lng && (
-          <NearbyStationsSection listingId={listing.id} />
-        )}
-
-        {/* ── 실거래가 동향 ── */}
-        {listing.dong && (
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-green-500/70" />
-              {listing.dong} 실거래가 동향
-            </h3>
-            <div className="bg-green-50/50 rounded-xl p-3.5">
-              <a
-                href="https://rt.molit.go.kr/pt/xls/xls.do#tabNm=6"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors font-medium"
-              >
-                <TrendingUp className="w-3 h-3" />
-                국토교통부 실거래가 조회
-                <ChevronRight className="w-3 h-3" />
-              </a>
-              <p className="text-xs text-gray-400 mt-2">상담 시 최신 실거래가를 안내드립니다.</p>
-            </div>
-          </div>
-        )}
-
-        {/* ── 등록 정보 ── */}
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex items-center justify-between text-xs text-gray-400">
-            <div className="flex items-center gap-3">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                등록 {new Date(listing.created_at).toLocaleDateString('ko-KR')}
-              </span>
-              {listing.updated_at && (
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3 h-3" />
-                  수정 {new Date(listing.updated_at).toLocaleDateString('ko-KR')}
-                </span>
+        {/* 기본 옵션 태그 (parking, elevator, pet) */}
+        {(listing.parking || listing.elevator || listing.pet) && (
+          <div className="px-4 py-4 border-b border-gray-100">
+            <p className="text-xs font-bold text-gray-500 mb-2">편의시설</p>
+            <div className="flex flex-wrap gap-1.5">
+              {listing.parking && (
+                <span className="px-2.5 py-1 text-xs bg-wishes-secondary/10 text-wishes-secondary rounded-full border border-wishes-secondary/20">
+                  주차가능
+                </span>
+              )}
+              {listing.elevator && (
+                <span className="px-2.5 py-1 text-xs bg-wishes-accent/10 text-wishes-accent rounded-full border border-wishes-accent/20">
+                  엘리베이터
+                </span>
+              )}
+              {listing.pet && (
+                <span className="px-2.5 py-1 text-xs bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20">
+                  반려동물
+                </span>
               )}
             </div>
           </div>
+        )}
+
+        {/* 설명 */}
+        {listing.description && (
+          <div className="px-4 py-4 border-b border-gray-100">
+            <p className="text-xs font-bold text-gray-500 mb-2">상세 설명</p>
+            <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed line-clamp-6">
+              {listing.description}
+            </p>
+          </div>
+        )}
+
+        {/* 위치 정보 */}
+        <div className="px-4 py-4 border-b border-gray-100">
+          <p className="text-xs font-bold text-gray-500 mb-2">위치</p>
+          <p className="text-sm text-gray-600">{listing.address}</p>
+          {listing.dong && (
+            <p className="text-xs text-gray-400 mt-1">{listing.dong}</p>
+          )}
         </div>
 
-        {/* ── 하단 문의 버튼 ── */}
-        <div className="p-4 pb-8">
-          <Link
-            href={`/contact?listing_id=${listing.id}&listing_title=${encodeURIComponent(listing.title)}`}
-            className="block w-full py-3.5 rounded-xl bg-wishes-primary text-white text-center text-sm font-bold shadow-md hover:shadow-lg hover:bg-wishes-primary/90 transition-all"
+        {/* 주변 교통 정보 */}
+        <div className="px-4 py-4 border-b border-gray-100">
+          <p className="text-xs font-bold text-gray-500 mb-3">주변 교통 정보</p>
+          <NearbyStationsSection listingId={listing.id} />
+        </div>
+
+        {/* 실거래가 동향 */}
+        <div className="px-4 py-4 border-b border-gray-100">
+          <p className="text-xs font-bold text-gray-500 mb-3">실거래가 동향</p>
+          <a
+            href="https://rt.molit.go.kr/pt/xls/xls.do#tabNm=6"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
           >
-            온라인 상담 신청
+            <TrendingUp className="w-5 h-5 text-blue-600 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-blue-900">상단 시 최신 실거래가를 안내드립니다.</p>
+              <p className="text-xs text-gray-600 mt-0.5">국토교통부 실거래가 조회</p>
+            </div>
+            <ExternalLink className="w-4 h-4 text-blue-600 shrink-0" />
+          </a>
+        </div>
+
+        {/* 조회수 + 등록일 */}
+        <div className="px-4 py-3 flex items-center justify-between text-xs text-gray-400">
+          <div className="flex items-center gap-3">
+            {listing.views > 0 && (
+              <span className="flex items-center gap-1">
+                <Eye className="w-3 h-3" /> {listing.views}
+              </span>
+            )}
+            <span>W-{listing.id}</span>
+          </div>
+          {listing.created_at && (
+            <span>
+              {new Date(listing.created_at).toLocaleDateString('ko-KR', {
+                timeZone: 'Asia/Seoul',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}
+            </span>
+          )}
+        </div>
+
+        {/* 상세페이지 이동 버튼 */}
+        <div className="px-4 py-4">
+          <Link
+            href={`/listings/${listing.id}`}
+            className="block w-full py-3 text-center text-sm font-bold text-white bg-wishes-primary rounded-xl hover:bg-wishes-primary/90 transition-colors shadow-md"
+          >
+            매물 상세정보 보기
           </Link>
         </div>
       </div>
@@ -396,75 +352,69 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   );
 }
 
-/* ── 정보 아이템 컴포넌트 ── */
-function InfoItem({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
-  return (
-    <div className="flex items-start gap-2">
-      <Icon className="w-3.5 h-3.5 text-gray-400 mt-0.5 shrink-0" />
-      <div>
-        <p className="text-[10px] text-gray-400 font-medium">{label}</p>
-        <p className="text-sm font-semibold text-gray-800">{value}</p>
-      </div>
-    </div>
-  );
-}
-
-// ── 주변 교통 정보 서브 컴포넌트 ──
 function NearbyStationsSection({ listingId }: { listingId: number }) {
   const [stations, setStations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stationLoading, setStationLoading] = useState(true);
+  const [stationError, setStationError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStations = async () => {
       try {
-        const res = await fetch(`/api/listings/${listingId}/nearby`);
-        const json = await res.json();
-        if (json.success && json.data?.stations) {
-          setStations(json.data.stations);
+        setStationLoading(true);
+        setStationError(null);
+        const response = await fetch(`/api/listings/${listingId}/nearby`);
+        if (!response.ok) {
+          throw new Error('역 정보를 불러올 수 없습니다');
         }
-      } catch {
+        const data = await response.json();
+        setStations(data.stations || []);
+      } catch (error) {
+        setStationError(error instanceof Error ? error.message : '오류 발생');
+        setStations([]);
       } finally {
-        setLoading(false);
+        setStationLoading(false);
       }
     };
+
     fetchStations();
   }, [listingId]);
 
-  return (
-    <div className="p-4 border-b border-gray-100">
-      <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
-        <Train className="w-4 h-4 text-blue-500/70" />
-        주변 교통
-      </h3>
-      <div className="bg-blue-50/50 rounded-xl p-3.5">
-        {loading ? (
-          <div className="space-y-2">
-            {[1, 2].map((i) => (
-              <div key={i} className="flex items-center justify-between animate-pulse">
-                <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 rounded-full bg-blue-200" />
-                  <div className="h-3.5 w-16 bg-blue-100 rounded" />
-                </div>
-                <div className="h-3 w-14 bg-blue-100 rounded" />
-              </div>
-            ))}
-          </div>
-        ) : stations.length > 0 ? (
-          <div className="space-y-2">
-            {stations.map((station: any, idx: number) => (
-              <div key={idx} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center font-bold">{station.line}</span>
-                  <span className="text-sm font-medium text-gray-800">{station.name}역</span>
-                </div>
-                <span className="text-xs text-blue-600 font-medium">도보 {station.walkMin}분</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-gray-400">반경 2km 내 지하철역 없음</p>
-        )}
+  if (stationLoading) {
+    return (
+      <div className="space-y-2">
+        <div className="h-10 bg-gray-200 rounded animate-pulse" />
+        <div className="h-10 bg-gray-200 rounded animate-pulse" />
       </div>
+    );
+  }
+
+  if (stationError) {
+    return (
+      <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+        {stationError}
+      </div>
+    );
+  }
+
+  if (stations.length === 0) {
+    return (
+      <div className="p-2 bg-gray-50 border border-gray-200 rounded text-xs text-gray-600">
+        반경 2km 내 지하철역 없음
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {stations.map((station, index) => (
+        <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200">
+          <Train className="w-4 h-4 text-wishes-secondary shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-gray-800">{station.name}</p>
+            <p className="text-xs text-gray-500">{station.distance || '거리 정보 없음'}</p>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
