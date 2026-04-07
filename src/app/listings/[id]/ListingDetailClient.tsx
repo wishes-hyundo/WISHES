@@ -538,7 +538,7 @@ export default function ListingDetailClient({ id }: Props) {
               <MapPin className="w-5 h-5 text-green-600" /> 위치 정보
             </h3>
             <p className="text-sm text-gray-600 mb-1">{displayAddress}</p>
-            <p className="text-xs text-gray-400 mb-3">* 정홽한 위치는 상담 시 안내드립니다</p>
+            <p className="text-xs text-gray-400 mb-3">* 정확한 위치는 상담 시 안내드립니다</p>
             <div ref={mapRef} className="rounded-lg overflow-hidden border" style={{height:'300px'}} />
           </div>
         )}
