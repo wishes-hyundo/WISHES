@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
-import { TrendingUp, BarChart3, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { TrendingUp, AlertCircle } from 'lucide-react';
 
 interface ChartDataItem {
   month: string;
@@ -25,14 +25,20 @@ interface Props {
   deal: string;
 }
 
-function formatWon(value: number, isRent: boolean): string {
+function formatWon(value: number): string {
   if (value >= 10000) {
     const eok = Math.floor(value / 10000);
     const man = value % 10000;
     if (man === 0) return `${eok}억`;
-    return `${eok}억 ${man.toLocaleString()}만`;
+    return `${eok}.${Math.round(man / 1000)}억`;
   }
-  return `${value.toLocaleString()}만원`;
+  return `${value.toLocaleString()}만`;
+}
+
+function formatPeriod(period: string): string {
+  // "202505 ~ 202604" → "25.05 ~ 26.04"
+  if (!period) return '최근 12개월';
+  return period.replace(/(\d{4})(\d{2})/g, (_, y, m) => `${y.slice(2)}.${m}`);
 }
 
 export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
@@ -54,7 +60,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
         } else {
           setError(json.error || '데이터를 불러올 수 없습니다');
         }
-      } catch (e) {
+      } catch {
         setError('네트워크 오류가 발생했습니다');
       } finally {
         setLoading(false);
@@ -63,14 +69,9 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
     fetchData();
   }, [listingId]);
 
-  useEffect(() => {
-    if (!canvasRef.current || data.length === 0) return;
-    drawChart();
-  }, [data]);
-
-  function drawChart() {
+  const drawChart = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || data.length === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
@@ -83,11 +84,10 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
 
     const W = displayWidth;
     const H = displayHeight;
-    const pad = { top: 30, right: 16, bottom: 44, left: 58 };
+    const pad = { top: 20, right: 16, bottom: 44, left: 58 };
     const chartW = W - pad.left - pad.right;
     const chartH = H - pad.top - pad.bottom;
 
-    // Clear
     ctx.clearRect(0, 0, W, H);
 
     const prices = data.map(d => d.avgPrice);
@@ -98,6 +98,12 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
 
     const barWidth = Math.min(chartW / data.length * 0.5, 28);
     const stepX = chartW / data.length;
+
+    // Determine if last month is partial (current month)
+    const now = new Date();
+    const currentYM = `${String(now.getFullYear()).slice(2)}.${now.getMonth() + 1}`;
+    const lastItem = data[data.length - 1];
+    const isLastPartial = lastItem.month === currentYM;
 
     // Grid lines (price axis)
     const gridLines = 4;
@@ -111,7 +117,6 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
       ctx.lineTo(W - pad.right, y);
       ctx.stroke();
 
-      // Price labels
       const val = maxPrice - ((maxPrice - minPrice) * i) / gridLines;
       ctx.fillStyle = '#9ca3af';
       ctx.font = '10px -apple-system, sans-serif';
@@ -130,7 +135,10 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
       const barH = maxCount > 0 ? (d.count / maxCount) * chartH : 0;
       const y = pad.top + chartH - barH;
 
-      ctx.fillStyle = 'rgba(34, 197, 94, 0.15)';
+      // Partial month: dashed pattern for current month
+      const isPartial = i === data.length - 1 && isLastPartial;
+      ctx.fillStyle = isPartial ? 'rgba(34, 197, 94, 0.08)' : 'rgba(34, 197, 94, 0.15)';
+
       ctx.beginPath();
       const r = 3;
       ctx.moveTo(x + r, y);
@@ -142,13 +150,13 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
       ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.fill();
 
-      // Count label on bar
-      if (d.count > 0) {
-        ctx.fillStyle = '#86efac';
-        ctx.font = '9px -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText(`${d.count}건`, x + barWidth / 2, y - 2);
+      // Partial month: dashed border
+      if (isPartial) {
+        ctx.strokeStyle = 'rgba(34, 197, 94, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([3, 3]);
+        ctx.stroke();
+        ctx.setLineDash([]);
       }
     });
 
@@ -185,35 +193,28 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
 
     // Data points
     points.forEach((p, i) => {
+      const isPartial = i === data.length - 1 && isLastPartial;
       ctx.fillStyle = '#fff';
-      ctx.strokeStyle = '#16a34a';
+      ctx.strokeStyle = isPartial ? '#86efac' : '#16a34a';
       ctx.lineWidth = 2;
+      if (isPartial) {
+        ctx.setLineDash([2, 2]);
+      }
       ctx.beginPath();
       ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
-
-      // Price label on last few points
-      if (i >= data.length - 3 || i === 0) {
-        ctx.fillStyle = '#374151';
-        ctx.font = 'bold 10px -apple-system, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        const priceLabel = data[i].avgPrice >= 10000
-          ? `${(data[i].avgPrice / 10000).toFixed(1)}억`
-          : `${data[i].avgPrice.toLocaleString()}만`;
-        ctx.fillText(priceLabel, p.x, p.y - 8);
-      }
+      ctx.setLineDash([]);
     });
 
     // X-axis labels (months)
     data.forEach((d, i) => {
       const x = pad.left + stepX * i + stepX / 2;
-      ctx.fillStyle = '#9ca3af';
-      ctx.font = '10px -apple-system, sans-serif';
+      const isPartial = i === data.length - 1 && isLastPartial;
+      ctx.fillStyle = isPartial ? '#d1d5db' : '#9ca3af';
+      ctx.font = `${isPartial ? 'italic ' : ''}10px -apple-system, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
-      // Show every month or every other if too many
       if (data.length <= 12 || i % 2 === 0) {
         ctx.fillText(d.month, x, pad.top + chartH + 8);
       }
@@ -226,17 +227,30 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
     ctx.moveTo(pad.left, pad.top + chartH);
     ctx.lineTo(W - pad.right, pad.top + chartH);
     ctx.stroke();
-  }
+  }, [data]);
+
+  // Draw chart when data changes
+  useEffect(() => {
+    if (data.length > 0) drawChart();
+  }, [data, drawChart]);
+
+  // Resize handler
+  useEffect(() => {
+    if (data.length === 0) return;
+    const handleResize = () => { drawChart(); };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [data, drawChart]);
 
   // Loading state
   if (loading) {
     return (
-      <div className="mt-6 pt-6 border-t border-gray-100">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
         <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
           <TrendingUp className="w-4 h-4 text-green-500/70" />
           {dong} 실거래가 동향
         </h3>
-        <div className="bg-green-50/50 rounded-xl p-6 flex items-center justify-center h-[280px]">
+        <div className="bg-green-50/50 rounded-xl p-6 flex items-center justify-center h-[240px]">
           <div className="flex flex-col items-center gap-2">
             <div className="w-6 h-6 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
             <p className="text-xs text-gray-400">실거래가 데이터 로딩중...</p>
@@ -249,7 +263,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
   // Error state
   if (error || data.length === 0) {
     return (
-      <div className="mt-6 pt-6 border-t border-gray-100">
+      <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
         <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
           <TrendingUp className="w-4 h-4 text-green-500/70" />
           {dong} 실거래가 동향
@@ -288,58 +302,70 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
   const priceUnit = isRent ? '보증금' : '매매가';
 
   return (
-    <div className="mt-6 pt-6 border-t border-gray-100">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
-        <TrendingUp className="w-4 h-4 text-green-500/70" />
-        {dong} {meta?.label || `${type} ${deal}`} 실거래가 동향
-      </h3>
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      {/* Header */}
+      <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-3">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
+            <TrendingUp className="w-4 h-4 text-green-500" />
+            {dong} {meta?.label || `${type} ${deal}`} 실거래가 동향
+          </h3>
+          {/* Legend */}
+          <div className="flex items-center gap-3 text-[11px] text-gray-400">
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-0.5 bg-green-600 rounded-full inline-block" /> 평균가
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 bg-green-500/15 rounded-sm inline-block" /> 거래량
+            </span>
+          </div>
+        </div>
 
-      <div className="bg-green-50/30 rounded-xl border border-green-100/50 overflow-hidden">
         {/* Summary stats */}
-        <div className="px-4 pt-4 pb-2 flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <p className="text-xs text-gray-400 mb-0.5">최근 평균 {priceUnit}</p>
+            <p className="text-[11px] text-gray-400 mb-0.5">최근 평귰 {priceUnit}</p>
             <p className="text-lg font-bold text-gray-800">
-              {formatWon(latestPrice, isRent)}
+              {formatWon(latestPrice)}
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-xs text-gray-400">전월대비</p>
+              <p className="text-[11px] text-gray-400">전월대비</p>
               <p className={`text-sm font-bold ${isUp ? 'text-red-500' : latestPrice < prevPrice ? 'text-blue-500' : 'text-gray-500'}`}>
                 {isUp ? '▲' : latestPrice < prevPrice ? '▼' : '─'} {Math.abs(Number(changePercent))}%
               </p>
             </div>
             <div className="text-right">
-              <p className="text-xs text-gray-400">총 거래</p>
+              <p className="text-[11px] text-gray-400">܄� 거래</p>
               <p className="text-sm font-bold text-gray-700">{totalCount.toLocaleString()}건</p>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Chart */}
-        <div className="px-2 pb-2">
-          <canvas
-            ref={canvasRef}
-            className="w-full"
-            style={{ height: '220px' }}
-          />
-        </div>
+      {/* Chart */}
+      <div className="px-2 pb-2">
+        <canvas
+          ref={canvasRef}
+          className="w-full"
+          style={{ height: '200px' }}
+        />
+      </div>
 
-        {/* Footer */}
-        <div className="px-4 py-2.5 bg-green-50/80 border-t border-green-100/50 flex items-center justify-between">
-          <p className="text-[10px] text-gray-400">
-            국토교통부 실거래가 공개시스템 · {meta?.period?.replace(' ', '') || '최근 12개월'}
-          </p>
-          <div className="flex items-center gap-3 text-[10px] text-gray-400">
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-0.5 bg-green-500 rounded-full inline-block" /> 평균 {priceUnit}
-            </span>
-            <span className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 bg-green-500/15 rounded-sm inline-block" /> 거래건수
-            </span>
-          </div>
-        </div>
+      {/* Footer */}
+      <div className="px-4 sm:px-6 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+        <p className="text-[10px] text-gray-400">
+          {formatPeriod(meta?.period || '')} 기준 · 국토교통부 실거래가 공개시스템
+        </p>
+        <a
+          href="https://rt.molit.go.kr/pt/xls/xls.do#tabNm=6"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[10px] text-green-600 hover:text-green-700 font-medium"
+        >
+          상세 조회 →
+        </a>
       </div>
     </div>
   );
