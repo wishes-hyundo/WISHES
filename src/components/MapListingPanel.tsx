@@ -109,7 +109,7 @@ function RealPriceMiniChart({ listingId, type }: { listingId: number; type: stri
       ctx.fillRect(x - barWidth / 2, padT + chartH - barH, barWidth, barH);
     });
 
-    // 꺾은선 (m��균가)
+    // 꺾은선 (평균가)
     ctx.strokeStyle = '#10b981';
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
@@ -348,7 +348,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         </div>
 
-        {/* 옵션/편의시설 */}
+        {/* 옵션/펴의시설 */}
         {features.length > 0 && (
           <div className="px-4 py-4 border-b border-gray-100">
             <p className="text-xs font-bold text-gray-500 mb-2">옵션/편의시설</p>
@@ -415,7 +415,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <RealPriceMiniChart listingId={listing.id} type={listing.type || '아파트'} />
         </div>
 
-        {/* 조회수 + 등록일 */}
+        {/* 조횋ㄘ + 등록일 */}
         <div className="px-4 py-3 flex items-center justify-between text-xs text-gray-400">
           <div className="flex items-center gap-3">
             {listing.views > 0 && (
