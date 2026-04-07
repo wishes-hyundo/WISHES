@@ -1,5 +1,4 @@
 'use client';
-// Build cache bust: 2026-04-07T09:49:28.191Z
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TrendingUp, AlertCircle } from 'lucide-react';
