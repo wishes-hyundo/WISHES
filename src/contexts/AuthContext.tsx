@@ -40,6 +40,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        // 로그인 성공 시 모달 자동 닫기
+        if (session?.user) {
+          setShowAuthModal(false);
+        }
       }
     );
 
@@ -48,6 +52,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithProvider = useCallback(async (provider: 'kakao' | 'google') => {
     const supabase = createAuthClient();
+    // 로그인 후 돌아갈 경로 저장
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('wishes-auth-redirect', window.location.pathname + window.location.search);
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
@@ -56,13 +64,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
     if (error) {
       console.error('소셜 로그인 오류:', error.message);
+      throw error;
     }
   }, []);
 
+  // 네이버는 Supabase 네이티브 미지원 → Custom OIDC 또는 별도 처리
   const signInWithNaver = useCallback(() => {
+    // 로그인 후 돌아갈 경로 저장
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('wishes-auth-redirect', window.location.pathname + window.location.search);
+    }
     const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || '';
     const REDIRECT_URI = `${window.location.origin}/auth/callback?provider=naver`;
     const STATE = Math.random().toString(36).substring(7);
+
+    // 네이버 로그인 페이지로 리다이렉트
     window.location.href =
       `https://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${NAVER_CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&state=${STATE}`;
   }, []);
