@@ -28,6 +28,7 @@ interface NearbyStation {
 
 interface Props {
   id: string;
+  listing?: any;
 }
 
 // ── 최근 본 매물 관리 ──
@@ -51,16 +52,16 @@ function getRecentlyViewed(excludeId: number): number[] {
   }
 }
 
-export default function ListingDetailClient({ id }: Props) {
+export default function ListingDetailClient({ id, listing: initialListing }: Props) {
   const { user, setShowAuthModal } = useAuth();
   const isLoggedIn = !!user;
 
-  const [listing, setListing] = useState<any>(null);
+  const [listing, setListing] = useState<any>(initialListing || null);
   const [images, setImages] = useState<any[]>([]);
   const [features, setFeatures] = useState<any[]>([]);
   const [relatedListings, setRelatedListings] = useState<any[]>([]);
   const [recentListings, setRecentListings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!initialListing);
   const [notFound, setNotFound] = useState(false);
 
   // 주변 교통 정보 상태
@@ -84,8 +85,9 @@ export default function ListingDetailClient({ id }: Props) {
       const supabase = createClient();
 
       // 메인 데이터와 부가 데이터 병렬 로드
+      // If listing was passed from server, skip listing fetch (RLS blocks anon client)
       const [listingResult, imagesResult, featuresResult] = await Promise.all([
-        supabase.from('listings').select('*').eq('id', listingId).single(),
+        initialListing ? Promise.resolve({ data: initialListing }) : supabase.from('listings').select('*').eq('id', listingId).single(),
         supabase.from('listing_images').select('id, url, sort_order').eq('listing_id', listingId).order('sort_order', { ascending: true }),
         supabase.from('listing_features').select('id, feature').eq('listing_id', listingId),
       ]);
@@ -97,7 +99,7 @@ export default function ListingDetailClient({ id }: Props) {
       }
 
       const data = listingResult.data;
-      setListing(data);
+      if (!initialListing) setListing(data);
       setImages(imagesResult.data || []);
       setFeatures(featuresResult.data || []);
       setLoading(false);
