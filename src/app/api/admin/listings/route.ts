@@ -301,6 +301,20 @@ export async function PUT(request: NextRequest) {
     revalidatePath('/map', 'page');
     revalidatePath(`/listings/${id}`, 'page');
 
+
+    // Auto-trigger AI description generation (fire-and-forget)
+    if (data?.id) {
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
+      fetch(`${siteUrl}/api/admin/auto-generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ADMIN_TOKEN}`,
+        },
+        body: JSON.stringify({ listingId: data.id }),
+      }).catch(err => console.error('[auto-generate trigger]', err));
+    }
+
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: '매물 수정에 실패했습니다', detail: error?.message }, { status: 500 });
