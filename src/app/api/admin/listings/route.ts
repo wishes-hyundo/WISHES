@@ -88,11 +88,37 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
     }
     const supabase = createServerClient();
-    const { data, error } = await supabase
-      .from('listings')
-      .select('*, listing_images(*)')
-      .order('created_at', { ascending: false })
-      .range(0, 4999);
+    
+    // Supabase 기본 1000행 제한 우회: 페이지네이션으로 전체 데이터 가져오기
+    let allData: any[] = [];
+    let page = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const from = page * pageSize;
+      const to = from + pageSize - 1;
+      const { data: batch, error: batchError } = await supabase
+        .from('listings')
+        .select('*, listing_images(*)')
+        .order('created_at', { ascending: false })
+        .range(from, to);
+      
+      if (batchError) {
+        return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다', detail: batchError?.message }, { status: 500 });
+      }
+      
+      if (batch && batch.length > 0) {
+        allData = allData.concat(batch);
+        hasMore = batch.length === pageSize;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    const data = allData;
+    const error = null;
     if (error) {
       return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다', detail: error?.message }, { status: 500 });
     }
