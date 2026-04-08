@@ -10,8 +10,13 @@ export const metadata: Metadata = {
     default: 'WISHES | 서울·경기 종합부동산 서비스',
     template: '%s | WISHES',
   },
-  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요.',
-  keywords: ['서울 부동산', '경기 부동산', '원룸 전세', '월세 매물', '오피스텔', '아파트 매매', 'WISHES', '종합부동산'],
+  description:
+    '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요.',
+  keywords: [
+    '서울 부동산', '경기 부동산', '원룸 전세', '월세 매물',
+    '오피스텔', '아파트 매매', 'WISHES', '종합부동산',
+    '관악구 부동산', '신림동 원룸', '전세대출 상담',
+  ],
   openGraph: {
     title: 'WISHES | 서울·경기 종합부동산',
     description: '서울·경기 전 지역 종합부동산. 지도로 매물을 쉽게 찾아보세요.',
@@ -32,9 +37,6 @@ export const metadata: Metadata = {
     description: '서울·경기 전 지역 종합부동산 서비스.',
     images: ['/og-image.png'],
   },
-  alternates: {
-    canonical: 'https://wishes.co.kr',
-  },
   robots: {
     index: true,
     follow: true,
@@ -42,12 +44,12 @@ export const metadata: Metadata = {
       index: true,
       follow: true,
       'max-video-preview': -1,
-      'max-image-preview': 'large',
+      'max-image-preview': 'large' as const,
       'max-snippet': -1,
     },
   },
   verification: {
-    google: 'GOOGLE_VERIFICATION_CODE',
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '',
     other: {
       'naver-site-verification': '924ead2b53885a0168f7b41745852535ac11f7b8',
     },
@@ -82,9 +84,7 @@ export default function RootLayout({
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
-            gtag('consent', 'default', {
-              analytics_storage: 'granted'
-            });
+            gtag('consent', 'default', { analytics_storage: 'granted' });
             gtag('config', 'G-XXXXXXXXXX');
           `}
         </Script>
@@ -138,7 +138,10 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body suppressHydrationWarning className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col">
+      <body
+        suppressHydrationWarning
+        className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col"
+      >
         <ConditionalLayout>
           {children}
         </ConditionalLayout>
