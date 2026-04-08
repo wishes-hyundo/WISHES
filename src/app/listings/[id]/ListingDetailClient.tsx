@@ -643,3 +643,4 @@ function OptionBadge({ label, available }: { label: string; available: boolean }
     </span>
   );
               }
+// v2-fix: marker error resolved
