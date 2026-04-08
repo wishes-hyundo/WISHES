@@ -45,15 +45,32 @@ function AuthCallbackContent() {
 
       if (code) {
         setCodeProcessed(true);
+
         fetch('/api/auth/naver', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code, state }),
         })
           .then((res) => res.json())
-          .then((data) => {
-            if (data.url) {
-              window.location.href = data.url;
+          .then(async (data) => {
+            if (data.token_hash) {
+              // token_hash로 verifyOtp 호출하여 세션 직접 생성
+              const supabase = createAuthClient();
+              const { error: verifyError } = await supabase.auth.verifyOtp({
+                token_hash: data.token_hash,
+                type: 'magiclink',
+              });
+
+              if (verifyError) {
+                console.error('Naver verifyOtp error:', verifyError.message);
+                setStatus('error');
+                setErrorMessage('세션 생성 중 오류가 발생했습니다. 다시 시도해주세요.');
+                setTimeout(() => router.replace(getRedirectPath()), 3000);
+              } else {
+                setStatus('success');
+                const redirectPath = getRedirectPath();
+                setTimeout(() => router.replace(redirectPath), 800);
+              }
             } else {
               setStatus('error');
               setErrorMessage(data.error || '네이버 로그인 처리 중 오류가 발생했습니다.');
@@ -77,6 +94,7 @@ function AuthCallbackContent() {
     // 에러 파라미터 확인
     const error = searchParams.get('error');
     const errorDescription = searchParams.get('error_description');
+
     if (error) {
       setStatus('error');
       setErrorMessage(errorDescription || '로그인 중 오류가 발생했습니다.');
@@ -86,9 +104,11 @@ function AuthCallbackContent() {
 
     // Supabase PKCE 코드 교환 (카카오/구글)
     const code = searchParams.get('code');
+
     if (code) {
       setCodeProcessed(true);
       const supabase = createAuthClient();
+
       supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
         if (exchangeError) {
           // 코드가 이미 처리된 경우 (detectSessionInUrl에 의해) 무시
