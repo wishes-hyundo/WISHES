@@ -269,18 +269,16 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
           {dong} 실거래가 동향
         </h3>
         <div className="bg-green-50/50 rounded-xl p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
               <AlertCircle className="w-4 h-4 text-green-600" />
             </div>
             <div>
               <p className="text-sm font-medium text-gray-700">실거래가 정보</p>
-              <p className="text-xs text-gray-400 mt-0.5">
-                {error || '해당 지역의 실거래 데이터를 준비 중입니다'}
-              </p>
+              <p className="text-xs text-gray-400">해당 지역의 실거래 데이터가 없습니다</p>
             </div>
           </div>
-        </div>
+                  </div>
       </div>
     );
   }
@@ -330,7 +328,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] text-gray-400">܄� 거래</p>
+              <p className="text-[11px] text-gray-400">총 거래</p>
               <p className="text-sm font-bold text-gray-700">{totalCount.toLocaleString()}건</p>
             </div>
           </div>
@@ -351,15 +349,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
         <p className="text-[10px] text-gray-400">
           {formatPeriod(meta?.period || '')} 기준 · 국토교통부 실거래가 공개시스템
         </p>
-        <a
-          href="https://rt.molit.go.kr/pt/xls/xls.do#tabNm=6"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[10px] text-green-600 hover:text-green-700 font-medium"
-        >
-          상세 조회 →
-        </a>
-      </div>
+              </div>
     </div>
   );
 }
