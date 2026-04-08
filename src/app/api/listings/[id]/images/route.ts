@@ -1,7 +1,8 @@
-// ââââââââââââââââââââââââââââââââââââââââ
+// ════════════════════════════════════════
 // API: POST /api/listings/[id]/images
-// ë§¤ë¬¼ ì¬ì§ ìë¡ë (R2 + Supabase listing_images)
-// ââââââââââââââââââââââââââââââââââââââââ
+// 매물 사진 업로드 (R2 + Supabase listing_images)
+// 개선: 상세 에러 메시지 반환
+// ════════════════════════════════════════
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { uploadToR2, deleteFromR2 } from '@/lib/r2';
@@ -26,7 +27,7 @@ function isAdmin(request: NextRequest): boolean {
   return auth.split(' ')[1] === ADMIN_TOKEN;
 }
 
-// POST: ì´ë¯¸ì§ ìë¡ë
+// POST: 이미지 업로드
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -34,7 +35,7 @@ export async function POST(
   try {
     if (!isAdmin(request)) {
       return NextResponse.json(
-        { success: false, error: 'ì¸ì¦ ì¤í¨' },
+        { success: false, error: '인증 실패' },
         { status: 401, headers: CORS_HEADERS }
       );
     }
@@ -43,32 +44,41 @@ export async function POST(
     const listingId = parseInt(id);
     if (isNaN(listingId)) {
       return NextResponse.json(
-        { success: false, error: 'ì í¨íì§ ìì ë§¤ë¬¼ ID' },
+        { success: false, error: '유효하지 않은 매물 ID' },
         { status: 400, headers: CORS_HEADERS }
       );
     }
 
-    const formData = await request.formData();
+    // FormData 파싱 (별도 try-catch)
+    let formData: FormData;
+    try {
+      formData = await request.formData();
+    } catch (parseErr: any) {
+      return NextResponse.json(
+        { success: false, error: 'FormData 파싱 실패: ' + (parseErr?.message || String(parseErr)) },
+        { status: 400, headers: CORS_HEADERS }
+      );
+    }
+
     const files = formData.getAll('images') as File[];
 
     if (!files || files.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'ìë¡ëí  ì´ë¯¸ì§ê° ììµëë¤' },
+        { success: false, error: '업로드할 이미지가 없습니다' },
         { status: 400, headers: CORS_HEADERS }
       );
     }
 
-    // ìµë 10ì¥ ì í
     if (files.length > 10) {
       return NextResponse.json(
-        { success: false, error: 'í ë²ì ìµë 10ì¥ê¹ì§ ìë¡ëí  ì ììµëë¤' },
+        { success: false, error: '한 번에 최대 10장까지 업로드할 수 있습니다' },
         { status: 400, headers: CORS_HEADERS }
       );
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // ë§¤ë¬¼ ì¡´ì¬ íì¸
+    // 매물 존재 확인
     const { data: listing, error: listingErr } = await supabase
       .from('listings')
       .select('id')
@@ -77,44 +87,44 @@ export async function POST(
 
     if (listingErr || !listing) {
       return NextResponse.json(
-        { success: false, error: 'ë§¤ë¬¼ì ì°¾ì ì ììµëë¤' },
+        { success: false, error: '매물을 찾을 수 없습니다' },
         { status: 404, headers: CORS_HEADERS }
       );
     }
 
-    // ì´ë¯¸ì§ ìë¡ë ì²ë¦¬
-    const uploadedImages: { url: string; order_num: number }[] = [];
-
-    // ê¸°ì¡´ ì´ë¯¸ì§ ì íì¸ (order_num ì¤ì ì©)
+    // 기존 이미지 수 확인 (order_num 설정용)
     const { count: existingCount } = await supabase
       .from('listing_images')
       .select('id', { count: 'exact', head: true })
       .eq('listing_id', listingId);
 
-    let orderStart = (existingCount || 0);
+    let orderStart = existingCount || 0;
+    const uploadedImages: { url: string; order_num: number }[] = [];
+    const errors: { index: number; name: string; error: string }[] = [];
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
 
-      // íì¼ íì ê²ì¦
+      // 파일 타입 검증
       if (!file.type.startsWith('image/')) {
+        errors.push({ index: i, name: file.name, error: '이미지 파일이 아닙니다 (type: ' + file.type + ')' });
         continue;
       }
 
-      // íì¼ í¬ê¸° ì í (10MB)
+      // 파일 크기 제한 (10MB)
       if (file.size > 10 * 1024 * 1024) {
+        errors.push({ index: i, name: file.name, error: '파일 크기 초과: ' + (file.size / 1024 / 1024).toFixed(1) + 'MB (최대 10MB)' });
         continue;
       }
-
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const ext = file.type.split('/')[1] || 'jpg';
-      const timestamp = Date.now();
-      const key = `listings/${listingId}/${timestamp}_${i}.${ext}`;
 
       try {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const ext = file.type.split('/')[1] || 'jpg';
+        const timestamp = Date.now();
+        const key = `listings/${listingId}/${timestamp}_${i}.${ext}`;
+
         const imageUrl = await uploadToR2(key, buffer, file.type);
 
-        // listing_images íì´ë¸ì ì ì¥
         const { data: imgData, error: imgErr } = await supabase
           .from('listing_images')
           .insert({
@@ -126,17 +136,26 @@ export async function POST(
           .select()
           .single();
 
-        if (!imgErr && imgData) {
+        if (imgErr) {
+          errors.push({ index: i, name: file.name, error: 'DB 저장 실패: ' + imgErr.message });
+        } else if (imgData) {
           uploadedImages.push({ url: imageUrl, order_num: orderStart + i });
         }
-      } catch (uploadErr) {
-        console.error(`ì´ë¯¸ì§ ìë¡ë ì¤í¨ (${i}):`, uploadErr);
+      } catch (uploadErr: any) {
+        const errMsg = uploadErr?.message || String(uploadErr);
+        console.error(`이미지 업로드 실패 (${i}):`, errMsg);
+        errors.push({ index: i, name: file.name, error: 'R2 업로드 실패: ' + errMsg });
       }
     }
 
     if (uploadedImages.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'ì´ë¯¸ì§ ìë¡ëì ì¤í¨íìµëë¤' },
+        {
+          success: false,
+          error: '모든 이미지 업로드에 실패했습니다',
+          errors: errors,
+          details: errors.map(e => e.name + ': ' + e.error).join('; '),
+        },
         { status: 500, headers: CORS_HEADERS }
       );
     }
@@ -144,22 +163,24 @@ export async function POST(
     return NextResponse.json(
       {
         success: true,
-        message: `${uploadedImages.length}èµ£ì ì¬ì§ì´ ë±ë¡ëììµëë¤`,
+        message: uploadedImages.length + '장의 사진이 등록되었습니다',
         images: uploadedImages,
         listingId: listingId,
+        ...(errors.length > 0 ? { errors } : {}),
       },
       { headers: CORS_HEADERS }
     );
-  } catch (error) {
-    console.error('ì´ë¯¸ì§ ìë¡ë ì¤ë¥:', error);
+  } catch (error: any) {
+    const errMsg = error?.message || String(error);
+    console.error('이미지 업로드 오류:', errMsg);
     return NextResponse.json(
-      { success: false, error: 'ìë² ì¤ë¥ê° ë°ìíìµëë¤' },
+      { success: false, error: 'Server error: ' + errMsg },
       { status: 500, headers: CORS_HEADERS }
     );
   }
 }
 
-// GET: ë§¤ë¬¼ì ì´ë¯¸ì§ ëª©ë¡ ì¡°í
+// GET: 매물의 이미지 목록 조회
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -169,7 +190,7 @@ export async function GET(
     const listingId = parseInt(id);
     if (isNaN(listingId)) {
       return NextResponse.json(
-        { success: false, error: 'ì í¨íì§ ìì ë§¤ë¬¼ ID' },
+        { success: false, error: '유효하지 않은 매물 ID' },
         { status: 400, headers: CORS_HEADERS }
       );
     }
@@ -184,7 +205,7 @@ export async function GET(
 
     if (error) {
       return NextResponse.json(
-        { success: false, error: 'ì´ë¯¸ì§ ì¡°í ì¤í¨' },
+        { success: false, error: '이미지 조회 실패: ' + error.message },
         { status: 500, headers: CORS_HEADERS }
       );
     }
@@ -193,15 +214,15 @@ export async function GET(
       { success: true, data: images || [] },
       { headers: CORS_HEADERS }
     );
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: 'ìë² ì¤ë¥' },
+      { success: false, error: 'Server error: ' + (error?.message || String(error)) },
       { status: 500, headers: CORS_HEADERS }
     );
   }
 }
 
-// DELETE: í¹ì  ì´ë¯¸ì§ ì­ì 
+// DELETE: 특정 이미지 삭제
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -209,7 +230,7 @@ export async function DELETE(
   try {
     if (!isAdmin(request)) {
       return NextResponse.json(
-        { success: false, error: 'ì¸ì¦ ì¤í¨' },
+        { success: false, error: '인증 실패' },
         { status: 401, headers: CORS_HEADERS }
       );
     }
@@ -221,14 +242,13 @@ export async function DELETE(
 
     if (!imageId) {
       return NextResponse.json(
-        { success: false, error: 'imageId íë¼ë¯¸í°ê° íìí©ëë¤' },
+        { success: false, error: 'imageId 파라미터가 필요합니다' },
         { status: 400, headers: CORS_HEADERS }
       );
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // ì´ë¯¸ì§ ì ë³´ ì¡°í
     const { data: image, error: findErr } = await supabase
       .from('listing_images')
       .select('id, storage_key')
@@ -238,30 +258,32 @@ export async function DELETE(
 
     if (findErr || !image) {
       return NextResponse.json(
-        { success: false, error: 'ì´ë¯¸ì§ë¥¼ ì°¾ì ì ììµëë¤' },
+        { success: false, error: '이미지를 찾을 수 없습니다' },
         { status: 404, headers: CORS_HEADERS }
       );
     }
 
-    // R2ìì ì­ì 
     if (image.storage_key) {
-      try { await deleteFromR2(image.storage_key); } catch (e) { console.warn('R2 ì­ì  ì¤í¨:', e); }
+      try {
+        await deleteFromR2(image.storage_key);
+      } catch (e) {
+        console.warn('R2 삭제 실패:', e);
+      }
     }
 
-    // DBìì ì­ì 
     await supabase
       .from('listing_images')
       .delete()
       .eq('id', image.id);
 
     return NextResponse.json(
-      { success: true, message: 'ì´ë¯¸ì§ê° ì­ì ëììµëë¤' },
+      { success: true, message: '이미지가 삭제되었습니다' },
       { headers: CORS_HEADERS }
     );
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json(
-      { success: false, error: 'ìë² ì¤ë¥' },
+      { success: false, error: 'Server error: ' + (error?.message || String(error)) },
       { status: 500, headers: CORS_HEADERS }
     );
   }
-}
+          }
