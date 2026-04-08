@@ -117,13 +117,10 @@ export async function POST(request: NextRequest) {
       }, { onConflict: 'id' });
     }
 
-    // 4. 매직링크 생성 (OTP 방식으로 자동 로그인)
+    // 4. 매직링크 생성 - token_hash를 클라이언트에 반환하여 verifyOtp로 세션 생성
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: email,
-      options: {
-        redirectTo: request.nextUrl.origin + '/auth/callback',
-      },
     });
 
     if (linkError || !linkData) {
@@ -131,18 +128,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to generate session' }, { status: 500 });
     }
 
-    // action_link를 사용하여 Supabase 인증 흐름으로 리다이렉트
-    const actionLink = linkData.properties?.action_link;
+    const tokenHash = linkData.properties?.hashed_token;
 
-    if (!actionLink) {
-      console.error('No action_link in generateLink response:', linkData);
-      return NextResponse.json({ error: 'Failed to generate login link' }, { status: 500 });
+    if (!tokenHash) {
+      console.error('No hashed_token in generateLink response');
+      return NextResponse.json({ error: 'Failed to generate login token' }, { status: 500 });
     }
 
-    // 콜백 페이지에서 data.url을 확인하므로 url 필드로 반환
+    // token_hash를 반환 - 클라이언트에서 verifyOtp로 세션 생성
     return NextResponse.json({
       success: true,
-      url: actionLink,
+      token_hash: tokenHash,
+      email: email,
       userId,
     });
   } catch (error) {
