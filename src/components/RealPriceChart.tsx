@@ -269,24 +269,17 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
           {dong} 실거래가 동향
         </h3>
         <div className="bg-green-50/50 rounded-xl p-4">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
               <AlertCircle className="w-4 h-4 text-green-600" />
             </div>
             <div>
               <p className="text-sm font-medium text-gray-700">실거래가 정보</p>
-              <p className="text-xs text-gray-400">해당 지역의 실거래 데이터가 없습니다</p>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {error || '해당 지역의 실거래 데이터를 준비 중입니다'}
+              </p>
             </div>
           </div>
-          <a
-            href="https://rt.molit.go.kr/pt/xls/xls.do#tabNm=6"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors font-medium"
-          >
-            <TrendingUp className="w-3 h-3" />
-            국토교통부 실거래가 조회하기
-          </a>
         </div>
       </div>
     );
@@ -337,7 +330,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] text-gray-400">총 거래</p>
+              <p className="text-[11px] text-gray-400">܄� 거래</p>
               <p className="text-sm font-bold text-gray-700">{totalCount.toLocaleString()}건</p>
             </div>
           </div>
