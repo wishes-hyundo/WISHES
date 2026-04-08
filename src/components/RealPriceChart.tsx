@@ -337,7 +337,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] text-gray-400">܄� 거래</p>
+              <p className="text-[11px] text-gray-400">총 거래</p>
               <p className="text-sm font-bold text-gray-700">{totalCount.toLocaleString()}건</p>
             </div>
           </div>
