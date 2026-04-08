@@ -91,7 +91,8 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from('listings')
       .select('*, listing_images(*)')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .range(0, 4999);
     if (error) {
       return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다', detail: error?.message }, { status: 500 });
     }
