@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 
-/* âââ íì ì ì âââ */
+/* ─── 타입 정의 ─── */
 interface Listing {
   id: number;
   title: string;
@@ -11,10 +11,10 @@ interface Listing {
   address_detail?: string;
   dong: string;
   type: string;
-  deal: string;          // DB: 'deal' (ìì¸/ì ì¸/ë§¤ë§¤)
-  price: number | null;  // DB: number (ë§¤ë§¤ê°, ë§ì)
-  deposit: number | null; // DB: number (ë³´ì¦ê¸, ë§ì)
-  monthly: number | null; // DB: number (ìì¸, ë§ì)
+  deal: string;          // DB: 'deal' (월세/전세/매매)
+  price: number | null;  // DB: number (매매가, 만원)
+  deposit: number | null; // DB: number (보증금, 만원)
+  monthly: number | null; // DB: number (월세, 만원)
   maintenance_fee?: number;
   status: string;
   created_at: string;
@@ -31,43 +31,43 @@ interface Listing {
   features?: string[];
 }
 
-type StatusFilter = 'ì ì²´' | 'ê³µê°' | 'ë¹ê³µê°' | 'ê³ì½ì¤' | 'ê³ì½ìë£';
+type StatusFilter = '전체' | '공개' | '비공개' | '계약중' | '계약완료';
 type SortField = 'id' | 'title' | 'address' | 'dong' | 'type' | 'deal' | 'price' | 'status' | 'created_at';
 type SortDirection = 'asc' | 'desc';
 type ViewMode = 'table' | 'card';
 
-/* âââ ìì âââ */
-const STATUS_OPTIONS: StatusFilter[] = ['ì ì²´', 'ê³µê°', 'ë¹ê³µê°', 'ê³ì½ì¤', 'ê³ì½ìë£'];
+/* ─── 상수 ─── */
+const STATUS_OPTIONS: StatusFilter[] = ['전체', '공개', '비공개', '계약중', '계약완료'];
 
 const STATUS_COLORS: Record<string, string> = {
-  'ê³µê°': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'ë¹ê³µê°': 'bg-slate-50 text-slate-600 border-slate-200',
-  'ê°ì©': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  'ê³ì½ì¤': 'bg-amber-50 text-amber-700 border-amber-200',
-  'ê³ì½ìë£': 'bg-slate-100 text-slate-500 border-slate-200',
+  '공개': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  '비공개': 'bg-slate-50 text-slate-600 border-slate-200',
+  '가용': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  '계약중': 'bg-amber-50 text-amber-700 border-amber-200',
+  '계약완료': 'bg-slate-100 text-slate-500 border-slate-200',
 };
 
 const STATUS_ICONS: Record<string, string> = {
-  'ê³µê°': 'ð¢',
-  'ë¹ê³µê°': 'âª',
-  'ê°ì©': 'ð¢',
-  'ê³ì½ì¤': 'ð¡',
-  'ê³ì½ìë£': 'â',
+  '공개': '🟢',
+  '비공개': '⚪',
+  '가용': '🟢',
+  '계약중': '🟡',
+  '계약완료': '✅',
 };
 
-/* DB ìíê° â íì ìíê° ì ê·í (ì: 'ê°ì©' â 'ê³µê°') */
+/* DB 상태값 → 표시 상태값 정규화 (예: '가용' → '공개') */
 const normalizeStatus = (status: string): string => {
   const STATUS_MAP: Record<string, string> = {
-    'ê°ì©': 'ê³µê°',
+    '가용': '공개',
   };
   return STATUS_MAP[status] || status;
 };
 
-const PROPERTY_TYPES = ['ì ì²´', 'ìë£¸', 'í¬ë£¸', 'ì°ë¦¬ë£¸+', 'ì¤í¼ì¤í', 'ìíí¸', 'ë¹ë¼', 'ìê°', 'ì¬ë¬´ì¤'];
-const TRANSACTION_TYPES = ['ì ì²´', 'ìì¸', 'ì ì¸', 'ë§¤ë§¤'];
+const PROPERTY_TYPES = ['전체', '원룸', '투룸', '쓰리룸+', '오피스텔', '아파트', '빌라', '상가', '사무실'];
+const TRANSACTION_TYPES = ['전체', '월세', '전세', '매매'];
 const PAGE_SIZE_OPTIONS = [20, 50, 100];
 
-/* âââ ì í¸ í¨ì âââ */
+/* ─── 유틸 함수 ─── */
 const formatDate = (dateStr: string) => {
   if (!dateStr) return '-';
   const d = new Date(dateStr);
@@ -78,54 +78,54 @@ const formatDate = (dateStr: string) => {
     const hours = Math.floor(diff / (1000 * 60 * 60));
     if (hours === 0) {
       const mins = Math.floor(diff / (1000 * 60));
-      return mins <= 0 ? 'ë°©ê¸' : `${mins}ë¶ ì `;
+      return mins <= 0 ? '방금' : `${mins}분 전`;
     }
-    return `${hours}ìê° ì `;
+    return `${hours}시간 전`;
   }
-  if (days === 1) return 'ì´ì ';
-  if (days < 7) return `${days}ì¼ ì `;
-  if (days < 30) return `${Math.floor(days / 7)}ì£¼ ì `;
+  if (days === 1) return '어제';
+  if (days < 7) return `${days}일 전`;
+  if (days < 30) return `${Math.floor(days / 7)}주 전`;
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const formatAmount = (num: number | null | undefined): string => {
   if (num === null || num === undefined) return '';
-  if (num >= 10000) return `${(num / 10000).toFixed(num % 10000 === 0 ? 0 : 1)}ìµ`;
-  if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}ì²ë§`;
-  return `${num}ë§`;
+  if (num >= 10000) return `${(num / 10000).toFixed(num % 10000 === 0 ? 0 : 1)}억`;
+  if (num >= 1000) return `${(num / 1000).toFixed(num % 1000 === 0 ? 0 : 1)}천만`;
+  return `${num}만`;
 };
 
-/** ê±°ëì íì ë§ë ê°ê²½ ë¬¸ìì´ ìì± */
+/** 거래유형에 맞는 가경 문자열 생성 */
 const formatDealPrice = (listing: Listing): string => {
   const { deal, deposit, monthly, price } = listing;
-  if (deal === 'ë§¤ë§¤') {
+  if (deal === '매매') {
     return price ? formatAmount(price) : '-';
   }
-  if (deal === 'ì ì¸') {
+  if (deal === '전세') {
     return deposit ? formatAmount(deposit) : '-';
   }
-  // ìì¸ (ê¸°ë³¸)
+  // 월세 (기본)
   if (deposit !== null && deposit !== undefined && monthly !== null && monthly !== undefined) {
     return `${formatAmount(deposit)}/${formatAmount(monthly)}`;
   }
   if (deposit) return formatAmount(deposit);
-  if (monthly) return `ì ${formatAmount(monthly)}`;
+  if (monthly) return `월 ${formatAmount(monthly)}`;
   return '-';
 };
 
-/* ââ ë§¤ë¬¼ ë±ë¡ ê²½ê³¼ì¼ ë±ì§ (ë§ë£ ìë¦¼ ìì¤í) ââ */
+/* ── 매물 등록 경과일 뱃지 (만료 알림 시스템) ── */
 const getListingAgeBadge = (dateStr: string) => {
   if (!dateStr) return { label: '-', color: 'bg-gray-100 text-gray-500', days: -1, urgent: false };
   const d = new Date(dateStr);
   const now = new Date();
   const days = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-  if (days <= 7) return { label: 'ì ê·', color: 'bg-emerald-100 text-emerald-700', days, urgent: false };
-  if (days <= 30) return { label: 'ìí¸', color: 'bg-blue-100 text-blue-700', days, urgent: false };
-  if (days <= 60) return { label: 'ì ê²íì', color: 'bg-amber-100 text-amber-700', days, urgent: true };
-  return { label: 'ê°±ì íì', color: 'bg-red-100 text-red-700', days, urgent: true };
+  if (days <= 7) return { label: '신규', color: 'bg-emerald-100 text-emerald-700', days, urgent: false };
+  if (days <= 30) return { label: '양호', color: 'bg-blue-100 text-blue-700', days, urgent: false };
+  if (days <= 60) return { label: '점검필요', color: 'bg-amber-100 text-amber-700', days, urgent: true };
+  return { label: '갱신필요', color: 'bg-red-100 text-red-700', days, urgent: true };
 };
 
-/* âââ í ì¤í¸ ì»´í¬ëí¸ âââ */
+/* ─── 토스트 컴포넌트 ─── */
 function Toast({ message, type, onClose }: { message: string; type: 'success' | 'error' | 'info'; onClose: () => void }) {
   useEffect(() => {
     const t = setTimeout(onClose, 3000);
@@ -141,43 +141,43 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
   return (
     <div className={`fixed top-4 right-4 z-50 ${colors[type]} text-white px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in`}
       style={{ animation: 'slideIn 0.3s ease-out' }}>
-      <span>{type === 'success' ? 'â' : type === 'error' ? 'â' : 'â¹'}</span>
+      <span>{type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span>
       <span className="font-medium text-sm">{message}</span>
-      <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100">Ã</button>
+      <button onClick={onClose} className="ml-2 opacity-70 hover:opacity-100">×</button>
     </div>
   );
 }
 
-/* âââ ë©ì¸ ì»´í¬ëí¸ âââ */
+/* ─── 메인 컴포넌트 ─── */
 export default function AdminListingsPage() {
   const router = useRouter();
 
-  // ë°ì´í° ìí
+  // 데이터 상태
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // íí° ìí
+  // 필터 상태
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ì ì²´');
-  const [propertyTypeFilter, setPropertyTypeFilter] = useState('ì ì²´');
-  const [transactionTypeFilter, setTransactionTypeFilter] = useState('ì ì²´');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('전체');
+  const [propertyTypeFilter, setPropertyTypeFilter] = useState('전체');
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState('전체');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [dongFilter, setDongFilter] = useState<string>('ì ì²´');
+  const [dongFilter, setDongFilter] = useState<string>('전체');
 
-  // ì ë ¬ ìí
+  // 정렬 상태
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  // íì´ì§ë¤ì´ì
+  // 페이지네이션
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  // ì í ìí (ì¼ê´ ìì)
+  // 선택 상태 (일괄 작업)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
 
-  // UI ìí
+  // UI 상태
   const [viewMode, setViewMode] = useState<ViewMode>('table');
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -188,7 +188,7 @@ export default function AdminListingsPage() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const bulkMenuRef = useRef<HTMLDivElement>(null);
 
-  /* âââ ë°ì´í° ê°ì ¸ì¤ê¸° âââ */
+  /* ─── 데이터 가져오기 ─── */
   const fetchListings = useCallback(async () => {
     try {
       setLoading(true);
@@ -196,7 +196,7 @@ export default function AdminListingsPage() {
       const res = await fetch('/api/admin/listings', {
         headers: { 'Authorization': 'Bearer wishes2026' },
       });
-      if (!res.ok) throw new Error('API ì¤ë¥: ' + res.status);
+      if (!res.ok) throw new Error('API 오류: ' + res.status);
       const json = await res.json();
       const data = (json.data || []).map((l: Listing) => ({
         ...l,
@@ -204,7 +204,7 @@ export default function AdminListingsPage() {
       }));
       setListings(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ë§¤ë¬¼ì ë¶ë¬ì¬ ì ììµëë¤');
+      setError(err instanceof Error ? err.message : '매물을 불러올 수 없습니다');
     } finally {
       setLoading(false);
     }
@@ -214,7 +214,7 @@ export default function AdminListingsPage() {
     fetchListings();
   }, [fetchListings]);
 
-  // ë²í¬ ë©ë´ ì¸ë¶ í´ë¦­ ë«ê¸°
+  // 벌크 메뉴 외부 클릭 닫기
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (bulkMenuRef.current && !bulkMenuRef.current.contains(e.target as Node)) {
@@ -225,7 +225,7 @@ export default function AdminListingsPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // í¤ë³´ë ë¨ì¶í¤
+  // 키보드 단축키
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -244,19 +244,19 @@ export default function AdminListingsPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  /* âââ íí°ë§, ì ë ¬, íì´ì§ë¤ì´ì âââ */
+  /* ─── 필터링, 정렬, 페이지네이션 ─── */
   const uniqueDongs = Array.from(new Set(listings.map(l => l.dong).filter(Boolean))).sort();
 
   const filtered = useMemo(() => {
     let result = listings.filter((l) => {
-      // ìí íí°
-      if (statusFilter !== 'ì ì²´' && l.status !== statusFilter) return false;
-      // ë§¤ë¬¼ ì í íí°
-      if (propertyTypeFilter !== 'ì ì²´' && l.type !== propertyTypeFilter) return false;
-      if (dongFilter !== 'ì ì²´' && l.dong !== dongFilter) return false;
-      // ê±°ë ì í íí°
-      if (transactionTypeFilter !== 'ì ì²´' && l.deal !== transactionTypeFilter) return false;
-      // ê²ìì´ íí°
+      // 상태 필터
+      if (statusFilter !== '전체' && l.status !== statusFilter) return false;
+      // 매물 유형 필터
+      if (propertyTypeFilter !== '전체' && l.type !== propertyTypeFilter) return false;
+      if (dongFilter !== '전체' && l.dong !== dongFilter) return false;
+      // 거래 유형 필터
+      if (transactionTypeFilter !== '전체' && l.deal !== transactionTypeFilter) return false;
+      // 검색어 필터
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         return (
@@ -270,7 +270,7 @@ export default function AdminListingsPage() {
       return true;
     });
 
-    // ì ë ¬
+    // 정렬
     result.sort((a, b) => {
       let aVal: any = a[sortField];
       let bVal: any = b[sortField];
@@ -281,7 +281,7 @@ export default function AdminListingsPage() {
         aVal = new Date(aVal || 0).getTime();
         bVal = new Date(bVal || 0).getTime();
       } else if (sortField === 'price') {
-        // ê°ê²½ ì ë ¬: ë§¤ë§¤âprice, ì ì¸âdeposit, ìì¸âdeposit ê¸°ì¤
+        // 가경 정렬: 매매→price, 전세→deposit, 월세→deposit 기준
         aVal = a.price || a.deposit || 0;
         bVal = b.price || b.deposit || 0;
       } else {
@@ -296,31 +296,31 @@ export default function AdminListingsPage() {
     return result;
   }, [listings, statusFilter, propertyTypeFilter, transactionTypeFilter, searchQuery, sortField, sortDirection, dongFilter]);
 
-  // íì´ì§ë¤ì´ì ê³ì°
+  // 페이지네이션 계산
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paginatedListings = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
-  // ìíë³ ì¹´ì´í¸
+  // 상태별 카운트
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { 'ì ì²´': listings.length };
+    const counts: Record<string, number> = { '전체': listings.length };
     listings.forEach((l) => {
       counts[l.status] = (counts[l.status] || 0) + 1;
     });
     return counts;
   }, [listings]);
 
-  // íì´ì§ ë³ê²½ ì ì í ì´ê¸°í
+  // 페이지 변경 시 선택 초기화
   useEffect(() => {
     setSelectedIds(new Set());
     setSelectAll(false);
   }, [currentPage, pageSize, statusFilter, searchQuery, propertyTypeFilter, transactionTypeFilter]);
 
-  // íí° ë³ê²½ ì íì´ì§ ë¦¬ì
+  // 필터 변경 시 페이지 리셋
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, searchQuery, propertyTypeFilter, transactionTypeFilter, pageSize]);
 
-  /* âââ ì´ë²¤í¸ í¸ë¤ë¬ âââ */
+  /* ─── 이벤트 핸들러 ─── */
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -360,32 +360,32 @@ export default function AdminListingsPage() {
         },
         body: JSON.stringify({ status: newStatus }),
       });
-      if (!res.ok) throw new Error('ìí ë³ê²½ ì¤í¨');
+      if (!res.ok) throw new Error('상태 변경 실패');
       setListings((prev) =>
         prev.map((l) => (l.id === id ? { ...l, status: newStatus } : l))
       );
-      setToast({ message: `ë§¤ë¬¼ #${id} ìíê° "${newStatus}"ë¡ ë³ê²½ëììµëë¤`, type: 'success' });
+      setToast({ message: `매물 #${id} 상태가 "${newStatus}"로 변경되었습니다`, type: 'success' });
     } catch (err) {
-      setToast({ message: 'ìí ë³ê²½ ì¤ë¥: ' + (err instanceof Error ? err.message : 'ì ì ìë ì¤ë¥'), type: 'error' });
+      setToast({ message: '상태 변경 오류: ' + (err instanceof Error ? err.message : '알 수 없는 오류'), type: 'error' });
     } finally {
       setUpdatingId(null);
     }
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm(`ë§¤ë¬¼ #${id}ì(ë¥¼) ì ë§ ì­ì íìê² ìµëê¹?\nì´ ììì ëëë¦´ ì ììµëë¤.`)) return;
+    if (!confirm(`매물 #${id}을(를) 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     try {
       setDeletingId(id);
       const res = await fetch('/api/admin/listings/' + id, {
         method: 'DELETE',
         headers: { 'Authorization': 'Bearer wishes2026' },
       });
-      if (!res.ok) throw new Error('ì­ì  ì¤í¨');
+      if (!res.ok) throw new Error('삭제 실패');
       setListings((prev) => prev.filter((l) => l.id !== id));
       setSelectedIds((prev) => { const next = new Set(prev); next.delete(id); return next; });
-      setToast({ message: `ë§¤ë¬¼ #${id}ì´(ê°) ì­ì ëììµëë¤`, type: 'success' });
+      setToast({ message: `매물 #${id}이(가) 삭제되었습니다`, type: 'success' });
     } catch (err) {
-      setToast({ message: 'ì­ì  ì¤ë¥: ' + (err instanceof Error ? err.message : 'ì ì ìë ì¤ë¥'), type: 'error' });
+      setToast({ message: '삭제 오류: ' + (err instanceof Error ? err.message : '알 수 없는 오류'), type: 'error' });
     } finally {
       setDeletingId(null);
     }
@@ -393,7 +393,7 @@ export default function AdminListingsPage() {
 
   const handleBulkStatusChange = async (newStatus: string) => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`ì íí ${selectedIds.size}ê±´ì ë§¤ë¬¼ ìíë¥¼ "${newStatus}"ë¡ ë³ê²½íìê² ìµëê¹?`)) return;
+    if (!confirm(`선택한 ${selectedIds.size}건의 매물 상태를 "${newStatus}"로 변경하시겠습니까?`)) return;
     setBulkActionLoading(true);
     setShowBulkMenu(false);
     let successCount = 0;
@@ -424,15 +424,15 @@ export default function AdminListingsPage() {
     setSelectedIds(new Set());
     setSelectAll(false);
     if (failCount === 0) {
-      setToast({ message: `${successCount}ê±´ ìí ë³ê²½ ìë£`, type: 'success' });
+      setToast({ message: `${successCount}건 상태 변경 완료`, type: 'success' });
     } else {
-      setToast({ message: `${successCount}ê±´ ì±ê³µ, ${failCount}ê±´ ì¤í¨`, type: 'error' });
+      setToast({ message: `${successCount}건 성공, ${failCount}건 실패`, type: 'error' });
     }
   };
 
   const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (!confirm(`â ï¸ ì íí ${selectedIds.size}ê±´ì ë§¤ë¬¼ì ì­ì íìê² ìµëê¹?\nì´ ììì ëëë¦´ ì ììµëë¤.`)) return;
+    if (!confirm(`⚠️ 선택한 ${selectedIds.size}건의 매물을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     setBulkActionLoading(true);
     setShowBulkMenu(false);
     let successCount = 0;
@@ -457,22 +457,22 @@ export default function AdminListingsPage() {
     setSelectedIds(new Set());
     setSelectAll(false);
     if (failCount === 0) {
-      setToast({ message: `${successCount}ê±´ ì­ì  ìë£`, type: 'success' });
+      setToast({ message: `${successCount}건 삭제 완료`, type: 'success' });
     } else {
-      setToast({ message: `${successCount}ê±´ ì­ì  ì±ê³µ, ${failCount}ê±´ ì¤í¨`, type: 'error' });
+      setToast({ message: `${successCount}건 삭제 성공, ${failCount}건 실패`, type: 'error' });
     }
   };
 
   const handleResetFilters = () => {
     setSearchQuery('');
-    setStatusFilter('ì ì²´');
-    setPropertyTypeFilter('ì ì²´');
-    setTransactionTypeFilter('ì ì²´'); setDongFilter('ì ì²´');
+    setStatusFilter('전체');
+    setPropertyTypeFilter('전체');
+    setTransactionTypeFilter('전체'); setDongFilter('전체');
     setCurrentPage(1);
   };
 
   const handleExportCSV = () => {
-    const headers = ['ID','ì ëª©','ì£¼ì','ìì¸ì£¼ì','ë','ì í','ê±°ë','ë³´ì¦ê¸','ìì¸','ë§¤ë§¤ê°','ê´ë¦¬ë¹','ìí','ë±ë¡ì¼'];
+    const headers = ['ID','제목','주소','상세주소','동','유형','거래','보증금','월세','매매가','관리비','상태','등록일'];
     const rows = filtered.map(l => [
       l.id,
       (l.title || '').replace(/,/g, ' '),
@@ -497,20 +497,20 @@ export default function AdminListingsPage() {
     a.download = 'wishes_listings_' + new Date().toISOString().slice(0,10) + '.csv';
     a.click();
     URL.revokeObjectURL(url);
-    setToast({ message: filtered.length + 'ê±´ ë§¤ë¬¼ ë°ì´í°ê° CSVë¡ ë´ë³´ë´ê¸° ëììµëë¤.', type: 'success' });
+    setToast({ message: filtered.length + '건 매물 데이터가 CSV로 내보내기 되었습니다.', type: 'success' });
   };
 
-  const isFiltered = searchQuery || statusFilter !== 'ì ì²´' || propertyTypeFilter !== 'ì ì²´' || transactionTypeFilter !== 'ì ì²´';
+  const isFiltered = searchQuery || statusFilter !== '전체' || propertyTypeFilter !== '전체' || transactionTypeFilter !== '전체';
 
-  /* âââ ì ë ¬ ìì´ì½ âââ */
+  /* ─── 정렬 아이콘 ─── */
   const SortIcon = ({ field }: { field: SortField }) => (
     <span className="ml-1 inline-flex flex-col text-[10px] leading-none">
-      <span className={sortField === field && sortDirection === 'asc' ? 'text-blue-600' : 'text-gray-300'}>â²</span>
-      <span className={sortField === field && sortDirection === 'desc' ? 'text-blue-600' : 'text-gray-300'}>â¼</span>
+      <span className={sortField === field && sortDirection === 'asc' ? 'text-blue-600' : 'text-gray-300'}>▲</span>
+      <span className={sortField === field && sortDirection === 'desc' ? 'text-blue-600' : 'text-gray-300'}>▼</span>
     </span>
   );
 
-  /* âââ íì´ì§ë¤ì´ì ë²ì âââ */
+  /* ─── 페이지네이션 범위 ─── */
   const getPageRange = () => {
     const range: number[] = [];
     const maxVisible = 5;
@@ -523,22 +523,22 @@ export default function AdminListingsPage() {
     return range;
   };
 
-  /* âââ ë ëë§ âââ */
+  /* ─── 렌더링 ─── */
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* í ì¤í¸ */}
+      {/* 토스트 */}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       <div className="max-w-[1600px] mx-auto p-4 sm:p-6">
-        {/* âââ í¤ë âââ */}
+        {/* ─── 헤더 ─── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">ë§¤ë¬¼ ê´ë¦¬</h1>
+            <h1 className="text-2xl font-bold text-gray-900">매물 관리</h1>
             <p className="text-gray-500 text-sm mt-1">
-              ì´ <span className="font-semibold text-gray-700">{listings.length.toLocaleString()}</span>ê±´ì ë§¤ë¬¼
+              총 <span className="font-semibold text-gray-700">{listings.length.toLocaleString()}</span>건의 매물
               {isFiltered && (
                 <span className="ml-2 text-blue-600">
-                  (íí° ì ì©: {filtered.length.toLocaleString()}ê±´)
+                  (필터 적용: {filtered.length.toLocaleString()}건)
                 </span>
               )}
             </p>
@@ -548,7 +548,7 @@ export default function AdminListingsPage() {
               onClick={fetchListings}
               disabled={loading}
               className="p-2.5 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 text-gray-600 transition-colors disabled:opacity-50"
-              title="ìë¡ê³ ì¹¨"
+              title="새로고침"
             >
               <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -558,37 +558,37 @@ export default function AdminListingsPage() {
               onClick={() => router.push('/admin/listings/new')}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
             >
-              <span className="text-lg leading-none">+</span> ì ë§¤ë¬¼ ë±ë¡
+              <span className="text-lg leading-none">+</span> 새 매물 등록
             </button>
             <button
                 onClick={handleExportCSV}
                 className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 transition shadow-sm"
-                title="CSV ë´ë³´ë´ê¸°"
+                title="CSV 내보내기"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
-                CSV ë´ë³´ë´ê¸°
+                CSV 내보내기
               </button>
               <button
               onClick={() => router.push('/admin/listings/bulk-upload')}
               className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 text-white rounded-xl text-sm font-semibold hover:bg-purple-700 transition shadow-sm"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-              ëë ë±ë¡
+              대량 등록
             </button>
           </div>
         </div>
 
-        {/* âââ íµê³ ì¹´ë âââ */}
+        {/* ─── 통계 카드 ─── */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
           {STATUS_OPTIONS.map((s) => {
             const count = statusCounts[s] || 0;
             const isActive = statusFilter === s;
             const colors: Record<string, string> = {
-              'ì ì²´': 'from-blue-500 to-blue-600',
-              'ê³µê°': 'from-emerald-500 to-emerald-600',
-              'ë¹ê³µê°': 'from-slate-400 to-slate-500',
-              'ê³ì½ì¤': 'from-amber-500 to-amber-600',
-              'ê³ì½ìë£': 'from-gray-500 to-gray-600',
+              '전체': 'from-blue-500 to-blue-600',
+              '공개': 'from-emerald-500 to-emerald-600',
+              '비공개': 'from-slate-400 to-slate-500',
+              '계약중': 'from-amber-500 to-amber-600',
+              '계약완료': 'from-gray-500 to-gray-600',
             };
             return (
               <button
@@ -602,25 +602,25 @@ export default function AdminListingsPage() {
               >
                 <div className="flex items-center justify-between">
                   <span className={`text-xs font-medium ${isActive ? 'text-white/80' : 'text-gray-500'}`}>
-                    {STATUS_ICONS[s] || 'ð§'} {s}
+                    {STATUS_ICONS[s] || '📧'} {s}
                   </span>
                 </div>
                 <div className={`text-2xl font-bold mt-1 ${isActive ? 'text-white' : 'text-gray-900'}`}>
                   {count.toLocaleString()}
                 </div>
                 <div className={`text-xs mt-0.5 ${isActive ? 'text-white/70' : 'text-gray-400'}`}>
-                  {s === 'ì ì²´' ? 'ì ì²´ ë§¤ë¬¼' : `${s} ë§¤ë¬¼`}
+                  {s === '전체' ? '전체 매물' : `${s} 매물`}
                 </div>
               </button>
             );
           })}
         </div>
 
-        {/* âââ ê²ì & íí° ë° âââ */}
+        {/* ─── 검색 & 필터 바 ─── */}
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4">
           <div className="p-4">
             <div className="flex flex-col sm:flex-row gap-3">
-              {/* ê²ì */}
+              {/* 검색 */}
               <div className="relative flex-1">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -628,7 +628,7 @@ export default function AdminListingsPage() {
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="ë§¤ë¬¼ë²í¸, ì ëª©, ì£¼ì, ë, ê°ê²©ì¼ë¡ ê²ì... (Ctrl+K)"
+                  placeholder="매물번호, 제목, 주소, 동, 가격으로 검색... (Ctrl+K)"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-sm"
@@ -638,17 +638,17 @@ export default function AdminListingsPage() {
                     onClick={() => setSearchQuery('')}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   >
-                    Ã
+                    ×
                   </button>
                 )}
               </div>
 
-              {/* ë·° í ê¸ */}
+              {/* 뷰 토글 */}
               <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden">
                 <button
                   onClick={() => setViewMode('table')}
                   className={`px-3 py-2.5 text-sm ${viewMode === 'table' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                  title="íì´ë¸ ë·°"
+                  title="테이블 뷰"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
@@ -657,7 +657,7 @@ export default function AdminListingsPage() {
                 <button
                   onClick={() => setViewMode('card')}
                   className={`px-3 py-2.5 text-sm ${viewMode === 'card' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                  title="ì¹´ë ë·°"
+                  title="카드 뷰"
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
@@ -665,7 +665,7 @@ export default function AdminListingsPage() {
                 </button>
               </div>
 
-              {/* ê³ ê¸ íí° í ê¸ */}
+              {/* 고급 필터 토글 */}
               <button
                 onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
                 className={`px-4 py-2.5 rounded-lg text-sm font-medium border transition-colors flex items-center gap-2 ${
@@ -677,7 +677,7 @@ export default function AdminListingsPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                 </svg>
-                íí°
+                필터
                 {isFiltered && (
                   <span className="bg-blue-600 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center">
                     !
@@ -686,11 +686,11 @@ export default function AdminListingsPage() {
               </button>
             </div>
 
-            {/* ê³ ê¸ íí° í¨ë */}
+            {/* 고급 필터 패널 */}
             {showAdvancedFilters && (
               <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">ë§¤ë¬¼ ì í</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">매물 유형</label>
                   <select
                     value={propertyTypeFilter}
                     onChange={(e) => setPropertyTypeFilter(e.target.value)}
@@ -702,7 +702,7 @@ export default function AdminListingsPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">ê±°ë ì í</label>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">거래 유형</label>
                   <select
                     value={transactionTypeFilter}
                     onChange={(e) => setTransactionTypeFilter(e.target.value)}
@@ -714,13 +714,13 @@ export default function AdminListingsPage() {
                   </select>
                 </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">ë</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">동</label>
                 <select
                   value={dongFilter}
                   onChange={(e) => { setDongFilter(e.target.value); setCurrentPage(1); }}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 >
-                  <option value="ì ì²´">ì ì²´</option>
+                  <option value="전체">전체</option>
                   {uniqueDongs.map(d => (
                     <option key={d} value={d}>{d}</option>
                   ))}
@@ -731,7 +731,7 @@ export default function AdminListingsPage() {
                     onClick={handleResetFilters}
                     className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                   >
-                    íí° ì´ê¸°í
+                    필터 초기화
                   </button>
                 </div>
               </div>
@@ -739,37 +739,37 @@ export default function AdminListingsPage() {
           </div>
         </div>
 
-        {/* âââ ë§¤ë¬¼ ê°±ì  ìë¦¼ ë°°ë âââ */}
+        {/* ─── 매물 갱신 알림 배너 ─── */}
           {(() => {
             const urgentCount = listings.filter(l => {
               const b = getListingAgeBadge(l.created_at);
-              return b.urgent && l.status === 'ê³µê°';
+              return b.urgent && l.status === '공개';
             }).length;
             if (urgentCount === 0) return null;
             return (
               <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
-                <span className="text-2xl">â ï¸</span>
+                <span className="text-2xl">⚠️</span>
                 <div className="flex-1">
-                  <span className="font-semibold text-amber-800">ê°±ì  íì ë§¤ë¬¼ {urgentCount}ê±´</span>
-                  <span className="text-sm text-amber-600 ml-2">ë±ë¡ í 30ì¼ ì´ì ê²½ê³¼ë ê³µê° ë§¤ë¬¼ì´ ììµëë¤. íìë§¤ë¬¼ ë°©ì§ë¥¼ ìí´ ì ë³´ë¥¼ íì¸í´ì£¼ì¸ì.</span>
+                  <span className="font-semibold text-amber-800">갱신 필요 매물 {urgentCount}건</span>
+                  <span className="text-sm text-amber-600 ml-2">등록 후 30일 이상 경과된 공개 매물이 있습니다. 허위매물 방지를 위해 정보를 확인해주세요.</span>
                 </div>
               </div>
             );
           })()}
 
-          {/* âââ ì¼ê´ ìì ë° âââ */}
+          {/* ─── 일괄 작업 바 ─── */}
         {selectedIds.size > 0 && (
           <div className="bg-blue-600 text-white rounded-xl p-3 mb-4 flex items-center justify-between shadow-lg animate-slide-in"
             style={{ animation: 'slideIn 0.2s ease-out' }}>
             <div className="flex items-center gap-3">
               <span className="bg-white/20 px-3 py-1 rounded-lg text-sm font-medium">
-                {selectedIds.size}ê±´ ì í
+                {selectedIds.size}건 선택
               </span>
               <button
                 onClick={() => { setSelectedIds(new Set()); setSelectAll(false); }}
                 className="text-sm text-white/80 hover:text-white underline"
               >
-                ì í í´ì 
+                선택 해제
               </button>
             </div>
             <div className="flex items-center gap-2" ref={bulkMenuRef}>
@@ -781,17 +781,17 @@ export default function AdminListingsPage() {
                 >
                   {bulkActionLoading ? (
                     <>
-                      <span className="animate-spin">â»</span> ì²ë¦¬ì¤...
+                      <span className="animate-spin">↻</span> 처리중...
                     </>
                   ) : (
                     <>
-                      ì¼ê´ ìí ë³ê²½ <span className="text-xs">â¼</span>
+                      일괄 상태 변경 <span className="text-xs">▼</span>
                     </>
                   )}
                 </button>
                 {showBulkMenu && (
                   <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-20 py-1 min-w-[160px]">
-                    {['ê³µê°', 'ë¹ê³µê°', 'ê³ì½ì¤', 'ê³ì½ìë£'].map((s) => (
+                    {['공개', '비공개', '계약중', '계약완료'].map((s) => (
                       <button
                         key={s}
                         onClick={() => handleBulkStatusChange(s)}
@@ -808,50 +808,50 @@ export default function AdminListingsPage() {
                 disabled={bulkActionLoading}
                 className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
               >
-                ì¼ê´ ì­ì 
+                일괄 삭제
               </button>
             </div>
           </div>
         )}
 
-        {/* âââ ìë¬ âââ */}
+        {/* ─── 에러 ─── */}
         {error && (
           <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center justify-between">
             <span>{error}</span>
-            <button onClick={fetchListings} className="text-sm font-medium underline">ë¤ì ìë</button>
+            <button onClick={fetchListings} className="text-sm font-medium underline">다시 시도</button>
           </div>
         )}
 
-        {/* âââ ë¡ë© âââ */}
+        {/* ─── 로딩 ─── */}
         {loading ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-16 text-center">
             <div className="animate-spin inline-block w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full" />
-            <p className="mt-4 text-gray-500 text-sm">ë§¤ë¬¼ì ë¶ë¬ì¤ë ì¤...</p>
+            <p className="mt-4 text-gray-500 text-sm">매물을 불러오는 중...</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-16 text-center">
-            <div className="text-5xl mb-4">{isFiltered ? 'ð' : 'ð­'}</div>
+            <div className="text-5xl mb-4">{isFiltered ? '🔍' : '📭'}</div>
             <p className="text-gray-600 font-medium mb-2">
-              {isFiltered ? 'ê²ì ê²°ê³¼ê° ììµëë¤' : 'ë±ë¡ë ë§¤ë¬¼ì´ ììµëë¤'}
+              {isFiltered ? '검색 결과가 없습니다' : '등록된 매물이 없습니다'}
             </p>
             {isFiltered ? (
               <button
                 onClick={handleResetFilters}
                 className="text-blue-600 text-sm hover:underline mt-2"
               >
-                íí° ì´ê¸°í
+                필터 초기화
               </button>
             ) : (
               <button
                 onClick={() => router.push('/admin/listings/new')}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm mt-3 transition-colors"
               >
-                ì²« ë§¤ë¬¼ ë±ë¡íê¸°
+                첫 매물 등록하기
               </button>
             )}
           </div>
         ) : viewMode === 'table' ? (
-          /* âââ íì´ë¸ ë·° âââ */
+          /* ─── 테이블 뷰 ─── */
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -867,14 +867,14 @@ export default function AdminListingsPage() {
                     </th>
                     {[
                       { field: 'id' as SortField, label: 'ID', width: 'w-16' },
-                      { field: 'title' as SortField, label: 'ì ëª©', width: 'min-w-[200px]' },
-                      { field: 'address' as SortField, label: 'ì£¼ì', width: 'min-w-[160px]' },
-                      { field: 'dong' as SortField, label: 'ë', width: 'w-20' },
-                      { field: 'type' as SortField, label: 'ì í', width: 'w-20' },
-                      { field: 'deal' as SortField, label: 'ê±°ë', width: 'w-16' },
-                      { field: 'price' as SortField, label: 'ê°ê²©', width: 'w-24' },
-                      { field: 'status' as SortField, label: 'ìí', width: 'w-28' },
-                      { field: 'created_at' as SortField, label: 'ë±ë¡ì¼', width: 'w-24' },
+                      { field: 'title' as SortField, label: '제목', width: 'min-w-[200px]' },
+                      { field: 'address' as SortField, label: '주소', width: 'min-w-[160px]' },
+                      { field: 'dong' as SortField, label: '동', width: 'w-20' },
+                      { field: 'type' as SortField, label: '유형', width: 'w-20' },
+                      { field: 'deal' as SortField, label: '거래', width: 'w-16' },
+                      { field: 'price' as SortField, label: '가격', width: 'w-24' },
+                      { field: 'status' as SortField, label: '상태', width: 'w-28' },
+                      { field: 'created_at' as SortField, label: '등록일', width: 'w-24' },
                     ].map(({ field, label, width }) => (
                       <th
                         key={field}
@@ -887,7 +887,7 @@ export default function AdminListingsPage() {
                         </div>
                       </th>
                     ))}
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-24">ìì</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase w-24">작업</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -896,7 +896,7 @@ export default function AdminListingsPage() {
                       key={listing.id}
                       className={`hover:bg-blue-50/30 transition-colors ${
                         selectedIds.has(listing.id) ? 'bg-blue-50/50' : ''
-                      } ${listing.status === 'ê³ì½ìë£' ? 'opacity-60' : ''}`}
+                      } ${listing.status === '계약완료' ? 'opacity-60' : ''}`}
                     >
                       <td className="px-4 py-3">
                         <input
@@ -913,7 +913,7 @@ export default function AdminListingsPage() {
                           onClick={() => router.push(`/admin/listings/${listing.id}/edit`)}
                           title={listing.title}
                         >
-                          {listing.title || '(ì ëª© ìì)'}
+                          {listing.title || '(제목 없음)'}
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-600 max-w-[180px] truncate" title={listing.address}>
@@ -942,23 +942,23 @@ export default function AdminListingsPage() {
                             STATUS_COLORS[listing.status] || 'bg-gray-100 text-gray-600 border-gray-200'
                           } ${updatingId === listing.id ? 'opacity-50 cursor-wait' : 'hover:shadow-sm'}`}
                         >
-                          <option value="ê³µê°">ð¢ ê³µê°</option>
-                          <option value="ë¹ê³µê°">âª ë¹ê³µê°</option>
-                          <option value="ê³ì½ì¤">ð¡ ê³ì½ì¤</option>
-                          <option value="ê³ì½ìë£">â ê³ì½ìë£</option>
+                          <option value="공개">🟢 공개</option>
+                          <option value="비공개">⚪ 비공개</option>
+                          <option value="계약중">🟡 계약중</option>
+                          <option value="계약완료">✅ 계약완료</option>
                         </select>
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-xs text-gray-500">{formatDate(listing.created_at)}</div>
                         {(() => { const b = getListingAgeBadge(listing.created_at); return b.days >= 0 ? <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${b.color}`}>{b.label}</span> : null; })()}
-                        {listing.updated_at && listing.updated_at !== listing.created_at && <div className="text-[10px] text-purple-500 mt-0.5" title={listing.updated_at}>ìì ë¨</div>}
+                        {listing.updated_at && listing.updated_at !== listing.created_at && <div className="text-[10px] text-purple-500 mt-0.5" title={listing.updated_at}>수정됨</div>}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button
                             onClick={() => router.push(`/admin/listings/${listing.id}/edit`)}
                             className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="ìì "
+                            title="수정"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -967,7 +967,7 @@ export default function AdminListingsPage() {
                           <button
                           onClick={() => router.push(`/admin/listings/new?copyFrom=${listing.id}`)}
                           className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
-                          title="ë³µì¬"
+                          title="복사"
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -978,10 +978,10 @@ export default function AdminListingsPage() {
                             onClick={() => handleDelete(listing.id)}
                             disabled={deletingId === listing.id}
                             className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
-                            title="ì­ì "
+                            title="삭제"
                           >
                             {deletingId === listing.id ? (
-                              <span className="w-4 h-4 block animate-spin">â»</span>
+                              <span className="w-4 h-4 block animate-spin">↻</span>
                             ) : (
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -996,13 +996,13 @@ export default function AdminListingsPage() {
               </table>
             </div>
 
-            {/* íì´ì§ë¤ì´ì */}
+            {/* 페이지네이션 */}
             <div className="bg-gray-50/80 border-t border-gray-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
               <div className="flex items-center gap-3 text-sm text-gray-500">
                 <span>
                   {((currentPage - 1) * pageSize + 1).toLocaleString()}-{Math.min(currentPage * pageSize, filtered.length).toLocaleString()}
                   {' / '}
-                  {filtered.length.toLocaleString()}ê±´
+                  {filtered.length.toLocaleString()}건
                 </span>
                 <select
                   value={pageSize}
@@ -1010,7 +1010,7 @@ export default function AdminListingsPage() {
                   className="px-2 py-1 border border-gray-300 rounded text-xs bg-white"
                 >
                   {PAGE_SIZE_OPTIONS.map((s) => (
-                    <option key={s} value={s}>{s}ê±´ì©</option>
+                    <option key={s} value={s}>{s}건씩</option>
                   ))}
                 </select>
               </div>
@@ -1021,14 +1021,14 @@ export default function AdminListingsPage() {
                     disabled={currentPage === 1}
                     className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    âª
+                    ≪
                   </button>
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                     className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    ï¼
+                    ＜
                   </button>
                   {getPageRange().map((page) => (
                     <button
@@ -1048,21 +1048,21 @@ export default function AdminListingsPage() {
                     disabled={currentPage === totalPages}
                     className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    ï¼
+                    ＞
                   </button>
                   <button
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage === totalPages}
                     className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
                   >
-                    â«
+                    ≫
                   </button>
                 </div>
               )}
             </div>
           </div>
         ) : (
-          /* âââ ì¹´ë ë·° âââ */
+          /* ─── 카드 뷰 ─── */
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {paginatedListings.map((listing) => (
@@ -1070,9 +1070,9 @@ export default function AdminListingsPage() {
                   key={listing.id}
                   className={`bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-all cursor-pointer group ${
                     selectedIds.has(listing.id) ? 'ring-2 ring-blue-500' : ''
-                  } ${listing.status === 'ê³ì½ìë£' ? 'opacity-60' : ''}`}
+                  } ${listing.status === '계약완료' ? 'opacity-60' : ''}`}
                 >
-                  {/* ì¹´ë ìë¨: ì´ë¯¸ì§ ëë íë ì´ì¤íë */}
+                  {/* 카드 상단: 이미지 또는 플레이스홀더 */}
                   <div className="relative h-40 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                     {listing.images && listing.images.length > 0 ? (
                       <img
@@ -1082,9 +1082,9 @@ export default function AdminListingsPage() {
                         loading="lazy"
                       />
                     ) : (
-                      <span className="text-4xl">ð </span>
+                      <span className="text-4xl">🏠</span>
                     )}
-                    {/* ì²´í¬ë°ì¤ */}
+                    {/* 체크박스 */}
                     <div className="absolute top-2 left-2">
                       <input
                         type="checkbox"
@@ -1093,7 +1093,7 @@ export default function AdminListingsPage() {
                         className="w-5 h-5 rounded border-2 border-white/80 text-blue-600 focus:ring-blue-500 cursor-pointer shadow"
                       />
                     </div>
-                    {/* ìí ë±ì§ */}
+                    {/* 상태 뱃지 */}
                     <div className="absolute top-2 right-2">
                       <span className={`px-2 py-1 rounded-lg text-xs font-medium border shadow-sm ${
                         STATUS_COLORS[listing.status] || 'bg-gray-100 text-gray-600 border-gray-200'
@@ -1107,10 +1107,10 @@ export default function AdminListingsPage() {
                     </div>
                   </div>
 
-                  {/* ì¹´ë ë´ì© */}
+                  {/* 카드 내용 */}
                   <div className="p-4" onClick={() => router.push(`/admin/listings/${listing.id}/edit`)}>
                     <h3 className="font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
-                      {listing.title || '(ì ëª© ìì)'}
+                      {listing.title || '(제목 없음)'}
                     </h3>
                     <p className="text-xs text-gray-500 mt-1 truncate">{listing.address || '-'}</p>
 
@@ -1131,7 +1131,7 @@ export default function AdminListingsPage() {
                     </div>
                   </div>
 
-                  {/* ì¹´ë ì¡ì */}
+                  {/* 카드 액션 */}
                   <div className="px-4 pb-3 flex items-center gap-2">
                     <select
                       value={listing.status}
@@ -1140,10 +1140,10 @@ export default function AdminListingsPage() {
                       className="flex-1 px-2 py-1.5 rounded-lg text-xs border border-gray-200 bg-gray-50 cursor-pointer"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <option value="ê³µê°">ð¢ ê³µê°</option>
-                      <option value="ë¹ê³µê°">âª ë¹ê³µê°</option>
-                      <option value="ê³ì½ì¤">ð¡ ê³ì½ì¤</option>
-                      <option value="ê³ì½ìë£">â ê³ì½ìë£</option>
+                      <option value="공개">🟢 공개</option>
+                      <option value="비공개">⚪ 비공개</option>
+                      <option value="계약중">🟡 계약중</option>
+                      <option value="계약완료">✅ 계약완료</option>
                     </select>
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(listing.id); }}
@@ -1159,19 +1159,19 @@ export default function AdminListingsPage() {
               ))}
             </div>
 
-            {/* ì¹´ë ë·° íì´ì§ë¤ì´ì */}
+            {/* 카드 뷰 페이지네이션 */}
             {totalPages > 1 && (
               <div className="mt-4 bg-white rounded-xl border border-gray-200 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-3">
                 <div className="text-sm text-gray-500">
                   {((currentPage - 1) * pageSize + 1).toLocaleString()}-{Math.min(currentPage * pageSize, filtered.length).toLocaleString()}
-                  {' / '}{filtered.length.toLocaleString()}ê±´
+                  {' / '}{filtered.length.toLocaleString()}건
                   <select
                     value={pageSize}
                     onChange={(e) => setPageSize(Number(e.target.value))}
                     className="ml-3 px-2 py-1 border border-gray-300 rounded text-xs bg-white"
                   >
                     {PAGE_SIZE_OPTIONS.map((s) => (
-                      <option key={s} value={s}>{s}ê±´ì©</option>
+                      <option key={s} value={s}>{s}건씩</option>
                     ))}
                   </select>
                 </div>
@@ -1181,14 +1181,14 @@ export default function AdminListingsPage() {
                     disabled={currentPage === 1}
                     className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-30"
                   >
-                    âª
+                    ≪
                   </button>
                   <button
                     onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                     className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-30"
                   >
-                    ï¼
+                    ＜
                   </button>
                   {getPageRange().map((page) => (
                     <button
@@ -1206,14 +1206,14 @@ export default function AdminListingsPage() {
                     disabled={currentPage === totalPages}
                     className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-30"
                   >
-                    ï¼
+                    ＞
                   </button>
                   <button
                     onClick={() => setCurrentPage(totalPages)}
                     disabled={currentPage === totalPages}
                     className="px-2 py-1 rounded text-xs text-gray-600 hover:bg-gray-200 disabled:opacity-30"
                   >
-                    â«
+                    ≫
                   </button>
                 </div>
               </div>
@@ -1222,7 +1222,7 @@ export default function AdminListingsPage() {
         )}
       </div>
 
-      {/* ê¸ë¡ë² CSS */}
+      {/* 글로벌 CSS */}
       <style jsx global>{`
         @keyframes slideIn {
           from { opacity: 0; transform: translateY(-8px); }
