@@ -87,11 +87,12 @@ export default function SmartRecommendations({ listingId, dong }: SmartRecommend
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {recommendations.map((item) => {
           const dealColor = getDealColor(item.deal);
+          const depositStr = item.deposit > 0 ? getFormattedPrice(item.deposit) : '0';
           const priceText = item.deal === '매매'
-            ? getFormattedPrice(item.price)
+            ? getFormattedPrice(item.price || 0) || '0'
             : item.deal === '전세'
-              ? getFormattedPrice(item.deposit)
-              : `${getFormattedPrice(item.deposit)}/${item.monthly}만`;
+              ? depositStr
+              : `${depositStr}/${item.monthly || 0}만`;
 
           return (
             <Link
