@@ -41,7 +41,7 @@ export async function POST(
     }
     const files = formData.getAll('images') as File[];
     if (!files || files.length === 0) return NextResponse.json({ success: false, error: 'No images' }, { status: 400, headers: CORS_HEADERS });
-    if (files.length > 10) return NextResponse.json({ success: false, error: 'Max 10' }, { status: 400, headers: CORS_HEADERS });
+    if (files.length > 20) return NextResponse.json({ success: false, error: 'Max 20 images' }, { status: 400, headers: CORS_HEADERS });
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: listing, error: le } = await supabase.from('listings').select('id').eq('id', listingId).single();
@@ -58,7 +58,7 @@ export async function POST(
         const ext = file.type.split('/')[1] || 'jpg';
         const key = `listings/${listingId}/${Date.now()}_${i}.${ext}`;
         const imageUrl = await uploadToR2(key, buf, file.type);
-        const { error: de } = await supabase.from('listing_images').insert({ listing_id: listingId, url: imageUrl, storage_key: key });
+        const { error: de } = await supabase.from('listing_images').insert({ listing_id: listingId, url: imageUrl });
         if (de) errors.push({ index: i, name: file.name, error: 'DB: ' + de.message });
         else uploaded.push({ url: imageUrl });
       } catch (err: any) {
@@ -72,7 +72,7 @@ export async function POST(
   } catch (error: any) {
     return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: CORS_HEADERS });
   }
-                              }
+}
 
 export async function GET(
   request: NextRequest,
@@ -102,9 +102,16 @@ export async function DELETE(
     const imageId = new URL(request.url).searchParams.get('imageId');
     if (!imageId) return NextResponse.json({ success: false, error: 'imageId required' }, { status: 400, headers: CORS_HEADERS });
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: image, error: fe } = await supabase.from('listing_images').select('id, storage_key').eq('id', parseInt(imageId)).eq('listing_id', listingId).single();
+    const { data: image, error: fe } = await supabase.from('listing_images').select('id, url').eq('id', parseInt(imageId)).eq('listing_id', listingId).single();
     if (fe || !image) return NextResponse.json({ success: false, error: 'Image not found' }, { status: 404, headers: CORS_HEADERS });
-    if (image.storage_key) { try { await deleteFromR2(image.storage_key); } catch (e) { console.warn('R2 delete fail:', e); } }
+    // R2 delete by extracting key from URL
+    if (image.url) {
+      try {
+        const urlPath = new URL(image.url).pathname;
+        const key = urlPath.replace('/api/images/', '');
+        if (key) await deleteFromR2(key);
+      } catch (e) { console.warn('R2 delete fail:', e); }
+    }
     await supabase.from('listing_images').delete().eq('id', image.id);
     return NextResponse.json({ success: true, message: 'Deleted' }, { headers: CORS_HEADERS });
   } catch (error: any) {
