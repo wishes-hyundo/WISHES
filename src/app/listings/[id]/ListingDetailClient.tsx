@@ -9,6 +9,8 @@ import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPri
 import ImageGallery from '@/components/ImageGallery';
 import { ListingCard } from '@/components/ListingCard';
 import RealPriceChart from '@/components/RealPriceChart';
+import { useAuth } from '@/contexts/AuthContext';
+import AuthModal from '@/components/AuthModal';
 
 declare global {
   interface Window {
@@ -49,6 +51,9 @@ function getRecentlyViewed(excludeId: number): number[] {
 }
 
 export default function ListingDetailClient({ id }: Props) {
+  const { user, setShowAuthModal } = useAuth();
+  const isLoggedIn = !!user;
+
   const [listing, setListing] = useState<any>(null);
   const [images, setImages] = useState<any[]>([]);
   const [features, setFeatures] = useState<any[]>([]);
@@ -64,6 +69,13 @@ export default function ListingDetailClient({ id }: Props) {
   // 위치 지도 ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+
+  // 주소 마스킹: 비로그인 시 동까지만 표시
+  const getMaskedAddress = (address: string) => {
+    if (isLoggedIn) return address;
+    const match = address?.match(/^(.*?[동리가읍면])/);
+    return match ? match[1] : address?.split(' ').slice(0, 3).join(' ') || '';
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -178,7 +190,8 @@ export default function ListingDetailClient({ id }: Props) {
       });
 
       // 인포윈도우
-      const infoContent = `<div style="padding:6px 10px;font-size:12px;white-space:nowrap;font-weight:600;">${listing.title || listing.address || '매물 위치'}</div>`;
+      const displayAddress = isLoggedIn ? (listing.address || '매물 위치') : (listing.dong || '매물 위치');
+      const infoContent = `<div style="padding:6px 10px;font-size:12px;white-space:nowrap;font-weight:600;">${listing.title || displayAddress || '매물 위치'}</div>`;
       const infoWindow = new kakao.maps.InfoWindow({
         content: infoContent,
         removable: true,
@@ -197,7 +210,7 @@ export default function ListingDetailClient({ id }: Props) {
     } else {
       window.kakao.maps.load(initMap);
     }
-  }, [listing?.lat, listing?.lng, listing?.title, listing?.address]);
+  }, [listing?.lat, listing?.lng, listing?.title, listing?.address, isLoggedIn, listing?.dong]);
 
   if (loading) {
     return (
@@ -266,7 +279,7 @@ export default function ListingDetailClient({ id }: Props) {
     ...(images.length > 0 && { image: images.map((img: any) => img.url) }),
     address: {
       '@type': 'PostalAddress',
-      streetAddress: listing.address,
+      streetAddress: getMaskedAddress(listing.address),
       addressLocality: listing.dong,
       addressRegion: '서울특별시',
       addressCountry: 'KR',
@@ -363,7 +376,20 @@ export default function ListingDetailClient({ id }: Props) {
                 {listing.bathrooms && <InfoRow label="욕실 수" value={`${listing.bathrooms}개`} />}
                 {listing.direction && <InfoRow label="방향" value={listing.direction} />}
                 {listing.heating_type && <InfoRow label="난방방식" value={listing.heating_type} />}
-                <InfoRow label="주소" value={listing.address} fullWidth />
+                <div className="col-span-2">
+                  <span className="text-xs text-gray-400">주소</span>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-sm font-medium text-gray-800">{getMaskedAddress(listing.address)}</p>
+                    {!isLoggedIn && (
+                      <button
+                        onClick={() => setShowAuthModal(true)}
+                        className="text-[11px] text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2 py-0.5 rounded-full transition-colors font-medium"
+                      >
+                        로그인하여 전체 주소 보기
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <InfoRow label="동" value={listing.dong} />
                 {listing.built_year && <InfoRow label="준공년도" value={listing.built_year} />}
                 {listing.available_date && <InfoRow label="입주가능일" value={listing.available_date} />}
@@ -495,7 +521,15 @@ export default function ListingDetailClient({ id }: Props) {
                     <div className="px-4 py-3 bg-gray-50 border-t border-gray-100">
                       <p className="text-xs text-gray-500 flex items-center gap-1">
                         <Navigation className="w-3 h-3" />
-                        {listing.address}
+                        {getMaskedAddress(listing.address)}
+                        {!isLoggedIn && (
+                          <button
+                            onClick={() => setShowAuthModal(true)}
+                            className="text-green-600 hover:text-green-700 font-medium ml-1"
+                          >
+                            전체 주소 보기
+                          </button>
+                        )}
                       </p>
                     </div>
                   </div>
