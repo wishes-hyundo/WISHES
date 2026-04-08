@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
     const tokenResponse = await fetch(tokenUrl + '?' + tokenParams.toString(), {
       method: 'GET',
     });
-
     const tokenData = await tokenResponse.json();
 
     if (tokenData.error) {
@@ -47,7 +46,6 @@ export async function POST(request: NextRequest) {
         Authorization: 'Bearer ' + accessToken,
       },
     });
-
     const profileData = await profileResponse.json();
 
     if (profileData.resultcode !== '00') {
@@ -75,10 +73,9 @@ export async function POST(request: NextRequest) {
       (u) => u.email === email
     );
 
-    let userId: string;
+    let userId;
 
     if (existingUser) {
-      // 기존 사용자가 있으면 메타데이터 업데이트
       userId = existingUser.id;
       await supabase.auth.admin.updateUserById(userId, {
         user_metadata: {
@@ -91,7 +88,6 @@ export async function POST(request: NextRequest) {
         },
       });
     } else {
-      // 새 사용자 생성
       const { data: newUser, error: createError } = await supabase.auth.admin.createUser({
         email: email,
         email_confirm: true,
@@ -111,7 +107,6 @@ export async function POST(request: NextRequest) {
 
       userId = newUser.user.id;
 
-      // profiles 테이블에 기본 프로필 생성
       await supabase.from('profiles').upsert({
         id: userId,
         email: email,
@@ -126,6 +121,9 @@ export async function POST(request: NextRequest) {
     const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
       type: 'magiclink',
       email: email,
+      options: {
+        redirectTo: request.nextUrl.origin + '/auth/callback',
+      },
     });
 
     if (linkError || !linkData) {
@@ -133,15 +131,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to generate session' }, { status: 500 });
     }
 
-    // 응답에 리다이렉트 정보 포함
-    const hashedToken = linkData.properties?.hashed_token;
-    const verifyUrl = new URL('/auth/verify', request.nextUrl.origin);
-    verifyUrl.searchParams.set('token_hash', hashedToken || '');
-    verifyUrl.searchParams.set('type', 'magiclink');
+    // action_link를 사용하여 Supabase 인증 흐름으로 리다이렉트
+    const actionLink = linkData.properties?.action_link;
 
+    if (!actionLink) {
+      console.error('No action_link in generateLink response:', linkData);
+      return NextResponse.json({ error: 'Failed to generate login link' }, { status: 500 });
+    }
+
+    // 콜백 페이지에서 data.url을 확인하므로 url 필드로 반환
     return NextResponse.json({
       success: true,
-      redirect: verifyUrl.toString(),
+      url: actionLink,
       userId,
     });
   } catch (error) {
