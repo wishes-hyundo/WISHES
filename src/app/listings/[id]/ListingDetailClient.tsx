@@ -11,6 +11,7 @@ import { ListingCard } from '@/components/ListingCard';
 import RealPriceChart from '@/components/RealPriceChart';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '@/components/AuthModal';
+import SmartRecommendations from '@/components/SmartRecommendations';
 
 declare global {
   interface Window {
@@ -594,21 +595,9 @@ export default function ListingDetailClient({ id }: Props) {
         </div>
 
         {/* 연관 매물 (V3-18) */}
-        {relatedListings.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-lg font-bold text-wishes-primary mb-4">
-              {listing.dong} 유사 매물
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {relatedListings.map((item: any) => (
-                <ListingCard key={item.id} listing={item} />
-              ))}
-            </div>
-          </div>
-        )}
+        {listing && <SmartRecommendations listingId={listing.id} dong={listing.dong || ""} />}
 
-        {/* 최근 본 매물 (V3-27) */}
-        {recentListings.length > 0 && (
+          {recentListings.length > 0 && (
           <div className="mt-12">
             <h2 className="text-lg font-bold text-wishes-primary mb-4">
               최근 본 매물
