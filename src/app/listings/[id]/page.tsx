@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createServerClient();
   const { data: listing } = await supabase
     .from('listings')
-    .select('title, type, deal, dong, gu, address, deposit, monthly, price, area_m2, ai_title, ai_description, seo_keywords, seo_tags, seo_meta_description')
+    .select('title, type, deal, dong, address, deposit, monthly, price, area_m2')
     .eq('id', id)
     .single();
 
@@ -30,18 +30,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? formatPrice(listing.deposit) + '/' + formatPrice(listing.monthly) + '만원'
     : formatPrice(listing.price || listing.deposit) + '만원';
 
-  const title = listing.ai_title
-    || listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
-  const description = listing.seo_meta_description
-    || listing.ai_description
-    || listing.dong + ' ' + listing.gu + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
-  const keywords = listing.seo_keywords
-    || [listing.dong, listing.gu, listing.type, listing.deal, '부동산', '매물'].join(', ');
+  const title = listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
+  const description = listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
 
   return {
     title: title + ' | WISHES',
     description,
-    keywords,
+    keywords: [listing.dong, listing.type, listing.deal, '부동산', '매물'].join(', '),
     openGraph: {
       title: title + ' | WISHES',
       description,
@@ -69,5 +64,5 @@ export default async function ListingPage({ params }: Props) {
     .eq('id', id)
     .single();
 
-  return <ListingDetailClient listing={listing} />;
+  return <ListingDetailClient id={id} listing={listing} />;
 }
