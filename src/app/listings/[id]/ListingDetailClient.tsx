@@ -212,7 +212,8 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
         content: infoContent,
         removable: true,
       });
-      infoWindow.open(map, marker);
+      infoWindow.setPosition(position);
+      infoWindow.open(map);
 
       // 컨튼롤
       map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
