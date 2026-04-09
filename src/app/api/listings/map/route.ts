@@ -50,7 +50,7 @@ export async function GET(request: NextRequest) {
       while (offset < MAX_TOTAL) {
               let query = supabase
                 .from('listings')
-                .select('id, title, type, deal, deposit, monthly, price, area_m2, floor_current, lat, lng, status, dong, address, listing_images(url, sort_order)')
+                .select('id, title, type, deal, deposit, monthly, price, area_m2, floor_current, lat, lng, status, dong, address, created_at, listing_images(url, sort_order)')
                 .neq('status', '계약완료')
                 .gte('lat', swLat)
                 .lte('lat', neLat)
