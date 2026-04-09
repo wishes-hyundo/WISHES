@@ -64,6 +64,7 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <head>
+        <meta charSet="utf-8" />
         {/* Favicon */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

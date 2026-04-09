@@ -57,47 +57,23 @@
     padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
   }
 
-  /* Status bar (GPS + Offline) */
-  .status-bar {
+  /* GPS indicator */
+  .gps-bar {
     background: #1a2e0a;
+    color: #86efac;
     padding: 6px 20px;
     font-size: 11px;
-    display: flex; align-items: center; gap: 12px;
-    flex-wrap: wrap;
+    display: flex; align-items: center; gap: 6px;
   }
-  .status-item {
-    display: flex; align-items: center; gap: 5px;
-    color: #86efac;
-  }
-  .status-item.error { color: #fca5a5; }
-  .status-item.warning { color: #fde68a; }
-  .status-dot {
+  .gps-bar.error { color: #fca5a5; }
+  .gps-dot {
     width: 8px; height: 8px;
     border-radius: 50%;
     background: #22c55e;
-    animation: pulse 2s infinite;
+    animation: gpsPulse 2s infinite;
   }
-  .status-item.error .status-dot { background: #ef4444; animation: none; }
-  .status-item.warning .status-dot { background: #f59e0b; animation: blink 1s infinite; }
-  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
-  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
-
-  /* Offline queue banner */
-  .offline-banner {
-    display: none;
-    background: linear-gradient(135deg, #f59e0b, #d97706);
-    color: white;
-    padding: 10px 20px;
-    font-size: 13px; font-weight: 600;
-    align-items: center; gap: 8px;
-    cursor: pointer;
-  }
-  .offline-banner.show { display: flex; }
-  .offline-banner .queue-count {
-    background: white; color: #d97706;
-    padding: 2px 8px; border-radius: 10px;
-    font-size: 11px; font-weight: 700;
-  }
+  .gps-bar.error .gps-dot { background: #ef4444; animation: none; }
+  @keyframes gpsPulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 
   /* Search Section */
   .search-section {
@@ -197,6 +173,49 @@
     font-size: 11px; font-weight: 600;
   }
 
+  /* ===== TAG SELECTOR ===== */
+  .tag-section {
+    padding: 12px 16px;
+    background: white;
+    border-bottom: 1px solid var(--border);
+    display: none;
+  }
+  .tag-section.show { display: block; }
+  .tag-label {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tag-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .tag-chip {
+    display: flex; align-items: center; gap: 5px;
+    padding: 8px 14px;
+    border: 2px solid var(--border);
+    border-radius: 24px;
+    background: white;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .tag-chip:active { transform: scale(.95); }
+  .tag-chip.selected {
+    border-color: var(--primary);
+    background: #edf7e7;
+    color: var(--primary);
+    font-weight: 700;
+  }
+  .tag-chip .tag-icon { font-size: 16px; }
+  .tag-chip .tag-count {
+    background: var(--primary); color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+    min-width: 18px; text-align: center;
+  }
+
   /* Upload Section */
   .upload-section {
     position: fixed;
@@ -262,6 +281,14 @@
     font-size: 14px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
+  .preview-tag {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,.65);
+    color: white; font-size: 10px; font-weight: 600;
+    padding: 3px 6px;
+    text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
   .preview-size {
     position: absolute; top: 4px; left: 4px;
     background: rgba(0,0,0,.5);
@@ -283,18 +310,100 @@
   .submit-btn:disabled { background: #ccc; pointer-events: none; }
   .submit-btn:active { transform: scale(.97); }
 
-  /* Existing Images */
+  /* ===== EXISTING IMAGES (drag & drop) ===== */
   .existing-images { margin-top: 12px; }
-  .existing-label { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; }
+  .existing-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .existing-label { font-size: 13px; color: var(--text-sub); }
+  .save-order-btn {
+    padding: 6px 14px;
+    background: var(--primary); color: white;
+    border: none; border-radius: 8px;
+    font-size: 12px; font-weight: 700; cursor: pointer;
+    display: none; align-items: center; gap: 4px;
+  }
+  .save-order-btn.show { display: flex; }
+  .save-order-btn:active { transform: scale(.95); }
+  .save-order-btn:disabled { opacity: .5; }
   .existing-grid {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
   }
   .existing-item {
-    aspect-ratio: 1; border-radius: 10px;
-    overflow: hidden; background: #eee;
+    position: relative; aspect-ratio: 1;
+    border-radius: 10px; overflow: hidden; background: #eee;
     border: 2px solid var(--border);
+    cursor: grab;
+    transition: transform .15s, box-shadow .15s;
+    touch-action: none;
   }
-  .existing-item img { width: 100%; height: 100%; object-fit: cover; }
+  .existing-item:active { cursor: grabbing; }
+  .existing-item.dragging {
+    opacity: .5;
+    transform: scale(.92);
+    box-shadow: 0 4px 20px rgba(0,0,0,.2);
+  }
+  .existing-item.drag-over {
+    border-color: var(--primary);
+    transform: scale(1.04);
+  }
+  .existing-item img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+  .existing-item .star-badge {
+    position: absolute; top: 4px; left: 4px;
+    background: var(--accent); color: #000;
+    font-size: 9px; font-weight: 800;
+    padding: 2px 6px; border-radius: 6px;
+    display: flex; align-items: center; gap: 2px;
+    z-index: 2;
+  }
+  .existing-item .order-num {
+    position: absolute; top: 4px; right: 4px;
+    background: rgba(0,0,0,.55); color: white;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+    z-index: 2;
+  }
+  .drag-hint {
+    font-size: 11px; color: var(--text-sub); margin-top: 6px;
+    text-align: center;
+  }
+
+  /* ===== UPLOAD STATUS LOG ===== */
+  .upload-log {
+    margin-top: 16px;
+    display: none;
+  }
+  .upload-log.show { display: block; }
+  .upload-log-title {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .log-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px;
+    background: white;
+    border-radius: 10px;
+    margin-bottom: 6px;
+    border: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .log-item.success { border-color: #a7f3d0; background: #ecfdf5; }
+  .log-item.error { border-color: #fecaca; background: #fef2f2; }
+  .log-icon {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .log-item.success .log-icon { background: #d1fae5; }
+  .log-item.error .log-icon { background: #fee2e2; }
+  .log-body { flex: 1; min-width: 0; }
+  .log-body .log-title { font-weight: 600; margin-bottom: 2px; }
+  .log-body .log-detail { font-size: 11px; color: var(--text-sub); line-height: 1.5; }
+  .log-body .log-detail.error-detail { color: var(--danger); }
+  .log-body .log-time { font-size: 10px; color: #aaa; margin-top: 3px; }
 
   /* Toast */
   .toast {
@@ -354,27 +463,6 @@
   .empty-state .title { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
   .empty-state .desc { font-size: 13px; line-height: 1.6; }
 
-  /* PWA install banner */
-  .pwa-install {
-    display: none;
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
-    color: white;
-    padding: 12px 20px;
-    align-items: center; gap: 10px;
-    cursor: pointer;
-  }
-  .pwa-install.show { display: flex; }
-  .pwa-install-text { flex: 1; font-size: 13px; font-weight: 600; }
-  .pwa-install-btn {
-    background: white; color: var(--primary);
-    border: none; padding: 8px 16px; border-radius: 8px;
-    font-size: 12px; font-weight: 700; cursor: pointer;
-  }
-  .pwa-install-close {
-    background: none; border: none; color: rgba(255,255,255,.7);
-    font-size: 18px; cursor: pointer; padding: 0 4px;
-  }
-
   input[type="file"] { display: none; }
   .content-area { padding-bottom: 160px; }
   ::-webkit-scrollbar { width: 4px; }
@@ -393,30 +481,10 @@
   <button class="header-back" onclick="window.location.href='/admin?tab=search'">← 관리자</button>
 </div>
 
-<!-- Status Bar (GPS + Network) -->
-<div class="status-bar" id="statusBar">
-  <div class="status-item" id="gpsStatus">
-    <div class="status-dot"></div>
-    <span>GPS 확인 중...</span>
-  </div>
-  <div class="status-item" id="netStatus">
-    <div class="status-dot"></div>
-    <span>온라인</span>
-  </div>
-</div>
-
-<!-- Offline Queue Banner -->
-<div class="offline-banner" id="offlineBanner" onclick="retryOfflineQueue()">
-  <span>📦 대기 중인 업로드</span>
-  <span class="queue-count" id="queueCount">0건</span>
-  <span style="flex:1; text-align:right; font-size:12px;">탭하여 재시도 →</span>
-</div>
-
-<!-- PWA Install Banner -->
-<div class="pwa-install" id="pwaInstall">
-  <span class="pwa-install-text">📲 홈 화면에 추가하면 더 빠르게 접근할 수 있어요</span>
-  <button class="pwa-install-btn" onclick="installPWA()">설치</button>
-  <button class="pwa-install-close" onclick="dismissPWA()">✕</button>
+<!-- GPS Bar -->
+<div class="gps-bar" id="gpsBar">
+  <div class="gps-dot"></div>
+  <span id="gpsStatus">GPS 위치 확인 중...</span>
 </div>
 
 <!-- Search -->
@@ -428,6 +496,12 @@
     <button class="search-btn" id="searchBtn" onclick="searchListings()">검색</button>
   </div>
   <div class="search-hint" id="searchHint">💡 건물명, 주소, W-번호로 검색할 수 있습니다</div>
+</div>
+
+<!-- Tag Selector -->
+<div class="tag-section" id="tagSection">
+  <div class="tag-label">🏷️ 다음 사진 분류 태그 선택</div>
+  <div class="tag-grid" id="tagGrid"></div>
 </div>
 
 <!-- Content -->
@@ -442,10 +516,23 @@
   </div>
 
   <div class="preview-section" id="previewSection" style="display:none;">
+    <!-- Existing Images with drag-and-drop reorder -->
     <div class="existing-images" id="existingImages" style="display:none;">
-      <div class="existing-label">📌 기존 등록된 사진</div>
+      <div class="existing-header">
+        <div class="existing-label">📌 기존 등록된 사진 <span id="existingCount"></span></div>
+        <button class="save-order-btn" id="saveOrderBtn" onclick="saveImageOrder()">💾 순서 저장</button>
+      </div>
       <div class="existing-grid" id="existingGrid"></div>
+      <div class="drag-hint" id="dragHint">길게 눌러 드래그하면 순서를 변경할 수 있습니다 · ⭐ = 대표사진</div>
     </div>
+
+    <!-- Upload Log -->
+    <div class="upload-log" id="uploadLog">
+      <div class="upload-log-title">📋 업로드 기록</div>
+      <div id="uploadLogList"></div>
+    </div>
+
+    <!-- New Photos -->
     <div class="preview-label">
       <span class="preview-label-text" id="previewLabel">📸 새로 추가할 사진 (0장)</span>
       <button class="submit-btn" id="submitBtn" onclick="uploadImages()" disabled>
@@ -489,20 +576,33 @@ const API_BASE = window.location.origin;
 const AUTH_TOKEN = 'wishes2026';
 let allListings = [];
 let selectedListing = null;
-let pendingFiles = [];  // { file, originalSize, compressedSize, gps }
+let pendingFiles = [];  // { file, tag, originalSize, compressedSize, gps }
 let isLoading = false;
+
+// ===== TAG DEFINITIONS =====
+const PHOTO_TAGS = [
+  { id: 'exterior',  icon: '🏢', label: '건물외관' },
+  { id: 'interior',  icon: '🛋️', label: '내부전경' },
+  { id: 'kitchen',   icon: '🍳', label: '주방' },
+  { id: 'bathroom',  icon: '🚿', label: '화장실' },
+  { id: 'balcony',   icon: '🌿', label: '베란다' },
+  { id: 'view',      icon: '🏙️', label: '조망' },
+  { id: 'entrance',  icon: '🚪', label: '현관/입구' },
+  { id: 'etc',       icon: '📋', label: '기타' },
+];
+let activeTag = 'interior';
 
 // ===== GPS =====
 let currentGPS = null;
 let gpsWatchId = null;
 
 function initGPS() {
-  const item = document.getElementById('gpsStatus');
-  const span = item.querySelector('span');
+  const bar = document.getElementById('gpsBar');
+  const status = document.getElementById('gpsStatus');
 
   if (!navigator.geolocation) {
-    item.classList.add('error');
-    span.textContent = 'GPS 미지원';
+    bar.classList.add('error');
+    status.textContent = 'GPS 미지원 기기';
     return;
   }
 
@@ -514,207 +614,24 @@ function initGPS() {
         accuracy: Math.round(pos.coords.accuracy),
         timestamp: new Date().toISOString()
       };
-      item.classList.remove('error');
-      span.textContent = `📍 ${currentGPS.lat.toFixed(5)}, ${currentGPS.lng.toFixed(5)} (±${currentGPS.accuracy}m)`;
+      bar.classList.remove('error');
+      status.textContent = `📍 ${currentGPS.lat.toFixed(5)}, ${currentGPS.lng.toFixed(5)} (±${currentGPS.accuracy}m)`;
     },
     (err) => {
-      item.classList.add('error');
-      if (err.code === 1) span.textContent = '위치 권한 거부됨';
-      else if (err.code === 2) span.textContent = 'GPS 신호 없음';
-      else span.textContent = 'GPS 실패';
+      bar.classList.add('error');
+      if (err.code === 1) status.textContent = '위치 권한이 거부되었습니다. 설정에서 허용해주세요';
+      else if (err.code === 2) status.textContent = 'GPS 신호를 찾을 수 없습니다';
+      else status.textContent = 'GPS 위치 확인 실패';
     },
     { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
   );
-}
-
-// ===== NETWORK STATUS =====
-let isOnline = navigator.onLine;
-
-function initNetworkStatus() {
-  updateNetUI();
-  window.addEventListener('online', () => {
-    isOnline = true;
-    updateNetUI();
-    showToast('🌐 인터넷 연결됨 — 대기 업로드 시작', 'success');
-    processOfflineQueue();
-  });
-  window.addEventListener('offline', () => {
-    isOnline = false;
-    updateNetUI();
-    showToast('📴 오프라인 모드 — 사진이 임시 저장됩니다', 'error');
-  });
-}
-
-function updateNetUI() {
-  const item = document.getElementById('netStatus');
-  const span = item.querySelector('span');
-  if (isOnline) {
-    item.classList.remove('error', 'warning');
-    span.textContent = '온라인';
-  } else {
-    item.classList.add('warning');
-    item.classList.remove('error');
-    span.textContent = '오프라인';
-  }
-}
-
-// ===== IndexedDB OFFLINE QUEUE =====
-const DB_NAME = 'wishes_photo_queue';
-const DB_VERSION = 1;
-const STORE_NAME = 'uploads';
-
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = (e) => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function saveToOfflineQueue(listingId, listingTitle, files) {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  const store = tx.objectStore(STORE_NAME);
-
-  for (const pf of files) {
-    const arrayBuf = await pf.file.arrayBuffer();
-    store.add({
-      listingId,
-      listingTitle,
-      fileName: pf.file.name,
-      fileType: pf.file.type,
-      fileData: arrayBuf,
-      originalSize: pf.originalSize,
-      compressedSize: pf.compressedSize,
-      gps: pf.gps,
-      savedAt: new Date().toISOString()
-    });
-  }
-
-  await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
-  db.close();
-  await updateOfflineBanner();
-}
-
-async function getOfflineQueue() {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readonly');
-  const store = tx.objectStore(STORE_NAME);
-  const items = await new Promise((res) => {
-    const req = store.getAll();
-    req.onsuccess = () => res(req.result);
-    req.onerror = () => res([]);
-  });
-  db.close();
-  return items;
-}
-
-async function removeFromQueue(id) {
-  const db = await openDB();
-  const tx = db.transaction(STORE_NAME, 'readwrite');
-  tx.objectStore(STORE_NAME).delete(id);
-  await new Promise((res) => { tx.oncomplete = res; });
-  db.close();
-}
-
-async function updateOfflineBanner() {
-  const items = await getOfflineQueue();
-  const banner = document.getElementById('offlineBanner');
-  const count = document.getElementById('queueCount');
-  if (items.length > 0) {
-    banner.classList.add('show');
-    count.textContent = `${items.length}건`;
-  } else {
-    banner.classList.remove('show');
-  }
-}
-
-async function processOfflineQueue() {
-  if (!isOnline) return;
-
-  const items = await getOfflineQueue();
-  if (items.length === 0) return;
-
-  // Group by listingId
-  const grouped = {};
-  items.forEach(item => {
-    if (!grouped[item.listingId]) grouped[item.listingId] = [];
-    grouped[item.listingId].push(item);
-  });
-
-  let totalUploaded = 0;
-  let totalFailed = 0;
-
-  for (const [listingId, group] of Object.entries(grouped)) {
-    showProgress(true, '대기 사진 업로드 중...', `매물 W-${listingId} (${group.length}장)`);
-
-    try {
-      const formData = new FormData();
-      const metadata = [];
-
-      for (const item of group) {
-        const blob = new Blob([item.fileData], { type: item.fileType });
-        const file = new File([blob], item.fileName, { type: item.fileType });
-        formData.append('images', file);
-        metadata.push({
-          gps: item.gps,
-          originalSize: item.originalSize,
-          compressedSize: item.compressedSize,
-        });
-      }
-      formData.append('metadata', JSON.stringify(metadata));
-
-      const res = await fetch(`${API_BASE}/api/listings/${listingId}/images`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` },
-        body: formData
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        for (const item of group) {
-          await removeFromQueue(item.id);
-        }
-        totalUploaded += group.length;
-      } else {
-        totalFailed += group.length;
-      }
-    } catch (e) {
-      console.error('Offline upload error:', e);
-      totalFailed += group.length;
-    }
-  }
-
-  showProgress(false);
-  await updateOfflineBanner();
-
-  if (totalUploaded > 0) {
-    showToast(`✅ 대기 사진 ${totalUploaded}장 업로드 완료!`, 'success');
-  }
-  if (totalFailed > 0) {
-    showToast(`⚠️ ${totalFailed}장 업로드 실패 — 나중에 재시도됩니다`, 'error');
-  }
-}
-
-function retryOfflineQueue() {
-  if (!isOnline) {
-    showToast('인터넷 연결 후 다시 시도해주세요', 'error');
-    return;
-  }
-  processOfflineQueue();
 }
 
 // ===== IMAGE COMPRESSION =====
 const MAX_WIDTH = 1920;
 const MAX_HEIGHT = 1920;
 const QUALITY = 0.82;
-const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB target
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
 function compressImage(file) {
   return new Promise((resolve) => {
@@ -733,7 +650,6 @@ function compressImage(file) {
           width = Math.round(width * ratio);
           height = Math.round(height * ratio);
         }
-
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
@@ -765,40 +681,31 @@ function formatBytes(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
 }
 
-// ===== PWA INSTALL =====
-let deferredInstallPrompt = null;
+// ===== TAG UI =====
+function renderTags() {
+  const grid = document.getElementById('tagGrid');
+  const tagCounts = {};
+  pendingFiles.forEach(pf => { tagCounts[pf.tag] = (tagCounts[pf.tag] || 0) + 1; });
 
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  deferredInstallPrompt = e;
-  if (!localStorage.getItem('pwa_dismissed')) {
-    document.getElementById('pwaInstall').classList.add('show');
-  }
-});
-
-function installPWA() {
-  if (deferredInstallPrompt) {
-    deferredInstallPrompt.prompt();
-    deferredInstallPrompt.userChoice.then((result) => {
-      if (result.outcome === 'accepted') {
-        showToast('✅ 홈 화면에 추가되었습니다!', 'success');
-      }
-      deferredInstallPrompt = null;
-      document.getElementById('pwaInstall').classList.remove('show');
-    });
-  }
+  grid.innerHTML = PHOTO_TAGS.map(t => {
+    const count = tagCounts[t.id] || 0;
+    const selected = activeTag === t.id;
+    return `
+      <div class="tag-chip ${selected ? 'selected' : ''}" onclick="selectTag('${t.id}')">
+        <span class="tag-icon">${t.icon}</span>
+        <span>${t.label}</span>
+        ${count > 0 ? `<span class="tag-count">${count}</span>` : ''}
+      </div>`;
+  }).join('');
 }
 
-function dismissPWA() {
-  document.getElementById('pwaInstall').classList.remove('show');
-  localStorage.setItem('pwa_dismissed', '1');
+function selectTag(tagId) {
+  activeTag = tagId;
+  renderTags();
 }
 
-// ===== SERVICE WORKER REGISTRATION =====
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(err => {
-    console.log('SW registration skipped:', err.message);
-  });
+function getTagInfo(tagId) {
+  return PHOTO_TAGS.find(t => t.id === tagId) || PHOTO_TAGS[PHOTO_TAGS.length - 1];
 }
 
 // ===== INIT =====
@@ -810,12 +717,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('galleryInput').addEventListener('change', handleFiles);
 
   initGPS();
-  initNetworkStatus();
-  updateOfflineBanner();
+  renderTags();
   loadRecentListings();
-
-  // Auto-process offline queue on load if online
-  setTimeout(() => { if (isOnline) processOfflineQueue(); }, 3000);
 });
 
 // ===== LISTINGS =====
@@ -930,12 +833,16 @@ function formatNum(n) {
 }
 
 // ===== SELECT LISTING =====
+let existingImagesData = []; // Track loaded images for reordering
+let orderChanged = false;
+
 async function selectListing(id) {
   const listing = allListings.find(l => l.id === id);
   if (!listing) return;
 
   selectedListing = listing;
   pendingFiles = [];
+  orderChanged = false;
 
   document.querySelectorAll('.listing-card').forEach(card => {
     card.classList.toggle('selected', parseInt(card.dataset.id) === id);
@@ -946,7 +853,9 @@ async function selectListing(id) {
   document.getElementById('selectedName').textContent = listing.title || '제목 없음';
   document.getElementById('selectedId').textContent = `W-${listing.id} | ${listing.address || ''}`;
 
+  document.getElementById('tagSection').classList.add('show');
   document.getElementById('previewSection').style.display = 'block';
+  renderTags();
   updatePreview();
   await loadExistingImages(id);
 
@@ -960,22 +869,229 @@ async function loadExistingImages(listingId) {
       headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
     });
     const data = await res.json();
-    const images = data.data || [];
+    existingImagesData = data.data || [];
     const container = document.getElementById('existingImages');
     const grid = document.getElementById('existingGrid');
+    const countEl = document.getElementById('existingCount');
 
-    if (images.length > 0) {
+    if (existingImagesData.length > 0) {
       container.style.display = 'block';
-      grid.innerHTML = images.map(img => `
-        <div class="existing-item">
-          <img src="${img.url || img.image_url}" alt="기존 사진" loading="lazy"
-               onerror="this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:12px\\'>로딩실패</div>'">
-        </div>`).join('');
+      countEl.textContent = `(${existingImagesData.length}장)`;
+      renderExistingImages();
     } else {
       container.style.display = 'none';
       grid.innerHTML = '';
     }
   } catch(e) { console.error('Load images error:', e); }
+}
+
+function renderExistingImages() {
+  const grid = document.getElementById('existingGrid');
+  grid.innerHTML = existingImagesData.map((img, i) => `
+    <div class="existing-item" draggable="true" data-index="${i}"
+         ontouchstart="onDragTouchStart(event, ${i})"
+         ontouchmove="onDragTouchMove(event)" ontouchend="onDragTouchEnd(event)"
+         ondragstart="onDragStart(event, ${i})" ondragover="onDragOver(event)" ondrop="onDrop(event, ${i})" ondragend="onDragEnd(event)">
+      ${i === 0 ? '<div class="star-badge">⭐ 대표</div>' : ''}
+      <div class="order-num">${i + 1}</div>
+      <img src="${img.url || img.image_url}" alt="사진 ${i+1}" loading="lazy"
+           onerror="this.parentElement.innerHTML+='<div style=\\'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px;background:#f5f5f5\\'>로딩실패</div>'">
+    </div>`).join('');
+
+  document.getElementById('saveOrderBtn').classList.toggle('show', orderChanged);
+}
+
+// ===== DRAG & DROP (Desktop) =====
+let dragSrcIndex = null;
+
+function onDragStart(e, index) {
+  dragSrcIndex = index;
+  e.target.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  const item = e.target.closest('.existing-item');
+  if (item) {
+    document.querySelectorAll('.existing-item').forEach(el => el.classList.remove('drag-over'));
+    item.classList.add('drag-over');
+  }
+}
+
+function onDrop(e, targetIndex) {
+  e.preventDefault();
+  document.querySelectorAll('.existing-item').forEach(el => el.classList.remove('drag-over'));
+  if (dragSrcIndex !== null && dragSrcIndex !== targetIndex) {
+    const moved = existingImagesData.splice(dragSrcIndex, 1)[0];
+    existingImagesData.splice(targetIndex, 0, moved);
+    orderChanged = true;
+    renderExistingImages();
+  }
+}
+
+function onDragEnd(e) {
+  document.querySelectorAll('.existing-item').forEach(el => {
+    el.classList.remove('dragging');
+    el.classList.remove('drag-over');
+  });
+  dragSrcIndex = null;
+}
+
+// ===== DRAG & DROP (Mobile Touch) =====
+let touchDragIndex = null;
+let touchClone = null;
+let touchStartY = 0;
+let touchStartX = 0;
+let longPressTimer = null;
+let touchActive = false;
+
+function onDragTouchStart(e, index) {
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  touchDragIndex = index;
+  touchActive = false;
+
+  longPressTimer = setTimeout(() => {
+    touchActive = true;
+    e.target.closest('.existing-item').classList.add('dragging');
+
+    // Create floating clone
+    const item = e.target.closest('.existing-item');
+    const rect = item.getBoundingClientRect();
+    touchClone = item.cloneNode(true);
+    touchClone.style.cssText = `position:fixed;top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;z-index:500;opacity:.85;pointer-events:none;transition:none;border:2px solid var(--primary);box-shadow:0 8px 30px rgba(0,0,0,.25);`;
+    document.body.appendChild(touchClone);
+
+    if (navigator.vibrate) navigator.vibrate(30);
+  }, 400);
+}
+
+function onDragTouchMove(e) {
+  if (!touchActive) {
+    const dx = e.touches[0].clientX - touchStartX;
+    const dy = e.touches[0].clientY - touchStartY;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+      clearTimeout(longPressTimer);
+    }
+    return;
+  }
+  e.preventDefault();
+
+  const tx = e.touches[0].clientX;
+  const ty = e.touches[0].clientY;
+
+  if (touchClone) {
+    touchClone.style.left = (tx - touchClone.offsetWidth / 2) + 'px';
+    touchClone.style.top = (ty - touchClone.offsetHeight / 2) + 'px';
+  }
+
+  // Highlight drop target
+  document.querySelectorAll('.existing-item').forEach(el => el.classList.remove('drag-over'));
+  const target = document.elementFromPoint(tx, ty);
+  const targetItem = target ? target.closest('.existing-item') : null;
+  if (targetItem) targetItem.classList.add('drag-over');
+}
+
+function onDragTouchEnd(e) {
+  clearTimeout(longPressTimer);
+
+  if (touchActive && touchClone) {
+    const touch = e.changedTouches[0];
+    if (touchClone.parentNode) touchClone.parentNode.removeChild(touchClone);
+    touchClone = null;
+
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    const targetItem = target ? target.closest('.existing-item') : null;
+
+    if (targetItem) {
+      const targetIndex = parseInt(targetItem.dataset.index);
+      if (touchDragIndex !== null && touchDragIndex !== targetIndex) {
+        const moved = existingImagesData.splice(touchDragIndex, 1)[0];
+        existingImagesData.splice(targetIndex, 0, moved);
+        orderChanged = true;
+      }
+    }
+  }
+
+  document.querySelectorAll('.existing-item').forEach(el => {
+    el.classList.remove('dragging');
+    el.classList.remove('drag-over');
+  });
+
+  if (touchActive) renderExistingImages();
+
+  touchActive = false;
+  touchDragIndex = null;
+}
+
+// ===== SAVE IMAGE ORDER =====
+async function saveImageOrder() {
+  if (!selectedListing || !orderChanged) return;
+
+  const btn = document.getElementById('saveOrderBtn');
+  btn.disabled = true;
+  btn.textContent = '저장 중...';
+
+  try {
+    const imageIds = existingImagesData.map(img => img.id);
+    const res = await fetch(`${API_BASE}/api/listings/${selectedListing.id}/images/reorder`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${AUTH_TOKEN}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ imageIds })
+    });
+
+    const data = await res.json();
+
+    if (res.ok && data.success !== false) {
+      orderChanged = false;
+      renderExistingImages();
+      showToast('✅ 사진 순서가 저장되었습니다', 'success');
+      addUploadLog('success', '사진 순서 변경',
+        `${existingImagesData.length}장 순서 저장 완료 · 대표사진: ${existingImagesData[0]?.id ? '#' + existingImagesData[0].id : '첫 번째'}`);
+    } else {
+      showToast('순서 저장 실패: ' + (data.error || data.message || '서버 오류'), 'error');
+      addUploadLog('error', '순서 저장 실패',
+        `오류: ${data.error || data.message || '알 수 없는 오류'}\nHTTP ${res.status}`);
+    }
+  } catch(e) {
+    showToast('순서 저장 중 네트워크 오류', 'error');
+    addUploadLog('error', '순서 저장 실패', `네트워크 오류: ${e.message}`);
+  }
+
+  btn.disabled = false;
+  btn.textContent = '💾 순서 저장';
+}
+
+// ===== UPLOAD LOG =====
+function addUploadLog(type, title, detail) {
+  const logContainer = document.getElementById('uploadLog');
+  const logList = document.getElementById('uploadLogList');
+  logContainer.classList.add('show');
+
+  const now = new Date();
+  const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+
+  const item = document.createElement('div');
+  item.className = `log-item ${type}`;
+  item.innerHTML = `
+    <div class="log-icon">${type === 'success' ? '✅' : '❌'}</div>
+    <div class="log-body">
+      <div class="log-title">${escHtml(title)}</div>
+      <div class="log-detail ${type === 'error' ? 'error-detail' : ''}">${escHtml(detail).replace(/\n/g, '<br>')}</div>
+      <div class="log-time">${timeStr}</div>
+    </div>`;
+
+  logList.insertBefore(item, logList.firstChild);
+
+  // Keep only last 10 logs
+  while (logList.children.length > 10) {
+    logList.removeChild(logList.lastChild);
+  }
 }
 
 // ===== FILE HANDLING =====
@@ -1006,18 +1122,19 @@ async function handleFiles(e) {
 
     pendingFiles.push({
       file: compressed,
+      tag: activeTag,
       originalSize,
       compressedSize,
       gps: currentGPS ? { ...currentGPS } : null
     });
     added++;
 
-    document.getElementById('progressDetail').textContent =
-      `${added}/${files.length} 완료`;
+    document.getElementById('progressDetail').textContent = `${added}/${files.length} 완료`;
   }
 
   showProgress(false);
   updatePreview();
+  renderTags();
   e.target.value = '';
 
   const totalOriginal = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
@@ -1039,42 +1156,33 @@ function updatePreview() {
   label.textContent = `📸 새로 추가할 사진 (${pendingFiles.length}장)`;
   submitBtn.disabled = pendingFiles.length === 0;
 
-  grid.innerHTML = pendingFiles.map((pf, i) => `
-    <div class="preview-item">
-      <img src="${URL.createObjectURL(pf.file)}" alt="미리보기">
-      <button class="preview-remove" onclick="removeFile(${i})">✕</button>
-      <span class="preview-size">${formatBytes(pf.compressedSize)}</span>
-    </div>`).join('');
+  grid.innerHTML = pendingFiles.map((pf, i) => {
+    const tagInfo = getTagInfo(pf.tag);
+    return `
+      <div class="preview-item">
+        <img src="${URL.createObjectURL(pf.file)}" alt="미리보기">
+        <button class="preview-remove" onclick="removeFile(${i})">✕</button>
+        <span class="preview-size">${formatBytes(pf.compressedSize)}</span>
+        <div class="preview-tag">${tagInfo.icon} ${tagInfo.label}</div>
+      </div>`;
+  }).join('');
 }
 
 function removeFile(index) {
   pendingFiles.splice(index, 1);
   updatePreview();
+  renderTags();
 }
 
 // ===== UPLOAD =====
 async function uploadImages() {
   if (!selectedListing || pendingFiles.length === 0) return;
 
-  // OFFLINE: save to IndexedDB
-  if (!isOnline) {
-    showProgress(true, '오프라인 임시 저장 중...', `${pendingFiles.length}장`);
-    try {
-      await saveToOfflineQueue(selectedListing.id, selectedListing.title, pendingFiles);
-      showToast(`📦 ${pendingFiles.length}장 임시 저장 완료 — Wi-Fi 연결 시 자동 업로드`, 'success');
-      pendingFiles = [];
-      updatePreview();
-    } catch(e) {
-      showToast('임시 저장 실패', 'error');
-      console.error('Offline save error:', e);
-    }
-    showProgress(false);
-    return;
-  }
-
-  // ONLINE: direct upload
   const totalSize = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
-  showProgress(true, '사진 업로드 중...', `${pendingFiles.length}장 (${formatBytes(totalSize)})`);
+  const photoCount = pendingFiles.length;
+  showProgress(true, '사진 업로드 중...', `${photoCount}장 (${formatBytes(totalSize)})`);
+
+  const startTime = Date.now();
 
   try {
     const formData = new FormData();
@@ -1083,6 +1191,7 @@ async function uploadImages() {
     });
 
     const metadata = pendingFiles.map(pf => ({
+      tag: pf.tag,
       gps: pf.gps,
       originalSize: pf.originalSize,
       compressedSize: pf.compressedSize,
@@ -1095,22 +1204,33 @@ async function uploadImages() {
       body: formData
     });
 
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     const data = await res.json();
 
-    if (data.success) {
+    if (res.ok && data.success !== false) {
       const origTotal = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
       const compTotal = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
       const savedPct = origTotal > 0 ? Math.round((1 - compTotal / origTotal) * 100) : 0;
+      const tagSummary = {};
+      pendingFiles.forEach(pf => { tagSummary[getTagInfo(pf.tag).label] = (tagSummary[getTagInfo(pf.tag).label] || 0) + 1; });
+      const tagStr = Object.entries(tagSummary).map(([k,v]) => `${k} ${v}장`).join(', ');
 
-      showToast(`✅ ${pendingFiles.length}장 업로드 완료! ${savedPct > 5 ? '(' + savedPct + '% 절약)' : ''}`, 'success');
+      showToast(`✅ ${photoCount}장 업로드 완료!`, 'success');
+
+      addUploadLog('success',
+        `W-${selectedListing.id} 사진 ${photoCount}장 업로드 완료`,
+        `매물: ${selectedListing.title || ''}\n분류: ${tagStr}\n용량: ${formatBytes(compTotal)}${savedPct > 5 ? ` (원본대비 ${savedPct}% 절약)` : ''}\n소요: ${elapsed}초\n사이트 노출: 정상 반영됨 ✅`);
+
       pendingFiles = [];
       updatePreview();
+      renderTags();
       await loadExistingImages(selectedListing.id);
 
+      // Update listing card image count
       const card = document.querySelector(`.listing-card[data-id="${selectedListing.id}"]`);
       if (card) {
+        const newCount = existingImagesData.length;
         const existing = card.querySelector('.listing-images-count');
-        const newCount = (data.data || []).length || (document.getElementById('existingGrid').children.length);
         if (existing) {
           existing.textContent = `📷 ${newCount}장`;
         } else {
@@ -1119,19 +1239,27 @@ async function uploadImages() {
         }
       }
     } else {
-      // Upload failed — save offline
-      await saveToOfflineQueue(selectedListing.id, selectedListing.title, pendingFiles);
-      showToast(`❌ 업로드 실패 — 임시 저장됨. 나중에 재시도됩니다`, 'error');
-      pendingFiles = [];
-      updatePreview();
+      const errorMsg = data.error || data.message || `알 수 없는 서버 오류 (HTTP ${res.status})`;
+      showToast(`❌ 업로드 실패`, 'error');
+
+      addUploadLog('error',
+        `W-${selectedListing.id} 업로드 실패 (${photoCount}장)`,
+        `매물: ${selectedListing.title || ''}\n오류 내용: ${errorMsg}\nHTTP 상태: ${res.status}\n소요: ${elapsed}초\n\n💡 문제 해결: 네트워크 확인 후 다시 시도하거나, 파일 크기(장당 10MB 이하)를 확인해주세요`);
     }
   } catch(e) {
-    // Network error — save offline
-    console.error('Upload error:', e);
-    await saveToOfflineQueue(selectedListing.id, selectedListing.title, pendingFiles);
-    showToast(`📦 네트워크 오류 — ${pendingFiles.length}장 임시 저장됨`, 'error');
-    pendingFiles = [];
-    updatePreview();
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    showToast('❌ 업로드 중 오류 발생', 'error');
+
+    let errorDetail = `오류 유형: ${e.name || 'Unknown'}\n오류 메시지: ${e.message}`;
+    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
+      errorDetail += '\n\n💡 네트워크 연결 문제입니다.\n- Wi-Fi 또는 LTE 연결을 확인해주세요\n- VPN 사용 중이라면 해제 후 재시도';
+    } else if (e.message.includes('timeout') || e.message.includes('aborted')) {
+      errorDetail += '\n\n💡 업로드 시간 초과입니다.\n- 사진 수를 줄여서 재시도해주세요\n- 네트워크 속도를 확인해주세요';
+    }
+
+    addUploadLog('error',
+      `W-${selectedListing.id} 업로드 오류 (${photoCount}장)`,
+      `매물: ${selectedListing.title || ''}\n${errorDetail}\n소요: ${elapsed}초`);
   }
 
   showProgress(false);
