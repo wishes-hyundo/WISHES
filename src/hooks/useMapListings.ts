@@ -9,19 +9,24 @@ export function useMapListings() {
   const [total, setTotal] = useState(0);
   const debounceRef = useRef<NodeJS.Timeout>();
   const abortRef = useRef<AbortController>();
+  const isFirstLoad = useRef(true);
+  const loadingTimerRef = useRef<NodeJS.Timeout>();
 
   const fetchListings = useCallback(async (bounds: MapBounds, filters: ListingFilter = {}) => {
     // 이전 디바운스 타이머 취소
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    debounceRef.current = setTimeout(async () => {
+    const doFetch = async () => {
       // 이전 진행 중인 요청 취소 (중복 요청 방지)
       if (abortRef.current) {
         abortRef.current.abort();
       }
       abortRef.current = new AbortController();
 
-      setLoading(true);
+      // 로딩 표시를 300ms 후에만 보여줌 (빠른 응답이메 깜빡임 방지)
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+      loadingTimerRef.current = setTimeout(() => setLoading(true), 300);
+
       try {
         const params = new URLSearchParams({
           swLat: bounds.swLat.toString(),
@@ -49,9 +54,19 @@ export function useMapListings() {
         if (error instanceof Error && error.name === 'AbortError') return;
         console.error('매물 조회 실패:', error);
       } finally {
+        // 로딩 타이머 취소 + 로딩 해제
+        if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
         setLoading(false);
       }
-    }, 500); // 500ms 디바운싱 (기존 300ms → 500ms로 증가)
+    };
+
+    // 첫 번째 로드는 디바운스 없이 즉시 실행
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false;
+      doFetch();
+    } else {
+      debounceRef.current = setTimeout(doFetch, 150);
+    }
   }, []);
 
   return { listings, loading, total, fetchListings };
