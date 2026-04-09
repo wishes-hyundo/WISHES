@@ -1,55 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
-const BUILDING_API_KEY = process.env.BUILDING_REGISTRY_API_KEY || '';
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
-
-const FIELD_MAP: Record<string, string> = {
-  bldNm: 'buildingName',
-  mainPurpsCdNm: 'buildingPurpose',
-  etcPurps: 'etcPurpose',
-  strctCdNm: 'buildingStructure',
-  roofCdNm: 'roofStructure',
-  platArea: 'siteArea',
-  archArea: 'buildingArea',
-  totArea: 'totalFloorArea',
-  bcRat: 'buildingCoverageRatio',
-  vlRat: 'floorAreaRatio',
-  grndFlrCnt: 'totalFloors',
-  ugrndFlrCnt: 'undergroundFloors',
-  rideUseElvtCnt: 'rideElevatorCount',
-  emgenUseElvtCnt: 'emergencyElevatorCount',
-  indrMechUtcnt: 'indoorMechParking',
-  indrAutoUtcnt: 'indoorAutoParking',
-  oudrMechUtcnt: 'outdoorMechParking',
-  oudrAutoUtcnt: 'outdoorAutoParking',
-  useAprDay: 'approvalDate',
-  pmsDay: 'permitDate',
-  stcnsDay: 'constructionStartDate',
-  newPlatPlc: 'roadAddress',
-  platPlc: 'jibunAddress',
-  regstrGbCdNm: 'registryType',
-  regstrKindCdNm: 'registryKind',
-  hhldCnt: 'householdCount',
-  hoCnt: 'unitCount',
-  fmlyCnt: 'familyCount',
-  dongNm: 'dongName',
-};
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
 
 interface KakaoAddress {
   address_name: string;
   b_code: string;
-  h_code: string;
   main_address_no: string;
   sub_address_no: string;
-  region_1depth_name: string;
-  region_2depth_name: string;
-  region_3depth_name: string;
 }
 
 interface KakaoResult {
   address: KakaoAddress;
-  road_address: any;
 }
 
 async function resolveAddress(address: string) {
@@ -75,43 +38,6 @@ async function resolveAddress(address: string) {
   return { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress: addr.address_name };
 }
 
-async function callBuildingAPI(endpoint: string, params: Record<string, string>) {
-  const base = `http://apis.data.go.kr/1613000/BldRgstService_v2/${endpoint}`;
-  const otherParams = new URLSearchParams({
-    numOfRows: '100',
-    pageNo: '1',
-    _type: 'json',
-    ...params,
-  });
-  const url = `${base}?serviceKey=${BUILDING_API_KEY}&${otherParams.toString()}`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`Building API ${endpoint} error: ${res.status}`);
-  const text = await res.text();
-
-  try {
-    const json = JSON.parse(text);
-    const body = json?.response?.body;
-    if (!body) return [];
-    const items = body.items?.item;
-    if (!items) return [];
-    return Array.isArray(items) ? items : [items];
-  } catch {
-    return [];
-  }
-}
-
-function mapFields(items: any[]): Record<string, any> {
-  const result: Record<string, any> = {};
-  if (!items || items.length === 0) return result;
-  const item = items[0];
-  for (const [apiKey, fieldName] of Object.entries(FIELD_MAP)) {
-    if (item[apiKey] !== undefined && item[apiKey] !== null && item[apiKey] !== '') {
-      result[fieldName] = item[apiKey];
-    }
-  }
-  return result;
-}
-
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
   if (!authHeader || authHeader !== `Bearer ${ADMIN_TOKEN}`) {
@@ -126,57 +52,25 @@ export async function GET(request: NextRequest) {
   try {
     const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await resolveAddress(address);
 
-    const baseParams = { sigunguCd, bjdongCd, platGbCd: '0', bun, ji };
+    // Call the existing working building-registry endpoint
+    const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
+    const registryRes = await fetch(registryUrl, {
+      headers: { Authorization: `Bearer ${ADMIN_TOKEN}` },
+    });
 
-    const [basisItems, recapItems, titleItems, floorItems] = await Promise.all([
-      callBuildingAPI('getBrBasisOulnInfo', baseParams),
-      callBuildingAPI('getBrRecapTitleInfo', baseParams),
-      callBuildingAPI('getBrTitleInfo', baseParams),
-      callBuildingAPI('getBrFlrOulnInfo', baseParams),
-    ]);
+    if (!registryRes.ok) {
+      const errText = await registryRes.text();
+      throw new Error(`Building registry API error: ${registryRes.status} - ${errText.substring(0, 200)}`);
+    }
 
-    const basisData = mapFields(basisItems);
-    const recapData = mapFields(recapItems);
-    const titleData = mapFields(titleItems);
-
-    const floorDetails = floorItems.map((f: any) => ({
-      floorNo: f.flrNo,
-      floorGb: f.flrGbCdNm,
-      floorNoNm: f.flrNoNm,
-      area: f.area,
-      mainPurpose: f.mainPurpsCdNm,
-      etcPurpose: f.etcPurps,
-    }));
-
-    const buildingData = {
-      ...basisData,
-      ...recapData,
-      ...titleData,
-    };
-
-    const elevatorCount =
-      (parseInt(buildingData.rideElevatorCount) || 0) +
-      (parseInt(buildingData.emergencyElevatorCount) || 0);
-    const parkingCount =
-      (parseInt(buildingData.indoorMechParking) || 0) +
-      (parseInt(buildingData.indoorAutoParking) || 0) +
-      (parseInt(buildingData.outdoorMechParking) || 0) +
-      (parseInt(buildingData.outdoorAutoParking) || 0);
-
-    buildingData.elevatorCount = elevatorCount;
-    buildingData.parkingCount = parkingCount;
+    const registryData = await registryRes.json();
 
     return NextResponse.json({
       success: true,
       query: { address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress },
-      data: buildingData,
-      floors: floorDetails,
-      raw: {
-        basisCount: basisItems.length,
-        recapCount: recapItems.length,
-        titleCount: titleItems.length,
-        floorCount: floorItems.length,
-      },
+      data: registryData.data || {},
+      floors: registryData.floors || [],
+      raw: registryData.raw || {},
     });
   } catch (err: any) {
     return NextResponse.json(
