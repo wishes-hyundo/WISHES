@@ -170,6 +170,21 @@ export async function POST(req: NextRequest) {
     // building_info (건축물대장 정보) 저장
     if (buildingInfo) {
       updateData.building_info = buildingInfo;
+
+        // === 건축물대장 근거로 필드 자동 세팅 ===
+        // 주차: 총주차대수 > 0 이면 가능
+        const totalParking = parseInt(buildingInfo['총주차대수'] || '0', 10);
+        if (totalParking > 0) updateData.parking = true;
+
+        // 엘리베이터: 승용엘리베이터 > 0 이면 있음
+        const elevatorCount = parseInt(buildingInfo['승용엘리베이터'] || '0', 10);
+        if (elevatorCount > 0) updateData.elevator = true;
+
+        // 준공년도: 사용승인일에서 년도 추출
+        if (buildingInfo['사용승인일']) {
+          const ym = String(buildingInfo['사용승인일']).match(/\d{4}/);
+          if (ym) updateData.built_year = ym[0];
+        }
     }
 
       const { error: updateErr } = await supabase
