@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 // ━━━ 카카오 지오코딩 헬퍼 ━━━
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
 
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   if (!address || !KAKAO_REST_API_KEY) return null;
