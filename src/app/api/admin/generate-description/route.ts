@@ -156,7 +156,7 @@ ${contextInfo}
     if (!response.ok) {
       const errText = await response.text();
       console.error('[generate-description] API error:', errText);
-      return NextResponse.json({ success: false, error: `AI API 오류 (${response.status})` }, { status: 500 });
+      return NextResponse.json({ success: false, error: `AI API 오류 (${response.status}): ${errText.substring(0, 200)}` }, { status: 500 });
     }
 
     const result = await response.json();
