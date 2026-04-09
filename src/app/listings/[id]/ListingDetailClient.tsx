@@ -480,9 +480,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 </h3>
                 <div className="bg-gray-50 rounded-xl p-4">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {listing.building_info.건물명 && (
-                      <div><span className="text-[11px] text-gray-400">건물명</span><p className="text-sm font-medium text-gray-800">{listing.building_info.건물명}</p></div>
-                    )}
+                    {/* 건물명은 고객 페이지에서 숨김 (위치 노출 방지, admin에서만 표시) */}
                     {listing.building_info.사용승인일 && (
                       <div><span className="text-[11px] text-gray-400">사용승인일(준공)</span><p className="text-sm font-medium text-gray-800">{listing.building_info.사용승인일}</p></div>
                     )}
