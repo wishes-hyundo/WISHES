@@ -190,10 +190,10 @@ ${listingForm.description}
         </div>
       </section>
 
-      <div className="max-w-3xl mx-auto px-4 -mt-8">
-        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+      <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-10">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
           {/* 탭 */}
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-200 rounded-t-2xl overflow-hidden">
             <button
               onClick={() => { setActiveTab('consultation'); setError(''); }}
               className={`flex-1 py-4 px-4 md:px-6 font-semibold text-center transition-all ${
