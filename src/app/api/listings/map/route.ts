@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { sortWithPhotoPriority } from '@/lib/utils';
 
 /**
  * 지도 바운드 범위 내 매물 조회
@@ -87,11 +88,14 @@ export async function GET(request: NextRequest) {
               offset += BATCH_SIZE;
       }
 
-      return NextResponse.json({
-              success: true,
-              data: allData,
-              total: allData.length,
-      });
+      // 사진 있는 매물 우선 정렬
+    const sortedData = sortWithPhotoPriority(allData);
+
+    return NextResponse.json({
+      success: true,
+      data: sortedData,
+      total: sortedData.length,
+    });
     } catch (error) {
           console.error('지도 매물 API 오류:', error);
           return NextResponse.json(
