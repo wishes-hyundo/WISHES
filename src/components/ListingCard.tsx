@@ -128,10 +128,21 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
             </div>
             <p className="text-xs text-gray-600 truncate mt-0.5">{listing.title}</p>
           </div>
-          <div className="flex items-center gap-2 text-xs text-wishes-muted">
+          <div className="flex items-center gap-2 text-xs text-wishes-muted flex-wrap">
             <span>{listing.area_m2 || listing.area || 0}㎡</span>
             <span>·</span>
             <span>{formatFloor(listing)}</span>
+            {/* 상업용: 업종 태그 */}
+            {(listing.type === '상가' || listing.type === '사무실') && (listing as any).business_type && (
+              <span className="text-[9px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-semibold shrink-0">{(listing as any).business_type}</span>
+            )}
+            {/* 상업용: 평당가 */}
+            {(listing.type === '상가' || listing.type === '사무실') && listing.area_m2 && listing.monthly && (
+              <>
+                <span>·</span>
+                <span className="text-purple-600 font-semibold">평당 {Math.round(listing.monthly / (listing.area_m2 / 3.3058)).toLocaleString()}만</span>
+              </>
+            )}
             {(listing as any).views > 0 && (
               <>
                 <span>·</span>
@@ -227,6 +238,28 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
             )}
           </div>
         </div>
+
+        {/* 상업용 추가 정보 */}
+        {(listing.type === '상가' || listing.type === '사무실') && (
+          <div className="flex flex-wrap gap-1.5">
+            {(listing as any).business_type && (
+              <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-semibold">{(listing as any).business_type}</span>
+            )}
+            {listing.area_m2 && listing.monthly && (
+              <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-semibold">
+                평당 {Math.round(listing.monthly / (listing.area_m2 / 3.3058)).toLocaleString()}만
+              </span>
+            )}
+            {(listing as any).goodwill_fee > 0 && (
+              <span className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-semibold">
+                권리금 {formatAmount((listing as any).goodwill_fee)}
+              </span>
+            )}
+            {(listing as any).vat_included === false && listing.deal === '월세' && (
+              <span className="text-[10px] px-2 py-0.5 bg-red-50 text-red-600 rounded-full font-semibold">부가세별도</span>
+            )}
+          </div>
+        )}
 
         {/* 제목 */}
         <p className="text-sm font-semibold text-wishes-text line-clamp-2 group-hover:text-wishes-secondary transition-colors">

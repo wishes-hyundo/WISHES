@@ -42,11 +42,11 @@ export async function GET(request: NextRequest) {
 
     const supabase = createClient();
 
-    // 지도 바운드 내 매물 조회 (경량화: 이미지 조인 제거로 응답 속도 대폽 향상)
+    // 지도 바운드 내 매물 조회 (경량화: 이미지 조인 제거로 응답 속도 대폭 향상)
     let query = supabase
       .from('listings')
       .select(
-        'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee',
+        'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included',
         { count: 'exact' }
       )
       .neq('status', '계약완료')

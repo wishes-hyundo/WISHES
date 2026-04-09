@@ -7,39 +7,6 @@ import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 
-// ━━━ 카카오 지오코딩 헬퍼 ━━━
-const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
-
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  if (!address || !KAKAO_REST_API_KEY) return null;
-  try {
-    const res = await fetch(
-      `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
-      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
-    );
-    if (res.ok) {
-      const data = await res.json();
-      if (data.documents && data.documents.length > 0) {
-        return { lat: parseFloat(data.documents[0].y), lng: parseFloat(data.documents[0].x) };
-      }
-    }
-    const kwRes = await fetch(
-      `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(address)}`,
-      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
-    );
-    if (kwRes.ok) {
-      const kwData = await kwRes.json();
-      if (kwData.documents && kwData.documents.length > 0) {
-        return { lat: parseFloat(kwData.documents[0].y), lng: parseFloat(kwData.documents[0].x) };
-      }
-    }
-    return null;
-  } catch {
-    return null;
-  }
-}
-
 // 요청 검증 스키마
 const createListingSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요'),
@@ -73,85 +40,96 @@ const createListingSchema = z.object({
   balcony: z.boolean().default(false).optional(),
   full_option: z.boolean().default(false).optional(),
   loan_available: z.boolean().default(true).optional(),
+  business_type: z.string().optional().nullable(),
+  goodwill_fee: z.number().int().nonnegative().optional().nullable(),
+  vat_included: z.boolean().optional().nullable(),
+  station_name: z.string().optional().nullable(),
+  station_distance: z.number().int().nonnegative().optional().nullable(),
+  usage_approved: z.string().optional().nullable(),
+  electric_capacity: z.string().optional().nullable(),
+  signage_available: z.boolean().optional().nullable(),
+  meeting_room: z.number().int().nonnegative().optional().nullable(),
   status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
+  // 이미지 URL 배열 (Supabase Storage에 이미 업로드된 URL들)
   images: z.array(z.string()).optional(),
 });
 
+/**
+ * 인증 검증 헬퍼 함수
+ */
 function verifyAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
   const password = authHeader?.replace('Bearer ', '');
   return password === 'wishes2026';
 }
 
+/**
+ * GET /api/admin/listings - 모든 매물 조회 (관리자용)
+ */
 export async function GET(request: NextRequest) {
   try {
     if (!verifyAuth(request)) {
-      return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
-    }
-    const supabase = createServerClient();
-    
-    // Supabase 기본 1000행 제한 우회: 페이지네이션으로 전체 데이터 가져오기
-    let allData: any[] = [];
-    let page = 0;
-    const pageSize = 1000;
-    let hasMore = true;
-    
-    while (hasMore) {
-      const from = page * pageSize;
-      const to = from + pageSize - 1;
-      const { data: batch, error: batchError } = await supabase
-        .from('listings')
-        .select('*, listing_images(*)')
-        .order('created_at', { ascending: false })
-        .range(from, to);
-      
-      if (batchError) {
-        return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다', detail: batchError?.message }, { status: 500 });
-      }
-      
-      if (batch && batch.length > 0) {
-        allData = allData.concat(batch);
-        hasMore = batch.length === pageSize;
-        page++;
-      } else {
-        hasMore = false;
-      }
-    }
-    
-    const data = allData;
-    const error = null;
-    if (error) {
-      return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다', detail: error?.message }, { status: 500 });
-    }
-    return NextResponse.json({ success: true, data: data || [] });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다' }, { status: 500 });
-  }
+      return NextResponse.json(
+        { success: false, error: '인증 실패' },
+        { status: 401 }
+      );
     }
 
+    const supabase = createServerClient();
+
+    const { data, error } = await supabase
+      .from('listings')
+      .select('*, listing_images(*)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('매물 조회 오류:', error);
+      return NextResponse.json(
+        { success: false, error: '매물 조회에 실패했습니다', detail: error?.message || String(error) },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: data || [],
+    });
+  } catch (error) {
+    console.error('매물 조회 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '매물 조회에 실패했습니다' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST /api/admin/listings - 매물 생성
+ * 이미지 URL 배열이 포함된 경우, 매물 생성 후 listing_images 테이블에 연결
+ */
 export async function POST(request: NextRequest) {
   try {
     if (!verifyAuth(request)) {
-      return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: '인증 실패' },
+        { status: 401 }
+      );
     }
+
     const body = await request.json();
     const parsed = createListingSchema.safeParse(body);
-    if (!parsed.success) {
-      return NextResponse.json({ success: false, error: parsed.error.errors[0].message, detail: JSON.stringify(parsed.error.errors) }, { status: 400 });
-    }
-    const supabase = createServerClient();
-    const { images, ...listingData } = parsed.data;
 
-    // ★ 자동 지오코딩: lat/lng가 없으면 주소로 좌표 자동 변환
-    let finalLat = listingData.lat || null;
-    let finalLng = listingData.lng || null;
-    if ((!finalLat || !finalLng) && listingData.address) {
-      const coords = await geocodeAddress(listingData.address);
-      if (coords) {
-        finalLat = coords.lat;
-        finalLng = coords.lng;
-      }
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: parsed.error.errors[0].message, detail: JSON.stringify(parsed.error.errors) },
+        { status: 400 }
+      );
     }
+
+    const supabase = createServerClient();
+
+    // images는 별도 처리 (listings 테이블에는 포함되지 않음)
+    const { images, ...listingData } = parsed.data;
 
     const { data, error } = await supabase
       .from('listings')
@@ -176,8 +154,8 @@ export async function POST(request: NextRequest) {
         address: listingData.address,
         address_detail: listingData.address_detail || null,
         dong: listingData.dong,
-        lat: finalLat,
-        lng: finalLng,
+        lat: listingData.lat || null,
+        lng: listingData.lng || null,
         description: listingData.description || null,
         available_date: listingData.available_date || null,
         built_year: listingData.built_year || null,
@@ -187,15 +165,29 @@ export async function POST(request: NextRequest) {
         balcony: listingData.balcony || false,
         full_option: listingData.full_option || false,
         loan_available: listingData.loan_available ?? true,
+        business_type: listingData.business_type || null,
+        goodwill_fee: listingData.goodwill_fee || null,
+        vat_included: listingData.vat_included || null,
+        station_name: listingData.station_name || null,
+        station_distance: listingData.station_distance || null,
+        usage_approved: listingData.usage_approved || null,
+        electric_capacity: listingData.electric_capacity || null,
+        signage_available: listingData.signage_available || null,
+        meeting_room: listingData.meeting_room || null,
         status: listingData.status || '가용',
       })
       .select()
       .single();
 
     if (error) {
-      return NextResponse.json({ success: false, error: '매물 생성에 실패했습니다', detail: error?.message }, { status: 500 });
+      console.error('매물 생성 오류:', error);
+      return NextResponse.json(
+        { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
+        { status: 500 }
+      );
     }
 
+    // 이미지 URL이 있으면 listing_images 테이블에 연결
     let imageResults: any[] = [];
     if (images && images.length > 0 && data?.id) {
       const imageInserts = images.map((url: string, index: number) => ({
@@ -203,83 +195,80 @@ export async function POST(request: NextRequest) {
         url: url,
         alt: `${listingData.title} 이미지 ${index + 1}`,
         sort_order: index,
-        is_thumbnail: index === 0,
+        is_thumbnail: index === 0, // 첫 번째 이미지를 대표 이미지로
       }));
+
       const { data: imgData, error: imgError } = await supabase
         .from('listing_images')
         .insert(imageInserts)
         .select();
-      if (!imgError) imageResults = imgData || [];
+
+      if (imgError) {
+        console.error('이미지 연결 오류:', imgError);
+        // 매물은 생성되었으므로 이미지 연결 실패는 경고만 반환
+      } else {
+        imageResults = imgData || [];
+      }
     }
 
+    // 캐시 즉시 무효화
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
 
-    // Fire-and-forget: AI 제목/설명 자동 생성
-    if (data?.id) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
-      Promise.resolve().then(async () => {
-        try {
-          await fetch(`${siteUrl}/api/generate-description`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${ADMIN_TOKEN}`,
-            },
-            body: JSON.stringify({
-              listingId: data.id,
-              address: listingData.address,
-              dong: listingData.dong,
-              gu: listingData.gu,
-              type: listingData.type,
-              deal: listingData.deal,
-              deposit: listingData.deposit,
-              monthly: listingData.monthly,
-              price: listingData.price,
-              area_m2: listingData.area_m2,
-              floor_current: listingData.floor_current,
-              floor_total: listingData.floor_total,
-              direction: listingData.direction,
-              rooms: listingData.rooms,
-              bathrooms: listingData.bathrooms,
-              features: listingData.features,
-              parking_available: listingData.parking,
-              buildingInfo: listingData.building_name,
-              aiModel: 'sonnet',
-            }),
-          });
-        } catch (e) {
-          console.error('AI description generation failed:', e);
-        }
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: { ...data, listing_images: imageResults },
-      geocoded: (!listingData.lat || !listingData.lng) && finalLat !== null,
-    }, { status: 201 });
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          ...data,
+          listing_images: imageResults,
+        },
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: '매물 생성에 실패했습니다', detail: error?.message }, { status: 500 });
+    console.error('매물 생성 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
+      { status: 500 }
+    );
   }
 }
 
+/**
+ * PUT /api/admin/listings - 매물 수정
+ */
 export async function PUT(request: NextRequest) {
   try {
     if (!verifyAuth(request)) {
-      return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: '인증 실패' },
+        { status: 401 }
+      );
     }
+
     const body = await request.json();
     const { id, images, ...updateData } = body;
+
     if (!id) {
-      return NextResponse.json({ success: false, error: '매물 ID가 필요합니다' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: '매물 ID가 필요합니다' },
+        { status: 400 }
+      );
     }
+
     const parsed = createListingSchema.partial().safeParse(updateData);
+
     if (!parsed.success) {
-      return NextResponse.json({ success: false, error: parsed.error.errors[0].message }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: parsed.error.errors[0].message },
+        { status: 400 }
+      );
     }
+
     const supabase = createServerClient();
+
+    // 업데이트할 필드 준비 (undefined 제거)
     const updateValues: Record<string, any> = {};
     Object.entries(parsed.data).forEach(([key, value]) => {
       if (value !== undefined && key !== 'images') {
@@ -287,19 +276,16 @@ export async function PUT(request: NextRequest) {
       }
     });
 
-    // ★ 자동 지오코딩: 주소가 변경되었는데 lat/lng가 없으면 자동 변환
-    if (updateValues.address && !updateValues.lat && !updateValues.lng) {
-      const coords = await geocodeAddress(updateValues.address);
-      if (coords) {
-        updateValues.lat = coords.lat;
-        updateValues.lng = coords.lng;
-      }
+    if (Object.keys(updateValues).length === 0 && !images) {
+      return NextResponse.json(
+        { success: false, error: '수정할 필드가 없습니다' },
+        { status: 400 }
+      );
     }
 
-    if (Object.keys(updateValues).length === 0 && !images) {
-      return NextResponse.json({ success: false, error: '수정할 필드가 없습니다' }, { status: 400 });
-    }
     let data = null;
+
+    // 매물 기본 정보 수정
     if (Object.keys(updateValues).length > 0) {
       const { data: updatedData, error } = await supabase
         .from('listings')
@@ -307,13 +293,27 @@ export async function PUT(request: NextRequest) {
         .eq('id', id)
         .select()
         .single();
+
       if (error) {
-        return NextResponse.json({ success: false, error: '매물 수정에 실패했습니다', detail: error?.message }, { status: 500 });
+        console.error('매물 수정 오류:', error);
+        return NextResponse.json(
+          { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
+          { status: 500 }
+        );
       }
+
       data = updatedData;
     }
+
+    // 이미지 배열이 제공된 경우, 기존 이미지를 교체
     if (images && Array.isArray(images)) {
-      await supabase.from('listing_images').delete().eq('listing_id', id);
+      // 기존 이미지 삭제
+      await supabase
+        .from('listing_images')
+        .delete()
+        .eq('listing_id', id);
+
+      // 새 이미지 삽입
       if (images.length > 0) {
         const imageInserts = images.map((url: string, index: number) => ({
           listing_id: id,
@@ -322,41 +322,46 @@ export async function PUT(request: NextRequest) {
           sort_order: index,
           is_thumbnail: index === 0,
         }));
-        await supabase.from('listing_images').insert(imageInserts);
+
+        await supabase
+          .from('listing_images')
+          .insert(imageInserts);
       }
     }
+
     if (!data) {
+      // 이미지만 수정한 경우 매물 데이터 다시 조회
       const { data: fetchedData } = await supabase
         .from('listings')
         .select('*, listing_images(*)')
         .eq('id', id)
         .single();
+
       data = fetchedData;
     }
+
     if (!data) {
-      return NextResponse.json({ success: false, error: '매물을 찾을 수 없습니다' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: '매물을 찾을 수 없습니다' },
+        { status: 404 }
+      );
     }
+
+    // 캐시 즉시 무효화
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
     revalidatePath(`/listings/${id}`, 'page');
 
-
-    // Auto-trigger AI description generation (fire-and-forget)
-    if (data?.id) {
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
-      fetch(`${siteUrl}/api/admin/auto-generate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${ADMIN_TOKEN}`,
-        },
-        body: JSON.stringify({ listingId: data.id }),
-      }).catch(err => console.error('[auto-generate trigger]', err));
-    }
-
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({
+      success: true,
+      data,
+    });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: '매물 수정에 실패했습니다', detail: error?.message }, { status: 500 });
+    console.error('매물 수정 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
+      { status: 500 }
+    );
   }
 }

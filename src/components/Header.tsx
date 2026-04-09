@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown, UserX } from 'lucide-react';
+import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown, UserX, Globe } from 'lucide-react';
+import { LanguageToggle } from '@/components/LanguageToggle';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -11,8 +12,8 @@ const navItems = [
   { label: '매물검색', href: '/listings' },
   { label: '지도검색', href: '/map' },
   { label: '대출계산기', href: '/calculator' },
-  { label: '회사소개', href: '/about' },
-  { label: '상담문의', href: '/contact' },
+  { label: 'FAQ', href: '/faq' },
+  { label: '상담·매물접수', href: '/contact' },
 ];
 
 export default function Header() {
@@ -26,12 +27,14 @@ export default function Header() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // 스크롤 감지
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // 사용자 메뉴 외부 클릭 시 닫기
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
@@ -72,6 +75,7 @@ export default function Header() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-[72px]">
+          {/* 로고 */}
           <Link href="/" className="flex items-center gap-2.5 group">
             <div className="w-10 h-10 bg-gradient-to-br from-wishes-secondary to-wishes-accent flex items-center justify-center text-white shadow-droplet group-hover:shadow-lg transition-all duration-300 group-hover:scale-105" style={{ borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%' }}>
               <MapPin className="w-5 h-5" />
@@ -79,6 +83,7 @@ export default function Header() {
             <span className="text-lg font-bold tracking-tight text-wishes-primary">WISHES</span>
           </Link>
 
+          {/* 데스크탑 네비게이션 */}
           <nav className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
@@ -99,7 +104,9 @@ export default function Header() {
             ))}
           </nav>
 
+          {/* 데스크탑 우측: 언어 + 로그인 */}
           <div className="hidden lg:flex items-center gap-3">
+            <LanguageToggle />
             {!loading && (
               user ? (
                 <div className="relative" ref={userMenuRef}>
@@ -125,6 +132,7 @@ export default function Header() {
                     <ChevronDown className={cn('w-3.5 h-3.5 text-wishes-muted transition-transform duration-200', userMenuOpen && 'rotate-180')} />
                   </button>
 
+                  {/* 드롭다운 */}
                   {userMenuOpen && (
                     <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-premium border border-wishes-border/60 overflow-hidden py-1 animate-fade-in-up">
                       <div className="px-4 py-3 border-b border-wishes-border/40">
@@ -169,6 +177,7 @@ export default function Header() {
             )}
           </div>
 
+          {/* 모바일 메뉴 토글 */}
           <button
             className="lg:hidden p-2.5 text-wishes-primary hover:bg-wishes-cream/60 rounded-xl transition-colors"
             onClick={() => setIsOpen(!isOpen)}
@@ -178,6 +187,7 @@ export default function Header() {
           </button>
         </div>
 
+        {/* 모바일 메뉴 */}
         <div
           className={cn(
             'lg:hidden overflow-hidden transition-all duration-300 ease-out',
@@ -252,6 +262,7 @@ export default function Header() {
       </div>
     </header>
 
+    {/* 회원 탈퇴 확인 모달 */}
     {showDeleteConfirm && (
       <div className="fixed inset-0 z-[200] flex items-center justify-center">
         <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !isDeleting && setShowDeleteConfirm(false)} />
