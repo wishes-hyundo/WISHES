@@ -725,13 +725,13 @@ function InfoRow({ label, value, fullWidth }: { label: string; value: string; fu
 }
 
 function OptionBadge({ label, available }: { label: string; available: boolean }) {
+  if (!available) return null;
   return (
-    <span className={`flex items-center gap-1 px-3 py-1 text-sm rounded-full ${
-      available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400 line-through'
-    }`}>
-      {available ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
+      <Check className="w-3.5 h-3.5" />
       {label}
     </span>
   );
+}
               }
 // v2-fix: marker error resolved
