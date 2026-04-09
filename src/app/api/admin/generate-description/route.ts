@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     const model = 'claude-sonnet-4-20250514'; // Always use Sonnet (opus disabled for cost)
 
     // 지역 키워드 추출 (AI에게는 동 이름만 전달, 지번주소 절대 비노출)
-    const dongName = dong || '';h
+    const dongName = dong || '';
     const addressParts = (address || '').split(' ');
     const guName = addressParts.find((p: string) => p.endsWith('구')) || '';
     const cityName = addressParts[0] || '서울';
