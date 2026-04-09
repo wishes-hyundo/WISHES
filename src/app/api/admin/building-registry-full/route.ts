@@ -78,9 +78,10 @@ async function resolveAddress(address: string) {
 async function callBuildingAPI(endpoint: string, params: Record<string, string>) {
   const base = `http://apis.data.go.kr/1613000/BldRgstService_v2/${endpoint}`;
   const query = new URLSearchParams({
-    serviceKey: BUILDING_API_KEY,
+    serviceKey: decodeURIComponent(BUILDING_API_KEY),
     numOfRows: '100',
     pageNo: '1',
+    _type: 'json',
     ...params,
   });
   const url = `${base}?${query.toString()}`;
