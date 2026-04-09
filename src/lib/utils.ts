@@ -96,3 +96,23 @@ export function timeAgo(dateString: string): string {
   if (diffDays < 365) return `${Math.floor(diffDays / 30)}개월 전`;
   return `${Math.floor(diffDays / 365)}년 전`;
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 매물 정렬: 사진 우선 + 최신순 + 랜덤
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export function sortWithPhotoPriority(listings: any[]): any[] {
+  return [...listings].sort((a, b) => {
+    // 1순위: 사진 있는 매물 상위 노출
+    const aHasPhotos = (a.listing_images?.length || 0) > 0 ? 1 : 0;
+    const bHasPhotos = (b.listing_images?.length || 0) > 0 ? 1 : 0;
+    if (aHasPhotos !== bHasPhotos) return bHasPhotos - aHasPhotos;
+
+    // 2순위: 최신순 (created_at DESC)
+    const aDate = new Date(a.created_at || 0).getTime();
+    const bDate = new Date(b.created_at || 0).getTime();
+    if (aDate !== bDate) return bDate - aDate;
+
+    // 3순위: 같은 조건일 경우 랜덤 노출
+    return Math.random() - 0.5;
+  });
+}
