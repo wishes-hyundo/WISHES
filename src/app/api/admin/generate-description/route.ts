@@ -154,7 +154,7 @@ ${contextInfo}
     });
 
     if (!response.ok) {
-      console.error('[generate-description] API error:', errText);
+      console.error('[generate-description] API error:', response.status);
       return NextResponse.json({ success: false, error: `AI API 오류 (${response.status})` }, { status: 500 });
     }
 
