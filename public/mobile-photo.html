@@ -141,11 +141,21 @@
     padding: 2px 8px; border-radius: 6px;
     margin-bottom: 6px;
   }
+  .listing-address {
+    font-size: 15px; font-weight: 700;
+    color: var(--primary);
+    line-height: 1.4; margin-bottom: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
   .listing-title {
-    font-size: 15px; font-weight: 600;
+    font-size: 13px; font-weight: 500;
+    color: var(--text-sub);
     line-height: 1.4; margin-bottom: 4px;
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
@@ -806,9 +816,9 @@ function renderListings(listings, label) {
         <div class="listing-card ${isSelected ? 'selected' : ''}" onclick="selectListing(${l.id})" data-id="${l.id}">
           <span class="listing-id">W-${l.id}</span>
           ${imageCount > 0 ? `<span class="listing-images-count">📷 ${imageCount}장</span>` : ''}
+          <div class="listing-address">${escHtml(l.address || '주소 없음')}</div>
           <div class="listing-title">${escHtml(l.title || '제목 없음')}</div>
           <div class="listing-info">
-            <span>${escHtml(l.address || '')}</span>
             ${l.type ? `<span>${l.type}</span>` : ''}
             ${l.deal ? `<span>${l.deal}</span>` : ''}
             ${l.area_m2 ? `<span>${l.area_m2}㎡</span>` : ''}
@@ -1035,14 +1045,19 @@ async function saveImageOrder() {
   btn.textContent = '저장 중...';
 
   try {
-    const imageIds = existingImagesData.map(img => img.id);
-    const res = await fetch(`${API_BASE}/api/listings/${selectedListing.id}/images/reorder`, {
-      method: 'PUT',
+    // Use PATCH endpoint with sort_order and is_thumbnail
+    const images = existingImagesData.map((img, i) => ({
+      id: img.id,
+      sort_order: i,
+      is_thumbnail: i === 0
+    }));
+    const res = await fetch(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
+      method: 'PATCH',
       headers: {
         'Authorization': `Bearer ${AUTH_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ imageIds })
+      body: JSON.stringify({ images })
     });
 
     const data = await res.json();

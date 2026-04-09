@@ -46,13 +46,21 @@ export async function POST(
     if (!files || files.length === 0) return NextResponse.json({ success: false, error: 'No images' }, { status: 400, headers: CORS_HEADERS });
     if (files.length > 20) return NextResponse.json({ success: false, error: 'Max 20 images' }, { status: 400, headers: CORS_HEADERS });
 
-    // order_num and is_main from FormData (optional)
-    const orderNumStr = formData.get('order_num') as string | null;
-    const isMainStr = formData.get('is_main') as string | null;
+    // sort_order and is_thumbnail from FormData (optional)
+    const sortOrderStr = formData.get('sort_order') as string | null;
+    const isThumbnailStr = formData.get('is_thumbnail') as string | null;
+    // Also read metadata JSON from mobile photo upload
+    const metadataStr = formData.get('metadata') as string | null;
+    let metadata: any[] | null = null;
+    try { if (metadataStr) metadata = JSON.parse(metadataStr); } catch {}
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: listing, error: le } = await supabase.from('listings').select('id').eq('id', listingId).single();
     if (le || !listing) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: CORS_HEADERS });
+
+    // Get current max sort_order for this listing
+    const { data: existingImages } = await supabase.from('listing_images').select('sort_order').eq('listing_id', listingId).order('sort_order', { ascending: false }).limit(1);
+    let nextSortOrder = (existingImages && existingImages[0]?.sort_order != null) ? existingImages[0].sort_order + 1 : 0;
 
     const uploaded: { url: string; id?: number }[] = [];
     const errors: { index: number; name: string; error: string }[] = [];
@@ -68,16 +76,20 @@ export async function POST(
         const key = `listings/${listingId}/${Date.now()}_${i}.${ext}`;
         const imageUrl = await uploadToR2(key, buf, file.type);
 
-        // Try insert with order_num first, fallback without
-        const insertData: Record<string, any> = { listing_id: listingId, url: imageUrl };
-        if (orderNumStr !== null) insertData.order_num = parseInt(orderNumStr) + i;
-        if (isMainStr === 'true' && i === 0) insertData.is_main = true;
+        // Build insert data with correct column names (sort_order, is_thumbnail)
+        const insertData: Record<string, any> = {
+          listing_id: listingId,
+          url: imageUrl,
+          sort_order: sortOrderStr !== null ? parseInt(sortOrderStr) + i : nextSortOrder + i,
+          is_thumbnail: (isThumbnailStr === 'true' && i === 0) || (nextSortOrder === 0 && i === 0),
+        };
 
-        let { data: inserted, error: de } = await supabase.from('listing_images').insert(insertData).select('id, url').single();
-        if (de && de.message && de.message.includes('column')) {
-          // Fallback: columns don't exist yet
-          ({ data: inserted, error: de } = await supabase.from('listing_images').insert({ listing_id: listingId, url: imageUrl }).select('id, url').single());
+        // Add metadata tag as alt text if available
+        if (metadata && metadata[i] && metadata[i].tag) {
+          insertData.alt = metadata[i].tag;
         }
+
+        const { data: inserted, error: de } = await supabase.from('listing_images').insert(insertData).select('id, url, sort_order').single();
         if (de) errors.push({ index: i, name: file.name, error: 'DB: ' + de.message });
         else uploaded.push({ url: imageUrl, id: inserted?.id });
       } catch (err: any) {
@@ -88,7 +100,7 @@ export async function POST(
     if (uploaded.length === 0) {
       return NextResponse.json({ success: false, error: 'All failed', errors, details: errors.map(e => e.name + ': ' + e.error).join('; ') }, { status: 500, headers: CORS_HEADERS });
     }
-    return NextResponse.json({ success: true, message: uploaded.length + ' uploaded', images: uploaded, listingId, ...(errors.length > 0 ? { errors } : {}) }, { headers: CORS_HEADERS });
+    return NextResponse.json({ success: true, message: uploaded.length + ' uploaded', data: uploaded, images: uploaded, listingId, ...(errors.length > 0 ? { errors } : {}) }, { headers: CORS_HEADERS });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: CORS_HEADERS });
   }
@@ -104,11 +116,12 @@ export async function GET(
     if (isNaN(listingId)) return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400, headers: CORS_HEADERS });
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    // Try ordering by order_num, fallback to created_at
-    let { data, error } = await supabase.from('listing_images').select('id, url, created_at, order_num, is_main').eq('listing_id', listingId).order('order_num', { ascending: true }).order('created_at', { ascending: true });
-    if (error && error.message && error.message.includes('column')) {
-      ({ data, error } = await supabase.from('listing_images').select('id, url, created_at').eq('listing_id', listingId).order('created_at', { ascending: true }));
-    }
+    const { data, error } = await supabase
+      .from('listing_images')
+      .select('id, url, alt, sort_order, is_thumbnail, created_at')
+      .eq('listing_id', listingId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500, headers: CORS_HEADERS });
     return NextResponse.json({ success: true, data: data || [] }, { headers: CORS_HEADERS });
   } catch (error: any) {
@@ -127,7 +140,7 @@ export async function PATCH(
     const listingId = parseInt(id);
 
     const body = await request.json();
-    const { images } = body as { images: { id: number; order_num?: number; is_main?: boolean }[] };
+    const { images } = body as { images: { id: number; sort_order?: number; is_thumbnail?: boolean }[] };
     if (!images || !Array.isArray(images)) {
       return NextResponse.json({ success: false, error: 'images array required' }, { status: 400, headers: CORS_HEADERS });
     }
@@ -135,16 +148,16 @@ export async function PATCH(
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const results: { id: number; success: boolean; error?: string }[] = [];
 
-    // If setting a new main photo, first unset all
-    const hasNewMain = images.some(img => img.is_main === true);
-    if (hasNewMain) {
-      await supabase.from('listing_images').update({ is_main: false }).eq('listing_id', listingId);
+    // If setting a new thumbnail, first unset all
+    const hasNewThumbnail = images.some(img => img.is_thumbnail === true);
+    if (hasNewThumbnail) {
+      await supabase.from('listing_images').update({ is_thumbnail: false }).eq('listing_id', listingId);
     }
 
     for (const img of images) {
       const updateData: Record<string, any> = {};
-      if (typeof img.order_num === 'number') updateData.order_num = img.order_num;
-      if (typeof img.is_main === 'boolean') updateData.is_main = img.is_main;
+      if (typeof img.sort_order === 'number') updateData.sort_order = img.sort_order;
+      if (typeof img.is_thumbnail === 'boolean') updateData.is_thumbnail = img.is_thumbnail;
       if (Object.keys(updateData).length === 0) { results.push({ id: img.id, success: true }); continue; }
 
       const { error } = await supabase.from('listing_images').update(updateData).eq('id', img.id).eq('listing_id', listingId);
