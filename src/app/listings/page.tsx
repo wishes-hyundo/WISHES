@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase';
-import { sortWithPhotoPriority } from '@/lib/utils';
 import ListingsClient from './ListingsClient';
 
 export const metadata: Metadata = {
   title: '매물검색 - 서울·경기 전세 월세 매매',
-  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트, 상가 매물을 검색하세요. 전세, 월세, 매매 매물을 지역별로 필터링하여 찾아보세요.',
+  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트, 상가 매물을 검색하세요.',
   openGraph: {
     title: '매물검색 - WISHES',
     description: '서울·경기 부동산 매물을 쉽게 검색하세요.',
@@ -13,7 +12,6 @@ export const metadata: Metadata = {
   },
 };
 
-// S2: SSR - 서버에서 초기 데이터 로드
 export default async function ListingsPage({
   searchParams,
 }: {
@@ -30,44 +28,61 @@ export default async function ListingsPage({
   try {
     const supabase = createClient();
     const offset = (page - 1) * pageSize;
-
-    // 매물 쿼리 - 최신순 기본 정렬
-    let query = supabase
-      .from('listings')
-      .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)')
-      .eq('status', '가용');
-
-    if (deal) query = query.eq('deal', deal);
-    if (type) query = query.eq('type', type);
-    if (dong) query = query.eq('dong', dong);
-
+    const selectFields = 'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views';
     const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
-    query = query.order(sortColumn, { ascending: false });
-    query = query.range(offset, offset + pageSize - 1);
 
-    // 동 목록 쿼리
-    const dongQuery = supabase
+    // Step 1: 사진 있는 매물 전체 조회 (listing_images!inner)
+    let photoQuery = supabase
       .from('listings')
-      .select('dong')
+      .select(selectFields + ', listing_images!inner(url, sort_order)')
       .eq('status', '가용');
+    if (deal) photoQuery = photoQuery.eq('deal', deal);
+    if (type) photoQuery = photoQuery.eq('type', type);
+    if (dong) photoQuery = photoQuery.eq('dong', dong);
+    photoQuery = photoQuery.order(sortColumn, { ascending: false }).limit(500);
 
-    // 전체 개수 쿼리
-    let countQuery = supabase
-      .from('listings')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', '가용');
-
+    // Step 2: 동 목록 + 전체 개수
+    const dongQuery = supabase.from('listings').select('dong').eq('status', '가용');
+    let countQuery = supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', '가용');
     if (deal) countQuery = countQuery.eq('deal', deal);
     if (type) countQuery = countQuery.eq('type', type);
     if (dong) countQuery = countQuery.eq('dong', dong);
 
-    // 병렬 실행
-    const [listingsResult, dongResult, countResult] = await Promise.all([query, dongQuery, countQuery]);
+    const [photoResult, dongResult, countResult] = await Promise.all([photoQuery, dongQuery, countQuery]);
 
-    // 사진 있는 매물 우선 정렬 적용
-    const initialListings = sortWithPhotoPriority(listingsResult.data || []);
-    const initialDongs = [...new Set((dongResult.data || []).map((r: any) => r.dong))].sort();
+    const photoListings = photoResult.data || [];
+    const photoIds = photoListings.map((l: any) => l.id);
+    const photoCount = photoListings.length;
     const totalCount = countResult.count || 0;
+    const initialDongs = [...new Set((dongResult.data || []).map((r: any) => r.dong))].sort();
+
+    // Step 3: 현재 페이지 매물 (사진 우선 → 일반)
+    let initialListings: any[] = [];
+
+    if (offset < photoCount) {
+      initialListings = photoListings.slice(offset, offset + pageSize);
+      if (initialListings.length < pageSize) {
+        const remaining = pageSize - initialListings.length;
+        let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '가용');
+        if (deal) npQ = npQ.eq('deal', deal);
+        if (type) npQ = npQ.eq('type', type);
+        if (dong) npQ = npQ.eq('dong', dong);
+        if (photoIds.length > 0) npQ = npQ.not('id', 'in', '(' + photoIds.join(',') + ')');
+        npQ = npQ.order(sortColumn, { ascending: false }).limit(remaining);
+        const npResult = await npQ;
+        initialListings = [...initialListings, ...(npResult.data || [])];
+      }
+    } else {
+      const adjustedOffset = offset - photoCount;
+      let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '가용');
+      if (deal) npQ = npQ.eq('deal', deal);
+      if (type) npQ = npQ.eq('type', type);
+      if (dong) npQ = npQ.eq('dong', dong);
+      if (photoIds.length > 0) npQ = npQ.not('id', 'in', '(' + photoIds.join(',') + ')');
+      npQ = npQ.order(sortColumn, { ascending: false }).range(adjustedOffset, adjustedOffset + pageSize - 1);
+      const npResult = await npQ;
+      initialListings = npResult.data || [];
+    }
 
     return (
       <ListingsClient
@@ -77,7 +92,6 @@ export default async function ListingsPage({
       />
     );
   } catch (error) {
-    // 서버 에러 시 클라이언트 fallback
     return <ListingsClient initialListings={[]} initialDongs={[]} totalCount={0} />;
   }
 }
