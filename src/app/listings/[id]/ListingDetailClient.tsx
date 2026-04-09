@@ -393,6 +393,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 {listing.bathrooms && <InfoRow label="욕실 수" value={`${listing.bathrooms}개`} />}
                 {listing.direction && <InfoRow label="방향" value={listing.direction} />}
                 {listing.heating_type && <InfoRow label="난방방식" value={listing.heating_type} />}
+                  {listing.entrance_type && <InfoRow label="현관유형" value={listing.entrance_type} />}
                 <div className="col-span-2">
                   <span className="text-xs text-gray-400">주소</span>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -511,6 +512,9 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                     )}
                     {listing.building_info.총주차대수 && (
                       <div><span className="text-[11px] text-gray-400">총 주차대수</span><p className="text-sm font-medium text-gray-800">{listing.building_info.총주차대수}대</p></div>
+                    )}
+                    {listing.building_info.세대당주차대수 && (
+                      <div><span className="text-[11px] text-gray-400">세대당 주차대수</span><p className="text-sm font-medium text-gray-800">{listing.building_info.세대당주차대수}대</p></div>
                     )}
                     {(listing.building_info.승용엘리베이터 || listing.building_info.비상용엘리베이터) && (
                       <div><span className="text-[11px] text-gray-400">승강기</span><p className="text-sm font-medium text-gray-800">승용 {listing.building_info.승용엘리베이터 || 0}대 / 비상용 {listing.building_info.비상용엘리베이터 || 0}대</p></div>
