@@ -167,6 +167,11 @@ export async function POST(req: NextRequest) {
       if (aiResult.description) updateData.description = aiResult.description;
       updateData.updated_at = new Date().toISOString();
 
+    // building_info (건축물대장 정보) 저장
+    if (buildingInfo) {
+      updateData.building_info = buildingInfo;
+    }
+
       const { error: updateErr } = await supabase
         .from('listings')
         .update(updateData)
