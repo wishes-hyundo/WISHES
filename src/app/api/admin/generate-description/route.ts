@@ -16,89 +16,127 @@ export async function POST(req: NextRequest) {
       buildingInfo, style, aiModel
     } = body;
 
+    // 모델 선택
     const model = aiModel === 'best' ? 'claude-opus-4-20250514' : 'claude-sonnet-4-20250514';
 
-    let priceInfo = '';
-    if (deal === '매매' && price) priceInfo = `매매 ${price}만원`;
-    else if (deal === '전세' && deposit) priceInfo = `전세 ${deposit}만원`;
-    else if (deal === '월세') priceInfo = `월세 ${deposit || 0}/${monthly || 0}만원`;
+    // 지역 키워드 추출 (AI에게는 동 이름만 전달, 지번주소 절대 비노출)
+    const dongName = dong || '';
+    const addressParts = (address || '').split(' ');
+    const guName = addressParts.find((p: string) => p.endsWith('구')) || '';
+    const cityName = addressParts[0] || '서울';
+    // 동 이름만 추출 (번지 제거)
+    const dongOnly = addressParts.find((p: string) => p.endsWith('동')) || dongName || '';
 
-    const listingDetails = [
-      `주소: ${address || ''}`,
-      dong ? `동네: ${dong}` : '',
+    // ★ AI에게 전달하는 정보: 금액/주소/면적/층수는 절대 포함하지 않음
+    // 오직 "분위기 파악"에 필요한 정보만 전달
+    const contextInfo = [
+      `지역: ${guName} ${dongOnly}`,
       `매물유형: ${type || ''}`,
       `거래유형: ${deal || ''}`,
-      priceInfo ? `가격: ${priceInfo}` : '',
-      area_m2 ? `전용면적: ${area_m2}m²` : '',
-      area_supply_m2 ? `공급면적: ${area_supply_m2}m²` : '',
-      floor_current ? `해당층: ${floor_current}층` : '',
-      floor_total ? `총층수: ${floor_total}층` : '',
       direction ? `방향: ${direction}` : '',
-      rooms ? `방: ${rooms}개` : '',
-      bathrooms ? `욕실: ${bathrooms}개` : '',
+      rooms ? `방 구조: ${rooms}개` : '',
       features?.length ? `특징: ${features.join(', ')}` : '',
-      parking_available ? `주차: 가능` : '',
-      buildingInfo ? `건축물명: ${buildingInfo.건축물명 || ''}` : '',
-      buildingInfo ? `사용승인일: ${buildingInfo.사용승인일 || ''}` : '',
-      buildingInfo ? `건축구조: ${buildingInfo.건축구조 || ''}` : '',
-      buildingInfo ? `주차대수: ${buildingInfo.주차대수 || ''}` : '',
-      buildingInfo ? `승강기대수: ${buildingInfo.승강기대수 || ''}` : '',
+      parking_available ? '주차 가능' : '',
+      buildingInfo?.건물명 ? `건물명: ${buildingInfo.건물명}` : '',
+      buildingInfo?.사용승인일 ? `준공시기: ${String(buildingInfo.사용승인일).substring(0, 4)}년대` : '',
+      buildingInfo?.건물구조 ? `건물구조: ${buildingInfo.건물구조}` : '',
+      buildingInfo?.주용도 ? `주용도: ${buildingInfo.주용도}` : '',
+      buildingInfo?.승용엘리베이터 ? `엘리베이터: 있음` : '',
     ].filter(Boolean).join('\n');
 
+    // randomSeed로 제목/설명 스타일 다얉화
     const randomSeed = Math.floor(Math.random() * 10);
-    const styleVariant = style || ['trendy', 'premium', 'clean'][randomSeed % 3];
 
-    const prompt = `당신은 서울/경기권 부동산 전문 카피라이터입니다. 아래 매물 정보를 분석하여 매력적인 제목과 상세설명을 작성해주세요.
+    const titleStyles = [
+      `감성형: 분위기/느낌 중심. 예: "햇살 가득 남향 ${dongOnly} 보금자리", "조용한 골목 안쪽 ${dongOnly} 아늑한 방"`,
+      `타겟형: 추천 대상 중심. 예: "자취 입문자를 위한 ${dongOnly} 역세권 방", "신혼부부 추천 ${dongOnly} 신축 투룸"`,
+      `생활형: 주변 편의 중심. 예: "${dongOnly} 카페골목 바로 옆 깔끔한 방", "공원뷰 산책로 앞 ${dongOnly} 힐링 공간"`,
+      `특장점형: 매물 고유 장점 중심. 예: "풀옵션 완비 ${dongOnly} 바로 입주 가능", "리모델링 완료 ${dongOnly} 깨끗한 방"`,
+      `라이프형: 생활상 상상. 예: "퇴근 후 한강 산책, ${dongOnly} 힐링 원룸", "출근 10분컷 ${dongOnly} 직장인 안식처"`,
+      `감성형: 분위기/느낌 중심. 예: "조용하고 아늑한 ${dongOnly} 나만의 공간", "초록빛 창밖 ${dongOnly} 감성 원룸"`,
+      `타겟형: 추천 대상 중심. 예: "${dongOnly} 대학가 근처 가성비 원룸", "1인 가구 맞춤 ${dongOnly} 풀옵션 방"`,
+      `생활형: 주변 편의 중심. 예: "편의점 30초 ${dongOnly} 생활 편리한 방", "먹자골목 바로 앞 ${dongOnly} 맛집 천국"`,
+      `특장점형: 매물 고유 장점 중심. 예: "채광 끝판왕 ${dongOnly} 남향 원룸", "반려동물 OK ${dongOnly} 펫프렌든리 방"`,
+      `라이프형: 생활상 상상. 예: "주말 브런치 즐기기 좋은 ${dongOnly}", "아침 러닝 후 출근하는 ${dongOnly} 라이프"`
+    ];
 
-⚠️ 핵심 규칙:
-1. 제목은 25자 이내, 설명은 300자 이내
-2. 실제 정보만 사용 (없는 정보 빼고, 거짓 금지)
-3. 자연스러운 한국어 구어체로 작성
+    const descStyles = [
+      '친근하고 따뜻한 말투 (친구에게 추천하듯)',
+      '전문적이면서 신뢰감 있는 말투 (베테랑 중개사)',
+      '간결하고 팩트 위주 (핵심만 콕콕)',
+      '스토리텔링형 (이 집에서의 하루를 그려주는)',
+      '감성적이면서 세련된 말투 (라이프스타일 매거진)',
+      '활기차고 긍정적인 말투 (설레는 새 출발)',
+      '차분하고 꼼꼼한 분석형 (장단점 솔직 비교)',
+      '유머러스하고 위트있는 말투 (읽는 재미)',
+      '실용적이고 구체적인 말투 (수치와 팩트)',
+      '공감형 (집 구하는 고충을 이해하는)'
+    ];
 
-[분석할 매물]
-${listingDetails}
+    const selectedTitleStyle = titleStyles[randomSeed];
+    const selectedDescStyle = descStyles[randomSeed];
 
-[제목 작성 방법 - 매번 다른 패턴을 사용하세요!]
-랜덤 시드: ${randomSeed}
-아래 패턴 중 랜덤 시드에 맞는 것을 사용하세요:
-0: "핵심특징 + 동네명" (예: "풀옵션 신축 역삼동 원룸")
-1: "가격대 + 매물특징" (예: "월세 40만원대 남향 투룸")
-2: "타겟고객 + 특징" (예: "신혼부부 추천! 역세권 투룸")
-3: "위치특성 + 핵심메리트" (예: "강남역 5분, 신축 원룸")
-4: "감성적 표현 + 정보" (예: "햇살 가득한 남향 원룸")
-5: "직관적 정보 나열" (예: "역삼동 2층 월세 30/40")
-6: "특화포인트 강조" (예: "주차 3대 가능! 역세권 아파트")
-7: "비교우위 강조" (예: "이 가격에 이 조건? 역삼동 월세")
-8: "생활편의 강조" (예: "편의점 몰린 역세권 원룸")
-9: "공간감 강조" (예: "넓은 거실 25평 아파트")
+    const prompt = `당신은 서울/경기 현장을 직접 다니며 수백 건의 매물을 봐온 10년차 부동산 전문 중개사입니다.
 
-[설명 작성 방법 - 다양한 구성을 사용하세요!]
-랜덤 시드에 따라 아래 구성 중 하나를 선택:
+⛔ 절대 금지 사항 (하나라도 위반 시 전체 무효):
+1. 금액 절대 금지: 보증금, 월세, 매매가, "~만원", "~억" 등 금액 관련 숫자/표현 일절 넣지 마세요
+2. 주소 절대 금지: 지번("~번지"), 도로명, 상세주소 절대 넣지 마세요. 동 이름(예: 대치동)까지만 허용
+3. 스펙 수치 절대 금지: 면적(㎡/평), 층수("~층"), 방 개수 등 이미 상세페이지에 있는 숫자 절대 넣지 마세요
+4. 건축물대장 수치 금지: 연면적, 대지면적, 건폐율, 용적률 등 건축물대장 데이터 수치 넣지 마세요
+5. 상투어 금지: "~자랑합니다", "~누릴 수 있습니다", "~우수합니다", "합리적인 조건" 등 광고 상투어 금지
 
-홀수(1,3,5,7,9): 자연스러운 문장형
-- 매물의 핵심 특징을 2-3문장으로 자연스럽게 설명
-- 주변 환경/교통 정보를 자연스럽게 언급
-- 적합한 입주자 타입을 제안
-- 이모지 사용 금지, 자연스러운 문체
+✅ 대신 이렇게 써야 합니다:
+- 주변 생활 환경, 교통 편의성, 동네 분위기, 타겟 추천 등 "여기 살면 이런 점이 좋다"에 집중
+- ${dongOnly} 지역의 실제 주변 환경(지하철역, 대학, 공원, 상권, 카페)을 구체적으로 추정해서 작성
+- 매물의 분위기와 느낌을 전달 (숫자가 아닌 감각적 표현)
 
-짝수(0,2,4,6,8): 구조화된 형식 (다양한 이모지 조합 사용)
-- 3-4개 섹션으로 구분
-- 각 섹션은 이모지+제목+설명 (이모지는 매번 다르게!)
-- 이모지 조합 예시: 편수(0): 🏠/🚌/🏫/✨, 편수(2): 📍/💰/💪/🌟, 편수(4): ☀️/🚗/🛒/🔑, 편수(6): 🌳/🚉/🏗️/✅, 편수(8): 🌅/🚶/🎯/👍
+[참고 정보 - 분위기 파악용, 이 수치들을 절대 그대로 노출하지 마세요]
+${contextInfo}
+
+[제목 작성]
+- 25자 이내
+- 이번 스타일: ${selectedTitleStyle}
+- ⛔ 금액, 층수, 면적 숫자 포함 시 무효
+- ⛔ "월세", "전세", "매매", "보증금" 등 거래유형 단어 포함 시 무효
+- 동 이름 + 분위기/장점 조합으로만 구성
+
+[설명 작성]
+말투 스타일: ${selectedDescStyle}
+아래 구조를 반드시 따르되, 자연스럽게 작성:
+
+💬 (한줄 감성 카피 — 이 집에서의 생활을 한 문장으로. "~집", "~공간", "~방" 등으로 마무리)
+
+⏱️ 출퇴근
+(주요 업무지역 2~3곳 예상 소요시간. 지하철 노선명 포함)
+
+🏪 도보 생활권
+(도보 5분 이내 추정 편의시설. 구체적으로)
+
+✅ 추천 포인트
+(3가지. 각각 한 줄. ⛔ 면적/층수/금액 수치 절대 불가. 분위기/환경/편의성 중심)
+
+👤 이런 분께 딱
+(구체적 타겟 2~3개)
+
+추가 지침:
+- 총 350~500자
+- 구조화된 짧은 문장 위주
+- 각 섹션 사이 빈 줄
 
 [SEO 키워드]
-- 매물 특성과 관련된 검색 키워드 5개
+- 10~15개, 고객이 실제 검색할 키워드
+- "${dongOnly} ${type}", "${guName} ${deal}", "${dongOnly} 역세권" 등
 
 [해시태그]
-- SNS용 해시태그 5개 (예: #역삼동월세 #신축원룸)
+- 10~15개, # 포함
 
-반드시 아래 JSON 형식으로만 응답하세요:
+반드시 아래 JSON으로만 응답:
 {
-  "title": "제목 (25자 이내)",
-  "description": "상세설명 (300자 이내)",
-  "keywords": ["키워드1", "키워드2", ...],
-  "tags": ["#해시태그1", "#해시태그2", ...],
-  "meta_description": "SEO용 요약 (160자 이내)"
+  "title": "제목 (금액/층수/면적 숫자 절대 불포함)",
+  "description": "위 구조대로 작성된 설명 (줄바꿈은 \\n 사용)",
+  "keywords": ["키워드1", ...],
+  "tags": ["#태그1", ...],
+  "meta_description": "검색엔진 메타 설명 (160자 이내, 금액 불포함)"
 }`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -110,38 +148,53 @@ ${listingDetails}
       },
       body: JSON.stringify({
         model,
-        max_tokens: 1024,
+        max_tokens: 2048,
         messages: [{ role: 'user', content: prompt }],
       }),
     });
 
     if (!response.ok) {
       const errText = await response.text();
-      return NextResponse.json({ success: false, error: `Anthropic API error: ${response.status}` }, { status: 500 });
+      console.error('[generate-description] API error:', errText);
+      return NextResponse.json({ success: false, error: `AI API 오류 (${response.status})` }, { status: 500 });
     }
 
-    const aiResult = await response.json();
-    const text = aiResult.content?.[0]?.text || '';
+    const result = await response.json();
+    const text = result.content?.[0]?.text || '';
 
-    let parsed;
+    // JSON 파싱
     try {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
-      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(text);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return NextResponse.json({
+          success: true,
+          title: parsed.title || '',
+          description: parsed.description || text,
+          keywords: parsed.keywords || [],
+          tags: parsed.tags || [],
+          meta_description: parsed.meta_description || '',
+          model,
+        });
+      }
     } catch {
-      parsed = {
-        title: '',
-        description: text.substring(0, 300),
-        keywords: [],
-        tags: [],
-        meta_description: '',
-      };
+      // JSON 파싱 실패 시 텍스트 그대로 반환
     }
 
     return NextResponse.json({
       success: true,
-      ...parsed,
+      title: '',
+      description: text,
+      keywords: [],
+      tags: [],
+      meta_description: '',
+      model,
     });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message || 'Unknown error' }, { status: 500 });
+  } catch (error) {
+    console.error('[generate-description] error:', error);
+    return NextResponse.json(
+      { success: false, error: '설명 생성에 실패했습니다' },
+      { status: 500 }
+    );
   }
 }
