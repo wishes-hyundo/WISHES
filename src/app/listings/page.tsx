@@ -22,11 +22,28 @@ export default async function ListingsPage({
   const type = (params.type as string) || '';
   const dong = (params.dong as string) || '';
   const sort = (params.sort as string) || 'latest';
+  const search = (params.search as string) || '';
   const page = parseInt((params.page as string) || '1', 10);
   const pageSize = 12;
 
   try {
     const supabase = createClient();
+
+    // 매물번호/키워드 검색 모드
+    if (search) {
+      const searchId = parseInt(search.replace(/[Ww]-?/g, ''), 10);
+      const dongQuery = await supabase.from('listings').select('dong').eq('status', '가용');
+      const initialDongs = [...new Set((dongQuery.data || []).map((r: any) => r.dong))].sort();
+
+      if (!isNaN(searchId)) {
+        const { data, count } = await supabase.from('listings').select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)', { count: 'exact' }).eq('id', searchId);
+        return (<ListingsClient initialListings={data || []} initialDongs={initialDongs} totalCount={count || 0} />);
+      } else {
+        const { data, count } = await supabase.from('listings').select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)', { count: 'exact' }).eq('status', '가용').or(`title.ilike.%${search}%,address.ilike.%${search}%,dong.ilike.%${search}%`).order('created_at', { ascending: false }).range(0, pageSize - 1);
+        return (<ListingsClient initialListings={data || []} initialDongs={initialDongs} totalCount={count || 0} />);
+      }
+    }
+
     const offset = (page - 1) * pageSize;
     const selectFields = 'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views';
     const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
