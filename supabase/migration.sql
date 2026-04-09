@@ -10,7 +10,7 @@ CREATE TABLE listings (
 
   -- 기본 정보
   title TEXT NOT NULL,
-  type TEXT NOT NULL, -- 원룸/투룸/쓰리룴/오피스텔/아파트/상가/사무실
+  type TEXT NOT NULL, -- 원룸/투룸/쓰리룸/오피스텔/아파트/상가/사무실
   deal TEXT NOT NULL, -- 전세/월세/매매
 
   -- 가격 정보 (단위: 만원)
@@ -72,6 +72,11 @@ CREATE INDEX idx_listings_status ON listings(status);
 CREATE INDEX idx_listings_type ON listings(type);
 CREATE INDEX idx_listings_deal ON listings(deal);
 CREATE INDEX idx_listings_created_at ON listings(created_at DESC);
+
+-- 지도 검색 성능을 위한 위도/경도 복합 인덱스
+CREATE INDEX idx_listings_lat_lng ON listings(lat, lng);
+-- 지도 바운드 쿼리 최적화 (상태 필터 포함)
+CREATE INDEX idx_listings_geo_status ON listings(status, lat, lng);
 
 -- ─────────────────────────────────────────────────────────────
 -- 매물 이미지(listing_images) 테이블 생성
