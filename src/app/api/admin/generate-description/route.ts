@@ -17,10 +17,10 @@ export async function POST(req: NextRequest) {
     } = body;
 
     // 모델 선택
-    const model = aiModel === 'best' ? 'claude-opus-4-20250514' : 'claude-sonnet-4-20250514';
+    const model = 'claude-sonnet-4-20250514'; // Always use Sonnet (opus disabled for cost)
 
     // 지역 키워드 추출 (AI에게는 동 이름만 전달, 지번주소 절대 비노출)
-    const dongName = dong || '';
+    const dongName = dong || '';h
     const addressParts = (address || '').split(' ');
     const guName = addressParts.find((p: string) => p.endsWith('구')) || '';
     const cityName = addressParts[0] || '서울';
@@ -154,9 +154,8 @@ ${contextInfo}
     });
 
     if (!response.ok) {
-      const errText = await response.text();
       console.error('[generate-description] API error:', errText);
-      return NextResponse.json({ success: false, error: `AI API 오류 (${response.status}): ${errText.substring(0, 200)}` }, { status: 500 });
+      return NextResponse.json({ success: false, error: `AI API 오류 (${response.status})` }, { status: 500 });
     }
 
     const result = await response.json();
