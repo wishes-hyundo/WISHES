@@ -183,48 +183,6 @@
     font-size: 11px; font-weight: 600;
   }
 
-  /* ===== TAG SELECTOR ===== */
-  .tag-section {
-    padding: 12px 16px;
-    background: white;
-    border-bottom: 1px solid var(--border);
-    display: none;
-  }
-  .tag-section.show { display: block; }
-  .tag-label {
-    font-size: 13px; font-weight: 600; color: var(--text);
-    margin-bottom: 8px;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .tag-grid {
-    display: flex; flex-wrap: wrap; gap: 8px;
-  }
-  .tag-chip {
-    display: flex; align-items: center; gap: 5px;
-    padding: 8px 14px;
-    border: 2px solid var(--border);
-    border-radius: 24px;
-    background: white;
-    font-size: 13px; font-weight: 500;
-    cursor: pointer;
-    transition: all .15s;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  .tag-chip:active { transform: scale(.95); }
-  .tag-chip.selected {
-    border-color: var(--primary);
-    background: #edf7e7;
-    color: var(--primary);
-    font-weight: 700;
-  }
-  .tag-chip .tag-icon { font-size: 16px; }
-  .tag-chip .tag-count {
-    background: var(--primary); color: white;
-    font-size: 10px; font-weight: 700;
-    padding: 1px 6px; border-radius: 10px;
-    min-width: 18px; text-align: center;
-  }
 
   /* Upload Section */
   .upload-section {
@@ -290,14 +248,6 @@
     border: none; border-radius: 50%;
     font-size: 14px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-  }
-  .preview-tag {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    background: rgba(0,0,0,.65);
-    color: white; font-size: 10px; font-weight: 600;
-    padding: 3px 6px;
-    text-align: center;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .preview-size {
     position: absolute; top: 4px; left: 4px;
@@ -505,13 +455,7 @@
            enterkeyhint="search" autocomplete="off">
     <button class="search-btn" id="searchBtn" onclick="searchListings()">검색</button>
   </div>
-  <div class="search-hint" id="searchHint">💡 건물명, 주소, W-번호로 검색할 수 있습니다</div>
-</div>
-
-<!-- Tag Selector -->
-<div class="tag-section" id="tagSection">
-  <div class="tag-label">🏷️ 다음 사진 분류 태그 선택</div>
-  <div class="tag-grid" id="tagGrid"></div>
+  <div class="search-hint" id="searchHint">💡 건물명, 주소, 매물번호로 검색할 수 있습니다</div>
 </div>
 
 <!-- Content -->
@@ -520,7 +464,7 @@
     <div class="empty-state" id="emptyState">
       <div class="icon">🏠</div>
       <div class="title">매물을 검색해주세요</div>
-      <div class="desc">건물명, 주소 또는 매물번호(W-XXXXX)를<br>검색하면 사진을 등록할 수 있습니다</div>
+      <div class="desc">건물명, 주소 또는 매물번호를<br>검색하면 사진을 등록할 수 있습니다</div>
     </div>
     <div id="resultsList"></div>
   </div>
@@ -586,21 +530,8 @@ const API_BASE = window.location.origin;
 const AUTH_TOKEN = 'wishes2026';
 let allListings = [];
 let selectedListing = null;
-let pendingFiles = [];  // { file, tag, originalSize, compressedSize, gps }
+let pendingFiles = [];  // { file, originalSize, compressedSize, gps }
 let isLoading = false;
-
-// ===== TAG DEFINITIONS =====
-const PHOTO_TAGS = [
-  { id: 'exterior',  icon: '🏢', label: '건물외관' },
-  { id: 'interior',  icon: '🛋️', label: '내부전경' },
-  { id: 'kitchen',   icon: '🍳', label: '주방' },
-  { id: 'bathroom',  icon: '🚿', label: '화장실' },
-  { id: 'balcony',   icon: '🌿', label: '베란다' },
-  { id: 'view',      icon: '🏙️', label: '조망' },
-  { id: 'entrance',  icon: '🚪', label: '현관/입구' },
-  { id: 'etc',       icon: '📋', label: '기타' },
-];
-let activeTag = 'interior';
 
 // ===== GPS =====
 let currentGPS = null;
@@ -692,32 +623,6 @@ function formatBytes(bytes) {
 }
 
 // ===== TAG UI =====
-function renderTags() {
-  const grid = document.getElementById('tagGrid');
-  const tagCounts = {};
-  pendingFiles.forEach(pf => { tagCounts[pf.tag] = (tagCounts[pf.tag] || 0) + 1; });
-
-  grid.innerHTML = PHOTO_TAGS.map(t => {
-    const count = tagCounts[t.id] || 0;
-    const selected = activeTag === t.id;
-    return `
-      <div class="tag-chip ${selected ? 'selected' : ''}" onclick="selectTag('${t.id}')">
-        <span class="tag-icon">${t.icon}</span>
-        <span>${t.label}</span>
-        ${count > 0 ? `<span class="tag-count">${count}</span>` : ''}
-      </div>`;
-  }).join('');
-}
-
-function selectTag(tagId) {
-  activeTag = tagId;
-  renderTags();
-}
-
-function getTagInfo(tagId) {
-  return PHOTO_TAGS.find(t => t.id === tagId) || PHOTO_TAGS[PHOTO_TAGS.length - 1];
-}
-
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('searchInput').addEventListener('keydown', (e) => {
@@ -727,7 +632,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('galleryInput').addEventListener('change', handleFiles);
 
   initGPS();
-  renderTags();
   loadRecentListings();
 });
 
@@ -769,7 +673,7 @@ async function searchListings() {
     }
 
     const q = query.toLowerCase();
-    const isIdSearch = q.match(/w-?(\d+)/i);
+    const isIdSearch = q.match(/^(\d{3,})$/) || q.match(/w-?(\d+)/i);
     let results;
     if (isIdSearch) {
       const searchId = parseInt(isIdSearch[1]);
@@ -814,7 +718,7 @@ function renderListings(listings, label) {
       const isSelected = selectedListing && selectedListing.id === l.id;
       return `
         <div class="listing-card ${isSelected ? 'selected' : ''}" onclick="selectListing(${l.id})" data-id="${l.id}">
-          <span class="listing-id">W-${l.id}</span>
+          <span class="listing-id">매물 ${l.id}</span>
           ${imageCount > 0 ? `<span class="listing-images-count">📷 ${imageCount}장</span>` : ''}
           <div class="listing-address">${escHtml(l.address || '주소 없음')}</div>
           <div class="listing-title">${escHtml(l.title || '제목 없음')}</div>
@@ -861,11 +765,9 @@ async function selectListing(id) {
 
   document.getElementById('uploadBar').classList.remove('hidden');
   document.getElementById('selectedName').textContent = listing.title || '제목 없음';
-  document.getElementById('selectedId').textContent = `W-${listing.id} | ${listing.address || ''}`;
+  document.getElementById('selectedId').textContent = `매물번호 ${listing.id} | ${listing.address || ''}`;
 
-  document.getElementById('tagSection').classList.add('show');
   document.getElementById('previewSection').style.display = 'block';
-  renderTags();
   updatePreview();
   await loadExistingImages(id);
 
@@ -1137,7 +1039,6 @@ async function handleFiles(e) {
 
     pendingFiles.push({
       file: compressed,
-      tag: activeTag,
       originalSize,
       compressedSize,
       gps: currentGPS ? { ...currentGPS } : null
@@ -1149,7 +1050,6 @@ async function handleFiles(e) {
 
   showProgress(false);
   updatePreview();
-  renderTags();
   e.target.value = '';
 
   const totalOriginal = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
@@ -1171,22 +1071,17 @@ function updatePreview() {
   label.textContent = `📸 새로 추가할 사진 (${pendingFiles.length}장)`;
   submitBtn.disabled = pendingFiles.length === 0;
 
-  grid.innerHTML = pendingFiles.map((pf, i) => {
-    const tagInfo = getTagInfo(pf.tag);
-    return `
+  grid.innerHTML = pendingFiles.map((pf, i) => `
       <div class="preview-item">
         <img src="${URL.createObjectURL(pf.file)}" alt="미리보기">
         <button class="preview-remove" onclick="removeFile(${i})">✕</button>
         <span class="preview-size">${formatBytes(pf.compressedSize)}</span>
-        <div class="preview-tag">${tagInfo.icon} ${tagInfo.label}</div>
-      </div>`;
-  }).join('');
+      </div>`).join('');
 }
 
 function removeFile(index) {
   pendingFiles.splice(index, 1);
   updatePreview();
-  renderTags();
 }
 
 // ===== UPLOAD =====
@@ -1206,7 +1101,6 @@ async function uploadImages() {
     });
 
     const metadata = pendingFiles.map(pf => ({
-      tag: pf.tag,
       gps: pf.gps,
       originalSize: pf.originalSize,
       compressedSize: pf.compressedSize,
@@ -1226,19 +1120,15 @@ async function uploadImages() {
       const origTotal = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
       const compTotal = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
       const savedPct = origTotal > 0 ? Math.round((1 - compTotal / origTotal) * 100) : 0;
-      const tagSummary = {};
-      pendingFiles.forEach(pf => { tagSummary[getTagInfo(pf.tag).label] = (tagSummary[getTagInfo(pf.tag).label] || 0) + 1; });
-      const tagStr = Object.entries(tagSummary).map(([k,v]) => `${k} ${v}장`).join(', ');
 
       showToast(`✅ ${photoCount}장 업로드 완료!`, 'success');
 
       addUploadLog('success',
-        `W-${selectedListing.id} 사진 ${photoCount}장 업로드 완료`,
-        `매물: ${selectedListing.title || ''}\n분류: ${tagStr}\n용량: ${formatBytes(compTotal)}${savedPct > 5 ? ` (원본대비 ${savedPct}% 절약)` : ''}\n소요: ${elapsed}초\n사이트 노출: 정상 반영됨 ✅`);
+        `매물 ${selectedListing.id} 사진 ${photoCount}장 업로드 완료`,
+        `매물: ${selectedListing.title || ''}\n용량: ${formatBytes(compTotal)}${savedPct > 5 ? ` (원본대비 ${savedPct}% 절약)` : ''}\n소요: ${elapsed}초\n사이트 노출: 정상 반영됨 ✅`);
 
       pendingFiles = [];
       updatePreview();
-      renderTags();
       await loadExistingImages(selectedListing.id);
 
       // Update listing card image count
@@ -1258,7 +1148,7 @@ async function uploadImages() {
       showToast(`❌ 업로드 실패`, 'error');
 
       addUploadLog('error',
-        `W-${selectedListing.id} 업로드 실패 (${photoCount}장)`,
+        `매물 ${selectedListing.id} 업로드 실패 (${photoCount}장)`,
         `매물: ${selectedListing.title || ''}\n오류 내용: ${errorMsg}\nHTTP 상태: ${res.status}\n소요: ${elapsed}초\n\n💡 문제 해결: 네트워크 확인 후 다시 시도하거나, 파일 크기(장당 10MB 이하)를 확인해주세요`);
     }
   } catch(e) {
@@ -1273,7 +1163,7 @@ async function uploadImages() {
     }
 
     addUploadLog('error',
-      `W-${selectedListing.id} 업로드 오류 (${photoCount}장)`,
+      `매물 ${selectedListing.id} 업로드 오류 (${photoCount}장)`,
       `매물: ${selectedListing.title || ''}\n${errorDetail}\n소요: ${elapsed}초`);
   }
 
