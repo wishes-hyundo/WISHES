@@ -53,15 +53,31 @@
     padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
   }
 
+  /* GPS indicator */
+  .gps-bar {
+    background: #1a2e0a;
+    color: #86efac;
+    padding: 6px 20px;
+    font-size: 11px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .gps-bar.error { color: #fca5a5; }
+  .gps-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: gpsPulse 2s infinite;
+  }
+  .gps-bar.error .gps-dot { background: #ef4444; animation: none; }
+  @keyframes gpsPulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
   /* Search Section */
   .search-section {
     padding: 16px;
     background: white;
     border-bottom: 1px solid var(--border);
   }
-  .search-box {
-    display: flex; gap: 8px;
-  }
+  .search-box { display: flex; gap: 8px; }
   .search-input {
     flex: 1;
     padding: 14px 16px;
@@ -86,19 +102,12 @@
     white-space: nowrap;
   }
   .search-btn:active { background: var(--primary-light); }
-  .search-hint {
-    margin-top: 8px;
-    font-size: 12px;
-    color: var(--text-sub);
-  }
+  .search-hint { margin-top: 8px; font-size: 12px; color: var(--text-sub); }
 
   /* Listing Results */
-  .results-section {
-    padding: 12px 16px;
-  }
+  .results-section { padding: 12px 16px; }
   .results-count {
-    font-size: 13px;
-    color: var(--text-sub);
+    font-size: 13px; color: var(--text-sub);
     margin-bottom: 10px;
     display: flex; align-items: center; gap: 6px;
   }
@@ -123,60 +132,84 @@
   }
   .listing-id {
     display: inline-block;
-    background: var(--primary);
-    color: white;
-    font-size: 11px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 6px;
+    background: var(--primary); color: white;
+    font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 6px;
     margin-bottom: 6px;
   }
   .listing-title {
-    font-size: 15px;
-    font-weight: 600;
-    line-height: 1.4;
-    margin-bottom: 4px;
+    font-size: 15px; font-weight: 600;
+    line-height: 1.4; margin-bottom: 4px;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
   .listing-info {
-    font-size: 12px;
-    color: var(--text-sub);
+    font-size: 12px; color: var(--text-sub);
     display: flex; flex-wrap: wrap; gap: 6px;
   }
-  .listing-info span {
-    background: var(--bg);
-    padding: 2px 8px;
-    border-radius: 6px;
-  }
+  .listing-info span { background: var(--bg); padding: 2px 8px; border-radius: 6px; }
   .listing-price {
     position: absolute; right: 16px; top: 14px;
-    font-size: 14px; font-weight: 700;
-    color: var(--danger);
+    font-size: 14px; font-weight: 700; color: var(--danger);
   }
   .listing-check {
     position: absolute; right: 16px; bottom: 14px;
-    width: 28px; height: 28px;
-    border-radius: 50%;
+    width: 28px; height: 28px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 16px;
-    background: var(--border);
-    color: white;
+    font-size: 16px; background: var(--border); color: white;
     transition: all .2s;
   }
-  .listing-card.selected .listing-check {
-    background: var(--success);
-  }
+  .listing-card.selected .listing-check { background: var(--success); }
   .listing-images-count {
     display: inline-flex; align-items: center; gap: 3px;
-    background: #e0f2fe;
-    color: #0369a1;
-    padding: 2px 8px;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 600;
+    background: #e0f2fe; color: #0369a1;
+    padding: 2px 8px; border-radius: 6px;
+    font-size: 11px; font-weight: 600;
+  }
+
+  /* ===== TAG SELECTOR ===== */
+  .tag-section {
+    padding: 12px 16px;
+    background: white;
+    border-bottom: 1px solid var(--border);
+    display: none;
+  }
+  .tag-section.show { display: block; }
+  .tag-label {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tag-grid {
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .tag-chip {
+    display: flex; align-items: center; gap: 5px;
+    padding: 8px 14px;
+    border: 2px solid var(--border);
+    border-radius: 24px;
+    background: white;
+    font-size: 13px; font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .tag-chip:active { transform: scale(.95); }
+  .tag-chip.selected {
+    border-color: var(--primary);
+    background: #edf7e7;
+    color: var(--primary);
+    font-weight: 700;
+  }
+  .tag-chip .tag-icon { font-size: 16px; }
+  .tag-chip .tag-count {
+    background: var(--primary); color: white;
+    font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 10px;
+    min-width: 18px; text-align: center;
   }
 
   /* Upload Section */
@@ -191,7 +224,6 @@
     transition: transform .3s;
   }
   .upload-section.hidden { transform: translateY(100%); }
-
   .selected-info {
     display: flex; align-items: center; gap: 10px;
     margin-bottom: 12px;
@@ -202,145 +234,101 @@
   }
   .selected-info-icon {
     width: 36px; height: 36px;
-    background: var(--primary);
-    color: white;
+    background: var(--primary); color: white;
     border-radius: 10px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
+    font-size: 18px; flex-shrink: 0;
   }
-  .selected-info-text {
-    flex: 1; min-width: 0;
-  }
+  .selected-info-text { flex: 1; min-width: 0; }
   .selected-info-text .name {
     font-size: 14px; font-weight: 600;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
   .selected-info-text .id { font-size: 11px; color: var(--text-sub); }
-
-  .upload-actions {
-    display: flex; gap: 10px;
-  }
+  .upload-actions { display: flex; gap: 10px; }
   .upload-btn {
-    flex: 1;
-    padding: 16px;
-    border: none;
-    border-radius: var(--radius);
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
+    flex: 1; padding: 16px;
+    border: none; border-radius: var(--radius);
+    font-size: 16px; font-weight: 700; cursor: pointer;
     display: flex; align-items: center; justify-content: center; gap: 8px;
     transition: all .15s;
   }
   .upload-btn:active { transform: scale(.97); }
-  .upload-btn.camera {
-    background: var(--accent);
-    color: var(--text);
-  }
-  .upload-btn.gallery {
-    background: var(--primary);
-    color: white;
-  }
-  .upload-btn:disabled {
-    opacity: .5;
-    pointer-events: none;
-  }
+  .upload-btn.camera { background: var(--accent); color: var(--text); }
+  .upload-btn.gallery { background: var(--primary); color: white; }
+  .upload-btn:disabled { opacity: .5; pointer-events: none; }
 
   /* Preview Section */
-  .preview-section {
-    padding: 0 16px 140px;
-  }
+  .preview-section { padding: 0 16px 160px; }
   .preview-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-    margin-top: 12px;
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px; margin-top: 12px;
   }
   .preview-item {
-    position: relative;
-    aspect-ratio: 1;
-    border-radius: 10px;
-    overflow: hidden;
-    background: #eee;
+    position: relative; aspect-ratio: 1;
+    border-radius: 10px; overflow: hidden; background: #eee;
   }
-  .preview-item img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-  }
+  .preview-item img { width: 100%; height: 100%; object-fit: cover; }
   .preview-remove {
     position: absolute; top: 4px; right: 4px;
     width: 24px; height: 24px;
-    background: rgba(0,0,0,.6);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    font-size: 14px;
-    cursor: pointer;
+    background: rgba(0,0,0,.6); color: white;
+    border: none; border-radius: 50%;
+    font-size: 14px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
+  }
+  .preview-tag {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,.65);
+    color: white; font-size: 10px; font-weight: 600;
+    padding: 3px 6px;
+    text-align: center;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .preview-size {
+    position: absolute; top: 4px; left: 4px;
+    background: rgba(0,0,0,.5);
+    color: #86efac; font-size: 9px; font-weight: 700;
+    padding: 2px 5px; border-radius: 4px;
   }
   .preview-label {
     display: flex; align-items: center; justify-content: space-between;
     margin-top: 16px;
   }
-  .preview-label-text {
-    font-size: 14px; font-weight: 600;
-  }
+  .preview-label-text { font-size: 14px; font-weight: 600; }
   .submit-btn {
     padding: 12px 24px;
-    background: var(--success);
-    color: white;
-    border: none;
-    border-radius: 10px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
+    background: var(--success); color: white;
+    border: none; border-radius: 10px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
     display: flex; align-items: center; gap: 6px;
   }
-  .submit-btn:disabled {
-    background: #ccc;
-    pointer-events: none;
-  }
+  .submit-btn:disabled { background: #ccc; pointer-events: none; }
   .submit-btn:active { transform: scale(.97); }
 
   /* Existing Images */
-  .existing-images {
-    margin-top: 12px;
-  }
-  .existing-label {
-    font-size: 13px;
-    color: var(--text-sub);
-    margin-bottom: 8px;
-  }
+  .existing-images { margin-top: 12px; }
+  .existing-label { font-size: 13px; color: var(--text-sub); margin-bottom: 8px; }
   .existing-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
   }
   .existing-item {
-    aspect-ratio: 1;
-    border-radius: 10px;
-    overflow: hidden;
-    background: #eee;
+    aspect-ratio: 1; border-radius: 10px;
+    overflow: hidden; background: #eee;
     border: 2px solid var(--border);
   }
-  .existing-item img {
-    width: 100%; height: 100%;
-    object-fit: cover;
-  }
+  .existing-item img { width: 100%; height: 100%; object-fit: cover; }
 
   /* Toast */
   .toast {
-    position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px);
+    position: fixed; top: 80px; left: 50%;
+    transform: translateX(-50%) translateY(-20px);
     background: #1a1a1a; color: white;
-    padding: 14px 24px;
-    border-radius: 12px;
+    padding: 14px 24px; border-radius: 12px;
     font-size: 14px; font-weight: 500;
-    z-index: 200;
-    opacity: 0;
-    transition: all .3s;
-    pointer-events: none;
-    max-width: 90%;
-    text-align: center;
+    z-index: 200; opacity: 0;
+    transition: all .3s; pointer-events: none;
+    max-width: 90%; text-align: center;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.success { background: var(--success); }
@@ -351,18 +339,14 @@
     position: fixed; inset: 0;
     background: rgba(0,0,0,.5);
     display: flex; align-items: center; justify-content: center;
-    z-index: 300;
-    opacity: 0;
-    pointer-events: none;
+    z-index: 300; opacity: 0; pointer-events: none;
     transition: opacity .2s;
   }
   .progress-overlay.show { opacity: 1; pointer-events: all; }
   .progress-box {
-    background: white;
-    padding: 32px;
-    border-radius: 20px;
-    text-align: center;
-    min-width: 260px;
+    background: white; padding: 32px;
+    border-radius: 20px; text-align: center;
+    min-width: 280px;
   }
   .progress-spinner {
     width: 48px; height: 48px;
@@ -375,6 +359,7 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .progress-text { font-size: 15px; font-weight: 600; }
   .progress-sub { font-size: 12px; color: var(--text-sub); margin-top: 6px; }
+  .progress-detail { font-size: 11px; color: var(--primary); margin-top: 8px; font-weight: 600; }
 
   /* Loading skeleton */
   .skeleton {
@@ -382,28 +367,18 @@
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: var(--radius);
-    height: 80px;
-    margin-bottom: 10px;
+    height: 80px; margin-bottom: 10px;
   }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
   /* Empty state */
-  .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--text-sub);
-  }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-sub); }
   .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
   .empty-state .title { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
   .empty-state .desc { font-size: 13px; line-height: 1.6; }
 
-  /* File inputs (hidden) */
   input[type="file"] { display: none; }
-
-  /* Bottom padding for fixed upload bar */
   .content-area { padding-bottom: 160px; }
-
-  /* Scrollbar */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 </style>
@@ -420,21 +395,31 @@
   <button class="header-back" onclick="window.location.href='/admin?tab=search'">← 관리자</button>
 </div>
 
+<!-- GPS Bar -->
+<div class="gps-bar" id="gpsBar">
+  <div class="gps-dot"></div>
+  <span id="gpsStatus">GPS 위치 확인 중...</span>
+</div>
+
 <!-- Search -->
 <div class="search-section">
   <div class="search-box">
     <input type="text" class="search-input" id="searchInput"
            placeholder="건물명, 주소, 매물ID 검색..."
-           enterkeyhint="search"
-           autocomplete="off">
+           enterkeyhint="search" autocomplete="off">
     <button class="search-btn" id="searchBtn" onclick="searchListings()">검색</button>
   </div>
   <div class="search-hint" id="searchHint">💡 건물명, 주소, W-번호로 검색할 수 있습니다</div>
 </div>
 
+<!-- Tag Selector -->
+<div class="tag-section" id="tagSection">
+  <div class="tag-label">🏷️ 다음 사진 분류 태그 선택</div>
+  <div class="tag-grid" id="tagGrid"></div>
+</div>
+
 <!-- Content -->
 <div class="content-area">
-  <!-- Results -->
   <div class="results-section" id="resultsSection">
     <div class="empty-state" id="emptyState">
       <div class="icon">🏠</div>
@@ -444,7 +429,6 @@
     <div id="resultsList"></div>
   </div>
 
-  <!-- Preview -->
   <div class="preview-section" id="previewSection" style="display:none;">
     <div class="existing-images" id="existingImages" style="display:none;">
       <div class="existing-label">📌 기존 등록된 사진</div>
@@ -460,7 +444,7 @@
   </div>
 </div>
 
-<!-- Upload Bar (Fixed Bottom) -->
+<!-- Upload Bar -->
 <div class="upload-section hidden" id="uploadBar">
   <div class="selected-info" id="selectedInfo">
     <div class="selected-info-icon">🏢</div>
@@ -470,28 +454,21 @@
     </div>
   </div>
   <div class="upload-actions">
-    <button class="upload-btn camera" onclick="openCamera()">
-      📷 카메라 촬영
-    </button>
-    <button class="upload-btn gallery" onclick="openGallery()">
-      🖼️ 갤러리 선택
-    </button>
+    <button class="upload-btn camera" onclick="openCamera()">📷 카메라 촬영</button>
+    <button class="upload-btn gallery" onclick="openGallery()">🖼️ 갤러리 선택</button>
   </div>
 </div>
 
-<!-- Hidden file inputs -->
 <input type="file" id="cameraInput" accept="image/*" capture="environment" multiple>
 <input type="file" id="galleryInput" accept="image/*" multiple>
-
-<!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<!-- Progress Overlay -->
 <div class="progress-overlay" id="progressOverlay">
   <div class="progress-box">
     <div class="progress-spinner"></div>
     <div class="progress-text" id="progressText">사진 업로드 중...</div>
     <div class="progress-sub" id="progressSub">잠시만 기다려주세요</div>
+    <div class="progress-detail" id="progressDetail"></div>
   </div>
 </div>
 
@@ -500,25 +477,165 @@ const API_BASE = window.location.origin;
 const AUTH_TOKEN = 'wishes2026';
 let allListings = [];
 let selectedListing = null;
-let pendingFiles = [];
+let pendingFiles = [];  // { file, tag, originalSize, compressedSize, gps }
 let isLoading = false;
 
-// Init
+// ===== TAG DEFINITIONS =====
+const PHOTO_TAGS = [
+  { id: 'exterior',  icon: '🏢', label: '건물외관' },
+  { id: 'interior',  icon: '🛋️', label: '내부전경' },
+  { id: 'kitchen',   icon: '🍳', label: '주방' },
+  { id: 'bathroom',  icon: '🚿', label: '화장실' },
+  { id: 'balcony',   icon: '🌿', label: '베란다' },
+  { id: 'view',      icon: '🏙️', label: '조망' },
+  { id: 'entrance',  icon: '🚪', label: '현관/입구' },
+  { id: 'etc',       icon: '📋', label: '기타' },
+];
+let activeTag = 'interior'; // default tag
+
+// ===== GPS =====
+let currentGPS = null;
+let gpsWatchId = null;
+
+function initGPS() {
+  const bar = document.getElementById('gpsBar');
+  const status = document.getElementById('gpsStatus');
+
+  if (!navigator.geolocation) {
+    bar.classList.add('error');
+    status.textContent = 'GPS 미지원 기기';
+    return;
+  }
+
+  gpsWatchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      currentGPS = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: Math.round(pos.coords.accuracy),
+        timestamp: new Date().toISOString()
+      };
+      bar.classList.remove('error');
+      status.textContent = `📍 ${currentGPS.lat.toFixed(5)}, ${currentGPS.lng.toFixed(5)} (±${currentGPS.accuracy}m)`;
+    },
+    (err) => {
+      bar.classList.add('error');
+      if (err.code === 1) status.textContent = '위치 권한이 거부되었습니다. 설정에서 허용해주세요';
+      else if (err.code === 2) status.textContent = 'GPS 신호를 찾을 수 없습니다';
+      else status.textContent = 'GPS 위치 확인 실패';
+    },
+    { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
+  );
+}
+
+// ===== IMAGE COMPRESSION =====
+const MAX_WIDTH = 1920;
+const MAX_HEIGHT = 1920;
+const QUALITY = 0.82;
+const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB target
+
+function compressImage(file) {
+  return new Promise((resolve) => {
+    // Skip if already small enough
+    if (file.size <= MAX_FILE_SIZE && !file.type.includes('heic')) {
+      resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+
+        // Calculate new dimensions
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const compressed = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), {
+              type: 'image/jpeg',
+              lastModified: file.lastModified
+            });
+            resolve({
+              compressed,
+              originalSize: file.size,
+              compressedSize: compressed.size
+            });
+          } else {
+            resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
+          }
+        }, 'image/jpeg', QUALITY);
+      };
+      img.onerror = () => {
+        resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + 'B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + 'KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+}
+
+// ===== TAG UI =====
+function renderTags() {
+  const grid = document.getElementById('tagGrid');
+  const tagCounts = {};
+  pendingFiles.forEach(pf => {
+    tagCounts[pf.tag] = (tagCounts[pf.tag] || 0) + 1;
+  });
+
+  grid.innerHTML = PHOTO_TAGS.map(t => {
+    const count = tagCounts[t.id] || 0;
+    const selected = activeTag === t.id;
+    return `
+      <div class="tag-chip ${selected ? 'selected' : ''}" onclick="selectTag('${t.id}')">
+        <span class="tag-icon">${t.icon}</span>
+        <span>${t.label}</span>
+        ${count > 0 ? `<span class="tag-count">${count}</span>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function selectTag(tagId) {
+  activeTag = tagId;
+  renderTags();
+}
+
+function getTagInfo(tagId) {
+  return PHOTO_TAGS.find(t => t.id === tagId) || PHOTO_TAGS[PHOTO_TAGS.length - 1];
+}
+
+// ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
-  // Enter key search
   document.getElementById('searchInput').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') searchListings();
   });
-
-  // File input handlers
   document.getElementById('cameraInput').addEventListener('change', handleFiles);
   document.getElementById('galleryInput').addEventListener('change', handleFiles);
 
-  // Load recent listings on start
+  initGPS();
+  renderTags();
   loadRecentListings();
 });
 
-// Load recent listings
+// ===== LISTINGS =====
 async function loadRecentListings() {
   showLoading(true);
   try {
@@ -530,28 +647,20 @@ async function loadRecentListings() {
       allListings = data.data;
       renderListings(data.data, '최근 등록된 매물');
     }
-  } catch(e) {
-    console.error('Load error:', e);
-  }
+  } catch(e) { console.error('Load error:', e); }
   showLoading(false);
 }
 
-// Search listings
 async function searchListings() {
   const query = document.getElementById('searchInput').value.trim();
-  if (!query) {
-    showToast('검색어를 입력해주세요', 'error');
-    return;
-  }
+  if (!query) { showToast('검색어를 입력해주세요', 'error'); return; }
 
   showLoading(true);
   document.getElementById('searchBtn').textContent = '검색중...';
 
   try {
-    // Load all listings if not cached
     if (allListings.length === 0) {
-      let offset = 0;
-      let batch;
+      let offset = 0, batch;
       do {
         const res = await fetch(`${API_BASE}/api/listings?limit=1000&offset=${offset}`, {
           headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
@@ -563,20 +672,16 @@ async function searchListings() {
       } while (batch.length === 1000);
     }
 
-    // Client-side search
     const q = query.toLowerCase();
     const isIdSearch = q.match(/w-?(\d+)/i);
-
     let results;
     if (isIdSearch) {
       const searchId = parseInt(isIdSearch[1]);
       results = allListings.filter(l => l.id === searchId);
     } else {
       results = allListings.filter(l => {
-        const searchFields = [
-          l.title, l.address, l.address_detail, l.dong,
-          l.building_info, String(l.id)
-        ].filter(Boolean).join(' ').toLowerCase();
+        const searchFields = [l.title, l.address, l.address_detail, l.dong, l.building_info, String(l.id)]
+          .filter(Boolean).join(' ').toLowerCase();
         return searchFields.includes(q);
       });
     }
@@ -584,7 +689,6 @@ async function searchListings() {
     renderListings(results.slice(0, 50), `"${query}" 검색 결과`);
     document.getElementById('searchHint').innerHTML =
       `🔍 <strong>${results.length}건</strong> 검색됨 ${results.length > 50 ? '(상위 50건 표시)' : ''}`;
-
   } catch(e) {
     showToast('검색 중 오류가 발생했습니다', 'error');
     console.error('Search error:', e);
@@ -594,7 +698,6 @@ async function searchListings() {
   showLoading(false);
 }
 
-// Render listings
 function renderListings(listings, label) {
   const container = document.getElementById('resultsList');
   const empty = document.getElementById('emptyState');
@@ -606,47 +709,36 @@ function renderListings(listings, label) {
     empty.querySelector('.desc').textContent = '다른 검색어로 시도해보세요';
     return;
   }
-
   empty.style.display = 'none';
 
-  const countHtml = `<div class="results-count">📋 ${label} <strong>${listings.length}건</strong></div>`;
-
-  const listHtml = listings.map(l => {
-    const imageCount = (l.listing_images || []).length;
-    const dealType = l.deal || '';
-    const price = formatPrice(l);
-    const isSelected = selectedListing && selectedListing.id === l.id;
-
-    return `
-      <div class="listing-card ${isSelected ? 'selected' : ''}" onclick="selectListing(${l.id})" data-id="${l.id}">
-        <span class="listing-id">W-${l.id}</span>
-        ${imageCount > 0 ? `<span class="listing-images-count">📷 ${imageCount}장</span>` : ''}
-        <div class="listing-title">${escHtml(l.title || '제목 없음')}</div>
-        <div class="listing-info">
-          <span>${escHtml(l.address || '')}</span>
-          ${l.type ? `<span>${l.type}</span>` : ''}
-          ${dealType ? `<span>${dealType}</span>` : ''}
-          ${l.area_m2 ? `<span>${l.area_m2}㎡</span>` : ''}
-        </div>
-        <div class="listing-price">${price}</div>
-        <div class="listing-check">${isSelected ? '✓' : ''}</div>
-      </div>
-    `;
-  }).join('');
-
-  container.innerHTML = countHtml + listHtml;
+  container.innerHTML = `<div class="results-count">📋 ${label} <strong>${listings.length}건</strong></div>` +
+    listings.map(l => {
+      const imageCount = (l.listing_images || []).length;
+      const price = formatPrice(l);
+      const isSelected = selectedListing && selectedListing.id === l.id;
+      return `
+        <div class="listing-card ${isSelected ? 'selected' : ''}" onclick="selectListing(${l.id})" data-id="${l.id}">
+          <span class="listing-id">W-${l.id}</span>
+          ${imageCount > 0 ? `<span class="listing-images-count">📷 ${imageCount}장</span>` : ''}
+          <div class="listing-title">${escHtml(l.title || '제목 없음')}</div>
+          <div class="listing-info">
+            <span>${escHtml(l.address || '')}</span>
+            ${l.type ? `<span>${l.type}</span>` : ''}
+            ${l.deal ? `<span>${l.deal}</span>` : ''}
+            ${l.area_m2 ? `<span>${l.area_m2}㎡</span>` : ''}
+          </div>
+          <div class="listing-price">${price}</div>
+          <div class="listing-check">${isSelected ? '✓' : ''}</div>
+        </div>`;
+    }).join('');
 }
 
-// Format price
 function formatPrice(l) {
-  if (l.deposit && l.monthly) {
-    return `${formatNum(l.deposit)}/${formatNum(l.monthly)}`;
-  }
+  if (l.deposit && l.monthly) return `${formatNum(l.deposit)}/${formatNum(l.monthly)}`;
   if (l.price) return formatNum(l.price);
   if (l.deposit) return formatNum(l.deposit);
   return '';
 }
-
 function formatNum(n) {
   if (!n) return '0';
   n = Number(n);
@@ -654,7 +746,7 @@ function formatNum(n) {
   return n.toLocaleString() + '만';
 }
 
-// Select listing
+// ===== SELECT LISTING =====
 async function selectListing(id) {
   const listing = allListings.find(l => l.id === id);
   if (!listing) return;
@@ -662,30 +754,26 @@ async function selectListing(id) {
   selectedListing = listing;
   pendingFiles = [];
 
-  // Update UI
   document.querySelectorAll('.listing-card').forEach(card => {
     card.classList.toggle('selected', parseInt(card.dataset.id) === id);
     card.querySelector('.listing-check').textContent = parseInt(card.dataset.id) === id ? '✓' : '';
   });
 
-  // Show upload bar
   document.getElementById('uploadBar').classList.remove('hidden');
   document.getElementById('selectedName').textContent = listing.title || '제목 없음';
   document.getElementById('selectedId').textContent = `W-${listing.id} | ${listing.address || ''}`;
 
-  // Show preview section
+  // Show tag selector and preview
+  document.getElementById('tagSection').classList.add('show');
   document.getElementById('previewSection').style.display = 'block';
+  renderTags();
   updatePreview();
-
-  // Load existing images
   await loadExistingImages(id);
 
-  // Scroll to the selected card
   const card = document.querySelector(`.listing-card[data-id="${id}"]`);
   if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
-// Load existing images for a listing
 async function loadExistingImages(listingId) {
   try {
     const res = await fetch(`${API_BASE}/api/listings/${listingId}/images`, {
@@ -702,50 +790,69 @@ async function loadExistingImages(listingId) {
         <div class="existing-item">
           <img src="${img.url || img.image_url}" alt="기존 사진" loading="lazy"
                onerror="this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:12px\\'>로딩실패</div>'">
-        </div>
-      `).join('');
+        </div>`).join('');
     } else {
       container.style.display = 'none';
       grid.innerHTML = '';
     }
-  } catch(e) {
-    console.error('Load images error:', e);
-  }
+  } catch(e) { console.error('Load images error:', e); }
 }
 
-// Open camera
+// ===== FILE HANDLING =====
 function openCamera() {
   if (!selectedListing) return;
   document.getElementById('cameraInput').click();
 }
-
-// Open gallery
 function openGallery() {
   if (!selectedListing) return;
   document.getElementById('galleryInput').click();
 }
 
-// Handle selected files
-function handleFiles(e) {
+async function handleFiles(e) {
   const files = Array.from(e.target.files);
   if (files.length === 0) return;
 
-  files.forEach(file => {
-    if (!file.type.startsWith('image/')) return;
-    // Limit to 20 files
+  showProgress(true, '사진 처리 중...', `${files.length}장 압축 중`);
+
+  let added = 0;
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue;
     if (pendingFiles.length >= 20) {
       showToast('최대 20장까지 선택할 수 있습니다', 'error');
-      return;
+      break;
     }
-    pendingFiles.push(file);
-  });
 
+    const { compressed, originalSize, compressedSize } = await compressImage(file);
+
+    pendingFiles.push({
+      file: compressed,
+      tag: activeTag,
+      originalSize,
+      compressedSize,
+      gps: currentGPS ? { ...currentGPS } : null
+    });
+    added++;
+
+    document.getElementById('progressDetail').textContent =
+      `${added}/${files.length} 완료`;
+  }
+
+  showProgress(false);
   updatePreview();
-  e.target.value = ''; // reset input
-  showToast(`${files.length}장 추가됨 (총 ${pendingFiles.length}장)`, 'success');
+  renderTags();
+  e.target.value = '';
+
+  const totalOriginal = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
+  const totalCompressed = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
+  const saved = totalOriginal - totalCompressed;
+
+  if (saved > 100000) {
+    showToast(`${added}장 추가 (${formatBytes(saved)} 절약됨)`, 'success');
+  } else {
+    showToast(`${added}장 추가됨 (총 ${pendingFiles.length}장)`, 'success');
+  }
 }
 
-// Update preview grid
 function updatePreview() {
   const grid = document.getElementById('previewGrid');
   const label = document.getElementById('previewLabel');
@@ -754,31 +861,45 @@ function updatePreview() {
   label.textContent = `📸 새로 추가할 사진 (${pendingFiles.length}장)`;
   submitBtn.disabled = pendingFiles.length === 0;
 
-  grid.innerHTML = pendingFiles.map((file, i) => `
-    <div class="preview-item">
-      <img src="${URL.createObjectURL(file)}" alt="미리보기">
-      <button class="preview-remove" onclick="removeFile(${i})">✕</button>
-    </div>
-  `).join('');
+  grid.innerHTML = pendingFiles.map((pf, i) => {
+    const tagInfo = getTagInfo(pf.tag);
+    return `
+      <div class="preview-item">
+        <img src="${URL.createObjectURL(pf.file)}" alt="미리보기">
+        <button class="preview-remove" onclick="removeFile(${i})">✕</button>
+        <span class="preview-size">${formatBytes(pf.compressedSize)}</span>
+        <div class="preview-tag">${tagInfo.icon} ${tagInfo.label}</div>
+      </div>`;
+  }).join('');
 }
 
-// Remove a pending file
 function removeFile(index) {
   pendingFiles.splice(index, 1);
   updatePreview();
+  renderTags();
 }
 
-// Upload images
+// ===== UPLOAD =====
 async function uploadImages() {
   if (!selectedListing || pendingFiles.length === 0) return;
 
-  showProgress(true, '사진 업로드 중...', `${pendingFiles.length}장을 업로드합니다`);
+  const totalSize = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
+  showProgress(true, '사진 업로드 중...', `${pendingFiles.length}장 (${formatBytes(totalSize)})`);
 
   try {
     const formData = new FormData();
-    pendingFiles.forEach((file, i) => {
-      formData.append('images', file);
+    pendingFiles.forEach((pf, i) => {
+      formData.append('images', pf.file);
     });
+
+    // Attach metadata as JSON
+    const metadata = pendingFiles.map(pf => ({
+      tag: pf.tag,
+      gps: pf.gps,
+      originalSize: pf.originalSize,
+      compressedSize: pf.compressedSize,
+    }));
+    formData.append('metadata', JSON.stringify(metadata));
 
     const res = await fetch(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
       method: 'POST',
@@ -789,12 +910,16 @@ async function uploadImages() {
     const data = await res.json();
 
     if (data.success) {
-      showToast(`✅ ${pendingFiles.length}장 업로드 완료!`, 'success');
+      const origTotal = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
+      const compTotal = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
+      const savedPct = origTotal > 0 ? Math.round((1 - compTotal / origTotal) * 100) : 0;
+
+      showToast(`✅ ${pendingFiles.length}장 업로드 완료! (${savedPct > 5 ? savedPct + '% 절약' : ''})`, 'success');
       pendingFiles = [];
       updatePreview();
+      renderTags();
       await loadExistingImages(selectedListing.id);
 
-      // Update image count in listing card
       const card = document.querySelector(`.listing-card[data-id="${selectedListing.id}"]`);
       if (card) {
         const existing = card.querySelector('.listing-images-count');
@@ -817,7 +942,7 @@ async function uploadImages() {
   showProgress(false);
 }
 
-// UI Helpers
+// ===== UI HELPERS =====
 function showLoading(on) {
   isLoading = on;
   const list = document.getElementById('resultsList');
@@ -839,6 +964,7 @@ function showProgress(on, text, sub) {
   if (on) {
     document.getElementById('progressText').textContent = text || '처리 중...';
     document.getElementById('progressSub').textContent = sub || '';
+    document.getElementById('progressDetail').textContent = '';
     overlay.classList.add('show');
   } else {
     overlay.classList.remove('show');
