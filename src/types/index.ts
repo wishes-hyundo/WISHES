@@ -55,6 +55,36 @@ export interface Listing {
   images?: ListingImage[];
   features?: string[];
 
+  // 건축물대장 정보 (JSONB)
+  building_info?: {
+    건물명?: string;
+    주용도?: string;
+    건물구조?: string;
+    대지면적?: string;
+    건축면적?: string;
+    연면적?: string;
+    건폐율?: string;
+    용적률?: string;
+    지상층수?: number;
+    지하층수?: number;
+    승용엘리베이터?: number;
+    비상용엘리베이터?: number;
+    총주차대수?: number;
+    허가일?: string;
+    사용승인일?: string;
+    세대수?: number;
+    호수?: number;
+    [key: string]: any;
+  } | null;
+
+  // 상가/사무실 전용 정보
+  rights_fee?: number | null; // 권리금
+  lease_period?: string | null; // 임대기간
+  price_per_pyeong?: number | null; // 평당 임대료
+
+  // 추가 생활정보
+  entrance_type?: string | null; // 현관유형 (복도식/계단식)
+
   // Legacy field mappings for backward compatibility
   area?: number;
   floor?: string;
