@@ -7,6 +7,7 @@ import { ListingCard } from '@/components/ListingCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { Breadcrumb } from '@/components/Breadcrumb';
 import { Building2, SlidersHorizontal } from 'lucide-react';
+import { sortWithPhotoPriority } from '@/lib/utils';
 
 const dealTypes = ['전세', '월세', '매매'];
 const listingTypes = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
@@ -109,7 +110,8 @@ export default function ListingsClient({
       // 병렬 실행
       const [listingsResult, dongResult, countResult] = await Promise.all([query, dongQuery, countQuery]);
 
-      setListings(listingsResult.data || []);
+      // 사진 있는 매물 우선 정렬 적용
+      setListings(sortWithPhotoPriority(listingsResult.data || []));
       setDongs([...new Set((dongResult.data || []).map((r: any) => r.dong))].sort());
       setTotal(countResult.count || 0);
       setLoading(false);
