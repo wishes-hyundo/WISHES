@@ -345,10 +345,43 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
                 </div>
               </div>
             ) : null}
+            {listing.heating_type ? (
+              <div className="flex items-center gap-2 text-sm">
+                <Thermometer className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
+                <div>
+                  <p className="text-gray-400 text-[10px]">난방방식</p>
+                  <p className="font-medium text-gray-800">{listing.heating_type}</p>
+                </div>
+              </div>
+            ) : null}
+            {listing.entrance_type ? (
+              <div className="flex items-center gap-2 text-sm">
+                <DoorOpen className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
+                <div>
+                  <p className="text-gray-400 text-[10px]">현관유형</p>
+                  <p className="font-medium text-gray-800">{listing.entrance_type}</p>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 
-        {/* 옵션/펴의시설 */}
+        {/* 관리비 */}
+        {listing.maintenance_fee > 0 && (
+          <div className="px-4 py-4 border-b border-gray-100">
+            <p className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><Banknote className="w-3.5 h-3.5" /> 관리비</p>
+            <p className="text-sm font-bold text-wishes-primary">월 {listing.maintenance_fee.toLocaleString('ko-KR')}만원</p>
+            {listing.maintenance_includes?.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {listing.maintenance_includes.map((item: string) => (
+                  <span key={item} className="px-2 py-0.5 text-[10px] bg-gray-50 text-gray-600 rounded border border-gray-200">{item}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 옵션/편의시설 */}
         {features.length > 0 && (
           <div className="px-4 py-4 border-b border-gray-100">
             <p className="text-xs font-bold text-gray-500 mb-2">옵션/편의시설</p>
@@ -382,6 +415,39 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
                   반려동물
                 </span>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* 건축물대장 정보 (건물명 제외 - 위치 노출 방지) */}
+        {listing.building_info && Object.keys(listing.building_info).length > 0 && (
+          <div className="px-4 py-4 border-b border-gray-100">
+            <p className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><FileText className="w-3.5 h-3.5" /> 건축물대장</p>
+            <div className="grid grid-cols-2 gap-2">
+              {listing.building_info.주용도 && <div><p className="text-[10px] text-gray-400">용도</p><p className="text-xs font-medium text-gray-800">{listing.building_info.주용도}</p></div>}
+              {listing.building_info.건물구조 && <div><p className="text-[10px] text-gray-400">구조</p><p className="text-xs font-medium text-gray-800">{listing.building_info.건물구조}</p></div>}
+              {listing.building_info.사용승인일 && <div><p className="text-[10px] text-gray-400">사용승인일</p><p className="text-xs font-medium text-gray-800">{listing.building_info.사용승인일}</p></div>}
+              {listing.building_info.지상층수 && <div><p className="text-[10px] text-gray-400">지상/지하</p><p className="text-xs font-medium text-gray-800">{listing.building_info.지상층수}층/지하{listing.building_info.지하층수||'0'}층</p></div>}
+              {listing.building_info.세대수 && <div><p className="text-[10px] text-gray-400">세대수</p><p className="text-xs font-medium text-gray-800">{listing.building_info.세대수}세대</p></div>}
+              {listing.building_info.총주차대수 && <div><p className="text-[10px] text-gray-400">주차</p><p className="text-xs font-medium text-gray-800">{listing.building_info.총주차대수}대{listing.building_info.세대당주차대수 ? ` (세대당 ${listing.building_info.세대당주차대수}대)` : ''}</p></div>}
+              {(listing.building_info.승용엘리베이터 || listing.building_info.비상용엘리베이터) && <div><p className="text-[10px] text-gray-400">승강기</p><p className="text-xs font-medium text-gray-800">승용{listing.building_info.승용엘리베이터||0}/비상{listing.building_info.비상용엘리베이터||0}대</p></div>}
+              {listing.building_info.건폐율 && <div><p className="text-[10px] text-gray-400">건폐율/용적률</p><p className="text-xs font-medium text-gray-800">{listing.building_info.건폐율}%/{listing.building_info.용적률||'-'}%</p></div>}
+            </div>
+            {listing.building_info.위반건축물 && (
+              <div className="mt-2"><span className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-full bg-red-50 text-red-600"><Shield className="w-3 h-3" />위반건축물</span></div>
+            )}
+            <p className="text-[9px] text-gray-300 mt-2">출처: 국토교통부 건축물대장</p>
+          </div>
+        )}
+
+        {/* 상가/사무실 정보 */}
+        {(listing.type === '상가' || listing.type === '사무실') && (listing.rights_fee || listing.lease_period || listing.price_per_pyeong) && (
+          <div className="px-4 py-4 border-b border-gray-100">
+            <p className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><Store className="w-3.5 h-3.5 text-orange-500" /> 상가/사무실</p>
+            <div className="grid grid-cols-2 gap-2">
+              {listing.rights_fee > 0 && <div><p className="text-[10px] text-gray-400">권리금</p><p className="text-xs font-bold text-orange-700">{listing.rights_fee.toLocaleString('ko-KR')}만원</p></div>}
+              {listing.lease_period && <div><p className="text-[10px] text-gray-400">임대기간</p><p className="text-xs font-medium text-gray-800">{listing.lease_period}</p></div>}
+              {listing.price_per_pyeong > 0 && <div><p className="text-[10px] text-gray-400">평당 임대료</p><p className="text-xs font-medium text-gray-800">{listing.price_per_pyeong.toLocaleString('ko-KR')}만원/평</p></div>}
             </div>
           </div>
         )}
