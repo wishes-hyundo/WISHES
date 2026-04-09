@@ -7,7 +7,7 @@ import { formatFloor } from '@/lib/formatFloor';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import type { Listing } from '@/types';
 
-// NEW: 7일 이내 등록 / HOT: 조회수 50 이상
+// NEW: 7ì¼ ì´ë´ ë±ë¡ / HOT: ì¡°íì 50 ì´ì
 const isNew = (createdAt: string) => {
   const diff = Date.now() - new Date(createdAt).getTime();
   return diff < 7 * 24 * 60 * 60 * 1000;
@@ -27,11 +27,11 @@ const sqmToPyeong = (area: number) => {
 
 const getDealColor = (deal: string) => {
   switch (deal) {
-    case '전세':
+    case 'ì ì¸':
       return 'bg-wishes-secondary text-white';
-    case '월세':
+    case 'ìì¸':
       return 'bg-emerald-500 text-white';
-    case '매매':
+    case 'ë§¤ë§¤':
       return 'bg-wishes-accent text-white';
     default:
       return 'bg-gray-400 text-white';
@@ -40,11 +40,11 @@ const getDealColor = (deal: string) => {
 
 const getDealBgGradient = (deal: string) => {
   switch (deal) {
-    case '전세':
+    case 'ì ì¸':
       return 'from-wishes-secondary/20 to-wishes-secondary/0';
-    case '월세':
+    case 'ìì¸':
       return 'from-emerald-500/20 to-emerald-500/0';
-    case '매매':
+    case 'ë§¤ë§¤':
       return 'from-wishes-accent/20 to-wishes-accent/0';
     default:
       return 'from-gray-400/20 to-gray-400/0';
@@ -55,32 +55,32 @@ const formatAmount = (amount: number) => {
   if (amount >= 10000) {
     const uk = Math.floor(amount / 10000);
     const man = amount % 10000;
-    return man > 0 ? `${uk}억 ${man.toLocaleString('ko-KR')}` : `${uk}억`;
+    return man > 0 ? `${uk}ìµ ${man.toLocaleString('ko-KR')}` : `${uk}ìµ`;
   }
   return `${amount.toLocaleString('ko-KR')}`;
 };
 
 
 const formatPrice = (listing: Listing) => {
-  if (listing.deal === '매매') {
+  if (listing.deal === 'ë§¤ë§¤') {
     return formatAmount(listing.price || 0);
-  } else if (listing.deal === '전세') {
-    return `전세 ${formatAmount(listing.deposit)}`;
+  } else if (listing.deal === 'ì ì¸') {
+    return `ì ì¸ ${formatAmount(listing.deposit)}`;
   } else {
     return `${formatAmount(listing.deposit)}/${listing.monthly || 0}`;
   }
 };
 
 const getPriceLabel = (listing: Listing) => {
-  if (listing.deal === '매매') return '매매가';
-  if (listing.deal === '전세') return '전세금';
-  return '보증금/월세';
+  if (listing.deal === 'ë§¤ë§¤') return 'ë§¤ë§¤ê°';
+  if (listing.deal === 'ì ì¸') return 'ì ì¸ê¸';
+  return 'ë³´ì¦ê¸/ìì¸';
 };
 
 export function ListingCard({ listing, compact = false, onHover, noLink = false }: ListingCardProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const liked = isFavorite(listing.id);
-  // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
+  // Supabase ì¡°ì¸ ê²°ê³¼(listing_images) ëë ê¸°ì¡´ images íëìì ì´ë¯¸ì§ ì¶ì¶
   const listingImages = (listing as any).listing_images || listing.images || [];
   const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
   const price = formatPrice(listing);
@@ -98,7 +98,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
         onMouseEnter={() => onHover?.(listing.id)}
         onMouseLeave={() => onHover?.(null)}
       >
-        {/* 이미지 */}
+        {/* ì´ë¯¸ì§ */}
         <div className="w-28 h-28 shrink-0 relative overflow-hidden bg-gray-100">
           {thumbUrl ? (
             <img
@@ -119,7 +119,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           </span>
         </div>
 
-        {/* 정보 */}
+        {/* ì ë³´ */}
         <div className="flex-1 p-3 flex flex-col justify-between min-w-0">
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -129,23 +129,23 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
             <p className="text-xs text-gray-600 truncate mt-0.5">{listing.title}</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-wishes-muted flex-wrap">
-            <span>{listing.area_m2 || listing.area || 0}㎡</span>
-            <span>·</span>
+            <span>{listing.area_m2 || listing.area || 0}ã¡</span>
+            <span>Â·</span>
             <span>{formatFloor(listing)}</span>
-            {/* 상업용: 업종 태그 */}
-            {(listing.type === '상가' || listing.type === '사무실') && (listing as any).business_type && (
+            {/* ììì©: ìì¢ íê·¸ */}
+            {(listing.type === 'ìê°' || listing.type === 'ì¬ë¬´ì¤') && (listing as any).business_type && (
               <span className="text-[9px] px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded font-semibold shrink-0">{(listing as any).business_type}</span>
             )}
-            {/* 상업용: 평당가 */}
-            {(listing.type === '상가' || listing.type === '사무실') && listing.area_m2 && listing.monthly && (
+            {/* ììì©: íë¹ê° */}
+            {(listing.type === 'ìê°' || listing.type === 'ì¬ë¬´ì¤') && listing.area_m2 && listing.monthly && (
               <>
-                <span>·</span>
-                <span className="text-purple-600 font-semibold">평당 {Math.round(listing.monthly / (listing.area_m2 / 3.3058)).toLocaleString()}만</span>
+                <span>Â·</span>
+                <span className="text-purple-600 font-semibold">íë¹ {Math.round(listing.monthly / (listing.area_m2 / 3.3058)).toLocaleString()}ë§</span>
               </>
             )}
             {(listing as any).views > 0 && (
               <>
-                <span>·</span>
+                <span>Â·</span>
                 <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" />{(listing as any).views}</span>
               </>
             )}
@@ -162,9 +162,9 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
       onMouseEnter={() => onHover?.(listing.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      {/* 이미지 영역 */}
+      {/* ì´ë¯¸ì§ ìì­ */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
-        {/* 배경 이미지 */}
+        {/* ë°°ê²½ ì´ë¯¸ì§ */}
         {thumbUrl ? (
           <img
             src={thumbUrl}
@@ -178,15 +178,15 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           </div>
         )}
 
-        {/* 그래디언트 오버레이 */}
+        {/* ê·¸ëëì¸í¸ ì¤ë²ë ì´ */}
         <div className={cn(
           'absolute inset-0 bg-gradient-to-t transition-opacity group-hover:opacity-60 duration-300',
           getDealBgGradient(listing.deal)
         )}></div>
 
-        {/* 좌측 배지들 (우측은 ListingCardActions 영역) */}
+        {/* ì¢ì¸¡ ë°°ì§ë¤ (ì°ì¸¡ì ListingCardActions ìì­) */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-          {/* 거래 유형 배지 */}
+          {/* ê±°ë ì í ë°°ì§ */}
           <span className={cn(
             'px-3 py-1 text-xs font-bold rounded-lg shadow-lg backdrop-blur-sm w-fit',
             getDealColor(listing.deal)
@@ -194,14 +194,14 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
             {listing.deal}
           </span>
 
-          {/* NEW 배지 */}
+          {/* NEW ë°°ì§ */}
           {isNew(listing.created_at) && (
             <span className="flex items-center gap-0.5 px-2 py-1 text-xs font-bold bg-yellow-400 text-yellow-900 rounded-lg shadow-sm w-fit">
               <Sparkles className="w-3 h-3" /> NEW
             </span>
           )}
 
-          {/* HOT 배지 */}
+          {/* HOT ë°°ì§ */}
           {isHot((listing as any).views) && (
             <span className="flex items-center gap-0.5 px-2 py-1 text-xs font-bold bg-red-500 text-white rounded-lg shadow-sm w-fit">
               <Flame className="w-3 h-3" /> HOT
@@ -209,16 +209,16 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           )}
         </div>
 
-        {/* 우측 상단 찜 버튼 (S3) */}
+        {/* ì°ì¸¡ ìë¨ ì° ë²í¼ (S3) */}
         <button
           onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(listing.id); }}
           className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white transition-all z-10"
-          aria-label={liked ? '찜 해제' : '찜하기'}
+          aria-label={liked ? 'ì° í´ì ' : 'ì°íê¸°'}
         >
           <Heart className={cn('w-4.5 h-4.5 transition-colors', liked ? 'fill-red-500 text-red-500' : 'text-gray-400')} />
         </button>
 
-        {/* 우측 하단 타입 배지 */}
+        {/* ì°ì¸¡ íë¨ íì ë°°ì§ */}
         <div className="absolute bottom-3 right-3">
           <span className="px-3 py-1 text-xs font-semibold bg-white/90 text-wishes-primary rounded-lg shadow-md backdrop-blur-sm">
             {listing.type}
@@ -226,53 +226,53 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
         </div>
       </div>
 
-      {/* 정보 영역 */}
+      {/* ì ë³´ ìì­ */}
       <div className="p-4 space-y-4">
-        {/* 가격 */}
+        {/* ê°ê²© */}
         <div className="space-y-1">
           <p className="text-[10px] font-semibold text-wishes-muted/80 uppercase tracking-wider">{getPriceLabel(listing)}</p>
           <div className="flex items-baseline gap-2">
             <p className="text-2xl font-bold text-wishes-primary">{price}</p>
-            {listing.deal === '월세' && (
-              <p className="text-sm text-wishes-muted">만원</p>
+            {listing.deal === 'ìì¸' && (
+              <p className="text-sm text-wishes-muted">ë§ì</p>
             )}
           </div>
         </div>
 
-        {/* 상업용 추가 정보 */}
-        {(listing.type === '상가' || listing.type === '사무실') && (
+        {/* ììì© ì¶ê° ì ë³´ */}
+        {(listing.type === 'ìê°' || listing.type === 'ì¬ë¬´ì¤') && (
           <div className="flex flex-wrap gap-1.5">
             {(listing as any).business_type && (
               <span className="text-[10px] px-2 py-0.5 bg-purple-100 text-purple-700 rounded-full font-semibold">{(listing as any).business_type}</span>
             )}
             {listing.area_m2 && listing.monthly && (
               <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full font-semibold">
-                평당 {Math.round(listing.monthly / (listing.area_m2 / 3.3058)).toLocaleString()}만
+                íë¹ {Math.round(listing.monthly / (listing.area_m2 / 3.3058)).toLocaleString()}ë§
               </span>
             )}
             {(listing as any).goodwill_fee > 0 && (
               <span className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full font-semibold">
-                권리금 {formatAmount((listing as any).goodwill_fee)}
+                ê¶ë¦¬ê¸ {formatAmount((listing as any).goodwill_fee)}
               </span>
             )}
-            {(listing as any).vat_included === false && listing.deal === '월세' && (
-              <span className="text-[10px] px-2 py-0.5 bg-red-50 text-red-600 rounded-full font-semibold">부가세별도</span>
+            {(listing as any).vat_included === false && listing.deal === 'ìì¸' && (
+              <span className="text-[10px] px-2 py-0.5 bg-red-50 text-red-600 rounded-full font-semibold">ë¶ê°ì¸ë³ë</span>
             )}
           </div>
         )}
 
-        {/* 제목 */}
+        {/* ì ëª© */}
         <p className="text-sm font-semibold text-wishes-text line-clamp-2 group-hover:text-wishes-secondary transition-colors">
           {listing.title}
         </p>
 
-        {/* 기본 정보 */}
+        {/* ê¸°ë³¸ ì ë³´ */}
         <div className="flex items-center gap-4 text-xs text-wishes-muted">
           {(listing.area_m2 || listing.area) ? (
             <div className="flex items-center gap-1">
               <Maximize className="w-4 h-4 text-wishes-secondary/60" />
-              <span>{listing.area_m2 || listing.area}㎡</span>
-              <span className="text-gray-400">({sqmToPyeong(listing.area_m2 || listing.area)}평)</span>
+              <span>{listing.area_m2 || listing.area}ã¡</span>
+              <span className="text-gray-400">({sqmToPyeong(listing.area_m2 || listing.area)}í)</span>
             </div>
           ) : null}
           {(listing.floor_current || listing.floor) && (
@@ -283,32 +283,32 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           )}
         </div>
 
-        {/* 위치 */}
+        {/* ìì¹ */}
         <div className="flex items-center gap-1 text-xs text-wishes-muted">
           <MapPin className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
-          <span className="truncate">{listing.dong} · {listing.address.split(' ').slice(-1)[0]}</span>
+          <span className="truncate">{listing.dong || ''}{listing.dong && listing.address ? ' Â· ' : ''}{listing.address ? listing.address.split(' ').slice(-1)[0] : ''}</span>
         </div>
 
-        {/* 옵션 태그 */}
+        {/* ìµì íê·¸ */}
         <div className="flex flex-wrap gap-2 pt-2">
           {listing.parking && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-secondary/10 text-wishes-secondary rounded-full border border-wishes-secondary/20 hover:bg-wishes-secondary/20 transition-colors">
-              🚗 주차
+              ð ì£¼ì°¨
             </span>
           )}
           {listing.elevator && (
             <span className="px-2.5 py-1 text-xs font-medium bg-wishes-accent/10 text-wishes-accent rounded-full border border-wishes-accent/20 hover:bg-wishes-accent/20 transition-colors">
-              🚡 엘리베이터
+              ð¡ ìë¦¬ë² ì´í°
             </span>
           )}
           {listing.pet && (
             <span className="px-2.5 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
-              🐾 반려동물
+              ð¾ ë°ë ¤ëë¬¼
             </span>
           )}
         </div>
 
-        {/* 하단 정보 */}
+        {/* íë¨ ì ë³´ */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
             <span className="text-wishes-muted font-mono flex items-center gap-1">
@@ -324,7 +324,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'short', day: 'numeric' }) : '방금 전'}
+            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'short', day: 'numeric' }) : 'ë°©ê¸ ì '}
           </span>
         </div>
       </div>
