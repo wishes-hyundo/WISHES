@@ -42,11 +42,11 @@ export async function GET(request: NextRequest) {
 
     const supabase = createClient();
 
-    // 지도 바운드 내 매물 조회 (count: 'exact'로 정확한 총 건수 반환)
+    // 지도 바운드 내 매물 조회 (경량화: 이미지 조인 제거로 응답 속도 대폽 향상)
     let query = supabase
       .from('listings')
       .select(
-        'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, listing_images(url, sort_order)',
+        'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee',
         { count: 'exact' }
       )
       .neq('status', '계약완료')
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     // 정렬: 최신 매물 우선
     query = query.order('created_at', { ascending: false });
 
-    // 전체 매물 노출을 위해 제한 대폭 확대 (기존 100 → 10000)
+    // 전체 매물 노출
     query = query.limit(10000);
 
     const { data, error, count } = await query;
