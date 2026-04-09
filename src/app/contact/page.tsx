@@ -7,7 +7,7 @@ import Link from 'next/link';
 
 export default function ContactPage() {
   return (
-    <Suspense fallback={<div className="pt-16 min-h-screen flex items-center justify-center"><p className="text-gray-500">로딩 중...</p></div>}>
+    <Suspense fallback={<div className="pt-16 min-h-screen flex items-center justify-center"><p className="text-gray-500">ë¡ë© ì¤...</p></div>}>
       <ContactPageInner />
     </Suspense>
   );
@@ -72,15 +72,16 @@ function ContactPageInner() {
           phone: consultationForm.phone,
           email: consultationForm.email || null,
           message: `
-문의 유형: ${consultationForm.inquiry_type}
-희망 매물 유형: ${consultationForm.property_type}
-희망 지역: ${consultationForm.preferred_area}
-예산 범위: ${consultationForm.budget_range}
-입주 예정일: ${consultationForm.move_date}
-${consultationForm.business_category ? `업종: ${consultationForm.business_category}` : ''}
-${consultationForm.preferred_floor ? `희망 층수: ${consultationForm.preferred_floor}` : ''}
-${consultationForm.additional_requirements ? `추가 요청사항: ${consultationForm.additional_requirements}` : ''}
+ë¬¸ì ì í: ${consultationForm.inquiry_type}
+í¬ë§ ë§¤ë¬¼ ì í: ${consultationForm.property_type}
+í¬ë§ ì§ì­: ${consultationForm.preferred_area}
+ìì° ë²ì: ${consultationForm.budget_range}
+ìì£¼ ìì ì¼: ${consultationForm.move_date}
+${consultationForm.business_category ? `ìì¢: ${consultationForm.business_category}` : ''}
+${consultationForm.preferred_floor ? `í¬ë§ ì¸µì: ${consultationForm.preferred_floor}` : ''}
+${consultationForm.additional_requirements ? `ì¶ê° ìì²­ì¬í­: ${consultationForm.additional_requirements}` : ''}
           `.trim(),
+          listingId: listingId ? parseInt(listingId) : null,
           inquiry_type: 'consultation',
           property_type: consultationForm.property_type || null,
           preferred_area: consultationForm.preferred_area || null,
@@ -95,11 +96,11 @@ ${consultationForm.additional_requirements ? `추가 요청사항: ${consultatio
       if (res.ok) {
         setSubmitted(true);
       } else {
-        setError('상담 신청에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        setError('ìë´ ì ì²­ì ì¤í¨íìµëë¤. ì ì í ë¤ì ìëí´ì£¼ì¸ì.');
       }
     } catch (err) {
-      console.error('상담 신청 실패:', err);
-      setError('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
+      console.error('ìë´ ì ì²­ ì¤í¨:', err);
+      setError('ë¤í¸ìí¬ ì¤ë¥ê° ë°ìíìµëë¤. ì¸í°ë· ì°ê²°ì íì¸í´ì£¼ì¸ì.');
     } finally {
       setSubmitting(false);
     }
@@ -119,19 +120,19 @@ ${consultationForm.additional_requirements ? `추가 요청사항: ${consultatio
           phone: listingForm.phone,
           email: listingForm.email || null,
           message: `
-매물 유형: ${listingForm.property_type}
-거래 유형: ${listingForm.deal}
-주소: ${listingForm.address} ${listingForm.address_detail}
-전용면적: ${listingForm.area_m2}㎡
-층수: ${listingForm.floor_current}
-보증금: ${listingForm.deposit}만원
-월세: ${listingForm.monthly}만원
-매매가: ${listingForm.price}만원
-${listingForm.business_category ? `업종: ${listingForm.business_category}` : ''}
-${listingForm.goodwill_fee ? `권리금: ${listingForm.goodwill_fee}만원` : ''}
-${listingForm.maintenance_fee ? `관리비: ${listingForm.maintenance_fee}만원` : ''}
-부가세: ${listingForm.vat_included === 'true' ? '포함' : '별도'}
-매물 설명:
+ë§¤ë¬¼ ì í: ${listingForm.property_type}
+ê±°ë ì í: ${listingForm.deal}
+ì£¼ì: ${listingForm.address} ${listingForm.address_detail}
+ì ì©ë©´ì : ${listingForm.area_m2}ã¡
+ì¸µì: ${listingForm.floor_current}
+ë³´ì¦ê¸: ${listingForm.deposit}ë§ì
+ìì¸: ${listingForm.monthly}ë§ì
+ë§¤ë§¤ê°: ${listingForm.price}ë§ì
+${listingForm.business_category ? `ìì¢: ${listingForm.business_category}` : ''}
+${listingForm.goodwill_fee ? `ê¶ë¦¬ê¸: ${listingForm.goodwill_fee}ë§ì` : ''}
+${listingForm.maintenance_fee ? `ê´ë¦¬ë¹: ${listingForm.maintenance_fee}ë§ì` : ''}
+ë¶ê°ì¸: ${listingForm.vat_included === 'true' ? 'í¬í¨' : 'ë³ë'}
+ë§¤ë¬¼ ì¤ëª:
 ${listingForm.description}
           `.trim(),
           inquiry_type: 'listing',
@@ -142,11 +143,11 @@ ${listingForm.description}
       if (res.ok) {
         setSubmitted(true);
       } else {
-        setError('매물 접수에 실패했습니다. 잠시 후 다시 시도해주세요.');
+        setError('ë§¤ë¬¼ ì ìì ì¤í¨íìµëë¤. ì ì í ë¤ì ìëí´ì£¼ì¸ì.');
       }
     } catch (err) {
-      console.error('매물 접수 실패:', err);
-      setError('네트워크 오류가 발생했습니다. 인터넷 연결을 확인해주세요.');
+      console.error('ë§¤ë¬¼ ì ì ì¤í¨:', err);
+      setError('ë¤í¸ìí¬ ì¤ë¥ê° ë°ìíìµëë¤. ì¸í°ë· ì°ê²°ì íì¸í´ì£¼ì¸ì.');
     } finally {
       setSubmitting(false);
     }
@@ -160,18 +161,18 @@ ${listingForm.description}
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
           <h2 className="text-2xl font-bold text-wishes-primary mb-3">
-            {activeTab === 'consultation' ? '상담 신청 완료' : '매물 접수 완료'}
+            {activeTab === 'consultation' ? 'ìë´ ì ì²­ ìë£' : 'ë§¤ë¬¼ ì ì ìë£'}
           </h2>
           <p className="text-gray-500 mb-8 leading-relaxed">
-            접수가 완료되었습니다.<br />
-            빠른 시일 내에 연락드리겠습니다.
+            ì ìê° ìë£ëììµëë¤.<br />
+            ë¹ ë¥¸ ìì¼ ë´ì ì°ë½ëë¦¬ê² ìµëë¤.
           </p>
           <Link
             href="/"
             className="inline-flex items-center gap-2 text-wishes-secondary font-semibold hover:underline"
           >
             <ArrowLeft className="w-4 h-4" />
-            홈으로 돌아가기
+            íì¼ë¡ ëìê°ê¸°
           </Link>
         </div>
       </div>
@@ -180,19 +181,19 @@ ${listingForm.description}
 
   return (
     <div className="pt-16 min-h-screen bg-gray-50">
-      {/* 헤더 */}
+      {/* í¤ë */}
       <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold drop-shadow-lg">상담·매물접수</h1>
+          <h1 className="text-3xl md:text-4xl font-bold drop-shadow-lg">ìë´Â·ë§¤ë¬¼ì ì</h1>
           <p className="mt-3 text-lg text-white/80">
-            궁금한 점이 있으시면 편하게 문의해 주세요
+            ê¶ê¸í ì ì´ ìì¼ìë©´ í¸íê² ë¬¸ìí´ ì£¼ì¸ì
           </p>
         </div>
       </section>
 
       <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-10">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
-          {/* 탭 */}
+          {/* í­ */}
           <div className="flex border-b border-gray-200 rounded-t-2xl overflow-hidden">
             <button
               onClick={() => { setActiveTab('consultation'); setError(''); }}
@@ -202,7 +203,7 @@ ${listingForm.description}
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              상담문의
+              ìë´ë¬¸ì
             </button>
             <button
               onClick={() => { setActiveTab('listing'); setError(''); }}
@@ -212,29 +213,29 @@ ${listingForm.description}
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              매물접수
+              ë§¤ë¬¼ì ì
             </button>
           </div>
 
-          {/* 상담문의 폼 */}
+          {/* ìë´ë¬¸ì í¼ */}
           {activeTab === 'consultation' && (
             <form onSubmit={handleConsultationSubmit} className="p-8 md:p-10">
               <div className="space-y-5">
-                {/* 기본 정보 */}
+                {/* ê¸°ë³¸ ì ë³´ */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">이름 *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">ì´ë¦ *</label>
                     <input
                       type="text"
                       required
                       value={consultationForm.name}
                       onChange={(e) => setConsultationForm({ ...consultationForm, name: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                      placeholder="홍길동"
+                      placeholder="íê¸¸ë"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">연락처 *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">ì°ë½ì² *</label>
                     <input
                       type="tel"
                       required
@@ -248,7 +249,7 @@ ${listingForm.description}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">ì´ë©ì¼</label>
                   <input
                     type="email"
                     value={consultationForm.email}
@@ -258,67 +259,67 @@ ${listingForm.description}
                   />
                 </div>
 
-                {/* 상담 정보 */}
+                {/* ìë´ ì ë³´ */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">문의 유형 *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">ë¬¸ì ì í *</label>
                   <select
                     required
                     value={consultationForm.inquiry_type}
                     onChange={(e) => setConsultationForm({ ...consultationForm, inquiry_type: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                   >
-                    <option value="">선택해주세요</option>
-                    <option value="매물 찾기">매물 찾기</option>
-                    <option value="투자 상담">투자 상담</option>
-                    <option value="매도·임대 상담">매도·임대 상담</option>
-                    <option value="기타">기타</option>
+                    <option value="">ì íí´ì£¼ì¸ì</option>
+                    <option value="ë§¤ë¬¼ ì°¾ê¸°">ë§¤ë¬¼ ì°¾ê¸°</option>
+                    <option value="í¬ì ìë´">í¬ì ìë´</option>
+                    <option value="ë§¤ëÂ·ìë ìë´">ë§¤ëÂ·ìë ìë´</option>
+                    <option value="ê¸°í">ê¸°í</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">희망 매물 유형</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">í¬ë§ ë§¤ë¬¼ ì í</label>
                   <select
                     value={consultationForm.property_type}
                     onChange={(e) => setConsultationForm({ ...consultationForm, property_type: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                   >
-                    <option value="">선택해주세요</option>
-                    <option value="원룸">원룸</option>
-                    <option value="투룸">투룸</option>
-                    <option value="쓰리룸">쓰리룸</option>
-                    <option value="오피스텔">오피스텔</option>
-                    <option value="아파트">아파트</option>
-                    <option value="상가">상가</option>
-                    <option value="사무실">사무실</option>
+                    <option value="">ì íí´ì£¼ì¸ì</option>
+                    <option value="ìë£¸">ìë£¸</option>
+                    <option value="í¬ë£¸">í¬ë£¸</option>
+                    <option value="ì°ë¦¬ë£¸">ì°ë¦¬ë£¸</option>
+                    <option value="ì¤í¼ì¤í">ì¤í¼ì¤í</option>
+                    <option value="ìíí¸">ìíí¸</option>
+                    <option value="ìê°">ìê°</option>
+                    <option value="ì¬ë¬´ì¤">ì¬ë¬´ì¤</option>
                   </select>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">희망 지역</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">í¬ë§ ì§ì­</label>
                     <input
                       type="text"
                       value={consultationForm.preferred_area}
                       onChange={(e) => setConsultationForm({ ...consultationForm, preferred_area: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                      placeholder="예: 강남구, 서초구"
+                      placeholder="ì: ê°ë¨êµ¬, ìì´êµ¬"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">예산 범위</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">ìì° ë²ì</label>
                     <input
                       type="text"
                       value={consultationForm.budget_range}
                       onChange={(e) => setConsultationForm({ ...consultationForm, budget_range: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                      placeholder="예: 1,000~2,000만원"
+                      placeholder="ì: 1,000~2,000ë§ì"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">입주 예정일</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">ìì£¼ ìì ì¼</label>
                     <input
                       type="date"
                       value={consultationForm.move_date}
@@ -326,39 +327,39 @@ ${listingForm.description}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                     />
                   </div>
-                  {consultationForm.property_type === '상가' || consultationForm.property_type === '사무실' ? (
+                  {consultationForm.property_type === 'ìê°' || consultationForm.property_type === 'ì¬ë¬´ì¤' ? (
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">업종</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ìì¢</label>
                       <input
                         type="text"
                         value={consultationForm.business_category}
                         onChange={(e) => setConsultationForm({ ...consultationForm, business_category: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                        placeholder="예: 카페, 음식점"
+                        placeholder="ì: ì¹´í, ììì "
                       />
                     </div>
                   ) : (
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">희망 층수</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">í¬ë§ ì¸µì</label>
                       <input
                         type="text"
                         value={consultationForm.preferred_floor}
                         onChange={(e) => setConsultationForm({ ...consultationForm, preferred_floor: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                        placeholder="예: 2층, 저층"
+                        placeholder="ì: 2ì¸µ, ì ì¸µ"
                       />
                     </div>
                   )}
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">추가 요청사항</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">ì¶ê° ìì²­ì¬í­</label>
                   <textarea
                     rows={5}
                     value={consultationForm.additional_requirements}
                     onChange={(e) => setConsultationForm({ ...consultationForm, additional_requirements: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all resize-none"
-                    placeholder="원하시는 매물 조건이나 추가 요청사항을 적어주세요"
+                    placeholder="ìíìë ë§¤ë¬¼ ì¡°ê±´ì´ë ì¶ê° ìì²­ì¬í­ì ì ì´ì£¼ì¸ì"
                   />
                 </div>
 
@@ -374,33 +375,33 @@ ${listingForm.description}
                   className="w-full flex items-center justify-center gap-2 bg-wishes-primary text-white py-3.5 rounded-xl font-bold text-base hover:bg-wishes-secondary transition-colors disabled:opacity-50"
                 >
                   <Send className="w-4 h-4" />
-                  {submitting ? '전송 중...' : '상담 신청하기'}
+                  {submitting ? 'ì ì¡ ì¤...' : 'ìë´ ì ì²­íê¸°'}
                 </button>
               </div>
             </form>
           )}
 
-          {/* 매물접수 폼 */}
+          {/* ë§¤ë¬¼ì ì í¼ */}
           {activeTab === 'listing' && (
             <form onSubmit={handleListingSubmit} className="p-8 md:p-10">
               <div className="space-y-5">
-                {/* 소유자 정보 */}
+                {/* ìì ì ì ë³´ */}
                 <div className="border-b border-gray-200 pb-5 mb-5">
-                  <h3 className="font-semibold text-gray-900 mb-4">소유자 정보</h3>
+                  <h3 className="font-semibold text-gray-900 mb-4">ìì ì ì ë³´</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">이름 *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ì´ë¦ *</label>
                       <input
                         type="text"
                         required
                         value={listingForm.name}
                         onChange={(e) => setListingForm({ ...listingForm, name: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                        placeholder="홍길동"
+                        placeholder="íê¸¸ë"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">연락처 *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ì°ë½ì² *</label>
                       <input
                         type="tel"
                         required
@@ -413,7 +414,7 @@ ${listingForm.description}
                     </div>
                   </div>
                   <div className="mt-5">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">ì´ë©ì¼</label>
                     <input
                       type="email"
                       value={listingForm.email}
@@ -424,77 +425,77 @@ ${listingForm.description}
                   </div>
                 </div>
 
-                {/* 매물 정보 */}
+                {/* ë§¤ë¬¼ ì ë³´ */}
                 <div className="border-b border-gray-200 pb-5 mb-5">
-                  <h3 className="font-semibold text-gray-900 mb-4">매물 정보</h3>
+                  <h3 className="font-semibold text-gray-900 mb-4">ë§¤ë¬¼ ì ë³´</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">매물 유형 *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ë§¤ë¬¼ ì í *</label>
                       <select
                         required
                         value={listingForm.property_type}
                         onChange={(e) => setListingForm({ ...listingForm, property_type: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       >
-                        <option value="">선택해주세요</option>
-                        <option value="원룸">원룸</option>
-                        <option value="투룸">투룸</option>
-                        <option value="쓰리룸">쓰리룸</option>
-                        <option value="오피스텔">오피스텔</option>
-                        <option value="아파트">아파트</option>
-                        <option value="상가">상가</option>
-                        <option value="사무실">사무실</option>
+                        <option value="">ì íí´ì£¼ì¸ì</option>
+                        <option value="ìë£¸">ìë£¸</option>
+                        <option value="í¬ë£¸">í¬ë£¸</option>
+                        <option value="ì°ë¦¬ë£¸">ì°ë¦¬ë£¸</option>
+                        <option value="ì¤í¼ì¤í">ì¤í¼ì¤í</option>
+                        <option value="ìíí¸">ìíí¸</option>
+                        <option value="ìê°">ìê°</option>
+                        <option value="ì¬ë¬´ì¤">ì¬ë¬´ì¤</option>
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">거래 유형 *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ê±°ë ì í *</label>
                       <select
                         required
                         value={listingForm.deal}
                         onChange={(e) => setListingForm({ ...listingForm, deal: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       >
-                        <option value="">선택해주세요</option>
-                        <option value="전세">전세</option>
-                        <option value="월세">월세</option>
-                        <option value="매매">매매</option>
+                        <option value="">ì íí´ì£¼ì¸ì</option>
+                        <option value="ì ì¸">ì ì¸</option>
+                        <option value="ìì¸">ìì¸</option>
+                        <option value="ë§¤ë§¤">ë§¤ë§¤</option>
                       </select>
                     </div>
                   </div>
                 </div>
 
-                {/* 위치 정보 */}
+                {/* ìì¹ ì ë³´ */}
                 <div className="border-b border-gray-200 pb-5 mb-5">
-                  <h3 className="font-semibold text-gray-900 mb-4">위치 정보</h3>
+                  <h3 className="font-semibold text-gray-900 mb-4">ìì¹ ì ë³´</h3>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">주소 *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">ì£¼ì *</label>
                     <input
                       type="text"
                       required
                       value={listingForm.address}
                       onChange={(e) => setListingForm({ ...listingForm, address: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                      placeholder="서울시 강남구 강남대로 123"
+                      placeholder="ìì¸ì ê°ë¨êµ¬ ê°ë¨ëë¡ 123"
                     />
                   </div>
                   <div className="mt-5">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">상세주소</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">ìì¸ì£¼ì</label>
                     <input
                       type="text"
                       value={listingForm.address_detail}
                       onChange={(e) => setListingForm({ ...listingForm, address_detail: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                      placeholder="301호, 테라스 빌딩 등"
+                      placeholder="301í¸, íë¼ì¤ ë¹ë© ë±"
                     />
                   </div>
                 </div>
 
-                {/* 규모 정보 */}
+                {/* ê·ëª¨ ì ë³´ */}
                 <div className="border-b border-gray-200 pb-5 mb-5">
-                  <h3 className="font-semibold text-gray-900 mb-4">규모 정보</h3>
+                  <h3 className="font-semibold text-gray-900 mb-4">ê·ëª¨ ì ë³´</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">전용면적 (㎡) *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ì ì©ë©´ì  (ã¡) *</label>
                       <input
                         type="number"
                         required
@@ -505,25 +506,25 @@ ${listingForm.description}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">층수 *</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ì¸µì *</label>
                       <input
                         type="text"
                         required
                         value={listingForm.floor_current}
                         onChange={(e) => setListingForm({ ...listingForm, floor_current: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                        placeholder="2층"
+                        placeholder="2ì¸µ"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* 가격 정보 */}
+                {/* ê°ê²© ì ë³´ */}
                 <div className="border-b border-gray-200 pb-5 mb-5">
-                  <h3 className="font-semibold text-gray-900 mb-4">가격 정보</h3>
+                  <h3 className="font-semibold text-gray-900 mb-4">ê°ê²© ì ë³´</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">보증금 (만원)</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ë³´ì¦ê¸ (ë§ì)</label>
                       <input
                         type="number"
                         value={listingForm.deposit}
@@ -533,7 +534,7 @@ ${listingForm.description}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">월세 (만원)</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ìì¸ (ë§ì)</label>
                       <input
                         type="number"
                         value={listingForm.monthly}
@@ -543,7 +544,7 @@ ${listingForm.description}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">매매가 (만원)</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">ë§¤ë§¤ê° (ë§ì)</label>
                       <input
                         type="number"
                         value={listingForm.price}
@@ -555,23 +556,23 @@ ${listingForm.description}
                   </div>
                 </div>
 
-                {/* 상업용 추가 정보 */}
-                {(listingForm.property_type === '상가' || listingForm.property_type === '사무실') && (
+                {/* ììì© ì¶ê° ì ë³´ */}
+                {(listingForm.property_type === 'ìê°' || listingForm.property_type === 'ì¬ë¬´ì¤') && (
                   <div className="border-b border-gray-200 pb-5 mb-5">
-                    <h3 className="font-semibold text-gray-900 mb-4">상업용 정보</h3>
+                    <h3 className="font-semibold text-gray-900 mb-4">ììì© ì ë³´</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">업종</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">ìì¢</label>
                         <input
                           type="text"
                           value={listingForm.business_category}
                           onChange={(e) => setListingForm({ ...listingForm, business_category: e.target.value })}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
-                          placeholder="카페, 음식점 등"
+                          placeholder="ì¹´í, ììì  ë±"
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">권리금 (만원)</label>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">ê¶ë¦¬ê¸ (ë§ì)</label>
                         <input
                           type="number"
                           value={listingForm.goodwill_fee}
@@ -589,7 +590,7 @@ ${listingForm.description}
                           onChange={() => setListingForm({ ...listingForm, vat_included: 'true' })}
                           className="w-4 h-4"
                         />
-                        <span className="text-sm font-medium text-gray-700">부가세 포함</span>
+                        <span className="text-sm font-medium text-gray-700">ë¶ê°ì¸ í¬í¨</span>
                       </label>
                       <label className="flex items-center gap-2">
                         <input
@@ -598,15 +599,15 @@ ${listingForm.description}
                           onChange={() => setListingForm({ ...listingForm, vat_included: 'false' })}
                           className="w-4 h-4"
                         />
-                        <span className="text-sm font-medium text-gray-700">부가세 별도</span>
+                        <span className="text-sm font-medium text-gray-700">ë¶ê°ì¸ ë³ë</span>
                       </label>
                     </div>
                   </div>
                 )}
 
-                {/* 관리비 */}
+                {/* ê´ë¦¬ë¹ */}
                 <div className="border-b border-gray-200 pb-5 mb-5">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">관리비 (만원)</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">ê´ë¦¬ë¹ (ë§ì)</label>
                   <input
                     type="number"
                     value={listingForm.maintenance_fee}
@@ -616,15 +617,15 @@ ${listingForm.description}
                   />
                 </div>
 
-                {/* 매물 설명 */}
+                {/* ë§¤ë¬¼ ì¤ëª */}
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">매물 설명</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">ë§¤ë¬¼ ì¤ëª</label>
                   <textarea
                     rows={5}
                     value={listingForm.description}
                     onChange={(e) => setListingForm({ ...listingForm, description: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all resize-none"
-                    placeholder="매물의 특징, 장점, 옵션 등을 상세히 입력해주세요"
+                    placeholder="ë§¤ë¬¼ì í¹ì§, ì¥ì , ìµì ë±ì ìì¸í ìë ¥í´ì£¼ì¸ì"
                   />
                 </div>
 
@@ -640,7 +641,7 @@ ${listingForm.description}
                   className="w-full flex items-center justify-center gap-2 bg-wishes-primary text-white py-3.5 rounded-xl font-bold text-base hover:bg-wishes-secondary transition-colors disabled:opacity-50"
                 >
                   <Send className="w-4 h-4" />
-                  {submitting ? '전송 중...' : '매물 접수하기'}
+                  {submitting ? 'ì ì¡ ì¤...' : 'ë§¤ë¬¼ ì ìíê¸°'}
                 </button>
               </div>
             </form>
