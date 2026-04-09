@@ -6,29 +6,15 @@ import { createClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { Breadcrumb } from '@/components/Breadcrumb';
-import { Building2, SlidersHorizontal } from 'lucide-react';
-import { sortWithPhotoPriority } from '@/lib/utils';
+import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const dealTypes = ['전세', '월세', '매매'];
 const listingTypes = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
-
-// V4-03: 정렬 옵션 확장 — 최신순 / 가격 낮은 순 / 가격 높은 순 / 면적 넓은 순
 const sortOptions = [
   { value: 'latest', label: '최신순' },
-  { value: 'price_asc', label: '가격 낮은 순' },
-  { value: 'price_desc', label: '가격 높은 순' },
-  { value: 'area_desc', label: '면적 넓은 순' },
+  { value: 'price', label: '가격순' },
+  { value: 'area', label: '면적순' },
 ];
-
-// V4-03: sort 값에서 Supabase 쿼리용 컨피그 추출
-const getSortConfig = (sort: string): { column: string; ascending: boolean } => {
-  switch (sort) {
-    case 'price_asc':  return { column: 'deposit', ascending: true };
-    case 'price_desc': return { column: 'deposit', ascending: false };
-    case 'area_desc':  return { column: 'area_m2', ascending: false };
-    default:           return { column: 'created_at', ascending: false };
-  }
-};
 
 interface ListingsClientProps {
   initialListings?: any[];
@@ -47,9 +33,9 @@ export default function ListingsClient({
   const [listings, setListings] = useState<any[]>(initialListings);
   const [dongs, setDongs] = useState<string[]>(initialDongs);
   const [total, setTotal] = useState(totalCount);
-  // S2: SSR 초기 데이터가 있으면 로딩 상태 건너뜀
   const [loading, setLoading] = useState(initialListings.length === 0 && totalCount === 0);
   const [page, setPage] = useState(1);
+  const [pageInput, setPageInput] = useState('');
   const hasInitialData = useRef(initialListings.length > 0 || totalCount > 0);
 
   const deal = searchParams.get('deal') || '';
@@ -59,12 +45,11 @@ export default function ListingsClient({
   const pageParam = searchParams.get('page') || '1';
   const pageSize = 12;
 
-  // 데이터 로드 (필터 변경 시 클라이언트에서 재로드)
+  // 데이터 로드 (필터 변경 시 - 사진 매물 우선 2단계 쿼리)
   useEffect(() => {
     const currentPage = parseInt(pageParam, 10) || 1;
     setPage(currentPage);
 
-    // 첫 렌더링 시 SSR 데이터가 있으면 스킵
     if (hasInitialData.current) {
       hasInitialData.current = false;
       return;
@@ -74,44 +59,61 @@ export default function ListingsClient({
       setLoading(true);
       const supabase = createClient();
       const offset = (currentPage - 1) * pageSize;
+      const selectFields = 'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views';
+      const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
 
-      // 매물 쿼리
-      let query = supabase
+      // Step 1: 사진 있는 매물 전체 조회
+      let photoQuery = supabase
         .from('listings')
-        .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)')
+        .select(selectFields + ', listing_images!inner(url, sort_order)')
         .eq('status', '가용');
+      if (deal) photoQuery = photoQuery.eq('deal', deal);
+      if (type) photoQuery = photoQuery.eq('type', type);
+      if (dong) photoQuery = photoQuery.eq('dong', dong);
+      photoQuery = photoQuery.order(sortColumn, { ascending: false }).limit(500);
 
-      if (deal) query = query.eq('deal', deal);
-      if (type) query = query.eq('type', type);
-      if (dong) query = query.eq('dong', dong);
-
-      // V4-03: 확장된 정렬 로직
-      const { column: sortColumn, ascending: sortAsc } = getSortConfig(sort);
-      query = query.order(sortColumn, { ascending: sortAsc });
-
-      query = query.range(offset, offset + pageSize - 1);
-
-      // 동 목록 쿼리
-      const dongQuery = supabase
-        .from('listings')
-        .select('dong')
-        .eq('status', '가용');
-
-      // 전체 개수 쿼리
-      let countQuery = supabase
-        .from('listings')
-        .select('id', { count: 'exact', head: true })
-        .eq('status', '가용');
-
+      // Step 2: 동 목록 + 전체 개수
+      const dongQuery = supabase.from('listings').select('dong').eq('status', '가용');
+      let countQuery = supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', '가용');
       if (deal) countQuery = countQuery.eq('deal', deal);
       if (type) countQuery = countQuery.eq('type', type);
       if (dong) countQuery = countQuery.eq('dong', dong);
 
-      // 병렬 실행
-      const [listingsResult, dongResult, countResult] = await Promise.all([query, dongQuery, countQuery]);
+      const [photoResult, dongResult, countResult] = await Promise.all([photoQuery, dongQuery, countQuery]);
 
-      // 사진 있는 매물 우선 정렬 적용
-      setListings(sortWithPhotoPriority(listingsResult.data || []));
+      const photoListings = photoResult.data || [];
+      const photoIds = photoListings.map((l: any) => l.id);
+      const photoCount = photoListings.length;
+
+      // Step 3: 현재 페이지 매물
+      let pageListings: any[] = [];
+
+      if (offset < photoCount) {
+        pageListings = photoListings.slice(offset, offset + pageSize);
+        if (pageListings.length < pageSize) {
+          const remaining = pageSize - pageListings.length;
+          let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '가용');
+          if (deal) npQ = npQ.eq('deal', deal);
+          if (type) npQ = npQ.eq('type', type);
+          if (dong) npQ = npQ.eq('dong', dong);
+          if (photoIds.length > 0) npQ = npQ.not('id', 'in', '(' + photoIds.join(',') + ')');
+          npQ = npQ.order(sortColumn, { ascending: false }).limit(remaining);
+          const npResult = await npQ;
+          pageListings = [...pageListings, ...(npResult.data || [])];
+        }
+      } else {
+        const adjustedOffset = offset - photoCount;
+        let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '가용');
+        if (deal) npQ = npQ.eq('deal', deal);
+        if (type) npQ = npQ.eq('type', type);
+        if (dong) npQ = npQ.eq('dong', dong);
+        if (photoIds.length > 0) npQ = npQ.not('id', 'in', '(' + photoIds.join(',') + ')');
+        npQ = npQ.order(sortColumn, { ascending: false }).range(adjustedOffset, adjustedOffset + pageSize - 1);
+        const npResult = await npQ;
+        pageListings = npResult.data || [];
+      }
+
+      setListings(pageListings);
       setDongs([...new Set((dongResult.data || []).map((r: any) => r.dong))].sort());
       setTotal(countResult.count || 0);
       setLoading(false);
@@ -120,7 +122,7 @@ export default function ListingsClient({
     fetchData();
   }, [deal, type, dong, sort, pageParam]);
 
-  // ── V4-05: 스크롤 위치 저장 / 복원 ──
+  // 스크롤 위치 저장 / 복원
   const scrollSaved = useRef(false);
   const isFirstRender = useRef(true);
 
@@ -173,7 +175,34 @@ export default function ListingsClient({
     router.push(`/listings?${params.toString()}`);
   }, [router, searchParams]);
 
+  const goToPage = useCallback((p: number) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(p));
+    router.push(`/listings?${params.toString()}`);
+  }, [router, searchParams]);
+
+  const handlePageInputSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const p = parseInt(pageInput, 10);
+    if (p >= 1 && p <= totalPages) {
+      goToPage(p);
+      setPageInput('');
+    }
+  };
+
   const totalPages = Math.ceil(total / pageSize);
+
+  // 페이지 번호 범위 계산
+  const getPageNumbers = () => {
+    const maxVisible = 5;
+    let start = Math.max(1, page - Math.floor(maxVisible / 2));
+    let end = start + maxVisible - 1;
+    if (end > totalPages) {
+      end = totalPages;
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  };
 
   return (
     <div className="pt-16 min-h-screen">
@@ -198,45 +227,20 @@ export default function ListingsClient({
             <span className="text-sm font-medium text-gray-700">필터</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            <select
-              value={deal}
-              onChange={(e) => updateFilter('deal', e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
-            >
+            <select value={deal} onChange={(e) => updateFilter('deal', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
               <option value="">거래유형 전체</option>
-              {dealTypes.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
+              {dealTypes.map((t) => (<option key={t} value={t}>{t}</option>))}
             </select>
-            <select
-              value={type}
-              onChange={(e) => updateFilter('type', e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
-            >
+            <select value={type} onChange={(e) => updateFilter('type', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
               <option value="">매물유형 전체</option>
-              {listingTypes.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
+              {listingTypes.map((t) => (<option key={t} value={t}>{t}</option>))}
             </select>
-            <select
-              value={dong}
-              onChange={(e) => updateFilter('dong', e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
-            >
+            <select value={dong} onChange={(e) => updateFilter('dong', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
               <option value="">지역 전체</option>
-              {dongs.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
+              {dongs.map((d) => (<option key={d} value={d}>{d}</option>))}
             </select>
-            {/* V4-03: 확장된 정렬 드롭다운 */}
-            <select
-              value={sort}
-              onChange={(e) => updateFilter('sort', e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
-            >
-              {sortOptions.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
+            <select value={sort} onChange={(e) => updateFilter('sort', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
+              {sortOptions.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
             </select>
           </div>
         </div>
@@ -246,59 +250,65 @@ export default function ListingsClient({
           <div>
             <div className="h-4 w-24 bg-gray-100 rounded animate-pulse mb-4" />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <SkeletonCard key={i} />
-              ))}
+              {Array.from({ length: 8 }).map((_, i) => (<SkeletonCard key={i} />))}
             </div>
           </div>
         ) : listings.length > 0 ? (
           <>
             <p className="text-sm text-gray-500 mb-4">
-              총 <strong className="text-wishes-primary">{total}</strong>건의 매물
+              총 <strong className="text-wishes-primary">{total.toLocaleString()}</strong>건의 매물
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-              {listings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing as any} />
-              ))}
+              {listings.map((listing) => (<ListingCard key={listing.id} listing={listing as any} />))}
             </div>
 
             {/* 페이지네이션 */}
             {totalPages > 1 && (
-              <div className="flex justify-center gap-2 mt-10">
-                {page > 1 && (
-                  <a
-                    href={`/listings?${new URLSearchParams({ ...(deal && { deal }), ...(type && { type }), ...(dong && { dong }), sort, page: String(page - 1) }).toString()}`}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
-                  >
-                    이전
-                  </a>
-                )}
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  const startPage = Math.max(1, Math.min(page - 2, totalPages - 4));
-                  const p = startPage + i;
-                  if (p > totalPages) return null;
-                  return (
-                    <a
-                      key={p}
-                      href={`/listings?${new URLSearchParams({ ...(deal && { deal }), ...(type && { type }), ...(dong && { dong }), sort, page: String(p) }).toString()}`}
-                      className={`px-4 py-2 rounded-lg text-sm ${
-                        p === page
-                          ? 'bg-wishes-primary text-white'
-                          : 'border border-gray-300 hover:bg-gray-50'
-                      }`}
-                    >
+              <div className="flex flex-col items-center gap-4 mt-10">
+                <div className="flex items-center gap-1">
+                  {/* 처음 */}
+                  <button onClick={() => goToPage(1)} disabled={page === 1} className="p-2 rounded-lg border border-gray-300 text-sm hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed" title="처음">
+                    <ChevronsLeft className="w-4 h-4" />
+                  </button>
+                  {/* 이전 */}
+                  <button onClick={() => goToPage(page - 1)} disabled={page === 1} className="p-2 rounded-lg border border-gray-300 text-sm hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed" title="이전">
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+
+                  {/* 페이지 번호 */}
+                  {getPageNumbers().map((p) => (
+                    <button key={p} onClick={() => goToPage(p)} className={`px-3 py-2 rounded-lg text-sm min-w-[40px] ${p === page ? 'bg-wishes-primary text-white font-bold' : 'border border-gray-300 hover:bg-gray-50'}`}>
                       {p}
-                    </a>
-                  );
-                })}
-                {page < totalPages && (
-                  <a
-                    href={`/listings?${new URLSearchParams({ ...(deal && { deal }), ...(type && { type }), ...(dong && { dong }), sort, page: String(page + 1) }).toString()}`}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
-                  >
-                    다음
-                  </a>
-                )}
+                    </button>
+                  ))}
+
+                  {/* 다음 */}
+                  <button onClick={() => goToPage(page + 1)} disabled={page >= totalPages} className="p-2 rounded-lg border border-gray-300 text-sm hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed" title="다음">
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  {/* 끝 */}
+                  <button onClick={() => goToPage(totalPages)} disabled={page >= totalPages} className="p-2 rounded-lg border border-gray-300 text-sm hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed" title="끝">
+                    <ChevronsRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 페이지 직접 입력 */}
+                <form onSubmit={handlePageInputSubmit} className="flex items-center gap-2 text-sm text-gray-500">
+                  <span>{page} / {totalPages} 페이지</span>
+                  <span className="text-gray-300">|</span>
+                  <input
+                    type="number"
+                    min={1}
+                    max={totalPages}
+                    value={pageInput}
+                    onChange={(e) => setPageInput(e.target.value)}
+                    placeholder="페이지 번호"
+                    className="w-24 px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-center focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30"
+                  />
+                  <button type="submit" className="px-3 py-1.5 bg-wishes-primary text-white rounded-lg text-sm hover:bg-wishes-primary/90">
+                    이동
+                  </button>
+                </form>
               </div>
             )}
           </>
