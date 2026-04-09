@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Eye, Hash } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatFloor } from '@/lib/formatFloor';
 
 interface HomeListingCardProps {
   listing: any;
@@ -61,7 +62,7 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
   const thumbUrl = images.length > 0 ? images[0].url : null;
   const price = formatPrice(listing);
   const area = listing.area_m2 || listing.area || 0;
-  const floor = listing.floor_current || listing.floor || '';
+  const floor = formatFloor(listing);
   const pyeong = sqmToPyeong(area);
 
   return (

@@ -3,9 +3,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation , Ruler, Shield, Layers, ParkingCircle, FileText, Store } from 'lucide-react';
+import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation } from 'lucide-react';
 import CompassDirection from '@/components/CompassDirection';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPrice } from '@/lib/utils';
+import { formatFloorWithTotal } from '@/lib/formatFloor';
 import ImageGallery from '@/components/ImageGallery';
 import { ListingCard } from '@/components/ListingCard';
 import RealPriceChart from '@/components/RealPriceChart';
@@ -28,7 +29,6 @@ interface NearbyStation {
 
 interface Props {
   id: string;
-  listing?: any;
 }
 
 // ── 최근 본 매물 관리 ──
@@ -52,16 +52,16 @@ function getRecentlyViewed(excludeId: number): number[] {
   }
 }
 
-export default function ListingDetailClient({ id, listing: initialListing }: Props) {
+export default function ListingDetailClient({ id }: Props) {
   const { user, setShowAuthModal } = useAuth();
   const isLoggedIn = !!user;
 
-  const [listing, setListing] = useState<any>(initialListing || null);
+  const [listing, setListing] = useState<any>(null);
   const [images, setImages] = useState<any[]>([]);
   const [features, setFeatures] = useState<any[]>([]);
   const [relatedListings, setRelatedListings] = useState<any[]>([]);
   const [recentListings, setRecentListings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(!initialListing);
+  const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   // 주변 교통 정보 상태
@@ -75,7 +75,8 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
   // 주소 마스킹: 비로그인 시 동까지만 표시
   const getMaskedAddress = (address: string) => {
     if (isLoggedIn) return address;
-    const match = address?.match(/^(.*?[동리가읍면])/);
+    // "서울 관악구 봉천동 1602-37" → "서울 관악구 봉천동"
+    const match = address?.match(/^(.+?[동리가읍면])/) ;
     return match ? match[1] : address?.split(' ').slice(0, 3).join(' ') || '';
   };
 
@@ -85,9 +86,8 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
       const supabase = createClient();
 
       // 메인 데이터와 부가 데이터 병렬 로드
-      // If listing was passed from server, skip listing fetch (RLS blocks anon client)
       const [listingResult, imagesResult, featuresResult] = await Promise.all([
-        initialListing ? Promise.resolve({ data: initialListing }) : supabase.from('listings').select('*').eq('id', listingId).single(),
+        supabase.from('listings').select('*').eq('id', listingId).single(),
         supabase.from('listing_images').select('id, url, sort_order').eq('listing_id', listingId).order('sort_order', { ascending: true }),
         supabase.from('listing_features').select('id, feature').eq('listing_id', listingId),
       ]);
@@ -99,7 +99,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
       }
 
       const data = listingResult.data;
-      if (!initialListing) setListing(data);
+      setListing(data);
       setImages(imagesResult.data || []);
       setFeatures(featuresResult.data || []);
       setLoading(false);
@@ -137,7 +137,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
           .in('id', recentIds)
           .eq('status', '가용');
 
-        // 원렘 순서 유지
+        // 원래 순서 유지
         const sorted = recentIds
           .map((rid) => (recents || []).find((r: any) => r.id === rid))
           .filter(Boolean);
@@ -176,49 +176,46 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
     if (typeof window === 'undefined' || !window.kakao?.maps) return;
 
     const initMap = () => {
-      const kakao = window.kakao;
-      const container = mapContainerRef.current;
-      if (!container) return;
+      try {
+        const kakao = window.kakao;
+        const container = mapContainerRef.current;
+        if (!container) return;
 
-      const offsetLat = (Math.random() - 0.5) * 0.003;
-        const offsetLng = (Math.random() - 0.5) * 0.003;
-        const position = new kakao.maps.LatLng(listing.lat + offsetLat, listing.lng + offsetLng);
-      const map = new kakao.maps.Map(container, {
-        center: position,
-        level: 4,
+        // 비로그인 시 마커 좌푨를 약간 흐리게 (반경 ~100m 랜덤 offset)
+        const offsetLat = isLoggedIn ? 0 : (Math.random() - 0.5) * 0.002;
+        const offsetLng = isLoggedIn ? 0 : (Math.random() - 0.5) * 0.002;
+        const position = new kakao.maps.LatLng(
+          listing.lat + offsetLat,
+          listing.lng + offsetLng
+        );
+
+        const map = new kakao.maps.Map(container, {
+          center: position,
+          level: 4,
           draggable: false,
           scrollwheel: false,
-          disableDoubleClick: true,
           disableDoubleClickZoom: true,
-      });
+        });
 
-      // 마커
-      // 반경 100m 원으로 대략적 위치 표시 (정확한 주소 비공개)
-        new kakao.maps.Circle({
-          center: position,
-          radius: 100,
-          strokeWeight: 2,
-          strokeColor: '#4A7C59',
-          strokeOpacity: 0.8,
-          fillColor: '#4A7C59',
-          fillOpacity: 0.15,
+        // 마커 (대략적 위치 표시)
+        const mapMarker = new kakao.maps.Marker({
+          position,
           map,
         });
 
-      // 인포윈도우
-      const displayAddress = listing.dong || listing.address?.split(' ').slice(0, 3).join(' ') || '매물 위치';
-      const infoContent = `<div style="padding:6px 10px;font-size:12px;white-space:nowrap;font-weight:600;">${listing.title || displayAddress || '매물 위치'}</div>`;
-      const infoWindow = new kakao.maps.InfoWindow({
-        content: infoContent,
-        removable: true,
-      });
-      infoWindow.setPosition(position);
-      infoWindow.open(map);
+        // 인포윈도우 (동 단위까지만 표시)
+        const displayAddress = isLoggedIn ? (listing.address || '매물 위치') : (listing.dong || '매물 위치');
+        const infoContent = `<div style="padding:6px 10px;font-size:12px;white-space:nowrap;font-weight:600;">${listing.title || displayAddress}</div>`;
+        const infoWindow = new kakao.maps.InfoWindow({
+          content: infoContent,
+          removable: true,
+        });
+        infoWindow.open(map, mapMarker);
 
-      // 컨튼롤
-      map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
-
-      mapInstanceRef.current = map;
+        mapInstanceRef.current = map;
+      } catch (error) {
+        console.error('카카오맵 초기화 에러:', error);
+      }
     };
 
     // kakao.maps.load 가 이미 실행됐을 경우
@@ -320,7 +317,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: '홉', item: 'https://wishes.co.kr' },
+      { '@type': 'ListItem', position: 1, name: '홈', item: 'https://wishes.co.kr' },
       { '@type': 'ListItem', position: 2, name: '매물 검색', item: 'https://wishes.co.kr/listings' },
       { '@type': 'ListItem', position: 3, name: listing.title },
     ],
@@ -388,12 +385,11 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 {listing.area_supply_m2 && (
                   <InfoRow label="공급면적" value={`${listing.area_supply_m2}㎡ (${sqmToPyeong(listing.area_supply_m2)}평)`} />
                 )}
-                <InfoRow label="층수" value={listing.floor_total ? `${listing.floor_current} / ${listing.floor_total}층` : listing.floor_current} />
+                <InfoRow label="층수" value={formatFloorWithTotal(listing.floor_current, listing.floor_total)} />
                 {listing.rooms && <InfoRow label="방 수" value={`${listing.rooms}개`} />}
                 {listing.bathrooms && <InfoRow label="욕실 수" value={`${listing.bathrooms}개`} />}
                 {listing.direction && <InfoRow label="방향" value={listing.direction} />}
                 {listing.heating_type && <InfoRow label="난방방식" value={listing.heating_type} />}
-                  {listing.entrance_type && <InfoRow label="현관유형" value={listing.entrance_type} />}
                 <div className="col-span-2">
                   <span className="text-xs text-gray-400">주소</span>
                   <div className="flex items-center gap-2 mt-0.5">
@@ -403,7 +399,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                         onClick={() => setShowAuthModal(true)}
                         className="text-[11px] text-green-600 hover:text-green-700 bg-green-50 hover:bg-green-100 px-2 py-0.5 rounded-full transition-colors font-medium"
                       >
-                        
+                        로그인하여 전체 주소 보기
                       </button>
                     )}
                   </div>
@@ -420,7 +416,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                     <Compass className="w-4 h-4 text-wishes-secondary/60" />
                     방향
                   </h3>
-                  {/* CompassDirection removed */}
+                  <CompassDirection direction={listing.direction} />
                 </div>
               )}
 
@@ -470,97 +466,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 </div>
               </div>
 
-              
-            {/* 건축물대장 정보 */}
-            {listing.building_info && Object.keys(listing.building_info).length > 0 && (
-              <div className="mt-6 pt-6 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
-                  <FileText className="w-4 h-4 text-wishes-secondary/60" />
-                  건축물대장 정보
-                </h3>
-                <div className="bg-gray-50 rounded-xl p-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {/* 건물명은 고객 페이지에서 숨김 (위치 노출 방지, admin에서만 표시) */}
-                    {listing.building_info.사용승인일 && (
-                      <div><span className="text-[11px] text-gray-400">사용승인일(준공)</span><p className="text-sm font-medium text-gray-800">{listing.building_info.사용승인일}</p></div>
-                    )}
-                    {listing.building_info.주용도 && (
-                      <div><span className="text-[11px] text-gray-400">주용도</span><p className="text-sm font-medium text-gray-800">{listing.building_info.주용도}</p></div>
-                    )}
-                    {listing.building_info.건물구조 && (
-                      <div><span className="text-[11px] text-gray-400">건물구조</span><p className="text-sm font-medium text-gray-800">{listing.building_info.건물구조}</p></div>
-                    )}
-                    {listing.building_info.지상층수 && (
-                      <div><span className="text-[11px] text-gray-400">지상/지하층수</span><p className="text-sm font-medium text-gray-800">{listing.building_info.지상층수}층 / 지하 {listing.building_info.지하층수 || '0'}층</p></div>
-                    )}
-                    {listing.building_info.세대수 && (
-                      <div><span className="text-[11px] text-gray-400">총 세대수</span><p className="text-sm font-medium text-gray-800">{listing.building_info.세대수}세대</p></div>
-                    )}
-                    {listing.building_info.대지면적 && (
-                      <div><span className="text-[11px] text-gray-400">대지면적</span><p className="text-sm font-medium text-gray-800">{listing.building_info.대지면적}㎡</p></div>
-                    )}
-                    {listing.building_info.연면적 && (
-                      <div><span className="text-[11px] text-gray-400">연면적</span><p className="text-sm font-medium text-gray-800">{listing.building_info.연면적}㎡</p></div>
-                    )}
-                    {listing.building_info.건폐율 && (
-                      <div><span className="text-[11px] text-gray-400">건폐율</span><p className="text-sm font-medium text-gray-800">{listing.building_info.건폐율}%</p></div>
-                    )}
-                    {listing.building_info.용적률 && (
-                      <div><span className="text-[11px] text-gray-400">용적률</span><p className="text-sm font-medium text-gray-800">{listing.building_info.용적률}%</p></div>
-                    )}
-                    {listing.building_info.총주차대수 && (
-                      <div><span className="text-[11px] text-gray-400">총 주차대수</span><p className="text-sm font-medium text-gray-800">{listing.building_info.총주차대수}대</p></div>
-                    )}
-                    {listing.building_info.세대당주차대수 && (
-                      <div><span className="text-[11px] text-gray-400">세대당 주차대수</span><p className="text-sm font-medium text-gray-800">{listing.building_info.세대당주차대수}대</p></div>
-                    )}
-                    {(listing.building_info.승용엘리베이터 || listing.building_info.비상용엘리베이터) && (
-                      <div><span className="text-[11px] text-gray-400">승강기</span><p className="text-sm font-medium text-gray-800">승용 {listing.building_info.승용엘리베이터 || 0}대 / 비상용 {listing.building_info.비상용엘리베이터 || 0}대</p></div>
-                    )}
-                  </div>
-                  {listing.building_info.위반건축물 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-red-50 text-red-600">
-                        <Shield className="w-3 h-3" /> 위반건축물 확인 필요
-                      </span>
-                    </div>
-                  )}
-                  {!listing.building_info.위반건축물 && listing.building_info.사용승인일 && (
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-50 text-green-600">
-                        <Shield className="w-3 h-3" /> 위반건축물 해당없음
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <p className="text-[10px] text-gray-300 mt-2">출처: 국토교통부 건축물대장 정보시스템</p>
-              </div>
-            )}
-
-            {/* 상가/사무실 전용 정보 */}
-            {(listing.type === '상가' || listing.type === '사무실') && (listing.rights_fee || listing.lease_period || listing.price_per_pyeong) && (
-              <div className="mt-6 pt-6 border-t border-gray-100">
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
-                  <Store className="w-4 h-4 text-orange-500/70" />
-                  상가/사무실 정보
-                </h3>
-                <div className="bg-orange-50/50 rounded-xl p-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {listing.rights_fee > 0 && (
-                      <div><span className="text-[11px] text-gray-400">권리금</span><p className="text-sm font-bold text-orange-700">{listing.rights_fee.toLocaleString('ko-KR')}만원</p></div>
-                    )}
-                    {listing.lease_period && (
-                      <div><span className="text-[11px] text-gray-400">임대기간</span><p className="text-sm font-medium text-gray-800">{listing.lease_period}</p></div>
-                    )}
-                    {listing.price_per_pyeong > 0 && (
-                      <div><span className="text-[11px] text-gray-400">평당 임대료</span><p className="text-sm font-medium text-gray-800">{listing.price_per_pyeong.toLocaleString('ko-KR')}만원/평</p></div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 설명 */}
+              {/* 설명 */}
               {listing.description && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">상세 설명</h3>
@@ -635,7 +541,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                             onClick={() => setShowAuthModal(true)}
                             className="text-green-600 hover:text-green-700 font-medium ml-1"
                           >
-                            
+                            전체 주소 보기
                           </button>
                         )}
                       </p>
@@ -664,7 +570,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
               {/* 가격 요약 (U2 가격 레이블) */}
               <div className="bg-wishes-accent/5 rounded-xl p-4 mb-4">
                 <p className="text-xs text-wishes-muted mb-1">
-                  {listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : '보증금/월세'}
+                  {listing.deal === '욤매' ? '매매가' : listing.deal === '전세' ? '전세금' : '보증금/월세'}
                 </p>
                 <p className="text-xl font-bold text-wishes-primary">{price.main}</p>
                 {listing.maintenance_fee > 0 && (
@@ -695,10 +601,25 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
           </div>
         </div>
 
-        {/* 연관 매물 (V3-18) */}
-        {listing && <SmartRecommendations listingId={listing.id} dong={listing.dong || ""} />}
+        {/* V3-18: 스마트 추천 */}
+        <SmartRecommendations listingId={listing.id} dong={listing.dong} />
 
-          {recentListings.length > 0 && (
+        {/* 연관 매물 (V3-18) */}
+        {relatedListings.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-lg font-bold text-wishes-primary mb-4">
+              {listing.dong} 유사 매물
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {relatedListings.map((item: any) => (
+                <ListingCard key={item.id} listing={item} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 최근 본 매물 (V3-27) */}
+        {recentListings.length > 0 && (
           <div className="mt-12">
             <h2 className="text-lg font-bold text-wishes-primary mb-4">
               최근 본 매물
@@ -725,12 +646,12 @@ function InfoRow({ label, value, fullWidth }: { label: string; value: string; fu
 }
 
 function OptionBadge({ label, available }: { label: string; available: boolean }) {
-  if (!available) return null;
   return (
-    <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium bg-green-50 text-green-700 border border-green-200">
-      <Check className="w-3.5 h-3.5" />
+    <span className={`flex items-center gap-1 px-3 py-1 text-sm rounded-full ${
+      available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400 line-through'
+    }`}>
+      {available ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
       {label}
     </span>
   );
 }
-// v2-fix: marker error resolved

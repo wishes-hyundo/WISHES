@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, X, Building2, MapPin, Maximize, Loader2, Check } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong } from '@/lib/utils';
+import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import type { Listing } from '@/types';
 
@@ -73,7 +74,7 @@ export default function ComparePage() {
     );
   }
 
-  // 비교 항목 정의
+  // 비� 항목 정의
   const compareFields = [
     {
       label: '거래유형',
@@ -115,7 +116,7 @@ export default function ComparePage() {
       label: '층수',
       render: (l: Listing) => (
         <span>
-          {l.floor_current}{l.floor_total ? `/${l.floor_total}층` : '층'}
+          {formatFloorWithTotal(l.floor_current, l.floor_total)}
         </span>
       ),
     },
@@ -167,9 +168,9 @@ export default function ComparePage() {
         </div>
       </section>
 
-      {/* 비교 테이블 - 데스크톱 */}
+      {/* 비교 테이블 - 데스크탑 */}
       <div className="max-w-6xl mx-auto px-4 py-8">
-        {/* 데스크톱: 테이블 레이아웃 */}
+        {/* 데스크탑: 테이블 레이아웃 */}
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>

@@ -1,16 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, Eye, Flame, Sparkles, Heart } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, Eye, Hash, Flame, Sparkles, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatFloor } from '@/lib/formatFloor';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import type { Listing } from '@/types';
-import { getMosaicUrl } from '@/lib/getMosaicUrl';
 
-// NEW: 3일(72시간) 이내 등록 / HOT: 조회수 50 이상
+// NEW: 7일 이내 등록 / HOT: 조회수 50 이상
 const isNew = (createdAt: string) => {
   const diff = Date.now() - new Date(createdAt).getTime();
-  return diff < 3 * 24 * 60 * 60 * 1000;
+  return diff < 7 * 24 * 60 * 60 * 1000;
 };
 const isHot = (views?: number) => (views || 0) >= 50;
 
@@ -60,13 +60,6 @@ const formatAmount = (amount: number) => {
   return `${amount.toLocaleString('ko-KR')}`;
 };
 
-const formatFloor = (listing: Listing) => {
-  const current = listing.floor_current || listing.floor || '';
-  const total = listing.floor_total;
-  if (!current) return '';
-  if (total) return `${current}/${total}층`;
-  return current.includes('층') ? current : `${current}층`;
-};
 
 const formatPrice = (listing: Listing) => {
   if (listing.deal === '매매') {
@@ -90,7 +83,6 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
   // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
   const listingImages = (listing as any).listing_images || listing.images || [];
   const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
-  const mosaicThumbUrl = thumbUrl ? getMosaicUrl(thumbUrl) : null;
   const price = formatPrice(listing);
 
   if (compact) {
@@ -108,9 +100,9 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
       >
         {/* 이미지 */}
         <div className="w-28 h-28 shrink-0 relative overflow-hidden bg-gray-100">
-          {mosaicThumbUrl ? (
+          {thumbUrl ? (
             <img
-              src={mosaicThumbUrl}
+              src={thumbUrl}
               alt={listing.title}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             />
@@ -132,7 +124,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-sm font-bold text-wishes-primary truncate">{price}</p>
-              <span className="text-[10px] text-wishes-secondary/70 font-mono font-medium shrink-0 bg-wishes-secondary/10 px-1.5 py-0.5 rounded">매물번호 W-{listing.id}</span>
+              <span className="text-[10px] text-gray-400 font-mono shrink-0">W-{listing.id}</span>
             </div>
             <p className="text-xs text-gray-600 truncate mt-0.5">{listing.title}</p>
           </div>
@@ -140,10 +132,13 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
             <span>{listing.area_m2 || listing.area || 0}㎡</span>
             <span>·</span>
             <span>{formatFloor(listing)}</span>
-           <>
-                  <span>·</span>
-                  <span className="flex items-center gap-0.5 text-wishes-primary/50"><Eye className="w-3 h-3" />{(listing as any).views || 0}회</span>
-                </>          </div>
+            {(listing as any).views > 0 && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-0.5"><Eye className="w-3 h-3" />{(listing as any).views}</span>
+              </>
+            )}
+          </div>
         </div>
       </Wrapper>
     );
@@ -159,9 +154,9 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
       {/* 이미지 영역 */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
         {/* 배경 이미지 */}
-        {mosaicThumbUrl ? (
+        {thumbUrl ? (
           <img
-            src={mosaicThumbUrl}
+            src={thumbUrl}
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
             loading="lazy"
@@ -283,13 +278,16 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
         {/* 하단 정보 */}
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
           <div className="flex items-center gap-3">
-            <span className="text-wishes-secondary/80 font-mono font-medium flex items-center gap-1 bg-wishes-secondary/10 px-1.5 py-0.5 rounded">
-              매물번호 W-{listing.id}
+            <span className="text-wishes-muted font-mono flex items-center gap-1">
+              <Hash className="w-3 h-3" />
+              W-{listing.id}
             </span>
-            <span className="text-wishes-primary/60 font-medium flex items-center gap-1">
+            {(listing as any).views > 0 && (
+              <span className="text-wishes-muted flex items-center gap-1">
                 <Eye className="w-3 h-3" />
-                {(listing as any).views || 0}회
+                {(listing as any).views}
               </span>
+            )}
           </div>
           <span className="text-wishes-muted flex items-center gap-1">
             <Calendar className="w-3 h-3" />

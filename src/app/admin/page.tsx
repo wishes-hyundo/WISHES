@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminDashboardCharts } from '@/components/AdminDashboardCharts';
 import { ExcelUpload } from '@/components/ExcelUpload';
 import { ContractRenewalAlert } from '@/components/ContractRenewalAlert';
+import { formatFloorWithTotal } from '@/lib/formatFloor';
 
 interface Stats {
   totalListings: number;
@@ -282,7 +283,7 @@ export default function AdminPage() {
       // 선택 필드 (값이 있을 때만 전송)
       if (newListing.monthly) payload.monthly = newListing.monthly;
       if (newListing.price) payload.price = newListing.price;
-      if (newListing.maintenance_fee) payload.maintenance_fee = newListing.maintenance_fee;
+      if (newListing.maintenance_fee != null) payload.maintenance_fee = newListing.maintenance_fee;
       if (newListing.area_supply_m2) payload.area_supply_m2 = newListing.area_supply_m2;
       if (newListing.floor_total) payload.floor_total = newListing.floor_total;
       if (newListing.rooms) payload.rooms = newListing.rooms;
@@ -465,7 +466,7 @@ export default function AdminPage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <a href="/admin/listings" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
+          <a href="/admin?tab=listings" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
             <p className="text-2xl mb-2">🏠</p>
             <h3 className="font-bold text-wishes-primary mb-2">매물 관리</h3>
             <p className="text-sm text-gray-600">{listings.length}개의 매물 관리</p>
@@ -475,11 +476,11 @@ export default function AdminPage() {
             <h3 className="font-bold text-wishes-primary mb-2">상담 관리</h3>
             <p className="text-sm text-gray-600">{contacts.length}개의 상담 기록</p>
           </a>
-          <a href="/admin/command-center.html" className="card-premium p-6 cursor-pointer hover:shadow-lg transition">
+          <div className="card-premium p-6">
             <p className="text-2xl mb-2">⚙️</p>
             <h3 className="font-bold text-wishes-primary mb-2">설정</h3>
             <p className="text-sm text-gray-600">사이트 설정 관리</p>
-          </a>
+          </div>
         </div>
 
         {/* V4-24: 계약 갱신 알림 */}
@@ -662,7 +663,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>매매가</label>
+                    <label className={labelClass}>맠매가</label>
                     <input
                       type="number"
                       inputMode="numeric"
@@ -818,7 +819,7 @@ export default function AdminPage() {
                       <option value="남서향">남서향</option>
                       <option value="북동향">북동향</option>
                       <option value="북서향">북서향</option>
-                    </select>
+                       </select>
                   </div>
                   <div>
                     <label className={labelClass}>난방 방식</label>
@@ -929,7 +930,7 @@ export default function AdminPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                         <div>
-                          <p className="text-sm font-semibold text-gray-700">사진을 드래그하여 놓거나 클릭하세요</p>
+                          <p className="text-sm font-semibold text-gray-700">사진움 드래그하여 놓거나 클릭하세요</p>
                           <p className="text-xs text-gray-400 mt-1">JPG, PNG, WebP / 최대 5MB / 여러 장 동시 업로드 가능</p>
                         </div>
                       </>
@@ -1055,7 +1056,7 @@ export default function AdminPage() {
                     </label>
                     <label className="flex items-center gap-2">
                       <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
-                      간판 설치 가능 여부
+                      Ꞅ판 설치 가능 여부
                     </label>
                     <label className="flex items-center gap-2">
                       <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-wishes-secondary focus:ring-wishes-secondary" />
@@ -1101,7 +1102,7 @@ export default function AdminPage() {
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">W-{listing.id}</span>
+                      <span className="text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">W {listing.id}</span>
                       <h3 className="text-base font-bold text-wishes-primary">{listing.title}</h3>
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
@@ -1145,7 +1146,7 @@ export default function AdminPage() {
                   <div>
                     <p className="text-gray-500 text-xs">층</p>
                     <p className="font-semibold">
-                      {listing.floor_current}{listing.floor_total ? `/${listing.floor_total}` : ''}층
+                      {formatFloorWithTotal(listing.floor_current, listing.floor_total)}
                     </p>
                   </div>
                   <div>

@@ -56,6 +56,7 @@ export function formatFloor(listing: Listing): string {
   // floor_total이 있으면 현재층/전체층 형식
   if (total) {
     const formattedTotal = formatFloorNumber(total);
+    // 이미 "층"이 포함되어 있으면 제거하고 재조합
     const currentWithoutUnit = formattedCurrent.replace(/층$/, '');
     const totalWithoutUnit = formattedTotal.replace(/층$/, '');
     return `${currentWithoutUnit}/${totalWithoutUnit}층`;
