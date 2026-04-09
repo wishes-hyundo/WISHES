@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { Breadcrumb } from '@/components/Breadcrumb';
-import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
 const dealTypes = ['전세', '월세', '매매'];
 const listingTypes = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
@@ -36,14 +36,38 @@ export default function ListingsClient({
   const [loading, setLoading] = useState(initialListings.length === 0 && totalCount === 0);
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const hasInitialData = useRef(initialListings.length > 0 || totalCount > 0);
 
   const deal = searchParams.get('deal') || '';
   const type = searchParams.get('type') || '';
   const dong = searchParams.get('dong') || '';
   const sort = searchParams.get('sort') || 'latest';
+  const search = searchParams.get('search') || '';
   const pageParam = searchParams.get('page') || '1';
   const pageSize = 12;
+
+  // 매물번호 검색 처리
+  const handleSearch = useCallback((e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    const trimmed = searchInput.trim();
+    if (trimmed) {
+      params.set('search', trimmed);
+    }
+    router.push(`/listings?${params.toString()}`);
+  }, [router, searchInput]);
+
+  // 검색 초기화
+  const clearSearch = useCallback(() => {
+    setSearchInput('');
+    router.push('/listings');
+  }, [router]);
+
+  // URL의 search 파라미터 동기화
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
 
   // 데이터 로드 (필터 변경 시 - 사진 매물 우선 2단계 쿼리)
   useEffect(() => {
@@ -58,6 +82,23 @@ export default function ListingsClient({
     const fetchData = async () => {
       setLoading(true);
       const supabase = createClient();
+
+      // 매물번호 검색 모드
+      if (search) {
+        const sId = parseInt(search.replace(/[Ww]-?/g, ''), 10);
+        if (!isNaN(sId)) {
+          const { data, count } = await supabase.from('listings').select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)', { count: 'exact' }).eq('id', sId);
+          setListings(data || []);
+          setTotal(count || 0);
+        } else {
+          const { data, count } = await supabase.from('listings').select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)', { count: 'exact' }).eq('status', '가용').or('title.ilike.%' + search + '%,address.ilike.%' + search + '%,dong.ilike.%' + search + '%').order('created_at', { ascending: false }).range(0, pageSize - 1);
+          setListings(data || []);
+          setTotal(count || 0);
+        }
+        setLoading(false);
+        return;
+      }
+
       const offset = (currentPage - 1) * pageSize;
       const selectFields = 'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views';
       const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
@@ -120,7 +161,7 @@ export default function ListingsClient({
     };
 
     fetchData();
-  }, [deal, type, dong, sort, pageParam]);
+  }, [deal, type, dong, sort, search, pageParam]);
 
   // 스크롤 위치 저장 / 복원
   const scrollSaved = useRef(false);
@@ -162,7 +203,7 @@ export default function ListingsClient({
     }
     scrollSaved.current = false;
     sessionStorage.removeItem('listings_scroll');
-  }, [deal, type, dong, sort, pageParam]);
+  }, [deal, type, dong, sort, search, pageParam]);
 
   const updateFilter = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -172,6 +213,7 @@ export default function ListingsClient({
       params.delete(key);
     }
     params.delete('page');
+    params.delete('search');
     router.push(`/listings?${params.toString()}`);
   }, [router, searchParams]);
 
@@ -220,8 +262,21 @@ export default function ListingsClient({
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6">
+        {/* 매물번호 검색 */}
+        <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Search className="w-4 h-4 text-gray-500" />
+            <span className="text-sm font-medium text-gray-700">매물번호 / 키워드 검색</span>
+          </div>
+          <div className="flex gap-2">
+            <input type="text" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="매물번호 (예: W-10819, 10819) 또는 주소/동 검색" className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30" />
+            <button type="submit" className="px-5 py-2.5 bg-wishes-primary text-white rounded-lg text-sm font-medium hover:bg-wishes-primary/90 flex items-center gap-1.5"><Search className="w-4 h-4" />검색</button>
+            {search && (<button type="button" onClick={clearSearch} className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">초기화</button>)}
+          </div>
+        </form>
+
         {/* 필터 */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
+        {!search && <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <SlidersHorizontal className="w-4 h-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">필터</span>
@@ -243,7 +298,16 @@ export default function ListingsClient({
               {sortOptions.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
             </select>
           </div>
-        </div>
+        </div>}
+
+
+
+        {/* 검색 결과 안내 */}
+        {search && !loading && (
+          <div className="bg-wishes-secondary/5 border border-wishes-secondary/20 rounded-lg px-4 py-3 mb-4">
+            <p className="text-sm text-wishes-primary"><strong>&quot;{search}&quot;</strong> 검색 결과: <strong>{total}</strong>건</p>
+          </div>
+        )}
 
         {/* 결과 */}
         {loading ? (
@@ -256,7 +320,7 @@ export default function ListingsClient({
         ) : listings.length > 0 ? (
           <>
             <p className="text-sm text-gray-500 mb-4">
-              총 <strong className="text-wishes-primary">{total.toLocaleString()}</strong>건의 매물
+              {!search && <>총 <strong className="text-wishes-primary">{total.toLocaleString()}</strong>건의 매물</>}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {listings.map((listing) => (<ListingCard key={listing.id} listing={listing as any} />))}
@@ -315,8 +379,9 @@ export default function ListingsClient({
         ) : (
           <div className="text-center py-20 bg-white rounded-xl border border-gray-200 mt-4">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 font-medium">검색 조건에 맞는 매물이 없습니다</p>
-            <p className="text-sm text-gray-400 mt-1">필터를 변경해보세요</p>
+            <p className="text-gray-500 font-medium">{search ? `"${search}" 검색 결과가 없습니다` : '검색 조건에 맞는 매물이 없습니다'}</p>
+            <p className="text-sm text-gray-400 mt-1">{search ? '매물번호나 키워드를 다시 확인해보세요' : '필터를 변경해보세요'}</p>
+            {search && (<button onClick={clearSearch} className="mt-4 px-4 py-2 bg-wishes-primary text-white rounded-lg text-sm hover:bg-wishes-primary/90">전체 매물 보기</button>)}
           </div>
         )}
       </div>
