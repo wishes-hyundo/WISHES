@@ -293,6 +293,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {sidebarOpen && <span>매물 검색</span>}
           </Link>
         )}
+
+        <a
+          href="/mobile-photo.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] text-amber-300/90 hover:bg-amber-500/20 hover:text-amber-200 active:bg-amber-500/30"
+        >
+          <span className="text-lg flex-shrink-0">📷</span>
+          {sidebarOpen && <span>모바일 사진등록</span>}
+        </a>
 </nav>
 
 

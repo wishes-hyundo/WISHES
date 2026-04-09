@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>WISHES 모바일 사진등록</title>
+<style>
+  :root {
+    --primary: #2d5016;
+    --primary-light: #4a7c2e;
+    --accent: #e8a900;
+    --bg: #f5f3eb;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --text-sub: #666666;
+    --border: #e0ddd4;
+    --success: #10b981;
+    --danger: #ef4444;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Header */
+  .header {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--primary);
+    color: white;
+    padding: 16px 20px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.15);
+  }
+  .header-logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), #f0c040);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .header-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-sub { font-size: 11px; opacity: .7; margin-top: 1px; }
+  .header-back {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    background: rgba(255,255,255,.15); border: none; color: white;
+    padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  }
+
+  /* Search Section */
+  .search-section {
+    padding: 16px;
+    background: white;
+    border-bottom: 1px solid var(--border);
+  }
+  .search-box {
+    display: flex; gap: 8px;
+  }
+  .search-input {
+    flex: 1;
+    padding: 14px 16px;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 16px;
+    outline: none;
+    transition: border-color .2s;
+    background: var(--bg);
+  }
+  .search-input:focus { border-color: var(--primary); }
+  .search-input::placeholder { color: #aaa; }
+  .search-btn {
+    padding: 14px 20px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .search-btn:active { background: var(--primary-light); }
+  .search-hint {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--text-sub);
+  }
+
+  /* Listing Results */
+  .results-section {
+    padding: 12px 16px;
+  }
+  .results-count {
+    font-size: 13px;
+    color: var(--text-sub);
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .results-count strong { color: var(--primary); font-size: 15px; }
+
+  .listing-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    border: 2px solid transparent;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+    cursor: pointer;
+    transition: all .2s;
+    position: relative;
+  }
+  .listing-card:active { transform: scale(.98); }
+  .listing-card.selected {
+    border-color: var(--primary);
+    background: #f0f7ec;
+    box-shadow: 0 0 0 3px rgba(45,80,22,.12);
+  }
+  .listing-id {
+    display: inline-block;
+    background: var(--primary);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .listing-title {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .listing-info {
+    font-size: 12px;
+    color: var(--text-sub);
+    display: flex; flex-wrap: wrap; gap: 6px;
+  }
+  .listing-info span {
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 6px;
+  }
+  .listing-price {
+    position: absolute; right: 16px; top: 14px;
+    font-size: 14px; font-weight: 700;
+    color: var(--danger);
+  }
+  .listing-check {
+    position: absolute; right: 16px; bottom: 14px;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    background: var(--border);
+    color: white;
+    transition: all .2s;
+  }
+  .listing-card.selected .listing-check {
+    background: var(--success);
+  }
+  .listing-images-count {
+    display: inline-flex; align-items: center; gap: 3px;
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /* Upload Section */
+  .upload-section {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: white;
+    border-top: 1px solid var(--border);
+    padding: 16px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+    z-index: 90;
+    transition: transform .3s;
+  }
+  .upload-section.hidden { transform: translateY(100%); }
+
+  .selected-info {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    background: #f0f7ec;
+    border-radius: 10px;
+    border: 1px solid #d4e8c8;
+  }
+  .selected-info-icon {
+    width: 36px; height: 36px;
+    background: var(--primary);
+    color: white;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .selected-info-text {
+    flex: 1; min-width: 0;
+  }
+  .selected-info-text .name {
+    font-size: 14px; font-weight: 600;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .selected-info-text .id { font-size: 11px; color: var(--text-sub); }
+
+  .upload-actions {
+    display: flex; gap: 10px;
+  }
+  .upload-btn {
+    flex: 1;
+    padding: 16px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all .15s;
+  }
+  .upload-btn:active { transform: scale(.97); }
+  .upload-btn.camera {
+    background: var(--accent);
+    color: var(--text);
+  }
+  .upload-btn.gallery {
+    background: var(--primary);
+    color: white;
+  }
+  .upload-btn:disabled {
+    opacity: .5;
+    pointer-events: none;
+  }
+
+  /* Preview Section */
+  .preview-section {
+    padding: 0 16px 140px;
+  }
+  .preview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .preview-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #eee;
+  }
+  .preview-item img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  .preview-remove {
+    position: absolute; top: 4px; right: 4px;
+    width: 24px; height: 24px;
+    background: rgba(0,0,0,.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .preview-label {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px;
+  }
+  .preview-label-text {
+    font-size: 14px; font-weight: 600;
+  }
+  .submit-btn {
+    padding: 12px 24px;
+    background: var(--success);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .submit-btn:disabled {
+    background: #ccc;
+    pointer-events: none;
+  }
+  .submit-btn:active { transform: scale(.97); }
+
+  /* Existing Images */
+  .existing-images {
+    margin-top: 12px;
+  }
+  .existing-label {
+    font-size: 13px;
+    color: var(--text-sub);
+    margin-bottom: 8px;
+  }
+  .existing-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .existing-item {
+    aspect-ratio: 1;
+    border-radius: 10px;
+    overflow: hidden;
+    background: #eee;
+    border: 2px solid var(--border);
+  }
+  .existing-item img {
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px);
+    background: #1a1a1a; color: white;
+    padding: 14px 24px;
+    border-radius: 12px;
+    font-size: 14px; font-weight: 500;
+    z-index: 200;
+    opacity: 0;
+    transition: all .3s;
+    pointer-events: none;
+    max-width: 90%;
+    text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { background: var(--success); }
+  .toast.error { background: var(--danger); }
+
+  /* Progress */
+  .progress-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .2s;
+  }
+  .progress-overlay.show { opacity: 1; pointer-events: all; }
+  .progress-box {
+    background: white;
+    padding: 32px;
+    border-radius: 20px;
+    text-align: center;
+    min-width: 260px;
+  }
+  .progress-spinner {
+    width: 48px; height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .progress-text { font-size: 15px; font-weight: 600; }
+  .progress-sub { font-size: 12px; color: var(--text-sub); margin-top: 6px; }
+
+  /* Loading skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius);
+    height: 80px;
+    margin-bottom: 10px;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-sub);
+  }
+  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+  .empty-state .title { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .empty-state .desc { font-size: 13px; line-height: 1.6; }
+
+  /* File inputs (hidden) */
+  input[type="file"] { display: none; }
+
+  /* Bottom padding for fixed upload bar */
+  .content-area { padding-bottom: 160px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="header-logo">📷</div>
+  <div>
+    <div class="header-title">WISHES 모바일 사진등록</div>
+    <div class="header-sub">매물을 검색하고 사진을 바로 등록하세요</div>
+  </div>
+  <button class="header-back" onclick="window.location.href='/admin?tab=search'">← 관리자</button>
+</div>
+
+<!-- Search -->
+<div class="search-section">
+  <div class="search-box">
+    <input type="text" class="search-input" id="searchInput"
+           placeholder="건물명, 주소, 매물ID 검색..."
+           enterkeyhint="search"
+           autocomplete="off">
+    <button class="search-btn" id="searchBtn" onclick="searchListings()">검색</button>
+  </div>
+  <div class="search-hint" id="searchHint">💡 건물명, 주소, W-번호로 검색할 수 있습니다</div>
+</div>
+
+<!-- Content -->
+<div class="content-area">
+  <!-- Results -->
+  <div class="results-section" id="resultsSection">
+    <div class="empty-state" id="emptyState">
+      <div class="icon">🏠</div>
+      <div class="title">매물을 검색해주세요</div>
+      <div class="desc">건물명, 주소 또는 매물번호(W-XXXXX)를<br>검색하면 사진을 등록할 수 있습니다</div>
+    </div>
+    <div id="resultsList"></div>
+  </div>
+
+  <!-- Preview -->
+  <div class="preview-section" id="previewSection" style="display:none;">
+    <div class="existing-images" id="existingImages" style="display:none;">
+      <div class="existing-label">📌 기존 등록된 사진</div>
+      <div class="existing-grid" id="existingGrid"></div>
+    </div>
+    <div class="preview-label">
+      <span class="preview-label-text" id="previewLabel">📸 새로 추가할 사진 (0장)</span>
+      <button class="submit-btn" id="submitBtn" onclick="uploadImages()" disabled>
+        ⬆️ 업로드
+      </button>
+    </div>
+    <div class="preview-grid" id="previewGrid"></div>
+  </div>
+</div>
+
+<!-- Upload Bar (Fixed Bottom) -->
+<div class="upload-section hidden" id="uploadBar">
+  <div class="selected-info" id="selectedInfo">
+    <div class="selected-info-icon">🏢</div>
+    <div class="selected-info-text">
+      <div class="name" id="selectedName">-</div>
+      <div class="id" id="selectedId">-</div>
+    </div>
+  </div>
+  <div class="upload-actions">
+    <button class="upload-btn camera" onclick="openCamera()">
+      📷 카메라 촬영
+    </button>
+    <button class="upload-btn gallery" onclick="openGallery()">
+      🖼️ 갤러리 선택
+    </button>
+  </div>
+</div>
+
+<!-- Hidden file inputs -->
+<input type="file" id="cameraInput" accept="image/*" capture="environment" multiple>
+<input type="file" id="galleryInput" accept="image/*" multiple>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Progress Overlay -->
+<div class="progress-overlay" id="progressOverlay">
+  <div class="progress-box">
+    <div class="progress-spinner"></div>
+    <div class="progress-text" id="progressText">사진 업로드 중...</div>
+    <div class="progress-sub" id="progressSub">잠시만 기다려주세요</div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+const AUTH_TOKEN = 'wishes2026';
+let allListings = [];
+let selectedListing = null;
+let pendingFiles = [];
+let isLoading = false;
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  // Enter key search
+  document.getElementById('searchInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') searchListings();
+  });
+
+  // File input handlers
+  document.getElementById('cameraInput').addEventListener('change', handleFiles);
+  document.getElementById('galleryInput').addEventListener('change', handleFiles);
+
+  // Load recent listings on start
+  loadRecentListings();
+});
+
+// Load recent listings
+async function loadRecentListings() {
+  showLoading(true);
+  try {
+    const res = await fetch(`${API_BASE}/api/listings?limit=20&offset=0`, {
+      headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
+    });
+    const data = await res.json();
+    if (data.success !== false && data.data) {
+      allListings = data.data;
+      renderListings(data.data, '최근 등록된 매물');
+    }
+  } catch(e) {
+    console.error('Load error:', e);
+  }
+  showLoading(false);
+}
+
+// Search listings
+async function searchListings() {
+  const query = document.getElementById('searchInput').value.trim();
+  if (!query) {
+    showToast('검색어를 입력해주세요', 'error');
+    return;
+  }
+
+  showLoading(true);
+  document.getElementById('searchBtn').textContent = '검색중...';
+
+  try {
+    // Load all listings if not cached
+    if (allListings.length === 0) {
+      let offset = 0;
+      let batch;
+      do {
+        const res = await fetch(`${API_BASE}/api/listings?limit=1000&offset=${offset}`, {
+          headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
+        });
+        const data = await res.json();
+        batch = data.data || [];
+        allListings = allListings.concat(batch);
+        offset += 1000;
+      } while (batch.length === 1000);
+    }
+
+    // Client-side search
+    const q = query.toLowerCase();
+    const isIdSearch = q.match(/w-?(\d+)/i);
+
+    let results;
+    if (isIdSearch) {
+      const searchId = parseInt(isIdSearch[1]);
+      results = allListings.filter(l => l.id === searchId);
+    } else {
+      results = allListings.filter(l => {
+        const searchFields = [
+          l.title, l.address, l.address_detail, l.dong,
+          l.building_info, String(l.id)
+        ].filter(Boolean).join(' ').toLowerCase();
+        return searchFields.includes(q);
+      });
+    }
+
+    renderListings(results.slice(0, 50), `"${query}" 검색 결과`);
+    document.getElementById('searchHint').innerHTML =
+      `🔍 <strong>${results.length}건</strong> 검색됨 ${results.length > 50 ? '(상위 50건 표시)' : ''}`;
+
+  } catch(e) {
+    showToast('검색 중 오류가 발생했습니다', 'error');
+    console.error('Search error:', e);
+  }
+
+  document.getElementById('searchBtn').textContent = '검색';
+  showLoading(false);
+}
+
+// Render listings
+function renderListings(listings, label) {
+  const container = document.getElementById('resultsList');
+  const empty = document.getElementById('emptyState');
+
+  if (listings.length === 0) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+    empty.querySelector('.title').textContent = '검색 결과가 없습니다';
+    empty.querySelector('.desc').textContent = '다른 검색어로 시도해보세요';
+    return;
+  }
+
+  empty.style.display = 'none';
+
+  const countHtml = `<div class="results-count">📋 ${label} <strong>${listings.length}건</strong></div>`;
+
+  const listHtml = listings.map(l => {
+    const imageCount = (l.listing_images || []).length;
+    const dealType = l.deal || '';
+    const price = formatPrice(l);
+    const isSelected = selectedListing && selectedListing.id === l.id;
+
+    return `
+      <div class="listing-card ${isSelected ? 'selected' : ''}" onclick="selectListing(${l.id})" data-id="${l.id}">
+        <span class="listing-id">W-${l.id}</span>
+        ${imageCount > 0 ? `<span class="listing-images-count">📷 ${imageCount}장</span>` : ''}
+        <div class="listing-title">${escHtml(l.title || '제목 없음')}</div>
+        <div class="listing-info">
+          <span>${escHtml(l.address || '')}</span>
+          ${l.type ? `<span>${l.type}</span>` : ''}
+          ${dealType ? `<span>${dealType}</span>` : ''}
+          ${l.area_m2 ? `<span>${l.area_m2}㎡</span>` : ''}
+        </div>
+        <div class="listing-price">${price}</div>
+        <div class="listing-check">${isSelected ? '✓' : ''}</div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = countHtml + listHtml;
+}
+
+// Format price
+function formatPrice(l) {
+  if (l.deposit && l.monthly) {
+    return `${formatNum(l.deposit)}/${formatNum(l.monthly)}`;
+  }
+  if (l.price) return formatNum(l.price);
+  if (l.deposit) return formatNum(l.deposit);
+  return '';
+}
+
+function formatNum(n) {
+  if (!n) return '0';
+  n = Number(n);
+  if (n >= 10000) return (n/10000).toFixed(n%10000?1:0) + '억';
+  return n.toLocaleString() + '만';
+}
+
+// Select listing
+async function selectListing(id) {
+  const listing = allListings.find(l => l.id === id);
+  if (!listing) return;
+
+  selectedListing = listing;
+  pendingFiles = [];
+
+  // Update UI
+  document.querySelectorAll('.listing-card').forEach(card => {
+    card.classList.toggle('selected', parseInt(card.dataset.id) === id);
+    card.querySelector('.listing-check').textContent = parseInt(card.dataset.id) === id ? '✓' : '';
+  });
+
+  // Show upload bar
+  document.getElementById('uploadBar').classList.remove('hidden');
+  document.getElementById('selectedName').textContent = listing.title || '제목 없음';
+  document.getElementById('selectedId').textContent = `W-${listing.id} | ${listing.address || ''}`;
+
+  // Show preview section
+  document.getElementById('previewSection').style.display = 'block';
+  updatePreview();
+
+  // Load existing images
+  await loadExistingImages(id);
+
+  // Scroll to the selected card
+  const card = document.querySelector(`.listing-card[data-id="${id}"]`);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// Load existing images for a listing
+async function loadExistingImages(listingId) {
+  try {
+    const res = await fetch(`${API_BASE}/api/listings/${listingId}/images`, {
+      headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
+    });
+    const data = await res.json();
+    const images = data.data || [];
+    const container = document.getElementById('existingImages');
+    const grid = document.getElementById('existingGrid');
+
+    if (images.length > 0) {
+      container.style.display = 'block';
+      grid.innerHTML = images.map(img => `
+        <div class="existing-item">
+          <img src="${img.url || img.image_url}" alt="기존 사진" loading="lazy"
+               onerror="this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:12px\\'>로딩실패</div>'">
+        </div>
+      `).join('');
+    } else {
+      container.style.display = 'none';
+      grid.innerHTML = '';
+    }
+  } catch(e) {
+    console.error('Load images error:', e);
+  }
+}
+
+// Open camera
+function openCamera() {
+  if (!selectedListing) return;
+  document.getElementById('cameraInput').click();
+}
+
+// Open gallery
+function openGallery() {
+  if (!selectedListing) return;
+  document.getElementById('galleryInput').click();
+}
+
+// Handle selected files
+function handleFiles(e) {
+  const files = Array.from(e.target.files);
+  if (files.length === 0) return;
+
+  files.forEach(file => {
+    if (!file.type.startsWith('image/')) return;
+    // Limit to 20 files
+    if (pendingFiles.length >= 20) {
+      showToast('최대 20장까지 선택할 수 있습니다', 'error');
+      return;
+    }
+    pendingFiles.push(file);
+  });
+
+  updatePreview();
+  e.target.value = ''; // reset input
+  showToast(`${files.length}장 추가됨 (총 ${pendingFiles.length}장)`, 'success');
+}
+
+// Update preview grid
+function updatePreview() {
+  const grid = document.getElementById('previewGrid');
+  const label = document.getElementById('previewLabel');
+  const submitBtn = document.getElementById('submitBtn');
+
+  label.textContent = `📸 새로 추가할 사진 (${pendingFiles.length}장)`;
+  submitBtn.disabled = pendingFiles.length === 0;
+
+  grid.innerHTML = pendingFiles.map((file, i) => `
+    <div class="preview-item">
+      <img src="${URL.createObjectURL(file)}" alt="미리보기">
+      <button class="preview-remove" onclick="removeFile(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+// Remove a pending file
+function removeFile(index) {
+  pendingFiles.splice(index, 1);
+  updatePreview();
+}
+
+// Upload images
+async function uploadImages() {
+  if (!selectedListing || pendingFiles.length === 0) return;
+
+  showProgress(true, '사진 업로드 중...', `${pendingFiles.length}장을 업로드합니다`);
+
+  try {
+    const formData = new FormData();
+    pendingFiles.forEach((file, i) => {
+      formData.append('images', file);
+    });
+
+    const res = await fetch(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` },
+      body: formData
+    });
+
+    const data = await res.json();
+
+    if (data.success) {
+      showToast(`✅ ${pendingFiles.length}장 업로드 완료!`, 'success');
+      pendingFiles = [];
+      updatePreview();
+      await loadExistingImages(selectedListing.id);
+
+      // Update image count in listing card
+      const card = document.querySelector(`.listing-card[data-id="${selectedListing.id}"]`);
+      if (card) {
+        const existing = card.querySelector('.listing-images-count');
+        const newCount = (data.data || []).length || (document.getElementById('existingGrid').children.length);
+        if (existing) {
+          existing.textContent = `📷 ${newCount}장`;
+        } else {
+          const idSpan = card.querySelector('.listing-id');
+          idSpan.insertAdjacentHTML('afterend', ` <span class="listing-images-count">📷 ${newCount}장</span>`);
+        }
+      }
+    } else {
+      showToast(`❌ 업로드 실패: ${data.error || '알 수 없는 오류'}`, 'error');
+    }
+  } catch(e) {
+    showToast('❌ 업로드 중 오류가 발생했습니다', 'error');
+    console.error('Upload error:', e);
+  }
+
+  showProgress(false);
+}
+
+// UI Helpers
+function showLoading(on) {
+  isLoading = on;
+  const list = document.getElementById('resultsList');
+  if (on && list.children.length === 0) {
+    list.innerHTML = '<div class="skeleton"></div>'.repeat(3);
+    document.getElementById('emptyState').style.display = 'none';
+  }
+}
+
+function showToast(msg, type = '') {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast show ' + type;
+  setTimeout(() => { toast.className = 'toast'; }, 2500);
+}
+
+function showProgress(on, text, sub) {
+  const overlay = document.getElementById('progressOverlay');
+  if (on) {
+    document.getElementById('progressText').textContent = text || '처리 중...';
+    document.getElementById('progressSub').textContent = sub || '';
+    overlay.classList.add('show');
+  } else {
+    overlay.classList.remove('show');
+  }
+}
+
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+</script>
+</body>
+</html>
