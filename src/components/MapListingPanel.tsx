@@ -13,6 +13,8 @@ import { formatFloorWithTotal } from '@/lib/formatFloor';
 import CompassDirection from '@/components/CompassDirection';
 import Link from 'next/link';
 import type { Listing } from '@/types';
+import ListingLocationMap from './ListingLocationMap';
+import RealPriceChart from './RealPriceChart';
 
 interface MapListingPanelProps {
   listingId: number;
@@ -362,6 +364,31 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               </a>
               <p className="text-xs text-gray-400 mt-2">상담 시 최술 실거래가를 안내드립니다.</p>
             </div>
+
+        {/* ── 실거래가 동향 차트 ── */}
+        {listing.dong && (
+          <div className="mt-4">
+            <RealPriceChart
+              listingId={listing.id}
+              dong={listing.dong}
+              type={listing.type}
+              deal={listing.deal}
+            />
+          </div>
+        )}
+
+        {/* ── 매물 위치 지도 ── */}
+        {listing.lat && listing.lng && (
+          <div className="mt-4">
+            <ListingLocationMap
+              lat={listing.lat}
+              lng={listing.lng}
+              address={listing.address || listing.dong || ''}
+              title={listing.title || ''}
+            />
+          </div>
+        )}
+
           </div>
         )}
 
