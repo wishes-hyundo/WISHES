@@ -3,6 +3,17 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
+
+// CORS 헤더 (크롤러가 외부 도메인에서 POST 가능하도록)
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 200, headers: CORS_HEADERS });
+}
 import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
@@ -258,17 +269,39 @@ export async function POST(request: NextRequest) {
     if (!verifyAuth(request)) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
-        { status: 401 }
+        { status: 401, headers: CORS_HEADERS }
       );
     }
 
     const body = await request.json();
+
+    // 크롤러 호환: 구 필드명 → 현재 필드명 자동 변환
+    if (body.transaction_type && !body.deal) body.deal = body.transaction_type;
+    if (body.monthly_rent !== undefined && body.monthly === undefined) body.monthly = body.monthly_rent;
+    if (body.sale_price !== undefined && body.price === undefined) body.price = body.sale_price;
+    if (body.floor !== undefined && body.floor_current === undefined) body.floor_current = body.floor ? String(body.floor) : null;
+    if (body.year_built !== undefined && body.built_year === undefined) body.built_year = body.year_built ? String(body.year_built) : null;
+    // dong 자동 추출 (address에서 "동" 추출)
+    if (!body.dong && body.address) {
+      const dongMatch = body.address.match(/([가-힣]+동)/);
+      body.dong = dongMatch ? dongMatch[1] : (body.address.split(' ')[1] || body.address.split(' ')[0] || '미입력');
+    }
+    if (!body.dong) body.dong = '미입력';
+    // type 자동 매핑 (크롤러에서 사용하는 type → API enum)
+    const typeMap: Record<string, string> = {
+      '빌라': '원룸', '공장/창고': '상가', '지식산업센터': '사무실',
+      '쓰리룸': '쓰리룸', '단독/다가구': '원룸',
+    };
+    if (body.type && typeMap[body.type]) body.type = typeMap[body.type];
+    // area_m2가 0이면 0.1로 (양수 required)
+    if (!body.area_m2 || body.area_m2 <= 0) body.area_m2 = 0.1;
+
     const parsed = createListingSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: parsed.error.errors[0].message, detail: JSON.stringify(parsed.error.errors) },
-        { status: 400 }
+        { status: 400, headers: CORS_HEADERS }
       );
     }
 
@@ -339,7 +372,7 @@ export async function POST(request: NextRequest) {
       console.error('매물 생성 오류:', error);
       return NextResponse.json(
         { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
-        { status: 500 }
+        { status: 500, headers: CORS_HEADERS }
       );
     }
 
@@ -378,13 +411,13 @@ export async function POST(request: NextRequest) {
           listing_images: imageResults,
         },
       },
-      { status: 201 }
+      { status: 201, headers: CORS_HEADERS }
     );
   } catch (error: any) {
     console.error('매물 생성 오류:', error);
     return NextResponse.json(
       { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
-      { status: 500 }
+      { status: 500, headers: CORS_HEADERS }
     );
   }
 }
@@ -438,78 +471,4 @@ export async function PUT(request: NextRequest) {
 
     let data = null;
 
-    if (Object.keys(updateValues).length > 0) {
-      const { data: updatedData, error } = await supabase
-        .from('listings')
-        .update(updateValues)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('매물 수정 오류:', error);
-        return NextResponse.json(
-          { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
-          { status: 500 }
-        );
-      }
-
-      data = updatedData;
-    }
-
-    if (images && Array.isArray(images)) {
-      await supabase
-        .from('listing_images')
-        .delete()
-        .eq('listing_id', id);
-
-      if (images.length > 0) {
-        const imageInserts = images.map((url: string, index: number) => ({
-          listing_id: id,
-          url: url,
-          alt: `매물 이미지 ${index + 1}`,
-          sort_order: index,
-          is_thumbnail: index === 0,
-        }));
-
-        await supabase
-          .from('listing_images')
-          .insert(imageInserts);
-      }
-    }
-
-    if (!data) {
-      const { data: fetchedData } = await supabase
-        .from('listings')
-        .select('*, listing_images(*)')
-        .eq('id', id)
-        .single();
-
-      data = fetchedData;
-    }
-
-    if (!data) {
-      return NextResponse.json(
-        { success: false, error: '매물을 찾을 수 없습니다' },
-        { status: 404 }
-      );
-    }
-
-    revalidatePath('/', 'layout');
-    revalidatePath('/listings', 'page');
-    revalidatePath('/map', 'page');
-    revalidatePath(`/listings/${id}`, 'page');
-    revalidateTag('listings');
-
-    return NextResponse.json({
-      success: true,
-      data,
-    });
-  } catch (error: any) {
-    console.error('매물 수정 오류:', error);
-    return NextResponse.json(
-      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
-      { status: 500 }
-    );
-  }
-}
+    if (Object.keys(updateValues
