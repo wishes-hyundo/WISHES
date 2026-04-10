@@ -68,13 +68,13 @@
         _map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
       } catch(e) {}
 
-      // ⚡ 핵심: 매물 렌더 (즉시)
+      // ⚡ 핵심: 매물 렌더 (즉시) + 클릭 이벤트만 동기 바인딩
       renderListingMarkers();
       attachMapEvents();
-      // 툴바는 즉시 생성하되 기본 접힘 상태 — DOM 비용 <5ms
-      buildToolbar(mapDiv);
-      buildScaleBar(mapDiv);
-      restoreFromURL();
+      // ⚡ 툴바/축척/URL 복원 — idle 콜백으로 지연 (초기 렌더 블록 안됨)
+      _ric(function() { buildToolbar(mapDiv); });
+      _ric(function() { buildScaleBar(mapDiv); });
+      _ric(function() { restoreFromURL(); });
     } else {
       try { _map.setDraggable(true); _map.setZoomable(true); } catch(e) {}
       renderListingMarkers();
@@ -149,14 +149,14 @@
       }]
     });
 
-    // ⚡ 배치 생성 — 300건씩 청크로 나눠 rAF 사이에 처리 (초기 렌더 블록 방지)
+    // ⚡ 배치 생성 — 첫 청크는 작게(400) 즉시, 나머지는 크게(1500) idle 에 처리
     var bounds = new kakao.maps.LatLngBounds();
     var validListings = _allListings.filter(function(l) { return l.lat && l.lng; });
-    var CHUNK = 300;
     var idx = 0;
     var firstChunkDone = false;
 
     function processChunk() {
+      var CHUNK = firstChunkDone ? 1500 : 400;
       var end = Math.min(idx + CHUNK, validListings.length);
       var chunk = [];
       for (var i = idx; i < end; i++) {
@@ -177,14 +177,15 @@
       if (_clusterer) _clusterer.addMarkers(chunk);
       idx = end;
 
-      // 첫 청크 끝나면 바로 setBounds — 사용자는 즉시 매물 위치 확인 가능
+      // 첫 청크 끝나면 즉시 setBounds — 사용자는 바로 매물 위치 확인 가능
       if (!firstChunkDone) {
         firstChunkDone = true;
         try { _map.setBounds(bounds); } catch(e) {}
       }
 
       if (idx < validListings.length) {
-        (window.requestAnimationFrame || setTimeout)(processChunk, 0);
+        // 나머지는 idle 에 — 초기 타일 렌더와 경쟁 안함
+        _ric(processChunk);
       }
     }
     processChunk();
@@ -612,7 +613,7 @@
     _clickMode = 'none';
   }
 
-  // ======================== 로드뷰 ========================
+  // ======================== 로드뷰 (오버레이 방식 — 지도 DOM 수정 없음) ========================
   function toggleRoadview(mapDiv, btn) {
     // 끄기
     if (_rvContainer && _rvContainer.parentNode) {
@@ -620,57 +621,55 @@
       _rvContainer = null;
       _roadview = null;
       if (_rvMarker) { _rvMarker.setMap(null); _rvMarker = null; }
-      // map 영역 복구
-      var inner = mapDiv.firstChild;
-      if (inner && inner.style) inner.style.width = '100%';
-      mapDiv.style.display = '';
-      setTimeout(function() { try { _map.relayout(); } catch(e) {} }, 50);
       btn.classList.remove('ws-btn-active');
       btn.textContent = '🚶 로드뷰';
       return;
     }
 
-    // 켜기: 지도 컨테이너의 내부 div 를 좌측 50%로 축소, 우측에 로드뷰 container 추가
-    var children = mapDiv.children;
-    var mapInner = null;
-    for (var i = 0; i < children.length; i++) {
-      if (children[i].tagName === 'DIV' && !children[i].id) { mapInner = children[i]; break; }
-    }
-    // 카카오맵 내부 wrapper div 를 찾아서 width 절반으로
-    var kakaoWrap = mapDiv.querySelector('div[tabindex]');
-    if (kakaoWrap) {
-      kakaoWrap.style.width = '50%';
-      kakaoWrap.style.display = 'inline-block';
-    }
+    // 켜기: mapDiv 우측 50% 를 덮는 absolute 오버레이 (지도 내부 DOM 손대지 않음)
+    if (getComputedStyle(mapDiv).position === 'static') mapDiv.style.position = 'relative';
 
     _rvContainer = document.createElement('div');
     _rvContainer.id = 'ws-roadview-container';
-    _rvContainer.style.cssText = 'position:absolute;top:0;right:0;width:50%;height:100%;z-index:4;border-left:3px solid #2D5A27;background:#000;';
-    mapDiv.appendChild(_rvContainer);
+    _rvContainer.style.cssText = 'position:absolute;top:0;right:0;width:50%;height:100%;z-index:50;border-left:3px solid #2D5A27;background:#000;box-shadow:-4px 0 16px rgba(0,0,0,0.25);';
 
-    setTimeout(function() { try { _map.relayout(); } catch(e) {} }, 50);
+    // 닫기 버튼
+    var closeBtn = document.createElement('div');
+    closeBtn.style.cssText = 'position:absolute;top:8px;right:8px;z-index:51;width:28px;height:28px;border-radius:14px;background:rgba(0,0,0,0.75);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;font-weight:700;';
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('click', function(e) { e.stopPropagation(); toggleRoadview(mapDiv, btn); });
+    _rvContainer.appendChild(closeBtn);
+
+    // 로드뷰 본체용 내부 div (닫기 버튼과 z-index 분리)
+    var rvInner = document.createElement('div');
+    rvInner.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;';
+    _rvContainer.appendChild(rvInner);
+
+    mapDiv.appendChild(_rvContainer);
 
     // 로드뷰 생성
     try {
-      _roadview = new kakao.maps.Roadview(_rvContainer);
+      _roadview = new kakao.maps.Roadview(rvInner);
       _roadviewClient = new kakao.maps.RoadviewClient();
 
       var center = _map.getCenter();
-      _roadviewClient.getNearestPanoId(center, 100, function(panoId) {
+      _roadviewClient.getNearestPanoId(center, 150, function(panoId) {
         if (panoId) {
           _roadview.setPanoId(panoId, center);
-          setTimeout(function() { try { _roadview.relayout(); } catch(e) {} }, 100);
+          // 두 번 relayout 해주면 초기 렌더 안정화
+          setTimeout(function() { try { _roadview.relayout(); } catch(e) {} }, 60);
+          setTimeout(function() { try { _roadview.relayout(); } catch(e) {} }, 300);
           if (!_rvMarker) _rvMarker = new kakao.maps.Marker({ position: center, map: _map });
           else _rvMarker.setPosition(center);
         } else {
-          _rvContainer.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#fff;font-size:13px;text-align:center;padding:20px;">' +
-            '<div style="font-size:32px;margin-bottom:12px;">🚶</div>' +
+          rvInner.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:#fff;font-size:13px;text-align:center;padding:20px;">' +
+            '<div style="font-size:36px;margin-bottom:12px;">🚶</div>' +
             '이 위치에는 로드뷰가 없습니다.<br>지도를 클릭해 다른 지점을 선택하세요.' +
             '</div>';
         }
       });
     } catch(e) {
-      _rvContainer.innerHTML = '<div style="padding:20px;color:#fff;font-size:12px;">로드뷰 로드 실패: ' + e.message + '</div>';
+      rvInner.innerHTML = '<div style="padding:20px;color:#fff;font-size:12px;">로드뷰 로드 실패: ' + e.message + '</div>';
     }
 
     btn.classList.add('ws-btn-active');
@@ -883,14 +882,18 @@
   });
 
   // ======================== SDK 로더 ========================
-  if (typeof kakao === 'undefined' || !kakao.maps) {
+  // layout.tsx 가 beforeInteractive 로 SDK 를 이미 로드했으므로 대부분 즉시 경로 탐
+  if (typeof kakao !== 'undefined' && kakao.maps && kakao.maps.Map) {
+    // 즉시 렌더 (가장 빠른 경로)
+    renderWishesMap();
+  } else if (typeof kakao !== 'undefined' && kakao.maps && typeof kakao.maps.load === 'function') {
+    // SDK 스크립트는 로드됐지만 모듈 미파싱 — kakao.maps.load 로 트리거
+    kakao.maps.load(renderWishesMap);
+  } else {
+    // 극히 예외적인 경우 (SDK 스크립트 자체 로드 실패) — fallback
     var s = document.createElement('script');
     s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=a1c65d0ec2ecc8d2d231f8558f896e38&autoload=false&libraries=services,clusterer,drawing';
     s.onload = function() { kakao.maps.load(renderWishesMap); };
     document.head.appendChild(s);
-  } else if (kakao.maps.Map) {
-    renderWishesMap();
-  } else {
-    kakao.maps.load(renderWishesMap);
   }
 })();

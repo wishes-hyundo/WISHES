@@ -69,9 +69,20 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-        {/* 카카오맵 SDK */}
+        {/* ⚡ 카카오맵 CDN 사전 연결 — TLS 핸드셰이크 비용 제거 */}
+        <link rel="preconnect" href="https://dapi.kakao.com" crossOrigin="" />
+        <link rel="preconnect" href="https://t1.daumcdn.net" crossOrigin="" />
+        <link rel="preconnect" href="https://map.daumcdn.net" crossOrigin="" />
+        <link rel="preconnect" href="https://mts.daumcdn.net" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://rv.map.daum.net" />
+        <link rel="dns-prefetch" href="https://map0.daumcdn.net" />
+        <link rel="dns-prefetch" href="https://map1.daumcdn.net" />
+        <link rel="dns-prefetch" href="https://map2.daumcdn.net" />
+        <link rel="dns-prefetch" href="https://map3.daumcdn.net" />
+
+        {/* ⚡ 카카오맵 SDK — services + clusterer + drawing 모두 포함 (beforeInteractive = 최고속) */}
         <Script
-          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}&libraries=services,clusterer&autoload=false`}
+          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || 'a1c65d0ec2ecc8d2d231f8558f896e38'}&libraries=services,clusterer,drawing&autoload=false`}
           strategy="beforeInteractive"
         />
 

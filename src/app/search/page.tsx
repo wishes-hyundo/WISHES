@@ -41,36 +41,14 @@ export default function SearchPortalPage() {
       }
     } catch {}
 
-    // ⚡ 카카오맵 SDK 즉시 로드 — preload 가 아닌 실제 script 태그로 백그라운드 실행
-    //    사용자가 지도보기 탭을 열 시점에는 이미 SDK 파싱 완료 → 지도 즉시 렌더
+    // ⚡ 카카오맵 SDK 사전 초기화 — layout.tsx 에서 beforeInteractive 로 이미 로드 완료
+    //    여기서는 kakao.maps.load 만 호출해 Map/Roadview/Services/Drawing 모듈을 미리 파싱
     try {
-      const head = document.head;
-      // DNS preconnect
-      ['https://dapi.kakao.com', 'https://t1.daumcdn.net'].forEach((h) => {
-        if (document.querySelector(`link[rel="preconnect"][href="${h}"]`)) return;
-        const l = document.createElement('link');
-        l.rel = 'preconnect';
-        l.href = h;
-        l.crossOrigin = '';
-        head.appendChild(l);
-      });
-      // 실제 SDK 로드 — 한 번만
-      if (!document.getElementById('ws-kakao-sdk')) {
-        const sc = document.createElement('script');
-        sc.id = 'ws-kakao-sdk';
-        sc.async = true;
-        sc.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=a1c65d0ec2ecc8d2d231f8558f896e38&autoload=false&libraries=services,clusterer,drawing';
-        sc.onload = () => {
-          try {
-            interface KakaoMaps { load: (cb: () => void) => void }
-            interface KakaoGlobal { maps: KakaoMaps }
-            const kk = (window as unknown as { kakao?: KakaoGlobal }).kakao;
-            if (kk && kk.maps && typeof kk.maps.load === 'function') {
-              kk.maps.load(() => { /* 사전 초기화 완료 */ });
-            }
-          } catch {}
-        };
-        head.appendChild(sc);
+      interface KakaoMaps { load: (cb: () => void) => void; Map?: unknown }
+      interface KakaoGlobal { maps: KakaoMaps }
+      const kk = (window as unknown as { kakao?: KakaoGlobal }).kakao;
+      if (kk && kk.maps && typeof kk.maps.load === 'function' && !kk.maps.Map) {
+        kk.maps.load(() => { /* 모듈 파싱 완료 — 지도 렌더 즉시 가능 */ });
       }
     } catch {}
 
