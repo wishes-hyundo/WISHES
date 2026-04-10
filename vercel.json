@@ -1,10 +1,8 @@
 {
   "framework": "nextjs",
   "buildCommand": "next build",
-  "crons": [
+  "headers": [
     {
-      "path": "/api/cron/update-rates",
-      "schedule": "0 0 * * *"
-    }
-  ]
-}
+      "source": "/api/admin/(.*)",
+      "headers": [
+        { "key": "Access-Co
