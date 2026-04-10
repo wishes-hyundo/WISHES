@@ -82,9 +82,13 @@ const createListingSchema = z.object({
  * 인증 검증 헬퍼 함수
  */
 function verifyAuth(request: NextRequest): boolean {
+  // 헤더 인증 (기존)
   const authHeader = request.headers.get('authorization');
   const password = authHeader?.replace('Bearer ', '');
-  return password === 'wishes2026';
+  if (password === 'wishes2026') return true;
+  // 쿼리파라미터 인증 (크롤러 no-cors 모드용 — preflight 없이 호출 가능)
+  const { searchParams } = new URL(request.url);
+  return searchParams.get('token') === 'wishes2026';
 }
 
 /**
@@ -273,7 +277,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    // text/plain으로 전송된 JSON도 파싱 (no-cors 크롤러 호환)
+    let body: any;
+    const ct = request.headers.get('content-type') || '';
+    if (ct.includes('application/json')) {
+      body = await request.json();
+    } else {
+      const text = await request.text();
+      try { body = JSON.parse(text); } catch { body = {}; }
+    }
 
     // 크롤러 호환: 구 필드명 → 현재 필드명 자동 변환
     if (body.transaction_type && !body.deal) body.deal = body.transaction_type;
@@ -449,26 +461,4 @@ export async function PUT(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: parsed.error.errors[0].message },
-        { status: 400 }
-      );
-    }
-
-    const supabase = createServerClient();
-
-    const updateValues: Record<string, any> = {};
-    Object.entries(parsed.data).forEach(([key, value]) => {
-      if (value !== undefined && key !== 'images') {
-        updateValues[key] = value;
-      }
-    });
-
-    if (Object.keys(updateValues).length === 0 && !images) {
-      return NextResponse.json(
-        { success: false, error: '수정할 필드가 없습니다' },
-        { status: 400 }
-      );
-    }
-
-    let data = null;
-
-    if (Object.keys(updateValues
+        {
