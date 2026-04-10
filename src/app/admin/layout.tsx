@@ -303,6 +303,37 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className="text-lg flex-shrink-0">📷</span>
           {sidebarOpen && <span>모바일 사진등록</span>}
         </a>
+
+        {/* 중개사 포털 - 웹 기반, 어디서든 접근 가능 */}
+        <Link
+          href="/search"
+          target="_blank"
+          onClick={() => { setMobileMenuOpen(false); }}
+          className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] text-emerald-300/90 hover:bg-emerald-500/20 hover:text-emerald-200 active:bg-emerald-500/30"
+        >
+          <span className="text-lg flex-shrink-0">🌐</span>
+          {sidebarOpen && (
+            <div className="flex flex-col text-left">
+              <span>중개사 포털</span>
+              <span className="text-[10px] font-normal opacity-70">wishes.co.kr/search</span>
+            </div>
+          )}
+        </Link>
+
+        {/* 직원 승인 - 사장님 전용 */}
+        {isAdminRole && (
+          <Link
+            href="/admin/users"
+            onClick={() => { setMobileMenuOpen(false); setSelectedNav('/admin/users'); }}
+            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] ${
+              isActive('/admin/users')
+                ? 'bg-white/20 text-white shadow-inner font-bold'
+                : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
+            }`}>
+            <span className="text-lg flex-shrink-0">👥</span>
+            {sidebarOpen && <span>직원 승인</span>}
+          </Link>
+        )}
 </nav>
 
 
