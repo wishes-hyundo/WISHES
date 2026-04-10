@@ -117,22 +117,22 @@ export default function ListingLocationMap({ lat, lng, address, title }: Props) 
         style={{ height: 240 }}
       />
 
-      {/* 락 토글 버튼 */}
+      {/* 락 토글 버튼 (아이콘 전용) */}
       <button
         type="button"
         onClick={() => setLocked((v) => !v)}
-        className={`absolute top-3 left-3 z-10 flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-full shadow-md backdrop-blur transition-all ${
+        className={`absolute top-3 left-3 z-10 w-9 h-9 flex items-center justify-center rounded-full shadow-md backdrop-blur transition-all ${
           locked
             ? 'bg-white/95 text-gray-700 border border-gray-200 hover:bg-white'
             : 'bg-wishes-primary text-white border border-wishes-primary'
         }`}
         title={locked ? '지도 이동 잠금 해제' : '지도 이동 잠금'}
+        aria-label={locked ? '지도 이동 잠금 해제' : '지도 이동 잠금'}
       >
-        {locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />}
-        {locked ? '주소 고정' : '이동 가능'}
+        {locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
       </button>
 
-      {/* 주소 라벨 */}
+      {/* 주소 라벨 (동 단위만) */}
       {address && (
         <div className="absolute bottom-3 left-3 right-3 z-10 bg-white/95 backdrop-blur px-3 py-2 rounded-lg shadow-md border border-gray-100">
           <div className="flex items-center gap-1.5 text-[11px] text-gray-600 font-medium truncate">
