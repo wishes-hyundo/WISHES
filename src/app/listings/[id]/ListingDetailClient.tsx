@@ -450,9 +450,13 @@ export default function ListingDetailClient({ id }: Props) {
                 <div className="flex flex-wrap gap-2">
                   <OptionBadge label="주차" available={listing.parking ?? false} />
                   <OptionBadge label="엘리베이터" available={listing.elevator ?? false} />
-                  <OptionBadge label="반려동물" available={listing.pet ?? false} />
-                  <OptionBadge label="발코니" available={listing.balcony ?? false} />
-                  <OptionBadge label="풀옵션" available={listing.full_option ?? false} />
+                  {!['상가', '사무실'].includes(listing.type) && (
+                    <>
+                      <OptionBadge label="반려동물" available={listing.pet ?? false} />
+                      <OptionBadge label="발코니" available={listing.balcony ?? false} />
+                      <OptionBadge label="풀옵션" available={listing.full_option ?? false} />
+                    </>
+                  )}
                   {listing.loan_available && (
                     <span className="flex items-center gap-1 px-3 py-1 text-sm rounded-full bg-blue-50 text-blue-700">
                       <Check className="w-3 h-3" /> 대출가능
