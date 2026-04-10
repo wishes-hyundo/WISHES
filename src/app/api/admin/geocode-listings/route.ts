@@ -57,16 +57,21 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   }
 }
 
+export const maxDuration = 300;
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServerClient();
+    const { searchParams } = new URL(request.url);
+    const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 300);
 
-    // 좌표가 없는 매물 조회
+    // 좌표가 없는 매물 조회 (배치 처리)
     const { data: listings, error: fetchError } = await supabase
       .from('listings')
       .select('id, address, lat, lng')
       .or('lat.is.null,lng.is.null')
-      .order('id', { ascending: false });
+      .order('id', { ascending: false })
+      .limit(limit);
 
     if (fetchError) {
       return NextResponse.json({ success: false, error: fetchError.message }, { status: 500 });
