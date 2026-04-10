@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     let query = supabase
       .from('listings')
       .select(
-        'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, created_at, updated_at, views',
+        'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, created_at, updated_at, views, listing_images(url)',
         { count: 'exact' }
       )
       .neq('status', '계약완료')
