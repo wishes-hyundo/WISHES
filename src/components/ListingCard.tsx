@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { formatFloor } from '@/lib/formatFloor';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import type { Listing } from '@/types';
+import { getWatermarkedUrl } from '@/lib/imageUrl';
 
 // NEW: 7일 이내 등록 / HOT: 조회수 50 이상
 const isNew = (createdAt: string) => {
@@ -102,7 +103,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
         <div className="w-28 h-28 shrink-0 relative overflow-hidden bg-gray-100">
           {thumbUrl ? (
             <img
-              src={thumbUrl}
+              src={getWatermarkedUrl(thumbUrl)}
               alt={listing.title}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             />
@@ -156,7 +157,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
         {/* 배경 이미지 */}
         {thumbUrl ? (
           <img
-            src={thumbUrl}
+            src={getWatermarkedUrl(thumbUrl)}
             alt={listing.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
             loading="lazy"
