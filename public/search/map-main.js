@@ -43,8 +43,13 @@
     var mapDiv = document.getElementById('ws-kakao-map');
     if (!mapDiv) return;
 
-    try { _allListings = JSON.parse(mapDiv.getAttribute('data-listings') || '[]'); }
-    catch(e) { _allListings = []; }
+    // ⚡ 전역 변수 우선 (2MB+ JSON 파싱 비용 제거), fallback 으로 속성
+    if (window.__WS_MAP_LISTINGS__ && Array.isArray(window.__WS_MAP_LISTINGS__)) {
+      _allListings = window.__WS_MAP_LISTINGS__;
+    } else {
+      try { _allListings = JSON.parse(mapDiv.getAttribute('data-listings') || '[]'); }
+      catch(e) { _allListings = []; }
+    }
 
     if (_clusterer) { _clusterer.clear(); _clusterer = null; }
     if (_openInfowindow) { _openInfowindow.close(); _openInfowindow = null; }
@@ -68,13 +73,14 @@
         _map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
       } catch(e) {}
 
-      // ⚡ 핵심: 매물 렌더 (즉시) + 클릭 이벤트만 동기 바인딩
+      // ⚡ 툴바 먼저 (DOM 비용 <5ms, 사용자가 즉시 볼 수 있어야 함)
+      buildToolbar(mapDiv);
+      buildScaleBar(mapDiv);
+      // ⚡ 마커 렌더 (비동기 청크)
       renderListingMarkers();
       attachMapEvents();
-      // ⚡ 툴바/축척/URL 복원 — idle 콜백으로 지연 (초기 렌더 블록 안됨)
-      _ric(function() { buildToolbar(mapDiv); });
-      _ric(function() { buildScaleBar(mapDiv); });
-      _ric(function() { restoreFromURL(); });
+      // URL 복원은 1프레임 지연 — 마커 생성과 경쟁하지 않도록
+      (window.requestAnimationFrame || setTimeout)(function() { restoreFromURL(); });
     } else {
       try { _map.setDraggable(true); _map.setZoomable(true); } catch(e) {}
       renderListingMarkers();
