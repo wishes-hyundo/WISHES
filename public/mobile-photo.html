@@ -338,6 +338,7 @@
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.success { background: var(--success); }
   .toast.error { background: var(--danger); }
+  .toast.info { background: var(--primary); }
 
   /* Progress */
   .progress-overlay {
@@ -481,6 +482,7 @@
 <script>
 const API_BASE = window.location.origin;
 const AUTH_TOKEN = 'wishes2026';
+const DEBUG = location.hostname === 'localhost' || location.search.includes('debug=1');
 
 let allListings = [];
 let selectedListing = null;
@@ -488,6 +490,50 @@ let pendingFiles = []; // { file, originalSize, compressedSize, gps }
 let existingImagesData = [];
 let orderChanged = false;
 let isLoading = false;
+let dragHintShown = false;
+
+function log(...args) { if (DEBUG) console.log('[WISHES]', ...args); }
+function logErr(label, err) { if (DEBUG) console.error('[WISHES]', label, err); }
+
+// ===== UNIFIED API HELPER =====
+async function apiCall(url, options = {}) {
+  const { method = 'GET', body, timeout = 30000, json = true } = options;
+  const headers = { 'Authorization': `Bearer ${AUTH_TOKEN}` };
+  if (json && body && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const res = await fetch(url, {
+      method,
+      headers,
+      body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
+      signal: controller.signal
+    });
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      const msg = data.error || data.message || `서버 오류 (HTTP ${res.status})`;
+      return { ok: false, status: res.status, error: msg, data: null };
+    }
+
+    const data = await res.json();
+    if (data.success === false) {
+      return { ok: false, status: res.status, error: data.error || '요청 처리 실패', data };
+    }
+    return { ok: true, status: res.status, error: null, data };
+  } catch (e) {
+    clearTimeout(timer);
+    let msg = e.message;
+    if (e.name === 'AbortError') msg = '요청 시간 초과 (네트워크 상태를 확인해주세요)';
+    else if (msg.includes('Failed to fetch') || msg.includes('NetworkError'))
+      msg = '네트워크 연결을 확인해주세요';
+    logErr('API', e);
+    return { ok: false, status: 0, error: msg, data: null };
+  }
+}
 
 // ===== GPS =====
 let currentGPS = null;
@@ -585,16 +631,14 @@ document.addEventListener('DOMContentLoaded', () => {
 // ===== LISTINGS =====
 async function loadRecentListings() {
   showLoading(true);
-  try {
-    const res = await fetch(`${API_BASE}/api/listings?limit=20&offset=0`, {
-      headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
-    });
-    const data = await res.json();
-    if (data.success !== false && data.data) {
-      allListings = data.data;
-      renderListings(data.data, '최근 등록된 매물');
-    }
-  } catch(e) { console.error('Load error:', e); }
+  const result = await apiCall(`${API_BASE}/api/listings?limit=20&offset=0`);
+  if (result.ok && result.data?.data) {
+    allListings = result.data.data;
+    renderListings(allListings, '최근 등록된 매물');
+  } else if (result.error) {
+    showToast('매물 목록 로드 실패', 'error');
+    logErr('loadRecent', result.error);
+  }
   showLoading(false);
 }
 
@@ -610,11 +654,9 @@ async function searchListings() {
       let offset = 0, batch;
       allListings = [];
       do {
-        const res = await fetch(`${API_BASE}/api/listings?limit=1000&offset=${offset}`, {
-          headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
-        });
-        const data = await res.json();
-        batch = data.data || [];
+        const result = await apiCall(`${API_BASE}/api/listings?limit=1000&offset=${offset}`, { timeout: 60000 });
+        if (!result.ok) { showToast('매물 데이터 로드 실패: ' + result.error, 'error'); break; }
+        batch = result.data?.data || [];
         allListings = allListings.concat(batch);
         offset += 1000;
       } while (batch.length === 1000);
@@ -638,7 +680,7 @@ async function searchListings() {
       `🔍 <strong>${results.length}건</strong> 검색됨 ${results.length > 50 ? '(상위 50건 표시)' : ''}`;
   } catch(e) {
     showToast('검색 중 오류가 발생했습니다', 'error');
-    console.error('Search error:', e);
+    logErr('search', e);
   }
 
   document.getElementById('searchBtn').textContent = '검색';
@@ -728,25 +770,40 @@ async function loadExistingImages(listingId) {
   const grid = document.getElementById('pvExistingGrid');
   const title = document.getElementById('pvExistingTitle');
 
-  try {
-    const res = await fetch(`${API_BASE}/api/listings/${listingId}/images`, {
-      headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
-    });
-    const data = await res.json();
-    existingImagesData = data.data || [];
+  // 로딩 스피너 표시
+  section.classList.remove('hidden');
+  title.textContent = '📌 사진 불러오는 중...';
+  grid.innerHTML = '<div class="pv-loading-spinner"><div class="progress-spinner" style="width:32px;height:32px;margin:20px auto;"></div><div style="text-align:center;font-size:12px;color:var(--text-sub);">사진 로딩 중</div></div>';
 
+  const result = await apiCall(`${API_BASE}/api/listings/${listingId}/images`);
+
+  if (result.ok) {
+    existingImagesData = result.data?.data || [];
     if (existingImagesData.length > 0) {
       section.classList.remove('hidden');
       title.textContent = `📌 등록된 사진 ${existingImagesData.length}장`;
       renderExistingImages();
+      showDragHint();
     } else {
       section.classList.add('hidden');
       grid.innerHTML = '';
     }
-  } catch(e) {
-    console.error('Load images error:', e);
-    section.classList.add('hidden');
+  } else {
+    logErr('loadImages', result.error);
+    title.textContent = '📌 사진 로드 실패';
+    grid.innerHTML = `<div style="text-align:center;padding:16px;color:var(--danger);font-size:13px;">사진을 불러오지 못했습니다<br><small>${escHtml(result.error)}</small><br><button onclick="loadExistingImages(${listingId})" style="margin-top:8px;padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:white;cursor:pointer;">다시 시도</button></div>`;
   }
+}
+
+// ===== DRAG HINT (최초 1회) =====
+function showDragHint() {
+  if (dragHintShown || existingImagesData.length < 2) return;
+  try { if (localStorage.getItem('wishes_drag_hint') === '1') { dragHintShown = true; return; } } catch(e) {}
+
+  dragHintShown = true;
+  try { localStorage.setItem('wishes_drag_hint', '1'); } catch(e) {}
+
+  showToast('💡 사진을 길게 누르면 순서를 변경할 수 있습니다', 'info');
 }
 
 function renderExistingImages() {
@@ -883,31 +940,24 @@ async function saveImageOrder() {
   btn.disabled = true;
   btn.textContent = '저장 중...';
 
-  try {
-    const images = existingImagesData.map((img, i) => ({
-      id: img.id,
-      sort_order: i,
-      is_thumbnail: i === 0
-    }));
-    const res = await fetch(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
-      method: 'PATCH',
-      headers: { 'Authorization': `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ images })
-    });
-    const data = await res.json();
+  const images = existingImagesData.map((img, i) => ({
+    id: img.id,
+    sort_order: i,
+    is_thumbnail: i === 0
+  }));
+  const result = await apiCall(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
+    method: 'PATCH',
+    body: { images }
+  });
 
-    if (res.ok && data.success !== false) {
-      orderChanged = false;
-      renderExistingImages();
-      showToast('✅ 사진 순서 저장 완료', 'success');
-      addLog('success', '사진 순서 변경', `${existingImagesData.length}장 순서 저장 완료`);
-    } else {
-      showToast('순서 저장 실패: ' + (data.error || '서버 오류'), 'error');
-      addLog('error', '순서 저장 실패', data.error || '알 수 없는 오류');
-    }
-  } catch(e) {
-    showToast('순서 저장 중 네트워크 오류', 'error');
-    addLog('error', '순서 저장 실패', e.message);
+  if (result.ok) {
+    orderChanged = false;
+    renderExistingImages();
+    showToast('✅ 사진 순서 저장 완료', 'success');
+    addLog('success', '사진 순서 변경', `${existingImagesData.length}장 순서 저장 완료`);
+  } else {
+    showToast('순서 저장 실패: ' + result.error, 'error');
+    addLog('error', '순서 저장 실패', result.error);
   }
 
   btn.disabled = false;
@@ -949,7 +999,7 @@ async function handleFiles(e) {
       added++;
       document.getElementById('progressDetail').textContent = `${added}/${files.length} 완료`;
     } catch (err) {
-      console.error('Compress error:', err);
+      logErr('compress', err);
     }
   }
 
@@ -1007,49 +1057,39 @@ async function uploadImages() {
 
   const startTime = Date.now();
 
-  try {
-    const formData = new FormData();
-    pendingFiles.forEach(pf => formData.append('images', pf.file));
+  const formData = new FormData();
+  pendingFiles.forEach(pf => formData.append('images', pf.file));
 
-    const metadata = pendingFiles.map(pf => ({
-      gps: pf.gps,
-      originalSize: pf.originalSize,
-      compressedSize: pf.compressedSize,
-    }));
-    formData.append('metadata', JSON.stringify(metadata));
+  const metadata = pendingFiles.map(pf => ({
+    gps: pf.gps,
+    originalSize: pf.originalSize,
+    compressedSize: pf.compressedSize,
+  }));
+  formData.append('metadata', JSON.stringify(metadata));
 
-    const res = await fetch(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` },
-      body: formData
-    });
+  const result = await apiCall(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
+    method: 'POST',
+    body: formData,
+    timeout: 120000  // 사진 업로드는 2분 타임아웃
+  });
 
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    const data = await res.json();
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
 
-    if (res.ok && data.success !== false) {
-      const origT = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
-      const compT = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
-      const pct = origT > 0 ? Math.round((1 - compT / origT) * 100) : 0;
+  if (result.ok) {
+    const origT = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
+    const compT = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
+    const pct = origT > 0 ? Math.round((1 - compT / origT) * 100) : 0;
 
-      showToast(`✅ ${count}장 업로드 완료!`, 'success');
-      addLog('success', `매물 ${selectedListing.id} 사진 ${count}장 업로드`,
-        `용량: ${formatBytes(compT)}${pct > 5 ? ` (${pct}% 절약)` : ''} · ${elapsed}초`);
+    showToast(`✅ ${count}장 업로드 완료!`, 'success');
+    addLog('success', `매물 ${selectedListing.id} 사진 ${count}장 업로드`,
+      `용량: ${formatBytes(compT)}${pct > 5 ? ` (${pct}% 절약)` : ''} · ${elapsed}초`);
 
-      pendingFiles = [];
-      updatePendingUI();
-      await loadExistingImages(selectedListing.id);
-    } else {
-      const errMsg = data.error || data.message || `서버 오류 (HTTP ${res.status})`;
-      showToast('❌ 업로드 실패', 'error');
-      addLog('error', `매물 ${selectedListing.id} 업로드 실패`, errMsg);
-    }
-  } catch(e) {
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    showToast('❌ 업로드 중 오류 발생', 'error');
-    let msg = e.message;
-    if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) msg += ' (네트워크 확인)';
-    addLog('error', `매물 ${selectedListing.id} 업로드 오류`, `${msg} · ${elapsed}초`);
+    pendingFiles = [];
+    updatePendingUI();
+    await loadExistingImages(selectedListing.id);
+  } else {
+    showToast('❌ 업로드 실패', 'error');
+    addLog('error', `매물 ${selectedListing.id} 업로드 실패`, `${result.error} · ${elapsed}초`);
   }
 
   showProgress(false);
