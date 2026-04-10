@@ -243,10 +243,10 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </Link>
         </div>
 
-        {/* ── 상세 설명 (중개사 코멘트) ── */}
+        {/* ── 매물 설명 ── */}
         {listing.description && (
           <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-2.5">중개사 코멘트</h3>
+            <h3 className="text-sm font-bold text-gray-700 mb-2.5">매물 설명</h3>
             <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!showFullDescription ? 'line-clamp-4' : ''}`}>
               {listing.description}
             </p>
