@@ -15,40 +15,89 @@ interface GeoResult {
   status: 'success' | 'failed' | 'no_address';
 }
 
+async function kakaoAddress(q: string) {
+  const res = await fetch(
+    `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}`,
+    { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
+  );
+  if (!res.ok) return null;
+  const d = await res.json();
+  const doc = d?.documents?.[0];
+  return doc ? { lat: parseFloat(doc.y), lng: parseFloat(doc.x) } : null;
+}
+
+async function kakaoKeyword(q: string) {
+  const res = await fetch(
+    `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(q)}`,
+    { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
+  );
+  if (!res.ok) return null;
+  const d = await res.json();
+  const doc = d?.documents?.[0];
+  return doc ? { lat: parseFloat(doc.y), lng: parseFloat(doc.x) } : null;
+}
+
 /**
- * 주소를 위도/경도로 변환 (카카오 Maps API)
- * 1차: 주소 검색 API → 2차: 키워드 검색 API (폴백)
+ * 주소 정리: 건물명/층/호수 제거하여 카카오 주소 API 가 받아들이도록 정규화.
+ */
+function cleanAddress(raw: string): string[] {
+  const candidates = new Set<string>();
+  const s = raw.trim();
+  candidates.add(s);
+
+  // 건물명 prefix 제거: "한국생활건강상가 서울 성동구 ..." → "서울 성동구 ..."
+  const m1 = s.match(/(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주).*/);
+  if (m1) candidates.add(m1[0]);
+
+  // 뒷부분 "5층"/"304호"/"B1층" 제거
+  for (const c of [...candidates]) {
+    const stripped = c
+      .replace(/\s*(?:지하|B)?\s*\d+\s*층.*$/, '')
+      .replace(/\s*\d+\s*호.*$/, '')
+      .replace(/\s*\d+\s*동\s*\d+\s*호.*$/, '')
+      .trim();
+    if (stripped && stripped !== c) candidates.add(stripped);
+  }
+
+  // 숫자 prefix 만 남은 이상 주소 "오금동 1340000" → "오금동" 만 남김
+  for (const c of [...candidates]) {
+    const normalized = c.replace(/\s+\d{5,}$/, '').trim();
+    if (normalized && normalized !== c) candidates.add(normalized);
+  }
+
+  return [...candidates].filter((x) => x.length >= 3);
+}
+
+/**
+ * 주소를 위도/경도로 변환.
+ * 1차: 원본 주소 검색 API
+ * 2차: 정리된 후보들 주소 검색 API (건물명/층/호수 제거)
+ * 3차: 키워드 검색 API (동/건물명 검색)
+ * 4차: 동 이름만으로 주소 검색 (중심좌표)
  */
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
   if (!address || !KAKAO_REST_API_KEY) return null;
 
   try {
-    // 1차: 주소 검색 API
-    const res = await fetch(
-      `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
-      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
-    );
+    const candidates = cleanAddress(address);
 
-    if (res.ok) {
-      const data = await res.json();
-      if (data.documents && data.documents.length > 0) {
-        const doc = data.documents[0];
-        return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
-      }
+    // 1+2차: 모든 후보를 주소 API 시도
+    for (const c of candidates) {
+      const hit = await kakaoAddress(c);
+      if (hit) return hit;
     }
 
-    // 2차: 키워드 검색 API (주소 검색 실패 시 폴백)
-    const kwRes = await fetch(
-      `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(address)}`,
-      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
-    );
+    // 3차: 원본 + 정리본 키워드 검색
+    for (const c of candidates) {
+      const hit = await kakaoKeyword(c);
+      if (hit) return hit;
+    }
 
-    if (kwRes.ok) {
-      const kwData = await kwRes.json();
-      if (kwData.documents && kwData.documents.length > 0) {
-        const doc = kwData.documents[0];
-        return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
-      }
+    // 4차: 동 이름만으로 중심좌표
+    const dongMatch = address.match(/([가-힣]+동)(?:\s|$)/);
+    if (dongMatch) {
+      const hit = await kakaoAddress(dongMatch[1]);
+      if (hit) return hit;
     }
 
     return null;
