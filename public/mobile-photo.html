@@ -340,7 +340,7 @@
   .toast.error { background: var(--danger); }
   .toast.info { background: var(--primary); }
 
-  /* Progress */
+  /* Progress - blocking overlay for compression */
   .progress-overlay {
     position: fixed; inset: 0;
     background: rgba(0,0,0,.5);
@@ -366,6 +366,78 @@
   .progress-text { font-size: 15px; font-weight: 600; }
   .progress-sub { font-size: 12px; color: var(--text-sub); margin-top: 5px; }
   .progress-detail { font-size: 11px; color: var(--primary); margin-top: 6px; font-weight: 600; }
+
+  /* Upload Progress Bar - non-blocking floating bar */
+  .upload-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: white;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 20px rgba(0,0,0,.12);
+    z-index: 250;
+    transform: translateY(100%);
+    transition: transform .3s ease;
+  }
+  .upload-bar.show { transform: translateY(0); }
+  .upload-bar-inner {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+  }
+  .upload-bar-spinner {
+    width: 28px; height: 28px; flex-shrink: 0;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  .upload-bar.done .upload-bar-spinner {
+    border: none; animation: none;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .upload-bar-content { flex: 1; min-width: 0; }
+  .upload-bar-title { font-size: 14px; font-weight: 600; }
+  .upload-bar-sub { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
+  .upload-bar-progress {
+    height: 4px; background: var(--border);
+    border-radius: 2px; margin-top: 6px; overflow: hidden;
+  }
+  .upload-bar-fill {
+    height: 100%; background: var(--primary);
+    border-radius: 2px;
+    transition: width .3s ease;
+    width: 0%;
+  }
+  .upload-bar.done .upload-bar-fill { background: var(--success); }
+  .upload-bar-close {
+    background: none; border: none; font-size: 20px;
+    color: var(--text-sub); cursor: pointer; padding: 4px;
+    flex-shrink: 0;
+  }
+
+  /* Pending photo reorder arrows */
+  .pv-thumb-arrows {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    display: flex; justify-content: space-between;
+    background: linear-gradient(transparent, rgba(0,0,0,.6));
+    padding: 12px 4px 4px;
+  }
+  .pv-thumb-arrow {
+    background: rgba(255,255,255,.9); border: none;
+    width: 26px; height: 26px; border-radius: 50%;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--text);
+    box-shadow: 0 1px 4px rgba(0,0,0,.2);
+  }
+  .pv-thumb-arrow:active { transform: scale(.9); }
+  .pv-thumb-arrow.hidden { visibility: hidden; }
+  .pv-thumb-order {
+    position: absolute; top: 4px; right: 4px;
+    background: rgba(0,0,0,.5); color: white;
+    font-size: 10px; font-weight: 700;
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
 
   /* Skeleton */
   .skeleton {
@@ -473,9 +545,22 @@
 <div class="progress-overlay" id="progressOverlay">
   <div class="progress-box">
     <div class="progress-spinner"></div>
-    <div class="progress-text" id="progressText">사진 업로드 중...</div>
+    <div class="progress-text" id="progressText">사진 처리 중...</div>
     <div class="progress-sub" id="progressSub">잠시만 기다려주세요</div>
     <div class="progress-detail" id="progressDetail"></div>
+  </div>
+</div>
+
+<!-- Non-blocking upload progress bar -->
+<div class="upload-bar" id="uploadBar">
+  <div class="upload-bar-inner">
+    <div class="upload-bar-spinner" id="uploadBarSpinner"></div>
+    <div class="upload-bar-content">
+      <div class="upload-bar-title" id="uploadBarTitle">업로드 중...</div>
+      <div class="upload-bar-sub" id="uploadBarSub"></div>
+      <div class="upload-bar-progress"><div class="upload-bar-fill" id="uploadBarFill"></div></div>
+    </div>
+    <button class="upload-bar-close" id="uploadBarClose" onclick="closeUploadBar()" style="display:none;">✕</button>
   </div>
 </div>
 
@@ -1032,13 +1117,21 @@ function updatePendingUI() {
 
   section.classList.remove('hidden');
   title.textContent = `📸 새 사진 ${pendingFiles.length}장`;
-  btn.disabled = false;
+  btn.disabled = isUploading;
+  btn.textContent = isUploading ? '⏳ 업로드 중...' : '⬆️ 업로드';
 
   grid.innerHTML = pendingFiles.map((pf, i) => `
-    <div class="pv-thumb">
+    <div class="pv-thumb" draggable="true" data-pidx="${i}"
+         ondragstart="onPendDragStart(event,${i})" ondragover="onPendDragOver(event)" ondrop="onPendDrop(event,${i})" ondragend="onPendDragEnd(event)"
+         ontouchstart="onPendTouchStart(event,${i})" ontouchmove="onPendTouchMove(event)" ontouchend="onPendTouchEnd(event)">
       <img src="${URL.createObjectURL(pf.file)}" alt="미리보기">
-      <button class="pv-thumb-remove" onclick="removeFile(${i})">✕</button>
+      <button class="pv-thumb-remove" onclick="event.stopPropagation();removeFile(${i})">✕</button>
       <span class="pv-thumb-size">${formatBytes(pf.compressedSize)}</span>
+      ${pendingFiles.length > 1 ? `<div class="pv-thumb-order">${i + 1}</div>` : ''}
+      ${pendingFiles.length > 1 ? `<div class="pv-thumb-arrows">
+        <button class="pv-thumb-arrow ${i === 0 ? 'hidden' : ''}" onclick="event.stopPropagation();movePending(${i},-1)">◀</button>
+        <button class="pv-thumb-arrow ${i === pendingFiles.length - 1 ? 'hidden' : ''}" onclick="event.stopPropagation();movePending(${i},1)">▶</button>
+      </div>` : ''}
     </div>`).join('');
 }
 
@@ -1047,52 +1140,230 @@ function removeFile(i) {
   updatePendingUI();
 }
 
-// ===== UPLOAD =====
-async function uploadImages() {
-  if (!selectedListing || pendingFiles.length === 0) return;
+function movePending(idx, dir) {
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= pendingFiles.length) return;
+  const tmp = pendingFiles[idx];
+  pendingFiles[idx] = pendingFiles[newIdx];
+  pendingFiles[newIdx] = tmp;
+  updatePendingUI();
+}
 
-  const totalSize = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
-  const count = pendingFiles.length;
-  showProgress(true, '사진 업로드 중...', `${count}장 (${formatBytes(totalSize)})`);
+// ===== PENDING DRAG & DROP (Desktop) =====
+let pendDragIdx = null;
+
+function onPendDragStart(e, i) {
+  pendDragIdx = i;
+  e.target.style.opacity = '.4';
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onPendDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+function onPendDrop(e, targetIdx) {
+  e.preventDefault();
+  if (pendDragIdx !== null && pendDragIdx !== targetIdx) {
+    const moved = pendingFiles.splice(pendDragIdx, 1)[0];
+    pendingFiles.splice(targetIdx, 0, moved);
+    updatePendingUI();
+  }
+}
+function onPendDragEnd(e) {
+  e.target.style.opacity = '';
+  pendDragIdx = null;
+}
+
+// ===== PENDING DRAG & DROP (Mobile Touch) =====
+let pendTouchIdx = null;
+let pendTouchClone = null;
+let pendTouchStartX = 0, pendTouchStartY = 0;
+let pendLongPress = null;
+let pendTouchActive = false;
+
+function onPendTouchStart(e, idx) {
+  pendTouchStartX = e.touches[0].clientX;
+  pendTouchStartY = e.touches[0].clientY;
+  pendTouchIdx = idx;
+  pendTouchActive = false;
+
+  pendLongPress = setTimeout(() => {
+    pendTouchActive = true;
+    const item = e.target.closest('.pv-thumb');
+    if (!item) return;
+    item.style.opacity = '.4';
+
+    const rect = item.getBoundingClientRect();
+    pendTouchClone = item.cloneNode(true);
+    pendTouchClone.style.cssText = `position:fixed;top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;z-index:500;opacity:.85;pointer-events:none;border:2px solid var(--primary);box-shadow:0 8px 30px rgba(0,0,0,.25);border-radius:10px;`;
+    document.body.appendChild(pendTouchClone);
+    if (navigator.vibrate) navigator.vibrate(30);
+  }, 400);
+}
+
+function onPendTouchMove(e) {
+  if (!pendTouchActive) {
+    const dx = e.touches[0].clientX - pendTouchStartX;
+    const dy = e.touches[0].clientY - pendTouchStartY;
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) clearTimeout(pendLongPress);
+    return;
+  }
+  e.preventDefault();
+  const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
+  if (pendTouchClone) {
+    pendTouchClone.style.left = (tx - pendTouchClone.offsetWidth / 2) + 'px';
+    pendTouchClone.style.top = (ty - pendTouchClone.offsetHeight / 2) + 'px';
+  }
+}
+
+function onPendTouchEnd(e) {
+  clearTimeout(pendLongPress);
+  if (pendTouchActive && pendTouchClone) {
+    const touch = e.changedTouches[0];
+    pendTouchClone.remove();
+    pendTouchClone = null;
+
+    const t = document.elementFromPoint(touch.clientX, touch.clientY);
+    const ti = t ? t.closest('.pv-thumb') : null;
+    if (ti) {
+      const targetIdx = parseInt(ti.dataset.pidx);
+      if (pendTouchIdx !== null && pendTouchIdx !== targetIdx) {
+        const moved = pendingFiles.splice(pendTouchIdx, 1)[0];
+        pendingFiles.splice(targetIdx, 0, moved);
+      }
+    }
+  }
+
+  document.querySelectorAll('.pv-thumb').forEach(el => el.style.opacity = '');
+  if (pendTouchActive) updatePendingUI();
+  pendTouchActive = false;
+  pendTouchIdx = null;
+}
+
+// ===== UPLOAD (Background - Non-blocking) =====
+let isUploading = false;
+async function uploadImages() {
+  if (!selectedListing || pendingFiles.length === 0 || isUploading) return;
+
+  isUploading = true;
+  const uploadListingId = selectedListing.id;
+  const uploadListingTitle = selectedListing.title || `매물 ${uploadListingId}`;
+  const filesToUpload = [...pendingFiles];
+  const totalSize = filesToUpload.reduce((s, f) => s + f.compressedSize, 0);
+  const count = filesToUpload.length;
+
+  // Clear pending immediately so user can keep working
+  pendingFiles = [];
+  updatePendingUI();
+
+  // Show non-blocking upload bar
+  showUploadBar(`${uploadListingTitle} 사진 업로드 중`, `${count}장 · ${formatBytes(totalSize)}`, 10);
 
   const startTime = Date.now();
 
+  // Use XMLHttpRequest for progress tracking
   const formData = new FormData();
-  pendingFiles.forEach(pf => formData.append('images', pf.file));
-
-  const metadata = pendingFiles.map(pf => ({
+  filesToUpload.forEach(pf => formData.append('images', pf.file));
+  const metadata = filesToUpload.map(pf => ({
     gps: pf.gps,
     originalSize: pf.originalSize,
     compressedSize: pf.compressedSize,
   }));
   formData.append('metadata', JSON.stringify(metadata));
 
-  const result = await apiCall(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
-    method: 'POST',
-    body: formData,
-    timeout: 120000  // 사진 업로드는 2분 타임아웃
-  });
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE}/api/listings/${uploadListingId}/images`);
+      xhr.setRequestHeader('Authorization', `Bearer ${AUTH_TOKEN}`);
+      xhr.timeout = 180000; // 3분 타임아웃
 
-  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          updateUploadBar(`${uploadListingTitle} 업로드 중`, `${count}장 · ${pct}% (${formatBytes(e.loaded)}/${formatBytes(e.total)})`, pct);
+        }
+      };
 
-  if (result.ok) {
-    const origT = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
-    const compT = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
-    const pct = origT > 0 ? Math.round((1 - compT / origT) * 100) : 0;
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300 && data.success !== false) {
+            resolve({ ok: true, data });
+          } else {
+            resolve({ ok: false, error: data.error || `서버 오류 (HTTP ${xhr.status})` });
+          }
+        } catch(e) {
+          resolve({ ok: false, error: `응답 파싱 오류` });
+        }
+      };
 
-    showToast(`✅ ${count}장 업로드 완료!`, 'success');
-    addLog('success', `매물 ${selectedListing.id} 사진 ${count}장 업로드`,
-      `용량: ${formatBytes(compT)}${pct > 5 ? ` (${pct}% 절약)` : ''} · ${elapsed}초`);
+      xhr.onerror = () => resolve({ ok: false, error: '네트워크 오류' });
+      xhr.ontimeout = () => resolve({ ok: false, error: '업로드 시간 초과' });
+      xhr.send(formData);
+    });
 
-    pendingFiles = [];
-    updatePendingUI();
-    await loadExistingImages(selectedListing.id);
-  } else {
-    showToast('❌ 업로드 실패', 'error');
-    addLog('error', `매물 ${selectedListing.id} 업로드 실패`, `${result.error} · ${elapsed}초`);
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+
+    if (result.ok) {
+      const origT = filesToUpload.reduce((s, f) => s + f.originalSize, 0);
+      const compT = filesToUpload.reduce((s, f) => s + f.compressedSize, 0);
+      const pct = origT > 0 ? Math.round((1 - compT / origT) * 100) : 0;
+
+      completeUploadBar(`✅ ${count}장 업로드 완료!`, `${formatBytes(compT)}${pct > 5 ? ` · ${pct}% 절약` : ''} · ${elapsed}초`);
+      addLog('success', `매물 ${uploadListingId} 사진 ${count}장 업로드`,
+        `용량: ${formatBytes(compT)}${pct > 5 ? ` (${pct}% 절약)` : ''} · ${elapsed}초`);
+
+      // Refresh existing images if still on the same listing
+      if (selectedListing && selectedListing.id === uploadListingId) {
+        await loadExistingImages(uploadListingId);
+      }
+    } else {
+      completeUploadBar(`❌ 업로드 실패`, result.error, true);
+      addLog('error', `매물 ${uploadListingId} 업로드 실패`, `${result.error} · ${elapsed}초`);
+    }
+  } catch(e) {
+    completeUploadBar(`❌ 업로드 오류`, e.message, true);
+    addLog('error', `매물 ${uploadListingId} 업로드 오류`, e.message);
   }
 
-  showProgress(false);
+  isUploading = false;
+}
+
+// ===== UPLOAD BAR (Non-blocking) =====
+function showUploadBar(title, sub, pct) {
+  const bar = document.getElementById('uploadBar');
+  bar.classList.remove('done');
+  bar.classList.add('show');
+  document.getElementById('uploadBarSpinner').innerHTML = '';
+  document.getElementById('uploadBarTitle').textContent = title;
+  document.getElementById('uploadBarSub').textContent = sub;
+  document.getElementById('uploadBarFill').style.width = pct + '%';
+  document.getElementById('uploadBarClose').style.display = 'none';
+}
+
+function updateUploadBar(title, sub, pct) {
+  document.getElementById('uploadBarTitle').textContent = title;
+  document.getElementById('uploadBarSub').textContent = sub;
+  document.getElementById('uploadBarFill').style.width = pct + '%';
+}
+
+function completeUploadBar(title, sub, isError) {
+  const bar = document.getElementById('uploadBar');
+  bar.classList.add('done');
+  document.getElementById('uploadBarSpinner').textContent = isError ? '❌' : '✅';
+  document.getElementById('uploadBarTitle').textContent = title;
+  document.getElementById('uploadBarSub').textContent = sub;
+  document.getElementById('uploadBarFill').style.width = '100%';
+  document.getElementById('uploadBarClose').style.display = '';
+
+  // Auto-hide after 5 seconds
+  setTimeout(() => closeUploadBar(), 5000);
+}
+
+function closeUploadBar() {
+  document.getElementById('uploadBar').classList.remove('show');
+  setTimeout(() => document.getElementById('uploadBar').classList.remove('done'), 300);
 }
 
 // ===== UPLOAD LOG =====
