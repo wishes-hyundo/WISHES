@@ -583,11 +583,15 @@ export default function MapSearchPage() {
             {/* 검색 버튼 */}
             <button
               onClick={() => setShowSearch(!showSearch)}
-              className={`p-2 rounded-full transition-all ${
-                showSearch ? 'bg-wishes-primary text-white' : 'text-gray-400 hover:bg-gray-100'
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full border-2 transition-all shadow-sm ${
+                showSearch
+                  ? 'bg-wishes-primary text-white border-wishes-primary'
+                  : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary hover:text-wishes-primary'
               }`}
+              title="매물 검색"
             >
-              <Search className="w-4 h-4" />
+              <Search className="w-3.5 h-3.5" />
+              <span>매물검색</span>
             </button>
 
             {/* 모바일 뷰 토글 */}
