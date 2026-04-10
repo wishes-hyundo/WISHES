@@ -17,9 +17,20 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith('/admin');
   const isMapPage = pathname === '/map';
+  // 중개사 포털 관련 페이지는 헤더/푸터 없이 전체화면 렌더링
+  const isBrokerPortal = pathname === '/search' || pathname === '/login' || pathname === '/signup';
 
   if (isAdmin) {
     return <>{children}</>;
+  }
+
+  if (isBrokerPortal) {
+    // AuthProvider만 래핑 (createAuthClient 사용을 위해)
+    return (
+      <AuthProvider>
+        {children}
+      </AuthProvider>
+    );
   }
 
   return (
