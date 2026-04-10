@@ -23,6 +23,7 @@ export function Footer() {
               { label: '지도검색', href: '/map' },
               { label: '회사소개', href: '/about' },
               { label: '상담문의', href: '/contact' },
+              { label: 'FAQ', href: '/faq' },
             ].map((item) => (
               <Link key={item.href} href={item.href} className="hover:text-white transition-colors">
                 {item.label}
