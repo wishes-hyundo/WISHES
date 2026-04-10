@@ -80,9 +80,9 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://map2.daumcdn.net" />
         <link rel="dns-prefetch" href="https://map3.daumcdn.net" />
 
-        {/* ⚡ 카카오맵 SDK — services + clusterer + drawing 모두 포함 (beforeInteractive = 최고속) */}
+        {/* ⚡ 카카오맵 SDK — 핵심(services + clusterer) 만 선로드, drawing 은 사용자가 그리기 버튼 클릭 시 lazy 로드 */}
         <Script
-          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || 'a1c65d0ec2ecc8d2d231f8558f896e38'}&libraries=services,clusterer,drawing&autoload=false`}
+          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || 'a1c65d0ec2ecc8d2d231f8558f896e38'}&libraries=services,clusterer&autoload=false`}
           strategy="beforeInteractive"
         />
 

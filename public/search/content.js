@@ -5088,24 +5088,24 @@
     var container = document.getElementById('ws-map-container');
     if (!container) return;
 
-    // Prepare listings data for the MAIN world script
+    // ⚡ Prepare listings data — 싱글 패스, 객체 복제 최소화
+    // (map-main.js 가 window.__WS_MAP_LISTINGS__ 만 우선 사용 → JSON.stringify/parse 비용 제거)
     var listings = window.WS.filtered || [];
-    var validListings = listings.filter(function(l) { return l.lat && l.lng; });
-
-    // ⚡ 전역 변수로 직접 전달 — JSON.stringify/parse 비용 제거 (8,000건 기준 ~500ms 절약)
-    var listingsArr = validListings.map(function(l) {
-      var addrParts = (l.address || '').split(' ');
-      var dongAddr = addrParts.length >= 3 ? addrParts.slice(0, 3).join(' ') : l.address || '';
-      return {
+    var listingsArr = [];
+    for (var i = 0, n = listings.length; i < n; i++) {
+      var l = listings[i];
+      if (!l.lat || !l.lng) continue;
+      // 필수 필드만 얕은 복사 — dong 은 buildListingInfoHtml 에서 lazy 계산 (fallback)
+      listingsArr.push({
         id: l.id, lat: l.lat, lng: l.lng,
         title: l.title || '', type: l.type || '',
         deal: l.deal || '', deposit: l.deposit || 0, monthly: l.monthly || 0,
-        price: l.price || 0, address: l.address || '', dong: dongAddr,
+        price: l.price || 0, address: l.address || '',
         area_m2: l.area_m2 || 0,
         floor_current: l.floor_current || '', floor_total: l.floor_total || '',
         rooms: l.rooms || 0, parking: !!l.parking
-      };
-    });
+      });
+    }
     window.__WS_MAP_LISTINGS__ = listingsArr;
 
     // Check if map div already exists (reuse for smoother UX)
@@ -5114,8 +5114,7 @@
       container.innerHTML = '<div id="ws-kakao-map" style="width:100%;height:500px;border-radius:8px;"></div>';
       mapDiv = document.getElementById('ws-kakao-map');
     }
-    // data-listings 속성은 빈 값 — 기존 코드 호환용 (map-main.js 가 전역 변수를 우선 사용)
-    mapDiv.setAttribute('data-listings', '[]');
+    // ⚡ data-listings setAttribute 완전 제거 — map-main.js 는 window 전역 우선
 
     var _canLoadMapB = (!window.WS._mapScriptLoaded) && ((typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) || _WS_EMBEDDED_MODE);
     if (_canLoadMapB) {

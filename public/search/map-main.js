@@ -90,13 +90,12 @@
   // ======================== 상태 ========================
   var _map = null;
   var _clusterer = null;
-  var _openInfowindow = null;
+  var _sharedIw = null;            // ⚡ 단일 공유 InfoWindow — new 비용 제거
   var _overlays = { traffic: false, terrain: false, bicycle: false, useDistrict: false, roadviewLayer: false };
   var _drawingManager = null;
   var _placesService = null;
   var _geocoder = null;
   var _placeMarkers = [];
-  var _placeInfowindow = null;
   var _roadview = null;
   var _roadviewClient = null;
   var _rvContainer = null;
@@ -107,10 +106,17 @@
   var _allListings = [];
   var _scaleEl = null;
   var _clickMode = 'none';
-  var _drawingShapes = [];
+  var _toolbarBodyBuilt = false;   // ⚡ 툴바 바디 지연 빌드 플래그
+  var _urlRestored = false;        // ⚡ URL 복원 여부 → setBounds 스킵 판단
 
-  // requestIdleCallback 폴리필
+  // requestIdleCallback 폴리필 (50ms deadline)
   var _ric = window.requestIdleCallback || function(cb) { return setTimeout(cb, 1); };
+
+  // ⚡ 공유 InfoWindow 싱글톤 — 최초 사용시 1회만 생성
+  function getSharedIw() {
+    if (!_sharedIw) _sharedIw = new kakao.maps.InfoWindow({ content: '', removable: true });
+    return _sharedIw;
+  }
 
   // ======================== 메인 렌더 ========================
   function renderWishesMap() {
@@ -126,35 +132,37 @@
     }
 
     if (_clusterer) { _clusterer.clear(); _clusterer = null; }
-    if (_openInfowindow) { _openInfowindow.close(); _openInfowindow = null; }
+    if (_sharedIw) { try { _sharedIw.close(); } catch(e) {} }
 
     var needNew = !_map || mapDiv.getAttribute('data-ws-mounted') !== '1';
     if (needNew) {
       mapDiv.setAttribute('data-ws-mounted', '1');
       mapDiv.style.position = 'relative';
 
-      // ⚡ 최소 옵션만 동기 초기화
+      // ⚡ 최소 옵션만 동기 초기화 (기본값 프로퍼티 전부 제거)
       _map = new kakao.maps.Map(mapDiv, {
         center: new kakao.maps.LatLng(37.5665, 126.9780),
-        level: 8,
-        draggable: true,
-        scrollwheel: true,
-        disableDoubleClick: false,
-        disableDoubleClickZoom: false
+        level: 8
       });
 
       try {
         _map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT);
       } catch(e) {}
 
-      // ⚡ 툴바 먼저 (DOM 비용 <5ms, 사용자가 즉시 볼 수 있어야 함)
-      buildToolbar(mapDiv);
-      buildScaleBar(mapDiv);
-      // ⚡ 마커 렌더 (비동기 청크)
+      // ⚡ URL 복원 먼저 (setBounds 와 경쟁 방지)
+      _urlRestored = restoreFromURL();
+
+      // ⚡ 툴바 '헤더만' 즉시 — 바디는 첫 펼침시 lazy
+      buildToolbarHeader(mapDiv);
+
+      // ⚡ 마커 렌더 (비동기 청크) — 메인 경로
       renderListingMarkers();
+
+      // ⚡ 지도 이벤트 — 클릭 하나만
       attachMapEvents();
-      // URL 복원은 1프레임 지연 — 마커 생성과 경쟁하지 않도록
-      (window.requestAnimationFrame || setTimeout)(function() { restoreFromURL(); });
+
+      // ⚡ 축척 바는 idle 로 — 초기 렌더 영향 0
+      _ric(function() { buildScaleBar(mapDiv); });
     } else {
       try { _map.setDraggable(true); _map.setZoomable(true); } catch(e) {}
       renderListingMarkers();
@@ -170,31 +178,58 @@
       } catch(e) {}
     }
   }
-  function ensureDrawing() {
-    if (_drawingManager || !kakao.maps.drawing) return;
-    try {
-      _drawingManager = new kakao.maps.drawing.DrawingManager({
-        map: _map,
-        drawingMode: [
-          kakao.maps.drawing.OverlayType.MARKER,
-          kakao.maps.drawing.OverlayType.POLYLINE,
-          kakao.maps.drawing.OverlayType.RECTANGLE,
-          kakao.maps.drawing.OverlayType.CIRCLE,
-          kakao.maps.drawing.OverlayType.POLYGON,
-          kakao.maps.drawing.OverlayType.ARROW
-        ],
-        guideTooltip: ['draw', 'drag', 'edit'],
-        markerOptions: { draggable: true, removable: true },
-        polylineOptions: { draggable: true, removable: true, editable: true, strokeColor: '#2D5A27' },
-        rectangleOptions: { draggable: true, removable: true, editable: true, strokeColor: '#2D5A27', fillColor: '#2D5A27', fillOpacity: 0.2 },
-        circleOptions: { draggable: true, removable: true, editable: true, strokeColor: '#2D5A27', fillColor: '#2D5A27', fillOpacity: 0.2 },
-        polygonOptions: { draggable: true, removable: true, editable: true, strokeColor: '#2D5A27', fillColor: '#2D5A27', fillOpacity: 0.2 },
-        arrowOptions: { draggable: true, removable: true, editable: true, strokeColor: '#e53e3e' }
-      });
-    } catch(e) {}
+  // ⚡ drawing 라이브러리는 초기 SDK 에서 제외되므로 첫 그리기 클릭 시 동적 로드
+  var _drawingLoading = false;
+  function ensureDrawing(onReady) {
+    if (_drawingManager) { if (onReady) onReady(); return; }
+    function buildMgr() {
+      if (_drawingManager || !kakao.maps.drawing) return;
+      try {
+        _drawingManager = new kakao.maps.drawing.DrawingManager({
+          map: _map,
+          drawingMode: [
+            kakao.maps.drawing.OverlayType.MARKER,
+            kakao.maps.drawing.OverlayType.POLYLINE,
+            kakao.maps.drawing.OverlayType.RECTANGLE,
+            kakao.maps.drawing.OverlayType.CIRCLE,
+            kakao.maps.drawing.OverlayType.POLYGON,
+            kakao.maps.drawing.OverlayType.ARROW
+          ],
+          guideTooltip: ['draw', 'drag', 'edit'],
+          markerOptions: { draggable: true, removable: true },
+          polylineOptions: { draggable: true, removable: true, editable: true, strokeColor: '#2D5A27' },
+          rectangleOptions: { draggable: true, removable: true, editable: true, strokeColor: '#2D5A27', fillColor: '#2D5A27', fillOpacity: 0.2 },
+          circleOptions: { draggable: true, removable: true, editable: true, strokeColor: '#2D5A27', fillColor: '#2D5A27', fillOpacity: 0.2 },
+          polygonOptions: { draggable: true, removable: true, editable: true, strokeColor: '#2D5A27', fillColor: '#2D5A27', fillOpacity: 0.2 },
+          arrowOptions: { draggable: true, removable: true, editable: true, strokeColor: '#e53e3e' }
+        });
+      } catch(e) {}
+      if (onReady) onReady();
+    }
+    if (kakao.maps.drawing) { buildMgr(); return; }
+    if (_drawingLoading) return;
+    _drawingLoading = true;
+    // dynamic load — drawing 만 추가
+    var appkey = 'a1c65d0ec2ecc8d2d231f8558f896e38';
+    var s = document.createElement('script');
+    s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=' + appkey + '&autoload=false&libraries=drawing';
+    s.onload = function() {
+      try { kakao.maps.load(buildMgr); } catch(e) {}
+    };
+    document.head.appendChild(s);
   }
 
   // ======================== 매물 마커 (배치 생성) ========================
+  // ⚡ 공통 마커 클릭 핸들러 팩토리 — 공유 InfoWindow 재사용, new 비용 제거
+  function makeMarkerClickHandler(marker, listing) {
+    return function() {
+      var iw = getSharedIw();
+      try { iw.close(); } catch(e) {}
+      iw.setContent(buildListingInfoHtml(listing));
+      iw.open(_map, marker);
+    };
+  }
+
   function renderListingMarkers() {
     if (_clusterer) { _clusterer.clear(); _clusterer = null; }
 
@@ -211,11 +246,13 @@
       return;
     } else if (hint) { hint.remove(); }
 
-    // 클러스터러 생성
+    // ⚡ 클러스터러 — gridSize 80 (기본 60) 로 재클러스터 연산 감소, minClusterSize 3
     _clusterer = new kakao.maps.MarkerClusterer({
       map: _map,
       averageCenter: true,
       minLevel: 5,
+      gridSize: 80,
+      minClusterSize: 3,
       disableClickZoom: false,
       styles: [{
         width: '50px', height: '50px',
@@ -229,46 +266,50 @@
       }]
     });
 
-    // ⚡ 배치 생성 — 첫 청크는 작게(400) 즉시, 나머지는 크게(1500) idle 에 처리
-    var bounds = new kakao.maps.LatLngBounds();
-    var validListings = _allListings.filter(function(l) { return l.lat && l.lng; });
-    var idx = 0;
-    var firstChunkDone = false;
-
-    function processChunk() {
-      var CHUNK = firstChunkDone ? 1500 : 400;
-      var end = Math.min(idx + CHUNK, validListings.length);
-      var chunk = [];
-      for (var i = idx; i < end; i++) {
-        var l = validListings[i];
-        var coords = new kakao.maps.LatLng(l.lat, l.lng);
-        bounds.extend(coords);
-        var marker = new kakao.maps.Marker({ position: coords, title: l.title || l.address });
-        kakao.maps.event.addListener(marker, 'click', (function(m, li) {
-          return function() {
-            if (_openInfowindow) _openInfowindow.close();
-            var iw = new kakao.maps.InfoWindow({ content: buildListingInfoHtml(li), removable: true });
-            iw.open(_map, m);
-            _openInfowindow = iw;
-          };
-        })(marker, l));
-        chunk.push(marker);
-      }
-      if (_clusterer) _clusterer.addMarkers(chunk);
-      idx = end;
-
-      // 첫 청크 끝나면 즉시 setBounds — 사용자는 바로 매물 위치 확인 가능
-      if (!firstChunkDone) {
-        firstChunkDone = true;
-        try { _map.setBounds(bounds); } catch(e) {}
-      }
-
-      if (idx < validListings.length) {
-        // 나머지는 idle 에 — 초기 타일 렌더와 경쟁 안함
-        _ric(processChunk);
-      }
+    // ⚡ 유효 좌표만 필터링 (한번만)
+    var validListings = [];
+    for (var k = 0; k < _allListings.length; k++) {
+      var li = _allListings[k];
+      if (li.lat && li.lng) validListings.push(li);
     }
-    processChunk();
+    var total = validListings.length;
+
+    // ⚡ 첫 청크 200개 즉시, 나머지는 단일 idle 배치 — re-cluster 2회로 최소화
+    var FIRST_CHUNK = Math.min(200, total);
+    var bounds = new kakao.maps.LatLngBounds();
+
+    // 1차 청크 (즉시) — 사용자 즉시 피드백
+    var firstMarkers = new Array(FIRST_CHUNK);
+    for (var i = 0; i < FIRST_CHUNK; i++) {
+      var l = validListings[i];
+      var coords = new kakao.maps.LatLng(l.lat, l.lng);
+      bounds.extend(coords);
+      // ⚡ title 옵션 제거 — 브라우저 tooltip 불필요, 마커 내부 attr 할당 비용 제거
+      var marker = new kakao.maps.Marker({ position: coords });
+      kakao.maps.event.addListener(marker, 'click', makeMarkerClickHandler(marker, l));
+      firstMarkers[i] = marker;
+    }
+    _clusterer.addMarkers(firstMarkers);
+
+    // ⚡ URL 복원이 없을 때만 setBounds — 복원 있을 땐 그 좌표 유지
+    if (!_urlRestored && FIRST_CHUNK > 0) {
+      try { _map.setBounds(bounds); } catch(e) {}
+    }
+
+    // 2차 청크 (idle) — 나머지 전체를 한 번에
+    if (total > FIRST_CHUNK) {
+      _ric(function() {
+        var rest = new Array(total - FIRST_CHUNK);
+        for (var j = FIRST_CHUNK; j < total; j++) {
+          var l2 = validListings[j];
+          var c2 = new kakao.maps.LatLng(l2.lat, l2.lng);
+          var m2 = new kakao.maps.Marker({ position: c2 });
+          kakao.maps.event.addListener(m2, 'click', makeMarkerClickHandler(m2, l2));
+          rest[j - FIRST_CHUNK] = m2;
+        }
+        if (_clusterer) _clusterer.addMarkers(rest);
+      });
+    }
   }
 
   function buildListingInfoHtml(l) {
@@ -290,8 +331,8 @@
       '</div></div>';
   }
 
-  // ======================== 접이식 툴바 ========================
-  function buildToolbar(mapDiv) {
+  // ======================== 접이식 툴바 (헤더만 즉시, 바디는 lazy) ========================
+  function buildToolbarHeader(mapDiv) {
     if (document.getElementById('ws-map-toolbar')) return;
 
     var bar = document.createElement('div');
@@ -306,18 +347,41 @@
       '<span id="ws-tb-toggle" style="font-size:11px;color:#888;">▼ 펼치기</span>';
     bar.appendChild(header);
 
-    // 바디 (접힘 기본값)
+    // 바디 placeholder (display:none) — 첫 펼침 시 lazy 빌드
     var body = document.createElement('div');
     body.id = 'ws-tb-body';
     body.style.cssText = 'display:none;padding:0 10px 10px 10px;flex-direction:column;gap:6px;max-height:70vh;overflow-y:auto;';
     bar.appendChild(body);
 
     header.addEventListener('click', function() {
+      // ⚡ 최초 펼침 시 바디 콘텐츠 빌드 (40+ 버튼 DOM 생성 지연)
+      if (!_toolbarBodyBuilt) {
+        _toolbarBodyBuilt = true;
+        buildToolbarBody(body, mapDiv);
+      }
       var isHidden = body.style.display === 'none';
       body.style.display = isHidden ? 'flex' : 'none';
       document.getElementById('ws-tb-toggle').textContent = isHidden ? '▲ 접기' : '▼ 펼치기';
     });
 
+    // 스타일 — 1회만 주입 (헤더 단계에서 준비)
+    if (!document.getElementById('ws-map-toolbar-style')) {
+      var st = document.createElement('style');
+      st.id = 'ws-map-toolbar-style';
+      st.textContent =
+        '#ws-map-toolbar button{padding:5px 9px;font-size:11px;font-weight:600;border:1px solid #dcdcdc;background:#fff;color:#444;border-radius:6px;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s,border-color .12s;}' +
+        '#ws-map-toolbar button:hover{background:#f5f9f3;border-color:#2D5A27;color:#2D5A27;}' +
+        '#ws-map-toolbar button.ws-btn-active{background:#2D5A27;color:#fff;border-color:#2D5A27;}' +
+        '#ws-map-toolbar .ws-sec-label{font-size:10px;font-weight:700;color:#999;letter-spacing:.5px;padding:4px 0 0 2px;}' +
+        '#ws-map-toolbar .ws-row{display:flex;gap:3px;flex-wrap:wrap;}' +
+        '#ws-map-toolbar #ws-tb-body::-webkit-scrollbar{width:6px;}' +
+        '#ws-map-toolbar #ws-tb-body::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px;}';
+      document.head.appendChild(st);
+    }
+    mapDiv.appendChild(bar);
+  }
+
+  function buildToolbarBody(body, mapDiv) {
     // 지도 타입
     body.appendChild(sectionLabel('지도타입'));
     var typeRow = rowDiv();
@@ -376,16 +440,18 @@
     ].forEach(function(d) {
       var b = makeBtn(d.label);
       b.addEventListener('click', function() {
-        ensureDrawing();
-        if (!_drawingManager || !kakao.maps.drawing) {
-          showToast('⚠ 그리기 라이브러리 미로드');
-          return;
-        }
-        try { _drawingManager.cancel(); } catch(e) {}
-        try {
-          _drawingManager.select(kakao.maps.drawing.OverlayType[d.type]);
-          showToast('✏ ' + d.label + ' — 지도에 클릭/드래그');
-        } catch(e) { showToast('⚠ 그리기 오류: ' + e.message); }
+        showToast('⏳ 그리기 도구 로딩...');
+        ensureDrawing(function() {
+          if (!_drawingManager || !kakao.maps.drawing) {
+            showToast('⚠ 그리기 라이브러리 로드 실패');
+            return;
+          }
+          try { _drawingManager.cancel(); } catch(e) {}
+          try {
+            _drawingManager.select(kakao.maps.drawing.OverlayType[d.type]);
+            showToast('✏ ' + d.label + ' — 지도에 클릭/드래그');
+          } catch(e) { showToast('⚠ 그리기 오류: ' + e.message); }
+        });
       });
       drawRow.appendChild(b);
     });
@@ -492,21 +558,7 @@
     searchRow.appendChild(sbtn);
     body.appendChild(searchRow);
 
-    // 스타일
-    if (!document.getElementById('ws-map-toolbar-style')) {
-      var st = document.createElement('style');
-      st.id = 'ws-map-toolbar-style';
-      st.textContent =
-        '#ws-map-toolbar button{padding:5px 9px;font-size:11px;font-weight:600;border:1px solid #dcdcdc;background:#fff;color:#444;border-radius:6px;cursor:pointer;white-space:nowrap;transition:background .12s,color .12s,border-color .12s;}' +
-        '#ws-map-toolbar button:hover{background:#f5f9f3;border-color:#2D5A27;color:#2D5A27;}' +
-        '#ws-map-toolbar button.ws-btn-active{background:#2D5A27;color:#fff;border-color:#2D5A27;}' +
-        '#ws-map-toolbar .ws-sec-label{font-size:10px;font-weight:700;color:#999;letter-spacing:.5px;padding:4px 0 0 2px;}' +
-        '#ws-map-toolbar .ws-row{display:flex;gap:3px;flex-wrap:wrap;}' +
-        '#ws-map-toolbar #ws-tb-body::-webkit-scrollbar{width:6px;}' +
-        '#ws-map-toolbar #ws-tb-body::-webkit-scrollbar-thumb{background:#ccc;border-radius:3px;}';
-      document.head.appendChild(st);
-    }
-    mapDiv.appendChild(bar);
+    // ⚡ 스타일은 buildToolbarHeader 에서 사전 주입됨
   }
 
   function sectionLabel(text) {
@@ -546,14 +598,15 @@
           var m = new kakao.maps.Marker({ position: pos, map: _map });
           kakao.maps.event.addListener(m, 'click', (function(mk, place) {
             return function() {
-              if (_placeInfowindow) _placeInfowindow.close();
+              var iw = getSharedIw();
+              try { iw.close(); } catch(e) {}
               var html = '<div style="padding:10px 12px;min-width:200px;font-size:12px;line-height:1.5;">' +
                 '<div style="font-weight:700;color:#2D5A27;margin-bottom:4px;">' + place.place_name + '</div>' +
                 '<div style="color:#666;">' + (place.road_address_name || place.address_name || '') + '</div>' +
                 (place.phone ? '<div style="color:#888;margin-top:4px;">📞 ' + place.phone + '</div>' : '') +
                 '</div>';
-              _placeInfowindow = new kakao.maps.InfoWindow({ content: html, removable: true });
-              _placeInfowindow.open(_map, mk);
+              iw.setContent(html);
+              iw.open(_map, mk);
             };
           })(m, p));
           _placeMarkers.push(m);
@@ -583,12 +636,10 @@
           var m = new kakao.maps.Marker({ position: pos, map: _map });
           kakao.maps.event.addListener(m, 'click', (function(mk, place) {
             return function() {
-              if (_placeInfowindow) _placeInfowindow.close();
-              _placeInfowindow = new kakao.maps.InfoWindow({
-                content: '<div style="padding:8px 10px;font-size:12px;"><b>' + place.place_name + '</b><br><span style="color:#666;">' + (place.road_address_name || place.address_name) + '</span></div>',
-                removable: true
-              });
-              _placeInfowindow.open(_map, mk);
+              var iw = getSharedIw();
+              try { iw.close(); } catch(e) {}
+              iw.setContent('<div style="padding:8px 10px;font-size:12px;"><b>' + place.place_name + '</b><br><span style="color:#666;">' + (place.road_address_name || place.address_name) + '</span></div>');
+              iw.open(_map, mk);
             };
           })(m, p));
           _placeMarkers.push(m);
@@ -605,7 +656,7 @@
   function clearPlaceMarkers() {
     _placeMarkers.forEach(function(m) { m.setMap(null); });
     _placeMarkers = [];
-    if (_placeInfowindow) { _placeInfowindow.close(); _placeInfowindow = null; }
+    if (_sharedIw) { try { _sharedIw.close(); } catch(e) {} }
   }
 
   // ======================== 반경 검색 ========================
@@ -637,13 +688,7 @@
       var pos = new kakao.maps.LatLng(l.lat, l.lng);
       bounds.extend(pos);
       var m = new kakao.maps.Marker({ position: pos, title: l.title });
-      kakao.maps.event.addListener(m, 'click', (function(mk, li) {
-        return function() {
-          if (_openInfowindow) _openInfowindow.close();
-          _openInfowindow = new kakao.maps.InfoWindow({ content: buildListingInfoHtml(li), removable: true });
-          _openInfowindow.open(_map, mk);
-        };
-      })(m, l));
+      kakao.maps.event.addListener(m, 'click', makeMarkerClickHandler(m, l));
       return m;
     });
     _clusterer.addMarkers(markers);
@@ -685,9 +730,11 @@
           (jibun ? '<div style="margin-top:4px;"><b>지번:</b> ' + jibun + '</div>' : '') +
           '<div style="margin-top:4px;color:#888;font-size:11px;">' + latlng.getLat().toFixed(6) + ', ' + latlng.getLng().toFixed(6) + '</div>' +
           '</div>';
-        if (_placeInfowindow) _placeInfowindow.close();
-        _placeInfowindow = new kakao.maps.InfoWindow({ position: latlng, content: content, removable: true });
-        _placeInfowindow.open(_map);
+        var iw = getSharedIw();
+        try { iw.close(); } catch(e) {}
+        iw.setContent(content);
+        iw.setPosition(latlng);
+        iw.open(_map);
       }
     });
     _clickMode = 'none';
@@ -816,9 +863,11 @@
         if (parts.length === 3) {
           _map.setCenter(new kakao.maps.LatLng(parseFloat(parts[0]), parseFloat(parts[1])));
           _map.setLevel(parseInt(parts[2], 10));
+          return true;
         }
       }
     } catch(e) {}
+    return false;
   }
 
   // ======================== 히트맵 ========================
