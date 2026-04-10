@@ -114,7 +114,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         </button>
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-            매물번호 W-{listing.id}
+            매물번호 {listing.id}
           </span>
           {listing.views > 0 && (
             <span className="text-xs text-gray-400 flex items-center gap-1">
