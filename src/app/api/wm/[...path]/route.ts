@@ -1,11 +1,6 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // WISHES 워터마크 프록시 API
 // GET /api/wm/[...path]
-//
-// 동작:
-//   1. Cloudflare R2 (또는 로컬)에서 원본 이미지 로드
-//   2. Sharp로 WISHES 워터마크 합성
-//   3. 1시간 캐시 응답 반환
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,10 +8,8 @@ import path from 'path';
 import fs from 'fs';
 import { applyWatermark } from '@/lib/watermark';
 
-const R2_PUBLIC_URL =
-  process.env.R2_PUBLIC_URL ||
-  'https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev';
-
+const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev';
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
 const CACHE_SECONDS = 3600;
 
 export async function GET(
@@ -28,17 +21,34 @@ export async function GET(
     const filePath = pathSegments.join('/');
 
     let imageBuffer: Buffer | null = null;
-    let contentType = 'image/webp';
+    let contentType = 'image/jpeg';
 
-    // ① R2에서 원본 이미지 fetch
-    const r2Url = `${R2_PUBLIC_URL}/${filePath}`;
-    const r2Res = await fetch(r2Url);
+    // 1순위: 내부 API 이미지 (api/images/... 경로)
+    if (filePath.startsWith('api/')) {
+      const internalUrl = `${SITE_URL}/${filePath}`;
+      try {
+        const internalRes = await fetch(internalUrl, { cache: 'no-store' });
+        if (internalRes.ok) {
+          imageBuffer = Buffer.from(await internalRes.arrayBuffer());
+          contentType = internalRes.headers.get('content-type') || 'image/jpeg';
+        }
+      } catch (e) {
+        console.error('[wm-proxy] 내부 API fetch 실패:', e);
+      }
+    }
 
-    if (r2Res.ok) {
-      imageBuffer = Buffer.from(await r2Res.arrayBuffer());
-      contentType = r2Res.headers.get('content-type') || contentType;
-    } else {
-      // ② 로컬 fallback (개발 환경)
+    // 2순위: Cloudflare R2
+    if (!imageBuffer) {
+      const r2Url = `${R2_PUBLIC_URL}/${filePath}`;
+      const r2Res = await fetch(r2Url);
+      if (r2Res.ok) {
+        imageBuffer = Buffer.from(await r2Res.arrayBuffer());
+        contentType = r2Res.headers.get('content-type') || contentType;
+      }
+    }
+
+    // 3순위: 로컬 파일 (개발 환경)
+    if (!imageBuffer) {
       const localPath = path.join(process.cwd(), 'public', 'images', filePath);
       if (fs.existsSync(localPath)) {
         imageBuffer = fs.readFileSync(localPath);
@@ -51,7 +61,6 @@ export async function GET(
       return new NextResponse('이미지를 찾을 수 없습니다', { status: 404 });
     }
 
-    // 워터마크 합성 (public/watermark.png 사용)
     const watermarked = await applyWatermark(imageBuffer);
 
     return new NextResponse(watermarked, {
