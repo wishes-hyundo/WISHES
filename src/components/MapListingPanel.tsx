@@ -13,6 +13,9 @@ import { formatFloorWithTotal } from '@/lib/formatFloor';
 import CompassDirection from '@/components/CompassDirection';
 import Link from 'next/link';
 import type { Listing } from '@/types';
+import RealPriceChart from '@/components/RealPriceChart';
+import ListingLocationMap from '@/components/ListingLocationMap';
+
 
 interface MapListingPanelProps {
   listingId: number;
@@ -346,26 +349,34 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <NearbyStationsSection listingId={listing.id} />
         )}
 
-        {/* ── 실거래가 동향 ── */}
+        {/* ── 실거래가 동향 (MOLIT 실데이터) ── */}
         {listing.dong && (
           <div className="p-4 border-b border-gray-100">
+            <RealPriceChart
+              listingId={listing.id}
+              dong={listing.dong}
+              type={listing.type}
+              deal={listing.deal}
+            />
+          </div>
+        )}
+
+        {/* ── 소재지 위치 지도 (주소 고정 / 락 해제 시 이동) ── */}
+        {listing.lat && listing.lng && (
+          <div className="p-4 border-b border-gray-100">
             <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-green-500/70" />
-              {listing.dong} 실거래가 동향
+              <MapPin className="w-4 h-4 text-wishes-primary" />
+              소재지 위치
             </h3>
-            <div className="bg-green-50/50 rounded-xl p-3.5">
-              <a
-                href="https://rt.molit.go.kr/pt/xls/xls.do#tabNm=6"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors font-medium"
-              >
-                <TrendingUp className="w-3 h-3" />
-                국토교통부 실거래가 조회
-                <ChevronRight className="w-3 h-3" />
-              </a>
-              <p className="text-xs text-gray-400 mt-2">상담 시 최술 실거래가를 안내드립니다.</p>
-            </div>
+            <ListingLocationMap
+              lat={listing.lat}
+              lng={listing.lng}
+              address={listing.address || listing.dong}
+              title={listing.title}
+            />
+            <p className="text-[11px] text-gray-400 mt-2">
+              기본적으로 주소가 고정되어 있습니다. 좌측 상단 자물쇠 버튼을 눌러 지도를 이동/확대할 수 있습니다.
+            </p>
           </div>
         )}
 
