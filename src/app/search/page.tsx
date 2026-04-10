@@ -41,6 +41,32 @@ export default function SearchPortalPage() {
       }
     } catch {}
 
+    // ⚡ 카카오맵 SDK + DNS 프리커넥트 + 스크립트 프리페치
+    try {
+      const head = document.head;
+      const addLink = (rel: string, href: string, crossOrigin?: string) => {
+        if (document.querySelector(`link[rel="${rel}"][href="${href}"]`)) return;
+        const l = document.createElement('link');
+        l.rel = rel;
+        l.href = href;
+        if (crossOrigin) l.crossOrigin = crossOrigin;
+        head.appendChild(l);
+      };
+      addLink('preconnect', 'https://dapi.kakao.com');
+      addLink('preconnect', 'https://t1.daumcdn.net');
+      addLink('dns-prefetch', 'https://dapi.kakao.com');
+      addLink('dns-prefetch', 'https://t1.daumcdn.net');
+      // 카카오맵 SDK 를 인증검증과 병렬로 미리 받아 캐시에 넣음
+      if (!document.getElementById('ws-kakao-sdk-preload')) {
+        const pre = document.createElement('link');
+        pre.id = 'ws-kakao-sdk-preload';
+        pre.rel = 'preload';
+        pre.as = 'script';
+        pre.href = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=a1c65d0ec2ecc8d2d231f8558f896e38&autoload=false&libraries=services,clusterer,drawing';
+        head.appendChild(pre);
+      }
+    } catch {}
+
     (async () => {
       try {
         const sb = createAuthClient();
