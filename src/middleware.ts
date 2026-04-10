@@ -2,13 +2,34 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // CORS: admin API 엔드포인트는 외부 도메인(크롤러)에서도 접근 허용
+  if (pathname.startsWith('/api/admin/')) {
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, {
+        status: 200,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Max-Age': '86400',
+        },
+      });
+    }
+    const response = NextResponse.next();
+    response.headers.set('Access-Control-Allow-Origin', '*');
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return response;
+  }
+
     // Skip CSP for address search page (needs unrestricted script loading for Daum Postcode)
-  if (request.nextUrl.pathname === '/api/address-search') {
+  if (pathname === '/api/address-search') {
         return NextResponse.next();
   }
 
   const response = NextResponse.next();
-    const { pathname } = request.nextUrl;
 
   // Block search engine indexing for non-canonical domains (Vercel preview URLs)
   const host = request.headers.get('host') || '';
@@ -37,29 +58,4 @@ export function middleware(request: NextRequest) {
                 "connect-src 'self' https://*.supabase.co https://dapi.kakao.com https://*.daumcdn.net https://www.google-analytics.com https://wcs.naver.net https://api.anthropic.com https://cdn.jsdelivr.net",
                 "worker-src 'self' blob: https://cdn.jsdelivr.net",
                 "frame-ancestors 'none'",
-                "base-uri 'self'",
-                "form-action 'self'",
-              ].join('; ')
-      );
-
-  // Prevent image hotlinking from external sites
-  if (pathname.startsWith('/api/images/')) {
-        const referer = request.headers.get('referer');
-        if (referer && !referer.includes('wishes.co.kr') && !referer.includes('localhost')) {
-                return new NextResponse('Forbidden', { status: 403 });
-        }
-  }
-
-  // Block direct access to Supabase storage URLs (force through our API)
-  if (pathname.includes('/storage/') && !pathname.startsWith('/api/')) {
-        return new NextResponse('Forbidden', { status: 403 });
-  }
-
-  return response;
-}
-
-export const config = {
-    matcher: [
-          '/((?!_next/static|_next/image|favicon.ico|apple-touch-icon.png|og-image.png).*)',
-        ],
-};
+                "base-uri 'se
