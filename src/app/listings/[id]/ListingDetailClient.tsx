@@ -366,7 +366,7 @@ export default function ListingDetailClient({ id }: Props) {
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <div className="flex items-center gap-3 mb-1">
                 <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
-                  <Hash className="w-3 h-3" /> W-{listing.id}
+                  매물번호 {listing.id}
                 </span>
                 {listing.views > 0 && (
                   <span className="text-xs text-gray-400 flex items-center gap-1">
@@ -375,7 +375,7 @@ export default function ListingDetailClient({ id }: Props) {
                 )}
               </div>
               <h1 className="text-2xl font-bold text-wishes-primary">{listing.title}</h1>
-              <p className="text-3xl font-bold text-wishes-accent mt-2">{price.main}</p>
+
 
               {/* 기본 정보 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6">
@@ -386,8 +386,8 @@ export default function ListingDetailClient({ id }: Props) {
                   <InfoRow label="공급면적" value={`${listing.area_supply_m2}㎡ (${sqmToPyeong(listing.area_supply_m2)}평)`} />
                 )}
                 <InfoRow label="층수" value={formatFloorWithTotal(listing.floor_current, listing.floor_total)} />
-                {listing.rooms && <InfoRow label="방 수" value={`${listing.rooms}개`} />}
-                {listing.bathrooms && <InfoRow label="욕실 수" value={`${listing.bathrooms}개`} />}
+                {!['상가', '사무실'].includes(listing.type) && listing.rooms && <InfoRow label="방 수" value={`${listing.rooms}개`} />}
+                {!['상가', '사무실'].includes(listing.type) && listing.bathrooms && <InfoRow label="욕실 수" value={`${listing.bathrooms}개`} />}
                 {listing.direction && <InfoRow label="방향" value={listing.direction} />}
                 {listing.heating_type && <InfoRow label="난방방식" value={listing.heating_type} />}
                 <div className="col-span-2">
@@ -469,7 +469,7 @@ export default function ListingDetailClient({ id }: Props) {
               {/* 설명 */}
               {listing.description && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">상세 설명</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">매물 설명</h3>
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
                     {listing.description}
                   </p>
@@ -570,7 +570,7 @@ export default function ListingDetailClient({ id }: Props) {
               {/* 가격 요약 (U2 가격 레이블) */}
               <div className="bg-wishes-accent/5 rounded-xl p-4 mb-4">
                 <p className="text-xs text-wishes-muted mb-1">
-                  {listing.deal === '욤매' ? '매매가' : listing.deal === '전세' ? '전세금' : '보증금/월세'}
+                  {listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : '보증금/월세'}
                 </p>
                 <p className="text-xl font-bold text-wishes-primary">{price.main}</p>
                 {listing.maintenance_fee > 0 && (
