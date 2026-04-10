@@ -77,6 +77,16 @@ export function formatFloorWithTotal(
 ): string {
   if (!floorCurrent) return '';
 
+  // floorCurrent에 이미 "/"가 포함된 경우 (예: "2/4") → 그대로 사용
+  if (floorCurrent.includes('/')) {
+    const parts = floorCurrent.split('/');
+    const current = formatFloorNumber(parts[0].trim());
+    const total = formatFloorNumber(parts[parts.length - 1].trim());
+    const currentWithoutUnit = current.replace(/층$/, '');
+    const totalWithoutUnit = total.replace(/층$/, '');
+    return `${currentWithoutUnit}/${totalWithoutUnit}층`;
+  }
+
   const formattedCurrent = formatFloorNumber(floorCurrent);
 
   if (floorTotal) {
