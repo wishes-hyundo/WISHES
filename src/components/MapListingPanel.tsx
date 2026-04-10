@@ -117,7 +117,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         </button>
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
-            <Hash className="w-3 h-3" /> W-{listing.id}
+            <Hash className="w-3 h-3" /> 매물번호 {listing.id}
           </span>
           {listing.views > 0 && (
             <span className="text-xs text-gray-400 flex items-center gap-1">
@@ -209,15 +209,9 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         <div className="p-4 border-b border-gray-100">
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">{listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : '월세'}</span>
+              <span className="text-sm text-gray-500">{listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : '보증금 / 월세'}</span>
               <span className="text-lg font-extrabold text-gray-900">{price.main}</span>
             </div>
-            {listing.deal === '월세' && listing.deposit > 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">보증금</span>
-                <span className="text-sm font-semibold text-gray-700">{formatPrice(listing.deposit)}</span>
-              </div>
-            )}
             {listing.maintenance_fee > 0 && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">관리비</span>
