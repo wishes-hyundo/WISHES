@@ -320,20 +320,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
         </Link>
 
-        {/* 직원 승인 - 사장님 전용 */}
-        {isAdminRole && (
-          <Link
-            href="/admin/users"
-            onClick={() => { setMobileMenuOpen(false); setSelectedNav('/admin/users'); }}
-            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] ${
-              isActive('/admin/users')
-                ? 'bg-white/20 text-white shadow-inner font-bold'
-                : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
-            }`}>
-            <span className="text-lg flex-shrink-0">👥</span>
-            {sidebarOpen && <span>직원 승인</span>}
-          </Link>
-        )}
 </nav>
 
 
