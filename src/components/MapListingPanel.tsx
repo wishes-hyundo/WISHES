@@ -42,6 +42,15 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
       setImages(imagesResult.data || []);
       setFeatures(featuresResult.data || []);
       setLoading(false);
+
+      // 조회 수 증가 (비동기)
+      if (listingResult.data) {
+        supabase
+          .from('listings')
+          .update({ views: (listingResult.data.views || 0) + 1 })
+          .eq('id', listingId)
+          .then(() => {});
+      }
     };
     fetchData();
   }, [listingId]);
@@ -119,11 +128,9 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
             <Hash className="w-3 h-3" /> 매물번호 {listing.id}
           </span>
-          {listing.views > 0 && (
-            <span className="text-xs text-gray-400 flex items-center gap-1">
-              <Eye className="w-3 h-3" /> {listing.views}
-            </span>
-          )}
+          <span className="text-xs text-gray-500 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded">
+            <Eye className="w-3 h-3" /> 조회 {listing.views || 0}
+          </span>
         </div>
       </div>
 
