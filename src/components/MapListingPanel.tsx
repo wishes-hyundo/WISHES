@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase';
 import {
   ArrowLeft, ChevronLeft, ChevronRight, MapPin, Maximize2, Home,
   Building2, Layers, Compass, Bath, DoorOpen, Thermometer, Banknote,
-  Check, X, Eye, Calendar, Train, TrendingUp, Hash, Clock, Ruler,
+  Check, X, Eye, Calendar, Train, TrendingUp, Clock, Ruler,
   ParkingCircle, Dog, Warehouse, Zap, CreditCard
 } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, formatPrice } from '@/lib/utils';
@@ -13,9 +13,6 @@ import { formatFloorWithTotal } from '@/lib/formatFloor';
 import CompassDirection from '@/components/CompassDirection';
 import Link from 'next/link';
 import type { Listing } from '@/types';
-import RealPriceChart from '@/components/RealPriceChart';
-import ListingLocationMap from '@/components/ListingLocationMap';
-
 
 interface MapListingPanelProps {
   listingId: number;
@@ -45,15 +42,6 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
       setImages(imagesResult.data || []);
       setFeatures(featuresResult.data || []);
       setLoading(false);
-
-      // 조회 수 증가 (비동기)
-      if (listingResult.data) {
-        supabase
-          .from('listings')
-          .update({ views: (listingResult.data.views || 0) + 1 })
-          .eq('id', listingId)
-          .then(() => {});
-      }
     };
     fetchData();
   }, [listingId]);
@@ -89,19 +77,16 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   const dealColorMap: Record<string, string> = {
     '전세': 'bg-blue-500',
     '월세': 'bg-orange-500',
-    '매매': 'bg-emerald-500',
+    '맠매': 'bg-emerald-500',
   };
   const dealBgColor = dealColorMap[listing.deal] || 'bg-gray-500';
 
-  const isCommercial = ['상가', '사무실'].includes(listing.type);
   const optionItems = [
     { key: 'parking', label: '주차', icon: ParkingCircle, value: listing.parking },
     { key: 'elevator', label: '엘리베이터', icon: Building2, value: listing.elevator },
-    ...(!isCommercial ? [
-      { key: 'pet', label: '반려동물', icon: Dog, value: listing.pet },
-      { key: 'balcony', label: '발코니', icon: Warehouse, value: listing.balcony },
-      { key: 'full_option', label: '풀옵션', icon: Zap, value: listing.full_option },
-    ] : []),
+    { key: 'pet', label: '반려동물', icon: Dog, value: listing.pet },
+    { key: 'balcony', label: '발코니', icon: Warehouse, value: listing.balcony },
+    { key: 'full_option', label: '풀옵션', icon: Zap, value: listing.full_option },
     { key: 'loan_available', label: '대출가능', icon: CreditCard, value: listing.loan_available },
   ];
 
@@ -128,12 +113,14 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <ArrowLeft className="w-5 h-5" />
         </button>
         <div className="flex-1 min-w-0 flex items-center gap-2">
-          <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
-            <Hash className="w-3 h-3" /> 매물번호 {listing.id}
+          <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+            매물번호 W-{listing.id}
           </span>
-          <span className="text-xs text-gray-500 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded">
-            <Eye className="w-3 h-3" /> 조회 {listing.views || 0}
-          </span>
+          {listing.views > 0 && (
+            <span className="text-xs text-gray-400 flex items-center gap-1">
+              <Eye className="w-3 h-3" /> {listing.views}
+            </span>
+          )}
         </div>
       </div>
 
@@ -211,7 +198,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <p className="text-base font-bold text-gray-900 leading-snug">{listing.title}</p>
           <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
             <MapPin className="w-3 h-3" />
-            <span>{listing.dong || listing.address?.match(/^(.+?[동리가읍면])/)?.[1] || listing.address?.split(' ').slice(0, 3).join(' ') || ''}</span>
+            <span>{(listing.address || '').replace(/\s*\d+(-\d+)?\s*$/, '').trim() || listing.dong}</span>
           </div>
         </div>
 
@@ -219,9 +206,15 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         <div className="p-4 border-b border-gray-100">
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">{listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : '보증금 / 월세'}</span>
+              <span className="text-sm text-gray-500">{listing.deal === '욤매' ? '매매가' : listing.deal === '전세' ? '전세금' : '월세'}</span>
               <span className="text-lg font-extrabold text-gray-900">{price.main}</span>
             </div>
+            {listing.deal === '월세' && listing.deposit > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">보증금</span>
+                <span className="text-sm font-semibold text-gray-700">{formatPrice(listing.deposit)}</span>
+              </div>
+            )}
             {listing.maintenance_fee > 0 && (
               <div className="flex items-center justify-between">
                 <span className="text-sm text-gray-500">관리비</span>
@@ -250,10 +243,10 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </Link>
         </div>
 
-        {/* ── 매물 설명 ── */}
+        {/* ── 상세 설명 (중개사 코멘트) ── */}
         {listing.description && (
           <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-2.5">매물 설명</h3>
+            <h3 className="text-sm font-bold text-gray-700 mb-2.5">중개사 코멘트</h3>
             <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!showFullDescription ? 'line-clamp-4' : ''}`}>
               {listing.description}
             </p>
@@ -287,7 +280,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
             {listing.floor_current && (
               <InfoItem icon={Building2} label="층수" value={formatFloorWithTotal(listing.floor_current, listing.floor_total)} />
             )}
-            {!['상가', '사무실'].includes(listing.type) && listing.rooms && (
+            {listing.rooms && (
               <InfoItem icon={DoorOpen} label="방/욕실" value={`${listing.rooms}방${listing.bathrooms ? ` / ${listing.bathrooms}욕실` : ''}`} />
             )}
             {listing.direction && (
@@ -349,34 +342,26 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <NearbyStationsSection listingId={listing.id} />
         )}
 
-        {/* ── 실거래가 동향 (MOLIT 실데이터) ── */}
+        {/* ── 실거래가 동향 ── */}
         {listing.dong && (
           <div className="p-4 border-b border-gray-100">
-            <RealPriceChart
-              listingId={listing.id}
-              dong={listing.dong}
-              type={listing.type}
-              deal={listing.deal}
-            />
-          </div>
-        )}
-
-        {/* ── 소재지 위치 지도 (주소 고정 / 락 해제 시 이동) ── */}
-        {listing.lat && listing.lng && (
-          <div className="p-4 border-b border-gray-100">
             <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
-              <MapPin className="w-4 h-4 text-wishes-primary" />
-              소재지 위치
+              <TrendingUp className="w-4 h-4 text-green-500/70" />
+              {listing.dong} 실거래가 동향
             </h3>
-            <ListingLocationMap
-              lat={listing.lat}
-              lng={listing.lng}
-              address={listing.address || listing.dong}
-              title={listing.title}
-            />
-            <p className="text-[11px] text-gray-400 mt-2">
-              기본적으로 주소가 고정되어 있습니다. 좌측 상단 자물쇠 버튼을 눌러 지도를 이동/확대할 수 있습니다.
-            </p>
+            <div className="bg-green-50/50 rounded-xl p-3.5">
+              <a
+                href="https://rt.molit.go.kr/pt/xls/xls.do#tabNm=6"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors font-medium"
+              >
+                <TrendingUp className="w-3 h-3" />
+                국토교통부 실거래가 조회
+                <ChevronRight className="w-3 h-3" />
+              </a>
+              <p className="text-xs text-gray-400 mt-2">상담 시 최술 실거래가를 안내드립니다.</p>
+            </div>
           </div>
         )}
 
@@ -398,15 +383,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         </div>
 
-        {/* ── 하단 문의 버튼 ── */}
-        <div className="p-4 pb-8">
-          <Link
-            href={`/contact?listing_id=${listing.id}&listing_title=${encodeURIComponent(listing.title)}`}
-            className="block w-full py-3.5 rounded-xl bg-wishes-primary text-white text-center text-sm font-bold shadow-md hover:shadow-lg hover:bg-wishes-primary/90 transition-all"
-          >
-            온라인 상담 신청
-          </Link>
-        </div>
+        <div className="h-6" />
       </div>
     </div>
   );
