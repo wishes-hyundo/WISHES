@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, Eye, Hash, Flame, Sparkles, Heart } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, Eye, Hash, Flame, Sparkles, Heart, Home } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFloor } from '@/lib/formatFloor';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -108,8 +108,11 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              <Building2 className="w-8 h-8 text-gray-300" />
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-wishes-primary/10 via-emerald-50 to-white relative">
+              <div className="absolute inset-0 opacity-[0.08]" style={{backgroundImage:"radial-gradient(circle at 30% 30%, #059669 1px, transparent 1px)",backgroundSize:"14px 14px"}} />
+              <div className="relative w-10 h-10 rounded-xl bg-white shadow-md flex items-center justify-center ring-1 ring-wishes-primary/15">
+                <Home className="w-5 h-5 text-wishes-primary" strokeWidth={1.8} />
+              </div>
             </div>
           )}
           <span className={cn(
@@ -163,8 +166,14 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
             loading="lazy"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-            <Building2 className="w-12 h-12 text-gray-400" />
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-wishes-primary/10 via-emerald-50 to-white relative">
+            <div className="absolute inset-0 opacity-[0.08]" style={{backgroundImage:"radial-gradient(circle at 25% 25%, #059669 1.5px, transparent 1.5px), radial-gradient(circle at 75% 75%, #059669 1.5px, transparent 1.5px)",backgroundSize:"22px 22px"}} />
+            <div className="relative flex flex-col items-center">
+              <div className="w-16 h-16 rounded-2xl bg-white shadow-lg flex items-center justify-center ring-1 ring-wishes-primary/15">
+                <Home className="w-8 h-8 text-wishes-primary" strokeWidth={1.8} />
+              </div>
+              <span className="mt-2 text-[11px] font-semibold text-wishes-primary/80">이미지 준비 중</span>
+            </div>
           </div>
         )}
 
