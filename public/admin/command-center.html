@@ -1198,7 +1198,7 @@ function renderApprovalTable(){
 window.approveApprovalUser=function(id){
   if(!confirm('이 직원을 승인하시겠습니까?'))return;
   showToast('승인 처리 중...');
-  apiCall("/admin/users","PUT",{userId:id,status:"approved"}).then(function(r){
+  apiCall("/admin/users","PUT",{userId:id,action:"approve",role:"agent"}).then(function(r){
     if(r.success){
       showToast("승인 완료");
       loadApprovalUsers();
@@ -1211,7 +1211,7 @@ window.approveApprovalUser=function(id){
 window.rejectApprovalUser=function(id){
   if(!confirm('이 직원을 거절하시겠습니까?'))return;
   showToast('거절 처리 중...');
-  apiCall("/admin/users","PUT",{userId:id,status:"rejected"}).then(function(r){
+  apiCall("/admin/users","PUT",{userId:id,action:"reject"}).then(function(r){
     if(r.success){
       showToast("거절 완료","warning");
       loadApprovalUsers();

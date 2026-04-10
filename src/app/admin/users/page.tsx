@@ -65,10 +65,14 @@ export default function AdminUsersPage() {
   const updateStatus = async (userId: string, newStatus: 'approved' | 'rejected') => {
     if (!confirm(newStatus === 'approved' ? '이 사용자를 승인하시겠습니까?' : '이 사용자를 거절하시겠습니까?')) return;
     try {
+      const action = newStatus === 'approved' ? 'approve' : 'reject';
+      const body = newStatus === 'approved'
+        ? { userId, action, role: 'agent' }
+        : { userId, action };
       const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ userId, status: newStatus })
+        body: JSON.stringify(body)
       });
       const data = await res.json();
       if (data.success !== false) {

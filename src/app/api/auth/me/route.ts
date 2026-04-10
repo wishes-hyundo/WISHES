@@ -27,18 +27,44 @@ export async function GET(request: NextRequest) {
     const email = (user.email || '').toLowerCase();
     const isSuperAdmin = SUPERADMIN_EMAILS.includes(email);
 
-    // admin_users 테이블에서 역할/상태 조회
-    const { data: adminUser } = await supabase
-      .from('admin_users')
-      .select('role, name, company, phone, status')
-      .eq('email', email)
-      .single();
+    // admin_users 테이블에서 역할/상태 조회 (id 또는 email 로 매칭)
+    let adminUser: { role?: string; name?: string; company?: string; phone?: string; status?: string } | null = null;
+    try {
+      const byId = await supabase
+        .from('admin_users')
+        .select('role, name, company, phone, status')
+        .eq('id', user.id)
+        .maybeSingle();
+      if (byId.data) adminUser = byId.data;
+    } catch {}
+    if (!adminUser) {
+      try {
+        const byEmail = await supabase
+          .from('admin_users')
+          .select('role, name, company, phone, status')
+          .eq('email', email)
+          .maybeSingle();
+        if (byEmail.data) adminUser = byEmail.data;
+      } catch {}
+    }
 
-    const role = isSuperAdmin ? 'superadmin' : (adminUser?.role || 'pending');
-    const status = isSuperAdmin ? 'approved' : (adminUser?.status || 'pending');
+    // user_metadata 도 참고 (/api/admin/users PUT 이 승인 시 user_metadata 를 함께 갱신함)
+    const meta = (user.user_metadata || {}) as { status?: string; role?: string; name?: string; company?: string; phone?: string };
 
-    // 브로커 포털 접근 권한: superadmin, broker, viewer 중 approved
-    const canAccessBroker = status === 'approved' && ['superadmin', 'broker', 'viewer', 'admin'].includes(role);
+    // 상태는 admin_users → user_metadata 순으로 우선, 둘 중 하나라도 approved 면 통과
+    const role = isSuperAdmin
+      ? 'superadmin'
+      : (adminUser?.role || meta.role || 'pending');
+    const status = isSuperAdmin
+      ? 'approved'
+      : (adminUser?.status === 'approved' || meta.status === 'approved'
+          ? 'approved'
+          : (adminUser?.status || meta.status || 'pending'));
+
+    // 브로커 포털 접근 권한: 승인된 모든 역할 허용
+    // ※ 회원가입 시 'viewer', 승인 시 'agent' 가 기본이므로 모두 포함
+    const APPROVED_ROLES = ['superadmin', 'admin', 'agent', 'broker', 'viewer', 'user'];
+    const canAccessBroker = status === 'approved' && APPROVED_ROLES.includes(role);
 
     return NextResponse.json({
       success: true,
