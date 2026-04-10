@@ -4959,6 +4959,27 @@
     function fetchAllListings(retryCount) {
       retryCount = retryCount || 0;
       var MAX_RETRIES = 3;
+      // ⚡ 프리페치된 데이터가 있으면 즉시 사용 (page.tsx 에서 인증검증과 병렬로 이미 요청됨)
+      try {
+        if (retryCount === 0 && window.__WS_PREFETCH__ && typeof window.__WS_PREFETCH__.then === 'function') {
+          var _pf = window.__WS_PREFETCH__;
+          window.__WS_PREFETCH__ = null; // 1회만 사용
+          return _pf.then(function(arr) {
+            if (arr && Array.isArray(arr) && arr.length > 0) {
+              _wsLog('[WISHES] ⚡ 프리페치 데이터 ' + arr.length + '건 즉시 사용');
+              return normalizeImages(arr);
+            }
+            // 프리페치 실패/빈값 → 기존 경로로 폴백
+            return _doFetchAllListings(0);
+          }).catch(function() { return _doFetchAllListings(0); });
+        }
+      } catch (e) {}
+      return _doFetchAllListings(retryCount);
+    }
+
+    function _doFetchAllListings(retryCount) {
+      retryCount = retryCount || 0;
+      var MAX_RETRIES = 3;
       var ctrl = new AbortController();
       var tm = setTimeout(function() { ctrl.abort(); }, 60000);
       return fetch(ADMIN_API_MINIMAL, {

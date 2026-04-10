@@ -27,6 +27,20 @@ export default function SearchPortalPage() {
   useEffect(() => {
     let cancelled = false;
 
+    // ⚡ 매물 프리페치 — 인증 검증과 병렬로 즉시 시작 (체감 로딩 시간 대폭 단축)
+    try {
+      const w = window as unknown as { __WS_PREFETCH__?: Promise<unknown> };
+      if (!w.__WS_PREFETCH__) {
+        w.__WS_PREFETCH__ = fetch('/api/admin/listings?fields=minimal', {
+          headers: { Authorization: 'Bearer wishes2026' },
+          cache: 'force-cache',
+        })
+          .then((r) => r.json())
+          .then((j) => (j && j.success && Array.isArray(j.data) ? j.data : null))
+          .catch(() => null);
+      }
+    } catch {}
+
     (async () => {
       try {
         const sb = createAuthClient();
