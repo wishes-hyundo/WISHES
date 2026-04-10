@@ -38,53 +38,55 @@
     position: sticky; top: 0; z-index: 100;
     background: var(--primary);
     color: white;
-    padding: 16px 20px;
-    display: flex; align-items: center; gap: 12px;
+    padding: 14px 16px;
+    display: flex; align-items: center; gap: 10px;
     box-shadow: 0 2px 12px rgba(0,0,0,.15);
   }
   .header-logo {
-    width: 36px; height: 36px;
+    width: 34px; height: 34px;
     background: linear-gradient(135deg, var(--accent), #f0c040);
     border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px;
+    font-size: 17px; flex-shrink: 0;
   }
-  .header-title { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+  .header-title { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
   .header-sub { font-size: 11px; opacity: .7; margin-top: 1px; }
   .header-back {
-    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    margin-left: auto;
     background: rgba(255,255,255,.15); border: none; color: white;
     padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    flex-shrink: 0;
   }
 
   /* GPS indicator */
   .gps-bar {
     background: #1a2e0a;
     color: #86efac;
-    padding: 6px 20px;
+    padding: 5px 16px;
     font-size: 11px;
     display: flex; align-items: center; gap: 6px;
   }
   .gps-bar.error { color: #fca5a5; }
   .gps-dot {
-    width: 8px; height: 8px;
+    width: 7px; height: 7px;
     border-radius: 50%;
     background: #22c55e;
     animation: gpsPulse 2s infinite;
+    flex-shrink: 0;
   }
   .gps-bar.error .gps-dot { background: #ef4444; animation: none; }
   @keyframes gpsPulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 
   /* Search Section */
   .search-section {
-    padding: 16px;
+    padding: 12px 16px;
     background: white;
     border-bottom: 1px solid var(--border);
   }
   .search-box { display: flex; gap: 8px; }
   .search-input {
     flex: 1;
-    padding: 14px 16px;
+    padding: 12px 14px;
     border: 2px solid var(--border);
     border-radius: var(--radius);
     font-size: 16px;
@@ -95,7 +97,7 @@
   .search-input:focus { border-color: var(--primary); }
   .search-input::placeholder { color: #aaa; }
   .search-btn {
-    padding: 14px 20px;
+    padding: 12px 18px;
     background: var(--primary);
     color: white;
     border: none;
@@ -106,13 +108,13 @@
     white-space: nowrap;
   }
   .search-btn:active { background: var(--primary-light); }
-  .search-hint { margin-top: 8px; font-size: 12px; color: var(--text-sub); }
+  .search-hint { margin-top: 6px; font-size: 12px; color: var(--text-sub); }
 
   /* Listing Results */
-  .results-section { padding: 12px 16px; }
+  .results-section { padding: 10px 16px; }
   .results-count {
     font-size: 13px; color: var(--text-sub);
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     display: flex; align-items: center; gap: 6px;
   }
   .results-count strong { color: var(--primary); font-size: 15px; }
@@ -120,8 +122,8 @@
   .listing-card {
     background: var(--card);
     border-radius: var(--radius);
-    padding: 14px 16px;
-    margin-bottom: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
     border: 2px solid transparent;
     box-shadow: 0 1px 4px rgba(0,0,0,.06);
     cursor: pointer;
@@ -132,50 +134,32 @@
   .listing-card.selected {
     border-color: var(--primary);
     background: #f0f7ec;
-    box-shadow: 0 0 0 3px rgba(45,80,22,.12);
   }
   .listing-id {
     display: inline-block;
     background: var(--primary); color: white;
     font-size: 11px; font-weight: 700;
     padding: 2px 8px; border-radius: 6px;
-    margin-bottom: 6px;
-  }
-  .listing-address {
-    font-size: 15px; font-weight: 700;
-    color: var(--primary);
-    line-height: 1.4; margin-bottom: 2px;
-    display: -webkit-box;
-    -webkit-line-clamp: 1;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    margin-bottom: 4px;
   }
   .listing-title {
-    font-size: 13px; font-weight: 500;
-    color: var(--text-sub);
-    line-height: 1.4; margin-bottom: 4px;
+    font-size: 14px; font-weight: 600;
+    line-height: 1.4; margin-bottom: 3px;
     display: -webkit-box;
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    padding-right: 80px;
   }
   .listing-info {
     font-size: 12px; color: var(--text-sub);
-    display: flex; flex-wrap: wrap; gap: 6px;
+    display: flex; flex-wrap: wrap; gap: 4px;
   }
-  .listing-info span { background: var(--bg); padding: 2px 8px; border-radius: 6px; }
+  .listing-info span { background: var(--bg); padding: 2px 6px; border-radius: 6px; }
   .listing-price {
-    position: absolute; right: 16px; top: 14px;
-    font-size: 14px; font-weight: 700; color: var(--danger);
+    position: absolute; right: 14px; top: 12px;
+    font-size: 13px; font-weight: 700; color: var(--danger);
   }
-  .listing-check {
-    position: absolute; right: 16px; bottom: 14px;
-    width: 28px; height: 28px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 16px; background: var(--border); color: white;
-    transition: all .2s;
-  }
-  .listing-card.selected .listing-check { background: var(--success); }
   .listing-images-count {
     display: inline-flex; align-items: center; gap: 3px;
     background: #e0f2fe; color: #0369a1;
@@ -183,65 +167,76 @@
     font-size: 11px; font-weight: 600;
   }
 
+  /* ===== PHOTO VIEW (shown after selecting a listing) ===== */
+  .photo-view { display: none; }
+  .photo-view.active { display: block; }
 
-  /* Upload Section */
-  .upload-section {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
+  .photo-view-header {
     background: white;
-    border-top: 1px solid var(--border);
-    padding: 16px;
-    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
-    z-index: 90;
-    transition: transform .3s;
-  }
-  .upload-section.hidden { transform: translateY(100%); }
-  .selected-info {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
     display: flex; align-items: center; gap: 10px;
-    margin-bottom: 12px;
-    padding: 10px 14px;
-    background: #f0f7ec;
-    border-radius: 10px;
-    border: 1px solid #d4e8c8;
   }
-  .selected-info-icon {
-    width: 36px; height: 36px;
-    background: var(--primary); color: white;
-    border-radius: 10px;
+  .pv-back {
+    background: var(--bg); border: none;
+    width: 36px; height: 36px; border-radius: 10px;
+    font-size: 18px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
-    font-size: 18px; flex-shrink: 0;
+    flex-shrink: 0;
   }
-  .selected-info-text { flex: 1; min-width: 0; }
-  .selected-info-text .name {
-    font-size: 14px; font-weight: 600;
+  .pv-back:active { background: var(--border); }
+  .pv-listing-info { flex: 1; min-width: 0; }
+  .pv-listing-name {
+    font-size: 14px; font-weight: 700;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  .selected-info-text .id { font-size: 11px; color: var(--text-sub); }
-  .upload-actions { display: flex; gap: 10px; }
-  .upload-btn {
-    flex: 1; padding: 16px;
-    border: none; border-radius: var(--radius);
-    font-size: 16px; font-weight: 700; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    transition: all .15s;
-  }
-  .upload-btn:active { transform: scale(.97); }
-  .upload-btn.camera { background: var(--accent); color: var(--text); }
-  .upload-btn.gallery { background: var(--primary); color: white; }
-  .upload-btn:disabled { opacity: .5; pointer-events: none; }
+  .pv-listing-addr { font-size: 12px; color: var(--text-sub); }
 
-  /* Preview Section */
-  .preview-section { padding: 0 16px 160px; }
-  .preview-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 8px; margin-top: 12px;
+  /* Upload Buttons - always visible at top of photo view */
+  .pv-upload-btns {
+    padding: 12px 16px;
+    display: flex; gap: 10px;
+    background: white;
+    border-bottom: 1px solid var(--border);
   }
-  .preview-item {
+  .pv-btn {
+    flex: 1; padding: 14px;
+    border: none; border-radius: var(--radius);
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .pv-btn:active { transform: scale(.97); }
+  .pv-btn.camera { background: var(--accent); color: var(--text); }
+  .pv-btn.gallery { background: var(--primary); color: white; }
+
+  /* Pending photos (new photos to upload) */
+  .pv-pending { padding: 12px 16px; }
+  .pv-pending.hidden { display: none; }
+  .pv-pending-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .pv-pending-title { font-size: 14px; font-weight: 600; }
+  .pv-upload-action {
+    padding: 10px 20px;
+    background: var(--success); color: white;
+    border: none; border-radius: 10px;
+    font-size: 14px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .pv-upload-action:disabled { background: #ccc; }
+  .pv-upload-action:active { transform: scale(.97); }
+
+  .pv-pending-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .pv-thumb {
     position: relative; aspect-ratio: 1;
     border-radius: 10px; overflow: hidden; background: #eee;
   }
-  .preview-item img { width: 100%; height: 100%; object-fit: cover; }
-  .preview-remove {
+  .pv-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .pv-thumb-remove {
     position: absolute; top: 4px; right: 4px;
     width: 24px; height: 24px;
     background: rgba(0,0,0,.6); color: white;
@@ -249,128 +244,92 @@
     font-size: 14px; cursor: pointer;
     display: flex; align-items: center; justify-content: center;
   }
-  .preview-size {
+  .pv-thumb-size {
     position: absolute; top: 4px; left: 4px;
-    background: rgba(0,0,0,.5);
-    color: #86efac; font-size: 9px; font-weight: 700;
+    background: rgba(0,0,0,.5); color: #86efac;
+    font-size: 9px; font-weight: 700;
     padding: 2px 5px; border-radius: 4px;
   }
-  .preview-label {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-top: 16px;
-  }
-  .preview-label-text { font-size: 14px; font-weight: 600; }
-  .submit-btn {
-    padding: 12px 24px;
-    background: var(--success); color: white;
-    border: none; border-radius: 10px;
-    font-size: 14px; font-weight: 700; cursor: pointer;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .submit-btn:disabled { background: #ccc; pointer-events: none; }
-  .submit-btn:active { transform: scale(.97); }
 
-  /* ===== EXISTING IMAGES (drag & drop) ===== */
-  .existing-images { margin-top: 12px; }
-  .existing-header {
+  /* Existing photos */
+  .pv-existing { padding: 12px 16px; }
+  .pv-existing.hidden { display: none; }
+  .pv-existing-header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
-  .existing-label { font-size: 13px; color: var(--text-sub); }
-  .save-order-btn {
-    padding: 6px 14px;
+  .pv-existing-title { font-size: 14px; font-weight: 600; }
+  .pv-save-order {
+    padding: 8px 14px;
     background: var(--primary); color: white;
     border: none; border-radius: 8px;
-    font-size: 12px; font-weight: 700; cursor: pointer;
-    display: none; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 600; cursor: pointer;
+    display: none;
   }
-  .save-order-btn.show { display: flex; }
-  .save-order-btn:active { transform: scale(.95); }
-  .save-order-btn:disabled { opacity: .5; }
-  .existing-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+  .pv-save-order.show { display: flex; align-items: center; gap: 4px; }
+  .pv-save-order:active { transform: scale(.97); }
+
+  .pv-existing-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
   }
-  .existing-item {
+  .pv-existing-item {
     position: relative; aspect-ratio: 1;
     border-radius: 10px; overflow: hidden; background: #eee;
     border: 2px solid var(--border);
-    cursor: grab;
-    transition: transform .15s, box-shadow .15s;
-    touch-action: none;
   }
-  .existing-item:active { cursor: grabbing; }
-  .existing-item.dragging {
-    opacity: .5;
-    transform: scale(.92);
-    box-shadow: 0 4px 20px rgba(0,0,0,.2);
+  .pv-existing-item img { width: 100%; height: 100%; object-fit: cover; }
+  .pv-existing-item.dragging { opacity: .4; }
+  .pv-existing-item.drag-over { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(45,80,22,.3); }
+  .pv-star {
+    position: absolute; top: 3px; left: 3px;
+    background: rgba(0,0,0,.55); color: #fbbf24;
+    font-size: 9px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px;
   }
-  .existing-item.drag-over {
-    border-color: var(--primary);
-    transform: scale(1.04);
-  }
-  .existing-item img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
-  .existing-item .star-badge {
-    position: absolute; top: 4px; left: 4px;
-    background: var(--accent); color: #000;
-    font-size: 9px; font-weight: 800;
-    padding: 2px 6px; border-radius: 6px;
-    display: flex; align-items: center; gap: 2px;
-    z-index: 2;
-  }
-  .existing-item .order-num {
-    position: absolute; top: 4px; right: 4px;
-    background: rgba(0,0,0,.55); color: white;
-    width: 22px; height: 22px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
+  .pv-order-num {
+    position: absolute; bottom: 3px; right: 3px;
+    background: rgba(0,0,0,.5); color: white;
     font-size: 10px; font-weight: 700;
-    z-index: 2;
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
   }
-  .drag-hint {
-    font-size: 11px; color: var(--text-sub); margin-top: 6px;
+  .pv-drag-hint {
+    margin-top: 8px;
+    font-size: 11px; color: var(--text-sub);
     text-align: center;
   }
 
-  /* ===== UPLOAD STATUS LOG ===== */
-  .upload-log {
-    margin-top: 16px;
-    display: none;
-  }
-  .upload-log.show { display: block; }
-  .upload-log-title {
-    font-size: 13px; font-weight: 600; color: var(--text);
-    margin-bottom: 8px;
-    display: flex; align-items: center; gap: 6px;
-  }
+  /* Upload Log */
+  .pv-log { padding: 12px 16px; display: none; }
+  .pv-log.show { display: block; }
+  .pv-log-title { font-size: 13px; font-weight: 600; color: var(--text-sub); margin-bottom: 8px; }
   .log-item {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 10px 12px;
-    background: white;
-    border-radius: 10px;
-    margin-bottom: 6px;
-    border: 1px solid var(--border);
-    font-size: 12px;
+    display: flex; gap: 8px; padding: 8px 10px;
+    background: white; border-radius: 8px;
+    margin-bottom: 6px; font-size: 12px;
+    border-left: 3px solid var(--success);
   }
-  .log-item.success { border-color: #a7f3d0; background: #ecfdf5; }
-  .log-item.error { border-color: #fecaca; background: #fef2f2; }
-  .log-icon {
-    width: 28px; height: 28px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 14px; flex-shrink: 0;
-  }
-  .log-item.success .log-icon { background: #d1fae5; }
-  .log-item.error .log-icon { background: #fee2e2; }
+  .log-item.error { border-left-color: var(--danger); }
+  .log-icon { font-size: 14px; flex-shrink: 0; }
   .log-body { flex: 1; min-width: 0; }
-  .log-body .log-title { font-weight: 600; margin-bottom: 2px; }
-  .log-body .log-detail { font-size: 11px; color: var(--text-sub); line-height: 1.5; }
-  .log-body .log-detail.error-detail { color: var(--danger); }
-  .log-body .log-time { font-size: 10px; color: #aaa; margin-top: 3px; }
+  .log-title { font-weight: 600; margin-bottom: 2px; }
+  .log-detail { color: var(--text-sub); line-height: 1.4; word-break: break-all; }
+  .log-detail.error-detail { color: var(--danger); }
+  .log-time { color: #aaa; font-size: 10px; margin-top: 3px; }
+
+  /* Empty state */
+  .empty-state { text-align: center; padding: 50px 20px; color: var(--text-sub); }
+  .empty-state .icon { font-size: 42px; margin-bottom: 10px; }
+  .empty-state .title { font-size: 15px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
+  .empty-state .desc { font-size: 13px; line-height: 1.6; }
 
   /* Toast */
   .toast {
     position: fixed; top: 80px; left: 50%;
     transform: translateX(-50%) translateY(-20px);
     background: #1a1a1a; color: white;
-    padding: 14px 24px; border-radius: 12px;
+    padding: 12px 20px; border-radius: 12px;
     font-size: 14px; font-weight: 500;
     z-index: 200; opacity: 0;
     transition: all .3s; pointer-events: none;
@@ -390,41 +349,34 @@
   }
   .progress-overlay.show { opacity: 1; pointer-events: all; }
   .progress-box {
-    background: white; padding: 32px;
+    background: white; padding: 28px;
     border-radius: 20px; text-align: center;
-    min-width: 280px;
+    min-width: 260px;
   }
   .progress-spinner {
-    width: 48px; height: 48px;
+    width: 44px; height: 44px;
     border: 4px solid var(--border);
     border-top-color: var(--primary);
     border-radius: 50%;
     animation: spin 1s linear infinite;
-    margin: 0 auto 16px;
+    margin: 0 auto 14px;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .progress-text { font-size: 15px; font-weight: 600; }
-  .progress-sub { font-size: 12px; color: var(--text-sub); margin-top: 6px; }
-  .progress-detail { font-size: 11px; color: var(--primary); margin-top: 8px; font-weight: 600; }
+  .progress-sub { font-size: 12px; color: var(--text-sub); margin-top: 5px; }
+  .progress-detail { font-size: 11px; color: var(--primary); margin-top: 6px; font-weight: 600; }
 
-  /* Loading skeleton */
+  /* Skeleton */
   .skeleton {
     background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
     border-radius: var(--radius);
-    height: 80px; margin-bottom: 10px;
+    height: 72px; margin-bottom: 8px;
   }
   @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-  /* Empty state */
-  .empty-state { text-align: center; padding: 60px 20px; color: var(--text-sub); }
-  .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
-  .empty-state .title { font-size: 16px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
-  .empty-state .desc { font-size: 13px; line-height: 1.6; }
-
   input[type="file"] { display: none; }
-  .content-area { padding-bottom: 160px; }
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
 </style>
@@ -447,19 +399,17 @@
   <span id="gpsStatus">GPS 위치 확인 중...</span>
 </div>
 
-<!-- Search -->
-<div class="search-section">
-  <div class="search-box">
-    <input type="text" class="search-input" id="searchInput"
-           placeholder="건물명, 주소, 매물ID 검색..."
-           enterkeyhint="search" autocomplete="off">
-    <button class="search-btn" id="searchBtn" onclick="searchListings()">검색</button>
+<!-- ===== SEARCH VIEW ===== -->
+<div id="searchView">
+  <div class="search-section">
+    <div class="search-box">
+      <input type="text" class="search-input" id="searchInput"
+             placeholder="건물명, 주소, 매물ID 검색..."
+             enterkeyhint="search" autocomplete="off">
+      <button class="search-btn" id="searchBtn" onclick="searchListings()">검색</button>
+    </div>
+    <div class="search-hint" id="searchHint">💡 건물명, 주소, 매물번호로 검색할 수 있습니다</div>
   </div>
-  <div class="search-hint" id="searchHint">💡 건물명, 주소, 매물번호로 검색할 수 있습니다</div>
-</div>
-
-<!-- Content -->
-<div class="content-area">
   <div class="results-section" id="resultsSection">
     <div class="empty-state" id="emptyState">
       <div class="icon">🏠</div>
@@ -468,52 +418,55 @@
     </div>
     <div id="resultsList"></div>
   </div>
+</div>
 
-  <div class="preview-section" id="previewSection" style="display:none;">
-    <!-- Existing Images with drag-and-drop reorder -->
-    <div class="existing-images" id="existingImages" style="display:none;">
-      <div class="existing-header">
-        <div class="existing-label">📌 기존 등록된 사진 <span id="existingCount"></span></div>
-        <button class="save-order-btn" id="saveOrderBtn" onclick="saveImageOrder()">💾 순서 저장</button>
-      </div>
-      <div class="existing-grid" id="existingGrid"></div>
-      <div class="drag-hint" id="dragHint">길게 눌러 드래그하면 순서를 변경할 수 있습니다 · ⭐ = 대표사진</div>
+<!-- ===== PHOTO VIEW (replaces search view when listing selected) ===== -->
+<div class="photo-view" id="photoView">
+  <!-- Selected listing header -->
+  <div class="photo-view-header">
+    <button class="pv-back" onclick="backToSearch()">←</button>
+    <div class="pv-listing-info">
+      <div class="pv-listing-name" id="pvName">-</div>
+      <div class="pv-listing-addr" id="pvAddr">-</div>
     </div>
+  </div>
 
-    <!-- Upload Log -->
-    <div class="upload-log" id="uploadLog">
-      <div class="upload-log-title">📋 업로드 기록</div>
-      <div id="uploadLogList"></div>
-    </div>
+  <!-- Camera / Gallery buttons - always visible -->
+  <div class="pv-upload-btns">
+    <button class="pv-btn camera" onclick="openCamera()">📷 카메라 촬영</button>
+    <button class="pv-btn gallery" onclick="openGallery()">🖼️ 갤러리 선택</button>
+  </div>
 
-    <!-- New Photos -->
-    <div class="preview-label">
-      <span class="preview-label-text" id="previewLabel">📸 새로 추가할 사진 (0장)</span>
-      <button class="submit-btn" id="submitBtn" onclick="uploadImages()" disabled>
-        ⬆️ 업로드
-      </button>
+  <!-- NEW photos to upload -->
+  <div class="pv-pending hidden" id="pvPending">
+    <div class="pv-pending-header">
+      <span class="pv-pending-title" id="pvPendingTitle">📸 새 사진 0장</span>
+      <button class="pv-upload-action" id="pvUploadBtn" onclick="uploadImages()" disabled>⬆️ 업로드</button>
     </div>
-    <div class="preview-grid" id="previewGrid"></div>
+    <div class="pv-pending-grid" id="pvPendingGrid"></div>
+  </div>
+
+  <!-- EXISTING photos with reorder -->
+  <div class="pv-existing hidden" id="pvExisting">
+    <div class="pv-existing-header">
+      <span class="pv-existing-title" id="pvExistingTitle">📌 등록된 사진 0장</span>
+      <button class="pv-save-order" id="pvSaveOrder" onclick="saveImageOrder()">💾 순서 저장</button>
+    </div>
+    <div class="pv-existing-grid" id="pvExistingGrid"></div>
+    <div class="pv-drag-hint">길게 눌러 드래그하면 순서 변경 · ⭐ = 대표사진</div>
+  </div>
+
+  <!-- Upload Log -->
+  <div class="pv-log" id="pvLog">
+    <div class="pv-log-title">📋 업로드 기록</div>
+    <div id="pvLogList"></div>
   </div>
 </div>
 
-<!-- Upload Bar -->
-<div class="upload-section hidden" id="uploadBar">
-  <div class="selected-info" id="selectedInfo">
-    <div class="selected-info-icon">🏢</div>
-    <div class="selected-info-text">
-      <div class="name" id="selectedName">-</div>
-      <div class="id" id="selectedId">-</div>
-    </div>
-  </div>
-  <div class="upload-actions">
-    <button class="upload-btn camera" onclick="openCamera()">📷 카메라 촬영</button>
-    <button class="upload-btn gallery" onclick="openGallery()">🖼️ 갤러리 선택</button>
-  </div>
-</div>
-
-<input type="file" id="cameraInput" accept="image/*" capture="environment" multiple>
+<!-- Hidden file inputs -->
+<input type="file" id="cameraInput" accept="image/*" capture="environment">
 <input type="file" id="galleryInput" accept="image/*" multiple>
+
 <div class="toast" id="toast"></div>
 
 <div class="progress-overlay" id="progressOverlay">
@@ -528,9 +481,12 @@
 <script>
 const API_BASE = window.location.origin;
 const AUTH_TOKEN = 'wishes2026';
+
 let allListings = [];
 let selectedListing = null;
-let pendingFiles = [];  // { file, originalSize, compressedSize, gps }
+let pendingFiles = []; // { file, originalSize, compressedSize, gps }
+let existingImagesData = [];
+let orderChanged = false;
 let isLoading = false;
 
 // ===== GPS =====
@@ -569,41 +525,34 @@ function initGPS() {
 }
 
 // ===== IMAGE COMPRESSION =====
-const MAX_WIDTH = 1920;
-const MAX_HEIGHT = 1920;
+const MAX_DIM = 1920;
 const QUALITY = 0.82;
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
 
 function compressImage(file) {
   return new Promise((resolve) => {
-    if (file.size <= MAX_FILE_SIZE && !file.type.includes('heic')) {
+    if (file.size <= MAX_FILE_SIZE && file.type === 'image/jpeg') {
       resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
       return;
     }
-
     const reader = new FileReader();
     reader.onload = (e) => {
       const img = new Image();
       img.onload = () => {
         let { width, height } = img;
-        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
-          const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height);
-          width = Math.round(width * ratio);
-          height = Math.round(height * ratio);
+        if (width > MAX_DIM || height > MAX_DIM) {
+          const r = Math.min(MAX_DIM / width, MAX_DIM / height);
+          width = Math.round(width * r);
+          height = Math.round(height * r);
         }
         const canvas = document.createElement('canvas');
         canvas.width = width;
         canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, width, height);
-
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
         canvas.toBlob((blob) => {
           if (blob) {
-            const compressed = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), {
-              type: 'image/jpeg',
-              lastModified: file.lastModified
-            });
-            resolve({ compressed, originalSize: file.size, compressedSize: compressed.size });
+            const f = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg', lastModified: file.lastModified });
+            resolve({ compressed: f, originalSize: file.size, compressedSize: f.size });
           } else {
             resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
           }
@@ -616,13 +565,12 @@ function compressImage(file) {
   });
 }
 
-function formatBytes(bytes) {
-  if (bytes < 1024) return bytes + 'B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + 'KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+function formatBytes(b) {
+  if (b < 1024) return b + 'B';
+  if (b < 1048576) return (b / 1024).toFixed(0) + 'KB';
+  return (b / 1048576).toFixed(1) + 'MB';
 }
 
-// ===== TAG UI =====
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('searchInput').addEventListener('keydown', (e) => {
@@ -630,7 +578,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('cameraInput').addEventListener('change', handleFiles);
   document.getElementById('galleryInput').addEventListener('change', handleFiles);
-
   initGPS();
   loadRecentListings();
 });
@@ -659,8 +606,9 @@ async function searchListings() {
   document.getElementById('searchBtn').textContent = '검색중...';
 
   try {
-    if (allListings.length === 0) {
+    if (allListings.length < 100) {
       let offset = 0, batch;
+      allListings = [];
       do {
         const res = await fetch(`${API_BASE}/api/listings?limit=1000&offset=${offset}`, {
           headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
@@ -673,16 +621,15 @@ async function searchListings() {
     }
 
     const q = query.toLowerCase();
-    const isIdSearch = q.match(/^(\d{3,})$/) || q.match(/w-?(\d+)/i);
+    const idMatch = q.match(/w?-?(\d{3,})/i);
     let results;
-    if (isIdSearch) {
-      const searchId = parseInt(isIdSearch[1]);
+    if (idMatch) {
+      const searchId = parseInt(idMatch[1]);
       results = allListings.filter(l => l.id === searchId);
     } else {
       results = allListings.filter(l => {
-        const searchFields = [l.title, l.address, l.address_detail, l.dong, l.building_info, String(l.id)]
-          .filter(Boolean).join(' ').toLowerCase();
-        return searchFields.includes(q);
+        return [l.title, l.address, l.address_detail, l.dong, l.building_info, String(l.id)]
+          .filter(Boolean).join(' ').toLowerCase().includes(q);
       });
     }
 
@@ -715,42 +662,37 @@ function renderListings(listings, label) {
     listings.map(l => {
       const imageCount = (l.listing_images || []).length;
       const price = formatPrice(l);
-      const isSelected = selectedListing && selectedListing.id === l.id;
       return `
-        <div class="listing-card ${isSelected ? 'selected' : ''}" onclick="selectListing(${l.id})" data-id="${l.id}">
+        <div class="listing-card" onclick="selectListing(${l.id})" data-id="${l.id}">
           <span class="listing-id">매물 ${l.id}</span>
           ${imageCount > 0 ? `<span class="listing-images-count">📷 ${imageCount}장</span>` : ''}
-          <div class="listing-address">${escHtml(l.address || '주소 없음')}</div>
-          <div class="listing-title">${escHtml(l.title || '제목 없음')}</div>
+          <div class="listing-title">${escHtml(l.address || l.title || '제목 없음')}</div>
           <div class="listing-info">
+            ${l.title && l.address ? `<span>${escHtml(l.title)}</span>` : ''}
             ${l.type ? `<span>${l.type}</span>` : ''}
             ${l.deal ? `<span>${l.deal}</span>` : ''}
             ${l.area_m2 ? `<span>${l.area_m2}㎡</span>` : ''}
           </div>
           <div class="listing-price">${price}</div>
-          <div class="listing-check">${isSelected ? '✓' : ''}</div>
         </div>`;
     }).join('');
 }
 
 function formatPrice(l) {
-  if (l.deposit && l.monthly) return `${formatNum(l.deposit)}/${formatNum(l.monthly)}`;
-  if (l.price) return formatNum(l.price);
-  if (l.deposit) return formatNum(l.deposit);
+  if (l.deposit && l.monthly) return `${fmtN(l.deposit)}/${fmtN(l.monthly)}`;
+  if (l.price) return fmtN(l.price);
+  if (l.deposit) return fmtN(l.deposit);
   return '';
 }
-function formatNum(n) {
+function fmtN(n) {
   if (!n) return '0';
   n = Number(n);
-  if (n >= 10000) return (n/10000).toFixed(n%10000?1:0) + '억';
+  if (n >= 10000) return (n / 10000).toFixed(n % 10000 ? 1 : 0) + '억';
   return n.toLocaleString() + '만';
 }
 
-// ===== SELECT LISTING =====
-let existingImagesData = []; // Track loaded images for reordering
-let orderChanged = false;
-
-async function selectListing(id) {
+// ===== VIEW SWITCHING =====
+function selectListing(id) {
   const listing = allListings.find(l => l.id === id);
   if (!listing) return;
 
@@ -758,93 +700,99 @@ async function selectListing(id) {
   pendingFiles = [];
   orderChanged = false;
 
-  document.querySelectorAll('.listing-card').forEach(card => {
-    card.classList.toggle('selected', parseInt(card.dataset.id) === id);
-    card.querySelector('.listing-check').textContent = parseInt(card.dataset.id) === id ? '✓' : '';
-  });
+  // Switch to photo view
+  document.getElementById('searchView').style.display = 'none';
+  document.getElementById('photoView').classList.add('active');
 
-  document.getElementById('uploadBar').classList.remove('hidden');
-  document.getElementById('selectedName').textContent = listing.title || '제목 없음';
-  document.getElementById('selectedId').textContent = `매물번호 ${listing.id} | ${listing.address || ''}`;
+  document.getElementById('pvName').textContent = listing.title || '제목 없음';
+  document.getElementById('pvAddr').textContent = `매물번호 ${listing.id} | ${listing.address || ''}`;
 
-  document.getElementById('previewSection').style.display = 'block';
-  updatePreview();
-  await loadExistingImages(id);
+  updatePendingUI();
+  loadExistingImages(id);
 
-  const card = document.querySelector(`.listing-card[data-id="${id}"]`);
-  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  window.scrollTo(0, 0);
 }
 
+function backToSearch() {
+  selectedListing = null;
+  pendingFiles = [];
+  existingImagesData = [];
+
+  document.getElementById('photoView').classList.remove('active');
+  document.getElementById('searchView').style.display = '';
+}
+
+// ===== EXISTING IMAGES =====
 async function loadExistingImages(listingId) {
+  const section = document.getElementById('pvExisting');
+  const grid = document.getElementById('pvExistingGrid');
+  const title = document.getElementById('pvExistingTitle');
+
   try {
     const res = await fetch(`${API_BASE}/api/listings/${listingId}/images`, {
       headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }
     });
     const data = await res.json();
     existingImagesData = data.data || [];
-    const container = document.getElementById('existingImages');
-    const grid = document.getElementById('existingGrid');
-    const countEl = document.getElementById('existingCount');
 
     if (existingImagesData.length > 0) {
-      container.style.display = 'block';
-      countEl.textContent = `(${existingImagesData.length}장)`;
+      section.classList.remove('hidden');
+      title.textContent = `📌 등록된 사진 ${existingImagesData.length}장`;
       renderExistingImages();
     } else {
-      container.style.display = 'none';
+      section.classList.add('hidden');
       grid.innerHTML = '';
     }
-  } catch(e) { console.error('Load images error:', e); }
+  } catch(e) {
+    console.error('Load images error:', e);
+    section.classList.add('hidden');
+  }
 }
 
 function renderExistingImages() {
-  const grid = document.getElementById('existingGrid');
+  const grid = document.getElementById('pvExistingGrid');
   grid.innerHTML = existingImagesData.map((img, i) => `
-    <div class="existing-item" draggable="true" data-index="${i}"
-         ontouchstart="onDragTouchStart(event, ${i})"
-         ontouchmove="onDragTouchMove(event)" ontouchend="onDragTouchEnd(event)"
-         ondragstart="onDragStart(event, ${i})" ondragover="onDragOver(event)" ondrop="onDrop(event, ${i})" ondragend="onDragEnd(event)">
-      ${i === 0 ? '<div class="star-badge">⭐ 대표</div>' : ''}
-      <div class="order-num">${i + 1}</div>
-      <img src="${img.url || img.image_url}" alt="사진 ${i+1}" loading="lazy"
-           onerror="this.parentElement.innerHTML+='<div style=\\'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px;background:#f5f5f5\\'>로딩실패</div>'">
+    <div class="pv-existing-item" draggable="true" data-index="${i}"
+         ontouchstart="onTouchStart(event,${i})" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd(event)"
+         ondragstart="onDragStart(event,${i})" ondragover="onDragOver(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd(event)">
+      ${i === 0 ? '<div class="pv-star">⭐ 대표</div>' : ''}
+      <div class="pv-order-num">${i + 1}</div>
+      <img src="${img.url || img.image_url}" alt="사진 ${i + 1}" loading="lazy"
+           onerror="this.style.display='none';this.parentElement.innerHTML+='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:11px\\'>로딩실패</div>'">
     </div>`).join('');
 
-  document.getElementById('saveOrderBtn').classList.toggle('show', orderChanged);
+  document.getElementById('pvSaveOrder').classList.toggle('show', orderChanged);
 }
 
 // ===== DRAG & DROP (Desktop) =====
 let dragSrcIndex = null;
 
-function onDragStart(e, index) {
-  dragSrcIndex = index;
+function onDragStart(e, i) {
+  dragSrcIndex = i;
   e.target.classList.add('dragging');
   e.dataTransfer.effectAllowed = 'move';
 }
-
 function onDragOver(e) {
   e.preventDefault();
   e.dataTransfer.dropEffect = 'move';
-  const item = e.target.closest('.existing-item');
+  const item = e.target.closest('.pv-existing-item');
   if (item) {
-    document.querySelectorAll('.existing-item').forEach(el => el.classList.remove('drag-over'));
+    document.querySelectorAll('.pv-existing-item').forEach(el => el.classList.remove('drag-over'));
     item.classList.add('drag-over');
   }
 }
-
-function onDrop(e, targetIndex) {
+function onDrop(e, targetIdx) {
   e.preventDefault();
-  document.querySelectorAll('.existing-item').forEach(el => el.classList.remove('drag-over'));
-  if (dragSrcIndex !== null && dragSrcIndex !== targetIndex) {
+  document.querySelectorAll('.pv-existing-item').forEach(el => el.classList.remove('drag-over'));
+  if (dragSrcIndex !== null && dragSrcIndex !== targetIdx) {
     const moved = existingImagesData.splice(dragSrcIndex, 1)[0];
-    existingImagesData.splice(targetIndex, 0, moved);
+    existingImagesData.splice(targetIdx, 0, moved);
     orderChanged = true;
     renderExistingImages();
   }
 }
-
 function onDragEnd(e) {
-  document.querySelectorAll('.existing-item').forEach(el => {
+  document.querySelectorAll('.pv-existing-item').forEach(el => {
     el.classList.remove('dragging');
     el.classList.remove('drag-over');
   });
@@ -852,102 +800,90 @@ function onDragEnd(e) {
 }
 
 // ===== DRAG & DROP (Mobile Touch) =====
-let touchDragIndex = null;
+let touchIdx = null;
 let touchClone = null;
-let touchStartY = 0;
-let touchStartX = 0;
+let touchStartX = 0, touchStartY = 0;
 let longPressTimer = null;
 let touchActive = false;
 
-function onDragTouchStart(e, index) {
+function onTouchStart(e, idx) {
   touchStartX = e.touches[0].clientX;
   touchStartY = e.touches[0].clientY;
-  touchDragIndex = index;
+  touchIdx = idx;
   touchActive = false;
 
   longPressTimer = setTimeout(() => {
     touchActive = true;
-    e.target.closest('.existing-item').classList.add('dragging');
+    const item = e.target.closest('.pv-existing-item');
+    if (!item) return;
+    item.classList.add('dragging');
 
-    // Create floating clone
-    const item = e.target.closest('.existing-item');
     const rect = item.getBoundingClientRect();
     touchClone = item.cloneNode(true);
-    touchClone.style.cssText = `position:fixed;top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;z-index:500;opacity:.85;pointer-events:none;transition:none;border:2px solid var(--primary);box-shadow:0 8px 30px rgba(0,0,0,.25);`;
+    touchClone.style.cssText = `position:fixed;top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;z-index:500;opacity:.85;pointer-events:none;border:2px solid var(--primary);box-shadow:0 8px 30px rgba(0,0,0,.25);`;
     document.body.appendChild(touchClone);
 
     if (navigator.vibrate) navigator.vibrate(30);
   }, 400);
 }
 
-function onDragTouchMove(e) {
+function onTouchMove(e) {
   if (!touchActive) {
     const dx = e.touches[0].clientX - touchStartX;
     const dy = e.touches[0].clientY - touchStartY;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
-      clearTimeout(longPressTimer);
-    }
+    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) clearTimeout(longPressTimer);
     return;
   }
   e.preventDefault();
-
-  const tx = e.touches[0].clientX;
-  const ty = e.touches[0].clientY;
-
+  const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
   if (touchClone) {
     touchClone.style.left = (tx - touchClone.offsetWidth / 2) + 'px';
     touchClone.style.top = (ty - touchClone.offsetHeight / 2) + 'px';
   }
-
-  // Highlight drop target
-  document.querySelectorAll('.existing-item').forEach(el => el.classList.remove('drag-over'));
-  const target = document.elementFromPoint(tx, ty);
-  const targetItem = target ? target.closest('.existing-item') : null;
-  if (targetItem) targetItem.classList.add('drag-over');
+  document.querySelectorAll('.pv-existing-item').forEach(el => el.classList.remove('drag-over'));
+  const t = document.elementFromPoint(tx, ty);
+  const ti = t ? t.closest('.pv-existing-item') : null;
+  if (ti) ti.classList.add('drag-over');
 }
 
-function onDragTouchEnd(e) {
+function onTouchEnd(e) {
   clearTimeout(longPressTimer);
-
   if (touchActive && touchClone) {
     const touch = e.changedTouches[0];
-    if (touchClone.parentNode) touchClone.parentNode.removeChild(touchClone);
+    touchClone.remove();
     touchClone = null;
 
-    const target = document.elementFromPoint(touch.clientX, touch.clientY);
-    const targetItem = target ? target.closest('.existing-item') : null;
-
-    if (targetItem) {
-      const targetIndex = parseInt(targetItem.dataset.index);
-      if (touchDragIndex !== null && touchDragIndex !== targetIndex) {
-        const moved = existingImagesData.splice(touchDragIndex, 1)[0];
-        existingImagesData.splice(targetIndex, 0, moved);
+    const t = document.elementFromPoint(touch.clientX, touch.clientY);
+    const ti = t ? t.closest('.pv-existing-item') : null;
+    if (ti) {
+      const targetIdx = parseInt(ti.dataset.index);
+      if (touchIdx !== null && touchIdx !== targetIdx) {
+        const moved = existingImagesData.splice(touchIdx, 1)[0];
+        existingImagesData.splice(targetIdx, 0, moved);
         orderChanged = true;
       }
     }
   }
 
-  document.querySelectorAll('.existing-item').forEach(el => {
+  document.querySelectorAll('.pv-existing-item').forEach(el => {
     el.classList.remove('dragging');
     el.classList.remove('drag-over');
   });
 
   if (touchActive) renderExistingImages();
-
   touchActive = false;
-  touchDragIndex = null;
+  touchIdx = null;
 }
 
 // ===== SAVE IMAGE ORDER =====
 async function saveImageOrder() {
   if (!selectedListing || !orderChanged) return;
 
-  const btn = document.getElementById('saveOrderBtn');
+  const btn = document.getElementById('pvSaveOrder');
   btn.disabled = true;
   btn.textContent = '저장 중...';
 
   try {
-    // Use PATCH endpoint with sort_order and is_thumbnail
     const images = existingImagesData.map((img, i) => ({
       id: img.id,
       sort_order: i,
@@ -955,60 +891,27 @@ async function saveImageOrder() {
     }));
     const res = await fetch(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
       method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${AUTH_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Authorization': `Bearer ${AUTH_TOKEN}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ images })
     });
-
     const data = await res.json();
 
     if (res.ok && data.success !== false) {
       orderChanged = false;
       renderExistingImages();
-      showToast('✅ 사진 순서가 저장되었습니다', 'success');
-      addUploadLog('success', '사진 순서 변경',
-        `${existingImagesData.length}장 순서 저장 완료 · 대표사진: ${existingImagesData[0]?.id ? '#' + existingImagesData[0].id : '첫 번째'}`);
+      showToast('✅ 사진 순서 저장 완료', 'success');
+      addLog('success', '사진 순서 변경', `${existingImagesData.length}장 순서 저장 완료`);
     } else {
-      showToast('순서 저장 실패: ' + (data.error || data.message || '서버 오류'), 'error');
-      addUploadLog('error', '순서 저장 실패',
-        `오류: ${data.error || data.message || '알 수 없는 오류'}\nHTTP ${res.status}`);
+      showToast('순서 저장 실패: ' + (data.error || '서버 오류'), 'error');
+      addLog('error', '순서 저장 실패', data.error || '알 수 없는 오류');
     }
   } catch(e) {
     showToast('순서 저장 중 네트워크 오류', 'error');
-    addUploadLog('error', '순서 저장 실패', `네트워크 오류: ${e.message}`);
+    addLog('error', '순서 저장 실패', e.message);
   }
 
   btn.disabled = false;
   btn.textContent = '💾 순서 저장';
-}
-
-// ===== UPLOAD LOG =====
-function addUploadLog(type, title, detail) {
-  const logContainer = document.getElementById('uploadLog');
-  const logList = document.getElementById('uploadLogList');
-  logContainer.classList.add('show');
-
-  const now = new Date();
-  const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-
-  const item = document.createElement('div');
-  item.className = `log-item ${type}`;
-  item.innerHTML = `
-    <div class="log-icon">${type === 'success' ? '✅' : '❌'}</div>
-    <div class="log-body">
-      <div class="log-title">${escHtml(title)}</div>
-      <div class="log-detail ${type === 'error' ? 'error-detail' : ''}">${escHtml(detail).replace(/\n/g, '<br>')}</div>
-      <div class="log-time">${timeStr}</div>
-    </div>`;
-
-  logList.insertBefore(item, logList.firstChild);
-
-  // Keep only last 10 logs
-  while (logList.children.length > 10) {
-    logList.removeChild(logList.lastChild);
-  }
 }
 
 // ===== FILE HANDLING =====
@@ -1029,59 +932,69 @@ async function handleFiles(e) {
 
   let added = 0;
   for (const file of files) {
-    if (!file.type.startsWith('image/')) continue;
+    if (!file.type.startsWith('image/') && !file.name.match(/\.(jpg|jpeg|png|heic|heif|webp)$/i)) continue;
     if (pendingFiles.length >= 20) {
-      showToast('최대 20장까지 선택할 수 있습니다', 'error');
+      showToast('최대 20장까지 선택 가능', 'error');
       break;
     }
 
-    const { compressed, originalSize, compressedSize } = await compressImage(file);
-
-    pendingFiles.push({
-      file: compressed,
-      originalSize,
-      compressedSize,
-      gps: currentGPS ? { ...currentGPS } : null
-    });
-    added++;
-
-    document.getElementById('progressDetail').textContent = `${added}/${files.length} 완료`;
+    try {
+      const { compressed, originalSize, compressedSize } = await compressImage(file);
+      pendingFiles.push({
+        file: compressed,
+        originalSize,
+        compressedSize,
+        gps: currentGPS ? { ...currentGPS } : null
+      });
+      added++;
+      document.getElementById('progressDetail').textContent = `${added}/${files.length} 완료`;
+    } catch (err) {
+      console.error('Compress error:', err);
+    }
   }
 
   showProgress(false);
-  updatePreview();
+  updatePendingUI();
   e.target.value = '';
 
-  const totalOriginal = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
-  const totalCompressed = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
-  const saved = totalOriginal - totalCompressed;
-
-  if (saved > 100000) {
-    showToast(`${added}장 추가 (${formatBytes(saved)} 절약됨)`, 'success');
-  } else {
-    showToast(`${added}장 추가됨 (총 ${pendingFiles.length}장)`, 'success');
+  if (added > 0) {
+    const totalOrig = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
+    const totalComp = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
+    const saved = totalOrig - totalComp;
+    if (saved > 100000) {
+      showToast(`${added}장 추가 (${formatBytes(saved)} 절약)`, 'success');
+    } else {
+      showToast(`${added}장 추가됨 (총 ${pendingFiles.length}장)`, 'success');
+    }
   }
 }
 
-function updatePreview() {
-  const grid = document.getElementById('previewGrid');
-  const label = document.getElementById('previewLabel');
-  const submitBtn = document.getElementById('submitBtn');
+function updatePendingUI() {
+  const section = document.getElementById('pvPending');
+  const grid = document.getElementById('pvPendingGrid');
+  const title = document.getElementById('pvPendingTitle');
+  const btn = document.getElementById('pvUploadBtn');
 
-  label.textContent = `📸 새로 추가할 사진 (${pendingFiles.length}장)`;
-  submitBtn.disabled = pendingFiles.length === 0;
+  if (pendingFiles.length === 0) {
+    section.classList.add('hidden');
+    return;
+  }
+
+  section.classList.remove('hidden');
+  title.textContent = `📸 새 사진 ${pendingFiles.length}장`;
+  btn.disabled = false;
 
   grid.innerHTML = pendingFiles.map((pf, i) => `
-      <div class="preview-item">
-        <img src="${URL.createObjectURL(pf.file)}" alt="미리보기">
-        <button class="preview-remove" onclick="removeFile(${i})">✕</button>
-        <span class="preview-size">${formatBytes(pf.compressedSize)}</span>
-      </div>`).join('');
+    <div class="pv-thumb">
+      <img src="${URL.createObjectURL(pf.file)}" alt="미리보기">
+      <button class="pv-thumb-remove" onclick="removeFile(${i})">✕</button>
+      <span class="pv-thumb-size">${formatBytes(pf.compressedSize)}</span>
+    </div>`).join('');
 }
 
-function removeFile(index) {
-  pendingFiles.splice(index, 1);
-  updatePreview();
+function removeFile(i) {
+  pendingFiles.splice(i, 1);
+  updatePendingUI();
 }
 
 // ===== UPLOAD =====
@@ -1089,16 +1002,14 @@ async function uploadImages() {
   if (!selectedListing || pendingFiles.length === 0) return;
 
   const totalSize = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
-  const photoCount = pendingFiles.length;
-  showProgress(true, '사진 업로드 중...', `${photoCount}장 (${formatBytes(totalSize)})`);
+  const count = pendingFiles.length;
+  showProgress(true, '사진 업로드 중...', `${count}장 (${formatBytes(totalSize)})`);
 
   const startTime = Date.now();
 
   try {
     const formData = new FormData();
-    pendingFiles.forEach((pf) => {
-      formData.append('images', pf.file);
-    });
+    pendingFiles.forEach(pf => formData.append('images', pf.file));
 
     const metadata = pendingFiles.map(pf => ({
       gps: pf.gps,
@@ -1117,57 +1028,53 @@ async function uploadImages() {
     const data = await res.json();
 
     if (res.ok && data.success !== false) {
-      const origTotal = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
-      const compTotal = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
-      const savedPct = origTotal > 0 ? Math.round((1 - compTotal / origTotal) * 100) : 0;
+      const origT = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
+      const compT = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
+      const pct = origT > 0 ? Math.round((1 - compT / origT) * 100) : 0;
 
-      showToast(`✅ ${photoCount}장 업로드 완료!`, 'success');
-
-      addUploadLog('success',
-        `매물 ${selectedListing.id} 사진 ${photoCount}장 업로드 완료`,
-        `매물: ${selectedListing.title || ''}\n용량: ${formatBytes(compTotal)}${savedPct > 5 ? ` (원본대비 ${savedPct}% 절약)` : ''}\n소요: ${elapsed}초\n사이트 노출: 정상 반영됨 ✅`);
+      showToast(`✅ ${count}장 업로드 완료!`, 'success');
+      addLog('success', `매물 ${selectedListing.id} 사진 ${count}장 업로드`,
+        `용량: ${formatBytes(compT)}${pct > 5 ? ` (${pct}% 절약)` : ''} · ${elapsed}초`);
 
       pendingFiles = [];
-      updatePreview();
+      updatePendingUI();
       await loadExistingImages(selectedListing.id);
-
-      // Update listing card image count
-      const card = document.querySelector(`.listing-card[data-id="${selectedListing.id}"]`);
-      if (card) {
-        const newCount = existingImagesData.length;
-        const existing = card.querySelector('.listing-images-count');
-        if (existing) {
-          existing.textContent = `📷 ${newCount}장`;
-        } else {
-          const idSpan = card.querySelector('.listing-id');
-          idSpan.insertAdjacentHTML('afterend', ` <span class="listing-images-count">📷 ${newCount}장</span>`);
-        }
-      }
     } else {
-      const errorMsg = data.error || data.message || `알 수 없는 서버 오류 (HTTP ${res.status})`;
-      showToast(`❌ 업로드 실패`, 'error');
-
-      addUploadLog('error',
-        `매물 ${selectedListing.id} 업로드 실패 (${photoCount}장)`,
-        `매물: ${selectedListing.title || ''}\n오류 내용: ${errorMsg}\nHTTP 상태: ${res.status}\n소요: ${elapsed}초\n\n💡 문제 해결: 네트워크 확인 후 다시 시도하거나, 파일 크기(장당 10MB 이하)를 확인해주세요`);
+      const errMsg = data.error || data.message || `서버 오류 (HTTP ${res.status})`;
+      showToast('❌ 업로드 실패', 'error');
+      addLog('error', `매물 ${selectedListing.id} 업로드 실패`, errMsg);
     }
   } catch(e) {
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     showToast('❌ 업로드 중 오류 발생', 'error');
-
-    let errorDetail = `오류 유형: ${e.name || 'Unknown'}\n오류 메시지: ${e.message}`;
-    if (e.message.includes('Failed to fetch') || e.message.includes('NetworkError')) {
-      errorDetail += '\n\n💡 네트워크 연결 문제입니다.\n- Wi-Fi 또는 LTE 연결을 확인해주세요\n- VPN 사용 중이라면 해제 후 재시도';
-    } else if (e.message.includes('timeout') || e.message.includes('aborted')) {
-      errorDetail += '\n\n💡 업로드 시간 초과입니다.\n- 사진 수를 줄여서 재시도해주세요\n- 네트워크 속도를 확인해주세요';
-    }
-
-    addUploadLog('error',
-      `매물 ${selectedListing.id} 업로드 오류 (${photoCount}장)`,
-      `매물: ${selectedListing.title || ''}\n${errorDetail}\n소요: ${elapsed}초`);
+    let msg = e.message;
+    if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) msg += ' (네트워크 확인)';
+    addLog('error', `매물 ${selectedListing.id} 업로드 오류`, `${msg} · ${elapsed}초`);
   }
 
   showProgress(false);
+}
+
+// ===== UPLOAD LOG =====
+function addLog(type, title, detail) {
+  const container = document.getElementById('pvLog');
+  const list = document.getElementById('pvLogList');
+  container.classList.add('show');
+
+  const now = new Date();
+  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
+  const item = document.createElement('div');
+  item.className = `log-item ${type}`;
+  item.innerHTML = `
+    <div class="log-icon">${type === 'success' ? '✅' : '❌'}</div>
+    <div class="log-body">
+      <div class="log-title">${escHtml(title)}</div>
+      <div class="log-detail ${type === 'error' ? 'error-detail' : ''}">${escHtml(detail)}</div>
+      <div class="log-time">${time}</div>
+    </div>`;
+  list.insertBefore(item, list.firstChild);
+  while (list.children.length > 10) list.removeChild(list.lastChild);
 }
 
 // ===== UI HELPERS =====
@@ -1181,28 +1088,28 @@ function showLoading(on) {
 }
 
 function showToast(msg, type = '') {
-  const toast = document.getElementById('toast');
-  toast.textContent = msg;
-  toast.className = 'toast show ' + type;
-  setTimeout(() => { toast.className = 'toast'; }, 2500);
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  setTimeout(() => { t.className = 'toast'; }, 2500);
 }
 
 function showProgress(on, text, sub) {
-  const overlay = document.getElementById('progressOverlay');
+  const o = document.getElementById('progressOverlay');
   if (on) {
     document.getElementById('progressText').textContent = text || '처리 중...';
     document.getElementById('progressSub').textContent = sub || '';
     document.getElementById('progressDetail').textContent = '';
-    overlay.classList.add('show');
+    o.classList.add('show');
   } else {
-    overlay.classList.remove('show');
+    o.classList.remove('show');
   }
 }
 
-function escHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
 }
 </script>
 </body>
