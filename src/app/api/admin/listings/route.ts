@@ -335,7 +335,7 @@ export async function POST(request: NextRequest) {
         area_m2: listingData.area_m2,
         area_supply_m2: listingData.area_supply_m2 || null,
         area_land_m2: listingData.area_land_m2 || null,
-        floor_current: listingData.floor_current || null,
+        floor_current: listingData.floor_current || '미상',
         floor_total: listingData.floor_total || null,
         rooms: listingData.rooms || null,
         bathrooms: listingData.bathrooms || null,
@@ -461,4 +461,4 @@ export async function PUT(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: parsed.error.errors[0].message },
-        {
+     
