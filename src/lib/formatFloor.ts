@@ -51,6 +51,16 @@ export function formatFloor(listing: Listing): string {
 
   if (!current) return '';
 
+  // floor_current에 이미 "/"가 포함된 경우 (예: "3/3") → total 무시하고 그대로 포맷
+  if (current.includes('/')) {
+    const parts = current.split('/');
+    const first = formatFloorNumber(parts[0].trim());
+    const last = formatFloorNumber(parts[parts.length - 1].trim());
+    const firstWithoutUnit = first.replace(/층$/, '');
+    const lastWithoutUnit = last.replace(/층$/, '');
+    return `${firstWithoutUnit}/${lastWithoutUnit}층`;
+  }
+
   const formattedCurrent = formatFloorNumber(current);
 
   // floor_total이 있으면 현재층/전체층 형식
