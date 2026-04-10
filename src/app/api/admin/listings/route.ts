@@ -1,6 +1,6 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Admin API: GET, POST, PUT /api/admin/listings
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
@@ -50,7 +50,6 @@ const createListingSchema = z.object({
   signage_available: z.boolean().optional().nullable(),
   meeting_room: z.number().int().nonnegative().optional().nullable(),
   status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
-  // 이미지 URL 배열 (Supabase Storage에 이미 업로드된 URL들)
   images: z.array(z.string()).optional(),
 });
 
@@ -65,6 +64,12 @@ function verifyAuth(request: NextRequest): boolean {
 
 /**
  * GET /api/admin/listings - 모든 매물 조회 (관리자용)
+ *
+ * Query params:
+ *   ?fields=minimal  → 목록용 경량 응답 (이미지 1개만, 불필요 필드 제외)
+ *   (기본)           → 전체 필드 + 전체 이미지
+ *
+ * ⚠️ Supabase 기본 1000행 제한 → .range()로 전체 조회
  */
 export async function GET(request: NextRequest) {
   try {
@@ -76,23 +81,90 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createServerClient();
+    const { searchParams } = new URL(request.url);
+    const fields = searchParams.get('fields');
 
-    const { data, error } = await supabase
-      .from('listings')
-      .select('*, listing_images(*)')
-      .order('created_at', { ascending: false });
+    if (fields === 'minimal') {
+      const selectFields = [
+        'id', 'title', 'type', 'deal', 'status',
+        'deposit', 'monthly', 'price',
+        'maintenance_fee', 'maintenance_includes',
+        'area_m2', 'area_supply_m2',
+        'floor_current', 'floor_total',
+        'rooms', 'bathrooms', 'direction',
+        'address', 'address_detail', 'dong',
+        'lat', 'lng',
+        'description', 'available_date', 'built_year',
+        'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
+        'business_type', 'goodwill_fee',
+        'station_name', 'station_distance',
+        'created_at', 'updated_at',
+        'listing_images(id,url,is_thumbnail,sort_order)'
+      ].join(',');
 
-    if (error) {
-      console.error('매물 조회 오류:', error);
-      return NextResponse.json(
-        { success: false, error: '매물 조회에 실패했습니다', detail: error?.message || String(error) },
-        { status: 500 }
-      );
+      let allData: any[] = [];
+      const PAGE_SIZE = 1000;
+      let from = 0;
+      let hasMore = true;
+
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('listings')
+          .select(selectFields)
+          .order('created_at', { ascending: false })
+          .range(from, from + PAGE_SIZE - 1);
+
+        if (error) {
+          console.error('매물 조회 오류 (minimal, offset=' + from + '):', error);
+          break;
+        }
+
+        if (data && data.length > 0) {
+          allData = allData.concat(data);
+          from += PAGE_SIZE;
+          hasMore = data.length === PAGE_SIZE;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: allData,
+        total: allData.length,
+      });
+    }
+
+    let allData: any[] = [];
+    const PAGE_SIZE = 1000;
+    let from = 0;
+    let hasMore = true;
+
+    while (hasMore) {
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*, listing_images(*)')
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1);
+
+      if (error) {
+        console.error('매물 조회 오류 (offset=' + from + '):', error);
+        break;
+      }
+
+      if (data && data.length > 0) {
+        allData = allData.concat(data);
+        from += PAGE_SIZE;
+        hasMore = data.length === PAGE_SIZE;
+      } else {
+        hasMore = false;
+      }
     }
 
     return NextResponse.json({
       success: true,
-      data: data || [],
+      data: allData,
+      total: allData.length,
     });
   } catch (error) {
     console.error('매물 조회 오류:', error);
@@ -128,7 +200,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // images는 별도 처리 (listings 테이블에는 포함되지 않음)
     const { images, ...listingData } = parsed.data;
 
     const { data, error } = await supabase
@@ -187,7 +258,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 이미지 URL이 있으면 listing_images 테이블에 연결
     let imageResults: any[] = [];
     if (images && images.length > 0 && data?.id) {
       const imageInserts = images.map((url: string, index: number) => ({
@@ -195,7 +265,7 @@ export async function POST(request: NextRequest) {
         url: url,
         alt: `${listingData.title} 이미지 ${index + 1}`,
         sort_order: index,
-        is_thumbnail: index === 0, // 첫 번째 이미지를 대표 이미지로
+        is_thumbnail: index === 0,
       }));
 
       const { data: imgData, error: imgError } = await supabase
@@ -205,13 +275,11 @@ export async function POST(request: NextRequest) {
 
       if (imgError) {
         console.error('이미지 연결 오류:', imgError);
-        // 매물은 생성되었으므로 이미지 연결 실패는 경고만 반환
       } else {
         imageResults = imgData || [];
       }
     }
 
-    // 캐시 즉시 무효화
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
@@ -268,7 +336,6 @@ export async function PUT(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // 업데이트할 필드 준비 (undefined 제거)
     const updateValues: Record<string, any> = {};
     Object.entries(parsed.data).forEach(([key, value]) => {
       if (value !== undefined && key !== 'images') {
@@ -285,7 +352,6 @@ export async function PUT(request: NextRequest) {
 
     let data = null;
 
-    // 매물 기본 정보 수정
     if (Object.keys(updateValues).length > 0) {
       const { data: updatedData, error } = await supabase
         .from('listings')
@@ -305,15 +371,12 @@ export async function PUT(request: NextRequest) {
       data = updatedData;
     }
 
-    // 이미지 배열이 제공된 경우, 기존 이미지를 교체
     if (images && Array.isArray(images)) {
-      // 기존 이미지 삭제
       await supabase
         .from('listing_images')
         .delete()
         .eq('listing_id', id);
 
-      // 새 이미지 삽입
       if (images.length > 0) {
         const imageInserts = images.map((url: string, index: number) => ({
           listing_id: id,
@@ -330,7 +393,6 @@ export async function PUT(request: NextRequest) {
     }
 
     if (!data) {
-      // 이미지만 수정한 경우 매물 데이터 다시 조회
       const { data: fetchedData } = await supabase
         .from('listings')
         .select('*, listing_images(*)')
@@ -347,7 +409,6 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // 캐시 즉시 무효화
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
