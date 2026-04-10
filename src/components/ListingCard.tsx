@@ -253,7 +253,7 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
         {/* 위치 */}
         <div className="flex items-center gap-1 text-xs text-wishes-muted">
           <MapPin className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
-          <span className="truncate">{listing.dong} · {listing.address.split(' ').slice(-1)[0]}</span>
+          <span className="truncate">{listing.dong}</span>
         </div>
 
         {/* 옵션 태그 */}
