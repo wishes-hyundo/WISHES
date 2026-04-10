@@ -13,7 +13,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [userRole, setUserRole] = useState<string>('');
   const [hasExtension, setHasExtension] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [selectedNav, setSelectedNav] = useState<string>(() => { if (typeof window !== 'undefined') { const t = new URLSearchParams(window.location.search).get('tab'); if (t) return '/admin?tab=' + t; return window.location.pathname; } return '/admin'; });
+  const [selectedNav, setSelectedNav] = useState<string>('/admin');
   const router = useRouter();
   const pathname = usePathname();
 
