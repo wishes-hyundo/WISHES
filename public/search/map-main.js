@@ -13,6 +13,80 @@
  *  - 지도타입/오버레이/그리기/주변시설/반경검색/로드뷰/내위치/전체화면/공유/인쇄/히트맵/주소조회/축척/매물 클러스터
  */
 (function() {
+  // ======================== 🛣️  카카오 로드뷰 프록시 패치 ========================
+  // Kakao SDK 의 `Roadview` 는 `rv.map.kakao.com/roadview-search/v2/*` 를 호출하는데
+  // 이 엔드포인트는 Referer 가 map.kakao.com 이 아니면 전부 503 을 반환한다.
+  // → XHR/fetch 를 감싸서 같은 URL 을 `/api/kakao-rv/*` 서버 프록시로 리라이트.
+  //   서버에서 Referer: https://map.kakao.com/ 헤더를 주입해 정상 응답을 받는다.
+  (function installRoadviewProxy() {
+    if (window.__WS_RV_PROXY_PATCHED__) return;
+    window.__WS_RV_PROXY_PATCHED__ = true;
+
+    var TARGET = 'https://rv.map.kakao.com/';
+    var PROXY = '/api/kakao-rv/';
+
+    function rewrite(url) {
+      if (typeof url !== 'string') return url;
+      if (url.indexOf(TARGET) === 0) {
+        return PROXY + url.substring(TARGET.length);
+      }
+      // protocol-relative
+      if (url.indexOf('//rv.map.kakao.com/') === 0) {
+        return PROXY + url.substring('//rv.map.kakao.com/'.length);
+      }
+      return url;
+    }
+
+    // XHR.open 패치
+    try {
+      var _open = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url) {
+        var rewritten = rewrite(url);
+        if (rewritten !== url) {
+          arguments[1] = rewritten;
+        }
+        return _open.apply(this, arguments);
+      };
+    } catch(e) { /* noop */ }
+
+    // fetch 패치
+    try {
+      var _fetch = window.fetch;
+      if (_fetch) {
+        window.fetch = function(input, init) {
+          try {
+            if (typeof input === 'string') {
+              input = rewrite(input);
+            } else if (input && input.url) {
+              var rw = rewrite(input.url);
+              if (rw !== input.url) input = new Request(rw, input);
+            }
+          } catch(e) { /* noop */ }
+          return _fetch.call(this, input, init);
+        };
+      }
+    } catch(e) { /* noop */ }
+
+    // script 태그 주입 (JSONP) 패치 — src 세터를 가로채서 리라이트
+    try {
+      var scriptProto = HTMLScriptElement.prototype;
+      var desc = Object.getOwnPropertyDescriptor(scriptProto, 'src') ||
+                 Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'src');
+      if (desc && desc.set) {
+        var _setSrc = desc.set;
+        Object.defineProperty(scriptProto, 'src', {
+          configurable: true,
+          enumerable: desc.enumerable,
+          get: desc.get,
+          set: function(v) {
+            return _setSrc.call(this, rewrite(v));
+          }
+        });
+      }
+    } catch(e) { /* noop */ }
+  })();
+  // ======================== /카카오 로드뷰 프록시 패치 ========================
+
   // ======================== 상태 ========================
   var _map = null;
   var _clusterer = null;
