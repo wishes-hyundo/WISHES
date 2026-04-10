@@ -77,16 +77,19 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   const dealColorMap: Record<string, string> = {
     '전세': 'bg-blue-500',
     '월세': 'bg-orange-500',
-    '맠매': 'bg-emerald-500',
+    '매매': 'bg-emerald-500',
   };
   const dealBgColor = dealColorMap[listing.deal] || 'bg-gray-500';
 
+  const isCommercial = ['상가', '사무실'].includes(listing.type);
   const optionItems = [
     { key: 'parking', label: '주차', icon: ParkingCircle, value: listing.parking },
     { key: 'elevator', label: '엘리베이터', icon: Building2, value: listing.elevator },
-    { key: 'pet', label: '반려동물', icon: Dog, value: listing.pet },
-    { key: 'balcony', label: '발코니', icon: Warehouse, value: listing.balcony },
-    { key: 'full_option', label: '풀옵션', icon: Zap, value: listing.full_option },
+    ...(!isCommercial ? [
+      { key: 'pet', label: '반려동물', icon: Dog, value: listing.pet },
+      { key: 'balcony', label: '발코니', icon: Warehouse, value: listing.balcony },
+      { key: 'full_option', label: '풀옵션', icon: Zap, value: listing.full_option },
+    ] : []),
     { key: 'loan_available', label: '대출가능', icon: CreditCard, value: listing.loan_available },
   ];
 
@@ -198,7 +201,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <p className="text-base font-bold text-gray-900 leading-snug">{listing.title}</p>
           <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
             <MapPin className="w-3 h-3" />
-            <span>{listing.address}</span>
+            <span>{listing.dong || listing.address?.match(/^(.+?[동리가읍면])/)?.[1] || listing.address?.split(' ').slice(0, 3).join(' ') || ''}</span>
           </div>
         </div>
 
@@ -206,7 +209,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         <div className="p-4 border-b border-gray-100">
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">{listing.deal === '욤매' ? '매매가' : listing.deal === '전세' ? '전세금' : '월세'}</span>
+              <span className="text-sm text-gray-500">{listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : '월세'}</span>
               <span className="text-lg font-extrabold text-gray-900">{price.main}</span>
             </div>
             {listing.deal === '월세' && listing.deposit > 0 && (
@@ -280,7 +283,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
             {listing.floor_current && (
               <InfoItem icon={Building2} label="층수" value={formatFloorWithTotal(listing.floor_current, listing.floor_total)} />
             )}
-            {listing.rooms && (
+            {!['상가', '사무실'].includes(listing.type) && listing.rooms && (
               <InfoItem icon={DoorOpen} label="방/욕실" value={`${listing.rooms}방${listing.bathrooms ? ` / ${listing.bathrooms}욕실` : ''}`} />
             )}
             {listing.direction && (
