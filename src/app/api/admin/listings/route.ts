@@ -50,8 +50,6 @@ const createListingSchema = z.object({
   electric_capacity: z.string().optional().nullable(),
   signage_available: z.boolean().optional().nullable(),
   meeting_room: z.number().int().nonnegative().optional().nullable(),
-  status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
-  images: z.array(z.string()).optional(),
   // 상업용 업종 정보
   previous_business: z.string().optional().nullable(),
   recommended_business: z.string().optional().nullable(),
@@ -65,6 +63,8 @@ const createListingSchema = z.object({
   contact: z.string().optional().nullable(),
   lease_period: z.string().optional().nullable(),
   rights_fee: z.number().int().nonnegative().optional().nullable(),
+  status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
+  images: z.array(z.string()).optional(),
 });
 
 /**
@@ -320,12 +320,10 @@ export async function POST(request: NextRequest) {
         signage_available: listingData.signage_available || null,
         meeting_room: listingData.meeting_room || null,
         status: listingData.status || '가용',
-        // 상업용 업종 정보
         previous_business: listingData.previous_business || null,
         recommended_business: listingData.recommended_business || null,
         restricted_business: listingData.restricted_business || null,
         parking_spaces: listingData.parking_spaces || null,
-        // 크롤링 출처 정보
         source_site: listingData.source_site || null,
         source_id: listingData.source_id || null,
         source_url: listingData.source_url || null,
@@ -460,4 +458,58 @@ export async function PUT(request: NextRequest) {
     }
 
     if (images && Array.isArray(images)) {
-      await
+      await supabase
+        .from('listing_images')
+        .delete()
+        .eq('listing_id', id);
+
+      if (images.length > 0) {
+        const imageInserts = images.map((url: string, index: number) => ({
+          listing_id: id,
+          url: url,
+          alt: `매물 이미지 ${index + 1}`,
+          sort_order: index,
+          is_thumbnail: index === 0,
+        }));
+
+        await supabase
+          .from('listing_images')
+          .insert(imageInserts);
+      }
+    }
+
+    if (!data) {
+      const { data: fetchedData } = await supabase
+        .from('listings')
+        .select('*, listing_images(*)')
+        .eq('id', id)
+        .single();
+
+      data = fetchedData;
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { success: false, error: '매물을 찾을 수 없습니다' },
+        { status: 404 }
+      );
+    }
+
+    revalidatePath('/', 'layout');
+    revalidatePath('/listings', 'page');
+    revalidatePath('/map', 'page');
+    revalidatePath(`/listings/${id}`, 'page');
+    revalidateTag('listings');
+
+    return NextResponse.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    console.error('매물 수정 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
+      { status: 500 }
+    );
+  }
+}
