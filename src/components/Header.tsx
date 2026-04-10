@@ -12,7 +12,6 @@ const navItems = [
   { label: '매물검색', href: '/listings' },
   { label: '지도검색', href: '/map' },
   { label: '대출계산기', href: '/calculator' },
-  { label: 'FAQ', href: '/faq' },
   { label: '상담·매물접수', href: '/contact' },
 ];
 
