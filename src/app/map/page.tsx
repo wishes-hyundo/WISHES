@@ -295,7 +295,8 @@ export default function MapSearchPage() {
       l.dong?.toLowerCase().includes(q) ||
       (l.address && l.address.toLowerCase().includes(q)) ||
       l.type?.toLowerCase().includes(q) ||
-      l.deal?.toLowerCase().includes(q)
+      l.deal?.toLowerCase().includes(q) ||
+      String(l.id).includes(q)
     );
   }, [listings, searchQuery]);
 
