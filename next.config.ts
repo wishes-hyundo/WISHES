@@ -42,16 +42,11 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  async redirects() {
+  async headers() {
     return [
       {
-        source: '/:path*',
-        has: [{ type: 'host', value: 'www.wishes.co.kr' }],
-        destination: 'https://wishes.co.kr/:path*',
-        permanent: true,
-      },
-    ];
-  },
-};
-
-export default nextConfig;
+        // Admin API: CORS 허용 (크롤러가 외부 도메인에서 접근 가능)
+        source: '/api/admin/:path*',
+        headers: [
+          { key: 'Access-Control-Allow-Origin', value: '*' },
+          { key: 'Ac
