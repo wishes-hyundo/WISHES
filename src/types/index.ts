@@ -65,6 +65,20 @@ export interface Listing {
   images?: ListingImage[];
   features?: string[];
 
+  // 상업용 업종 정보
+  previous_business?: string | null;
+  recommended_business?: string | null;
+  restricted_business?: string | null;
+  parking_spaces?: number | null;
+  // 크롤링 출처 정보
+  source_site?: string | null;
+  source_id?: string | null;
+  source_url?: string | null;
+  building_name?: string | null;
+  contact?: string | null;
+  lease_period?: string | null;
+  rights_fee?: number | null;
+
   // Legacy field mappings for backward compatibility
   area?: number;
   floor?: string;
@@ -136,18 +150,4 @@ export interface ApiResponse<T> {
   success: boolean;
   data?: T;
   error?: string;
-  total?: number;
-}
-
-// 가격 포맷 여퍼 타입
-export interface FormattedPrice {
-  label: string;
-  main: string;
-  sub?: string;
-}
-
-// 상업용 매물 여부 체크
-export const isCommercialType = (type: string) => type === '상가' || type === '사무실';
-
-// 업종 분류 옵션
-export const BUSINESS_TYPES = ['음식점', '카페', '편의점', '미용실', '학�', '병원/약국', '사무실', '기타'] as const;
+  total?
