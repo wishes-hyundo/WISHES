@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
         'id', 'title', 'type', 'deal', 'status', 'created_at', 'views',
         'deposit', 'monthly', 'price',
         'maintenance_fee', 'maintenance_includes',
-        'area_m2', 'area_supply_m2', 'area_land_m2',
+        'area_m2', 'area_supply_m2',
         'floor_current', 'floor_total',
         'rooms', 'bathrooms', 'direction', 'heating_type',
         'address', 'address_detail', 'dong', 'gu',
@@ -145,7 +145,7 @@ export async function GET(request: NextRequest) {
         'previous_business', 'recommended_business', 'restricted_business',
         'parking_spaces', 'rights_fee', 'lease_period',
         'station_name', 'station_distance',
-        'source_site', 'source_id', 'source_url', 'building_name', 'contact',
+        'source_site', 'source_id', 'building_name', 'contact',
         'listing_images(url,sort_order)',  // sort_order 복원 — 이미지 순서 보장
         'listing_features(feature)'
       ].join(',');
