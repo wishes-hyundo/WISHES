@@ -608,11 +608,15 @@
     if (!arr || arr.length === 0) return arr;
 
     const copy = [...arr];
+    // 거래유형별 우선순위: 같은 유형끼리 먼저 묶고, 유형 내에서 가격 비교
+    const dealOrder = { '월세': 0, '전세': 1, '매매': 2 };
+    const dealRank = (listing) => dealOrder[listing.deal] !== undefined ? dealOrder[listing.deal] : 3;
     const basePrice = (listing) => {
       const deal = listing.deal || '';
       if (deal === '매매') return listing.price || 0;
       if (deal === '전세') return listing.deposit || 0;
-      return (listing.deposit || 0) * 100 + (listing.monthly || 0);
+      if (deal === '월세') return (listing.monthly || 0) * 10000 + (listing.deposit || 0);
+      return (listing.deposit || 0) + (listing.monthly || 0) * 10000;
     };
 
     switch (sortBy) {
@@ -621,9 +625,9 @@
       case 'views':
         return copy.sort((a, b) => (b.views || 0) - (a.views || 0));
       case 'price_low':
-        return copy.sort((a, b) => basePrice(a) - basePrice(b));
+        return copy.sort((a, b) => { var d = dealRank(a) - dealRank(b); return d !== 0 ? d : basePrice(a) - basePrice(b); });
       case 'price_high':
-        return copy.sort((a, b) => basePrice(b) - basePrice(a));
+        return copy.sort((a, b) => { var d = dealRank(a) - dealRank(b); return d !== 0 ? d : basePrice(b) - basePrice(a); });
       case 'area_low':
         return copy.sort((a, b) => (a.area_m2 || 0) - (b.area_m2 || 0));
       case 'area_high':
@@ -2275,6 +2279,18 @@
     });
     html += '</div></div>';
 
+    // ══ 핵심 필터 바로가기 (주차/공실/대출) ══
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px;">';
+    [
+      { key: 'parkingAvailable', label: '🅿️ 주차가능', bg: '#E3F2FD', active: '#1565C0', color: '#1565C0' },
+      { key: 'emptyNow', label: '🟢 현재공실', bg: '#E8F5E9', active: '#2E7D32', color: '#2E7D32' },
+      { key: 'loanAvailable', label: '🏦 대출가능', bg: '#FFF3E0', active: '#E65100', color: '#E65100' }
+    ].forEach(function(item) {
+      var isOn = s.checks[item.key];
+      html += '<button class="ws-quick-check-btn" data-quick-check="' + item.key + '" style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;border:2px solid ' + (isOn ? item.active : '#ddd') + ';background:' + (isOn ? item.active : item.bg) + ';color:' + (isOn ? '#fff' : item.color) + ';">' + item.label + '</button>';
+    });
+    html += '</div>';
+
     // (방향 필터: DB 데이터 미입력 상태로 UI 제거됨. 데이터 준비 완료 시 복원)
 
     // ══ Price Grid (3 columns per row) ══
@@ -2403,6 +2419,18 @@
       cb.addEventListener('change', function() {
         const key = this.dataset.check;
         window.WS.state.checks[key] = this.checked;
+        window.WS.refresh();
+      });
+    });
+
+    // 핵심 필터 퀵버튼 (주차/공실/대출)
+    document.querySelectorAll('.ws-quick-check-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const key = this.dataset.quickCheck;
+        window.WS.state.checks[key] = !window.WS.state.checks[key];
+        // 연동: 추가필터 체크박스도 동기화
+        var cb = document.querySelector('.ws-filter-checkbox[data-check="' + key + '"]');
+        if (cb) cb.checked = window.WS.state.checks[key];
         window.WS.refresh();
       });
     });
@@ -3580,7 +3608,17 @@
           facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYear(listing.built_year) ? getBuiltYear(listing.built_year) + '년' : '-') + '</div>';
           facilHtml += '<div><strong>등록일</strong> ' + timeAgo(listing.created_at) + '</div>';
         }
-        facilHtml += '</div></div>';
+        facilHtml += '</div>';
+        // 크롤링 수집 옵션 태그 (에어컨, 냉장고, 세탁기 등)
+        var feats = listing.features || (listing.listing_features ? listing.listing_features.map(function(f){ return f.feature || f; }) : []);
+        if (feats.length > 0) {
+          facilHtml += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #e8e8e8;"><strong style="font-size:12px;color:#555;">옵션/시설 상세</strong><div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;">';
+          feats.forEach(function(f) {
+            facilHtml += '<span style="display:inline-block;padding:3px 10px;background:#E8F5E9;color:#2E7D32;border-radius:14px;font-size:11px;font-weight:500;border:1px solid #C8E6C9;">' + escHtml(f) + '</span>';
+          });
+          facilHtml += '</div></div>';
+        }
+        facilHtml += '</div>';
 
         // 업종/임대 정보 (상가/사무실 전용)
         var bizHtml = '';
@@ -4137,6 +4175,7 @@
           e.stopPropagation();
           var id = removeBtn.getAttribute('data-id');
           window.WS.toggleFavorite(id);
+          window.WS.renderListings(); // 카드 목록도 즉시 갱신
           window.WS.showFavorites();
           return;
         }
@@ -8338,21 +8377,86 @@
       html += '<div data-cat="" style="display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;border-radius:6px;border-top:1px solid #eee;margin-top:4px;">';
       html += '<span>✕</span><span style="font-size:12px;color:#999;">카테고리 해제</span></div>';
     }
+    // 사용자 정의 카테고리 추가
+    html += '<div data-cat-add="true" style="display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;border-radius:6px;border-top:1px solid #eee;margin-top:4px;color:#6366f1;">';
+    html += '<span>＋</span><span style="font-size:12px;font-weight:600;">새 카테고리 추가</span></div>';
+
+    // 사용자 정의 카테고리 목록
+    var userCats = JSON.parse(_safeGetItem('ws-user-categories') || '[]');
+    if (userCats.length > 0) {
+      html += '<div style="border-top:1px solid #eee;margin-top:4px;padding-top:4px;">';
+      html += '<div style="font-size:10px;color:#aaa;padding:2px 6px;">사용자 정의</div>';
+      userCats.forEach(function(uc) {
+        var isActive = current === uc.name;
+        html += '<div data-cat="' + escHtml(uc.name) + '" style="display:flex;align-items:center;gap:6px;padding:6px 10px;cursor:pointer;border-radius:6px;margin-bottom:2px;background:' + (isActive ? (uc.color || '#E8EAF6') : 'transparent') + ';font-weight:' + (isActive ? '700' : '400') + ';">';
+        html += '<span>' + (uc.icon || '📁') + '</span><span style="font-size:12px;color:' + (uc.textColor || '#333') + ';">' + escHtml(uc.name) + '</span>';
+        if (isActive) html += '<span style="margin-left:auto;font-size:10px;">✓</span>';
+        html += '<span data-cat-del="' + escHtml(uc.name) + '" style="margin-left:auto;font-size:10px;color:#ccc;padding:2px 4px;cursor:pointer;" title="삭제">🗑</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
 
     picker.innerHTML = html;
     document.body.appendChild(picker);
 
+    // 사용자 정의 카테고리 스타일 등록
+    userCats.forEach(function(uc) {
+      if (!window.WS._categoryStyles[uc.name]) {
+        window.WS._categoryStyles[uc.name] = { bg: uc.color || '#E8EAF6', color: uc.textColor || '#333', icon: uc.icon || '📁' };
+      }
+    });
+
     picker.addEventListener('click', function(e) {
+      // 새 카테고리 추가
+      var addEl = e.target.closest('[data-cat-add]');
+      if (addEl) {
+        var name = prompt('새 카테고리 이름을 입력하세요:');
+        if (!name || !name.trim()) return;
+        name = name.trim();
+        var userCats2 = JSON.parse(_safeGetItem('ws-user-categories') || '[]');
+        if (userCats2.some(function(c) { return c.name === name; }) || window.WS._categoryStyles[name]) {
+          window.WS.showToast('이미 존재하는 카테고리입니다.', 'error');
+          return;
+        }
+        var icons = ['📁','📌','💎','🏠','🔑','📋','⭐','🎯','💼','🏷'];
+        var icon = icons[userCats2.length % icons.length];
+        userCats2.push({ name: name, icon: icon, color: '#E8EAF6', textColor: '#333' });
+        _safeSetItem('ws-user-categories', JSON.stringify(userCats2));
+        window.WS._categoryStyles[name] = { bg: '#E8EAF6', color: '#333', icon: icon };
+        window.WS.setFavCategory(listingId, name);
+        picker.remove();
+        window.WS.showToast('카테고리 "' + name + '" 생성 및 적용됨', 'success');
+        if (window.WS.showFavorites && document.getElementById('ws-modal-favorites').style.display !== 'none') window.WS.showFavorites();
+        return;
+      }
+      // 카테고리 삭제
+      var delEl = e.target.closest('[data-cat-del]');
+      if (delEl) {
+        e.stopPropagation();
+        var delName = delEl.getAttribute('data-cat-del');
+        if (!confirm('"' + delName + '" 카테고리를 삭제하시겠습니까?')) return;
+        var uc3 = JSON.parse(_safeGetItem('ws-user-categories') || '[]');
+        uc3 = uc3.filter(function(c) { return c.name !== delName; });
+        _safeSetItem('ws-user-categories', JSON.stringify(uc3));
+        delete window.WS._categoryStyles[delName];
+        // 해당 카테고리의 매물들 미분류로 전환
+        var allCats = window.WS._getFavCategories();
+        Object.keys(allCats).forEach(function(k) { if (allCats[k] === delName) delete allCats[k]; });
+        window.WS._saveFavCategories(allCats);
+        picker.remove();
+        window.WS.showToast('"' + delName + '" 카테고리 삭제됨');
+        if (window.WS.showFavorites && document.getElementById('ws-modal-favorites').style.display !== 'none') window.WS.showFavorites();
+        return;
+      }
+      // 기존 카테고리 선택
       var catEl = e.target.closest('[data-cat]');
       if (catEl) {
         var cat = catEl.getAttribute('data-cat');
         window.WS.setFavCategory(listingId, cat);
         picker.remove();
         window.WS.showToast(cat ? '카테고리: ' + cat : '카테고리 해제');
-        // Refresh favorites view if open
-        if (window.WS.showFavorites && document.getElementById('ws-modal-favorites')) {
-          window.WS.showFavorites();
-        }
+        if (window.WS.showFavorites && document.getElementById('ws-modal-favorites').style.display !== 'none') window.WS.showFavorites();
       }
     });
 
@@ -11160,12 +11264,19 @@
     });
   };
 
-  // toggleFavorite 후킹: 즐겨찾기 추가 시 폴더 선택 팝업
+  // toggleFavorite 후킹: 즐겨찾기 추가 시 폴더 선택 팝업 + 즉시 UI 갱신
   var _origToggleFavorite = window.WS.toggleFavorite;
   if (_origToggleFavorite) {
     window.WS.toggleFavorite = function(id) {
       var wasFavorite = (window.WS.state.favorites || []).some(function(f) { return String(f) === String(id); });
       _origToggleFavorite.call(window.WS, id);
+
+      // 즐겨찾기 모달이 열려 있으면 즉시 갱신
+      var favModal = document.getElementById('ws-modal-favorites');
+      if (favModal && favModal.style.display !== 'none') {
+        setTimeout(function() { window.WS.showFavorites(); }, 50);
+      }
+
       // 새로 추가된 경우에만 폴더 선택 팝업 표시
       if (!wasFavorite) {
         var folders;
