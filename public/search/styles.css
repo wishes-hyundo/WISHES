@@ -370,6 +370,7 @@
 /* ── 매물 관리 통합 대시보드 ── */
 .ws-mgmt-dashboard { animation: ws-dash-in 0.3s ease-out; }
 @keyframes ws-dash-in { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes ws-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 .ws-mgmt-stat { transition: all 0.2s ease !important; }
 .ws-mgmt-stat:hover { transform: scale(1.05) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
 .ws-mgmt-stat-active { box-shadow: 0 0 0 3px rgba(45,90,39,0.3) !important; }

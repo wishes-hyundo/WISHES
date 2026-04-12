@@ -3627,39 +3627,49 @@
         return basicHtml + priceHtml + facilHtml + bizHtml + extraHtml;
       })()}
 
-      ${(function() {
-        var bi = listing.building_info;
-        if (!bi || typeof bi !== 'object') return '';
-        var rows = [];
-        if (bi.건물명) rows.push('<div><strong>건물명</strong> ' + escHtml(bi.건물명) + '</div>');
-        if (bi.주용도) rows.push('<div><strong>용도</strong> ' + escHtml(bi.주용도) + '</div>');
-        if (bi.건물구조) rows.push('<div><strong>구조</strong> ' + escHtml(bi.건물구조) + '</div>');
-        if (bi.사용승인일) rows.push('<div><strong>사용승인일</strong> ' + escHtml(String(bi.사용승인일).replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3')) + '</div>');
-        if (bi.지상층수) rows.push('<div><strong>지상/지하</strong> ' + bi.지상층수 + '층/' + (bi.지하층수 || 0) + '층</div>');
-        if (bi.세대수) rows.push('<div><strong>세대수</strong> ' + bi.세대수 + '세대' + (bi.호수 ? ' (' + bi.호수 + '호)' : '') + '</div>');
-        if (bi.대지면적 && parseFloat(bi.대지면적) > 0) rows.push('<div><strong>대지면적</strong> ' + parseFloat(bi.대지면적).toFixed(2) + 'm²</div>');
-        if (bi.연면적 && parseFloat(bi.연면적) > 0) rows.push('<div><strong>연면적</strong> ' + parseFloat(bi.연면적).toFixed(2) + 'm²</div>');
-        if (bi.건축면적 && parseFloat(bi.건축면적) > 0) rows.push('<div><strong>건축면적</strong> ' + parseFloat(bi.건축면적).toFixed(2) + 'm²</div>');
-        if (bi.건폐율 && parseFloat(bi.건폐율) > 0) rows.push('<div><strong>건폐율</strong> ' + parseFloat(bi.건폐율).toFixed(2) + '%</div>');
-        if (bi.용적률 && parseFloat(bi.용적률) > 0) rows.push('<div><strong>용적률</strong> ' + parseFloat(bi.용적률).toFixed(2) + '%</div>');
-        if (bi.총주차대수) rows.push('<div><strong>총 주차</strong> ' + bi.총주차대수 + '대' + (bi.세대당주차대수 ? ' (세대당 ' + bi.세대당주차대수 + ')' : '') + '</div>');
-        var parkingDetail = [];
-        if (bi.옥내자주식주차 && parseInt(bi.옥내자주식주차) > 0) parkingDetail.push('옥내자주식 ' + bi.옥내자주식주차);
-        if (bi.옥내기계식주차 && parseInt(bi.옥내기계식주차) > 0) parkingDetail.push('옥내기계식 ' + bi.옥내기계식주차);
-        if (bi.옥외자주식주차 && parseInt(bi.옥외자주식주차) > 0) parkingDetail.push('옥외자주식 ' + bi.옥외자주식주차);
-        if (bi.옥외기계식주차 && parseInt(bi.옥외기계식주차) > 0) parkingDetail.push('옥외기계식 ' + bi.옥외기계식주차);
-        if (parkingDetail.length > 0) rows.push('<div style="grid-column: span 2;"><strong>주차상세</strong> ' + parkingDetail.join(' / ') + '</div>');
-        if (bi.승용엘리베이터) rows.push('<div><strong>승용EV</strong> ' + bi.승용엘리베이터 + '대</div>');
-        if (bi.비상용엘리베이터) rows.push('<div><strong>비상EV</strong> ' + bi.비상용엘리베이터 + '대</div>');
-        if (bi.허가일) rows.push('<div><strong>허가일</strong> ' + escHtml(String(bi.허가일).replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3')) + '</div>');
-        if (bi.지붕구조) rows.push('<div><strong>지붕</strong> ' + escHtml(bi.지붕구조) + '</div>');
-        if (bi.대장구분) rows.push('<div><strong>대장구분</strong> ' + escHtml(bi.대장구분) + '</div>');
-        if (bi.위반건축물여부) rows.push('<div><strong>위반건축물</strong> <span style="color:' + (bi.위반건축물여부 === '없음' || bi.위반건축물여부 === 'N' ? '#2D5A27' : '#D32F2F') + ';font-weight:700;">' + escHtml(bi.위반건축물여부) + '</span></div>');
-        if (rows.length === 0) return '';
-        return '<div class="ws-detail-section" style="background:#f0f7ed;border:1px solid #c8e6c9;border-radius:10px;padding:16px;">' +
-          '<h3 style="color:#2D5A27;">🏗️ 건축물대장</h3>' +
-          '<div class="ws-detail-grid" style="grid-template-columns: repeat(3, 1fr);">' + rows.join('') + '</div></div>';
-      })()}
+      <div class="ws-detail-section" style="background:#f0f7ed;border:1px solid #c8e6c9;border-radius:10px;padding:16px;">
+        <h3 style="color:#2D5A27;display:flex;justify-content:space-between;align-items:center;">
+          🏗️ 건축물대장
+          <button id="ws-building-registry-btn-${listing.id}" data-address="${escHtml(listing.address || '')}" data-dong="${escHtml(listing.dong || '')}" data-gu="${escHtml(listing.gu || '')}" data-listing-id="${listing.id}"
+            style="padding:6px 14px;background:linear-gradient(135deg,#43a047,#2D5A27);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;transition:opacity 0.2s;"
+            onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+            🔍 ${listing.building_info ? '새로고침' : '건축물대장 조회'}
+          </button>
+        </h3>
+        <div id="ws-building-registry-result-${listing.id}">
+          ${(function() {
+            var bi = listing.building_info;
+            if (!bi || typeof bi !== 'object') return '<div style="text-align:center;padding:20px;color:#999;font-size:13px;">우측 버튼을 눌러 건축물대장 정보를 조회하세요.</div>';
+            var rows = [];
+            if (bi.건물명) rows.push('<div><strong>건물명</strong> ' + escHtml(bi.건물명) + '</div>');
+            if (bi.주용도) rows.push('<div><strong>용도</strong> ' + escHtml(bi.주용도) + '</div>');
+            if (bi.건물구조) rows.push('<div><strong>구조</strong> ' + escHtml(bi.건물구조) + '</div>');
+            if (bi.사용승인일) rows.push('<div><strong>사용승인일</strong> ' + escHtml(String(bi.사용승인일).replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3')) + '</div>');
+            if (bi.지상층수) rows.push('<div><strong>지상/지하</strong> ' + bi.지상층수 + '층/' + (bi.지하층수 || 0) + '층</div>');
+            if (bi.세대수) rows.push('<div><strong>세대수</strong> ' + bi.세대수 + '세대' + (bi.호수 ? ' (' + bi.호수 + '호)' : '') + '</div>');
+            if (bi.대지면적 && parseFloat(bi.대지면적) > 0) rows.push('<div><strong>대지면적</strong> ' + parseFloat(bi.대지면적).toFixed(2) + 'm²</div>');
+            if (bi.연면적 && parseFloat(bi.연면적) > 0) rows.push('<div><strong>연면적</strong> ' + parseFloat(bi.연면적).toFixed(2) + 'm²</div>');
+            if (bi.건축면적 && parseFloat(bi.건축면적) > 0) rows.push('<div><strong>건축면적</strong> ' + parseFloat(bi.건축면적).toFixed(2) + 'm²</div>');
+            if (bi.건폐율 && parseFloat(bi.건폐율) > 0) rows.push('<div><strong>건폐율</strong> ' + parseFloat(bi.건폐율).toFixed(2) + '%</div>');
+            if (bi.용적률 && parseFloat(bi.용적률) > 0) rows.push('<div><strong>용적률</strong> ' + parseFloat(bi.용적률).toFixed(2) + '%</div>');
+            if (bi.총주차대수) rows.push('<div><strong>총 주차</strong> ' + bi.총주차대수 + '대' + (bi.세대당주차대수 ? ' (세대당 ' + bi.세대당주차대수 + ')' : '') + '</div>');
+            var parkingDetail = [];
+            if (bi.옥내자주식주차 && parseInt(bi.옥내자주식주차) > 0) parkingDetail.push('옥내자주식 ' + bi.옥내자주식주차);
+            if (bi.옥내기계식주차 && parseInt(bi.옥내기계식주차) > 0) parkingDetail.push('옥내기계식 ' + bi.옥내기계식주차);
+            if (bi.옥외자주식주차 && parseInt(bi.옥외자주식주차) > 0) parkingDetail.push('옥외자주식 ' + bi.옥외자주식주차);
+            if (bi.옥외기계식주차 && parseInt(bi.옥외기계식주차) > 0) parkingDetail.push('옥외기계식 ' + bi.옥외기계식주차);
+            if (parkingDetail.length > 0) rows.push('<div style="grid-column: span 2;"><strong>주차상세</strong> ' + parkingDetail.join(' / ') + '</div>');
+            if (bi.승용엘리베이터) rows.push('<div><strong>승용EV</strong> ' + bi.승용엘리베이터 + '대</div>');
+            if (bi.비상용엘리베이터) rows.push('<div><strong>비상EV</strong> ' + bi.비상용엘리베이터 + '대</div>');
+            if (bi.허가일) rows.push('<div><strong>허가일</strong> ' + escHtml(String(bi.허가일).replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3')) + '</div>');
+            if (bi.지붕구조) rows.push('<div><strong>지붕</strong> ' + escHtml(bi.지붕구조) + '</div>');
+            if (bi.대장구분) rows.push('<div><strong>대장구분</strong> ' + escHtml(bi.대장구분) + '</div>');
+            if (bi.위반건축물여부) rows.push('<div><strong>위반건축물</strong> <span style="color:' + (bi.위반건축물여부 === '없음' || bi.위반건축물여부 === 'N' ? '#2D5A27' : '#D32F2F') + ';font-weight:700;">' + escHtml(bi.위반건축물여부) + '</span></div>');
+            if (rows.length === 0) return '<div style="text-align:center;padding:20px;color:#999;font-size:13px;">우측 버튼을 눌러 건축물대장 정보를 조회하세요.</div>';
+            return '<div class="ws-detail-grid" style="grid-template-columns: repeat(3, 1fr);">' + rows.join('') + '</div>';
+          })()}
+        </div>
+      </div>
 
       <div class="ws-detail-section">
         <h3 style="display:flex;justify-content:space-between;align-items:center;">상세설명
@@ -3751,6 +3761,17 @@
           var aiId = aiEl.id.replace('ws-ai-generate-', '');
           var aiListing = (window.WS.allListings || []).find(function(l) { return String(l.id) === String(aiId); });
           if (aiListing) window.WS._runAutoGenerate(aiListing.id, aiListing);
+          return;
+        }
+
+        // 2-b) 건축물대장 조회 버튼
+        var brBtn = target.closest('[id^="ws-building-registry-btn-"]');
+        if (brBtn) {
+          var brId = brBtn.dataset.listingId;
+          var brAddress = brBtn.dataset.address;
+          var brDong = brBtn.dataset.dong;
+          var brGu = brBtn.dataset.gu;
+          window.WS._fetchBuildingRegistry(brId, brAddress, brDong, brGu);
           return;
         }
 
@@ -12496,6 +12517,93 @@
     })
     .catch(function(err) {
       _wsLog('[WISHES-AI] 자동 생성 오류: #' + lid + ' - ' + err.message);
+    });
+  };
+
+  // ━━━ 건축물대장 API 조회 ━━━
+  window.WS._fetchBuildingRegistry = function(listingId, address, dong, gu) {
+    var resultDiv = document.getElementById('ws-building-registry-result-' + listingId);
+    var btn = document.getElementById('ws-building-registry-btn-' + listingId);
+    if (!resultDiv) return;
+
+    if (!address) {
+      resultDiv.innerHTML = '<div style="text-align:center;padding:16px;color:#D32F2F;font-size:13px;">주소 정보가 없어 조회할 수 없습니다.</div>';
+      return;
+    }
+
+    // 로딩 상태
+    resultDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#2D5A27;font-size:13px;"><div style="display:inline-block;width:20px;height:20px;border:3px solid #c8e6c9;border-top-color:#2D5A27;border-radius:50%;animation:ws-spin 0.8s linear infinite;margin-bottom:8px;"></div><br>건축물대장 조회 중...</div>';
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'wait'; }
+
+    var params = new URLSearchParams({ address: address });
+    if (dong) params.set('dong', dong);
+    if (gu) params.set('sigungu', gu);
+
+    fetch('/api/admin/building-registry?' + params.toString(), {
+      headers: { 'Authorization': 'Bearer wishes2026' }
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(json) {
+      if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; btn.innerHTML = '🔍 새로고침'; }
+
+      if (!json.success || !json.data) {
+        var msg = json.message || '건축물대장 정보를 찾을 수 없습니다.';
+        resultDiv.innerHTML = '<div style="text-align:center;padding:16px;color:#e65100;font-size:13px;">⚠️ ' + escHtml(msg) + '</div>';
+        return;
+      }
+
+      var d = json.data;
+      var rows = [];
+      if (d.buildingName) rows.push('<div><strong>건물명</strong> ' + escHtml(d.buildingName) + '</div>');
+      if (d.buildingPurpose) rows.push('<div><strong>용도</strong> ' + escHtml(d.buildingPurpose) + (d.etcPurpose ? ' (' + escHtml(d.etcPurpose) + ')' : '') + '</div>');
+      if (d.buildingStructure) rows.push('<div><strong>구조</strong> ' + escHtml(d.buildingStructure) + '</div>');
+      if (d.approvalDate) rows.push('<div><strong>사용승인일</strong> ' + escHtml(String(d.approvalDate).replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3')) + '</div>');
+      if (d.totalFloors) rows.push('<div><strong>지상/지하</strong> ' + d.totalFloors + '층/' + (d.undergroundFloors || 0) + '층</div>');
+      if (d.householdCount) rows.push('<div><strong>세대수</strong> ' + d.householdCount + '세대' + (d.unitCount ? ' (' + d.unitCount + '호)' : '') + '</div>');
+      if (d.siteArea && parseFloat(d.siteArea) > 0) rows.push('<div><strong>대지면적</strong> ' + parseFloat(d.siteArea).toFixed(2) + 'm²</div>');
+      if (d.totalFloorArea && parseFloat(d.totalFloorArea) > 0) rows.push('<div><strong>연면적</strong> ' + parseFloat(d.totalFloorArea).toFixed(2) + 'm²</div>');
+      if (d.buildingArea && parseFloat(d.buildingArea) > 0) rows.push('<div><strong>건축면적</strong> ' + parseFloat(d.buildingArea).toFixed(2) + 'm²</div>');
+      if (d.buildingCoverageRatio && parseFloat(d.buildingCoverageRatio) > 0) rows.push('<div><strong>건폐율</strong> ' + parseFloat(d.buildingCoverageRatio).toFixed(2) + '%</div>');
+      if (d.floorAreaRatio && parseFloat(d.floorAreaRatio) > 0) rows.push('<div><strong>용적률</strong> ' + parseFloat(d.floorAreaRatio).toFixed(2) + '%</div>');
+      if (d.parkingCount && parseInt(d.parkingCount) > 0) rows.push('<div><strong>총 주차</strong> ' + d.parkingCount + '대</div>');
+      var pDetail = [];
+      if (d.indoorAutoParking && parseInt(d.indoorAutoParking) > 0) pDetail.push('옥내자주식 ' + d.indoorAutoParking);
+      if (d.indoorMechParking && parseInt(d.indoorMechParking) > 0) pDetail.push('옥내기계식 ' + d.indoorMechParking);
+      if (d.outdoorAutoParking && parseInt(d.outdoorAutoParking) > 0) pDetail.push('옥외자주식 ' + d.outdoorAutoParking);
+      if (d.outdoorMechParking && parseInt(d.outdoorMechParking) > 0) pDetail.push('옥외기계식 ' + d.outdoorMechParking);
+      if (pDetail.length > 0) rows.push('<div style="grid-column: span 2;"><strong>주차상세</strong> ' + pDetail.join(' / ') + '</div>');
+      if (d.rideElevatorCount && parseInt(d.rideElevatorCount) > 0) rows.push('<div><strong>승용EV</strong> ' + d.rideElevatorCount + '대</div>');
+      if (d.emergencyElevatorCount && parseInt(d.emergencyElevatorCount) > 0) rows.push('<div><strong>비상EV</strong> ' + d.emergencyElevatorCount + '대</div>');
+      if (d.permitDate) rows.push('<div><strong>허가일</strong> ' + escHtml(String(d.permitDate).replace(/(\d{4})(\d{2})(\d{2})/, '$1.$2.$3')) + '</div>');
+      if (d.roofStructure) rows.push('<div><strong>지붕</strong> ' + escHtml(d.roofStructure) + '</div>');
+      if (d.registryType) rows.push('<div><strong>대장구분</strong> ' + escHtml(d.registryType) + '</div>');
+      if (d.registryKind) rows.push('<div><strong>대장종류</strong> ' + escHtml(d.registryKind) + '</div>');
+      if (d.roadAddress) rows.push('<div style="grid-column: span 2;"><strong>도로명</strong> ' + escHtml(d.roadAddress) + '</div>');
+
+      // 층별 정보
+      var floors = json.floors || [];
+      if (floors.length > 0) {
+        var floorHtml = '<div style="grid-column: span 3; margin-top:8px;border-top:1px solid #c8e6c9;padding-top:8px;"><strong>층별 정보</strong><div style="font-size:12px;margin-top:4px;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:2px;">';
+        floors.forEach(function(f) {
+          floorHtml += '<div style="padding:2px 4px;background:#fff;border-radius:4px;"><span style="color:#2D5A27;font-weight:600;">' + escHtml(String(f.floorNo || '')) + 'F</span> ' + escHtml(f.purpose || '') + (f.area ? ' (' + parseFloat(f.area).toFixed(1) + 'm²)' : '') + '</div>';
+        });
+        floorHtml += '</div></div>';
+        rows.push(floorHtml);
+      }
+
+      if (rows.length === 0) {
+        resultDiv.innerHTML = '<div style="text-align:center;padding:16px;color:#e65100;font-size:13px;">⚠️ 건축물대장에 해당 데이터가 없습니다.</div>';
+        return;
+      }
+
+      resultDiv.innerHTML = '<div class="ws-detail-grid" style="grid-template-columns: repeat(3, 1fr);">' + rows.join('') + '</div>' +
+        '<div style="margin-top:8px;font-size:10px;color:#aaa;text-align:right;">출처: 국토교통부 건축물대장 API · 조회시각 ' + new Date().toLocaleTimeString('ko-KR') + '</div>';
+
+      window.WS.showToast('건축물대장 조회 완료', 'success');
+    })
+    .catch(function(err) {
+      if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
+      resultDiv.innerHTML = '<div style="text-align:center;padding:16px;color:#D32F2F;font-size:13px;">❌ 조회 실패: ' + escHtml(String(err.message || err)) + '</div>';
     });
   };
 
