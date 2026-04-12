@@ -58,4 +58,29 @@ export function middleware(request: NextRequest) {
                 "connect-src 'self' https://*.supabase.co https://dapi.kakao.com https://*.daumcdn.net https://www.google-analytics.com https://wcs.naver.net https://api.anthropic.com https://cdn.jsdelivr.net",
                 "worker-src 'self' blob: https://cdn.jsdelivr.net",
                 "frame-ancestors 'none'",
-                "base-uri 'se
+                "base-uri 'self'",
+                "form-action 'self'",
+              ].join('; ')
+      );
+
+  // Prevent image hotlinking from external sites
+  if (pathname.startsWith('/api/images/')) {
+        const referer = request.headers.get('referer');
+        if (referer && !referer.includes('wishes.co.kr') && !referer.includes('localhost')) {
+                return new NextResponse('Forbidden', { status: 403 });
+        }
+  }
+
+  // Block direct access to Supabase storage URLs (force through our API)
+  if (pathname.includes('/storage/') && !pathname.startsWith('/api/')) {
+        return new NextResponse('Forbidden', { status: 403 });
+  }
+
+  return response;
+}
+
+export const config = {
+    matcher: [
+          '/((?!_next/static|_next/image|favicon.ico|apple-touch-icon.png|og-image.png).*)',
+        ],
+};
