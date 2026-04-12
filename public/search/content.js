@@ -11950,52 +11950,116 @@
     var modal = document.createElement('div');
     modal.id = 'ws-edit-modal';
     modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;';
-    modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:600px;width:95%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
+    var _l = listing; // shorthand
+    var _inp = function(id, label, val, type, ph) {
+      type = type || 'text'; ph = ph || '';
+      return '<div><label style="font-size:12px;color:#666;font-weight:600;">' + label + '</label><input type="' + type + '" id="ws-edit-' + id + '" value="' + escHtml(String(val != null ? val : '')) + '" placeholder="' + escHtml(ph) + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>';
+    };
+    var _chk = function(id, label, val) {
+      return '<label style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#555;cursor:pointer;padding:6px 10px;border:1px solid #ddd;border-radius:8px;background:' + (val ? '#E8F5E9' : '#fff') + ';"><input type="checkbox" id="ws-edit-' + id + '"' + (val ? ' checked' : '') + ' style="accent-color:#2D5A27;"> ' + label + '</label>';
+    };
+    var _sel = function(id, label, val, opts) {
+      var h = '<div><label style="font-size:12px;color:#666;font-weight:600;">' + label + '</label><select id="ws-edit-' + id + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">';
+      opts.forEach(function(o) { h += '<option value="' + o + '"' + (val === o ? ' selected' : '') + '>' + o + '</option>'; });
+      return h + '</select></div>';
+    };
+
+    modal.innerHTML = '<div style="background:#fff;border-radius:16px;padding:24px;max-width:700px;width:95%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
-        '<h3 style="margin:0;font-size:18px;font-weight:700;color:#2D5A27;">✏️ 매물 수정 (ID: ' + listing.id + ')</h3>' +
+        '<h3 style="margin:0;font-size:18px;font-weight:700;color:#2D5A27;">✏️ 매물 수정 (ID: ' + _l.id + ')</h3>' +
         '<button id="ws-edit-close" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>' +
       '</div>' +
-      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">제목</label><input id="ws-edit-title" value="' + escHtml(listing.title || '') + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">거래유형</label><select id="ws-edit-deal" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">' +
-          '<option value="월세"' + (listing.deal === '월세' ? ' selected' : '') + '>월세</option>' +
-          '<option value="전세"' + (listing.deal === '전세' ? ' selected' : '') + '>전세</option>' +
-          '<option value="매매"' + (listing.deal === '매매' ? ' selected' : '') + '>매매</option>' +
-        '</select></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">주소</label><input id="ws-edit-address" value="' + escHtml(listing.address || '') + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">동/호수</label><input id="ws-edit-detail" value="' + escHtml(listing.address_detail || '') + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">보증금 (만원)</label><input type="number" id="ws-edit-deposit" value="' + (listing.deposit || 0) + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">월세 (만원)</label><input type="number" id="ws-edit-monthly" value="' + (listing.monthly || 0) + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">매매가 (만원)</label><input type="number" id="ws-edit-price" value="' + (listing.price || 0) + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">유형</label><select id="ws-edit-type" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">' +
-          ['원룸','투룸','쓰리룸','오피스텔','아파트','빌라','상가','사무실','기타'].map(function(t) { return '<option value="' + t + '"' + (listing.type === t ? ' selected' : '') + '>' + t + '</option>'; }).join('') +
-        '</select></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">면적 (m²)</label><input type="number" id="ws-edit-area" value="' + (listing.area_m2 || '') + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">층수</label><input id="ws-edit-floor" value="' + (listing.floor_current || '') + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">관리비 (만원)</label><input type="number" id="ws-edit-maint" value="' + (listing.maintenance_fee || '') + '" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">관리비 포함항목</label><input id="ws-edit-maint-includes" value="' + escHtml(listing.maintenance_includes || '') + '" placeholder="예: 수도, 인터넷, TV" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-        '<div><label style="font-size:12px;color:#666;font-weight:600;">상태</label><select id="ws-edit-status" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;">' +
-          '<option value="공개"' + ((listing.status || '공개') === '공개' ? ' selected' : '') + '>공개</option>' +
-          '<option value="비공개"' + (listing.status === '비공개' ? ' selected' : '') + '>비공개</option>' +
-          '<option value="계약중"' + (listing.status === '계약중' ? ' selected' : '') + '>계약중</option>' +
-          '<option value="계약완료"' + (listing.status === '계약완료' ? ' selected' : '') + '>계약완료</option>' +
-        '</select></div>' +
+
+      // ── 기본정보 ──
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin-bottom:8px;">기본정보</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+        '<div style="grid-column:1/-1;">' + _inp('title', '제목', _l.title) + '</div>' +
+        _sel('deal', '거래유형', _l.deal, ['월세','전세','매매','전월세']) +
+        _sel('type', '매물유형', _l.type, ['원룸','투룸','쓰리룸','오피스텔','아파트','빌라','상가','사무실','기타']) +
+        _sel('status', '상태', _l.status || '공개', ['공개','비공개','계약중','계약완료']) +
+        _inp('dong', '동', _l.dong) +
       '</div>' +
-      '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e5e7eb;">' +
-        '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin-bottom:8px;">📋 크롤링 추가 정보</div>' +
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
-          '<div><label style="font-size:12px;color:#666;font-weight:600;">구</label><input id="ws-edit-gu" value="' + escHtml(listing.gu || '') + '" placeholder="예: 강남구" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-          '<div><label style="font-size:12px;color:#666;font-weight:600;">입구유형</label><input id="ws-edit-entrance" value="' + escHtml(listing.entrance_type || '') + '" placeholder="예: 별도입구, 공용입구" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-          '<div><label style="font-size:12px;color:#666;font-weight:600;">주차비 (만원)</label><input type="number" id="ws-edit-parking-fee" value="' + (listing.parking_fee || '') + '" placeholder="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-          '<div><label style="font-size:12px;color:#666;font-weight:600;">건물용도</label><input id="ws-edit-purpose" value="' + escHtml(listing.building_purpose || '') + '" placeholder="예: 근린생활시설" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-          '<div><label style="font-size:12px;color:#666;font-weight:600;">이전브랜드</label><input id="ws-edit-prev-brand" value="' + escHtml(listing.previous_brand || '') + '" placeholder="예: 카페A" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-          '<div><label style="font-size:12px;color:#666;font-weight:600;">중개수수료 (만원)</label><input type="number" id="ws-edit-commission" value="' + (listing.commission_fee || '') + '" placeholder="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-          '<div style="grid-column:1/-1;"><label style="font-size:12px;color:#666;font-weight:600;">특징/옵션 (쉼표로 구분)</label><input id="ws-edit-features" value="' + escHtml((listing.features || []).join(', ')) + '" placeholder="예: 풀옵션, 주차가능, 반려동물" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
-          '<div style="grid-column:1/-1;"><label style="font-size:12px;color:#666;font-weight:600;">특이사항</label><textarea id="ws-edit-special" rows="2" placeholder="특이사항 입력" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;">' + escHtml(listing.special_notes || '') + '</textarea></div>' +
-        '</div>' +
+
+      // ── 위치정보 ──
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin:14px 0 8px;padding-top:12px;border-top:1px solid #eee;">위치정보</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+        _inp('address', '주소', _l.address) +
+        _inp('detail', '동/호수', _l.address_detail) +
+        _inp('gu', '구', _l.gu, 'text', '강남구') +
+        _inp('building-name', '건물명', _l.building_name) +
+        _inp('lat', '위도', _l.lat, 'number') +
+        _inp('lng', '경도', _l.lng, 'number') +
       '</div>' +
-      '<div style="grid-column:1/-1;margin-top:8px;"><label style="font-size:12px;color:#666;font-weight:600;">상세설명</label><textarea id="ws-edit-desc" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;">' + escHtml(listing.description || '') + '</textarea></div>' +
-      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">' +
+
+      // ── 가격정보 ──
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin:14px 0 8px;padding-top:12px;border-top:1px solid #eee;">가격정보</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">' +
+        _inp('deposit', '보증금 (만원)', _l.deposit, 'number') +
+        _inp('monthly', '월세 (만원)', _l.monthly, 'number') +
+        _inp('price', '매매가 (만원)', _l.price, 'number') +
+        _inp('maint', '관리비 (만원)', _l.maintenance_fee, 'number') +
+        '<div style="grid-column:span 2;">' + _inp('maint-includes', '관리비 포함항목', _l.maintenance_includes, 'text', '수도, 인터넷, TV') + '</div>' +
+        _inp('rights-fee', '권리금 (만원)', _l.rights_fee, 'number') +
+        _inp('goodwill', '시설권리금 (만원)', _l.goodwill_fee, 'number') +
+        _inp('commission', '중개수수료 (만원)', _l.commission_fee, 'number') +
+        _inp('parking-fee', '주차비 (만원/월)', _l.parking_fee, 'number') +
+      '</div>' +
+
+      // ── 건물/시설 정보 ──
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin:14px 0 8px;padding-top:12px;border-top:1px solid #eee;">건물/시설 정보</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">' +
+        _inp('area', '전용면적 (m²)', _l.area_m2, 'number') +
+        _inp('area-supply', '공급면적 (m²)', _l.area_supply_m2, 'number') +
+        _inp('floor', '현재층', _l.floor_current) +
+        _inp('floor-total', '총층수', _l.floor_total) +
+        _inp('rooms', '방 수', _l.rooms, 'number') +
+        _inp('bathrooms', '욕실 수', _l.bathrooms, 'number') +
+        _inp('direction', '방향', _l.direction, 'text', '남향') +
+        _inp('heating', '난방방식', _l.heating_type) +
+        _inp('built-year', '준공년도', _l.built_year) +
+        _inp('available-date', '입주가능일', _l.available_date) +
+        _inp('entrance', '현관구조', _l.entrance_type) +
+        _inp('purpose', '건물용도', _l.building_purpose, 'text', '근린생활시설') +
+        _inp('usage-approved', '사용승인일', _l.usage_approved) +
+        _inp('lease-period', '임대기간', _l.lease_period) +
+        _inp('electric-cap', '전기용량', _l.electric_capacity) +
+        _inp('meeting-room', '회의실 수', _l.meeting_room, 'number') +
+        _inp('parking-spaces', '주차대수', _l.parking_spaces, 'number') +
+        _inp('contact', '담당자 연락처', _l.contact) +
+      '</div>' +
+
+      // ── 옵션 체크박스 ──
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin:14px 0 8px;padding-top:12px;border-top:1px solid #eee;">옵션/시설</div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+        _chk('parking', '주차', _l.parking) +
+        _chk('elevator', '엘리베이터', _l.elevator) +
+        _chk('pet', '반려동물', _l.pet) +
+        _chk('balcony', '발코니', _l.balcony) +
+        _chk('full-option', '풀옵션', _l.full_option) +
+        _chk('loan', '대출가능', _l.loan_available) +
+        _chk('vat', 'VAT포함', _l.vat_included) +
+        _chk('signage', '간판설치가능', _l.signage_available) +
+      '</div>' +
+
+      // ── 업종 정보 (상가용) ──
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin:14px 0 8px;padding-top:12px;border-top:1px solid #eee;">업종/상가 정보</div>' +
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
+        _inp('biz-type', '업종', _l.business_type) +
+        _inp('prev-brand', '이전상호', _l.previous_brand) +
+        _inp('prev-biz', '이전업종', _l.previous_business) +
+        _inp('rec-biz', '추천업종', _l.recommended_business) +
+        '<div style="grid-column:1/-1;">' + _inp('restrict-biz', '제한업종', _l.restricted_business) + '</div>' +
+      '</div>' +
+
+      // ── 설명 ──
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin:14px 0 8px;padding-top:12px;border-top:1px solid #eee;">설명</div>' +
+      '<div style="display:grid;gap:10px;">' +
+        '<div style="grid-column:1/-1;"><label style="font-size:12px;color:#666;font-weight:600;">특징/옵션 (쉼표 구분)</label><input id="ws-edit-features" value="' + escHtml((_l.features || []).join(', ')) + '" placeholder="풀옵션, 주차가능, 반려동물" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
+        '<div><label style="font-size:12px;color:#666;font-weight:600;">상세설명 (크롤링)</label><textarea id="ws-edit-desc" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;">' + escHtml(_l.description || '') + '</textarea></div>' +
+        '<div><label style="font-size:12px;color:#666;font-weight:600;">특이사항</label><textarea id="ws-edit-special" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;">' + escHtml(_l.special_notes || '') + '</textarea></div>' +
+      '</div>' +
+
+      '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid #eee;">' +
         '<button id="ws-edit-cancel" style="padding:10px 20px;background:#f3f4f6;color:#333;border:none;border-radius:8px;font-size:14px;cursor:pointer;">취소</button>' +
         '<button id="ws-edit-save" style="padding:10px 24px;background:#2D5A27;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:700;">💾 저장</button>' +
       '</div>' +
@@ -12009,36 +12073,79 @@
     document.getElementById('ws-edit-save').addEventListener('click', function() {
       var featuresRaw = document.getElementById('ws-edit-features').value;
       var featuresArr = featuresRaw ? featuresRaw.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : null;
+      var _v = function(id) { var el = document.getElementById('ws-edit-' + id); return el ? el.value : ''; };
+      var _vi = function(id) { var v = parseInt(_v(id)); return isNaN(v) ? null : v; };
+      var _vf = function(id) { var v = parseFloat(_v(id)); return isNaN(v) ? null : v; };
+      var _vc = function(id) { var el = document.getElementById('ws-edit-' + id); return el ? el.checked : false; };
+
       var body = {
         id: listing.id,
-        title: document.getElementById('ws-edit-title').value,
-        deal: document.getElementById('ws-edit-deal').value,
-        address: document.getElementById('ws-edit-address').value,
-        address_detail: document.getElementById('ws-edit-detail').value,
-        deposit: parseInt(document.getElementById('ws-edit-deposit').value) || 0,
-        monthly: parseInt(document.getElementById('ws-edit-monthly').value) || 0,
-        price: parseInt(document.getElementById('ws-edit-price').value) || 0,
-        type: document.getElementById('ws-edit-type').value,
-        area_m2: parseFloat(document.getElementById('ws-edit-area').value) || null,
-        floor_current: document.getElementById('ws-edit-floor').value || null,
-        maintenance_fee: parseInt(document.getElementById('ws-edit-maint').value) || null,
-        maintenance_includes: document.getElementById('ws-edit-maint-includes').value || null,
-        status: document.getElementById('ws-edit-status').value,
-        description: document.getElementById('ws-edit-desc').value,
-        gu: document.getElementById('ws-edit-gu').value || null,
-        entrance_type: document.getElementById('ws-edit-entrance').value || null,
-        features: featuresArr,
-        parking_fee: parseInt(document.getElementById('ws-edit-parking-fee').value) || null,
-        building_purpose: document.getElementById('ws-edit-purpose').value || null,
-        previous_brand: document.getElementById('ws-edit-prev-brand').value || null,
-        commission_fee: parseInt(document.getElementById('ws-edit-commission').value) || null,
-        special_notes: document.getElementById('ws-edit-special').value || null
+        // 기본정보
+        title: _v('title'),
+        deal: _v('deal'),
+        type: _v('type'),
+        status: _v('status'),
+        dong: _v('dong') || null,
+        // 위치
+        address: _v('address'),
+        address_detail: _v('detail'),
+        gu: _v('gu') || null,
+        building_name: _v('building-name') || null,
+        lat: _vf('lat'),
+        lng: _vf('lng'),
+        // 가격
+        deposit: _vi('deposit') || 0,
+        monthly: _vi('monthly') || 0,
+        price: _vi('price') || 0,
+        maintenance_fee: _vi('maint'),
+        maintenance_includes: _v('maint-includes') || null,
+        rights_fee: _vi('rights-fee'),
+        goodwill_fee: _vi('goodwill'),
+        commission_fee: _vi('commission'),
+        parking_fee: _vi('parking-fee'),
+        // 건물/시설
+        area_m2: _vf('area'),
+        area_supply_m2: _vf('area-supply'),
+        floor_current: _v('floor') || null,
+        floor_total: _v('floor-total') || null,
+        rooms: _vi('rooms'),
+        bathrooms: _vi('bathrooms'),
+        direction: _v('direction') || null,
+        heating_type: _v('heating') || null,
+        built_year: _v('built-year') || null,
+        available_date: _v('available-date') || null,
+        entrance_type: _v('entrance') || null,
+        building_purpose: _v('purpose') || null,
+        usage_approved: _v('usage-approved') || null,
+        lease_period: _v('lease-period') || null,
+        electric_capacity: _v('electric-cap') || null,
+        meeting_room: _vi('meeting-room'),
+        parking_spaces: _vi('parking-spaces'),
+        contact: _v('contact') || null,
+        // 옵션 체크박스
+        parking: _vc('parking'),
+        elevator: _vc('elevator'),
+        pet: _vc('pet'),
+        balcony: _vc('balcony'),
+        full_option: _vc('full-option'),
+        loan_available: _vc('loan'),
+        vat_included: _vc('vat'),
+        signage_available: _vc('signage'),
+        // 업종
+        business_type: _v('biz-type') || null,
+        previous_brand: _v('prev-brand') || null,
+        previous_business: _v('prev-biz') || null,
+        recommended_business: _v('rec-biz') || null,
+        restricted_business: _v('restrict-biz') || null,
+        // 설명
+        description: _v('desc'),
+        special_notes: _v('special') || null,
+        features: featuresArr
       };
 
-      var token = localStorage.getItem('wishes_token') || localStorage.getItem('token') || 'wishes2026';
       fetch('/api/admin/listings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        headers: _wsAuthHeaders(true),
         body: JSON.stringify(body)
       }).then(function(r) {
         if (r.ok) return r.text().then(function(t) { if (!t || !t.trim()) return { success: true }; try { return JSON.parse(t); } catch(e) { return { success: true }; } });
