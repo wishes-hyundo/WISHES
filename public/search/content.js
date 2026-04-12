@@ -2570,7 +2570,7 @@
         '<div class="ws-card-info">' +
           (function() {
             var addrText = _getDisplayAddress(listing);
-            var bn = (listing.building_info && listing.building_info.건물명 || '').trim().replace(/[·\-]\s*(철근콘크리트|철골|조적|목구조|경량철골|벽식)[가-힣]*/g, '').replace(/^\s*[·\-]\s*/, '').trim();
+            var bn = (listing.building_name || (listing.building_info && listing.building_info.건물명) || '').trim().replace(/[·\-]\s*(철근콘크리트|철골|조적|목구조|경량철골|벽식)[가-힣]*/g, '').replace(/^\s*[·\-]\s*/, '').trim();
             var addrLine = escHtml(addrText);
             if (bn && bn.length > 1) addrLine += ' <span style="color:#888;font-weight:400;">(' + escHtml(bn) + ')</span>';
             var newBadge = (function(){ var c = listing.created_at ? new Date(listing.created_at) : null; return (c && (Date.now() - c.getTime()) < 86400000) ? '<span class="ws-new-badge">NEW</span>' : ''; })();
@@ -2592,6 +2592,8 @@
             (window.WS.state.memos[String(listing.id)] ? '<span class="ws-tag-small" style="background:#FFF3E0;color:#E65100;font-weight:600">📝메모</span>' : '') +
             ((window.WS.state.contacts[String(listing.id)] && window.WS.state.contacts[String(listing.id)].length > 0) ? '<span class="ws-tag-small" style="background:#E3F2FD;color:#1565C0;font-weight:600">📞' + window.WS.state.contacts[String(listing.id)].length + '</span>' : '') +
             (listing.heating_type && !/콘크리트|철골|조적|목구조|경량|벽식|구조/.test(listing.heating_type) ? '<span class="ws-tag-small">' + escHtml(listing.heating_type) + '</span>' : '') +
+            (listing.source_site ? '<span class="ws-tag-small" style="background:' + (listing.source_site === 'onhouse' ? '#E8F5E9;color:#2E7D32' : listing.source_site === 'gongsilclub' ? '#E3F2FD;color:#1565C0' : '#F3E5F5;color:#7B1FA2') + ';font-weight:600;">' + escHtml(listing.source_site === 'onhouse' ? '온하우스' : listing.source_site === 'gongsilclub' ? '공실클럽' : listing.source_site) + '</span>' : '') +
+            (listing.features && listing.features.length > 0 ? (function(){ var ft = listing.features.slice(0,3); var out = ''; for(var fi=0;fi<ft.length;fi++){ out += '<span class="ws-tag-small" style="background:#F1F8E9;color:#558B2F;">' + escHtml(ft[fi]) + '</span>'; } return out; })() : '') +
           '</div>' +
         '</div>' +
         /* ── 우측: 가격 + 상태 + 상세보기 버튼 ── */
