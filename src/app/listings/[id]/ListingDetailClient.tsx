@@ -506,17 +506,18 @@ export default function ListingDetailClient({ id }: Props) {
                       <Check className="w-3 h-3" /> 대출가능
                     </span>
                   )}
-                  {features.map((f) => (
-                    <span key={f.id} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
-                      {f.feature}
-                    </span>
-                  ))}
-                  {/* listings.features column (TEXT[]) */}
-                  {listing.features && listing.features.length > 0 && listing.features.map((f: string, idx: number) => (
-                    <span key={`feat-${idx}`} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
-                      {f}
-                    </span>
-                  ))}
+                   {(() => {
+                     const allFeatures = new Set<string>();
+                     features.forEach(f => allFeatures.add(f.feature));
+                     if (listing.features && Array.isArray(listing.features)) {
+                       listing.features.forEach((f: string) => allFeatures.add(f));
+                     }
+                     return Array.from(allFeatures).map((f, idx) => (
+                       <span key={`feat-${idx}`} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
+                         {f}
+                       </span>
+                     ));
+                   })()}
                 </div>
               </div>
 
