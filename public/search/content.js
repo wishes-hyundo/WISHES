@@ -3666,7 +3666,9 @@
             if (bi.대장구분) rows.push('<div><strong>대장구분</strong> ' + escHtml(bi.대장구분) + '</div>');
             if (bi.위반건축물여부) rows.push('<div><strong>위반건축물</strong> <span style="color:' + (bi.위반건축물여부 === '없음' || bi.위반건축물여부 === 'N' ? '#2D5A27' : '#D32F2F') + ';font-weight:700;">' + escHtml(bi.위반건축물여부) + '</span></div>');
             if (rows.length === 0) return '<div style="text-align:center;padding:20px;color:#999;font-size:13px;">우측 버튼을 눌러 건축물대장 정보를 조회하세요.</div>';
-            return '<div class="ws-detail-grid" style="grid-template-columns: repeat(3, 1fr);">' + rows.join('') + '</div>';
+            var gridHtml = '<div id="ws-building-registry-grid-' + listing.id + '" class="ws-detail-grid" style="grid-template-columns: repeat(3, 1fr);' + (rows.length > 9 ? 'max-height:180px;overflow:hidden;transition:max-height 0.3s ease;' : '') + '">' + rows.join('') + '</div>';
+            if (rows.length > 9) gridHtml += '<button class="ws-toggle-expand" data-target="ws-building-registry-grid-' + listing.id + '" style="display:block;width:100%;padding:6px;background:linear-gradient(to bottom,rgba(240,247,237,0),rgba(240,247,237,1) 60%);border:none;color:#2D5A27;font-size:12px;font-weight:600;cursor:pointer;margin-top:-30px;position:relative;z-index:1;">더보기 ▼</button>';
+            return gridHtml;
           })()}
         </div>
       </div>
@@ -3780,7 +3782,7 @@
           return;
         }
 
-        // 2-b) 더보기/접기 토글
+        // 2-b) 더보기/접기 토글 (매물설명, 상세설명, 건축물대장 공용)
         var expandBtn = target.closest('.ws-toggle-expand');
         if (expandBtn) {
           var targetId = expandBtn.dataset.target;
@@ -3788,7 +3790,8 @@
           if (textEl) {
             var isExpanded = textEl.style.maxHeight === 'none';
             if (isExpanded) {
-              textEl.style.maxHeight = textEl.id.includes('ai-description') ? '150px' : '120px';
+              var h = targetId.includes('ai-description') ? '150px' : targetId.includes('building-registry') ? '180px' : '120px';
+              textEl.style.maxHeight = h;
               textEl.style.overflow = 'hidden';
               expandBtn.textContent = '더보기 ▼';
               expandBtn.style.marginTop = '-30px';
@@ -12634,7 +12637,10 @@
         return;
       }
 
-      resultDiv.innerHTML = '<div class="ws-detail-grid" style="grid-template-columns: repeat(3, 1fr);">' + rows.join('') + '</div>' +
+      var gridId = 'ws-building-registry-grid-' + listingId;
+      var needCollapse = rows.length > 9;
+      resultDiv.innerHTML = '<div id="' + gridId + '" class="ws-detail-grid" style="grid-template-columns: repeat(3, 1fr);' + (needCollapse ? 'max-height:180px;overflow:hidden;transition:max-height 0.3s ease;' : '') + '">' + rows.join('') + '</div>' +
+        (needCollapse ? '<button class="ws-toggle-expand" data-target="' + gridId + '" style="display:block;width:100%;padding:6px;background:linear-gradient(to bottom,rgba(240,247,237,0),rgba(240,247,237,1) 60%);border:none;color:#2D5A27;font-size:12px;font-weight:600;cursor:pointer;margin-top:-30px;position:relative;z-index:1;">더보기 ▼</button>' : '') +
         '<div style="margin-top:8px;font-size:10px;color:#aaa;text-align:right;">출처: 국토교통부 건축물대장 API · 조회시각 ' + new Date().toLocaleTimeString('ko-KR') + '</div>';
 
       window.WS.showToast('건축물대장 조회 완료', 'success');
