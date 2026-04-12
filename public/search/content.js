@@ -900,7 +900,8 @@
         } else if (l.deal === '전세') {
           basePrice = l.deposit || 0;
         } else {
-          basePrice = (l.deposit || 0) * 100 + (l.monthly || 0);
+          // 월세: 보증금 + 월세*10000 (정렬 공식과 동일)
+          basePrice = (l.monthly || 0) * 10000 + (l.deposit || 0);
         }
         const min = s.minBasePrice !== '' ? parseInt(s.minBasePrice, 10) : -Infinity;
         const max = s.maxBasePrice !== '' ? parseInt(s.maxBasePrice, 10) : Infinity;
@@ -1026,6 +1027,10 @@
   /**
    * Safe localStorage.setItem wrapper (QuotaExceededError 방지)
    */
+  function _safeGetItem(key, fallback) {
+    try { return localStorage.getItem(key); } catch(e) { return fallback !== undefined ? fallback : null; }
+  }
+
   function _safeSetItem(key, value) {
     try {
       localStorage.setItem(key, value);
