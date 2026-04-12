@@ -852,9 +852,13 @@
         });
       });
     } else if (s.selectedRegions && s.selectedRegions.length > 0) {
-      filtered = filtered.filter(l => {
-        const address = (l.address || '') + (l.dong || '');
-        return s.selectedRegions.some(region => address.includes(region));
+      var _regionSet = s.selectedRegions;
+      filtered = filtered.filter(function(l) {
+        var address = (l.address || '') + (l.dong || '');
+        for (var ri = 0; ri < _regionSet.length; ri++) {
+          if (address.indexOf(_regionSet[ri]) >= 0) return true;
+        }
+        return false;
       });
     }
 
@@ -1029,6 +1033,16 @@
    */
   function _safeGetItem(key, fallback) {
     try { return localStorage.getItem(key); } catch(e) { return fallback !== undefined ? fallback : null; }
+  }
+
+  /**
+   * Admin API 인증 헤더 반환 (토큰 중앙 관리)
+   */
+  var _WS_ADMIN_TOKEN = 'wishes2026';
+  function _wsAuthHeaders(json) {
+    var h = { 'Authorization': 'Bearer ' + _WS_ADMIN_TOKEN };
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
   }
 
   function _safeSetItem(key, value) {
@@ -3253,7 +3267,7 @@
 
           return fetch('https://wishes.co.kr/api/listings/' + listing.id + '/images', {
             method: 'POST',
-            headers: { 'Authorization': 'Bearer wishes2026' },
+            headers: _wsAuthHeaders(),
             body: formData
           })
           .then(function(r) {
@@ -8465,15 +8479,21 @@
       }
     });
 
-    // Close on outside click
-    setTimeout(function() {
-      document.addEventListener('click', function handler(e) {
-        if (!picker.contains(e.target)) {
-          picker.remove();
-          document.removeEventListener('click', handler);
-        }
-      });
-    }, 50);
+    // Close on outside click (즉시 바인딩 + stopPropagation 대신 mousedown 사용)
+    function _closePicker(e) {
+      if (!document.body.contains(picker)) {
+        document.removeEventListener('mousedown', _closePicker, true);
+        return;
+      }
+      if (!picker.contains(e.target)) {
+        picker.remove();
+        document.removeEventListener('mousedown', _closePicker, true);
+      }
+    }
+    // 현재 클릭 이벤트 전파가 끝난 뒤 바인딩 (requestAnimationFrame으로 즉시 처리)
+    requestAnimationFrame(function() {
+      document.addEventListener('mousedown', _closePicker, true);
+    });
   };
 
   // ========== Section AD: 데이터 백업/복원 ==========
@@ -11887,7 +11907,7 @@
   window.WS._changeListingStatus = function(id, newStatus) {
     fetch(window.WS._FIELD_UPDATE_API || 'https://wishes.co.kr/api/admin/listings-field-update', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+      headers: _wsAuthHeaders(true),
       body: JSON.stringify({ id: Number(id), fields: { status: newStatus } })
     }).then(function(r) {
       if (r.ok) {
@@ -12309,7 +12329,7 @@
       selectedIds.forEach(function(id) {
         fetch(window.WS._FIELD_UPDATE_API || 'https://wishes.co.kr/api/admin/listings-field-update', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+          headers: _wsAuthHeaders(true),
           body: JSON.stringify({ id: Number(id), fields: { status: newSt } })
         }).then(function(r) {
           if (r.ok) return r.text().then(function(t) { try { return JSON.parse(t); } catch(e) { return { success: true }; } });
@@ -12580,7 +12600,7 @@
       _wsLog('[WISHES-AI] 건축물대장 조회: ' + listing.address + ' → ' + qs);
 
       buildingPromise = fetch('https://wishes.co.kr/api/admin/building-registry?' + qs, {
-        headers: { 'Authorization': 'Bearer wishes2026' }
+        headers: _wsAuthHeaders()
       })
       .then(function(r) { return safeJson(r); })
       .then(function(bldgData) {
@@ -12625,7 +12645,7 @@
       var fetchFn = window.WS._fetchWithRetry || fetch;
       return fetchFn('https://wishes.co.kr/api/admin/auto-generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+        headers: _wsAuthHeaders(true),
         body: JSON.stringify({
           listingId: lid,
           style: 'trendy',
@@ -12697,7 +12717,7 @@
     if (gu) params.set('sigungu', gu);
 
     fetch('/api/admin/building-registry?' + params.toString(), {
-      headers: { 'Authorization': 'Bearer wishes2026' }
+      headers: _wsAuthHeaders()
     })
     .then(function(res) { return res.json(); })
     .then(function(json) {
@@ -12782,10 +12802,7 @@
 
     fetch('https://wishes.co.kr/api/admin/auto-generate', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer wishes2026'
-      },
+      headers: _wsAuthHeaders(true),
       body: JSON.stringify({ listingId: listingId, style: 'trendy', aiModel: 'latest' })
     })
     .then(function(r) { return window.WS._safeJson(r); })
@@ -12957,6 +12974,18 @@
         '<span>🏗️ 건축물대장: ' + state.buildingUpdated + '건</span><span>🤖 AI 생성: ' + state.aiGenerated + '건</span>';
     }
 
+    // ===== 건축물대장 주소 기반 캐싱 (동일 건물 중복 API 호출 방지) =====
+    var _bldgCache = {};
+    function _getCachedBuilding(address) {
+      // 주소에서 동/번지까지만 추출하여 캐시 키 생성 (호수/층수 제거)
+      var key = (address || '').replace(/\s+\d+층.*$/, '').replace(/\s+\d+호.*$/, '').replace(/\s+[가-힣]+(?:빌|하우스|타워|팰리스|파크).*$/, '').trim();
+      return { key: key, data: _bldgCache[key] || null };
+    }
+    function _setCachedBuilding(address, data) {
+      var key = (address || '').replace(/\s+\d+층.*$/, '').replace(/\s+\d+호.*$/, '').replace(/\s+[가-힣]+(?:빌|하우스|타워|팰리스|파크).*$/, '').trim();
+      _bldgCache[key] = data;
+    }
+
     // ===== 개별 매물 전체 처리 (건축물대장 → DB 업데이트 → AI 생성) =====
     function processOneFull(listing) {
       if (!state.running) return Promise.resolve();
@@ -12968,13 +12997,21 @@
       var buildingPromise;
 
       if (needsBuilding && listing.address) {
-        // 새 building-registry-full API 사용 (Kakao로 bjdongCd 자동 조회)
+        // 캐시 확인 (동일 건물 주소면 API 호출 생략)
+        var cached = _getCachedBuilding(listing.address);
+        var fetchPromise = cached.data
+          ? Promise.resolve(cached.data)
+          : (function() {
+              var qs = 'address=' + encodeURIComponent(listing.address);
+              return fetch(window.WS._BUILDING_FULL_API + '?' + qs, {
+                headers: _wsAuthHeaders()
+              }).then(function(r) { return safeJson(r); }).then(function(d) {
+                _setCachedBuilding(listing.address, d);
+                return d;
+              });
+            })();
         {
-          var qs = 'address=' + encodeURIComponent(listing.address);
-          buildingPromise = fetch(window.WS._BUILDING_FULL_API + '?' + qs, {
-            headers: { 'Authorization': 'Bearer wishes2026' }
-          })
-          .then(function(r) { return safeJson(r); })
+          buildingPromise = fetchPromise
           .then(function(bldgData) {
             if (bldgData.success && bldgData.data) {
               var d = bldgData.data;
@@ -13013,7 +13050,7 @@
               if (Object.keys(fields).length > 0) {
                 return fetch(window.WS._FIELD_UPDATE_API, {
                   method: 'PUT',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+                  headers: _wsAuthHeaders(true),
                   body: JSON.stringify({ id: listing.id, fields: fields })
                 })
                 .then(function(r) { return safeJson(r); })
@@ -13051,7 +13088,7 @@
 
         return fetch(window.WS._SINGLE_API, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+          headers: _wsAuthHeaders(true),
           body: JSON.stringify({
             listingId: lid,
             style: 'trendy',
