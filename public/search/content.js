@@ -12802,7 +12802,7 @@
     }
 
     // 로딩 상태
-    resultDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#2D5A27;font-size:13px;"><div style="display:inline-block;width:20px;height:20px;border:3px solid #c8e6c9;border-top-color:#2D5A27;border-radius:50%;animation:ws-spin 0.8s linear infinite;margin-bottom:8px;"></div><br>건축물대장 조회 중...</div>';
+    resultDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#2D5A27;font-size:13px;"><div style="display:inline-block;width:20px;height:20px;border:3px solid #c8e6c9;border-top-color:#2D5A27;border-radius:50%;animation:ws-spin 0.8s linear infinite;margin-bottom:8px;"></div><br>건축물대장 조회 중... (카카오 주소변환 → 국토부 API)</div>';
     if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.style.cursor = 'wait'; }
 
     var params = new URLSearchParams({ address: address });
@@ -12818,7 +12818,11 @@
 
       if (!json.success || !json.data) {
         var msg = json.message || '건축물대장 정보를 찾을 수 없습니다.';
-        resultDiv.innerHTML = '<div style="text-align:center;padding:16px;color:#e65100;font-size:13px;">⚠️ ' + escHtml(msg) + '</div>';
+        var debugHtml = '';
+        if (json.debugInfo) {
+          debugHtml = '<details style="margin-top:8px;font-size:11px;color:#888;"><summary style="cursor:pointer;">디버그 정보</summary><pre style="white-space:pre-wrap;margin-top:4px;">' + escHtml(json.debugInfo.join('\n')) + '</pre></details>';
+        }
+        resultDiv.innerHTML = '<div style="text-align:center;padding:16px;color:#e65100;font-size:13px;">⚠️ ' + escHtml(msg) + debugHtml + '<div style="margin-top:8px;"><button onclick="window.WS._fetchBuildingRegistryDebug(\'' + listingId + '\',\'' + escHtml(address) + '\',\'' + escHtml(dong || '') + '\',\'' + escHtml(gu || '') + '\')" style="padding:4px 10px;background:#fff;border:1px solid #e65100;color:#e65100;border-radius:6px;font-size:11px;cursor:pointer;">🔧 상세 디버그 재시도</button></div></div>';
         return;
       }
 
@@ -12877,6 +12881,44 @@
     .catch(function(err) {
       if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.cursor = 'pointer'; }
       resultDiv.innerHTML = '<div style="text-align:center;padding:16px;color:#D32F2F;font-size:13px;">❌ 조회 실패: ' + escHtml(String(err.message || err)) + '</div>';
+    });
+  };
+
+  // 건축물대장 디버그 모드 재시도
+  window.WS._fetchBuildingRegistryDebug = function(listingId, address, dong, gu) {
+    var resultDiv = document.getElementById('ws-building-registry-result-' + listingId);
+    if (!resultDiv) return;
+    resultDiv.innerHTML = '<div style="text-align:center;padding:24px;color:#2D5A27;font-size:13px;"><div style="display:inline-block;width:20px;height:20px;border:3px solid #c8e6c9;border-top-color:#2D5A27;border-radius:50%;animation:ws-spin 0.8s linear infinite;margin-bottom:8px;"></div><br>디버그 모드로 재조회 중...</div>';
+
+    var params = new URLSearchParams({ address: address, debug: 'true' });
+    if (dong) params.set('dong', dong);
+    if (gu) params.set('sigungu', gu);
+
+    fetch('/api/admin/building-registry?' + params.toString(), {
+      headers: _wsAuthHeaders()
+    })
+    .then(function(res) { return res.json(); })
+    .then(function(json) {
+      var lines = [];
+      lines.push('<div style="padding:12px;font-size:12px;text-align:left;">');
+      lines.push('<strong style="color:#2D5A27;">🔧 건축물대장 디버그 결과</strong><br><br>');
+      lines.push('<strong>입력 주소:</strong> ' + escHtml(address) + '<br>');
+      if (json.sigunguCd) lines.push('<strong>시군구코드:</strong> ' + json.sigunguCd + '<br>');
+      if (json.bjdongCd) lines.push('<strong>법정동코드:</strong> ' + json.bjdongCd + '<br>');
+      if (json.bun) lines.push('<strong>번:</strong> ' + json.bun + ' <strong>지:</strong> ' + (json.ji || '0000') + '<br>');
+      lines.push('<strong>성공여부:</strong> ' + (json.success ? '✅ 성공' : '❌ 실패') + '<br>');
+      if (json.message) lines.push('<strong>메시지:</strong> ' + escHtml(json.message) + '<br>');
+      if (json.debugInfo && json.debugInfo.length > 0) {
+        lines.push('<br><strong>처리 과정:</strong><pre style="background:#f5f5f0;padding:8px;border-radius:6px;white-space:pre-wrap;font-size:11px;max-height:200px;overflow:auto;">' + escHtml(json.debugInfo.join('\n')) + '</pre>');
+      }
+      if (json.success && json.data) {
+        lines.push('<br><strong style="color:#2D5A27;">✅ 데이터 발견됨 — 새로고침 버튼을 눌러주세요</strong>');
+      }
+      lines.push('</div>');
+      resultDiv.innerHTML = lines.join('');
+    })
+    .catch(function(err) {
+      resultDiv.innerHTML = '<div style="text-align:center;padding:16px;color:#D32F2F;font-size:13px;">❌ 디버그 조회 실패: ' + escHtml(String(err.message || err)) + '</div>';
     });
   };
 
