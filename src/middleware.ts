@@ -53,7 +53,7 @@ export function middleware(request: NextRequest) {
                 "frame-src 'self' https://t1.daumcdn.net https://postcode.map.daum.net https://*.daumcdn.net https://postcode.map.kakao.com",
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://t1.daumcdn.net https://dapi.kakao.com https://*.daumcdn.net https://www.googletagmanager.com https://www.google-analytics.com https://wcs.naver.net https://cdn.jsdelivr.net",
                 "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-                "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.daumcdn.net https://t1.daumcdn.net https://*.kakao.com https://*.kakao.co.kr https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev",
+                "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.daumcdn.net https://t1.daumcdn.net https://*.kakao.com https://*.kakao.co.kr https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev https://d4k1brqee4emz.cloudfront.net",
                 "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
                 "connect-src 'self' https://*.supabase.co https://dapi.kakao.com https://*.daumcdn.net https://www.google-analytics.com https://wcs.naver.net https://api.anthropic.com https://cdn.jsdelivr.net",
                 "worker-src 'self' blob: https://cdn.jsdelivr.net",
@@ -81,6 +81,4 @@ export function middleware(request: NextRequest) {
 
 export const config = {
     matcher: [
-          '/((?!_next/static|_next/image|favicon.ico|apple-touch-icon.png|og-image.png).*)',
-        ],
-};
+          '/((?!_next/static|_next/image|favicon.ico|apple-touch-icon.png
