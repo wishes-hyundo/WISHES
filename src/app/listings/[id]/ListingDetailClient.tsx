@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation } from 'lucide-react';
+import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle } from 'lucide-react';
 import CompassDirection from '@/components/CompassDirection';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
@@ -407,6 +407,12 @@ export default function ListingDetailClient({ id }: Props) {
                 <InfoRow label="동" value={listing.dong} />
                 {listing.built_year && <InfoRow label="준공년도" value={listing.built_year} />}
                 {listing.available_date && <InfoRow label="입주가능일" value={listing.available_date} />}
+                {listing.gu && <InfoRow label="구" value={listing.gu} />}
+                {listing.building_name && <InfoRow label="건물명" value={listing.building_name} />}
+                {listing.entrance_type && <InfoRow label="현관구조" value={listing.entrance_type} />}
+                {listing.lease_period && <InfoRow label="임대기간" value={listing.lease_period} />}
+                {listing.building_purpose && <InfoRow label="건물용도" value={listing.building_purpose} />}
+                {listing.usage_approved && <InfoRow label="사용승인일" value={listing.usage_approved} />}
               </div>
 
               {/* V4-10: 방향 나침반 */}
@@ -444,6 +450,44 @@ export default function ListingDetailClient({ id }: Props) {
                 </div>
               )}
 
+              {/* 상업/비용 정보 */}
+              {(listing.rights_fee || listing.goodwill_fee || listing.commission_fee || listing.parking_fee || listing.business_type || listing.previous_brand || listing.previous_business || listing.recommended_business || listing.restricted_business) && (
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-wishes-secondary/60" />
+                    상업 · 비용 정보
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {listing.business_type && <InfoRow label="업종" value={listing.business_type} />}
+                    {listing.previous_brand && <InfoRow label="이전상호" value={listing.previous_brand} />}
+                    {listing.previous_business && <InfoRow label="이전업종" value={listing.previous_business} />}
+                    {listing.recommended_business && <InfoRow label="권장업종" value={listing.recommended_business} />}
+                    {listing.restricted_business && <InfoRow label="제한업종" value={listing.restricted_business} />}
+                    {listing.rights_fee > 0 && <InfoRow label="권리금" value={`${listing.rights_fee.toLocaleString('ko-KR')}만원`} />}
+                    {listing.goodwill_fee > 0 && <InfoRow label="시설권리금" value={`${listing.goodwill_fee.toLocaleString('ko-KR')}만원`} />}
+                    {listing.commission_fee > 0 && <InfoRow label="중개수수료" value={`${listing.commission_fee.toLocaleString('ko-KR')}만원`} />}
+                    {listing.parking_fee > 0 && <InfoRow label="주차비" value={`${listing.parking_fee.toLocaleString('ko-KR')}만원/월`} />}
+                    {listing.vat_included !== null && listing.vat_included !== undefined && <InfoRow label="부가세" value={listing.vat_included ? '포함' : '별도'} />}
+                  </div>
+                </div>
+              )}
+
+              {/* 시설 정보 */}
+              {(listing.parking_spaces || listing.electric_capacity || listing.signage_available !== null || listing.meeting_room) && (
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                    <Home className="w-4 h-4 text-wishes-secondary/60" />
+                    시설 정보
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {listing.parking_spaces > 0 && <InfoRow label="주차대수" value={`${listing.parking_spaces}대`} />}
+                    {listing.electric_capacity && <InfoRow label="전기용량" value={listing.electric_capacity} />}
+                    {listing.signage_available !== null && listing.signage_available !== undefined && <InfoRow label="간판설치" value={listing.signage_available ? '가능' : '불가'} />}
+                    {listing.meeting_room > 0 && <InfoRow label="회의실" value={`${listing.meeting_room}개`} />}
+                  </div>
+                </div>
+              )}
+
               {/* 옵션 */}
               <div className="mt-6 pt-6 border-t border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h3>
@@ -467,6 +511,12 @@ export default function ListingDetailClient({ id }: Props) {
                       {f.feature}
                     </span>
                   ))}
+                  {/* listings.features column (TEXT[]) */}
+                  {listing.features && listing.features.length > 0 && listing.features.map((f: string, idx: number) => (
+                    <span key={`feat-${idx}`} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
+                      {f}
+                    </span>
+                  ))}
                 </div>
               </div>
 
@@ -477,6 +527,34 @@ export default function ListingDetailClient({ id }: Props) {
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
                     {listing.description}
                   </p>
+                </div>
+              )}
+
+              {/* 특이사항 */}
+              {listing.special_notes && (
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">특이사항</h3>
+                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                    {listing.special_notes}
+                  </p>
+                </div>
+              )}
+
+              {/* 크롤링된 역 정보 (lat/lng 없을 때 대체) */}
+              {listing.station_name && !listing.lat && (
+                <div className="mt-6 pt-6 border-t border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                    <Train className="w-4 h-4 text-blue-500/70" />
+                    주변 교통
+                  </h3>
+                  <div className="bg-blue-50/50 rounded-xl p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-800">{listing.station_name}</span>
+                      {listing.station_distance && (
+                        <span className="text-xs text-gray-400">{listing.station_distance}m</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -600,6 +678,15 @@ export default function ListingDetailClient({ id }: Props) {
                   <Calendar className="w-3 h-3" />
                   수정일: {new Date(listing.updated_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
                 </p>
+                {listing.contact && (
+                  <p className="text-xs text-gray-500 mt-2">연락처: {listing.contact}</p>
+                )}
+                {listing.source_url && (
+                  <a href={listing.source_url} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-blue-500 hover:underline mt-1 block">
+                    원본 매물 보기 →
+                  </a>
+                )}
               </div>
             </div>
           </div>
