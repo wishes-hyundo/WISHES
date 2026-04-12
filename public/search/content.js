@@ -2298,17 +2298,7 @@
     });
     html += '</div></div>';
 
-    // ══ 핵심 필터 바로가기 (주차/공실/대출) ══
-    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 4px;">';
-    [
-      { key: 'parkingAvailable', label: '🅿️ 주차가능', bg: '#E3F2FD', active: '#1565C0', color: '#1565C0' },
-      { key: 'emptyNow', label: '🟢 현재공실', bg: '#E8F5E9', active: '#2E7D32', color: '#2E7D32' },
-      { key: 'loanAvailable', label: '🏦 대출가능', bg: '#FFF3E0', active: '#E65100', color: '#E65100' }
-    ].forEach(function(item) {
-      var isOn = s.checks[item.key];
-      html += '<button class="ws-quick-check-btn" data-quick-check="' + item.key + '" style="padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;transition:all 0.15s;border:2px solid ' + (isOn ? item.active : '#ddd') + ';background:' + (isOn ? item.active : item.bg) + ';color:' + (isOn ? '#fff' : item.color) + ';">' + item.label + '</button>';
-    });
-    html += '</div>';
+    // 주차/공실/대출 퀵필터는 추가필터 체크박스에 이미 포함되어 있으므로 제거됨
 
     // (방향 필터: DB 데이터 미입력 상태로 UI 제거됨. 데이터 준비 완료 시 복원)
 
@@ -2438,18 +2428,6 @@
       cb.addEventListener('change', function() {
         const key = this.dataset.check;
         window.WS.state.checks[key] = this.checked;
-        window.WS.refresh();
-      });
-    });
-
-    // 핵심 필터 퀵버튼 (주차/공실/대출)
-    document.querySelectorAll('.ws-quick-check-btn').forEach(btn => {
-      btn.addEventListener('click', function() {
-        const key = this.dataset.quickCheck;
-        window.WS.state.checks[key] = !window.WS.state.checks[key];
-        // 연동: 추가필터 체크박스도 동기화
-        var cb = document.querySelector('.ws-filter-checkbox[data-check="' + key + '"]');
-        if (cb) cb.checked = window.WS.state.checks[key];
         window.WS.refresh();
       });
     });
@@ -3510,6 +3488,19 @@
     const modal = document.getElementById('ws-modal-detail');
     const container = document.getElementById('ws-detail-container');
     if (!modal || !container) return;
+
+    // 크롤링 연락처 → 관계자 연락처 자동 등록
+    var lid = String(listing.id);
+    var existingContacts = window.WS.state.contacts[lid] || [];
+    if (listing.contact && existingContacts.length === 0) {
+      var phones = String(listing.contact).split(/[,;/\s]+/).filter(function(p) { return p.length >= 8; });
+      if (phones.length > 0) {
+        window.WS.state.contacts[lid] = phones.map(function(ph) {
+          return { role: '중개사', name: '', phone: ph.trim(), memo: '크롤링 수집' };
+        });
+        try { _safeSetItem('ws-contacts', JSON.stringify(window.WS.state.contacts)); } catch(e) {}
+      }
+    }
 
     let html = `
       <div class="ws-detail-header">
