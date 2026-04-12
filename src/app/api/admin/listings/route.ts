@@ -200,7 +200,7 @@ export async function GET(request: NextRequest) {
 
           return slim;
         },
-        ['listings-minimal-v4'],
+        ['listings-minimal-v5'],
         { revalidate: 5, tags: ['listings'] }
       );
 
@@ -227,8 +227,8 @@ export async function GET(request: NextRequest) {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
           // 🔥 경량 캐싱: 10초 CDN 캐시 + 30초 stale-while-revalidate
-          'Cache-Control': 's-maxage=300, stale-while-revalidate=86400',
-          'CDN-Cache-Control': 'max-age=300',
+          'Cache-Control': 's-maxage=10, stale-while-revalidate=30',
+          'CDN-Cache-Control': 'max-age=10',
           'Vary': 'Accept-Encoding',
         },
       });
