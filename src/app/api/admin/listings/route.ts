@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
       //  4) CDN: s-maxage=300, stale-while-revalidate=86400
       //  5) ETag + 304 Not Modified (재방문 0-byte 응답)
       const selectFields = [
-        'id', 'title', 'type', 'deal', 'status',
+        'id', 'title', 'type', 'deal', 'status', 'created_at',
         'deposit', 'monthly', 'price',
         'maintenance_fee', 'maintenance_includes',
         'area_m2', 'area_supply_m2',

@@ -6107,7 +6107,7 @@
     if (s.entranceTypes && s.entranceTypes.length > 0) params.set('entrance', s.entranceTypes.join(','));
     if (s.builtAfter) params.set('builtAfter', s.builtAfter);
     if (s.direction && s.direction !== '전체') params.set('dir', s.direction);
-    if (s.sortBy && s.sortBy !== 'newest') params.set('sort', s.sortBy);
+    if (s.sortBy && s.sortBy !== 'latest') params.set('sort', s.sortBy);
     if (s.keyword) params.set('q', s.keyword);
     if (s.page > 1) params.set('p', String(s.page));
 
@@ -6161,6 +6161,12 @@
       if (params.has('mMin')) s.minMonthly = params.get('mMin');
       if (params.has('mMax')) s.maxMonthly = params.get('mMax');
     } catch(e) { /* URL parameter load error - continue with defaults */ }
+
+    // 드롭다운 동기화: URL에서 복원한 정렬값을 UI에 반영
+    try {
+      var sortEl = document.getElementById('ws-sort-primary');
+      if (sortEl && s.sortBy) sortEl.value = s.sortBy;
+    } catch(e) {}
   };
 
   // ========== Section M-1: 매물 통계 대시보드 ==========
@@ -6412,7 +6418,7 @@
       entranceTypes: (s.entranceTypes || []).slice(),
       builtAfter: s.builtAfter || '',
       direction: s.direction || '전체',
-      sortBy: s.sortBy || 'newest',
+      sortBy: s.sortBy || 'latest',
       keyword: s.keyword || '',
       minBasePrice: s.minBasePrice || '',
       maxBasePrice: s.maxBasePrice || '',
@@ -6467,7 +6473,7 @@
     s.entranceTypes = (f.entranceTypes || []).slice();
     s.builtAfter = f.builtAfter || '';
     s.direction = f.direction || '전체';
-    s.sortBy = f.sortBy || 'newest';
+    s.sortBy = f.sortBy || 'latest';
     s.keyword = f.keyword || '';
     s.minBasePrice = f.minBasePrice || '';
     s.maxBasePrice = f.maxBasePrice || '';
