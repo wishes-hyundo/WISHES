@@ -140,13 +140,11 @@ export async function GET(request: NextRequest) {
         'lat', 'lng',
         'available_date', 'built_year', 'description',
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
-        'business_type', 'goodwill_fee', 'vat_included', 'commission_fee',
+        'business_type', 'goodwill_fee', 'vat_included',
         'usage_approved', 'electric_capacity', 'signage_available', 'meeting_room',
         'previous_business', 'recommended_business', 'restricted_business',
-        'previous_brand', 'building_purpose', 'special_notes',
-        'parking_spaces', 'parking_fee', 'rights_fee', 'lease_period',
+        'parking_spaces', 'rights_fee', 'lease_period',
         'station_name', 'station_distance',
-        'entrance_type', 'room_shape',
         'source_site', 'source_id', 'source_url', 'building_name', 'contact',
         'listing_images(url,sort_order)',  // sort_order 복원 — 이미지 순서 보장
         'listing_features(feature)'
@@ -205,7 +203,7 @@ export async function GET(request: NextRequest) {
 
           return slim;
         },
-        ['listings-minimal-v6'],
+        ['listings-minimal-v7'],
         { revalidate: 5, tags: ['listings'] }
       );
 
