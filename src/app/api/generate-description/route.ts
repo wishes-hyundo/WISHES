@@ -29,8 +29,7 @@ export async function POST(request: NextRequest) {
     } = body;
 
     const model = aiModel === 'opus'
-      ? 'claude-opus-4-20250514'
-      : 'claude-sonnet-4-20250514';
+      'claude-haiku-4-5-20251001';
 
     const dongName = dong || '';
     const guName = gu || '';

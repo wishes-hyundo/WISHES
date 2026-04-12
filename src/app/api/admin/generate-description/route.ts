@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
           } = body;
 
       // 모델 선택
-      const model = 'claude-sonnet-4-20250514'; // Always use Sonnet (opus disabled for cost)
+      const model = 'claude-haiku-4-5-20251001'; // Haiku for cost efficiency
 
       // 지역 키워드 추출 (AI에게는 동 이름만 전달, 지번주소 절대 비노출)
       const dongName = dong || '';
