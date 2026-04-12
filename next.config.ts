@@ -2,10 +2,9 @@ import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   experimental: {
-    // 클라이언트 라우터 캐시: 페이지 이동 시 서버 재요청 방지
     staleTimes: {
-      dynamic: 0,    // 동적 페이지 캐시 비활성화 (매물 변경 즉시 반영)
-      static: 60,    // 정적 페이지 1분 캐시
+      dynamic: 0,
+      static: 60,
     },
   },
   eslint: {
@@ -16,7 +15,7 @@ const nextConfig: NextConfig = {
   },
   images: {
     formats: ['image/avif', 'image/webp'],
-    minimumCacheTTL: 86400, // 24시간 이미지 캐시
+    minimumCacheTTL: 86400,
     deviceSizes: [640, 750, 828, 1080, 1200],
     imageSizes: [16, 32, 48, 64, 96, 128, 256],
     remotePatterns: [
@@ -45,8 +44,25 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Admin API: CORS 허용 (크롤러가 외부 도메인에서 접근 가능)
         source: '/api/admin/:path*',
         headers: [
           { key: 'Access-Control-Allow-Origin', value: '*' },
-          { key: 'Ac
+          { key: 'Access-Control-Allow-Methods', value: 'GET,POST,PUT,OPTIONS' },
+          { key: 'Access-Control-Allow-Headers', value: 'Content-Type,Authorization' },
+        ],
+      },
+    ];
+  },
+  async redirects() {
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'www.wishes.co.kr' }],
+        destination: 'https://wishes.co.kr/:path*',
+        permanent: true,
+      },
+    ];
+  },
+};
+
+export default nextConfig;
