@@ -3493,7 +3493,7 @@
     var lid = String(listing.id);
     var existingContacts = window.WS.state.contacts[lid] || [];
     if (listing.contact && existingContacts.length === 0) {
-      var phones = String(listing.contact).split(/[,;/\s]+/).filter(function(p) { return p.length >= 8; });
+      var phones = String(listing.contact).split(/[,;/\s]+/).filter(function(p) { return p.length >= 8 && /^[\d\-()]+$/.test(p.trim()); });
       if (phones.length > 0) {
         window.WS.state.contacts[lid] = phones.map(function(ph) {
           return { role: '중개사', name: '', phone: ph.trim(), memo: '크롤링 수집' };

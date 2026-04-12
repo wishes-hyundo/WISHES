@@ -1,9 +1,9 @@
 /**
- * 공실클럽(gsc.gongsilclub.com) 상세페이지 크롤러 v4
- * 실행: gsc.gongsilclub.com/v4/item.asp?mn=1110&wm=F100 탭에서 Console에 붙여넣기
- * 전제: 로그인 상태, F100(지도+리스트) 뷰
+ * 공실클럽(gc2.gongsilclub.com) 상세페이지 크롤러 v4.1
+ * 실행: gc2.gongsilclub.com/v4/item.asp?mn=1110&wm=F100 탭에서 Console에 붙여넣기
+ * 전제: 로그인 상태, F100(지도+리스트) 뷰, 블록 선택 후 매물 리스트 표시 상태
  *
- * v4: 상세페이지 fetch를 통해 전체 필드 수집
+ * v4.1: 상세페이지 URL 패턴 수정(wm=F140), page() 함수 수정, 도메인 수정
  */
 (async function GSC_FULL_CRAWLER() {
   var SUPABASE_URL = 'https://xbjgdsyukjdkfvcbzmjc.supabase.co';
@@ -35,9 +35,10 @@
 
   // --- 카드에서 기본 정보 + source_id 추출 ---
   function parseCard(li) {
-    var onclick = (li.querySelector('[onclick*="ItemViewDetail"]') || {}).getAttribute ? 
-      li.querySelector('[onclick*="ItemViewDetail"]').getAttribute('onclick') : '';
-    var codeM = onclick.match(/ItemViewDetail\((\d+)/);
+    // v4.1: ItemViewDetail 또는 FreeItemViewDetail 둘 다 지원
+    var el = li.querySelector('[onclick*="ItemViewDetail"], [onclick*="FreeItemViewDetail"]');
+    var onclick = (el && el.getAttribute) ? el.getAttribute('onclick') : '';
+    var codeM = onclick.match(/(?:Free)?ItemViewDetail\((\d+)/);
     if (!codeM) return null;
     var source_id = codeM[1];
 
@@ -47,7 +48,7 @@
     priceText = priceText.replace(/\s+/g, ' ').trim();
 
     var d = { source_site: 'gongsilclub', source_id: source_id };
-    d.source_url = 'https://gsc.gongsilclub.com/v4/item.asp?mn=1110&wm=F100&ItemCode=' + source_id;
+    d.source_url = 'https://gc2.gongsilclub.com/v4/item.asp?mn=1110&wm=F100&ItemCode=' + source_id;
 
     // 주소 (카드 제목에서)
     var clean = titText.replace(/VIP|PLUS|FREE|NEW|공실매물|\d{2}\.\d{2}\.\d{2}/g, '').replace(/\s+/g, ' ').trim();
@@ -75,12 +76,10 @@
 
   // --- 상세페이지 fetch & 파싱 ---
   async function fetchDetail(source_id) {
-    // 공실클럽 상세페이지 URL 패턴들 시도
+    // 공실클럽 상세페이지 URL 패턴들 시도 (v4.1: wm=F140이 실제 상세뷰)
     var urls = [
-      '/v4/item.asp?mn=1110&wm=F100&ItemCode=' + source_id,
-      '/v4/item_view.asp?ItemCode=' + source_id,
-      '/v4/popup/item_detail.asp?ItemCode=' + source_id,
-      '/v4/item_detail.asp?code=' + source_id
+      '/v4/item.asp?mn=1110&wm=F140&pg=1&rk=' + source_id,
+      '/v4/item.asp?mn=1110&wm=F100&ItemCode=' + source_id
     ];
 
     var html = '';
@@ -379,7 +378,16 @@
 
   while (results.length < LIMIT) {
     console.log('\n[Page ' + pg + ']');
-    page(pg);
+    // v4.1: page() 함수가 외부 정의 시 사용, 없으면 URL 직접 이동
+    if (typeof page === 'function') {
+      page(pg);
+    } else if (typeof goPage === 'function') {
+      goPage(pg);
+    } else {
+      // 페이지 번호 링크 클릭 시도
+      var pageLink = document.querySelector('a[onclick*="page(' + pg + ')"], a[onclick*="goPage(' + pg + ')"], .paging a:nth-child(' + pg + ')');
+      if (pageLink) pageLink.click();
+    }
     await new Promise(function(r) { setTimeout(r, DELAY_MS); });
 
     var cards = document.querySelectorAll('li.it_list');
@@ -439,7 +447,7 @@
   }
 
   console.log('\n========================================');
-  console.log('=== GSC Full Crawler v4 Done ===');
+  console.log('=== GSC Full Crawler v4.1 Done ===');
   console.log('Parsed: ' + results.length + ' | Upload: ' + uploaded);
   console.log('Detail success: ' + detailOk + ' | Detail fail: ' + detailFail);
   console.log('Skip: ' + skipped + ' | Fail: ' + failed);
