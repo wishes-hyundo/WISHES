@@ -187,6 +187,9 @@
 .ws-listing-tags { display:flex; flex-wrap:wrap; gap:4px; margin:3px 0 0; }
 .ws-tag-small { padding:2px 7px; background:#f7f7f7; border:1px solid #eaeaea; border-radius:3px; font-size:11px; color:#666; white-space:nowrap; line-height:1.5; }
 .ws-new-badge { display:inline-block; padding:1px 6px; background:#f59e0b; color:#fff; font-size:10px; font-weight:700; border-radius:3px; line-height:1.5; vertical-align:middle; margin-left:4px; animation:ws-new-pulse 2s ease-in-out infinite; }
+.ws-source-badge { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; font-size:11px; font-weight:800; border-radius:4px; line-height:1; vertical-align:middle; margin-right:5px; letter-spacing:0; flex-shrink:0; }
+.ws-source-g { background:#1565C0; color:#fff; }
+.ws-source-o { background:#E65100; color:#fff; }
 @keyframes ws-new-pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 
 /* 우: 가격 + 컨트롤 */
@@ -391,12 +394,4 @@
 
 /* 모달 공통 */
 #ws-edit-modal input:focus, #ws-edit-modal select:focus, #ws-edit-modal textarea:focus,
-#ws-new-listing-modal input:focus, #ws-new-listing-modal select:focus, #ws-new-listing-modal textarea:focus {
-  border-color: #2D5A27 !important; outline: none; box-shadow: 0 0 0 2px rgba(45,90,39,0.2);
-}
-
-/* 반응형 대시보드 */
-@media (max-width: 640px) {
-  .ws-mgmt-dashboard { flex-direction: column !important; }
-  .ws-mgmt-dashboard > div:last-child { margin-left: 0 !important; flex-wrap: wrap; }
-}
+#ws-new-listing-modal input:focus, #ws-new-listing-modal select:foc

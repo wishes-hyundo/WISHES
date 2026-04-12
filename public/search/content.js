@@ -2600,7 +2600,8 @@
             // 건물명이 주소에 이미 포함되어 있으면 중복 표시하지 않음
             if (bn && bn.length > 1 && addrText.indexOf(bn) === -1) addrLine += ' <span style="color:#888;font-weight:400;">(' + escHtml(bn) + ')</span>';
             var newBadge = (function(){ var c = listing.created_at ? new Date(listing.created_at) : null; return (c && (Date.now() - c.getTime()) < 86400000) ? '<span class="ws-new-badge">NEW</span>' : ''; })();
-            return '<p class="ws-listing-addr ws-addr-preview" data-listing-id="' + listing.id + '" style="cursor:pointer;" title="클릭하면 핵심정보 보기">' + addrLine + newBadge + '</p>';
+            var sourceBadge = (function(){ var src = listing.source_site || ''; if (src === 'gongsilclub') return '<span class="ws-source-badge ws-source-g" title="공실클럽">G</span>'; if (src === 'onhouse') return '<span class="ws-source-badge ws-source-o" title="온하우스">O</span>'; return ''; })();
+            return '<p class="ws-listing-addr ws-addr-preview" data-listing-id="' + listing.id + '" style="cursor:pointer;" title="클릭하면 핵심정보 보기">' + sourceBadge + addrLine + newBadge + '</p>';
           })() +
           '<p class="ws-listing-title-sub" data-listing-id="' + listing.id + '" style="cursor:pointer;" title="클릭하면 상세보기">' +
             escHtml(listing.title || '-') +
@@ -13539,17 +13540,4 @@
   // [EMBED-PATCH] 임베드 모드에서는 boot 완료 직후 바로 검색 UI를 자동으로 표시
   if (_WS_EMBEDDED_MODE) {
     try {
-      if (window.WS && typeof window.WS.showSearchUI === 'function') {
-        window.WS.showSearchUI();
-      }
-      if (window.WS && typeof window.WS.loadData === 'function' && !window.WS._loadingData) {
-        window.WS.loadData();
-      }
-    } catch (e) {
-      console.error('[WISHES-EMBED] auto-show 실패:', e);
-    }
-  }
-
-  } // end _wsBootExtension
-
-})();
+      if (window.WS && typeof window.WS.show
