@@ -34,11 +34,13 @@ export async function GET(request: NextRequest) {
       return new NextResponse('허용되지 않은 호스트', { status: 403 });
     }
 
-    // 서버에서 이미지 fetch (Referer 없이)
+    // 서버에서 이미지 fetch (Referer 포함 — 핫링크 보호 우회)
     const res = await fetch(parsed.toString(), {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; WishesBot/1.0)',
-        'Accept': 'image/*',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+        'Referer': 'https://www.onhouse.com/',
+        'Origin': 'https://www.onhouse.com',
       },
       cache: 'force-cache',
     });
