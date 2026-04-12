@@ -1,13 +1,12 @@
 /**
- * 온하우스(www.onhouse.com) 크롤러 v3.0
+ * 온하우스(www.onhouse.com) 크롤러 v3.2
  * 실행: www.onhouse.com/index/rent_map 탭에서 Chrome DevTools Console에 붙여넣기
  * 전제: 로그인 상태
  *
- * v3.0 주요 변경:
- *   - Supabase 직접 호출 → wishes.co.kr 관리자 API 사용 (CORS 완벽 지원)
- *   - features 배열 admin API에서 자동 처리 (별도 INSERT 불필요)
- *   - 이미지 추출 제거
- *   - lat/lng 추출 패턴 강화 (input hidden, script, data-attr 등)
+ * v3.2 주요 변경:
+ *   - 상세설명: .item_view_detail.detail h6 셀렉터 추가 (실제 구조 반영)
+ *   - 방향: 전용면적 box_sub에서 추출
+ *   - 관리비/포함항목 복합 타이틀: desc=금액, sub=포함항목 정확 분리
  *   - 가격 단위: 만원 그대로 저장
  */
 (async function ONHOUSE_CRAWLER() {
@@ -173,23 +172,27 @@
           if (yrM) d.built_year = yrM[1];
           if (title === '단기') d.lease_period = '단기';
         }
-        // 관리비
+        // 관리비 (복합 타이틀 "관리비 / 포함항목" 처리)
         else if (title.indexOf('관리비') !== -1 && title.indexOf('항목') !== -1) {
-          d.maintenance_includes = desc.split(/[,/]/).map(function(s){return s.trim();}).filter(Boolean);
+          // 복합 타이틀: desc = 금액, sub = 포함항목
+          var mfM = desc.match(/([\d.]+)/);
+          if (mfM) d.maintenance_fee = Math.round(parseFloat(mfM[1]));
           if (sub) {
-            sub.split(/[,/]/).forEach(function(s) {
-              var t = s.trim();
-              if (t && d.maintenance_includes.indexOf(t) === -1) d.maintenance_includes.push(t);
-            });
+            d.maintenance_includes = sub.split(/[,/·ㆍ]/).map(function(s){return s.trim();}).filter(function(s){return s.length > 0;});
           }
         }
         else if (title.indexOf('관리비') !== -1 && !d.maintenance_fee) {
-          var mfM = desc.match(/([\d.]+)/);
-          if (mfM) d.maintenance_fee = Math.round(parseFloat(mfM[1]));
+          var mfM2 = desc.match(/([\d.]+)/);
+          if (mfM2) d.maintenance_fee = Math.round(parseFloat(mfM2[1]));
         }
-        // 면적
+        // 면적 + 방향 (sub에 "남", "동" 등 방향 포함)
         else if (title.indexOf('전용면적') !== -1) {
           var aM = desc.match(/([\d.]+)/); if (aM) d.area_m2 = parseFloat(aM[1]);
+          // sub에서 방향 추출 (예: "남", "동남" 등)
+          if (sub) {
+            var dirM = sub.match(/(남|북|동|서|남동|남서|북동|북서|정남|정북)/);
+            if (dirM) d.direction = dirM[1] + '향';
+          }
         }
         else if (title.indexOf('공급면적') !== -1 || title.indexOf('임대면적') !== -1) {
           var asM = desc.match(/([\d.]+)/); if (asM) d.area_supply_m2 = parseFloat(asM[1]);
@@ -324,15 +327,45 @@
     });
 
     // ── 설명 텍스트 ──
-    var descSels = ['.detail-desc', '.room-desc', '.content-desc', '#divDesc', '.desc_area', '.view_desc', '.memo', '.item_desc', '.detail_content', '.info_desc'];
-    for (var di = 0; di < descSels.length; di++) {
-      var descEl = doc.querySelector(descSels[di]);
-      if (descEl) { var t = descEl.textContent.trim(); if (t.length > 30) { d.description = t.substring(0, 2000); break; } }
+    // 온하우스 상세설명: .item_view_detail.detail 내 h6 태그
+    var detailSection = doc.querySelector('.item_view_detail.detail');
+    if (detailSection) {
+      var descH6 = detailSection.querySelector('h6');
+      if (descH6) {
+        var descText = descH6.textContent.trim();
+        if (descText.length > 2) d.description = descText.substring(0, 2000);
+      }
+    }
+    // 폴백: 기존 셀렉터
+    if (!d.description) {
+      var descSels = ['.detail-desc', '.room-desc', '.content-desc', '#divDesc', '.desc_area', '.view_desc', '.memo', '.item_desc', '.detail_content', '.info_desc'];
+      for (var di = 0; di < descSels.length; di++) {
+        var descEl = doc.querySelector(descSels[di]);
+        if (descEl) { var t = descEl.textContent.trim(); if (t.length > 10) { d.description = t.substring(0, 2000); break; } }
+      }
     }
 
-    // ── 연락처 ──
-    var phones = html.match(/050\d[-]\d{3,4}[-]\d{4}|0\d{1,2}[-]\d{3,4}[-]\d{4}/g);
-    if (phones) d.contact = phones[0];
+    // ── 연락처 (050 안심번호 우선) ──
+    var phones050 = html.match(/050\d[-]?\d{3,4}[-]?\d{4}/g);
+    if (phones050) {
+      d.contact = phones050[0];
+    } else {
+      // 프린트 페이지에서 연락처 가져오기
+      try {
+        var printR = await fetch('/index/rent_view_print/' + listingId + '?phone=Y', {
+          headers: { 'Referer': 'https://www.onhouse.com/index/rent_view/' + listingId },
+          credentials: 'include',
+        });
+        var printHtml = await printR.text();
+        var printPhones = printHtml.match(/050\d[-]?\d{3,4}[-]?\d{4}/g);
+        if (printPhones) d.contact = printPhones[0];
+        // 프린트 페이지에서 추가 정보도 추출
+        if (!d.contact) {
+          var anyPhones = printHtml.match(/0\d{1,2}[-)\s]?\d{3,4}[-\s]?\d{4}/g);
+          if (anyPhones) d.contact = anyPhones[0];
+        }
+      } catch(e) { /* 프린트 페이지 접근 실패 무시 */ }
+    }
 
     // ── source_url ──
     d.source_url = 'https://www.onhouse.com/index/rent_view/' + listingId;
@@ -409,7 +442,7 @@
 
   // ═══════════ 메인 실행 ═══════════
   console.log('╔═══════════════════════════════════════╗');
-  console.log('║  온하우스 크롤러 v3.0 (Admin API)     ║');
+  console.log('║  온하우스 크롤러 v3.2 (Admin API)     ║');
   console.log('║  LIMIT=' + LIMIT + '                         ║');
   console.log('╚═══════════════════════════════════════╝');
 
@@ -452,33 +485,4 @@
       }
 
       var fieldCount = Object.keys(data).filter(function(k) {
-        return data[k] !== null && data[k] !== undefined && data[k] !== '';
-      }).length;
-
-      allResults.push(data);
-
-      var upResult = await uploadListing(data);
-      if (upResult.ok) {
-        uploaded++;
-        existingIds.add(String(id));
-        console.log('  ✓ [' + id + '] ' + fieldCount + '필드 | ' + (data.address || '').substring(0, 25) + ' | ' + data.deal + ' ' + (data.deposit || 0) + '/' + (data.monthly || 0));
-      } else {
-        failed++;
-        console.log('  ✗ [' + id + '] ' + upResult.error);
-      }
-      await sleep(300);
-    }
-
-    console.log('  누적: 업로드=' + uploaded + ' 건너뜀=' + skipped + ' 실패=' + failed);
-    page++;
-    if (ids.length < 10) { hasMore = false; }
-  }
-
-  console.log('\n╔═══════════════════════════════════════╗');
-  console.log('║  온하우스 크롤러 v3.1 완료            ║');
-  console.log('║  총 파싱: ' + allResults.length + '건                     ║');
-  console.log('║  업로드: ' + uploaded + ' | 건너뜀: ' + skipped + ' | 실패: ' + failed + '  ║');
-  console.log('╚═══════════════════════════════════════╝');
-  return allResults;
-})();
-                                                                                                                                                                                                                                                                                                                 
+        return data[k] !== null && data[k] !=
