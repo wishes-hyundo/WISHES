@@ -198,8 +198,8 @@ export async function GET(request: NextRequest) {
 
           return slim;
         },
-        ['listings-minimal-v3'],
-        { revalidate: 60, tags: ['listings'] }
+        ['listings-minimal-v4'],
+        { revalidate: 5, tags: ['listings'] }
       );
 
       const allData = await getCached();
@@ -213,8 +213,8 @@ export async function GET(request: NextRequest) {
           status: 304,
           headers: {
             'ETag': etag,
-            'Cache-Control': 's-maxage=300, stale-while-revalidate=86400',
-            'CDN-Cache-Control': 'max-age=300',
+            'Cache-Control': 's-maxage=10, stale-while-revalidate=30',
+            'CDN-Cache-Control': 'max-age=10',
           },
         });
       }
@@ -224,7 +224,7 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
-          // 🔥 공격적 캐싱: 5분 CDN 캐시 + 하루 내내 stale-while-revalidate
+          // 🔥 경량 캐싱: 10초 CDN 캐시 + 30초 stale-while-revalidate
           'Cache-Control': 's-maxage=300, stale-while-revalidate=86400',
           'CDN-Cache-Control': 'max-age=300',
           'Vary': 'Accept-Encoding',
@@ -582,3 +582,4 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+                
