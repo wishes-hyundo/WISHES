@@ -389,6 +389,11 @@
       data.status = '가용';
       if (!data.dong) data.dong = extractDong(data.address) || '미입력';
 
+      // null/undefined 값 제거 (API boolean 필드 에러 방지)
+      Object.keys(data).forEach(function(k) {
+        if (data[k] === null || data[k] === undefined) delete data[k];
+      });
+
       var r = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_TOKEN },
@@ -469,6 +474,9 @@
     if (ids.length < 10) { hasMore = false; }
   }
 
+  console.log('\n╔═══════════════════════════════════════╗');
+  console.log('║  온하우스 크롤러 v3.0 완료            ║');
+  console.log('║  총 파싱: ' + allResults.length + '건                     ║');
   console.log('\n╔═══════════════════════════════════════╗');
   console.log('║  온하우스 크롤러 v3.0 완료            ║');
   console.log('║  총 파싱: ' + allResults.length + '건                     ║');

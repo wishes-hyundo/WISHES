@@ -334,6 +334,11 @@
       data.title = data.title || ((data.dong || '') + ' ' + (data.deal || '월세') + ' ' + (data.type || '원룸')).trim().substring(0, 30);
       data.status = '가용';
 
+      // null/undefined 값 제거 (API boolean 필드 에러 방지)
+      Object.keys(data).forEach(function(k) {
+        if (data[k] === null || data[k] === undefined) delete data[k];
+      });
+
       var r = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_TOKEN },
@@ -355,7 +360,7 @@
 
   var existingIds = await getExistingIds();
   var results = [];
-  var uploaded = 0, skipped = 0, failed = 0, vipSkipped = 0;
+  var uploaded = 0, skipped = 0, failed = 0;
   var detailOk = 0, detailFail = 0;
   var pg = 1;
   var emptyPages = 0;
@@ -383,17 +388,15 @@
     }
     emptyPages = 0;
 
-    // 1단계: 카드 파싱 + VIP 필터링
+    // 1단계: 카드 파싱 (VIP 포함 — 모든 매물 수집)
     var pageItems = [];
     for (var ci = 0; ci < cards.length; ci++) {
-      var cardText = cards[ci].textContent || '';
-      if (cardText.indexOf('VIP') !== -1) { vipSkipped++; continue; }
       var cardData = parseCard(cards[ci]);
       if (!cardData || !cardData.source_id) { failed++; continue; }
       if (existingIds.has(cardData.source_id)) { skipped++; continue; }
       pageItems.push(cardData);
     }
-    console.log('  신규: ' + pageItems.length + '건 (VIP제외: ' + vipSkipped + ', 중복: ' + skipped + ')');
+    console.log('  신규: ' + pageItems.length + '건 (중복: ' + skipped + ')');
 
     if (pageItems.length === 0) { pg++; await sleep(DELAY_MS); continue; }
 
@@ -447,7 +450,6 @@
   console.log('║  GSC Crawler v6.0 완료                ║');
   console.log('║  총 파싱: ' + results.length + '건                     ║');
   console.log('║  업로드: ' + uploaded + ' | 건너뜀: ' + skipped + ' | 실패: ' + failed + '  ║');
-  console.log('║  VIP 제외: ' + vipSkipped + '                        ║');
   console.log('║  상세 성공: ' + detailOk + ' | 상세 실패: ' + detailFail + '    ║');
   console.log('╚═══════════════════════════════════════╝');
   return results;
