@@ -3735,7 +3735,7 @@
         if (!rawDesc) return '';
         var isLong = rawDesc.length > 200;
         return '<div class="ws-detail-section">' +
-          '<h3 style="display:flex;justify-content:space-between;align-items:center;">상세설명 <span style="font-size:11px;padding:2px 8px;background:#f0f0f0;border-radius:10px;color:#888;font-weight:normal;">크롤링 원본</span></h3>' +
+          '<h3>상세설명</h3>' +
           '<div style="position:relative;">' +
           '<p id="ws-raw-description-text-' + listing.id + '" style="white-space:pre-line;font-size:13px;line-height:1.75;color:#555;padding:12px;background:#f9faf8;border-radius:8px;border:1px solid #e8e8e8;' + (isLong ? 'max-height:120px;overflow:hidden;transition:max-height 0.3s ease;' : '') + '">' + escHtml(rawDesc) + '</p>' +
           (isLong ? '<button class="ws-toggle-expand" data-target="ws-raw-description-text-' + listing.id + '" style="display:block;width:100%;padding:6px;background:linear-gradient(to bottom,rgba(249,250,248,0),rgba(249,250,248,1) 60%);border:none;color:#666;font-size:12px;font-weight:600;cursor:pointer;margin-top:-30px;position:relative;z-index:1;">더보기 ▼</button>' : '') +
@@ -3744,7 +3744,7 @@
 
       <div class="ws-detail-section">
         <h3 style="display:flex;justify-content:space-between;align-items:center;">
-          매물설명 <span style="font-size:11px;padding:2px 8px;background:linear-gradient(135deg,#f0e6ff,#e6e0ff);border-radius:10px;color:#764ba2;font-weight:600;">AI 자동생성</span>
+          매물설명
           <button id="ws-ai-generate-${listing.id}" style="padding:6px 14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">
             ✨ AI SEO 설명 생성
           </button>
