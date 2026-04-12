@@ -11745,6 +11745,19 @@
           '<option value="계약완료"' + (listing.status === '계약완료' ? ' selected' : '') + '>계약완료</option>' +
         '</select></div>' +
       '</div>' +
+      '<div style="margin-top:12px;padding-top:12px;border-top:2px solid #e5e7eb;">' +
+        '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin-bottom:8px;">📋 크롤링 추가 정보</div>' +
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+          '<div><label style="font-size:12px;color:#666;font-weight:600;">구</label><input id="ws-edit-gu" value="' + escHtml(listing.gu || '') + '" placeholder="예: 강남구" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
+          '<div><label style="font-size:12px;color:#666;font-weight:600;">입구유형</label><input id="ws-edit-entrance" value="' + escHtml(listing.entrance_type || '') + '" placeholder="예: 별도입구, 공용입구" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
+          '<div><label style="font-size:12px;color:#666;font-weight:600;">주차비 (만원)</label><input type="number" id="ws-edit-parking-fee" value="' + (listing.parking_fee || '') + '" placeholder="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
+          '<div><label style="font-size:12px;color:#666;font-weight:600;">건물용도</label><input id="ws-edit-purpose" value="' + escHtml(listing.building_purpose || '') + '" placeholder="예: 근린생활시설" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
+          '<div><label style="font-size:12px;color:#666;font-weight:600;">이전브랜드</label><input id="ws-edit-prev-brand" value="' + escHtml(listing.previous_brand || '') + '" placeholder="예: 카페A" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
+          '<div><label style="font-size:12px;color:#666;font-weight:600;">중개수수료 (만원)</label><input type="number" id="ws-edit-commission" value="' + (listing.commission_fee || '') + '" placeholder="0" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
+          '<div style="grid-column:1/-1;"><label style="font-size:12px;color:#666;font-weight:600;">특징/옵션 (쉼표로 구분)</label><input id="ws-edit-features" value="' + escHtml((listing.features || []).join(', ')) + '" placeholder="예: 풀옵션, 주차가능, 반려동물" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
+          '<div style="grid-column:1/-1;"><label style="font-size:12px;color:#666;font-weight:600;">특이사항</label><textarea id="ws-edit-special" rows="2" placeholder="특이사항 입력" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;">' + escHtml(listing.special_notes || '') + '</textarea></div>' +
+        '</div>' +
+      '</div>' +
       '<div style="grid-column:1/-1;margin-top:8px;"><label style="font-size:12px;color:#666;font-weight:600;">상세설명</label><textarea id="ws-edit-desc" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;">' + escHtml(listing.description || '') + '</textarea></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;">' +
         '<button id="ws-edit-cancel" style="padding:10px 20px;background:#f3f4f6;color:#333;border:none;border-radius:8px;font-size:14px;cursor:pointer;">취소</button>' +
@@ -11758,7 +11771,10 @@
     modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
 
     document.getElementById('ws-edit-save').addEventListener('click', function() {
+      var featuresRaw = document.getElementById('ws-edit-features').value;
+      var featuresArr = featuresRaw ? featuresRaw.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : null;
       var body = {
+        id: listing.id,
         title: document.getElementById('ws-edit-title').value,
         deal: document.getElementById('ws-edit-deal').value,
         address: document.getElementById('ws-edit-address').value,
@@ -11772,11 +11788,19 @@
         maintenance_fee: parseInt(document.getElementById('ws-edit-maint').value) || null,
         maintenance_includes: document.getElementById('ws-edit-maint-includes').value || null,
         status: document.getElementById('ws-edit-status').value,
-        description: document.getElementById('ws-edit-desc').value
+        description: document.getElementById('ws-edit-desc').value,
+        gu: document.getElementById('ws-edit-gu').value || null,
+        entrance_type: document.getElementById('ws-edit-entrance').value || null,
+        features: featuresArr,
+        parking_fee: parseInt(document.getElementById('ws-edit-parking-fee').value) || null,
+        building_purpose: document.getElementById('ws-edit-purpose').value || null,
+        previous_brand: document.getElementById('ws-edit-prev-brand').value || null,
+        commission_fee: parseInt(document.getElementById('ws-edit-commission').value) || null,
+        special_notes: document.getElementById('ws-edit-special').value || null
       };
 
-      var token = localStorage.getItem('wishes_token') || localStorage.getItem('token') || '';
-      fetch('https://wishes.co.kr/api/listings/' + listing.id, {
+      var token = localStorage.getItem('wishes_token') || localStorage.getItem('token') || 'wishes2026';
+      fetch('/api/admin/listings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify(body)
