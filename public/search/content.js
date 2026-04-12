@@ -4891,6 +4891,10 @@
       if ((!item.images || item.images.length === 0) && item.listing_images && item.listing_images.length > 0) {
         item.images = item.listing_images;
       }
+      // listing_features → features 배열 변환
+      if ((!item.features || item.features.length === 0) && item.listing_features && item.listing_features.length > 0) {
+        item.features = item.listing_features.map(function(f) { return f.feature || f; });
+      }
     });
     return items;
   }

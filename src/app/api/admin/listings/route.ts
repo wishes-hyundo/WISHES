@@ -135,14 +135,16 @@ export async function GET(request: NextRequest) {
         'maintenance_fee', 'maintenance_includes',
         'area_m2', 'area_supply_m2',
         'floor_current', 'floor_total',
-        'rooms', 'bathrooms', 'direction',
-        'address', 'address_detail', 'dong',
+        'rooms', 'bathrooms', 'direction', 'heating_type',
+        'address', 'address_detail', 'dong', 'gu',
         'lat', 'lng',
         'available_date', 'built_year',
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
         'business_type', 'goodwill_fee',
         'station_name', 'station_distance',
-        'listing_images(url)' // ⚡ id/is_thumbnail/sort_order 제거 — 이미지 페이로드 -75%
+        'source_site', 'source_id', 'building_name', 'contact',
+        'listing_images(url)',  // ⚡ id/is_thumbnail/sort_order 제거 — 이미지 페이로드 -75%
+        'listing_features(feature)' // 크롤링 옵션 태그
       ].join(',');
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
