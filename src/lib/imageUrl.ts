@@ -5,6 +5,11 @@
 
 const R2_BASE_URL = 'https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev/';
 
+// 외부 이미지 프록시 대상 호스트 (핫링크 보호 우회용)
+const PROXY_HOSTS = [
+  'd4k1brqee4emz.cloudfront.net',  // 온하우스 이미지 CDN
+];
+
 export function getWatermarkedUrl(url: string | null | undefined): string {
   if (!url) return '';
 
@@ -33,6 +38,16 @@ export function getWatermarkedUrl(url: string | null | undefined): string {
   if (url.startsWith('/images/')) {
     const filePath = url.slice('/images/'.length);
     return `/api/wm/${filePath}`;
+  }
+
+  // 외부 CDN 이미지 → 프록시 경유 (핫링크 보호 우회 + 워터마크)
+  try {
+    const parsed = new URL(url);
+    if (PROXY_HOSTS.includes(parsed.hostname)) {
+      return `/api/img-proxy?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    // URL 파싱 실패 시 무시
   }
 
   return url;
