@@ -3672,14 +3672,30 @@
       </div>
 
       <div class="ws-detail-section">
-        <h3 style="display:flex;justify-content:space-between;align-items:center;">상세설명
+        <h3 style="display:flex;justify-content:space-between;align-items:center;">매물설명
           <button id="ws-ai-generate-${listing.id}" style="padding:6px 14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;">
             ✨ AI SEO 설명 생성
           </button>
         </h3>
         <div id="ws-ai-status-${listing.id}"></div>
-        <p id="ws-description-text-${listing.id}" style="white-space:pre-line;font-size:14px;line-height:1.85;color:#333;padding:12px;background:#fafafa;border-radius:8px;">${escHtml(listing.description || '설명이 없습니다.')}</p>
+        <div id="ws-ai-description-wrap-${listing.id}" style="position:relative;">
+          <p id="ws-ai-description-text-${listing.id}" style="white-space:pre-line;font-size:14px;line-height:1.85;color:#333;padding:12px;background:linear-gradient(135deg,#f8f0ff 0%,#f0f0ff 100%);border-radius:8px;border:1px solid #e8e0f0;max-height:150px;overflow:hidden;transition:max-height 0.3s ease;">${escHtml(listing.ai_description || '')}</p>
+          ${listing.ai_description && listing.ai_description.length > 200 ? '<button class="ws-toggle-expand" data-target="ws-ai-description-text-' + listing.id + '" style="display:block;width:100%;padding:6px;background:linear-gradient(to bottom,rgba(248,240,255,0),rgba(248,240,255,1) 60%);border:none;color:#764ba2;font-size:12px;font-weight:600;cursor:pointer;margin-top:-30px;position:relative;z-index:1;">더보기 ▼</button>' : ''}
+          ${!listing.ai_description ? '<div style="text-align:center;padding:16px;color:#999;font-size:13px;background:#fafafa;border-radius:8px;">AI 매물설명이 아직 생성되지 않았습니다.<br><span style="font-size:11px;">우측 상단 [✨ AI SEO 설명 생성] 버튼을 눌러 자동 생성하세요.</span></div>' : ''}
+        </div>
       </div>
+
+      ${(function() {
+        var rawDesc = listing.description || '';
+        if (!rawDesc) return '';
+        var isLong = rawDesc.length > 200;
+        return '<div class="ws-detail-section">' +
+          '<h3 style="display:flex;justify-content:space-between;align-items:center;">상세설명 <span style="font-size:11px;color:#888;font-weight:normal;">크롤링 원본</span></h3>' +
+          '<div style="position:relative;">' +
+          '<p id="ws-raw-description-text-' + listing.id + '" style="white-space:pre-line;font-size:13px;line-height:1.75;color:#555;padding:12px;background:#f9f9f9;border-radius:8px;border:1px solid #eee;' + (isLong ? 'max-height:120px;overflow:hidden;transition:max-height 0.3s ease;' : '') + '">' + escHtml(rawDesc) + '</p>' +
+          (isLong ? '<button class="ws-toggle-expand" data-target="ws-raw-description-text-' + listing.id + '" style="display:block;width:100%;padding:6px;background:linear-gradient(to bottom,rgba(249,249,249,0),rgba(249,249,249,1) 60%);border:none;color:#666;font-size:12px;font-weight:600;cursor:pointer;margin-top:-30px;position:relative;z-index:1;">더보기 ▼</button>' : '') +
+          '</div></div>';
+      })()}
 
       ${listing.lat && listing.lng ? `
       <div class="ws-detail-section">
@@ -3764,7 +3780,29 @@
           return;
         }
 
-        // 2-b) 건축물대장 조회 버튼
+        // 2-b) 더보기/접기 토글
+        var expandBtn = target.closest('.ws-toggle-expand');
+        if (expandBtn) {
+          var targetId = expandBtn.dataset.target;
+          var textEl = document.getElementById(targetId);
+          if (textEl) {
+            var isExpanded = textEl.style.maxHeight === 'none';
+            if (isExpanded) {
+              textEl.style.maxHeight = textEl.id.includes('ai-description') ? '150px' : '120px';
+              textEl.style.overflow = 'hidden';
+              expandBtn.textContent = '더보기 ▼';
+              expandBtn.style.marginTop = '-30px';
+            } else {
+              textEl.style.maxHeight = 'none';
+              textEl.style.overflow = 'visible';
+              expandBtn.textContent = '접기 ▲';
+              expandBtn.style.marginTop = '0';
+            }
+          }
+          return;
+        }
+
+        // 2-c) 건축물대장 조회 버튼
         var brBtn = target.closest('[id^="ws-building-registry-btn-"]');
         if (brBtn) {
           var brId = brBtn.dataset.listingId;
@@ -12610,7 +12648,7 @@
   // 단일 매물 AI SEO 설명 생성 (수동 버튼 클릭)
   window.WS._runAutoGenerate = function(listingId, listing) {
     var statusEl = document.getElementById('ws-ai-status-' + listingId);
-    var descEl = document.getElementById('ws-description-text-' + listingId);
+    var descEl = document.getElementById('ws-ai-description-text-' + listingId);
     var btn = document.getElementById('ws-ai-generate-' + listingId);
 
     if (statusEl) {
@@ -12650,11 +12688,24 @@
               (data.buildingInfo.건물명 || '-') + ' / ' + (data.buildingInfo.사용승인일 || '-') + ' / ' + (data.buildingInfo.건물구조 || '-') + '</div>' : '') +
             '</div>';
         }
-        // 로컬 데이터 업데이트
+        // 로컬 데이터 업데이트 (ai_description에 저장, 크롤링 원본 description은 보존)
         var local = (window.WS.allListings || []).find(function(l) { return String(l.id) === String(listingId); });
         if (local) {
           if (data.result.title) local.title = data.result.title;
-          if (data.result.description) local.description = data.result.description;
+          if (data.result.description) local.ai_description = data.result.description;
+        }
+        // AI 설명 영역 더보기 버튼이 필요하면 추가
+        var wrapEl = document.getElementById('ws-ai-description-wrap-' + listingId);
+        if (wrapEl && descEl && descEl.textContent.length > 200) {
+          var existBtn = wrapEl.querySelector('.ws-toggle-expand');
+          if (!existBtn) {
+            var newBtn = document.createElement('button');
+            newBtn.className = 'ws-toggle-expand';
+            newBtn.dataset.target = 'ws-ai-description-text-' + listingId;
+            newBtn.style.cssText = 'display:block;width:100%;padding:6px;background:linear-gradient(to bottom,rgba(248,240,255,0),rgba(248,240,255,1) 60%);border:none;color:#764ba2;font-size:12px;font-weight:600;cursor:pointer;margin-top:-30px;position:relative;z-index:1;';
+            newBtn.textContent = '더보기 ▼';
+            wrapEl.appendChild(newBtn);
+          }
         }
         window.WS.showToast('AI SEO 설명 생성 완료!', 'success');
       } else {

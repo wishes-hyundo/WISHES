@@ -129,24 +129,27 @@ export async function GET(request: NextRequest) {
       //  3) unstable_cache 로 Node 레벨 메모이제이션 (60s)
       //  4) CDN: s-maxage=300, stale-while-revalidate=86400
       //  5) ETag + 304 Not Modified (재방문 0-byte 응답)
+      // ★ 크롤러(공실클럽/온하우스)가 수집하는 모든 필드를 빠짐없이 포함
       const selectFields = [
         'id', 'title', 'type', 'deal', 'status', 'created_at', 'views',
         'deposit', 'monthly', 'price',
         'maintenance_fee', 'maintenance_includes',
-        'area_m2', 'area_supply_m2',
+        'area_m2', 'area_supply_m2', 'area_land_m2',
         'floor_current', 'floor_total',
         'rooms', 'bathrooms', 'direction', 'heating_type',
         'address', 'address_detail', 'dong', 'gu',
         'lat', 'lng',
-        'available_date', 'built_year', 'description',
+        'available_date', 'built_year', 'description', 'ai_description',
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
         'business_type', 'goodwill_fee', 'vat_included',
         'usage_approved', 'electric_capacity', 'signage_available', 'meeting_room',
         'previous_business', 'recommended_business', 'restricted_business',
         'parking_spaces', 'rights_fee', 'lease_period',
         'station_name', 'station_distance',
-        'source_site', 'source_id', 'building_name', 'contact',
-        'listing_images(url,sort_order)',  // sort_order 복원 — 이미지 순서 보장
+        'entrance_type', 'parking_fee', 'building_purpose',
+        'previous_brand', 'commission_fee', 'special_notes',
+        'source_site', 'source_id', 'source_url', 'building_name', 'contact',
+        'listing_images(url,sort_order)',
         'listing_features(feature)'
       ].join(',');
 
@@ -203,7 +206,7 @@ export async function GET(request: NextRequest) {
 
           return slim;
         },
-        ['listings-minimal-v7'],
+        ['listings-minimal-v8'],
         { revalidate: 5, tags: ['listings'] }
       );
 
@@ -590,10 +593,4 @@ export async function PUT(request: NextRequest) {
       data,
     });
   } catch (error: any) {
-    console.error('매물 수정 오류:', error);
-    return NextResponse.json(
-      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
-      { status: 500 }
-    );
-  }
-}
+    console.error('매물
