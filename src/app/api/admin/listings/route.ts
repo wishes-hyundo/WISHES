@@ -133,19 +133,21 @@ export async function GET(request: NextRequest) {
         'id', 'title', 'type', 'deal', 'status', 'created_at', 'views',
         'deposit', 'monthly', 'price',
         'maintenance_fee', 'maintenance_includes',
-        'area_m2', 'area_supply_m2',
+        'area_m2', 'area_supply_m2', 'area_land_m2',
         'floor_current', 'floor_total',
         'rooms', 'bathrooms', 'direction', 'heating_type',
         'address', 'address_detail', 'dong', 'gu',
         'lat', 'lng',
         'available_date', 'built_year', 'description',
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
-        'business_type', 'goodwill_fee', 'vat_included',
+        'business_type', 'goodwill_fee', 'vat_included', 'commission_fee',
         'usage_approved', 'electric_capacity', 'signage_available', 'meeting_room',
         'previous_business', 'recommended_business', 'restricted_business',
-        'parking_spaces', 'rights_fee', 'lease_period',
+        'previous_brand', 'building_purpose', 'special_notes',
+        'parking_spaces', 'parking_fee', 'rights_fee', 'lease_period',
         'station_name', 'station_distance',
-        'source_site', 'source_id', 'building_name', 'contact',
+        'entrance_type', 'room_shape',
+        'source_site', 'source_id', 'source_url', 'building_name', 'contact',
         'listing_images(url,sort_order)',  // sort_order 복원 — 이미지 순서 보장
         'listing_features(feature)'
       ].join(',');
@@ -203,7 +205,7 @@ export async function GET(request: NextRequest) {
 
           return slim;
         },
-        ['listings-minimal-v5'],
+        ['listings-minimal-v6'],
         { revalidate: 5, tags: ['listings'] }
       );
 

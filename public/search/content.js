@@ -3499,7 +3499,7 @@
         var basicHtml = '<div class="ws-detail-section"><h3>기본정보</h3><div class="ws-detail-grid">';
         basicHtml += '<div><strong>타입</strong> ' + (listing.type || '-') + '</div>';
         basicHtml += '<div><strong>면적</strong> ' + (formatArea(listing.area_m2) || '-') + (listing.area_supply_m2 ? ' (공급 ' + formatArea(listing.area_supply_m2) + ')' : '') + '</div>';
-        basicHtml += '<div><strong>층수</strong> ' + (listing.floor_current || '-') + '</div>';
+        basicHtml += '<div><strong>층수</strong> ' + (listing.floor_current || '-') + (listing.floor_total ? '/' + listing.floor_total + '층' : '') + '</div>';
         if (!isCommercial) {
           // 주거용: 방/욕실, 방향, 구조
           basicHtml += '<div><strong>방/욕실</strong> ' + (listing.rooms || '-') + '개 / ' + (listing.bathrooms || '-') + '개</div>';
@@ -3512,12 +3512,12 @@
             basicHtml += '<div><strong>전용률</strong> ' + ratio + '%</div>';
           }
           basicHtml += '<div><strong>방향</strong> ' + (listing.direction || '-') + '</div>';
-          if (isOffice && listing.rooms) {
-            basicHtml += '<div><strong>회의실/룸</strong> ' + listing.rooms + '개</div>';
-          }
+          if (listing.meeting_room) basicHtml += '<div><strong>회의실</strong> ' + listing.meeting_room + '개</div>';
+          else if (isOffice && listing.rooms) basicHtml += '<div><strong>회의실/룸</strong> ' + listing.rooms + '개</div>';
           if (isStore) {
             basicHtml += '<div><strong>구조</strong> ' + (listing.room_shape || listing.entrance_type || '-') + '</div>';
           }
+          if (listing.area_land_m2) basicHtml += '<div><strong>대지면적</strong> ' + formatArea(listing.area_land_m2) + '</div>';
         }
         basicHtml += '</div></div>';
 
@@ -3545,7 +3545,10 @@
           priceHtml += '<div><strong>전세대출</strong> ' + (listing.loan_available ? '가능' : (listing.deal === '전세' ? '<span style="color:#999;font-style:italic;">미확인</span>' : '-')) + '</div>';
         }
         if (isStore && listing.rights_fee) priceHtml += '<div><strong>권리금</strong> ' + listing.rights_fee + '만</div>';
+        if (listing.goodwill_fee && listing.goodwill_fee > 0) priceHtml += '<div><strong>권리금(시설)</strong> ' + listing.goodwill_fee + '만</div>';
         if (listing.lease_period) priceHtml += '<div><strong>임대기간</strong> ' + listing.lease_period + '</div>';
+        if (listing.commission_fee) priceHtml += '<div><strong>중개수수료</strong> ' + listing.commission_fee + '만</div>';
+        if (listing.vat_included !== undefined && listing.vat_included !== null) priceHtml += '<div><strong>부가세</strong> ' + (listing.vat_included ? '포함' : '별도') + '</div>';
         if (listing.price_per_pyeong) priceHtml += '<div><strong>평당가</strong> ' + listing.price_per_pyeong + '만</div>';
         priceHtml += '</div></div>';
 
@@ -3557,11 +3560,16 @@
         facilHtml += '<div><strong>엘리베이터</strong> ' + (listing.elevator ? '있음' : (listing.building_info && listing.building_info.승용엘리베이터 !== undefined ? (parseInt(listing.building_info.승용엘리베이터) > 0 ? parseInt(listing.building_info.승용엘리베이터) + ' 대 <span style="color:#888;font-size:11px;">(건축물대장)</span>' : '없음') : '<span style="color:#999;font-style:italic;">미확인</span>')) + '</div>';
         // 공통: 난방
         facilHtml += '<div><strong>난방</strong> ' + (listing.heating_type || '-') + '</div>';
+        if (listing.parking_fee) facilHtml += '<div><strong>주차비</strong> ' + listing.parking_fee + '만/월</div>';
+        if (listing.station_name) facilHtml += '<div><strong>역세권</strong> 🚇 ' + escHtml(listing.station_name) + (listing.station_distance ? ' (' + listing.station_distance + 'm)' : '') + '</div>';
 
         if (isCommercial) {
           // 사무실/상가 전용 필드
           facilHtml += '<div><strong>입주가능</strong> ' + (listing.available_date || '-') + '</div>';
           facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYear(listing.built_year) ? getBuiltYear(listing.built_year) + '년' : '-') + '</div>';
+          if (listing.usage_approved) facilHtml += '<div><strong>사용승인일</strong> ' + escHtml(listing.usage_approved) + '</div>';
+          if (listing.electric_capacity) facilHtml += '<div><strong>전기용량</strong> ' + escHtml(listing.electric_capacity) + '</div>';
+          if (listing.signage_available !== undefined && listing.signage_available !== null) facilHtml += '<div><strong>간판설치</strong> ' + (listing.signage_available ? '가능' : '불가') + '</div>';
           facilHtml += '<div><strong>등록일</strong> ' + timeAgo(listing.created_at) + '</div>';
         } else {
           // 주거용 전용 필드
@@ -3579,10 +3587,14 @@
         if (isCommercial) {
           var bizRows = [];
           if (listing.building_name) bizRows.push('<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>');
+          if (listing.business_type) bizRows.push('<div><strong>업종</strong> ' + escHtml(listing.business_type) + '</div>');
           if (listing.previous_business) bizRows.push('<div><strong>전 업종</strong> ' + escHtml(listing.previous_business) + '</div>');
+          if (listing.previous_brand) bizRows.push('<div><strong>이전 상호</strong> ' + escHtml(listing.previous_brand) + '</div>');
           if (listing.recommended_business) bizRows.push('<div><strong>추천 업종</strong> ' + escHtml(listing.recommended_business) + '</div>');
           if (listing.restricted_business) bizRows.push('<div style="grid-column:span 2;"><strong>제한 업종</strong> <span style="color:#D32F2F;">' + escHtml(listing.restricted_business) + '</span></div>');
+          if (listing.building_purpose) bizRows.push('<div><strong>건물용도</strong> ' + escHtml(listing.building_purpose) + '</div>');
           if (listing.parking_spaces != null) bizRows.push('<div><strong>전용 주차</strong> ' + listing.parking_spaces + '대</div>');
+          if (listing.special_notes) bizRows.push('<div style="grid-column:span 2;"><strong>특이사항</strong> <span style="color:#e65100;">' + escHtml(listing.special_notes) + '</span></div>');
           if (listing.contact) bizRows.push('<div><strong>임대인 연락처</strong> <a href="tel:' + escHtml(listing.contact) + '" style="color:#1976D2;font-weight:600;">' + escHtml(listing.contact) + '</a></div>');
           if (listing.source_site && listing.source_url) {
             var siteLabel = listing.source_site === 'gongsilclub' ? '공실클럽' : listing.source_site === 'onhouse' ? '온하우스' : listing.source_site;
@@ -3595,7 +3607,24 @@
           }
         }
 
-        return basicHtml + priceHtml + facilHtml + bizHtml;
+        // 연락처/출처 정보 (주거용 포함 모든 매물 — 상업용은 위 bizHtml에 이미 포함)
+        var extraHtml = '';
+        if (!isCommercial) {
+          var extraRows = [];
+          if (listing.contact) extraRows.push('<div><strong>담당자 연락처</strong> <a href="tel:' + escHtml(listing.contact) + '" style="color:#1976D2;font-weight:600;">' + escHtml(listing.contact) + '</a></div>');
+          if (listing.building_name) extraRows.push('<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>');
+          if (listing.source_site && listing.source_url) {
+            var siteLabel2 = listing.source_site === 'gongsilclub' ? '공실클럽' : listing.source_site === 'onhouse' ? '온하우스' : listing.source_site;
+            extraRows.push('<div style="grid-column:span 2;"><strong>출처</strong> <a href="' + escHtml(listing.source_url) + '" target="_blank" style="color:#1976D2;text-decoration:underline;">' + escHtml(siteLabel2) + ' 원본 보기 ↗</a></div>');
+          }
+          if (extraRows.length > 0) {
+            extraHtml = '<div class="ws-detail-section" style="background:#f3f0ff;border:1px solid #d1c4e9;border-radius:10px;padding:16px;">' +
+              '<h3 style="color:#4527a0;">📋 기타 정보</h3>' +
+              '<div class="ws-detail-grid">' + extraRows.join('') + '</div></div>';
+          }
+        }
+
+        return basicHtml + priceHtml + facilHtml + bizHtml + extraHtml;
       })()}
 
       ${(function() {
