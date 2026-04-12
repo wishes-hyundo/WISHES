@@ -4898,7 +4898,9 @@
   function normalizeImages(items) {
     items.forEach(function(item) {
       if ((!item.images || item.images.length === 0) && item.listing_images && item.listing_images.length > 0) {
-        item.images = item.listing_images;
+        item.images = item.listing_images.slice().sort(function(a, b) {
+          return (a.sort_order || 0) - (b.sort_order || 0);
+        });
       }
       // listing_features → features 배열 변환
       if ((!item.features || item.features.length === 0) && item.listing_features && item.listing_features.length > 0) {

@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
       //  4) CDN: s-maxage=300, stale-while-revalidate=86400
       //  5) ETag + 304 Not Modified (재방문 0-byte 응답)
       const selectFields = [
-        'id', 'title', 'type', 'deal', 'status', 'created_at',
+        'id', 'title', 'type', 'deal', 'status', 'created_at', 'views',
         'deposit', 'monthly', 'price',
         'maintenance_fee', 'maintenance_includes',
         'area_m2', 'area_supply_m2',
@@ -138,13 +138,16 @@ export async function GET(request: NextRequest) {
         'rooms', 'bathrooms', 'direction', 'heating_type',
         'address', 'address_detail', 'dong', 'gu',
         'lat', 'lng',
-        'available_date', 'built_year',
+        'available_date', 'built_year', 'description',
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
-        'business_type', 'goodwill_fee',
+        'business_type', 'goodwill_fee', 'vat_included',
+        'usage_approved', 'electric_capacity', 'signage_available', 'meeting_room',
+        'previous_business', 'recommended_business', 'restricted_business',
+        'parking_spaces', 'rights_fee', 'lease_period',
         'station_name', 'station_distance',
         'source_site', 'source_id', 'building_name', 'contact',
-        'listing_images(url)',  // ⚡ id/is_thumbnail/sort_order 제거 — 이미지 페이로드 -75%
-        'listing_features(feature)' // 크롤링 옵션 태그
+        'listing_images(url,sort_order)',  // sort_order 복원 — 이미지 순서 보장
+        'listing_features(feature)'
       ].join(',');
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
