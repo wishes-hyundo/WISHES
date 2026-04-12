@@ -109,8 +109,16 @@ function extractDistrict(address: string): string {
 }
 
 function extractBunJi(address: string): { bun: string; ji: string } {
-  const m = address.match(/(\d+)(?:-(\d+))?\s*$/);
-  if (m) return { bun: m[1].padStart(4, '0'), ji: (m[2] || '0').padStart(4, '0') };
+  // 1순위: 동/가/리 뒤 공백 후 번지 ("청담동 26-24", "성수동2가 233-3", "종로1가 15-6")
+  const m1 = address.match(/[동가리]\S*\s+(\d{1,4})(?:-(\d{1,4}))?/);
+  if (m1) return { bun: m1[1].padStart(4, '0'), ji: (m1[2] || '0').padStart(4, '0') };
+  // 2순위: "123번지" 패턴
+  const m2 = address.match(/(\d{1,4})번지/);
+  if (m2) return { bun: m2[1].padStart(4, '0'), ji: '0000' };
+  // 3순위: 층/호/건물명 제거 후 끝의 숫자
+  const cleaned = address.replace(/\s+\d+층.*$/, '').replace(/\s+\d+호.*$/, '').replace(/\s+[가-힣]+(?:빌|하우스|타워|팰리스|파크).*$/, '').trim();
+  const m3 = cleaned.match(/(\d+)(?:-(\d+))?\s*$/);
+  if (m3) return { bun: m3[1].padStart(4, '0'), ji: (m3[2] || '0').padStart(4, '0') };
   return { bun: '0000', ji: '0000' };
 }
 

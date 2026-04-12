@@ -164,7 +164,7 @@ export async function POST(req: NextRequest) {
     if (aiResult?.success && (aiResult.title || aiResult.description)) {
       const updateData: Record<string, any> = {};
       if (aiResult.title) updateData.title = aiResult.title;
-      if (aiResult.description) updateData.description = aiResult.description;
+      if (aiResult.description) updateData.ai_description = aiResult.description;
       updateData.updated_at = new Date().toISOString();
 
     // building_info (건축물대장 정보) 저장

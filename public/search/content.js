@@ -3478,7 +3478,7 @@
           return '<div class="ws-gallery-main" id="ws-gallery-main" style="background-image: url(\'' + escHtml(firstUrl) + '\'); cursor:pointer;" title="클릭하면 확대됩니다"' +
             ' data-images="' + JSON.stringify(imgUrls).replace(/"/g, '&quot;') + '"' +
             ' data-current="0">' +
-            '<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">🔍 클릭하여 확대</div>' +
+            (firstUrl ? '<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">🔍 클릭하여 확대</div>' : '') +
             '</div>' +
             '<div class="ws-gallery-thumbs">' +
             detailImgs.map(function(img, idx) {
