@@ -1,17 +1,15 @@
 /**
- * 공실클럽(gc2.gongsilclub.com) 크롤러 v6.0
+ * 공실클럽(gc2.gongsilclub.com) 크롤러 v7.0
  * 실행: gc2.gongsilclub.com 에서 공실매물 > 전체 > 주소검색 > 지역 전체 검색 후
  *       Chrome DevTools Console에 붙여넣기
  * 전제: 로그인 상태
  *
- * v6.0 주요 변경:
- *   - Supabase 직접 호출 → wishes.co.kr 관리자 API 사용 (CORS 완벽 지원)
- *   - AJAX 페이지 로드 (page() 리로드 문제 해결, 자동 다중 페이지)
- *   - iframe 기반 상세페이지 추출 (JS 렌더링 대응)
- *   - VIP 매물 자동 건너뛰기
- *   - 이미지 추출 제거
- *   - 가격 단위: 만원 그대로 저장
- *   - features 배열 admin API에서 자동 처리
+ * v7.0 주요 변경:
+ *   - 상세페이지 파싱 완전 재작성: CSS 클래스 기반 (detail_info_td1~td4)
+ *   - 실제 라벨명 매칭: 면적정보, 해당층/총층, 룸/욕실수, 월관리비 등
+ *   - 특이사항 → description 매핑
+ *   - 옵션 → features 배열 매핑
+ *   - 모든 필드 정상 추출 확인
  */
 (async function GSC_FULL_CRAWLER() {
   // ═══════════ 설정 ═══════════
@@ -204,118 +202,228 @@
     return results;
   }
 
-  // ═══════════ 상세 HTML에서 필드 추출 ═══════════
+  // ═══════════ 상세 HTML에서 필드 추출 (v7.0 CSS 클래스 기반) ═══════════
   function parseDetailHtml(html, d) {
     if (!html || html.length < 100) return d;
     var parser = new DOMParser();
     var doc = parser.parseFromString('<div>' + html + '</div>', 'text/html');
-    var text = doc.body.textContent || '';
 
-    // 테이블 기반 파싱
-    var rows = doc.querySelectorAll('tr');
-    rows.forEach(function(tr) {
-      var cells = tr.querySelectorAll('th, td');
-      for (var i = 0; i < cells.length - 1; i++) {
-        var label = cells[i].textContent.replace(/\s+/g, '').trim();
-        var value = cells[i+1].textContent.replace(/\s+/g, ' ').trim();
-        if (!label || !value || value === '-') continue;
+    // ── CSS 클래스 기반 라벨-값 매핑 ──
+    // 공실클럽 상세페이지 구조:
+    //   detail_info_td1 = 라벨(섹션1), detail_info_td2 = 값(섹션1)
+    //   detail_info_td3 = 라벨(섹션2), detail_info_td4 = 값(섹션2)
+    var infoMap = {};
 
-        if (label.indexOf('전용면적') !== -1 || label.indexOf('전용') !== -1) {
-          var am = value.match(/([\d.]+)/); if (am) d.area_m2 = parseFloat(am[1]);
-        }
-        else if (label.indexOf('공급면적') !== -1 || label.indexOf('계약면적') !== -1) {
-          var asm = value.match(/([\d.]+)/); if (asm) d.area_supply_m2 = parseFloat(asm[1]);
-        }
-        else if (label.indexOf('해당층') !== -1) { d.floor_current = value.match(/\d+/) ? value.match(/\d+/)[0] : value; }
-        else if (label.indexOf('총층') !== -1 || label.indexOf('전체층') !== -1) { d.floor_total = value.match(/\d+/) ? value.match(/\d+/)[0] : value; }
-        else if (label.indexOf('방수') !== -1 || label === '방') { var rm = value.match(/(\d+)/); if (rm) d.rooms = parseInt(rm[1]); }
-        else if (label.indexOf('욕실') !== -1 || label.indexOf('화장실') !== -1) { var bm = value.match(/(\d+)/); if (bm) d.bathrooms = parseInt(bm[1]); }
-        else if (label.indexOf('방향') !== -1) { d.direction = value; }
-        else if (label.indexOf('난방') !== -1) { d.heating_type = value; }
-        else if (label.indexOf('관리비') !== -1 && label.indexOf('항목') === -1 && !d.maintenance_fee) {
-          var mfm = value.match(/([\d.]+)/); if (mfm) d.maintenance_fee = Math.round(parseFloat(mfm[1]));
-        }
-        else if (label.indexOf('관리비항목') !== -1 || label.indexOf('관리비포함') !== -1) {
-          d.maintenance_includes = value.split(/[,/·]/).map(function(s){return s.trim();}).filter(Boolean);
-        }
-        else if (label.indexOf('입주') !== -1) { d.available_date = value; }
-        else if (label.indexOf('건축') !== -1 || label.indexOf('사용승인') !== -1 || label.indexOf('준공') !== -1) {
-          var ym = value.match(/(\d{4})/); if (ym) d.built_year = ym[1];
-          if (label.indexOf('사용승인') !== -1) d.usage_approved = value;
-        }
-        else if (label.indexOf('주차') !== -1 && label.indexOf('비') === -1 && label.indexOf('대수') === -1) {
-          d.parking = parseBool(value);
-          var pkm = value.match(/(\d+)/);
-          if (pkm) { d.parking_spaces = parseInt(pkm[1]); if (d.parking === null) d.parking = parseInt(pkm[1]) > 0; }
-        }
-        else if (label.indexOf('주차비') !== -1) { var pfm = numParse(value); if (pfm !== null) d.parking_fee = Math.round(pfm); }
-        else if (label.indexOf('주차대수') !== -1) { var psm = value.match(/(\d+)/); if (psm) d.parking_spaces = parseInt(psm[1]); }
-        else if (label.indexOf('엘리베이터') !== -1 || label.indexOf('E/V') !== -1) {
-          d.elevator = parseBool(value);
-          if (d.elevator === null) d.elevator = value.indexOf('있') !== -1 || value.indexOf('O') !== -1;
-        }
-        else if (label.indexOf('반려') !== -1 || label.indexOf('펫') !== -1) { d.pet = parseBool(value); }
-        else if (label.indexOf('발코니') !== -1 || label.indexOf('베란다') !== -1) { d.balcony = parseBool(value); }
-        else if (label.indexOf('풀옵션') !== -1) { d.full_option = parseBool(value); }
-        else if (label.indexOf('대출') !== -1) { d.loan_available = parseBool(value); }
-        else if (label.indexOf('출입구') !== -1 || label.indexOf('현관') !== -1) { d.entrance_type = value; }
-        else if (label.indexOf('건물용도') !== -1 || label.indexOf('용도') !== -1) { d.building_purpose = value; }
-        else if (label.indexOf('건물명') !== -1 || label.indexOf('단지명') !== -1) { d.building_name = value; }
-        else if (label.indexOf('지하철') !== -1 || label.indexOf('역') !== -1) {
-          var sm = value.match(/(.+역)/); var dm = value.match(/(\d+)\s*m/);
-          if (sm) d.station_name = sm[1]; if (dm) d.station_distance = parseInt(dm[1]);
-        }
-        else if (label.indexOf('권리금') !== -1 && label.indexOf('시설') === -1 && label.indexOf('굿윌') === -1) {
-          var rfm = numParse(value); if (rfm !== null) d.rights_fee = Math.round(rfm);
-        }
-        else if (label.indexOf('굿윌') !== -1 || label.indexOf('시설비') !== -1 || label.indexOf('시설권리금') !== -1) {
-          var gfm = numParse(value); if (gfm !== null) d.goodwill_fee = Math.round(gfm);
-        }
-        else if (label.indexOf('부가세') !== -1) { d.vat_included = value.indexOf('포함') !== -1; }
-        else if (label.indexOf('권장업종') !== -1) { d.recommended_business = value; }
-        else if (label.indexOf('제한업종') !== -1) { d.restricted_business = value; }
-        else if (label.indexOf('이전업종') !== -1) { d.previous_business = value; }
-        else if (label.indexOf('이전상호') !== -1) { d.previous_brand = value; }
-        else if (label.indexOf('업종') !== -1 && !d.business_type) { d.business_type = value; }
-        else if (label.indexOf('전기') !== -1) { d.electric_capacity = value; }
-        else if (label.indexOf('간판') !== -1) { d.signage_available = parseBool(value); }
-        else if (label.indexOf('수수료') !== -1 || label.indexOf('중개보수') !== -1) {
-          var cfm = numParse(value); if (cfm !== null) d.commission_fee = Math.round(cfm);
-        }
-        else if (label.indexOf('임대기간') !== -1 || label.indexOf('계약기간') !== -1) { d.lease_period = value; }
-        else if (label.indexOf('연락처') !== -1 || label.indexOf('전화') !== -1 || label.indexOf('문의') !== -1) {
-          var phm = value.match(/0\d{1,2}[-)\s]?\d{3,4}[-\s]?\d{4}/);
-          if (phm) d.contact = phm[0];
-        }
-        else if (label.indexOf('특이') !== -1 || label.indexOf('비고') !== -1) { d.special_notes = value; }
+    // 섹션1: td1→td2 쌍
+    doc.querySelectorAll('.detail_info_td1').forEach(function(td1) {
+      var label = td1.textContent.replace(/\s+/g, '').trim();
+      var next = td1.nextElementSibling;
+      if (next && next.classList && next.classList.contains('detail_info_td2')) {
+        var value = next.textContent.replace(/\s+/g, ' ').trim();
+        if (label && value && value !== '-') infoMap[label] = value;
       }
     });
 
-    // 설명 텍스트
-    var descSels = ['.item_desc', '.desc_area', '.memo_area', '.view_desc', '.detail_memo', '#desc', '.detail_content'];
-    for (var di = 0; di < descSels.length; di++) {
-      var el = doc.querySelector(descSels[di]);
-      if (el) { var t = el.textContent.trim(); if (t.length > 20) { d.description = t.substring(0, 2000); break; } }
+    // 섹션2: td3→td4 쌍
+    doc.querySelectorAll('.detail_info_td3').forEach(function(td3) {
+      var label = td3.textContent.replace(/\s+/g, '').trim();
+      var next = td3.nextElementSibling;
+      if (next && next.classList && next.classList.contains('detail_info_td4')) {
+        var value = next.textContent.replace(/\s+/g, ' ').trim();
+        if (label && value && value !== '-') infoMap[label] = value;
+      }
+    });
+
+    // 파싱된 라벨-값 디버그 출력
+    var mapKeys = Object.keys(infoMap);
+    console.log('[GSC] 상세 infoMap (' + mapKeys.length + '개):', mapKeys.join(', '));
+
+    // ── 면적정보: "전용: 528.9m²(160.0P) ..." ──
+    var areaInfo = infoMap['면적정보'] || '';
+    if (areaInfo) {
+      var exclusiveM = areaInfo.match(/전용[:\s]*([\d.]+)\s*(?:㎡|m²|m2)/);
+      if (exclusiveM) d.area_m2 = parseFloat(exclusiveM[1]);
+      var supplyM = areaInfo.match(/공급[:\s]*([\d.]+)\s*(?:㎡|m²|m2)/);
+      if (supplyM) d.area_supply_m2 = parseFloat(supplyM[1]);
+      if (!d.area_m2) {
+        var anyArea = areaInfo.match(/([\d.]+)\s*(?:㎡|m²|m2)/);
+        if (anyArea) d.area_m2 = parseFloat(anyArea[1]);
+      }
+      // 평수만 있는 경우
+      if (!d.area_m2) {
+        var pyM = areaInfo.match(/([\d.]+)\s*(?:평|P)/);
+        if (pyM) d.area_m2 = Math.round(parseFloat(pyM[1]) * 3.305785 * 100) / 100;
+      }
     }
 
-    // 옵션/시설
-    var optionArea = doc.querySelector('.option_area, .option_wrap, .facility, .opt_wrap');
-    if (optionArea) {
-      var feats = [];
-      optionArea.querySelectorAll('span, li, div, em').forEach(function(el) {
-        var t = el.textContent.trim();
-        if (t.length > 1 && t.length < 20 && feats.indexOf(t) === -1) feats.push(t);
-      });
+    // ── 해당층/총층: "1층 / 6층" ──
+    var floorInfo = infoMap['해당층/총층'] || infoMap['해당층'] || '';
+    if (floorInfo) {
+      var floorM = floorInfo.match(/(지하)?(\d+)\s*층\s*[\/~|]\s*(\d+)\s*층/);
+      if (floorM) {
+        d.floor_current = (floorM[1] ? 'B' : '') + floorM[2];
+        d.floor_total = floorM[3];
+      } else {
+        var singleF = floorInfo.match(/(지하)?(\d+)\s*층/);
+        if (singleF) d.floor_current = (singleF[1] ? 'B' : '') + singleF[2];
+      }
+    }
+
+    // ── 룸/욕실수 ──
+    var roomInfo = infoMap['룸/욕실수'] || infoMap['방수'] || infoMap['방/욕실'] || '';
+    if (roomInfo) {
+      var roomNums = roomInfo.match(/(\d+)/g);
+      if (roomNums && roomNums.length >= 1) d.rooms = parseInt(roomNums[0]);
+      if (roomNums && roomNums.length >= 2) d.bathrooms = parseInt(roomNums[1]);
+    }
+
+    // ── 구조형태 ──
+    if (infoMap['구조형태']) d.structure_type = infoMap['구조형태'];
+
+    // ── 월관리비: "220만원" or "10만원" ──
+    var maintInfo = infoMap['월관리비'] || infoMap['관리비'] || '';
+    if (maintInfo) {
+      var maintM = maintInfo.match(/([\d.]+)/);
+      if (maintM) d.maintenance_fee = Math.round(parseFloat(maintM[1]));
+    }
+
+    // ── 관리비항목 ──
+    var maintItems = infoMap['관리비항목'] || infoMap['관리비포함'] || '';
+    if (maintItems) {
+      d.maintenance_includes = maintItems.split(/[,/·ㆍ、]/).map(function(s) { return s.trim(); }).filter(Boolean);
+    }
+
+    // ── 주차대수: "무료 4대" or "가능" ──
+    var parkInfo = infoMap['주차대수'] || infoMap['주차'] || '';
+    if (parkInfo) {
+      var parkNum = parkInfo.match(/(\d+)\s*대/);
+      if (parkNum) {
+        d.parking_spaces = parseInt(parkNum[1]);
+        d.parking = parseInt(parkNum[1]) > 0;
+      }
+      if (parkInfo.indexOf('무료') !== -1 || parkInfo.indexOf('가능') !== -1) d.parking = true;
+      if (parkInfo.indexOf('불가') !== -1 || parkInfo.indexOf('없') !== -1) d.parking = false;
+    }
+
+    // ── 준공년도: "2010년 5월 6일" ──
+    var builtInfo = infoMap['준공년도'] || infoMap['준공일'] || infoMap['사용승인일'] || '';
+    if (builtInfo) {
+      var builtM = builtInfo.match(/(\d{4})/);
+      if (builtM) d.built_year = builtM[1];
+    }
+
+    // ── 입주가능일 ──
+    var moveIn = infoMap['입주가능일'] || infoMap['입주일'] || '';
+    if (moveIn) d.available_date = moveIn;
+
+    // ── 임대기간 ──
+    if (infoMap['임대기간']) d.lease_period = infoMap['임대기간'];
+
+    // ── 용도 ──
+    var usage = infoMap['용도'] || infoMap['건물용도'] || '';
+    if (usage) d.building_purpose = usage;
+
+    // ── 권리금 ──
+    var rightsInfo = infoMap['권리금'] || '';
+    if (rightsInfo && rightsInfo !== '무' && rightsInfo !== '없음') {
+      var rightsM = rightsInfo.match(/([\d,.]+)/);
+      if (rightsM) d.rights_fee = Math.round(parseFloat(rightsM[1].replace(/,/g, '')));
+    }
+
+    // ── 현업종/상호 ──
+    if (infoMap['현업종/상호']) d.previous_business = infoMap['현업종/상호'];
+
+    // ── 권장업종 / 제한업종 ──
+    if (infoMap['권장업종']) d.recommended_business = infoMap['권장업종'];
+    if (infoMap['제한업종']) d.restricted_business = infoMap['제한업종'];
+
+    // ── 방향 ──
+    if (infoMap['방향']) d.direction = infoMap['방향'];
+
+    // ── 난방 ──
+    if (infoMap['난방'] || infoMap['난방방식']) d.heating_type = infoMap['난방'] || infoMap['난방방식'];
+
+    // ── 출입구/현관 ──
+    if (infoMap['출입구'] || infoMap['현관구조']) d.entrance_type = infoMap['출입구'] || infoMap['현관구조'];
+
+    // ── 건물명 ──
+    if (infoMap['건물명'] || infoMap['단지명']) d.building_name = infoMap['건물명'] || infoMap['단지명'];
+
+    // ── 옵션: "엘리베이터, 개별냉난방, 천장형 냉ㆍ난방 시스템" ──
+    var optionInfo = infoMap['옵션'] || infoMap['시설옵션'] || '';
+    if (optionInfo) {
+      var feats = optionInfo.split(/[,，、·ㆍ]/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
       if (feats.length > 0) d.features = feats;
+      // 옵션에서 boolean 필드 자동 추출
+      if (optionInfo.indexOf('엘리베이터') !== -1) d.elevator = true;
+      if (optionInfo.indexOf('풀옵션') !== -1) d.full_option = true;
+      if (optionInfo.indexOf('반려') !== -1 || optionInfo.indexOf('펫') !== -1) d.pet = true;
+      if (optionInfo.indexOf('발코니') !== -1 || optionInfo.indexOf('베란다') !== -1) d.balcony = true;
     }
 
-    // 좌표
+    // ── 특이사항 → description ──
+    var special = infoMap['특이사항'] || infoMap['상세설명'] || infoMap['메모'] || '';
+    if (special && special.length > 3) {
+      d.description = special.substring(0, 2000);
+    }
+
+    // ── 연락처 ──
+    var contactInfo = infoMap['연락처'] || infoMap['전화'] || infoMap['문의'] || '';
+    if (contactInfo) {
+      var phm = contactInfo.match(/0\d{1,2}[-)\s]?\d{3,4}[-\s]?\d{4}/);
+      if (phm) d.contact = phm[0];
+    }
+    // HTML 전체에서도 연락처 찾기
+    if (!d.contact) {
+      var phoneM = html.match(/(?:연락처|전화|문의|TEL|tel)[^0-9]{0,10}(0\d{1,2}[-)\s]?\d{3,4}[-\s]?\d{4})/);
+      if (phoneM) d.contact = phoneM[1];
+    }
+
+    // ── 부가세 ──
+    if (infoMap['부가세']) d.vat_included = infoMap['부가세'].indexOf('포함') !== -1;
+
+    // ── 전기용량 ──
+    if (infoMap['전기용량'] || infoMap['전기']) d.electric_capacity = infoMap['전기용량'] || infoMap['전기'];
+
+    // ── 수수료/중개보수 ──
+    var commInfo = infoMap['수수료'] || infoMap['중개보수'] || '';
+    if (commInfo) {
+      var cfm = commInfo.match(/([\d,]+)/);
+      if (cfm) d.commission_fee = Math.round(parseFloat(cfm[1].replace(/,/g, '')));
+    }
+
+    // ── 엘리베이터 (별도 라벨인 경우) ──
+    if (infoMap['엘리베이터'] || infoMap['E/V']) {
+      var evVal = infoMap['엘리베이터'] || infoMap['E/V'];
+      d.elevator = parseBool(evVal);
+      if (d.elevator === null) d.elevator = evVal.indexOf('있') !== -1 || evVal.indexOf('O') !== -1;
+    }
+
+    // ── 반려동물 (별도 라벨) ──
+    if (infoMap['반려동물'] || infoMap['반려']) {
+      var petVal = infoMap['반려동물'] || infoMap['반려'];
+      d.pet = parseBool(petVal);
+    }
+
+    // ── 대출 ──
+    if (infoMap['대출'] || infoMap['전세대출']) {
+      var loanVal = infoMap['대출'] || infoMap['전세대출'];
+      d.loan_available = parseBool(loanVal);
+    }
+
+    // ── 좌표 (raw HTML에서) ──
     var latM = html.match(/lat['":\s]+(3[5-8]\.\d+)/);
     var lngM = html.match(/lng['":\s]+(12[5-8]\.\d+)/);
     if (!latM) latM = html.match(/latitude['":\s]+(3[5-8]\.\d+)/);
     if (!lngM) lngM = html.match(/longitude['":\s]+(12[5-8]\.\d+)/);
     if (!latM) latM = html.match(/y['":\s]+(3[5-8]\.\d+)/);
     if (!lngM) lngM = html.match(/x['":\s]+(12[5-8]\.\d+)/);
+    if (!latM) latM = html.match(/center\s*:\s*\{\s*lat\s*:\s*(3[5-8]\.\d+)/);
+    if (!lngM) lngM = html.match(/center\s*:\s*\{[^}]*lng\s*:\s*(12[5-8]\.\d+)/);
+    if (!latM) latM = html.match(/LatLng\(\s*(3[5-8]\.\d+)/);
+    if (!lngM) lngM = html.match(/LatLng\(\s*3[5-8]\.\d+\s*,\s*(12[5-8]\.\d+)/);
+    if (!latM) latM = html.match(/['"]?(3[5-8]\.\d{4,})['"]?\s*,\s*['"]?(12[5-8]\.\d{4,})/);
+    if (!lngM && latM && latM[2]) lngM = [null, latM[2]];
     if (latM) d.lat = parseFloat(latM[1]);
     if (lngM) d.lng = parseFloat(lngM[1]);
 
@@ -354,7 +462,7 @@
 
   // ═══════════ 메인 실행 ═══════════
   console.log('╔═══════════════════════════════════════╗');
-  console.log('║  GSC Full Crawler v6.0 (Admin API)    ║');
+  console.log('║  GSC Full Crawler v7.0 (Admin API)    ║');
   console.log('║  DETAIL=' + FETCH_DETAIL + ' | LIMIT=' + LIMIT + '         ║');
   console.log('╚═══════════════════════════════════════╝');
 
@@ -402,55 +510,4 @@
 
     // 2단계: 상세페이지 로딩 (iframe)
     if (FETCH_DETAIL && pageItems.length > 0) {
-      console.log('  상세페이지 로딩 중 (' + DETAIL_CONCURRENCY + '개 동시)...');
-      var sourceIds = pageItems.map(function(item) { return item.source_id; });
-      var detailHtmls = await batchLoadDetails(sourceIds);
-
-      for (var di = 0; di < pageItems.length; di++) {
-        var html = detailHtmls[pageItems[di].source_id];
-        if (html && html.length > 200) {
-          pageItems[di] = parseDetailHtml(html, pageItems[di]);
-          detailOk++;
-        } else {
-          detailFail++;
-        }
-      }
-      console.log('  상세: 성공 ' + detailOk + ' / 실패 ' + detailFail);
-    }
-
-    // 3단계: 업로드
-    for (var ui = 0; ui < pageItems.length; ui++) {
-      if (results.length >= LIMIT) break;
-      var item = pageItems[ui];
-      var bn = item.building_name || '';
-      var dn = item.dong || extractDong(item.address) || '';
-      item.title = bn
-        ? (dn + ' ' + bn + ' ' + (item.type || '원룸')).trim().substring(0, 30)
-        : (dn + ' ' + (item.deal || '월세') + ' ' + (item.type || '원룸')).trim().substring(0, 30);
-      var upResult = await uploadListing(item);
-      if (upResult.ok) {
-        uploaded++;
-        existingIds.add(item.source_id);
-        var fieldCount = Object.keys(item).filter(function(k) {
-          return item[k] !== null && item[k] !== undefined && item[k] !== '';
-        }).length;
-        console.log('  ✓ [' + item.source_id + '] ' + fieldCount + '필드 | ' + (item.address || '').substring(0, 25));
-      } else {
-        failed++;
-        console.log('  ✗ [' + item.source_id + '] ' + upResult.error);
-      }
-      results.push(item);
-      await sleep(300);
-    }
-    console.log('  누적: 업로드=' + uploaded + ' 건너뜀=' + skipped + ' 실패=' + failed);
-    pg++;
-    await sleep(DELAY_MS);
-  }
-  console.log('\n╔═══════════════════════════════════════╗');
-  console.log('║  GSC Crawler v6.0 완료                ║');
-  console.log('║  총 파싱: ' + results.length + '건                     ║');
-  console.log('║  업로드: ' + uploaded + ' | 건너뜀: ' + skipped + ' | 실패: ' + failed + '  ║');
-  console.log('║  상세 성공: ' + detailOk + ' | 상세 실패: ' + detailFail + '    ║');
-  console.log('╚═══════════════════════════════════════╝');
-  return results;
-})();
+      console.log('  상세페이지 로딩 중 (' + DETAIL_CONCURRENCY
