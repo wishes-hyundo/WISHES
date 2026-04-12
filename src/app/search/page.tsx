@@ -33,7 +33,7 @@ export default function SearchPortalPage() {
       if (!w.__WS_PREFETCH__) {
         w.__WS_PREFETCH__ = fetch('/api/admin/listings?fields=minimal', {
           headers: { Authorization: 'Bearer wishes2026' },
-          cache: 'force-cache',
+          cache: 'no-cache',
         })
           .then((r) => r.json())
           .then((j) => (j && j.success && Array.isArray(j.data) ? j.data : null))
@@ -260,3 +260,4 @@ const btnSecondary: React.CSSProperties = {
   cursor: 'pointer',
   fontWeight: 600,
 };
+   
