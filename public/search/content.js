@@ -3653,10 +3653,7 @@
           if (listing.parking_spaces != null) bizRows.push('<div><strong>전용 주차</strong> ' + listing.parking_spaces + '대</div>');
           if (listing.special_notes) bizRows.push('<div style="grid-column:span 2;"><strong>특이사항</strong> <span style="color:#e65100;">' + escHtml(listing.special_notes) + '</span></div>');
           if (listing.contact) bizRows.push('<div><strong>임대인 연락처</strong> <a href="tel:' + escHtml(listing.contact) + '" style="color:#1976D2;font-weight:600;">' + escHtml(listing.contact) + '</a></div>');
-          if (listing.source_site && listing.source_url) {
-            var siteLabel = listing.source_site === 'gongsilclub' ? '공실클럽' : listing.source_site === 'onhouse' ? '온하우스' : listing.source_site;
-            bizRows.push('<div style="grid-column:span 2;"><strong>출처</strong> <a href="' + escHtml(listing.source_url) + '" target="_blank" style="color:#1976D2;text-decoration:underline;">' + escHtml(siteLabel) + ' 원본 보기 ↗</a></div>');
-          }
+          // 출처 정보 미표시
           if (bizRows.length > 0) {
             bizHtml = '<div class="ws-detail-section" style="background:#fff8f0;border:1px solid #ffe0b2;border-radius:10px;padding:16px;">' +
               '<h3 style="color:#e65100;">🏪 업종/임대 정보</h3>' +
@@ -3670,10 +3667,7 @@
           var extraRows = [];
           if (listing.contact) extraRows.push('<div><strong>담당자 연락처</strong> <a href="tel:' + escHtml(listing.contact) + '" style="color:#1976D2;font-weight:600;">' + escHtml(listing.contact) + '</a></div>');
           if (listing.building_name) extraRows.push('<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>');
-          if (listing.source_site && listing.source_url) {
-            var siteLabel2 = listing.source_site === 'gongsilclub' ? '공실클럽' : listing.source_site === 'onhouse' ? '온하우스' : listing.source_site;
-            extraRows.push('<div style="grid-column:span 2;"><strong>출처</strong> <a href="' + escHtml(listing.source_url) + '" target="_blank" style="color:#1976D2;text-decoration:underline;">' + escHtml(siteLabel2) + ' 원본 보기 ↗</a></div>');
-          }
+          // 출처 정보 미표시
           if (extraRows.length > 0) {
             extraHtml = '<div class="ws-detail-section" style="background:#f3f0ff;border:1px solid #d1c4e9;border-radius:10px;padding:16px;">' +
               '<h3 style="color:#4527a0;">📋 기타 정보</h3>' +
