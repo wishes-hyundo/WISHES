@@ -506,19 +506,17 @@ export default function ListingDetailClient({ id }: Props) {
                       <Check className="w-3 h-3" /> 대출가능
                     </span>
                   )}
-                  {/* features: listing_features 테이블 + listings.features 컬럼 병합 (중복 제거) */}
-                  {(() => {
-                    const allFeatures = new Set<string>();
-                    features.forEach(f => allFeatures.add(f.feature));
-                    if (listing.features && Array.isArray(listing.features)) {
-                      listing.features.forEach((f: string) => allFeatures.add(f));
-                    }
-                    return Array.from(allFeatures).map((f, idx) => (
-                      <span key={`feat-${idx}`} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
-                        {f}
-                      </span>
-                    ));
-                  })()}
+                  {features.map((f) => (
+                    <span key={f.id} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
+                      {f.feature}
+                    </span>
+                  ))}
+                  {/* listings.features column (TEXT[]) */}
+                  {listing.features && listing.features.length > 0 && listing.features.map((f: string, idx: number) => (
+                    <span key={`feat-${idx}`} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
+                      {f}
+                    </span>
+                  ))}
                 </div>
               </div>
 
@@ -741,4 +739,10 @@ function InfoRow({ label, value, fullWidth }: { label: string; value: string; fu
 function OptionBadge({ label, available }: { label: string; available: boolean }) {
   return (
     <span className={`flex items-center gap-1 px-3 py-1 text-sm rounded-full ${
-      available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray
+      available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400 line-through'
+    }`}>
+      {available ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+      {label}
+    </span>
+  );
+}
