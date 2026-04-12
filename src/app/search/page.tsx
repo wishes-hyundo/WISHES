@@ -260,4 +260,3 @@ const btnSecondary: React.CSSProperties = {
   cursor: 'pointer',
   fontWeight: 600,
 };
-   
