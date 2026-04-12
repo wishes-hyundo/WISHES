@@ -3543,7 +3543,7 @@
           // 주거용: 방/욕실, 방향, 구조
           basicHtml += '<div><strong>방/욕실</strong> ' + (listing.rooms || '-') + '개 / ' + (listing.bathrooms || '-') + '개</div>';
           basicHtml += '<div><strong>방향</strong> ' + (listing.direction || '-') + '</div>';
-          basicHtml += '<div><strong>구조</strong> ' + (listing.room_shape || listing.entrance_type || '-') + '</div>';
+          basicHtml += '<div><strong>구조</strong> ' + (listing.entrance_type || '-') + '</div>';
         } else {
           // 사무실/상가: 전용률, 방향
           if (listing.area_supply_m2 && listing.area_m2) {
@@ -3567,9 +3567,17 @@
         // 관리비
         var mf = listing.maintenance_fee;
         var mi = listing.maintenance_includes;
+        var sn = listing.special_notes || '';
         if (mf && mf > 0) {
           priceHtml += '<div><strong>관리비</strong> ' + mf + '만원';
-          if (mi) priceHtml += '<div style="font-size:11px;color:#16a34a;margin-top:2px;">✅ 포함: ' + mi + '</div>';
+          if (listing.vat_included === false) priceHtml += ' <span style="font-size:11px;color:#e65100;">(부가세별도)</span>';
+          else if (listing.vat_included === true) priceHtml += ' <span style="font-size:11px;color:#16a34a;">(부가세포함)</span>';
+          if (mi && mi.length > 0) priceHtml += '<div style="font-size:11px;color:#16a34a;margin-top:2px;">✅ 포함: ' + (Array.isArray(mi) ? mi.join(', ') : mi) + '</div>';
+          priceHtml += '</div>';
+        } else if (/관리비\s*별도|관리비별도/.test(sn)) {
+          priceHtml += '<div><strong>관리비</strong> <span style="color:#1976D2;font-weight:600;">관리비 별도</span>';
+          var extraNotes = sn.replace(/관리비\s*별도\s*[,/]?\s*/, '').trim();
+          if (extraNotes) priceHtml += '<div style="font-size:11px;color:#e65100;margin-top:2px;">📌 ' + escHtml(extraNotes) + '</div>';
           priceHtml += '</div>';
         } else {
           priceHtml += '<div><strong>관리비</strong> <span style="color:#f59e0b;font-style:italic;">미입력</span></div>';
@@ -3594,7 +3602,14 @@
         // 시설/옵션
         var facilHtml = '<div class="ws-detail-section"><h3>시설/옵션</h3><div class="ws-detail-grid">';
         // 공통: 주차
-        facilHtml += '<div><strong>주차</strong> ' + (listing.parking ? (getParkingCount(listing) > 1 ? getParkingCount(listing) + ' 대' : '가능') : (listing.building_info && listing.building_info.총주차대수 !== undefined ? (parseInt(listing.building_info.총주차대수) > 0 ? parseInt(listing.building_info.총주차대수) + ' 대 <span style="color:#888;font-size:11px;">(건축물대장)</span>' : '불가') : '<span style="color:#999;font-style:italic;">미확인</span>')) + '</div>';
+        var parkDisplay = '';
+        if (listing.parking_spaces && listing.parking_spaces > 0) parkDisplay = listing.parking_spaces + ' 대';
+        else if (listing.parking === true) parkDisplay = getParkingCount(listing) > 1 ? getParkingCount(listing) + ' 대' : '가능';
+        else if (listing.parking === false) parkDisplay = '불가';
+        else if (listing.building_info && listing.building_info.총주차대수 !== undefined) parkDisplay = parseInt(listing.building_info.총주차대수) > 0 ? parseInt(listing.building_info.총주차대수) + ' 대 <span style="color:#888;font-size:11px;">(건축물대장)</span>' : '불가';
+        else if (listing.special_notes && /개별\s*확인/.test(listing.special_notes)) parkDisplay = '개별확인';
+        else parkDisplay = '<span style="color:#999;font-style:italic;">미확인</span>';
+        facilHtml += '<div><strong>주차</strong> ' + parkDisplay + '</div>';
         // 공통: 엘리베이터
         facilHtml += '<div><strong>엘리베이터</strong> ' + (listing.elevator ? '있음' : (listing.building_info && listing.building_info.승용엘리베이터 !== undefined ? (parseInt(listing.building_info.승용엘리베이터) > 0 ? parseInt(listing.building_info.승용엘리베이터) + ' 대 <span style="color:#888;font-size:11px;">(건축물대장)</span>' : '없음') : '<span style="color:#999;font-style:italic;">미확인</span>')) + '</div>';
         // 공통: 난방
@@ -13517,40 +13532,4 @@
       html += '<span style="font-size:11px;font-weight:700;color:' + matchColor + ';">' + item.pct + '%</span>';
       html += '</div></div>';
       html += '<div style="font-size:12px;color:#888;margin-bottom:4px;">' + escHtml(l.address || '') + ' · ' + escHtml(l.type || '') + ' · ' + (l.area_m2 ? formatArea(l.area_m2) : '-') + '</div>';
-      html += '<div style="font-size:14px;font-weight:700;color:#2D5A27;">' + (priceText || '-') + '</div>';
-      html += '<div style="font-size:10px;color:#999;margin-top:2px;">' + item.reasons.join(' · ') + '</div>';
-      html += '</div></div>';
-    });
-
-    resultsEl.innerHTML = html;
-
-    // 클릭 이벤트 (상세 모달 열기)
-    resultsEl.querySelectorAll('[data-sr-id]').forEach(function(el) {
-      el.addEventListener('click', function() {
-        var id = this.getAttribute('data-sr-id');
-        var found = (window.WS.allListings || []).find(function(l) { return String(l.id) === String(id); });
-        if (found) {
-          document.getElementById('ws-modal-smart-recommend').style.display = 'none';
-          window.WS.showDetail(found);
-        }
-      });
-    });
-  };
-
-  // [EMBED-PATCH] 임베드 모드에서는 boot 완료 직후 바로 검색 UI를 자동으로 표시
-  if (_WS_EMBEDDED_MODE) {
-    try {
-      if (window.WS && typeof window.WS.showSearchUI === 'function') {
-        window.WS.showSearchUI();
-      }
-      if (window.WS && typeof window.WS.loadData === 'function' && !window.WS._loadingData) {
-        window.WS.loadData();
-      }
-    } catch (e) {
-      console.error('[WISHES-EMBED] auto-show 실패:', e);
-    }
-  }
-
-  } // end _wsBootExtension
-
-})();
+      html += '<div style="font-size:14px;font-weight:700;color:#2D5A27;">' + (pr

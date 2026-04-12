@@ -120,12 +120,25 @@
     var doc = parser.parseFromString(html, 'text/html');
     var d = { source_site: 'onhouse', source_id: String(listingId) };
 
-    // ── 주소 ──
+    // ── 주소 (층/호수 포함 주소 우선) ──
+    // .addr_title에 "관악구 봉천동 972-17  2층 202호" 형태로 층/호 포함됨
+    var addrTitleEl = doc.querySelector('.addr_title');
     var addrInput = doc.querySelector('input[name="addr"]');
-    if (addrInput && addrInput.value && addrInput.value.trim()) {
-      d.address = addrInput.value.trim();
+    var fullAddr = '';
+    if (addrTitleEl && addrTitleEl.textContent.trim().length > 5) {
+      fullAddr = addrTitleEl.textContent.replace(/\s+/g, ' ').trim();
+    }
+    var baseAddr = (addrInput && addrInput.value) ? addrInput.value.trim() : '';
+
+    // fullAddr에 층/호 정보가 있으면 사용, 없으면 baseAddr
+    if (fullAddr && /\d+층|\d+호/.test(fullAddr)) {
+      d.address = fullAddr;
+    } else if (baseAddr) {
+      d.address = baseAddr;
+    } else if (fullAddr) {
+      d.address = fullAddr;
     } else {
-      var addrSels = ['.addr_title', '.title_addr', '.addr-text', '.room_addr', '.address', 'h2.addr', '.info_addr'];
+      var addrSels = ['.title_addr', '.addr-text', '.room_addr', '.address', 'h2.addr', '.info_addr'];
       for (var si = 0; si < addrSels.length; si++) {
         var el = doc.querySelector(addrSels[si]);
         if (el && el.textContent.trim().length > 5) { d.address = el.textContent.trim(); break; }
@@ -133,7 +146,7 @@
     }
     if (d.address) { d.dong = extractDong(d.address); d.gu = extractGu(d.address); }
 
-    // ── 상세주소 ──
+    // ── 상세주소 (별도 층/호 정보) ──
     var phoneBox = doc.querySelector('.phoneViewBox, .phone_view_box, .phone-view-box');
     if (phoneBox) {
       phoneBox.querySelectorAll('h6').forEach(function(h) {
@@ -465,24 +478,4 @@
         if (emptyPages >= 2) { hasMore = false; break; }
         page++; continue;
       }
-      emptyPages = 0;
-    } catch(e) {
-      console.error('  목록 로딩 실패: ' + e.message);
-      hasMore = false; break;
-    }
-
-    for (var ii = 0; ii < ids.length; ii++) {
-      var id = ids[ii];
-      if (allResults.length >= LIMIT) break;
-      if (existingIds.has(String(id))) { skipped++; continue; }
-
-      var data = await parseDetail(id);
-      await sleep(DELAY_MS);
-
-      if (!data || !data.deal) {
-        console.log('  [' + id + '] 파싱 실패');
-        failed++; continue;
-      }
-
-      var fieldCount = Object.keys(data).filter(function(k) {
-        return data[k] !== null && data[k] !=
+      emptyPages = 

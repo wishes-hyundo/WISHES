@@ -412,7 +412,6 @@ export async function POST(request: NextRequest) {
         rights_fee: listingData.rights_fee || null,
         gu: listingData.gu || null,
         entrance_type: listingData.entrance_type || null,
-        features: listingData.features || null,
         parking_fee: listingData.parking_fee || null,
         building_purpose: listingData.building_purpose || null,
         previous_brand: listingData.previous_brand || null,
@@ -428,6 +427,25 @@ export async function POST(request: NextRequest) {
         { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
         { status: 500, headers: CORS_HEADERS }
       );
+    }
+
+    // ── listing_features 삽입 (옵션 목록) ──
+    let featureResults: any[] = [];
+    const features = listingData.features;
+    if (features && Array.isArray(features) && features.length > 0 && data?.id) {
+      const featureInserts = features.map((f: string) => ({
+        listing_id: data.id,
+        feature: f.trim(),
+      }));
+      const { data: featData, error: featError } = await supabase
+        .from('listing_features')
+        .insert(featureInserts)
+        .select();
+      if (featError) {
+        console.error('옵션 연결 오류:', featError);
+      } else {
+        featureResults = featData || [];
+      }
     }
 
     let imageResults: any[] = [];
@@ -567,36 +585,4 @@ export async function PUT(request: NextRequest) {
 
     if (!data) {
       const { data: fetchedData } = await supabase
-        .from('listings')
-        .select('*, listing_images(*)')
-        .eq('id', id)
-        .single();
-
-      data = fetchedData;
-    }
-
-    if (!data) {
-      return NextResponse.json(
-        { success: false, error: '매물을 찾을 수 없습니다' },
-        { status: 404 }
-      );
-    }
-
-    revalidatePath('/', 'layout');
-    revalidatePath('/listings', 'page');
-    revalidatePath('/map', 'page');
-    revalidatePath(`/listings/${id}`, 'page');
-    revalidateTag('listings');
-
-    return NextResponse.json({
-      success: true,
-      data,
-    });
-  } catch (error: any) {
-    console.error('매물 수정 오류:', error);
-    return NextResponse.json(
-      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
-      { status: 500 }
-    );
-  }
-}
+        .f
