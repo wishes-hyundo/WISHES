@@ -576,4 +576,19 @@ export async function PUT(request: NextRequest) {
 
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
-    re
+    revalidatePath('/map', 'page');
+    revalidatePath(`/listings/${id}`, 'page');
+    revalidateTag('listings');
+
+    return NextResponse.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    console.error('매물 수정 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
+      { status: 500 }
+    );
+  }
+}
