@@ -1,14 +1,23 @@
 /**
- * 공실클럽(gc2.gongsilclub.com) 상세페이지 크롤러 v4.1
- * 실행: gc2.gongsilclub.com/v4/item.asp?mn=1110&wm=F100 탭에서 Console에 붙여넣기
- * 전제: 로그인 상태, F100(지도+리스트) 뷰, 블록 선택 후 매물 리스트 표시 상태
+ * 공실클럽(gc2.gongsilclub.com) 크롤러 v5.0
+ * 실행: gc2.gongsilclub.com 에서 공실매물 > 전체 > 주소검색 > 서울 전체 검색 후
+ *       Chrome DevTools Console에 붙여넣기
+ * 전제: 로그인 상태
  *
- * v4.1: 상세페이지 URL 패턴 수정(wm=F140), page() 함수 수정, 도메인 수정
+ * v5.0 변경사항:
+ *   - getExistingIds() 페이지네이션 수정 (Supabase 1000행 제한 대응)
+ *   - VIP 매물 자동 건너뛰기
+ *   - 카드 셀렉터 li.it_list + ItemViewDetail() 패턴 적용
+ *   - listing_images/listing_features await 추가
+ *   - 이미지 추출 제거 (불필요)
+ *   - 가격 단위: 만원 그대로 저장 (변환 없음)
+ *   - page() 호출 시 페이지 리로드 → 단일 페이지 내 매물만 처리
+ *     (여러 페이지 크롤링은 page(n) 후 스크립트 재실행 필요)
  */
 (async function GSC_FULL_CRAWLER() {
   var SUPABASE_URL = 'https://xbjgdsyukjdkfvcbzmjc.supabase.co';
   var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhiamdkc3l1a2pka2Z2Y2J6bWpjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQzMzYxODcsImV4cCI6MjA4OTkxMjE4N30.htuaYUP5Z6UeMJQ-4heTyJ1YBLy9SSQYclMm7ZYR_-4';
-  var LIMIT = 9999;
+  var LIMIT = 999999;
   var DELAY_MS = 1000;
 
   // --- 헬퍼 ---
@@ -268,25 +277,7 @@
       }
     }
 
-    // -- 이미지 --
-    var imgs = [];
-    doc.querySelectorAll('img').forEach(function(img) {
-      var src = img.src || img.getAttribute('src') || '';
-      if (src && src.indexOf('gongsilclub') !== -1 && (src.indexOf('.jpg') !== -1 || src.indexOf('.png') !== -1 || src.indexOf('.webp') !== -1)) {
-        if (src.indexOf('thumb') === -1 && src.indexOf('icon') === -1 && src.indexOf('logo') === -1) {
-          if (imgs.indexOf(src) === -1) imgs.push(src);
-        }
-      }
-    });
-    // regex fallback
-    var imgRegex = /https?:\/\/[^"']+gongsilclub[^"']*\.(?:jpg|jpeg|png|webp)/gi;
-    var imgMatch;
-    while ((imgMatch = imgRegex.exec(html)) !== null) {
-      if (imgs.indexOf(imgMatch[0]) === -1 && imgMatch[0].indexOf('thumb') === -1 && imgMatch[0].indexOf('icon') === -1) {
-        imgs.push(imgMatch[0]);
-      }
-    }
-    if (imgs.length > 0) d.images = imgs.slice(0, 20);
+    // (이미지 추출 제거 — v5.0)
 
     // -- 옵션/시설 --
     var optionArea = doc.querySelector('.option_area, .option_wrap, .facility');
@@ -308,23 +299,31 @@
     return d;
   }
 
-  // --- 기존 source_id 조회 ---
+  // --- 기존 source_id 조회 (페이지네이션: Supabase 1000행 제한 대응) ---
   async function getExistingIds() {
     try {
-      var r = await fetch(
-        SUPABASE_URL + '/rest/v1/listings?source_site=eq.gongsilclub&select=source_id&limit=10000',
-        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } }
-      );
-      if (!r.ok) return new Set();
-      var data = await r.json();
-      return new Set(data.map(function(x) { return String(x.source_id); }));
+      var allIds = new Set();
+      var offset = 0;
+      while (true) {
+        var r = await fetch(
+          SUPABASE_URL + '/rest/v1/listings?source_site=eq.gongsilclub&select=source_id&limit=1000&offset=' + offset,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } }
+        );
+        if (!r.ok) break;
+        var data = await r.json();
+        if (!data.length) break;
+        data.forEach(function(x) { allIds.add(String(x.source_id)); });
+        offset += data.length;
+        if (data.length < 1000) break;
+      }
+      console.log('[GSC] 기존 source_id: ' + allIds.size + '개');
+      return allIds;
     } catch(e) { return new Set(); }
   }
 
   // --- 업로드 ---
   async function uploadListing(data) {
     try {
-      var images = data.images || [];
       var featuresList = data.features || [];
       var listingData = {};
       for (var k in data) {
@@ -345,30 +344,22 @@
       var dbId = resp[0] ? resp[0].id : null;
       if (!dbId) return { ok: true, id: null };
 
-      if (images.length > 0) {
-        var imgInserts = images.slice(0, 20).map(function(url, idx) {
-          return { listing_id: dbId, url: url, alt: (listingData.title || '') + ' ' + (idx+1), sort_order: idx, is_thumbnail: idx === 0 };
-        });
-        fetch(SUPABASE_URL + '/rest/v1/listing_images', {
-          method: 'POST',
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify(imgInserts),
-        }).catch(function(e) {});
-      }
+      // 이미지 업로드 제거 (v5.0)
+
       if (featuresList.length > 0) {
         var featInserts = featuresList.map(function(f) { return { listing_id: dbId, feature: String(f) }; });
-        fetch(SUPABASE_URL + '/rest/v1/listing_features', {
+        await fetch(SUPABASE_URL + '/rest/v1/listing_features', {
           method: 'POST',
           headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
           body: JSON.stringify(featInserts),
-        }).catch(function(e) {});
+        });
       }
       return { ok: true, id: dbId };
     } catch(e) { return { ok: false, error: e.message }; }
   }
 
   // === 메인 실행 ===
-  console.log('=== GSC Full Crawler v4 Start (LIMIT=' + LIMIT + ') ===');
+  console.log('=== GSC Full Crawler v5.0 Start (LIMIT=' + LIMIT + ') ===');
   var existingIds = await getExistingIds();
   console.log('Existing: ' + existingIds.size);
 
@@ -397,6 +388,10 @@
     var newInPage = 0;
     for (var ci = 0; ci < cards.length; ci++) {
       if (results.length >= LIMIT) break;
+      // VIP 매물 건너뛰기
+      var cardText = cards[ci].textContent || '';
+      if (cardText.indexOf('VIP') !== -1) { skipped++; console.log('  [VIP] 건너뛰기'); continue; }
+
       var cardData = parseCard(cards[ci]);
       if (!cardData || !cardData.source_id) { failed++; continue; }
       if (existingIds.has(cardData.source_id)) { skipped++; continue; }
@@ -447,10 +442,10 @@
   }
 
   console.log('\n========================================');
-  console.log('=== GSC Full Crawler v4.1 Done ===');
+  console.log('=== GSC Full Crawler v5.0 Done ===');
   console.log('Parsed: ' + results.length + ' | Upload: ' + uploaded);
   console.log('Detail success: ' + detailOk + ' | Detail fail: ' + detailFail);
   console.log('Skip: ' + skipped + ' | Fail: ' + failed);
   console.log('========================================');
   return results;
-})();
+})()

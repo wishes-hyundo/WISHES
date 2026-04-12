@@ -1,11 +1,17 @@
 /**
- * 온하우스(www.onhouse.com) 전체 필드 크롤러
+ * 온하우스(www.onhouse.com) 전체 필드 크롤러 v2.0
  * 실행: www.onhouse.com 탭에서 Chrome DevTools Console에 붙여넣기
  * 전제: 로그인 상태
+ *
+ * v2.0 변경사항:
+ *   - getExistingSourceIds() 페이지네이션 수정 (Supabase 1000행 제한 대응)
+ *   - listing_features await 추가 (fire-and-forget 버그 수정)
+ *   - 이미지 추출/업로드 제거 (불필요)
+ *   - 가격 단위: 만원 그대로 저장 (변환 없음)
  */
 (async function ONHOUSE_CRAWLER() {
   const UPLOAD = true;
-  const LIMIT = 9999;
+  const LIMIT = 999999;
   const DELAY_MS = 600;
 
   // Supabase 직접 접근 (8개 신규 필드용)
@@ -48,18 +54,25 @@
     return m ? m[1] : '';
   }
 
-  // --- 기존 source_id 조회 (Supabase 직접) ---
+  // --- 기존 source_id 조회 (페이지네이션: Supabase 1000행 제한 대응) ---
   async function getExistingSourceIds() {
     try {
-      const r = await fetch(
-        SUPABASE_URL + '/rest/v1/listings?source_site=eq.onhouse&select=source_id&limit=10000',
-        { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } }
-      );
-      if (!r.ok) return new Set();
-      const data = await r.json();
-      const ids = new Set(data.map(function(x) { return String(x.source_id); }));
-      console.log('[온하우스] 기존 업로드된 source_id: ' + ids.size + '개');
-      return ids;
+      var allIds = new Set();
+      var offset = 0;
+      while (true) {
+        const r = await fetch(
+          SUPABASE_URL + '/rest/v1/listings?source_site=eq.onhouse&select=source_id&limit=1000&offset=' + offset,
+          { headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY } }
+        );
+        if (!r.ok) break;
+        const data = await r.json();
+        if (!data.length) break;
+        data.forEach(function(x) { allIds.add(String(x.source_id)); });
+        offset += data.length;
+        if (data.length < 1000) break;
+      }
+      console.log('[온하우스] 기존 업로드된 source_id: ' + allIds.size + '개');
+      return allIds;
     } catch(e) { return new Set(); }
   }
 
@@ -368,21 +381,7 @@
       }
     }
 
-    // -- 이미지 --
-    var imgs = [];
-    doc.querySelectorAll('img[src*="listing"], img[src*="photo"], img[src*="rent"]').forEach(function(img) {
-      var src = img.src;
-      if (src && src.indexOf('thumb_s') === -1 && (src.indexOf('.jpg') !== -1 || src.indexOf('.png') !== -1 || src.indexOf('.webp') !== -1)) {
-        if (imgs.indexOf(src) === -1) imgs.push(src);
-      }
-    });
-    // onhouse photo URLs from raw HTML
-    var imgRegex = /https:\/\/[^"']+(?:listing|photo|rent)[^"']*\.(?:jpg|png|webp)/gi;
-    var imgMatch;
-    while ((imgMatch = imgRegex.exec(html)) !== null) {
-      if (imgs.indexOf(imgMatch[0]) === -1) imgs.push(imgMatch[0]);
-    }
-    if (imgs.length > 0) d.images = imgs.slice(0, 20);
+    // (이미지 추출 제거 — 불필요)
 
     // -- 연락처 --
     var phones = html.match(/050\d[-]\d{3,4}[-]\d{4}|0\d{1,2}[-]\d{3,4}[-]\d{4}/g);
@@ -423,10 +422,9 @@
   // --- 업로드 (Supabase 직접 INSERT + listing_images + listing_features) ---
   async function uploadListing(data) {
     try {
-      var images = data.images || [];
       var featuresList = data.features || [];
       var listingData = {};
-      for (var k in data) { if (k !== 'images') listingData[k] = data[k]; }
+      for (var k in data) { if (k !== 'images' && k !== 'features') listingData[k] = data[k]; }
       listingData.status = '가용';
 
       // Step 1: INSERT listing
@@ -445,31 +443,17 @@
       var dbId = resp[0] ? resp[0].id : null;
       if (!dbId) return { ok: true, id: null };
 
-      // Step 2: INSERT images
-      if (images.length > 0) {
-        var imgInserts = images.slice(0, 20).map(function(url, idx) {
-          return {
-            listing_id: dbId, url: url, alt: (listingData.title || '') + ' ' + (idx+1),
-            sort_order: idx, is_thumbnail: idx === 0,
-          };
-        });
-        fetch(SUPABASE_URL + '/rest/v1/listing_images', {
-          method: 'POST',
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-          body: JSON.stringify(imgInserts),
-        }).catch(function(e) { console.warn('이미지 저장 실패:', e.message); });
-      }
+      // (이미지 업로드 제거)
 
-      // Step 3: INSERT features
+      // Step 2: INSERT features (await 추가)
       if (featuresList.length > 0) {
         var featInserts = featuresList.map(function(f) { return { listing_id: dbId, feature: String(f) }; });
-        fetch(SUPABASE_URL + '/rest/v1/listing_features', {
+        await fetch(SUPABASE_URL + '/rest/v1/listing_features', {
           method: 'POST',
           headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
             'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
           body: JSON.stringify(featInserts),
-        }).catch(function(e) { console.warn('옵션 저장 실패:', e.message); });
+        });
       }
 
       return { ok: true, id: dbId };
@@ -543,4 +527,4 @@
   console.log('Upload: ' + uploaded + ' | Skip: ' + skipped + ' | Fail: ' + failed);
   console.log('========================================');
   return allResults;
-})();
+})()
