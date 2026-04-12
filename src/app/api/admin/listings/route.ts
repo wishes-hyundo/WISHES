@@ -29,7 +29,7 @@ const createListingSchema = z.object({
   price: z.number().int().nonnegative().optional().nullable(),
   maintenance_fee: z.number().int().nonnegative().default(0).optional(),
   maintenance_includes: z.array(z.string()).optional().nullable(),
-  area_m2: z.number().positive(),
+  area_m2: z.number().nonnegative(),
   area_supply_m2: z.number().positive().optional().nullable(),
   area_land_m2: z.number().positive().optional().nullable(),
   floor_current: z.string().optional().nullable(),
@@ -302,10 +302,20 @@ export async function POST(request: NextRequest) {
     if (body.sale_price !== undefined && body.price === undefined) body.price = body.sale_price;
     if (body.floor !== undefined && body.floor_current === undefined) body.floor_current = body.floor ? String(body.floor) : null;
     if (body.year_built !== undefined && body.built_year === undefined) body.built_year = body.year_built ? String(body.year_built) : null;
-    // dong 자동 추출 (address에서 "동" 추출)
+    // dong 자동 추출 (address에서 "동" 추출 - 개선된 regex)
     if (!body.dong && body.address) {
-      const dongMatch = body.address.match(/([가-힣]+동)/);
-      body.dong = dongMatch ? dongMatch[1] : (body.address.split(' ')[1] || body.address.split(' ')[0] || '미입력');
+      // "OO동" 패턴 추출 (구 뒤의 동, 또는 시/군 뒤의 동)
+      const dongPatterns = [
+        /(?:구|시|군)\s+([가-힣]+동)\b/,   // "강남구 청담동" → 청담동
+        /([가-힣]{2,}동)\s*\d/,            // "신림동 123" → 신림동
+        /([가-힣]{2,}동)\b/,               // 일반적인 "OO동" 패턴
+      ];
+      let dongFound = '';
+      for (const pat of dongPatterns) {
+        const m = body.address.match(pat);
+        if (m) { dongFound = m[1]; break; }
+      }
+      body.dong = dongFound || (body.address.split(' ')[1] || body.address.split(' ')[0] || '미입력');
     }
     if (!body.dong) body.dong = '미입력';
     // gu 자동 추출 (address에서 "구" 추출)
@@ -321,8 +331,8 @@ export async function POST(request: NextRequest) {
       '쓰리룸': '쓰리룸', '단독/다가구': '원룸',
     };
     if (body.type && typeMap[body.type]) body.type = typeMap[body.type];
-    // area_m2가 0이면 0.1로 (양수 required)
-    if (!body.area_m2 || body.area_m2 <= 0) body.area_m2 = 0.1;
+    // area_m2가 없으면 0으로 설정
+    if (!body.area_m2 || body.area_m2 < 0) body.area_m2 = 0;
 
     const parsed = createListingSchema.safeParse(body);
 
@@ -566,19 +576,4 @@ export async function PUT(request: NextRequest) {
 
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
-    revalidatePath('/map', 'page');
-    revalidatePath(`/listings/${id}`, 'page');
-    revalidateTag('listings');
-
-    return NextResponse.json({
-      success: true,
-      data,
-    });
-  } catch (error: any) {
-    console.error('매물 수정 오류:', error);
-    return NextResponse.json(
-      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
-      { status: 500 }
-    );
-  }
-}
+    re
