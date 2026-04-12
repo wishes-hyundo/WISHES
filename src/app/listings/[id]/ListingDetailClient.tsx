@@ -286,7 +286,7 @@ export default function ListingDetailClient({ id }: Props) {
     '@context': 'https://schema.org',
     '@type': 'RealEstateListing',
     name: listing.title,
-    description: listing.description || `${listing.dong} ${listing.type} ${listing.deal}`,
+    description: listing.ai_description || `${listing.dong} ${listing.type} ${listing.deal}`,
     url: `https://wishes.co.kr/listings/${listing.id}`,
     datePosted: listing.created_at,
     dateModified: listing.updated_at,
@@ -521,12 +521,12 @@ export default function ListingDetailClient({ id }: Props) {
                 </div>
               </div>
 
-              {/* 설명 */}
-              {listing.description && (
+              {/* 매물설명 (AI 생성 - 고객 노출용) */}
+              {listing.ai_description && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">매물 설명</h3>
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                    {listing.description}
+                    {listing.ai_description}
                   </p>
                 </div>
               )}

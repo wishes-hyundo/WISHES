@@ -58,9 +58,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ListingPage({ params }: Props) {
   const { id } = await params;
   const supabase = createServerClient();
+  // 고객용: description(크롤링 원본) 제외, ai_description만 포함
   const { data: listing } = await supabase
     .from('listings')
-    .select('*')
+    .select(`
+      id, title, type, deal, status, dong, gu, address, address_detail,
+      lat, lng, deposit, monthly, price, area_m2, area_supply_m2,
+      floor_current, floor_total, rooms, bathrooms, direction, heating_type,
+      available_date, built_year, ai_description, building_name, building_purpose,
+      parking, elevator, pet, balcony, full_option, loan_available,
+      maintenance_fee, maintenance_includes, entrance_type, lease_period,
+      business_type, goodwill_fee, vat_included, usage_approved,
+      electric_capacity, signage_available, meeting_room,
+      previous_business, recommended_business, restricted_business,
+      parking_spaces, rights_fee, parking_fee, commission_fee, previous_brand,
+      special_notes, views, created_at, updated_at, contact,
+      listing_images(url, sort_order), listing_features(feature)
+    `)
     .eq('id', id)
     .single();
 

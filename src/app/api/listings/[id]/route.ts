@@ -53,10 +53,13 @@ export async function GET(
       .select('feature')
       .eq('listing_id', listingId);
 
+    // 고객용 응답: 크롤링 원본 description 제외, ai_description만 노출
+    const { description: _rawDesc, ...publicListing } = listing;
+
     return NextResponse.json({
       success: true,
       data: {
-        ...listing,
+        ...publicListing,
         images: images || [],
         features: features?.map((f) => f.feature) || [],
       },
