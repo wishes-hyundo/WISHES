@@ -34,21 +34,4 @@ export function getWatermarkedUrl(url: string | null | undefined): string {
     // URL 파싱 실패 시 무시
   }
 
-  // 로컬 스토리지 URL (/images/...)
-  if (url.startsWith('/images/')) {
-    const filePath = url.slice('/images/'.length);
-    return `/api/wm/${filePath}`;
-  }
-
-  // 외부 CDN 이미지 → 프록시 경유 (핫링크 보호 우회 + 워터마크)
-  try {
-    const parsed = new URL(url);
-    if (PROXY_HOSTS.includes(parsed.hostname)) {
-      return `/api/img-proxy?url=${encodeURIComponent(url)}`;
-    }
-  } catch {
-    // URL 파싱 실패 시 무시
-  }
-
-  return url;
-}
+  // 로컬 스토리
