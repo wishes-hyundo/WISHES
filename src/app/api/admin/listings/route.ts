@@ -76,6 +76,15 @@ const createListingSchema = z.object({
   rights_fee: z.number().int().nonnegative().optional().nullable(),
   status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
   images: z.array(z.string()).optional(),
+  // 신규 필드 (2026-04-12 추가)
+  gu: z.string().optional().nullable(),
+  entrance_type: z.string().optional().nullable(),
+  features: z.array(z.string()).optional().nullable(),
+  parking_fee: z.number().int().nonnegative().optional().nullable(),
+  building_purpose: z.string().optional().nullable(),
+  previous_brand: z.string().optional().nullable(),
+  commission_fee: z.number().int().nonnegative().optional().nullable(),
+  special_notes: z.string().optional().nullable(),
 });
 
 /**
@@ -299,6 +308,13 @@ export async function POST(request: NextRequest) {
       body.dong = dongMatch ? dongMatch[1] : (body.address.split(' ')[1] || body.address.split(' ')[0] || '미입력');
     }
     if (!body.dong) body.dong = '미입력';
+    // gu 자동 추출 (address에서 "구" 추출)
+    if (!body.gu && body.address) {
+      const guMatch = body.address.match(/([가-힣]+구)/);
+      if (guMatch) body.gu = guMatch[1];
+    }
+    // contact_number → contact 호환
+    if (body.contact_number && !body.contact) body.contact = body.contact_number;
     // type 자동 매핑 (크롤러에서 사용하는 type → API enum)
     const typeMap: Record<string, string> = {
       '빌라': '원룸', '공장/창고': '상가', '지식산업센터': '사무실',
@@ -376,6 +392,14 @@ export async function POST(request: NextRequest) {
         contact: listingData.contact || null,
         lease_period: listingData.lease_period || null,
         rights_fee: listingData.rights_fee || null,
+        gu: listingData.gu || null,
+        entrance_type: listingData.entrance_type || null,
+        features: listingData.features || null,
+        parking_fee: listingData.parking_fee || null,
+        building_purpose: listingData.building_purpose || null,
+        previous_brand: listingData.previous_brand || null,
+        commission_fee: listingData.commission_fee || null,
+        special_notes: listingData.special_notes || null,
       })
       .select()
       .single();
@@ -461,4 +485,100 @@ export async function PUT(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: parsed.error.errors[0].message },
-     
+        { status: 400 }
+      );
+    }
+
+    const supabase = createServerClient();
+
+    const updateValues: Record<string, any> = {};
+    Object.entries(parsed.data).forEach(([key, value]) => {
+      if (value !== undefined && key !== 'images') {
+        updateValues[key] = value;
+      }
+    });
+
+    if (Object.keys(updateValues).length === 0 && !images) {
+      return NextResponse.json(
+        { success: false, error: '수정할 필드가 없습니다' },
+        { status: 400 }
+      );
+    }
+
+    let data = null;
+
+    if (Object.keys(updateValues).length > 0) {
+      const { data: updatedData, error } = await supabase
+        .from('listings')
+        .update(updateValues)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('매물 수정 오류:', error);
+        return NextResponse.json(
+          { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
+          { status: 500 }
+        );
+      }
+
+      data = updatedData;
+    }
+
+    if (images && Array.isArray(images)) {
+      await supabase
+        .from('listing_images')
+        .delete()
+        .eq('listing_id', id);
+
+      if (images.length > 0) {
+        const imageInserts = images.map((url: string, index: number) => ({
+          listing_id: id,
+          url: url,
+          alt: `매물 이미지 ${index + 1}`,
+          sort_order: index,
+          is_thumbnail: index === 0,
+        }));
+
+        await supabase
+          .from('listing_images')
+          .insert(imageInserts);
+      }
+    }
+
+    if (!data) {
+      const { data: fetchedData } = await supabase
+        .from('listings')
+        .select('*, listing_images(*)')
+        .eq('id', id)
+        .single();
+
+      data = fetchedData;
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { success: false, error: '매물을 찾을 수 없습니다' },
+        { status: 404 }
+      );
+    }
+
+    revalidatePath('/', 'layout');
+    revalidatePath('/listings', 'page');
+    revalidatePath('/map', 'page');
+    revalidatePath(`/listings/${id}`, 'page');
+    revalidateTag('listings');
+
+    return NextResponse.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    console.error('매물 수정 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
+      { status: 500 }
+    );
+  }
+}
