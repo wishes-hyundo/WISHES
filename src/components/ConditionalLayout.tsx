@@ -25,12 +25,9 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (isBrokerPortal) {
-    // AuthProvider만 래핑 (createAuthClient 사용을 위해)
-    return (
-      <AuthProvider>
-        {children}
-      </AuthProvider>
-    );
+    // 중개사 포털은 자체 인증 로직 사용 — AuthProvider 불필요
+    // AuthProvider의 getSession()이 Supabase 다운 시 행(hang) 유발하므로 제외
+    return <>{children}</>;
   }
 
   return (

@@ -27,10 +27,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const supabase = createAuthClient();
 
-    // 현재 세션 확인
+    // 현재 세션 확인 (3초 타임아웃 — Supabase 다운 시 무한 대기 방지)
+    const sessionTimeout = setTimeout(() => {
+      setLoading(false); // 타임아웃 시 세션 없이 진행
+    }, 3000);
+
     supabase.auth.getSession().then(({ data: { session } }) => {
+      clearTimeout(sessionTimeout);
       setSession(session);
       setUser(session?.user ?? null);
+      setLoading(false);
+    }).catch(() => {
+      clearTimeout(sessionTimeout);
       setLoading(false);
     });
 
