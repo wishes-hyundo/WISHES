@@ -3596,6 +3596,7 @@
         if (listing.goodwill_fee && listing.goodwill_fee > 0) priceHtml += '<div><strong>권리금(시설)</strong> ' + listing.goodwill_fee + '만</div>';
         if (listing.lease_period) priceHtml += '<div><strong>임대기간</strong> ' + listing.lease_period + '</div>';
         if (listing.commission_fee) priceHtml += '<div><strong>중개수수료</strong> ' + listing.commission_fee + '만</div>';
+        else if (listing.commission_note) priceHtml += '<div><strong>중개수수료</strong> ' + escHtml(listing.commission_note) + '</div>';
         if (listing.vat_included !== undefined && listing.vat_included !== null) priceHtml += '<div><strong>부가세</strong> ' + (listing.vat_included ? '포함' : '별도') + '</div>';
         if (listing.price_per_pyeong) priceHtml += '<div><strong>평당가</strong> ' + listing.price_per_pyeong + '만</div>';
         priceHtml += '</div></div>';
@@ -3647,20 +3648,20 @@
         }
         facilHtml += '</div>';
 
-        // 업종/임대 정보 (상가/사무실 전용)
+        // 업종/임대 정보 (상가/사무실 전용) — 기본정보/시설옵션과 중복 항목 제외
         var bizHtml = '';
         if (isCommercial) {
           var bizRows = [];
-          if (listing.building_name) bizRows.push('<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>');
           if (listing.business_type) bizRows.push('<div><strong>업종</strong> ' + escHtml(listing.business_type) + '</div>');
           if (listing.previous_business) bizRows.push('<div><strong>전 업종</strong> ' + escHtml(listing.previous_business) + '</div>');
           if (listing.previous_brand) bizRows.push('<div><strong>이전 상호</strong> ' + escHtml(listing.previous_brand) + '</div>');
           if (listing.recommended_business) bizRows.push('<div><strong>추천 업종</strong> ' + escHtml(listing.recommended_business) + '</div>');
           if (listing.restricted_business) bizRows.push('<div style="grid-column:span 2;"><strong>제한 업종</strong> <span style="color:#D32F2F;">' + escHtml(listing.restricted_business) + '</span></div>');
-          if (listing.building_purpose) bizRows.push('<div><strong>건물용도</strong> ' + escHtml(listing.building_purpose) + '</div>');
-          if (listing.parking_spaces != null) bizRows.push('<div><strong>전용 주차</strong> ' + listing.parking_spaces + '대</div>');
-          if (listing.special_notes) bizRows.push('<div style="grid-column:span 2;"><strong>특이사항</strong> <span style="color:#e65100;">' + escHtml(listing.special_notes) + '</span></div>');
-          // 출처 정보 미표시
+          // 특이사항에서 주차 관련 텍스트 제거 (시설/옵션에서 이미 표시)
+          if (listing.special_notes) {
+            var cleanNotes = listing.special_notes.replace(/\s*\/?\s*주차:.*$/g, '').replace(/^\s*\/\s*/, '').trim();
+            if (cleanNotes) bizRows.push('<div style="grid-column:span 2;"><strong>특이사항</strong> <span style="color:#e65100;">' + escHtml(cleanNotes) + '</span></div>');
+          }
           if (bizRows.length > 0) {
             bizHtml = '<div class="ws-detail-section" style="background:#fff8f0;border:1px solid #ffe0b2;border-radius:10px;padding:16px;">' +
               '<h3 style="color:#e65100;">🏪 업종/임대 정보</h3>' +
@@ -3668,13 +3669,14 @@
           }
         }
 
-        // 비상업용: 건물용도/특이사항 표시 (연락처는 관계자연락처로 통일)
+        // 비상업용: 특이사항만 표시 (건물명/용도는 기본정보에서 확인, 연락처는 관계자연락처로 통일)
         var extraHtml = '';
         if (!isCommercial) {
           var extraRows = [];
-          if (listing.building_name) extraRows.push('<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>');
-          if (listing.building_purpose) extraRows.push('<div><strong>건물용도</strong> ' + escHtml(listing.building_purpose) + '</div>');
-          if (listing.special_notes) extraRows.push('<div style="grid-column:span 2;"><strong>특이사항</strong> <span style="color:#e65100;">' + escHtml(listing.special_notes) + '</span></div>');
+          if (listing.special_notes) {
+            var cleanNotes2 = listing.special_notes.replace(/\s*\/?\s*주차:.*$/g, '').replace(/^\s*\/\s*/, '').trim();
+            if (cleanNotes2) extraRows.push('<div style="grid-column:span 2;"><strong>특이사항</strong> <span style="color:#e65100;">' + escHtml(cleanNotes2) + '</span></div>');
+          }
           if (extraRows.length > 0) {
             extraHtml = '<div class="ws-detail-section" style="background:#f3f0ff;border:1px solid #d1c4e9;border-radius:10px;padding:16px;">' +
               '<h3 style="color:#4527a0;">📋 기타 정보</h3>' +
@@ -3778,7 +3780,9 @@
             if (contacts.length === 0) return '<div style="text-align:center;padding:16px;color:#999;font-size:13px;">등록된 연락처가 없습니다.<br><span style="font-size:11px;">위 [+ 추가] 버튼으로 사장, 사모, 관리인 등을 등록하세요</span></div>';
             return contacts.map(function(c, idx) {
               var roleColors = {
-                '사장': '#D32F2F', '사모': '#C2185B', '관리인': '#1976D2',
+                '임대인': '#1565C0', '중개사': '#00695C', '건물주': '#4527A0', '소유자': '#4527A0',
+                '관리사무소': '#1976D2', '관리인': '#1976D2', '담당자': '#2E7D32',
+                '사장': '#D32F2F', '사모': '#C2185B',
                 '가족': '#F57C00', '임차인': '#388E3C', '매도자': '#7B1FA2',
                 '매수자': '#0097A7', '세입자': '#5D4037', '기타': '#616161'
               };
@@ -13531,4 +13535,4 @@
       html += '<div style="width:40px;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;"><div style="width:' + item.pct + '%;height:100%;background:' + matchColor + ';border-radius:3px;"></div></div>';
       html += '<span style="font-size:11px;font-weight:700;color:' + matchColor + ';">' + item.pct + '%</span>';
       html += '</div></div>';
-      html += '<div style="font-size:12px;color:#888;margin-bottom:4px;">' + escHtml(l.address || '') + ' · ' + escHtml(l.type ||
+      html += '<div style="font-

@@ -72,6 +72,7 @@ const createListingSchema = z.object({
   source_url: z.string().optional().nullable(),
   building_name: z.string().optional().nullable(),
   contact: z.string().optional().nullable(),
+  contact_role: z.string().optional().nullable(),
   lease_period: z.string().optional().nullable(),
   rights_fee: z.number().int().nonnegative().optional().nullable(),
   status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
@@ -84,6 +85,7 @@ const createListingSchema = z.object({
   building_purpose: z.string().optional().nullable(),
   previous_brand: z.string().optional().nullable(),
   commission_fee: z.number().int().nonnegative().optional().nullable(),
+  commission_note: z.string().optional().nullable(),
   special_notes: z.string().optional().nullable(),
 });
 
@@ -147,8 +149,8 @@ export async function GET(request: NextRequest) {
         'parking_spaces', 'rights_fee', 'lease_period',
         'station_name', 'station_distance',
         'entrance_type', 'parking_fee', 'building_purpose',
-        'features', 'previous_brand', 'commission_fee', 'special_notes',
-        'source_site', 'source_id', 'source_url', 'building_name', 'contact',
+        'features', 'previous_brand', 'commission_fee', 'commission_note', 'special_notes',
+        'source_site', 'source_id', 'source_url', 'building_name', 'contact', 'contact_role',
         'listing_images(url,sort_order)',
         'listing_features(feature)'
       ].join(',');
@@ -206,7 +208,7 @@ export async function GET(request: NextRequest) {
 
           return slim;
         },
-        ['listings-minimal-v9'],
+        ['listings-minimal-v10'],
         { revalidate: 5, tags: ['listings'] }
       );
 
@@ -408,6 +410,7 @@ export async function POST(request: NextRequest) {
         source_url: listingData.source_url || null,
         building_name: listingData.building_name || null,
         contact: listingData.contact || null,
+        contact_role: listingData.contact_role || null,
         lease_period: listingData.lease_period || null,
         rights_fee: listingData.rights_fee || null,
         gu: listingData.gu || null,
@@ -416,6 +419,7 @@ export async function POST(request: NextRequest) {
         building_purpose: listingData.building_purpose || null,
         previous_brand: listingData.previous_brand || null,
         commission_fee: listingData.commission_fee || null,
+        commission_note: listingData.commission_note || null,
         special_notes: listingData.special_notes || null,
         features: listingData.features || null,
       })
@@ -572,17 +576,4 @@ export async function PUT(request: NextRequest) {
       if (images.length > 0) {
         const imageInserts = images.map((url: string, index: number) => ({
           listing_id: id,
-          url: url,
-          alt: `매물 이미지 ${index + 1}`,
-          sort_order: index,
-          is_thumbnail: index === 0,
-        }));
-
-        await supabase
-          .from('listing_images')
-          .insert(imageInserts);
-      }
-    }
-
-    if (!data) {
- 
+          url:
