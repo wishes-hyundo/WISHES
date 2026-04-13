@@ -3493,14 +3493,27 @@
     // 크롤링 연락처 → 관계자 연락처 자동 등록 (역할 정보 포함)
     var lid = String(listing.id);
     var existingContacts = window.WS.state.contacts[lid] || [];
-    if (listing.contact && existingContacts.length === 0) {
+    if (listing.contact) {
       var phones = String(listing.contact).split(/[,;/\s]+/).filter(function(p) { return p.length >= 8 && /^[\d\-()]+$/.test(p.trim()); });
-      if (phones.length > 0) {
-        var contactRole = listing.contact_role || '임대인';
+      var contactRole = listing.contact_role || '임대인';
+      if (phones.length > 0 && existingContacts.length === 0) {
+        // 신규 등록
         window.WS.state.contacts[lid] = phones.map(function(ph) {
           return { role: contactRole, name: '', phone: ph.trim(), memo: '크롤링 수집' };
         });
         try { _safeSetItem('ws-contacts', JSON.stringify(window.WS.state.contacts)); } catch(e) {}
+      } else if (phones.length > 0 && listing.contact_role) {
+        // 기존 크롤링 수집 연락처의 역할을 contact_role로 갱신
+        var updated = false;
+        existingContacts.forEach(function(c) {
+          if (c.memo === '크롤링 수집' && c.role !== contactRole) {
+            c.role = contactRole;
+            updated = true;
+          }
+        });
+        if (updated) {
+          try { _safeSetItem('ws-contacts', JSON.stringify(window.WS.state.contacts)); } catch(e) {}
+        }
       }
     }
 
@@ -13550,24 +13563,3 @@
           document.getElementById('ws-modal-smart-recommend').style.display = 'none';
           window.WS.showDetail(found);
         }
-      });
-    });
-  };
-
-  // [EMBED-PATCH] 임베드 모드에서는 boot 완료 직후 바로 검색 UI를 자동으로 표시
-  if (_WS_EMBEDDED_MODE) {
-    try {
-      if (window.WS && typeof window.WS.showSearchUI === 'function') {
-        window.WS.showSearchUI();
-      }
-      if (window.WS && typeof window.WS.loadData === 'function' && !window.WS._loadingData) {
-        window.WS.loadData();
-      }
-    } catch (e) {
-      console.error('[WISHES-EMBED] auto-show 실패:', e);
-    }
-  }
-
-  } // end _wsBootExtension
-
-})();
