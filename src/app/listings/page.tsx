@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { createClient } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase';
 import { cached } from '@/lib/cache';
 import ListingsClient from './ListingsClient';
 
@@ -38,7 +38,7 @@ export default async function ListingsPage({
   const result = await cached(
     cacheKey,
     async () => {
-      const supabase = createClient();
+      const supabase = createServerClient();
       const offset = (page - 1) * pageSize;
 
       // 매물 쿼리

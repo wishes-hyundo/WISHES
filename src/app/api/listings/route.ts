@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+import { createClient, createServerClient } from '@/lib/supabase';
 import { cached, invalidateCache } from '@/lib/cache';
 
 /**
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, data: [], listings: [] });
       }
 
-      const supabase = createClient();
+      const supabase = createServerClient();
       const { data, error } = await supabase
         .from('listings')
         .select('*, listing_images(*)')
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const result = await cached(
       cacheKey,
       async () => {
-        const supabase = createClient();
+        const supabase = createServerClient();
 
         let query = supabase
           .from('listings')
