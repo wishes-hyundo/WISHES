@@ -128,11 +128,11 @@ export async function DELETE(
       );
     }
 
-    // 캐시 즉시 무효화 — 홈, 매물목록, 지도, 개별 매물 페이지
+    // 캐시 즉시 무효화
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
-    revalidatePath(\`/listings/\${listingId}\`, 'page');
+    revalidatePath(`/listings/${listingId}`, 'page');
 
     return NextResponse.json({
       success: true,
@@ -215,7 +215,7 @@ export async function PATCH(
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
-    revalidatePath(\`/listings/\${listingId}\`, 'page');
+    revalidatePath(`/listings/${listingId}`, 'page');
 
     return NextResponse.json({
       success: true,
