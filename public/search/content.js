@@ -3552,11 +3552,9 @@
             basicHtml += '<div><strong>전용률</strong> ' + ratio + '%</div>';
           }
           basicHtml += '<div><strong>방향</strong> ' + (listing.direction || '-') + '</div>';
+          basicHtml += '<div><strong>구조</strong> ' + (listing.room_shape || listing.entrance_type || '-') + '</div>';
+          if (listing.rooms) basicHtml += '<div><strong>룸/욕실</strong> ' + listing.rooms + '개' + (listing.bathrooms ? ' / ' + listing.bathrooms + '개' : '') + '</div>';
           if (listing.meeting_room) basicHtml += '<div><strong>회의실</strong> ' + listing.meeting_room + '개</div>';
-          else if (isOffice && listing.rooms) basicHtml += '<div><strong>회의실/룸</strong> ' + listing.rooms + '개</div>';
-          if (isStore) {
-            basicHtml += '<div><strong>구조</strong> ' + (listing.room_shape || listing.entrance_type || '-') + '</div>';
-          }
           if (listing.area_land_m2) basicHtml += '<div><strong>대지면적</strong> ' + formatArea(listing.area_land_m2) + '</div>';
         }
         basicHtml += '</div></div>';
@@ -13535,4 +13533,4 @@
       html += '<div style="width:40px;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;"><div style="width:' + item.pct + '%;height:100%;background:' + matchColor + ';border-radius:3px;"></div></div>';
       html += '<span style="font-size:11px;font-weight:700;color:' + matchColor + ';">' + item.pct + '%</span>';
       html += '</div></div>';
-      html += '<div style="font-
+      html += '<div sty
