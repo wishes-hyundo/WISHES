@@ -8,24 +8,40 @@ import RecommendedListings from '@/components/RecommendedListings';
 export const dynamic = 'force-dynamic';
 
 export default async function HomePage() {
-  // Supabase에서 최신 매물 6건 가져오기
-  const supabase = createClient();
-  const { data: listings } = await supabase
-    .from('listings')
-    .select('*, listing_images(url, alt, sort_order)')
-    .eq('status', '가용')
-    .order('created_at', { ascending: false })
-    .limit(6);
+  // Supabase에서 최신 매물 가져오기 (타임아웃 안전 처리)
+  let latestListings: any[] = [];
+  let allListings: any[] = [];
 
-  // 추천용 전체 매물 (최대 50건)
-  const { data: allListings } = await supabase
-    .from('listings')
-    .select('*, listing_images(url, alt, sort_order)')
-    .eq('status', '가용')
-    .order('created_at', { ascending: false })
-    .limit(50);
+  try {
+    const supabase = createClient();
 
-  const latestListings = listings || [];
+    // AbortController로 10초 타임아웃 설정
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    const [listingsRes, allListingsRes] = await Promise.allSettled([
+      supabase
+        .from('listings')
+        .select('*, listing_images(url, alt, sort_order)')
+        .in('status', ['공개', '가용'])
+        .order('created_at', { ascending: false })
+        .limit(6),
+      supabase
+        .from('listings')
+        .select('*, listing_images(url, alt, sort_order)')
+        .in('status', ['공개', '가용'])
+        .order('created_at', { ascending: false })
+        .limit(50),
+    ]);
+
+    clearTimeout(timeout);
+
+    if (listingsRes.status === 'fulfilled') latestListings = listingsRes.value.data || [];
+    if (allListingsRes.status === 'fulfilled') allListings = allListingsRes.value.data || [];
+  } catch (e) {
+    // Supabase 연결 실패 시 빈 배열로 렌더링 (페이지는 정상 표시)
+    console.error('Homepage Supabase error:', e);
+  }
 
   return (
     <div className="pt-16 bg-wishes-bg">
@@ -81,7 +97,7 @@ export default async function HomePage() {
       </div>
 
       {/* ━━━ 맞춤 추천 매물 섹션 (로그인 사용자만) ━━━ */}
-      <RecommendedListings allListings={allListings || []} />
+      <RecommendedListings allListings={allListings} />
 
       {/* ━━━ 최신 매물 섹션 ━━━ */}
       <section className="py-24 bg-wishes-bg">
