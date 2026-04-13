@@ -8,9 +8,14 @@ const ALLOWED_FIELDS = [
   'deposit', 'monthly', 'price', 'maintenance_fee', 'maintenance_includes',
   'area_m2', 'area_supply_m2', 'area_land_m2',
   'floor_current', 'floor_total', 'rooms', 'bathrooms',
-  'direction', 'heating_type', 'address', 'address_detail', 'dong',
+  'direction', 'heating_type', 'address', 'address_detail', 'dong', 'gu',
   'lat', 'lng', 'available_date', 'built_year',
-  'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
+  'parking', 'parking_spaces', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
+  'contact', 'contact_role', 'building_name', 'entrance_type',
+  'base_price', 'lease_period', 'building_purpose', 'rights_fee',
+  'vat_included', 'electric_capacity', 'commission_fee',
+  'registered_date', 'last_confirmed', 'special_notes',
+  'previous_business', 'recommended_business', 'restricted_business',
   'status'
 ];
 
@@ -121,18 +126,4 @@ export async function POST(request: NextRequest) {
       } else {
         results.push({ id, success: true, title: data?.title });
       }
-    }
-
-    return NextResponse.json({
-      success: true,
-      total: updates.length,
-      updated: results.length,
-      failed: errors.length,
-      results,
-      errors
-    });
-  } catch (err: any) {
-    console.error('POST bulk error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
-  }
-}
+  
