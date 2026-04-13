@@ -44,7 +44,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        const elapsed = Date.now() - new Date(loginTime).getTime();
+        // loginTime 파싱 (숫자 타임스탬프 or ISO 문자열 모두 지원)
+        const loginTs = /^\d+$/.test(loginTime) ? parseInt(loginTime) : new Date(loginTime).getTime();
+        const elapsed = Date.now() - (isNaN(loginTs) ? Date.now() : loginTs);
         const keepLogin = window.localStorage.getItem('ws_keep_login');
         const maxAge = keepLogin === 'true' ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
         if (elapsed > maxAge) {
@@ -53,12 +55,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // Supabase token verify (non-blocking)
+        // Supabase token verify (타임아웃 5초, 실패해도 계속 진행)
         if (!token.startsWith('admin_bridge_')) {
           try {
+            const ac = new AbortController();
+            const timer = setTimeout(() => ac.abort(), 5000);
             const verifyRes = await fetch('/api/auth/verify', {
-              headers: { 'Authorization': 'Bearer ' + token }
+              headers: { 'Authorization': 'Bearer ' + token },
+              signal: ac.signal
             });
+            clearTimeout(timer);
             if (verifyRes.ok) {
               const vData = await verifyRes.json();
               if (vData.user && vData.user.role && userStr) {
@@ -71,11 +77,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   }
                 } catch(re) {}
               }
-            } else {
-              console.warn('Token verify failed, continuing with existing role');
             }
           } catch (e) {
-            console.warn('Token verify request failed:', e);
+            console.warn('Token verify skipped:', e);
           }
         }
 
