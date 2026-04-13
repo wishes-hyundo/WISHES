@@ -1,16 +1,17 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Admin API: GET /api/admin/stats
+// Admin API: GET /api/admin/stats (캐시 최적화)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { cached } from '@/lib/cache';
 
 /**
  * GET /api/admin/stats - 관리자 대시보드 통계
+ * 인메모리 캐시 적용: 60초 fresh, 10분 stale
  */
 export async function GET(request: NextRequest) {
   try {
-    // 인증 검증
     const authHeader = request.headers.get('authorization');
     const password = authHeader?.replace('Bearer ', '');
     if (password !== 'wishes2026') {
@@ -20,43 +21,41 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const supabase = createServerClient();
+    const stats = await cached(
+      'admin-stats',
+      async () => {
+        const supabase = createServerClient();
 
-    // 전체 매물 수
-    const { count: totalListings } = await supabase
-      .from('listings')
-      .select('id', { count: 'exact', head: true });
+        // 병렬로 모든 통계 조회 (5개 쿼리를 동시에)
+        const [total, active, contracting, completed, pendingContacts] = await Promise.all([
+          supabase.from('listings').select('id', { count: 'exact', head: true }),
+          supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', '공개'),
+          supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', '계약중'),
+          supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', '계약완료'),
+          supabase.from('contacts').select('id', { count: 'exact', head: true }).eq('status', '접수'),
+        ]);
 
-    // 상태별 매물 수
-    const { count: activeListings } = await supabase
-      .from('listings')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', '공개');
-
-    const { count: contractingListings } = await supabase
-      .from('listings')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', '계약중');
-
-    const { count: completedListings } = await supabase
-      .from('listings')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', '계약완료');
-
-    // 미처리 상담 수
-    const { count: pendingContacts } = await supabase
-      .from('contacts')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', '접수');
+        return {
+          totalListings: total.count || 0,
+          activeListings: active.count || 0,
+          contractingListings: contracting.count || 0,
+          completedListings: completed.count || 0,
+          pendingContacts: pendingContacts.count || 0,
+        };
+      },
+      60_000,     // 60초 fresh
+      600_000,    // 10분 stale 허용
+      5_000,      // 5초 타임아웃
+    );
 
     return NextResponse.json({
       success: true,
-      data: {
-        totalListings: totalListings || 0,
-        activeListings: activeListings || 0,
-        contractingListings: contractingListings || 0,
-        completedListings: completedListings || 0,
-        pendingContacts: pendingContacts || 0,
+      data: stats || {
+        totalListings: 0,
+        activeListings: 0,
+        contractingListings: 0,
+        completedListings: 0,
+        pendingContacts: 0,
       },
     });
   } catch (error) {

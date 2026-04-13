@@ -18,6 +18,7 @@ import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { createHash } from 'crypto';
+import { cached, invalidateCache } from '@/lib/cache';
 
 // 요청 검증 스키마
 const createListingSchema = z.object({
@@ -125,13 +126,9 @@ export async function GET(request: NextRequest) {
     const fields = searchParams.get('fields');
 
     if (fields === 'minimal') {
-      // ⚡⚡⚡ 초경량 모드 (v3) — 전방위 최적화
-      //  1) listing_images 는 url 만 → 이미지 페이로드 75% 감소
-      //  2) null/빈 필드 제거 → 전체 20~30% 추가 감소
-      //  3) unstable_cache 로 Node 레벨 메모이제이션 (60s)
-      //  4) CDN: s-maxage=300, stale-while-revalidate=86400
-      //  5) ETag + 304 Not Modified (재방문 0-byte 응답)
-      // ★ 크롤러(공실클럽/온하우스)가 수집하는 모든 필드를 빠짐없이 포함
+      // ⚡⚡⚡ 초경량 모드 (v4) — 인메모리 캐시 + stale-while-revalidate
+      //  DB 과부하 시에도 캐시된 데이터를 즉시 반환
+      //  백그라운드에서 DB 갱신 시도
       const selectFields = [
         'id', 'title', 'type', 'deal', 'status', 'created_at', 'views',
         'deposit', 'monthly', 'price',
@@ -156,12 +153,11 @@ export async function GET(request: NextRequest) {
         'listing_features(feature)'
       ].join(',');
 
-      // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
-      const getCached = unstable_cache(
+      // 🔥 인메모리 캐시: 60초 fresh, 10분 stale 허용, 8초 타임아웃
+      const allData = await cached(
+        'admin-listings-minimal',
         async () => {
           const PAGE_SIZE = 1000;
-
-          // 1차 페이지
           const { data: firstPage, error: firstError } = await supabase
             .from('listings')
             .select(selectFields)
@@ -170,9 +166,8 @@ export async function GET(request: NextRequest) {
 
           if (firstError || !firstPage) return [];
 
-          let allData: any[] = [...firstPage];
+          let all: any[] = [...firstPage];
 
-          // 나머지 페이지 병렬 fetch
           if (firstPage.length === PAGE_SIZE) {
             const parallelPages = [];
             for (let from = PAGE_SIZE; from < 20000; from += PAGE_SIZE) {
@@ -187,16 +182,15 @@ export async function GET(request: NextRequest) {
             const results = await Promise.all(parallelPages);
             for (const { data } of results) {
               if (data && data.length > 0) {
-                allData = allData.concat(data);
+                all = all.concat(data);
               } else {
                 break;
               }
             }
           }
 
-          // 🧹 null / 빈 배열 / 빈 문자열 / false 불리언 제거로 페이로드 20~30% 감소
-          // (클라이언트는 접근 시 기본값 fallback 으로 처리)
-          const slim = allData.map((row: any) => {
+          // null/빈 값 제거로 페이로드 축소
+          return all.map((row: any) => {
             const out: any = {};
             for (const k in row) {
               const v = row[k];
@@ -206,14 +200,11 @@ export async function GET(request: NextRequest) {
             }
             return out;
           });
-
-          return slim;
         },
-        ['listings-minimal-v11'],
-        { revalidate: 5, tags: ['listings'] }
-      );
-
-      const allData = await getCached();
+        60_000,     // 60초 fresh
+        600_000,    // 10분 stale 허용
+        8_000,      // 8초 타임아웃
+      ) || [];
 
       // ETag 기반 304 응답
       const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length });
@@ -224,8 +215,8 @@ export async function GET(request: NextRequest) {
           status: 304,
           headers: {
             'ETag': etag,
-            'Cache-Control': 's-maxage=10, stale-while-revalidate=30',
-            'CDN-Cache-Control': 'max-age=10',
+            'Cache-Control': 's-maxage=30, stale-while-revalidate=60',
+            'CDN-Cache-Control': 'max-age=30',
           },
         });
       }
@@ -235,9 +226,8 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
-          // 🔥 경량 캐싱: 10초 CDN 캐시 + 30초 stale-while-revalidate
-          'Cache-Control': 's-maxage=10, stale-while-revalidate=30',
-          'CDN-Cache-Control': 'max-age=10',
+          'Cache-Control': 's-maxage=30, stale-while-revalidate=60',
+          'CDN-Cache-Control': 'max-age=30',
           'Vary': 'Accept-Encoding',
         },
       });
@@ -457,6 +447,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // 캐시 무효화 (인메모리 + Next.js)
+    invalidateCache('listings');
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
@@ -588,6 +580,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    // 캐시 무효화 (인메모리 + Next.js)
+    invalidateCache('listings');
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');

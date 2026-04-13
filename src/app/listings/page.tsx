@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase';
+import { cached } from '@/lib/cache';
 import ListingsClient from './ListingsClient';
 
 export const dynamic = 'force-dynamic';
@@ -17,14 +18,7 @@ export const metadata: Metadata = {
   },
 };
 
-// 5초 타임아웃 래퍼
-const withTimeout = <T,>(promise: Promise<T>, ms = 3000): Promise<T> =>
-  Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
-  ]);
-
-// SSR - 서버에서 초기 데이터 로드 (성능 최적화)
+// SSR - 서버에서 초기 데이터 로드 (인메모리 캐시 적용)
 export default async function ListingsPage({
   searchParams,
 }: {
@@ -38,53 +32,63 @@ export default async function ListingsPage({
   const page = parseInt((params.page as string) || '1', 10);
   const pageSize = 12;
 
-  try {
-    const supabase = createClient();
-    const offset = (page - 1) * pageSize;
+  // 캐시 키: 필터 조합별
+  const cacheKey = `ssr-listings:${deal}:${type}:${dong}:${sort}:${page}`;
 
-    // 매물 쿼리 (필요한 필드만 선택 + count 통합으로 쿼리 1개 절약)
-    let query = supabase
-      .from('listings')
-      .select(
-        'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)',
-        { count: 'exact' }
-      )
-      .eq('status', '공개');
+  const result = await cached(
+    cacheKey,
+    async () => {
+      const supabase = createClient();
+      const offset = (page - 1) * pageSize;
 
-    if (deal) query = query.eq('deal', deal);
-    if (type) query = query.eq('type', type);
-    if (dong) query = query.eq('dong', dong);
+      // 매물 쿼리
+      let query = supabase
+        .from('listings')
+        .select(
+          'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)',
+          { count: 'exact' }
+        )
+        .eq('status', '공개');
 
-    const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
-    query = query.order(sortColumn, { ascending: false });
-    query = query.range(offset, offset + pageSize - 1);
+      if (deal) query = query.eq('deal', deal);
+      if (type) query = query.eq('type', type);
+      if (dong) query = query.eq('dong', dong);
 
-    // 동 목록: DISTINCT dong만 가져옴 (경량화)
-    const dongQuery = supabase
-      .from('listings')
-      .select('dong')
-      .eq('status', '공개')
-      .not('dong', 'is', null)
-      .limit(500);
+      const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
+      query = query.order(sortColumn, { ascending: false });
+      query = query.range(offset, offset + pageSize - 1);
 
-    // 2개 쿼리 병렬 실행 + 5초 타임아웃
-    const [listingsResult, dongResult] = await withTimeout(
-      Promise.all([query, dongQuery])
-    );
+      // 동 목록
+      const dongQuery = supabase
+        .from('listings')
+        .select('dong')
+        .eq('status', '공개')
+        .not('dong', 'is', null)
+        .limit(500);
 
-    const initialListings = listingsResult.data || [];
-    const totalCount = listingsResult.count || 0;
-    const initialDongs = [...new Set((dongResult.data || []).map((r: any) => r.dong).filter(Boolean))].sort();
+      const [listingsResult, dongResult] = await Promise.all([query, dongQuery]);
 
-    return (
-      <ListingsClient
-        initialListings={initialListings}
-        initialDongs={initialDongs}
-        totalCount={totalCount}
-      />
-    );
-  } catch (error) {
-    // 서버 에러/타임아웃 시 빈 데이터로 즉시 렌더 (클라이언트에서 재시도)
+      const listings = listingsResult.data || [];
+      const totalCount = listingsResult.count || 0;
+      const dongs = [...new Set((dongResult.data || []).map((r: any) => r.dong).filter(Boolean))].sort();
+
+      return { listings, totalCount, dongs };
+    },
+    30_000,    // 30초 fresh
+    300_000,   // 5분 stale 허용
+    3_000,     // 3초 타임아웃
+  );
+
+  if (!result) {
+    // 캐시도 없고 DB도 실패 → 빈 데이터로 렌더링 (클라이언트에서 재시도)
     return <ListingsClient initialListings={[]} initialDongs={[]} totalCount={0} />;
   }
+
+  return (
+    <ListingsClient
+      initialListings={result.listings}
+      initialDongs={result.dongs}
+      totalCount={result.totalCount}
+    />
+  );
 }
