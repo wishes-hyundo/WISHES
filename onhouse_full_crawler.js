@@ -1,20 +1,44 @@
 /**
- * 온하우스(www.onhouse.com) 크롤러 v3.2
+ * 온하우스(www.onhouse.com) 크롤러 v4.0 - 서울/경기 전체
  * 실행: www.onhouse.com/index/rent_map 탭에서 Chrome DevTools Console에 붙여넣기
  * 전제: 로그인 상태
  *
- * v3.2 주요 변경:
- *   - 상세설명: .item_view_detail.detail h6 셀렉터 추가 (실제 구조 반영)
- *   - 방향: 전용면적 box_sub에서 추출
- *   - 관리비/포함항목 복합 타이틀: desc=금액, sub=포함항목 정확 분리
- *   - 가격 단위: 만원 그대로 저장
+ * v4.0 주요 변경:
+ *   - 서울/경기 전체 영역 그리드 분할 크롤링
+ *   - 2026.01.01 이후 등록 매물만 수집
+ *   - status: '가용' (공개 API 호환)
+ *   - 모든 필드 완벽 수집 (30+ 필드)
+ *   - 프린트 페이지 연락처 추출
+ *   - script 태그 좌표 추출
+ *   - 이미지 추출 생략 (요청에 따라)
+ *   - 중복 source_id 자동 건너뜀
  */
-(async function ONHOUSE_CRAWLER() {
+(async function ONHOUSE_CRAWLER_V4() {
   // ═══════════ 설정 ═══════════
   var API_URL = 'https://wishes.co.kr/api/admin/listings';
   var API_TOKEN = 'wishes2026';
-  var LIMIT = 999999;
   var DELAY_MS = 600;
+  var DELAY_UPLOAD = 300;
+  var MIN_DATE = '2026-01-01';  // 이 날짜 이후 등록분만
+
+  // ═══════════ 서울/경기 그리드 타일 ═══════════
+  // 서울+경기를 0.15도 단위로 분할 (약 15km x 12km 타일)
+  var TILES = [];
+  // 위도: 36.9 ~ 37.95 (경기 남부 ~ 경기 북부)
+  // 경도: 126.35 ~ 127.85 (경기 서부 ~ 경기 동부)
+  var LAT_START = 37.0, LAT_END = 37.9, LAT_STEP = 0.15;
+  var LNG_START = 126.4, LNG_END = 127.8, LNG_STEP = 0.2;
+  for (var lat = LAT_START; lat < LAT_END; lat += LAT_STEP) {
+    for (var lng = LNG_START; lng < LNG_END; lng += LNG_STEP) {
+      TILES.push({
+        swLat: lat.toFixed(4),
+        neLat: (lat + LAT_STEP).toFixed(4),
+        swLng: lng.toFixed(4),
+        neLng: (lng + LNG_STEP).toFixed(4),
+        label: lat.toFixed(2) + ',' + lng.toFixed(2)
+      });
+    }
+  }
 
   // ═══════════ 타입 매핑 ═══════════
   var TYPE_MAP = {
@@ -27,7 +51,6 @@
     for (var k in TYPE_MAP) { if (raw.indexOf(k) !== -1) return TYPE_MAP[k]; }
     return raw;
   }
-
   function parseBool(val) {
     if (!val) return null;
     var v = String(val).trim();
@@ -36,10 +59,10 @@
     return null;
   }
   function extractDong(addr) { var m = addr && addr.match(/([가-힣]+(?:동|읍|면|리))/); return m ? m[1] : ''; }
-  function extractGu(addr) { var m = addr && addr.match(/([가-힣]+구)/); return m ? m[1] : ''; }
+  function extractGu(addr) { var m = addr && addr.match(/([가-힣]+(?:구|시|군))/); return m ? m[1] : ''; }
   function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms); }); }
 
-  // ═══════════ 기존 source_id 조회 (관리자 API) ═══════════
+  // ═══════════ 기존 source_id 조회 ═══════════
   async function getExistingSourceIds() {
     try {
       console.log('[온하우스] 기존 매물 ID 조회 중...');
@@ -63,11 +86,11 @@
     }
   }
 
-  // ═══════════ 매물 ID 목록 가져오기 ═══════════
-  async function fetchListingIds(page) {
+  // ═══════════ 타일 영역 매물 ID 목록 ═══════════
+  async function fetchTileIds(tile, page) {
     page = page || 1;
     var params = new URLSearchParams({
-      device: 'pc', showType: '확인일', text: '',
+      device: 'pc', showType: '등록일', text: '',
       buildingIdx: '', dongCode: '', bunjiCode: '',
       roomType: 'all', saleType: 'all', structure: 'all',
       tradeType: '', shortTermYn: '', referMinPrice: '', referMaxPrice: '',
@@ -78,7 +101,9 @@
       noSemiBasement: '', noFirstFloor: '', elevator: '', interior: '',
       noPremiumPrice: '', pet: '', parking: '', roomCnt: 'all',
       cfLoan: '', moveInType: '',
-      level: '7', swLat: '37.35', neLat: '37.75', swLng: '126.6', neLng: '127.3',
+      level: '8',
+      swLat: tile.swLat, neLat: tile.neLat,
+      swLng: tile.swLng, neLng: tile.neLng,
       status: '거래가능', refer_page: '', is_ins_office: '', zerooption: '',
       view_type: 'hori', from_page: 'rent_map',
       phone: '', jibun_end: '', is_pnu_group: '0', page: String(page),
@@ -100,8 +125,13 @@
     for (var m of idMatches) { if (idArr.indexOf(m[1]) === -1) idArr.push(m[1]); }
     var totalCount = idArr.length;
     var countM = html.match(/총\s*([\d,]+)\s*건/);
-    if (countM) totalCount = parseInt(countM[1].replace(',', ''));
-    return { ids: idArr, totalCount: totalCount };
+    if (countM) totalCount = parseInt(countM[1].replace(/,/g, ''));
+
+    // 등록일 추출 (2026.01.01 이전이면 중단 판단용)
+    var dates = html.match(/\d{2}\.\d{2}\.\d{2}/g) || [];
+    var oldestDate = dates.length > 0 ? '20' + dates[dates.length - 1].replace(/\./g, '-') : null;
+
+    return { ids: idArr, totalCount: totalCount, oldestDate: oldestDate };
   }
 
   // ═══════════ 상세 페이지 파싱 ═══════════
@@ -120,8 +150,7 @@
     var doc = parser.parseFromString(html, 'text/html');
     var d = { source_site: 'onhouse', source_id: String(listingId) };
 
-    // ── 주소 (층/호수 포함 주소 우선) ──
-    // .addr_title에 "관악구 봉천동 972-17  2층 202호" 형태로 층/호 포함됨
+    // ── 주소 ──
     var addrTitleEl = doc.querySelector('.addr_title');
     var addrInput = doc.querySelector('input[name="addr"]');
     var fullAddr = '';
@@ -130,7 +159,6 @@
     }
     var baseAddr = (addrInput && addrInput.value) ? addrInput.value.trim() : '';
 
-    // fullAddr에 층/호 정보가 있으면 사용, 없으면 baseAddr
     if (fullAddr && /\d+층|\d+호/.test(fullAddr)) {
       d.address = fullAddr;
     } else if (baseAddr) {
@@ -146,7 +174,7 @@
     }
     if (d.address) { d.dong = extractDong(d.address); d.gu = extractGu(d.address); }
 
-    // ── 상세주소 (별도 층/호 정보) ──
+    // ── 상세주소 (별도 층/호) ──
     var phoneBox = doc.querySelector('.phoneViewBox, .phone_view_box, .phone-view-box');
     if (phoneBox) {
       phoneBox.querySelectorAll('h6').forEach(function(h) {
@@ -183,27 +211,30 @@
           if (typeM) d.type = mapType(typeM[1]);
           var yrM = sub.match(/(\d{4})년/);
           if (yrM) d.built_year = yrM[1];
+          // 구조 (오픈형, 분리형 등)
+          var structM = sub.match(/(오픈형|분리형|복층형|1\.5룸)/);
+          if (structM) d.entrance_type = structM[1];
           if (title === '단기') d.lease_period = '단기';
         }
-        // 관리비 (복합 타이틀 "관리비 / 포함항목" 처리)
+        // 관리비 (복합 타이틀 "관리비 / 포함항목")
         else if (title.indexOf('관리비') !== -1 && title.indexOf('항목') !== -1) {
-          // 복합 타이틀: desc = 금액, sub = 포함항목
           var mfM = desc.match(/([\d.]+)/);
           if (mfM) d.maintenance_fee = Math.round(parseFloat(mfM[1]));
+          if (desc === '없음' || desc === '0') d.maintenance_fee = 0;
           if (sub) {
-            d.maintenance_includes = sub.split(/[,/·ㆍ]/).map(function(s){return s.trim();}).filter(function(s){return s.length > 0;});
+            d.maintenance_includes = sub.split(/[,/·ㆍ\s]+/).map(function(s){return s.trim();}).filter(function(s){return s.length > 0 && s !== '없음';});
           }
         }
-        else if (title.indexOf('관리비') !== -1 && !d.maintenance_fee) {
+        else if (title.indexOf('관리비') !== -1 && !d.maintenance_fee && d.maintenance_fee !== 0) {
           var mfM2 = desc.match(/([\d.]+)/);
           if (mfM2) d.maintenance_fee = Math.round(parseFloat(mfM2[1]));
+          if (desc === '없음' || desc === '0') d.maintenance_fee = 0;
         }
-        // 면적 + 방향 (sub에 "남", "동" 등 방향 포함)
+        // 면적 + 방향
         else if (title.indexOf('전용면적') !== -1) {
           var aM = desc.match(/([\d.]+)/); if (aM) d.area_m2 = parseFloat(aM[1]);
-          // sub에서 방향 추출 (예: "남", "동남" 등)
           if (sub) {
-            var dirM = sub.match(/(남|북|동|서|남동|남서|북동|북서|정남|정북)/);
+            var dirM = sub.match(/(남동|남서|북동|북서|정남|정북|정동|정서|남|북|동|서)/);
             if (dirM) d.direction = dirM[1] + '향';
           }
         }
@@ -233,10 +264,10 @@
           d.features = desc.split(/[,/·\s]+/).map(function(s){return s.trim();}).filter(function(s){return s.length > 1;});
         }
         // 방향
-        else if (title.indexOf('방향') !== -1) { d.direction = desc; }
+        else if (title.indexOf('방향') !== -1 && !d.direction) { d.direction = desc; }
         // 난방
         else if (title.indexOf('난방') !== -1) { d.heating_type = desc; }
-        // 출입구
+        // 출입구/현관
         else if (title.indexOf('출입구') !== -1 || title.indexOf('현관') !== -1) { d.entrance_type = desc; }
         // 사용승인
         else if (title.indexOf('사용승인') !== -1) {
@@ -250,10 +281,11 @@
           var sm = desc.match(/(.+역)/); var dm = desc.match(/(\d+)m/);
           if (sm) d.station_name = sm[1]; if (dm) d.station_distance = parseInt(dm[1]);
         }
-        // 권리금
+        // 시설권리금
         else if (title.indexOf('시설권리금') !== -1 || title.indexOf('굿윌') !== -1) {
           var gm = desc.match(/([\d,]+)/); if (gm) d.goodwill_fee = parseInt(gm[1].replace(/,/g,''));
         }
+        // 권리금
         else if (title.indexOf('권리금') !== -1 && !d.rights_fee) {
           var rfm = desc.match(/([\d,]+)/); if (rfm) d.rights_fee = parseInt(rfm[1].replace(/,/g,''));
         }
@@ -286,7 +318,9 @@
         }
         // 수수료
         else if (title.indexOf('수수료') !== -1) {
-          var cm = desc.match(/([\d,]+)/); if (cm) d.commission_fee = parseInt(cm[1].replace(/,/g,''));
+          var cm = desc.match(/([\d,]+)/);
+          if (cm) d.commission_fee = parseInt(cm[1].replace(/,/g,''));
+          else if (desc.indexOf('협의') !== -1 || desc.indexOf('없음') !== -1) d.commission_note = desc;
         }
         // 특이사항
         else if (title.indexOf('특이사항') !== -1) { d.special_notes = desc; }
@@ -340,7 +374,6 @@
     });
 
     // ── 설명 텍스트 ──
-    // 온하우스 상세설명: .item_view_detail.detail 내 h6 태그
     var detailSection = doc.querySelector('.item_view_detail.detail');
     if (detailSection) {
       var descH6 = detailSection.querySelector('h6');
@@ -349,12 +382,11 @@
         if (descText.length > 2) d.description = descText.substring(0, 2000);
       }
     }
-    // 폴백: 기존 셀렉터
     if (!d.description) {
       var descSels = ['.detail-desc', '.room-desc', '.content-desc', '#divDesc', '.desc_area', '.view_desc', '.memo', '.item_desc', '.detail_content', '.info_desc'];
       for (var di = 0; di < descSels.length; di++) {
-        var descEl = doc.querySelector(descSels[di]);
-        if (descEl) { var t = descEl.textContent.trim(); if (t.length > 10) { d.description = t.substring(0, 2000); break; } }
+        var dEl = doc.querySelector(descSels[di]);
+        if (dEl) { var t = dEl.textContent.trim(); if (t.length > 10) { d.description = t.substring(0, 2000); break; } }
       }
     }
 
@@ -363,7 +395,6 @@
     if (phones050) {
       d.contact = phones050[0];
     } else {
-      // 프린트 페이지에서 연락처 가져오기
       try {
         var printR = await fetch('/index/rent_view_print/' + listingId + '?phone=Y', {
           headers: { 'Referer': 'https://www.onhouse.com/index/rent_view/' + listingId },
@@ -372,9 +403,8 @@
         var printHtml = await printR.text();
         var printPhones = printHtml.match(/050\d[-]?\d{3,4}[-]?\d{4}/g);
         if (printPhones) d.contact = printPhones[0];
-        // 프린트 페이지에서 추가 정보도 추출
         if (!d.contact) {
-          var anyPhones = printHtml.match(/0\d{1,2}[-)\s]?\d{3,4}[-\s]?\d{4}/g);
+          var anyPhones = printHtml.match(/01[016789][-\s]?\d{3,4}[-\s]?\d{4}/g);
           if (anyPhones) d.contact = anyPhones[0];
         }
       } catch(e) { /* 프린트 페이지 접근 실패 무시 */ }
@@ -383,28 +413,29 @@
     // ── source_url ──
     d.source_url = 'https://www.onhouse.com/index/rent_view/' + listingId;
 
-    // ── 위치 좌표 (lat/lng) — 다중 패턴 ──
-    // 1) JSON 패턴
-    var latM = html.match(/"lat(?:itude)?"\s*:\s*"?(3[5-8]\.\d+)"?/);
-    var lngM = html.match(/"ln?g(?:itude)?"\s*:\s*"?(12[5-8]\.\d+)"?/);
-    // 2) input hidden 패턴
-    if (!latM) { var latInput = doc.querySelector('input[name="lat"], input[name="latitude"], input[id*="lat"]'); if (latInput && latInput.value) latM = latInput.value.match(/(3[5-8]\.\d+)/); }
-    if (!lngM) { var lngInput = doc.querySelector('input[name="lng"], input[name="longitude"], input[id*="lng"]'); if (lngInput && lngInput.value) lngM = lngInput.value.match(/(12[5-8]\.\d+)/); }
-    // 3) data-* 속성
-    if (!latM) { var mapEl = doc.querySelector('[data-lat], [data-latitude]'); if (mapEl) { var v = mapEl.getAttribute('data-lat') || mapEl.getAttribute('data-latitude'); if (v) latM = v.match(/(3[5-8]\.\d+)/); } }
-    if (!lngM) { var mapEl2 = doc.querySelector('[data-lng], [data-longitude]'); if (mapEl2) { var v2 = mapEl2.getAttribute('data-lng') || mapEl2.getAttribute('data-longitude'); if (v2) lngM = v2.match(/(12[5-8]\.\d+)/); } }
-    // 4) 스크립트 내 변수 패턴
-    if (!latM) latM = html.match(/(?:var|let|const)\s+lat\w*\s*=\s*['"]?(3[5-8]\.\d+)/);
-    if (!lngM) lngM = html.match(/(?:var|let|const)\s+l(?:n|o)g\w*\s*=\s*['"]?(12[5-8]\.\d+)/);
-    // 5) 네이버/카카오 지도 initMap 패턴
-    if (!latM) latM = html.match(/LatLng\(\s*(3[5-8]\.\d+)/);
-    if (!lngM) lngM = html.match(/LatLng\(\s*3[5-8]\.\d+\s*,\s*(12[5-8]\.\d+)/);
-    // 6) 일반 숫자 패턴 (마지막 수단)
-    if (!latM) latM = html.match(/['"]?(3[5-8]\.\d{4,})['"]?\s*,\s*['"]?(12[5-8]\.\d{4,})/);
-    if (!lngM && latM) { var afterLat = html.substring(html.indexOf(latM[0])); lngM = afterLat.match(/(12[5-8]\.\d{4,})/); }
-
-    if (latM) d.lat = parseFloat(latM[1] || latM[0]);
-    if (lngM) d.lng = parseFloat(lngM[1] || lngM[0]);
+    // ── 위치 좌표 — script 태그 우선 ──
+    var scripts = doc.querySelectorAll('script');
+    for (var si = 0; si < scripts.length; si++) {
+      var st = scripts[si].textContent;
+      if (st.indexOf('37.') !== -1 && (st.indexOf('126.') !== -1 || st.indexOf('127.') !== -1)) {
+        var latM = st.match(/(3[5-8]\.\d{4,})/);
+        var lngM = st.match(/(12[5-8]\.\d{4,})/);
+        if (latM && lngM) { d.lat = parseFloat(latM[1]); d.lng = parseFloat(lngM[1]); break; }
+      }
+    }
+    // 폴백: JSON/input/data-attr 패턴
+    if (!d.lat) {
+      var latM2 = html.match(/"lat(?:itude)?"\s*:\s*"?(3[5-8]\.\d+)"?/);
+      var lngM2 = html.match(/"ln?g(?:itude)?"\s*:\s*"?(12[5-8]\.\d+)"?/);
+      if (latM2) d.lat = parseFloat(latM2[1] || latM2[0]);
+      if (lngM2) d.lng = parseFloat(lngM2[1] || lngM2[0]);
+    }
+    if (!d.lat) {
+      var latInput = doc.querySelector('input[name="lat"], input[name="latitude"]');
+      var lngInput = doc.querySelector('input[name="lng"], input[name="longitude"]');
+      if (latInput && latInput.value) { var lv = latInput.value.match(/(3[5-8]\.\d+)/); if (lv) d.lat = parseFloat(lv[1]); }
+      if (lngInput && lngInput.value) { var lgv = lngInput.value.match(/(12[5-8]\.\d+)/); if (lgv) d.lng = parseFloat(lgv[1]); }
+    }
 
     // ── 기본값 정리 ──
     if (!d.deal) {
@@ -429,13 +460,13 @@
     return d;
   }
 
-  // ═══════════ 업로드 (관리자 API) ═══════════
+  // ═══════════ 업로드 ═══════════
   async function uploadListing(data) {
     try {
-      data.status = '가용';
+      data.status = '공개';
       if (!data.dong) data.dong = extractDong(data.address) || '미입력';
 
-      // null/undefined 값 제거 (API boolean 필드 에러 방지)
+      // null/undefined 값 제거
       Object.keys(data).forEach(function(k) {
         if (data[k] === null || data[k] === undefined) delete data[k];
       });
@@ -454,28 +485,8 @@
   }
 
   // ═══════════ 메인 실행 ═══════════
-  console.log('╔═══════════════════════════════════════╗');
-  console.log('║  온하우스 크롤러 v3.2 (Admin API)     ║');
-  console.log('║  LIMIT=' + LIMIT + '                         ║');
-  console.log('╚═══════════════════════════════════════╝');
-
-  var existingIds = await getExistingSourceIds();
-  var allResults = [];
-  var uploaded = 0, skipped = 0, failed = 0;
-  var page = 1;
-  var hasMore = true;
-  var emptyPages = 0;
-
-  while (hasMore && allResults.length < LIMIT) {
-    console.log('\n━━━ [페이지 ' + page + '] 목록 로딩... ━━━');
-    var ids = [];
-    try {
-      var result = await fetchListingIds(page);
-      ids = result.ids;
-      console.log('  ' + ids.length + '개 ID 발견 (총 ' + result.totalCount + '건)');
-      if (ids.length === 0) {
-        emptyPages++;
-        if (emptyPages >= 2) { hasMore = false; break; }
-        page++; continue;
-      }
-      emptyPages = 
+  console.log('╔════════════════════════════════════════════╗');
+  console.log('║  온하우스 크롤러 v4.0 (서울/경기 전체)      ║');
+  console.log('║  기간: ' + MIN_DATE + ' ~ 현재                  ║');
+  console.log('║  타일: ' + TILES.length + '개 영역                        ║');
+  console.log('╚════════════════════════════════════════════╝')
