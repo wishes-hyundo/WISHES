@@ -2,7 +2,7 @@
  * Wishes Search Extension - Content Script
  * Injects property search functionality into wishes.co.kr/admin
  *
- * @version 2.2.2
+ * @version 2.2.3
  * @build 2026-04-14
  * @changelog v2.2.1 - IndexedDB 캐시 추가 (재로드 즉시 표시, 백그라운드 갱신)
  * @changelog v2.2.0 - Admin API 단일 호출로 전환 (병렬 페이지네이션 제거, API 500 에러 해결)
@@ -30,6 +30,39 @@
   if (location.pathname.indexOf('admin-auth') !== -1 || location.pathname.indexOf('command-center') !== -1) {
     return; // 인증/커맨드센터 페이지에서는 확장 비활성화
   }
+
+  // [EXT-S1.2] /search 페이지 진입 시 localStorage -> sessionStorage 동기화
+  // Next.js /search 페이지의 인증 가드가 sessionStorage.ws_token을 읽는데
+  // /admin 로그인은 localStorage에 저장하므로, 페이지 스크립트 컨텍스트에서
+  // 토큰을 복사해줘야 가드가 통과된다. 로그인 정보가 있는데 인증벽이 표시된
+  // 경우에는 자동 새로고침으로 화면을 복구한다.
+  (function _wsSyncAuthStorage() {
+    try {
+      var isPageScript = !(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL);
+      if (!isPageScript) return;
+      var keys = ['ws_token','ws_user','ws_login_time','admin_password'];
+      var copiedAny = false;
+      keys.forEach(function(k){
+        try {
+          var v = localStorage.getItem(k);
+          if (v && !sessionStorage.getItem(k)) {
+            sessionStorage.setItem(k, v);
+            copiedAny = true;
+          }
+        } catch(e){}
+      });
+      // 인증벽이 떠 있는데 토큰은 존재하는 상태 → 한 번만 자동 새로고침
+      if (copiedAny && location.pathname.indexOf('/search') === 0) {
+        try {
+          var already = sessionStorage.getItem('_ws_auth_reload_once');
+          if (!already) {
+            sessionStorage.setItem('_ws_auth_reload_once', '1');
+            setTimeout(function(){ location.reload(); }, 50);
+          }
+        } catch(e){}
+      }
+    } catch(e){}
+  })();
 
   // [EXT-S2] 콘솔 보호 - 확장 내부 로그 노출 방지
   var _wsLog = function() {}; // 프로덕션에서는 무출력
@@ -1419,7 +1452,10 @@
     // URL 변경 감지: 안전한 polling 방식 (Next.js 라우터를 건드리지 않음)
     var _lastURL = location.href;
     function _checkSearchTab() {
-      if (location.search.indexOf('tab=search') !== -1) {
+      var isSearchContext = location.search.indexOf('tab=search') !== -1
+        || location.pathname === '/search'
+        || location.pathname.indexOf('/search') === 0;
+      if (isSearchContext) {
         // 이미 검색 UI가 표시되어 있으면 스킵
         var overlay = document.getElementById('ws-search-overlay');
         if (!overlay || overlay.style.display === 'none') {
@@ -1483,8 +1519,9 @@
     }
 
     // 사이드바 너비 감지
+    // 사이드바 없으면 0 (/search 페이지용)
     var sidebar = document.querySelector('aside');
-    var sidebarWidth = sidebar ? sidebar.offsetWidth : 240;
+    var sidebarWidth = sidebar ? sidebar.offsetWidth : 0;
 
     // body에 고정 오버레이 추가 (React DOM 건드리지 않음)
     var overlay = document.createElement('div');
