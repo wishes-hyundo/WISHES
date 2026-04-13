@@ -14,13 +14,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { createAuthClient } from '@/lib/supabase';
 
 type AuthState = 'loading' | 'nosession' | 'pending' | 'denied' | 'error' | 'ok';
 
 export default function SearchPortalPage() {
-  const router = useRouter();
   const [state, setState] = useState<AuthState>('loading');
   const [errMsg, setErrMsg] = useState('');
 
@@ -188,8 +186,8 @@ export default function SearchPortalPage() {
             중개사 포털은 승인된 직원만 이용할 수 있습니다.<br />계정으로 로그인해주세요.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <button onClick={() => router.push('/login?redirect=/search')} style={btnPrimary}>로그인</button>
-            <button onClick={() => router.push('/signup')} style={btnSecondary}>회원가입</button>
+            <button onClick={() => window.location.href = '/login?redirect=/search'} style={btnPrimary}>로그인</button>
+            <button onClick={() => window.location.href = '/signup'} style={btnSecondary}>회원가입</button>
           </div>
         </div>
       </div>
@@ -232,7 +230,7 @@ export default function SearchPortalPage() {
           <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: '#dc2626' }}>오류</h2>
           <p style={{ color: '#666', fontSize: 13, wordBreak: 'break-all', marginBottom: 20 }}>{errMsg}</p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <button onClick={() => router.push('/login?redirect=/search')} style={btnPrimary}>로그인 페이지</button>
+            <button onClick={() => window.location.href = '/login?redirect=/search'} style={btnPrimary}>로그인 페이지</button>
             <button onClick={() => window.location.reload()} style={btnSecondary}>새로고침</button>
           </div>
         </div>
