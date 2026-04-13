@@ -104,4 +104,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: '매물 조회에 실패했습니다' },
       { status: 500 }
-    
+    );
+  }
+}
