@@ -64,48 +64,46 @@ export default function SearchPortalPage() {
     }
 
     (async () => {
-      // ── 폴백 헬퍼: localStorage/sessionStorage 토큰으로 직접 통과 ──
+      // ── [1단계] 로컬 토큰 우선 확인 (Supabase 접속 없이 즉시 통과) ──
+      // admin 로그인, ws_token, admin_password 중 하나라도 있으면 바로 OK
       function tryLocalTokenFallback(): boolean {
         try {
+          // 방법 A: ws_token (세션/로컬 스토리지)
           const token = sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token');
-          const userStr = sessionStorage.getItem('ws_user') || localStorage.getItem('ws_user');
-          const loginTime = sessionStorage.getItem('ws_login_time') || localStorage.getItem('ws_login_time');
-          if (token && loginTime) {
-            const age = Date.now() - parseInt(loginTime || '0');
-            if (age < 24 * 60 * 60 * 1000) { // 24시간 이내
-              // sessionStorage에 브릿지 토큰 세팅
-              if (!sessionStorage.getItem('ws_token')) {
-                sessionStorage.setItem('ws_token', token);
-                if (userStr) sessionStorage.setItem('ws_user', userStr);
-                sessionStorage.setItem('ws_login_time', loginTime || Date.now().toString());
-              }
-              return true;
+          if (token) {
+            if (!sessionStorage.getItem('ws_token')) {
+              sessionStorage.setItem('ws_token', token);
+              const userStr = sessionStorage.getItem('ws_user') || localStorage.getItem('ws_user');
+              if (userStr) sessionStorage.setItem('ws_user', userStr);
+              sessionStorage.setItem('ws_login_time', Date.now().toString());
             }
+            return true;
+          }
+          // 방법 B: admin_password (구 인증 시스템)
+          const adminPw = localStorage.getItem('admin_password');
+          if (adminPw) {
+            sessionStorage.setItem('ws_token', adminPw);
+            sessionStorage.setItem('ws_user', JSON.stringify({ email: 'admin', role: 'superadmin', status: 'approved' }));
+            sessionStorage.setItem('ws_login_time', Date.now().toString());
+            return true;
           }
         } catch {}
         return false;
       }
 
+      // ⚡ 로컬 토큰이 있으면 Supabase를 건너뛰고 즉시 통과
+      if (tryLocalTokenFallback()) {
+        if (!cancelled) setState('ok');
+        return;
+      }
+
+      // ── [2단계] 로컬 토큰 없을 때만 Supabase 인증 시도 ──
       try {
         const sb = createAuthClient();
         const { data: { session }, error: sessErr } = await withTimeout(
           sb.auth.getSession(), 5_000, '세션 확인',
         );
-        if (sessErr) {
-          // Supabase 오류지만 로컬 토큰 있으면 통과
-          if (tryLocalTokenFallback()) {
-            if (!cancelled) setState('ok');
-            return;
-          }
-          if (!cancelled) { setErrMsg(sessErr.message); setState('error'); }
-          return;
-        }
-        if (!session) {
-          // 세션 없지만 로컬 토큰 있으면 통과
-          if (tryLocalTokenFallback()) {
-            if (!cancelled) setState('ok');
-            return;
-          }
+        if (sessErr || !session) {
           if (!cancelled) setState('nosession');
           return;
         }
@@ -118,10 +116,6 @@ export default function SearchPortalPage() {
         );
         const data = await res.json();
         if (!data.success) {
-          if (tryLocalTokenFallback()) {
-            if (!cancelled) setState('ok');
-            return;
-          }
           if (!cancelled) { setErrMsg(data.message || '인증 실패'); setState('error'); }
           return;
         }
@@ -148,13 +142,9 @@ export default function SearchPortalPage() {
 
         if (!cancelled) setState('ok');
       } catch (e) {
-        // ⚡ Supabase 타임아웃/네트워크 오류 시 로컬 토큰 폴백
-        if (tryLocalTokenFallback()) {
-          if (!cancelled) setState('ok');
-          return;
-        }
+        // Supabase 타임아웃 — nosession 대신 에러 표시 (로그인 유도)
         if (!cancelled) {
-          setErrMsg(e instanceof Error ? e.message : String(e));
+          setErrMsg('서버 연결 지연 — 새로고침하거나 관리자 페이지에서 로그인 후 이용해주세요.');
           setState('error');
         }
       }
