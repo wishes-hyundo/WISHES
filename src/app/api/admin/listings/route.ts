@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
 
           return slim;
         },
-        ['listings-minimal-v10'],
+        ['listings-minimal-v11'],
         { revalidate: 5, tags: ['listings'] }
       );
 
