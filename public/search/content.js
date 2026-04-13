@@ -13563,3 +13563,24 @@
           document.getElementById('ws-modal-smart-recommend').style.display = 'none';
           window.WS.showDetail(found);
         }
+      });
+    });
+  };
+
+  // [EMBED-PATCH] 임베드 모드에서는 boot 완료 직후 바로 검색 UI를 자동으로 표시
+  if (_WS_EMBEDDED_MODE) {
+    try {
+      if (window.WS && typeof window.WS.showSearchUI === 'function') {
+        window.WS.showSearchUI();
+      }
+      if (window.WS && typeof window.WS.loadData === 'function' && !window.WS._loadingData) {
+        window.WS.loadData();
+      }
+    } catch (e) {
+      console.error('[WISHES-EMBED] auto-show 실패:', e);
+    }
+  }
+
+  } // end _wsBootExtension
+
+})();
