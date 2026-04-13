@@ -158,113 +158,140 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// ━━━ 동별 평균 좌표 일괄 할당 ━━━
+// 한글 동/구 이름인지 검증 (크롤링 쓰레기 필터)
+function isValidKoreanName(name: string | null): boolean {
+  if (!name) return false;
+  // 한글 2자 이상으로 시작하고, 동/구/읍/면/리/로/길 등으로 끝나거나 한글+숫자 조합
+  return /^[가-힣]{2,}/.test(name.trim());
+}
+
+// ━━━ gu 기반 평균 좌표 일괄 할당 ━━━
 async function handleDongAverageMode(request: NextRequest) {
   const supabase = createServerClient();
 
-  // 1. 이미 좌표가 있는 매물에서 dong별 평균 lat/lng 계산
-  // Supabase 기본 limit=1000이므로 충분히 큰 값 설정
-  const { data: withCoords, error: err1 } = await supabase
-    .from('listings')
-    .select('dong, lat, lng')
-    .not('dong', 'is', null)
-    .not('lat', 'is', null)
-    .not('lng', 'is', null)
-    .neq('lat', 0)
-    .neq('lng', 0)
-    .limit(20000);
-
-  if (err1) {
-    return NextResponse.json({ success: false, error: err1.message }, { status: 500 });
+  // 1. 좌표 있는 매물에서 gu별 평균 lat/lng (페이지네이션으로 전체 조회)
+  const allWithCoords: { gu: string; dong: string; lat: number; lng: number }[] = [];
+  let page = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('gu, dong, lat, lng')
+      .not('lat', 'is', null)
+      .not('lng', 'is', null)
+      .neq('lat', 0)
+      .neq('lng', 0)
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (!data || data.length === 0) break;
+    allWithCoords.push(...data);
+    if (data.length < pageSize) break;
+    page++;
   }
 
-  // dong별 평균 좌표 계산
+  // gu별, dong별 평균 좌표 계산 (한글 이름만 유효)
+  const guAvg: Record<string, { sumLat: number; sumLng: number; count: number }> = {};
   const dongAvg: Record<string, { sumLat: number; sumLng: number; count: number }> = {};
-  for (const row of (withCoords || [])) {
-    if (!row.dong) continue;
-    if (!dongAvg[row.dong]) dongAvg[row.dong] = { sumLat: 0, sumLng: 0, count: 0 };
-    dongAvg[row.dong].sumLat += row.lat;
-    dongAvg[row.dong].sumLng += row.lng;
-    dongAvg[row.dong].count++;
+
+  for (const row of allWithCoords) {
+    if (isValidKoreanName(row.gu)) {
+      const key = row.gu.trim();
+      if (!guAvg[key]) guAvg[key] = { sumLat: 0, sumLng: 0, count: 0 };
+      guAvg[key].sumLat += row.lat;
+      guAvg[key].sumLng += row.lng;
+      guAvg[key].count++;
+    }
+    if (isValidKoreanName(row.dong)) {
+      const key = row.dong.trim();
+      if (!dongAvg[key]) dongAvg[key] = { sumLat: 0, sumLng: 0, count: 0 };
+      dongAvg[key].sumLat += row.lat;
+      dongAvg[key].sumLng += row.lng;
+      dongAvg[key].count++;
+    }
   }
 
+  const guCoords: Record<string, { lat: number; lng: number }> = {};
+  for (const [gu, val] of Object.entries(guAvg)) {
+    guCoords[gu] = { lat: val.sumLat / val.count, lng: val.sumLng / val.count };
+  }
   const dongCoords: Record<string, { lat: number; lng: number }> = {};
   for (const [dong, val] of Object.entries(dongAvg)) {
-    dongCoords[dong] = {
-      lat: val.sumLat / val.count,
-      lng: val.sumLng / val.count,
-    };
+    dongCoords[dong] = { lat: val.sumLat / val.count, lng: val.sumLng / val.count };
   }
 
-  // 2. 좌표 없고 dong이 있는 매물 조회
-  const { data: noCoords, error: err2 } = await supabase
-    .from('listings')
-    .select('id, dong')
-    .not('dong', 'is', null)
-    .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0')
-    .limit(20000);
-
-  if (err2) {
-    return NextResponse.json({ success: false, error: err2.message }, { status: 500 });
+  // 2. 좌표 없는 매물 전체 조회 (페이지네이션)
+  const allNoCoords: { id: string; gu: string; dong: string }[] = [];
+  page = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('id, gu, dong')
+      .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0')
+      .range(page * pageSize, (page + 1) * pageSize - 1);
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (!data || data.length === 0) break;
+    allNoCoords.push(...data);
+    if (data.length < pageSize) break;
+    page++;
   }
 
   let updated = 0;
   let skipped = 0;
 
-  // 3. 배치 업데이트 (dong 매칭되는 것만)
-  // 같은 dong끼리 그룹화하여 한 번에 업데이트
-  const grouped: Record<string, string[]> = {};
-  for (const row of (noCoords || [])) {
-    if (!row.dong || !dongCoords[row.dong]) {
-      skipped++;
-      continue;
+  // 3. 매칭: dong 우선 → gu 폴백
+  const grouped: Record<string, { ids: string[]; lat: number; lng: number }> = {};
+  for (const row of allNoCoords) {
+    let coords: { lat: number; lng: number } | null = null;
+    let key = '';
+
+    // 1순위: 유효한 dong 매칭
+    if (isValidKoreanName(row.dong) && dongCoords[row.dong.trim()]) {
+      coords = dongCoords[row.dong.trim()];
+      key = `dong:${row.dong.trim()}`;
     }
-    if (!grouped[row.dong]) grouped[row.dong] = [];
-    grouped[row.dong].push(row.id);
+    // 2순위: 유효한 gu 매칭
+    else if (isValidKoreanName(row.gu) && guCoords[row.gu.trim()]) {
+      coords = guCoords[row.gu.trim()];
+      key = `gu:${row.gu.trim()}`;
+    }
+
+    if (coords) {
+      if (!grouped[key]) grouped[key] = { ids: [], lat: coords.lat, lng: coords.lng };
+      grouped[key].ids.push(row.id);
+    } else {
+      skipped++;
+    }
   }
 
-  for (const [dong, ids] of Object.entries(grouped)) {
-    const coords = dongCoords[dong];
-    // 배치 크기 제한 (Supabase .in() 최대 ~300개)
-    for (let i = 0; i < ids.length; i += 300) {
-      const chunk = ids.slice(i, i + 300);
-      // 동일 동 내에서 약간의 랜덤 오프셋 추가 (마커 겹침 방지)
-      // 개별 업데이트 대신 일괄로 동 중심점 할당
+  // 4. 배치 업데이트
+  for (const [, group] of Object.entries(grouped)) {
+    for (let i = 0; i < group.ids.length; i += 300) {
+      const chunk = group.ids.slice(i, i + 300);
       const { error: updateErr } = await supabase
         .from('listings')
-        .update({ lat: coords.lat, lng: coords.lng })
+        .update({ lat: group.lat, lng: group.lng })
         .in('id', chunk);
-
-      if (!updateErr) {
-        updated += chunk.length;
-      }
+      if (!updateErr) updated += chunk.length;
     }
   }
 
-  // 4. 남은 미지오코딩 매물 수
+  // 5. 남은 미지오코딩 매물 수
   const { count: remaining } = await supabase
     .from('listings')
     .select('id', { count: 'exact', head: true })
     .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0');
 
-  // 디버그: 양쪽 dong 값 샘플
-  const withCoordDongs = Object.keys(dongCoords).slice(0, 10);
-  const noCoordsample = (noCoords || []).slice(0, 10).map(r => r.dong);
-
   return NextResponse.json({
     success: true,
     mode: 'dong-average',
-    dongsUsed: Object.keys(grouped).length,
-    totalDongsWithCoords: Object.keys(dongCoords).length,
-    totalNoCoordsRows: (noCoords || []).length,
+    withCoordsTotal: allWithCoords.length,
+    noCoordsTotal: allNoCoords.length,
+    guCount: Object.keys(guCoords).length,
+    dongCount: Object.keys(dongCoords).length,
+    groupsUsed: Object.keys(grouped).length,
     updated,
     skipped,
     remaining: remaining ?? 0,
-    debug: {
-      withCoordDongs,
-      noCoordDongSample: noCoordsample,
-      withCoordsCount: (withCoords || []).length,
-    },
   });
 }
 
