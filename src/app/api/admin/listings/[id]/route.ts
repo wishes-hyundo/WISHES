@@ -224,4 +224,10 @@ export async function PATCH(
       data,
     });
   } catch (error) {
-    console.error('매물 상태 변경 오류:', 
+    console.error('매물 상태 변경 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '상태 변경에 실패했습니다' },
+      { status: 500 }
+    );
+  }
+}
