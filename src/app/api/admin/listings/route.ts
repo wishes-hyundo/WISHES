@@ -74,7 +74,7 @@ const createListingSchema = z.object({
   contact: z.string().optional().nullable(),
   lease_period: z.string().optional().nullable(),
   rights_fee: z.number().int().nonnegative().optional().nullable(),
-  status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
+  status: z.enum(['공개', '비공개', '계약중', '계약완료']).default('공개').optional(),
   images: z.array(z.string()).optional(),
   // 신규 필드 (2026-04-12 추가)
   gu: z.string().optional().nullable(),
@@ -401,7 +401,7 @@ export async function POST(request: NextRequest) {
         electric_capacity: listingData.electric_capacity || null,
         signage_available: listingData.signage_available || null,
         meeting_room: listingData.meeting_room || null,
-        status: listingData.status || '가용',
+        status: listingData.status || '공개',
         previous_business: listingData.previous_business || null,
         recommended_business: listingData.recommended_business || null,
         restricted_business: listingData.restricted_business || null,
@@ -494,6 +494,8 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    // 기존 '가용' 상태를 '공개'로 마이그레이션
+    if (body.status === '가용') body.status = '공개';
     const { id, images, ...updateData } = body;
 
     if (!id) {
