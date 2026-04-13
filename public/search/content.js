@@ -810,7 +810,7 @@
       filtered = filtered.filter(l => l.parking === true);
     }
     if (s.checks.emptyNow) {
-      filtered = filtered.filter(l => l.status === '가용');
+      filtered = filtered.filter(l => l.status === '가용' || l.status === '공개');
     }
     if (s.checks.balcony) {
       // 발코니 필터 (DB 데이터 전부 false - 데이터 존재 시에만 필터링)
@@ -2600,7 +2600,7 @@
             // 건물명이 주소에 이미 포함되어 있으면 중복 표시하지 않음
             if (bn && bn.length > 1 && addrText.indexOf(bn) === -1) addrLine += ' <span style="color:#888;font-weight:400;">(' + escHtml(bn) + ')</span>';
             var newBadge = (function(){ var c = listing.created_at ? new Date(listing.created_at) : null; return (c && (Date.now() - c.getTime()) < 86400000) ? '<span class="ws-new-badge">NEW</span>' : ''; })();
-            var sourceBadge = (function(){ var src = listing.source_site || ''; if (src === 'gongsilclub') return '<span class="ws-source-badge ws-source-g" title="공실클럽">G</span>'; if (src === 'onhouse') return '<span class="ws-source-badge ws-source-o" title="온하우스">O</span>'; return ''; })();
+            var sourceBadge = (function(){ var src = (listing.source_site || '').toLowerCase(); if (src === 'gongsilclub' || src === '공실클럽') return '<span class="ws-source-badge ws-source-g" title="공실클럽">G</span>'; if (src === 'onhouse' || src === '온하우스') return '<span class="ws-source-badge ws-source-o" title="온하우스">O</span>'; return ''; })();
             return '<p class="ws-listing-addr ws-addr-preview" data-listing-id="' + listing.id + '" style="cursor:pointer;" title="클릭하면 핵심정보 보기">' + sourceBadge + addrLine + newBadge + '</p>';
           })() +
           '<p class="ws-listing-title-sub" data-listing-id="' + listing.id + '" style="cursor:pointer;" title="클릭하면 상세보기">' +
@@ -2615,7 +2615,7 @@
             (listing.parking ? '<span class="ws-tag-small">주차' + (getParkingCount(listing) > 1 ? getParkingCount(listing) : '가능') + '</span>' : '') +
             (listing.elevator ? '<span class="ws-tag-small">EV</span>' : '') +
             (listing.full_option ? '<span class="ws-tag-small">풀옵션</span>' : '') +
-            (listing.status === '가용' ? '<span class="ws-tag-small" style="background:#E8F5E9;color:#2D5A27;font-weight:600">공실</span>' : '') +
+            ((listing.status === '가용' || listing.status === '공개') ? '<span class="ws-tag-small" style="background:#E8F5E9;color:#2D5A27;font-weight:600">공실</span>' : '') +
             (window.WS.state.memos[String(listing.id)] ? '<span class="ws-tag-small" style="background:#FFF3E0;color:#E65100;font-weight:600">📝메모</span>' : '') +
             ((window.WS.state.contacts[String(listing.id)] && window.WS.state.contacts[String(listing.id)].length > 0) ? '<span class="ws-tag-small" style="background:#E3F2FD;color:#1565C0;font-weight:600">📞' + window.WS.state.contacts[String(listing.id)].length + '</span>' : '') +
             (listing.heating_type && !/콘크리트|철골|조적|목구조|경량|벽식|구조/.test(listing.heating_type) ? '<span class="ws-tag-small">' + escHtml(listing.heating_type) + '</span>' : '') +
@@ -4532,7 +4532,7 @@
             ${listing.balcony ? '<span class="tag">🏠 발코니</span>' : ''}
             ${listing.full_option ? '<span class="tag">✨ 풀옵션</span>' : ''}
             ${listing.loan_available ? '<span class="tag">🏦 대출가능</span>' : ''}
-            ${listing.status === '가용' ? '<span class="tag" style="background:#c8e6c9;font-weight:700;">공실</span>' : ''}
+            ${(listing.status === '가용' || listing.status === '공개') ? '<span class="tag" style="background:#c8e6c9;font-weight:700;">공실</span>' : ''}
           </div>
           ${includeNotes && listing.description ? `<div class="desc">📝 ${escHtml(listing.description)}</div>` : ''}
           ${window.WS.state.memos[String(listing.id)] ? `<div class="desc" style="color:#E65100;">💬 중개사 메모: ${escHtml(window.WS.state.memos[String(listing.id)])}</div>` : ''}
