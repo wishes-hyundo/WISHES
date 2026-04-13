@@ -17,8 +17,7 @@ function verifyAuth(request: NextRequest): boolean {
 }
 
 /**
- * GET /api/admin/listings/[id] - 매물 상세 조회 (관리자용)
- * 수정 페이지에서 매물 데이터 + 이미지를 불러올 때 사용
+ * GET /api/admin/listings/[id] - 매물 상세 조회 (이미지 포함)
  */
 export async function GET(
   request: NextRequest,
@@ -44,7 +43,7 @@ export async function GET(
 
     const supabase = createServerClient();
 
-    // 매물 조회 (모든 필드 포함 — 관리자용)
+    // 매물 기본 정보
     const { data: listing, error: listingError } = await supabase
       .from('listings')
       .select('*')
@@ -58,15 +57,15 @@ export async function GET(
       );
     }
 
-    // 이미지 조회
-    const { data: images = [] } = await supabase
+    // 이미지 목록
+    const { data: images } = await supabase
       .from('listing_images')
       .select('*')
       .eq('listing_id', listingId)
       .order('sort_order', { ascending: true });
 
-    // 특징 조회
-    const { data: features = [] } = await supabase
+    // 특징 목록
+    const { data: features } = await supabase
       .from('listing_features')
       .select('feature')
       .eq('listing_id', listingId);
@@ -80,7 +79,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('매물 상세 조회 오류:', error);
+    console.error('매물 조회 오류:', error);
     return NextResponse.json(
       { success: false, error: '매물 조회에 실패했습니다' },
       { status: 500 }
@@ -128,7 +127,7 @@ export async function DELETE(
       );
     }
 
-    // 캐시 즉시 무효화
+    // 캐시 즉시 무효화 — 홈, 매물목록, 지도, 개별 매물 페이지
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
@@ -174,8 +173,11 @@ export async function PATCH(
 
     const body = await request.json();
     const statusSchema = z.object({
-      status: z.enum(['가용', '계약중', '계약완료']),
+      status: z.enum(['가용', '공개', '비공개', '계약중', '계약완료']),
     });
+
+    // '가용' → '공개' 마이그레이션 (하위호환)
+    if (body.status === '가용') body.status = '공개';
 
     const parsed = statusSchema.safeParse(body);
     if (!parsed.success) {
@@ -222,10 +224,4 @@ export async function PATCH(
       data,
     });
   } catch (error) {
-    console.error('매물 상태 변경 오류:', error);
-    return NextResponse.json(
-      { success: false, error: '상태 변경에 실패했습니다' },
-      { status: 500 }
-    );
-  }
-}
+    console.error('매물 상태 변경 오류:', 
