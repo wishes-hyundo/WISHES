@@ -247,13 +247,24 @@ async function handleDongAverageMode(request: NextRequest) {
     .select('id', { count: 'exact', head: true })
     .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0');
 
+  // 디버그: 양쪽 dong 값 샘플
+  const withCoordDongs = Object.keys(dongCoords).slice(0, 10);
+  const noCoordsample = (noCoords || []).slice(0, 10).map(r => r.dong);
+
   return NextResponse.json({
     success: true,
     mode: 'dong-average',
     dongsUsed: Object.keys(grouped).length,
+    totalDongsWithCoords: Object.keys(dongCoords).length,
+    totalNoCoordsRows: (noCoords || []).length,
     updated,
     skipped,
     remaining: remaining ?? 0,
+    debug: {
+      withCoordDongs,
+      noCoordDongSample: noCoordsample,
+      withCoordsCount: (withCoords || []).length,
+    },
   });
 }
 
