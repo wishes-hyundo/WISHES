@@ -12090,6 +12090,19 @@
         '<div><label style="font-size:12px;color:#666;font-weight:600;">특이사항</label><textarea id="ws-edit-special" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;">' + escHtml(_l.special_notes || '') + '</textarea></div>' +
       '</div>' +
 
+      // ── 사진 관리 ──
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin:14px 0 8px;padding-top:12px;border-top:1px solid #eee;">📷 사진 관리</div>' +
+      '<div id="ws-edit-photo-section">' +
+        '<div id="ws-edit-photo-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;min-height:40px;"></div>' +
+        '<div id="ws-edit-photo-dropzone" style="border:2px dashed #ccc;border-radius:10px;padding:20px 12px;text-align:center;cursor:pointer;background:#fafafa;transition:all 0.2s;">' +
+          '<div style="font-size:24px;margin-bottom:4px;">📁</div>' +
+          '<div style="font-size:13px;color:#666;font-weight:600;">클릭하거나 드래그하여 사진 추가</div>' +
+          '<div style="font-size:11px;color:#aaa;margin-top:2px;">JPG, PNG 최대 20장</div>' +
+          '<input type="file" id="ws-edit-photo-input" multiple accept="image/*" style="display:none;">' +
+        '</div>' +
+        '<div id="ws-edit-photo-status" style="font-size:12px;color:#888;margin-top:6px;text-align:center;"></div>' +
+      '</div>' +
+
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid #eee;">' +
         '<button id="ws-edit-cancel" style="padding:10px 20px;background:#f3f4f6;color:#333;border:none;border-radius:8px;font-size:14px;cursor:pointer;">취소</button>' +
         '<button id="ws-edit-save" style="padding:10px 24px;background:#2D5A27;color:#fff;border:none;border-radius:8px;font-size:14px;cursor:pointer;font-weight:700;">💾 저장</button>' +
@@ -12097,17 +12110,139 @@
     '</div>';
     document.body.appendChild(modal);
 
+    // ── 사진 관리 로직 ──
+    var editImages = (listing.listing_images || listing.images || []).map(function(img) {
+      return { url: img.url || img, id: img.id || null, isExisting: true };
+    });
+    var editNewFiles = []; // 새로 추가할 파일들
+
+    function renderEditPhotos() {
+      var container = document.getElementById('ws-edit-photo-list');
+      var statusEl = document.getElementById('ws-edit-photo-status');
+      container.innerHTML = '';
+      var totalCount = editImages.length + editNewFiles.length;
+
+      editImages.forEach(function(img, idx) {
+        var thumb = document.createElement('div');
+        thumb.style.cssText = 'position:relative;display:inline-block;border-radius:8px;overflow:hidden;';
+        thumb.innerHTML =
+          '<img src="' + img.url + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px solid ' + (idx === 0 ? '#f59e0b' : '#ddd') + ';">' +
+          (idx === 0 ? '<div style="position:absolute;top:2px;left:2px;background:#f59e0b;color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;font-weight:700;">대표</div>' : '') +
+          '<div style="position:absolute;bottom:2px;left:2px;background:rgba(0,0,0,0.6);color:#fff;font-size:10px;padding:1px 5px;border-radius:4px;">' + (idx + 1) + '</div>' +
+          '<button class="ws-edit-photo-del" style="position:absolute;top:-1px;right:-1px;width:20px;height:20px;border-radius:50%;background:#e53e3e;color:#fff;border:none;font-size:11px;cursor:pointer;line-height:20px;padding:0;">✕</button>' +
+          (idx > 0 ? '<button class="ws-edit-photo-left" style="position:absolute;bottom:2px;right:24px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;border:none;font-size:10px;cursor:pointer;line-height:18px;padding:0;">←</button>' : '') +
+          (idx < editImages.length - 1 ? '<button class="ws-edit-photo-right" style="position:absolute;bottom:2px;right:4px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;border:none;font-size:10px;cursor:pointer;line-height:18px;padding:0;">→</button>' : '');
+
+        // 삭제
+        thumb.querySelector('.ws-edit-photo-del').addEventListener('click', function(e) {
+          e.stopPropagation();
+          editImages.splice(idx, 1);
+          renderEditPhotos();
+        });
+        // 왼쪽 이동
+        var leftBtn = thumb.querySelector('.ws-edit-photo-left');
+        if (leftBtn) leftBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var tmp = editImages[idx]; editImages[idx] = editImages[idx-1]; editImages[idx-1] = tmp;
+          renderEditPhotos();
+        });
+        // 오른쪽 이동
+        var rightBtn = thumb.querySelector('.ws-edit-photo-right');
+        if (rightBtn) rightBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          var tmp = editImages[idx]; editImages[idx] = editImages[idx+1]; editImages[idx+1] = tmp;
+          renderEditPhotos();
+        });
+
+        container.appendChild(thumb);
+      });
+
+      // 새로 추가할 파일 미리보기
+      editNewFiles.forEach(function(item, idx) {
+        var thumb = document.createElement('div');
+        thumb.style.cssText = 'position:relative;display:inline-block;border-radius:8px;overflow:hidden;';
+        thumb.innerHTML =
+          '<img src="' + item.dataUrl + '" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:2px dashed #2D5A27;">' +
+          '<div style="position:absolute;top:2px;left:2px;background:#2D5A27;color:#fff;font-size:9px;padding:1px 5px;border-radius:4px;">NEW</div>' +
+          '<button class="ws-edit-newphoto-del" style="position:absolute;top:-1px;right:-1px;width:20px;height:20px;border-radius:50%;background:#e53e3e;color:#fff;border:none;font-size:11px;cursor:pointer;line-height:20px;padding:0;">✕</button>';
+
+        thumb.querySelector('.ws-edit-newphoto-del').addEventListener('click', function(e) {
+          e.stopPropagation();
+          editNewFiles.splice(idx, 1);
+          renderEditPhotos();
+        });
+        container.appendChild(thumb);
+      });
+
+      if (totalCount === 0) {
+        container.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px;">등록된 사진이 없습니다</div>';
+      }
+      statusEl.textContent = totalCount > 0 ? '기존 ' + editImages.length + '장' + (editNewFiles.length > 0 ? ' + 새로 ' + editNewFiles.length + '장' : '') + ' · 드래그로 순서변경 불가 시 ← → 버튼 사용' : '';
+    }
+
+    renderEditPhotos();
+
+    // 드롭존/파일 선택
+    var editDropzone = document.getElementById('ws-edit-photo-dropzone');
+    var editFileInput = document.getElementById('ws-edit-photo-input');
+    editDropzone.addEventListener('click', function() { editFileInput.click(); });
+    editDropzone.addEventListener('dragover', function(e) { e.preventDefault(); editDropzone.style.borderColor = '#2D5A27'; editDropzone.style.background = '#f0f7f0'; });
+    editDropzone.addEventListener('dragleave', function() { editDropzone.style.borderColor = '#ccc'; editDropzone.style.background = '#fafafa'; });
+    editDropzone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      editDropzone.style.borderColor = '#ccc'; editDropzone.style.background = '#fafafa';
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) handleEditFiles(e.dataTransfer.files);
+    });
+    editFileInput.addEventListener('change', function() { handleEditFiles(this.files); });
+
+    function handleEditFiles(files) {
+      Array.from(files).forEach(function(file) {
+        if (!file.type.startsWith('image/')) return;
+        if (file.size > 10 * 1024 * 1024) { showToast(file.name + ': 10MB 초과', 'error'); return; }
+        if (editImages.length + editNewFiles.length >= 20) { showToast('최대 20장까지', 'error'); return; }
+        var item = { file: file, dataUrl: '' };
+        editNewFiles.push(item);
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          item.dataUrl = ev.target.result;
+          if (editNewFiles.every(function(s) { return s.dataUrl !== ''; })) renderEditPhotos();
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
     document.getElementById('ws-edit-close').addEventListener('click', function() { modal.remove(); });
     document.getElementById('ws-edit-cancel').addEventListener('click', function() { modal.remove(); });
     modal.addEventListener('click', function(e) { if (e.target === modal) modal.remove(); });
 
-    document.getElementById('ws-edit-save').addEventListener('click', function() {
+    document.getElementById('ws-edit-save').addEventListener('click', async function() {
+      var saveBtn = document.getElementById('ws-edit-save');
+      saveBtn.disabled = true;
+      saveBtn.textContent = '저장 중...';
+
       var featuresRaw = document.getElementById('ws-edit-features').value;
       var featuresArr = featuresRaw ? featuresRaw.split(',').map(function(s) { return s.trim(); }).filter(function(s) { return s; }) : null;
       var _v = function(id) { var el = document.getElementById('ws-edit-' + id); return el ? el.value : ''; };
       var _vi = function(id) { var v = parseInt(_v(id)); return isNaN(v) ? null : v; };
       var _vf = function(id) { var v = parseFloat(_v(id)); return isNaN(v) ? null : v; };
       var _vc = function(id) { var el = document.getElementById('ws-edit-' + id); return el ? el.checked : false; };
+
+      // 새 파일 업로드
+      var newImageUrls = [];
+      try {
+        for (var fi = 0; fi < editNewFiles.length; fi++) {
+          var nf = editNewFiles[fi];
+          var fd = new FormData();
+          fd.append('file', nf.file);
+          var upRes = await fetch('/api/admin/upload', { method: 'POST', headers: _wsAuthHeaders(false), body: fd });
+          if (upRes.ok) {
+            var upJson = await upRes.json();
+            if (upJson.url) newImageUrls.push(upJson.url);
+          }
+        }
+      } catch(ue) {
+        console.warn('Image upload error:', ue);
+      }
 
       var body = {
         id: listing.id,
@@ -12171,7 +12306,9 @@
         // 설명
         description: _v('desc'),
         special_notes: _v('special') || null,
-        features: featuresArr
+        features: featuresArr,
+        // 사진 - 기존 이미지 URL + 새로 업로드된 이미지 URL
+        images: editImages.map(function(img) { return img.url; }).concat(newImageUrls)
       };
 
       fetch('/api/admin/listings', {
@@ -12185,12 +12322,17 @@
         Object.keys(body).forEach(function(k) {
           if (body[k] !== null && body[k] !== undefined) listing[k] = body[k];
         });
+        // 이미지 목록도 업데이트
+        listing.listing_images = body.images.map(function(url, i) { return { url: url, sort_order: i }; });
+        listing.images = listing.listing_images;
         window.WS.applyFilters();
         window.WS.renderListings();
         window.WS._updateMgmtDashboard();
         modal.remove();
         showToast('매물 #' + listing.id + ' 수정 완료!', 'success');
       }).catch(function(err) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = '💾 저장';
         showToast('수정 오류: ' + err.message, 'error');
       });
     });
