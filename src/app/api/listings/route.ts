@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
         'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, floor_total, status, created_at, views, maintenance_fee, listing_images(url, sort_order)',
         { count: 'exact' }
       )
-      .eq('status', '가용')
+      .in('status', ['가용', '공개'])
       .order('created_at', { ascending: false });
 
     if (deal) query = query.eq('deal', deal);
@@ -104,6 +104,4 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       { success: false, error: '매물 조회에 실패했습니다' },
       { status: 500 }
-    );
-  }
-}
+    
