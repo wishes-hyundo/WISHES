@@ -163,6 +163,7 @@ async function handleDongAverageMode(request: NextRequest) {
   const supabase = createServerClient();
 
   // 1. 이미 좌표가 있는 매물에서 dong별 평균 lat/lng 계산
+  // Supabase 기본 limit=1000이므로 충분히 큰 값 설정
   const { data: withCoords, error: err1 } = await supabase
     .from('listings')
     .select('dong, lat, lng')
@@ -170,7 +171,8 @@ async function handleDongAverageMode(request: NextRequest) {
     .not('lat', 'is', null)
     .not('lng', 'is', null)
     .neq('lat', 0)
-    .neq('lng', 0);
+    .neq('lng', 0)
+    .limit(20000);
 
   if (err1) {
     return NextResponse.json({ success: false, error: err1.message }, { status: 500 });
@@ -199,7 +201,8 @@ async function handleDongAverageMode(request: NextRequest) {
     .from('listings')
     .select('id, dong')
     .not('dong', 'is', null)
-    .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0');
+    .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0')
+    .limit(20000);
 
   if (err2) {
     return NextResponse.json({ success: false, error: err2.message }, { status: 500 });
