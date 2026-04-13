@@ -13664,4 +13664,153 @@
       }
 
       // 지역
+      if (area) {
+        maxScore += 15;
+        var addrStr = ((l.address || '') + ' ' + (l.dong || '')).toLowerCase();
+        var areaKeywords = area.split(/[,\s]+/).filter(Boolean);
+        var areaMatch = areaKeywords.some(function(kw) { return addrStr.indexOf(kw.toLowerCase()) !== -1; });
+        if (areaMatch) { score += 15; matchReasons.push('지역 일치'); }
+        else { return null; }
+      }
+
+      // 보증금
+      if (depositMax > 0) {
+        maxScore += 10;
+        var dep = l.deposit || 0;
+        if (dep <= depositMax) { score += 10; matchReasons.push('보증금 범위 내'); }
+        else { failReasons.push('보증금 초과'); return null; }
+      }
+
+      // 월세
+      if (monthlyMax > 0) {
+        maxScore += 10;
+        var mon = l.monthly || 0;
+        if (mon <= monthlyMax) { score += 10; matchReasons.push('월세 범위 내'); }
+        else { return null; }
+      }
+
+      // 매매가
+      if (priceMax > 0 && deal === '매매') {
+        maxScore += 10;
+        var pr = l.price || 0;
+        if (pr <= priceMax) { score += 10; matchReasons.push('매매가 범위 내'); }
+        else { return null; }
+      }
+
+      // 면적
+      if (areaMin > 0 || areaMax > 0) {
+        maxScore += 10;
+        var m2 = l.area_m2 || 0;
+        if (areaMin > 0 && m2 < areaMin) { return null; }
+        if (areaMax > 0 && m2 > areaMax) { return null; }
+        score += 10; matchReasons.push('면적 범위 내');
+      }
+
+      // 방 수
+      if (roomsMin > 0) {
+        maxScore += 5;
+        if ((l.rooms || 0) >= roomsMin) { score += 5; matchReasons.push('방 수 충족'); }
+        else { return null; }
+      }
+
+      // 층수
+      if (floorMin > 0) {
+        maxScore += 5;
+        if ((l.floor_current || 0) >= floorMin) { score += 5; matchReasons.push('층수 충족'); }
+        else { return null; }
+      }
+
+      // 옵션
+      if (needParking) {
+        maxScore += 3;
+        if (l.parking) { score += 3; matchReasons.push('주차 가능'); }
+      }
+      if (needElevator) {
+        maxScore += 3;
+        if (l.elevator) { score += 3; matchReasons.push('엘리베이터'); }
+      }
+      if (needPet) {
+        maxScore += 3;
+        if (l.pet) { score += 3; matchReasons.push('반려동물 가능'); }
+      }
+      if (needFulloption) {
+        maxScore += 3;
+        if (l.full_option) { score += 3; matchReasons.push('풀옵션'); }
+      }
+
+      // 기본 점수 (조건 미입력시에도 최소 정렬)
+      if (maxScore === 0) maxScore = 1;
+      var pct = Math.round((score / maxScore) * 100);
+
+      return { listing: l, score: score, maxScore: maxScore, pct: pct, reasons: matchReasons };
+    }).filter(Boolean);
+
+    // 점수순 정렬
+    scored.sort(function(a, b) { return b.pct - a.pct || b.score - a.score; });
+
+    // 결과 표시
+    var resultsEl = document.getElementById('ws-sr-results');
+    if (!resultsEl) return;
+
+    if (scored.length === 0) {
+      resultsEl.innerHTML = '<div style="text-align:center;padding:30px;color:#999;"><div style="font-size:20px;margin-bottom:8px;">😔</div>조건에 맞는 매물이 없습니다.<br>조건을 완화해 보세요.</div>';
+      return;
+    }
+
+    var top = scored.slice(0, 20);
+    var html = '<div style="font-size:13px;color:#2D5A27;font-weight:700;margin-bottom:8px;">🎯 추천 결과: ' + scored.length + '건 중 상위 ' + top.length + '건</div>';
+
+    top.forEach(function(item, idx) {
+      var l = item.listing;
+      var priceText = l.deal === '매매' ? formatPrice(0, 0, l.price, '매매') : formatPrice(l.deposit, l.monthly, 0, l.deal);
+      var matchColor = item.pct >= 80 ? '#2D5A27' : item.pct >= 60 ? '#F57F17' : '#888';
+      var imgUrl = (l.images && l.images.length > 0) ? (l.images[0].url || l.images[0]) : '';
+
+      html += '<div style="display:flex;gap:12px;padding:12px;border:1px solid #e0e0e0;border-radius:10px;margin-bottom:8px;cursor:pointer;transition:all 0.2s;background:#fff;" data-sr-id="' + l.id + '" onmouseover="this.style.boxShadow=\'0 4px 12px rgba(0,0,0,0.1)\'" onmouseout="this.style.boxShadow=\'none\'">';
+      html += '<div style="width:80px;height:80px;border-radius:8px;background:#f0f0f0 center/cover no-repeat;flex-shrink:0;' + (imgUrl ? 'background-image:url(' + escHtml(imgUrl) + ')' : '') + '"></div>';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">';
+      html += '<div style="font-size:14px;font-weight:700;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px;">' + escHtml(l.title || l.address || '매물 #' + l.id) + '</div>';
+      html += '<div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">';
+      html += '<div style="width:40px;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;"><div style="width:' + item.pct + '%;height:100%;background:' + matchColor + ';border-radius:3px;"></div></div>';
+      html += '<span style="font-size:11px;font-weight:700;color:' + matchColor + ';">' + item.pct + '%</span>';
+      html += '</div></div>';
+      html += '<div style="font-size:12px;color:#888;margin-bottom:4px;">' + escHtml(l.address || '') + ' · ' + escHtml(l.type || '') + ' · ' + (l.area_m2 ? formatArea(l.area_m2) : '-') + '</div>';
+      html += '<div style="font-size:14px;font-weight:700;color:#2D5A27;">' + (priceText || '-') + '</div>';
+      html += '<div style="font-size:10px;color:#999;margin-top:2px;">' + item.reasons.join(' · ') + '</div>';
+      html += '</div></div>';
+    });
+
+    resultsEl.innerHTML = html;
+
+    // 클릭 이벤트 (상세 모달 열기)
+    resultsEl.querySelectorAll('[data-sr-id]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var id = this.getAttribute('data-sr-id');
+        var found = (window.WS.allListings || []).find(function(l) { return String(l.id) === String(id); });
+        if (found) {
+          document.getElementById('ws-modal-smart-recommend').style.display = 'none';
+          window.WS.showDetail(found);
+        }
+      });
+    });
+  };
+
+  // [EMBED-PATCH] 임베드 모드에서는 boot 완료 직후 바로 검색 UI를 자동으로 표시
+  if (_WS_EMBEDDED_MODE) {
+    try {
+      if (window.WS && typeof window.WS.showSearchUI === 'function') {
+        window.WS.showSearchUI();
+      }
+      if (window.WS && typeof window.WS.loadData === 'function' && !window.WS._loadingData) {
+        window.WS.loadData();
+      }
+    } catch (e) {
+      console.error('[WISHES-EMBED] auto-show 실패:', e);
+    }
+  }
+
+  } // end _wsBootExtension
+
+})();
     
