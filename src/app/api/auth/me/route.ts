@@ -3,6 +3,17 @@ import { createServerClient } from '@/lib/supabase';
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
+// 타임아웃 헬퍼
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 /**
  * GET /api/auth/me
  * 현재 로그인한 사용자의 역할 및 승인 상태 확인
@@ -18,51 +29,67 @@ export async function GET(request: NextRequest) {
     }
 
     const supabase = createServerClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
 
-    if (userError || !user) {
-      return NextResponse.json({ success: false, message: '유효하지 않은 토큰입니다.' }, { status: 401 });
+    // Auth API로 사용자 확인 (3초 타임아웃)
+    let user;
+    try {
+      const { data, error: userError } = await withTimeout(
+        supabase.auth.getUser(token),
+        3000,
+      );
+      if (userError || !data.user) {
+        return NextResponse.json({ success: false, message: '유효하지 않은 토큰입니다.' }, { status: 401 });
+      }
+      user = data.user;
+    } catch {
+      return NextResponse.json({ success: false, message: '인증 서버 응답 시간 초과' }, { status: 504 });
     }
 
     const email = (user.email || '').toLowerCase();
     const isSuperAdmin = SUPERADMIN_EMAILS.includes(email);
 
-    // admin_users 테이블에서 역할/상태 조회 (id 또는 email 로 매칭)
-    let adminUser: { role?: string; name?: string; company?: string; phone?: string; status?: string } | null = null;
-    try {
-      const byId = await supabase
-        .from('admin_users')
-        .select('role, name, company, phone, status')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (byId.data) adminUser = byId.data;
-    } catch {}
-    if (!adminUser) {
-      try {
-        const byEmail = await supabase
-          .from('admin_users')
-          .select('role, name, company, phone, status')
-          .eq('email', email)
-          .maybeSingle();
-        if (byEmail.data) adminUser = byEmail.data;
-      } catch {}
+    // superadmin은 DB 쿼리 없이 즉시 반환
+    if (isSuperAdmin) {
+      return NextResponse.json({
+        success: true,
+        user: {
+          id: user.id,
+          email,
+          name: user.user_metadata?.name || 'WISHES',
+          company: user.user_metadata?.company || '',
+          phone: user.user_metadata?.phone || '',
+          role: 'superadmin',
+          status: 'approved',
+          canAccessBroker: true,
+        }
+      });
     }
 
-    // user_metadata 도 참고 (/api/admin/users PUT 이 승인 시 user_metadata 를 함께 갱신함)
+    // admin_users 테이블에서 역할/상태 조회 (3초 타임아웃 — 실패해도 user_metadata로 진행)
+    let adminUser: { role?: string; name?: string; company?: string; phone?: string; status?: string } | null = null;
+    try {
+      const { data } = await withTimeout(
+        supabase
+          .from('admin_users')
+          .select('role, name, company, phone, status')
+          .or(`id.eq.${user.id},email.eq.${email}`)
+          .limit(1)
+          .maybeSingle(),
+        3000,
+      );
+      if (data) adminUser = data;
+    } catch {
+      // DB 타임아웃 → user_metadata만으로 진행
+    }
+
+    // user_metadata 도 참고
     const meta = (user.user_metadata || {}) as { status?: string; role?: string; name?: string; company?: string; phone?: string };
 
-    // 상태는 admin_users → user_metadata 순으로 우선, 둘 중 하나라도 approved 면 통과
-    const role = isSuperAdmin
-      ? 'superadmin'
-      : (adminUser?.role || meta.role || 'pending');
-    const status = isSuperAdmin
+    const role = adminUser?.role || meta.role || 'pending';
+    const status = adminUser?.status === 'approved' || meta.status === 'approved'
       ? 'approved'
-      : (adminUser?.status === 'approved' || meta.status === 'approved'
-          ? 'approved'
-          : (adminUser?.status || meta.status || 'pending'));
+      : (adminUser?.status || meta.status || 'pending');
 
-    // 브로커 포털 접근 권한: 승인된 모든 역할 허용
-    // ※ 회원가입 시 'viewer', 승인 시 'agent' 가 기본이므로 모두 포함
     const APPROVED_ROLES = ['superadmin', 'admin', 'agent', 'broker', 'viewer', 'user'];
     const canAccessBroker = status === 'approved' && APPROVED_ROLES.includes(role);
 
@@ -71,9 +98,9 @@ export async function GET(request: NextRequest) {
       user: {
         id: user.id,
         email,
-        name: adminUser?.name || user.user_metadata?.name || '',
-        company: adminUser?.company || user.user_metadata?.company || '',
-        phone: adminUser?.phone || user.user_metadata?.phone || '',
+        name: adminUser?.name || meta.name || '',
+        company: adminUser?.company || meta.company || '',
+        phone: adminUser?.phone || meta.phone || '',
         role,
         status,
         canAccessBroker,
