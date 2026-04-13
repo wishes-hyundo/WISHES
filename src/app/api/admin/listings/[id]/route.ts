@@ -127,7 +127,7 @@ export async function DELETE(
       );
     }
 
-    // 캐시 즉시 무효화 — 홈, 매물목록, 지도, 개별 매물 페이지
+    // 캐시 즉시 무효화
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
@@ -224,4 +224,10 @@ export async function PATCH(
       data,
     });
   } catch (error) {
-    console.error('매물 상태 변경 오류:', 
+    console.error('매물 상태 변경 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '상태 변경에 실패했습니다' },
+      { status: 500 }
+    );
+  }
+}
