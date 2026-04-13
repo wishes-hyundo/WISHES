@@ -12001,8 +12001,21 @@
         '<button id="ws-edit-close" style="background:none;border:none;font-size:24px;cursor:pointer;color:#999;">✕</button>' +
       '</div>' +
 
+      // ── 사진 관리 (최상단) ──
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin-bottom:8px;">📷 사진 관리</div>' +
+      '<div id="ws-edit-photo-section">' +
+        '<div id="ws-edit-photo-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;min-height:40px;"></div>' +
+        '<div id="ws-edit-photo-dropzone" style="border:2px dashed #ccc;border-radius:10px;padding:16px 12px;text-align:center;cursor:pointer;background:#fafafa;transition:all 0.2s;">' +
+          '<div style="font-size:24px;margin-bottom:4px;">📁</div>' +
+          '<div style="font-size:13px;color:#666;font-weight:600;">클릭하거나 드래그하여 사진 추가</div>' +
+          '<div style="font-size:11px;color:#aaa;margin-top:2px;">JPG, PNG 최대 20장</div>' +
+          '<input type="file" id="ws-edit-photo-input" multiple accept="image/*" style="display:none;">' +
+        '</div>' +
+        '<div id="ws-edit-photo-status" style="font-size:12px;color:#888;margin-top:6px;text-align:center;"></div>' +
+      '</div>' +
+
       // ── 기본정보 ──
-      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin-bottom:8px;">기본정보</div>' +
+      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin:14px 0 8px;padding-top:12px;border-top:1px solid #eee;">기본정보</div>' +
       '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">' +
         '<div style="grid-column:1/-1;">' + _inp('title', '제목', _l.title) + '</div>' +
         _sel('deal', '거래유형', _l.deal, ['월세','전세','매매','전월세']) +
@@ -12088,19 +12101,6 @@
         '<div style="grid-column:1/-1;"><label style="font-size:12px;color:#666;font-weight:600;">특징/옵션 (쉼표 구분)</label><input id="ws-edit-features" value="' + escHtml((_l.features || []).join(', ')) + '" placeholder="풀옵션, 주차가능, 반려동물" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;"></div>' +
         '<div><label style="font-size:12px;color:#666;font-weight:600;">상세설명 (크롤링)</label><textarea id="ws-edit-desc" rows="3" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;">' + escHtml(_l.description || '') + '</textarea></div>' +
         '<div><label style="font-size:12px;color:#666;font-weight:600;">특이사항</label><textarea id="ws-edit-special" rows="2" style="width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;font-size:13px;resize:vertical;">' + escHtml(_l.special_notes || '') + '</textarea></div>' +
-      '</div>' +
-
-      // ── 사진 관리 ──
-      '<div style="font-size:13px;font-weight:700;color:#2D5A27;margin:14px 0 8px;padding-top:12px;border-top:1px solid #eee;">📷 사진 관리</div>' +
-      '<div id="ws-edit-photo-section">' +
-        '<div id="ws-edit-photo-list" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;min-height:40px;"></div>' +
-        '<div id="ws-edit-photo-dropzone" style="border:2px dashed #ccc;border-radius:10px;padding:20px 12px;text-align:center;cursor:pointer;background:#fafafa;transition:all 0.2s;">' +
-          '<div style="font-size:24px;margin-bottom:4px;">📁</div>' +
-          '<div style="font-size:13px;color:#666;font-weight:600;">클릭하거나 드래그하여 사진 추가</div>' +
-          '<div style="font-size:11px;color:#aaa;margin-top:2px;">JPG, PNG 최대 20장</div>' +
-          '<input type="file" id="ws-edit-photo-input" multiple accept="image/*" style="display:none;">' +
-        '</div>' +
-        '<div id="ws-edit-photo-status" style="font-size:12px;color:#888;margin-top:6px;text-align:center;"></div>' +
       '</div>' +
 
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid #eee;">' +
