@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase';
 
 /**
  * 지도 바운드 범위 내 매물 조회
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     const minDeposit = searchParams.get('minDeposit');
     const maxDeposit = searchParams.get('maxDeposit');
 
-    const supabase = createClient();
+    const supabase = createServerClient();
 
     // 지도 바운드 내 매물 조회 (경량화: 이미지 조인 제거로 응답 속도 대폭 향상)
     let query = supabase

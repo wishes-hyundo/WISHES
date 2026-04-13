@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
     const { data: listings, error } = await supabase
       .from('listings')
       .select('id, address, dong, gu, building_name')
-      .or('lat.is.null,lng.is.null')
+      .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0')
       .limit(batchSize);
 
     if (error) {
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
     const { count } = await supabase
       .from('listings')
       .select('id', { count: 'exact', head: true })
-      .or('lat.is.null,lng.is.null');
+      .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0');
 
     return NextResponse.json({
       success: true,
@@ -151,7 +151,7 @@ export async function GET(request: NextRequest) {
   const { count: noCoords } = await supabase
     .from('listings')
     .select('id', { count: 'exact', head: true })
-    .or('lat.is.null,lng.is.null');
+    .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0');
 
   const { count: total } = await supabase
     .from('listings')
