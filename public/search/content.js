@@ -2,8 +2,8 @@
  * Wishes Search Extension - Content Script
  * Injects property search functionality into wishes.co.kr/admin
  *
- * @version 2.2.1
- * @build 2026-04-10
+ * @version 2.2.2
+ * @build 2026-04-14
  * @changelog v2.2.1 - IndexedDB 캐시 추가 (재로드 즉시 표시, 백그라운드 갱신)
  * @changelog v2.2.0 - Admin API 단일 호출로 전환 (병렬 페이지네이션 제거, API 500 에러 해결)
  *
@@ -112,6 +112,43 @@
     // (ISOLATED world에서는 직접 접근 불가하므로 스크립트 주입)
     function _wsCheckPageAuth(onResult) {
       var _pageAuthHandled = false;
+
+      // [FIX 2026-04-14] 웹 스크립트로 로드된 경우 main world 직접 접근
+      // /search/content.js로 배포되면 chrome.runtime이 없으므로 바로 sessionStorage 읽기
+      var isExtensionContext = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL;
+      if (!isExtensionContext) {
+        try {
+          var token = null, user = null, loginTime = null, adminPw = null;
+          try { token = sessionStorage.getItem('ws_token'); } catch(e) {}
+          try { user = sessionStorage.getItem('ws_user'); } catch(e) {}
+          try { loginTime = sessionStorage.getItem('ws_login_time'); } catch(e) {}
+          try { adminPw = localStorage.getItem('admin_password') || sessionStorage.getItem('admin_password'); } catch(e) {}
+          if (!token) {
+            try {
+              var wa = localStorage.getItem('wishes-auth');
+              if (wa) {
+                var parsed = JSON.parse(wa);
+                if (parsed && parsed.access_token) {
+                  token = 'admin_bridge_' + parsed.access_token;
+                }
+              }
+            } catch(e) {}
+          }
+          onResult({
+            hasToken: !!token,
+            token: token,
+            user: user,
+            loginTime: loginTime,
+            hasAdminPw: !!adminPw,
+            adminPw: adminPw
+          });
+          return;
+        } catch(e) {
+          onResult({ hasToken: false, hasAdminPw: false });
+          return;
+        }
+      }
+
       window.addEventListener('message', function _pageAuthMsg(e) {
         if (e.data && e.data.type === 'WS_PAGE_AUTH_RESULT' && !_pageAuthHandled) {
           _pageAuthHandled = true;
@@ -119,13 +156,12 @@
           onResult(e.data);
         }
       });
-      if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+      if (isExtensionContext) {
         var script = document.createElement('script');
         script.src = chrome.runtime.getURL('page-auth.js');
         script.onload = function() { script.remove(); };
         document.documentElement.appendChild(script);
       }
-      // 2초 타임아웃
       setTimeout(function() {
         if (!_pageAuthHandled) {
           _pageAuthHandled = true;
