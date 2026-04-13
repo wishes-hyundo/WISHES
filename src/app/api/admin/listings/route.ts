@@ -72,7 +72,6 @@ const createListingSchema = z.object({
   source_url: z.string().optional().nullable(),
   building_name: z.string().optional().nullable(),
   contact: z.string().optional().nullable(),
-  contact_role: z.string().optional().nullable(),
   lease_period: z.string().optional().nullable(),
   rights_fee: z.number().int().nonnegative().optional().nullable(),
   status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
@@ -85,8 +84,9 @@ const createListingSchema = z.object({
   building_purpose: z.string().optional().nullable(),
   previous_brand: z.string().optional().nullable(),
   commission_fee: z.number().int().nonnegative().optional().nullable(),
-  commission_note: z.string().optional().nullable(),
   special_notes: z.string().optional().nullable(),
+  contact_role: z.string().optional().nullable(),
+  commission_note: z.string().optional().nullable(),
 });
 
 /**
@@ -149,8 +149,9 @@ export async function GET(request: NextRequest) {
         'parking_spaces', 'rights_fee', 'lease_period',
         'station_name', 'station_distance',
         'entrance_type', 'parking_fee', 'building_purpose',
-        'features', 'previous_brand', 'commission_fee', 'commission_note', 'special_notes',
+        'previous_brand', 'commission_fee', 'special_notes',
         'source_site', 'source_id', 'source_url', 'building_name', 'contact', 'contact_role',
+        'features', 'commission_note',
         'listing_images(url,sort_order)',
         'listing_features(feature)'
       ].join(',');
@@ -410,18 +411,18 @@ export async function POST(request: NextRequest) {
         source_url: listingData.source_url || null,
         building_name: listingData.building_name || null,
         contact: listingData.contact || null,
-        contact_role: listingData.contact_role || null,
         lease_period: listingData.lease_period || null,
         rights_fee: listingData.rights_fee || null,
         gu: listingData.gu || null,
         entrance_type: listingData.entrance_type || null,
+        features: listingData.features || null,
         parking_fee: listingData.parking_fee || null,
         building_purpose: listingData.building_purpose || null,
         previous_brand: listingData.previous_brand || null,
         commission_fee: listingData.commission_fee || null,
-        commission_note: listingData.commission_note || null,
         special_notes: listingData.special_notes || null,
-        features: listingData.features || null,
+        contact_role: listingData.contact_role || null,
+        commission_note: listingData.commission_note || null,
       })
       .select()
       .single();
@@ -432,25 +433,6 @@ export async function POST(request: NextRequest) {
         { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
         { status: 500, headers: CORS_HEADERS }
       );
-    }
-
-    // ── listing_features 삽입 (옵션 목록) ──
-    let featureResults: any[] = [];
-    const features = listingData.features;
-    if (features && Array.isArray(features) && features.length > 0 && data?.id) {
-      const featureInserts = features.map((f: string) => ({
-        listing_id: data.id,
-        feature: f.trim(),
-      }));
-      const { data: featData, error: featError } = await supabase
-        .from('listing_features')
-        .insert(featureInserts)
-        .select();
-      if (featError) {
-        console.error('옵션 연결 오류:', featError);
-      } else {
-        featureResults = featData || [];
-      }
     }
 
     let imageResults: any[] = [];
@@ -576,4 +558,51 @@ export async function PUT(request: NextRequest) {
       if (images.length > 0) {
         const imageInserts = images.map((url: string, index: number) => ({
           listing_id: id,
-          url:
+          url: url,
+          alt: `매물 이미지 ${index + 1}`,
+          sort_order: index,
+          is_thumbnail: index === 0,
+        }));
+
+        await supabase
+          .from('listing_images')
+          .insert(imageInserts);
+      }
+    }
+
+    if (!data) {
+      const { data: fetchedData } = await supabase
+        .from('listings')
+        .select('*, listing_images(*)')
+        .eq('id', id)
+        .single();
+
+      data = fetchedData;
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { success: false, error: '매물을 찾을 수 없습니다' },
+        { status: 404 }
+      );
+    }
+
+    revalidatePath('/', 'layout');
+    revalidatePath('/listings', 'page');
+    revalidatePath('/map', 'page');
+    revalidatePath(`/listings/${id}`, 'page');
+    revalidateTag('listings');
+
+    return NextResponse.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    console.error('매물 수정 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
+      { status: 500 }
+    );
+  }
+}
+
