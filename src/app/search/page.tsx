@@ -31,8 +31,9 @@ export default function SearchPortalPage() {
     try {
       const w = window as unknown as { __WS_PREFETCH__?: Promise<unknown> };
       if (!w.__WS_PREFETCH__) {
+        const wsToken = sessionStorage.getItem('ws_token') || '';
         w.__WS_PREFETCH__ = fetch('/api/admin/listings?fields=minimal', {
-          headers: { Authorization: 'Bearer wishes2026' },
+          headers: { Authorization: 'Bearer ' + wsToken },
           cache: 'no-cache',
         })
           .then((r) => r.json())
@@ -52,23 +53,49 @@ export default function SearchPortalPage() {
       }
     } catch {}
 
+    // ⏱ 타임아웃 헬퍼 — Promise 가 지정 시간 내 resolve 되지 않으면 reject
+    function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+      return new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error(`${label}: ${ms / 1000}초 초과 (네트워크 또는 서버 응답 없음)`)), ms);
+        promise.then(
+          (v) => { clearTimeout(timer); resolve(v); },
+          (e) => { clearTimeout(timer); reject(e); },
+        );
+      });
+    }
+
     (async () => {
+      // ── [1단계] 로그인 페이지에서 저장한 세션 토큰 확인 (즉시) ──
       try {
-        const sb = createAuthClient();
-        const { data: { session }, error: sessErr } = await sb.auth.getSession();
-        if (sessErr) {
-          if (!cancelled) { setErrMsg(sessErr.message); setState('error'); }
+        const token = sessionStorage.getItem('ws_token');
+        if (token) {
+          if (!cancelled) setState('ok');
           return;
         }
-        if (!session) {
+      } catch {}
+
+      // ── [2단계] Supabase 세션 확인 (5초 타임아웃) ──
+      try {
+        const sb = createAuthClient();
+        const { data: { session }, error: sessErr } = await withTimeout(
+          sb.auth.getSession(), 5_000, '세션 확인',
+        );
+
+        if (sessErr || !session) {
+          // 세션 없음 → 로그인 필요
           if (!cancelled) setState('nosession');
           return;
         }
 
-        const res = await fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
+        // 세션 있음 → 승인 상태 확인
+        const res = await withTimeout(
+          fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          }),
+          5_000, '인증 API',
+        );
         const data = await res.json();
+
         if (!data.success) {
           if (!cancelled) { setErrMsg(data.message || '인증 실패'); setState('error'); }
           return;
@@ -95,9 +122,10 @@ export default function SearchPortalPage() {
         } catch {}
 
         if (!cancelled) setState('ok');
-      } catch (e) {
+      } catch {
+        // Supabase 타임아웃 또는 네트워크 오류
         if (!cancelled) {
-          setErrMsg(e instanceof Error ? e.message : String(e));
+          setErrMsg('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
           setState('error');
         }
       }

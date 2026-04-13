@@ -18,18 +18,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-// 관리자 토큰으로 세션 저장
-function setAdminTokens() {
-  try {
-    sessionStorage.setItem('ws_token', 'wishes2026');
-    sessionStorage.setItem('ws_user', JSON.stringify({ email: 'wishes@wishes.co.kr', name: 'WISHES', role: 'superadmin', status: 'approved' }));
-    sessionStorage.setItem('ws_login_time', Date.now().toString());
-    localStorage.setItem('ws_token', 'wishes2026');
-    localStorage.setItem('admin_password', 'wishes2026');
-    localStorage.setItem('ws_login_time', Date.now().toString());
-  } catch {}
-}
-
 function LoginForm() {
   const params = useSearchParams();
   const redirect = params.get('redirect') || '/search';
@@ -41,7 +29,6 @@ function LoginForm() {
   const [pageState, setPageState] = useState<'checking' | 'form' | 'redirecting'>('checking');
   const redirectedRef = useRef(false);
 
-  // 하드 네비게이션 (Next.js router.replace 대신 — 깜빡임 방지)
   function hardRedirect(url: string) {
     if (redirectedRef.current) return;
     redirectedRef.current = true;
@@ -49,31 +36,25 @@ function LoginForm() {
     window.location.href = url;
   }
 
-  // 이미 로그인되어 있으면 바로 redirect (3초 타임아웃)
+  // 이미 Supabase 세션이 있으면 바로 redirect
   useEffect(() => {
     if (redirectedRef.current) return;
 
     (async () => {
-      // [1] 로컬 토큰 확인 (즉시)
-      try {
-        const token = sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token');
-        const adminPw = localStorage.getItem('admin_password');
-        if (token || adminPw) {
-          hardRedirect(redirect);
-          return;
-        }
-      } catch {}
-
-      // [2] Supabase 세션 확인 (3초 제한)
       try {
         const sb = createAuthClient();
         const { data: { session } } = await withTimeout(sb.auth.getSession(), 3000);
         if (session && !redirectedRef.current) {
+          // 세션 유효 → ws_token 세팅 후 이동
+          try {
+            sessionStorage.setItem('ws_token', 'admin_bridge_' + session.access_token);
+            sessionStorage.setItem('ws_login_time', Date.now().toString());
+          } catch {}
           hardRedirect(redirect);
           return;
         }
       } catch {
-        // Supabase 타임아웃 — 무시하고 로그인 폼 표시
+        // Supabase 타임아웃 — 로그인 폼 표시
       }
 
       if (!redirectedRef.current) setPageState('form');
@@ -86,22 +67,15 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
-    // ⚡ 관리자 비밀번호 직접 입력 시 Supabase 없이 즉시 로그인
-    if (password === 'wishes2026') {
-      setAdminTokens();
-      hardRedirect(redirect);
-      return;
-    }
-
     try {
       const sb = createAuthClient();
 
-      // Supabase 로그인 (5초 타임아웃)
+      // Supabase 로그인 (8초 타임아웃)
       let data;
       try {
         const result = await withTimeout(
           sb.auth.signInWithPassword({ email: email.toLowerCase(), password }),
-          5000,
+          8000,
         );
         if (result.error) {
           setError('이메일 또는 비밀번호가 올바르지 않습니다.');
@@ -110,7 +84,7 @@ function LoginForm() {
         }
         data = result.data;
       } catch {
-        setError('서버 연결 시간 초과. 네트워크를 확인하거나 잠시 후 다시 시도해주세요.');
+        setError('서버 연결 시간 초과입니다. 잠시 후 다시 시도해주세요.');
         setLoading(false);
         return;
       }
@@ -145,15 +119,27 @@ function LoginForm() {
           setLoading(false);
           return;
         }
+
+        // ✅ 승인된 회원 → 세션 토큰 저장
+        try {
+          sessionStorage.setItem('ws_token', 'admin_bridge_' + (data.session?.access_token || ''));
+          sessionStorage.setItem('ws_user', JSON.stringify({
+            email: meData.user.email,
+            name: meData.user.name,
+            role: meData.user.role,
+            status: meData.user.status,
+          }));
+          sessionStorage.setItem('ws_login_time', Date.now().toString());
+        } catch {}
+
       } catch {
-        // /api/auth/me 타임아웃 → Supabase 인증은 성공했으므로 진행
+        // /api/auth/me 타임아웃 → Supabase 인증은 성공했으므로 기본 토큰만 저장
+        try {
+          sessionStorage.setItem('ws_token', 'admin_bridge_' + (data.session?.access_token || ''));
+          sessionStorage.setItem('ws_login_time', Date.now().toString());
+        } catch {}
       }
 
-      // 승인됨 → 세션 토큰 저장 + 리다이렉트
-      try {
-        sessionStorage.setItem('ws_token', 'admin_bridge_' + (data.session?.access_token || ''));
-        sessionStorage.setItem('ws_login_time', Date.now().toString());
-      } catch {}
       hardRedirect(redirect);
     } catch {
       setError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
