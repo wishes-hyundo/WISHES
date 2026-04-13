@@ -13533,4 +13533,41 @@
       html += '<div style="width:40px;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;"><div style="width:' + item.pct + '%;height:100%;background:' + matchColor + ';border-radius:3px;"></div></div>';
       html += '<span style="font-size:11px;font-weight:700;color:' + matchColor + ';">' + item.pct + '%</span>';
       html += '</div></div>';
-      html += '<div sty
+      html += '<div style="font-size:12px;color:#888;margin-bottom:4px;">' + escHtml(l.address || '') + ' · ' + escHtml(l.type || '') + ' · ' + (l.area_m2 ? formatArea(l.area_m2) : '-') + '</div>';
+      html += '<div style="font-size:14px;font-weight:700;color:#2D5A27;">' + (priceText || '-') + '</div>';
+      html += '<div style="font-size:10px;color:#999;margin-top:2px;">' + item.reasons.join(' · ') + '</div>';
+      html += '</div></div>';
+    });
+
+    resultsEl.innerHTML = html;
+
+    // 클릭 이벤트 (상세 모달 열기)
+    resultsEl.querySelectorAll('[data-sr-id]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var id = this.getAttribute('data-sr-id');
+        var found = (window.WS.allListings || []).find(function(l) { return String(l.id) === String(id); });
+        if (found) {
+          document.getElementById('ws-modal-smart-recommend').style.display = 'none';
+          window.WS.showDetail(found);
+        }
+      });
+    });
+  };
+
+  // [EMBED-PATCH] 임베드 모드에서는 boot 완료 직후 바로 검색 UI를 자동으로 표시
+  if (_WS_EMBEDDED_MODE) {
+    try {
+      if (window.WS && typeof window.WS.showSearchUI === 'function') {
+        window.WS.showSearchUI();
+      }
+      if (window.WS && typeof window.WS.loadData === 'function' && !window.WS._loadingData) {
+        window.WS.loadData();
+      }
+    } catch (e) {
+      console.error('[WISHES-EMBED] auto-show 실패:', e);
+    }
+  }
+
+  } // end _wsBootExtension
+
+})();
