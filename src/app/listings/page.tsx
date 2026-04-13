@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 // 5초 타임아웃 래퍼
-const withTimeout = <T,>(promise: Promise<T>, ms = 5000): Promise<T> =>
+const withTimeout = <T,>(promise: Promise<T>, ms = 3000): Promise<T> =>
   Promise.race([
     promise,
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),

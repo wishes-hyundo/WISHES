@@ -5,6 +5,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 
+// 5초 타임아웃 래퍼
+function withTimeout<T>(promise: Promise<T>, ms = 5000): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('DB timeout')), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
 /**
  * 매물 목록 조회
  * @query ids - 매물 ID 목록 (콤마 구분, 비교 페이지용)
@@ -77,7 +88,19 @@ export async function GET(request: NextRequest) {
 
     query = query.range(offset, offset + limit - 1);
 
-    const { data, error, count } = await query;
+    let data, error, count;
+    try {
+      const result = await withTimeout(query, 5000);
+      data = result.data;
+      error = result.error;
+      count = result.count;
+    } catch {
+      // DB 타임아웃 → 빈 결과 반환 (사이트는 즉시 로드)
+      return NextResponse.json(
+        { success: true, data: [], total: 0 },
+        { headers: { 'Cache-Control': 'no-cache' } }
+      );
+    }
 
     if (error) {
       console.error('Supabase 쿼리 오류:', error);

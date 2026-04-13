@@ -70,21 +70,26 @@ function LoginForm() {
     try {
       const sb = createAuthClient();
 
-      // Supabase 로그인 (8초 타임아웃)
+      // Supabase 로그인 (15초 타임아웃)
       let data;
       try {
         const result = await withTimeout(
           sb.auth.signInWithPassword({ email: email.toLowerCase(), password }),
-          8000,
+          15000,
         );
         if (result.error) {
-          setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+          const msg = result.error.message || '';
+          if (msg.includes('Invalid login') || msg.includes('invalid')) {
+            setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+          } else {
+            setError('로그인 실패: ' + msg);
+          }
           setLoading(false);
           return;
         }
         data = result.data;
       } catch {
-        setError('서버 연결 시간 초과입니다. 잠시 후 다시 시도해주세요.');
+        setError('서버 연결 시간 초과입니다. 현재 서버가 불안정합니다. 잠시 후 다시 시도해주세요.');
         setLoading(false);
         return;
       }
