@@ -5,6 +5,8 @@ import { HomeListingCard } from '@/components/HomeListingCard';
 import HeroBackground from '@/components/HeroBackground';
 import RecommendedListings from '@/components/RecommendedListings';
 
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   // Supabase에서 최신 매물 6건 가져오기
   const supabase = createClient();

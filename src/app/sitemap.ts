@@ -1,6 +1,8 @@
 import type { MetadataRoute } from 'next';
 import { createServerClient } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://wishes.co.kr';
   const now = new Date().toISOString();
