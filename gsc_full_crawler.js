@@ -160,6 +160,10 @@
     // 타입
     var typeM = allText.match(/(원룸|투룸|쓰리룸|오피스텔|아파트|상가|사무실)/);
     if (typeM) d.type = typeM[1];
+    // 보증금 조정가능
+    if (/보증금\s*조정/.test(allText)) {
+      d.special_notes = (d.special_notes ? d.special_notes + ' / ' : '') + '보증금 조정가능';
+    }
 
     return d;
   }
@@ -291,34 +295,35 @@
     // 구조형태 → entrance_type 필드에 매핑 (DB에 structure_type 없음)
     if (infoMap['구조형태']) d.entrance_type = infoMap['구조형태'];
 
-    // ── 월관리비: "20만원, 부가세 별도" or "관리비 별도, 퇴실비18만" ──
+    // ── 월관리비: "10만원, 공과금 별도" or "관리비 별도, 퇴실비18만" ──
     var maintInfo = infoMap['월관리비'] || infoMap['관리비'] || '';
     if (maintInfo) {
       // "관리비 별도"인 경우 → 금액 0, special_notes에 원문 기록
       if (/관리비\s*별도/.test(maintInfo)) {
-        d.maintenance_fee = null; // 별도 = 금액 없음
+        d.maintenance_fee = null;
         d.special_notes = (d.special_notes ? d.special_notes + ' / ' : '') + '관리비별도';
-        // 나머지 텍스트에서 추가 정보 추출 (퇴실비 등)
         var extraInfo = maintInfo.replace(/관리비\s*별도/, '').replace(/^[\s,，]+|[\s,，]+$/g, '').trim();
         if (extraInfo) d.special_notes += ', ' + extraInfo;
       } else {
-        // 관리비 금액 추출 - "20만원" 패턴에서만 숫자 추출
+        // 관리비 금액 추출 - "10만원" 패턴
         var maintM = maintInfo.match(/(\d+)\s*만\s*원?/);
         if (maintM) {
           d.maintenance_fee = Math.round(parseFloat(maintM[1]));
         } else {
-          // 단순 숫자만 있는 경우
           var maintN = maintInfo.match(/^(\d+)$/);
           if (maintN) d.maintenance_fee = Math.round(parseFloat(maintN[1]));
         }
       }
-      // 부가세 정보 추출
+      // 부가세 정보
       if (maintInfo.indexOf('부가세') !== -1) {
         d.vat_included = maintInfo.indexOf('포함') !== -1;
       }
-      // 관리비 텍스트에서 포함항목 추출 (콤마 구분, 숫자/퇴실비/별도 제외)
-      var maintParts = maintInfo.split(/[,，]/).map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 1 && !/\d+만/.test(s) && !/별도/.test(s) && !/퇴실비/.test(s); });
-      if (maintParts.length > 0 && !d.maintenance_includes) {
+      // 관리비 부가내용 추출: "10만원, 공과금 별도" → ["공과금 별도"]
+      // 콤마로 분리 후 금액 부분 제외한 나머지를 maintenance_includes에 저장
+      var maintParts = maintInfo.split(/[,，]/).map(function(s) { return s.trim(); }).filter(function(s) {
+        return s.length > 1 && !/^\d+\s*만?\s*원?$/.test(s);
+      });
+      if (maintParts.length > 0) {
         d.maintenance_includes = maintParts;
       }
     }
@@ -329,7 +334,7 @@
       d.maintenance_includes = maintItems.split(/[,/·ㆍ、]/).map(function(s) { return s.trim(); }).filter(Boolean);
     }
 
-    // ── 주차대수: "무료 4대" or "가능" or "개별확인" ──
+    // ── 주차대수: "유료 1대, 주차비: 1대당 12만원" or "무료 4대" or "개별확인" ──
     var parkInfo = infoMap['주차대수'] || infoMap['주차'] || '';
     if (parkInfo) {
       var parkNum = parkInfo.match(/(\d+)\s*대/);
@@ -339,8 +344,11 @@
       }
       if (parkInfo.indexOf('무료') !== -1 || parkInfo.indexOf('가능') !== -1) d.parking = true;
       if (parkInfo.indexOf('불가') !== -1 || parkInfo.indexOf('없') !== -1) d.parking = false;
-      // "개별확인" 등 특수 텍스트는 special_notes에 기록
-      if (parkInfo.indexOf('개별확인') !== -1 || parkInfo.indexOf('협의') !== -1) {
+      // 주차비 추출: "주차비: 1대당 12만원" or "주차비 10만"
+      var parkFeeM = parkInfo.match(/주차비[:\s]*(?:1대당\s*)?(\d+)\s*만/);
+      if (parkFeeM) d.parking_fee = parseInt(parkFeeM[1]);
+      // 유료/무료/개별확인/협의 등 상세텍스트 → special_notes에 전체 기록
+      if (parkInfo.indexOf('유료') !== -1 || parkInfo.indexOf('개별확인') !== -1 || parkInfo.indexOf('협의') !== -1 || parkFeeM) {
         d.special_notes = (d.special_notes ? d.special_notes + ' / ' : '') + '주차: ' + parkInfo;
       }
     }
@@ -472,11 +480,4 @@
     return d;
   }
 
-  // ═══════════ 연락처 AJAX 조회 (연락처보기 버튼과 동일) ═══════════
-  async function fetchContactForListing(sourceId) {
-    try {
-      var url = '/v4/ajax/ajax_contact_info_gongsil.asp?Ridx=' + sourceId + '&Gubun=101&Refill=0';
-      var resp = await fetch(url, { credentials: 'include' });
-      var html = await resp.text();
-      // 050 안심번호 우선
-      var 
+  // ═══════════ 연락처 AJA

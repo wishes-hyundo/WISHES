@@ -2636,7 +2636,7 @@
           '<div class="ws-card-price-block">' +
             '<span class="ws-deal-type">' + escHtml(listing.deal || '-') + '</span>' +
             '<div class="ws-price-main">' + formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal) + '</div>' +
-            (listing.maintenance_fee && listing.maintenance_fee > 0 ? '<span class="ws-maintenance">관리 ' + listing.maintenance_fee + '만' + (listing.maintenance_includes && listing.maintenance_includes.length > 0 ? ' (' + listing.maintenance_includes.join(',') + ')' : '') + '</span>' : '<span class="ws-maintenance ws-maint-warn">관리비미입력</span>') +
+            (function(){ var mf=listing.maintenance_fee; var mi=listing.maintenance_includes; var sn=listing.special_notes||''; if(mf && mf > 0) return '<span class="ws-maintenance">관리 '+mf+'만'+(mi && mi.length > 0 ? ' ('+mi.join(',')+')' : '')+'</span>'; if(/관리비\s*별도|관리비별도/.test(sn)) return '<span class="ws-maintenance" style="color:#1976D2;">관리비별도</span>'; return '<span class="ws-maintenance ws-maint-warn">관리비미입력</span>'; })() +
           '</div>' +
           '<div class="ws-card-controls">' +
             '<select class="ws-status-select" data-id="' + listing.id + '"' +
@@ -3417,7 +3417,7 @@
     }
     var priceText = formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal);
     var dealType = listing.deal || '-';
-    var maint = (listing.maintenance_fee && listing.maintenance_fee > 0) ? listing.maintenance_fee + '만' : '미입력';
+    var maint = (listing.maintenance_fee && listing.maintenance_fee > 0) ? listing.maintenance_fee + '만' : (/관리비\s*별도|관리비별도/.test(listing.special_notes || '')) ? '관리비별도' : '미입력';
     var builtYear = getBuiltYear(listing);
     var direction = listing.direction || '';
     var imgs = listing.images || listing.listing_images || [];
@@ -3490,14 +3490,15 @@
     const container = document.getElementById('ws-detail-container');
     if (!modal || !container) return;
 
-    // 크롤링 연락처 → 관계자 연락처 자동 등록
+    // 크롤링 연락처 → 관계자 연락처 자동 등록 (역할 정보 포함)
     var lid = String(listing.id);
     var existingContacts = window.WS.state.contacts[lid] || [];
     if (listing.contact && existingContacts.length === 0) {
       var phones = String(listing.contact).split(/[,;/\s]+/).filter(function(p) { return p.length >= 8 && /^[\d\-()]+$/.test(p.trim()); });
       if (phones.length > 0) {
+        var contactRole = listing.contact_role || '임대인';
         window.WS.state.contacts[lid] = phones.map(function(ph) {
-          return { role: '중개사', name: '', phone: ph.trim(), memo: '크롤링 수집' };
+          return { role: contactRole, name: '', phone: ph.trim(), memo: '크롤링 수집' };
         });
         try { _safeSetItem('ws-contacts', JSON.stringify(window.WS.state.contacts)); } catch(e) {}
       }
@@ -3659,7 +3660,6 @@
           if (listing.building_purpose) bizRows.push('<div><strong>건물용도</strong> ' + escHtml(listing.building_purpose) + '</div>');
           if (listing.parking_spaces != null) bizRows.push('<div><strong>전용 주차</strong> ' + listing.parking_spaces + '대</div>');
           if (listing.special_notes) bizRows.push('<div style="grid-column:span 2;"><strong>특이사항</strong> <span style="color:#e65100;">' + escHtml(listing.special_notes) + '</span></div>');
-          if (listing.contact) bizRows.push('<div><strong>임대인 연락처</strong> <a href="tel:' + escHtml(listing.contact) + '" style="color:#1976D2;font-weight:600;">' + escHtml(listing.contact) + '</a></div>');
           // 출처 정보 미표시
           if (bizRows.length > 0) {
             bizHtml = '<div class="ws-detail-section" style="background:#fff8f0;border:1px solid #ffe0b2;border-radius:10px;padding:16px;">' +
@@ -3668,13 +3668,13 @@
           }
         }
 
-        // 연락처/출처 정보 (주거용 포함 모든 매물 — 상업용은 위 bizHtml에 이미 포함)
+        // 비상업용: 건물용도/특이사항 표시 (연락처는 관계자연락처로 통일)
         var extraHtml = '';
         if (!isCommercial) {
           var extraRows = [];
-          if (listing.contact) extraRows.push('<div><strong>담당자 연락처</strong> <a href="tel:' + escHtml(listing.contact) + '" style="color:#1976D2;font-weight:600;">' + escHtml(listing.contact) + '</a></div>');
           if (listing.building_name) extraRows.push('<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>');
-          // 출처 정보 미표시
+          if (listing.building_purpose) extraRows.push('<div><strong>건물용도</strong> ' + escHtml(listing.building_purpose) + '</div>');
+          if (listing.special_notes) extraRows.push('<div style="grid-column:span 2;"><strong>특이사항</strong> <span style="color:#e65100;">' + escHtml(listing.special_notes) + '</span></div>');
           if (extraRows.length > 0) {
             extraHtml = '<div class="ws-detail-section" style="background:#f3f0ff;border:1px solid #d1c4e9;border-radius:10px;padding:16px;">' +
               '<h3 style="color:#4527a0;">📋 기타 정보</h3>' +
@@ -13531,5 +13531,4 @@
       html += '<div style="width:40px;height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;"><div style="width:' + item.pct + '%;height:100%;background:' + matchColor + ';border-radius:3px;"></div></div>';
       html += '<span style="font-size:11px;font-weight:700;color:' + matchColor + ';">' + item.pct + '%</span>';
       html += '</div></div>';
-      html += '<div style="font-size:12px;color:#888;margin-bottom:4px;">' + escHtml(l.address || '') + ' · ' + escHtml(l.type || '') + ' · ' + (l.area_m2 ? formatArea(l.area_m2) : '-') + '</div>';
-      html += '<div style="font-size:14px;font-weight:700;color:#2D5A27;">' + (pr
+      html += '<div style="font-size:12px;color:#888;margin-bottom:4px;">' + escHtml(l.address || '') + ' · ' + escHtml(l.type ||

@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
         'parking_spaces', 'rights_fee', 'lease_period',
         'station_name', 'station_distance',
         'entrance_type', 'parking_fee', 'building_purpose',
-        'previous_brand', 'commission_fee', 'special_notes',
+        'features', 'previous_brand', 'commission_fee', 'special_notes',
         'source_site', 'source_id', 'source_url', 'building_name', 'contact',
         'listing_images(url,sort_order)',
         'listing_features(feature)'
@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
 
           return slim;
         },
-        ['listings-minimal-v8'],
+        ['listings-minimal-v9'],
         { revalidate: 5, tags: ['listings'] }
       );
 
@@ -417,6 +417,7 @@ export async function POST(request: NextRequest) {
         previous_brand: listingData.previous_brand || null,
         commission_fee: listingData.commission_fee || null,
         special_notes: listingData.special_notes || null,
+        features: listingData.features || null,
       })
       .select()
       .single();
@@ -584,5 +585,4 @@ export async function PUT(request: NextRequest) {
     }
 
     if (!data) {
-      const { data: fetchedData } = await supabase
-        .f
+ 
