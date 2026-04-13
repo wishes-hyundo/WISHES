@@ -87,7 +87,17 @@ const createListingSchema = z.object({
   commission_fee: z.number().int().nonnegative().optional().nullable(),
   special_notes: z.string().optional().nullable(),
   contact_role: z.string().optional().nullable(),
-  commission_note: z.string().optional().nullable(),
+  h: z.string().optional().nullable(),
+    // 크롤러 v14 신규 필드 (2026-04-13 추가)
+    base_price: z.number().int().optional().nullable(),
+    registered_date: z.string().optional().nullable(),
+    last_confirmed: z.string().optional().nullable(),
+    photo_count: z.number().int().optional().nullable(),
+    grade: z.string().optional().nullable(),
+    building_listings: z.string().optional().nullable(),
+    listing_images: z.array(z.string()).optional().nullable(),
+    area_pyeong: z.number().optional().nullable(),
+    floor_info: z.string().optional().nullable(),
 });
 
 /**
