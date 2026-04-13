@@ -31,8 +31,8 @@ export const listings = sqliteTable('listings', {
   elevator: integer('elevator', { mode: 'boolean' }).default(false),
   pet: integer('pet', { mode: 'boolean' }).default(false),
   status: text('status', {
-    enum: ['가용', '계약중', '계약완료'],
-  }).notNull().default('가용'),
+    enum: ['공개', '비공개', '계약중', '계약완료'],
+  }).notNull().default('공개'),
   createdAt: text('created_at').notNull().$defaultFn(() => new Date().toISOString()),
   updatedAt: text('updated_at').notNull().$defaultFn(() => new Date().toISOString()),
 });

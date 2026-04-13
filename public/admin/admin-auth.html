@@ -1943,33 +1943,7 @@
             submitBtn.disabled = true;
             updateScreenReader('로그인 중입니다. 잠시만 기다려주세요.');
 
-            // ── 서버 장애 시 클라이언트 직접 인증 폴백 ──
-            function offlineLoginFallback(email, password) {
-                // 관리자 토큰으로 직접 인증 (Supabase 장애 대응)
-                if (password === 'wishes2026' || password === localStorage.getItem('admin_password')) {
-                    var fallbackUser = { name: 'WISHES', email: email, role: 'superadmin', status: 'approved' };
-                    var fallbackToken = 'wishes2026';
-
-                    sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.TOKEN, fallbackToken);
-                    sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.USER, JSON.stringify(fallbackUser));
-                    sessionStorage.setItem(CONFIG.SESSION_STORAGE_KEYS.LOGIN_TIME, Date.now());
-                    localStorage.setItem(CONFIG.LOCAL_STORAGE_KEYS.ADMIN_PASSWORD, fallbackToken);
-                    localStorage.setItem('ws_token', fallbackToken);
-                    localStorage.setItem('ws_user', JSON.stringify(fallbackUser));
-                    localStorage.setItem('ws_login_time', Date.now().toString());
-
-                    showToast('success', '로그인 성공 (오프라인)', '서버 연결 지연으로 로컬 인증되었습니다.');
-                    setTimeout(function() { window.location.href = '/admin/'; }, 800);
-                    return true;
-                }
-                return false;
-            }
-
             try {
-                // 5초 타임아웃 래퍼
-                var loginController = new AbortController();
-                var loginTimeout = setTimeout(function() { loginController.abort(); }, 5000);
-
                 const response = await fetch(`${CONFIG.API_BASE}/login`, {
                     method: 'POST',
                     headers: {
@@ -1981,11 +1955,9 @@
                         password,
                         rememberMe,
                         deviceFingerprint: state.deviceFingerprint
-                    }),
-                    signal: loginController.signal
+                    })
                 });
 
-                clearTimeout(loginTimeout);
                 const data = await response.json();
 
                 if (response.ok && data.token) {
@@ -2035,21 +2007,15 @@
                         }
                     }, 1500);
                 } else {
-                    // API 응답은 왔지만 로그인 실패 → 오프라인 폴백 시도
-                    if (!offlineLoginFallback(email, password)) {
-                        applyRateLimit();
-                        showToast('error', '로그인 실패', data.message || '이메일 또는 비밀번호가 잘못되었습니다.');
-                        updateScreenReader(`로그인 실패: ${data.message || '이메일 또는 비밀번호가 잘못되었습니다.'}`);
-                    }
+                    applyRateLimit();
+                    showToast('error', '로그인 실패', data.message || '이메일 또는 비밀번호가 잘못되었습니다.');
+                    updateScreenReader(`로그인 실패: ${data.message || '이메일 또는 비밀번호가 잘못되었습니다.'}`);
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                // ⚡ 네트워크 오류/타임아웃 → 오프라인 폴백 시도
-                if (!offlineLoginFallback(email, password)) {
-                    applyRateLimit();
-                    showToast('error', '서버 연결 실패', '서버에 연결할 수 없습니다. 비밀번호를 확인해주세요.');
-                    updateScreenReader('서버 연결 실패.');
-                }
+                applyRateLimit();
+                showToast('error', '오류 발생', '로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+                updateScreenReader('로그인 중 오류가 발생했습니다.');
             } finally {
                 submitBtn.classList.remove('btn-loading');
                 submitBtn.disabled = false;

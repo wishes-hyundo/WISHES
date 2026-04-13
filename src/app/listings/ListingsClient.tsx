@@ -91,7 +91,7 @@ export default function ListingsClient({
           setListings(data || []);
           setTotal(count || 0);
         } else {
-          const { data, count } = await supabase.from('listings').select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)', { count: 'exact' }).eq('status', '가용').or('title.ilike.%' + search + '%,address.ilike.%' + search + '%,dong.ilike.%' + search + '%').order('created_at', { ascending: false }).range(0, pageSize - 1);
+          const { data, count } = await supabase.from('listings').select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)', { count: 'exact' }).eq('status', '공개').or('title.ilike.%' + search + '%,address.ilike.%' + search + '%,dong.ilike.%' + search + '%').order('created_at', { ascending: false }).range(0, pageSize - 1);
           setListings(data || []);
           setTotal(count || 0);
         }
@@ -107,15 +107,15 @@ export default function ListingsClient({
       let photoQuery = supabase
         .from('listings')
         .select(selectFields + ', listing_images!inner(url, sort_order)')
-        .eq('status', '가용');
+        .eq('status', '공개');
       if (deal) photoQuery = photoQuery.eq('deal', deal);
       if (type) photoQuery = photoQuery.eq('type', type);
       if (dong) photoQuery = photoQuery.eq('dong', dong);
       photoQuery = photoQuery.order(sortColumn, { ascending: false }).limit(500);
 
       // Step 2: 동 목록 + 전체 개수
-      const dongQuery = supabase.from('listings').select('dong').eq('status', '가용');
-      let countQuery = supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', '가용');
+      const dongQuery = supabase.from('listings').select('dong').eq('status', '공개');
+      let countQuery = supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', '공개');
       if (deal) countQuery = countQuery.eq('deal', deal);
       if (type) countQuery = countQuery.eq('type', type);
       if (dong) countQuery = countQuery.eq('dong', dong);
@@ -133,7 +133,7 @@ export default function ListingsClient({
         pageListings = photoListings.slice(offset, offset + pageSize);
         if (pageListings.length < pageSize) {
           const remaining = pageSize - pageListings.length;
-          let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '가용');
+          let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '공개');
           if (deal) npQ = npQ.eq('deal', deal);
           if (type) npQ = npQ.eq('type', type);
           if (dong) npQ = npQ.eq('dong', dong);
@@ -144,7 +144,7 @@ export default function ListingsClient({
         }
       } else {
         const adjustedOffset = offset - photoCount;
-        let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '가용');
+        let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '공개');
         if (deal) npQ = npQ.eq('deal', deal);
         if (type) npQ = npQ.eq('type', type);
         if (dong) npQ = npQ.eq('dong', dong);

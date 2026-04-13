@@ -178,7 +178,7 @@ export async function PUT(request: NextRequest) {
       .from('listings')
       .select('id, address, dong, gu, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, direction, rooms, bathrooms, features, parking, building_name')
       .is('ai_description', null)
-      .eq('status', '가용')
+      .eq('status', '공개')
       .order('created_at', { ascending: false })
       .limit(limit);
 

@@ -26,13 +26,13 @@ export default async function HomePage() {
       withTimeout(supabase
         .from('listings')
         .select('*, listing_images(url, alt, sort_order)')
-        .in('status', ['공개', '가용'])
+        .eq('status', '공개')
         .order('created_at', { ascending: false })
         .limit(6)),
       withTimeout(supabase
         .from('listings')
         .select('*, listing_images(url, alt, sort_order)')
-        .in('status', ['공개', '가용'])
+        .eq('status', '공개')
         .order('created_at', { ascending: false })
         .limit(50)),
     ]);

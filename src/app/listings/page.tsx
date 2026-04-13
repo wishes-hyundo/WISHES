@@ -49,7 +49,7 @@ export default async function ListingsPage({
         'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)',
         { count: 'exact' }
       )
-      .in('status', ['공개', '가용']);
+      .eq('status', '공개');
 
     if (deal) query = query.eq('deal', deal);
     if (type) query = query.eq('type', type);
@@ -63,7 +63,7 @@ export default async function ListingsPage({
     const dongQuery = supabase
       .from('listings')
       .select('dong')
-      .in('status', ['공개', '가용'])
+      .eq('status', '공개')
       .not('dong', 'is', null)
       .limit(500);
 

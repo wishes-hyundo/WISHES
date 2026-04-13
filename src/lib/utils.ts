@@ -63,7 +63,8 @@ export function getDealColor(deal: DealType): string {
 // 상태 배지 색상
 export function getStatusColor(status: string): string {
   switch (status) {
-    case '가용': return 'bg-green-100 text-green-800';
+    case '공개': return 'bg-green-100 text-green-800';
+    case '비공개': return 'bg-red-100 text-red-800';
     case '계약중': return 'bg-yellow-100 text-yellow-800';
     case '계약완료': return 'bg-gray-100 text-gray-600';
     default: return 'bg-gray-100 text-gray-600';

@@ -187,9 +187,6 @@
 .ws-listing-tags { display:flex; flex-wrap:wrap; gap:4px; margin:3px 0 0; }
 .ws-tag-small { padding:2px 7px; background:#f7f7f7; border:1px solid #eaeaea; border-radius:3px; font-size:11px; color:#666; white-space:nowrap; line-height:1.5; }
 .ws-new-badge { display:inline-block; padding:1px 6px; background:#f59e0b; color:#fff; font-size:10px; font-weight:700; border-radius:3px; line-height:1.5; vertical-align:middle; margin-left:4px; animation:ws-new-pulse 2s ease-in-out infinite; }
-.ws-source-badge { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; font-size:11px; font-weight:800; border-radius:4px; line-height:1; vertical-align:middle; margin-right:5px; letter-spacing:0; flex-shrink:0; }
-.ws-source-g { background:#1565C0; color:#fff; }
-.ws-source-o { background:#E65100; color:#fff; }
 @keyframes ws-new-pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
 
 /* 우: 가격 + 컨트롤 */
@@ -259,10 +256,10 @@
 .ws-bar-dropdown { position:relative; }
 .ws-dropdown-trigger { padding:4px 8px; border-radius:4px; border:1px solid #ddd; background:#fff; cursor:pointer; font-size:11px; font-weight:600; transition:all .15s; white-space:nowrap; }
 .ws-dropdown-trigger:hover { background:#f0fdf4; }
-.ws-dropdown-menu { display:none; position:absolute; bottom:calc(100% + 6px); left:0; min-width:160px; max-height:70vh; overflow-y:auto; background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 -4px 16px rgba(0,0,0,.12); padding:4px 0; z-index:200; }
+.ws-dropdown-menu { display:none; position:absolute; bottom:calc(100% + 6px); left:0; min-width:160px; background:#fff; border:1px solid #ddd; border-radius:8px; box-shadow:0 -4px 16px rgba(0,0,0,.12); padding:4px 0; z-index:200; }
 .ws-bar-dropdown:hover .ws-dropdown-menu,
 .ws-bar-dropdown.ws-dropdown-open .ws-dropdown-menu { display:block; }
-.ws-dropdown-item { display:block; width:100%; padding:10px 14px; border:none; background:none; cursor:pointer; font-size:12px; color:#333; text-align:left; white-space:normal; word-break:keep-all; transition:background .1s; }
+.ws-dropdown-item { display:block; width:100%; padding:8px 14px; border:none; background:none; cursor:pointer; font-size:12px; color:#333; text-align:left; white-space:nowrap; transition:background .1s; }
 .ws-dropdown-item:hover { background:#E8F5E9; color:#2D5A27; }
 
 /* ── Modal ── */
@@ -276,7 +273,7 @@
 .ws-detail-header h2 { font-size:18px; font-weight:700; color:#333; margin-bottom:4px; }
 .ws-detail-header p { font-size:12px; color:#888; }
 .ws-detail-gallery { margin:12px 0; }
-.ws-gallery-main { width:100%; height:260px; background-size:cover; background-position:center; background-color:#e8e8e8; border-radius:8px; position:relative; }
+.ws-gallery-main { width:100%; height:260px; background-size:cover; background-position:center; background-color:#e8e8e8; border-radius:8px; }
 .ws-gallery-thumbs { display:flex; gap:6px; margin-top:6px; overflow-x:auto; }
 .ws-gallery-thumbs img { width:70px; height:50px; object-fit:cover; border-radius:4px; cursor:pointer; border:2px solid transparent; }
 .ws-gallery-thumbs img:hover { border-color:#4CAF50; }
@@ -322,8 +319,6 @@
   .ws-detail-grid { grid-template-columns:1fr; }
   .ws-header { flex-direction:column; }
   .ws-price-inputs { flex-wrap:wrap; }
-  .ws-dropdown-menu { left:auto; right:0; max-height:60vh; min-width:140px; }
-  .ws-dropdown-item { padding:12px 14px; font-size:13px; min-height:44px; }
 }
 
 /* AI Briefing Button Highlight */
@@ -375,7 +370,6 @@
 /* ── 매물 관리 통합 대시보드 ── */
 .ws-mgmt-dashboard { animation: ws-dash-in 0.3s ease-out; }
 @keyframes ws-dash-in { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
-@keyframes ws-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
 .ws-mgmt-stat { transition: all 0.2s ease !important; }
 .ws-mgmt-stat:hover { transform: scale(1.05) !important; box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important; }
 .ws-mgmt-stat-active { box-shadow: 0 0 0 3px rgba(45,90,39,0.3) !important; }
@@ -394,4 +388,12 @@
 
 /* 모달 공통 */
 #ws-edit-modal input:focus, #ws-edit-modal select:focus, #ws-edit-modal textarea:focus,
-#ws-new-listing-modal input:focus, #ws-new-listing-modal select:foc
+#ws-new-listing-modal input:focus, #ws-new-listing-modal select:focus, #ws-new-listing-modal textarea:focus {
+  border-color: #2D5A27 !important; outline: none; box-shadow: 0 0 0 2px rgba(45,90,39,0.2);
+}
+
+/* 반응형 대시보드 */
+@media (max-width: 640px) {
+  .ws-mgmt-dashboard { flex-direction: column !important; }
+  .ws-mgmt-dashboard > div:last-child { margin-left: 0 !important; flex-wrap: wrap; }
+}

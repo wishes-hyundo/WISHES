@@ -72,7 +72,7 @@ const TRANSACTION_TYPES = ['전세', '월세', '매매'];
 const DIRECTIONS = ['동', '서', '남', '북', '남동', '남서', '북동', '북서'];
 const HEATING_TYPES = ['개별난방', '중앙난방', '지역난방'];
 const MAINTENANCE_OPTIONS = ['수도', '전기', '가스', '인터넷', 'TV', '청소비', '주차비', '엘리베이터유지비'];
-const STATUS_OPTIONS = ['공개', '비공개', '계약중', '계약완료'];
+const STATUS_OPTIONS = ['가용', '계약중', '계약완료'];
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 매물 수정 페이지
@@ -125,7 +125,7 @@ export default function EditListingPage() {
     features: [],
     description: '',
     images: [],
-    status: '공개',
+    status: '가용',
     dong: '',
     buildingName: '',
     buildingStructure: '',
@@ -231,7 +231,7 @@ export default function EditListingPage() {
           images: (d.listing_images || [])
             .sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0))
             .map((img: any) => img.url),
-          status: d.status || '공개',
+          status: d.status || '가용',
           dong: d.dong || '',
           buildingName: d.building_name || '',
           buildingStructure: '',
@@ -411,7 +411,7 @@ export default function EditListingPage() {
         address_detail: formData.addressDetail || null,
         description: formData.description || null,
         available_date: formData.moveInDate || null,
-        status: formData.status || '공개',
+        status: formData.status || '가용',
         maintenance_fee: formData.maintenanceFee || 0,
         maintenance_includes: formData.maintenanceFeeIncludes.length > 0 ? formData.maintenanceFeeIncludes : null,
         heating_type: formData.heatingType || null,

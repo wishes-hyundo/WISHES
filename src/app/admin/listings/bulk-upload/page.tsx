@@ -180,7 +180,7 @@ export default function BulkUploadPage() {
           deposit: l.deposit, monthly: l.monthly, price: l.price,
           area_m2: l.area_m2, floor_current: l.floor_current,
           rooms: l.rooms, description: l.description,
-          status: l.status === '비공개' ? '비공개' : '가용',
+          status: l.status === '비공개' ? '비공개' : '공개',
         };
         const resp = await fetch('/api/admin/listings', {
           method: 'POST',

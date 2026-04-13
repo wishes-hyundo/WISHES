@@ -27,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const { data: listings } = await supabase
       .from('listings')
       .select('id, updated_at')
-      .in('status', ['공개', '가용', '예약'])
+      .in('status', ['공개', '예약'])
       .order('updated_at', { ascending: false });
 
     if (listings && listings.length > 0) {

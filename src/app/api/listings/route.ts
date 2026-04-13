@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
         'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, floor_total, status, created_at, views, maintenance_fee, listing_images(url, sort_order)',
         { count: 'exact' }
       )
-      .in('status', ['가용', '공개'])
+      .eq('status', '공개')
       .order('created_at', { ascending: false });
 
     if (deal) query = query.eq('deal', deal);

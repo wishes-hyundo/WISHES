@@ -44,9 +44,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // loginTime 파싱 (숫자 타임스탬프 or ISO 문자열 모두 지원)
-        const loginTs = /^\d+$/.test(loginTime) ? parseInt(loginTime) : new Date(loginTime).getTime();
-        const elapsed = Date.now() - (isNaN(loginTs) ? Date.now() : loginTs);
+        const elapsed = Date.now() - new Date(loginTime).getTime();
         const keepLogin = window.localStorage.getItem('ws_keep_login');
         const maxAge = keepLogin === 'true' ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
         if (elapsed > maxAge) {
@@ -55,22 +53,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // Supabase token verify (비동기 백그라운드 - 인증 체크를 블로킹하지 않음)
+        // Supabase token verify (non-blocking)
         if (!token.startsWith('admin_bridge_')) {
-          fetch('/api/auth/verify', {
-            headers: { 'Authorization': 'Bearer ' + token }
-          }).then(r => r.ok ? r.json() : null).then(vData => {
-            if (vData?.user?.role) {
-              try {
-                const cu = JSON.parse(window.sessionStorage.getItem('ws_user') || '{}');
-                if (cu.role !== vData.user.role) {
-                  cu.role = vData.user.role;
-                  window.sessionStorage.setItem('ws_user', JSON.stringify(cu));
-                  setUserRole(vData.user.role);
-                }
-              } catch(re) {}
+          try {
+            const verifyRes = await fetch('/api/auth/verify', {
+              headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (verifyRes.ok) {
+              const vData = await verifyRes.json();
+              if (vData.user && vData.user.role && userStr) {
+                try {
+                  const cu = JSON.parse(userStr);
+                  if (cu.role !== vData.user.role) {
+                    cu.role = vData.user.role;
+                    window.sessionStorage.setItem('ws_login_time', new Date().toISOString());
+                    window.sessionStorage.setItem('ws_user', JSON.stringify(cu));
+                  }
+                } catch(re) {}
+              }
+            } else {
+              console.warn('Token verify failed, continuing with existing role');
             }
-          }).catch(() => {});
+          } catch (e) {
+            console.warn('Token verify request failed:', e);
+          }
         }
 
         // 사용자 역할 추출

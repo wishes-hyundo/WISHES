@@ -103,15 +103,15 @@ def parse(op, lid):
     sale_v = int(srch(r'"salePrice"\s*:\s*(\d+)', html) or 0) * 10000
     rent_raw = srch(r'"dealType"\s*:\s*"([^"]+)"', html) or ""
     tx = "전세" if "전세" in rent_raw else ("매매" if "매매" in rent_raw else "월세")
-    d["deal"] = tx
+    d["transaction_type"] = tx
     d["deposit"] = dep
-    d["monthly"] = mon if tx != "매매" else 0
-    d["price"] = sale_v if tx == "매매" else None
+    d["monthly_rent"] = mon if tx != "매매" else 0
+    d["sale_price"] = sale_v if tx == "매매" else None
 
     area = srch(r'"exclusiveArea"\s*:\s*"?([\d.]+)"?', html)
     d["area_m2"] = float(area) if area else 0.0
     floor = srch(r'"floor"\s*:\s*"?(\d+)"?', html)
-    d["floor_current"] = int(floor) if floor else None
+    d["floor"] = int(floor) if floor else None
     mf = srch(r'"manageFee"\s*:\s*"?(\d+)"?', html)
     d["maintenance_fee"] = int(mf) * 10000 if mf else 0
     d["maintenance_includes"] = []
@@ -126,16 +126,13 @@ def parse(op, lid):
     lng = srch(r'"ln?g(?:itude)?"\s*:\s*"?(12[67]\.\d+)"?', html)
     d["latitude"] = float(lat) if lat else None
     d["longitude"] = float(lng) if lng else None
-    # DB 컬럼명으로 매핑 (lat/lng)
-    if d["latitude"]: d["lat"] = d["latitude"]
-    if d["longitude"]: d["lng"] = d["longitude"]
 
     img_pat = re.compile(r"https?://\S+onhouse\S+\.(?:jpg|jpeg|png|webp)", re.IGNORECASE)
     imgs = list(dict.fromkeys(img_pat.findall(html)))[:10]
     d["images"] = imgs
 
     year = srch(r'"builtYear"\s*:\s*"?(\d{4})"?', html)
-    d["built_year"] = str(year) if year else None
+    d["year_built"] = int(year) if year else None
     d["description"] = ""
     return d
 
@@ -174,4 +171,8 @@ def main():
             uploaded += 1
         if (i + 1) % 50 == 0:
             op = login()
-        time.sleep
+        time.sleep(0.4)
+    print(f"=== Done: {uploaded} uploaded, {failed} failed ===", flush=True)
+
+if __name__ == "__main__":
+    main()

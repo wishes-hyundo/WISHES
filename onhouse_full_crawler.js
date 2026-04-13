@@ -6,7 +6,7 @@
  * v4.0 주요 변경:
  *   - 서울/경기 전체 영역 그리드 분할 크롤링
  *   - 2026.01.01 이후 등록 매물만 수집
- *   - status: '가용' (공개 API 호환)
+ *   - status: '공개' (공개 API 호환)
  *   - 모든 필드 완벽 수집 (30+ 필드)
  *   - 프린트 페이지 연락처 추출
  *   - script 태그 좌표 추출
@@ -489,4 +489,96 @@
   console.log('║  온하우스 크롤러 v4.0 (서울/경기 전체)      ║');
   console.log('║  기간: ' + MIN_DATE + ' ~ 현재                  ║');
   console.log('║  타일: ' + TILES.length + '개 영역                        ║');
-  console.log('╚════════════════════════════════════════════╝')
+  console.log('╚════════════════════════════════════════════╝');
+
+  var existingIds = await getExistingSourceIds();
+  var stats = { uploaded: 0, skipped: 0, failed: 0, tilesDone: 0, totalIds: 0 };
+  var startTime = Date.now();
+
+  for (var ti = 0; ti < TILES.length; ti++) {
+    var tile = TILES[ti];
+    var tilePage = 1;
+    var tileHasMore = true;
+    var tileIds = 0;
+    var emptyPages = 0;
+
+    console.log('\n━━━ 타일 ' + (ti+1) + '/' + TILES.length + ' [' + tile.label + '] ━━━');
+
+    while (tileHasMore) {
+      var result;
+      try {
+        result = await fetchTileIds(tile, tilePage);
+      } catch(e) {
+        console.error('  목록 로딩 실패: ' + e.message);
+        tileHasMore = false; break;
+      }
+
+      if (result.ids.length === 0) {
+        emptyPages++;
+        if (emptyPages >= 2) { tileHasMore = false; break; }
+        tilePage++; continue;
+      }
+      emptyPages = 0;
+
+      // 날짜 체크: 가장 오래된 등록일이 MIN_DATE 이전이면 이 타일 종료
+      if (result.oldestDate && result.oldestDate < MIN_DATE) {
+        console.log('  ⏱ 날짜 범위 초과 (' + result.oldestDate + ') - 타일 종료');
+        // 그래도 이번 페이지의 매물은 처리
+      }
+
+      for (var ii = 0; ii < result.ids.length; ii++) {
+        var id = result.ids[ii];
+        stats.totalIds++;
+
+        if (existingIds.has(String(id))) { stats.skipped++; continue; }
+
+        var data = await parseDetail(id);
+        await sleep(DELAY_MS);
+
+        if (!data || !data.deal) {
+          console.log('  ✗ [' + id + '] 파싱 실패');
+          stats.failed++; continue;
+        }
+
+        var fieldCount = Object.keys(data).filter(function(k) {
+          return data[k] !== null && data[k] !== undefined && data[k] !== '';
+        }).length;
+
+        var upResult = await uploadListing(data);
+        if (upResult.ok) {
+          stats.uploaded++;
+          existingIds.add(String(id));
+          tileIds++;
+          console.log('  ✓ [' + id + '] ' + fieldCount + '필드 | ' + (data.dong || '') + ' ' + data.deal + ' ' + (data.deposit||0) + '/' + (data.monthly||0));
+        } else {
+          stats.failed++;
+          console.log('  ✗ [' + id + '] ' + upResult.error);
+        }
+        await sleep(DELAY_UPLOAD);
+      }
+
+      // 날짜 범위 초과 시 다음 페이지 진행 안함
+      if (result.oldestDate && result.oldestDate < MIN_DATE) {
+        tileHasMore = false;
+      } else if (result.ids.length < 10) {
+        tileHasMore = false;
+      } else {
+        tilePage++;
+      }
+    }
+
+    stats.tilesDone++;
+    var elapsed = Math.round((Date.now() - startTime) / 1000);
+    var rate = stats.uploaded > 0 ? Math.round(elapsed / stats.uploaded * 10) / 10 : 0;
+    console.log('  타일 완료: +' + tileIds + '건 | 누적: 업로드=' + stats.uploaded + ' 건너뜀=' + stats.skipped + ' 실패=' + stats.failed + ' | ' + elapsed + '초 (건당 ' + rate + '초)');
+  }
+
+  var totalElapsed = Math.round((Date.now() - startTime) / 1000);
+  console.log('\n╔════════════════════════════════════════════╗');
+  console.log('║  온하우스 크롤러 v4.0 완료                  ║');
+  console.log('║  총 ID: ' + stats.totalIds + '건                           ║');
+  console.log('║  업로드: ' + stats.uploaded + ' | 건너뜀: ' + stats.skipped + ' | 실패: ' + stats.failed + '  ║');
+  console.log('║  소요시간: ' + Math.round(totalElapsed/60) + '분                          ║');
+  console.log('╚════════════════════════════════════════════╝');
+  return stats;
+})();

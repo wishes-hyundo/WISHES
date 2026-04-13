@@ -173,11 +173,8 @@ export async function PATCH(
 
     const body = await request.json();
     const statusSchema = z.object({
-      status: z.enum(['가용', '공개', '비공개', '계약중', '계약완료']),
+      status: z.enum(['공개', '비공개', '계약중', '계약완료']),
     });
-
-    // '가용' → '공개' 마이그레이션 (하위호환)
-    if (body.status === '가용') body.status = '공개';
 
     const parsed = statusSchema.safeParse(body);
     if (!parsed.success) {

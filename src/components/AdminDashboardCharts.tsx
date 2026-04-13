@@ -8,7 +8,7 @@ interface AdminDashboardChartsProps {
     id: number;
     type: string;
     deal: string;
-    status: '가용' | '계약중' | '계약완료';
+    status: '공개' | '비공개' | '계약중' | '계약완료';
     created_at: string;
     deposit: number;
     monthly?: number | null;
@@ -423,8 +423,8 @@ export const AdminDashboardCharts: React.FC<AdminDashboardChartsProps> = ({ list
             color: COLORS.primary,
           },
           {
-            label: '가용 매물',
-            value: listings.filter((l) => l.status === '가용').length,
+            label: '공개 매물',
+            value: listings.filter((l) => l.status === '공개').length,
             color: COLORS.accent,
           },
           {

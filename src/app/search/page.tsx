@@ -52,99 +52,22 @@ export default function SearchPortalPage() {
       }
     } catch {}
 
-    // ⏱ 타임아웃 헬퍼 — Promise 가 지정 시간 내 resolve 되지 않으면 reject
-    function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-      return new Promise<T>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`${label}: ${ms / 1000}초 초과 (네트워크 또는 서버 응답 없음)`)), ms);
-        promise.then(
-          (v) => { clearTimeout(timer); resolve(v); },
-          (e) => { clearTimeout(timer); reject(e); },
-        );
-      });
-    }
-
     (async () => {
-      // ── [1단계] 로컬 토큰 우선 확인 (Supabase 접속 없이 즉시 통과) ──
-      // admin 로그인, ws_token, admin_password 중 하나라도 있으면 바로 OK
-      function tryLocalTokenFallback(): boolean {
-        try {
-          // 방법 A: ws_token (세션/로컬 스토리지)
-          const token = sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token');
-          if (token) {
-            if (!sessionStorage.getItem('ws_token')) {
-              sessionStorage.setItem('ws_token', token);
-              const userStr = sessionStorage.getItem('ws_user') || localStorage.getItem('ws_user');
-              if (userStr) sessionStorage.setItem('ws_user', userStr);
-              sessionStorage.setItem('ws_login_time', Date.now().toString());
-            }
-            return true;
-          }
-          // 방법 B: admin_password (구 인증 시스템)
-          const adminPw = localStorage.getItem('admin_password');
-          if (adminPw) {
-            sessionStorage.setItem('ws_token', adminPw);
-            sessionStorage.setItem('ws_user', JSON.stringify({ email: 'admin', role: 'superadmin', status: 'approved' }));
-            sessionStorage.setItem('ws_login_time', Date.now().toString());
-            return true;
-          }
-        } catch {}
-        return false;
-      }
-
-      // ⚡ [1단계] 로컬 토큰이 있으면 Supabase를 건너뛰고 즉시 통과
-      if (tryLocalTokenFallback()) {
-        if (!cancelled) setState('ok');
-        return;
-      }
-
-      // ⚡ [2단계] 로컬 토큰 없음 → 관리자 API 토큰으로 직접 인증 시도 (Supabase 불필요)
-      try {
-        const verifyRes = await withTimeout(
-          fetch('/api/auth/verify', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer wishes2026',
-            },
-          }),
-          5_000, '관리자 인증',
-        );
-        if (verifyRes.ok) {
-          // 관리자 토큰 유효 → 로컬에 저장하고 통과
-          sessionStorage.setItem('ws_token', 'wishes2026');
-          sessionStorage.setItem('ws_user', JSON.stringify({ email: 'wishes@wishes.co.kr', role: 'superadmin', status: 'approved' }));
-          sessionStorage.setItem('ws_login_time', Date.now().toString());
-          localStorage.setItem('ws_token', 'wishes2026');
-          localStorage.setItem('admin_password', 'wishes2026');
-          localStorage.setItem('ws_login_time', Date.now().toString());
-          if (!cancelled) setState('ok');
-          return;
-        }
-      } catch {}
-
-      // ⚡ [3단계] 관리자 API도 실패 → Supabase 인증 시도
       try {
         const sb = createAuthClient();
-        const { data: { session }, error: sessErr } = await withTimeout(
-          sb.auth.getSession(), 3_000, '세션 확인',
-        );
-        if (sessErr || !session) {
-          // Supabase도 안됨 → 그래도 관리자 토큰으로 강제 진입 (API는 토큰으로 동작)
-          sessionStorage.setItem('ws_token', 'wishes2026');
-          sessionStorage.setItem('ws_login_time', Date.now().toString());
-          localStorage.setItem('ws_token', 'wishes2026');
-          localStorage.setItem('admin_password', 'wishes2026');
-          localStorage.setItem('ws_login_time', Date.now().toString());
-          if (!cancelled) setState('ok');
+        const { data: { session }, error: sessErr } = await sb.auth.getSession();
+        if (sessErr) {
+          if (!cancelled) { setErrMsg(sessErr.message); setState('error'); }
+          return;
+        }
+        if (!session) {
+          if (!cancelled) setState('nosession');
           return;
         }
 
-        const res = await withTimeout(
-          fetch('/api/auth/me', {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }),
-          5_000, '인증 API',
-        );
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        });
         const data = await res.json();
         if (!data.success) {
           if (!cancelled) { setErrMsg(data.message || '인증 실패'); setState('error'); }
@@ -173,13 +96,10 @@ export default function SearchPortalPage() {
 
         if (!cancelled) setState('ok');
       } catch (e) {
-        // 모든 인증 실패 → 관리자 토큰으로 강제 진입
-        sessionStorage.setItem('ws_token', 'wishes2026');
-        sessionStorage.setItem('ws_login_time', Date.now().toString());
-        localStorage.setItem('ws_token', 'wishes2026');
-        localStorage.setItem('admin_password', 'wishes2026');
-        localStorage.setItem('ws_login_time', Date.now().toString());
-        if (!cancelled) setState('ok');
+        if (!cancelled) {
+          setErrMsg(e instanceof Error ? e.message : String(e));
+          setState('error');
+        }
       }
     })();
 

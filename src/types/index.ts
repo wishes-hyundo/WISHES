@@ -9,7 +9,7 @@ export type ListingType = '원룸' | '투룸' | '쓰리룸' | '오피스텔' | '
 export type DealType = '전세' | '월세' | '매매';
 
 // 매물 상태
-export type ListingStatus = '가용' | '계약중' | '계약완료';
+export type ListingStatus = '공개' | '비공개' | '계약중' | '계약완료';
 
 // 문의 상태
 export type ContactStatus = '접수' | '처리중' | '완료';

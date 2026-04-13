@@ -494,8 +494,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    // 기존 '가용' 상태를 '공개'로 마이그레이션
-    if (body.status === '가용') body.status = '공개';
+    // status 검증
     const { id, images, ...updateData } = body;
 
     if (!id) {

@@ -42,7 +42,6 @@ const STATUS_OPTIONS: StatusFilter[] = ['전체', '공개', '비공개', '계약
 const STATUS_COLORS: Record<string, string> = {
   '공개': 'bg-emerald-50 text-emerald-700 border-emerald-200',
   '비공개': 'bg-slate-50 text-slate-600 border-slate-200',
-  '가용': 'bg-emerald-50 text-emerald-700 border-emerald-200',
   '계약중': 'bg-amber-50 text-amber-700 border-amber-200',
   '계약완료': 'bg-slate-100 text-slate-500 border-slate-200',
 };
@@ -50,17 +49,13 @@ const STATUS_COLORS: Record<string, string> = {
 const STATUS_ICONS: Record<string, string> = {
   '공개': '🟢',
   '비공개': '⚪',
-  '가용': '🟢',
   '계약중': '🟡',
   '계약완료': '✅',
 };
 
-/* DB 상태값 → 표시 상태값 정규화 (예: '가용' → '공개') */
+/* DB 상태값 → 표시 상태값 정규화 */
 const normalizeStatus = (status: string): string => {
-  const STATUS_MAP: Record<string, string> = {
-    '가용': '공개',
-  };
-  return STATUS_MAP[status] || status;
+  return status;
 };
 
 const PROPERTY_TYPES = ['전체', '원룸', '투룸', '쓰리룸+', '오피스텔', '아파트', '빌라', '상가', '사무실'];

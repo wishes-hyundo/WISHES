@@ -150,7 +150,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
 
           {/* 상태 뱃지 */}
-          {listing.status !== '가용' && (
+          {listing.status !== '공개' && (
             <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-md shadow-sm">
               {listing.status}
             </div>

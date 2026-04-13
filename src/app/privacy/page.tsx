@@ -3,9 +3,6 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '개인정보처리방침',
   description: '주식회사 위시스부동산중개법인 개인정보처리방침',
-  alternates: {
-    canonical: 'https://wishes.co.kr/privacy',
-  },
 };
 
 const sections = [

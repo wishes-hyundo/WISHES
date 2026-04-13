@@ -119,7 +119,7 @@ export default function ListingDetailClient({ id }: Props) {
       const { data: related } = await supabase
         .from('listings')
         .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, listing_images(url, sort_order)')
-        .eq('status', '가용')
+        .eq('status', '공개')
         .eq('dong', data.dong)
         .eq('deal', data.deal)
         .neq('id', listingId)
@@ -135,7 +135,7 @@ export default function ListingDetailClient({ id }: Props) {
           .from('listings')
           .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, listing_images(url, sort_order)')
           .in('id', recentIds)
-          .eq('status', '가용');
+          .eq('status', '공개');
 
         // 원래 순서 유지
         const sorted = recentIds

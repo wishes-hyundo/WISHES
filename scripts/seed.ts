@@ -39,7 +39,7 @@ sqlite.exec(`
     parking INTEGER DEFAULT 0,
     elevator INTEGER DEFAULT 0,
     pet INTEGER DEFAULT 0,
-    status TEXT NOT NULL DEFAULT '가용' CHECK(status IN ('가용', '계약중', '계약완료')),
+    status TEXT NOT NULL DEFAULT '공개' CHECK(status IN ('공개', '계약중', '계약완료')),
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
   );
@@ -136,7 +136,7 @@ const sampleListings = [
     lat: 37.4841, lng: 126.9293,
     description: '신림역 도보 5분 거리의 깔끔한 풀옵션 원룸입니다.\n에어컨, 세탁기, 냉장고, 전자레인지 완비.\n남향으로 채광이 좋습니다.\n근처: 신림역(2호선), GS편의점, 카페거리',
     available: 1, availableDate: '즉시입주', built: '2019',
-    parking: 0, elevator: 1, pet: 0, status: '가용',
+    parking: 0, elevator: 1, pet: 0, status: '공개',
     images: ['원룸', '원룸', '원룸']
   },
   {
@@ -148,7 +148,7 @@ const sampleListings = [
     lat: 37.4860, lng: 126.9275,
     description: '신림동 조용한 골목의 깔끔한 원룸입니다.\n새로 도배, 장판 완료.\n냉난방비 저렴, 인터넷 무료.\n근처: 신림중학교, 편의점 5개 이상',
     available: 1, availableDate: '2026-04-15', built: '2016',
-    parking: 0, elevator: 0, pet: 0, status: '가용',
+    parking: 0, elevator: 0, pet: 0, status: '공개',
     images: ['원룸', '원룸', '원룸']
   },
   {
@@ -172,7 +172,7 @@ const sampleListings = [
     lat: 37.4845, lng: 126.9290,
     description: '신림동 번화가 원룸 - 전월세 전환 가능.\n에어컨, 세탁기, 인덕션 완비.\n화장실 리모델링 완료.\n근처: 신림역, 학원가, 음식점거리',
     available: 1, availableDate: '즉시입주', built: '2017',
-    parking: 0, elevator: 1, pet: 0, status: '가용',
+    parking: 0, elevator: 1, pet: 0, status: '공개',
     images: ['원룸', '원룸', '원룸']
   },
 
@@ -186,7 +186,7 @@ const sampleListings = [
     lat: 37.4790, lng: 126.9480,
     description: '2024년 신축 원룸! 풀옵션 + 빌트인 가구.\n냉난방 효율 좋은 신축 건물.\n관악구청역 도보 7분.\n근처: 관악구청역, 아모레퍼시픽, 편의점',
     available: 1, availableDate: '즉시입주', built: '2024',
-    parking: 0, elevator: 1, pet: 0, status: '가용',
+    parking: 0, elevator: 1, pet: 0, status: '공개',
     images: ['원룸', '원룸', '원룸']
   },
   {
@@ -198,7 +198,7 @@ const sampleListings = [
     lat: 37.4770, lng: 126.9510,
     description: '봉천동 대로변 넓은 원룸입니다.\n침실, 거실, 부엌 분리형.\n에어컨, 세탁기, 냉장고 완비.\n근처: 봉천역(9호선 예정), 버스정류장',
     available: 1, availableDate: '2026-04-20', built: '2018',
-    parking: 0, elevator: 1, pet: 0, status: '가용',
+    parking: 0, elevator: 1, pet: 0, status: '공개',
     images: ['원룸', '원룸', '원룸']
   },
   {
@@ -210,7 +210,7 @@ const sampleListings = [
     lat: 37.4800, lng: 126.9470,
     description: '봉천동 골목의 저가 원룸입니다.\n도배 새로 완료, 화장실 리모델링.\n에어컨, 세탁기 기본 구비.\n근처: 편의점, 버스정류장, 밥집거리',
     available: 1, availableDate: '즉시입주', built: '2015',
-    parking: 0, elevator: 0, pet: 0, status: '가용',
+    parking: 0, elevator: 0, pet: 0, status: '공개',
     images: ['원룸', '원룸', '원룸']
   },
 
@@ -224,7 +224,7 @@ const sampleListings = [
     lat: 37.4780, lng: 126.9520,
     description: '봉천동 조용한 골목에 위치한 넓은 투룸입니다.\n분리형 구조로 방 2개 + 거실.\n도배, 장판 새로 완료.\n근처: 봉천중학교, 편의점, 공원',
     available: 1, availableDate: '2026-04-01', built: '2015',
-    parking: 1, elevator: 0, pet: 1, status: '가용',
+    parking: 1, elevator: 0, pet: 1, status: '공개',
     images: ['투룸', '투룸', '투룸']
   },
   {
@@ -236,7 +236,7 @@ const sampleListings = [
     lat: 37.4870, lng: 126.9285,
     description: '신림동 투룸 월세 - 반려동물 가능합니다.\n방 2개, 넓은 거실, 복층식.\n에어컨, 세탁기, 가스레인지 완비.\n근처: 신림역, 공원, 초등학교',
     available: 1, availableDate: '즉시입주', built: '2018',
-    parking: 1, elevator: 1, pet: 1, status: '가용',
+    parking: 1, elevator: 1, pet: 1, status: '공개',
     images: ['투룸', '투룸', '투룸']
   },
   {
@@ -248,7 +248,7 @@ const sampleListings = [
     lat: 37.4785, lng: 126.9535,
     description: '봉천동 투룸 전세 - 금리 협의 가능.\n방 2개 + 거실 + 주방 분리.\n현관 신발장, 침실 붙박이장.\n근처: 봉천역 예정지, 대형마트',
     available: 1, availableDate: '2026-05-15', built: '2014',
-    parking: 1, elevator: 0, pet: 0, status: '가용',
+    parking: 1, elevator: 0, pet: 0, status: '공개',
     images: ['투룸', '투룸', '투룸']
   },
 
@@ -262,7 +262,7 @@ const sampleListings = [
     lat: 37.4855, lng: 126.9280,
     description: '신림역 도보 3분 역세권 넓은 쓰리룸입니다.\n방 3개 + 거실, 가족 거주에 적합.\n주차 가능, 엘리베이터 있음.\n근처: 신림역, 학교, 공원, 시장',
     available: 1, availableDate: '2026-05-01', built: '2012',
-    parking: 1, elevator: 1, pet: 1, status: '가용',
+    parking: 1, elevator: 1, pet: 1, status: '공개',
     images: ['쓰리룸', '쓰리룸', '쓰리룸']
   },
   {
@@ -286,7 +286,7 @@ const sampleListings = [
     lat: 37.4835, lng: 126.9250,
     description: '신림동 대형 쓰리룸 - 방 3개 + 서재.\n거실 20평대, 주방 오픈형.\n엘리베이터, 주차 2대 가능.\n근처: 신림역, 학원가, 음식점',
     available: 1, availableDate: '즉시입주', built: '2017',
-    parking: 1, elevator: 1, pet: 1, status: '가용',
+    parking: 1, elevator: 1, pet: 1, status: '공개',
     images: ['쓰리룸', '쓰리룸', '쓰리룸']
   },
 
@@ -300,7 +300,7 @@ const sampleListings = [
     lat: 37.4812, lng: 126.9527,
     description: '서울대입구역 초역세권 오피스텔입니다.\n풀옵션 완비, 투자 및 실거주 모두 적합.\n관리비 저렴, 월 수익성 좋음.\n근처: 서울대입구역, 상업지구, 카페거리',
     available: 1, availableDate: '협의', built: '2020',
-    parking: 1, elevator: 1, pet: 0, status: '가용',
+    parking: 1, elevator: 1, pet: 0, status: '공개',
     images: ['오피스텔', '오피스텔', '오피스텔']
   },
   {
@@ -312,7 +312,7 @@ const sampleListings = [
     lat: 37.4800, lng: 126.9540,
     description: '봉천역 초역세권 오피스텔 월세입니다.\n풀옵션, 엘리베이터, 24시간 경비.\n투자 및 실거주 모두 적합.\n근처: 봉천역 예정지, 편의점, 은행',
     available: 1, availableDate: '2026-04-01', built: '2021',
-    parking: 1, elevator: 1, pet: 0, status: '가용',
+    parking: 1, elevator: 1, pet: 0, status: '공개',
     images: ['오피스텔', '오피스텔', '오피스텔']
   },
   {
@@ -324,7 +324,7 @@ const sampleListings = [
     lat: 37.4840, lng: 126.9270,
     description: '신림역 도보 7분 오피스텔 전세입니다.\n풀옵션, 엘리베이터, 주차 가능.\n관리비 저렴한 구축 건물.\n근처: 신림역, 학원, 카페, 음식점',
     available: 1, availableDate: '2026-05-01', built: '2014',
-    parking: 1, elevator: 1, pet: 0, status: '가용',
+    parking: 1, elevator: 1, pet: 0, status: '공개',
     images: ['오피스텔', '오피스텔', '오피스텔']
   },
   {
@@ -350,7 +350,7 @@ const sampleListings = [
     lat: 37.4870, lng: 126.9250,
     description: '관악구 대단지 아파트 전세입니다.\n방 3개, 넓은 거실, 조망 좋음.\n초등학교 도보 5분, 안전한 단지.\n근처: 신림역, 공원, 학교, 편의점',
     available: 1, availableDate: '2026-06-01', built: '2008',
-    parking: 1, elevator: 1, pet: 1, status: '가용',
+    parking: 1, elevator: 1, pet: 1, status: '공개',
     images: ['아파트', '아파트', '아파트']
   },
   {
@@ -362,7 +362,7 @@ const sampleListings = [
     lat: 37.4865, lng: 126.9290,
     description: '신림동 아파트 월세 - 재건축 예정지.\n방 3개, 넓은 거실, 창고 있음.\n관리비 저렴, 엘리베이터 있음.\n근처: 신림역, 학교, 공원, 마트',
     available: 1, availableDate: '즉시입주', built: '2005',
-    parking: 1, elevator: 1, pet: 1, status: '가용',
+    parking: 1, elevator: 1, pet: 1, status: '공개',
     images: ['아파트', '아파트', '아파트']
   },
   {
@@ -374,7 +374,7 @@ const sampleListings = [
     lat: 37.4795, lng: 126.9490,
     description: '봉천동 신축 아파트 매매입니다.\n방 4개, 넓은 거실, 현대식 인테리어.\n단지 편의시설 많음, 조망 우수.\n근처: 관악구청역, 상업지구, 병원',
     available: 1, availableDate: '협의', built: '2023',
-    parking: 2, elevator: 1, pet: 1, status: '가용',
+    parking: 2, elevator: 1, pet: 1, status: '공개',
     images: ['아파트', '아파트', '아파트']
   },
 
@@ -388,7 +388,7 @@ const sampleListings = [
     lat: 37.4835, lng: 126.9310,
     description: '신림역 상권 중심부 1층 상가입니다.\n유동인구 多, 배달/포장 매장 적합.\n현재 임대 수익 월 200만원.\n근처: 신림역, 학원, 음식점거리',
     available: 1, availableDate: '협의', built: '2010',
-    parking: 0, elevator: 0, pet: 0, status: '가용',
+    parking: 0, elevator: 0, pet: 0, status: '공개',
     images: ['상가', '상가', '상가']
   },
   {
@@ -400,7 +400,7 @@ const sampleListings = [
     lat: 37.4842, lng: 126.9320,
     description: '신림역 번화가 2층 상가입니다.\n학원, 의류, 카페 등 적합.\n주차 가능, 화장실 분리.\n근처: 신림역, 학원가, 음식점',
     available: 1, availableDate: '2026-04-15', built: '2012',
-    parking: 0, elevator: 0, pet: 0, status: '가용',
+    parking: 0, elevator: 0, pet: 0, status: '공개',
     images: ['상가', '상가', '상가']
   },
   {
@@ -412,7 +412,7 @@ const sampleListings = [
     lat: 37.4770, lng: 126.9520,
     description: '봉천동 대로변 1층 상가 매매입니다.\n유동인구 많음, 임차인 풍부.\n현재 카페 운영 중, 월 임대료 180만원.\n근처: 봉천역 예정지, 버스정류장',
     available: 1, availableDate: '협의', built: '2015',
-    parking: 0, elevator: 0, pet: 0, status: '가용',
+    parking: 0, elevator: 0, pet: 0, status: '공개',
     images: ['상가', '상가', '상가']
   },
 
@@ -426,7 +426,7 @@ const sampleListings = [
     lat: 37.4848, lng: 126.9300,
     description: '신림역 대로변 사무실 임대입니다.\n회의실 분리, 인터넷 완비.\n법인 사무실로 적합, 관리비 저렴.\n근처: 신림역, 학원, 은행, 음식점',
     available: 1, availableDate: '즉시입주', built: '2016',
-    parking: 1, elevator: 1, pet: 0, status: '가용',
+    parking: 1, elevator: 1, pet: 0, status: '공개',
     images: ['사무실', '사무실', '사무실']
   },
   {
@@ -438,7 +438,7 @@ const sampleListings = [
     lat: 37.4785, lng: 126.9535,
     description: '봉천동 사무실 - 개방형 레이아웃.\n자유로운 공간분할 가능.\n엘리베이터 있음, 화장실 깔끔.\n근처: 봉천역 예정지, 편의점, 병원',
     available: 1, availableDate: '2026-04-01', built: '2017',
-    parking: 1, elevator: 1, pet: 0, status: '가용',
+    parking: 1, elevator: 1, pet: 0, status: '공개',
     images: ['사무실', '사무실', '사무실']
   },
   {
@@ -464,7 +464,7 @@ const sampleListings = [
     lat: 37.4855, lng: 126.9270,
     description: '신림동 원룸 전세입니다.\n새 도배, 장판 완료.\n에어컨, 세탁기 기본 구비.\n근처: 신림역, 편의점, 이용원',
     available: 1, availableDate: '2026-04-20', built: '2013',
-    parking: 0, elevator: 0, pet: 0, status: '가용',
+    parking: 0, elevator: 0, pet: 0, status: '공개',
     images: ['원룸', '원룸', '원룸']
   },
   {
@@ -476,7 +476,7 @@ const sampleListings = [
     lat: 37.4775, lng: 126.9515,
     description: '봉천동 조용한 주택가 투룸입니다.\n방 2개 + 거실, 분리형 주방.\n세탁기, 에어컨 완비.\n근처: 공원, 초등학교, 편의점',
     available: 1, availableDate: '즉시입주', built: '2016',
-    parking: 1, elevator: 0, pet: 1, status: '가용',
+    parking: 1, elevator: 0, pet: 1, status: '공개',
     images: ['투룸', '투룸', '투룸']
   },
   {
@@ -488,7 +488,7 @@ const sampleListings = [
     lat: 37.4835, lng: 126.9255,
     description: '신림역 근처 오피스텔 월세입니다.\n풀옵션, 엘리베이터, 주차 가능.\n관리비 저렴, 투자 적합.\n근처: 신림역, 학원, 카페',
     available: 1, availableDate: '2026-04-30', built: '2018',
-    parking: 1, elevator: 1, pet: 0, status: '가용',
+    parking: 1, elevator: 1, pet: 0, status: '공개',
     images: ['오피스텔', '오피스텔', '오피스텔']
   },
 ];

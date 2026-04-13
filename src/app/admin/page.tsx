@@ -44,7 +44,7 @@ interface Listing {
   balcony?: boolean;
   full_option?: boolean;
   loan_available?: boolean;
-  status: '가용' | '계약중' | '계약완료';
+  status: '공개' | '비공개' | '계약중' | '계약완료';
   created_at: string;
   updated_at?: string;
 }
@@ -89,7 +89,7 @@ const INITIAL_LISTING = {
   balcony: false,
   full_option: false,
   loan_available: true,
-  status: '가용' as const,
+  status: '공개' as const,
 };
 
 export default function AdminPage() {
@@ -447,7 +447,7 @@ export default function AdminPage() {
               <p className="text-3xl font-bold text-wishes-primary">{stats.totalListings}</p>
             </div>
             <div className="card-premium p-6">
-              <p className="text-gray-600 text-sm font-medium mb-2">가용</p>
+              <p className="text-gray-600 text-sm font-medium mb-2">공개</p>
               <p className="text-3xl font-bold text-green-600">{stats.activeListings}</p>
             </div>
             <div className="card-premium p-6">
@@ -628,7 +628,7 @@ export default function AdminPage() {
                       onChange={(e) => setNewListing({ ...newListing, status: e.target.value as any })}
                       className={inputClass}
                     >
-                      <option value="가용">가용</option>
+                      <option value="공개">공개</option>
                       <option value="계약중">계약중</option>
                       <option value="계약완료">계약완료</option>
                     </select>
@@ -1114,14 +1114,14 @@ export default function AdminPage() {
                       value={listing.status}
                       onChange={(e) => handleStatusChange(listing.id, e.target.value)}
                       className={`px-2 py-1 border rounded-lg text-xs font-medium ${
-                        listing.status === '가용'
+                        listing.status === '공개'
                           ? 'border-green-300 text-green-700 bg-green-50'
                           : listing.status === '계약중'
                           ? 'border-orange-300 text-orange-700 bg-orange-50'
                           : 'border-blue-300 text-blue-700 bg-blue-50'
                       }`}
                     >
-                      <option value="가용">가용</option>
+                      <option value="공개">공개</option>
                       <option value="계약중">계약중</option>
                       <option value="계약완료">계약완료</option>
                     </select>

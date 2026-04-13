@@ -137,7 +137,7 @@ export async function GET(
     const { data: candidates, error: candError } = await supabase
       .from('listings')
       .select('*')
-      .eq('status', '가용')
+      .eq('status', '공개')
       .neq('id', listingId)
       .limit(200);
 

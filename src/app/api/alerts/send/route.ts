@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     const { data: newListings, error: listingError } = await supabase
       .from('listings')
       .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current')
-      .eq('status', '가용')
+      .eq('status', '공개')
       .gte('created_at', yesterday.toISOString())
       .order('created_at', { ascending: false });
 

@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const { count: activeListings } = await supabase
       .from('listings')
       .select('id', { count: 'exact', head: true })
-      .eq('status', '가용');
+      .eq('status', '공개');
 
     const { count: contractingListings } = await supabase
       .from('listings')
