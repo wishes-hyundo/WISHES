@@ -84,10 +84,21 @@ export async function POST(request: NextRequest) {
 
     // 순차적으로 지오코딩 (API 레이트 리밋 고려)
     for (const listing of listings) {
-      // 주소 구성: address > dong+gu > building_name 순으로 시도
-      const searchAddr = listing.address ||
-        [listing.gu, listing.dong, listing.building_name].filter(Boolean).join(' ') ||
-        '';
+      // 주소 구성: dong+gu 최우선 (address 필드는 크롤링 원시 데이터로 지저분함)
+      // 1순위: gu + dong + building_name (깨끗한 구조화 데이터)
+      // 2순위: address에서 한국 주소 패턴 추출
+      // 3순위: address 원본 (최후의 수단)
+      let searchAddr = '';
+
+      if (listing.dong) {
+        searchAddr = [listing.gu, listing.dong, listing.building_name].filter(Boolean).join(' ');
+      }
+
+      if (!searchAddr && listing.address) {
+        // address에서 "XX구 XX동" 패턴 추출 (크롤링 데이터 정제)
+        const addrMatch = listing.address.match(/([가-힣]+(?:시|도)\s+)?[가-힣]+(?:구|군)\s+[가-힣]+(?:동|읍|면|리|로|길)\s*[\d\-\s가-힣]*/);
+        searchAddr = addrMatch ? addrMatch[0].trim() : listing.address.replace(/[\t\n\r]+/g, ' ').trim();
+      }
 
       if (!searchAddr) {
         failed++;
