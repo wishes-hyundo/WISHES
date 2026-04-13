@@ -12042,7 +12042,7 @@
         _inp('monthly', '월세 (만원)', _l.monthly, 'number') +
         _inp('price', '매매가 (만원)', _l.price, 'number') +
         _inp('maint', '관리비 (만원)', _l.maintenance_fee, 'number') +
-        '<div style="grid-column:span 2;">' + _inp('maint-includes', '관리비 포함항목', _l.maintenance_includes, 'text', '수도, 인터넷, TV') + '</div>' +
+        '<div style="grid-column:span 2;">' + _inp('maint-includes', '관리비 포함항목', Array.isArray(_l.maintenance_includes) ? _l.maintenance_includes.join(', ') : (_l.maintenance_includes || ''), 'text', '수도, 인터넷, TV') + '</div>' +
         _inp('rights-fee', '권리금 (만원)', _l.rights_fee, 'number') +
         _inp('goodwill', '시설권리금 (만원)', _l.goodwill_fee, 'number') +
         _inp('commission', '중개수수료 (만원)', _l.commission_fee, 'number') +
@@ -12264,7 +12264,7 @@
         monthly: _vi('monthly') || 0,
         price: _vi('price') || 0,
         maintenance_fee: _vi('maint'),
-        maintenance_includes: _v('maint-includes') || null,
+        maintenance_includes: _v('maint-includes') ? _v('maint-includes').split(',').map(function(s){return s.trim();}).filter(function(s){return s;}) : null,
         rights_fee: _vi('rights-fee'),
         goodwill_fee: _vi('goodwill'),
         commission_fee: _vi('commission'),
@@ -12397,7 +12397,7 @@
         area_m2: parseFloat(document.getElementById('ws-new-area').value) || null,
         floor_current: document.getElementById('ws-new-floor').value || null,
         maintenance_fee: parseInt(document.getElementById('ws-new-maint').value) || null,
-        maintenance_includes: document.getElementById('ws-new-maint-includes').value || null,
+        maintenance_includes: document.getElementById('ws-new-maint-includes').value ? document.getElementById('ws-new-maint-includes').value.split(',').map(function(s){return s.trim();}).filter(function(s){return s;}) : null,
         dong: document.getElementById('ws-new-dong').value || null,
         description: document.getElementById('ws-new-desc').value,
         status: '공개'
