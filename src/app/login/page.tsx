@@ -2,8 +2,8 @@
 
 export const dynamic = 'force-static';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState, useEffect, useRef, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createAuthClient } from '@/lib/supabase';
 
@@ -18,8 +18,8 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-// 관리자 토큰으로 세션 저장 후 리다이렉트
-function loginWithAdminToken(router: ReturnType<typeof useRouter>, redirect: string) {
+// 관리자 토큰으로 세션 저장
+function setAdminTokens() {
   try {
     sessionStorage.setItem('ws_token', 'wishes2026');
     sessionStorage.setItem('ws_user', JSON.stringify({ email: 'wishes@wishes.co.kr', name: 'WISHES', role: 'superadmin', status: 'approved' }));
@@ -28,11 +28,9 @@ function loginWithAdminToken(router: ReturnType<typeof useRouter>, redirect: str
     localStorage.setItem('admin_password', 'wishes2026');
     localStorage.setItem('ws_login_time', Date.now().toString());
   } catch {}
-  router.replace(redirect);
 }
 
 function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
   const redirect = params.get('redirect') || '/search';
 
@@ -40,11 +38,20 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [checking, setChecking] = useState(true);
+  const [pageState, setPageState] = useState<'checking' | 'form' | 'redirecting'>('checking');
+  const redirectedRef = useRef(false);
+
+  // 하드 네비게이션 (Next.js router.replace 대신 — 깜빡임 방지)
+  function hardRedirect(url: string) {
+    if (redirectedRef.current) return;
+    redirectedRef.current = true;
+    setPageState('redirecting');
+    window.location.href = url;
+  }
 
   // 이미 로그인되어 있으면 바로 redirect (3초 타임아웃)
   useEffect(() => {
-    let cancelled = false;
+    if (redirectedRef.current) return;
 
     (async () => {
       // [1] 로컬 토큰 확인 (즉시)
@@ -52,7 +59,7 @@ function LoginForm() {
         const token = sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token');
         const adminPw = localStorage.getItem('admin_password');
         if (token || adminPw) {
-          if (!cancelled) router.replace(redirect);
+          hardRedirect(redirect);
           return;
         }
       } catch {}
@@ -61,28 +68,28 @@ function LoginForm() {
       try {
         const sb = createAuthClient();
         const { data: { session } } = await withTimeout(sb.auth.getSession(), 3000);
-        if (session && !cancelled) {
-          router.replace(redirect);
+        if (session && !redirectedRef.current) {
+          hardRedirect(redirect);
           return;
         }
       } catch {
         // Supabase 타임아웃 — 무시하고 로그인 폼 표시
       }
 
-      if (!cancelled) setChecking(false);
+      if (!redirectedRef.current) setPageState('form');
     })();
-
-    return () => { cancelled = true; };
-  }, [router, redirect]);
+  }, [redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (redirectedRef.current) return;
     setError('');
     setLoading(true);
 
     // ⚡ 관리자 비밀번호 직접 입력 시 Supabase 없이 즉시 로그인
     if (password === 'wishes2026') {
-      loginWithAdminToken(router, redirect);
+      setAdminTokens();
+      hardRedirect(redirect);
       return;
     }
 
@@ -120,26 +127,26 @@ function LoginForm() {
 
         if (!meData.success) {
           setError(meData.message || '사용자 정보 확인 실패');
-          await sb.auth.signOut();
+          await sb.auth.signOut().catch(() => {});
           setLoading(false);
           return;
         }
 
         if (meData.user.status === 'pending') {
           setError('관리자 승인 대기 중입니다. 승인 후 이용 가능합니다.');
-          await sb.auth.signOut();
+          await sb.auth.signOut().catch(() => {});
           setLoading(false);
           return;
         }
 
         if (meData.user.status === 'rejected') {
           setError('가입이 거절되었습니다. 관리자에게 문의하세요.');
-          await sb.auth.signOut();
+          await sb.auth.signOut().catch(() => {});
           setLoading(false);
           return;
         }
       } catch {
-        // /api/auth/me 타임아웃 → 그래도 Supabase 인증은 성공했으므로 진행
+        // /api/auth/me 타임아웃 → Supabase 인증은 성공했으므로 진행
       }
 
       // 승인됨 → 세션 토큰 저장 + 리다이렉트
@@ -147,15 +154,27 @@ function LoginForm() {
         sessionStorage.setItem('ws_token', 'admin_bridge_' + (data.session?.access_token || ''));
         sessionStorage.setItem('ws_login_time', Date.now().toString());
       } catch {}
-      router.replace(redirect);
+      hardRedirect(redirect);
     } catch {
       setError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
       setLoading(false);
     }
   };
 
-  // 초기 세션 체크 중이면 로딩 표시 (최대 3초)
-  if (checking) {
+  // 리다이렉트 중
+  if (pageState === 'redirecting') {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 18, fontWeight: 600, color: '#2D5A27', marginBottom: 8 }}>로그인 성공</div>
+          <div style={{ color: '#999', fontSize: 14 }}>페이지 이동 중...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // 초기 세션 체크 중 (최대 3초)
+  if (pageState === 'checking') {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
         <div style={{ color: '#999', fontSize: 14 }}>확인 중...</div>
