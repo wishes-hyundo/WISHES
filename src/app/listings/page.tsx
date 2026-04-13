@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { createClient } from '@/lib/supabase';
 import ListingsClient from './ListingsClient';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: '매물검색 - 서울·경기 전세 월세 매매',
   description: '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트, 상가 매물을 검색하세요. 전세, 월세, 매매 매물을 지역별로 필터링하여 찾아보세요.',
@@ -14,6 +16,13 @@ export const metadata: Metadata = {
     url: 'https://wishes.co.kr/listings',
   },
 };
+
+// 5초 타임아웃 래퍼
+const withTimeout = <T,>(promise: Promise<T>, ms = 5000): Promise<T> =>
+  Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
 
 // SSR - 서버에서 초기 데이터 로드 (성능 최적화)
 export default async function ListingsPage({
@@ -40,7 +49,7 @@ export default async function ListingsPage({
         'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)',
         { count: 'exact' }
       )
-      .eq('status', '가용');
+      .in('status', ['공개', '가용']);
 
     if (deal) query = query.eq('deal', deal);
     if (type) query = query.eq('type', type);
@@ -54,12 +63,14 @@ export default async function ListingsPage({
     const dongQuery = supabase
       .from('listings')
       .select('dong')
-      .eq('status', '가용')
+      .in('status', ['공개', '가용'])
       .not('dong', 'is', null)
       .limit(500);
 
-    // 2개 쿼리만 병렬 실행 (count를 메인 쿼리에 통합)
-    const [listingsResult, dongResult] = await Promise.all([query, dongQuery]);
+    // 2개 쿼리 병렬 실행 + 5초 타임아웃
+    const [listingsResult, dongResult] = await withTimeout(
+      Promise.all([query, dongQuery])
+    );
 
     const initialListings = listingsResult.data || [];
     const totalCount = listingsResult.count || 0;
@@ -73,7 +84,7 @@ export default async function ListingsPage({
       />
     );
   } catch (error) {
-    // 서버 에러 시 클라이언트 fallback
+    // 서버 에러/타임아웃 시 빈 데이터로 즉시 렌더 (클라이언트에서 재시도)
     return <ListingsClient initialListings={[]} initialDongs={[]} totalCount={0} />;
   }
 }
