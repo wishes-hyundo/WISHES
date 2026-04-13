@@ -15,29 +15,30 @@ export default async function HomePage() {
   try {
     const supabase = createClient();
 
-    // AbortController로 10초 타임아웃 설정
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    // 5초 타임아웃 래퍼
+    const withTimeout = <T,>(promise: Promise<T>, ms = 5000): Promise<T> =>
+      Promise.race([
+        promise,
+        new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+      ]);
 
     const [listingsRes, allListingsRes] = await Promise.allSettled([
-      supabase
+      withTimeout(supabase
         .from('listings')
         .select('*, listing_images(url, alt, sort_order)')
         .in('status', ['공개', '가용'])
         .order('created_at', { ascending: false })
-        .limit(6),
-      supabase
+        .limit(6)),
+      withTimeout(supabase
         .from('listings')
         .select('*, listing_images(url, alt, sort_order)')
         .in('status', ['공개', '가용'])
         .order('created_at', { ascending: false })
-        .limit(50),
+        .limit(50)),
     ]);
 
-    clearTimeout(timeout);
-
-    if (listingsRes.status === 'fulfilled') latestListings = listingsRes.value.data || [];
-    if (allListingsRes.status === 'fulfilled') allListings = allListingsRes.value.data || [];
+    if (listingsRes.status === 'fulfilled') latestListings = (listingsRes.value as any).data || [];
+    if (allListingsRes.status === 'fulfilled') allListings = (allListingsRes.value as any).data || [];
   } catch (e) {
     // Supabase 연결 실패 시 빈 배열로 렌더링 (페이지는 정상 표시)
     console.error('Homepage Supabase error:', e);
