@@ -3,29 +3,39 @@
 /**
  * /search — 중개사 포털
  *
- * wishes-search-extension (v2.2.1) 확장프로그램을 웹 페이지에 그대로 임베드합니다.
- * 기능/디자인이 확장프로그램과 100% 동일합니다.
- *
- * 구조:
- *  1) Supabase 세션 확인 → /api/auth/me 로 승인 상태 검증
- *  2) 승인된 계정이면 /search/styles.css + /search/content.js 를 동적 로드
- *  3) content.js 는 _WS_EMBEDDED_MODE 로 동작하여 자체 인증 게이트를 스킵하고
- *     boot 직후 window.WS.showSearchUI() 를 자동 호출
+ * 인증 흐름:
+ *  1) /login 에서 Supabase 로그인 성공 시 sessionStorage 에 ws_token 저장
+ *  2) 이 페이지는 ws_token 유무만 확인 (Supabase SDK 호출 없음 → 즉시 판단)
+ *  3) 토큰 있으면 /search/content.js 로드 → 중개사 포털 표시
+ *  4) 토큰 없으면 로그인 안내 화면 표시
  */
 
 import { useEffect, useState } from 'react';
-import { createAuthClient } from '@/lib/supabase';
 
-type AuthState = 'loading' | 'nosession' | 'pending' | 'denied' | 'error' | 'ok';
+type PageState = 'loading' | 'nosession' | 'ok';
 
 export default function SearchPortalPage() {
-  const [state, setState] = useState<AuthState>('loading');
-  const [errMsg, setErrMsg] = useState('');
+  const [state, setState] = useState<PageState>('loading');
 
+  // ── 인증 확인 (Supabase 호출 없음, 즉시 판단) ──
   useEffect(() => {
-    let cancelled = false;
+    try {
+      const token = sessionStorage.getItem('ws_token');
+      if (token) {
+        setState('ok');
+      } else {
+        setState('nosession');
+      }
+    } catch {
+      setState('nosession');
+    }
+  }, []);
 
-    // ⚡ 매물 프리페치 — 인증 검증과 병렬로 즉시 시작 (체감 로딩 시간 대폭 단축)
+  // ── 인증 통과 시: 카카오맵 사전 초기화 + 확장프로그램 CSS/JS 주입 ──
+  useEffect(() => {
+    if (state !== 'ok') return;
+
+    // 매물 프리페치
     try {
       const w = window as unknown as { __WS_PREFETCH__?: Promise<unknown> };
       if (!w.__WS_PREFETCH__) {
@@ -40,101 +50,15 @@ export default function SearchPortalPage() {
       }
     } catch {}
 
-    // ⚡ 카카오맵 SDK 사전 초기화 — layout.tsx 에서 beforeInteractive 로 이미 로드 완료
-    //    여기서는 kakao.maps.load 만 호출해 Map/Roadview/Services/Drawing 모듈을 미리 파싱
+    // 카카오맵 SDK 사전 초기화
     try {
       interface KakaoMaps { load: (cb: () => void) => void; Map?: unknown }
       interface KakaoGlobal { maps: KakaoMaps }
       const kk = (window as unknown as { kakao?: KakaoGlobal }).kakao;
       if (kk && kk.maps && typeof kk.maps.load === 'function' && !kk.maps.Map) {
-        kk.maps.load(() => { /* 모듈 파싱 완료 — 지도 렌더 즉시 가능 */ });
+        kk.maps.load(() => {});
       }
     } catch {}
-
-    // ⏱ 타임아웃 헬퍼 — Promise 가 지정 시간 내 resolve 되지 않으면 reject
-    function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-      return new Promise<T>((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error(`${label}: ${ms / 1000}초 초과 (네트워크 또는 서버 응답 없음)`)), ms);
-        promise.then(
-          (v) => { clearTimeout(timer); resolve(v); },
-          (e) => { clearTimeout(timer); reject(e); },
-        );
-      });
-    }
-
-    (async () => {
-      // ── [1단계] 로그인 페이지에서 저장한 세션 토큰 확인 (즉시) ──
-      try {
-        const token = sessionStorage.getItem('ws_token');
-        if (token) {
-          if (!cancelled) setState('ok');
-          return;
-        }
-      } catch {}
-
-      // ── [2단계] Supabase 세션 확인 (5초 타임아웃) ──
-      try {
-        const sb = createAuthClient();
-        const { data: { session }, error: sessErr } = await withTimeout(
-          sb.auth.getSession(), 5_000, '세션 확인',
-        );
-
-        if (sessErr || !session) {
-          // 세션 없음 → 로그인 필요
-          if (!cancelled) setState('nosession');
-          return;
-        }
-
-        // 세션 있음 → 승인 상태 확인
-        const res = await withTimeout(
-          fetch('/api/auth/me', {
-            headers: { Authorization: `Bearer ${session.access_token}` },
-          }),
-          5_000, '인증 API',
-        );
-        const data = await res.json();
-
-        if (!data.success) {
-          if (!cancelled) { setErrMsg(data.message || '인증 실패'); setState('error'); }
-          return;
-        }
-        if (data.user.status === 'pending') {
-          if (!cancelled) setState('pending');
-          return;
-        }
-        if (!data.user.canAccessBroker) {
-          if (!cancelled) setState('denied');
-          return;
-        }
-
-        // ✅ 인증 통과 — sessionStorage 에 브릿지 토큰 세팅 (확장 코드 호환용)
-        try {
-          sessionStorage.setItem('ws_token', 'admin_bridge_' + session.access_token);
-          sessionStorage.setItem('ws_user', JSON.stringify({
-            email: data.user.email,
-            name: data.user.name,
-            role: data.user.role,
-            status: data.user.status,
-          }));
-          sessionStorage.setItem('ws_login_time', Date.now().toString());
-        } catch {}
-
-        if (!cancelled) setState('ok');
-      } catch {
-        // Supabase 타임아웃 또는 네트워크 오류
-        if (!cancelled) {
-          setErrMsg('서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.');
-          setState('error');
-        }
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, []);
-
-  // 인증 통과 시 확장프로그램 CSS + JS 를 주입
-  useEffect(() => {
-    if (state !== 'ok') return;
 
     // CSS
     let link = document.getElementById('ws-ext-styles') as HTMLLinkElement | null;
@@ -149,7 +73,6 @@ export default function SearchPortalPage() {
     // JS
     const existing = document.getElementById('ws-ext-content') as HTMLScriptElement | null;
     if (existing) {
-      // 이미 로드된 경우 (HMR/재마운트): 오버레이만 다시 표시
       try {
         const w = window as unknown as { WS?: { showSearchUI?: () => void; loadData?: () => void; _loadingData?: boolean; allListings?: unknown[] } };
         if (w.WS?.showSearchUI) w.WS.showSearchUI();
@@ -171,7 +94,7 @@ export default function SearchPortalPage() {
   if (state === 'loading') {
     return (
       <div style={wrapStyle}>
-        <div style={{ color: '#666' }}>인증 확인 중...</div>
+        <div style={{ color: '#666' }}>로딩 중...</div>
       </div>
     );
   }
@@ -186,60 +109,15 @@ export default function SearchPortalPage() {
             중개사 포털은 승인된 직원만 이용할 수 있습니다.<br />계정으로 로그인해주세요.
           </p>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <button onClick={() => window.location.href = '/login?redirect=/search'} style={btnPrimary}>로그인</button>
-            <button onClick={() => window.location.href = '/signup'} style={btnSecondary}>회원가입</button>
+            <a href="/login?redirect=/search" style={{ ...btnPrimary, textDecoration: 'none', display: 'inline-block' }}>로그인</a>
+            <a href="/signup" style={{ ...btnSecondary, textDecoration: 'none', display: 'inline-block' }}>회원가입</a>
           </div>
         </div>
       </div>
     );
   }
 
-  if (state === 'pending') {
-    return (
-      <div style={wrapStyle}>
-        <div style={cardStyle}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: '#d97706' }}>승인 대기 중</h2>
-          <p style={{ color: '#666', lineHeight: 1.6, fontSize: 14 }}>
-            가입 신청이 접수되었습니다.<br />사장님의 승인 후 이용하실 수 있습니다.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (state === 'denied') {
-    return (
-      <div style={wrapStyle}>
-        <div style={cardStyle}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🚫</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: '#dc2626' }}>접근 권한이 없습니다</h2>
-          <p style={{ color: '#666', lineHeight: 1.6, fontSize: 14 }}>
-            이 계정에는 중개사 포털 접근 권한이 부여되지 않았습니다.<br />관리자에게 문의해주세요.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (state === 'error') {
-    return (
-      <div style={wrapStyle}>
-        <div style={cardStyle}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: '#dc2626' }}>오류</h2>
-          <p style={{ color: '#666', fontSize: 13, wordBreak: 'break-all', marginBottom: 20 }}>{errMsg}</p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <button onClick={() => window.location.href = '/login?redirect=/search'} style={btnPrimary}>로그인 페이지</button>
-            <button onClick={() => window.location.reload()} style={btnSecondary}>새로고침</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // state === 'ok' — content.js 가 #ws-search-overlay 를 document.body 에 직접 삽입합니다.
-  // 이 React 페이지는 투명 배경만 제공합니다.
+  // state === 'ok' — content.js 가 #ws-search-overlay 를 document.body 에 직접 삽입
   return (
     <div id="ws-search-root" style={{ minHeight: '100vh', background: '#f0f7ed' }}>
       {/* content.js 가 document.body 에 ws-search-overlay 를 주입 */}
