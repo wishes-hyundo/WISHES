@@ -126,4 +126,17 @@ export async function POST(request: NextRequest) {
       } else {
         results.push({ id, success: true, title: data?.title });
       }
-  
+    }
+
+    return NextResponse.json({
+      success: true,
+      updated: results.length,
+      failed: errors.length,
+      results,
+      errors: errors.length > 0 ? errors : undefined,
+    });
+  } catch (err: any) {
+    console.error('POST error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
