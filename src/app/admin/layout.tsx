@@ -55,32 +55,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // Supabase token verify (타임아웃 5초, 실패해도 계속 진행)
+        // Supabase token verify (비동기 백그라운드 - 인증 체크를 블로킹하지 않음)
         if (!token.startsWith('admin_bridge_')) {
-          try {
-            const ac = new AbortController();
-            const timer = setTimeout(() => ac.abort(), 5000);
-            const verifyRes = await fetch('/api/auth/verify', {
-              headers: { 'Authorization': 'Bearer ' + token },
-              signal: ac.signal
-            });
-            clearTimeout(timer);
-            if (verifyRes.ok) {
-              const vData = await verifyRes.json();
-              if (vData.user && vData.user.role && userStr) {
-                try {
-                  const cu = JSON.parse(userStr);
-                  if (cu.role !== vData.user.role) {
-                    cu.role = vData.user.role;
-                    window.sessionStorage.setItem('ws_login_time', new Date().toISOString());
-                    window.sessionStorage.setItem('ws_user', JSON.stringify(cu));
-                  }
-                } catch(re) {}
-              }
+          fetch('/api/auth/verify', {
+            headers: { 'Authorization': 'Bearer ' + token }
+          }).then(r => r.ok ? r.json() : null).then(vData => {
+            if (vData?.user?.role) {
+              try {
+                const cu = JSON.parse(window.sessionStorage.getItem('ws_user') || '{}');
+                if (cu.role !== vData.user.role) {
+                  cu.role = vData.user.role;
+                  window.sessionStorage.setItem('ws_user', JSON.stringify(cu));
+                  setUserRole(vData.user.role);
+                }
+              } catch(re) {}
             }
-          } catch (e) {
-            console.warn('Token verify skipped:', e);
-          }
+          }).catch(() => {});
         }
 
         // 사용자 역할 추출
