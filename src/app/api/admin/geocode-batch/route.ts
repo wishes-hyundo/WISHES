@@ -51,6 +51,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
     }
 
+    const body = await request.json().catch(() => ({}));
+    const mode = body.mode || 'kakao'; // 'kakao' | 'dong-average'
+
+    // ━━━ 모드: dong-average (동별 평균 좌표 일괄 할당) ━━━
+    if (mode === 'dong-average') {
+      return await handleDongAverageMode(request);
+    }
+
     if (!KAKAO_REST_KEY) {
       return NextResponse.json(
         { success: false, error: 'KAKAO_REST_API_KEY 환경변수가 설정되지 않았습니다' },
@@ -58,7 +66,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json().catch(() => ({}));
     const batchSize = Math.min(body.batchSize || 50, 200); // 한 번에 최대 200개
 
     const supabase = createServerClient();
@@ -149,6 +156,102 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// ━━━ 동별 평균 좌표 일괄 할당 ━━━
+async function handleDongAverageMode(request: NextRequest) {
+  const supabase = createServerClient();
+
+  // 1. 이미 좌표가 있는 매물에서 dong별 평균 lat/lng 계산
+  const { data: withCoords, error: err1 } = await supabase
+    .from('listings')
+    .select('dong, lat, lng')
+    .not('dong', 'is', null)
+    .not('lat', 'is', null)
+    .not('lng', 'is', null)
+    .neq('lat', 0)
+    .neq('lng', 0);
+
+  if (err1) {
+    return NextResponse.json({ success: false, error: err1.message }, { status: 500 });
+  }
+
+  // dong별 평균 좌표 계산
+  const dongAvg: Record<string, { sumLat: number; sumLng: number; count: number }> = {};
+  for (const row of (withCoords || [])) {
+    if (!row.dong) continue;
+    if (!dongAvg[row.dong]) dongAvg[row.dong] = { sumLat: 0, sumLng: 0, count: 0 };
+    dongAvg[row.dong].sumLat += row.lat;
+    dongAvg[row.dong].sumLng += row.lng;
+    dongAvg[row.dong].count++;
+  }
+
+  const dongCoords: Record<string, { lat: number; lng: number }> = {};
+  for (const [dong, val] of Object.entries(dongAvg)) {
+    dongCoords[dong] = {
+      lat: val.sumLat / val.count,
+      lng: val.sumLng / val.count,
+    };
+  }
+
+  // 2. 좌표 없고 dong이 있는 매물 조회
+  const { data: noCoords, error: err2 } = await supabase
+    .from('listings')
+    .select('id, dong')
+    .not('dong', 'is', null)
+    .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0');
+
+  if (err2) {
+    return NextResponse.json({ success: false, error: err2.message }, { status: 500 });
+  }
+
+  let updated = 0;
+  let skipped = 0;
+
+  // 3. 배치 업데이트 (dong 매칭되는 것만)
+  // 같은 dong끼리 그룹화하여 한 번에 업데이트
+  const grouped: Record<string, string[]> = {};
+  for (const row of (noCoords || [])) {
+    if (!row.dong || !dongCoords[row.dong]) {
+      skipped++;
+      continue;
+    }
+    if (!grouped[row.dong]) grouped[row.dong] = [];
+    grouped[row.dong].push(row.id);
+  }
+
+  for (const [dong, ids] of Object.entries(grouped)) {
+    const coords = dongCoords[dong];
+    // 배치 크기 제한 (Supabase .in() 최대 ~300개)
+    for (let i = 0; i < ids.length; i += 300) {
+      const chunk = ids.slice(i, i + 300);
+      // 동일 동 내에서 약간의 랜덤 오프셋 추가 (마커 겹침 방지)
+      // 개별 업데이트 대신 일괄로 동 중심점 할당
+      const { error: updateErr } = await supabase
+        .from('listings')
+        .update({ lat: coords.lat, lng: coords.lng })
+        .in('id', chunk);
+
+      if (!updateErr) {
+        updated += chunk.length;
+      }
+    }
+  }
+
+  // 4. 남은 미지오코딩 매물 수
+  const { count: remaining } = await supabase
+    .from('listings')
+    .select('id', { count: 'exact', head: true })
+    .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0');
+
+  return NextResponse.json({
+    success: true,
+    mode: 'dong-average',
+    dongsUsed: Object.keys(grouped).length,
+    updated,
+    skipped,
+    remaining: remaining ?? 0,
+  });
 }
 
 // GET: 미지오코딩 매물 현황 조회
