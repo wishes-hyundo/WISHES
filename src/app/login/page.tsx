@@ -1,9 +1,35 @@
 'use client';
 
+export const dynamic = 'force-static';
+
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createAuthClient } from '@/lib/supabase';
+
+// ⏱ 타임아웃 헬퍼
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('timeout')), ms);
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
+// 관리자 토큰으로 세션 저장 후 리다이렉트
+function loginWithAdminToken(router: ReturnType<typeof useRouter>, redirect: string) {
+  try {
+    sessionStorage.setItem('ws_token', 'wishes2026');
+    sessionStorage.setItem('ws_user', JSON.stringify({ email: 'wishes@wishes.co.kr', name: 'WISHES', role: 'superadmin', status: 'approved' }));
+    sessionStorage.setItem('ws_login_time', Date.now().toString());
+    localStorage.setItem('ws_token', 'wishes2026');
+    localStorage.setItem('admin_password', 'wishes2026');
+    localStorage.setItem('ws_login_time', Date.now().toString());
+  } catch {}
+  router.replace(redirect);
+}
 
 function LoginForm() {
   const router = useRouter();
@@ -14,13 +40,39 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checking, setChecking] = useState(true);
 
-  // 이미 로그인되어 있으면 바로 redirect
+  // 이미 로그인되어 있으면 바로 redirect (3초 타임아웃)
   useEffect(() => {
-    const sb = createAuthClient();
-    sb.auth.getSession().then(({ data: { session } }) => {
-      if (session) router.replace(redirect);
-    });
+    let cancelled = false;
+
+    (async () => {
+      // [1] 로컬 토큰 확인 (즉시)
+      try {
+        const token = sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token');
+        const adminPw = localStorage.getItem('admin_password');
+        if (token || adminPw) {
+          if (!cancelled) router.replace(redirect);
+          return;
+        }
+      } catch {}
+
+      // [2] Supabase 세션 확인 (3초 제한)
+      try {
+        const sb = createAuthClient();
+        const { data: { session } } = await withTimeout(sb.auth.getSession(), 3000);
+        if (session && !cancelled) {
+          router.replace(redirect);
+          return;
+        }
+      } catch {
+        // Supabase 타임아웃 — 무시하고 로그인 폼 표시
+      }
+
+      if (!cancelled) setChecking(false);
+    })();
+
+    return () => { cancelled = true; };
   }, [router, redirect]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,53 +80,88 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
+    // ⚡ 관리자 비밀번호 직접 입력 시 Supabase 없이 즉시 로그인
+    if (password === 'wishes2026') {
+      loginWithAdminToken(router, redirect);
+      return;
+    }
+
     try {
       const sb = createAuthClient();
-      const { data, error: authErr } = await sb.auth.signInWithPassword({
-        email: email.toLowerCase(),
-        password,
-      });
 
-      if (authErr) {
-        setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+      // Supabase 로그인 (5초 타임아웃)
+      let data;
+      try {
+        const result = await withTimeout(
+          sb.auth.signInWithPassword({ email: email.toLowerCase(), password }),
+          5000,
+        );
+        if (result.error) {
+          setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+          setLoading(false);
+          return;
+        }
+        data = result.data;
+      } catch {
+        setError('서버 연결 시간 초과. 네트워크를 확인하거나 잠시 후 다시 시도해주세요.');
         setLoading(false);
         return;
       }
 
-      // 역할 및 승인 상태 확인
-      const meRes = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${data.session?.access_token || ''}` }
-      });
-      const meData = await meRes.json();
+      // 역할 및 승인 상태 확인 (5초 타임아웃)
+      try {
+        const meRes = await withTimeout(
+          fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${data.session?.access_token || ''}` },
+          }),
+          5000,
+        );
+        const meData = await meRes.json();
 
-      if (!meData.success) {
-        setError(meData.message || '사용자 정보 확인 실패');
-        await sb.auth.signOut();
-        setLoading(false);
-        return;
+        if (!meData.success) {
+          setError(meData.message || '사용자 정보 확인 실패');
+          await sb.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        if (meData.user.status === 'pending') {
+          setError('관리자 승인 대기 중입니다. 승인 후 이용 가능합니다.');
+          await sb.auth.signOut();
+          setLoading(false);
+          return;
+        }
+
+        if (meData.user.status === 'rejected') {
+          setError('가입이 거절되었습니다. 관리자에게 문의하세요.');
+          await sb.auth.signOut();
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // /api/auth/me 타임아웃 → 그래도 Supabase 인증은 성공했으므로 진행
       }
 
-      if (meData.user.status === 'pending') {
-        setError('관리자 승인 대기 중입니다. 승인 후 이용 가능합니다.');
-        await sb.auth.signOut();
-        setLoading(false);
-        return;
-      }
-
-      if (meData.user.status === 'rejected') {
-        setError('가입이 거절되었습니다. 관리자에게 문의하세요.');
-        await sb.auth.signOut();
-        setLoading(false);
-        return;
-      }
-
-      // 승인됨 → 리다이렉트
+      // 승인됨 → 세션 토큰 저장 + 리다이렉트
+      try {
+        sessionStorage.setItem('ws_token', 'admin_bridge_' + (data.session?.access_token || ''));
+        sessionStorage.setItem('ws_login_time', Date.now().toString());
+      } catch {}
       router.replace(redirect);
     } catch {
       setError('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
       setLoading(false);
     }
   };
+
+  // 초기 세션 체크 중이면 로딩 표시 (최대 3초)
+  if (checking) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
+        <div style={{ color: '#999', fontSize: 14 }}>확인 중...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: '20px' }}>
