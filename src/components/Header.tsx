@@ -51,7 +51,7 @@ export default function Header() {
 
   const getUserAvatar = () => {
     const url = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
-    if (url && url.includes('googleusercontent')) return null;
+    if (url && url.includes('googleusercontent')) return `/api/img-proxy?url=${encodeURIComponent(url)}`;
     if (url && url.startsWith('http://')) {
       return url.replace('http://', 'https://');
     }
