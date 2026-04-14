@@ -3783,6 +3783,61 @@
 
     modal.style.display = 'flex';
 
+    // ─── 사진 전체 로딩 (Lazy-fetch) + WISHES 워터마크 오버레이 ───
+    // 목록 API(minimal)는 썸네일 1장만 내려주므로 상세 열릴 때 /api/listings/[id] 로 전체 이미지 재요청
+    (function lazyLoadFullImages(l) {
+      if (l._imagesFullLoaded) return; // 이미 전체 이미지 로드됨
+      fetch('/api/listings/' + l.id, { cache: 'no-store' })
+        .then(function(r) { return r.json(); })
+        .then(function(j) {
+          if (!j || !j.success || !j.data) return;
+          var fullImgs = j.data.images || [];
+          if (fullImgs.length === 0) return;
+          // 원본 객체에 캐시 (다시 열 때 재요청 방지)
+          l.listing_images = fullImgs;
+          l.images = fullImgs;
+          l._imagesFullLoaded = true;
+
+          // 현재 모달이 여전히 이 매물을 보여주고 있을 때만 갤러리 갱신
+          var galleryEl = document.getElementById('ws-gallery-main');
+          if (!galleryEl) return;
+          var thumbs = document.querySelector('.ws-detail-gallery .ws-gallery-thumbs');
+          if (!thumbs) return;
+
+          // 직접 업로드 매물(source_site 없음)이면 WISHES 워터마크 오버레이
+          var isCrawled = l.source_site === 'gongsilclub' || l.source_site === 'onhouse';
+          var wmOverlayHtml = isCrawled ? '' :
+            '<div class="ws-wm-overlay" style="position:absolute;bottom:12px;right:12px;width:28%;height:auto;pointer-events:none;opacity:0.55;' +
+            'background-image:url(\'/wishes_logo_transparent.png\');background-repeat:no-repeat;background-size:contain;background-position:right bottom;' +
+            'aspect-ratio:3/1;"></div>';
+
+          // 메인 이미지 교체
+          var urls = fullImgs.map(function(img) { return img.url || img; });
+          galleryEl.style.backgroundImage = "url('" + urls[0] + "')";
+          galleryEl.setAttribute('data-images', JSON.stringify(urls).replace(/"/g, '&quot;'));
+          galleryEl.setAttribute('data-current', '0');
+
+          // 워터마크 오버레이 삽입 (중복 방지)
+          if (wmOverlayHtml && !galleryEl.querySelector('.ws-wm-overlay')) {
+            galleryEl.insertAdjacentHTML('beforeend', wmOverlayHtml);
+          }
+
+          // 썸네일 재렌더
+          thumbs.innerHTML = fullImgs.map(function(img, idx) {
+            var u = img.url || img;
+            return '<img src="' + u + '" alt="thumbnail" class="ws-thumb' + (idx === 0 ? ' ws-thumb-active' : '') + '" data-url="' + u + '" data-idx="' + idx + '">';
+          }).join('');
+
+          // 갤러리 우측 상단에 사진 개수 뱃지 추가 (중복 방지)
+          if (!galleryEl.querySelector('.ws-img-count')) {
+            galleryEl.insertAdjacentHTML('beforeend',
+              '<div class="ws-img-count" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,0.65);color:#fff;padding:3px 10px;border-radius:12px;font-size:12px;font-weight:600;pointer-events:none;">' +
+              '📷 ' + fullImgs.length + '장</div>');
+          }
+        })
+        .catch(function(e) { /* silent fail - 기본 썸네일 유지 */ });
+    })(listing);
+
     // ─── 이벤트 위임: container 단일 리스너로 자식 이벤트 통합 처리 ───
     // (매번 showDetail 호출 시 innerHTML 교체로 기존 자식 리스너는 자동 GC되지만,
     //  위임 패턴으로 리스너 수를 12→1로 줄여 메모리·성능 최적화)
