@@ -3572,7 +3572,7 @@
     let html = `
       <div class="ws-detail-header">
         <h2>${escHtml(listing.title || '-')}</h2>
-        <p><span style="display:inline-block;background:#2D5A27;color:#fff;padding:1px 8px;border-radius:4px;font-size:12px;font-weight:700;margin-right:6px;cursor:pointer;" class="ws-copy-id" data-copy="${listing.id}">매물번호 ${listing.id}</span>${listing.source_site === 'gongsilclub' ? '<span style="display:inline-block;padding:1px 8px;border-radius:4px;background:#4CAF50;color:#fff;font-size:11px;font-weight:700;margin-right:6px;">G 공실클럽</span>' : listing.source_site === 'onhouse' ? '<span style="display:inline-block;padding:1px 8px;border-radius:4px;background:#FF9800;color:#fff;font-size:11px;font-weight:700;margin-right:6px;">O 온하우스</span>' : ''}${escHtml(listing.address || '-')} ${escHtml(listing.dong || '')}</p>
+        <p><span style="display:inline-block;background:#2D5A27;color:#fff;padding:1px 8px;border-radius:4px;font-size:12px;font-weight:700;margin-right:6px;cursor:pointer;" class="ws-copy-id" data-copy="${listing.id}">매물번호 ${listing.id}</span>${listing.source_site === 'gongsilclub' ? '<span style="display:inline-block;padding:1px 8px;border-radius:4px;background:#4CAF50;color:#fff;font-size:11px;font-weight:700;margin-right:6px;">G 공실클럽</span>' : listing.source_site === 'onhouse' ? '<span style="display:inline-block;padding:1px 8px;border-radius:4px;background:#FF9800;color:#fff;font-size:11px;font-weight:700;margin-right:6px;">O 온하우스</span>' : ''}${escHtml(listing.address || '-')} ${escHtml(listing.dong || '')}${listing.address_detail ? ' <span style="color:#1976D2;font-weight:600;">' + escHtml(listing.address_detail) + '</span>' : ''}${listing.building_name ? ' <span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:4px;background:#F5F5F5;color:#555;font-size:11px;font-weight:600;">🏢 ' + escHtml(listing.building_name) + '</span>' : ''}</p>
       </div>
 
       <div class="ws-detail-gallery">
@@ -3604,7 +3604,8 @@
         var basicHtml = '<div class="ws-detail-section"><h3>기본정보</h3><div class="ws-detail-grid">';
         basicHtml += '<div><strong>타입</strong> ' + (listing.type || '-') + '</div>';
         basicHtml += '<div><strong>면적</strong> ' + (formatArea(listing.area_m2) || '-') + (listing.area_supply_m2 ? ' (공급 ' + formatArea(listing.area_supply_m2) + ')' : '') + '</div>';
-        basicHtml += '<div><strong>층수</strong> ' + (listing.floor_current || '-') + '</div>';
+        basicHtml += '<div><strong>층수</strong> ' + (listing.floor_current || '-') + (listing.floor_total ? ' / ' + listing.floor_total + '층' : '') + '</div>';
+        if (listing.building_name) basicHtml += '<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>';
         if (!isCommercial) {
           // 주거용: 방/욕실, 방향, 구조
           basicHtml += '<div><strong>방/욕실</strong> ' + (listing.rooms || '-') + '개 / ' + (listing.bathrooms || '-') + '개</div>';
@@ -3679,7 +3680,17 @@
         }
         facilHtml += '</div></div>';
 
-        return basicHtml + priceHtml + facilHtml;
+        // 특징/태그 (features)
+        var featHtml = '';
+        if (Array.isArray(listing.features) && listing.features.length > 0) {
+          featHtml = '<div class="ws-detail-section"><h3>특징</h3><div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+            listing.features.map(function(f){
+              return '<span style="display:inline-block;padding:4px 10px;border-radius:14px;background:#E3F2FD;color:#1565C0;font-size:12px;font-weight:500;">#' + escHtml(String(f)) + '</span>';
+            }).join('') +
+            '</div></div>';
+        }
+
+        return basicHtml + priceHtml + facilHtml + featHtml;
       })()}
 
       ${(function() {
