@@ -70,7 +70,11 @@ export async function GET(request: NextRequest) {
         let query = supabase
           .from('listings')
           .select(
-            'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, floor_total, status, created_at, views, maintenance_fee, listing_images(url, sort_order)',
+            // [fix 2026-04-14] 상가 전용 필드 누락 이슈 해결 — 목록에서도 상세 필드 전량 반환
+            //   (이전엔 최소 필드만 반환해서 상세모달 렌더 시 lease_period/entrance_type/
+            //    previous_business/recommended_business/restricted_business/rights_fee/
+            //    commission_note/building_listings/options/raw_fields 등이 undefined 였음)
+            '*, listing_images(url, sort_order)',
             { count: 'exact' }
           )
           .eq('status', '공개')
