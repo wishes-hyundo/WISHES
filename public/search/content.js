@@ -3733,7 +3733,10 @@
         if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
           var rawRows = '';
           var rawKeys = Object.keys(raw);
-          rawKeys.forEach(function(k) {
+          // [fix 2026-04-14 v4] 메타키(__로 시작) 분리 — 라벨 정보는 위쪽, 원본본문/URL/시각은 아래 별도 영역
+          var normalKeys = rawKeys.filter(function(k){ return !k.startsWith('__'); });
+          var metaKeys = rawKeys.filter(function(k){ return k.startsWith('__'); });
+          normalKeys.forEach(function(k) {
             var v = raw[k];
             if (v == null || v === '') return;
             var vStr = typeof v === 'string' ? v : (Array.isArray(v) ? v.join(', ') : JSON.stringify(v));
@@ -3741,10 +3744,33 @@
               '<span style="min-width:120px;font-weight:600;color:#475569;font-size:12px;">' + escHtml(k) + '</span>' +
               '<span style="flex:1;color:#1e293b;font-size:12px;white-space:pre-line;">' + escHtml(vStr) + '</span></div>';
           });
+          // 메타정보 (원본본문/URL/시각) — 접힌 details 로 추가
+          if (metaKeys.length > 0) {
+            var metaRows = '';
+            metaKeys.forEach(function(k) {
+              var v = raw[k];
+              if (v == null || v === '') return;
+              var vStr = typeof v === 'string' ? v : JSON.stringify(v);
+              var label = k.replace(/^__|__$/g, '');
+              if (k === '__원본본문__') {
+                metaRows += '<div style="margin-top:8px;"><div style="font-weight:600;color:#475569;font-size:12px;margin-bottom:4px;">📄 ' + escHtml(label) + '</div>' +
+                  '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:10px;font-size:11px;line-height:1.6;color:#334155;white-space:pre-line;max-height:200px;overflow-y:auto;">' + escHtml(vStr) + '</div></div>';
+              } else {
+                metaRows += '<div style="display:flex;gap:10px;padding:4px 0;font-size:11px;color:#64748b;">' +
+                  '<span style="min-width:100px;font-weight:600;">' + escHtml(label) + '</span>' +
+                  '<span style="flex:1;">' + escHtml(vStr) + '</span></div>';
+              }
+            });
+            rawRows += '<details style="margin-top:10px;background:#fff;border:1px dashed #cbd5e1;border-radius:6px;padding:8px;">' +
+              '<summary style="cursor:pointer;font-size:11px;color:#64748b;font-weight:600;">🔍 원본 페이지 백업 (본문/URL/크롤시각)</summary>' +
+              '<div style="margin-top:8px;">' + metaRows + '</div></details>';
+          }
           if (rawRows) {
-            rawHtml = '<details class="ws-detail-section" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px 14px;">' +
-              '<summary style="cursor:pointer;font-size:13px;font-weight:700;color:#334155;">📋 원본 상세정보 (공실클럽 전체 라벨 ' + rawKeys.length + '개)</summary>' +
-              '<div style="margin-top:10px;">' + rawRows + '</div></details>';
+            // [fix 2026-04-14 v4] 항상 펼쳐진 형태 — "단 하나의 정보도 놓치지 않음"
+            rawHtml = '<div class="ws-detail-section" style="background:#f8fafc;border:2px solid #2D5A27;border-radius:10px;padding:14px;">' +
+              '<h3 style="color:#2D5A27;margin:0 0 10px 0;display:flex;align-items:center;gap:6px;">📋 원본 전체 정보 <span style="font-size:11px;background:#2D5A27;color:#fff;padding:2px 8px;border-radius:10px;">' + rawKeys.length + '개 라벨</span></h3>' +
+              '<div style="font-size:11px;color:#64748b;margin-bottom:8px;">크롤링 원본 데이터 (UI에 매핑되지 않은 필드 포함 전체)</div>' +
+              '<div>' + rawRows + '</div></div>';
           }
         }
         return basicHtml + priceHtml + facilHtml + specialHtml + featHtml + rawHtml;
