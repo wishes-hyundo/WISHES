@@ -3606,6 +3606,7 @@
         basicHtml += '<div><strong>면적</strong> ' + (formatArea(listing.area_m2) || '-') + (listing.area_supply_m2 ? ' (공급 ' + formatArea(listing.area_supply_m2) + ')' : '') + '</div>';
         basicHtml += '<div><strong>층수</strong> ' + (listing.floor_current || '-') + (listing.floor_total ? ' / ' + listing.floor_total + '층' : '') + '</div>';
         if (listing.building_name) basicHtml += '<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>';
+        if (listing.building_purpose) basicHtml += '<div><strong>용도</strong> ' + escHtml(listing.building_purpose) + '</div>';
         if (!isCommercial) {
           // 주거용: 방/욕실, 방향, 구조
           basicHtml += '<div><strong>방/욕실</strong> ' + (listing.rooms || '-') + '개 / ' + (listing.bathrooms || '-') + '개</div>';
@@ -3653,12 +3654,19 @@
         if (isStore && listing.rights_fee) priceHtml += '<div><strong>권리금</strong> ' + listing.rights_fee + '만</div>';
         if (listing.lease_period) priceHtml += '<div><strong>임대기간</strong> ' + listing.lease_period + '</div>';
         if (listing.price_per_pyeong) priceHtml += '<div><strong>평당가</strong> ' + listing.price_per_pyeong + '만</div>';
+        if (listing.commission_fee || listing.commission_note) {
+          priceHtml += '<div><strong>수수료</strong> ' + (listing.commission_fee ? listing.commission_fee + '만원' : '') +
+            (listing.commission_note ? ' <span style="color:#666;font-size:11px;">(' + escHtml(listing.commission_note) + ')</span>' : '') + '</div>';
+        }
         priceHtml += '</div></div>';
 
         // 시설/옵션
         var facilHtml = '<div class="ws-detail-section"><h3>시설/옵션</h3><div class="ws-detail-grid">';
         // 공통: 주차
-        facilHtml += '<div><strong>주차</strong> ' + (listing.parking ? (getParkingCount(listing) > 1 ? getParkingCount(listing) + ' 대' : '가능') : (listing.building_info && listing.building_info.총주차대수 !== undefined ? (parseInt(listing.building_info.총주차대수) > 0 ? parseInt(listing.building_info.총주차대수) + ' 대 <span style="color:#888;font-size:11px;">(건축물대장)</span>' : '불가') : '<span style="color:#999;font-style:italic;">미확인</span>')) + '</div>';
+        var parkingMain = (listing.parking ? (getParkingCount(listing) > 1 ? getParkingCount(listing) + ' 대' : '가능') : (listing.building_info && listing.building_info.총주차대수 !== undefined ? (parseInt(listing.building_info.총주차대수) > 0 ? parseInt(listing.building_info.총주차대수) + ' 대 <span style="color:#888;font-size:11px;">(건축물대장)</span>' : '불가') : '<span style="color:#999;font-style:italic;">미확인</span>'));
+        if (listing.parking_spaces && parseInt(listing.parking_spaces) > 0) parkingMain = parseInt(listing.parking_spaces) + ' 대';
+        if (listing.parking_fee && parseInt(listing.parking_fee) > 0) parkingMain += ' <span style="color:#f59e0b;font-size:11px;">(월 ' + listing.parking_fee + '만원)</span>';
+        facilHtml += '<div><strong>주차</strong> ' + parkingMain + '</div>';
         // 공통: 엘리베이터
         facilHtml += '<div><strong>엘리베이터</strong> ' + (listing.elevator ? '있음' : (listing.building_info && listing.building_info.승용엘리베이터 !== undefined ? (parseInt(listing.building_info.승용엘리베이터) > 0 ? parseInt(listing.building_info.승용엘리베이터) + ' 대 <span style="color:#888;font-size:11px;">(건축물대장)</span>' : '없음') : '<span style="color:#999;font-style:italic;">미확인</span>')) + '</div>';
         // 공통: 난방
@@ -3669,6 +3677,8 @@
           facilHtml += '<div><strong>입주가능</strong> ' + (listing.available_date || '-') + '</div>';
           facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYear(listing.built_year) ? getBuiltYear(listing.built_year) + '년' : '-') + '</div>';
           facilHtml += '<div><strong>등록일</strong> ' + timeAgo(listing.created_at) + '</div>';
+          if (listing.registered_date) facilHtml += '<div><strong>원본등록</strong> ' + escHtml(String(listing.registered_date)) + '</div>';
+          if (listing.last_confirmed) facilHtml += '<div><strong>최종확인</strong> ' + escHtml(String(listing.last_confirmed)) + '</div>';
         } else {
           // 주거용 전용 필드
           facilHtml += '<div><strong>반려동물</strong> ' + (listing.pet ? '가능' : '<span style="color:#999;font-style:italic;">미확인</span>') + '</div>';
@@ -3677,8 +3687,18 @@
           facilHtml += '<div><strong>입주가능</strong> ' + (listing.available_date || '-') + '</div>';
           facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYear(listing.built_year) ? getBuiltYear(listing.built_year) + '년' : '-') + '</div>';
           facilHtml += '<div><strong>등록일</strong> ' + timeAgo(listing.created_at) + '</div>';
+          if (listing.registered_date) facilHtml += '<div><strong>원본등록</strong> ' + escHtml(String(listing.registered_date)) + '</div>';
+          if (listing.last_confirmed) facilHtml += '<div><strong>최종확인</strong> ' + escHtml(String(listing.last_confirmed)) + '</div>';
         }
         facilHtml += '</div></div>';
+
+        // 특이사항 (description 과 다를 때만)
+        var specialHtml = '';
+        if (listing.special_notes && listing.special_notes !== listing.description) {
+          specialHtml = '<div class="ws-detail-section" style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:14px;">' +
+            '<h3 style="color:#c2410c;">⚠️ 특이사항</h3>' +
+            '<p style="white-space:pre-line;font-size:13px;line-height:1.7;color:#7c2d12;margin:0;">' + escHtml(listing.special_notes) + '</p></div>';
+        }
 
         // 특징/태그 (features)
         var featHtml = '';
@@ -3690,7 +3710,7 @@
             '</div></div>';
         }
 
-        return basicHtml + priceHtml + facilHtml + featHtml;
+        return basicHtml + priceHtml + facilHtml + specialHtml + featHtml;
       })()}
 
       ${(function() {
