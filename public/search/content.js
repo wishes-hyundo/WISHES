@@ -2,7 +2,7 @@
  * Wishes Search Extension - Content Script
  * Injects property search functionality into wishes.co.kr/admin
  *
- * @version 2.2.3
+ * @version 2.2.4
  * @build 2026-04-14
  * @changelog v2.2.1 - IndexedDB 캐시 추가 (재로드 즉시 표시, 백그라운드 갱신)
  * @changelog v2.2.0 - Admin API 단일 호출로 전환 (병렬 페이지네이션 제거, API 500 에러 해결)
@@ -1475,8 +1475,10 @@
       }
     }, 500);
 
-    // 초기 로드 시 ?tab=search이면 데이터 프리페치 예약 (loadData 정의 후 실행)
-    if (location.search.indexOf('tab=search') !== -1) {
+    // 초기 로드 시 ?tab=search 또는 /search 경로이면 데이터 프리페치 예약 (loadData 정의 후 실행)
+    if (location.search.indexOf('tab=search') !== -1
+        || location.pathname === '/search'
+        || location.pathname.indexOf('/search') === 0) {
       window.WS._prefetchOnReady = true;
     }
     setTimeout(_checkSearchTab, 300);
