@@ -2,8 +2,9 @@
  * Wishes Search Extension - Content Script
  * Injects property search functionality into wishes.co.kr/admin
  *
- * @version 2.2.4
+ * @version 2.2.5
  * @build 2026-04-14
+ * @changelog v2.2.5 - 상세모달 이미지 갤러리 개선 (img 태그 사용, hover 뱃지, 좌우 화살표, 이미지 카운터)
  * @changelog v2.2.1 - IndexedDB 캐시 추가 (재로드 즉시 표시, 백그라운드 갱신)
  * @changelog v2.2.0 - Admin API 단일 호출로 전환 (병렬 페이지네이션 제거, API 500 에러 해결)
  *
@@ -64,7 +65,35 @@
     } catch(e){}
   })();
 
-  // [EXT-S2] 콘솔 보호 - 확장 내부 로그 노출 방지
+  // [EXT-S1.3] 상세모달 갤러리 스타일 주입 (page-script 모드에서도 동작)
+  (function _wsInjectGalleryStyles() {
+    try {
+      if (document.getElementById('ws-gallery-styles-v225')) return;
+      var st = document.createElement('style');
+      st.id = 'ws-gallery-styles-v225';
+      st.textContent = [
+        '.ws-detail-gallery{margin:12px 0;}',
+        '.ws-gallery-main{position:relative;width:100%;height:380px;background:#111;border-radius:10px;overflow:hidden;cursor:pointer;display:flex;align-items:center;justify-content:center;}',
+        '.ws-gallery-main img#ws-gallery-img{width:100%;height:100%;object-fit:contain;background:#111;display:block;transition:opacity .15s;}',
+        '.ws-gallery-main.ws-gallery-empty{background:#f5f5f5;height:220px;cursor:default;}',
+        '.ws-gallery-nav{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,0.5);color:#fff;border:none;font-size:24px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s,background .15s;z-index:2;}',
+        '.ws-gallery-main:hover .ws-gallery-nav{opacity:1;}',
+        '.ws-gallery-nav:hover{background:rgba(0,0,0,0.85);}',
+        '.ws-gallery-prev{left:10px;}',
+        '.ws-gallery-next{right:10px;}',
+        '.ws-gallery-counter{position:absolute;top:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;z-index:2;pointer-events:none;}',
+        '.ws-gallery-zoom-hint{position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.6);color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;opacity:0;transition:opacity .15s;z-index:2;pointer-events:none;}',
+        '.ws-gallery-main:hover .ws-gallery-zoom-hint{opacity:1;}',
+        '.ws-gallery-thumbs{display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin;}',
+        '.ws-gallery-thumbs img{width:80px;height:60px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid transparent;flex-shrink:0;transition:border-color .15s;}',
+        '.ws-gallery-thumbs img:hover{border-color:#4CAF50;}',
+        '.ws-gallery-thumbs img.ws-thumb-active{border-color:#2D5A27;box-shadow:0 0 0 2px rgba(45,90,39,0.2);}'
+      ].join('');
+      (document.head || document.documentElement).appendChild(st);
+    } catch(e){}
+  })();
+
+    // [EXT-S2] 콘솔 보호 - 확장 내부 로그 노출 방지
   var _wsLog = function() {}; // 프로덕션에서는 무출력
   // 개발 시: var _wsLog = console.log.bind(console);
 
@@ -3533,17 +3562,29 @@
           var detailImgs = listing.images || listing.listing_images || [];
           var firstUrl = detailImgs.length > 0 ? (detailImgs[0].url || detailImgs[0]) : '';
           var imgUrls = detailImgs.map(function(img) { return img.url || img; });
-          return '<div class="ws-gallery-main" id="ws-gallery-main" style="background-image: url(\'' + escHtml(firstUrl) + '\'); cursor:pointer;" title="클릭하면 확대됩니다"' +
+          var total = imgUrls.length;
+          if (total === 0) {
+            return '<div class="ws-gallery-main ws-gallery-empty" id="ws-gallery-main" data-images="[]" data-current="0">' +
+              '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:#999;">' +
+              '<div style="font-size:32px;">🏠</div>' +
+              '<div style="font-size:12px;">등록된 사진이 없습니다</div>' +
+              '</div></div>';
+          }
+          return '<div class="ws-gallery-main" id="ws-gallery-main"' +
             ' data-images="' + JSON.stringify(imgUrls).replace(/"/g, '&quot;') + '"' +
-            ' data-current="0">' +
-            '<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,0.6);color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;">🔍 클릭하여 확대</div>' +
+            ' data-current="0" title="클릭하면 확대됩니다">' +
+              '<img id="ws-gallery-img" src="' + escHtml(firstUrl) + '" alt="매물 사진" loading="eager" onerror="this.style.opacity=0.3;this.alt=\'이미지 로드 실패\';">' +
+              (total > 1 ? '<button type="button" class="ws-gallery-nav ws-gallery-prev" data-dir="-1" aria-label="이전">‹</button>' +
+                           '<button type="button" class="ws-gallery-nav ws-gallery-next" data-dir="1" aria-label="다음">›</button>' : '') +
+              '<div class="ws-gallery-counter"><span id="ws-gallery-idx">1</span> / ' + total + '</div>' +
+              '<div class="ws-gallery-zoom-hint">🔍 클릭하여 확대</div>' +
             '</div>' +
-            '<div class="ws-gallery-thumbs">' +
-            detailImgs.map(function(img, idx) {
-              var u = img.url || img;
-              return '<img src="' + escHtml(u) + '" alt="thumbnail" class="ws-thumb' + (idx === 0 ? ' ws-thumb-active' : '') + '" data-url="' + escHtml(u) + '" data-idx="' + idx + '">';
-            }).join('') +
-            '</div>';
+            (total > 1 ? '<div class="ws-gallery-thumbs">' +
+              detailImgs.map(function(img, idx) {
+                var u = img.url || img;
+                return '<img src="' + escHtml(u) + '" alt="thumbnail" class="ws-thumb' + (idx === 0 ? ' ws-thumb-active' : '') + '" data-url="' + escHtml(u) + '" data-idx="' + idx + '" loading="lazy">';
+              }).join('') +
+            '</div>' : '');
         })()}
       </div>
 
@@ -3765,19 +3806,50 @@
         // 3) 갤러리 썸네일 클릭
         var thumbEl = target.closest('.ws-thumb');
         if (thumbEl) {
+          e.stopPropagation();
           var url = thumbEl.dataset.url;
           var idx = parseInt(thumbEl.dataset.idx || '0', 10);
           var mainGallery = document.getElementById('ws-gallery-main');
+          var mainImg = document.getElementById('ws-gallery-img');
           if (mainGallery && url) {
-            mainGallery.style.backgroundImage = "url('" + url + "')";
+            if (mainImg) mainImg.src = url;
             mainGallery.setAttribute('data-current', String(idx));
+            var idxLabel = document.getElementById('ws-gallery-idx');
+            if (idxLabel) idxLabel.textContent = String(idx + 1);
           }
           container.querySelectorAll('.ws-thumb').forEach(function(t) { t.classList.remove('ws-thumb-active'); });
           thumbEl.classList.add('ws-thumb-active');
           return;
         }
 
-        // 4) 매물번호 복사
+        // 3-1) 갤러리 이전/다음 화살표
+        var navEl = target.closest('.ws-gallery-nav');
+        if (navEl) {
+          e.stopPropagation();
+          var dir = parseInt(navEl.dataset.dir || '1', 10);
+          var mg = document.getElementById('ws-gallery-main');
+          if (mg) {
+            try {
+              var imgs = JSON.parse(mg.getAttribute('data-images') || '[]');
+              if (imgs.length > 0) {
+                var cur = parseInt(mg.getAttribute('data-current') || '0', 10);
+                var nxt = (cur + dir + imgs.length) % imgs.length;
+                var gi = document.getElementById('ws-gallery-img');
+                if (gi) gi.src = imgs[nxt];
+                mg.setAttribute('data-current', String(nxt));
+                var il = document.getElementById('ws-gallery-idx');
+                if (il) il.textContent = String(nxt + 1);
+                container.querySelectorAll('.ws-thumb').forEach(function(t) {
+                  if (parseInt(t.dataset.idx, 10) === nxt) t.classList.add('ws-thumb-active');
+                  else t.classList.remove('ws-thumb-active');
+                });
+              }
+            } catch(ex) {}
+          }
+          return;
+        }
+
+                // 4) 매물번호 복사
         var copyEl = target.closest('.ws-copy-id');
         if (copyEl) {
           e.preventDefault();
