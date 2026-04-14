@@ -3806,9 +3806,10 @@
 
           // 직접 업로드 매물(source_site 없음)이면 WISHES 워터마크 오버레이
           var isCrawled = l.source_site === 'gongsilclub' || l.source_site === 'onhouse';
+          // 온하우스와 동일하게 중앙 위치 + 연한 투명도
           var wmOverlayHtml = isCrawled ? '' :
-            '<div class="ws-wm-overlay" style="position:absolute;bottom:12px;right:12px;width:28%;height:auto;pointer-events:none;opacity:0.55;' +
-            'background-image:url(\'/wishes_logo_transparent.png\');background-repeat:no-repeat;background-size:contain;background-position:right bottom;' +
+            '<div class="ws-wm-overlay" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:36%;height:auto;pointer-events:none;opacity:0.28;' +
+            'background-image:url(\'/wishes_logo_transparent.png\');background-repeat:no-repeat;background-size:contain;background-position:center center;' +
             'aspect-ratio:3/1;"></div>';
 
           // 메인 이미지 교체
