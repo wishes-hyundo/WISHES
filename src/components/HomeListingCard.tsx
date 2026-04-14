@@ -58,7 +58,7 @@ const sqmToPyeong = (area: number | null | undefined) => {
 
 export function HomeListingCard({ listing }: HomeListingCardProps) {
   // Supabase에서 가져온 이미지 (listing_images 조인)
-  const images = listing.listing_images || [];
+  const images = (listing.listing_images || []).filter((img: any) => { const u = img?.url || ""; return u && !u.match(/\/listings\/9\d{5}\//); });
   const thumbUrl = images.length > 0 ? images[0].url : null;
   const price = formatPrice(listing);
   const area = listing.area_m2 || listing.area || 0;
