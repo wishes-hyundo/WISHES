@@ -228,12 +228,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, data: cleaned, total: cleaned.length, since });
       }
 
-      // 🔥 인메모리 캐시: 60초 fresh, 10분 stale 허용, 30초 타임아웃
-      // v8 (2026-04-14): select('*') 전환 → 스키마 변경에 따른 캐시 키 버전업
-      // v7: 상가 필드 포함 스키마 변경
-      // v6: 빈 응답 캐싱 방지 (poison cache fix) — 에러/빈 결과 throw → cached() 가 null 반환
+      // 🔥 인메모리 캐시: 30초 fresh, 3분 stale 허용, 30초 타임아웃
+      // v9 (2026-04-14): 전체 삭제 후 재시작 — 캐시 무효화 + TTL 단축 (신규 크롤링 빠른 반영)
+      //                   fresh 60s→30s / stale 10min→3min
+      // v8: select('*') 전환
+      // v7: 상가 필드 포함
+      // v6: 빈 응답 캐싱 방지 (poison cache fix)
       const allData = await cached(
-        'admin-listings-minimal-v8',
+        'admin-listings-minimal-v9',
         async () => {
           const PAGE_SIZE = 1000;
           const { data: firstPage, error: firstError } = await supabase
@@ -271,8 +273,8 @@ export async function GET(request: NextRequest) {
           // null/빈 값 제거 + 썸네일만 유지
           return all.map(compactRow).map(keepThumbnailOnly);
         },
-        60_000,     // 60초 fresh
-        600_000,    // 10분 stale 허용
+        30_000,     // 30초 fresh (크롤링 신규매물 빠른 반영)
+        180_000,    // 3분 stale 허용
         30_000,     // 30초 타임아웃 (15K 행 pagination 여유)
       ) || [];
 
@@ -282,7 +284,7 @@ export async function GET(request: NextRequest) {
       // 빈 응답은 CDN 캐시 금지 (Supabase 일시 오류 시 poison cache 방지)
       const cacheCtrl = allData.length === 0
         ? 'no-cache, no-store, must-revalidate'
-        : 's-maxage=60, stale-while-revalidate=300';
+        : 's-maxage=30, stale-while-revalidate=180';
       const ifNoneMatch = request.headers.get('if-none-match');
       if (ifNoneMatch === etag && allData.length > 0) {
         return new NextResponse(null, {
@@ -290,7 +292,7 @@ export async function GET(request: NextRequest) {
           headers: {
             'ETag': etag,
             'Cache-Control': cacheCtrl,
-            'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=60',
+            'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=30',
           },
         });
       }
@@ -301,7 +303,7 @@ export async function GET(request: NextRequest) {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
           'Cache-Control': cacheCtrl,
-          'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=60',
+          'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=30',
           'Vary': 'Accept-Encoding',
         },
       });
