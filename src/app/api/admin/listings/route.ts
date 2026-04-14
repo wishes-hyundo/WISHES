@@ -102,13 +102,25 @@ const createListingSchema = z.object({
 
 /**
  * 인증 검증 헬퍼 함수
+ * 허용 토큰:
+ *   1) 'wishes2026' 고정 관리자 토큰 (크롤러/프리페치/컨텐츠JS)
+ *   2) 'admin_bridge_' 로 시작하는 브리지 토큰 (관리자 자동로그인)
+ *   3) Supabase access_token (JWT) — supabase.auth.getUser 로 서명 검증
  */
-function verifyAuth(request: NextRequest): boolean {
-  // 헤더 인증 (기존)
+async function verifyAuth(request: NextRequest): Promise<boolean> {
   const authHeader = request.headers.get('authorization');
-  const password = authHeader?.replace('Bearer ', '');
-  if (password === 'wishes2026') return true;
-  // 쿼리파라미터 인증 (크롤러 no-cors 모드용 — preflight 없이 호출 가능)
+  const token = authHeader?.replace('Bearer ', '') || '';
+  if (token === 'wishes2026') return true;
+  if (token.startsWith('admin_bridge_')) return true;
+  // Supabase JWT 검증 (eyJ 로 시작하는 토큰)
+  if (token.startsWith('eyJ') && token.split('.').length === 3) {
+    try {
+      const supabase = createServerClient();
+      const { data, error } = await supabase.auth.getUser(token);
+      if (!error && data?.user) return true;
+    } catch {}
+  }
+  // 쿼리파라미터 인증 (크롤러 no-cors 모드)
   const { searchParams } = new URL(request.url);
   return searchParams.get('token') === 'wishes2026';
 }
@@ -124,7 +136,7 @@ function verifyAuth(request: NextRequest): boolean {
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }
@@ -290,7 +302,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401, headers: CORS_HEADERS }
@@ -488,7 +500,7 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }
@@ -564,50 +576,4 @@ export async function PUT(request: NextRequest) {
           url: url,
           alt: `매물 이미지 ${index + 1}`,
           sort_order: index,
-          is_thumbnail: index === 0,
-        }));
-
-        await supabase
-          .from('listing_images')
-          .insert(imageInserts);
-      }
-    }
-
-    if (!data) {
-      const { data: fetchedData } = await supabase
-        .from('listings')
-        .select('*, listing_images(*)')
-        .eq('id', id)
-        .single();
-
-      data = fetchedData;
-    }
-
-    if (!data) {
-      return NextResponse.json(
-        { success: false, error: '매물을 찾을 수 없습니다' },
-        { status: 404 }
-      );
-    }
-
-    // 캐시 무효화 (인메모리 + Next.js)
-    invalidateCache('listings');
-    revalidatePath('/', 'layout');
-    revalidatePath('/listings', 'page');
-    revalidatePath('/map', 'page');
-    revalidatePath(`/listings/${id}`, 'page');
-    revalidateTag('listings');
-
-    return NextResponse.json({
-      success: true,
-      data,
-    });
-  } catch (error: any) {
-    console.error('매물 수정 오류:', error);
-    return NextResponse.json(
-      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
-      { status: 500 }
-    );
-  }
-}
-
+          is_thumbnail: index =
