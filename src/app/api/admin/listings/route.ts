@@ -200,35 +200,21 @@ export async function GET(request: NextRequest) {
     }
 
     if (fields === 'minimal') {
-      // ⚡⚡⚡ 초경량 모드 (v5) — Egress 최적화
-      //   제거된 필드: ai_description, special_notes, previous_business,
-      //   recommended_business, restricted_business, commission_note,
-      //   commission_fee, previous_brand, lease_period, maintenance_includes,
-      //   heating_type, entrance_type, building_purpose, listing_features
-      //   → 카드 리스트 렌더링에 불필요. 상세모달은 /api/listings/[id] 에서 lazy-load.
+      // ⚡⚡⚡ 초경량 모드 (v8 - 2026-04-14) — "전체 컬럼 반환" 정책 전환
+      //   [v8] selectFields 화이트리스트를 전부 제거하고 '*' 로 변경.
+      //   이유: 크롤러가 새 필드를 DB에 추가할 때마다 selectFields 에 수동 등록해야 하는
+      //        유지보수 부담이 계속 버그를 유발하므로(상가 필드 누락 이슈 반복),
+      //        "스키마에 있는 모든 컬럼은 자동으로 프론트까지 도달" 정책으로 전환.
       //
-      // 신규: ?since=<ISO> 파라미터 — 해당 시각 이후 생성된 매물만 반환 (delta 동기화용)
+      //   Egress 부담은 compactRow() 로 null/빈값 제거 + keepThumbnailOnly() 로 이미지 1장만
+      //   유지하여 완화. 실측상 raw_fields(jsonb) 포함해도 카드 하나당 평균 2~4 KB.
+      //
+      //   향후 신규 필드: 크롤러 → DB 컬럼 추가(또는 raw_fields 에 넣기) → UI 자동 표시.
+      //   API/프론트 코드 변경 불필요.
+      //
+      // ?since=<ISO> 파라미터 — 해당 시각 이후 생성된 매물만 반환 (delta 동기화용)
       const since = searchParams.get('since'); // ISO timestamp string
-      const selectFields = [
-        'id', 'title', 'type', 'deal', 'status', 'created_at', 'views',
-        'deposit', 'monthly', 'price',
-        'maintenance_fee',
-        'area_m2', 'area_supply_m2', 'area_land_m2',
-        'floor_current', 'floor_total',
-        'rooms', 'bathrooms', 'direction',
-        'address', 'address_detail', 'dong', 'gu',
-        'lat', 'lng',
-        'available_date', 'built_year', 'description',
-        'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
-        'business_type', 'goodwill_fee', 'vat_included',
-        'usage_approved', 'electric_capacity', 'signage_available', 'meeting_room',
-        'parking_spaces', 'rights_fee',
-        'station_name', 'station_distance',
-        'parking_fee',
-        'source_site', 'source_id', 'source_url', 'building_name', 'contact', 'contact_role',
-        'features',
-        'listing_images(url,sort_order,is_thumbnail)',
-      ].join(',');
+      const selectFields = '*, listing_images(url,sort_order,is_thumbnail)';
 
       // since 파라미터가 있으면 delta 쿼리 (캐시 우회 + 작은 응답)
       if (since) {
@@ -242,9 +228,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, data: cleaned, total: cleaned.length, since });
       }
 
-      // 🔥 인메모리 캐시: 60초 fresh, 10분 stale 허용, 8초 타임아웃
+      // 🔥 인메모리 캐시: 60초 fresh, 10분 stale 허용, 30초 타임아웃
+      // v8 (2026-04-14): select('*') 전환 → 스키마 변경에 따른 캐시 키 버전업
+      // v7: 상가 필드 포함 스키마 변경
+      // v6: 빈 응답 캐싱 방지 (poison cache fix) — 에러/빈 결과 throw → cached() 가 null 반환
       const allData = await cached(
-        'admin-listings-minimal-v5',
+        'admin-listings-minimal-v8',
         async () => {
           const PAGE_SIZE = 1000;
           const { data: firstPage, error: firstError } = await supabase
@@ -253,7 +242,8 @@ export async function GET(request: NextRequest) {
             .order('created_at', { ascending: false })
             .range(0, PAGE_SIZE - 1);
 
-          if (firstError || !firstPage) return [];
+          if (firstError) throw new Error('supabase-err: ' + firstError.message);
+          if (!firstPage || firstPage.length === 0) throw new Error('empty-first-page');
 
           let all: any[] = [...firstPage];
 
@@ -283,20 +273,24 @@ export async function GET(request: NextRequest) {
         },
         60_000,     // 60초 fresh
         600_000,    // 10분 stale 허용
-        8_000,      // 8초 타임아웃
+        30_000,     // 30초 타임아웃 (15K 행 pagination 여유)
       ) || [];
 
       // ETag 기반 304 응답
       const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length });
       const etag = '"' + createHash('sha1').update(bodyStr).digest('hex').substring(0, 16) + '"';
+      // 빈 응답은 CDN 캐시 금지 (Supabase 일시 오류 시 poison cache 방지)
+      const cacheCtrl = allData.length === 0
+        ? 'no-cache, no-store, must-revalidate'
+        : 's-maxage=60, stale-while-revalidate=300';
       const ifNoneMatch = request.headers.get('if-none-match');
-      if (ifNoneMatch === etag) {
+      if (ifNoneMatch === etag && allData.length > 0) {
         return new NextResponse(null, {
           status: 304,
           headers: {
             'ETag': etag,
-            'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
-            'CDN-Cache-Control': 'max-age=60',
+            'Cache-Control': cacheCtrl,
+            'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=60',
           },
         });
       }
@@ -306,8 +300,8 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
-          'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
-          'CDN-Cache-Control': 'max-age=60',
+          'Cache-Control': cacheCtrl,
+          'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=60',
           'Vary': 'Accept-Encoding',
         },
       });
