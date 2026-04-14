@@ -116,6 +116,8 @@ export default function Header() {
                     {getUserAvatar() && !avatarError ? (
                       <img
                         src={getUserAvatar()!}
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
                         alt=""
                         className="w-8 h-8 rounded-full border-2 border-wishes-accent/20 object-cover"
                         onError={() => setAvatarError(true)}
