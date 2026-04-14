@@ -3604,7 +3604,7 @@
         var basicHtml = '<div class="ws-detail-section"><h3>기본정보</h3><div class="ws-detail-grid">';
         basicHtml += '<div><strong>타입</strong> ' + (listing.type || '-') + '</div>';
         basicHtml += '<div><strong>면적</strong> ' + (formatArea(listing.area_m2) || '-') + (listing.area_supply_m2 ? ' (공급 ' + formatArea(listing.area_supply_m2) + ')' : '') + '</div>';
-        basicHtml += '<div><strong>층수</strong> ' + (listing.floor_current ? (/층|단독|지하|지상|B\d/i.test(String(listing.floor_current)) ? listing.floor_current : listing.floor_current + '층') : '-') + (listing.floor_total ? ' / ' + listing.floor_total + '층' : '') + '</div>';
+        basicHtml += '<div><strong>층수</strong> ' + (listing.floor_current ? (/층|단독|옥상|지붕|루프/i.test(String(listing.floor_current)) ? listing.floor_current : listing.floor_current + '층') : '-') + (listing.floor_total ? ' / ' + listing.floor_total + '층' : '') + '</div>';
         if (listing.building_name) basicHtml += '<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>';
         if (listing.building_purpose) basicHtml += '<div><strong>용도</strong> ' + escHtml(listing.building_purpose) + '</div>';
         if (!isCommercial) {
