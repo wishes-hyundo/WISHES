@@ -3597,9 +3597,12 @@
       ${(function() {
         // 용도별 필드 분리: 사무실/상가 vs 주거용
         var t = (listing.type || '').toLowerCase();
-        var isOffice = /사무|오피스|office/.test(t);
+        var isOffice = /사무|오피스|office|건물|기타/.test(t);
         var isStore = /상가|점포|매장|store|shop|식당|카페|음식|편의점/.test(t);
-        var isCommercial = isOffice || isStore;
+        // [fix 2026-04-14] 공실클럽 매물(source=gongsilclub)은 기본적으로 사무실/상가
+        //   type 이 '건물', '기타' 여도 거주용 필드(반려동물/베란다/풀옵션) 대신
+        //   상가 전용 필드(현업종/권장업종 등) 를 보여줘야 함
+        var isCommercial = isOffice || isStore || (listing.source_site === 'gongsilclub');
 
         var basicHtml = '<div class="ws-detail-section"><h3>기본정보</h3><div class="ws-detail-grid">';
         basicHtml += '<div><strong>타입</strong> ' + (listing.type || '-') + '</div>';
@@ -3667,8 +3670,12 @@
         if (listing.parking_spaces && parseInt(listing.parking_spaces) > 0) parkingMain = parseInt(listing.parking_spaces) + ' 대';
         if (listing.parking_fee && parseInt(listing.parking_fee) > 0) parkingMain += ' <span style="color:#f59e0b;font-size:11px;">(월 ' + listing.parking_fee + '만원)</span>';
         facilHtml += '<div><strong>주차</strong> ' + parkingMain + '</div>';
-        // 공통: 엘리베이터
-        facilHtml += '<div><strong>엘리베이터</strong> ' + (listing.elevator ? '있음' : (listing.building_info && listing.building_info.승용엘리베이터 !== undefined ? (parseInt(listing.building_info.승용엘리베이터) > 0 ? parseInt(listing.building_info.승용엘리베이터) + ' 대 <span style="color:#888;font-size:11px;">(건축물대장)</span>' : '없음') : '<span style="color:#999;font-style:italic;">미확인</span>')) + '</div>';
+        // 공통: 엘리베이터 — [fix 2026-04-14] options/features/raw_fields 까지 확인
+        var evFromOpts = (typeof listing.options === 'string' && /엘리베이터|EV|E\/V/i.test(listing.options));
+        var evFromFeat = Array.isArray(listing.features) && listing.features.some(function(f){ return /엘리베이터|EV|E\/V/i.test(String(f)); });
+        var evFromRaw = listing.raw_fields && typeof listing.raw_fields === 'object' && /엘리베이터|EV|E\/V/i.test(String(listing.raw_fields['옵션'] || ''));
+        var hasEV = listing.elevator === true || evFromOpts || evFromFeat || evFromRaw;
+        facilHtml += '<div><strong>엘리베이터</strong> ' + (hasEV ? '있음' : (listing.building_info && listing.building_info.승용엘리베이터 !== undefined ? (parseInt(listing.building_info.승용엘리베이터) > 0 ? parseInt(listing.building_info.승용엘리베이터) + ' 대 <span style="color:#888;font-size:11px;">(건축물대장)</span>' : '없음') : '<span style="color:#999;font-style:italic;">미확인</span>')) + '</div>';
         // 공통: 난방
         facilHtml += '<div><strong>난방</strong> ' + (listing.heating_type || '-') + '</div>';
 
@@ -3676,6 +3683,16 @@
           // 사무실/상가 전용 필드
           facilHtml += '<div><strong>입주가능</strong> ' + (listing.available_date || '-') + '</div>';
           facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYear(listing.built_year) ? getBuiltYear(listing.built_year) + '년' : '-') + '</div>';
+          // [fix 2026-04-14] 임대기간 / 구조형태 / 권리금 / 현업종 / 권장업종 / 제한업종 / 건물내매물
+          if (listing.lease_period) facilHtml += '<div><strong>임대기간</strong> ' + escHtml(String(listing.lease_period)) + '</div>';
+          if (listing.entrance_type) facilHtml += '<div><strong>구조형태</strong> ' + escHtml(String(listing.entrance_type)) + '</div>';
+          if (listing.rights_fee !== null && listing.rights_fee !== undefined) {
+            facilHtml += '<div><strong>권리금</strong> ' + (Number(listing.rights_fee) > 0 ? Number(listing.rights_fee).toLocaleString() + '만원' : '없음') + '</div>';
+          }
+          if (listing.previous_business) facilHtml += '<div><strong>현업종/상호</strong> ' + escHtml(String(listing.previous_business)) + '</div>';
+          if (listing.recommended_business) facilHtml += '<div><strong>권장업종</strong> ' + escHtml(String(listing.recommended_business)) + '</div>';
+          if (listing.restricted_business) facilHtml += '<div><strong>제한업종</strong> ' + escHtml(String(listing.restricted_business)) + '</div>';
+          if (listing.building_listings) facilHtml += '<div style="grid-column:1/-1;"><strong>건물 내 매물</strong> ' + escHtml(String(listing.building_listings)) + '</div>';
           facilHtml += '<div><strong>등록일</strong> ' + timeAgo(listing.created_at) + '</div>';
           if (listing.registered_date) facilHtml += '<div><strong>원본등록</strong> ' + escHtml(String(listing.registered_date)) + '</div>';
           if (listing.last_confirmed) facilHtml += '<div><strong>최종확인</strong> ' + escHtml(String(listing.last_confirmed)) + '</div>';
