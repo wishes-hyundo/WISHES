@@ -242,10 +242,9 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, data: cleaned, total: cleaned.length, since });
       }
 
-      // 🔥 인메모리 캐시: 60초 fresh, 10분 stale 허용, 30초 타임아웃
-      // v6: 빈 응답 캐싱 방지 (poison cache fix) — 에러/빈 결과 throw → cached() 가 null 반환
+      // 🔥 인메모리 캐시: 60초 fresh, 10분 stale 허용, 8초 타임아웃
       const allData = await cached(
-        'admin-listings-minimal-v6',
+        'admin-listings-minimal-v5',
         async () => {
           const PAGE_SIZE = 1000;
           const { data: firstPage, error: firstError } = await supabase
@@ -254,8 +253,7 @@ export async function GET(request: NextRequest) {
             .order('created_at', { ascending: false })
             .range(0, PAGE_SIZE - 1);
 
-          if (firstError) throw new Error('supabase-err: ' + firstError.message);
-          if (!firstPage || firstPage.length === 0) throw new Error('empty-first-page');
+          if (firstError || !firstPage) return [];
 
           let all: any[] = [...firstPage];
 
@@ -285,24 +283,20 @@ export async function GET(request: NextRequest) {
         },
         60_000,     // 60초 fresh
         600_000,    // 10분 stale 허용
-        30_000,     // 30초 타임아웃 (15K 행 pagination 여유)
+        8_000,      // 8초 타임아웃
       ) || [];
 
       // ETag 기반 304 응답
       const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length });
       const etag = '"' + createHash('sha1').update(bodyStr).digest('hex').substring(0, 16) + '"';
-      // 빈 응답은 CDN 캐시 금지 (Supabase 일시 오류 시 poison cache 방지)
-      const cacheCtrl = allData.length === 0
-        ? 'no-cache, no-store, must-revalidate'
-        : 's-maxage=60, stale-while-revalidate=300';
       const ifNoneMatch = request.headers.get('if-none-match');
-      if (ifNoneMatch === etag && allData.length > 0) {
+      if (ifNoneMatch === etag) {
         return new NextResponse(null, {
           status: 304,
           headers: {
             'ETag': etag,
-            'Cache-Control': cacheCtrl,
-            'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=60',
+            'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
+            'CDN-Cache-Control': 'max-age=60',
           },
         });
       }
@@ -312,8 +306,8 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
-          'Cache-Control': cacheCtrl,
-          'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=60',
+          'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
+          'CDN-Cache-Control': 'max-age=60',
           'Vary': 'Accept-Encoding',
         },
       });
