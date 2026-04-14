@@ -3,6 +3,9 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Dedupe favorites fetch across StrictMode re-mounts
+let _favLastToken: string | null = null;
+
 interface FavoritesContextType {
   favorites: number[];
   recentlyViewed: number[];
@@ -32,6 +35,8 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   // 로그인 시 서버에서 찜 목록 불러오기
   useEffect(() => {
     if (user && session?.access_token) {
+      if (_favLastToken === session.access_token) return;
+      _favLastToken = session.access_token;
       setFavoritesLoading(true);
       fetch('/api/favorites', {
         headers: { 'Authorization': 'Bearer ' + session.access_token },
