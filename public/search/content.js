@@ -3733,8 +3733,29 @@
         if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
           var rawRows = '';
           var rawKeys = Object.keys(raw);
-          // [fix 2026-04-14 v4] 메타키(__로 시작) 분리 — 라벨 정보는 위쪽, 원본본문/URL/시각은 아래 별도 영역
-          var normalKeys = rawKeys.filter(function(k){ return !k.startsWith('__'); });
+          // [fix 2026-04-14 v5] UI 방어선 — DB 에 들어간 노이즈 라벨도 화면에 안 보이게
+          var JUNK_RE = [
+            /^인쇄$/, /^확대보기$/, /^연락처보기$/, /^네이버전송/, /^정보요청$/,
+            /^공유$/, /^다운로드$/, /^이전$/, /^다음$/, /^더보기$/, /^닫기$/,
+            /^보유:?\s*\d+/, /^즐겨찾기$/, /^찜하기$/, /^신고$/, /^목록$/,
+            /보기$/, /전송$/, /요청$/, /^\(즉시입주\)/,
+          ];
+          var VALUE_RE = [
+            /^(가능|불가|있음|없음|예|아니오|무|유|모름)$/,
+            /^[가-힣]{2,4}\s*(불가|가능|미정|미입력|미확인)$/,
+            /^(일반|단기|장기)?(임대|매매|전세|월세)$/,
+            /^(전층|일부|단독|공용)\s*(사용|점유)?$/,
+          ];
+          function isJunkLabel(k){
+            if (JUNK_RE.some(function(r){return r.test(k);})) return true;
+            if (VALUE_RE.some(function(r){return r.test(k);})) return true;
+            // 라벨이 값과 동일
+            var v = raw[k];
+            if (typeof v === 'string' && v.trim() === k) return true;
+            return false;
+          }
+          // 메타키(__로 시작) 분리 — 라벨 정보는 위쪽, 원본본문/URL/시각은 아래 별도 영역
+          var normalKeys = rawKeys.filter(function(k){ return !k.startsWith('__') && !isJunkLabel(k); });
           var metaKeys = rawKeys.filter(function(k){ return k.startsWith('__'); });
           normalKeys.forEach(function(k) {
             var v = raw[k];
