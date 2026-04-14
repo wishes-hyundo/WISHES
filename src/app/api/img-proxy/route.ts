@@ -6,6 +6,10 @@ import { applyWatermark } from '@/lib/watermark';
 
 const ALLOWED_HOSTS = [
   'd4k1brqee4emz.cloudfront.net',
+  'lh3.googleusercontent.com',
+  'lh4.googleusercontent.com',
+  'lh5.googleusercontent.com',
+  'lh6.googleusercontent.com',
 ];
 
 const CACHE_SECONDS = 86400;
