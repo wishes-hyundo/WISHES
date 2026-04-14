@@ -3604,7 +3604,7 @@
         var basicHtml = '<div class="ws-detail-section"><h3>기본정보</h3><div class="ws-detail-grid">';
         basicHtml += '<div><strong>타입</strong> ' + (listing.type || '-') + '</div>';
         basicHtml += '<div><strong>면적</strong> ' + (formatArea(listing.area_m2) || '-') + (listing.area_supply_m2 ? ' (공급 ' + formatArea(listing.area_supply_m2) + ')' : '') + '</div>';
-        basicHtml += '<div><strong>층수</strong> ' + (listing.floor_current || '-') + (listing.floor_total ? ' / ' + listing.floor_total + '층' : '') + '</div>';
+        basicHtml += '<div><strong>층수</strong> ' + (listing.floor_current ? (/층|단독|지하|지상|B\d/i.test(String(listing.floor_current)) ? listing.floor_current : listing.floor_current + '층') : '-') + (listing.floor_total ? ' / ' + listing.floor_total + '층' : '') + '</div>';
         if (listing.building_name) basicHtml += '<div><strong>건물명</strong> ' + escHtml(listing.building_name) + '</div>';
         if (listing.building_purpose) basicHtml += '<div><strong>용도</strong> ' + escHtml(listing.building_purpose) + '</div>';
         if (!isCommercial) {
@@ -3710,7 +3710,27 @@
             '</div></div>';
         }
 
-        return basicHtml + priceHtml + facilHtml + specialHtml + featHtml;
+        // 원본 정보 (raw_fields) — 파서가 놓친 필드까지 보존
+        var rawHtml = '';
+        var raw = listing.raw_fields;
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+          var rawRows = '';
+          var rawKeys = Object.keys(raw);
+          rawKeys.forEach(function(k) {
+            var v = raw[k];
+            if (v == null || v === '') return;
+            var vStr = typeof v === 'string' ? v : (Array.isArray(v) ? v.join(', ') : JSON.stringify(v));
+            rawRows += '<div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px dashed #e5e7eb;">' +
+              '<span style="min-width:120px;font-weight:600;color:#475569;font-size:12px;">' + escHtml(k) + '</span>' +
+              '<span style="flex:1;color:#1e293b;font-size:12px;white-space:pre-line;">' + escHtml(vStr) + '</span></div>';
+          });
+          if (rawRows) {
+            rawHtml = '<details class="ws-detail-section" style="background:#f8fafc;border:1px solid #cbd5e1;border-radius:10px;padding:12px 14px;">' +
+              '<summary style="cursor:pointer;font-size:13px;font-weight:700;color:#334155;">📋 원본 상세정보 (공실클럽 전체 라벨 ' + rawKeys.length + '개)</summary>' +
+              '<div style="margin-top:10px;">' + rawRows + '</div></details>';
+          }
+        }
+        return basicHtml + priceHtml + facilHtml + specialHtml + featHtml + rawHtml;
       })()}
 
       ${(function() {
