@@ -10,7 +10,7 @@
  *  4) 토큰 없으면 로그인 안내 화면 표시
  */
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 type PageState = 'loading' | 'nosession' | 'ok';
 
@@ -120,4 +120,49 @@ export default function SearchPortalPage() {
 
   // state === 'ok' — content.js 가 #ws-search-overlay 를 document.body 에 직접 삽입
   return (
-    <div id="ws-search-root" st
+    <div id="ws-search-root" style={{ minHeight: '100vh' }} />
+  );
+}
+
+// ── 스타일 ──
+const wrapStyle: React.CSSProperties = {
+  minHeight: '100vh',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '24px',
+  background: '#f7faf7',
+};
+
+const cardStyle: React.CSSProperties = {
+  maxWidth: 420,
+  width: '100%',
+  background: '#fff',
+  border: '1px solid #e5eee5',
+  borderRadius: 12,
+  padding: '32px 28px',
+  textAlign: 'center',
+  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
+};
+
+const btnPrimary: React.CSSProperties = {
+  padding: '10px 20px',
+  background: '#2D5A27',
+  color: '#fff',
+  borderRadius: 8,
+  border: 'none',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+
+const btnSecondary: React.CSSProperties = {
+  padding: '10px 20px',
+  background: '#f0f5f0',
+  color: '#2D5A27',
+  borderRadius: 8,
+  border: '1px solid #d5e5d5',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+};

@@ -570,4 +570,32 @@ export async function PUT(request: NextRequest) {
           url: url,
           alt: `매물 이미지 ${index + 1}`,
           sort_order: index,
-          is_thumbnail: index =
+          is_thumbnail: index === 0,
+        }));
+
+        const { error: imgError } = await supabase
+          .from('listing_images')
+          .insert(imageInserts);
+
+        if (imgError) {
+          console.error('이미지 연결 오류:', imgError);
+        }
+      }
+    }
+
+    // 캐시 무효화
+    invalidateCache('listings');
+    revalidatePath('/', 'layout');
+    revalidatePath('/listings', 'page');
+    revalidatePath('/map', 'page');
+    revalidateTag('listings');
+
+    return NextResponse.json({ success: true, data });
+  } catch (error: any) {
+    console.error('매물 수정 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
+      { status: 500 }
+    );
+  }
+}
