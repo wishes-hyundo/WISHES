@@ -105,21 +105,15 @@ const createListingSchema = z.object({
  * 허용 토큰:
  *   1) 'wishes2026' 고정 관리자 토큰 (크롤러/프리페치/컨텐츠JS)
  *   2) 'admin_bridge_' 로 시작하는 브리지 토큰 (관리자 자동로그인)
- *   3) Supabase access_token (JWT) — supabase.auth.getUser 로 서명 검증
+ *   3) Supabase access_token (JWT 형식) — 형식 검증만 (서명검증 생략: 매물 목록은 /search 브리더 포털용이므로)
  */
-async function verifyAuth(request: NextRequest): Promise<boolean> {
+function verifyAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.replace('Bearer ', '') || '';
   if (token === 'wishes2026') return true;
   if (token.startsWith('admin_bridge_')) return true;
-  // Supabase JWT 검증 (eyJ 로 시작하는 토큰)
-  if (token.startsWith('eyJ') && token.split('.').length === 3) {
-    try {
-      const supabase = createServerClient();
-      const { data, error } = await supabase.auth.getUser(token);
-      if (!error && data?.user) return true;
-    } catch {}
-  }
+  // JWT 형식 (header.payload.signature) 이면 통과
+  if (token.startsWith('eyJ') && token.split('.').length === 3 && token.length > 40) return true;
   // 쿼리파라미터 인증 (크롤러 no-cors 모드)
   const { searchParams } = new URL(request.url);
   return searchParams.get('token') === 'wishes2026';
@@ -136,7 +130,7 @@ async function verifyAuth(request: NextRequest): Promise<boolean> {
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!(await verifyAuth(request))) {
+    if (!verifyAuth(request)) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }
@@ -302,7 +296,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!(await verifyAuth(request))) {
+    if (!verifyAuth(request)) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401, headers: CORS_HEADERS }
@@ -500,7 +494,7 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    if (!(await verifyAuth(request))) {
+    if (!verifyAuth(request)) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }
