@@ -107,6 +107,34 @@ const createListingSchema = z.object({
  *   2) 'admin_bridge_' 로 시작하는 브리지 토큰 (관리자 자동로그인)
  *   3) Supabase access_token (JWT 형식) — 형식 검증만 (서명검증 생략: 매물 목록은 /search 브리더 포털용이므로)
  */
+/**
+ * null/undefined/빈값 제거 — Egress 페이로드 축소용
+ */
+function compactRow(row: any): any {
+  const out: any = {};
+  for (const k in row) {
+    const v = row[k];
+    if (v === null || v === undefined || v === '' || v === false) continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    out[k] = v;
+  }
+  return out;
+}
+
+/**
+ * listing_images 배열에서 썸네일 1장만 유지 (is_thumbnail=true 우선, 없으면 sort_order=0)
+ * 카드 리스트에서는 썸네일 1장만 필요. 상세모달은 /api/listings/[id] 로 lazy-load.
+ * Egress 절감: 매물당 평균 3~5장 → 1장 (~70% 이미지 URL 제거)
+ */
+function keepThumbnailOnly(row: any): any {
+  if (!Array.isArray(row.listing_images) || row.listing_images.length === 0) return row;
+  const imgs = row.listing_images;
+  const thumb = imgs.find((i: any) => i && i.is_thumbnail)
+    || imgs.slice().sort((a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99))[0];
+  row.listing_images = thumb ? [{ url: thumb.url }] : [];
+  return row;
+}
+
 function verifyAuth(request: NextRequest): boolean {
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.replace('Bearer ', '') || '';
@@ -141,37 +169,82 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const fields = searchParams.get('fields');
 
+    // ⚡ ids_only 모드: delta 감지용 초경량 (id + status + created_at 만)
+    //   — 제거된 매물 탐지 및 전체 ID 집합 비교용
+    //   — 평균 응답 크기: 15,000건 × 50bytes ≈ 750 KB (full minimal 대비 1/25)
+    const idsOnly = searchParams.get('ids_only');
+    if (idsOnly === '1' || idsOnly === 'true') {
+      const PAGE_SIZE = 1000;
+      const { data: firstPage } = await supabase
+        .from('listings')
+        .select('id,status,created_at')
+        .order('created_at', { ascending: false })
+        .range(0, PAGE_SIZE - 1);
+
+      let all: any[] = firstPage ? [...firstPage] : [];
+      if (firstPage && firstPage.length === PAGE_SIZE) {
+        const parallelPages = [];
+        for (let from = PAGE_SIZE; from < 20000; from += PAGE_SIZE) {
+          parallelPages.push(
+            supabase.from('listings').select('id,status,created_at')
+              .order('created_at', { ascending: false })
+              .range(from, from + PAGE_SIZE - 1)
+          );
+        }
+        const results = await Promise.all(parallelPages);
+        for (const { data } of results) {
+          if (data && data.length > 0) all = all.concat(data); else break;
+        }
+      }
+      return NextResponse.json({ success: true, data: all, total: all.length });
+    }
+
     if (fields === 'minimal') {
-      // ⚡⚡⚡ 초경량 모드 (v4) — 인메모리 캐시 + stale-while-revalidate
-      //  DB 과부하 시에도 캐시된 데이터를 즉시 반환
-      //  백그라운드에서 DB 갱신 시도
+      // ⚡⚡⚡ 초경량 모드 (v5) — Egress 최적화
+      //   제거된 필드: ai_description, special_notes, previous_business,
+      //   recommended_business, restricted_business, commission_note,
+      //   commission_fee, previous_brand, lease_period, maintenance_includes,
+      //   heating_type, entrance_type, building_purpose, listing_features
+      //   → 카드 리스트 렌더링에 불필요. 상세모달은 /api/listings/[id] 에서 lazy-load.
+      //
+      // 신규: ?since=<ISO> 파라미터 — 해당 시각 이후 생성된 매물만 반환 (delta 동기화용)
+      const since = searchParams.get('since'); // ISO timestamp string
       const selectFields = [
         'id', 'title', 'type', 'deal', 'status', 'created_at', 'views',
         'deposit', 'monthly', 'price',
-        'maintenance_fee', 'maintenance_includes',
+        'maintenance_fee',
         'area_m2', 'area_supply_m2', 'area_land_m2',
         'floor_current', 'floor_total',
-        'rooms', 'bathrooms', 'direction', 'heating_type',
+        'rooms', 'bathrooms', 'direction',
         'address', 'address_detail', 'dong', 'gu',
         'lat', 'lng',
-        'available_date', 'built_year', 'description', 'ai_description',
+        'available_date', 'built_year', 'description',
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
         'business_type', 'goodwill_fee', 'vat_included',
         'usage_approved', 'electric_capacity', 'signage_available', 'meeting_room',
-        'previous_business', 'recommended_business', 'restricted_business',
-        'parking_spaces', 'rights_fee', 'lease_period',
+        'parking_spaces', 'rights_fee',
         'station_name', 'station_distance',
-        'entrance_type', 'parking_fee', 'building_purpose',
-        'previous_brand', 'commission_fee', 'special_notes',
+        'parking_fee',
         'source_site', 'source_id', 'source_url', 'building_name', 'contact', 'contact_role',
-        'features', 'commission_note',
-        'listing_images(url,sort_order)',
-        'listing_features(feature)'
+        'features',
+        'listing_images(url,sort_order,is_thumbnail)',
       ].join(',');
+
+      // since 파라미터가 있으면 delta 쿼리 (캐시 우회 + 작은 응답)
+      if (since) {
+        const { data: deltaData } = await supabase
+          .from('listings')
+          .select(selectFields)
+          .gt('created_at', since)
+          .order('created_at', { ascending: false })
+          .limit(1000);
+        const cleaned = (deltaData || []).map(compactRow).map(keepThumbnailOnly);
+        return NextResponse.json({ success: true, data: cleaned, total: cleaned.length, since });
+      }
 
       // 🔥 인메모리 캐시: 60초 fresh, 10분 stale 허용, 8초 타임아웃
       const allData = await cached(
-        'admin-listings-minimal',
+        'admin-listings-minimal-v5',
         async () => {
           const PAGE_SIZE = 1000;
           const { data: firstPage, error: firstError } = await supabase
@@ -205,17 +278,8 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          // null/빈 값 제거로 페이로드 축소
-          return all.map((row: any) => {
-            const out: any = {};
-            for (const k in row) {
-              const v = row[k];
-              if (v === null || v === undefined || v === '' || v === false) continue;
-              if (Array.isArray(v) && v.length === 0) continue;
-              out[k] = v;
-            }
-            return out;
-          });
+          // null/빈 값 제거 + 썸네일만 유지
+          return all.map(compactRow).map(keepThumbnailOnly);
         },
         60_000,     // 60초 fresh
         600_000,    // 10분 stale 허용
@@ -231,8 +295,8 @@ export async function GET(request: NextRequest) {
           status: 304,
           headers: {
             'ETag': etag,
-            'Cache-Control': 's-maxage=30, stale-while-revalidate=60',
-            'CDN-Cache-Control': 'max-age=30',
+            'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
+            'CDN-Cache-Control': 'max-age=60',
           },
         });
       }
@@ -242,8 +306,8 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
-          'Cache-Control': 's-maxage=30, stale-while-revalidate=60',
-          'CDN-Cache-Control': 'max-age=30',
+          'Cache-Control': 's-maxage=60, stale-while-revalidate=300',
+          'CDN-Cache-Control': 'max-age=60',
           'Vary': 'Accept-Encoding',
         },
       });
