@@ -86,24 +86,7 @@ export default function RootLayout({
           strategy="beforeInteractive"
         />
 
-        {/* Google Analytics - only renders when valid GA ID configured in NEXT_PUBLIC_GA_ID */}
-        {process.env.NEXT_PUBLIC_GA_ID && /^G-[A-Z0-9]{6,}$/.test(process.env.NEXT_PUBLIC_GA_ID) && process.env.NEXT_PUBLIC_GA_ID !== 'G-XXXXXXXXXX' && (
-          <>
-            <Script
-              src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`}
-              strategy="afterInteractive"
-            />
-            <Script id="google-analytics" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-                gtag('consent', 'default', { analytics_storage: 'granted' });
-                gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
-              `}
-            </Script>
-          </>
-        )}
+        {/* Google Analytics removed - not configured */}
 
         {/* Naver Analytics */}
         <Script id="naver-analytics" strategy="afterInteractive">
