@@ -88,21 +88,7 @@ export default function RootLayout({
 
         {/* Google Analytics removed - not configured */}
 
-        {/* Naver Analytics */}
-        <Script id="naver-analytics" strategy="afterInteractive">
-          {`
-            var _hmt = _hmt || [];
-            (function() {
-              var hm = document.createElement("script");
-              hm.src = "https://wcs.naver.net/wcslog.js";
-              var s = document.getElementsByTagName("script")[0];
-              s.parentNode.insertBefore(hm, s);
-            })();
-            if (window.wcs) {
-              window.wcs.inflow("wishes.co.kr");
-            }
-          `}
-        </Script>
+        {/* Naver Analytics removed - CDN 503 issue */}
 
         {/* JSON-LD LocalBusiness */}
         <script
