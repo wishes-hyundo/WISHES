@@ -2,9 +2,11 @@
  * Wishes Search Extension - Content Script
  * Injects property search functionality into wishes.co.kr/admin
  *
- * @version 2.2.4
+ * @version 2.2.6
  * @build 2026-04-14
- * @changelog v2.2.1 - IndexedDB 캐시 추가 (재로드 즉시 표시, 백그라운드 갱신)
+ * @changelog 
+ *   v2.2.6: 토큰 만료 자동 감지 + 만료 경고 토스트 + 401 자동 로그아웃
+ *   v2.2.1 - IndexedDB 캐시 추가 (재로드 즉시 표시, 백그라운드 갱신)
  * @changelog v2.2.0 - Admin API 단일 호출로 전환 (병렬 페이지네이션 제거, API 500 에러 해결)
  *
  * This script:
@@ -64,7 +66,52 @@
     } catch(e){}
   })();
 
-  // [EXT-S2] 콘솔 보호 - 확장 내부 로그 노출 방지
+
+  // [EXT-A1] v2.2.6 인증 토큰 자동 만료 처리
+  (function _wsAuthIntercept226() {
+    try {
+      var TKEY = "ws_token", WARN_MIN = 5;
+      function parseExp(t){ try{ var p=JSON.parse(atob(t.split(".")[1].replace(/-/g,"+").replace(/_/g,"/"))); return p.exp?p.exp*1000:0; }catch(e){return 0;} }
+      function toast(msg, danger){
+        try{ var d=document.createElement("div"); d.textContent=msg;
+          d.style.cssText="position:fixed;top:20px;right:20px;z-index:2147483647;background:"+(danger?"#d32f2f":"#2D5A27")+";color:#fff;padding:12px 18px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.25);font-size:13px;font-weight:600;max-width:320px;line-height:1.4;";
+          (document.body||document.documentElement).appendChild(d);
+          setTimeout(function(){ try{d.remove();}catch(e){} }, 6000);
+        }catch(e){}
+      }
+      function redirect(){
+        try{ localStorage.removeItem(TKEY); sessionStorage.removeItem(TKEY); }catch(e){}
+        toast("🔒 세션 만료 — 로그인 페이지로 이동합니다", true);
+        setTimeout(function(){ if(!/\/admin(\/|$|\?|#)/.test(location.pathname)) location.href="/admin"; }, 1600);
+      }
+      function scheduleChecks(){
+        var tok=null; try{ tok=localStorage.getItem(TKEY)||sessionStorage.getItem(TKEY); }catch(e){}
+        if(!tok) return;
+        var exp=parseExp(tok); if(exp<=0) return;
+        var now=Date.now();
+        if(exp<=now){ redirect(); return; }
+        var warnDelay=exp-now-WARN_MIN*60000;
+        if(warnDelay>0 && warnDelay<86400000){ setTimeout(function(){ toast("⚠️ 세션이 "+WARN_MIN+"분 후 만료됩니다. 재로그인해주세요", false); }, warnDelay); }
+        var expDelay=exp-now;
+        if(expDelay>0 && expDelay<86400000){ setTimeout(redirect, expDelay+1000); }
+      }
+      scheduleChecks();
+      if(!window.__wsAuthFetchWrapped){
+        window.__wsAuthFetchWrapped=true;
+        var of=window.fetch;
+        window.fetch=function(input,init){
+          return of.apply(this,arguments).then(function(resp){
+            try{ var url=typeof input==="string"?input:(input&&input.url)||"";
+              if(resp && resp.status===401 && /\/api\/(admin|auth)\//.test(url)){ redirect(); }
+            }catch(e){}
+            return resp;
+          });
+        };
+      }
+    } catch(e){ try{ console.warn("[ws-auth]", e); }catch(_){} }
+  })();
+
+    // [EXT-S2] 콘솔 보호 - 확장 내부 로그 노출 방지
   var _wsLog = function() {}; // 프로덕션에서는 무출력
   // 개발 시: var _wsLog = console.log.bind(console);
 
