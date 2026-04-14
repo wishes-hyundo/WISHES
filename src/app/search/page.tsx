@@ -20,7 +20,7 @@ export default function SearchPortalPage() {
   // ── 인증 확인 (Supabase 호출 없음, 즉시 판단) ──
   useEffect(() => {
     try {
-      const token = sessionStorage.getItem('ws_token');
+      const token = (sessionStorage.getItem('ws_token')||(function(){try{var _lv=localStorage.getItem('ws_token');if(_lv){sessionStorage.setItem('ws_token',_lv);var u=localStorage.getItem('ws_user');if(u)sessionStorage.setItem('ws_user',u);var t=localStorage.getItem('ws_login_time');if(t)sessionStorage.setItem('ws_login_time',t);var p=localStorage.getItem('admin_password');if(p)sessionStorage.setItem('admin_password',p);return _lv;}}catch(e){}return '';})());
       if (token) {
         setState('ok');
       } else {
@@ -39,7 +39,7 @@ export default function SearchPortalPage() {
     try {
       const w = window as unknown as { __WS_PREFETCH__?: Promise<unknown> };
       if (!w.__WS_PREFETCH__) {
-        const wsToken = sessionStorage.getItem('ws_token') || '';
+        const wsToken = (sessionStorage.getItem('ws_token')||(function(){try{var _lv=localStorage.getItem('ws_token');if(_lv){sessionStorage.setItem('ws_token',_lv);var u=localStorage.getItem('ws_user');if(u)sessionStorage.setItem('ws_user',u);var t=localStorage.getItem('ws_login_time');if(t)sessionStorage.setItem('ws_login_time',t);var p=localStorage.getItem('admin_password');if(p)sessionStorage.setItem('admin_password',p);return _lv;}}catch(e){}return '';})()) || '';
         w.__WS_PREFETCH__ = fetch('/api/admin/listings?fields=minimal', {
           headers: { Authorization: 'Bearer ' + wsToken },
           cache: 'no-cache',
