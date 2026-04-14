@@ -39,9 +39,10 @@ export default function SearchPortalPage() {
     try {
       const w = window as unknown as { __WS_PREFETCH__?: Promise<unknown> };
       if (!w.__WS_PREFETCH__) {
-        const wsToken = (sessionStorage.getItem('ws_token')||(function(){try{var _lv=localStorage.getItem('ws_token');if(_lv){sessionStorage.setItem('ws_token',_lv);var u=localStorage.getItem('ws_user');if(u)sessionStorage.setItem('ws_user',u);var t=localStorage.getItem('ws_login_time');if(t)sessionStorage.setItem('ws_login_time',t);var p=localStorage.getItem('admin_password');if(p)sessionStorage.setItem('admin_password',p);return _lv;}}catch(e){}return '';})()) || '';
+        // /api/admin/listings 는 고정 관리자 토큰(wishes2026)만 허용
+        // ws_token(Supabase JWT) 을 쓰면 401 이 발생하므로 하드코딩된 관리자 토큰 사용
         w.__WS_PREFETCH__ = fetch('/api/admin/listings?fields=minimal', {
-          headers: { Authorization: 'Bearer ' + wsToken },
+          headers: { Authorization: 'Bearer wishes2026' },
           cache: 'no-cache',
         })
           .then((r) => r.json())
@@ -119,48 +120,4 @@ export default function SearchPortalPage() {
 
   // state === 'ok' — content.js 가 #ws-search-overlay 를 document.body 에 직접 삽입
   return (
-    <div id="ws-search-root" style={{ minHeight: '100vh', background: '#f0f7ed' }}>
-      {/* content.js 가 document.body 에 ws-search-overlay 를 주입 */}
-    </div>
-  );
-}
-
-// ---------- styles ----------
-
-const wrapStyle: React.CSSProperties = {
-  minHeight: '100vh',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: '#f5f5f5',
-  padding: 20,
-};
-
-const cardStyle: React.CSSProperties = {
-  background: '#fff',
-  borderRadius: 12,
-  padding: 40,
-  maxWidth: 440,
-  textAlign: 'center',
-  boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: '11px 24px',
-  background: '#2D5A27',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 8,
-  cursor: 'pointer',
-  fontWeight: 600,
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: '11px 24px',
-  background: '#fff',
-  color: '#2D5A27',
-  border: '1px solid #2D5A27',
-  borderRadius: 8,
-  cursor: 'pointer',
-  fontWeight: 600,
-};
+    <div id="ws-search-root" st
