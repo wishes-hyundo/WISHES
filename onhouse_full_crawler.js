@@ -1,9 +1,18 @@
 /**
- * 온하우스(www.onhouse.com) 크롤러 v4.0 - 서울/경기 전체
+ * 온하우스(www.onhouse.com) 크롤러 v5.0 - 서울/경기 전체
  * 실행: www.onhouse.com/index/rent_map 탭에서 Chrome DevTools Console에 붙여넣기
  * 전제: 로그인 상태
  *
- * v4.0 주요 변경:
+ * v5.0 주요 변경 (실제 사이트 DOM 대조 검증):
+ *   - 면적 파싱 수정: 상가 "면적(㎡/P)" + 주거 "전용면적(㎡/P)" 모두 지원
+ *   - 상가 임대면적/전용면적 분리 파싱 (임대 X / Y 전용 Z / W)
+ *   - 주차 bodyBox 핸들러 추가 (desc="무료 1대" 등)
+ *   - flex 누락 필드 추가: 냉/난방, 화장실, 인테리어, 건물위치, 현업종, 제한업종, 확인일, 등록일, 수수료
+ *   - 건물내 공실 정보 추출 (topInfo2Area)
+ *   - 사진수, 물건번호, 주소 보강 (title_addr 폴백)
+ *   - 업로드 로그에 필드 경고 표시 (좌표없음, 연락처없음 등)
+ *
+ * v4.0:
  *   - 서울/경기 전체 영역 그리드 분할 크롤링
  *   - 2026.01.01 이후 등록 매물만 수집
  *   - status: '공개' (공개 API 호환)
@@ -220,7 +229,8 @@
         else if (title.indexOf('관리비') !== -1 && title.indexOf('항목') !== -1) {
           var mfM = desc.match(/([\d.]+)/);
           if (mfM) d.maintenance_fee = Math.round(parseFloat(mfM[1]));
-          if (desc === '없음' || desc === '0') d.maintenance_fee = 0;
+          if (desc === '없음' || desc === '0' || desc === '포함' || desc.indexOf('포함') !== -1) d.maintenance_fee = 0;
+          if (desc === '포함' || desc.indexOf('월세포함') !== -1 || desc.indexOf('임대료포함') !== -1) d.maintenance_note = '관리비 포함';
           if (sub) {
             d.maintenance_includes = sub.split(/[,/·ㆍ\s]+/).map(function(s){return s.trim();}).filter(function(s){return s.length > 0 && s !== '없음';});
           }
@@ -228,18 +238,29 @@
         else if (title.indexOf('관리비') !== -1 && !d.maintenance_fee && d.maintenance_fee !== 0) {
           var mfM2 = desc.match(/([\d.]+)/);
           if (mfM2) d.maintenance_fee = Math.round(parseFloat(mfM2[1]));
-          if (desc === '없음' || desc === '0') d.maintenance_fee = 0;
+          if (desc === '없음' || desc === '0' || desc === '포함') d.maintenance_fee = 0;
         }
-        // 면적 + 방향
-        else if (title.indexOf('전용면적') !== -1) {
-          var aM = desc.match(/([\d.]+)/); if (aM) d.area_m2 = parseFloat(aM[1]);
+        // 면적 + 방향 (주거: "전용면적(㎡/P)" desc="23.1 / 7", 상가: "면적(㎡/P)" desc="임대 165.3 / 50 전용 92.6 / 28")
+        else if (title.indexOf('면적') !== -1 && title.indexOf('대지') === -1) {
+          // 상가형: "임대 X / Y 전용 Z / W" 포맷
+          var rentalM = desc.match(/임대\s*([\d.]+)/);
+          var exclusiveM = desc.match(/전용\s*([\d.]+)/);
+          if (rentalM && exclusiveM) {
+            d.area_supply_m2 = parseFloat(rentalM[1]);
+            d.area_m2 = parseFloat(exclusiveM[1]);
+          } else if (title.indexOf('전용') !== -1) {
+            // 주거형: "전용면적(㎡/P)" desc="23.1 / 7"
+            var aM = desc.match(/([\d.]+)/); if (aM) d.area_m2 = parseFloat(aM[1]);
+          } else if (title.indexOf('공급') !== -1 || title.indexOf('임대') !== -1) {
+            var asM = desc.match(/([\d.]+)/); if (asM) d.area_supply_m2 = parseFloat(asM[1]);
+          } else {
+            // 기타 "면적(㎡/P)" - 숫자만 있으면 전용으로 추정
+            var fallM = desc.match(/([\d.]+)/); if (fallM) d.area_m2 = parseFloat(fallM[1]);
+          }
           if (sub) {
             var dirM = sub.match(/(남동|남서|북동|북서|정남|정북|정동|정서|남|북|동|서)/);
             if (dirM) d.direction = dirM[1] + '향';
           }
-        }
-        else if (title.indexOf('공급면적') !== -1 || title.indexOf('임대면적') !== -1) {
-          var asM = desc.match(/([\d.]+)/); if (asM) d.area_supply_m2 = parseFloat(asM[1]);
         }
         else if (title.indexOf('대지면적') !== -1) {
           var alM = desc.match(/([\d.]+)/); if (alM) d.area_land_m2 = parseFloat(alM[1]);
@@ -291,6 +312,13 @@
         }
         // 부가세
         else if (title.indexOf('부가세') !== -1) { d.vat_included = desc.indexOf('포함') !== -1; }
+        // 주차 (bodyBox: "주차" title, desc="무료 1대" / "가능" / "불가")
+        else if (title === '주차') {
+          var pb = parseBool(desc); if (pb !== null) d.parking = pb;
+          if (!d.parking && (desc.indexOf('무료') !== -1 || desc.indexOf('대') !== -1)) d.parking = true;
+          var pcm = desc.match(/(\d+)\s*대/); if (pcm) d.parking_spaces = parseInt(pcm[1]);
+          if (desc.indexOf('무료') !== -1) d.parking_fee = 0;
+        }
         // 주차비
         else if (title.indexOf('주차비') !== -1) {
           var pfm = desc.match(/([\d.]+)/); if (pfm) d.parking_fee = Math.round(parseFloat(pfm[1]));
@@ -298,6 +326,12 @@
         // 주차대수
         else if (title.indexOf('주차대수') !== -1) {
           var psm = desc.match(/(\d+)/); if (psm) d.parking_spaces = parseInt(psm[1]);
+        }
+        // 관리금 (bodyBottom: "관리금" 아닌 "권리금"과 별도, desc="없음"/"시설비확인필요")
+        else if (title === '관리금' && !d.maintenance_fee && d.maintenance_fee !== 0) {
+          var mfM3 = desc.match(/([\d.]+)/);
+          if (mfM3) d.maintenance_fee = Math.round(parseFloat(mfM3[1]));
+          if (desc === '없음' || desc === '0') d.maintenance_fee = 0;
         }
         // 건물용도
         else if (title.indexOf('건물용도') !== -1 || (title.indexOf('용도') !== -1 && title.indexOf('임대') === -1)) { d.building_purpose = desc; }
@@ -360,6 +394,8 @@
 
       if (label.indexOf('주차') !== -1 && label.indexOf('비') === -1 && label.indexOf('대수') === -1) {
         var b = parseBool(val); if (b !== null) d.parking = b;
+        if (!d.parking && (val.indexOf('무료') !== -1 || val.indexOf('대') !== -1)) d.parking = true;
+        var pcm2 = val.match(/(\d+)\s*대/); if (pcm2 && !d.parking_spaces) d.parking_spaces = parseInt(pcm2[1]);
       } else if (label.indexOf('엘리베이터') !== -1) {
         var b2 = parseBool(val); if (b2 !== null) d.elevator = b2;
       } else if (label.indexOf('전세대출') !== -1 || label.indexOf('대출') !== -1) {
@@ -370,6 +406,31 @@
         var b4 = parseBool(val); if (b4 !== null) d.balcony = b4;
       } else if (label.indexOf('풀옵션') !== -1) {
         var b5 = parseBool(val); if (b5 !== null) d.full_option = b5;
+      }
+      // ── 추가 flex 필드 (상가/사무실 상세정보) ──
+      // 공통 무효값 필터
+      var SKIP_VALS = ['확인필요','정보없음','모름','없음','무',''];
+      var isUseful = val && SKIP_VALS.indexOf(val) === -1;
+      if (label.indexOf('난방') !== -1 || label.indexOf('냉/난방') !== -1) {
+        if (!d.heating_type && isUseful) d.heating_type = val;
+      } else if (label.indexOf('화장실') !== -1) {
+        if (isUseful) d.bathroom_info = val;
+      } else if (label.indexOf('인테리어') !== -1) {
+        if (isUseful) d.interior = val;
+      } else if (label.indexOf('건물위치') !== -1) {
+        if (isUseful) d.building_location = val;
+      } else if (label.indexOf('현업종') !== -1) {
+        if (isUseful) d.current_business = val;
+      } else if (label.indexOf('제한업종') !== -1) {
+        if (isUseful && !d.restricted_business) d.restricted_business = val;
+      } else if (label.indexOf('수수료') !== -1 && !d.commission_fee && !d.commission_note) {
+        var cfm = val.match(/([\d,]+)/);
+        if (cfm) d.commission_fee = parseInt(cfm[1].replace(/,/g,''));
+        else if (val.indexOf('협의') !== -1 || val.indexOf('없음') !== -1) d.commission_note = val;
+      } else if (label === '확인일') {
+        if (val) d.last_confirmed = val;
+      } else if (label === '등록일') {
+        if (val) d.registered_date = val;
       }
     });
 
@@ -437,6 +498,35 @@
       if (lngInput && lngInput.value) { var lgv = lngInput.value.match(/(12[5-8]\.\d+)/); if (lgv) d.lng = parseFloat(lgv[1]); }
     }
 
+    // ── 건물내 공실 (topInfo2Area) ──
+    var topInfo2 = doc.querySelector('.topInfo2Area');
+    if (topInfo2) {
+      var vacText = topInfo2.textContent.replace(/\s+/g, ' ').trim();
+      var vacM = vacText.match(/건물내\s*공실[^|]*\|\s*(.+)/);
+      if (vacM) d.building_listings = vacM[1].trim();
+    }
+
+    // ── 사진 수 ──
+    var viewBody = doc.querySelector('.item_view_body');
+    if (viewBody) {
+      var imgs = viewBody.querySelectorAll('img[src]');
+      d.photo_count = imgs.length;
+    }
+
+    // ── 물건번호 확인 ──
+    var topInfoArea = doc.querySelector('.topInfoArea');
+    if (topInfoArea) {
+      var noM = topInfoArea.textContent.match(/No(\d+)/);
+      if (noM && !d.source_id) d.source_id = noM[1];
+    }
+
+    // ── 주소 보강: title_addr (topMainTitleArea) ──
+    if (!d.address || d.address.length < 5) {
+      var titleAddr = doc.querySelector('.title_addr');
+      if (titleAddr) d.address = titleAddr.textContent.replace(/\s+/g, ' ').trim();
+      if (d.address) { d.dong = extractDong(d.address); d.gu = extractGu(d.address); }
+    }
+
     // ── 기본값 정리 ──
     if (!d.deal) {
       if (d.monthly && d.monthly > 0) d.deal = '월세';
@@ -486,7 +576,7 @@
 
   // ═══════════ 메인 실행 ═══════════
   console.log('╔════════════════════════════════════════════╗');
-  console.log('║  온하우스 크롤러 v4.0 (서울/경기 전체)      ║');
+  console.log('║  온하우스 크롤러 v5.0 (서울/경기 전체)      ║');
   console.log('║  기간: ' + MIN_DATE + ' ~ 현재                  ║');
   console.log('║  타일: ' + TILES.length + '개 영역                        ║');
   console.log('╚════════════════════════════════════════════╝');
@@ -544,12 +634,22 @@
           return data[k] !== null && data[k] !== undefined && data[k] !== '';
         }).length;
 
+        // 필드 경고 체크
+        var warns = [];
+        if (!data.lat || !data.lng) warns.push('좌표없음');
+        if (!data.contact) warns.push('연락처없음');
+        if (!data.area_m2 || data.area_m2 === 0) warns.push('면적없음');
+        if (!data.description) warns.push('설명없음');
+        if (!data.address || data.address.length < 5) warns.push('주소없음');
+        if (data.deposit === undefined && data.price === undefined) warns.push('가격없음');
+
         var upResult = await uploadListing(data);
         if (upResult.ok) {
           stats.uploaded++;
           existingIds.add(String(id));
           tileIds++;
-          console.log('  ✓ [' + id + '] ' + fieldCount + '필드 | ' + (data.dong || '') + ' ' + data.deal + ' ' + (data.deposit||0) + '/' + (data.monthly||0));
+          var warnStr = warns.length > 0 ? ' ⚠' + warns.join(',') : '';
+          console.log('  ✓ [' + id + '] ' + fieldCount + '필드 | ' + (data.dong || '') + ' ' + data.deal + ' ' + (data.deposit||0) + '/' + (data.monthly||0) + warnStr);
         } else {
           stats.failed++;
           console.log('  ✗ [' + id + '] ' + upResult.error);
@@ -575,7 +675,7 @@
 
   var totalElapsed = Math.round((Date.now() - startTime) / 1000);
   console.log('\n╔════════════════════════════════════════════╗');
-  console.log('║  온하우스 크롤러 v4.0 완료                  ║');
+  console.log('║  온하우스 크롤러 v5.0 완료                  ║');
   console.log('║  총 ID: ' + stats.totalIds + '건                           ║');
   console.log('║  업로드: ' + stats.uploaded + ' | 건너뜀: ' + stats.skipped + ' | 실패: ' + stats.failed + '  ║');
   console.log('║  소요시간: ' + Math.round(totalElapsed/60) + '분                          ║');

@@ -1,8 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const API_KEY = process.env.DATA_GO_KR_API_KEY || '';
+const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
 const API_BASE = 'https://apis.data.go.kr/1613000/BldRgstHubService';
 
+// ──────────────────────────────────────────────
+// 1순위: 카카오 API 주소 → 법정동코드/번지 변환
+// ──────────────────────────────────────────────
+interface KakaoResolved {
+  sigunguCd: string;
+  bjdongCd: string;
+  bun: string;
+  ji: string;
+  fullAddress: string;
+  source: 'kakao';
+}
+
+async function resolveViaKakao(address: string): Promise<KakaoResolved | null> {
+  if (!KAKAO_REST_API_KEY) return null;
+
+  try {
+    const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}&analyze_type=exact`;
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch(url, {
+      headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
+      signal: ctrl.signal,
+    });
+    clearTimeout(tid);
+
+    if (!res.ok) return null;
+    const json = await res.json();
+
+    // exact 검색 실패 시 similar 모드로 재시도
+    if (!json.documents || json.documents.length === 0) {
+      const retryUrl = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}&analyze_type=similar`;
+      const ctrl2 = new AbortController();
+      const tid2 = setTimeout(() => ctrl2.abort(), 5000);
+      const res2 = await fetch(retryUrl, {
+        headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
+        signal: ctrl2.signal,
+      });
+      clearTimeout(tid2);
+      if (!res2.ok) return null;
+      const json2 = await res2.json();
+      if (!json2.documents || json2.documents.length === 0) return null;
+      return extractFromKakaoDoc(json2.documents[0]);
+    }
+
+    return extractFromKakaoDoc(json.documents[0]);
+  } catch {
+    return null;
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractFromKakaoDoc(doc: any): KakaoResolved | null {
+  // 카카오 응답에서 지번주소 정보 추출 (road_address가 아닌 address 사용)
+  const addr = doc.address;
+  if (!addr || !addr.b_code) return null;
+
+  const bCode = addr.b_code; // 10자리: 시군구(5) + 법정동(5)
+  const sigunguCd = bCode.substring(0, 5);
+  const bjdongCd = bCode.substring(5, 10);
+  const bun = (addr.main_address_no || '0').padStart(4, '0');
+  const ji = (addr.sub_address_no || '0').padStart(4, '0');
+
+  return {
+    sigunguCd,
+    bjdongCd,
+    bun,
+    ji,
+    fullAddress: addr.address_name || '',
+    source: 'kakao',
+  };
+}
+
+// ──────────────────────────────────────────────
+// 2순위 (fallback): 하드코딩 테이블
+// ──────────────────────────────────────────────
 const SIGUNGU_CODES: Record<string, string> = {
   '종로구': '11110', '중구': '11140', '용산구': '11170', '성동구': '11200',
   '광진구': '11215', '동대문구': '11230', '중랑구': '11260', '성북구': '11290',
@@ -58,6 +134,57 @@ const BJDONG_CODES: Record<string, Record<string, string>> = {
   '41117': { '영통동': '10100', '원천동': '10300', '매탄동': '10400', '망포동': '10500' },
 };
 
+function extractDong(address: string): string {
+  const parts = address.split(/\s+/);
+  for (const part of parts) {
+    if (part.endsWith('동') && part.length >= 2 && part.length <= 6) return part;
+    const m = part.match(/^(.+동)\d+가$/);
+    if (m) return m[1];
+  }
+  return '';
+}
+
+function extractDistrict(address: string): string {
+  const m = address.match(/([가-힣]+[구군시])\s/);
+  return m ? m[1] : '';
+}
+
+function extractBunJi(address: string): { bun: string; ji: string } {
+  const m1 = address.match(/[동가리]\S*\s+(\d{1,4})(?:-(\d{1,4}))?/);
+  if (m1) return { bun: m1[1].padStart(4, '0'), ji: (m1[2] || '0').padStart(4, '0') };
+  const m2 = address.match(/(\d{1,4})번지/);
+  if (m2) return { bun: m2[1].padStart(4, '0'), ji: '0000' };
+  const cleaned = address.replace(/\s+\d+층.*$/, '').replace(/\s+\d+호.*$/, '').replace(/\s+[가-힣]+(?:빌|하우스|타워|팰리스|파크).*$/, '').trim();
+  const m3 = cleaned.match(/(\d+)(?:-(\d+))?\s*$/);
+  if (m3) return { bun: m3[1].padStart(4, '0'), ji: (m3[2] || '0').padStart(4, '0') };
+  return { bun: '0000', ji: '0000' };
+}
+
+function resolveViaHardcoded(address: string, dong: string, sigungu: string) {
+  let sigunguCd = '';
+  let bjdongCd = '';
+  let bun = '';
+  let ji = '';
+
+  const district = sigungu || extractDistrict(address);
+  sigunguCd = SIGUNGU_CODES[district] || '';
+  if (sigunguCd) {
+    const dongName = dong || extractDong(address);
+    bjdongCd = (BJDONG_CODES[sigunguCd] && BJDONG_CODES[sigunguCd][dongName]) || '';
+  }
+
+  if (address) {
+    const bunJi = extractBunJi(address);
+    bun = bunJi.bun;
+    ji = bunJi.ji;
+  }
+
+  return { sigunguCd, bjdongCd, bun, ji };
+}
+
+// ──────────────────────────────────────────────
+// 건축물대장 API 조회 (공통 로직)
+// ──────────────────────────────────────────────
 const FIELD_MAP: [string, string][] = [
   ['bldNm', 'buildingName'],
   ['mainPurpsCdNm', 'buildingPurpose'],
@@ -93,27 +220,111 @@ const FIELD_MAP: [string, string][] = [
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyObj = Record<string, any>;
 
-function extractDong(address: string): string {
-  const parts = address.split(/\s+/);
-  for (const part of parts) {
-    if (part.endsWith('동') && part.length >= 2 && part.length <= 6) return part;
-    const m = part.match(/^(.+동)\d+가$/);
-    if (m) return m[1];
+async function fetchBuildingData(
+  sigunguCd: string,
+  bjdongCd: string,
+  bun: string,
+  ji: string,
+  platGbCd: string,
+  debugInfo: string[],
+) {
+  let decodedKey = API_KEY;
+  try { if (API_KEY.includes('%')) decodedKey = decodeURIComponent(API_KEY); } catch { /* keep original */ }
+
+  const endpoints = ['getBrBasisOulnInfo', 'getBrRecapTitleInfo', 'getBrTitleInfo', 'getBrFlrOulnInfo'];
+
+  // data.go.kr 공식 스펙: ServiceKey (대문자 S)
+  const baseParams: Record<string, string> = {
+    ServiceKey: decodedKey,
+    sigunguCd,
+    numOfRows: '100',
+    pageNo: '1',
+    _type: 'json',
+  };
+  if (bjdongCd) baseParams.bjdongCd = bjdongCd;
+  if (bun && bun !== '0000') baseParams.bun = bun;
+  if (ji && ji !== '0000') baseParams.ji = ji;
+  baseParams.platGbCd = platGbCd;
+
+  const results = await Promise.allSettled(
+    endpoints.map(async (ep) => {
+      const params = new URLSearchParams(baseParams);
+      const url = `${API_BASE}/${ep}?${params.toString()}`;
+      debugInfo.push(`${ep}: requesting [sigungu=${sigunguCd}, bjdong=${bjdongCd}, bun=${bun}, ji=${ji}]`);
+
+      const ctrl = new AbortController();
+      const tid = setTimeout(() => ctrl.abort(), 15000);
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(tid);
+
+      if (!res.ok) {
+        debugInfo.push(`${ep}: HTTP ${res.status}`);
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const json = await res.json() as AnyObj;
+      const header = json.response?.header || json.header || {};
+      const body = json.response?.body || json.body || {};
+
+      if (header.resultCode && header.resultCode !== '00') {
+        debugInfo.push(`${ep}: api_err=${header.resultCode} ${header.resultMsg || ''}`);
+        throw new Error(`API error: ${header.resultCode}`);
+      }
+
+      const items = body.items?.item;
+      const itemArray = Array.isArray(items) ? items : (items ? [items] : []);
+      debugInfo.push(`${ep}: ok (${itemArray.length} items)`);
+      return { endpoint: ep, items: itemArray };
+    })
+  );
+
+  const buildingData: Record<string, string | number> = {};
+  const floorData: AnyObj[] = [];
+
+  for (let i = 0; i < endpoints.length; i++) {
+    const r = results[i];
+    if (r.status !== 'fulfilled') continue;
+    const { items } = r.value;
+
+    if (endpoints[i] === 'getBrFlrOulnInfo') {
+      floorData.push(...items);
+      continue;
+    }
+
+    const firstItem = items[0];
+    if (!firstItem) continue;
+
+    for (const [apiField, dataField] of FIELD_MAP) {
+      if (firstItem[apiField] != null && buildingData[dataField] == null) {
+        buildingData[dataField] = String(firstItem[apiField]);
+      }
+    }
   }
-  return '';
+
+  // 계산 필드
+  const rideElv = parseInt(String(buildingData.rideElevatorCount || '0'));
+  const emgElv = parseInt(String(buildingData.emergencyElevatorCount || '0'));
+  buildingData.elevatorCount = String(rideElv + emgElv);
+
+  const iM = parseInt(String(buildingData.indoorMechParking || '0'));
+  const iA = parseInt(String(buildingData.indoorAutoParking || '0'));
+  const oM = parseInt(String(buildingData.outdoorMechParking || '0'));
+  const oA = parseInt(String(buildingData.outdoorAutoParking || '0'));
+  buildingData.parkingCount = String(iM + iA + oM + oA);
+
+  const floors = floorData.map((f: AnyObj) => ({
+    floorNo: f.flrNo,
+    floorType: f.flrGbCdNm,
+    purpose: f.mainPurpsCdNm || f.etcPurps || '',
+    area: parseFloat(f.area || '0'),
+  }));
+
+  return { buildingData, floors };
 }
 
-function extractDistrict(address: string): string {
-  const m = address.match(/([가-힣]+[구군시])\s/);
-  return m ? m[1] : '';
-}
-
-function extractBunJi(address: string): { bun: string; ji: string } {
-  const m = address.match(/(\d+)(?:-(\d+))?\s*$/);
-  if (m) return { bun: m[1].padStart(4, '0'), ji: (m[2] || '0').padStart(4, '0') };
-  return { bun: '0000', ji: '0000' };
-}
-
+// ──────────────────────────────────────────────
+// GET 핸들러
+// ──────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
 
@@ -126,16 +337,33 @@ export async function GET(request: NextRequest) {
   const dong = searchParams.get('dong') || '';
   const sigungu = searchParams.get('sigungu') || '';
   const debug = searchParams.get('debug') === 'true';
+  const debugInfo: string[] = [];
 
+  // 코드가 직접 전달되지 않은 경우: 주소에서 변환
   if (!sigunguCd && address) {
-    const district = sigungu || extractDistrict(address);
-    sigunguCd = SIGUNGU_CODES[district] || '';
-    if (sigunguCd) {
-      const dongName = dong || extractDong(address);
-      bjdongCd = (BJDONG_CODES[sigunguCd] && BJDONG_CODES[sigunguCd][dongName]) || '';
+    // ★ 1순위: 카카오 API — 도로명/지번 모두 처리, 전국 커버
+    debugInfo.push(`[resolve] 카카오 API 시도: "${address}"`);
+    const kakaoResult = await resolveViaKakao(address);
+
+    if (kakaoResult) {
+      sigunguCd = kakaoResult.sigunguCd;
+      bjdongCd = kakaoResult.bjdongCd;
+      bun = kakaoResult.bun;
+      ji = kakaoResult.ji;
+      debugInfo.push(`[resolve] 카카오 성공: sigungu=${sigunguCd}, bjdong=${bjdongCd}, bun=${bun}, ji=${ji}, addr=${kakaoResult.fullAddress}`);
+    } else {
+      // ★ 2순위: 하드코딩 테이블 (카카오 실패 시 fallback)
+      debugInfo.push(`[resolve] 카카오 실패 → 하드코딩 테이블 시도`);
+      const hc = resolveViaHardcoded(address, dong, sigungu);
+      sigunguCd = hc.sigunguCd;
+      bjdongCd = hc.bjdongCd;
+      if (!bun) bun = hc.bun;
+      if (!ji) ji = hc.ji;
+      debugInfo.push(`[resolve] 하드코딩 결과: sigungu=${sigunguCd}, bjdong=${bjdongCd}, bun=${bun}, ji=${ji}`);
     }
   }
 
+  // bun/ji가 아직 없으면 주소에서 추출 시도
   if (!bun && address) {
     const bunJi = extractBunJi(address);
     bun = bunJi.bun;
@@ -146,7 +374,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: false,
       message: '시군구코드를 확인할 수 없습니다. 주소를 다시 확인해주세요.',
-      debug: debug ? { address, sigungu, dong } : undefined,
+      debug: debug ? { address, sigungu, dong, debugInfo } : undefined,
     });
   }
 
@@ -159,96 +387,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    let decodedKey = API_KEY;
-    try { if (API_KEY.includes('%')) decodedKey = decodeURIComponent(API_KEY); } catch { /* keep original */ }
-
-    const endpoints = ['getBrBasisOulnInfo', 'getBrRecapTitleInfo', 'getBrTitleInfo', 'getBrFlrOulnInfo'];
-
-    const baseParams: Record<string, string> = {
-      serviceKey: decodedKey,
-      sigunguCd,
-      numOfRows: '100',
-      pageNo: '1',
-      _type: 'json',
-    };
-    if (bjdongCd) baseParams.bjdongCd = bjdongCd;
-    if (bun && bun !== '0000') baseParams.bun = bun;
-    if (ji && ji !== '0000') baseParams.ji = ji;
-    baseParams.platGbCd = platGbCd;
-
-    const debugInfo: string[] = [];
-
-    const results = await Promise.allSettled(
-      endpoints.map(async (ep) => {
-        const params = new URLSearchParams(baseParams);
-        const url = `${API_BASE}/${ep}?${params.toString()}`;
-        debugInfo.push(`${ep}: requesting`);
-
-        const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 15000);
-        const res = await fetch(url, { signal: ctrl.signal });
-        clearTimeout(tid);
-
-        if (!res.ok) {
-          debugInfo.push(`${ep}: HTTP ${res.status}`);
-          throw new Error(`HTTP ${res.status}`);
-        }
-
-        const json = await res.json() as AnyObj;
-        const header = json.response?.header || json.header || {};
-        const body = json.response?.body || json.body || {};
-
-        if (header.resultCode && header.resultCode !== '00') {
-          debugInfo.push(`${ep}: api_err=${header.resultCode}`);
-          throw new Error(`API error: ${header.resultCode}`);
-        }
-
-        const items = body.items?.item;
-        const itemArray = Array.isArray(items) ? items : (items ? [items] : []);
-        debugInfo.push(`${ep}: ok (${itemArray.length} items)`);
-        return { endpoint: ep, items: itemArray };
-      })
+    const { buildingData, floors } = await fetchBuildingData(
+      sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo
     );
-
-    const buildingData: Record<string, string | number> = {};
-    const floorData: AnyObj[] = [];
-
-    for (let i = 0; i < endpoints.length; i++) {
-      const r = results[i];
-      if (r.status !== 'fulfilled') continue;
-      const { items } = r.value;
-
-      if (endpoints[i] === 'getBrFlrOulnInfo') {
-        floorData.push(...items);
-        continue;
-      }
-
-      const firstItem = items[0];
-      if (!firstItem) continue;
-
-      for (const [apiField, dataField] of FIELD_MAP) {
-        if (firstItem[apiField] != null && buildingData[dataField] == null) {
-          buildingData[dataField] = String(firstItem[apiField]);
-        }
-      }
-    }
-
-    const rideElv = parseInt(String(buildingData.rideElevatorCount || '0'));
-    const emgElv = parseInt(String(buildingData.emergencyElevatorCount || '0'));
-    buildingData.elevatorCount = String(rideElv + emgElv);
-
-    const iM = parseInt(String(buildingData.indoorMechParking || '0'));
-    const iA = parseInt(String(buildingData.indoorAutoParking || '0'));
-    const oM = parseInt(String(buildingData.outdoorMechParking || '0'));
-    const oA = parseInt(String(buildingData.outdoorAutoParking || '0'));
-    buildingData.parkingCount = String(iM + iA + oM + oA);
-
-    const floors = floorData.map((f: AnyObj) => ({
-      floorNo: f.flrNo,
-      floorType: f.flrGbCdNm,
-      purpose: f.mainPurpsCdNm || f.etcPurps || '',
-      area: parseFloat(f.area || '0'),
-    }));
 
     if (Object.keys(buildingData).length > 0) {
       return NextResponse.json({
@@ -258,6 +399,23 @@ export async function GET(request: NextRequest) {
         source: 'building_registry_api',
         ...(debug ? { debugInfo, sigunguCd, bjdongCd, bun, ji } : {}),
       });
+    }
+
+    // 데이터가 없고, 카카오로 변환했는데도 못 찾으면 → 번지 없이 재시도
+    if (bun !== '0000') {
+      debugInfo.push('[retry] 번지 제외하고 동 단위로 재시도');
+      const { buildingData: retryData, floors: retryFloors } = await fetchBuildingData(
+        sigunguCd, bjdongCd, '0000', '0000', platGbCd, debugInfo
+      );
+      if (Object.keys(retryData).length > 0) {
+        return NextResponse.json({
+          success: true,
+          data: retryData,
+          floors: retryFloors,
+          source: 'building_registry_api_broad',
+          ...(debug ? { debugInfo, sigunguCd, bjdongCd, bun: '0000', ji: '0000' } : {}),
+        });
+      }
     }
 
     return NextResponse.json({
@@ -273,6 +431,7 @@ export async function GET(request: NextRequest) {
       success: false,
       message: '조회 오류: ' + (error instanceof Error ? error.message : String(error)),
       estimatedData: estimatedData(address),
+      ...(debug ? { debugInfo } : {}),
     });
   }
 }
@@ -284,4 +443,3 @@ function estimatedData(address: string) {
     note: '건축물대장 API에서 데이터를 찾을 수 없어 추정 데이터입니다.',
   };
 }
-
