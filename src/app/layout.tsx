@@ -7,19 +7,19 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
   manifest: '/manifest.json',
   title: {
-    default: 'WISHES | ìì¸Â·ê²½ê¸° ì¢í©ë¶ëì° ìë¹ì¤',
+    default: 'WISHES | 서울·경기 종합부동산 서비스',
     template: '%s | WISHES',
   },
   description:
-    'ìì¸Â·ê²½ê¸° ì  ì§ì­ ìë£¸, í¬ë£¸, ì¤í¼ì¤í, ìíí¸ ì¢í©ë¶ëì° ì¤ê°. ì ì¸, ìì¸, ë§¤ë§¤ ë§¤ë¬¼ì ì§ëìì ì½ê² ì°¾ìë³´ì¸ì.',
+    '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요.',
   keywords: [
-    'ìì¸ ë¶ëì°', 'ê²½ê¸° ë¶ëì°', 'ìë£¸ ì ì¸', 'ìì¸ ë§¤ë¬¼',
-    'ì¤í¼ì¤í', 'ìíí¸ ë§¤ë§¤', 'WISHES', 'ì¢í©ë¶ëì°',
-    'ê´ìêµ¬ ë¶ëì°', 'ì ë¦¼ë ìë£¸', 'ì ì¸ëì¶ ìë´',
+    '서울 부동산', '경기 부동산', '원룸 전세', '월세 매물',
+    '오피스텔', '아파트 매매', 'WISHES', '종합부동산',
+    '관악구 부동산', '신림동 원룸', '전세대출 상담',
   ],
   openGraph: {
-    title: 'WISHES | ìì¸Â·ê²½ê¸° ì¢í©ë¶ëì°',
-    description: 'ìì¸Â·ê²½ê¸° ì  ì§ì­ ì¢í©ë¶ëì°. ì§ëë¡ ë§¤ë¬¼ì ì½ê² ì°¾ìë³´ì¸ì.',
+    title: 'WISHES | 서울·경기 종합부동산',
+    description: '서울·경기 전 지역 종합부동산. 지도로 매물을 쉽게 찾아보세요.',
     url: 'https://wishes.co.kr',
     siteName: 'WISHES',
     locale: 'ko_KR',
@@ -28,13 +28,13 @@ export const metadata: Metadata = {
       url: '/og-image.png',
       width: 1200,
       height: 630,
-      alt: 'WISHES - ìì¸Â·ê²½ê¸° ì¢í©ë¶ëì°',
+      alt: 'WISHES - 서울·경기 종합부동산',
     }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'WISHES | ìì¸Â·ê²½ê¸° ì¢í©ë¶ëì°',
-    description: 'ìì¸Â·ê²½ê¸° ì  ì§ì­ ì¢í©ë¶ëì° ìë¹ì¤.',
+    title: 'WISHES | 서울·경기 종합부동산',
+    description: '서울·경기 전 지역 종합부동산 서비스.',
     images: ['/og-image.png'],
   },
   robots: {
@@ -69,7 +69,7 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-        {/* â¡ ì¹´ì¹´ì¤ë§µ CDN ì¬ì  ì°ê²° â TLS í¸ëì°ì´í¬ ë¹ì© ì ê±° */}
+        {/* ⚡ 카카오맵 CDN 사전 연결 — TLS 핸드셰이크 비용 제거 */}
         <link rel="preconnect" href="https://dapi.kakao.com" crossOrigin="" />
         <link rel="preconnect" href="https://t1.daumcdn.net" crossOrigin="" />
         <link rel="preconnect" href="https://map.daumcdn.net" crossOrigin="" />
@@ -80,7 +80,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://map2.daumcdn.net" />
         <link rel="dns-prefetch" href="https://map3.daumcdn.net" />
 
-        {/* â¡ ì¹´ì¹´ì¤ë§µ SDK â íµì¬(services + clusterer) ë§ ì ë¡ë, drawing ì ì¬ì©ìê° ê·¸ë¦¬ê¸° ë²í¼ í´ë¦­ ì lazy ë¡ë */}
+        {/* ⚡ 카카오맵 SDK — 핵심(services + clusterer) 만 선로드, drawing 은 사용자가 그리기 버튼 클릭 시 lazy 로드 */}
         <Script
           src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || 'a1c65d0ec2ecc8d2d231f8558f896e38'}&libraries=services,clusterer&autoload=false`}
           strategy="beforeInteractive"
@@ -134,9 +134,9 @@ export default function RootLayout({
               sameAs: 'https://wishes.co.kr',
               address: {
                 '@type': 'PostalAddress',
-                streetAddress: 'ì ë¦¼ë¡64ê¸¸ 23, 8ì¸µ',
-                addressLocality: 'ê´ìêµ¬',
-                addressRegion: 'ìì¸í¹ë³ì',
+                streetAddress: '신림로64길 23, 8층',
+                addressLocality: '관악구',
+                addressRegion: '서울특별시',
                 postalCode: '08776',
                 addressCountry: 'KR',
               },
@@ -148,7 +148,7 @@ export default function RootLayout({
               openingHours: 'Mo-Fr 09:00-19:00',
               areaServed: {
                 '@type': 'State',
-                name: 'ìì¸í¹ë³ì ë° ê²½ê¸°ë',
+                name: '서울특별시 및 경기도',
               },
             }),
           }}
