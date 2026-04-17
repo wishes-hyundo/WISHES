@@ -274,7 +274,7 @@ function createHoverPreviewContent(listing: Listing): HTMLElement {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 개별 매물 마커 (Level 1-4)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function createPriceMarkerContent(listing: Listing): HTMLElement {
+function createPriceMarkerContent(listing: Listing, isSelected: boolean = false): HTMLElement {
   const priceText = listing.deal === '매매'
     ? formatPrice(listing.price || 0)
     : listing.deal === '월세'
@@ -289,12 +289,19 @@ function createPriceMarkerContent(listing: Listing): HTMLElement {
   const colors = colorMap[listing.deal] || colorMap['전세'];
 
   const content = document.createElement('div');
+  // T2-3: 선택된 마커는 solid 배경 + 키 컬러 반전 + 강한 그림자로 하이라이트
+  const baseBg = isSelected ? colors.border : colors.bg;
+  const baseColor = isSelected ? '#fff' : colors.text;
+  const baseShadow = isSelected
+    ? `0 6px 20px ${colors.border}66, 0 0 0 3px ${colors.border}33`
+    : '0 2px 6px rgba(0,0,0,0.15)';
+  const baseScale = isSelected ? 'scale(1.08)' : 'scale(1)';
   content.style.cssText = `
-    background: ${colors.bg}; border: 2px solid ${colors.border};
-    color: ${colors.text}; font-size: 11px; font-weight: 700;
+    background: ${baseBg}; border: 2px solid ${colors.border};
+    color: ${baseColor}; font-size: 11px; font-weight: 700;
     padding: 4px 10px; border-radius: 20px; white-space: nowrap;
-    cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    transform: translate(-50%, -100%);
+    cursor: pointer; box-shadow: ${baseShadow};
+    transform: translate(-50%, -100%) ${baseScale};
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     position: relative; font-family: 'GmarketSans', sans-serif;
   `;
@@ -330,8 +337,9 @@ function createPriceMarkerContent(listing: Listing): HTMLElement {
     content.style.zIndex = '100';
   });
   content.addEventListener('mouseleave', () => {
-    content.style.transform = 'translate(-50%, -100%) scale(1)';
-    content.style.boxShadow = '0 2px 6px rgba(0,0,0,0.15)';
+    // 선택된 상태라면 base 스타일로 복귀
+    content.style.transform = `translate(-50%, -100%) ${baseScale}`;
+    content.style.boxShadow = baseShadow;
     content.style.zIndex = '';
   });
 
@@ -572,7 +580,8 @@ export default function MapSearchPage() {
       // ━━━ 개별 매물 마커 (줌인 상태) ━━━
       validListings.forEach((listing) => {
         const position = new window.kakao.maps.LatLng(listing.lat, listing.lng);
-        const content = createPriceMarkerContent(listing);
+        const isSelected = selectedId === listing.id;
+        const content = createPriceMarkerContent(listing, isSelected);
 
         content.addEventListener('click', () => {
           setDetailId(listing.id);
@@ -610,6 +619,15 @@ export default function MapSearchPage() {
       });
     }
   }, [listings, selectedId, zoomLevel]);
+
+  // ━━━ T2-3: selectedId 변경 → 리스트 카드 자동 스크롤 ━━━
+  useEffect(() => {
+    if (!selectedId) return;
+    const el = document.querySelector(`[data-listing-id="${selectedId}"]`);
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [selectedId]);
 
   // ━━━ 리스트 카드 호버 ━━━
   const handleCardHover = useCallback((id: number | null) => {
@@ -1022,8 +1040,9 @@ export default function MapSearchPage() {
               filteredListings.map((listing) => (
                 <div
                   key={listing.id}
+                  data-listing-id={listing.id}
                   onClick={() => handleListingClick(listing.id)}
-                  className={`cursor-pointer rounded-lg transition-all ${detailId === listing.id ? 'ring-2 ring-wishes-primary bg-wishes-primary/5' : ''}`}
+                  className={`cursor-pointer rounded-lg transition-all ${detailId === listing.id ? 'ring-2 ring-wishes-primary bg-wishes-primary/5' : selectedId === listing.id ? 'ring-2 ring-wishes-secondary/70 bg-wishes-secondary/5' : ''}`}
                 >
                   <ListingCard
                     listing={listing}

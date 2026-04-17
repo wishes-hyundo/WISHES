@@ -60,6 +60,7 @@ export default function ListingDetailClient({ id }: Props) {
   const [images, setImages] = useState<any[]>([]);
   const [features, setFeatures] = useState<any[]>([]);
   const [relatedListings, setRelatedListings] = useState<any[]>([]);
+  const [buildingListings, setBuildingListings] = useState<any[]>([]);
   const [recentListings, setRecentListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -145,6 +146,21 @@ export default function ListingDetailClient({ id }: Props) {
         .limit(4);
 
       setRelatedListings(related || []);
+
+      // 같은 건물 다른 매물 (T2-1: 단지/건물 컨텍스트)
+      // 크롤링 매물은 building_name 매칭 품질이 낮아 제외(자체 매물 위주)
+      if (data.building_name && !data.source_site) {
+        const { data: building } = await supabase
+          .from('listings')
+          .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, listing_images(url, sort_order)')
+          .eq('status', '공개')
+          .eq('building_name', data.building_name)
+          .neq('id', listingId)
+          .order('deal', { ascending: true })
+          .order('area_m2', { ascending: true })
+          .limit(8);
+        setBuildingListings((building || []).filter((b: any) => !b.source_site));
+      }
 
       // 최근 본 매물 로드
       const recentIds = getRecentlyViewed(listingId);
@@ -812,6 +828,38 @@ export default function ListingDetailClient({ id }: Props) {
 
         {/* V3-18: 스마트 추천 */}
         <SmartRecommendations listingId={listing.id} dong={listing.dong} />
+
+        {/* T2-1: 같은 건물 다른 매물 (단지/건물 컨텍스트) */}
+        {buildingListings.length > 0 && (
+          <div className="mt-12">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-wishes-primary/10 text-wishes-primary text-xs font-bold">
+                <Building2 className="w-3.5 h-3.5" /> 같은 건물
+              </div>
+              <h2 className="text-lg font-bold text-wishes-primary">
+                {listing.building_name}
+                <span className="text-xs font-normal text-wishes-muted ml-2">
+                  현재 {buildingListings.length}건 등록
+                </span>
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {buildingListings.slice(0, 4).map((item: any) => (
+                <ListingCard key={item.id} listing={item} />
+              ))}
+            </div>
+            {buildingListings.length > 4 && (
+              <div className="mt-3 text-right">
+                <Link
+                  href={`/listings?search=${encodeURIComponent(listing.building_name)}`}
+                  className="inline-flex items-center gap-1 text-xs font-medium text-wishes-primary hover:underline"
+                >
+                  이 건물 전체 매물 보기 ({buildingListings.length}건) <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 연관 매물 (V3-18) */}
         {relatedListings.length > 0 && (

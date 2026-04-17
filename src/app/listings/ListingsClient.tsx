@@ -50,6 +50,13 @@ export default function ListingsClient({
   const search = searchParams.get('search') || '';
   const maxDeposit = searchParams.get('maxDeposit') || '';
   const minArea = searchParams.get('minArea') || '';
+  // T2-2: 상가 특화 필터 (업종 · 권리금)
+  const businessType = searchParams.get('businessType') || '';
+  const maxRightsFee = searchParams.get('maxRightsFee') || '';
+  // T2-4: 컨디션 아이콘 필터 (풀옵션 · 반려 · 여성안심 대체 · 주차 · 엘리베이터)
+  //   — 카드 UI: pet, full_option, parking, elevator, balcony (0또는 1)
+  const cond = searchParams.get('cond') || ''; // 콤마 구분 키워드: "pet,fullOption,parking,elevator,balcony"
+  const condSet = new Set(cond.split(',').filter(Boolean));
   const pageParam = searchParams.get('page') || '1';
   const pageSize = 12;
 
@@ -172,6 +179,15 @@ export default function ListingsClient({
         else photoQuery = photoQuery.lte('deposit', md);
       }
       if (minArea) photoQuery = photoQuery.gte('area_m2', parseInt(minArea, 10));
+      // T2-2 상가 특화
+      if (businessType) photoQuery = photoQuery.ilike('business_type', '%' + businessType + '%');
+      if (maxRightsFee) photoQuery = photoQuery.lte('rights_fee', parseInt(maxRightsFee, 10));
+      // T2-4 컨디션 플래그
+      if (condSet.has('pet')) photoQuery = photoQuery.eq('pet', true);
+      if (condSet.has('fullOption')) photoQuery = photoQuery.eq('full_option', true);
+      if (condSet.has('parking')) photoQuery = photoQuery.eq('parking', true);
+      if (condSet.has('elevator')) photoQuery = photoQuery.eq('elevator', true);
+      if (condSet.has('balcony')) photoQuery = photoQuery.eq('balcony', true);
       photoQuery = photoQuery.order(sortColumn, { ascending: false }).limit(500);
 
       // Step 2: 동 목록 + 전체 개수 (크롤링 포함 — 정보는 광고 노출)
@@ -187,6 +203,13 @@ export default function ListingsClient({
         else countQuery = countQuery.lte('deposit', md);
       }
       if (minArea) countQuery = countQuery.gte('area_m2', parseInt(minArea, 10));
+      if (businessType) countQuery = countQuery.ilike('business_type', '%' + businessType + '%');
+      if (maxRightsFee) countQuery = countQuery.lte('rights_fee', parseInt(maxRightsFee, 10));
+      if (condSet.has('pet')) countQuery = countQuery.eq('pet', true);
+      if (condSet.has('fullOption')) countQuery = countQuery.eq('full_option', true);
+      if (condSet.has('parking')) countQuery = countQuery.eq('parking', true);
+      if (condSet.has('elevator')) countQuery = countQuery.eq('elevator', true);
+      if (condSet.has('balcony')) countQuery = countQuery.eq('balcony', true);
 
       const [photoResult, dongResult, countResult] = await Promise.all([photoQuery, dongQuery, countQuery]);
 
@@ -239,7 +262,7 @@ export default function ListingsClient({
     };
 
     fetchData();
-  }, [deal, type, dong, sort, search, pageParam, maxDeposit, minArea]);
+  }, [deal, type, dong, sort, search, pageParam, maxDeposit, minArea, businessType, maxRightsFee, cond]);
 
   // 스크롤 위치 저장 / 복원
   const scrollSaved = useRef(false);
@@ -281,7 +304,7 @@ export default function ListingsClient({
     }
     scrollSaved.current = false;
     sessionStorage.removeItem('listings_scroll');
-  }, [deal, type, dong, sort, search, pageParam, maxDeposit, minArea]);
+  }, [deal, type, dong, sort, search, pageParam, maxDeposit, minArea, businessType, maxRightsFee, cond]);
 
   const updateFilter = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -327,6 +350,15 @@ export default function ListingsClient({
   if (dong) activeChips.push({ key: 'dong', label: dong });
   if (maxDeposit && priceChipLabel) activeChips.push({ key: 'maxDeposit', label: priceChipLabel, icon: <Coins className="w-3 h-3" /> });
   if (minArea) activeChips.push({ key: 'minArea', label: `${minArea}㎡↑`, icon: <Maximize2 className="w-3 h-3" /> });
+  if (businessType) activeChips.push({ key: 'businessType', label: '업종 "' + businessType + '"' });
+  if (maxRightsFee !== '') {
+    const rfLabel = maxRightsFee === '0' ? '권리금 없음' : `권리금 ${parseInt(maxRightsFee).toLocaleString()}만 이하`;
+    activeChips.push({ key: 'maxRightsFee', label: rfLabel });
+  }
+  const condLabels: Record<string, string> = { fullOption: '풀옵션', pet: '반려', parking: '주차', elevator: '엘리베이터', balcony: '발코니' };
+  Array.from(condSet).forEach((k) => {
+    activeChips.push({ key: 'cond:' + k, label: condLabels[k] || k });
+  });
 
   // ━━━ 저장 검색 처리 ━━━
   // 현재 URL 쿼리에서 조건 필터만 추출 (페이지/정렬은 제외해서 조건 자체가 "의미 같은" 저장인지 비교)
@@ -539,6 +571,83 @@ export default function ListingsClient({
               })}
             </div>
           </div>
+
+          {/* ━━━ T2-2: 상가 특화 필터 (업종 · 권리금) — 매물유형 = 상가 / 사무실일 때만 노출 ━━━ */}
+          {(type === '상가' || type === '사무실') && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold text-gray-600">업종 / 권리금</p>
+                <span className="text-[10px] text-wishes-muted">{type} 전용</span>
+              </div>
+              <input
+                type="text"
+                value={businessType}
+                onChange={(e) => updateFilter('businessType', e.target.value)}
+                placeholder="업종 키워드 (예: 카페, 음식점, 사무)"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-xs bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 mb-2"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: '권리금 없음', max: '0' },
+                  { label: '1천만원 이하', max: '1000' },
+                  { label: '3천만원 이하', max: '3000' },
+                  { label: '5천만원 이하', max: '5000' },
+                  { label: '전체', max: '' },
+                ].map((p) => {
+                  const active = maxRightsFee === p.max;
+                  return (
+                    <button
+                      key={p.label}
+                      onClick={() => updateFilter('maxRightsFee', p.max)}
+                      className={
+                        'px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ' +
+                        (active
+                          ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40 hover:text-wishes-primary')
+                      }
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ━━━ T2-4: 컨디션 아이콘 필터 ━━━ */}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-600 mb-2">컨디션</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { key: 'fullOption', icon: '🛋️', label: '풀옵션' },
+                { key: 'pet', icon: '🐾', label: '반려동물' },
+                { key: 'parking', icon: '🅿️', label: '주차 가능' },
+                { key: 'elevator', icon: '🛗', label: '엘리베이터' },
+                { key: 'balcony', icon: '🌿', label: '발코니' },
+              ].map((c) => {
+                const active = condSet.has(c.key);
+                return (
+                  <button
+                    key={c.key}
+                    onClick={() => {
+                      const next = new Set(condSet);
+                      if (active) next.delete(c.key); else next.add(c.key);
+                      updateFilter('cond', Array.from(next).join(','));
+                    }}
+                    className={
+                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium border transition-all ' +
+                      (active
+                        ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40 hover:text-wishes-primary')
+                    }
+                  >
+                    <span className="text-sm leading-none">{c.icon}</span>
+                    <span>{c.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>}
 
         </div>{/* /필터 콘텐츠 래퍼 */}
@@ -556,7 +665,17 @@ export default function ListingsClient({
             {activeChips.map((chip) => (
               <button
                 key={chip.key}
-                onClick={() => updateFilter(chip.key, '')}
+                onClick={() => {
+                  // cond:* chips → remove individual key from cond set
+                  if (chip.key.startsWith('cond:')) {
+                    const target = chip.key.slice(5);
+                    const next = new Set(condSet);
+                    next.delete(target);
+                    updateFilter('cond', Array.from(next).join(','));
+                  } else {
+                    updateFilter(chip.key, '');
+                  }
+                }}
                 className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-wishes-primary/10 text-wishes-primary border border-wishes-primary/20 rounded-full hover:bg-wishes-primary hover:text-white transition-all"
                 title={`${chip.label} 필터 해제`}
               >
