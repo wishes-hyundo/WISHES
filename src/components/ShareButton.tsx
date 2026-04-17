@@ -1,5 +1,12 @@
 'use client';
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ShareButton (T5-3) — 매물 상세 공유 버튼
+//   - 모바일: navigator.share (네이티브 시트 → 문자/메일/기타 앱으로 바로 공유)
+//   - 데스크톱/미지원: 메뉴 (링크 복사 · SMS · 이메일)
+//   - OG 이미지는 /api/og/listing/[id] 에서 자동 생성되어 공유 카드로 노출
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 import { useState } from 'react';
 import { Share2, Link2, MessageCircle, Mail, Check, X } from 'lucide-react';
 
@@ -31,17 +38,28 @@ export default function ShareButton({ url, title, description }: ShareButtonProp
   };
 
   const copyLink = async () => {
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-      setShowMenu(false);
-    }, 2000);
-  };
-
-  const shareKakao = () => {
-    window.open(`https://story.kakao.com/share?url=${encodeURIComponent(url)}`, '_blank');
-    setShowMenu(false);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      setTimeout(() => {
+        setCopied(false);
+        setShowMenu(false);
+      }, 2000);
+    } catch (e) {
+      console.error('링크 복사 실패', e);
+      window.prompt('링크를 복사하세요', url);
+    }
   };
 
   const shareSMS = () => {
@@ -58,55 +76,53 @@ export default function ShareButton({ url, title, description }: ShareButtonProp
   };
 
   return (
-    <div className="relative">
+    <div className="relative no-print">
       <button
         onClick={handleShare}
-        className="flex items-center justify-center gap-2 w-full bg-gray-100 text-gray-700 py-3 rounded-xl font-bold mt-3 hover:bg-gray-200 transition-colors"
+        aria-label="매물 상세 페이지 공유"
+        className="flex items-center justify-center gap-2 w-full bg-white border border-wishes-primary/30 text-wishes-primary py-2.5 rounded-xl font-semibold text-sm hover:bg-wishes-primary/5 transition-colors"
       >
-        <Share2 className="w-5 h-5" />
-        공유
+        <Share2 className="w-4 h-4" />
+        매물 공유하기
       </button>
 
       {showMenu && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-          <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 animate-in fade-in slide-in-from-bottom-2">
+          <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-bold text-gray-700">공유 방법 선택</span>
-              <button onClick={() => setShowMenu(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setShowMenu(false)} className="text-gray-400 hover:text-gray-600" aria-label="닫기">
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2">
               <button
                 onClick={copyLink}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium text-gray-700 border border-gray-100"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-wishes-primary/5 transition-colors text-sm font-medium text-gray-700 border border-gray-100"
               >
-                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Link2 className="w-4 h-4 text-blue-500" />}
-                {copied ? '복사 완료!' : '링크 복사'}
-              </button>
-              <button
-                onClick={shareKakao}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-yellow-50 transition-colors text-sm font-medium text-gray-700 border border-gray-100"
-              >
-                <span className="w-4 h-4 bg-yellow-400 rounded text-[10px] font-bold flex items-center justify-center text-yellow-900">K</span>
-                카카오톡
+                {copied ? <Check className="w-4 h-4 text-green-500" /> : <Link2 className="w-4 h-4 text-wishes-primary" />}
+                {copied ? '링크 복사 완료!' : '링크 복사'}
               </button>
               <button
                 onClick={shareSMS}
                 className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-green-50 transition-colors text-sm font-medium text-gray-700 border border-gray-100"
               >
                 <MessageCircle className="w-4 h-4 text-green-500" />
-                문자 전송
+                문자 전송 (SMS)
               </button>
               <button
                 onClick={shareEmail}
-                className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-purple-50 transition-colors text-sm font-medium text-gray-700 border border-gray-100"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-blue-50 transition-colors text-sm font-medium text-gray-700 border border-gray-100"
               >
-                <Mail className="w-4 h-4 text-purple-500" />
-                이메일
+                <Mail className="w-4 h-4 text-blue-500" />
+                이메일로 보내기
               </button>
             </div>
+            <p className="mt-3 text-[11px] text-gray-400 leading-relaxed">
+              복사된 링크를 메신저/메일로 직접 붙여넣어 고객님께 전달하세요.<br />
+              링크에는 WISHES 매물 카드 썸네일이 자동으로 표시됩니다.
+            </p>
           </div>
         </>
       )}

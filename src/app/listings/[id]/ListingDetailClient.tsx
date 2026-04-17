@@ -16,6 +16,8 @@ import SmartRecommendations from '@/components/SmartRecommendations';
 // T2-5: VR 투어 뷰어 (vr_url 존재 시 이미지 갤러리 아래에 노출)
 import VRTour from '@/components/VRTour';
 import ListingEnglishSummary from '@/components/ListingEnglishSummary';
+// T5-3: 매물 공유 버튼 (navigator.share + 링크복사 + SMS/이메일)
+import ListingActions from '@/components/ListingActions';
 
 declare global {
   interface Window {
@@ -835,6 +837,16 @@ export default function ListingDetailClient({ id }: Props) {
                 <Printer className="w-4 h-4" />
                 브리핑 자료 인쇄 / PDF 저장
               </button>
+
+              {/* T5-3: 매물 공유 (링크 + OG 썸네일 자동 생성) */}
+              <div className="mt-2">
+                <ListingActions
+                  listingId={String(listing.id)}
+                  shareUrl={`https://wishes.co.kr/listings/${listing.id}`}
+                  shareTitle={`${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim() + ' | WISHES'}
+                  shareDescription={listing.title || `${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim()}
+                />
+              </div>
 
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
                 <p className="flex items-center gap-1">

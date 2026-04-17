@@ -45,6 +45,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const title = listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
     const description = listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
 
+    // 동적 OG 이미지 — 자체 렌더 카드 (외부 사진 미사용 → 크롤링 매물도 안전)
+    const ogImageUrl = 'https://wishes.co.kr/api/og/listing/' + id;
+
     return {
       title: title + ' | WISHES',
       description,
@@ -55,11 +58,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         url: 'https://wishes.co.kr/listings/' + id,
         siteName: 'WISHES',
         type: 'article',
+        images: [
+          {
+            url: ogImageUrl,
+            width: 1200,
+            height: 630,
+            alt: title,
+          },
+        ],
       },
       twitter: {
-        card: 'summary',
+        card: 'summary_large_image',
         title: title + ' | WISHES',
         description,
+        images: [ogImageUrl],
       },
       alternates: {
         canonical: 'https://wishes.co.kr/listings/' + id,
