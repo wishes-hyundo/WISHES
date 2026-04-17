@@ -202,6 +202,76 @@ function createDongClusterContent(dongName: string, count: number): HTMLElement 
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 마커 hover 미리보기 카드 (Level 1-4에서 마커 위에 표시)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function createHoverPreviewContent(listing: Listing): HTMLElement {
+  const priceText = listing.deal === '매매'
+    ? formatPrice(listing.price || 0)
+    : listing.deal === '월세'
+    ? `${formatPrice(listing.deposit)}/${listing.monthly}만`
+    : formatPrice(listing.deposit);
+
+  const colorMap: Record<string, string> = {
+    '전세': '#3B82F6', '월세': '#F97316', '매매': '#22C55E',
+  };
+  const dealColor = colorMap[listing.deal] || '#3B82F6';
+  const area = listing.area_m2 ? `${listing.area_m2}㎡` : '';
+  const titleText = (listing.title || listing.dong || '매물')
+    .toString().slice(0, 28);
+
+  const card = document.createElement('div');
+  card.style.cssText = `
+    background: #fff; border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 12px; padding: 10px 12px; min-width: 180px; max-width: 220px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    transform: translate(-50%, calc(-100% - 48px));
+    font-family: 'GmarketSans', sans-serif; pointer-events: none;
+  `;
+
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;';
+  const badge = document.createElement('span');
+  badge.style.cssText = `
+    background:${dealColor};color:#fff;font-size:9.5px;font-weight:700;
+    padding:2px 6px;border-radius:6px;letter-spacing:0.02em;
+  `;
+  badge.textContent = listing.deal;
+  const price = document.createElement('span');
+  price.style.cssText = 'font-size:13px;font-weight:800;color:#111;white-space:nowrap;';
+  price.textContent = priceText;
+  header.appendChild(badge);
+  header.appendChild(price);
+  card.appendChild(header);
+
+  const title = document.createElement('div');
+  title.style.cssText = 'font-size:11.5px;color:#374151;line-height:1.35;margin-bottom:2px;';
+  title.textContent = titleText;
+  card.appendChild(title);
+
+  if (area) {
+    const meta = document.createElement('div');
+    meta.style.cssText = 'font-size:10.5px;color:#9CA3AF;';
+    meta.textContent = `${area}${listing.dong ? ' · ' + listing.dong : ''}`;
+    card.appendChild(meta);
+  }
+
+  // 말풍선 꼬리
+  const tail = document.createElement('div');
+  tail.style.cssText = `
+    position:absolute; left:50%; bottom:-6px;
+    transform:translateX(-50%);
+    width:0;height:0;
+    border-left:6px solid transparent;border-right:6px solid transparent;
+    border-top:6px solid #fff;
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,0.08));
+  `;
+  card.style.position = 'relative';
+  card.appendChild(tail);
+
+  return card;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 개별 매물 마커 (Level 1-4)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function createPriceMarkerContent(listing: Listing): HTMLElement {
@@ -509,6 +579,27 @@ export default function MapSearchPage() {
           setSelectedId(listing.id);
           map.panTo(position);
         });
+
+        // ━━━ Hover 미리보기 카드 (T1-5) ━━━
+        let hoverOverlay: any = null;
+        let hoverTimer: any = null;
+        const showHover = () => {
+          if (hoverOverlay) return;
+          const hoverContent = createHoverPreviewContent(listing);
+          hoverOverlay = new window.kakao.maps.CustomOverlay({
+            position, content: hoverContent, yAnchor: 1, xAnchor: 0.5, zIndex: 200,
+          });
+          hoverOverlay.setMap(map);
+        };
+        const hideHover = () => {
+          if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+          if (hoverOverlay) { hoverOverlay.setMap(null); hoverOverlay = null; }
+        };
+        content.addEventListener('mouseenter', () => {
+          if (hoverTimer) clearTimeout(hoverTimer);
+          hoverTimer = setTimeout(showHover, 180);
+        });
+        content.addEventListener('mouseleave', hideHover);
 
         const overlay = new window.kakao.maps.CustomOverlay({
           position, content, yAnchor: 1.5, xAnchor: 0.5,

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { Breadcrumb } from '@/components/Breadcrumb';
-import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search, X as XIcon, Clock, Coins, Maximize2, Bookmark, BookmarkCheck } from 'lucide-react';
+import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search, X as XIcon, Clock, Coins, Maximize2, Bookmark, BookmarkCheck, Filter, ChevronDown } from 'lucide-react';
 import { useSavedSearch } from '@/contexts/SavedSearchContext';
 
 const dealTypes = ['전세', '월세', '매매'];
@@ -39,6 +39,8 @@ export default function ListingsClient({
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  // 모바일 전용 필터 접힘 상태 (데스크탑에서는 항상 열림)
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const hasInitialData = useRef(initialListings.length > 0 || totalCount > 0);
 
   const deal = searchParams.get('deal') || '';
@@ -384,9 +386,26 @@ export default function ListingsClient({
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 py-6 lg:grid lg:grid-cols-[300px_1fr] lg:gap-6">
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━
+            좌측 사이드 필터 (데스크탑) / 상단 드로어 (모바일)
+           ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <aside className="lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-100px)] lg:overflow-y-auto lg:pr-1 space-y-4 lg:space-y-4 mb-4 lg:mb-0">
+
+        {/* 모바일 필터 토글 (lg 미만 전용) */}
+        <button
+          type="button"
+          onClick={() => setMobileFiltersOpen((v) => !v)}
+          className="lg:hidden w-full flex items-center justify-between px-4 py-3 bg-white rounded-xl border border-gray-200 text-sm font-semibold text-wishes-primary"
+        >
+          <span className="inline-flex items-center gap-2"><Filter className="w-4 h-4" /> 검색 · 필터</span>
+          <ChevronDown className={`w-4 h-4 transition-transform ${mobileFiltersOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* 필터 콘텐츠 래퍼 — 모바일 접힘 제어 */}
+        <div className={`${mobileFiltersOpen ? 'block' : 'hidden'} lg:block space-y-4`}>
         {/* 매물번호 검색 */}
-        <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
+        <form onSubmit={handleSearch} className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Search className="w-4 h-4 text-gray-500" />
             <span className="text-sm font-medium text-gray-700">매물번호 / 키워드 검색</span>
@@ -522,7 +541,11 @@ export default function ListingsClient({
           </div>
         </div>}
 
+        </div>{/* /필터 콘텐츠 래퍼 */}
+        </aside>
 
+        {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━ 우측 결과 영역 ━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+        <div className="min-w-0">
 
         {/* ━━━ 활성 필터 칩 (선택된 필터 한눈에 + 개별 제거) ━━━ */}
         {!search && activeChips.length > 0 && (
@@ -671,6 +694,7 @@ export default function ListingsClient({
             </div>
           </div>
         )}
+        </div>{/* /우측 결과 영역 */}
       </div>
     </div>
   );
