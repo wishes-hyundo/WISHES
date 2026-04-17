@@ -363,6 +363,9 @@ export default function MapSearchPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
+  // T3-2: 좌측 리스트 무한스크롤 — 초기 20건, 스크롤 시 20건씩 추가
+  const [visibleCount, setVisibleCount] = useState(20);
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
 
   // 검색 필터링된 리스트
   const filteredListings = useMemo(() => {
@@ -377,6 +380,28 @@ export default function MapSearchPage() {
       String(l.id).includes(q)
     );
   }, [listings, searchQuery]);
+
+  // T3-2: filteredListings 바뀌면 가시 범위 초기화 (bbox 이동·검색어 변경 시 맨 위부터)
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [filteredListings]);
+
+  // T3-2: 센티넬 가시화 시 20건씩 추가 로드 (IntersectionObserver)
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel) return;
+    if (visibleCount >= filteredListings.length) return; // 전부 노출됨
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibleCount((prev) => Math.min(prev + 20, filteredListings.length));
+        }
+      },
+      { rootMargin: '120px 0px' } // 조금 미리 로드
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [visibleCount, filteredListings.length]);
 
   // 줌 레벨 텍스트
   const zoomLevelLabel = useMemo(() => {
@@ -1033,25 +1058,47 @@ export default function MapSearchPage() {
                   </span>
                 )}
               </div>
+              {filteredListings.length > 20 && (
+                <div className="text-[11px] text-wishes-muted">
+                  {Math.min(visibleCount, filteredListings.length)} / {filteredListings.length} 표시
+                </div>
+              )}
             </div>
 
-            {/* 매물 카드 리스트 */}
+            {/* 매물 카드 리스트 — T3-2: visibleCount 기준 가시 렌더 */}
             {filteredListings.length > 0 ? (
-              filteredListings.map((listing) => (
-                <div
-                  key={listing.id}
-                  data-listing-id={listing.id}
-                  onClick={() => handleListingClick(listing.id)}
-                  className={`cursor-pointer rounded-lg transition-all ${detailId === listing.id ? 'ring-2 ring-wishes-primary bg-wishes-primary/5' : selectedId === listing.id ? 'ring-2 ring-wishes-secondary/70 bg-wishes-secondary/5' : ''}`}
-                >
-                  <ListingCard
-                    listing={listing}
-                    compact
-                    noLink
-                    onHover={handleCardHover}
-                  />
-                </div>
-              ))
+              <>
+                {filteredListings.slice(0, visibleCount).map((listing) => (
+                  <div
+                    key={listing.id}
+                    data-listing-id={listing.id}
+                    onClick={() => handleListingClick(listing.id)}
+                    className={`cursor-pointer rounded-lg transition-all ${detailId === listing.id ? 'ring-2 ring-wishes-primary bg-wishes-primary/5' : selectedId === listing.id ? 'ring-2 ring-wishes-secondary/70 bg-wishes-secondary/5' : ''}`}
+                  >
+                    <ListingCard
+                      listing={listing}
+                      compact
+                      noLink
+                      onHover={handleCardHover}
+                    />
+                  </div>
+                ))}
+                {/* T3-2: 무한스크롤 센티넬 — 화면에 들어오면 +20건 */}
+                {visibleCount < filteredListings.length && (
+                  <div
+                    ref={loadMoreSentinelRef}
+                    className="flex items-center justify-center py-4 text-xs text-wishes-muted"
+                  >
+                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                    다음 {Math.min(20, filteredListings.length - visibleCount)}건 불러오는 중…
+                  </div>
+                )}
+                {visibleCount >= filteredListings.length && filteredListings.length > 20 && (
+                  <div className="flex items-center justify-center py-4 text-[11px] text-wishes-muted">
+                    이 영역의 모든 매물을 불러왔습니다
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-16 text-gray-400">
                 <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
