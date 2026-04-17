@@ -88,6 +88,18 @@ export default function SearchPortalPage() {
     script.src = '/search/content.js';
     script.async = false;
     document.body.appendChild(script);
+
+    // v2.3.0 UI/UX 개선 패치 로드 (content.js 뒤에 순차 실행)
+    // 기존 content.js 는 수정하지 않고, window.WS 가 준비된 뒤 래핑/덮어쓰는 안전 패턴
+    const existingPatch = document.getElementById('ws-ext-patch');
+    if (!existingPatch) {
+      const patchScript = document.createElement('script');
+      patchScript.id = 'ws-ext-patch';
+      patchScript.src = '/search/content-v230-patch.js?v=20260417';
+      patchScript.async = false;
+      patchScript.defer = false;
+      document.body.appendChild(patchScript);
+    }
   }, [state]);
 
   // ========== UI ==========
