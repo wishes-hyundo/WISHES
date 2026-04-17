@@ -22,21 +22,22 @@ export default async function HomePage() {
         new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
       ]);
 
-    // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 "사진만" 차단, 정보는 광고 노출
-    //   최신매물 & 추천은 사진이 있는 자체 매물만 우선 노출 (사진 없는 카드 방지)
+    // ※ 저작권 보호 정책: 크롤링 매물(source_site NOT NULL)도 정보는 광고 노출
+    //   HomeListingCard가 isAd 감지 시 사진을 WISHES 브랜드 플레이스홀더로 치환 → 저작권 차단
+    //   자체 매물(source_site IS NULL) 우선 정렬, 그 다음 최신순
     const [listingsRes, allListingsRes] = await Promise.allSettled([
       withTimeout(supabase
         .from('listings')
         .select('*, listing_images(url, alt, sort_order)')
         .eq('status', '공개')
-        .is('source_site', null)
+        .order('source_site', { ascending: true, nullsFirst: true })
         .order('created_at', { ascending: false })
         .limit(6)),
       withTimeout(supabase
         .from('listings')
         .select('*, listing_images(url, alt, sort_order)')
         .eq('status', '공개')
-        .is('source_site', null)
+        .order('source_site', { ascending: true, nullsFirst: true })
         .order('created_at', { ascending: false })
         .limit(50)),
     ]);
