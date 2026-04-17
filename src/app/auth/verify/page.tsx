@@ -1,88 +1,20 @@
-'use client';
+/**
+ * /auth/verify — 서버 컴포넌트 래퍼
+ *
+ * Next.js 15 의 정적 prerender 가 `useSearchParams()` 를 쓰는 클라이언트 컴포넌트를
+ * 빌드 시점에 export 하려다 실패(`prerender-error`)하던 문제를 해결하기 위해
+ * 이 경로 전체를 동적 렌더링으로 강제한다.
+ *
+ *  - `export const dynamic = 'force-dynamic'` 는 서버 컴포넌트에서만 유효하므로
+ *    실제 UI 로직(`useSearchParams`, `verifyOtp` 등)은 ./client.tsx 로 분리했다.
+ *  - 서버 래퍼는 최소한의 역할(설정 + 클라이언트 컴포넌트 마운트)만 한다.
+ */
 
-import { Suspense, useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { createAuthClient } from '@/lib/supabase';
-import { Loader2 } from 'lucide-react';
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
-function VerifyContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const handleVerify = async () => {
-      const tokenHash = searchParams.get('token_hash');
-      const type = searchParams.get('type');
-
-      if (!tokenHash || !type) {
-        setError('잘못된 인증 링크입니다.');
-        setTimeout(() => router.replace('/'), 2000);
-        return;
-      }
-
-      const supabase = createAuthClient();
-
-      try {
-        const { error: verifyError } = await supabase.auth.verifyOtp({
-          token_hash: tokenHash,
-          type: type as 'magiclink' | 'email',
-        });
-
-        if (verifyError) {
-          console.error('Verify error:', verifyError);
-          setError('인증 처리 중 오류가 발생했습니다.');
-          setTimeout(() => router.replace('/'), 2000);
-          return;
-        }
-
-        // 인증 성공 - 홈으로 이동
-        router.replace('/');
-      } catch (e) {
-        console.error('Verify error:', e);
-        setError('인증 처리 중 오류가 발생했습니다.');
-        setTimeout(() => router.replace('/'), 2000);
-      }
-    };
-
-    handleVerify();
-  }, [router, searchParams]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        {error ? (
-          <div className="space-y-3">
-            <div className="w-12 h-12 mx-auto rounded-full bg-red-100 flex items-center justify-center">
-              <span className="text-red-500 text-xl">!</span>
-            </div>
-            <p className="text-sm text-gray-600">{error}</p>
-            <p className="text-xs text-gray-400">잠시 후 홈으로 이동합니다...</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <Loader2 className="w-8 h-8 animate-spin text-wishes-secondary mx-auto" />
-            <p className="text-sm text-gray-600">네이버 로그인 처리 중...</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+import VerifyClient from './client';
 
 export default function VerifyPage() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
-          <div className="text-center space-y-3">
-            <Loader2 className="w-8 h-8 animate-spin text-wishes-secondary mx-auto" />
-            <p className="text-sm text-gray-600">인증 처리 중...</p>
-          </div>
-        </div>
-      }
-    >
-      <VerifyContent />
-    </Suspense>
-  );
+  return <VerifyClient />;
 }
