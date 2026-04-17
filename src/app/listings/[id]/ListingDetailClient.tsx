@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle, MessageCircleMore } from 'lucide-react';
+import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle, MessageCircleMore, ShieldCheck, Clock3, BadgeCheck, Info } from 'lucide-react';
 import CompassDirection from '@/components/CompassDirection';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
@@ -71,6 +71,24 @@ export default function ListingDetailClient({ id }: Props) {
   // 위치 지도 ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
+
+  // ━━ Quick Nav (섹션 앵커 탭) ━━
+  // IntersectionObserver 로 현재 보이는 섹션을 하이라이트
+  const [activeSection, setActiveSection] = useState<string>('basic');
+  const sectionsRef = useRef<Record<string, HTMLElement | null>>({
+    basic: null,
+    options: null,
+    transit: null,
+    price: null,
+    description: null,
+  });
+  const scrollToSection = useCallback((id: string) => {
+    const el = sectionsRef.current[id];
+    if (!el) return;
+    // 헤더(64px) + 퀵네비(48px) 높이 보정
+    const y = el.getBoundingClientRect().top + window.pageYOffset - 120;
+    window.scrollTo({ top: y, behavior: 'smooth' });
+  }, []);
 
   // 주소 마스킹: 비로그인 시 동까지만 표시
   const getMaskedAddress = (address: string) => {
@@ -226,6 +244,26 @@ export default function ListingDetailClient({ id }: Props) {
     }
   }, [listing?.lat, listing?.lng, listing?.title, listing?.address, isLoggedIn, listing?.dong]);
 
+  // ━━ 섹션 감지 (스크롤 위치 → 퀵 네비 활성 탭 싱크) ━━
+  useEffect(() => {
+    if (loading || notFound) return;
+    const ids = ['basic', 'options', 'transit', 'price', 'description'];
+    const observers: IntersectionObserver[] = [];
+    ids.forEach((id) => {
+      const el = sectionsRef.current[id];
+      if (!el) return;
+      const io = new IntersectionObserver(
+        ([entry]) => {
+          if (entry.isIntersecting) setActiveSection(id);
+        },
+        { rootMargin: '-140px 0px -60% 0px', threshold: 0 }
+      );
+      io.observe(el);
+      observers.push(io);
+    });
+    return () => observers.forEach((o) => o.disconnect());
+  }, [loading, notFound, listing?.id]);
+
   if (loading) {
     return (
       <div className="pt-16 min-h-screen bg-wishes-bg">
@@ -350,6 +388,34 @@ export default function ListingDetailClient({ id }: Props) {
         </div>
       </div>
 
+      {/* ━━ 퀵 네비게이션 (스티키 탭) ━━ */}
+      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+        <div className="max-w-5xl mx-auto px-4">
+          <nav className="flex items-center gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1 py-2">
+            {[
+              { id: 'basic', label: '기본정보' },
+              { id: 'options', label: '시설/옵션' },
+              { id: 'transit', label: '주변교통' },
+              { id: 'price', label: '시세' },
+              { id: 'description', label: '설명' },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => scrollToSection(tab.id)}
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                  activeSection === tab.id
+                    ? 'bg-wishes-primary text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </div>
+
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 좌측: 이미지 + 상세 */}
@@ -379,7 +445,11 @@ export default function ListingDetailClient({ id }: Props) {
 
 
               {/* 기본 정보 */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6">
+              <div
+                id="section-basic"
+                ref={(el) => { sectionsRef.current.basic = el; }}
+                className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-6 scroll-mt-32"
+              >
                 <InfoRow label="매물유형" value={listing.type} />
                 <InfoRow label="거래유형" value={listing.deal} />
                 <InfoRow label="전용면적" value={listing.area_m2 ? `${listing.area_m2}㎡ (${sqmToPyeong(listing.area_m2)}평)` : '정보 없음'} />
@@ -490,7 +560,11 @@ export default function ListingDetailClient({ id }: Props) {
               )}
 
               {/* 옵션 */}
-              <div className="mt-6 pt-6 border-t border-gray-100">
+              <div
+                id="section-options"
+                ref={(el) => { sectionsRef.current.options = el; }}
+                className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
+              >
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h3>
                 <div className="flex flex-wrap gap-2">
                   <OptionBadge label="주차" available={listing.parking ?? false} />
@@ -524,7 +598,11 @@ export default function ListingDetailClient({ id }: Props) {
 
               {/* 매물설명 (AI 생성 - 고객 노출용) */}
               {listing.ai_description && (
-                <div className="mt-6 pt-6 border-t border-gray-100">
+                <div
+                  id="section-description"
+                  ref={(el) => { sectionsRef.current.description = el; }}
+                  className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
+                >
                   <h3 className="text-sm font-semibold text-gray-700 mb-3">매물 설명</h3>
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
                     {listing.ai_description}
@@ -544,7 +622,11 @@ export default function ListingDetailClient({ id }: Props) {
 
               {/* 크롤링된 역 정보 (lat/lng 없을 때 대체) */}
               {listing.station_name && !listing.lat && (
-                <div className="mt-6 pt-6 border-t border-gray-100">
+                <div
+                  id="section-transit"
+                  ref={(el) => { sectionsRef.current.transit = el; }}
+                  className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
+                >
                   <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <Train className="w-4 h-4 text-blue-500/70" />
                     주변 교통
@@ -562,7 +644,11 @@ export default function ListingDetailClient({ id }: Props) {
 
               {/* M1: 주변 교통 정보 (실시간 카카오 API) */}
               {listing.lat && listing.lng && (
-                <div className="mt-6 pt-6 border-t border-gray-100">
+                <div
+                  id="section-transit"
+                  ref={(el) => { sectionsRef.current.transit = el; }}
+                  className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
+                >
                   <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <Train className="w-4 h-4 text-blue-500/70" />
                     주변 교통
@@ -636,19 +722,49 @@ export default function ListingDetailClient({ id }: Props) {
 
               {/* M3: 실거래가 동향 차트 */}
               {listing.dong && (
+                <div
+                  id="section-price"
+                  ref={(el) => { sectionsRef.current.price = el; }}
+                  className="scroll-mt-32"
+                >
                 <RealPriceChart
                   listingId={listing.id}
                   dong={listing.dong}
                   type={listing.type || '아파트'}
                   deal={listing.deal || '매매'}
                 />
+                </div>
               )}
             </div>
           </div>
 
           {/* 우측: 상담 CTA */}
           <div className="space-y-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-24">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 lg:sticky lg:top-32">
+              {/* ━━ WISHES 신뢰 배지 ━━ */}
+              {listing?.source_site ? (
+                <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200/70 flex items-start gap-2">
+                  <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="text-[11px] leading-relaxed text-amber-800">
+                    <p className="font-semibold">외부 광고 매물</p>
+                    <p className="mt-0.5 text-amber-700">WISHES 에서 직접 확인하여 안내드립니다. 정확한 조건·잔여 여부는 상담을 통해 확인하세요.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mb-4 p-3 rounded-xl bg-gradient-to-br from-wishes-primary/5 to-wishes-secondary/5 border border-wishes-primary/15">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <ShieldCheck className="w-4 h-4 text-wishes-primary" />
+                    <span className="text-[11px] font-bold text-wishes-primary">WISHES 전담 중개사</span>
+                    <BadgeCheck className="w-3.5 h-3.5 text-wishes-secondary" />
+                  </div>
+                  <div className="flex items-center gap-2.5 text-[10.5px] text-wishes-muted">
+                    <span className="inline-flex items-center gap-1"><Clock3 className="w-3 h-3" />평균 2시간 내 응답</span>
+                    <span className="text-gray-300">·</span>
+                    <span>직접 검증한 매물</span>
+                  </div>
+                </div>
+              )}
+
               <h3 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h3>
 
               {/* 가격 요약 (U2 가격 레이블) */}

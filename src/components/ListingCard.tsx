@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, Eye, Hash, Flame, Sparkles, Heart, Home, Camera, MessageCircleMore } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, Eye, Hash, Flame, Sparkles, Heart, Home, Camera, MessageCircleMore, BarChart3, Check as CheckIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFloor } from '@/lib/formatFloor';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -79,8 +79,15 @@ const getPriceLabel = (listing: Listing) => {
 };
 
 export function ListingCard({ listing, compact = false, onHover, noLink = false }: ListingCardProps) {
-  const { isFavorite, toggleFavorite } = useFavorites();
+  const { isFavorite, toggleFavorite, isInCompare, addToCompare, removeFromCompare } = useFavorites();
   const liked = isFavorite(listing.id);
+  const comparing = isInCompare(listing.id);
+  const handleCompareToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (comparing) removeFromCompare(listing.id);
+    else addToCompare(listing.id);
+  };
   // ※ 크롤링 매물(source_site 존재) — 저작권 보호로 사진은 문의 시 안내
   const isAd = !!(listing as any).source_site;
   // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
@@ -240,14 +247,31 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
           )}
         </div>
 
-        {/* 우측 상단 찜 버튼 (S3) */}
-        <button
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(listing.id); }}
-          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white transition-all z-10"
-          aria-label={liked ? '찜 해제' : '찜하기'}
-        >
-          <Heart className={cn('w-4.5 h-4.5 transition-colors', liked ? 'fill-red-500 text-red-500' : 'text-gray-400')} />
-        </button>
+        {/* 우측 상단 액션 그룹 (찜 + 비교) */}
+        <div className="absolute top-3 right-3 flex gap-1.5 z-10">
+          {/* 비교 추가/해제 */}
+          <button
+            onClick={handleCompareToggle}
+            className={cn(
+              'w-9 h-9 rounded-full backdrop-blur-sm flex items-center justify-center shadow-md transition-all',
+              comparing
+                ? 'bg-wishes-primary text-white'
+                : 'bg-white/80 hover:bg-white text-gray-500'
+            )}
+            aria-label={comparing ? '비교 해제' : '비교 추가'}
+            title={comparing ? '비교 해제' : '비교에 추가'}
+          >
+            {comparing ? <CheckIcon className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
+          </button>
+          {/* 찜 */}
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleFavorite(listing.id); }}
+            className="w-9 h-9 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white transition-all"
+            aria-label={liked ? '찜 해제' : '찜하기'}
+          >
+            <Heart className={cn('w-4.5 h-4.5 transition-colors', liked ? 'fill-red-500 text-red-500' : 'text-gray-400')} />
+          </button>
+        </div>
 
         {/* 우측 하단 타입 배지 */}
         <div className="absolute bottom-3 right-3">

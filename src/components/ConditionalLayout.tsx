@@ -11,6 +11,7 @@ import { ChatbotWidget } from '@/components/ChatbotWidget';
 import { LanguageProvider } from '@/components/LanguageToggle';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FavoritesProvider } from '@/contexts/FavoritesContext';
+import { SavedSearchProvider } from '@/contexts/SavedSearchContext';
 import AuthModal from '@/components/AuthModal';
 // ※ 복원(2026-04-17): 이전 배포에서 누락됐던 핵심 기능 2종
 //   - AIChatBot: Claude API 기반 부동산 상담 챗봇
@@ -39,6 +40,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
     <LanguageProvider>
       <AuthProvider>
         <FavoritesProvider>
+          <SavedSearchProvider>
           <ToastProvider>
             <Header />
             <main className={isMapPage ? 'flex-1 overflow-hidden' : 'flex-1'}>{children}</main>
@@ -53,6 +55,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
             {!isMapPage && <BottomCTA />}
             {!isMapPage && <CookieConsent />}
           </ToastProvider>
+          </SavedSearchProvider>
         </FavoritesProvider>
       </AuthProvider>
     </LanguageProvider>

@@ -6,7 +6,8 @@ import { createClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { Breadcrumb } from '@/components/Breadcrumb';
-import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search, X as XIcon, Clock, Coins, Maximize2 } from 'lucide-react';
+import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search, X as XIcon, Clock, Coins, Maximize2, Bookmark, BookmarkCheck } from 'lucide-react';
+import { useSavedSearch } from '@/contexts/SavedSearchContext';
 
 const dealTypes = ['전세', '월세', '매매'];
 const listingTypes = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
@@ -29,6 +30,7 @@ export default function ListingsClient({
 }: ListingsClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { addSearch, removeSearch, searches, isSaved } = useSavedSearch();
 
   const [listings, setListings] = useState<any[]>(initialListings);
   const [dongs, setDongs] = useState<string[]>(initialDongs);
@@ -324,6 +326,37 @@ export default function ListingsClient({
   if (maxDeposit && priceChipLabel) activeChips.push({ key: 'maxDeposit', label: priceChipLabel, icon: <Coins className="w-3 h-3" /> });
   if (minArea) activeChips.push({ key: 'minArea', label: `${minArea}㎡↑`, icon: <Maximize2 className="w-3 h-3" /> });
 
+  // ━━━ 저장 검색 처리 ━━━
+  // 현재 URL 쿼리에서 조건 필터만 추출 (페이지/정렬은 제외해서 조건 자체가 "의미 같은" 저장인지 비교)
+  const currentQueryForSave: Record<string, string> = {};
+  if (deal) currentQueryForSave.deal = deal;
+  if (type) currentQueryForSave.type = type;
+  if (dong) currentQueryForSave.dong = dong;
+  if (maxDeposit) currentQueryForSave.maxDeposit = maxDeposit;
+  if (minArea) currentQueryForSave.minArea = minArea;
+  if (search) currentQueryForSave.search = search;
+  const hasAnyFilter = Object.keys(currentQueryForSave).length > 0;
+  const currentlySaved = hasAnyFilter && isSaved(currentQueryForSave);
+  const saveLabel = (() => {
+    const parts: string[] = [];
+    if (dong) parts.push(dong);
+    if (deal) parts.push(deal);
+    if (type) parts.push(type);
+    if (priceChipLabel) parts.push(priceChipLabel);
+    if (minArea) parts.push(`${minArea}㎡↑`);
+    if (search) parts.push(`"${search}"`);
+    return parts.length > 0 ? parts.join(' · ') : '조건 없음';
+  })();
+  const handleSaveSearch = () => {
+    if (!hasAnyFilter) return;
+    if (currentlySaved) {
+      const target = searches.find((s) => JSON.stringify(s.query) === JSON.stringify(Object.fromEntries(Object.entries(currentQueryForSave).sort())));
+      if (target) removeSearch(target.id);
+    } else {
+      addSearch(saveLabel, currentQueryForSave);
+    }
+  };
+
   // 페이지 번호 범위 계산
   const getPageNumbers = () => {
     const maxVisible = 5;
@@ -372,14 +405,30 @@ export default function ListingsClient({
               <SlidersHorizontal className="w-4 h-4 text-gray-500" />
               <span className="text-sm font-medium text-gray-700">필터</span>
             </div>
-            {(deal || type || dong || maxDeposit || minArea) && (
-              <button
-                onClick={() => router.push('/listings')}
-                className="text-xs text-gray-500 hover:text-wishes-primary underline-offset-2 hover:underline"
-              >
-                필터 초기화
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {hasAnyFilter && (
+                <button
+                  onClick={handleSaveSearch}
+                  className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                    currentlySaved
+                      ? 'bg-wishes-primary text-white border-wishes-primary'
+                      : 'bg-white text-wishes-primary border-wishes-primary/30 hover:bg-wishes-primary/5'
+                  }`}
+                  title={currentlySaved ? '저장됨 — 클릭하여 해제' : '이 조건을 내 검색에 저장'}
+                >
+                  {currentlySaved ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+                  {currentlySaved ? '저장됨' : '이 조건 저장'}
+                </button>
+              )}
+              {(deal || type || dong || maxDeposit || minArea) && (
+                <button
+                  onClick={() => router.push('/listings')}
+                  className="text-xs text-gray-500 hover:text-wishes-primary underline-offset-2 hover:underline"
+                >
+                  필터 초기화
+                </button>
+              )}
+            </div>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <select value={deal} onChange={(e) => updateFilter('deal', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
