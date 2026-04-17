@@ -6,6 +6,7 @@ import HeroBackground from '@/components/HeroBackground';
 import RecommendedListings from '@/components/RecommendedListings';
 import HeroSearchBar from '@/components/HeroSearchBar';
 import PersonalizedHome from '@/components/PersonalizedHome';
+import AIMatchFinder from '@/components/AIMatchFinder';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,6 +163,13 @@ export default async function HomePage() {
           May your wishes be the seeds that bloom into beautiful realities.
         </p>
       </div>
+
+      {/* ━━━ T5-1: AI 매물 매칭 (자연어 → 필터) ━━━ */}
+      <section className="py-10 bg-white">
+        <div className="max-w-5xl mx-auto px-4">
+          <AIMatchFinder />
+        </div>
+      </section>
 
       {/* ━━━ T3-1: 개인화 홈 (최근 본 + 저장 검색 기반) ━━━ */}
       <PersonalizedHome />
