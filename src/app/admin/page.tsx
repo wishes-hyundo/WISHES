@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AdminDashboardCharts } from '@/components/AdminDashboardCharts';
 import { ExcelUpload } from '@/components/ExcelUpload';
 import { ContractRenewalAlert } from '@/components/ContractRenewalAlert';
+// T5-5: 중개사 일일 브리핑 패널 (조회수 TOP / 최근 등록 / 미처리 상담 / 거래유형 분포)
+import AdminBriefingPanel from '@/components/AdminBriefingPanel';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 
 interface Stats {
@@ -439,6 +441,11 @@ export default function AdminPage() {
     return (
       <div>
         <h2 className="text-3xl font-bold text-wishes-primary mb-8">대시보드</h2>
+
+        {/* T5-5: 중개사 일일 브리핑 패널 */}
+        <div className="mb-8">
+          <AdminBriefingPanel authHeader={getAuthHeader()} />
+        </div>
 
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
