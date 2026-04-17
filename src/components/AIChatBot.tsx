@@ -11,23 +11,65 @@ function formatMessage(text: string): string {
 
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, Bot, User, Minimize2 } from 'lucide-react';
+import Link from 'next/link';
+import { MessageCircle, X, Send, Bot, User, Minimize2, ArrowRight, Sparkles, MapPin } from 'lucide-react';
+// T5-4: 챗봇에서도 매물 매칭 사용 (T5-1 파서 재사용)
+import { parseMatchQuery, type ParsedMatchFilter } from '@/lib/ai-match-parser';
+
+// 챗봇에서 사용하는 가벼운 매물 카드 형식
+type ChatListing = {
+  id: number | string;
+  title?: string;
+  type?: string;
+  deal?: string;
+  dong?: string;
+  gu?: string;
+  deposit?: number;
+  monthly?: number;
+  price?: number;
+  area_m2?: number;
+  rooms?: number;
+  source_site?: string | null;
+  listing_images?: Array<{ url: string; sort_order?: number }>;
+};
 
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  /** T5-4: 매물 매칭 결과를 chat 말풍선 아래에 inline 렌더 */
+  listings?: ChatListing[];
+  filters?: ParsedMatchFilter;
+  goToListings?: string;
 }
 
 const WELCOME_MESSAGE: Message = {
   role: 'assistant',
-  content: '안녕하세요! 😊 위시스부동산 AI 상담사입니다.\n\n서울·경기 지역 부동산에 대해 궁금한 점을 편하게 물어봐주세요!\n\n💬 이런 질문이 가능합니다:\n• 매물 검색 및 추천\n• 전세/월세/매매 시세\n• 대출 및 세금 안내\n• 계약 절차 안내\n• 전세사기 예방법',
+  content: '안녕하세요! 😊 위시스부동산 AI 상담사입니다.\n\n서울·경기 지역 부동산에 대해 궁금한 점을 편하게 물어봐주세요!\n\n💬 이런 질문이 가능합니다:\n• **매물 찾기** — "강남구 원룸 월세 50만원 이하" 처럼 편하게 말씀해주세요\n• 전세/월세/매매 시세\n• 대출 및 세금 안내\n• 계약 절차 안내\n• 전세사기 예방법',
 };
 
+// ── 가격 포맷 (챗 인라인 카드용) ──
+function formatMan(man?: number | null): string {
+  if (!man) return '—';
+  if (man >= 10000) {
+    const uk = Math.floor(man / 10000);
+    const rest = man % 10000;
+    return rest > 0 ? `${uk}억 ${rest.toLocaleString()}` : `${uk}억`;
+  }
+  return `${man.toLocaleString()}만원`;
+}
+
+function buildChatPrice(l: ChatListing): string {
+  if (l.deal === '월세') return `보증금 ${formatMan(l.deposit)} / 월 ${l.monthly ? l.monthly.toLocaleString() : '—'}`;
+  if (l.deal === '전세') return `전세 ${formatMan(l.deposit)}`;
+  if (l.deal === '매매') return `매매 ${formatMan(l.price || l.deposit)}`;
+  return formatMan(l.price || l.deposit);
+}
+
 const QUICK_QUESTIONS = [
-  '매물 검색은 어떻게 하나요?',
+  '강남구 원룸 월세 50만원 이하',
+  '분당 아파트 전세 5억 이하',
   '전세사기 예방법 알려주세요',
   '부동산 거래 절차가 궁금해요',
-  '대출 상담이 필요합니다',
 ];
 
 export default function AIChatBot() {
@@ -53,6 +95,22 @@ export default function AIChatBot() {
     }
   }, [isOpen, isMinimized]);
 
+  // ── T5-4: 매물 매칭 의도 감지 ──
+  // 구/동/룸/보증금/월세/평/m² 등 필터 필드가 2개 이상 인식되면 매칭 API 호출
+  const detectMatchIntent = useCallback((text: string): ParsedMatchFilter | null => {
+    const filters = parseMatchQuery(text);
+    const meaningful =
+      (filters.dong ? 1 : 0) +
+      (filters.deal ? 1 : 0) +
+      (filters.type ? 1 : 0) +
+      (filters.maxDeposit || filters.minDeposit ? 1 : 0) +
+      (filters.maxMonthly ? 1 : 0) +
+      (filters.minArea || filters.maxArea ? 1 : 0) +
+      (filters.rooms ? 1 : 0) +
+      (filters.parking || filters.elevator || filters.pet ? 1 : 0);
+    return meaningful >= 2 ? filters : null;
+  }, []);
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
@@ -63,6 +121,44 @@ export default function AIChatBot() {
     setIsLoading(true);
 
     try {
+      // 1) 매물 매칭 의도 감지 → /api/ai/match 로 라우팅
+      const matchIntent = detectMatchIntent(text);
+      if (matchIntent) {
+        try {
+          const matchRes = await fetch('/api/ai/match', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: text.trim() }),
+          });
+          if (matchRes.ok) {
+            const matchData = await matchRes.json();
+            if (matchData.success) {
+              const count = matchData.count ?? 0;
+              const replyText =
+                count > 0
+                  ? `검색 조건에 맞는 매물을 ${count}건 찾았습니다! 아래 카드를 확인해주세요.\n더 자세한 정보는 각 매물을 클릭하시면 보실 수 있어요.`
+                  : '아쉽지만 말씀해주신 조건에 맞는 매물이 현재 없습니다.\n조건을 조금 더 넓혀 보시거나, 희망 조건을 알려주시면 담당자가 직접 찾아 연락드릴 수 있도록 도와드리겠습니다.';
+              setMessages(prev => [
+                ...prev,
+                {
+                  role: 'assistant',
+                  content: replyText,
+                  listings: matchData.listings?.slice(0, 4) || [],
+                  filters: matchData.filters,
+                  goToListings: matchData.goToListings,
+                },
+              ]);
+              setIsLoading(false);
+              return;
+            }
+          }
+          // 매칭 API 실패 시 일반 채팅으로 폴백 (아래로 fall-through)
+        } catch {
+          /* 일반 채팅으로 폴백 */
+        }
+      }
+
+      // 2) 일반 상담 → /api/chat
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -154,32 +250,111 @@ export default function AIChatBot() {
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
               {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex gap-2 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      msg.role === 'user' ? 'bg-blue-500' : 'bg-amber-500'
-                    }`}>
-                      {msg.role === 'user' ? (
-                        <User className="w-4 h-4 text-white" />
-                      ) : (
-                        <Bot className="w-4 h-4 text-white" />
-                      )}
-                    </div>
-                    <div className={`rounded-2xl px-4 py-2.5 text-[13px] leading-[1.7] ${
-                      msg.role === 'user'
-                        ? 'bg-blue-500 text-white rounded-br-md'
-                        : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-md'
-                    }`}>
-                      {msg.role === 'user' ? (
-                        <span>{msg.content}</span>
-                      ) : (
-                        <span dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }} />
-                      )}
+                <div key={i} className="space-y-2">
+                  <div className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`flex gap-2 max-w-[85%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        msg.role === 'user' ? 'bg-blue-500' : 'bg-amber-500'
+                      }`}>
+                        {msg.role === 'user' ? (
+                          <User className="w-4 h-4 text-white" />
+                        ) : (
+                          <Bot className="w-4 h-4 text-white" />
+                        )}
+                      </div>
+                      <div className={`rounded-2xl px-4 py-2.5 text-[13px] leading-[1.7] ${
+                        msg.role === 'user'
+                          ? 'bg-blue-500 text-white rounded-br-md'
+                          : 'bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-md'
+                      }`}>
+                        {msg.role === 'user' ? (
+                          <span>{msg.content}</span>
+                        ) : (
+                          <span dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }} />
+                        )}
+                      </div>
                     </div>
                   </div>
+
+                  {/* T5-4: 매물 매칭 결과 inline 카드 */}
+                  {msg.role === 'assistant' && msg.listings && msg.listings.length > 0 && (
+                    <div className="pl-9 pr-2 space-y-2">
+                      {/* 인식된 조건 칩 */}
+                      {msg.filters && (
+                        <div className="flex items-start gap-1.5 flex-wrap">
+                          <Sparkles className="w-3 h-3 text-amber-500 mt-0.5 shrink-0" />
+                          <span className="text-[10px] text-gray-500 font-semibold pt-0.5">조건:</span>
+                          {[
+                            msg.filters.dong,
+                            msg.filters.type,
+                            msg.filters.deal,
+                            msg.filters.maxDeposit ? `보증금 ${msg.filters.maxDeposit.toLocaleString()}만원↓` : null,
+                            msg.filters.maxMonthly ? `월세 ${msg.filters.maxMonthly}만원↓` : null,
+                            msg.filters.rooms ? `${msg.filters.rooms}룸+` : null,
+                            msg.filters.parking ? '주차' : null,
+                          ]
+                            .filter(Boolean)
+                            .map((tag) => (
+                              <span
+                                key={String(tag)}
+                                className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-medium border border-amber-200"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                        </div>
+                      )}
+
+                      {/* 매물 카드 (최대 4건) */}
+                      {msg.listings.map((l) => {
+                        const thumb = !l.source_site && l.listing_images?.[0]?.url
+                          ? l.listing_images[0].url
+                          : null;
+                        return (
+                          <Link
+                            key={l.id}
+                            href={`/listings/${l.id}`}
+                            className="flex items-stretch gap-2 bg-white rounded-xl border border-gray-200 hover:border-amber-400 hover:shadow-md transition-all overflow-hidden"
+                          >
+                            <div className="w-20 h-20 shrink-0 bg-gradient-to-br from-green-50 to-amber-50 flex items-center justify-center text-gray-300">
+                              {thumb ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={thumb} alt={l.title || 'listing'} className="w-full h-full object-cover" />
+                              ) : (
+                                <MapPin className="w-6 h-6" />
+                              )}
+                            </div>
+                            <div className="flex-1 py-2 pr-2 min-w-0">
+                              <div className="flex items-center gap-1 text-[10px] text-gray-500 mb-0.5">
+                                {l.gu && <span>{l.gu}</span>}
+                                {l.dong && <span>· {l.dong}</span>}
+                                {l.type && <span>· {l.type}</span>}
+                              </div>
+                              <div className="text-[13px] font-bold text-gray-900 truncate leading-tight">
+                                {buildChatPrice(l)}
+                              </div>
+                              <div className="text-[11px] text-gray-500 truncate mt-0.5">
+                                {l.title || `${l.dong || ''} ${l.type || ''}`}
+                                {l.area_m2 ? ` · ${Number(l.area_m2).toFixed(1)}m²` : ''}
+                                {l.rooms ? ` · ${l.rooms}룸` : ''}
+                              </div>
+                            </div>
+                          </Link>
+                        );
+                      })}
+
+                      {/* 전체 보기 링크 */}
+                      {msg.goToListings && (
+                        <Link
+                          href={msg.goToListings}
+                          className="inline-flex items-center gap-1 text-[12px] font-semibold text-amber-600 hover:text-amber-700 px-2"
+                        >
+                          이 조건으로 전체 보기
+                          <ArrowRight className="w-3 h-3" />
+                        </Link>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
 
