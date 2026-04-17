@@ -20,6 +20,8 @@ import AIChatBot from '@/components/AIChatBot';
 import CompareBar from '@/components/CompareBar';
 // T3-3: 모바일 하단 5탭 네비게이션 (md 이하에서만 노출)
 import MobileBottomNav from '@/components/MobileBottomNav';
+// #33 + #45: 매물 상세 모바일 전용 sticky CTA (문의 + 방문예약 병치)
+import StickyLeadCTA from '@/components/StickyLeadCTA';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -58,6 +60,8 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
             {!isMapPage && <CookieConsent />}
             {/* 모바일 5탭 하단 네비: /admin · /map · 중개사 포털은 내부에서 비노출 */}
             <MobileBottomNav />
+            {/* #33 + #45: /listings/[id] 상세에서만 노출되는 sticky 문의/방문예약 CTA */}
+            {!isMapPage && <StickyLeadCTA />}
           </ToastProvider>
           </SavedSearchProvider>
         </FavoritesProvider>

@@ -13,6 +13,8 @@ import RealPriceChart from '@/components/RealPriceChart';
 import { useAuth } from '@/contexts/AuthContext';
 import AuthModal from '@/components/AuthModal';
 import SmartRecommendations from '@/components/SmartRecommendations';
+// #39: 상세 하단 "이 매물과 비슷한 매물" 추천 섹션 (네모 벤치마크)
+import SimilarListings from '@/components/SimilarListings';
 // T2-5: VR 투어 뷰어 (vr_url 존재 시 이미지 갤러리 아래에 노출)
 import VRTour from '@/components/VRTour';
 import ListingEnglishSummary from '@/components/ListingEnglishSummary';
@@ -923,6 +925,11 @@ export default function ListingDetailClient({ id }: Props) {
 
         {/* V3-18: 스마트 추천 */}
         <SmartRecommendations listingId={listing.id} dong={listing.dong} />
+
+        {/* #39: 이 매물과 비슷한 매물 (동일 유형·지역·가격대 스코어링) */}
+        <div className="mt-12">
+          <SimilarListings listingId={listing.id} dong={listing.dong} limit={4} />
+        </div>
 
         {/* T2-1: 같은 건물 다른 매물 (단지/건물 컨텍스트) */}
         {buildingListings.length > 0 && (

@@ -9,6 +9,12 @@ import { ContractRenewalAlert } from '@/components/ContractRenewalAlert';
 import AdminBriefingPanel from '@/components/AdminBriefingPanel';
 // T5-7: 매물 알림 구독자 + 뉴스레터 발송 패널
 import AdminNewsletterPanel from '@/components/AdminNewsletterPanel';
+// #23: 오늘 할 일 위젯 (파이프라인 상태별 미처리 리드 요약)
+import AdminTodayPanel from '@/components/AdminTodayPanel';
+// #27/#31/#37/#38: 주간 전환율 추이 + 이탈 분석 + 리드 소스 카드
+import AdminConversionPanel from '@/components/AdminConversionPanel';
+// #45/#47: 방문 예약 관리 탭
+import AdminAppointmentsPanel from '@/components/AdminAppointmentsPanel';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 
 interface Stats {
@@ -447,6 +453,21 @@ export default function AdminPage() {
         {/* T5-5: 중개사 일일 브리핑 패널 */}
         <div className="mb-8">
           <AdminBriefingPanel authHeader={getAuthHeader()} />
+        </div>
+
+        {/* #23: 오늘 할 일 (미처리 리드 + 오늘 방문예약) */}
+        <div className="mb-8">
+          <AdminTodayPanel authHeader={getAuthHeader()} />
+        </div>
+
+        {/* #27/#31/#37/#38: 주간 전환율 + 이탈 사유 + 리드 소스 분석 */}
+        <div className="mb-8">
+          <AdminConversionPanel authHeader={getAuthHeader()} />
+        </div>
+
+        {/* #45/#47: 방문 예약 관리 */}
+        <div className="mb-8">
+          <AdminAppointmentsPanel authToken={getAuthHeader()} />
         </div>
 
         {/* T5-7: 매물 알림 구독 / 뉴스레터 */}
