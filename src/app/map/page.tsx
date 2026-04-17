@@ -18,7 +18,7 @@ const dealTypes: DealType[] = ['전세', '월세', '매매'];
 const listingTypes: ListingType[] = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
 
 const DEFAULT_CENTER = { lat: 37.4847, lng: 126.9293 };
-const DEFAULT_ZOOM = 5;
+const DEFAULT_ZOOM = 7; // 구/군 단위 — 초기 로드 시 넓은 범위 매물 노출 (카카오맵: 숫자↑ = 축소)
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 주소 파싱 유틸리티
@@ -308,16 +308,16 @@ export default function MapSearchPage() {
     return '매물';
   }, [zoomLevel]);
 
-  // ━━━ 카카오맵 초기화 ━━━
+  // ━━━ 카카오맵 초기화 (SDK 로드 대기 로직 포함) ━━━
   useEffect(() => {
-    if (!window.kakao?.maps) {
-      console.warn('카카오맵 SDK가 로드되지 않았습니다.');
-      setMapReady(true);
-      return;
-    }
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retries = 0;
+    const MAX_RETRIES = 50; // 200ms × 50 = 최대 10초 대기
 
-    window.kakao.maps.load(() => {
-      if (!mapRef.current) return;
+    const initMap = () => {
+      if (cancelled || !mapRef.current) return;
+      if (mapInstanceRef.current) return; // 중복 초기화 방지
 
       const map = new window.kakao.maps.Map(mapRef.current, {
         center: new window.kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng),
@@ -326,6 +326,7 @@ export default function MapSearchPage() {
 
       mapInstanceRef.current = map;
       setMapReady(true);
+      setZoomLevel(map.getLevel());
 
       const fetchBounds = () => {
         const bounds = map.getBounds();
@@ -339,17 +340,37 @@ export default function MapSearchPage() {
         }, filters);
       };
 
-      // 줌 레벨 변경 감지
       window.kakao.maps.event.addListener(map, 'zoom_changed', () => {
         setZoomLevel(map.getLevel());
       });
-
-      // idle 이벤트 (이동/줌 완료 후)
       window.kakao.maps.event.addListener(map, 'idle', fetchBounds);
 
       // 초기 로드
       fetchBounds();
-    });
+    };
+
+    const tryInit = () => {
+      if (cancelled) return;
+      if (window.kakao?.maps?.load) {
+        window.kakao.maps.load(initMap);
+        return;
+      }
+      retries += 1;
+      if (retries > MAX_RETRIES) {
+        console.error('카카오맵 SDK 로드 타임아웃 (10초 초과). 네트워크 상태를 확인해주세요.');
+        setMapReady(true); // 빈 상태라도 UI 렌더
+        return;
+      }
+      retryTimer = setTimeout(tryInit, 200);
+    };
+
+    tryInit();
+
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ━━━ 필터 변경 시 재검색 ━━━
@@ -560,10 +581,17 @@ export default function MapSearchPage() {
 
   // ━━━ 필터 토글 핸들러 ━━━
   const toggleDealFilter = (deal: DealType) => {
-    setFilters((prev) => ({
-      ...prev,
-      deal: prev.deal === deal ? undefined : deal,
-    }));
+    setFilters((prev) => {
+      const willDeactivate = prev.deal === deal;
+      const nextDeal = willDeactivate ? undefined : deal;
+      // 거래유형 변경/해제 시 가격 프리셋도 함께 초기화 (불일치 상태 방지)
+      return {
+        ...prev,
+        deal: nextDeal,
+        maxDeposit: undefined,
+        minDeposit: undefined,
+      };
+    });
   };
 
   const toggleTypeFilter = (type: ListingType) => {
@@ -572,6 +600,21 @@ export default function MapSearchPage() {
       type: prev.type === type ? undefined : type,
     }));
   };
+
+  // 모든 필터 초기화
+  const resetAllFilters = () => {
+    setFilters({});
+    setSearchQuery('');
+  };
+
+  // 활성 필터 개수 (초기화 버튼 노출 여부 결정)
+  const activeFilterCount = [
+    filters.deal,
+    filters.type,
+    filters.maxDeposit,
+    filters.minDeposit,
+    searchQuery.trim(),
+  ].filter(Boolean).length;
 
   return (
     <div className="pt-20 h-screen flex flex-col">
@@ -617,6 +660,18 @@ export default function MapSearchPage() {
           </div>
 
           <div className="ml-auto flex items-center gap-2 shrink-0">
+            {/* 필터 초기화 버튼 (활성 필터 있을 때만 노출) */}
+            {activeFilterCount > 0 && (
+              <button
+                onClick={resetAllFilters}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full border-2 border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-all"
+                title="모든 필터 초기화"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>초기화 ({activeFilterCount})</span>
+              </button>
+            )}
+
             {/* 검색 버튼 */}
             <button
               onClick={() => setShowSearch(!showSearch)}
@@ -789,6 +844,26 @@ export default function MapSearchPage() {
                 }`} />
                 {zoomLevelLabel} 단위 표시
               </div>
+            </div>
+          )}
+
+          {/* 매물 0건일 때 안내 (지도 중앙) */}
+          {!loading && mapReady && total === 0 && (
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 bg-white/95 backdrop-blur-md px-6 py-5 rounded-2xl shadow-xl border border-gray-200 text-center max-w-xs animate-fade-in">
+              <Building2 className="w-10 h-10 text-gray-300 mx-auto mb-2" />
+              <p className="text-sm font-bold text-wishes-primary mb-1">이 영역에 매물이 없습니다</p>
+              <p className="text-[11px] text-wishes-muted leading-relaxed">
+                지도를 이동하거나 축소해서 더 넓은 지역을 살펴보세요.
+                {activeFilterCount > 0 && ' 필터를 해제하면 더 많은 매물을 볼 수 있습니다.'}
+              </p>
+              {activeFilterCount > 0 && (
+                <button
+                  onClick={resetAllFilters}
+                  className="mt-3 px-4 py-1.5 text-xs font-bold rounded-full bg-red-50 text-red-600 border-2 border-red-200 hover:bg-red-100 transition-all"
+                >
+                  필터 초기화
+                </button>
+              )}
             </div>
           )}
 
