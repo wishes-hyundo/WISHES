@@ -422,7 +422,8 @@ export default function MapSearchPage() {
         const content = createCityClusterContent(cityName, count);
 
         content.addEventListener('click', () => {
-          map.setLevel(8, { anchor: position });
+          // 시/도 클러스터 클릭 → 구 단위(레벨 7)로 이동 (단계별 탐색)
+          map.setLevel(7, { anchor: position });
           map.panTo(position);
         });
 
@@ -453,7 +454,8 @@ export default function MapSearchPage() {
         const content = createGuClusterContent(guName, count);
 
         content.addEventListener('click', () => {
-          map.setLevel(6, { anchor: position });
+          // 구/군 클러스터 클릭 → 동 단위(레벨 5)로 진입
+          map.setLevel(5, { anchor: position });
           map.panTo(position);
         });
 
@@ -484,7 +486,8 @@ export default function MapSearchPage() {
         const content = createDongClusterContent(dongName, count);
 
         content.addEventListener('click', () => {
-          map.setLevel(4, { anchor: position });
+          // 동 클러스터 클릭 → 개별 매물 마커 단계(레벨 3)로 진입
+          map.setLevel(3, { anchor: position });
           map.panTo(position);
         });
 
@@ -864,6 +867,24 @@ export default function MapSearchPage() {
                   필터 초기화
                 </button>
               )}
+            </div>
+          )}
+
+          {/* ━━━ 거래유형 색상 범례 (개별 마커 레벨에서만 노출) ━━━ */}
+          {mapReady && zoomLevel < 5 && total > 0 && (
+            <div className="absolute bottom-6 left-6 z-20 bg-white/95 backdrop-blur-md rounded-xl shadow-md border border-gray-100 px-3 py-2 flex items-center gap-3 text-[11px] font-semibold">
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-blue-500" />
+                <span className="text-blue-700">전세</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-orange-500" />
+                <span className="text-orange-700">월세</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                <span className="text-emerald-700">매매</span>
+              </span>
             </div>
           )}
 

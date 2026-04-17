@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { Breadcrumb } from '@/components/Breadcrumb';
-import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search, X as XIcon, Clock, Coins, Maximize2 } from 'lucide-react';
 
 const dealTypes = ['전세', '월세', '매매'];
 const listingTypes = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
@@ -308,6 +308,22 @@ export default function ListingsClient({
 
   const totalPages = Math.ceil(total / pageSize);
 
+  // ━━━ 활성 필터 칩 라벨 ━━━
+  const sortLabel = sortOptions.find((o) => o.value === sort)?.label || '최신순';
+  const priceChipLabel = (() => {
+    if (!maxDeposit) return '';
+    const md = parseInt(maxDeposit, 10);
+    if (deal === '매매') return md >= 10000 ? `${Math.floor(md / 10000)}억 이하` : `${md.toLocaleString()} 이하`;
+    if (deal === '월세') return `월 ${md.toLocaleString()}만 이하`;
+    return md >= 10000 ? `${Math.floor(md / 10000)}억 이하` : `${md.toLocaleString()} 이하`;
+  })();
+  const activeChips: { key: string; label: string; icon?: React.ReactNode }[] = [];
+  if (deal) activeChips.push({ key: 'deal', label: deal });
+  if (type) activeChips.push({ key: 'type', label: type });
+  if (dong) activeChips.push({ key: 'dong', label: dong });
+  if (maxDeposit && priceChipLabel) activeChips.push({ key: 'maxDeposit', label: priceChipLabel, icon: <Coins className="w-3 h-3" /> });
+  if (minArea) activeChips.push({ key: 'minArea', label: `${minArea}㎡↑`, icon: <Maximize2 className="w-3 h-3" /> });
+
   // 페이지 번호 범위 계산
   const getPageNumbers = () => {
     const maxVisible = 5;
@@ -374,13 +390,34 @@ export default function ListingsClient({
               <option value="">매물유형 전체</option>
               {listingTypes.map((t) => (<option key={t} value={t}>{t}</option>))}
             </select>
-            <select value={dong} onChange={(e) => updateFilter('dong', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
+            <select value={dong} onChange={(e) => updateFilter('dong', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 col-span-2 sm:col-span-2">
               <option value="">지역 전체</option>
               {dongs.map((d) => (<option key={d} value={d}>{d}</option>))}
             </select>
-            <select value={sort} onChange={(e) => updateFilter('sort', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
-              {sortOptions.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
-            </select>
+          </div>
+
+          {/* ━━━ 정렬 (pill tabs) ━━━ */}
+          <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-semibold text-gray-600 flex items-center gap-1 mr-1">
+              <Clock className="w-3 h-3" /> 정렬
+            </span>
+            {sortOptions.map((o) => {
+              const active = sort === o.value;
+              return (
+                <button
+                  key={o.value}
+                  onClick={() => updateFilter('sort', o.value)}
+                  className={
+                    'px-3 py-1.5 rounded-full text-xs font-medium border transition-all ' +
+                    (active
+                      ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40 hover:text-wishes-primary')
+                  }
+                >
+                  {o.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* ━━━ 가격대 프리셋 (거래유형 선택 시 노출) ━━━ */}
@@ -438,6 +475,33 @@ export default function ListingsClient({
 
 
 
+        {/* ━━━ 활성 필터 칩 (선택된 필터 한눈에 + 개별 제거) ━━━ */}
+        {!search && activeChips.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap mb-4">
+            <span className="text-xs font-semibold text-gray-500 flex items-center gap-1">
+              <SlidersHorizontal className="w-3 h-3" /> 적용된 필터
+            </span>
+            {activeChips.map((chip) => (
+              <button
+                key={chip.key}
+                onClick={() => updateFilter(chip.key, '')}
+                className="inline-flex items-center gap-1 px-3 py-1 text-xs font-medium bg-wishes-primary/10 text-wishes-primary border border-wishes-primary/20 rounded-full hover:bg-wishes-primary hover:text-white transition-all"
+                title={`${chip.label} 필터 해제`}
+              >
+                {chip.icon}
+                <span>{chip.label}</span>
+                <XIcon className="w-3 h-3 opacity-70" />
+              </button>
+            ))}
+            <button
+              onClick={() => router.push('/listings')}
+              className="text-xs text-gray-500 hover:text-wishes-primary underline-offset-2 hover:underline ml-1"
+            >
+              전체 초기화
+            </button>
+          </div>
+        )}
+
         {/* 검색 결과 안내 */}
         {search && !loading && (
           <div className="bg-wishes-secondary/5 border border-wishes-secondary/20 rounded-lg px-4 py-3 mb-4">
@@ -455,9 +519,21 @@ export default function ListingsClient({
           </div>
         ) : listings.length > 0 ? (
           <>
-            <p className="text-sm text-gray-500 mb-4">
-              {!search && <>총 <strong className="text-wishes-primary">{total.toLocaleString()}</strong>건의 매물</>}
-            </p>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <p className="text-sm text-gray-500">
+                {!search && (
+                  <>
+                    총 <strong className="text-wishes-primary text-base">{total.toLocaleString()}</strong>건
+                    {totalPages > 1 && (
+                      <span className="text-gray-400 ml-2">
+                        · <strong className="text-gray-600">{page}</strong> / {totalPages} 페이지
+                      </span>
+                    )}
+                  </>
+                )}
+              </p>
+              <p className="text-xs text-gray-400 hidden sm:block">정렬: <span className="text-gray-600 font-medium">{sortLabel}</span></p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {listings.map((listing) => (<ListingCard key={listing.id} listing={listing as any} />))}
             </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle } from 'lucide-react';
+import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle, MessageCircleMore } from 'lucide-react';
 import CompassDirection from '@/components/CompassDirection';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
@@ -324,7 +324,7 @@ export default function ListingDetailClient({ id }: Props) {
   };
 
   return (
-    <div className="pt-16 min-h-screen bg-wishes-bg">
+    <div className="pt-16 pb-20 lg:pb-0 min-h-screen bg-wishes-bg">
       {/* JSON-LD */}
       <script
         type="application/ld+json"
@@ -724,6 +724,25 @@ export default function ListingDetailClient({ id }: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* 모바일 하단 Sticky CTA - lg 미만에서만 노출 */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] px-4 py-3 safe-area-inset-bottom">
+        <div className="flex items-center gap-3 max-w-5xl mx-auto">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] text-wishes-muted leading-none mb-1">
+              {listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : '보증금/월세'}
+            </p>
+            <p className="text-base font-bold text-wishes-primary truncate">{price.main}</p>
+          </div>
+          <Link
+            href={`/contact?listing=${listing.id}`}
+            className="shrink-0 flex items-center gap-1.5 bg-wishes-primary text-white px-5 py-3 rounded-xl font-bold text-sm hover:bg-wishes-secondary transition-colors shadow-md"
+          >
+            <MessageCircleMore className="w-4 h-4" />
+            온라인 상담
+          </Link>
+        </div>
       </div>
     </div>
   );
