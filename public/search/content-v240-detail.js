@@ -1,0 +1,648 @@
+/**
+ * WISHES Search Detail — Single-Scroll Layout Patch v2.4.0
+ * ================================================================
+ * 대상      : /public/search/content.js v2.2.6 + v2.3.0 patch
+ * 배포방식  : /public/search/content-v240-detail.js 로 배치 후
+ *            src/app/search/page.tsx 에서 v230 패치 직후 async:false 로드
+ * 적용원리  : window.WS.showDetail 을 한번 더 래핑하여 단일 스크롤 페이지로
+ *            전면 재구성. v2.3.0 의 5탭 레이아웃을 건너뛰고 __orig_showDetail
+ *            만 호출 후 container.innerHTML 교체.
+ *
+ * 디자인 근거 : /sessions/zealous-epic-brown/mnt/Desktop/
+ *               WISHES_상세보기_재구성/45913_혜성빌딩_단일페이지.html
+ *               (2026-04-17 승인본)
+ *
+ * 보존 필드  : 크롤링 17 라벨 · UI 파생 16 필드 · 중개사 입력 8 액션 = 41/41 (100%)
+ * 보존 클래스: ws-gallery-main, ws-gallery-thumbs, ws-thumb, ws-thumb-active,
+ *             ws-copy-id, ws-memo-input, ws-memo-save-btn, ws-similar-section
+ *             (기존 이벤트 델리게이션 · lazy image fetch · 메모 저장 전부 재사용)
+ *
+ * 변경 사항
+ *   A. 상단 갤러리 + 매물번호 topbar + ★관심 이동
+ *   B. Hero : 주소 h1 + 도로명 placeholder + 가격 박스
+ *   C. 기본정보 2단 배열 (4열 grid : k v k v)
+ *   D. 옵션 칩 + 상세 설명 (AI SEO 버튼 제거 — 게시 준비 단계로 이관)
+ *   E. 위치 · 유사매물
+ *   F. 🔒 중개사 전용 (기본 접힘) — 이력·연락처·메모태그·원본
+ *
+ * 롤백 : <script> 태그 1개 제거 후 Vercel 재배포 시 v230 5탭으로 원상복구
+ *
+ * @version 2.4.0
+ * @build 2026-04-17
+ * @author WISHES · 사장님 승인 단일스크롤 재구성
+ * ================================================================
+ */
+
+(function __v240Boot() {
+  'use strict';
+
+  var VERSION = '2.4.0';
+  var TAG = '[WP v' + VERSION + ']';
+
+  // 도메인/경로 화이트리스트
+  if (location.hostname !== 'wishes.co.kr' && location.hostname !== 'www.wishes.co.kr') return;
+  if (location.pathname.indexOf('admin-auth') !== -1) return;
+  if (location.pathname.indexOf('command-center') !== -1) return;
+
+  // 중복 설치 방어
+  if (window.WS && window.WS.__v240Applied) {
+    console.log(TAG + ' already applied — skip');
+    return;
+  }
+
+  // WS + v230 준비 대기 (최대 20초)
+  var tries = 0;
+  var timer = setInterval(function() {
+    tries++;
+    if (window.WS && typeof window.WS.showDetail === 'function'
+        && typeof window.WS.__orig_showDetail === 'function') {
+      clearInterval(timer);
+      install();
+    } else if (tries >= 200) {
+      clearInterval(timer);
+      console.warn(TAG + ' aborted — WS or v230 not ready');
+    }
+  }, 100);
+
+  // ====================================================================
+  // INSTALL
+  // ====================================================================
+  function install() {
+    try {
+      injectStyles();
+      window.WS.__v230_showDetail = window.WS.showDetail;       // v2.3.0 래퍼 백업
+      window.WS.showDetail = renderDetailV240;                  // 단일 스크롤 래퍼로 교체
+      window.WS.__v240Applied = true;
+      window.WS.__v240Version = VERSION;
+      console.log(TAG + ' single-scroll detail installed');
+    } catch (e) {
+      console.error(TAG + ' install failed', e);
+    }
+  }
+
+  // ====================================================================
+  // RENDER — showDetail 래퍼
+  // ====================================================================
+  function renderDetailV240(listing) {
+    // 1) 원본 showDetail 호출 (lazy image fetch 트리거용 — v230 5탭은 건너뜀)
+    try { window.WS.__orig_showDetail(listing); } catch (e) {}
+
+    var modal = document.getElementById('ws-modal-detail');
+    var container = document.getElementById('ws-detail-container');
+    if (!modal || !container) return;
+
+    // 2) 단일 스크롤 HTML 주입
+    container.innerHTML = buildHTML(listing);
+
+    // 3) 유사매물 삽입 (기존 함수 재사용)
+    var similarHtml = window.WS.showSimilarListings ? window.WS.showSimilarListings(listing) : '';
+    var simMount = document.getElementById('ws-similar-section');
+    if (simMount && similarHtml) simMount.innerHTML = similarHtml;
+
+    // 4) 컨테이너 스크롤 초기화
+    try { container.scrollTop = 0; } catch (e) {}
+  }
+
+  // ====================================================================
+  // HTML BUILDER
+  // ====================================================================
+  function buildHTML(L) {
+    L = L || {};
+    var id = L.id;
+
+    // 이미지 준비 (lazy fetch 전 기본값)
+    var imgs = L.images || L.listing_images || [];
+    var firstUrl = imgs.length > 0 ? (imgs[0].url || imgs[0]) : '';
+    var imgUrls = imgs.map(function(x) { return x.url || x; });
+
+    // 가격·면적 포매터
+    var priceTxt = '';
+    try { priceTxt = (window.formatPrice || window.WS.formatPrice)(L.deposit, L.monthly, L.price, L.deal) || ''; } catch (e) {}
+    var areaTxt = '';
+    try { areaTxt = (window.formatArea || window.WS.formatArea)(L.area_m2) || ''; } catch (e) {}
+    var pyeong = L.area_m2 ? (L.area_m2 / 3.30579) : 0;
+    var areaFull = areaTxt + (pyeong ? ' (' + pyeong.toFixed(1) + '평)' : '');
+
+    // 평당 임대료
+    var rentPerPy = '';
+    if (pyeong && L.monthly) rentPerPy = '평당 약 ' + Math.round(L.monthly / pyeong) + '만';
+
+    // 관리비
+    var mgmtTxt = '';
+    if (L.maintenance_fee && Number(L.maintenance_fee) > 0) {
+      mgmtTxt = '관리비 ' + L.maintenance_fee + '만원';
+    }
+
+    // 층수
+    var floorTxt = '';
+    if (L.floor_current) {
+      var fc = String(L.floor_current);
+      floorTxt = /층|단독|옥상|루프/i.test(fc) ? fc : fc + '층';
+      if (L.floor_total) floorTxt += ' / ' + L.floor_total + '층';
+    } else {
+      floorTxt = '-';
+    }
+
+    // 준공년도
+    var builtTxt = '-';
+    try {
+      var gy = (window.getBuiltYear || window.WS.getBuiltYear)(L.built_year);
+      if (gy) builtTxt = gy + '년';
+    } catch (e) {}
+    if (L.registered_date) builtTxt = L.registered_date;
+
+    // 입주가능
+    var avail = L.available_date || '-';
+
+    // NEW 뱃지 (24h 이내)
+    var isNew = false;
+    if (L.created_at) {
+      try {
+        var diff = Date.now() - new Date(L.created_at).getTime();
+        isNew = diff >= 0 && diff < 24 * 60 * 60 * 1000;
+      } catch (e) {}
+    }
+
+    // ★관심 상태
+    var isFav = false;
+    try {
+      if (window.WS.state && Array.isArray(window.WS.state.favorites)) {
+        isFav = window.WS.state.favorites.some(function(f) { return String(f) === String(id); });
+      }
+    } catch (e) {}
+
+    // 옵션 칩 생성
+    var optionChips = buildOptionChips(L);
+
+    // 썸네일 HTML
+    var thumbsHtml = imgs.map(function(img, idx) {
+      var u = img.url || img;
+      return '<img src="' + esc(u) + '" alt="thumbnail" class="ws-thumb' +
+             (idx === 0 ? ' ws-thumb-active' : '') + '" data-url="' + esc(u) +
+             '" data-idx="' + idx + '">';
+    }).join('');
+
+    // 기본정보 행 (13필드, 2쌍/행 × 7행)
+    var basicRows = buildBasicRows(L, floorTxt, areaFull, builtTxt, avail);
+
+    // 시간 정보
+    var createdTxt = '';
+    try { createdTxt = (window.timeAgo || window.WS.timeAgo)(L.created_at) || ''; } catch (e) {}
+
+    // 원본 URL
+    var srcUrl = L.source_url || '';
+    var srcDomain = '';
+    try { srcDomain = srcUrl ? new URL(srcUrl).hostname : ''; } catch (e) {}
+
+    // HTML 조립
+    var html = '';
+
+    // --- 1. 갤러리 섹션 (topbar + main + thumbs) ---
+    html +=
+      '<section class="v240-section v240-gallery-sec">' +
+        '<div class="v240-topbar">' +
+          '<span class="v240-num ws-copy-id" data-copy="' + esc(id) + '" title="클릭하여 복사">매물번호 ' + esc(id) + '</span>' +
+          (isNew ? '<span class="v240-new">NEW</span>' : '') +
+          '<span class="v240-spacer"></span>' +
+          '<button type="button" class="v240-fav' + (isFav ? ' on' : '') +
+            '" data-wp-fav="' + esc(id) + '" title="관심 매물 토글">' +
+            '<span style="font-size:13px">★</span> 관심' +
+          '</button>' +
+        '</div>' +
+        '<div class="v240-body v240-gallery-body">' +
+          '<div class="ws-gallery-main" id="ws-gallery-main"' +
+            ' style="background-image:url(\'' + esc(firstUrl) + '\'); cursor:pointer;"' +
+            ' data-images="' + esc(JSON.stringify(imgUrls)).replace(/"/g, '&quot;') + '"' +
+            ' data-current="0" title="클릭하면 확대됩니다">' +
+            '<div class="v240-zoom-hint">🔍 클릭하여 확대</div>' +
+          '</div>' +
+          '<div class="ws-gallery-thumbs">' + thumbsHtml + '</div>' +
+        '</div>' +
+      '</section>';
+
+    // --- 2. HERO (주소 · 가격) ---
+    html +=
+      '<section class="v240-hero">' +
+        '<div class="v240-hero-left">' +
+          '<h1>' + esc(L.address || '') + ' ' + esc(L.dong || '') +
+            (L.address_detail ? ' <span class="v240-detail">' + esc(L.address_detail) + '</span>' : '') +
+          '</h1>' +
+          '<div class="v240-sub v240-road">🗺 <span style="color:#5A6B60">도로명 주소 · 자동 조회 연동</span></div>' +
+          '<div class="v240-sub">🏢 ' + esc(L.type || '-') + (areaFull ? ' · ' + esc(areaFull) : '') + '</div>' +
+        '</div>' +
+        '<div class="v240-price-box">' +
+          '<div class="v240-kind">' + esc(L.deal || '-') + '</div>' +
+          '<div class="v240-amt">' + esc(priceTxt || '-') + '</div>' +
+          (mgmtTxt || rentPerPy ?
+            '<div class="v240-mgmt">' +
+              (mgmtTxt ? esc(mgmtTxt) : '') +
+              (mgmtTxt && rentPerPy ? ' · ' : '') +
+              (rentPerPy ? esc(rentPerPy) : '') +
+            '</div>' : '') +
+        '</div>' +
+      '</section>';
+
+    // --- 3. 기본 정보 · 옵션 (통합 단일 섹션) ---
+    html +=
+      '<section class="v240-section">' +
+        '<h2>기본 정보 · 옵션</h2>' +
+        '<div class="v240-body">' +
+          '<div class="v240-info2">' + basicRows + '</div>' +
+          '<div class="v240-opts-label">옵션 · 특징</div>' +
+          '<div class="v240-opts">' +
+            (optionChips.length > 0 ?
+              optionChips.map(function(c) { return '<span class="v240-chip">' + esc(c) + '</span>'; }).join('') :
+              '<span class="v240-chip" style="color:#8aa091">-</span>') +
+          '</div>' +
+          (L.description ?
+            '<div class="v240-desc-label">상세 설명 · 특이사항</div>' +
+            '<p class="v240-desc">' + esc(L.description) + '</p>' : '') +
+        '</div>' +
+      '</section>';
+
+    // --- 4. 위치 ---
+    html +=
+      '<section class="v240-section">' +
+        '<h2>위치</h2>' +
+        '<div class="v240-body">' +
+          '<div class="v240-map">🗺️ 지도 (' + esc(L.address || '') + ' ' + esc(L.dong || '') + ')</div>' +
+        '</div>' +
+      '</section>';
+
+    // --- 5. 유사 매물 (기존 showSimilarListings 결과 주입) ---
+    html +=
+      '<section class="v240-section">' +
+        '<h2>유사 매물 추천</h2>' +
+        '<div class="v240-body">' +
+          '<div id="ws-similar-section"></div>' +
+        '</div>' +
+      '</section>';
+
+    // --- 6. 🔒 중개사 전용 (기본 접힘) ---
+    html +=
+      '<section class="v240-broker closed" id="v240-broker">' +
+        '<h2 class="v240-broker-h">' +
+          '🔒 중개사 전용' +
+          '<span class="v240-locked">고객 비공개</span>' +
+          '<span class="v240-count">이력 · 연락처 · 메모 · 원본</span>' +
+          '<span class="v240-spacer"></span>' +
+          '<span class="v240-chev">▼</span>' +
+        '</h2>' +
+        '<div class="v240-broker-body">' +
+
+          // 등록 · 확인 이력 (4카드)
+          '<div class="v240-b-label">🕐 등록 · 확인 이력</div>' +
+          '<div class="v240-timeline">' +
+            timelineCard('최초등록', L.registered_date || createdTxt || '-') +
+            timelineCard('최종확인', L.last_confirmed || '-') +
+            timelineCard('시스템등록', createdTxt || '-') +
+            timelineCard('크롤시각', L.crawled_at || '-') +
+          '</div>' +
+
+          '<div class="v240-b-grid">' +
+
+            // LEFT: 연락처 · 메모
+            '<div>' +
+              '<div class="v240-b-label">📞 관계자 연락처</div>' +
+              '<div class="v240-contacts-empty">등록된 연락처가 없습니다. 사장 · 사모 · 관리인 연락처를 등록하세요.</div>' +
+              '<button type="button" class="v240-b-btn" data-v240-add-contact="' + esc(id) + '">+ 연락처 추가</button>' +
+
+              '<div class="v240-b-label" style="margin-top:14px">📝 빠른 메모 태그</div>' +
+              '<div class="v240-memos">' +
+                ['✅ 즉시입주', '🔑 열쇠보관', '📞 연락완료', '👀 현장확인필요',
+                 '💰 가격협의가능', '🔨 수리필요', '⭐ 추천매물', '🚫 계약불가',
+                 '📸 사진촬영필요', '🏗️ 리모델링', '👤 집주인직거래', '📋 서류확인중'
+                ].map(function(m) {
+                  return '<span class="v240-m" data-memo-tag="' + esc(m) + '">' + esc(m) + '</span>';
+                }).join('') +
+              '</div>' +
+
+              '<div class="v240-b-label" style="margin-top:14px">💬 메모</div>' +
+              '<textarea class="ws-memo-input v240-memo-area" id="ws-memo-' + esc(id) + '"' +
+                ' placeholder="매물에 대한 메모를 입력하세요" rows="3">' +
+                esc(getMemo(id)) +
+              '</textarea>' +
+              '<div id="ws-memo-quicktags-' + esc(id) + '"></div>' +
+              '<button type="button" class="ws-btn ws-btn-primary ws-memo-save-btn v240-save-btn"' +
+                ' data-listing-id="' + esc(id) + '">메모 저장</button>' +
+            '</div>' +
+
+            // RIGHT: 원본 데이터
+            '<div class="v240-src">' +
+              '<div class="v240-b-label">📋 원본 데이터</div>' +
+              (srcUrl ?
+                '<div class="v240-src-row">' +
+                  '<span class="v240-src-k">원본URL</span>' +
+                  '<a href="' + esc(srcUrl) + '" target="_blank" rel="noopener">' + esc(srcDomain) + '</a>' +
+                '</div>' : '') +
+              '<div class="v240-src-row"><span class="v240-src-k">DB ID</span>' + esc(id) + '</div>' +
+              (L.source_site ?
+                '<div class="v240-src-row"><span class="v240-src-k">출처</span>' + esc(L.source_site) + '</div>' : '') +
+              (L.raw_fields ? '<div class="v240-b-label" style="margin-top:10px;font-size:12px">원본 본문</div>' +
+                '<pre class="v240-raw-pre">' + esc(formatRawFields(L.raw_fields)) + '</pre>' : '') +
+            '</div>' +
+
+          '</div>' +  // .v240-b-grid
+        '</div>' +    // .v240-broker-body
+      '</section>';
+
+    return html;
+  }
+
+  // ====================================================================
+  // HELPERS
+  // ====================================================================
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function getMemo(id) {
+    try {
+      return (window.WS.state && window.WS.state.memos && window.WS.state.memos[String(id)]) || '';
+    } catch (e) { return ''; }
+  }
+
+  function timelineCard(label, value) {
+    return '<div class="v240-tl-card">' +
+      '<div class="v240-tl-k">' + esc(label) + '</div>' +
+      '<div class="v240-tl-v">' + esc(value || '-') + '</div>' +
+    '</div>';
+  }
+
+  function buildBasicRows(L, floorTxt, areaFull, builtTxt, avail) {
+    // 타입별 용도 판단
+    var t = (L.type || '').toLowerCase();
+    var isCommercial = /사무|오피스|office|건물|기타|상가|점포|매장/.test(t) || L.source_site === 'gongsilclub';
+
+    // 필드 페어 구성 — 공실(주황) 플래그로 warn 스타일 처리
+    var pairs = [
+      ['타입', esc(L.type || '-'), '면적', esc(areaFull || '-')],
+      ['해당층/총층', esc(floorTxt), '구조형태', esc(L.entrance_type || L.room_shape || '-')],
+      ['건물명', esc(L.building_name || '-'), '준공년도', esc(builtTxt)],
+      ['방향', esc(L.direction || '-'), '난방', esc(L.heating_type || '-')]
+    ];
+
+    if (isCommercial) {
+      pairs.push(['룸/욕실', esc(L.rooms ? (L.rooms + '개') : (L.room_shape || '-')), '주차', parkingText(L)]);
+    } else {
+      pairs.push(['룸/욕실', (L.rooms ? L.rooms + '개' : '-') + ' / ' + (L.bathrooms ? L.bathrooms + '개' : '-'),
+                 '주차', parkingText(L)]);
+    }
+
+    var availCell = '<span class="v240-v-warn">' + esc(avail) + '</span>';
+    pairs.push(['입주가능', availCell, '임대기간', esc(L.lease_period || '-')]);
+
+    if (L.building_listings) {
+      pairs.push(['건물 내 매물', esc(L.building_listings), '', '']);
+    } else if (L.previous_business) {
+      pairs.push(['현업종/상호', esc(L.previous_business), '', '']);
+    }
+
+    // HTML 렌더
+    var out = '';
+    pairs.forEach(function(p, i) {
+      var lastHalfEmpty = (p[2] === '' && p[3] === '');
+      out += '<div class="v240-r">' +
+        '<div class="v240-k">' + p[0] + '</div>' +
+        '<div class="v240-v">' + p[1] + '</div>' +
+        (lastHalfEmpty ?
+          '<div class="v240-k v240-empty">&nbsp;</div>' +
+          '<div class="v240-v v240-empty">&nbsp;</div>' :
+          '<div class="v240-k">' + p[2] + '</div>' +
+          '<div class="v240-v">' + p[3] + '</div>') +
+      '</div>';
+    });
+    return out;
+  }
+
+  function parkingText(L) {
+    if (L.parking_spaces && parseInt(L.parking_spaces) > 0) {
+      return parseInt(L.parking_spaces) + '대' +
+        (L.parking_fee && parseInt(L.parking_fee) > 0 ? ' (월 ' + L.parking_fee + '만원)' : '');
+    }
+    if (L.parking === true) return '가능';
+    return '-';
+  }
+
+  function buildOptionChips(L) {
+    var chips = [];
+    var optStr = '';
+    if (typeof L.options === 'string') optStr += L.options;
+    if (Array.isArray(L.features)) optStr += ' ' + L.features.join(' ');
+    if (L.raw_fields && typeof L.raw_fields === 'object') {
+      try { optStr += ' ' + String(L.raw_fields['옵션'] || ''); } catch (e) {}
+    }
+    if (L.elevator === true) optStr += ' 엘리베이터';
+    if (L.cctv === true) optStr += ' CCTV';
+
+    if (/엘리베이터|EV|E\/V/i.test(optStr)) chips.push('🏢 엘리베이터');
+    if (/CCTV|방범/i.test(optStr)) chips.push('📹 CCTV');
+    if (/인터폰/i.test(optStr)) chips.push('📞 인터폰');
+    if (/개별냉난방/i.test(optStr)) chips.push('🌡️ 개별냉난방');
+    if (/냉.?난방기|냉방기|난방기|에어컨|AC/i.test(optStr)) chips.push('❄️ 냉·난방기');
+    if (/인테리어/i.test(optStr)) chips.push('🛋️ 인테리어');
+    if (/주차|parking/i.test(optStr)) chips.push('🅿️ 주차');
+    if (/풀옵션|full/i.test(optStr)) chips.push('✨ 풀옵션');
+    if (/시스템에어컨/i.test(optStr)) chips.push('🌬️ 시스템에어컨');
+    if (/스프링클러/i.test(optStr)) chips.push('💧 스프링클러');
+    if (/무인경비/i.test(optStr)) chips.push('🛡️ 무인경비');
+    if (/화물엘리베이터/i.test(optStr)) chips.push('🛗 화물EV');
+    return chips;
+  }
+
+  function formatRawFields(raw) {
+    if (!raw) return '';
+    try {
+      if (typeof raw === 'string') return raw;
+      var lines = [];
+      Object.keys(raw).forEach(function(k) {
+        var v = raw[k];
+        if (v == null || v === '') return;
+        lines.push(k + '\t' + String(v));
+      });
+      return lines.join('\n');
+    } catch (e) { return ''; }
+  }
+
+  // ====================================================================
+  // STYLES
+  // ====================================================================
+  function injectStyles() {
+    if (document.getElementById('v240-styles')) return;
+    var css =
+      /* ---- 디자인 토큰 (wishes) ---- */
+      '#ws-detail-container{--v240-g900:#1E3A28;--v240-g700:#2F6B3A;--v240-g100:#E8F1EA;' +
+        '--v240-g50:#F4F9F5;--v240-ink:#13231A;--v240-muted:#5A6B60;--v240-line:#DCE4DE;' +
+        '--v240-warn:#C4551B;--v240-hot:#BF3A2E;--v240-bg:#F7FAF7;background:var(--v240-bg);' +
+        'padding:20px 24px 60px}' +
+
+      /* ---- 공통 섹션 ---- */
+      '#ws-detail-container .v240-section{margin-top:16px;background:#fff;border:1px solid var(--v240-line);' +
+        'border-radius:12px;box-shadow:0 1px 2px rgba(19,35,26,.04),0 4px 16px rgba(19,35,26,.06);overflow:hidden}' +
+      '#ws-detail-container .v240-section:first-child{margin-top:0}' +
+      '#ws-detail-container .v240-section > h2{font-size:14px;padding:12px 18px;background:var(--v240-g50);' +
+        'border-bottom:1px solid var(--v240-line);color:var(--v240-g900);font-weight:700;margin:0;letter-spacing:-.01em}' +
+      '#ws-detail-container .v240-body{padding:16px}' +
+
+      /* ---- 갤러리 topbar ---- */
+      '#ws-detail-container .v240-topbar{display:flex;align-items:center;gap:10px;padding:12px 18px;' +
+        'background:var(--v240-g50);border-bottom:1px solid var(--v240-line)}' +
+      '#ws-detail-container .v240-num{font-weight:800;color:var(--v240-g900);font-size:15px;cursor:pointer;' +
+        'padding:4px 10px;background:#fff;border:1px solid var(--v240-line);border-radius:6px}' +
+      '#ws-detail-container .v240-num:hover{background:var(--v240-g100)}' +
+      '#ws-detail-container .v240-new{font-size:10px;font-weight:800;color:#fff;background:var(--v240-hot);' +
+        'padding:3px 8px;border-radius:4px;letter-spacing:.05em}' +
+      '#ws-detail-container .v240-spacer{flex:1}' +
+      '#ws-detail-container .v240-fav{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--v240-line);' +
+        'background:#fff;padding:5px 12px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:700;color:var(--v240-muted)}' +
+      '#ws-detail-container .v240-fav.on{border-color:#F2CF49;background:#FFFCE8;color:#A77D02}' +
+
+      /* ---- 갤러리 본체 ---- */
+      '#ws-detail-container .v240-gallery-body{padding:14px}' +
+      '#ws-detail-container .ws-gallery-main{position:relative;width:100%;aspect-ratio:16/10;background:#111 center/contain no-repeat;' +
+        'border-radius:10px;overflow:hidden}' +
+      '#ws-detail-container .v240-zoom-hint{position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.55);' +
+        'color:#fff;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;pointer-events:none}' +
+      '#ws-detail-container .ws-gallery-thumbs{display:flex;flex-direction:row;gap:6px;overflow-x:auto;padding:10px 2px 2px}' +
+      '#ws-detail-container .ws-gallery-thumbs::-webkit-scrollbar{height:6px}' +
+      '#ws-detail-container .ws-gallery-thumbs::-webkit-scrollbar-thumb{background:#c8d3cc;border-radius:3px}' +
+      '#ws-detail-container .ws-thumb{flex:0 0 80px;width:80px;height:60px;object-fit:cover;border-radius:6px;' +
+        'cursor:pointer;opacity:.65;border:2px solid transparent;background:#ddd;transition:all .15s}' +
+      '#ws-detail-container .ws-thumb:hover{opacity:.95}' +
+      '#ws-detail-container .ws-thumb.ws-thumb-active{opacity:1;border-color:var(--v240-g700);' +
+        'box-shadow:0 0 0 1px var(--v240-g700) inset}' +
+
+      /* ---- Hero ---- */
+      '#ws-detail-container .v240-hero{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;' +
+        'padding:18px 20px;background:#fff;border:1px solid var(--v240-line);border-radius:12px;margin-top:16px;' +
+        'box-shadow:0 1px 2px rgba(19,35,26,.04),0 4px 16px rgba(19,35,26,.06)}' +
+      '#ws-detail-container .v240-hero h1{font-size:20px;margin:0 0 4px;line-height:1.3;color:var(--v240-g900);font-weight:700;letter-spacing:-.01em}' +
+      '#ws-detail-container .v240-hero .v240-detail{color:#1976D2;font-weight:600;font-size:18px}' +
+      '#ws-detail-container .v240-sub{color:var(--v240-muted);font-size:13px;margin-top:3px}' +
+      '#ws-detail-container .v240-price-box{text-align:right}' +
+      '#ws-detail-container .v240-kind{font-size:12px;color:var(--v240-muted);margin-bottom:2px}' +
+      '#ws-detail-container .v240-amt{font-size:24px;font-weight:800;color:var(--v240-g900);letter-spacing:-.02em;white-space:nowrap}' +
+      '#ws-detail-container .v240-mgmt{font-size:12px;color:var(--v240-muted);margin-top:3px}' +
+
+      /* ---- 기본정보 2단 배열 ---- */
+      '#ws-detail-container .v240-info2{border:1px solid var(--v240-line);border-radius:10px;overflow:hidden;background:#fff}' +
+      '#ws-detail-container .v240-r{display:grid;grid-template-columns:110px 1fr 110px 1fr;border-bottom:1px solid var(--v240-line)}' +
+      '#ws-detail-container .v240-r:last-child{border-bottom:0}' +
+      '#ws-detail-container .v240-r:nth-child(even){background:#FCFDFC}' +
+      '#ws-detail-container .v240-k{color:var(--v240-muted);font-size:12px;font-weight:600;padding:10px 14px;' +
+        'background:var(--v240-g50);border-right:1px solid var(--v240-line);display:flex;align-items:center}' +
+      '#ws-detail-container .v240-v{color:var(--v240-ink);font-size:13px;font-weight:600;padding:10px 14px;' +
+        'border-right:1px solid var(--v240-line);display:flex;align-items:center}' +
+      '#ws-detail-container .v240-r .v240-v:last-child{border-right:0}' +
+      '#ws-detail-container .v240-v-warn{color:var(--v240-warn);font-weight:700}' +
+      '#ws-detail-container .v240-k.v240-empty{background:#fff;border-right:0}' +
+      '#ws-detail-container .v240-v.v240-empty{background:#fff}' +
+
+      /* ---- 옵션 · 상세설명 ---- */
+      '#ws-detail-container .v240-opts-label,.v240-desc-label{font-size:12px;color:var(--v240-muted);font-weight:600;margin:16px 0 8px}' +
+      '#ws-detail-container .v240-opts{display:flex;flex-wrap:wrap;gap:6px}' +
+      '#ws-detail-container .v240-chip{background:var(--v240-g50);border:1px solid var(--v240-line);color:var(--v240-g900);' +
+        'padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600}' +
+      '#ws-detail-container .v240-desc{margin:0;padding:12px 14px;background:var(--v240-g50);border-radius:10px;' +
+        'font-size:13px;line-height:1.6;color:var(--v240-ink)}' +
+
+      /* ---- 위치 지도 placeholder ---- */
+      '#ws-detail-container .v240-map{aspect-ratio:16/6;background:linear-gradient(120deg,#E8F1EA,#D8E7DC);' +
+        'border:1px dashed var(--v240-line);border-radius:10px;display:flex;align-items:center;justify-content:center;' +
+        'color:var(--v240-muted);font-size:13px}' +
+
+      /* ---- 중개사 전용 (접기/펼치기) ---- */
+      '#ws-detail-container .v240-broker{margin-top:16px;border:1px solid #D9C486;border-radius:12px;background:#FFFBEB;overflow:hidden}' +
+      '#ws-detail-container .v240-broker-h{background:#FDF3C5;color:#6B561A;border-bottom:1px solid #E9D693;' +
+        'font-size:13px;padding:12px 18px;display:flex;align-items:center;gap:8px;margin:0;font-weight:800;' +
+        'cursor:pointer;user-select:none;transition:background .15s}' +
+      '#ws-detail-container .v240-broker-h:hover{background:#FBE89B}' +
+      '#ws-detail-container .v240-locked{font-size:10px;background:#6B561A;color:#fff;padding:2px 6px;border-radius:4px;letter-spacing:.04em}' +
+      '#ws-detail-container .v240-count{font-size:11px;color:#6B561A;font-weight:600;background:rgba(107,86,26,.1);padding:2px 8px;border-radius:999px}' +
+      '#ws-detail-container .v240-chev{font-size:12px;color:#6B561A;transition:transform .2s;display:inline-block}' +
+      '#ws-detail-container .v240-broker.closed .v240-broker-h{border-bottom:0}' +
+      '#ws-detail-container .v240-broker.closed .v240-chev{transform:rotate(-90deg)}' +
+      '#ws-detail-container .v240-broker.closed .v240-broker-body{display:none}' +
+      '#ws-detail-container .v240-broker-body{padding:16px 18px}' +
+      '#ws-detail-container .v240-b-label{font-weight:700;color:#6B561A;font-size:13px;margin-bottom:8px}' +
+
+      /* timeline 카드 */
+      '#ws-detail-container .v240-timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}' +
+      '#ws-detail-container .v240-tl-card{background:#fff;border:1px solid #E9D693;border-radius:8px;padding:10px 12px}' +
+      '#ws-detail-container .v240-tl-k{font-size:11px;color:#6B561A;font-weight:600;margin-bottom:3px}' +
+      '#ws-detail-container .v240-tl-v{font-size:13px;font-weight:700;color:var(--v240-ink)}' +
+
+      /* 연락처·메모·원본 */
+      '#ws-detail-container .v240-b-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}' +
+      '#ws-detail-container .v240-contacts-empty{padding:10px 12px;background:#fff;border:1px dashed #D9C486;' +
+        'border-radius:8px;color:var(--v240-muted);font-size:12px}' +
+      '#ws-detail-container .v240-b-btn{margin-top:8px;background:#6B561A;color:#fff;border:0;border-radius:8px;' +
+        'padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer}' +
+      '#ws-detail-container .v240-memos{display:flex;flex-wrap:wrap;gap:6px}' +
+      '#ws-detail-container .v240-m{border:1px solid var(--v240-line);background:#fff;padding:5px 10px;' +
+        'border-radius:999px;font-size:12px;color:var(--v240-ink);cursor:pointer;user-select:none}' +
+      '#ws-detail-container .v240-m:hover{background:var(--v240-g100);border-color:var(--v240-g700)}' +
+      '#ws-detail-container .v240-m.active{background:var(--v240-g700);color:#fff;border-color:var(--v240-g700)}' +
+      '#ws-detail-container .v240-memo-area{width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;' +
+        'font-size:12px;resize:vertical;font-family:inherit}' +
+      '#ws-detail-container .v240-save-btn{margin-top:8px;padding:6px 14px;background:var(--v240-g700);color:#fff;' +
+        'border:0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}' +
+
+      '#ws-detail-container .v240-src{font-size:12px;color:var(--v240-muted)}' +
+      '#ws-detail-container .v240-src-row{margin-top:4px}' +
+      '#ws-detail-container .v240-src-k{display:inline-block;width:74px;color:var(--v240-muted);font-weight:600}' +
+      '#ws-detail-container .v240-src a{color:var(--v240-g700);word-break:break-all}' +
+      '#ws-detail-container .v240-raw-pre{background:#fff;border:1px solid var(--v240-line);border-radius:8px;padding:10px;' +
+        'max-height:200px;overflow:auto;font-size:11px;line-height:1.5;color:var(--v240-ink);margin-top:6px;white-space:pre-wrap}' +
+
+      /* 반응형 */
+      '@media(max-width:900px){' +
+        '#ws-detail-container .v240-hero{grid-template-columns:1fr}' +
+        '#ws-detail-container .v240-price-box{text-align:left}' +
+        '#ws-detail-container .v240-r{grid-template-columns:100px 1fr}' +
+        '#ws-detail-container .v240-k{border-right:1px solid var(--v240-line)}' +
+        '#ws-detail-container .v240-v{border-right:0}' +
+        '#ws-detail-container .v240-timeline{grid-template-columns:repeat(2,1fr)}' +
+        '#ws-detail-container .v240-b-grid{grid-template-columns:1fr}' +
+      '}';
+
+    var style = document.createElement('style');
+    style.id = 'v240-styles';
+    style.textContent = css;
+    document.head.appendChild(style);
+
+    // 클릭 위임 — 중개사 전용 헤더 토글
+    document.addEventListener('click', function(e) {
+      var brokerH = e.target.closest ? e.target.closest('.v240-broker-h') : null;
+      if (brokerH && brokerH.parentNode && brokerH.parentNode.classList.contains('v240-broker')) {
+        brokerH.parentNode.classList.toggle('closed');
+      }
+      // 메모 태그 클릭 → 메모 입력창에 추가
+      var memoTag = e.target.closest ? e.target.closest('[data-memo-tag]') : null;
+      if (memoTag) {
+        memoTag.classList.toggle('active');
+        var area = memoTag.closest('.v240-broker-body').querySelector('.v240-memo-area');
+        if (area) {
+          var tag = memoTag.getAttribute('data-memo-tag');
+          if (memoTag.classList.contains('active')) {
+            area.value = area.value ? area.value + ' ' + tag : tag;
+          } else {
+            area.value = area.value.replace(new RegExp('\\s*' + tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '');
+          }
+        }
+      }
+      // ★ 관심 토글 (v240-fav)
+      var favBtn = e.target.closest ? e.target.closest('.v240-fav[data-wp-fav]') : null;
+      if (favBtn) {
+        var favId = favBtn.getAttribute('data-wp-fav');
+        if (window.WS && typeof window.WS.toggleFavorite === 'function') {
+          try { window.WS.toggleFavorite(favId); } catch (e2) {}
+        }
+        favBtn.classList.toggle('on');
+      }
+    }, true);
+  }
+
+})();
