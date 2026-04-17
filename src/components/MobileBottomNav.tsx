@@ -9,8 +9,15 @@
 //   - safe-area-inset-bottom 대응 (iOS 노치/홈 인디케이터)
 //   - md: 이상 비노출 (데스크톱은 기존 Header 네비 사용)
 //   - /admin · /map · 중개사 포털(/search /login /signup) 에서는 렌더 안 함
+//
+// ━━━ Next.js 15 prerender 대응 (2026-04-17) ━━━
+//   useSearchParams() 를 사용하면 App Router 빌드 시
+//   `missing-suspense-with-csr-bailout` 에러로 모든 페이지가 실패함.
+//   → useSearchParams 를 쓰는 내부(MobileBottomNavInner) 를 분리하고
+//     Suspense 로 감싸서 prerender 바운더리를 만들어준다.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+import { Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { Search, Map, Heart, MessageCircle, User } from 'lucide-react';
@@ -31,7 +38,8 @@ const items: NavItem[] = [
   { href: '/mypage', label: '마이', Icon: User, match: (p) => p === '/mypage' },
 ];
 
-export default function MobileBottomNav() {
+/** useSearchParams 를 쓰는 실제 내부 구현 - Suspense 안에서 렌더링됨 */
+function MobileBottomNavInner() {
   const pathname = usePathname() || '/';
   const searchParams = useSearchParams();
   const tab = searchParams?.get('tab') || '';
@@ -95,5 +103,14 @@ export default function MobileBottomNav() {
         })}
       </ul>
     </nav>
+  );
+}
+
+/** default export - Suspense 바운더리로 감싼 래퍼 */
+export default function MobileBottomNav() {
+  return (
+    <Suspense fallback={null}>
+      <MobileBottomNavInner />
+    </Suspense>
   );
 }
