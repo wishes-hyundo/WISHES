@@ -44,8 +44,43 @@ export default function ListingsClient({
   const dong = searchParams.get('dong') || '';
   const sort = searchParams.get('sort') || 'latest';
   const search = searchParams.get('search') || '';
+  const maxDeposit = searchParams.get('maxDeposit') || '';
+  const minArea = searchParams.get('minArea') || '';
   const pageParam = searchParams.get('page') || '1';
   const pageSize = 12;
+
+  // 프리셋 가격대(보증금 기준, 만원 단위) — 거래유형별 세분화
+  const pricePresets: { label: string; max: string }[] = deal === '매매'
+    ? [
+        { label: '5억 이하', max: '50000' },
+        { label: '10억 이하', max: '100000' },
+        { label: '20억 이하', max: '200000' },
+        { label: '전체', max: '' },
+      ]
+    : deal === '월세'
+    ? [
+        { label: '500 이하', max: '500' },
+        { label: '1,000 이하', max: '1000' },
+        { label: '3,000 이하', max: '3000' },
+        { label: '전체', max: '' },
+      ]
+    : deal === '전세'
+    ? [
+        { label: '1억 이하', max: '10000' },
+        { label: '3억 이하', max: '30000' },
+        { label: '5억 이하', max: '50000' },
+        { label: '전체', max: '' },
+      ]
+    : [];
+
+  // 면적 프리셋 (㎡)
+  const areaPresets: { label: string; min: string }[] = [
+    { label: '10㎡↑', min: '10' },
+    { label: '20㎡↑', min: '20' },
+    { label: '40㎡↑', min: '40' },
+    { label: '60㎡↑', min: '60' },
+    { label: '전체', min: '' },
+  ];
 
   // 매물번호 검색 처리
   const handleSearch = useCallback((e: React.FormEvent) => {
@@ -83,16 +118,31 @@ export default function ListingsClient({
       setLoading(true);
       const supabase = createClient();
 
+      // 크롤링 매물 사진만 차단 (정보는 광고로 노출). source_site NOT NULL → listing_images 빈 배열
+      const stripCrawledImages = (arr: any[]) =>
+        arr.map((r: any) => (r.source_site ? { ...r, listing_images: [] } : r));
+
+      const selectFields = 'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, source_site, created_at, views';
+
       // 매물번호 검색 모드
       if (search) {
         const sId = parseInt(search.replace(/[Ww]-?/g, ''), 10);
         if (!isNaN(sId)) {
-          const { data, count } = await supabase.from('listings').select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)', { count: 'exact' }).eq('id', sId);
-          setListings(data || []);
+          const { data, count } = await supabase
+            .from('listings')
+            .select(selectFields + ', listing_images(url, sort_order)', { count: 'exact' })
+            .eq('id', sId);
+          setListings(stripCrawledImages(data || []));
           setTotal(count || 0);
         } else {
-          const { data, count } = await supabase.from('listings').select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)', { count: 'exact' }).eq('status', '공개').or('title.ilike.%' + search + '%,address.ilike.%' + search + '%,dong.ilike.%' + search + '%').order('created_at', { ascending: false }).range(0, pageSize - 1);
-          setListings(data || []);
+          const { data, count } = await supabase
+            .from('listings')
+            .select(selectFields + ', listing_images(url, sort_order)', { count: 'exact' })
+            .eq('status', '공개')
+            .or('title.ilike.%' + search + '%,address.ilike.%' + search + '%,dong.ilike.%' + search + '%')
+            .order('created_at', { ascending: false })
+            .range(0, pageSize - 1);
+          setListings(stripCrawledImages(data || []));
           setTotal(count || 0);
         }
         setLoading(false);
@@ -100,25 +150,39 @@ export default function ListingsClient({
       }
 
       const offset = (currentPage - 1) * pageSize;
-      const selectFields = 'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views';
       const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
 
-      // Step 1: 사진 있는 매물 전체 조회
+      // Step 1: 사진 있는 자체 매물 전체 조회 (크롤링 매물은 사진이 차단되므로 photo-first 로직에서 제외)
       let photoQuery = supabase
         .from('listings')
         .select(selectFields + ', listing_images!inner(url, sort_order)')
-        .eq('status', '공개');
+        .eq('status', '공개')
+        .is('source_site', null);
       if (deal) photoQuery = photoQuery.eq('deal', deal);
       if (type) photoQuery = photoQuery.eq('type', type);
       if (dong) photoQuery = photoQuery.eq('dong', dong);
+      if (maxDeposit) {
+        const md = parseInt(maxDeposit, 10);
+        if (deal === '매매') photoQuery = photoQuery.lte('price', md);
+        else if (deal === '월세') photoQuery = photoQuery.lte('monthly', md);
+        else photoQuery = photoQuery.lte('deposit', md);
+      }
+      if (minArea) photoQuery = photoQuery.gte('area_m2', parseInt(minArea, 10));
       photoQuery = photoQuery.order(sortColumn, { ascending: false }).limit(500);
 
-      // Step 2: 동 목록 + 전체 개수
+      // Step 2: 동 목록 + 전체 개수 (크롤링 포함 — 정보는 광고 노출)
       const dongQuery = supabase.from('listings').select('dong').eq('status', '공개');
       let countQuery = supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', '공개');
       if (deal) countQuery = countQuery.eq('deal', deal);
       if (type) countQuery = countQuery.eq('type', type);
       if (dong) countQuery = countQuery.eq('dong', dong);
+      if (maxDeposit) {
+        const md = parseInt(maxDeposit, 10);
+        if (deal === '매매') countQuery = countQuery.lte('price', md);
+        else if (deal === '월세') countQuery = countQuery.lte('monthly', md);
+        else countQuery = countQuery.lte('deposit', md);
+      }
+      if (minArea) countQuery = countQuery.gte('area_m2', parseInt(minArea, 10));
 
       const [photoResult, dongResult, countResult] = await Promise.all([photoQuery, dongQuery, countQuery]);
 
@@ -126,17 +190,29 @@ export default function ListingsClient({
       const photoIds = photoListings.map((l: any) => l.id);
       const photoCount = photoListings.length;
 
-      // Step 3: 현재 페이지 매물
+      // Step 3: 현재 페이지 매물 (크롤링 포함, 사진만 나중에 제거)
       let pageListings: any[] = [];
+
+      const applyNpFilters = (q: any) => {
+        if (deal) q = q.eq('deal', deal);
+        if (type) q = q.eq('type', type);
+        if (dong) q = q.eq('dong', dong);
+        if (maxDeposit) {
+          const md = parseInt(maxDeposit, 10);
+          if (deal === '매매') q = q.lte('price', md);
+          else if (deal === '월세') q = q.lte('monthly', md);
+          else q = q.lte('deposit', md);
+        }
+        if (minArea) q = q.gte('area_m2', parseInt(minArea, 10));
+        return q;
+      };
 
       if (offset < photoCount) {
         pageListings = photoListings.slice(offset, offset + pageSize);
         if (pageListings.length < pageSize) {
           const remaining = pageSize - pageListings.length;
-          let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '공개');
-          if (deal) npQ = npQ.eq('deal', deal);
-          if (type) npQ = npQ.eq('type', type);
-          if (dong) npQ = npQ.eq('dong', dong);
+          let npQ: any = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '공개');
+          npQ = applyNpFilters(npQ);
           if (photoIds.length > 0) npQ = npQ.not('id', 'in', '(' + photoIds.join(',') + ')');
           npQ = npQ.order(sortColumn, { ascending: false }).limit(remaining);
           const npResult = await npQ;
@@ -144,24 +220,22 @@ export default function ListingsClient({
         }
       } else {
         const adjustedOffset = offset - photoCount;
-        let npQ = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '공개');
-        if (deal) npQ = npQ.eq('deal', deal);
-        if (type) npQ = npQ.eq('type', type);
-        if (dong) npQ = npQ.eq('dong', dong);
+        let npQ: any = supabase.from('listings').select(selectFields + ', listing_images(url, sort_order)').eq('status', '공개');
+        npQ = applyNpFilters(npQ);
         if (photoIds.length > 0) npQ = npQ.not('id', 'in', '(' + photoIds.join(',') + ')');
         npQ = npQ.order(sortColumn, { ascending: false }).range(adjustedOffset, adjustedOffset + pageSize - 1);
         const npResult = await npQ;
         pageListings = npResult.data || [];
       }
 
-      setListings(pageListings);
+      setListings(stripCrawledImages(pageListings));
       setDongs([...new Set((dongResult.data || []).map((r: any) => r.dong))].sort());
       setTotal(countResult.count || 0);
       setLoading(false);
     };
 
     fetchData();
-  }, [deal, type, dong, sort, search, pageParam]);
+  }, [deal, type, dong, sort, search, pageParam, maxDeposit, minArea]);
 
   // 스크롤 위치 저장 / 복원
   const scrollSaved = useRef(false);
@@ -203,7 +277,7 @@ export default function ListingsClient({
     }
     scrollSaved.current = false;
     sessionStorage.removeItem('listings_scroll');
-  }, [deal, type, dong, sort, search, pageParam]);
+  }, [deal, type, dong, sort, search, pageParam, maxDeposit, minArea]);
 
   const updateFilter = useCallback((key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -277,9 +351,19 @@ export default function ListingsClient({
 
         {/* 필터 */}
         {!search && <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <SlidersHorizontal className="w-4 h-4 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">필터</span>
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="w-4 h-4 text-gray-500" />
+              <span className="text-sm font-medium text-gray-700">필터</span>
+            </div>
+            {(deal || type || dong || maxDeposit || minArea) && (
+              <button
+                onClick={() => router.push('/listings')}
+                className="text-xs text-gray-500 hover:text-wishes-primary underline-offset-2 hover:underline"
+              >
+                필터 초기화
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
             <select value={deal} onChange={(e) => updateFilter('deal', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
@@ -297,6 +381,58 @@ export default function ListingsClient({
             <select value={sort} onChange={(e) => updateFilter('sort', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
               {sortOptions.map((o) => (<option key={o.value} value={o.value}>{o.label}</option>))}
             </select>
+          </div>
+
+          {/* ━━━ 가격대 프리셋 (거래유형 선택 시 노출) ━━━ */}
+          {deal && pricePresets.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <p className="text-xs font-semibold text-gray-600 mb-2">
+                {deal === '매매' ? '매매가' : deal === '월세' ? '월세' : '보증금'}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {pricePresets.map((p) => {
+                  const active = maxDeposit === p.max;
+                  return (
+                    <button
+                      key={p.label}
+                      onClick={() => updateFilter('maxDeposit', p.max)}
+                      className={
+                        'px-3 py-1.5 rounded-full text-xs font-medium border transition-all ' +
+                        (active
+                          ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40 hover:text-wishes-primary')
+                      }
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ━━━ 면적 프리셋 ━━━ */}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-600 mb-2">전용면적</p>
+            <div className="flex flex-wrap gap-1.5">
+              {areaPresets.map((p) => {
+                const active = minArea === p.min;
+                return (
+                  <button
+                    key={p.label}
+                    onClick={() => updateFilter('minArea', p.min)}
+                    className={
+                      'px-3 py-1.5 rounded-full text-xs font-medium border transition-all ' +
+                      (active
+                        ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40 hover:text-wishes-primary')
+                    }
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>}
 

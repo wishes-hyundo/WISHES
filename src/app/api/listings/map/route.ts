@@ -43,10 +43,12 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient();
 
     // 지도 바운드 내 매물 조회 (경량화: 이미지 조인 제거로 응답 속도 대폭 향상)
+    // ※ 저작권 보호: 외부 크롤링(공실클럽/온하우스 등) 매물은 "사진만" 차단.
+    //   정보(주소·가격·면적 등)는 광고 목적으로 노출. source_site NOT NULL → listing_images 빈 배열 처리
     let query = supabase
       .from('listings')
       .select(
-        'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, created_at, updated_at, views, listing_images(url)',
+        'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, source_site, created_at, updated_at, views, listing_images(url)',
         { count: 'exact' }
       )
       .neq('status', '계약완료')
@@ -62,11 +64,14 @@ export async function GET(request: NextRequest) {
     if (type) {
       query = query.eq('type', type);
     }
+    // 가격 범위 필터: 거래유형에 따라 다른 컬럼 대상
+    //   매매 → price, 월세 → monthly, 전세 → deposit
+    const priceColumn = deal === '매매' ? 'price' : deal === '월세' ? 'monthly' : 'deposit';
     if (minDeposit) {
-      query = query.gte('deposit', parseInt(minDeposit));
+      query = query.gte(priceColumn, parseInt(minDeposit));
     }
     if (maxDeposit) {
-      query = query.lte('deposit', parseInt(maxDeposit));
+      query = query.lte(priceColumn, parseInt(maxDeposit));
     }
 
         // 1차 정렼: updated_at 내림��� 순 (post-sort로 사진 우선 적용)
@@ -85,18 +90,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 사진 유무 조회 → 1순위 사진, 2순위 수정일
-    let sorted = data || [];
+    // ※ 크롤링 매물(source_site NOT NULL) → listing_images 빈 배열로 치환 (사진 차단)
+    //   그 외 정보는 그대로 노출 (광고 목적)
+    let sorted = (data || []).map((r: any) => {
+      if (r.source_site) {
+        return { ...r, listing_images: [] };
+      }
+      return r;
+    });
+
+    // 사진 유무 조회 → 1순위 사진, 2순위 수정일 (자체 매물만 카운트)
     if (sorted.length > 0) {
-      const ids = sorted.map((r: any) => r.id);
-      const { data: imgs } = await supabase
-        .from('listing_images')
-        .select('listing_id')
-        .in('listing_id', ids);
-      const hasImg = new Set<string>((imgs || []).map((r: any) => r.listing_id));
+      const ownIds = sorted
+        .filter((r: any) => !r.source_site)
+        .map((r: any) => r.id);
+      let hasImg = new Set<string>();
+      if (ownIds.length > 0) {
+        const { data: imgs } = await supabase
+          .from('listing_images')
+          .select('listing_id')
+          .in('listing_id', ownIds);
+        hasImg = new Set<string>((imgs || []).map((r: any) => r.listing_id));
+      }
       sorted = [...sorted].sort((a: any, b: any) => {
-        const ah = hasImg.has(a.id) ? 1 : 0;
-        const bh = hasImg.has(b.id) ? 1 : 0;
+        const ah = !a.source_site && hasImg.has(a.id) ? 1 : 0;
+        const bh = !b.source_site && hasImg.has(b.id) ? 1 : 0;
         if (ah !== bh) return bh - ah;
         const ad = new Date(a.updated_at || a.created_at || 0).getTime();
         const bd = new Date(b.updated_at || b.created_at || 0).getTime();

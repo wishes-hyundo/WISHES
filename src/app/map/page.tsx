@@ -5,7 +5,7 @@ import { useMapListings } from '@/hooks/useMapListings';
 import { ListingCard } from '@/components/ListingCard';
 import MapListingPanel from '@/components/MapListingPanel';
 import { formatPrice } from '@/lib/utils';
-import { MapPin, List, Loader2, Search, X, Building2 } from 'lucide-react';
+import { MapPin, List, Loader2, Search, X, Building2, Crosshair, RefreshCw } from 'lucide-react';
 import type { Listing, ListingFilter, DealType, ListingType } from '@/types';
 
 declare global {
@@ -521,6 +521,43 @@ export default function MapSearchPage() {
     }
   }, [listings]);
 
+  // ━━━ 내 위치로 이동 ━━━
+  const handleGoToMyLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      alert('이 브라우저는 위치 서비스를 지원하지 않습니다.');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (!mapInstanceRef.current || !window.kakao?.maps) return;
+        const map = mapInstanceRef.current;
+        const { latitude, longitude } = pos.coords;
+        const center = new window.kakao.maps.LatLng(latitude, longitude);
+        map.setLevel(3);
+        map.panTo(center);
+      },
+      () => {
+        alert('위치 권한을 허용해 주세요. (브라우저 주소창 왼쪽 자물쇠 아이콘에서 설정)');
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 }
+    );
+  }, []);
+
+  // ━━━ 현재 지도 영역 다시 검색 (수동) ━━━
+  const handleResearchArea = useCallback(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const bounds = map.getBounds();
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    fetchListings({
+      swLat: sw.getLat(),
+      swLng: sw.getLng(),
+      neLat: ne.getLat(),
+      neLng: ne.getLng(),
+    }, filters);
+  }, [fetchListings, filters]);
+
   // ━━━ 필터 토글 핸들러 ━━━
   const toggleDealFilter = (deal: DealType) => {
     setFilters((prev) => ({
@@ -643,6 +680,60 @@ export default function MapSearchPage() {
           ))}
         </div>
 
+        {/* 3행: 가격대 프리셋 (거래유형 선택 시 노출) */}
+        {filters.deal && (
+          <div className="px-4 pb-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] font-semibold text-gray-500 shrink-0">
+              {filters.deal === '매매' ? '매매가' : filters.deal === '월세' ? '월세' : '보증금'}
+            </span>
+            {(filters.deal === '매매'
+              ? [
+                  { label: '5억↓', max: 50000 },
+                  { label: '10억↓', max: 100000 },
+                  { label: '20억↓', max: 200000 },
+                ]
+              : filters.deal === '월세'
+              ? [
+                  { label: '50↓', max: 50 },
+                  { label: '100↓', max: 100 },
+                  { label: '300↓', max: 300 },
+                ]
+              : [
+                  { label: '1억↓', max: 10000 },
+                  { label: '3억↓', max: 30000 },
+                  { label: '5억↓', max: 50000 },
+                ]
+            ).map((p) => {
+              const active = filters.maxDeposit === p.max;
+              return (
+                <button
+                  key={p.label}
+                  onClick={() => setFilters((prev) => ({
+                    ...prev,
+                    maxDeposit: active ? undefined : p.max,
+                  }))}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full border transition-all whitespace-nowrap ${
+                    active
+                      ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                      : 'bg-white text-gray-500 border-gray-200 hover:border-wishes-primary/40 hover:text-wishes-primary'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
+            {filters.maxDeposit !== undefined && (
+              <button
+                onClick={() => setFilters((prev) => ({ ...prev, maxDeposit: undefined }))}
+                className="px-2.5 py-1 text-[11px] font-medium text-gray-500 hover:text-wishes-primary shrink-0"
+                title="가격 필터 초기화"
+              >
+                <X className="w-3 h-3 inline" />
+              </button>
+            )}
+          </div>
+        )}
+
         {/* 검색 입력창 (토글) */}
         {showSearch && (
           <div className="px-4 pb-3 animate-fade-in-up">
@@ -700,6 +791,28 @@ export default function MapSearchPage() {
               </div>
             </div>
           )}
+
+          {/* ━━━ 우측 하단 지도 컨트롤 — 내 위치 / 재검색 ━━━ */}
+          {mapReady && (
+            <div className="absolute bottom-6 right-6 flex flex-col gap-2 z-20">
+              <button
+                onClick={handleResearchArea}
+                className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-full shadow-lg text-xs font-bold text-wishes-primary border-2 border-wishes-primary/10 hover:bg-wishes-primary hover:text-white transition-all"
+                title="현재 지도 영역에서 매물 다시 검색"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                이 지역 재검색
+              </button>
+              <button
+                onClick={handleGoToMyLocation}
+                className="flex items-center justify-center w-11 h-11 bg-white/95 backdrop-blur-md rounded-full shadow-lg text-wishes-primary border-2 border-wishes-primary/10 hover:bg-wishes-primary hover:text-white transition-all self-end"
+                title="내 위치로 이동"
+                aria-label="내 위치로 이동"
+              >
+                <Crosshair className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* ━━━ 매물 리스트 (우측 고정) ━━━ */}
@@ -752,7 +865,7 @@ export default function MapSearchPage() {
           </div>
         </div>
 
-        {/* ━━━ 매물 상세 슬라이드 패널 (지도 위 오버레이, 목록 왼쪽) ━━━ */}
+        {/* ━━━ 매물 상세 슬라이드 패널 (데스크탑: 지도 위 오버레이 / 모바일: 전체화면) ━━━ */}
         <div
           className={`hidden md:block absolute top-0 bottom-0 right-[380px] z-30 bg-white border-r border-gray-200 shadow-2xl transition-all duration-300 ease-in-out ${detailId ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}
           style={{ width: '420px' }}
@@ -764,6 +877,16 @@ export default function MapSearchPage() {
             />
           )}
         </div>
+
+        {/* 모바일 상세 패널 (전체화면 오버레이) */}
+        {detailId && (
+          <div className="md:hidden fixed inset-0 top-20 z-40 bg-white animate-fade-in">
+            <MapListingPanel
+              listingId={detailId}
+              onClose={() => setDetailId(null)}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { Building2, ChevronLeft, ChevronRight, X, ZoomIn, Images } from 'lucide-react';
+import { Building2, ChevronLeft, ChevronRight, X, ZoomIn, Images, Camera, MessageCircleMore } from 'lucide-react';
 import { getWatermarkedUrl } from '@/lib/imageUrl';
 
 interface ImageGalleryProps {
@@ -11,19 +11,23 @@ interface ImageGalleryProps {
   status: string;
   dealColor: string;
   statusColor: string;
+  /** 크롤링/광고 매물 여부 — true 시 사진 대신 WISHES 안내 플레이스홀더 */
+  isAdListing?: boolean;
 }
 
-export default function ImageGallery({ images, title, deal, status, dealColor, statusColor }: ImageGalleryProps) {
+export default function ImageGallery({ images, title, deal, status, dealColor, statusColor, isAdListing = false }: ImageGalleryProps) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
-  const hasImages = images.length > 0 && images[0].url;
+  // 광고 매물은 이미지 강제 차단 (저작권 보호)
+  const effectiveImages = isAdListing ? [] : images;
+  const hasImages = effectiveImages.length > 0 && effectiveImages[0]?.url;
 
   const goTo = useCallback((idx: number) => {
-    if (idx < 0) setCurrentIdx(images.length - 1);
-    else if (idx >= images.length) setCurrentIdx(0);
+    if (idx < 0) setCurrentIdx(effectiveImages.length - 1);
+    else if (idx >= effectiveImages.length) setCurrentIdx(0);
     else setCurrentIdx(idx);
-  }, [images.length]);
+  }, [effectiveImages.length]);
 
   // 키보드 네비게이션 (라이트박스)
   useEffect(() => {
@@ -49,8 +53,8 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
           {hasImages ? (
             <>
               <img
-                src={getWatermarkedUrl(images[currentIdx].url)}
-                alt={images[currentIdx].alt || title}
+                src={getWatermarkedUrl(effectiveImages[currentIdx].url)}
+                alt={effectiveImages[currentIdx].alt || title}
                 className="w-full h-full object-cover transition-transform duration-300"
               />
               {/* 확대 오버레이 */}
@@ -61,6 +65,30 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
                 </div>
               </div>
             </>
+          ) : isAdListing ? (
+            // 광고 매물 플레이스홀더 (크롤링 매물 - 저작권 보호 · 사진만 차단)
+            <div className="w-full h-full relative flex items-center justify-center bg-gradient-to-br from-wishes-primary via-wishes-primary to-wishes-secondary overflow-hidden">
+              <div className="absolute inset-0 opacity-[0.08]" style={{backgroundImage:"radial-gradient(circle at 20% 30%, #fff 2px, transparent 2px), radial-gradient(circle at 80% 70%, #fff 2px, transparent 2px)",backgroundSize:"30px 30px"}} />
+              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-wishes-accent to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-gradient-to-r from-transparent via-wishes-accent to-transparent" />
+
+              <div className="relative text-center text-white px-6 max-w-md">
+                <div className="w-20 h-20 mx-auto rounded-3xl bg-white/15 backdrop-blur-sm border border-white/20 shadow-xl flex items-center justify-center mb-5">
+                  <Camera className="w-10 h-10 text-white" strokeWidth={1.5} />
+                </div>
+                <span className="inline-block px-4 py-1.5 mb-3 text-xs font-bold tracking-[0.2em] rounded-full bg-wishes-accent text-wishes-primary">
+                  WISHES 광고 매물
+                </span>
+                <p className="text-lg md:text-xl font-bold mb-2 leading-tight">사진은 문의 시 안내드립니다</p>
+                <p className="text-sm opacity-90 leading-relaxed">
+                  더 정확한 매물 정보를 위해 WISHES 전담 중개사가 직접 현장 사진과 내부 컨디션을 안내해드립니다.
+                </p>
+                <div className="mt-5 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 text-sm font-medium">
+                  <MessageCircleMore className="w-4 h-4" />
+                  하단 상담 신청으로 문의해주세요
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gradient-to-br from-gray-100 to-gray-200">
               <Building2 className="w-16 h-16 mb-2" />
@@ -77,7 +105,7 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
           </span>
 
           {/* 좌우 네비 */}
-          {images.length > 1 && (
+          {effectiveImages.length > 1 && (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); goTo(currentIdx - 1); }}
@@ -97,18 +125,18 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
           )}
 
           {/* 이미지 카운터 */}
-          {images.length > 1 && (
+          {effectiveImages.length > 1 && (
             <div className="absolute bottom-3 right-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs flex items-center gap-1.5">
               <Images className="w-3.5 h-3.5" />
-              {currentIdx + 1} / {images.length}
+              {currentIdx + 1} / {effectiveImages.length}
             </div>
           )}
         </div>
 
         {/* 썸네일 */}
-        {images.length > 1 && (
+        {effectiveImages.length > 1 && (
           <div className="flex gap-1.5 p-2.5 overflow-x-auto">
-            {images.map((img, idx) => (
+            {effectiveImages.map((img, idx) => (
               <button
                 key={img.id}
                 onClick={() => setCurrentIdx(idx)}
@@ -142,20 +170,20 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
 
           {/* 카운터 */}
           <div className="absolute top-4 left-4 text-white/70 text-sm z-10">
-            {currentIdx + 1} / {images.length}
+            {currentIdx + 1} / {effectiveImages.length}
           </div>
 
           {/* 메인 이미지 */}
           <div className="max-w-[90vw] max-h-[85vh] relative" onClick={(e) => e.stopPropagation()}>
             <img
-              src={getWatermarkedUrl(images[currentIdx].url)}
-              alt={images[currentIdx].alt || title}
+              src={getWatermarkedUrl(effectiveImages[currentIdx].url)}
+              alt={effectiveImages[currentIdx].alt || title}
               className="max-w-full max-h-[85vh] object-contain rounded-lg"
             />
           </div>
 
           {/* 좌우 네비 */}
-          {images.length > 1 && (
+          {effectiveImages.length > 1 && (
             <>
               <button
                 onClick={(e) => { e.stopPropagation(); goTo(currentIdx - 1); }}
@@ -175,9 +203,9 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
           )}
 
           {/* 하단 썸네일 */}
-          {images.length > 1 && (
+          {effectiveImages.length > 1 && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 px-4 py-2 bg-black/50 rounded-full max-w-[90vw] overflow-x-auto">
-              {images.map((img, idx) => (
+              {effectiveImages.map((img, idx) => (
                 <button
                   key={img.id}
                   onClick={(e) => { e.stopPropagation(); setCurrentIdx(idx); }}

@@ -42,10 +42,11 @@ export default async function ListingsPage({
       const offset = (page - 1) * pageSize;
 
       // 매물 쿼리
+      // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 아래에서 listing_images만 빈 배열 처리 (정보는 광고 노출)
       let query = supabase
         .from('listings')
         .select(
-          'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, views, listing_images(url, sort_order)',
+          'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, source_site, created_at, views, listing_images(url, sort_order)',
           { count: 'exact' }
         )
         .eq('status', '공개');
@@ -68,7 +69,10 @@ export default async function ListingsPage({
 
       const [listingsResult, dongResult] = await Promise.all([query, dongQuery]);
 
-      const listings = listingsResult.data || [];
+      // 크롤링 매물 사진 제거 (정보는 보존)
+      const listings = (listingsResult.data || []).map((r: any) =>
+        r.source_site ? { ...r, listing_images: [] } : r
+      );
       const totalCount = listingsResult.count || 0;
       const dongs = [...new Set((dongResult.data || []).map((r: any) => r.dong).filter(Boolean))].sort();
 

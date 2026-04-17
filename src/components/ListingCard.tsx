@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, Eye, Hash, Flame, Sparkles, Heart, Home } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, Eye, Hash, Flame, Sparkles, Heart, Home, Camera, MessageCircleMore } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFloor } from '@/lib/formatFloor';
 import { useFavorites } from '@/contexts/FavoritesContext';
@@ -81,9 +81,12 @@ const getPriceLabel = (listing: Listing) => {
 export function ListingCard({ listing, compact = false, onHover, noLink = false }: ListingCardProps) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const liked = isFavorite(listing.id);
+  // ※ 크롤링 매물(source_site 존재) — 저작권 보호로 사진은 문의 시 안내
+  const isAd = !!(listing as any).source_site;
   // Supabase 조인 결과(listing_images) 또는 기존 images 필드에서 이미지 추출
   const listingImages = (listing as any).listing_images || listing.images || [];
-  const thumbUrl = listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
+  // 광고 매물은 썸네일 무시 (서버에서도 비웠지만 안전장치)
+  const thumbUrl = !isAd && listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
   const price = formatPrice(listing);
 
   if (compact) {
@@ -107,6 +110,13 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
               alt={listing.title}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
             />
+          ) : isAd ? (
+            // 광고 매물 플레이스홀더 (크롤링 매물 - 저작권 보호)
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-wishes-primary/90 via-wishes-primary to-wishes-secondary/90 relative text-white">
+              <Camera className="w-6 h-6 mb-1 opacity-70" strokeWidth={1.6} />
+              <span className="text-[9px] font-bold tracking-wide">광고 매물</span>
+              <span className="text-[8px] opacity-80 mt-0.5">문의 시 안내</span>
+            </div>
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-wishes-primary/10 via-emerald-50 to-white relative">
               <div className="absolute inset-0 opacity-[0.08]" style={{backgroundImage:"radial-gradient(circle at 30% 30%, #059669 1px, transparent 1px)",backgroundSize:"14px 14px"}} />
@@ -165,6 +175,28 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
             loading="lazy"
           />
+        ) : isAd ? (
+          // 광고 매물 플레이스홀더 (크롤링 매물 - 저작권 보호)
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-wishes-primary via-wishes-primary to-wishes-secondary relative overflow-hidden">
+            {/* 패턴 오버레이 */}
+            <div className="absolute inset-0 opacity-[0.08]" style={{backgroundImage:"radial-gradient(circle at 20% 30%, #fff 1.5px, transparent 1.5px), radial-gradient(circle at 75% 70%, #fff 1.5px, transparent 1.5px)",backgroundSize:"26px 26px"}} />
+            {/* 골드 라인 장식 */}
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-wishes-accent to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-wishes-accent to-transparent" />
+
+            <div className="relative flex flex-col items-center text-white text-center px-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-sm border border-white/20 shadow-lg flex items-center justify-center mb-3">
+                <Camera className="w-7 h-7 text-white" strokeWidth={1.6} />
+              </div>
+              <span className="inline-block px-3 py-1 mb-2 text-[10px] font-bold tracking-[0.2em] rounded-full bg-wishes-accent text-wishes-primary">
+                광고 매물
+              </span>
+              <p className="text-sm font-semibold leading-tight">사진은 문의 시 안내드립니다</p>
+              <p className="text-[11px] opacity-80 mt-1 flex items-center gap-1">
+                <MessageCircleMore className="w-3 h-3" /> WISHES 전담 중개사 응대
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-wishes-primary/10 via-emerald-50 to-white relative">
             <div className="absolute inset-0 opacity-[0.08]" style={{backgroundImage:"radial-gradient(circle at 25% 25%, #059669 1.5px, transparent 1.5px), radial-gradient(circle at 75% 75%, #059669 1.5px, transparent 1.5px)",backgroundSize:"22px 22px"}} />

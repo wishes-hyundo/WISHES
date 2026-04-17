@@ -43,10 +43,15 @@ export async function GET(request: NextRequest) {
         );
       }
 
+      // 크롤링 매물 사진 차단 (정보는 노출)
+      const sanitized = (data || []).map((r: any) =>
+        r.source_site ? { ...r, listing_images: [] } : r
+      );
+
       return NextResponse.json({
         success: true,
-        data: data || [],
-        listings: data || [],
+        data: sanitized,
+        listings: sanitized,
       });
     }
 
@@ -71,9 +76,6 @@ export async function GET(request: NextRequest) {
           .from('listings')
           .select(
             // [fix 2026-04-14] 상가 전용 필드 누락 이슈 해결 — 목록에서도 상세 필드 전량 반환
-            //   (이전엔 최소 필드만 반환해서 상세모달 렌더 시 lease_period/entrance_type/
-            //    previous_business/recommended_business/restricted_business/rights_fee/
-            //    commission_note/building_listings/options/raw_fields 등이 undefined 였음)
             '*, listing_images(url, sort_order)',
             { count: 'exact' }
           )
@@ -92,7 +94,13 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error;
 
-        return { data: data || [], total: count || 0 };
+        // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 listing_images 빈 배열로 치환.
+        //   매물 자체는 노출하여 주소·가격·면적 등 정보는 광고 용도로 보이게 함.
+        const sanitized = (data || []).map((r: any) =>
+          r.source_site ? { ...r, listing_images: [] } : r
+        );
+
+        return { data: sanitized, total: count || 0 };
       },
       30_000,    // 30초 fresh
       300_000,   // 5분 stale 허용

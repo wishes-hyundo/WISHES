@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Eye, Hash } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Eye, Hash, Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFloor } from '@/lib/formatFloor';
 
@@ -57,8 +57,12 @@ const sqmToPyeong = (area: number | null | undefined) => {
 };
 
 export function HomeListingCard({ listing }: HomeListingCardProps) {
+  // ※ 크롤링 매물(source_site NOT NULL) → 사진만 비노출 (정보는 광고 노출)
+  const isAd = !!(listing as any).source_site;
   // Supabase에서 가져온 이미지 (listing_images 조인)
-  const images = (listing.listing_images || []).filter((img: any) => { const u = img?.url || ""; return u && !u.match(/\/listings\/9\d{5}\//); });
+  const images = isAd
+    ? []
+    : (listing.listing_images || []).filter((img: any) => { const u = img?.url || ""; return u && !u.match(/\/listings\/9\d{5}\//); });
   const thumbUrl = images.length > 0 ? images[0].url : null;
   const price = formatPrice(listing);
   const area = listing.area_m2 || listing.area || 0;
@@ -72,7 +76,19 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
     >
       {/* 이미지 영역 */}
       <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
-        {thumbUrl ? (
+        {isAd ? (
+          // WISHES 광고 매물 플레이스홀더 (크롤링 사진 차단)
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-wishes-primary via-wishes-primary/95 to-wishes-secondary text-white px-4">
+            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-wishes-accent to-transparent" />
+            <div className="flex items-center gap-2 mb-2">
+              <Camera className="w-7 h-7 text-wishes-accent" />
+              <span className="text-[10px] font-bold tracking-[0.2em] text-wishes-accent">WISHES 광고 매물</span>
+            </div>
+            <p className="text-sm font-bold text-center">사진은 문의 시 안내드립니다</p>
+            <p className="text-[11px] text-white/70 mt-1 text-center">WISHES 전담 중개사가 직접 응대합니다</p>
+            <div className="absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-wishes-accent to-transparent" />
+          </div>
+        ) : thumbUrl ? (
           <img
             src={thumbUrl}
             alt={listing.title}
@@ -87,7 +103,7 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
         {/* 이미지 없을 때 / 에러 시 플레이스홀더 */}
         <div className={cn(
           'absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200',
-          thumbUrl ? 'hidden' : ''
+          (isAd || thumbUrl) ? 'hidden' : ''
         )}>
           <Building2 className="w-12 h-12 text-gray-400" />
         </div>

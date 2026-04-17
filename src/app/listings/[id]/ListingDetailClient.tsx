@@ -355,12 +355,13 @@ export default function ListingDetailClient({ id }: Props) {
           {/* 좌측: 이미지 + 상세 */}
           <div className="lg:col-span-2 space-y-6">
             <ImageGallery
-              images={images}
+              images={listing?.source_site ? [] : images}
               title={listing.title}
               deal={listing.deal}
               status={listing.status}
               dealColor={getDealColor(listing.deal)}
               statusColor={getStatusColor(listing.status)}
+              isAdListing={!!listing?.source_site}
             />
 
             <div className="bg-white rounded-xl border border-gray-200 p-6">

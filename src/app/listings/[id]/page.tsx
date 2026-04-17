@@ -29,11 +29,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const supabase = createServerClient();
     const { data: listing } = await withTimeout(supabase
       .from('listings')
-      .select('title, type, deal, dong, address, deposit, monthly, price, area_m2')
+      .select('title, type, deal, dong, address, deposit, monthly, price, area_m2, source_site')
       .eq('id', id)
       .single());
 
     if (!listing) return fallback;
+    // ※ 저작권 보호: 크롤링 매물도 메타데이터는 정상 노출 (정보는 광고용)
+    //   단 이미지 OG는 제공하지 않음 (사진 차단)
+    const isCrawled = !!listing.source_site;
 
     const priceText = listing.deal === '월세'
       ? formatPrice(listing.deposit) + '/' + formatPrice(listing.monthly) + '만원'
@@ -61,6 +64,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       alternates: {
         canonical: 'https://wishes.co.kr/listings/' + id,
       },
+      // 크롤링 매물: 이미지 저작권 리스크로 검색엔진 인덱스에선 제외 (정보는 페이지에 노출됨)
+      ...(isCrawled ? { robots: { index: false, follow: true } } : {}),
     };
   } catch {
     return fallback;
@@ -84,13 +89,19 @@ export default async function ListingPage({ params }: Props) {
         electric_capacity, signage_available, meeting_room,
         previous_business, recommended_business, restricted_business,
         parking_spaces, rights_fee, parking_fee, commission_fee, previous_brand,
-        special_notes, views, created_at, updated_at, contact,
+        special_notes, views, created_at, updated_at, contact, source_site,
         listing_images(url, sort_order), listing_features(feature)
       `)
       .eq('id', id)
       .single());
 
-    return <ListingDetailClient id={id} listing={listing} />;
+    // ※ 저작권 보호: 크롤링 매물(source_site)도 상세 정보 노출 (광고용)
+    //   단 사진(listing_images)은 빈 배열로 치환 — 상세 페이지는 플레이스홀더 렌더
+    const sanitized = listing && listing.source_site
+      ? { ...listing, listing_images: [] }
+      : listing;
+
+    return <ListingDetailClient id={id} listing={sanitized} />;
   } catch {
     return <ListingDetailClient id={id} listing={null} />;
   }
