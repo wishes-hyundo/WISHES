@@ -5,6 +5,7 @@ import { HomeListingCard } from '@/components/HomeListingCard';
 import HeroBackground from '@/components/HeroBackground';
 import RecommendedListings from '@/components/RecommendedListings';
 import HeroSearchBar from '@/components/HeroSearchBar';
+import PersonalizedHome from '@/components/PersonalizedHome';
 
 export const dynamic = 'force-dynamic';
 
@@ -161,6 +162,9 @@ export default async function HomePage() {
           May your wishes be the seeds that bloom into beautiful realities.
         </p>
       </div>
+
+      {/* ━━━ T3-1: 개인화 홈 (최근 본 + 저장 검색 기반) ━━━ */}
+      <PersonalizedHome />
 
       {/* ━━━ 맞춤 추천 매물 섹션 (로그인 사용자만) ━━━ */}
       <RecommendedListings allListings={allListings} />

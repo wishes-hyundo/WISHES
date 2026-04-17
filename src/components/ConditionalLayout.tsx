@@ -18,6 +18,8 @@ import AuthModal from '@/components/AuthModal';
 //   - CompareBar: 매물 비교(최대 4개) 플로팅 바
 import AIChatBot from '@/components/AIChatBot';
 import CompareBar from '@/components/CompareBar';
+// T3-3: 모바일 하단 5탭 네비게이션 (md 이하에서만 노출)
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -54,6 +56,8 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
             {!isMapPage && <ChatbotWidget />}
             {!isMapPage && <BottomCTA />}
             {!isMapPage && <CookieConsent />}
+            {/* 모바일 5탭 하단 네비: /admin · /map · 중개사 포털은 내부에서 비노출 */}
+            <MobileBottomNav />
           </ToastProvider>
           </SavedSearchProvider>
         </FavoritesProvider>

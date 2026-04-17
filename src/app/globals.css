@@ -228,3 +228,14 @@ body {
     box-shadow: 0 2px 8px rgba(30,90,50,0.04), 0 1px 2px rgba(0,0,0,0.04);
   }
 }
+
+/* === T3-3: 모바일 하단 네비 영역 — 콘텐츠가 네비 뒤에 가리지 않도록 body 하단 여백 확보 === */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+  /* FloatingButtons · BottomCTA · ChatbotWidget 등 bottom-고정 UI는 네비 위로 띄움 */
+  .mobile-nav-offset {
+    bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}

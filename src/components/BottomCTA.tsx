@@ -45,7 +45,8 @@ export function BottomCTA() {
   // 컴팩트 pill (모바일에서도 우측 챗봇과 겹치지 않도록 좌측 하단)
   return (
     <div className={cn(
-      'fixed bottom-5 left-4 z-[80] animate-fade-in-up',
+      // 모바일: 하단 5탭 네비 위로 띄우기 (mobile-nav-offset 유틸리티가 bottom 재정의)
+      'fixed bottom-5 left-4 z-[80] animate-fade-in-up mobile-nav-offset',
       'md:bottom-6 md:left-6'
     )}>
       {expanded ? (

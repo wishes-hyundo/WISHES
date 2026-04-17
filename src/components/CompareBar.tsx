@@ -10,7 +10,7 @@ export default function CompareBar() {
   if (compareList.length === 0) return null;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-amber-600 to-amber-500 text-white shadow-2xl border-t border-amber-400">
+    <div className="fixed bottom-0 left-0 right-0 z-40 bg-gradient-to-r from-amber-600 to-amber-500 text-white shadow-2xl border-t border-amber-400 mobile-nav-offset">
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
