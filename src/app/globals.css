@@ -239,3 +239,80 @@ body {
     bottom: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
   }
 }
+
+/* === T5-2: 매물 상세 인쇄 / PDF 저장 최적화 === */
+@media print {
+  /* 고정/네비/배너/CTA 등 인쇄에 불필요한 요소 전부 숨김 */
+  header,
+  footer,
+  nav,
+  .sticky,
+  .fixed,
+  .no-print,
+  button[aria-label*="상담"],
+  button[aria-label*="공유"],
+  button[aria-label*="인쇄"],
+  button[aria-label*="PDF"],
+  [class*="mobile-nav-offset"],
+  [class*="MobileBottomNav"],
+  [class*="CompareBar"],
+  [class*="FloatingButtons"],
+  [class*="ChatbotWidget"],
+  [class*="BottomCTA"],
+  [class*="CookieConsent"],
+  [class*="AIChatBot"],
+  [aria-label*="지도"] iframe,
+  .sticky.top-16,
+  .lg\:sticky {
+    display: none !important;
+  }
+  /* 콘텐츠 기본 */
+  body {
+    padding: 0 !important;
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+  /* 한 페이지 레이아웃에 맞추기 */
+  .max-w-5xl, .max-w-7xl {
+    max-width: 100% !important;
+  }
+  /* 2컬럼 그리드를 1컬럼으로 전환 — 사이드바 제거 */
+  .grid.lg\:grid-cols-3 > *:last-child,
+  .grid.lg\:grid-cols-3 > *:nth-last-child(-n+0) {
+    display: none !important;
+  }
+  .grid.lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+  .grid.lg\:grid-cols-3 > *:first-child {
+    grid-column: span 1 !important;
+  }
+  /* 이미지 블록 축소 — 인쇄 시 한 장만 */
+  [aria-label*="이미지 갤러리"] .swiper,
+  [aria-label*="이미지 갤러리"] [class*="slide"] {
+    page-break-inside: avoid;
+  }
+  /* 페이지 머리글 */
+  .print-header {
+    display: block !important;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #1e5a32;
+  }
+  /* 링크 URL 은 보이지 않게 (기본 브라우저 동작 억제) */
+  a::after {
+    content: "" !important;
+  }
+  /* 페이지 나누기 */
+  section,
+  .bg-white.rounded-xl {
+    page-break-inside: avoid;
+  }
+}
+
+/* 평상시에는 print-header 숨김 */
+.print-header {
+  display: none;
+}

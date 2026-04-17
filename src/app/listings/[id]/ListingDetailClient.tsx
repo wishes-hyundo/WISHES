@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle, MessageCircleMore, ShieldCheck, Clock3, BadgeCheck, Info } from 'lucide-react';
+import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle, MessageCircleMore, ShieldCheck, Clock3, BadgeCheck, Info, Printer } from 'lucide-react';
 import CompassDirection from '@/components/CompassDirection';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
@@ -436,6 +436,19 @@ export default function ListingDetailClient({ id }: Props) {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
+        {/* T5-2: 인쇄 전용 머리글 — 화면에서는 숨김 */}
+        <div className="print-header">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <div>
+              <div style={{ fontSize: '18pt', fontWeight: 700, color: '#1e5a32' }}>WISHES 부동산 · 매물 브리핑</div>
+              <div style={{ fontSize: '10pt', color: '#555', marginTop: '4px' }}>
+                매물번호 {listing.id} · 출력일 {new Date().toLocaleDateString('ko-KR')}
+              </div>
+            </div>
+            <div style={{ fontSize: '10pt', color: '#777' }}>wishes.co.kr</div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 좌측: 이미지 + 상세 */}
           <div className="lg:col-span-2 space-y-6">
@@ -811,6 +824,17 @@ export default function ListingDetailClient({ id }: Props) {
               >
                 온라인 상담 신청
               </Link>
+
+              {/* T5-2: 인쇄/PDF 저장 — 중개사가 고객 브리핑용으로 활용 */}
+              <button
+                type="button"
+                onClick={() => typeof window !== 'undefined' && window.print()}
+                className="mt-2 flex items-center justify-center gap-2 w-full bg-white border border-wishes-primary/30 text-wishes-primary py-2.5 rounded-xl font-semibold text-sm hover:bg-wishes-primary/5 transition-colors no-print"
+                aria-label="매물 브리핑 자료 인쇄 또는 PDF 저장"
+              >
+                <Printer className="w-4 h-4" />
+                브리핑 자료 인쇄 / PDF 저장
+              </button>
 
               <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
                 <p className="flex items-center gap-1">
