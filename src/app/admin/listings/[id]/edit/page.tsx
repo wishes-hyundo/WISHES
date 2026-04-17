@@ -56,6 +56,7 @@ interface FormData {
   unitCount: number;
   roadAddress: string;
   jibunAddress: string;
+  vrUrl: string;
 }
 
 interface SubmitMessage {
@@ -144,6 +145,7 @@ export default function EditListingPage() {
     unitCount: 0,
     roadAddress: '',
     jibunAddress: '',
+    vrUrl: '',
   });
 
   
@@ -250,6 +252,7 @@ export default function EditListingPage() {
           unitCount: 0,
           roadAddress: d.address || '',
           jibunAddress: '',
+          vrUrl: d.vr_url || '',
         });
 
         // 기존 이미지 미리보기
@@ -421,6 +424,7 @@ export default function EditListingPage() {
         pet: formData.petAllowed,
         built_year: formData.approvalDate || null,
         loan_available: true,
+        vr_url: formData.vrUrl?.trim() || null,
         images: formData.images || [],
       };
 
@@ -1023,6 +1027,40 @@ export default function EditListingPage() {
                 rows={10}
                 placeholder="매물에 대한 상세 설명을 입력해주세요..."
               />
+            </div>
+
+            {/* ── VR/360° 투어 URL (T2-5) ── */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h2 className="text-lg font-bold text-gray-900">VR · 360° 투어 URL</h2>
+                <span className="text-[11px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold">선택</span>
+              </div>
+              <p className="text-xs text-gray-500 mb-3 leading-relaxed">
+                Matterport · Kuula · Roundme · Klapty · YouTube 360° 등 임베드 가능한 URL 을 입력하면,
+                매물 상세 페이지 사진 아래에 <strong>VR 투어 뷰어</strong>가 자동으로 표시됩니다. (비워두면 미노출)
+              </p>
+              <input
+                type="url"
+                value={formData.vrUrl}
+                onChange={(e) => setFormData((p) => ({ ...p, vrUrl: e.target.value }))}
+                className={getInputClass('vrUrl')}
+                placeholder="https://my.matterport.com/show/?m=... 또는 https://kuula.co/share/..."
+                autoComplete="off"
+                spellCheck={false}
+              />
+              {formData.vrUrl && (
+                <div className="mt-2 flex items-center gap-2 text-xs">
+                  <span className="text-green-600 font-semibold">✓ 등록됨</span>
+                  <a
+                    href={formData.vrUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline truncate max-w-md"
+                  >
+                    {formData.vrUrl}
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* 수정 전 요약 */}

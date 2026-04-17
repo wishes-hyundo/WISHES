@@ -98,6 +98,8 @@ const createListingSchema = z.object({
     listing_images: z.array(z.string()).optional().nullable(),
     area_pyeong: z.number().optional().nullable(),
     floor_info: z.string().optional().nullable(),
+    // T2-5: VR/360° 투어 임베드 URL
+    vr_url: z.string().optional().nullable(),
 });
 
 /**
