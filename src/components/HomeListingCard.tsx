@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Eye, Hash, Camera } from 'lucide-react';
+import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Eye, Hash, Camera, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFloor } from '@/lib/formatFloor';
+import { getWatermarkedUrl } from '@/lib/imageUrl';
 
 interface HomeListingCardProps {
   listing: any;
@@ -63,11 +64,21 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
   const images = isAd
     ? []
     : (listing.listing_images || []).filter((img: any) => { const u = img?.url || ""; return u && !u.match(/\/listings\/9\d{5}\//); });
-  const thumbUrl = images.length > 0 ? images[0].url : null;
+  const rawThumb = images.length > 0 ? images[0].url : null;
+  const thumbUrl = rawThumb ? getWatermarkedUrl(rawThumb) : null;
   const price = formatPrice(listing);
   const area = listing.area_m2 || listing.area || 0;
   const floor = formatFloor(listing);
   const pyeong = sqmToPyeong(area);
+
+  // NEW 배지: 등록일 기준 7일 이내 (한국시간 기준)
+  const isNew = (() => {
+    if (!listing.created_at) return false;
+    const created = new Date(listing.created_at).getTime();
+    if (!created) return false;
+    const diffDays = (Date.now() - created) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays <= 7;
+  })();
 
   return (
     <Link
@@ -124,6 +135,12 @@ export function HomeListingCard({ listing }: HomeListingCardProps) {
           </span>
 
           <div className="flex gap-2">
+            {isNew && (
+              <span className="flex items-center gap-0.5 px-2 py-1 text-[10px] font-extrabold text-white bg-gradient-to-r from-wishes-accent to-orange-500 rounded-lg shadow-md tracking-wider">
+                <Sparkles className="w-3 h-3" />
+                NEW
+              </span>
+            )}
             {listing.elevator && (
               <span className="px-2 py-1 text-xs font-semibold bg-white/80 text-wishes-secondary rounded-lg shadow-sm">
                 엘리베이터

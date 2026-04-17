@@ -21,6 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // 동적 매물 페이지 - Supabase에서 활성 매물 가져오기
+  // ※ 저작권 보호: 크롤링 매물(source_site 존재)은 sitemap에서 제외
   let listingPages: MetadataRoute.Sitemap = [];
   try {
     const supabase = createServerClient();
@@ -28,6 +29,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('listings')
       .select('id, updated_at')
       .in('status', ['공개', '예약'])
+      .is('source_site', null)
       .order('updated_at', { ascending: false });
 
     if (listings && listings.length > 0) {

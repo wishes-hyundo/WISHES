@@ -516,8 +516,34 @@ export default function ListingsClient({
           <div className="text-center py-20 bg-white rounded-xl border border-gray-200 mt-4">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">{search ? `"${search}" 검색 결과가 없습니다` : '검색 조건에 맞는 매물이 없습니다'}</p>
-            <p className="text-sm text-gray-400 mt-1">{search ? '매물번호나 키워드를 다시 확인해보세요' : '필터를 변경해보세요'}</p>
-            {search && (<button onClick={clearSearch} className="mt-4 px-4 py-2 bg-wishes-primary text-white rounded-lg text-sm hover:bg-wishes-primary/90">전체 매물 보기</button>)}
+            <p className="text-sm text-gray-400 mt-1">
+              {search
+                ? '매물번호나 키워드를 다시 확인하시거나, 필터를 해제해 보세요.'
+                : (deal || type || dong || maxDeposit || minArea)
+                  ? '필터 조건을 완화하거나 초기화 후 다시 검색해 주세요.'
+                  : '현재 등록된 매물이 없습니다. 잠시 후 다시 확인해 주세요.'}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2 justify-center">
+              {search && (
+                <button onClick={clearSearch} className="px-4 py-2 bg-wishes-primary text-white rounded-lg text-sm hover:bg-wishes-primary/90">
+                  전체 매물 보기
+                </button>
+              )}
+              {(deal || type || dong || maxDeposit || minArea) && (
+                <button
+                  onClick={() => router.push('/listings')}
+                  className="px-4 py-2 bg-white border-2 border-wishes-primary text-wishes-primary rounded-lg text-sm font-semibold hover:bg-wishes-primary/5"
+                >
+                  필터 초기화
+                </button>
+              )}
+              <button
+                onClick={() => router.push('/map')}
+                className="px-4 py-2 bg-wishes-secondary text-white rounded-lg text-sm hover:bg-wishes-secondary/90"
+              >
+                지도에서 찾기
+              </button>
+            </div>
           </div>
         )}
       </div>

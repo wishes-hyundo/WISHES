@@ -99,22 +99,11 @@ export async function GET(request: NextRequest) {
       return r;
     });
 
-    // 사진 유무 조회 → 1순위 사진, 2순위 수정일 (자체 매물만 카운트)
+    // 사진 유무 정렬: 1순위 사진 있는 자체 매물, 2순위 수정일 (추가 쿼리 없이 메인 JOIN 결과 활용)
     if (sorted.length > 0) {
-      const ownIds = sorted
-        .filter((r: any) => !r.source_site)
-        .map((r: any) => r.id);
-      let hasImg = new Set<string>();
-      if (ownIds.length > 0) {
-        const { data: imgs } = await supabase
-          .from('listing_images')
-          .select('listing_id')
-          .in('listing_id', ownIds);
-        hasImg = new Set<string>((imgs || []).map((r: any) => r.listing_id));
-      }
       sorted = [...sorted].sort((a: any, b: any) => {
-        const ah = !a.source_site && hasImg.has(a.id) ? 1 : 0;
-        const bh = !b.source_site && hasImg.has(b.id) ? 1 : 0;
+        const ah = !a.source_site && Array.isArray(a.listing_images) && a.listing_images.length > 0 ? 1 : 0;
+        const bh = !b.source_site && Array.isArray(b.listing_images) && b.listing_images.length > 0 ? 1 : 0;
         if (ah !== bh) return bh - ah;
         const ad = new Date(a.updated_at || a.created_at || 0).getTime();
         const bd = new Date(b.updated_at || b.created_at || 0).getTime();

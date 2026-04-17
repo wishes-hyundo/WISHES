@@ -63,7 +63,10 @@ export default function RecommendedListings({ allListings }: RecommendedListings
         setRecommended(scored.slice(0, 6));
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error('[RecommendedListings] 프로필 기반 추천 실패:', err);
+        setLoading(false);
+      });
   }, [user, session, allListings]);
 
   // 비로그인 또는 추천 결과 없으면 미표시

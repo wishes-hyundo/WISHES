@@ -12,6 +12,11 @@ import { LanguageProvider } from '@/components/LanguageToggle';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { FavoritesProvider } from '@/contexts/FavoritesContext';
 import AuthModal from '@/components/AuthModal';
+// ※ 복원(2026-04-17): 이전 배포에서 누락됐던 핵심 기능 2종
+//   - AIChatBot: Claude API 기반 부동산 상담 챗봇
+//   - CompareBar: 매물 비교(최대 4개) 플로팅 바
+import AIChatBot from '@/components/AIChatBot';
+import CompareBar from '@/components/CompareBar';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -40,6 +45,10 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
             {!isMapPage && <Footer />}
             {!isMapPage && <FloatingButtons />}
             <AuthModal />
+            {/* 매물 비교 플로팅 바 — 지도 페이지 제외 전 페이지에서 동작 */}
+            {!isMapPage && <CompareBar />}
+            {/* AI 상담 챗봇(Claude) — 지도 페이지는 전체화면이라 제외 */}
+            {!isMapPage && <AIChatBot />}
             {!isMapPage && <ChatbotWidget />}
             {!isMapPage && <BottomCTA />}
             {!isMapPage && <CookieConsent />}
