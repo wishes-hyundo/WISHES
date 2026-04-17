@@ -6,8 +6,10 @@ import { createClient } from '@/lib/supabase';
 import { ListingCard } from '@/components/ListingCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { Breadcrumb } from '@/components/Breadcrumb';
-import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search, X as XIcon, Clock, Coins, Maximize2, Bookmark, BookmarkCheck, Filter, ChevronDown } from 'lucide-react';
+import { Building2, SlidersHorizontal, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, Search, X as XIcon, Clock, Coins, Maximize2, Bookmark, BookmarkCheck, Filter, ChevronDown, Bell } from 'lucide-react';
 import { useSavedSearch } from '@/contexts/SavedSearchContext';
+// T5-7: 신규 매물 알림 구독 모달
+import AlertSubscribeModal from '@/components/AlertSubscribeModal';
 
 const dealTypes = ['전세', '월세', '매매'];
 const listingTypes = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
@@ -42,6 +44,9 @@ export default function ListingsClient({
   // 모바일 전용 필터 접힘 상태 (데스크탑에서는 항상 열림)
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const hasInitialData = useRef(initialListings.length > 0 || totalCount > 0);
+
+  // T5-7: 알림 구독 모달
+  const [subscribeOpen, setSubscribeOpen] = useState(false);
 
   const deal = searchParams.get('deal') || '';
   const type = searchParams.get('type') || '';
@@ -723,7 +728,20 @@ export default function ListingsClient({
                   </>
                 )}
               </p>
-              <p className="text-xs text-gray-400 hidden sm:block">정렬: <span className="text-gray-600 font-medium">{sortLabel}</span></p>
+              <div className="flex items-center gap-3">
+                {/* T5-7: 이 조건으로 알림 받기 */}
+                <button
+                  type="button"
+                  onClick={() => setSubscribeOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-wishes-primary/[0.08] hover:bg-wishes-primary/15 border border-wishes-primary/30 text-xs font-bold text-wishes-primary transition-colors"
+                  title="이 조건에 맞는 신규 매물이 등록되면 이메일로 알려드립니다"
+                >
+                  <Bell className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">이 조건으로 알림 받기</span>
+                  <span className="sm:hidden">알림</span>
+                </button>
+                <p className="text-xs text-gray-400 hidden sm:block">정렬: <span className="text-gray-600 font-medium">{sortLabel}</span></p>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {listings.map((listing) => (<ListingCard key={listing.id} listing={listing as any} />))}
@@ -815,6 +833,20 @@ export default function ListingsClient({
         )}
         </div>{/* /우측 결과 영역 */}
       </div>
+
+      {/* T5-7: 매물 알림 구독 모달 */}
+      <AlertSubscribeModal
+        open={subscribeOpen}
+        onClose={() => setSubscribeOpen(false)}
+        source="/listings"
+        filters={{
+          deal: deal || null,
+          type: type || null,
+          dong: dong || null,
+          max_deposit: maxDeposit ? Number(maxDeposit) : null,
+          min_area_m2: minArea ? Number(minArea) : null,
+        }}
+      />
     </div>
   );
 }

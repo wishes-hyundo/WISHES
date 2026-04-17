@@ -7,6 +7,8 @@ import { ExcelUpload } from '@/components/ExcelUpload';
 import { ContractRenewalAlert } from '@/components/ContractRenewalAlert';
 // T5-5: 중개사 일일 브리핑 패널 (조회수 TOP / 최근 등록 / 미처리 상담 / 거래유형 분포)
 import AdminBriefingPanel from '@/components/AdminBriefingPanel';
+// T5-7: 매물 알림 구독자 + 뉴스레터 발송 패널
+import AdminNewsletterPanel from '@/components/AdminNewsletterPanel';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 
 interface Stats {
@@ -445,6 +447,11 @@ export default function AdminPage() {
         {/* T5-5: 중개사 일일 브리핑 패널 */}
         <div className="mb-8">
           <AdminBriefingPanel authHeader={getAuthHeader()} />
+        </div>
+
+        {/* T5-7: 매물 알림 구독 / 뉴스레터 */}
+        <div className="mb-8">
+          <AdminNewsletterPanel authHeader={getAuthHeader()} />
         </div>
 
         {stats && (
