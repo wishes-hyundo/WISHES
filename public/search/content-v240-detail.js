@@ -36,7 +36,7 @@
 (function __v240Boot() {
   'use strict';
 
-  var VERSION = '2.4.1';
+  var VERSION = '2.4.2';
   var TAG = '[WP v' + VERSION + ']';
 
   // 도메인/경로 화이트리스트
@@ -106,6 +106,66 @@
       var inner = modal.querySelector('.ws-modal-content, .ws-modal-body, .ws-modal-inner');
       if (inner) inner.scrollTop = 0;
     } catch (e) {}
+
+    // 5) 카카오맵 + 도로명 geocode (비동기)
+    try { renderKakaoMap(listing); } catch (e) { console.warn('[WP v' + VERSION + '] map init failed', e); }
+  }
+
+  // ====================================================================
+  // KAKAO MAP + ROAD ADDRESS
+  // ====================================================================
+  function renderKakaoMap(L) {
+    var mapEl = document.getElementById('v240-kakao-map');
+    if (!mapEl) return;
+    var lat = Number(L.lat), lng = Number(L.lng);
+    var hasCoord = isFinite(lat) && isFinite(lng) && Math.abs(lat) > 0.1;
+
+    var kakao = window.kakao;
+    if (!kakao || !kakao.maps) {
+      mapEl.innerHTML = '<div class="v240-map-fallback">카카오맵 SDK 로드 대기 중</div>';
+      return;
+    }
+
+    kakao.maps.load(function() {
+      if (!hasCoord) {
+        // 주소 기반 지오코딩 (fallback)
+        if (kakao.maps.services && kakao.maps.services.Geocoder && L.address) {
+          var geoA = new kakao.maps.services.Geocoder();
+          geoA.addressSearch(L.address, function(res, status) {
+            if (status === kakao.maps.services.Status.OK && res[0]) {
+              L.lat = parseFloat(res[0].y);
+              L.lng = parseFloat(res[0].x);
+              renderKakaoMap(L);
+            } else {
+              mapEl.innerHTML = '<div class="v240-map-fallback">좌표 정보가 없어 지도를 표시할 수 없습니다</div>';
+            }
+          });
+        } else {
+          mapEl.innerHTML = '<div class="v240-map-fallback">좌표 정보가 없어 지도를 표시할 수 없습니다</div>';
+        }
+        return;
+      }
+
+      var center = new kakao.maps.LatLng(lat, lng);
+      var map = new kakao.maps.Map(mapEl, { center: center, level: 3 });
+      new kakao.maps.Marker({ position: center, map: map });
+
+      // 줌 컨트롤
+      try { map.addControl(new kakao.maps.ZoomControl(), kakao.maps.ControlPosition.RIGHT); } catch (e) {}
+
+      // 도로명 조회 (coord2Address)
+      if (kakao.maps.services && kakao.maps.services.Geocoder) {
+        var geo = new kakao.maps.services.Geocoder();
+        geo.coord2Address(lng, lat, function(result, status) {
+          if (status !== kakao.maps.services.Status.OK) return;
+          var road = (result[0] && result[0].road_address && result[0].road_address.address_name) || '';
+          var roadEl = document.getElementById('v240-road-addr');
+          var heroEl = document.getElementById('v240-hero-road');
+          if (roadEl) roadEl.textContent = road || '도로명 정보 없음';
+          if (heroEl && road) heroEl.textContent = '📍 ' + road;
+        });
+      }
+    });
   }
 
   // ====================================================================
@@ -215,12 +275,13 @@
             '<span style="font-size:13px">★</span> 관심' +
           '</button>' +
         '</div>' +
-        '<div class="v240-body v240-gallery-body">' +
+        '<div class="v240-body v240-gallery-body ws-detail-gallery">' +
           '<div class="ws-gallery-main" id="ws-gallery-main"' +
             ' style="background-image:url(\'' + esc(firstUrl) + '\'); cursor:pointer;"' +
             ' data-images="' + esc(JSON.stringify(imgUrls)).replace(/"/g, '&quot;') + '"' +
             ' data-current="0" title="클릭하면 확대됩니다">' +
             '<div class="v240-zoom-hint">🔍 클릭하여 확대</div>' +
+            (imgs.length > 1 ? '<div class="ws-img-count v240-img-count">📷 ' + imgs.length + '장</div>' : '') +
           '</div>' +
           '<div class="ws-gallery-thumbs">' + thumbsHtml + '</div>' +
         '</div>' +
@@ -243,6 +304,8 @@
       '<section class="v240-hero">' +
         '<div class="v240-hero-left">' +
           '<h1>' + esc(fullAddr || '-') + '</h1>' +
+          '<div class="v240-hero-road" id="v240-hero-road" aria-live="polite"></div>' +
+          (L.building_name ? '<div class="v240-hero-bldg">🏢 ' + esc(L.building_name) + '</div>' : '') +
         '</div>' +
         '<div class="v240-price-box">' +
           '<div class="v240-kind">' + esc(L.deal || '-') + '</div>' +
@@ -279,7 +342,14 @@
       '<section class="v240-section">' +
         '<h2>위치</h2>' +
         '<div class="v240-body">' +
-          '<div class="v240-map">🗺️ 지도 (' + esc(L.address || '') + ' ' + esc(L.dong || '') + ')</div>' +
+          '<div class="v240-map-wrap">' +
+            '<div id="v240-kakao-map" class="v240-kakao-map"></div>' +
+            '<div class="v240-map-addrcard">' +
+              '<div class="v240-addr-row"><span class="v240-addr-k">지번</span><span class="v240-addr-v">' + esc(L.address || '-') + '</span></div>' +
+              '<div class="v240-addr-row"><span class="v240-addr-k">도로명</span><span class="v240-addr-v" id="v240-road-addr">조회 중…</span></div>' +
+              (L.dong ? '<div class="v240-addr-row"><span class="v240-addr-k">행정동</span><span class="v240-addr-v">' + esc(L.dong) + '</span></div>' : '') +
+            '</div>' +
+          '</div>' +
         '</div>' +
       '</section>';
 
@@ -487,17 +557,26 @@
     if (document.getElementById('v240-styles')) return;
     var css =
       /* ---- 디자인 토큰 (wishes) ---- */
-      '#ws-detail-container{--v240-g900:#1E3A28;--v240-g700:#2F6B3A;--v240-g100:#E8F1EA;' +
-        '--v240-g50:#F4F9F5;--v240-ink:#13231A;--v240-muted:#5A6B60;--v240-line:#DCE4DE;' +
-        '--v240-warn:#C4551B;--v240-hot:#BF3A2E;--v240-bg:#F7FAF7;background:var(--v240-bg);' +
-        'padding:20px 24px 60px}' +
+      '#ws-detail-container{--v240-g900:#14301F;--v240-g800:#1E4A2D;--v240-g700:#2F6B3A;--v240-g600:#3D8450;--v240-g100:#E8F1EA;' +
+        '--v240-g50:#F4F9F5;--v240-g25:#FAFDFB;--v240-ink:#0F1C13;--v240-muted:#5A6B60;--v240-line:#DCE4DE;--v240-line-soft:#EAF0EC;' +
+        '--v240-warn:#C4551B;--v240-hot:#BF3A2E;--v240-gold:#B88A2E;--v240-bg:#F6FAF7;' +
+        'background:linear-gradient(180deg,#F6FAF7 0%,#F0F7F2 100%);padding:24px 28px 72px;' +
+        'font-family:-apple-system,BlinkMacSystemFont,\"SF Pro Display\",\"Pretendard\",\"Apple SD Gothic Neo\",\"Malgun Gothic\",sans-serif;' +
+        'letter-spacing:-.005em}' +
 
-      /* ---- 공통 섹션 ---- */
-      '#ws-detail-container .v240-section{margin-top:16px;background:#fff;border:1px solid var(--v240-line);' +
-        'border-radius:12px;box-shadow:0 1px 2px rgba(19,35,26,.04),0 4px 16px rgba(19,35,26,.06);overflow:hidden}' +
+      /* ---- 공통 섹션 (프리미엄 카드) ---- */
+      '#ws-detail-container .v240-section{margin-top:18px;background:#fff;border:1px solid var(--v240-line-soft);' +
+        'border-radius:16px;box-shadow:0 1px 2px rgba(19,35,26,.03),0 8px 24px rgba(19,35,26,.06),' +
+        '0 1px 0 rgba(255,255,255,.8) inset;overflow:hidden;transition:transform .2s ease,box-shadow .2s ease}' +
       '#ws-detail-container .v240-section:first-child{margin-top:0}' +
-      '#ws-detail-container .v240-section > h2{font-size:14px;padding:12px 18px;background:var(--v240-g50);' +
-        'border-bottom:1px solid var(--v240-line);color:var(--v240-g900);font-weight:700;margin:0;letter-spacing:-.01em}' +
+      '#ws-detail-container .v240-section:hover{box-shadow:0 2px 4px rgba(19,35,26,.04),0 12px 32px rgba(19,35,26,.08),' +
+        '0 1px 0 rgba(255,255,255,.9) inset}' +
+      '#ws-detail-container .v240-section > h2{font-size:13px;padding:14px 20px;' +
+        'background:linear-gradient(180deg,#FAFDFB,#F4F9F5);border-bottom:1px solid var(--v240-line-soft);' +
+        'color:var(--v240-g900);font-weight:700;margin:0;letter-spacing:.02em;text-transform:none;' +
+        'display:flex;align-items:center;gap:8px}' +
+      '#ws-detail-container .v240-section > h2::before{content:\"\";display:inline-block;width:3px;height:14px;' +
+        'background:linear-gradient(180deg,var(--v240-g700),var(--v240-g600));border-radius:2px}' +
       '#ws-detail-container .v240-body{padding:16px}' +
 
       /* ---- 갤러리 topbar ---- */
@@ -528,17 +607,29 @@
       '#ws-detail-container .ws-thumb.ws-thumb-active{opacity:1;border-color:var(--v240-g700);' +
         'box-shadow:0 0 0 1px var(--v240-g700) inset}' +
 
-      /* ---- Hero ---- */
-      '#ws-detail-container .v240-hero{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;' +
-        'padding:18px 20px;background:#fff;border:1px solid var(--v240-line);border-radius:12px;margin-top:16px;' +
-        'box-shadow:0 1px 2px rgba(19,35,26,.04),0 4px 16px rgba(19,35,26,.06)}' +
-      '#ws-detail-container .v240-hero h1{font-size:20px;margin:0 0 4px;line-height:1.3;color:var(--v240-g900);font-weight:700;letter-spacing:-.01em}' +
+      /* ---- Hero (프리미엄) ---- */
+      '#ws-detail-container .v240-hero{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;' +
+        'padding:22px 24px;background:linear-gradient(135deg,#fff 0%,#FAFDFB 60%,#F4F9F5 100%);' +
+        'border:1px solid var(--v240-line-soft);border-radius:16px;margin-top:18px;' +
+        'box-shadow:0 1px 2px rgba(19,35,26,.03),0 8px 24px rgba(19,35,26,.06),0 1px 0 rgba(255,255,255,.8) inset;' +
+        'position:relative;overflow:hidden}' +
+      '#ws-detail-container .v240-hero::before{content:\"\";position:absolute;top:0;left:0;width:4px;height:100%;' +
+        'background:linear-gradient(180deg,var(--v240-g700),var(--v240-g600))}' +
+      '#ws-detail-container .v240-hero h1{font-size:22px;margin:0 0 2px;line-height:1.35;color:var(--v240-g900);' +
+        'font-weight:700;letter-spacing:-.02em}' +
       '#ws-detail-container .v240-hero .v240-detail{color:#1976D2;font-weight:600;font-size:18px}' +
       '#ws-detail-container .v240-sub{color:var(--v240-muted);font-size:13px;margin-top:3px}' +
-      '#ws-detail-container .v240-price-box{text-align:right}' +
-      '#ws-detail-container .v240-kind{font-size:12px;color:var(--v240-muted);margin-bottom:2px}' +
-      '#ws-detail-container .v240-amt{font-size:24px;font-weight:800;color:var(--v240-g900);letter-spacing:-.02em;white-space:nowrap}' +
-      '#ws-detail-container .v240-mgmt{font-size:12px;color:var(--v240-muted);margin-top:3px}' +
+      '#ws-detail-container .v240-price-box{text-align:right;padding:14px 18px;' +
+        'background:linear-gradient(135deg,var(--v240-g900) 0%,var(--v240-g700) 100%);border-radius:12px;' +
+        'color:#fff;min-width:180px;box-shadow:0 4px 12px rgba(30,74,45,.2),0 1px 0 rgba(255,255,255,.1) inset;' +
+        'position:relative;overflow:hidden}' +
+      '#ws-detail-container .v240-price-box::after{content:\"\";position:absolute;top:0;right:0;width:60px;height:60px;' +
+        'background:radial-gradient(circle,rgba(255,255,255,.12) 0%,transparent 70%);pointer-events:none}' +
+      '#ws-detail-container .v240-kind{font-size:11px;color:rgba(255,255,255,.75);margin-bottom:4px;font-weight:600;' +
+        'letter-spacing:.05em;text-transform:uppercase}' +
+      '#ws-detail-container .v240-amt{font-size:26px;font-weight:800;color:#fff;letter-spacing:-.02em;white-space:nowrap;' +
+        'font-variant-numeric:tabular-nums}' +
+      '#ws-detail-container .v240-mgmt{font-size:11px;color:rgba(255,255,255,.7);margin-top:5px;font-weight:500}' +
 
       /* ---- 기본정보 2단 배열 ---- */
       '#ws-detail-container .v240-info2{border:1px solid var(--v240-line);border-radius:10px;overflow:hidden;background:#fff}' +
@@ -554,18 +645,45 @@
       '#ws-detail-container .v240-k.v240-empty{background:#fff;border-right:0}' +
       '#ws-detail-container .v240-v.v240-empty{background:#fff}' +
 
-      /* ---- 옵션 · 상세설명 ---- */
-      '#ws-detail-container .v240-opts-label,.v240-desc-label{font-size:12px;color:var(--v240-muted);font-weight:600;margin:16px 0 8px}' +
-      '#ws-detail-container .v240-opts{display:flex;flex-wrap:wrap;gap:6px}' +
-      '#ws-detail-container .v240-chip{background:var(--v240-g50);border:1px solid var(--v240-line);color:var(--v240-g900);' +
-        'padding:4px 11px;border-radius:999px;font-size:12px;font-weight:600}' +
-      '#ws-detail-container .v240-desc{margin:0;padding:12px 14px;background:var(--v240-g50);border-radius:10px;' +
-        'font-size:13px;line-height:1.6;color:var(--v240-ink)}' +
+      /* ---- 옵션 · 상세설명 (프리미엄) ---- */
+      '#ws-detail-container .v240-opts-label,.v240-desc-label{font-size:11px;color:var(--v240-muted);font-weight:700;' +
+        'margin:18px 0 10px;letter-spacing:.05em;text-transform:uppercase}' +
+      '#ws-detail-container .v240-opts{display:flex;flex-wrap:wrap;gap:7px}' +
+      '#ws-detail-container .v240-chip{background:linear-gradient(180deg,#fff,var(--v240-g50));' +
+        'border:1px solid var(--v240-line);color:var(--v240-g900);padding:6px 13px;border-radius:999px;' +
+        'font-size:12px;font-weight:600;box-shadow:0 1px 2px rgba(19,35,26,.04);transition:all .15s}' +
+      '#ws-detail-container .v240-chip:hover{background:linear-gradient(180deg,var(--v240-g50),var(--v240-g100));' +
+        'transform:translateY(-1px);box-shadow:0 2px 6px rgba(19,35,26,.08)}' +
+      '#ws-detail-container .v240-desc{margin:0;padding:14px 16px;' +
+        'background:linear-gradient(135deg,var(--v240-g50) 0%,#FAFDFB 100%);border-radius:10px;' +
+        'border:1px solid var(--v240-line-soft);font-size:13px;line-height:1.65;color:var(--v240-ink)}' +
 
-      /* ---- 위치 지도 placeholder ---- */
-      '#ws-detail-container .v240-map{aspect-ratio:16/6;background:linear-gradient(120deg,#E8F1EA,#D8E7DC);' +
-        'border:1px dashed var(--v240-line);border-radius:10px;display:flex;align-items:center;justify-content:center;' +
-        'color:var(--v240-muted);font-size:13px}' +
+      /* ---- 위치: 카카오맵 + 주소카드 ---- */
+      '#ws-detail-container .v240-map-wrap{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;align-items:stretch}' +
+      '@media (max-width:780px){#ws-detail-container .v240-map-wrap{grid-template-columns:1fr}}' +
+      '#ws-detail-container .v240-kakao-map{width:100%;min-height:320px;border:1px solid var(--v240-line);' +
+        'border-radius:12px;overflow:hidden;box-shadow:inset 0 0 0 1px rgba(255,255,255,.6),0 2px 8px rgba(19,35,26,.06)}' +
+      '#ws-detail-container .v240-map-fallback{width:100%;height:100%;min-height:320px;display:flex;align-items:center;' +
+        'justify-content:center;color:var(--v240-muted);font-size:13px;background:linear-gradient(135deg,#F4F9F5,#E8F1EA);' +
+        'border-radius:12px}' +
+      '#ws-detail-container .v240-map-addrcard{background:linear-gradient(180deg,#fff,#FAFDFB);' +
+        'border:1px solid var(--v240-line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;' +
+        'box-shadow:0 1px 2px rgba(19,35,26,.04),0 4px 12px rgba(19,35,26,.05)}' +
+      '#ws-detail-container .v240-addr-row{display:grid;grid-template-columns:58px 1fr;gap:8px;align-items:baseline;font-size:13px}' +
+      '#ws-detail-container .v240-addr-k{color:var(--v240-muted);font-weight:600;font-size:11px;letter-spacing:.02em;' +
+        'padding:2px 8px;background:var(--v240-g50);border-radius:999px;text-align:center;align-self:start}' +
+      '#ws-detail-container .v240-addr-v{color:var(--v240-ink);font-weight:500;word-break:keep-all;line-height:1.5}' +
+
+      /* ---- Hero 도로명 서브타이틀 ---- */
+      '#ws-detail-container .v240-hero-road{margin-top:6px;color:var(--v240-g700);font-size:13px;font-weight:500;' +
+        'letter-spacing:-.01em;min-height:18px}' +
+      '#ws-detail-container .v240-hero-bldg{margin-top:6px;display:inline-block;padding:3px 10px;background:var(--v240-g50);' +
+        'color:var(--v240-g900);border:1px solid var(--v240-line);border-radius:999px;font-size:12px;font-weight:600}' +
+
+      /* ---- 사진 개수 뱃지 ---- */
+      '#ws-detail-container .v240-img-count{position:absolute;top:12px;left:12px;background:rgba(0,0,0,.65);' +
+        'color:#fff;padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600;pointer-events:none;' +
+        'backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}' +
 
       /* ---- 중개사 전용 (접기/펼치기) ---- */
       '#ws-detail-container .v240-broker{margin-top:16px;border:1px solid #D9C486;border-radius:12px;background:#FFFBEB;overflow:hidden}' +
