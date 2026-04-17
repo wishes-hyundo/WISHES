@@ -2,7 +2,7 @@
 // URL: /unsub?t=TOKEN
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Mail, Check, AlertCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
@@ -10,7 +10,9 @@ import Link from 'next/link';
 export default function UnsubPage() {
   return (
     <div className="min-h-screen bg-wishes-bg flex items-center justify-center px-4 py-12">
-      <UnsubInner />
+      <Suspense fallback={<Loader2 className="animate-spin text-wishes-green" size={32} />}>
+        <UnsubInner />
+      </Suspense>
     </div>
   );
 }
