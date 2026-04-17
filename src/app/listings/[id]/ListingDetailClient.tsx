@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle, MessageCircleMore, ShieldCheck, Clock3, BadgeCheck, Info, Printer } from 'lucide-react';
+import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle, MessageCircleMore, ShieldCheck, Clock3, BadgeCheck, Info, Printer, Globe } from 'lucide-react';
 import CompassDirection from '@/components/CompassDirection';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
@@ -18,6 +18,8 @@ import VRTour from '@/components/VRTour';
 import ListingEnglishSummary from '@/components/ListingEnglishSummary';
 // T5-3: 매물 공유 버튼 (navigator.share + 링크복사 + SMS/이메일)
 import ListingActions from '@/components/ListingActions';
+// T5-6: 영문 전체 스위치 (외국인 고객 브리핑 품질 향상)
+import ListingEnglishFullView from '@/components/ListingEnglishFullView';
 
 declare global {
   interface Window {
@@ -73,6 +75,29 @@ export default function ListingDetailClient({ id }: Props) {
   // 주변 교통 정보 상태
   const [nearbyStations, setNearbyStations] = useState<NearbyStation[]>([]);
   const [stationsLoading, setStationsLoading] = useState(false);
+
+  // T5-6: 언어 스위치 (ko/en) — localStorage로 지속, URL #en 해시로도 진입 가능
+  const [lang, setLang] = useState<'ko' | 'en'>('ko');
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = window.localStorage.getItem('wishes_detail_lang');
+      const urlWantsEn = window.location.hash === '#en';
+      if (urlWantsEn) setLang('en');
+      else if (saved === 'en' || saved === 'ko') setLang(saved as 'ko' | 'en');
+    } catch {}
+  }, []);
+  const toggleLang = useCallback(() => {
+    setLang((prev) => {
+      const next: 'ko' | 'en' = prev === 'en' ? 'ko' : 'en';
+      try { window.localStorage.setItem('wishes_detail_lang', next); } catch {}
+      // 스크롤 위치 리셋하여 상단부터 새 언어 뷰 확인
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+      return next;
+    });
+  }, []);
 
   // 위치 지도 ref
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -409,8 +434,8 @@ export default function ListingDetailClient({ id }: Props) {
         </div>
       </div>
 
-      {/* ━━ 퀵 네비게이션 (스티키 탭) ━━ */}
-      <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200">
+      {/* ━━ 퀵 네비게이션 (스티키 탭) ━━ EN 모드에서는 숨김 */}
+      <div className={`sticky top-16 z-30 bg-white/95 backdrop-blur-sm border-b border-gray-200 ${lang === 'en' ? 'hidden' : ''}`}>
         <div className="max-w-5xl mx-auto px-4">
           <nav className="flex items-center gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1 py-2">
             {[
@@ -467,10 +492,19 @@ export default function ListingDetailClient({ id }: Props) {
             {/* T2-5: VR 투어 (자체 매물만, vr_url 등록 시 표시) */}
             <VRTour vrUrl={listing?.vr_url} isAd={!!listing?.source_site} />
 
-            {/* T3-4: 영문 요약 블록 (외국인 임차 수요 타겟, 자체 매물만) */}
-            <ListingEnglishSummary listing={listing} />
+            {/* T5-6: 영문 전체 모드 — 한국어 상세 본문을 대체 */}
+            {lang === 'en' && (
+              <ListingEnglishFullView
+                listing={listing}
+                stations={nearbyStations}
+                onExit={toggleLang}
+              />
+            )}
 
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
+            {/* T3-4: 영문 요약 블록 (외국인 임차 수요 타겟, 자체 매물만) */}
+            {lang === 'ko' && <ListingEnglishSummary listing={listing} />}
+
+            <div className={`bg-white rounded-xl border border-gray-200 p-6 ${lang === 'en' ? 'hidden' : ''}`}>
               <div className="flex items-center gap-3 mb-1">
                 <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
                   매물번호 {listing.id}
@@ -824,8 +858,24 @@ export default function ListingDetailClient({ id }: Props) {
                 href={`/contact?listing=${listing.id}`}
                 className="flex items-center justify-center gap-2 w-full bg-wishes-primary text-white py-3 rounded-xl font-bold hover:bg-wishes-secondary transition-colors"
               >
-                온라인 상담 신청
+                {lang === 'en' ? 'Request Consultation' : '온라인 상담 신청'}
               </Link>
+
+              {/* T5-6: 한/영 언어 전환 — 외국인 고객 브리핑 */}
+              <button
+                type="button"
+                onClick={toggleLang}
+                className={`mt-2 flex items-center justify-center gap-2 w-full py-2.5 rounded-xl font-semibold text-sm transition-colors no-print ${
+                  lang === 'en'
+                    ? 'bg-wishes-primary text-white hover:bg-wishes-secondary'
+                    : 'bg-white border border-wishes-primary/30 text-wishes-primary hover:bg-wishes-primary/5'
+                }`}
+                aria-label={lang === 'en' ? '한국어로 보기' : 'Switch to English'}
+                title={lang === 'en' ? '한국어로 보기' : 'English briefing for international clients'}
+              >
+                <Globe className="w-4 h-4" />
+                {lang === 'en' ? '한국어 (KR)' : 'English (EN) 영문으로 보기'}
+              </button>
 
               {/* T5-2: 인쇄/PDF 저장 — 중개사가 고객 브리핑용으로 활용 */}
               <button
@@ -835,7 +885,7 @@ export default function ListingDetailClient({ id }: Props) {
                 aria-label="매물 브리핑 자료 인쇄 또는 PDF 저장"
               >
                 <Printer className="w-4 h-4" />
-                브리핑 자료 인쇄 / PDF 저장
+                {lang === 'en' ? 'Print / Save as PDF' : '브리핑 자료 인쇄 / PDF 저장'}
               </button>
 
               {/* T5-3: 매물 공유 (링크 + OG 썸네일 자동 생성) */}
