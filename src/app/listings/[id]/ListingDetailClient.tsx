@@ -15,6 +15,7 @@ import AuthModal from '@/components/AuthModal';
 import SmartRecommendations from '@/components/SmartRecommendations';
 // T2-5: VR 투어 뷰어 (vr_url 존재 시 이미지 갤러리 아래에 노출)
 import VRTour from '@/components/VRTour';
+import ListingEnglishSummary from '@/components/ListingEnglishSummary';
 
 declare global {
   interface Window {
@@ -450,6 +451,9 @@ export default function ListingDetailClient({ id }: Props) {
 
             {/* T2-5: VR 투어 (자체 매물만, vr_url 등록 시 표시) */}
             <VRTour vrUrl={listing?.vr_url} isAd={!!listing?.source_site} />
+
+            {/* T3-4: 영문 요약 블록 (외국인 임차 수요 타겟, 자체 매물만) */}
+            <ListingEnglishSummary listing={listing} />
 
             <div className="bg-white rounded-xl border border-gray-200 p-6">
               <div className="flex items-center gap-3 mb-1">
