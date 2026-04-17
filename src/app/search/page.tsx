@@ -100,6 +100,19 @@ export default function SearchPortalPage() {
       patchScript.defer = false;
       document.body.appendChild(patchScript);
     }
+
+    // v2.4.0 상세보기 단일스크롤 재구성 패치 로드 (v230 패치 뒤에 순차 실행)
+    // 상세보기 모달을 기존 5탭 구조에서 단일 스크롤 6섹션 구조로 교체
+    // (갤러리 → 히어로 → 기본정보·옵션 → 위치 → 유사매물 → 중개사전용)
+    const existingV240 = document.getElementById('ws-ext-patch-v240');
+    if (!existingV240) {
+      const v240Script = document.createElement('script');
+      v240Script.id = 'ws-ext-patch-v240';
+      v240Script.src = '/search/content-v240-detail.js?v=20260418';
+      v240Script.async = false;
+      v240Script.defer = false;
+      document.body.appendChild(v240Script);
+    }
   }, [state]);
 
   // ========== UI ==========
