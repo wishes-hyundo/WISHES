@@ -36,7 +36,7 @@
 (function __v240Boot() {
   'use strict';
 
-  var VERSION = '2.4.0';
+  var VERSION = '2.4.1';
   var TAG = '[WP v' + VERSION + ']';
 
   // 도메인/경로 화이트리스트
@@ -99,8 +99,13 @@
     var simMount = document.getElementById('ws-similar-section');
     if (simMount && similarHtml) simMount.innerHTML = similarHtml;
 
-    // 4) 컨테이너 스크롤 초기화
+    // 4) 컨테이너 · 모달 스크롤 모두 초기화 (갤러리가 최상단에 보이도록)
     try { container.scrollTop = 0; } catch (e) {}
+    try { modal.scrollTop = 0; } catch (e) {}
+    try {
+      var inner = modal.querySelector('.ws-modal-content, .ws-modal-body, .ws-modal-inner');
+      if (inner) inner.scrollTop = 0;
+    } catch (e) {}
   }
 
   // ====================================================================
@@ -121,7 +126,8 @@
     var areaTxt = '';
     try { areaTxt = (window.formatArea || window.WS.formatArea)(L.area_m2) || ''; } catch (e) {}
     var pyeong = L.area_m2 ? (L.area_m2 / 3.30579) : 0;
-    var areaFull = areaTxt + (pyeong ? ' (' + pyeong.toFixed(1) + '평)' : '');
+    // areaTxt 가 이미 "89.3m² (27평)" 형태이므로 그대로 사용 (평 중복 방지)
+    var areaFull = areaTxt;
 
     // 평당 임대료
     var rentPerPy = '';
@@ -221,14 +227,22 @@
       '</section>';
 
     // --- 2. HERO (주소 · 가격) ---
+    // 주소 조립: L.address 에 이미 전체 주소가 포함되어 있으면 그대로 사용.
+    // address 가 비어있는 경우만 dong + address_detail 로 조합.
+    var addrText = (L.address || '').trim();
+    var detailText = (L.address_detail || '').trim();
+    var dongText = (L.dong || '').trim();
+    var fullAddr = addrText;
+    if (!fullAddr) {
+      fullAddr = (dongText + ' ' + detailText).trim();
+    } else if (detailText && addrText.indexOf(detailText) === -1) {
+      // address 에 detail 이 아직 포함되지 않은 경우에만 추가
+      fullAddr = addrText + ' ' + detailText;
+    }
     html +=
       '<section class="v240-hero">' +
         '<div class="v240-hero-left">' +
-          '<h1>' + esc(L.address || '') + ' ' + esc(L.dong || '') +
-            (L.address_detail ? ' <span class="v240-detail">' + esc(L.address_detail) + '</span>' : '') +
-          '</h1>' +
-          '<div class="v240-sub v240-road">🗺 <span style="color:#5A6B60">도로명 주소 · 자동 조회 연동</span></div>' +
-          '<div class="v240-sub">🏢 ' + esc(L.type || '-') + (areaFull ? ' · ' + esc(areaFull) : '') + '</div>' +
+          '<h1>' + esc(fullAddr || '-') + '</h1>' +
         '</div>' +
         '<div class="v240-price-box">' +
           '<div class="v240-kind">' + esc(L.deal || '-') + '</div>' +
@@ -501,7 +515,7 @@
 
       /* ---- 갤러리 본체 ---- */
       '#ws-detail-container .v240-gallery-body{padding:14px}' +
-      '#ws-detail-container .ws-gallery-main{position:relative;width:100%;aspect-ratio:16/10;background:#111 center/contain no-repeat;' +
+      '#ws-detail-container .ws-gallery-main{position:relative;width:100%;min-height:380px;aspect-ratio:16/10;background:#111 center/contain no-repeat;' +
         'border-radius:10px;overflow:hidden}' +
       '#ws-detail-container .v240-zoom-hint{position:absolute;left:10px;bottom:10px;background:rgba(0,0,0,.55);' +
         'color:#fff;padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;pointer-events:none}' +
