@@ -7,6 +7,7 @@ import RecommendedListings from '@/components/RecommendedListings';
 import HeroSearchBar from '@/components/HeroSearchBar';
 import PersonalizedHome from '@/components/PersonalizedHome';
 import AIMatchFinder from '@/components/AIMatchFinder';
+import HomeHeroInquiryCTA from '@/components/HomeHeroInquiryCTA';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,13 +108,7 @@ export default async function HomePage() {
               지도에서 찾기
             </Link>
             <span className="text-white/30">·</span>
-            <Link
-              href="/contact"
-              className="inline-flex items-center gap-1.5 text-sm text-white/80 hover:text-white transition-colors border-b border-white/30 hover:border-white pb-0.5"
-            >
-              <Home className="w-4 h-4" />
-              매물 맞춤 의뢰
-            </Link>
+            <HomeHeroInquiryCTA />
             <span className="text-white/30">·</span>
             <Link
               href="/calculator"
