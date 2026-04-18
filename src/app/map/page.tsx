@@ -5,7 +5,7 @@ import { useMapListings } from '@/hooks/useMapListings';
 import { ListingCard } from '@/components/ListingCard';
 import MapListingPanel from '@/components/MapListingPanel';
 import { formatPrice } from '@/lib/utils';
-import { MapPin, List, Loader2, Search, X, Building2, Crosshair, RefreshCw, SlidersHorizontal, Edit3, Check } from 'lucide-react';
+import { MapPin, List, Loader2, Search, X, Building2, Crosshair, RefreshCw, SlidersHorizontal, Edit3, Check, Train, Navigation, Home } from 'lucide-react';
 import type { Listing, ListingFilter, DealType, ListingType } from '@/types';
 import MapFilterSheet from '@/components/MapFilterSheet';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -365,56 +365,69 @@ function createHoverPreviewContent(listing: Listing): HTMLElement {
 // 개별 매물 마커 (Level 1-4)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function createPriceMarkerContent(listing: Listing, isSelected: boolean = false, extraCount: number = 0): HTMLElement {
-  // 15차-3 — 4사 시그니처 초월: solid bg + white text + "전세 3억" + "+N" 같은 건물 디듑
+  // 16차 폴리싱 — 스프링 entry·선택 시 pulse ring·hover lift·진한 그림자
   const priceText = listing.deal === '매매'
     ? `매매 ${formatPrice(listing.price || 0)}`
     : listing.deal === '월세'
     ? `월세 ${formatPrice(listing.deposit)}/${listing.monthly}`
+    : listing.deal === '단기'
+    ? `단기 ${formatPrice(listing.deposit)}/${listing.monthly || 0}`
     : `전세 ${formatPrice(listing.deposit)}`;
 
-  // 진한 solid color — pale bg 폐기. 4사 공통: 식별력 극대화.
-  const colorMap: Record<string, { main: string; dark: string; glow: string }> = {
-    '전세': { main: '#2563EB', dark: '#1D4ED8', glow: '#2563EB55' },
-    '월세': { main: '#EA580C', dark: '#C2410C', glow: '#EA580C55' },
-    '매매': { main: '#16A34A', dark: '#15803D', glow: '#16A34A55' },
+  const colorMap: Record<string, { main: string; dark: string; glow: string; ring: string }> = {
+    '전세': { main: '#2563EB', dark: '#1D4ED8', glow: 'rgba(37,99,235,0.45)', ring: 'rgba(37,99,235,0.25)' },
+    '월세': { main: '#EA580C', dark: '#C2410C', glow: 'rgba(234,88,12,0.45)', ring: 'rgba(234,88,12,0.25)' },
+    '매매': { main: '#16A34A', dark: '#15803D', glow: 'rgba(22,163,74,0.45)', ring: 'rgba(22,163,74,0.25)' },
+    '단기': { main: '#9333EA', dark: '#7E22CE', glow: 'rgba(147,51,234,0.45)', ring: 'rgba(147,51,234,0.25)' },
   };
   const colors = colorMap[listing.deal] || colorMap['전세'];
 
   const content = document.createElement('div');
   const baseShadow = isSelected
-    ? `0 6px 18px ${colors.glow}, 0 0 0 3px #fff, 0 0 0 5px ${colors.main}`
-    : `0 2px 8px ${colors.glow}, 0 0 0 2px #fff`;
-  const baseScale = isSelected ? 'scale(1.18)' : 'scale(1)';
+    ? `0 10px 24px ${colors.glow}, 0 0 0 3px #fff, 0 0 0 6px ${colors.main}`
+    : `0 3px 10px ${colors.glow}, 0 0 0 2px #fff`;
+  const baseScale = isSelected ? 'scale(1.22)' : 'scale(1)';
   content.style.cssText = `
     background: ${isSelected ? colors.dark : colors.main};
     color: #fff;
     font-size: 12.5px; font-weight: 800; letter-spacing: -0.2px;
     padding: 6px 12px; border-radius: 999px; white-space: nowrap;
     cursor: pointer; box-shadow: ${baseShadow};
-    transform: translate(-50%, -100%) ${baseScale};
-    transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s ease, background 0.12s ease;
+    transform: translate(-50%, -100%) scale(0.6);
+    opacity: 0;
+    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s ease, background 0.12s ease, opacity 0.18s ease;
     position: relative; font-family: 'GmarketSans', sans-serif;
     user-select: none; z-index: ${isSelected ? 100 : 1};
+    will-change: transform;
   `;
+
+  // 스프링 entry 애니메이션 — next frame에 최종 스케일로 전환
+  requestAnimationFrame(() => {
+    content.style.transform = `translate(-50%, -100%) ${baseScale}`;
+    content.style.opacity = '1';
+  });
 
   const priceSpan = document.createElement('span');
   priceSpan.textContent = priceText;
   content.appendChild(priceSpan);
 
-  // +N 디듑 배지 — 직방·다방 시그니처: 같은 건물/좌표에 여러 매물 있을 때 표시
+  // +N 디듑 배지 (16차: 클릭 타겟 식별용 data 속성)
   if (extraCount > 0) {
     const plusBadge = document.createElement('span');
+    plusBadge.setAttribute('data-plus-badge', '1');
     plusBadge.style.cssText = `
       margin-left: 6px; padding: 1px 6px; border-radius: 999px;
-      background: rgba(255,255,255,0.28); color: #fff;
+      background: rgba(255,255,255,0.32); color: #fff;
       font-size: 10.5px; font-weight: 800; letter-spacing: -0.2px;
-      border: 1px solid rgba(255,255,255,0.5);
+      border: 1px solid rgba(255,255,255,0.6);
+      cursor: pointer;
     `;
     plusBadge.textContent = `+${extraCount}`;
+    plusBadge.title = `이 위치에 ${extraCount + 1}개 매물 · 클릭하여 모두 보기`;
     content.appendChild(plusBadge);
   }
 
-  // 말풍선 꼬리 — 두껍고 sharper (직방식)
+  // 말풍선 꼬리
   const tail = document.createElement('div');
   tail.style.cssText = `
     position: absolute; bottom: -6px; left: 50%;
@@ -423,12 +436,41 @@ function createPriceMarkerContent(listing: Listing, isSelected: boolean = false,
     border-right: 7px solid transparent;
     border-top: 7px solid ${isSelected ? colors.dark : colors.main};
     filter: drop-shadow(0 1px 0 rgba(0,0,0,0.08));
+    transition: border-top-color 0.12s ease;
   `;
   content.appendChild(tail);
 
+  // 선택된 마커 — pulse ring (애니메이션)
+  if (isSelected) {
+    const pulseRing = document.createElement('div');
+    pulseRing.style.cssText = `
+      position: absolute; top: 50%; left: 50%;
+      width: 100%; height: 100%;
+      border-radius: 999px;
+      background: ${colors.ring};
+      transform: translate(-50%, -50%);
+      animation: wishesMarkerPulse 1.8s ease-out infinite;
+      pointer-events: none; z-index: -1;
+    `;
+    content.appendChild(pulseRing);
+    // 키프레임 스타일 주입 (1회만)
+    if (!document.getElementById('wishes-marker-pulse-kf')) {
+      const style = document.createElement('style');
+      style.id = 'wishes-marker-pulse-kf';
+      style.textContent = `
+        @keyframes wishesMarkerPulse {
+          0% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+          70% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+          100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  }
+
   content.addEventListener('mouseenter', () => {
-    content.style.transform = 'translate(-50%, -100%) scale(1.15)';
-    content.style.boxShadow = `0 6px 18px ${colors.glow}, 0 0 0 3px #fff`;
+    content.style.transform = 'translate(-50%, -100%) scale(1.18) translateY(-3px)';
+    content.style.boxShadow = `0 10px 22px ${colors.glow}, 0 0 0 3px #fff`;
     content.style.zIndex = '50';
     content.style.background = colors.dark;
     tail.style.borderTopColor = colors.dark;
@@ -469,7 +511,7 @@ function MapSearchPageInner() {
   const [autoRefetch, setAutoRefetch] = useState(true);
   const [mapMovedSinceFetch, setMapMovedSinceFetch] = useState(false);
   // 15차-3: 지하철역·동 자동완성 (직방 시그니처)
-  const [searchSuggestions, setSearchSuggestions] = useState<Array<{ name: string; address: string; lat: number; lng: number }>>([]);
+  const [searchSuggestions, setSearchSuggestions] = useState<Array<{ name: string; address: string; lat: number; lng: number; category: 'subway' | 'place' | 'building' | 'address' }>>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   // 15차-3: "위치 그리기" 다각형 검색 (직방 차별 기능)
   const [drawMode, setDrawMode] = useState(false);
@@ -483,6 +525,8 @@ function MapSearchPageInner() {
   // ━━━ 지도 마커 hover → 리스트 카드 하이라이트·스크롤 연동용 (마커 rebuild 방지 위해 useEffect deps 에서 제외) ━━━
   const [mapHoveredId, setMapHoveredId] = useState<number | null>(null);
   const mapHoveredTimerRef = useRef<any>(null);
+  // 16차 폴리싱 — +N 배지 클릭 시 해당 좌표 매물 그룹 펼침
+  const [expandedGroup, setExpandedGroup] = useState<{ lat: number; lng: number; listings: Listing[] } | null>(null);
 
   // ━━━ 필터 → URL 쿼리 동기화 ━━━
   useEffect(() => {
@@ -800,9 +844,23 @@ function MapSearchPageInner() {
         const content = createDongClusterContent(dongName, count);
 
         content.addEventListener('click', () => {
-          // 동 클러스터 클릭 → 개별 매물 마커 단계(레벨 3)로 진입
-          map.setLevel(3, { anchor: position });
+          // 16차 폴리싱: 부드러운 stepped zoom + panTo
+          // (Kakao setLevel 즉시 점프 → 단계별로 줌인해서 시각적 연속성 확보)
           map.panTo(position);
+          const currentLevel = map.getLevel();
+          const targetLevel = 3;
+          if (currentLevel <= targetLevel) {
+            map.setLevel(targetLevel, { anchor: position });
+          } else {
+            let step = currentLevel - 1;
+            const zoomStep = () => {
+              if (step < targetLevel) return;
+              map.setLevel(step, { anchor: position, animate: { duration: 180 } });
+              step -= 1;
+              if (step >= targetLevel) setTimeout(zoomStep, 200);
+            };
+            zoomStep();
+          }
         });
 
         const overlay = new window.kakao.maps.CustomOverlay({
@@ -835,7 +893,15 @@ function MapSearchPageInner() {
                            group.some(l => l.id === selectedId || l.id === detailId);
         const content = createPriceMarkerContent(listing, isSelected, extraCount);
 
-        content.addEventListener('click', () => {
+        content.addEventListener('click', (ev: any) => {
+          // 16차 폴리싱 — +N 배지 클릭은 그룹 펼침, 가격버블은 상세
+          const target = ev.target as HTMLElement;
+          if (target?.closest?.('[data-plus-badge]')) {
+            ev.stopPropagation();
+            map.panTo(position);
+            setExpandedGroup({ lat: listing.lat as number, lng: listing.lng as number, listings: group });
+            return;
+          }
           setDetailId(listing.id);
           setSelectedId(listing.id);
           map.panTo(position);
@@ -1011,12 +1077,25 @@ function MapSearchPageInner() {
           setSearchSuggestions([]);
           return;
         }
-        // 지하철역·동·장소 등 상위 6건
+        // 지하철역·동·장소 등 상위 6건 (카테고리 감지 — 16차 폴리싱)
+        const detectCategory = (d: any): 'subway' | 'place' | 'building' | 'address' => {
+          const name = String(d.place_name || '');
+          const cg = String(d.category_group_code || '');
+          const cat = String(d.category_name || '');
+          // 지하철역 (카테고리 그룹 SW8 또는 이름 끝 "역")
+          if (cg === 'SW8' || /역$/.test(name) || /지하철/.test(cat)) return 'subway';
+          // 동·읍·면 (주소성 이름)
+          if (/(동|읍|면|리)$/.test(name) && !d.road_address_name) return 'address';
+          // 아파트·빌딩·오피스텔
+          if (/(아파트|빌딩|오피스텔|타워|프라자|센터|하우스|빌라)/.test(name) || /아파트/.test(cat)) return 'building';
+          return 'place';
+        };
         const top = data.slice(0, 6).map((d: any) => ({
           name: d.place_name || '',
           address: d.road_address_name || d.address_name || '',
           lat: Number(d.y),
           lng: Number(d.x),
+          category: detectCategory(d),
         }));
         setSearchSuggestions(top);
       });
@@ -1122,6 +1201,21 @@ function MapSearchPageInner() {
     });
     polygon.setMap(map);
     return () => { polygon.setMap(null); };
+  }, [drawPolygon]);
+
+  // 16차 폴리싱 — 다각형 면적 (km²) 계산 (Shoelace + 구면근사)
+  const drawPolygonAreaKm2 = useMemo(() => {
+    if (!drawPolygon || drawPolygon.length < 3) return 0;
+    const R = 6371; // km
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    let area = 0;
+    const n = drawPolygon.length;
+    for (let i = 0; i < n; i++) {
+      const p1 = drawPolygon[i];
+      const p2 = drawPolygon[(i + 1) % n];
+      area += toRad(p2.lng - p1.lng) * (2 + Math.sin(toRad(p1.lat)) + Math.sin(toRad(p2.lat)));
+    }
+    return Math.abs((area * R * R) / 2);
   }, [drawPolygon]);
 
   // ━━━ 14차: 가격대 빠른 프리셋 (전세/월세/매매) ━━━
@@ -1302,22 +1396,34 @@ function MapSearchPageInner() {
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
-            {/* 자동완성 드롭다운 (직방 시그니처) */}
+            {/* 자동완성 드롭다운 (직방 시그니처 + 16차 카테고리 배지) */}
             {showSuggestions && searchSuggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden">
-                {searchSuggestions.map((s, idx) => (
-                  <button
-                    key={`${s.name}-${idx}`}
-                    onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}
-                    className="w-full text-left px-3 py-2 hover:bg-wishes-primary/5 active:bg-wishes-primary/10 transition-colors flex items-start gap-2 border-b border-gray-100 last:border-b-0"
-                  >
-                    <MapPin className="w-3.5 h-3.5 text-wishes-primary/70 mt-0.5 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[12.5px] font-semibold text-gray-900 truncate">{s.name}</div>
-                      {s.address && <div className="text-[11px] text-gray-500 truncate">{s.address}</div>}
-                    </div>
-                  </button>
-                ))}
+                {searchSuggestions.map((s, idx) => {
+                  const catMap = {
+                    subway:   { Icon: Train,      label: '지하철', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+                    place:    { Icon: MapPin,     label: '장소',   cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                    building: { Icon: Building2,  label: '건물',   cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+                    address:  { Icon: Navigation, label: '동·지역', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+                  } as const;
+                  const { Icon: CatIcon, label: catLabel, cls: catCls } = catMap[s.category] ?? catMap.place;
+                  return (
+                    <button
+                      key={`${s.name}-${idx}`}
+                      onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}
+                      className="w-full text-left px-3 py-2 hover:bg-wishes-primary/5 active:bg-wishes-primary/10 transition-colors flex items-start gap-2 border-b border-gray-100 last:border-b-0"
+                    >
+                      <CatIcon className="w-3.5 h-3.5 text-wishes-primary/70 mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[12.5px] font-semibold text-gray-900 truncate">{s.name}</span>
+                          <span className={`text-[9.5px] font-bold px-1.5 py-[1px] rounded-full border shrink-0 ${catCls}`}>{catLabel}</span>
+                        </div>
+                        {s.address && <div className="text-[11px] text-gray-500 truncate mt-0.5">{s.address}</div>}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1555,15 +1661,48 @@ function MapSearchPageInner() {
             </div>
           )}
 
-          {/* 15차-3: 자동검색 토글 + 위치 그리기 — 우상단 스택 */}
+          {/* 16차: 활성 필터 칩 — 지도 위 상시 노출 (지도 이동 중에도 맥락 유지) */}
+          {mapReady && activeChips.length > 0 && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-[60%] flex items-center gap-1.5 overflow-x-auto no-scrollbar px-3 py-2 bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 animate-fade-in">
+              <span className="text-[10.5px] font-bold text-wishes-primary tracking-wider shrink-0">필터</span>
+              {activeChips.slice(0, 6).map((chip) => (
+                <button
+                  key={chip.key}
+                  onClick={chip.clear}
+                  className="flex items-center gap-1 px-2 py-0.5 text-[10.5px] font-semibold rounded-full bg-wishes-primary text-white hover:bg-wishes-primary/80 transition-all whitespace-nowrap shrink-0"
+                  title="클릭하여 제거"
+                >
+                  <span>{chip.label}</span>
+                  <X className="w-2.5 h-2.5 opacity-80" />
+                </button>
+              ))}
+              {activeChips.length > 6 && (
+                <span className="text-[10px] font-bold text-wishes-muted shrink-0">+{activeChips.length - 6}</span>
+              )}
+              <button
+                onClick={resetAllFilters}
+                className="ml-1 px-2 py-0.5 text-[10px] font-bold rounded-full text-red-500 hover:bg-red-50 shrink-0"
+              >
+                전체해제
+              </button>
+            </div>
+          )}
+
+          {/* 15차-3: 자동검색 토글 + 위치 그리기 — 우상단 스택 (16차: OFF 상태 강조) */}
           {mapReady && (
             <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
               {/* 자동검색 ON/OFF 토글 pill */}
-              <div className="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md text-[11px] border border-gray-100">
-                <span className="font-semibold text-gray-700">이동 시 자동검색</span>
+              <div className={`flex items-center gap-2 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md text-[11px] border transition-all ${
+                autoRefetch
+                  ? 'bg-white/95 border-gray-100'
+                  : 'bg-amber-50/95 border-amber-300 ring-2 ring-amber-200/50'
+              }`}>
+                <span className={`font-semibold ${autoRefetch ? 'text-gray-700' : 'text-amber-800'}`}>
+                  {autoRefetch ? '이동 시 자동검색' : '자동검색 OFF'}
+                </span>
                 <button
                   onClick={() => setAutoRefetch((v) => !v)}
-                  className={`relative w-9 h-5 rounded-full transition-colors ${autoRefetch ? 'bg-wishes-primary' : 'bg-gray-300'}`}
+                  className={`relative w-9 h-5 rounded-full transition-colors ${autoRefetch ? 'bg-wishes-primary' : 'bg-amber-500'}`}
                   aria-label="자동검색 토글"
                   aria-pressed={autoRefetch}
                 >
@@ -1606,27 +1745,108 @@ function MapSearchPageInner() {
                 </div>
               )}
               {!drawMode && drawPolygon && (
-                <button
-                  onClick={() => { setDrawPolygon(null); }}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-200 text-red-600 rounded-full shadow-md text-[11.5px] font-bold hover:bg-red-100"
-                  title="그린 영역을 해제"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  영역 해제
-                </button>
+                <div className="flex items-center gap-1.5 bg-white/95 backdrop-blur-md border border-wishes-primary/30 rounded-full shadow-md pl-3 pr-1 py-1 animate-fade-in">
+                  <div className="flex items-center gap-1.5 text-[11px] font-bold">
+                    <Edit3 className="w-3.5 h-3.5 text-wishes-primary" />
+                    <span className="text-wishes-primary">영역 내</span>
+                    <span className="px-1.5 py-0.5 rounded-full bg-wishes-primary text-white tabular-nums">
+                      {filteredListings.length}건
+                    </span>
+                    {drawPolygonAreaKm2 > 0 && (
+                      <span className="text-wishes-muted tabular-nums">
+                        · {drawPolygonAreaKm2 < 1
+                          ? `${(drawPolygonAreaKm2 * 1_000_000).toFixed(0)}㎡`
+                          : `${drawPolygonAreaKm2.toFixed(2)}㎢`}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => { setDrawPolygon(null); }}
+                    className="flex items-center justify-center w-6 h-6 rounded-full bg-red-50 text-red-600 hover:bg-red-100 transition-colors"
+                    title="그린 영역을 해제"
+                    aria-label="영역 해제"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               )}
             </div>
           )}
 
-          {/* 15차-3: 수동 재검색 플로팅 버튼 — 자동검색 OFF + 지도 이동 시 강조 */}
+          {/* 15차-3: 수동 재검색 플로팅 버튼 — 자동검색 OFF + 지도 이동 시 강조 (16차: pulse ring) */}
           {!autoRefetch && mapMovedSinceFetch && mapReady && !loading && (
             <button
               onClick={() => fetchBoundsRef.current?.()}
-              className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-wishes-primary text-white px-5 py-2.5 rounded-full shadow-2xl text-[13px] font-bold hover:bg-wishes-primary/90 animate-fade-in"
+              className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-wishes-primary text-white px-5 py-2.5 rounded-full shadow-2xl text-[13px] font-bold hover:bg-wishes-primary/90 animate-fade-in group"
             >
-              <RefreshCw className="w-4 h-4" />
-              이 지역에서 재검색
+              <span className="absolute inset-0 rounded-full bg-wishes-primary animate-ping opacity-40 pointer-events-none" />
+              <RefreshCw className="w-4 h-4 relative group-hover:rotate-180 transition-transform duration-500" />
+              <span className="relative">이 지역에서 재검색</span>
             </button>
+          )}
+
+          {/* 16차 폴리싱 — +N 배지 클릭 시 같은 좌표 매물 그룹 펼침 팝업 */}
+          {expandedGroup && (
+            <>
+              <div
+                className="absolute inset-0 bg-black/20 backdrop-blur-[1px] z-30 animate-fade-in"
+                onClick={() => setExpandedGroup(null)}
+              />
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-[min(92vw,360px)] max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-gray-200 overflow-hidden animate-fade-in flex flex-col">
+                <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-wishes-primary/5 to-transparent">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-wishes-primary" />
+                    <span className="text-[13px] font-bold text-wishes-primary">
+                      같은 위치 {expandedGroup.listings.length}개 매물
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setExpandedGroup(null)}
+                    className="p-1 rounded-full hover:bg-gray-100 text-gray-500"
+                    aria-label="닫기"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-1.5">
+                  {expandedGroup.listings.map((l) => {
+                    const dealCls = l.deal === '매매' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : l.deal === '전세' ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : l.deal === '단기' ? 'bg-purple-50 text-purple-700 border-purple-200'
+                      : 'bg-orange-50 text-orange-700 border-orange-200';
+                    const priceLabel = l.deal === '매매'
+                      ? `매매 ${((l.price || 0) / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}억`
+                      : l.deal === '전세'
+                        ? `전세 ${((l.deposit || 0) / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}억`
+                        : `${l.deal} ${((l.deposit || 0) / 10000).toLocaleString('ko-KR', { maximumFractionDigits: 1 })}억/${l.monthly || 0}`;
+                    return (
+                      <button
+                        key={l.id}
+                        onClick={() => {
+                          setDetailId(l.id);
+                          setSelectedId(l.id);
+                          setExpandedGroup(null);
+                        }}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-gray-100 hover:border-wishes-primary hover:bg-wishes-primary/5 transition-all text-left group"
+                      >
+                        <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${dealCls}`}>
+                          {l.deal}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-[12.5px] font-bold text-gray-900 truncate">{priceLabel}</div>
+                          <div className="text-[11px] text-wishes-muted truncate mt-0.5">
+                            {l.type || '매물'}{l.area ? ` · ${l.area}㎡` : ''}{l.floor ? ` · ${l.floor}층` : ''}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-[10px] font-bold text-wishes-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                          상세 →
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
           )}
 
           {/* 매물 0건일 때 안내 (지도 중앙) */}

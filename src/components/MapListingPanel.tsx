@@ -80,7 +80,8 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   const dealColorMap: Record<string, string> = {
     '전세': 'bg-blue-500',
     '월세': 'bg-orange-500',
-    '맠매': 'bg-emerald-500',
+    '매매': 'bg-emerald-500',
+    '단기': 'bg-purple-500',
   };
   const dealBgColor = dealColorMap[listing.deal] || 'bg-gray-500';
 
@@ -139,9 +140,10 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               loading="lazy"
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gradient-to-br from-gray-50 to-gray-100">
-              <Building2 className="w-14 h-14 mb-2" />
-              <span className="text-xs text-gray-400">이미지 준비 중</span>
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gradient-to-br from-wishes-primary/5 via-gray-50 to-gray-100 relative">
+              <Building2 className="w-16 h-16 mb-2 text-wishes-primary/30" />
+              <span className="text-xs text-wishes-muted font-medium">사진 준비 중</span>
+              <span className="text-[10px] text-gray-400 mt-1">직접 방문 시 현장 확인 가능</span>
             </div>
           )}
 
@@ -172,9 +174,22 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               >
                 <ChevronRight className="w-5 h-5" />
               </button>
-              <div className="absolute bottom-3 right-3 bg-black/50 text-white text-[11px] font-medium px-2.5 py-1 rounded-full">
+              <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[11px] font-bold px-2.5 py-1 rounded-full tabular-nums shadow-md">
                 {currentImageIndex + 1} / {images.length}
               </div>
+              {/* 이미지 인디케이터 점들 (5장 이하) */}
+              {images.length <= 5 && (
+                <div className="absolute bottom-3 left-3 flex items-center gap-1">
+                  {images.map((_, idx) => (
+                    <div
+                      key={idx}
+                      className={`h-1 rounded-full transition-all ${
+                        idx === currentImageIndex ? 'w-4 bg-white' : 'w-1 bg-white/50'
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -209,7 +224,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         <div className="p-4 border-b border-gray-100">
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-500">{listing.deal === '욤매' ? '매매가' : listing.deal === '전세' ? '전세금' : '월세'}</span>
+              <span className="text-sm text-gray-500">{listing.deal === '매매' ? '매매가' : listing.deal === '전세' ? '전세금' : listing.deal === '단기' ? '단기임대' : '월세'}</span>
               <span className="text-lg font-extrabold text-gray-900">{price.main}</span>
             </div>
             {listing.deal === '월세' && listing.deposit > 0 && (
@@ -236,14 +251,18 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         </div>
 
-        {/* ── 상담 신청 버튼 ── */}
+        {/* ── 상담 신청 버튼 (확장된 스티키 CTA) ── */}
         <div className="p-4 border-b border-gray-100">
           <Link
-            href={`/contact?listing_id=${listing.id}&listing_title=${encodeURIComponent(listing.title)}`}
-            className="block w-full py-3 rounded-xl bg-wishes-primary text-white text-center text-sm font-bold shadow-md hover:shadow-lg hover:bg-wishes-primary/90 transition-all"
+            href={`/contact?listing_id=${listing.id}&listing_title=${encodeURIComponent(listing.title || '')}`}
+            className="group flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gradient-to-r from-wishes-primary to-wishes-primary/90 text-white text-center text-sm font-bold shadow-lg hover:shadow-xl hover:brightness-110 active:scale-[0.98] transition-all"
           >
-            문의하기
+            <span>이 매물 문의하기</span>
+            <ChevronRight className="w-4 h-4 opacity-80 group-hover:translate-x-0.5 transition-transform" />
           </Link>
+          <p className="text-[11px] text-wishes-muted text-center mt-2">
+            위시스부동산 전문 중개사가 직접 연락드립니다
+          </p>
         </div>
 
         {/* ── 매물설명 ── */}
@@ -345,7 +364,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <NearbyStationsSection listingId={listing.id} />
         )}
 
-        {/* ── 실거래가 동향 ── */}
+        {/* ── 실거래가 동향 링크 ── */}
         {listing.dong && (
           <div className="p-4 border-b border-gray-100">
             <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
@@ -363,12 +382,14 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
                 국토교통부 실거래가 조회
                 <ChevronRight className="w-3 h-3" />
               </a>
-              <p className="text-xs text-gray-400 mt-2">상담 시 최술 실거래가를 안내드립니다.</p>
+              <p className="text-xs text-gray-400 mt-2">상담 시 최신 실거래가를 안내드립니다.</p>
             </div>
+          </div>
+        )}
 
-        {/* ── 실거래가 동향 차트 ── */}
+        {/* ── 실거래가 차트 ── */}
         {listing.dong && (
-          <div className="mt-4">
+          <div className="p-4 border-b border-gray-100">
             <RealPriceChart
               listingId={listing.id}
               dong={listing.dong}
@@ -380,16 +401,13 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
 
         {/* ── 매물 위치 지도 ── */}
         {listing.lat && listing.lng && (
-          <div className="mt-4">
+          <div className="p-4 border-b border-gray-100">
             <ListingLocationMap
               lat={listing.lat}
               lng={listing.lng}
               address={listing.address || listing.dong || ''}
               title={listing.title || ''}
             />
-          </div>
-        )}
-
           </div>
         )}
 
@@ -483,7 +501,7 @@ function NearbyStationsSection({ listingId }: { listingId: number }) {
             ))}
           </div>
         ) : (
-          <p className="text-xs text-gray-400">반경 2km 내 지하처역 없음</p>
+          <p className="text-xs text-gray-400">반경 2km 내 지하철역 없음</p>
         )}
       </div>
     </div>
