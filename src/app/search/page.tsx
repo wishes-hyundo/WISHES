@@ -182,15 +182,25 @@ export default function SearchPortalPage() {
       v270ContactsScript.defer = false;
       document.body.appendChild(v270ContactsScript);
     }
-    const existingV270Freshness = document.getElementById('ws-ext-patch-v270-freshness');
-    if (!existingV270Freshness) {
-      const v270FreshnessScript = document.createElement('script');
-      v270FreshnessScript.id = 'ws-ext-patch-v270-freshness';
-      v270FreshnessScript.src = '/search/content-v270-freshness.js?v=20260418';
-      v270FreshnessScript.async = false;
-      v270FreshnessScript.defer = false;
-      document.body.appendChild(v270FreshnessScript);
-    }
+    // ⚠️ content-v270-freshness.js 는 "공실클럽 기준" 문구를 UI에 노출시켰고,
+    //    카드 위에 배지 오버레이를 덮어 주소를 가리는 이슈가 있어 전면 제거.
+    //    (파일은 폴더에 남기되 스크립트 로드는 영구 차단)
+    // 이전에 설치된 흔적이 있으면 정리
+    try {
+      const prev = document.getElementById('ws-ext-patch-v270-freshness');
+      if (prev && prev.parentNode) prev.parentNode.removeChild(prev);
+      const api = (window as unknown as { __WS_PATCH_V270__?: { rollback?: () => void } }).__WS_PATCH_V270__;
+      if (api && typeof api.rollback === 'function') { try { api.rollback(); } catch {} }
+      // 잔여 DOM 제거 (정렬 셀렉터/요약/배지 래퍼/스타일)
+      document.querySelectorAll('.v270-sort, #v270-sort-floating, #v270-summary-line, .v270-badge-wrap').forEach((n) => n.remove());
+      document.querySelectorAll('[data-v270-badge]').forEach((n) => {
+        n.removeAttribute('data-v270-badge');
+        n.removeAttribute('data-v270-badge-key');
+        n.classList.remove('v270-card-anchor');
+      });
+      const styleEl = document.getElementById('v270-fresh-styles');
+      if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
+    } catch {}
   }, [state]);
 
   // ========== UI ==========
