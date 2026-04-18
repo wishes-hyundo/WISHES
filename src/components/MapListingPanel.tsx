@@ -6,14 +6,15 @@ import {
   ArrowLeft, ChevronLeft, ChevronRight, MapPin, Maximize2, Home,
   Building2, Layers, Compass, Bath, DoorOpen, Thermometer, Banknote,
   Check, X, Eye, Calendar, Train, TrendingUp, Clock, Ruler,
-  ParkingCircle, Dog, Warehouse, Zap, CreditCard
+  ParkingCircle, Dog, Warehouse, Zap, CreditCard, Briefcase, FileText,
+  Megaphone, Users, LogIn, Timer
 } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { displayTitle } from '@/lib/formatListingTitle';
 import { displayAddressByAuth } from '@/lib/publicAddress';
 import CompassDirection from '@/components/CompassDirection';
-import Link from 'next/link';
+import InquiryModal from '@/components/InquiryModal';
 import type { Listing } from '@/types';
 import ListingLocationMap from './ListingLocationMap';
 import RealPriceChart from './RealPriceChart';
@@ -33,6 +34,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -40,8 +42,24 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
     setShowFullDescription(false);
     const fetchData = async () => {
       const supabase = createClient();
+      // 고객용 화이트리스트 (민감 필드 description, source_url, contact, special_notes, building_name 제외)
+      const LISTING_COLUMNS = [
+        'id', 'title', 'type', 'deal', 'status', 'dong', 'gu', 'address', 'address_detail',
+        'lat', 'lng', 'deposit', 'monthly', 'price',
+        'area_m2', 'area_supply_m2', 'floor_current', 'floor_total', 'rooms', 'bathrooms',
+        'direction', 'heating_type', 'available_date', 'built_year',
+        'ai_description', 'building_purpose',
+        'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
+        'maintenance_fee', 'maintenance_includes',
+        'entrance_type', 'lease_period',
+        'business_type', 'goodwill_fee', 'vat_included', 'usage_approved',
+        'electric_capacity', 'signage_available', 'meeting_room',
+        'parking_spaces', 'rights_fee',
+        'station_name', 'station_distance',
+        'views', 'created_at', 'updated_at', 'source_site',
+      ].join(', ');
       const [listingResult, imagesResult, featuresResult] = await Promise.all([
-        supabase.from('listings').select('*').eq('id', listingId).single(),
+        supabase.from('listings').select(LISTING_COLUMNS).eq('id', listingId).single(),
         supabase.from('listing_images').select('id, url, sort_order').eq('listing_id', listingId).order('sort_order', { ascending: true }),
         supabase.from('listing_features').select('id, feature').eq('listing_id', listingId),
       ]);
@@ -113,8 +131,9 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   };
 
   return (
+    <>
     <div className="h-full flex flex-col">
-      {/* ── 헤더: 뒤로가기 + 딠록번호 ── */}
+      {/* ── 헤더: 뒤로가기 + 매물번호 ── */}
       <div className="p-3 border-b border-gray-100 flex items-center gap-2 shrink-0 bg-white sticky top-0 z-10">
         <button
           onClick={onClose}
@@ -263,28 +282,29 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         </div>
 
-        {/* ── 상담 신청 버튼 (확장된 스티키 CTA) ── */}
+        {/* ── 상담 신청 버튼 (인라인 InquiryModal — 페이지 이동 없이 리드 캡처) ── */}
         <div className="p-4 border-b border-gray-100">
-          <Link
-            href={`/contact?listing_id=${listing.id}&listing_title=${encodeURIComponent(listing.title || '')}`}
+          <button
+            type="button"
+            onClick={() => setInquiryOpen(true)}
             className="group flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gradient-to-r from-wishes-primary to-wishes-primary/90 text-white text-center text-sm font-bold shadow-lg hover:shadow-xl hover:brightness-110 active:scale-[0.98] transition-all"
           >
             <span>이 매물 문의하기</span>
             <ChevronRight className="w-4 h-4 opacity-80 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
+          </button>
           <p className="text-[11px] text-wishes-muted text-center mt-2">
             위시스부동산 전문 중개사가 직접 연락드립니다
           </p>
         </div>
 
-        {/* ── 매물설명 ── */}
-        {listing.description && (
+        {/* ── 매물설명 (AI 재가공본만 노출: 크롤링 원본 description은 저작권 보호 차원에서 미사용) ── */}
+        {listing.ai_description && (
           <div className="p-4 border-b border-gray-100">
             <h3 className="text-sm font-bold text-gray-700 mb-2.5">매물설명</h3>
             <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!showFullDescription ? 'line-clamp-4' : ''}`}>
-              {listing.description}
+              {listing.ai_description}
             </p>
-            {listing.description.length > 120 && (
+            {listing.ai_description.length > 120 && (
               <button
                 onClick={() => setShowFullDescription(!showFullDescription)}
                 className="mt-2 text-xs text-wishes-secondary hover:underline font-medium"
@@ -295,7 +315,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         )}
 
-        {/* ── 핵시 정보 그리드 ── */}
+        {/* ── 핵심 정보 그리드 ── */}
         <div className="p-4 border-b border-gray-100">
           <h3 className="text-sm font-bold text-gray-700 mb-3">매물 정보</h3>
           <div className="grid grid-cols-2 gap-y-4 gap-x-3">
@@ -328,6 +348,46 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
             )}
             {listing.available_date && (
               <InfoItem icon={Clock} label="입주가능일" value={listing.available_date} />
+            )}
+            {/* ── 상업·상가 매물 전용 필드 ── */}
+            {listing.parking_spaces != null && listing.parking_spaces > 0 && (
+              <InfoItem icon={ParkingCircle} label="주차대수" value={`${listing.parking_spaces}대`} />
+            )}
+            {listing.station_name && (
+              <InfoItem
+                icon={Train}
+                label="역세권"
+                value={listing.station_distance
+                  ? `${listing.station_name} ${listing.station_distance}m`
+                  : listing.station_name}
+              />
+            )}
+            {listing.business_type && (
+              <InfoItem icon={Briefcase} label="업종" value={listing.business_type} />
+            )}
+            {listing.building_purpose && (
+              <InfoItem icon={Building2} label="건물용도" value={listing.building_purpose} />
+            )}
+            {listing.usage_approved && (
+              <InfoItem icon={FileText} label="사용승인" value={listing.usage_approved} />
+            )}
+            {listing.electric_capacity && (
+              <InfoItem icon={Zap} label="전력용량" value={listing.electric_capacity} />
+            )}
+            {listing.signage_available && (
+              <InfoItem icon={Megaphone} label="간판설치" value="가능" />
+            )}
+            {listing.meeting_room != null && listing.meeting_room > 0 && (
+              <InfoItem icon={Users} label="회의실" value={`${listing.meeting_room}개`} />
+            )}
+            {listing.entrance_type && (
+              <InfoItem icon={LogIn} label="출입형태" value={listing.entrance_type} />
+            )}
+            {listing.lease_period && (
+              <InfoItem icon={Timer} label="임대기간" value={listing.lease_period} />
+            )}
+            {listing.rights_fee != null && listing.rights_fee > 0 && (
+              <InfoItem icon={CreditCard} label="권리금" value={`${formatPrice(listing.rights_fee)}`} />
             )}
           </div>
         </div>
@@ -400,7 +460,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         )}
 
-        {/* ── 딠록 정보 ── */}
+        {/* ── 등록 정보 ── */}
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center justify-between text-xs text-gray-400">
             <div className="flex items-center gap-3">
@@ -421,6 +481,17 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         <div className="h-6" />
       </div>
     </div>
+
+    {/* ── 인라인 문의 모달 (리드 캡처용, 페이지 이동 없음) ── */}
+    <InquiryModal
+      open={inquiryOpen}
+      onClose={() => setInquiryOpen(false)}
+      context="listing"
+      listingId={listing.id}
+      listingTitle={displayTitle(listing)}
+      source="/map"
+    />
+    </>
   );
 }
 
