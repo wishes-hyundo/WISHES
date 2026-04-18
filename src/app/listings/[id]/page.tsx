@@ -6,10 +6,10 @@ export const dynamic = 'force-dynamic';
 
 type Props = { params: Promise<{ id: string }> };
 
-// 5초 타임아웃 래퍼
-const withTimeout = <T,>(promise: Promise<T>, ms = 5000): Promise<T> =>
+// 5초 타임아웃 래퍼 (Supabase PostgrestBuilder는 Promise가 아닌 PromiseLike라 PromiseLike 시그니처로)
+const withTimeout = <T,>(promise: PromiseLike<T>, ms = 5000): Promise<T> =>
   Promise.race([
-    promise,
+    Promise.resolve(promise),
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
   ]);
 
@@ -27,11 +27,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const { id } = await params;
     const supabase = createServerClient();
-    const { data: listing } = await withTimeout(supabase
+    const { data: listing } = (await withTimeout(supabase
       .from('listings')
       .select('title, type, deal, dong, address, deposit, monthly, price, area_m2, source_site, ai_description, seo_keywords, seo_tags, seo_meta_description, building_purpose, business_type, station_name')
       .eq('id', id)
-      .single());
+      .single())) as { data: any };
 
     if (!listing) return fallback;
     // ※ 저작권 보호: 크롤링 매물도 메타데이터는 정상 노출 (정보는 광고용)
@@ -107,7 +107,7 @@ export default async function ListingPage({ params }: Props) {
   const { id } = await params;
   try {
     const supabase = createServerClient();
-    const { data: listing } = await withTimeout(supabase
+    const { data: listing } = (await withTimeout(supabase
       .from('listings')
       .select(`
         id, title, type, deal, status, dong, gu, address, address_detail,
@@ -126,7 +126,7 @@ export default async function ListingPage({ params }: Props) {
         listing_images(url, sort_order), listing_features(feature)
       `)
       .eq('id', id)
-      .single());
+      .single())) as { data: any };
 
     // ※ 저작권 보호: 크롤링 매물(source_site)도 상세 정보 노출 (광고용)
     //   단 사진(listing_images)은 빈 배열로 치환 — 상세 페이지는 플레이스홀더 렌더

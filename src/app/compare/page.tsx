@@ -180,7 +180,7 @@ export default function ComparePage() {
                   항목
                 </th>
                 {listings.map((listing) => {
-                  const img = listing.listing_images?.[0] || (listing as any).images?.[0];
+                  const img = (listing as any).listing_images?.[0] || (listing as any).images?.[0];
                   return (
                     <th key={listing.id} className="p-3 bg-white border-b border-gray-100 min-w-[200px]">
                       <div className="relative">
@@ -236,7 +236,7 @@ export default function ComparePage() {
         {/* 모바일: 카드 레이아웃 */}
         <div className="md:hidden space-y-4">
           {listings.map((listing) => {
-            const img = listing.listing_images?.[0] || (listing as any).images?.[0];
+            const img = (listing as any).listing_images?.[0] || (listing as any).images?.[0];
             return (
               <div key={listing.id} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                 <div className="relative">

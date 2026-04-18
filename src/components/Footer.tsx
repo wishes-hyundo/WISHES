@@ -49,7 +49,11 @@ export function Footer() {
         {/* 사업자 정보 */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-1 pt-2 text-[10px] text-white/20">
           <span>(주)위시스부동산중개법인 | 대표 전유진 | 사업자등록번호 445-86-01981 | 중개사무소등록 제11620-2021-00078호</span>
-          <Link href="/privacy" className="hover:text-white/40 transition-colors">개인정보처리방침</Link>
+          <div className="flex items-center gap-3">
+            <Link href="/privacy" className="hover:text-white/40 transition-colors">개인정보처리방침</Link>
+            <span className="text-white/10">|</span>
+            <Link href="/terms" className="hover:text-white/40 transition-colors">이용약관</Link>
+          </div>
         </div>
       </div>
     </footer>

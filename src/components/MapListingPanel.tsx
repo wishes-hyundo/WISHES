@@ -5,12 +5,12 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import {
   ArrowLeft, ChevronLeft, ChevronRight, MapPin, Maximize2, Home,
-  Building2, Layers, Compass, Bath, DoorOpen, Thermometer, Banknote,
-  Check, X, Eye, Calendar, Train, TrendingUp, Clock, Ruler,
+  Building2, Layers, Compass, DoorOpen, Thermometer, Banknote,
+  Check, X, Eye, Calendar, Train, Clock,
   ParkingCircle, Dog, Warehouse, Zap, CreditCard, Briefcase, FileText,
   Megaphone, Users, LogIn, Timer, ExternalLink, MessageSquare
 } from 'lucide-react';
-import { getFormattedPrice, getDealColor, sqmToPyeong, formatPrice } from '@/lib/utils';
+import { getFormattedPrice, sqmToPyeong, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { displayTitle } from '@/lib/formatListingTitle';
 import { displayAddressByAuth } from '@/lib/publicAddress';

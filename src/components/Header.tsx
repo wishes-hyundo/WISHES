@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown, UserX, Globe } from 'lucide-react';
+import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown, UserX } from 'lucide-react';
 import { LanguageToggle } from '@/components/LanguageToggle';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';

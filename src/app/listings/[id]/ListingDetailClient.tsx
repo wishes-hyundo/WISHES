@@ -194,8 +194,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
         .from('listings')
         .update({ views: (data.views || 0) + 1 })
         .eq('id', listingId)
-        .then(() => {})
-        .catch(() => {});
+        .then(() => {}, () => {}); // PostgrestBuilder는 PromiseLike라 .catch 불가 — then 2-arg로 처리
 
       // 연관 매물 로드 (같은 동 + 같은 거래유형, 자기 자신 제외)
       // 크롤링 매물(source_site)은 사진 라이선스 이슈로 listing_images 를 비운다
@@ -713,16 +712,16 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
 
               {/* 매물설명 (AI 생성 - 고객 노출용) + SEO 태그/키워드 병기 (검색 노출 최적화) */}
               {(() => {
-                const seoTagChips = Array.from(new Set(
+                const seoTagChips: string[] = Array.from(new Set(
                   (Array.isArray((listing as any).seo_tags) ? (listing as any).seo_tags : [])
                     .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
                     .filter((t: string) => t.length > 0)
-                )).slice(0, 12);
-                const seoKeywordLine = Array.from(new Set(
+                )).slice(0, 12) as string[];
+                const seoKeywordLine: string = (Array.from(new Set(
                   (Array.isArray((listing as any).seo_keywords) ? (listing as any).seo_keywords : [])
                     .map((k: any) => (typeof k === 'string' ? k.trim() : ''))
                     .filter((k: string) => k.length > 0)
-                )).slice(0, 20).join(', ');
+                )) as string[]).slice(0, 20).join(', ');
                 const hasDesc = !!listing.ai_description;
                 const hasSeo = seoTagChips.length > 0 || seoKeywordLine.length > 0;
                 if (!hasDesc && !hasSeo) return null;
