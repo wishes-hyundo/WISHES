@@ -5,7 +5,7 @@ import { useMapListings } from '@/hooks/useMapListings';
 import { ListingCard } from '@/components/ListingCard';
 import MapListingPanel from '@/components/MapListingPanel';
 import { formatPrice } from '@/lib/utils';
-import { MapPin, List, Loader2, Search, X, Building2, Crosshair, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { MapPin, List, Loader2, Search, X, Building2, Crosshair, RefreshCw, SlidersHorizontal, Edit3, Check } from 'lucide-react';
 import type { Listing, ListingFilter, DealType, ListingType } from '@/types';
 import MapFilterSheet from '@/components/MapFilterSheet';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -364,8 +364,8 @@ function createHoverPreviewContent(listing: Listing): HTMLElement {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 개별 매물 마커 (Level 1-4)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function createPriceMarkerContent(listing: Listing, isSelected: boolean = false): HTMLElement {
-  // 15차 — 4사 시그니처 초월: solid bg + white text + 단일 텍스트 "전세 3억" / "월세 500/30"
+function createPriceMarkerContent(listing: Listing, isSelected: boolean = false, extraCount: number = 0): HTMLElement {
+  // 15차-3 — 4사 시그니처 초월: solid bg + white text + "전세 3억" + "+N" 같은 건물 디듑
   const priceText = listing.deal === '매매'
     ? `매매 ${formatPrice(listing.price || 0)}`
     : listing.deal === '월세'
@@ -396,7 +396,23 @@ function createPriceMarkerContent(listing: Listing, isSelected: boolean = false)
     position: relative; font-family: 'GmarketSans', sans-serif;
     user-select: none; z-index: ${isSelected ? 100 : 1};
   `;
-  content.textContent = priceText;
+
+  const priceSpan = document.createElement('span');
+  priceSpan.textContent = priceText;
+  content.appendChild(priceSpan);
+
+  // +N 디듑 배지 — 직방·다방 시그니처: 같은 건물/좌표에 여러 매물 있을 때 표시
+  if (extraCount > 0) {
+    const plusBadge = document.createElement('span');
+    plusBadge.style.cssText = `
+      margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+      background: rgba(255,255,255,0.28); color: #fff;
+      font-size: 10.5px; font-weight: 800; letter-spacing: -0.2px;
+      border: 1px solid rgba(255,255,255,0.5);
+    `;
+    plusBadge.textContent = `+${extraCount}`;
+    content.appendChild(plusBadge);
+  }
 
   // 말풍선 꼬리 — 두껍고 sharper (직방식)
   const tail = document.createElement('div');
@@ -449,6 +465,21 @@ function MapSearchPageInner() {
   const [searchQuery, setSearchQuery] = useState('');
   // 검색창은 2026 리디자인에서 항상 노출되므로 토글 state 제거됨
   const [detailId, setDetailId] = useState<number | null>(null);
+  // 15차-3: 자동 검색 토글 (다방 시그니처) + 수동 재검색 버튼 상태
+  const [autoRefetch, setAutoRefetch] = useState(true);
+  const [mapMovedSinceFetch, setMapMovedSinceFetch] = useState(false);
+  // 15차-3: 지하철역·동 자동완성 (직방 시그니처)
+  const [searchSuggestions, setSearchSuggestions] = useState<Array<{ name: string; address: string; lat: number; lng: number }>>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  // 15차-3: "위치 그리기" 다각형 검색 (직방 차별 기능)
+  const [drawMode, setDrawMode] = useState(false);
+  const [drawPolygon, setDrawPolygon] = useState<Array<{ lat: number; lng: number }> | null>(null);
+  const drawPointsRef = useRef<Array<{ lat: number; lng: number }>>([]);
+  const drawOverlayRef = useRef<any>(null);
+  // 지도 idle 리스너에서 최신 autoRefetch·fetch 함수에 접근하기 위한 ref
+  const autoRefetchRef = useRef(true);
+  const fetchBoundsRef = useRef<(() => void) | null>(null);
+  useEffect(() => { autoRefetchRef.current = autoRefetch; }, [autoRefetch]);
   // ━━━ 지도 마커 hover → 리스트 카드 하이라이트·스크롤 연동용 (마커 rebuild 방지 위해 useEffect deps 에서 제외) ━━━
   const [mapHoveredId, setMapHoveredId] = useState<number | null>(null);
   const mapHoveredTimerRef = useRef<any>(null);
@@ -521,9 +552,22 @@ function MapSearchPageInner() {
       if (filters.businessUseable && !((l as any).business_use_ok || (l as any).business_type)) return false;
       if (filters.goodwillFreeOnly && ((l as any).goodwill_fee ?? 0) > 0) return false;
 
+      // 15차-3: "위치 그리기" 다각형 내부 여부 (직방 시그니처)
+      if (drawPolygon && drawPolygon.length >= 3 && l.lat != null && l.lng != null) {
+        let inside = false;
+        for (let i = 0, j = drawPolygon.length - 1; i < drawPolygon.length; j = i++) {
+          const xi = drawPolygon[i].lat, yi = drawPolygon[i].lng;
+          const xj = drawPolygon[j].lat, yj = drawPolygon[j].lng;
+          const intersect = ((yi > l.lng) !== (yj > l.lng)) &&
+            (l.lat < (xj - xi) * (l.lng - yi) / (yj - yi) + xi);
+          if (intersect) inside = !inside;
+        }
+        if (!inside) return false;
+      }
+
       return true;
     });
-  }, [listings, searchQuery, filters]);
+  }, [listings, searchQuery, filters, drawPolygon]);
 
   // T3-2: filteredListings 바뀌면 가시 범위 초기화 (bbox 이동·검색어 변경 시 맨 위부터)
   useEffect(() => {
@@ -585,12 +629,22 @@ function MapSearchPageInner() {
           neLat: ne.getLat(),
           neLng: ne.getLng(),
         }, filters);
+        setMapMovedSinceFetch(false);
       };
+      // 외부에서 호출 가능하도록 ref 에 저장
+      fetchBoundsRef.current = fetchBounds;
 
       window.kakao.maps.event.addListener(map, 'zoom_changed', () => {
         setZoomLevel(map.getLevel());
       });
-      window.kakao.maps.event.addListener(map, 'idle', fetchBounds);
+      // idle: 자동 모드일 때만 fetch, 수동 모드는 "이 지역 재검색" 배지 표시
+      window.kakao.maps.event.addListener(map, 'idle', () => {
+        if (autoRefetchRef.current) {
+          fetchBounds();
+        } else {
+          setMapMovedSinceFetch(true);
+        }
+      });
 
       // 초기 로드
       fetchBounds();
@@ -759,11 +813,27 @@ function MapSearchPageInner() {
       });
 
     } else {
-      // ━━━ 개별 매물 마커 (줌인 상태) — 15차: detail 선택 시에도 활성 상태 유지 ━━━
-      validListings.forEach((listing) => {
+      // ━━━ 개별 매물 마커 — 15차-3: 같은 좌표 디듑 (+N 배지), detail/selected 양쪽 반응 ━━━
+      const coordGroups = new Map<string, Listing[]>();
+      validListings.forEach((l) => {
+        // 5자리 반올림(~1m) → 사실상 같은 건물 단위
+        const key = `${(l.lat as number).toFixed(5)}_${(l.lng as number).toFixed(5)}`;
+        if (!coordGroups.has(key)) coordGroups.set(key, []);
+        coordGroups.get(key)!.push(l);
+      });
+
+      coordGroups.forEach((group) => {
+        // 대표 매물: 선택/디테일 상태가 있으면 그것, 아니면 가장 싼 매물(가격 내림차순 ↓ / deal 기준)
+        const selectedInGroup = group.find(l => l.id === selectedId || l.id === detailId);
+        const priceOf = (l: Listing) => l.deal === '매매' ? (l.price || 0) : (l.deposit || 0);
+        const representative = selectedInGroup ?? [...group].sort((a, b) => priceOf(a) - priceOf(b))[0];
+        const extraCount = group.length - 1;
+
+        const listing = representative;
         const position = new window.kakao.maps.LatLng(listing.lat, listing.lng);
-        const isSelected = selectedId === listing.id || detailId === listing.id;
-        const content = createPriceMarkerContent(listing, isSelected);
+        const isSelected = selectedId === listing.id || detailId === listing.id ||
+                           group.some(l => l.id === selectedId || l.id === detailId);
+        const content = createPriceMarkerContent(listing, isSelected, extraCount);
 
         content.addEventListener('click', () => {
           setDetailId(listing.id);
@@ -909,6 +979,7 @@ function MapSearchPageInner() {
       geocoder.addressSearch(query, (result: any[], status: string) => {
         if (status === window.kakao.maps.services.Status.OK && result[0]) {
           moveToCoord(Number(result[0].y), Number(result[0].x), 4);
+          setShowSuggestions(false);
           return;
         }
         // 2) 주소 실패 시 장소 키워드 검색 (예: "강남역")
@@ -918,12 +989,140 @@ function MapSearchPageInner() {
             if (st === window.kakao.maps.services.Status.OK && data[0]) {
               moveToCoord(Number(data[0].y), Number(data[0].x), 4);
             }
-            // 그래도 없으면 기존 클라이언트 필터링 방식 유지 (setSearchQuery 로)
+            setShowSuggestions(false);
           });
         }
       });
     }
   }, []);
+
+  // 15차-3: 지하철역·장소 자동완성 (직방 시그니처) — debounced keywordSearch
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchSuggestions([]);
+      return;
+    }
+    if (!window.kakao?.maps?.services?.Places) return;
+    const timer = setTimeout(() => {
+      const places = new window.kakao.maps.services.Places();
+      places.keywordSearch(q, (data: any[], st: string) => {
+        if (st !== window.kakao.maps.services.Status.OK) {
+          setSearchSuggestions([]);
+          return;
+        }
+        // 지하철역·동·장소 등 상위 6건
+        const top = data.slice(0, 6).map((d: any) => ({
+          name: d.place_name || '',
+          address: d.road_address_name || d.address_name || '',
+          lat: Number(d.y),
+          lng: Number(d.x),
+        }));
+        setSearchSuggestions(top);
+      });
+    }, 180);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const applySuggestion = useCallback((s: { name: string; lat: number; lng: number }) => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const center = new window.kakao.maps.LatLng(s.lat, s.lng);
+    map.setLevel(4);
+    map.panTo(center);
+    setSearchQuery(s.name);
+    setShowSuggestions(false);
+  }, []);
+
+  // 15차-3: "위치 그리기" 다각형 검색 — 카카오맵 click 이벤트로 점 누적 + 닫기
+  const startDrawMode = useCallback(() => {
+    if (!mapInstanceRef.current) return;
+    drawPointsRef.current = [];
+    setDrawPolygon(null);
+    if (drawOverlayRef.current) { drawOverlayRef.current.setMap(null); drawOverlayRef.current = null; }
+    setDrawMode(true);
+  }, []);
+
+  const cancelDrawMode = useCallback(() => {
+    setDrawMode(false);
+    drawPointsRef.current = [];
+    if (drawOverlayRef.current) { drawOverlayRef.current.setMap(null); drawOverlayRef.current = null; }
+    setDrawPolygon(null);
+  }, []);
+
+  const finishDrawMode = useCallback(() => {
+    const pts = drawPointsRef.current;
+    if (pts.length >= 3) {
+      setDrawPolygon([...pts]);
+    }
+    setDrawMode(false);
+    if (drawOverlayRef.current) { drawOverlayRef.current.setMap(null); drawOverlayRef.current = null; }
+  }, []);
+
+  // 드로우 모드 토글 및 카카오맵 click 리스너 설치
+  useEffect(() => {
+    if (!mapInstanceRef.current || !window.kakao?.maps) return;
+    const map = mapInstanceRef.current;
+
+    if (!drawMode) return;
+
+    // 기존 커서 변경
+    const prevCursor = mapRef.current?.style.cursor;
+    if (mapRef.current) mapRef.current.style.cursor = 'crosshair';
+
+    const redrawPolyline = () => {
+      const pts = drawPointsRef.current;
+      if (drawOverlayRef.current) { drawOverlayRef.current.setMap(null); drawOverlayRef.current = null; }
+      if (pts.length < 2) return;
+      const path = pts.map(p => new window.kakao.maps.LatLng(p.lat, p.lng));
+      // 닫힌 다각형처럼 보이도록 path 끝점을 시작점으로 잇는 건 finish 때 처리
+      const polyline = new window.kakao.maps.Polyline({
+        path,
+        strokeWeight: 3,
+        strokeColor: '#1b5e20',
+        strokeOpacity: 0.95,
+        strokeStyle: 'solid',
+      });
+      polyline.setMap(map);
+      drawOverlayRef.current = polyline;
+    };
+
+    const clickHandler = (mouseEvent: any) => {
+      const latlng = mouseEvent.latLng;
+      drawPointsRef.current = [...drawPointsRef.current, { lat: latlng.getLat(), lng: latlng.getLng() }];
+      redrawPolyline();
+    };
+    const dblclickHandler = () => {
+      // 더블클릭으로 닫기
+      finishDrawMode();
+    };
+    window.kakao.maps.event.addListener(map, 'click', clickHandler);
+    window.kakao.maps.event.addListener(map, 'dblclick', dblclickHandler);
+
+    return () => {
+      window.kakao.maps.event.removeListener(map, 'click', clickHandler);
+      window.kakao.maps.event.removeListener(map, 'dblclick', dblclickHandler);
+      if (mapRef.current) mapRef.current.style.cursor = prevCursor || '';
+    };
+  }, [drawMode, finishDrawMode]);
+
+  // 그려진 다각형을 지도에 표시
+  useEffect(() => {
+    if (!drawPolygon || !mapInstanceRef.current || !window.kakao?.maps) return;
+    const map = mapInstanceRef.current;
+    const path = drawPolygon.map(p => new window.kakao.maps.LatLng(p.lat, p.lng));
+    const polygon = new window.kakao.maps.Polygon({
+      path,
+      strokeWeight: 3,
+      strokeColor: '#1b5e20',
+      strokeOpacity: 0.9,
+      strokeStyle: 'solid',
+      fillColor: '#1b5e20',
+      fillOpacity: 0.15,
+    });
+    polygon.setMap(map);
+    return () => { polygon.setMap(null); };
+  }, [drawPolygon]);
 
   // ━━━ 14차: 가격대 빠른 프리셋 (전세/월세/매매) ━━━
   type PricePreset = { key: string; label: string; apply: (p: ListingFilter) => ListingFilter };
@@ -1071,30 +1270,55 @@ function MapSearchPageInner() {
       <div className="bg-white/95 backdrop-blur-xl border-b border-gray-200/70 shrink-0">
         {/* Row 1 — 검색 (left flex-1) | 거래유형 세그먼트 | 상세필터 | 초기화 | 모바일뷰 */}
         <div className="px-4 py-2.5 flex items-center gap-3">
-          {/* 검색 입력 — 항상 노출, 왼쪽 집약 */}
+          {/* 검색 입력 — 항상 노출, 왼쪽 집약 + 15차-3: 지하철역·장소 자동완성 드롭다운 */}
           <div className="relative flex-1 min-w-0 max-w-xl">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-wishes-primary/70" />
             <input
               type="text"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => { if (searchQuery.trim().length >= 2) setShowSuggestions(true); }}
+              onBlur={() => { setTimeout(() => setShowSuggestions(false), 150); }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
-                  handleSearchSubmit(searchQuery);
+                  if (searchSuggestions[0]) {
+                    applySuggestion(searchSuggestions[0]);
+                  } else {
+                    handleSearchSubmit(searchQuery);
+                  }
                 }
+                if (e.key === 'Escape') setShowSuggestions(false);
               }}
-              placeholder="지역 · 역 · 동 검색 후 Enter (예: 강남역, 역삼동, 판교)"
+              placeholder="지역 · 지하철역 · 동 검색 (예: 강남역, 역삼동, 판교)"
               className="w-full pl-9 pr-9 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[13px] placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-wishes-primary focus:ring-2 focus:ring-wishes-primary/15 transition-all"
             />
             {searchQuery && (
               <button
-                onClick={() => setSearchQuery('')}
+                onClick={() => { setSearchQuery(''); setSearchSuggestions([]); setShowSuggestions(false); }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors"
                 aria-label="검색 초기화"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
+            )}
+            {/* 자동완성 드롭다운 (직방 시그니처) */}
+            {showSuggestions && searchSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden">
+                {searchSuggestions.map((s, idx) => (
+                  <button
+                    key={`${s.name}-${idx}`}
+                    onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}
+                    className="w-full text-left px-3 py-2 hover:bg-wishes-primary/5 active:bg-wishes-primary/10 transition-colors flex items-start gap-2 border-b border-gray-100 last:border-b-0"
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-wishes-primary/70 mt-0.5 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-[12.5px] font-semibold text-gray-900 truncate">{s.name}</div>
+                      {s.address && <div className="text-[11px] text-gray-500 truncate">{s.address}</div>}
+                    </div>
+                  </button>
+                ))}
+              </div>
             )}
           </div>
 
@@ -1329,6 +1553,80 @@ function MapSearchPageInner() {
                 {zoomLevelLabel} 단위 표시
               </div>
             </div>
+          )}
+
+          {/* 15차-3: 자동검색 토글 + 위치 그리기 — 우상단 스택 */}
+          {mapReady && (
+            <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
+              {/* 자동검색 ON/OFF 토글 pill */}
+              <div className="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md text-[11px] border border-gray-100">
+                <span className="font-semibold text-gray-700">이동 시 자동검색</span>
+                <button
+                  onClick={() => setAutoRefetch((v) => !v)}
+                  className={`relative w-9 h-5 rounded-full transition-colors ${autoRefetch ? 'bg-wishes-primary' : 'bg-gray-300'}`}
+                  aria-label="자동검색 토글"
+                  aria-pressed={autoRefetch}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${autoRefetch ? 'translate-x-4' : 'translate-x-0'}`}
+                  />
+                </button>
+              </div>
+
+              {/* 위치 그리기 컨트롤 */}
+              {!drawMode && !drawPolygon && (
+                <button
+                  onClick={startDrawMode}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-full shadow-md text-[11.5px] font-bold text-gray-700 hover:bg-wishes-primary hover:text-white hover:border-wishes-primary transition-all"
+                  title="지도에 다각형을 그려 해당 영역 매물만 검색"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  위치 그리기
+                </button>
+              )}
+              {drawMode && (
+                <div className="flex flex-col gap-2 bg-white/95 backdrop-blur-md p-2 rounded-xl shadow-lg border border-wishes-primary/30">
+                  <div className="text-[10.5px] font-bold text-wishes-primary text-center px-1">
+                    지도를 클릭해 영역을 그리고<br />더블클릭 or 완료
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={finishDrawMode}
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 bg-wishes-primary text-white rounded-full text-[11.5px] font-bold hover:bg-wishes-primary/90"
+                    >
+                      <Check className="w-3.5 h-3.5" />완료
+                    </button>
+                    <button
+                      onClick={cancelDrawMode}
+                      className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-full text-[11.5px] font-bold text-gray-600 hover:bg-gray-50"
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+              {!drawMode && drawPolygon && (
+                <button
+                  onClick={() => { setDrawPolygon(null); }}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-red-50 border border-red-200 text-red-600 rounded-full shadow-md text-[11.5px] font-bold hover:bg-red-100"
+                  title="그린 영역을 해제"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  영역 해제
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 15차-3: 수동 재검색 플로팅 버튼 — 자동검색 OFF + 지도 이동 시 강조 */}
+          {!autoRefetch && mapMovedSinceFetch && mapReady && !loading && (
+            <button
+              onClick={() => fetchBoundsRef.current?.()}
+              className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-wishes-primary text-white px-5 py-2.5 rounded-full shadow-2xl text-[13px] font-bold hover:bg-wishes-primary/90 animate-fade-in"
+            >
+              <RefreshCw className="w-4 h-4" />
+              이 지역에서 재검색
+            </button>
           )}
 
           {/* 매물 0건일 때 안내 (지도 중앙) */}
