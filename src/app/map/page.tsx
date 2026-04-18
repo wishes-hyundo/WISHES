@@ -894,6 +894,74 @@ function MapSearchPageInner() {
     }, serverFilter);
   }, [fetchListings, serverFilter]);
 
+  // ━━━ 14차: 검색어 → 카카오 장소/주소 검색 → 지도 실제 이동 (다방·직방 스타일) ━━━
+  const handleSearchSubmit = useCallback((q: string) => {
+    const query = q.trim();
+    if (!query) return;
+    if (!window.kakao?.maps || !mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+
+    const moveToCoord = (lat: number, lng: number, level = 4) => {
+      const center = new window.kakao.maps.LatLng(lat, lng);
+      map.setLevel(level);
+      map.panTo(center);
+    };
+
+    // 1) 주소 검색 (예: "서울 강남구 역삼동")
+    if (window.kakao.maps.services?.Geocoder) {
+      const geocoder = new window.kakao.maps.services.Geocoder();
+      geocoder.addressSearch(query, (result: any[], status: string) => {
+        if (status === window.kakao.maps.services.Status.OK && result[0]) {
+          moveToCoord(Number(result[0].y), Number(result[0].x), 4);
+          return;
+        }
+        // 2) 주소 실패 시 장소 키워드 검색 (예: "강남역")
+        if (window.kakao.maps.services?.Places) {
+          const places = new window.kakao.maps.services.Places();
+          places.keywordSearch(query, (data: any[], st: string) => {
+            if (st === window.kakao.maps.services.Status.OK && data[0]) {
+              moveToCoord(Number(data[0].y), Number(data[0].x), 4);
+            }
+            // 그래도 없으면 기존 클라이언트 필터링 방식 유지 (setSearchQuery 로)
+          });
+        }
+      });
+    }
+  }, []);
+
+  // ━━━ 14차: 가격대 빠른 프리셋 (전세/월세/매매) ━━━
+  type PricePreset = { key: string; label: string; apply: (p: ListingFilter) => ListingFilter };
+  const pricePresets: PricePreset[] = useMemo(() => [
+    {
+      key: 'j1', label: '전세 1억 이하',
+      apply: (p) => ({ ...p, deals: ['전세'], maxDeposit: 10000 }),
+    },
+    {
+      key: 'j3', label: '전세 3억 이하',
+      apply: (p) => ({ ...p, deals: ['전세'], maxDeposit: 30000 }),
+    },
+    {
+      key: 'j5', label: '전세 5억 이하',
+      apply: (p) => ({ ...p, deals: ['전세'], maxDeposit: 50000 }),
+    },
+    {
+      key: 'm50', label: '월세 50 이하',
+      apply: (p) => ({ ...p, deals: ['월세'], maxMonthly: 50 }),
+    },
+    {
+      key: 'm80', label: '월세 80 이하',
+      apply: (p) => ({ ...p, deals: ['월세'], maxMonthly: 80 }),
+    },
+    {
+      key: 's5', label: '매매 5억 이하',
+      apply: (p) => ({ ...p, deals: ['매매'], maxDeposit: 50000 }),
+    },
+  ], []);
+
+  const applyPreset = useCallback((p: PricePreset) => {
+    setFilters((prev) => p.apply(prev));
+  }, []);
+
   // ━━━ 필터 토글 핸들러 ━━━
   const toggleDealFilter = (deal: DealType) => {
     setFilters((prev) => {
@@ -1110,6 +1178,20 @@ function MapSearchPageInner() {
           })}
         </div>
 
+        {/* 2.5행: 가격대 빠른 프리셋 칩 (14차 — 다방·직방식 1-클릭 필터) */}
+        <div className="px-4 pb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <span className="text-[10px] font-semibold text-wishes-muted shrink-0">빠른선택</span>
+          {pricePresets.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => applyPreset(p)}
+              className="px-2.5 py-1 text-[11px] font-semibold rounded-full border border-wishes-secondary/30 bg-wishes-secondary/5 text-wishes-secondary hover:bg-wishes-secondary hover:text-white hover:border-wishes-secondary transition-all whitespace-nowrap"
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
         {/* 3행: 활성 필터 칩 (조건부) */}
         {activeChips.length > 0 && (
           <div className="px-4 pb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
@@ -1136,7 +1218,13 @@ function MapSearchPageInner() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="지역, 매물명, 키워드로 검색..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleSearchSubmit(searchQuery);
+                  }
+                }}
+                placeholder="지역·역·동 입력 후 Enter (예: 강남역, 역삼동, 판교)"
                 className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary transition-all"
                 autoFocus
               />
