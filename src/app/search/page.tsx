@@ -114,13 +114,13 @@ export default function SearchPortalPage() {
       document.body.appendChild(v240Script);
     }
 
-    // v2.6.3 성능 오버레이 — listings API dedupe + AI 캐시(TTL 7일) + 갤러리 사진 복구
+    // v2.6.4 성능 오버레이 — listings API dedupe + AI 캐시(TTL 7일) + 자동 재생성 차단 가드
     // 공개 상세 API 가 images=0장 반환하는 서버 버그 회피 (admin API 로 리디렉트)
     const existingV260Perf = document.getElementById('ws-ext-patch-v260-perf');
     if (!existingV260Perf) {
       const v260PerfScript = document.createElement('script');
       v260PerfScript.id = 'ws-ext-patch-v260-perf';
-      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418u';
+      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418v';
       v260PerfScript.async = false;
       v260PerfScript.defer = false;
       document.body.appendChild(v260PerfScript);
