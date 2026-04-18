@@ -57,22 +57,12 @@ function formatMan(value: number): string {
 
 export default function MapFilterSheet({ open, filter, onChange, onClose, onReset }: Props) {
   const [draft, setDraft] = useState<ListingFilter>(filter);
-  // 실제 렌더링 제어 — 닫힐 때 트랜지션 완료 후 unmount
-  const [mounted, setMounted] = useState(open);
-  const [visible, setVisible] = useState(open);
 
+  // 열릴 때마다 부모 filter로 초기화 (열린 상태에서 부모가 바꿔도 draft 유지)
   useEffect(() => {
-    if (open) {
-      setDraft(filter);
-      setMounted(true);
-      // 다음 프레임에서 visible 토글 → 슬라이드 인 트랜지션 트리거
-      requestAnimationFrame(() => setVisible(true));
-    } else if (mounted) {
-      setVisible(false);
-      const t = setTimeout(() => setMounted(false), 320);
-      return () => clearTimeout(t);
-    }
-  }, [open, filter, mounted]);
+    if (open) setDraft(filter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   // ESC로 닫기
   useEffect(() => {
@@ -84,7 +74,15 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  if (!mounted) return null;
+  // body 스크롤 잠금 (열린 동안만)
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   const toggleDeal = (deal: DealType) => {
     const list = new Set(draft.deals || []);
@@ -142,8 +140,9 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
       {/* ━━━ 백드롭 (클릭 시 닫힘, blur만 부드럽게) ━━━ */}
       <div
         onClick={onClose}
+        aria-hidden={!open}
         className={`fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px] transition-opacity duration-300 ${
-          visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          open ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       />
 
@@ -154,12 +153,13 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
         role="dialog"
         aria-modal="true"
         aria-label="상세 필터"
+        aria-hidden={!open}
         className={`fixed z-[70] bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-out
           md:right-0 md:top-0 md:bottom-0 md:w-[440px] md:border-l md:border-gray-200
           inset-x-0 bottom-0 rounded-t-3xl max-h-[92vh] md:max-h-none md:rounded-none
-          ${visible
+          ${open
             ? 'translate-y-0 md:translate-x-0'
-            : 'translate-y-full md:translate-y-0 md:translate-x-full'
+            : 'translate-y-full md:translate-y-0 md:translate-x-full pointer-events-none'
           }`}
       >
         {/* 모바일 드래그 핸들 */}
