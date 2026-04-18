@@ -110,7 +110,7 @@ export default function SearchPortalPage() {
       link = document.createElement('link');
       link.id = 'ws-ext-styles';
       link.rel = 'stylesheet';
-      link.href = '/search/styles.css';
+      link.href = '/search/styles.css?v=20260418c';
       document.head.appendChild(link);
     }
 
