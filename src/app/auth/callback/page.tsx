@@ -13,7 +13,14 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
+import type { Metadata } from 'next';
 import AuthCallbackClient from './client';
+
+export const metadata: Metadata = {
+  title: '로그인 처리 중',
+  description: 'WISHES 로그인 처리 페이지',
+  robots: { index: false, follow: false },
+};
 
 export default function AuthCallbackPage() {
   return <AuthCallbackClient />;

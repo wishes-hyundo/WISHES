@@ -8,6 +8,8 @@ import type { ReactNode } from 'react';
  * /, /map, /listings 등 고객 페이지에는 영향 없음.
  */
 export const metadata: Metadata = {
+  title: '중개사 포털',
+  description: 'WISHES 중개사 전용 매물 검색 포털',
   referrer: 'unsafe-url',
   robots: {
     index: false,

@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import AboutKakaoMap from '@/components/AboutKakaoMap';
 
 export const metadata: Metadata = {
-    title: '회사소개 - WISHES 서울·경기 종합부동산',
+    title: '회사소개',
     description: 'WISHES는 서울·경기 지역 전문 종합부동산입니다. 원룸, 투룸, 오피스텔, 아파트, 상가, 사무실 등 다양한 매물을 전문 공인중개사가 안전하게 중개합니다. 관악구 신림동 소재.',
     keywords: ['위시스부동산', '서울 부동산', '경기 부동산', '관악구 부동산', '신림동 부동산', '공인중개사', '부동산 중개'],
     alternates: {

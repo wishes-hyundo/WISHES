@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: '이용약관 | 위시스부동산',
+  title: '이용약관',
   description: '위시스부동산중개법인 이용약관',
   alternates: {
     canonical: 'https://wishes.co.kr/terms',

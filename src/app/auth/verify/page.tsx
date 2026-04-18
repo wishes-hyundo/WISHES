@@ -13,7 +13,14 @@
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
 
+import type { Metadata } from 'next';
 import VerifyClient from './client';
+
+export const metadata: Metadata = {
+  title: '이메일 인증',
+  description: 'WISHES 이메일 인증 페이지',
+  robots: { index: false, follow: false },
+};
 
 export default function VerifyPage() {
   return <VerifyClient />;
