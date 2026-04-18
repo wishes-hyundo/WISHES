@@ -108,7 +108,7 @@ export default function SearchPortalPage() {
     if (!existingV240) {
       const v240Script = document.createElement('script');
       v240Script.id = 'ws-ext-patch-v240';
-      v240Script.src = '/search/content-v240-detail.js?v=20260428';
+      v240Script.src = '/search/content-v240-detail.js?v=20260429';
       v240Script.async = false;
       v240Script.defer = false;
       document.body.appendChild(v240Script);
