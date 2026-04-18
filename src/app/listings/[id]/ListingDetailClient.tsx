@@ -168,9 +168,10 @@ export default function ListingDetailClient({ id }: Props) {
         .catch(() => {});
 
       // 연관 매물 로드 (같은 동 + 같은 거래유형, 자기 자신 제외)
+      // 크롤링 매물(source_site)은 사진 라이선스 이슈로 listing_images 를 비운다
       const { data: related } = await supabase
         .from('listings')
-        .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, listing_images(url, sort_order)')
+        .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, source_site, listing_images(url, sort_order)')
         .eq('status', '공개')
         .eq('dong', data.dong)
         .eq('deal', data.deal)
@@ -178,36 +179,42 @@ export default function ListingDetailClient({ id }: Props) {
         .order('created_at', { ascending: false })
         .limit(4);
 
-      setRelatedListings(related || []);
+      const relatedSanitized = (related || []).map((r: any) =>
+        r.source_site ? { ...r, listing_images: [] } : r,
+      );
+      setRelatedListings(relatedSanitized);
 
       // 같은 건물 다른 매물 (T2-1: 단지/건물 컨텍스트)
       // 크롤링 매물은 building_name 매칭 품질이 낮아 제외(자체 매물 위주)
       if (data.building_name && !data.source_site) {
         const { data: building } = await supabase
           .from('listings')
-          .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, listing_images(url, sort_order)')
+          .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, source_site, listing_images(url, sort_order)')
           .eq('status', '공개')
           .eq('building_name', data.building_name)
           .neq('id', listingId)
           .order('deal', { ascending: true })
           .order('area_m2', { ascending: true })
           .limit(8);
+        // 크롤링 매물은 같은 건물 섹션에서 원천 제외 (이미지 사용 불가)
         setBuildingListings((building || []).filter((b: any) => !b.source_site));
       }
 
       // 최근 본 매물 로드
+      // 크롤링 매물(source_site)은 사진 라이선스 이슈로 listing_images 를 비운다
       const recentIds = getRecentlyViewed(listingId);
       if (recentIds.length > 0) {
         const { data: recents } = await supabase
           .from('listings')
-          .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, listing_images(url, sort_order)')
+          .select('id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, created_at, source_site, listing_images(url, sort_order)')
           .in('id', recentIds)
           .eq('status', '공개');
 
-        // 원래 순서 유지
+        // 원래 순서 유지 + 크롤링 매물 이미지 차단
         const sorted = recentIds
           .map((rid) => (recents || []).find((r: any) => r.id === rid))
-          .filter(Boolean);
+          .filter(Boolean)
+          .map((r: any) => (r.source_site ? { ...r, listing_images: [] } : r));
         setRecentListings(sorted);
       }
     };
