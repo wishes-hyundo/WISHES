@@ -29,8 +29,8 @@
 
   // ---[ 0. 부트 가드 ]------------------------------------------------------
 
-  var PATCH_VERSION = '2.3.0';
-  var PATCH_BUILD   = '2026-04-17';
+  var PATCH_VERSION = '2.6.0';
+  var PATCH_BUILD   = '2026-04-18';
   var PATCH_TAG     = '[WP v' + PATCH_VERSION + ']';
 
   // 도메인 화이트리스트 (원본과 동일 정책)
