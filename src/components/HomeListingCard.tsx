@@ -1,239 +1,134 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Maximize, Building2, Calendar, BadgeCheck, Eye, Hash, Camera, Sparkles } from 'lucide-react';
+import { Camera } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatFloor } from '@/lib/formatFloor';
+import { displayTitle } from '@/lib/formatListingTitle';
 import { getWatermarkedUrl } from '@/lib/imageUrl';
 
 interface HomeListingCardProps {
   listing: any;
 }
 
-const getDealColor = (deal: string) => {
+// 거래유형 → 좌상단 단색 배지 (ListingCard와 통일)
+const dealBadgeColor = (deal: string) => {
   switch (deal) {
-    case '전세': return 'bg-wishes-secondary text-white';
-    case '월세': return 'bg-emerald-500 text-white';
-    case '매매': return 'bg-wishes-accent text-white';
-    default: return 'bg-gray-400 text-white';
+    case '매매': return 'bg-wishes-primary';
+    case '전세': return 'bg-wishes-secondary';
+    case '월세': return 'bg-emerald-500';
+    case '단기': return 'bg-amber-500';
+    default:    return 'bg-gray-500';
   }
 };
 
-const getDealBgGradient = (deal: string) => {
-  switch (deal) {
-    case '전세': return 'from-wishes-secondary/20 to-wishes-secondary/0';
-    case '월세': return 'from-emerald-500/20 to-emerald-500/0';
-    case '매매': return 'from-wishes-accent/20 to-wishes-accent/0';
-    default: return 'from-gray-400/20 to-gray-400/0';
+const formatAmount = (amount: number) => {
+  if (!amount) return '0';
+  if (amount >= 10000) {
+    const uk = Math.floor(amount / 10000);
+    const man = amount % 10000;
+    return man > 0 ? `${uk}억 ${man.toLocaleString('ko-KR')}` : `${uk}억`;
   }
+  return amount.toLocaleString('ko-KR');
 };
 
 const formatPrice = (listing: any) => {
-  const deposit = listing.deposit || 0;
-  const monthly = listing.monthly || 0;
-  const price = listing.price || 0;
-
-  if (listing.deal === '매매') {
-    if (price >= 10000) {
-      const uk = Math.floor(price / 10000);
-      const man = price % 10000;
-      return man > 0 ? `${uk}억 ${man.toLocaleString('ko-KR')}` : `${uk}억`;
-    }
-    return `${price.toLocaleString('ko-KR')}`;
-  } else if (listing.deal === '전세') {
-    if (deposit >= 10000) {
-      const uk = Math.floor(deposit / 10000);
-      const man = deposit % 10000;
-      return `전세 ${man > 0 ? `${uk}억 ${man.toLocaleString('ko-KR')}` : `${uk}억`}`;
-    }
-    return `전세 ${deposit.toLocaleString('ko-KR')}`;
-  } else {
-    return `${deposit.toLocaleString('ko-KR')}/${monthly}`;
-  }
+  if (listing.deal === '매매') return formatAmount(listing.price || 0);
+  if (listing.deal === '전세') return formatAmount(listing.deposit || 0);
+  return `${formatAmount(listing.deposit || 0)}/${listing.monthly || 0}`;
 };
 
-const sqmToPyeong = (area: number | null | undefined) => {
-  if (!area || area === 0) return null;
-  return (area / 3.3).toFixed(1);
+const formatDate = (iso?: string) => {
+  if (!iso) return '방금';
+  return new Date(iso).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'numeric', day: 'numeric' });
+};
+
+const pickFeatureChip = (listing: any): string | null => {
+  if (listing.is_new || listing.new_build) return '신축';
+  if (listing.full_option) return '풀옵션';
+  if (listing.parking) return '주차';
+  if (listing.elevator) return '엘리베이터';
+  if (listing.pet) return '반려동물';
+  return null;
 };
 
 export function HomeListingCard({ listing }: HomeListingCardProps) {
-  // ※ 크롤링 매물(source_site NOT NULL) → 사진만 비노출 (정보는 광고 노출)
-  const isAd = !!(listing as any).source_site;
-  // Supabase에서 가져온 이미지 (listing_images 조인)
+  const isAd = !!listing.source_site;
   const images = isAd
     ? []
-    : (listing.listing_images || []).filter((img: any) => { const u = img?.url || ""; return u && !u.match(/\/listings\/9\d{5}\//); });
+    : (listing.listing_images || []).filter((img: any) => {
+        const u = img?.url || '';
+        return u && !u.match(/\/listings\/9\d{5}\//);
+      });
   const rawThumb = images.length > 0 ? images[0].url : null;
   const thumbUrl = rawThumb ? getWatermarkedUrl(rawThumb) : null;
+
   const price = formatPrice(listing);
   const area = listing.area_m2 || listing.area || 0;
   const floor = formatFloor(listing);
-  const pyeong = sqmToPyeong(area);
-
-  // NEW 배지: 등록일 기준 7일 이내 (한국시간 기준)
-  const isNew = (() => {
-    if (!listing.created_at) return false;
-    const created = new Date(listing.created_at).getTime();
-    if (!created) return false;
-    const diffDays = (Date.now() - created) / (1000 * 60 * 60 * 24);
-    return diffDays >= 0 && diffDays <= 7;
-  })();
+  const dong = listing.dong || '';
+  const featureChip = pickFeatureChip(listing);
 
   return (
     <Link
       href={`/listings/${listing.id}`}
-      className="group card-premium block overflow-hidden"
+      className="group block bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-lg hover:border-wishes-secondary/40 transition-all"
     >
-      {/* 이미지 영역 */}
-      <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
-        {isAd ? (
-          // WISHES 광고 매물 플레이스홀더 (크롤링 사진 차단)
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-wishes-primary via-wishes-primary/95 to-wishes-secondary text-white px-4">
-            <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-wishes-accent to-transparent" />
-            <div className="flex items-center gap-2 mb-2">
-              <Camera className="w-7 h-7 text-wishes-accent" />
-              <span className="text-[10px] font-bold tracking-[0.2em] text-wishes-accent">WISHES 광고 매물</span>
-            </div>
-            <p className="text-sm font-bold text-center">사진은 문의 시 안내드립니다</p>
-            <p className="text-[11px] text-white/70 mt-1 text-center">WISHES 전담 중개사가 직접 응대합니다</p>
-            <div className="absolute bottom-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-wishes-accent to-transparent" />
-          </div>
-        ) : thumbUrl ? (
+      {/* 1) 썸네일 */}
+      <div className="relative overflow-hidden bg-gray-100 aspect-[4/3]">
+        {thumbUrl ? (
           <img
             src={thumbUrl}
-            alt={listing.title}
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out"
+            alt={displayTitle(listing)}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
             loading="lazy"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
-            }}
           />
-        ) : null}
-        {/* 이미지 없을 때 / 에러 시 플레이스홀더 */}
-        <div className={cn(
-          'absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200',
-          (isAd || thumbUrl) ? 'hidden' : ''
-        )}>
-          <Building2 className="w-12 h-12 text-gray-400" />
-        </div>
-
-        {/* 그래디언트 오버레이 */}
-        <div className={cn(
-          'absolute inset-0 bg-gradient-to-t transition-opacity group-hover:opacity-60 duration-300',
-          getDealBgGradient(listing.deal)
-        )}></div>
-
-        {/* 배지들 */}
-        <div className="absolute inset-0 flex items-start justify-between p-3">
-          <span className={cn(
-            'px-3 py-1 text-xs font-bold rounded-full shadow-lg backdrop-blur-sm',
-            getDealColor(listing.deal)
-          )}>
-            {listing.deal}
-          </span>
-
-          <div className="flex gap-2">
-            {isNew && (
-              <span className="flex items-center gap-0.5 px-2 py-1 text-[10px] font-extrabold text-white bg-gradient-to-r from-wishes-accent to-orange-500 rounded-lg shadow-md tracking-wider">
-                <Sparkles className="w-3 h-3" />
-                NEW
-              </span>
-            )}
-            {listing.elevator && (
-              <span className="px-2 py-1 text-xs font-semibold bg-white/80 text-wishes-secondary rounded-lg shadow-sm">
-                엘리베이터
-              </span>
-            )}
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white gap-2">
+            <Camera className="w-7 h-7 opacity-80" strokeWidth={1.6} />
+            <span className="text-[11px] font-semibold tracking-wide opacity-90">
+              {isAd ? '사진은 문의 시 안내' : '이미지 준비 중'}
+            </span>
           </div>
-        </div>
+        )}
 
-        {/* 우측 하단 타입 배지 */}
-        <div className="absolute bottom-3 right-3">
-          <span className="px-3 py-1 text-xs font-semibold bg-white/90 text-wishes-primary rounded-lg shadow-md backdrop-blur-sm">
-            {listing.type}
-          </span>
-        </div>
+        {/* 좌상단 단일 거래유형 배지 */}
+        <span className={cn(
+          'absolute top-2.5 left-2.5 px-2.5 py-1 text-xs font-bold rounded-md text-white shadow-sm',
+          dealBadgeColor(listing.deal)
+        )}>
+          {listing.deal}
+        </span>
       </div>
 
-      {/* 정보 영역 */}
-      <div className="p-4 space-y-4">
-        {/* 가격 */}
-        <div className="space-y-1">
-          <div className="flex items-baseline gap-2">
-            <p className="text-2xl font-bold text-wishes-primary">{price}</p>
-            {listing.deal === '월세' && (
-              <p className="text-sm text-wishes-muted">/ 월</p>
-            )}
-          </div>
-        </div>
-
-        {/* 제목 */}
-        <p className="text-sm font-semibold text-wishes-text line-clamp-2 group-hover:text-wishes-secondary transition-colors">
-          {listing.title}
+      {/* 정보 영역 — 5축 고정 */}
+      <div className="p-4 space-y-2">
+        {/* 2) 가격 (주 시각 앵커) */}
+        <p className="text-xl md:text-2xl font-bold text-wishes-primary leading-tight">
+          {price}
+          {listing.deal === '월세' && <span className="text-xs font-medium text-wishes-muted ml-1">만원</span>}
         </p>
 
-        {/* 기본 정보 */}
-        <div className="flex items-center gap-4 text-xs text-wishes-muted">
-          {area > 0 && (
-            <div className="flex items-center gap-1">
-              <Maximize className="w-4 h-4 text-wishes-secondary/60" />
-              <span>{area}㎡</span>
-              {pyeong && <span className="text-gray-400">({pyeong}평)</span>}
-            </div>
-          )}
-          {floor && (
-            <div className="flex items-center gap-1">
-              <Building2 className="w-4 h-4 text-wishes-secondary/60" />
-              <span>{floor}</span>
-            </div>
-          )}
-        </div>
+        {/* 3) 유형 · 면적 */}
+        <p className="text-sm text-wishes-text">
+          <span className="font-medium">{listing.type}</span>
+          <span className="text-wishes-muted mx-1.5">·</span>
+          <span className="text-wishes-muted">{area}㎡</span>
+        </p>
 
-        {/* 위치 */}
-        <div className="flex items-center gap-1 text-xs text-wishes-muted">
-          <MapPin className="w-4 h-4 text-wishes-secondary/60 shrink-0" />
-          <span className="truncate">{listing.dong} · {listing.address?.split(' ').slice(-1)[0] || ''}</span>
-        </div>
+        {/* 4) 동 · 층 */}
+        <p className="text-sm text-wishes-muted truncate">
+          {dong}{floor ? ` · ${floor}` : ''}
+        </p>
 
-        {/* 옵션 태그 */}
-        <div className="flex flex-wrap gap-2 pt-2">
-          {listing.parking && (
-            <span className="px-2.5 py-1 text-xs font-medium bg-wishes-secondary/10 text-wishes-secondary rounded-full border border-wishes-secondary/20">
-              🚗 주차
+        {/* 5) 등록일 + 특징 칩 1개 */}
+        <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <span className="text-xs text-wishes-muted">{formatDate(listing.created_at)} 등록</span>
+          {featureChip && (
+            <span className="px-2 py-0.5 text-[11px] font-medium bg-wishes-primary/5 text-wishes-primary rounded border border-wishes-primary/10">
+              {featureChip}
             </span>
           )}
-          {listing.elevator && (
-            <span className="px-2.5 py-1 text-xs font-medium bg-wishes-accent/10 text-wishes-accent rounded-full border border-wishes-accent/20">
-              🚡 엘리베이터
-            </span>
-          )}
-          {listing.pet && (
-            <span className="px-2.5 py-1 text-xs font-medium bg-emerald-500/10 text-emerald-600 rounded-full border border-emerald-500/20">
-              🐾 반려동물
-            </span>
-          )}
-        </div>
-
-        {/* 하단 정보 */}
-        <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-3">
-            <span className="text-wishes-muted font-mono flex items-center gap-1">
-              <Hash className="w-3 h-3" />
-              W-{listing.id}
-            </span>
-            {listing.views > 0 && (
-              <span className="text-wishes-muted flex items-center gap-1">
-                <Eye className="w-3 h-3" />
-                {listing.views}
-              </span>
-            )}
-          </div>
-          <span className="text-wishes-muted flex items-center gap-1">
-            <Calendar className="w-3 h-3" />
-            {listing.created_at ? new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', month: 'short', day: 'numeric' }) : '방금 전'}
-          </span>
         </div>
       </div>
     </Link>

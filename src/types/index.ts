@@ -3,10 +3,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // 매물 유형
-export type ListingType = '원룸' | '투룸' | '쓰리룸' | '오피스텔' | '아파트' | '상가' | '사무실';
+export type ListingType = '원룸' | '투룸' | '쓰리룸' | '오피스텔' | '아파트' | '빌라' | '상가' | '사무실';
 
 // 거래 유형
-export type DealType = '전세' | '월세' | '매매';
+export type DealType = '전세' | '월세' | '매매' | '단기';
 
 // 매물 상태
 export type ListingStatus = '공개' | '비공개' | '계약중' | '계약완료';
@@ -133,15 +133,42 @@ export interface MapBounds {
   neLng: number;
 }
 
-// 매물 필터
+// 매물 필터 (네모 벤치마크: 거래·유형·가격·면적·층·방향·옵션·입주일·용도)
 export interface ListingFilter {
   deal?: DealType;
+  deals?: DealType[]; // 다중 선택
   type?: ListingType;
+  types?: ListingType[]; // 다중 선택
   dong?: string;
+  // 가격 (단위: 만원)
   minDeposit?: number;
   maxDeposit?: number;
   minMonthly?: number;
   maxMonthly?: number;
+  minPrice?: number; // 매매가
+  maxPrice?: number;
+  // 면적 (단위: ㎡)
+  minArea?: number;
+  maxArea?: number;
+  // 층수 범주
+  floorCategory?: 'basement' | 'low' | 'mid' | 'high'; // 지하/저층(1-3)/중층(4-7)/고층(8+)
+  // 방향 8방위
+  direction?: string; // 남/동/서/북/남동/남서/북동/북서
+  // 옵션 (다중 토글)
+  options?: {
+    fullOption?: boolean;  // 풀옵션
+    pet?: boolean;         // 반려동물
+    parking?: boolean;     // 주차
+    elevator?: boolean;    // 엘리베이터
+    balcony?: boolean;     // 발코니
+    newBuild?: boolean;    // 신축
+  };
+  // 입주 가능일
+  moveIn?: 'immediate' | 'negotiable' | 'date'; // 즉시/협의/날짜
+  moveInDate?: string; // YYYY-MM-DD (moveIn === 'date' 일 때)
+  // 상가용
+  businessUseable?: boolean;    // 음식점 가능
+  goodwillFreeOnly?: boolean;   // 권리금 없음
   status?: ListingStatus;
 }
 

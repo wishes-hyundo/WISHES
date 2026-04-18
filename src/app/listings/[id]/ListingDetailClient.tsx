@@ -7,6 +7,7 @@ import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2
 import CompassDirection from '@/components/CompassDirection';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
+import { displayTitle } from '@/lib/formatListingTitle';
 import ImageGallery from '@/components/ImageGallery';
 import { ListingCard } from '@/components/ListingCard';
 import RealPriceChart from '@/components/RealPriceChart';
@@ -432,7 +433,7 @@ export default function ListingDetailClient({ id }: Props) {
             매물 검색
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
-          <span className="text-gray-700 font-medium truncate max-w-[200px] sm:max-w-none">{listing.title}</span>
+          <span className="text-gray-700 font-medium truncate max-w-[200px] sm:max-w-none">{displayTitle(listing)}</span>
         </div>
       </div>
 
@@ -445,7 +446,7 @@ export default function ListingDetailClient({ id }: Props) {
               { id: 'options', label: '시설/옵션' },
               { id: 'transit', label: '주변교통' },
               { id: 'price', label: '시세' },
-              { id: 'description', label: '설명' },
+              { id: 'description', label: '매물설명' },
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -483,7 +484,7 @@ export default function ListingDetailClient({ id }: Props) {
           <div className="lg:col-span-2 space-y-6">
             <ImageGallery
               images={listing?.source_site ? [] : images}
-              title={listing.title}
+              title={displayTitle(listing)}
               deal={listing.deal}
               status={listing.status}
               dealColor={getDealColor(listing.deal)}
@@ -517,7 +518,7 @@ export default function ListingDetailClient({ id }: Props) {
                   </span>
                 )}
               </div>
-              <h1 className="text-2xl font-bold text-wishes-primary">{listing.title}</h1>
+              <h1 className="text-2xl font-bold text-wishes-primary">{displayTitle(listing)}</h1>
 
 
               {/* 기본 정보 */}
@@ -679,7 +680,7 @@ export default function ListingDetailClient({ id }: Props) {
                   ref={(el) => { sectionsRef.current.description = el; }}
                   className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
                 >
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">매물 설명</h3>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">매물설명</h3>
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
                     {listing.ai_description}
                   </p>

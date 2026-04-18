@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
+import { displayTitle } from '@/lib/formatListingTitle';
 import CompassDirection from '@/components/CompassDirection';
 import Link from 'next/link';
 import type { Listing } from '@/types';
@@ -133,7 +134,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           {mainImage ? (
             <img
               src={mainImage}
-              alt={listing.title}
+              alt={displayTitle(listing)}
               className="w-full h-full object-cover"
               loading="lazy"
             />
@@ -197,7 +198,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               </>
             )}
           </div>
-          <p className="text-base font-bold text-gray-900 leading-snug">{listing.title}</p>
+          <p className="text-base font-bold text-gray-900 leading-snug">{displayTitle(listing)}</p>
           <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
             <MapPin className="w-3 h-3" />
             <span>{(listing.address || '').replace(/\s*\d+(-\d+)?\s*$/, '').trim() || listing.dong}</span>
@@ -245,10 +246,10 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </Link>
         </div>
 
-        {/* ── 상세 설명 (중개사 코멘트) ── */}
+        {/* ── 매물설명 ── */}
         {listing.description && (
           <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-2.5">중개사 코멘트</h3>
+            <h3 className="text-sm font-bold text-gray-700 mb-2.5">매물설명</h3>
             <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!showFullDescription ? 'line-clamp-4' : ''}`}>
               {listing.description}
             </p>
