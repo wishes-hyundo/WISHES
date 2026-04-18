@@ -65,7 +65,7 @@ export default function ComparePage() {
           <h2 className="text-xl font-bold text-wishes-primary mb-2">비교할 매물이 없습니다</h2>
           <p className="text-wishes-muted mb-6">매물 목록에서 비교할 매물을 선택해주세요</p>
           <Link
-            href="/listings"
+            href="/map"
             className="inline-flex items-center gap-2 px-6 py-3 bg-wishes-secondary text-white rounded-xl font-semibold hover:shadow-lg transition-all"
           >
             매물 보러가기
@@ -158,7 +158,7 @@ export default function ComparePage() {
       <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-10">
         <div className="max-w-6xl mx-auto px-4">
           <div className="flex items-center gap-3 mb-4">
-            <Link href="/listings" className="text-white/70 hover:text-white transition-colors">
+            <Link href="/map" className="text-white/70 hover:text-white transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <h1 className="text-2xl md:text-3xl font-bold">매물 비교</h1>
@@ -287,7 +287,7 @@ export default function ComparePage() {
             전체 초기화
           </button>
           <Link
-            href="/listings"
+            href="/map"
             className="inline-flex items-center gap-2 px-6 py-3 bg-wishes-secondary text-white rounded-xl font-semibold hover:shadow-lg transition-all"
           >
             매물 더 보기

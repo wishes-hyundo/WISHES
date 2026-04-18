@@ -224,12 +224,12 @@ export default function MyPage() {
 
         {activeTab === 'favorites' && (
           <div>{favoritesLoading || loadingListings ? (<div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-wishes-secondary" /></div>) : favListings.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-2xl border border-gray-100"><Heart className="w-12 h-12 text-gray-300 mx-auto mb-4" /><p className="text-lg font-semibold text-gray-400 mb-2">찜한 매물이 없습니다</p><p className="text-sm text-gray-400 mb-6">마음에 드는 매물의 하트를 눌러 저장해보세요</p><Link href="/listings" className="inline-flex items-center gap-2 px-6 py-3 bg-wishes-secondary text-white rounded-xl text-sm font-semibold hover:bg-wishes-secondary/90 transition-colors">매물 둘러보기</Link></div>
+            <div className="text-center py-20 bg-white rounded-2xl border border-gray-100"><Heart className="w-12 h-12 text-gray-300 mx-auto mb-4" /><p className="text-lg font-semibold text-gray-400 mb-2">찜한 매물이 없습니다</p><p className="text-sm text-gray-400 mb-6">마음에 드는 매물의 하트를 눌러 저장해보세요</p><Link href="/map" className="inline-flex items-center gap-2 px-6 py-3 bg-wishes-secondary text-white rounded-xl text-sm font-semibold hover:bg-wishes-secondary/90 transition-colors">매물 둘러보기</Link></div>
           ) : (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">{favListings.map(listing => (<MypageListingCard key={listing.id} listing={listing} onRemoveFavorite={toggleFavorite} />))}</div>)}</div>)}
 
         {activeTab === 'recent' && (
           <div>{recentListings.length === 0 ? (
-            <div className="text-center py-20 bg-white rounded-2xl border border-gray-100"><Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" /><p className="text-lg font-semibold text-gray-400 mb-2">최근 본 매물이 없습니다</p><p className="text-sm text-gray-400 mb-6">매물 상세페이지를 방문하면 여기에 기록됩니다</p><Link href="/listings" className="inline-flex items-center gap-2 px-6 py-3 bg-wishes-secondary text-white rounded-xl text-sm font-semibold hover:bg-wishes-secondary/90 transition-colors">매물 둘러보기</Link></div>
+            <div className="text-center py-20 bg-white rounded-2xl border border-gray-100"><Clock className="w-12 h-12 text-gray-300 mx-auto mb-4" /><p className="text-lg font-semibold text-gray-400 mb-2">최근 본 매물이 없습니다</p><p className="text-sm text-gray-400 mb-6">매물 상세페이지를 방문하면 여기에 기록됩니다</p><Link href="/map" className="inline-flex items-center gap-2 px-6 py-3 bg-wishes-secondary text-white rounded-xl text-sm font-semibold hover:bg-wishes-secondary/90 transition-colors">매물 둘러보기</Link></div>
           ) : (<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">{recentListings.map(listing => (<MypageListingCard key={listing.id} listing={listing} />))}</div>)}</div>)}
 
         {activeTab === 'saved' && (
@@ -239,8 +239,8 @@ export default function MyPage() {
                 <Bookmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-lg font-semibold text-gray-400 mb-2">저장된 검색이 없습니다</p>
                 <p className="text-sm text-gray-400 mb-6">매물 검색 페이지 상단에서 "이 조건 저장" 을 눌러 검색 조건을 보관하세요.</p>
-                <Link href="/listings" className="inline-flex items-center gap-2 px-6 py-3 bg-wishes-secondary text-white rounded-xl text-sm font-semibold hover:bg-wishes-secondary/90 transition-colors">
-                  <SearchIcon className="w-4 h-4" /> 매물 검색으로 이동
+                <Link href="/map" className="inline-flex items-center gap-2 px-6 py-3 bg-wishes-secondary text-white rounded-xl text-sm font-semibold hover:bg-wishes-secondary/90 transition-colors">
+                  <SearchIcon className="w-4 h-4" /> 지도검색으로 이동
                 </Link>
               </div>
             ) : (
@@ -254,7 +254,7 @@ export default function MyPage() {
                         <Bookmark className="w-4 h-4 text-wishes-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <Link href={qs ? `/listings?${qs}` : '/listings'} className="block group">
+                        <Link href={qs ? `/map?${qs}` : '/map'} className="block group">
                           <p className="text-sm font-semibold text-wishes-primary group-hover:text-wishes-secondary transition-colors line-clamp-1">
                             {s.label}
                           </p>

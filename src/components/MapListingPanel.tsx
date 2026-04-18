@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import {
   ArrowLeft, ChevronLeft, ChevronRight, MapPin, Maximize2, Home,
   Building2, Layers, Compass, Bath, DoorOpen, Thermometer, Banknote,
   Check, X, Eye, Calendar, Train, TrendingUp, Clock, Ruler,
   ParkingCircle, Dog, Warehouse, Zap, CreditCard, Briefcase, FileText,
-  Megaphone, Users, LogIn, Timer
+  Megaphone, Users, LogIn, Timer, ExternalLink, MessageSquare
 } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
@@ -282,20 +283,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         </div>
 
-        {/* ── 상담 신청 버튼 (인라인 InquiryModal — 페이지 이동 없이 리드 캡처) ── */}
-        <div className="p-4 border-b border-gray-100">
-          <button
-            type="button"
-            onClick={() => setInquiryOpen(true)}
-            className="group flex items-center justify-center gap-2 w-full py-3.5 rounded-xl bg-gradient-to-r from-wishes-primary to-wishes-primary/90 text-white text-center text-sm font-bold shadow-lg hover:shadow-xl hover:brightness-110 active:scale-[0.98] transition-all"
-          >
-            <span>이 매물 문의하기</span>
-            <ChevronRight className="w-4 h-4 opacity-80 group-hover:translate-x-0.5 transition-transform" />
-          </button>
-          <p className="text-[11px] text-wishes-muted text-center mt-2">
-            위시스부동산 전문 중개사가 직접 연락드립니다
-          </p>
-        </div>
+        {/* ── (CTA는 하단 고정 액션 바로 이동: '상세보기' + '문의하기' 2버튼) ── */}
 
         {/* ── 매물설명 (AI 재가공본 + SEO 태그/키워드 통합: 크롤링 원본 description은 저작권 보호 차원에서 미사용) ── */}
         {(() => {
@@ -513,6 +501,27 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         </div>
 
         <div className="h-6" />
+      </div>
+
+      {/* ── 하단 고정 액션 바: 상세보기(/listings/[id]) + 문의하기(InquiryModal) ── */}
+      <div className="shrink-0 border-t border-gray-100 bg-white p-3 flex items-center gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
+        <Link
+          href={`/listings/${listing.id}`}
+          prefetch={false}
+          className="group flex-[1.1] min-w-0 flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-wishes-primary/30 text-wishes-primary bg-white text-sm font-bold hover:bg-wishes-primary/5 active:scale-[0.98] transition-all"
+          title="전체 상세페이지로 이동"
+        >
+          <ExternalLink className="w-4 h-4" />
+          <span>상세보기</span>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setInquiryOpen(true)}
+          className="group flex-[1.4] min-w-0 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-gradient-to-r from-wishes-primary to-wishes-primary/90 text-white text-sm font-bold shadow-lg hover:shadow-xl hover:brightness-110 active:scale-[0.98] transition-all"
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>문의하기</span>
+        </button>
       </div>
     </div>
 

@@ -69,11 +69,12 @@ export default function NotFound() {
             </svg>
             지도에서 매물 찾기
           </Link>
+          {/* /listings는 /map으로 통합됐으므로 대안 CTA는 '상담·매물접수'로 교체 */}
           <Link
-            href="/listings"
+            href="/contact"
             className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-xl bg-white text-wishes-text text-[15px] font-semibold border border-gray-200 hover:border-wishes-primary hover:text-wishes-primary active:scale-[0.98] transition-all"
           >
-            매물 목록 보기
+            상담·매물접수
           </Link>
         </div>
 

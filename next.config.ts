@@ -61,6 +61,12 @@ const nextConfig: NextConfig = {
         destination: 'https://wishes.co.kr/:path*',
         permanent: true,
       },
+      // /listings (index)만 /map으로 통합 — /listings/[id] 상세 랜딩은 절대 유지 (SEO)
+      {
+        source: '/listings',
+        destination: '/map',
+        permanent: true,
+      },
     ];
   },
 };

@@ -151,7 +151,7 @@ export default function SimilarListings({ listingId, dong, limit = 4 }: Props) {
           </p>
         </div>
         <Link
-          href="/listings"
+          href="/map"
           className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-wishes-secondary hover:text-wishes-primary transition-colors"
         >
           전체 매물 <ArrowRight className="w-3.5 h-3.5" />

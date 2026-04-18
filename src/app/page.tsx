@@ -95,12 +95,13 @@ export default async function HomePage() {
                   지도에서 매물 찾기
                   <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </Link>
+                {/* /listings는 /map으로 통합 — 중복 CTA 대신 '맞춤 매물 의뢰'로 리드 캡처 */}
                 <Link
-                  href="/listings"
+                  href="/contact"
                   className="inline-flex items-center justify-center gap-2 px-7 py-4 rounded-2xl bg-white/10 text-white font-semibold text-base border border-white/30 backdrop-blur-md hover:bg-white/20 transition-all"
                 >
                   <Search className="w-5 h-5" />
-                  전체 목록 보기
+                  맞춤 매물 의뢰
                 </Link>
               </div>
 

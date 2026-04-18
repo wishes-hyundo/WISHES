@@ -20,18 +20,18 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Search, Map, Heart, MessageCircle, User } from 'lucide-react';
+import { Map, Heart, MessageCircle, User } from 'lucide-react';
 import { useFavorites } from '@/contexts/FavoritesContext';
 
 type NavItem = {
   href: string;
   label: string;
-  Icon: typeof Search;
+  Icon: typeof Map;
   match: (p: string) => boolean;
 };
 
 const items: NavItem[] = [
-  { href: '/listings', label: '매물', Icon: Search, match: (p) => p.startsWith('/listings') },
+  // '매물' 항목은 /map으로 통합 (/listings → /map 301 리다이렉트)
   { href: '/map', label: '지도', Icon: Map, match: (p) => p === '/map' },
   { href: '/mypage?tab=favorites', label: '찜', Icon: Heart, match: (p) => p.startsWith('/mypage') },
   { href: '/contact', label: '상담', Icon: MessageCircle, match: (p) => p === '/contact' },

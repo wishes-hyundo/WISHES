@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
-  { label: '매물검색', href: '/listings' },
+  // '매물검색'은 /map으로 통합 (/listings → /map 301 리다이렉트)
   { label: '지도검색', href: '/map' },
   { label: '대출계산기', href: '/calculator' },
   { label: '상담·매물접수', href: '/contact' },

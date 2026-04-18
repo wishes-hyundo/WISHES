@@ -19,7 +19,7 @@ export function Footer() {
           </div>
           <nav className="flex flex-wrap justify-center gap-4 text-xs text-white/50">
             {[
-              { label: '매물검색', href: '/listings' },
+              // '매물검색'은 /map으로 통합
               { label: '지도검색', href: '/map' },
               { label: '회사소개', href: '/about' },
               { label: '상담문의', href: '/contact' },

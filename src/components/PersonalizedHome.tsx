@@ -98,10 +98,11 @@ export default function PersonalizedHome() {
   if (loading) return null;
   if (recentListings.length === 0 && savedMatches.length === 0) return null;
 
+  // /listings는 /map으로 통합됨 — 저장 검색의 qs는 /map 필터 스키마와 달라 적용 안 될 수 있으나 링크만 유지
   const savedHref = (() => {
-    if (!searches[0]) return '/listings';
+    if (!searches[0]) return '/map';
     const params = new URLSearchParams(searches[0].query || {});
-    return '/listings?' + params.toString();
+    return '/map?' + params.toString();
   })();
 
   return (

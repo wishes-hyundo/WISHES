@@ -88,7 +88,7 @@ export default function RecentlyViewed() {
             <Clock className="w-5 h-5 text-wishes-green" />
             <h2 className="text-xl font-bold text-gray-900">최근 본 매물</h2>
           </div>
-          <Link href="/listings" className="flex items-center gap-1 text-sm text-gray-500 hover:text-wishes-green transition-colors">
+          <Link href="/map" className="flex items-center gap-1 text-sm text-gray-500 hover:text-wishes-green transition-colors">
             더보기 <ChevronRight className="w-4 h-4" />
           </Link>
         </div>

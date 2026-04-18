@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { MapPin, Home, Award, Sparkles } from 'lucide-react';
+import { MapPin, Award, Sparkles } from 'lucide-react';
 import InquiryModal from '@/components/InquiryModal';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -34,14 +34,10 @@ export default function HeroSecondaryCTAs() {
 
         {/* 부 CTA — 링크 */}
         <div className="flex items-center justify-center gap-4 flex-wrap">
+          {/* '전체 매물 보기'(/listings)는 지도검색(/map)과 중복이라 제거 — /map이 유일 진입점 */}
           <Link href="/map" className={subLinkClass}>
             <MapPin className="w-4 h-4" />
-            지도에서 찾기
-          </Link>
-          <span className="text-white/25">·</span>
-          <Link href="/listings" className={subLinkClass}>
-            <Home className="w-4 h-4" />
-            전체 매물 보기
+            지도에서 매물 찾기
           </Link>
           <span className="text-white/25">·</span>
           <Link href="/calculator" className={subLinkClass}>

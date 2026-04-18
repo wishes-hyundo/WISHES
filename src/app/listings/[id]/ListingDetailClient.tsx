@@ -396,8 +396,8 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
       <div className="pt-16 min-h-screen bg-wishes-bg flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500 text-lg">매물을 찾을 수 없습니다</p>
-          <Link href="/listings" className="text-wishes-secondary hover:underline mt-2 inline-block">
-            매물 목록으로 돌아가기
+          <Link href="/map" className="text-wishes-secondary hover:underline mt-2 inline-block">
+            지도검색으로 돌아가기
           </Link>
         </div>
       </div>
@@ -467,8 +467,8 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
             <Home className="w-4 h-4" />
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
-          <Link href="/listings" className="text-gray-500 hover:text-wishes-secondary transition-colors">
-            매물 검색
+          <Link href="/map" className="text-gray-500 hover:text-wishes-secondary transition-colors">
+            지도검색
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
           <span className="text-gray-700 font-medium truncate max-w-[200px] sm:max-w-none">{displayTitle(listing)}</span>
