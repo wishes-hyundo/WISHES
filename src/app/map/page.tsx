@@ -982,9 +982,9 @@ function MapSearchPageInner() {
   }, [filters]);
 
   return (
-    <div className="pt-20 h-screen flex flex-col">
-      {/* ━━━ 필터 바 (거래·유형·상세필터·검색·초기화·모바일뷰토글) ━━━ */}
-      <div className="bg-white border-b border-gray-100 shadow-sm shrink-0">
+    <div className="pt-16 h-[100dvh] flex flex-col bg-wishes-bg">
+      {/* ━━━ 필터 바 — 글래스 + 지도 위 floating 느낌 ━━━ */}
+      <div className="bg-white/90 backdrop-blur-xl border-b border-gray-200/60 shadow-[0_4px_16px_rgba(0,0,0,0.04)] shrink-0">
         {/* 1행: 거래유형 (다중) + 상세필터 + 검색 + 초기화 + 모바일뷰 */}
         <div className="px-4 pt-3 pb-2 flex items-center gap-2">
           <div className="flex gap-1.5 overflow-x-auto no-scrollbar">

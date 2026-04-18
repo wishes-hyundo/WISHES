@@ -12,6 +12,13 @@ interface Props {
   onReset: () => void;
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 상세 필터 Drawer
+// 데스크탑: 우측에서 슬라이드 인 (420px)
+// 모바일: 하단에서 bottom sheet (드래그 핸들 포함)
+// 모달처럼 화면 전체를 막지 않고 지도와 함께 존재하는 사이드 패널.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 const DEAL_OPTIONS: DealType[] = ['매매', '전세', '월세', '단기'];
 const TYPE_OPTIONS: ListingType[] = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '빌라', '상가', '사무실'];
 const DIRECTIONS = ['남', '동', '서', '북', '남동', '남서', '북동', '북서'];
@@ -26,20 +33,17 @@ const MOVE_IN: { key: 'immediate' | 'negotiable' | 'date'; label: string }[] = [
   { key: 'negotiable', label: '협의' },
   { key: 'date', label: '날짜 지정' },
 ];
-const OPTION_KEYS: { key: keyof NonNullable<ListingFilter['options']>; label: string }[] = [
-  { key: 'fullOption', label: '풀옵션' },
-  { key: 'pet', label: '반려동물' },
-  { key: 'parking', label: '주차' },
-  { key: 'elevator', label: '엘리베이터' },
-  { key: 'balcony', label: '발코니' },
-  { key: 'newBuild', label: '신축' },
+const OPTION_KEYS: { key: keyof NonNullable<ListingFilter['options']>; label: string; icon: string }[] = [
+  { key: 'fullOption', label: '풀옵션', icon: '🛋️' },
+  { key: 'pet', label: '반려동물', icon: '🐾' },
+  { key: 'parking', label: '주차', icon: '🚗' },
+  { key: 'elevator', label: '엘리베이터', icon: '🛗' },
+  { key: 'balcony', label: '발코니', icon: '🌿' },
+  { key: 'newBuild', label: '신축', icon: '✨' },
 ];
 
-// 보증금 슬라이더 (만원): 0 ~ 100,000 (10억)
 const DEPOSIT_MAX = 100000;
-// 월세 슬라이더 (만원): 0 ~ 500
 const MONTHLY_MAX = 500;
-// 면적 슬라이더 (㎡): 0 ~ 300
 const AREA_MAX = 300;
 
 function formatMan(value: number): string {
@@ -53,12 +57,34 @@ function formatMan(value: number): string {
 
 export default function MapFilterSheet({ open, filter, onChange, onClose, onReset }: Props) {
   const [draft, setDraft] = useState<ListingFilter>(filter);
+  // 실제 렌더링 제어 — 닫힐 때 트랜지션 완료 후 unmount
+  const [mounted, setMounted] = useState(open);
+  const [visible, setVisible] = useState(open);
 
   useEffect(() => {
-    if (open) setDraft(filter);
-  }, [open, filter]);
+    if (open) {
+      setDraft(filter);
+      setMounted(true);
+      // 다음 프레임에서 visible 토글 → 슬라이드 인 트랜지션 트리거
+      requestAnimationFrame(() => setVisible(true));
+    } else if (mounted) {
+      setVisible(false);
+      const t = setTimeout(() => setMounted(false), 320);
+      return () => clearTimeout(t);
+    }
+  }, [open, filter, mounted]);
 
-  if (!open) return null;
+  // ESC로 닫기
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, onClose]);
+
+  if (!mounted) return null;
 
   const toggleDeal = (deal: DealType) => {
     const list = new Set(draft.deals || []);
@@ -93,24 +119,74 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
     onReset();
   };
 
+  // 활성 필터 수
+  const activeCount = [
+    (draft.deals || []).length,
+    (draft.types || []).length,
+    draft.minDeposit ? 1 : 0,
+    draft.maxDeposit ? 1 : 0,
+    draft.minMonthly ? 1 : 0,
+    draft.maxMonthly ? 1 : 0,
+    draft.minArea ? 1 : 0,
+    draft.maxArea ? 1 : 0,
+    draft.floorCategory ? 1 : 0,
+    draft.direction ? 1 : 0,
+    draft.moveIn ? 1 : 0,
+    Object.values(draft.options || {}).filter(Boolean).length,
+    draft.businessUseable ? 1 : 0,
+    draft.goodwillFreeOnly ? 1 : 0,
+  ].reduce((a, b) => a + b, 0);
+
   return (
-    <div className="fixed inset-0 z-[60] flex items-end md:items-center md:justify-center bg-black/40 backdrop-blur-sm">
-      <div className="relative w-full md:max-w-3xl md:rounded-2xl bg-white rounded-t-2xl max-h-[92vh] flex flex-col shadow-2xl">
+    <>
+      {/* ━━━ 백드롭 (클릭 시 닫힘, blur만 부드럽게) ━━━ */}
+      <div
+        onClick={onClose}
+        className={`fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px] transition-opacity duration-300 ${
+          visible ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      />
+
+      {/* ━━━ Drawer 본체 ━━━
+          데스크탑: 우측 고정 420px 슬라이드 인
+          모바일: 하단 bottom sheet (91vh) */}
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="상세 필터"
+        className={`fixed z-[70] bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-out
+          md:right-0 md:top-0 md:bottom-0 md:w-[440px] md:border-l md:border-gray-200
+          inset-x-0 bottom-0 rounded-t-3xl max-h-[92vh] md:max-h-none md:rounded-none
+          ${visible
+            ? 'translate-y-0 md:translate-x-0'
+            : 'translate-y-full md:translate-y-0 md:translate-x-full'
+          }`}
+      >
+        {/* 모바일 드래그 핸들 */}
+        <div className="md:hidden flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-gray-300" />
+        </div>
+
         {/* 헤더 */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-wishes-primary">상세 필터</h2>
+        <div className="flex items-center justify-between px-5 pt-3 pb-4 md:pt-5 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-bold text-wishes-primary">상세 필터</h2>
+            <p className="text-[11px] text-wishes-muted mt-0.5">
+              {activeCount > 0 ? `${activeCount}개 조건 선택됨 · 적용하면 지도에 반영` : '원하는 조건으로 좁혀보세요'}
+            </p>
+          </div>
           <button
             onClick={onClose}
             aria-label="닫기"
-            className="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"
+            className="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* 본문 */}
-        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-7">
-          {/* 거래유형 (다중) */}
+        {/* 본문 (스크롤) */}
+        <div className="flex-1 overflow-y-auto px-5 py-5 space-y-7 custom-scrollbar">
+          {/* 거래 유형 */}
           <section>
             <h3 className="text-sm font-bold text-wishes-primary mb-2.5">거래 유형</h3>
             <div className="flex flex-wrap gap-2">
@@ -120,10 +196,10 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
                   <button
                     key={d}
                     onClick={() => toggleDeal(d)}
-                    className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
                       active
-                        ? 'bg-wishes-primary text-white border-wishes-primary'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-wishes-primary/50'
+                        ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/50'
                     }`}
                   >
                     {d}
@@ -133,20 +209,20 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
             </div>
           </section>
 
-          {/* 매물유형 (다중) */}
+          {/* 매물 유형 */}
           <section>
             <h3 className="text-sm font-bold text-wishes-primary mb-2.5">매물 유형</h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {TYPE_OPTIONS.map((t) => {
                 const active = (draft.types || []).includes(t);
                 return (
                   <button
                     key={t}
                     onClick={() => toggleType(t)}
-                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                    className={`px-2 py-2 rounded-xl text-xs font-semibold border-2 transition-all ${
                       active
-                        ? 'bg-wishes-secondary text-white border-wishes-secondary'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-wishes-secondary/50'
+                        ? 'bg-wishes-secondary text-white border-wishes-secondary shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-secondary/50'
                     }`}
                   >
                     {t}
@@ -156,17 +232,17 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
             </div>
           </section>
 
-          {/* 보증금 슬라이더 */}
+          {/* 보증금 */}
           <section>
             <div className="flex items-baseline justify-between mb-2">
               <h3 className="text-sm font-bold text-wishes-primary">보증금</h3>
-              <span className="text-xs text-wishes-muted">
+              <span className="text-xs text-wishes-secondary font-semibold">
                 {formatMan(draft.minDeposit || 0)} ~ {draft.maxDeposit ? formatMan(draft.maxDeposit) : '제한 없음'}
               </span>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-wishes-muted">최소</label>
+                <label className="text-[11px] text-wishes-muted block mb-1">최소</label>
                 <input
                   type="range"
                   min={0}
@@ -178,7 +254,7 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
                 />
               </div>
               <div>
-                <label className="text-[11px] text-wishes-muted">최대</label>
+                <label className="text-[11px] text-wishes-muted block mb-1">최대</label>
                 <input
                   type="range"
                   min={0}
@@ -195,17 +271,17 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
             </div>
           </section>
 
-          {/* 월세 슬라이더 */}
+          {/* 월세 */}
           <section>
             <div className="flex items-baseline justify-between mb-2">
               <h3 className="text-sm font-bold text-wishes-primary">월세</h3>
-              <span className="text-xs text-wishes-muted">
+              <span className="text-xs text-wishes-secondary font-semibold">
                 {(draft.minMonthly || 0).toLocaleString('ko-KR')}만 ~ {draft.maxMonthly ? `${draft.maxMonthly.toLocaleString('ko-KR')}만` : '제한 없음'}
               </span>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-wishes-muted">최소</label>
+                <label className="text-[11px] text-wishes-muted block mb-1">최소</label>
                 <input
                   type="range"
                   min={0}
@@ -217,7 +293,7 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
                 />
               </div>
               <div>
-                <label className="text-[11px] text-wishes-muted">최대</label>
+                <label className="text-[11px] text-wishes-muted block mb-1">최대</label>
                 <input
                   type="range"
                   min={0}
@@ -234,18 +310,18 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
             </div>
           </section>
 
-          {/* 면적 슬라이더 */}
+          {/* 면적 */}
           <section>
             <div className="flex items-baseline justify-between mb-2">
               <h3 className="text-sm font-bold text-wishes-primary">면적</h3>
-              <span className="text-xs text-wishes-muted">
+              <span className="text-xs text-wishes-secondary font-semibold">
                 {(draft.minArea || 0)}㎡ ({((draft.minArea || 0) / 3.3).toFixed(1)}평) ~{' '}
                 {draft.maxArea ? `${draft.maxArea}㎡ (${(draft.maxArea / 3.3).toFixed(1)}평)` : '제한 없음'}
               </span>
             </div>
             <div className="space-y-3">
               <div>
-                <label className="text-[11px] text-wishes-muted">최소</label>
+                <label className="text-[11px] text-wishes-muted block mb-1">최소</label>
                 <input
                   type="range"
                   min={0}
@@ -257,7 +333,7 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
                 />
               </div>
               <div>
-                <label className="text-[11px] text-wishes-muted">최대</label>
+                <label className="text-[11px] text-wishes-muted block mb-1">최대</label>
                 <input
                   type="range"
                   min={0}
@@ -277,17 +353,17 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
           {/* 층수 */}
           <section>
             <h3 className="text-sm font-bold text-wishes-primary mb-2.5">층수</h3>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               {FLOOR_CATEGORIES.map((f) => {
                 const active = draft.floorCategory === f.key;
                 return (
                   <button
                     key={f.key}
                     onClick={() => setField('floorCategory', active ? undefined : f.key)}
-                    className={`px-2 py-2 rounded-lg text-xs font-medium border transition-all ${
+                    className={`px-3 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
                       active
-                        ? 'bg-wishes-primary text-white border-wishes-primary'
-                        : 'bg-white text-gray-600 border-gray-300'
+                        ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40'
                     }`}
                   >
                     {f.label}
@@ -307,10 +383,10 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
                   <button
                     key={d}
                     onClick={() => setField('direction', active ? undefined : d)}
-                    className={`px-2 py-2 rounded-lg text-xs font-medium border transition-all ${
+                    className={`px-2 py-2 rounded-xl text-xs font-semibold border-2 transition-all ${
                       active
-                        ? 'bg-wishes-primary text-white border-wishes-primary'
-                        : 'bg-white text-gray-600 border-gray-300'
+                        ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40'
                     }`}
                   >
                     {d}
@@ -320,23 +396,24 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
             </div>
           </section>
 
-          {/* 옵션 토글 */}
+          {/* 옵션 */}
           <section>
             <h3 className="text-sm font-bold text-wishes-primary mb-2.5">옵션</h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {OPTION_KEYS.map((o) => {
                 const active = !!draft.options?.[o.key];
                 return (
                   <button
                     key={o.key}
                     onClick={() => toggleOption(o.key)}
-                    className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                    className={`flex items-center justify-center gap-1 px-2 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
                       active
-                        ? 'bg-wishes-accent/15 text-wishes-primary border-wishes-primary'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-wishes-primary/40'
+                        ? 'bg-wishes-accent/15 text-wishes-primary border-wishes-primary shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/30'
                     }`}
                   >
-                    {o.label}
+                    <span className="text-sm">{o.icon}</span>
+                    <span>{o.label}</span>
                   </button>
                 );
               })}
@@ -353,10 +430,10 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
                   <button
                     key={m.key}
                     onClick={() => setField('moveIn', active ? undefined : m.key)}
-                    className={`px-2 py-2 rounded-lg text-xs font-medium border transition-all ${
+                    className={`px-2 py-2.5 rounded-xl text-xs font-semibold border-2 transition-all ${
                       active
-                        ? 'bg-wishes-primary text-white border-wishes-primary'
-                        : 'bg-white text-gray-600 border-gray-300'
+                        ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40'
                     }`}
                   >
                     {m.label}
@@ -369,56 +446,56 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
                 type="date"
                 value={draft.moveInDate || ''}
                 onChange={(e) => setField('moveInDate', e.target.value || undefined)}
-                className="mt-3 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-wishes-primary/30"
+                className="mt-3 w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-wishes-primary/20 focus:border-wishes-primary"
               />
             )}
           </section>
 
-          {/* 상업용 필터 */}
-          <section>
+          {/* 상업용 */}
+          <section className="pb-2">
             <h3 className="text-sm font-bold text-wishes-primary mb-2.5">상업용 (상가/사무실)</h3>
             <div className="flex flex-wrap gap-2">
               <button
                 onClick={() => setField('businessUseable', draft.businessUseable ? undefined : true)}
-                className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
                   draft.businessUseable
-                    ? 'bg-wishes-primary text-white border-wishes-primary'
-                    : 'bg-white text-gray-600 border-gray-300'
+                    ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40'
                 }`}
               >
-                음식점 가능
+                🍽️ 음식점 가능
               </button>
               <button
                 onClick={() => setField('goodwillFreeOnly', draft.goodwillFreeOnly ? undefined : true)}
-                className={`px-3.5 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                className={`px-4 py-2 rounded-xl text-sm font-semibold border-2 transition-all ${
                   draft.goodwillFreeOnly
-                    ? 'bg-wishes-primary text-white border-wishes-primary'
-                    : 'bg-white text-gray-600 border-gray-300'
+                    ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
+                    : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary/40'
                 }`}
               >
-                권리금 없음
+                💰 권리금 없음
               </button>
             </div>
           </section>
         </div>
 
-        {/* 푸터 */}
-        <div className="flex gap-2 px-5 py-4 border-t border-gray-100 bg-white">
+        {/* 푸터 (고정) */}
+        <div className="flex gap-2 px-5 py-4 border-t border-gray-100 bg-white safe-area-pb">
           <button
             onClick={reset}
-            className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            className="flex items-center gap-1.5 px-4 py-3 rounded-xl border-2 border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
           >
             <RotateCcw className="w-4 h-4" />
             초기화
           </button>
           <button
             onClick={apply}
-            className="flex-1 px-4 py-2.5 rounded-lg bg-wishes-primary text-white text-sm font-bold hover:bg-wishes-primary/90"
+            className="flex-1 px-4 py-3 rounded-xl bg-wishes-primary text-white text-sm font-bold hover:bg-wishes-primary/90 shadow-sm transition-all active:scale-[0.98]"
           >
-            적용하기
+            {activeCount > 0 ? `${activeCount}개 조건 적용` : '적용하기'}
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
