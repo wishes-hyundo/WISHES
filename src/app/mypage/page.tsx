@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { useSavedSearch } from '@/contexts/SavedSearchContext';
 import { cn } from '@/lib/utils';
+import { displayTitle } from '@/lib/formatListingTitle';
 import Image from 'next/image';
 
 type TabType = 'favorites' | 'recent' | 'profile' | 'alerts' | 'saved';
@@ -46,12 +47,12 @@ function MypageListingCard({ listing, onRemoveFavorite }: { listing: ListingData
     <div className="group relative bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-lg transition-all duration-300">
       <Link href={'/listings/' + listing.id} className="block">
         <div className="relative overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 aspect-[16/10]">
-          {thumbUrl ? (<Image src={thumbUrl} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" fill sizes="(max-width: 768px) 50vw, 25vw" />) : (<div className="absolute inset-0 flex items-center justify-center"><Building2 className="w-12 h-12 text-gray-400" /></div>)}
+          {thumbUrl ? (<Image src={thumbUrl} alt={displayTitle(listing as any)} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" fill sizes="(max-width: 768px) 50vw, 25vw" />) : (<div className="absolute inset-0 flex items-center justify-center"><Building2 className="w-12 h-12 text-gray-400" /></div>)}
           <span className={cn('absolute top-3 left-3 px-3 py-1 text-xs font-bold rounded-lg shadow-lg', getDealColor(listing.deal))}>{listing.deal}</span>
         </div>
         <div className="p-4 space-y-2">
           <p className="text-xl font-bold text-wishes-primary">{formatPrice(listing)}</p>
-          <p className="text-sm font-medium text-wishes-text line-clamp-1">{listing.title}</p>
+          <p className="text-sm font-medium text-wishes-text line-clamp-1">{displayTitle(listing as any)}</p>
           <div className="flex items-center gap-3 text-xs text-wishes-muted">
             {area > 0 && (<span className="flex items-center gap-1"><Maximize className="w-3.5 h-3.5" />{area}㎡{pyeong && ' (' + pyeong + '평)'}</span>)}
             <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{listing.dong}</span>

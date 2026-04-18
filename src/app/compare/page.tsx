@@ -6,6 +6,7 @@ import { ArrowLeft, X, Building2, MapPin, Maximize, Loader2, Check } from 'lucid
 import { getFormattedPrice, getDealColor, sqmToPyeong } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { useFavorites } from '@/contexts/FavoritesContext';
+import { displayTitle } from '@/lib/formatListingTitle';
 import type { Listing } from '@/types';
 
 export default function ComparePage() {
@@ -194,7 +195,7 @@ export default function ComparePage() {
                           <div className="w-full h-32 rounded-lg overflow-hidden mb-3">
                             <img
                               src={img.url}
-                              alt={listing.title}
+                              alt={displayTitle(listing as any)}
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -207,7 +208,7 @@ export default function ComparePage() {
                           href={`/listings/${listing.id}`}
                           className="text-sm font-bold text-wishes-primary hover:text-wishes-secondary transition-colors line-clamp-2"
                         >
-                          {listing.title}
+                          {displayTitle(listing as any)}
                         </Link>
                       </div>
                     </th>
@@ -248,7 +249,7 @@ export default function ComparePage() {
                   </button>
                   {img?.url ? (
                     <div className="w-full h-40 overflow-hidden">
-                      <img src={img.url} alt={listing.title} className="w-full h-full object-cover" />
+                      <img src={img.url} alt={displayTitle(listing as any)} className="w-full h-full object-cover" />
                     </div>
                   ) : (
                     <div className="w-full h-40 bg-gray-100 flex items-center justify-center">
@@ -261,7 +262,7 @@ export default function ComparePage() {
                     href={`/listings/${listing.id}`}
                     className="text-base font-bold text-wishes-primary hover:text-wishes-secondary transition-colors"
                   >
-                    {listing.title}
+                    {displayTitle(listing as any)}
                   </Link>
                   <div className="mt-3 space-y-2">
                     {compareFields.map((field) => (

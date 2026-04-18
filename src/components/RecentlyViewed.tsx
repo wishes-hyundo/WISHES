@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Clock, ChevronRight, MapPin, Building2 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { displayTitle } from '@/lib/formatListingTitle';
+import { displayAddressByAuth } from '@/lib/publicAddress';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface RecentItem {
   id: string;
@@ -18,11 +21,18 @@ interface ListingData {
   deposit: number;
   monthly_rent: number;
   address: string;
+  dong?: string | null;
   property_type: string;
+  type?: string | null;
+  area_m2?: number | null;
+  floor_current?: string | number | null;
+  floor_total?: string | number | null;
   images: string[];
 }
 
 export default function RecentlyViewed() {
+  const { user } = useAuth();
+  const isAuthed = !!user;
   const [listings, setListings] = useState<ListingData[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,7 +50,7 @@ export default function RecentlyViewed() {
         const supabase = createClient();
         const { data } = await supabase
           .from('listings')
-          .select('id, title, deal, price, deposit, monthly_rent, address, property_type, images')
+          .select('id, title, deal, price, deposit, monthly_rent, address, dong, property_type, type, area_m2, floor_current, floor_total, images')
           .in('id', recentIds);
 
         if (data) {
@@ -91,7 +101,7 @@ export default function RecentlyViewed() {
             >
               <div className="aspect-[4/3] relative bg-gradient-to-br from-wishes-light/60 to-wishes-accent/20 flex items-center justify-center">
                 {listing.images && listing.images.length > 0 ? (
-                  <img src={listing.images[0]} alt={listing.title} className="w-full h-full object-cover" />
+                  <img src={listing.images[0]} alt={displayTitle({ ...listing, type: listing.type || listing.property_type } as any)} className="w-full h-full object-cover" />
                 ) : (
                   <Building2 className="w-8 h-8 text-wishes-green/30" />
                 )}
@@ -101,9 +111,9 @@ export default function RecentlyViewed() {
               </div>
               <div className="p-2">
                 <p className="text-sm font-bold text-gray-900 truncate">{formatPrice(listing)}</p>
-                <p className="text-xs text-gray-500 truncate mt-0.5">{listing.title}</p>
+                <p className="text-xs text-gray-500 truncate mt-0.5">{displayTitle({ ...listing, type: listing.type || listing.property_type } as any)}</p>
                 <p className="text-[10px] text-gray-400 flex items-center gap-0.5 mt-0.5">
-                  <MapPin className="w-3 h-3" />{listing.address}
+                  <MapPin className="w-3 h-3" />{displayAddressByAuth(listing.address, listing.dong, isAuthed)}
                 </p>
               </div>
             </Link>

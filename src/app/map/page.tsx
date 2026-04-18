@@ -5,6 +5,7 @@ import { useMapListings } from '@/hooks/useMapListings';
 import { ListingCard } from '@/components/ListingCard';
 import MapListingPanel from '@/components/MapListingPanel';
 import { formatPrice } from '@/lib/utils';
+import { displayTitle } from '@/lib/formatListingTitle';
 import { MapPin, List, Loader2, Search, X, Building2, Crosshair, RefreshCw, SlidersHorizontal, Edit3, Check, Train, Navigation, Home } from 'lucide-react';
 import type { Listing, ListingFilter, DealType, ListingType } from '@/types';
 import MapFilterSheet from '@/components/MapFilterSheet';
@@ -306,8 +307,8 @@ function createHoverPreviewContent(listing: Listing): HTMLElement {
   };
   const dealColor = colorMap[listing.deal] || '#3B82F6';
   const area = listing.area_m2 ? `${listing.area_m2}㎡` : '';
-  const titleText = (listing.title || listing.dong || '매물')
-    .toString().slice(0, 28);
+  // 크롤링 매물 title에 전체 주소가 섞여있어도 displayTitle()이 동·유형·면적·층 기반 세일즈 카피로 재가공
+  const titleText = displayTitle(listing).slice(0, 28);
 
   const card = document.createElement('div');
   card.style.cssText = `
