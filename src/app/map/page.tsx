@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react';
 import { useMapListings } from '@/hooks/useMapListings';
 import { ListingCard } from '@/components/ListingCard';
 import MapListingPanel from '@/components/MapListingPanel';
@@ -435,7 +435,7 @@ function createPriceMarkerContent(listing: Listing, isSelected: boolean = false)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 메인 지도 컴포넌트
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export default function MapSearchPage() {
+function MapSearchPageInner() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
   const overlaysRef = useRef<any[]>([]);
@@ -1332,5 +1332,14 @@ export default function MapSearchPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Suspense 래퍼 — useSearchParams() prerender 요구사항 충족
+export default function MapSearchPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-wishes-bg"><div className="text-wishes-muted">지도 불러오는 중...</div></div>}>
+      <MapSearchPageInner />
+    </Suspense>
   );
 }
