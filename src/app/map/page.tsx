@@ -522,6 +522,25 @@ function MapSearchPageInner() {
   const autoRefetchRef = useRef(true);
   const fetchBoundsRef = useRef<(() => void) | null>(null);
   useEffect(() => { autoRefetchRef.current = autoRefetch; }, [autoRefetch]);
+
+  // ━━━ 17차 모바일: 지도↔목록 토글 시 Kakao relayout 필수 (container 0×0 → 복구) ━━━
+  // 이전 동작: 모바일에서 '목록' 탭 → '지도' 탭으로 돌아오면 지도가 회색 빈 공간
+  //   원인: display:none이던 container가 display:block이 되어도 Kakao는 자동 resize 없음
+  // 수정: mobileView가 'map'으로 전환된 직후 relayout + 중심 재설정
+  useEffect(() => {
+    if (mobileView !== 'map' || !mapInstanceRef.current) return;
+    // DOM 반영(layout) 이후 호출해야 정확한 크기 계산
+    const t = setTimeout(() => {
+      try {
+        const map = mapInstanceRef.current;
+        const center = map.getCenter();
+        map.relayout();
+        map.setCenter(center);
+      } catch (_) { /* noop */ }
+    }, 50);
+    return () => clearTimeout(t);
+  }, [mobileView]);
+
   // ━━━ 지도 마커 hover → 리스트 카드 하이라이트·스크롤 연동용 (마커 rebuild 방지 위해 useEffect deps 에서 제외) ━━━
   const [mapHoveredId, setMapHoveredId] = useState<number | null>(null);
   const mapHoveredTimerRef = useRef<any>(null);
@@ -1365,12 +1384,74 @@ function MapSearchPageInner() {
 
   return (
     <div className="pt-16 h-[100dvh] flex flex-col bg-wishes-bg">
-      {/* ━━━ 필터 바 — 2026 미니멀 2행 구조 (검색·세그먼트·상세필터 / 프리셋 OR 활성칩) ━━━ */}
+      {/* ━━━ 필터 바 — 2026 미니멀 구조 (17차 모바일: 검색 단독 행 + 컨트롤 행 분리) ━━━ */}
       <div className="bg-white/95 backdrop-blur-xl border-b border-gray-200/70 shrink-0">
-        {/* Row 1 — 검색 (left flex-1) | 거래유형 세그먼트 | 상세필터 | 초기화 | 모바일뷰 */}
-        <div className="px-4 py-2.5 flex items-center gap-3">
-          {/* 검색 입력 — 항상 노출, 왼쪽 집약 + 15차-3: 지하철역·장소 자동완성 드롭다운 */}
-          <div className="relative flex-1 min-w-0 max-w-xl">
+        {/* 모바일 Row 0 — 검색 단독 (데스크탑에선 숨김, Row 1과 합쳐짐) */}
+        <div className="md:hidden px-3 pt-2 pb-1.5">
+          <div className="relative">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-wishes-primary/70" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); }}
+              onFocus={() => { if (searchQuery.trim().length >= 2) setShowSuggestions(true); }}
+              onBlur={() => { setTimeout(() => setShowSuggestions(false), 150); }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  if (searchSuggestions[0]) applySuggestion(searchSuggestions[0]);
+                  else handleSearchSubmit(searchQuery);
+                }
+                if (e.key === 'Escape') setShowSuggestions(false);
+              }}
+              placeholder="지역 · 지하철역 · 동 (예: 강남역)"
+              className="w-full pl-9 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-wishes-primary focus:ring-2 focus:ring-wishes-primary/15 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => { setSearchQuery(''); setSearchSuggestions([]); setShowSuggestions(false); }}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                aria-label="검색 초기화"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+            {showSuggestions && searchSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden">
+                {searchSuggestions.map((s, idx) => {
+                  const catMap = {
+                    subway:   { Icon: Train,      label: '지하철', cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+                    place:    { Icon: MapPin,     label: '장소',   cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+                    building: { Icon: Building2,  label: '건물',   cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+                    address:  { Icon: Navigation, label: '동·지역', cls: 'bg-violet-50 text-violet-700 border-violet-200' },
+                  } as const;
+                  const { Icon: CatIcon, label: catLabel, cls: catCls } = catMap[s.category] ?? catMap.place;
+                  return (
+                    <button
+                      key={`m-${s.name}-${idx}`}
+                      onMouseDown={(e) => { e.preventDefault(); applySuggestion(s); }}
+                      className="w-full text-left px-3 py-2.5 active:bg-wishes-primary/10 transition-colors flex items-start gap-2 border-b border-gray-100 last:border-b-0"
+                    >
+                      <CatIcon className="w-3.5 h-3.5 text-wishes-primary/70 mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[13px] font-semibold text-gray-900 truncate">{s.name}</span>
+                          <span className={`text-[9.5px] font-bold px-1.5 py-[1px] rounded-full border shrink-0 ${catCls}`}>{catLabel}</span>
+                        </div>
+                        {s.address && <div className="text-[11px] text-gray-500 truncate mt-0.5">{s.address}</div>}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Row 1 — 데스크탑: 검색 + 거래유형 + 상세필터 + 초기화 + 모바일뷰 / 모바일: 거래유형 + 상세필터 + 모바일뷰 (검색은 Row 0) */}
+        <div className="px-3 md:px-4 py-1.5 md:py-2.5 flex items-center gap-2 md:gap-3">
+          {/* 검색 입력 — 데스크탑 전용 (모바일은 위에서 이미 렌더) */}
+          <div className="hidden md:block relative flex-1 min-w-0 max-w-xl">
             <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-wishes-primary/70" />
             <input
               type="text"
@@ -1433,15 +1514,15 @@ function MapSearchPageInner() {
             )}
           </div>
 
-          {/* 거래유형 세그먼트 컨트롤 — 다중 선택 유지하되 연결된 segment 모양으로 */}
-          <div className="flex bg-gray-100 rounded-lg p-0.5 shrink-0">
+          {/* 거래유형 세그먼트 컨트롤 — 모바일에선 flex-1로 가로 확장, 데스크탑은 컴팩트 */}
+          <div className="flex flex-1 md:flex-none bg-gray-100 rounded-lg p-0.5 shrink-0">
             {dealTypes.map((deal) => {
               const isActive = (filters.deals || []).includes(deal);
               return (
                 <button
                   key={deal}
                   onClick={() => toggleDealFilter(deal)}
-                  className={`px-3 py-1.5 text-[12px] font-semibold rounded-md transition-all whitespace-nowrap ${
+                  className={`flex-1 md:flex-none px-2.5 md:px-3 py-1.5 text-[12px] font-semibold rounded-md transition-all whitespace-nowrap ${
                     isActive
                       ? 'bg-wishes-primary text-white shadow-sm'
                       : 'text-gray-600 hover:text-wishes-primary'
@@ -1484,25 +1565,27 @@ function MapSearchPageInner() {
             </button>
           )}
 
-          {/* 모바일 뷰 토글 */}
-          <div className="md:hidden flex bg-gray-100 rounded-lg p-0.5 shrink-0">
+          {/* 모바일 뷰 토글 — 17차: 터치 타겟 확대, 활성 상태 피드백 강화 */}
+          <div className="md:hidden flex bg-gray-100 rounded-lg p-0.5 shrink-0" role="tablist" aria-label="지도/목록 전환">
             <button
               onClick={() => setMobileView('map')}
-              className={`px-2.5 py-1 text-[11px] rounded-md transition-all ${
-                mobileView === 'map' ? 'bg-white shadow text-wishes-primary font-bold' : 'text-gray-500'
+              role="tab"
+              aria-selected={mobileView === 'map'}
+              className={`flex items-center gap-1 px-3 py-1.5 text-[12px] rounded-md transition-all ${
+                mobileView === 'map' ? 'bg-white shadow-sm text-wishes-primary font-bold' : 'text-gray-500'
               }`}
-              aria-label="지도 보기"
             >
-              <MapPin className="w-3 h-3 inline mr-0.5" />지도
+              <MapPin className="w-3.5 h-3.5" /><span>지도</span>
             </button>
             <button
               onClick={() => setMobileView('list')}
-              className={`px-2.5 py-1 text-[11px] rounded-md transition-all ${
-                mobileView === 'list' ? 'bg-white shadow text-wishes-primary font-bold' : 'text-gray-500'
+              role="tab"
+              aria-selected={mobileView === 'list'}
+              className={`flex items-center gap-1 px-3 py-1.5 text-[12px] rounded-md transition-all ${
+                mobileView === 'list' ? 'bg-white shadow-sm text-wishes-primary font-bold' : 'text-gray-500'
               }`}
-              aria-label="목록 보기"
             >
-              <List className="w-3 h-3 inline mr-0.5" />목록
+              <List className="w-3.5 h-3.5" /><span>목록</span>
             </button>
           </div>
         </div>
@@ -1648,14 +1731,15 @@ function MapSearchPageInner() {
             </div>
           )}
 
-          {/* 줌 레벨 표시 + 매물 카운트 */}
+          {/* 줌 레벨 표시 + 매물 카운트 — 17차 모바일: 1행 컴팩트 pill, 데스크탑은 2단 */}
           {!loading && mapReady && (
-            <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
-              <div className="bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md text-xs font-medium text-gray-700 flex items-center gap-2">
-                <span>현재 지도 영역</span>
-                <strong className="text-wishes-primary">{total}</strong>건
+            <div className="absolute top-3 md:top-4 left-3 md:left-4 flex flex-col gap-1.5 md:gap-2 z-20">
+              <div className="bg-white/95 backdrop-blur-md px-2.5 md:px-3 py-1 md:py-1.5 rounded-full shadow-md text-[11px] md:text-xs font-medium text-gray-700 flex items-center gap-1.5 md:gap-2">
+                <span className="hidden sm:inline">현재 지도 영역</span>
+                <span className="sm:hidden">영역</span>
+                <strong className="text-wishes-primary tabular-nums">{total}</strong>건
               </div>
-              <div className="bg-white/90 backdrop-blur-md px-3 py-1 rounded-full shadow text-[10px] font-semibold text-wishes-muted flex items-center gap-1.5">
+              <div className="hidden md:flex bg-white/90 backdrop-blur-md px-3 py-1 rounded-full shadow text-[10px] font-semibold text-wishes-muted items-center gap-1.5">
                 <div className={`w-2 h-2 rounded-full ${
                   zoomLevel >= 9 ? 'bg-green-700' :
                   zoomLevel >= 7 ? 'bg-blue-500' :
@@ -1666,9 +1750,9 @@ function MapSearchPageInner() {
             </div>
           )}
 
-          {/* 16차: 활성 필터 칩 — 지도 위 상시 노출 (지도 이동 중에도 맥락 유지) */}
+          {/* 16차: 활성 필터 칩 — 지도 위 상시 노출 (17차 모바일: 하단으로 이동해 상단 컨트롤 겹침 방지) */}
           {mapReady && activeChips.length > 0 && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-[60%] flex items-center gap-1.5 overflow-x-auto no-scrollbar px-3 py-2 bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 animate-fade-in">
+            <div className="absolute bottom-36 md:bottom-auto md:top-4 left-1/2 -translate-x-1/2 z-20 max-w-[90%] md:max-w-[60%] flex items-center gap-1.5 overflow-x-auto no-scrollbar px-3 py-2 bg-white/95 backdrop-blur-md rounded-full shadow-md border border-gray-100 animate-fade-in">
               <span className="text-[10.5px] font-bold text-wishes-primary tracking-wider shrink-0">필터</span>
               {activeChips.slice(0, 6).map((chip) => (
                 <button
@@ -1693,17 +1777,18 @@ function MapSearchPageInner() {
             </div>
           )}
 
-          {/* 15차-3: 자동검색 토글 + 위치 그리기 — 우상단 스택 (16차: OFF 상태 강조) */}
+          {/* 15차-3: 자동검색 토글 + 위치 그리기 — 우상단 스택 (17차 모바일: 컴팩트 레이블) */}
           {mapReady && (
-            <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
+            <div className="absolute top-3 md:top-4 right-3 md:right-4 z-20 flex flex-col gap-1.5 md:gap-2 items-end">
               {/* 자동검색 ON/OFF 토글 pill */}
-              <div className={`flex items-center gap-2 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md text-[11px] border transition-all ${
+              <div className={`flex items-center gap-1.5 md:gap-2 backdrop-blur-md px-2.5 md:px-3 py-1 md:py-1.5 rounded-full shadow-md text-[11px] border transition-all ${
                 autoRefetch
                   ? 'bg-white/95 border-gray-100'
                   : 'bg-amber-50/95 border-amber-300 ring-2 ring-amber-200/50'
               }`}>
                 <span className={`font-semibold ${autoRefetch ? 'text-gray-700' : 'text-amber-800'}`}>
-                  {autoRefetch ? '이동 시 자동검색' : '자동검색 OFF'}
+                  <span className="hidden sm:inline">{autoRefetch ? '이동 시 자동검색' : '자동검색 OFF'}</span>
+                  <span className="sm:hidden">{autoRefetch ? '자동' : 'OFF'}</span>
                 </span>
                 <button
                   onClick={() => setAutoRefetch((v) => !v)}
@@ -1721,11 +1806,12 @@ function MapSearchPageInner() {
               {!drawMode && !drawPolygon && (
                 <button
                   onClick={startDrawMode}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-full shadow-md text-[11.5px] font-bold text-gray-700 hover:bg-wishes-primary hover:text-white hover:border-wishes-primary transition-all"
+                  className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 md:py-2 bg-white border border-gray-200 rounded-full shadow-md text-[11.5px] font-bold text-gray-700 hover:bg-wishes-primary hover:text-white hover:border-wishes-primary transition-all"
                   title="지도에 다각형을 그려 해당 영역 매물만 검색"
                 >
                   <Edit3 className="w-3.5 h-3.5" />
-                  위치 그리기
+                  <span className="hidden sm:inline">위치 그리기</span>
+                  <span className="sm:hidden">그리기</span>
                 </button>
               )}
               {drawMode && (
@@ -1778,11 +1864,11 @@ function MapSearchPageInner() {
             </div>
           )}
 
-          {/* 15차-3: 수동 재검색 플로팅 버튼 — 자동검색 OFF + 지도 이동 시 강조 (16차: pulse ring) */}
+          {/* 15차-3: 수동 재검색 플로팅 버튼 — 자동검색 OFF + 지도 이동 시 강조 (17차: 모바일 bottom, 데스크탑 top) */}
           {!autoRefetch && mapMovedSinceFetch && mapReady && !loading && (
             <button
               onClick={() => fetchBoundsRef.current?.()}
-              className="absolute top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-wishes-primary text-white px-5 py-2.5 rounded-full shadow-2xl text-[13px] font-bold hover:bg-wishes-primary/90 animate-fade-in group"
+              className="absolute bottom-24 md:bottom-auto md:top-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 bg-wishes-primary text-white px-5 py-3 md:py-2.5 rounded-full shadow-2xl text-[13px] font-bold hover:bg-wishes-primary/90 animate-fade-in group"
             >
               <span className="absolute inset-0 rounded-full bg-wishes-primary animate-ping opacity-40 pointer-events-none" />
               <RefreshCw className="w-4 h-4 relative group-hover:rotate-180 transition-transform duration-500" />
@@ -1928,9 +2014,9 @@ function MapSearchPageInner() {
           )}
         </div>
 
-        {/* 모바일 상세 패널 (전체화면 오버레이) */}
+        {/* 모바일 상세 패널 (전체화면 오버레이) — 17차: 헤더 아래 전체영역 사용 */}
         {detailId && (
-          <div className="md:hidden fixed inset-0 top-20 z-40 bg-white animate-fade-in">
+          <div className="md:hidden fixed inset-x-0 top-16 bottom-0 z-40 bg-white animate-fade-in overflow-y-auto">
             <MapListingPanel
               listingId={detailId}
               onClose={() => setDetailId(null)}
