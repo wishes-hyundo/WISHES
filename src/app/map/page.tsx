@@ -293,57 +293,131 @@ function createDongClusterContent(dongName: string, count: number): HTMLElement 
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 유형·거래 구분 헬퍼 + meta 빌더 (hover card용)
+// 네모/직방 관행: 버블=가격, 카드=가격외 모든 것. 유형별 field set이 달라야 함
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function isCommercialType(type: string | null | undefined): boolean {
+  return type === '상가' || type === '사무실';
+}
+
+function formatFloorCompact(listing: Listing): string {
+  const fc = (listing.floor_current || '').toString().trim();
+  const ft = (listing.floor_total || '').toString().trim();
+  if (!fc) return '';
+  // 이미 "3층" 포함 형태면 그대로
+  if (fc.includes('층')) return ft ? `${fc.replace('층','')}/${ft.replace('층','')}층` : fc;
+  // 숫자 혹은 '지하1' 등
+  if (ft) return `${fc}/${ft}층`;
+  return `${fc}층`;
+}
+
+function formatAreaCompact(area: number | null | undefined): string {
+  if (!area || area <= 0) return '';
+  const m2 = Math.round(area);
+  const pyeong = Math.round(area / 3.3);
+  return `${m2}㎡(${pyeong}평)`;
+}
+
+// 주요 스펙 1줄: 면적 · 층 · 방/업종
+function buildPrimaryMeta(listing: Listing): string {
+  const parts: string[] = [];
+  const commercial = isCommercialType(listing.type);
+
+  // 면적 — 상가는 '전용', 주거는 그대로
+  const areaStr = formatAreaCompact(listing.area_m2);
+  if (areaStr) parts.push(commercial ? `전용 ${areaStr}` : areaStr);
+
+  // 층 — 지상/지하 포함
+  const floorStr = formatFloorCompact(listing);
+  if (floorStr) parts.push(floorStr);
+
+  // 상가·사무실: 업종(사용승인/영업종목) / 주거: 방·욕실
+  if (commercial) {
+    if (listing.usage_approved) parts.push(String(listing.usage_approved).slice(0, 10));
+    else if (listing.business_type) parts.push(String(listing.business_type).slice(0, 10));
+  } else {
+    if (listing.rooms) {
+      parts.push(listing.bathrooms ? `${listing.rooms}룸/${listing.bathrooms}욕실` : `${listing.rooms}룸`);
+    }
+  }
+
+  return parts.join(' · ');
+}
+
+// 보조 라인: 관리비·권리금·방향·대출·주차 등 유형별 차별 정보
+function buildSecondaryMeta(listing: Listing): string {
+  const parts: string[] = [];
+  const commercial = isCommercialType(listing.type);
+  const deal = listing.deal;
+
+  if (commercial) {
+    // 상가·사무실: 권리금 → 관리비 → 엘리베이터/주차 순
+    if (listing.goodwill_fee != null) {
+      parts.push(listing.goodwill_fee > 0 ? `권리 ${formatPrice(listing.goodwill_fee)}` : '권리금 없음');
+    }
+    if (listing.maintenance_fee && listing.maintenance_fee > 0) {
+      parts.push(`관리 ${listing.maintenance_fee}만`);
+    }
+    if (listing.parking) parts.push('주차');
+    else if (listing.elevator) parts.push('EV');
+  } else {
+    // 주거·오피스텔: 방향 → 주차 → 옵션
+    if (listing.direction) parts.push(String(listing.direction).slice(0, 6));
+    if (listing.maintenance_fee && listing.maintenance_fee > 0) {
+      parts.push(`관리 ${listing.maintenance_fee}만`);
+    }
+    if (listing.full_option) parts.push('풀옵션');
+    else if (listing.parking) parts.push('주차');
+  }
+
+  // 매매 공통: 대출가능
+  if (deal === '매매' && listing.loan_available) {
+    parts.push('대출가능');
+  }
+
+  return parts.slice(0, 3).join(' · ');
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 마커 hover 미리보기 카드 (Level 1-4에서 마커 위에 표시)
+// 가격은 버블에 이미 노출 → 카드에서 제거하여 중복 제거, 유형·거래별 정보 노출
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function createHoverPreviewContent(listing: Listing): HTMLElement {
-  const priceText = listing.deal === '매매'
-    ? formatPrice(listing.price || 0)
-    : listing.deal === '월세'
-    ? `${formatPrice(listing.deposit)}/${listing.monthly}만`
-    : formatPrice(listing.deposit);
-
-  const colorMap: Record<string, string> = {
-    '전세': '#3B82F6', '월세': '#F97316', '매매': '#22C55E',
-  };
-  const dealColor = colorMap[listing.deal] || '#3B82F6';
-  const area = listing.area_m2 ? `${listing.area_m2}㎡` : '';
-  // 크롤링 매물 title에 전체 주소가 섞여있어도 displayTitle()이 동·유형·면적·층 기반 세일즈 카피로 재가공
-  const titleText = displayTitle(listing).slice(0, 28);
+  // 제목 — 크롤링 매물의 주소 섞인 title도 displayTitle()이 안전하게 재가공
+  const titleText = displayTitle(listing).slice(0, 30);
+  const primaryMeta = buildPrimaryMeta(listing);
+  const secondaryMeta = buildSecondaryMeta(listing);
 
   const card = document.createElement('div');
   card.style.cssText = `
     background: #fff; border: 1px solid rgba(0,0,0,0.08);
-    border-radius: 12px; padding: 10px 12px; min-width: 180px; max-width: 220px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    border-radius: 10px; padding: 9px 11px; min-width: 170px; max-width: 230px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.14);
     transform: translate(-50%, calc(-100% - 48px));
     font-family: 'GmarketSans', sans-serif; pointer-events: none;
+    position: relative;
   `;
 
-  const header = document.createElement('div');
-  header.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;';
-  const badge = document.createElement('span');
-  badge.style.cssText = `
-    background:${dealColor};color:#fff;font-size:9.5px;font-weight:700;
-    padding:2px 6px;border-radius:6px;letter-spacing:0.02em;
-  `;
-  badge.textContent = listing.deal;
-  const price = document.createElement('span');
-  price.style.cssText = 'font-size:13px;font-weight:800;color:#111;white-space:nowrap;';
-  price.textContent = priceText;
-  header.appendChild(badge);
-  header.appendChild(price);
-  card.appendChild(header);
-
+  // 제목 (한 줄, 굵게)
   const title = document.createElement('div');
-  title.style.cssText = 'font-size:11.5px;color:#374151;line-height:1.35;margin-bottom:2px;';
+  title.style.cssText = 'font-size:12.5px;font-weight:700;color:#111;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
   title.textContent = titleText;
   card.appendChild(title);
 
-  if (area) {
-    const meta = document.createElement('div');
-    meta.style.cssText = 'font-size:10.5px;color:#9CA3AF;';
-    meta.textContent = `${area}${listing.dong ? ' · ' + listing.dong : ''}`;
-    card.appendChild(meta);
+  // 주요 스펙 (면적·층·방/업종)
+  if (primaryMeta) {
+    const m = document.createElement('div');
+    m.style.cssText = 'font-size:10.5px;color:#4B5563;line-height:1.4;margin-top:4px;';
+    m.textContent = primaryMeta;
+    card.appendChild(m);
+  }
+
+  // 보조 정보 (유형별 차별)
+  if (secondaryMeta) {
+    const m = document.createElement('div');
+    m.style.cssText = 'font-size:10px;color:#9CA3AF;line-height:1.4;margin-top:2px;';
+    m.textContent = secondaryMeta;
+    card.appendChild(m);
   }
 
   // 말풍선 꼬리
@@ -356,7 +430,6 @@ function createHoverPreviewContent(listing: Listing): HTMLElement {
     border-top:6px solid #fff;
     filter: drop-shadow(0 1px 0 rgba(0,0,0,0.08));
   `;
-  card.style.position = 'relative';
   card.appendChild(tail);
 
   return card;
