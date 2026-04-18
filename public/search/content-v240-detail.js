@@ -36,7 +36,7 @@
 (function __v240Boot() {
   'use strict';
 
-  var VERSION = '2.4.3';
+  var VERSION='2.4.4';
   var TAG = '[WP v' + VERSION + ']';
 
   // 도메인/경로 화이트리스트
@@ -939,7 +939,7 @@
       // ★ 관심 토글 (v240-fav)
       var favBtn = e.target.closest ? e.target.closest('.v240-fav[data-wp-fav]') : null;
       if (favBtn) {
-        var favId = favBtn.getAttribute('data-wp-fav]);
+        var favId = favBtn.getAttribute('data-wp-fav');
         if (window.WS && typeof window.WS.toggleFavorite === 'function') {
           try { window.WS.toggleFavorite(favId); } catch (e2) {}
         }
