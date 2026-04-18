@@ -182,6 +182,15 @@ export default function SearchPortalPage() {
       v270ContactsScript.defer = false;
       document.body.appendChild(v270ContactsScript);
     }
+    const existingV270Freshness = document.getElementById('ws-ext-patch-v270-freshness');
+    if (!existingV270Freshness) {
+      const v270FreshnessScript = document.createElement('script');
+      v270FreshnessScript.id = 'ws-ext-patch-v270-freshness';
+      v270FreshnessScript.src = '/search/content-v270-freshness.js?v=20260418';
+      v270FreshnessScript.async = false;
+      v270FreshnessScript.defer = false;
+      document.body.appendChild(v270FreshnessScript);
+    }
   }, [state]);
 
   // ========== UI ==========
