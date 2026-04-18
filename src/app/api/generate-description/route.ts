@@ -28,8 +28,10 @@ export async function POST(request: NextRequest) {
       buildingInfo, aiModel
     } = body;
 
+    // v2.6.4 hotfix: 삼항연산자의 truthy 분기가 누락되어 있던 문법 에러 복구.
     const model = aiModel === 'opus'
-      'claude-haiku-4-5-20251001';
+      ? 'claude-opus-4-6'
+      : 'claude-haiku-4-5-20251001';
 
     const dongName = dong || '';
     const guName = gu || '';

@@ -26,7 +26,7 @@
   'use strict';
   if (window.__v260_perf_installed) return;
   window.__v260_perf_installed = true;
-  var VERSION = '2.6.3';
+  var VERSION = '2.6.4';
   var TAG = '[WP v' + VERSION + ' perf]';
 
   // ====================================================================
@@ -105,11 +105,27 @@
 
   // ====================================================================
   // 3. /api/admin/auto-generate dedupe + 캐시 저장 훅
+  //    v2.6.4 HARDENING (2026-04-18):
+  //      자동 모드(autoMode:true)는 상세 모달 열기만 해도 트리거되어 토큰이 낭비된다.
+  //      → DB 의 window.WS.allListings 에서 해당 매물의 description/title 이 이미 있으면
+  //        자동 모드 호출을 즉시 차단하고 로컬 데이터로 fake success 를 반환한다.
+  //      → 캐시조차 없고 DB 도 비어있는 매물만 최초 1회 실제 호출 허용.
+  //      → 수동 버튼(_runAutoGenerate, autoMode 플래그 없음)은 그대로 통과.
   // ====================================================================
   (function installAutoGenerateHook() {
     var origFetch = window.fetch;
     if (typeof origFetch !== 'function') return;
     var inflight = {};
+
+    function findLocalListing(lid) {
+      try {
+        var list = (window.WS && window.WS.allListings) || [];
+        for (var i = 0; i < list.length; i++) {
+          if (String(list[i].id) === String(lid)) return list[i];
+        }
+      } catch(e){}
+      return null;
+    }
 
     window.fetch = function(input, init) {
       try {
@@ -120,16 +136,49 @@
           var body;
           try { body = typeof init.body === 'string' ? JSON.parse(init.body) : null; } catch(e){ body = null; }
           var lid = body && body.listingId ? String(body.listingId) : null;
+          var isAutoMode = !!(body && body.autoMode === true);
+
           if (lid) {
+            // 3-A) localStorage 7일 캐시 HIT
             var cached = getCachedAi(lid);
             if (cached) {
-              console.log(TAG + ' AI cache HIT lid=' + lid);
+              console.log(TAG + ' AI cache HIT lid=' + lid + (isAutoMode ? ' (auto)' : ' (manual)'));
               var fake = { success: true, result: cached, cached: true };
               return Promise.resolve(new Response(JSON.stringify(fake), {
                 status: 200,
                 headers: { 'Content-Type': 'application/json' }
               }));
             }
+
+            // 3-B) 자동 모드(상세보기 열기 트리거)는 DB 값이 이미 있으면 즉시 차단
+            //       → 토큰 낭비 방지. 수동 버튼은 이 분기 통과 (isAutoMode=false).
+            if (isAutoMode) {
+              var L = findLocalListing(lid);
+              var hasDbContent = L && (
+                (L.ai_description && String(L.ai_description).trim().length > 0) ||
+                (L.description && String(L.description).trim().length > 0)
+              );
+              if (hasDbContent) {
+                var synthetic = {
+                  title: L.ai_title || L.title || '',
+                  description: L.ai_description || L.description || '',
+                  keywords: Array.isArray(L.seo_keywords) ? L.seo_keywords : [],
+                  tags: Array.isArray(L.seo_tags) ? L.seo_tags : [],
+                  meta_description: L.seo_meta_description || '',
+                  ai_generated_at: L.ai_generated_at || new Date().toISOString(),
+                };
+                setCachedAi(lid, synthetic);
+                console.log(TAG + ' AI auto BLOCKED (DB has content) lid=' + lid);
+                var blocked = { success: true, result: synthetic, cached: true, blocked_reason: 'db_has_content' };
+                return Promise.resolve(new Response(JSON.stringify(blocked), {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/json' }
+                }));
+              }
+              console.log(TAG + ' AI auto PASS (DB empty) lid=' + lid);
+            }
+
+            // 3-C) dedupe — 같은 lid 로 동시에 여러 호출이 뜨면 첫 호출만 진짜 요청
             if (inflight[lid]) {
               console.log(TAG + ' AI inflight SHARE lid=' + lid);
               return inflight[lid].then(function(r){ return r.clone(); });
@@ -154,7 +203,7 @@
       } catch(e) { console.warn(TAG + ' autoGen hook error', e); }
       return origFetch.call(this, input, init);
     };
-    console.log(TAG + ' AI autoGen cache hook installed');
+    console.log(TAG + ' AI autoGen cache hook installed (v2.6.4 auto-mode DB guard)');
   })();
 
   // ====================================================================

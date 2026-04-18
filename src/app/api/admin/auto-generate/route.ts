@@ -159,11 +159,24 @@ export async function POST(req: NextRequest) {
       steps.push({ step: 'ai_generate', status: 'failed', error: e?.message || String(e) });
     }
 
-    // === STEP 4: DB 업데이트 (제목 + 설명) ===
+    // === STEP 4: DB 업데이트 (제목 + 설명 + SEO 메타) ===
+    //   v2.6.4 (2026-04-18): /map 슬라이드 패널에 seo_tags/keywords/meta_description 노출되도록
+    //   수동 AI 생성 결과를 listings 테이블에 한 번에 박제한다. 한 번 저장되면 상세보기 열 때마다
+    //   재생성이 발생하지 않고 토큰도 절약된다 (content-v260-perf.js 오버레이와 한 세트).
     if (aiResult?.success && (aiResult.title || aiResult.description)) {
       const updateData: Record<string, any> = {};
       if (aiResult.title) updateData.title = aiResult.title;
       if (aiResult.description) updateData.ai_description = aiResult.description;
+      if (Array.isArray(aiResult.keywords) && aiResult.keywords.length > 0) {
+        updateData.seo_keywords = aiResult.keywords;
+      }
+      if (Array.isArray(aiResult.tags) && aiResult.tags.length > 0) {
+        updateData.seo_tags = aiResult.tags;
+      }
+      if (typeof aiResult.meta_description === 'string' && aiResult.meta_description.trim().length > 0) {
+        updateData.seo_meta_description = aiResult.meta_description.trim().slice(0, 160);
+      }
+      updateData.ai_generated_at = new Date().toISOString();
       updateData.updated_at = new Date().toISOString();
 
     // building_info (건축물대장 정보) 저장
