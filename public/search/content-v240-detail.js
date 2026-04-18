@@ -23,7 +23,7 @@
  *   C. 기본정보 2단 배열 (4열 grid : k v k v)
  *   D. 옵션 칩 + 상세 설명 (AI SEO 버튼 제거 — 게시 준비 단계로 이관)
  *   E. 위치 · 유사매물
- *   F. 🔒 중개사 전용 (기본 정힘) — 이력·연락처·메모태그·원본
+ *   F. 🔒 중개사 전용 (기본 접힘) — 이력·연락처·메모태그·원본
  *
  * 롤백 : <script> 태그 1개 제거 후 Vercel 재배포 시 v230 5탭으로 원상복구
  *
@@ -36,7 +36,7 @@
 (function __v240Boot() {
   'use strict';
 
-  var VERSION='2.4.5';
+  var VERSION='2.4.6';
   var TAG = '[WP v' + VERSION + ']';
 
   // 도메인/경로 화이트리스트
@@ -181,9 +181,8 @@
     setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.remove(); }, 300); }, 1800);
   }
   function v243OpenBldgRegister(addr, useTxt) {
-    // v2.4.5 — 자체 API(/api/admin/building-registry)로 자동 조회 · 결과를 모달로 표시
-    var codes = null;
-    try { codes = (window.WS && window.WS._parseAddress) ? window.WS._parseAddress(addr) : null; } catch(e){}
+    // v2.4.6 — FULL API(/api/admin/building-registry-full) 사용 (주소 그대로 전달 → 서버가 Kakao로 bjdongCd 해석)
+    console.log('[WP v2.4.6] 건축물대장 조회 시작: addr=', addr, 'useTxt=', useTxt);
 
     var box = document.createElement('div');
     box.className = 'v240-ai-modal';
@@ -191,7 +190,7 @@
       '<div class="box">' +
         '<h3>🏛️ 건축물대장 조회</h3>' +
         '<div class="sub">' + v243EscHtml(addr || '-') + ' · ' + v243EscHtml(useTxt || '-') + '</div>' +
-        '<div id="v245-bldg-body" class="block"><div class="bval">⏳ 조회 중...</div></div>' +
+        '<div id="v245-bldg-body" class="block"><div class="bval">⏳ 조회 중... (Kakao geocoding → 건축물대장 API)</div></div>' +
         '<button class="close">닫기</button>' +
       '</div>';
     document.body.appendChild(box);
@@ -199,20 +198,28 @@
       if (e.target.classList.contains('close') || e.target === box) box.remove();
     });
 
-    if (!codes) {
+    if (!addr || !addr.trim()) {
       var body0 = document.getElementById('v245-bldg-body');
       if (body0) body0.innerHTML =
         '<div class="blabel">조회 불가</div>' +
-        '<div class="bval">주소에서 시군구코드/번지를 추출할 수 없습니다.<br>주소: ' + v243EscHtml(addr || '-') + '</div>';
+        '<div class="bval">주소 정보가 비어 있습니다.</div>';
       return;
     }
 
-    var qs = 'sigunguCd=' + codes.sigunguCd + '&bun=' + codes.bun + '&ji=' + codes.ji;
-    var api = (window.WS && window.WS._BUILDING_API) || 'https://wishes.co.kr/api/admin/building-registry';
+    var fullApi = 'https://wishes.co.kr/api/admin/building-registry-full';
+    var qs = 'address=' + encodeURIComponent(addr.trim());
+    console.log('[WP v2.4.6] GET ' + fullApi + '?' + qs);
 
-    fetch(api + '?' + qs, { headers: { 'Authorization': 'Bearer wishes2026' } })
-      .then(function(r){ return r.json(); })
+    fetch(fullApi + '?' + qs, {
+      credentials: 'include',
+      headers: { 'Authorization': 'Bearer wishes2026' }
+    })
+      .then(function(r){
+        console.log('[WP v2.4.6] 건축물대장 응답 status=', r.status);
+        return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
+      })
       .then(function(j){
+        console.log('[WP v2.4.6] 건축물대장 응답 데이터:', j);
         var body = document.getElementById('v245-bldg-body');
         if (!body) return;
         if (!j || !j.success || !j.data) {
@@ -223,37 +230,41 @@
           return;
         }
         var d = j.data;
+        // FULL API 필드명 (content.js 12906~12931 라인 참조) + 구식 필드명 fallback
         var rows = [
           ['건물명', d.buildingName || d.bldNm || '-'],
-          ['주용도', d.buildingPurpose || d.mainPurpsCdNm || '-'],
+          ['주용도', d.buildingPurpose || d.mainPurpsCdNm || d.mainPurpose || '-'],
           ['건물구조', d.buildingStructure || d.strctCdNm || '-'],
-          ['연면적', (d.buildingArea || d.totArea) ? ((d.buildingArea || d.totArea) + ' m²') : '-'],
+          ['건축면적', (d.buildingArea) ? (d.buildingArea + ' m²') : '-'],
+          ['연면적', (d.totalFloorArea || d.totArea) ? ((d.totalFloorArea || d.totArea) + ' m²') : '-'],
           ['대지면적', d.platArea ? (d.platArea + ' m²') : '-'],
-          ['지상층수', (d.totalFloorCount || d.grndFlrCnt) ? ((d.totalFloorCount || d.grndFlrCnt) + '층') : '-'],
+          ['지상층수', (d.totalFloors || d.totalFloorCount || d.grndFlrCnt) ? ((d.totalFloors || d.totalFloorCount || d.grndFlrCnt) + '층') : '-'],
           ['지하층수', (d.ugrndFlrCnt != null) ? (d.ugrndFlrCnt + '층') : '-'],
           ['엘리베이터', (d.elevatorCount && parseInt(d.elevatorCount,10) > 0) ? (d.elevatorCount + '대') : '없음'],
           ['주차대수', (d.parkingCount != null) ? (d.parkingCount + '대') : '-'],
-          ['사용승인일', d.useApproveDay || '-']
+          ['사용승인일', d.approvalDate || d.useApproveDay || '-']
         ];
         var rowHtml = rows.map(function(r){
           return '<div class="v245-bldg-row"><span class="v245-bldg-k">' + v243EscHtml(r[0]) + '</span><span class="v245-bldg-v">' + v243EscHtml(r[1]) + '</span></div>';
         }).join('');
         body.innerHTML =
-          '<div class="blabel">✅ 조회 완료 (자체 API)</div>' +
+          '<div class="blabel">✅ 조회 완료 (FULL API · Kakao geocode)</div>' +
           '<div class="bval">' + rowHtml + '</div>';
       })
       .catch(function(err){
+        console.error('[WP v2.4.6] 건축물대장 fetch 실패:', err);
         var body = document.getElementById('v245-bldg-body');
         if (body) body.innerHTML =
           '<div class="blabel">조회 오류</div>' +
-          '<div class="bval">' + v243EscHtml((err && err.message) || String(err)) + '</div>';
+          '<div class="bval">' + v243EscHtml((err && err.message) || String(err)) + '<br>(콘솔 F12 에서 자세한 오류 확인)</div>';
       });
   }
   function v243EscHtml(s) { return String(s||'').replace(/[&<>\"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\'':'&#39;'}[c]; }); }
   function v243OpenAIModal(L) {
-    // v2.4.5 — 자체 함수 window.WS._runAutoGenerate 직접 호출 (서버 /api/admin/auto-generate)
+    // v2.4.6 — 자체 함수 window.WS._runAutoGenerate 직접 호출 (모달 열자마자 자동 생성 시작)
     L = L || {};
     var lid = String(L.id || '');
+    console.log('[WP v2.4.6] AI 모달 오픈: lid=', lid, 'L=', L);
     if (!lid) { v243Toast('매물 ID 없음'); return; }
 
     var lidEsc = v243EscHtml(lid);
@@ -261,13 +272,13 @@
     box.className = 'v240-ai-modal';
     box.innerHTML =
       '<div class="box">' +
-        '<h3>✨ AI 매물 콘텐츠 생성</h3>' +
+        '<h3>✨ AI 매물 콘텐츠 생성 · 매물번호 ' + lidEsc + '</h3>' +
         '<div class="sub">자체 API /api/admin/auto-generate · 건축물대장 연동 · SEO 최적화</div>' +
-        '<div id="ws-ai-status-' + lidEsc + '" class="block"><div class="bval">아래 [✨ AI SEO 설명 생성] 버튼을 눌러 주세요.<br>약 10~15초 소요됩니다. 건축물대장 조회 → 최신 AI로 제목/설명/태그/키워드 생성.</div></div>' +
+        '<div id="ws-ai-status-' + lidEsc + '" class="block"><div class="bval">⏳ AI 호출 준비 중... 약 10~15초 소요됩니다.</div></div>' +
         '<div class="block"><div class="blabel">현재 설명 (생성 후 자동 교체)</div>' +
           '<div id="ws-description-text-' + lidEsc + '" class="bval">' + v243EscHtml(L.description || '-') + '</div></div>' +
         '<div style="display:flex;gap:10px;margin-top:12px">' +
-          '<button type="button" id="ws-ai-generate-' + lidEsc + '" class="v245-run">✨ AI SEO 설명 생성</button>' +
+          '<button type="button" id="ws-ai-generate-' + lidEsc + '" class="v245-run">✨ 다시 생성</button>' +
           '<button class="close">닫기</button>' +
         '</div>' +
       '</div>';
@@ -276,12 +287,69 @@
       var tgt = e.target;
       if (tgt.classList.contains('close') || tgt === box) { box.remove(); return; }
       if (tgt.id === ('ws-ai-generate-' + lid)) {
-        if (window.WS && typeof window.WS._runAutoGenerate === 'function') {
-          try { window.WS._runAutoGenerate(lid, L); } catch(err) { v243Toast('AI 호출 오류: ' + err.message); }
-        } else {
-          v243Toast('_runAutoGenerate 함수 미로드');
-        }
+        v245RunAutoGen(lid, L);
       }
+    });
+
+    // 모달이 DOM 에 붙고 ID 가 유효해진 직후에 바로 AI 생성 시작
+    setTimeout(function(){ v245RunAutoGen(lid, L); }, 80);
+  }
+  function v245RunAutoGen(lid, L) {
+    // v2.4.6 — 확장프로그램 없어도 동작하도록 자체 fetch 구현
+    console.log('[WP v2.4.6] AI 자체 fetch 호출: /api/admin/auto-generate lid=' + lid);
+    var statusEl = document.getElementById('ws-ai-status-' + lid);
+    var descEl = document.getElementById('ws-description-text-' + lid);
+    var btnEl = document.getElementById('ws-ai-generate-' + lid);
+    if (statusEl) statusEl.innerHTML = '<div class="bval" style="padding:14px;background:#f0f0ff;border-radius:8px;text-align:center;">' +
+      '<div style="font-size:14px;color:#667eea;font-weight:600;">✨ AI SEO 콘텐츠 생성 중...</div>' +
+      '<div style="font-size:11px;color:#999;margin-top:4px;">서버에서 건축물대장 조회 → 최신 AI 분석 → SEO 최적화 (약 10~15초)</div></div>';
+    if (btnEl) { btnEl.disabled = true; btnEl.style.opacity = '0.6'; btnEl.textContent = '생성 중...'; }
+
+    fetch('https://wishes.co.kr/api/admin/auto-generate', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer wishes2026'
+      },
+      body: JSON.stringify({ listingId: String(lid), style: 'trendy', aiModel: 'latest' })
+    })
+    .then(function(r){
+      console.log('[WP v2.4.6] auto-generate 응답 status=' + r.status);
+      return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
+    })
+    .then(function(data){
+      console.log('[WP v2.4.6] auto-generate 응답 데이터:', data);
+      if (data && data.success && data.result) {
+        var R = data.result;
+        if (descEl) descEl.innerHTML = v243EscHtml(R.description || '');
+        if (statusEl) {
+          var tagsHtml = (R.tags||[]).map(function(t){ return '<span style="display:inline-block;padding:3px 9px;background:#e8eaf6;color:#3f51b5;border-radius:12px;font-size:11px;margin:2px;">' + v243EscHtml(t) + '</span>'; }).join('');
+          var kwHtml = (R.keywords||[]).map(function(k){ return '<span style="display:inline-block;padding:3px 7px;background:#e8f5e9;color:#2e7d32;border-radius:4px;font-size:10px;margin:1px;">' + v243EscHtml(k) + '</span>'; }).join('');
+          statusEl.innerHTML = '<div style="padding:14px;background:#f0fff0;border-radius:8px;border:1px solid #c8e6c9;">' +
+            '<div style="font-size:14px;color:#2e7d32;font-weight:700;margin-bottom:8px;">✅ AI SEO 콘텐츠 생성 완료</div>' +
+            '<div style="font-size:13px;color:#333;margin-bottom:6px;"><strong>제목:</strong> ' + v243EscHtml(R.title||'') + '</div>' +
+            (R.meta_description ? '<div style="font-size:11px;color:#666;margin-bottom:10px;"><strong>메타설명:</strong> ' + v243EscHtml(R.meta_description) + '</div>' : '') +
+            (tagsHtml ? '<div style="margin-bottom:6px;"><strong style="font-size:11px;">태그:</strong> ' + tagsHtml + '</div>' : '') +
+            (kwHtml ? '<div><strong style="font-size:11px;">키워드:</strong> ' + kwHtml + '</div>' : '') +
+            (data.buildingInfo ? '<div style="margin-top:10px;font-size:11px;color:#888;"><strong>건축물대장:</strong> ' +
+              v243EscHtml(data.buildingInfo['건물명']||'-') + ' · ' + v243EscHtml(data.buildingInfo['사용승인일']||'-') + ' · ' + v243EscHtml(data.buildingInfo['건물구조']||'-') + '</div>' : '') +
+            '</div>';
+        }
+        v243Toast('AI SEO 생성 완료!');
+      } else {
+        var msg = (data && (data.error||data.message)) || '생성 실패';
+        if (statusEl) statusEl.innerHTML = '<div style="padding:10px;background:#fff3e0;border-radius:8px;color:#e65100;font-size:13px;">⚠️ ' + v243EscHtml(msg) + '</div>';
+        v243Toast('AI 생성 실패: ' + msg);
+      }
+    })
+    .catch(function(err){
+      console.error('[WP v2.4.6] auto-generate fetch 실패:', err);
+      if (statusEl) statusEl.innerHTML = '<div style="padding:10px;background:#ffebee;border-radius:8px;color:#c62828;font-size:13px;">❌ 네트워크 오류: ' + v243EscHtml((err && err.message)||String(err)) + '</div>';
+      v243Toast('AI 생성 오류: ' + (err && err.message));
+    })
+    .then(function(){
+      if (btnEl) { btnEl.disabled = false; btnEl.style.opacity = '1'; btnEl.textContent = '✨ 다시 생성'; }
     });
   }
   // v2.4.5 — 썸네일 클릭 명시 바인딩 (innerHTML 교체 후 호출)
@@ -306,19 +374,25 @@
       });
     });
   }
-  // 전역 delegation (상세모달 내부 버튼)
+  // 전역 delegation (상세모달 내부 버튼) — v2.4.6 에서 getListingById 제거 → allListings.find() 사용
   document.addEventListener('click', function(e){
     var card = e.target && e.target.closest ? e.target.closest('.v240-act-card') : null;
     if (!card) return;
     var act = card.getAttribute('data-act');
     if (act === 'bldg') {
       e.preventDefault();
+      console.log('[WP v2.4.6] 🏛️ 건축물대장 카드 클릭');
       v243OpenBldgRegister(card.getAttribute('data-addr')||'', card.getAttribute('data-use')||'');
     } else if (act === 'ai') {
       e.preventDefault();
       var lid = card.getAttribute('data-lid');
+      console.log('[WP v2.4.6] ✨ AI 카드 클릭, lid=', lid);
       var L = (window.WS && window.WS.__lastListing) || null;
-      if (!L && window.WS && window.WS.getListingById && lid) { try { L = window.WS.getListingById(lid); } catch(e){} }
+      if (!L && window.WS && Array.isArray(window.WS.allListings) && lid) {
+        L = window.WS.allListings.find(function(x){ return String(x.id) === String(lid); }) || null;
+        console.log('[WP v2.4.6] allListings.find 로 매물 복구:', !!L);
+      }
+      if (!L && lid) { L = { id: lid }; }
       v243OpenAIModal(L || {});
     }
   }, true);
@@ -573,7 +647,7 @@
               '<div class="v240-memos">' +
                 ['✅ 즉시입주', '🔑 열쇠보관', '📞 연락완료', '👀 현장확인필요',
                  '💰 가격협의가능', '🔨 수리필요', '⭐ 추천매물', '🚫 계약불가',
-                 '📸 사진촬영필요', '🏗️ 리모델링', '👤 집주인직거래', '🐋 서류확인중'
+                 '📸 사진촬영필요', '🏗️ 리모델링', '👤 집주인직거래', '📋 서류확인중'
                 ].map(function(m) {
                   return '<span class="v240-m" data-memo-tag="' + esc(m) + '">' + esc(m) + '</span>';
                 }).join('') +
