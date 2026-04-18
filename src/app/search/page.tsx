@@ -114,13 +114,13 @@ export default function SearchPortalPage() {
       document.body.appendChild(v240Script);
     }
 
-    // v2.6.1 성능 오버레이 SAFE (listings API dedupe 1개만) — 이미지 lazy/유사매물 lazy 제거
-    // content.js + content-v240-detail.js 위에 래핑/훅 설치 — UX 는 전혀 건드리지 않음
+    // v2.6.2 성능 오버레이 — listings API dedupe + AI 결과 localStorage 캐시(TTL 7일)
+    // 모달 열 때마다 /api/admin/auto-generate 재호출되던 문제 해결
     const existingV260Perf = document.getElementById('ws-ext-patch-v260-perf');
     if (!existingV260Perf) {
       const v260PerfScript = document.createElement('script');
       v260PerfScript.id = 'ws-ext-patch-v260-perf';
-      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418r';
+      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418s';
       v260PerfScript.async = false;
       v260PerfScript.defer = false;
       document.body.appendChild(v260PerfScript);
