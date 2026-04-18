@@ -79,7 +79,7 @@ Return ONLY a JSON object with this exact format:
                 source: {
                   type: 'base64',
                   media_type: 'image/jpeg',
-                  data: image.replace(/^data:image\\/[^;]+;base64,/, ''),
+                  data: image.replace(/^data:image\/[^;]+;base64,/, ''),
                 },
               },
               { type: 'text', text: systemPrompt },
