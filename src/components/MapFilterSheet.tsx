@@ -155,8 +155,8 @@ export default function MapFilterSheet({ open, filter, onChange, onClose, onRese
         aria-label="상세 필터"
         aria-hidden={!open}
         className={`fixed z-[70] bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-out
-          md:right-0 md:top-0 md:bottom-0 md:w-[440px] md:border-l md:border-gray-200
-          inset-x-0 bottom-0 rounded-t-3xl max-h-[92vh] md:max-h-none md:rounded-none
+          inset-x-0 bottom-0 rounded-t-3xl max-h-[92vh]
+          md:inset-x-auto md:left-auto md:right-0 md:top-0 md:bottom-0 md:w-[440px] md:max-h-none md:rounded-none md:border-l md:border-gray-200
           ${open
             ? 'translate-y-0 md:translate-x-0'
             : 'translate-y-full md:translate-y-0 md:translate-x-full pointer-events-none'
