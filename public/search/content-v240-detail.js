@@ -36,7 +36,7 @@
 (function __v240Boot() {
   'use strict';
 
-  var VERSION='2.4.9';
+  var VERSION='2.5.0';
   var TAG = '[WP v' + VERSION + ']';
 
   // 도메인/경로 화이트리스트
@@ -182,7 +182,7 @@
   }
   function v243OpenBldgRegister(addr, useTxt) {
     // v2.4.6 — FULL API(/api/admin/building-registry-full) 사용 (주소 그대로 전달 → 서버가 Kakao로 bjdongCd 해석)
-    console.log('[WP v2.4.9] 건축물대장 조회 시작: addr=', addr, 'useTxt=', useTxt);
+    console.log('[WP v2.5.0] 건축물대장 조회 시작: addr=', addr, 'useTxt=', useTxt);
 
     var box = document.createElement('div');
     box.className = 'v240-ai-modal';
@@ -208,18 +208,18 @@
 
     var fullApi = 'https://wishes.co.kr/api/admin/building-registry-full';
     var qs = 'address=' + encodeURIComponent(addr.trim());
-    console.log('[WP v2.4.9] GET ' + fullApi + '?' + qs);
+    console.log('[WP v2.5.0] GET ' + fullApi + '?' + qs);
 
     fetch(fullApi + '?' + qs, {
       credentials: 'include',
       headers: { 'Authorization': 'Bearer wishes2026' }
     })
       .then(function(r){
-        console.log('[WP v2.4.9] 건축물대장 응답 status=', r.status);
+        console.log('[WP v2.5.0] 건축물대장 응답 status=', r.status);
         return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
       })
       .then(function(j){
-        console.log('[WP v2.4.9] 건축물대장 응답 데이터:', j);
+        console.log('[WP v2.5.0] 건축물대장 응답 데이터:', j);
         var body = document.getElementById('v245-bldg-body');
         if (!body) return;
         if (!j || !j.success || !j.data) {
@@ -252,7 +252,7 @@
           '<div class="bval">' + rowHtml + '</div>';
       })
       .catch(function(err){
-        console.error('[WP v2.4.9] 건축물대장 fetch 실패:', err);
+        console.error('[WP v2.5.0] 건축물대장 fetch 실패:', err);
         var body = document.getElementById('v245-bldg-body');
         if (body) body.innerHTML =
           '<div class="blabel">조회 오류</div>' +
@@ -264,12 +264,12 @@
     // v2.4.6 — 자체 함수 window.WS._runAutoGenerate 직접 호출 (모달 열자마자 자동 생성 시작)
     L = L || {};
     var lid = String(L.id || '');
-    console.log('[WP v2.4.9] AI 모달 오픈: lid=', lid, 'L=', L);
+    console.log('[WP v2.5.0] AI 모달 오픈: lid=', lid, 'L=', L);
     if (!lid) { v243Toast('매물 ID 없음'); return; }
 
     // v2.4.8 — 이미 저장된 AI 결과 재사용 (모달 열 때마다 재생성 방지)
     var v248Saved = !!(L && (L.ai_title || L.ai_description || (L.ai_tags && L.ai_tags.length)));
-    console.log('[WP v2.4.9] AI 저장값 존재?', v248Saved, { title: L && L.ai_title, desc: L && L.ai_description });
+    console.log('[WP v2.5.0] AI 저장값 존재?', v248Saved, { title: L && L.ai_title, desc: L && L.ai_description });
 
     var lidEsc = v243EscHtml(lid);
     var box = document.createElement('div');
@@ -318,12 +318,12 @@
     if (!v248Saved) {
       setTimeout(function(){ v245RunAutoGen(lid, L); }, 80);
     } else {
-      console.log('[WP v2.4.9] AI 저장값 존재 → 자동 재생성 스킵');
+      console.log('[WP v2.5.0] AI 저장값 존재 → 자동 재생성 스킵');
     }
   }
   function v245RunAutoGen(lid, L) {
     // v2.4.6 — 확장프로그램 없어도 동작하도록 자체 fetch 구현
-    console.log('[WP v2.4.9] AI 자체 fetch 호출: /api/admin/auto-generate lid=' + lid);
+    console.log('[WP v2.5.0] AI 자체 fetch 호출: /api/admin/auto-generate lid=' + lid);
     var statusEl = document.getElementById('ws-ai-status-' + lid);
     var descEl = document.getElementById('ws-description-text-' + lid);
     var btnEl = document.getElementById('ws-ai-generate-' + lid);
@@ -342,11 +342,11 @@
       body: JSON.stringify({ listingId: String(lid), style: 'trendy', aiModel: 'latest' })
     })
     .then(function(r){
-      console.log('[WP v2.4.9] auto-generate 응답 status=' + r.status);
+      console.log('[WP v2.5.0] auto-generate 응답 status=' + r.status);
       return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
     })
     .then(function(data){
-      console.log('[WP v2.4.9] auto-generate 응답 데이터:', data);
+      console.log('[WP v2.5.0] auto-generate 응답 데이터:', data);
       if (data && data.success && data.result) {
         var R = data.result;
         // v2.4.8 — AI 결과를 L 객체 + allListings 에 저장 (재모달 오픈 시 재사용)
@@ -372,10 +372,10 @@
               _target.ai_generated_at = new Date().toISOString();
               if (R.description) _target.description = R.description;
               if (R.title) _target.title = R.title;
-              console.log('[WP v2.4.9] allListings 동기화 완료 lid=' + lid);
+              console.log('[WP v2.5.0] allListings 동기화 완료 lid=' + lid);
             }
           }
-        } catch(e){ console.warn('[WP v2.4.9] AI 저장 동기화 실패', e); }
+        } catch(e){ console.warn('[WP v2.5.0] AI 저장 동기화 실패', e); }
         if (descEl) descEl.innerHTML = v243EscHtml(R.description || '');
         if (statusEl) {
           var tagsHtml = (R.tags||[]).map(function(t){ return '<span style="display:inline-block;padding:3px 9px;background:#e8eaf6;color:#3f51b5;border-radius:12px;font-size:11px;margin:2px;">' + v243EscHtml(t) + '</span>'; }).join('');
@@ -398,7 +398,7 @@
       }
     })
     .catch(function(err){
-      console.error('[WP v2.4.9] auto-generate fetch 실패:', err);
+      console.error('[WP v2.5.0] auto-generate fetch 실패:', err);
       if (statusEl) statusEl.innerHTML = '<div style="padding:10px;background:#ffebee;border-radius:8px;color:#c62828;font-size:13px;">❌ 네트워크 오류: ' + v243EscHtml((err && err.message)||String(err)) + '</div>';
       v243Toast('AI 생성 오류: ' + (err && err.message));
     })
@@ -435,16 +435,16 @@
     var act = card.getAttribute('data-act');
     if (act === 'bldg') {
       e.preventDefault();
-      console.log('[WP v2.4.9] 🏛️ 건축물대장 카드 클릭');
+      console.log('[WP v2.5.0] 🏛️ 건축물대장 카드 클릭');
       v243OpenBldgRegister(card.getAttribute('data-addr')||'', card.getAttribute('data-use')||'');
     } else if (act === 'ai') {
       e.preventDefault();
       var lid = card.getAttribute('data-lid');
-      console.log('[WP v2.4.9] ✨ AI 카드 클릭, lid=', lid);
+      console.log('[WP v2.5.0] ✨ AI 카드 클릭, lid=', lid);
       var L = (window.WS && window.WS.__lastListing) || null;
       if (!L && window.WS && Array.isArray(window.WS.allListings) && lid) {
         L = window.WS.allListings.find(function(x){ return String(x.id) === String(lid); }) || null;
-        console.log('[WP v2.4.9] allListings.find 로 매물 복구:', !!L);
+        console.log('[WP v2.5.0] allListings.find 로 매물 복구:', !!L);
       }
       if (!L && lid) { L = { id: lid }; }
       v243OpenAIModal(L || {});
@@ -1191,47 +1191,53 @@
     box.addEventListener('click', function(e){ if (e.target === box) close(); });
     document.addEventListener('keydown', onKey, true);
     render();
-    console.log('[WP v2.4.9] 갤러리 라이트박스 오픈, 사진 ' + imgs.length + '장');
+    console.log('[WP v2.5.0] 갤러리 라이트박스 오픈, 사진 ' + imgs.length + '장');
   }
 })();
 
 
-// v2.4.8 — 큰 사진 영역 좌/우 화살표 오버레이 + 카운터
+// v2.5.0 — 큰 사진 영역 좌/우 화살표 오버레이 (MutationObserver + polling + showDetail wrap)
 (function(){
   'use strict';
-  if (window.__v248Nav) return;
-  window.__v248Nav = true;
+  if (window.__v250Nav) return;
+  window.__v250Nav = true;
+
+  function collectImgs(mainEl){
+    var imgs = [];
+    try {
+      var raw = mainEl.getAttribute('data-images') || '[]';
+      raw = raw.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+      imgs = JSON.parse(raw);
+    } catch(e){}
+    if (!Array.isArray(imgs) || imgs.length <= 1) {
+      var root = mainEl.closest('.v240-body') || document;
+      var thumbs = root.querySelectorAll('.ws-thumb[data-url]');
+      var urls = Array.prototype.map.call(thumbs, function(t){ return t.getAttribute('data-url'); }).filter(Boolean);
+      if (urls.length > 1) imgs = urls;
+    }
+    return Array.isArray(imgs) ? imgs : [];
+  }
 
   function injectOverlay(mainEl){
-    if (!mainEl || mainEl.querySelector('.v248-nav-prev')) return;
-    var imgs = [];
-    // v2.4.9 — HTML 엔티티 디코드 후 JSON.parse (1차)
-    try {
-      var _raw = mainEl.getAttribute('data-images') || '[]';
-      _raw = _raw.replace(/&quot;/g, '"').replace(/&amp;/g, '&');
-      imgs = JSON.parse(_raw);
-    } catch(e){ console.warn('[WP v2.4.9] data-images 파싱 실패', e.message); }
-    // v2.4.9 — 파싱 실패 or 단일이면 썸네일에서 fallback 수집
-    if (!Array.isArray(imgs) || imgs.length <= 1) {
-      var _thumbs = document.querySelectorAll('.ws-thumb[data-url]');
-      var _urls = Array.prototype.map.call(_thumbs, function(t){ return t.getAttribute('data-url'); }).filter(Boolean);
-      if (_urls.length > 1) imgs = _urls;
-    }
-    if (!imgs || imgs.length <= 1) return;
-    console.log('[WP v2.4.9] 큰 사진 네비 이미지 수집:', imgs.length);
+    if (!mainEl) return false;
+    if (mainEl.querySelector('.v250-nav-prev')) return false;
+    var legacy = mainEl.querySelectorAll('.v248-nav-prev, .v248-nav-next, .v248-counter');
+    Array.prototype.forEach.call(legacy, function(n){ try{ n.remove(); }catch(_){}});
+    var imgs = collectImgs(mainEl);
+    if (imgs.length <= 1) return false;
     var btnCss = 'position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;line-height:42px;text-align:center;color:#fff;font-size:28px;cursor:pointer;border-radius:50%;background:rgba(0,0,0,0.5);user-select:none;z-index:5;font-weight:300;transition:background 0.15s;';
     var prev = document.createElement('div');
-    prev.className = 'v248-nav-prev v248-nav-btn';
+    prev.className = 'v250-nav-prev v248-nav-btn v250-nav-btn';
     prev.style.cssText = btnCss + 'left:12px;';
-    prev.textContent = '\u2039';
+    prev.textContent = '‹';
     prev.title = '이전 사진';
     var next = document.createElement('div');
-    next.className = 'v248-nav-next v248-nav-btn';
+    next.className = 'v250-nav-next v248-nav-btn v250-nav-btn';
     next.style.cssText = btnCss + 'right:12px;';
-    next.textContent = '\u203a';
+    next.textContent = '›';
     next.title = '다음 사진';
     var counter = document.createElement('div');
-    counter.className = 'v248-counter';
+    counter.className = 'v250-counter';
     counter.style.cssText = 'position:absolute;bottom:10px;right:12px;color:#fff;font-size:12px;padding:4px 10px;background:rgba(0,0,0,0.55);border-radius:999px;user-select:none;pointer-events:none;z-index:5;font-family:sans-serif;';
     if (getComputedStyle(mainEl).position === 'static') mainEl.style.position = 'relative';
     mainEl.appendChild(prev);
@@ -1260,7 +1266,16 @@
     next.addEventListener('mouseenter', function(){ next.style.background='rgba(0,0,0,0.75)'; });
     next.addEventListener('mouseleave', function(){ next.style.background='rgba(0,0,0,0.5)'; });
     updateUI();
-    console.log('[WP v2.4.9] 큰 사진 네비 오버레이 주입: ' + imgs.length + '장');
+    console.log('[WP v2.5.0] 큰 사진 네비 오버레이 주입 성공: ' + imgs.length + '장');
+    return true;
+  }
+
+  function scanAndInject(label){
+    var mainEl = document.getElementById('ws-gallery-main');
+    if (mainEl) {
+      var ok = injectOverlay(mainEl);
+      if (ok) console.log('[WP v2.5.0] scan 성공 via', label);
+    }
   }
 
   var mo = new MutationObserver(function(muts){
@@ -1277,6 +1292,36 @@
     });
   });
   mo.observe(document.body, {childList:true, subtree:true});
-  var existing = document.getElementById('ws-gallery-main');
-  if (existing) injectOverlay(existing);
+
+  scanAndInject('at-init');
+
+  var pollStart = Date.now();
+  var pollId = setInterval(function(){
+    if (Date.now() - pollStart > 60000) { clearInterval(pollId); return; }
+    var mainEl = document.getElementById('ws-gallery-main');
+    if (mainEl && !mainEl.querySelector('.v250-nav-prev')) {
+      injectOverlay(mainEl);
+    }
+  }, 500);
+
+  function wrapIfExists(fnName){
+    var orig = window[fnName];
+    if (typeof orig === 'function' && !orig.__v250Wrapped) {
+      var wrapped = function(){
+        var ret = orig.apply(this, arguments);
+        setTimeout(function(){ scanAndInject('wrap-'+fnName); }, 50);
+        setTimeout(function(){ scanAndInject('wrap-'+fnName+'-200'); }, 200);
+        return ret;
+      };
+      wrapped.__v250Wrapped = true;
+      window[fnName] = wrapped;
+      console.log('[WP v2.5.0] wrapped', fnName);
+    }
+  }
+  [0, 500, 1500, 3000].forEach(function(d){
+    setTimeout(function(){
+      wrapIfExists('showDetail');
+      wrapIfExists('v243OpenAIModal');
+    }, d);
+  });
 })();
