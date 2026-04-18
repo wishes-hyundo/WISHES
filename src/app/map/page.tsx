@@ -241,47 +241,51 @@ function createGuClusterContent(guName: string, count: number): HTMLElement {
 // 동 클러스터 마커 (Level 5-6, 피터팬 스타일)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function createDongClusterContent(dongName: string, count: number): HTMLElement {
+  // 15차 — 피터팬/네모 시그니처: 단일 원형 버블 + 내부 2줄 "동명\n매물 N"
   const wrapper = document.createElement('div');
+  const size = count >= 100 ? 74 : count >= 30 ? 66 : count >= 10 ? 60 : 54;
   wrapper.style.cssText = `
-    display: flex; align-items: center; gap: 6px;
-    cursor: pointer; transform: translate(-50%, -50%);
-    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1);
-  `;
-
-  const circle = document.createElement('div');
-  const size = count >= 100 ? 52 : count >= 10 ? 46 : 40;
-  circle.style.cssText = `
     width: ${size}px; height: ${size}px; border-radius: 50%;
-    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-    color: #fff; font-size: ${count >= 100 ? '13px' : '15px'}; font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 2px 8px rgba(34,197,94,0.4), 0 0 0 3px rgba(255,255,255,0.9);
-    flex-shrink: 0;
+    background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 55%, #43a047 100%);
+    color: #fff;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 1px;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease;
+    box-shadow: 0 4px 14px rgba(27,94,32,0.45), 0 0 0 3px rgba(255,255,255,0.95);
     font-family: 'GmarketSans', sans-serif;
+    user-select: none;
   `;
-  circle.textContent = String(count);
 
-  const label = document.createElement('div');
-  label.style.cssText = `
-    background: rgba(255,255,255,0.95); color: #1a1a1a;
-    font-size: 12px; font-weight: 600; padding: 4px 10px;
-    border-radius: 12px; white-space: nowrap;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-    border: 1px solid rgba(0,0,0,0.06);
-    font-family: 'GmarketSans', sans-serif;
+  const dong = document.createElement('div');
+  const dongFont = count >= 100 ? 12 : count >= 30 ? 11.5 : 11;
+  dong.style.cssText = `
+    font-size: ${dongFont}px; font-weight: 800; letter-spacing: -0.3px;
+    line-height: 1.1; max-width: ${size - 14}px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   `;
-  label.textContent = dongName;
+  // 동명이 너무 길면 잘라냄
+  dong.textContent = dongName.length > 5 ? dongName.slice(0, 5) : dongName;
 
-  wrapper.appendChild(circle);
-  wrapper.appendChild(label);
+  const countEl = document.createElement('div');
+  countEl.style.cssText = `
+    font-size: ${count >= 100 ? 13 : 14}px; font-weight: 800;
+    letter-spacing: -0.5px; line-height: 1.05;
+    color: #FFF8E1;
+  `;
+  countEl.textContent = `${count}건`;
+
+  wrapper.appendChild(dong);
+  wrapper.appendChild(countEl);
 
   wrapper.addEventListener('mouseenter', () => {
-    wrapper.style.transform = 'translate(-50%, -50%) scale(1.08)';
-    circle.style.boxShadow = '0 4px 12px rgba(34,197,94,0.5), 0 0 0 3px rgba(255,255,255,1)';
+    wrapper.style.transform = 'translate(-50%, -50%) scale(1.1)';
+    wrapper.style.boxShadow = '0 6px 18px rgba(27,94,32,0.55), 0 0 0 4px #fff';
   });
   wrapper.addEventListener('mouseleave', () => {
     wrapper.style.transform = 'translate(-50%, -50%) scale(1)';
-    circle.style.boxShadow = '0 2px 8px rgba(34,197,94,0.4), 0 0 0 3px rgba(255,255,255,0.9)';
+    wrapper.style.boxShadow = '0 4px 14px rgba(27,94,32,0.45), 0 0 0 3px rgba(255,255,255,0.95)';
   });
 
   return wrapper;
@@ -361,72 +365,64 @@ function createHoverPreviewContent(listing: Listing): HTMLElement {
 // 개별 매물 마커 (Level 1-4)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function createPriceMarkerContent(listing: Listing, isSelected: boolean = false): HTMLElement {
+  // 15차 — 4사 시그니처 초월: solid bg + white text + 단일 텍스트 "전세 3억" / "월세 500/30"
   const priceText = listing.deal === '매매'
-    ? formatPrice(listing.price || 0)
+    ? `매매 ${formatPrice(listing.price || 0)}`
     : listing.deal === '월세'
-    ? `${formatPrice(listing.deposit)}/${listing.monthly}만`
-    : formatPrice(listing.deposit);
+    ? `월세 ${formatPrice(listing.deposit)}/${listing.monthly}`
+    : `전세 ${formatPrice(listing.deposit)}`;
 
-  const colorMap: Record<string, { bg: string; border: string; text: string; dot: string }> = {
-    '전세': { bg: '#EFF6FF', border: '#3B82F6', text: '#1D4ED8', dot: '#3B82F6' },
-    '월세': { bg: '#FFF7ED', border: '#F97316', text: '#C2410C', dot: '#F97316' },
-    '매매': { bg: '#F0FDF4', border: '#22C55E', text: '#15803D', dot: '#22C55E' },
+  // 진한 solid color — pale bg 폐기. 4사 공통: 식별력 극대화.
+  const colorMap: Record<string, { main: string; dark: string; glow: string }> = {
+    '전세': { main: '#2563EB', dark: '#1D4ED8', glow: '#2563EB55' },
+    '월세': { main: '#EA580C', dark: '#C2410C', glow: '#EA580C55' },
+    '매매': { main: '#16A34A', dark: '#15803D', glow: '#16A34A55' },
   };
   const colors = colorMap[listing.deal] || colorMap['전세'];
 
   const content = document.createElement('div');
-  // T2-3: 선택된 마커는 solid 배경 + 키 컬러 반전 + 강한 그림자로 하이라이트
-  const baseBg = isSelected ? colors.border : colors.bg;
-  const baseColor = isSelected ? '#fff' : colors.text;
   const baseShadow = isSelected
-    ? `0 6px 20px ${colors.border}66, 0 0 0 3px ${colors.border}33`
-    : '0 2px 6px rgba(0,0,0,0.15)';
-  const baseScale = isSelected ? 'scale(1.08)' : 'scale(1)';
+    ? `0 6px 18px ${colors.glow}, 0 0 0 3px #fff, 0 0 0 5px ${colors.main}`
+    : `0 2px 8px ${colors.glow}, 0 0 0 2px #fff`;
+  const baseScale = isSelected ? 'scale(1.18)' : 'scale(1)';
   content.style.cssText = `
-    background: ${baseBg}; border: 2px solid ${colors.border};
-    color: ${baseColor}; font-size: 11px; font-weight: 700;
-    padding: 4px 10px; border-radius: 20px; white-space: nowrap;
+    background: ${isSelected ? colors.dark : colors.main};
+    color: #fff;
+    font-size: 12.5px; font-weight: 800; letter-spacing: -0.2px;
+    padding: 6px 12px; border-radius: 999px; white-space: nowrap;
     cursor: pointer; box-shadow: ${baseShadow};
     transform: translate(-50%, -100%) ${baseScale};
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    transition: transform 0.18s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s ease, background 0.12s ease;
     position: relative; font-family: 'GmarketSans', sans-serif;
+    user-select: none; z-index: ${isSelected ? 100 : 1};
   `;
+  content.textContent = priceText;
 
-  const dealBadge = document.createElement('span');
-  dealBadge.style.cssText = `
-    background: ${colors.border}; color: #fff;
-    font-size: 9px; padding: 1px 5px; border-radius: 6px;
-    margin-right: 4px; font-weight: 600;
-  `;
-  dealBadge.textContent = listing.deal;
-
-  const priceSpan = document.createElement('span');
-  priceSpan.textContent = priceText;
-
-  content.appendChild(dealBadge);
-  content.appendChild(priceSpan);
-
-  // 말풍선 꼬리
+  // 말풍선 꼬리 — 두껍고 sharper (직방식)
   const tail = document.createElement('div');
   tail.style.cssText = `
-    position: absolute; bottom: -7px; left: 50%;
+    position: absolute; bottom: -6px; left: 50%;
     transform: translateX(-50%); width: 0; height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 7px solid ${colors.border};
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-top: 7px solid ${isSelected ? colors.dark : colors.main};
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,0.08));
   `;
   content.appendChild(tail);
 
   content.addEventListener('mouseenter', () => {
-    content.style.transform = 'translate(-50%, -100%) scale(1.1)';
-    content.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
-    content.style.zIndex = '100';
+    content.style.transform = 'translate(-50%, -100%) scale(1.15)';
+    content.style.boxShadow = `0 6px 18px ${colors.glow}, 0 0 0 3px #fff`;
+    content.style.zIndex = '50';
+    content.style.background = colors.dark;
+    tail.style.borderTopColor = colors.dark;
   });
   content.addEventListener('mouseleave', () => {
-    // 선택된 상태라면 base 스타일로 복귀
     content.style.transform = `translate(-50%, -100%) ${baseScale}`;
     content.style.boxShadow = baseShadow;
-    content.style.zIndex = '';
+    content.style.zIndex = isSelected ? '100' : '1';
+    content.style.background = isSelected ? colors.dark : colors.main;
+    tail.style.borderTopColor = isSelected ? colors.dark : colors.main;
   });
 
   return content;
@@ -763,10 +759,10 @@ function MapSearchPageInner() {
       });
 
     } else {
-      // ━━━ 개별 매물 마커 (줌인 상태) ━━━
+      // ━━━ 개별 매물 마커 (줌인 상태) — 15차: detail 선택 시에도 활성 상태 유지 ━━━
       validListings.forEach((listing) => {
         const position = new window.kakao.maps.LatLng(listing.lat, listing.lng);
-        const isSelected = selectedId === listing.id;
+        const isSelected = selectedId === listing.id || detailId === listing.id;
         const content = createPriceMarkerContent(listing, isSelected);
 
         content.addEventListener('click', () => {
@@ -806,13 +802,13 @@ function MapSearchPageInner() {
 
         const overlay = new window.kakao.maps.CustomOverlay({
           position, content, yAnchor: 1.5, xAnchor: 0.5,
-          zIndex: selectedId === listing.id ? 100 : 1,
+          zIndex: isSelected ? 100 : 1,
         });
         overlay.setMap(map);
         overlaysRef.current.push(overlay);
       });
     }
-  }, [listings, selectedId, zoomLevel]);
+  }, [listings, selectedId, detailId, zoomLevel]);
 
   // ━━━ T2-3: selectedId 변경 → 리스트 카드 자동 스크롤 ━━━
   useEffect(() => {
