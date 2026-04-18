@@ -451,7 +451,7 @@ function MapSearchPageInner() {
   const [mapReady, setMapReady] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(DEFAULT_ZOOM);
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
+  // 검색창은 2026 리디자인에서 항상 노출되므로 토글 state 제거됨
   const [detailId, setDetailId] = useState<number | null>(null);
   // ━━━ 지도 마커 hover → 리스트 카드 하이라이트·스크롤 연동용 (마커 rebuild 방지 위해 useEffect deps 에서 제외) ━━━
   const [mapHoveredId, setMapHoveredId] = useState<number | null>(null);
@@ -1071,21 +1071,49 @@ function MapSearchPageInner() {
 
   return (
     <div className="pt-16 h-[100dvh] flex flex-col bg-wishes-bg">
-      {/* ━━━ 필터 바 — 글래스 + 지도 위 floating 느낌 ━━━ */}
-      <div className="bg-white/90 backdrop-blur-xl border-b border-gray-200/60 shadow-[0_4px_16px_rgba(0,0,0,0.04)] shrink-0">
-        {/* 1행: 거래유형 (다중) + 상세필터 + 검색 + 초기화 + 모바일뷰 */}
-        <div className="px-4 pt-3 pb-2 flex items-center gap-2">
-          <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+      {/* ━━━ 필터 바 — 2026 미니멀 2행 구조 (검색·세그먼트·상세필터 / 프리셋 OR 활성칩) ━━━ */}
+      <div className="bg-white/95 backdrop-blur-xl border-b border-gray-200/70 shrink-0">
+        {/* Row 1 — 검색 (left flex-1) | 거래유형 세그먼트 | 상세필터 | 초기화 | 모바일뷰 */}
+        <div className="px-4 py-2.5 flex items-center gap-3">
+          {/* 검색 입력 — 항상 노출, 왼쪽 집약 */}
+          <div className="relative flex-1 min-w-0 max-w-xl">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-[15px] h-[15px] text-wishes-primary/70" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleSearchSubmit(searchQuery);
+                }
+              }}
+              placeholder="지역 · 역 · 동 검색 후 Enter (예: 강남역, 역삼동, 판교)"
+              className="w-full pl-9 pr-9 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[13px] placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-wishes-primary focus:ring-2 focus:ring-wishes-primary/15 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                aria-label="검색 초기화"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* 거래유형 세그먼트 컨트롤 — 다중 선택 유지하되 연결된 segment 모양으로 */}
+          <div className="flex bg-gray-100 rounded-lg p-0.5 shrink-0">
             {dealTypes.map((deal) => {
               const isActive = (filters.deals || []).includes(deal);
               return (
                 <button
                   key={deal}
                   onClick={() => toggleDealFilter(deal)}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-full border-2 transition-all whitespace-nowrap ${
+                  className={`px-3 py-1.5 text-[12px] font-semibold rounded-md transition-all whitespace-nowrap ${
                     isActive
-                      ? 'bg-wishes-primary text-white border-wishes-primary shadow-sm'
-                      : 'bg-white text-gray-500 border-gray-200 hover:border-wishes-primary/40 hover:text-wishes-primary'
+                      ? 'bg-wishes-primary text-white shadow-sm'
+                      : 'text-gray-600 hover:text-wishes-primary'
                   }`}
                 >
                   {deal}
@@ -1094,149 +1122,87 @@ function MapSearchPageInner() {
             })}
           </div>
 
-          <div className="ml-auto flex items-center gap-2 shrink-0">
-            {/* 상세필터 버튼 */}
-            <button
-              onClick={() => setShowFilterSheet(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full border-2 border-wishes-primary/30 bg-wishes-primary/5 text-wishes-primary hover:bg-wishes-primary hover:text-white transition-all"
-              title="상세 필터 열기"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>상세필터</span>
-              {activeFilterCount > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.5 text-[10px] bg-wishes-primary text-white rounded-full">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-
-            {/* 초기화 */}
+          {/* 상세필터 — 매물유형/면적/층/옵션 등 모든 세부 필터를 이 버튼 하나로 통합 */}
+          <button
+            onClick={() => setShowFilterSheet(true)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all shrink-0 ${
+              activeFilterCount > 0
+                ? 'bg-wishes-primary text-white shadow-sm hover:bg-wishes-primary/90'
+                : 'bg-white border border-gray-200 text-gray-700 hover:border-wishes-primary/60 hover:text-wishes-primary'
+            }`}
+            title="상세 필터"
+          >
+            <SlidersHorizontal className="w-[14px] h-[14px]" />
+            <span>상세필터</span>
             {activeFilterCount > 0 && (
-              <button
-                onClick={resetAllFilters}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-full border-2 border-red-200 bg-red-50 text-red-600 hover:bg-red-100 transition-all"
-                title="모든 필터 초기화"
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>초기화</span>
-              </button>
+              <span className="ml-0.5 min-w-[18px] px-1 py-0 text-[10px] font-bold bg-white text-wishes-primary rounded-full leading-[16px] tabular-nums">
+                {activeFilterCount}
+              </span>
             )}
+          </button>
 
-            {/* 검색 */}
+          {/* 초기화 — 활성 필터 있을 때만 */}
+          {activeFilterCount > 0 && (
             <button
-              onClick={() => setShowSearch(!showSearch)}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-full border-2 transition-all shadow-sm ${
-                showSearch
-                  ? 'bg-wishes-primary text-white border-wishes-primary'
-                  : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-primary hover:text-wishes-primary'
-              }`}
-              title="매물 검색"
+              onClick={resetAllFilters}
+              className="flex items-center gap-1 px-2.5 py-1.5 text-[11.5px] font-medium text-gray-500 hover:text-red-600 transition-colors shrink-0"
+              title="모든 필터 초기화"
             >
-              <Search className="w-3.5 h-3.5" />
-              <span>검색</span>
+              <X className="w-3.5 h-3.5" />
+              <span>초기화</span>
             </button>
+          )}
 
-            {/* 모바일 뷰 토글 */}
-            <div className="md:hidden flex bg-gray-100 rounded-lg p-0.5">
-              <button
-                onClick={() => setMobileView('map')}
-                className={`px-3 py-1 text-xs rounded-md transition-all ${
-                  mobileView === 'map' ? 'bg-white shadow text-wishes-primary font-bold' : 'text-gray-500'
-                }`}
-              >
-                <MapPin className="w-3 h-3 inline mr-1" />지도
-              </button>
-              <button
-                onClick={() => setMobileView('list')}
-                className={`px-3 py-1 text-xs rounded-md transition-all ${
-                  mobileView === 'list' ? 'bg-white shadow text-wishes-primary font-bold' : 'text-gray-500'
-                }`}
-              >
-                <List className="w-3 h-3 inline mr-1" />목록
-              </button>
-            </div>
+          {/* 모바일 뷰 토글 */}
+          <div className="md:hidden flex bg-gray-100 rounded-lg p-0.5 shrink-0">
+            <button
+              onClick={() => setMobileView('map')}
+              className={`px-2.5 py-1 text-[11px] rounded-md transition-all ${
+                mobileView === 'map' ? 'bg-white shadow text-wishes-primary font-bold' : 'text-gray-500'
+              }`}
+              aria-label="지도 보기"
+            >
+              <MapPin className="w-3 h-3 inline mr-0.5" />지도
+            </button>
+            <button
+              onClick={() => setMobileView('list')}
+              className={`px-2.5 py-1 text-[11px] rounded-md transition-all ${
+                mobileView === 'list' ? 'bg-white shadow text-wishes-primary font-bold' : 'text-gray-500'
+              }`}
+              aria-label="목록 보기"
+            >
+              <List className="w-3 h-3 inline mr-0.5" />목록
+            </button>
           </div>
         </div>
 
-        {/* 2행: 매물유형 (다중 — 빌라·단기 포함) */}
-        <div className="px-4 pb-2.5 flex gap-1.5 overflow-x-auto no-scrollbar">
-          {listingTypes.map((type) => {
-            const isActive = (filters.types || []).includes(type);
-            return (
-              <button
-                key={type}
-                onClick={() => toggleTypeFilter(type)}
-                className={`px-3 py-1 text-[11px] font-semibold rounded-full border transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-wishes-secondary text-white border-wishes-secondary'
-                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:border-wishes-secondary/50'
-                }`}
-              >
-                {type}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* 2.5행: 가격대 빠른 프리셋 칩 (14차 — 다방·직방식 1-클릭 필터) */}
-        <div className="px-4 pb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          <span className="text-[10px] font-semibold text-wishes-muted shrink-0">빠른선택</span>
-          {pricePresets.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => applyPreset(p)}
-              className="px-2.5 py-1 text-[11px] font-semibold rounded-full border border-wishes-secondary/30 bg-wishes-secondary/5 text-wishes-secondary hover:bg-wishes-secondary hover:text-white hover:border-wishes-secondary transition-all whitespace-nowrap"
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-
-        {/* 3행: 활성 필터 칩 (조건부) */}
-        {activeChips.length > 0 && (
+        {/* Row 2 — 활성 칩이 있으면 활성 칩, 없으면 빠른선택 프리셋 (둘 중 하나만) */}
+        {activeChips.length > 0 ? (
           <div className="px-4 pb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] font-semibold text-wishes-muted shrink-0">적용됨</span>
+            <span className="text-[10.5px] font-semibold text-wishes-muted shrink-0 tracking-wider">적용</span>
             {activeChips.map((chip) => (
               <button
                 key={chip.key}
                 onClick={chip.clear}
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-full bg-wishes-primary/10 text-wishes-primary border border-wishes-primary/20 hover:bg-wishes-primary/20 transition-all whitespace-nowrap"
+                className="flex items-center gap-1 px-2.5 py-[3px] text-[11px] font-medium rounded-full bg-wishes-primary/8 text-wishes-primary border border-wishes-primary/15 hover:bg-wishes-primary/15 hover:border-wishes-primary/30 transition-all whitespace-nowrap"
               >
                 <span>{chip.label}</span>
-                <X className="w-2.5 h-2.5" />
+                <X className="w-2.5 h-2.5 opacity-60" />
               </button>
             ))}
           </div>
-        )}
-
-        {/* 검색 입력창 */}
-        {showSearch && (
-          <div className="px-4 pb-3 animate-fade-in-up">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSearchSubmit(searchQuery);
-                  }
-                }}
-                placeholder="지역·역·동 입력 후 Enter (예: 강남역, 역삼동, 판교)"
-                className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary transition-all"
-                autoFocus
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-gray-300 text-white hover:bg-gray-400 transition-colors"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
+        ) : (
+          <div className="px-4 pb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <span className="text-[10.5px] font-semibold text-wishes-muted shrink-0 tracking-wider">빠른선택</span>
+            {pricePresets.map((p) => (
+              <button
+                key={p.key}
+                onClick={() => applyPreset(p)}
+                className="px-2.5 py-[3px] text-[11px] font-medium rounded-full border border-gray-200 bg-white text-gray-600 hover:border-wishes-primary/40 hover:bg-wishes-primary/5 hover:text-wishes-primary transition-all whitespace-nowrap"
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
         )}
       </div>
