@@ -26,7 +26,7 @@
   'use strict';
   if (window.__v260_perf_installed) return;
   window.__v260_perf_installed = true;
-  var VERSION = '2.6.6';
+  var VERSION = '2.6.7';
   var TAG = '[WP v' + VERSION + ' perf]';
 
   // ====================================================================
@@ -139,15 +139,22 @@
           var isAutoMode = !!(body && body.autoMode === true);
 
           if (lid) {
-            // 3-A) localStorage 7일 캐시 HIT
-            var cached = getCachedAi(lid);
-            if (cached) {
-              console.log(TAG + ' AI cache HIT lid=' + lid + (isAutoMode ? ' (auto)' : ' (manual)'));
-              var fake = { success: true, result: cached, cached: true };
-              return Promise.resolve(new Response(JSON.stringify(fake), {
-                status: 200,
-                headers: { 'Content-Type': 'application/json' }
-              }));
+            // 3-A) localStorage 7일 캐시 HIT — ★autoMode 에서만 적용★
+            //       v2.6.6 까지는 manual 요청(다시 생성 버튼) 까지 캐시로 응답해서
+            //       버튼 눌러도 같은 결과가 즉시 돌아와 화면이 안 바뀌는 "깜빡임" 버그.
+            //       v2.6.7 부터는 수동 요청이면 캐시 스킵 → 실제 서버 호출 → 새 결과로 캐시 갱신.
+            if (isAutoMode) {
+              var cached = getCachedAi(lid);
+              if (cached) {
+                console.log(TAG + ' AI cache HIT lid=' + lid + ' (auto)');
+                var fake = { success: true, result: cached, cached: true };
+                return Promise.resolve(new Response(JSON.stringify(fake), {
+                  status: 200,
+                  headers: { 'Content-Type': 'application/json' }
+                }));
+              }
+            } else {
+              console.log(TAG + ' AI cache BYPASS lid=' + lid + ' (manual regenerate)');
             }
 
             // 3-B) 자동 모드 차단 조건: ai_description ★AND★ seo_tags 둘 다 채워진 경우만
@@ -206,7 +213,7 @@
       } catch(e) { console.warn(TAG + ' autoGen hook error', e); }
       return origFetch.call(this, input, init);
     };
-    console.log(TAG + ' AI autoGen cache hook installed (v2.6.6 full-set AND guard)');
+    console.log(TAG + ' AI autoGen cache hook installed (v2.6.7 manual cache bypass)');
   })();
 
   // ====================================================================

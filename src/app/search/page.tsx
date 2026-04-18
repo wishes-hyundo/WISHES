@@ -114,14 +114,14 @@ export default function SearchPortalPage() {
       document.body.appendChild(v240Script);
     }
 
-    // v2.6.6 성능 오버레이 — ai_description AND seo_tags 둘 다 채워진 경우에만 차단 (AND 가드)
-    // v2.6.5 의 OR 조건은 구버전 매물(ai_description 만 있고 seo_tags 비어있음)에서
-    // SEO 필드가 영영 채워지지 않는 새 문제를 만들었음. AND 로 전환해 완전 박제 보장.
+    // v2.6.7 성능 오버레이 — 수동 "다시 생성" 버튼은 localStorage 캐시 우회
+    // v2.6.6 까지는 manual 요청까지 캐시로 응답해 "다시 생성" 버튼이 깜빡만 하고
+    // 실제 AI 재생성이 안 되던 버그. autoMode 없는 요청은 캐시 스킵 후 서버 호출.
     const existingV260Perf = document.getElementById('ws-ext-patch-v260-perf');
     if (!existingV260Perf) {
       const v260PerfScript = document.createElement('script');
       v260PerfScript.id = 'ws-ext-patch-v260-perf';
-      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418x';
+      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418y';
       v260PerfScript.async = false;
       v260PerfScript.defer = false;
       document.body.appendChild(v260PerfScript);
