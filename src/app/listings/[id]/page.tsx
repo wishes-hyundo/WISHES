@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const supabase = createServerClient();
     const { data: listing } = await withTimeout(supabase
       .from('listings')
-      .select('title, type, deal, dong, address, deposit, monthly, price, area_m2, source_site, ai_description, ai_keywords, ai_tags, ai_meta_description, seo_keywords, seo_tags, seo_meta_description, building_purpose, business_type, station_name')
+      .select('title, type, deal, dong, address, deposit, monthly, price, area_m2, source_site, ai_description, seo_keywords, seo_tags, seo_meta_description, building_purpose, business_type, station_name')
       .eq('id', id)
       .single());
 
@@ -44,21 +44,18 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     const title = listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
 
-    // ─ description: seo_meta_description > ai_meta_description > ai_description > fallback (검색엔진 노출용 최대 160자)
+    // ─ description: seo_meta_description > ai_description > fallback (검색엔진 노출용 최대 160자)
     const rawDesc =
       listing.seo_meta_description
-      || listing.ai_meta_description
       || listing.ai_description
       || (listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText);
     const description = String(rawDesc).replace(/\s+/g, ' ').trim().slice(0, 160);
 
-    // ─ keywords: AI·SEO 키워드/태그 통합 + 정적 기본어 (중복 제거, 공백 trim, 빈 값 필터)
+    // ─ keywords: SEO 키워드/태그 통합 + 정적 기본어 (중복 제거, 공백 trim, 빈 값 필터)
     const mergedKeywords = Array.from(new Set(
       [
         ...(Array.isArray(listing.seo_keywords) ? listing.seo_keywords : []),
-        ...(Array.isArray(listing.ai_keywords) ? listing.ai_keywords : []),
         ...(Array.isArray(listing.seo_tags) ? listing.seo_tags : []),
-        ...(Array.isArray(listing.ai_tags) ? listing.ai_tags : []),
         listing.dong, listing.type, listing.deal,
         listing.building_purpose, listing.business_type, listing.station_name,
         '부동산', '매물', '위시스부동산',
@@ -116,7 +113,7 @@ export default async function ListingPage({ params }: Props) {
         id, title, type, deal, status, dong, gu, address, address_detail,
         lat, lng, deposit, monthly, price, area_m2, area_supply_m2,
         floor_current, floor_total, rooms, bathrooms, direction, heating_type,
-        available_date, built_year, ai_description, ai_tags, ai_keywords,
+        available_date, built_year, ai_description,
         seo_tags, seo_keywords, seo_meta_description,
         building_name, building_purpose,
         parking, elevator, pet, balcony, full_option, loan_available,
