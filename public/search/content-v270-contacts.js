@@ -1,5 +1,5 @@
 /**
- * WISHES Search Contacts Overlay — v2.7.0
+ * WISHES Search Contacts Overlay — v2.7.1 hotfix
  * ============================================================
  * 목적 : 공실클럽에서 크롤링한 `contacts` 배열(JSONB)을
  *        /search 상세보기의 "관계자 연락처" 섹션에 렌더링.
@@ -13,19 +13,24 @@
  *
  * 전제 : Supabase `listings.contacts` (JSONB) 컬럼이 이미 존재
  *        (migration_contacts.sql 적용 후)
+ *
+ * v2.7.1 hotfix (2026-04-18):
+ *   - /api/admin/listings/{id} 호출 시 Authorization: Bearer wishes2026 누락으로
+ *     401 이 발생하여 contacts 가 항상 빈 배열로 fallback 되던 버그 수정.
+ *   - 실패 시 console.warn 으로 상태코드를 남겨 추후 진단 용이하게 함.
  */
 (function () {
   'use strict';
   if (window.__v270_contacts_installed) return;
   window.__v270_contacts_installed = true;
 
-  var VERSION = '2.7.0';
+  var VERSION = '2.7.1';
   var TAG = '[WP v' + VERSION + ' contacts]';
   console.log(TAG + ' installed');
 
   // ──────────────────────────────────────────────────────
   // 1. 스타일 주입
-  // ────────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────
   var STYLE_ID = 'v270-contacts-style';
   if (!document.getElementById(STYLE_ID)) {
     var st = document.createElement('style');
@@ -87,7 +92,7 @@
 
   // ──────────────────────────────────────────────────────
   // 3. 렌더러
-  // ──────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────
   function renderContacts(container, contacts, crawledAt) {
     if (!container) return;
     if (!Array.isArray(contacts) || !contacts.length) return;
@@ -140,10 +145,20 @@
   var fetchCache = {};
   function fetchContactsById(id) {
     if (fetchCache[id]) return fetchCache[id];
+    // /api/admin/listings 는 고정 관리자 토큰(wishes2026)만 허용.
+    // page.tsx prefetch 와 동일한 헤더를 사용해야 200 을 받는다.
     fetchCache[id] = fetch('/api/admin/listings/' + encodeURIComponent(id), {
       credentials: 'include',
+      headers: { Authorization: 'Bearer wishes2026' },
+      cache: 'no-cache',
     })
-      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (r) {
+        if (!r.ok) {
+          try { console.warn(TAG, 'fetch', id, 'status', r.status); } catch (e) {}
+          return null;
+        }
+        return r.json();
+      })
       .then(function (j) {
         if (!j) return null;
         var row = j.listing || j.data || j;
@@ -152,13 +167,16 @@
           crawledAt: row.contacts_crawled_at || null,
         };
       })
-      .catch(function () { return null; });
+      .catch(function (err) {
+        try { console.warn(TAG, 'fetch err', id, err); } catch (e) {}
+        return null;
+      });
     return fetchCache[id];
   }
 
   // ──────────────────────────────────────────────────────
   // 5. DOM 감시 — .v240-contacts-empty 가 나타나면 교체
-  // ─────────────────────────────────────────────────
+  // ──────────────────────────────────────────────────────
   function tryReplace() {
     var empties = document.querySelectorAll('.v240-contacts-empty');
     if (!empties.length) return;
