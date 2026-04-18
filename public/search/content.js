@@ -80,9 +80,25 @@
         }catch(e){}
       }
       function redirect(){
+        // 토큰 재검증 — 자동 갱신으로 교체되었을 수 있으므로 최신 토큰의 exp가 살아있으면 리다이렉트 취소
+        try {
+          var cur = localStorage.getItem(TKEY) || sessionStorage.getItem(TKEY);
+          if (cur) {
+            var curExp = parseExp(cur);
+            if (curExp > Date.now() + 60000) {
+              // 여유 60초 이상 → 갱신된 토큰이 유효, 리다이렉트 취소
+              return;
+            }
+          }
+        } catch(e){}
         try{ localStorage.removeItem(TKEY); sessionStorage.removeItem(TKEY); }catch(e){}
         toast("🔒 세션 만료 — 로그인 페이지로 이동합니다", true);
-        setTimeout(function(){ if(!/\/admin(\/|$|\?|#)/.test(location.pathname)) location.href="/admin"; }, 1600);
+        // 경로별 분기: /search 중개사 포털은 /login?redirect=/search, 그 외는 /admin
+        setTimeout(function(){
+          var path = location.pathname || '';
+          if (path.indexOf('/search') === 0) { location.href = '/login?redirect=/search'; return; }
+          if (!/\/admin(\/|$|\?|#)/.test(path)) location.href = '/admin';
+        }, 1600);
       }
       function scheduleChecks(){
         var tok=null; try{ tok=localStorage.getItem(TKEY)||sessionStorage.getItem(TKEY); }catch(e){}

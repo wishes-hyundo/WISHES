@@ -46,9 +46,14 @@ function LoginForm() {
         const { data: { session } } = await withTimeout(sb.auth.getSession(), 3000);
         if (session && !redirectedRef.current) {
           // 세션 유효 → ws_token 세팅 후 이동
+          // sessionStorage + localStorage 이중 저장: 탭/브라우저 재시작에도 세션 유지
           try {
-            sessionStorage.setItem('ws_token', 'admin_bridge_' + session.access_token);
-            sessionStorage.setItem('ws_login_time', Date.now().toString());
+            const tok = 'admin_bridge_' + session.access_token;
+            const now = Date.now().toString();
+            sessionStorage.setItem('ws_token', tok);
+            sessionStorage.setItem('ws_login_time', now);
+            localStorage.setItem('ws_token', tok);
+            localStorage.setItem('ws_login_time', now);
           } catch {}
           hardRedirect(redirect);
           return;
@@ -126,22 +131,33 @@ function LoginForm() {
         }
 
         // ✅ 승인된 회원 → 세션 토큰 저장
+        // sessionStorage + localStorage 이중 저장: 탭/브라우저 재시작에도 세션 유지
         try {
-          sessionStorage.setItem('ws_token', 'admin_bridge_' + (data.session?.access_token || ''));
-          sessionStorage.setItem('ws_user', JSON.stringify({
+          const tok = 'admin_bridge_' + (data.session?.access_token || '');
+          const userStr = JSON.stringify({
             email: meData.user.email,
             name: meData.user.name,
             role: meData.user.role,
             status: meData.user.status,
-          }));
-          sessionStorage.setItem('ws_login_time', Date.now().toString());
+          });
+          const now = Date.now().toString();
+          sessionStorage.setItem('ws_token', tok);
+          sessionStorage.setItem('ws_user', userStr);
+          sessionStorage.setItem('ws_login_time', now);
+          localStorage.setItem('ws_token', tok);
+          localStorage.setItem('ws_user', userStr);
+          localStorage.setItem('ws_login_time', now);
         } catch {}
 
       } catch {
         // /api/auth/me 타임아웃 → Supabase 인증은 성공했으므로 기본 토큰만 저장
         try {
-          sessionStorage.setItem('ws_token', 'admin_bridge_' + (data.session?.access_token || ''));
-          sessionStorage.setItem('ws_login_time', Date.now().toString());
+          const tok = 'admin_bridge_' + (data.session?.access_token || '');
+          const now = Date.now().toString();
+          sessionStorage.setItem('ws_token', tok);
+          sessionStorage.setItem('ws_login_time', now);
+          localStorage.setItem('ws_token', tok);
+          localStorage.setItem('ws_login_time', now);
         } catch {}
       }
 

@@ -11,6 +11,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { createAuthClient } from '@/lib/supabase';
 
 type PageState = 'loading' | 'nosession' | 'ok';
 
@@ -30,6 +31,48 @@ export default function SearchPortalPage() {
       setState('nosession');
     }
   }, []);
+
+  // ── Supabase 세션 자동 갱신 (세션 유지) ──
+  // Supabase access_token TTL = 1시간. 45분마다 refreshSession() 호출하여
+  // ws_token 을 갱신된 access_token 으로 재기록 → 탭이 오래 열려 있어도 끊기지 않음.
+  useEffect(() => {
+    if (state !== 'ok') return;
+
+    let cancelled = false;
+    const refreshAndPersist = async () => {
+      try {
+        const sb = createAuthClient();
+        const { data, error } = await sb.auth.refreshSession();
+        if (cancelled) return;
+        if (error || !data.session) return;
+        const tok = 'admin_bridge_' + data.session.access_token;
+        const now = Date.now().toString();
+        try {
+          sessionStorage.setItem('ws_token', tok);
+          sessionStorage.setItem('ws_login_time', now);
+          localStorage.setItem('ws_token', tok);
+          localStorage.setItem('ws_login_time', now);
+        } catch {}
+      } catch {}
+    };
+
+    // 첫 실행: 페이지 마운트 후 10초 뒤 (초기 로딩 방해 X)
+    const initialTimer = setTimeout(refreshAndPersist, 10000);
+    // 주기 실행: 45분마다
+    const interval = setInterval(refreshAndPersist, 45 * 60 * 1000);
+    // 탭 포커스 복귀 시도 1회 갱신 (탭 비활성 중 setInterval 일시정지 대응)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshAndPersist();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(initialTimer);
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [state]);
 
   // ── 인증 통과 시: 카카오맵 사전 초기화 + 확장프로그램 CSS/JS 주입 ──
   useEffect(() => {
@@ -85,7 +128,8 @@ export default function SearchPortalPage() {
     }
     const script = document.createElement('script');
     script.id = 'ws-ext-content';
-    script.src = '/search/content.js';
+    // 세션 지속성 핫픽스(redirect 재검증) 강제 반영용 cache-buster
+    script.src = '/search/content.js?v=20260418s2';
     script.async = false;
     document.body.appendChild(script);
 
