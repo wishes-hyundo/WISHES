@@ -94,7 +94,7 @@ export default function AdminAppointmentsPanel({ authToken }: { authToken: strin
     setError('');
     try {
       const res = await fetch('/api/admin/appointments', {
-        headers: { Authorization: `Bearer ${authToken}` },
+        headers: { Authorization: authToken },
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || '조회 실패');
@@ -123,7 +123,7 @@ export default function AdminAppointmentsPanel({ authToken }: { authToken: strin
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${authToken}`,
+          Authorization: authToken,
         },
         body: JSON.stringify({ id, ...body }),
       });
