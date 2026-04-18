@@ -36,7 +36,7 @@
 (function __v240Boot() {
   'use strict';
 
-  var VERSION='2.4.6';
+  var VERSION='2.4.7';
   var TAG = '[WP v' + VERSION + ']';
 
   // 도메인/경로 화이트리스트
@@ -182,7 +182,7 @@
   }
   function v243OpenBldgRegister(addr, useTxt) {
     // v2.4.6 — FULL API(/api/admin/building-registry-full) 사용 (주소 그대로 전달 → 서버가 Kakao로 bjdongCd 해석)
-    console.log('[WP v2.4.6] 건축물대장 조회 시작: addr=', addr, 'useTxt=', useTxt);
+    console.log('[WP v2.4.7] 건축물대장 조회 시작: addr=', addr, 'useTxt=', useTxt);
 
     var box = document.createElement('div');
     box.className = 'v240-ai-modal';
@@ -208,18 +208,18 @@
 
     var fullApi = 'https://wishes.co.kr/api/admin/building-registry-full';
     var qs = 'address=' + encodeURIComponent(addr.trim());
-    console.log('[WP v2.4.6] GET ' + fullApi + '?' + qs);
+    console.log('[WP v2.4.7] GET ' + fullApi + '?' + qs);
 
     fetch(fullApi + '?' + qs, {
       credentials: 'include',
       headers: { 'Authorization': 'Bearer wishes2026' }
     })
       .then(function(r){
-        console.log('[WP v2.4.6] 건축물대장 응답 status=', r.status);
+        console.log('[WP v2.4.7] 건축물대장 응답 status=', r.status);
         return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
       })
       .then(function(j){
-        console.log('[WP v2.4.6] 건축물대장 응답 데이터:', j);
+        console.log('[WP v2.4.7] 건축물대장 응답 데이터:', j);
         var body = document.getElementById('v245-bldg-body');
         if (!body) return;
         if (!j || !j.success || !j.data) {
@@ -252,7 +252,7 @@
           '<div class="bval">' + rowHtml + '</div>';
       })
       .catch(function(err){
-        console.error('[WP v2.4.6] 건축물대장 fetch 실패:', err);
+        console.error('[WP v2.4.7] 건축물대장 fetch 실패:', err);
         var body = document.getElementById('v245-bldg-body');
         if (body) body.innerHTML =
           '<div class="blabel">조회 오류</div>' +
@@ -264,7 +264,7 @@
     // v2.4.6 — 자체 함수 window.WS._runAutoGenerate 직접 호출 (모달 열자마자 자동 생성 시작)
     L = L || {};
     var lid = String(L.id || '');
-    console.log('[WP v2.4.6] AI 모달 오픈: lid=', lid, 'L=', L);
+    console.log('[WP v2.4.7] AI 모달 오픈: lid=', lid, 'L=', L);
     if (!lid) { v243Toast('매물 ID 없음'); return; }
 
     var lidEsc = v243EscHtml(lid);
@@ -296,7 +296,7 @@
   }
   function v245RunAutoGen(lid, L) {
     // v2.4.6 — 확장프로그램 없어도 동작하도록 자체 fetch 구현
-    console.log('[WP v2.4.6] AI 자체 fetch 호출: /api/admin/auto-generate lid=' + lid);
+    console.log('[WP v2.4.7] AI 자체 fetch 호출: /api/admin/auto-generate lid=' + lid);
     var statusEl = document.getElementById('ws-ai-status-' + lid);
     var descEl = document.getElementById('ws-description-text-' + lid);
     var btnEl = document.getElementById('ws-ai-generate-' + lid);
@@ -315,11 +315,11 @@
       body: JSON.stringify({ listingId: String(lid), style: 'trendy', aiModel: 'latest' })
     })
     .then(function(r){
-      console.log('[WP v2.4.6] auto-generate 응답 status=' + r.status);
+      console.log('[WP v2.4.7] auto-generate 응답 status=' + r.status);
       return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
     })
     .then(function(data){
-      console.log('[WP v2.4.6] auto-generate 응답 데이터:', data);
+      console.log('[WP v2.4.7] auto-generate 응답 데이터:', data);
       if (data && data.success && data.result) {
         var R = data.result;
         if (descEl) descEl.innerHTML = v243EscHtml(R.description || '');
@@ -344,7 +344,7 @@
       }
     })
     .catch(function(err){
-      console.error('[WP v2.4.6] auto-generate fetch 실패:', err);
+      console.error('[WP v2.4.7] auto-generate fetch 실패:', err);
       if (statusEl) statusEl.innerHTML = '<div style="padding:10px;background:#ffebee;border-radius:8px;color:#c62828;font-size:13px;">❌ 네트워크 오류: ' + v243EscHtml((err && err.message)||String(err)) + '</div>';
       v243Toast('AI 생성 오류: ' + (err && err.message));
     })
@@ -381,16 +381,16 @@
     var act = card.getAttribute('data-act');
     if (act === 'bldg') {
       e.preventDefault();
-      console.log('[WP v2.4.6] 🏛️ 건축물대장 카드 클릭');
+      console.log('[WP v2.4.7] 🏛️ 건축물대장 카드 클릭');
       v243OpenBldgRegister(card.getAttribute('data-addr')||'', card.getAttribute('data-use')||'');
     } else if (act === 'ai') {
       e.preventDefault();
       var lid = card.getAttribute('data-lid');
-      console.log('[WP v2.4.6] ✨ AI 카드 클릭, lid=', lid);
+      console.log('[WP v2.4.7] ✨ AI 카드 클릭, lid=', lid);
       var L = (window.WS && window.WS.__lastListing) || null;
       if (!L && window.WS && Array.isArray(window.WS.allListings) && lid) {
         L = window.WS.allListings.find(function(x){ return String(x.id) === String(lid); }) || null;
-        console.log('[WP v2.4.6] allListings.find 로 매물 복구:', !!L);
+        console.log('[WP v2.4.7] allListings.find 로 매물 복구:', !!L);
       }
       if (!L && lid) { L = { id: lid }; }
       v243OpenAIModal(L || {});
@@ -1082,4 +1082,60 @@
     }, true);
   }
 
+})();
+
+
+// v2.4.7 — 갤러리 라이트박스 + 좌/우 네비 + 키보드 네비
+(function(){
+  'use strict';
+  if (window.__v247Lightbox) return;
+  window.__v247Lightbox = true;
+  document.addEventListener('click', function(ev){
+    var m = ev.target && ev.target.closest ? ev.target.closest('#ws-gallery-main') : null;
+    if (!m) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    v247OpenLightbox(m);
+  }, true);
+  function v247OpenLightbox(mainEl){
+    var imgs = [];
+    try { imgs = JSON.parse(mainEl.getAttribute('data-images') || '[]'); } catch(e) { imgs = []; }
+    if (!imgs.length) { var bg = mainEl.style.backgroundImage || ''; var mBg = bg.match(/url\(['\"]?(.+?)['\"]?\)/); if (mBg) imgs = [mBg[1]]; }
+    if (!imgs.length) return;
+    var curIdx = parseInt(mainEl.getAttribute('data-current') || '0', 10) || 0;
+    if (curIdx < 0 || curIdx >= imgs.length) curIdx = 0;
+    var box = document.createElement('div');
+    box.id = 'v247-lightbox';
+    box.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,0.93);display:flex;align-items:center;justify-content:center;';
+    box.innerHTML =
+      '<div class="v247-close" style="position:absolute;top:18px;right:24px;color:#fff;font-size:34px;font-weight:300;cursor:pointer;width:50px;height:50px;line-height:48px;text-align:center;border-radius:50%;background:rgba(255,255,255,0.12);user-select:none;">\u00d7</div>' +
+      '<div class="v247-counter" style="position:absolute;top:22px;left:24px;color:#fff;font-size:14px;padding:6px 14px;background:rgba(255,255,255,0.14);border-radius:999px;font-family:sans-serif;"></div>' +
+      '<div class="v247-prev" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);width:56px;height:56px;line-height:52px;text-align:center;color:#fff;font-size:38px;cursor:pointer;border-radius:50%;background:rgba(255,255,255,0.14);user-select:none;">\u2039</div>' +
+      '<div class="v247-next" style="position:absolute;right:20px;top:50%;transform:translateY(-50%);width:56px;height:56px;line-height:52px;text-align:center;color:#fff;font-size:38px;cursor:pointer;border-radius:50%;background:rgba(255,255,255,0.14);user-select:none;">\u203a</div>' +
+      '<img class="v247-img" style="max-width:95vw;max-height:92vh;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,0.5);background:#111;">';
+    document.body.appendChild(box);
+    function render(){
+      box.querySelector('.v247-img').src = imgs[curIdx];
+      box.querySelector('.v247-counter').textContent = (curIdx+1) + ' / ' + imgs.length;
+      mainEl.style.backgroundImage = "url('" + imgs[curIdx] + "')";
+      mainEl.setAttribute('data-current', String(curIdx));
+      var prevBtn = box.querySelector('.v247-prev');
+      var nextBtn = box.querySelector('.v247-next');
+      if (imgs.length <= 1) { prevBtn.style.display='none'; nextBtn.style.display='none'; }
+    }
+    function close(){ document.removeEventListener('keydown', onKey, true); box.remove(); }
+    function go(delta){ curIdx = (curIdx + delta + imgs.length) % imgs.length; render(); }
+    function onKey(e){
+      if (e.key === 'Escape') { close(); e.stopPropagation(); e.preventDefault(); }
+      else if (e.key === 'ArrowLeft') { go(-1); e.stopPropagation(); e.preventDefault(); }
+      else if (e.key === 'ArrowRight') { go(1); e.stopPropagation(); e.preventDefault(); }
+    }
+    box.querySelector('.v247-close').addEventListener('click', function(e){ e.stopPropagation(); close(); });
+    box.querySelector('.v247-prev').addEventListener('click', function(e){ e.stopPropagation(); go(-1); });
+    box.querySelector('.v247-next').addEventListener('click', function(e){ e.stopPropagation(); go(1); });
+    box.addEventListener('click', function(e){ if (e.target === box) close(); });
+    document.addEventListener('keydown', onKey, true);
+    render();
+    console.log('[WP v2.4.7] 갤러리 라이트박스 오픈, 사진 ' + imgs.length + '장');
+  }
 })();
