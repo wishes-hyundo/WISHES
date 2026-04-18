@@ -453,6 +453,9 @@ function MapSearchPageInner() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
+  // ━━━ 지도 마커 hover → 리스트 카드 하이라이트·스크롤 연동용 (마커 rebuild 방지 위해 useEffect deps 에서 제외) ━━━
+  const [mapHoveredId, setMapHoveredId] = useState<number | null>(null);
+  const mapHoveredTimerRef = useRef<any>(null);
 
   // ━━━ 필터 → URL 쿼리 동기화 ━━━
   useEffect(() => {
@@ -790,8 +793,16 @@ function MapSearchPageInner() {
         content.addEventListener('mouseenter', () => {
           if (hoverTimer) clearTimeout(hoverTimer);
           hoverTimer = setTimeout(showHover, 180);
+          // 지도 → 리스트 동기화: 리스트 카드 하이라이트·스크롤 (마커 rebuild 없음)
+          if (mapHoveredTimerRef.current) clearTimeout(mapHoveredTimerRef.current);
+          setMapHoveredId(listing.id);
         });
-        content.addEventListener('mouseleave', hideHover);
+        content.addEventListener('mouseleave', () => {
+          hideHover();
+          // flicker 방지: 150ms 후 해제
+          if (mapHoveredTimerRef.current) clearTimeout(mapHoveredTimerRef.current);
+          mapHoveredTimerRef.current = setTimeout(() => setMapHoveredId(null), 150);
+        });
 
         const overlay = new window.kakao.maps.CustomOverlay({
           position, content, yAnchor: 1.5, xAnchor: 0.5,
@@ -811,6 +822,15 @@ function MapSearchPageInner() {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
   }, [selectedId]);
+
+  // ━━━ 14차: 지도 마커 hover → 리스트 카드 스크롤 + 하이라이트 (다방·직방 스타일) ━━━
+  useEffect(() => {
+    if (!mapHoveredId) return;
+    const el = document.querySelector(`[data-listing-id="${mapHoveredId}"]`);
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [mapHoveredId]);
 
   // ━━━ 리스트 카드 호버 ━━━
   const handleCardHover = useCallback((id: number | null) => {
@@ -1177,7 +1197,15 @@ function MapSearchPageInner() {
                       key={listing.id}
                       data-listing-id={listing.id}
                       onClick={() => handleListingClick(listing.id)}
-                      className={`cursor-pointer rounded-lg transition-all ${detailId === listing.id ? 'ring-2 ring-wishes-primary bg-wishes-primary/5' : selectedId === listing.id ? 'ring-2 ring-wishes-secondary/70 bg-wishes-secondary/5' : ''}`}
+                      className={`cursor-pointer rounded-lg transition-all ${
+                        detailId === listing.id
+                          ? 'ring-2 ring-wishes-primary bg-wishes-primary/5'
+                          : selectedId === listing.id
+                            ? 'ring-2 ring-wishes-secondary/70 bg-wishes-secondary/5'
+                            : mapHoveredId === listing.id
+                              ? 'ring-2 ring-wishes-secondary/40 bg-wishes-secondary/[0.04]'
+                              : ''
+                      }`}
                     >
                       <ListingCard
                         listing={listing}
