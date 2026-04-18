@@ -379,6 +379,51 @@ function buildSecondaryMeta(listing: Listing): string {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 상태 배지 산출 (NEW · 급매 · 즉시입주)
+// 기존 필드만 사용 — 신규 컬럼 없음 (features 배열 / created_at / available_date)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+interface ListingBadgeSpec {
+  label: string;
+  color: string;
+}
+
+function getListingBadges(listing: Listing): ListingBadgeSpec[] {
+  const out: ListingBadgeSpec[] = [];
+
+  // 급매 — features 배열 혹은 제목에 키워드. 최고 우선 (오렌지)
+  const featureStr = Array.isArray(listing.features)
+    ? listing.features.join(' ')
+    : '';
+  const urgent = featureStr.includes('급매') || (listing.title || '').includes('급매');
+  if (urgent) out.push({ label: '급매', color: '#F97316' });
+
+  // NEW — created_at 7일 이내 (빨강)
+  if (listing.created_at) {
+    const t = Date.parse(listing.created_at);
+    if (!Number.isNaN(t)) {
+      const days = (Date.now() - t) / (1000 * 60 * 60 * 24);
+      if (days >= 0 && days <= 7) out.push({ label: 'NEW', color: '#DC2626' });
+    }
+  }
+
+  // 즉시입주 — available_date '즉시' 혹은 이미 지난 날짜 (녹색)
+  if (listing.available_date) {
+    const s = String(listing.available_date).trim();
+    if (s && (s.includes('즉시') || s === '협의')) {
+      if (s.includes('즉시')) out.push({ label: '즉시입주', color: '#10B981' });
+    } else {
+      const t = Date.parse(s);
+      // 오늘 포함 과거 = 이미 입주 가능
+      if (!Number.isNaN(t) && t <= Date.now() + 24 * 60 * 60 * 1000) {
+        out.push({ label: '즉시입주', color: '#10B981' });
+      }
+    }
+  }
+
+  return out.slice(0, 2); // 공간상 최대 2개
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 마커 hover 미리보기 카드 (Level 1-4에서 마커 위에 표시)
 // 가격은 버블에 이미 노출 → 카드에서 제거하여 중복 제거, 유형·거래별 정보 노출
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -387,6 +432,7 @@ function createHoverPreviewContent(listing: Listing): HTMLElement {
   const titleText = displayTitle(listing).slice(0, 30);
   const primaryMeta = buildPrimaryMeta(listing);
   const secondaryMeta = buildSecondaryMeta(listing);
+  const badges = getListingBadges(listing);
 
   const card = document.createElement('div');
   card.style.cssText = `
@@ -397,6 +443,23 @@ function createHoverPreviewContent(listing: Listing): HTMLElement {
     font-family: 'GmarketSans', sans-serif; pointer-events: none;
     position: relative;
   `;
+
+  // 상태 배지 행 (제목 위)
+  if (badges.length > 0) {
+    const badgeRow = document.createElement('div');
+    badgeRow.style.cssText = 'display:flex;gap:4px;margin-bottom:5px;';
+    for (const b of badges) {
+      const chip = document.createElement('span');
+      chip.style.cssText = `
+        background:${b.color};color:#fff;
+        font-size:9.5px;font-weight:800;letter-spacing:0.02em;
+        padding:2px 6px;border-radius:4px;line-height:1.2;
+      `;
+      chip.textContent = b.label;
+      badgeRow.appendChild(chip);
+    }
+    card.appendChild(badgeRow);
+  }
 
   // 제목 (한 줄, 굵게)
   const title = document.createElement('div');
@@ -484,6 +547,22 @@ function createPriceMarkerContent(listing: Listing, isSelected: boolean = false,
   const priceSpan = document.createElement('span');
   priceSpan.textContent = priceText;
   content.appendChild(priceSpan);
+
+  // 상태 닷 — 급매/NEW/즉시입주 중 최우선 1개만 버블 우측 상단에 표시
+  const bubbleBadges = getListingBadges(listing);
+  if (bubbleBadges.length > 0) {
+    const dot = document.createElement('span');
+    dot.style.cssText = `
+      position:absolute; top:-4px; right:-4px;
+      width:10px; height:10px; border-radius:999px;
+      background:${bubbleBadges[0].color};
+      border:2px solid #fff;
+      box-shadow:0 1px 3px rgba(0,0,0,0.25);
+      pointer-events:none;
+    `;
+    dot.title = bubbleBadges[0].label;
+    content.appendChild(dot);
+  }
 
   // +N 디듑 배지 (16차: 클릭 타겟 식별용 data 속성)
   if (extraCount > 0) {
