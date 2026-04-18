@@ -39,6 +39,11 @@ interface NearbyStation {
 
 interface Props {
   id: string;
+  // 🔒 2026-04-18: 서버에서 주입한 초기 매물 데이터 (SSR prop).
+  //   - page.tsx 가 Supabase 에서 가져와 sanitize 후 전달.
+  //   - 클라이언트는 이 데이터를 "그대로" 초기 렌더에 반영하고 재조회를 건너뛴다.
+  //   - 누락/에러 시(null) 에만 /api/listings/[id] 공개 게이트로 fallback.
+  listing?: any | null;
 }
 
 // ── 최근 본 매물 관리 ──
@@ -62,17 +67,31 @@ function getRecentlyViewed(excludeId: number): number[] {
   }
 }
 
-export default function ListingDetailClient({ id }: Props) {
+export default function ListingDetailClient({ id, listing: initialListing }: Props) {
   const { user, setShowAuthModal } = useAuth();
   const isLoggedIn = !!user;
 
-  const [listing, setListing] = useState<any>(null);
-  const [images, setImages] = useState<any[]>([]);
-  const [features, setFeatures] = useState<any[]>([]);
+  // 🔒 SSR 주입 데이터에서 이미지/특징을 미리 추출하여 초기 렌더에 즉시 반영
+  //   - 크롤링 매물(source_site)은 page.tsx 에서 listing_images 를 이미 [] 로 비운 상태
+  //   - listing_features 는 [{feature: string}] 모양 → UI 호환용 [{id, feature}] 로 매핑
+  const initialImages = Array.isArray(initialListing?.listing_images)
+    ? initialListing.listing_images
+    : [];
+  const initialFeatures = Array.isArray(initialListing?.listing_features)
+    ? initialListing.listing_features.map((f: any, i: number) => ({
+        id: i,
+        feature: typeof f === 'string' ? f : f?.feature,
+      }))
+    : [];
+
+  const [listing, setListing] = useState<any>(initialListing ?? null);
+  const [images, setImages] = useState<any[]>(initialImages);
+  const [features, setFeatures] = useState<any[]>(initialFeatures);
   const [relatedListings, setRelatedListings] = useState<any[]>([]);
   const [buildingListings, setBuildingListings] = useState<any[]>([]);
   const [recentListings, setRecentListings] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  // SSR 데이터가 있으면 로딩 스켈레톤 없이 즉시 본문 렌더
+  const [loading, setLoading] = useState(!initialListing);
   const [notFound, setNotFound] = useState(false);
 
   // 주변 교통 정보 상태
@@ -137,24 +156,35 @@ export default function ListingDetailClient({ id }: Props) {
       const listingId = parseInt(id);
       const supabase = createClient();
 
-      // 메인 데이터와 부가 데이터 병렬 로드
-      const [listingResult, imagesResult, featuresResult] = await Promise.all([
-        supabase.from('listings').select('*').eq('id', listingId).single(),
-        supabase.from('listing_images').select('id, url, sort_order').eq('listing_id', listingId).order('sort_order', { ascending: true }),
-        supabase.from('listing_features').select('id, feature').eq('listing_id', listingId),
-      ]);
+      // 🔒 2026-04-18: SSR 주입 데이터 우선.
+      //   - page.tsx 에서 sanitize 를 거친 매물이 prop 으로 내려오면 그대로 사용.
+      //   - 없을 때만 공개 게이트(/api/listings/[id]) 로 fallback 하여 재조회.
+      let data: any = initialListing ?? null;
 
-      if (!listingResult.data) {
-        setNotFound(true);
+      if (!data) {
+        try {
+          const res = await fetch(`/api/listings/${listingId}`, { cache: 'no-cache' });
+          const json = await res.json();
+          if (json?.success && json.data) {
+            const { images: imgs = [], features: feats = [], ...rest } = json.data;
+            data = rest;
+            setImages(imgs);
+            // 문자열 배열 → {id, feature} 모양으로 변환 (기존 UI 호환)
+            setFeatures((feats || []).map((f: string, i: number) => ({ id: i, feature: f })));
+          }
+        } catch {
+          data = null;
+        }
+
+        if (!data) {
+          setNotFound(true);
+          setLoading(false);
+          return;
+        }
+
+        setListing(data);
         setLoading(false);
-        return;
       }
-
-      const data = listingResult.data;
-      setListing(data);
-      setImages(imagesResult.data || []);
-      setFeatures(featuresResult.data || []);
-      setLoading(false);
 
       // 최근 본 매물에 추가
       addToRecentlyViewed(listingId);
