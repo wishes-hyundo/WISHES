@@ -32,32 +32,38 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const [favoritesLoading, setFavoritesLoading] = useState(true);
   const [synced, setSynced] = useState(false);
 
-  // 로그인 시 서버에서 찜 목록 불러오기
+  // 로그인 시 서버에서 찜 목록 불러오기 (서버는 고아 자동 정리)
   useEffect(() => {
     if (user && session?.access_token) {
       if (_favLastToken === session.access_token) return;
       _favLastToken = session.access_token;
       setFavoritesLoading(true);
-      fetch('/api/favorites', {
-        headers: { 'Authorization': 'Bearer ' + session.access_token },
-      })
+
+      const headers = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token };
+
+      fetch('/api/favorites', { headers: { 'Authorization': 'Bearer ' + session.access_token } })
         .then(r => r.json())
-        .then(data => {
-          if (data.favorites) {
-            // 로컬 찜 목록과 서버 찜 목록 병합
-            const local = JSON.parse(localStorage.getItem('wishes_favorites') || '[]');
-            const merged = Array.from(new Set([...data.favorites, ...local]));
-            setFavorites(merged);
-            // 로컬에만 있는 것들 서버에 동기화
-            const newOnes = local.filter((id: number) => !data.favorites.includes(id));
-            newOnes.forEach((id: number) => {
-              fetch('/api/favorites', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + session.access_token },
-                body: JSON.stringify({ listing_id: id }),
-              }).catch(() => {});
-            });
+        .then(async data => {
+          const serverIds: number[] = Array.isArray(data?.favorites) ? data.favorites : [];
+
+          // 로컬에만 있는 항목을 서버에 upsert 시도 → 서버는 유효 매물만 남김
+          let local: number[] = [];
+          try { local = JSON.parse(localStorage.getItem('wishes_favorites') || '[]'); } catch {}
+          const newOnes = local.filter((id: number) => !serverIds.includes(id));
+
+          if (newOnes.length > 0) {
+            await Promise.allSettled(newOnes.map(id =>
+              fetch('/api/favorites', { method: 'POST', headers, body: JSON.stringify({ listing_id: id }) })
+            ));
+            // 재조회해 서버가 필터링한 최종 리스트 확보
+            const refresh = await fetch('/api/favorites', { headers: { 'Authorization': 'Bearer ' + session.access_token } })
+              .then(r => r.json()).catch(() => ({ favorites: serverIds }));
+            setFavorites(Array.isArray(refresh?.favorites) ? refresh.favorites : serverIds);
+          } else {
+            // 서버 정답 그대로 사용 (고아 배제)
+            setFavorites(serverIds);
           }
+
           setSynced(true);
           setFavoritesLoading(false);
         })

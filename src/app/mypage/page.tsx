@@ -168,9 +168,13 @@ export default function MyPage() {
   if (authLoading) return (<div className="min-h-screen flex items-center justify-center pt-20"><Loader2 className="w-8 h-8 animate-spin text-wishes-secondary" /></div>);
   if (!user) return null;
 
+  // 실제 로드된 매물 기준으로 카운트 (고아/삭제된 ID 제외)
+  const visibleFavCount = favListings.length;
+  const visibleRecentCount = recentListings.length;
+
   const tabs = [
-    { id: 'favorites' as TabType, label: '찜한 매물', icon: Heart, count: favorites.length },
-    { id: 'recent' as TabType, label: '최근 본', icon: Clock, count: recentlyViewed.length },
+    { id: 'favorites' as TabType, label: '찜한 매물', icon: Heart, count: visibleFavCount },
+    { id: 'recent' as TabType, label: '최근 본', icon: Clock, count: visibleRecentCount },
     { id: 'saved' as TabType, label: '저장 검색', icon: Bookmark, count: savedSearches.length },
     { id: 'profile' as TabType, label: '내 정보', icon: Settings },
     { id: 'alerts' as TabType, label: '알림 설정', icon: Bell },
@@ -201,8 +205,8 @@ export default function MyPage() {
             <button onClick={signOut} className="flex items-center gap-2 px-4 py-2 text-sm text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"><LogOut className="w-4 h-4" />로그아웃</button>
           </div>
           <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-gray-100">
-            <div className="text-center"><p className="text-2xl font-bold text-wishes-secondary">{favorites.length}</p><p className="text-xs text-wishes-muted mt-1">찜한 매물</p></div>
-            <div className="text-center"><p className="text-2xl font-bold text-wishes-accent">{recentlyViewed.length}</p><p className="text-xs text-wishes-muted mt-1">최근 본 매물</p></div>
+            <div className="text-center"><p className="text-2xl font-bold text-wishes-secondary">{visibleFavCount}</p><p className="text-xs text-wishes-muted mt-1">찜한 매물</p></div>
+            <div className="text-center"><p className="text-2xl font-bold text-wishes-accent">{visibleRecentCount}</p><p className="text-xs text-wishes-muted mt-1">최근 본 매물</p></div>
             <div className="text-center"><p className="text-2xl font-bold text-wishes-primary">{savedSearches.length}</p><p className="text-xs text-wishes-muted mt-1">저장 검색</p></div>
           </div>
         </div>
