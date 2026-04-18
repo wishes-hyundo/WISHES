@@ -711,19 +711,59 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 </div>
               </div>
 
-              {/* 매물설명 (AI 생성 - 고객 노출용) */}
-              {listing.ai_description && (
-                <div
-                  id="section-description"
-                  ref={(el) => { sectionsRef.current.description = el; }}
-                  className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
-                >
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">매물설명</h3>
-                  <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                    {listing.ai_description}
-                  </p>
-                </div>
-              )}
+              {/* 매물설명 (AI 생성 - 고객 노출용) + SEO 태그/키워드 병기 (검색 노출 최적화) */}
+              {(() => {
+                const seoTagChips = Array.from(new Set(
+                  [
+                    ...(Array.isArray((listing as any).seo_tags) ? (listing as any).seo_tags : []),
+                    ...(Array.isArray((listing as any).ai_tags) ? (listing as any).ai_tags : []),
+                  ]
+                    .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
+                    .filter((t: string) => t.length > 0)
+                )).slice(0, 12);
+                const seoKeywordLine = Array.from(new Set(
+                  [
+                    ...(Array.isArray((listing as any).seo_keywords) ? (listing as any).seo_keywords : []),
+                    ...(Array.isArray((listing as any).ai_keywords) ? (listing as any).ai_keywords : []),
+                  ]
+                    .map((k: any) => (typeof k === 'string' ? k.trim() : ''))
+                    .filter((k: string) => k.length > 0)
+                )).slice(0, 20).join(', ');
+                const hasDesc = !!listing.ai_description;
+                const hasSeo = seoTagChips.length > 0 || seoKeywordLine.length > 0;
+                if (!hasDesc && !hasSeo) return null;
+                return (
+                  <div
+                    id="section-description"
+                    ref={(el) => { sectionsRef.current.description = el; }}
+                    className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
+                  >
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">매물설명</h3>
+                    {hasDesc && (
+                      <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                        {listing.ai_description}
+                      </p>
+                    )}
+                    {seoTagChips.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {seoTagChips.map((t, i) => (
+                          <span
+                            key={i}
+                            className="inline-flex items-center text-[11px] font-medium text-wishes-primary bg-wishes-primary/5 border border-wishes-primary/15 px-2 py-0.5 rounded-full"
+                          >
+                            #{t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {seoKeywordLine && (
+                      <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
+                        {seoKeywordLine}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 특이사항 */}
               {listing.special_notes && (
