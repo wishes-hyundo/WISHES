@@ -1142,9 +1142,88 @@ function MapSearchPageInner() {
         onReset={resetAllFilters}
       />
 
-      {/* ━━━ 지도 + 리스트 ━━━ */}
+      {/* ━━━ 리스트 + 지도 (2패널: 좌측 리스트 / 우측 지도 — 다방·직방·피터팬·네모 표준) ━━━ */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* 카카오맵 영역 */}
+        {/* ━━━ 매물 리스트 (좌측 고정 패널) — 1차 브라우징 영역 ━━━ */}
+        <aside className={`${mobileView === 'map' ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] bg-white md:border-r border-gray-200 shrink-0 flex-col z-10`}>
+          {/* 리스트 헤더 — sticky: 스크롤해도 카운트 상시 노출 */}
+          <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center justify-between shrink-0">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[13px] font-semibold text-gray-700">매물</span>
+              <strong className="text-[17px] font-extrabold text-wishes-primary tabular-nums">
+                {searchQuery ? filteredListings.length : total}
+              </strong>
+              <span className="text-[12px] font-medium text-wishes-muted">건</span>
+              {searchQuery && (
+                <span className="ml-1 text-[11px] text-wishes-muted truncate max-w-[120px]">
+                  &quot;{searchQuery}&quot;
+                </span>
+              )}
+            </div>
+            {filteredListings.length > 20 && (
+              <div className="text-[10.5px] text-wishes-muted font-medium">
+                {Math.min(visibleCount, filteredListings.length)}/{filteredListings.length}
+              </div>
+            )}
+          </div>
+
+          {/* 스크롤 영역 */}
+          <div className="flex-1 overflow-y-auto custom-scrollbar">
+            <div className="p-3 space-y-2.5">
+              {filteredListings.length > 0 ? (
+                <>
+                  {filteredListings.slice(0, visibleCount).map((listing) => (
+                    <div
+                      key={listing.id}
+                      data-listing-id={listing.id}
+                      onClick={() => handleListingClick(listing.id)}
+                      className={`cursor-pointer rounded-lg transition-all ${detailId === listing.id ? 'ring-2 ring-wishes-primary bg-wishes-primary/5' : selectedId === listing.id ? 'ring-2 ring-wishes-secondary/70 bg-wishes-secondary/5' : ''}`}
+                    >
+                      <ListingCard
+                        listing={listing}
+                        compact
+                        noLink
+                        onHover={handleCardHover}
+                      />
+                    </div>
+                  ))}
+                  {/* 무한스크롤 센티넬 */}
+                  {visibleCount < filteredListings.length && (
+                    <div
+                      ref={loadMoreSentinelRef}
+                      className="flex items-center justify-center py-4 text-xs text-wishes-muted"
+                    >
+                      <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
+                      다음 {Math.min(20, filteredListings.length - visibleCount)}건 불러오는 중…
+                    </div>
+                  )}
+                  {visibleCount >= filteredListings.length && filteredListings.length > 20 && (
+                    <div className="flex items-center justify-center py-4 text-[11px] text-wishes-muted">
+                      이 영역의 모든 매물을 불러왔습니다
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-16 text-gray-400">
+                  <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
+                  <p className="text-sm font-medium">
+                    {loading ? '검색 중...' : searchQuery ? '검색 결과가 없습니다' : '이 영역에 매물이 없습니다'}
+                  </p>
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="mt-2 text-xs text-wishes-secondary hover:underline"
+                    >
+                      검색어 초기화
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </aside>
+
+        {/* ━━━ 카카오맵 영역 (우측 flex-1) — 2차 맥락/지역감 영역 ━━━ */}
         <div className={`relative ${mobileView === 'list' ? 'hidden md:block' : ''} flex-1`}>
           <div ref={mapRef} className="w-full h-full kakao-map-container" />
 
@@ -1235,83 +1314,10 @@ function MapSearchPageInner() {
           )}
         </div>
 
-        {/* ━━━ 매물 리스트 (우측 고정) ━━━ */}
-        <div className={`${mobileView === 'map' ? 'hidden md:block' : ''} w-full md:w-[380px] bg-white border-l border-gray-200 shrink-0 overflow-y-auto custom-scrollbar`}>
-          <div className="p-4 space-y-3">
-            {/* 리스트 헤더 */}
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-medium text-gray-700">
-                매물 <strong className="text-wishes-primary">{searchQuery ? filteredListings.length : total}</strong>건
-                {searchQuery && (
-                  <span className="ml-1 text-xs text-wishes-muted">
-                    &quot;{searchQuery}&quot; 검색결과
-                  </span>
-                )}
-              </div>
-              {filteredListings.length > 20 && (
-                <div className="text-[11px] text-wishes-muted">
-                  {Math.min(visibleCount, filteredListings.length)} / {filteredListings.length} 표시
-                </div>
-              )}
-            </div>
-
-            {/* 매물 카드 리스트 — T3-2: visibleCount 기준 가시 렌더 */}
-            {filteredListings.length > 0 ? (
-              <>
-                {filteredListings.slice(0, visibleCount).map((listing) => (
-                  <div
-                    key={listing.id}
-                    data-listing-id={listing.id}
-                    onClick={() => handleListingClick(listing.id)}
-                    className={`cursor-pointer rounded-lg transition-all ${detailId === listing.id ? 'ring-2 ring-wishes-primary bg-wishes-primary/5' : selectedId === listing.id ? 'ring-2 ring-wishes-secondary/70 bg-wishes-secondary/5' : ''}`}
-                  >
-                    <ListingCard
-                      listing={listing}
-                      compact
-                      noLink
-                      onHover={handleCardHover}
-                    />
-                  </div>
-                ))}
-                {/* T3-2: 무한스크롤 센티넬 — 화면에 들어오면 +20건 */}
-                {visibleCount < filteredListings.length && (
-                  <div
-                    ref={loadMoreSentinelRef}
-                    className="flex items-center justify-center py-4 text-xs text-wishes-muted"
-                  >
-                    <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
-                    다음 {Math.min(20, filteredListings.length - visibleCount)}건 불러오는 중…
-                  </div>
-                )}
-                {visibleCount >= filteredListings.length && filteredListings.length > 20 && (
-                  <div className="flex items-center justify-center py-4 text-[11px] text-wishes-muted">
-                    이 영역의 모든 매물을 불러왔습니다
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-16 text-gray-400">
-                <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-                <p className="text-sm font-medium">
-                  {loading ? '검색 중...' : searchQuery ? '검색 결과가 없습니다' : '이 영역에 매물이 없습니다'}
-                </p>
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className="mt-2 text-xs text-wishes-secondary hover:underline"
-                  >
-                    검색어 초기화
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ━━━ 매물 상세 슬라이드 패널 (데스크탑: 지도 위 오버레이 / 모바일: 전체화면) ━━━ */}
+        {/* ━━━ 매물 상세 슬라이드 패널 (데스크탑: 리스트 우측에서 슬라이드 → 지도 위 오버레이 / 모바일: 전체화면) ━━━ */}
         <div
-          className={`hidden md:block absolute top-0 bottom-0 right-[380px] z-30 bg-white border-r border-gray-200 shadow-2xl transition-all duration-300 ease-in-out ${detailId ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none'}`}
-          style={{ width: '420px' }}
+          className={`hidden md:block absolute top-0 bottom-0 left-[420px] z-30 bg-white border-l border-gray-200 shadow-2xl transition-all duration-300 ease-in-out ${detailId ? 'translate-x-0 opacity-100' : '-translate-x-full opacity-0 pointer-events-none'}`}
+          style={{ width: '440px' }}
         >
           {detailId && (
             <MapListingPanel
