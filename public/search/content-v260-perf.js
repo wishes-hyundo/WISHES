@@ -26,7 +26,7 @@
   'use strict';
   if (window.__v260_perf_installed) return;
   window.__v260_perf_installed = true;
-  var VERSION = '2.6.4';
+  var VERSION = '2.6.5';
   var TAG = '[WP v' + VERSION + ' perf]';
 
   // ====================================================================
@@ -150,32 +150,35 @@
               }));
             }
 
-            // 3-B) 자동 모드(상세보기 열기 트리거)는 DB 값이 이미 있으면 즉시 차단
-            //       → 토큰 낭비 방지. 수동 버튼은 이 분기 통과 (isAutoMode=false).
+            // 3-B) 자동 모드(상세보기 열기 트리거)는 ★ai_description★ 이 있을 때만 차단
+            //       v2.6.4 버그 수정: 예전 가드는 일반 description(크롤링 원본)까지 "있음"으로
+            //       판정해 모든 매물의 AI 자동 생성이 영구 차단되는 문제가 있었음.
+            //       → /map 패널에 seo_tags/keywords 가 끝내 저장되지 않아 빈 화면으로 보이던 근본 원인.
+            //       v2.6.5 부터는 오직 ai_description (또는 seo_tags) 이 이미 채워져 있을 때만 차단.
+            //       수동 버튼(_runAutoGenerate)은 autoMode 플래그 없이 오므로 이 분기 통과.
             if (isAutoMode) {
               var L = findLocalListing(lid);
-              var hasDbContent = L && (
-                (L.ai_description && String(L.ai_description).trim().length > 0) ||
-                (L.description && String(L.description).trim().length > 0)
-              );
-              if (hasDbContent) {
+              var hasAiDesc = L && L.ai_description && String(L.ai_description).trim().length > 0;
+              var hasAiTags = L && Array.isArray(L.seo_tags) && L.seo_tags.length > 0;
+              var hasAiContent = hasAiDesc || hasAiTags;
+              if (hasAiContent) {
                 var synthetic = {
                   title: L.ai_title || L.title || '',
-                  description: L.ai_description || L.description || '',
+                  description: L.ai_description || '',
                   keywords: Array.isArray(L.seo_keywords) ? L.seo_keywords : [],
                   tags: Array.isArray(L.seo_tags) ? L.seo_tags : [],
                   meta_description: L.seo_meta_description || '',
                   ai_generated_at: L.ai_generated_at || new Date().toISOString(),
                 };
                 setCachedAi(lid, synthetic);
-                console.log(TAG + ' AI auto BLOCKED (DB has content) lid=' + lid);
-                var blocked = { success: true, result: synthetic, cached: true, blocked_reason: 'db_has_content' };
+                console.log(TAG + ' AI auto BLOCKED (DB has ai_description) lid=' + lid);
+                var blocked = { success: true, result: synthetic, cached: true, blocked_reason: 'db_has_ai_content' };
                 return Promise.resolve(new Response(JSON.stringify(blocked), {
                   status: 200,
                   headers: { 'Content-Type': 'application/json' }
                 }));
               }
-              console.log(TAG + ' AI auto PASS (DB empty) lid=' + lid);
+              console.log(TAG + ' AI auto PASS (ai_description empty) lid=' + lid);
             }
 
             // 3-C) dedupe — 같은 lid 로 동시에 여러 호출이 뜨면 첫 호출만 진짜 요청
@@ -203,7 +206,7 @@
       } catch(e) { console.warn(TAG + ' autoGen hook error', e); }
       return origFetch.call(this, input, init);
     };
-    console.log(TAG + ' AI autoGen cache hook installed (v2.6.4 auto-mode DB guard)');
+    console.log(TAG + ' AI autoGen cache hook installed (v2.6.5 ai_description-only guard)');
   })();
 
   // ====================================================================

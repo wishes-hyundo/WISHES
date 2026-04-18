@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { listingId, style, aiModel } = body;
+    const { listingId, style, aiModel, autoMode } = body;
 
     if (!listingId) {
       return NextResponse.json({ success: false, error: 'listingId required' }, { status: 400, headers: CORS_HEADERS });
@@ -48,6 +48,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Listing not found: ' + (listingErr?.message || '') }, { status: 404, headers: CORS_HEADERS });
     }
     steps.push({ step: 'listing_fetch', status: 'ok', data: { id: listing.id, address: listing.address } });
+
+    // === STEP 1-B: v2.6.5 서버단 자동호출 차단 가드 ===
+    //   autoMode=true (상세보기 오픈 트리거) 요청에서 이미 ai_description 이 채워져 있다면
+    //   Anthropic 호출 없이 기존 DB 값을 그대로 반환. 프론트 오버레이가 우회되는 케이스
+    //   (외부 스크립트, admin 직접 호출 등)에서도 토큰이 새지 않도록 마지막 방어선.
+    //   수동 버튼(_runAutoGenerate)은 autoMode 플래그 없이 오므로 정상 통과.
+    if (autoMode === true) {
+      const hasAi =
+        typeof listing.ai_description === 'string' &&
+        listing.ai_description.trim().length > 0;
+      if (hasAi) {
+        return NextResponse.json({
+          success: true,
+          listingId,
+          pipeline_status: 'skipped',
+          blocked_reason: 'db_has_ai_content',
+          steps: [{ step: 'server_guard', status: 'skipped', error: 'autoMode blocked: ai_description exists' }],
+          result: {
+            title: listing.ai_title || listing.title || '',
+            description: listing.ai_description,
+            keywords: Array.isArray(listing.seo_keywords) ? listing.seo_keywords : [],
+            tags: Array.isArray(listing.seo_tags) ? listing.seo_tags : [],
+            meta_description: listing.seo_meta_description || '',
+          },
+          buildingInfo: listing.building_info || null,
+        }, { headers: CORS_HEADERS });
+      }
+    }
 
     // === STEP 2: 건축물대장 조회 (주소 기반) ===
     let buildingInfo: any = null;
