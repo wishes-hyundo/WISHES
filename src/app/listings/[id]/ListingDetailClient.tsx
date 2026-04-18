@@ -277,9 +277,10 @@ export default function ListingDetailClient({ id }: Props) {
           map,
         });
 
-        // 인포윈도우 (동 단위까지만 표시)
+        // 인포윈도우: 로그인 = 제목 우선(제목에 주소가 섞여도 본인 확인 OK), 비로그인 = 항상 동 단위만 (title 우회 차단)
         const displayAddress = isLoggedIn ? (listing.address || '매물 위치') : (listing.dong || '매물 위치');
-        const infoContent = `<div style="padding:6px 10px;font-size:12px;white-space:nowrap;font-weight:600;">${listing.title || displayAddress}</div>`;
+        const label = isLoggedIn ? (listing.title || displayAddress) : displayAddress;
+        const infoContent = `<div style="padding:6px 10px;font-size:12px;white-space:nowrap;font-weight:600;">${label}</div>`;
         const infoWindow = new kakao.maps.InfoWindow({
           content: infoContent,
           removable: true,

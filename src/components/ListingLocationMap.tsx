@@ -46,8 +46,8 @@ export default function ListingLocationMap({ lat, lng, address, title }: Props) 
         // 마커
         const marker = new kakao.maps.Marker({ position: center, map });
 
-        // 인포윈도우 (주소 또는 매물명)
-        const label = (title || address || '매물 위치').toString().slice(0, 40);
+        // 인포윈도우 (마스킹된 주소 우선 — title에 주소가 섞인 크롤링 매물 누수 방지)
+        const label = (address || title || '매물 위치').toString().slice(0, 40);
         const infowindow = new kakao.maps.InfoWindow({
           content: `<div style="padding:6px 10px;font-size:12px;font-weight:600;white-space:nowrap;color:#0f172a;">${label}</div>`,
         });

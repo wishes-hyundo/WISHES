@@ -395,7 +395,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               lat={listing.lat}
               lng={listing.lng}
               address={displayAddressByAuth(listing.address, listing.dong, isAuthed)}
-              title={listing.title || ''}
+              title={isAuthed ? (listing.title || '') : ''}
             />
           </div>
         )}
