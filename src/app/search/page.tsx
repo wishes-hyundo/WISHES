@@ -95,7 +95,7 @@ export default function SearchPortalPage() {
     if (!existingPatch) {
       const patchScript = document.createElement('script');
       patchScript.id = 'ws-ext-patch';
-      patchScript.src = '/search/content-v230-patch.js?v=20260417';
+      patchScript.src = '/search/content-v230-patch.js?v=20260502';
       patchScript.async = false;
       patchScript.defer = false;
       document.body.appendChild(patchScript);
