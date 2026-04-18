@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { invalidateCache } from '@/lib/cache';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const JUNK_RE: RegExp[] = [
   /^인쇄$/, /^확대보기$/, /^연락처보기$/, /^네이버전송/, /^정보요청$/,
@@ -27,8 +28,7 @@ function isJunk(k: string, v: any): boolean {
 }
 
 export async function GET(request: NextRequest) {
-  const token = new URL(request.url).searchParams.get('token');
-  if (token !== 'wishes2026') {
+  if (!verifyAdminAuth(request)) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

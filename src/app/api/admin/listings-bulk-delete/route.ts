@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
-
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 /**
  * POST /api/admin/listings-bulk-delete
@@ -10,8 +9,7 @@ const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
  */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || authHeader !== `Bearer ${ADMIN_TOKEN}`) {
+    if (!verifyAdminAuth(request)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

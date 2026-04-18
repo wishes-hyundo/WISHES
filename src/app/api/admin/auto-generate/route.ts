@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
 
 const CORS_HEADERS = {
@@ -23,8 +23,7 @@ export async function OPTIONS() {
  */
 export async function POST(req: NextRequest) {
   try {
-    const auth = req.headers.get('authorization');
-    if (!auth || auth.split(' ')[1] !== ADMIN_TOKEN) {
+    if (!verifyAdminAuth(req)) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
     }
 

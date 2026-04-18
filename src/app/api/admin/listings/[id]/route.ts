@@ -6,15 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
-
-/**
- * 인증 검증 헬퍼 함수
- */
-function verifyAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const password = authHeader?.replace('Bearer ', '');
-  return password === 'wishes2026';
-}
+import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 
 /**
  * GET /api/admin/listings/[id] - 매물 상세 조회 (이미지 포함)

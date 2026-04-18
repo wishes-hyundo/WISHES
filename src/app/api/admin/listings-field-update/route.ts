@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
-
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const ALLOWED_FIELDS = [
   'title', 'description', 'type', 'deal',
@@ -22,8 +21,7 @@ const ALLOWED_FIELDS = [
 // PUT: Update single listing fields
 export async function PUT(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || authHeader !== `Bearer ${ADMIN_TOKEN}`) {
+    if (!verifyAdminAuth(request)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -73,8 +71,7 @@ export async function PUT(request: NextRequest) {
 // POST: Bulk update multiple listings
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || authHeader !== `Bearer ${ADMIN_TOKEN}`) {
+    if (!verifyAdminAuth(request)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

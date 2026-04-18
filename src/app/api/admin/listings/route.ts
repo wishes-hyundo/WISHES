@@ -137,17 +137,7 @@ function keepThumbnailOnly(row: any): any {
   return row;
 }
 
-function verifyAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const token = authHeader?.replace('Bearer ', '') || '';
-  if (token === 'wishes2026') return true;
-  if (token.startsWith('admin_bridge_')) return true;
-  // JWT 형식 (header.payload.signature) 이면 통과
-  if (token.startsWith('eyJ') && token.split('.').length === 3 && token.length > 40) return true;
-  // 쿼리파라미터 인증 (크롤러 no-cors 모드)
-  const { searchParams } = new URL(request.url);
-  return searchParams.get('token') === 'wishes2026';
-}
+import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 
 /**
  * GET /api/admin/listings - 모든 매물 조회 (관리자용)

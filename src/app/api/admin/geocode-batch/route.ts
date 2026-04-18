@@ -5,17 +5,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 
 const KAKAO_REST_KEY = process.env.KAKAO_REST_API_KEY || '';
-
-// 인증 검증
-function verifyAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const password = authHeader?.replace('Bearer ', '');
-  if (password === 'wishes2026') return true;
-  const { searchParams } = new URL(request.url);
-  return searchParams.get('token') === 'wishes2026';
-}
 
 // 카카오 주소 → 좌표 변환
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {

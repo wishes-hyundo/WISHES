@@ -4,14 +4,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { sendAdminNewsletter } from '@/lib/email';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
-  const auth = request.headers.get('authorization')?.replace('Bearer ', '');
-  if (auth !== 'wishes2026') {
+  if (!verifyAdminAuth(request)) {
     return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
   }
 

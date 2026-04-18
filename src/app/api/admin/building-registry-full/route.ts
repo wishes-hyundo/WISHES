@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
@@ -39,8 +40,7 @@ async function resolveAddress(address: string) {
 }
 
 export async function GET(request: NextRequest) {
-  const authHeader = request.headers.get('authorization');
-  if (!authHeader || authHeader !== `Bearer ${ADMIN_TOKEN}`) {
+  if (!verifyAdminAuth(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

@@ -8,12 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
-
-function verifyAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const password = authHeader?.replace('Bearer ', '');
-  return password === 'wishes2026';
-}
+import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 
 export async function GET(request: NextRequest) {
   try {

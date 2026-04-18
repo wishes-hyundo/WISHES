@@ -1,13 +1,13 @@
 // GET /api/admin/subscribers — 알림 구독자 리스트 (T5-7)
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
-  const auth = request.headers.get('authorization')?.replace('Bearer ', '');
-  if (auth !== 'wishes2026') {
+  if (!verifyAdminAuth(request)) {
     return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
   }
 

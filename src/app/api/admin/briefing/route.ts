@@ -11,15 +11,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { cached } from '@/lib/cache';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const password = authHeader?.replace('Bearer ', '');
-    if (password !== 'wishes2026') {
+    if (!verifyAdminAuth(request)) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }

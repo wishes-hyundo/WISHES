@@ -7,15 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { storage } from '@/lib/storage';
 import sharp from 'sharp';
-
-/**
- * 인증 검증 헬퍼 함수
- */
-function verifyAuth(request: NextRequest): boolean {
-  const authHeader = request.headers.get('authorization');
-  const password = authHeader?.replace('Bearer ', '');
-  return password === 'wishes2026';
-}
+import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 
 /**
  * 이미지 압축 및 WebP 변환

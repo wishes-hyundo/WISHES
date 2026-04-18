@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { cached } from '@/lib/cache';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 /**
  * GET /api/admin/stats - 관리자 대시보드 통계
@@ -12,9 +13,7 @@ import { cached } from '@/lib/cache';
  */
 export async function GET(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const password = authHeader?.replace('Bearer ', '');
-    if (password !== 'wishes2026') {
+    if (!verifyAdminAuth(request)) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }
