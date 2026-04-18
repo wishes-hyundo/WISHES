@@ -48,7 +48,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         'lat', 'lng', 'deposit', 'monthly', 'price',
         'area_m2', 'area_supply_m2', 'floor_current', 'floor_total', 'rooms', 'bathrooms',
         'direction', 'heating_type', 'available_date', 'built_year',
-        'ai_description', 'building_purpose',
+        'ai_description', 'seo_tags', 'seo_keywords', 'building_purpose',
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
         'maintenance_fee', 'maintenance_includes',
         'entrance_type', 'lease_period',
@@ -297,23 +297,57 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </p>
         </div>
 
-        {/* ── 매물설명 (AI 재가공본만 노출: 크롤링 원본 description은 저작권 보호 차원에서 미사용) ── */}
-        {listing.ai_description && (
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-2.5">매물설명</h3>
-            <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!showFullDescription ? 'line-clamp-4' : ''}`}>
-              {listing.ai_description}
-            </p>
-            {listing.ai_description.length > 120 && (
-              <button
-                onClick={() => setShowFullDescription(!showFullDescription)}
-                className="mt-2 text-xs text-wishes-secondary hover:underline font-medium"
-              >
-                {showFullDescription ? '접기' : '더보기'}
-              </button>
-            )}
-          </div>
-        )}
+        {/* ── 매물설명 (AI 재가공본 + SEO 태그/키워드 통합: 크롤링 원본 description은 저작권 보호 차원에서 미사용) ── */}
+        {(() => {
+          const seoTagChips: string[] = Array.from(new Set(
+            (Array.isArray((listing as any).seo_tags) ? (listing as any).seo_tags : [])
+              .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
+              .filter((t: string) => t.length > 0)
+          )).slice(0, 12) as string[];
+          const seoKeywordLine: string = (Array.from(new Set(
+            (Array.isArray((listing as any).seo_keywords) ? (listing as any).seo_keywords : [])
+              .map((k: any) => (typeof k === 'string' ? k.trim() : ''))
+              .filter((k: string) => k.length > 0)
+          )) as string[]).slice(0, 20).join(', ');
+          const hasDesc = !!listing.ai_description;
+          const hasSeo = seoTagChips.length > 0 || seoKeywordLine.length > 0;
+          if (!hasDesc && !hasSeo) return null;
+          return (
+            <div className="p-4 border-b border-gray-100">
+              <h3 className="text-sm font-bold text-gray-700 mb-2.5">매물설명</h3>
+              {hasDesc && (
+                <>
+                  <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!showFullDescription ? 'line-clamp-4' : ''}`}>
+                    {listing.ai_description}
+                  </p>
+                  {(listing.ai_description || '').length > 120 && (
+                    <button
+                      onClick={() => setShowFullDescription(!showFullDescription)}
+                      className="mt-2 text-xs text-wishes-secondary hover:underline font-medium"
+                    >
+                      {showFullDescription ? '접기' : '더보기'}
+                    </button>
+                  )}
+                </>
+              )}
+              {seoTagChips.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {seoTagChips.map((t, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center text-[11px] font-medium text-wishes-primary bg-wishes-primary/5 border border-wishes-primary/15 px-2 py-0.5 rounded-full"
+                    >
+                      #{t}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {seoKeywordLine && (
+                <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">{seoKeywordLine}</p>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ── 핵심 정보 그리드 ── */}
         <div className="p-4 border-b border-gray-100">
