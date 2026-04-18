@@ -1027,6 +1027,8 @@ function MapSearchPageInner() {
   }, [fetchListings, serverFilter]);
 
   // ━━━ 14차: 검색어 → 카카오 장소/주소 검색 → 지도 실제 이동 (다방·직방 스타일) ━━━
+  // 16차 핫픽스 — 엔터/검색 실행 시 매칭되면 지도 이동 후 텍스트 필터를 풀어
+  // "지도엔 매물 있는데 리스트는 0건" 현상을 원천 차단
   const handleSearchSubmit = useCallback((q: string) => {
     const query = q.trim();
     if (!query) return;
@@ -1037,6 +1039,7 @@ function MapSearchPageInner() {
       const center = new window.kakao.maps.LatLng(lat, lng);
       map.setLevel(level);
       map.panTo(center);
+      setSearchQuery('');
     };
 
     // 1) 주소 검색 (예: "서울 강남구 역삼동")
@@ -1109,7 +1112,9 @@ function MapSearchPageInner() {
     const center = new window.kakao.maps.LatLng(s.lat, s.lng);
     map.setLevel(4);
     map.panTo(center);
-    setSearchQuery(s.name);
+    // 16차 핫픽스 — 자동완성은 지도 이동 전용. 검색어 텍스트 필터로 남기면
+    // 매물 제목/주소에 역/동 이름이 없는 경우 지도엔 N건, 리스트엔 0건인 모순 발생.
+    setSearchQuery('');
     setShowSuggestions(false);
   }, []);
 
