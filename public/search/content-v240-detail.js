@@ -700,6 +700,13 @@
       '</section>';
 
     // --- 6. 🔒 중개사 전용 (기본 접힘) ---
+    // v2.7.1: 2-컬럼 그리드(.v240-b-grid) 폐기 → 수직 스택 서브카드 구조로 재편
+    //   ① 등록·확인 이력 (4카드 타임라인)
+    //   ② 관계자 연락처 (헤더 인라인 + 추가)
+    //   ③ 매물 메모 (빠른 태그 + 텍스트영역 + 저장)
+    //   ④ 원본 데이터 (키-값 테이블 + <details> 접기 본문)
+    // 모든 필드·기능 보존: data-v240-add-contact, .v240-contacts-empty(v270 훅),
+    // data-memo-tag, .ws-memo-save-btn, formatRawFields 그대로 사용
     html +=
       '<section class="v240-broker closed" id="v240-broker">' +
         '<h2 class="v240-broker-h">' +
@@ -711,8 +718,8 @@
         '</h2>' +
         '<div class="v240-broker-body">' +
 
-          // 등록 · 확인 이력 (4카드)
-          '<div class="v240-b-label">🕐 등록 · 확인 이력</div>' +
+          // ① 등록 · 확인 이력 (4카드 타임라인)
+          '<div class="v240-b-sectionlabel">🕐 등록 · 확인 이력</div>' +
           '<div class="v240-timeline">' +
             timelineCard('최초등록', L.registered_date || createdTxt || '-') +
             timelineCard('최종확인', L.last_confirmed || '-') +
@@ -720,50 +727,68 @@
             timelineCard('크롤시각', L.crawled_at || '-') +
           '</div>' +
 
-          '<div class="v240-b-grid">' +
-
-            // LEFT: 연락처 · 메모
-            '<div>' +
-              '<div class="v240-b-label">📞 관계자 연락처</div>' +
-              '<div class="v240-contacts-empty">등록된 연락처가 없습니다. 사장 · 사모 · 관리인 연락처를 등록하세요.</div>' +
-              '<button type="button" class="v240-b-btn" data-v240-add-contact="' + esc(id) + '">+ 연락처 추가</button>' +
-
-              '<div class="v240-b-label" style="margin-top:14px">📝 빠른 메모 태그</div>' +
-              '<div class="v240-memos">' +
-                ['✅ 즉시입주', '🔑 열쇠보관', '📞 연락완료', '👀 현장확인필요',
-                 '💰 가격협의가능', '🔨 수리필요', '⭐ 추천매물', '🚫 계약불가',
-                 '📸 사진촬영필요', '🏗️ 리모델링', '👤 집주인직거래', '📋 서류확인중'
-                ].map(function(m) {
-                  return '<span class="v240-m" data-memo-tag="' + esc(m) + '">' + esc(m) + '</span>';
-                }).join('') +
-              '</div>' +
-
-              '<div class="v240-b-label" style="margin-top:14px">💬 메모</div>' +
-              '<textarea class="ws-memo-input v240-memo-area" id="ws-memo-' + esc(id) + '"' +
-                ' placeholder="매물에 대한 메모를 입력하세요" rows="3">' +
-                esc(getMemo(id)) +
-              '</textarea>' +
-              '<div id="ws-memo-quicktags-' + esc(id) + '"></div>' +
-              '<button type="button" class="ws-btn ws-btn-primary ws-memo-save-btn v240-save-btn"' +
-                ' data-listing-id="' + esc(id) + '">메모 저장</button>' +
+          // ② 관계자 연락처 (서브카드: 헤더에 [+ 추가] 인라인)
+          '<div class="v240-b-card">' +
+            '<div class="v240-b-cardh">' +
+              '<span class="v240-b-cardh-t">📞 관계자 연락처</span>' +
+              '<button type="button" class="v240-b-btn-inline" data-v240-add-contact="' + esc(id) + '">+ 추가</button>' +
             '</div>' +
+            '<div class="v240-contacts-empty">등록된 연락처가 없습니다 · 사장 · 사모 · 관리인 연락처를 등록하세요</div>' +
+          '</div>' +
 
-            // RIGHT: 원본 데이터
-            '<div class="v240-src">' +
-              '<div class="v240-b-label">📋 원본 데이터</div>' +
+          // ③ 매물 메모 (서브카드)
+          '<div class="v240-b-card">' +
+            '<div class="v240-b-cardh">' +
+              '<span class="v240-b-cardh-t">💬 매물 메모</span>' +
+            '</div>' +
+            '<div class="v240-b-subk">빠른 태그</div>' +
+            '<div class="v240-memos">' +
+              ['✅ 즉시입주', '🔑 열쇠보관', '📞 연락완료', '👀 현장확인필요',
+               '💰 가격협의가능', '🔨 수리필요', '⭐ 추천매물', '🚫 계약불가',
+               '📸 사진촬영필요', '🏗️ 리모델링', '👤 집주인직거래', '📋 서류확인중'
+              ].map(function(m) {
+                return '<span class="v240-m" data-memo-tag="' + esc(m) + '">' + esc(m) + '</span>';
+              }).join('') +
+            '</div>' +
+            '<textarea class="ws-memo-input v240-memo-area" id="ws-memo-' + esc(id) + '"' +
+              ' placeholder="매물에 대한 메모를 입력하세요" rows="3">' +
+              esc(getMemo(id)) +
+            '</textarea>' +
+            '<div id="ws-memo-quicktags-' + esc(id) + '"></div>' +
+            '<div class="v240-memo-footer">' +
+              '<button type="button" class="ws-btn ws-btn-primary ws-memo-save-btn v240-save-btn"' +
+                ' data-listing-id="' + esc(id) + '">💾 메모 저장</button>' +
+            '</div>' +
+          '</div>' +
+
+          // ④ 원본 데이터 (서브카드: 키-값 테이블 + 원본 본문 접기)
+          '<div class="v240-b-card">' +
+            '<div class="v240-b-cardh">' +
+              '<span class="v240-b-cardh-t">📋 원본 데이터</span>' +
+            '</div>' +
+            '<div class="v240-src-table">' +
               (srcUrl ?
                 '<div class="v240-src-row">' +
                   '<span class="v240-src-k">원본URL</span>' +
-                  '<a href="' + esc(srcUrl) + '" target="_blank" rel="noopener">' + esc(srcDomain) + '</a>' +
+                  '<a class="v240-src-v v240-src-link" href="' + esc(srcUrl) + '" target="_blank" rel="noopener">' + esc(srcDomain) + ' ↗</a>' +
                 '</div>' : '') +
-              '<div class="v240-src-row"><span class="v240-src-k">DB ID</span>' + esc(id) + '</div>' +
+              '<div class="v240-src-row">' +
+                '<span class="v240-src-k">DB ID</span>' +
+                '<span class="v240-src-v">' + esc(id) + '</span>' +
+              '</div>' +
               (L.source_site ?
-                '<div class="v240-src-row"><span class="v240-src-k">출처</span>' + esc(L.source_site) + '</div>' : '') +
-              (L.raw_fields ? '<div class="v240-b-label" style="margin-top:10px;font-size:12px">원본 본문</div>' +
-                '<pre class="v240-raw-pre">' + esc(formatRawFields(L.raw_fields)) + '</pre>' : '') +
+                '<div class="v240-src-row">' +
+                  '<span class="v240-src-k">출처</span>' +
+                  '<span class="v240-src-v">' + esc(L.source_site) + '</span>' +
+                '</div>' : '') +
             '</div>' +
+            (L.raw_fields ?
+              '<details class="v240-raw-details">' +
+                '<summary class="v240-raw-summary">원본 본문 보기</summary>' +
+                '<pre class="v240-raw-pre">' + esc(formatRawFields(L.raw_fields)) + '</pre>' +
+              '</details>' : '') +
+          '</div>' +
 
-          '</div>' +  // .v240-b-grid
         '</div>' +    // .v240-broker-body
       '</section>';
 
@@ -1087,37 +1112,80 @@
       '#ws-detail-container .v240-broker.closed .v240-broker-h{border-bottom:0}' +
       '#ws-detail-container .v240-broker.closed .v240-chev{transform:rotate(-90deg)}' +
       '#ws-detail-container .v240-broker.closed .v240-broker-body{display:none}' +
-      '#ws-detail-container .v240-broker-body{padding:16px 18px}' +
+      '#ws-detail-container .v240-broker-body{padding:16px 18px;display:flex;flex-direction:column;gap:12px}' +
+      '#ws-detail-container .v240-b-sectionlabel{font-weight:700;color:#6B561A;font-size:12.5px;' +
+        'letter-spacing:.01em;margin:0 0 8px;text-transform:none}' +
+      /* legacy 호환 — 이전 빌드 잔재 대응 */
       '#ws-detail-container .v240-b-label{font-weight:700;color:#6B561A;font-size:13px;margin-bottom:8px}' +
 
-      /* timeline 카드 */
-      '#ws-detail-container .v240-timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}' +
+      /* 타임라인 4카드 */
+      '#ws-detail-container .v240-timeline{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:4px}' +
       '#ws-detail-container .v240-tl-card{background:#fff;border:1px solid #E9D693;border-radius:8px;padding:10px 12px}' +
       '#ws-detail-container .v240-tl-k{font-size:11px;color:#6B561A;font-weight:600;margin-bottom:3px}' +
       '#ws-detail-container .v240-tl-v{font-size:13px;font-weight:700;color:var(--v240-ink)}' +
 
-      /* 연락처·메모·원본 */
-      '#ws-detail-container .v240-b-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}' +
-      '#ws-detail-container .v240-contacts-empty{padding:10px 12px;background:#fff;border:1px dashed #D9C486;' +
-        'border-radius:8px;color:var(--v240-muted);font-size:12px}' +
+      /* 서브카드 공통 (연락처·메모·원본) */
+      '#ws-detail-container .v240-b-card{background:#fff;border:1px solid #E9D693;border-radius:10px;padding:12px 14px 14px;' +
+        'box-shadow:0 1px 0 rgba(107,86,26,.04)}' +
+      '#ws-detail-container .v240-b-cardh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}' +
+      '#ws-detail-container .v240-b-cardh-t{font-weight:800;color:#6B561A;font-size:13px;letter-spacing:.01em}' +
+      '#ws-detail-container .v240-b-subk{font-size:11px;color:#8E7A3A;font-weight:700;margin:2px 0 8px;' +
+        'letter-spacing:.02em;text-transform:uppercase}' +
+
+      /* 연락처 */
+      '#ws-detail-container .v240-contacts-empty{padding:10px 12px;background:#FDF9EA;border:1px dashed #D9C486;' +
+        'border-radius:8px;color:#8E7A3A;font-size:12.5px;line-height:1.5}' +
+      '#ws-detail-container .v240-b-btn-inline{background:#6B561A;color:#fff;border:0;border-radius:7px;' +
+        'padding:6px 11px;font-size:11.5px;font-weight:700;cursor:pointer;letter-spacing:.01em;' +
+        'transition:background .15s ease}' +
+      '#ws-detail-container .v240-b-btn-inline:hover{background:#5A480F}' +
+      /* legacy 호환 — 이전 빌드 잔재 대응 */
       '#ws-detail-container .v240-b-btn{margin-top:8px;background:#6B561A;color:#fff;border:0;border-radius:8px;' +
         'padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer}' +
-      '#ws-detail-container .v240-memos{display:flex;flex-wrap:wrap;gap:6px}' +
+
+      /* 메모 — 빠른 태그 · textarea · 저장 */
+      '#ws-detail-container .v240-memos{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}' +
       '#ws-detail-container .v240-m{border:1px solid var(--v240-line);background:#fff;padding:5px 10px;' +
-        'border-radius:999px;font-size:12px;color:var(--v240-ink);user-select:none}' +
+        'border-radius:999px;font-size:12px;color:var(--v240-ink);user-select:none;cursor:pointer;' +
+        'transition:all .12s ease}' +
       '#ws-detail-container .v240-m:hover{background:var(--v240-g100);border-color:var(--v240-g700)}' +
       '#ws-detail-container .v240-m.active{background:var(--v240-g700);color:#fff;border-color:var(--v240-g700)}' +
-      '#ws-detail-container .v240-memo-area{width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;' +
-        'font-size:12px;resize:vertical;font-family:inherit}' +
-      '#ws-detail-container .v240-save-btn{margin-top:8px;padding:6px 14px;background:var(--v240-g700);color:#fff;' +
-        'border:0;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer}' +
+      '#ws-detail-container .v240-memo-area{width:100%;padding:10px 12px;border:1px solid #E3D6A6;border-radius:8px;' +
+        'font-size:13px;line-height:1.5;resize:vertical;font-family:inherit;background:#FDFBF0;' +
+        'box-sizing:border-box;color:var(--v240-ink);outline:none;transition:border-color .15s ease,background .15s ease}' +
+      '#ws-detail-container .v240-memo-area:focus{border-color:#6B561A;background:#fff}' +
+      '#ws-detail-container .v240-memo-footer{display:flex;justify-content:flex-end;margin-top:10px}' +
+      '#ws-detail-container .v240-save-btn{margin-top:0;padding:8px 16px;background:var(--v240-g700);color:#fff;' +
+        'border:0;border-radius:8px;font-size:12.5px;font-weight:700;cursor:pointer;letter-spacing:.01em;' +
+        'transition:background .15s ease,transform .08s ease}' +
+      '#ws-detail-container .v240-save-btn:hover{background:var(--v240-g800)}' +
+      '#ws-detail-container .v240-save-btn:active{transform:translateY(1px)}' +
 
-      '#ws-detail-container .v240-src{font-size:12px;color:var(--v240-muted)}' +
-      '#ws-detail-container .v240-src-row{margin-top:4px}' +
-      '#ws-detail-container .v240-src-k{display:inline-block;width:74px;color:var(--v240-muted);font-weight:600}' +
-      '#ws-detail-container .v240-src a{color:var(--v240-g700);word-break:break-all}' +
-      '#ws-detail-container .v240-raw-pre{background:#fff;border:1px solid var(--v240-line);border-radius:8px;padding:10px;' +
-        'max-height:200px;overflow:auto;font-size:11px;line-height:1.5;color:var(--v240-ink);margin-top:6px;white-space:pre-wrap}' +
+      /* 원본 데이터 — 키값 테이블 + 접기 본문 */
+      '#ws-detail-container .v240-src-table{background:#FDF9EA;border:1px solid #F0E4A8;border-radius:8px;' +
+        'padding:2px 12px;font-size:12.5px;color:var(--v240-ink)}' +
+      '#ws-detail-container .v240-src-row{display:flex;align-items:center;gap:10px;padding:8px 0;' +
+        'border-bottom:1px dashed rgba(217,196,134,.6)}' +
+      '#ws-detail-container .v240-src-row:last-child{border-bottom:0}' +
+      '#ws-detail-container .v240-src-k{flex:0 0 72px;color:#8E7A3A;font-weight:700;font-size:11px;' +
+        'letter-spacing:.02em;text-transform:uppercase}' +
+      '#ws-detail-container .v240-src-v{flex:1;color:var(--v240-ink);word-break:break-all;font-weight:600}' +
+      '#ws-detail-container .v240-src-link{color:var(--v240-g700);text-decoration:none}' +
+      '#ws-detail-container .v240-src-link:hover{color:var(--v240-g800);text-decoration:underline}' +
+
+      '#ws-detail-container .v240-raw-details{margin-top:10px}' +
+      '#ws-detail-container .v240-raw-summary{cursor:pointer;font-size:11.5px;color:#6B561A;font-weight:700;' +
+        'padding:7px 12px;background:#FDF9EA;border:1px solid #F0E4A8;border-radius:7px;display:inline-block;' +
+        'list-style:none;user-select:none;letter-spacing:.01em;transition:background .12s ease}' +
+      '#ws-detail-container .v240-raw-summary:hover{background:#FBE89B}' +
+      '#ws-detail-container .v240-raw-summary::-webkit-details-marker{display:none}' +
+      '#ws-detail-container .v240-raw-summary::marker{content:""}' +
+      '#ws-detail-container .v240-raw-summary::before{content:"▸ ";display:inline-block;transition:transform .15s ease}' +
+      '#ws-detail-container .v240-raw-details[open] .v240-raw-summary{background:#FBE89B}' +
+      '#ws-detail-container .v240-raw-details[open] .v240-raw-summary::before{content:"▾ "}' +
+      '#ws-detail-container .v240-raw-pre{background:#fff;border:1px solid var(--v240-line);border-radius:8px;padding:12px;' +
+        'max-height:260px;overflow:auto;font-size:11.5px;line-height:1.55;color:var(--v240-ink);margin-top:8px;white-space:pre-wrap;' +
+        'font-family:\"SF Mono\",\"Menlo\",\"Consolas\",monospace}' +
 
       /* 반응형 */
       '@media(max-width:900px){' +
@@ -1127,7 +1195,9 @@
         '#ws-detail-container .v240-k{border-right:1px solid var(--v240-line)}' +
         '#ws-detail-container .v240-v{border-right:0}' +
         '#ws-detail-container .v240-timeline{grid-template-columns:repeat(2,1fr)}' +
-        '#ws-detail-container .v240-b-grid{grid-template-columns:1fr}' +
+        '#ws-detail-container .v240-broker-body{padding:14px;gap:10px}' +
+        '#ws-detail-container .v240-b-card{padding:10px 12px 12px}' +
+        '#ws-detail-container .v240-src-k{flex:0 0 64px}' +
       '}';
 
     var style = document.createElement('style');
