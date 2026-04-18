@@ -36,7 +36,7 @@
 (function __v240Boot() {
   'use strict';
 
-  var VERSION='2.5.0';
+  var VERSION='2.5.1';
   var TAG = '[WP v' + VERSION + ']';
 
   // 도메인/경로 화이트리스트
@@ -182,7 +182,7 @@
   }
   function v243OpenBldgRegister(addr, useTxt) {
     // v2.4.6 — FULL API(/api/admin/building-registry-full) 사용 (주소 그대로 전달 → 서버가 Kakao로 bjdongCd 해석)
-    console.log('[WP v2.5.0] 건축물대장 조회 시작: addr=', addr, 'useTxt=', useTxt);
+    console.log('[WP v2.5.1] 건축물대장 조회 시작: addr=', addr, 'useTxt=', useTxt);
 
     var box = document.createElement('div');
     box.className = 'v240-ai-modal';
@@ -208,18 +208,18 @@
 
     var fullApi = 'https://wishes.co.kr/api/admin/building-registry-full';
     var qs = 'address=' + encodeURIComponent(addr.trim());
-    console.log('[WP v2.5.0] GET ' + fullApi + '?' + qs);
+    console.log('[WP v2.5.1] GET ' + fullApi + '?' + qs);
 
     fetch(fullApi + '?' + qs, {
       credentials: 'include',
       headers: { 'Authorization': 'Bearer wishes2026' }
     })
       .then(function(r){
-        console.log('[WP v2.5.0] 건축물대장 응답 status=', r.status);
+        console.log('[WP v2.5.1] 건축물대장 응답 status=', r.status);
         return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
       })
       .then(function(j){
-        console.log('[WP v2.5.0] 건축물대장 응답 데이터:', j);
+        console.log('[WP v2.5.1] 건축물대장 응답 데이터:', j);
         var body = document.getElementById('v245-bldg-body');
         if (!body) return;
         if (!j || !j.success || !j.data) {
@@ -252,7 +252,7 @@
           '<div class="bval">' + rowHtml + '</div>';
       })
       .catch(function(err){
-        console.error('[WP v2.5.0] 건축물대장 fetch 실패:', err);
+        console.error('[WP v2.5.1] 건축물대장 fetch 실패:', err);
         var body = document.getElementById('v245-bldg-body');
         if (body) body.innerHTML =
           '<div class="blabel">조회 오류</div>' +
@@ -264,12 +264,12 @@
     // v2.4.6 — 자체 함수 window.WS._runAutoGenerate 직접 호출 (모달 열자마자 자동 생성 시작)
     L = L || {};
     var lid = String(L.id || '');
-    console.log('[WP v2.5.0] AI 모달 오픈: lid=', lid, 'L=', L);
+    console.log('[WP v2.5.1] AI 모달 오픈: lid=', lid, 'L=', L);
     if (!lid) { v243Toast('매물 ID 없음'); return; }
 
     // v2.4.8 — 이미 저장된 AI 결과 재사용 (모달 열 때마다 재생성 방지)
     var v248Saved = !!(L && (L.ai_title || L.ai_description || (L.ai_tags && L.ai_tags.length)));
-    console.log('[WP v2.5.0] AI 저장값 존재?', v248Saved, { title: L && L.ai_title, desc: L && L.ai_description });
+    console.log('[WP v2.5.1] AI 저장값 존재?', v248Saved, { title: L && L.ai_title, desc: L && L.ai_description });
 
     var lidEsc = v243EscHtml(lid);
     var box = document.createElement('div');
@@ -300,8 +300,6 @@
           '<div style="font-size:11px;color:#888;margin-top:6px;">※ 재생성 시 기존 콘텐츠는 덮어씌워집니다.</div>' +
           '</div>';
       }
-      var _d = document.getElementById('ws-description-text-' + lid);
-      if (_d && L.ai_description) _d.innerHTML = v243EscHtml(L.ai_description);
       var _b = document.getElementById('ws-ai-generate-' + lid);
       if (_b) _b.textContent = '🔄 다시 생성 (덮어쓰기)';
     }
@@ -318,12 +316,12 @@
     if (!v248Saved) {
       setTimeout(function(){ v245RunAutoGen(lid, L); }, 80);
     } else {
-      console.log('[WP v2.5.0] AI 저장값 존재 → 자동 재생성 스킵');
+      console.log('[WP v2.5.1] AI 저장값 존재 → 자동 재생성 스킵');
     }
   }
   function v245RunAutoGen(lid, L) {
     // v2.4.6 — 확장프로그램 없어도 동작하도록 자체 fetch 구현
-    console.log('[WP v2.5.0] AI 자체 fetch 호출: /api/admin/auto-generate lid=' + lid);
+    console.log('[WP v2.5.1] AI 자체 fetch 호출: /api/admin/auto-generate lid=' + lid);
     var statusEl = document.getElementById('ws-ai-status-' + lid);
     var descEl = document.getElementById('ws-description-text-' + lid);
     var btnEl = document.getElementById('ws-ai-generate-' + lid);
@@ -342,11 +340,11 @@
       body: JSON.stringify({ listingId: String(lid), style: 'trendy', aiModel: 'latest' })
     })
     .then(function(r){
-      console.log('[WP v2.5.0] auto-generate 응답 status=' + r.status);
+      console.log('[WP v2.5.1] auto-generate 응답 status=' + r.status);
       return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
     })
     .then(function(data){
-      console.log('[WP v2.5.0] auto-generate 응답 데이터:', data);
+      console.log('[WP v2.5.1] auto-generate 응답 데이터:', data);
       if (data && data.success && data.result) {
         var R = data.result;
         // v2.4.8 — AI 결과를 L 객체 + allListings 에 저장 (재모달 오픈 시 재사용)
@@ -358,8 +356,6 @@
             L.ai_keywords = R.keywords || [];
             L.ai_meta_description = R.meta_description || '';
             L.ai_generated_at = new Date().toISOString();
-            if (R.description) L.description = R.description;
-            if (R.title) L.title = R.title;
           }
           if (window.WS && Array.isArray(window.WS.allListings)) {
             var _target = window.WS.allListings.find(function(x){ return String(x && x.id) === String(lid); });
@@ -370,13 +366,11 @@
               _target.ai_keywords = R.keywords || [];
               _target.ai_meta_description = R.meta_description || '';
               _target.ai_generated_at = new Date().toISOString();
-              if (R.description) _target.description = R.description;
-              if (R.title) _target.title = R.title;
-              console.log('[WP v2.5.0] allListings 동기화 완료 lid=' + lid);
+              console.log('[WP v2.5.1] allListings 동기화 완료 lid=' + lid);
             }
           }
-        } catch(e){ console.warn('[WP v2.5.0] AI 저장 동기화 실패', e); }
-        if (descEl) descEl.innerHTML = v243EscHtml(R.description || '');
+        } catch(e){ console.warn('[WP v2.5.1] AI 저장 동기화 실패', e); }
+        try { if (typeof window.__v251RenderAi === 'function') window.__v251RenderAi(lid, R, data.buildingInfo); } catch(e){ console.warn('[WP v2.5.1] AI 카드 렌더 실패', e); }
         if (statusEl) {
           var tagsHtml = (R.tags||[]).map(function(t){ return '<span style="display:inline-block;padding:3px 9px;background:#e8eaf6;color:#3f51b5;border-radius:12px;font-size:11px;margin:2px;">' + v243EscHtml(t) + '</span>'; }).join('');
           var kwHtml = (R.keywords||[]).map(function(k){ return '<span style="display:inline-block;padding:3px 7px;background:#e8f5e9;color:#2e7d32;border-radius:4px;font-size:10px;margin:1px;">' + v243EscHtml(k) + '</span>'; }).join('');
@@ -398,7 +392,7 @@
       }
     })
     .catch(function(err){
-      console.error('[WP v2.5.0] auto-generate fetch 실패:', err);
+      console.error('[WP v2.5.1] auto-generate fetch 실패:', err);
       if (statusEl) statusEl.innerHTML = '<div style="padding:10px;background:#ffebee;border-radius:8px;color:#c62828;font-size:13px;">❌ 네트워크 오류: ' + v243EscHtml((err && err.message)||String(err)) + '</div>';
       v243Toast('AI 생성 오류: ' + (err && err.message));
     })
@@ -435,16 +429,16 @@
     var act = card.getAttribute('data-act');
     if (act === 'bldg') {
       e.preventDefault();
-      console.log('[WP v2.5.0] 🏛️ 건축물대장 카드 클릭');
+      console.log('[WP v2.5.1] 🏛️ 건축물대장 카드 클릭');
       v243OpenBldgRegister(card.getAttribute('data-addr')||'', card.getAttribute('data-use')||'');
     } else if (act === 'ai') {
       e.preventDefault();
       var lid = card.getAttribute('data-lid');
-      console.log('[WP v2.5.0] ✨ AI 카드 클릭, lid=', lid);
+      console.log('[WP v2.5.1] ✨ AI 카드 클릭, lid=', lid);
       var L = (window.WS && window.WS.__lastListing) || null;
       if (!L && window.WS && Array.isArray(window.WS.allListings) && lid) {
         L = window.WS.allListings.find(function(x){ return String(x.id) === String(lid); }) || null;
-        console.log('[WP v2.5.0] allListings.find 로 매물 복구:', !!L);
+        console.log('[WP v2.5.1] allListings.find 로 매물 복구:', !!L);
       }
       if (!L && lid) { L = { id: lid }; }
       v243OpenAIModal(L || {});
@@ -561,12 +555,10 @@
         '</div>' +
         '<div class="v240-body v240-gallery-body ws-detail-gallery">' +
           '<div class="ws-gallery-main" id="ws-gallery-main"' +
-            ' style="background-image:url(\'' + esc(firstUrl) + '\'); cursor:pointer;"' +
+            ' style="background-image:url(\'' + esc(firstUrl) + '\'); "' +
             ' data-images="' + esc(JSON.stringify(imgUrls)).replace(/"/g, '&quot;') + '"' +
-            ' data-current="0" title="클릭하면 확대됩니다">' +
-            '<div class="v240-zoom-hint">🔍 클릭하여 확대</div>' +
-            (imgs.length > 1 ? '<div class="ws-img-count v240-img-count">📷 ' + imgs.length + '장</div>' : '') +
-          '</div>' +
+            ' data-current="0" >' +
+                      '</div>' +
           '<div class="ws-gallery-thumbs">' + thumbsHtml + '</div>' +
         '</div>' +
       '</section>';
@@ -631,6 +623,16 @@
         '<h2>위치</h2>' +
         '<div class="v240-body">' +
           '<div id="v240-kakao-map" class="v240-kakao-map"></div>' +
+        '</div>' +
+      '</section>' +
+      '<section class="v240-section v251-ai-section" id="v251-ai-section-' + esc(String(id||'')) + '">' +
+        '<h2 class="v251-ai-h" data-v251-toggle="ai">' +
+          '<span class="v251-ai-h-text">✨ AI 콘텐츠 (제목 · 설명 · 태그)</span>' +
+          '<span class="v251-ai-meta" id="v251-ai-meta-' + esc(String(id||'')) + '"></span>' +
+          '<span class="v251-ai-chev">▼</span>' +
+        '</h2>' +
+        '<div class="v240-body v251-ai-body" id="v251-ai-body-' + esc(String(id||'')) + '">' +
+          '<div class="v251-ai-empty">✨ 상세 액션의 \"AI 매물 콘텐츠 생성\" 버튼을 눌러주세요. 생성된 제목 · 설명 · 태그가 이 공간에 깔끔하게 저장됩니다.</div>' +
         '</div>' +
       '</section>' +
       '<section class="v240-section v240-actions-sec">' +
@@ -888,14 +890,14 @@
       /* ---- 갤러리 topbar ---- */
       '#ws-detail-container .v240-topbar{display:flex;align-items:center;gap:10px;padding:12px 18px;' +
         'background:var(--v240-g50);border-bottom:1px solid var(--v240-line)}' +
-      '#ws-detail-container .v240-num{font-weight:800;color:var(--v240-g900);font-size:15px;cursor:pointer;' +
+      '#ws-detail-container .v240-num{font-weight:800;color:var(--v240-g900);font-size:15px;' +
         'padding:4px 10px;background:#fff;border:1px solid var(--v240-line);border-radius:6px}' +
       '#ws-detail-container .v240-num:hover{background:var(--v240-g100)}' +
       '#ws-detail-container .v240-new{font-size:10px;font-weight:800;color:#fff;background:var(--v240-hot);' +
         'padding:3px 8px;border-radius:4px;letter-spacing:.05em}' +
       '#ws-detail-container .v240-spacer{flex:1}' +
       '#ws-detail-container .v240-fav{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--v240-line);' +
-        'background:#fff;padding:5px 12px;border-radius:999px;cursor:pointer;font-size:12px;font-weight:700;color:var(--v240-muted)}' +
+        'background:#fff;padding:5px 12px;border-radius:999px;font-size:12px;font-weight:700;color:var(--v240-muted)}' +
       '#ws-detail-container .v240-fav.on{border-color:#F2CF49;background:#FFFCE8;color:#A77D02}' +
 
       /* ---- 갤러리 본체 ---- */
@@ -908,7 +910,7 @@
       '#ws-detail-container .ws-gallery-thumbs::-webkit-scrollbar{height:6px}' +
       '#ws-detail-container .ws-gallery-thumbs::-webkit-scrollbar-thumb{background:#c8d3cc;border-radius:3px}' +
       '#ws-detail-container .ws-thumb{flex:0 0 80px;width:80px;height:60px;object-fit:cover;border-radius:6px;' +
-        'cursor:pointer;opacity:.65;border:2px solid transparent;background:#ddd;transition:all .15s}' +
+        'opacity:.65;border:2px solid transparent;background:#ddd;transition:all .15s}' +
       '#ws-detail-container .ws-thumb:hover{opacity:.95}' +
       '#ws-detail-container .ws-thumb.ws-thumb-active{opacity:1;border-color:var(--v240-g700);' +
         'box-shadow:0 0 0 1px var(--v240-g700) inset}' +
@@ -985,7 +987,7 @@
       '@media (max-width:780px){#ws-detail-container .v240-act-grid{grid-template-columns:1fr}}' +
       '#ws-detail-container .v240-act-card{display:grid;grid-template-columns:48px 1fr 20px;gap:14px;align-items:center;' +
         'padding:18px 20px;border:1px solid var(--v240-line);border-radius:14px;background:linear-gradient(180deg,#fff,#FAFDFB);' +
-        'cursor:pointer;text-align:left;font-family:inherit;color:inherit;' +
+        'text-align:left;font-family:inherit;color:inherit;' +
         'box-shadow:0 1px 2px rgba(19,35,26,.04),0 6px 16px rgba(19,35,26,.06);' +
         'transition:transform .15s,box-shadow .15s,border-color .15s}' +
       '#ws-detail-container .v240-act-card:hover{transform:translateY(-2px);border-color:var(--v240-g700);' +
@@ -1017,7 +1019,7 @@
         'font-size:11px;font-weight:700;cursor:pointer}' +
       '.v240-ai-modal .copy:hover{background:#2a5338}' +
       '.v240-ai-modal .close{margin-top:8px;width:100%;padding:10px;border:0;border-radius:10px;background:#f0f3f0;' +
-        'font-weight:700;font-size:13px;cursor:pointer;color:#1B3D28}' +
+        'font-weight:700;font-size:13px;color:#1B3D28}' +
       '.v240-ai-modal .close:hover{background:#e2e8e4}' +
       /* v2.4.5 — 건축물대장 결과 행 + AI Run 버튼 */
       '.v245-bldg-row{display:flex;align-items:center;gap:12px;padding:7px 2px;border-bottom:1px dashed #e6ece7}' +
@@ -1025,7 +1027,7 @@
       '.v245-bldg-k{flex:0 0 92px;font-size:11.5px;font-weight:800;color:#5a6b5f;letter-spacing:.02em}' +
       '.v245-bldg-v{flex:1;font-size:13.5px;color:#1B3D28;font-weight:600}' +
       '.v245-run{flex:1;padding:11px;border:0;border-radius:10px;background:linear-gradient(135deg,#667eea,#764ba2);' +
-        'color:#fff;font-weight:800;font-size:13px;cursor:pointer;box-shadow:0 4px 12px rgba(102,126,234,.35)}' +
+        'color:#fff;font-weight:800;font-size:13px;box-shadow:0 4px 12px rgba(102,126,234,.35)}' +
       '.v245-run:hover{filter:brightness(1.06)}' +
       '.v245-run:disabled{opacity:.5;cursor:not-allowed}' +
       /* Toast */
@@ -1048,7 +1050,7 @@
       '#ws-detail-container .v240-broker{margin-top:16px;border:1px solid #D9C486;border-radius:12px;background:#FFFBEB;overflow:hidden}' +
       '#ws-detail-container .v240-broker-h{background:#FDF3C5;color:#6B561A;border-bottom:1px solid #E9D693;' +
         'font-size:13px;padding:12px 18px;display:flex;align-items:center;gap:8px;margin:0;font-weight:800;' +
-        'cursor:pointer;user-select:none;transition:background .15s}' +
+        'user-select:none;transition:background .15s}' +
       '#ws-detail-container .v240-broker-h:hover{background:#FBE89B}' +
       '#ws-detail-container .v240-locked{font-size:10px;background:#6B561A;color:#fff;padding:2px 6px;border-radius:4px;letter-spacing:.04em}' +
       '#ws-detail-container .v240-count{font-size:11px;color:#6B561A;font-weight:600;background:rgba(107,86,26,.1);padding:2px 8px;border-radius:999px}' +
@@ -1073,7 +1075,7 @@
         'padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer}' +
       '#ws-detail-container .v240-memos{display:flex;flex-wrap:wrap;gap:6px}' +
       '#ws-detail-container .v240-m{border:1px solid var(--v240-line);background:#fff;padding:5px 10px;' +
-        'border-radius:999px;font-size:12px;color:var(--v240-ink);cursor:pointer;user-select:none}' +
+        'border-radius:999px;font-size:12px;color:var(--v240-ink);user-select:none}' +
       '#ws-detail-container .v240-m:hover{background:var(--v240-g100);border-color:var(--v240-g700)}' +
       '#ws-detail-container .v240-m.active{background:var(--v240-g700);color:#fff;border-color:var(--v240-g700)}' +
       '#ws-detail-container .v240-memo-area{width:100%;padding:8px;border:1px solid #ddd;border-radius:4px;' +
@@ -1163,10 +1165,10 @@
     box.id = 'v247-lightbox';
     box.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,0.93);display:flex;align-items:center;justify-content:center;';
     box.innerHTML =
-      '<div class="v247-close" style="position:absolute;top:18px;right:24px;color:#fff;font-size:34px;font-weight:300;cursor:pointer;width:50px;height:50px;line-height:48px;text-align:center;border-radius:50%;background:rgba(255,255,255,0.12);user-select:none;">\u00d7</div>' +
+      '<div class="v247-close" style="position:absolute;top:18px;right:24px;color:#fff;font-size:34px;font-weight:300;width:50px;height:50px;line-height:48px;text-align:center;border-radius:50%;background:rgba(255,255,255,0.12);user-select:none;">\u00d7</div>' +
       '<div class="v247-counter" style="position:absolute;top:22px;left:24px;color:#fff;font-size:14px;padding:6px 14px;background:rgba(255,255,255,0.14);border-radius:999px;font-family:sans-serif;"></div>' +
-      '<div class="v247-prev" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);width:56px;height:56px;line-height:52px;text-align:center;color:#fff;font-size:38px;cursor:pointer;border-radius:50%;background:rgba(255,255,255,0.14);user-select:none;">\u2039</div>' +
-      '<div class="v247-next" style="position:absolute;right:20px;top:50%;transform:translateY(-50%);width:56px;height:56px;line-height:52px;text-align:center;color:#fff;font-size:38px;cursor:pointer;border-radius:50%;background:rgba(255,255,255,0.14);user-select:none;">\u203a</div>' +
+      '<div class="v247-prev" style="position:absolute;left:20px;top:50%;transform:translateY(-50%);width:56px;height:56px;line-height:52px;text-align:center;color:#fff;font-size:38px;border-radius:50%;background:rgba(255,255,255,0.14);user-select:none;">\u2039</div>' +
+      '<div class="v247-next" style="position:absolute;right:20px;top:50%;transform:translateY(-50%);width:56px;height:56px;line-height:52px;text-align:center;color:#fff;font-size:38px;border-radius:50%;background:rgba(255,255,255,0.14);user-select:none;">\u203a</div>' +
       '<img class="v247-img" style="max-width:95vw;max-height:92vh;object-fit:contain;box-shadow:0 8px 40px rgba(0,0,0,0.5);background:#111;">';
     document.body.appendChild(box);
     function render(){
@@ -1191,7 +1193,7 @@
     box.addEventListener('click', function(e){ if (e.target === box) close(); });
     document.addEventListener('keydown', onKey, true);
     render();
-    console.log('[WP v2.5.0] 갤러리 라이트박스 오픈, 사진 ' + imgs.length + '장');
+    console.log('[WP v2.5.1] 갤러리 라이트박스 오픈, 사진 ' + imgs.length + '장');
   }
 })();
 
@@ -1225,7 +1227,7 @@
     Array.prototype.forEach.call(legacy, function(n){ try{ n.remove(); }catch(_){}});
     var imgs = collectImgs(mainEl);
     if (imgs.length <= 1) return false;
-    var btnCss = 'position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;line-height:42px;text-align:center;color:#fff;font-size:28px;cursor:pointer;border-radius:50%;background:rgba(0,0,0,0.5);user-select:none;z-index:5;font-weight:300;transition:background 0.15s;';
+    var btnCss = 'position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;line-height:42px;text-align:center;color:#fff;font-size:28px;border-radius:50%;background:rgba(0,0,0,0.5);user-select:none;z-index:5;font-weight:300;transition:background 0.15s;';
     var prev = document.createElement('div');
     prev.className = 'v250-nav-prev v248-nav-btn v250-nav-btn';
     prev.style.cssText = btnCss + 'left:12px;';
@@ -1266,7 +1268,7 @@
     next.addEventListener('mouseenter', function(){ next.style.background='rgba(0,0,0,0.75)'; });
     next.addEventListener('mouseleave', function(){ next.style.background='rgba(0,0,0,0.5)'; });
     updateUI();
-    console.log('[WP v2.5.0] 큰 사진 네비 오버레이 주입 성공: ' + imgs.length + '장');
+    console.log('[WP v2.5.1] 큰 사진 네비 오버레이 주입 성공: ' + imgs.length + '장');
     return true;
   }
 
@@ -1274,7 +1276,7 @@
     var mainEl = document.getElementById('ws-gallery-main');
     if (mainEl) {
       var ok = injectOverlay(mainEl);
-      if (ok) console.log('[WP v2.5.0] scan 성공 via', label);
+      if (ok) console.log('[WP v2.5.1] scan 성공 via', label);
     }
   }
 
@@ -1315,7 +1317,7 @@
       };
       wrapped.__v250Wrapped = true;
       window[fnName] = wrapped;
-      console.log('[WP v2.5.0] wrapped', fnName);
+      console.log('[WP v2.5.1] wrapped', fnName);
     }
   }
   [0, 500, 1500, 3000].forEach(function(d){
@@ -1324,4 +1326,126 @@
       wrapIfExists('v243OpenAIModal');
     }, d);
   });
+})();
+
+
+// v2.5.1 — AI 콘텐츠 전용 카드 렌더러 + 접기/펼치기 + 타이포 CSS
+(function(){
+  'use strict';
+  if (window.__v251Ai) return;
+  window.__v251Ai = true;
+
+  function ensureCss(){
+    if (document.getElementById('v251-ai-css')) return;
+    var s = document.createElement('style');
+    s.id = 'v251-ai-css';
+    s.textContent = [
+      '.v251-ai-section { border:1px solid #e7eaf3; border-radius:12px; background:#fff; margin:16px 0; overflow:hidden; box-shadow:0 1px 2px rgba(15,23,42,0.04);}',
+      '.v251-ai-section h2.v251-ai-h { display:flex; align-items:center; gap:10px; margin:0; padding:14px 18px; cursor:pointer; background:linear-gradient(135deg,#f7f4ff,#eef2ff); border-bottom:1px solid #e7eaf3; font-size:15px; font-weight:700; color:#312e81; user-select:none;}',
+      '.v251-ai-section .v251-ai-h-text { flex:0 0 auto;}',
+      '.v251-ai-section .v251-ai-meta { flex:1 1 auto; font-size:11px; font-weight:500; color:#6b7280;}',
+      '.v251-ai-section .v251-ai-chev { flex:0 0 auto; color:#6b7280; font-size:12px; transition:transform 0.2s;}',
+      '.v251-ai-section.collapsed .v251-ai-chev { transform:rotate(-90deg);}',
+      '.v251-ai-section.collapsed .v251-ai-body { display:none;}',
+      '.v251-ai-body { padding:18px 20px; background:#fff;}',
+      '.v251-ai-empty { font-size:13px; color:#6b7280; line-height:1.7; padding:18px; text-align:center; background:#f9fafb; border-radius:8px; border:1px dashed #d1d5db;}',
+      '.v251-ai-card { display:grid; grid-template-columns:1fr; gap:14px;}',
+      '.v251-ai-row { display:grid; grid-template-columns:88px 1fr; gap:12px; align-items:start; padding:12px 14px; background:#fafafe; border-radius:8px; border:1px solid #eef0f7;}',
+      '.v251-ai-row .v251-ai-label { font-size:11px; font-weight:700; color:#6366f1; letter-spacing:0.3px; padding-top:3px;}',
+      '.v251-ai-row .v251-ai-value { font-size:14px; color:#111827; line-height:1.75; word-break:keep-all;}',
+      '.v251-ai-row .v251-ai-value.title { font-size:15px; font-weight:600;}',
+      '.v251-ai-row .v251-ai-value.desc { white-space:pre-wrap; font-size:13.5px;}',
+      '.v251-ai-tags { display:flex; flex-wrap:wrap; gap:6px;}',
+      '.v251-ai-tag { display:inline-block; padding:4px 10px; background:#eef2ff; color:#4338ca; border-radius:999px; font-size:11px; font-weight:600;}',
+      '.v251-ai-kw { display:inline-block; padding:3px 8px; background:#ecfdf5; color:#065f46; border-radius:4px; font-size:11px; margin:2px; font-weight:500;}',
+      '.v251-ai-foot { margin-top:14px; padding:10px 12px; background:#f9fafb; border-radius:6px; font-size:11px; color:#6b7280; line-height:1.6; border-left:3px solid #c7d2fe;}',
+      '.v251-ai-ts { color:#9ca3af; font-size:11px; margin-top:6px; text-align:right; font-variant-numeric:tabular-nums;}',
+      '@media (max-width:640px){ .v251-ai-row{ grid-template-columns:1fr;} .v251-ai-row .v251-ai-label{ padding-top:0;}}'
+    ].join('\n');
+    document.head.appendChild(s);
+  }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+
+  function renderCard(lid, R, buildingInfo){
+    ensureCss();
+    var body = document.getElementById('v251-ai-body-' + lid);
+    var meta = document.getElementById('v251-ai-meta-' + lid);
+    if (!body) return;
+    var tags = Array.isArray(R.tags) ? R.tags : [];
+    var kws = Array.isArray(R.keywords) ? R.keywords : [];
+    var tsStr = R.ai_generated_at || new Date().toISOString();
+    var tsLocal = '';
+    try { tsLocal = new Date(tsStr).toLocaleString('ko-KR', {hour12:false}); } catch(e){ tsLocal = tsStr; }
+    var tagsHtml = tags.map(function(t){ return '<span class="v251-ai-tag">#' + esc(t) + '</span>';}).join('');
+    var kwsHtml = kws.map(function(k){ return '<span class="v251-ai-kw">' + esc(k) + '</span>';}).join('');
+    var rows = [];
+    if (R.title) rows.push('<div class="v251-ai-row"><div class="v251-ai-label">제목</div><div class="v251-ai-value title">' + esc(R.title) + '</div></div>');
+    if (R.description) rows.push('<div class="v251-ai-row"><div class="v251-ai-label">설명</div><div class="v251-ai-value desc">' + esc(R.description) + '</div></div>');
+    if (R.meta_description) rows.push('<div class="v251-ai-row"><div class="v251-ai-label">메타</div><div class="v251-ai-value">' + esc(R.meta_description) + '</div></div>');
+    if (tagsHtml) rows.push('<div class="v251-ai-row"><div class="v251-ai-label">태그</div><div class="v251-ai-value"><div class="v251-ai-tags">' + tagsHtml + '</div></div></div>');
+    if (kwsHtml) rows.push('<div class="v251-ai-row"><div class="v251-ai-label">키워드</div><div class="v251-ai-value"><div class="v251-ai-tags">' + kwsHtml + '</div></div></div>');
+    var footHtml = '';
+    if (buildingInfo) footHtml = '<div class="v251-ai-foot">건축물대장 연동: ' + esc(buildingInfo['건물명']||'-') + ' · ' + esc(buildingInfo['사용승인일']||'-') + ' · ' + esc(buildingInfo['건물구조']||'-') + '</div>';
+    body.innerHTML = '<div class="v251-ai-card">' + rows.join('') + '</div>' + footHtml + '<div class="v251-ai-ts">' + esc(tsLocal) + ' 생성</div>';
+    if (meta) meta.textContent = '✅ 생성 완료 · ' + tsLocal;
+    console.log('[WP v2.5.1] AI 카드 렌더 lid=' + lid);
+  }
+
+  window.__v251RenderAi = function(lid, R, buildingInfo){ renderCard(lid, R, buildingInfo); };
+
+  function renderFromListing(lid, L){
+    if (!L) return false;
+    if (!L.ai_title && !L.ai_description && !(L.ai_tags && L.ai_tags.length)) return false;
+    renderCard(lid, {
+      title: L.ai_title,
+      description: L.ai_description,
+      meta_description: L.ai_meta_description,
+      tags: L.ai_tags,
+      keywords: L.ai_keywords,
+      ai_generated_at: L.ai_generated_at
+    }, null);
+    return true;
+  }
+
+  function scanAndRenderSaved(){
+    var bodies = document.querySelectorAll('[id^="v251-ai-body-"]');
+    Array.prototype.forEach.call(bodies, function(b){
+      if (b.querySelector('.v251-ai-card')) return;
+      var lid = b.id.replace('v251-ai-body-', '');
+      if (window.WS && Array.isArray(window.WS.allListings)) {
+        var L = window.WS.allListings.find(function(x){ return String(x && x.id) === String(lid);});
+        if (L) renderFromListing(lid, L);
+      }
+    });
+  }
+
+  document.addEventListener('click', function(e){
+    var h = e.target && e.target.closest && e.target.closest('.v251-ai-h');
+    if (!h) return;
+    var sec = h.closest('.v251-ai-section');
+    if (sec) sec.classList.toggle('collapsed');
+  });
+
+  var mo = new MutationObserver(function(muts){
+    for (var i=0;i<muts.length;i++){
+      var m = muts[i];
+      for (var j=0;j<m.addedNodes.length;j++){
+        var n = m.addedNodes[j];
+        if (n && n.nodeType===1) {
+          var isTarget = (n.id && n.id.indexOf('v251-ai-body-')===0) || (n.querySelector && n.querySelector('[id^="v251-ai-body-"]'));
+          if (isTarget) { ensureCss(); scanAndRenderSaved(); return; }
+        }
+      }
+    }
+  });
+  mo.observe(document.body, {childList:true, subtree:true});
+
+  setInterval(function(){
+    var bodies = document.querySelectorAll('[id^="v251-ai-body-"]');
+    if (bodies.length > 0) { ensureCss(); scanAndRenderSaved(); }
+  }, 1500);
+
+  ensureCss();
+  scanAndRenderSaved();
+  console.log('[WP v2.5.1] AI 카드 시스템 활성');
 })();
