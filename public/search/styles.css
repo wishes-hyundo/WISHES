@@ -83,17 +83,16 @@
 .ws-filters-toggle { padding:6px 12px; background:#f5f7f5; border:1px solid #ddd; border-bottom:none; cursor:pointer; font-size:12px; font-weight:600; color:#2D5A27; user-select:none; }
 .ws-filters-toggle:hover { background:#e8f5e9; }
 
-/* ── Filter Grid (7-column pill-chip layout) ── */
-.ws-filter-grid { display:grid; grid-template-columns:repeat(7, 1fr); border:1px solid #e0e8e0; background:#fff; border-radius:6px; overflow:hidden; }
-.ws-filter-col { border-right:1px solid #eef2ee; min-width:0; display:flex; flex-direction:column; }
+/* ── Filter Grid (8-column multi-column layout) ── */
+.ws-filter-grid { display:grid; grid-template-columns:repeat(7, 1fr); border:1px solid #ddd; background:#fff; }
+.ws-filter-col { border-right:1px solid #e8e8e8; min-width:0; }
 .ws-filter-col:last-child { border-right:none; }
-.ws-filter-col-header { background:#f5f7f5; padding:6px 8px; font-weight:700; font-size:11.5px; color:#2D5A27; border-bottom:1px solid #e0e8e0; text-align:center; white-space:nowrap; letter-spacing:-.2px; }
-.ws-filter-col-body { display:flex; flex-wrap:wrap; gap:4px; padding:7px 8px 8px; max-height:148px; overflow-y:auto; align-content:flex-start; }
-.ws-fchip { display:inline-flex; align-items:center; width:auto; text-align:center; padding:3px 9px; border:1px solid #e5eee5; border-radius:11px; background:#fff; cursor:pointer; font-size:11.5px; color:#555; transition:all .12s ease; white-space:nowrap; line-height:1.5; font-weight:500; }
-.ws-fchip:hover { background:#f0f8f0; border-color:#4CAF50; color:#2D5A27; }
-.ws-fchip.ws-fchip-active { background:#2D5A27; color:#fff; border-color:#2D5A27; font-weight:700; box-shadow:0 1px 3px rgba(45,90,39,.18); }
-.ws-filter-col-body::-webkit-scrollbar { width:4px; }
-.ws-filter-col-body::-webkit-scrollbar-thumb { background:#d0e0d0; border-radius:2px; }
+.ws-filter-col-header { background:#f5f7f5; padding:5px 8px; font-weight:700; font-size:12px; color:#333; border-bottom:1px solid #ddd; text-align:center; white-space:nowrap; }
+.ws-filter-col-body { display:flex; flex-direction:column; max-height:180px; overflow-y:auto; }
+.ws-fchip { display:block; width:100%; text-align:left; padding:3px 8px; border:none; border-bottom:1px solid #f0f0f0; background:#fff; cursor:pointer; font-size:12px; color:#555; transition:all .1s; white-space:nowrap; }
+.ws-fchip:last-child { border-bottom:none; }
+.ws-fchip:hover { background:#e8f5e9; color:#2D5A27; }
+.ws-fchip.ws-fchip-active { background:#2D5A27; color:#fff; font-weight:600; }
 .ws-filter-col-body .ws-checkbox-label { padding:2px 6px; font-size:11px; }
 
 /* ── Horizontal filter row (direction, keyword) ── */
