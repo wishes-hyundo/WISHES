@@ -114,14 +114,15 @@ export default function SearchPortalPage() {
       document.body.appendChild(v240Script);
     }
 
-    // v2.6.7 성능 오버레이 — 수동 "다시 생성" 버튼은 localStorage 캐시 우회
-    // v2.6.6 까지는 manual 요청까지 캐시로 응답해 "다시 생성" 버튼이 깜빡만 하고
-    // 실제 AI 재생성이 안 되던 버그. autoMode 없는 요청은 캐시 스킵 후 서버 호출.
+    // v2.6.8 성능 오버레이 — seo_tags → ai_tags DB 필드 미러링 + allListings 동기화
+    // 이전 버전들은 content-v240-detail.js 의 v248Saved 판정(L.ai_tags 체크)이
+    // Supabase 초기 로드(seo_tags 컬럼) 와 필드 이름 미스매치로 무조건 false →
+    // 매 상세보기마다 자동 재생성 트리거. v2.6.8 부터 showDetail 훅에서 미러링.
     const existingV260Perf = document.getElementById('ws-ext-patch-v260-perf');
     if (!existingV260Perf) {
       const v260PerfScript = document.createElement('script');
       v260PerfScript.id = 'ws-ext-patch-v260-perf';
-      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418y';
+      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418z';
       v260PerfScript.async = false;
       v260PerfScript.defer = false;
       document.body.appendChild(v260PerfScript);

@@ -26,7 +26,7 @@
   'use strict';
   if (window.__v260_perf_installed) return;
   window.__v260_perf_installed = true;
-  var VERSION = '2.6.7';
+  var VERSION = '2.6.8';
   var TAG = '[WP v' + VERSION + ' perf]';
 
   // ====================================================================
@@ -199,9 +199,32 @@
               try {
                 r.clone().json().then(function(data){
                   if (data && data.success && data.result) {
-                    if (!data.result.ai_generated_at) data.result.ai_generated_at = new Date().toISOString();
-                    setCachedAi(lid, data.result);
-                    console.log(TAG + ' AI cached lid=' + lid);
+                    var R = data.result;
+                    if (!R.ai_generated_at) R.ai_generated_at = new Date().toISOString();
+                    setCachedAi(lid, R);
+                    // ★ v2.6.8: window.WS.allListings 도 동기화해서 다음 상세보기 오픈 시
+                    // 프론트 가드가 즉시 작동하도록 (안 하면 stale 상태로 가드가 통과됨)
+                    try {
+                      var L2 = findLocalListing(lid);
+                      if (L2) {
+                        if (R.title) { L2.ai_title = R.title; L2.title = R.title; }
+                        if (R.description) L2.ai_description = R.description;
+                        if (Array.isArray(R.tags) && R.tags.length > 0) {
+                          L2.seo_tags = R.tags;
+                          L2.ai_tags = R.tags;
+                        }
+                        if (Array.isArray(R.keywords) && R.keywords.length > 0) {
+                          L2.seo_keywords = R.keywords;
+                          L2.ai_keywords = R.keywords;
+                        }
+                        if (R.meta_description) {
+                          L2.seo_meta_description = R.meta_description;
+                          L2.ai_meta_description = R.meta_description;
+                        }
+                        L2.ai_generated_at = R.ai_generated_at;
+                      }
+                    } catch(e){}
+                    console.log(TAG + ' AI cached + allListings synced lid=' + lid);
                   }
                 }).catch(function(){});
               } catch(e){}
@@ -213,7 +236,7 @@
       } catch(e) { console.warn(TAG + ' autoGen hook error', e); }
       return origFetch.call(this, input, init);
     };
-    console.log(TAG + ' AI autoGen cache hook installed (v2.6.7 manual cache bypass)');
+    console.log(TAG + ' AI autoGen cache hook installed (v2.6.8 DB↔ext field mirror + allListings sync)');
   })();
 
   // ====================================================================
@@ -228,6 +251,27 @@
       WS.showDetail = function(L) {
         try {
           if (L && L.id != null) {
+            // ★ v2.6.8: DB 컬럼(seo_*) → 확장프로그램 필드(ai_*) 미러링
+            //   content-v240-detail.js 의 v248Saved 판정이 L.ai_title || L.ai_description ||
+            //   L.ai_tags.length 를 체크하는데, Supabase 초기 로드는 seo_* 컬럼만 있음.
+            //   → 미러링 없이는 매번 v248Saved=false 로 자동 재생성 트리거 발생.
+            //   → 첫 호출 후 서버 가드가 차단해도 "생성 중..." UI 는 계속 뜨고, 프론트가
+            //      DB 상태를 모르니 토큰은 절약되지만 사용자 경험은 "재생성되는 느낌".
+            if (Array.isArray(L.seo_tags) && L.seo_tags.length > 0 && (!L.ai_tags || !L.ai_tags.length)) {
+              L.ai_tags = L.seo_tags;
+            }
+            if (Array.isArray(L.seo_keywords) && L.seo_keywords.length > 0 && (!L.ai_keywords || !L.ai_keywords.length)) {
+              L.ai_keywords = L.seo_keywords;
+            }
+            if (L.seo_meta_description && !L.ai_meta_description) {
+              L.ai_meta_description = L.seo_meta_description;
+            }
+            // title 은 DB 원본이 이미 AI 결과로 덮어써진 상태 (auto-generate 서버 로직)
+            if (L.title && !L.ai_title && L.ai_description) {
+              L.ai_title = L.title;
+            }
+
+            // localStorage 캐시 백필 (캐시가 더 최신일 수 있음)
             var cached = getCachedAi(L.id);
             if (cached) {
               if (!L.ai_title && cached.title) L.ai_title = cached.title;
@@ -238,6 +282,8 @@
               if (!L.ai_generated_at && cached.ai_generated_at) L.ai_generated_at = cached.ai_generated_at;
               L.__v253_backfilled = true;
               console.log(TAG + ' AI prefill from cache lid=' + L.id);
+            } else if (L.ai_description || (L.ai_tags && L.ai_tags.length)) {
+              console.log(TAG + ' AI prefill from DB (seo_* → ai_*) lid=' + L.id);
             }
           }
         } catch(e){ console.warn(TAG + ' showDetail prefill error', e); }
