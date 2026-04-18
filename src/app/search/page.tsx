@@ -126,6 +126,17 @@ export default function SearchPortalPage() {
       v260PerfScript.defer = false;
       document.body.appendChild(v260PerfScript);
     }
+
+    // v2.7.0 050 안심번호 + 관계자 연락처 오버레이 (contacts JSONB 렌더)
+    const existingV270Contacts = document.getElementById('ws-ext-patch-v270-contacts');
+    if (!existingV270Contacts) {
+      const v270ContactsScript = document.createElement('script');
+      v270ContactsScript.id = 'ws-ext-patch-v270-contacts';
+      v270ContactsScript.src = '/search/content-v270-contacts.js?v=20260418a1';
+      v270ContactsScript.async = false;
+      v270ContactsScript.defer = false;
+      document.body.appendChild(v270ContactsScript);
+    }
   }, [state]);
 
   // ========== UI ==========
