@@ -1514,7 +1514,8 @@ function MapSearchPageInner() {
             )}
           </div>
 
-          {/* 거래유형 세그먼트 컨트롤 — 모바일에선 flex-1로 가로 확장, 데스크탑은 컴팩트 */}
+          {/* 거래유형 세그먼트 컨트롤 — 모바일에선 flex-1로 가로 확장, 데스크탑은 컴팩트
+              18차: 모바일 터치 타겟 확대 (py-2 → ~40px, 데스크탑 py-1.5 유지) */}
           <div className="flex flex-1 md:flex-none bg-gray-100 rounded-lg p-0.5 shrink-0">
             {dealTypes.map((deal) => {
               const isActive = (filters.deals || []).includes(deal);
@@ -1522,7 +1523,7 @@ function MapSearchPageInner() {
                 <button
                   key={deal}
                   onClick={() => toggleDealFilter(deal)}
-                  className={`flex-1 md:flex-none px-2.5 md:px-3 py-1.5 text-[12px] font-semibold rounded-md transition-all whitespace-nowrap ${
+                  className={`flex-1 md:flex-none px-2.5 md:px-3 py-2 md:py-1.5 text-[12px] font-semibold rounded-md transition-all whitespace-nowrap ${
                     isActive
                       ? 'bg-wishes-primary text-white shadow-sm'
                       : 'text-gray-600 hover:text-wishes-primary'
@@ -1534,10 +1535,11 @@ function MapSearchPageInner() {
             })}
           </div>
 
-          {/* 상세필터 — 매물유형/면적/층/옵션 등 모든 세부 필터를 이 버튼 하나로 통합 */}
+          {/* 상세필터 — 매물유형/면적/층/옵션 등 모든 세부 필터를 이 버튼 하나로 통합
+              18차: 모바일 py-2 (터치 타겟), 데스크탑 py-1.5 유지 */}
           <button
             onClick={() => setShowFilterSheet(true)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-lg transition-all shrink-0 ${
+            className={`flex items-center gap-1.5 px-3 py-2 md:py-1.5 text-[12px] font-semibold rounded-lg transition-all shrink-0 ${
               activeFilterCount > 0
                 ? 'bg-wishes-primary text-white shadow-sm hover:bg-wishes-primary/90'
                 : 'bg-white border border-gray-200 text-gray-700 hover:border-wishes-primary/60 hover:text-wishes-primary'
@@ -1553,11 +1555,11 @@ function MapSearchPageInner() {
             )}
           </button>
 
-          {/* 초기화 — 활성 필터 있을 때만 */}
+          {/* 초기화 — 활성 필터 있을 때만 (18차: 모바일 터치 타겟 확대) */}
           {activeFilterCount > 0 && (
             <button
               onClick={resetAllFilters}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-[11.5px] font-medium text-gray-500 hover:text-red-600 transition-colors shrink-0"
+              className="flex items-center gap-1 px-2.5 py-2 md:py-1.5 text-[11.5px] font-medium text-gray-500 hover:text-red-600 transition-colors shrink-0"
               title="모든 필터 초기화"
             >
               <X className="w-3.5 h-3.5" />
@@ -1565,13 +1567,13 @@ function MapSearchPageInner() {
             </button>
           )}
 
-          {/* 모바일 뷰 토글 — 17차: 터치 타겟 확대, 활성 상태 피드백 강화 */}
+          {/* 모바일 뷰 토글 — 18차: 터치 타겟 py-2.5 (~44px WCAG AA 만족) */}
           <div className="md:hidden flex bg-gray-100 rounded-lg p-0.5 shrink-0" role="tablist" aria-label="지도/목록 전환">
             <button
               onClick={() => setMobileView('map')}
               role="tab"
               aria-selected={mobileView === 'map'}
-              className={`flex items-center gap-1 px-3 py-1.5 text-[12px] rounded-md transition-all ${
+              className={`flex items-center gap-1 px-3.5 py-2.5 text-[12.5px] rounded-md transition-all ${
                 mobileView === 'map' ? 'bg-white shadow-sm text-wishes-primary font-bold' : 'text-gray-500'
               }`}
             >
@@ -1581,7 +1583,7 @@ function MapSearchPageInner() {
               onClick={() => setMobileView('list')}
               role="tab"
               aria-selected={mobileView === 'list'}
-              className={`flex items-center gap-1 px-3 py-1.5 text-[12px] rounded-md transition-all ${
+              className={`flex items-center gap-1 px-3.5 py-2.5 text-[12.5px] rounded-md transition-all ${
                 mobileView === 'list' ? 'bg-white shadow-sm text-wishes-primary font-bold' : 'text-gray-500'
               }`}
             >
@@ -1590,15 +1592,16 @@ function MapSearchPageInner() {
           </div>
         </div>
 
-        {/* Row 2 — 활성 칩이 있으면 활성 칩, 없으면 빠른선택 프리셋 (둘 중 하나만) */}
+        {/* Row 2 — 활성 칩이 있으면 활성 칩, 없으면 빠른선택 프리셋 (둘 중 하나만)
+            18차: 모바일 터치 타겟 py-1.5 (데스크탑 py-[3px] 유지) */}
         {activeChips.length > 0 ? (
-          <div className="px-4 pb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="px-3 md:px-4 pb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <span className="text-[10.5px] font-semibold text-wishes-muted shrink-0 tracking-wider">적용</span>
             {activeChips.map((chip) => (
               <button
                 key={chip.key}
                 onClick={chip.clear}
-                className="flex items-center gap-1 px-2.5 py-[3px] text-[11px] font-medium rounded-full bg-wishes-primary/8 text-wishes-primary border border-wishes-primary/15 hover:bg-wishes-primary/15 hover:border-wishes-primary/30 transition-all whitespace-nowrap"
+                className="flex items-center gap-1 px-2.5 py-1.5 md:py-[3px] text-[11px] font-medium rounded-full bg-wishes-primary/8 text-wishes-primary border border-wishes-primary/15 hover:bg-wishes-primary/15 hover:border-wishes-primary/30 transition-all whitespace-nowrap"
               >
                 <span>{chip.label}</span>
                 <X className="w-2.5 h-2.5 opacity-60" />
@@ -1606,13 +1609,13 @@ function MapSearchPageInner() {
             ))}
           </div>
         ) : (
-          <div className="px-4 pb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="px-3 md:px-4 pb-2.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar">
             <span className="text-[10.5px] font-semibold text-wishes-muted shrink-0 tracking-wider">빠른선택</span>
             {pricePresets.map((p) => (
               <button
                 key={p.key}
                 onClick={() => applyPreset(p)}
-                className="px-2.5 py-[3px] text-[11px] font-medium rounded-full border border-gray-200 bg-white text-gray-600 hover:border-wishes-primary/40 hover:bg-wishes-primary/5 hover:text-wishes-primary transition-all whitespace-nowrap"
+                className="px-2.5 py-1.5 md:py-[3px] text-[11px] font-medium rounded-full border border-gray-200 bg-white text-gray-600 hover:border-wishes-primary/40 hover:bg-wishes-primary/5 hover:text-wishes-primary transition-all whitespace-nowrap"
               >
                 {p.label}
               </button>
