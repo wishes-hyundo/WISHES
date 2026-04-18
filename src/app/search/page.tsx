@@ -108,19 +108,19 @@ export default function SearchPortalPage() {
     if (!existingV240) {
       const v240Script = document.createElement('script');
       v240Script.id = 'ws-ext-patch-v240';
-      v240Script.src = '/search/content-v240-detail.js?v=20260502';
+      v240Script.src = '/search/content-v240-detail.js?v=20260418r';
       v240Script.async = false;
       v240Script.defer = false;
       document.body.appendChild(v240Script);
     }
 
-    // v2.6.0 성능 오버레이 (AI 캐시·listings dedupe·이미지 lazy·유사매물 lazy)
-    // content.js + content-v240-detail.js 위에 래핑/훅 설치 — 기존 로직은 건드리지 않음
+    // v2.6.1 성능 오버레이 SAFE (listings API dedupe 1개만) — 이미지 lazy/유사매물 lazy 제거
+    // content.js + content-v240-detail.js 위에 래핑/훅 설치 — UX 는 전혀 건드리지 않음
     const existingV260Perf = document.getElementById('ws-ext-patch-v260-perf');
     if (!existingV260Perf) {
       const v260PerfScript = document.createElement('script');
       v260PerfScript.id = 'ws-ext-patch-v260-perf';
-      v260PerfScript.src = '/search/content-v260-perf.js?v=20260502';
+      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418r';
       v260PerfScript.async = false;
       v260PerfScript.defer = false;
       document.body.appendChild(v260PerfScript);
