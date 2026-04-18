@@ -23,7 +23,7 @@ function formatPrice(price: number): string {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const fallback = { title: '매물 상세 | WISHES' };
+  const fallback = { title: '매물 상세' };
   try {
     const { id } = await params;
     const supabase = createServerClient();
@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const ogImageUrl = 'https://wishes.co.kr/api/og/listing/' + id;
 
     return {
-      title: title + ' | WISHES',
+      title,
       description,
       keywords: [listing.dong, listing.type, listing.deal, '부동산', '매물'].join(', '),
       openGraph: {
