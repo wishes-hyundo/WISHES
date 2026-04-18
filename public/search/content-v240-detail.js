@@ -690,9 +690,10 @@
       '</section>';
 
     // --- 5. 유사 매물 (기존 showSimilarListings 결과 주입) ---
+    // 내부 #ws-similar-section 렌더러가 자체 <h3>유사 매물 추천 (N건)</h3> 헤더를
+    // 포함하므로 외부 <h2>를 제거하여 타이틀 중복 방지
     html +=
       '<section class="v240-section">' +
-        '<h2>유사 매물 추천</h2>' +
         '<div class="v240-body">' +
           '<div id="ws-similar-section"></div>' +
         '</div>' +
