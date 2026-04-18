@@ -11,11 +11,13 @@ import {
 import { getFormattedPrice, getDealColor, sqmToPyeong, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { displayTitle } from '@/lib/formatListingTitle';
+import { displayAddressByAuth } from '@/lib/publicAddress';
 import CompassDirection from '@/components/CompassDirection';
 import Link from 'next/link';
 import type { Listing } from '@/types';
 import ListingLocationMap from './ListingLocationMap';
 import RealPriceChart from './RealPriceChart';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MapListingPanelProps {
   listingId: number;
@@ -23,6 +25,8 @@ interface MapListingPanelProps {
 }
 
 export default function MapListingPanel({ listingId, onClose }: MapListingPanelProps) {
+  const { user } = useAuth();
+  const isAuthed = !!user;
   const [listing, setListing] = useState<any>(null);
   const [images, setImages] = useState<any[]>([]);
   const [features, setFeatures] = useState<any[]>([]);
@@ -41,8 +45,11 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         supabase.from('listing_images').select('id, url, sort_order').eq('listing_id', listingId).order('sort_order', { ascending: true }),
         supabase.from('listing_features').select('id, feature').eq('listing_id', listingId),
       ]);
-      setListing(listingResult.data);
-      setImages(imagesResult.data || []);
+      const listingData: any = listingResult.data;
+      // 저작권 보호: 크롤링 매물(source_site NOT NULL)은 사진을 내리고 정보만 노출
+      const isCrawled = !!listingData?.source_site;
+      setListing(listingData);
+      setImages(isCrawled ? [] : (imagesResult.data || []));
       setFeatures(featuresResult.data || []);
       setLoading(false);
     };
@@ -216,7 +223,12 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <p className="text-base font-bold text-gray-900 leading-snug">{displayTitle(listing)}</p>
           <div className="flex items-center gap-1.5 mt-2 text-xs text-gray-400">
             <MapPin className="w-3 h-3" />
-            <span>{(listing.address || '').replace(/\s*\d+(-\d+)?\s*$/, '').trim() || listing.dong}</span>
+            <span>{displayAddressByAuth(listing.address, listing.dong, isAuthed)}</span>
+            {!isAuthed && (
+              <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-gray-100 text-gray-400">
+                상세 주소는 로그인 후 안내
+              </span>
+            )}
           </div>
         </div>
 
@@ -364,30 +376,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           <NearbyStationsSection listingId={listing.id} />
         )}
 
-        {/* ── 실거래가 동향 링크 ── */}
-        {listing.dong && (
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-1.5">
-              <TrendingUp className="w-4 h-4 text-green-500/70" />
-              {listing.dong} 실거래가 동향
-            </h3>
-            <div className="bg-green-50/50 rounded-xl p-3.5">
-              <a
-                href="https://rt.molit.go.kr/pt/xls/xls.do#tabNm=6"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs text-green-700 bg-green-100 hover:bg-green-200 px-3 py-2 rounded-lg transition-colors font-medium"
-              >
-                <TrendingUp className="w-3 h-3" />
-                국토교통부 실거래가 조회
-                <ChevronRight className="w-3 h-3" />
-              </a>
-              <p className="text-xs text-gray-400 mt-2">상담 시 최신 실거래가를 안내드립니다.</p>
-            </div>
-          </div>
-        )}
-
-        {/* ── 실거래가 차트 ── */}
+        {/* ── 실거래가 차트 (국토교통부 기준, 한 번만 노출) ── */}
         {listing.dong && (
           <div className="p-4 border-b border-gray-100">
             <RealPriceChart
@@ -399,13 +388,13 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         )}
 
-        {/* ── 매물 위치 지도 ── */}
+        {/* ── 매물 위치 지도 (비로그인 시 동 단위까지만 라벨 노출) ── */}
         {listing.lat && listing.lng && (
           <div className="p-4 border-b border-gray-100">
             <ListingLocationMap
               lat={listing.lat}
               lng={listing.lng}
-              address={listing.address || listing.dong || ''}
+              address={displayAddressByAuth(listing.address, listing.dong, isAuthed)}
               title={listing.title || ''}
             />
           </div>

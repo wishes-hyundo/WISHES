@@ -40,12 +40,15 @@ export async function GET(
       );
     }
 
-    // 이미지 조회
-    const { data: images = [] } = await supabase
-      .from('listing_images')
-      .select('*')
-      .eq('listing_id', listingId)
-      .order('sort_order', { ascending: true });
+    // 이미지 조회 (크롤링 매물은 저작권 보호 목적으로 빈 배열 처리)
+    const isCrawled = !!(listing as any).source_site;
+    const { data: images = [] } = isCrawled
+      ? { data: [] as any[] }
+      : await supabase
+          .from('listing_images')
+          .select('*')
+          .eq('listing_id', listingId)
+          .order('sort_order', { ascending: true });
 
     // 특징 조회
     const { data: features = [] } = await supabase
