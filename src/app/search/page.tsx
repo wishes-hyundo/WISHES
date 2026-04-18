@@ -114,14 +114,14 @@ export default function SearchPortalPage() {
       document.body.appendChild(v240Script);
     }
 
-    // v2.6.5 성능 오버레이 — listings API dedupe + AI 캐시(TTL 7일) + ai_description-only 가드
-    // v2.6.4 버그 수정: 예전 가드가 크롤링 원본 description 까지 "있음"으로 판정해
-    // AI 자동 생성이 영구 차단되던 문제를 해결 (근본 원인: /map 에 AI 콘텐츠 미노출)
+    // v2.6.6 성능 오버레이 — ai_description AND seo_tags 둘 다 채워진 경우에만 차단 (AND 가드)
+    // v2.6.5 의 OR 조건은 구버전 매물(ai_description 만 있고 seo_tags 비어있음)에서
+    // SEO 필드가 영영 채워지지 않는 새 문제를 만들었음. AND 로 전환해 완전 박제 보장.
     const existingV260Perf = document.getElementById('ws-ext-patch-v260-perf');
     if (!existingV260Perf) {
       const v260PerfScript = document.createElement('script');
       v260PerfScript.id = 'ws-ext-patch-v260-perf';
-      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418w';
+      v260PerfScript.src = '/search/content-v260-perf.js?v=20260418x';
       v260PerfScript.async = false;
       v260PerfScript.defer = false;
       document.body.appendChild(v260PerfScript);

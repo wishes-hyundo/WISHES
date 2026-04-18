@@ -49,22 +49,27 @@ export async function POST(req: NextRequest) {
     }
     steps.push({ step: 'listing_fetch', status: 'ok', data: { id: listing.id, address: listing.address } });
 
-    // === STEP 1-B: v2.6.5 서버단 자동호출 차단 가드 ===
-    //   autoMode=true (상세보기 오픈 트리거) 요청에서 이미 ai_description 이 채워져 있다면
-    //   Anthropic 호출 없이 기존 DB 값을 그대로 반환. 프론트 오버레이가 우회되는 케이스
-    //   (외부 스크립트, admin 직접 호출 등)에서도 토큰이 새지 않도록 마지막 방어선.
+    // === STEP 1-B: v2.6.6 서버단 자동호출 차단 가드 (AND 조건) ===
+    //   autoMode=true (상세보기 오픈 트리거) 요청을
+    //   ★ai_description AND seo_tags 둘 다★ 채워진 경우에만 차단.
+    //   반만 채워진 매물(구버전 생성분)은 1회 통과시켜 SEO 필드까지 완전 박제한 뒤,
+    //   다음 오픈부터 차단한다. → 토큰은 매물당 최대 1회만 추가 소모.
+    //   프론트 오버레이 우회 경로(외부 스크립트, admin 직접 호출 등) 방어용 마지막 라인.
     //   수동 버튼(_runAutoGenerate)은 autoMode 플래그 없이 오므로 정상 통과.
     if (autoMode === true) {
-      const hasAi =
+      const hasAiDesc =
         typeof listing.ai_description === 'string' &&
         listing.ai_description.trim().length > 0;
-      if (hasAi) {
+      const hasAiTags =
+        Array.isArray(listing.seo_tags) && listing.seo_tags.length > 0;
+      const hasFullAiSet = hasAiDesc && hasAiTags;
+      if (hasFullAiSet) {
         return NextResponse.json({
           success: true,
           listingId,
           pipeline_status: 'skipped',
-          blocked_reason: 'db_has_ai_content',
-          steps: [{ step: 'server_guard', status: 'skipped', error: 'autoMode blocked: ai_description exists' }],
+          blocked_reason: 'db_has_full_ai_set',
+          steps: [{ step: 'server_guard', status: 'skipped', error: 'autoMode blocked: full AI set present' }],
           result: {
             title: listing.ai_title || listing.title || '',
             description: listing.ai_description,
