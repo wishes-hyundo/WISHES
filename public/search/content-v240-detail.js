@@ -36,7 +36,7 @@
 (function __v240Boot() {
   'use strict';
 
-  var VERSION='2.4.7';
+  var VERSION='2.4.8';
   var TAG = '[WP v' + VERSION + ']';
 
   // 도메인/경로 화이트리스트
@@ -182,7 +182,7 @@
   }
   function v243OpenBldgRegister(addr, useTxt) {
     // v2.4.6 — FULL API(/api/admin/building-registry-full) 사용 (주소 그대로 전달 → 서버가 Kakao로 bjdongCd 해석)
-    console.log('[WP v2.4.7] 건축물대장 조회 시작: addr=', addr, 'useTxt=', useTxt);
+    console.log('[WP v2.4.8] 건축물대장 조회 시작: addr=', addr, 'useTxt=', useTxt);
 
     var box = document.createElement('div');
     box.className = 'v240-ai-modal';
@@ -208,18 +208,18 @@
 
     var fullApi = 'https://wishes.co.kr/api/admin/building-registry-full';
     var qs = 'address=' + encodeURIComponent(addr.trim());
-    console.log('[WP v2.4.7] GET ' + fullApi + '?' + qs);
+    console.log('[WP v2.4.8] GET ' + fullApi + '?' + qs);
 
     fetch(fullApi + '?' + qs, {
       credentials: 'include',
       headers: { 'Authorization': 'Bearer wishes2026' }
     })
       .then(function(r){
-        console.log('[WP v2.4.7] 건축물대장 응답 status=', r.status);
+        console.log('[WP v2.4.8] 건축물대장 응답 status=', r.status);
         return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
       })
       .then(function(j){
-        console.log('[WP v2.4.7] 건축물대장 응답 데이터:', j);
+        console.log('[WP v2.4.8] 건축물대장 응답 데이터:', j);
         var body = document.getElementById('v245-bldg-body');
         if (!body) return;
         if (!j || !j.success || !j.data) {
@@ -252,7 +252,7 @@
           '<div class="bval">' + rowHtml + '</div>';
       })
       .catch(function(err){
-        console.error('[WP v2.4.7] 건축물대장 fetch 실패:', err);
+        console.error('[WP v2.4.8] 건축물대장 fetch 실패:', err);
         var body = document.getElementById('v245-bldg-body');
         if (body) body.innerHTML =
           '<div class="blabel">조회 오류</div>' +
@@ -264,8 +264,12 @@
     // v2.4.6 — 자체 함수 window.WS._runAutoGenerate 직접 호출 (모달 열자마자 자동 생성 시작)
     L = L || {};
     var lid = String(L.id || '');
-    console.log('[WP v2.4.7] AI 모달 오픈: lid=', lid, 'L=', L);
+    console.log('[WP v2.4.8] AI 모달 오픈: lid=', lid, 'L=', L);
     if (!lid) { v243Toast('매물 ID 없음'); return; }
+
+    // v2.4.8 — 이미 저장된 AI 결과 재사용 (모달 열 때마다 재생성 방지)
+    var v248Saved = !!(L && (L.ai_title || L.ai_description || (L.ai_tags && L.ai_tags.length)));
+    console.log('[WP v2.4.8] AI 저장값 존재?', v248Saved, { title: L && L.ai_title, desc: L && L.ai_description });
 
     var lidEsc = v243EscHtml(lid);
     var box = document.createElement('div');
@@ -283,6 +287,25 @@
         '</div>' +
       '</div>';
     document.body.appendChild(box);
+
+    // v2.4.8 — 저장값 있으면 즉시 표시, 버튼 텍스트 '다시 생성'으로
+    if (v248Saved) {
+      var _s = document.getElementById('ws-ai-status-' + lid);
+      if (_s) {
+        var _tags = (L.ai_tags||[]).map(function(t){ return '<span style="display:inline-block;padding:3px 9px;background:#e8eaf6;color:#3f51b5;border-radius:12px;font-size:11px;margin:2px;">' + v243EscHtml(t) + '</span>'; }).join('');
+        _s.innerHTML = '<div style="padding:14px;background:#f0fff0;border-radius:8px;border:1px solid #c8e6c9;">' +
+          '<div style="font-size:14px;color:#2e7d32;font-weight:700;margin-bottom:8px;">💾 저장된 AI 콘텐츠 (재사용 중)</div>' +
+          '<div style="font-size:13px;color:#333;margin-bottom:6px;"><strong>제목:</strong> ' + v243EscHtml(L.ai_title||'') + '</div>' +
+          (_tags ? '<div style="margin-bottom:6px;"><strong style="font-size:11px;">태그:</strong> ' + _tags + '</div>' : '') +
+          '<div style="font-size:11px;color:#888;margin-top:6px;">※ 재생성 시 기존 콘텐츠는 덮어씌워집니다.</div>' +
+          '</div>';
+      }
+      var _d = document.getElementById('ws-description-text-' + lid);
+      if (_d && L.ai_description) _d.innerHTML = v243EscHtml(L.ai_description);
+      var _b = document.getElementById('ws-ai-generate-' + lid);
+      if (_b) _b.textContent = '🔄 다시 생성 (덮어쓰기)';
+    }
+
     box.addEventListener('click', function(e){
       var tgt = e.target;
       if (tgt.classList.contains('close') || tgt === box) { box.remove(); return; }
@@ -291,12 +314,16 @@
       }
     });
 
-    // 모달이 DOM 에 붙고 ID 가 유효해진 직후에 바로 AI 생성 시작
-    setTimeout(function(){ v245RunAutoGen(lid, L); }, 80);
+    // 모달이 DOM 에 붙고 ID 가 유효해진 직후에 바로 AI 생성 시작 (저장값 없을 때만)
+    if (!v248Saved) {
+      setTimeout(function(){ v245RunAutoGen(lid, L); }, 80);
+    } else {
+      console.log('[WP v2.4.8] AI 저장값 존재 → 자동 재생성 스킵');
+    }
   }
   function v245RunAutoGen(lid, L) {
     // v2.4.6 — 확장프로그램 없어도 동작하도록 자체 fetch 구현
-    console.log('[WP v2.4.7] AI 자체 fetch 호출: /api/admin/auto-generate lid=' + lid);
+    console.log('[WP v2.4.8] AI 자체 fetch 호출: /api/admin/auto-generate lid=' + lid);
     var statusEl = document.getElementById('ws-ai-status-' + lid);
     var descEl = document.getElementById('ws-description-text-' + lid);
     var btnEl = document.getElementById('ws-ai-generate-' + lid);
@@ -315,13 +342,40 @@
       body: JSON.stringify({ listingId: String(lid), style: 'trendy', aiModel: 'latest' })
     })
     .then(function(r){
-      console.log('[WP v2.4.7] auto-generate 응답 status=' + r.status);
+      console.log('[WP v2.4.8] auto-generate 응답 status=' + r.status);
       return r.json().catch(function(){ return { success:false, error:'HTTP ' + r.status }; });
     })
     .then(function(data){
-      console.log('[WP v2.4.7] auto-generate 응답 데이터:', data);
+      console.log('[WP v2.4.8] auto-generate 응답 데이터:', data);
       if (data && data.success && data.result) {
         var R = data.result;
+        // v2.4.8 — AI 결과를 L 객체 + allListings 에 저장 (재모달 오픈 시 재사용)
+        try {
+          if (L) {
+            L.ai_title = R.title || '';
+            L.ai_description = R.description || '';
+            L.ai_tags = R.tags || [];
+            L.ai_keywords = R.keywords || [];
+            L.ai_meta_description = R.meta_description || '';
+            L.ai_generated_at = new Date().toISOString();
+            if (R.description) L.description = R.description;
+            if (R.title) L.title = R.title;
+          }
+          if (window.WS && Array.isArray(window.WS.allListings)) {
+            var _target = window.WS.allListings.find(function(x){ return String(x && x.id) === String(lid); });
+            if (_target) {
+              _target.ai_title = R.title || '';
+              _target.ai_description = R.description || '';
+              _target.ai_tags = R.tags || [];
+              _target.ai_keywords = R.keywords || [];
+              _target.ai_meta_description = R.meta_description || '';
+              _target.ai_generated_at = new Date().toISOString();
+              if (R.description) _target.description = R.description;
+              if (R.title) _target.title = R.title;
+              console.log('[WP v2.4.8] allListings 동기화 완료 lid=' + lid);
+            }
+          }
+        } catch(e){ console.warn('[WP v2.4.8] AI 저장 동기화 실패', e); }
         if (descEl) descEl.innerHTML = v243EscHtml(R.description || '');
         if (statusEl) {
           var tagsHtml = (R.tags||[]).map(function(t){ return '<span style="display:inline-block;padding:3px 9px;background:#e8eaf6;color:#3f51b5;border-radius:12px;font-size:11px;margin:2px;">' + v243EscHtml(t) + '</span>'; }).join('');
@@ -344,7 +398,7 @@
       }
     })
     .catch(function(err){
-      console.error('[WP v2.4.7] auto-generate fetch 실패:', err);
+      console.error('[WP v2.4.8] auto-generate fetch 실패:', err);
       if (statusEl) statusEl.innerHTML = '<div style="padding:10px;background:#ffebee;border-radius:8px;color:#c62828;font-size:13px;">❌ 네트워크 오류: ' + v243EscHtml((err && err.message)||String(err)) + '</div>';
       v243Toast('AI 생성 오류: ' + (err && err.message));
     })
@@ -381,16 +435,16 @@
     var act = card.getAttribute('data-act');
     if (act === 'bldg') {
       e.preventDefault();
-      console.log('[WP v2.4.7] 🏛️ 건축물대장 카드 클릭');
+      console.log('[WP v2.4.8] 🏛️ 건축물대장 카드 클릭');
       v243OpenBldgRegister(card.getAttribute('data-addr')||'', card.getAttribute('data-use')||'');
     } else if (act === 'ai') {
       e.preventDefault();
       var lid = card.getAttribute('data-lid');
-      console.log('[WP v2.4.7] ✨ AI 카드 클릭, lid=', lid);
+      console.log('[WP v2.4.8] ✨ AI 카드 클릭, lid=', lid);
       var L = (window.WS && window.WS.__lastListing) || null;
       if (!L && window.WS && Array.isArray(window.WS.allListings) && lid) {
         L = window.WS.allListings.find(function(x){ return String(x.id) === String(lid); }) || null;
-        console.log('[WP v2.4.7] allListings.find 로 매물 복구:', !!L);
+        console.log('[WP v2.4.8] allListings.find 로 매물 복구:', !!L);
       }
       if (!L && lid) { L = { id: lid }; }
       v243OpenAIModal(L || {});
@@ -1091,6 +1145,7 @@
   if (window.__v247Lightbox) return;
   window.__v247Lightbox = true;
   document.addEventListener('click', function(ev){
+    if (ev.target && ev.target.closest && ev.target.closest('.v248-nav-btn')) return;
     var m = ev.target && ev.target.closest ? ev.target.closest('#ws-gallery-main') : null;
     if (!m) return;
     ev.preventDefault();
@@ -1136,6 +1191,80 @@
     box.addEventListener('click', function(e){ if (e.target === box) close(); });
     document.addEventListener('keydown', onKey, true);
     render();
-    console.log('[WP v2.4.7] 갤러리 라이트박스 오픈, 사진 ' + imgs.length + '장');
+    console.log('[WP v2.4.8] 갤러리 라이트박스 오픈, 사진 ' + imgs.length + '장');
   }
+})();
+
+
+// v2.4.8 — 큰 사진 영역 좌/우 화살표 오버레이 + 카운터
+(function(){
+  'use strict';
+  if (window.__v248Nav) return;
+  window.__v248Nav = true;
+
+  function injectOverlay(mainEl){
+    if (!mainEl || mainEl.querySelector('.v248-nav-prev')) return;
+    var imgs = [];
+    try { imgs = JSON.parse(mainEl.getAttribute('data-images') || '[]'); } catch(e){}
+    if (imgs.length <= 1) return;
+    var btnCss = 'position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;line-height:42px;text-align:center;color:#fff;font-size:28px;cursor:pointer;border-radius:50%;background:rgba(0,0,0,0.5);user-select:none;z-index:5;font-weight:300;transition:background 0.15s;';
+    var prev = document.createElement('div');
+    prev.className = 'v248-nav-prev v248-nav-btn';
+    prev.style.cssText = btnCss + 'left:12px;';
+    prev.textContent = '\u2039';
+    prev.title = '이전 사진';
+    var next = document.createElement('div');
+    next.className = 'v248-nav-next v248-nav-btn';
+    next.style.cssText = btnCss + 'right:12px;';
+    next.textContent = '\u203a';
+    next.title = '다음 사진';
+    var counter = document.createElement('div');
+    counter.className = 'v248-counter';
+    counter.style.cssText = 'position:absolute;bottom:10px;right:12px;color:#fff;font-size:12px;padding:4px 10px;background:rgba(0,0,0,0.55);border-radius:999px;user-select:none;pointer-events:none;z-index:5;font-family:sans-serif;';
+    if (getComputedStyle(mainEl).position === 'static') mainEl.style.position = 'relative';
+    mainEl.appendChild(prev);
+    mainEl.appendChild(next);
+    mainEl.appendChild(counter);
+    function updateUI(){
+      var cur = parseInt(mainEl.getAttribute('data-current') || '0', 10) || 0;
+      counter.textContent = (cur+1) + ' / ' + imgs.length;
+    }
+    function go(delta){
+      var cur = parseInt(mainEl.getAttribute('data-current') || '0', 10) || 0;
+      var newIdx = (cur + delta + imgs.length) % imgs.length;
+      mainEl.style.backgroundImage = "url('" + imgs[newIdx] + "')";
+      mainEl.setAttribute('data-current', String(newIdx));
+      var root = mainEl.closest('.v240-body') || document;
+      root.querySelectorAll('.ws-thumb').forEach(function(t){
+        var tIdx = parseInt(t.getAttribute('data-idx') || '0', 10);
+        t.classList.toggle('ws-thumb-active', tIdx === newIdx);
+      });
+      updateUI();
+    }
+    prev.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); go(-1); });
+    next.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation(); go(1); });
+    prev.addEventListener('mouseenter', function(){ prev.style.background='rgba(0,0,0,0.75)'; });
+    prev.addEventListener('mouseleave', function(){ prev.style.background='rgba(0,0,0,0.5)'; });
+    next.addEventListener('mouseenter', function(){ next.style.background='rgba(0,0,0,0.75)'; });
+    next.addEventListener('mouseleave', function(){ next.style.background='rgba(0,0,0,0.5)'; });
+    updateUI();
+    console.log('[WP v2.4.8] 큰 사진 네비 오버레이 주입: ' + imgs.length + '장');
+  }
+
+  var mo = new MutationObserver(function(muts){
+    muts.forEach(function(m){
+      Array.prototype.forEach.call(m.addedNodes, function(n){
+        if (n && n.nodeType === 1) {
+          if (n.id === 'ws-gallery-main') injectOverlay(n);
+          else if (n.querySelector) {
+            var child = n.querySelector('#ws-gallery-main');
+            if (child) injectOverlay(child);
+          }
+        }
+      });
+    });
+  });
+  mo.observe(document.body, {childList:true, subtree:true});
+  var existing = document.getElementById('ws-gallery-main');
+  if (existing) injectOverlay(existing);
 })();
