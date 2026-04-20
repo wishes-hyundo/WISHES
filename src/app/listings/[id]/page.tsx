@@ -111,12 +111,13 @@ export default async function ListingPage({ params }: Props) {
     const { data: listing } = (await withTimeout(supabase
       .from('listings')
       .select(`
-        id, title, type, deal, status, dong, gu, address, address_detail,
-        lat, lng, deposit, monthly, price, area_m2, area_supply_m2,
+        id, title, ai_title, type, deal, status, dong, gu, address, address_detail,
+        lat, lng, deposit, monthly, price, area_m2, area_pyeong, area_supply_m2,
         floor_current, floor_total, rooms, bathrooms, direction, heating_type,
-        available_date, built_year, ai_description,
+        available_date, built_year, ai_description, description,
         seo_tags, seo_keywords, seo_meta_description,
         building_name, building_purpose,
+        station_name, station_distance, features,
         parking, elevator, pet, balcony, full_option, loan_available,
         maintenance_fee, maintenance_includes, entrance_type, lease_period,
         business_type, goodwill_fee, vat_included, usage_approved,
@@ -124,7 +125,8 @@ export default async function ListingPage({ params }: Props) {
         previous_business, recommended_business, restricted_business,
         parking_spaces, rights_fee, parking_fee, commission_fee, previous_brand,
         special_notes, views, created_at, updated_at, contact, source_site,
-        listing_images(url, sort_order), listing_features(feature)
+        listing_images(url, sort_order), listing_features(feature),
+        listing_videos(id, url, poster_url, mime_type, sort_order)
       `)
       .eq('id', id)
       .single())) as { data: any };

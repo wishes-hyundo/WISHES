@@ -13,6 +13,7 @@ import {
 import { getFormattedPrice, sqmToPyeong, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { displayTitle } from '@/lib/formatListingTitle';
+import { displayDescription } from '@/lib/formatListingDescription';
 import { displayAddressByAuth } from '@/lib/publicAddress';
 import { filterSelfHosted } from '@/lib/image-policy';
 import CompassDirection from '@/components/CompassDirection';
@@ -304,7 +305,9 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               .map((k: any) => (typeof k === 'string' ? k.trim() : ''))
               .filter((k: string) => k.length > 0)
           )) as string[]).slice(0, 20).join(', ');
-          const hasDesc = !!listing.ai_description;
+          // ai_description / raw description 우선, 없으면 rich 데이터 기반 자동 생성
+          const descText = displayDescription(listing, { maxLength: 400 });
+          const hasDesc = !!descText;
           const hasSeo = seoTagChips.length > 0 || seoKeywordLine.length > 0;
           if (!hasDesc && !hasSeo) return null;
           return (
@@ -313,9 +316,9 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               {hasDesc && (
                 <>
                   <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!showFullDescription ? 'line-clamp-4' : ''}`}>
-                    {listing.ai_description}
+                    {descText}
                   </p>
-                  {(listing.ai_description || '').length > 120 && (
+                  {descText.length > 120 && (
                     <button
                       onClick={() => setShowFullDescription(!showFullDescription)}
                       className="mt-2 text-xs text-wishes-secondary hover:underline font-medium"

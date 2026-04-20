@@ -34,7 +34,8 @@ export default function PersonalizedHome() {
   useEffect(() => {
     const supabase = createClient();
     const cols =
-      'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, source_site, created_at, listing_images(url, sort_order)';
+      // displayTitle / displayDescription 재가공용 rich 필드 포함
+      'id, title, ai_title, ai_description, building_name, deal, type, dong, address, deposit, monthly, price, area_m2, area_pyeong, rooms, bathrooms, floor_current, floor_total, status, source_site, created_at, parking, elevator, full_option, pet, balcony, built_year, direction, description, station_name, station_distance, features, listing_images(url, sort_order)';
 
     const run = async () => {
       // ── 최근 본 매물 ──

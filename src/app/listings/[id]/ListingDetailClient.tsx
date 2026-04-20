@@ -9,6 +9,7 @@ import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPri
 import { applyImagePolicy } from '@/lib/image-policy';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { displayTitle } from '@/lib/formatListingTitle';
+import { displayDescription } from '@/lib/formatListingDescription';
 import ImageGallery from '@/components/ImageGallery';
 import { ListingCard } from '@/components/ListingCard';
 import RealPriceChart from '@/components/RealPriceChart';
@@ -723,7 +724,10 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                     .map((k: any) => (typeof k === 'string' ? k.trim() : ''))
                     .filter((k: string) => k.length > 0)
                 )) as string[]).slice(0, 20).join(', ');
-                const hasDesc = !!listing.ai_description;
+                // ai_description 또는 raw description 이 있으면 그대로,
+                // 없으면 rich 데이터 기반 자동 생성으로 폴백 — "매물설명 없음" 방지
+                const descText = displayDescription(listing);
+                const hasDesc = !!descText;
                 const hasSeo = seoTagChips.length > 0 || seoKeywordLine.length > 0;
                 if (!hasDesc && !hasSeo) return null;
                 return (
@@ -735,7 +739,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                     <h3 className="text-sm font-semibold text-gray-700 mb-3">매물설명</h3>
                     {hasDesc && (
                       <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                        {listing.ai_description}
+                        {descText}
                       </p>
                     )}
                     {seoTagChips.length > 0 && (
