@@ -291,81 +291,84 @@ export async function GET(request: NextRequest) {
       // v8: select('*') 전환
       // v7: 상가 필드 포함
       // v6: 빈 응답 캐싱 방지 (poison cache fix)
-      const allData = await cached(
-        'admin-listings-minimal-v12',
-        async () => {
-          const PAGE_SIZE = 1000;
-          // ── 전체 행 수 선반영 ──
-          //   병렬 페이지 루프에서 '빈 배열 = 끝' 가정은
-          //   네트워크 오류·타임아웃·RLS 문제로도 빈 배열이 올 수 있어 위험.
-          //   (2026-04-20 사건: 중간 페이지 1개가 silently empty → break →
-          //    1000건만 캐시돼 /search 전체 1000/1/50 로 회귀)
-          //   → head 카운트로 전체 행 수 먼저 잡고, 필요한 페이지 수를 확정.
-          const { count: totalCount } = await supabase
-            .from('listings')
-            .select('*', { count: 'exact', head: true });
-          const totalRows = totalCount || 20000;
-          const totalPages = Math.ceil(totalRows / PAGE_SIZE);
+      // ── 전체 매물 병렬 fetch 헬퍼 ──
+      //   cached() 바깥에서도 재사용 (fallback 용).
+      //   partial 감지 시 throwOnPartial 옵션으로 분기:
+      //     - true  (cached 안): throw → cached() 가 stale 로 fallback
+      //     - false (route fallback): 일부라도 반환 (0 rows 는 피하기 위함)
+      const fetchAllMinimal = async (throwOnPartial: boolean): Promise<any[]> => {
+        const PAGE_SIZE = 1000;
+        const { count: totalCount } = await supabase
+          .from('listings')
+          .select('*', { count: 'exact', head: true });
+        const totalRows = totalCount || 20000;
+        const totalPages = Math.ceil(totalRows / PAGE_SIZE);
 
-          const { data: firstPage, error: firstError } = await supabase
-            .from('listings')
-            .select(selectFields)
-            .order('created_at', { ascending: false })
-            .range(0, PAGE_SIZE - 1);
+        const { data: firstPage, error: firstError } = await supabase
+          .from('listings')
+          .select(selectFields)
+          .order('created_at', { ascending: false })
+          .range(0, PAGE_SIZE - 1);
 
-          if (firstError) throw new Error('supabase-err: ' + firstError.message);
-          if (!firstPage || firstPage.length === 0) throw new Error('empty-first-page');
+        if (firstError) throw new Error('supabase-err: ' + firstError.message);
+        if (!firstPage || firstPage.length === 0) throw new Error('empty-first-page');
 
-          let all: any[] = [...firstPage];
+        let all: any[] = [...firstPage];
 
-          if (totalPages > 1) {
-            const parallelPages = [];
-            for (let p = 1; p < totalPages; p++) {
-              const from = p * PAGE_SIZE;
-              parallelPages.push(
-                supabase
-                  .from('listings')
-                  .select(selectFields)
-                  .order('created_at', { ascending: false })
-                  .range(from, from + PAGE_SIZE - 1)
-              );
-            }
-            const results = await Promise.all(parallelPages);
-            // ※ break 금지: 중간 페이지가 empty/error 라도 뒤 페이지는 살아있을 수 있음.
-            //   실패한 페이지가 있으면 throw 해서 cached() 가 포이즌 스테일을 보존하도록.
-            results.forEach(({ data, error }, idx) => {
-              if (error) {
-                console.warn(`[admin/listings] page ${idx + 1} err:`, error.message);
-                return;
-              }
-              if (data && data.length > 0) {
-                all = all.concat(data);
-              }
-            });
-            // 예상 총량(head count)에 20% 이상 미달이면 포이즌 캐시 간주 → throw.
-            // cached() 가 기존 stale 을 유지하여, 중간 페이지 실패가 "1000건 고정"으로
-            // 박제되는 회귀(/search 전체 1000건) 를 재발 방지.
-            //   - error 없이 empty 로 돌아오는 Supabase transient 장애도 여기서 걸러짐.
-            //   - 실제 DB 행 수가 감소한 경우는 totalRows 가 같이 줄어드므로 통과.
-            if (all.length < totalRows * 0.8) {
-              throw new Error(
-                `admin-listings partial: got ${all.length}/${totalRows} rows — refusing to cache`
-              );
-            }
+        if (totalPages > 1) {
+          const parallelPages = [];
+          for (let p = 1; p < totalPages; p++) {
+            const from = p * PAGE_SIZE;
+            parallelPages.push(
+              supabase
+                .from('listings')
+                .select(selectFields)
+                .order('created_at', { ascending: false })
+                .range(from, from + PAGE_SIZE - 1)
+            );
           }
+          const results = await Promise.all(parallelPages);
+          // ※ break 금지: 중간 페이지가 empty/error 라도 뒤 페이지는 살아있을 수 있음.
+          results.forEach(({ data, error }, idx) => {
+            if (error) {
+              console.warn(`[admin/listings] page ${idx + 1} err:`, error.message);
+              return;
+            }
+            if (data && data.length > 0) {
+              all = all.concat(data);
+            }
+          });
+          // cached() 안에서는 partial 을 throw 해서 stale 유지.
+          // route-level fallback 에서는 throw 하지 않고 일부라도 반환 (0 rows 방지).
+          if (throwOnPartial && all.length < totalRows * 0.8) {
+            throw new Error(
+              `admin-listings partial: got ${all.length}/${totalRows} rows — refusing to cache`
+            );
+          }
+        }
 
-          // ※ 관리자 포털 이미지 정책: preferSelfHostedImages → compactRow → keepThumbnailOnly.
-          //   - 자체업로드+크롤링 혼합: 자체업로드만 노출 (46163 봉천동 62-24 케이스)
-          //   - 크롤링 전용: 원본 썸네일 유지 (중개사 리스트 카드에 빈 썸네일이 뜨지 않도록)
-          //   순서: preferSelfHostedImages 를 먼저 돌려야 keepThumbnailOnly 가 자체 업로드부터 선택.
-          return all.map((r: any) => preferSelfHostedImages(r)).map(compactRow).map(keepThumbnailOnly);
-        },
+        // ※ 관리자 포털 이미지 정책: preferSelfHostedImages → compactRow → keepThumbnailOnly.
+        return all.map((r: any) => preferSelfHostedImages(r)).map(compactRow).map(keepThumbnailOnly);
+      };
+
+      let allData = await cached(
+        'admin-listings-minimal-v12',
+        () => fetchAllMinimal(true),
         30_000,     // 30초 fresh (크롤링 신규매물 빠른 반영)
         600_000,    // 10분 stale 허용 — Supabase transient 장애에도 /search 1000건 회귀 방지.
-                    //                    stale 기간이 짧으면 부분응답 throw → null 반환 →
-                    //                    client 가 "total:0" 을 받아 UI 에 0건 표시 위험.
         50_000,     // 50초 타임아웃 (Vercel cold start + 3~4 page 병렬 fetch 여유)
       ) || [];
+
+      // cached() 가 null/empty 반환 (cold 인스턴스에서 첫 호출이 partial-throw 한 경우 등)
+      //   → 직접 fetch 로 한번 더 시도 (partial 허용) → UI 에 0건 노출 방지.
+      if (allData.length === 0) {
+        console.warn('[admin/listings] cache returned empty — direct fetch fallback');
+        try {
+          allData = await fetchAllMinimal(false);
+        } catch (e: any) {
+          console.error('[admin/listings] fallback fetch failed:', e?.message || e);
+        }
+      }
 
       // ETag 기반 304 응답
       const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length });
