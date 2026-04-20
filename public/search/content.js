@@ -788,6 +788,79 @@
     return match ? parseInt(match[0], 10) : null;
   }
 
+  /**
+   * 매물에서 준공년도를 "맞는 값" 우선순위로 추출한다.
+   *   1) raw_fields["준공년도"] / ["준공연도"] — 크롤링 원본, 가장 신뢰도 높음
+   *   2) raw_fields.__원본본문__ 내 "준공년도 ... YYYY" 패턴
+   *   3) built_year — BI(building_info) 교차검증 통과 시에만
+   *   4) building_info.사용승인일 — BI 교차검증 통과 시
+   *   5) null
+   * @param {Object} listing 매물 객체
+   * @returns {number|null} 연도 숫자 또는 null
+   */
+  function getBuiltYearForDisplay(listing) {
+    if (!listing || typeof listing !== 'object') return null;
+    try {
+      // (1) raw_fields 우선
+      var rf = listing.raw_fields;
+      if (rf && typeof rf === 'object') {
+        var rfVal = rf['준공년도'] || rf['준공연도'] || '';
+        if (rfVal) {
+          var rm = String(rfVal).match(/(19|20)\d{2}/);
+          if (rm) {
+            var y1 = parseInt(rm[0], 10);
+            if (y1 >= 1900 && y1 <= 2100) return y1;
+          }
+        }
+        // (2) __원본본문__ 에서 준공년도 근처 YYYY 추출
+        if (rf['__원본본문__']) {
+          var body = String(rf['__원본본문__']);
+          var bm = body.match(/준공\s*(?:년도|연도|일)[^0-9]{0,20}((?:19|20)\d{2})/);
+          if (bm) {
+            var y2 = parseInt(bm[1], 10);
+            if (y2 >= 1900 && y2 <= 2100) return y2;
+          }
+        }
+      }
+
+      // (3)/(4) built_year / building_info.사용승인일 — BI 교차검증 통과 시
+      var bi = listing.building_info || null;
+      var biTrusted = true;
+      if (bi && typeof bi === 'object') {
+        var biAddr = String(bi['지번주소'] || bi['도로명주소'] || '');
+        var biName = String(bi['건물명'] || '').trim();
+        var lDong = String(listing.dong || '').trim();
+        var lName = String(listing.building_name || '').trim();
+        if (lDong && biAddr && biAddr.indexOf(lDong) === -1) biTrusted = false;
+        if (biTrusted && lName && biName && biName.indexOf(lName) === -1 && lName.indexOf(biName) === -1) biTrusted = false;
+      }
+
+      // (3) built_year
+      if (listing.built_year) {
+        var by = String(listing.built_year).match(/(19|20)\d{2}/);
+        if (by) {
+          var y3 = parseInt(by[0], 10);
+          // built_year 가 BI 의 사용승인일과 같은 값이면, BI 에서 유도된 오염값 가능성
+          var bySuc = bi && String(bi['사용승인일'] || '').match(/\d{4}/);
+          var derivedFromBI = bySuc && parseInt(bySuc[0], 10) === y3;
+          if (!derivedFromBI || biTrusted) {
+            if (y3 >= 1900 && y3 <= 2100) return y3;
+          }
+        }
+      }
+
+      // (4) BI 사용승인일 (BI 신뢰 가능할 때만)
+      if (biTrusted && bi && bi['사용승인일']) {
+        var sm = String(bi['사용승인일']).match(/(19|20)\d{2}/);
+        if (sm) {
+          var y4 = parseInt(sm[0], 10);
+          if (y4 >= 1900 && y4 <= 2100) return y4;
+        }
+      }
+    } catch (e) {}
+    return null;
+  }
+
   // ============================================================================
   // D) FILTER FUNCTION - APPLIES ALL FILTERS
   // ============================================================================
@@ -1199,6 +1272,7 @@
   window.WS.sortListings = sortListings;
   window.WS.getParkingCount = getParkingCount;
   window.WS.getBuiltYear = getBuiltYear;
+  window.WS.getBuiltYearForDisplay = getBuiltYearForDisplay;
   window.WS.applyFilters = applyFilters;
 
   // ============================================================================
@@ -2695,9 +2769,27 @@
         '<div class="ws-card-info">' +
           (function() {
             var addrText = _getDisplayAddress(listing);
-            var bn = (listing.building_info && listing.building_info.건물명 || '').trim().replace(/[·\-]\s*(철근콘크리트|철골|조적|목구조|경량철골|벽식)[가-힣]*/g, '').replace(/^\s*[·\-]\s*/, '').trim();
+            // [fix 2026-04-20c] 카드 리스트 제목 뒤의 (건물명) 병기는 이전에 listing.building_info.건물명 만 사용했는데,
+            //                   auto-generate 파이프라인 버그로 176건이 "사회복지법인동명원" 등 엉뚱한 BI에 오염됨.
+            //                   이제 매물의 실제 건물명(listing.building_name)을 우선 사용하고,
+            //                   BI는 지번주소가 listing.dong을 포함할 때만 신뢰한다.
+            var bn = '';
+            var lName = String(listing.building_name || '').trim();
+            var biName = String((listing.building_info && listing.building_info['건물명']) || '').trim();
+            var biAddr = String((listing.building_info && (listing.building_info['지번주소'] || listing.building_info['도로명주소'])) || '');
+            var lDong = String(listing.dong || '').trim();
+            if (lName) {
+              bn = lName;
+            } else if (biName) {
+              var biTrust = (!lDong || (biAddr && biAddr.indexOf(lDong) !== -1));
+              if (biTrust) bn = biName;
+            }
+            bn = bn.replace(/[·\-]\s*(철근콘크리트|철골|조적|목구조|경량철골|벽식)[가-힣]*/g, '').replace(/^\s*[·\-]\s*/, '').trim();
             var addrLine = escHtml(addrText);
-            if (bn && bn.length > 1) addrLine += ' <span style="color:#888;font-weight:400;">(' + escHtml(bn) + ')</span>';
+            // 주소 문자열에 이미 같은 건물명이 들어있으면 괄호 병기 생략 (중복 방지)
+            if (bn && bn.length > 1 && (addrText || '').indexOf(bn) === -1) {
+              addrLine += ' <span style="color:#888;font-weight:400;">(' + escHtml(bn) + ')</span>';
+            }
             var newBadge = (function(){ var c = listing.created_at ? new Date(listing.created_at) : null; return (c && (Date.now() - c.getTime()) < 86400000) ? '<span class="ws-new-badge">NEW</span>' : ''; })();
             // ★ 출처 아이콘: G=공실클럽, O=온하우스
             var sourceBadge = '';
@@ -3503,7 +3595,19 @@
     if (existing) existing.remove();
 
     var addrText = _getDisplayAddress(listing);
-    var bn = (listing.building_info && listing.building_info.건물명 || '').trim().replace(/[·\-]\s*(철근콘크리트|철골|조적|목구조|경량철골|벽식)[가-힣]*/g, '').replace(/^\s*[·\-]\s*/, '').trim();
+    // 건물명: listing.building_name 우선 → BI(교차검증 통과 시) fallback
+    var bn = '';
+    var lName = String(listing.building_name || '').trim();
+    var biName = String((listing.building_info && listing.building_info['건물명']) || '').trim();
+    var biAddr = String((listing.building_info && (listing.building_info['지번주소'] || listing.building_info['도로명주소'])) || '');
+    var lDong = String(listing.dong || '').trim();
+    if (lName) {
+      bn = lName;
+    } else if (biName) {
+      var biTrust = (!lDong || (biAddr && biAddr.indexOf(lDong) !== -1));
+      if (biTrust) bn = biName;
+    }
+    bn = bn.replace(/[·\-]\s*(철근콘크리트|철골|조적|목구조|경량철골|벽식)[가-힣]*/g, '').replace(/^\s*[·\-]\s*/, '').trim();
     var areaM2 = listing.area_m2 ? listing.area_m2 + 'm²(' + Math.round(listing.area_m2 / 3.30579) + '평)' : '-';
     var floorInfo = '';
     if (listing.floor_current) {
@@ -3513,7 +3617,7 @@
     var priceText = formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal);
     var dealType = listing.deal || '-';
     var maint = (listing.maintenance_fee && listing.maintenance_fee > 0) ? listing.maintenance_fee + '만' : '미입력';
-    var builtYear = getBuiltYear(listing);
+    var builtYear = getBuiltYearForDisplay(listing);
     var direction = listing.direction || '';
     var imgs = listing.images || listing.listing_images || [];
 
@@ -3533,7 +3637,7 @@
           '<tr><td>관리비</td><td>' + escHtml(maint) + '</td>' +
               '<td>방향</td><td>' + escHtml(direction || '-') + '</td></tr>' +
           '<tr><td>유형</td><td>' + escHtml(listing.type || '-') + '</td>' +
-              '<td>준공</td><td>' + escHtml(builtYear || '-') + '</td></tr>' +
+              '<td>준공</td><td>' + escHtml(builtYear ? builtYear + '년' : '-') + '</td></tr>' +
           (listing.rooms || listing.bathrooms ? '<tr><td>방/욕실</td><td>' + (listing.rooms || '-') + '/' + (listing.bathrooms || '-') + '</td><td>사진</td><td>' + imgs.length + '장</td></tr>' : '<tr><td>사진</td><td colspan="3">' + imgs.length + '장</td></tr>') +
         '</table>' +
         '<div class="ws-qp-actions">' +
@@ -3698,7 +3802,7 @@
         if (isCommercial) {
           // 사무실/상가 전용 필드
           facilHtml += '<div><strong>입주가능</strong> ' + (listing.available_date || '-') + '</div>';
-          facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYear(listing.built_year) ? getBuiltYear(listing.built_year) + '년' : '-') + '</div>';
+          facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYearForDisplay(listing) ? getBuiltYearForDisplay(listing) + '년' : '-') + '</div>';
           // [fix 2026-04-14] 임대기간 / 구조형태 / 권리금 / 현업종 / 권장업종 / 제한업종 / 건물내매물
           if (listing.lease_period) facilHtml += '<div><strong>임대기간</strong> ' + escHtml(String(listing.lease_period)) + '</div>';
           if (listing.entrance_type) facilHtml += '<div><strong>구조형태</strong> ' + escHtml(String(listing.entrance_type)) + '</div>';
@@ -3718,7 +3822,7 @@
           facilHtml += '<div><strong>베란다</strong> ' + (listing.balcony ? '있음' : '<span style="color:#999;font-style:italic;">미확인</span>') + '</div>';
           facilHtml += '<div><strong>풀옵션</strong> ' + (listing.full_option ? '예' : '<span style="color:#999;font-style:italic;">미확인</span>') + '</div>';
           facilHtml += '<div><strong>입주가능</strong> ' + (listing.available_date || '-') + '</div>';
-          facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYear(listing.built_year) ? getBuiltYear(listing.built_year) + '년' : '-') + '</div>';
+          facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYearForDisplay(listing) ? getBuiltYearForDisplay(listing) + '년' : '-') + '</div>';
           facilHtml += '<div><strong>등록일</strong> ' + timeAgo(listing.created_at) + '</div>';
           if (listing.registered_date) facilHtml += '<div><strong>원본등록</strong> ' + escHtml(String(listing.registered_date)) + '</div>';
           if (listing.last_confirmed) facilHtml += '<div><strong>최종확인</strong> ' + escHtml(String(listing.last_confirmed)) + '</div>';
@@ -4605,7 +4709,7 @@
     selected.forEach((listing, idx) => {
       var areaText = formatArea(listing.area_m2) || '-';
       var priceText = formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal);
-      var builtText = getBuiltYear(listing.built_year) ? getBuiltYear(listing.built_year) + '년' : '-';
+      var builtText = getBuiltYearForDisplay(listing) ? getBuiltYearForDisplay(listing) + '년' : '-';
 
       html += `
         <div class="listing">
@@ -5763,8 +5867,8 @@
   };
 
   window.WS._analyzeCondition = function(listing) {
-    // Built year analysis
-    var builtYear = listing.built_year || listing.builtYear || null;
+    // Built year analysis — raw_fields 우선 (오염된 built_year 로 분석 왜곡 방지)
+    var builtYear = getBuiltYearForDisplay(listing) || listing.built_year || listing.builtYear || null;
     var ageYears = 0;
     var ageComment = '';
     if (builtYear) {
@@ -9501,7 +9605,8 @@
         if (listing.parking) printHtml += '<div class="info-item"><span class="info-label">주차</span><span class="info-value">' + escHtml(listing.parking) + '</span></div>';
         if (listing.elevator) printHtml += '<div class="info-item"><span class="info-label">엘베</span><span class="info-value">' + listing.elevator + '</span></div>';
         if (listing.pet) printHtml += '<div class="info-item"><span class="info-label">반려동물</span><span class="info-value">' + listing.pet + '</span></div>';
-        if (listing.built_year) printHtml += '<div class="info-item"><span class="info-label">준공</span><span class="info-value">' + listing.built_year + '</span></div>';
+        var _pdfBy = getBuiltYearForDisplay(listing);
+        if (_pdfBy) printHtml += '<div class="info-item"><span class="info-label">준공</span><span class="info-value">' + _pdfBy + '년</span></div>';
         printHtml += '</div>';
       }
 

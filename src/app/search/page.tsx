@@ -129,7 +129,7 @@ export default function SearchPortalPage() {
     const script = document.createElement('script');
     script.id = 'ws-ext-content';
     // 세션 지속성 핫픽스(redirect 재검증) 강제 반영용 cache-buster
-    script.src = '/search/content.js?v=20260418s2';
+    script.src = '/search/content.js?v=20260420d';
     script.async = false;
     document.body.appendChild(script);
 
@@ -152,7 +152,7 @@ export default function SearchPortalPage() {
     if (!existingV240) {
       const v240Script = document.createElement('script');
       v240Script.id = 'ws-ext-patch-v240';
-      v240Script.src = '/search/content-v240-detail.js?v=20260420c';
+      v240Script.src = '/search/content-v240-detail.js?v=20260420d';
       v240Script.async = false;
       v240Script.defer = false;
       document.body.appendChild(v240Script);
