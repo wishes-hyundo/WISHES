@@ -55,8 +55,8 @@ export async function GET(request: NextRequest) {
       let q = supabase
         .from('listings')
         .select(
-          // building_name + 세일즈 훅 필드(parking/elevator/full_option/pet/balcony/built_year/direction/description/near_subway/subway_distance) 포함
-          'id, title, building_name, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, source_site, created_at, updated_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description, near_subway, subway_distance, listing_images(url)'
+          // building_name + 세일즈 훅 필드 포함 (실제 DB 컬럼명: station_name / station_distance)
+          'id, title, building_name, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, source_site, created_at, updated_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description, station_name, station_distance, listing_images(url)'
         )
         .eq('status', '공개')
         .gte('lat', swLat)

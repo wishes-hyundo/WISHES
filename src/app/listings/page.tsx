@@ -48,7 +48,7 @@ export default async function ListingsPage({
       let query = supabase
         .from('listings')
         .select(
-          'id, title, building_name, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, floor_total, status, source_site, created_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description, near_subway, subway_distance, listing_images(url, sort_order)',
+          'id, title, building_name, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, floor_total, status, source_site, created_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description, station_name, station_distance, listing_images(url, sort_order)',
           { count: 'exact' }
         )
         .eq('status', '공개');

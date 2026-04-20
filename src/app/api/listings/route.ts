@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       const sLimit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 200);
       const selectCols =
         // building_name + 세일즈 훅 필드 포함 (displayTitle 재가공용)
-        'id, title, building_name, type, deal, deposit, monthly, price, address, address_detail, dong, area_m2, floor_current, floor_total, status, source_site, created_at, updated_at, parking, elevator, full_option, pet, balcony, built_year, direction, description, near_subway, subway_distance, listing_images(url, sort_order, is_thumbnail), listing_videos(id, url, poster_url, mime_type, sort_order)';
+        'id, title, building_name, type, deal, deposit, monthly, price, address, address_detail, dong, area_m2, floor_current, floor_total, status, source_site, created_at, updated_at, parking, elevator, full_option, pet, balcony, built_year, direction, description, station_name, station_distance, listing_images(url, sort_order, is_thumbnail), listing_videos(id, url, poster_url, mime_type, sort_order)';
 
       if (onlyDigits) {
         const n = parseInt(q, 10);

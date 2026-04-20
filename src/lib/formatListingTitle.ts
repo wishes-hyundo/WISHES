@@ -66,6 +66,10 @@ interface ListingLike {
   pet?: boolean | null;
   balcony?: boolean | null;
   direction?: string | null;
+  // 실제 DB 컬럼: station_name (역명), station_distance (도보 분)
+  station_name?: string | null;
+  station_distance?: number | null;
+  // 하위호환용 alias (다른 모듈에서 표준화 전 이름을 쓸 수 있음)
   near_subway?: string | null;
   subway_distance?: number | null;
   build_year?: number | null;
@@ -78,11 +82,13 @@ function pickSalesHook(listing: ListingLike): string | null {
   const year = listing.built_year ?? listing.build_year ?? null;
   if (typeof year === 'number' && year >= 2020) return '신축';
 
-  const nearText = [listing.near_subway, listing.description, listing.title]
+  const stationText = listing.station_name ?? listing.near_subway ?? null;
+  const distance = listing.station_distance ?? listing.subway_distance ?? null;
+  const nearText = [stationText, listing.description, listing.title]
     .filter(Boolean)
     .join(' ');
   if (
-    (typeof listing.subway_distance === 'number' && listing.subway_distance > 0 && listing.subway_distance <= 5) ||
+    (typeof distance === 'number' && distance > 0 && distance <= 5) ||
     /역세권|도보\s?\d+분|\d+호선/i.test(nearText)
   ) {
     return '역세권';
