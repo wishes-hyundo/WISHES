@@ -424,11 +424,17 @@ export async function POST(request: NextRequest) {
 
     const { images, ...listingData } = parsed.data;
 
-    // ── 자동 지오코딩 (lat/lng 미수신 시) ──
-    //   크롤러/외부 POST 에서 좌표를 함께 보내지 않는 경우, 주소로 Kakao Local API를
-    //   즉시 호출해서 lat/lng 을 채운다. 실패해도 insert 자체는 진행 (null 상태로 저장).
+    // ── 자동 지오코딩 (lat/lng 미수신 또는 0 / NaN 일 때) ──
+    //   크롤러/외부 POST 에서 좌표를 함께 보내지 않거나 0 을 보내는 경우,
+    //   주소로 Kakao Local API를 즉시 호출해서 lat/lng 을 채운다.
+    //   실패해도 insert 자체는 진행 (null 상태로 저장).
     //   2026-04-20: /map 신규 매물 미노출 회귀 방어.
-    if ((listingData.lat == null || listingData.lng == null) && listingData.address) {
+    //   2026-04-20 (patch2): 크롤러가 lat: 0, lng: 0 을 보내는 케이스까지 커버.
+    const needsGeocode =
+      listingData.lat == null || listingData.lng == null ||
+      !Number.isFinite(listingData.lat) || !Number.isFinite(listingData.lng) ||
+      listingData.lat === 0 || listingData.lng === 0;
+    if (needsGeocode && listingData.address) {
       try {
         const coords = await geocodeAddress(listingData.address);
         if (coords) {
@@ -606,11 +612,18 @@ export async function PUT(request: NextRequest) {
       }
     });
 
-    // ── 자동 재지오코딩 (주소는 있는데 lat/lng 이 null 로 업데이트되려는 경우) ──
+    // ── 자동 재지오코딩 (주소는 있는데 lat/lng 이 null/0/NaN 으로 들어오는 경우) ──
     //   2026-04-20: 신규/수정 매물이 좌표 없이 들어와 /map 에 안 뜨는 이슈 방어.
+    //   2026-04-20 (patch2): 크롤러 0/NaN 값 커버.
     const wantsAddr = typeof updateValues.address === 'string' && updateValues.address.length > 0;
-    const latMissing = updateValues.lat == null;
-    const lngMissing = updateValues.lng == null;
+    const latMissing =
+      updateValues.lat == null ||
+      !Number.isFinite(updateValues.lat) ||
+      updateValues.lat === 0;
+    const lngMissing =
+      updateValues.lng == null ||
+      !Number.isFinite(updateValues.lng) ||
+      updateValues.lng === 0;
     if (wantsAddr && (latMissing || lngMissing)) {
       try {
         const coords = await geocodeAddress(updateValues.address);
