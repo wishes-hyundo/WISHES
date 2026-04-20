@@ -333,10 +333,8 @@ export async function GET(request: NextRequest) {
             const results = await Promise.all(parallelPages);
             // ※ break 금지: 중간 페이지가 empty/error 라도 뒤 페이지는 살아있을 수 있음.
             //   실패한 페이지가 있으면 throw 해서 cached() 가 포이즌 스테일을 보존하도록.
-            let hadPageError = false;
             results.forEach(({ data, error }, idx) => {
               if (error) {
-                hadPageError = true;
                 console.warn(`[admin/listings] page ${idx + 1} err:`, error.message);
                 return;
               }
@@ -344,9 +342,12 @@ export async function GET(request: NextRequest) {
                 all = all.concat(data);
               }
             });
-            // 중간 페이지가 에러·공백인데도 완료처리해버리면 포이즌 캐시가 됨.
-            // 예상 총량(head count)에 한참 못 미치면 throw → cached() stale 유지.
-            if (hadPageError && all.length < totalRows * 0.8) {
+            // 예상 총량(head count)에 20% 이상 미달이면 포이즌 캐시 간주 → throw.
+            // cached() 가 기존 stale 을 유지하여, 중간 페이지 실패가 "1000건 고정"으로
+            // 박제되는 회귀(/search 전체 1000건) 를 재발 방지.
+            //   - error 없이 empty 로 돌아오는 Supabase transient 장애도 여기서 걸러짐.
+            //   - 실제 DB 행 수가 감소한 경우는 totalRows 가 같이 줄어드므로 통과.
+            if (all.length < totalRows * 0.8) {
               throw new Error(
                 `admin-listings partial: got ${all.length}/${totalRows} rows — refusing to cache`
               );
@@ -360,8 +361,10 @@ export async function GET(request: NextRequest) {
           return all.map((r: any) => preferSelfHostedImages(r)).map(compactRow).map(keepThumbnailOnly);
         },
         30_000,     // 30초 fresh (크롤링 신규매물 빠른 반영)
-        180_000,    // 3분 stale 허용
-        30_000,     // 30초 타임아웃 (15K 행 pagination 여유)
+        600_000,    // 10분 stale 허용 — Supabase transient 장애에도 /search 1000건 회귀 방지.
+                    //                    stale 기간이 짧으면 부분응답 throw → null 반환 →
+                    //                    client 가 "total:0" 을 받아 UI 에 0건 표시 위험.
+        50_000,     // 50초 타임아웃 (Vercel cold start + 3~4 page 병렬 fetch 여유)
       ) || [];
 
       // ETag 기반 304 응답
