@@ -361,6 +361,15 @@
       '#ws-alert-drawer .entry .ids .chip { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #f0f5f0; font-size: 10px; color: #2D5A27; font-weight: 600; cursor: pointer; transition: all 0.12s ease; }',
       '#ws-alert-drawer .entry .ids .chip:hover { background: #2D5A27; color: #fff; }',
       '#ws-alert-drawer .entry .ids .more { color: #999; font-size: 10px; padding: 2px 4px; align-self: center; }',
+      '#ws-alert-drawer .entry .dedup-groups { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }',
+      '#ws-alert-drawer .entry .dedup-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; padding: 6px 8px; background: #f7fbf7; border-radius: 6px; border: 1px dashed #d5e5d5; }',
+      '#ws-alert-drawer .entry .chip-kept { background: #2D5A27 !important; color: #fff !important; font-weight: 700 !important; padding: 3px 9px !important; box-shadow: 0 1px 3px rgba(45,90,39,0.25); }',
+      '#ws-alert-drawer .entry .chip-kept:hover { background: #1f401a !important; }',
+      '#ws-alert-drawer .entry .chip-hidden { background: #f5f5f5 !important; color: #999 !important; text-decoration: line-through; font-weight: 500 !important; }',
+      '#ws-alert-drawer .entry .chip-hidden:hover { background: #666 !important; color: #fff !important; text-decoration: none; }',
+      '#ws-alert-drawer .entry .arrow { color: #bbb; font-size: 12px; font-weight: 700; margin: 0 2px; }',
+      '#ws-alert-drawer .entry .hidden-label { font-size: 10px; color: #999; font-weight: 600; margin-right: 2px; }',
+      '#ws-alert-drawer .entry .group-meta { font-size: 10px; color: #888; margin-top: 3px; width: 100%; flex-basis: 100%; line-height: 1.4; }',
       '#ws-alert-drawer .ftr { padding: 10px 14px; background: #fff; border-top: 1px solid #e5eee5; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }',
       '#ws-alert-drawer .ftr .count { font-size: 11px; color: #666; }',
       '#ws-alert-drawer .ftr .clr { padding: 6px 12px; background: #fff; border: 1px solid #d5e5d5; border-radius: 6px; font-size: 11px; cursor: pointer; color: #e53e3e; font-weight: 600; }',
@@ -420,19 +429,64 @@
     }
     var html = filtered.map(function (e) {
       var color = _typeColor(e.type);
-      var ids = (e.listingIds || []).slice(0, 8);
-      var moreN = (e.listingIds || []).length - ids.length;
-      var idsHtml =
-        ids.length > 0
+      var idsHtml = '';
+
+      // ── auto_dedup: 그룹별 🏆 대표 → 🫥 숨김 레이아웃 ──
+      if (e.type === 'auto_dedup' && e.meta && Array.isArray(e.meta.removed) && e.meta.removed.length > 0) {
+        var groupMap = {};
+        e.meta.removed.forEach(function (r) {
+          var kId = String(r.keptId == null ? '?' : r.keptId);
+          if (!groupMap[kId]) groupMap[kId] = { kept: r.keptId, removed: [], sample: r };
+          groupMap[kId].removed.push(r);
+        });
+        var groupKeys = Object.keys(groupMap);
+        var groupsShown = groupKeys.slice(0, 5);
+        var groupsMore = groupKeys.length - groupsShown.length;
+        var groupHtml = groupsShown.map(function (k) {
+          var g = groupMap[k];
+          var keptChip =
+            '<span class="chip chip-kept" data-listing-id="' + _escapeHtml(g.kept) +
+            '" title="리스트에 남은 대표 매물 (클릭 → 상세모달)">🏆 #' + _escapeHtml(g.kept) + '</span>';
+          var hiddenChips = g.removed.map(function (r) {
+            return '<span class="chip chip-hidden" data-listing-id="' + _escapeHtml(r.id) +
+              '" title="숨김 처리 (DB 에는 보존)">#' + _escapeHtml(r.id) + '</span>';
+          }).join('');
+          var sample = g.sample || {};
+          var dealStr = sample.deal || '';
+          var priceStr = dealStr === '매매'
+            ? (sample.price != null ? sample.price + '만' : '')
+            : ((sample.deposit != null ? sample.deposit : '') + '/' + (sample.monthly != null ? sample.monthly : ''));
+          var meta =
+            '<div class="group-meta">📍 ' + _escapeHtml(sample.address || '') +
+            (sample.detail ? ' · ' + _escapeHtml(sample.detail) : '') +
+            (dealStr ? ' · ' + _escapeHtml(dealStr) : '') +
+            (priceStr ? ' · ' + _escapeHtml(priceStr) : '') + '</div>';
+          return '<div class="dedup-group">' +
+            keptChip +
+            '<span class="arrow">→</span>' +
+            '<span class="hidden-label">🫥 숨김:</span>' +
+            hiddenChips +
+            meta +
+            '</div>';
+        }).join('');
+        if (groupsMore > 0) {
+          groupHtml += '<div style="font-size:11px;color:#888;padding:4px 8px;">외 ' + groupsMore + '개 그룹</div>';
+        }
+        idsHtml = '<div class="dedup-groups">' + groupHtml + '</div>';
+      } else {
+        // ── 기본 레이아웃 (숨김 처리 없이 모든 ID 나열) ──
+        var ids = (e.listingIds || []).slice(0, 8);
+        var moreN = (e.listingIds || []).length - ids.length;
+        idsHtml = ids.length > 0
           ? '<div class="ids">' +
-            ids
-              .map(function (id) {
-                return '<span class="chip" data-listing-id="' + _escapeHtml(id) + '">#' + _escapeHtml(id) + '</span>';
-              })
-              .join('') +
+            ids.map(function (id) {
+              return '<span class="chip" data-listing-id="' + _escapeHtml(id) + '">#' + _escapeHtml(id) + '</span>';
+            }).join('') +
             (moreN > 0 ? '<span class="more">외 ' + moreN + '건</span>' : '') +
             '</div>'
           : '';
+      }
+
       return (
         '<div class="entry" style="border-left-color:' + color + ';">' +
         '<div class="row1">' +
