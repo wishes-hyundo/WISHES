@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { applyImagePolicy } from '@/lib/image-policy';
 
 /**
  * 지도 바운드 범위 내 매물 조회
@@ -92,20 +93,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // ※ 크롤링 매물(source_site NOT NULL) → listing_images 빈 배열로 치환 (사진 차단)
-    //   그 외 정보는 그대로 노출 (광고 목적)
-    let sorted = (data || []).map((r: any) => {
-      if (r.source_site) {
-        return { ...r, listing_images: [] };
-      }
-      return r;
-    });
+    // ※ 저작권 보호 + 자체 업로드 통과
+    //   - 크롤링 매물의 외부 원본 이미지는 차단
+    //   - 중개사가 직접 올린 자체 업로드 이미지(wishes.co.kr, supabase, R2)는 통과 → 광고 노출
+    let sorted = (data || []).map((r: any) => applyImagePolicy(r));
 
-    // 사진 유무 정렬: 1순위 사진 있는 자체 매물, 2순위 수정일 (추가 쿼리 없이 메인 JOIN 결과 활용)
+    // 사진 유무 정렬: 1순위 사진 있는 매물(자체 매물 + 직접 업로드한 크롤링 매물 포함), 2순위 수정일
+    // ※ applyImagePolicy 이후 listing_images에는 "노출 허용된" 이미지만 남아 있으므로
+    //   source_site 체크 없이 length 만 보면 된다 (크롤링 매물에 직접 업로드한 사진 있는 경우 자연스럽게 상위)
     if (sorted.length > 0) {
       sorted = [...sorted].sort((a: any, b: any) => {
-        const ah = !a.source_site && Array.isArray(a.listing_images) && a.listing_images.length > 0 ? 1 : 0;
-        const bh = !b.source_site && Array.isArray(b.listing_images) && b.listing_images.length > 0 ? 1 : 0;
+        const ah = Array.isArray(a.listing_images) && a.listing_images.length > 0 ? 1 : 0;
+        const bh = Array.isArray(b.listing_images) && b.listing_images.length > 0 ? 1 : 0;
         if (ah !== bh) return bh - ah;
         const ad = new Date(a.updated_at || a.created_at || 0).getTime();
         const bd = new Date(b.updated_at || b.created_at || 0).getTime();

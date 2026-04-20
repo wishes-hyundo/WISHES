@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServerClient } from '@/lib/supabase';
 import { cached, invalidateCache } from '@/lib/cache';
+import { applyImagePolicy } from '@/lib/image-policy';
 
 /**
  * 매물 목록 조회
@@ -43,10 +44,10 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // 크롤링 매물 사진·동영상 차단 (정보는 노출)
-      const sanitized = (data || []).map((r: any) =>
-        r.source_site ? { ...r, listing_images: [], listing_videos: [] } : r
-      );
+      // ※ 저작권 보호 + 자체 업로드 통과
+      //   - 크롤링 매물의 외부 원본 이미지는 차단
+      //   - 중개사가 직접 올린 자체 업로드 이미지(wishes.co.kr, supabase, R2)는 통과
+      const sanitized = (data || []).map((r: any) => applyImagePolicy(r));
 
       return NextResponse.json({
         success: true,
@@ -95,11 +96,10 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error;
 
-        // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 listing_images/listing_videos 빈 배열로 치환.
-        //   매물 자체는 노출하여 주소·가격·면적 등 정보는 광고 용도로 보이게 함.
-        const sanitized = (data || []).map((r: any) =>
-          r.source_site ? { ...r, listing_images: [], listing_videos: [] } : r
-        );
+        // ※ 저작권 보호 + 자체 업로드 통과
+        //   - 크롤링 매물의 외부 원본 이미지는 차단
+        //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
+        const sanitized = (data || []).map((r: any) => applyImagePolicy(r));
 
         return { data: sanitized, total: count || 0 };
       },

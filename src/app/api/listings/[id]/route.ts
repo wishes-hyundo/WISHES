@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
+import { filterSelfHosted } from '@/lib/image-policy';
 
 /**
  * 매물 상세 조회 (이미지, 특징 포함)
@@ -40,15 +41,16 @@ export async function GET(
       );
     }
 
-    // 이미지 조회 (크롤링 매물은 저작권 보호 목적으로 빈 배열 처리)
+    // ※ 저작권 보호 + 자체 업로드 통과
+    //   - 크롤링 매물의 외부 원본 이미지는 차단
+    //   - 중개사가 직접 올린 자체 업로드 이미지(wishes.co.kr, supabase, R2)는 통과 → 광고 노출
     const isCrawled = !!(listing as any).source_site;
-    const { data: images = [] } = isCrawled
-      ? { data: [] as any[] }
-      : await supabase
-          .from('listing_images')
-          .select('*')
-          .eq('listing_id', listingId)
-          .order('sort_order', { ascending: true });
+    const { data: rawImages = [] } = await supabase
+      .from('listing_images')
+      .select('*')
+      .eq('listing_id', listingId)
+      .order('sort_order', { ascending: true });
+    const images = isCrawled ? filterSelfHosted(rawImages || []) : (rawImages || []);
 
     // 특징 조회
     const { data: features = [] } = await supabase
