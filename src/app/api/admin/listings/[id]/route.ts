@@ -56,6 +56,13 @@ export async function GET(
       .eq('listing_id', listingId)
       .order('sort_order', { ascending: true });
 
+    // 동영상 목록 — [add 2026-04-20] listing_videos 편집 지원
+    const { data: videos } = await supabase
+      .from('listing_videos')
+      .select('id, url, poster_url, mime_type, file_size, duration_sec, width, height, alt, sort_order, created_at')
+      .eq('listing_id', listingId)
+      .order('sort_order', { ascending: true });
+
     // 특징 목록
     const { data: features } = await supabase
       .from('listing_features')
@@ -67,6 +74,7 @@ export async function GET(
       data: {
         ...listing,
         listing_images: images || [],
+        listing_videos: videos || [],
         features: features?.map((f: { feature: string }) => f.feature) || [],
       },
     });

@@ -96,6 +96,14 @@ export default function EditListingPage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [originalData, setOriginalData] = useState<any>(null);
 
+  // ── 동영상 상태 [add 2026-04-20] ──
+  // listing_videos 는 매물 ID 가 이미 존재하는 수정 화면에서 DB 직접 기록/삭제
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingVideos, setIsUploadingVideos] = useState(false);
+  const [previewVideos, setPreviewVideos] = useState<
+    Array<{ id: number; url: string; poster_url?: string | null; mime_type?: string | null; sort_order?: number }>
+  >([]);
+
   const [formData, setFormData] = useState<FormData>({
     title: '',
     transactionType: '월세',
@@ -262,6 +270,14 @@ export default function EditListingPage() {
             .map((img: any) => img.url);
           setPreviewImages(sortedImages);
         }
+
+        // 기존 동영상 미리보기 [add 2026-04-20]
+        if (d.listing_videos && Array.isArray(d.listing_videos) && d.listing_videos.length > 0) {
+          const sortedVideos = [...d.listing_videos].sort(
+            (a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0)
+          );
+          setPreviewVideos(sortedVideos);
+        }
       } catch (err) {
         setLoadError(err instanceof Error ? err.message : '매물 데이터를 불러올 수 없습니다');
       } finally {
@@ -332,6 +348,78 @@ export default function EditListingPage() {
       return newPrev;
     });
   }, []);
+
+  // ━━━ 동영상 업로드/삭제 [add 2026-04-20] ━━━
+  // /api/listings/[id]/videos (POST) 로 bulk 업로드 → DB insert까지 서버에서 처리
+  const handleVideoUpload = useCallback(
+    async (files: FileList | File[]) => {
+      const arr = Array.from(files);
+      if (arr.length === 0) return;
+
+      // 서버 상한선과 일치: 50MB/개, 1회 5개
+      const MAX_SIZE = 50 * 1024 * 1024;
+      const overSize = arr.filter((f) => f.size > MAX_SIZE);
+      if (overSize.length > 0) {
+        alert(
+          `50MB 를 초과하는 파일이 있습니다. (${overSize.map((f) => f.name).join(', ')})\n` +
+            `핸드폰에서 "영상 공유 → 편집 → 짧게 잘라 저장" 후 다시 업로드 해주세요.`
+        );
+        return;
+      }
+      if (arr.length > 5) {
+        alert('한 번에 최대 5개까지 업로드 가능합니다.');
+        return;
+      }
+
+      setIsUploadingVideos(true);
+      try {
+        const fd = new window.FormData();
+        arr.forEach((f) => fd.append('videos', f));
+
+        const res = await fetch(`/api/listings/${listingId}/videos`, {
+          method: 'POST',
+          headers: { Authorization: 'Bearer wishes2026' },
+          body: fd,
+        });
+        const json = await res.json();
+        if (!res.ok || !json.success) {
+          throw new Error(json.error || json.details || '업로드 실패');
+        }
+
+        // 서버에서 반환한 최신 목록을 다시 fetch 해서 동기화 (id/sort_order 안정)
+        const listRes = await fetch(`/api/listings/${listingId}/videos`, {
+          headers: { Authorization: 'Bearer wishes2026' },
+        });
+        const listJson = await listRes.json();
+        if (listJson.success && Array.isArray(listJson.data)) {
+          setPreviewVideos(listJson.data);
+        }
+      } catch (err) {
+        alert('동영상 업로드 오류: ' + (err instanceof Error ? err.message : String(err)));
+      } finally {
+        setIsUploadingVideos(false);
+      }
+    },
+    [listingId]
+  );
+
+  const handleRemoveVideo = useCallback(
+    async (videoId: number) => {
+      if (!confirm('이 동영상을 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
+      try {
+        const res = await fetch(
+          `/api/listings/${listingId}/videos?videoId=${videoId}`,
+          { method: 'DELETE', headers: { Authorization: 'Bearer wishes2026' } }
+        );
+        const json = await res.json();
+        if (!res.ok || !json.success) throw new Error(json.error || '삭제 실패');
+        setPreviewVideos((prev) => prev.filter((v) => v.id !== videoId));
+      } catch (err) {
+        alert('동영상 삭제 오류: ' + (err instanceof Error ? err.message : String(err)));
+      }
+    },
+    [listingId]
+  );
 
   // ── 드래그 앤 드롭 ──
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -664,6 +752,69 @@ export default function EditListingPage() {
                 </div>
               </div>
             )}
+
+            {/* ── 매물 동영상 섹션 [add 2026-04-20] ── */}
+            <div className="mt-8 pt-6 border-t">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-lg font-bold text-gray-900">매물 동영상</h2>
+                <span className="text-xs text-gray-500">MP4 · MOV · WebM · 파일당 최대 50MB · 한 번에 5개까지</span>
+              </div>
+
+              <div
+                onClick={() => videoInputRef.current?.click()}
+                className="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer border-gray-300 hover:border-purple-400 transition-colors"
+              >
+                <input
+                  ref={videoInputRef}
+                  type="file"
+                  multiple
+                  accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/x-matroska,.mp4,.mov,.webm,.m4v,.mkv"
+                  onChange={(e) => e.target.files && handleVideoUpload(e.target.files)}
+                  className="hidden"
+                />
+                <div className="text-gray-400 text-3xl mb-1">🎬</div>
+                <p className="text-gray-700 font-medium">
+                  {isUploadingVideos ? '업로드 중... 용량이 크면 시간이 걸릴 수 있습니다' : '동영상을 클릭하여 추가'}
+                </p>
+                <p className="text-gray-400 text-xs mt-1">
+                  핸드폰 촬영 영상 그대로 업로드 가능 · 너무 길면 미리 잘라 올려주세요
+                </p>
+              </div>
+
+              {previewVideos.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 mb-3">
+                    등록된 동영상: {previewVideos.length}개 (상세 페이지 갤러리 첫 슬라이드로 노출)
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {previewVideos.map((v, idx) => (
+                      <div key={v.id} className="relative group border rounded-lg overflow-hidden bg-black">
+                        <video
+                          src={v.url}
+                          poster={v.poster_url || undefined}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="w-full aspect-video object-cover bg-black"
+                        />
+                        {idx === 0 && (
+                          <div className="absolute top-1 left-1 bg-purple-600 text-white text-xs px-2 py-0.5 rounded">
+                            ▶ 대표 영상
+                          </div>
+                        )}
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleRemoveVideo(v.id); }}
+                          className="absolute top-1 right-1 bg-red-500/90 text-white w-7 h-7 rounded-full text-sm hover:bg-red-600 flex items-center justify-center"
+                          title="삭제"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
@@ -1101,6 +1252,10 @@ export default function EditListingPage() {
                 <div className="flex justify-between">
                   <span className="text-gray-500">이미지</span>
                   <span className="font-medium text-gray-900">{formData.images.length}장</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">동영상</span>
+                  <span className="font-medium text-gray-900">{previewVideos.length}개</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">상태</span>

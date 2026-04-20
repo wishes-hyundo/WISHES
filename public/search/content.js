@@ -2889,6 +2889,8 @@
     var imgs = listing.images || listing.listing_images || [];
     var imageCount = imgs.length || 0;
     var firstImgUrl = imgs.length > 0 ? (imgs[0].url || imgs[0]) : '';
+    // [add 2026-04-20] 동영상 존재 여부 — 카드 썸네일에 ▶ 배지 노출
+    var vidCount = (listing.videos && listing.videos.length) || (listing.listing_videos && listing.listing_videos.length) || 0;
     var areaText = (listing.area_m2 != null && listing.area_m2 > 0) ? listing.area_m2 + 'm² (' + Math.round(listing.area_m2 / 3.30579) + '평)' : '-';
     var floorText = '';
     if (listing.floor_current) {
@@ -2907,6 +2909,7 @@
       '<div class="ws-listing-image-wrap ' + hideImg + '">' +
         (firstImgUrl ? '<img data-src="' + escHtml(firstImgUrl) + '" alt="' + escHtml(listing.title || '') + '" class="ws-listing-image ws-lazy" style="width:100%;height:100%;object-fit:cover;background:#f0f0f0;" onerror="this.style.display=\'none\';this.nextElementSibling&&(this.nextElementSibling.style.display=\'flex\')"><div style="display:none;width:100%;height:100%;background:#e8e8e8;align-items:center;justify-content:center;color:#aaa;font-size:20px;">🏠</div>' : '<div class="ws-listing-image" style="width:100%;height:100%;background:#e8e8e8;display:flex;align-items:center;justify-content:center;color:#aaa;font-size:20px;">🏠</div>') +
         (imageCount > 0 ? '<span class="ws-photo-badge">' + imageCount + '장</span>' : '') +
+        (vidCount > 0 ? '<span class="ws-video-badge" title="' + vidCount + '개 동영상" style="position:absolute;top:8px;left:8px;background:rgba(124,58,237,.95);color:#fff;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;z-index:2;display:inline-flex;align-items:center;gap:3px;box-shadow:0 2px 6px rgba(0,0,0,.25);"><span style="font-size:9px;">▶</span> 동영상' + (vidCount > 1 ? ' ' + vidCount : '') + '</span>' : '') +
         '<span class="ws-time-badge">' + timeAgo(listing.created_at) + '</span>' +
         '<button class="ws-favorite-btn ' + isFav + '" data-id="' + listing.id + '">★</button>' +
         '<button class="ws-photo-upload-btn" data-id="' + listing.id + '" title="사진 등록/관리">📷+</button>' +

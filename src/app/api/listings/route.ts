@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       const supabase = createServerClient();
       const { data, error } = await supabase
         .from('listings')
-        .select('*, listing_images(*)')
+        .select('*, listing_images(*), listing_videos(id, url, poster_url, mime_type, sort_order)')
         .in('id', idList);
 
       if (error) {
@@ -43,9 +43,9 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      // 크롤링 매물 사진 차단 (정보는 노출)
+      // 크롤링 매물 사진·동영상 차단 (정보는 노출)
       const sanitized = (data || []).map((r: any) =>
-        r.source_site ? { ...r, listing_images: [] } : r
+        r.source_site ? { ...r, listing_images: [], listing_videos: [] } : r
       );
 
       return NextResponse.json({
@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
           .from('listings')
           .select(
             // [fix 2026-04-14] 상가 전용 필드 누락 이슈 해결 — 목록에서도 상세 필드 전량 반환
-            '*, listing_images(url, sort_order)',
+            // [fix 2026-04-20] listing_videos 조인 추가 — 동영상 첫 슬라이드/배지 노출용
+            '*, listing_images(url, sort_order), listing_videos(id, url, poster_url, mime_type, sort_order)',
             { count: 'exact' }
           )
           .eq('status', '공개')
@@ -94,10 +95,10 @@ export async function GET(request: NextRequest) {
 
         if (error) throw error;
 
-        // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 listing_images 빈 배열로 치환.
+        // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 listing_images/listing_videos 빈 배열로 치환.
         //   매물 자체는 노출하여 주소·가격·면적 등 정보는 광고 용도로 보이게 함.
         const sanitized = (data || []).map((r: any) =>
-          r.source_site ? { ...r, listing_images: [] } : r
+          r.source_site ? { ...r, listing_images: [], listing_videos: [] } : r
         );
 
         return { data: sanitized, total: count || 0 };

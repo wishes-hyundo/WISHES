@@ -429,6 +429,7 @@
     });
   }
   // v2.4.5 — 썸네일 클릭 명시 바인딩 (innerHTML 교체 후 호출)
+  // [update 2026-04-20] data-type='video' 썸네일 지원 — <video> 요소 삽입/교체
   function v245BindThumbs(container) {
     if (!container) return;
     var thumbs = container.querySelectorAll('.ws-thumb');
@@ -439,10 +440,41 @@
       thumb.addEventListener('click', function(ev) {
         ev.stopPropagation();
         var url = thumb.getAttribute('data-url');
-        var idx = parseInt(thumb.getAttribute('data-idx') || '0', 10);
+        var type = thumb.getAttribute('data-type') || 'image';
+        var mime = thumb.getAttribute('data-mime') || '';
+        var idx = thumb.getAttribute('data-idx') || '0';
         var main = document.getElementById('ws-gallery-main');
         if (main && url) {
-          main.style.backgroundImage = "url('" + url + "')";
+          var existingVid = main.querySelector('video.ws-gallery-video');
+          if (type === 'video') {
+            // 이미지 배경 제거 + <video> 삽입/교체
+            main.style.backgroundImage = '';
+            main.style.background = '#000';
+            if (existingVid) {
+              existingVid.pause && existingVid.pause();
+              existingVid.setAttribute('src', url);
+              if (mime) existingVid.setAttribute('type', mime);
+              existingVid.load && existingVid.load();
+            } else {
+              var v = document.createElement('video');
+              v.className = 'ws-gallery-video';
+              v.id = 'ws-gallery-video';
+              v.src = url;
+              v.controls = true;
+              v.playsInline = true;
+              v.preload = 'metadata';
+              v.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;';
+              main.appendChild(v);
+            }
+          } else {
+            // 이미지 슬라이드: <video> 있으면 정지·제거
+            if (existingVid) {
+              try { existingVid.pause(); } catch(e){}
+              existingVid.remove();
+            }
+            main.style.background = '';
+            main.style.backgroundImage = "url('" + url + "')";
+          }
           main.setAttribute('data-current', String(idx));
         }
         container.querySelectorAll('.ws-thumb').forEach(function(t){ t.classList.remove('ws-thumb-active'); });
@@ -485,6 +517,12 @@
     var imgs = L.images || L.listing_images || [];
     var firstUrl = imgs.length > 0 ? (imgs[0].url || imgs[0]) : '';
     var imgUrls = imgs.map(function(x) { return x.url || x; });
+
+    // [add 2026-04-20] 동영상 준비 — 갤러리 첫 슬라이드에 배치
+    var vids = (L.videos || L.listing_videos || []).slice().sort(function(a,b){
+      return (a.sort_order||0) - (b.sort_order||0);
+    });
+    var hasVideo = vids.length > 0;
 
     // 가격·면적 포매터
     var priceTxt = '';
@@ -567,13 +605,25 @@
     // 옵션 칩 생성
     var optionChips = buildOptionChips(L);
 
-    // 썸네일 HTML
-    var thumbsHtml = imgs.map(function(img, idx) {
+    // 썸네일 HTML — [update 2026-04-20] 동영상 썸네일을 맨 앞에 배치 (▶ 배지)
+    var videoThumbsHtml = vids.map(function(v, idx) {
+      var poster = v.poster_url || (imgs.length > 0 ? (imgs[0].url || imgs[0]) : '');
+      return '<span class="ws-thumb ws-thumb-video' + (idx === 0 ? ' ws-thumb-active' : '') +
+             '" data-type="video" data-url="' + esc(v.url || '') +
+             (v.mime_type ? '" data-mime="' + esc(v.mime_type) : '') +
+             '" data-idx="video-' + idx + '" ' +
+             'style="background:#111 center/cover url(\'' + esc(poster) + '\') no-repeat;">' +
+             '<span class="ws-thumb-play">▶</span>' +
+             '</span>';
+    }).join('');
+    var imageThumbsHtml = imgs.map(function(img, idx) {
       var u = img.url || img;
+      var activeOnFirst = (!hasVideo && idx === 0) ? ' ws-thumb-active' : '';
       return '<img src="' + esc(u) + '" alt="thumbnail" class="ws-thumb' +
-             (idx === 0 ? ' ws-thumb-active' : '') + '" data-url="' + esc(u) +
+             activeOnFirst + '" data-type="image" data-url="' + esc(u) +
              '" data-idx="' + idx + '">';
     }).join('');
+    var thumbsHtml = videoThumbsHtml + imageThumbsHtml;
 
     // 기본정보 행 (13필드, 2쌍/행 × 7행)
     var basicRows = buildBasicRows(L, floorTxt, areaFull, builtTxt, avail);
@@ -604,10 +654,19 @@
         '</div>' +
         '<div class="v240-body v240-gallery-body ws-detail-gallery">' +
           '<div class="ws-gallery-main" id="ws-gallery-main"' +
-            ' style="background-image:url(\'' + esc(firstUrl) + '\'); "' +
+            (hasVideo
+              ? ' style="background:#000;"'
+              : ' style="background-image:url(\'' + esc(firstUrl) + '\'); "') +
             ' data-images="' + esc(JSON.stringify(imgUrls)).replace(/"/g, '&quot;') + '"' +
-            ' data-current="0" >' +
-                      '</div>' +
+            ' data-videos="' + esc(JSON.stringify(vids.map(function(v){return {url:v.url, mime:v.mime_type||'', poster:v.poster_url||''};}))).replace(/"/g, '&quot;') + '"' +
+            ' data-current="' + (hasVideo ? 'video-0' : '0') + '">' +
+            (hasVideo
+              ? '<video class="ws-gallery-video" id="ws-gallery-video" src="' + esc(vids[0].url) + '"' +
+                (vids[0].poster_url ? ' poster="' + esc(vids[0].poster_url) + '"' : '') +
+                ' controls playsinline preload="metadata"' +
+                ' style="width:100%;height:100%;object-fit:contain;background:#000;"></video>'
+              : '') +
+          '</div>' +
           '<div class="ws-gallery-thumbs">' + thumbsHtml + '</div>' +
         '</div>' +
       '</section>';
@@ -989,6 +1048,12 @@
       '#ws-detail-container .ws-thumb:hover{opacity:.95}' +
       '#ws-detail-container .ws-thumb.ws-thumb-active{opacity:1;border-color:var(--v240-g700);' +
         'box-shadow:0 0 0 1px var(--v240-g700) inset}' +
+      /* [add 2026-04-20] 동영상 썸네일 ▶ 배지 */
+      '#ws-detail-container .ws-thumb-video{position:relative;display:inline-flex;align-items:center;justify-content:center}' +
+      '#ws-detail-container .ws-thumb-video .ws-thumb-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);' +
+        'width:28px;height:28px;background:rgba(124,58,237,.92);color:#fff;border-radius:50%;display:flex;' +
+        'align-items:center;justify-content:center;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.4);pointer-events:none}' +
+      '#ws-detail-container .ws-gallery-video{display:block;width:100%;height:100%}' +
 
       /* ---- Hero (프리미엄) ---- */
       '#ws-detail-container .v240-hero{display:grid;grid-template-columns:1fr auto;gap:20px;align-items:center;' +

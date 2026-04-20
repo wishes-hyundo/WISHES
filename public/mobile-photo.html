@@ -273,6 +273,19 @@
     <div class="pv-drag-hint">길게 눌러 드래그하면 순서 변경 · ⭐ 클릭하면 대표사진 · ✕ 개별 삭제 · 🔄 교체</div>
   </div>
 
+  <!-- [add 2026-04-20] VIDEO section — 사진과 동일한 흐름 -->
+  <div class="pv-upload-btns" style="border-top: 1px solid var(--border); margin-top:8px;">
+    <button class="pv-btn camera" style="background:#7c3aed;color:#fff;" onclick="openVideoCamera()">🎬 동영상 촬영</button>
+    <button class="pv-btn gallery" style="background:#a78bfa;color:#fff;" onclick="openVideoGallery()">🎞️ 동영상 선택</button>
+  </div>
+  <div class="pv-existing hidden" id="pvVideoExisting">
+    <div class="pv-existing-header">
+      <span class="pv-existing-title" id="pvVideoTitle">🎬 등록된 동영상 0개</span>
+    </div>
+    <div class="pv-existing-grid" id="pvVideoGrid"></div>
+    <div class="pv-drag-hint">동영상은 상세페이지 갤러리 첫 슬라이드로 노출 · 파일당 최대 50MB · MP4·MOV·WebM</div>
+  </div>
+
   <!-- Log -->
   <div class="pv-log" id="pvLog">
     <div class="pv-log-title">📋 업로드·편집 기록</div>
@@ -284,6 +297,9 @@
 <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
 <input type="file" id="galleryInput" accept="image/*" multiple style="display:none">
 <input type="file" id="replaceInput" accept="image/*" style="display:none">
+<!-- [add 2026-04-20] 동영상 입력 -->
+<input type="file" id="videoCameraInput" accept="video/mp4,video/quicktime,video/webm" capture="environment" style="display:none">
+<input type="file" id="videoGalleryInput" accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/x-matroska" multiple style="display:none">
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -611,14 +627,16 @@ function selectListing(id) {
 
   updatePendingUI();
   loadExistingImages(id);
+  loadExistingVideos(id); // [add 2026-04-20] 동영상 섹션도 함께 로드
   window.scrollTo(0, 0);
 }
 
 function backToSearch() {
   if (isUploading && !confirm('업로드가 진행 중입니다. 정말 돌아가시겠습니까?')) return;
   revokePendingUrls();
-  selectedListing = null; pendingFiles = []; existingImagesData = []; orderChanged = false;
+  selectedListing = null; pendingFiles = []; existingImagesData = []; existingVideosData = []; orderChanged = false;
   selectedForDelete.clear();
+  document.getElementById('pvVideoExisting').classList.add('hidden');
   document.getElementById('photoView').classList.remove('active');
   document.getElementById('searchView').style.display = 'block';
   // Clean ?listingId from URL
@@ -1192,6 +1210,112 @@ function addLog(type, title, detail){
 function escHtml(s){ if (s==null) return ''; const d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; }
 function escAttr(s){ return escHtml(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+// ═══════════════ [add 2026-04-20] Video upload (mobile) ═══════════════
+// 파일당 50MB 상한, 한 번에 최대 5개. 트랜스코딩 없이 원본 업로드.
+// /api/listings/{id}/videos (POST) → DB 인서트까지 서버에서 처리.
+const VIDEO_MAX_SIZE = 50 * 1024 * 1024;
+const VIDEO_MAX_BATCH = 5;
+let existingVideosData = [];
+
+function openVideoCamera(){ document.getElementById('videoCameraInput').click(); }
+function openVideoGallery(){ document.getElementById('videoGalleryInput').click(); }
+
+async function handleVideoFiles(e){
+  const input = e.target;
+  const files = Array.from(input.files || []);
+  input.value = '';
+  if (!selectedListing || !files.length) return;
+
+  // 용량·개수 가드
+  if (files.length > VIDEO_MAX_BATCH){
+    showToast(`한 번에 최대 ${VIDEO_MAX_BATCH}개까지 올릴 수 있습니다`, 'error');
+    return;
+  }
+  const tooBig = files.filter(f => f.size > VIDEO_MAX_SIZE);
+  if (tooBig.length){
+    const names = tooBig.map(f => `${f.name} (${(f.size/1024/1024).toFixed(1)}MB)`).join(', ');
+    showToast(`50MB 초과 파일: ${names}. 편집으로 짧게 잘라 다시 올려주세요`, 'error');
+    return;
+  }
+
+  const totalMB = (files.reduce((s, f) => s + f.size, 0) / 1024 / 1024).toFixed(1);
+  isUploading = true;
+  showUploadBar(`🎬 동영상 업로드 중...`, `${files.length}개 · ${totalMB}MB`, 10);
+
+  try {
+    const fd = new FormData();
+    files.forEach(f => fd.append('videos', f));
+    const r = await apiCall(
+      `${API_BASE}/api/listings/${selectedListing.id}/videos`,
+      { method: 'POST', body: fd, timeout: 180000, retries: 0, json: false }
+    );
+    if (!r.ok){
+      addLog('error', '동영상 업로드 실패', r.error || '');
+      completeUploadBar('동영상 업로드 실패', r.error || '', true);
+      showToast(`업로드 실패: ${r.error || ''}`, 'error');
+      return;
+    }
+    const count = (r.data && r.data.data && r.data.data.length) || files.length;
+    addLog('success', `🎬 동영상 ${count}개 업로드 완료`, selectedListing.title || '');
+    completeUploadBar('✓ 업로드 완료', `${count}개 저장됨`);
+    showToast(`동영상 ${count}개 업로드 완료`, 'success');
+    await loadExistingVideos(selectedListing.id);
+  } finally {
+    isUploading = false;
+  }
+}
+
+async function loadExistingVideos(listingId){
+  const section = document.getElementById('pvVideoExisting');
+  const grid = document.getElementById('pvVideoGrid');
+  const title = document.getElementById('pvVideoTitle');
+  section.classList.remove('hidden');
+  title.textContent = '🎬 동영상 불러오는 중...';
+  grid.innerHTML = '';
+
+  const r = await apiCall(`${API_BASE}/api/listings/${listingId}/videos`);
+  if (!r.ok){
+    title.textContent = '🎬 동영상 불러오기 실패';
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:14px;text-align:center;color:var(--danger);font-size:12px;">${escHtml(r.error||'')}</div>`;
+    return;
+  }
+  existingVideosData = (r.data && r.data.data) || [];
+  existingVideosData.sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
+  if (!existingVideosData.length){
+    title.textContent = '🎬 등록된 동영상 0개';
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:14px;text-align:center;color:var(--text-sub);font-size:12px;">아직 등록된 동영상이 없습니다</div>';
+    return;
+  }
+  title.textContent = `🎬 등록된 동영상 ${existingVideosData.length}개`;
+  grid.innerHTML = existingVideosData.map((v, i) => `
+    <div class="pv-existing-item" style="aspect-ratio: 16/9; background:#000;">
+      <video src="${escAttr(v.url)}" ${v.poster_url ? `poster="${escAttr(v.poster_url)}"` : ''}
+             controls playsinline preload="metadata"
+             style="width:100%; height:100%; object-fit:cover; background:#000;"></video>
+      ${i === 0 ? '<div class="pv-star" style="background:#7c3aed;color:#fff;">▶ 대표</div>' : ''}
+      <div class="pv-order-num" style="background:#7c3aed;">${i+1}</div>
+      <div class="pv-ex-actions">
+        <button class="pv-ex-btn delete" onclick="event.stopPropagation();deleteExistingVideo(${v.id})" title="삭제" aria-label="삭제">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deleteExistingVideo(videoId){
+  if (!selectedListing) return;
+  if (!confirm('이 동영상을 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
+  const r = await apiCall(
+    `${API_BASE}/api/listings/${selectedListing.id}/videos?videoId=${videoId}`,
+    { method: 'DELETE', timeout: 30000 }
+  );
+  if (!r.ok){
+    showToast(`삭제 실패: ${r.error || ''}`, 'error');
+    return;
+  }
+  addLog('success', '동영상 삭제 완료', `#${videoId}`);
+  await loadExistingVideos(selectedListing.id);
+}
+
 // Expose required fns for inline onclick
 Object.assign(window, {
   selectListing, backToSearch, searchListings, loadRecentListings,
@@ -1200,13 +1324,16 @@ Object.assign(window, {
   toggleSelectForDelete, openLightboxById,
   openLightbox, closeLightbox, closeUploadBar, handleImgError,
   onDragStart, onDragOver, onDrop, onDragEnd, onTouchStart, onTouchMove, onTouchEnd,
-  onPendDragStart, onPendDragOver, onPendDrop, onPendDragEnd, onPendTouchStart, onPendTouchMove, onPendTouchEnd
+  onPendDragStart, onPendDragOver, onPendDrop, onPendDragEnd, onPendTouchStart, onPendTouchMove, onPendTouchEnd,
+  openVideoCamera, openVideoGallery, deleteExistingVideo
 });
 
 // ═══════════════ Init / offline / deep-link ═══════════════
 document.getElementById('cameraInput').addEventListener('change', handleFiles);
 document.getElementById('galleryInput').addEventListener('change', handleFiles);
 document.getElementById('replaceInput').addEventListener('change', handleReplace);
+document.getElementById('videoCameraInput').addEventListener('change', handleVideoFiles);
+document.getElementById('videoGalleryInput').addEventListener('change', handleVideoFiles);
 document.getElementById('searchInput').addEventListener('keydown', (e) => {
   // 한글 IME 조합 중 Enter 는 조합 종료이므로 무시
   if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
