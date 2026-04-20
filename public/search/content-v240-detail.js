@@ -516,12 +516,39 @@
     }
 
     // 준공년도 — L.built_year 만 사용. registered_date(등록일)는 최초등록 타임라인 카드에서 별도로 표시되므로 여기서는 절대 덮어쓰지 않는다.
-    // [fix 2026-04-20] 이전 빌드는 'if (L.registered_date) builtTxt = L.registered_date;' 한 줄 때문에
-    // 465/473 건의 준공년도가 등록일(2026-04-xx) 로 오염되던 치명 버그였음.
+    // [fix 2026-04-20a] 이전 빌드는 'if (L.registered_date) builtTxt = L.registered_date;' 한 줄 때문에
+    //                  465/473 건의 준공년도가 등록일(2026-04-xx) 로 오염되던 치명 버그였음.
+    // [fix 2026-04-20b] auto-generate 파이프라인이 lnbrMnnm 미확보 시 '0000' 폴백으로 엉뚱한 건물의 건축물대장을
+    //                  박제하면서 built_year 까지 오염(131건). 서버 수정 후에도 기존 DB 에 남은 오염은 화면단에서 방어.
+    //                  - building_info.지번주소 가 listing.dong 을 포함하지 않으면 '-' 로 숨김
+    //                  - building_info.건물명 과 listing.building_name 이 완전히 다르면 '-' 로 숨김
+    //                  (둘 다 교차검증이 가능한 경우에만 검증, 아니면 built_year 자체를 신뢰)
     var builtTxt = '-';
     try {
       var gy = (window.getBuiltYear || window.WS.getBuiltYear)(L.built_year);
-      if (gy) builtTxt = gy + '년';
+      if (gy) {
+        var bi = L.building_info || null;
+        var suspicious = false;
+        if (bi && typeof bi === 'object') {
+          var biAddr = String(bi['지번주소'] || bi['도로명주소'] || '');
+          var biName = String(bi['건물명'] || '').trim();
+          var lDong = String(L.dong || '').trim();
+          var lName = String(L.building_name || '').trim();
+          if (lDong && biAddr && biAddr.indexOf(lDong) === -1) {
+            suspicious = true;
+          }
+          if (!suspicious && lName && biName && biName.indexOf(lName) === -1 && lName.indexOf(biName) === -1) {
+            suspicious = true;
+          }
+          // 건축물대장의 사용승인일에서 뽑은 연도가 built_year 와 같다면, 이 built_year 는 BI 에서 유도된 값.
+          // BI 자체가 엉뚱하면 built_year 도 엉뚱하므로 숨긴다.
+          var bySuc = String(bi['사용승인일'] || '').match(/\d{4}/);
+          if (suspicious && bySuc && parseInt(bySuc[0], 10) === gy) {
+            gy = null;
+          }
+        }
+        if (gy) builtTxt = gy + '년';
+      }
     } catch (e) {}
 
     // 입주가능

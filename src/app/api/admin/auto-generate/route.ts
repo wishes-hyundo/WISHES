@@ -103,36 +103,74 @@ export async function POST(req: NextRequest) {
           const sigunguCd = addr.sigunguCd || (addr.admCd || '').substring(0, 5);
           const bjdongCd = addr.bjdongCd || (addr.admCd || '').substring(5, 10);
 
-          // 건축물대장 API 호출
-          const bldRes = await fetch(SITE_URL + '/api/building-ledger', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              sigunguCd,
-              bjdongCd,
-              platGbCd: '0',
-              bun: addr.lnbrMnnm || '0000',
-              ji: addr.lnbrSlno || '0000',
-              operations: ['basis', 'title'],
-            }),
-          });
+          // [fix 2026-04-20] 이전 빌드는 bun/ji 가 없을 때 '0000' 폴백으로 호출 → 법정동 기본 건물(엉뚱한 건물)이
+          // 매물에 박제되어 준공년도·건물명·주용도가 오염되던 치명 버그였음. (봉천동 86건이 '사회복지법인동명원'의 2001년으로 고정되는 등)
+          // 이제 bun/ji 가 실제로 확보되지 않으면 건축물대장 조회 자체를 건너뛴다.
+          const bunRaw = addr.lnbrMnnm ? String(addr.lnbrMnnm).replace(/\D/g, '') : '';
+          const jiRaw = addr.lnbrSlno ? String(addr.lnbrSlno).replace(/\D/g, '') : '';
+          const hasValidParcel = bunRaw && bunRaw !== '0' && bunRaw !== '0000';
 
-          if (bldRes.ok) {
-            const bldData = await bldRes.json();
-            if (bldData.success && bldData.extracted) {
-              buildingInfo = bldData.extracted;
-              steps.push({ step: 'building_ledger', status: 'ok', data: {
-                건물명: buildingInfo.건물명,
-                사용승인일: buildingInfo.사용승인일,
-                건물구조: buildingInfo.건물구조,
-                주용도: buildingInfo.주용도,
-                총주차대수: buildingInfo.총주차대수,
-              }});
-            } else {
-              steps.push({ step: 'building_ledger', status: 'partial', error: 'No extracted data' });
-            }
+          if (!hasValidParcel) {
+            steps.push({ step: 'building_ledger', status: 'skipped', error: 'Parcel number (lnbrMnnm) not resolved from address-search; refusing default-0000 fallback to avoid wrong-building pollution' });
           } else {
-            steps.push({ step: 'building_ledger', status: 'failed', error: 'API ' + bldRes.status });
+            const bunPad = bunRaw.padStart(4, '0');
+            const jiPad = (jiRaw || '0').padStart(4, '0');
+
+            // 건축물대장 API 호출
+            const bldRes = await fetch(SITE_URL + '/api/building-ledger', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sigunguCd,
+                bjdongCd,
+                platGbCd: '0',
+                bun: bunPad,
+                ji: jiPad,
+                operations: ['basis', 'title'],
+              }),
+            });
+
+            if (bldRes.ok) {
+              const bldData = await bldRes.json();
+              if (bldData.success && bldData.extracted) {
+                const candidate = bldData.extracted;
+
+                // [fix 2026-04-20] 반환된 건축물대장이 실제로 이 매물의 건물인지 교차검증.
+                // 1) 지번주소(候補)에 매물 dong(신림동/봉천동 등) 이 들어있지 않으면 거부
+                // 2) 건물명이 둘 다 있고 서로 완전히 다르면 거부
+                const candAddr = String(candidate?.['지번주소'] || candidate?.['도로명주소'] || '');
+                const listingDong = String(listing.dong || '').trim();
+                const listingBuildingName = String(listing.building_name || '').trim();
+                const candBuildingName = String(candidate?.['건물명'] || '').trim();
+
+                const dongMatches = !listingDong || (candAddr && candAddr.indexOf(listingDong) !== -1);
+                const nameMatches =
+                  !listingBuildingName ||
+                  !candBuildingName ||
+                  candBuildingName === listingBuildingName ||
+                  candBuildingName.indexOf(listingBuildingName) !== -1 ||
+                  listingBuildingName.indexOf(candBuildingName) !== -1;
+
+                if (!dongMatches) {
+                  steps.push({ step: 'building_ledger', status: 'rejected', error: `Returned building address "${candAddr}" does not contain listing dong "${listingDong}" — refusing to pollute built_year` });
+                } else if (!nameMatches) {
+                  steps.push({ step: 'building_ledger', status: 'rejected', error: `Building name mismatch: candidate="${candBuildingName}" listing="${listingBuildingName}"` });
+                } else {
+                  buildingInfo = candidate;
+                  steps.push({ step: 'building_ledger', status: 'ok', data: {
+                    건물명: buildingInfo.건물명,
+                    사용승인일: buildingInfo.사용승인일,
+                    건물구조: buildingInfo.건물구조,
+                    주용도: buildingInfo.주용도,
+                    총주차대수: buildingInfo.총주차대수,
+                  }});
+                }
+              } else {
+                steps.push({ step: 'building_ledger', status: 'partial', error: 'No extracted data' });
+              }
+            } else {
+              steps.push({ step: 'building_ledger', status: 'failed', error: 'API ' + bldRes.status });
+            }
           }
         } else {
           steps.push({ step: 'building_ledger', status: 'skipped', error: 'Address code not found' });
