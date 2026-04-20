@@ -1705,5 +1705,157 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
   try { console.log('[mobile-photo] v2.3.3 image proxy rewrite active'); } catch(e){}
 })();
 </script>
+
+<script>
+// v2.3.4: P0 UX 핫픽스 — 뒤로가기 일원화 / 미저장 경고 / 편집 피드백 / 저장 버튼 상시노출
+(function(){
+  'use strict';
+  if (window.__MPH_V234__) return;
+
+  var MSG_UNSAVED = '사진 순서 변경이 저장되지 않았습니다.\n저장하지 않고 나가시겠습니까?';
+  var MSG_REPLACE = '이 사진을 새 파일로 교체하시겠습니까?\n기존 사진은 삭제됩니다.';
+
+  function isPhotoActive(){
+    var pv = document.getElementById('photoView');
+    return pv && pv.classList.contains('active');
+  }
+
+  var suppressConfirm = false;
+
+  function installAll(){
+    // --- (A) 헤더 "← 관리자" 버튼: 문맥 인식 ---
+    var hdrBtn = document.querySelector('.header-back');
+    if (hdrBtn && !hdrBtn.dataset.v234) {
+      hdrBtn.dataset.v234 = '1';
+      hdrBtn.removeAttribute('onclick');
+      hdrBtn.addEventListener('click', function(e){
+        e.preventDefault();
+        if (isPhotoActive()) {
+          if (typeof window.backToSearch === 'function') window.backToSearch();
+        } else {
+          window.location.href = '/admin?tab=search';
+        }
+      });
+    }
+
+    // --- (B) 브라우저 뒤로가기 일원화 ---
+    var origSelect = window.selectListing;
+    if (typeof origSelect === 'function' && !origSelect.__v234) {
+      var wrapSel = function(id){
+        var r = origSelect.apply(this, arguments);
+        try {
+          if (!history.state || history.state.view !== 'photo') {
+            history.pushState({view:'photo', id: id}, '', location.pathname + (location.search || ''));
+          }
+        } catch(e){}
+        return r;
+      };
+      wrapSel.__v234 = true;
+      window.selectListing = wrapSel;
+    }
+
+    var origBack = window.backToSearch;
+    if (typeof origBack === 'function' && !origBack.__v234) {
+      var wrapBack = function(){
+        if (typeof orderChanged !== 'undefined' && orderChanged) {
+          if (!confirm(MSG_UNSAVED)) return;
+        }
+        if (history.state && history.state.view === 'photo') {
+          suppressConfirm = true;
+          try { history.back(); } catch(_){ suppressConfirm = false; }
+          return;
+        }
+        return origBack.apply(this, arguments);
+      };
+      wrapBack.__v234 = true;
+      window.backToSearch = wrapBack;
+    }
+
+    window.addEventListener('popstate', function(e){
+      if (!isPhotoActive()) return;
+      if (!suppressConfirm && typeof orderChanged !== 'undefined' && orderChanged) {
+        if (!confirm(MSG_UNSAVED)) {
+          try { history.pushState({view:'photo'}, '', location.pathname + (location.search || '')); } catch(_){}
+          return;
+        }
+      }
+      try { if (typeof origBack === 'function') origBack.call(window); } catch(_){}
+      suppressConfirm = false;
+    });
+
+    // --- (C) 편집 성공 피드백 ---
+    var origUpload = window.uploadImages;
+    if (typeof origUpload === 'function' && !origUpload.__v234) {
+      var wrapUp = async function(){
+        var prevPending = (typeof pendingFiles !== 'undefined' && Array.isArray(pendingFiles)) ? pendingFiles.length : 0;
+        var r;
+        try { r = await origUpload.apply(this, arguments); } catch(e){ throw e; }
+        try {
+          if (prevPending > 0 && typeof showToast === 'function') {
+            showToast('✅ ' + prevPending + '장 등록 완료', 'success');
+          }
+        } catch(_){}
+        return r;
+      };
+      wrapUp.__v234 = true;
+      window.uploadImages = wrapUp;
+    }
+
+    var origRep = window.setRepresentative;
+    if (typeof origRep === 'function' && !origRep.__v234) {
+      var wrapRep = async function(fromIdx){
+        var r;
+        try { r = await origRep.apply(this, arguments); } catch(e){ throw e; }
+        try {
+          if (fromIdx !== 0 && typeof showToast === 'function') {
+            showToast('⭐ 대표사진으로 지정되었습니다', 'success');
+          }
+        } catch(_){}
+        return r;
+      };
+      wrapRep.__v234 = true;
+      window.setRepresentative = wrapRep;
+    }
+
+    var origOpenReplace = window.openReplace;
+    if (typeof origOpenReplace === 'function' && !origOpenReplace.__v234) {
+      var wrapReplace = function(imageId){
+        if (!confirm(MSG_REPLACE)) return;
+        return origOpenReplace.apply(this, arguments);
+      };
+      wrapReplace.__v234 = true;
+      window.openReplace = wrapReplace;
+    }
+
+    // --- (D) 💾 순서 저장 버튼 상시 노출 (변경 없으면 dim 처리) ---
+    try {
+      if (!document.getElementById('mph-v234-style')) {
+        var styleEl = document.createElement('style');
+        styleEl.id = 'mph-v234-style';
+        styleEl.textContent = '.pv-save-order{display:inline-block !important;opacity:.4;pointer-events:none;transition:opacity .15s;} .pv-save-order.active{opacity:1 !important;pointer-events:auto;}';
+        document.head.appendChild(styleEl);
+      }
+    } catch(_){}
+  }
+
+  function init(){
+    installAll();
+    window.__MPH_V234__ = {
+      version: '2.3.4',
+      rollback: function(){
+        try { var s = document.getElementById('mph-v234-style'); if (s) s.remove(); } catch(_){}
+        try { delete window.__MPH_V234__; } catch(_){ window.__MPH_V234__ = null; }
+      }
+    };
+    try { console.log('[mobile-photo] v2.3.4 UX hotfix active'); } catch(e){}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function(){ setTimeout(init, 150); });
+  } else {
+    setTimeout(init, 150);
+  }
+})();
+</script>
 </body>
 </html>
