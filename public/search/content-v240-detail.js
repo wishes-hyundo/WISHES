@@ -515,31 +515,33 @@
       floorTxt = '-';
     }
 
-    // 준공년도 — "맞는 값" 우선순위로 표기. content.js 의 getBuiltYearForDisplay 헬퍼를 사용.
-    //   1) raw_fields["준공년도"]  ← 크롤링 원본(가장 신뢰도 높음)
-    //   2) built_year  ← BI(building_info) 교차검증 통과 시에만
-    //   3) building_info.사용승인일  ← BI 교차검증 통과 시
-    //   4) '-'
-    // [fix 2026-04-20d] 46441 같은 오염 케이스에서도 raw_fields 의 원본 "2024년 2월 7일" 이 있으면
-    //                   '-' 숨김이 아니라 "2024년" 으로 정확히 표기.
+    // 준공년도 — "맞는 값" 을 YYYY년 M월 D일 까지 풀 텍스트로 표기.
+    //   1) raw_fields["준공년도"]  ← 크롤링 원본 (예: "2024년 2월 7일")
+    //   2) raw_fields.__원본본문__ 내 "준공년도 ... YYYY년 M월 D일"
+    //   3) built_year — BI 교차검증 통과 시 (연도만)
+    //   4) building_info.사용승인일 — BI 교차검증 통과 시 (YYYYMMDD → "YYYY년 M월 D일")
+    //   5) '-'
+    // [fix 2026-04-20e] "년도까지만 나와 월 일 도 나와야지" 요청 반영 — getBuiltDateForDisplay 풀텍스트 헬퍼 사용.
     var builtTxt = '-';
     try {
-      var fnBY = window.WS && window.WS.getBuiltYearForDisplay;
-      var yDisp = fnBY ? fnBY(L) : null;
-      if (!yDisp) {
+      var fnBD = window.WS && window.WS.getBuiltDateForDisplay;
+      var dDisp = fnBD ? fnBD(L) : '';
+      if (!dDisp) {
         // 헬퍼 미탑재 환경 대비 인라인 폴백
         var rf2 = L.raw_fields || null;
         if (rf2 && typeof rf2 === 'object') {
           var v = rf2['준공년도'] || rf2['준공연도'] || '';
-          var m1 = v ? String(v).match(/(19|20)\d{2}/) : null;
-          if (m1) yDisp = parseInt(m1[0], 10);
-          if (!yDisp && rf2['__원본본문__']) {
-            var m2 = String(rf2['__원본본문__']).match(/준공\s*(?:년도|연도|일)[^0-9]{0,20}((?:19|20)\d{2})/);
-            if (m2) yDisp = parseInt(m2[1], 10);
+          if (v) {
+            var fm = String(v).match(/((?:19|20)\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+            if (fm) dDisp = fm[1] + '년 ' + parseInt(fm[2], 10) + '월 ' + parseInt(fm[3], 10) + '일';
+            else {
+              var ym = String(v).match(/(19|20)\d{2}/);
+              if (ym) dDisp = ym[0] + '년';
+            }
           }
         }
       }
-      if (yDisp && yDisp >= 1900 && yDisp <= 2100) builtTxt = yDisp + '년';
+      if (dDisp) builtTxt = dDisp;
     } catch (e) {}
 
     // 입주가능

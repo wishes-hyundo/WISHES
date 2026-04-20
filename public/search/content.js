@@ -861,6 +861,92 @@
     return null;
   }
 
+  /**
+   * 매물에서 준공년도를 "YYYY년 M월 D일" 형태의 풀 텍스트로 추출.
+   * 월·일 정보가 있으면 함께 표시, 없으면 "YYYY년" 만 표시.
+   *   1) raw_fields["준공년도"] / ["준공연도"]  ← 원본(가장 신뢰도 높음, 월·일 포함)
+   *   2) raw_fields.__원본본문__ 내 "준공년도 ... YYYY년 M월 D일" 패턴
+   *   3) built_year — BI 교차검증 통과 시 (연도만)
+   *   4) building_info.사용승인일 — BI 교차검증 통과 시 (YYYYMMDD → YYYY년 M월 D일)
+   *   5) '' (빈 문자열)
+   * @param {Object} listing 매물 객체
+   * @returns {string} 표기 문자열 (예: "2024년 2월 7일", "2024년", 또는 "")
+   */
+  function getBuiltDateForDisplay(listing) {
+    if (!listing || typeof listing !== 'object') return '';
+    function fmt(y, m, d) {
+      if (!y) return '';
+      var s = y + '년';
+      if (m) s += ' ' + parseInt(m, 10) + '월';
+      if (d) s += ' ' + parseInt(d, 10) + '일';
+      return s;
+    }
+    function parseKoreanDate(str) {
+      if (!str) return null;
+      var s = String(str);
+      // "2024년 2월 7일" / "2024.02.07" / "2024-02-07" / "20240207" / "2024년"
+      var m = s.match(/((?:19|20)\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+      if (m) return { y: +m[1], m: +m[2], d: +m[3] };
+      m = s.match(/((?:19|20)\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+      if (m) return { y: +m[1], m: +m[2], d: +m[3] };
+      m = s.match(/((?:19|20)\d{2})(\d{2})(\d{2})/);
+      if (m) return { y: +m[1], m: +m[2], d: +m[3] };
+      m = s.match(/((?:19|20)\d{2})\s*년/);
+      if (m) return { y: +m[1], m: null, d: null };
+      m = s.match(/((?:19|20)\d{2})/);
+      if (m) return { y: +m[1], m: null, d: null };
+      return null;
+    }
+    try {
+      var rf = listing.raw_fields;
+      // (1) raw_fields 준공년도
+      if (rf && typeof rf === 'object') {
+        var rfVal = rf['준공년도'] || rf['준공연도'] || '';
+        var p = parseKoreanDate(rfVal);
+        if (p && p.y >= 1900 && p.y <= 2100) return fmt(p.y, p.m, p.d);
+        // (2) __원본본문__ 에서 YYYY년 M월 D일 우선 탐색
+        if (rf['__원본본문__']) {
+          var body = String(rf['__원본본문__']);
+          var bm = body.match(/준공\s*(?:년도|연도|일)[^0-9]{0,20}((?:19|20)\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/);
+          if (bm) return fmt(+bm[1], +bm[2], +bm[3]);
+          var by2 = body.match(/준공\s*(?:년도|연도|일)[^0-9]{0,20}((?:19|20)\d{2})/);
+          if (by2) return fmt(+by2[1], null, null);
+        }
+      }
+
+      // BI 신뢰도 판단
+      var bi = listing.building_info || null;
+      var biTrusted = true;
+      if (bi && typeof bi === 'object') {
+        var biAddr = String(bi['지번주소'] || bi['도로명주소'] || '');
+        var biName = String(bi['건물명'] || '').trim();
+        var lDong = String(listing.dong || '').trim();
+        var lName = String(listing.building_name || '').trim();
+        if (lDong && biAddr && biAddr.indexOf(lDong) === -1) biTrusted = false;
+        if (biTrusted && lName && biName && biName.indexOf(lName) === -1 && lName.indexOf(biName) === -1) biTrusted = false;
+      }
+
+      // (3) built_year — 연도만
+      if (listing.built_year) {
+        var byP = parseKoreanDate(listing.built_year);
+        if (byP && byP.y) {
+          var bySuc = bi && String(bi['사용승인일'] || '').match(/\d{4}/);
+          var derivedFromBI = bySuc && parseInt(bySuc[0], 10) === byP.y;
+          if (!derivedFromBI || biTrusted) {
+            return fmt(byP.y, byP.m, byP.d);
+          }
+        }
+      }
+
+      // (4) BI 사용승인일 — YYYYMMDD → "YYYY년 M월 D일"
+      if (biTrusted && bi && bi['사용승인일']) {
+        var suc = parseKoreanDate(bi['사용승인일']);
+        if (suc && suc.y) return fmt(suc.y, suc.m, suc.d);
+      }
+    } catch (e) {}
+    return '';
+  }
+
   // ============================================================================
   // D) FILTER FUNCTION - APPLIES ALL FILTERS
   // ============================================================================
@@ -1273,6 +1359,7 @@
   window.WS.getParkingCount = getParkingCount;
   window.WS.getBuiltYear = getBuiltYear;
   window.WS.getBuiltYearForDisplay = getBuiltYearForDisplay;
+  window.WS.getBuiltDateForDisplay = getBuiltDateForDisplay;
   window.WS.applyFilters = applyFilters;
 
   // ============================================================================
@@ -3617,7 +3704,7 @@
     var priceText = formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal);
     var dealType = listing.deal || '-';
     var maint = (listing.maintenance_fee && listing.maintenance_fee > 0) ? listing.maintenance_fee + '만' : '미입력';
-    var builtYear = getBuiltYearForDisplay(listing);
+    var builtYear = getBuiltDateForDisplay(listing);
     var direction = listing.direction || '';
     var imgs = listing.images || listing.listing_images || [];
 
@@ -3637,7 +3724,7 @@
           '<tr><td>관리비</td><td>' + escHtml(maint) + '</td>' +
               '<td>방향</td><td>' + escHtml(direction || '-') + '</td></tr>' +
           '<tr><td>유형</td><td>' + escHtml(listing.type || '-') + '</td>' +
-              '<td>준공</td><td>' + escHtml(builtYear ? builtYear + '년' : '-') + '</td></tr>' +
+              '<td>준공</td><td>' + escHtml(builtYear || '-') + '</td></tr>' +
           (listing.rooms || listing.bathrooms ? '<tr><td>방/욕실</td><td>' + (listing.rooms || '-') + '/' + (listing.bathrooms || '-') + '</td><td>사진</td><td>' + imgs.length + '장</td></tr>' : '<tr><td>사진</td><td colspan="3">' + imgs.length + '장</td></tr>') +
         '</table>' +
         '<div class="ws-qp-actions">' +
@@ -3802,7 +3889,7 @@
         if (isCommercial) {
           // 사무실/상가 전용 필드
           facilHtml += '<div><strong>입주가능</strong> ' + (listing.available_date || '-') + '</div>';
-          facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYearForDisplay(listing) ? getBuiltYearForDisplay(listing) + '년' : '-') + '</div>';
+          facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltDateForDisplay(listing) || '-') + '</div>';
           // [fix 2026-04-14] 임대기간 / 구조형태 / 권리금 / 현업종 / 권장업종 / 제한업종 / 건물내매물
           if (listing.lease_period) facilHtml += '<div><strong>임대기간</strong> ' + escHtml(String(listing.lease_period)) + '</div>';
           if (listing.entrance_type) facilHtml += '<div><strong>구조형태</strong> ' + escHtml(String(listing.entrance_type)) + '</div>';
@@ -3822,7 +3909,7 @@
           facilHtml += '<div><strong>베란다</strong> ' + (listing.balcony ? '있음' : '<span style="color:#999;font-style:italic;">미확인</span>') + '</div>';
           facilHtml += '<div><strong>풀옵션</strong> ' + (listing.full_option ? '예' : '<span style="color:#999;font-style:italic;">미확인</span>') + '</div>';
           facilHtml += '<div><strong>입주가능</strong> ' + (listing.available_date || '-') + '</div>';
-          facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltYearForDisplay(listing) ? getBuiltYearForDisplay(listing) + '년' : '-') + '</div>';
+          facilHtml += '<div><strong>준공년도</strong> ' + (getBuiltDateForDisplay(listing) || '-') + '</div>';
           facilHtml += '<div><strong>등록일</strong> ' + timeAgo(listing.created_at) + '</div>';
           if (listing.registered_date) facilHtml += '<div><strong>원본등록</strong> ' + escHtml(String(listing.registered_date)) + '</div>';
           if (listing.last_confirmed) facilHtml += '<div><strong>최종확인</strong> ' + escHtml(String(listing.last_confirmed)) + '</div>';
@@ -4709,7 +4796,7 @@
     selected.forEach((listing, idx) => {
       var areaText = formatArea(listing.area_m2) || '-';
       var priceText = formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal);
-      var builtText = getBuiltYearForDisplay(listing) ? getBuiltYearForDisplay(listing) + '년' : '-';
+      var builtText = getBuiltDateForDisplay(listing) || '-';
 
       html += `
         <div class="listing">
@@ -9605,8 +9692,8 @@
         if (listing.parking) printHtml += '<div class="info-item"><span class="info-label">주차</span><span class="info-value">' + escHtml(listing.parking) + '</span></div>';
         if (listing.elevator) printHtml += '<div class="info-item"><span class="info-label">엘베</span><span class="info-value">' + listing.elevator + '</span></div>';
         if (listing.pet) printHtml += '<div class="info-item"><span class="info-label">반려동물</span><span class="info-value">' + listing.pet + '</span></div>';
-        var _pdfBy = getBuiltYearForDisplay(listing);
-        if (_pdfBy) printHtml += '<div class="info-item"><span class="info-label">준공</span><span class="info-value">' + _pdfBy + '년</span></div>';
+        var _pdfBy = getBuiltDateForDisplay(listing);
+        if (_pdfBy) printHtml += '<div class="info-item"><span class="info-label">준공</span><span class="info-value">' + escHtml(_pdfBy) + '</span></div>';
         printHtml += '</div>';
       }
 
