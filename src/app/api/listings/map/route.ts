@@ -45,42 +45,44 @@ export async function GET(request: NextRequest) {
     // 지도 바운드 내 매물 조회 (경량화: 이미지 조인 제거로 응답 속도 대폭 향상)
     // ※ 저작권 보호: 외부 크롤링(공실클럽/온하우스 등) 매물은 "사진만" 차단.
     //   정보(주소·가격·면적 등)는 광고 목적으로 노출. source_site NOT NULL → listing_images 빈 배열 처리
-    let query = supabase
-      .from('listings')
-      .select(
-        'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, source_site, created_at, updated_at, views, listing_images(url)',
-        { count: 'exact' }
-      )
-      .neq('status', '계약완료')
-      .gte('lat', swLat)
-      .lte('lat', neLat)
-      .gte('lng', swLng)
-      .lte('lng', neLng);
-
-    // 추가 필터 적용
-    if (deal) {
-      query = query.eq('deal', deal);
-    }
-    if (type) {
-      query = query.eq('type', type);
-    }
-    // 가격 범위 필터: 거래유형에 따라 다른 컬럼 대상
-    //   매매 → price, 월세 → monthly, 전세 → deposit
+    //
+    // ⚠️ PostgREST 기본 max-rows=1000 제한 우회: 페이지 단위 루프로 전체 조회
+    //    (매물 수 1,000건 초과 시 기존 .limit(10000)는 서버에서 1000에 잘림)
     const priceColumn = deal === '매매' ? 'price' : deal === '월세' ? 'monthly' : 'deposit';
-    if (minDeposit) {
-      query = query.gte(priceColumn, parseInt(minDeposit));
+
+    const buildQuery = () => {
+      let q = supabase
+        .from('listings')
+        .select(
+          'id, title, type, deal, deposit, monthly, price, area_m2, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, source_site, created_at, updated_at, views, listing_images(url)'
+        )
+        .neq('status', '계약완료')
+        .gte('lat', swLat)
+        .lte('lat', neLat)
+        .gte('lng', swLng)
+        .lte('lng', neLng);
+      if (deal) q = q.eq('deal', deal);
+      if (type) q = q.eq('type', type);
+      if (minDeposit) q = q.gte(priceColumn, parseInt(minDeposit));
+      if (maxDeposit) q = q.lte(priceColumn, parseInt(maxDeposit));
+      return q.order('updated_at', { ascending: false, nullsFirst: false });
+    };
+
+    // 페이지 단위(1000건씩) 루프로 전체 조회. 최대 10,000건까지 안전장치.
+    const PAGE = 1000;
+    const MAX_TOTAL = 10000;
+    const chunks: any[][] = [];
+    let pageError: any = null;
+    for (let from = 0; from < MAX_TOTAL; from += PAGE) {
+      const { data: chunk, error: chunkErr } = await buildQuery().range(from, from + PAGE - 1);
+      if (chunkErr) { pageError = chunkErr; break; }
+      if (!chunk || chunk.length === 0) break;
+      chunks.push(chunk);
+      if (chunk.length < PAGE) break;
     }
-    if (maxDeposit) {
-      query = query.lte(priceColumn, parseInt(maxDeposit));
-    }
-
-        // 1차 정렼: updated_at 내림��� 순 (post-sort로 사진 우선 적용)
-    query = query.order('updated_at', { ascending: false, nullsFirst: false });
-
-    // 전체 매물 노출
-    query = query.limit(10000);
-
-    const { data, error, count } = await query;
+    const data = ([] as any[]).concat(...chunks);
+    const count = data.length;
+    const error = pageError;
 
     if (error) {
       console.error('지도 매물 조회 오류:', error);
