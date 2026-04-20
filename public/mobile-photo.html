@@ -2400,6 +2400,17 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
   }
 
   function resolveListingId(){
+    // v2.3.10: 원본 HTML 의 selectedListing 변수를 최우선으로 읽음
+    try {
+      if (typeof selectedListing !== 'undefined' && selectedListing && selectedListing.id) {
+        return String(selectedListing.id);
+      }
+    } catch(e) {}
+    try {
+      if (window.selectedListing && window.selectedListing.id) {
+        return String(window.selectedListing.id);
+      }
+    } catch(e) {}
     if (window.LISTING_ID) return String(window.LISTING_ID);
     var m = location.pathname.match(/\/listings?\/([^/?#]+)/);
     if (m) return m[1];
@@ -2636,7 +2647,7 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
     rebindVideoInputs();
   }
 
-  console.log('[mobile-photo] v2.3.9 loaded — rebind 포함 presign R2 직업로드 활성화');
+  console.log('[mobile-photo] v2.3.10 loaded — rebind 포함 presign R2 직업로드 활성화');
 })();
 </script>
 </body>
