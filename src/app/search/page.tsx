@@ -258,7 +258,7 @@ export default function SearchPortalPage() {
     if (!existingV293) {
       const v293Script = document.createElement('script');
       v293Script.id = 'ws-ext-patch-v293-alert-log';
-      v293Script.src = '/search/content-v293-alert-log.js?v=20260420b';
+      v293Script.src = '/search/content-v293-alert-log.js?v=20260420c';
       v293Script.async = false;
       v293Script.defer = false;
       document.body.appendChild(v293Script);
