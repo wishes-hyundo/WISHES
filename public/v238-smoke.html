@@ -44,7 +44,7 @@
 <input id="file" type="file" accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/x-matroska" />
 
 <button id="run">업로드 시작</button>
-<button id="diag" class="secondary">진단 엔드포인트 확인 (/api/_diagnostic/r2)</button>
+<button id="diag" class="secondary">진단 엔드포인트 확인 (/api/diagnostic/r2)</button>
 
 <div class="bar"><i id="bar"></i></div>
 <div class="log" id="log">로그 대기 중…</div>
@@ -73,7 +73,7 @@
     clearLog();
     line('진단 엔드포인트 호출…', 'info');
     try {
-      var r = await fetch('/api/_diagnostic/r2');
+      var r = await fetch('/api/diagnostic/r2');
       var data = await r.json();
       line('HTTP '+r.status+' — allOk='+data.allOk, data.allOk ? 'ok' : 'err');
       Object.keys(data.checks).forEach(function(k){
