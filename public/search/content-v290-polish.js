@@ -96,6 +96,8 @@
 
   // ------------------------------------------------------------------
   // [P2-1] 이미지 onload 페이드인 + [P0-5] aspect-ratio 강제
+  //   안전 버전: opacity:0 시작 → load 시 1. load 이벤트 fail 대비
+  //   2초 타임아웃 안전망으로 강제 opacity:1 복원.
   // ------------------------------------------------------------------
   function applyImageFade(root) {
     var scope = root || document;
@@ -106,19 +108,27 @@
       if (!img.style.aspectRatio) img.style.aspectRatio = '4/3';
       if (!img.style.objectFit) img.style.objectFit = 'cover';
       if (!img.style.background) img.style.background = '#F4F4F5';
-      // 페이드인
+      // 이미 완료된 경우 즉시 표시
       var wasLoaded = img.complete && img.naturalWidth > 0;
-      if (!wasLoaded) {
-        img.style.opacity = '0';
-        img.style.transition = 'opacity 220ms ease';
-        var onReady = function () {
-          img.style.opacity = '1';
-          img.removeEventListener('load', onReady);
-          img.removeEventListener('error', onReady);
-        };
-        img.addEventListener('load', onReady);
-        img.addEventListener('error', onReady);
+      if (wasLoaded) {
+        img.style.opacity = '1';
+        return;
       }
+      // 페이드인 (안전망 포함)
+      img.style.opacity = '0';
+      img.style.transition = 'opacity 220ms ease';
+      var revealed = false;
+      var reveal = function () {
+        if (revealed) return;
+        revealed = true;
+        img.style.opacity = '1';
+        img.removeEventListener('load', reveal);
+        img.removeEventListener('error', reveal);
+      };
+      img.addEventListener('load', reveal);
+      img.addEventListener('error', reveal);
+      // 안전망 2초 — load 이벤트 놓치더라도 반드시 표시
+      setTimeout(reveal, 2000);
     });
   }
 

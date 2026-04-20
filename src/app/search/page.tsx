@@ -221,7 +221,7 @@ export default function SearchPortalPage() {
     if (!existingV290) {
       const v290Script = document.createElement('script');
       v290Script.id = 'ws-ext-patch-v290-polish';
-      v290Script.src = '/search/content-v290-polish.js?v=20260420a';
+      v290Script.src = '/search/content-v290-polish.js?v=20260420b';
       v290Script.async = false;
       v290Script.defer = false;
       document.body.appendChild(v290Script);
