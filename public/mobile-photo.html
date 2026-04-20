@@ -1381,5 +1381,107 @@ if (!navigator.onLine) document.getElementById('offlineBanner').classList.add('s
 // Cleanup on unload
 window.addEventListener('beforeunload', () => revokePendingUrls());
 </script>
+
+<!-- ============================================================
+     v2.3.1 핛픽스 — 모바일 사진등록 통합검색 복원 (2026-04-20)
+     배경: /api/listings?search= 가 백엔드에서 파라미터 무시 상태.
+           "비룡" 검색 시 무관한 최근 50건이 반환되는 회귀.
+     방침: 전체 listings 를 클라이언트에서 prefetch + substring 필터.
+           기존 searchListings 를 window 레벨에서 오버라이드.
+     보존: renderListings · selectListing · loadRecentListings 미수정.
+     Rollback: window.__MPH_SEARCH_FIX_V231__.rollback()
+     ============================================================ -->
+<script>
+(function(){
+  'use strict';
+  if (window.__MPH_SEARCH_FIX_V231__) {
+    try { window.__MPH_SEARCH_FIX_V231__.rollback && window.__MPH_SEARCH_FIX_V231__.rollback(); } catch(e){}
+  }
+  var CACHE = { list: null, loading: null, ts: 0 };
+  var TTL = 5 * 60 * 1000; // 5분
+  var FIELDS = ['id','title','address','address_detail','building_name',
+                'ai_description','dong','gu','features','seo_keywords',
+                'seo_tags','source_id'];
+  var _origSearch = window.searchListings;
+
+  function norm(v){
+    if (v == null) return '';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number') return String(v);
+    if (Array.isArray(v)) return v.join(' ');
+    try { return JSON.stringify(v); } catch(e){ return ''; }
+  }
+
+  async function fetchAll(){
+    var now = Date.now();
+    if (CACHE.list && (now - CACHE.ts) < TTL) return CACHE.list;
+    if (CACHE.loading) return CACHE.loading;
+    CACHE.loading = (async function(){
+      try {
+        var r = await fetch('/api/listings?sort=latest&limit=5000', { cache: 'no-store' });
+        var j = await r.json();
+        var data = j && j.data;
+        if (Array.isArray(data)) {
+          CACHE.list = data;
+          CACHE.ts = Date.now();
+          return data;
+        }
+      } catch(e){ console.error('[MPH v2.3.1] fetchAll failed', e); }
+      return null;
+    })();
+    var out = await CACHE.loading;
+    CACHE.loading = null;
+    return out;
+  }
+
+  function match(l, qLow){
+    for (var i = 0; i < FIELDS.length; i++){
+      var s = norm(l[FIELDS[i]]);
+      if (s && s.toLowerCase().indexOf(qLow) >= 0) return true;
+    }
+    return false;
+  }
+
+  async function patchedSearch(){
+    var inp = document.getElementById('searchInput');
+    var q = (inp && inp.value || '').trim();
+    if (!q){
+      if (typeof window.loadRecentListings === 'function') return window.loadRecentListings();
+      return;
+    }
+    try { if (typeof window.showProgress === 'function') window.showProgress(true, '검색 중...', ''); } catch(e){}
+    var all = await fetchAll();
+    try { if (typeof window.showProgress === 'function') window.showProgress(false); } catch(e){}
+    if (!Array.isArray(all)){
+      try { if (typeof window.showToast === 'function') window.showToast('검색 실패: 매물 로드 실패', 'error'); } catch(e){}
+      return;
+    }
+    var filtered;
+    if (/^\d+$/.test(q)){
+      filtered = all.filter(function(l){ return String(l.id) === q; });
+    } else {
+      var qLow = q.toLowerCase();
+      filtered = all.filter(function(l){ return match(l, qLow); });
+    }
+    if (typeof window.renderListings === 'function'){
+      window.renderListings(filtered, '검색 결과 "' + q + '"');
+    }
+  }
+
+  window.searchListings = patchedSearch;
+
+  window.__MPH_SEARCH_FIX_V231__ = {
+    version: '2.3.1',
+    cache: CACHE,
+    fetchAll: fetchAll,
+    run: patchedSearch,
+    rollback: function(){
+      if (_origSearch) window.searchListings = _origSearch;
+      try { delete window.__MPH_SEARCH_FIX_V231__; } catch(e){ window.__MPH_SEARCH_FIX_V231__ = undefined; }
+    }
+  };
+  console.log('[MPH v2.3.1] 통합검색 클라이언트 필터 활성화');
+})();
+</script>
 </body>
 </html>
