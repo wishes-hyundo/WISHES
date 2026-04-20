@@ -3,7 +3,7 @@
 //
 // 목적: "100% 중복" 후보를 탐지하고 사유와 함께 반환.
 // 정책:
-//   1) 현재 '가용' 상태만 대상 (이미 중복정리/계약완료 제외)
+//   1) 현재 '공개' 상태만 대상 (이미 중복정리/계약완료 제외)
 //   2) 4축 정확일치 그룹화: 소재지(address+address_detail) · 거래(deal) · 보증금(deposit) · 월세(monthly)
 //   3) 엄격 조건 — address_detail 이 비어있거나 '-' 이면 제외 (동호수 없는 크롤 데이터 거짓 매칭 방지)
 //   4) 그룹 내 한 건을 "대표"로 자동 지정 (최신 updated_at + 사진 수 많은 쪽 우선)
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // 가용 상태만 조회 (이미 숨김/계약완료 제외)
+    // 공개 상태만 조회 (이미 숨김/계약완료/중복정리 제외)
     const { data, error } = await supabase
       .from('listings')
       .select(`
@@ -160,7 +160,7 @@ export async function POST(request: NextRequest) {
         created_at, updated_at,
         listing_images(url, is_thumbnail)
       `)
-      .eq('status', '가용')
+      .eq('status', '공개')
       .order('id', { ascending: true })
       .limit(20000);
 

@@ -1,7 +1,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Admin API: POST /api/admin/dedup/restore
 //
-// 숨김 처리된 매물을 다시 '가용' 으로 복구.
+// 숨김 처리된 매물을 다시 '공개' 로 복구.
 // GET  ?queue=1 — 현재 중복정리 대기열(30일 내 복구 가능) 조회.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
 
     const restorePayload: Record<string, any> = {
-      status: '가용',
+      status: '공개',
       dedup_requested_at: null,
       dedup_reason: null,
       dedup_group_id: null,
