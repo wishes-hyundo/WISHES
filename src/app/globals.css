@@ -316,3 +316,42 @@ body {
 .print-header {
   display: none;
 }
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * View Transitions API (Chrome 111+ / Safari 18+ / Edge 111+)
+ *   - 페이지 간 / 상태 변경 간 네이티브 크로스 페이드·공유 엘리먼트 트랜지션
+ *   - 지원 안 하는 브라우저에서는 @supports 로 자동 폴백 (CSS 무시)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+@supports (view-transition-name: none) {
+  /* 루트 페이지 전환: 150ms cross-fade */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 180ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* 지도 ↔ 리스트 뷰 전환 (모바일) */
+  ::view-transition-old(map-list-toggle),
+  ::view-transition-new(map-list-toggle) {
+    animation-duration: 220ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .vt-map-region {
+    view-transition-name: map-region;
+    contain: layout;
+  }
+  .vt-list-region {
+    view-transition-name: list-region;
+    contain: layout;
+  }
+
+  /* 모션 감도 반영 */
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation: none !important;
+    }
+  }
+}

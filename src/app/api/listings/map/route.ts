@@ -1,21 +1,25 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// GET /api/listings/map - 지도 범위 기반 매물 조회
+// GET /api/listings/map — 지도 범위 기반 매물 조회 (레거시 호환 + MV 가속)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// ⚡ 2026-04-20 핫픽스 (10만 건 대응)
+//   - 소스를 listings → mv_map_listings 로 전환 (조인 비용 0)
+//   - 페이지 루프 1000건×10 제거 → MV 단일 range (제한 5000)
+//   - listing_images 조인 제거 → MV 의 thumb_url 컬럼으로 대체
+//   - cache.ts stale-while-revalidate 추가 (같은 bounds 반복 요청 대응)
+//
+// 클라이언트 응답 shape 호환성 보존 (listing_images: [{url}] 형태 유지).
+// Deck.gl 통합 후 useMapClusters 훅으로 전환되면 이 엔드포인트는 폴백 역할로 남는다.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { applyImagePolicy } from '@/lib/image-policy';
+import { cached } from '@/lib/cache';
+
+const MAX_PER_REQUEST = 5000;
 
 /**
- * 지도 바운드 범위 내 매물 조회
- * @query swLat - 남서쪽 위도
- * @query swLng - 남서쪽 경도
- * @query neLat - 북동쪽 위도
- * @query neLng - 북동쪽 경도
- * @query deal - 거래 유형 (선택사항)
- * @query type - 매물 유형 (선택사항)
- * @query minDeposit - 최소 보증금 (선택사항)
- * @query maxDeposit - 최대 보증금 (선택사항)
+ * 지도 바운드 범위 내 매물 조회 (mv_map_listings 우선, 실패 시 listings 폴백)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -41,88 +45,123 @@ export async function GET(request: NextRequest) {
     const minDeposit = searchParams.get('minDeposit');
     const maxDeposit = searchParams.get('maxDeposit');
 
-    const supabase = createServerClient();
-
-    // 지도 바운드 내 매물 조회 (경량화: 이미지 조인 제거로 응답 속도 대폭 향상)
-    // ※ 저작권 보호: 외부 크롤링(공실클럽/온하우스 등) 매물은 "사진만" 차단.
-    //   정보(주소·가격·면적 등)는 광고 목적으로 노출. source_site NOT NULL → listing_images 빈 배열 처리
-    //
-    // ⚠️ PostgREST 기본 max-rows=1000 제한 우회: 페이지 단위 루프로 전체 조회
-    //    (매물 수 1,000건 초과 시 기존 .limit(10000)는 서버에서 1000에 잘림)
+    // 가격 컬럼은 deal 에 따라 분기 (매매=price, 월세=monthly, 기본=deposit)
     const priceColumn = deal === '매매' ? 'price' : deal === '월세' ? 'monthly' : 'deposit';
 
-    const buildQuery = () => {
-      let q = supabase
-        .from('listings')
-        .select(
-          // building_name + AI 제목/설명 + 세일즈 훅 필드 전량 (실제 DB 컬럼명: station_name / station_distance)
-          'id, title, ai_title, ai_description, building_name, type, deal, deposit, monthly, price, area_m2, area_pyeong, rooms, bathrooms, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, source_site, created_at, updated_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description, station_name, station_distance, features, listing_images(url)'
-        )
-        .eq('status', '공개')
-        .gte('lat', swLat)
-        .lte('lat', neLat)
-        .gte('lng', swLng)
-        .lte('lng', neLng);
-      if (deal) q = q.eq('deal', deal);
-      if (type) q = q.eq('type', type);
-      if (minDeposit) q = q.gte(priceColumn, parseInt(minDeposit));
-      if (maxDeposit) q = q.lte(priceColumn, parseInt(maxDeposit));
-      return q.order('updated_at', { ascending: false, nullsFirst: false });
-    };
+    // 캐시 키 (소수점 3자리 ≒ 100m 오차 — 유사 이동 시 캐시 재활용)
+    const q = (n: number) => n.toFixed(3);
+    const cacheKey = `listingsmap:${q(swLat)},${q(swLng)}-${q(neLat)},${q(neLng)}:${deal || ''}:${type || ''}:${minDeposit || ''}:${maxDeposit || ''}`;
 
-    // 페이지 단위(1000건씩) 루프로 전체 조회. 최대 10,000건까지 안전장치.
-    const PAGE = 1000;
-    const MAX_TOTAL = 10000;
-    const chunks: any[][] = [];
-    let pageError: any = null;
-    for (let from = 0; from < MAX_TOTAL; from += PAGE) {
-      const { data: chunk, error: chunkErr } = await buildQuery().range(from, from + PAGE - 1);
-      if (chunkErr) { pageError = chunkErr; break; }
-      if (!chunk || chunk.length === 0) break;
-      chunks.push(chunk);
-      if (chunk.length < PAGE) break;
-    }
-    const data = ([] as any[]).concat(...chunks);
-    const count = data.length;
-    const error = pageError;
+    const result = await cached(
+      cacheKey,
+      async () => {
+        const supabase = createServerClient();
 
-    if (error) {
-      console.error('지도 매물 조회 오류:', error);
+        // 🚀 1순위: mv_map_listings (사전조인 완료된 경량 MV)
+        const tryMv = async () => {
+          let q2 = supabase
+            .from('mv_map_listings')
+            .select(
+              'id, title, ai_title, ai_description, building_name, type, deal, deposit, monthly, price, area_m2, area_pyeong, rooms, bathrooms, floor_current, floor_total, lat, lng, status, dong, address, address_detail, maintenance_fee, business_type, source_site, created_at, updated_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description:ai_description, station_name, station_distance, features, thumb_url, has_video, price_unified',
+              { count: 'exact' },
+            )
+            .gte('lat', swLat)
+            .lte('lat', neLat)
+            .gte('lng', swLng)
+            .lte('lng', neLng);
+          if (deal) q2 = q2.eq('deal', deal);
+          if (type) q2 = q2.eq('type', type);
+          if (minDeposit) q2 = q2.gte(priceColumn, parseInt(minDeposit, 10));
+          if (maxDeposit) q2 = q2.lte(priceColumn, parseInt(maxDeposit, 10));
+
+          const { data, error, count } = await q2
+            .order('updated_at', { ascending: false, nullsFirst: false })
+            .range(0, MAX_PER_REQUEST - 1);
+          if (error) throw error;
+          return { data: data || [], total: count ?? (data?.length || 0), fromMv: true };
+        };
+
+        // 🛟 폴백: 레거시 listings 직접 조회 (MV 미적용 환경 대응)
+        const tryLegacy = async () => {
+          let q2 = supabase
+            .from('listings')
+            .select(
+              'id, title, ai_title, ai_description, building_name, type, deal, deposit, monthly, price, area_m2, area_pyeong, rooms, bathrooms, floor_current, floor_total, lat, lng, status, dong, address, maintenance_fee, business_type, goodwill_fee, vat_included, source_site, created_at, updated_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description, station_name, station_distance, features, listing_images(url)',
+              { count: 'exact' },
+            )
+            .eq('status', '공개')
+            .gte('lat', swLat)
+            .lte('lat', neLat)
+            .gte('lng', swLng)
+            .lte('lng', neLng);
+          if (deal) q2 = q2.eq('deal', deal);
+          if (type) q2 = q2.eq('type', type);
+          if (minDeposit) q2 = q2.gte(priceColumn, parseInt(minDeposit, 10));
+          if (maxDeposit) q2 = q2.lte(priceColumn, parseInt(maxDeposit, 10));
+
+          const { data, error, count } = await q2
+            .order('updated_at', { ascending: false, nullsFirst: false })
+            .range(0, MAX_PER_REQUEST - 1);
+          if (error) throw error;
+          return { data: data || [], total: count ?? (data?.length || 0), fromMv: false };
+        };
+
+        try {
+          return await tryMv();
+        } catch (mvErr) {
+          console.warn('[map] mv_map_listings 실패 → legacy listings 폴백', mvErr);
+          return await tryLegacy();
+        }
+      },
+      15_000,   // 15s fresh
+      180_000,  // 3min stale
+      8_000,    // 8s timeout (HNSW 빌드 직후 첫 쿼리 여유)
+    );
+
+    if (!result) {
       return NextResponse.json(
-        { success: false, error: '매물 조회 실패' },
-        { status: 500 }
+        { success: true, data: [], total: 0, stale: true },
+        { headers: { 'Cache-Control': 'no-cache' } },
       );
     }
 
-    // ※ 저작권 보호 + 자체 업로드 통과
-    //   - 크롤링 매물의 외부 원본 이미지는 차단
-    //   - 중개사가 직접 올린 자체 업로드 이미지(wishes.co.kr, supabase, R2)는 통과 → 광고 노출
-    let sorted = (data || []).map((r: any) => applyImagePolicy(r));
+    // MV 행을 레거시 응답 shape 로 정규화 (listing_images: [{url}] 배열)
+    type Row = Record<string, unknown> & {
+      thumb_url?: string | null;
+      listing_images?: { url: string }[] | null;
+      source_site?: string | null;
+    };
+    let sorted = (result.data as Row[]).map((r) => {
+      const imgs = Array.isArray(r.listing_images)
+        ? r.listing_images
+        : r.thumb_url
+        ? [{ url: r.thumb_url as string }]
+        : [];
+      return applyImagePolicy({ ...r, listing_images: imgs });
+    });
 
-    // 사진 유무 정렬: 1순위 사진 있는 매물(자체 매물 + 직접 업로드한 크롤링 매물 포함), 2순위 수정일
-    // ※ applyImagePolicy 이후 listing_images에는 "노출 허용된" 이미지만 남아 있으므로
-    //   source_site 체크 없이 length 만 보면 된다 (크롤링 매물에 직접 업로드한 사진 있는 경우 자연스럽게 상위)
+    // 사진 유무 정렬 (사진 있는 매물 상단)
     if (sorted.length > 0) {
-      sorted = [...sorted].sort((a: any, b: any) => {
+      sorted = [...sorted].sort((a: Row, b: Row) => {
         const ah = Array.isArray(a.listing_images) && a.listing_images.length > 0 ? 1 : 0;
         const bh = Array.isArray(b.listing_images) && b.listing_images.length > 0 ? 1 : 0;
         if (ah !== bh) return bh - ah;
-        const ad = new Date(a.updated_at || a.created_at || 0).getTime();
-        const bd = new Date(b.updated_at || b.created_at || 0).getTime();
+        const ad = new Date((a.updated_at as string) || (a.created_at as string) || 0).getTime();
+        const bd = new Date((b.updated_at as string) || (b.created_at as string) || 0).getTime();
         return bd - ad;
       });
     }
 
-    // 우답에 캐시 헤더 추가 (10초간 캐시)
     return NextResponse.json(
       {
         success: true,
         data: sorted,
-        total: count ?? (sorted.length || 0),
-
+        total: result.total ?? sorted.length,
+        source: result.fromMv ? 'mv' : 'legacy',
       },
       {
         headers: {
+          // CDN 10초 캐시 + 30초 SWR
           'Cache-Control': 'public, s-maxage=10, stale-while-revalidate=30',
         },
       }

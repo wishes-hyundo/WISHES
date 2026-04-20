@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
+import QueryProvider from '@/components/providers/QueryProvider';
+import SpeculationRules from '@/components/SpeculationRules';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
@@ -130,9 +132,12 @@ export default function RootLayout({
         suppressHydrationWarning
         className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col"
       >
-        <ConditionalLayout>
-          {children}
-        </ConditionalLayout>
+        <SpeculationRules />
+        <QueryProvider>
+          <ConditionalLayout>
+            {children}
+          </ConditionalLayout>
+        </QueryProvider>
       </body>
     </html>
   );

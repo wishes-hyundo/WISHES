@@ -2,10 +2,13 @@
 
 import { useEffect, useRef, useState, useCallback, useMemo, Suspense } from 'react';
 import { useMapListings } from '@/hooks/useMapListings';
+import { useListingsRealtime } from '@/hooks/useListingsRealtime';
 import { ListingCard } from '@/components/ListingCard';
 import MapListingPanel from '@/components/MapListingPanel';
+import MapServiceWorker from '@/components/providers/MapServiceWorker';
 import { formatPrice } from '@/lib/utils';
 import { displayTitle } from '@/lib/formatListingTitle';
+import { withViewTransition } from '@/lib/viewTransition';
 import { MapPin, List, Loader2, Search, X, Building2, Crosshair, RefreshCw, SlidersHorizontal, Edit3, Check, Train, Navigation, Home } from 'lucide-react';
 import type { Listing, ListingFilter, DealType, ListingType } from '@/types';
 import MapFilterSheet from '@/components/MapFilterSheet';
@@ -937,6 +940,47 @@ function MapSearchPageInner() {
     }, serverFilter);
   }, [serverFilter, fetchListings]);
 
+  // ━━━ 2026-04-20: Supabase Realtime Broadcast — 신규/수정 매물이 들어오면
+  //   현재 화면 bounds 안의 변경분만 자동 재조회 (단, 쓰로틀 2초) ━━━
+  const realtimeBoundsRef = useRef<{ swLat: number; swLng: number; neLat: number; neLng: number } | null>(null);
+  const realtimeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const map = mapInstanceRef.current;
+    const b = map.getBounds();
+    realtimeBoundsRef.current = {
+      swLat: b.getSouthWest().getLat(),
+      swLng: b.getSouthWest().getLng(),
+      neLat: b.getNorthEast().getLat(),
+      neLng: b.getNorthEast().getLng(),
+    };
+  }, [mapReady, zoomLevel]);
+
+  useListingsRealtime({
+    bounds: realtimeBoundsRef.current,
+    scoped: true,
+    enabled: mapReady,
+    onDiff: () => {
+      // 2초 디바운스: 폭발적 크롤링 시 100건이 몰려와도 1회만 refetch
+      if (realtimeTimerRef.current) return;
+      realtimeTimerRef.current = setTimeout(() => {
+        realtimeTimerRef.current = null;
+        if (!mapInstanceRef.current) return;
+        const m = mapInstanceRef.current;
+        const b = m.getBounds();
+        fetchListings(
+          {
+            swLat: b.getSouthWest().getLat(),
+            swLng: b.getSouthWest().getLng(),
+            neLat: b.getNorthEast().getLat(),
+            neLng: b.getNorthEast().getLng(),
+          },
+          serverFilter,
+        );
+      }, 2000);
+    },
+  });
+
   // ━━━ 마커 업데이트 — 줌 레벨에 따라 단계별 전환 ━━━
   useEffect(() => {
     if (!mapInstanceRef.current) return;
@@ -1556,6 +1600,8 @@ function MapSearchPageInner() {
 
   return (
     <div className="pt-16 h-[100dvh] flex flex-col bg-wishes-bg">
+      {/* 🔧 /map 전용 경량 Service Worker — 타일/이미지/API 캐시 (2026-04-20) */}
+      <MapServiceWorker />
       {/* ━━━ 필터 바 — 2026 미니멀 구조 (17차 모바일: 검색 단독 행 + 컨트롤 행 분리) ━━━ */}
       <div className="bg-white/95 backdrop-blur-xl border-b border-gray-200/70 shrink-0">
         {/* 모바일 Row 0 — 검색 단독 (데스크탑에선 숨김, Row 1과 합쳐짐) */}
@@ -1742,7 +1788,7 @@ function MapSearchPageInner() {
           {/* 모바일 뷰 토글 — 18차: 터치 타겟 py-2.5 (~44px WCAG AA 만족) */}
           <div className="md:hidden flex bg-gray-100 rounded-lg p-0.5 shrink-0" role="tablist" aria-label="지도/목록 전환">
             <button
-              onClick={() => setMobileView('map')}
+              onClick={() => withViewTransition(() => setMobileView('map'))}
               role="tab"
               aria-selected={mobileView === 'map'}
               className={`flex items-center gap-1 px-3.5 py-2.5 text-[12.5px] rounded-md transition-all ${
@@ -1752,7 +1798,7 @@ function MapSearchPageInner() {
               <MapPin className="w-3.5 h-3.5" /><span>지도</span>
             </button>
             <button
-              onClick={() => setMobileView('list')}
+              onClick={() => withViewTransition(() => setMobileView('list'))}
               role="tab"
               aria-selected={mobileView === 'list'}
               className={`flex items-center gap-1 px-3.5 py-2.5 text-[12.5px] rounded-md transition-all ${
@@ -1808,7 +1854,7 @@ function MapSearchPageInner() {
       {/* ━━━ 리스트 + 지도 (2패널: 좌측 리스트 / 우측 지도 — 다방·직방·피터팬·네모 표준) ━━━ */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* ━━━ 매물 리스트 (좌측 고정 패널) — 1차 브라우징 영역 ━━━ */}
-        <aside className={`${mobileView === 'map' ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] bg-white md:border-r border-gray-200 shrink-0 flex-col z-10`}>
+        <aside className={`vt-list-region ${mobileView === 'map' ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] bg-white md:border-r border-gray-200 shrink-0 flex-col z-10`}>
           {/* 리스트 헤더 — sticky: 스크롤해도 카운트 상시 노출 */}
           <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center justify-between shrink-0">
             <div className="flex items-baseline gap-1.5">
@@ -1895,7 +1941,7 @@ function MapSearchPageInner() {
         </aside>
 
         {/* ━━━ 카카오맵 영역 (우측 flex-1) — 2차 맥락/지역감 영역 ━━━ */}
-        <div className={`relative ${mobileView === 'list' ? 'hidden md:block' : ''} flex-1`}>
+        <div className={`vt-map-region relative ${mobileView === 'list' ? 'hidden md:block' : ''} flex-1`}>
           <div ref={mapRef} className="w-full h-full kakao-map-container" />
 
           {/* 로딩 인디케이터 */}
