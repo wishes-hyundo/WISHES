@@ -1390,6 +1390,13 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
            기존 searchListings 를 window 레벨에서 오버라이드.
      보존: renderListings · selectListing · loadRecentListings 미수정.
      Rollback: window.__MPH_SEARCH_FIX_V231__.rollback()
+
+     v2.3.4 업데이트 (2026-04-20) — "62-24" 검색 무결과 회귀 박제.
+       /api/listings 는 PostgREST max-rows=1000 로 캡되어 최신 1000건만 노출 +
+       status='공개' 필터로 비공개/계약중 매물은 아예 안 잡혀, 오래된 매물이나
+       비공개 매물의 사진등록 시 검색이 실패. /api/admin/listings?fields=minimal
+       은 내부 페이지네이션으로 전 건을 훑고 전 상태를 포함하므로 모바일 사진등록
+       시나리오에 더 적합 (이미 AUTH_TOKEN 으로 admin 엔드포인트 인증 가능).
      ============================================================ -->
 <script>
 (function(){
@@ -1417,8 +1424,15 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
     if (CACHE.list && (now - CACHE.ts) < TTL) return CACHE.list;
     if (CACHE.loading) return CACHE.loading;
     CACHE.loading = (async function(){
+      // v2.3.4: /api/listings → /api/admin/listings?fields=minimal 로 전환.
+      //   이유: 공개 엔드포인트는 1000 건 캡 + 공개 상태만 조회 → 46163(봉천동 62-24)
+      //         같은 하위 ID 나 비공개/계약중 매물이 검색 결과에서 누락.
+      var token = (typeof AUTH_TOKEN !== 'undefined' && AUTH_TOKEN) ? AUTH_TOKEN : 'wishes2026';
       try {
-        var r = await fetch('/api/listings?sort=latest&limit=5000', { cache: 'no-store' });
+        var r = await fetch('/api/admin/listings?fields=minimal', {
+          cache: 'no-store',
+          headers: { 'Authorization': 'Bearer ' + token },
+        });
         var j = await r.json();
         var data = j && j.data;
         if (Array.isArray(data)) {
@@ -1426,7 +1440,18 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
           CACHE.ts = Date.now();
           return data;
         }
-      } catch(e){ console.error('[MPH v2.3.1] fetchAll failed', e); }
+      } catch(e){ console.error('[MPH v2.3.4] fetchAll admin failed', e); }
+      // 폴백: 공개 엔드포인트로 재시도 (admin 엔드포인트가 막힌 환경 대비)
+      try {
+        var r2 = await fetch('/api/listings?limit=5000', { cache: 'no-store' });
+        var j2 = await r2.json();
+        var data2 = j2 && j2.data;
+        if (Array.isArray(data2)) {
+          CACHE.list = data2;
+          CACHE.ts = Date.now();
+          return data2;
+        }
+      } catch(e){ console.error('[MPH v2.3.4] fetchAll public fallback failed', e); }
       return null;
     })();
     var out = await CACHE.loading;
@@ -1471,7 +1496,7 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
   window.searchListings = patchedSearch;
 
   window.__MPH_SEARCH_FIX_V231__ = {
-    version: '2.3.1',
+    version: '2.3.4',
     cache: CACHE,
     fetchAll: fetchAll,
     run: patchedSearch,
@@ -1480,7 +1505,7 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
       try { delete window.__MPH_SEARCH_FIX_V231__; } catch(e){ window.__MPH_SEARCH_FIX_V231__ = undefined; }
     }
   };
-  console.log('[MPH v2.3.1] 통합검색 클라이언트 필터 활성화');
+  console.log('[MPH v2.3.4] 통합검색 admin 엔드포인트 기반 활성화 (전 매물·전 상태 포함)');
 })();
 </script>
 <!-- ============================================================

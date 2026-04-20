@@ -19,6 +19,7 @@ import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { createHash } from 'crypto';
 import { cached, invalidateCache } from '@/lib/cache';
+import { applyImagePolicy } from '@/lib/image-policy';
 
 // 요청 검증 스키마
 const createListingSchema = z.object({
@@ -266,18 +267,24 @@ export async function GET(request: NextRequest) {
           .gt('created_at', since)
           .order('created_at', { ascending: false })
           .limit(1000);
-        const cleaned = (deltaData || []).map(compactRow).map(keepThumbnailOnly);
+        // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)의 외부 이미지 제거.
+        //   중개사 자체 업로드(wishes.co.kr/api/images, supabase, R2)는 통과.
+        //   keepThumbnailOnly 보다 먼저 돌려야 크롤링 URL 이 썸네일로 선택되지 않음.
+        const cleaned = (deltaData || []).map(compactRow).map((r: any) => applyImagePolicy(r)).map(keepThumbnailOnly);
         return NextResponse.json({ success: true, data: cleaned, total: cleaned.length, since });
       }
 
       // 🔥 인메모리 캐시: 30초 fresh, 3분 stale 허용, 30초 타임아웃
+      // v10 (2026-04-20): applyImagePolicy 합류 — 크롤링 매물 썸네일을 크롤링 원본으로 잡지 않도록.
+      //                   (이전엔 keepThumbnailOnly 가 is_thumbnail=true 인 크롤링 URL 을 썸네일로 선택 →
+      //                    직접 업로드 사진이 있어도 /search 리스트 카드에서 공실클럽 원본이 계속 노출됨.)
       // v9 (2026-04-14): 전체 삭제 후 재시작 — 캐시 무효화 + TTL 단축 (신규 크롤링 빠른 반영)
       //                   fresh 60s→30s / stale 10min→3min
       // v8: select('*') 전환
       // v7: 상가 필드 포함
       // v6: 빈 응답 캐싱 방지 (poison cache fix)
       const allData = await cached(
-        'admin-listings-minimal-v9',
+        'admin-listings-minimal-v10',
         async () => {
           const PAGE_SIZE = 1000;
           const { data: firstPage, error: firstError } = await supabase
@@ -312,8 +319,11 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          // null/빈 값 제거 + 썸네일만 유지
-          return all.map(compactRow).map(keepThumbnailOnly);
+          // ※ 저작권 보호: applyImagePolicy → compactRow → keepThumbnailOnly 순.
+          //   applyImagePolicy 를 먼저 돌려 크롤링 매물의 외부 URL 을 제거해야
+          //   keepThumbnailOnly 가 직접 업로드 사진을 썸네일로 선택한다.
+          //   (크롤링 원본을 썸네일로 잡아 /search 리스트 카드에 공실클럽 사진이 노출되던 회귀 수정)
+          return all.map((r: any) => applyImagePolicy(r)).map(compactRow).map(keepThumbnailOnly);
         },
         30_000,     // 30초 fresh (크롤링 신규매물 빠른 반영)
         180_000,    // 3분 stale 허용
@@ -378,10 +388,14 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ※ 저작권 보호: 전체 필드 응답에도 image-policy 적용.
+    //   크롤링 매물의 외부 원본은 차단, 자체 업로드(wishes.co.kr / supabase / R2)는 통과.
+    const sanitizedAll = allData.map((r: any) => applyImagePolicy(r));
+
     return NextResponse.json({
       success: true,
-      data: allData,
-      total: allData.length,
+      data: sanitizedAll,
+      total: sanitizedAll.length,
     });
   } catch (error) {
     console.error('매물 조회 오류:', error);

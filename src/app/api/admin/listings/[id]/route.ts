@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
+import { filterSelfHosted } from '@/lib/image-policy';
 
 /**
  * GET /api/admin/listings/[id] - 매물 상세 조회 (이미지 포함)
@@ -69,12 +70,19 @@ export async function GET(
       .select('feature')
       .eq('listing_id', listingId);
 
+    // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)의 외부 원본 이미지/동영상은 차단.
+    //   자체 업로드(wishes.co.kr/api/images, supabase, R2) 는 통과.
+    //   모바일 상세에서 gongsilclub/nemoapp CDN 이 핫링크 차단·CORS 로 전부 깨지는 회귀 수정.
+    const srcSite = (listing as any)?.source_site;
+    const safeImages = srcSite ? filterSelfHosted(images || []) : (images || []);
+    const safeVideos = srcSite ? filterSelfHosted(videos || []) : (videos || []);
+
     return NextResponse.json({
       success: true,
       data: {
         ...listing,
-        listing_images: images || [],
-        listing_videos: videos || [],
+        listing_images: safeImages,
+        listing_videos: safeVideos,
         features: features?.map((f: { feature: string }) => f.feature) || [],
       },
     });
