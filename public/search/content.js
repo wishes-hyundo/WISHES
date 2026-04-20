@@ -651,17 +651,75 @@
   }
 
   /**
-   * Format price based on deal type
+   * Parse Korean amount string into 만원 units
+   * Handles: "9,000", "3억", "3억5,000", "1억2000"
+   * @param {string} s
+   * @returns {number} Amount in 만원
+   */
+  function parseKoreanAmount(s) {
+    if (!s) return 0;
+    s = String(s).replace(/,/g, '').replace(/\s+/g, '').replace(/만원?$/, '').trim();
+    // "3억" or "3억5000"
+    const m = s.match(/^(\d+)억(\d+)?$/);
+    if (m) {
+      return parseInt(m[1], 10) * 10000 + (m[2] ? parseInt(m[2], 10) : 0);
+    }
+    return parseInt(s, 10) || 0;
+  }
+
+  /**
+   * Parse dual pricing (전세 + 월세) from original crawled body text.
+   * Used for listings that offer both 전세 and 월세 options.
+   * @param {Object} listing
+   * @returns {Object|null} { jeonseDeposit, wolseDeposit, wolseMonthly } or null
+   */
+  function getDualPriceFromBody(listing) {
+    if (!listing || !listing.raw_fields) return null;
+    const body = listing.raw_fields['__원본본문__'] || listing.raw_fields.원본본문;
+    if (!body || typeof body !== 'string') return null;
+
+    // 전세 금액: "전세 9,000만원" / "전세 3억" / "전세 3억5,000" / "전세 3억5000만원"
+    const jeonseMatch = body.match(/전세\s*([\d억,]+(?:\s*만원)?)/);
+    // 월세 금액: "월세 5,500 / 24만원" / "월세 1,000/50" / "월세 10000-50"
+    const wolseMatch = body.match(/월세\s*([\d억,]+)\s*[\/\-·]\s*([\d,]+)/);
+
+    if (!jeonseMatch || !wolseMatch) return null;
+
+    const jDep = parseKoreanAmount(jeonseMatch[1]);
+    const wDep = parseKoreanAmount(wolseMatch[1]);
+    const wMon = parseKoreanAmount(wolseMatch[2]);
+
+    if (!jDep || !wDep || !wMon) return null;
+    return { jeonseDeposit: jDep, wolseDeposit: wDep, wolseMonthly: wMon };
+  }
+
+  /**
+   * Format price based on deal type.
+   * When `listing` is provided and the listing offers both 전세 and 월세
+   * (either deal === '전월세' or body has dual pricing), returns combined format.
    * @param {number} deposit - Deposit amount
    * @param {number} monthly - Monthly rent
    * @param {number} price - Sale price
    * @param {string} deal - Deal type
+   * @param {Object} [listing] - Optional full listing object for dual-price detection
    * @returns {string} Formatted price string
    */
-  function formatPrice(deposit, monthly, price, deal) {
+  function formatPrice(deposit, monthly, price, deal, listing) {
     if (deal === '매매') {
       return formatSinglePrice(price);
     }
+
+    // Dual pricing (전세 + 월세 둘 다 가능) — 전월세 또는 원본본문에 양쪽 표기가 있을 때
+    if (listing && (deal === '전월세' || deal === '전세' || deal === '월세')) {
+      const dual = getDualPriceFromBody(listing);
+      if (dual) {
+        const j = formatSinglePrice(dual.jeonseDeposit);
+        const wd = formatSinglePrice(dual.wolseDeposit);
+        const wm = formatSinglePrice(dual.wolseMonthly);
+        return `전세 ${j} · 월세 ${wd}/${wm}`;
+      }
+    }
+
     if (deal === '전세') {
       return formatSinglePrice(deposit);
     }
@@ -1351,6 +1409,8 @@
   // Store helpers globally
   window.WS.formatSinglePrice = formatSinglePrice;
   window.WS.formatPrice = formatPrice;
+  window.WS.parseKoreanAmount = parseKoreanAmount;
+  window.WS.getDualPriceFromBody = getDualPriceFromBody;
   window.WS.m2ToPy = m2ToPy;
   window.WS.pyToM2 = pyToM2;
   window.WS.formatArea = formatArea;
@@ -2909,7 +2969,7 @@
         '<div class="ws-card-right">' +
           '<div class="ws-card-price-block">' +
             '<span class="ws-deal-type">' + escHtml(listing.deal || '-') + '</span>' +
-            '<div class="ws-price-main">' + formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal) + '</div>' +
+            '<div class="ws-price-main">' + formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal, listing) + '</div>' +
             (listing.maintenance_fee && listing.maintenance_fee > 0 ? '<span class="ws-maintenance">관리 ' + listing.maintenance_fee + '만</span>' : '<span class="ws-maintenance ws-maint-warn">관리비미입력</span>') +
           '</div>' +
           '<div class="ws-card-controls">' +
@@ -3701,7 +3761,7 @@
       var fc = String(listing.floor_current);
       floorInfo = (fc.indexOf('/') >= 0 || fc.indexOf('층') >= 0) ? fc.replace(/층$/, '') + '층' : fc + '/' + (listing.floor_total || '?') + '층';
     }
-    var priceText = formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal);
+    var priceText = formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal, listing);
     var dealType = listing.deal || '-';
     var maint = (listing.maintenance_fee && listing.maintenance_fee > 0) ? listing.maintenance_fee + '만' : '미입력';
     var builtYear = getBuiltDateForDisplay(listing);
@@ -3841,7 +3901,7 @@
         // 가격정보
         var priceHtml = '<div class="ws-detail-section"><h3>가격정보</h3><div class="ws-detail-grid">';
         priceHtml += '<div><strong>거래유형</strong> ' + (listing.deal || '-') + '</div>';
-        priceHtml += '<div><strong>가격</strong> ' + (formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal) || '-') + '</div>';
+        priceHtml += '<div><strong>가격</strong> ' + (formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal, listing) || '-') + '</div>';
         // 관리비
         var mf = listing.maintenance_fee;
         var mi = listing.maintenance_includes;
@@ -4478,7 +4538,7 @@
         html += '<div style="flex:1;min-width:0;">';
         html += '<div style="font-weight:600;font-size:13px;color:#333;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(listing.title || '매물') + '</div>';
         html += '<div style="font-size:11px;color:#888;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(listing.address || '') + ' · ' + escHtml(listing.type || '') + '</div>';
-        html += '<div style="font-size:12px;font-weight:600;color:#e53e3e;">' + escHtml(formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal)) + '</div>';
+        html += '<div style="font-size:12px;font-weight:600;color:#e53e3e;">' + escHtml(formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal, listing)) + '</div>';
         html += '</div>';
 
         // Category badge + picker button
@@ -4557,7 +4617,7 @@
       var catStr = cat ? ' [' + cat + ']' : '';
       lines.push((i + 1) + '. ' + (l.title || '매물') + catStr);
       lines.push('   📍 ' + (l.address || '-'));
-      lines.push('   💰 ' + formatPrice(l.deposit, l.monthly, l.price, l.deal));
+      lines.push('   💰 ' + formatPrice(l.deposit, l.monthly, l.price, l.deal, l));
       lines.push('   🏠 ' + (l.type || '-') + ' / ' + (l.deal || '-'));
       lines.push('');
     });
@@ -4795,7 +4855,7 @@
 
     selected.forEach((listing, idx) => {
       var areaText = formatArea(listing.area_m2) || '-';
-      var priceText = formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal);
+      var priceText = formatPrice(listing.deposit, listing.monthly, listing.price, listing.deal, listing);
       var builtText = getBuiltDateForDisplay(listing) || '-';
 
       html += `
@@ -6265,7 +6325,7 @@
     var rows = [
       { label: '매물유형', key: function(l) { return (l.type || '-') + ' / ' + (l.deal || '-'); } },
       { label: '가격', key: function(l) {
-        return formatPrice(l.deposit, l.monthly, l.price, l.deal);
+        return formatPrice(l.deposit, l.monthly, l.price, l.deal, l);
       }},
       { label: '관리비', key: function(l) { return (l.maintenance_fee || 0) + '만원'; } },
       { label: '면적(㎡)', key: function(l) { return (l.area_m2 || '-') + '㎡'; } },
@@ -11962,7 +12022,7 @@
       if (images.length > 0) imgUrl = images[0].url || images[0];
       var priceText = '';
       if (typeof formatPrice === 'function') {
-        priceText = formatPrice(l.deposit, l.monthly, l.price, l.deal);
+        priceText = formatPrice(l.deposit, l.monthly, l.price, l.deal, l);
       } else {
         priceText = l.price ? l.price + '만원' : '-';
       }
@@ -13460,7 +13520,7 @@
 
     top.forEach(function(item, idx) {
       var l = item.listing;
-      var priceText = l.deal === '매매' ? formatPrice(0, 0, l.price, '매매') : formatPrice(l.deposit, l.monthly, 0, l.deal);
+      var priceText = l.deal === '매매' ? formatPrice(0, 0, l.price, '매매', l) : formatPrice(l.deposit, l.monthly, 0, l.deal, l);
       var matchColor = item.pct >= 80 ? '#2D5A27' : item.pct >= 60 ? '#F57F17' : '#888';
       var imgUrl = (l.images && l.images.length > 0) ? (l.images[0].url || l.images[0]) : '';
 

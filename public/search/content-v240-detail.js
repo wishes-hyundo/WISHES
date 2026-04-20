@@ -488,7 +488,7 @@
 
     // 가격·면적 포매터
     var priceTxt = '';
-    try { priceTxt = (window.formatPrice || window.WS.formatPrice)(L.deposit, L.monthly, L.price, L.deal) || ''; } catch (e) {}
+    try { priceTxt = (window.formatPrice || window.WS.formatPrice)(L.deposit, L.monthly, L.price, L.deal, L) || ''; } catch (e) {}
     var areaTxt = '';
     try { areaTxt = (window.formatArea || window.WS.formatArea)(L.area_m2) || ''; } catch (e) {}
     var pyeong = L.area_m2 ? (L.area_m2 / 3.30579) : 0;
