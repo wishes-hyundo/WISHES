@@ -29,18 +29,33 @@ const TYPE_WORDS = [
   '타워', '상가', '사무실', '오피스', '점포', '공장', '창고',
 ];
 
+// 행정구역 프리픽스 패턴 — "관악구 봉천동", "서울시 관악구 신림동", "의왕시 내손동" 등
+const ADMIN_PREFIX_PATTERNS: RegExp[] = [
+  /^[가-힣]+(시|도)\s+[가-힣]+(구|군)\s+[가-힣]+동/,
+  /^[가-힣]+구\s+[가-힣]+동/,
+  /^[가-힣]+시\s+[가-힣]+동/,
+  /^[가-힣]+군\s+[가-힣]+(동|리)/,
+];
+
+// 호수/지번/동호 덩어리 — "B 102호", "303호", "2층 303호"
+const UNIT_NUMBER_PATTERN = /\b\d+\s*호\b|\bB\s*\d+\s*호|\d+동\s*\d+호/;
+
 function hasRawAddress(title: string | null | undefined): boolean {
   if (!title) return false;
-  if (LOT_NUMBER_PATTERN.test(title)) return true;
-  const tokens = title.trim().split(/\s+/);
-  if (
-    tokens.length >= 4 &&
-    (title.includes('시') || title.includes('도')) &&
-    (title.includes('구') || title.includes('군')) &&
-    title.includes('동')
-  ) {
-    return true;
+  const t = title.trim();
+  if (!t) return false;
+
+  // 지번 (예: 123-45, 산 12-3)
+  if (LOT_NUMBER_PATTERN.test(t)) return true;
+
+  // 행정구역 프리픽스로 시작 → 주소 덩어리
+  for (const p of ADMIN_PREFIX_PATTERNS) {
+    if (p.test(t)) return true;
   }
+
+  // 호수 단독 포함 + 긴 토큰 → 주소 덩어리
+  if (UNIT_NUMBER_PATTERN.test(t) && t.length >= 12) return true;
+
   return false;
 }
 
