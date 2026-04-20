@@ -2214,5 +2214,128 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
   try { console.log('[mobile-photo] v2.3.6 integrated UX active'); } catch(e){}
 })();
 </script>
+<script>
+// v2.3.7: 동영상 업로드 안정화 — 선제 용량가드 / apiCall 타임아웃 / 상세 에러 분기
+(function(){
+  'use strict';
+  if (window.__MPH_V237__) return;
+
+  var VERCEL_BODY_SAFE = 4 * 1024 * 1024; // Vercel Node 런타임 본문 안전선 (4MB)
+
+  // --- (A) 업로드 전 용량 가드 ---
+  try {
+    var origHandle = window.handleVideoFiles;
+    if (typeof origHandle === 'function' && !origHandle.__v237) {
+      var wrapHandle = async function(files){
+        try {
+          var list = Array.from(files || []);
+          var big = list.filter(function(f){ return f && f.size > VERCEL_BODY_SAFE; });
+          if (big.length > 0) {
+            var sizes = big.map(function(f){ return (f.size/1024/1024).toFixed(1) + 'MB'; }).join(', ');
+            var msg = '용량이 큰 동영상이 포함되어 업로드가 실패할 수 있습니다 (' + sizes + ').\n\nWi-Fi 환경에서 10초 이내로 촬영하면 안정적입니다.\n\n그래도 시도하시겠습니까?';
+            if (!window.confirm(msg)) {
+              try { showToast('업로드를 취소했습니다', 'info'); } catch(_){}
+              return;
+            }
+          }
+        } catch(_){}
+        return origHandle.apply(this, arguments);
+      };
+      wrapHandle.__v237 = true;
+      wrapHandle.__orig = origHandle;
+      window.handleVideoFiles = wrapHandle;
+    }
+  } catch(_){}
+
+  // --- (B) apiCall 타임아웃 실구현 + 상세 에러 (동영상 POST 전용) ---
+  try {
+    var origApi = window.apiCall;
+    if (typeof origApi === 'function' && !origApi.__v237) {
+      var wrapApi = async function(url, options){
+        options = options || {};
+        var method = (options.method || 'GET').toString().toUpperCase();
+        var isVideoPost = typeof url === 'string' && url.indexOf('/videos') !== -1 && method === 'POST';
+        if (!isVideoPost) return origApi.apply(this, arguments);
+
+        var timeoutMs = options.timeout || 180000;
+        var ac = null, timerId = null;
+        try {
+          ac = new AbortController();
+          if (!options.signal) options.signal = ac.signal;
+          timerId = setTimeout(function(){ try { ac.abort(); } catch(_){} }, timeoutMs);
+        } catch(_){}
+
+        try {
+          var res = await origApi.call(this, url, options);
+          if (timerId) clearTimeout(timerId);
+          return res;
+        } catch (e) {
+          if (timerId) clearTimeout(timerId);
+          var nm = (e && e.name) || '';
+          var status = (e && (e.status || e.code)) || 0;
+          var body = String((e && (e.body || e.message)) || '');
+          var detail = '';
+          if (nm === 'AbortError' || /abort/i.test(body)) {
+            detail = '서버 타임아웃(' + Math.round(timeoutMs/1000) + '초) — Wi-Fi 환경에서 더 짧게 촬영해 주세요';
+          } else if (status === 413 || /too large|payload/i.test(body)) {
+            detail = '파일이 서버 한계(~4.5MB)를 초과합니다 — 더 짧게 촬영하거나 Wi-Fi로 재시도하세요';
+          } else if (status === 401 || status === 403) {
+            detail = '인증 오류 — 다시 로그인해 주세요';
+          } else if (status >= 500) {
+            detail = '서버 오류(' + status + ') — 잠시 후 재시도해 주세요';
+          } else if (/network|Failed to fetch/i.test(body)) {
+            detail = '네트워크 오류 — 연결 상태를 확인해 주세요';
+          } else {
+            detail = '업로드 실패' + (status ? '(' + status + ')' : '') + (body ? ': ' + body.slice(0,80) : '');
+          }
+          window.__mphV237LastDetail = { at: Date.now(), msg: detail };
+          try { showToast(detail, 'error'); } catch(_){}
+          try { if (typeof addLog === 'function') addLog('[v237] ' + detail, 'error'); } catch(_){}
+          throw e;
+        }
+      };
+      wrapApi.__v237 = true;
+      wrapApi.__orig = origApi;
+      window.apiCall = wrapApi;
+    }
+  } catch(_){}
+
+  // --- (C) 중복 토스트 억제 (원본 catch의 고정 문구) ---
+  try {
+    var origToast = window.showToast;
+    if (typeof origToast === 'function' && !origToast.__v237) {
+      var wrapToast = function(msg, type){
+        try {
+          var last = window.__mphV237LastDetail;
+          if (last && (Date.now() - last.at < 1500) && typeof msg === 'string' && /동영상 업로드 실패/.test(msg)) {
+            return;
+          }
+        } catch(_){}
+        return origToast.apply(this, arguments);
+      };
+      wrapToast.__v237 = true;
+      wrapToast.__v236Wrapped = !!origToast.__v236Wrapped;
+      wrapToast.__orig = origToast;
+      window.showToast = wrapToast;
+    }
+  } catch(_){}
+
+  window.__MPH_V237__ = {
+    version: '2.3.7',
+    rollback: function(){
+      try {
+        ['handleVideoFiles','apiCall','showToast'].forEach(function(k){
+          if (window[k] && window[k].__v237 && window[k].__orig) {
+            window[k] = window[k].__orig;
+          }
+        });
+        delete window.__MPH_V237__;
+      } catch(_){}
+    }
+  };
+  try { console.log('[mobile-photo] v2.3.7 video stability active'); } catch(_){}
+})();
+</script>
+
 </body>
 </html>
