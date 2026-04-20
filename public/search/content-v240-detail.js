@@ -515,13 +515,14 @@
       floorTxt = '-';
     }
 
-    // 준공년도
+    // 준공년도 — L.built_year 만 사용. registered_date(등록일)는 최초등록 타임라인 카드에서 별도로 표시되므로 여기서는 절대 덮어쓰지 않는다.
+    // [fix 2026-04-20] 이전 빌드는 'if (L.registered_date) builtTxt = L.registered_date;' 한 줄 때문에
+    // 465/473 건의 준공년도가 등록일(2026-04-xx) 로 오염되던 치명 버그였음.
     var builtTxt = '-';
     try {
       var gy = (window.getBuiltYear || window.WS.getBuiltYear)(L.built_year);
       if (gy) builtTxt = gy + '년';
     } catch (e) {}
-    if (L.registered_date) builtTxt = L.registered_date;
 
     // 입주가능
     var avail = L.available_date || '-';
