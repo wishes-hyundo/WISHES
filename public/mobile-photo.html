@@ -1857,5 +1857,110 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
   }
 })();
 </script>
+
+<script>
+// v2.3.5: UX 마감 — touch-action 복원 / 저장버튼 강조 / 3지선다 미저장 모달
+(function(){
+  'use strict';
+  if (window.__MPH_V235__) return;
+
+  // --- (A) 모바일 세로 스크롤 복원 ---
+  try {
+    if (!document.getElementById('mph-v235-touch-style')) {
+      var ts = document.createElement('style');
+      ts.id = 'mph-v235-touch-style';
+      ts.textContent = '.pv-existing-item,.pv-thumb{touch-action:pan-y !important;}';
+      document.head.appendChild(ts);
+    }
+  } catch(_){}
+
+  // --- (B) 저장 버튼 시각 강조 (pulse + 배지) ---
+  try {
+    if (!document.getElementById('mph-v235-save-style')) {
+      var ss = document.createElement('style');
+      ss.id = 'mph-v235-save-style';
+      ss.textContent = [
+        '@keyframes mphV235Pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,53,69,.65)}50%{box-shadow:0 0 0 10px rgba(220,53,69,0)}}',
+        '.pv-save-order.active{animation:mphV235Pulse 1.6s ease-in-out infinite;position:relative;overflow:visible;}',
+        '.pv-save-order.active::after{content:"저장 필요";position:absolute;top:-9px;right:-8px;background:#dc3545;color:#fff;font-size:10px;font-weight:800;padding:2px 6px;border-radius:10px;letter-spacing:-.3px;white-space:nowrap;pointer-events:none;box-shadow:0 2px 4px rgba(0,0,0,.2);}'
+      ].join('');
+      document.head.appendChild(ss);
+    }
+  } catch(_){}
+
+  // --- (C) 3지선다 미저장 모달 ---
+  function openUnsavedModal(){
+    return new Promise(function(resolve){
+      var modal = document.createElement('div');
+      modal.className = 'mph-v235-modal';
+      modal.setAttribute('role','dialog');
+      modal.setAttribute('aria-modal','true');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:inherit;';
+      modal.innerHTML = [
+        '<div style="background:#fff;border-radius:14px;max-width:360px;width:100%;padding:22px 20px;box-shadow:0 10px 30px rgba(0,0,0,.35);">',
+        '<div style="font-size:16px;font-weight:700;color:#212529;margin-bottom:8px;line-height:1.4;">⚠️ 사진 순서 변경이 저장되지 않았습니다</div>',
+        '<div style="font-size:13px;color:#6c757d;margin-bottom:18px;line-height:1.5;">저장하지 않고 나가면 변경사항이 사라집니다. 어떻게 하시겠습니까?</div>',
+        '<div style="display:flex;flex-direction:column;gap:8px;">',
+        '<button data-a="save" style="background:#2d5016;color:#fff;border:0;border-radius:10px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;">💾 저장 후 나가기</button>',
+        '<button data-a="discard" style="background:#fff;color:#dc3545;border:2px solid #dc3545;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;">🚪 저장 안 하고 나가기</button>',
+        '<button data-a="cancel" style="background:#fff;color:#6c757d;border:2px solid #dee2e6;border-radius:10px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;">❌ 취소</button>',
+        '</div></div>'
+      ].join('');
+      function close(a){
+        try { document.body.removeChild(modal); } catch(_){}
+        document.removeEventListener('keydown', onKey, true);
+        resolve(a);
+      }
+      function onKey(e){
+        if (e.key === 'Escape') { e.preventDefault(); close('cancel'); }
+      }
+      modal.addEventListener('click', function(e){
+        var btn = e.target.closest('button[data-a]');
+        if (btn) { close(btn.dataset.a); return; }
+        if (e.target === modal) close('cancel');
+      });
+      document.addEventListener('keydown', onKey, true);
+      document.body.appendChild(modal);
+    });
+  }
+  window.__mphV235Modal = openUnsavedModal;
+
+  // --- (D) backToSearch 래핑 (v234 wrap 위에 한 번 더) ---
+  var v234Back = window.backToSearch;
+  if (typeof v234Back === 'function' && !v234Back.__v235) {
+    var wrapBack235 = async function(){
+      if (typeof orderChanged !== 'undefined' && orderChanged) {
+        var action;
+        try { action = await openUnsavedModal(); } catch(_){ action = 'cancel'; }
+        if (action === 'cancel') return;
+        if (action === 'save') {
+          if (typeof saveImageOrder === 'function') {
+            try { await saveImageOrder(); } catch(e){ return; }
+          }
+          if (typeof orderChanged !== 'undefined' && orderChanged) return;
+        } else if (action === 'discard') {
+          try { orderChanged = false; } catch(_){}
+        }
+      }
+      return v234Back.apply(this, arguments);
+    };
+    wrapBack235.__v235 = true;
+    wrapBack235.__v234 = v234Back.__v234;
+    window.backToSearch = wrapBack235;
+  }
+
+  window.__MPH_V235__ = {
+    version: '2.3.5',
+    openModal: openUnsavedModal,
+    rollback: function(){
+      ['mph-v235-touch-style','mph-v235-save-style'].forEach(function(id){
+        try { var e = document.getElementById(id); if (e) e.remove(); } catch(_){}
+      });
+      try { delete window.__MPH_V235__; } catch(_){ window.__MPH_V235__ = null; }
+    }
+  };
+  try { console.log('[mobile-photo] v2.3.5 UX polish active'); } catch(e){}
+})();
+</script>
 </body>
 </html>
