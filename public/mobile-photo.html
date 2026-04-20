@@ -1962,5 +1962,257 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
   try { console.log('[mobile-photo] v2.3.5 UX polish active'); } catch(e){}
 })();
 </script>
+
+<script>
+// v2.3.6: 통합 UX 개선 — 래핑순서 고정 / 드래그핸들 / 저장로딩 / 변경건수 / 햅틱 / ARIA
+(function(){
+  'use strict';
+  if (window.__MPH_V236__) return;
+
+  // --- (A) backToSearch 래핑 순서 고정 (v2.3.4 confirm 이중노출 해결) ---
+  function installBackGuard(tries){
+    tries = tries || 0;
+    var fn = window.backToSearch;
+    if (typeof fn === 'function' && typeof window.__mphV235Modal === 'function' && !fn.__v236) {
+      var inner = fn;
+      var wrapV236 = async function(){
+        if (typeof orderChanged !== 'undefined' && orderChanged) {
+          var action;
+          try { action = await window.__mphV235Modal(); } catch(_){ action = 'cancel'; }
+          if (action === 'cancel') return;
+          if (action === 'save') {
+            if (typeof window.saveImageOrder === 'function') {
+              try { await window.saveImageOrder(); } catch(e){ return; }
+            }
+            if (typeof orderChanged !== 'undefined' && orderChanged) return;
+          } else if (action === 'discard') {
+            try { orderChanged = false; } catch(_){}
+          }
+        }
+        // orderChanged=false 상태가 되었으므로 inner(v2.3.4) 내부 confirm은 트리거되지 않음
+        return inner.apply(this, arguments);
+      };
+      wrapV236.__v236 = true;
+      wrapV236.__v235 = true;
+      wrapV236.__v234 = true;
+      window.backToSearch = wrapV236;
+      return;
+    }
+    if (tries < 80) setTimeout(function(){ installBackGuard(tries+1); }, 50);
+  }
+  installBackGuard();
+
+  // --- (B) 드래그 핸들 아이콘 (CSS ::after, 좌상단 배치) ---
+  try {
+    if (!document.getElementById('mph-v236-handle-style')) {
+      var hs = document.createElement('style');
+      hs.id = 'mph-v236-handle-style';
+      hs.textContent = [
+        '.pv-existing-item[data-mph-h], .pv-thumb[data-mph-h] { position: relative; }',
+        '.pv-existing-item[data-mph-h]::after, .pv-thumb[data-mph-h]::after {',
+          'content: "\u22EE\u22EE";',
+          'position: absolute; top: 4px; left: 4px;',
+          'min-width: 16px; height: 18px;',
+          'padding: 0 3px; box-sizing: border-box;',
+          'background: rgba(0,0,0,.58); color: #fff;',
+          'border-radius: 4px; font-size: 12px; line-height: 18px;',
+          'text-align: center; letter-spacing: -3px;',
+          'pointer-events: none; z-index: 5;',
+          'font-weight: 900;',
+          'opacity: .82;',
+        '}'
+      ].join('');
+      document.head.appendChild(hs);
+    }
+    function tagThumbs(root){
+      var scope = root || document;
+      try {
+        scope.querySelectorAll && scope.querySelectorAll('.pv-existing-item, .pv-thumb').forEach(function(el){
+          if (!el.hasAttribute('data-mph-h')) el.setAttribute('data-mph-h','1');
+        });
+      } catch(_){}
+    }
+    var handleMo = new MutationObserver(function(muts){
+      muts.forEach(function(m){
+        m.addedNodes && m.addedNodes.forEach(function(n){
+          if (n.nodeType !== 1) return;
+          if (n.matches && (n.matches('.pv-existing-item') || n.matches('.pv-thumb'))) {
+            n.setAttribute('data-mph-h','1');
+          }
+          tagThumbs(n);
+        });
+      });
+    });
+    handleMo.observe(document.body, { childList: true, subtree: true });
+    tagThumbs(document);
+  } catch(_){}
+
+  // --- (C) 저장 중 로딩 상태 + 중복 클릭 방지 ---
+  try {
+    if (!document.getElementById('mph-v236-save-loading-style')) {
+      var ls = document.createElement('style');
+      ls.id = 'mph-v236-save-loading-style';
+      ls.textContent = [
+        '@keyframes mphV236Spin { to { transform: rotate(360deg); } }',
+        '.pv-save-order.mph-v236-saving {',
+          'opacity: .7 !important; pointer-events: none !important; cursor: progress !important;',
+          'animation: none !important;',
+        '}',
+        '.pv-save-order.mph-v236-saving::before {',
+          'content: ""; display: inline-block;',
+          'width: 14px; height: 14px; margin-right: 8px;',
+          'border: 2px solid rgba(255,255,255,.35);',
+          'border-top-color: #fff;',
+          'border-radius: 50%;',
+          'animation: mphV236Spin 0.7s linear infinite;',
+          'vertical-align: -3px;',
+        '}',
+        '.pv-save-order.mph-v236-saving::after { display: none !important; }'
+      ].join('');
+      document.head.appendChild(ls);
+    }
+    var origSave = window.saveImageOrder;
+    if (typeof origSave === 'function' && !origSave.__v236Wrapped) {
+      var wrapSave = async function(){
+        var btn = document.getElementById('pvSaveOrder');
+        if (btn && btn.classList.contains('mph-v236-saving')) return;
+        if (btn) btn.classList.add('mph-v236-saving');
+        try {
+          return await origSave.apply(this, arguments);
+        } finally {
+          if (btn) btn.classList.remove('mph-v236-saving');
+        }
+      };
+      wrapSave.__v236Wrapped = true;
+      wrapSave.__orig = origSave;
+      window.saveImageOrder = wrapSave;
+    }
+  } catch(_){}
+
+  // --- (D) 변경 건수 배지 ("저장 필요" → "N건 변경") ---
+  try {
+    if (!document.getElementById('mph-v236-count-style')) {
+      var cs = document.createElement('style');
+      cs.id = 'mph-v236-count-style';
+      // v2.3.5 배지의 텍스트를 data-mph-badge로 치환
+      cs.textContent = '.pv-save-order.active[data-mph-badge]::after{content:attr(data-mph-badge) !important;}';
+      document.head.appendChild(cs);
+    }
+    function snapshotOrder(){
+      var items = document.querySelectorAll('#pvExistingGrid .pv-existing-item');
+      items.forEach(function(el, idx){
+        if (!el.hasAttribute('data-mph-origin')) {
+          el.setAttribute('data-mph-origin', String(idx));
+        }
+      });
+    }
+    function countChanges(){
+      var items = document.querySelectorAll('#pvExistingGrid .pv-existing-item');
+      var changed = 0;
+      items.forEach(function(el, idx){
+        var o = el.getAttribute('data-mph-origin');
+        if (o !== null && parseInt(o, 10) !== idx) changed++;
+      });
+      return changed;
+    }
+    function updateBadge(){
+      var btn = document.getElementById('pvSaveOrder');
+      if (!btn) return;
+      if (!btn.classList.contains('active')) {
+        btn.removeAttribute('data-mph-badge');
+        return;
+      }
+      var n = countChanges();
+      btn.setAttribute('data-mph-badge', n > 0 ? (n + '건 변경') : '저장 필요');
+    }
+    // 저장 버튼 class 변화 감시
+    var btn0 = document.getElementById('pvSaveOrder');
+    if (btn0) {
+      var btnMo = new MutationObserver(updateBadge);
+      btnMo.observe(btn0, { attributes: true, attributeFilter: ['class'] });
+    }
+    // 그리드 변화 감시 (드래그로 순서 변경 시)
+    var grid = document.getElementById('pvExistingGrid');
+    if (grid) {
+      var gridMo = new MutationObserver(function(){
+        snapshotOrder();
+        updateBadge();
+      });
+      gridMo.observe(grid, { childList: true });
+    }
+    snapshotOrder();
+    updateBadge();
+    window.__mphV236UpdateBadge = updateBadge;
+  } catch(_){}
+
+  // --- (E) 햅틱 피드백 (모바일만 실제 동작) ---
+  try {
+    function haptic(ms){
+      try { if (navigator.vibrate) navigator.vibrate(ms); } catch(_){}
+    }
+    document.addEventListener('dragstart', function(e){
+      if (e.target && e.target.closest && e.target.closest('.pv-existing-item, .pv-thumb')) {
+        haptic(12);
+      }
+    }, true);
+    document.addEventListener('touchstart', function(e){
+      if (e.target && e.target.closest && e.target.closest('.pv-existing-item, .pv-thumb')) {
+        haptic(8);
+      }
+    }, { capture: true, passive: true });
+    var origSR = window.setRepresentative;
+    if (typeof origSR === 'function' && !origSR.__v236Wrapped) {
+      var wrapSR = function(){
+        haptic([18, 28, 18]);
+        return origSR.apply(this, arguments);
+      };
+      wrapSR.__v236Wrapped = true;
+      wrapSR.__v234 = origSR.__v234;
+      window.setRepresentative = wrapSR;
+    }
+  } catch(_){}
+
+  // --- (F) ARIA live region (토스트 스크린리더 지원) ---
+  try {
+    var live = document.getElementById('mph-v236-live');
+    if (!live) {
+      live = document.createElement('div');
+      live.id = 'mph-v236-live';
+      live.setAttribute('role', 'status');
+      live.setAttribute('aria-live', 'polite');
+      live.setAttribute('aria-atomic', 'true');
+      live.style.cssText = 'position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;';
+      document.body.appendChild(live);
+    }
+    var origToast = window.showToast;
+    if (typeof origToast === 'function' && !origToast.__v236Wrapped) {
+      var wrapToast = function(msg){
+        try {
+          if (live && msg) {
+            live.textContent = '';
+            setTimeout(function(){ live.textContent = String(msg); }, 30);
+          }
+        } catch(_){}
+        return origToast.apply(this, arguments);
+      };
+      wrapToast.__v236Wrapped = true;
+      wrapToast.__orig = origToast;
+      window.showToast = wrapToast;
+    }
+  } catch(_){}
+
+  window.__MPH_V236__ = {
+    version: '2.3.6',
+    rollback: function(){
+      ['mph-v236-handle-style','mph-v236-save-loading-style','mph-v236-count-style'].forEach(function(id){
+        try { var e = document.getElementById(id); if (e) e.remove(); } catch(_){}
+      });
+      try { var l = document.getElementById('mph-v236-live'); if (l) l.remove(); } catch(_){}
+      try { delete window.__MPH_V236__; } catch(_){ window.__MPH_V236__ = null; }
+    }
+  };
+  try { console.log('[mobile-photo] v2.3.6 integrated UX active'); } catch(e){}
+})();
+</script>
 </body>
 </html>
