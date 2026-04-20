@@ -2,13 +2,13 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<!-- v2.2: user-scalable=yes + maximum-scale=5 (WCAG 1.4.4 접근성) -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<!-- v2.3: CSP — img/connect 는 https: 로 완화(R2·imagedelivery 등 다중 CDN 호환). http·javascript: 는 차단 유지. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https:; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; font-src 'self' https://cdn.jsdelivr.net data:; script-src 'self' 'unsafe-inline'; connect-src 'self' https:; frame-ancestors 'self'; base-uri 'self'; form-action 'self';">
 <meta name="theme-color" content="#2d5016">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icon-192x192.png">
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <title>WISHES 모바일 사진등록</title>
 <style>
   :root {
@@ -23,438 +23,181 @@
     --success: #10b981;
     --danger: #ef4444;
     --radius: 14px;
+    --max-col: 560px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    -webkit-tap-highlight-color: transparent;
+    font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Malgun Gothic', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; -webkit-tap-highlight-color: transparent;
   }
+  /* ░░░░░ Desktop constraint (v2) ░░░░░ */
+  #appRoot { max-width: var(--max-col); margin: 0 auto; background: var(--bg); min-height: 100vh; box-shadow: 0 0 30px rgba(0,0,0,.06); }
 
-  /* Header */
   .header {
     position: sticky; top: 0; z-index: 100;
-    background: var(--primary);
-    color: white;
+    background: var(--primary); color: white;
     padding: 14px 16px;
     display: flex; align-items: center; gap: 10px;
     box-shadow: 0 2px 12px rgba(0,0,0,.15);
   }
-  .header-logo {
-    width: 34px; height: 34px;
-    background: linear-gradient(135deg, var(--accent), #f0c040);
-    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 17px; flex-shrink: 0;
-  }
-  .header-title { font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
-  .header-sub { font-size: 11px; opacity: .7; margin-top: 1px; }
-  .header-back {
-    margin-left: auto;
-    background: rgba(255,255,255,.15); border: none; color: white;
-    padding: 8px 14px; border-radius: 8px; font-size: 13px; cursor: pointer;
-    flex-shrink: 0;
-  }
+  .header-logo { width: 36px; height: 36px; background: var(--accent); color: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+  .header > div:nth-child(2) { flex: 1; min-width: 0; }
+  .header-title { font-size: 15px; font-weight: 700; }
+  .header-sub { font-size: 11px; opacity: .85; }
+  .header-back { background: rgba(255,255,255,.15); color: white; border: 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer; }
 
-  /* GPS indicator */
   .gps-bar {
-    background: #1a2e0a;
-    color: #86efac;
-    padding: 5px 16px;
-    font-size: 11px;
+    background: var(--primary-light); color: white;
+    padding: 6px 16px; font-size: 11px;
     display: flex; align-items: center; gap: 6px;
+    border-bottom: 1px solid rgba(0,0,0,.1);
   }
-  .gps-bar.error { color: #fca5a5; }
-  .gps-dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: #22c55e;
-    animation: gpsPulse 2s infinite;
-    flex-shrink: 0;
-  }
-  .gps-bar.error .gps-dot { background: #ef4444; animation: none; }
-  @keyframes gpsPulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+  .gps-bar.error { background: #b45309; }
+  .gps-dot { width: 7px; height: 7px; background: #6ee7b7; border-radius: 50%; animation: gpsBlink 2s ease-in-out infinite; }
+  .gps-bar.error .gps-dot { background: #fecaca; }
+  @keyframes gpsBlink { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-  /* Search Section */
-  .search-section {
-    padding: 12px 16px;
-    background: white;
-    border-bottom: 1px solid var(--border);
-  }
+  /* ░░░░░ Search view ░░░░░ */
+  .search-section { padding: 14px 16px; background: white; border-bottom: 1px solid var(--border); }
   .search-box { display: flex; gap: 8px; }
-  .search-input {
-    flex: 1;
-    padding: 12px 14px;
-    border: 2px solid var(--border);
-    border-radius: var(--radius);
-    font-size: 16px;
-    outline: none;
-    transition: border-color .2s;
-    background: var(--bg);
-  }
-  .search-input:focus { border-color: var(--primary); }
-  .search-input::placeholder { color: #aaa; }
-  .search-btn {
-    padding: 12px 18px;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: var(--radius);
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .search-btn:active { background: var(--primary-light); }
-  .search-hint { margin-top: 6px; font-size: 12px; color: var(--text-sub); }
+  .search-input { flex: 1; padding: 12px 14px; font-size: 15px; border: 2px solid var(--border); border-radius: 10px; outline: none; background: #fafaf5; }
+  .search-input:focus { border-color: var(--primary); background: white; }
+  .search-btn { padding: 0 18px; background: var(--primary); color: white; border: 0; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .search-hint { font-size: 11px; color: var(--text-sub); margin-top: 6px; }
+  .results-section { padding: 12px 16px; }
+  .empty-state { text-align: center; padding: 36px 16px; color: var(--text-sub); }
+  .empty-state .icon { font-size: 40px; margin-bottom: 8px; }
+  .empty-state .title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .empty-state .desc { font-size: 12px; }
+  .results-count { font-size: 12px; color: var(--text-sub); margin-bottom: 8px; }
+  .listing-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 8px; cursor: pointer; position: relative; transition: transform .1s, box-shadow .1s; }
+  .listing-card:active { transform: scale(.99); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+  .listing-id { position: absolute; top: 8px; right: 8px; background: var(--primary); color: white; font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 700; }
+  .listing-images-count { position: absolute; top: 8px; right: 72px; background: var(--accent); color: var(--text); font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 700; }
+  .listing-title { font-size: 14px; font-weight: 700; margin-right: 72px; margin-bottom: 4px; line-height: 1.3; word-break: break-all; }
+  .listing-info { display: flex; flex-wrap: wrap; gap: 4px; font-size: 11px; color: var(--text-sub); }
+  .listing-info span { background: #f3f1e8; padding: 2px 7px; border-radius: 8px; }
 
-  /* Listing Results */
-  .results-section { padding: 10px 16px; }
-  .results-count {
-    font-size: 13px; color: var(--text-sub);
-    margin-bottom: 8px;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .results-count strong { color: var(--primary); font-size: 15px; }
-
-  .listing-card {
-    background: var(--card);
-    border-radius: var(--radius);
-    padding: 12px 14px;
-    margin-bottom: 8px;
-    border: 2px solid transparent;
-    box-shadow: 0 1px 4px rgba(0,0,0,.06);
-    cursor: pointer;
-    transition: all .2s;
-    position: relative;
-  }
-  .listing-card:active { transform: scale(.98); }
-  .listing-card.selected {
-    border-color: var(--primary);
-    background: #f0f7ec;
-  }
-  .listing-id {
-    display: inline-block;
-    background: var(--primary); color: white;
-    font-size: 11px; font-weight: 700;
-    padding: 2px 8px; border-radius: 6px;
-    margin-bottom: 4px;
-  }
-  .listing-title {
-    font-size: 14px; font-weight: 600;
-    line-height: 1.4; margin-bottom: 3px;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    padding-right: 80px;
-  }
-  .listing-info {
-    font-size: 12px; color: var(--text-sub);
-    display: flex; flex-wrap: wrap; gap: 4px;
-  }
-  .listing-info span { background: var(--bg); padding: 2px 6px; border-radius: 6px; }
-  .listing-price {
-    position: absolute; right: 14px; top: 12px;
-    font-size: 13px; font-weight: 700; color: var(--danger);
-  }
-  .listing-images-count {
-    display: inline-flex; align-items: center; gap: 3px;
-    background: #e0f2fe; color: #0369a1;
-    padding: 2px 8px; border-radius: 6px;
-    font-size: 11px; font-weight: 600;
-  }
-
-  /* ===== PHOTO VIEW (shown after selecting a listing) ===== */
+  /* ░░░░░ Photo view ░░░░░ */
   .photo-view { display: none; }
   .photo-view.active { display: block; }
-
-  .photo-view-header {
-    background: white;
-    padding: 12px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex; align-items: center; gap: 10px;
-  }
-  .pv-back {
-    background: var(--bg); border: none;
-    width: 36px; height: 36px; border-radius: 10px;
-    font-size: 18px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-  .pv-back:active { background: var(--border); }
+  .photo-view-header { background: white; padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .pv-back { background: var(--bg); color: var(--text); border: 0; padding: 8px 12px; border-radius: 8px; font-size: 16px; cursor: pointer; }
   .pv-listing-info { flex: 1; min-width: 0; }
-  .pv-listing-name {
-    font-size: 14px; font-weight: 700;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .pv-listing-addr { font-size: 12px; color: var(--text-sub); }
-
-  /* Upload Buttons - always visible at top of photo view */
-  .pv-upload-btns {
-    padding: 12px 16px;
-    display: flex; gap: 10px;
-    background: white;
-    border-bottom: 1px solid var(--border);
-  }
-  .pv-btn {
-    flex: 1; padding: 14px;
-    border: none; border-radius: var(--radius);
-    font-size: 15px; font-weight: 700; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-  }
+  .pv-listing-name { font-size: 14px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pv-listing-addr { font-size: 11px; color: var(--text-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pv-upload-btns { display: flex; gap: 8px; padding: 12px 16px; background: white; border-bottom: 1px solid var(--border); }
+  .pv-btn { flex: 1; padding: 14px; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
   .pv-btn:active { transform: scale(.97); }
   .pv-btn.camera { background: var(--accent); color: var(--text); }
   .pv-btn.gallery { background: var(--primary); color: white; }
 
-  /* Pending photos (new photos to upload) */
+  /* ░░░░░ Pending grid ░░░░░ */
   .pv-pending { padding: 12px 16px; }
   .pv-pending.hidden { display: none; }
-  .pv-pending-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 10px;
-  }
+  .pv-pending-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .pv-pending-title { font-size: 14px; font-weight: 600; }
-  .pv-upload-action {
-    padding: 10px 20px;
-    background: var(--success); color: white;
-    border: none; border-radius: 10px;
-    font-size: 14px; font-weight: 700; cursor: pointer;
-    display: flex; align-items: center; gap: 5px;
-  }
-  .pv-upload-action:disabled { background: #ccc; }
-  .pv-upload-action:active { transform: scale(.97); }
+  .pv-upload-action { padding: 10px 20px; background: var(--success); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 5px; }
+  .pv-upload-action:disabled { opacity: .55; cursor: not-allowed; }
+  .pv-pending-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pv-thumb { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #eee; border: 2px solid var(--border); touch-action: none; }
+  .pv-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .pv-thumb.drag-over { border-color: var(--primary); transform: scale(1.03); }
+  .pv-thumb.dragging { opacity: .45; }
+  .pv-thumb-del { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--danger); color: white; border: 0; font-size: 12px; cursor: pointer; line-height: 1; padding: 0; font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  .pv-thumb-idx { position: absolute; bottom: 3px; right: 3px; background: rgba(0,0,0,.55); color: white; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 8px; }
 
-  .pv-pending-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-  .pv-thumb {
-    position: relative; aspect-ratio: 1;
-    border-radius: 10px; overflow: hidden; background: #eee;
-  }
-  .pv-thumb img { width: 100%; height: 100%; object-fit: cover; }
-  .pv-thumb-remove {
-    position: absolute; top: 4px; right: 4px;
-    width: 24px; height: 24px;
-    background: rgba(0,0,0,.6); color: white;
-    border: none; border-radius: 50%;
-    font-size: 14px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .pv-thumb-size {
-    position: absolute; top: 4px; left: 4px;
-    background: rgba(0,0,0,.5); color: #86efac;
-    font-size: 9px; font-weight: 700;
-    padding: 2px 5px; border-radius: 4px;
-  }
-
-  /* Existing photos */
+  /* ░░░░░ Existing grid ░░░░░ */
   .pv-existing { padding: 12px 16px; }
   .pv-existing.hidden { display: none; }
-  .pv-existing-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 10px;
-  }
+  .pv-existing-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
   .pv-existing-title { font-size: 14px; font-weight: 600; }
-  .pv-save-order {
-    padding: 8px 14px;
-    background: var(--primary); color: white;
-    border: none; border-radius: 8px;
-    font-size: 12px; font-weight: 600; cursor: pointer;
-    display: none;
-  }
-  .pv-save-order.show { display: flex; align-items: center; gap: 4px; }
-  .pv-save-order:active { transform: scale(.97); }
+  .pv-bulk-actions { display: flex; gap: 6px; }
+  .pv-save-order, .pv-bulk-del-btn { padding: 8px 14px; color: white; border: 0; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; display: none; }
+  .pv-save-order { background: var(--success); }
+  .pv-bulk-del-btn { background: var(--danger); }
+  .pv-save-order.active, .pv-bulk-del-btn.active { display: inline-block; }
+  .pv-existing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pv-existing-item { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: #eee; border: 2px solid var(--border); touch-action: none; }
+  .pv-existing-item img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .pv-existing-item.drag-over { border-color: var(--primary); transform: scale(1.03); }
+  .pv-existing-item.dragging { opacity: .45; }
+  .pv-existing-item.selected { border-color: var(--danger); box-shadow: 0 0 0 2px var(--danger) inset; }
+  .pv-star { position: absolute; top: 3px; left: 3px; background: rgba(0,0,0,.55); color: #fbbf24; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+  .pv-star-dim { position: absolute; top: 3px; left: 3px; background: rgba(0,0,0,.35); color: rgba(255,255,255,.75); font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 4px; cursor: pointer; }
+  .pv-order-num { position: absolute; bottom: 3px; right: 3px; background: rgba(0,0,0,.55); color: white; font-size: 10px; font-weight: 700; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .pv-sel-check { position: absolute; bottom: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.92); border: 2px solid rgba(0,0,0,.35); color: var(--danger); font-size: 14px; cursor: pointer; line-height: 1; padding: 0; font-weight: 800; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  .pv-sel-check.on { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .pv-ex-actions { position: absolute; top: 3px; right: 3px; display: flex; gap: 3px; }
+  .pv-ex-btn { width: 22px; height: 22px; border-radius: 50%; border: 0; color: white; font-size: 11px; cursor: pointer; line-height: 1; padding: 0; font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+  .pv-ex-btn.replace { background: #2563eb; }
+  .pv-ex-btn.delete { background: var(--danger); }
+  .pv-drag-hint { font-size: 11px; color: var(--text-sub); margin-top: 8px; text-align: center; }
+  .pv-loading-spinner { grid-column: 1 / -1; padding: 24px; text-align: center; }
 
-  .pv-existing-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 8px;
-  }
-  .pv-existing-item {
-    position: relative; aspect-ratio: 1;
-    border-radius: 10px; overflow: hidden; background: #eee;
-    border: 2px solid var(--border);
-  }
-  .pv-existing-item img { width: 100%; height: 100%; object-fit: cover; }
-  .pv-existing-item.dragging { opacity: .4; }
-  .pv-existing-item.drag-over { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(45,80,22,.3); }
-  .pv-star {
-    position: absolute; top: 3px; left: 3px;
-    background: rgba(0,0,0,.55); color: #fbbf24;
-    font-size: 9px; font-weight: 700;
-    padding: 2px 6px; border-radius: 4px;
-  }
-  .pv-order-num {
-    position: absolute; bottom: 3px; right: 3px;
-    background: rgba(0,0,0,.5); color: white;
-    font-size: 10px; font-weight: 700;
-    width: 20px; height: 20px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .pv-drag-hint {
-    margin-top: 8px;
-    font-size: 11px; color: var(--text-sub);
-    text-align: center;
-  }
-
-  /* Upload Log */
-  .pv-log { padding: 12px 16px; display: none; }
-  .pv-log.show { display: block; }
-  .pv-log-title { font-size: 13px; font-weight: 600; color: var(--text-sub); margin-bottom: 8px; }
-  .log-item {
-    display: flex; gap: 8px; padding: 8px 10px;
-    background: white; border-radius: 8px;
-    margin-bottom: 6px; font-size: 12px;
-    border-left: 3px solid var(--success);
-  }
-  .log-item.error { border-left-color: var(--danger); }
-  .log-icon { font-size: 14px; flex-shrink: 0; }
-  .log-body { flex: 1; min-width: 0; }
-  .log-title { font-weight: 600; margin-bottom: 2px; }
-  .log-detail { color: var(--text-sub); line-height: 1.4; word-break: break-all; }
-  .log-detail.error-detail { color: var(--danger); }
-  .log-time { color: #aaa; font-size: 10px; margin-top: 3px; }
-
-  /* Empty state */
-  .empty-state { text-align: center; padding: 50px 20px; color: var(--text-sub); }
-  .empty-state .icon { font-size: 42px; margin-bottom: 10px; }
-  .empty-state .title { font-size: 15px; font-weight: 600; margin-bottom: 5px; color: var(--text); }
-  .empty-state .desc { font-size: 13px; line-height: 1.6; }
-
-  /* Toast */
-  .toast {
-    position: fixed; top: 80px; left: 50%;
-    transform: translateX(-50%) translateY(-20px);
-    background: #1a1a1a; color: white;
-    padding: 12px 20px; border-radius: 12px;
-    font-size: 14px; font-weight: 500;
-    z-index: 200; opacity: 0;
-    transition: all .3s; pointer-events: none;
-    max-width: 90%; text-align: center;
-  }
-  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
-  .toast.success { background: var(--success); }
+  /* ░░░░░ Toast / progress ░░░░░ */
+  .toast { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.88); color: white; padding: 10px 18px; border-radius: 22px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 9999; max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .toast.show { opacity: 1; }
   .toast.error { background: var(--danger); }
-  .toast.info { background: var(--primary); }
+  .toast.success { background: var(--success); }
 
-  /* Progress - blocking overlay for compression */
-  .progress-overlay {
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.5);
-    display: flex; align-items: center; justify-content: center;
-    z-index: 300; opacity: 0; pointer-events: none;
-    transition: opacity .2s;
-  }
-  .progress-overlay.show { opacity: 1; pointer-events: all; }
-  .progress-box {
-    background: white; padding: 28px;
-    border-radius: 20px; text-align: center;
-    min-width: 260px;
-  }
-  .progress-spinner {
-    width: 44px; height: 44px;
-    border: 4px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 14px;
-  }
+  .progress-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 9998; }
+  .progress-overlay.show { display: flex; }
+  .progress-box { background: white; padding: 24px 32px; border-radius: 14px; text-align: center; min-width: 220px; }
+  .progress-spinner { width: 44px; height: 44px; border: 4px solid var(--border); border-top-color: var(--primary); border-radius: 50%; margin: 0 auto 12px; animation: spin 1s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
-  .progress-text { font-size: 15px; font-weight: 600; }
-  .progress-sub { font-size: 12px; color: var(--text-sub); margin-top: 5px; }
-  .progress-detail { font-size: 11px; color: var(--primary); margin-top: 6px; font-weight: 600; }
+  .progress-text { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+  .progress-sub { font-size: 12px; color: var(--text-sub); }
+  .progress-detail { font-size: 11px; color: var(--primary); font-weight: 600; margin-top: 6px; }
 
-  /* Upload Progress Bar - non-blocking floating bar */
-  .upload-bar {
-    position: fixed; bottom: 0; left: 0; right: 0;
-    background: white;
-    border-top: 1px solid var(--border);
-    box-shadow: 0 -4px 20px rgba(0,0,0,.12);
-    z-index: 250;
-    transform: translateY(100%);
-    transition: transform .3s ease;
-  }
-  .upload-bar.show { transform: translateY(0); }
-  .upload-bar-inner {
-    display: flex; align-items: center; gap: 12px;
-    padding: 12px 16px;
-  }
-  .upload-bar-spinner {
-    width: 28px; height: 28px; flex-shrink: 0;
-    border: 3px solid var(--border);
-    border-top-color: var(--primary);
-    border-radius: 50%;
-    animation: spin .8s linear infinite;
-  }
-  .upload-bar.done .upload-bar-spinner {
-    border: none; animation: none;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 22px;
-  }
+  .upload-bar { position: fixed; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); width: min(92%, 520px); background: white; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.18); padding: 12px 14px; z-index: 9990; display: none; }
+  .upload-bar.show { display: block; }
+  .upload-bar-inner { display: flex; align-items: center; gap: 10px; }
+  .upload-bar-spinner { width: 22px; height: 22px; border: 3px solid #eee; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; flex-shrink: 0; }
+  .upload-bar-spinner.done { animation: none; border: 0; background: var(--success); color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; }
   .upload-bar-content { flex: 1; min-width: 0; }
-  .upload-bar-title { font-size: 14px; font-weight: 600; }
-  .upload-bar-sub { font-size: 11px; color: var(--text-sub); margin-top: 2px; }
-  .upload-bar-progress {
-    height: 4px; background: var(--border);
-    border-radius: 2px; margin-top: 6px; overflow: hidden;
-  }
-  .upload-bar-fill {
-    height: 100%; background: var(--primary);
-    border-radius: 2px;
-    transition: width .3s ease;
-    width: 0%;
-  }
-  .upload-bar.done .upload-bar-fill { background: var(--success); }
-  .upload-bar-close {
-    background: none; border: none; font-size: 20px;
-    color: var(--text-sub); cursor: pointer; padding: 4px;
-    flex-shrink: 0;
-  }
+  .upload-bar-title { font-size: 13px; font-weight: 700; }
+  .upload-bar-sub { font-size: 11px; color: var(--text-sub); margin: 2px 0; }
+  .upload-bar-progress { height: 4px; background: #eee; border-radius: 2px; overflow: hidden; }
+  .upload-bar-fill { height: 100%; background: var(--primary); width: 0%; transition: width .25s; }
+  .upload-bar-close { background: none; border: 0; font-size: 18px; cursor: pointer; color: #999; padding: 0 4px; }
 
-  /* Pending photo reorder arrows */
-  .pv-thumb-arrows {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    display: flex; justify-content: space-between;
-    background: linear-gradient(transparent, rgba(0,0,0,.6));
-    padding: 12px 4px 4px;
-  }
-  .pv-thumb-arrow {
-    background: rgba(255,255,255,.9); border: none;
-    width: 26px; height: 26px; border-radius: 50%;
-    font-size: 13px; font-weight: 700; cursor: pointer;
-    display: flex; align-items: center; justify-content: center;
-    color: var(--text);
-    box-shadow: 0 1px 4px rgba(0,0,0,.2);
-  }
-  .pv-thumb-arrow:active { transform: scale(.9); }
-  .pv-thumb-arrow.hidden { visibility: hidden; }
-  .pv-thumb-order {
-    position: absolute; top: 4px; right: 4px;
-    background: rgba(0,0,0,.5); color: white;
-    font-size: 10px; font-weight: 700;
-    width: 20px; height: 20px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-  }
+  /* Offline banner */
+  .offline-banner { display: none; background: var(--danger); color: #fff; padding: 8px 16px; font-size: 12px; font-weight: 600; text-align: center; }
+  .offline-banner.show { display: block; }
 
-  /* Skeleton */
-  .skeleton {
-    background: linear-gradient(90deg, #eee 25%, #f5f5f5 50%, #eee 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: var(--radius);
-    height: 72px; margin-bottom: 8px;
-  }
-  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  /* Log */
+  .pv-log { padding: 12px 16px 40px; margin-top: 8px; display: none; }
+  .pv-log.show { display: block; }
+  .pv-log-title { font-size: 12px; font-weight: 700; color: var(--text-sub); margin-bottom: 6px; }
+  .log-item { background: white; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; margin-bottom: 5px; font-size: 11px; }
+  .log-item.success { border-left: 3px solid var(--success); }
+  .log-item.error { border-left: 3px solid var(--danger); }
+  .log-time { color: var(--text-sub); font-size: 10px; }
+  .log-title { font-weight: 700; margin: 2px 0; }
+  .log-detail { color: var(--text-sub); }
+  .log-detail.error-detail { color: var(--danger); }
 
-  input[type="file"] { display: none; }
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 4px; }
+  /* Lightbox */
+  .lightbox { position: fixed; inset: 0; background: rgba(0,0,0,.92); display: none; z-index: 10000; align-items: center; justify-content: center; padding: 20px; }
+  .lightbox.show { display: flex; }
+  .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .lightbox-close { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,.18); color: white; border: 0; width: 36px; height: 36px; border-radius: 50%; font-size: 18px; cursor: pointer; }
+
+  /* Accessibility focus */
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Touch-friendly: disallow native image drag */
+  img { -webkit-user-drag: none; user-drag: none; }
 </style>
 </head>
 <body>
+
+<div id="appRoot">
+
+<!-- Offline banner -->
+<div class="offline-banner" id="offlineBanner">⚠️ 오프라인 상태 — 네트워크를 확인해주세요</div>
 
 <!-- Header -->
 <div class="header">
@@ -469,23 +212,23 @@
 <!-- GPS Bar -->
 <div class="gps-bar" id="gpsBar">
   <div class="gps-dot"></div>
-  <span id="gpsStatus">GPS 위치 확인 중...</span>
+  <span id="gpsStatus">GPS 대기 중 (사진 촬영 시 자동 측정)</span>
 </div>
 
-<!-- ===== SEARCH VIEW ===== -->
+<!-- ═════════ SEARCH VIEW ═════════ -->
 <div id="searchView">
   <div class="search-section">
     <div class="search-box">
       <input type="text" class="search-input" id="searchInput"
              placeholder="건물명, 주소, 매물ID 검색..."
-             enterkeyhint="search" autocomplete="off">
+             enterkeyhint="search" autocomplete="off" inputmode="search">
       <button class="search-btn" id="searchBtn" onclick="searchListings()">검색</button>
     </div>
     <div class="search-hint" id="searchHint">💡 건물명, 주소, 매물번호로 검색할 수 있습니다</div>
   </div>
   <div class="results-section" id="resultsSection">
     <div class="empty-state" id="emptyState">
-      <div class="icon">🏠</div>
+      <div class="icon">🔍</div>
       <div class="title">매물을 검색해주세요</div>
       <div class="desc">건물명, 주소 또는 매물번호를<br>검색하면 사진을 등록할 수 있습니다</div>
     </div>
@@ -493,24 +236,22 @@
   </div>
 </div>
 
-<!-- ===== PHOTO VIEW (replaces search view when listing selected) ===== -->
+<!-- ═════════ PHOTO VIEW ═════════ -->
 <div class="photo-view" id="photoView">
-  <!-- Selected listing header -->
   <div class="photo-view-header">
-    <button class="pv-back" onclick="backToSearch()">←</button>
+    <button class="pv-back" onclick="backToSearch()" aria-label="뒤로">←</button>
     <div class="pv-listing-info">
       <div class="pv-listing-name" id="pvName">-</div>
       <div class="pv-listing-addr" id="pvAddr">-</div>
     </div>
   </div>
 
-  <!-- Camera / Gallery buttons - always visible -->
   <div class="pv-upload-btns">
     <button class="pv-btn camera" onclick="openCamera()">📷 카메라 촬영</button>
     <button class="pv-btn gallery" onclick="openGallery()">🖼️ 갤러리 선택</button>
   </div>
 
-  <!-- NEW photos to upload -->
+  <!-- NEW photos -->
   <div class="pv-pending hidden" id="pvPending">
     <div class="pv-pending-header">
       <span class="pv-pending-title" id="pvPendingTitle">📸 새 사진 0장</span>
@@ -519,30 +260,34 @@
     <div class="pv-pending-grid" id="pvPendingGrid"></div>
   </div>
 
-  <!-- EXISTING photos with reorder -->
+  <!-- EXISTING photos (with edit/replace/delete) -->
   <div class="pv-existing hidden" id="pvExisting">
     <div class="pv-existing-header">
       <span class="pv-existing-title" id="pvExistingTitle">📌 등록된 사진 0장</span>
-      <button class="pv-save-order" id="pvSaveOrder" onclick="saveImageOrder()">💾 순서 저장</button>
+      <div class="pv-bulk-actions">
+        <button class="pv-bulk-del-btn" id="pvBulkDelBtn" onclick="confirmBulkDelete()">🗑️ 선택삭제(0)</button>
+        <button class="pv-save-order" id="pvSaveOrder" onclick="saveImageOrder()">💾 순서 저장</button>
+      </div>
     </div>
     <div class="pv-existing-grid" id="pvExistingGrid"></div>
-    <div class="pv-drag-hint">길게 눌러 드래그하면 순서 변경 · ⭐ = 대표사진</div>
+    <div class="pv-drag-hint">길게 눌러 드래그하면 순서 변경 · ⭐ 클릭하면 대표사진 · ✕ 개별 삭제 · 🔄 교체</div>
   </div>
 
-  <!-- Upload Log -->
+  <!-- Log -->
   <div class="pv-log" id="pvLog">
-    <div class="pv-log-title">📋 업로드 기록</div>
+    <div class="pv-log-title">📋 업로드·편집 기록</div>
     <div id="pvLogList"></div>
   </div>
 </div>
 
-<!-- Hidden file inputs -->
-<input type="file" id="cameraInput" accept="image/*" capture="environment">
-<input type="file" id="galleryInput" accept="image/*" multiple>
+<!-- Hidden inputs -->
+<input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+<input type="file" id="galleryInput" accept="image/*" multiple style="display:none">
+<input type="file" id="replaceInput" accept="image/*" style="display:none">
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<div class="progress-overlay" id="progressOverlay">
+<div class="progress-overlay" id="progressOverlay" aria-hidden="true">
   <div class="progress-box">
     <div class="progress-spinner"></div>
     <div class="progress-text" id="progressText">사진 처리 중...</div>
@@ -551,8 +296,7 @@
   </div>
 </div>
 
-<!-- Non-blocking upload progress bar -->
-<div class="upload-bar" id="uploadBar">
+<div class="upload-bar" id="uploadBar" role="status" aria-live="polite">
   <div class="upload-bar-inner">
     <div class="upload-bar-spinner" id="uploadBarSpinner"></div>
     <div class="upload-bar-content">
@@ -560,115 +304,182 @@
       <div class="upload-bar-sub" id="uploadBarSub"></div>
       <div class="upload-bar-progress"><div class="upload-bar-fill" id="uploadBarFill"></div></div>
     </div>
-    <button class="upload-bar-close" id="uploadBarClose" onclick="closeUploadBar()" style="display:none;">✕</button>
+    <button class="upload-bar-close" id="uploadBarClose" onclick="closeUploadBar()" style="display:none;" aria-label="닫기">✕</button>
   </div>
 </div>
 
+<div class="lightbox" id="lightbox" onclick="closeLightbox(event)">
+  <img id="lightboxImg" alt="사진 확대">
+  <button class="lightbox-close" onclick="closeLightbox()" aria-label="닫기">✕</button>
+</div>
+
+</div><!-- /#appRoot -->
+
 <script>
+'use strict';
+
+// ══════════════════════════════════════════════════════════════════
+//   WISHES mobile-photo — v2.2 (2026-04-20 hardening pass)
+//   v2.1 추가: 선택삭제 UI 바인딩, IME 조합 Enter, ESC로 라이트박스,
+//              Space키 스크롤 방지, Pretendard 웹폰트, safe-area-inset,
+//              이미지ID 문자열 안전 래퍼
+//   v2.2 추가: apiCall 지수 백오프 재시도, 대표사진(☆) 연타 race 가드,
+//              URL ?token= 파라미터 폴백 제거, CSP meta,
+//              라이트박스 포커스 트랩/복원
+//   • 기존 사진 개별 삭제/교체/대표 지정 지원
+//   • URL.createObjectURL 메모리 누수 수정
+//   • watchPosition → getCurrentPosition (배터리 절약)
+//   • 데스크탑 레이아웃 max-width 적용
+//   • 업로드 중 beforeunload 경고 + 오프라인 감지
+//   • ?listingId= 딥링크로 search 페이지에서 바로 진입
+//   • sessionStorage 토큰 우선, 하드코딩은 fallback
+// ══════════════════════════════════════════════════════════════════
+
 const API_BASE = window.location.origin;
-const AUTH_TOKEN = 'wishes2026';
+// v2.2: 우선순위 sessionStorage → localStorage → hardcoded fallback
+//       URL ?token= 지원 제거 (서버 로그·Referer 유출 방지)
+const AUTH_TOKEN = (function() {
+  try { return sessionStorage.getItem('wishes_token')
+          || localStorage.getItem('wishes_token')
+          || localStorage.getItem('token')
+          || 'wishes2026'; }
+  catch(e){ return 'wishes2026'; }
+})();
+// URL 에 token= 이 실수로 포함돼 도착했다면 즉시 세션에 저장 후 URL 정리
+try {
+  const urlTok = new URLSearchParams(location.search).get('token');
+  if (urlTok) {
+    try { sessionStorage.setItem('wishes_token', urlTok); } catch(_){}
+    const u = new URL(location.href); u.searchParams.delete('token');
+    history.replaceState({}, '', u.pathname + u.search + u.hash);
+  }
+} catch(_){}
 const DEBUG = location.hostname === 'localhost' || location.search.includes('debug=1');
-
-let allListings = [];
-let selectedListing = null;
-let pendingFiles = []; // { file, originalSize, compressedSize, gps }
-let existingImagesData = [];
-let orderChanged = false;
-let isLoading = false;
-let dragHintShown = false;
-
-function log(...args) { if (DEBUG) console.log('[WISHES]', ...args); }
-function logErr(label, err) { if (DEBUG) console.error('[WISHES]', label, err); }
-
-// ===== UNIFIED API HELPER =====
-async function apiCall(url, options = {}) {
-  const { method = 'GET', body, timeout = 30000, json = true } = options;
-  const headers = { 'Authorization': `Bearer ${AUTH_TOKEN}` };
-  if (json && body && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const res = await fetch(url, {
-      method,
-      headers,
-      body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
-      signal: controller.signal
-    });
-    clearTimeout(timer);
-
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      const msg = data.error || data.message || `서버 오류 (HTTP ${res.status})`;
-      return { ok: false, status: res.status, error: msg, data: null };
-    }
-
-    const data = await res.json();
-    if (data.success === false) {
-      return { ok: false, status: res.status, error: data.error || '요청 처리 실패', data };
-    }
-    return { ok: true, status: res.status, error: null, data };
-  } catch (e) {
-    clearTimeout(timer);
-    let msg = e.message;
-    if (e.name === 'AbortError') msg = '요청 시간 초과 (네트워크 상태를 확인해주세요)';
-    else if (msg.includes('Failed to fetch') || msg.includes('NetworkError'))
-      msg = '네트워크 연결을 확인해주세요';
-    logErr('API', e);
-    return { ok: false, status: 0, error: msg, data: null };
-  }
-}
-
-// ===== GPS =====
-let currentGPS = null;
-let gpsWatchId = null;
-
-function initGPS() {
-  const bar = document.getElementById('gpsBar');
-  const status = document.getElementById('gpsStatus');
-
-  if (!navigator.geolocation) {
-    bar.classList.add('error');
-    status.textContent = 'GPS 미지원 기기';
-    return;
-  }
-
-  gpsWatchId = navigator.geolocation.watchPosition(
-    (pos) => {
-      currentGPS = {
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        accuracy: Math.round(pos.coords.accuracy),
-        timestamp: new Date().toISOString()
-      };
-      bar.classList.remove('error');
-      status.textContent = `📍 ${currentGPS.lat.toFixed(5)}, ${currentGPS.lng.toFixed(5)} (±${currentGPS.accuracy}m)`;
-    },
-    (err) => {
-      bar.classList.add('error');
-      if (err.code === 1) status.textContent = '위치 권한이 거부되었습니다. 설정에서 허용해주세요';
-      else if (err.code === 2) status.textContent = 'GPS 신호를 찾을 수 없습니다';
-      else status.textContent = 'GPS 위치 확인 실패';
-    },
-    { enableHighAccuracy: true, maximumAge: 10000, timeout: 15000 }
-  );
-}
-
-// ===== IMAGE COMPRESSION =====
 const MAX_DIM = 1920;
 const QUALITY = 0.82;
 const MAX_FILE_SIZE = 2 * 1024 * 1024;
+const MAX_PENDING = 20;
 
+let allListings = [];
+let selectedListing = null;
+let pendingFiles = [];      // { file, originalSize, compressedSize, gps, _objUrl }
+let existingImagesData = [];
+let selectedForDelete = new Set();   // v2: bulk delete
+let orderChanged = false;
+let isLoading = false;
+let isUploading = false;
+let dragHintShown = false;
+let currentGPS = null;
+let gpsTimer = null;
+let replaceTargetId = null;           // v2: image being replaced
+
+function log(...a){ if (DEBUG) console.log('[WISHES]', ...a); }
+function logErr(label, err){ if (DEBUG) console.error('[WISHES]', label, err); }
+
+// ═══════════════ API helper (v2.2 — 지수 백오프 재시도) ═══════════════
+// GET / HEAD / DELETE 처럼 idempotent 한 요청만 자동 재시도한다.
+// POST / PATCH 는 중복 생성/부분 수정 위험이 있어 재시도하지 않는다.
+const RETRYABLE_METHODS = new Set(['GET', 'HEAD', 'DELETE']);
+const RETRYABLE_STATUS  = new Set([0, 408, 429, 502, 503, 504]);
+
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+async function apiCallOnce(url, method, body, timeout, headers) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, {
+      method, headers,
+      body: body instanceof FormData ? body : (body ? JSON.stringify(body) : undefined),
+      signal: controller.signal,
+      credentials: 'same-origin'
+    });
+    clearTimeout(timer);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return { ok: false, status: res.status, error: data.error || data.message || `서버 오류 (HTTP ${res.status})`, data: null };
+    }
+    const data = await res.json();
+    if (data && data.success === false) {
+      return { ok: false, status: res.status, error: data.error || '요청 실패', data: null };
+    }
+    return { ok: true, status: res.status, data, error: null };
+  } catch (e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') return { ok: false, status: 0, error: '요청 시간 초과' };
+    return { ok: false, status: 0, error: e.message || '네트워크 오류' };
+  }
+}
+
+async function apiCall(url, options = {}) {
+  const { method = 'GET', body, timeout = 30000, json = true, retries = 2 } = options;
+  const headers = { 'Authorization': `Bearer ${AUTH_TOKEN}` };
+  if (json && body && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
+
+  if (!navigator.onLine) return { ok: false, status: 0, error: '오프라인 상태입니다' };
+
+  const canRetry = RETRYABLE_METHODS.has(String(method).toUpperCase());
+  let attempt = 0, last = null;
+  while (attempt <= (canRetry ? retries : 0)) {
+    last = await apiCallOnce(url, method, body, timeout, headers);
+    if (last.ok) return last;
+    if (!canRetry) return last;
+    if (!RETRYABLE_STATUS.has(last.status)) return last;
+    attempt++;
+    if (attempt > retries) break;
+    // 지수 백오프: 500ms → 1.5s → 3.5s (+ 지터)
+    const delay = 500 * Math.pow(2.5, attempt - 1) + Math.random() * 250;
+    log(`apiCall retry #${attempt} in ${Math.round(delay)}ms — ${url}`);
+    await sleep(delay);
+  }
+  return last;
+}
+
+// ═══════════════ GPS (lazy, battery-friendly) ═══════════════
+function requestGPSOnce() {
+  const bar = document.getElementById('gpsBar');
+  const status = document.getElementById('gpsStatus');
+  if (!navigator.geolocation) {
+    bar.classList.add('error');
+    status.textContent = 'GPS 미지원 기기';
+    return Promise.resolve(null);
+  }
+  status.textContent = '📍 위치 확인 중...';
+  return new Promise(resolve => {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        currentGPS = {
+          lat: pos.coords.latitude, lng: pos.coords.longitude,
+          accuracy: Math.round(pos.coords.accuracy),
+          timestamp: new Date().toISOString()
+        };
+        bar.classList.remove('error');
+        status.textContent = `📍 ${currentGPS.lat.toFixed(5)}, ${currentGPS.lng.toFixed(5)} (±${currentGPS.accuracy}m)`;
+        resolve(currentGPS);
+      },
+      err => {
+        bar.classList.add('error');
+        if (err.code === 1) status.textContent = '위치 권한이 거부되었습니다';
+        else if (err.code === 2) status.textContent = 'GPS 신호 없음';
+        else status.textContent = 'GPS 확인 실패';
+        resolve(null);
+      },
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 10000 }
+    );
+  });
+}
+
+// ═══════════════ Image compression ═══════════════
 function compressImage(file) {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     if (file.size <= MAX_FILE_SIZE && file.type === 'image/jpeg') {
-      resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
-      return;
+      return resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
     }
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onerror = () => resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
+    reader.onload = e => {
       const img = new Image();
+      img.onerror = () => resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
       img.onload = () => {
         let { width, height } = img;
         if (width > MAX_DIM || height > MAX_DIM) {
@@ -677,751 +488,771 @@ function compressImage(file) {
           height = Math.round(height * r);
         }
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
-        canvas.toBlob((blob) => {
+        canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(blob => {
           if (blob) {
-            const f = new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg', lastModified: file.lastModified });
+            const f = new File([blob], file.name.replace(/\.\w+$/, '.jpg'),
+              { type: 'image/jpeg', lastModified: file.lastModified });
             resolve({ compressed: f, originalSize: file.size, compressedSize: f.size });
-          } else {
-            resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
-          }
+          } else resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
         }, 'image/jpeg', QUALITY);
       };
-      img.onerror = () => resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   });
 }
 
-function formatBytes(b) {
-  if (b < 1024) return b + 'B';
-  if (b < 1048576) return (b / 1024).toFixed(0) + 'KB';
-  return (b / 1048576).toFixed(1) + 'MB';
-}
-
-// ===== INIT =====
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('searchInput').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') searchListings();
-  });
-  document.getElementById('cameraInput').addEventListener('change', handleFiles);
-  document.getElementById('galleryInput').addEventListener('change', handleFiles);
-  initGPS();
-  loadRecentListings();
-});
-
-// ===== LISTINGS =====
+// ═══════════════ Search / listings ═══════════════
 async function loadRecentListings() {
-  showLoading(true);
-  const result = await apiCall(`${API_BASE}/api/listings?limit=20&offset=0`);
-  if (result.ok && result.data?.data) {
+  if (isLoading) return;
+  isLoading = true;
+  const result = await apiCall(`${API_BASE}/api/listings?sort=latest&limit=20`);
+  isLoading = false;
+  if (result.ok && result.data && Array.isArray(result.data.data)) {
     allListings = result.data.data;
-    renderListings(allListings, '최근 등록된 매물');
-  } else if (result.error) {
-    showToast('매물 목록 로드 실패', 'error');
-    logErr('loadRecent', result.error);
+    renderListings(allListings, '최근 매물');
   }
-  showLoading(false);
 }
 
 async function searchListings() {
-  const query = document.getElementById('searchInput').value.trim();
-  if (!query) { showToast('검색어를 입력해주세요', 'error'); return; }
-
-  showLoading(true);
-  document.getElementById('searchBtn').textContent = '검색중...';
-
-  try {
-    if (allListings.length < 100) {
-      let offset = 0, batch;
-      allListings = [];
-      do {
-        const result = await apiCall(`${API_BASE}/api/listings?limit=1000&offset=${offset}`, { timeout: 60000 });
-        if (!result.ok) { showToast('매물 데이터 로드 실패: ' + result.error, 'error'); break; }
-        batch = result.data?.data || [];
-        allListings = allListings.concat(batch);
-        offset += 1000;
-      } while (batch.length === 1000);
-    }
-
-    const q = query.toLowerCase();
-    const idMatch = q.match(/w?-?(\d{3,})/i);
-    let results;
-    if (idMatch) {
-      const searchId = parseInt(idMatch[1]);
-      results = allListings.filter(l => l.id === searchId);
-    } else {
-      results = allListings.filter(l => {
-        return [l.title, l.address, l.address_detail, l.dong, l.building_info, String(l.id)]
-          .filter(Boolean).join(' ').toLowerCase().includes(q);
-      });
-    }
-
-    renderListings(results.slice(0, 50), `"${query}" 검색 결과`);
-    document.getElementById('searchHint').innerHTML =
-      `🔍 <strong>${results.length}건</strong> 검색됨 ${results.length > 50 ? '(상위 50건 표시)' : ''}`;
-  } catch(e) {
-    showToast('검색 중 오류가 발생했습니다', 'error');
-    logErr('search', e);
+  const input = document.getElementById('searchInput');
+  const q = input.value.trim();
+  if (!q) { loadRecentListings(); return; }
+  if (isLoading) return;
+  isLoading = true;
+  showProgress(true, '검색 중...', '');
+  // Numeric → id search; else text search
+  const isNum = /^\d+$/.test(q);
+  const url = isNum
+    ? `${API_BASE}/api/listings?id=${encodeURIComponent(q)}&limit=50`
+    : `${API_BASE}/api/listings?search=${encodeURIComponent(q)}&limit=50`;
+  const result = await apiCall(url);
+  isLoading = false;
+  showProgress(false);
+  if (result.ok && result.data && Array.isArray(result.data.data)) {
+    allListings = result.data.data;
+    renderListings(allListings, `검색 결과 "${q}"`);
+  } else {
+    showToast('검색 실패: ' + (result.error || '알 수 없음'), 'error');
   }
-
-  document.getElementById('searchBtn').textContent = '검색';
-  showLoading(false);
 }
 
 function renderListings(listings, label) {
   const container = document.getElementById('resultsList');
   const empty = document.getElementById('emptyState');
-
-  if (listings.length === 0) {
-    container.innerHTML = '';
+  if (!listings.length) {
     empty.style.display = 'block';
     empty.querySelector('.title').textContent = '검색 결과가 없습니다';
     empty.querySelector('.desc').textContent = '다른 검색어로 시도해보세요';
+    container.innerHTML = '';
     return;
   }
   empty.style.display = 'none';
-
-  container.innerHTML = `<div class="results-count">📋 ${label} <strong>${listings.length}건</strong></div>` +
+  container.innerHTML =
+    `<div class="results-count">📋 ${escHtml(label)} <strong>${listings.length}건</strong></div>` +
     listings.map(l => {
-      const imageCount = (l.listing_images || []).length;
-      const price = formatPrice(l);
+      const imageCount = (l.listing_images || []).length || l.photo_count || 0;
       return `
-        <div class="listing-card" onclick="selectListing(${l.id})" data-id="${l.id}">
+        <div class="listing-card" onclick="selectListing(${l.id})" data-id="${l.id}" tabindex="0" role="button"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectListing(${l.id});}">
           <span class="listing-id">매물 ${l.id}</span>
           ${imageCount > 0 ? `<span class="listing-images-count">📷 ${imageCount}장</span>` : ''}
           <div class="listing-title">${escHtml(l.address || l.title || '제목 없음')}</div>
           <div class="listing-info">
             ${l.title && l.address ? `<span>${escHtml(l.title)}</span>` : ''}
-            ${l.type ? `<span>${l.type}</span>` : ''}
-            ${l.deal ? `<span>${l.deal}</span>` : ''}
-            ${l.area_m2 ? `<span>${l.area_m2}㎡</span>` : ''}
+            ${l.type ? `<span>${escHtml(l.type)}</span>` : ''}
+            ${l.deal ? `<span>${escHtml(l.deal)}</span>` : ''}
+            ${formatPrice(l) ? `<span>${escHtml(formatPrice(l))}</span>` : ''}
           </div>
-          <div class="listing-price">${price}</div>
         </div>`;
     }).join('');
 }
 
 function formatPrice(l) {
+  if (!l.deal) return '';
+  if (l.deal === '매매' && l.price) return `${fmtN(l.price)}만`;
   if (l.deposit && l.monthly) return `${fmtN(l.deposit)}/${fmtN(l.monthly)}`;
-  if (l.price) return fmtN(l.price);
-  if (l.deposit) return fmtN(l.deposit);
+  if (l.deposit) return `${fmtN(l.deposit)}만`;
   return '';
 }
 function fmtN(n) {
-  if (!n) return '0';
-  n = Number(n);
-  if (n >= 10000) return (n / 10000).toFixed(n % 10000 ? 1 : 0) + '억';
-  return n.toLocaleString() + '만';
+  const x = Number(n); if (!isFinite(x)) return '';
+  if (x >= 10000) return (x/10000).toFixed(1).replace(/\.0$/,'') + '억';
+  return x.toLocaleString();
 }
 
-// ===== VIEW SWITCHING =====
+// ═══════════════ Listing selection ═══════════════
 function selectListing(id) {
   const listing = allListings.find(l => l.id === id);
-  if (!listing) return;
-
+  if (!listing) {
+    // Fallback: fetch directly if not in local array
+    apiCall(`${API_BASE}/api/listings?id=${id}&limit=1`).then(r => {
+      if (r.ok && r.data && r.data.data && r.data.data[0]) {
+        allListings.push(r.data.data[0]);
+        selectListing(id);
+      } else showToast('매물을 찾을 수 없습니다', 'error');
+    });
+    return;
+  }
   selectedListing = listing;
+  revokePendingUrls();
   pendingFiles = [];
   orderChanged = false;
+  selectedForDelete.clear();
+  updateBulkDeleteUI();
 
-  // Switch to photo view
   document.getElementById('searchView').style.display = 'none';
   document.getElementById('photoView').classList.add('active');
-
   document.getElementById('pvName').textContent = listing.title || '제목 없음';
   document.getElementById('pvAddr').textContent = `매물번호 ${listing.id} | ${listing.address || ''}`;
 
   updatePendingUI();
   loadExistingImages(id);
-
   window.scrollTo(0, 0);
 }
 
 function backToSearch() {
-  selectedListing = null;
-  pendingFiles = [];
-  existingImagesData = [];
-
+  if (isUploading && !confirm('업로드가 진행 중입니다. 정말 돌아가시겠습니까?')) return;
+  revokePendingUrls();
+  selectedListing = null; pendingFiles = []; existingImagesData = []; orderChanged = false;
+  selectedForDelete.clear();
   document.getElementById('photoView').classList.remove('active');
-  document.getElementById('searchView').style.display = '';
+  document.getElementById('searchView').style.display = 'block';
+  // Clean ?listingId from URL
+  if (location.search.includes('listingId=')) {
+    history.replaceState({}, '', location.pathname);
+  }
 }
 
-// ===== EXISTING IMAGES =====
+// ═══════════════ Existing images ═══════════════
 async function loadExistingImages(listingId) {
   const section = document.getElementById('pvExisting');
   const grid = document.getElementById('pvExistingGrid');
   const title = document.getElementById('pvExistingTitle');
-
-  // 로딩 스피너 표시
   section.classList.remove('hidden');
   title.textContent = '📌 사진 불러오는 중...';
-  grid.innerHTML = '<div class="pv-loading-spinner"><div class="progress-spinner" style="width:32px;height:32px;margin:20px auto;"></div><div style="text-align:center;font-size:12px;color:var(--text-sub);">사진 로딩 중</div></div>';
+  grid.innerHTML = '<div class="pv-loading-spinner"><div class="progress-spinner" style="width:32px;height:32px;margin:10px auto;"></div><div style="font-size:12px;color:var(--text-sub);">사진 로딩 중</div></div>';
 
   const result = await apiCall(`${API_BASE}/api/listings/${listingId}/images`);
-
   if (result.ok) {
-    existingImagesData = result.data?.data || [];
-    if (existingImagesData.length > 0) {
-      section.classList.remove('hidden');
+    existingImagesData = (result.data && result.data.data) || [];
+    existingImagesData.sort((a,b) => (a.sort_order||0) - (b.sort_order||0));
+    if (existingImagesData.length) {
       title.textContent = `📌 등록된 사진 ${existingImagesData.length}장`;
       renderExistingImages();
       showDragHint();
     } else {
-      section.classList.add('hidden');
-      grid.innerHTML = '';
+      title.textContent = '📌 등록된 사진 0장';
+      grid.innerHTML = '<div style="grid-column:1/-1;padding:16px;text-align:center;color:var(--text-sub);font-size:12px;">아직 등록된 사진이 없습니다</div>';
     }
   } else {
-    logErr('loadImages', result.error);
-    title.textContent = '📌 사진 로드 실패';
-    grid.innerHTML = `<div style="text-align:center;padding:16px;color:var(--danger);font-size:13px;">사진을 불러오지 못했습니다<br><small>${escHtml(result.error)}</small><br><button onclick="loadExistingImages(${listingId})" style="margin-top:8px;padding:6px 16px;border:1px solid var(--border);border-radius:8px;background:white;cursor:pointer;">다시 시도</button></div>`;
+    title.textContent = '📌 불러오기 실패';
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:16px;text-align:center;color:var(--danger);font-size:12px;">오류: ${escHtml(result.error||'')}</div>`;
+    addLog('error', '사진 목록 로드 실패', result.error);
   }
-}
-
-// ===== DRAG HINT (최초 1회) =====
-function showDragHint() {
-  if (dragHintShown || existingImagesData.length < 2) return;
-  try { if (localStorage.getItem('wishes_drag_hint') === '1') { dragHintShown = true; return; } } catch(e) {}
-
-  dragHintShown = true;
-  try { localStorage.setItem('wishes_drag_hint', '1'); } catch(e) {}
-
-  showToast('💡 사진을 길게 누르면 순서를 변경할 수 있습니다', 'info');
 }
 
 function renderExistingImages() {
   const grid = document.getElementById('pvExistingGrid');
-  grid.innerHTML = existingImagesData.map((img, i) => `
-    <div class="pv-existing-item" draggable="true" data-index="${i}"
+  grid.innerHTML = existingImagesData.map((img, i) => {
+    const url = img.url || img.image_url || '';
+    const isRep = i === 0;
+    const sel = selectedForDelete.has(img.id) ? ' selected' : '';
+    const selOn = selectedForDelete.has(img.id) ? ' on' : '';
+    const idArg = JSON.stringify(img.id);   // 문자열/숫자 ID 모두 안전
+    return `
+    <div class="pv-existing-item${sel}" draggable="true" data-index="${i}" data-img-id="${escAttr(String(img.id))}"
          ontouchstart="onTouchStart(event,${i})" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd(event)"
          ondragstart="onDragStart(event,${i})" ondragover="onDragOver(event)" ondrop="onDrop(event,${i})" ondragend="onDragEnd(event)">
-      ${i === 0 ? '<div class="pv-star">⭐ 대표</div>' : ''}
+      ${isRep
+        ? `<div class="pv-star" onclick="event.stopPropagation();openLightboxById(${idArg})" title="대표사진">⭐ 대표</div>`
+        : `<div class="pv-star-dim" onclick="event.stopPropagation();setRepresentative(${i})" title="대표로 지정" role="button" tabindex="0"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setRepresentative(${i});}">☆ 대표</div>`}
       <div class="pv-order-num">${i + 1}</div>
-      <img src="${img.url || img.image_url}" alt="사진 ${i + 1}" loading="lazy"
-           onerror="this.style.display='none';this.parentElement.innerHTML+='<div style=\\'display:flex;align-items:center;justify-content:center;height:100%;color:#999;font-size:11px\\'>로딩실패</div>'">
-    </div>`).join('');
-
-  document.getElementById('pvSaveOrder').classList.toggle('show', orderChanged);
+      <button class="pv-sel-check${selOn}" onclick="event.stopPropagation();toggleSelectForDelete(${idArg})"
+              title="선택삭제 토글" aria-label="선택삭제 토글" aria-pressed="${selectedForDelete.has(img.id)}">${selectedForDelete.has(img.id) ? '✓' : '□'}</button>
+      <div class="pv-ex-actions">
+        <button class="pv-ex-btn replace" onclick="event.stopPropagation();openReplace(${idArg})" title="교체" aria-label="교체">🔄</button>
+        <button class="pv-ex-btn delete" onclick="event.stopPropagation();deleteExistingImage(${idArg})" title="삭제" aria-label="삭제">✕</button>
+      </div>
+      <img src="${escAttr(url)}" alt="사진 ${i + 1}" loading="eager"
+           onclick="openLightboxById(${idArg})"
+           onerror="handleImgError(this)">
+    </div>`;
+  }).join('');
+  document.getElementById('pvSaveOrder').classList.toggle('active', orderChanged);
+  updateBulkDeleteUI();
 }
 
-// ===== DRAG & DROP (Desktop) =====
-let dragSrcIndex = null;
-
-function onDragStart(e, i) {
-  dragSrcIndex = i;
-  e.target.classList.add('dragging');
-  e.dataTransfer.effectAllowed = 'move';
-}
-function onDragOver(e) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  const item = e.target.closest('.pv-existing-item');
-  if (item) {
-    document.querySelectorAll('.pv-existing-item').forEach(el => el.classList.remove('drag-over'));
-    item.classList.add('drag-over');
-  }
-}
-function onDrop(e, targetIdx) {
-  e.preventDefault();
-  document.querySelectorAll('.pv-existing-item').forEach(el => el.classList.remove('drag-over'));
-  if (dragSrcIndex !== null && dragSrcIndex !== targetIdx) {
-    const moved = existingImagesData.splice(dragSrcIndex, 1)[0];
-    existingImagesData.splice(targetIdx, 0, moved);
-    orderChanged = true;
-    renderExistingImages();
-  }
-}
-function onDragEnd(e) {
-  document.querySelectorAll('.pv-existing-item').forEach(el => {
-    el.classList.remove('dragging');
-    el.classList.remove('drag-over');
-  });
-  dragSrcIndex = null;
+// id 로 이미지를 찾아 원본 URL로 라이트박스 — inline 문자열 탈출 문제 제거
+function openLightboxById(imgId) {
+  const item = existingImagesData.find(i => i.id === imgId);
+  if (!item) return;
+  const url = item.url || item.image_url || '';
+  if (url) openLightbox(url);
 }
 
-// ===== DRAG & DROP (Mobile Touch) =====
-let touchIdx = null;
-let touchClone = null;
-let touchStartX = 0, touchStartY = 0;
-let longPressTimer = null;
-let touchActive = false;
-
-function onTouchStart(e, idx) {
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
-  touchIdx = idx;
-  touchActive = false;
-
-  longPressTimer = setTimeout(() => {
-    touchActive = true;
-    const item = e.target.closest('.pv-existing-item');
-    if (!item) return;
-    item.classList.add('dragging');
-
-    const rect = item.getBoundingClientRect();
-    touchClone = item.cloneNode(true);
-    touchClone.style.cssText = `position:fixed;top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;z-index:500;opacity:.85;pointer-events:none;border:2px solid var(--primary);box-shadow:0 8px 30px rgba(0,0,0,.25);`;
-    document.body.appendChild(touchClone);
-
-    if (navigator.vibrate) navigator.vibrate(30);
-  }, 400);
-}
-
-function onTouchMove(e) {
-  if (!touchActive) {
-    const dx = e.touches[0].clientX - touchStartX;
-    const dy = e.touches[0].clientY - touchStartY;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) clearTimeout(longPressTimer);
-    return;
-  }
-  e.preventDefault();
-  const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
-  if (touchClone) {
-    touchClone.style.left = (tx - touchClone.offsetWidth / 2) + 'px';
-    touchClone.style.top = (ty - touchClone.offsetHeight / 2) + 'px';
-  }
-  document.querySelectorAll('.pv-existing-item').forEach(el => el.classList.remove('drag-over'));
-  const t = document.elementFromPoint(tx, ty);
-  const ti = t ? t.closest('.pv-existing-item') : null;
-  if (ti) ti.classList.add('drag-over');
-}
-
-function onTouchEnd(e) {
-  clearTimeout(longPressTimer);
-  if (touchActive && touchClone) {
-    const touch = e.changedTouches[0];
-    touchClone.remove();
-    touchClone = null;
-
-    const t = document.elementFromPoint(touch.clientX, touch.clientY);
-    const ti = t ? t.closest('.pv-existing-item') : null;
-    if (ti) {
-      const targetIdx = parseInt(ti.dataset.index);
-      if (touchIdx !== null && touchIdx !== targetIdx) {
-        const moved = existingImagesData.splice(touchIdx, 1)[0];
-        existingImagesData.splice(targetIdx, 0, moved);
-        orderChanged = true;
-      }
+function handleImgError(el) {
+  const failedUrl = el.src || '(빈 URL)';
+  if (!el.dataset.retried) {
+    el.dataset.retried = '1';
+    const bust = (el.src.includes('?') ? '&' : '?') + 'r=' + Date.now();
+    setTimeout(() => el.src = el.src + bust, 800);
+  } else {
+    // 2회 실패 → 사유 로그 + 탭하여 재시도 UI
+    try { addLog('warn', '이미지 로드 실패', failedUrl); } catch(_) {}
+    el.style.display = 'none';
+    if (!el.parentElement.querySelector('.load-fail')) {
+      const f = document.createElement('div');
+      f.className = 'load-fail';
+      f.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:4px;color:#888;font-size:11px;cursor:pointer;text-align:center;padding:4px;';
+      f.title = failedUrl;
+      f.innerHTML = '<div>⚠️ 로딩실패</div><div style="font-size:10px;opacity:.8;">탭하여 재시도</div>';
+      f.onclick = (ev) => { ev.stopPropagation(); delete el.dataset.retried; el.style.display=''; f.remove(); el.src = failedUrl.split('?')[0] + '?r=' + Date.now(); };
+      el.parentElement.appendChild(f);
     }
   }
-
-  document.querySelectorAll('.pv-existing-item').forEach(el => {
-    el.classList.remove('dragging');
-    el.classList.remove('drag-over');
-  });
-
-  if (touchActive) renderExistingImages();
-  touchActive = false;
-  touchIdx = null;
 }
 
-// ===== SAVE IMAGE ORDER =====
-async function saveImageOrder() {
-  if (!selectedListing || !orderChanged) return;
+function showDragHint() {
+  if (dragHintShown) return;
+  dragHintShown = true;
+  showToast('💡 사진을 길게 눌러 드래그로 순서 변경', 'info');
+}
 
+// ═══════════════ Representative (star click) — v2.2 race guard ═══════════════
+let _repBusy = false;
+async function setRepresentative(fromIdx) {
+  if (_repBusy) { showToast('처리 중입니다. 잠시 후 다시 시도해주세요', 'info'); return; }
+  if (fromIdx === 0) return;
+  if (fromIdx < 0 || fromIdx >= existingImagesData.length) return;
+  _repBusy = true;
+  try {
+    const [moved] = existingImagesData.splice(fromIdx, 1);
+    existingImagesData.unshift(moved);
+    orderChanged = true;
+    renderExistingImages();
+    await saveImageOrder(true); // auto-save
+  } finally {
+    _repBusy = false;
+  }
+}
+
+// ═══════════════ Delete single / bulk ═══════════════
+async function deleteExistingImage(imageId) {
+  if (!selectedListing) return;
+  if (!confirm('이 사진을 삭제하시겠습니까?\n(이 작업은 되돌릴 수 없습니다)')) return;
+  const r = await apiCall(`${API_BASE}/api/listings/${selectedListing.id}/images?imageId=${imageId}`,
+    { method: 'DELETE' });
+  if (r.ok) {
+    existingImagesData = existingImagesData.filter(i => i.id !== imageId);
+    selectedForDelete.delete(imageId);
+    const title = document.getElementById('pvExistingTitle');
+    if (existingImagesData.length) {
+      title.textContent = `📌 등록된 사진 ${existingImagesData.length}장`;
+      renderExistingImages();
+    } else {
+      title.textContent = '📌 등록된 사진 0장';
+      document.getElementById('pvExistingGrid').innerHTML =
+        '<div style="grid-column:1/-1;padding:16px;text-align:center;color:var(--text-sub);font-size:12px;">등록된 사진이 없습니다</div>';
+    }
+    showToast('✅ 삭제 완료', 'success');
+    addLog('success', '사진 삭제', `image ID ${imageId}`);
+  } else {
+    showToast('삭제 실패: ' + r.error, 'error');
+    addLog('error', '사진 삭제 실패', r.error);
+  }
+}
+
+function toggleSelectForDelete(imageId) {
+  if (imageId === undefined || imageId === null) return;
+  if (selectedForDelete.has(imageId)) selectedForDelete.delete(imageId);
+  else selectedForDelete.add(imageId);
+  renderExistingImages();
+  updateBulkDeleteUI();
+}
+function updateBulkDeleteUI() {
+  const btn = document.getElementById('pvBulkDelBtn');
+  const n = selectedForDelete.size;
+  if (n > 0) {
+    btn.classList.add('active');
+    btn.textContent = `🗑️ 선택삭제(${n})`;
+  } else {
+    btn.classList.remove('active');
+  }
+}
+async function confirmBulkDelete() {
+  const ids = [...selectedForDelete];
+  if (!ids.length) return;
+  if (!confirm(`선택한 ${ids.length}장을 삭제하시겠습니까?\n(되돌릴 수 없습니다)`)) return;
+  let ok = 0, fail = 0;
+  showProgress(true, '삭제 중...', `${ids.length}장 처리`);
+  for (const id of ids) {
+    const r = await apiCall(`${API_BASE}/api/listings/${selectedListing.id}/images?imageId=${id}`,
+      { method: 'DELETE' });
+    if (r.ok) { ok++; existingImagesData = existingImagesData.filter(i => i.id !== id); }
+    else { fail++; }
+    document.getElementById('progressDetail').textContent = `${ok+fail}/${ids.length}`;
+  }
+  showProgress(false);
+  selectedForDelete.clear();
+  const title = document.getElementById('pvExistingTitle');
+  title.textContent = `📌 등록된 사진 ${existingImagesData.length}장`;
+  renderExistingImages();
+  showToast(`✅ ${ok}장 삭제 · ${fail}장 실패`, fail ? 'error' : 'success');
+  addLog(fail ? 'error' : 'success', '일괄 삭제', `성공 ${ok} / 실패 ${fail}`);
+}
+
+// ═══════════════ Replace single image ═══════════════
+function openReplace(imageId) {
+  replaceTargetId = imageId;
+  document.getElementById('replaceInput').click();
+}
+async function handleReplace(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file || !replaceTargetId || !selectedListing) return;
+  showProgress(true, '교체 중...', '압축 및 업로드');
+  const { compressed } = await compressImage(file);
+  // 1) delete old
+  const delRes = await apiCall(`${API_BASE}/api/listings/${selectedListing.id}/images?imageId=${replaceTargetId}`,
+    { method: 'DELETE' });
+  if (!delRes.ok) {
+    showProgress(false);
+    showToast('교체 실패(삭제단계): ' + delRes.error, 'error');
+    return;
+  }
+  // 2) upload new
+  const fd = new FormData();
+  fd.append('images', compressed);
+  if (currentGPS) fd.append('metadata', JSON.stringify([{gps:currentGPS}]));
+  const upRes = await fetch(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
+    method: 'POST', headers: { 'Authorization': `Bearer ${AUTH_TOKEN}` }, body: fd
+  }).then(r=>r.json()).catch(()=>null);
+  showProgress(false);
+  if (upRes && upRes.success !== false) {
+    showToast('✅ 교체 완료', 'success');
+    addLog('success', '사진 교체', `image ID ${replaceTargetId}`);
+    await loadExistingImages(selectedListing.id);
+  } else {
+    showToast('교체 실패(업로드단계)', 'error');
+  }
+  replaceTargetId = null;
+}
+
+// ═══════════════ Drag & drop reorder (existing) ═══════════════
+let dragSrcIdx = null;
+function onDragStart(e, i){ dragSrcIdx = i; e.currentTarget.classList.add('dragging'); try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', i);}catch(_){} }
+function onDragOver(e){ e.preventDefault(); const t=e.currentTarget; document.querySelectorAll('.pv-existing-item.drag-over').forEach(el=>el.classList.remove('drag-over')); if(t)t.classList.add('drag-over'); }
+function onDrop(e, i){ e.preventDefault(); if(dragSrcIdx===null||dragSrcIdx===i){onDragEnd();return;} const [m] = existingImagesData.splice(dragSrcIdx,1); existingImagesData.splice(i,0,m); orderChanged=true; dragSrcIdx=null; renderExistingImages(); }
+function onDragEnd(){ document.querySelectorAll('.pv-existing-item.dragging,.pv-existing-item.drag-over').forEach(el=>el.classList.remove('dragging','drag-over')); dragSrcIdx=null; }
+
+// Touch equivalent
+let touchStart = null, touchSrc = null;
+function onTouchStart(e, i){ const t=e.touches[0]; touchStart={x:t.clientX,y:t.clientY,t:Date.now(),i}; touchSrc=e.currentTarget; }
+function onTouchMove(e){
+  if(!touchStart) return;
+  const t=e.touches[0]; const dx=Math.abs(t.clientX-touchStart.x), dy=Math.abs(t.clientY-touchStart.y);
+  if (Date.now()-touchStart.t < 200) return;
+  if (dx+dy < 8) return;
+  e.preventDefault();
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const host = el && el.closest('.pv-existing-item');
+  document.querySelectorAll('.pv-existing-item.drag-over').forEach(x=>x.classList.remove('drag-over'));
+  if (host && host !== touchSrc) host.classList.add('drag-over');
+  if (touchSrc) touchSrc.classList.add('dragging');
+}
+function onTouchEnd(e){
+  if (!touchStart){ return; }
+  const last = e.changedTouches[0];
+  const over = document.elementFromPoint(last.clientX, last.clientY);
+  const host = over && over.closest('.pv-existing-item');
+  document.querySelectorAll('.pv-existing-item.drag-over').forEach(x=>x.classList.remove('drag-over'));
+  document.querySelectorAll('.pv-existing-item.dragging').forEach(x=>x.classList.remove('dragging'));
+  if (host && touchSrc && host !== touchSrc) {
+    const to = parseInt(host.dataset.index,10);
+    const from = touchStart.i;
+    if (Number.isInteger(to) && Number.isInteger(from) && to !== from) {
+      const [m] = existingImagesData.splice(from,1);
+      existingImagesData.splice(to,0,m);
+      orderChanged = true;
+      renderExistingImages();
+    }
+  }
+  touchStart = null; touchSrc = null;
+}
+
+// Save order
+async function saveImageOrder(silent = false) {
+  if (!selectedListing || !orderChanged) return;
   const btn = document.getElementById('pvSaveOrder');
   btn.disabled = true;
   btn.textContent = '저장 중...';
-
-  const images = existingImagesData.map((img, i) => ({
-    id: img.id,
-    sort_order: i,
-    is_thumbnail: i === 0
-  }));
+  const images = existingImagesData.map((img, i) => ({ id: img.id, sort_order: i, is_thumbnail: i === 0 }));
   const result = await apiCall(`${API_BASE}/api/listings/${selectedListing.id}/images`, {
-    method: 'PATCH',
-    body: { images }
+    method: 'PATCH', body: { images }
   });
-
+  btn.disabled = false; btn.textContent = '💾 순서 저장';
   if (result.ok) {
     orderChanged = false;
     renderExistingImages();
-    showToast('✅ 사진 순서 저장 완료', 'success');
-    addLog('success', '사진 순서 변경', `${existingImagesData.length}장 순서 저장 완료`);
+    if (!silent) showToast('✅ 사진 순서 저장 완료', 'success');
+    addLog('success', '사진 순서 변경', `${existingImagesData.length}장 저장`);
   } else {
     showToast('순서 저장 실패: ' + result.error, 'error');
     addLog('error', '순서 저장 실패', result.error);
   }
-
-  btn.disabled = false;
-  btn.textContent = '💾 순서 저장';
 }
 
-// ===== FILE HANDLING =====
-function openCamera() {
-  if (!selectedListing) return;
+// ═══════════════ Camera / Gallery / handleFiles ═══════════════
+function openCamera(){
+  if (!currentGPS) requestGPSOnce();   // lazy GPS on first shot
   document.getElementById('cameraInput').click();
 }
-function openGallery() {
-  if (!selectedListing) return;
-  document.getElementById('galleryInput').click();
-}
+function openGallery(){ document.getElementById('galleryInput').click(); }
 
 async function handleFiles(e) {
-  const files = Array.from(e.target.files);
-  if (files.length === 0) return;
-
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
   showProgress(true, '사진 처리 중...', `${files.length}장 압축 중`);
-
   let added = 0;
   for (const file of files) {
-    if (!file.type.startsWith('image/') && !file.name.match(/\.(jpg|jpeg|png|heic|heif|webp)$/i)) continue;
-    if (pendingFiles.length >= 20) {
-      showToast('최대 20장까지 선택 가능', 'error');
+    if (!file.type.startsWith('image/') && !/\.(jpg|jpeg|png|heic|heif|webp)$/i.test(file.name)) continue;
+    if (pendingFiles.length >= MAX_PENDING) {
+      showToast(`최대 ${MAX_PENDING}장까지 선택 가능`, 'error');
       break;
     }
-
     try {
       const { compressed, originalSize, compressedSize } = await compressImage(file);
       pendingFiles.push({
-        file: compressed,
-        originalSize,
-        compressedSize,
+        file: compressed, originalSize, compressedSize,
         gps: currentGPS ? { ...currentGPS } : null
       });
       added++;
       document.getElementById('progressDetail').textContent = `${added}/${files.length} 완료`;
-    } catch (err) {
-      logErr('compress', err);
-    }
+    } catch (err) { logErr('compress', err); }
   }
-
   showProgress(false);
   updatePendingUI();
   e.target.value = '';
-
   if (added > 0) {
-    const totalOrig = pendingFiles.reduce((s, f) => s + f.originalSize, 0);
-    const totalComp = pendingFiles.reduce((s, f) => s + f.compressedSize, 0);
-    const saved = totalOrig - totalComp;
-    if (saved > 100000) {
-      showToast(`${added}장 추가 (${formatBytes(saved)} 절약)`, 'success');
-    } else {
-      showToast(`${added}장 추가됨 (총 ${pendingFiles.length}장)`, 'success');
-    }
+    const totalOrig = pendingFiles.reduce((s,f)=>s+f.originalSize, 0);
+    const totalComp = pendingFiles.reduce((s,f)=>s+f.compressedSize, 0);
+    const saved = totalOrig ? Math.round((1 - totalComp/totalOrig) * 100) : 0;
+    showToast(`📸 ${added}장 준비 완료 · ${saved}% 압축`, 'success');
   }
 }
 
+// ═══════════════ Pending UI (with leak fix) ═══════════════
+function revokePendingUrls() {
+  for (const p of pendingFiles) {
+    if (p._objUrl) { try { URL.revokeObjectURL(p._objUrl); } catch(_){} p._objUrl = null; }
+  }
+}
 function updatePendingUI() {
   const section = document.getElementById('pvPending');
   const grid = document.getElementById('pvPendingGrid');
   const title = document.getElementById('pvPendingTitle');
   const btn = document.getElementById('pvUploadBtn');
-
-  if (pendingFiles.length === 0) {
-    section.classList.add('hidden');
-    return;
-  }
-
+  revokePendingUrls();
+  if (pendingFiles.length === 0) { section.classList.add('hidden'); return; }
   section.classList.remove('hidden');
   title.textContent = `📸 새 사진 ${pendingFiles.length}장`;
   btn.disabled = isUploading;
   btn.textContent = isUploading ? '⏳ 업로드 중...' : '⬆️ 업로드';
-
-  grid.innerHTML = pendingFiles.map((pf, i) => `
+  grid.innerHTML = pendingFiles.map((pf, i) => {
+    pf._objUrl = URL.createObjectURL(pf.file);
+    return `
     <div class="pv-thumb" draggable="true" data-pidx="${i}"
          ondragstart="onPendDragStart(event,${i})" ondragover="onPendDragOver(event)" ondrop="onPendDrop(event,${i})" ondragend="onPendDragEnd(event)"
          ontouchstart="onPendTouchStart(event,${i})" ontouchmove="onPendTouchMove(event)" ontouchend="onPendTouchEnd(event)">
-      <img src="${URL.createObjectURL(pf.file)}" alt="미리보기">
-      <button class="pv-thumb-remove" onclick="event.stopPropagation();removeFile(${i})">✕</button>
-      <span class="pv-thumb-size">${formatBytes(pf.compressedSize)}</span>
-      ${pendingFiles.length > 1 ? `<div class="pv-thumb-order">${i + 1}</div>` : ''}
-      ${pendingFiles.length > 1 ? `<div class="pv-thumb-arrows">
-        <button class="pv-thumb-arrow ${i === 0 ? 'hidden' : ''}" onclick="event.stopPropagation();movePending(${i},-1)">◀</button>
-        <button class="pv-thumb-arrow ${i === pendingFiles.length - 1 ? 'hidden' : ''}" onclick="event.stopPropagation();movePending(${i},1)">▶</button>
-      </div>` : ''}
-    </div>`).join('');
+      <img src="${pf._objUrl}" alt="미리보기 ${i+1}">
+      <button class="pv-thumb-del" onclick="event.stopPropagation();removeFile(${i})" aria-label="삭제">✕</button>
+      <div class="pv-thumb-idx">${i+1}</div>
+    </div>`;
+  }).join('');
 }
-
 function removeFile(i) {
+  const p = pendingFiles[i];
+  if (p && p._objUrl) { try{ URL.revokeObjectURL(p._objUrl); }catch(_){} }
   pendingFiles.splice(i, 1);
   updatePendingUI();
 }
 
-function movePending(idx, dir) {
-  const newIdx = idx + dir;
-  if (newIdx < 0 || newIdx >= pendingFiles.length) return;
-  const tmp = pendingFiles[idx];
-  pendingFiles[idx] = pendingFiles[newIdx];
-  pendingFiles[newIdx] = tmp;
-  updatePendingUI();
-}
+// Pending drag (pointer + touch)
+let pendDragSrc = null;
+function onPendDragStart(e, i){ pendDragSrc = i; e.currentTarget.classList.add('dragging'); try{ e.dataTransfer.effectAllowed='move'; }catch(_){} }
+function onPendDragOver(e){ e.preventDefault(); document.querySelectorAll('.pv-thumb.drag-over').forEach(x=>x.classList.remove('drag-over')); e.currentTarget.classList.add('drag-over'); }
+function onPendDrop(e, i){ e.preventDefault(); if (pendDragSrc===null || pendDragSrc===i) { onPendDragEnd(); return; } movePending(pendDragSrc, i); pendDragSrc = null; updatePendingUI(); }
+function onPendDragEnd(){ document.querySelectorAll('.pv-thumb.dragging,.pv-thumb.drag-over').forEach(x=>x.classList.remove('dragging','drag-over')); pendDragSrc = null; }
+function movePending(from, to){ const [m] = pendingFiles.splice(from,1); pendingFiles.splice(to,0,m); }
 
-// ===== PENDING DRAG & DROP (Desktop) =====
-let pendDragIdx = null;
-
-function onPendDragStart(e, i) {
-  pendDragIdx = i;
-  e.target.style.opacity = '.4';
-  e.dataTransfer.effectAllowed = 'move';
-}
-function onPendDragOver(e) {
+let pendTouchStart = null, pendTouchSrc = null;
+function onPendTouchStart(e,i){ const t=e.touches[0]; pendTouchStart = {x:t.clientX,y:t.clientY,t:Date.now(),i}; pendTouchSrc = e.currentTarget; }
+function onPendTouchMove(e){
+  if(!pendTouchStart) return;
+  const t=e.touches[0]; if (Date.now()-pendTouchStart.t < 200) return;
+  if (Math.abs(t.clientX-pendTouchStart.x)+Math.abs(t.clientY-pendTouchStart.y) < 8) return;
   e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  const host = el && el.closest('.pv-thumb');
+  document.querySelectorAll('.pv-thumb.drag-over').forEach(x=>x.classList.remove('drag-over'));
+  if (host && host !== pendTouchSrc) host.classList.add('drag-over');
+  if (pendTouchSrc) pendTouchSrc.classList.add('dragging');
 }
-function onPendDrop(e, targetIdx) {
-  e.preventDefault();
-  if (pendDragIdx !== null && pendDragIdx !== targetIdx) {
-    const moved = pendingFiles.splice(pendDragIdx, 1)[0];
-    pendingFiles.splice(targetIdx, 0, moved);
-    updatePendingUI();
+function onPendTouchEnd(e){
+  if (!pendTouchStart) return;
+  const last = e.changedTouches[0];
+  const over = document.elementFromPoint(last.clientX, last.clientY);
+  const host = over && over.closest('.pv-thumb');
+  document.querySelectorAll('.pv-thumb.drag-over,.pv-thumb.dragging').forEach(x=>x.classList.remove('drag-over','dragging'));
+  if (host && pendTouchSrc && host !== pendTouchSrc) {
+    const to = parseInt(host.dataset.pidx,10);
+    const from = pendTouchStart.i;
+    if (Number.isInteger(to) && Number.isInteger(from) && to !== from) { movePending(from,to); updatePendingUI(); }
   }
-}
-function onPendDragEnd(e) {
-  e.target.style.opacity = '';
-  pendDragIdx = null;
+  pendTouchStart = null; pendTouchSrc = null;
 }
 
-// ===== PENDING DRAG & DROP (Mobile Touch) =====
-let pendTouchIdx = null;
-let pendTouchClone = null;
-let pendTouchStartX = 0, pendTouchStartY = 0;
-let pendLongPress = null;
-let pendTouchActive = false;
+// ═══════════════ Upload (with beforeunload guard) ═══════════════
+function beforeUnloadGuard(e){ if (isUploading){ e.preventDefault(); e.returnValue = '업로드가 진행 중입니다. 나가시겠습니까?'; return e.returnValue; } }
 
-function onPendTouchStart(e, idx) {
-  pendTouchStartX = e.touches[0].clientX;
-  pendTouchStartY = e.touches[0].clientY;
-  pendTouchIdx = idx;
-  pendTouchActive = false;
-
-  pendLongPress = setTimeout(() => {
-    pendTouchActive = true;
-    const item = e.target.closest('.pv-thumb');
-    if (!item) return;
-    item.style.opacity = '.4';
-
-    const rect = item.getBoundingClientRect();
-    pendTouchClone = item.cloneNode(true);
-    pendTouchClone.style.cssText = `position:fixed;top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;z-index:500;opacity:.85;pointer-events:none;border:2px solid var(--primary);box-shadow:0 8px 30px rgba(0,0,0,.25);border-radius:10px;`;
-    document.body.appendChild(pendTouchClone);
-    if (navigator.vibrate) navigator.vibrate(30);
-  }, 400);
-}
-
-function onPendTouchMove(e) {
-  if (!pendTouchActive) {
-    const dx = e.touches[0].clientX - pendTouchStartX;
-    const dy = e.touches[0].clientY - pendTouchStartY;
-    if (Math.abs(dx) > 10 || Math.abs(dy) > 10) clearTimeout(pendLongPress);
-    return;
-  }
-  e.preventDefault();
-  const tx = e.touches[0].clientX, ty = e.touches[0].clientY;
-  if (pendTouchClone) {
-    pendTouchClone.style.left = (tx - pendTouchClone.offsetWidth / 2) + 'px';
-    pendTouchClone.style.top = (ty - pendTouchClone.offsetHeight / 2) + 'px';
-  }
-}
-
-function onPendTouchEnd(e) {
-  clearTimeout(pendLongPress);
-  if (pendTouchActive && pendTouchClone) {
-    const touch = e.changedTouches[0];
-    pendTouchClone.remove();
-    pendTouchClone = null;
-
-    const t = document.elementFromPoint(touch.clientX, touch.clientY);
-    const ti = t ? t.closest('.pv-thumb') : null;
-    if (ti) {
-      const targetIdx = parseInt(ti.dataset.pidx);
-      if (pendTouchIdx !== null && pendTouchIdx !== targetIdx) {
-        const moved = pendingFiles.splice(pendTouchIdx, 1)[0];
-        pendingFiles.splice(targetIdx, 0, moved);
-      }
-    }
-  }
-
-  document.querySelectorAll('.pv-thumb').forEach(el => el.style.opacity = '');
-  if (pendTouchActive) updatePendingUI();
-  pendTouchActive = false;
-  pendTouchIdx = null;
-}
-
-// ===== UPLOAD (Background - Non-blocking) =====
-let isUploading = false;
 async function uploadImages() {
   if (!selectedListing || pendingFiles.length === 0 || isUploading) return;
-
   isUploading = true;
+  window.addEventListener('beforeunload', beforeUnloadGuard);
+
   const uploadListingId = selectedListing.id;
   const uploadListingTitle = selectedListing.title || `매물 ${uploadListingId}`;
   const filesToUpload = [...pendingFiles];
-  const totalSize = filesToUpload.reduce((s, f) => s + f.compressedSize, 0);
+  const totalSize = filesToUpload.reduce((s,f)=>s+f.compressedSize,0);
   const count = filesToUpload.length;
 
-  // Clear pending immediately so user can keep working
+  // clear pending (revoke object URLs)
+  revokePendingUrls();
   pendingFiles = [];
   updatePendingUI();
 
-  // Show non-blocking upload bar
-  showUploadBar(`${uploadListingTitle} 사진 업로드 중`, `${count}장 · ${formatBytes(totalSize)}`, 10);
+  showUploadBar(`${uploadListingTitle} 업로드 중`, `${count}장 · ${formatBytes(totalSize)}`, 8);
 
   const startTime = Date.now();
-
-  // Use XMLHttpRequest for progress tracking
   const formData = new FormData();
   filesToUpload.forEach(pf => formData.append('images', pf.file));
   const metadata = filesToUpload.map(pf => ({
-    gps: pf.gps,
-    originalSize: pf.originalSize,
-    compressedSize: pf.compressedSize,
+    gps: pf.gps, originalSize: pf.originalSize, compressedSize: pf.compressedSize
   }));
   formData.append('metadata', JSON.stringify(metadata));
 
-  try {
-    const result = await new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', `${API_BASE}/api/listings/${uploadListingId}/images`);
-      xhr.setRequestHeader('Authorization', `Bearer ${AUTH_TOKEN}`);
-      xhr.timeout = 180000; // 3분 타임아웃
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 100);
-          updateUploadBar(`${uploadListingTitle} 업로드 중`, `${count}장 · ${pct}% (${formatBytes(e.loaded)}/${formatBytes(e.total)})`, pct);
-        }
-      };
-
-      xhr.onload = () => {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          if (xhr.status >= 200 && xhr.status < 300 && data.success !== false) {
-            resolve({ ok: true, data });
-          } else {
-            resolve({ ok: false, error: data.error || `서버 오류 (HTTP ${xhr.status})` });
-          }
-        } catch(e) {
-          resolve({ ok: false, error: `응답 파싱 오류` });
-        }
-      };
-
-      xhr.onerror = () => resolve({ ok: false, error: '네트워크 오류' });
-      xhr.ontimeout = () => resolve({ ok: false, error: '업로드 시간 초과' });
-      xhr.send(formData);
-    });
-
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-
-    if (result.ok) {
-      const origT = filesToUpload.reduce((s, f) => s + f.originalSize, 0);
-      const compT = filesToUpload.reduce((s, f) => s + f.compressedSize, 0);
-      const pct = origT > 0 ? Math.round((1 - compT / origT) * 100) : 0;
-
-      completeUploadBar(`✅ ${count}장 업로드 완료!`, `${formatBytes(compT)}${pct > 5 ? ` · ${pct}% 절약` : ''} · ${elapsed}초`);
-      addLog('success', `매물 ${uploadListingId} 사진 ${count}장 업로드`,
-        `용량: ${formatBytes(compT)}${pct > 5 ? ` (${pct}% 절약)` : ''} · ${elapsed}초`);
-
-      // Refresh existing images if still on the same listing
-      if (selectedListing && selectedListing.id === uploadListingId) {
-        await loadExistingImages(uploadListingId);
+  const result = await new Promise(resolve => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE}/api/listings/${uploadListingId}/images`);
+    xhr.setRequestHeader('Authorization', `Bearer ${AUTH_TOKEN}`);
+    xhr.timeout = 180000;   // 3 min
+    xhr.upload.onprogress = e => {
+      if (e.lengthComputable) {
+        const pct = Math.min(99, Math.round((e.loaded/e.total)*100));
+        updateUploadBar(`${uploadListingTitle} 업로드 중`, `${count}장 · ${pct}% (${formatBytes(e.loaded)}/${formatBytes(e.total)})`, pct);
       }
-    } else {
-      completeUploadBar(`❌ 업로드 실패`, result.error, true);
-      addLog('error', `매물 ${uploadListingId} 업로드 실패`, `${result.error} · ${elapsed}초`);
-    }
-  } catch(e) {
-    completeUploadBar(`❌ 업로드 오류`, e.message, true);
-    addLog('error', `매물 ${uploadListingId} 업로드 오류`, e.message);
-  }
+    };
+    xhr.onload = () => {
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && data.success !== false) resolve({ok:true, data});
+        else resolve({ok:false, error: data.error || `서버 오류 (HTTP ${xhr.status})`});
+      } catch(e){ resolve({ok:false, error: '응답 파싱 오류'}); }
+    };
+    xhr.onerror = () => resolve({ok:false, error:'네트워크 오류'});
+    xhr.ontimeout = () => resolve({ok:false, error:'업로드 시간 초과'});
+    xhr.send(formData);
+  });
 
   isUploading = false;
+  window.removeEventListener('beforeunload', beforeUnloadGuard);
+  const elapsed = ((Date.now()-startTime)/1000).toFixed(1);
+
+  if (result.ok) {
+    const origT = filesToUpload.reduce((s,f)=>s+f.originalSize,0);
+    const compT = filesToUpload.reduce((s,f)=>s+f.compressedSize,0);
+    const saved = origT ? Math.round((1 - compT/origT) * 100) : 0;
+    completeUploadBar(`✅ ${count}장 업로드 완료`, `${elapsed}초 · 압축 ${saved}%`);
+    addLog('success', `${uploadListingTitle} 업로드`, `${count}장 · ${elapsed}초 · 압축 ${saved}%`);
+    if (selectedListing && selectedListing.id === uploadListingId) {
+      await loadExistingImages(uploadListingId);
+    }
+  } else {
+    completeUploadBar('❌ 업로드 실패', result.error, true);
+    addLog('error', '업로드 실패', result.error);
+  }
 }
 
-// ===== UPLOAD BAR (Non-blocking) =====
 function showUploadBar(title, sub, pct) {
   const bar = document.getElementById('uploadBar');
-  bar.classList.remove('done');
-  bar.classList.add('show');
-  document.getElementById('uploadBarSpinner').innerHTML = '';
   document.getElementById('uploadBarTitle').textContent = title;
   document.getElementById('uploadBarSub').textContent = sub;
   document.getElementById('uploadBarFill').style.width = pct + '%';
+  document.getElementById('uploadBarSpinner').className = 'upload-bar-spinner';
   document.getElementById('uploadBarClose').style.display = 'none';
+  bar.classList.add('show');
 }
-
-function updateUploadBar(title, sub, pct) {
+function updateUploadBar(title, sub, pct){
   document.getElementById('uploadBarTitle').textContent = title;
   document.getElementById('uploadBarSub').textContent = sub;
   document.getElementById('uploadBarFill').style.width = pct + '%';
 }
-
-function completeUploadBar(title, sub, isError) {
-  const bar = document.getElementById('uploadBar');
-  bar.classList.add('done');
-  document.getElementById('uploadBarSpinner').textContent = isError ? '❌' : '✅';
+function completeUploadBar(title, sub, isErr=false){
   document.getElementById('uploadBarTitle').textContent = title;
-  document.getElementById('uploadBarSub').textContent = sub;
+  document.getElementById('uploadBarSub').textContent = sub || '';
   document.getElementById('uploadBarFill').style.width = '100%';
-  document.getElementById('uploadBarClose').style.display = '';
-
-  // Auto-hide after 5 seconds
-  setTimeout(() => closeUploadBar(), 5000);
+  const sp = document.getElementById('uploadBarSpinner');
+  sp.className = 'upload-bar-spinner done';
+  sp.textContent = isErr ? '!' : '✓';
+  if (isErr) sp.style.background = 'var(--danger)';
+  document.getElementById('uploadBarClose').style.display = 'inline-block';
+  setTimeout(closeUploadBar, isErr ? 8000 : 4000);
+}
+function closeUploadBar(){
+  const bar = document.getElementById('uploadBar');
+  bar.classList.remove('show');
+  const sp = document.getElementById('uploadBarSpinner');
+  sp.style.background = '';
+  sp.textContent = '';
 }
 
-function closeUploadBar() {
-  document.getElementById('uploadBar').classList.remove('show');
-  setTimeout(() => document.getElementById('uploadBar').classList.remove('done'), 300);
+// ═══════════════ Lightbox (v2.2 focus-trap + restore) ═══════════════
+let _lightboxReturnFocus = null;
+function openLightbox(url){
+  const lb = document.getElementById('lightbox');
+  _lightboxReturnFocus = document.activeElement;   // 원래 포커스 저장
+  document.getElementById('lightboxImg').src = url;
+  lb.classList.add('show');
+  lb.setAttribute('role', 'dialog');
+  lb.setAttribute('aria-modal', 'true');
+  const closeBtn = lb.querySelector('.lightbox-close');
+  if (closeBtn) closeBtn.focus();
+  document.addEventListener('keydown', _lbTrap, true);
+}
+function closeLightbox(e){
+  if (!e || e.target.id === 'lightbox' || e.target.classList.contains('lightbox-close')) {
+    const lb = document.getElementById('lightbox');
+    lb.classList.remove('show');
+    document.removeEventListener('keydown', _lbTrap, true);
+    try { if (_lightboxReturnFocus && _lightboxReturnFocus.focus) _lightboxReturnFocus.focus(); } catch(_){}
+    _lightboxReturnFocus = null;
+  }
+}
+// Tab 키를 닫기 버튼 안에 가둔다(간단 포커스 트랩)
+function _lbTrap(e){
+  if (e.key === 'Tab') {
+    const closeBtn = document.querySelector('#lightbox .lightbox-close');
+    if (closeBtn) { e.preventDefault(); closeBtn.focus(); }
+  }
 }
 
-// ===== UPLOAD LOG =====
-function addLog(type, title, detail) {
-  const container = document.getElementById('pvLog');
+// ═══════════════ Toast / progress / log ═══════════════
+function showLoading(v){ document.getElementById('progressOverlay').classList.toggle('show', !!v); }
+function showToast(msg, type='') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type || '');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => { el.className = 'toast'; }, 2800);
+}
+function showProgress(show, title='처리 중', sub='') {
+  const ov = document.getElementById('progressOverlay');
+  if (!show) { ov.classList.remove('show'); return; }
+  document.getElementById('progressText').textContent = title;
+  document.getElementById('progressSub').textContent = sub;
+  document.getElementById('progressDetail').textContent = '';
+  ov.classList.add('show');
+}
+function formatBytes(n){
+  if (!n && n !== 0) return '';
+  if (n < 1024) return n + 'B';
+  if (n < 1024*1024) return (n/1024).toFixed(1) + 'KB';
+  return (n/1024/1024).toFixed(1) + 'MB';
+}
+function addLog(type, title, detail){
   const list = document.getElementById('pvLogList');
-  container.classList.add('show');
-
   const now = new Date();
-  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-
+  const t = now.toLocaleTimeString('ko-KR', {hour12:false});
   const item = document.createElement('div');
-  item.className = `log-item ${type}`;
-  item.innerHTML = `
-    <div class="log-icon">${type === 'success' ? '✅' : '❌'}</div>
-    <div class="log-body">
-      <div class="log-title">${escHtml(title)}</div>
-      <div class="log-detail ${type === 'error' ? 'error-detail' : ''}">${escHtml(detail)}</div>
-      <div class="log-time">${time}</div>
-    </div>`;
-  list.insertBefore(item, list.firstChild);
-  while (list.children.length > 10) list.removeChild(list.lastChild);
+  item.className = 'log-item ' + type;
+  item.innerHTML = `<div class="log-time">${t}</div>
+    <div class="log-title">${escHtml(title)}</div>
+    <div class="log-detail ${type==='error'?'error-detail':''}">${escHtml(detail||'')}</div>`;
+  list.prepend(item);
+  document.getElementById('pvLog').classList.add('show');
+  while (list.children.length > 15) list.removeChild(list.lastChild);
 }
 
-// ===== UI HELPERS =====
-function showLoading(on) {
-  isLoading = on;
-  const list = document.getElementById('resultsList');
-  if (on && list.children.length === 0) {
-    list.innerHTML = '<div class="skeleton"></div>'.repeat(3);
-    document.getElementById('emptyState').style.display = 'none';
+// ═══════════════ Helpers ═══════════════
+function escHtml(s){ if (s==null) return ''; const d=document.createElement('div'); d.textContent=String(s); return d.innerHTML; }
+function escAttr(s){ return escHtml(s).replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+// Expose required fns for inline onclick
+Object.assign(window, {
+  selectListing, backToSearch, searchListings, loadRecentListings,
+  openCamera, openGallery, uploadImages, removeFile, saveImageOrder,
+  deleteExistingImage, openReplace, setRepresentative, confirmBulkDelete,
+  toggleSelectForDelete, openLightboxById,
+  openLightbox, closeLightbox, closeUploadBar, handleImgError,
+  onDragStart, onDragOver, onDrop, onDragEnd, onTouchStart, onTouchMove, onTouchEnd,
+  onPendDragStart, onPendDragOver, onPendDrop, onPendDragEnd, onPendTouchStart, onPendTouchMove, onPendTouchEnd
+});
+
+// ═══════════════ Init / offline / deep-link ═══════════════
+document.getElementById('cameraInput').addEventListener('change', handleFiles);
+document.getElementById('galleryInput').addEventListener('change', handleFiles);
+document.getElementById('replaceInput').addEventListener('change', handleReplace);
+document.getElementById('searchInput').addEventListener('keydown', (e) => {
+  // 한글 IME 조합 중 Enter 는 조합 종료이므로 무시
+  if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
+    e.preventDefault();
+    searchListings();
   }
-}
-
-function showToast(msg, type = '') {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + type;
-  setTimeout(() => { t.className = 'toast'; }, 2500);
-}
-
-function showProgress(on, text, sub) {
-  const o = document.getElementById('progressOverlay');
-  if (on) {
-    document.getElementById('progressText').textContent = text || '처리 중...';
-    document.getElementById('progressSub').textContent = sub || '';
-    document.getElementById('progressDetail').textContent = '';
-    o.classList.add('show');
-  } else {
-    o.classList.remove('show');
+});
+// 라이트박스 ESC 키로 닫기
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('lightbox').classList.contains('show')) {
+    document.getElementById('lightbox').classList.remove('show');
   }
-}
+});
 
-function escHtml(s) {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
+window.addEventListener('online', () => {
+  document.getElementById('offlineBanner').classList.remove('show');
+  showToast('🟢 온라인 상태 복구', 'success');
+});
+window.addEventListener('offline', () => {
+  document.getElementById('offlineBanner').classList.add('show');
+  showToast('🔴 오프라인', 'error');
+});
+if (!navigator.onLine) document.getElementById('offlineBanner').classList.add('show');
+
+// Deep link ?listingId=NNN
+(async () => {
+  const params = new URLSearchParams(location.search);
+  const deepId = parseInt(params.get('listingId'), 10);
+  await loadRecentListings();
+  if (Number.isInteger(deepId)) {
+    const found = allListings.find(l => l.id === deepId);
+    if (found) selectListing(deepId);
+    else {
+      const r = await apiCall(`${API_BASE}/api/listings?id=${deepId}&limit=1`);
+      if (r.ok && r.data && r.data.data && r.data.data[0]) {
+        allListings.push(r.data.data[0]);
+        selectListing(deepId);
+      } else {
+        showToast(`매물 ${deepId}을 찾을 수 없습니다`, 'error');
+      }
+    }
+  }
+})();
+
+// Cleanup on unload
+window.addEventListener('beforeunload', () => revokePendingUrls());
 </script>
 </body>
 </html>
