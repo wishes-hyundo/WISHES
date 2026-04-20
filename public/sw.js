@@ -1,12 +1,11 @@
-const CACHE_NAME = 'wishes-photo-v2';
+const CACHE_NAME = 'wishes-photo-v239';
 const PRECACHE_URLS = [
-  '/mobile-photo.html',
   '/icon-192x192.png',
   '/icon-512x512.png',
   '/manifest.json'
 ];
 
-// Install: precache essential files
+// Install: precache essential files (HTML 은 제외 — 항상 네트워크 우선)
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -26,7 +25,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: network-first for API, cache-first for static
+// Fetch
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
@@ -46,7 +45,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: stale-while-revalidate
+  // HTML documents: network-first (최신 버전 항상 우선)
+  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response && response.status === 200) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, clone);
+          });
+        }
+        return response;
+      }).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Other static assets: stale-while-revalidate
   event.respondWith(
     caches.match(event.request).then((cached) => {
       const fetchPromise = fetch(event.request).then((response) => {
