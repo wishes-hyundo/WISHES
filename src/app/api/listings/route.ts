@@ -9,20 +9,23 @@ import { applyImagePolicy } from '@/lib/image-policy';
 
 /**
  * 매물 목록 조회
- * @query ids - 매물 ID 목록 (콤마 구분, 비교 페이지용)
- * @query deal - 거래 유형 (전세/월세/매매)
- * @query type - 매물 유형
- * @query dong - 동 이름
+ * @query ids        - 매물 ID 목록 (콤마 구분, 비교 페이지용)
+ * @query id         - 단일 매물 ID (모바일 사진등록 / 딥링크용)
+ * @query search     - 자유 텍스트 검색 (제목/주소/건물명/동). 숫자만 입력 시 id 로 자동 전환
+ * @query sort       - 'latest' | 'price' | 'area' (기본 latest)
+ * @query deal       - 거래 유형 (전세/월세/매매)
+ * @query type       - 매물 유형
+ * @query dong       - 동 이름
  * @query minDeposit - 최소 보증금 (만원)
  * @query maxDeposit - 최대 보증금 (만원)
- * @query limit - 페이지당 결과 수 (기본값: 20)
- * @query offset - 오프셋 (기본값: 0)
+ * @query limit      - 페이지당 결과 수 (기본값: 20, 최대 1000)
+ * @query offset     - 오프셋 (기본값: 0)
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    // ━━━ ID 기반 조회 (비교 페이지용) — 캐시 없이 직접 조회 ━━━
+    // ━━━ IDs 기반 조회 (비교 페이지용) — 캐시 없이 직접 조회 ━━━
     const ids = searchParams.get('ids');
     if (ids) {
       const idList = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
@@ -56,17 +59,107 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // ━━━ 단일 id 조회 (모바일 사진등록 / 딥링크) ━━━
+    const singleId = searchParams.get('id');
+    if (singleId) {
+      const n = parseInt(singleId, 10);
+      if (isNaN(n)) {
+        return NextResponse.json({ success: true, data: [], listings: [], total: 0 });
+      }
+      const supabase = createServerClient();
+      const { data, error } = await supabase
+        .from('listings')
+        .select('*, listing_images(url, sort_order, is_thumbnail), listing_videos(id, url, poster_url, mime_type, sort_order)')
+        .eq('id', n)
+        .limit(1);
+      if (error) {
+        console.error('Supabase 단일ID 조회 오류:', error);
+        return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다' }, { status: 500 });
+      }
+      const sanitized = (data || []).map((r: any) => applyImagePolicy(r));
+      return NextResponse.json({
+        success: true,
+        data: sanitized,
+        listings: sanitized,
+        total: sanitized.length,
+      });
+    }
+
+    // ━━━ 자유 텍스트 검색 (title/address/building_name ilike) ━━━
+    const rawSearch = searchParams.get('search') || searchParams.get('q');
+    if (rawSearch) {
+      const q = rawSearch.trim();
+      if (!q) {
+        return NextResponse.json({ success: true, data: [], listings: [], total: 0 });
+      }
+      // 숫자만 입력되면 id 조회로 자동 전환 (모바일 UX 대응)
+      const onlyDigits = /^\d+$/.test(q);
+      const supabase = createServerClient();
+
+      const sLimit = Math.min(parseInt(searchParams.get('limit') || '50', 10) || 50, 200);
+      const selectCols =
+        'id, title, type, deal, deposit, monthly, price, address, address_detail, dong, area_m2, floor_current, status, source_site, created_at, updated_at, listing_images(url, sort_order, is_thumbnail), listing_videos(id, url, poster_url, mime_type, sort_order)';
+
+      if (onlyDigits) {
+        const n = parseInt(q, 10);
+        const { data, error } = await supabase
+          .from('listings')
+          .select(selectCols)
+          .eq('id', n)
+          .limit(1);
+        if (error) {
+          return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        }
+        const sanitized = (data || []).map((r: any) => applyImagePolicy(r));
+        return NextResponse.json({ success: true, data: sanitized, listings: sanitized, total: sanitized.length });
+      }
+
+      const pattern = '%' + q.replace(/%/g, '\\%') + '%';
+      const { data, error } = await supabase
+        .from('listings')
+        .select(selectCols)
+        .or(
+          [
+            `title.ilike.${pattern}`,
+            `address.ilike.${pattern}`,
+            `address_detail.ilike.${pattern}`,
+            `building_name.ilike.${pattern}`,
+            `dong.ilike.${pattern}`,
+          ].join(',')
+        )
+        .order('created_at', { ascending: false })
+        .limit(sLimit);
+
+      if (error) {
+        console.error('Supabase 검색 오류:', error);
+        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      }
+      const sanitized = (data || []).map((r: any) => applyImagePolicy(r));
+      return NextResponse.json({
+        success: true,
+        data: sanitized,
+        listings: sanitized,
+        total: sanitized.length,
+      });
+    }
+
     // ━━━ 일반 필터 조회 (인메모리 캐시 적용) ━━━
     const deal = searchParams.get('deal') || '';
     const type = searchParams.get('type') || '';
     const dong = searchParams.get('dong') || '';
     const minDeposit = searchParams.get('minDeposit') || '';
     const maxDeposit = searchParams.get('maxDeposit') || '';
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
-    const offset = parseInt(searchParams.get('offset') || '0', 10);
+    const sort = searchParams.get('sort') || 'latest';
+    // limit: 기본 20, 최대 1000 (Supabase 단일 쿼리 한도)
+    const rawLimit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = Math.min(Math.max(isNaN(rawLimit) ? 20 : rawLimit, 1), 1000);
+    const offset = parseInt(searchParams.get('offset') || '0', 10) || 0;
 
-    // 캐시 키: 필터 조합별로 고유 키 생성
-    const cacheKey = `listings:${deal}:${type}:${dong}:${minDeposit}:${maxDeposit}:${limit}:${offset}`;
+    // 정렬 컬럼: latest(=created_at) 기본, price=deposit, area=area_m2
+    const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
+
+    // 캐시 키: 필터+정렬+페이징 조합별로 고유 키 생성
+    const cacheKey = `listings:${deal}:${type}:${dong}:${minDeposit}:${maxDeposit}:${sortColumn}:${limit}:${offset}`;
 
     const result = await cached(
       cacheKey,
@@ -82,7 +175,7 @@ export async function GET(request: NextRequest) {
             { count: 'exact' }
           )
           .eq('status', '공개')
-          .order('created_at', { ascending: false });
+          .order(sortColumn, { ascending: false });
 
         if (deal) query = query.eq('deal', deal);
         if (type) query = query.eq('type', type);
