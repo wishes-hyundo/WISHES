@@ -1623,5 +1623,87 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
   console.log('[MPH v2.3.2] selectListing + allListings 동기화 핫픽스 활성화');
 })();
 </script>
+
+<script>
+// v2.3.3: image proxy URL rewrite
+(function(){
+  'use strict';
+  var PROXY_HOST = 'wishes-image-proxy.wishes-img.workers.dev';
+  var API_PROXY_PREFIX = '/api/img-proxy?';
+
+  function rewrite(url){
+    if (typeof url !== 'string' || !url) return url;
+    if (url.indexOf(API_PROXY_PREFIX) >= 0) return url;
+    if (url.indexOf(PROXY_HOST) < 0) return url;
+    try {
+      return API_PROXY_PREFIX + 'url=' + encodeURIComponent(url) + '&raw=1';
+    } catch(e) {
+      return url;
+    }
+  }
+
+  function fixImg(img){
+    if (!img || img.tagName !== 'IMG') return;
+    try {
+      var orig = img.getAttribute('src');
+      if (!orig) return;
+      var next = rewrite(orig);
+      if (next !== orig) img.setAttribute('src', next);
+    } catch(e){}
+  }
+
+  function fixAll(root){
+    try {
+      var imgs = (root || document).querySelectorAll('img');
+      for (var i = 0; i < imgs.length; i++) fixImg(imgs[i]);
+    } catch(e){}
+  }
+
+  fixAll(document);
+
+  var mo;
+  try {
+    mo = new MutationObserver(function(records){
+      for (var r = 0; r < records.length; r++) {
+        var rec = records[r];
+        if (rec.type === 'childList') {
+          for (var n = 0; n < rec.addedNodes.length; n++) {
+            var node = rec.addedNodes[n];
+            if (!node || node.nodeType !== 1) continue;
+            if (node.tagName === 'IMG') fixImg(node);
+            else fixAll(node);
+          }
+        } else if (rec.type === 'attributes' && rec.attributeName === 'src') {
+          fixImg(rec.target);
+        }
+      }
+    });
+    mo.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['src'] });
+  } catch(e){}
+
+  var origOpen = window.openLightbox;
+  if (typeof origOpen === 'function') {
+    window.openLightbox = function(url){
+      try { url = rewrite(url); } catch(e){}
+      var rest = [];
+      for (var i = 1; i < arguments.length; i++) rest.push(arguments[i]);
+      return origOpen.apply(this, [url].concat(rest));
+    };
+  }
+
+  window.__MPH_IMG_FIX_V233__ = {
+    version: '2.3.3',
+    rewrite: rewrite,
+    fixImg: fixImg,
+    fixAll: fixAll,
+    rollback: function(){
+      try { if (mo) mo.disconnect(); } catch(e){}
+      if (origOpen) window.openLightbox = origOpen;
+      try { delete window.__MPH_IMG_FIX_V233__; } catch(e){ window.__MPH_IMG_FIX_V233__ = null; }
+    }
+  };
+  try { console.log('[mobile-photo] v2.3.3 image proxy rewrite active'); } catch(e){}
+})();
+</script>
 </body>
 </html>
