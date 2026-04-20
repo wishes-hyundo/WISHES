@@ -13,11 +13,17 @@ import { Clock, BookmarkCheck, ChevronRight, Sparkles } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import { useSavedSearch } from '@/contexts/SavedSearchContext';
 import { ListingCard } from '@/components/ListingCard';
+import { filterSelfHosted } from '@/lib/image-policy';
 
 const RECENT_KEY = 'wishes_recently_viewed';
 
+// ※ 저작권 보호 + 자체 업로드 통과
+//   - 크롤링 매물(source_site NOT NULL): 자체 업로드 이미지만 유지
+//   - 자체 매물: 그대로
 function stripCrawled(rows: any[]) {
-  return rows.map((r: any) => (r.source_site ? { ...r, listing_images: [] } : r));
+  return rows.map((r: any) =>
+    r.source_site ? { ...r, listing_images: filterSelfHosted(r.listing_images) } : r
+  );
 }
 
 export default function PersonalizedHome() {

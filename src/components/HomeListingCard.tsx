@@ -54,12 +54,13 @@ const pickFeatureChip = (listing: any): string | null => {
 
 export function HomeListingCard({ listing }: HomeListingCardProps) {
   const isAd = !!listing.source_site;
-  const images = isAd
-    ? []
-    : (listing.listing_images || []).filter((img: any) => {
-        const u = img?.url || '';
-        return u && !u.match(/\/listings\/9\d{5}\//);
-      });
+  // ※ 서버(API)에서 이미 저작권 정책(자체 업로드만 통과)을 적용하므로
+  //   크롤링/자체 구분 없이 넘어온 이미지를 그대로 사용 가능.
+  //   (레거시 마스크 경로 9xxxxx/ 패턴은 기존대로 유지)
+  const images = (listing.listing_images || []).filter((img: any) => {
+    const u = img?.url || '';
+    return u && !u.match(/\/listings\/9\d{5}\//);
+  });
   const rawThumb = images.length > 0 ? images[0].url : null;
   const thumbUrl = rawThumb ? getWatermarkedUrl(rawThumb) : null;
 

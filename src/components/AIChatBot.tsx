@@ -307,9 +307,9 @@ export default function AIChatBot() {
 
                       {/* 매물 카드 (최대 4건) */}
                       {msg.listings.map((l) => {
-                        const thumb = !l.source_site && l.listing_images?.[0]?.url
-                          ? l.listing_images[0].url
-                          : null;
+                        // ※ 서버(API)가 이미 저작권 정책(자체 업로드만 통과)을 적용하므로
+                        //   listing_images[0] 이 존재하면 크롤링 여부와 무관하게 썸네일 표시 OK.
+                        const thumb = l.listing_images?.[0]?.url || null;
                         return (
                           <Link
                             key={l.id}

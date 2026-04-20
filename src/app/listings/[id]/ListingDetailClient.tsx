@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Calendar, ArrowLeft, Check, X, Eye, Hash, ChevronRight, Home, Building2, Thermometer, Compass, DoorOpen, Bath, Banknote, Train, TrendingUp, MapPin, Navigation, AlertCircle, MessageCircleMore, ShieldCheck, Clock3, BadgeCheck, Info, Printer, Globe } from 'lucide-react';
 import CompassDirection from '@/components/CompassDirection';
 import { getFormattedPrice, getDealColor, sqmToPyeong, getStatusColor, formatPrice } from '@/lib/utils';
+import { applyImagePolicy } from '@/lib/image-policy';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { displayTitle } from '@/lib/formatListingTitle';
 import ImageGallery from '@/components/ImageGallery';
@@ -208,9 +209,8 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
         .order('created_at', { ascending: false })
         .limit(4);
 
-      const relatedSanitized = (related || []).map((r: any) =>
-        r.source_site ? { ...r, listing_images: [] } : r,
-      );
+      // ※ 저작권 보호 + 자체 업로드 통과 (크롤링 매물이어도 자체 업로드 이미지는 노출)
+      const relatedSanitized = (related || []).map((r: any) => applyImagePolicy(r));
       setRelatedListings(relatedSanitized);
 
       // 같은 건물 다른 매물 (T2-1: 단지/건물 컨텍스트)
@@ -239,11 +239,11 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
           .in('id', recentIds)
           .eq('status', '공개');
 
-        // 원래 순서 유지 + 크롤링 매물 이미지 차단
+        // 원래 순서 유지 + 저작권 정책 적용 (자체 업로드 이미지는 통과)
         const sorted = recentIds
           .map((rid) => (recents || []).find((r: any) => r.id === rid))
           .filter(Boolean)
-          .map((r: any) => (r.source_site ? { ...r, listing_images: [] } : r));
+          .map((r: any) => applyImagePolicy(r));
         setRecentListings(sorted);
       }
     };

@@ -64,8 +64,10 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
   const liked = isFavorite(listing.id);
 
   const isAd = !!(listing as any).source_site;
+  // ※ 서버(API)에서 이미 저작권 정책을 적용해 자체 업로드 이미지만 내려오므로
+  //   listingImages.length > 0 이면 크롤링/자체 구분 없이 썸네일 표시 OK.
   const listingImages = (listing as any).listing_images || listing.images || [];
-  const thumbUrl = !isAd && listingImages.length > 0 && listingImages[0].url ? listingImages[0].url : null;
+  const thumbUrl = listingImages.length > 0 && listingImages[0]?.url ? listingImages[0].url : null;
 
   const price = formatPrice(listing);
   const areaM2 = listing.area_m2 || listing.area || 0;

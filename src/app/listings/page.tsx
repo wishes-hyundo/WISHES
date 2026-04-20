@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase';
 import { cached } from '@/lib/cache';
+import { applyImagePolicy } from '@/lib/image-policy';
 import ListingsClient from './ListingsClient';
 
 export const dynamic = 'force-dynamic';
@@ -74,10 +75,10 @@ export default async function ListingsPage({
 
       const [listingsResult, dongResult] = await Promise.all([query, dongQuery]);
 
-      // 크롤링 매물 사진 제거 (정보는 보존)
-      const listings = (listingsResult.data || []).map((r: any) =>
-        r.source_site ? { ...r, listing_images: [] } : r
-      );
+      // ※ 저작권 보호 + 자체 업로드 통과
+      //   - 크롤링 매물의 외부 원본 이미지는 차단
+      //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
+      const listings = (listingsResult.data || []).map((r: any) => applyImagePolicy(r));
       const totalCount = listingsResult.count || 0;
       const dongs = [...new Set((dongResult.data || []).map((r: any) => r.dong).filter(Boolean))].sort();
 

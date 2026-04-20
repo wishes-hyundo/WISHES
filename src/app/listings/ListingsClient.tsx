@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
+import { applyImagePolicy } from '@/lib/image-policy';
 import { ListingCard } from '@/components/ListingCard';
 import { SkeletonCard } from '@/components/SkeletonCard';
 import { Breadcrumb } from '@/components/Breadcrumb';
@@ -137,9 +138,10 @@ export default function ListingsClient({
       setLoading(true);
       const supabase = createClient();
 
-      // 크롤링 매물 사진만 차단 (정보는 광고로 노출). source_site NOT NULL → listing_images 빈 배열
-      const stripCrawledImages = (arr: any[]) =>
-        arr.map((r: any) => (r.source_site ? { ...r, listing_images: [] } : r));
+      // ※ 저작권 보호 + 자체 업로드 통과
+      //   - 크롤링 매물의 외부 원본 이미지는 차단
+      //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
+      const stripCrawledImages = (arr: any[]) => arr.map((r: any) => applyImagePolicy(r));
 
       const selectFields = 'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, source_site, created_at, views';
 

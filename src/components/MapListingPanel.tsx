@@ -14,6 +14,7 @@ import { getFormattedPrice, sqmToPyeong, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { displayTitle } from '@/lib/formatListingTitle';
 import { displayAddressByAuth } from '@/lib/publicAddress';
+import { filterSelfHosted } from '@/lib/image-policy';
 import CompassDirection from '@/components/CompassDirection';
 import InquiryModal from '@/components/InquiryModal';
 import type { Listing } from '@/types';
@@ -67,10 +68,14 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         supabase.from('listing_features').select('id, feature').eq('listing_id', listingId),
       ]);
       const listingData: any = listingResult.data;
-      // 저작권 보호: 크롤링 매물(source_site NOT NULL)은 사진을 내리고 정보만 노출
+      // ※ 저작권 보호 + 자체 업로드 통과
+      //   - 크롤링 매물의 외부 원본 이미지는 차단
+      //   - 중개사가 직접 올린 자체 업로드 이미지(wishes.co.kr·supabase·R2)는 통과
       const isCrawled = !!listingData?.source_site;
+      const rawImages = imagesResult.data || [];
+      const safeImages = isCrawled ? filterSelfHosted(rawImages) : rawImages;
       setListing(listingData);
-      setImages(isCrawled ? [] : (imagesResult.data || []));
+      setImages(safeImages);
       setFeatures(featuresResult.data || []);
       setLoading(false);
     };

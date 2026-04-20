@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase';
+import { applyImagePolicy } from '@/lib/image-policy';
 import ListingDetailClient from './ListingDetailClient';
 
 export const dynamic = 'force-dynamic';
@@ -128,11 +129,10 @@ export default async function ListingPage({ params }: Props) {
       .eq('id', id)
       .single())) as { data: any };
 
-    // ※ 저작권 보호: 크롤링 매물(source_site)도 상세 정보 노출 (광고용)
-    //   단 사진(listing_images)은 빈 배열로 치환 — 상세 페이지는 플레이스홀더 렌더
-    const sanitized = listing && listing.source_site
-      ? { ...listing, listing_images: [] }
-      : listing;
+    // ※ 저작권 보호 + 자체 업로드 통과
+    //   - 크롤링 매물의 외부 원본 이미지는 차단
+    //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
+    const sanitized = listing ? applyImagePolicy(listing) : listing;
 
     return <ListingDetailClient id={id} listing={sanitized} />;
   } catch {
