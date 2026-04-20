@@ -26,7 +26,7 @@
   'use strict';
   if (window.__v260_perf_installed) return;
   window.__v260_perf_installed = true;
-  var VERSION = '2.6.8';
+  var VERSION = '2.6.9';
   var TAG = '[WP v' + VERSION + ' perf]';
 
   // ====================================================================
@@ -377,5 +377,37 @@
     console.log(TAG + ' /api/listings/[id] redirect installed');
   })();
 
-  console.log(TAG + ' v' + VERSION + ' overlay ready (AI cache + fetch dedupe + detail redirect)');
+  // ====================================================================
+  // 7. v2.6.9 — 관리 대시보드 카드(전체/공개/비공개/계약중/완료) 0 고착 버그 보정
+  //    content.js refresh() 가 클로저 로컬 applyFilters() 를 호출해서
+  //    MG-10 패치의 _updateMgmtDashboard() 훅을 우회 → 대시보드가 영영 0.
+  //    → window.WS.refresh 를 래핑해서 매 렌더 뒤 대시보드를 갱신.
+  // ====================================================================
+  (function installMgmtDashboardRefreshHook(){
+    function tryInstall() {
+      var WS = window.WS;
+      if (!WS || typeof WS.refresh !== 'function' || typeof WS._updateMgmtDashboard !== 'function') return false;
+      if (WS.__v269_mgmtDash_wrapped) return true;
+      var orig = WS.refresh.bind(WS);
+      WS.refresh = function() {
+        var r = orig.apply(this, arguments);
+        try { WS._updateMgmtDashboard(); } catch(e){}
+        return r;
+      };
+      WS.__v269_mgmtDash_wrapped = true;
+      // 이미 로드가 끝난 상태라면 즉시 1회 보정
+      try { WS._updateMgmtDashboard(); } catch(e){}
+      console.log(TAG + ' mgmt dashboard refresh hook installed');
+      return true;
+    }
+    if (!tryInstall()) {
+      var n = 0;
+      var iv = setInterval(function(){
+        n++;
+        if (tryInstall() || n > 80) clearInterval(iv);
+      }, 150);
+    }
+  })();
+
+  console.log(TAG + ' v' + VERSION + ' overlay ready (AI cache + fetch dedupe + detail redirect + mgmt dash fix)');
 })();
