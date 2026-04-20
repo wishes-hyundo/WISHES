@@ -215,6 +215,17 @@ export default function SearchPortalPage() {
       v280MobileScript.defer = false;
       document.body.appendChild(v280MobileScript);
     }
+
+    // v2.9.0 2차 모바일 폴리싱 (22건 — 터치타겟·CLS·피드백·스켈레톤·오프라인 등)
+    const existingV290 = document.getElementById('ws-ext-patch-v290-polish');
+    if (!existingV290) {
+      const v290Script = document.createElement('script');
+      v290Script.id = 'ws-ext-patch-v290-polish';
+      v290Script.src = '/search/content-v290-polish.js?v=20260420a';
+      v290Script.async = false;
+      v290Script.defer = false;
+      document.body.appendChild(v290Script);
+    }
   }, [state]);
 
   // ========== UI ==========
