@@ -44,6 +44,7 @@ interface Group {
 
 interface ScanResult {
   success: boolean;
+  mode?: 'strict' | 'loose';
   total_listings: number;
   total_groups: number;
   total_duplicates: number;
@@ -51,6 +52,8 @@ interface ScanResult {
   min_confidence: number;
   scanned_at: string;
 }
+
+type ScanMode = 'strict' | 'loose';
 
 interface QueueRow {
   id: number;
@@ -259,6 +262,7 @@ function GroupCard({
 export default function AdminDedupPage() {
   const [tab, setTab] = useState<'scan' | 'queue'>('scan');
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<ScanMode>('strict');
   const [minConfidence, setMinConfidence] = useState(85);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
@@ -286,21 +290,22 @@ export default function AdminDedupPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${getToken()}`,
         },
-        body: JSON.stringify({ minConfidence, limit: 300 }),
+        body: JSON.stringify({ minConfidence, limit: 300, mode }),
       });
       const j = (await r.json()) as ScanResult;
       if (!j.success) throw new Error((j as any).error || 'scan failed');
       setResult(j);
       setHiddenGroups(new Set());
+      const modeLabel = mode === 'loose' ? '느슨' : '엄격';
       setStatusMsg(
-        `✅ 스캔 완료: 전체 ${j.total_listings.toLocaleString()}건 중 ${j.total_groups}개 그룹 / ${j.total_duplicates}건 중복 후보`,
+        `✅ 스캔 완료 [${modeLabel}]: 전체 ${j.total_listings.toLocaleString()}건 중 ${j.total_groups}개 그룹 / ${j.total_duplicates}건 중복 후보`,
       );
     } catch (e: any) {
       setStatusMsg(`❌ 스캔 실패: ${e.message || e}`);
     } finally {
       setLoading(false);
     }
-  }, [minConfidence, getToken]);
+  }, [minConfidence, mode, getToken]);
 
   const runHide = useCallback(
     async (g: Group) => {
@@ -452,33 +457,86 @@ export default function AdminDedupPage() {
       {/* 스캔 탭 */}
       {tab === 'scan' && (
         <>
-          <div className="mb-5 p-4 bg-white rounded-2xl shadow-sm border border-slate-200 flex flex-wrap items-center gap-3">
-            <label className="text-sm font-semibold text-slate-700">
-              최소 신뢰도:
-              <select
-                value={minConfidence}
-                onChange={(e) => setMinConfidence(Number(e.target.value))}
-                className="ml-2 px-3 py-1.5 rounded-lg border border-slate-300 text-sm"
-              >
-                <option value={70}>70%+ (관대)</option>
-                <option value={80}>80%+ </option>
-                <option value={85}>85%+ (권장)</option>
-                <option value={90}>90%+ </option>
-                <option value={95}>95%+ (엄격)</option>
-              </select>
-            </label>
-            <button
-              onClick={runScan}
-              disabled={loading}
-              className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 disabled:opacity-50 transition"
-            >
-              {loading ? '🔄 스캔 중...' : '🔍 중복 스캔 실행'}
-            </button>
-            {result && (
-              <div className="text-xs text-slate-500 ml-auto">
-                마지막 스캔: {fmtDate(result.scanned_at)} · 처리: {result.total_listings.toLocaleString()}건
+          <div className="mb-5 p-4 bg-white rounded-2xl shadow-sm border border-slate-200 space-y-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* 모드 토글 */}
+              <div className="inline-flex rounded-lg border border-slate-300 overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setMode('strict')}
+                  className={`px-3 py-1.5 text-xs font-bold transition ${
+                    mode === 'strict'
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                  title="주소+동호수+거래+가격 6축 완전일치"
+                >
+                  🎯 엄격
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMode('loose')}
+                  className={`px-3 py-1.5 text-xs font-bold transition border-l border-slate-300 ${
+                    mode === 'loose'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                  title="주소+거래+가격 3축 (동호수 없이 훑음 — 리뷰 필수)"
+                >
+                  🌀 느슨
+                </button>
               </div>
-            )}
+
+              <label className="text-sm font-semibold text-slate-700">
+                최소 신뢰도:
+                <select
+                  value={minConfidence}
+                  onChange={(e) => setMinConfidence(Number(e.target.value))}
+                  className="ml-2 px-3 py-1.5 rounded-lg border border-slate-300 text-sm"
+                >
+                  <option value={70}>70%+ (관대)</option>
+                  <option value={80}>80%+ </option>
+                  <option value={85}>85%+ (권장)</option>
+                  <option value={90}>90%+ </option>
+                  <option value={95}>95%+ (엄격)</option>
+                </select>
+              </label>
+              <button
+                onClick={runScan}
+                disabled={loading}
+                className="px-5 py-2 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-500 disabled:opacity-50 transition"
+              >
+                {loading ? '🔄 스캔 중...' : '🔍 중복 스캔 실행'}
+              </button>
+              {result && (
+                <div className="text-xs text-slate-500 ml-auto">
+                  마지막 스캔: {fmtDate(result.scanned_at)} · 처리: {result.total_listings.toLocaleString()}건
+                </div>
+              )}
+            </div>
+
+            {/* 모드 설명 */}
+            <div
+              className={`text-xs px-3 py-2 rounded-lg border ${
+                mode === 'loose'
+                  ? 'bg-amber-50 border-amber-300 text-amber-900'
+                  : 'bg-slate-50 border-slate-200 text-slate-600'
+              }`}
+            >
+              {mode === 'strict' ? (
+                <>
+                  <b>🎯 엄격 모드</b> — 주소+동호수+거래유형+가격 <b>6개 필드가 완전일치</b>해야
+                  중복 판정. 크롤러 거짓 매칭을 원천 차단하지만, 동호수가 비어있는 매물은 아예
+                  비교 대상에서 빠집니다.
+                </>
+              ) : (
+                <>
+                  <b>🌀 느슨 모드</b> — <b>주소·거래·가격 3축</b>만 일치하면 후보로 집계.
+                  동호수가 비어있어도 포함되므로 중복이 잘 잡히지만, 서로 다른 호수일 가능성이
+                  있어 <b>사진·층·면적을 반드시 비교 후 숨김</b> 바랍니다. (기본 -10 감점 적용)
+                </>
+              )}
+            </div>
           </div>
 
           {!result && !loading && (

@@ -4,10 +4,13 @@
 // 목적: "100% 중복" 후보를 탐지하고 사유와 함께 반환.
 // 정책:
 //   1) 현재 '공개' 상태만 대상 (이미 중복정리/계약완료 제외)
-//   2) 4축 정확일치 그룹화: 소재지(address+address_detail) · 거래(deal) · 보증금(deposit) · 월세(monthly)
-//   3) 엄격 조건 — address_detail 이 비어있거나 '-' 이면 제외 (동호수 없는 크롤 데이터 거짓 매칭 방지)
-//   4) 그룹 내 한 건을 "대표"로 자동 지정 (최신 updated_at + 사진 수 많은 쪽 우선)
-//   5) 면적 비교 / 제목 유사도 등 mismatch 시 신뢰도 하향 → 관리자 리뷰 권장 표시
+//   2) 모드:
+//      - strict (기본): 소재지(address+address_detail)+거래(deal)+가격(deposit/monthly/price) 정확일치.
+//                        address_detail 이 비어있거나 '-' 이면 제외 (동호수 없는 크롤 거짓 매칭 방지)
+//      - loose       : 소재지(address만)+거래(deal)+가격 정확일치.
+//                        상세주소 없이 훑되 신뢰도 -10 감점 + 면적/층/제목 mismatch 시 가중 감점
+//   3) 그룹 내 한 건을 "대표"로 자동 지정 (최신 updated_at + 사진 수 많은 쪽 우선)
+//   4) 면적 비교 / 제목 유사도 등 mismatch 시 신뢰도 하향 → 관리자 리뷰 권장 표시
 // 반환:
 //   groups: [{ group_id, kept: {…}, duplicates: [{…}], reason, confidence, mismatches }]
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -45,16 +48,24 @@ function norm(s: string | null | undefined): string {
   return String(s).replace(/\s+/g, '').trim();
 }
 
-function groupKey(r: Row): string | null {
+function groupKey(r: Row, mode: 'strict' | 'loose' = 'strict'): string | null {
   const addr = norm(r.address);
-  const detail = norm(r.address_detail);
-  if (!addr || !detail) return null; // address_detail 필수
-  if (detail === '-' || detail === '_' || detail === '.' || detail.length < 2) return null;
+  if (!addr) return null;
   const deal = norm(r.deal);
   if (!deal) return null;
   const dep = String(r.deposit ?? 0);
   const mon = String(r.monthly ?? 0);
   const pr = String(r.price ?? 0);
+
+  if (mode === 'loose') {
+    // 상세주소 없이 address만 기준 (주소·거래·가격 일치면 1차 후보)
+    return [addr, '*', deal, dep, mon, pr].join('|');
+  }
+
+  // strict: 동·호수까지 정확히 일치해야 함
+  const detail = norm(r.address_detail);
+  if (!detail) return null;
+  if (detail === '-' || detail === '_' || detail === '.' || detail.length < 2) return null;
   return [addr, detail, deal, dep, mon, pr].join('|');
 }
 
@@ -85,9 +96,24 @@ function similarityTitle(a: string, b: string): number {
 function buildReasonAndConfidence(
   kept: Row,
   dup: Row,
+  mode: 'strict' | 'loose' = 'strict',
 ): { reason: string; confidence: number; mismatches: string[] } {
   const mismatches: string[] = [];
   let confidence = 100;
+
+  // loose 모드: 상세주소 없이 판정하므로 기본 -10 감점 (동호수 다를 가능성)
+  if (mode === 'loose') {
+    confidence -= 10;
+    const detailMissing =
+      !norm(kept.address_detail) || !norm(dup.address_detail);
+    if (detailMissing) mismatches.push(`상세주소 누락 (동·호수 비교 불가)`);
+    else if (norm(kept.address_detail) !== norm(dup.address_detail)) {
+      mismatches.push(
+        `상세주소 다름 (${kept.address_detail} vs ${dup.address_detail})`,
+      );
+      confidence -= 20;
+    }
+  }
 
   // 면적 비교 (허용 오차 0.5m²)
   const ka = kept.area_m2 ?? 0;
@@ -122,9 +148,15 @@ function buildReasonAndConfidence(
   const ks = norm(kept.source_site);
   const ds = norm(dup.source_site);
   const sourceSame = !!ks && ks === ds && !!kept.source_id && kept.source_id === dup.source_id;
+  if (sourceSame) confidence = Math.min(100, confidence + 10); // 같은 출처·ID면 강력한 증거
 
   const parts: string[] = [];
-  parts.push(`동일 소재지 (${kept.address} ${kept.address_detail})`);
+  if (mode === 'loose') {
+    parts.push(`동일 주소 (${kept.address})`);
+    parts.push(`※ 상세주소 미비교 (느슨 모드)`);
+  } else {
+    parts.push(`동일 소재지 (${kept.address} ${kept.address_detail})`);
+  }
   parts.push(`동일 거래유형 (${kept.deal})`);
   parts.push(`동일 가격 (보증금 ${kept.deposit ?? 0}/월세 ${kept.monthly ?? 0}${kept.price ? `/매매 ${kept.price}` : ''})`);
   if (Math.abs(ka - da) <= 0.5) parts.push(`면적 일치 (${ka}m²)`);
@@ -146,6 +178,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({} as any));
     const minConfidence = typeof body.minConfidence === 'number' ? body.minConfidence : 80;
     const limitGroups = typeof body.limit === 'number' ? Math.min(body.limit, 500) : 200;
+    const mode: 'strict' | 'loose' = body.mode === 'loose' ? 'loose' : 'strict';
 
     const supabase = createServerClient();
 
@@ -174,7 +207,7 @@ export async function POST(request: NextRequest) {
     // 그룹화
     const groups = new Map<string, Row[]>();
     for (const r of rows) {
-      const k = groupKey(r);
+      const k = groupKey(r, mode);
       if (!k) continue;
       const arr = groups.get(k) || [];
       arr.push(r);
@@ -206,7 +239,7 @@ export async function POST(request: NextRequest) {
       const dupSummaries: any[] = [];
 
       for (const d of dups) {
-        const { reason, confidence, mismatches } = buildReasonAndConfidence(kept, d);
+        const { reason, confidence, mismatches } = buildReasonAndConfidence(kept, d, mode);
         if (!groupReason) groupReason = reason;
         groupConf = Math.min(groupConf, confidence);
         mismatches.forEach((m) => {
@@ -270,6 +303,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      mode,
       total_listings: rows.length,
       total_groups: result.length,
       total_duplicates: result.reduce((s, g) => s + g.duplicates.length, 0),
