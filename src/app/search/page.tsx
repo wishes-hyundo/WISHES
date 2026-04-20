@@ -250,6 +250,19 @@ export default function SearchPortalPage() {
       v292Script.defer = false;
       document.body.appendChild(v292Script);
     }
+
+    // v2.9.3 알림 로그 시스템 (Phase 1+2) — 🔔 벨 버튼 + 드로어 + localStorage 히스토리
+    // 기존 showToast / _autoDedup / _showDupSuspectAlert 를 래핑하여
+    // 모든 알림을 최근 200건 타임라인으로 수집한다.
+    const existingV293 = document.getElementById('ws-ext-patch-v293-alert-log');
+    if (!existingV293) {
+      const v293Script = document.createElement('script');
+      v293Script.id = 'ws-ext-patch-v293-alert-log';
+      v293Script.src = '/search/content-v293-alert-log.js?v=20260420a';
+      v293Script.async = false;
+      v293Script.defer = false;
+      document.body.appendChild(v293Script);
+    }
   }, [state]);
 
   // ========== UI ==========
