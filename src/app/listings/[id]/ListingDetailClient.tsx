@@ -73,7 +73,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
   const isLoggedIn = !!user;
 
   // 🔒 SSR 주입 데이터에서 이미지/특징을 미리 추출하여 초기 렌더에 즉시 반영
-  //   - 크롤링 매물(source_site)은 page.tsx 에서 listing_images 를 이미 [] 로 비운 상태
+  //   - 크롤링 매물(source_site)은 page.tsx 에서 applyImagePolicy 로 자체 업로드만 남긴 상태
   //   - listing_features 는 [{feature: string}] 모양 → UI 호환용 [{id, feature}] 로 매핑
   const initialImages = Array.isArray(initialListing?.listing_images)
     ? initialListing.listing_images
@@ -519,8 +519,9 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* 좌측: 이미지 + 상세 */}
           <div className="lg:col-span-2 space-y-6">
+            {/* images 는 applyImagePolicy 로 자체 업로드만 남은 배열 — 그대로 전달 */}
             <ImageGallery
-              images={listing?.source_site ? [] : images}
+              images={images}
               title={displayTitle(listing)}
               deal={listing.deal}
               status={listing.status}
