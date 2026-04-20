@@ -37,6 +37,39 @@ const ADMIN_PREFIX_PATTERNS: RegExp[] = [
   /^[가-힣]+군\s+[가-힣]+(동|리)/,
 ];
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AI-슬로건 후처리 (v2.7): DB 에 이미 박힌 기존 AI 제목들도 디스플레이에서 정화
+// 사용자 피드백 (2026-04): "AI가 자동생성해준 티 나면 안되고 사람냄새 나야 한다"
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const AI_SLOGAN_PATTERNS: RegExp[] = [
+  /따뜻한\s*/g, /따스한\s*/g, /포근한\s*/g, /아늑한\s*/g,
+  /편의점\s*30\s*초\s*/g, /편의점\s*코앞\s*/g, /편의점\s*골목\s*/g,
+  /대학가\s*중심\s*/g, /대학가\s*한복판\s*/g,
+  /의\s*정석/g, /끝판왕/g, /천국\b/g,
+  /생활\s*편리한\s*방/g, /생활의\s*정석/g,
+  /혼자만의\s*공간/g, /나만의\s*아지트/g,
+  /힐링\s*공간/g, /힐링\s*원룸/g,
+  /감성\s*원룸/g, /감성\s*살아있는/g, /감성\s*가득/g,
+  /보금자리/g, /완벽한\s*일상/g, /특별한\s*하루/g,
+  /깔끔한\s*(원룸|투룸)/g,  // 너무 상투
+  /중심가/g,                // 주소 아닌 "중심가" 은근 AI 티
+];
+
+function scrubAiSlogan(t: string): string {
+  let out = t;
+  for (const p of AI_SLOGAN_PATTERNS) out = out.replace(p, '');
+  // 고립된 구두점 제거 (예: "신림동 , 생활" → "신림동 생활")
+  out = out.replace(/\s+[,·—]\s+/g, ' ')
+           .replace(/\s+,\s*$/, '')
+           .replace(/^\s*,\s+/, '');
+  // 중복 공백·선두/말미 구두점 정리
+  out = out.replace(/\s+/g, ' ')
+           .replace(/^[\s,·\-—]+/, '')
+           .replace(/[\s,·\-—]+$/, '')
+           .trim();
+  return out;
+}
+
 // 호수/지번/동호 덩어리 — "B 102호", "303호", "2층 303호"
 const UNIT_NUMBER_PATTERN = /\b\d+\s*호\b|\bB\s*\d+\s*호|\d+동\s*\d+호/;
 
@@ -231,18 +264,34 @@ function buildAutoTitle(l: ListingLike): string {
   return clipTitle(base);
 }
 
+// 스크럽 결과가 "건질 만한가" 판정
+// · 너무 짧거나 (≤ 7자)
+// · 원본의 절반 이하로 쪼그라들면 → 허접해진 것으로 간주, 자동 생성으로 폴백
+function isScrubWorthKeeping(scrubbed: string, original: string): boolean {
+  if (!scrubbed) return false;
+  if (scrubbed.length < 7) return false;
+  if (scrubbed.length < original.length * 0.5) return false;
+  return true;
+}
+
 /**
  * 매물 제목 표시용 문자열을 반환.
  */
 export function displayTitle(listing: ListingLike): string {
-  // 1) ai_title 최우선
+  // 1) ai_title 최우선 — 단, AI 슬로건 스크러빙 후 남은 문자열만 채택
   const ai = (listing.ai_title || '').trim();
-  if (ai && !hasRawAddress(ai)) return clipTitle(ai);
+  if (ai && !hasRawAddress(ai)) {
+    const scrubbed = scrubAiSlogan(ai);
+    if (isScrubWorthKeeping(scrubbed, ai)) return clipTitle(scrubbed);
+  }
 
-  // 2) 원본 title 이 세일즈 카피 형태면 그대로
+  // 2) 원본 title — 주소·지번 없는 경우에만, 그리고 AI 슬로건 스크러빙
   const raw = (listing.title || '').trim();
-  if (raw && !hasRawAddress(raw)) return clipTitle(raw);
+  if (raw && !hasRawAddress(raw)) {
+    const scrubbed = scrubAiSlogan(raw);
+    if (isScrubWorthKeeping(scrubbed, raw)) return clipTitle(scrubbed);
+  }
 
-  // 3) 자동 생성
+  // 3) 자동 생성 (스크러빙 후 너무 짧아지거나 raw 가 주소면 여기로)
   return buildAutoTitle(listing);
 }
