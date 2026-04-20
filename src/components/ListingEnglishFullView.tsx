@@ -12,6 +12,7 @@ import {
   MapPin, Home, Maximize, Building2, Layers, Car, DoorOpen, Dog,
   Thermometer, Compass, Bath, Banknote, Train, Calendar, ShieldCheck, Globe, Info,
 } from 'lucide-react';
+import { sanitizeBuildingName } from '@/lib/sanitizeBuildingName';
 
 export type EnListing = {
   id: number | string;
@@ -201,8 +202,9 @@ export default function ListingEnglishFullView({
           <h2 className="mt-2 text-lg sm:text-xl font-bold text-wishes-primary">
             {listing.dong || listing.gu || ''} {typeEn}
           </h2>
-          {listing.building_name && (
-            <div className="text-sm text-gray-600 mt-0.5">{listing.building_name}</div>
+          {/* #123 : 건물명 방어선 통과 시에만 노출 (크롤링 소스·슬로건·URL 차단) */}
+          {sanitizeBuildingName(listing.building_name) && (
+            <div className="text-sm text-gray-600 mt-0.5">{sanitizeBuildingName(listing.building_name)}</div>
           )}
         </div>
 

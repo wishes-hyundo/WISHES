@@ -18,6 +18,7 @@
 //      e. 기본 폴백 → {동} {유형} {층}
 
 import { formatFloor } from './formatFloor';
+import { sanitizeBuildingName } from './sanitizeBuildingName';
 
 // 지번 패턴
 const LOT_NUMBER_PATTERN = /\b\d+-\d+\b|산\s?\d+-?\d*/;
@@ -102,6 +103,8 @@ function isRealBuildingName(name?: string | null): boolean {
   if (/^B?\d+\s*호$/.test(t)) return false;
   if (/^(지하|반지하|옥탑)\s*\d*호?$/.test(t)) return false;
   if (!/[가-힣]{2,}/.test(t)) return false;
+  // #123 : 크롤링 소스명/슬로건/URL 등 오염 패턴은 sanitizeBuildingName 에 위임
+  if (sanitizeBuildingName(t) === null) return false;
   return true;
 }
 

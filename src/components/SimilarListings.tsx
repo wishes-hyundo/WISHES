@@ -14,6 +14,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, MapPin, Loader2 } from 'lucide-react';
+import { sanitizeBuildingName } from '@/lib/sanitizeBuildingName';
 
 interface SimilarListing {
   id: number;
@@ -212,7 +213,8 @@ function SimilarCard({ item }: { item: SimilarListing }) {
           <span className="text-[11px] font-semibold text-gray-400 ml-0.5">만</span>
         </div>
         <p className="text-xs text-gray-700 font-medium truncate mt-0.5">
-          {item.building_name || item.title || item.dong}
+          {/* #123 : 건물명 방어선 통과 시에만 사용 (크롤링 소스·슬로건·URL 차단) */}
+          {sanitizeBuildingName(item.building_name) || item.title || item.dong}
         </p>
       </div>
 

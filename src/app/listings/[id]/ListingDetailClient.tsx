@@ -10,6 +10,8 @@ import { applyImagePolicy } from '@/lib/image-policy';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 import { displayTitle } from '@/lib/formatListingTitle';
 import { displayDescription } from '@/lib/formatListingDescription';
+// #123: 건물명 표시 방어선 (크롤링 소스·슬로건·URL·지번 차단)
+import { sanitizeBuildingName, canShowSameBuildingSection } from '@/lib/sanitizeBuildingName';
 import ImageGallery from '@/components/ImageGallery';
 import { ListingCard } from '@/components/ListingCard';
 import RealPriceChart from '@/components/RealPriceChart';
@@ -595,7 +597,9 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 {listing.built_year && <InfoRow label="준공년도" value={listing.built_year} />}
                 {listing.available_date && <InfoRow label="입주가능일" value={listing.available_date} />}
                 {listing.gu && <InfoRow label="구" value={listing.gu} />}
-                {listing.building_name && <InfoRow label="건물명" value={listing.building_name} />}
+                {sanitizeBuildingName(listing.building_name) && (
+                  <InfoRow label="건물명" value={sanitizeBuildingName(listing.building_name)!} />
+                )}
                 {listing.entrance_type && <InfoRow label="현관구조" value={listing.entrance_type} />}
                 {listing.lease_period && <InfoRow label="임대기간" value={listing.lease_period} />}
                 {listing.building_purpose && <InfoRow label="건물용도" value={listing.building_purpose} />}
@@ -1009,36 +1013,40 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
         </div>
 
         {/* T2-1: 같은 건물 다른 매물 (단지/건물 컨텍스트) */}
-        {buildingListings.length > 0 && (
-          <div className="mt-12">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-wishes-primary/10 text-wishes-primary text-xs font-bold">
-                <Building2 className="w-3.5 h-3.5" /> 같은 건물
+        {/* #123 : 건물명 방어선 통과 시에만 노출. 오염된 건물명은 섹션 자체 숨김 */}
+        {canShowSameBuildingSection(listing.building_name, buildingListings.length) && (() => {
+          const safeName = sanitizeBuildingName(listing.building_name)!;
+          return (
+            <div className="mt-12">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-wishes-primary/10 text-wishes-primary text-xs font-bold">
+                  <Building2 className="w-3.5 h-3.5" /> 같은 건물
+                </div>
+                <h2 className="text-lg font-bold text-wishes-primary">
+                  {safeName}
+                  <span className="text-xs font-normal text-wishes-muted ml-2">
+                    현재 {buildingListings.length}건 등록
+                  </span>
+                </h2>
               </div>
-              <h2 className="text-lg font-bold text-wishes-primary">
-                {listing.building_name}
-                <span className="text-xs font-normal text-wishes-muted ml-2">
-                  현재 {buildingListings.length}건 등록
-                </span>
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {buildingListings.slice(0, 4).map((item: any) => (
-                <ListingCard key={item.id} listing={item} />
-              ))}
-            </div>
-            {buildingListings.length > 4 && (
-              <div className="mt-3 text-right">
-                <Link
-                  href={`/listings?search=${encodeURIComponent(listing.building_name)}`}
-                  className="inline-flex items-center gap-1 text-xs font-medium text-wishes-primary hover:underline"
-                >
-                  이 건물 전체 매물 보기 ({buildingListings.length}건) <ChevronRight className="w-3 h-3" />
-                </Link>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {buildingListings.slice(0, 4).map((item: any) => (
+                  <ListingCard key={item.id} listing={item} />
+                ))}
               </div>
-            )}
-          </div>
-        )}
+              {buildingListings.length > 4 && (
+                <div className="mt-3 text-right">
+                  <Link
+                    href={`/listings?search=${encodeURIComponent(safeName)}`}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-wishes-primary hover:underline"
+                  >
+                    이 건물 전체 매물 보기 ({buildingListings.length}건) <ChevronRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* 연관 매물 (V3-18) */}
         {relatedListings.length > 0 && (
