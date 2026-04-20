@@ -210,7 +210,7 @@ export default function SearchPortalPage() {
     if (!existingV280Mobile) {
       const v280MobileScript = document.createElement('script');
       v280MobileScript.id = 'ws-ext-patch-v280-mobile';
-      v280MobileScript.src = '/search/content-v280-mobile.js?v=20260420a';
+      v280MobileScript.src = '/search/content-v280-mobile.js?v=20260420b';
       v280MobileScript.async = false;
       v280MobileScript.defer = false;
       document.body.appendChild(v280MobileScript);

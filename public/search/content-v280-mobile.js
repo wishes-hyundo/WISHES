@@ -57,7 +57,9 @@
     setTimeout(function () { try { hydrateImages(); } catch (e) {} }, ms);
   });
 
-  // MutationObserver: 새 카드 렌더 시 즉시 hydrate
+  // MutationObserver: 새 카드 렌더 시 즉시 hydrate (SYNC — rAF 지연 제거)
+  //  이전 버전은 rAF 로 배치했는데 탭 백그라운드·리사이즈 재렌더에서 rAF
+  //  가 드롭되어 data-src 가 남는 현상 발견. 즉시 호출로 전환.
   try {
     var imgMO = new MutationObserver(function (mutations) {
       var hit = false;
@@ -65,13 +67,10 @@
         if (mutations[i].type === 'childList' && mutations[i].addedNodes.length) { hit = true; break; }
       }
       if (!hit) return;
-      if (imgMO._raf) cancelAnimationFrame(imgMO._raf);
-      imgMO._raf = requestAnimationFrame(function () {
-        try { hydrateImages(); } catch (e) {}
-      });
+      try { hydrateImages(); } catch (e) {}
     });
-    var imgTarget = document.querySelector('.ws-listings') || document.body;
-    imgMO.observe(imgTarget, { childList: true, subtree: true });
+    // .ws-listings 은 SPA 에서 교체될 수 있으므로 body 까지 감시
+    imgMO.observe(document.body, { childList: true, subtree: true });
     STATE.imgMO = imgMO;
   } catch (e) {}
 
@@ -84,6 +83,22 @@
       try { hydrateImages(); } catch (e) {}
     }, 250);
   }, { passive: true });
+
+  // resize 에도 재수화 (content.js 가 리사이즈 후 리렌더)
+  var hydrateResizeT = null;
+  window.addEventListener('resize', function () {
+    if (hydrateResizeT) return;
+    hydrateResizeT = setTimeout(function () {
+      hydrateResizeT = null;
+      try { hydrateImages(); stripSourceBadges(); } catch (e) {}
+    }, 300);
+  }, { passive: true });
+
+  // 궁극의 안전망 — 2초 인터벌 (저부하)
+  var SAFETY_INTERVAL = setInterval(function () {
+    try { hydrateImages(); stripSourceBadges(); } catch (e) {}
+  }, 2000);
+  STATE.safetyInterval = SAFETY_INTERVAL;
 
   // ------------------------------------------------------------------
   // 2. 크롤링 출처 G/O 배지 DOM 제거
@@ -111,15 +126,15 @@
   });
 
   try {
-    var badgeMO = new MutationObserver(function () {
-      if (badgeMO._raf) cancelAnimationFrame(badgeMO._raf);
-      badgeMO._raf = requestAnimationFrame(function () {
-        try { stripSourceBadges(); } catch (e) {}
-      });
+    var badgeMO = new MutationObserver(function (mutations) {
+      var hit = false;
+      for (var i = 0; i < mutations.length; i++) {
+        if (mutations[i].type === 'childList' && mutations[i].addedNodes.length) { hit = true; break; }
+      }
+      if (!hit) return;
+      try { stripSourceBadges(); } catch (e) {}
     });
-    badgeMO.observe(document.querySelector('.ws-listings') || document.body, {
-      childList: true, subtree: true
-    });
+    badgeMO.observe(document.body, { childList: true, subtree: true });
     STATE.badgeMO = badgeMO;
   } catch (e) {}
 
@@ -196,8 +211,10 @@
     rollback: function () {
       try { STATE.imgMO && STATE.imgMO.disconnect(); } catch (e) {}
       try { STATE.badgeMO && STATE.badgeMO.disconnect(); } catch (e) {}
+      try { STATE.safetyInterval && clearInterval(STATE.safetyInterval); } catch (e) {}
       STATE.imgMO = null;
       STATE.badgeMO = null;
+      STATE.safetyInterval = null;
       STATE.filterBound = false;
       delete window.__WS_V280_MOBILE__;
     }
