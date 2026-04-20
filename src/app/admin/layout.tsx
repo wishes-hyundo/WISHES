@@ -165,6 +165,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { href: '/admin', label: '대시보드', icon: '📊' },
     { href: '/admin?tab=contacts', label: '상담 관리', icon: '📞' },
+    { href: '/admin/dedup', label: '중복 정리', icon: '🧹' },
   ];
 
   const isNewListing = pathname === '/admin/listings/new';
