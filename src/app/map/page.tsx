@@ -9,7 +9,7 @@ import MapServiceWorker from '@/components/providers/MapServiceWorker';
 import { formatPrice } from '@/lib/utils';
 import { displayTitle } from '@/lib/formatListingTitle';
 import { withViewTransition } from '@/lib/viewTransition';
-import { MapPin, List, Loader2, Search, X, Building2, Crosshair, RefreshCw, SlidersHorizontal, Edit3, Check, Train, Navigation, Home } from 'lucide-react';
+import { MapPin, List, Loader2, Search, X, Building2, Crosshair, RefreshCw, SlidersHorizontal, Edit3, Check, Train, Navigation, Home, Sparkles, Compass, Filter as FilterIcon, TrendingUp } from 'lucide-react';
 import type { Listing, ListingFilter, DealType, ListingType } from '@/types';
 import MapFilterSheet from '@/components/MapFilterSheet';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -518,7 +518,7 @@ function createHoverPreviewContent(listing: Listing): HTMLElement {
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 개별 매물 마커 (Level 1-4)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function createPriceMarkerContent(listing: Listing, isSelected: boolean = false, extraCount: number = 0): HTMLElement {
+function createPriceMarkerContent(listing: Listing, isSelected: boolean = false, extraCount: number = 0, highlightMode: 'match' | 'dim' | null = null): HTMLElement {
   // 16차 폴리싱 — 스프링 entry·선택 시 pulse ring·hover lift·진한 그림자
   const priceText = listing.deal === '매매'
     ? `매매 ${formatPrice(listing.price || 0)}`
@@ -534,31 +534,41 @@ function createPriceMarkerContent(listing: Listing, isSelected: boolean = false,
     '매매': { main: '#16A34A', dark: '#15803D', glow: 'rgba(22,163,74,0.45)', ring: 'rgba(22,163,74,0.25)' },
     '단기': { main: '#9333EA', dark: '#7E22CE', glow: 'rgba(147,51,234,0.45)', ring: 'rgba(147,51,234,0.25)' },
   };
-  const colors = colorMap[listing.deal] || colorMap['전세'];
+  // C안: NL 검색 매칭 시 오렌지 하이라이트, 비매칭은 디밍
+  const nlMatchColors = { main: '#F97316', dark: '#EA580C', glow: 'rgba(249,115,22,0.55)', ring: 'rgba(249,115,22,0.30)' };
+  const colors = highlightMode === 'match'
+    ? nlMatchColors
+    : (colorMap[listing.deal] || colorMap['전세']);
 
   const content = document.createElement('div');
-  const baseShadow = isSelected
-    ? `0 10px 24px ${colors.glow}, 0 0 0 3px #fff, 0 0 0 6px ${colors.main}`
-    : `0 3px 10px ${colors.glow}, 0 0 0 2px #fff`;
-  const baseScale = isSelected ? 'scale(1.22)' : 'scale(1)';
+  const baseShadow = highlightMode === 'match'
+    ? `0 8px 20px ${colors.glow}, 0 0 0 3px #fff, 0 0 0 6px ${colors.main}`
+    : (isSelected
+      ? `0 10px 24px ${colors.glow}, 0 0 0 3px #fff, 0 0 0 6px ${colors.main}`
+      : `0 3px 10px ${colors.glow}, 0 0 0 2px #fff`);
+  const baseScale = highlightMode === 'match'
+    ? 'scale(1.14)'
+    : (isSelected ? 'scale(1.22)' : 'scale(1)');
+  const dimOpacity = highlightMode === 'dim' ? '0.35' : '1';
   content.style.cssText = `
-    background: ${isSelected ? colors.dark : colors.main};
+    background: ${isSelected || highlightMode === 'match' ? colors.dark : colors.main};
     color: #fff;
     font-size: 12.5px; font-weight: 800; letter-spacing: -0.2px;
     padding: 6px 12px; border-radius: 999px; white-space: nowrap;
     cursor: pointer; box-shadow: ${baseShadow};
     transform: translate(-50%, -100%) scale(0.6);
     opacity: 0;
-    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s ease, background 0.12s ease, opacity 0.18s ease;
+    transition: transform 0.22s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.18s ease, background 0.12s ease, opacity 0.18s ease, filter 0.18s ease;
     position: relative; font-family: 'GmarketSans', sans-serif;
-    user-select: none; z-index: ${isSelected ? 100 : 1};
+    user-select: none; z-index: ${highlightMode === 'match' ? 80 : (isSelected ? 100 : 1)};
     will-change: transform;
+    filter: ${highlightMode === 'dim' ? 'saturate(0.25)' : 'none'};
   `;
 
   // 스프링 entry 애니메이션 — next frame에 최종 스케일로 전환
   requestAnimationFrame(() => {
     content.style.transform = `translate(-50%, -100%) ${baseScale}`;
-    content.style.opacity = '1';
+    content.style.opacity = dimOpacity;
   });
 
   const priceSpan = document.createElement('span');
@@ -677,6 +687,18 @@ function MapSearchPageInner() {
   const [searchQuery, setSearchQuery] = useState('');
   // 검색창은 2026 리디자인에서 항상 노출되므로 토글 state 제거됨
   const [detailId, setDetailId] = useState<number | null>(null);
+  // ━━━ C안: 자연어 검색 결과 (NL 모드) ━━━
+  //   nlResults === null   → NL 모드 OFF (기존 뷰포트 검색)
+  //   nlResults === []     → NL 모드 ON & 결과 0건 (친절 폴백 UI)
+  //   nlResults.length>0   → NL 모드 ON & 결과 있음 (좌측 패널·지도 하이라이트)
+  const [nlResults, setNlResults] = useState<Listing[] | null>(null);
+  const [nlParsed, setNlParsed] = useState<{
+    summary?: string; residue?: string; type?: string; deal?: string; dong?: string;
+    rooms?: number; parking?: boolean; elevator?: boolean; pet?: boolean;
+    maxDeposit?: number; maxMonthly?: number; minArea?: number; maxArea?: number;
+  } | null>(null);
+  const [nlLoading, setNlLoading] = useState(false);
+  const [nlQuery, setNlQuery] = useState(''); // 실제 검색된 쿼리 (입력 도중 방지)
   // 15차-3: 자동 검색 토글 (다방 시그니처) + 수동 재검색 버튼 상태
   const [autoRefetch, setAutoRefetch] = useState(true);
   const [mapMovedSinceFetch, setMapMovedSinceFetch] = useState(false);
@@ -728,10 +750,14 @@ function MapSearchPageInner() {
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
 
   // 검색 + 상세 필터 (클라이언트 사이드 — 거래/유형/가격/면적/층/옵션/방향/입주/용도)
+  //   C안: NL 모드 ON (nlResults !== null) 일 땐 서버가 이미 랭크해서 준 목록을
+  //   그대로 노출한다. 좌측 상세 필터/드로워만 한 번 더 교차 필터.
   const filteredListings = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const source: Listing[] = nlResults ?? listings;
+    const inNlMode = nlResults !== null;
+    const q = inNlMode ? '' : searchQuery.trim().toLowerCase();
 
-    return listings.filter((l) => {
+    return source.filter((l) => {
       // 검색어
       if (q) {
         const hit =
@@ -805,7 +831,7 @@ function MapSearchPageInner() {
 
       return true;
     });
-  }, [listings, searchQuery, filters, drawPolygon]);
+  }, [listings, nlResults, searchQuery, filters, drawPolygon]);
 
   // T3-2: filteredListings 바뀌면 가시 범위 초기화 (bbox 이동·검색어 변경 시 맨 위부터)
   useEffect(() => {
@@ -990,10 +1016,38 @@ function MapSearchPageInner() {
     overlaysRef.current.forEach((o) => o.setMap(null));
     overlaysRef.current = [];
 
-    const validListings = listings.filter((l) => l.lat && l.lng);
+    // C안: NL 모드면 좌측 패널과 동일한 결과셋을 지도에도 표출
+    //   (뷰포트 클러스터와 충돌하지 않도록 nlResults를 단일 소스로 사용)
+    const inNlMode = nlResults !== null && nlResults.length > 0;
+    const validListings = inNlMode
+      ? nlResults!.filter((l) => l.lat && l.lng)
+      : listings.filter((l) => l.lat && l.lng);
     if (validListings.length === 0) return;
 
     const level = map.getLevel();
+
+    // C안: NL 모드에서는 항상 개별 가격 버블 (오렌지 하이라이트)
+    //   (클러스터 단계를 건너뛰고 직관적으로 결과를 보여준다)
+    if (inNlMode) {
+      validListings.forEach((listing) => {
+        if (listing.lat == null || listing.lng == null) return;
+        const position = new window.kakao.maps.LatLng(listing.lat, listing.lng);
+        const isSelected = selectedId === listing.id || detailId === listing.id;
+        const content = createPriceMarkerContent(listing, isSelected, 0, 'match');
+        content.addEventListener('click', () => {
+          setDetailId(listing.id);
+          setSelectedId(listing.id);
+          map.panTo(position);
+        });
+        const overlay = new window.kakao.maps.CustomOverlay({
+          position, content, yAnchor: 1.5, xAnchor: 0.5,
+          zIndex: isSelected ? 110 : 80,
+        });
+        overlay.setMap(map);
+        overlaysRef.current.push(overlay);
+      });
+      return;
+    }
 
     if (level >= 9) {
       // ━━━ 시/도 레벨 클러스터 ━━━
@@ -1179,7 +1233,7 @@ function MapSearchPageInner() {
         overlaysRef.current.push(overlay);
       });
     }
-  }, [listings, selectedId, detailId, zoomLevel]);
+  }, [listings, selectedId, detailId, zoomLevel, nlResults]);
 
   // ━━━ T2-3: selectedId 변경 → 리스트 카드 자동 스크롤 ━━━
   useEffect(() => {
@@ -1264,9 +1318,66 @@ function MapSearchPageInner() {
   // ━━━ 14차: 검색어 → 카카오 장소/주소 검색 → 지도 실제 이동 (다방·직방 스타일) ━━━
   // 16차 핫픽스 — 엔터/검색 실행 시 매칭되면 지도 이동 후 텍스트 필터를 풀어
   // "지도엔 매물 있는데 리스트는 0건" 현상을 원천 차단
-  const handleSearchSubmit = useCallback((q: string) => {
+  // C안: 자연어 검색(/api/map/search) 을 최우선 호출 → 결과 있거나 파서가 조건을
+  //       인식하면 NL 모드로 진입, 아니면 기존 Geocoder/Places fallback.
+  const handleSearchSubmit = useCallback(async (q: string) => {
     const query = q.trim();
     if (!query) return;
+
+    setNlLoading(true);
+    setNlQuery(query);
+    setShowSuggestions(false);
+
+    // 1) 자연어 검색 시도 (전국 범위 — bounds 안 넘김)
+    try {
+      const resp = await fetch(`/api/map/search?q=${encodeURIComponent(query)}`);
+      const json = await resp.json();
+      const data: Listing[] = Array.isArray(json?.data) ? json.data : [];
+      const parsed = json?.parsed || null;
+      const hasStructuredHint =
+        parsed && (parsed.type || parsed.deal || parsed.dong || parsed.rooms ||
+                   parsed.parking || parsed.elevator || parsed.pet ||
+                   parsed.maxDeposit || parsed.maxMonthly || parsed.minArea || parsed.maxArea);
+
+      // 결과가 있거나 파서가 구조 힌트를 잡았다면 → NL 모드 ON
+      if (data.length > 0 || hasStructuredHint) {
+        setNlResults(data);
+        setNlParsed(parsed);
+        setNlLoading(false);
+
+        // 결과가 있으면 자동 fitBounds (P1)
+        if (data.length > 0 && window.kakao?.maps && mapInstanceRef.current) {
+          const map = mapInstanceRef.current;
+          const bounds = new window.kakao.maps.LatLngBounds();
+          let validCount = 0;
+          for (const l of data) {
+            if (l.lat != null && l.lng != null) {
+              bounds.extend(new window.kakao.maps.LatLng(l.lat, l.lng));
+              validCount += 1;
+            }
+          }
+          if (validCount > 0) {
+            // 단일 매물이면 레벨 고정(너무 확대되면 공백), 복수면 setBounds
+            if (validCount === 1) {
+              const first = data.find((l) => l.lat != null && l.lng != null);
+              if (first) {
+                map.setLevel(4);
+                map.panTo(new window.kakao.maps.LatLng(first.lat!, first.lng!));
+              }
+            } else {
+              try { map.setBounds(bounds, 60, 60, 60, 60); } catch { map.setBounds(bounds); }
+            }
+          }
+        }
+        return;
+      }
+    } catch (err) {
+      console.warn('NL search failed, falling back to geocoder', err);
+    } finally {
+      setNlLoading(false);
+    }
+
+    // 2) NL 실패/무효 → 기존 Geocoder·Places (지도 이동만)
     if (!window.kakao?.maps || !mapInstanceRef.current) return;
     const map = mapInstanceRef.current;
 
@@ -1275,30 +1386,34 @@ function MapSearchPageInner() {
       map.setLevel(level);
       map.panTo(center);
       setSearchQuery('');
+      setNlResults(null);
+      setNlParsed(null);
     };
 
-    // 1) 주소 검색 (예: "서울 강남구 역삼동")
     if (window.kakao.maps.services?.Geocoder) {
       const geocoder = new window.kakao.maps.services.Geocoder();
       geocoder.addressSearch(query, (result: any[], status: string) => {
         if (status === window.kakao.maps.services.Status.OK && result[0]) {
           moveToCoord(Number(result[0].y), Number(result[0].x), 4);
-          setShowSuggestions(false);
           return;
         }
-        // 2) 주소 실패 시 장소 키워드 검색 (예: "강남역")
         if (window.kakao.maps.services?.Places) {
           const places = new window.kakao.maps.services.Places();
           places.keywordSearch(query, (data: any[], st: string) => {
             if (st === window.kakao.maps.services.Status.OK && data[0]) {
               moveToCoord(Number(data[0].y), Number(data[0].x), 4);
             }
-            setShowSuggestions(false);
           });
         }
       });
     }
   }, []);
+
+  // ━━━ NL 하이라이트 세트 ━━━ (지도 마커 강조용)
+  const nlHighlightIds = useMemo(() => {
+    if (!nlResults || nlResults.length === 0) return null;
+    return new Set(nlResults.map((l) => l.id));
+  }, [nlResults]);
 
   // 15차-3: 지하철역·장소 자동완성 (직방 시그니처) — debounced keywordSearch
   useEffect(() => {
@@ -1622,12 +1737,15 @@ function MapSearchPageInner() {
                 }
                 if (e.key === 'Escape') setShowSuggestions(false);
               }}
-              placeholder="지역 · 지하철역 · 동 (예: 강남역)"
+              placeholder="예: 강남 원룸 전세 2억 이하"
               className="w-full pl-9 pr-9 py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-[14px] placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-wishes-primary focus:ring-2 focus:ring-wishes-primary/15 transition-all"
             />
-            {searchQuery && (
+            {(searchQuery || nlResults !== null) && (
               <button
-                onClick={() => { setSearchQuery(''); setSearchSuggestions([]); setShowSuggestions(false); }}
+                onClick={() => {
+                  setSearchQuery(''); setSearchSuggestions([]); setShowSuggestions(false);
+                  setNlResults(null); setNlParsed(null); setNlQuery('');
+                }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors"
                 aria-label="검색 초기화"
               >
@@ -1688,12 +1806,15 @@ function MapSearchPageInner() {
                 }
                 if (e.key === 'Escape') setShowSuggestions(false);
               }}
-              placeholder="지역 · 지하철역 · 동 검색 (예: 강남역, 역삼동, 판교)"
+              placeholder="예: 강남 원룸 전세 2억 이하 · 주차 가능한 투룸 · 역세권 오피스텔"
               className="w-full pl-9 pr-9 py-2 bg-gray-50 border border-gray-200 rounded-lg text-[13px] placeholder:text-gray-400 focus:outline-none focus:bg-white focus:border-wishes-primary focus:ring-2 focus:ring-wishes-primary/15 transition-all"
             />
-            {searchQuery && (
+            {(searchQuery || nlResults !== null) && (
               <button
-                onClick={() => { setSearchQuery(''); setSearchSuggestions([]); setShowSuggestions(false); }}
+                onClick={() => {
+                  setSearchQuery(''); setSearchSuggestions([]); setShowSuggestions(false);
+                  setNlResults(null); setNlParsed(null); setNlQuery('');
+                }}
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-400 hover:bg-gray-200 hover:text-gray-700 transition-colors"
                 aria-label="검색 초기화"
               >
@@ -1856,22 +1977,54 @@ function MapSearchPageInner() {
         {/* ━━━ 매물 리스트 (좌측 고정 패널) — 1차 브라우징 영역 ━━━ */}
         <aside className={`vt-list-region ${mobileView === 'map' ? 'hidden md:flex' : 'flex'} w-full md:w-[420px] bg-white md:border-r border-gray-200 shrink-0 flex-col z-10`}>
           {/* 리스트 헤더 — sticky: 스크롤해도 카운트 상시 노출 */}
-          <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center justify-between shrink-0">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[13px] font-semibold text-gray-700">매물</span>
-              <strong className="text-[17px] font-extrabold text-wishes-primary tabular-nums">
-                {searchQuery ? filteredListings.length : total}
-              </strong>
-              <span className="text-[12px] font-medium text-wishes-muted">건</span>
-              {searchQuery && (
-                <span className="ml-1 text-[11px] text-wishes-muted truncate max-w-[120px]">
-                  &quot;{searchQuery}&quot;
-                </span>
+          <div className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-gray-100 px-4 py-3 shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-baseline gap-1.5">
+                {nlResults !== null ? (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5 text-orange-500 self-center" aria-hidden />
+                    <span className="text-[13px] font-semibold text-gray-700">AI 검색</span>
+                    <strong className="text-[17px] font-extrabold text-orange-600 tabular-nums">
+                      {filteredListings.length}
+                    </strong>
+                    <span className="text-[12px] font-medium text-wishes-muted">건</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[13px] font-semibold text-gray-700">매물</span>
+                    <strong className="text-[17px] font-extrabold text-wishes-primary tabular-nums">
+                      {searchQuery ? filteredListings.length : total}
+                    </strong>
+                    <span className="text-[12px] font-medium text-wishes-muted">건</span>
+                    {searchQuery && (
+                      <span className="ml-1 text-[11px] text-wishes-muted truncate max-w-[120px]">
+                        &quot;{searchQuery}&quot;
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+              {filteredListings.length > 20 && (
+                <div className="text-[10.5px] text-wishes-muted font-medium">
+                  {Math.min(visibleCount, filteredListings.length)}/{filteredListings.length}
+                </div>
               )}
             </div>
-            {filteredListings.length > 20 && (
-              <div className="text-[10.5px] text-wishes-muted font-medium">
-                {Math.min(visibleCount, filteredListings.length)}/{filteredListings.length}
+            {/* C안: 파서가 인식한 조건 칩 ribbon */}
+            {nlResults !== null && nlParsed && (
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                <span className="text-[10.5px] font-bold text-orange-600 tracking-wider">해석</span>
+                {nlParsed.dong && <NlChip>{nlParsed.dong}</NlChip>}
+                {nlParsed.type && <NlChip>{nlParsed.type}</NlChip>}
+                {nlParsed.deal && <NlChip>{nlParsed.deal}</NlChip>}
+                {nlParsed.rooms && <NlChip>방 {nlParsed.rooms}개</NlChip>}
+                {nlParsed.parking && <NlChip>주차</NlChip>}
+                {nlParsed.elevator && <NlChip>엘리베이터</NlChip>}
+                {nlParsed.pet && <NlChip>반려가능</NlChip>}
+                {nlParsed.maxDeposit && <NlChip>보증금 {nlParsed.maxDeposit.toLocaleString()}만원 이하</NlChip>}
+                {nlParsed.maxMonthly && <NlChip>월세 {nlParsed.maxMonthly}만원 이하</NlChip>}
+                {nlParsed.minArea && <NlChip>{nlParsed.minArea}㎡ 이상</NlChip>}
+                {nlParsed.maxArea && <NlChip>{nlParsed.maxArea}㎡ 이하</NlChip>}
               </div>
             )}
           </div>
@@ -1920,6 +2073,98 @@ function MapSearchPageInner() {
                     </div>
                   )}
                 </>
+              ) : nlResults !== null ? (
+                // C안 P0: AI 자연어 검색 0건 → 친절 폴백 UI (리드 캡처 지점)
+                <div className="px-2 py-8">
+                  <div className="text-center mb-5">
+                    <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-br from-orange-50 to-amber-100 mb-3 ring-1 ring-orange-100">
+                      <Sparkles className="w-5 h-5 text-orange-500" aria-hidden />
+                    </div>
+                    <p className="text-[13px] font-semibold text-gray-800 mb-1">
+                      &quot;{nlQuery}&quot; 에 딱 맞는 매물을
+                    </p>
+                    <p className="text-[13px] font-semibold text-gray-800 mb-2">
+                      이 영역에서 찾지 못했어요
+                    </p>
+                    <p className="text-[11.5px] text-wishes-muted leading-relaxed">
+                      조건을 조금 넓혀서 비슷한 매물을 찾아보시겠어요?
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => {
+                        // 전국 확대: 지도 뷰를 서울 중심으로 리셋하고 동일 쿼리 재검색
+                        if (window.kakao?.maps && mapInstanceRef.current) {
+                          const seoul = new window.kakao.maps.LatLng(37.5665, 126.9780);
+                          mapInstanceRef.current.setLevel(10);
+                          mapInstanceRef.current.panTo(seoul);
+                        }
+                        setTimeout(() => handleSearchSubmit(nlQuery), 400);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-orange-200 hover:bg-orange-50 hover:border-orange-300 transition-all text-left shadow-sm"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+                        <Compass className="w-4 h-4 text-orange-600" aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12.5px] font-bold text-gray-800">전국으로 확대 검색</p>
+                        <p className="text-[10.5px] text-wishes-muted mt-0.5 truncate">수도권 전체에서 같은 조건으로 찾기</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        // 조건 완화: parsed 에서 dong/rooms/parking 등 소프트 조건만 제거한 residue 로 재검색
+                        const relaxed = (nlParsed?.type || '') + ' ' + (nlParsed?.deal || '');
+                        const q = relaxed.trim() || nlQuery;
+                        handleSearchSubmit(q);
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-white border border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 transition-all text-left shadow-sm"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+                        <TrendingUp className="w-4 h-4 text-indigo-600" aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12.5px] font-bold text-gray-800">조건 느슨하게</p>
+                        <p className="text-[10.5px] text-wishes-muted mt-0.5 truncate">핵심 조건만 유지하고 AI 유사 매물</p>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setNlResults(null);
+                        setNlParsed(null);
+                        setNlQuery('');
+                        setSearchQuery('');
+                      }}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 hover:bg-gray-100 transition-all text-left"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shrink-0 border border-gray-200">
+                        <FilterIcon className="w-4 h-4 text-gray-500" aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[12.5px] font-bold text-gray-700">기본 뷰로 돌아가기</p>
+                        <p className="text-[10.5px] text-wishes-muted mt-0.5 truncate">현재 지도 영역 전체 매물 보기</p>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* 리드 캡처: 담당자 연결 유도 */}
+                  <div className="mt-6 pt-5 border-t border-dashed border-gray-200">
+                    <p className="text-[11px] text-wishes-muted text-center leading-relaxed">
+                      원하시는 조건으로 직접 매물을 찾아드릴까요?
+                      <br />
+                      <button
+                        onClick={() => {
+                          window.location.href = '/contact';
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 text-[11.5px] font-bold text-wishes-primary hover:underline"
+                      >
+                        담당자에게 조건 전달하기 →
+                      </button>
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <div className="text-center py-16 text-gray-400">
                   <Building2 className="w-10 h-10 mx-auto mb-3 text-gray-300" />
@@ -2246,6 +2491,15 @@ function MapSearchPageInner() {
         )}
       </div>
     </div>
+  );
+}
+
+// C안: AI 검색 파서 해석 칩 (주황 계열 = AI 모드 식별자)
+function NlChip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center rounded-full bg-orange-50 px-2 py-0.5 text-[10.5px] font-semibold text-orange-700 border border-orange-200">
+      {children}
+    </span>
   );
 }
 
