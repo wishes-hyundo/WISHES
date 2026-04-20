@@ -552,6 +552,61 @@
 
   window.WS = window.WS || {};
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // AI-슬로건 제목 스크러버 (v2.7 — 2026-04-20)
+  //   사용자 피드백: "AI가 자동생성해준 티 나면 안됨, 사람냄새 나야 함"
+  //   DB에 이미 박힌 기존 AI 제목에서 상투어를 제거하여 표시.
+  //   공통 모듈 src/lib/formatListingTitle.ts 과 같은 패턴을 JS 로 이식.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  window.WS._AI_SLOGAN_PATTERNS = [
+    /따뜻한\s*/g, /따스한\s*/g, /포근한\s*/g, /아늑한\s*/g,
+    /햇살\s*가득(한)?\s*/g, /햇살\s*/g,
+    /편의점\s*30\s*초\s*/g, /편의점\s*코앞\s*/g, /편의점\s*골목\s*/g,
+    /대학가\s*중심\s*/g, /대학가\s*한복판\s*/g, /대학가\s*활기찬\s*/g,
+    /상권\s*한복판\s*/g, /한복판\s*/g, /활기찬\s*/g,
+    /의\s*정석/g, /끝판왕/g, /천국\b/g,
+    /생활\s*편리한\s*방/g, /생활의\s*정석/g,
+    /혼자만의\s*공간/g, /나만의\s*아지트/g,
+    /힐링\s*공간/g, /힐링\s*원룸/g,
+    /감성\s*원룸/g, /감성\s*살아있는/g, /감성\s*가득/g,
+    /보금자리/g, /완벽한\s*일상/g, /특별한\s*하루/g,
+    /깔끔한\s*(원룸|투룸)/g, /중심가/g, /풍옵션/g,
+  ];
+  window.WS._scrubTitle = function(t) {
+    if (!t || typeof t !== 'string') return t;
+    var out = t;
+    for (var i = 0; i < window.WS._AI_SLOGAN_PATTERNS.length; i++) {
+      out = out.replace(window.WS._AI_SLOGAN_PATTERNS[i], '');
+    }
+    // 고립 구두점 정리
+    out = out.replace(/\s+[,·—]\s+/g, ' ')
+             .replace(/\s+,\s*$/, '')
+             .replace(/^\s*,\s+/, '')
+             .replace(/\s+/g, ' ')
+             .replace(/^[\s,·\-—]+/, '')
+             .replace(/[\s,·\-—]+$/, '')
+             .trim();
+    return out;
+  };
+  // 배열 전체에 적용 — 너무 짧아지면 원본 보존 (빈 제목 방지)
+  window.WS._scrubAllTitles = function(arr) {
+    if (!Array.isArray(arr)) return arr;
+    for (var i = 0; i < arr.length; i++) {
+      var l = arr[i];
+      if (!l || !l.title) continue;
+      var scrubbed = window.WS._scrubTitle(l.title);
+      // 7자 이상 + 원본의 절반 이상일 때만 채택
+      if (scrubbed && scrubbed.length >= 7 && scrubbed.length >= l.title.length * 0.5) {
+        l.title = scrubbed;
+      } else if (scrubbed && scrubbed.length >= 7) {
+        // 절반 이하로 쪼그라들었지만 최소 길이는 확보 → 타입+동 으로 폴백
+        var fallback = [(l.dong || ''), (l.type || '매물')].filter(Boolean).join(' ').trim();
+        l.title = fallback || scrubbed;
+      }
+    }
+    return arr;
+  };
+
   // 권한 체크 헬퍼 - superadmin 여부 확인
   window.WS.isSuperAdmin = function() {
     return _wsAuthUser && _wsAuthUser.role === 'superadmin';
@@ -5548,6 +5603,8 @@
         allItems = window.WS._autoDedup(allItems);
         // 중복 의심 매물 감시 (엄격 중복 제거 후 느슨 기준으로 2차 검사)
         window.WS._dupWatchdog(allItems);
+        // ★ AI-슬로건 제목 스크러빙 (기존 DB 제목에서 상투어 제거, 사람냄새 복원)
+        allItems = window.WS._scrubAllTitles(allItems);
         window.WS.allListings = allItems;
         if (window.WS.trackChanges) window.WS.trackChanges(allItems);
         if (window.WS.checkAlerts) window.WS.checkAlerts(allItems);
@@ -6444,6 +6501,8 @@
               var merged = (window.WS.allListings || []).concat(trulyNew);
               merged = window.WS._autoDedup(merged, true);
               window.WS._dupWatchdog(merged);
+              // ★ AI-슬로건 스크러빙 (실시간 갱신분도 청소)
+              merged = window.WS._scrubAllTitles(merged);
               window.WS.allListings = merged;
               window.WS._lastListingIds = new Set(merged.map(function(l) { return l.id; }));
               if (window.WS.trackChanges) window.WS.trackChanges(merged);
@@ -10206,6 +10265,8 @@
           if (data.success && Array.isArray(data.data)) {
             var refreshItems = normalizeImages(data.data);
             if (refreshItems.length > 0) {
+              // ★ AI-슬로건 스크러빙 (전체 새로고침분도 청소)
+              refreshItems = window.WS._scrubAllTitles(refreshItems);
               window.WS.allListings = refreshItems;
               if (window.WS._autoSnapshot) window.WS._autoSnapshot();
               window.WS.renderAll();
@@ -12423,6 +12484,13 @@
           var newListing = data.data || data;
           if (newListing.id) {
             window.WS.allListings = window.WS.allListings || [];
+            // ★ AI-슬로건 스크러빙 (신규 등록분도 청소)
+            if (newListing.title && window.WS._scrubTitle) {
+              var _sc = window.WS._scrubTitle(newListing.title);
+              if (_sc && _sc.length >= 7 && _sc.length >= newListing.title.length * 0.5) {
+                newListing.title = _sc;
+              }
+            }
             window.WS.allListings.unshift(newListing);
             window.WS.applyFilters();
             window.WS.renderListings();
