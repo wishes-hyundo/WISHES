@@ -145,6 +145,51 @@ import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 import { geocodeAddress } from '@/lib/geocode';
 
 /**
+ * 크롤러가 '사무실/상가' 를 무지성 폴백으로 보내는 버그 방어.
+ * building_purpose → rooms → title → usage_approved 우선순위로 진짜 유형 추론.
+ * 신호가 전혀 없으면 null 반환 (원본 유지).
+ */
+function reclassifyType(body: any): string | null {
+  const bp = (body.building_purpose || '').replace(/\s/g, '');
+  const title = `${body.title || ''} ${body.description || ''}`;
+  const rooms = body.rooms;
+  const usage = body.usage_approved;
+
+  // 1) building_purpose (건축물대장 주용도)
+  if (bp) {
+    if (/근린생활|판매시설|소매점|음식점|카페|학원|미용/.test(bp)) return '상가';
+    if (/업무시설|사무소/.test(bp)) return '사무실';
+    if (/지식산업센터/.test(bp)) return '지식산업센터';
+    if (/공장|창고|제조업소|작업장/.test(bp)) return '상가';
+    if (/아파트/.test(bp)) return '아파트';
+    if (/오피스텔/.test(bp)) return '오피스텔';
+    if (/다세대|연립|빌라/.test(bp)) return '빌라';
+    if (/다가구|단독주택|단독/.test(bp)) return '주택';
+    if (/기숙사|도시형생활주택/.test(bp)) return '원룸';
+  }
+  // 2) rooms (방 개수)
+  if (rooms === 1) return '원룸';
+  if (rooms === 2) return '투룸';
+  if (typeof rooms === 'number' && rooms >= 3) return '쓰리룸';
+  // 3) title/description 키워드
+  if (/원룸/.test(title)) return '원룸';
+  if (/투룸|2룸/.test(title)) return '투룸';
+  if (/쓰리룸|3룸/.test(title)) return '쓰리룸';
+  if (/빌라/.test(title)) return '빌라';
+  if (/주택|단독/.test(title)) return '주택';
+  if (/오피스텔/.test(title)) return '오피스텔';
+  if (/아파트/.test(title)) return '아파트';
+  if (/토지|대지/.test(title)) return '토지';
+  if (/지식산업센터/.test(title)) return '지식산업센터';
+  // 4) usage_approved (백필된 용도)
+  if (usage === '주거용') return '원룸';
+  if (usage === '상업용') return '상가';
+  if (usage === '공업용') return '지식산업센터';
+  // 신호 전혀 없음 → 원본 유지
+  return null;
+}
+
+/**
  * GET /api/admin/listings - 모든 매물 조회 (관리자용)
  *
  * Query params:
@@ -408,6 +453,22 @@ export async function POST(request: NextRequest) {
       '단독/다가구': '주택',
     };
     if (body.type && typeMap[body.type]) body.type = typeMap[body.type];
+
+    // ── INSERT-TIME 자동 재분류 ──
+    //   2026-04-20: 크롤러가 '사무실/상가' 를 무지성 폴백으로 박아넣는 버그 방어.
+    //   building_purpose / rooms / title / usage_approved 를 보고 진짜 유형 추론.
+    if (body.type === '사무실/상가') {
+      body.type = reclassifyType(body) || body.type;
+    }
+
+    // ── heating_type 정규화 ──
+    //   2026-04-20: gongsilclub 크롤러가 파싱 실패 시 무조건 '전기' 를 박아넣음.
+    //   한국 부동산 실제 분포 (개별난방 80%+) 와 심하게 불일치 → 의심값 null 처리.
+    //   '도시가스'·'중앙'·'지역난방' 등 유효값은 그대로 유지.
+    if (body.heating_type === '전기' && body.source_site === 'gongsilclub') {
+      body.heating_type = null;
+    }
+
     // area_m2가 없으면 0으로 설정
     if (!body.area_m2 || body.area_m2 < 0) body.area_m2 = 0;
 
@@ -611,6 +672,26 @@ export async function PUT(request: NextRequest) {
         updateValues[key] = value;
       }
     });
+
+    // ── UPDATE-TIME 자동 재분류 ──
+    //   2026-04-20: 크롤러가 수정 API 로 '사무실/상가' 를 덮어쓰는 케이스 방어.
+    //   body 에 building_purpose / rooms / title 이 함께 오면 그걸 기준으로 추론.
+    if (updateValues.type === '사무실/상가') {
+      const reclassified = reclassifyType({
+        building_purpose: updateValues.building_purpose,
+        rooms: updateValues.rooms,
+        title: updateValues.title,
+        description: updateValues.description,
+        usage_approved: updateValues.usage_approved,
+      });
+      if (reclassified) updateValues.type = reclassified;
+    }
+
+    // ── heating_type 정규화 (PUT) ──
+    //   gongsilclub 발 '전기' 의심값 null 처리.
+    if (updateValues.heating_type === '전기' && updateValues.source_site === 'gongsilclub') {
+      updateValues.heating_type = null;
+    }
 
     // ── 자동 재지오코딩 (주소는 있는데 lat/lng 이 null/0/NaN 으로 들어오는 경우) ──
     //   2026-04-20: 신규/수정 매물이 좌표 없이 들어와 /map 에 안 뜨는 이슈 방어.
