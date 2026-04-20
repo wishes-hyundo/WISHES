@@ -226,6 +226,17 @@ export default function SearchPortalPage() {
       v290Script.defer = false;
       document.body.appendChild(v290Script);
     }
+
+    // v2.9.1 안정성 핫픽스 — v290 이미지 페이드 회귀 제거 + 안정화 (반드시 v290 다음에 로드)
+    const existingV291 = document.getElementById('ws-ext-patch-v291-stability');
+    if (!existingV291) {
+      const v291Script = document.createElement('script');
+      v291Script.id = 'ws-ext-patch-v291-stability';
+      v291Script.src = '/search/content-v291-stability.js?v=20260420a';
+      v291Script.async = false;
+      v291Script.defer = false;
+      document.body.appendChild(v291Script);
+    }
   }, [state]);
 
   // ========== UI ==========
