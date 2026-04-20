@@ -1,6 +1,6 @@
 /* ============================================================
  * content-v292-global-search.js — WISHES /search 상단 통합검색 복원
- * Deployed: 2026-04-20
+ * Deployed: 2026-04-20 (rev b — bubble phase + deferred override)
  *
  * 작성 배경:
  *   상단 헤더의 "검색어를 입력하세요" 입력창(input.ws-global-search)이
@@ -107,8 +107,12 @@
   }
 
   function onBtnClick(e) {
-    // 기존 핸들러가 먼저 실행되더라도, capture 단계에서 WS.filtered 를 재구성
-    doGlobalSearch();
+    // [rev b] 원본 클릭 핸들러는 ws-global-search 입력을 무시하고 WS.filtered 를
+    // 재구성해버리므로, capture 단계에서 먼저 실행되면 bubble 단계에서 덮여버린다.
+    // 따라서 bubble 단계에 등록하고 추가로 setTimeout 으로 원본 렌더 사이클 이후에
+    // 최종 오버라이드를 보장한다. 150ms 백업은 원본이 비동기 렌더를 하는 경우 대비.
+    setTimeout(doGlobalSearch, 0);
+    setTimeout(doGlobalSearch, 150);
   }
 
   function onInpKeydown(e) {
@@ -117,7 +121,9 @@
     if (e.isComposing) return;
     if (e.key === 'Enter' || e.keyCode === 13) {
       e.preventDefault();
-      doGlobalSearch();
+      // [rev b] Enter 역시 원본 submit/click 플로우 이후에 적용
+      setTimeout(doGlobalSearch, 0);
+      setTimeout(doGlobalSearch, 150);
     }
   }
 
@@ -147,8 +153,9 @@
     STATE.compStart = onCompStart;
     STATE.compEnd = onCompEnd;
 
-    btn.addEventListener('click', STATE.btnHandler, true);
-    inp.addEventListener('keydown', STATE.inpHandler, true);
+    // [rev b] capture → bubble 로 변경. 원본 핸들러 이후에 실행되도록.
+    btn.addEventListener('click', STATE.btnHandler, false);
+    inp.addEventListener('keydown', STATE.inpHandler, false);
     inp.addEventListener('compositionstart', STATE.compStart, true);
     inp.addEventListener('compositionend', STATE.compEnd, true);
     if (rst) rst.addEventListener('click', STATE.resetHandler, true);
