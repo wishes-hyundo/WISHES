@@ -1,5 +1,8 @@
 // src/lib/r2.ts
-// v2.3.8 — 기존 함수 전부 유지 + presign 헬퍼 2개만 추가
+// v2.3.11 — S3Client 에 checksum 옵션 WHEN_REQUIRED 로 고정.
+//           AWS SDK v3 최신 기본값(WHEN_SUPPORTED)이 presigned URL 에
+//           x-amz-checksum-crc32 / x-amz-sdk-checksum-algorithm 를 자동 추가해서
+//           모바일 브라우저 PUT 이 CORS/네트워크 오류로 실패하는 문제를 해결.
 //
 // 변경점:
 //   (기존) r2Client, R2_BUCKET, R2_PUBLIC_URL, uploadToR2, deleteFromR2  → 그대로
@@ -22,6 +25,9 @@ export const r2Client = new S3Client({
     accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
     secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
   },
+  // v2.3.11: presigned URL 에 checksum 자동 추가 방지 (모바일 PUT 호환성)
+  requestChecksumCalculation: 'WHEN_REQUIRED',
+  responseChecksumValidation: 'WHEN_REQUIRED',
 });
 
 export const R2_BUCKET = 'wishes-listings';
