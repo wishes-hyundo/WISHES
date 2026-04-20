@@ -315,20 +315,429 @@
   .ws-search-container { background:#fff; }
 }
 
-/* ── Responsive ── */
-@media (max-width: 900px) {
+/* ═══════════════════════════════════════════════════════════════════
+   Responsive — Mobile-First Optimization (v280, 2026-04-20)
+   목표: 모바일 메인 타겟. WCAG AA 터치 타겟 40×40+, iOS 확대 방지,
+         safe-area, 하단바 가로 스크롤, 카드 세로 레이아웃
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── 태블릿(769~1023px) — 필터 4열, 카드 축소 이미지 ── */
+@media (max-width: 1023px) and (min-width: 769px) {
+  .ws-filter-grid { grid-template-columns:repeat(4, 1fr); }
+  .ws-card-right { width:150px; }
+  .ws-listing-image-wrap { width:100px; height:100px; }
+  .ws-type-tabs { overflow-x:auto; scrollbar-width:none; flex-wrap:nowrap; }
+  .ws-type-tabs::-webkit-scrollbar { display:none; }
+  .ws-type-tab { white-space:nowrap; flex-shrink:0; }
+}
+@media (max-width: 900px) and (min-width: 769px) {
   .ws-filter-grid { grid-template-columns:repeat(4, 1fr); }
 }
+
+/* ── 모바일(<=768px) ── */
 @media (max-width: 768px) {
+
+  /* ── iOS focus 자동 확대 방지: 입력 16px 고정 ── */
+  .ws-input,
+  .ws-price-input,
+  .ws-area-input,
+  .ws-global-search,
+  .ws-memo-input,
+  .ws-select,
+  .ws-status-select,
+  input[type="text"].ws-input,
+  input[type="number"].ws-input,
+  input[type="search"].ws-input,
+  textarea { font-size:16px !important; }
+
+  /* ── 컨테이너 overscroll ── */
+  .ws-search-container { overscroll-behavior-y:contain; }
+
+  /* ── 헤더 슬림 ── */
+  .ws-header { padding:10px 12px; gap:8px; flex-wrap:wrap; }
+  .ws-header .ws-title { font-size:16px; }
+  .ws-global-search { flex:1 1 100%; padding:12px 14px; border-radius:10px; min-height:44px; }
+  .ws-header-buttons { gap:6px; flex-wrap:wrap; }
+  .ws-btn { padding:10px 14px; min-height:40px; font-size:13px; border-radius:8px; }
+
+  /* ── 뷰 모드 탭(지도/리스트 등) ── */
+  .ws-view-tabs { overflow-x:auto; scrollbar-width:none; }
+  .ws-view-tabs::-webkit-scrollbar { display:none; }
+  .ws-tab { padding:12px 18px; font-size:13px; min-height:44px; white-space:nowrap; flex-shrink:0; }
+
+  /* ── 주소 섹션 ── */
+  .ws-addr-section { padding:12px 14px; }
+
+  /* ── 지역 탭 (구/동) ── */
+  .ws-region-tabs { flex-wrap:wrap; gap:4px; border:none; border-radius:0; overflow:visible; background:transparent; }
+  .ws-region-tab {
+    padding:10px 14px;
+    font-size:13px;
+    min-height:40px;
+    border:1px solid #ddd;
+    border-right:1px solid #ddd;
+    border-radius:20px;
+    background:#fff;
+  }
+  .ws-region-tab.ws-tab-active { border-color:#2D5A27; }
+
+  /* ── 주소 타입 버튼 ── */
+  .ws-addr-type-buttons { flex-wrap:wrap; }
+  .ws-addr-type-btn { padding:10px 16px; font-size:13px; min-height:40px; }
+
+  /* ── 구/동 그리드 ── */
+  .ws-districts { grid-template-columns:repeat(auto-fill, minmax(78px, 1fr)); gap:4px; }
+  .ws-district-btn { padding:11px 8px; font-size:13px; min-height:42px; border-radius:6px; }
+
+  /* ── 선택된 지역 태그 ── */
+  .ws-tag { padding:6px 12px; font-size:12px; min-height:32px; border-radius:16px; }
+  .ws-tag-close { font-size:18px; padding:2px 6px; min-width:24px; }
+
+  /* ── 입력 ── */
+  .ws-input { padding:12px 14px; min-height:44px; border-radius:8px; }
+  .ws-unit-toggle { padding:10px 14px; font-size:13px; min-height:40px; }
+
+  /* ── 유형 탭 가로 스크롤 ── */
+  .ws-type-tabs { overflow-x:auto; scrollbar-width:none; flex-wrap:nowrap; }
+  .ws-type-tabs::-webkit-scrollbar { display:none; }
+  .ws-type-tab {
+    padding:12px 18px;
+    font-size:13px;
+    min-height:44px;
+    white-space:nowrap;
+    flex-shrink:0;
+  }
+
+  /* ── 필터 섹션 ── */
+  .ws-filters-toggle {
+    padding:14px 16px;
+    font-size:14px;
+    min-height:48px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    background:#f8faf8;
+    border:1px solid #dde3dd;
+    cursor:pointer;
+  }
   .ws-filter-grid { grid-template-columns:repeat(2, 1fr); }
+  .ws-filter-col-body { max-height:none; -webkit-overflow-scrolling:touch; }
+  .ws-filter-col-header {
+    padding:10px 12px;
+    font-size:13px;
+    min-height:40px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .ws-fchip { padding:11px 12px; font-size:13px; min-height:42px; }
+  .ws-filter-col-body .ws-checkbox-label { padding:10px 10px; font-size:13px; min-height:40px; }
+
+  /* ── 가격/면적 행 ── */
+  .ws-filter-hrow { padding:10px 12px; gap:8px; flex-wrap:wrap; }
   .ws-price-grid { grid-template-columns:1fr; }
-  .ws-listing-card { flex-direction:column; }
-  .ws-listing-image-wrap { width:100%; height:160px; border-right:none; border-bottom:1px solid #f0f0f0; }
-  .ws-listing-content { flex-direction:column; }
-  .ws-card-right { width:100%; border-left:none; border-top:1px solid #f0f0f0; padding:8px 0 0; flex-direction:row; flex-wrap:wrap; gap:8px; align-items:center; }
-  .ws-detail-grid { grid-template-columns:1fr; }
-  .ws-header { flex-direction:column; }
-  .ws-price-inputs { flex-wrap:wrap; }
+  .ws-price-cell { padding:10px 12px; border-right:none; border-bottom:1px solid #f0f0f0; }
+  .ws-price-cell:last-child { border-bottom:none; }
+  .ws-price-inputs { flex-wrap:wrap; gap:6px; }
+  .ws-price-input, .ws-area-input {
+    width:90px;
+    min-width:70px;
+    padding:11px 10px;
+    min-height:42px;
+    border-radius:6px;
+    text-align:right;
+  }
+
+  /* ── 결과 헤더 ── */
+  .ws-results-header { padding:10px 14px; gap:8px; }
+  .ws-result-count { font-size:13px; }
+  .ws-result-count strong { font-size:15px; }
+  .ws-result-controls { gap:6px; }
+  .ws-select { padding:10px 12px; font-size:14px; min-height:42px; border-radius:6px; }
+
+  /* ── 매물 카드 — 세로 카드 스타일 ── */
+  .ws-listing-card {
+    flex-direction:column;
+    min-height:auto;
+    padding:0;
+    border-bottom:8px solid #f0f4f0;
+    position:relative;
+  }
+  .ws-listing-checkbox {
+    position:absolute;
+    top:10px; left:10px;
+    z-index:2;
+    width:22px; height:22px;
+    margin:0;
+    background:rgba(255,255,255,0.95);
+    border-radius:4px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.15);
+  }
+  .ws-listing-image-wrap {
+    width:100%;
+    height:200px;
+    margin:0;
+    border-radius:0;
+    border-right:none;
+    border-bottom:none;
+    background:#f0f0f0;
+  }
+  .ws-listing-image-wrap.ws-hide-img { display:none; }
+  .ws-photo-badge {
+    top:10px;
+    right:58px;
+    left:auto;
+    padding:4px 10px;
+    font-size:11px;
+    min-height:26px;
+    display:inline-flex;
+    align-items:center;
+    border-radius:4px;
+  }
+  .ws-time-badge {
+    bottom:10px;
+    left:10px;
+    padding:4px 10px;
+    font-size:11px;
+    min-height:26px;
+    display:inline-flex;
+    align-items:center;
+    border-radius:4px;
+  }
+  .ws-favorite-btn {
+    top:10px; right:10px;
+    width:40px; height:40px;
+    background:rgba(255,255,255,0.95);
+    font-size:18px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.12);
+  }
+  .ws-photo-upload-btn {
+    bottom:10px; right:10px;
+    padding:8px 12px;
+    font-size:12px;
+    min-height:36px;
+    background:rgba(45,90,39,0.92);
+    border-radius:6px;
+    line-height:1.2;
+  }
+
+  /* ── 카드 콘텐츠 ── */
+  .ws-listing-content {
+    flex-direction:column;
+    padding:14px 16px 16px;
+    gap:10px;
+  }
+  .ws-card-info { gap:5px; }
+  .ws-listing-addr {
+    font-size:15px;
+    white-space:normal;
+    line-height:1.4;
+    overflow:visible;
+    text-overflow:unset;
+  }
+  .ws-listing-title-sub {
+    font-size:13px;
+    white-space:normal;
+    overflow:visible;
+    text-overflow:unset;
+    line-height:1.5;
+  }
+  .ws-listing-title {
+    font-size:15px;
+    white-space:normal;
+    overflow:visible;
+    text-overflow:unset;
+  }
+  .ws-listing-subtitle { font-size:12.5px; }
+  .ws-listing-tags { gap:6px; margin-top:6px; }
+  .ws-tag-small {
+    padding:5px 11px;
+    font-size:12px;
+    min-height:28px;
+    display:inline-flex;
+    align-items:center;
+    border-radius:4px;
+  }
+
+  /* ── 카드 우측(가격 + 버튼) — 전폭 가로 배치 ── */
+  .ws-card-right {
+    width:100%;
+    border-left:none;
+    border-top:1px solid #f0f0f0;
+    padding:12px 0 0;
+    flex-direction:row;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .ws-card-price-block {
+    text-align:left;
+    flex:1 1 140px;
+    min-width:140px;
+  }
+  .ws-deal-type { font-size:12px; padding:3px 8px; }
+  .ws-price-main { font-size:20px; line-height:1.2; margin-top:3px; }
+  .ws-maintenance { font-size:11px; line-height:1.3; }
+  .ws-card-controls {
+    flex-direction:row;
+    flex-wrap:wrap;
+    width:auto;
+    gap:6px;
+    align-items:center;
+  }
+  .ws-status-select {
+    min-height:38px;
+    padding:7px 10px;
+    font-size:12px;
+    width:auto;
+    min-width:100px;
+    border-radius:6px;
+  }
+  .ws-detail-btn, .ws-edit-btn, .ws-delete-btn {
+    min-height:40px;
+    padding:8px 14px;
+    font-size:12.5px;
+    min-width:64px;
+    border-radius:6px;
+  }
+
+  /* ── 상세 모달 — 풀스크린 ── */
+  .ws-modal { padding:0; align-items:stretch; }
+  .ws-modal-content {
+    border-radius:0;
+    max-width:100%;
+    width:100%;
+    max-height:100vh;
+    min-height:100vh;
+    padding:16px 14px calc(90px + env(safe-area-inset-bottom));
+    box-shadow:none;
+  }
+  .ws-modal-close {
+    top:8px; right:8px;
+    width:44px; height:44px;
+    font-size:28px;
+    background:rgba(255,255,255,0.95);
+    border:1px solid #ddd;
+    border-radius:50%;
+    box-shadow:0 2px 6px rgba(0,0,0,0.12);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    line-height:1;
+  }
+
+  /* ── 상세 헤더/갤러리 ── */
+  .ws-detail-header h2 { font-size:17px; line-height:1.4; }
+  .ws-detail-header p { font-size:12.5px; }
+  .ws-detail-gallery { margin:10px -14px; }
+  .ws-gallery-main { height:280px; border-radius:0; }
+  .ws-gallery-main.ws-gallery-empty { height:180px; }
+  .ws-gallery-nav {
+    width:44px; height:44px;
+    opacity:0.9;
+    background:rgba(0,0,0,0.55);
+    font-size:22px;
+  }
+  .ws-gallery-counter {
+    top:10px; right:12px;
+    padding:5px 12px;
+    font-size:12px;
+    min-height:26px;
+  }
+  .ws-gallery-zoom-hint { display:none; }
+  .ws-gallery-thumbs {
+    gap:8px;
+    padding:10px 14px;
+    -webkit-overflow-scrolling:touch;
+  }
+  .ws-gallery-thumbs img { width:72px; height:54px; flex-shrink:0; }
+
+  /* ── 상세 섹션 ── */
+  .ws-detail-section { margin-top:16px; padding-top:14px; }
+  .ws-detail-section h3 { font-size:14px; }
+  .ws-detail-section p { font-size:13px; line-height:1.65; }
+  .ws-detail-grid { grid-template-columns:1fr; gap:2px; }
+  .ws-detail-grid > div {
+    font-size:13px;
+    padding:9px 0;
+    border-bottom:1px dashed #f0f0f0;
+  }
+  .ws-detail-grid > div:last-child { border-bottom:none; }
+
+  /* ── 하단바 — 가로 스크롤 + safe-area ── */
+  .ws-bottom-bar {
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+    gap:6px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    flex-wrap:nowrap;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .ws-bottom-bar::-webkit-scrollbar { display:none; }
+  .ws-bar-primary, .ws-bar-groups {
+    flex-wrap:nowrap;
+    margin-left:0;
+    gap:6px;
+    flex-shrink:0;
+  }
+  .ws-bar-divider { flex-shrink:0; }
+  .ws-bottom-btn {
+    padding:10px 14px;
+    font-size:12.5px;
+    min-height:40px;
+    white-space:nowrap;
+    flex-shrink:0;
+    border-radius:6px;
+  }
+  .ws-dropdown-trigger {
+    padding:10px 14px;
+    min-height:40px;
+    font-size:12.5px;
+  }
+  .ws-dropdown-menu { min-width:200px; }
+  .ws-dropdown-item { padding:12px 16px; font-size:14px; min-height:44px; }
+
+  /* ── 페이지네이션 ── */
+  .ws-pagination { padding:14px 8px; gap:4px; flex-wrap:wrap; }
+  .ws-page-btn {
+    min-width:40px;
+    height:40px;
+    font-size:13px;
+    border-radius:6px;
+  }
+
+  /* ── 즐겨찾기 모달 항목 ── */
+  .ws-favorite-item { padding:12px 14px; }
+  .ws-favorite-item h4 { font-size:14px; }
+  .ws-favorite-item p { font-size:12px; }
+  .ws-remove-fav {
+    width:40px;
+    height:40px;
+    font-size:20px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  /* ── 퀵 프리뷰 팝업 ── */
+  #ws-quick-preview {
+    width:calc(100vw - 24px);
+    max-width:360px;
+    left:12px !important;
+    right:12px;
+  }
+  .ws-qp-detail-btn { padding:10px 18px; min-height:40px; font-size:13px; }
+}
+
+/* ── 아이폰 SE 등 극소 뷰포트(<=380px) 추가 타이트닝 ── */
+@media (max-width: 380px) {
+  .ws-listing-image-wrap { height:180px; }
+  .ws-price-main { font-size:18px; }
+  .ws-filter-grid { grid-template-columns:1fr; }
+  .ws-district-btn { font-size:12.5px; min-height:40px; }
 }
 
 /* AI Briefing Button Highlight */

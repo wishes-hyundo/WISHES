@@ -110,7 +110,7 @@ export default function SearchPortalPage() {
       link = document.createElement('link');
       link.id = 'ws-ext-styles';
       link.rel = 'stylesheet';
-      link.href = '/search/styles.css?v=20260418d';
+      link.href = '/search/styles.css?v=20260420a';
       document.head.appendChild(link);
     }
 
@@ -201,6 +201,20 @@ export default function SearchPortalPage() {
       const styleEl = document.getElementById('v270-fresh-styles');
       if (styleEl && styleEl.parentNode) styleEl.parentNode.removeChild(styleEl);
     } catch {}
+
+    // v2.8.0 모바일 최적화 패치 로드 (최후순)
+    //   - IntersectionObserver 실패 회피: 이미지 즉시 hydrate
+    //   - 크롤링 출처 G/O 배지 DOM 제거
+    //   - 모바일 필터 초기 접힘 + 접근성 라벨 보강
+    const existingV280Mobile = document.getElementById('ws-ext-patch-v280-mobile');
+    if (!existingV280Mobile) {
+      const v280MobileScript = document.createElement('script');
+      v280MobileScript.id = 'ws-ext-patch-v280-mobile';
+      v280MobileScript.src = '/search/content-v280-mobile.js?v=20260420a';
+      v280MobileScript.async = false;
+      v280MobileScript.defer = false;
+      document.body.appendChild(v280MobileScript);
+    }
   }, [state]);
 
   // ========== UI ==========
