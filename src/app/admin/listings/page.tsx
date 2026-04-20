@@ -588,7 +588,16 @@ export default function AdminListingsPage() {
             return (
               <button
                 key={s}
-                onClick={() => setStatusFilter(s)}
+                onClick={() => {
+                  // 상태 칩 클릭 시 다른 필터도 초기화해서
+                  // "비공개 11건" 같은 전체 결과가 바로 보이도록 보장
+                  setStatusFilter(s);
+                  setSearchQuery('');
+                  setPropertyTypeFilter('전체');
+                  setTransactionTypeFilter('전체');
+                  setDongFilter('전체');
+                  setCurrentPage(1);
+                }}
                 className={`relative rounded-xl p-4 text-left transition-all ${
                   isActive
                     ? `bg-gradient-to-br ${colors[s]} text-white shadow-lg scale-[1.02]`
