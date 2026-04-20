@@ -43,11 +43,12 @@ export default async function ListingsPage({
       const offset = (page - 1) * pageSize;
 
       // 매물 쿼리
-      // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 아래에서 listing_images만 빈 배열 처리 (정보는 광고 노출)
+      // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 아래에서 applyImagePolicy 로 자체 업로드만 통과
+      // ※ 제목 재가공(displayTitle) 세일즈 훅용으로 building_name / 옵션 / 준공년도 / 방향 / 설명 / 역세권 필드까지 포함
       let query = supabase
         .from('listings')
         .select(
-          'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, source_site, created_at, views, listing_images(url, sort_order)',
+          'id, title, building_name, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, floor_total, status, source_site, created_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description, near_subway, subway_distance, listing_images(url, sort_order)',
           { count: 'exact' }
         )
         .eq('status', '공개');
