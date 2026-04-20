@@ -1483,5 +1483,145 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
   console.log('[MPH v2.3.1] 통합검색 클라이언트 필터 활성화');
 })();
 </script>
+<!-- ============================================================
+     v2.3.2 추가 핫픽스 — 검색 결과 카드 클릭 복원 (2026-04-20)
+     배경: v2.3.1 이후 통합검색은 정상 동작하나, 검색 결과 카드 클릭 시
+           selectListing() 이 allListings 에 없는 id 를 받아 fallback
+           /api/listings?id= 호출. 해당 엔드포인트도 id 파라미터를 무시
+           → 잘못된 매물이 푸시되며 무한 재귀로 화면 전환 실패.
+     방침: (a) patchedSearch 가 필터 결과를 allListings 에 동기화.
+           (b) selectListing 을 감싸 CACHE·fetchAll 에서 조회하도록 대체.
+     Rollback: window.__MPH_SEARCH_FIX_V232__.rollback()
+     ============================================================ -->
+<script>
+(function(){
+  'use strict';
+  if (window.__MPH_SEARCH_FIX_V232__) {
+    try { window.__MPH_SEARCH_FIX_V232__.rollback && window.__MPH_SEARCH_FIX_V232__.rollback(); } catch(e){}
+  }
+  var V231 = window.__MPH_SEARCH_FIX_V231__;
+  if (!V231) { console.warn('[MPH v2.3.2] v2.3.1 not found; skipping'); return; }
+
+  var FIELDS = ['id','title','address','address_detail','building_name',
+                'ai_description','dong','gu','features','seo_keywords',
+                'seo_tags','source_id'];
+
+  var _origSelect = window.selectListing;
+  var _origSearch = window.searchListings;
+
+  // 초기 dedup: 이전 fallback 재귀로 인한 중복 정리
+  try {
+    if (typeof allListings !== 'undefined' && Array.isArray(allListings)){
+      var seen = Object.create(null);
+      var cleaned = [];
+      for (var i=0;i<allListings.length;i++){
+        var it = allListings[i];
+        if (!it || it.id == null) continue;
+        if (seen[it.id]) continue;
+        seen[it.id] = 1;
+        cleaned.push(it);
+      }
+      allListings.length = 0;
+      Array.prototype.push.apply(allListings, cleaned);
+    }
+  } catch(e){}
+
+  function norm(v){
+    if (v == null) return '';
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number') return String(v);
+    if (Array.isArray(v)) return v.join(' ');
+    try { return JSON.stringify(v); } catch(e){ return ''; }
+  }
+  function matchFn(l, qLow){
+    for (var k=0;k<FIELDS.length;k++){
+      var s = norm(l[FIELDS[k]]);
+      if (s && s.toLowerCase().indexOf(qLow) >= 0) return true;
+    }
+    return false;
+  }
+
+  function safeSelect(id){
+    id = Number(id);
+    try {
+      if (typeof allListings !== 'undefined'){
+        var hit = allListings.find(function(l){ return l && l.id === id; });
+        if (hit) return _origSelect(id);
+      }
+    } catch(e){}
+    var cached = V231 && V231.cache && V231.cache.list;
+    if (Array.isArray(cached)){
+      var h2 = cached.find(function(l){ return l && l.id === id; });
+      if (h2){
+        try { if (typeof allListings !== 'undefined') allListings.push(h2); } catch(e){}
+        return _origSelect(id);
+      }
+    }
+    if (V231 && typeof V231.fetchAll === 'function'){
+      V231.fetchAll().then(function(all){
+        if (!Array.isArray(all)){
+          try { if (typeof window.showToast === 'function') window.showToast('매물을 찾을 수 없습니다', 'error'); } catch(e){}
+          return;
+        }
+        var h3 = all.find(function(l){ return l && l.id === id; });
+        if (h3){
+          try { if (typeof allListings !== 'undefined') allListings.push(h3); } catch(e){}
+          _origSelect(id);
+        } else {
+          try { if (typeof window.showToast === 'function') window.showToast('매물을 찾을 수 없습니다', 'error'); } catch(e){}
+        }
+      });
+      return;
+    }
+    _origSelect(id);
+  }
+
+  async function patchedSearchV232(){
+    var inp = document.getElementById('searchInput');
+    var q = (inp && inp.value || '').trim();
+    if (!q){
+      if (typeof window.loadRecentListings === 'function') return window.loadRecentListings();
+      return;
+    }
+    try { if (typeof window.showProgress === 'function') window.showProgress(true, '검색 중...', ''); } catch(e){}
+    var all = await V231.fetchAll();
+    try { if (typeof window.showProgress === 'function') window.showProgress(false); } catch(e){}
+    if (!Array.isArray(all)){
+      try { if (typeof window.showToast === 'function') window.showToast('검색 실패: 매물 로드 실패', 'error'); } catch(e){}
+      return;
+    }
+    var filtered;
+    if (/^\d+$/.test(q)){
+      filtered = all.filter(function(l){ return String(l.id) === q; });
+    } else {
+      var qLow = q.toLowerCase();
+      filtered = all.filter(function(l){ return matchFn(l, qLow); });
+    }
+    // 핵심: allListings 에 동기화하여 selectListing find() 가 바로 적중
+    try {
+      if (typeof allListings !== 'undefined'){
+        allListings.length = 0;
+        Array.prototype.push.apply(allListings, filtered);
+      }
+    } catch(e){}
+    if (typeof window.renderListings === 'function'){
+      window.renderListings(filtered, '검색 결과 "' + q + '"');
+    }
+  }
+
+  window.selectListing = safeSelect;
+  window.searchListings = patchedSearchV232;
+
+  window.__MPH_SEARCH_FIX_V232__ = {
+    version: '2.3.2',
+    rollback: function(){
+      if (_origSelect) window.selectListing = _origSelect;
+      if (_origSearch) window.searchListings = _origSearch;
+      try { delete window.__MPH_SEARCH_FIX_V232__; } catch(e){ window.__MPH_SEARCH_FIX_V232__ = undefined; }
+    }
+  };
+  console.log('[MPH v2.3.2] selectListing + allListings 동기화 핫픽스 활성화');
+})();
+</script>
 </body>
 </html>
