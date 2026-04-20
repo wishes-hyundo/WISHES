@@ -1,80 +1,37 @@
-const CACHE_NAME = 'wishes-photo-v239';
-const PRECACHE_URLS = [
-  '/icon-192x192.png',
-  '/icon-512x512.png',
-  '/manifest.json'
-];
+// ============================================================
+// sw.js — v2.3.9 긴급 킬 스위치 (self-unregistering)
+// 목적: 폰에 꼬여있는 구형 서비스워커를 전부 해제하고, 캐시를 모두 삭제.
+//      이후 사이트는 평범한 웹사이트처럼 네트워크에서 직접 서빙됨.
+// ============================================================
 
-// Install: precache essential files (HTML 은 제외 — 항상 네트워크 우선)
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_URLS);
-    }).then(() => self.skipWaiting())
-  );
+  // 즉시 대기 없이 활성화로 넘어감
+  self.skipWaiting();
 });
 
-// Activate: clean old caches
 self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
-      );
-    }).then(() => self.clients.claim())
-  );
+  event.waitUntil((async () => {
+    try {
+      // 1) 모든 캐시 스토리지 삭제
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    } catch (e) {
+      // 삭제 실패해도 계속 진행
+    }
+
+    try {
+      // 2) 자신 등록 해제
+      await self.registration.unregister();
+    } catch (e) {}
+
+    try {
+      // 3) 열려있는 모든 클라이언트(탭) 강제 새로고침
+      const clientsList = await self.clients.matchAll({ type: 'window' });
+      clientsList.forEach(client => {
+        try { client.navigate(client.url); } catch (e) {}
+      });
+    } catch (e) {}
+  })());
 });
 
-// Fetch
-self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
-
-  // API calls: network only (don't cache)
-  if (url.pathname.startsWith('/api/')) {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response(JSON.stringify({
-          success: false,
-          error: '오프라인 상태입니다'
-        }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' }
-        });
-      })
-    );
-    return;
-  }
-
-  // HTML documents: network-first (최신 버전 항상 우선)
-  if (event.request.mode === 'navigate' || url.pathname.endsWith('.html')) {
-    event.respondWith(
-      fetch(event.request).then((response) => {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
-        }
-        return response;
-      }).catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // Other static assets: stale-while-revalidate
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const fetchPromise = fetch(event.request).then((response) => {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, clone);
-          });
-        }
-        return response;
-      }).catch(() => cached);
-
-      return cached || fetchPromise;
-    })
-  );
-});
+// fetch 핸들러 없음 → 브라우저가 네트워크에서 직접 가져옴
