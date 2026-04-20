@@ -19,7 +19,7 @@ import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { createHash } from 'crypto';
 import { cached, invalidateCache } from '@/lib/cache';
-import { applyImagePolicy } from '@/lib/image-policy';
+import { preferSelfHostedImages } from '@/lib/image-policy';
 
 // 요청 검증 스키마
 const createListingSchema = z.object({
@@ -267,24 +267,28 @@ export async function GET(request: NextRequest) {
           .gt('created_at', since)
           .order('created_at', { ascending: false })
           .limit(1000);
-        // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)의 외부 이미지 제거.
-        //   중개사 자체 업로드(wishes.co.kr/api/images, supabase, R2)는 통과.
-        //   keepThumbnailOnly 보다 먼저 돌려야 크롤링 URL 이 썸네일로 선택되지 않음.
-        const cleaned = (deltaData || []).map(compactRow).map((r: any) => applyImagePolicy(r)).map(keepThumbnailOnly);
+        // ※ 관리자 포털 이미지 정책 (preferSelfHostedImages):
+        //   - 자체 매물(source_site NULL): 그대로
+        //   - 크롤링+자체업로드 섞임: 자체 업로드만 노출 (46163 봉천동 62-24 케이스)
+        //   - 크롤링 사진만 있는 매물: 크롤링 썸네일 유지 (중개사 업무 참조용)
+        //   keepThumbnailOnly 보다 먼저 돌려야 자체 업로드가 우선 선택됨.
+        const cleaned = (deltaData || []).map(compactRow).map((r: any) => preferSelfHostedImages(r)).map(keepThumbnailOnly);
         return NextResponse.json({ success: true, data: cleaned, total: cleaned.length, since });
       }
 
       // 🔥 인메모리 캐시: 30초 fresh, 3분 stale 허용, 30초 타임아웃
+      // v11 (2026-04-20 rev2): preferSelfHostedImages 로 교체 — 크롤링 전용 매물 썸네일 복원.
+      //                   applyImagePolicy(v10) 는 크롤링 매물 이미지를 전부 지워버려 /search?sort=latest
+      //                   전체 카드가 썸네일 없이 렌더링되는 회귀 발생 → 혼합 매물만 자체업로드 우선.
       // v10 (2026-04-20): applyImagePolicy 합류 — 크롤링 매물 썸네일을 크롤링 원본으로 잡지 않도록.
-      //                   (이전엔 keepThumbnailOnly 가 is_thumbnail=true 인 크롤링 URL 을 썸네일로 선택 →
-      //                    직접 업로드 사진이 있어도 /search 리스트 카드에서 공실클럽 원본이 계속 노출됨.)
+      //                   (46163 봉천동 62-24: 자체 업로드 14장 업로드했는데 공실클럽 원본이 썸네일로 뽑힘)
       // v9 (2026-04-14): 전체 삭제 후 재시작 — 캐시 무효화 + TTL 단축 (신규 크롤링 빠른 반영)
       //                   fresh 60s→30s / stale 10min→3min
       // v8: select('*') 전환
       // v7: 상가 필드 포함
       // v6: 빈 응답 캐싱 방지 (poison cache fix)
       const allData = await cached(
-        'admin-listings-minimal-v10',
+        'admin-listings-minimal-v11',
         async () => {
           const PAGE_SIZE = 1000;
           const { data: firstPage, error: firstError } = await supabase
@@ -319,11 +323,11 @@ export async function GET(request: NextRequest) {
             }
           }
 
-          // ※ 저작권 보호: applyImagePolicy → compactRow → keepThumbnailOnly 순.
-          //   applyImagePolicy 를 먼저 돌려 크롤링 매물의 외부 URL 을 제거해야
-          //   keepThumbnailOnly 가 직접 업로드 사진을 썸네일로 선택한다.
-          //   (크롤링 원본을 썸네일로 잡아 /search 리스트 카드에 공실클럽 사진이 노출되던 회귀 수정)
-          return all.map((r: any) => applyImagePolicy(r)).map(compactRow).map(keepThumbnailOnly);
+          // ※ 관리자 포털 이미지 정책: preferSelfHostedImages → compactRow → keepThumbnailOnly.
+          //   - 자체업로드+크롤링 혼합: 자체업로드만 노출 (46163 봉천동 62-24 케이스)
+          //   - 크롤링 전용: 원본 썸네일 유지 (중개사 리스트 카드에 빈 썸네일이 뜨지 않도록)
+          //   순서: preferSelfHostedImages 를 먼저 돌려야 keepThumbnailOnly 가 자체 업로드부터 선택.
+          return all.map((r: any) => preferSelfHostedImages(r)).map(compactRow).map(keepThumbnailOnly);
         },
         30_000,     // 30초 fresh (크롤링 신규매물 빠른 반영)
         180_000,    // 3분 stale 허용
@@ -388,9 +392,9 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ※ 저작권 보호: 전체 필드 응답에도 image-policy 적용.
-    //   크롤링 매물의 외부 원본은 차단, 자체 업로드(wishes.co.kr / supabase / R2)는 통과.
-    const sanitizedAll = allData.map((r: any) => applyImagePolicy(r));
+    // ※ 관리자 포털: preferSelfHostedImages — 혼합매물은 자체업로드만, 크롤링전용은 원본 유지.
+    //   (중개사 편집/참조 화면에서 빈 썸네일이 나오지 않도록.)
+    const sanitizedAll = allData.map((r: any) => preferSelfHostedImages(r));
 
     return NextResponse.json({
       success: true,

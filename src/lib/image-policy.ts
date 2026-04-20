@@ -47,9 +47,11 @@ export function filterSelfHosted<T extends { url?: string | null }>(
 }
 
 /**
- * 매물 한 건에 대한 이미지 정책 적용.
+ * 매물 한 건에 대한 이미지 정책 적용. (공개 엔드포인트 전용 — /api/listings, /api/listings/map 등)
  * - source_site 없음(자체 매물): 그대로 유지
- * - source_site 있음(크롤링 매물): 자체 업로드 이미지/비디오만 통과
+ * - source_site 있음(크롤링 매물): 자체 업로드 이미지/비디오만 통과 (저작권 보호)
+ *
+ * 중개사 전용(/api/admin/*) 엔드포인트에는 preferSelfHostedImages 를 쓸 것.
  */
 export function applyImagePolicy<
   T extends {
@@ -65,5 +67,43 @@ export function applyImagePolicy<
     ...row,
     listing_images: filterSelfHosted(row.listing_images),
     listing_videos: filterSelfHosted(row.listing_videos),
+  };
+}
+
+/**
+ * 관리자/중개사 포털(admin broker portal) 전용 이미지 정책.
+ *
+ * 공개 엔드포인트의 applyImagePolicy 와 달리 "크롤링 원본 썸네일 노출" 을 허용한다.
+ *   - 자체 매물(source_site NULL): 그대로
+ *   - 크롤링 + 자체 업로드 섞인 매물: 자체 업로드만 노출
+ *     (46163 봉천동 62-24 처럼 공실클럽 워터마크 썸네일을 중개사가 교체한 케이스 보호)
+ *   - 크롤링 사진만 있는 매물: 크롤링 원본 유지
+ *     (중개사가 업무상 참조해야 하므로 카드 썸네일을 비워두지 않는다)
+ *
+ * ※ 공개 엔드포인트에는 절대 쓰지 말 것 — 저작권 차단 우회 루트가 된다.
+ */
+export function preferSelfHostedImages<
+  T extends {
+    source_site?: string | null;
+    listing_images?: any[] | null;
+    listing_videos?: any[] | null;
+  }
+>(row: T): T {
+  if (!row) return row;
+  if (!row.source_site) return row;
+
+  const selfImgs = filterSelfHosted(row.listing_images);
+  const selfVids = filterSelfHosted(row.listing_videos);
+
+  return {
+    ...row,
+    listing_images:
+      selfImgs.length > 0
+        ? selfImgs
+        : (Array.isArray(row.listing_images) ? row.listing_images : []),
+    listing_videos:
+      selfVids.length > 0
+        ? selfVids
+        : (Array.isArray(row.listing_videos) ? row.listing_videos : []),
   };
 }

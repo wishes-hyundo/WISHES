@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
-import { filterSelfHosted } from '@/lib/image-policy';
+import { preferSelfHostedImages } from '@/lib/image-policy';
 
 /**
  * GET /api/admin/listings/[id] - 매물 상세 조회 (이미지 포함)
@@ -70,19 +70,24 @@ export async function GET(
       .select('feature')
       .eq('listing_id', listingId);
 
-    // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)의 외부 원본 이미지/동영상은 차단.
-    //   자체 업로드(wishes.co.kr/api/images, supabase, R2) 는 통과.
-    //   모바일 상세에서 gongsilclub/nemoapp CDN 이 핫링크 차단·CORS 로 전부 깨지는 회귀 수정.
-    const srcSite = (listing as any)?.source_site;
-    const safeImages = srcSite ? filterSelfHosted(images || []) : (images || []);
-    const safeVideos = srcSite ? filterSelfHosted(videos || []) : (videos || []);
+    // ※ 관리자 포털 이미지 정책 (preferSelfHostedImages):
+    //   - 자체매물: 그대로
+    //   - 혼합(크롤링+자체업로드): 자체업로드만 노출 (46163 봉천동 62-24 케이스)
+    //   - 크롤링 전용: 원본 유지 (중개사 편집/참조 UI 에서 빈 갤러리 방지)
+    //   모바일 상세에서 gongsilclub/nemoapp CDN 이 핫링크/CORS 로 깨지는 문제는
+    //   혼합 매물에서만 발생하므로 이 정책으로 충분히 방어됨.
+    const policed = preferSelfHostedImages({
+      source_site: (listing as any)?.source_site ?? null,
+      listing_images: images || [],
+      listing_videos: videos || [],
+    });
 
     return NextResponse.json({
       success: true,
       data: {
         ...listing,
-        listing_images: safeImages,
-        listing_videos: safeVideos,
+        listing_images: policed.listing_images,
+        listing_videos: policed.listing_videos,
         features: features?.map((f: { feature: string }) => f.feature) || [],
       },
     });
