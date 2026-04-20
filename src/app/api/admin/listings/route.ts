@@ -291,55 +291,57 @@ export async function GET(request: NextRequest) {
       // v8: select('*') 전환
       // v7: 상가 필드 포함
       // v6: 빈 응답 캐싱 방지 (poison cache fix)
-      // ── 전체 매물 병렬 fetch 헬퍼 ──
+      // ── 전체 매물 fetch 헬퍼 (page 단위 재시도 포함) ──
       //   cached() 바깥에서도 재사용 (fallback 용).
-      //   partial 감지 시 throwOnPartial 옵션으로 분기:
-      //     - true  (cached 안): throw → cached() 가 stale 로 fallback
-      //     - false (route fallback): 일부라도 반환 (0 rows 는 피하기 위함)
+      //   failure 시나리오:
+      //     1) Promise.all 병렬 fetch → 대부분 성공. 1~2s 내 3000+ rows.
+      //     2) 중간 page 에러/empty 시 해당 page 만 재시도 (최대 2회, 지수 백오프).
+      //     3) 재시도 실패한 page 는 버림. throwOnPartial=true (cached 내부) 면
+      //        80% 미달 시 throw 해서 stale 유지. false (route fallback) 면 일부라도 반환.
+      const PAGE_SIZE = 1000;
+      const fetchPage = async (
+        pageIdx: number,
+        maxAttempts: number = 3,
+      ): Promise<any[]> => {
+        const from = pageIdx * PAGE_SIZE;
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+          const { data, error } = await supabase
+            .from('listings')
+            .select(selectFields)
+            .order('created_at', { ascending: false })
+            .range(from, from + PAGE_SIZE - 1);
+          if (!error && data && data.length > 0) return data;
+          if (error) {
+            console.warn(`[admin/listings] page ${pageIdx} attempt ${attempt + 1} err:`, error.message);
+          }
+          // 지수 백오프: 200ms, 600ms
+          if (attempt < maxAttempts - 1) {
+            await new Promise(r => setTimeout(r, 200 * Math.pow(3, attempt)));
+          }
+        }
+        return [];
+      };
+
       const fetchAllMinimal = async (throwOnPartial: boolean): Promise<any[]> => {
-        const PAGE_SIZE = 1000;
         const { count: totalCount } = await supabase
           .from('listings')
           .select('*', { count: 'exact', head: true });
         const totalRows = totalCount || 20000;
         const totalPages = Math.ceil(totalRows / PAGE_SIZE);
 
-        const { data: firstPage, error: firstError } = await supabase
-          .from('listings')
-          .select(selectFields)
-          .order('created_at', { ascending: false })
-          .range(0, PAGE_SIZE - 1);
-
-        if (firstError) throw new Error('supabase-err: ' + firstError.message);
-        if (!firstPage || firstPage.length === 0) throw new Error('empty-first-page');
+        const firstPage = await fetchPage(0);
+        if (firstPage.length === 0) throw new Error('empty-first-page');
 
         let all: any[] = [...firstPage];
 
         if (totalPages > 1) {
-          const parallelPages = [];
-          for (let p = 1; p < totalPages; p++) {
-            const from = p * PAGE_SIZE;
-            parallelPages.push(
-              supabase
-                .from('listings')
-                .select(selectFields)
-                .order('created_at', { ascending: false })
-                .range(from, from + PAGE_SIZE - 1)
-            );
-          }
-          const results = await Promise.all(parallelPages);
-          // ※ break 금지: 중간 페이지가 empty/error 라도 뒤 페이지는 살아있을 수 있음.
-          results.forEach(({ data, error }, idx) => {
-            if (error) {
-              console.warn(`[admin/listings] page ${idx + 1} err:`, error.message);
-              return;
-            }
-            if (data && data.length > 0) {
-              all = all.concat(data);
-            }
+          // 병렬로 나머지 페이지 fetch (각 페이지 내부 재시도 포함).
+          const remainingPages = [];
+          for (let p = 1; p < totalPages; p++) remainingPages.push(fetchPage(p));
+          const results = await Promise.all(remainingPages);
+          results.forEach(pageRows => {
+            if (pageRows.length > 0) all = all.concat(pageRows);
           });
-          // cached() 안에서는 partial 을 throw 해서 stale 유지.
-          // route-level fallback 에서는 throw 하지 않고 일부라도 반환 (0 rows 방지).
           if (throwOnPartial && all.length < totalRows * 0.8) {
             throw new Error(
               `admin-listings partial: got ${all.length}/${totalRows} rows — refusing to cache`
@@ -356,10 +358,10 @@ export async function GET(request: NextRequest) {
         () => fetchAllMinimal(true),
         30_000,     // 30초 fresh (크롤링 신규매물 빠른 반영)
         600_000,    // 10분 stale 허용 — Supabase transient 장애에도 /search 1000건 회귀 방지.
-        50_000,     // 50초 타임아웃 (Vercel cold start + 3~4 page 병렬 fetch 여유)
+        55_000,     // 55초 타임아웃 (page 재시도 + cold start 여유)
       ) || [];
 
-      // cached() 가 null/empty 반환 (cold 인스턴스에서 첫 호출이 partial-throw 한 경우 등)
+      // cached() 가 null/empty 반환 (cold 인스턴스 첫 호출 partial-throw 등)
       //   → 직접 fetch 로 한번 더 시도 (partial 허용) → UI 에 0건 노출 방지.
       if (allData.length === 0) {
         console.warn('[admin/listings] cache returned empty — direct fetch fallback');
@@ -373,18 +375,23 @@ export async function GET(request: NextRequest) {
       // ETag 기반 304 응답
       const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length });
       const etag = '"' + createHash('sha1').update(bodyStr).digest('hex').substring(0, 16) + '"';
-      // 빈 응답은 CDN 캐시 금지 (Supabase 일시 오류 시 poison cache 방지)
-      const cacheCtrl = allData.length === 0
+      // 빈/부분 응답은 CDN 캐시 금지 (Supabase transient 장애로 인한 poison cache 방지).
+      // 현재 DB ~3275 rows. 2500 미만이면 transient 문제로 간주 → no-store.
+      // 이렇게 해야 cold 인스턴스의 partial fallback (1267/1000 rows) 이 CDN 에 박제되지 않음.
+      const isPartial = allData.length > 0 && allData.length < 2500;
+      const isEmpty = allData.length === 0;
+      const cacheCtrl = isEmpty || isPartial
         ? 'no-cache, no-store, must-revalidate'
         : 's-maxage=30, stale-while-revalidate=180';
+      const cdnCtrl = isEmpty || isPartial ? 'no-store' : 'max-age=30';
       const ifNoneMatch = request.headers.get('if-none-match');
-      if (ifNoneMatch === etag && allData.length > 0) {
+      if (ifNoneMatch === etag && !isEmpty) {
         return new NextResponse(null, {
           status: 304,
           headers: {
             'ETag': etag,
             'Cache-Control': cacheCtrl,
-            'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=30',
+            'CDN-Cache-Control': cdnCtrl,
           },
         });
       }
@@ -395,7 +402,7 @@ export async function GET(request: NextRequest) {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
           'Cache-Control': cacheCtrl,
-          'CDN-Cache-Control': allData.length === 0 ? 'no-store' : 'max-age=30',
+          'CDN-Cache-Control': cdnCtrl,
           'Vary': 'Accept-Encoding',
         },
       });
