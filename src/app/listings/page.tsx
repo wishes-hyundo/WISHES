@@ -52,7 +52,12 @@ export default async function ListingsPage({
         .eq('status', '공개');
 
       if (deal) query = query.eq('deal', deal);
-      if (type) query = query.eq('type', type);
+      // 매물유형 관대 매칭: 레거시 슬래시 값 '사무실/상가' 호환
+      //   '사무실' 선택 시 '사무실' | '사무실/상가' 둘 다, '상가' 선택 시 '상가' | '사무실/상가' 둘 다 잡히게.
+      if (type) {
+        const safe = type.replace(/[,()]/g, '');
+        query = query.or(`type.eq.${safe},type.ilike.%${safe}%`);
+      }
       if (dong) query = query.eq('dong', dong);
 
       const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';

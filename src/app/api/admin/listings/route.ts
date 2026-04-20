@@ -23,7 +23,11 @@ import { cached, invalidateCache } from '@/lib/cache';
 // 요청 검증 스키마
 const createListingSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요'),
-  type: z.enum(['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실']),
+  type: z.enum([
+    '원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '빌라',
+    '주택', '상가', '사무실', '지식산업센터', '토지',
+    '사무실/상가', // 크롤러 레거시 호환
+  ]),
   deal: z.enum(['전세', '월세', '매매']),
   deposit: z.number().int().nonnegative().default(0),
   monthly: z.number().int().nonnegative().optional().nullable(),
@@ -138,6 +142,7 @@ function keepThumbnailOnly(row: any): any {
 }
 
 import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
+import { geocodeAddress } from '@/lib/geocode';
 
 /**
  * GET /api/admin/listings - 모든 매물 조회 (관리자용)
@@ -394,10 +399,13 @@ export async function POST(request: NextRequest) {
     }
     // contact_number → contact 호환
     if (body.contact_number && !body.contact) body.contact = body.contact_number;
-    // type 자동 매핑 (크롤러에서 사용하는 type → API enum)
+    // type 자동 매핑 (크롤러 → API 표준 라벨)
+    //   2026-04-20: 이전 버전은 '빌라' → '원룸' 등 파괴적 매핑이 있었음 → 제거.
+    //   이제 schema 가 빌라/주택/지식산업센터/토지 도 허용하므로 그대로 저장.
+    //   '단독/다가구' 같은 비표준 값만 최소 매핑.
     const typeMap: Record<string, string> = {
-      '빌라': '원룸', '공장/창고': '상가', '지식산업센터': '사무실',
-      '쓰리룸': '쓰리룸', '단독/다가구': '원룸',
+      '공장/창고': '상가',
+      '단독/다가구': '주택',
     };
     if (body.type && typeMap[body.type]) body.type = typeMap[body.type];
     // area_m2가 없으면 0으로 설정
@@ -415,6 +423,22 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
 
     const { images, ...listingData } = parsed.data;
+
+    // ── 자동 지오코딩 (lat/lng 미수신 시) ──
+    //   크롤러/외부 POST 에서 좌표를 함께 보내지 않는 경우, 주소로 Kakao Local API를
+    //   즉시 호출해서 lat/lng 을 채운다. 실패해도 insert 자체는 진행 (null 상태로 저장).
+    //   2026-04-20: /map 신규 매물 미노출 회귀 방어.
+    if ((listingData.lat == null || listingData.lng == null) && listingData.address) {
+      try {
+        const coords = await geocodeAddress(listingData.address);
+        if (coords) {
+          listingData.lat = coords.lat;
+          listingData.lng = coords.lng;
+        }
+      } catch (e) {
+        console.warn('자동 지오코딩 실패(무시하고 insert 진행):', e);
+      }
+    }
 
     const { data, error } = await supabase
       .from('listings')
@@ -581,6 +605,23 @@ export async function PUT(request: NextRequest) {
         updateValues[key] = value;
       }
     });
+
+    // ── 자동 재지오코딩 (주소는 있는데 lat/lng 이 null 로 업데이트되려는 경우) ──
+    //   2026-04-20: 신규/수정 매물이 좌표 없이 들어와 /map 에 안 뜨는 이슈 방어.
+    const wantsAddr = typeof updateValues.address === 'string' && updateValues.address.length > 0;
+    const latMissing = updateValues.lat == null;
+    const lngMissing = updateValues.lng == null;
+    if (wantsAddr && (latMissing || lngMissing)) {
+      try {
+        const coords = await geocodeAddress(updateValues.address);
+        if (coords) {
+          updateValues.lat = coords.lat;
+          updateValues.lng = coords.lng;
+        }
+      } catch (e) {
+        console.warn('자동 지오코딩 실패(무시하고 update 진행):', e);
+      }
+    }
 
     if (Object.keys(updateValues).length === 0 && !images) {
       return NextResponse.json(

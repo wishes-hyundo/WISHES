@@ -18,7 +18,10 @@ declare global {
 }
 
 const dealTypes: DealType[] = ['매매', '전세', '월세', '단기'];
-const listingTypes: ListingType[] = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '빌라', '상가', '사무실'];
+const listingTypes: ListingType[] = [
+  '원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '빌라',
+  '주택', '상가', '사무실', '지식산업센터', '토지'
+];
 
 // 층수 범주 판정
 function floorMatches(floor: number | null | undefined, category?: string): boolean {
@@ -297,7 +300,18 @@ function createDongClusterContent(dongName: string, count: number): HTMLElement 
 // 네모/직방 관행: 버블=가격, 카드=가격외 모든 것. 유형별 field set이 달라야 함
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 function isCommercialType(type: string | null | undefined): boolean {
-  return type === '상가' || type === '사무실';
+  //   - 정식: '상가', '사무실', '사무실/상가'(크롤링 레거시), '지식산업센터'
+  //   - 주거성: '원룸','투룸','쓰리룸','오피스텔','아파트','빌라','주택' (return false)
+  const t = (type || '').trim();
+  if (!t) return false;
+  return (
+    t === '상가' ||
+    t === '사무실' ||
+    t === '사무실/상가' ||
+    t === '지식산업센터' ||
+    t.includes('상가') ||
+    t.includes('사무실')
+  );
 }
 
 function formatFloorCompact(listing: Listing): string {
@@ -729,8 +743,13 @@ function MapSearchPageInner() {
 
       // 거래유형 다중
       if (filters.deals?.length && !filters.deals.includes(l.deal)) return false;
-      // 매물유형 다중
-      if (filters.types?.length && !filters.types.includes(l.type)) return false;
+      // 매물유형 다중 — 관대 매칭 (레거시 슬래시값 '사무실/상가' 호환)
+      //   '상가' 선택 시 '사무실/상가' 도 걸리게 includes 기반으로 매칭.
+      if (filters.types?.length) {
+        const ltype = (l.type || '') as string;
+        const hit = filters.types.some((t) => ltype === t || ltype.includes(t));
+        if (!hit) return false;
+      }
 
       // 보증금 범위 (전세·월세 대상)
       if (filters.minDeposit != null && (l.deposit ?? 0) < filters.minDeposit) return false;
