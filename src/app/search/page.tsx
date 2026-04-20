@@ -129,7 +129,7 @@ export default function SearchPortalPage() {
     const script = document.createElement('script');
     script.id = 'ws-ext-content';
     // 세션 지속성 핫픽스(redirect 재검증) 강제 반영용 cache-buster
-    script.src = '/search/content.js?v=20260420f';
+    script.src = '/search/content.js?v=20260420e';
     script.async = false;
     document.body.appendChild(script);
 
@@ -152,7 +152,7 @@ export default function SearchPortalPage() {
     if (!existingV240) {
       const v240Script = document.createElement('script');
       v240Script.id = 'ws-ext-patch-v240';
-      v240Script.src = '/search/content-v240-detail.js?v=20260420f';
+      v240Script.src = '/search/content-v240-detail.js?v=20260420e';
       v240Script.async = false;
       v240Script.defer = false;
       document.body.appendChild(v240Script);
@@ -236,6 +236,19 @@ export default function SearchPortalPage() {
       v291Script.async = false;
       v291Script.defer = false;
       document.body.appendChild(v291Script);
+    }
+
+    // v2.9.2 상단 통합검색(ws-global-search) 복원 — #ws-btn-search 클릭/엔터가
+    // WS.allListings 에 대해 광역 substring 필터를 수행하도록 연결.
+    // (기존 ws-keyword 및 지역/유형 필터와 직교)
+    const existingV292 = document.getElementById('ws-ext-patch-v292-global-search');
+    if (!existingV292) {
+      const v292Script = document.createElement('script');
+      v292Script.id = 'ws-ext-patch-v292-global-search';
+      v292Script.src = '/search/content-v292-global-search.js?v=20260420a';
+      v292Script.async = false;
+      v292Script.defer = false;
+      document.body.appendChild(v292Script);
     }
   }, [state]);
 
