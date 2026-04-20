@@ -277,6 +277,10 @@ export async function GET(request: NextRequest) {
       }
 
       // 🔥 인메모리 캐시: 30초 fresh, 3분 stale 허용, 30초 타임아웃
+      // v12 (2026-04-20 rev3): 포이즌 캐시 버그 수정 — 병렬 페이지 루프에서 중간 페이지 1건이 empty
+      //                   가 되면 break 로 조기 종료되어 1000/2000건만 캐시되던 문제.
+      //                   head count 로 전체 행 수 확정 → 필요 페이지 전부 병렬 fetch →
+      //                   에러가 있으면 throw (cached() 가 stale 유지). /search '전체 1000건' 고정 해결.
       // v11 (2026-04-20 rev2): preferSelfHostedImages 로 교체 — 크롤링 전용 매물 썸네일 복원.
       //                   applyImagePolicy(v10) 는 크롤링 매물 이미지를 전부 지워버려 /search?sort=latest
       //                   전체 카드가 썸네일 없이 렌더링되는 회귀 발생 → 혼합 매물만 자체업로드 우선.
@@ -288,9 +292,21 @@ export async function GET(request: NextRequest) {
       // v7: 상가 필드 포함
       // v6: 빈 응답 캐싱 방지 (poison cache fix)
       const allData = await cached(
-        'admin-listings-minimal-v11',
+        'admin-listings-minimal-v12',
         async () => {
           const PAGE_SIZE = 1000;
+          // ── 전체 행 수 선반영 ──
+          //   병렬 페이지 루프에서 '빈 배열 = 끝' 가정은
+          //   네트워크 오류·타임아웃·RLS 문제로도 빈 배열이 올 수 있어 위험.
+          //   (2026-04-20 사건: 중간 페이지 1개가 silently empty → break →
+          //    1000건만 캐시돼 /search 전체 1000/1/50 로 회귀)
+          //   → head 카운트로 전체 행 수 먼저 잡고, 필요한 페이지 수를 확정.
+          const { count: totalCount } = await supabase
+            .from('listings')
+            .select('*', { count: 'exact', head: true });
+          const totalRows = totalCount || 20000;
+          const totalPages = Math.ceil(totalRows / PAGE_SIZE);
+
           const { data: firstPage, error: firstError } = await supabase
             .from('listings')
             .select(selectFields)
@@ -302,9 +318,10 @@ export async function GET(request: NextRequest) {
 
           let all: any[] = [...firstPage];
 
-          if (firstPage.length === PAGE_SIZE) {
+          if (totalPages > 1) {
             const parallelPages = [];
-            for (let from = PAGE_SIZE; from < 20000; from += PAGE_SIZE) {
+            for (let p = 1; p < totalPages; p++) {
+              const from = p * PAGE_SIZE;
               parallelPages.push(
                 supabase
                   .from('listings')
@@ -314,12 +331,25 @@ export async function GET(request: NextRequest) {
               );
             }
             const results = await Promise.all(parallelPages);
-            for (const { data } of results) {
+            // ※ break 금지: 중간 페이지가 empty/error 라도 뒤 페이지는 살아있을 수 있음.
+            //   실패한 페이지가 있으면 throw 해서 cached() 가 포이즌 스테일을 보존하도록.
+            let hadPageError = false;
+            results.forEach(({ data, error }, idx) => {
+              if (error) {
+                hadPageError = true;
+                console.warn(`[admin/listings] page ${idx + 1} err:`, error.message);
+                return;
+              }
               if (data && data.length > 0) {
                 all = all.concat(data);
-              } else {
-                break;
               }
+            });
+            // 중간 페이지가 에러·공백인데도 완료처리해버리면 포이즌 캐시가 됨.
+            // 예상 총량(head count)에 한참 못 미치면 throw → cached() stale 유지.
+            if (hadPageError && all.length < totalRows * 0.8) {
+              throw new Error(
+                `admin-listings partial: got ${all.length}/${totalRows} rows — refusing to cache`
+              );
             }
           }
 
