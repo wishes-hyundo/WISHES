@@ -37,9 +37,11 @@ export function formatDeviation(dev: number | null): { text: string; kind: 'good
   return { text: `${pct >= 0 ? '+' : ''}${pct}%`, kind: 'neutral' };
 }
 
-/** 면적 표기 (m² + 평) */
+/** 면적 표기 (m² + 평) — L-mapfix1 (2026-04-21): 0 값도 '면적 정보 없음'으로 처리
+ *    크롤러 수집분 중 상당수가 supply_area / exclusive_area 필드가 비어
+ *    DB 에 area_m2 = 0 으로 저장되어 "0.0m² · 0.0평" 로 노출되던 UX 사고 차단. */
 export function formatArea(m2: number | null): string {
-  if (m2 == null || Number.isNaN(m2)) return '-';
+  if (m2 == null || Number.isNaN(m2) || m2 <= 0) return '-';
   const pyeong = (m2 / 3.3058).toFixed(1);
   return `${m2.toFixed(1)}m² · ${pyeong}평`;
 }
