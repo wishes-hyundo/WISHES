@@ -29,12 +29,16 @@ export function buildLayers(ctx: Ctx): Layer[] {
 
   // 2) 모드별 주 레이어
   switch (ctx.mode) {
-    case 'hexagon-low':
-      layers.push(buildHexLayer(ctx.listings, 6, ctx.onHexClick));
+    case 'hexagon-low': {
+      const hex = buildHexLayer(ctx.listings, 6, ctx.onHexClick);
+      if (hex) layers.push(hex);
       break;
-    case 'hexagon-mid':
-      layers.push(buildHexLayer(ctx.listings, 7, ctx.onHexClick));
+    }
+    case 'hexagon-mid': {
+      const hex = buildHexLayer(ctx.listings, 7, ctx.onHexClick);
+      if (hex) layers.push(hex);
       break;
+    }
     case 'pins':
     case '3d': {
       // hero 가 아닌 매물은 작은 점으로 (배경 밀도)

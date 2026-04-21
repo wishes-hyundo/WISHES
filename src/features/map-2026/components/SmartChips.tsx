@@ -1,37 +1,40 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SmartChips — 개별 토글 칩 그룹 (프리셋 replace 버그 없음)
-// 행1: 거래유형 (매매/전세/월세/단기)
-// 행2: 핵심 칩 (역세권/방개수/신축/사진있음/반려동물/주차)
+// SmartChips — Category-First 필터바 (2026-04 개편)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 🎯 레이아웃
+//   Row 1: 거래유형 (매매·전세·월세·단기)                    ← 전역 공통
+//   Row 2: CategoryTabs (주거·상가/사무실·토지·투자)          ← 최상위 맥락
+//   Row 3: 카테고리별 전용 칩 (조건부 렌더링)                 ← 맥락 따라 교체
+//   Row 4: 공통 꼬리표 (사진있음 + 전체 해제)                 ← 어느 카테고리든 의미 있음
+//
+// 🎯 원칙
+//   - 기존 주거 편향(원룸/반려동물)은 ResidenceChips 로 완전히 이사
+//   - 카테고리 전환 시 관련 없는 필터는 setCategory 액션이 자동 정리
+//   - 칩 스타일은 각 카테고리 컴포넌트가 자체 테마 색상으로 책임
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { Train, Home, Sparkles, Image as ImageIcon, Dog, Car, X } from 'lucide-react';
+import { Image as ImageIcon, X } from 'lucide-react';
 import { useMap2026Store, type DealType } from '../store';
+import { countActiveFilters } from '../lib/filterVisibility';
+import { CategoryTabs } from './CategoryTabs';
+import { ResidenceChips } from './ResidenceChips';
+import { CommercialChips } from './CommercialChips';
+import { LandChips } from './LandChips';
+import { InvestmentChips } from './InvestmentChips';
 
 const DEALS: DealType[] = ['매매', '전세', '월세', '단기'];
-const ROOMS = [
-  { n: 1, label: '원룸' },
-  { n: 2, label: '투룸' },
-  { n: 3, label: '쓰리룸+' },
-] as const;
 
 export function SmartChips() {
   const filter = useMap2026Store((s) => s.filter);
   const toggleDeal = useMap2026Store((s) => s.toggleDeal);
-  const toggleRoom = useMap2026Store((s) => s.toggleRoom);
-  const toggleFeature = useMap2026Store((s) => s.toggleFeature);
   const setFilter = useMap2026Store((s) => s.setFilter);
 
-  const stationActive = filter.nearStation != null;
-  const newBuildActive = filter.newBuildYears != null;
-  const hasImagesActive = filter.hasImages;
-  const hasPet = filter.features.includes('반려동물');
-  const hasParking = filter.features.includes('주차');
-
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-neutral-100 bg-white px-4 py-2.5">
-      {/* 거래유형 */}
-      <div className="flex items-center gap-1 pr-2">
+    <div className="border-b border-neutral-100 bg-white">
+      {/* Row 1 — 거래유형 (전역) */}
+      <div className="flex items-center gap-1 px-4 pt-2.5">
+        <span className="pr-2 text-[11px] font-semibold text-neutral-500">거래</span>
         {DEALS.map((d) => {
           const active = filter.deals.includes(d);
           return (
@@ -51,105 +54,34 @@ export function SmartChips() {
         })}
       </div>
 
-      <div className="h-5 w-px bg-neutral-200" />
+      {/* Row 2 — 카테고리 탭 (최상위 맥락) */}
+      <CategoryTabs />
 
-      {/* 방 개수 */}
-      {ROOMS.map(({ n, label }) => {
-        const active = filter.rooms.includes(n);
-        return (
-          <button
-            key={n}
-            onClick={() => toggleRoom(n)}
-            className={[
-              'flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition',
-              active
-                ? 'bg-emerald-600 text-white'
-                : 'bg-neutral-50 text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-100',
-            ].join(' ')}
-          >
-            <Home className="size-3.5" />
-            {label}
-          </button>
-        );
-      })}
+      {/* Row 3 — 카테고리별 전용 칩 (조건부 렌더링) */}
+      <div className="px-4 py-2.5">
+        {filter.category === 'residence'     && <ResidenceChips />}
+        {filter.category === 'retail_office' && <CommercialChips />}
+        {filter.category === 'land'          && <LandChips />}
+        {filter.category === 'investment'    && <InvestmentChips />}
+      </div>
 
-      {/* 역세권 */}
-      <button
-        onClick={() =>
-          setFilter({ nearStation: stationActive ? null : 300 })
-        }
-        className={[
-          'flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition',
-          stationActive
-            ? 'bg-emerald-600 text-white'
-            : 'bg-neutral-50 text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-100',
-        ].join(' ')}
-        title="역에서 도보 5분 이내"
-      >
-        <Train className="size-3.5" />
-        역세권
-      </button>
+      {/* Row 4 — 공통 꼬리표 */}
+      <div className="flex items-center gap-2 border-t border-neutral-50 px-4 py-2">
+        <button
+          onClick={() => setFilter({ hasImages: !filter.hasImages })}
+          className={[
+            'flex items-center gap-1 rounded-full px-3 py-1 text-[11.5px] transition',
+            filter.hasImages
+              ? 'bg-neutral-900 text-white'
+              : 'text-neutral-600 hover:bg-neutral-100',
+          ].join(' ')}
+        >
+          <ImageIcon className="size-3" />
+          사진 있음
+        </button>
 
-      {/* 신축 */}
-      <button
-        onClick={() =>
-          setFilter({ newBuildYears: newBuildActive ? null : 3 })
-        }
-        className={[
-          'flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition',
-          newBuildActive
-            ? 'bg-emerald-600 text-white'
-            : 'bg-neutral-50 text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-100',
-        ].join(' ')}
-        title="3년 이내 신축"
-      >
-        <Sparkles className="size-3.5" />
-        신축
-      </button>
-
-      {/* 사진 있는 매물 */}
-      <button
-        onClick={() => setFilter({ hasImages: !hasImagesActive })}
-        className={[
-          'flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition',
-          hasImagesActive
-            ? 'bg-emerald-600 text-white'
-            : 'bg-neutral-50 text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-100',
-        ].join(' ')}
-      >
-        <ImageIcon className="size-3.5" />
-        사진 있음
-      </button>
-
-      {/* 반려동물 */}
-      <button
-        onClick={() => toggleFeature('반려동물')}
-        className={[
-          'flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition',
-          hasPet
-            ? 'bg-emerald-600 text-white'
-            : 'bg-neutral-50 text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-100',
-        ].join(' ')}
-      >
-        <Dog className="size-3.5" />
-        반려동물
-      </button>
-
-      {/* 주차 */}
-      <button
-        onClick={() => toggleFeature('주차')}
-        className={[
-          'flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] transition',
-          hasParking
-            ? 'bg-emerald-600 text-white'
-            : 'bg-neutral-50 text-neutral-700 ring-1 ring-neutral-200 hover:bg-neutral-100',
-        ].join(' ')}
-      >
-        <Car className="size-3.5" />
-        주차
-      </button>
-
-      <ClearAll />
+        <ClearAll />
+      </div>
     </div>
   );
 }
@@ -157,27 +89,16 @@ export function SmartChips() {
 function ClearAll() {
   const filter = useMap2026Store((s) => s.filter);
   const clearFilter = useMap2026Store((s) => s.clearFilter);
-  const active =
-    filter.deals.length +
-    filter.rooms.length +
-    filter.propertyTypes.length +
-    filter.features.length +
-    (filter.nearStation != null ? 1 : 0) +
-    (filter.newBuildYears != null ? 1 : 0) +
-    (filter.hasImages ? 1 : 0) +
-    (filter.minPrice != null || filter.maxPrice != null ? 1 : 0) +
-    (filter.minDeposit != null || filter.maxDeposit != null ? 1 : 0) +
-    (filter.minMonthly != null || filter.maxMonthly != null ? 1 : 0) +
-    (filter.minArea != null || filter.maxArea != null ? 1 : 0);
+  const active = countActiveFilters(filter);
 
   if (active === 0) return null;
 
   return (
     <button
       onClick={clearFilter}
-      className="ml-auto flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
+      className="ml-auto flex items-center gap-1 rounded-full px-3 py-1 text-[11.5px] font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
     >
-      <X className="size-3.5" />
+      <X className="size-3" />
       전체 해제 ({active})
     </button>
   );

@@ -39,9 +39,10 @@ export default function MapClient() {
   // 지도 초기화
   useEffect(() => {
     if (!containerRef.current) return;
+    const container = containerRef.current;
 
     const map = new maplibregl.Map({
-      container: containerRef.current,
+      container,
       style: buildStyle(),
       center: SEOUL,
       zoom: 12.3,
@@ -49,20 +50,23 @@ export default function MapClient() {
       attributionControl: { compact: true },
     });
 
-    map.addControl(
-      new maplibregl.NavigationControl({ showCompass: false }),
-      'bottom-right'
-    );
+    const overlay = new MapboxOverlay({ interleaved: true, layers: [] });
+    map.addControl(overlay as unknown as maplibregl.IControl);
+    overlayRef.current = overlay;
 
     map.on('load', () => {
-      const overlay = new MapboxOverlay({ interleaved: false, layers: [] });
-      map.addControl(overlay);
-      overlayRef.current = overlay;
       setMap(map, overlay);
       setReady(true);
+      // 컨테이너가 0×0 에서 시작했을 수 있으므로 다음 프레임에 강제 리사이즈
+      requestAnimationFrame(() => map.resize());
     });
 
+    // 컨테이너 크기 변화 감지 → MapLibre 내부 뷰포트 동기화
+    const ro = new ResizeObserver(() => map.resize());
+    ro.observe(container);
+
     return () => {
+      ro.disconnect();
       map.remove();
       overlayRef.current = null;
       setReady(false);
@@ -111,7 +115,10 @@ export default function MapClient() {
   ]);
 
   return (
-    <div className="grid h-full grid-rows-[auto_auto_auto_1fr]">
+    // CRITICAL: grid-rows 에서 마지막 트랙을 `minmax(0,1fr)` 로 둬야 ListPanel 의
+    // 긴 매물 리스트(수백개) 가 min-content 로 row 를 밀어서 지도 컨테이너를
+    // 38,000px+ 까지 팽창시키는 사고를 막음.
+    <div className="grid h-full grid-rows-[auto_auto_auto_minmax(0,1fr)]">
       {/* 헤더: 브랜드 + NL 검색 */}
       <header className="flex items-center gap-4 border-b border-neutral-100 bg-white px-4 py-2.5">
         <Brand />
@@ -125,9 +132,11 @@ export default function MapClient() {
       <ActiveFilterPills />
 
       {/* 본문: 좌 리스트 / 우 지도 */}
-      <div className="grid grid-cols-[360px_1fr] overflow-hidden">
+      {/* 내부 grid-cols 도 같은 이유로 minmax(0,1fr) — 1fr 트랙이 자식 min-content 에
+          눌려 커지는 걸 차단. h-full 은 부모 row 전체 높이를 물려받기 위해 필요. */}
+      <div className="grid h-full min-h-0 grid-cols-[360px_minmax(0,1fr)] overflow-hidden">
         <ListPanel />
-        <div className="relative">
+        <div className="relative h-full min-h-0">
           <div ref={containerRef} className="absolute inset-0" />
           <SemanticZoomIndicator />
           <MapControls />

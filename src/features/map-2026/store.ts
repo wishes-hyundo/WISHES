@@ -10,20 +10,58 @@ import type { MapboxOverlay } from '@deck.gl/mapbox';
 export type DealType = '매매' | '전세' | '월세' | '단기';
 export type ZoomMode = 'hexagon-low' | 'hexagon-mid' | 'pins' | '3d';
 
-// Viewport RPC 로부터 받는 뷰 모델 (리스트/핀/카드에서 공유)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 종합부동산 카테고리 체계 (2026-04 Category-First 개편)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export type PropertyCategory =
+  | 'residence'       // 🏠 주거
+  | 'retail_office'   // 🏢 상가/사무실
+  | 'land'            // 🌾 토지
+  | 'investment';     // 💰 투자
+
+export type CommercialPurpose =
+  | 'retail'
+  | 'office'
+  | 'knowledge_center'
+  | 'coworking'
+  | 'mixed_use';
+
+export const CATEGORY_THEME: Record<PropertyCategory, {
+  label: string;
+  emoji: string;
+  accent: string;
+  accentLight: string;
+  ring: string;
+  text: string;
+}> = {
+  residence:     { label: '주거',        emoji: '🏠', accent: 'bg-emerald-600', accentLight: 'bg-emerald-50', ring: 'ring-emerald-500', text: 'text-emerald-700' },
+  retail_office: { label: '상가/사무실', emoji: '🏢', accent: 'bg-amber-600',   accentLight: 'bg-amber-50',   ring: 'ring-amber-500',   text: 'text-amber-700'   },
+  land:          { label: '토지',        emoji: '🌾', accent: 'bg-lime-600',    accentLight: 'bg-lime-50',    ring: 'ring-lime-500',    text: 'text-lime-700'    },
+  investment:    { label: '투자',        emoji: '💰', accent: 'bg-violet-600',  accentLight: 'bg-violet-50',  ring: 'ring-violet-500',  text: 'text-violet-700'  },
+};
+
+export const COMMERCIAL_PURPOSE_LABEL: Record<CommercialPurpose, { label: string; emoji: string }> = {
+  retail:           { label: '상가',         emoji: '🛍️' },
+  office:           { label: '사무실',       emoji: '💼' },
+  knowledge_center: { label: '지식산업센터', emoji: '🏭' },
+  coworking:        { label: '공유오피스',   emoji: '🤝' },
+  mixed_use:        { label: '복합건물',     emoji: '🏬' },
+};
+
+// Viewport RPC 로부터 받는 뷰 모델
 export interface MapListing {
   id: number;
   lat: number;
   lng: number;
   deal: DealType;
-  type: string | null;                 // '원룸' | '투룸' 등
+  type: string | null;
   deposit: number | null;
   monthly: number | null;
   price: number | null;
   area_m2: number | null;
   rooms: number | null;
   floor_current: string | null;
-  station_distance: number | null;     // 미터
+  station_distance: number | null;
   built_year: string | null;
   building_name: string | null;
   dong: string | null;
@@ -31,57 +69,58 @@ export interface MapListing {
   thumbnail_url: string | null;
   features: string[];
   photo_count: number;
-  median_price: number | null;         // 동·거래유형 중앙값
-  median_deviation: number | null;     // ±% (−1 ~ +∞)
-  hero_score: number;                  // 서버 0..100
+  median_price: number | null;
+  median_deviation: number | null;
+  hero_score: number;
   created_at: string;
   updated_at: string;
 }
 
 export interface BBox { west: number; south: number; east: number; north: number }
 
-// 서버로 보낼 필터 모음
 export interface FilterState {
-  deals: DealType[];                   // ['전세', '월세'] 처럼 누적 가능
-  minPrice: number | null;             // 만원 단위
-  maxPrice: number | null;             // 만원 단위
+  category: PropertyCategory;
+  purposes: CommercialPurpose[];
+  deals: DealType[];
+  hasImages: boolean;
+  minPrice: number | null;
+  maxPrice: number | null;
   minDeposit: number | null;
   maxDeposit: number | null;
   minMonthly: number | null;
   maxMonthly: number | null;
-  rooms: number[];                     // [1, 2, 3, 4+]   (4=4룸 이상)
-  minArea: number | null;              // m²
+  minArea: number | null;
   maxArea: number | null;
-  nearStation: number | null;          // 초(sec) 도보 — 5분=300초
-  newBuildYears: number | null;        // 신축 기준 (3=3년 이내)
-  propertyTypes: string[];             // ['원룸', '투룸', '오피스텔']
-  features: string[];                  // ['주차', '엘리베이터', '반려동물']
-  hasImages: boolean;                  // 사진 있는 매물만
+  rooms: number[];
+  newBuildYears: number | null;
+  propertyTypes: string[];
+  nearStation: number | null;
+  features: string[];
 }
 
 export const DEFAULT_FILTER: FilterState = {
+  category: 'residence',
+  purposes: [],
   deals: [],
+  hasImages: false,
   minPrice: null, maxPrice: null,
   minDeposit: null, maxDeposit: null,
   minMonthly: null, maxMonthly: null,
-  rooms: [],
   minArea: null, maxArea: null,
-  nearStation: null,
+  rooms: [],
   newBuildYears: null,
   propertyTypes: [],
+  nearStation: null,
   features: [],
-  hasImages: false,
 };
 
 export type SortKey = 'recent' | 'price_asc' | 'price_desc' | 'area_desc' | 'deal_score';
 
 export interface Map2026Store {
-  // MapLibre + deck.gl
   map: MapLibreMap | null;
   overlay: MapboxOverlay | null;
   setMap: (m: MapLibreMap, o: MapboxOverlay) => void;
 
-  // 뷰포트
   zoom: number;
   mode: ZoomMode;
   bbox: BBox | null;
@@ -89,9 +128,10 @@ export interface Map2026Store {
   setZoom: (z: number) => void;
   setMode: (m: ZoomMode) => void;
 
-  // 필터 + 정렬
   filter: FilterState;
   setFilter: (patch: Partial<FilterState>) => void;
+  setCategory: (c: PropertyCategory) => void;
+  togglePurpose: (p: CommercialPurpose) => void;
   toggleDeal: (d: DealType) => void;
   toggleRoom: (n: number) => void;
   togglePropertyType: (t: string) => void;
@@ -101,7 +141,6 @@ export interface Map2026Store {
   sort: SortKey;
   setSort: (s: SortKey) => void;
 
-  // 데이터
   listings: MapListing[];
   setListings: (l: MapListing[]) => void;
   loading: boolean;
@@ -110,7 +149,6 @@ export interface Map2026Store {
   heroes: MapListing[];
   setHeroes: (h: MapListing[]) => void;
 
-  // 선택/호버
   selectedId: number | null;
   selectListing: (id: number | null, flyTo?: boolean) => void;
 
@@ -118,14 +156,12 @@ export interface Map2026Store {
   hoverPos: { x: number; y: number } | null;
   setHover: (l: MapListing | null, x?: number, y?: number) => void;
 
-  // 레이어 토글
   isochrone: boolean;
   heatmap: boolean;
   threeD: boolean;
   similar: boolean;
   toggleLayer: (key: 'isochrone' | 'heatmap' | 'threeD' | 'similar') => void;
 
-  // NL 검색
   nlQuery: string;
   setNlQuery: (q: string) => void;
 }
@@ -145,6 +181,32 @@ export const useMap2026Store = create<Map2026Store>()(
 
     filter: { ...DEFAULT_FILTER },
     setFilter: (patch) => set((s) => ({ filter: { ...s.filter, ...patch } })),
+
+    setCategory: (category) =>
+      set((s) => {
+        const next: FilterState = { ...s.filter, category };
+        if (category !== 'residence') {
+          next.rooms = [];
+          next.newBuildYears = null;
+          next.propertyTypes = [];
+          next.features = next.features.filter((f) => f !== '반려동물');
+        }
+        if (category !== 'retail_office') {
+          next.purposes = [];
+        }
+        return { filter: next };
+      }),
+
+    togglePurpose: (p) =>
+      set((s) => ({
+        filter: {
+          ...s.filter,
+          purposes: s.filter.purposes.includes(p)
+            ? s.filter.purposes.filter((x) => x !== p)
+            : [...s.filter.purposes, p],
+        },
+      })),
+
     toggleDeal: (d) =>
       set((s) => ({
         filter: {

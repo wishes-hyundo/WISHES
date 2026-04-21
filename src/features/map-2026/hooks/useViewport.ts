@@ -18,6 +18,10 @@ function buildQueryString(
   p.set('north', bbox.north.toFixed(6));
   p.set('limit', String(limit));
 
+  // Category-First — 최상위 맥락
+  p.set('category', filter.category);
+  if (filter.purposes.length) p.set('purposes', filter.purposes.join(','));
+
   const deals = dealsToParam(filter.deals);
   if (deals) p.set('deals', deals);
   if (filter.minPrice != null) p.set('minPrice', String(filter.minPrice));
@@ -50,7 +54,6 @@ export function useViewport() {
   useEffect(() => {
     if (!bbox) return;
 
-    // 250ms debounce — 팬/줌 중에는 fetch 안 함
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
       abortRef.current?.abort();

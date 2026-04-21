@@ -2,7 +2,7 @@
 // H3 Hexagon layer — 광역 줌에서 지역 밀도 + 중앙가격 표시
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { H3HexagonLayer } from '@deck.gl/geo-layers';
-import { latLngToCell, cellToLatLng } from 'h3-js';
+import { latLngToCell, isValidCell } from 'h3-js';
 import type { MapListing } from '../store';
 
 interface HexBucket {
@@ -17,8 +17,20 @@ function aggregate(listings: MapListing[], resolution: number): HexBucket[] {
   const buckets = new Map<string, { prices: number[]; count: number; deal: string }>();
 
   for (const l of listings) {
-    if (l.lat == null || l.lng == null) continue;
-    const h3 = latLngToCell(l.lat, l.lng, resolution);
+    // H3 는 유효 범위 밖이면 throw. 0,0 / NaN / 범위 초과 모두 걸러냄
+    if (
+      l.lat == null || l.lng == null ||
+      !Number.isFinite(l.lat) || !Number.isFinite(l.lng) ||
+      l.lat === 0 || l.lng === 0 ||
+      l.lat < -90 || l.lat > 90 ||
+      l.lng < -180 || l.lng > 180
+    ) continue;
+    let h3: string;
+    try {
+      h3 = latLngToCell(l.lat, l.lng, resolution);
+    } catch {
+      continue; // h3-js 가 여전히 싫다 하면 skip
+    }
     const price =
       l.deal === '매매' ? l.price ?? 0 :
       l.deal === '전세' ? l.deposit ?? 0 :
@@ -51,8 +63,11 @@ export function buildHexLayer(
   listings: MapListing[],
   resolution: 6 | 7,
   onHexClick?: (h3: string) => void
-) {
-  const data = aggregate(listings, resolution);
+): H3HexagonLayer<HexBucket> | null {
+  // 이중 방어: aggregate 통과 후에도 h3 문자열이 유효한지 한 번 더 검증
+  const data = aggregate(listings, resolution).filter((d) => isValidCell(d.h3));
+  if (data.length === 0) return null;
+
   return new H3HexagonLayer<HexBucket>({
     id: `h3-r${resolution}`,
     data,
