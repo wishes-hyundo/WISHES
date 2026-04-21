@@ -61,7 +61,7 @@ export default function AuthModal() {
           className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-gray-100 transition-colors z-10"
           aria-label="닫기"
         >
-          <X className="w-5 h-5 text-gray-400" />
+          <X className="w-5 h-5 text-gray-500" />
         </button>
 
         {/* 헤더 영역 */}
@@ -141,7 +141,7 @@ export default function AuthModal() {
 
         {/* 하단 안내 */}
         <div className="px-8 pb-6 text-center">
-          <p className="text-xs text-gray-400 leading-relaxed">
+          <p className="text-xs text-gray-500 leading-relaxed">
             로그인 시{' '}
             <span className="underline cursor-pointer hover:text-gray-500">이용약관</span>
             {' '}및{' '}

@@ -313,7 +313,7 @@ export default function ListingEnglishFullView({
             <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
               <Info className="w-4 h-4 text-wishes-primary" /> Agent's Notes
             </h3>
-            <span className="text-[10px] uppercase tracking-wide font-bold text-gray-400">
+            <span className="text-[10px] uppercase tracking-wide font-bold text-gray-500">
               Original in Korean
             </span>
           </div>

@@ -119,9 +119,9 @@ export default function SimilarListings({ listingId, dong, limit = 4 }: Props) {
       <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         <header className="flex items-center justify-between px-5 pt-5 pb-3">
           <div>
-            <h3 className="text-base md:text-lg font-extrabold text-wishes-primary flex items-center gap-2">
+            <h2 className="text-base md:text-lg font-extrabold text-wishes-primary flex items-center gap-2">
               이 매물과 비슷한 매물
-            </h3>
+            </h2>
             <p className="text-[11px] text-gray-500 mt-0.5">유형 · 지역 · 가격대를 종합해 추천합니다</p>
           </div>
           <Loader2 className="w-4 h-4 text-gray-300 animate-spin" />
@@ -144,9 +144,9 @@ export default function SimilarListings({ listingId, dong, limit = 4 }: Props) {
     <section className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
       <header className="flex items-end justify-between px-5 pt-5 pb-3 gap-3">
         <div className="min-w-0">
-          <h3 className="text-base md:text-lg font-extrabold text-wishes-primary flex items-center gap-2">
+          <h2 className="text-base md:text-lg font-extrabold text-wishes-primary flex items-center gap-2">
             이 매물과 비슷한 매물
-          </h3>
+          </h2>
           <p className="text-[11px] text-gray-500 mt-0.5 truncate">
             {dong ? `${dong} · ` : ''}같은 유형 · 비슷한 가격대 {items.length}건
           </p>
@@ -210,7 +210,7 @@ function SimilarCard({ item }: { item: SimilarListing }) {
       <div className="px-3 pb-2">
         <div className="text-[20px] md:text-[22px] font-extrabold text-wishes-primary leading-tight tabular-nums">
           {formatPrice(item)}
-          <span className="text-[11px] font-semibold text-gray-400 ml-0.5">만</span>
+          <span className="text-[11px] font-semibold text-gray-500 ml-0.5">만</span>
         </div>
         <p className="text-xs text-gray-700 font-medium truncate mt-0.5">
           {/* #123 : 건물명 방어선 통과 시에만 사용 (크롤링 소스·슬로건·URL 차단) */}
@@ -229,7 +229,7 @@ function SimilarCard({ item }: { item: SimilarListing }) {
       </div>
 
       {/* 하단 메타 */}
-      <div className="px-3 pb-3 flex items-center justify-between text-[10px] text-gray-400">
+      <div className="px-3 pb-3 flex items-center justify-between text-[10px] text-gray-500">
         <span className="inline-flex items-center gap-1 truncate">
           <MapPin className="w-2.5 h-2.5" />
           <span className="truncate">{item.address || item.dong}</span>

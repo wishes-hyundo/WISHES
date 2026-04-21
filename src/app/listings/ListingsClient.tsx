@@ -825,7 +825,7 @@ export default function ListingsClient({
           <div className="text-center py-20 bg-white rounded-xl border border-gray-200 mt-4">
             <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500 font-medium">{search ? `"${search}" 검색 결과가 없습니다` : '검색 조건에 맞는 매물이 없습니다'}</p>
-            <p className="text-sm text-gray-400 mt-1">
+            <p className="text-sm text-gray-500 mt-1">
               {search
                 ? '매물번호나 키워드를 다시 확인하시거나, 필터를 해제해 보세요.'
                 : (deal || type || dong || maxDeposit || minArea)

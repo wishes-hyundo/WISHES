@@ -102,7 +102,7 @@ export default function ListingLocationMap({ lat, lng, address, title }: Props) 
 
   if (!lat || !lng) {
     return (
-      <div className="flex items-center gap-2 text-xs text-gray-400 p-4">
+      <div className="flex items-center gap-2 text-xs text-gray-500 p-4">
         <MapPin className="w-4 h-4" />
         위치 좌표 정보가 없습니다
       </div>

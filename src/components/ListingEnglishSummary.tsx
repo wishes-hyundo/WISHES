@@ -123,7 +123,7 @@ export default function ListingEnglishSummary({ listing }: { listing: Listing | 
           <span className="text-sm font-bold text-gray-800">English Summary</span>
           <span className="text-xs text-gray-500 hidden sm:inline">Quick overview for international tenants</span>
         </div>
-        {open ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+        {open ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
       </button>
 
       {open && (
@@ -186,7 +186,7 @@ export default function ListingEnglishSummary({ listing }: { listing: Listing | 
           )}
 
           {/* Footer note */}
-          <div className="text-[11px] text-gray-400 leading-relaxed pt-2 border-t border-gray-100">
+          <div className="text-[11px] text-gray-500 leading-relaxed pt-2 border-t border-gray-100">
             This summary is auto-translated for reference. Please contact our agent for an English-speaking consultation.
             Contract terms and legal documents are written in Korean.
           </div>

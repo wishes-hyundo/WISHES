@@ -253,7 +253,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
         <div className="bg-green-50/50 rounded-xl p-6 flex items-center justify-center h-[240px]">
           <div className="flex flex-col items-center gap-2">
             <div className="w-6 h-6 border-2 border-green-400 border-t-transparent rounded-full animate-spin" />
-            <p className="text-xs text-gray-400">실거래가 데이터 로딩중...</p>
+            <p className="text-xs text-gray-500">실거래가 데이터 로딩중...</p>
           </div>
         </div>
       </div>
@@ -275,7 +275,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-700">실거래가 정보</p>
-              <p className="text-xs text-gray-400">해당 지역의 실거래 데이터가 없습니다</p>
+              <p className="text-xs text-gray-500">해당 지역의 실거래 데이터가 없습니다</p>
             </div>
           </div>
                   </div>
@@ -302,7 +302,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
             {dong} {meta?.label || `${type} ${deal}`} 실거래가 동향
           </h3>
           {/* Legend */}
-          <div className="flex items-center gap-3 text-[11px] text-gray-400">
+          <div className="flex items-center gap-3 text-[11px] text-gray-500">
             <span className="flex items-center gap-1">
               <span className="w-3 h-0.5 bg-green-600 rounded-full inline-block" /> 평균가
             </span>
@@ -315,20 +315,20 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
         {/* Summary stats */}
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <p className="text-[11px] text-gray-400 mb-0.5">최근 평균 {priceUnit}</p>
+            <p className="text-[11px] text-gray-500 mb-0.5">최근 평균 {priceUnit}</p>
             <p className="text-lg font-bold text-gray-800">
               {formatWon(latestPrice)}
             </p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <p className="text-[11px] text-gray-400">전월대비</p>
+              <p className="text-[11px] text-gray-500">전월대비</p>
               <p className={`text-sm font-bold ${isUp ? 'text-red-500' : latestPrice < prevPrice ? 'text-blue-500' : 'text-gray-500'}`}>
                 {isUp ? '▲' : latestPrice < prevPrice ? '▼' : '─'} {Math.abs(Number(changePercent))}%
               </p>
             </div>
             <div className="text-right">
-              <p className="text-[11px] text-gray-400">총 거래</p>
+              <p className="text-[11px] text-gray-500">총 거래</p>
               <p className="text-sm font-bold text-gray-700">{totalCount.toLocaleString()}건</p>
             </div>
           </div>
@@ -346,7 +346,7 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
 
       {/* Footer */}
       <div className="px-4 sm:px-6 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-        <p className="text-[10px] text-gray-400">
+        <p className="text-[10px] text-gray-500">
           {formatPeriod(meta?.period || '')} 기준 · 국토교통부 실거래가 공개시스템
         </p>
               </div>

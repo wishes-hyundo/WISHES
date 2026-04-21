@@ -90,7 +90,7 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
               </div>
             </div>
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gradient-to-br from-gray-100 to-gray-200">
+            <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 bg-gradient-to-br from-gray-100 to-gray-200">
               <Building2 className="w-16 h-16 mb-2" />
               <p className="text-sm">이미지 준비 중</p>
             </div>
