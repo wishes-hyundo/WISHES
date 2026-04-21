@@ -36,13 +36,32 @@ export default function MapClient() {
   // L-map1 (2026-04-21): WebGL 실패 시 전역 에러 바운더리로 튀지 않고
   //   /map 안에서 '지도 로드 실패 — /listings 로 이동' 폴백을 노출.
   const [webglFailed, setWebglFailed] = useState(false);
+  // L-mapfix2 (2026-04-21): Chrome/Edge Speculation Rules 로 /map 이 prerender
+  //   컨텍스트에서 먼저 로드되면 document.prerendering=true 상태에서 WebGL
+  //   컨텍스트가 생성돼 activation 후 canvas 가 흰색으로 남는 현상이 있었다.
+  //   SpeculationRules.tsx 에서 /map 을 제외했지만, 3rd-party speculation 이나
+  //   브라우저 기본 프리로드 heuristic 에 대비해 defensive 로 init 을 유예한다.
+  const [prerendering, setPrerendering] = useState<boolean>(() => {
+    if (typeof document === 'undefined') return false;
+    return !!(document as unknown as { prerendering?: boolean }).prerendering;
+  });
 
   const setMap = useMap2026Store((s) => s.setMap);
   const setHover = useMap2026Store((s) => s.setHover);
   const selectListing = useMap2026Store((s) => s.selectListing);
 
+  // prerenderingchange → activation 시 1회 발생. 이후 정상 init 파이프라인으로 진입.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (!(document as unknown as { prerendering?: boolean }).prerendering) return;
+    const onActivate = () => setPrerendering(false);
+    document.addEventListener('prerenderingchange', onActivate);
+    return () => document.removeEventListener('prerenderingchange', onActivate);
+  }, []);
+
   // 지도 초기화
   useEffect(() => {
+    if (prerendering) return;
     if (!containerRef.current) return;
     const container = containerRef.current;
 
@@ -99,7 +118,7 @@ export default function MapClient() {
       mapRef.current = null;
       setReady(false);
     };
-  }, [setMap]);
+  }, [setMap, prerendering]);
 
   // 데이터 파이프라인
   useViewport();
