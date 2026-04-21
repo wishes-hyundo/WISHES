@@ -46,8 +46,15 @@ export function useIsochrone() {
     if (!center) return;
     const ctrl = new AbortController();
     const url = `/api/map/isochrone?lng=${center[0]}&lat=${center[1]}&minutes=${minutes}`;
+    // L-ux3c (2026-04-22): 실패 시 payload 를 확실히 날려서
+    //   stale 등고선이 지도에 남아 오해의 소지로 작용하지 않도록.
+    //   또한 non-OK HTTP 를 모두 throw 해 catch 로 흡수하게 하고,
+    //   정상 abort 는 조용히 지나가도록 유지.
     fetch(url, { signal: ctrl.signal })
-      .then((r) => (r.ok ? r.json() : null))
+      .then((r) => {
+        if (!r.ok) throw new Error(`isochrone ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         if (!data) return;
         setPayload({
@@ -57,9 +64,10 @@ export function useIsochrone() {
         });
       })
       .catch((err) => {
-        if (err?.name !== 'AbortError') {
-          console.warn('[useIsochrone]', err);
-        }
+        if (err?.name === 'AbortError') return;
+        // 실패 시 stale polygon 을 반드시 제거 — 아무것도 안 보이는 게 잘못된 등고선보다 낫다.
+        setPayload(null);
+        console.warn('[useIsochrone]', err);
       });
     return () => ctrl.abort();
   }, [on, center, minutes, setPayload]);

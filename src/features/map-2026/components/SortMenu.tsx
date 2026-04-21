@@ -7,6 +7,10 @@ import { ArrowUpDown, Check } from 'lucide-react';
 import { useState } from 'react';
 import { useMap2026Store, type SortKey } from '../store';
 
+// L-ux3c (2026-04-22): setTimeout delay 를 매직널림 없애고 const 화.
+//   onBlur 시 onMouseDown preventDefault 로 포커스 이전 시 선택 완료되도록 여유 확보.
+const MENU_BLUR_DELAY_MS = 120;
+
 const OPTIONS: Array<{ key: SortKey; label: string; hint: string }> = [
   { key: 'recent', label: '최신순', hint: '최근 등록/갱신' },
   { key: 'price_asc', label: '가격 낮은순', hint: '저렴한 매물부터' },
@@ -25,17 +29,20 @@ export function SortMenu() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onBlur={() => setTimeout(() => setOpen(false), MENU_BLUR_DELAY_MS)}
+        aria-haspopup="menu"
+        aria-expanded={open}
         className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium text-neutral-700 hover:bg-neutral-100"
       >
         <ArrowUpDown className="size-3.5" />
         {current.label}
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-40 mt-1 min-w-52 rounded-xl border border-neutral-200 bg-white p-1 shadow-lg">
+        <div role="menu" className="absolute right-0 top-full z-40 mt-1 min-w-52 rounded-xl border border-neutral-200 bg-white p-1 shadow-lg">
           {OPTIONS.map((o) => (
             <button
               key={o.key}
+              role="menuitem"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
                 setSort(o.key);

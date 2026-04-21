@@ -45,7 +45,9 @@ export function HeroPin({ map, listing }: Props) {
 
   const dev = formatDeviation(listing.median_deviation);
   const isSelected = selectedId === listing.id;
-  const theme = CATEGORY_THEME[category];
+  // L-ux3c (2026-04-22): category 값이 잘못된 경우 theme undefined 접근으로
+  //   핀 전체가 크래시되던 버그. 주거 기본값으로 fallback.
+  const theme = CATEGORY_THEME[category] ?? CATEGORY_THEME.residence;
 
   // 비교우위 화살표 (▼↓ 시세보다 쌈 / ▲↑ 비쌈)
   const arrow = dev.kind === 'good' ? '▼' : dev.kind === 'bad' ? '▲' : '·';

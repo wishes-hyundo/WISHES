@@ -35,6 +35,9 @@ export function MapControls() {
             <button
               key={it.key}
               onClick={() => toggleLayer(it.key)}
+              aria-pressed={it.active}
+              aria-label={`${it.label} 레이어 ${it.active ? '켜짐' : '꺼짐'}`}
+              title={`${it.label} ${it.active ? '켜짐 (클릭으로 끄기)' : '꺼짐 (클릭으로 켜기)'}`}
               className={[
                 'flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11.5px] font-medium transition',
                 it.active
