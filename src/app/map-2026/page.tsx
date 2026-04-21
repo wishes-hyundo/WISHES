@@ -2,7 +2,6 @@
 // /map-2026 — 서버 엔트리 (RSC)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
 import MapClientWrapper from './MapClientWrapper';
 
 export const metadata: Metadata = {
@@ -12,8 +11,9 @@ export const metadata: Metadata = {
 };
 
 export default function MapPage() {
-  // 피처 플래그: NEXT_PUBLIC_MAP_2026=true 일 때만 노출
-  if (process.env.NEXT_PUBLIC_MAP_2026 !== 'true') return notFound();
+  // MAP 2026 은 2026-04-21 PR #1 머지와 함께 프로덕션에 공개됨.
+  // 기존 NEXT_PUBLIC_MAP_2026 피처 플래그는 제거 — env 미설정으로 인한 404 방지.
+  // 필요시 /map 과 병존하며 점진 이관 (리디렉트는 별도 작업).
 
   return (
     // 외곽 ConditionalLayout 의 <main class="flex-1 overflow-hidden"> 가 이미 뷰포트 높이를
