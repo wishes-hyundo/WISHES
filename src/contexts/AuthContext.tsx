@@ -14,6 +14,9 @@ interface AuthContextType {
   deleteAccount: () => Promise<{ success: boolean; error?: string }>;
   showAuthModal: boolean;
   setShowAuthModal: (show: boolean) => void;
+  // 로그인 모달 안내 문구 (찜/비교 등 비로그인 액션 컨텍스트 전달)
+  authModalMessage: string;
+  setAuthModalMessage: (msg: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,6 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authModalMessage, setAuthModalMessage] = useState('');
 
   useEffect(() => {
     const supabase = createAuthClient();
@@ -132,6 +136,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         deleteAccount,
         showAuthModal,
         setShowAuthModal,
+        authModalMessage,
+        setAuthModalMessage,
       }}
     >
       {children}

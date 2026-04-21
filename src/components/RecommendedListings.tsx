@@ -11,7 +11,7 @@ interface RecommendedListingsProps {
 }
 
 export default function RecommendedListings({ allListings }: RecommendedListingsProps) {
-  const { user, session, profileCompleted } = useAuth();
+  const { user, session } = useAuth();
   const [recommended, setRecommended] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [profileAreas, setProfileAreas] = useState<string[]>([]);

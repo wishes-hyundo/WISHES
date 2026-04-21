@@ -1076,7 +1076,7 @@ export default function AdminPage() {
               )}
 
               {/* V4-17: 상업용 매물 체크리스트 */}
-              {(newListing.type === '상가' || newListing.type === '사무실') && (
+              {((newListing.type as string) === '상가' || (newListing.type as string) === '사무실') && (
                 <div className="border-b pb-4">
                   <p className="text-sm font-bold text-gray-700 mb-3">🏢 상업용 매물 체크리스트</p>
                   <div className="bg-yellow-50 rounded-lg p-4 text-sm text-yellow-800 space-y-2">

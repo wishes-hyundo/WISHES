@@ -11,6 +11,12 @@ export type ListingType =
 // 거래 유형
 export type DealType = '전세' | '월세' | '매매' | '단기';
 
+// 포맷된 가격 (label + main) — lib/utils.ts#getFormattedPrice 반환형
+export interface FormattedPrice {
+  label: string;
+  main: string;
+}
+
 // 매물 상태
 export type ListingStatus = '공개' | '비공개' | '계약중' | '계약완료';
 

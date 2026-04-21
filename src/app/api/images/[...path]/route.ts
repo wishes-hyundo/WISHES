@@ -25,7 +25,7 @@ export async function GET(
 
     const bytes = await response.Body.transformToByteArray();
 
-    return new NextResponse(bytes, {
+    return new NextResponse(new Uint8Array(bytes), {
       status: 200,
       headers: {
         'Content-Type': response.ContentType || 'image/webp',

@@ -63,8 +63,8 @@ interface ListingLike {
   station_distance?: number | null;
   near_subway?: string | null;
   subway_distance?: number | null;
-  build_year?: number | null;
-  built_year?: number | null;
+  build_year?: string | number | null;
+  built_year?: string | number | null;
   features?: string[] | null;
 }
 

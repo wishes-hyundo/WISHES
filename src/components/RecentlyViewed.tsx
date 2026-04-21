@@ -55,7 +55,7 @@ export default function RecentlyViewed() {
 
         if (data) {
           const ordered = recentIds
-            .map(id => data.find(d => d.id === id))
+            .map(id => data.find((d: { id: number | string }) => String(d.id) === String(id)))
             .filter(Boolean) as ListingData[];
           setListings(ordered);
         }

@@ -4,12 +4,13 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { TrendingUp, Check, ArrowRight } from 'lucide-react';
 import { getFormattedPrice, getDealColor, sqmToPyeong } from '@/lib/utils';
+import type { DealType } from '@/types';
 
 interface RecommendedListing {
   id: number;
   title: string;
   type: string;
-  deal: string;
+  deal: DealType;
   deposit: number;
   monthly: number;
   price: number;

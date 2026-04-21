@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
     // admin_users 테이블에서 역할/상태 조회 (3초 타임아웃 — 실패해도 user_metadata로 진행)
     let adminUser: { role?: string; name?: string; company?: string; phone?: string; status?: string } | null = null;
     try {
-      const { data } = await withTimeout(
+      const res = await withTimeout(
         supabase
           .from('admin_users')
           .select('role, name, company, phone, status')
@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
           .limit(1)
           .maybeSingle(),
         3000,
-      );
+      ) as any;
+      const data = res?.data;
       if (data) adminUser = data;
     } catch {
       // DB 타임아웃 → user_metadata만으로 진행

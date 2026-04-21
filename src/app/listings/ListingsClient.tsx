@@ -281,7 +281,7 @@ export default function ListingsClient({
       }
 
       setListings(stripCrawledImages(pageListings));
-      setDongs([...new Set((dongResult.data || []).map((r: any) => r.dong))].sort());
+      setDongs([...new Set((dongResult.data as any[] || []).map((r: any) => r.dong as string))].sort());
       setTotal(countResult.count || 0);
       setLoading(false);
     };

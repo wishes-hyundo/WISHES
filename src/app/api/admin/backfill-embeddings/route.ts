@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 텍스트 빌드
-    const sources = rows.map((r) => buildEmbedSource(r));
+    const sources = rows.map((r: any) => buildEmbedSource(r));
 
     // OpenAI 는 1회 호출당 8192 토큰 입력 제한 있으나 384 dim 소형 모델은 여유.
     // 안전하게 100건/call 로 나눠서 실행.

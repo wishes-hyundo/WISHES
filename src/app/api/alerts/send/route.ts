@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const notifications: { user_id: string; email: string; matches: any[] }[] = [];
 
     for (const alert of alertUsers) {
-      const matches = newListings.filter(listing => {
+      const matches = newListings.filter((listing: any) => {
         // 지역 필터
         const areaMatch = !alert.areas || alert.areas.length === 0 ||
           alert.areas.some((a: string) =>

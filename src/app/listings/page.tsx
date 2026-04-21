@@ -108,7 +108,7 @@ async function ListingsData({ params }: { params: SearchParams }) {
 
       const listings = (listingsResult.data || []).map((r: any) => applyImagePolicy(r));
       const totalCount = listingsResult.count || 0;
-      const dongs = [...new Set((dongResult.data || []).map((r: any) => r.dong).filter(Boolean))].sort();
+      const dongs = [...new Set((dongResult.data as any[] || []).map((r: any) => r.dong as string).filter(Boolean))].sort();
 
       return { listings, totalCount, dongs };
     },

@@ -18,6 +18,8 @@ interface FavoritesContextType {
   addRecentlyViewed: (id: number) => void;
   addToCompare: (id: number) => void;
   removeFromCompare: (id: number) => void;
+  // toggleCompare: 이미 비교 목록에 있으면 제거, 아니면 추가. 최대 4개 초과 시 false 반환.
+  toggleCompare: (id: number) => boolean;
   clearCompare: () => void;
   isInCompare: (id: number) => boolean;
 }
@@ -171,6 +173,16 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     setCompareList(prev => prev.filter(c => c !== id));
   }, []);
 
+  const toggleCompare = useCallback((id: number): boolean => {
+    let ok = true;
+    setCompareList(prev => {
+      if (prev.includes(id)) return prev.filter(c => c !== id);
+      if (prev.length >= 4) { ok = false; return prev; }
+      return [...prev, id];
+    });
+    return ok;
+  }, []);
+
   const clearCompare = useCallback(() => { setCompareList([]); }, []);
 
   const isInCompare = useCallback((id: number) => compareList.includes(id), [compareList]);
@@ -179,7 +191,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
     <FavoritesContext.Provider value={{
       favorites, recentlyViewed, compareList, favoritesLoading,
       addFavorite, removeFavorite, toggleFavorite, isFavorite,
-      addRecentlyViewed, addToCompare, removeFromCompare, clearCompare, isInCompare,
+      addRecentlyViewed, addToCompare, removeFromCompare, toggleCompare, clearCompare, isInCompare,
     }}>
       {children}
     </FavoritesContext.Provider>

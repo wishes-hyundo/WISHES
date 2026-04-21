@@ -66,7 +66,7 @@ export async function GET(
       data: {
         ...publicListing,
         images: images || [],
-        features: features?.map((f) => f.feature) || [],
+        features: features?.map((f: any) => f.feature) || [],
       },
     });
   } catch (error) {

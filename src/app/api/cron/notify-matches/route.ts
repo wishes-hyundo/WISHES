@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 가장 오래된 last_notified_at(또는 created_at) 기준으로 매물 한 번만 로드
-    const oldest = subs.reduce<Date>((acc, s) => {
+    const oldest = subs.reduce<Date>((acc: Date, s: any) => {
       const t = new Date(s.last_notified_at || s.created_at);
       return t < acc ? t : acc;
     }, new Date());

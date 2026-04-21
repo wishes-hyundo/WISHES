@@ -63,7 +63,7 @@ export async function GET(
 
     const watermarked = await applyWatermark(imageBuffer);
 
-    return new NextResponse(watermarked, {
+    return new NextResponse(new Uint8Array(watermarked), {
       status: 200,
       headers: {
         'Content-Type': 'image/webp',

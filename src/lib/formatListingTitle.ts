@@ -144,8 +144,8 @@ interface ListingLike {
   station_distance?: number | null;
   near_subway?: string | null;        // alias
   subway_distance?: number | null;    // alias
-  build_year?: number | null;
-  built_year?: number | null;
+  build_year?: string | number | null;
+  built_year?: string | number | null;
   features?: string[] | null;
   description?: string | null;
 }

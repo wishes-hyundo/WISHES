@@ -43,6 +43,11 @@ export function getFormattedPrice(
         label: '매매',
         main: formatPrice(price ?? 0),
       };
+    case '단기':
+      return {
+        label: '단기',
+        main: `${formatPrice(deposit)} / ${monthly?.toLocaleString('ko-KR') ?? 0}만`,
+      };
   }
 }
 
@@ -57,6 +62,7 @@ export function getDealColor(deal: DealType): string {
     case '전세': return 'bg-blue-500 text-white';
     case '월세': return 'bg-emerald-500 text-white';
     case '매매': return 'bg-orange-500 text-white';
+    case '단기': return 'bg-amber-500 text-white';
   }
 }
 

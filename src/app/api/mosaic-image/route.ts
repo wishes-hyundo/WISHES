@@ -264,7 +264,7 @@ export async function GET(request: NextRequest) {
   if (!forceReprocess) {
     const cachedBuffer = await getCachedImage(cacheKey);
     if (cachedBuffer) {
-      return new NextResponse(cachedBuffer, {
+      return new NextResponse(new Uint8Array(cachedBuffer), {
         headers: {
           'Content-Type': 'image/webp',
           'Cache-Control': 'public, max-age=31536000, immutable',
@@ -328,7 +328,7 @@ export async function GET(request: NextRequest) {
   saveToCache(cacheKey, processedBuffer).catch(() => {});
 
   // 8. 처리된 이미지 반환
-  return new NextResponse(processedBuffer, {
+  return new NextResponse(new Uint8Array(processedBuffer), {
     headers: {
       'Content-Type': 'image/webp',
       'Cache-Control': 'public, max-age=31536000, immutable',

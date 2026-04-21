@@ -114,7 +114,7 @@ export default function KakaoDeckOverlay({
     //   전체를 에러 페이지로 덮어쓰던 문제를 해소. 오버레이만 조용히 스킵하고
     //   카카오맵(비트맵) 은 정상 표시되도록 함.
     let disposed = false;
-    let deck: Deck | null = null;
+    let deck: any = null;
     (async () => {
       try {
         const mod = await import('@deck.gl/core');
@@ -124,7 +124,7 @@ export default function KakaoDeckOverlay({
           canvas,
           views: [new OrthographicView()],
           controller: false,
-          initialViewState: { target: [0, 0, 0], zoom: 0 },
+          initialViewState: { target: [0, 0, 0], zoom: 0 } as any,
           layers: [],
           style: { position: 'absolute' },
           // Deck 내부 비동기 렌더 에러(webglcontextlost 등)도 동일하게 격리
@@ -271,7 +271,7 @@ export default function KakaoDeckOverlay({
     deckRef.current.setProps({
       width: w,
       height: h,
-      viewState: { target: [0, 0, 0], zoom: 0 },
+      viewState: { target: [0, 0, 0], zoom: 0 } as any,
       layers: [scatter, clusterText, itemScatter, itemText],
     });
   }, [map, clusters, items, colorScale, onClickCluster, onClickListing]);

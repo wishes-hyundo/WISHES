@@ -167,7 +167,7 @@ const AlertCard = ({ alert }: { alert: CategorizedAlert }) => {
 
       {/* Action Button */}
       <button
-        onClick={() => alert('준비 중입니다')}
+        onClick={() => window.alert('준비 중입니다')}
         className="mt-3 w-full px-3 py-2 rounded-md text-sm font-medium text-white transition-colors"
         style={{
           backgroundColor: urgencyColor,

@@ -59,7 +59,7 @@ export async function GET(
       return new NextResponse('Not Found', { status: 404 });
     }
 
-    return new NextResponse(body, {
+    return new NextResponse(new Uint8Array(body as Uint8Array), {
       status: 200,
       headers: {
         'Content-Type': response.ContentType || getContentType(filePath),

@@ -7,10 +7,10 @@ export function useMapListings() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(false);
   const [total, setTotal] = useState(0);
-  const debounceRef = useRef<NodeJS.Timeout>();
-  const abortRef = useRef<AbortController>();
+  const debounceRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const abortRef = useRef<AbortController | undefined>(undefined);
   const isFirstLoad = useRef(true);
-  const loadingTimerRef = useRef<NodeJS.Timeout>();
+  const loadingTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   const fetchListings = useCallback(async (bounds: MapBounds, filters: ListingFilter = {}) => {
     // 이전 디바운스 타이머 취소
