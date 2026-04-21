@@ -9,10 +9,11 @@ import { MapboxOverlay } from '@deck.gl/mapbox';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 import { useMap2026Store } from '@/features/map-2026/store';
-import { buildStyle } from '@/features/map-2026/lib/mapStyle';
+import { buildStyle, BUILDING_3D_LAYER_ID } from '@/features/map-2026/lib/mapStyle';
 import { useViewport } from '@/features/map-2026/hooks/useViewport';
 import { useSemanticZoom } from '@/features/map-2026/hooks/useSemanticZoom';
 import { useHeroRanking } from '@/features/map-2026/hooks/useHeroRanking';
+import { useIsochrone } from '@/features/map-2026/hooks/useIsochrone';
 import { buildLayers } from '@/features/map-2026/layers';
 
 import { NlSearchBar } from '@/features/map-2026/components/NlSearchBar';
@@ -30,6 +31,7 @@ const SEOUL: [number, number] = [127.0276, 37.4979];
 export default function MapClient() {
   const containerRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
 
   const setMap = useMap2026Store((s) => s.setMap);
@@ -47,8 +49,10 @@ export default function MapClient() {
       center: SEOUL,
       zoom: 12.3,
       pitch: 0,
+      maxPitch: 60,
       attributionControl: { compact: true },
     });
+    mapRef.current = map;
 
     const overlay = new MapboxOverlay({ interleaved: true, layers: [] });
     map.addControl(overlay as unknown as maplibregl.IControl);
@@ -69,6 +73,7 @@ export default function MapClient() {
       ro.disconnect();
       map.remove();
       overlayRef.current = null;
+      mapRef.current = null;
       setReady(false);
     };
   }, [setMap]);
@@ -77,6 +82,7 @@ export default function MapClient() {
   useViewport();
   useSemanticZoom();
   useHeroRanking();
+  useIsochrone();
 
   // deck.gl 레이어 diff
   const listings = useMap2026Store((s) => s.listings);
@@ -86,6 +92,7 @@ export default function MapClient() {
   const heatmap = useMap2026Store((s) => s.heatmap);
   const threeD = useMap2026Store((s) => s.threeD);
   const selectedId = useMap2026Store((s) => s.selectedId);
+  const isochronePayload = useMap2026Store((s) => s.isochronePayload);
 
   useEffect(() => {
     if (!overlayRef.current || !ready) return;
@@ -99,7 +106,7 @@ export default function MapClient() {
         threeD,
         similar: false,
         selectedId,
-        isochronePayload: null, // Phase 1.1 에서 서버 payload 주입
+        isochronePayload,
         onHover: (info) => {
           if (info.object) setHover(info.object, info.x, info.y);
           else setHover(null);
@@ -111,8 +118,32 @@ export default function MapClient() {
     });
   }, [
     listings, heroes, mode, isochrone, heatmap, threeD,
-    selectedId, ready, setHover, selectListing,
+    selectedId, isochronePayload, ready, setHover, selectListing,
   ]);
+
+  // Phase D — 3D 토글 효과
+  //   threeD on  → pitch 45 easeTo + buildings-3d 레이어 visible
+  //   threeD off → pitch 0 easeTo + 레이어 none
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    // style 로드 이후에만 setLayoutProperty 호출
+    const apply = () => {
+      if (!map.getLayer(BUILDING_3D_LAYER_ID)) return;
+      map.setLayoutProperty(
+        BUILDING_3D_LAYER_ID,
+        'visibility',
+        threeD ? 'visible' : 'none'
+      );
+      map.easeTo({
+        pitch: threeD ? 45 : 0,
+        duration: 650,
+        essential: true,
+      });
+    };
+    if (map.isStyleLoaded()) apply();
+    else map.once('styledata', apply);
+  }, [threeD, ready]);
 
   return (
     // CRITICAL: grid-rows 에서 마지막 트랙을 `minmax(0,1fr)` 로 둬야 ListPanel 의

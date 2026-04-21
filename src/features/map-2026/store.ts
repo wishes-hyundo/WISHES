@@ -162,6 +162,18 @@ export interface Map2026Store {
   similar: boolean;
   toggleLayer: (key: 'isochrone' | 'heatmap' | 'threeD' | 'similar') => void;
 
+  // Phase D — 통근 등고선 상태 (중심점/분/페이로드)
+  isochroneCenter: [number, number] | null;
+  isochroneMinutes: number;
+  isochronePayload: {
+    center: [number, number];
+    minutes: number;
+    polygons: import('geojson').Feature<import('geojson').Polygon>[];
+  } | null;
+  setIsochroneCenter: (c: [number, number] | null) => void;
+  setIsochroneMinutes: (m: number) => void;
+  setIsochronePayload: (p: Map2026Store['isochronePayload']) => void;
+
   nlQuery: string;
   setNlQuery: (q: string) => void;
 }
@@ -286,6 +298,14 @@ export const useMap2026Store = create<Map2026Store>()(
     threeD: false,
     similar: false,
     toggleLayer: (key) => set((s) => ({ [key]: !s[key] } as Partial<Map2026Store>)),
+
+    // Phase D — 등고선 상태 (기본: 15분, 중심점 아직 없음)
+    isochroneCenter: null,
+    isochroneMinutes: 15,
+    isochronePayload: null,
+    setIsochroneCenter: (isochroneCenter) => set({ isochroneCenter }),
+    setIsochroneMinutes: (isochroneMinutes) => set({ isochroneMinutes }),
+    setIsochronePayload: (isochronePayload) => set({ isochronePayload }),
 
     nlQuery: '',
     setNlQuery: (q) => set({ nlQuery: q }),
