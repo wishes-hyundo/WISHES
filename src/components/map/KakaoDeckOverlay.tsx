@@ -108,21 +108,41 @@ export default function KakaoDeckOverlay({
     canvasRef.current = canvas;
 
     // deck.gl 초기화
+    // L-map1 (2026-04-21): WebGL 생성 실패를 로컬에서 try/catch 로 삼킨다.
+    //   헤드리스 Chrome / WebGL 비활성 브라우저 / 구식 GPU 환경에서 WebGL 컨텍스트
+    //   생성이 실패하면 unhandled rejection 으로 전파되어 전역 error.tsx 가 /map
+    //   전체를 에러 페이지로 덮어쓰던 문제를 해소. 오버레이만 조용히 스킵하고
+    //   카카오맵(비트맵) 은 정상 표시되도록 함.
     let disposed = false;
     let deck: Deck | null = null;
     (async () => {
-      const mod = await import('@deck.gl/core');
-      if (disposed) return;
-      const { Deck: DeckCtor, OrthographicView } = mod as typeof import('@deck.gl/core');
-      deck = new DeckCtor({
-        canvas,
-        views: [new OrthographicView()],
-        controller: false,
-        initialViewState: { target: [0, 0, 0], zoom: 0 },
-        layers: [],
-        style: { position: 'absolute' },
-      });
-      deckRef.current = deck;
+      try {
+        const mod = await import('@deck.gl/core');
+        if (disposed) return;
+        const { Deck: DeckCtor, OrthographicView } = mod as typeof import('@deck.gl/core');
+        deck = new DeckCtor({
+          canvas,
+          views: [new OrthographicView()],
+          controller: false,
+          initialViewState: { target: [0, 0, 0], zoom: 0 },
+          layers: [],
+          style: { position: 'absolute' },
+          // Deck 내부 비동기 렌더 에러(webglcontextlost 등)도 동일하게 격리
+          onError: (e: unknown) => {
+            if (typeof console !== 'undefined') {
+              console.warn('[KakaoDeckOverlay] deck.gl runtime error (fallback to 2D map):', e);
+            }
+          },
+        });
+        deckRef.current = deck;
+      } catch (e) {
+        if (typeof console !== 'undefined') {
+          console.warn('[KakaoDeckOverlay] WebGL 초기화 실패 → 카카오맵 2D 만 표시합니다:', e);
+        }
+        // canvas 도 정리 (빈 검정 레이어 방지)
+        if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+        canvasRef.current = null;
+      }
     })();
 
     return () => {

@@ -33,6 +33,9 @@ export default function MapClient() {
   const overlayRef = useRef<MapboxOverlay | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const [ready, setReady] = useState(false);
+  // L-map1 (2026-04-21): WebGL 실패 시 전역 에러 바운더리로 튀지 않고
+  //   /map 안에서 '지도 로드 실패 — /listings 로 이동' 폴백을 노출.
+  const [webglFailed, setWebglFailed] = useState(false);
 
   const setMap = useMap2026Store((s) => s.setMap);
   const setHover = useMap2026Store((s) => s.setHover);
@@ -43,20 +46,40 @@ export default function MapClient() {
     if (!containerRef.current) return;
     const container = containerRef.current;
 
-    const map = new maplibregl.Map({
-      container,
-      style: buildStyle(),
-      center: SEOUL,
-      zoom: 12.3,
-      pitch: 0,
-      maxPitch: 60,
-      attributionControl: { compact: true },
-    });
+    // L-map1 (2026-04-21): MapLibre 생성자는 WebGL 컨텍스트를 sync 로 요구한다.
+    //   WebGL 비활성 / 구식 GPU / 헤드리스(Lighthouse CI) 환경에서 여기서 throw 되면
+    //   useEffect 가 react error boundary 로 올려보내 전역 error.tsx 가 /map 을
+    //   통째로 덮어쓰던 현상 해소. 라우트 안에서 가벼운 폴백으로 전환.
+    let map: MapLibreMap;
+    try {
+      map = new maplibregl.Map({
+        container,
+        style: buildStyle(),
+        center: SEOUL,
+        zoom: 12.3,
+        pitch: 0,
+        maxPitch: 60,
+        attributionControl: { compact: true },
+      });
+    } catch (e) {
+      if (typeof console !== 'undefined') {
+        console.warn('[MapClient] MapLibre/WebGL 초기화 실패 → 폴백 UI 표시:', e);
+      }
+      setWebglFailed(true);
+      return;
+    }
     mapRef.current = map;
 
     const overlay = new MapboxOverlay({ interleaved: true, layers: [] });
     map.addControl(overlay as unknown as maplibregl.IControl);
     overlayRef.current = overlay;
+
+    // deck.gl / MapLibre 런타임 렌더 에러(webglcontextlost 등)도 동일하게 격리
+    map.on('error', (ev: unknown) => {
+      if (typeof console !== 'undefined') {
+        console.warn('[MapClient] MapLibre runtime error:', ev);
+      }
+    });
 
     map.on('load', () => {
       setMap(map, overlay);
@@ -144,6 +167,28 @@ export default function MapClient() {
     if (map.isStyleLoaded()) apply();
     else map.once('styledata', apply);
   }, [threeD, ready]);
+
+  // L-map1 (2026-04-21): WebGL 불가 환경 폴백 — 라우트 안에서 리스트 링크 제공
+  if (webglFailed) {
+    return (
+      <div className="grid h-full place-items-center bg-wishes-cream/40 px-4">
+        <div className="max-w-md text-center">
+          <h2 className="mb-2 text-lg font-bold text-wishes-primary">
+            이 브라우저에서는 지도를 불러올 수 없어요
+          </h2>
+          <p className="mb-4 text-sm text-gray-600">
+            WebGL 이 비활성화되어 있거나 지원되지 않는 환경입니다. 대신 목록에서 매물을 확인해 보세요.
+          </p>
+          <a
+            href="/listings"
+            className="inline-flex items-center justify-center rounded-xl bg-wishes-primary px-5 py-3 text-sm font-bold text-white hover:bg-wishes-secondary"
+          >
+            매물 목록 보기
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     // CRITICAL: grid-rows 에서 마지막 트랙을 `minmax(0,1fr)` 로 둬야 ListPanel 의
