@@ -228,7 +228,7 @@ ${listingForm.description}
                     <input
                       type="text"
                       required
-                      value={consultationForm.name}
+                      aria-label="이름" value={consultationForm.name}
                       onChange={(e) => setConsultationForm({ ...consultationForm, name: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="홍길동"
@@ -240,7 +240,7 @@ ${listingForm.description}
                       type="tel"
                       required
                       inputMode="tel"
-                      value={consultationForm.phone}
+                      aria-label="연락처" value={consultationForm.phone}
                       onChange={(e) => setConsultationForm({ ...consultationForm, phone: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="010-0000-0000"
@@ -252,7 +252,7 @@ ${listingForm.description}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
                   <input
                     type="email"
-                    value={consultationForm.email}
+                    aria-label="이메일" value={consultationForm.email}
                     onChange={(e) => setConsultationForm({ ...consultationForm, email: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                     placeholder="email@example.com"
@@ -264,7 +264,7 @@ ${listingForm.description}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">문의 유형 *</label>
                   <select
                     required
-                    value={consultationForm.inquiry_type}
+                    aria-label="문의 유형" value={consultationForm.inquiry_type}
                     onChange={(e) => setConsultationForm({ ...consultationForm, inquiry_type: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                   >
@@ -279,7 +279,7 @@ ${listingForm.description}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">희망 매물 유형</label>
                   <select
-                    value={consultationForm.property_type}
+                    aria-label="희망 매물 유형" value={consultationForm.property_type}
                     onChange={(e) => setConsultationForm({ ...consultationForm, property_type: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                   >
@@ -299,7 +299,7 @@ ${listingForm.description}
                     <label className="block text-sm font-semibold text-gray-700 mb-2">희망 지역</label>
                     <input
                       type="text"
-                      value={consultationForm.preferred_area}
+                      aria-label="희망 지역" value={consultationForm.preferred_area}
                       onChange={(e) => setConsultationForm({ ...consultationForm, preferred_area: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="예: 강남구, 서초구"
@@ -309,7 +309,7 @@ ${listingForm.description}
                     <label className="block text-sm font-semibold text-gray-700 mb-2">예산 범위</label>
                     <input
                       type="text"
-                      value={consultationForm.budget_range}
+                      aria-label="예산 범위" value={consultationForm.budget_range}
                       onChange={(e) => setConsultationForm({ ...consultationForm, budget_range: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="예: 1,000~2,000만원"
@@ -322,7 +322,7 @@ ${listingForm.description}
                     <label className="block text-sm font-semibold text-gray-700 mb-2">입주 예정일</label>
                     <input
                       type="date"
-                      value={consultationForm.move_date}
+                      aria-label="입주 예정일" value={consultationForm.move_date}
                       onChange={(e) => setConsultationForm({ ...consultationForm, move_date: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                     />
@@ -332,7 +332,7 @@ ${listingForm.description}
                       <label className="block text-sm font-semibold text-gray-700 mb-2">업종</label>
                       <input
                         type="text"
-                        value={consultationForm.business_category}
+                        aria-label="업종" value={consultationForm.business_category}
                         onChange={(e) => setConsultationForm({ ...consultationForm, business_category: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="예: 카페, 음식점"
@@ -343,7 +343,7 @@ ${listingForm.description}
                       <label className="block text-sm font-semibold text-gray-700 mb-2">희망 층수</label>
                       <input
                         type="text"
-                        value={consultationForm.preferred_floor}
+                        aria-label="희망 층수" value={consultationForm.preferred_floor}
                         onChange={(e) => setConsultationForm({ ...consultationForm, preferred_floor: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="예: 2층, 저층"
@@ -356,7 +356,7 @@ ${listingForm.description}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">추가 요청사항</label>
                   <textarea
                     rows={5}
-                    value={consultationForm.additional_requirements}
+                    aria-label="추가 요청사항" value={consultationForm.additional_requirements}
                     onChange={(e) => setConsultationForm({ ...consultationForm, additional_requirements: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all resize-none"
                     placeholder="원하시는 매물 조건이나 추가 요청사항을 적어주세요"
@@ -394,7 +394,7 @@ ${listingForm.description}
                       <input
                         type="text"
                         required
-                        value={listingForm.name}
+                        aria-label="소유자 이름" value={listingForm.name}
                         onChange={(e) => setListingForm({ ...listingForm, name: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="홍길동"
@@ -406,7 +406,7 @@ ${listingForm.description}
                         type="tel"
                         required
                         inputMode="tel"
-                        value={listingForm.phone}
+                        aria-label="소유자 연락처" value={listingForm.phone}
                         onChange={(e) => setListingForm({ ...listingForm, phone: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="010-0000-0000"
@@ -417,7 +417,7 @@ ${listingForm.description}
                     <label className="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
                     <input
                       type="email"
-                      value={listingForm.email}
+                      aria-label="소유자 이메일" value={listingForm.email}
                       onChange={(e) => setListingForm({ ...listingForm, email: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="email@example.com"
@@ -433,7 +433,7 @@ ${listingForm.description}
                       <label className="block text-sm font-semibold text-gray-700 mb-2">매물 유형 *</label>
                       <select
                         required
-                        value={listingForm.property_type}
+                        aria-label="매물 유형" value={listingForm.property_type}
                         onChange={(e) => setListingForm({ ...listingForm, property_type: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       >
@@ -451,7 +451,7 @@ ${listingForm.description}
                       <label className="block text-sm font-semibold text-gray-700 mb-2">거래 유형 *</label>
                       <select
                         required
-                        value={listingForm.deal}
+                        aria-label="거래 유형" value={listingForm.deal}
                         onChange={(e) => setListingForm({ ...listingForm, deal: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       >
@@ -472,7 +472,7 @@ ${listingForm.description}
                     <input
                       type="text"
                       required
-                      value={listingForm.address}
+                      aria-label="주소" value={listingForm.address}
                       onChange={(e) => setListingForm({ ...listingForm, address: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="서울시 강남구 강남대로 123"
@@ -482,7 +482,7 @@ ${listingForm.description}
                     <label className="block text-sm font-semibold text-gray-700 mb-2">상세주소</label>
                     <input
                       type="text"
-                      value={listingForm.address_detail}
+                      aria-label="상세주소" value={listingForm.address_detail}
                       onChange={(e) => setListingForm({ ...listingForm, address_detail: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="301호, 테라스 빌딩 등"
@@ -499,7 +499,7 @@ ${listingForm.description}
                       <input
                         type="number"
                         required
-                        value={listingForm.area_m2}
+                        aria-label="전용면적 (㎡)" value={listingForm.area_m2}
                         onChange={(e) => setListingForm({ ...listingForm, area_m2: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="30"
@@ -510,7 +510,7 @@ ${listingForm.description}
                       <input
                         type="text"
                         required
-                        value={listingForm.floor_current}
+                        aria-label="층수" value={listingForm.floor_current}
                         onChange={(e) => setListingForm({ ...listingForm, floor_current: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="2층"
@@ -527,7 +527,7 @@ ${listingForm.description}
                       <label className="block text-sm font-semibold text-gray-700 mb-2">보증금 (만원)</label>
                       <input
                         type="number"
-                        value={listingForm.deposit}
+                        aria-label="보증금 (만원)" value={listingForm.deposit}
                         onChange={(e) => setListingForm({ ...listingForm, deposit: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="1,000"
@@ -537,7 +537,7 @@ ${listingForm.description}
                       <label className="block text-sm font-semibold text-gray-700 mb-2">월세 (만원)</label>
                       <input
                         type="number"
-                        value={listingForm.monthly}
+                        aria-label="월세 (만원)" value={listingForm.monthly}
                         onChange={(e) => setListingForm({ ...listingForm, monthly: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="30"
@@ -547,7 +547,7 @@ ${listingForm.description}
                       <label className="block text-sm font-semibold text-gray-700 mb-2">매매가 (만원)</label>
                       <input
                         type="number"
-                        value={listingForm.price}
+                        aria-label="매매가 (만원)" value={listingForm.price}
                         onChange={(e) => setListingForm({ ...listingForm, price: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="50,000"
@@ -565,7 +565,7 @@ ${listingForm.description}
                         <label className="block text-sm font-semibold text-gray-700 mb-2">업종</label>
                         <input
                           type="text"
-                          value={listingForm.business_category}
+                          aria-label="상업 업종" value={listingForm.business_category}
                           onChange={(e) => setListingForm({ ...listingForm, business_category: e.target.value })}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                           placeholder="카페, 음식점 등"
@@ -575,7 +575,7 @@ ${listingForm.description}
                         <label className="block text-sm font-semibold text-gray-700 mb-2">권리금 (만원)</label>
                         <input
                           type="number"
-                          value={listingForm.goodwill_fee}
+                          aria-label="권리금 (만원)" value={listingForm.goodwill_fee}
                           onChange={(e) => setListingForm({ ...listingForm, goodwill_fee: e.target.value })}
                           className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                           placeholder="500"
@@ -586,7 +586,7 @@ ${listingForm.description}
                       <label className="flex items-center gap-2">
                         <input
                           type="radio"
-                          checked={listingForm.vat_included === 'true'}
+                          aria-label="부가세 포함" checked={listingForm.vat_included === 'true'}
                           onChange={() => setListingForm({ ...listingForm, vat_included: 'true' })}
                           className="w-4 h-4"
                         />
@@ -595,7 +595,7 @@ ${listingForm.description}
                       <label className="flex items-center gap-2">
                         <input
                           type="radio"
-                          checked={listingForm.vat_included === 'false'}
+                          aria-label="부가세 별도" checked={listingForm.vat_included === 'false'}
                           onChange={() => setListingForm({ ...listingForm, vat_included: 'false' })}
                           className="w-4 h-4"
                         />
@@ -610,7 +610,7 @@ ${listingForm.description}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">관리비 (만원)</label>
                   <input
                     type="number"
-                    value={listingForm.maintenance_fee}
+                    aria-label="관리비 (만원)" value={listingForm.maintenance_fee}
                     onChange={(e) => setListingForm({ ...listingForm, maintenance_fee: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                     placeholder="10"
@@ -622,7 +622,7 @@ ${listingForm.description}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">매물 설명</label>
                   <textarea
                     rows={5}
-                    value={listingForm.description}
+                    aria-label="매물 설명" value={listingForm.description}
                     onChange={(e) => setListingForm({ ...listingForm, description: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all resize-none"
                     placeholder="매물의 특징, 장점, 옵션 등을 상세히 입력해주세요"
