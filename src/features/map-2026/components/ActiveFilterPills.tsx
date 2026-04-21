@@ -133,7 +133,10 @@ export function ActiveFilterPills() {
     });
   }
 
-  if (pills.length === 0) return null;
+  // L-mapfix6 (2026-04-22): null 반환은 MapClient grid-rows 4 트랙 중 3 트랙만
+  //   채워서 지도 컨테이너가 row 4(1fr) 대신 row 3(auto) 에 떨어져 높이 0 으로
+  //   접히는 치명적 회귀를 유발. 빈 placeholder 로 항상 grid 자식 개수 유지.
+  if (pills.length === 0) return <div aria-hidden="true" />;
 
   // 현재 카테고리 테마 색상으로 pill 영역 테마 통일
   const theme = CATEGORY_THEME[filter.category];
