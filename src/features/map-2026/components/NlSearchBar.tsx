@@ -20,13 +20,8 @@ export function NlSearchBar() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
-  // L-ux3d (2026-04-22): Escape 키는 input 을 blur 하고,
-  //   제안 드롭다운 닫힐 때 사용하는 setTimeout 을 ref 로 추적해 언마운트 시 clean.
   const inputRef = useRef<HTMLInputElement | null>(null);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // L-ux3 (2026-04-22): 기존엔 console.error 만 찍고 UI 로는 "검색중" 버튼만 풀렸음.
-  //   사용자는 뭐가 잘못됐는지 알 수 없었음 (네트워크 오류? 파서 실패?).
-  //   이제 인라인 에러 배너로 3초간 노출 후 자동 소멸.
   const [error, setError] = useState<string | null>(null);
 
   const setFilter = useMap2026Store((s) => s.setFilter);
@@ -39,7 +34,6 @@ export function NlSearchBar() {
     return () => clearTimeout(t);
   }, [error]);
 
-  // 언마운트 시 blur 타이머 정리
   useEffect(() => () => {
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
   }, []);
@@ -73,7 +67,8 @@ export function NlSearchBar() {
   return (
     <div className="relative flex-1 max-w-2xl">
       <div className="relative">
-        <Sparkles className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-emerald-600" />
+        {/* L-ux4: left-3 + 인라인 paddingLeft 36px 로 아이콘-placeholder 걹침 방지. */}
+        <Sparkles className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-emerald-600" />
         <input
           ref={inputRef}
           value={input}
@@ -101,7 +96,8 @@ export function NlSearchBar() {
             }
           }}
           placeholder="원하는 집을 자연스럽게 설명해 보세요"
-          className="w-full rounded-full border border-neutral-200 bg-white pl-11 pr-24 py-2.5 text-[14px] placeholder:text-neutral-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+          style={{ paddingLeft: '36px' }}
+          className="w-full rounded-full border border-neutral-200 bg-white pr-24 py-2.5 text-[14px] placeholder:text-neutral-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           disabled={busy}
         />
         {input && (

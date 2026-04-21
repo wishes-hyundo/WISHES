@@ -1,11 +1,5 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Hero Pin — 선별된 매물만 보이는 가격 핀 (HTML/Absolute, 2026-04 업그레이드)
-//
-// 🎯 변경사항
-//   - 카테고리 이모지 프리픽스 (🏠 🏢 🌾 💰)
-//   - 시세편차 배지를 더 크게/읽기 쉽게 (▼12% / ▲7%)
-//   - drop-shadow + 미세 bob 애니메이션
-//   - selected 시 ring-2 outline + scale-[1.15]
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
@@ -45,19 +39,19 @@ export function HeroPin({ map, listing }: Props) {
 
   const dev = formatDeviation(listing.median_deviation);
   const isSelected = selectedId === listing.id;
-  // L-ux3c (2026-04-22): category 값이 잘못된 경우 theme undefined 접근으로
-  //   핀 전체가 크래시되던 버그. 주거 기본값으로 fallback.
+  // L-ux3c: category 값이 잘못된 경우 fallback.
   const theme = CATEGORY_THEME[category] ?? CATEGORY_THEME.residence;
 
-  // 비교우위 화살표 (▼↓ 시세보다 쌈 / ▲↑ 비쌈)
+  // 비교우위 화살표
   const arrow = dev.kind === 'good' ? '▼' : dev.kind === 'bad' ? '▲' : '·';
-  const devText = dev.kind !== 'neutral' && listing.median_deviation != null ? `${arrow}${Math.round(Math.abs(listing.median_deviation * 100))}%` : null;
+  const devText = dev.kind !== 'neutral' && listing.median_deviation != null
+    ? `${arrow}${Math.round(Math.abs(listing.median_deviation * 100))}%`
+    : null;
 
   return (
     <button
       onClick={() => {
         selectListing(listing.id, true);
-        // Cinematic: 클릭 시 이 매물로 1:1 포커스 (zoom 16 + 건물 pitch)
         focusListing(map, [listing.lng, listing.lat]);
       }}
       onMouseEnter={(e) => setHover(listing, e.clientX, e.clientY)}
@@ -67,7 +61,8 @@ export function HeroPin({ map, listing }: Props) {
         left: pos.x,
         top: pos.y,
         transform: 'translate(-50%, -100%)',
-        zIndex: isSelected ? 30 : dev.kind === 'good' ? 20 : 10,
+        // L-ux4: 선택 핀이 항상 위로 올라오도록 큰 값.
+        zIndex: isSelected ? 100 : dev.kind === 'good' ? 20 : 10,
         filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.15))',
       }}
       className={[
@@ -90,11 +85,9 @@ export function HeroPin({ map, listing }: Props) {
                 : `bg-white ${theme.text}`,
         ].join(' ')}
       >
-        {/* 카테고리 이모지 */}
         <span className="text-[10px] leading-none">{theme.emoji}</span>
         {formatDealLabel(listing)}
 
-        {/* 비교우위 배지 */}
         {devText && (
           <span
             className={[
