@@ -78,11 +78,20 @@ export default function RootLayout({
         <link rel="preconnect" href="https://t1.daumcdn.net" crossOrigin="" />
         <link rel="preconnect" href="https://map.daumcdn.net" crossOrigin="" />
         <link rel="preconnect" href="https://mts.daumcdn.net" crossOrigin="" />
-        {/* L2 (2026-04-21): Pretendard / GmarketSans 폰트가 globals.css 에서 jsdelivr
-            로부터 로드되므로 preconnect 로 TLS 핸드셰이크 1RTT 를 제거.
+        {/* L2 (2026-04-21): Pretendard / GmarketSans 폰트가 jsdelivr 로부터 로드되므로
+            preconnect 로 TLS 핸드셰이크 1RTT 를 제거.
             crossOrigin="anonymous" 는 필수 — 폰트 요청은 CORS 모드라 matching
             anonymous preconnect 만 재사용됨 (없으면 중복 connection 생성). */}
         <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
+
+        {/* L-perf1 (2026-04-21): Pretendard CSS 를 <link> 로 병렬 로드. 이전에는
+            globals.css 안의 @import 로 직렬 체인됐어서 Lighthouse 가 render-blocking
+            170ms 로 지적. <link> 는 HTML 파서가 조기에 발견해 다른 리소스와 병렬 페치. */}
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+          crossOrigin="anonymous"
+        />
         <link rel="dns-prefetch" href="https://rv.map.daum.net" />
         <link rel="dns-prefetch" href="https://map0.daumcdn.net" />
         <link rel="dns-prefetch" href="https://map1.daumcdn.net" />
