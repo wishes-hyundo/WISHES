@@ -214,8 +214,8 @@ export default function MapClient() {
     // 긴 매물 리스트(수백개) 가 min-content 로 row 를 밀어서 지도 컨테이너를
     // 38,000px+ 까지 팽창시키는 사고를 막음.
     <div className="grid h-full grid-rows-[auto_auto_auto_minmax(0,1fr)]">
-      {/* 헤더: 브랜드 + NL 검색 */}
-      <header className="flex items-center gap-4 border-b border-neutral-100 bg-white px-4 py-2.5">
+      {/* 헤더: 브랜드 + NL 검색 (L-ux1: py-2.5 → py-2, gap-4 → gap-3 로 3-4px 절약) */}
+      <header className="flex items-center gap-3 border-b border-neutral-100 bg-white px-4 py-2">
         <Brand />
         <NlSearchBar />
       </header>
@@ -226,10 +226,15 @@ export default function MapClient() {
       {/* 활성 필터 pills */}
       <ActiveFilterPills />
 
-      {/* 본문: 좌 리스트 / 우 지도 */}
-      {/* 내부 grid-cols 도 같은 이유로 minmax(0,1fr) — 1fr 트랙이 자식 min-content 에
+      {/* 본문: 좌 리스트 / 우 지도
+          L-ux1 (2026-04-22): grid-cols 반응형 — 좁은 창(Claude 사이드바/DevTools
+            도킹) 에서 지도 컬럼이 200px 로 축소되던 문제 해결.
+            • base (모바일/매우 좁음): 280px 리스트
+            • lg (≥1024px): 340px
+            • 2xl (≥1536px): 380px
+          내부 grid-cols 도 minmax(0,1fr) — 1fr 트랙이 자식 min-content 에
           눌려 커지는 걸 차단. h-full 은 부모 row 전체 높이를 물려받기 위해 필요. */}
-      <div className="grid h-full min-h-0 grid-cols-[360px_minmax(0,1fr)] overflow-hidden">
+      <div className="grid h-full min-h-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]">
         <ListPanel />
         <div className="relative h-full min-h-0">
           <div ref={containerRef} className="absolute inset-0" />
@@ -243,20 +248,25 @@ export default function MapClient() {
   );
 }
 
+
+// L-ux1 (2026-04-22): 좁은 창에서 브랜드 영역 축소 —
+//   md 이하: W 로고만
+//   md~lg: WISHES wordmark 까지
+//   lg 이상: MAP 2026 배지까지 전체 노출
 function Brand() {
   return (
-    <div className="flex items-center gap-2">
+    <a href="/" aria-label="WISHES 홈" className="flex shrink-0 items-center gap-2">
       <div className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-[14px] font-extrabold text-white">
         W
       </div>
-      <div className="flex items-baseline gap-1.5">
+      <div className="hidden items-baseline gap-1.5 md:flex">
         <span className="text-[16px] font-bold tracking-tight text-neutral-900">
           WISHES
         </span>
-        <span className="rounded-full bg-gradient-to-br from-emerald-600 to-emerald-500 px-1.5 py-0.5 text-[9.5px] font-bold text-white">
+        <span className="hidden rounded-full bg-gradient-to-br from-emerald-600 to-emerald-500 px-1.5 py-0.5 text-[9.5px] font-bold text-white lg:inline">
           MAP 2026
         </span>
       </div>
-    </div>
+    </a>
   );
 }

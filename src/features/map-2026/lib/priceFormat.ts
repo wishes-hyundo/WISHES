@@ -28,13 +28,17 @@ export function formatDealLabel(l: Pick<MapListing, 'deal' | 'deposit' | 'monthl
   }
 }
 
-/** 비교우위 배지 (+12% / −7% / 시세 수준) */
+/** 비교우위 배지 (저렴 -7% / 비쌈 +12% / 시세 수준)
+ *
+ * L-ux1 (2026-04-22): 기존엔 "-25%" 만 표시해서 색상 의존도 100% 였음.
+ * 색각 이상자(약 8% 남성) 에게 good/bad 구분이 불가능했음.
+ * 이제 저렴/비쌈 prefix 로 색 없이도 방향을 읽을 수 있음. */
 export function formatDeviation(dev: number | null): { text: string; kind: 'good' | 'bad' | 'neutral' } {
   if (dev == null || Number.isNaN(dev)) return { text: '시세', kind: 'neutral' };
   const pct = Math.round(dev * 100);
-  if (pct <= -5) return { text: `${pct}%`, kind: 'good' };
-  if (pct >= 5) return { text: `+${pct}%`, kind: 'bad' };
-  return { text: `${pct >= 0 ? '+' : ''}${pct}%`, kind: 'neutral' };
+  if (pct <= -5) return { text: `저렴 ${pct}%`, kind: 'good' };
+  if (pct >= 5) return { text: `비쌈 +${pct}%`, kind: 'bad' };
+  return { text: '시세 수준', kind: 'neutral' };
 }
 
 /** 면적 표기 (m² + 평) — L-mapfix1 (2026-04-21): 0 값도 '면적 정보 없음'으로 처리
