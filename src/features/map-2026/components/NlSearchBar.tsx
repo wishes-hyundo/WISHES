@@ -3,7 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Sparkles, Search, X, AlertCircle } from 'lucide-react';
 import { useMap2026Store } from '../store';
 import { cinematicFlyTo } from '../lib/cinematicMotion';
@@ -20,6 +20,10 @@ export function NlSearchBar() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  // L-ux3d (2026-04-22): Escape 키는 input 을 blur 하고,
+  //   제안 드롭다운 닫힐 때 사용하는 setTimeout 을 ref 로 추적해 언마운트 시 clean.
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // L-ux3 (2026-04-22): 기존엔 console.error 만 찍고 UI 로는 "검색중" 버튼만 풀렸음.
   //   사용자는 뭐가 잘못됐는지 알 수 없었음 (네트워크 오류? 파서 실패?).
   //   이제 인라인 에러 배너로 3초간 노출 후 자동 소멸.
@@ -34,6 +38,11 @@ export function NlSearchBar() {
     const t = setTimeout(() => setError(null), 3000);
     return () => clearTimeout(t);
   }, [error]);
+
+  // 언마운트 시 blur 타이머 정리
+  useEffect(() => () => {
+    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+  }, []);
 
   async function submit(q: string) {
     if (!q.trim() || busy) return;
@@ -66,13 +75,30 @@ export function NlSearchBar() {
       <div className="relative">
         <Sparkles className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-emerald-600" />
         <input
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          onFocus={() => {
+            if (blurTimerRef.current) {
+              clearTimeout(blurTimerRef.current);
+              blurTimerRef.current = null;
+            }
+            setOpen(true);
+          }}
+          onBlur={() => {
+            if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+            blurTimerRef.current = setTimeout(() => {
+              setOpen(false);
+              blurTimerRef.current = null;
+            }, 150);
+          }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') submit(input);
-            if (e.key === 'Escape') { setInput(''); setOpen(false); }
+            if (e.key === 'Escape') {
+              setInput('');
+              setOpen(false);
+              inputRef.current?.blur();
+            }
           }}
           placeholder="원하는 집을 자연스럽게 설명해 보세요"
           className="w-full rounded-full border border-neutral-200 bg-white pl-11 pr-24 py-2.5 text-[14px] placeholder:text-neutral-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"

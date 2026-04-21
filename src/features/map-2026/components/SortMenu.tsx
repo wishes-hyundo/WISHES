@@ -4,10 +4,10 @@
 'use client';
 
 import { ArrowUpDown, Check } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMap2026Store, type SortKey } from '../store';
 
-// L-ux3c (2026-04-22): setTimeout delay 를 매직널림 없애고 const 화.
+// L-ux3c (2026-04-22): setTimeout delay 를 매직넘버 없애고 const 화.
 //   onBlur 시 onMouseDown preventDefault 로 포커스 이전 시 선택 완료되도록 여유 확보.
 const MENU_BLUR_DELAY_MS = 120;
 
@@ -25,11 +25,31 @@ export function SortMenu() {
   const setSort = useMap2026Store((s) => s.setSort);
   const current = OPTIONS.find((o) => o.key === sort) ?? OPTIONS[0];
 
+  // L-ux3d (2026-04-22): 연속 빠른 클릭 시 이전 blur-타이머가
+  //   방금 연 메뉴를 닫아버려 깜빡거리는 버그 — ref 로 직접 추적해 정리.
+  //   언마운트 시에도 잘못 호출되지 않도록 cleanup.
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+  }, []);
+
   return (
     <div className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
-        onBlur={() => setTimeout(() => setOpen(false), MENU_BLUR_DELAY_MS)}
+        onClick={() => {
+          if (blurTimerRef.current) {
+            clearTimeout(blurTimerRef.current);
+            blurTimerRef.current = null;
+          }
+          setOpen((v) => !v);
+        }}
+        onBlur={() => {
+          if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+          blurTimerRef.current = setTimeout(() => {
+            setOpen(false);
+            blurTimerRef.current = null;
+          }, MENU_BLUR_DELAY_MS);
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
         className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium text-neutral-700 hover:bg-neutral-100"
