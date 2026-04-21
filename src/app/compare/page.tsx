@@ -129,7 +129,7 @@ export default function ComparePage() {
     {
       label: '주차',
       render: (l: Listing) => (
-        <span className={l.parking ? 'text-green-600' : 'text-gray-400'}>
+        <span className={l.parking ? 'text-green-600' : 'text-gray-500'}>
           {l.parking ? <Check className="w-4 h-4 inline" /> : '—'}
         </span>
       ),
@@ -137,7 +137,7 @@ export default function ComparePage() {
     {
       label: '엘리베이터',
       render: (l: Listing) => (
-        <span className={l.elevator ? 'text-green-600' : 'text-gray-400'}>
+        <span className={l.elevator ? 'text-green-600' : 'text-gray-500'}>
           {l.elevator ? <Check className="w-4 h-4 inline" /> : '—'}
         </span>
       ),
@@ -145,7 +145,7 @@ export default function ComparePage() {
     {
       label: '반려동물',
       render: (l: Listing) => (
-        <span className={l.pet ? 'text-green-600' : 'text-gray-400'}>
+        <span className={l.pet ? 'text-green-600' : 'text-gray-500'}>
           {l.pet ? <Check className="w-4 h-4 inline" /> : '—'}
         </span>
       ),
@@ -186,7 +186,7 @@ export default function ComparePage() {
                       <div className="relative">
                         <button
                           onClick={() => handleRemove(listing.id)}
-                          className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-gray-100 hover:bg-red-100 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors"
+                          className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-gray-100 hover:bg-red-100 text-gray-500 hover:text-red-500 flex items-center justify-center transition-colors"
                           title="비교에서 제거"
                         >
                           <X className="w-3.5 h-3.5" />
@@ -242,7 +242,7 @@ export default function ComparePage() {
                 <div className="relative">
                   <button
                     onClick={() => handleRemove(listing.id)}
-                    className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/80 hover:bg-red-100 text-gray-400 hover:text-red-500 flex items-center justify-center transition-colors"
+                    className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-white/80 hover:bg-red-100 text-gray-500 hover:text-red-500 flex items-center justify-center transition-colors"
                     title="비교에서 제거"
                   >
                     <X className="w-4 h-4" />

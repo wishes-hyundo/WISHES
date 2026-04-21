@@ -56,7 +56,7 @@ export default function PrivacyPage() {
     <main className="min-h-screen bg-white pt-24 pb-16">
       <div className="max-w-3xl mx-auto px-4">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">개인정보처리방침</h1>
-        <p className="text-sm text-gray-400 mb-10">시행일: 2026년 3월 27일</p>
+        <p className="text-sm text-gray-500 mb-10">시행일: 2026년 3월 27일</p>
 
         <div className="space-y-8 text-sm text-gray-700 leading-relaxed">
           {sections.map((sec, i) => (

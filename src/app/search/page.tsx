@@ -280,7 +280,7 @@ export default function SearchPortalPage() {
       <div style={wrapStyle}>
         <div style={cardStyle}>
           <div style={{ fontSize: 48, marginBottom: 16 }}>🔐</div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: '#2D5A27' }}>로그인이 필요합니다</h2>
+          <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: '#2D5A27' }}>로그인이 필요합니다</h1>
           <p style={{ color: '#666', lineHeight: 1.6, marginBottom: 24, fontSize: 14 }}>
             중개사 포털은 승인된 직원만 이용할 수 있습니다.<br />계정으로 로그인해주세요.
           </p>

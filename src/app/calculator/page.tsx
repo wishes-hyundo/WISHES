@@ -278,7 +278,7 @@ function LoanCalculator() {
                   <p className="text-sm font-semibold text-gray-800">{preset.label}</p>
                   <p className="text-lg font-bold text-wishes-secondary">{preset.rate}%</p>
                 </div>
-                <p className="text-[10px] text-gray-400 mt-0.5">{preset.description}</p>
+                <p className="text-[10px] text-gray-500 mt-0.5">{preset.description}</p>
               </button>
             ))}
           </div>
@@ -337,7 +337,7 @@ function LoanCalculator() {
                     key={y}
                     className={cn(
                       'text-[10px]',
-                      parseInt(loanTerm) === y ? 'text-wishes-secondary font-bold' : 'text-gray-400'
+                      parseInt(loanTerm) === y ? 'text-wishes-secondary font-bold' : 'text-gray-500'
                     )}
                   >
                     {y}
@@ -389,13 +389,13 @@ function LoanCalculator() {
         <div ref={resultRef} className="mt-6 space-y-4">
           {/* 요약 카드 */}
           <div className="bg-white rounded-2xl border border-wishes-secondary/30 p-6 space-y-4">
-            <h3 className="text-lg font-bold text-wishes-primary">계산 결과</h3>
+            <h2 className="text-lg font-bold text-wishes-primary">계산 결과</h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="bg-wishes-secondary/5 rounded-xl p-4 text-center">
                 <p className="text-xs text-gray-500 mb-1">월 상환액</p>
                 <p className="text-xl font-bold text-wishes-primary">{formatWonDetailed(result.monthlyPayment)}</p>
                 {repaymentType === 'equalPrincipal' && (
-                  <p className="text-[10px] text-gray-400 mt-1">(첫 달 기준, 매월 감소)</p>
+                  <p className="text-[10px] text-gray-500 mt-1">(첫 달 기준, 매월 감소)</p>
                 )}
               </div>
               <div className="bg-gray-50 rounded-xl p-4 text-center">
@@ -437,12 +437,12 @@ function LoanCalculator() {
               <div className="flex items-center gap-2">
                 <TrendingDown className="w-5 h-5 text-wishes-secondary" />
                 <span className="text-sm font-semibold text-gray-700">월별 상환 스케줄</span>
-                <span className="text-xs text-gray-400">({result.schedule.length}개월)</span>
+                <span className="text-xs text-gray-500">({result.schedule.length}개월)</span>
               </div>
               {showSchedule ? (
-                <ChevronUp className="w-5 h-5 text-gray-400" />
+                <ChevronUp className="w-5 h-5 text-gray-500" />
               ) : (
-                <ChevronDown className="w-5 h-5 text-gray-400" />
+                <ChevronDown className="w-5 h-5 text-gray-500" />
               )}
             </button>
 
@@ -454,7 +454,7 @@ function LoanCalculator() {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {getYearlySummary(result.schedule).map((yr) => (
                       <div key={yr.year} className="bg-white rounded-lg p-2 text-center border border-gray-100">
-                        <p className="text-[10px] text-gray-400">{yr.year}년차</p>
+                        <p className="text-[10px] text-gray-500">{yr.year}년차</p>
                         <p className="text-xs font-bold text-gray-700">{formatWon(yr.totalPayment)}</p>
                         <p className="text-[10px] text-red-400">이자 {formatWon(yr.totalInterest)}</p>
                       </div>
@@ -498,7 +498,7 @@ function LoanCalculator() {
                   </table>
                   {result.schedule.length > 24 && (
                     <div className="px-6 py-3 text-center bg-gray-50 border-t border-gray-100">
-                      <p className="text-xs text-gray-400">
+                      <p className="text-xs text-gray-500">
                         처음 24개월 표시 중 · 전체 {result.schedule.length}개월
                       </p>
                     </div>
@@ -608,7 +608,7 @@ function ConvertCalculator() {
             onChange={(e) => setConversionRate(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary"
           />
-          <p className="text-xs text-gray-400 mt-1">일반적으로 4~6% 적용 (현재 시장 금리 참고)</p>
+          <p className="text-xs text-gray-500 mt-1">일반적으로 4~6% 적용 (현재 시장 금리 참고)</p>
         </div>
 
         {mode === 'jeonse_to_wolse' ? (
@@ -680,7 +680,7 @@ function ConvertCalculator() {
 
       {convertResult && (
         <div ref={convertResultRef} className="mt-6 bg-white rounded-2xl border border-wishes-secondary/30 p-6 space-y-4">
-          <h3 className="text-lg font-bold text-wishes-primary">환산 결과</h3>
+          <h2 className="text-lg font-bold text-wishes-primary">환산 결과</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="bg-blue-50 rounded-xl p-4 text-center">
               <p className="text-xs text-gray-500 mb-1">전세 환산금</p>

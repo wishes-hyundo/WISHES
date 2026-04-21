@@ -144,7 +144,7 @@ function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boole
         <span className="font-semibold text-gray-800 pr-4">{item.question}</span>
         <ChevronDown
           className={cn(
-            'w-5 h-5 text-gray-400 shrink-0 transition-transform duration-200',
+            'w-5 h-5 text-gray-500 shrink-0 transition-transform duration-200',
             isOpen && 'rotate-180 text-wishes-secondary'
           )}
         />
@@ -198,7 +198,7 @@ export default function FAQPage() {
         {/* 검색 */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-4 mb-6">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
             <input
               type="text"
               value={searchQuery}
@@ -230,7 +230,7 @@ export default function FAQPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-center text-gray-400 py-8">
+              <p className="text-center text-gray-500 py-8">
                 검색 결과가 없습니다. 다른 키워드로 검색해보세요.
               </p>
             )}
