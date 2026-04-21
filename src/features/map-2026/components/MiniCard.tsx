@@ -1,18 +1,31 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // MiniCard — hover 시 떠오르는 작은 카드
+//
+// 🎯 Phase F 업그레이드
+//   - 서버 regional deviation (넓은 지역 median 대비) 와
+//     클라이언트 local deviation (현재 뷰포트 median 대비) 을 듀얼 배지로 표시
+//   - 둘이 일치하면 하나만, 다르면 둘 다 표시 (차이가 인사이트)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
 import { useMap2026Store } from '../store';
+import { useLocalComparable } from '../hooks/useLocalComparable';
 import { formatDealLabel, formatDeviation, formatArea, formatStationDistance } from '../lib/priceFormat';
 
 export function MiniCard() {
   const listing = useMap2026Store((s) => s.hoveredListing);
   const pos = useMap2026Store((s) => s.hoverPos);
+  const localMap = useLocalComparable();
 
   if (!listing || !pos) return null;
   const dev = formatDeviation(listing.median_deviation);
   const station = formatStationDistance(listing.station_distance);
+  const local = localMap.get(listing.id);
+  const localDev = local?.localDeviation != null ? formatDeviation(local.localDeviation) : null;
+
+  // 두 deviation 이 둘 다 의미있고, 방향이 달라야 진짜 표시 가치
+  const showLocal = localDev && localDev.kind !== 'neutral' &&
+    (dev.kind !== localDev.kind || Math.abs((listing.median_deviation ?? 0) - (local?.localDeviation ?? 0)) > 0.03);
 
   return (
     <div
@@ -22,20 +35,34 @@ export function MiniCard() {
         top: pos.y + 12,
       }}
     >
-      <div className="mb-1 flex items-center justify-between">
+      <div className="mb-1 flex items-center justify-between gap-1">
         <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-bold text-white">
           {listing.deal}
         </span>
-        {dev.kind !== 'neutral' && (
-          <span
-            className={[
-              'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-              dev.kind === 'good' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700',
-            ].join(' ')}
-          >
-            시세 대비 {dev.text}
-          </span>
-        )}
+        <div className="flex items-center gap-1">
+          {dev.kind !== 'neutral' && (
+            <span
+              title="지역 전체 median 대비"
+              className={[
+                'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+                dev.kind === 'good' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700',
+              ].join(' ')}
+            >
+              지역 {dev.text}
+            </span>
+          )}
+          {showLocal && localDev && (
+            <span
+              title="현재 지도에 보이는 매물 median 대비"
+              className={[
+                'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+                localDev.kind === 'good' ? 'bg-teal-100 text-teal-700' : 'bg-orange-100 text-orange-700',
+              ].join(' ')}
+            >
+              현재뷰 {localDev.text}
+            </span>
+          )}
+        </div>
       </div>
       <div className="text-[16px] font-bold leading-tight">
         {formatDealLabel(listing)}
@@ -47,6 +74,11 @@ export function MiniCard() {
         <div>{formatArea(listing.area_m2)}</div>
         <div>{listing.floor_current ?? '-'}</div>
         {station && <div className="col-span-2 text-emerald-700">{station}</div>}
+        {local && local.sampleSize >= 2 && (
+          <div className="col-span-2 text-[10px] text-neutral-400">
+            뷰포트 comparable {local.sampleSize}건
+          </div>
+        )}
       </div>
     </div>
   );
