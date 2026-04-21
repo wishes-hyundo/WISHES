@@ -26,13 +26,14 @@ import StickyLeadCTA from '@/components/StickyLeadCTA';
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname.startsWith('/admin');
-  // /map-2026 도 전체화면 지도 페이지이므로 /map 과 동일하게 처리
-  const isMapPage = pathname === '/map' || pathname === '/map-2026';
-  // MAP 2026 은 사이트 기본 Header 까지 숨기고 main 에 명시적 100dvh 를 줘야
-  // 내부 grid 의 h-full 체인이 픽셀값으로 해결됨.
-  // (min-h-screen 은 "최소 100vh" 라 ListPanel 의 긴 리스트가 body 를 밀어서
-  //  h-full 체인이 auto 로 fallback → 컨테이너가 38,000px 로 팽창하는 버그 발생)
-  const isFullScreenMap = pathname === '/map-2026';
+  // 2026-04-21 migration: MAP 2026 (Phase A~F) promoted to canonical /map.
+  // Legacy launch codename /map-2026 is 301-redirected to /map via next.config.js.
+  const isMapPage = pathname === '/map';
+  // /map hides the site Header and mounts main with explicit 100dvh so the
+  // inner grid's h-full chain resolves in pixels. (min-h-screen would let
+  // the long ListPanel push body, collapsing h-full to auto and ballooning
+  // the container to ~38,000px.)
+  const isFullScreenMap = pathname === '/map';
   // 중개사 포털 관련 페이지는 헤더/푸터 없이 전체화면 렌더링
   const isBrokerPortal = pathname === '/search' || pathname === '/login' || pathname === '/signup';
 
@@ -52,9 +53,9 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
         <FavoritesProvider>
           <SavedSearchProvider>
           <ToastProvider>
-            {/* MAP 2026 은 전체화면 지도이므로 사이트 기본 Header 숨김 (MapClient 가 자체 헤더 렌더링) */}
+            {/* /map 은 전체화면 지도이므로 사이트 기본 Header 숨김 (MapClient 가 자체 헤더 렌더링) */}
             {!isFullScreenMap && <Header />}
-            {/* MAP 2026 은 main 에 명시적 100dvh 를 줘야 내부 h-full 체인이 픽셀로 해결됨 */}
+            {/* /map 은 main 에 명시적 100dvh 를 줘야 내부 h-full 체인이 픽셀로 해결됨 */}
             <main className={
               isFullScreenMap
                 ? 'h-[100dvh] overflow-hidden'

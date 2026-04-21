@@ -23,6 +23,18 @@ const nextConfig = {
     ],
   },
 
+  async redirects() {
+    return [
+      // 2026-04-21: MAP 2026 promoted to canonical /map. Launch codename URL
+      // /map-2026 is preserved via 301 for bookmark / shared-link compatibility.
+      {
+        source: '/map-2026',
+        destination: '/map',
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
