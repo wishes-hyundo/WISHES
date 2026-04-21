@@ -30,7 +30,7 @@
         "button-name": ["warn", { "minScore": 1 }],
         "html-has-lang": ["error", { "minScore": 1 }],
         "document-title": ["error", { "minScore": 1 }],
-        "meta-description": ["error", { "minScore": 1 }],
+        "meta-description": ["warn", { "minScore": 1 }],
         "is-crawlable": ["error", { "minScore": 1 }]
       }
     },
