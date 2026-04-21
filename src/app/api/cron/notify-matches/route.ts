@@ -22,12 +22,16 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 function authorized(req: NextRequest): boolean {
+  // L-sec3 (2026-04-22): 박제 'wishes2026' fallback 제거 → CRON_SECRET 필수
   const header = req.headers.get('authorization') || '';
   const token = header.replace(/^Bearer\s+/i, '');
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) return token === cronSecret;
-  // fallback: 개발/수동 실행용 어드민 비밀번호
-  return token === 'wishes2026';
+  if (process.env.NODE_ENV !== 'production') {
+    const master = process.env.WISHES_ADMIN_MASTER_PASSWORD;
+    if (master && token === master) return true;
+  }
+  return false;
 }
 
 function matchOne(listing: any, sub: any): boolean {

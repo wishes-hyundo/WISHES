@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
-const ADMIN_TOKEN = 'wishes2026';
+// L-sec3 (2026-04-22): 박제 ADMIN_TOKEN = 'wishes2026' 제거 → verifyAdminAuth
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 
-function checkAuth(request: NextRequest): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === 'Bearer ' + ADMIN_TOKEN;
-}
-
 export async function POST(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 
   try {
@@ -91,8 +87,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
   return NextResponse.json({
     endpoint: '/api/admin/listings-bulk-update',

@@ -1,21 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
-
-function validateAdmin(request: NextRequest): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === `Bearer ${ADMIN_TOKEN}`;
-}
+// L-sec3 (2026-04-22): 박제 ADMIN_TOKEN fallback 'wishes2026' 제거 → verifyAdminAuth
+//   자가호출용 bearer 는 WISHES_ADMIN_MASTER_PASSWORD 사용
+const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 
 export async function POST(request: NextRequest) {
-  if (!validateAdmin(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 
   try {
@@ -167,8 +165,8 @@ ${listingInfo}
 
 // Batch endpoint: generate descriptions for listings without AI content
 export async function PUT(request: NextRequest) {
-  if (!validateAdmin(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 
   try {
@@ -200,7 +198,7 @@ export async function PUT(request: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${ADMIN_TOKEN}`,
+            'Authorization': `Bearer ${INTERNAL_BEARER}`,
           },
           body: JSON.stringify({
             listingId: listing.id,

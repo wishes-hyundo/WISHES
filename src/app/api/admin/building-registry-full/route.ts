@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/adminAuth';
 
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
+// L-sec3 (2026-04-22): fallback 'wishes2026' 제거 → WISHES_ADMIN_MASTER_PASSWORD
+const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
 
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
     // Call the existing working building-registry endpoint
     const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
     const registryRes = await fetch(registryUrl, {
-      headers: { Authorization: `Bearer ${ADMIN_TOKEN}` },
+      headers: { Authorization: `Bearer ${INTERNAL_BEARER}` },
     });
 
     if (!registryRes.ok) {

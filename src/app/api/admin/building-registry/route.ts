@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const API_KEY = process.env.DATA_GO_KR_API_KEY || '';
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
@@ -326,6 +327,10 @@ async function fetchBuildingData(
 // GET 핸들러
 // ──────────────────────────────────────────────
 export async function GET(request: NextRequest) {
+  // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  }
   const { searchParams } = new URL(request.url);
 
   let sigunguCd = searchParams.get('sigunguCd') || '';

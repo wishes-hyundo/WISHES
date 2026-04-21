@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { uploadToR2, deleteFromR2 } from '@/lib/r2';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const ADMIN_TOKEN = process.env.ADMIN_TOKEN || 'wishes2026';
+// L-sec3 (2026-04-22): 박제 ADMIN_TOKEN fallback 'wishes2026' 제거 → verifyAdminAuth
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -16,10 +17,8 @@ export async function OPTIONS() {
   return NextResponse.json({}, { headers: CORS_HEADERS });
 }
 
-function isAdmin(request: NextRequest): boolean {
-  const auth = request.headers.get('authorization');
-  if (!auth || !auth.startsWith('Bearer ')) return false;
-  return auth.split(' ')[1] === ADMIN_TOKEN;
+async function isAdmin(request: NextRequest): Promise<boolean> {
+  return verifyAdminAuth(request);
 }
 
 export async function POST(
@@ -27,7 +26,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!isAdmin(request)) {
+    if (!(await isAdmin(request))) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
     }
     const { id } = await params;
@@ -135,7 +134,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!isAdmin(request)) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
+    if (!(await isAdmin(request))) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
     const { id } = await params;
     const listingId = parseInt(id);
 
@@ -175,7 +174,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!isAdmin(request)) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
+    if (!(await isAdmin(request))) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
     const { id } = await params;
     const listingId = parseInt(id);
     const imageId = new URL(request.url).searchParams.get('imageId');

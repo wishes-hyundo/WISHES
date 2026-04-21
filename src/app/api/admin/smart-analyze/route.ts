@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 interface AnalyzeRequest {
   address: string;
@@ -10,6 +11,10 @@ interface AnalyzeRequest {
 }
 
 export async function POST(request: NextRequest) {
+  // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가 (Anthropic 유료 호출 보호)
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  }
   try {
     const data: AnalyzeRequest = await request.json();
     const { address } = data;

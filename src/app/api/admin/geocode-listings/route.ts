@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 
@@ -109,6 +110,11 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
 export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
+  // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가
+  // (Kakao API 유료 호출 + listings 대량 UPDATE — 무인증 차단 필수)
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
+  }
   try {
     const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
@@ -180,6 +186,10 @@ export async function POST(request: NextRequest) {
 
 // GET 핸들러: 좌표 없는 매물 수 확인 (모니터링용)
 export async function GET(request: NextRequest) {
+  // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
+  }
   try {
     const supabase = createServerClient();
 

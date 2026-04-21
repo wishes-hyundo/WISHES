@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -116,6 +117,10 @@ async function callAnthropicWithRetry(
 
 export async function POST(req: NextRequest) {
     try {
+          // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가 (Anthropic API 비용 보호)
+          if (!(await verifyAdminAuth(req))) {
+                  return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
+          }
           if (!ANTHROPIC_API_KEY) {
                   return NextResponse.json({ success: false, error: 'API key not configured' }, { status: 500 });
           }

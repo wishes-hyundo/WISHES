@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-function isAdmin(request: NextRequest): boolean {
-  const auth = request.headers.get('authorization');
-  if (!auth || !auth.startsWith('Bearer ')) return false;
-  return auth.split(' ')[1] === (process.env.ADMIN_TOKEN || 'wishes2026');
+// L-sec3 (2026-04-22): 박제 ADMIN_TOKEN fallback 'wishes2026' 제거 → verifyAdminAuth
+async function isAdmin(request: NextRequest): Promise<boolean> {
+  return verifyAdminAuth(request);
 }
 
 export async function GET(
@@ -17,7 +17,7 @@ export async function GET(
   try {
     const { id } = await params;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const admin = isAdmin(request);
+    const admin = await isAdmin(request);
 
     const { data: image, error } = await supabase
       .from('listing_images')

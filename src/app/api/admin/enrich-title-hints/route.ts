@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 export const maxDuration = 300;
 
@@ -106,6 +107,10 @@ function extractPatch(row: ListingRow): Patch {
 }
 
 export async function POST(request: NextRequest) {
+  // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가 (listings 대량 UPDATE 보호)
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  }
   try {
     const supabase = createServerClient();
     const { searchParams } = new URL(request.url);

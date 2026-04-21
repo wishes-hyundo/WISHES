@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
-const ADMIN_TOKEN = 'wishes2026';
+// L-sec3 (2026-04-22): 박제 ADMIN_TOKEN = 'wishes2026' 제거 →
+//   인바운드: verifyAdminAuth(env 마스터 + CRAWLER_BRIDGE + JWT서명+role)
+//   아웃바운드: WISHES_ADMIN_MASTER_PASSWORD env 로 /auto-generate 자가호출
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://wishes.co.kr';
-
-function checkAuth(request: NextRequest): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === 'Bearer ' + ADMIN_TOKEN;
-}
+const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 
 async function processListing(listingId: string): Promise<{
   id: string;
@@ -18,7 +17,7 @@ async function processListing(listingId: string): Promise<{
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + ADMIN_TOKEN,
+        'Authorization': 'Bearer ' + INTERNAL_BEARER,
       },
       body: JSON.stringify({
         listingId: listingId,
@@ -88,8 +87,8 @@ async function processBatch(
 }
 
 export async function POST(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 
   try {
@@ -136,8 +135,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!checkAuth(request)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 
   return NextResponse.json({

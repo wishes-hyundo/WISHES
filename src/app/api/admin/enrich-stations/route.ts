@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 
@@ -43,13 +44,12 @@ async function findNearestStation(
 }
 
 export async function POST(request: NextRequest) {
+  // L-sec3 (2026-04-22): 박제 'Bearer wishes2026' + x-admin-key + 무인증 허용 블록 제거
+  // → verifyAdminAuth 로 완전 차단
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
+  }
   try {
-    // 간단 인증
-    const auth = request.headers.get('authorization') || '';
-    if (auth !== 'Bearer wishes2026' && request.headers.get('x-admin-key') !== 'wishes2026') {
-      // 내부 실행을 위해 토큰 없어도 허용(geocode 와 동일 정책)
-    }
-
     const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '150', 10), 400);
@@ -121,7 +121,11 @@ export async function POST(request: NextRequest) {
 }
 
 // GET: 보강 필요 건수 확인
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
+  }
   try {
     const supabase = createServerClient();
     const { count, error } = await supabase
