@@ -23,5 +23,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "wishes-v2/**", "public/admin/**", "onhouse_full_crawler.js", "gsc_full_crawler.js"]
+  "exclude": ["node_modules", "wishes-v2/**", "public/admin/**", "onhouse_full_crawler.js", "gsc_full_crawler.js", "scripts/**"]
 }

@@ -2,19 +2,19 @@
 import { enhanceImage } from '@/lib/imageHelpers';
 
 // Debounce utility
-function debounce(fn, ms) {
-  let timer;
-  return (...args) => {
-    clearTimeout(timer);
+function debounce<T extends (...args: any[]) => any>(fn: T, ms: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return (...args: Parameters<T>) => {
+    if (timer) clearTimeout(timer);
     timer = setTimeout(() => fn(...args), ms);
   };
 }
 // Area conversion: pyeong <-> sqm
-function pyeongToSqm(p) { return (p * 3.305785).toFixed(2); }
-function sqmToPyeong(s) { return (s / 3.305785).toFixed(2); }
+function pyeongToSqm(p: number) { return (p * 3.305785).toFixed(2); }
+function sqmToPyeong(s: number) { return (s / 3.305785).toFixed(2); }
 
 // Retry wrapper for async operations
-async function withRetry(fn, maxRetries = 3, delay = 1000) {
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 3, delay = 1000): Promise<T | undefined> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
@@ -479,7 +479,7 @@ function SmartListingNewPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [isCopyMode, setIsCopyMode] = useState(false)
-  const [copySourceId, setCopySourceId] = useState(null);
+  const [copySourceId, setCopySourceId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // === 복사 등록 (Copy Listing) Feature ===
@@ -534,10 +534,10 @@ function SmartListingNewPage() {
         }));
         
         if (listing.address) {
-          setAddressData({ address: listing.address, roadAddress: listing.road_address || '', jibunAddress: listing.jibun_address || '' });
+          setAddressData({ address: listing.address, roadAddress: listing.road_address || '', jibunAddress: listing.jibun_address || '' } as unknown as AddressData);
         }
       } catch (err) {
-        alert('복사 중 오류가 발생했습니다: ' + err.message);
+        alert('복사 중 오류가 발생했습니다: ' + (err as Error).message);
         setIsCopyMode(false);
       }
     };
@@ -565,20 +565,20 @@ function SmartListingNewPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [touchedFields, setTouchedFields] = useState({});
-  const [dragIndex, setDragIndex] = useState(null);
+  const [touchedFields, setTouchedFields] = useState<Partial<Record<keyof FormData, boolean>>>({});
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
-  const abortRef = React.useRef(null);
+  const abortRef = React.useRef<AbortController | null>(null);
 
   // Hydration fix
   React.useEffect(() => { setIsMounted(true); }, []);
 
   // Real-time field validation
-  const fieldErrors = React.useMemo(() => {
-    const errors = {};
+  const fieldErrors = React.useMemo<Partial<Record<keyof FormData, string>>>(() => {
+    const errors: Partial<Record<keyof FormData, string>> = {};
     if (touchedFields.address && !form.address) errors.address = '주소를 입력해주세요';
     if (touchedFields.type && !form.type) errors.type = '매물 유형을 선택해주세요';
     if (touchedFields.deal && !form.deal) errors.deal = '거래 유형을 선택해주세요';
@@ -597,7 +597,7 @@ function SmartListingNewPage() {
   const [aiModel, setAiModel] = useState<AiModel>('template');
   const [showAddressModal, setShowAddressModal] = useState(false);
 
-  const [formHistory, setFormHistory] = useState([]);
+  const [formHistory, setFormHistory] = useState<FormData[]>([]);
   const [canUndo, setCanUndo] = useState(false);
   const postcodeContainerRef = useRef<HTMLDivElement>(null);
 
@@ -619,7 +619,7 @@ function SmartListingNewPage() {
 
   /* ── 키보드 단축키 (Alt+좌우 화살표로 스텝 이동) ── */
   useEffect(() => {
-    const handleKeyDown = (e) => {
+    const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         if (formHistory.length > 0) {
@@ -627,11 +627,11 @@ function SmartListingNewPage() {
           setForm(prev);
           setFormHistory(h => h.slice(0, -1));
           setCanUndo(formHistory.length > 1);
-          setToast({ type: 'info', message: '되돌리기 완료' });
+          setToast({ type: 'info', text: '되돌리기 완료' });
         }
         return;
       }
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      if ((e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA' || (e.target as HTMLElement)?.tagName === 'SELECT') return;
       if (e.altKey && e.key === 'ArrowRight' && currentStep < 4) {
         e.preventDefault();
         setCurrentStep(prev => Math.min(prev + 1, 4));
@@ -649,7 +649,7 @@ function SmartListingNewPage() {
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const timer = setTimeout(() => {
-      const firstInput = document.querySelector('.step-content input:not([type=hidden]), .step-content select, .step-content textarea');
+      const firstInput = document.querySelector<HTMLElement>('.step-content input:not([type=hidden]), .step-content select, .step-content textarea');
       if (firstInput) firstInput.focus();
     }, 350);
     return () => clearTimeout(timer);
@@ -684,7 +684,7 @@ function SmartListingNewPage() {
 
   // Warn before leaving with unsaved changes
   React.useEffect(() => {
-    const handleBeforeUnload = (e) => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       if (form.address || uploadedImages.length > 0) {
         e.preventDefault();
         e.returnValue = '';
@@ -703,7 +703,7 @@ function SmartListingNewPage() {
 
   
   // Duplicate listing from existing draft
-  const duplicateListing = React.useCallback((draft) => {
+  const duplicateListing = React.useCallback((draft: Partial<FormData>) => {
     if (!draft) return;
     setForm(prev => ({
       ...prev,
@@ -712,12 +712,12 @@ function SmartListingNewPage() {
     }));
     setCurrentStep(1);
     setDraftId(null);
-    toast({ type: 'success', message: '매물이 복사되었습니다. 수정 후 등록해주세요.' });
-  }, [toast]);
+    setToast({ type: 'success', text: '매물이 복사되었습니다. 수정 후 등록해주세요.' });
+  }, []);
 
 // Keyboard shortcuts: Ctrl+S save, Ctrl+Enter next step
   React.useEffect(() => {
-    const handler = (e) => {
+    const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
         saveDraft();
@@ -752,7 +752,7 @@ function SmartListingNewPage() {
 
   /* ── 폼 업데이트 헬퍼 ── */
     /* ── Undo 기능 (Ctrl+Z) ── */
-  const pushHistory = (prevForm) => {
+  const pushHistory = (prevForm: FormData) => {
     setFormHistory(h => [...h.slice(-9), prevForm]);
     setCanUndo(true);
   };
@@ -763,7 +763,7 @@ function SmartListingNewPage() {
     setForm(prev);
     setFormHistory(h => h.slice(0, -1));
     setCanUndo(formHistory.length > 1);
-    setToast({ type: 'info', message: '되돌리기 완료' });
+    setToast({ type: 'info', text: '되돌리기 완료' });
   };
 
 const updateForm = (updates: Partial<FormData>) => {
@@ -790,7 +790,7 @@ const updateForm = (updates: Partial<FormData>) => {
             roadAddress: data.roadAddress || '',
             jibunAddress: data.jibunAddress || '',
             zonecode: data.zonecode || '',
-            sigugunCode: data.sigunguCode || '',
+            sigunguCode: data.sigunguCode || '',
             bcode: data.bcode || '',
             buildingName: data.buildingName || '',
             bun: (() => { const m = (data.jibunAddress || '').match(/(\d+)(-\d+)?$/); return m ? m[1].padStart(4, '0') : ''; })(),
@@ -805,10 +805,9 @@ const updateForm = (updates: Partial<FormData>) => {
           updateForm({
             address: selectedAddr,
             addressDetail: '',
-            jibunAddress: data.jibunAddress,
-            zonecode: data.zonecode,
+            jibun_address: data.jibunAddress,
             dong: data.bname || '',
-          });
+          } as Partial<FormData>);
 
           // Kakao Geocoder로 좌표 변환 (지도 마커용)
           if (selectedAddr && typeof window !== 'undefined' && window.kakao?.maps?.services) {
@@ -910,7 +909,7 @@ const updateForm = (updates: Partial<FormData>) => {
       }
 
       if (info.소유자정보 && info.소유자정보.length > 0) {
-        setOwnerInfoList(info.소유자정보);
+        setOwnerInfoList(info.소유자정보 as any);
       }
 
       setBuildingInfo(info);
@@ -938,7 +937,7 @@ const updateForm = (updates: Partial<FormData>) => {
       setToast({ type: 'success', text: '건축물대장 조회 완료 · 임시저장됨' });
     } catch (err: any) {
       setBuildingError(err.message || '건축물대장 조회 중 오류');
-      setToast({ type: 'error', text: err.message || '건축물대장 조회 실패' });
+      setToast({ type: 'error', text: (err as Error).message || '건축물대장 조회 실패' });
     } finally {
       setBuildingLoading(false);
     }
@@ -1167,7 +1166,7 @@ ${floorRows}</table></div>` : ''}
           try {
             // dataURL -> Blob (fetch() fails on large data URLs)
                         const parts = img.enhanced.split(',');
-                    const mime = parts[0].match(/:(.*?);/)[1];
+                    const mime = parts[0].match(/:(.*?);/)?.[1] || 'image/webp';
                     const bstr = atob(parts[1]);
                     const u8 = new Uint8Array(bstr.length);
                     for (let k = 0; k < bstr.length; k++) u8[k] = bstr.charCodeAt(k);
@@ -1222,6 +1221,7 @@ ${floorRows}</table></div>` : ''}
         body: fd,
       }), 2, 1500);
 
+      if (!res) throw new Error('매물 등록 요청 실패 (네트워크 오류)');
       if (!res.ok) {
           const errBody = await res.json().catch(() => ({ error: 'Non-JSON response ' + res.status + ' ' + res.statusText }));
           console.error('[publishListing] 에러 응답:', errBody);
@@ -1256,18 +1256,18 @@ ${floorRows}</table></div>` : ''}
     };
 
   /* ── 필드 유효성 시각 피드백 ── */
-  const fieldError = (fieldName) => {
+  const fieldError = (fieldName: keyof FormData) => {
     if (!touchedFields[fieldName]) return '';
-    const value = form[fieldName];
+    const value = (form as any)[fieldName];
     if (!value || (typeof value === 'string' && value.trim() === '')) {
       return 'ring-2 ring-red-300 border-red-300';
     }
     return 'ring-2 ring-green-200 border-green-300';
   };
 
-  const showFieldHint = (fieldName, label) => {
+  const showFieldHint = (fieldName: keyof FormData, label: string) => {
     if (!touchedFields[fieldName]) return null;
-    const value = form[fieldName];
+    const value = (form as any)[fieldName];
     if (!value || (typeof value === 'string' && value.trim() === '')) {
       return <span className="text-xs text-red-500 mt-1">{label} 입력이 필요합니다</span>;
     }
@@ -1621,10 +1621,10 @@ ${floorRows}</table></div>` : ''}
               <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 text-sm">
                 <div className={`w-2 h-2 rounded-full ${form.address ? 'bg-green-500' : 'bg-gray-300'}`} />
                 <span className={form.address ? 'text-green-700' : 'text-gray-400'}>소재지</span>
-                <div className={`w-2 h-2 rounded-full ${form.transactionType ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className={form.transactionType ? 'text-green-700' : 'text-gray-400'}>거래유형</span>
-                <div className={`w-2 h-2 rounded-full ${form.propertyType ? 'bg-green-500' : 'bg-gray-300'}`} />
-                <span className={form.propertyType ? 'text-green-700' : 'text-gray-400'}>매물유형</span>
+                <div className={`w-2 h-2 rounded-full ${form.deal ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className={form.deal ? 'text-green-700' : 'text-gray-400'}>거래유형</span>
+                <div className={`w-2 h-2 rounded-full ${form.type ? 'bg-green-500' : 'bg-gray-300'}`} />
+                <span className={form.type ? 'text-green-700' : 'text-gray-400'}>매물유형</span>
               </div>
               {/* 다음 버튼 */}
               <div className="flex justify-end pt-4 border-t">
@@ -2616,8 +2616,10 @@ ${floorRows}</table></div>` : ''}
   );
      }
 
-class ListingErrorBoundary extends React.Component {
-  constructor(props) {
+interface ListingErrorBoundaryProps { children: React.ReactNode }
+interface ListingErrorBoundaryState { hasError: boolean }
+class ListingErrorBoundary extends React.Component<ListingErrorBoundaryProps, ListingErrorBoundaryState> {
+  constructor(props: ListingErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false };
   }
