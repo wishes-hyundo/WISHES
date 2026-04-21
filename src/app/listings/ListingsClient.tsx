@@ -506,16 +506,17 @@ export default function ListingsClient({
               )}
             </div>
           </div>
+          {/* L-a11y4 (2026-04-21): select-name axe 실패 해소. aria-label 로 accessible name 확보. */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
-            <select value={deal} onChange={(e) => updateFilter('deal', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
+            <select aria-label="거래유형 선택" value={deal} onChange={(e) => updateFilter('deal', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
               <option value="">거래유형 전체</option>
               {dealTypes.map((t) => (<option key={t} value={t}>{t}</option>))}
             </select>
-            <select value={type} onChange={(e) => updateFilter('type', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
+            <select aria-label="매물유형 선택" value={type} onChange={(e) => updateFilter('type', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30">
               <option value="">매물유형 전체</option>
               {listingTypes.map((t) => (<option key={t} value={t}>{t}</option>))}
             </select>
-            <select value={dong} onChange={(e) => updateFilter('dong', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 col-span-2 sm:col-span-2">
+            <select aria-label="지역(동) 선택" value={dong} onChange={(e) => updateFilter('dong', e.target.value)} className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 col-span-2 sm:col-span-2">
               <option value="">지역 전체</option>
               {dongs.map((d) => (<option key={d} value={d}>{d}</option>))}
             </select>
@@ -741,8 +742,9 @@ export default function ListingsClient({
                   <>
                     총 <strong className="text-wishes-primary text-base">{total.toLocaleString()}</strong>건
                     {totalPages > 1 && (
-                      <span className="text-gray-400 ml-2">
-                        · <strong className="text-gray-600">{page}</strong> / {totalPages} 페이지
+                      /* L-a11y4 (2026-04-21): text-gray-400 → text-gray-600 (2.38:1 → 5.72:1 AA 통과) */
+                      <span className="text-gray-600 ml-2">
+                        · <strong className="text-gray-700">{page}</strong> / {totalPages} 페이지
                       </span>
                     )}
                   </>
@@ -760,7 +762,8 @@ export default function ListingsClient({
                   <span className="hidden sm:inline">이 조건으로 알림 받기</span>
                   <span className="sm:hidden">알림</span>
                 </button>
-                <p className="text-xs text-gray-400 hidden sm:block">정렬: <span className="text-gray-600 font-medium">{sortLabel}</span></p>
+                {/* L-a11y4 (2026-04-21): text-gray-400 → text-gray-600 (AA 통과) */}
+                <p className="text-xs text-gray-600 hidden sm:block">정렬: <span className="text-gray-700 font-medium">{sortLabel}</span></p>
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
@@ -800,7 +803,8 @@ export default function ListingsClient({
                 {/* 페이지 직접 입력 */}
                 <form onSubmit={handlePageInputSubmit} className="flex items-center gap-2 text-sm text-gray-500">
                   <span>{page} / {totalPages} 페이지</span>
-                  <span className="text-gray-300">|</span>
+                  {/* L-a11y4 (2026-04-21): 장식용 구분자 → aria-hidden */}
+                  <span className="text-gray-300" aria-hidden="true">|</span>
                   <input
                     type="number"
                     min={1}

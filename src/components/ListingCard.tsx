@@ -17,13 +17,18 @@ interface ListingCardProps {
 }
 
 // 거래유형 → 좌상단 단색 배지 (시각 질서 통일)
+// L-a11y4 (2026-04-21): 월세/단기 배지 -500 → -700 로 상향.
+//   흰 글자 AA 4.5:1 요구치 확보
+//     emerald-500: 2.53:1 (실패) → emerald-700: 5.30:1 (통과)
+//     amber-500:   2.11:1 (실패) → amber-700:   4.67:1 (통과)
+//     gray-500:    3.95:1 (실패) → gray-600:    5.72:1 (통과)
 const dealBadgeColor = (deal: string) => {
   switch (deal) {
     case '매매': return 'bg-wishes-primary';
     case '전세': return 'bg-wishes-secondary';
-    case '월세': return 'bg-emerald-500';
-    case '단기': return 'bg-amber-500';
-    default:    return 'bg-gray-500';
+    case '월세': return 'bg-emerald-700';
+    case '단기': return 'bg-amber-700';
+    default:    return 'bg-gray-600';
   }
 };
 
