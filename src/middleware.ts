@@ -1,26 +1,61 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// ─────────────────────────────────────────────────────────────────────────
+// 2026-04-21 audit fix:
+//   - H4: /api/admin/* 의 Access-Control-Allow-Origin '*' 을 화이트리스트로 축소
+//   - M1: Referrer-Policy 를 strict-origin-when-cross-origin 으로 강화
+//   - M5: deprecated X-XSS-Protection 헤더 제거 (CSP가 대체)
+// ─────────────────────────────────────────────────────────────────────────
+const ALLOWED_ADMIN_ORIGINS = [
+  'https://wishes.co.kr',
+  'https://www.wishes.co.kr',
+  // 로컬 개발 / Vercel preview 는 개발 편의를 위해 허용
+  'http://localhost:3000',
+  'http://localhost:3001',
+];
+
+function resolveAdminOrigin(request: NextRequest): string | null {
+  const origin = request.headers.get('origin');
+  if (!origin) return null;
+  if (ALLOWED_ADMIN_ORIGINS.includes(origin)) return origin;
+  // Vercel preview 도메인(*.vercel.app) 은 동적으로 허용
+  try {
+    const { hostname } = new URL(origin);
+    if (hostname.endsWith('.vercel.app')) return origin;
+  } catch {
+    /* invalid Origin header — 무시 */
+  }
+  return null;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // CORS: admin API
+  // CORS: admin API — 명시 화이트리스트만 허용
   if (pathname.startsWith('/api/admin/')) {
+    const allowedOrigin = resolveAdminOrigin(request);
+
     if (request.method === 'OPTIONS') {
-      return new NextResponse(null, {
-        status: 200,
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-          'Access-Control-Max-Age': '86400',
-        },
-      });
+      const headers: Record<string, string> = {
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Max-Age': '86400',
+        Vary: 'Origin',
+      };
+      if (allowedOrigin) {
+        headers['Access-Control-Allow-Origin'] = allowedOrigin;
+      }
+      return new NextResponse(null, { status: 200, headers });
     }
+
     const response = NextResponse.next();
-    response.headers.set('Access-Control-Allow-Origin', '*');
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (allowedOrigin) {
+      response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    }
+    response.headers.set('Vary', 'Origin');
     return response;
   }
 
@@ -37,10 +72,11 @@ export function middleware(request: NextRequest) {
 
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
-  response.headers.set('X-XSS-Protection', '1; mode=block');
-  response.headers.set('Referrer-Policy', 'no-referrer-when-downgrade');
+  // M1: Referrer-Policy 를 현대 표준으로 강화
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(self)');
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+  // M5: X-XSS-Protection 은 deprecated — 제거 (CSP 가 대체)
 
   response.headers.set(
     'Content-Security-Policy',

@@ -362,7 +362,8 @@ async function fetchOwnerInfoWithFallback(
 /** Simple XML item parser for OwnerInfoService response */
 function parseXmlItems(xml: string): Record<string, string>[] {
   const items: Record<string, string>[] = [];
-  const itemRegex = /<item>(.*?)<\/item>/gs;
+  // 2026-04-21: `s` (dotAll) flag는 ES2018+ 필요. [\s\S] 로 대체해 target 무관.
+  const itemRegex = /<item>([\s\S]*?)<\/item>/g;
   let match;
   while ((match = itemRegex.exec(xml)) !== null) {
     const itemXml = match[1];
