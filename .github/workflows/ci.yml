@@ -6,8 +6,9 @@ name: CI — typecheck & lint & build
 #   빌드 단계에서 잡히지 않아 런타임까지 새어나갔다. CI 는 독립적으로 모든
 #   타입/린트 에러를 노출시켜 PR 단계에서 발견되게 한다.
 #
-#   현재 누적 타입 에러가 많아 tsc 는 continue-on-error 로 "정보성"으로 실행.
-#   error 수가 줄면 이 플래그를 false 로 전환해 블로킹 게이트로 승격시킨다.
+#   참고: package-lock.json 이 repo 에 커밋되어 있지 않아 setup-node cache / npm ci
+#   를 사용할 수 없음. 대신 npm install 로 진행. 추후 lock 파일 커밋 시 npm ci +
+#   cache: 'npm' 조합으로 upgrade 가능.
 
 on:
   push:
@@ -18,7 +19,7 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -28,14 +29,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
+      # lock 파일이 없어도 동작하도록 npm install 사용.
+      # --legacy-peer-deps: React 19 / Next 15 peer 충돌 회피.
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund --legacy-peer-deps
 
-      # 1) Type check — 치명적 문법 에러는 즉시 실패로 막는다.
-      #    누적된 타입 이슈가 있어 현재는 continue-on-error 로 운영하되
-      #    error.tsx 류의 syntax error (TS1xxx) 만은 별도 grep 으로 강제 실패.
+      # 1) Type check — 전체 tsc 는 누적 에러가 있어 informational.
+      #    하지만 TS1xxx (syntax 류) 만은 **블로킹 게이트**로 처리해
+      #    error.tsx 닫는 중괄호 누락 같은 사고를 PR 단계에서 차단한다.
       - name: Type check
         id: tsc
         continue-on-error: true
@@ -45,7 +47,8 @@ jobs:
 
       - name: Fail on syntax errors (TS1xxx)
         run: |
-          if grep -E "error TS1[0-9]{3}" tsc-output.txt; then
+          # TS1000-TS1999 만 매칭하도록 콜론을 요구 (TS18046 같은 5자리 에러 제외)
+          if grep -E "error TS1[0-9]{3}:" tsc-output.txt; then
             echo "::error::TypeScript 문법 에러(TS1xxx) 감지 — 병합 전 수정 필수"
             exit 1
           fi
