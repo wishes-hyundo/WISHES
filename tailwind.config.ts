@@ -17,7 +17,7 @@ const config: Config = {
           cream: '#f1f8e9',
           bg: '#f4f9f4',
           text: '#1b3a24',
-          muted: '#5f7d68',
+          muted: '#3f5d47',
           card: '#ffffff',
           border: '#c8e6c9',
           dark: '#0a2e12',

@@ -87,6 +87,12 @@ export default function SmartRecommendations({ listingId, dong }: SmartRecommend
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {recommendations.map((item) => {
           const dealColor = getDealColor(item.deal);
+          // dealColor 는 'bg-*-500 text-white' 클래스 문자열이라 inline style 로 쓸 수 없음
+          // 가격 텍스트용 tailwind text color 와 배지용 class 를 분기
+          const dealPriceTextCls =
+            item.deal === '매매' ? 'text-orange-600' :
+            item.deal === '전세' ? 'text-blue-600' :
+            'text-emerald-600';
           const dep = item.deposit || 0;
           const mon = item.monthly || 0;
           const prc = item.price || 0;
@@ -114,7 +120,7 @@ export default function SmartRecommendations({ listingId, dong }: SmartRecommend
                 >
                   {item.matchPercent}% 일치
                 </span>
-                <span className="text-[10px] text-gray-400">
+                <span className="text-[10px] text-gray-500">
                   {item.dong}
                 </span>
               </div>
@@ -123,15 +129,14 @@ export default function SmartRecommendations({ listingId, dong }: SmartRecommend
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-xs font-medium text-gray-600">{item.type}</span>
                 <span
-                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded text-white"
-                  style={{ backgroundColor: dealColor }}
+                  className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${dealColor}`}
                 >
                   {item.deal}
                 </span>
               </div>
 
               {/* Price */}
-              <div className="text-base font-extrabold mb-2" style={{ color: dealColor }}>
+              <div className={`text-base font-extrabold mb-2 ${dealPriceTextCls}`}>
                 {priceText}
               </div>
 

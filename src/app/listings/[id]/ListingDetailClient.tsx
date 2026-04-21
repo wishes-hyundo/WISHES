@@ -465,8 +465,8 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
       {/* 브레드크럼 */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-1.5 text-sm">
-          <Link href="/" className="text-gray-400 hover:text-wishes-secondary transition-colors">
-            <Home className="w-4 h-4" />
+          <Link href="/" aria-label="홈으로" className="text-gray-500 hover:text-wishes-secondary transition-colors">
+            <Home className="w-4 h-4" aria-hidden="true" />
           </Link>
           <ChevronRight className="w-3.5 h-3.5 text-gray-300" />
           <Link href="/map" className="text-gray-500 hover:text-wishes-secondary transition-colors">
@@ -550,11 +550,11 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
 
             <div className={`bg-white rounded-xl border border-gray-200 p-6 ${lang === 'en' ? 'hidden' : ''}`}>
               <div className="flex items-center gap-3 mb-1">
-                <span className="text-xs font-mono text-gray-400 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
+                <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded flex items-center gap-1">
                   매물번호 {listing.id}
                 </span>
                 {listing.views > 0 && (
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
                     <Eye className="w-3 h-3" /> 조회 {listing.views}
                   </span>
                 )}
@@ -580,7 +580,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 {listing.direction && <InfoRow label="방향" value={listing.direction} />}
                 {listing.heating_type && <InfoRow label="난방방식" value={listing.heating_type} />}
                 <div className="col-span-2">
-                  <span className="text-xs text-gray-400">주소</span>
+                  <span className="text-xs text-gray-500">주소</span>
                   <div className="flex items-center gap-2 mt-0.5">
                     <p className="text-sm font-medium text-gray-800">{getMaskedAddress(listing.address)}</p>
                     {!isLoggedIn && (
@@ -609,10 +609,10 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
               {/* V4-10: 방향 나침반 */}
               {listing.direction && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <Compass className="w-4 h-4 text-wishes-secondary/60" />
                     방향
-                  </h3>
+                  </h2>
                   <CompassDirection direction={listing.direction} />
                 </div>
               )}
@@ -620,10 +620,10 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
               {/* 관리비 정보 (V4-08+09) */}
               {listing.maintenance_fee > 0 && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <Banknote className="w-4 h-4 text-wishes-secondary/60" />
                     관리비 정보
-                  </h3>
+                  </h2>
                   <div className="bg-gray-50 rounded-xl p-4">
                     <p className="text-lg font-bold text-wishes-primary">
                       월 {listing.maintenance_fee.toLocaleString('ko-KR')}만원
@@ -644,10 +644,10 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
               {/* 상업/비용 정보 */}
               {(listing.rights_fee || listing.goodwill_fee || listing.commission_fee || listing.parking_fee || listing.business_type || listing.previous_brand || listing.previous_business || listing.recommended_business || listing.restricted_business) && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <Building2 className="w-4 h-4 text-wishes-secondary/60" />
                     상업 · 비용 정보
-                  </h3>
+                  </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {listing.business_type && <InfoRow label="업종" value={listing.business_type} />}
                     {listing.previous_brand && <InfoRow label="이전상호" value={listing.previous_brand} />}
@@ -666,10 +666,10 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
               {/* 시설 정보 */}
               {(listing.parking_spaces || listing.electric_capacity || listing.signage_available !== null || listing.meeting_room) && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <Home className="w-4 h-4 text-wishes-secondary/60" />
                     시설 정보
-                  </h3>
+                  </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {listing.parking_spaces > 0 && <InfoRow label="주차대수" value={`${listing.parking_spaces}대`} />}
                     {listing.electric_capacity && <InfoRow label="전기용량" value={listing.electric_capacity} />}
@@ -685,7 +685,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 ref={(el) => { sectionsRef.current.options = el; }}
                 className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
               >
-                <h3 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h3>
+                <h2 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h2>
                 <div className="flex flex-wrap gap-2">
                   <OptionBadge label="주차" available={listing.parking ?? false} />
                   <OptionBadge label="엘리베이터" available={listing.elevator ?? false} />
@@ -740,7 +740,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                     ref={(el) => { sectionsRef.current.description = el; }}
                     className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
                   >
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">매물설명</h3>
+                    <h2 className="text-sm font-semibold text-gray-700 mb-3">매물설명</h2>
                     {hasDesc && (
                       <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
                         {descText}
@@ -759,7 +759,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                       </div>
                     )}
                     {seoKeywordLine && (
-                      <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">
+                      <p className="mt-2 text-[11px] text-gray-500 leading-relaxed">
                         {seoKeywordLine}
                       </p>
                     )}
@@ -770,7 +770,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
               {/* 특이사항 */}
               {listing.special_notes && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">특이사항</h3>
+                  <h2 className="text-sm font-semibold text-gray-700 mb-3">특이사항</h2>
                   <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
                     {listing.special_notes}
                   </p>
@@ -784,15 +784,15 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                   ref={(el) => { sectionsRef.current.transit = el; }}
                   className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
                 >
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <Train className="w-4 h-4 text-blue-500/70" />
                     주변 교통
-                  </h3>
+                  </h2>
                   <div className="bg-blue-50/50 rounded-xl p-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-800">{listing.station_name}</span>
                       {listing.station_distance && (
-                        <span className="text-xs text-gray-400">{listing.station_distance}m</span>
+                        <span className="text-xs text-gray-500">{listing.station_distance}m</span>
                       )}
                     </div>
                   </div>
@@ -806,10 +806,10 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                   ref={(el) => { sectionsRef.current.transit = el; }}
                   className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
                 >
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <Train className="w-4 h-4 text-blue-500/70" />
                     주변 교통
-                  </h3>
+                  </h2>
                   <div className="bg-blue-50/50 rounded-xl p-4">
                     <p className="text-xs text-gray-500 mb-2">이 매물 주변 지하철역 정보 (반경 2km)</p>
                     {stationsLoading ? (
@@ -833,14 +833,14 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                               <span className="text-sm font-medium text-gray-800">{station.name}역</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-gray-400">{station.distance}m</span>
+                              <span className="text-xs text-gray-500">{station.distance}m</span>
                               <span className="text-xs font-medium text-blue-600">도보 {station.walkMin}분</span>
                             </div>
                           </div>
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-400">반경 2km 내 지하철역이 없습니다.</p>
+                      <p className="text-sm text-gray-500">반경 2km 내 지하철역이 없습니다.</p>
                     )}
                   </div>
                 </div>
@@ -849,10 +849,10 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
               {/* 위치 지도 */}
               {listing.lat && listing.lng && (
                 <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
+                  <h2 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-1.5">
                     <MapPin className="w-4 h-4 text-wishes-primary/70" />
                     위치 정보
-                  </h3>
+                  </h2>
                   <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
                     <div
                       ref={mapContainerRef}
@@ -922,7 +922,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 </div>
               )}
 
-              <h3 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h3>
+              <h2 className="text-lg font-bold text-wishes-primary mb-4">이 매물 문의하기</h2>
 
               {/* 가격 요약 (U2 가격 레이블) */}
               <div className="bg-wishes-accent/5 rounded-xl p-4 mb-4">
@@ -953,10 +953,9 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                     ? 'bg-wishes-primary text-white hover:bg-wishes-secondary'
                     : 'bg-white border border-wishes-primary/30 text-wishes-primary hover:bg-wishes-primary/5'
                 }`}
-                aria-label={lang === 'en' ? '한국어로 보기' : 'Switch to English'}
                 title={lang === 'en' ? '한국어로 보기' : 'English briefing for international clients'}
               >
-                <Globe className="w-4 h-4" />
+                <Globe className="w-4 h-4" aria-hidden="true" />
                 {lang === 'en' ? '한국어 (KR)' : 'English (EN) 영문으로 보기'}
               </button>
 
@@ -965,9 +964,9 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 type="button"
                 onClick={() => typeof window !== 'undefined' && window.print()}
                 className="mt-2 flex items-center justify-center gap-2 w-full bg-white border border-wishes-primary/30 text-wishes-primary py-2.5 rounded-xl font-semibold text-sm hover:bg-wishes-primary/5 transition-colors no-print"
-                aria-label="매물 브리핑 자료 인쇄 또는 PDF 저장"
+                title="매물 브리핑 자료 인쇄 또는 PDF 저장"
               >
-                <Printer className="w-4 h-4" />
+                <Printer className="w-4 h-4" aria-hidden="true" />
                 {lang === 'en' ? 'Print / Save as PDF' : '브리핑 자료 인쇄 / PDF 저장'}
               </button>
 
@@ -981,7 +980,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 />
               </div>
 
-              <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-400 space-y-1">
+              <div className="mt-6 pt-4 border-t border-gray-100 text-xs text-gray-500 space-y-1">
                 <p className="flex items-center gap-1">
                   <Calendar className="w-3 h-3" />
                   등록일: {new Date(listing.created_at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' })}
@@ -1102,7 +1101,7 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
 function InfoRow({ label, value, fullWidth }: { label: string; value: string; fullWidth?: boolean }) {
   return (
     <div className={fullWidth ? 'col-span-2' : ''}>
-      <span className="text-xs text-gray-400">{label}</span>
+      <span className="text-xs text-gray-500">{label}</span>
       <p className="text-sm font-medium text-gray-800 mt-0.5">{value}</p>
     </div>
   );
@@ -1111,7 +1110,7 @@ function InfoRow({ label, value, fullWidth }: { label: string; value: string; fu
 function OptionBadge({ label, available }: { label: string; available: boolean }) {
   return (
     <span className={`flex items-center gap-1 px-3 py-1 text-sm rounded-full ${
-      available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-400 line-through'
+      available ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500 line-through'
     }`}>
       {available ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
       {label}
