@@ -3,6 +3,7 @@
 //
 // Phase 1.0: mv_map_listings 기반
 // Phase 1.1: rpc_listings_viewport (PostGIS + hero_score + median_deviation)
+// Phase E  : Comparable-Aware deviation — dong | deal | areaBand | rooms 래더 fallback
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
@@ -13,6 +14,7 @@ export const dynamic = 'force-dynamic';
 const MAX_VIEWPORT_DEG = 2.0;
 const DEFAULT_LIMIT = 800;
 const MAX_LIMIT = 3000;
+const MIN_COMPARABLES = 3;
 
 function pInt(v: string | null): number | null {
   if (v == null || v === '') return null;
@@ -76,44 +78,124 @@ function categoryToTypeFilter(
   return null;
 }
 
-function computeMedianDeviation(
-  listings: Array<{ dong: string | null; deal: string; price: number | null; deposit: number | null; monthly: number | null }>
-) {
-  const groups = new Map<string, number[]>();
-  for (const l of listings) {
-    const price =
-      l.deal === '매매' ? l.price ?? 0 :
-      l.deal === '전세' ? l.deposit ?? 0 :
-      (l.deposit ?? 0) + (l.monthly ?? 0) * 100;
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Comparable-Aware median deviation
+//
+// 🎯 핵심 아이디어
+//   - "비슷한 것과 비슷한 것끼리" 비교해야 체감 차별화
+//   - 동일 deal 안에서도 20평 원룸과 50평 투룸을 섞어 평균 내면 의미 X
+//   - 면적 band + 방수 로 comparable 을 좁히되, 샘플이 부족하면
+//     broader 그룹으로 fallback 해 deviation 이 null 이 되지 않게
+//
+// 📐 비교 키 래더 (좁음 → 넓음)
+//   1. dong | deal | areaBand | roomsBand
+//   2. dong | deal | areaBand
+//   3. dong | deal
+//   4. deal
+//   각 단계에서 comparable 개수 ≥ MIN_COMPARABLES 이면 그 median 사용
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+type ComparableRow = {
+  dong: string | null;
+  deal: string;
+  price: number | null;
+  deposit: number | null;
+  monthly: number | null;
+  area_m2: number | null;
+  rooms: number | null;
+};
+
+function areaBand(area: number | null): string {
+  if (area == null) return '_';
+  if (area < 33) return 'S';       // ~10평 미만
+  if (area < 66) return 'M';       // 10~20평
+  if (area < 100) return 'L';      // 20~30평
+  if (area < 150) return 'XL';     // 30~45평
+  return 'XXL';                    // 45평+
+}
+
+function roomsBand(rooms: number | null): string {
+  if (rooms == null) return '_';
+  if (rooms <= 1) return '1';
+  if (rooms === 2) return '2';
+  return '3+';
+}
+
+function normalizedPrice(l: ComparableRow): number {
+  if (l.deal === '매매') return l.price ?? 0;
+  if (l.deal === '전세') return l.deposit ?? 0;
+  // 월세·단기: 환산가 = 보증금 + 월세×100 (한국 부동산 관행 환산)
+  return (l.deposit ?? 0) + (l.monthly ?? 0) * 100;
+}
+
+function computeMedianDeviation(rows: ComparableRow[]) {
+  // 4 단계 그룹 맵 동시 축적
+  const g4 = new Map<string, number[]>();
+  const g3 = new Map<string, number[]>();
+  const g2 = new Map<string, number[]>();
+  const g1 = new Map<string, number[]>();
+
+  for (const r of rows) {
+    const price = normalizedPrice(r);
     if (price <= 0) continue;
-    const key = `${l.dong ?? '_'}|${l.deal}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(price);
+    const dong = r.dong ?? '_';
+    const ab = areaBand(r.area_m2);
+    const rb = roomsBand(r.rooms);
+    const k4 = `${dong}|${r.deal}|${ab}|${rb}`;
+    const k3 = `${dong}|${r.deal}|${ab}`;
+    const k2 = `${dong}|${r.deal}`;
+    const k1 = `${r.deal}`;
+    (g4.get(k4) ?? g4.set(k4, []).get(k4)!).push(price);
+    (g3.get(k3) ?? g3.set(k3, []).get(k3)!).push(price);
+    (g2.get(k2) ?? g2.set(k2, []).get(k2)!).push(price);
+    (g1.get(k1) ?? g1.set(k1, []).get(k1)!).push(price);
   }
-  const medians = new Map<string, number>();
-  for (const [k, arr] of groups) {
-    arr.sort((a, b) => a - b);
-    medians.set(k, arr[Math.floor(arr.length / 2)]);
-  }
-  return (l: { dong: string | null; deal: string; price: number | null; deposit: number | null; monthly: number | null }) => {
-    const key = `${l.dong ?? '_'}|${l.deal}`;
-    const median = medians.get(key);
-    if (!median) return { medianPrice: null, deviation: null };
-    const price =
-      l.deal === '매매' ? l.price ?? 0 :
-      l.deal === '전세' ? l.deposit ?? 0 :
-      (l.deposit ?? 0) + (l.monthly ?? 0) * 100;
-    if (price <= 0) return { medianPrice: median, deviation: null };
-    return { medianPrice: median, deviation: (price - median) / median };
+
+  const medianOf = (arr: number[]): number => {
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  };
+  const medianFrom = (m: Map<string, number[]>, key: string): number | null => {
+    const arr = m.get(key);
+    if (!arr || arr.length < MIN_COMPARABLES) return null;
+    return medianOf(arr);
+  };
+
+  return (l: ComparableRow) => {
+    const price = normalizedPrice(l);
+    if (price <= 0) return { medianPrice: null, deviation: null, comparableTier: 0 };
+
+    const dong = l.dong ?? '_';
+    const ab = areaBand(l.area_m2);
+    const rb = roomsBand(l.rooms);
+
+    // 좁은 키부터 시도하고, 샘플 부족하면 넓은 키로 fallback
+    const m4 = medianFrom(g4, `${dong}|${l.deal}|${ab}|${rb}`);
+    if (m4 != null) return { medianPrice: m4, deviation: (price - m4) / m4, comparableTier: 4 };
+    const m3 = medianFrom(g3, `${dong}|${l.deal}|${ab}`);
+    if (m3 != null) return { medianPrice: m3, deviation: (price - m3) / m3, comparableTier: 3 };
+    const m2 = medianFrom(g2, `${dong}|${l.deal}`);
+    if (m2 != null) return { medianPrice: m2, deviation: (price - m2) / m2, comparableTier: 2 };
+    const m1 = medianFrom(g1, `${l.deal}`);
+    if (m1 != null) return { medianPrice: m1, deviation: (price - m1) / m1, comparableTier: 1 };
+    return { medianPrice: null, deviation: null, comparableTier: 0 };
   };
 }
 
-function computeHeroScore(deviation: number | null, photoCount: number, daysOld: number): number {
+function computeHeroScore(
+  deviation: number | null,
+  photoCount: number,
+  daysOld: number,
+  comparableTier: number
+): number {
   let s = 50;
   if (deviation != null) {
-    if (deviation <= -0.1) s += 25;
-    else if (deviation <= -0.05) s += 15;
-    else if (deviation >= 0.1) s -= 20;
+    // tier 4 (가장 정확한 comparable) 에서 온 deviation 은 보너스 가산
+    const tierWeight = comparableTier >= 3 ? 1.0 : comparableTier >= 2 ? 0.8 : 0.5;
+    if (deviation <= -0.1)      s += 25 * tierWeight;
+    else if (deviation <= -0.05) s += 15 * tierWeight;
+    else if (deviation >= 0.1)   s -= 20 * tierWeight;
   }
   if (photoCount >= 10) s += 15;
   else if (photoCount >= 5) s += 8;
@@ -244,7 +326,7 @@ export async function GET(req: NextRequest) {
     const devFn = computeMedianDeviation(rows);
 
     const listings: MapListing[] = rows.map((r: any) => {
-      const { medianPrice, deviation } = devFn(r);
+      const { medianPrice, deviation, comparableTier } = devFn(r);
       const photoCount = r.thumb_url ? 1 : 0;
       const daysOld = Math.max(0, (Date.now() - new Date(r.updated_at ?? r.created_at).getTime()) / 86400000);
       return {
@@ -269,7 +351,7 @@ export async function GET(req: NextRequest) {
         photo_count: photoCount,
         median_price: medianPrice,
         median_deviation: deviation,
-        hero_score: computeHeroScore(deviation, photoCount, daysOld),
+        hero_score: computeHeroScore(deviation, photoCount, daysOld, comparableTier),
         created_at: r.created_at,
         updated_at: r.updated_at,
       };
