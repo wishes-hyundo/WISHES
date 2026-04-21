@@ -60,3 +60,16 @@ run_git.vbs
 git_push*.bat
 gsc_fix_*.js
 onhouse_diag.js
+
+# 2026-04-21 (L-mapfix3): Python 크롤러/seeder 캐시
+scripts/__pycache__/
+**/__pycache__/
+
+# 2026-04-21: 중복 tsconfig 변형
+tsconfig.check.json
+
+# 크롤링 프롬프트 (운영 메모, 배포 불필요)
+PROMPT_*.md
+
+# 시스템 점검 보고서 (임시, docs/ 로 이관 시까지 제외)
+WISHES_시스템점검_보고서_*.docx
