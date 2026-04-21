@@ -234,10 +234,15 @@ export default function MapClient() {
           L-ux1 (2026-04-22): grid-cols 반응형 — 좁은 창 대응.
           L-ux2 (2026-04-22): listPanelCollapsed 때 28px 레일로 축소 — 토글 버튼으로 복구.
           내부 grid-cols 는 minmax(0,1fr) — 1fr 트랙이 자식 min-content 에
-          눌려 커지는 걸 차단. */}
+          눌려 커지는 걸 차단.
+          L-mapfix6c (2026-04-22): grid-rows-[minmax(0,1fr)] 명시.
+          기본 auto 로 두면 자식(`.maplibregl-map` with inline `height: 100%`)이
+          implicit row 를 재귀적으로 팽창시켜 `.maplibregl-map` 이 86,000px+
+          까지 커지는 무한루프 레이아웃 버그 발생. 명시적 1fr 로 row 를 컨테이너
+          높이에 잠금. */}
       <div
         className={[
-          'grid h-full min-h-0 overflow-hidden',
+          'grid h-full min-h-0 overflow-hidden grid-rows-[minmax(0,1fr)]',
           listPanelCollapsed
             ? 'grid-cols-[28px_minmax(0,1fr)]'
             : 'grid-cols-[280px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]',
