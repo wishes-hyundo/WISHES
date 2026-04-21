@@ -143,7 +143,22 @@ export default function ListingsClient({
       //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
       const stripCrawledImages = (arr: any[]) => arr.map((r: any) => applyImagePolicy(r));
 
-      const selectFields = 'id, title, deal, type, dong, address, deposit, monthly, price, area_m2, floor_current, status, source_site, created_at, views';
+      // L6 (2026-04-21): SSR(page.tsx) 의 M4 교정 슬림 SELECT 와 동일 필드 세트로
+      //   정렬. displayTitle(ai_title/title/building_name/station_*/rooms/...) 과
+      //   formatFloor(floor_current/floor_total) + collectHooks(built_year/direction/
+      //   features/description/balcony) 를 모두 커버. 필터 변경 시 재페치 결과가
+      //   SSR 초기 페이로드와 동일한 카드 품질을 내도록 함.
+      const selectFields =
+        'id, deal, type, dong, ' +
+        'deposit, monthly, price, ' +
+        'area_m2, area_pyeong, ' +
+        'floor_current, floor_total, ' +
+        'parking, elevator, full_option, pet, balcony, ' +
+        'built_year, direction, ' +
+        'ai_title, title, building_name, ' +
+        'rooms, station_name, station_distance, ' +
+        'features, description, ' +
+        'source_site, created_at';
 
       // 매물번호 검색 모드
       if (search) {

@@ -1,10 +1,27 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { createServerClient } from '@/lib/supabase';
 import { cached } from '@/lib/cache';
 import { applyImagePolicy } from '@/lib/image-policy';
 import ListingsClient from './ListingsClient';
+import ListingsLoading from './loading';
 
-export const dynamic = 'force-dynamic';
+// M4 (2026-04-21, 교정판): SSR 페이로드 다이어트 + Suspense 스트리밍
+//   1. force-dynamic 제거 — 기본 동적(searchParams) 라우팅은 유지되지만 Vercel 이
+//      set-cookie/auth 가 없는 응답은 엣지에서 단기 캐시 가능.
+//   2. SELECT 슬림화 — ListingCard + displayTitle + formatFloor + pickFeatureChip
+//      이 실제 소비하는 필드로 한정. `*` 대비 address/address_detail/bathrooms/
+//      ai_description/views/status/기타 DB 전용 필드 제거.
+//      ※ 초기 M4 안(15 필드)은 ai_title/title/building_name/station_*/floor_*/
+//         features/description/rooms/built_year/direction/balcony 까지 없애서
+//         카드 타이틀이 "동 + 유형" 폴백으로만 생성되는 UX 후퇴가 있었다.
+//         (AI 마케팅 카피, 건물명, 역세권 분수 표시, 층수 모두 사라짐)
+//         이번 교정판은 그 필드들을 복구해 타이틀 품질 + 훅 + 층수를 유지.
+//      (상세 페이지 /listings/[id] 는 여전히 별도 풀-필드 쿼리 유지)
+//   3. 데이터 페치를 Suspense-wrapped 자식 async 컴포넌트로 분리 — Next.js 가
+//      쉘(Layout + 스켈레톤) 을 즉시 스트리밍 시작하고 데이터 도착 시 replace.
+
+type SearchParams = { [key: string]: string | string[] | undefined };
 
 export const metadata: Metadata = {
   title: '매물검색 - 서울·경기 전세 월세 매매',
@@ -19,13 +36,8 @@ export const metadata: Metadata = {
   },
 };
 
-// SSR - 서버에서 초기 데이터 로드 (인메모리 캐시 적용)
-export default async function ListingsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-}) {
-  const params = await searchParams;
+// Suspense 경계 내부에서 실행되는 데이터 컴포넌트
+async function ListingsData({ params }: { params: SearchParams }) {
   const deal = (params.deal as string) || '';
   const type = (params.type as string) || '';
   const dong = (params.dong as string) || '';
@@ -33,8 +45,9 @@ export default async function ListingsPage({
   const page = parseInt((params.page as string) || '1', 10);
   const pageSize = 12;
 
-  // 캐시 키: 필터 조합별
-  const cacheKey = `ssr-listings:${deal}:${type}:${dong}:${sort}:${page}`;
+  // v3: 교정판 슬림 SELECT 로 캐시 키 승격 (v2 캐시는 누락 필드 때문에 카드
+  //      타이틀이 엉성하게 렌더되므로 구버전 응답을 재사용하면 안 됨)
+  const cacheKey = `ssr-listings-v3:${deal}:${type}:${dong}:${sort}:${page}`;
 
   const result = await cached(
     cacheKey,
@@ -42,20 +55,38 @@ export default async function ListingsPage({
       const supabase = createServerClient();
       const offset = (page - 1) * pageSize;
 
-      // 매물 쿼리
-      // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 아래에서 applyImagePolicy 로 자체 업로드만 통과
-      // ※ 제목 재가공(displayTitle) 세일즈 훅용으로 building_name / 옵션 / 준공년도 / 방향 / 설명 / 역세권 필드까지 포함
+      // M4 (교정판): 카드 렌더 + displayTitle + formatFloor + hook 수집이 실제
+      // 참조하는 필드 전부. 드롭되는 건 address, address_detail, bathrooms,
+      // ai_description, views, status, 그리고 SELECT *에서만 나오는 DB 운영용
+      // 필드(updated_at, status_changed_at, approval_*, crawled_* 등).
       let query = supabase
         .from('listings')
         .select(
-          'id, title, ai_title, ai_description, building_name, deal, type, dong, address, deposit, monthly, price, area_m2, area_pyeong, rooms, bathrooms, floor_current, floor_total, status, source_site, created_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description, station_name, station_distance, features, listing_images(url, sort_order)',
+          [
+            // 핵심 식별 + 가격
+            'id', 'deal', 'type', 'dong',
+            'deposit', 'monthly', 'price',
+            // 면적/층수 (displayTitle · formatFloor)
+            'area_m2', 'area_pyeong',
+            'floor_current', 'floor_total',
+            // 훅/피처 칩 (pickFeatureChip · collectHooks)
+            'parking', 'elevator', 'full_option', 'pet', 'balcony',
+            'built_year', 'direction',
+            // 타이틀 소스 우선순위 1~3 (ai_title → title → building_name)
+            'ai_title', 'title', 'building_name',
+            // 타이틀 서브 경로 (역세권, 방 개수, 텍스트 기반 훅)
+            'rooms', 'station_name', 'station_distance',
+            'features', 'description',
+            // 메타
+            'source_site', 'created_at',
+            // 이미지 조인
+            'listing_images(url, sort_order)',
+          ].join(', '),
           { count: 'exact' }
         )
         .eq('status', '공개');
 
       if (deal) query = query.eq('deal', deal);
-      // 매물유형 관대 매칭: 레거시 슬래시 값 '사무실/상가' 호환
-      //   '사무실' 선택 시 '사무실' | '사무실/상가' 둘 다, '상가' 선택 시 '상가' | '사무실/상가' 둘 다 잡히게.
       if (type) {
         const safe = type.replace(/[,()]/g, '');
         query = query.or(`type.eq.${safe},type.ilike.%${safe}%`);
@@ -66,7 +97,6 @@ export default async function ListingsPage({
       query = query.order(sortColumn, { ascending: false });
       query = query.range(offset, offset + pageSize - 1);
 
-      // 동 목록
       const dongQuery = supabase
         .from('listings')
         .select('dong')
@@ -76,22 +106,18 @@ export default async function ListingsPage({
 
       const [listingsResult, dongResult] = await Promise.all([query, dongQuery]);
 
-      // ※ 저작권 보호 + 자체 업로드 통과
-      //   - 크롤링 매물의 외부 원본 이미지는 차단
-      //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
       const listings = (listingsResult.data || []).map((r: any) => applyImagePolicy(r));
       const totalCount = listingsResult.count || 0;
       const dongs = [...new Set((dongResult.data || []).map((r: any) => r.dong).filter(Boolean))].sort();
 
       return { listings, totalCount, dongs };
     },
-    30_000,    // 30초 fresh
-    300_000,   // 5분 stale 허용
-    3_000,     // 3초 타임아웃
+    30_000,
+    300_000,
+    3_000,
   );
 
   if (!result) {
-    // 캐시도 없고 DB도 실패 → 빈 데이터로 렌더링 (클라이언트에서 재시도)
     return <ListingsClient initialListings={[]} initialDongs={[]} totalCount={0} />;
   }
 
@@ -101,5 +127,18 @@ export default async function ListingsPage({
       initialDongs={result.dongs}
       totalCount={result.totalCount}
     />
+  );
+}
+
+export default async function ListingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
+  const params = await searchParams;
+  return (
+    <Suspense fallback={<ListingsLoading />}>
+      <ListingsData params={params} />
+    </Suspense>
   );
 }
