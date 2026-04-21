@@ -12,6 +12,26 @@ import { useMap2026Store } from '../store';
 import { useLocalComparable } from '../hooks/useLocalComparable';
 import { formatDealLabel, formatDeviation, formatArea, formatStationDistance } from '../lib/priceFormat';
 
+// L-ux3 (2026-04-22): MiniCard 뷰포트 클램프
+//   기존 left=pos.x+12 / top=pos.y+12 고정 오프셋이라
+//   오른쪽/아래 엣지에서 카드가 맵 바깥으로 벗어나 잘려 보였음.
+//   이제 카드 크기(CARD_W × CARD_H)와 창 너비/높이를 고려해
+//   넘칠 것 같으면 커서 반대쪽(좌/위) 으로 뒤집는다.
+const CARD_W = 256; // w-64
+const CARD_H = 200; // 대략 - 내용에 따라 다르나 이 정도면 클램프 정확도 충분
+
+function clampPos(x: number, y: number): { left: number; top: number } {
+  if (typeof window === 'undefined') return { left: x + 12, top: y + 12 };
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // 기본 우하단 앵커; 넘치면 좌/상단으로 뒤집기
+  const right = x + 12 + CARD_W > vw - 8;
+  const bottom = y + 12 + CARD_H > vh - 8;
+  const left = right ? Math.max(8, x - 12 - CARD_W) : x + 12;
+  const top = bottom ? Math.max(8, y - 12 - CARD_H) : y + 12;
+  return { left, top };
+}
+
 export function MiniCard() {
   const listing = useMap2026Store((s) => s.hoveredListing);
   const pos = useMap2026Store((s) => s.hoverPos);
@@ -27,12 +47,14 @@ export function MiniCard() {
   const showLocal = localDev && localDev.kind !== 'neutral' &&
     (dev.kind !== localDev.kind || Math.abs((listing.median_deviation ?? 0) - (local?.localDeviation ?? 0)) > 0.03);
 
+  const clamped = clampPos(pos.x, pos.y);
+
   return (
     <div
       className="pointer-events-none absolute z-20 w-64 rounded-xl border border-neutral-200 bg-white p-3 shadow-xl"
       style={{
-        left: pos.x + 12,
-        top: pos.y + 12,
+        left: clamped.left,
+        top: clamped.top,
       }}
     >
       <div className="mb-1 flex items-center justify-between gap-1">

@@ -9,6 +9,24 @@ import { X } from 'lucide-react';
 import { useMap2026Store, COMMERCIAL_PURPOSE_LABEL, CATEGORY_THEME } from '../store';
 import { formatKRW } from '../lib/priceFormat';
 
+// L-ux3 (2026-04-22): 단일 bound 범위 포맷 유틸
+//   기존 "매매 1억~" / "매매 ~5억" 처럼 tilde 가 매달려 어색했음.
+//   이제 "1억 이상" / "5억 이하" / "1억 ~ 5억" 으로 자연어화.
+function rangeLabel(
+  prefix: string,
+  min: number | null,
+  max: number | null,
+  fmt: (n: number) => string,
+  unit = ''
+): string {
+  const lo = min != null ? fmt(min) + unit : null;
+  const hi = max != null ? fmt(max) + unit : null;
+  if (lo && hi) return `${prefix} ${lo} ~ ${hi}`;
+  if (lo) return `${prefix} ${lo} 이상`;
+  if (hi) return `${prefix} ${hi} 이하`;
+  return prefix;
+}
+
 interface Pill {
   key: string;
   label: string;
@@ -67,28 +85,28 @@ export function ActiveFilterPills() {
   if (filter.minPrice != null || filter.maxPrice != null) {
     pills.push({
       key: 'price',
-      label: `매매 ${filter.minPrice ? formatKRW(filter.minPrice) : ''}~${filter.maxPrice ? formatKRW(filter.maxPrice) : ''}`,
+      label: rangeLabel('매매', filter.minPrice, filter.maxPrice, formatKRW),
       clear: () => setFilter({ minPrice: null, maxPrice: null }),
     });
   }
   if (filter.minDeposit != null || filter.maxDeposit != null) {
     pills.push({
       key: 'deposit',
-      label: `보증금 ${filter.minDeposit ? formatKRW(filter.minDeposit) : ''}~${filter.maxDeposit ? formatKRW(filter.maxDeposit) : ''}`,
+      label: rangeLabel('보증금', filter.minDeposit, filter.maxDeposit, formatKRW),
       clear: () => setFilter({ minDeposit: null, maxDeposit: null }),
     });
   }
   if (filter.minMonthly != null || filter.maxMonthly != null) {
     pills.push({
       key: 'monthly',
-      label: `월세 ${filter.minMonthly ?? ''}~${filter.maxMonthly ?? ''}`,
+      label: rangeLabel('월세', filter.minMonthly, filter.maxMonthly, (n) => String(n), '만'),
       clear: () => setFilter({ minMonthly: null, maxMonthly: null }),
     });
   }
   if (filter.minArea != null || filter.maxArea != null) {
     pills.push({
       key: 'area',
-      label: `면적 ${filter.minArea ?? ''}~${filter.maxArea ?? ''}m²`,
+      label: rangeLabel('면적', filter.minArea, filter.maxArea, (n) => String(n), 'm²'),
       clear: () => setFilter({ minArea: null, maxArea: null }),
     });
   }

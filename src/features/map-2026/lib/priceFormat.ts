@@ -14,17 +14,30 @@ export function formatKRW(man: number | null): string {
   return new Intl.NumberFormat('ko-KR').format(man);
 }
 
-/** 핀/카드에 찍히는 대표 가격 라벨 */
+/** 핀/카드에 찍히는 대표 가격 라벨
+ *
+ * L-ux3 (2026-04-22): 월세/단기 edge cases 정리
+ *   - 월세 deposit=null → 기존 "-/50" (보증금 없음인지 데이터 누락인지 모호)
+ *     이제 보증금 0 확실할 때만 "0/50", null 이면 "월 50만" 으로 노출
+ *   - 월세 monthly=null → "500/-" 대신 "보증금 500" 로 회귀
+ *   - 단기 monthly=null → "0/월" 대신 "-" 로 회귀
+ *   - 매매/전세 price=0 도 null 취급 (DB 기본값 0 이 섞여 있어 "0" 로 노출되던 버그) */
 export function formatDealLabel(l: Pick<MapListing, 'deal' | 'deposit' | 'monthly' | 'price'>): string {
   switch (l.deal) {
     case '매매':
-      return l.price ? formatKRW(l.price) : '-';
+      return l.price && l.price > 0 ? formatKRW(l.price) : '-';
     case '전세':
-      return l.deposit ? formatKRW(l.deposit) : '-';
-    case '월세':
-      return `${formatKRW(l.deposit)}/${l.monthly ?? 0}`;
+      return l.deposit && l.deposit > 0 ? formatKRW(l.deposit) : '-';
+    case '월세': {
+      const hasDeposit = l.deposit != null && l.deposit > 0;
+      const hasMonthly = l.monthly != null && l.monthly > 0;
+      if (hasDeposit && hasMonthly) return `${formatKRW(l.deposit!)}/${l.monthly}`;
+      if (hasMonthly) return `월 ${l.monthly}만`;
+      if (hasDeposit) return `보증금 ${formatKRW(l.deposit!)}`;
+      return '-';
+    }
     case '단기':
-      return `${l.monthly ?? 0}/월`;
+      return l.monthly && l.monthly > 0 ? `${l.monthly}/월` : '-';
   }
 }
 

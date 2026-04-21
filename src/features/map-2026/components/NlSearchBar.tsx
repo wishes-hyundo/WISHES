@@ -3,8 +3,8 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useState } from 'react';
-import { Sparkles, Search, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Sparkles, Search, X, AlertCircle } from 'lucide-react';
 import { useMap2026Store } from '../store';
 import { cinematicFlyTo } from '../lib/cinematicMotion';
 
@@ -20,14 +20,25 @@ export function NlSearchBar() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
+  // L-ux3 (2026-04-22): 기존엔 console.error 만 찍고 UI 로는 "검색중" 버튼만 풀렸음.
+  //   사용자는 뭐가 잘못됐는지 알 수 없었음 (네트워크 오류? 파서 실패?).
+  //   이제 인라인 에러 배너로 3초간 노출 후 자동 소멸.
+  const [error, setError] = useState<string | null>(null);
 
   const setFilter = useMap2026Store((s) => s.setFilter);
   const setNlQuery = useMap2026Store((s) => s.setNlQuery);
   const map = useMap2026Store((s) => s.map);
 
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(null), 3000);
+    return () => clearTimeout(t);
+  }, [error]);
+
   async function submit(q: string) {
     if (!q.trim() || busy) return;
     setBusy(true);
+    setError(null);
     setNlQuery(q);
     try {
       const res = await fetch('/api/map/search-nl', {
@@ -44,6 +55,7 @@ export function NlSearchBar() {
       setOpen(false);
     } catch (err) {
       console.error('[NlSearchBar]', err);
+      setError('검색어를 이해하지 못했어요. 다른 표현으로 시도해 보세요.');
     } finally {
       setBusy(false);
     }
@@ -85,7 +97,24 @@ export function NlSearchBar() {
         </button>
       </div>
 
-      {open && !input && (
+      {error && (
+        <div
+          role="alert"
+          className="absolute left-0 right-0 top-full mt-2 flex items-center gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[12.5px] text-rose-700 shadow-sm z-50"
+        >
+          <AlertCircle className="size-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button
+            onClick={() => setError(null)}
+            className="rounded-full p-0.5 text-rose-400 hover:bg-rose-100 hover:text-rose-700"
+            aria-label="닫기"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      {open && !input && !error && (
         <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-neutral-200 bg-white p-2 shadow-xl z-50">
           <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
             이렇게 검색해 보세요

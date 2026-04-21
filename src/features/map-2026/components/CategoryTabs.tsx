@@ -62,12 +62,18 @@ export function CategoryTabs() {
         const theme = CATEGORY_THEME[cat];
         const active = filter.category === cat;
         const count = counts[cat];
+        // L-ux3 (2026-04-22): 비활성 탭 count 는 의미가 없음 (서버 API 가 이미
+        //   filter.category 로 걸러진 목록만 반환하므로 non-active = 항상 0).
+        //   "0" 으로 찍히면 "해당 카테고리에 매물 없음" 으로 오해됨.
+        //   이제 활성 탭만 실제 숫자, 나머지는 dim dot 으로 표기.
+        const showCount = active;
 
         return (
           <button
             key={cat}
             role="tab"
             aria-selected={active}
+            title={active ? `${theme.label} ${count.toLocaleString('ko-KR')}개` : `${theme.label} 카테고리로 전환`}
             onClick={() => {
               if (active) return;
               setCategory(cat);
@@ -83,16 +89,18 @@ export function CategoryTabs() {
           >
             <span className="text-[15px]">{theme.emoji}</span>
             <span>{theme.label}</span>
-            <span
-              className={[
-                'ml-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums transition-colors',
-                active
-                  ? `${theme.accent} text-white`
-                  : 'bg-neutral-100 text-neutral-500',
-              ].join(' ')}
-            >
-              {count.toLocaleString('ko-KR')}
-            </span>
+            {showCount ? (
+              <span
+                className={[
+                  'ml-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums transition-colors',
+                  `${theme.accent} text-white`,
+                ].join(' ')}
+              >
+                {count.toLocaleString('ko-KR')}
+              </span>
+            ) : (
+              <span className="ml-1 size-1 rounded-full bg-neutral-300" aria-hidden />
+            )}
 
             {/* 활성 탭 하단 굵은 underline (카테고리 색) */}
             {active && (
