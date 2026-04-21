@@ -1,6 +1,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Scatter layer — hero 가 아닌 매물을 얇은 점으로
-// (hero 는 HTML DOM pin 으로 별도 렌더, 이 레이어는 배경 맥락용)
+// Scatter layer — hero 아닌 매물 = 배경 컨텍스트 (2026-04 재디자인)
+//
+// 🎯 원칙: hero 가 주연, 이 레이어는 조명.
+//   - pins/3d 모드에서 hero 외 매물 = 작고 연한 회색 점
+//   - 시세 −10% 이하인 "히든 오퍼튜니티" 는 작은 녹점으로 강조
+//   - 나머지는 신경 거슬리지 않게 opacity 40%
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { ScatterplotLayer } from '@deck.gl/layers';
 import type { PickingInfo } from '@deck.gl/core';
@@ -15,23 +19,25 @@ export function buildScatterLayer(
     id: 'scatter-non-hero',
     data: listings,
     pickable: true,
-    stroked: true,
+    stroked: false,
     filled: true,
     radiusUnits: 'pixels',
     getPosition: (d) => [d.lng, d.lat],
-    getRadius: 4,
+    getRadius: (d) =>
+      // 시세 대비 확실히 싼 매물은 약간 더 크게 (시선 유도)
+      d.median_deviation != null && d.median_deviation <= -0.1 ? 4.5 : 2.75,
     getFillColor: (d) => {
-      if (d.median_deviation == null) return [120, 120, 120, 200];
-      if (d.median_deviation <= -0.05) return [22, 163, 74, 230];    // 싼 매물 = 그린
-      if (d.median_deviation >= 0.05) return [239, 68, 68, 200];     // 비싼 매물 = 레드
-      return [156, 163, 175, 200];                                   // 시세 = 그레이
+      // 히든 오퍼튜니티만 녹색 강조, 나머지는 뉴트럴 회색 (opacity 낮게)
+      if (d.median_deviation != null && d.median_deviation <= -0.1) {
+        return [22, 163, 74, 220]; // emerald-600 · 알파 높음
+      }
+      return [100, 116, 139, 110];  // slate-500 · 알파 낮음 (약 43%)
     },
-    getLineColor: [255, 255, 255, 220],
-    lineWidthMinPixels: 1,
     onHover,
     onClick,
     updateTriggers: {
       getFillColor: [listings.length],
+      getRadius: [listings.length],
     },
   });
 }
