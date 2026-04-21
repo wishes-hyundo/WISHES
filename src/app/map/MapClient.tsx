@@ -1,20 +1,25 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MapClient — MapLibre + deck.gl + HTML hero pins + 필터바
+// MapClient — Kakao SDK 베이스 + deck.gl 오버레이 (L-kakao1 2026-04-22)
+//
+// 배경: 이전 MapLibre + OpenFreeMap 스택이 한국 POI(지하철/건물/동경계)·
+//   한국어 라벨을 제공하지 못해 사용자 경험이 크게 저하되어 Kakao SDK 로
+//   되돌림. 10만+ 매물 성능은 기존 KakaoDeckOverlay.tsx 의 GPU 오버레이로
+//   유지.
+//
+// 보존: SmartChips·ActiveFilterPills·ListPanel·NlSearchBar·MiniCard·
+//   SemanticZoomIndicator·MapControls (3D/등시선 버튼은 silently no-op)
+//   ·Hero Score·저렴/비쌈 뱃지·800개 viewport RPC.
+//
+// 제거: MapLibre 3D 건물, isochrone MapLibre 오버레이, HeroPinLayer 의 DOM 핀.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import maplibregl, { Map as MapLibreMap } from 'maplibre-gl';
-import { MapboxOverlay } from '@deck.gl/mapbox';
-import 'maplibre-gl/dist/maplibre-gl.css';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 import { useMap2026Store } from '@/features/map-2026/store';
-import { buildStyle, BUILDING_3D_LAYER_ID } from '@/features/map-2026/lib/mapStyle';
 import { useViewport } from '@/features/map-2026/hooks/useViewport';
 import { useSemanticZoom } from '@/features/map-2026/hooks/useSemanticZoom';
 import { useHeroRanking } from '@/features/map-2026/hooks/useHeroRanking';
-import { useIsochrone } from '@/features/map-2026/hooks/useIsochrone';
-import { buildLayers } from '@/features/map-2026/layers';
 
 import { NlSearchBar } from '@/features/map-2026/components/NlSearchBar';
 import { SmartChips } from '@/features/map-2026/components/SmartChips';
@@ -23,185 +28,204 @@ import { ListPanel } from '@/features/map-2026/components/ListPanel';
 import { MapControls } from '@/features/map-2026/components/MapControls';
 import { SemanticZoomIndicator } from '@/features/map-2026/components/SemanticZoomIndicator';
 import { MiniCard } from '@/features/map-2026/components/MiniCard';
-import { HeroPinLayer } from '@/features/map-2026/components/HeroPinLayer';
 
-// 서울 중심 기본
-const SEOUL: [number, number] = [127.0276, 37.4979];
+import KakaoDeckOverlay, { type MapItem } from '@/components/map/KakaoDeckOverlay';
+
+// 서울 기본 중심
+const SEOUL = { lat: 37.4979, lng: 127.0276 };
+
+// Kakao level(1~14) ↔ 내부 zoom(5~17) 근사 매핑
+//   level 1 → zoom 17 (건물), level 5 → zoom 13 (동), level 8 → zoom 10 (구)
+//   semantic zoom 경계(11.5 / 13.5) 와 호환되도록 `zoom = 18 - level` 선택.
+function levelToZoom(level: number): number {
+  return Math.max(0, 18 - level);
+}
+
+// Kakao SDK 동적 로더 — autoload=false 로 SSR 안전, 다중 호출 중복 방지
+function loadKakaoSdk(appkey: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      reject(new Error('no window'));
+      return;
+    }
+    const w = window as unknown as {
+      kakao?: { maps?: { load: (cb: () => void) => void; LatLng: unknown; Map: unknown } };
+    };
+    if (w.kakao?.maps?.Map) {
+      // 이미 로드 완료
+      resolve();
+      return;
+    }
+    const existing = document.getElementById('kakao-map-sdk') as HTMLScriptElement | null;
+    const onScriptReady = () => {
+      if (w.kakao?.maps?.load) {
+        w.kakao.maps.load(() => resolve());
+      } else {
+        reject(new Error('kakao.maps.load unavailable'));
+      }
+    };
+    if (existing) {
+      if (w.kakao?.maps) onScriptReady();
+      else existing.addEventListener('load', onScriptReady, { once: true });
+      return;
+    }
+    const script = document.createElement('script');
+    script.id = 'kakao-map-sdk';
+    script.src = `//dapi.kakao.com/v2/maps/sdk.js?appkey=${appkey}&autoload=false&libraries=services,clusterer`;
+    script.async = true;
+    script.onload = onScriptReady;
+    script.onerror = () => reject(new Error('Kakao SDK network error'));
+    document.head.appendChild(script);
+  });
+}
 
 export default function MapClient() {
   const containerRef = useRef<HTMLDivElement>(null);
-  const overlayRef = useRef<MapboxOverlay | null>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
+  const kakaoMapRef = useRef<unknown>(null);
   const [ready, setReady] = useState(false);
-  // L-map1 (2026-04-21): WebGL 실패 시 전역 에러 바운더리로 튀지 않고
-  //   /map 안에서 '지도 로드 실패 — /listings 로 이동' 폴백을 노출.
-  const [webglFailed, setWebglFailed] = useState(false);
-  // L-mapfix2 (2026-04-21): Chrome/Edge Speculation Rules 로 /map 이 prerender
-  //   컨텍스트에서 먼저 로드되면 document.prerendering=true 상태에서 WebGL
-  //   컨텍스트가 생성돼 activation 후 canvas 가 흰색으로 남는 현상이 있었다.
-  //   SpeculationRules.tsx 에서 /map 을 제외했지만, 3rd-party speculation 이나
-  //   브라우저 기본 프리로드 heuristic 에 대비해 defensive 로 init 을 유예한다.
-  const [prerendering, setPrerendering] = useState<boolean>(() => {
-    if (typeof document === 'undefined') return false;
-    return !!(document as unknown as { prerendering?: boolean }).prerendering;
-  });
+  const [failed, setFailed] = useState(false);
+  const [failReason, setFailReason] = useState<string>('');
 
   const setMap = useMap2026Store((s) => s.setMap);
-  const setHover = useMap2026Store((s) => s.setHover);
+  const setBbox = useMap2026Store((s) => s.setBbox);
+  const setZoom = useMap2026Store((s) => s.setZoom);
+  const listings = useMap2026Store((s) => s.listings);
   const selectListing = useMap2026Store((s) => s.selectListing);
-  // L-ux2 (2026-04-22): ListPanel 접힘 상태 — 좁은 뷰포트에서 지도 캔버스 확보.
   const listPanelCollapsed = useMap2026Store((s) => s.listPanelCollapsed);
   const toggleListPanel = useMap2026Store((s) => s.toggleListPanel);
   const listingsCount = useMap2026Store((s) => s.listings.length);
 
-  // prerenderingchange → activation 시 1회 발생. 이후 정상 init 파이프라인으로 진입.
+  // Kakao 지도 초기화
   useEffect(() => {
-    if (typeof document === 'undefined') return;
-    if (!(document as unknown as { prerendering?: boolean }).prerendering) return;
-    const onActivate = () => setPrerendering(false);
-    document.addEventListener('prerenderingchange', onActivate);
-    return () => document.removeEventListener('prerenderingchange', onActivate);
-  }, []);
-
-  // 지도 초기화
-  useEffect(() => {
-    if (prerendering) return;
     if (!containerRef.current) return;
-    const container = containerRef.current;
-
-    // L-map1 (2026-04-21): MapLibre 생성자는 WebGL 컨텍스트를 sync 로 요구한다.
-    //   WebGL 비활성 / 구식 GPU / 헤드리스(Lighthouse CI) 환경에서 여기서 throw 되면
-    //   useEffect 가 react error boundary 로 올려보내 전역 error.tsx 가 /map 을
-    //   통째로 덮어쓰던 현상 해소. 라우트 안에서 가벼운 폴백으로 전환.
-    let map: MapLibreMap;
-    try {
-      map = new maplibregl.Map({
-        container,
-        style: buildStyle(),
-        center: SEOUL,
-        zoom: 12.3,
-        pitch: 0,
-        maxPitch: 60,
-        attributionControl: { compact: true },
-      });
-    } catch (e) {
-      if (typeof console !== 'undefined') {
-        console.warn('[MapClient] MapLibre/WebGL 초기화 실패 → 폴백 UI 표시:', e);
-      }
-      setWebglFailed(true);
+    const key = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+    if (!key || key === '여기에_카카오_JavaScript_앱키_입력') {
+      setFailReason('NEXT_PUBLIC_KAKAO_MAP_KEY 환경변수 미설정');
+      setFailed(true);
       return;
     }
-    mapRef.current = map;
+    const container = containerRef.current;
+    let disposed = false;
+    let idleListener: (() => void) | null = null;
+    let mapInst: unknown = null;
 
-    const overlay = new MapboxOverlay({ interleaved: true, layers: [] });
-    map.addControl(overlay as unknown as maplibregl.IControl);
-    overlayRef.current = overlay;
+    (async () => {
+      try {
+        await loadKakaoSdk(key);
+        if (disposed) return;
+        const kakao = (window as unknown as {
+          kakao: {
+            maps: {
+              LatLng: new (lat: number, lng: number) => unknown;
+              Map: new (
+                el: HTMLElement,
+                opts: { center: unknown; level: number }
+              ) => {
+                getBounds: () => {
+                  getSouthWest: () => { getLat: () => number; getLng: () => number };
+                  getNorthEast: () => { getLat: () => number; getLng: () => number };
+                };
+                getLevel: () => number;
+              };
+              event: {
+                addListener: (target: unknown, type: string, handler: () => void) => void;
+              };
+            };
+          };
+        }).kakao;
 
-    // deck.gl / MapLibre 런타임 렌더 에러(webglcontextlost 등)도 동일하게 격리
-    map.on('error', (ev: unknown) => {
-      if (typeof console !== 'undefined') {
-        console.warn('[MapClient] MapLibre runtime error:', ev);
+        const map = new kakao.maps.Map(container, {
+          center: new kakao.maps.LatLng(SEOUL.lat, SEOUL.lng),
+          level: 5,
+        });
+        mapInst = map;
+        kakaoMapRef.current = map;
+
+        const sync = () => {
+          const b = map.getBounds();
+          const sw = b.getSouthWest();
+          const ne = b.getNorthEast();
+          setBbox({
+            west: sw.getLng(),
+            south: sw.getLat(),
+            east: ne.getLng(),
+            north: ne.getLat(),
+          });
+          setZoom(levelToZoom(map.getLevel()));
+        };
+
+        idleListener = sync;
+        kakao.maps.event.addListener(map, 'idle', sync);
+        sync(); // 초기 1회 강제 호출 → RPC 트리거
+
+        setMap(map as never);
+        setReady(true);
+      } catch (e) {
+        console.warn('[MapClient] Kakao SDK init failed:', e);
+        setFailReason((e as Error)?.message ?? String(e));
+        setFailed(true);
       }
-    });
-
-    map.on('load', () => {
-      setMap(map, overlay);
-      setReady(true);
-      // 컨테이너가 0×0 에서 시작했을 수 있으므로 다음 프레임에 강제 리사이즈
-      requestAnimationFrame(() => map.resize());
-    });
-
-    // 컨테이너 크기 변화 감지 → MapLibre 내부 뷰포트 동기화
-    const ro = new ResizeObserver(() => map.resize());
-    ro.observe(container);
+    })();
 
     return () => {
-      ro.disconnect();
-      map.remove();
-      overlayRef.current = null;
-      mapRef.current = null;
-      setReady(false);
+      disposed = true;
+      // Kakao 는 명시적 destroy API 가 없음 — container 비우고 ref 초기화
+      kakaoMapRef.current = null;
+      idleListener = null;
+      // 재초기화를 위해 container innerHTML 클리어
+      if (container) {
+        try { container.innerHTML = ''; } catch { /* noop */ }
+      }
+      void mapInst;
     };
-  }, [setMap, prerendering]);
+  }, [setMap, setBbox, setZoom]);
 
-  // 데이터 파이프라인
+  // 뷰포트·semantic zoom·hero 랭킹 — store 기반이라 map 인스턴스와 무관
   useViewport();
   useSemanticZoom();
   useHeroRanking();
-  useIsochrone();
 
-  // deck.gl 레이어 diff
-  const listings = useMap2026Store((s) => s.listings);
-  const heroes = useMap2026Store((s) => s.heroes);
-  const mode = useMap2026Store((s) => s.mode);
-  const isochrone = useMap2026Store((s) => s.isochrone);
-  const heatmap = useMap2026Store((s) => s.heatmap);
-  const threeD = useMap2026Store((s) => s.threeD);
-  const selectedId = useMap2026Store((s) => s.selectedId);
-  const isochronePayload = useMap2026Store((s) => s.isochronePayload);
-
-  useEffect(() => {
-    if (!overlayRef.current || !ready) return;
-    overlayRef.current.setProps({
-      layers: buildLayers({
-        listings,
-        heroes,
-        mode,
-        isochrone,
-        heatmap,
-        threeD,
-        similar: false,
-        selectedId,
-        isochronePayload,
-        onHover: (info) => {
-          if (info.object) setHover(info.object, info.x, info.y);
-          else setHover(null);
-        },
-        onClick: (info) => {
-          if (info.object) selectListing(info.object.id, true);
-        },
+  // listings → Deck 아이템 변환
+  const items: MapItem[] = useMemo(
+    () =>
+      listings.map((l) => {
+        const unified =
+          l.deal === '매매'
+            ? l.price
+            : l.deal === '전세'
+            ? l.deposit
+            : l.monthly;
+        return {
+          id: l.id,
+          lat: l.lat,
+          lng: l.lng,
+          price_unified: unified,
+          type: l.type,
+          deal: l.deal,
+          thumb_url: l.thumbnail_url,
+        };
       }),
-    });
-  }, [
-    listings, heroes, mode, isochrone, heatmap, threeD,
-    selectedId, isochronePayload, ready, setHover, selectListing,
-  ]);
+    [listings]
+  );
 
-  // Phase D — 3D 토글 효과
-  //   threeD on  → pitch 45 easeTo + buildings-3d 레이어 visible
-  //   threeD off → pitch 0 easeTo + 레이어 none
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !ready) return;
-    // style 로드 이후에만 setLayoutProperty 호출
-    const apply = () => {
-      if (!map.getLayer(BUILDING_3D_LAYER_ID)) return;
-      map.setLayoutProperty(
-        BUILDING_3D_LAYER_ID,
-        'visibility',
-        threeD ? 'visible' : 'none'
-      );
-      map.easeTo({
-        pitch: threeD ? 45 : 0,
-        duration: 650,
-        essential: true,
-      });
-    };
-    if (map.isStyleLoaded()) apply();
-    else map.once('styledata', apply);
-  }, [threeD, ready]);
+  const onClickListing = useCallback(
+    (id: number) => {
+      selectListing(id, true);
+    },
+    [selectListing]
+  );
 
-  // L-map1 (2026-04-21): WebGL 불가 환경 폴백 — 라우트 안에서 리스트 링크 제공
-  if (webglFailed) {
+  if (failed) {
     return (
       <div className="grid h-full place-items-center bg-wishes-cream/40 px-4">
         <div className="max-w-md text-center">
-          <h2 className="mb-2 text-lg font-bold text-wishes-primary">
-            이 브라우저에서는 지도를 불러올 수 없어요
-          </h2>
+          <h2 className="mb-2 text-lg font-bold text-wishes-primary">지도를 불러올 수 없어요</h2>
           <p className="mb-4 text-sm text-gray-600">
-            WebGL 이 비활성화되어 있거나 지원되지 않는 환경입니다. 대신 목록에서 매물을 확인해 보세요.
+            Kakao 지도 초기화에 실패했습니다. 잠시 후 다시 시도하거나 목록에서 매물을 확인해 보세요.
           </p>
+          {failReason && (
+            <p className="mb-3 text-[11px] text-gray-400">{failReason}</p>
+          )}
           <a
             href="/listings"
             className="inline-flex items-center justify-center rounded-xl bg-wishes-primary px-5 py-3 text-sm font-bold text-white hover:bg-wishes-secondary"
@@ -214,32 +238,16 @@ export default function MapClient() {
   }
 
   return (
-    // CRITICAL: grid-rows 에서 마지막 트랙을 `minmax(0,1fr)` 로 둬야 ListPanel 의
-    // 긴 매물 리스트(수백개) 가 min-content 로 row 를 밀어서 지도 컨테이너를
-    // 38,000px+ 까지 팽창시키는 사고를 막음.
+    // 4-track grid — 헤더 / SmartChips / ActiveFilterPills / 본문(1fr)
     <div className="grid h-full grid-rows-[auto_auto_auto_minmax(0,1fr)]">
-      {/* 헤더: 브랜드 + NL 검색 (L-ux1: py-2.5 → py-2, gap-4 → gap-3 로 3-4px 절약) */}
       <header className="flex items-center gap-3 border-b border-neutral-100 bg-white px-4 py-2">
         <Brand />
         <NlSearchBar />
       </header>
 
-      {/* 스마트 칩 (거래유형 + 핵심 필터) */}
       <SmartChips />
-
-      {/* 활성 필터 pills */}
       <ActiveFilterPills />
 
-      {/* 본문: 좌 리스트 / 우 지도
-          L-ux1 (2026-04-22): grid-cols 반응형 — 좁은 창 대응.
-          L-ux2 (2026-04-22): listPanelCollapsed 때 28px 레일로 축소 — 토글 버튼으로 복구.
-          내부 grid-cols 는 minmax(0,1fr) — 1fr 트랙이 자식 min-content 에
-          눌려 커지는 걸 차단.
-          L-mapfix6c (2026-04-22): grid-rows-[minmax(0,1fr)] 명시.
-          기본 auto 로 두면 자식(`.maplibregl-map` with inline `height: 100%`)이
-          implicit row 를 재귀적으로 팽창시켜 `.maplibregl-map` 이 86,000px+
-          까지 커지는 무한루프 레이아웃 버그 발생. 명시적 1fr 로 row 를 컨테이너
-          높이에 잠금. */}
       <div
         className={[
           'grid h-full min-h-0 overflow-hidden grid-rows-[minmax(0,1fr)]',
@@ -272,18 +280,23 @@ export default function MapClient() {
             </button>
           </div>
         )}
+
         <div className="relative h-full min-h-0">
-          {/* L-mapfix6b: MapLibre 가 .maplibregl-map 에 position:relative 를 주입해
-              Tailwind `absolute` 를 덮으면 inset-0 이 무효화돼 높이가 0 으로 접힘.
-              인라인 style 로 100% fill 을 강제해 어떤 position 에서도 안전. */}
+          {/* Kakao 지도 컨테이너 — 인라인 style 로 100% fill 보장 */}
           <div
             ref={containerRef}
             className="absolute inset-0"
             style={{ width: '100%', height: '100%' }}
           />
+          {ready && kakaoMapRef.current ? (
+            <KakaoDeckOverlay
+              map={kakaoMapRef.current}
+              items={items}
+              onClickListing={onClickListing}
+            />
+          ) : null}
           <SemanticZoomIndicator />
           <MapControls />
-          <HeroPinLayer />
           <MiniCard />
         </div>
       </div>
@@ -291,11 +304,7 @@ export default function MapClient() {
   );
 }
 
-
-// L-ux1 (2026-04-22): 좁은 창에서 브랜드 영역 축소 —
-//   md 이하: W 로고만
-//   md~lg: WISHES wordmark 까지
-//   lg 이상: MAP 2026 배지까지 전체 노출
+// 좁은 창에서 브랜드 영역 축소 — md 이하 W 로고, md+ wordmark, lg+ 배지
 function Brand() {
   return (
     <a href="/" aria-label="WISHES 홈" className="flex shrink-0 items-center gap-2">

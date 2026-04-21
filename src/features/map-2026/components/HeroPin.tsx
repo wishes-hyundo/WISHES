@@ -5,9 +5,14 @@
 
 import { useEffect, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
-import { useMap2026Store, type MapListing, CATEGORY_THEME } from '../store';
+import { useMap2026Store, type MapListing, type MapInstance, CATEGORY_THEME } from '../store';
 import { formatDealLabel, formatDeviation } from '../lib/priceFormat';
 import { focusListing } from '../lib/cinematicMotion';
+
+// L-kakao1 (2026-04-22): HeroPinLayer 가 no-op 로 전환되면서 이 컴포넌트는
+//   현재 렌더 트리에서 쓰이지 않는 레거시 경로이다. MapLibre 인스턴스를 직접
+//   받지만 cinematicMotion.focusListing 은 MapInstance 공용 타입만 받는다.
+//   향후 Kakao CustomOverlay 로 재구현할 때를 대비해 signature 는 유지.
 
 interface Props {
   map: MapLibreMap;
@@ -52,7 +57,7 @@ export function HeroPin({ map, listing }: Props) {
     <button
       onClick={() => {
         selectListing(listing.id, true);
-        focusListing(map, [listing.lng, listing.lat]);
+        focusListing(map as unknown as MapInstance, [listing.lng, listing.lat]);
       }}
       onMouseEnter={(e) => setHover(listing, e.clientX, e.clientY)}
       onMouseLeave={() => setHover(null)}

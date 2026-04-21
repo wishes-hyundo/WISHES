@@ -2,6 +2,10 @@
 // MapControls — 지도 우상단 레이어 토글
 //   · 통근(Isochrone): 켜면 분 선택 팝오버 노출, 선택된 매물 기준으로 동심원 생성
 //   · 히트맵 / 3D / 유사
+//
+// L-kakao1 (2026-04-22): Kakao 베이스로 전환되면서 map.getCenter() 가 반환하는
+//   값이 MapLibre LngLat({lat, lng}) 이 아니라 Kakao LatLng(getLat()/getLng())
+//   이다. 양쪽 형태를 모두 받도록 runtime dispatch 를 적용.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
@@ -77,8 +81,20 @@ export function MapControls() {
           <button
             onClick={() => {
               if (!map) return;
-              const c = map.getCenter();
-              setCenter([c.lng, c.lat]);
+              // L-kakao1: Kakao getCenter()→LatLng(getLat/getLng),
+              //   MapLibre getCenter()→{lat, lng}. runtime dispatch.
+              const getCenter = (map as { getCenter?: () => unknown }).getCenter;
+              if (typeof getCenter !== 'function') return;
+              const c = getCenter.call(map) as {
+                getLat?: () => number;
+                getLng?: () => number;
+                lat?: number;
+                lng?: number;
+              };
+              const lat = typeof c.getLat === 'function' ? c.getLat() : c.lat;
+              const lng = typeof c.getLng === 'function' ? c.getLng() : c.lng;
+              if (typeof lat !== 'number' || typeof lng !== 'number') return;
+              setCenter([lng, lat]);
             }}
             className="rounded-md bg-neutral-900 px-2 py-1 text-[11px] font-semibold text-white hover:bg-neutral-800"
           >

@@ -3,8 +3,19 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import type { Map as MapLibreMap } from 'maplibre-gl';
-import type { MapboxOverlay } from '@deck.gl/mapbox';
+// L-kakao1 (2026-04-22): /map 이 Kakao SDK 베이스로 전환됨에 따라 map instance
+//   타입을 generic Kakao/MapLibre 공용으로 넓힘. 런타임 메서드 존재 여부로
+//   dispatch — 강한 타입은 adapter 레벨에서만 사용.
+type KakaoLatLng = unknown;
+type KakaoMapLike = {
+  panTo?: (latlng: KakaoLatLng) => void;
+  setCenter?: (latlng: KakaoLatLng) => void;
+  setLevel?: (level: number) => void;
+  getLevel?: () => number;
+  flyTo?: (opts: { center: [number, number]; zoom?: number; duration?: number; curve?: number }) => void;
+  getZoom?: () => number;
+};
+export type MapInstance = KakaoMapLike & Record<string, unknown>;
 
 // DB에 정렬 — '매매'|'전세'|'월세'|'단기'
 export type DealType = '매매' | '전세' | '월세' | '단기';
@@ -123,9 +134,9 @@ export const DEFAULT_FILTER: FilterState = {
 export type SortKey = 'recent' | 'price_asc' | 'price_desc' | 'area_desc' | 'deal_score';
 
 export interface Map2026Store {
-  map: MapLibreMap | null;
-  overlay: MapboxOverlay | null;
-  setMap: (m: MapLibreMap, o: MapboxOverlay) => void;
+  map: MapInstance | null;
+  overlay: unknown | null;
+  setMap: (m: MapInstance, o?: unknown) => void;
 
   zoom: number;
   mode: ZoomMode;
@@ -194,7 +205,7 @@ export const useMap2026Store = create<Map2026Store>()(
   subscribeWithSelector((set, get) => ({
     map: null,
     overlay: null,
-    setMap: (map, overlay) => set({ map, overlay }),
+    setMap: (map, overlay = null) => set({ map, overlay }),
 
     zoom: 12.3,
     mode: 'pins',
@@ -287,12 +298,24 @@ export const useMap2026Store = create<Map2026Store>()(
         const l = get().listings.find((x) => x.id === id);
         const map = get().map;
         if (l && map) {
-          map.flyTo({
-            center: [l.lng, l.lat],
-            zoom: Math.max(map.getZoom(), 14),
-            duration: 900,
-            curve: 1.6,
-          });
+          // L-kakao1 (2026-04-22): Kakao / MapLibre 양쪽 지원 — 런타임 메서드로 분기
+          if (typeof map.panTo === 'function' && typeof map.setLevel === 'function') {
+            try {
+              const kakao = (window as unknown as { kakao?: { maps: { LatLng: new (lat: number, lng: number) => unknown } } }).kakao;
+              if (kakao) {
+                map.panTo(new kakao.maps.LatLng(l.lat, l.lng));
+                const curLevel = map.getLevel ? map.getLevel() : 4;
+                map.setLevel(Math.min(curLevel, 3)); // 가까이
+              }
+            } catch { /* noop */ }
+          } else if (typeof map.flyTo === 'function') {
+            map.flyTo({
+              center: [l.lng, l.lat],
+              zoom: Math.max(typeof map.getZoom === 'function' ? map.getZoom() : 12, 14),
+              duration: 900,
+              curve: 1.6,
+            });
+          }
         }
       }
     },

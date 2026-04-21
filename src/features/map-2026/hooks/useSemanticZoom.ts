@@ -10,15 +10,13 @@
 //   z ≤ 15     → 단지/블록 단위 (매물 80±)     → pins
 //   z > 15     → 건물 단위 (매물 수십)         → 3d
 //
-// 예전 경계(z<11 / z<12.5 / z<14) 는 pins 모드가 지나치게 일찍 등장해서
-// "너저분한 마커 수백 개" 의 주범이었음.
-//
-// L-mapfix3 (2026-04-22): listings.length 를 deps 에서 빼고 ref 로 읽는다.
-//   크롤러 배치 refetch 가 들어올 때마다 moveend/zoomend 가 off→on 으로
-//   재바인딩되어, 리스너가 0 개인 레이스 윈도가 열리던 문제를 차단.
-//   density 재평가는 별도 effect 에서 listings.length 변화에만 반응.
+// L-kakao1 (2026-04-22): 지도 베이스가 Kakao 로 바뀌면서 MapLibre 전용
+//   map.on('moveend')/getZoom()/getBounds() 는 더 이상 쓸 수 없다. 다행히
+//   MapClient 가 이미 Kakao 의 `idle` 이벤트에서 setZoom/setBbox 를 store 로
+//   쏴주고 있으므로, 본 훅은 map 인스턴스에 직접 붙지 않고 순수 store 구독으로
+//   전환. 모드 결정은 store.zoom + store.listings.length 의 효과로 파생된다.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import { useMap2026Store, type ZoomMode } from '../store';
 
 // Density-aware downgrade 임계값: pins/3d 모드에서도 이 숫자 넘으면 hex 로 fallback
@@ -40,51 +38,11 @@ export function densityAwareMode(baseMode: ZoomMode, visibleCount: number): Zoom
 }
 
 export function useSemanticZoom() {
-  const map = useMap2026Store((s) => s.map);
+  const zoom = useMap2026Store((s) => s.zoom);
   const listingsLength = useMap2026Store((s) => s.listings.length);
-  const setZoom = useMap2026Store((s) => s.setZoom);
   const setMode = useMap2026Store((s) => s.setMode);
-  const setBbox = useMap2026Store((s) => s.setBbox);
 
-  // listings.length 를 ref 로 스냅샷해 moveend/zoomend 핸들러가
-  // 재바인딩 없이 최신 값을 읽도록. (L-mapfix3)
-  const listingsLengthRef = useRef(listingsLength);
   useEffect(() => {
-    listingsLengthRef.current = listingsLength;
-  }, [listingsLength]);
-
-  // 1) map 준비되면 단 한 번 moveend/zoomend 바인딩.
-  useEffect(() => {
-    if (!map) return;
-
-    const emit = () => {
-      const z = map.getZoom();
-      const b = map.getBounds();
-      setZoom(z);
-      setMode(densityAwareMode(zoomToMode(z), listingsLengthRef.current));
-      setBbox({
-        west: b.getWest(),
-        south: b.getSouth(),
-        east: b.getEast(),
-        north: b.getNorth(),
-      });
-    };
-
-    emit();
-    map.on('moveend', emit);
-    map.on('zoomend', emit);
-
-    return () => {
-      map.off('moveend', emit);
-      map.off('zoomend', emit);
-    };
-  }, [map, setZoom, setMode, setBbox]);
-
-  // 2) listings 수가 달라지면 현재 줌에 대해 density 를 재평가.
-  //    (viewport 이벤트 없이 순수 데이터 변경으로 모드 강등/승격이 일어나야 하는 경우)
-  useEffect(() => {
-    if (!map) return;
-    const z = map.getZoom();
-    setMode(densityAwareMode(zoomToMode(z), listingsLength));
-  }, [map, listingsLength, setMode]);
+    setMode(densityAwareMode(zoomToMode(zoom), listingsLength));
+  }, [zoom, listingsLength, setMode]);
 }
