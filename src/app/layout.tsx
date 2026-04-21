@@ -87,38 +87,18 @@ export default function RootLayout({
         {/* L-perf1 (2026-04-21): Pretendard CSS 를 <link> 로 병렬 로드. 이전에는
             globals.css 안의 @import 로 직렬 체인됐어서 Lighthouse 가 render-blocking
             170ms 로 지적. <link> 는 HTML 파서가 조기에 발견해 다른 리소스와 병렬 페치. */}
-        {/* L-perf2 (2026-04-21): L-perf1 후에도 <link rel="stylesheet"> 자체가 render-blocking
-            130ms 로 Lighthouse diagnostic 에 잔존. 아래 패턴으로 non-blocking 전환:
-              1) <link rel="preload" as="style"> — preload scanner 가 조기 페치 시작
-              2) <link rel="stylesheet" media="print"> — media=print 는 render-blocking 집계
-                 대상 제외 (screen 렌더 대기 안 함)
-              3) Next <Script beforeInteractive> 가 onload 시 media='all' 로 스왑
-              4) <noscript> 백업 — JS off 환경에서 폰트 정상 로드
-            Pretendard 는 font-display: swap 이라 현 상태 대비 FOUT 악화 없음.
-            LCP (히어로 <h1>) 는 시스템 폰트로 즉시 paint → Pretendard 도착 시 스왑. */}
+        {/* L-cls1 (2026-04-21): L-perf2 non-blocking 패턴 rollback.
+            media=print + swap 방식은 render-blocking 130ms 를 제거했지만, first paint
+            가 시스템 폰트로 이뤄진 뒤 Pretendard 가 나중에 swap 되면서 메트릭 차이로
+            히어로 섹션에서 CLS 0.234 발생 → Performance 90 → 85 로 후퇴.
+            LCP 는 L-perf3 (fade-in 제거) 효과로 1.7s → 0.74s 까지 내려왔기 때문에
+            블로킹 CSS 130ms 를 다시 수용해도 LCP 예산 충분. 단순 <link rel="stylesheet">
+            로 복귀해 첫 paint 에서 이미 Pretendard 적용 → CLS 제거. */}
         <link
-          rel="preload"
-          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
-          as="style"
-          crossOrigin="anonymous"
-        />
-        <link
-          id="pretendard-style"
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
           crossOrigin="anonymous"
-          media="print"
         />
-        <Script id="pretendard-swap" strategy="beforeInteractive">
-          {"(function(){var l=document.getElementById('pretendard-style');if(!l)return;function s(){l.media='all';l.removeEventListener('load',s);}if(l.sheet){s();}else{l.addEventListener('load',s);}})();"}
-        </Script>
-        <noscript>
-          <link
-            rel="stylesheet"
-            href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
-            crossOrigin="anonymous"
-          />
-        </noscript>
         <link rel="dns-prefetch" href="https://rv.map.daum.net" />
         <link rel="dns-prefetch" href="https://map0.daumcdn.net" />
         <link rel="dns-prefetch" href="https://map1.daumcdn.net" />

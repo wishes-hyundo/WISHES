@@ -17,7 +17,7 @@ export function Footer() {
             </div>
             <span className="text-sm font-bold tracking-tight">WISHES</span>
           </div>
-          <nav className="flex flex-wrap justify-center gap-4 text-xs text-white/50">
+          <nav className="flex flex-wrap justify-center gap-4 text-xs text-white/80">
             {[
               // '매물검색'은 /map으로 통합
               { label: '지도검색', href: '/map' },
@@ -35,24 +35,24 @@ export function Footer() {
         <div className="border-t border-white/10" />
 
         {/* 하단: 정보 + 저작권 */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 text-xs text-white/30">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-2 pt-4 text-xs text-white/80">
           <div className="flex flex-col md:flex-row items-center gap-1 md:gap-3">
             <span>서울특별시 관악구 신림로64길 23, 8층</span>
-            <span className="hidden md:inline text-white/15">|</span>
+            <span className="hidden md:inline text-white/40" aria-hidden="true">|</span>
             <span>wishes@wishes.co.kr</span>
-            <span className="hidden md:inline text-white/15">|</span>
+            <span className="hidden md:inline text-white/40" aria-hidden="true">|</span>
             <span>평일 09:00 – 19:00</span>
           </div>
           <span>© 2026 WISHES. All rights reserved.</span>
         </div>
 
         {/* 사업자 정보 */}
-        <div className="flex flex-col md:flex-row items-center justify-between gap-1 pt-2 text-[10px] text-white/20">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-1 pt-2 text-[10px] text-white/80">
           <span>(주)위시스부동산중개법인 | 대표 전유진 | 사업자등록번호 445-86-01981 | 중개사무소등록 제11620-2021-00078호</span>
           <div className="flex items-center gap-3">
-            <Link href="/privacy" className="hover:text-white/40 transition-colors">개인정보처리방침</Link>
-            <span className="text-white/10">|</span>
-            <Link href="/terms" className="hover:text-white/40 transition-colors">이용약관</Link>
+            <Link href="/privacy" className="hover:text-white transition-colors">개인정보처리방침</Link>
+            <span className="text-white/30" aria-hidden="true">|</span>
+            <Link href="/terms" className="hover:text-white transition-colors">이용약관</Link>
           </div>
         </div>
       </div>

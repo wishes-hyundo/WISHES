@@ -18,9 +18,13 @@ const SAMPLE_PINS = [
 ];
 
 const TONES: Record<string, { bg: string; text: string; badge: string }> = {
-  orange: { bg: 'bg-orange-50', text: 'text-orange-700', badge: 'bg-orange-500' },
-  blue: { bg: 'bg-blue-50', text: 'text-blue-700', badge: 'bg-blue-500' },
-  green: { bg: 'bg-emerald-50', text: 'text-emerald-700', badge: 'bg-emerald-500' },
+  // L-a11y2 (2026-04-21): 배지 bg 를 -500 → -700 로 상향. 8px 흰 글자 대비
+  //   orange-500: 2.80:1 → orange-700: 5.68:1 (AA 통과)
+  //   blue-500:   3.67:1 → blue-700:   7.35:1
+  //   emerald-500:2.53:1 → emerald-700:5.30:1
+  orange: { bg: 'bg-orange-50', text: 'text-orange-700', badge: 'bg-orange-700' },
+  blue: { bg: 'bg-blue-50', text: 'text-blue-700', badge: 'bg-blue-700' },
+  green: { bg: 'bg-emerald-50', text: 'text-emerald-700', badge: 'bg-emerald-700' },
 };
 
 export default function HomeMapPreview() {
@@ -28,7 +32,7 @@ export default function HomeMapPreview() {
     <Link
       href="/map"
       className="block group relative aspect-[4/5] w-full max-w-sm mx-auto rounded-3xl overflow-hidden shadow-2xl border border-white/20"
-      aria-label="지도에서 매물 찾기"
+      aria-label="실시간 지도 검색 — 지도에서 매물 찾기"
     >
       {/* 지도 배경 레이어 */}
       <div className="absolute inset-0 bg-gradient-to-br from-[#E8F5E9] via-[#F1F8E9] to-[#E8F5E9]">
