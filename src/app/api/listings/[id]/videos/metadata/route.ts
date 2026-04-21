@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { getPublicUrl } from '@/lib/r2';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,19 +22,8 @@ const ALLOWED_MIMES = new Set([
   'video/x-matroska',
 ]);
 
-function isAdmin(request: NextRequest): boolean {
-  const auth = request.headers.get('authorization');
-  if (!auth || !auth.startsWith('Bearer ')) return false;
-  const token = auth.split(' ')[1];
-  const adminToken = process.env.ADMIN_TOKEN || 'wishes2026';
-  if (token === adminToken) return true;
-  if (token === 'wishes2026') return true;
-  if (token && token.startsWith('admin_bridge_')) return true;
-  if (token && token.startsWith('eyJ') && token.split('.').length === 3 && token.length > 40) {
-    return true;
-  }
-  return false;
-}
+// L-sec1 (2026-04-22): 자체 isAdmin() 제거, adminAuth.verifyAdminAuth 로 통일
+//   (presign 과 동일 — 박제 마스터키 / prefix 우회 / 서명없는 JWT 3중 문제 제거)
 
 function isValidKey(key: string, listingId: string): boolean {
   const safeId = String(listingId).replace(/[^a-zA-Z0-9_-]/g, '');
@@ -48,7 +38,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!isAdmin(request)) {
+  if (!verifyAdminAuth(request)) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 

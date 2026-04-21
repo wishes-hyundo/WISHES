@@ -1,6 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 
+// L-sec1 (2026-04-22): admin_bridge_ prefix 만 보고 admin 통과시키던 완전한
+//   인증 우회 수정. 이제 prefix 를 벗긴 뒤 inner 토큰이 (a) env CRAWLER_BRIDGE
+//   과 정확히 일치하거나 (b) 유효한 Supabase JWT 이어야 한다.
+function getCrawlerBridgeToken(): string | null {
+  const env = process.env.WISHES_CRAWLER_BRIDGE_TOKEN;
+  return env && env.length >= 16 ? env : null;
+}
+function stripBridgePrefix(token: string): { stripped: string; wasBridge: boolean } {
+  if (token.startsWith('admin_bridge_')) {
+    return { stripped: token.slice('admin_bridge_'.length), wasBridge: true };
+  }
+  return { stripped: token, wasBridge: false };
+}
+
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -25,8 +39,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Bridge tokens are auto-verified
-    if (token.startsWith('admin_bridge_')) {
+    // L-sec1: admin_bridge_ prefix 를 벗기고 inner 토큰을 실제 검증
+    const { stripped: inner, wasBridge } = stripBridgePrefix(token);
+
+    // env 완전 일치 → 크롤러 브리지 토큰 (운영 경유)
+    const crawlerBridge = getCrawlerBridgeToken();
+    if (wasBridge && crawlerBridge && inner === crawlerBridge) {
       return NextResponse.json({
         success: true,
         valid: true,
@@ -34,9 +52,9 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Verify JWT token with Supabase
+    // Verify JWT token with Supabase (bridge prefix 가 있었다면 벗긴 inner 로)
     const supabase = createServerClient();
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const { data: { user }, error } = await supabase.auth.getUser(inner);
 
     if (error || !user) {
       return NextResponse.json(
@@ -96,8 +114,10 @@ export async function GET(request: NextRequest) {
 
   const token = authHeader.substring(7);
 
-  // Bridge tokens are auto-verified
-  if (token.startsWith('admin_bridge_')) {
+  // L-sec1: admin_bridge_ prefix 를 벗기고 inner 토큰 검증
+  const { stripped: inner, wasBridge } = stripBridgePrefix(token);
+  const crawlerBridge = getCrawlerBridgeToken();
+  if (wasBridge && crawlerBridge && inner === crawlerBridge) {
     return NextResponse.json({
       success: true,
       valid: true,
@@ -107,7 +127,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const supabase = createServerClient();
-    const { data: { user }, error } = await supabase.auth.getUser(token);
+    const { data: { user }, error } = await supabase.auth.getUser(inner);
 
     if (error || !user) {
       return NextResponse.json(

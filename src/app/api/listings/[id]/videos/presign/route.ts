@@ -14,6 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPresignedPutUrl } from '@/lib/r2';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,20 +35,10 @@ const MIME_TO_EXT: Record<string, string> = {
   'video/x-matroska': 'mkv',
 };
 
-// 기존 videos/route.ts 의 isAdmin 과 동일 로직 + wishes2026 허용
-function isAdmin(request: NextRequest): boolean {
-  const auth = request.headers.get('authorization');
-  if (!auth || !auth.startsWith('Bearer ')) return false;
-  const token = auth.split(' ')[1];
-  const adminToken = process.env.ADMIN_TOKEN || 'wishes2026';
-  if (token === adminToken) return true;
-  if (token === 'wishes2026') return true; // 마스터 비밀번호
-  if (token && token.startsWith('admin_bridge_')) return true; // 브릿지 토큰
-  if (token && token.startsWith('eyJ') && token.split('.').length === 3 && token.length > 40) {
-    return true; // Supabase JWT
-  }
-  return false;
-}
+// L-sec1 (2026-04-22): 자체 isAdmin() 을 제거하고 adminAuth 의 env-기반 검증으로 통일.
+//   기존 함수는 1) ADMIN_TOKEN 기본값 'wishes2026' 박제,
+//             2) admin_bridge_* prefix 만으로 통과,
+//             3) 서명 검증 없는 JWT 도 통과 — 3중 우회가 있었음.
 
 function randId(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -57,7 +48,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!isAdmin(request)) {
+  if (!verifyAdminAuth(request)) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 
