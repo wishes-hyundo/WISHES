@@ -45,3 +45,18 @@ next-env.d.ts
 # security: scripts with potential credentials
 push-*.mjs
 .env
+
+# M6(2026-04-21): 리포 내부 중첩 경로 재유입 방지
+/wishes-v2/
+
+# 2026-04-21: 로컬 복구/배포 임시 산출물이 git add -A 로 실수 커밋되지 않도록 가드
+.git.broken.bak/
+_cred_*.txt
+_push_log.txt
+_*.bat
+push_*.bat
+deploy_now.bat
+run_git.vbs
+git_push*.bat
+gsc_fix_*.js
+onhouse_diag.js

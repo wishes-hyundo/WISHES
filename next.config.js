@@ -46,13 +46,13 @@ const nextConfig = {
       {
         source: '/api/listings',
         headers: [
-          { key: 'Cache-Control', value: 'public, s-maxage=60, stale-while-revalidate=300' },
+          { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=3600' },
         ],
       },
       {
         source: '/api/listings/:id',
         headers: [
-          { key: 'Cache-Control', value: 'public, s-maxage=30, stale-while-revalidate=120' },
+          { key: 'Cache-Control', value: 'public, s-maxage=300, stale-while-revalidate=1800' },
         ],
       },
       {
