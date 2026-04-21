@@ -34,10 +34,16 @@ export const CATEGORY_THEME: Record<PropertyCategory, {
   ring: string;
   text: string;
 }> = {
-  residence:     { label: '주거',        emoji: '🏠', accent: 'bg-emerald-600', accentLight: 'bg-emerald-50', ring: 'ring-emerald-500', text: 'text-emerald-700' },
-  retail_office: { label: '상가/사무실', emoji: '🏢', accent: 'bg-amber-600',   accentLight: 'bg-amber-50',   ring: 'ring-amber-500',   text: 'text-amber-700'   },
-  land:          { label: '토지',        emoji: '🌾', accent: 'bg-lime-600',    accentLight: 'bg-lime-50',    ring: 'ring-lime-500',    text: 'text-lime-700'    },
-  investment:    { label: '투자',        emoji: '💰', accent: 'bg-violet-600',  accentLight: 'bg-violet-50',  ring: 'ring-violet-500',  text: 'text-violet-700'  },
+  // L-a11y5 (2026-04-21): accent -600 → -700 상향.
+  //   카테고리 카운트 배지(10.5px bold white) 대비 AA 미달:
+  //     emerald-600 3.76:1 → emerald-700 5.30:1 ✓
+  //     amber-600   2.92:1 → amber-700   4.67:1 ✓
+  //     lime-600    3.03:1 → lime-700    5.08:1 ✓
+  //     violet-600  5.72:1 (이미 통과) → violet-700 7.44:1 (일관성 상향)
+  residence:     { label: '주거',        emoji: '🏠', accent: 'bg-emerald-700', accentLight: 'bg-emerald-50', ring: 'ring-emerald-500', text: 'text-emerald-700' },
+  retail_office: { label: '상가/사무실', emoji: '🏢', accent: 'bg-amber-700',   accentLight: 'bg-amber-50',   ring: 'ring-amber-500',   text: 'text-amber-700'   },
+  land:          { label: '토지',        emoji: '🌾', accent: 'bg-lime-700',    accentLight: 'bg-lime-50',    ring: 'ring-lime-500',    text: 'text-lime-700'    },
+  investment:    { label: '투자',        emoji: '💰', accent: 'bg-violet-700',  accentLight: 'bg-violet-50',  ring: 'ring-violet-500',  text: 'text-violet-700'  },
 };
 
 export const COMMERCIAL_PURPOSE_LABEL: Record<CommercialPurpose, { label: string; emoji: string }> = {
