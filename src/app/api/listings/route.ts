@@ -218,7 +218,10 @@ export async function GET(request: NextRequest) {
       },
       {
         headers: {
-          'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=60',
+          // M2 (2026-04-21): s-maxage 30→300, SWR 60→3600
+          //   비개인화 공용 목록. Supabase 재조회 부담 감소, 관리자 매물 수정 시
+          //   revalidatePath('/api/listings') 로 즉시 무효화 가능.
+          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
         },
       }
     );
