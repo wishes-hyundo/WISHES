@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { Sparkles, Search, X } from 'lucide-react';
 import { useMap2026Store } from '../store';
+import { cinematicFlyTo } from '../lib/cinematicMotion';
 
 const SUGGESTIONS = [
   '강남역 도보 5분 투룸 월세 100 이하',
@@ -38,7 +39,7 @@ export function NlSearchBar() {
       const { filter, center, zoom } = await res.json();
       if (filter) setFilter(filter);
       if (center && map) {
-        map.flyTo({ center, zoom: zoom ?? 13.5, duration: 1200 });
+        cinematicFlyTo(map, { center, zoom: zoom ?? 13.5 });
       }
       setOpen(false);
     } catch (err) {

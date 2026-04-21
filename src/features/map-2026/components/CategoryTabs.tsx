@@ -17,6 +17,7 @@ import {
   type PropertyCategory,
   type MapListing,
 } from '../store';
+import { zoomPulse } from '../lib/cinematicMotion';
 
 // 카테고리 순서 (UI 상 좌→우)
 const ORDER: PropertyCategory[] = ['residence', 'retail_office', 'land', 'investment'];
@@ -40,6 +41,7 @@ export function CategoryTabs() {
   const filter = useMap2026Store((s) => s.filter);
   const setCategory = useMap2026Store((s) => s.setCategory);
   const listings = useMap2026Store((s) => s.listings);
+  const map = useMap2026Store((s) => s.map);
 
   // 현재 뷰포트 매물 기준 카테고리별 카운트 (라이브)
   const counts = useMemo(() => {
@@ -66,7 +68,12 @@ export function CategoryTabs() {
             key={cat}
             role="tab"
             aria-selected={active}
-            onClick={() => setCategory(cat)}
+            onClick={() => {
+              if (active) return;
+              setCategory(cat);
+              // Cinematic: 카테고리 전환 시 zoom pulse 로 컨텍스트 리셋 시각화
+              if (map) zoomPulse(map);
+            }}
             className={[
               'relative flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-[13px] font-semibold transition-all',
               active

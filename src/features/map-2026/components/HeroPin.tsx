@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { useMap2026Store, type MapListing, CATEGORY_THEME } from '../store';
 import { formatDealLabel, formatDeviation } from '../lib/priceFormat';
+import { focusListing } from '../lib/cinematicMotion';
 
 interface Props {
   map: MapLibreMap;
@@ -52,7 +53,11 @@ export function HeroPin({ map, listing }: Props) {
 
   return (
     <button
-      onClick={() => selectListing(listing.id, true)}
+      onClick={() => {
+        selectListing(listing.id, true);
+        // Cinematic: 클릭 시 이 매물로 1:1 포커스 (zoom 16 + 건물 pitch)
+        focusListing(map, [listing.lng, listing.lat]);
+      }}
       onMouseEnter={(e) => setHover(listing, e.clientX, e.clientY)}
       onMouseLeave={() => setHover(null)}
       style={{
