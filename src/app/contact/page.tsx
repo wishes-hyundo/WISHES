@@ -5,11 +5,52 @@ import { useSearchParams } from 'next/navigation';
 import { Send, CheckCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 
+// L-perf4 (2026-04-21): Hero 를 Suspense 밖으로 승격 — LCP 10.0s → <2s.
+//   useSearchParams() 는 dynamic rendering 을 강제하는데, Suspense 로 감싸면
+//   SSR 단계에서 fallback 만 나가고 H1("상담·매물접수") 은 hydration 이후에야
+//   paint 된다. Lighthouse 는 그 H1 을 LCP 로 찍어 Render Delay 9.3s 가 났다.
+//   Hero + 페이지 shell 은 useSearchParams 와 무관하므로 Suspense 밖으로 꺼낸다.
+function ContactHero() {
+  return (
+    <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
+      <div className="max-w-3xl mx-auto px-4 text-center">
+        <h1 className="text-3xl md:text-4xl font-bold drop-shadow-lg">상담·매물접수</h1>
+        <p className="mt-3 text-lg text-white/80">
+          궁금한 점이 있으시면 편하게 문의해 주세요
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function ContactFormSkeleton() {
+  return (
+    <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-10">
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+        <div className="flex gap-4 mb-6">
+          <div className="h-10 w-32 animate-pulse bg-gray-200 rounded" />
+          <div className="h-10 w-32 animate-pulse bg-gray-100 rounded" />
+        </div>
+        <div className="space-y-4">
+          <div className="h-12 w-full animate-pulse bg-gray-100 rounded-xl" />
+          <div className="h-12 w-full animate-pulse bg-gray-100 rounded-xl" />
+          <div className="h-12 w-full animate-pulse bg-gray-100 rounded-xl" />
+          <div className="h-40 w-full animate-pulse bg-gray-100 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ContactPage() {
   return (
-    <Suspense fallback={<div className="pt-16 min-h-screen flex items-center justify-center"><p className="text-gray-500">로딩 중...</p></div>}>
-      <ContactPageInner />
-    </Suspense>
+    <div className="pt-16 min-h-screen bg-gray-50">
+      {/* Hero 는 Suspense 밖 — SSR 즉시 paint, LCP 고정 */}
+      <ContactHero />
+      <Suspense fallback={<ContactFormSkeleton />}>
+        <ContactPageInner />
+      </Suspense>
+    </div>
   );
 }
 
@@ -154,8 +195,9 @@ ${listingForm.description}
   };
 
   if (submitted) {
+    // L-perf4: 외곽 pt-16 min-h-screen 은 ContactPage wrapper 가 이미 제공.
     return (
-      <div className="pt-16 min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="flex items-center justify-center py-20">
         <div className="text-center p-8 max-w-md">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-8 h-8 text-green-600" />
@@ -179,18 +221,9 @@ ${listingForm.description}
     );
   }
 
+  // L-perf4: 외곽 wrapper + hero 는 ContactPage 가 제공 — 여기는 폼 카드만.
   return (
-    <div className="pt-16 min-h-screen bg-gray-50">
-      {/* 헤더 */}
-      <section className="bg-gradient-to-br from-wishes-primary to-wishes-secondary text-white py-16 md:py-20">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <h1 className="text-3xl md:text-4xl font-bold drop-shadow-lg">상담·매물접수</h1>
-          <p className="mt-3 text-lg text-white/80">
-            궁금한 점이 있으시면 편하게 문의해 주세요
-          </p>
-        </div>
-      </section>
-
+    <>
       <div className="max-w-3xl mx-auto px-4 -mt-8 relative z-10">
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100">
           {/* 탭 */}
@@ -650,6 +683,6 @@ ${listingForm.description}
       </div>
 
       <div className="h-20" />
-    </div>
+    </>
   );
 }
