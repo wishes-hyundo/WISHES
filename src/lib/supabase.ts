@@ -1,36 +1,61 @@
 /**
- * WISHES — Supabase server client factory
+ * WISHES — Supabase client factory (unified)
  * ============================================================
- * Creates a privileged Supabase client for server-side routes
- * (admin API, server components). Uses the service-role key so
- * it can read/write all rows regardless of RLS.
+ * Exports three named factories used across the app:
  *
- * Requires the following environment variables on Vercel:
- *   NEXT_PUBLIC_SUPABASE_URL       — e.g. https://xxxx.supabase.co
- *   SUPABASE_SERVICE_ROLE_KEY      — service_role secret (NEVER expose to the browser)
+ *   createServerClient() → service-role (admin, bypasses RLS)
+ *   createClient()       → alias of createServerClient for legacy routes
+ *   createAuthClient()   → anon/public key (browser & auth flows)
  *
- * Consumed by:
- *   src/app/api/admin/listings/route.ts           (createServerClient)
- *   other future server-only Supabase callers
+ * Environment variables on Vercel:
+ *   NEXT_PUBLIC_SUPABASE_URL        — project URL
+ *   NEXT_PUBLIC_SUPABASE_ANON_KEY   — anon key (safe to expose)
+ *   SUPABASE_SERVICE_ROLE_KEY       — service-role secret (server-only)
  */
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import {
+  createClient as createSupabaseClient,
+  type SupabaseClient,
+} from '@supabase/supabase-js';
 
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`[supabase] Missing env var: ${name}`);
+  return v;
+}
+
+/** Server-side privileged client (service_role key). Never expose to browser. */
 export function createServerClient(): SupabaseClient {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const url = requireEnv('NEXT_PUBLIC_SUPABASE_URL');
+  const serviceKey = requireEnv('SUPABASE_SERVICE_ROLE_KEY');
 
-  if (!url || !serviceKey) {
-    throw new Error(
-      '[supabase] Missing env vars: NEXT_PUBLIC_SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY must be set'
-    );
-  }
-
-  return createClient(url, serviceKey, {
+  return createSupabaseClient(url, serviceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
       detectSessionInUrl: false,
+    },
+  });
+}
+
+/**
+ * Legacy alias — older routes import `createClient` from this module.
+ * Returns the service-role client (same as createServerClient).
+ */
+export function createClient(): SupabaseClient {
+  return createServerClient();
+}
+
+/** Browser/auth flow client (anon key). Safe for client components. */
+export function createAuthClient(): SupabaseClient {
+  const url = requireEnv('NEXT_PUBLIC_SUPABASE_URL');
+  const anonKey = requireEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY');
+
+  return createSupabaseClient(url, anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
     },
   });
 }

@@ -1,0 +1,257 @@
+<!-- ============================================================ -->
+<!-- v2.3.8 IIFE — mobile-photo.html 의 </body> 직전에 통째로 붙여넣기 -->
+<!-- ============================================================ -->
+<!--
+  목적: 동영상 업로드를 클라이언트 → R2 직업로드로 전환 (Vercel 4.5MB 한계 우회)
+  흐름: presign → XHR PUT to R2 (진행률 표시) → metadata 저장
+  안전: 기존 handleVideoFiles 는 __MPH_V238__.__orig 에 백업. rollback() 으로 즉시 복구.
+-->
+<script>
+(function(){
+  'use strict';
+  if (window.__MPH_V238__) return;
+
+  var V = '2.3.8';
+  var MAX_SIZE = 50 * 1024 * 1024;
+  var MAX_RETRIES = 3;
+  var RETRY_DELAYS_MS = [2000, 4000, 8000];
+  var ALLOWED_MIMES = ['video/mp4','video/quicktime','video/webm','video/x-m4v','video/x-matroska'];
+  var UNRECOVERABLE = ['FILE_TOO_LARGE','MIME_NOT_ALLOWED','UNAUTHORIZED','FORBIDDEN','INVALID_KEY','INVALID_SIZE'];
+
+  // ─── 토큰: v2.3.7 과 동일 우선순위 ─────────────────────────
+  function getToken(){
+    try {
+      return sessionStorage.getItem('wishes_token')
+          || localStorage.getItem('wishes_token')
+          || localStorage.getItem('token')
+          || 'wishes2026';
+    } catch(e){ return 'wishes2026'; }
+  }
+
+  // ─── 토스트 (기존 함수 있으면 재사용, 없으면 alert) ────────
+  function toast(msg, kind){
+    if (typeof window.showToast === 'function'){ try { window.showToast(msg, kind); return; } catch(e){} }
+    if (typeof window.toast === 'function'){ try { window.toast(msg, kind); return; } catch(e){} }
+    console.log('[v238]', kind || 'info', msg);
+  }
+
+  // ─── listingId 자동 추출 ───────────────────────────────
+  function resolveListingId(){
+    if (window.LISTING_ID) return String(window.LISTING_ID);
+    var m = location.pathname.match(/\/listings?\/([^/?#]+)/);
+    if (m) return m[1];
+    var q = new URLSearchParams(location.search);
+    var qid = q.get('listingId') || q.get('id');
+    if (qid) return qid;
+    var el = document.querySelector('[data-listing-id]');
+    if (el) return el.getAttribute('data-listing-id');
+    return null;
+  }
+
+  // ─── 사전 점검 (battery / network) ─────────────────────
+  async function preflightWarnings(fileSize){
+    var warnings = [];
+    try {
+      var c = navigator.connection;
+      if (c){
+        if (c.saveData) warnings.push('데이터 절약 모드가 켜져있어요.');
+        if (c.effectiveType && /2g|slow-2g/.test(c.effectiveType)) warnings.push('네트워크가 느립니다('+c.effectiveType+').');
+        if (typeof c.downlink === 'number' && c.downlink < 1) warnings.push('다운링크 속도가 느려요('+c.downlink+' Mbps).');
+      }
+    } catch(e){}
+    try {
+      if (navigator.getBattery){
+        var b = await navigator.getBattery();
+        if (b && !b.charging && typeof b.level === 'number' && b.level < 0.2){
+          warnings.push('배터리가 '+Math.round(b.level*100)+'% 입니다.');
+        }
+      }
+    } catch(e){}
+    if (fileSize > 20*1024*1024 && warnings.length){
+      var msg = '⚠ 업로드 전 경고:\n' + warnings.map(function(w){return '• '+w;}).join('\n') + '\n\n그래도 진행할까요?';
+      return window.confirm(msg);
+    }
+    return true;
+  }
+
+  // ─── 재시도 래퍼 ─────────────────────────────────────
+  async function withRetry(fn, label){
+    var lastErr = null;
+    for (var attempt = 0; attempt <= MAX_RETRIES; attempt++){
+      try {
+        return await fn(attempt);
+      } catch(err){
+        lastErr = err;
+        var code = err && err.code ? String(err.code) : '';
+        if (UNRECOVERABLE.indexOf(code) !== -1){
+          throw err;
+        }
+        if (attempt === MAX_RETRIES){
+          break;
+        }
+        var delay = RETRY_DELAYS_MS[attempt] || 8000;
+        toast(label+' 재시도 '+(attempt+1)+'/'+MAX_RETRIES+' ('+Math.round(delay/1000)+'초 후)...', 'warn');
+        await new Promise(function(r){ setTimeout(r, delay); });
+      }
+    }
+    throw lastErr || new Error(label+' failed');
+  }
+
+  function humanError(code, msg){
+    var map = {
+      'FILE_TOO_LARGE': '파일이 너무 큽니다 (최대 50MB).',
+      'MIME_NOT_ALLOWED': '지원하지 않는 동영상 형식입니다.',
+      'UNAUTHORIZED': '관리자 로그인이 필요합니다.',
+      'FORBIDDEN': '권한이 없습니다.',
+      'INVALID_KEY': '업로드 경로가 잘못됐습니다.',
+      'INVALID_SIZE': '파일 크기가 잘못됐습니다.',
+      'R2_NETWORK_ERROR': '네트워크 오류 (R2). 잠시 후 다시 시도.',
+      'R2_TIMEOUT': '업로드가 오래 걸립니다 (3분 초과).',
+      'PRESIGN_FAILED': '서버 설정 문제 (관리자 확인 필요).',
+      'DB_INSERT_FAILED': '저장 중 오류. 관리자에게 문의.',
+    };
+    return map[code] || (msg || '알 수 없는 오류') + (code ? ' ('+code+')' : '');
+  }
+
+  // ─── 3단계 업로드 ──────────────────────────────────
+  async function uploadOne(listingId, file, onProgress){
+    var token = getToken();
+
+    // ① presign
+    var presign = await withRetry(async function(){
+      var res = await fetch('/api/listings/'+encodeURIComponent(listingId)+'/videos/presign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer '+token,
+        },
+        body: JSON.stringify({ name: file.name, mime: file.type, size: file.size }),
+      });
+      if (!res.ok){
+        var e = await res.json().catch(function(){ return {}; });
+        var err = new Error('presign '+res.status);
+        err.code = e.error || 'PRESIGN_FAILED';
+        throw err;
+      }
+      return await res.json();
+    }, 'presign');
+
+    // ② R2 PUT
+    await withRetry(function(){
+      return new Promise(function(resolve, reject){
+        var xhr = new XMLHttpRequest();
+        xhr.open('PUT', presign.url);
+        xhr.setRequestHeader('Content-Type', file.type);
+        xhr.timeout = 180000;
+        xhr.upload.addEventListener('progress', function(e){
+          if (e.lengthComputable && typeof onProgress === 'function'){
+            onProgress(Math.round(e.loaded / e.total * 100));
+          }
+        });
+        xhr.onload = function(){
+          if (xhr.status >= 200 && xhr.status < 300){ resolve(); }
+          else { var err = new Error('R2 '+xhr.status); err.code = 'R2_HTTP_'+xhr.status; reject(err); }
+        };
+        xhr.onerror = function(){ var e = new Error('R2 network'); e.code = 'R2_NETWORK_ERROR'; reject(e); };
+        xhr.ontimeout = function(){ var e = new Error('R2 timeout'); e.code = 'R2_TIMEOUT'; reject(e); };
+        xhr.send(file);
+      });
+    }, 'R2 업로드');
+
+    // ③ metadata 저장
+    var meta = await withRetry(async function(){
+      var res = await fetch('/api/listings/'+encodeURIComponent(listingId)+'/videos/metadata', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer '+token,
+        },
+        body: JSON.stringify({ key: presign.key, name: file.name, mime: file.type, size: file.size }),
+      });
+      if (!res.ok){
+        var e = await res.json().catch(function(){ return {}; });
+        var err = new Error('metadata '+res.status);
+        err.code = e.error || 'DB_INSERT_FAILED';
+        throw err;
+      }
+      return await res.json();
+    }, 'metadata 저장');
+
+    return meta;
+  }
+
+  // ─── 원래 핸들러 백업 ─────────────────────────────
+  var __orig = {
+    handleVideoFiles: window.handleVideoFiles || null,
+  };
+
+  async function handleVideoFiles_v238(files){
+    if (!files || !files.length) return;
+    var listingId = resolveListingId();
+    if (!listingId){
+      toast('매물 ID를 찾을 수 없어요.', 'error');
+      return;
+    }
+    var arr = Array.from(files);
+
+    // 검증 먼저
+    for (var i = 0; i < arr.length; i++){
+      var f = arr[i];
+      if (!ALLOWED_MIMES.includes(f.type)){
+        toast(f.name+': '+humanError('MIME_NOT_ALLOWED'), 'error');
+        return;
+      }
+      if (f.size > MAX_SIZE){
+        toast(f.name+': '+humanError('FILE_TOO_LARGE'), 'error');
+        return;
+      }
+    }
+
+    var ok = await preflightWarnings(arr.reduce(function(s,f){return s+f.size;}, 0));
+    if (!ok){ toast('업로드 취소됨', 'info'); return; }
+
+    for (var j = 0; j < arr.length; j++){
+      var file = arr[j];
+      toast('('+(j+1)+'/'+arr.length+') '+file.name+' 업로드 시작...', 'info');
+      try {
+        var lastPct = -1;
+        await uploadOne(listingId, file, function(pct){
+          if (pct !== lastPct && pct % 10 === 0){
+            lastPct = pct;
+            toast('진행 '+pct+'%', 'info');
+          }
+        });
+        toast('✓ '+file.name+' 업로드 완료', 'success');
+      } catch(err){
+        var code = err && err.code ? err.code : '';
+        toast('✗ '+file.name+': '+humanError(code, err && err.message), 'error');
+        console.error('[v238]', err);
+      }
+    }
+
+    // 목록 리프레시 (기존 함수가 있으면 호출)
+    if (typeof window.refreshVideoList === 'function'){
+      try { window.refreshVideoList(); } catch(e){}
+    } else if (typeof window.loadVideos === 'function'){
+      try { window.loadVideos(); } catch(e){}
+    }
+  }
+
+  // ─── 전역 노출 + 기존 핸들러 교체 ──────────────────
+  window.handleVideoFiles = handleVideoFiles_v238;
+  window.__MPH_V238__ = {
+    version: V,
+    __orig: __orig,
+    rollback: function(){
+      if (__orig.handleVideoFiles){
+        window.handleVideoFiles = __orig.handleVideoFiles;
+        console.log('[v238] rolled back to v2.3.7');
+        toast('v2.3.7 으로 롤백됨', 'info');
+      }
+      try { delete window.__MPH_V238__; } catch(e){ window.__MPH_V238__ = null; }
+    },
+    uploadOne: uploadOne,
+  };
+  console.log('[mobile-photo] v2.3.8 loaded — presign R2 direct upload 활성화');
+})();
+</script>

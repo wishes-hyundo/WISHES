@@ -1,137 +1,105 @@
-'use client';
+import type { Metadata } from 'next';
+import { createServerClient } from '@/lib/supabase';
+import { cached } from '@/lib/cache';
+import { applyImagePolicy } from '@/lib/image-policy';
+import ListingsClient from './ListingsClient';
 
-import { useState, useMemo } from 'react';
-import { listings } from '@/data/listings';
-import ListingCard from '@/components/ListingCard';
+export const dynamic = 'force-dynamic';
 
-export default function ListingsPage() {
-  const [dealFilter, setDealFilter] = useState<string>('');
-  const [typeFilter, setTypeFilter] = useState<string>('');
-  const [dongFilter, setDongFilter] = useState<string>('');
-  const [sortBy, setSortBy] = useState<string>('latest');
+export const metadata: Metadata = {
+  title: '매물검색 - 서울·경기 전세 월세 매매',
+  description: '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트, 상가 매물을 검색하세요. 전세, 월세, 매매 매물을 지역별로 필터링하여 찾아보세요.',
+  alternates: {
+    canonical: 'https://wishes.co.kr/listings',
+  },
+  openGraph: {
+    title: '매물검색 - WISHES',
+    description: '서울·경기 부동산 매물을 쉽게 검색하세요.',
+    url: 'https://wishes.co.kr/listings',
+  },
+};
 
-  const filtered = useMemo(() => {
-    let result = listings.filter(l => l.status !== '계약완료');
-    if (dealFilter) result = result.filter(l => l.deal === dealFilter);
-    if (typeFilter) result = result.filter(l => l.type === typeFilter);
-    if (dongFilter) result = result.filter(l => l.dong === dongFilter);
+// SSR - 서버에서 초기 데이터 로드 (인메모리 캐시 적용)
+export default async function ListingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const params = await searchParams;
+  const deal = (params.deal as string) || '';
+  const type = (params.type as string) || '';
+  const dong = (params.dong as string) || '';
+  const sort = (params.sort as string) || 'latest';
+  const page = parseInt((params.page as string) || '1', 10);
+  const pageSize = 12;
 
-    if (sortBy === 'price-low') result.sort((a, b) => a.deposit - b.deposit);
-    if (sortBy === 'price-high') result.sort((a, b) => b.deposit - a.deposit);
-    if (sortBy === 'area') result.sort((a, b) => b.area - a.area);
-    if (sortBy === 'latest') result.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  // 캐시 키: 필터 조합별
+  const cacheKey = `ssr-listings:${deal}:${type}:${dong}:${sort}:${page}`;
 
-    return result;
-  }, [dealFilter, typeFilter, dongFilter, sortBy]);
+  const result = await cached(
+    cacheKey,
+    async () => {
+      const supabase = createServerClient();
+      const offset = (page - 1) * pageSize;
 
-  const deals = ['전세', '월세', '매매'];
-  const types = ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'];
-  const dongs = Array.from(new Set(listings.map(l => l.dong)));
+      // 매물 쿼리
+      // ※ 저작권 보호: 크롤링 매물(source_site NOT NULL)은 아래에서 applyImagePolicy 로 자체 업로드만 통과
+      // ※ 제목 재가공(displayTitle) 세일즈 훅용으로 building_name / 옵션 / 준공년도 / 방향 / 설명 / 역세권 필드까지 포함
+      let query = supabase
+        .from('listings')
+        .select(
+          'id, title, ai_title, ai_description, building_name, deal, type, dong, address, deposit, monthly, price, area_m2, area_pyeong, rooms, bathrooms, floor_current, floor_total, status, source_site, created_at, views, parking, elevator, full_option, pet, balcony, built_year, direction, description, station_name, station_distance, features, listing_images(url, sort_order)',
+          { count: 'exact' }
+        )
+        .eq('status', '공개');
+
+      if (deal) query = query.eq('deal', deal);
+      // 매물유형 관대 매칭: 레거시 슬래시 값 '사무실/상가' 호환
+      //   '사무실' 선택 시 '사무실' | '사무실/상가' 둘 다, '상가' 선택 시 '상가' | '사무실/상가' 둘 다 잡히게.
+      if (type) {
+        const safe = type.replace(/[,()]/g, '');
+        query = query.or(`type.eq.${safe},type.ilike.%${safe}%`);
+      }
+      if (dong) query = query.eq('dong', dong);
+
+      const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
+      query = query.order(sortColumn, { ascending: false });
+      query = query.range(offset, offset + pageSize - 1);
+
+      // 동 목록
+      const dongQuery = supabase
+        .from('listings')
+        .select('dong')
+        .eq('status', '공개')
+        .not('dong', 'is', null)
+        .limit(500);
+
+      const [listingsResult, dongResult] = await Promise.all([query, dongQuery]);
+
+      // ※ 저작권 보호 + 자체 업로드 통과
+      //   - 크롤링 매물의 외부 원본 이미지는 차단
+      //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
+      const listings = (listingsResult.data || []).map((r: any) => applyImagePolicy(r));
+      const totalCount = listingsResult.count || 0;
+      const dongs = [...new Set((dongResult.data || []).map((r: any) => r.dong).filter(Boolean))].sort();
+
+      return { listings, totalCount, dongs };
+    },
+    30_000,    // 30초 fresh
+    300_000,   // 5분 stale 허용
+    3_000,     // 3초 타임아웃
+  );
+
+  if (!result) {
+    // 캐시도 없고 DB도 실패 → 빈 데이터로 렌더링 (클라이언트에서 재시도)
+    return <ListingsClient initialListings={[]} initialDongs={[]} totalCount={0} />;
+  }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-      {/* Page Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-navy-800 mb-2">전체 매물</h1>
-        <p className="text-sm text-gray-500">서울 관악구 싨림동 · 봉천동 일대</p>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-sm border border-gray-100 mb-6 sm:mb-8">
-        <div className="flex flex-wrap gap-3 sm:gap-4">
-          {/* Deal Type */}
-          <div className="w-full sm:w-auto">
-            <label className="text-xs font-medium text-gray-500 mb-1.5 block">거래유형</label>
-            <div className="flex gap-1.5">
-              <button
-                onClick={() => setDealFilter('')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  !dealFilter ? 'bg-brand-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                전체
-              </button>
-              {deals.map(d => (
-                <button
-                  key={d}
-                  onClick={() => setDealFilter(dealFilter === d ? '' : d)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    dealFilter === d ? 'bg-brand-primary text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Room Type */}
-          <div className="w-full sm:w-auto">
-            <label className="text-xs font-medium text-gray-500 mb-1.5 block">매물유형</label>
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg text-sm border border-gray-200 bg-white text-gray-700 outline-none focus:border-brand-secondary min-w-[120px]"
-            >
-              <option value="">전체</option>
-              {types.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-
-          {/* Location */}
-          <div className="w-full sm:w-auto">
-            <label className="text-xs font-medium text-gray-500 mb-1.5 block">지역</label>
-            <select
-              value={dongFilter}
-              onChange={(e) => setDongFilter(e.target.value)}
-              className="px-3 py-2 rounded-lg text-sm border border-gray-200 bg-white text-gray-700 outline-none focus:border-brand-secondary min-w-[120px]"
-            >
-              <option value="">전체</option>
-              {dongs.map(d => <option key={d} value={d}>{d}</option>)}
-            </select>
-          </div>
-
-          {/* Sort */}
-          <div className="w-full sm:w-auto sm:ml-auto">
-            <label className="text-xs font-medium text-gray-500 mb-1.5 block">정렬</label>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="px-3 py-2 rounded-lg text-sm border border-gray-200 bg-white text-gray-700 outline-none focus:border-brand-secondary min-w-[140px]"
-            >
-              <option value="latest">최신순</option>
-              <option value="price-low">가격 낮은순</option>
-              <option value="price-high">가격 높은순</option>
-              <option value="area">면적 넓은순</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Results Count */}
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-gray-500">
-          총 <span className="font-bold text-brand-secondary">{filtered.length}</span>건
-        </p>
-      </div>
-
-      {/* Listings Grid */}
-      {filtered.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {filtered.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-20">
-          <div className="text-4xl mb-4">🏠</div>
-          <p className="text-gray-500 text-lg mb-2">조건에 맞는 매물이 없습니다</p>
-          <p className="text-gray-400 text-sm">필터를 변경하거나 전화 상담을 이용해주세요</p>
-          <a href="tel:1533-9580" className="inline-flex items-center gap-2 mt-6 bg-brand-primary text-white px-6 py-3 rounded-full text-sm font-semibold">
-            1533-9580 전화상담
-          </a>
-        </div>
-      )}
-    </div>
+    <ListingsClient
+      initialListings={result.listings}
+      initialDongs={result.dongs}
+      totalCount={result.totalCount}
+    />
   );
 }

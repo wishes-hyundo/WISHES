@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>지오코딩 배치 처리 - Wishes</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 900px;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #2D5A27;
+            margin-bottom: 30px;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .control-section {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .button-primary {
+            background: #2D5A27;
+            color: white;
+        }
+
+        .button-primary:hover:not(:disabled) {
+            background: #1e3d1a;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(45, 90, 39, 0.3);
+        }
+
+        .button-primary:disabled {
+            background: #b0d4a8;
+            cursor: not-allowed;
+        }
+
+        .button-danger {
+            background: #d9534f;
+            color: white;
+        }
+
+        .button-danger:hover:not(:disabled) {
+            background: #ac2925;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(217, 83, 79, 0.3);
+        }
+
+        .button-danger:disabled {
+            background: #d9a8a6;
+            cursor: not-allowed;
+        }
+
+        .batch-size-input {
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        .batch-size-input:focus {
+            outline: none;
+            border-color: #2D5A27;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecef 100%);
+            border-left: 4px solid #2D5A27;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            color: #2D5A27;
+            font-size: 28px;
+            font-weight: 700;
+        }
+
+        .progress-section {
+            margin-bottom: 30px;
+        }
+
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #2D5A27 0%, #45a752 100%);
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .log-section {
+            margin-top: 30px;
+        }
+
+        .log-title {
+            color: #2D5A27;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .log-clear {
+            font-size: 12px;
+            background: #f0f0f0;
+            color: #666;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .log-clear:hover {
+            background: #e0e0e0;
+        }
+
+        .log-container {
+            background: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            height: 300px;
+            overflow-y: auto;
+            padding: 15px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            color: #333;
+        }
+
+        .log-entry {
+            padding: 8px;
+            border-bottom: 1px solid #e8e8e8;
+            margin-bottom: 8px;
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .log-entry.success {
+            color: #2D5A27;
+        }
+
+        .log-entry.error {
+            color: #d9534f;
+        }
+
+        .log-entry.info {
+            color: #0275d8;
+        }
+
+        .log-timestamp {
+            color: #999;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .status-running {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-stopped {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-completed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 2px solid #2D5A27;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 6px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .status-text {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 22px;
+            }
+
+            .control-section {
+                flex-direction: column;
+            }
+
+            .button, .batch-size-input {
+                width: 100%;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌍 지오코딩 배치 처리</h1>
+
+        <div class="status-text">
+            <span id="statusIcon"></span>
+            <span id="statusMessage">준비됨</span>
+            <span id="statusBadge" class="status-badge status-stopped">중지</span>
+        </div>
+
+        <div class="control-section">
+            <button class="button button-primary" id="startBtn" onclick="startGeocoding()">시작</button>
+            <button class="button button-danger" id="stopBtn" onclick="stopGeocoding()" disabled>중지</button>
+            <input type="number" id="batchSizeInput" class="batch-size-input" value="20" min="1" max="100" placeholder="배치 크기">
+            <button class="log-clear" onclick="clearLog()">로그 초기화</button>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">처리된 건수</div>
+                <div class="stat-value" id="geocodedCount">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">남은 건수</div>
+                <div class="stat-value" id="remainingCount">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">성공률</div>
+                <div class="stat-value" id="successRate">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">예상 소요시간</div>
+                <div class="stat-value" id="estimatedTime">-</div>
+            </div>
+        </div>
+
+        <div class="progress-section">
+            <div class="progress-label">
+                <span>진행률</span>
+                <span id="progressPercent">0%</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <div class="log-section">
+            <div class="log-title">
+                배치 처리 로그
+            </div>
+            <div class="log-container" id="logContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let isRunning = false;
+        let totalGeocoded = 0;
+        let totalRemaining = null;
+        let totalSuccessful = 0;
+        let totalAttempts = 0;
+        let batchStartTime = null;
+        let batches = [];
+
+        // API Configuration
+        const API_URL = 'https://wishes.co.kr/api/admin/geocode-batch';
+        const API_HEADERS = {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer wishes2026'
+        };
+
+        function log(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+
+            const timestamp = new Date().toLocaleTimeString('ko-KR');
+            entry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span>${message}`;
+
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('logContainer').innerHTML = '';
+        }
+
+        function updateStats() {
+            // Update geocoded count
+            document.getElementById('geocodedCount').textContent = totalGeocoded.toLocaleString('ko-KR');
+
+            // Update remaining count
+            if (totalRemaining !== null) {
+                document.getElementById('remainingCount').textContent = Math.max(0, totalRemaining).toLocaleString('ko-KR');
+            }
+
+            // Update success rate
+            if (totalAttempts > 0) {
+                const successRate = Math.round((totalSuccessful / totalAttempts) * 100);
+                document.getElementById('successRate').textContent = successRate + '%';
+            }
+
+            // Update progress bar
+            if (totalRemaining !== null) {
+                const total = totalGeocoded + totalRemaining;
+                const percentage = total > 0 ? Math.round((totalGeocoded / total) * 100) : 0;
+                document.getElementById('progressFill').style.width = percentage + '%';
+                document.getElementById('progressPercent').textContent = percentage + '%';
+            }
+
+            // Update estimated time
+            updateEstimatedTime();
+        }
+
+        function updateEstimatedTime() {
+            if (!isRunning || totalRemaining === null || totalRemaining <= 0) {
+                document.getElementById('estimatedTime').textContent = '-';
+                return;
+            }
+
+            // Calculate average time per batch
+            if (batches.length === 0) {
+                document.getElementById('estimatedTime').textContent = '-';
+                return;
+            }
+
+            const avgBatchTime = batches.reduce((sum, b) => sum + b.duration, 0) / batches.length;
+            const remainingBatches = Math.ceil(totalRemaining / parseInt(document.getElementById('batchSizeInput').value || 20));
+            const estimatedMs = remainingBatches * (avgBatchTime + 2000); // 2 seconds delay
+
+            const estimatedSeconds = Math.ceil(estimatedMs / 1000);
+            const minutes = Math.floor(estimatedSeconds / 60);
+            const seconds = estimatedSeconds % 60;
+
+            if (minutes === 0) {
+                document.getElementById('estimatedTime').textContent = seconds + '초';
+            } else {
+                document.getElementById('estimatedTime').textContent = `${minutes}분 ${seconds}초`;
+            }
+        }
+
+        function updateStatus() {
+            const statusIcon = document.getElementById('statusIcon');
+            const statusMessage = document.getElementById('statusMessage');
+            const statusBadge = document.getElementById('statusBadge');
+
+            if (isRunning) {
+                statusIcon.innerHTML = '<span class="spinner"></span>';
+                statusMessage.textContent = '처리 중...';
+                statusBadge.className = 'status-badge status-running';
+                statusBadge.textContent = '실행 중';
+            } else {
+                statusIcon.innerHTML = '';
+                statusMessage.textContent = '준비됨';
+                statusBadge.className = 'status-badge status-stopped';
+                statusBadge.textContent = '중지';
+            }
+
+            document.getElementById('startBtn').disabled = isRunning;
+            document.getElementById('stopBtn').disabled = !isRunning;
+        }
+
+        async function startGeocoding() {
+            isRunning = true;
+            totalGeocoded = 0;
+            totalRemaining = null;
+            totalSuccessful = 0;
+            totalAttempts = 0;
+            batches = [];
+            batchStartTime = Date.now();
+
+            clearLog();
+            updateStatus();
+            log('지오코딩 배치 처리 시작됨', 'success');
+
+            while (isRunning) {
+                const batchSize = parseInt(document.getElementById('batchSizeInput').value || 20);
+                await processBatch(batchSize);
+
+                if (isRunning && totalRemaining !== null && totalRemaining > 0) {
+                    await sleep(2000); // 2-second delay
+                }
+            }
+        }
+
+        async function processBatch(batchSize) {
+            try {
+                const batchStartMs = Date.now();
+
+                log(`배치 처리 시작 (크기: ${batchSize})`, 'info');
+
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: API_HEADERS,
+                    body: JSON.stringify({ batchSize: batchSize })
+                });
+
+                const batchDuration = Date.now() - batchStartMs;
+
+                if (!response.ok) {
+                    throw new Error(`API 오류: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                // Update stats
+                const previousGeocoded = totalGeocoded;
+                totalGeocoded += result.processed || 0;
+                totalRemaining = result.remaining !== undefined ? result.remaining : totalRemaining;
+                totalSuccessful += result.successful || 0;
+                totalAttempts += result.processed || 0;
+
+                batches.push({ duration: batchDuration });
+
+                // Log batch result
+                const message = `배치 완료: ${result.processed}개 처리 (성공: ${result.successful || 0}, 실패: ${(result.processed || 0) - (result.successful || 0)}), 남음: ${totalRemaining || 0}개`;
+                log(message, 'success');
+
+                updateStats();
+
+                // Check if completed
+                if (totalRemaining === 0 || totalRemaining === null && result.processed === 0) {
+                    stopGeocoding();
+                    log('모든 지오코딩이 완료되었습니다!', 'success');
+                }
+
+            } catch (error) {
+                log(`❌ 오류: ${error.message}`, 'error');
+                stopGeocoding();
+            }
+        }
+
+        function stopGeocoding() {
+            isRunning = false;
+            updateStatus();
+
+            if (totalRemaining !== null) {
+                log('지오코딩 배치 처리 중지됨', 'info');
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // Initialize
+        updateStatus();
+        updateStats();
+    </script>
+</body>
+</html>

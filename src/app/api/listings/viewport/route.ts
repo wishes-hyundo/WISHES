@@ -1,0 +1,372 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/listings/viewport — MAP 2026 뷰포트 쿼리
+//
+// Phase 1.0: mv_map_listings 기반
+// Phase 1.1: rpc_listings_viewport (PostGIS + hero_score + median_deviation)
+// Phase E  : Comparable-Aware deviation — dong | deal | areaBand | rooms 래더 fallback
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase';
+import type { DealType, MapListing } from '@/features/map-2026/store';
+
+export const dynamic = 'force-dynamic';
+
+const MAX_VIEWPORT_DEG = 2.0;
+const DEFAULT_LIMIT = 800;
+const MAX_LIMIT = 3000;
+const MIN_COMPARABLES = 3;
+
+function pInt(v: string | null): number | null {
+  if (v == null || v === '') return null;
+  const n = parseInt(v, 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pFloat(v: string | null): number | null {
+  if (v == null || v === '') return null;
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pList(v: string | null): string[] | null {
+  if (!v) return null;
+  const arr = v.split(',').map((s) => s.trim()).filter(Boolean);
+  return arr.length ? arr : null;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Category-First → DB type 필터링 (Phase 1 임시 구현)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function categoryToTypeFilter(
+  category: string | null,
+  purposes: string[] | null
+): string | null {
+  if (!category || category === 'residence') return null;
+
+  if (category === 'retail_office') {
+    if (purposes && purposes.length) {
+      const parts: string[] = [];
+      for (const p of purposes) {
+        if (p === 'retail')           parts.push('type.ilike.%상가%', 'type.ilike.%근생%');
+        if (p === 'office')           parts.push('type.ilike.%사무%', 'type.ilike.%오피스%');
+        if (p === 'knowledge_center') parts.push('type.ilike.%지식산업%', 'type.ilike.%아파트형%');
+        if (p === 'coworking')        parts.push('type.ilike.%공유오피스%', 'type.ilike.%코워킹%');
+        if (p === 'mixed_use')        parts.push('type.ilike.%복합%', 'type.ilike.%주상복합%');
+      }
+      return parts.length ? parts.join(',') : null;
+    }
+    return [
+      'type.ilike.%상가%', 'type.ilike.%사무%', 'type.ilike.%오피스%',
+      'type.ilike.%지식산업%', 'type.ilike.%공유오피스%', 'type.ilike.%복합%',
+      'type.ilike.%근생%',
+    ].join(',');
+  }
+
+  if (category === 'land') {
+    return [
+      'type.ilike.%토지%', 'type.ilike.%대지%',
+      'type.eq.전', 'type.eq.답', 'type.ilike.%임야%', 'type.ilike.%잡종지%',
+    ].join(',');
+  }
+
+  if (category === 'investment') {
+    return [
+      'type.ilike.%수익%', 'type.ilike.%재건축%', 'type.ilike.%경매%',
+    ].join(',');
+  }
+
+  return null;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Comparable-Aware median deviation
+//
+// 🎯 핵심 아이디어
+//   - "비슷한 것과 비슷한 것끼리" 비교해야 체감 차별화
+//   - 동일 deal 안에서도 20평 원룸과 50평 투룸을 섞어 평균 내면 의미 X
+//   - 면적 band + 방수 로 comparable 을 좁히되, 샘플이 부족하면
+//     broader 그룹으로 fallback 해 deviation 이 null 이 되지 않게
+//
+// 📐 비교 키 래더 (좁음 → 넓음)
+//   1. dong | deal | areaBand | roomsBand
+//   2. dong | deal | areaBand
+//   3. dong | deal
+//   4. deal
+//   각 단계에서 comparable 개수 ≥ MIN_COMPARABLES 이면 그 median 사용
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+type ComparableRow = {
+  dong: string | null;
+  deal: string;
+  price: number | null;
+  deposit: number | null;
+  monthly: number | null;
+  area_m2: number | null;
+  rooms: number | null;
+};
+
+function areaBand(area: number | null): string {
+  if (area == null) return '_';
+  if (area < 33) return 'S';       // ~10평 미만
+  if (area < 66) return 'M';       // 10~20평
+  if (area < 100) return 'L';      // 20~30평
+  if (area < 150) return 'XL';     // 30~45평
+  return 'XXL';                    // 45평+
+}
+
+function roomsBand(rooms: number | null): string {
+  if (rooms == null) return '_';
+  if (rooms <= 1) return '1';
+  if (rooms === 2) return '2';
+  return '3+';
+}
+
+function normalizedPrice(l: ComparableRow): number {
+  if (l.deal === '매매') return l.price ?? 0;
+  if (l.deal === '전세') return l.deposit ?? 0;
+  // 월세·단기: 환산가 = 보증금 + 월세×100 (한국 부동산 관행 환산)
+  return (l.deposit ?? 0) + (l.monthly ?? 0) * 100;
+}
+
+function computeMedianDeviation(rows: ComparableRow[]) {
+  // 4 단계 그룹 맵 동시 축적
+  const g4 = new Map<string, number[]>();
+  const g3 = new Map<string, number[]>();
+  const g2 = new Map<string, number[]>();
+  const g1 = new Map<string, number[]>();
+
+  for (const r of rows) {
+    const price = normalizedPrice(r);
+    if (price <= 0) continue;
+    const dong = r.dong ?? '_';
+    const ab = areaBand(r.area_m2);
+    const rb = roomsBand(r.rooms);
+    const k4 = `${dong}|${r.deal}|${ab}|${rb}`;
+    const k3 = `${dong}|${r.deal}|${ab}`;
+    const k2 = `${dong}|${r.deal}`;
+    const k1 = `${r.deal}`;
+    (g4.get(k4) ?? g4.set(k4, []).get(k4)!).push(price);
+    (g3.get(k3) ?? g3.set(k3, []).get(k3)!).push(price);
+    (g2.get(k2) ?? g2.set(k2, []).get(k2)!).push(price);
+    (g1.get(k1) ?? g1.set(k1, []).get(k1)!).push(price);
+  }
+
+  const medianOf = (arr: number[]): number => {
+    const s = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(s.length / 2);
+    return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  };
+  const medianFrom = (m: Map<string, number[]>, key: string): number | null => {
+    const arr = m.get(key);
+    if (!arr || arr.length < MIN_COMPARABLES) return null;
+    return medianOf(arr);
+  };
+
+  return (l: ComparableRow) => {
+    const price = normalizedPrice(l);
+    if (price <= 0) return { medianPrice: null, deviation: null, comparableTier: 0 };
+
+    const dong = l.dong ?? '_';
+    const ab = areaBand(l.area_m2);
+    const rb = roomsBand(l.rooms);
+
+    // 좁은 키부터 시도하고, 샘플 부족하면 넓은 키로 fallback
+    const m4 = medianFrom(g4, `${dong}|${l.deal}|${ab}|${rb}`);
+    if (m4 != null) return { medianPrice: m4, deviation: (price - m4) / m4, comparableTier: 4 };
+    const m3 = medianFrom(g3, `${dong}|${l.deal}|${ab}`);
+    if (m3 != null) return { medianPrice: m3, deviation: (price - m3) / m3, comparableTier: 3 };
+    const m2 = medianFrom(g2, `${dong}|${l.deal}`);
+    if (m2 != null) return { medianPrice: m2, deviation: (price - m2) / m2, comparableTier: 2 };
+    const m1 = medianFrom(g1, `${l.deal}`);
+    if (m1 != null) return { medianPrice: m1, deviation: (price - m1) / m1, comparableTier: 1 };
+    return { medianPrice: null, deviation: null, comparableTier: 0 };
+  };
+}
+
+function computeHeroScore(
+  deviation: number | null,
+  photoCount: number,
+  daysOld: number,
+  comparableTier: number
+): number {
+  let s = 50;
+  if (deviation != null) {
+    // tier 4 (가장 정확한 comparable) 에서 온 deviation 은 보너스 가산
+    const tierWeight = comparableTier >= 3 ? 1.0 : comparableTier >= 2 ? 0.8 : 0.5;
+    if (deviation <= -0.1)      s += 25 * tierWeight;
+    else if (deviation <= -0.05) s += 15 * tierWeight;
+    else if (deviation >= 0.1)   s -= 20 * tierWeight;
+  }
+  if (photoCount >= 10) s += 15;
+  else if (photoCount >= 5) s += 8;
+  if (daysOld <= 3) s += 10;
+  else if (daysOld <= 7) s += 5;
+  else if (daysOld > 60) s -= 10;
+  return Math.max(0, Math.min(100, Math.round(s)));
+}
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+
+  const west = pFloat(searchParams.get('west'));
+  const south = pFloat(searchParams.get('south'));
+  const east = pFloat(searchParams.get('east'));
+  const north = pFloat(searchParams.get('north'));
+
+  if (west == null || south == null || east == null || north == null) {
+    return NextResponse.json({ error: 'invalid bbox' }, { status: 400 });
+  }
+  if (east - west > MAX_VIEWPORT_DEG || north - south > MAX_VIEWPORT_DEG) {
+    return NextResponse.json({ error: 'viewport too large' }, { status: 400 });
+  }
+  if (east < west || north < south) {
+    return NextResponse.json({ error: 'invalid bbox order' }, { status: 400 });
+  }
+
+  // Category-First 맥락
+  const category = searchParams.get('category');
+  const purposes = pList(searchParams.get('purposes'));
+
+  const deals = pList(searchParams.get('deals')) as DealType[] | null;
+  const types = pList(searchParams.get('types'));
+  const rooms = pList(searchParams.get('rooms'))?.map((x) => parseInt(x, 10)).filter(Number.isFinite) ?? null;
+  const features = pList(searchParams.get('features'));
+  const minPrice = pInt(searchParams.get('minPrice'));
+  const maxPrice = pInt(searchParams.get('maxPrice'));
+  const minDeposit = pInt(searchParams.get('minDeposit'));
+  const maxDeposit = pInt(searchParams.get('maxDeposit'));
+  const minMonthly = pInt(searchParams.get('minMonthly'));
+  const maxMonthly = pInt(searchParams.get('maxMonthly'));
+  const minArea = pFloat(searchParams.get('minArea'));
+  const maxArea = pFloat(searchParams.get('maxArea'));
+  const nearStation = pInt(searchParams.get('nearStation'));
+  const newBuild = pInt(searchParams.get('newBuild'));
+  const hasImages = searchParams.get('hasImages') === '1';
+  const limit = Math.min(pInt(searchParams.get('limit')) ?? DEFAULT_LIMIT, MAX_LIMIT);
+
+  try {
+    const supabase = createServerClient();
+
+    let q = supabase
+      .from('mv_map_listings')
+      .select(
+        'id, title, type, deal, deposit, monthly, price, area_m2, rooms, floor_current, lat, lng, dong, status, created_at, updated_at, features, thumb_url, station_distance, built_year, building_name',
+      )
+      .gte('lat', south)
+      .lte('lat', north)
+      .gte('lng', west)
+      .lte('lng', east)
+      .eq('status', '공개');
+
+    if (deals && deals.length) q = q.in('deal', deals);
+    if (types && types.length) q = q.in('type', types);
+
+    // 카테고리 필터 (types 가 이미 있으면 그걸 우선)
+    if (!types && category) {
+      const catFilter = categoryToTypeFilter(category, purposes);
+      if (catFilter) {
+        q = q.or(catFilter);
+      }
+    }
+
+    if (rooms && rooms.length) {
+      const exactRooms = rooms.filter((n) => n < 3);
+      const hasThreePlus = rooms.some((n) => n >= 3);
+      if (exactRooms.length && hasThreePlus) {
+        q = q.or(`rooms.in.(${exactRooms.join(',')}),rooms.gte.3`);
+      } else if (exactRooms.length) {
+        q = q.in('rooms', exactRooms);
+      } else if (hasThreePlus) {
+        q = q.gte('rooms', 3);
+      }
+    }
+
+    if (deals && deals.length === 1) {
+      const d = deals[0];
+      if (d === '매매') {
+        if (minPrice != null) q = q.gte('price', minPrice);
+        if (maxPrice != null) q = q.lte('price', maxPrice);
+      } else if (d === '전세') {
+        if (minDeposit != null) q = q.gte('deposit', minDeposit);
+        if (maxDeposit != null) q = q.lte('deposit', maxDeposit);
+      } else {
+        if (minDeposit != null) q = q.gte('deposit', minDeposit);
+        if (maxDeposit != null) q = q.lte('deposit', maxDeposit);
+        if (minMonthly != null) q = q.gte('monthly', minMonthly);
+        if (maxMonthly != null) q = q.lte('monthly', maxMonthly);
+      }
+    }
+
+    if (minArea != null) q = q.gte('area_m2', minArea);
+    if (maxArea != null) q = q.lte('area_m2', maxArea);
+
+    if (nearStation != null) {
+      const meters = Math.max(80, Math.round((nearStation / 60) * 80));
+      q = q.lte('station_distance', meters);
+    }
+
+    if (newBuild != null) {
+      const threshold = new Date().getFullYear() - newBuild;
+      q = q.gte('built_year', String(threshold));
+    }
+
+    if (hasImages) q = q.not('thumb_url', 'is', null);
+    if (features && features.length) q = q.overlaps('features', features);
+
+    const { data, error } = await q
+      .order('updated_at', { ascending: false, nullsFirst: false })
+      .range(0, limit - 1);
+
+    if (error) {
+      console.error('[viewport]', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    const rows = ((data ?? []) as any[]).filter((r) => r.lat != null && r.lng != null);
+    const devFn = computeMedianDeviation(rows);
+
+    const listings: MapListing[] = rows.map((r: any) => {
+      const { medianPrice, deviation, comparableTier } = devFn(r);
+      const photoCount = r.thumb_url ? 1 : 0;
+      const daysOld = Math.max(0, (Date.now() - new Date(r.updated_at ?? r.created_at).getTime()) / 86400000);
+      return {
+        id: r.id,
+        lat: r.lat,
+        lng: r.lng,
+        deal: r.deal,
+        type: r.type ?? null,
+        deposit: r.deposit,
+        monthly: r.monthly,
+        price: r.price,
+        area_m2: r.area_m2,
+        rooms: r.rooms,
+        floor_current: r.floor_current,
+        station_distance: r.station_distance ?? null,
+        built_year: r.built_year ?? null,
+        building_name: r.building_name ?? null,
+        dong: r.dong ?? null,
+        title: r.title ?? null,
+        thumbnail_url: r.thumb_url ?? null,
+        features: Array.isArray(r.features) ? r.features : [],
+        photo_count: photoCount,
+        median_price: medianPrice,
+        median_deviation: deviation,
+        hero_score: computeHeroScore(deviation, photoCount, daysOld, comparableTier),
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+      };
+    });
+
+    return NextResponse.json(
+      { listings },
+      {
+        headers: {
+          'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
+        },
+      }
+    );
+  } catch (e) {
+    console.error('[viewport] fatal', e);
+    return NextResponse.json({ error: 'internal' }, { status: 500 });
+  }
+}

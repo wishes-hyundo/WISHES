@@ -1,117 +1,310 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { Menu, X, MapPin, User, LogOut, Heart, ChevronDown, UserX } from 'lucide-react';
+import { LanguageToggle } from '@/components/LanguageToggle';
+import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
+
+const navItems = [
+  // '매물검색'은 /map으로 통합 (/listings → /map 301 리다이렉트)
+  { label: '지도검색', href: '/map' },
+  { label: '대출계산기', href: '/calculator' },
+  { label: '상담·매물접수', href: '/contact' },
+];
 
 export default function Header() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [avatarError, setAvatarError] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const { user, loading, signOut, deleteAccount, setShowAuthModal } = useAuth();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
+  // 스크롤 감지
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 10);
-    window.addEventListener('scroll', handleScroll);
+    const handleScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // 사용자 메뉴 외부 클릭 시 닫기
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getUserDisplayName = () => {
+    if (!user) return '';
+    return user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || '회원';
+  };
+
+  const getUserAvatar = () => {
+    const url = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
+    if (url && url.includes('googleusercontent')) return `/api/img-proxy?url=${encodeURIComponent(url)}`;
+    if (url && url.startsWith('http://')) {
+      return url.replace('http://', 'https://');
+    }
+    return url;
+  };
+
+  const isActive = (href: string) => {
+    if (href === '/') return pathname === '/';
+    return pathname.startsWith(href);
+  };
+
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      scrolled ? 'bg-white shadow-lg' : 'bg-white/95 backdrop-blur-md'
-    }`}>
+    <>
+    <header
+      className={cn(
+        'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
+        scrolled
+          ? 'bg-white/95 backdrop-blur-xl shadow-sm border-b border-wishes-border/50'
+          : 'bg-white/80 backdrop-blur-md'
+      )}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16 sm:h-[72px]">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-brand-primary rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg sm:text-xl">W</span>
+        <div className="flex items-center justify-between h-[72px]">
+          {/* 로고 */}
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-10 h-10 bg-gradient-to-br from-wishes-secondary to-wishes-accent flex items-center justify-center text-white shadow-droplet group-hover:shadow-lg transition-all duration-300 group-hover:scale-105" style={{ borderRadius: '50% 50% 50% 50% / 60% 60% 40% 40%' }}>
+              <MapPin className="w-5 h-5" />
             </div>
-            <div className="hidden sm:block">
-              <span className="text-brand-primary font-bold text-lg tracking-tight">WISHES</span>
-              <span className="text-gray-400 text-[10px] block -mt-1">위시스부동산</span>
-            </div>
+            <span className="text-lg font-bold tracking-tight text-wishes-primary">WISHES</span>
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
-            {[
-              { href: '/listings?deal=전세', label: '전세' },
-              { href: '/listings?deal=월세', label: '월세' },
-              { href: '/listings?deal=매매', label: '매매' },
-              { href: '/listings', label: '전체매물' },
-              { href: '/about', label: '회사소개' },
-              { href: '/contact', label: '상담문의' },
-            ].map((item) => (
+          {/* 데스크탑 네비게이션 */}
+          <nav className="hidden lg:flex items-center gap-1">
+            {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-4 py-2 text-sm font-medium text-navy-700 hover:text-brand-secondary rounded-lg hover:bg-brand-light/50 transition-all relative group"
+                className={cn(
+                  'relative px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200',
+                  isActive(item.href)
+                    ? 'text-wishes-accent'
+                    : 'text-wishes-text/70 hover:text-wishes-text'
+                )}
               >
                 {item.label}
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-0 h-0.5 bg-brand-secondary rounded-full group-hover:w-1/2 transition-all duration-300" />
+                {isActive(item.href) && (
+                  <span className="absolute bottom-0 left-3 right-3 h-0.5 rounded-full bg-wishes-accent" />
+                )}
               </Link>
             ))}
           </nav>
 
-          {/* CTA + Mobile */}
-          <div className="flex items-center gap-2">
-            <a
-              href="tel:1533-9580"
-              className="hidden sm:flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-brand-secondary transition-colors"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
-              </svg>
-              1533-9580
-            </a>
+          {/* 데스크탑 우측: 언어 + 로그인 */}
+          <div className="hidden lg:flex items-center gap-3">
+            <LanguageToggle />
+            {!loading && (
+              user ? (
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-wishes-cream/60 transition-colors"
+                  >
+                    {getUserAvatar() && !avatarError ? (
+                      <img
+                        src={getUserAvatar()!}
+                          referrerPolicy="no-referrer"
+                          crossOrigin="anonymous"
+                        alt=""
+                        className="w-8 h-8 rounded-full border-2 border-wishes-accent/20 object-cover"
+                        onError={() => setAvatarError(true)}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-wishes-accent/10 flex items-center justify-center">
+                        <User className="w-4 h-4 text-wishes-accent" />
+                      </div>
+                    )}
+                    <span className="text-sm font-medium text-wishes-text max-w-[120px] truncate">
+                      {getUserDisplayName()}
+                    </span>
+                    <ChevronDown className={cn('w-3.5 h-3.5 text-wishes-muted transition-transform duration-200', userMenuOpen && 'rotate-180')} />
+                  </button>
 
-            {/* Mobile menu button */}
+                  {/* 드롭다운 */}
+                  {userMenuOpen && (
+                    <div className="absolute right-0 top-full mt-2 w-52 bg-white rounded-2xl shadow-premium border border-wishes-border/60 overflow-hidden py-1 animate-fade-in-up">
+                      <div className="px-4 py-3 border-b border-wishes-border/40">
+                        <p className="text-sm font-bold text-wishes-text truncate">{getUserDisplayName()}</p>
+                        <p className="text-xs text-wishes-muted truncate mt-0.5">{user.email}</p>
+                      </div>
+                      <Link
+                        href="/mypage"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-wishes-text/80 hover:bg-wishes-cream/50 transition-colors"
+                      >
+                        <Heart className="w-4 h-4 text-wishes-accent/60" />
+                        찜한 매물
+                      </Link>
+                      <button
+                        onClick={() => { signOut(); setUserMenuOpen(false); }}
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm text-wishes-text/80 hover:bg-wishes-cream/50 transition-colors"
+                      >
+                        <LogOut className="w-4 h-4 text-wishes-muted" />
+                        로그아웃
+                      </button>
+                      <div className="border-t border-wishes-border/40" />
+                      <button
+                        onClick={() => { setShowDeleteConfirm(true); setUserMenuOpen(false); }}
+                        className="flex items-center gap-2.5 w-full px-4 py-2.5 text-xs text-red-400 hover:bg-red-50 transition-colors"
+                      >
+                        <UserX className="w-3.5 h-3.5" />
+                        회원 탈퇴
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="btn-accent text-sm px-5 py-2.5"
+                >
+                  <User className="w-4 h-4" />
+                  로그인
+                </button>
+              )
+            )}
+          </div>
+
+          {/* 모바일 메뉴 토글 */}
+          <button
+            className="lg:hidden p-2.5 text-wishes-primary hover:bg-wishes-cream/60 rounded-xl transition-colors"
+            onClick={() => setIsOpen(!isOpen)}
+            aria-label="메뉴 열기"
+          >
+            {isOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
+
+        {/* 모바일 메뉴 */}
+        <div
+          className={cn(
+            'lg:hidden overflow-hidden transition-all duration-300 ease-out',
+            isOpen ? 'max-h-[480px] pb-4' : 'max-h-0'
+          )}
+        >
+          <div className="border-t border-wishes-border/30 pt-3">
+            <nav className="flex flex-col gap-0.5 px-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setIsOpen(false)}
+                  className={cn(
+                    'px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200',
+                    isActive(item.href)
+                      ? 'text-wishes-accent bg-wishes-accent/5'
+                      : 'text-wishes-text/70 hover:bg-wishes-cream/50 hover:text-wishes-text'
+                  )}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+            <div className="pt-3 mt-3 border-t border-wishes-border/30 px-3">
+              {!loading && (
+                user ? (
+                  <div className="flex items-center justify-between px-2 py-2">
+                    <div className="flex items-center gap-2.5">
+                      {getUserAvatar() && !avatarError ? (
+                        <img
+                          src={getUserAvatar()!}
+                          alt=""
+                          className="w-8 h-8 rounded-full object-cover"
+                          onError={() => setAvatarError(true)}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-wishes-accent/10 flex items-center justify-center">
+                          <User className="w-4 h-4 text-wishes-accent" />
+                        </div>
+                      )}
+                      <span className="text-sm font-medium text-wishes-text">{getUserDisplayName()}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => { setShowDeleteConfirm(true); setIsOpen(false); }}
+                        className="text-xs text-red-400 hover:text-red-500 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        탈퇴
+                      </button>
+                      <button
+                        onClick={() => { signOut(); setIsOpen(false); }}
+                        className="text-xs text-wishes-muted hover:text-wishes-text font-medium px-3 py-1.5 rounded-lg hover:bg-wishes-cream/50 transition-colors"
+                      >
+                        로그아웃
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setShowAuthModal(true); setIsOpen(false); }}
+                    className="w-full btn-accent text-sm py-3"
+                  >
+                    <User className="w-4 h-4" />
+                    간편 로그인
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    {/* 회원 탈퇴 확인 모달 */}
+    {showDeleteConfirm && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !isDeleting && setShowDeleteConfirm(false)} />
+        <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-[360px] mx-4 p-6 text-center">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+            <UserX className="w-6 h-6 text-red-500" />
+          </div>
+          <h3 className="text-lg font-bold text-gray-900 mb-2">회원 탈퇴</h3>
+          <p className="text-sm text-gray-500 mb-1">정말 탈퇴하시겠습니까?</p>
+          <p className="text-xs text-red-400 mb-6">탈퇴 시 모든 회원 정보와 찜한 매물이 삭제되며,<br />복구할 수 없습니다.</p>
+          <div className="flex gap-3">
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="메뉴"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors disabled:opacity-50"
             >
-              <div className="w-5 h-4 flex flex-col justify-between">
-                <span className={`block w-full h-0.5 bg-navy-800 transition-all ${menuOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
-                <span className={`block w-full h-0.5 bg-navy-800 transition-all ${menuOpen ? 'opacity-0' : ''}`} />
-                <span className={`block w-full h-0.5 bg-navy-800 transition-all ${menuOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
-              </div>
+              취소
+            </button>
+            <button
+              onClick={async () => {
+                setIsDeleting(true);
+                const result = await deleteAccount();
+                if (result.success) {
+                  setShowDeleteConfirm(false);
+                  setIsDeleting(false);
+                  window.location.href = '/';
+                } else {
+                  alert(result.error || '탈퇴 처리에 실패했습니다.');
+                  setIsDeleting(false);
+                }
+              }}
+              disabled={isDeleting}
+              className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
+            >
+              {isDeleting ? '처리 중...' : '탈퇴하기'}
             </button>
           </div>
         </div>
       </div>
-
-      {/* Mobile Menu */}
-      <div className={`md:hidden transition-all duration-300 overflow-hidden ${
-        menuOpen ? 'max-h-96 border-t border-gray-100' : 'max-h-0'
-      }`}>
-        <nav className="px-4 py-3 bg-white space-y-1">
-          {[
-            { href: '/listings?deal=전세', label: '전세' },
-            { href: '/listings?deal=월세', label: '월세' },
-            { href: '/listings?deal=매매', label: '매매' },
-            { href: '/listings', label: '전체매물' },
-            { href: '/about', label: '회사소개' },
-            { href: '/contact', label: '상담문의' },
-          ].map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMenuOpen(false)}
-              className="block px-4 py-3 text-sm font-medium text-navy-700 hover:bg-brand-light rounded-lg transition-colors"
-            >
-              {item.label}
-            </Link>
-          ))}
-          <a
-            href="tel:1533-9580"
-            className="flex items-center justify-center gap-2 bg-brand-primary text-white px-4 py-3 rounded-lg text-sm font-semibold mt-2"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
-            </svg>
-            전화 상담 1533-9580
-          </a>
-        </nav>
-      </div>
-    </header>
+    )}
+    </>
   );
 }

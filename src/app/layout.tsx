@@ -1,67 +1,143 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
-import Header from '@/components/Header';
-import Footer from '@/components/Footer';
-import FloatingButtons from '@/components/FloatingButtons';
+import { ConditionalLayout } from '@/components/ConditionalLayout';
+import QueryProvider from '@/components/providers/QueryProvider';
+import SpeculationRules from '@/components/SpeculationRules';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://wishes.co.kr'),
+  manifest: '/manifest.json',
   title: {
-    default: '위시스부동산중개법인 | 서울 관악구 신림동 전문 부동산',
-    template: '%s | 위시스부동산',
+    default: 'WISHES | 서울·경기 종합부동산 서비스',
+    template: '%s | WISHES',
   },
-  description: '서울 관악구 신림동 전문 부동산 중개법인. 원룸, 투룸, 오피스텔, 아파트 전세·월세·매매. 15년 경력의 신뢰할 수 있는 중개서비스. 1533-9580',
-  keywords: ['위시스부동산', '신림동부동산', '관악구부동산', '원룸', '투룸', '전세', '월세', '매매', '오피스텔', '서울대입구역'],
+  description:
+    '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요.',
+  keywords: [
+    '서울 부동산', '경기 부동산', '원룸 전세', '월세 매물',
+    '오피스텔', '아파트 매매', 'WISHES', '종합부동산',
+    '관악구 부동산', '신림동 원룸', '전세대출 상담',
+  ],
   openGraph: {
-    title: '위시스부동산중개법인 | 서울 관악구 신림동 전문',
-    description: '서울 관악구 신림동 전문 부동산 중개. 원룸/투룸/오피스텔/아파트 전세·월세·매매.',
+    title: 'WISHES | 서울·경기 종합부동산',
+    description: '서울·경기 전 지역 종합부동산. 지도로 매물을 쉽게 찾아보세요.',
     url: 'https://wishes.co.kr',
-    siteName: '위시스부동산중개법인',
+    siteName: 'WISHES',
     locale: 'ko_KR',
     type: 'website',
+    images: [{
+      url: '/og-image.png',
+      width: 1200,
+      height: 630,
+      alt: 'WISHES - 서울·경기 종합부동산',
+    }],
   },
-  robots: { index: true, follow: true },
-  alternates: { canonical: 'https://wishes.co.kr' },
-  other: {
-    'naver-site-verification': '', // 네이버 서치어드바이저 인증코드
+  twitter: {
+    card: 'summary_large_image',
+    title: 'WISHES | 서울·경기 종합부동산',
+    description: '서울·경기 전 지역 종합부동산 서비스.',
+    images: ['/og-image.png'],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large' as const,
+      'max-snippet': -1,
+    },
+  },
+  alternates: {
+    canonical: '/',
+  },
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || '',
+    other: {
+      'naver-site-verification': '924ead2b53885a0168f7b41745852535ac11f7b8',
+    },
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="ko">
       <head>
+        <meta charSet="utf-8" />
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+        {/* ⚡ 카카오맵 CDN 사전 연결 — TLS 핸드셰이크 비용 제거 */}
+        <link rel="preconnect" href="https://dapi.kakao.com" crossOrigin="" />
+        <link rel="preconnect" href="https://t1.daumcdn.net" crossOrigin="" />
+        <link rel="preconnect" href="https://map.daumcdn.net" crossOrigin="" />
+        <link rel="preconnect" href="https://mts.daumcdn.net" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://rv.map.daum.net" />
+        <link rel="dns-prefetch" href="https://map0.daumcdn.net" />
+        <link rel="dns-prefetch" href="https://map1.daumcdn.net" />
+        <link rel="dns-prefetch" href="https://map2.daumcdn.net" />
+        <link rel="dns-prefetch" href="https://map3.daumcdn.net" />
+
+        {/* ⚡ 카카오맵 SDK — 핵심(services + clusterer) 만 선로드, drawing 은 사용자가 그리기 버튼 클릭 시 lazy 로드 */}
+        <Script
+          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || 'a1c65d0ec2ecc8d2d231f8558f896e38'}&libraries=services,clusterer&autoload=false`}
+          strategy="beforeInteractive"
+        />
+
+        {/* Google Analytics removed - not configured */}
+
+        {/* Naver Analytics removed - CDN 503 issue */}
+
+        {/* JSON-LD LocalBusiness */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               '@context': 'https://schema.org',
               '@type': 'RealEstateAgent',
-              name: '위시스부동산중개법인',
+              name: 'WISHES',
               url: 'https://wishes.co.kr',
-              telephone: '1533-9580',
-              faxNumber: '02-888-8501',
               email: 'wishes@wishes.co.kr',
+              sameAs: 'https://wishes.co.kr',
               address: {
                 '@type': 'PostalAddress',
-                streetAddress: '신림로64길 23, 8층(신림동)',
+                streetAddress: '신림로64길 23, 8층',
                 addressLocality: '관악구',
                 addressRegion: '서울특별시',
-                postalCode: '08754',
+                postalCode: '08776',
                 addressCountry: 'KR',
               },
-              description: '서울 관악구 신림동 전문 부동산 중개법인',
-              areaServed: { '@type': 'City', name: '서울특별시' },
+              geo: {
+                '@type': 'GeoCoordinates',
+                latitude: 37.4847,
+                longitude: 126.9293,
+              },
+              openingHours: 'Mo-Fr 09:00-19:00',
+              areaServed: {
+                '@type': 'State',
+                name: '서울특별시 및 경기도',
+              },
             }),
           }}
         />
       </head>
-      <body className="bg-gray-50 min-h-screen flex flex-col">
-        <Header />
-        <main className="flex-1 pt-16 sm:pt-[72px]">
-          {children}
-        </main>
-        <Footer />
-        <FloatingButtons />
+      <body
+        suppressHydrationWarning
+        className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col"
+      >
+        <SpeculationRules />
+        <QueryProvider>
+          <ConditionalLayout>
+            {children}
+          </ConditionalLayout>
+        </QueryProvider>
       </body>
     </html>
   );
