@@ -4,7 +4,11 @@ import { createClient } from '@/lib/supabase';
 import HeroBackground from '@/components/HeroBackground';
 import HomeMapPreview from '@/components/HomeMapPreview';
 
-export const dynamic = 'force-dynamic';
+// L4 (2026-04-21): force-dynamic 제거 + ISR 활성화.
+//   popularDongs / totalListings 는 개인화·세션 의존 없는 집계 데이터 →
+//   5분 revalidate 로 엣지 캐시가 흡수. 히어로 TTFB 급감.
+//   관리자 매물 대량 작업 시에는 revalidatePath('/') 로 즉시 무효화 가능.
+export const revalidate = 300;
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 홈 = 지도로 가는 단 하나의 관문.

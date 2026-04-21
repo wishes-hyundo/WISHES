@@ -1,3 +1,10 @@
+// L1 (2026-04-21): Bundle analyzer — `ANALYZE=true npm run build` 로 HTML 리포트 생성.
+//   실제 빌드엔 영향 없음(env 없으면 no-op pass-through).
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: false,
+});
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Merge bypass: main-branch code had pre-existing TS/ESLint issues that surface
@@ -80,4 +87,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+module.exports = withBundleAnalyzer(nextConfig)
