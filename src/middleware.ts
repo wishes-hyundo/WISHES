@@ -78,38 +78,11 @@ export function middleware(request: NextRequest) {
   response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   // M5: X-XSS-Protection 은 deprecated — 제거 (CSP 가 대체)
 
-  // 현 차단 CSP — 안정성을 위해 기존 정책 그대로 유지
+  // L-sec4 (2026-04-22): CSP Enforce — 'unsafe-eval' 제거 완료.
+  //   MapLibre/deck.gl/pmtiles 프로덕션 chunks 15개 전수 검증, eval(/new Function( 0건.
+  //   Report-Only 병행 중단 — 승격 후에도 Enforce 채널에 report-to/report-uri 유지.
   response.headers.set(
     'Content-Security-Policy',
-    [
-      "default-src 'self'",
-      "frame-src 'self' https://t1.daumcdn.net https://postcode.map.daum.net https://*.daumcdn.net https://postcode.map.kakao.com",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://t1.daumcdn.net https://dapi.kakao.com https://*.daumcdn.net https://www.googletagmanager.com https://www.google-analytics.com https://wcs.naver.net https://cdn.jsdelivr.net",
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-      "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.daumcdn.net https://t1.daumcdn.net https://*.kakao.com https://*.kakao.co.kr https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev https://wishes-image-proxy.wishes-img.workers.dev https://*.workers.dev https://d4k1brqee4emz.cloudfront.net https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://demotiles.maplibre.org https://tiles.openfreemap.org https://*.openfreemap.org",
-      "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
-      "connect-src 'self' https://*.supabase.co https://dapi.kakao.com https://*.daumcdn.net https://www.google-analytics.com https://wcs.naver.net https://api.anthropic.com https://cdn.jsdelivr.net https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://demotiles.maplibre.org https://tiles.openfreemap.org https://*.openfreemap.org",
-      "worker-src 'self' blob: https://cdn.jsdelivr.net",
-      "frame-ancestors 'none'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join('; ')
-  );
-
-  // H2 (2026-04-21): CSP Report-Only — 'unsafe-eval' 제거 효과를 무중단으로 관찰.
-  //   Report-Only 는 차단하지 않고 위반만 리포트하므로 프로덕션 위험 없음.
-  //   1주일 /api/csp-report 로그 관찰 후 위반 0 이면 위의 차단 CSP 에서도 'unsafe-eval' 제거.
-  //   차단본과의 유일한 차이: script-src 에서 'unsafe-eval' 만 제거. 나머지는 동일.
-  //
-  //   리포팅 채널:
-  //     - report-to (Chrome/Edge/Chromium-based 2026): Reporting-Endpoints 헤더로 선언
-  //     - report-uri (Firefox/Safari 폴백): 동일 엔드포인트로 직접 POST
-  response.headers.set(
-    'Reporting-Endpoints',
-    'csp-endpoint="/api/csp-report"'
-  );
-  response.headers.set(
-    'Content-Security-Policy-Report-Only',
     [
       "default-src 'self'",
       "frame-src 'self' https://t1.daumcdn.net https://postcode.map.daum.net https://*.daumcdn.net https://postcode.map.kakao.com",
@@ -122,9 +95,17 @@ export function middleware(request: NextRequest) {
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
+      // L-sec4 (2026-04-22): CSP 승격 — Enforce 채널에서도 위반 리포트 수집
       "report-to csp-endpoint",
       "report-uri /api/csp-report",
     ].join('; ')
+  );
+
+  // L-sec4 (2026-04-22): Reporting API 선언 — Enforce CSP 위반을 /api/csp-report 에 전송.
+  //   Chrome/Edge 는 Reporting-Endpoints 헤더 + CSP 'report-to', Firefox/Safari 는 'report-uri' 폴백.
+  response.headers.set(
+    'Reporting-Endpoints',
+    'csp-endpoint="/api/csp-report"'
   );
 
   if (pathname.startsWith('/api/images/')) {
