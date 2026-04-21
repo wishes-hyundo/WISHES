@@ -182,6 +182,12 @@ export interface Map2026Store {
 
   nlQuery: string;
   setNlQuery: (q: string) => void;
+
+  // L-ux2 (2026-04-22): 좁은 뷰포트(DevTools 도킹/Claude 사이드바)에서
+  //   ListPanel 을 접어 지도 캔버스에 공간을 양보하는 토글.
+  //   기본 false, 토글 시 localStorage 영속화 (세션 간 유지).
+  listPanelCollapsed: boolean;
+  toggleListPanel: () => void;
 }
 
 export const useMap2026Store = create<Map2026Store>()(
@@ -315,5 +321,22 @@ export const useMap2026Store = create<Map2026Store>()(
 
     nlQuery: '',
     setNlQuery: (q) => set({ nlQuery: q }),
+
+    // L-ux2: ListPanel collapse (localStorage 영속)
+    listPanelCollapsed: (() => {
+      if (typeof window === 'undefined') return false;
+      try { return window.localStorage.getItem('map2026.listPanel') === 'collapsed'; }
+      catch { return false; }
+    })(),
+    toggleListPanel: () =>
+      set((s) => {
+        const next = !s.listPanelCollapsed;
+        if (typeof window !== 'undefined') {
+          try {
+            window.localStorage.setItem('map2026.listPanel', next ? 'collapsed' : 'open');
+          } catch { /* noop */ }
+        }
+        return { listPanelCollapsed: next };
+      }),
   }))
 );

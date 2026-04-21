@@ -49,6 +49,10 @@ export default function MapClient() {
   const setMap = useMap2026Store((s) => s.setMap);
   const setHover = useMap2026Store((s) => s.setHover);
   const selectListing = useMap2026Store((s) => s.selectListing);
+  // L-ux2 (2026-04-22): ListPanel 접힘 상태 — 좁은 뷰포트에서 지도 캔버스 확보.
+  const listPanelCollapsed = useMap2026Store((s) => s.listPanelCollapsed);
+  const toggleListPanel = useMap2026Store((s) => s.toggleListPanel);
+  const listingsCount = useMap2026Store((s) => s.listings.length);
 
   // prerenderingchange → activation 시 1회 발생. 이후 정상 init 파이프라인으로 진입.
   useEffect(() => {
@@ -227,15 +231,42 @@ export default function MapClient() {
       <ActiveFilterPills />
 
       {/* 본문: 좌 리스트 / 우 지도
-          L-ux1 (2026-04-22): grid-cols 반응형 — 좁은 창(Claude 사이드바/DevTools
-            도킹) 에서 지도 컬럼이 200px 로 축소되던 문제 해결.
-            • base (모바일/매우 좁음): 280px 리스트
-            • lg (≥1024px): 340px
-            • 2xl (≥1536px): 380px
-          내부 grid-cols 도 minmax(0,1fr) — 1fr 트랙이 자식 min-content 에
-          눌려 커지는 걸 차단. h-full 은 부모 row 전체 높이를 물려받기 위해 필요. */}
-      <div className="grid h-full min-h-0 grid-cols-[280px_minmax(0,1fr)] overflow-hidden lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]">
-        <ListPanel />
+          L-ux1 (2026-04-22): grid-cols 반응형 — 좁은 창 대응.
+          L-ux2 (2026-04-22): listPanelCollapsed 때 28px 레일로 축소 — 토글 버튼으로 복구.
+          내부 grid-cols 는 minmax(0,1fr) — 1fr 트랙이 자식 min-content 에
+          눌려 커지는 걸 차단. */}
+      <div
+        className={[
+          'grid h-full min-h-0 overflow-hidden',
+          listPanelCollapsed
+            ? 'grid-cols-[28px_minmax(0,1fr)]'
+            : 'grid-cols-[280px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]',
+        ].join(' ')}
+      >
+        {listPanelCollapsed ? (
+          <button
+            onClick={toggleListPanel}
+            aria-label={`매물 리스트 펼치기 (${listingsCount}개)`}
+            className="group flex h-full flex-col items-center gap-2 border-r border-neutral-200 bg-white py-3 transition hover:bg-neutral-50"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-500 group-hover:text-neutral-900"><path d="M9 18l6-6-6-6"/></svg>
+            <span className="[writing-mode:vertical-rl] rotate-180 text-[11px] font-bold tabular-nums text-neutral-700">
+              {listingsCount}개 매물
+            </span>
+          </button>
+        ) : (
+          <div className="relative">
+            <ListPanel />
+            <button
+              onClick={toggleListPanel}
+              aria-label="매물 리스트 접기"
+              title="리스트 접기"
+              className="absolute top-1/2 right-0 z-20 hidden h-10 w-4 -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-r-md border border-neutral-200 bg-white shadow-sm transition hover:bg-neutral-50 md:flex"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-500"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+          </div>
+        )}
         <div className="relative h-full min-h-0">
           <div ref={containerRef} className="absolute inset-0" />
           <SemanticZoomIndicator />
