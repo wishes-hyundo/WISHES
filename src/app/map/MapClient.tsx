@@ -268,7 +268,14 @@ export default function MapClient() {
           </div>
         )}
         <div className="relative h-full min-h-0">
-          <div ref={containerRef} className="absolute inset-0" />
+          {/* L-mapfix6b: MapLibre 가 .maplibregl-map 에 position:relative 를 주입해
+              Tailwind `absolute` 를 덮으면 inset-0 이 무효화돼 높이가 0 으로 접힘.
+              인라인 style 로 100% fill 을 강제해 어떤 position 에서도 안전. */}
+          <div
+            ref={containerRef}
+            className="absolute inset-0"
+            style={{ width: '100%', height: '100%' }}
+          />
           <SemanticZoomIndicator />
           <MapControls />
           <HeroPinLayer />
