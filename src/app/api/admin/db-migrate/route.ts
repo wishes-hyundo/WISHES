@@ -5,10 +5,15 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const ADMIN_TOKEN = 'wishes2026';
+
+function verifyAuth(request: NextRequest): boolean {
+  const auth = request.headers.get('authorization');
+  return auth === `Bearer ${ADMIN_TOKEN}`;
+}
 
 const MIGRATION_SQL = `
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS business_type TEXT;

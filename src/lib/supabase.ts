@@ -1,97 +1,36 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Supabase 클라이언트 설정
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL');
-}
-if (!supabaseAnonKey) {
-  throw new Error('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY');
-}
-
 /**
- * 브라우저 클라이언트 (Anonymous Key)
- * - 공개 API 엔드포인트 사용
- * - RLS 정책 적용됨
+ * WISHES — Supabase server client factory
+ * ============================================================
+ * Creates a privileged Supabase client for server-side routes
+ * (admin API, server components). Uses the service-role key so
+ * it can read/write all rows regardless of RLS.
+ *
+ * Requires the following environment variables on Vercel:
+ *   NEXT_PUBLIC_SUPABASE_URL       — e.g. https://xxxx.supabase.co
+ *   SUPABASE_SERVICE_ROLE_KEY      — service_role secret (NEVER expose to the browser)
+ *
+ * Consumed by:
+ *   src/app/api/admin/listings/route.ts           (createServerClient)
+ *   other future server-only Supabase callers
  */
-export function createClient() {
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: false,
-    },
-  });
-}
 
-/**
- * 브라우저 인증 클라이언트 (Anonymous Key + 세션 유지)
- * - 사용자 로그인/회원가입용
- * - localStorage에 세션 저장
- */
-let authClientInstance: ReturnType<typeof createSupabaseClient> | null = null;
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
-export function createAuthClient() {
-  if (typeof window === 'undefined') {
-    // 서버사이드에서는 싱글턴 없이 새로 생성
-    return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-      },
-    });
-  }
-  if (authClientInstance) return authClientInstance;
-  authClientInstance = createSupabaseClient(supabaseUrl, supabaseAnonKey, {
-    auth: {
-      persistSession: true,
-      storageKey: 'wishes-auth',
-      flowType: 'pkce',
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-    },
-  });
-  return authClientInstance;
-}
+export function createServerClient(): SupabaseClient {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-/**
- * 서버 클라이언트 (Service Role Key) - 싱글톤
- * - 관리자 API 엔드포인트 사용
- * - RLS 정책 우회 → 더 빠른 쿼리
- * - 서버 사이드에서만 사용 (환경변수 보호)
- * - 싱글톤으로 연결 재사용 → 성능 향상
- */
-let serverClientInstance: ReturnType<typeof createSupabaseClient> | null = null;
-
-export function createServerClient() {
-  if (!supabaseServiceRoleKey) {
-    throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !serviceKey) {
+    throw new Error(
+      '[supabase] Missing env vars: NEXT_PUBLIC_SUPABASE_URL and/or SUPABASE_SERVICE_ROLE_KEY must be set'
+    );
   }
 
-  if (serverClientInstance) return serverClientInstance;
-
-  serverClientInstance = createSupabaseClient(supabaseUrl, supabaseServiceRoleKey, {
+  return createClient(url, serviceKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
-    },
-    db: {
-      schema: 'public',
-    },
-    global: {
-      headers: {
-        'x-connection-pool': 'true',
-      },
+      detectSessionInUrl: false,
     },
   });
-
-  return serverClientInstance;
 }
-
-export default {
-  createClient,
-  createServerClient,
-};

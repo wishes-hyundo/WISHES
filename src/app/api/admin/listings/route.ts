@@ -1,4 +1,3 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Admin API: GET, POST, PUT /api/admin/listings
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -18,24 +17,18 @@ import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { createHash } from 'crypto';
-import { cached, invalidateCache } from '@/lib/cache';
-import { preferSelfHostedImages } from '@/lib/image-policy';
 
 // 요청 검증 스키마
 const createListingSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요'),
-  type: z.enum([
-    '원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '빌라',
-    '주택', '상가', '사무실', '지식산업센터', '토지',
-    '사무실/상가', // 크롤러 레거시 호환
-  ]),
+  type: z.enum(['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실']),
   deal: z.enum(['전세', '월세', '매매']),
   deposit: z.number().int().nonnegative().default(0),
   monthly: z.number().int().nonnegative().optional().nullable(),
   price: z.number().int().nonnegative().optional().nullable(),
   maintenance_fee: z.number().int().nonnegative().default(0).optional(),
   maintenance_includes: z.array(z.string()).optional().nullable(),
-  area_m2: z.number().nonnegative(),
+  area_m2: z.number().positive(),
   area_supply_m2: z.number().positive().optional().nullable(),
   area_land_m2: z.number().positive().optional().nullable(),
   floor_current: z.string().optional().nullable(),
@@ -80,7 +73,7 @@ const createListingSchema = z.object({
   contact: z.string().optional().nullable(),
   lease_period: z.string().optional().nullable(),
   rights_fee: z.number().int().nonnegative().optional().nullable(),
-  status: z.enum(['공개', '비공개', '계약중', '계약완료']).default('공개').optional(),
+  status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
   images: z.array(z.string()).optional(),
   // 신규 필드 (2026-04-12 추가)
   gu: z.string().optional().nullable(),
@@ -91,8 +84,6 @@ const createListingSchema = z.object({
   previous_brand: z.string().optional().nullable(),
   commission_fee: z.number().int().nonnegative().optional().nullable(),
   special_notes: z.string().optional().nullable(),
-  contact_role: z.string().optional().nullable(),
-  h: z.string().optional().nullable(),
     // 크롤러 v14 신규 필드 (2026-04-13 추가)
     base_price: z.number().int().optional().nullable(),
     registered_date: z.string().optional().nullable(),
@@ -103,91 +94,19 @@ const createListingSchema = z.object({
     listing_images: z.array(z.string()).optional().nullable(),
     area_pyeong: z.number().optional().nullable(),
     floor_info: z.string().optional().nullable(),
-    // T2-5: VR/360° 투어 임베드 URL
-    vr_url: z.string().optional().nullable(),
 });
 
 /**
  * 인증 검증 헬퍼 함수
- * 허용 토큰:
- *   1) 'wishes2026' 고정 관리자 토큰 (크롤러/프리페치/컨텐츠JS)
- *   2) 'admin_bridge_' 로 시작하는 브리지 토큰 (관리자 자동로그인)
- *   3) Supabase access_token (JWT 형식) — 형식 검증만 (서명검증 생략: 매물 목록은 /search 브리더 포털용이므로)
  */
-/**
- * null/undefined/빈값 제거 — Egress 페이로드 축소용
- */
-function compactRow(row: any): any {
-  const out: any = {};
-  for (const k in row) {
-    const v = row[k];
-    if (v === null || v === undefined || v === '' || v === false) continue;
-    if (Array.isArray(v) && v.length === 0) continue;
-    out[k] = v;
-  }
-  return out;
-}
-
-/**
- * listing_images 배열에서 썸네일 1장만 유지 (is_thumbnail=true 우선, 없으면 sort_order=0)
- * 카드 리스트에서는 썸네일 1장만 필요. 상세모달은 /api/listings/[id] 로 lazy-load.
- * Egress 절감: 매물당 평균 3~5장 → 1장 (~70% 이미지 URL 제거)
- */
-function keepThumbnailOnly(row: any): any {
-  if (!Array.isArray(row.listing_images) || row.listing_images.length === 0) return row;
-  const imgs = row.listing_images;
-  const thumb = imgs.find((i: any) => i && i.is_thumbnail)
-    || imgs.slice().sort((a: any, b: any) => (a.sort_order ?? 99) - (b.sort_order ?? 99))[0];
-  row.listing_images = thumb ? [{ url: thumb.url }] : [];
-  return row;
-}
-
-import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
-import { geocodeAddress } from '@/lib/geocode';
-
-/**
- * 크롤러가 '사무실/상가' 를 무지성 폴백으로 보내는 버그 방어.
- * building_purpose → rooms → title → usage_approved 우선순위로 진짜 유형 추론.
- * 신호가 전혀 없으면 null 반환 (원본 유지).
- */
-function reclassifyType(body: any): string | null {
-  const bp = (body.building_purpose || '').replace(/\s/g, '');
-  const title = `${body.title || ''} ${body.description || ''}`;
-  const rooms = body.rooms;
-  const usage = body.usage_approved;
-
-  // 1) building_purpose (건축물대장 주용도)
-  if (bp) {
-    if (/근린생활|판매시설|소매점|음식점|카페|학원|미용/.test(bp)) return '상가';
-    if (/업무시설|사무소/.test(bp)) return '사무실';
-    if (/지식산업센터/.test(bp)) return '지식산업센터';
-    if (/공장|창고|제조업소|작업장/.test(bp)) return '상가';
-    if (/아파트/.test(bp)) return '아파트';
-    if (/오피스텔/.test(bp)) return '오피스텔';
-    if (/다세대|연립|빌라/.test(bp)) return '빌라';
-    if (/다가구|단독주택|단독/.test(bp)) return '주택';
-    if (/기숙사|도시형생활주택/.test(bp)) return '원룸';
-  }
-  // 2) rooms (방 개수)
-  if (rooms === 1) return '원룸';
-  if (rooms === 2) return '투룸';
-  if (typeof rooms === 'number' && rooms >= 3) return '쓰리룸';
-  // 3) title/description 키워드
-  if (/원룸/.test(title)) return '원룸';
-  if (/투룸|2룸/.test(title)) return '투룸';
-  if (/쓰리룸|3룸/.test(title)) return '쓰리룸';
-  if (/빌라/.test(title)) return '빌라';
-  if (/주택|단독/.test(title)) return '주택';
-  if (/오피스텔/.test(title)) return '오피스텔';
-  if (/아파트/.test(title)) return '아파트';
-  if (/토지|대지/.test(title)) return '토지';
-  if (/지식산업센터/.test(title)) return '지식산업센터';
-  // 4) usage_approved (백필된 용도)
-  if (usage === '주거용') return '원룸';
-  if (usage === '상업용') return '상가';
-  if (usage === '공업용') return '지식산업센터';
-  // 신호 전혀 없음 → 원본 유지
-  return null;
+function verifyAuth(request: NextRequest): boolean {
+  // 헤더 인증 (기존)
+  const authHeader = request.headers.get('authorization');
+  const password = authHeader?.replace('Bearer ', '');
+  if (password === 'wishes2026') return true;
+  // 쿼리파라미터 인증 (크롤러 no-cors 모드용 — preflight 없이 호출 가능)
+  const { searchParams } = new URL(request.url);
+  return searchParams.get('token') === 'wishes2026';
 }
 
 /**
@@ -212,186 +131,99 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const fields = searchParams.get('fields');
 
-    // ⚡ ids_only 모드: delta 감지용 초경량 (id + status + created_at 만)
-    //   — 제거된 매물 탐지 및 전체 ID 집합 비교용
-    //   — 평균 응답 크기: 15,000건 × 50bytes ≈ 750 KB (full minimal 대비 1/25)
-    const idsOnly = searchParams.get('ids_only');
-    if (idsOnly === '1' || idsOnly === 'true') {
-      const PAGE_SIZE = 1000;
-      const { data: firstPage } = await supabase
-        .from('listings')
-        .select('id,status,created_at')
-        .order('created_at', { ascending: false })
-        .range(0, PAGE_SIZE - 1);
-
-      let all: any[] = firstPage ? [...firstPage] : [];
-      if (firstPage && firstPage.length === PAGE_SIZE) {
-        const parallelPages = [];
-        for (let from = PAGE_SIZE; from < 20000; from += PAGE_SIZE) {
-          parallelPages.push(
-            supabase.from('listings').select('id,status,created_at')
-              .order('created_at', { ascending: false })
-              .range(from, from + PAGE_SIZE - 1)
-          );
-        }
-        const results = await Promise.all(parallelPages);
-        for (const { data } of results) {
-          if (data && data.length > 0) all = all.concat(data); else break;
-        }
-      }
-      return NextResponse.json({ success: true, data: all, total: all.length });
-    }
-
     if (fields === 'minimal') {
-      // ⚡⚡⚡ 초경량 모드 (v8 - 2026-04-14) — "전체 컬럼 반환" 정책 전환
-      //   [v8] selectFields 화이트리스트를 전부 제거하고 '*' 로 변경.
-      //   이유: 크롤러가 새 필드를 DB에 추가할 때마다 selectFields 에 수동 등록해야 하는
-      //        유지보수 부담이 계속 버그를 유발하므로(상가 필드 누락 이슈 반복),
-      //        "스키마에 있는 모든 컬럼은 자동으로 프론트까지 도달" 정책으로 전환.
-      //
-      //   Egress 부담은 compactRow() 로 null/빈값 제거 + keepThumbnailOnly() 로 이미지 1장만
-      //   유지하여 완화. 실측상 raw_fields(jsonb) 포함해도 카드 하나당 평균 2~4 KB.
-      //
-      //   향후 신규 필드: 크롤러 → DB 컬럼 추가(또는 raw_fields 에 넣기) → UI 자동 표시.
-      //   API/프론트 코드 변경 불필요.
-      //
-      // ?since=<ISO> 파라미터 — 해당 시각 이후 생성된 매물만 반환 (delta 동기화용)
-      const since = searchParams.get('since'); // ISO timestamp string
-      const selectFields = '*, listing_images(url,sort_order,is_thumbnail)';
+      // ⚡⚡⚡ 초경량 모드 (v3) — 전방위 최적화
+      //  1) listing_images 는 url 만 → 이미지 페이로드 75% 감소
+      //  2) null/빈 필드 제거 → 전체 20~30% 추가 감소
+      //  3) unstable_cache 로 Node 레벨 메모이제이션 (60s)
+      //  4) CDN: s-maxage=300, stale-while-revalidate=86400
+      //  5) ETag + 304 Not Modified (재방문 0-byte 응답)
+      const selectFields = [
+        'id', 'title', 'type', 'deal', 'status',
+        'deposit', 'monthly', 'price',
+        'maintenance_fee', 'maintenance_includes',
+        'area_m2', 'area_supply_m2',
+        'floor_current', 'floor_total',
+        'rooms', 'bathrooms', 'direction',
+        'address', 'address_detail', 'dong',
+        'lat', 'lng',
+        'available_date', 'built_year',
+        'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
+        'business_type', 'goodwill_fee',
+        'station_name', 'station_distance',
+        'listing_images(url)' // ⚡ id/is_thumbnail/sort_order 제거 — 이미지 페이로드 -75%
+      ].join(',');
 
-      // since 파라미터가 있으면 delta 쿼리 (캐시 우회 + 작은 응답)
-      if (since) {
-        const { data: deltaData } = await supabase
-          .from('listings')
-          .select(selectFields)
-          .gt('created_at', since)
-          .order('created_at', { ascending: false })
-          .limit(1000);
-        // ※ 관리자 포털 이미지 정책 (preferSelfHostedImages):
-        //   - 자체 매물(source_site NULL): 그대로
-        //   - 크롤링+자체업로드 섞임: 자체 업로드만 노출 (46163 봉천동 62-24 케이스)
-        //   - 크롤링 사진만 있는 매물: 크롤링 썸네일 유지 (중개사 업무 참조용)
-        //   keepThumbnailOnly 보다 먼저 돌려야 자체 업로드가 우선 선택됨.
-        const cleaned = (deltaData || []).map(compactRow).map((r: any) => preferSelfHostedImages(r)).map(keepThumbnailOnly);
-        return NextResponse.json({ success: true, data: cleaned, total: cleaned.length, since });
-      }
+      // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
+      const getCached = unstable_cache(
+        async () => {
+          const PAGE_SIZE = 1000;
 
-      // 🔥 인메모리 캐시: 30초 fresh, 3분 stale 허용, 30초 타임아웃
-      // v12 (2026-04-20 rev3): 포이즌 캐시 버그 수정 — 병렬 페이지 루프에서 중간 페이지 1건이 empty
-      //                   가 되면 break 로 조기 종료되어 1000/2000건만 캐시되던 문제.
-      //                   head count 로 전체 행 수 확정 → 필요 페이지 전부 병렬 fetch →
-      //                   에러가 있으면 throw (cached() 가 stale 유지). /search '전체 1000건' 고정 해결.
-      // v11 (2026-04-20 rev2): preferSelfHostedImages 로 교체 — 크롤링 전용 매물 썸네일 복원.
-      //                   applyImagePolicy(v10) 는 크롤링 매물 이미지를 전부 지워버려 /search?sort=latest
-      //                   전체 카드가 썸네일 없이 렌더링되는 회귀 발생 → 혼합 매물만 자체업로드 우선.
-      // v10 (2026-04-20): applyImagePolicy 합류 — 크롤링 매물 썸네일을 크롤링 원본으로 잡지 않도록.
-      //                   (46163 봉천동 62-24: 자체 업로드 14장 업로드했는데 공실클럽 원본이 썸네일로 뽑힘)
-      // v9 (2026-04-14): 전체 삭제 후 재시작 — 캐시 무효화 + TTL 단축 (신규 크롤링 빠른 반영)
-      //                   fresh 60s→30s / stale 10min→3min
-      // v8: select('*') 전환
-      // v7: 상가 필드 포함
-      // v6: 빈 응답 캐싱 방지 (poison cache fix)
-      // ── 전체 매물 fetch 헬퍼 (page 단위 재시도 포함) ──
-      //   cached() 바깥에서도 재사용 (fallback 용).
-      //   failure 시나리오:
-      //     1) Promise.all 병렬 fetch → 대부분 성공. 1~2s 내 3000+ rows.
-      //     2) 중간 page 에러/empty 시 해당 page 만 재시도 (최대 2회, 지수 백오프).
-      //     3) 재시도 실패한 page 는 버림. throwOnPartial=true (cached 내부) 면
-      //        80% 미달 시 throw 해서 stale 유지. false (route fallback) 면 일부라도 반환.
-      const PAGE_SIZE = 1000;
-      const fetchPage = async (
-        pageIdx: number,
-        maxAttempts: number = 3,
-      ): Promise<any[]> => {
-        const from = pageIdx * PAGE_SIZE;
-        for (let attempt = 0; attempt < maxAttempts; attempt++) {
-          const { data, error } = await supabase
+          // 1차 페이지
+          const { data: firstPage, error: firstError } = await supabase
             .from('listings')
             .select(selectFields)
             .order('created_at', { ascending: false })
-            .range(from, from + PAGE_SIZE - 1);
-          if (!error && data && data.length > 0) return data;
-          if (error) {
-            console.warn(`[admin/listings] page ${pageIdx} attempt ${attempt + 1} err:`, error.message);
+            .range(0, PAGE_SIZE - 1);
+
+          if (firstError || !firstPage) return [];
+
+          let allData: any[] = [...firstPage];
+
+          // 나머지 페이지 병렬 fetch
+          if (firstPage.length === PAGE_SIZE) {
+            const parallelPages = [];
+            for (let from = PAGE_SIZE; from < 20000; from += PAGE_SIZE) {
+              parallelPages.push(
+                supabase
+                  .from('listings')
+                  .select(selectFields)
+                  .order('created_at', { ascending: false })
+                  .range(from, from + PAGE_SIZE - 1)
+              );
+            }
+            const results = await Promise.all(parallelPages);
+            for (const { data } of results) {
+              if (data && data.length > 0) {
+                allData = allData.concat(data);
+              } else {
+                break;
+              }
+            }
           }
-          // 지수 백오프: 200ms, 600ms
-          if (attempt < maxAttempts - 1) {
-            await new Promise(r => setTimeout(r, 200 * Math.pow(3, attempt)));
-          }
-        }
-        return [];
-      };
 
-      const fetchAllMinimal = async (throwOnPartial: boolean): Promise<any[]> => {
-        const { count: totalCount } = await supabase
-          .from('listings')
-          .select('*', { count: 'exact', head: true });
-        const totalRows = totalCount || 20000;
-        const totalPages = Math.ceil(totalRows / PAGE_SIZE);
-
-        const firstPage = await fetchPage(0);
-        if (firstPage.length === 0) throw new Error('empty-first-page');
-
-        let all: any[] = [...firstPage];
-
-        if (totalPages > 1) {
-          // 병렬로 나머지 페이지 fetch (각 페이지 내부 재시도 포함).
-          const remainingPages = [];
-          for (let p = 1; p < totalPages; p++) remainingPages.push(fetchPage(p));
-          const results = await Promise.all(remainingPages);
-          results.forEach(pageRows => {
-            if (pageRows.length > 0) all = all.concat(pageRows);
+          // 🧹 null / 빈 배열 / 빈 문자열 / false 불리언 제거로 페이로드 20~30% 감소
+          // (클라이언트는 접근 시 기본값 fallback 으로 처리)
+          const slim = allData.map((row: any) => {
+            const out: any = {};
+            for (const k in row) {
+              const v = row[k];
+              if (v === null || v === undefined || v === '' || v === false) continue;
+              if (Array.isArray(v) && v.length === 0) continue;
+              out[k] = v;
+            }
+            return out;
           });
-          if (throwOnPartial && all.length < totalRows * 0.8) {
-            throw new Error(
-              `admin-listings partial: got ${all.length}/${totalRows} rows — refusing to cache`
-            );
-          }
-        }
 
-        // ※ 관리자 포털 이미지 정책: preferSelfHostedImages → compactRow → keepThumbnailOnly.
-        return all.map((r: any) => preferSelfHostedImages(r)).map(compactRow).map(keepThumbnailOnly);
-      };
+          return slim;
+        },
+        ['listings-minimal-v3'],
+        { revalidate: 60, tags: ['listings'] }
+      );
 
-      let allData = await cached(
-        'admin-listings-minimal-v12',
-        () => fetchAllMinimal(true),
-        30_000,     // 30초 fresh (크롤링 신규매물 빠른 반영)
-        600_000,    // 10분 stale 허용 — Supabase transient 장애에도 /search 1000건 회귀 방지.
-        55_000,     // 55초 타임아웃 (page 재시도 + cold start 여유)
-      ) || [];
-
-      // cached() 가 null/empty 반환 (cold 인스턴스 첫 호출 partial-throw 등)
-      //   → 직접 fetch 로 한번 더 시도 (partial 허용) → UI 에 0건 노출 방지.
-      if (allData.length === 0) {
-        console.warn('[admin/listings] cache returned empty — direct fetch fallback');
-        try {
-          allData = await fetchAllMinimal(false);
-        } catch (e: any) {
-          console.error('[admin/listings] fallback fetch failed:', e?.message || e);
-        }
-      }
+      const allData = await getCached();
 
       // ETag 기반 304 응답
       const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length });
       const etag = '"' + createHash('sha1').update(bodyStr).digest('hex').substring(0, 16) + '"';
-      // 빈/부분 응답은 CDN 캐시 금지 (Supabase transient 장애로 인한 poison cache 방지).
-      // 현재 DB ~3275 rows. 2500 미만이면 transient 문제로 간주 → no-store.
-      // 이렇게 해야 cold 인스턴스의 partial fallback (1267/1000 rows) 이 CDN 에 박제되지 않음.
-      const isPartial = allData.length > 0 && allData.length < 2500;
-      const isEmpty = allData.length === 0;
-      const cacheCtrl = isEmpty || isPartial
-        ? 'no-cache, no-store, must-revalidate'
-        : 's-maxage=30, stale-while-revalidate=180';
-      const cdnCtrl = isEmpty || isPartial ? 'no-store' : 'max-age=30';
       const ifNoneMatch = request.headers.get('if-none-match');
-      if (ifNoneMatch === etag && !isEmpty) {
+      if (ifNoneMatch === etag) {
         return new NextResponse(null, {
           status: 304,
           headers: {
             'ETag': etag,
-            'Cache-Control': cacheCtrl,
-            'CDN-Cache-Control': cdnCtrl,
+            'Cache-Control': 's-maxage=300, stale-while-revalidate=86400',
+            'CDN-Cache-Control': 'max-age=300',
           },
         });
       }
@@ -401,8 +233,9 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
-          'Cache-Control': cacheCtrl,
-          'CDN-Cache-Control': cdnCtrl,
+          // 🔥 공격적 캐싱: 5분 CDN 캐시 + 하루 내내 stale-while-revalidate
+          'Cache-Control': 's-maxage=300, stale-while-revalidate=86400',
+          'CDN-Cache-Control': 'max-age=300',
           'Vary': 'Accept-Encoding',
         },
       });
@@ -435,14 +268,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ※ 관리자 포털: preferSelfHostedImages — 혼합매물은 자체업로드만, 크롤링전용은 원본 유지.
-    //   (중개사 편집/참조 화면에서 빈 썸네일이 나오지 않도록.)
-    const sanitizedAll = allData.map((r: any) => preferSelfHostedImages(r));
-
     return NextResponse.json({
       success: true,
-      data: sanitizedAll,
-      total: sanitizedAll.length,
+      data: allData,
+      total: allData.length,
     });
   } catch (error) {
     console.error('매물 조회 오류:', error);
@@ -482,20 +311,10 @@ export async function POST(request: NextRequest) {
     if (body.sale_price !== undefined && body.price === undefined) body.price = body.sale_price;
     if (body.floor !== undefined && body.floor_current === undefined) body.floor_current = body.floor ? String(body.floor) : null;
     if (body.year_built !== undefined && body.built_year === undefined) body.built_year = body.year_built ? String(body.year_built) : null;
-    // dong 자동 추출 (address에서 "동" 추출 - 개선된 regex)
+    // dong 자동 추출 (address에서 "동" 추출)
     if (!body.dong && body.address) {
-      // "OO동" 패턴 추출 (구 뒤의 동, 또는 시/군 뒤의 동)
-      const dongPatterns = [
-        /(?:구|시|군)\s+([가-힣]+동)\b/,   // "강남구 청담동" → 청담동
-        /([가-힣]{2,}동)\s*\d/,            // "신림동 123" → 신림동
-        /([가-힣]{2,}동)\b/,               // 일반적인 "OO동" 패턴
-      ];
-      let dongFound = '';
-      for (const pat of dongPatterns) {
-        const m = body.address.match(pat);
-        if (m) { dongFound = m[1]; break; }
-      }
-      body.dong = dongFound || (body.address.split(' ')[1] || body.address.split(' ')[0] || '미입력');
+      const dongMatch = body.address.match(/([가-힣]+동)/);
+      body.dong = dongMatch ? dongMatch[1] : (body.address.split(' ')[1] || body.address.split(' ')[0] || '미입력');
     }
     if (!body.dong) body.dong = '미입력';
     // gu 자동 추출 (address에서 "구" 추출)
@@ -505,33 +324,14 @@ export async function POST(request: NextRequest) {
     }
     // contact_number → contact 호환
     if (body.contact_number && !body.contact) body.contact = body.contact_number;
-    // type 자동 매핑 (크롤러 → API 표준 라벨)
-    //   2026-04-20: 이전 버전은 '빌라' → '원룸' 등 파괴적 매핑이 있었음 → 제거.
-    //   이제 schema 가 빌라/주택/지식산업센터/토지 도 허용하므로 그대로 저장.
-    //   '단독/다가구' 같은 비표준 값만 최소 매핑.
+    // type 자동 매핑 (크롤러에서 사용하는 type → API enum)
     const typeMap: Record<string, string> = {
-      '공장/창고': '상가',
-      '단독/다가구': '주택',
+      '빌라': '원룸', '공장/창고': '상가', '지식산업센터': '사무실',
+      '쓰리룸': '쓰리룸', '단독/다가구': '원룸',
     };
     if (body.type && typeMap[body.type]) body.type = typeMap[body.type];
-
-    // ── INSERT-TIME 자동 재분류 ──
-    //   2026-04-20: 크롤러가 '사무실/상가' 를 무지성 폴백으로 박아넣는 버그 방어.
-    //   building_purpose / rooms / title / usage_approved 를 보고 진짜 유형 추론.
-    if (body.type === '사무실/상가') {
-      body.type = reclassifyType(body) || body.type;
-    }
-
-    // ── heating_type 정규화 ──
-    //   2026-04-20: gongsilclub 크롤러가 파싱 실패 시 무조건 '전기' 를 박아넣음.
-    //   한국 부동산 실제 분포 (개별난방 80%+) 와 심하게 불일치 → 의심값 null 처리.
-    //   '도시가스'·'중앙'·'지역난방' 등 유효값은 그대로 유지.
-    if (body.heating_type === '전기' && body.source_site === 'gongsilclub') {
-      body.heating_type = null;
-    }
-
-    // area_m2가 없으면 0으로 설정
-    if (!body.area_m2 || body.area_m2 < 0) body.area_m2 = 0;
+    // area_m2가 0이면 0.1로 (양수 required)
+    if (!body.area_m2 || body.area_m2 <= 0) body.area_m2 = 0.1;
 
     const parsed = createListingSchema.safeParse(body);
 
@@ -545,28 +345,6 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
 
     const { images, ...listingData } = parsed.data;
-
-    // ── 자동 지오코딩 (lat/lng 미수신 또는 0 / NaN 일 때) ──
-    //   크롤러/외부 POST 에서 좌표를 함께 보내지 않거나 0 을 보내는 경우,
-    //   주소로 Kakao Local API를 즉시 호출해서 lat/lng 을 채운다.
-    //   실패해도 insert 자체는 진행 (null 상태로 저장).
-    //   2026-04-20: /map 신규 매물 미노출 회귀 방어.
-    //   2026-04-20 (patch2): 크롤러가 lat: 0, lng: 0 을 보내는 케이스까지 커버.
-    const needsGeocode =
-      listingData.lat == null || listingData.lng == null ||
-      !Number.isFinite(listingData.lat) || !Number.isFinite(listingData.lng) ||
-      listingData.lat === 0 || listingData.lng === 0;
-    if (needsGeocode && listingData.address) {
-      try {
-        const coords = await geocodeAddress(listingData.address);
-        if (coords) {
-          listingData.lat = coords.lat;
-          listingData.lng = coords.lng;
-        }
-      } catch (e) {
-        console.warn('자동 지오코딩 실패(무시하고 insert 진행):', e);
-      }
-    }
 
     const { data, error } = await supabase
       .from('listings')
@@ -611,7 +389,7 @@ export async function POST(request: NextRequest) {
         electric_capacity: listingData.electric_capacity || null,
         signage_available: listingData.signage_available || null,
         meeting_room: listingData.meeting_room || null,
-        status: listingData.status || '공개',
+        status: listingData.status || '가용',
         previous_business: listingData.previous_business || null,
         recommended_business: listingData.recommended_business || null,
         restricted_business: listingData.restricted_business || null,
@@ -631,8 +409,6 @@ export async function POST(request: NextRequest) {
         previous_brand: listingData.previous_brand || null,
         commission_fee: listingData.commission_fee || null,
         special_notes: listingData.special_notes || null,
-        contact_role: listingData.contact_role || null,
-        commission_note: listingData.commission_note || null,
       })
       .select()
       .single();
@@ -667,8 +443,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 캐시 무효화 (인메모리 + Next.js)
-    invalidateCache('listings');
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
@@ -706,7 +480,6 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    // status 검증
     const { id, images, ...updateData } = body;
 
     if (!id) {
@@ -733,50 +506,6 @@ export async function PUT(request: NextRequest) {
         updateValues[key] = value;
       }
     });
-
-    // ── UPDATE-TIME 자동 재분류 ──
-    //   2026-04-20: 크롤러가 수정 API 로 '사무실/상가' 를 덮어쓰는 케이스 방어.
-    //   body 에 building_purpose / rooms / title 이 함께 오면 그걸 기준으로 추론.
-    if (updateValues.type === '사무실/상가') {
-      const reclassified = reclassifyType({
-        building_purpose: updateValues.building_purpose,
-        rooms: updateValues.rooms,
-        title: updateValues.title,
-        description: updateValues.description,
-        usage_approved: updateValues.usage_approved,
-      });
-      if (reclassified) updateValues.type = reclassified;
-    }
-
-    // ── heating_type 정규화 (PUT) ──
-    //   gongsilclub 발 '전기' 의심값 null 처리.
-    if (updateValues.heating_type === '전기' && updateValues.source_site === 'gongsilclub') {
-      updateValues.heating_type = null;
-    }
-
-    // ── 자동 재지오코딩 (주소는 있는데 lat/lng 이 null/0/NaN 으로 들어오는 경우) ──
-    //   2026-04-20: 신규/수정 매물이 좌표 없이 들어와 /map 에 안 뜨는 이슈 방어.
-    //   2026-04-20 (patch2): 크롤러 0/NaN 값 커버.
-    const wantsAddr = typeof updateValues.address === 'string' && updateValues.address.length > 0;
-    const latMissing =
-      updateValues.lat == null ||
-      !Number.isFinite(updateValues.lat) ||
-      updateValues.lat === 0;
-    const lngMissing =
-      updateValues.lng == null ||
-      !Number.isFinite(updateValues.lng) ||
-      updateValues.lng === 0;
-    if (wantsAddr && (latMissing || lngMissing)) {
-      try {
-        const coords = await geocodeAddress(updateValues.address);
-        if (coords) {
-          updateValues.lat = coords.lat;
-          updateValues.lng = coords.lng;
-        }
-      } catch (e) {
-        console.warn('자동 지오코딩 실패(무시하고 update 진행):', e);
-      }
-    }
 
     if (Object.keys(updateValues).length === 0 && !images) {
       return NextResponse.json(
@@ -821,24 +550,39 @@ export async function PUT(request: NextRequest) {
           is_thumbnail: index === 0,
         }));
 
-        const { error: imgError } = await supabase
+        await supabase
           .from('listing_images')
           .insert(imageInserts);
-
-        if (imgError) {
-          console.error('이미지 연결 오류:', imgError);
-        }
       }
     }
 
-    // 캐시 무효화
-    invalidateCache('listings');
+    if (!data) {
+      const { data: fetchedData } = await supabase
+        .from('listings')
+        .select('*, listing_images(*)')
+        .eq('id', id)
+        .single();
+
+      data = fetchedData;
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { success: false, error: '매물을 찾을 수 없습니다' },
+        { status: 404 }
+      );
+    }
+
     revalidatePath('/', 'layout');
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
+    revalidatePath(`/listings/${id}`, 'page');
     revalidateTag('listings');
 
-    return NextResponse.json({ success: true, data });
+    return NextResponse.json({
+      success: true,
+      data,
+    });
   } catch (error: any) {
     console.error('매물 수정 오류:', error);
     return NextResponse.json(

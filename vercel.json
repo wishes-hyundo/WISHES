@@ -1,43 +1,51 @@
 {
   "regions": ["icn1"],
+  "functions": {
+    "src/app/api/**/*.js": {
+      "maxDuration": 10,
+      "memory": 256
+    },
+    "src/app/api/**/*.ts": {
+      "maxDuration": 10,
+      "memory": 256
+    }
+  },
   "headers": [
     {
       "source": "/api/listings(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, s-maxage=60, stale-while-revalidate=300" }
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=60, stale-while-revalidate=300"
+        }
       ]
     },
     {
       "source": "/_next/static/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
-      ]
-    },
-    {
-      "source": "/api/admin/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" },
-        { "key": "Access-Control-Allow-Methods", "value": "GET,POST,PUT,OPTIONS" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type,Authorization" },
-        { "key": "Access-Control-Max-Age", "value": "86400" },
-        { "key": "Cache-Control", "value": "private, no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/api/auth/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "private, no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
       ]
-    }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/update-rates",
-      "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/admin/dedup/cleanup",
-      "schedule": "30 0 * * *"
+      "source": "/api/admin/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
     }
   ]
 }
