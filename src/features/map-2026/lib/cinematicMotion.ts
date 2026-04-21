@@ -56,8 +56,12 @@ export function cinematicFlyTo(map: MapLibreMap, opts: FlyToOptions) {
 /**
  * Zoom pulse — 살짝 줌 아웃 → 인 해서 컨텍스트 리셋 시각화
  * (카테고리 탭 전환 때 사용)
+ *
+ * L-mapfix4 (2026-04-22): setTimeout 핸들을 반환해 호출자가 취소할 수 있게.
+ *   기존엔 220ms 동안 지도/컴포넌트가 언마운트되면 두번째 easeTo 가
+ *   파기된 map 에 호출되며 MapLibre 내부 에러 가능.
  */
-export function zoomPulse(map: MapLibreMap) {
+export function zoomPulse(map: MapLibreMap): () => void {
   const currentZoom = map.getZoom();
   const pulseZoom = currentZoom - 0.4;
 
@@ -67,13 +71,22 @@ export function zoomPulse(map: MapLibreMap) {
     easing: easeOutCubic,
   });
 
-  setTimeout(() => {
-    map.easeTo({
-      zoom: currentZoom,
-      duration: 280,
-      easing: easeOutCubic,
-    });
+  const handle = setTimeout(() => {
+    // map 이 이미 remove() 됐으면 easeTo 가 내부 상태를 건드리며 throw 가능.
+    // getContainer() 가 null 이면 파기된 것으로 간주.
+    try {
+      if (typeof map.getContainer !== 'function' || !map.getContainer()) return;
+      map.easeTo({
+        zoom: currentZoom,
+        duration: 280,
+        easing: easeOutCubic,
+      });
+    } catch {
+      /* swallow — map 이 파기된 경우 */
+    }
   }, 220);
+
+  return () => clearTimeout(handle);
 }
 
 /**

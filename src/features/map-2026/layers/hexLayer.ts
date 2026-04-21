@@ -83,8 +83,8 @@ export function buildHexLayer(
     onClick: (info) => {
       if (info.object && onHexClick) onHexClick(info.object.h3);
     },
-    updateTriggers: {
-      getFillColor: [listings.length],
-    },
+    // L-mapfix4: aggregate() 가 매 호출마다 새 배열을 만들므로 data reference 가
+    //   바뀌고 deck.gl 이 자동으로 accessor 를 재실행한다. listings.length 를
+    //   updateTrigger 로 쓰는 건 오히려 같은 count 내용만 바뀐 케이스를 놓친다.
   });
 }

@@ -35,9 +35,9 @@ export function buildScatterLayer(
     },
     onHover,
     onClick,
-    updateTriggers: {
-      getFillColor: [listings.length],
-      getRadius: [listings.length],
-    },
+    // L-mapfix4: updateTriggers 에 listings.length 만 넣는 건 무의미.
+    //   data prop 의 reference 가 바뀌면 deck.gl 이 accessor 를 자동 재실행하고,
+    //   length 가 동일한데 내용만 바뀌는 경우엔 오히려 누락됨. accessor 가
+    //   외부 클로저 값을 캡처하지 않으므로 updateTriggers 자체가 불필요.
   });
 }

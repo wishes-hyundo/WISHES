@@ -9,7 +9,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMap2026Store } from '../store';
 
 export function useIsochrone() {
@@ -21,13 +21,21 @@ export function useIsochrone() {
   const listings = useMap2026Store((s) => s.listings);
   const setCenter = useMap2026Store((s) => s.setIsochroneCenter);
 
-  // 선택 매물이 있으면 그 좌표를 자동 center 로
+  // L-mapfix4 (2026-04-22): listings 는 ref 로 읽고 deps 에서 뺀다.
+  //   기존엔 크롤러 refetch 로 listings 가 갱신될 때마다 선택 매물 좌표가
+  //   다시 setCenter 로 써져서 isochrone API 가 불필요하게 재요청됐음.
+  const listingsRef = useRef(listings);
+  useEffect(() => {
+    listingsRef.current = listings;
+  }, [listings]);
+
+  // 선택 매물이 있으면 그 좌표를 자동 center 로 (selectedId 변경 시에만 반응)
   useEffect(() => {
     if (!on) return;
     if (selectedId == null) return;
-    const l = listings.find((x) => x.id === selectedId);
+    const l = listingsRef.current.find((x) => x.id === selectedId);
     if (l) setCenter([l.lng, l.lat]);
-  }, [on, selectedId, listings, setCenter]);
+  }, [on, selectedId, setCenter]);
 
   // center/minutes 바뀌면 fetch
   useEffect(() => {
