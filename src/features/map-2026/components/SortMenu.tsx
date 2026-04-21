@@ -50,6 +50,13 @@ export function SortMenu() {
             blurTimerRef.current = null;
           }, MENU_BLUR_DELAY_MS);
         }}
+        onKeyDown={(e) => {
+          // L-ux3e (2026-04-22): Escape 로 메뉴 닫기 — WAI-ARIA menu 패턴
+          if (e.key === 'Escape' && open) {
+            e.preventDefault();
+            setOpen(false);
+          }
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
         className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-medium text-neutral-700 hover:bg-neutral-100"

@@ -10,7 +10,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useRef, type KeyboardEvent } from 'react';
 import {
   useMap2026Store,
   CATEGORY_THEME,
@@ -43,6 +43,26 @@ export function CategoryTabs() {
   const listings = useMap2026Store((s) => s.listings);
   const map = useMap2026Store((s) => s.map);
 
+  // L-ux3e (2026-04-22): WAI-ARIA tab 패턴 — 키보드 사용자가
+  //   ←/→ 로 탭 사이를 이동, Home/End 로 첫/끝 탭 점프하도록.
+  //   이전에는 Tab 으로 4회 눌러야만 탭 사이 전환이 가능했음.
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const handleTabKey = (e: KeyboardEvent<HTMLButtonElement>, idx: number) => {
+    let next = -1;
+    if (e.key === 'ArrowRight') next = (idx + 1) % ORDER.length;
+    else if (e.key === 'ArrowLeft') next = (idx - 1 + ORDER.length) % ORDER.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = ORDER.length - 1;
+    if (next === -1) return;
+    e.preventDefault();
+    const target = tabRefs.current[next];
+    if (target) {
+      target.focus();
+      setCategory(ORDER[next]);
+      if (map) zoomPulse(map);
+    }
+  };
+
   // 현재 뷰포트 매물 기준 카테고리별 카운트 (라이브)
   const counts = useMemo(() => {
     const c: Record<PropertyCategory, number> = {
@@ -73,7 +93,10 @@ export function CategoryTabs() {
             key={cat}
             role="tab"
             aria-selected={active}
+            tabIndex={active ? 0 : -1}
+            ref={(el) => { tabRefs.current[ORDER.indexOf(cat)] = el; }}
             title={active ? `${theme.label} ${count.toLocaleString('ko-KR')}개` : `${theme.label} 카테고리로 전환`}
+            onKeyDown={(e) => handleTabKey(e, ORDER.indexOf(cat))}
             onClick={() => {
               if (active) return;
               setCategory(cat);
