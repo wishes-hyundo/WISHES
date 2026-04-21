@@ -15,6 +15,7 @@ export async function OPTIONS() {
 }
 import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 import { z } from 'zod';
 import { createHash } from 'crypto';
 
@@ -97,16 +98,13 @@ const createListingSchema = z.object({
 });
 
 /**
- * 인증 검증 헬퍼 함수
+ * 인증 검증 헬퍼 — L-sec2 (2026-04-22):
+ *   박제 'wishes2026' + 단순 쿼리 token 우회를 제거하고
+ *   공용 adminAuth.verifyAdminAuth (env 마스터 + CRAWLER_BRIDGE + JWT서명+role)
+ *   로 통일. 이 래퍼는 호출부 diff 를 최소화하기 위한 얇은 shim.
  */
-function verifyAuth(request: NextRequest): boolean {
-  // 헤더 인증 (기존)
-  const authHeader = request.headers.get('authorization');
-  const password = authHeader?.replace('Bearer ', '');
-  if (password === 'wishes2026') return true;
-  // 쿼리파라미터 인증 (크롤러 no-cors 모드용 — preflight 없이 호출 가능)
-  const { searchParams } = new URL(request.url);
-  return searchParams.get('token') === 'wishes2026';
+async function verifyAuth(request: NextRequest): Promise<boolean> {
+  return verifyAdminAuth(request);
 }
 
 /**
@@ -120,7 +118,7 @@ function verifyAuth(request: NextRequest): boolean {
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }
@@ -288,7 +286,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401, headers: CORS_HEADERS }
@@ -472,7 +470,7 @@ export async function POST(request: NextRequest) {
  */
 export async function PUT(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }

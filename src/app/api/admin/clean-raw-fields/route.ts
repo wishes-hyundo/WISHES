@@ -28,7 +28,7 @@ function isJunk(k: string, v: any): boolean {
 }
 
 export async function GET(request: NextRequest) {
-  if (!verifyAdminAuth(request)) {
+  if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 

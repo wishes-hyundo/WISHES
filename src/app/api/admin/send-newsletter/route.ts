@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
-  if (!verifyAdminAuth(request)) {
+  if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
   }
 

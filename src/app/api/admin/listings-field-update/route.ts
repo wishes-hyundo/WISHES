@@ -21,7 +21,7 @@ const ALLOWED_FIELDS = [
 // PUT: Update single listing fields
 export async function PUT(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
+    if (!(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -71,7 +71,7 @@ export async function PUT(request: NextRequest) {
 // POST: Bulk update multiple listings
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
+    if (!(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

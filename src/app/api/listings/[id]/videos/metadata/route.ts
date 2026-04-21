@@ -38,7 +38,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!verifyAdminAuth(request)) {
+  if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 

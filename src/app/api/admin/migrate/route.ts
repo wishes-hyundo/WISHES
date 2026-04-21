@@ -6,7 +6,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
 export async function POST(request: NextRequest) {
-  if (!verifyAuth(request)) {
+  if (!(await verifyAuth(request))) {
     return NextResponse.json({ error: '인증 필요' }, { status: 401 });
   }
 

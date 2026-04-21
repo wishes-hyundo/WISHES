@@ -13,7 +13,7 @@ import { verifyAdminAuth } from '@/lib/adminAuth';
  */
 export async function GET(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
+    if (!(await verifyAdminAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }

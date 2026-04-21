@@ -12,7 +12,7 @@ import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 
 export async function GET(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
     }
 
@@ -93,7 +93,7 @@ const patchSchema = z.object({
 
 export async function PATCH(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
     }
 

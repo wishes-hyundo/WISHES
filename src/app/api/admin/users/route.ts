@@ -8,7 +8,7 @@ const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 // GET /api/admin/users - ì¬ì©ì ëª©ë¡ ì¡°í
 export async function GET(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
+    if (!(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
 // PUT /api/admin/users - ì¬ì©ì ì¹ì¸/ê±°ë¶/ì­í ë³ê²½/ì°¨ë¨
 export async function PUT(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
+    if (!(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -213,7 +213,7 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/users - ì¬ì©ì ì­ì 
 export async function DELETE(request: NextRequest) {
   try {
-    if (!verifyAdminAuth(request)) {
+    if (!(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

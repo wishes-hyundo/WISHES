@@ -39,7 +39,7 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
 
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
     }
 
@@ -289,7 +289,7 @@ async function handleDongAverageMode(request: NextRequest) {
 
 // GET: 미지오코딩 매물 현황 조회
 export async function GET(request: NextRequest) {
-  if (!verifyAuth(request)) {
+  if (!(await verifyAuth(request))) {
     return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
   }
 

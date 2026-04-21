@@ -116,7 +116,7 @@ function splitSqlStatements(sql: string): string[] {
 }
 
 export async function POST(request: NextRequest) {
-  if (!verifyAuth(request)) {
+  if (!(await verifyAuth(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!verifyAuth(request)) {
+  if (!(await verifyAuth(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   return NextResponse.json({

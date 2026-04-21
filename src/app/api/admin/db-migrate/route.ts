@@ -5,14 +5,15 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const ADMIN_TOKEN = 'wishes2026';
 
-function verifyAuth(request: NextRequest): boolean {
-  const auth = request.headers.get('authorization');
-  return auth === `Bearer ${ADMIN_TOKEN}`;
+// L-sec2 (2026-04-22): 박제 ADMIN_TOKEN = 'wishes2026' 제거 →
+//   공용 verifyAdminAuth (env 마스터 + CRAWLER_BRIDGE + JWT서명+role)
+async function verifyAuth(request: NextRequest): Promise<boolean> {
+  return verifyAdminAuth(request);
 }
 
 const MIGRATION_SQL = `
@@ -44,7 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_listings_source_id ON listings(source_id);
 `;
 
 export async function POST(request: NextRequest) {
-  if (!verifyAuth(request)) {
+  if (!(await verifyAuth(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -106,7 +107,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!verifyAuth(request)) {
+  if (!(await verifyAuth(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   return NextResponse.json({

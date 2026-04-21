@@ -17,7 +17,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }
@@ -108,7 +108,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }
@@ -167,7 +167,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }

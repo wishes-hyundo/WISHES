@@ -23,7 +23,7 @@ export async function OPTIONS() {
  */
 export async function POST(req: NextRequest) {
   try {
-    if (!verifyAdminAuth(req)) {
+    if (!(await verifyAdminAuth(req))) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
     }
 

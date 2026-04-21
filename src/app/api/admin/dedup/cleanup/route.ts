@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const cronSecret = request.headers.get('x-cron-secret');
     const isCron = !!request.headers.get('x-vercel-cron')
       || (process.env.CRON_SECRET && cronSecret === process.env.CRON_SECRET);
-    if (!isCron && !verifyAdminAuth(request)) {
+    if (!isCron && !(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

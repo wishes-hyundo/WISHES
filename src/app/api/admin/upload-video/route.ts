@@ -49,7 +49,7 @@ function mimeToExt(mime: string, fallbackName?: string): string {
  */
 export async function POST(request: NextRequest) {
   try {
-    if (!verifyAuth(request)) {
+    if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
         { status: 401 }
