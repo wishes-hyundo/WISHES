@@ -79,18 +79,25 @@ export default function SearchPortalPage() {
     if (state !== 'ok') return;
 
     // 매물 프리페치
+    //   L-sec5 (2026-04-22): 하드코드 'Bearer wishes2026' 제거.
+    //   ws_token 은 /login 에서 'admin_bridge_<Supabase access_token>' 형식으로 저장되고
+    //   verifyAdminAuth 가 해당 프리픽스를 JWT 로 풀어 admin_users.role/status 까지 검증한다.
     try {
       const w = window as unknown as { __WS_PREFETCH__?: Promise<unknown> };
       if (!w.__WS_PREFETCH__) {
-        // /api/admin/listings 는 고정 관리자 토큰(wishes2026)만 허용
-        // ws_token(Supabase JWT) 을 쓰면 401 이 발생하므로 하드코딩된 관리자 토큰 사용
-        w.__WS_PREFETCH__ = fetch('/api/admin/listings?fields=minimal', {
-          headers: { Authorization: 'Bearer wishes2026' },
-          cache: 'no-cache',
-        })
-          .then((r) => r.json())
-          .then((j) => (j && j.success && Array.isArray(j.data) ? j.data : null))
-          .catch(() => null);
+        const wsToken = (() => {
+          try { return sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token') || ''; }
+          catch { return ''; }
+        })();
+        if (wsToken) {
+          w.__WS_PREFETCH__ = fetch('/api/admin/listings?fields=minimal', {
+            headers: { Authorization: 'Bearer ' + wsToken },
+            cache: 'no-cache',
+          })
+            .then((r) => r.json())
+            .then((j) => (j && j.success && Array.isArray(j.data) ? j.data : null))
+            .catch(() => null);
+        }
       }
     } catch {}
 

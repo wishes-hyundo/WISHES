@@ -44,6 +44,7 @@ function StepSkeleton() {
 
 import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useAdminSession } from '@/lib/useAdminSession';
 import ExclusiveUnitSelector, { ExclusiveUnit, needsExclusivePart } from '@/components/ExclusiveUnitSelector';
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -198,7 +199,6 @@ const STEPS = [
   { id: 4, label: 'AI등록', icon: '🤖', desc: '자동완성·업로드' },
 ];
 
-const AUTH_TOKEN = process.env.NEXT_PUBLIC_AUTH_TOKEN || 'wishes2026';
 
 const INITIAL_FORM: FormData = {
   address: '', addressDetail: '', dong: '', deal: '월세',
@@ -478,6 +478,8 @@ function generateStyledDescription(form: FormData, buildingInfo: BuildingInfo | 
 function SmartListingNewPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  // L-sec5 (2026-04-22): Supabase 세션 JWT — 하드코드 AUTH_TOKEN 제거
+  const { token: sessionToken, loading: sessionLoading, authHeader } = useAdminSession('/admin/listings/new')
   const [isCopyMode, setIsCopyMode] = useState(false)
   const [copySourceId, setCopySourceId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -486,13 +488,14 @@ function SmartListingNewPage() {
   useEffect(() => {
     const copyFrom = searchParams.get('copyFrom');
     if (!copyFrom) return;
+    if (!sessionToken) return; // 세션 준비 전에는 스킵 → sessionToken 바뀌면 재실행
     setCopySourceId(copyFrom);
     setIsCopyMode(true);
     
     const fetchListingForCopy = async () => {
       try {
         const res = await fetch('/api/admin/listings/' + copyFrom, {
-          headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN }
+          headers: { ...authHeader() }
         });
         if (!res.ok) {
           alert('복사할 매물을 불러올 수 없습니다.');
@@ -543,7 +546,7 @@ function SmartListingNewPage() {
     };
     
     fetchListingForCopy();
-  }, [searchParams]);
+  }, [searchParams, sessionToken]);
 
 
   /* ── State ── */
@@ -1217,7 +1220,7 @@ ${floorRows}</table></div>` : ''}
 
       const res = await withRetry(() => fetch('/api/admin/listings', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${AUTH_TOKEN}` },
+        headers: { ...authHeader() },
         body: fd,
       }), 2, 1500);
 
@@ -1283,6 +1286,14 @@ ${floorRows}</table></div>` : ''}
      렌더링
   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   if (!isMounted) return null;
+
+  if (sessionLoading || !sessionToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
+        🔐 세션 확인 중…
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gray-50" suppressHydrationWarning>

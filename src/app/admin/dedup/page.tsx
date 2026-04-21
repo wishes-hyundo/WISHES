@@ -11,6 +11,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useAdminSession } from '@/lib/useAdminSession';
 
 interface Summary {
   id: number;
@@ -271,14 +272,9 @@ export default function AdminDedupPage() {
   const [queueLoading, setQueueLoading] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
-  const getToken = useCallback(() => {
-    if (typeof window === 'undefined') return '';
-    return (
-      window.sessionStorage.getItem('ws_token') ||
-      window.localStorage.getItem('ws_token') ||
-      'wishes2026'
-    );
-  }, []);
+  // L-sec5 (2026-04-22): Supabase 세션 JWT 로 통일 — ws_token/'wishes2026' 폴백 제거
+  const { token: sessionToken, loading: sessionLoading, authHeader } = useAdminSession('/admin/dedup');
+  const getToken = useCallback(() => sessionToken || '', [sessionToken]);
 
   const runScan = useCallback(async () => {
     setLoading(true);
@@ -288,7 +284,7 @@ export default function AdminDedupPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${getToken()}`,
+            ...authHeader(),
         },
         body: JSON.stringify({ minConfidence, limit: 300, mode }),
       });
@@ -318,7 +314,7 @@ export default function AdminDedupPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${getToken()}`,
+            ...authHeader(),
           },
           body: JSON.stringify({
             ids: g.duplicates.map((d) => d.id),
@@ -348,7 +344,7 @@ export default function AdminDedupPage() {
     setQueueLoading(true);
     try {
       const r = await fetch('/api/admin/dedup/restore', {
-        headers: { Authorization: `Bearer ${getToken()}` },
+        headers: { ...authHeader() },
       });
       const j = await r.json();
       if (!j.success) throw new Error(j.error || 'queue load failed');
@@ -368,7 +364,7 @@ export default function AdminDedupPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${getToken()}`,
+            ...authHeader(),
           },
           body: JSON.stringify({ ids: [id] }),
         });
@@ -391,7 +387,7 @@ export default function AdminDedupPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${getToken()}`,
+            ...authHeader(),
           },
           body: JSON.stringify({ group_id }),
         });
@@ -414,6 +410,15 @@ export default function AdminDedupPage() {
     () => (result?.groups || []).filter((g) => !hiddenGroups.has(g.group_id)),
     [result, hiddenGroups],
   );
+
+
+  if (sessionLoading || !sessionToken) {
+    return (
+      <div className="max-w-[1400px] mx-auto py-20 text-center text-white/60 text-sm">
+        🔐 세션 확인 중…
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1400px] mx-auto">

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import { useAdminSession } from '@/lib/useAdminSession';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 타입 정의
@@ -84,6 +85,8 @@ export default function EditListingPage() {
   const params = useParams();
   const listingId = params?.id as string;
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // L-sec5 (2026-04-22): Supabase 세션 JWT — 하드코드 'Bearer wishes2026' 제거
+  const { token: sessionToken, loading: sessionLoading, authHeader } = useAdminSession(`/admin/listings/${listingId}/edit`);
 
   // ── 상태 ──
   const [isLoading, setIsLoading] = useState(true);
@@ -193,7 +196,7 @@ export default function EditListingPage() {
         setLoadError(null);
 
         const res = await fetch(`/api/admin/listings/${listingId}`, {
-          headers: { 'Authorization': 'Bearer wishes2026' },
+          headers: { ...authHeader() },
         });
 
         if (!res.ok) {
@@ -302,7 +305,7 @@ export default function EditListingPage() {
 
         const res = await fetch('/api/admin/upload', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer wishes2026' },
+          headers: { ...authHeader() },
           body: uploadFormData,
         });
 
@@ -378,7 +381,7 @@ export default function EditListingPage() {
 
         const res = await fetch(`/api/listings/${listingId}/videos`, {
           method: 'POST',
-          headers: { Authorization: 'Bearer wishes2026' },
+          headers: { ...authHeader() },
           body: fd,
         });
         const json = await res.json();
@@ -388,7 +391,7 @@ export default function EditListingPage() {
 
         // 서버에서 반환한 최신 목록을 다시 fetch 해서 동기화 (id/sort_order 안정)
         const listRes = await fetch(`/api/listings/${listingId}/videos`, {
-          headers: { Authorization: 'Bearer wishes2026' },
+          headers: { ...authHeader() },
         });
         const listJson = await listRes.json();
         if (listJson.success && Array.isArray(listJson.data)) {
@@ -409,7 +412,7 @@ export default function EditListingPage() {
       try {
         const res = await fetch(
           `/api/listings/${listingId}/videos?videoId=${videoId}`,
-          { method: 'DELETE', headers: { Authorization: 'Bearer wishes2026' } }
+          { method: 'DELETE', headers: { ...authHeader() } }
         );
         const json = await res.json();
         if (!res.ok || !json.success) throw new Error(json.error || '삭제 실패');
@@ -441,7 +444,7 @@ export default function EditListingPage() {
 
   // ── 자동저장 (30초 간격) ──
   useEffect(() => {
-    if (!originalData || !listingId) return;
+    if (!originalData || !listingId || !sessionToken) return;
     const interval = setInterval(async () => {
       if (!hasAnyChanges() || isSubmitting) return;
       try {
@@ -449,7 +452,7 @@ export default function EditListingPage() {
         const res = await fetch('/api/admin/listings', {
           method: 'PUT',
           headers: {
-            'Authorization': 'Bearer ' + (process.env.NEXT_PUBLIC_AUTH_TOKEN || 'wishes2026'),
+            ...authHeader(),
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ id: listingId, ...formData }),
@@ -466,7 +469,7 @@ export default function EditListingPage() {
       }
     }, 30000);
     return () => clearInterval(interval);
-  }, [formData, originalData, listingId, isSubmitting]);
+  }, [formData, originalData, listingId, isSubmitting, sessionToken]);
 
   // ── 수정 제출 ──
   const handleSubmit = async () => {
@@ -519,7 +522,7 @@ export default function EditListingPage() {
       const response = await fetch('/api/admin/listings', {
         method: 'PUT',
         headers: {
-          'Authorization': 'Bearer wishes2026',
+          ...authHeader(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(body),
@@ -595,6 +598,14 @@ export default function EditListingPage() {
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // 메인 UI
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  if (sessionLoading || !sessionToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
+        🔐 세션 확인 중…
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAdminSession } from '@/lib/useAdminSession';
 
 /* ─── 타입 정의 ─── */
 interface Listing {
@@ -146,6 +147,8 @@ function Toast({ message, type, onClose }: { message: string; type: 'success' | 
 /* ─── 메인 컴포넌트 ─── */
 export default function AdminListingsPage() {
   const router = useRouter();
+  // L-sec5 (2026-04-22): Supabase 세션 JWT — 하드코드 'Bearer wishes2026' 제거
+  const { token: sessionToken, loading: sessionLoading, authHeader } = useAdminSession('/admin/listings');
 
   // 데이터 상태
   const [listings, setListings] = useState<Listing[]>([]);
@@ -185,11 +188,12 @@ export default function AdminListingsPage() {
 
   /* ─── 데이터 가져오기 ─── */
   const fetchListings = useCallback(async () => {
+    if (!sessionToken) return; // 세션 준비 전엔 스킵
     try {
       setLoading(true);
       setError(null);
       const res = await fetch('/api/admin/listings', {
-        headers: { 'Authorization': 'Bearer wishes2026' },
+        headers: { ...authHeader() },
       });
       if (!res.ok) throw new Error('API 오류: ' + res.status);
       const json = await res.json();
@@ -203,7 +207,7 @@ export default function AdminListingsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sessionToken, authHeader]);
 
   useEffect(() => {
     fetchListings();
@@ -350,7 +354,7 @@ export default function AdminListingsPage() {
       const res = await fetch('/api/admin/listings/' + id, {
         method: 'PATCH',
         headers: {
-          'Authorization': 'Bearer wishes2026',
+          ...authHeader(),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status: newStatus }),
@@ -373,7 +377,7 @@ export default function AdminListingsPage() {
       setDeletingId(id);
       const res = await fetch('/api/admin/listings/' + id, {
         method: 'DELETE',
-        headers: { 'Authorization': 'Bearer wishes2026' },
+        headers: { ...authHeader() },
       });
       if (!res.ok) throw new Error('삭제 실패');
       setListings((prev) => prev.filter((l) => l.id !== id));
@@ -398,7 +402,7 @@ export default function AdminListingsPage() {
         const res = await fetch('/api/admin/listings/' + id, {
           method: 'PATCH',
           headers: {
-            'Authorization': 'Bearer wishes2026',
+            ...authHeader(),
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ status: newStatus }),
@@ -436,7 +440,7 @@ export default function AdminListingsPage() {
       try {
         const res = await fetch('/api/admin/listings/' + id, {
           method: 'DELETE',
-          headers: { 'Authorization': 'Bearer wishes2026' },
+          headers: { ...authHeader() },
         });
         if (res.ok) {
           setListings((prev) => prev.filter((l) => l.id !== id));
@@ -519,6 +523,14 @@ export default function AdminListingsPage() {
   };
 
   /* ─── 렌더링 ─── */
+  if (sessionLoading || !sessionToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-gray-500">
+        🔐 세션 확인 중…
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 토스트 */}

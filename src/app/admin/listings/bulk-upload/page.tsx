@@ -2,8 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-
-const AUTH_TOKEN = process.env.NEXT_PUBLIC_AUTH_TOKEN || 'wishes2026';
+import { useAdminSession } from '@/lib/useAdminSession';
 
 interface BulkListing {
   title: string;
@@ -82,6 +81,8 @@ function parseCSV(text: string): string[][] {
 
 export default function BulkUploadPage() {
   const router = useRouter();
+  // L-sec5 (2026-04-22): Supabase 세션 JWT — 하드코드 토큰 제거
+  const { token, loading: sessionLoading, authHeader } = useAdminSession('/admin/listings/bulk-upload');
   const fileRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<'upload' | 'preview' | 'result'>('upload');
   const [listings, setListings] = useState<BulkListing[]>([]);
@@ -167,6 +168,7 @@ export default function BulkUploadPage() {
   const handleUpload = async () => {
     const selected = listings.filter(l => l._selected && l._valid);
     if (selected.length === 0) return;
+    if (!token) { alert('세션이 만료되었습니다. 다시 로그인해 주세요.'); return; }
     setUploading(true); setProgress(0);
     const errors: string[] = [];
     let success = 0;
@@ -184,7 +186,7 @@ export default function BulkUploadPage() {
         };
         const resp = await fetch('/api/admin/listings', {
           method: 'POST',
-          headers: { 'Authorization': 'Bearer ' + AUTH_TOKEN, 'Content-Type': 'application/json' },
+          headers: { ...authHeader(), 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
         if (resp.ok) { success++; }
@@ -205,6 +207,15 @@ export default function BulkUploadPage() {
 
   const validCount = listings.filter(l => l._valid && l._selected).length;
   const invalidCount = listings.filter(l => !l._valid).length;
+
+
+  if (sessionLoading || !token) {
+    return (
+      <div className="max-w-5xl mx-auto py-20 text-center text-sm text-gray-500">
+        🔐 세션 확인 중…
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto">

@@ -1,10 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-
-const AUTH_TOKEN = process.env.NEXT_PUBLIC_AUTH_TOKEN || 'wishes2026';
-const getAuthHeader = () => 'Bearer ' + AUTH_TOKEN;
+import { useAdminSession } from '@/lib/useAdminSession';
 
 interface Contact {
   id: number;
@@ -20,7 +17,7 @@ interface Contact {
 }
 
 export default function ContactsPage() {
-  const router = useRouter();
+  const { token, loading: sessionLoading, authHeader } = useAdminSession('/admin/contacts');
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,8 +28,9 @@ export default function ContactsPage() {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   useEffect(() => {
-    loadContacts();
-  }, []);
+    if (token) loadContacts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   useEffect(() => {
     if (toast) {
@@ -44,7 +42,7 @@ export default function ContactsPage() {
   const loadContacts = async () => {
     try {
       const resp = await fetch('/api/admin/contacts', {
-        headers: { authorization: getAuthHeader() }
+        headers: { ...authHeader() }
       });
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
@@ -61,7 +59,7 @@ export default function ContactsPage() {
     try {
       const resp = await fetch('/api/admin/contacts', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', authorization: getAuthHeader() },
+        headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ id, ...updates })
       });
       if (!resp.ok) throw new Error('Failed');
@@ -116,7 +114,7 @@ export default function ContactsPage() {
     return Math.floor(diff / 86400) + '일 전';
   };
 
-  if (loading) {
+  if (loading || sessionLoading || !token) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="animate-spin w-8 h-8 border-4 border-green-500 border-t-transparent rounded-full" />
