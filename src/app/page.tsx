@@ -72,7 +72,12 @@ export default async function HomePage() {
         <div className="relative w-full max-w-6xl mx-auto px-4 py-12 md:py-20">
           <div className="grid md:grid-cols-5 gap-10 md:gap-14 items-center">
             {/* Left: 카피 + CTA */}
-            <div className="md:col-span-3 text-center md:text-left space-y-6 md:space-y-8 animate-fade-in-up">
+            {/* L-perf3 (2026-04-21): animate-fade-in-up 제거 — Chrome 은 opacity:0
+                으로 시작하는 요소를 LCP 대상에서 '아직 paint 안 됨' 으로 취급해 페이드
+                애니메이션 0.5s 만큼 LCP 가 밀림 (홈 Lighthouse LCP 1.7s, diagnostic
+                1,690ms). 히어로는 above-the-fold → 즉시성 > 우아함 → 애니 제거로
+                LCP 1.7s → ~1.2s 겨냥. */}
+            <div className="md:col-span-3 text-center md:text-left space-y-6 md:space-y-8">
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/25 backdrop-blur-md">
                 <Sparkles className="w-3.5 h-3.5 text-wishes-accent" />
                 <span className="text-xs font-medium text-white/90">
@@ -112,7 +117,10 @@ export default async function HomePage() {
               {/* 인기 동 바로 진입 (최대 8개, 지도 허브로 다이렉트) */}
               {popularDongs.length > 0 && (
                 <div className="pt-4">
-                  <p className="text-xs text-white/60 mb-2.5">인기 동 · 지도에서 바로 열기</p>
+                  {/* L-a11y1 (2026-04-21): text-white/60 → text-white/80.
+                      #1b5e20 위 white/60 은 대비 3.99:1 로 WCAG AA 4.5:1 fail.
+                      white/80 은 5.78:1 로 통과. Lighthouse Accessibility 95 → 100. */}
+                  <p className="text-xs text-white/80 mb-2.5">인기 동 · 지도에서 바로 열기</p>
                   <div className="flex flex-wrap gap-1.5 justify-center md:justify-start">
                     {popularDongs.map((dong) => (
                       <Link
