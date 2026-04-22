@@ -161,6 +161,7 @@ export default function AlertSubscribeModal({
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="example@email.com"
                   required
+                  autoComplete="email"
                   className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-primary/30 focus:border-wishes-primary"
                 />
               </div>
@@ -173,6 +174,7 @@ export default function AlertSubscribeModal({
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     placeholder="홍길동"
+                    autoComplete="name"
                     className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-primary/30 focus:border-wishes-primary"
                   />
                 </div>
@@ -183,6 +185,8 @@ export default function AlertSubscribeModal({
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="010-1234-5678"
+                    autoComplete="tel"
+                    inputMode="tel"
                     className="w-full px-3 py-2.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-primary/30 focus:border-wishes-primary"
                   />
                 </div>

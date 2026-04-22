@@ -261,7 +261,7 @@ ${listingForm.description}
                     <input
                       type="text"
                       required
-                      aria-label="이름" value={consultationForm.name}
+                      aria-label="이름" autoComplete="name" value={consultationForm.name}
                       onChange={(e) => setConsultationForm({ ...consultationForm, name: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="홍길동"
@@ -273,7 +273,7 @@ ${listingForm.description}
                       type="tel"
                       required
                       inputMode="tel"
-                      aria-label="연락처" value={consultationForm.phone}
+                      aria-label="연락처" autoComplete="tel" value={consultationForm.phone}
                       onChange={(e) => setConsultationForm({ ...consultationForm, phone: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="010-0000-0000"
@@ -285,7 +285,7 @@ ${listingForm.description}
                   <label className="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
                   <input
                     type="email"
-                    aria-label="이메일" value={consultationForm.email}
+                    aria-label="이메일" autoComplete="email" value={consultationForm.email}
                     onChange={(e) => setConsultationForm({ ...consultationForm, email: e.target.value })}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                     placeholder="email@example.com"
@@ -427,7 +427,7 @@ ${listingForm.description}
                       <input
                         type="text"
                         required
-                        aria-label="소유자 이름" value={listingForm.name}
+                        aria-label="소유자 이름" autoComplete="name" value={listingForm.name}
                         onChange={(e) => setListingForm({ ...listingForm, name: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="홍길동"
@@ -439,7 +439,7 @@ ${listingForm.description}
                         type="tel"
                         required
                         inputMode="tel"
-                        aria-label="소유자 연락처" value={listingForm.phone}
+                        aria-label="소유자 연락처" autoComplete="tel" value={listingForm.phone}
                         onChange={(e) => setListingForm({ ...listingForm, phone: e.target.value })}
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                         placeholder="010-0000-0000"
@@ -450,7 +450,7 @@ ${listingForm.description}
                     <label className="block text-sm font-semibold text-gray-700 mb-2">이메일</label>
                     <input
                       type="email"
-                      aria-label="소유자 이메일" value={listingForm.email}
+                      aria-label="소유자 이메일" autoComplete="email" value={listingForm.email}
                       onChange={(e) => setListingForm({ ...listingForm, email: e.target.value })}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-wishes-secondary/30 focus:border-wishes-secondary focus:bg-white transition-all"
                       placeholder="email@example.com"
