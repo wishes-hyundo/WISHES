@@ -8,13 +8,19 @@
 // 안전성:
 //   env 값은 노출하지 않고 존재 여부(불리언)만 반환.
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getPresignedPutUrl } from '@/lib/r2';
 import { createServerClient } from '@/lib/supabase';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+// L-sec29 (2026-04-22): 공개 GET 이 env 존재 여부 + R2 presign (billable) 생성.
+//   정보 노출 + 비용 남용 차단 위해 admin 인증 필수로 잠금.
+export async function GET(request: NextRequest) {
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  }
   const checks: Record<string, { ok: boolean; detail?: string }> = {};
 
   // 1) env 존재 여부
@@ -35,8 +41,8 @@ export async function GET() {
     };
   }
   checks['env.ADMIN_TOKEN'] = {
-    ok: true,
-    detail: process.env.ADMIN_TOKEN ? 'set' : 'not set (fallback: wishes2026)',
+    ok: !!process.env.ADMIN_TOKEN,
+    detail: process.env.ADMIN_TOKEN ? 'set' : 'missing (required since L-sec3)',
   };
 
   // 2) presign 테스트
