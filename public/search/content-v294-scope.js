@@ -74,24 +74,27 @@
     if (!host) {
       host = document.createElement('div');
       host.id = 'ws-v294-scope-root';
+      // P0 #1 fix (2026-04-22): top:8px right:12px 은 초기화(x=1297)·검색(x=1367)
+      //   버튼을 완전히 덮는다 → 좌상단으로 이동하여 헤더 영역을 비워둔다.
+      //   left:12px, top:42px 로 고정해 검색바(상단 50px) 아래로 밀어낸다.
       host.style.cssText = [
         'position:fixed',
-        'top:8px',
-        'right:12px',
+        'top:52px',
+        'left:12px',
         'z-index:99999',
         'display:inline-flex',
         'gap:4px',
-        'padding:4px',
-        'background:rgba(255,255,255,0.95)',
+        'padding:3px',
+        'background:rgba(255,255,255,0.97)',
         'border:1px solid #d5e5d5',
         'border-radius:999px',
         'box-shadow:0 2px 8px rgba(0,0,0,0.08)',
         'font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",sans-serif',
-        'font-size:12px',
+        'font-size:11px',
       ].join(';');
       host.innerHTML = (
-        '<button type="button" data-scope="all" style="border:0;padding:6px 12px;border-radius:999px;cursor:pointer;font-weight:600">전체</button>' +
-        '<button type="button" data-scope="mine" style="border:0;padding:6px 12px;border-radius:999px;cursor:pointer;font-weight:600">내 매물</button>'
+        '<button type="button" data-scope="all" style="border:0;padding:4px 10px;border-radius:999px;cursor:pointer;font-weight:600">전체</button>' +
+        '<button type="button" data-scope="mine" style="border:0;padding:4px 10px;border-radius:999px;cursor:pointer;font-weight:600">내 매물</button>'
       );
       document.body.appendChild(host);
 
@@ -126,9 +129,25 @@
     try {
       var W = window;
       if (W.WS && typeof W.WS.loadData === 'function') {
-        // 캐시 무효화용 플래그
-        if (W.WS._allListingsCache) W.WS._allListingsCache = null;
-        W.WS._loadingData = false;
+        // P0 #2 fix (2026-04-22): 실제 캐시 변수는 W.WS.allListings 이고,
+        //   content.js 는 추가로 IndexedDB('wishes_cache', 'listings', 'all_listings_v1')
+        //   에 데이터를 보관한다. scope 변경 시 서버가 다른 집합을 내려주므로
+        //   (a) allListings 초기화, (b) IDB 캐시 삭제, (c) _loadingData=false,
+        //   (d) loadData() 순서로 강제 재조회해야 리스트가 실제로 갱신된다.
+        try { W.WS.allListings = null; } catch (_) {}
+        try { W.WS.filtered = null; } catch (_) {}
+        try { W.WS._loadingData = false; } catch (_) {}
+        // IndexedDB 캐시 지우기 (best-effort — Promise 해결 전에도 loadData 실행)
+        try {
+          var req = indexedDB.open('wishes_cache', 1);
+          req.onsuccess = function (e) {
+            try {
+              var db = e.target.result;
+              var tx = db.transaction('listings', 'readwrite');
+              tx.objectStore('listings').delete('all_listings_v1');
+            } catch (_) {}
+          };
+        } catch (_) {}
         W.WS.loadData();
         return;
       }
