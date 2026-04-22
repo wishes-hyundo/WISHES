@@ -11,11 +11,27 @@ export function FloatingButtons() {
   const hasCompareItems = compareList.length > 0;
 
   useEffect(() => {
+    // L-perf6 (2026-04-22): { passive: true } 추가 — Lighthouse "Does not use passive
+    // listeners" 경고 해소 + iOS Safari 스크롤 jank 감소. setState 는 preventDefault
+    // 불필요. rAF throttle 로 60fps 면으로 과도한 리렌더 억제.
+    let raf = 0;
+    let lastShow = false;
     const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300);
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const next = window.scrollY > 300;
+        if (next !== lastShow) {
+          lastShow = next;
+          setShowScrollTop(next);
+        }
+      });
     };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (raf) cancelAnimationFrame(raf);
+    };
   }, []);
 
   const scrollToTop = () => {
