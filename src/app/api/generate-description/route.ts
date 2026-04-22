@@ -11,6 +11,13 @@ const supabaseAdmin = createClient(
 //   자가호출용 bearer 는 WISHES_ADMIN_MASTER_PASSWORD 사용
 const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 
+// L-sec40 (2026-04-22): AI 응답 raw + Anthropic 에러 상세 프로덕션에서 숨김.
+//   admin 게이트가 있어도 회귀성 정보 유출 방어 (defense-in-depth).
+const IS_DEV = process.env.NODE_ENV !== 'production';
+function devDetail<T>(detail: T): T | undefined {
+  return IS_DEV ? detail : undefined;
+}
+
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -97,6 +104,7 @@ ${listingInfo}
       return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 500 });
     }
 
+    // L-sec40: Anthropic API 30초 타임아웃 — admin UI 가 무한 대기하지 않도록.
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -109,11 +117,12 @@ ${listingInfo}
         max_tokens: 2000,
         messages: [{ role: 'user', content: prompt }],
       }),
+      signal: AbortSignal.timeout(30_000),
     });
 
     if (!response.ok) {
-      const err = await response.text();
-      return NextResponse.json({ error: 'AI API failed', details: err }, { status: 500 });
+      const err = await response.text().catch(() => '');
+      return NextResponse.json({ error: 'AI API failed', details: devDetail(err) }, { status: 500 });
     }
 
     const aiData = await response.json();
@@ -128,7 +137,7 @@ ${listingInfo}
     }
 
     if (!parsed) {
-      return NextResponse.json({ error: 'Failed to parse AI response', raw: aiText }, { status: 500 });
+      return NextResponse.json({ error: 'Failed to parse AI response', raw: devDetail(aiText) }, { status: 500 });
     }
 
     // If listingId provided, update the listing in DB
@@ -159,7 +168,7 @@ ${listingInfo}
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: IS_DEV ? message : '요청 처리 실패' }, { status: 500 });
   }
 }
 
@@ -170,8 +179,10 @@ export async function PUT(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const limit = body.limit || 10;
+    const body = await request.json().catch(() => ({}));
+    // L-sec40: limit 상한 (batch AI 호출 비용 폭증 방지)
+    const rawLimit = Number(body.limit);
+    const limit = Number.isFinite(rawLimit) ? Math.min(50, Math.max(1, Math.floor(rawLimit))) : 10;
 
     // Find listings without AI description
     const { data: listings, error } = await supabaseAdmin
@@ -183,7 +194,7 @@ export async function PUT(request: NextRequest) {
       .limit(limit);
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: IS_DEV ? error.message : 'DB 조회 실패' }, { status: 500 });
     }
 
     if (!listings || listings.length === 0) {
@@ -237,6 +248,6 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: IS_DEV ? message : '요청 처리 실패' }, { status: 500 });
   }
 }
