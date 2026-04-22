@@ -61,9 +61,19 @@ export function isValidShortCode(code: string): boolean {
 
 /** 공유될 host 기반 단축 URL 조립 (host 는 요청에서 추출) */
 export function buildShortUrl(host: string, code: string): string {
-  // wishes.me 전용 호스트가 있으면 우선, 없으면 현재 host 사용
+  // wishes.me 전용 호스트가 있으면 우선, 없으면 현재 host 사용.
+  // L-sec56 (2026-04-22): substring 매치 → 엄격한 hostname 검증.
+  //   'evilwishes.co.kr.attacker.com' 같은 악성 호스트가 브랜드 단축 URL 로
+  //   잘못 매핑되는 것을 방지.
   const primary = 'wishes.me';
-  const cleanHost = host.replace(/^https?:\/\//, '').replace(/\/$/, '');
-  const useHost = cleanHost.includes('wishes.co.kr') || cleanHost.includes('localhost') ? primary : cleanHost;
+  const cleanHost = host.replace(/^https?:\/\//, '').replace(/\/$/, '').split(':')[0].toLowerCase();
+  const isBrandHost =
+    cleanHost === 'wishes.co.kr' ||
+    cleanHost.endsWith('.wishes.co.kr') ||
+    cleanHost === 'wishes.me' ||
+    cleanHost.endsWith('.wishes.me') ||
+    cleanHost === 'localhost' ||
+    cleanHost.endsWith('.vercel.app');
+  const useHost = isBrandHost ? primary : cleanHost;
   return `${useHost}/${code}`;
 }
