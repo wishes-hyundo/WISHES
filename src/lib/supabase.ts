@@ -85,3 +85,31 @@ export function createAuthClient(): SupabaseClient {
   });
   return authClientInstance;
 }
+
+
+/**
+ * L-rls1 Phase 1 (2026-04-23): user-scoped anon client.
+ *
+ * 사용자의 Supabase access_token(JWT) 을 Authorization 헤더로 주입해
+ * PostgREST 가 auth.uid() 를 해당 사용자로 인식하게 한다. 추후 RLS 정책이
+ * auth.uid() = created_by 로 좁혀질 때, 이 클라이언트가 agent 본인 매물만
+ * 보이도록 자연스럽게 scope 된다 (service_role 이 아니므로 bypass 안됨).
+ *
+ * Phase 1 단계에서는 shadow policy(USING true)가 깔려 있어 기능 차이가 없지만,
+ * 새 라우트는 가능하면 이 팩토리를 쓰도록 유도. Phase 2 에서 정책을
+ * is_admin_unlimited() / auth.uid() = created_by 로 교체 시 별도 코드 변경 없이
+ * 권한이 자동 반영된다.
+ */
+export function createUserClient(accessToken: string): SupabaseClient {
+  if (!accessToken || accessToken.length < 10) {
+    throw new Error('[supabase] createUserClient requires a non-empty accessToken');
+  }
+  return createSupabaseClient(supabaseUrl as string, supabaseAnonKey as string, {
+    global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
