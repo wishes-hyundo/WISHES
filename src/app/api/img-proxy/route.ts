@@ -91,7 +91,18 @@ export async function GET(request: NextRequest) {
       return new NextResponse('upstream too large', { status: 413 });
     }
     const imageBuffer = Buffer.from(ab);
-    const contentType = res.headers.get('content-type') || 'image/jpeg';
+    const rawContentType = (res.headers.get('content-type') || 'image/jpeg').toLowerCase();
+    // L-sec110 (2026-04-22): Content-Type allowlist. ALLOWED_HOSTS 로 SSRF 는
+    //   차단되지만, upstream 이 image/svg+xml 또는 text/html 을
+    //   돌려주면 raw=1 경로에서 attacker-controlled SVG/HTML 가
+    //   wishes.co.kr 오리진으로 그대로 전달되어 XSS. 이미지
+    //   raster 포맷만 허용.
+    const SAFE_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
+    const primaryType = rawContentType.split(';')[0].trim();
+    if (!SAFE_IMAGE_TYPES.includes(primaryType)) {
+      return new NextResponse('unsupported upstream content-type', { status: 415 });
+    }
+    const contentType = primaryType;
 
     let outputBuffer: Buffer;
     let outputType: string;
