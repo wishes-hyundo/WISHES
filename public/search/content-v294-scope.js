@@ -1,5 +1,5 @@
 /**
- * content-v294-scope.js (2026-04-22, hardened build d)
+ * content-v294-scope.js (2026-04-22, hardened build e)
  * ─────────────────────────────────────────────
  * v7 §4 — 내 매물 / 전체 scope 토글을 /search 중개사 포털에 통합
  *
@@ -52,12 +52,48 @@
   //   UID 를 추출해 created_by 필터를 걸기 때문에, content.js 레거시 번들이
   //   Authorization 헤더 없이 /api/admin/listings 를 치면 서버가 UID 를
   //   못 꺼내 빈 결과(scope_auth:'failed') 를 반환한다.
-  //   → scope=mine 일 때 한해 세션/로컬 저장소의 ws_token 을 Bearer 로 주입.
+  //   → scope=mine 일 때 한해 세션/로컬 저장소의 토큰을 Bearer 로 주입.
+  //
+  // build e (2026-04-22): 토큰 소스 확장.
+  //   중개사 포털에서 Supabase 로그인 시 JWT 가 저장되는 표준 키는
+  //   `sb-<project-ref>-auth-token` (JSON {access_token,refresh_token,...}).
+  //   레거시 `ws_token` 이 비어있거나 JWT 형식이 아니면 Supabase 키에서
+  //   access_token 을 꺼내 Bearer 로 사용한다.
+  function isJwtLike(s) {
+    return !!s && typeof s === 'string' && s.indexOf('eyJ') === 0 && s.split('.').length === 3;
+  }
+  function extractSupabaseAccessToken() {
+    try {
+      for (var i = 0; i < localStorage.length; i++) {
+        var k = localStorage.key(i);
+        if (!k) continue;
+        if (!/^sb-.*-auth-token$/.test(k)) continue;
+        var raw = localStorage.getItem(k);
+        if (!raw) continue;
+        try {
+          var o = JSON.parse(raw);
+          // Supabase v2 shape: { access_token, refresh_token, expires_at, ... }
+          var at = o && (o.access_token
+            || (o.currentSession && o.currentSession.access_token));
+          if (isJwtLike(at)) return at;
+        } catch (_) { /* raw string fallback */
+          if (isJwtLike(raw)) return raw;
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
   function getWsToken() {
     try {
+      // 1) 레거시 ws_token (session → local)
       var t = null;
       try { t = sessionStorage.getItem('ws_token'); } catch (_) {}
       if (!t) { try { t = localStorage.getItem('ws_token'); } catch (_) {} }
+      if (isJwtLike(t)) return t;
+      // 2) Supabase sb-*-auth-token.access_token
+      var sb = extractSupabaseAccessToken();
+      if (sb) return sb;
+      // 3) fallback: ws_token 이 비-JWT 라도 그대로 반환 (MASTER_PASSWORD 등)
       return (t && typeof t === 'string') ? t : '';
     } catch (_) { return ''; }
   }
