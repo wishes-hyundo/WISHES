@@ -83,13 +83,15 @@ export async function GET(request: NextRequest) {
       // DB 타임아웃 → user_metadata만으로 진행
     }
 
-    // user_metadata 도 참고
-    const meta = (user.user_metadata || {}) as { status?: string; role?: string; name?: string; company?: string; phone?: string };
+    // L-sec60 (2026-04-22): CRITICAL user_metadata role/status fallback 제거.
+    //   user_metadata 는 supabase.auth.updateUser({data:...}) 로 사용자 본인이
+    //   자유롭게 수정 가능. role='admin' / status='approved' 를 스스로 설정한 뒤
+    //   /api/auth/me 를 호출하면 canAccessBroker=true 가 되어 UI가 어드민 권한으로 열렸다.
+    //   name/company/phone 는 식별용 표시값이라 user_metadata 폴백 가능, role/status 만 거부.
+    const meta = (user.user_metadata || {}) as { name?: string; company?: string; phone?: string };
 
-    const role = adminUser?.role || meta.role || 'pending';
-    const status = adminUser?.status === 'approved' || meta.status === 'approved'
-      ? 'approved'
-      : (adminUser?.status || meta.status || 'pending');
+    const role = adminUser?.role || 'user';
+    const status = adminUser?.status || 'pending';
 
     const APPROVED_ROLES = ['superadmin', 'admin', 'agent', 'broker', 'viewer', 'user'];
     const canAccessBroker = status === 'approved' && APPROVED_ROLES.includes(role);
