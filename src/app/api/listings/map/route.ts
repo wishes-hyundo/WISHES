@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
     const neLat = parseFloat(searchParams.get('neLat') || '0');
     const neLng = parseFloat(searchParams.get('neLng') || '0');
 
-    if (!swLat || !swLng || !neLat || !neLng) {
+    // L-sec28 (2026-04-22): 공개 GET. lat/lng 절대 범위 검증 (Infinity/NaN/범위 밖 차단)
+    const inLat = (v: number) => Number.isFinite(v) && v >= -90 && v <= 90 && v !== 0;
+    const inLng = (v: number) => Number.isFinite(v) && v >= -180 && v <= 180 && v !== 0;
+    if (!inLat(swLat) || !inLat(neLat) || !inLng(swLng) || !inLng(neLng)) {
       return NextResponse.json(
         {
           success: false,
@@ -40,17 +43,24 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const deal = searchParams.get('deal');
-    const type = searchParams.get('type');
-    const minDeposit = searchParams.get('minDeposit');
-    const maxDeposit = searchParams.get('maxDeposit');
+    // L-sec28: deal/type 길이 cap + price finite 검증
+    const deal = searchParams.get('deal')?.slice(0, 20) || null;
+    const type = searchParams.get('type')?.slice(0, 40) || null;
+    const toFinitePrice = (v: string | null): number | null => {
+      if (!v) return null;
+      const n = parseInt(v, 10);
+      if (!Number.isFinite(n) || n < 0 || n > 1e12) return null;
+      return n;
+    };
+    const minDeposit = toFinitePrice(searchParams.get('minDeposit'));
+    const maxDeposit = toFinitePrice(searchParams.get('maxDeposit'));
 
     // 가격 컬럼은 deal 에 따라 분기 (매매=price, 월세=monthly, 기본=deposit)
     const priceColumn = deal === '매매' ? 'price' : deal === '월세' ? 'monthly' : 'deposit';
 
     // 캐시 키 (소수점 3자리 ≒ 100m 오차 — 유사 이동 시 캐시 재활용)
     const q = (n: number) => n.toFixed(3);
-    const cacheKey = `listingsmap:${q(swLat)},${q(swLng)}-${q(neLat)},${q(neLng)}:${deal || ''}:${type || ''}:${minDeposit || ''}:${maxDeposit || ''}`;
+    const cacheKey = `listingsmap:${q(swLat)},${q(swLng)}-${q(neLat)},${q(neLng)}:${deal || ''}:${type || ''}:${minDeposit ?? ''}:${maxDeposit ?? ''}`;
 
     const result = await cached(
       cacheKey,
@@ -71,8 +81,8 @@ export async function GET(request: NextRequest) {
             .lte('lng', neLng);
           if (deal) q2 = q2.eq('deal', deal);
           if (type) q2 = q2.eq('type', type);
-          if (minDeposit) q2 = q2.gte(priceColumn, parseInt(minDeposit, 10));
-          if (maxDeposit) q2 = q2.lte(priceColumn, parseInt(maxDeposit, 10));
+          if (minDeposit != null) q2 = q2.gte(priceColumn, minDeposit);
+          if (maxDeposit != null) q2 = q2.lte(priceColumn, maxDeposit);
 
           const { data, error, count } = await q2
             .order('updated_at', { ascending: false, nullsFirst: false })
@@ -96,8 +106,8 @@ export async function GET(request: NextRequest) {
             .lte('lng', neLng);
           if (deal) q2 = q2.eq('deal', deal);
           if (type) q2 = q2.eq('type', type);
-          if (minDeposit) q2 = q2.gte(priceColumn, parseInt(minDeposit, 10));
-          if (maxDeposit) q2 = q2.lte(priceColumn, parseInt(maxDeposit, 10));
+          if (minDeposit != null) q2 = q2.gte(priceColumn, minDeposit);
+          if (maxDeposit != null) q2 = q2.lte(priceColumn, maxDeposit);
 
           const { data, error, count } = await q2
             .order('updated_at', { ascending: false, nullsFirst: false })
