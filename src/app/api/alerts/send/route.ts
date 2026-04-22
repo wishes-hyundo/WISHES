@@ -157,6 +157,8 @@ export async function GET(request: Request) {
       details: results
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    // L-sec70 (2026-04-22): 내부 에러 메시지 prod 노출 차단
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json({ error: isDev ? error.message : '알림 전송 실패' }, { status: 500 });
   }
 }

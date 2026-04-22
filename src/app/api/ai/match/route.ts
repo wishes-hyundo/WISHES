@@ -81,8 +81,10 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('AI 매칭 쿼리 오류:', error);
+      // L-sec70 (2026-04-22): Supabase error 의 column/constraint 메시지 prod 노출 차단
+      const isDev = process.env.NODE_ENV !== 'production';
       return NextResponse.json(
-        { success: false, error: '매물 조회 실패', detail: error.message },
+        { success: false, error: '매물 조회 실패', ...(isDev && { detail: error.message }) },
         { status: 500 }
       );
     }

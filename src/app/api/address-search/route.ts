@@ -102,8 +102,10 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error('[address-search] POST error:', error);
+    // L-sec70 (2026-04-22): prod 에서 Kakao API / 내부 에러 메시지 노출 차단
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: error.message || 'Unknown error', data: [] },
+      { success: false, error: isDev ? (error.message || 'Unknown error') : '주소 검색 실패', data: [] },
       { status: 500, headers: CORS_HEADERS }
     );
   }

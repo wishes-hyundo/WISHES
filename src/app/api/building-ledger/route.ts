@@ -170,8 +170,10 @@ combinedResult.ownerInfo.items
     });
   } catch (error: any) {
     console.error("[building-ledger] error:", error);
+    // L-sec70 (2026-04-22): data.go.kr / 내부 에러 메시지 prod 노출 차단
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { error: error.message || "건축물대장 조회 중 오류 발생" },
+      { error: isDev ? (error.message || "건축물대장 조회 중 오류 발생") : "건축물대장 조회 중 오류 발생" },
       { status: 500 }
     );
   }

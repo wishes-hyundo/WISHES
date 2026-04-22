@@ -9,7 +9,11 @@ export async function GET(request: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser(tkn);
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { data, error } = await supabase.from('alert_settings').select('*').eq('user_id', user.id).single();
-  if (error && error.code !== 'PGRST116') return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error && error.code !== 'PGRST116') {
+    // L-sec70 (2026-04-22): Supabase error 메시지 prod 노출 차단
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json({ error: isDev ? error.message : '알림 조회 실패' }, { status: 500 });
+  }
   return NextResponse.json(data || { areas: [], types: [], deals: [], min_price: 0, max_price: 0, enabled: false });
 }
 
@@ -49,6 +53,9 @@ export async function PUT(request: NextRequest) {
     enabled: enabled !== undefined ? !!enabled : true,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' }).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json({ error: isDev ? error.message : '알림 저장 실패' }, { status: 500 });
+  }
   return NextResponse.json(data);
 }
