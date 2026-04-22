@@ -86,7 +86,10 @@ export async function PUT(request: NextRequest) {
 
     // ì¹ì¸
     if (action === 'approve') {
-      const newRole = role || 'agent';
+      // L-sec48 (2026-04-22): approve path newRole whitelist (defense in depth)
+      //   compromised admin injecting arbitrary role blocked
+      const VALID_ROLES = ['admin', 'agent', 'viewer'];
+      const newRole = VALID_ROLES.includes(String(role || '')) ? String(role) : 'agent';
 
       const { error: upsertError } = await supabase.from('admin_users').upsert({
         id: userId, status: 'approved', role: newRole,
