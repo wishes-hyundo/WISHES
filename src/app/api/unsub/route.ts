@@ -1,12 +1,24 @@
 // GET /api/unsub?t=TOKEN — 구독 해지 (T5-7)
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    // L-sec76 (2026-04-22): unsub_token brute-force 공격 방지
+    //   1h 20회/IP cap. 정상 구독 해지는 사용자당 1-2회.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `unsub:ip:${_ip}`, limit: 20, windowMs: 60 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const token = String(body.token || '').trim();
     // L-sec36 (2026-04-22): 공개 엔드포인트. 토큰 길이 cap (DoS + DB 쿼리 폭주 방지).

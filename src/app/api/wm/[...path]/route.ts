@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
 import { applyWatermark } from '@/lib/watermark';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
@@ -22,6 +23,17 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    // L-sec76 (2026-04-22): sharp CPU + R2 fetch heavy (~100-500ms/img).
+    //   5분 60회/IP cap. 이미지 heavy 가 아니므로 img-proxy 보다 타이트.
+    const _ip = getClientIp(_request);
+    const _rl = checkRateLimit({ key: `wm:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return new NextResponse('rate limited', {
+        status: 429,
+        headers: { 'Retry-After': String(_rl.retryAfterSec) },
+      });
+    }
+
     const { path: pathSegments } = await params;
 
     // L-sec35: 각 segment 를 보수적인 화이트리스트로 검증.
