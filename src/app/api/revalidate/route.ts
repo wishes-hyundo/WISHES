@@ -10,19 +10,32 @@ import { NextRequest, NextResponse } from 'next/server';
  *   Body: { "path": "/listings", "secret": "..." }
  *   or:   { "path": "/listings/1", "secret": "..." }
  */
+// L-sec16 (2026-04-22): 하드코드 fallback secret 'wishes-revalidate-2024' 제거.
+//   env 가 미설정이면 500 으로 실패 → 무단 revalidate 로 인한 캐시 말살 공격 차단.
+//   path 도 allowlist 로 제한 (/listings, /listings/<digits>, /, /map 만 허용).
+const ALLOWED_PATH_RE = /^\/(?:listings(?:\/\d+)?|map|mypage|compare)?$/;
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { path, secret } = body;
+    const revalidateSecret = process.env.REVALIDATE_SECRET;
+    if (!revalidateSecret) {
+      // env 미설정은 서버 측 configuration 오류 → 500
+      return NextResponse.json({ error: 'revalidate_unconfigured' }, { status: 500 });
+    }
 
-    // 간단한 시크릿 키 검증 (환경변수로 관리)
-    const revalidateSecret = process.env.REVALIDATE_SECRET || 'wishes-revalidate-2024';
-    if (secret !== revalidateSecret) {
+    const body = await request.json().catch(() => ({}));
+    const { path, secret } = body as { path?: unknown; secret?: unknown };
+
+    if (typeof secret !== 'string' || secret !== revalidateSecret) {
       return NextResponse.json({ error: 'Invalid secret' }, { status: 401 });
     }
 
-    if (!path) {
+    if (typeof path !== 'string' || path.length === 0 || path.length > 200) {
       return NextResponse.json({ error: 'Path is required' }, { status: 400 });
+    }
+
+    if (!ALLOWED_PATH_RE.test(path)) {
+      return NextResponse.json({ error: 'path_not_allowed' }, { status: 400 });
     }
 
     // 해당 경로의 캐시를 갱신
@@ -38,7 +51,7 @@ export async function POST(request: NextRequest) {
       path,
       timestamp: Date.now(),
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json(
       { error: 'Failed to revalidate' },
       { status: 500 }
