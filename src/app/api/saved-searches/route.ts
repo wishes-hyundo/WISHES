@@ -132,8 +132,11 @@ export async function POST(request: NextRequest) {
     });
   } catch (e: any) {
     console.error('[saved-searches] POST error:', e);
+    // L-sec86 (2026-04-22): prod 에서 원본 에러 메시지 누출 차단
+    //   Supabase/스택 흔적 노출 방지. dev 에선 디버깅 용이성 위해 원본 유지.
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: e?.message || '서버 오류' },
+      { success: false, error: isDev ? (e?.message || '서버 오류') : '서버 오류' },
       { status: 500 }
     );
   }
