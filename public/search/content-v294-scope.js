@@ -1,5 +1,5 @@
 /**
- * content-v294-scope.js (2026-04-22)
+ * content-v294-scope.js (2026-04-22, hardened build d)
  * ─────────────────────────────────────────────
  * v7 §4 — 내 매물 / 전체 scope 토글을 /search 중개사 포털에 통합
  *
@@ -21,10 +21,15 @@
  *      다른 도메인/엔드포인트는 원본 그대로 통과.
  *   4. 토글 전환 시 WS.loadData() 가 있으면 호출해 재조회. 없으면 location.reload 폴백.
  *
- * 안전장치
+ * 안전장치 (build d, 2026-04-22)
  *   - 중복 주입 방지 (#ws-v294-scope-root 확인)
  *   - WS.loadData 부재 시 fallback 처리
  *   - fetch 래핑 복구(rollback) API: window.__WS_V294_ROLLBACK__()
+ *   - **fetch wrap 영구 보호**: Object.defineProperty(window,'fetch',{...}) setter
+ *     가드 + 1초 간격 self-heal interval. 다른 wrapper 가 window.fetch 를 덮어
+ *     써도 v294 wrappedFetch 가 항상 최외곽 layer 로 유지된다.
+ *   - **window.wsAdminFetch(url, init)** 명시 헬퍼 노출: defineProperty 가 실패한
+ *     환경에서도 토글 클릭 핸들러가 직접 호출하면 Bearer + scope=mine 보장.
  */
 (function () {
   'use strict';
@@ -67,7 +72,9 @@
           ? url.replace(/scope=[^&]*/, 'scope=mine')
           : url + sep + 'scope=mine';
         var tok = getWsToken();
-        var authVal = tok ? ('Bearer ' + tok) : '';
+        // build d: admin_bridge_ prefix 로 통일 — 서버 verifyAdminAuth #3
+        // (prefix 인식 후 JWT 경로 fall-through) 와 wsAdminFetch 헬퍼와 일치.
+        var authVal = tok ? ('Bearer admin_bridge_' + tok) : '';
         if (typeof input === 'string') {
           input = newUrl;
           if (authVal) {
@@ -104,9 +111,84 @@
     } catch (_) {}
     return origFetch.call(this, input, init);
   }
-  window.fetch = wrappedFetch;
+  // ── fetch wrap 보호 (build d, 2026-04-22) ─────────────────────────
+  // Phase 1: defineProperty 로 setter 가드 — 다른 wrapper 가
+  //   `window.fetch = X` 로 덮어쓰려 하면 X 를 origFetch 로 채택하고
+  //   wrappedFetch 가 그 위에 layer 를 유지한다.
+  // Phase 2: setInterval(1s) self-heal — defineProperty 가 환경적으로
+  //   실패했거나 누군가 configurable:true 상태에서 다시 defineProperty
+  //   해버렸을 때를 대비한 안전망.
+  var __v294_installed = false;
+  function installWrappedFetch() {
+    try {
+      Object.defineProperty(window, 'fetch', {
+        configurable: true,
+        enumerable: true,
+        get: function () { return wrappedFetch; },
+        set: function (newFn) {
+          if (typeof newFn === 'function' && newFn !== wrappedFetch) {
+            // 다른 wrapper 가 set → 그것을 새 origFetch 로 채택
+            origFetch = newFn;
+          }
+        },
+      });
+      __v294_installed = true;
+    } catch (_) {
+      // 폴백: 단순 대입
+      try { window.fetch = wrappedFetch; } catch (__) {}
+    }
+  }
+  installWrappedFetch();
+  // self-heal: 1초마다 window.fetch 가 wrappedFetch 가 아니면 재설치
+  try {
+    setInterval(function () {
+      try {
+        if (window.fetch !== wrappedFetch) {
+          if (typeof window.fetch === 'function') origFetch = window.fetch;
+          installWrappedFetch();
+        }
+      } catch (_) {}
+    }, 1000);
+  } catch (_) {}
+
+  // ── wsAdminFetch 명시 헬퍼 (build d) ───────────────────────────────
+  // window.fetch 가 어떤 wrapper 에 잠식되어도 항상 Bearer+scope=mine 보장.
+  // 토글 클릭 시 자동으로 호출되며, 외부 코드(WS.loadData 등) 도 사용 가능.
+  window.wsAdminFetch = function (url, init) {
+    var i = init || {};
+    try {
+      if (scope === 'mine' && SCOPE_TARGET_RE.test(url)) {
+        var hasQS = url.indexOf('?') >= 0;
+        var sep = hasQS ? '&' : '?';
+        url = url.indexOf('scope=') >= 0
+          ? url.replace(/scope=[^&]*/, 'scope=mine')
+          : url + sep + 'scope=mine';
+        var tok = getWsToken();
+        if (tok) {
+          var h = null;
+          try { h = new Headers(i.headers || {}); } catch (_) { h = null; }
+          if (h) {
+            // 서버 verifyAdminAuth 가 admin_bridge_<JWT> prefix 를 인식
+            h.set('Authorization', 'Bearer admin_bridge_' + tok);
+            i.headers = h;
+          }
+        }
+      }
+    } catch (_) {}
+    // origFetch 로 직접 호출 — wrappedFetch 를 거치지 않음(중복 주입 방지)
+    return origFetch.call(window, url, i);
+  };
+
   window.__WS_V294_ROLLBACK__ = function () {
-    if (window.fetch === wrappedFetch) window.fetch = origFetch;
+    try {
+      // defineProperty 자체를 해제하기 위해 다시 정의
+      Object.defineProperty(window, 'fetch', {
+        configurable: true, enumerable: true, writable: true, value: origFetch,
+      });
+    } catch (_) {
+      try { window.fetch = origFetch; } catch (__) {}
+    }
+    try { delete window.wsAdminFetch; } catch (_) { window.wsAdminFetch = undefined; }
     var el = document.getElementById('ws-v294-scope-root');
     if (el && el.parentNode) el.parentNode.removeChild(el);
   };
