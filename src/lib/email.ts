@@ -1,5 +1,18 @@
 import { Resend } from 'resend';
 
+// L-sec109 (2026-04-22): outgoing email HTML 템플릿에 user-controlled (subscriber name,
+//   search conditions) 및 crawler-sourced (listings.title 등) 필드가 이스케이프 없이
+//   삽입되고 있었음. email client sandbox 로 실질 XSS 영향은 제한적이지만 defense-in-depth.
+function escapeHtml(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  return String(v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Lazy initialization - 빌드 시 API 키 없어도 에러 방지
 let _resend: Resend | null = null;
 function getResend(): Resend | null {
@@ -31,7 +44,7 @@ export async function notifyAdminNewRegistration(user: {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: ADMIN_EMAIL,
-      subject: `[WISHES] 새 사용자 가입 요청 - ${user.name}`,
+      subject: `[WISHES] 새 사용자 가입 요청 - ${escapeHtml(user.name)}`,
       html: `
         <div style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f8faf5;border-radius:12px">
           <div style="background:#2d5016;color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center">
@@ -40,11 +53,11 @@ export async function notifyAdminNewRegistration(user: {
           <div style="background:white;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e2e8d0">
             <p style="color:#333;font-size:15px;margin-bottom:16px">새로운 사용자가 가입을 요청했습니다.</p>
             <table style="width:100%;border-collapse:collapse;font-size:14px">
-              <tr><td style="padding:8px;color:#666;width:80px">이름</td><td style="padding:8px;font-weight:600">${user.name}</td></tr>
-              <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">이메일</td><td style="padding:8px">${user.email}</td></tr>
-              <tr><td style="padding:8px;color:#666">전화</td><td style="padding:8px">${user.phone || '-'}</td></tr>
-              <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">소속</td><td style="padding:8px">${user.company || '-'}</td></tr>
-              <tr><td style="padding:8px;color:#666">사유</td><td style="padding:8px">${user.reason || '-'}</td></tr>
+              <tr><td style="padding:8px;color:#666;width:80px">이름</td><td style="padding:8px;font-weight:600">${escapeHtml(user.name)}</td></tr>
+              <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">이메일</td><td style="padding:8px">${escapeHtml(user.email)}</td></tr>
+              <tr><td style="padding:8px;color:#666">전화</td><td style="padding:8px">${escapeHtml(user.phone || '-')}</td></tr>
+              <tr style="background:#f9f9f9"><td style="padding:8px;color:#666">소속</td><td style="padding:8px">${escapeHtml(user.company || '-')}</td></tr>
+              <tr><td style="padding:8px;color:#666">사유</td><td style="padding:8px">${escapeHtml(user.reason || '-')}</td></tr>
             </table>
             <div style="margin-top:20px;text-align:center">
               <a href="${SITE_URL}/admin/command-center.html" style="display:inline-block;background:#4a7c23;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">관리자 센터에서 확인</a>
@@ -82,9 +95,9 @@ export async function notifyUserApproved(user: {
             <h1 style="margin:0;font-size:20px">WISHES 가입 승인</h1>
           </div>
           <div style="background:white;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e2e8d0">
-            <p style="color:#333;font-size:15px">${user.name}님, 환영합니다!</p>
+            <p style="color:#333;font-size:15px">${escapeHtml(user.name)}님, 환영합니다!</p>
             <p style="color:#666;font-size:14px">WISHES 서비스 가입이 승인되었습니다. 지금 바로 로그인하여 서비스를 이용하실 수 있습니다.</p>
-            <p style="color:#666;font-size:14px">부여된 권한: <strong>${user.role}</strong></p>
+            <p style="color:#666;font-size:14px">부여된 권한: <strong>${escapeHtml(user.role)}</strong></p>
             <div style="margin-top:20px;text-align:center">
               <a href="${SITE_URL}/admin" style="display:inline-block;background:#4a7c23;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">로그인하기</a>
             </div>
@@ -139,13 +152,13 @@ function renderListingRow(l: NotifyListing, siteUrl: string): string {
     <tr>
       <td style="padding:14px 0;border-bottom:1px solid #eef1ea">
         <div style="display:inline-block;padding:3px 9px;border-radius:999px;background:${badgeColor};color:#fff;font-size:11px;font-weight:700;margin-bottom:6px">
-          ${l.deal || ''}
+          ${escapeHtml(l.deal || '')}
         </div>
         <div style="font-size:15px;font-weight:700;color:#1e5a32;margin-bottom:3px">
-          <a href="${url}" style="color:#1e5a32;text-decoration:none">${l.title || (l.dong || '') + ' ' + (l.type || '')}</a>
+          <a href="${url}" style="color:#1e5a32;text-decoration:none">${escapeHtml(l.title || (l.dong || '') + ' ' + (l.type || ''))}</a>
         </div>
         <div style="font-size:13px;color:#555;margin-bottom:6px">
-          ${l.gu || ''} ${l.dong || ''} · ${l.type || ''}${l.area_m2 ? ` · ${l.area_m2}㎡` : ''}${l.floor_current ? ` · ${l.floor_current}층` : ''}
+          ${escapeHtml(l.gu || '')} ${escapeHtml(l.dong || '')} · ${escapeHtml(l.type || '')}${l.area_m2 ? ` · ${Number(l.area_m2)}㎡` : ''}${l.floor_current ? ` · ${escapeHtml(String(l.floor_current))}층` : ''}
         </div>
         <div style="font-size:14px;font-weight:700;color:#222">
           ${priceOf(l)}
@@ -171,10 +184,10 @@ export async function sendNewListingAlert(params: {
 
   const count = params.listings.length;
   const subject = count === 1
-    ? `[WISHES] 신규 매물 알림 — ${params.listings[0].title || '매물'}`
+    ? `[WISHES] 신규 매물 알림 — ${escapeHtml(params.listings[0].title || '매물')}`
     : `[WISHES] 신규 매물 ${count}건 알림`;
 
-  const greeting = params.name ? `${params.name}님,` : '안녕하세요,';
+  const greeting = params.name ? `${escapeHtml(params.name)}님,` : '안녕하세요,';
   const unsubUrl = `${SITE_URL}/unsub?t=${encodeURIComponent(params.unsubToken)}`;
 
   const html = `
@@ -182,7 +195,7 @@ export async function sendNewListingAlert(params: {
       <div style="background:linear-gradient(135deg,#2d5016,#4a7c23);color:#fff;padding:22px;border-radius:10px 10px 0 0;text-align:center">
         <div style="font-size:12px;letter-spacing:2px;opacity:0.85;margin-bottom:4px">WISHES REAL ESTATE</div>
         <h1 style="margin:0;font-size:22px;font-weight:800">신규 매물 알림</h1>
-        ${params.searchLabel ? `<div style="margin-top:6px;font-size:12px;opacity:0.9">조건: ${params.searchLabel}</div>` : ''}
+        ${params.searchLabel ? `<div style="margin-top:6px;font-size:12px;opacity:0.9">조건: ${escapeHtml(params.searchLabel)}</div>` : ''}
       </div>
       <div style="background:#fff;padding:22px;border:1px solid #e2e8d0;border-top:none;border-radius:0 0 10px 10px">
         <p style="color:#333;font-size:15px;margin:0 0 12px">${greeting}</p>
@@ -226,7 +239,7 @@ export async function sendSubscriptionConfirmed(params: {
   const resend = getResend();
   if (!resend) return null;
   const unsubUrl = `${SITE_URL}/unsub?t=${encodeURIComponent(params.unsubToken)}`;
-  const greeting = params.name ? `${params.name}님,` : '안녕하세요,';
+  const greeting = params.name ? `${escapeHtml(params.name)}님,` : '안녕하세요,';
   try {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
@@ -243,7 +256,7 @@ export async function sendSubscriptionConfirmed(params: {
               WISHES 부동산 매물 알림 구독이 정상 등록되었습니다.<br/>
               조건에 맞는 신규 매물이 등록될 때마다 이 메일로 안내드리겠습니다.
             </p>
-            ${params.searchLabel ? `<div style="margin-top:14px;padding:12px 14px;background:#f4f9f4;border-left:3px solid #4a7c23;border-radius:4px"><div style="font-size:11px;color:#888;margin-bottom:4px">내 검색 조건</div><div style="font-size:13px;color:#222;font-weight:600">${params.searchLabel}</div></div>` : ''}
+            ${params.searchLabel ? `<div style="margin-top:14px;padding:12px 14px;background:#f4f9f4;border-left:3px solid #4a7c23;border-radius:4px"><div style="font-size:11px;color:#888;margin-bottom:4px">내 검색 조건</div><div style="font-size:13px;color:#222;font-weight:600">${escapeHtml(params.searchLabel)}</div></div>` : ''}
             <div style="text-align:center;margin-top:22px">
               <a href="${SITE_URL}/listings" style="display:inline-block;padding:11px 22px;background:#4a7c23;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px">매물 검색으로 이동</a>
             </div>
@@ -269,16 +282,16 @@ export async function sendAdminNewsletter(params: {
   const resend = getResend();
   if (!resend) return null;
   const unsubUrl = `${SITE_URL}/unsub?t=${encodeURIComponent(params.unsubToken)}`;
-  const greeting = params.name ? `${params.name}님,` : '안녕하세요,';
+  const greeting = params.name ? `${escapeHtml(params.name)}님,` : '안녕하세요,';
   try {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: params.to,
-      subject: `[WISHES] ${params.subject}`,
+      subject: `[WISHES] ${escapeHtml(params.subject)}`,
       html: `
         <div style="font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;max-width:620px;margin:0 auto;padding:24px;background:#f8faf5">
           <div style="background:linear-gradient(135deg,#2d5016,#4a7c23);color:#fff;padding:20px;border-radius:10px 10px 0 0;text-align:center">
-            <h1 style="margin:0;font-size:20px;font-weight:800">${params.subject}</h1>
+            <h1 style="margin:0;font-size:20px;font-weight:800">${escapeHtml(params.subject)}</h1>
           </div>
           <div style="background:#fff;padding:24px;border:1px solid #e2e8d0;border-top:none;border-radius:0 0 10px 10px">
             <p style="color:#333;font-size:15px;margin:0 0 14px">${greeting}</p>
