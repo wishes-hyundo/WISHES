@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { parseMatchQuery } from '@/lib/ai-match-parser';
 import { applyImagePolicy } from '@/lib/image-policy';
+import { stripInternalFieldsArray } from '@/lib/listing-public';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,6 +19,17 @@ const LIMIT = 12;
 
 export async function POST(request: NextRequest) {
   try {
+    // L-sec67 (2026-04-22): 공개 AI 검색 스팸 방지
+    //   15분 60회/IP cap. ilike 다중 필터 쿼리 비용 보호.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `ai:match:ip:${_ip}`, limit: 60, windowMs: 15 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '검색이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const query: string = (body?.query || '').toString().trim();
 
@@ -77,7 +90,10 @@ export async function POST(request: NextRequest) {
     // ※ 저작권 보호 + 자체 업로드 통과
     //   - 크롤링 매물의 외부 원본 이미지는 차단
     //   - 중개사가 직접 올린 자체 업로드 이미지는 통과
-    const sanitized = (data || []).map((r: any) => applyImagePolicy(r));
+    // L-sec67 (2026-04-22): embedding + dedup_* 등 내부 필드 strip
+    const sanitized = stripInternalFieldsArray(
+      (data || []).map((r: any) => applyImagePolicy(r)),
+    );
 
     // 인식된 필터를 URL 쿼리스트링으로도 제공 (사용자가 /listings 로 이동할 때 재사용)
     const urlParams = new URLSearchParams();
