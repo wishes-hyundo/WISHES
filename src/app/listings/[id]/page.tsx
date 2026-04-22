@@ -28,10 +28,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   try {
     const { id } = await params;
     const supabase = createServerClient();
+    // L-sec94 (2026-04-22): IDOR 차단 — SSR metadata 도 공개 매물만 조회.
+    //   필터 없으면 임시/비공개/삭제 매물의 동·가격·주소가 <title>/<meta>/OG 에 노출됨.
     const { data: listing } = (await withTimeout(supabase
       .from('listings')
       .select('title, type, deal, dong, address, deposit, monthly, price, area_m2, source_site, ai_description, seo_keywords, seo_tags, seo_meta_description, building_purpose, business_type, station_name')
       .eq('id', id)
+      .eq('status', '공개')
       .single())) as { data: any };
 
     if (!listing) return fallback;
@@ -108,6 +111,8 @@ export default async function ListingPage({ params }: Props) {
   const { id } = await params;
   try {
     const supabase = createServerClient();
+    // L-sec94 (2026-04-22): IDOR 차단 — SSR 본문도 status='공개' 필터 필수.
+    //   비공개 매물의 주소/좌표/연락처/설명/사진/영상이 SSR HTML 에 그대로 유출되던 경로.
     const { data: listing } = (await withTimeout(supabase
       .from('listings')
       .select(`
@@ -129,6 +134,7 @@ export default async function ListingPage({ params }: Props) {
         listing_videos(id, url, poster_url, mime_type, sort_order)
       `)
       .eq('id', id)
+      .eq('status', '공개')
       .single())) as { data: any };
 
     // ※ 저작권 보호 + 자체 업로드 통과
