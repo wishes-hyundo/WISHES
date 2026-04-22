@@ -106,9 +106,15 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://map3.daumcdn.net" />
 
         {/* ⚡ 카카오맵 SDK — 핵심(services + clusterer) 만 선로드, drawing 은 사용자가 그리기 버튼 클릭 시 lazy 로드 */}
+        {/* L-perf5 (2026-04-22): beforeInteractive → afterInteractive. */}
+        {/*   홈·어박트·계산기·블로그 등 대부분 페이지는 Kakao SDK 가 필요없음. */}
+        {/*   beforeInteractive 는 하이드레이션을 지연시켜 TTI 를 악화시킴. afterInteractive 로 */}
+        {/*   하이드레이션 이후 병렬 로드. /map · /listings/[id] 은 MapClient/ListingLocationMap 가 */}
+        {/*   추가 로드 시도 전에 window.kakao?.maps 체크로 따라잡음(중복 스크립트 방지). */}
         <Script
+          id="kakao-map-sdk"
           src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || 'a1c65d0ec2ecc8d2d231f8558f896e38'}&libraries=services,clusterer&autoload=false`}
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
         />
 
         {/* Google Analytics removed - not configured */}
