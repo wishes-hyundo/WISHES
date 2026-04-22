@@ -16,10 +16,17 @@ import { Play, Maximize2, Box, ExternalLink } from 'lucide-react';
 function normalizeVrUrl(raw: string): string {
   try {
     const url = new URL(raw.trim());
+    const h = url.hostname.toLowerCase();
+    // L-sec58 (2026-04-22): hostname.includes() 서브스트링 매치 → 엄격한 hostname 검증.
+    //   'matterport.com.attacker.com' / 'youtube.com.evil.tld' 같은 스푸핑 호스트가
+    //   정상 프로바이더로 분류되어 iframe 에 임베드되는 것을 방지.
     // Matterport: matterport.com/show 또는 my.matterport.com — 그대로 사용
-    if (url.hostname.includes('matterport.com')) return url.toString();
+    if (h === 'matterport.com' || h.endsWith('.matterport.com')) return url.toString();
     // YouTube: watch?v= → embed/
-    if (url.hostname.includes('youtube.com') || url.hostname.includes('youtu.be')) {
+    const isYt =
+      h === 'youtube.com' || h.endsWith('.youtube.com') ||
+      h === 'youtu.be' || h.endsWith('.youtu.be');
+    if (isYt) {
       const vId = url.searchParams.get('v') || url.pathname.split('/').filter(Boolean).pop();
       if (vId) return `https://www.youtube.com/embed/${vId}?autoplay=1&rel=0`;
     }
