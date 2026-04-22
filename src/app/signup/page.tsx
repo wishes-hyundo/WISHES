@@ -100,27 +100,27 @@ export default function SignupPage() {
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>이름 *</label>
-            <input type="text" required value={form.name} onChange={(e) => update('name', e.target.value)} style={inputStyle} />
+            <input type="text" required autoComplete="name" value={form.name} onChange={(e) => update('name', e.target.value)} style={inputStyle} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>이메일 *</label>
-            <input type="email" required value={form.email} onChange={(e) => update('email', e.target.value)} style={inputStyle} />
+            <input type="email" required autoComplete="email" value={form.email} onChange={(e) => update('email', e.target.value)} style={inputStyle} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>비밀번호 * (8자 이상)</label>
-            <input type="password" required value={form.password} onChange={(e) => update('password', e.target.value)} style={inputStyle} />
+            <input type="password" required autoComplete="new-password" value={form.password} onChange={(e) => update('password', e.target.value)} style={inputStyle} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>비밀번호 확인 *</label>
-            <input type="password" required value={form.passwordConfirm} onChange={(e) => update('passwordConfirm', e.target.value)} style={inputStyle} />
+            <input type="password" required autoComplete="new-password" value={form.passwordConfirm} onChange={(e) => update('passwordConfirm', e.target.value)} style={inputStyle} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>연락처</label>
-            <input type="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
+            <input type="tel" autoComplete="tel" value={form.phone} onChange={(e) => update('phone', e.target.value)} placeholder="010-0000-0000" style={inputStyle} />
           </div>
           <div style={{ marginBottom: 14 }}>
             <label style={labelStyle}>소속 (회사/중개사무소)</label>
-            <input type="text" value={form.company} onChange={(e) => update('company', e.target.value)} style={inputStyle} />
+            <input type="text" autoComplete="organization" value={form.company} onChange={(e) => update('company', e.target.value)} style={inputStyle} />
           </div>
           <div style={{ marginBottom: 18 }}>
             <label style={labelStyle}>가입 사유 (선택)</label>

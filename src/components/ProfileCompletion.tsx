@@ -81,11 +81,11 @@ export default function ProfileCompletion({ onComplete }: ProfileCompletionProps
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">이름</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="이름을 입력하세요" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-wishes-secondary focus:ring-2 focus:ring-wishes-secondary/20 outline-none transition-all text-sm" />
+                <input type="text" autoComplete="name" value={name} onChange={e => setName(e.target.value)} placeholder="이름을 입력하세요" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-wishes-secondary focus:ring-2 focus:ring-wishes-secondary/20 outline-none transition-all text-sm" />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">연락처 <span className="text-gray-400 font-normal">(선택)</span></label>
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="010-0000-0000" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-wishes-secondary focus:ring-2 focus:ring-wishes-secondary/20 outline-none transition-all text-sm" />
+                <input type="tel" autoComplete="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="010-0000-0000" className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-wishes-secondary focus:ring-2 focus:ring-wishes-secondary/20 outline-none transition-all text-sm" />
               </div>
               <button onClick={() => setStep(2)} className="w-full py-3.5 bg-wishes-secondary text-white rounded-xl font-semibold text-sm hover:bg-wishes-secondary/90 transition-colors">다음</button>
             </div>
