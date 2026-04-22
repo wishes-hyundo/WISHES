@@ -37,7 +37,8 @@ export async function POST(request: NextRequest) {
     if (!body) return NextResponse.json({ success: false, error: '잘못된 요청' }, { status: 400 });
 
     const email = String(body.email || '').trim().toLowerCase();
-    if (!EMAIL_RE.test(email)) {
+    // L-sec20 (2026-04-22): 이메일 길이 상한 (RFC 5321: local 64 + @ + domain 255 = 320)
+    if (email.length > 320 || !EMAIL_RE.test(email)) {
       return NextResponse.json({ success: false, error: '이메일 주소를 확인해주세요' }, { status: 400 });
     }
 
@@ -52,23 +53,42 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const unsubToken = crypto.randomBytes(24).toString('hex');
 
+    // L-sec20: 유한수/범위 검증. Number() 가 NaN/Infinity 면 null 로 떨어뜨림.
+    //   상한 1e12 = 1조 (만원 단위 가격) — 현실 가격보다 충분히 크고 DB numeric overflow 방지.
+    const finiteNum = (v: any): number | null => {
+      if (v === null || v === undefined || v === '') return null;
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > 1e12) return null;
+      return n;
+    };
+    // L-sec20: filters_extra JSON 직렬화 후 크기 cap (8KB). 더 크면 {} 로 폴백.
+    let filtersExtraSafe: Record<string, any> = {};
+    try {
+      if (body.filters_extra && typeof body.filters_extra === 'object') {
+        const s = JSON.stringify(body.filters_extra);
+        if (s.length <= 8 * 1024) filtersExtraSafe = body.filters_extra;
+      }
+    } catch { /* ignore */ }
+    // L-sec20: 문자열 카테고리 필드도 cap
+    const capStr = (v: any, max: number) => v ? String(v).slice(0, max) : null;
+
     const payload = {
       name: body.name ? String(body.name).slice(0, 50) : null,
       email,
       phone: body.phone ? String(body.phone).replace(/[^\d\-+]/g, '').slice(0, 20) : null,
-      deal: body.deal || null,
-      type: body.type || null,
-      gu: body.gu || null,
-      dong: body.dong || null,
-      min_price: body.min_price ? Number(body.min_price) : null,
-      max_price: body.max_price ? Number(body.max_price) : null,
-      min_deposit: body.min_deposit ? Number(body.min_deposit) : null,
-      max_deposit: body.max_deposit ? Number(body.max_deposit) : null,
-      max_monthly: body.max_monthly ? Number(body.max_monthly) : null,
-      min_area_m2: body.min_area_m2 ? Number(body.min_area_m2) : null,
-      max_area_m2: body.max_area_m2 ? Number(body.max_area_m2) : null,
-      filters_extra: body.filters_extra || {},
-      source: body.source ? String(body.source).slice(0, 80) : null,
+      deal: capStr(body.deal, 20),
+      type: capStr(body.type, 40),
+      gu: capStr(body.gu, 40),
+      dong: capStr(body.dong, 60),
+      min_price: finiteNum(body.min_price),
+      max_price: finiteNum(body.max_price),
+      min_deposit: finiteNum(body.min_deposit),
+      max_deposit: finiteNum(body.max_deposit),
+      max_monthly: finiteNum(body.max_monthly),
+      min_area_m2: finiteNum(body.min_area_m2),
+      max_area_m2: finiteNum(body.max_area_m2),
+      filters_extra: filtersExtraSafe,
+      source: capStr(body.source, 80),
       unsub_token: unsubToken,
       active: true,
     };
