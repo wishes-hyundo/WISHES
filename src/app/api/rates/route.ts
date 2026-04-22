@@ -15,8 +15,10 @@ export async function GET() {
       .single();
 
     if (error || !data) {
+      // L-sec44 (2026-04-22): Supabase 에러 메시지 prod 에서 숨김
+      const isDev = process.env.NODE_ENV !== 'production';
       return NextResponse.json(
-        { error: 'No rate data found', details: error?.message },
+        isDev ? { error: 'No rate data found', details: error?.message } : { error: 'No rate data found' },
         { status: 404 }
       );
     }

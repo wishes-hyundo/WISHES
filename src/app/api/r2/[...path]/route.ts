@@ -38,7 +38,19 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
+  // L-sec44 (2026-04-22): path traversal 차단 + 길이 cap.
+  //   이전엔 path=['listings','..','secret'] → filePath='listings/../secret' 가
+  //   startsWith('listings/') 를 통과해 다른 prefix 객체 읽기가 가능했음.
+  const SAFE_SEG = /^[a-zA-Z0-9._\-]+$/;
+  for (const seg of path) {
+    if (!seg || seg === '.' || seg === '..' || !SAFE_SEG.test(seg)) {
+      return new NextResponse('Forbidden', { status: 403 });
+    }
+  }
   const filePath = path.join('/');
+  if (filePath.length > 500) {
+    return new NextResponse('Forbidden', { status: 403 });
+  }
 
   // 보안: listings 경로만 허용
   if (!filePath.startsWith('listings/')) {

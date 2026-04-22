@@ -35,7 +35,8 @@ export async function GET(req: NextRequest) {
   const lat = parseFloat(searchParams.get('lat') ?? '');
   const minutes = Math.min(60, Math.max(5, parseInt(searchParams.get('minutes') ?? '15', 10)));
 
-  if (Number.isNaN(lng) || Number.isNaN(lat)) {
+  // L-sec44 (2026-04-22): Infinity/NaN 가드 + 지리 좌표 범위 검증
+  if (!Number.isFinite(lng) || !Number.isFinite(lat) || lng < -180 || lng > 180 || lat < -90 || lat > 90) {
     return NextResponse.json({ error: 'invalid center' }, { status: 400 });
   }
 
