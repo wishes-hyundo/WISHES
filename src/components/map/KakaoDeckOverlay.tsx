@@ -19,6 +19,16 @@
 //     onClickCluster={(c) => ...}
 //     onClickListing={(id) => ...}
 //   />
+//
+// L-ux5-3 (2026-04-22): 가격 라벨 가독성 개선.
+//   1) formatPriceShort 가 거래 유형을 받아 매매/전세 → "억", 월세/단기 → "만원"
+//      으로 단위 일관화. 이전엔 price 크기만 보고 10000 이상이면 "억" 을 붙여서
+//      월세 4500만원이 "4억5천만" 으로 표시되는 사고가 있었다.
+//   2) 밀집 지역에서 TextLayer 가 모든 item 의 라벨을 그려 겹치는 현상을
+//      52px 그리드-버킷 declutter 로 해소 — 같은 cell 내에서는 가격 가장 높은
+//      item 하나만 라벨 표시. (CollisionFilterExtension 은 deps 에 없어서
+//      클라이언트 측 간단 bucket 으로 구현)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 'use client';
 
@@ -75,8 +85,27 @@ function defaultColorScale(count: number): [number, number, number, number] {
   return [219, 39, 119, 210]; // pink-600 (개별 매물)
 }
 
-function formatPriceShort(won?: number | null): string {
+/**
+ * L-ux5-3: 거래 유형별 단위 분기
+ *   매매/전세 → 억 (10000만원 이상이면)
+ *   월세/단기 → 만원 그대로 (deposit/monthly 는 본래 만원 단위)
+ *   deal 이 없으면 기존 방식(크기 기반 억 환산) 유지 — 주로 cluster avg_price
+ */
+function formatPriceShort(won?: number | null, deal?: string | null): string {
   if (!won || won <= 0) return '';
+  const d = (deal ?? '').trim();
+  const isRent = d === '월세' || d === '단기';
+  if (isRent) {
+    // 월세·단기는 보증금/월세 모두 "만원" 단위로 저장된다고 가정
+    // 1만 이상(=1억 이상)은 "N억" 으로 축약하지 않고 그대로 표시 (보증금 1.5억 = "15000")
+    if (won >= 10000) {
+      const 억 = Math.floor(won / 10000);
+      const 천 = Math.floor((won % 10000) / 1000);
+      return 천 === 0 ? `${억}억` : `${억}.${천}억`;
+    }
+    return `${won.toLocaleString()}`;
+  }
+  // 매매/전세 + 기본값
   if (won >= 10000) {
     const 억 = Math.floor(won / 10000);
     const 만 = won % 10000;
@@ -199,6 +228,32 @@ export default function KakaoDeckOverlay({
       ? items
       : clusters.filter((c) => c.count === 1);
 
+    // L-ux5-3: 그리드-버킷 declutter.
+    //   화면 52px 셀 안에 같은 가격 라벨을 여러 개 그리면 겹쳐서 알아볼 수 없다.
+    //   각 셀에서 price 가장 높은 1개만 남기고 나머지는 라벨 생략 (ScatterPlot 점은
+    //   그대로 표시 — 클릭은 여전히 가능).
+    const declutterCell = 52;
+    const labelBuckets = new Map<string, MapItem | MapCluster>();
+    for (const d of itemData) {
+      const [projX, projY] = project(d.lat, d.lng);
+      // project 는 Orthographic 원점 중심 좌표 → 화면 픽셀로 환산
+      const screenX = projX + w / 2;
+      const screenY = -projY + h / 2;
+      const key = `${Math.round(screenX / declutterCell)},${Math.round(screenY / declutterCell)}`;
+      const price =
+        (d as MapItem).price_unified ??
+        (d as MapCluster).avg_price ??
+        0;
+      const existing = labelBuckets.get(key);
+      const existingPrice = existing
+        ? (existing as MapItem).price_unified ?? (existing as MapCluster).avg_price ?? 0
+        : -1;
+      if (!existing || (price ?? 0) > (existingPrice ?? 0)) {
+        labelBuckets.set(key, d);
+      }
+    }
+    const labelData = Array.from(labelBuckets.values());
+
     const scatter = new ScatterplotLayer({
       id: 'clusters',
       data: clusterData,
@@ -235,6 +290,9 @@ export default function KakaoDeckOverlay({
       getTextAnchor: 'middle',
       getAlignmentBaseline: 'center',
       sizeUnits: 'pixels',
+      updateTriggers: {
+        getPosition: clusters.length,
+      },
     });
 
     const itemScatter = new ScatterplotLayer({
@@ -258,18 +316,25 @@ export default function KakaoDeckOverlay({
           (object as MapCluster).sample_ids?.[0];
         if (id && onClickListing) onClickListing(id);
       },
+      updateTriggers: {
+        getPosition: itemData.length,
+      },
     });
 
+    // L-ux5-3: itemText 는 itemScatter 와 달리 labelData (declutter 된 부분집합)
+    //   만 받는다 — 그려지는 점(=pickable) 은 유지하면서 텍스트만 솎아낸다.
     const itemText = new TextLayer({
       id: 'item-labels',
-      data: itemData,
+      data: labelData,
+      pickable: false,
       getPosition: (d: MapItem | MapCluster) => [
         ...project(d.lat, d.lng + 0.0004),
         0,
       ],
       getText: (d: MapItem | MapCluster) => {
         const p = (d as MapItem).price_unified ?? (d as MapCluster).avg_price ?? 0;
-        return formatPriceShort(p);
+        const deal = (d as MapItem).deal ?? null;
+        return formatPriceShort(p, deal);
       },
       getColor: () => [31, 41, 55, 255], // gray-800
       getSize: () => 11,
@@ -280,6 +345,10 @@ export default function KakaoDeckOverlay({
       sizeUnits: 'pixels',
       getTextAnchor: 'middle',
       getAlignmentBaseline: 'bottom',
+      updateTriggers: {
+        getPosition: labelData.length,
+        getText: labelData.length,
+      },
     });
 
     deckRef.current.setProps({

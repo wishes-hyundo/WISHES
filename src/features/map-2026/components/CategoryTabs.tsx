@@ -7,35 +7,28 @@
 //   - 활성 탭은 배경 filled, 비활성은 텍스트만
 //   - 라이브 카운트 = 현재 뷰포트의 해당 카테고리 매물 수
 //   - 카테고리 전환 시 무관한 필터는 자동 정리 (store.setCategory)
+//
+// L-ux5-1 (2026-04-22): 카운트 소스 통일.
+//   이전 구현은 서버가 이미 filter.category 로 걸러 돌려준 listings 를 다시
+//   `inferCategory()` regex 로 재분류해 활성 탭 뱃지 숫자를 계산했다. 문제는
+//   regex 가 "오피스텔"(주거) → /오피스/ 매칭으로 retail_office 로 넘기는 등
+//   오탐이 많아서 서버 232건 ↔ 클라 주거 146 으로 불일치가 발생,
+//   ListPanel("232개 매물") vs CategoryTabs 뱃지("주거 146") 로 드러났다.
+//   서버 응답을 그대로 신뢰해서 active 탭 = listings.length 로 단일 소스.
+//   (inferCategory 전체 삭제, useMemo/MapListing import 도 정리)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useMemo, useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent } from 'react';
 import {
   useMap2026Store,
   CATEGORY_THEME,
   type PropertyCategory,
-  type MapListing,
 } from '../store';
 import { zoomPulse } from '../lib/cinematicMotion';
 
 // 카테고리 순서 (UI 상 좌→우)
 const ORDER: PropertyCategory[] = ['residence', 'retail_office', 'land', 'investment'];
-
-// 매물을 카테고리로 분류하는 휴리스틱
-// 현재 DB 에는 직접적인 category 컬럼이 없으므로 type/deal 로 추정.
-// (Phase 2 에서 DB 에 category enum 컬럼 추가 예정)
-function inferCategory(l: MapListing): PropertyCategory {
-  const t = (l.type || '').toLowerCase();
-  // 토지
-  if (/토지|대지|전|답|임야|잡종지/.test(t)) return 'land';
-  // 상가·사무실 계열
-  if (/상가|사무|오피스|지식산업|공유오피스|근생|복합/.test(t)) return 'retail_office';
-  // 투자용 (수익형 표기가 있는 경우)
-  if (/수익|재건축|경매/.test(t)) return 'investment';
-  // 그 외 기본값 = 주거
-  return 'residence';
-}
 
 export function CategoryTabs() {
   const filter = useMap2026Store((s) => s.filter);
@@ -63,14 +56,10 @@ export function CategoryTabs() {
     }
   };
 
-  // 현재 뷰포트 매물 기준 카테고리별 카운트 (라이브)
-  const counts = useMemo(() => {
-    const c: Record<PropertyCategory, number> = {
-      residence: 0, retail_office: 0, land: 0, investment: 0,
-    };
-    for (const l of listings) c[inferCategory(l)] += 1;
-    return c;
-  }, [listings]);
+  // L-ux5-1: 서버가 이미 filter.category 로 필터링한 listings 를 돌려주므로
+  //   활성 탭의 진짜 카운트 = listings.length. 비활성 탭의 카운트는 알 수 없음
+  //   (서버 왕복 없이는) → dim dot 으로 유지.
+  const activeCount = listings.length;
 
   return (
     <div
@@ -81,11 +70,9 @@ export function CategoryTabs() {
       {ORDER.map((cat) => {
         const theme = CATEGORY_THEME[cat];
         const active = filter.category === cat;
-        const count = counts[cat];
-        // L-ux3 (2026-04-22): 비활성 탭 count 는 의미가 없음 (서버 API 가 이미
-        //   filter.category 로 걸러진 목록만 반환하므로 non-active = 항상 0).
-        //   "0" 으로 찍히면 "해당 카테고리에 매물 없음" 으로 오해됨.
-        //   이제 활성 탭만 실제 숫자, 나머지는 dim dot 으로 표기.
+        // L-ux3/L-ux5-1: 활성 탭만 실제 숫자 (서버 listings.length).
+        //   비활성 탭은 dim dot (서버 왕복 없이는 알 수 없음).
+        const count = active ? activeCount : 0;
         const showCount = active;
 
         return (
