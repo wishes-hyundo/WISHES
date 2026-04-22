@@ -13,6 +13,14 @@ function escapeHtml(v: unknown): string {
     .replace(/'/g, '&#39;');
 }
 
+// L-sec109 (2026-04-22): Subject/header 필드는 HTML 이 아닌 plain text 이므로
+//   escapeHtml 대신 MIME 헤더 인젝션(CR/LF) 만 차단한다. Resend SDK 가 자체적으로
+//   헤더 sanitize 하지만 defense-in-depth 로 이중 가드.
+function sanitizeHeader(v: unknown): string {
+  if (v === null || v === undefined) return '';
+  return String(v).replace(/[\r\n]+/g, ' ').trim();
+}
+
 // Lazy initialization - 빌드 시 API 키 없어도 에러 방지
 let _resend: Resend | null = null;
 function getResend(): Resend | null {
@@ -44,7 +52,7 @@ export async function notifyAdminNewRegistration(user: {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: ADMIN_EMAIL,
-      subject: `[WISHES] 새 사용자 가입 요청 - ${escapeHtml(user.name)}`,
+      subject: `[WISHES] 새 사용자 가입 요청 - ${sanitizeHeader(user.name)}`,
       html: `
         <div style="font-family:'Apple SD Gothic Neo',sans-serif;max-width:600px;margin:0 auto;padding:24px;background:#f8faf5;border-radius:12px">
           <div style="background:#2d5016;color:white;padding:20px;border-radius:8px 8px 0 0;text-align:center">
@@ -184,7 +192,7 @@ export async function sendNewListingAlert(params: {
 
   const count = params.listings.length;
   const subject = count === 1
-    ? `[WISHES] 신규 매물 알림 — ${escapeHtml(params.listings[0].title || '매물')}`
+    ? `[WISHES] 신규 매물 알림 — ${sanitizeHeader(params.listings[0].title || '매물')}`
     : `[WISHES] 신규 매물 ${count}건 알림`;
 
   const greeting = params.name ? `${escapeHtml(params.name)}님,` : '안녕하세요,';
@@ -287,7 +295,7 @@ export async function sendAdminNewsletter(params: {
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: params.to,
-      subject: `[WISHES] ${escapeHtml(params.subject)}`,
+      subject: `[WISHES] ${sanitizeHeader(params.subject)}`,
       html: `
         <div style="font-family:'Apple SD Gothic Neo','Malgun Gothic',sans-serif;max-width:620px;margin:0 auto;padding:24px;background:#f8faf5">
           <div style="background:linear-gradient(135deg,#2d5016,#4a7c23);color:#fff;padding:20px;border-radius:10px 10px 0 0;text-align:center">
