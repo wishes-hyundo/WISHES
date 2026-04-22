@@ -1,11 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// L-sec8 (2026-04-22): 이미지 base64 크기 상한 + mode enum 검증.
+//   - admin 페이지에서만 호출되지만 public route 이므로 방어 로직 필수.
+//   - Anthropic vision 입력 권장 상한(5MB binary ≈ 7MB base64) 를 감안해 6MB 로 설정.
+const MAX_IMAGE_BASE64_LEN = 6 * 1024 * 1024; // 6MB
+const ALLOWED_MODES = new Set(['enhance', 'mosaic']);
+
 export async function POST(request: NextRequest) {
   try {
     const { image, mode } = await request.json();
 
-    if (!image) {
+    if (!image || typeof image !== 'string') {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+    }
+
+    if (image.length > MAX_IMAGE_BASE64_LEN) {
+      return NextResponse.json(
+        { error: '이미지가 너무 큽니다 (최대 ~5MB)' },
+        { status: 413 }
+      );
+    }
+
+    if (mode !== undefined && (typeof mode !== 'string' || !ALLOWED_MODES.has(mode))) {
+      return NextResponse.json(
+        { error: 'mode 는 enhance 또는 mosaic 만 허용됩니다' },
+        { status: 400 }
+      );
     }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
