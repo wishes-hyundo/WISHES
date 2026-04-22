@@ -20,6 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { generateShortCode, isValidShortCode, buildShortUrl } from '@/lib/shortCode';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,22 +29,8 @@ const MAX_TARGET_LEN = 2048;
 const ALLOWED_CONTEXT = ['map', 'search', 'admin', 'other'] as const;
 const ALLOWED_SCOPE = ['all', 'mine'] as const;
 
-// ─────────────────────────────────────────────────────────
-// 간단 인메모리 rate limit (싱글 서버용). 프로덕션은 KV/Redis 권장.
-// 분당 30req/IP 초과 시 429.
-// ─────────────────────────────────────────────────────────
-const rateBucket = new Map<string, { count: number; resetAt: number }>();
-function rateLimit(ip: string, max = 30, windowMs = 60_000): boolean {
-  const now = Date.now();
-  const slot = rateBucket.get(ip);
-  if (!slot || now > slot.resetAt) {
-    rateBucket.set(ip, { count: 1, resetAt: now + windowMs });
-    return true;
-  }
-  if (slot.count >= max) return false;
-  slot.count += 1;
-  return true;
-}
+// L-sec85 (2026-04-22): 인라인 Map rate limiter 를 @/lib/rateLimit 로 일원화.
+//   POST 분당 30/IP 유지, GET 엔 코드 열거 방지를 위해 5분 120/IP 추가.
 
 // ─────────────────────────────────────────────────────────
 // 타깃 URL 검증 — pathname+search 만 허용 (오픈 리다이렉트 차단)
@@ -62,15 +49,13 @@ function validateTarget(raw: unknown): string | null {
 
 export async function POST(request: NextRequest) {
   try {
-    const ip =
-      request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      request.headers.get('x-real-ip') ||
-      'unknown';
-
-    if (!rateLimit(ip)) {
+    // L-sec85 (2026-04-22): 공용 rate limiter 로 전환. 분당 30/IP 유지.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `short-url-post:ip:${_ip}`, limit: 30, windowMs: 60_000 });
+    if (!_rl.ok) {
       return NextResponse.json(
         { success: false, error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
-        { status: 429 }
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
       );
     }
 
@@ -162,6 +147,16 @@ export async function POST(request: NextRequest) {
 
 // 역조회 (리다이렉트 라우트에서 사용)
 export async function GET(request: NextRequest) {
+  // L-sec85 (2026-04-22): random short code 열거 DB 부하 방지. 5분 120/IP.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `short-url-get:ip:${_ip}`, limit: 120, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { success: false, error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const code = request.nextUrl.searchParams.get('code');
   if (!code || !isValidShortCode(code)) {
     return NextResponse.json({ success: false, error: '유효하지 않은 코드' }, { status: 400 });
