@@ -41,7 +41,22 @@ export async function GET(
   try {
     const { path } = await params;
     const pathStr = (path || []).join('/');
-    const search = request.nextUrl.search || '';
+
+    // L-sec14 (2026-04-22): 공개 프록시 오용 방지. Kakao 로드뷰 SDK 가
+    //   실제로 호출하는 path 만 통과시켜 attacker 가 임의의
+    //   rv.map.kakao.com 엔드포인트를 wishes.co.kr 경유로 호출하지 못하게 차단.
+    //   현재 SDK 는 roadview-search/v2/* 만 사용.
+    const ALLOWED_PATH_RE = /^roadview-search\/v2\/[a-zA-Z0-9_\-/.]+$/;
+    if (!ALLOWED_PATH_RE.test(pathStr)) {
+      return NextResponse.json(
+        { error: 'path_not_allowed' },
+        { status: 403, headers: CORS_HEADERS }
+      );
+    }
+
+    // L-sec14: query string 도 길이 상한으로 cap (할당량 고갈 방지)
+    const rawSearch = request.nextUrl.search || '';
+    const search = rawSearch.length > 500 ? rawSearch.slice(0, 500) : rawSearch;
     const targetUrl = `${TARGET_BASE}/${pathStr}${search}`;
 
     const upstream = await fetch(targetUrl, {
