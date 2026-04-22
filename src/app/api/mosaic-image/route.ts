@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import sharp from 'sharp';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const maxDuration = 60;
 export const runtime = 'nodejs';
@@ -243,6 +244,17 @@ const FETCH_TIMEOUT_MS = 10_000;
 const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15MB
 
 export async function GET(request: NextRequest) {
+  // L-sec71 (2026-04-22): Claude Vision 토큰 소모 보호
+  //   5분 20회/IP cap. 캐시된 이미지도 IP 당 부하 제한에 포함.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `mosaic:ip:${_ip}`, limit: 20, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const url = request.nextUrl.searchParams.get('url');
   const forceReprocess = request.nextUrl.searchParams.get('force') === '1';
 

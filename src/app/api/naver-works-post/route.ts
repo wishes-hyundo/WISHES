@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // ─── CORS headers ───
 const corsHeaders = {
@@ -49,6 +50,17 @@ function buildJWT(clientId: string, serviceAccount: string, privateKeyPEM: strin
 // ─── POST handler ───
 export async function POST(request: NextRequest) {
   try {
+    // L-sec71 (2026-04-22): 공개 + CORS * 로 Naver Works API 할당량 보호
+    //   15분 30회/IP cap. 사용 빈도가 낮은 내부 용 도구.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `naver-works:ip:${_ip}`, limit: 30, windowMs: 15 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, message: '요청이 너무 많습니다.' },
+        { status: 429, headers: { ...corsHeaders, 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     // L-sec12: body 크기 상한을 먼저 측정해 50KB 초과시 즉시 차단.
     //   request.json() 은 raw bytes 접근이 어려우니 text() → JSON.parse.
     const raw = await request.text();
