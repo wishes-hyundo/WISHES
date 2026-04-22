@@ -42,12 +42,18 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    // L-sec46 (2026-04-22): validate id is an integer in range. Raw string to .eq()
+    //   can cause 500 on non-numeric input; also caps flood-abuse.
+    const nId = Number(id);
+    if (!Number.isFinite(nId) || !Number.isInteger(nId) || nId < 0 || nId > 2_000_000_000) {
+      return new Response('invalid id', { status: 400 });
+    }
     const supabase = createServerClient();
 
     const { data: listing } = await supabase
       .from('listings')
       .select('title, type, deal, dong, gu, deposit, monthly, price, area_m2, floor_current, floor_total, rooms, source_site')
-      .eq('id', id)
+      .eq('id', nId)
       .single();
 
     // 기본 카드 (매물 미발견 또는 에러 시)
