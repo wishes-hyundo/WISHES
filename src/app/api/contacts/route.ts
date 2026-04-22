@@ -3,6 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { createClient } from '@/lib/supabase';
 import { z } from 'zod';
 
@@ -47,6 +48,16 @@ const contactSchema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
+    // L-sec65 (2026-04-22):  공개 POST 엔드포인트 스팸 방지
+    //   1시간 10회/IP cap. checkRateLimit 인프라(L-sec62) 재사용.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `contacts:ip:${_ip}`, limit: 10, windowMs: 60 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
     const body = await request.json();
     const parsed = contactSchema.safeParse(body);
 
