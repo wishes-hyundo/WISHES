@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 import { createServerClient } from '@/lib/supabase';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const EMBEDDING_MODEL = 'text-embedding-3-small';
 const EMBEDDING_DIM = 384;
@@ -102,6 +103,15 @@ async function embedBatch(texts: string[], apiKey: string): Promise<number[][] |
 }
 
 export async function POST(request: NextRequest) {
+  // L-sec84 (2026-04-22): OpenAI embedding 배치 호출 보호. 1h 3회/IP.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `backfill-embed:ip:${_ip}`, limit: 3, windowMs: 60 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
   if (!(await verifyAuth(request))) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

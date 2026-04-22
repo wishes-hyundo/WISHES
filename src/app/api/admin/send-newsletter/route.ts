@@ -5,12 +5,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { sendAdminNewsletter } from '@/lib/email';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
+  // L-sec84 (2026-04-22): 이메일 대량 발송 비용 보호. 1h 5회/IP.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `newsletter:ip:${_ip}`, limit: 5, windowMs: 60 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { success: false, error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
   if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
   }

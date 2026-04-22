@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdminAuth } from '@/lib/adminAuth';
 import { adminCorsHeaders } from '@/lib/cors';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -21,6 +22,15 @@ export async function OPTIONS(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   const cors = adminCorsHeaders(req, 'POST, OPTIONS');
+  // L-sec84 (2026-04-22): Claude Opus 호출 비용 보호. 15분 20회/IP.
+  const _ip = getClientIp(req);
+  const _rl = checkRateLimit({ key: `auto-gen:ip:${_ip}`, limit: 20, windowMs: 15 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { ...cors, 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
   try {
     if (!(await verifyAdminAuth(req))) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: cors });

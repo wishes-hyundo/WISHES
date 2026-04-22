@@ -1,6 +1,7 @@
 import { revalidatePath } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqualStr } from '@/lib/timingSafe';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 /**
  * On-demand ISR Revalidation API
@@ -17,6 +18,17 @@ import { timingSafeEqualStr } from '@/lib/timingSafe';
 const ALLOWED_PATH_RE = /^\/(?:listings(?:\/\d+)?|map|mypage|compare)?$/;
 
 export async function POST(request: NextRequest) {
+  // L-sec84 (2026-04-22): secret brute-force 방지. 5분 30회/IP.
+  //   timingSafeEqualStr 에도 불구하고 무제한 시도를 차단.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `revalidate:ip:${_ip}`, limit: 30, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   try {
     const revalidateSecret = process.env.REVALIDATE_SECRET;
     if (!revalidateSecret) {

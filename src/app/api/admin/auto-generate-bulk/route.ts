@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec3 (2026-04-22): 박제 ADMIN_TOKEN = 'wishes2026' 제거 →
 //   인바운드: verifyAdminAuth(env 마스터 + CRAWLER_BRIDGE + JWT서명+role)
@@ -87,6 +88,15 @@ async function processBatch(
 }
 
 export async function POST(request: NextRequest) {
+  // L-sec84 (2026-04-22): 배치 job, 고비용 Claude 연속 호출. 1h 5회/IP.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `auto-gen-bulk:ip:${_ip}`, limit: 5, windowMs: 60 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
   if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }

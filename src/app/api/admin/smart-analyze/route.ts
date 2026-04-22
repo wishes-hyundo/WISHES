@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 interface AnalyzeRequest {
   address: string;
@@ -11,6 +12,15 @@ interface AnalyzeRequest {
 }
 
 export async function POST(request: NextRequest) {
+  // L-sec84 (2026-04-22): Claude API 호출 비용 보호. 15분 20회/IP.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `smart-analyze:ip:${_ip}`, limit: 20, windowMs: 15 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
   // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가 (Anthropic 유료 호출 보호)
   if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
