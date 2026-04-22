@@ -20,6 +20,7 @@ import { createServerClient } from '@/lib/supabase';
 import { parseMatchQuery } from '@/lib/ai-match-parser';
 import { applyImagePolicy } from '@/lib/image-policy';
 import { cached } from '@/lib/cache';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const SEARCH_LIMIT = 50;
 
@@ -82,6 +83,18 @@ export async function GET(request: NextRequest) {
     const q = (searchParams.get('q') || '').trim();
     if (!q) {
       return NextResponse.json({ success: true, data: [], total: 0, parsed: null });
+    }
+
+    // L-sec68 (2026-04-22): 유료 API 종단 보호
+    //   OPENAI embeddings + pgvector + pg_trgm 이 매 요청마다 도는 나감.
+    //   5분 40회/IP cap 으로 OpenAI 토큰/Supabase 비용 보호.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `map:search:ip:${_ip}`, limit: 40, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '검색이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
     }
 
     // L-sec23 (2026-04-22): 공개 GET. q 가 OpenAI embeddings API 로 흘러가
