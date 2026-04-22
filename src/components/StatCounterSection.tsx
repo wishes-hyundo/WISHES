@@ -11,6 +11,12 @@ function StatCounter({ value, label }: { value: string; label: string }) {
   useEffect(() => {
     if (hasAnimated || numValue === 0) return;
 
+    // L-leak1 (2026-04-22): interval 을 ref 에 보존하여 언마운트 시 clear.
+    //   기존: IntersectionObserver 콜백 안에서 setInterval 시작 후 참조 소실 →
+    //   컴포넌트가 애니메이션 중간에 언마운트되면 interval 이 계속 돌며
+    //   unmounted 컴포넌트에 setCount 호출 (React 경고 + 타이머 누수).
+    let intervalId: ReturnType<typeof setInterval> | null = null;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -19,11 +25,11 @@ function StatCounter({ value, label }: { value: string; label: string }) {
           setCount(0);
           let current = 0;
           const increment = Math.ceil(numValue / 30);
-          const interval = setInterval(() => {
+          intervalId = setInterval(() => {
             current += increment;
             if (current >= numValue) {
               setCount(numValue);
-              clearInterval(interval);
+              if (intervalId) clearInterval(intervalId);
             } else {
               setCount(current);
             }
@@ -38,7 +44,10 @@ function StatCounter({ value, label }: { value: string; label: string }) {
       observer.observe(ref.current);
     }
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [numValue, hasAnimated]);
 
   return (
