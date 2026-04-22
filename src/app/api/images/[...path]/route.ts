@@ -9,7 +9,21 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   const { path } = await params;
+  // L-sec45 (2026-04-22): path traversal 차단 + 길이 cap.
+  //   R2 버킷의 다른 prefix 객체를 임의로 읽지 못하게 segment 화이트리스트.
+  const SAFE_SEG = /^[a-zA-Z0-9._\-]+$/;
+  if (!path || path.length === 0 || path.length > 10) {
+    return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+  }
+  for (const seg of path) {
+    if (!seg || seg === '.' || seg === '..' || !SAFE_SEG.test(seg)) {
+      return NextResponse.json({ error: 'Invalid path' }, { status: 403 });
+    }
+  }
   const key = path.join('/');
+  if (key.length > 500) {
+    return NextResponse.json({ error: 'Invalid path' }, { status: 400 });
+  }
 
   try {
     const command = new GetObjectCommand({
