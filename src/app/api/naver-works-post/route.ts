@@ -187,7 +187,10 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
+    // L-sec104 (2026-04-22): prod 에서 err.message 로 JWT / Naver Works 내부 API
+    //   응답 구조가 누출되지 않도록 generic 메시지로 치환. dev 에선 디버깅 유지.
+    const isDev = process.env.NODE_ENV !== 'production';
+    const message = isDev ? (err instanceof Error ? err.message : 'Unknown error') : 'Internal error';
     return NextResponse.json(
       { success: false, message },
       { status: 500, headers: corsHeaders }
