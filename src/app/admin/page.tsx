@@ -138,8 +138,23 @@ export default function AdminPage() {
   const getAuthHeader = () => `Bearer ${password}`;
 
   // 인증 체크
+  // L-sec54 (2026-04-22): admin_password 를 localStorage → sessionStorage 로 이동.
+  //   localStorage 는 탭/브라우저 재시작에도 영구 저장되므로 XSS 탈취 창이 무한.
+  //   sessionStorage 는 탭 종료 시 만료 → XSS 공격 윈도우 축소.
+  //   레거시 localStorage 값은 발견 즉시 제거 + 마이그레이션.
   useEffect(() => {
-    const savedPassword = localStorage.getItem('admin_password');
+    let savedPassword: string | null = null;
+    try {
+      savedPassword = sessionStorage.getItem('admin_password');
+      if (!savedPassword) {
+        const legacy = localStorage.getItem('admin_password');
+        if (legacy) {
+          sessionStorage.setItem('admin_password', legacy);
+          localStorage.removeItem('admin_password');
+          savedPassword = legacy;
+        }
+      }
+    } catch {}
     if (savedPassword) {
       setPassword(savedPassword);
       setIsAuthenticated(true);
@@ -154,7 +169,11 @@ export default function AdminPage() {
         headers: { authorization: getAuthHeader() },
       });
       if (response.ok) {
-        localStorage.setItem('admin_password', password);
+        // L-sec54: localStorage → sessionStorage 로 저장 (XSS 창 축소).
+        try {
+          sessionStorage.setItem('admin_password', password);
+          localStorage.removeItem('admin_password');
+        } catch {}
         setIsAuthenticated(true);
         setAuthError('');
         fetchData(password);

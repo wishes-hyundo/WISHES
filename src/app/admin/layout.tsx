@@ -55,23 +55,31 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // Supabase token verify (비동기 백그라운드 - 인증 체크를 블로킹하지 않음)
-        if (!token.startsWith('admin_bridge_')) {
-          fetch('/api/auth/verify', {
-            headers: { 'Authorization': 'Bearer ' + token }
-          }).then(r => r.ok ? r.json() : null).then(vData => {
-            if (vData?.user?.role) {
-              try {
-                const cu = JSON.parse(window.sessionStorage.getItem('ws_user') || '{}');
-                if (cu.role !== vData.user.role) {
-                  cu.role = vData.user.role;
-                  window.sessionStorage.setItem('ws_user', JSON.stringify(cu));
-                  setUserRole(vData.user.role);
-                }
-              } catch(re) {}
-            }
-          }).catch(() => {});
+        // L-sec54 (2026-04-22): admin_bridge_ prefix 토큰은 무조건 차단.
+        //   기존: !startsWith('admin_bridge_') 인 경우에만 /api/auth/verify 로 재검증 →
+        //         admin_bridge_ 위조 토큰은 검증 없이 통과 (UI 레벨 인증 우회).
+        //   수정: admin_bridge_ 토큰은 감지 즉시 세션 폐기 + 로그인 페이지로.
+        if (token.startsWith('admin_bridge_')) {
+          window.sessionStorage.clear();
+          window.location.href = '/admin/admin-auth.html';
+          return;
         }
+
+        // Supabase token verify (비동기 백그라운드 - 인증 체크를 블로킹하지 않음)
+        fetch('/api/auth/verify', {
+          headers: { 'Authorization': 'Bearer ' + token }
+        }).then(r => r.ok ? r.json() : null).then(vData => {
+          if (vData?.user?.role) {
+            try {
+              const cu = JSON.parse(window.sessionStorage.getItem('ws_user') || '{}');
+              if (cu.role !== vData.user.role) {
+                cu.role = vData.user.role;
+                window.sessionStorage.setItem('ws_user', JSON.stringify(cu));
+                setUserRole(vData.user.role);
+              }
+            } catch(re) {}
+          }
+        }).catch(() => {});
 
         // 사용자 역할 추출
         try {
@@ -171,25 +179,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isNewListing = pathname === '/admin/listings/new';
   const isAdminRole = userRole === 'superadmin' || userRole === 'admin';
 
+  // L-sec54 (2026-04-22): admin_bridge_ 위조 토큰 발급 로직 제거.
+  //   해당 패턴은 L-sec1 에서 서버가 거부하므로 기능상 dead-code 였고,
+  //   localStorage['admin_password'] 를 bootstrap 키로 쓰던 로직 자체도
+  //   XSS 탈취 공격에 악용 가능한 UI 레벨 가장 경로였음.
+  //   Command Center 진입은 Supabase 세션 (ws_token) 이 있어야만 허용.
   const handleCommandCenter = () => {
     try {
       const token = window.sessionStorage.getItem('ws_token');
-      const userStr = window.sessionStorage.getItem('ws_user');
-      if (!token || !userStr) {
-        const adminPw = window.localStorage.getItem('admin_password');
-        if (adminPw) {
-          window.sessionStorage.setItem('ws_token', 'admin_bridge_' + Date.now());
-          window.sessionStorage.setItem('ws_user', JSON.stringify({
-            email: 'wishes@wishes.co.kr', role: 'superadmin', name: 'WISHES Admin'
-          }));
-          window.sessionStorage.setItem('ws_login_time', Date.now().toString());
-        }
+      if (!token) {
+        alert('먼저 관리자 로그인을 진행해주세요.');
+        window.location.href = '/admin';
+        return;
       }
     } catch (e) {}
     window.location.href = '/admin/command-center.html';
   };
 
   const handleLogout = () => {
+    // L-sec54: sessionStorage 로 옮긴 admin_password 도 함께 제거.
+    try { window.sessionStorage.removeItem('admin_password'); } catch {}
     window.localStorage.removeItem('admin_password');
     window.localStorage.removeItem('ws_token');
     window.localStorage.removeItem('ws_user');
