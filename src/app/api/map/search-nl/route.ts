@@ -20,43 +20,13 @@ const BodySchema = z.object({ query: searchQuerySchema }); // L-hub2
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // L-sec141 (2026-04-23): LLM fallback 응답 whitelist
-//   Phase 1.2 에서 Claude API 로 자연어를 구조화된 필터로 변환할 예정인데,
-//   LLM 이 환각한 필드(예: `sql: "..."` 나 `raw_where: "..."`)가 곧바로
-//   supabase 쿼리로 흘러가면 인젝션/정보 누출 위험이 있음. 선제적으로
-//   whitelist 스키마를 정의해 두고, LLM 경로가 들어오기 전에 parse/filter.
-//
-//   허용 필드 외 값은 자동 drop. 파싱 실패 시 LLM 응답 무시하고 원문
-//   keyword 만 사용하도록 호출측이 판단.
+//   Phase 1.2 에서 Claude API 로 자연어를 구조화된 필터로 변환할 예정.
+//   strict whitelist 스키마 + parseLlmFilter 는 `@/lib/llmFilter` 로 분리.
+//   이유: Next.js App Router route.ts 는 HTTP 메서드 외 symbol 을 export
+//   하면 타입 체크 빌드 실패 → 스키마/파서는 라이브러리 모듈로 이관.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-const StringArray = z.array(z.string().max(60)).max(20).optional();
-const NumCapped = z.number().finite().min(0).max(1e12).optional();
-
-const LlmFilterSchema = z
-  .object({
-    keywords: StringArray,
-    types: StringArray,
-    dongs: StringArray,
-    minPrice: NumCapped,
-    maxPrice: NumCapped,
-    minDeposit: NumCapped,
-    maxDeposit: NumCapped,
-    minMonthly: NumCapped,
-    maxMonthly: NumCapped,
-    minArea: NumCapped,
-    maxArea: NumCapped,
-  })
-  .strict(); // 허용 외 키가 있으면 에러 → 호출측이 drop 결정
-
-export type LlmFilterSafe = z.infer<typeof LlmFilterSchema>;
-
-/**
- * LLM 이 반환한 JSON 을 whitelist 스키마로 파싱. 실패 시 null.
- * 호출측은 null 이면 LLM 결과 무시하고 규칙 파서로 fallback 해야 한다.
- */
-export function parseLlmFilter(input: unknown): LlmFilterSafe | null {
-  const r = LlmFilterSchema.safeParse(input);
-  return r.success ? r.data : null;
-}
+// import { parseLlmFilter } from '@/lib/llmFilter';
+// ↑ Phase 1.2 에서 LLM 경로 추가할 때 위 라인 활성화
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 지역 사전 (수도권·광역시 주요 거점)
@@ -271,30 +241,4 @@ export async function POST(req: NextRequest) {
   //   현재 규칙 보새 파서 cheap 이지만
   //   관리자가 Claude fallback 켜면 비용 폭증 가능.
   //   5분 60회/IP cap.
-  const _ip = getClientIp(req);
-  const _rl = checkRateLimit({ key: `search-nl:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
-  if (!_rl.ok) {
-    return NextResponse.json(
-      { error: 'rate_limited' },
-      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
-    );
-  }
-
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json({ error: 'invalid json' }, { status: 400 });
-  }
-  const parsed = BodySchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'invalid body' }, { status: 400 });
-  }
-
-  const result = parseQuery(parsed.data.query);
-
-  return NextResponse.json(
-    { ...result, query: parsed.data.query },
-    { headers: { 'Cache-Control': 'public, max-age=600' } }
-  );
-}
+ 
