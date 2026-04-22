@@ -14,6 +14,8 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+// L-urgent1 (2026-04-22): ESLint no-html-link-for-pages — <a> → <Link> 전환.
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 // 공유 스켈레톤: dynamic import loading / 초기 supported===undefined 양쪽에서 동일하게 사용.
@@ -71,12 +73,12 @@ export default function MapClientWrapper() {
           <p className="mb-4 text-sm text-gray-600">
             WebGL 이 비활성화되어 있거나 지원되지 않는 환경입니다. 대신 목록에서 매물을 확인해 보세요.
           </p>
-          <a
+          <Link
             href="/listings"
             className="inline-flex items-center justify-center rounded-xl bg-wishes-primary px-5 py-3 text-sm font-bold text-white hover:bg-wishes-secondary"
           >
             매물 목록 보기
-          </a>
+          </Link>
         </div>
       </div>
     );

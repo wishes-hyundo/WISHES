@@ -7,6 +7,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { searchQuerySchema } from '@/lib/schemas'; // L-hub2
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import type {
   DealType,
@@ -15,7 +16,7 @@ import type {
   CommercialPurpose,
 } from '@/features/map-2026/store';
 
-const BodySchema = z.object({ query: z.string().min(1).max(200) });
+const BodySchema = z.object({ query: searchQuerySchema }); // L-hub2
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 지역 사전 (수도권·광역시 주요 거점)

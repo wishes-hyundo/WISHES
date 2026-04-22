@@ -7,14 +7,14 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Merge bypass: main-branch code had pre-existing TS/ESLint issues that surface
-  // only after the map-2026 merge. Keep the pragmatic deploy shortcut used by
-  // the newer next.config.ts — same pattern the team has used before.
+  // L-urgent1 (2026-04-22): 빌드 게이트 재활성화.
+  //   map-2026 merge 이후 임시로 열어두었던 bypass 를 닫는다. ESLint 16건 + 2건 truncation
+  //   복구 완료. 이제 회귀를 CI 에서 즉시 잡도록 strict 모드로 환원.
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 
   images: {
@@ -92,4 +92,4 @@ const nextConfig = {
   },
 }
 
-module.exports = withBundleAnalyzer(nextConfig)
+module.exports = withBundleAnalyzer(nextConfig);

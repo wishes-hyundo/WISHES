@@ -14,6 +14,9 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
+// L-urgent1 (2026-04-22): ESLint no-html-link-for-pages — <a> → <Link> 전환.
+import Link from 'next/link';
+
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
 import { useMap2026Store } from '@/features/map-2026/store';
@@ -240,12 +243,12 @@ export default function MapClient() {
           {failReason && (
             <p className="mb-3 text-[11px] text-gray-400">{failReason}</p>
           )}
-          <a
+          <Link
             href="/listings"
             className="inline-flex items-center justify-center rounded-xl bg-wishes-primary px-5 py-3 text-sm font-bold text-white hover:bg-wishes-secondary"
           >
             매물 목록 보기
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -341,7 +344,7 @@ export default function MapClient() {
 // 좁은 창에서 브랜드 영역 축소 — md 이하 W 로고, md+ wordmark, lg+ 배지
 function Brand() {
   return (
-    <a href="/" aria-label="WISHES 홈" className="flex shrink-0 items-center gap-2">
+    <Link href="/" aria-label="WISHES 홈" className="flex shrink-0 items-center gap-2">
       <div className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-[14px] font-extrabold text-white">
         W
       </div>
@@ -353,6 +356,6 @@ function Brand() {
           MAP 2026
         </span>
       </div>
-    </a>
+    </Link>
   );
 }

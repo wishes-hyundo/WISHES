@@ -428,7 +428,7 @@ export default function AdminDedupPage() {
           🧹 중복 매물 정리 센터
         </h1>
         <p className="text-white/70 text-sm">
-          소재지·동호수·거래유형·가격이 모두 일치하는 "100% 중복" 매물을 탐지하고 리뷰합니다.
+          소재지·동호수·거래유형·가격이 모두 일치하는 &ldquo;100% 중복&rdquo; 매물을 탐지하고 리뷰합니다.
           숨김 처리 후 30일 동안 복구 가능하며, 30일이 지나면 자동으로 영구 삭제됩니다.
         </p>
       </div>
@@ -546,7 +546,7 @@ export default function AdminDedupPage() {
 
           {!result && !loading && (
             <div className="p-10 text-center bg-white/5 rounded-2xl border border-dashed border-white/20 text-white/60">
-              "중복 스캔 실행" 을 눌러 시작하세요. 전체 매물을 대상으로 4축 완전일치 그룹을 찾아냅니다.
+              &ldquo;중복 스캔 실행&rdquo; 을 눌러 시작하세요. 전체 매물을 대상으로 4축 완전일치 그룹을 찾아냅니다.
             </div>
           )}
 
