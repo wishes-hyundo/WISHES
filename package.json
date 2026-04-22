@@ -46,7 +46,7 @@
     "framer-motion": "^11.15.0",
     "h3-js": "^4.1.0",
     "jsonwebtoken": "^9.0.2",
-    "lucide-react": "^0.475.0",
+    "lucide-react": "^0.577.0",
     "maplibre-gl": "^4.7.1",
     "next": "^15.2.0",
     "react": "^19.0.0",
