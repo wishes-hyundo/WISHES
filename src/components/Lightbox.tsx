@@ -62,7 +62,13 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
   const current = images[currentIndex];
 
   return (
-    <div className="fixed inset-0 z-[300] bg-black/95 flex flex-col" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[300] bg-black/95 flex flex-col"
+      role="dialog"
+      aria-modal="true"
+      aria-label="이미지 뷰어"
+      onClick={onClose}
+    >
       {/* 상단 바 */}
       <div className="flex items-center justify-between px-4 py-3 text-white/80" onClick={(e) => e.stopPropagation()}>
         <span className="text-sm font-medium">

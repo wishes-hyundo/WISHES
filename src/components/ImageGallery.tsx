@@ -49,7 +49,22 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
     <>
       <div className="bg-white rounded-xl overflow-hidden border border-gray-200">
         {/* 메인 이미지 */}
-        <div className="aspect-[16/10] bg-gray-100 relative group cursor-pointer" onClick={() => hasImages && setLightboxOpen(true)}>
+        {/* L-a11y5 (2026-04-22): 클릭으로 라이트박스 열기. 기존 <div onClick> 은 키보드로 활성화 불가.
+            중첩된 prev/next <button> 이 있어 <button> 으로 변경 불가 → role/tabIndex/onKeyDown 으로 공중점마 보완. */}
+        <div
+          className="aspect-[16/10] bg-gray-100 relative group cursor-pointer"
+          role={hasImages ? 'button' : undefined}
+          tabIndex={hasImages ? 0 : undefined}
+          aria-label={hasImages ? '이미지 크게 보기' : undefined}
+          onClick={() => hasImages && setLightboxOpen(true)}
+          onKeyDown={(e) => {
+            if (!hasImages) return;
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setLightboxOpen(true);
+            }
+          }}
+        >
           {hasImages ? (
             <>
               <img
