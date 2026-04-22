@@ -27,6 +27,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // L-sec22 (2026-04-22): 공개 POST. query 가 parseMatchQuery + ilike('dong', %..%)
+    //   로 흘러들어가므로 장문 페이로드로 DB 할당량을 고갈시키는 것을 막기 위해
+    //   500자 cap. 실사용 자연어 질의는 100자 이내.
+    if (query.length > 500) {
+      return NextResponse.json(
+        { success: false, error: '검색어가 너무 깁니다 (500자 이내)' },
+        { status: 400 }
+      );
+    }
+
     const filters = parseMatchQuery(query);
     const supabase = createServerClient();
 
