@@ -15,11 +15,13 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
   try {
-    // Vercel Cron 은 x-vercel-cron 헤더를 싣거나 Authorization: Bearer <CRON_SECRET>
-    const cronSecret = request.headers.get('x-cron-secret');
+    // L-sec108 (2026-04-22): x-vercel-cron 박제 bypass 제거. vercel.json 에
+    //   cron 설정이 없어 실사용되지 않는 경로이고, header-strip 의존 인증은
+    //   defense-in-depth 상 부적절. x-cron-secret 헤더 + CRON_SECRET 환경변수
+    //   일치만 신뢰하고, 그 외는 관리자 세션(verifyAdminAuth) 에 위임.
     // L-sec61 (2026-04-22): === → constant-time 비교 (타이밍 사이드채널 차단)
-    const isCron = !!request.headers.get('x-vercel-cron')
-      || (!!process.env.CRON_SECRET && timingSafeEqualStr(cronSecret, process.env.CRON_SECRET));
+    const cronSecret = request.headers.get('x-cron-secret');
+    const isCron = !!process.env.CRON_SECRET && timingSafeEqualStr(cronSecret, process.env.CRON_SECRET);
     if (!isCron && !(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

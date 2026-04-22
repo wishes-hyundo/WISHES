@@ -6,22 +6,19 @@ import { timingSafeEqualStr } from '@/lib/timingSafe';
 // Vercel Cron 또는 외부 트리거로 매일 실행
 // vercel.json에 cron 설정 필요: { "crons": [{ "path": "/api/alerts/send", "schedule": "0 9 * * *" }] }
 export async function GET(request: Request) {
-  // 보안: Vercel Cron 또는 특정 키로만 호출 가능
+  // L-sec108 (2026-04-22): x-vercel-cron 헤더 박제 bypass 제거.
+  //   vercel.json 에 crons 설정이 없어 이 헤더는 사용되지 않는다. 또한 Vercel edge 의
+  //   header strip 동작에만 의존하는 인증은 defense-in-depth 상 결함. 외부 스케줄러를
+  //   쓰는 현재 구조에서는 Authorization: Bearer CRON_SECRET 만 신뢰한다.
+  // L-sec98 (2026-04-22): Bearer 프리픽스 분리 후 timingSafeEqualStr 로 상수 시간 비교.
   const authHeader = request.headers.get('authorization');
   const cronSecret = process.env.CRON_SECRET;
-  const isVercelCron = request.headers.get('x-vercel-cron') === '1';
-
-  // L-sec98 (2026-04-22): 기존 `!==` 직접 비교는 초기 바이트 일치 시간으로
-  //   CRON_SECRET 을 byte-by-byte 추론 가능했음. Bearer 프리픽스를 분리한 후
-  //   timingSafeEqualStr 로 상수 시간 비교. cron/update-rates, cron/notify-matches 등과 정책 일치.
-  if (!isVercelCron) {
-    if (!cronSecret || !authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const token = authHeader.slice('Bearer '.length);
-    if (!timingSafeEqualStr(token, cronSecret)) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!cronSecret || !authHeader || !authHeader.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const token = authHeader.slice('Bearer '.length);
+  if (!timingSafeEqualStr(token, cronSecret)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {
