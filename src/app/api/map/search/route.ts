@@ -84,11 +84,31 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, data: [], total: 0, parsed: null });
     }
 
-    const swLat = parseFloat(searchParams.get('swLat') || 'NaN');
-    const swLng = parseFloat(searchParams.get('swLng') || 'NaN');
-    const neLat = parseFloat(searchParams.get('neLat') || 'NaN');
-    const neLng = parseFloat(searchParams.get('neLng') || 'NaN');
-    const hasBounds = ![swLat, swLng, neLat, neLng].some(Number.isNaN);
+    // L-sec23 (2026-04-22): 공개 GET. q 가 OpenAI embeddings API 로 흘러가
+    //   호출 비용이 사용자당 누적됨. 장문 페이로드로 할당량 고갈 방지.
+    //   실사용 자연어 질의는 100자 이내.
+    if (q.length > 500) {
+      return NextResponse.json(
+        { success: false, error: 'query too long' },
+        { status: 400 }
+      );
+    }
+
+    const swLatRaw = parseFloat(searchParams.get('swLat') || 'NaN');
+    const swLngRaw = parseFloat(searchParams.get('swLng') || 'NaN');
+    const neLatRaw = parseFloat(searchParams.get('neLat') || 'NaN');
+    const neLngRaw = parseFloat(searchParams.get('neLng') || 'NaN');
+    // L-sec23: 위/경도 범위 검증 (한국 기준: lat 33~39, lng 124~132 여유).
+    //   Infinity/NaN/말도 안 되는 좌표로 PostgREST 를 흔들지 못하게 차단.
+    const inLat = (v: number) => Number.isFinite(v) && v >= -90 && v <= 90;
+    const inLng = (v: number) => Number.isFinite(v) && v >= -180 && v <= 180;
+    const boundsValid =
+      inLat(swLatRaw) && inLat(neLatRaw) && inLng(swLngRaw) && inLng(neLngRaw);
+    const swLat = boundsValid ? swLatRaw : NaN;
+    const swLng = boundsValid ? swLngRaw : NaN;
+    const neLat = boundsValid ? neLatRaw : NaN;
+    const neLng = boundsValid ? neLngRaw : NaN;
+    const hasBounds = boundsValid;
 
     // Stage 1: 결정적 파서
     const parsed = parseMatchQuery(q);
