@@ -36,7 +36,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: baseUrl + '/calculator', lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: baseUrl + '/about', lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
     { url: baseUrl + '/contact', lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
-    { url: baseUrl + '/compare', lastModified: now, changeFrequency: 'monthly', priority: 0.6 },
+    // L-sec129 (2026-04-22, M-2): /compare 는 세션 상태 페이지라 layout 에서
+    //   robots: { index: false } 로 noindex 처리. sitemap 에서도 제거해 일관화.
     { url: baseUrl + '/privacy', lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
     { url: baseUrl + '/terms', lastModified: now, changeFrequency: 'yearly', priority: 0.3 },
   ];

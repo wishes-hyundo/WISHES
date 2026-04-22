@@ -12,11 +12,14 @@
 
 import type { NextRequest } from 'next/server';
 
+// L-sec130 (2026-04-22, M-3): localhost 오리진은 NODE_ENV !== 'production' 일 때만
+//   허용. 프로덕션 빌드에서 공격자가 http://localhost:3001 을 CSRF 툴로 위조해
+//   admin API 를 호출하는 경로를 차단.
+const LOCAL_DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:3001'];
 const ALLOWED_ADMIN_ORIGINS = [
   'https://wishes.co.kr',
   'https://www.wishes.co.kr',
-  'http://localhost:3000',
-  'http://localhost:3001',
+  ...(process.env.NODE_ENV !== 'production' ? LOCAL_DEV_ORIGINS : []),
 ];
 
 /**

@@ -55,9 +55,7 @@ async function resolveViaKakao(address: string): Promise<KakaoResolved | null> {
   }
 }
 
-// L-urgent1 (2026-04-22): next/core-web-vitals 에 @typescript-eslint 플러그인이 없어
-//   `// eslint-disable-next-line @typescript-eslint/no-explicit-any` 지시자가
-//   'rule not found' 오류를 일으켰다. 직접 any 사용은 Kakao/MOLIT 스키마가 외부 JSON 이라 불가피.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function extractFromKakaoDoc(doc: any): KakaoResolved | null {
   // 카카오 응답에서 지번주소 정보 추출 (road_address가 아닌 address 사용)
   const addr = doc.address;
@@ -220,7 +218,7 @@ const FIELD_MAP: [string, string][] = [
   ['dongNm', 'dongName'],
 ];
 
-// L-urgent1 (2026-04-22): ESLint 지시자 정리 — 동일 이유 (rule not found).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyObj = Record<string, any>;
 
 async function fetchBuildingData(

@@ -148,7 +148,7 @@ export default function AdminUsersPage() {
                   {u.phone && <span>{u.phone}</span>}
                   {u.company && <span> · {u.company}</span>}
                 </div>
-                {u.reason && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontStyle: 'italic' }}>&quot;{u.reason}&quot;</div>}
+                {u.reason && <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6, fontStyle: 'italic' }}>"{u.reason}"</div>}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 {u.status !== 'approved' && (

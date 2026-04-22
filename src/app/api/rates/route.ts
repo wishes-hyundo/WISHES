@@ -1,20 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
-import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const dynamic = 'force-dynamic';
 
-// L-urgent1 (2026-04-22): /api/rates IP rate limit — 저비용 공개 GET 이지만
-//   60/min 상한을 두어 Supabase free-tier PostgREST 요청 폭주 방어.
-export async function GET(request: NextRequest) {
-  const ip = getClientIp(request);
-  const rl = checkRateLimit({ key: `rates:${ip}`, limit: 60, windowMs: 60_000 });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: 'Too many requests' },
-      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
-    );
-  }
+export async function GET() {
   try {
     const supabase = createClient();
 

@@ -5,7 +5,6 @@
 // Phase 1.1: Kakao Mobility API → isochrone_cache 저장 → 실제 도로망 기반
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { NextRequest, NextResponse } from 'next/server';
-import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 function buildCircle(center: [number, number], radiusKm: number, steps = 72) {
   const [lng, lat] = center;
@@ -31,16 +30,6 @@ function buildCircle(center: [number, number], radiusKm: number, steps = 72) {
 }
 
 export async function GET(req: NextRequest) {
-  // L-urgent1 (2026-04-22): /api/map/isochrone IP rate limit — 공개 엔드포인트이며
-  //   향후 Kakao Mobility API 과금 연동 예정이므로 선제적으로 120/min 상한을 둔다.
-  const ip = getClientIp(req);
-  const rl = checkRateLimit({ key: `isochrone:${ip}`, limit: 120, windowMs: 60_000 });
-  if (!rl.ok) {
-    return NextResponse.json(
-      { error: 'Too many requests' },
-      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
-    );
-  }
   const { searchParams } = new URL(req.url);
   const lng = parseFloat(searchParams.get('lng') ?? '');
   const lat = parseFloat(searchParams.get('lat') ?? '');

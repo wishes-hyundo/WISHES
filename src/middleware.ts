@@ -7,12 +7,14 @@ import type { NextRequest } from 'next/server';
 //   - M1: Referrer-Policy 를 strict-origin-when-cross-origin 으로 강화
 //   - M5: deprecated X-XSS-Protection 헤더 제거 (CSP가 대체)
 // ─────────────────────────────────────────────────────────────────────────
+// L-sec130 (2026-04-22, M-3): localhost 는 NODE_ENV !== 'production' 일 때만
+//   허용. 프로덕션에서 공격자가 http://localhost:3001 을 위조해 admin API 를
+//   호출하는 CSRF 경로 차단. src/lib/cors.ts 와 완전히 동일한 규칙 유지.
+const LOCAL_DEV_ORIGINS = ['http://localhost:3000', 'http://localhost:3001'];
 const ALLOWED_ADMIN_ORIGINS = [
   'https://wishes.co.kr',
   'https://www.wishes.co.kr',
-  // 로컬 개발 / Vercel preview 는 개발 편의를 위해 허용
-  'http://localhost:3000',
-  'http://localhost:3001',
+  ...(process.env.NODE_ENV !== 'production' ? LOCAL_DEV_ORIGINS : []),
 ];
 
 function resolveAdminOrigin(request: NextRequest): string | null {

@@ -32,12 +32,9 @@ export function generateShortCode(len = 6): string {
     if (g && typeof g.getRandomValues === 'function') {
       return g.getRandomValues(new Uint8Array(n));
     }
-    // Node 16+ fallback — eval('require') 로 번들러/ESLint 양쪽 우회.
-    // L-urgent1 (2026-04-22): `// eslint-disable-next-line @typescript-eslint/no-require-imports`
-    //   지시자가 next/core-web-vitals 설정에 존재하지 않는 규칙을 참조해 ESLint 가
-    //   'Definition for rule ... was not found' 로 실패했다. require 자체를 간접 호출하도록 바꾼다.
-    const req = eval('require') as (mod: string) => { randomBytes: (n: number) => Buffer };
-    const { randomBytes } = req('crypto');
+    // Node 16+ fallback
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { randomBytes } = require('crypto') as { randomBytes: (n: number) => Buffer };
     return new Uint8Array(randomBytes(n));
   };
 
