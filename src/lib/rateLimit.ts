@@ -102,8 +102,14 @@ export function checkRateLimit({ key, limit, windowMs }: RateLimitOptions): Rate
 //   아무것도 없으면 'unknown' (로컬 dev 환경).
 // ─────────────────────────────────────────────────────────────────────────
 export function getClientIp(request: NextRequest): string {
+  // L-sec105 (2026-04-22): cf-connecting-ip 맹신 시 스푸핑으로 rate limit 우회 가능.
+  //   wishes.co.kr 은 Vercel icn1 직결 (Cloudflare 프런트 없음) — cf-connecting-ip 는
+  //   edge 가 절대 설정하지 않으므로, 존재한다면 공격자 주입이다.
+  //   cf-* 는 CF-RAY (Cloudflare 가 스스로 붙이는 고유 ID) 가 동반된 경우에만 신뢰.
+  //   일반 요청은 x-real-ip (Vercel 이 세팅) 이후 x-forwarded-for first-hop 사용.
   const cf = request.headers.get('cf-connecting-ip');
-  if (cf) return cf.trim();
+  const cfRay = request.headers.get('cf-ray');
+  if (cf && cfRay) return cf.trim();
   const real = request.headers.get('x-real-ip');
   if (real) return real.trim();
   const fwd = request.headers.get('x-forwarded-for');
