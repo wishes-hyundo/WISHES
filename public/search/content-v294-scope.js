@@ -179,10 +179,17 @@
     if (!needTap) {
       return origFetch.call(this, input, init);
     }
+    // L-crit2 (2026-04-23): scope=mine 이 total:0 + scope_auth:'ok' 를
+    //   리턴하면 "인증은 됐지만 이 UID 로 등록된 매물이 0건" 케이스. 과거 관리자
+    //   master 토큰으로 등록된 매물은 created_by=NULL 이라 scope=mine 필터에서
+    //   배제되어 "/search 전부 0건" 회귀가 반복됐다.
+    //   → 이 조합이 감지되면 같은 요청을 scope=all 로 재실행해 응답 본문을
+    //   치환하고, localStorage ws_v7_scope 도 'all' 로 영속화해 토글 UI 도 복구.
+    //   회귀 방지 장치 (사용자 보고: "다시는 생기면 안되는 일이야 제대로 복구해")
     return origFetch.call(this, input, init).then(function (r) {
       try {
         if (r && typeof r.clone === 'function') {
-          r.clone().json().then(function (body) {
+          return r.clone().json().then(function (body) {
             try {
               window.__WS_V294_LAST__ = {
                 scope: body && body.scope,
@@ -192,7 +199,40 @@
                 t: Date.now(),
               };
             } catch (_) {}
-          }, function () { /* non-JSON 응답은 무시 */ });
+            // L-crit2 auto-fallback: mine + ok + 0 → scope=all 재요청
+            var shouldFallback = body && body.scope === 'mine' && body.scope_auth === 'ok' &&
+                                 (body.total === 0 || (Array.isArray(body.data) && body.data.length === 0));
+            if (!shouldFallback) return r;
+            try {
+              var fbUrl = __url_for_tap.replace(/([?&])scope=mine(&|$)/, function(_m,a,b){return b?a:''}).replace(/[?&]$/,'');
+              fbUrl += (fbUrl.indexOf('?') >= 0 ? '&' : '?') + 'scope=all&_fb=v294';
+              var tokFb = getWsToken();
+              var fbInit = { headers: {}, cache: 'no-cache' };
+              if (tokFb) fbInit.headers.Authorization = 'Bearer admin_bridge_' + tokFb;
+              return origFetch.call(window, fbUrl, fbInit).then(function (r2) {
+                try {
+                  if (localStorage.getItem(STORAGE_KEY) === 'mine') {
+                    localStorage.setItem(STORAGE_KEY, 'all');
+                    scope = 'all';
+                    try { paint(); } catch(_) {}
+                  }
+                } catch(_) {}
+                try {
+                  r2.clone().json().then(function (body2) {
+                    window.__WS_V294_LAST__ = {
+                      scope: body2 && body2.scope,
+                      scope_auth: 'auto_fallback_all',
+                      total: body2 && body2.total,
+                      status: r2.status,
+                      fallback: true,
+                      t: Date.now(),
+                    };
+                  }, function(){});
+                } catch(_) {}
+                return r2;
+              }).catch(function(){ return r; });
+            } catch(_) { return r; }
+          }, function () { /* non-JSON 응답은 무시 */ return r; });
         }
       } catch (_) {}
       return r;
