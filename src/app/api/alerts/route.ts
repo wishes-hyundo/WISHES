@@ -13,6 +13,23 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(data || { areas: [], types: [], deals: [], min_price: 0, max_price: 0, enabled: false });
 }
 
+// L-sec21 (2026-04-22): 사용자 단일 레코드라도 배열/숫자 cap 없으면
+//   수백 MB payload 로 row 비대화 가능. 배열은 200개·각 원소 40자 이하 필터,
+//   숫자는 유한수 0~1e12 범위만 허용.
+function capStrArray(v: any, maxElems: number, maxChars: number): string[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((x): x is string => typeof x === 'string')
+    .slice(0, maxElems)
+    .map((s) => s.slice(0, maxChars));
+}
+function finiteNum(v: any): number {
+  if (v === null || v === undefined || v === '') return 0;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < 0 || n > 1e12) return 0;
+  return n;
+}
+
 export async function PUT(request: NextRequest) {
   const supabase = createServerClient();
   const authHeader = request.headers.get('authorization');
@@ -20,16 +37,16 @@ export async function PUT(request: NextRequest) {
   const tkn = authHeader.replace('Bearer ', '');
   const { data: { user }, error: authError } = await supabase.auth.getUser(tkn);
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const body = await request.json();
-  const { areas, types, deals, min_price, max_price, enabled } = body;
+  const body = await request.json().catch(() => ({}));
+  const { areas, types, deals, min_price, max_price, enabled } = (body || {}) as any;
   const { data, error } = await supabase.from('alert_settings').upsert({
     user_id: user.id,
-    areas: areas || [],
-    types: types || [],
-    deals: deals || [],
-    min_price: min_price || 0,
-    max_price: max_price || 0,
-    enabled: enabled !== undefined ? enabled : true,
+    areas: capStrArray(areas, 200, 60),
+    types: capStrArray(types, 50, 40),
+    deals: capStrArray(deals, 20, 20),
+    min_price: finiteNum(min_price),
+    max_price: finiteNum(max_price),
+    enabled: enabled !== undefined ? !!enabled : true,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' }).select().single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
