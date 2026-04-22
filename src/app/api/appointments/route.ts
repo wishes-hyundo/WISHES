@@ -12,13 +12,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import { z } from 'zod';
 
+// L-sec18 (2026-04-22): 공개 POST 엔드포인트. 스팸/DB 오염 방지용 max 강제.
 const appointmentSchema = z.object({
-  name: z.string().min(2, '이름을 입력해주세요'),
-  phone: z.string().min(9, '휴대폰 번호를 입력해주세요'),
-  email: z.string().email('올바른 이메일 형식이 아닙니다').optional().or(z.literal('')),
-  listingId: z.number().nullable().optional(),
+  name: z.string().min(2, '이름을 입력해주세요').max(100),
+  phone: z.string().min(9, '휴대폰 번호를 입력해주세요').max(30),
+  email: z.string().email('올바른 이메일 형식이 아닙니다').max(200).optional().or(z.literal('')),
+  listingId: z.number().int().nonnegative().max(2_000_000_000).nullable().optional(),
   visitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 형식'),
-  visitSlot: z.string().min(1),
+  visitSlot: z.string().min(1).max(40),
   note: z.string().max(500).optional().nullable(),
   source: z.string().max(200).optional().nullable(),
 });

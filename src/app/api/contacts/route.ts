@@ -6,25 +6,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import { z } from 'zod';
 
-// 입력값 유효성 검사 스키마
+// L-sec18 (2026-04-22): 공개 POST 엔드포인트. 스팸 봇이 대용량 페이로드로
+//   contacts 테이블을 채우지 못하도록 각 문자열 필드에 max() 강제.
 const contactSchema = z.object({
-  name: z.string().min(1, '이름을 입력해주세요'),
-  phone: z.string().min(1, '연락처를 입력해주세요'),
+  name: z.string().min(1, '이름을 입력해주세요').max(100),
+  phone: z.string().min(1, '연락처를 입력해주세요').max(30),
   email: z
     .string()
     .email('올바른 이메일 형식이 아닙니다')
+    .max(200)
     .optional()
     .or(z.literal('')),
-  message: z.string().optional(),
-  listingId: z.number().nullable().optional(),
-  inquiry_type: z.string().optional().default('consultation'),
-  property_type: z.string().optional().nullable(),
-  preferred_area: z.string().optional().nullable(),
-  budget_range: z.string().optional().nullable(),
-  move_date: z.string().optional().nullable(),
-  business_category: z.string().optional().nullable(),
-  preferred_floor: z.string().optional().nullable(),
-  additional_requirements: z.string().optional().nullable(),
+  message: z.string().max(2000).optional(),
+  listingId: z.number().int().nonnegative().max(2_000_000_000).nullable().optional(),
+  inquiry_type: z.string().max(40).optional().default('consultation'),
+  property_type: z.string().max(40).optional().nullable(),
+  preferred_area: z.string().max(200).optional().nullable(),
+  budget_range: z.string().max(100).optional().nullable(),
+  move_date: z.string().max(40).optional().nullable(),
+  business_category: z.string().max(100).optional().nullable(),
+  preferred_floor: z.string().max(40).optional().nullable(),
+  additional_requirements: z.string().max(2000).optional().nullable(),
 });
 
 /**
@@ -103,6 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
+
       {
         success: true,
         data,
