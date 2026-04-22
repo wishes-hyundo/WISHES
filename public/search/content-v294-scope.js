@@ -42,6 +42,21 @@
   // /api/listings 또는 /api/admin/listings 경로에만 scope=mine 주입
   var SCOPE_TARGET_RE = /\/api\/(?:admin\/)?listings(?:\/stats)?(?:\?|$)/;
   var origFetch = window.fetch;
+
+  // L-v7-p3 (2026-04-22): scope=mine 은 서버에서 auth.getUser(token) 로
+  //   UID 를 추출해 created_by 필터를 걸기 때문에, content.js 레거시 번들이
+  //   Authorization 헤더 없이 /api/admin/listings 를 치면 서버가 UID 를
+  //   못 꺼내 빈 결과(scope_auth:'failed') 를 반환한다.
+  //   → scope=mine 일 때 한해 세션/로컬 저장소의 ws_token 을 Bearer 로 주입.
+  function getWsToken() {
+    try {
+      var t = null;
+      try { t = sessionStorage.getItem('ws_token'); } catch (_) {}
+      if (!t) { try { t = localStorage.getItem('ws_token'); } catch (_) {} }
+      return (t && typeof t === 'string') ? t : '';
+    } catch (_) { return ''; }
+  }
+
   function wrappedFetch(input, init) {
     try {
       var url = typeof input === 'string' ? input : (input && input.url) || '';
@@ -51,11 +66,39 @@
         var newUrl = url.indexOf('scope=') >= 0
           ? url.replace(/scope=[^&]*/, 'scope=mine')
           : url + sep + 'scope=mine';
+        var tok = getWsToken();
+        var authVal = tok ? ('Bearer ' + tok) : '';
         if (typeof input === 'string') {
           input = newUrl;
+          if (authVal) {
+            init = init || {};
+            var h1 = null;
+            try { h1 = new Headers((init && init.headers) || {}); }
+            catch (_) { try { h1 = new Headers(); } catch (__) { h1 = null; } }
+            if (h1) { h1.set('Authorization', authVal); init.headers = h1; }
+          }
         } else if (input && 'url' in input) {
-          // Request 객체: 새 Request 생성
-          try { input = new Request(newUrl, input); } catch (_) {}
+          // Request 객체: 새 Request 로 재구성해 Authorization 덮어쓰기
+          try {
+            var headers = new Headers(input.headers || {});
+            if (authVal) headers.set('Authorization', authVal);
+            var reqInit = {
+              method: input.method,
+              headers: headers,
+              credentials: input.credentials,
+              cache: input.cache,
+              redirect: input.redirect,
+              referrer: input.referrer,
+              integrity: input.integrity,
+              mode: input.mode,
+            };
+            if (input.method && input.method !== 'GET' && input.method !== 'HEAD') {
+              reqInit.body = input.body;
+            }
+            input = new Request(newUrl, reqInit);
+          } catch (_) {
+            try { input = new Request(newUrl, input); } catch (__) {}
+          }
         }
       }
     } catch (_) {}

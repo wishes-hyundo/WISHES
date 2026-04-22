@@ -125,6 +125,35 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const fields = searchParams.get('fields');
 
+    // L-v7-p3 (2026-04-22): GET scope=mine 서버 파이프라인
+    // Authorization Bearer (admin_bridge_ prefix 허용) 에서 auth.getUser() 로
+    // UID 추출 후 created_by 필터. UID 미획득 시 빈 결과+scope_auth:'failed'.
+    const scopeParam = (searchParams.get('scope') || 'all').toLowerCase();
+    const scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
+    let scopeUid: string | null = null;
+    if (scope === 'mine') {
+      try {
+        const authHdr = request.headers.get('authorization') || '';
+        let token = authHdr.replace(/^Bearer\s+/i, '').trim();
+        if (token.startsWith('admin_bridge_')) token = token.slice('admin_bridge_'.length);
+        if (token.startsWith('eyJ') && token.split('.').length === 3 && token.length > 40) {
+          const { data } = await Promise.race([
+            supabase.auth.getUser(token),
+            new Promise<{ data: { user: null } }>((_, rej) =>
+              setTimeout(() => rej(new Error('uid_timeout')), 2000)
+            ),
+          ]) as { data: { user: { id: string } | null } };
+          scopeUid = data?.user?.id ?? null;
+        }
+      } catch { /* UID 추출 실패 → 빈 결과 반환 */ }
+      if (!scopeUid) {
+        return NextResponse.json(
+          { success: true, data: [], total: 0, scope: 'mine', scope_auth: 'failed' },
+          { status: 200, headers: { 'Cache-Control': 'private, no-store', 'Content-Type': 'application/json; charset=utf-8' } }
+        );
+      }
+    }
+
     if (fields === 'minimal') {
       // ⚡⚡⚡ 초경량 모드 (v3) — 전방위 최적화
       //  1) listing_images 는 url 만 → 이미지 페이로드 75% 감소
@@ -145,8 +174,14 @@ export async function GET(request: NextRequest) {
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
         'business_type', 'goodwill_fee',
         'station_name', 'station_distance',
+        'created_by', // L-v7-p3: scope=mine 디버그/검증용 echo
         'listing_images(url)' // ⚡ id/is_thumbnail/sort_order 제거 — 이미지 페이로드 -75%
       ].join(',');
+
+      // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
+      const cacheKey: string[] = scope === 'mine'
+        ? ['listings-minimal-v3-mine', scopeUid as string]
+        : ['listings-minimal-v3'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
@@ -154,11 +189,13 @@ export async function GET(request: NextRequest) {
           const PAGE_SIZE = 1000;
 
           // 1차 페이지
-          const { data: firstPage, error: firstError } = await supabase
+          let firstQ = supabase
             .from('listings')
             .select(selectFields)
             .order('created_at', { ascending: false })
             .range(0, PAGE_SIZE - 1);
+          if (scope === 'mine' && scopeUid) firstQ = firstQ.eq('created_by', scopeUid);
+          const { data: firstPage, error: firstError } = await firstQ;
 
           if (firstError || !firstPage) return [];
 
@@ -168,13 +205,13 @@ export async function GET(request: NextRequest) {
           if (firstPage.length === PAGE_SIZE) {
             const parallelPages = [];
             for (let from = PAGE_SIZE; from < 20000; from += PAGE_SIZE) {
-              parallelPages.push(
-                supabase
-                  .from('listings')
-                  .select(selectFields)
-                  .order('created_at', { ascending: false })
-                  .range(from, from + PAGE_SIZE - 1)
-              );
+              let q = supabase
+                .from('listings')
+                .select(selectFields)
+                .order('created_at', { ascending: false })
+                .range(from, from + PAGE_SIZE - 1);
+              if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
+              parallelPages.push(q);
             }
             const results = await Promise.all(parallelPages);
             for (const { data } of results) {
@@ -201,14 +238,14 @@ export async function GET(request: NextRequest) {
 
           return slim;
         },
-        ['listings-minimal-v3'],
+        cacheKey,
         { revalidate: 60, tags: ['listings'] }
       );
 
       const allData = await getCached();
 
       // ETag 기반 304 응답
-      const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length });
+      const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length, scope });
       const etag = '"' + createHash('sha1').update(bodyStr).digest('hex').substring(0, 16) + '"';
       const ifNoneMatch = request.headers.get('if-none-match');
       if (ifNoneMatch === etag) {
@@ -216,8 +253,10 @@ export async function GET(request: NextRequest) {
           status: 304,
           headers: {
             'ETag': etag,
-            'Cache-Control': 's-maxage=300, stale-while-revalidate=86400',
-            'CDN-Cache-Control': 'max-age=300',
+            'Cache-Control': scope === 'mine'
+              ? 'private, max-age=30'
+              : 's-maxage=300, stale-while-revalidate=86400',
+            ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'max-age=300' }),
           },
         });
       }
@@ -227,10 +266,12 @@ export async function GET(request: NextRequest) {
         headers: {
           'Content-Type': 'application/json; charset=utf-8',
           'ETag': etag,
-          // 🔥 공격적 캐싱: 5분 CDN 캐시 + 하루 내내 stale-while-revalidate
-          'Cache-Control': 's-maxage=300, stale-while-revalidate=86400',
-          'CDN-Cache-Control': 'max-age=300',
-          'Vary': 'Accept-Encoding',
+          // L-v7-p3: scope=mine 은 사용자별 private, all 은 기존 CDN 공격 캐시
+          'Cache-Control': scope === 'mine'
+            ? 'private, max-age=30'
+            : 's-maxage=300, stale-while-revalidate=86400',
+          ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'max-age=300' }),
+          'Vary': 'Accept-Encoding, Authorization',
         },
       });
       return response;
