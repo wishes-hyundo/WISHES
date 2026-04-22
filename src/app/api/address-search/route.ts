@@ -17,10 +17,17 @@ export async function OPTIONS() {
  * 주소 문자열 → Kakao API → 시군구코드/법정동코드/번/지 반환
  * auto-generate 파이프라인에서 건축물대장 조회 전 사용
  */
+// L-sec13 (2026-04-22): 공개 + CORS * 라 attacker 가 긴 query 로
+// Kakao REST API 할당량을 고갈시킬 수 있다. query 를 200자로 cap.
+const MAX_QUERY_LEN = 200;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const query = body.query || body.address || '';
+    const rawQuery = body.query || body.address || '';
+    const query = typeof rawQuery === 'string'
+      ? rawQuery.trim().slice(0, MAX_QUERY_LEN)
+      : '';
 
     if (!query) {
       return NextResponse.json(
@@ -150,4 +157,4 @@ export async function GET() {
   return new NextResponse(html, {
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   });
-        }
+}
