@@ -21,7 +21,12 @@ export default function SearchPortalPage() {
   // ── 인증 확인 (Supabase 호출 없음, 즉시 판단) ──
   useEffect(() => {
     try {
-      const token = (sessionStorage.getItem('ws_token')||(function(){try{var _lv=localStorage.getItem('ws_token');if(_lv){sessionStorage.setItem('ws_token',_lv);var u=localStorage.getItem('ws_user');if(u)sessionStorage.setItem('ws_user',u);var t=localStorage.getItem('ws_login_time');if(t)sessionStorage.setItem('ws_login_time',t);var p=localStorage.getItem('admin_password');if(p)sessionStorage.setItem('admin_password',p);return _lv;}}catch(e){}return '';})());
+      // L-sec136 (2026-04-23): localStorage→sessionStorage 마이그레이션에서
+      //   `admin_password` 복사는 제거. admin_password 는 fallback 자격증명 루트였고
+      //   C-2/L-sec113 에서 서버측 의존은 삭제됨. /search 에 남아있던 이 한 줄이
+      //   새 탭마다 localStorage.admin_password 를 sessionStorage 로 복제하여
+      //   legacy 가 살아있는 것처럼 동작했음. 이제 ws_token 경로만 유지.
+      const token = (sessionStorage.getItem('ws_token')||(function(){try{var _lv=localStorage.getItem('ws_token');if(_lv){sessionStorage.setItem('ws_token',_lv);var u=localStorage.getItem('ws_user');if(u)sessionStorage.setItem('ws_user',u);var t=localStorage.getItem('ws_login_time');if(t)sessionStorage.setItem('ws_login_time',t);return _lv;}}catch(e){}return '';})());
       if (token) {
         setState('ok');
       } else {

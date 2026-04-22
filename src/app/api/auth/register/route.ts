@@ -3,12 +3,11 @@ import { createServerClient } from '@/lib/supabase';
 import { notifyAdminNewRegistration } from '@/lib/email';
 import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
-import { emailSchema } from '@/lib/schemas';
 
 // L-sec39 (2026-04-22): 가입 입력 길이 cap + authError prod 숨김.
 const RegisterSchema = z.object({
   name: z.string().min(1).max(100),
-  email: emailSchema, // L-hub1
+  email: z.string().email().max(200),
   password: z.string().min(1).max(200),
   phone: z.string().max(30).optional().nullable(),
   company: z.string().max(200).optional().nullable(),

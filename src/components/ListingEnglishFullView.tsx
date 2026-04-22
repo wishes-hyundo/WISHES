@@ -311,7 +311,7 @@ export default function ListingEnglishFullView({
         <section className="bg-white rounded-xl border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
-              <Info className="w-4 h-4 text-wishes-primary" /> Agent&apos;s Notes
+              <Info className="w-4 h-4 text-wishes-primary" /> Agent's Notes
             </h3>
             <span className="text-[10px] uppercase tracking-wide font-bold text-gray-500">
               Original in Korean
@@ -322,7 +322,7 @@ export default function ListingEnglishFullView({
           </div>
           <div className="mt-3 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 leading-relaxed">
             The above note is written in Korean by the listing agent. For an English walkthrough,
-            please contact us — we&apos;ll prepare a tailored English briefing.
+            please contact us — we'll prepare a tailored English briefing.
           </div>
         </section>
       )}
