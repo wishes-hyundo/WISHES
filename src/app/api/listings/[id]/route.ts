@@ -16,9 +16,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const listingId = parseInt(id);
+    const listingId = parseInt(id, 10);
 
-    if (isNaN(listingId)) {
+    // L-sec33 (2026-04-22): isNaN 만 체크하면 Infinity/음수/거대 수 통과. 정수 범위 검증.
+    if (!Number.isFinite(listingId) || listingId < 0 || listingId > 2_000_000_000) {
       return NextResponse.json(
         { success: false, error: '유효하지 않은 매물 ID입니다' },
         { status: 400 }
