@@ -115,8 +115,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('AI 매칭 오류:', error);
+    // L-sec111 (2026-04-22): catch-all 에서도 L-sec70/L-sec104 정책 일치.
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: '서버 오류', detail: error?.message || String(error) },
+      { success: false, error: '서버 오류', ...(isDev && { detail: error?.message || String(error) }) },
       { status: 500 }
     );
   }

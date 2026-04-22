@@ -121,8 +121,11 @@ Return ONLY a JSON object with this exact format:
 
     if (!response.ok) {
       const errorData = await response.text();
+      // L-sec111 (2026-04-22): Anthropic response body 는 API key / 내부 prompt /
+      //   rate-limit 정보를 포함할 수 있다. prod 에선 status 만 노출.
+      const isDev = process.env.NODE_ENV !== 'production';
       return NextResponse.json(
-        { error: 'Anthropic API error: ' + response.status, details: errorData },
+        { error: 'Anthropic API error: ' + response.status, ...(isDev && { details: errorData }) },
         { status: response.status }
       );
     }
@@ -135,8 +138,10 @@ Return ONLY a JSON object with this exact format:
     return NextResponse.json(result);
   } catch (error) {
     console.error('Photo analysis error:', error);
+    // L-sec111 (2026-04-22): catch-all 도 L-sec70/L-sec104 정책 일치.
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { error: 'Failed to analyze photo', details: String(error) },
+      { error: 'Failed to analyze photo', ...(isDev && { details: String(error) }) },
       { status: 500 }
     );
   }

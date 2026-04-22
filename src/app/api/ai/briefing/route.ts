@@ -179,8 +179,14 @@ ${contextStr}
 
   } catch (error: any) {
     console.error('[ai/briefing] error:', error);
+    // L-sec111 (2026-04-22): 공개 엔드포인트. prod 에서 Anthropic/Supabase internal
+    //   메시지 누출 차단 (L-sec70/L-sec104 정책 일치).
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: '브리핑 생성에 실패했습니다: ' + (error?.message || '') },
+      {
+        success: false,
+        error: isDev ? '브리핑 생성에 실패했습니다: ' + (error?.message || '') : '브리핑 생성에 실패했습니다',
+      },
       { status: 500, headers: CORS_HEADERS }
     );
   }
