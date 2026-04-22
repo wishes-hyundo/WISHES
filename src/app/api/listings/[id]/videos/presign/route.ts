@@ -9,8 +9,9 @@
 //   클라이언트 → POST /api/listings/{id}/videos/metadata    ← DB 저장
 //
 // 인증:
-//   기존 videos/route.ts 와 동일하게 Authorization: Bearer <ADMIN_TOKEN>
-//   또는 마스터비밀번호 'wishes2026' 허용 (adminAuth 와 호환)
+//   기존 videos/route.ts 와 동일하게 Authorization: Bearer <Supabase JWT>
+//   또는 Bearer <WISHES_ADMIN_MASTER_PASSWORD env> (verifyAdminAuth 경유).
+//   L-sec2/L-sec3 (2026-04-22) 이후 소스 박제 'wishes2026' fallback 은 제거됨.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPresignedPutUrl } from '@/lib/r2';

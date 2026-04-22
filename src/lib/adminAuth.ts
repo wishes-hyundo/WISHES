@@ -21,14 +21,23 @@ import type { NextRequest } from 'next/server';
 import { createServerClient } from './supabase';
 import { timingSafeEqualStr } from './timingSafe';
 
-// ── 환경변수 기반 시크릿 ────────────────────────────────────────────
-// 프로덕션엔 반드시 env 로 설정. 로컬/테스트 환경 편의를 위해
-// `NODE_ENV !== 'production'` 일 때만 기존 값('wishes2026')을 fallback 한다.
+// ── 환경변수 기반 시크릿 ───────────────────────────────────────────
+// WISHES_ADMIN_MASTER_PASSWORD 는 모든 환경(prod/preview/local dev) 공통 필수.
+// 미설정 시 즉시 무효화 값으로 fallback → admin 경로 자동 차단.
+//
+// ─── L-sec89 (2026-04-22) 하드코드 dev fallback 제거 ───
+//   과거엔 `NODE_ENV !== 'production'` 분기에서 'wishes2026' 박제 문자열을
+//   그대로 반환했다. 로컬 `npm run dev` 환경에서는 편의였지만:
+//     1) 저장소 소스 자체에 유명 패스워드가 박제되어 있어 패턴 누출 리스크
+//     2) 관리 서버의 NODE_ENV 를 실수로 development 로 띄우면 바로 취약
+//     3) 코드-리뷰 시 '정말 제거됐는지' 반복 검증 부담
+//   → env 하나에 모든 환경이 의존하도록 일원화.
+//   → 로컬 개발자는 `.env.local` 에 WISHES_ADMIN_MASTER_PASSWORD 를 설정해야 함.
 function getMasterPassword(): string {
   const env = process.env.WISHES_ADMIN_MASTER_PASSWORD;
   if (env && env.length >= 6) return env;
-  if (process.env.NODE_ENV !== 'production') return 'wishes2026';
-  // 프로덕션에서 env 가 없으면 랜덤 문자열 반환 → 사실상 차단
+  // env 미설정 → 랜덤 문자열 반환해 timingSafeEqualStr 를 사실상 통과 불가로 만들.
+  // (매 호출마다 값이 달라지므로 토큰 비교는 항상 실패.)
   return '__UNSET_ADMIN_PASSWORD_' + Math.random();
 }
 
