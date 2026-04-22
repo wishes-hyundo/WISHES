@@ -44,25 +44,38 @@ export async function GET(request: NextRequest) {
     const swLng = parseFloat(searchParams.get('swLng') || 'NaN');
     const neLat = parseFloat(searchParams.get('neLat') || 'NaN');
     const neLng = parseFloat(searchParams.get('neLng') || 'NaN');
-    const zoom = parseInt(searchParams.get('zoom') || '12', 10);
+    const zoomRaw = parseInt(searchParams.get('zoom') || '12', 10);
 
-    if ([swLat, swLng, neLat, neLng].some(Number.isNaN)) {
+    // L-sec25 (2026-04-22): 공개 GET. 좌표/줌/가격을 범위 검증.
+    //   한국 영토 여유 범위 + PostgREST/RPC 로 garbage 전달 차단.
+    const inLat = (v: number) => Number.isFinite(v) && v >= -90 && v <= 90;
+    const inLng = (v: number) => Number.isFinite(v) && v >= -180 && v <= 180;
+    if (!inLat(swLat) || !inLat(neLat) || !inLng(swLng) || !inLng(neLng)) {
       return NextResponse.json(
         { success: false, error: 'bounds 파라미터 필요 (swLat/swLng/neLat/neLng/zoom)' },
         { status: 400 },
       );
     }
+    const zoom = Number.isFinite(zoomRaw) ? Math.min(22, Math.max(1, zoomRaw)) : 12;
 
-    const deal = searchParams.get('deal') || null;
-    const type = searchParams.get('type') || null;
-    const minPrice = searchParams.get('minPrice');
-    const maxPrice = searchParams.get('maxPrice');
+    const deal = searchParams.get('deal')?.slice(0, 20) || null;
+    const type = searchParams.get('type')?.slice(0, 40) || null;
+    const minPriceRaw = searchParams.get('minPrice');
+    const maxPriceRaw = searchParams.get('maxPrice');
+    const toFinitePrice = (v: string | null): number | null => {
+      if (!v) return null;
+      const n = parseInt(v, 10);
+      if (!Number.isFinite(n) || n < 0 || n > 1e12) return null;
+      return n;
+    };
+    const minPrice = toFinitePrice(minPriceRaw);
+    const maxPrice = toFinitePrice(maxPriceRaw);
 
     const key = quantizeKey(swLat, swLng, neLat, neLng, zoom, {
       deal,
       type,
-      minPrice,
-      maxPrice,
+      minPrice: minPrice != null ? String(minPrice) : null,
+      maxPrice: maxPrice != null ? String(maxPrice) : null,
     });
 
     const result = await cached(
@@ -77,8 +90,8 @@ export async function GET(request: NextRequest) {
           zoom,
           p_deal: deal,
           p_type: type,
-          p_min_price: minPrice ? parseInt(minPrice, 10) : null,
-          p_max_price: maxPrice ? parseInt(maxPrice, 10) : null,
+          p_min_price: minPrice,
+          p_max_price: maxPrice,
         });
         if (error) throw error;
         return data || [];
