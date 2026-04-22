@@ -1,7 +1,19 @@
 'use client';
 
+// L-xss1 (2026-04-22): dangerouslySetInnerHTML 로 렌더되므로 Claude 응답에
+// `<script>` 등이 섞이면 XSS. regex 변환 전에 모든 HTML 특수문자를 엔티티로
+// 치환한 뒤 허용된 마크다운 패턴만 다시 HTML 로 복원.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function formatMessage(text: string): string {
-  return text
+  return escapeHtml(text)
     .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
     .replace(/^[\u2022\-\*]\s+(.+)/gm, '<div class="flex gap-1.5 mb-1"><span class="text-amber-500">\u2022</span><span>$1</span></div>')
     .replace(/^(\d+)\.\s+(.+)/gm, '<div class="flex gap-1.5 mb-1"><span class="text-amber-500 font-medium">$1.</span><span>$2</span></div>')
