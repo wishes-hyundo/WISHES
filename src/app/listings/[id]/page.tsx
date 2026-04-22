@@ -1,6 +1,8 @@
 import { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase';
 import { applyImagePolicy } from '@/lib/image-policy';
+// L-sec96 (2026-04-22): SSR 도 FORBIDDEN_PUBLIC_KEYS strip.
+import { sanitizePublicListing } from '@/lib/listing-public';
 import ListingDetailClient from './ListingDetailClient';
 
 export const dynamic = 'force-dynamic';
@@ -140,7 +142,11 @@ export default async function ListingPage({ params }: Props) {
     // ※ 저작권 보호 + 자체 업로드 통과
     //   - 크롤링 매물의 외부 원본 이미지는 차단
     //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
-    const sanitized = listing ? applyImagePolicy(listing) : listing;
+    // L-sec96 (2026-04-22): sanitizePublicListing 체인 — contact/address_detail/special_notes 등
+    //   FORBIDDEN 필드 제거. UI 가드(`listing.contact && ...`) 때문에 시각 회귀 없음.
+    const sanitized = listing
+      ? sanitizePublicListing(applyImagePolicy(listing as any))
+      : listing;
 
     return <ListingDetailClient id={id} listing={sanitized} />;
   } catch {

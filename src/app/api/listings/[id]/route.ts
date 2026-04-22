@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import { filterSelfHosted } from '@/lib/image-policy';
-import { stripInternalFields } from '@/lib/listing-public';
+import { stripInternalFields, sanitizePublicListing } from '@/lib/listing-public';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 /**
@@ -77,8 +77,11 @@ export async function GET(
 
     // 고객용 응답: 크롤링 원본 description 제외, ai_description만 노출
     // L-sec64 (2026-04-22): embedding + dedup_* 등 내부 필드 strip
+    // L-sec96 (2026-04-22): sanitizePublicListing 추가 — FORBIDDEN_PUBLIC_KEYS
+    //   (source_url/contact/source_id/raw_fields/special_notes 등) 응답
+    //   누출 차단. 백엔드에서 정책 일관적 적용.
     const { description: _rawDesc, ...rest } = listing;
-    const publicListing = stripInternalFields(rest);
+    const publicListing = sanitizePublicListing(stripInternalFields(rest));
 
     return NextResponse.json({
       success: true,
