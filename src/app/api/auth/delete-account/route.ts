@@ -119,8 +119,13 @@ export async function DELETE(request: NextRequest) {
     // 4. Supabase Auth에서 사용자 영구 삭제
     const { error: authDeleteError } = await supabase.auth.admin.deleteUser(userId);
     if (authDeleteError) {
+      // L-sec100 (2026-04-22): authDeleteError.message 는 Supabase Admin API 의 내부
+      //   에러 ("User not found" 등). prod 응답에 그대로 노출하면 bridge 경로에서
+      //   userId 열거 공격으로 계정 존재/비존재 구분 가능. L-sec70 패턴 (isDev 가드).
+      const isDev = process.env.NODE_ENV !== 'production';
+      console.error('auth admin deleteUser error:', authDeleteError.message);
       return NextResponse.json(
-        { success: false, message: '계정 삭제 실패: ' + authDeleteError.message },
+        { success: false, message: isDev ? '계정 삭제 실패: ' + authDeleteError.message : '계정 삭제 실패' },
         { status: 500 }
       );
     }
