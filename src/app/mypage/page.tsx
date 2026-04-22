@@ -303,12 +303,21 @@ export default function MyPage() {
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-wishes-primary">신규 매물 알림 설정</h3>
-              <label className="flex items-center gap-2 cursor-pointer">
+              {/* L-a11y4 (2026-04-22): div onClick → 실제 button + role=switch.
+                  키보드(Space/Enter)·스크린리더에 접근 가능하도록 교체. */}
+              <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">{alertEnabled ? '알림 ON' : '알림 OFF'}</span>
-                <div onClick={() => setAlertEnabled(!alertEnabled)} className={cn('relative w-11 h-6 rounded-full transition-colors cursor-pointer', alertEnabled ? 'bg-wishes-secondary' : 'bg-gray-300')}>
-                  <div className={cn('absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform', alertEnabled ? 'translate-x-5.5' : 'translate-x-0.5')} />
-                </div>
-              </label>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={alertEnabled}
+                  aria-label="신규 매물 알림"
+                  onClick={() => setAlertEnabled(!alertEnabled)}
+                  className={cn('relative w-11 h-6 rounded-full transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-wishes-secondary/40 focus:ring-offset-2', alertEnabled ? 'bg-wishes-secondary' : 'bg-gray-300')}
+                >
+                  <span className={cn('absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform', alertEnabled ? 'translate-x-5.5' : 'translate-x-0.5')} />
+                </button>
+              </div>
             </div>
             <div className="space-y-5 max-w-lg">
               <div><label className="block text-sm font-semibold text-gray-700 mb-2"><MapPin className="w-4 h-4 inline mr-1" />알림 받을 지역</label><div className="flex flex-wrap gap-2">{AREA_OPTIONS.map(area => (<button key={area} onClick={() => toggleChip(alertAreas, setAlertAreas, area, 5)} className={cn('px-3 py-2 rounded-lg text-xs font-medium border transition-all', alertAreas.includes(area) ? 'bg-wishes-secondary text-white border-wishes-secondary' : 'bg-white text-gray-600 border-gray-200 hover:border-wishes-secondary/50')}>{area}</button>))}</div></div>
