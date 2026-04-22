@@ -7,6 +7,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import type { DealType, MapListing } from '@/features/map-2026/store';
 
 export const dynamic = 'force-dynamic';
@@ -208,6 +209,17 @@ function computeHeroScore(
 }
 
 export async function GET(req: NextRequest) {
+  // L-sec75 (2026-04-22): force-dynamic + 30s max-age 라 unique bbox 마다 DB
+  //   hits. 5분 200회/IP cap (pan/zoom 정상 사용 50-100회/세션).
+  const _ip = getClientIp(req);
+  const _rl = checkRateLimit({ key: `viewport:ip:${_ip}`, limit: 200, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const { searchParams } = new URL(req.url);
 
   const west = pFloat(searchParams.get('west'));

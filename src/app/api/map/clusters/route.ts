@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { cached } from '@/lib/cache';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 /**
  * bounds + zoom 을 Quadkey 해시로 양자화 (소수점 4자리 → 약 11m 오차)
@@ -38,6 +39,17 @@ function quantizeKey(
 
 export async function GET(request: NextRequest) {
   try {
+    // L-sec75 (2026-04-22): 5s s-maxage + force-dynamic = unique bbox
+    //   모두 DB hit. 5분 300회/IP cap (지도 팬/줌 헤비유저 고려).
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `clusters:ip:${_ip}`, limit: 300, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { searchParams } = new URL(request.url);
 
     const swLat = parseFloat(searchParams.get('swLat') || 'NaN');

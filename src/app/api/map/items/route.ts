@@ -11,11 +11,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { cached } from '@/lib/cache';
 import { applyImagePolicy } from '@/lib/image-policy';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const ITEMS_LIMIT = 500;
 
 export async function GET(request: NextRequest) {
   try {
+    // L-sec75 (2026-04-22): 10s s-maxage + force-dynamic. 5분 300회/IP cap.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `items:ip:${_ip}`, limit: 300, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { searchParams } = new URL(request.url);
 
     const swLat = parseFloat(searchParams.get('swLat') || 'NaN');

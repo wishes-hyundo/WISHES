@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -116,6 +117,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // L-sec75 (2026-04-22): 캐시 없음 + 전체 listing scoring loop 로
+    //   DB + CPU heavy. 5분 30회/IP cap.
+    const _ip = getClientIp(request as NextRequest);
+    const _rl = checkRateLimit({ key: `recommend:ip:${_ip}`, limit: 30, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { id } = await params;
     const listingId = parseInt(id, 10);
     // L-sec31 (2026-04-22): isNaN 만 체크하면 Infinity/음수 통과 → 정수 범위 검증.
