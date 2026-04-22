@@ -12,10 +12,16 @@
 
 import { useRef, useState } from 'react';
 import { Play, Maximize2, Box, ExternalLink } from 'lucide-react';
+// L-sec95 (2026-04-22): vr_url 필드는 데이터베이스에서 오므로 http(s) 강제.
+//   javascript: iframe src 이 동일 오리진에서 스크립트 실행 정지.
+import { safeHttpUrl } from '@/lib/safe-url';
 
-function normalizeVrUrl(raw: string): string {
+function normalizeVrUrl(raw: string): string | null {
+  // L-sec95 (2026-04-22): 아예 통과 전 http(s) 확인. javascript:/data:/file: 등은 null.
+  const safe = safeHttpUrl(raw);
+  if (!safe) return null;
   try {
-    const url = new URL(raw.trim());
+    const url = new URL(safe);
     const h = url.hostname.toLowerCase();
     // L-sec58 (2026-04-22): hostname.includes() 서브스트링 매치 → 엄격한 hostname 검증.
     //   'matterport.com.attacker.com' / 'youtube.com.evil.tld' 같은 스푸핑 호스트가
@@ -30,10 +36,11 @@ function normalizeVrUrl(raw: string): string {
       const vId = url.searchParams.get('v') || url.pathname.split('/').filter(Boolean).pop();
       if (vId) return `https://www.youtube.com/embed/${vId}?autoplay=1&rel=0`;
     }
-    // kuula / roundme / 기타: 원본 그대로
+    // kuula / roundme / 기타: 원본 그대로 (이미 http(s) 검증됨)
     return url.toString();
   } catch {
-    return raw;
+    // L-sec95: malformed URL 이면 렌더 자체 생략.
+    return null;
   }
 }
 
@@ -60,7 +67,9 @@ export default function VRTour({
   // 크롤링 매물(광고) 또는 URL 없음 → 미노출
   if (isAd || !vrUrl) return null;
 
+  // L-sec95 (2026-04-22): http(s) 검증 실패 시 iframe/<a href> 둘 다 렌더 생략.
   const embedUrl = normalizeVrUrl(vrUrl);
+  if (!embedUrl) return null;
   const provider = detectProvider(embedUrl);
 
   const enterFullscreen = () => {

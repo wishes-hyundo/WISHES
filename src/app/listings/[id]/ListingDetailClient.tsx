@@ -27,6 +27,8 @@ import ListingEnglishSummary from '@/components/ListingEnglishSummary';
 import ListingActions from '@/components/ListingActions';
 // T5-6: 영문 전체 스위치 (외국인 고객 브리핑 품질 향상)
 import ListingEnglishFullView from '@/components/ListingEnglishFullView';
+// L-sec95 (2026-04-22): <a href={DB URL}> XSS 차단 — http(s) 화이트리스트.
+import { safeHttpUrl } from '@/lib/safe-url';
 
 declare global {
   interface Window {
@@ -1001,12 +1003,17 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 {listing.contact && (
                   <p className="text-xs text-gray-500 mt-2">연락처: {listing.contact}</p>
                 )}
-                {listing.source_url && (
-                  <a href={listing.source_url} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-blue-500 hover:underline mt-1 block">
-                    원본 매물 보기 →
-                  </a>
-                )}
+                {(() => {
+                  // L-sec95 (2026-04-22): source_url 은 크롤러 수집 데이터. javascript: / data: 스킴 주입 가능.
+                  //   safeHttpUrl 이 http(s) 만 통과시키고 그 외는 null 으로 만들어 렌더 자체를 생략.
+                  const safe = safeHttpUrl(listing.source_url);
+                  return safe ? (
+                    <a href={safe} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-blue-500 hover:underline mt-1 block">
+                      원본 매물 보기 →
+                    </a>
+                  ) : null;
+                })()}
               </div>
             </div>
           </div>

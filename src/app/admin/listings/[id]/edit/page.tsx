@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAdminSession } from '@/lib/useAdminSession';
+// L-sec95 (2026-04-22): formData.vrUrl 는 관리자 입력이지만 defense-in-depth 로 http(s) 검증.
+import { safeHttpUrl } from '@/lib/safe-url';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 타입 정의
@@ -1210,19 +1212,27 @@ export default function EditListingPage() {
                 autoComplete="off"
                 spellCheck={false}
               />
-              {formData.vrUrl && (
-                <div className="mt-2 flex items-center gap-2 text-xs">
-                  <span className="text-green-600 font-semibold">✓ 등록됨</span>
-                  <a
-                    href={formData.vrUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline truncate max-w-md"
-                  >
-                    {formData.vrUrl}
-                  </a>
-                </div>
-              )}
+              {(() => {
+                // L-sec95: javascript:/data: 스킴 주입 차단.
+                const safeVr = safeHttpUrl(formData.vrUrl);
+                return formData.vrUrl ? (
+                  <div className="mt-2 flex items-center gap-2 text-xs">
+                    <span className={safeVr ? "text-green-600 font-semibold" : "text-red-600 font-semibold"}>
+                      {safeVr ? '✓ 등록됨' : '✗ 유효한 http(s) URL 이 아닙니다'}
+                    </span>
+                    {safeVr && (
+                      <a
+                        href={safeVr}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline truncate max-w-md"
+                      >
+                        {safeVr}
+                      </a>
+                    )}
+                  </div>
+                ) : null;
+              })()}
             </div>
 
             {/* 수정 전 요약 */}
