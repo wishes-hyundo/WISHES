@@ -131,16 +131,20 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (apptErr) {
+      // L-sec73 (2026-04-22): Supabase error 메시지 prod 노출 차단
+      const isDev = process.env.NODE_ENV !== 'production';
       return NextResponse.json(
-        { success: false, error: apptErr.message || '예약 저장 실패' },
+        { success: false, error: isDev ? (apptErr.message || '예약 저장 실패') : '예약 저장 실패' },
         { status: 500 }
       );
     }
 
     return NextResponse.json({ success: true, appointment: appt });
   } catch (err: any) {
+    // L-sec73 (2026-04-22): 내부 에러 메시지 prod 노출 차단
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: err?.message || 'Server error' },
+      { success: false, error: isDev ? (err?.message || 'Server error') : 'Server error' },
       { status: 500 }
     );
   }
@@ -148,6 +152,18 @@ export async function POST(request: NextRequest) {
 
 // GET: 본인 확인용 (관리자 조회는 /api/admin/appointments 로 분리)
 export async function GET(request: NextRequest) {
+  // L-sec73 (2026-04-22): phone 열거 공격 방지
+  //   1시간 20회/IP cap. 한국 010-XXXX-XXXX 공간이 열거 가능해
+  //   attacker 가 무제한 쿼리로 타인 예약 정보 수집 가능.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `appointments:get:ip:${_ip}`, limit: 20, windowMs: 60 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { success: false, error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const phone = searchParams.get('phone');
   if (!phone) {
