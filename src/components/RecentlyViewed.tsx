@@ -101,7 +101,7 @@ export default function RecentlyViewed() {
             >
               <div className="aspect-[4/3] relative bg-gradient-to-br from-wishes-light/60 to-wishes-accent/20 flex items-center justify-center">
                 {listing.images && listing.images.length > 0 ? (
-                  <img src={listing.images[0]} alt={displayTitle({ ...listing, type: listing.type || listing.property_type } as any)} className="w-full h-full object-cover" />
+                  <img src={listing.images[0]} alt={displayTitle({ ...listing, type: listing.type || listing.property_type } as any)} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                 ) : (
                   <Building2 className="w-8 h-8 text-wishes-green/30" />
                 )}

@@ -98,6 +98,8 @@ export function ListingCard({ listing, compact = false, onHover, noLink = false 
               src={getWatermarkedUrl(thumbUrl)}
               alt={displayTitle(listing)}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-wishes-primary/90 to-wishes-secondary text-white">

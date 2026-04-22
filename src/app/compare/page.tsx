@@ -197,6 +197,8 @@ export default function ComparePage() {
                               src={img.url}
                               alt={displayTitle(listing as any)}
                               className="w-full h-full object-cover"
+                              loading="lazy"
+                              decoding="async"
                             />
                           </div>
                         ) : (
@@ -249,7 +251,7 @@ export default function ComparePage() {
                   </button>
                   {img?.url ? (
                     <div className="w-full h-40 overflow-hidden">
-                      <img src={img.url} alt={displayTitle(listing as any)} className="w-full h-full object-cover" />
+                      <img src={img.url} alt={displayTitle(listing as any)} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                     </div>
                   ) : (
                     <div className="w-full h-40 bg-gray-100 flex items-center justify-center">
