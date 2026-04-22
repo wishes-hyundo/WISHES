@@ -28,7 +28,11 @@ export default function ContactsPage() {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (token) loadContacts();
+    if (!token) return;
+    // L-leak5: unmount/token 변경 시 in-flight /api/admin/contacts fetch 취소.
+    const ac = new AbortController();
+    loadContacts(ac.signal);
+    return () => ac.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
@@ -39,18 +43,22 @@ export default function ContactsPage() {
     }
   }, [toast]);
 
-  const loadContacts = async () => {
+  const loadContacts = async (signal?: AbortSignal) => {
     try {
       const resp = await fetch('/api/admin/contacts', {
-        headers: { ...authHeader() }
+        headers: { ...authHeader() },
+        signal,
       });
+      if (signal?.aborted) return;
       if (!resp.ok) throw new Error('Failed');
       const data = await resp.json();
+      if (signal?.aborted) return;
       setContacts(data.contacts || data.data || []);
-    } catch {
+    } catch (err: any) {
+      if (signal?.aborted || err?.name === 'AbortError') return;
       setToast({ message: '상담 목록을 불러오지 못했습니다.', type: 'error' });
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 

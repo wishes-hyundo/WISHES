@@ -258,22 +258,28 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
   useEffect(() => {
     if (!listing?.lat || !listing?.lng) return;
 
+    // L-leak5: unmount/deps 변경 시 in-flight /api/listings/[id]/nearby fetch 취소.
+    const ac = new AbortController();
     const fetchNearby = async () => {
       setStationsLoading(true);
       try {
-        const res = await fetch(`/api/listings/${id}/nearby`);
+        const res = await fetch(`/api/listings/${id}/nearby`, { signal: ac.signal });
+        if (ac.signal.aborted) return;
         const json = await res.json();
+        if (ac.signal.aborted) return;
         if (json.success && json.data?.stations) {
           setNearbyStations(json.data.stations);
         }
-      } catch (err) {
+      } catch (err: any) {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
         console.error('Failed to fetch nearby stations:', err);
       } finally {
-        setStationsLoading(false);
+        if (!ac.signal.aborted) setStationsLoading(false);
       }
     };
 
     fetchNearby();
+    return () => ac.abort();
   }, [listing?.lat, listing?.lng, id]);
 
   // ── 카카오맵 위치 표시 초기화 ──

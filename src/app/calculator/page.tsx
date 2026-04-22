@@ -116,11 +116,15 @@ function LoanCalculator() {
 
   // DB에서 최신 금리 자동 로드
   useEffect(() => {
+    // L-leak5: unmount 시 in-flight /api/rates fetch 취소.
+    const ac = new AbortController();
     async function loadRates() {
       try {
-        const res = await fetch('/api/rates');
+        const res = await fetch('/api/rates', { signal: ac.signal });
+        if (ac.signal.aborted) return;
         if (!res.ok) throw new Error('API error');
         const data = await res.json();
+        if (ac.signal.aborted) return;
 
         if (data.success && data.mortgage_rates && data.jeonse_rates) {
           setMortgagePresets(data.mortgage_rates);
@@ -134,13 +138,15 @@ function LoanCalculator() {
             }));
           }
         }
-      } catch {
+      } catch (err: any) {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
         // DB 실패 시 기본 프리셋 사용
         setRatesLastUpdated(new Date().toLocaleDateString('ko-KR'));
         setRatesSource('기본값');
       }
     }
     loadRates();
+    return () => ac.abort();
   }, []);
 
   const calculate = () => {

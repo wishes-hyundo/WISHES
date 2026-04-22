@@ -94,43 +94,73 @@ export default function MyPage() {
 
   useEffect(() => {
     if (favorites.length === 0) { setFavListings([]); return; }
+    // L-leak5: unmount/deps 변경 시 fetch 취소.
+    const ac = new AbortController();
     setLoadingListings(true);
-    fetch('/api/listings?ids=' + favorites.join(','))
+    fetch('/api/listings?ids=' + favorites.join(','), { signal: ac.signal })
       .then(r => r.json())
-      .then(data => { setFavListings(data.listings || data || []); setLoadingListings(false); })
-      .catch(() => setLoadingListings(false));
+      .then(data => {
+        if (ac.signal.aborted) return;
+        setFavListings(data.listings || data || []);
+        setLoadingListings(false);
+      })
+      .catch((err: any) => {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
+        setLoadingListings(false);
+      });
+    return () => ac.abort();
   }, [favorites]);
 
   useEffect(() => {
     if (recentlyViewed.length === 0) { setRecentListings([]); return; }
-    fetch('/api/listings?ids=' + recentlyViewed.join(','))
+    // L-leak5: unmount/deps 변경 시 fetch 취소.
+    const ac = new AbortController();
+    fetch('/api/listings?ids=' + recentlyViewed.join(','), { signal: ac.signal })
       .then(r => r.json())
       .then(data => {
+        if (ac.signal.aborted) return;
         const listings = data.listings || data || [];
         const sorted = recentlyViewed.map(id => listings.find((l: ListingData) => l.id === id)).filter(Boolean) as ListingData[];
         setRecentListings(sorted);
-      }).catch(() => {});
+      }).catch((err: any) => {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
+      });
+    return () => ac.abort();
   }, [recentlyViewed]);
 
   useEffect(() => {
-    if (session?.access_token) {
-      fetch('/api/profile', { headers: { 'Authorization': 'Bearer ' + session.access_token } })
-        .then(r => r.json())
-        .then(data => {
-          setProfileName(data.name || '');
-          setProfilePhone(data.phone || '');
-          setProfileAreas(data.preferred_areas || []);
-          setProfileTypes(data.preferred_types || []);
-        }).catch(() => {});
-      fetch('/api/alerts', { headers: { 'Authorization': 'Bearer ' + session.access_token } })
-        .then(r => r.json())
-        .then(data => {
-          setAlertAreas(data.areas || []);
-          setAlertTypes(data.types || []);
-          setAlertDeals(data.deals || []);
-          setAlertEnabled(data.enabled || false);
-        }).catch(() => {});
-    }
+    if (!session?.access_token) return;
+    // L-leak5: unmount/session 변경 시 /api/profile + /api/alerts fetch 취소.
+    const ac = new AbortController();
+    fetch('/api/profile', {
+      headers: { 'Authorization': 'Bearer ' + session.access_token },
+      signal: ac.signal,
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (ac.signal.aborted) return;
+        setProfileName(data.name || '');
+        setProfilePhone(data.phone || '');
+        setProfileAreas(data.preferred_areas || []);
+        setProfileTypes(data.preferred_types || []);
+      }).catch((err: any) => {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
+      });
+    fetch('/api/alerts', {
+      headers: { 'Authorization': 'Bearer ' + session.access_token },
+      signal: ac.signal,
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (ac.signal.aborted) return;
+        setAlertAreas(data.areas || []);
+        setAlertTypes(data.types || []);
+        setAlertDeals(data.deals || []);
+        setAlertEnabled(data.enabled || false);
+      }).catch((err: any) => {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
+      });
+    return () => ac.abort();
   }, [session]);
 
   const handleSaveProfile = async () => {
