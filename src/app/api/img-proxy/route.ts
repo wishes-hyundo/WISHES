@@ -27,6 +27,10 @@ export async function GET(request: NextRequest) {
     if (!url) {
       return new NextResponse('url parameter required', { status: 400 });
     }
+    // L-sec19 (2026-04-22): URL 길이 cap. 2KB 넘는 URL 은 정상 사용 아님.
+    if (url.length > 2048) {
+      return new NextResponse('url too long', { status: 413 });
+    }
     const raw = request.nextUrl.searchParams.get('raw') === '1';
 
     let parsed: URL;
@@ -48,9 +52,11 @@ export async function GET(request: NextRequest) {
     if (refererOverride) headers['Referer'] = refererOverride;
 
     const targetUrl = parsed.toString();
+    // L-sec19: upstream hang 공격 차단 (10초 타임아웃)
     const res = await fetch(targetUrl, {
       headers,
       cache: 'no-store',
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!res.ok) {
@@ -59,7 +65,18 @@ export async function GET(request: NextRequest) {
       return new NextResponse("fetch failed: " + res.status, { status: res.status });
     }
 
-    const imageBuffer = Buffer.from(await res.arrayBuffer());
+    // L-sec19: 응답 바이트 cap (15MB). Content-Length 가 있으면 빠르게 차단,
+    //   없으면 arrayBuffer 로드 후 길이 검증.
+    const MAX_BYTES = 15 * 1024 * 1024;
+    const lenHdr = parseInt(res.headers.get('content-length') || '0', 10);
+    if (lenHdr > MAX_BYTES) {
+      return new NextResponse('upstream too large', { status: 413 });
+    }
+    const ab = await res.arrayBuffer();
+    if (ab.byteLength > MAX_BYTES) {
+      return new NextResponse('upstream too large', { status: 413 });
+    }
+    const imageBuffer = Buffer.from(ab);
     const contentType = res.headers.get('content-type') || 'image/jpeg';
 
     let outputBuffer: Buffer;
