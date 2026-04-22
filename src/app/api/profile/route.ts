@@ -1,5 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { z } from 'zod';
+
+// L-sec38 (2026-04-22): profile PUT 입력 검증 추가.
+//   authenticated 지만 본인 행을 거대 payload 로 채워 DB 스토리지 비용 폭증시킬 수 있음.
+const ProfileSchema = z.object({
+  name: z.string().max(100).optional(),
+  phone: z.string().max(30).optional(),
+  preferred_areas: z.array(z.string().max(60)).max(50).optional(),
+  preferred_types: z.array(z.string().max(40)).max(30).optional(),
+});
+
+function errorBody(msg: string, detail?: unknown) {
+  const isDev = process.env.NODE_ENV !== 'production';
+  return isDev && detail ? { error: msg, detail: String(detail) } : { error: msg };
+}
 
 export async function GET(request: NextRequest) {
   const supabase = createServerClient();
@@ -9,7 +24,7 @@ export async function GET(request: NextRequest) {
   const { data: { user }, error: authError } = await supabase.auth.getUser(tkn);
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-  if (error && error.code !== 'PGRST116') return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error && error.code !== 'PGRST116') return NextResponse.json(errorBody('profile 조회 실패', error.message), { status: 500 });
   return NextResponse.json(profile || { id: user.id, name: '', phone: '', preferred_areas: [], preferred_types: [], profile_completed: false });
 }
 
@@ -20,8 +35,12 @@ export async function PUT(request: NextRequest) {
   const tkn = authHeader.replace('Bearer ', '');
   const { data: { user }, error: authError } = await supabase.auth.getUser(tkn);
   if (authError || !user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const body = await request.json();
-  const { name, phone, preferred_areas, preferred_types } = body;
+  const body = await request.json().catch(() => ({}));
+  const parsed = ProfileSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: '입력 검증 실패', issue: parsed.error.errors[0]?.message }, { status: 400 });
+  }
+  const { name, phone, preferred_areas, preferred_types } = parsed.data;
   const { data, error } = await supabase.from('profiles').upsert({
     id: user.id,
     name: name || '',
@@ -31,6 +50,6 @@ export async function PUT(request: NextRequest) {
     profile_completed: true,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'id' }).select().single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json(errorBody('profile 저장 실패', error.message), { status: 500 });
   return NextResponse.json(data);
 }
