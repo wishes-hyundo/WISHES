@@ -484,10 +484,8 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('매물 생성 오류:', error);
-      // L-sec112 (2026-04-22): admin-gated 지만 탈취 토큰 공격면 확장 방지. isDev 게이트.
-      const isDev = process.env.NODE_ENV !== 'production';
       return NextResponse.json(
-        { success: false, error: '매물 생성에 실패했습니다', ...(isDev && { detail: error?.message || String(error) }) },
+        { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
         { status: 500, headers: cors }
       );
     }
@@ -531,10 +529,8 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error('매물 생성 오류:', error);
-    // L-sec112 (2026-04-22): catch-all 도 isDev 게이트.
-    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: '매물 생성에 실패했습니다', ...(isDev && { detail: error?.message || String(error) }) },
+      { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
       { status: 500, headers: cors }
     );
   }
@@ -599,10 +595,8 @@ export async function PUT(request: NextRequest) {
 
       if (error) {
         console.error('매물 수정 오류:', error);
-        // L-sec112 (2026-04-22): admin-gated 지만 탈취 토큰 공격면 확장 방지. isDev 게이트.
-        const isDev = process.env.NODE_ENV !== 'production';
         return NextResponse.json(
-          { success: false, error: '매물 수정에 실패했습니다', ...(isDev && { detail: error?.message || String(error) }) },
+          { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
           { status: 500 }
         );
       }
@@ -659,10 +653,8 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('매물 수정 오류:', error);
-    // L-sec112 (2026-04-22): catch-all 도 isDev 게이트.
-    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: '매물 수정에 실패했습니다', ...(isDev && { detail: error?.message || String(error) }) },
+      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
       { status: 500 }
     );
   }

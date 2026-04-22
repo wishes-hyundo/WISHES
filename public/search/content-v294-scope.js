@@ -83,18 +83,32 @@
     } catch (_) {}
     return '';
   }
+  // L-fix-search-blank (2026-04-22): ws_token 은 /search/page.tsx 가
+  //   'admin_bridge_<access_token>' 형태로 저장한다. isJwtLike 는 'eyJ' 접두사
+  //   만 보므로 이 값이 false 를 반환 → Supabase 스토리지 fallback 의존 →
+  //   시크릿 모드/쿠키 초기화/타이밍 이슈에 따라 토큰 미획득 빈도 상승.
+  //   + wrappedFetch 는 'Bearer admin_bridge_' + tok 를 합성하므로 원본이
+  //   admin_bridge_ 접두사를 이미 포함하면 이중 접두사 → verifyAdminAuth 에서
+  //   inner 가 또 admin_bridge_<JWT> 라 JWT 형식 검증 실패 → 401.
+  //   두 경로를 하나의 strip 로직으로 수렴시켜 항상 순수 JWT 를 반환한다.
+  function stripBridgePrefix(s) {
+    if (!s || typeof s !== 'string') return s;
+    while (s.indexOf('admin_bridge_') === 0) s = s.slice('admin_bridge_'.length);
+    return s;
+  }
   function getWsToken() {
     try {
-      // 1) 레거시 ws_token (session → local)
+      // 1) 레거시 ws_token (session → local) — admin_bridge_ 접두사 제거 후 JWT 확인
       var t = null;
       try { t = sessionStorage.getItem('ws_token'); } catch (_) {}
       if (!t) { try { t = localStorage.getItem('ws_token'); } catch (_) {} }
-      if (isJwtLike(t)) return t;
+      var bare = stripBridgePrefix(t);
+      if (isJwtLike(bare)) return bare;
       // 2) Supabase sb-*-auth-token.access_token
       var sb = extractSupabaseAccessToken();
       if (sb) return sb;
       // 3) fallback: ws_token 이 비-JWT 라도 그대로 반환 (MASTER_PASSWORD 등)
-      return (t && typeof t === 'string') ? t : '';
+      return (t && typeof t === 'string') ? stripBridgePrefix(t) : '';
     } catch (_) { return ''; }
   }
 

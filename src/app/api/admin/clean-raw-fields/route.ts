@@ -38,11 +38,7 @@ export async function GET(request: NextRequest) {
     .select('id, raw_fields')
     .not('raw_fields', 'is', null);
 
-  // L-sec115 (2026-04-22): admin-gated defense-in-depth.
-  if (error) {
-    const isDev = process.env.NODE_ENV !== 'production';
-    return NextResponse.json({ error: '조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
-  }
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const updates: { id: number; before: number; after: number; removed: string[] }[] = [];
 

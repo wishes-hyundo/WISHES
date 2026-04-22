@@ -43,7 +43,10 @@
     try {
       var isPageScript = !(typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL);
       if (!isPageScript) return;
-      var keys = ['ws_token','ws_user','ws_login_time','admin_password'];
+      // L-sec113 (2026-04-22): admin_password 키 제거.
+      //   /search 는 ws_token(JWT) 만 사용. admin_password 를 session 으로 복사하면
+      //   XSS 공격면이 중개사 포털 탭까지 확장된다. /admin 페이지는 본인 로직 보유.
+      var keys = ['ws_token','ws_user','ws_login_time'];
       var copiedAny = false;
       keys.forEach(function(k){
         try {
@@ -5677,10 +5680,22 @@
     });
   };
 
-  // ?tab=search 프리페치 예약이 있으면 즉시 실행
+  // ?tab=search 프리페치 예약이 있으면 실행.
+  //
+  // L-fix-search-blank (2026-04-22): content.js 는 content-v294-scope.js 보다
+  //   먼저 실행 완료되므로 여기서 즉시 loadData() 를 부르면 v294 의 fetch
+  //   래퍼가 설치되기 전에 최초 요청이 나가 'Authorization: Bearer ' (빈
+  //   토큰) 으로 401 이 된다. retry backoff(2s/4s/6s) 가 있지만 캐시가
+  //   비어있는 최초 접속에서는 사용자가 빈 화면을 보게 되는 근본 원인.
+  //
+  //   setTimeout(..., 250) 으로 첫 호출만 지연시켜 v230..v294 패치 로딩이
+  //   완료되도록 한다. 이후 retry/리프레시는 이미 래퍼가 설치된 상태라
+  //   추가 지연 불필요.
   if (window.WS._prefetchOnReady) {
     window.WS._prefetchOnReady = false;
-    window.WS.loadData();
+    setTimeout(function() {
+      try { window.WS.loadData(); } catch (_) {}
+    }, 250);
   }
 
   // =========================================================

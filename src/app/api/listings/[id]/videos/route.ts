@@ -235,8 +235,7 @@ export async function PATCH(
       if (typeof v.poster_url === 'string') updateData.poster_url = v.poster_url;
       if (Object.keys(updateData).length === 0) { results.push({ id: v.id, success: true }); continue; }
       const { error } = await supabase.from('listing_videos').update(updateData).eq('id', v.id).eq('listing_id', listingId);
-      // L-sec113 (2026-04-22): bulk-results 의 error.message 도 prod 숨김 (errMsg 재사용).
-      results.push({ id: v.id, success: !error, error: error ? errMsg('', error) : undefined });
+      results.push({ id: v.id, success: !error, error: error?.message });
     }
 
     return NextResponse.json({ success: true, results }, { headers: cors });

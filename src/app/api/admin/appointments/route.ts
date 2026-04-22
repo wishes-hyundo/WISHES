@@ -50,9 +50,7 @@ export async function GET(request: NextRequest) {
     if (error) {
       // eslint-disable-next-line no-console
       console.error('[admin/appointments] fetch error', error);
-      // L-sec114 (2026-04-22): admin-gated defense-in-depth.
-      const isDev = process.env.NODE_ENV !== 'production';
-      return NextResponse.json({ success: false, error: '예약 조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
     const formatted = (data || []).map((a: any) => ({
@@ -122,9 +120,7 @@ export async function PATCH(request: NextRequest) {
     const supabase = createServerClient() as any;
     const { error } = await supabase.from('appointments').update(patch).eq('id', id);
     if (error) {
-      // L-sec114 (2026-04-22): admin-gated defense-in-depth.
-      const isDev = process.env.NODE_ENV !== 'production';
-      return NextResponse.json({ success: false, error: '예약 수정 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

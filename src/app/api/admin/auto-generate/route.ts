@@ -320,10 +320,8 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[auto-generate] error:', error);
-    // L-sec115 (2026-04-22): admin-gated defense-in-depth.
-    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: isDev ? 'Pipeline error: ' + (error?.message || String(error)) : 'Pipeline error' },
+      { success: false, error: 'Pipeline error: ' + (error?.message || String(error)) },
       { status: 500, headers: cors }
     );
   }

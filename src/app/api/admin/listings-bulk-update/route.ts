@@ -58,9 +58,7 @@ export async function POST(request: NextRequest) {
           .eq('id', item.id);
 
         if (error) {
-          // L-sec115 (2026-04-22): admin-gated defense-in-depth.
-          const isDev = process.env.NODE_ENV !== 'production';
-          results.push({ id: item.id, success: false, error: isDev ? error.message : '수정 실패' });
+          results.push({ id: item.id, success: false, error: error.message });
         } else {
           results.push({ id: item.id, success: true });
         }

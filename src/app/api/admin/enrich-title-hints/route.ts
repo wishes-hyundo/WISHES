@@ -126,9 +126,7 @@ export async function POST(request: NextRequest) {
       .range(offset, offset + limit - 1);
 
     if (error) {
-      // L-sec115 (2026-04-22): admin-gated defense-in-depth.
-      const isDev = process.env.NODE_ENV !== 'production';
-      return NextResponse.json({ success: false, error: '조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     }
 
     if (!data || data.length === 0) {

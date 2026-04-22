@@ -58,17 +58,13 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Supabase update error:', error);
-      // L-sec115 (2026-04-22): admin-gated defense-in-depth.
-      const isDev = process.env.NODE_ENV !== 'production';
-      return NextResponse.json({ error: '수정 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
     console.error('PUT error:', err);
-    // L-sec117 (2026-04-22): admin-gated defense-in-depth.
-    const isDev = process.env.NODE_ENV !== 'production';
-    return NextResponse.json({ error: '수정 실패', ...(isDev && { detail: err.message }) }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
 
@@ -123,9 +119,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        // L-sec115 (2026-04-22): admin-gated defense-in-depth.
-        const isDev = process.env.NODE_ENV !== 'production';
-        errors.push({ id, error: isDev ? error.message : '수정 실패' });
+        errors.push({ id, error: error.message });
       } else {
         results.push({ id, success: true, title: data?.title });
       }
@@ -140,8 +134,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     console.error('POST error:', err);
-    // L-sec117 (2026-04-22): admin-gated defense-in-depth.
-    const isDev = process.env.NODE_ENV !== 'production';
-    return NextResponse.json({ error: '일괄 수정 실패', ...(isDev && { detail: err.message }) }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

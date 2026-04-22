@@ -74,11 +74,8 @@ export async function GET(request: NextRequest) {
       raw: registryData.raw || {},
     });
   } catch (err: any) {
-    // L-sec117 (2026-04-22): admin-gated defense-in-depth.
-    //   err.message 에 data.go.kr SERVICE_KEY / 내부 URL 포함 가능.
-    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: '건축물대장 조회 실패', ...(isDev && { detail: err.message || 'Unknown error' }), query: { address } },
+      { success: false, error: err.message || 'Unknown error', query: { address } },
       { status: 500 }
     );
   }

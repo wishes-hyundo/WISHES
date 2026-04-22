@@ -255,9 +255,7 @@ export async function DELETE(request: NextRequest) {
 
     const { error } = await supabase.auth.admin.deleteUser(userId);
     if (error) {
-      // L-sec114 (2026-04-22): admin-gated defense-in-depth.
-      const isDev = process.env.NODE_ENV !== 'production';
-      return NextResponse.json({ error: '사용자 삭제 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, message: 'ì¬ì©ìê° ì­ì ëììµëë¤.' });
