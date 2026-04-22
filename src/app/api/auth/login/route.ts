@@ -2,16 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
-import { emailSchema } from '@/lib/schemas';
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
 // L-sec39 (2026-04-22): 로그인 입력 검증 강화.
 //   이전: body.email/password 타입·길이 검증 전무 → 10MB 패스워드 bcrypt DoS,
 //         .toLowerCase() 호출 시 타입 불일치로 500, 에러 경로 분기 불명확.
-// L-hub1 (2026-04-22): emailSchema (max 200, trim) 허브 이관.
 const LoginSchema = z.object({
-  email: emailSchema,
+  email: z.string().email().max(200),
   password: z.string().min(1).max(200),
 });
 

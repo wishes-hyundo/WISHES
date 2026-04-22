@@ -82,6 +82,18 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
     } catch { /* noop */ }
   }
 
+  // L-sec133 (2026-04-23, C-2 phase 1): HttpOnly 쿠키(ws_session) fallback.
+  //   /api/auth/cookie-issue 로 발급된 쿠키를 읽어 기존 Bearer 경로와 병행.
+  //   phase 1 의 의도: 기존 Bearer 를 사용하는 모든 클라이언트는 변동 없이
+  //   작동하되, 쿠키 기반으로 새로 접근한 요청도 통과하게 한다.
+  //   phase 2 에서 클라이언트가 쿠키 전용 fetch 로 전환되면 이 블록이 주 경로가 됨.
+  if (!token) {
+    try {
+      const cookieToken = request.cookies?.get?.('ws_session')?.value?.trim();
+      if (cookieToken) token = cookieToken;
+    } catch { /* noop */ }
+  }
+
   if (!token) return false;
 
   const MASTER_PASSWORD = getMasterPassword();
@@ -180,6 +192,14 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
     } catch { /* noop */ }
   }
 
+  // L-sec133 (2026-04-23, C-2 phase 1): ws_session 쿠키 fallback (IDOR 경로 동일).
+  if (!token) {
+    try {
+      const cookieToken = request.cookies?.get?.('ws_session')?.value?.trim();
+      if (cookieToken) token = cookieToken;
+    } catch { /* noop */ }
+  }
+
   if (!token) return { ok: false };
 
   const MASTER_PASSWORD = getMasterPassword();
@@ -264,7 +284,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
   role?: string;
 }> {
   const authHeader = request.headers.get('authorization');
-  const token = authHeader?.replace(/^Bearer\s+/i, '').trim() || '';
+  let token = authHeader?.replace(/^Bearer\s+/i, '').trim() || '';
 
   if (!token) {
     try {
@@ -274,7 +294,13 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
         return { ok: true, role: 'master' };
       }
     } catch { /* noop */ }
-    return { ok: false, reason: 'no_token' };
+    // L-sec133 (2026-04-23, C-2 phase 1): ws_session 쿠키 fallback.
+    //   query token 이 마스터와 일치하지 않아도 쿠키가 있으면 JWT 경로로 진행.
+    try {
+      const cookieToken = request.cookies?.get?.('ws_session')?.value?.trim();
+      if (cookieToken) token = cookieToken;
+    } catch { /* noop */ }
+    if (!token) return { ok: false, reason: 'no_token' };
   }
 
   // 마스터 패스워드 (env)

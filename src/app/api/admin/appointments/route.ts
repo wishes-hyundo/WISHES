@@ -8,7 +8,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
-import { dateStringSchema } from '@/lib/schemas'; // L-hub2
 import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 
 export async function GET(request: NextRequest) {
@@ -88,7 +87,7 @@ const patchSchema = z.object({
   id: z.number(),
   status: z.enum(['requested', 'confirmed', 'completed', 'cancelled', 'no_show']).optional(),
   agentMemo: z.string().max(1000).optional().nullable(),
-  visitDate: dateStringSchema.optional(), // L-hub2
+  visitDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   visitSlot: z.string().optional(),
 });
 

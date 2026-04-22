@@ -6,16 +6,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { createClient } from '@/lib/supabase';
 import { z } from 'zod';
-import { optionalEmailSchema, listingIdSchema } from '@/lib/schemas'; // L-hub2
 
 // L-sec18 (2026-04-22): 공개 POST 엔드포인트. 스팸 봇이 대용량 페이로드로
 //   contacts 테이블을 채우지 못하도록 각 문자열 필드에 max() 강제.
 const contactSchema = z.object({
   name: z.string().min(1, '이름을 입력해주세요').max(100),
   phone: z.string().min(1, '연락처를 입력해주세요').max(30),
-  email: optionalEmailSchema, // L-hub2
+  email: z
+    .string()
+    .email('올바른 이메일 형식이 아닙니다')
+    .max(200)
+    .optional()
+    .or(z.literal('')),
   message: z.string().max(2000).optional(),
-  listingId: listingIdSchema.nullable().optional(), // L-hub2
+  listingId: z.number().int().nonnegative().max(2_000_000_000).nullable().optional(),
   inquiry_type: z.string().max(40).optional().default('consultation'),
   property_type: z.string().max(40).optional().nullable(),
   preferred_area: z.string().max(200).optional().nullable(),
