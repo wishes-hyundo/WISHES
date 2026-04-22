@@ -453,13 +453,16 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
   return (
     <div className="pt-16 pb-20 lg:pb-0 min-h-screen bg-wishes-bg">
       {/* JSON-LD */}
+      {/* L-xss2 (2026-04-22): JSON-LD 안에 listing.title/description 등
+          관리자 입력 이 들어가니 "</script>" 난입으로의 XSS 분기 존재.
+          JSON.stringify 출력의 '<' 를 \\u003c 로 치환해 <script> 컨텍스트에서 안전. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd).replace(/</g, '\\u003c') }}
       />
 
       {/* 브레드크럼 */}
