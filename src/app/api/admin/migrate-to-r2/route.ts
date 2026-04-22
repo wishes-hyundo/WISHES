@@ -53,11 +53,28 @@ export async function POST(request: NextRequest) {
 
     const results: { id: number; status: string; oldUrl: string; newUrl?: string; error?: string }[] = [];
 
+    // L-sec52 (2026-04-22): SSRF guard. admin/DB 가 오염되면 img.url 이
+    //   169.254.169.254/latest/meta-data 같은 internal endpoint 로 우회될 수 있음.
+    //   migration 목적상 supabase.co/storage 호스트만 허용.
+    const isSupabaseStorageUrl = (u: string): boolean => {
+      try {
+        const parsed = new URL(u);
+        if (parsed.protocol !== 'https:') return false;
+        if (!parsed.hostname.endsWith('.supabase.co')) return false;
+        if (!parsed.pathname.startsWith('/storage/')) return false;
+        return true;
+      } catch { return false; }
+    };
+
     for (const img of images) {
       try {
         const storagePath = img.url.split('/storage/v1/object/public/listing-images/')[1];
         if (!storagePath) {
           results.push({ id: img.id, status: 'skipped', oldUrl: img.url, error: 'parse error' });
+          continue;
+        }
+        if (!isSupabaseStorageUrl(img.url)) {
+          results.push({ id: img.id, status: 'skipped', oldUrl: img.url, error: 'disallowed host' });
           continue;
         }
 
@@ -96,7 +113,14 @@ export async function POST(request: NextRequest) {
       results,
     });
   } catch (error) {
-    return NextResponse.json({ error: 'Migration failed', details: String(error) }, { status: 500 });
+    // L-sec52 (2026-04-22): prod 에서 details 스택 누출 방지
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json(
+      isDev
+        ? { error: 'Migration failed', details: String(error) }
+        : { error: 'Migration failed' },
+      { status: 500 }
+    );
   }
 }
 
