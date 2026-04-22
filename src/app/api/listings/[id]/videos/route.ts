@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { uploadToR2, deleteFromR2 } from '@/lib/r2';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { adminCorsHeaders } from '@/lib/cors';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,11 +16,7 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+// L-sec15 (2026-04-22): listing_videos CORS '*' → Origin 화이트리스트 (L-sec10 패턴).
 
 const VALID_MIME = new Set([
   'video/mp4',
@@ -31,8 +28,8 @@ const VALID_MIME = new Set([
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50MB
 
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: CORS_HEADERS });
+export async function OPTIONS(request: NextRequest) {
+  return NextResponse.json({}, { headers: adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPTIONS') });
 }
 
 async function isAdmin(request: NextRequest): Promise<boolean> {
@@ -56,34 +53,35 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const cors = adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPTIONS');
   try {
     if (!(await isAdmin(request))) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: cors });
     }
     const { id } = await params;
     const listingId = parseInt(id);
     if (isNaN(listingId)) {
-      return NextResponse.json({ success: false, error: 'Invalid listing ID' }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'Invalid listing ID' }, { status: 400, headers: cors });
     }
 
     let formData: FormData;
     try { formData = await request.formData(); }
     catch (e: any) {
-      return NextResponse.json({ success: false, error: 'FormData error: ' + (e?.message || String(e)) }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'FormData error: ' + (e?.message || String(e)) }, { status: 400, headers: cors });
     }
 
     const files = formData.getAll('videos') as File[];
     if (!files || files.length === 0) {
-      return NextResponse.json({ success: false, error: 'No videos' }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'No videos' }, { status: 400, headers: cors });
     }
     if (files.length > 5) {
-      return NextResponse.json({ success: false, error: 'Max 5 videos per request' }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'Max 5 videos per request' }, { status: 400, headers: cors });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: listing, error: le } = await supabase.from('listings').select('id').eq('id', listingId).single();
     if (le || !listing) {
-      return NextResponse.json({ success: false, error: 'Listing not found' }, { status: 404, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'Listing not found' }, { status: 404, headers: cors });
     }
 
     const { data: existing } = await supabase
@@ -143,16 +141,16 @@ export async function POST(
     if (uploaded.length === 0) {
       return NextResponse.json(
         { success: false, error: 'All failed', errors, details: errors.map(e => e.name + ': ' + e.error).join('; ') },
-        { status: 500, headers: CORS_HEADERS }
+        { status: 500, headers: cors }
       );
     }
 
     return NextResponse.json(
       { success: true, message: uploaded.length + ' uploaded', data: uploaded, videos: uploaded, listingId, ...(errors.length > 0 ? { errors } : {}) },
-      { headers: CORS_HEADERS }
+      { headers: cors }
     );
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: CORS_HEADERS });
+    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: cors });
   }
 }
 
@@ -160,11 +158,12 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const cors = adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPTIONS');
   try {
     const { id } = await params;
     const listingId = parseInt(id);
     if (isNaN(listingId)) {
-      return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400, headers: cors });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -174,10 +173,10 @@ export async function GET(
       .eq('listing_id', listingId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
-    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500, headers: CORS_HEADERS });
-    return NextResponse.json({ success: true, data: data || [] }, { headers: CORS_HEADERS });
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500, headers: cors });
+    return NextResponse.json({ success: true, data: data || [] }, { headers: cors });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: CORS_HEADERS });
+    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: cors });
   }
 }
 
@@ -185,15 +184,16 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const cors = adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPTIONS');
   try {
-    if (!(await isAdmin(request))) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
+    if (!(await isAdmin(request))) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: cors });
     const { id } = await params;
     const listingId = parseInt(id);
 
     const body = await request.json();
     const { videos } = body as { videos: { id: number; sort_order?: number; alt?: string; poster_url?: string }[] };
     if (!videos || !Array.isArray(videos)) {
-      return NextResponse.json({ success: false, error: 'videos array required' }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'videos array required' }, { status: 400, headers: cors });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -209,9 +209,9 @@ export async function PATCH(
       results.push({ id: v.id, success: !error, error: error?.message });
     }
 
-    return NextResponse.json({ success: true, results }, { headers: CORS_HEADERS });
+    return NextResponse.json({ success: true, results }, { headers: cors });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: CORS_HEADERS });
+    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: cors });
   }
 }
 
@@ -219,12 +219,13 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const cors = adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPTIONS');
   try {
-    if (!(await isAdmin(request))) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
+    if (!(await isAdmin(request))) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: cors });
     const { id } = await params;
     const listingId = parseInt(id);
     const videoId = new URL(request.url).searchParams.get('videoId');
-    if (!videoId) return NextResponse.json({ success: false, error: 'videoId required' }, { status: 400, headers: CORS_HEADERS });
+    if (!videoId) return NextResponse.json({ success: false, error: 'videoId required' }, { status: 400, headers: cors });
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { data: video, error: fe } = await supabase
@@ -233,7 +234,7 @@ export async function DELETE(
       .eq('id', parseInt(videoId))
       .eq('listing_id', listingId)
       .single();
-    if (fe || !video) return NextResponse.json({ success: false, error: 'Video not found' }, { status: 404, headers: CORS_HEADERS });
+    if (fe || !video) return NextResponse.json({ success: false, error: 'Video not found' }, { status: 404, headers: cors });
 
     if (video.url) {
       try {
@@ -244,8 +245,8 @@ export async function DELETE(
     }
 
     await supabase.from('listing_videos').delete().eq('id', video.id);
-    return NextResponse.json({ success: true, message: 'Deleted' }, { headers: CORS_HEADERS });
+    return NextResponse.json({ success: true, message: 'Deleted' }, { headers: cors });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: CORS_HEADERS });
+    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: cors });
   }
 }
