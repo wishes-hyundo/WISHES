@@ -64,7 +64,8 @@ export async function POST(
     return NextResponse.json({ error: 'INVALID_JSON' }, { status: 400 });
   }
 
-  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  // L-sec42 (2026-04-22): name 길이 cap
+  const name = typeof body.name === 'string' ? body.name.trim().slice(0, 300) : '';
   const mime = typeof body.mime === 'string' ? body.mime.trim() : '';
   const size = typeof body.size === 'number' ? body.size : NaN;
 
@@ -103,8 +104,10 @@ export async function POST(
     );
   } catch (err: any) {
     console.error('[videos/presign] presign failed:', err);
+    // L-sec42: R2/AWS 에러 detail 은 dev 에서만
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { error: 'PRESIGN_FAILED', detail: String(err?.message || err) },
+      isDev ? { error: 'PRESIGN_FAILED', detail: String(err?.message || err) } : { error: 'PRESIGN_FAILED' },
       { status: 500 }
     );
   }

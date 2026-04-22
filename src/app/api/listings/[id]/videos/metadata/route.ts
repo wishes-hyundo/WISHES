@@ -55,7 +55,8 @@ export async function POST(
   }
 
   const key = typeof body.key === 'string' ? body.key.trim() : '';
-  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  // L-sec42 (2026-04-22): name 길이 cap — DB alt 컬럼 폭증 방지
+  const name = typeof body.name === 'string' ? body.name.trim().slice(0, 300) : '';
   const mime = typeof body.mime === 'string' ? body.mime.trim() : '';
   const size = typeof body.size === 'number' ? body.size : NaN;
 
@@ -115,8 +116,10 @@ export async function POST(
 
   if (error) {
     console.error('[videos/metadata] insert failed:', error);
+    // L-sec42: detail 은 dev 에서만 반환 (prod 에서 Supabase 에러 메시지 유출 방지)
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { error: 'DB_INSERT_FAILED', detail: error.message },
+      isDev ? { error: 'DB_INSERT_FAILED', detail: error.message } : { error: 'DB_INSERT_FAILED' },
       { status: 500 }
     );
   }
