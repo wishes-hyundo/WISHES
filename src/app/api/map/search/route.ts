@@ -170,7 +170,10 @@ export async function GET(request: NextRequest) {
         // 잔여 키워드 pg_trgm ILIKE
         const residue = (parsed.residue || '').replace(/\s+/g, ' ').trim();
         if (residue && residue.length >= 2) {
-          const pattern = '%' + residue.replace(/%/g, '\\%') + '%';
+          // L-sec106 (2026-04-22): PostgREST .or() filter injection 차단 — L-sec106 로직 참조
+          //   (listings/route.ts 와 동일 패턴).
+          const rEscaped = residue.replace(/"/g, '""').replace(/%/g, '\\%');
+          const pattern = '"%' + rEscaped + '%"';
           base = base.or(
             [
               `title.ilike.${pattern}`,

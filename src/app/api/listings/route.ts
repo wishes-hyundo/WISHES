@@ -150,7 +150,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, data: sanitized, listings: sanitized, total: sanitized.length });
       }
 
-      const pattern = '%' + q.replace(/%/g, '\\%') + '%';
+      // L-sec106 (2026-04-22): PostgREST .or() 필터 인젝션 방어.
+      //   raw q 안의 ',' 는 .or() 의 predicate separator 라 공격자가 임의 필터
+      //   predicate (e.g. status.eq.임시) 를 덧붙일 수 있다. 값 전체를 쿼티드
+      //   문자열 "..." 로 래핑하고 내부 '"' 은 '""' 로 escape 한다 (PostgREST 규약).
+      const qEscaped = q.replace(/"/g, '""').replace(/%/g, '\\%');
+      const pattern = '"%' + qEscaped + '%"';
       const { data, error } = await supabase
         .from('listings')
         .select(selectCols)
