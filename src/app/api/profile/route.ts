@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+// L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관 — loose variants.
+import { nameLooseSchema, phoneLooseSchema } from '@/lib/schemas';
 
 // L-sec38 (2026-04-22): profile PUT 입력 검증 추가.
 //   authenticated 지만 본인 행을 거대 payload 로 채워 DB 스토리지 비용 폭증시킬 수 있음.
 const ProfileSchema = z.object({
-  name: z.string().max(100).optional(),
-  phone: z.string().max(30).optional(),
+  name: nameLooseSchema.optional(),
+  phone: phoneLooseSchema.optional(),
   preferred_areas: z.array(z.string().max(60)).max(50).optional(),
   preferred_types: z.array(z.string().max(40)).max(30).optional(),
 });

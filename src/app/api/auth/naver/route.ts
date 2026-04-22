@@ -2,13 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+// L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관.
+import { oauthCodeSchema, oauthStateSchema } from '@/lib/schemas';
 
 // L-sec66 (2026-04-22): OAuth code/state 입력 검증.
 //   Naver authorization_code 는 일반적으로 30~200자, state 는 클라이언트에서
 //   생성한 nonce 라 길이 상한을 두어 10MB 바디 DoS 방지.
+// L-hub3: hub 의 oauthCodeSchema / oauthStateSchema 재사용.
 const NaverOAuthSchema = z.object({
-  code: z.string().min(1).max(512),
-  state: z.string().max(256).optional(),
+  code: oauthCodeSchema,
+  state: oauthStateSchema.optional(),
 });
 
 // 네이버 OAuth 토큰 교환 및 사용자 생성/로그인

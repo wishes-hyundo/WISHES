@@ -14,20 +14,24 @@ import { createServerClient } from '@/lib/supabase';
 import { verifyAdminAuth } from '@/lib/adminAuth';
 import { z } from 'zod';
 import { createHash } from 'crypto';
+// L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관.
+//   priceWonSchema/areaSqmSchema 는 cap 값 일관성(1조원/10만㎡) 을 보장.
+import { priceWonSchema, areaSqmSchema, latitudeSchema, longitudeSchema } from '@/lib/schemas';
 
 // 요청 검증 스키마
+// L-hub3: price/area/lat/lng 필드를 hub 기반으로 통일.
 const createListingSchema = z.object({
   title: z.string().min(1, '제목을 입력해주세요'),
   type: z.enum(['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실']),
   deal: z.enum(['전세', '월세', '매매']),
-  deposit: z.number().int().nonnegative().default(0),
-  monthly: z.number().int().nonnegative().optional().nullable(),
-  price: z.number().int().nonnegative().optional().nullable(),
-  maintenance_fee: z.number().int().nonnegative().default(0).optional(),
+  deposit: priceWonSchema.default(0),
+  monthly: priceWonSchema.optional().nullable(),
+  price: priceWonSchema.optional().nullable(),
+  maintenance_fee: priceWonSchema.default(0).optional(),
   maintenance_includes: z.array(z.string()).optional().nullable(),
-  area_m2: z.number().positive(),
-  area_supply_m2: z.number().positive().optional().nullable(),
-  area_land_m2: z.number().positive().optional().nullable(),
+  area_m2: areaSqmSchema.refine((v) => v > 0, 'area must be positive'),
+  area_supply_m2: areaSqmSchema.refine((v) => v > 0).optional().nullable(),
+  area_land_m2: areaSqmSchema.refine((v) => v > 0).optional().nullable(),
   floor_current: z.string().optional().nullable(),
   floor_total: z.string().optional().nullable(),
   rooms: z.number().int().positive().optional().nullable(),
@@ -37,8 +41,8 @@ const createListingSchema = z.object({
   address: z.string().min(1),
   address_detail: z.string().optional().nullable(),
   dong: z.string().min(1),
-  lat: z.number().optional().nullable(),
-  lng: z.number().optional().nullable(),
+  lat: latitudeSchema.optional().nullable(),
+  lng: longitudeSchema.optional().nullable(),
   description: z.string().optional().nullable(),
   available_date: z.string().optional().nullable(),
   built_year: z.string().optional().nullable(),

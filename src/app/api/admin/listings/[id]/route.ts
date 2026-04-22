@@ -10,6 +10,8 @@ import { verifyAdminAuth as verifyAuth, verifyAdminAuthWithContext } from '@/lib
 import { preferSelfHostedImages } from '@/lib/image-policy';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { audit } from '@/lib/auditLog';
+// L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관.
+import { listingIdSchema } from '@/lib/schemas';
 
 // ─── L-sec112 IDOR 방어 (2026-04-22 재적용) ────────────────────────
 //   DELETE/PATCH /api/admin/listings/:id 는 본인 매물만 변경 가능해야 한다.
@@ -66,14 +68,15 @@ export async function GET(
     }
 
     const { id } = await params;
-    const listingId = parseInt(id);
-
-    if (isNaN(listingId)) {
+    // L-hub3: listingIdSchema 로 cap 포함 정수 검증 통일.
+    const _idParsed = listingIdSchema.safeParse(id);
+    if (!_idParsed.success) {
       return NextResponse.json(
         { success: false, error: '유효하지 않은 매물 ID입니다' },
         { status: 400 }
       );
     }
+    const listingId = _idParsed.data;
 
     const supabase = createServerClient();
 
@@ -162,14 +165,15 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const listingId = parseInt(id);
-
-    if (isNaN(listingId)) {
+    // L-hub3: listingIdSchema 로 cap 포함 정수 검증 통일.
+    const _idParsed = listingIdSchema.safeParse(id);
+    if (!_idParsed.success) {
       return NextResponse.json(
         { success: false, error: '유효하지 않은 매물 ID입니다' },
         { status: 400 }
       );
     }
+    const listingId = _idParsed.data;
 
     const supabase = createServerClient();
 
@@ -250,14 +254,15 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const listingId = parseInt(id);
-
-    if (isNaN(listingId)) {
+    // L-hub3: listingIdSchema 로 cap 포함 정수 검증 통일.
+    const _idParsed = listingIdSchema.safeParse(id);
+    if (!_idParsed.success) {
       return NextResponse.json(
         { success: false, error: '유효하지 않은 매물 ID입니다' },
         { status: 400 }
       );
     }
+    const listingId = _idParsed.data;
 
     const supabase = createServerClient();
 
