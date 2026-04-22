@@ -27,49 +27,14 @@ export async function POST(request: NextRequest) {
       user_metadata: { name, phone, company, role: requestedRole || role }
     });
 
-    // Handle user already exists
+    // L-sec9 (2026-04-22): CRITICAL account-takeover fix.
+    //   Prior branch let anyone who knew a SUPERADMIN email re-POST /register
+    //   with any password -> updateUserById + signInWithPassword returned a
+    //   valid session token = full account takeover. Remove reset branch
+    //   entirely. Password reset must go through Supabase's email flow.
     if (authError && authError.message?.includes('already been registered')) {
-      if (isSuperAdmin) {
-        // Superadmin already exists - update password and sign in
-        const { data: { users } } = await supabase.auth.admin.listUsers();
-        const existingUser = users?.find((u: { email?: string }) => u.email === email.toLowerCase());
-
-        if (existingUser) {
-          // Update password and confirm email
-          await supabase.auth.admin.updateUserById(existingUser.id, {
-            password,
-            email_confirm: true,
-            user_metadata: { name, phone, company, role: 'superadmin' }
-          });
-
-          // Sign in with new password
-          const { data: signIn, error: signInErr } = await supabase.auth.signInWithPassword({
-            email: email.toLowerCase(),
-            password,
-          });
-
-          if (signInErr) {
-            return NextResponse.json(
-              { success: false, message: 'ë¡ê·¸ì¸ ì²ë¦¬ ì¤ ì¤ë¥: ' + signInErr.message },
-              { status: 400 }
-            );
-          }
-
-          return NextResponse.json({
-            success: true,
-            token: signIn.session?.access_token || existingUser.id,
-            user: {
-              id: existingUser.id,
-              name,
-              email: email.toLowerCase(),
-              role: 'superadmin',
-              company,
-            }
-          });
-        }
-      }
       return NextResponse.json(
-        { success: false, message: 'ì´ë¯¸ ë±ë¡ë ì´ë©ì¼ìëë¤.' },
+        { success: false, message: '이미 등록된 이메일입니다.' },
         { status: 409 }
       );
     }
