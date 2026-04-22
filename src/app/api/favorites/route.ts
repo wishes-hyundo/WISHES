@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec36 (2026-04-22): listing_id 는 0 이상 20억 이하 정수만 허용 (Supabase bigint 안전 범위).
 //   \!listing_id 로만 검증하면 0 / 객체 / 배열 통과.
@@ -15,6 +16,16 @@ function errorBody(msg: string, detail?: unknown) {
 }
 
 export async function GET(request: NextRequest) {
+  // L-sec82 (2026-04-22): defense-in-depth. 즐겨찾기 토글 빈번 → 200/5min.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `favorites:ip:${_ip}`, limit: 200, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const supabase = createServerClient();
   const authHeader = request.headers.get('authorization');
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -47,6 +58,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  // L-sec82 (2026-04-22): defense-in-depth (GET 과 동일 bucket).
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `favorites:ip:${_ip}`, limit: 200, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const supabase = createServerClient();
   const authHeader = request.headers.get('authorization');
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -64,6 +85,16 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  // L-sec82 (2026-04-22): defense-in-depth.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `favorites:ip:${_ip}`, limit: 200, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const supabase = createServerClient();
   const authHeader = request.headers.get('authorization');
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

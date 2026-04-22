@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec38 (2026-04-22): profile PUT 입력 검증 추가.
 //   authenticated 지만 본인 행을 거대 payload 로 채워 DB 스토리지 비용 폭증시킬 수 있음.
@@ -17,6 +18,16 @@ function errorBody(msg: string, detail?: unknown) {
 }
 
 export async function GET(request: NextRequest) {
+  // L-sec82 (2026-04-22): defense-in-depth. 프로필 변경 잠음 → 60/5min.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `profile:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const supabase = createServerClient();
   const authHeader = request.headers.get('authorization');
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -29,6 +40,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  // L-sec82 (2026-04-22): defense-in-depth.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `profile:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const supabase = createServerClient();
   const authHeader = request.headers.get('authorization');
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

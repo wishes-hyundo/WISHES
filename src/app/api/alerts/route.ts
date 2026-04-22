@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function GET(request: NextRequest) {
+  // L-sec82 (2026-04-22): defense-in-depth. 토큰 leak 시 DB 남용 방지.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `alerts:ip:${_ip}`, limit: 100, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const supabase = createServerClient();
   const authHeader = request.headers.get('authorization');
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -35,6 +46,16 @@ function finiteNum(v: any): number {
 }
 
 export async function PUT(request: NextRequest) {
+  // L-sec82 (2026-04-22): defense-in-depth (GET 와 동일 bucket).
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `alerts:ip:${_ip}`, limit: 100, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const supabase = createServerClient();
   const authHeader = request.headers.get('authorization');
   if (!authHeader) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
