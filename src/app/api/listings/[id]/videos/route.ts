@@ -184,6 +184,14 @@ export async function GET(
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // L-sec92 (2026-04-22): IDOR 차단 — 부모 listings.status='공개' 선검증. 없으면 404.
+    const { data: parent } = await supabase
+      .from('listings')
+      .select('id')
+      .eq('id', listingId)
+      .eq('status', '공개')
+      .maybeSingle();
+    if (!parent) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: cors });
     const { data, error } = await supabase
       .from('listing_videos')
       .select('id, url, poster_url, mime_type, file_size, duration_sec, width, height, alt, sort_order, created_at')

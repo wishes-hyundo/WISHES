@@ -133,6 +133,15 @@ export async function GET(
     if (isNaN(listingId)) return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400, headers: cors });
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // L-sec92 (2026-04-22): IDOR 차단 — 부모 listings.status='공개' 선검증. 없으면 404.
+    //   (비공개/삭제 매물 사진 열거 방지)
+    const { data: parent } = await supabase
+      .from('listings')
+      .select('id')
+      .eq('id', listingId)
+      .eq('status', '공개')
+      .maybeSingle();
+    if (!parent) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: cors });
     const { data, error } = await supabase
       .from('listing_images')
       .select('id, url, alt, sort_order, is_thumbnail, created_at')

@@ -54,10 +54,13 @@ export async function GET(request: NextRequest) {
       }
 
       const supabase = createServerClient();
+      // L-sec92 (2026-04-22): IDOR 차단 — ids 벌크 조회도
+      //   status='공개' 필터 없으면 ID 열거로 임시/비공개/삭제 매물 폭로.
       const { data, error } = await supabase
         .from('listings')
         .select('*, listing_images(*), listing_videos(id, url, poster_url, mime_type, sort_order)')
-        .in('id', idList);
+        .in('id', idList)
+        .eq('status', '공개');
 
       if (error) {
         console.error('Supabase 쿼리 오류:', error);
@@ -88,10 +91,12 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: true, data: [], listings: [], total: 0 });
       }
       const supabase = createServerClient();
+      // L-sec92 (2026-04-22): IDOR 차단 — id=X 딥링크 분기도 공개 매물만.
       const { data, error } = await supabase
         .from('listings')
         .select('*, listing_images(url, sort_order, is_thumbnail), listing_videos(id, url, poster_url, mime_type, sort_order)')
         .eq('id', n)
+        .eq('status', '공개')
         .limit(1);
       if (error) {
         console.error('Supabase 단일ID 조회 오류:', error);
@@ -126,10 +131,12 @@ export async function GET(request: NextRequest) {
 
       if (onlyDigits) {
         const n = parseInt(q, 10);
+        // L-sec92 (2026-04-22): IDOR 차단 — 숫자만 입력 시 id 삼기 로직에도 status 필터.
         const { data, error } = await supabase
           .from('listings')
           .select(selectCols)
           .eq('id', n)
+          .eq('status', '공개')
           .limit(1);
         if (error) {
           // L-sec70 (2026-04-22): Supabase error 메시지 prod 노출 차단
