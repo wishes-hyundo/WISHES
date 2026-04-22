@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 
@@ -22,6 +23,18 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // L-sec78 (2026-04-22): Kakao Local API 할당량 보호
+    //   24h CDN 캐시 있으나 listing id 순회하면 cold cache 마다
+    //   Kakao 호출 도달. 5분 30회/IP cap.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `nearby:ip:${_ip}`, limit: 30, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { id } = await params;
     const listingId = parseInt(id);
 
