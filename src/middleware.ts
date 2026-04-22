@@ -124,6 +124,10 @@ export function middleware(request: NextRequest) {
   // L-sec4 (2026-04-22): CSP Enforce — 'unsafe-eval' 제거 완료.
   //   MapLibre/deck.gl/pmtiles 프로덕션 chunks 15개 전수 검증, eval(/new Function( 0건.
   //   Report-Only 병행 중단 — 승격 후에도 Enforce 채널에 report-to/report-uri 유지.
+  // L-sec102 (2026-04-22): img-src 'https://*.workers.dev' wildcard 제거.
+  //   *.workers.dev 는 누구나 Workers script 배포 가능 — 와일드카드 허용 시
+  //   XSS 환경에서 attacker.workers.dev 픽셀로 데이터 exfil/tracking 가능.
+  //   실제 사용되는 hostname 은 wishes-image-proxy.wishes-img.workers.dev 단 1개.
   response.headers.set(
     'Content-Security-Policy',
     [
@@ -131,7 +135,7 @@ export function middleware(request: NextRequest) {
       "frame-src 'self' https://t1.daumcdn.net https://postcode.map.daum.net https://*.daumcdn.net https://postcode.map.kakao.com",
       "script-src 'self' 'unsafe-inline' https://t1.daumcdn.net https://dapi.kakao.com https://*.daumcdn.net https://www.googletagmanager.com https://www.google-analytics.com https://wcs.naver.net https://cdn.jsdelivr.net",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-      "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.daumcdn.net https://t1.daumcdn.net https://*.kakao.com https://*.kakao.co.kr https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev https://wishes-image-proxy.wishes-img.workers.dev https://*.workers.dev https://d4k1brqee4emz.cloudfront.net https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://demotiles.maplibre.org https://tiles.openfreemap.org https://*.openfreemap.org",
+      "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.daumcdn.net https://t1.daumcdn.net https://*.kakao.com https://*.kakao.co.kr https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev https://wishes-image-proxy.wishes-img.workers.dev https://d4k1brqee4emz.cloudfront.net https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://demotiles.maplibre.org https://tiles.openfreemap.org https://*.openfreemap.org",
       "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
       "connect-src 'self' https://*.supabase.co https://dapi.kakao.com https://*.daumcdn.net https://www.google-analytics.com https://wcs.naver.net https://api.anthropic.com https://cdn.jsdelivr.net https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://demotiles.maplibre.org https://tiles.openfreemap.org https://*.openfreemap.org",
       "worker-src 'self' blob: https://cdn.jsdelivr.net",
