@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
@@ -61,6 +61,20 @@ export const metadata: Metadata = {
   },
 };
 
+/**
+ * L-viewport1 (2026-04-22): Next.js 15 는 viewport·themeColor·colorScheme 을
+ * metadata 객체에서 분리해 별도 `export const viewport` 로 이동해야 경고 없이
+ * 동작. manifest.json 의 theme_color(#3a7d44) 와 일치시켜 PWA 스플래시·주소창
+ * 색상이 브랜드 그린으로 렌더되도록 지정.
+ */
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: '#3a7d44',
+  colorScheme: 'light',
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -91,7 +105,7 @@ export default function RootLayout({
             media=print + swap 방식은 render-blocking 130ms 를 제거했지만, first paint
             가 시스템 폰트로 이뤄진 뒤 Pretendard 가 나중에 swap 되면서 메트릭 차이로
             히어로 섹션에서 CLS 0.234 발생 → Performance 90 → 85 로 후퇴.
-            LCP 는 L-perf3 (fade-in 제거) 효과로 1.7s → 0.74s 까지 내려왔기 때문에
+            LCP 는 L-perf3 (fade-in 제거) 효과 로 1.7s → 0.74s 까지 내려왔기 때문에
             블로킹 CSS 130ms 를 다시 수용해도 LCP 예산 충분. 단순 <link rel="stylesheet">
             로 복귀해 첫 paint 에서 이미 Pretendard 적용 → CLS 제거. */}
         <link
