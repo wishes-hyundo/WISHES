@@ -1,20 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { notifyAdminNewRegistration } from '@/lib/email';
+import { z } from 'zod';
+
+// L-sec39 (2026-04-22): 가입 입력 길이 cap + authError prod 숨김.
+const RegisterSchema = z.object({
+  name: z.string().min(1).max(100),
+  email: z.string().email().max(200),
+  password: z.string().min(1).max(200),
+  phone: z.string().max(30).optional().nullable(),
+  company: z.string().max(200).optional().nullable(),
+  role: z.string().max(40).optional().nullable(),
+  reason: z.string().max(2000).optional().nullable(),
+  autoApprove: z.boolean().optional(),
+  requestedRole: z.string().max(40).optional().nullable(),
+});
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { name, email, password, phone, company, role, reason, autoApprove, requestedRole } = body;
-
-    if (!name || !email || !password) {
+    const body = await request.json().catch(() => ({}));
+    const parsed = RegisterSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json(
-        { success: false, message: 'íì í­ëª©ì ìë ¥í´ì£¼ì¸ì.' },
+        { success: false, message: '입력값을 확인해주세요.' },
         { status: 400 }
       );
     }
+    const { name, email, password, phone, company, role, reason, requestedRole } = parsed.data;
 
     const supabase = createServerClient();
     const isSuperAdmin = SUPERADMIN_EMAILS.includes(email.toLowerCase());
@@ -40,8 +54,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (authError) {
+      // L-sec39: Supabase authError.message 프로덕션에서 숨김
+      const isDev = process.env.NODE_ENV !== 'production';
       return NextResponse.json(
-        { success: false, message: authError.message || 'ê°ì ì¤ ì¤ë¥ê° ë°ìíìµëë¤.' },
+        { success: false, message: isDev ? (authError.message || '가입 중 오류가 발생했습니다.') : '가입 중 오류가 발생했습니다.' },
         { status: 400 }
       );
     }
