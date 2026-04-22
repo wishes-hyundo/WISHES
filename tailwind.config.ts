@@ -5,6 +5,12 @@ const config: Config = {
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
+    // L-ux5-4 (2026-04-22): /map 2026 UI 는 src/features/map-2026/ 밑에 분리되어
+    //   있어 기본 glob 이 이를 스캔하지 않았다. 결과로 SmartChips/CategoryTabs/
+    //   ResidenceChips/HeroPin/ListPanel/MapControls/MiniCard 등 14개 파일이
+    //   쓰는 bg-neutral-*, bg-rose-*, bg-emerald-* 류 색상 클래스가 생성되지 않아
+    //   "전체" 칩을 포함한 모든 active 버튼이 투명 배경으로 렌더되던 버그.
+    './src/features/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
