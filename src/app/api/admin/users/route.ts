@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { notifyUserApproved, notifyUserRejected } from '@/lib/email';
-import { verifyAdminAuth } from '@/lib/adminAuth';
+import { verifyAdminAuth, verifyAdminAuthStrict } from '@/lib/adminAuth';
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
@@ -69,8 +69,20 @@ export async function GET(request: NextRequest) {
 // PUT /api/admin/users - ì¬ì©ì ì¹ì¸/ê±°ë¶/ì­í ë³ê²½/ì°¨ë¨
 export async function PUT(request: NextRequest) {
   try {
-    if (!(await verifyAdminAuth(request))) {
+    // L-sec97 (2026-04-22): CRITICAL privilege escalation 차단.
+    //   과거엔 verifyAdminAuth (agent/admin/superadmin 모두 통과) 만
+    //   가드였으로, role=agent 계정이 action='change_role' + role='superadmin' +
+    //   userId=<self> 로 자가 승격 가능했음.
+    //   verifyAdminAuthStrict 로 caller role 확인하고 superadmin/master 만 허용.
+    const caller = await verifyAdminAuthStrict(request);
+    if (!caller.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (caller.role !== 'superadmin' && caller.role !== 'master') {
+      return NextResponse.json(
+        { error: '사용자 계정 관리는 슈퍼어드민만 가능합니다.' },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();
@@ -216,8 +228,17 @@ export async function PUT(request: NextRequest) {
 // DELETE /api/admin/users - ì¬ì©ì ì­ì 
 export async function DELETE(request: NextRequest) {
   try {
-    if (!(await verifyAdminAuth(request))) {
+    // L-sec97 (2026-04-22): DELETE 도 superadmin/master 만.
+    //   일반 admin 이 다른 admin 계정(심지어 superadmin)을 삭제하는 것을 차단.
+    const caller = await verifyAdminAuthStrict(request);
+    if (!caller.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (caller.role !== 'superadmin' && caller.role !== 'master') {
+      return NextResponse.json(
+        { error: '사용자 삭제는 슈퍼어드민만 가능합니다.' },
+        { status: 403 },
+      );
     }
 
     const body = await request.json();
