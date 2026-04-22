@@ -81,10 +81,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Vercel Cron 은 GET 만 지원하는 경우도 있어 동일 핸들러 alias
-export async function GET(request: NextRequest) {
-  return POST(request);
-}
-
-export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// Vercel Cron 은 GET 만 지원하는 경우도 있어 동�

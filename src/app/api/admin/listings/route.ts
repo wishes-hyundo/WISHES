@@ -283,11 +283,15 @@ export async function GET(request: NextRequest) {
     let hasMore = true;
 
     while (hasMore) {
-      const { data, error } = await supabase
+      // L-v7-p3 build f (2026-04-22): full-scan 폴백 경로에도 scope=mine 필터 적용
+      //   minimal 경로와 동작을 일치시켜 ?fields≠minimal 호출도 본인 매물만 반환.
+      let q = supabase
         .from('listings')
         .select('*, listing_images(*)')
         .order('created_at', { ascending: false })
         .range(from, from + PAGE_SIZE - 1);
+      if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
+      const { data, error } = await q;
 
       if (error) {
         console.error('매물 조회 오류 (offset=' + from + '):', error);
@@ -307,6 +311,7 @@ export async function GET(request: NextRequest) {
       success: true,
       data: allData,
       total: allData.length,
+      scope,
     });
   } catch (error) {
     console.error('매물 조회 오류:', error);
@@ -635,15 +640,4 @@ export async function PUT(request: NextRequest) {
     revalidatePath(`/listings/${id}`, 'page');
     revalidateTag('listings');
 
-    return NextResponse.json({
-      success: true,
-      data,
-    });
-  } catch (error: any) {
-    console.error('매물 수정 오류:', error);
-    return NextResponse.json(
-      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
-      { status: 500 }
-    );
-  }
-}
+    return NextResponse

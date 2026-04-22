@@ -66,7 +66,23 @@ export async function GET(
   // 비동기 clicks 증분 (누락 허용, await 안 함)
   void supabase.rpc('increment_short_url_clicks', { p_code: code });
 
+  // L-sec87 (2026-04-22): DB 값 defense-in-depth 검증.
+  //   POST 시 validateTarget() 로 적혔지만 DB 변조/historic row 에 대비
+  //   redirect 시점에서도 동일 규칙 재검증. 에러시 404.
+  const target = typeof data.target_url === 'string' ? data.target_url : '';
+  const targetOk =
+    target.length > 0 &&
+    target.length <= 2048 &&
+    target.startsWith('/') &&
+    !target.startsWith('//') &&
+    !target.includes('\\') &&
+    // eslint-disable-next-line no-control-regex
+    !/[\x00-\x1f\x7f]/.test(target);
+  if (!targetOk) {
+    console.warn('[/s/[code]] invalid target_url blocked:', code);
+    return new NextResponse('Invalid short code', { status: 404 });
+  }
+
   // 303 See Other — POST 기반 공유 시 GET 으로 변환 보장
-  const target = data.target_url as string;
   return NextResponse.redirect(new URL(target, request.url), 303);
 }
