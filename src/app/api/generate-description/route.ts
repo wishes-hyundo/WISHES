@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,6 +20,17 @@ function devDetail<T>(detail: T): T | undefined {
 }
 
 export async function POST(request: NextRequest) {
+  // L-sec77 (2026-04-22): admin 토큰 leak 대비. Claude Opus/Haiku 호출 비용 보호.
+  //   15분 30회/IP cap (정상 admin 작업은 섬 경우 몇 개).
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `gen-desc:ip:${_ip}`, limit: 30, windowMs: 15 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: '요청이 너무 많습니다.' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   if (!(await verifyAdminAuth(request))) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
