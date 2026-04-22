@@ -88,6 +88,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         } catch { setUserRole(''); }
 
         setIsAuthenticated(true);
+
+        // L-sec142 (2026-04-23, C-2 phase 2): 로그인 직후 HttpOnly 쿠키 자동 발급.
+        //   sessionStorage 에 ws_token(JWT) 이 있고 쿠키가 아직 동기화 안 됐으면
+        //   /api/auth/cookie-issue 를 호출해 ws_session(HttpOnly) + ws_csrf 를 세팅.
+        //   - JWT 형식이 아니면(마스터 패스워드/브리지 토큰) skip.
+        //   - 서버가 same-origin 검증 + supabase 서명 검증 통과한 경우에만 쿠키 발급.
+        //   - phase 3 에서 admin API fetch 를 credentials:'include' 로 전환 예정.
+        try {
+          const alreadySynced = window.sessionStorage.getItem('ws_cookie_synced') === '1';
+          const looksLikeJwt = token.startsWith('eyJ') && token.split('.').length === 3;
+          if (!alreadySynced && looksLikeJwt) {
+            fetch('/api/auth/cookie-issue', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ access_token: token }),
+            })
+              .then((r) => (r.ok ? r.json() : null))
+              .then((j) => {
+                if (j?.success && j?.csrfToken) {
+                  try {
+                    window.sessionStorage.setItem('ws_csrf', j.csrfToken);
+                    window.sessionStorage.setItem('ws_cookie_synced', '1');
+                  } catch {}
+                }
+              })
+              .catch(() => { /* silent: phase 2 는 additive, 실패해도 기존 동작 유지 */ });
+          }
+        } catch { /* noop */ }
       } catch (e) {
         window.sessionStorage.clear();
         window.location.href = '/admin/admin-auth.html';
@@ -204,6 +233,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     window.localStorage.removeItem('ws_user');
     window.localStorage.removeItem('ws_login_time');
     window.localStorage.removeItem('ws_keep_login');
+
+    // L-sec142 (C-2 phase 2): HttpOnly 쿠키도 서버에서 즉시 만료.
+    //   sendBeacon / fetch keepalive 를 사용해 location.href 이동과 race 되지 않게.
+    try {
+      fetch('/api/auth/cookie-issue', {
+        method: 'DELETE',
+        credentials: 'include',
+        keepalive: true,
+      }).catch(() => {});
+    } catch { /* noop */ }
+
     window.sessionStorage.clear();
     window.location.href = '/admin/admin-auth.html';
   };
