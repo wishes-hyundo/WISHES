@@ -47,6 +47,10 @@ export default function AdminTodayPanel({ authHeader }: Props) {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // L-hy1 (2026-04-22): 하이드레이션 미스매치 방지.
+  //   `new Date().toLocaleDateString('ko-KR', ...)` 는 서버(UTC)와 클라(KST)에서
+  //   다른 문자열을 만들어 경고·DOM 리플로우 유발. 마운트 후 클라이언트에서만 채운다.
+  const [displayDate, setDisplayDate] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -69,6 +73,10 @@ export default function AdminTodayPanel({ authHeader }: Props) {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    setDisplayDate(new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' }));
+  }, []);
 
   // 오늘(KST) 00:00 이후에 접수된 건만 필터
   const todayStart = new Date();
@@ -111,7 +119,7 @@ export default function AdminTodayPanel({ authHeader }: Props) {
         <div className="flex items-center gap-2 text-white">
           <TrendingUp className="w-5 h-5" />
           <h3 className="font-bold text-base">오늘 할 일</h3>
-          <span className="ml-2 text-xs text-white/80">{new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' })}</span>
+          <span className="ml-2 text-xs text-white/80" suppressHydrationWarning>{displayDate || '\u00A0'}</span>
         </div>
         <button
           onClick={load}
