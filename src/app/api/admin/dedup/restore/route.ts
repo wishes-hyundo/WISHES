@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
       .order('dedup_requested_at', { ascending: false })
       .limit(1000);
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      // L-sec114 (2026-04-22): admin-gated defense-in-depth.
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '목록 조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
     }
     const rows = (data || []).map((r: any) => {
       const ts = r.dedup_requested_at ? new Date(r.dedup_requested_at).getTime() : 0;
@@ -81,7 +83,9 @@ export async function POST(request: NextRequest) {
         .eq('status', '중복정리')
         .select('id');
       if (error) {
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        // L-sec114 (2026-04-22): admin-gated defense-in-depth.
+        const isDev = process.env.NODE_ENV !== 'production';
+        return NextResponse.json({ success: false, error: '복원 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
       }
       return NextResponse.json({ success: true, restored: data?.length || 0, group_id });
     }
@@ -107,7 +111,9 @@ export async function POST(request: NextRequest) {
       .select('id');
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      // L-sec114 (2026-04-22): admin-gated defense-in-depth.
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '복원 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
     }
     return NextResponse.json({
       success: true,

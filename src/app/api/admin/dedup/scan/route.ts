@@ -199,7 +199,9 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('dedup scan query error:', error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      // L-sec114 (2026-04-22): admin-gated defense-in-depth.
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '스캔 조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
     }
 
     const rows = (data || []) as unknown as Row[];

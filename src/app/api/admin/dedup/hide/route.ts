@@ -62,7 +62,9 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       console.error('dedup hide error:', error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      // L-sec114 (2026-04-22): admin-gated 지만 탈취 토큰 공격면 축소. isDev 게이트.
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '숨김 처리 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
     }
 
     return NextResponse.json({
