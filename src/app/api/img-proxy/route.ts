@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { applyWatermark } from '@/lib/watermark';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const ALLOWED_HOSTS = [
   'd4k1brqee4emz.cloudfront.net',
@@ -23,6 +24,19 @@ const CACHE_SECONDS = 86400;
 
 export async function GET(request: NextRequest) {
   try {
+    // L-sec74 (2026-04-22): 외부 이미지 프록시 대역폭 남용 방지
+    //   5분 120회/IP cap. 이미지 heavy fetch 라 일반 API 보다 높게.
+    //   ALLOWED_HOSTS 로 SSRF 는 차단 되어 있지만 attacker 가
+    //   우리를 free CDN 으로 쓰는 거 방지.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `img-proxy:ip:${_ip}`, limit: 120, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return new NextResponse('rate limited', {
+        status: 429,
+        headers: { 'Retry-After': String(_rl.retryAfterSec) },
+      });
+    }
+
     const url = request.nextUrl.searchParams.get('url');
     if (!url) {
       return new NextResponse('url parameter required', { status: 400 });

@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -285,6 +286,18 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // L-sec74 (2026-04-22): data.go.kr SERVICE_KEY 할당량 보호
+    //   1h ISR 캐시가 있으나 listing id 순회로 cold cache 유도 가능.
+    //   5분 30회/IP cap (정상 사용자는 체류 중 몇 개 조회).
+    const _ip = getClientIp(request as NextRequest);
+    const _rl = checkRateLimit({ key: `real-prices:ip:${_ip}`, limit: 30, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const listingId = parseInt(params.id);
     if (isNaN(listingId)) {
       return NextResponse.json({ success: false, error: '잘못된 매물 ID' }, { status: 400 });
