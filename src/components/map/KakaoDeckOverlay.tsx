@@ -49,6 +49,15 @@ export interface MapItem {
 
 interface Props {
   map: unknown; // kakao.maps.Map instance
+  /**
+   * 지도 컨테이너 DOM 요소. L-map3 (2026-04-22):
+   * Kakao Maps JS SDK v2 의 Map 인스턴스는 `getContainer()` 메서드를 노출하지
+   * 않는다 (MapLibre/Google Maps 와 다른 지점). 이 때문에 이전 구현은
+   * `map.getContainer?.()` 가 undefined 를 반환하면서 effect 가 early-return 하여
+   * canvas 가 아예 생성되지 않았다. 상위(MapClient)가 `new kakao.maps.Map(el, ...)`
+   * 에 넘긴 동일한 ref 를 명시적으로 prop 으로 내려받는다.
+   */
+  container?: HTMLElement | null;
   clusters?: MapCluster[];
   items?: MapItem[];
   onClickCluster?: (c: MapCluster) => void;
@@ -79,6 +88,7 @@ function formatPriceShort(won?: number | null): string {
 
 export default function KakaoDeckOverlay({
   map,
+  container: containerProp,
   clusters = [],
   items = [],
   onClickCluster,
@@ -91,8 +101,11 @@ export default function KakaoDeckOverlay({
   // 지도 mount 후 캔버스 + Deck 생성
   useEffect(() => {
     if (!map || typeof window === 'undefined') return;
-    const kakaoMap = map as { getContainer?: () => HTMLElement; getCenter?: () => { getLat: () => number; getLng: () => number }; getLevel?: () => number };
-    const container = kakaoMap.getContainer?.();
+    // L-map3 (2026-04-22): Kakao Map 인스턴스는 getContainer() 를 노출하지 않음.
+    //   1) 상위가 직접 내려주는 containerProp 우선
+    //   2) (혹시 노출되는 경우를 위해) map.getContainer() fallback
+    const kakaoMap = map as { getContainer?: () => HTMLElement };
+    const container = containerProp ?? kakaoMap.getContainer?.();
     if (!container) return;
 
     // 캔버스 요소 추가
@@ -151,7 +164,7 @@ export default function KakaoDeckOverlay({
       deckRef.current = null;
       if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
     };
-  }, [map]);
+  }, [map, containerProp]);
 
   // clusters/items 변경 시 레이어 업데이트
   useEffect(() => {
@@ -164,7 +177,8 @@ export default function KakaoDeckOverlay({
       getContainer?: () => HTMLElement;
     };
     const projection = kakaoMap.getProjection?.();
-    const container = kakaoMap.getContainer?.();
+    // L-map3: Kakao 는 getContainer() 가 없음 → prop fallback
+    const container = containerProp ?? kakaoMap.getContainer?.();
     if (!projection || !container) return;
 
     const w = container.clientWidth;
@@ -274,13 +288,14 @@ export default function KakaoDeckOverlay({
       viewState: { target: [0, 0, 0], zoom: 0 } as any,
       layers: [scatter, clusterText, itemScatter, itemText],
     });
-  }, [map, clusters, items, colorScale, onClickCluster, onClickListing]);
+  }, [map, containerProp, clusters, items, colorScale, onClickCluster, onClickListing]);
 
   // pointer-events: auto 처리 — 클러스터/매물 클릭은 받고 싶지만 팬은 지도로 넘긴다.
   // Deck.gl 은 canvas pointer-events: none 이어도 onClick 동작 X → 동적 토글 전략 사용.
   useEffect(() => {
     const canvas = canvasRef.current;
-    const container = (map as { getContainer?: () => HTMLElement } | null)?.getContainer?.();
+    // L-map3: Kakao 는 getContainer() 가 없음 → prop fallback
+    const container = containerProp ?? (map as { getContainer?: () => HTMLElement } | null)?.getContainer?.();
     if (!canvas || !container) return;
 
     // 마우스 이동 시 deck.pickObject 로 hit 이 있으면 pointer 허용, 아니면 막는다.
@@ -293,7 +308,7 @@ export default function KakaoDeckOverlay({
     };
     container.addEventListener('mousemove', handler, { passive: true });
     return () => container.removeEventListener('mousemove', handler);
-  }, [map]);
+  }, [map, containerProp]);
 
   return null;
 }

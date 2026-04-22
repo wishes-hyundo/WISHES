@@ -297,6 +297,10 @@ export default function MapClient() {
           {ready && kakaoMap ? (
             <KakaoDeckOverlay
               map={kakaoMap}
+              // L-map3 (2026-04-22): Kakao Maps SDK v2 Map 인스턴스는 getContainer()
+              //   를 노출하지 않아서, 이전에는 오버레이 useEffect 가 early-return 하며
+              //   canvas 를 만들지 못했다. 상위가 동일 element ref 를 직접 내려준다.
+              container={containerRef.current}
               items={items}
               onClickListing={onClickListing}
             />
