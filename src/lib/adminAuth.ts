@@ -19,6 +19,7 @@
 
 import type { NextRequest } from 'next/server';
 import { createServerClient } from './supabase';
+import { timingSafeEqualStr } from './timingSafe';
 
 // ── 환경변수 기반 시크릿 ────────────────────────────────────────────
 // 프로덕션엔 반드시 env 로 설정. 로컬/테스트 환경 편의를 위해
@@ -78,16 +79,16 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
   const CRAWLER_BRIDGE = getCrawlerBridgeToken();
 
   // 1) 마스터 패스워드
-  if (token === MASTER_PASSWORD) return true;
+  if (timingSafeEqualStr(token, MASTER_PASSWORD)) return true;
 
   // 2) 크롤러 브리지 (env)
-  if (CRAWLER_BRIDGE && token === CRAWLER_BRIDGE) return true;
+  if (CRAWLER_BRIDGE && timingSafeEqualStr(token, CRAWLER_BRIDGE)) return true;
 
   // 3) admin_bridge_<inner> — inner 가 env 토큰과 정확히 일치해야 함
   if (token.startsWith('admin_bridge_')) {
     const inner = token.slice('admin_bridge_'.length);
-    if (CRAWLER_BRIDGE && inner === CRAWLER_BRIDGE) return true;
-    if (inner === MASTER_PASSWORD) return true;
+    if (CRAWLER_BRIDGE && timingSafeEqualStr(inner, CRAWLER_BRIDGE)) return true;
+    if (timingSafeEqualStr(inner, MASTER_PASSWORD)) return true;
     // inner 가 JWT 인 경우 (슈퍼어드민이 브리지 경유 시) 아래 JWT 경로로 falls through
     token = inner;
   }
@@ -166,7 +167,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
     try {
       const { searchParams } = new URL(request.url);
       const queryToken = searchParams.get('token');
-      if (queryToken && queryToken === getMasterPassword()) {
+      if (queryToken && timingSafeEqualStr(queryToken, getMasterPassword())) {
         return { ok: true, role: 'master' };
       }
     } catch { /* noop */ }
@@ -175,11 +176,11 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
 
   // 마스터 패스워드 (env)
   const MASTER_PASSWORD = getMasterPassword();
-  if (token === MASTER_PASSWORD) return { ok: true, role: 'master' };
+  if (timingSafeEqualStr(token, MASTER_PASSWORD)) return { ok: true, role: 'master' };
 
   // 크롤러 브리지 토큰 (env 완전 일치)
   const CRAWLER_BRIDGE = getCrawlerBridgeToken();
-  if (CRAWLER_BRIDGE && token === CRAWLER_BRIDGE) {
+  if (CRAWLER_BRIDGE && timingSafeEqualStr(token, CRAWLER_BRIDGE)) {
     return { ok: true, role: 'crawler_bridge' };
   }
 

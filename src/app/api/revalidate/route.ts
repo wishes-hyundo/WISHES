@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache';
 import { NextRequest, NextResponse } from 'next/server';
+import { timingSafeEqualStr } from '@/lib/timingSafe';
 
 /**
  * On-demand ISR Revalidation API
@@ -26,7 +27,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const { path, secret } = body as { path?: unknown; secret?: unknown };
 
-    if (typeof secret !== 'string' || secret !== revalidateSecret) {
+    if (typeof secret !== 'string' || !timingSafeEqualStr(secret, revalidateSecret)) {
       return NextResponse.json({ error: 'Invalid secret' }, { status: 401 });
     }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { timingSafeEqualStr } from '@/lib/timingSafe';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
@@ -91,10 +92,10 @@ export async function GET(request: Request) {
     const cronSecret = process.env.CRON_SECRET;
     let ok = false;
     if (cronSecret) {
-      ok = token === cronSecret;
+      ok = timingSafeEqualStr(token, cronSecret);
     } else if (process.env.NODE_ENV !== 'production') {
       const master = process.env.WISHES_ADMIN_MASTER_PASSWORD;
-      ok = !!master && token === master;
+      ok = timingSafeEqualStr(token, master);
     }
     if (!ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

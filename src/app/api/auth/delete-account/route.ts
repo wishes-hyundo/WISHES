@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { timingSafeEqualStr } from '@/lib/timingSafe';
 
 // L-sec1 (2026-04-22): admin_bridge_ prefix 만 보고 body.userId 로 임의
 //   계정을 삭제하던 치명적 우회 수정.
@@ -32,7 +33,7 @@ export async function DELETE(request: NextRequest) {
       const inner = token.slice('admin_bridge_'.length);
       const crawlerBridge = getCrawlerBridgeToken();
 
-      if (crawlerBridge && inner === crawlerBridge) {
+      if (crawlerBridge && timingSafeEqualStr(inner, crawlerBridge)) {
         isBridgeAuthorized = true;
       } else {
         // inner 가 JWT 이면 Supabase 로 검증 + superadmin email 체크

@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { sendNewListingAlert, NotifyListing } from '@/lib/email';
+import { timingSafeEqualStr } from '@/lib/timingSafe';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,10 +27,10 @@ function authorized(req: NextRequest): boolean {
   const header = req.headers.get('authorization') || '';
   const token = header.replace(/^Bearer\s+/i, '');
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) return token === cronSecret;
+  if (cronSecret) return timingSafeEqualStr(token, cronSecret);
   if (process.env.NODE_ENV !== 'production') {
     const master = process.env.WISHES_ADMIN_MASTER_PASSWORD;
-    if (master && token === master) return true;
+    if (master && timingSafeEqualStr(token, master)) return true;
   }
   return false;
 }

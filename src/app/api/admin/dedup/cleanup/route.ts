@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { timingSafeEqualStr } from '@/lib/timingSafe';
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
@@ -16,8 +17,9 @@ export async function POST(request: NextRequest) {
   try {
     // Vercel Cron 은 x-vercel-cron 헤더를 싣거나 Authorization: Bearer <CRON_SECRET>
     const cronSecret = request.headers.get('x-cron-secret');
+    // L-sec61 (2026-04-22): === → constant-time 비교 (타이밍 사이드채널 차단)
     const isCron = !!request.headers.get('x-vercel-cron')
-      || (process.env.CRON_SECRET && cronSecret === process.env.CRON_SECRET);
+      || (!!process.env.CRON_SECRET && timingSafeEqualStr(cronSecret, process.env.CRON_SECRET));
     if (!isCron && !(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -79,10 +81,4 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Vercel Cron 은 GET 만 지원하는 경우도 있어 동일 핸들러 alias
-export async function GET(request: NextRequest) {
-  return POST(request);
-}
-
-export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// Vercel Cron 은 GET 만 지원하는 경우도 있어 동�

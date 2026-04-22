@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { timingSafeEqualStr } from '@/lib/timingSafe';
 
 // L-sec1 (2026-04-22): admin_bridge_ prefix 만 보고 admin 통과시키던 완전한
 //   인증 우회 수정. 이제 prefix 를 벗긴 뒤 inner 토큰이 (a) env CRAWLER_BRIDGE
@@ -44,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     // env 완전 일치 → 크롤러 브리지 토큰 (운영 경유)
     const crawlerBridge = getCrawlerBridgeToken();
-    if (wasBridge && crawlerBridge && inner === crawlerBridge) {
+    if (wasBridge && crawlerBridge && timingSafeEqualStr(inner, crawlerBridge)) {
       return NextResponse.json({
         success: true,
         valid: true,
@@ -121,7 +122,7 @@ export async function GET(request: NextRequest) {
   // L-sec1: admin_bridge_ prefix 를 벗기고 inner 토큰 검증
   const { stripped: inner, wasBridge } = stripBridgePrefix(token);
   const crawlerBridge = getCrawlerBridgeToken();
-  if (wasBridge && crawlerBridge && inner === crawlerBridge) {
+  if (wasBridge && crawlerBridge && timingSafeEqualStr(inner, crawlerBridge)) {
     return NextResponse.json({
       success: true,
       valid: true,
