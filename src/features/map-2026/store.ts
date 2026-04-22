@@ -199,6 +199,63 @@ export interface Map2026Store {
   //   기본 false, 토글 시 localStorage 영속화 (세션 간 유지).
   listPanelCollapsed: boolean;
   toggleListPanel: () => void;
+
+  // L-v7-1 (2026-04-22): v7 §6 12 추가필터 아코디언 열림 상태 기억
+  //   id 는 필터 섹션 슬러그 ('parking', 'elevator', 'features' 등).
+  //   localStorage key: 'map2026.accordion' (JSON).
+  accordionOpen: Record<string, boolean>;
+  toggleAccordion: (id: string) => void;
+  setAccordion: (id: string, open: boolean) => void;
+
+  // L-v7-2 (2026-04-22): v7 §4 scope 전파 (중개인 전용)
+  //   '내 매물'(mine) vs '전체'(all). /map 에선 보통 all, /admin/search
+  //   에선 mine. URL 공유 시 scope 플래그 유지.
+  scope: 'all' | 'mine';
+  setScope: (s: 'all' | 'mine') => void;
+
+  // L-v7-3 (2026-04-22): v7 §6 "+더보기" 접힘 상태 (SumBox)
+  //   5개 초과 요약 시 5개만 표시. 토글로 전체 노출.
+  sumBoxExpanded: boolean;
+  toggleSumBoxExpanded: () => void;
+
+  // L-v7-4 (2026-04-22): v7 §9 선결조건 노트 dismiss 상태
+  //   관리자 페이지 상단에 표시되는 선결조건 배지. 사용자가 ✕ 클릭 시
+  //   localStorage 에 저장되어 24h 동안 숨김.
+  precondDismissedAt: number | null;
+  dismissPrecond: () => void;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// LocalStorage safe helpers (SSR guard 포함)
+// ─────────────────────────────────────────────────────────────────────────
+function lsGet(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try { return window.localStorage.getItem(key); } catch { return null; }
+}
+function lsSet(key: string, value: string): void {
+  if (typeof window === 'undefined') return;
+  try { window.localStorage.setItem(key, value); } catch { /* noop */ }
+}
+function readAccordion(): Record<string, boolean> {
+  const raw = lsGet('map2026.accordion');
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const out: Record<string, boolean> = {};
+      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof v === 'boolean') out[k] = v;
+      }
+      return out;
+    }
+  } catch { /* noop */ }
+  return {};
+}
+function readPrecondDismissed(): number | null {
+  const raw = lsGet('map2026.precondDismissedAt');
+  if (!raw) return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isFinite(n) ? n : null;
 }
 
 export const useMap2026Store = create<Map2026Store>()(
@@ -354,12 +411,39 @@ export const useMap2026Store = create<Map2026Store>()(
     toggleListPanel: () =>
       set((s) => {
         const next = !s.listPanelCollapsed;
-        if (typeof window !== 'undefined') {
-          try {
-            window.localStorage.setItem('map2026.listPanel', next ? 'collapsed' : 'open');
-          } catch { /* noop */ }
-        }
+        lsSet('map2026.listPanel', next ? 'collapsed' : 'open');
         return { listPanelCollapsed: next };
       }),
+
+    // L-v7-1: accordion 열림 상태 (localStorage 영속)
+    accordionOpen: readAccordion(),
+    toggleAccordion: (id) =>
+      set((s) => {
+        const next = { ...s.accordionOpen, [id]: !s.accordionOpen[id] };
+        lsSet('map2026.accordion', JSON.stringify(next));
+        return { accordionOpen: next };
+      }),
+    setAccordion: (id, open) =>
+      set((s) => {
+        const next = { ...s.accordionOpen, [id]: open };
+        lsSet('map2026.accordion', JSON.stringify(next));
+        return { accordionOpen: next };
+      }),
+
+    // L-v7-2: scope 전파
+    scope: 'all',
+    setScope: (scope) => set({ scope }),
+
+    // L-v7-3: SumBox 펼침
+    sumBoxExpanded: false,
+    toggleSumBoxExpanded: () => set((s) => ({ sumBoxExpanded: !s.sumBoxExpanded })),
+
+    // L-v7-4: 선결조건 dismiss (24h)
+    precondDismissedAt: readPrecondDismissed(),
+    dismissPrecond: () => {
+      const now = Date.now();
+      lsSet('map2026.precondDismissedAt', String(now));
+      set({ precondDismissedAt: now });
+    },
   }))
 );

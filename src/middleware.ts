@@ -29,8 +29,40 @@ function resolveAdminOrigin(request: NextRequest): string | null {
   return null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// v7 §5 단축 URL: wishes.me 최상위 코드 → /s/<code> rewrite
+//   host 가 wishes.me 이고 pathname 이 /XXXXXX (4~12자 base62) 이면
+//   /s/XXXXXX 로 내부 rewrite. 다른 경로(/map, /api/...) 는 정상 처리.
+// ─────────────────────────────────────────────────────────────────────────
+const SHORT_CODE_PATTERN = /^\/([0-9A-Za-z]{4,12})$/;
+const SHORT_CODE_RESERVED = new Set([
+  'admin', 'api', 'login', 'signup', 'auth', 'map', 'search',
+  'listings', 'mypage', 'faq', 'about', 'contact', 'privacy',
+  'terms', 'unsub', 'calculator', 'compare', 'robots', 'sitemap',
+  's', 'favicon', 'og-image', 'apple-touch-icon',
+]);
+
+function isShortUrlHost(host: string): boolean {
+  return host === 'wishes.me' || host.endsWith('.wishes.me');
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const host = (request.headers.get('host') ?? '').toLowerCase();
+
+  // v7 §5: wishes.me 호스트 최상위 단축 URL → /s/<code> rewrite
+  if (isShortUrlHost(host)) {
+    const m = SHORT_CODE_PATTERN.exec(pathname);
+    if (m && !SHORT_CODE_RESERVED.has(m[1].toLowerCase())) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/s/${m[1]}`;
+      return NextResponse.rewrite(url);
+    }
+    // wishes.me root (/, /map 등) 는 wishes.co.kr 로 permanent redirect
+    if (pathname === '/' || pathname === '') {
+      return NextResponse.redirect(new URL('https://wishes.co.kr/map', request.url), 308);
+    }
+  }
 
   // CORS: admin API — 명시 화이트리스트만 허용
   if (pathname.startsWith('/api/admin/')) {
@@ -65,7 +97,7 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
 
-  const host = request.headers.get('host') || '';
+  // L-v7 (2026-04-22): host 는 이미 위(51줄)에서 선언했으므로 재사용
   if (!host.includes('wishes.co.kr') && !host.includes('localhost')) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }

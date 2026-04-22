@@ -20,6 +20,7 @@ import { useMap2026Store } from '@/features/map-2026/store';
 import { useViewport } from '@/features/map-2026/hooks/useViewport';
 import { useSemanticZoom } from '@/features/map-2026/hooks/useSemanticZoom';
 import { useHeroRanking } from '@/features/map-2026/hooks/useHeroRanking';
+import { useFilterUrlSync } from '@/features/map-2026/hooks/useFilterUrlSync';
 
 import { NlSearchBar } from '@/features/map-2026/components/NlSearchBar';
 import { SmartChips } from '@/features/map-2026/components/SmartChips';
@@ -28,6 +29,9 @@ import { ListPanel } from '@/features/map-2026/components/ListPanel';
 import { MapControls } from '@/features/map-2026/components/MapControls';
 import { SemanticZoomIndicator } from '@/features/map-2026/components/SemanticZoomIndicator';
 import { MiniCard } from '@/features/map-2026/components/MiniCard';
+import { SumBox } from '@/features/map-2026/components/SumBox';
+import { CopyToastOutlet } from '@/features/map-2026/components/CopyToast';
+import { FilterAccordion } from '@/features/map-2026/components/FilterAccordion';
 
 import KakaoDeckOverlay, { type MapItem } from '@/components/map/KakaoDeckOverlay';
 
@@ -191,6 +195,10 @@ export default function MapClient() {
   useSemanticZoom();
   useHeroRanking();
 
+  // L-v7-url (2026-04-22): URL ↔ FilterState 양방향 동기화. 페이지 진입 시
+  //   1회 수화 → 이후 filter/sort/nlQuery 변경 시 replaceState 반영. v7 §5.
+  useFilterUrlSync();
+
   // listings → Deck 아이템 변환
   const items: MapItem[] = useMemo(
     () =>
@@ -274,8 +282,20 @@ export default function MapClient() {
             </span>
           </button>
         ) : (
-          <div className="relative">
-            <ListPanel />
+          <div className="relative flex min-h-0 flex-col">
+            {/* L-v7-sumbox (2026-04-22): SumBox — 현재 조건 요약 unified panel (v7 §6).
+                ListPanel 상단에 sticky 로 고정. 조건 없으면 자동 숨김(return null). */}
+            <div className="shrink-0 border-b border-neutral-100 bg-white p-2">
+              <SumBox compact />
+            </div>
+            {/* L-v7-p3 (2026-04-22): FilterAccordion — 12 추가필터 (v7 §6).
+                모든 섹션 기본 닫힘, 사용자가 필요한 섹션만 펼침 → localStorage 영속. */}
+            <div className="shrink-0 border-b border-neutral-100 bg-white p-2">
+              <FilterAccordion />
+            </div>
+            <div className="relative min-h-0 flex-1">
+              <ListPanel />
+            </div>
             <button
               onClick={toggleListPanel}
               aria-label="매물 리스트 접기"
@@ -310,6 +330,10 @@ export default function MapClient() {
           <MiniCard />
         </div>
       </div>
+
+      {/* L-v7-toast (2026-04-22): 단축 URL 복사 토스트 (v7 §9 3-state).
+          루트에 1회 마운트되어 어디서든 useCopyToast().show() 로 제어. */}
+      <CopyToastOutlet />
     </div>
   );
 }

@@ -290,6 +290,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // L-v7-p2 (2026-04-22): scope=mine 전파용 — auth 헤더의 JWT 에서
+    //   사용자 UID 를 추출해 created_by 로 기록. master/crawler 토큰이면 NULL.
+    //   DB round-trip 실패/타임아웃 시 조용히 NULL 로 폴백 (본 트랜잭션 계속).
+    let createdByUid: string | null = null;
+    try {
+      const authHdr = request.headers.get('authorization') || '';
+      const token = authHdr.replace(/^Bearer\s+/i, '').trim();
+      if (token.startsWith('eyJ') && token.split('.').length === 3) {
+        const sb = createServerClient();
+        const { data } = await Promise.race([
+          sb.auth.getUser(token),
+          new Promise<{ data: { user: null } }>((_, rej) =>
+            setTimeout(() => rej(new Error('uid_timeout')), 2000)
+          ),
+        ]) as { data: { user: { id: string } | null } };
+        createdByUid = data?.user?.id ?? null;
+      }
+    } catch { /* scope 기록 실패는 치명적 X */ }
+
     // text/plain으로 전송된 JSON도 파싱 (no-cors 크롤러 호환)
     let body: any;
     const ct = request.headers.get('content-type') || '';
@@ -404,6 +423,8 @@ export async function POST(request: NextRequest) {
         previous_brand: listingData.previous_brand || null,
         commission_fee: listingData.commission_fee || null,
         special_notes: listingData.special_notes || null,
+        // L-v7-p2 (2026-04-22): scope=mine 전파 — JWT 사용자 UID 기록
+        created_by: createdByUid,
       })
       .select()
       .single();
@@ -541,7 +562,6 @@ export async function PUT(request: NextRequest) {
           listing_id: id,
           url: url,
           alt: `매물 이미지 ${index + 1}`,
-          sort_order: index,
           is_thumbnail: index === 0,
         }));
 

@@ -16,6 +16,8 @@ import AdminConversionPanel from '@/components/AdminConversionPanel';
 // #45/#47: 방문 예약 관리 탭
 import AdminAppointmentsPanel from '@/components/AdminAppointmentsPanel';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
+// L-v7-precond (2026-04-22): 선결조건 노트 — /admin API 에러 3건 가시화 (v7 §9)
+import { PreconditionNote } from '@/features/map-2026/components/PreconditionNote';
 
 interface Stats {
   totalListings: number;
@@ -449,6 +451,11 @@ export default function AdminPage() {
     return (
       <div>
         <h2 className="text-3xl font-bold text-wishes-primary mb-8">대시보드</h2>
+
+        {/* L-v7-precond (2026-04-22): 선결조건 3건 (listings 500 / admin-stats 504 / dedup 400) */}
+        <div className="mb-6">
+          <PreconditionNote />
+        </div>
 
         {/* T5-5: 중개사 일일 브리핑 패널 */}
         <div className="mb-8">

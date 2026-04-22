@@ -35,3 +35,21 @@ export { MiniCard } from './components/MiniCard';
 export { SemanticZoomIndicator } from './components/SemanticZoomIndicator';
 export { MapControls } from './components/MapControls';
 export { ListPanel } from './components/ListPanel';
+
+// L-v7 (2026-04-22): v7 핸드오프 Phase 1 신규 컴포넌트/훅
+export { SumBox } from './components/SumBox';
+export { CopyToastOutlet, useCopyToast } from './components/CopyToast';
+export {
+  PreconditionNote,
+  DEFAULT_PRECOND_ITEMS,
+  type PreconditionItem,
+} from './components/PreconditionNote';
+export {
+  useFilterUrlSync,
+  paramsToFilter,
+  filterToParams,
+} from './hooks/useFilterUrlSync';
+// L-v7-p2 (2026-04-22): Phase 2 — scope 전파 토글
+export { ScopeToggle } from './components/ScopeToggle';
+// L-v7-p3 (2026-04-22): Phase 3 — 12 추가필터 아코디언
+export { FilterAccordion, type FilterAccordionProps } from './components/FilterAccordion';
