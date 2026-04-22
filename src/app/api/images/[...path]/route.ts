@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { r2Client, R2_BUCKET } from '@/lib/r2';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -8,6 +9,17 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  // L-sec80 (2026-04-22): R2 egress 방지. 1y immutable 캐시도
+  //   unique path 로 우회 가능. 5분 120회/IP cap.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `images-r2:ip:${_ip}`, limit: 120, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   const { path } = await params;
   // L-sec45 (2026-04-22): path traversal 차단 + 길이 cap.
   //   R2 버킷의 다른 prefix 객체를 임의로 읽지 못하게 segment 화이트리스트.

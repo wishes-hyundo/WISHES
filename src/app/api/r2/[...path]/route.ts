@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // R2 클라이언트 싱글톤
 let r2Client: S3Client | null = null;
@@ -37,6 +38,17 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
+  // L-sec80 (2026-04-22): R2 egress 방지. 1y immutable 캐시 있으나
+  //   unique path 로 cold cache 마다 R2 과금. 5분 120회/IP cap.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `r2-proxy:ip:${_ip}`, limit: 120, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return new NextResponse('rate limited', {
+      status: 429,
+      headers: { 'Retry-After': String(_rl.retryAfterSec) },
+    });
+  }
+
   const { path } = await params;
   // L-sec44 (2026-04-22): path traversal 차단 + 길이 cap.
   //   이전엔 path=['listings','..','secret'] → filePath='listings/../secret' 가
