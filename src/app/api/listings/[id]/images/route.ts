@@ -71,9 +71,14 @@ export async function POST(
     const uploaded: { url: string; id?: number }[] = [];
     const errors: { index: number; name: string; error: string }[] = [];
 
+    // L-sec101 (2026-04-22): SVG 업로드 차단. startsWith('image/') 는 image/svg+xml 를 통과시켜
+    //   admin(또는 탈취된 admin 토큰)이 <script> 박힌 SVG 업로드 시 /api/images/[...path] 프록시에서
+    //   wishes.co.kr 오리진 <script> 실행 가능 (localStorage(ws_token) 탈취).
+    //   admin/upload/route.ts 와 동일 whitelist.
+    const ALLOWED_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      if (!file.type.startsWith('image/')) { errors.push({ index: i, name: file.name, error: 'Not image' }); continue; }
+      if (!ALLOWED_IMAGE_MIME.has(file.type)) { errors.push({ index: i, name: file.name, error: 'Unsupported format (JPEG/PNG/WebP/GIF)' }); continue; }
       if (file.size > 10 * 1024 * 1024) { errors.push({ index: i, name: file.name, error: 'Too large' }); continue; }
 
       try {

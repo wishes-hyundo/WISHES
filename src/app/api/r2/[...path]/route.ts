@@ -19,7 +19,8 @@ function getR2Client(): S3Client {
   return r2Client;
 }
 
-// Content-Type 매핑
+// L-sec101 (2026-04-22): svg 매핑 제거. image/svg+xml 은 wishes.co.kr 오리진에서 스크립트
+//   실행 가능 — 동일 오리진 저장된 토큰/세션 탈취 가능하므로 프록시에서 서비스 금지.
 function getContentType(path: string): string {
   const ext = path.split('.').pop()?.toLowerCase();
   const types: Record<string, string> = {
@@ -28,10 +29,16 @@ function getContentType(path: string): string {
     png: 'image/png',
     webp: 'image/webp',
     gif: 'image/gif',
-    svg: 'image/svg+xml',
     avif: 'image/avif',
   };
   return types[ext || ''] || 'application/octet-stream';
+}
+
+// L-sec101: R2 가 legacy image/svg+xml 를 반환하더라도 프록시에서 화이트리스트 강제.
+const SAFE_IMAGE_TYPES_R2 = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
+function safeCtR2(ct: string | undefined, path: string): string {
+  const raw = (ct || getContentType(path)).toLowerCase().split(';')[0].trim();
+  return SAFE_IMAGE_TYPES_R2.has(raw) ? raw : 'application/octet-stream';
 }
 
 export async function GET(
@@ -86,7 +93,10 @@ export async function GET(
     return new NextResponse(new Uint8Array(body as Uint8Array), {
       status: 200,
       headers: {
-        'Content-Type': response.ContentType || getContentType(filePath),
+        // L-sec101: Content-Type 화이트리스트 + nosniff + CSP sandbox (SVG XSS 차단).
+        'Content-Type': safeCtR2(response.ContentType, filePath),
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; img-src 'self' data:; sandbox",
         'Cache-Control': 'public, max-age=31536000, immutable',
         'CDN-Cache-Control': 'public, max-age=31536000',
       },

@@ -51,10 +51,19 @@ export async function GET(
 
     const bytes = await response.Body.transformToByteArray();
 
+    // L-sec101 (2026-04-22): R2 Content-Type pass-through XSS 차단.
+    //   image/svg+xml 등 스크립트 실행 가능 포맷은 application/octet-stream 으로 강등.
+    //   nosniff 로 브라우저 MIME sniffing 차단, CSP sandbox 로 동일 오리진에서도 스크립트 격리.
+    const SAFE_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif']);
+    const rawCT = (response.ContentType || 'image/webp').toLowerCase().split(';')[0].trim();
+    const safeCT = SAFE_IMAGE_TYPES.has(rawCT) ? rawCT : 'application/octet-stream';
+
     return new NextResponse(new Uint8Array(bytes), {
       status: 200,
       headers: {
-        'Content-Type': response.ContentType || 'image/webp',
+        'Content-Type': safeCT,
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; img-src 'self' data:; sandbox",
         'Cache-Control': 'public, max-age=31536000, s-maxage=31536000, immutable',
         'Content-Length': String(bytes.length),
       },
