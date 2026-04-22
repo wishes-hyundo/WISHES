@@ -1,5 +1,5 @@
 /**
- * content-v294-scope.js (2026-04-22, hardened build f)
+ * content-v294-scope.js (2026-04-22, hardened build h)
  * ─────────────────────────────────────────────
  * v7 §4 — 내 매물 / 전체 scope 토글을 /search 중개사 포털에 통합
  *
@@ -155,7 +155,34 @@
         }
       }
     } catch (_) {}
-    return origFetch.call(this, input, init);
+    // build h (2026-04-22): admin listings 응답의 scope_auth 감시 — empty
+    //   state 배너가 "세션 만료/인증 실패" 와 "실제로 내 매물 0건" 을 구분
+    //   할 수 있도록 마지막 응답 메타를 window.__WS_V294_LAST__ 에 기록.
+    var __url_for_tap = '';
+    try { __url_for_tap = typeof input === 'string' ? input : (input && input.url) || ''; } catch (_) {}
+    var needTap = false;
+    try { needTap = SCOPE_TARGET_RE.test(__url_for_tap); } catch (_) {}
+    if (!needTap) {
+      return origFetch.call(this, input, init);
+    }
+    return origFetch.call(this, input, init).then(function (r) {
+      try {
+        if (r && typeof r.clone === 'function') {
+          r.clone().json().then(function (body) {
+            try {
+              window.__WS_V294_LAST__ = {
+                scope: body && body.scope,
+                scope_auth: body && body.scope_auth,
+                total: body && body.total,
+                status: r.status,
+                t: Date.now(),
+              };
+            } catch (_) {}
+          }, function () { /* non-JSON 응답은 무시 */ });
+        }
+      } catch (_) {}
+      return r;
+    });
   }
   // ── fetch wrap 보호 (build d, 2026-04-22) ─────────────────────────
   // Phase 1: defineProperty 로 setter 가드 — 다른 wrapper 가
@@ -307,6 +334,10 @@
       if (Array.isArray(list) && list.length > 0) { hideMineEmptyState(); return; }
       var existing = document.getElementById('ws-v294-empty-mine');
       if (existing) return;
+      // build h (2026-04-22): scope_auth 가 'failed' 이면 "인증 실패" 메시지로 분기.
+      //   (서버가 auth.getUser 로 UID 추출 실패 시 data:[] + scope_auth:'failed' 반환)
+      var last = W.__WS_V294_LAST__ || {};
+      var authFailed = last.scope_auth === 'failed';
       var banner = document.createElement('div');
       banner.id = 'ws-v294-empty-mine';
       banner.style.cssText = [
@@ -314,16 +345,21 @@
         'top:100px', 'left:50%', 'transform:translateX(-50%)',
         'z-index:99998',
         'max-width:340px', 'padding:14px 18px',
-        'background:#fff', 'border:1px solid #d5e5d5', 'border-radius:10px',
+        'background:#fff',
+        'border:1px solid ' + (authFailed ? '#f0c0a0' : '#d5e5d5'),
+        'border-radius:10px',
         'box-shadow:0 4px 16px rgba(0,0,0,0.08)',
         'font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",sans-serif',
-        'font-size:12px', 'color:#2D5A27', 'line-height:1.55',
+        'font-size:12px',
+        'color:' + (authFailed ? '#8a3a00' : '#2D5A27'),
+        'line-height:1.55',
         'text-align:center',
       ].join(';');
-      banner.innerHTML = (
-        '<div style="font-weight:700;font-size:13px;margin-bottom:4px">내 매물 0건</div>' +
-        '<div style="color:#555;font-size:11.5px">중개사 계정으로 직접 등록한 매물만 표시됩니다.<br/>기존 매물은 작성자 정보가 없어 "전체"에서만 보입니다.</div>'
-      );
+      banner.innerHTML = authFailed
+        ? ('<div style="font-weight:700;font-size:13px;margin-bottom:4px">로그인 세션이 만료되었습니다</div>' +
+           '<div style="color:#555;font-size:11.5px">"내 매물" 필터를 사용하려면 중개사 계정으로 다시 로그인해주세요.<br/>\u2192 우측 상단 로그인 버튼</div>')
+        : ('<div style="font-weight:700;font-size:13px;margin-bottom:4px">내 매물 0건</div>' +
+           '<div style="color:#555;font-size:11.5px">중개사 계정으로 직접 등록한 매물만 표시됩니다.<br/>기존 매물은 작성자 정보가 없어 "전체"에서만 보입니다.</div>');
       document.body.appendChild(banner);
     } catch (_) {}
   }
@@ -374,6 +410,20 @@
     // WS.loadData 가 없으면 완전 새로고침
     try { location.reload(); } catch (_) {}
   }
+
+  // build h (2026-04-22): 다른 탭에서 scope 변경 시 현재 탭도 동기화.
+  //   (클로저 변수 scope 와 localStorage 의 정합성 유지)
+  try {
+    window.addEventListener('storage', function (e) {
+      if (!e || e.key !== STORAGE_KEY) return;
+      var next = e.newValue;
+      if ((next === 'all' || next === 'mine') && next !== scope) {
+        scope = next;
+        try { paint(); } catch (_) {}
+        try { reload(); } catch (_) {}
+      }
+    });
+  } catch (_) {}
 
   // WS 준비 대기 (최대 10초)
   var tries = 0;
