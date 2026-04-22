@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import { filterSelfHosted } from '@/lib/image-policy';
+import { stripInternalFields } from '@/lib/listing-public';
 
 /**
  * 매물 상세 조회 (이미지, 특징 포함)
@@ -60,7 +61,9 @@ export async function GET(
       .eq('listing_id', listingId);
 
     // 고객용 응답: 크롤링 원본 description 제외, ai_description만 노출
-    const { description: _rawDesc, ...publicListing } = listing;
+    // L-sec64 (2026-04-22): embedding + dedup_* 등 내부 필드 strip
+    const { description: _rawDesc, ...rest } = listing;
+    const publicListing = stripInternalFields(rest);
 
     return NextResponse.json({
       success: true,

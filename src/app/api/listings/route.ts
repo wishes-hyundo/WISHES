@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServerClient } from '@/lib/supabase';
 import { cached, invalidateCache } from '@/lib/cache';
 import { applyImagePolicy } from '@/lib/image-policy';
+import { stripInternalFieldsArray } from '@/lib/listing-public';
 
 /**
  * 매물 목록 조회
@@ -56,7 +57,8 @@ export async function GET(request: NextRequest) {
       // ※ 저작권 보호 + 자체 업로드 통과
       //   - 크롤링 매물의 외부 원본 이미지는 차단
       //   - 중개사가 직접 올린 자체 업로드 이미지(wishes.co.kr, supabase, R2)는 통과
-      const sanitized = (data || []).map((r: any) => applyImagePolicy(r));
+      // L-sec64: embedding/dedup_* 제거
+      const sanitized = stripInternalFieldsArray((data || []).map((r: any) => applyImagePolicy(r)));
 
       return NextResponse.json({
         success: true,
@@ -82,7 +84,8 @@ export async function GET(request: NextRequest) {
         console.error('Supabase 단일ID 조회 오류:', error);
         return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다' }, { status: 500 });
       }
-      const sanitized = (data || []).map((r: any) => applyImagePolicy(r));
+      // L-sec64: embedding/dedup_* 제거
+      const sanitized = stripInternalFieldsArray((data || []).map((r: any) => applyImagePolicy(r)));
       return NextResponse.json({
         success: true,
         data: sanitized,
@@ -225,7 +228,8 @@ export async function GET(request: NextRequest) {
         // ※ 저작권 보호 + 자체 업로드 통과
         //   - 크롤링 매물의 외부 원본 이미지는 차단
         //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
-        const sanitized = (data || []).map((r: any) => applyImagePolicy(r));
+        // L-sec64: embedding/dedup_* 제거
+        const sanitized = stripInternalFieldsArray((data || []).map((r: any) => applyImagePolicy(r)));
 
         return { data: sanitized, total: count || 0 };
       },

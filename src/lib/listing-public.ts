@@ -168,3 +168,40 @@ export function sanitizePublicListings<T extends Record<string, any>>(rows: T[] 
   if (!Array.isArray(rows)) return [];
   return rows.map((r) => sanitizePublicListing(r));
 }
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// L-sec64 (2026-04-22): 순수 내부 필드 strip.
+//   .select('*') 이 공개 응답에 흘릐주는
+//   embedding(vector 384 ≈ 3KB/row) + dedup_* 은 고객은 쓸
+//   일이 없고(순수 내부 상태), /api/listings 한
+//   요청에 최대 1000 row × 3KB ≈ 3MB egress 낭비 + 
+//   dedup_group_id 등 내부 중복제거 그룹핑 정보가 공개됨.
+//   PUBLIC_LISTING_SELECT 화이트리스트로 응답 select 전환은
+//   UI 회귀 위험초 큼 별도 태스크(L-sec65+)로 분리, 
+//   이번에는 응답 레이어에서만 strip.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const INTERNAL_LISTING_FIELDS = [
+  'embedding',
+  'embedding_generated_at',
+  'embedding_source',
+  'dedup_requested_at',
+  'dedup_reason',
+  'dedup_group_id',
+  'dedup_kept_id',
+] as const;
+
+export function stripInternalFields<T extends Record<string, any>>(row: T): T {
+  if (!row) return row;
+  const cleaned: any = { ...row };
+  for (const k of INTERNAL_LISTING_FIELDS) {
+    if (k in cleaned) delete cleaned[k];
+  }
+  return cleaned as T;
+}
+
+export function stripInternalFieldsArray<T extends Record<string, any>>(
+  rows: T[] | null | undefined,
+): T[] {
+  if (!Array.isArray(rows)) return [];
+  return rows.map((r) => stripInternalFields(r));
+}
