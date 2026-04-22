@@ -268,7 +268,7 @@ export default function MyPage() {
               <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
                 <Bookmark className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-lg font-semibold text-gray-400 mb-2">저장된 검색이 없습니다</p>
-                <p className="text-sm text-gray-400 mb-6">매물 검색 페이지 상단에서 "이 조건 저장" 을 눌러 검색 조건을 보관하세요.</p>
+                <p className="text-sm text-gray-400 mb-6">매물 검색 페이지 상단에서 &ldquo;이 조건 저장&rdquo; 을 눌러 검색 조건을 보관하세요.</p>
                 <Link href="/map" className="inline-flex items-center gap-2 px-6 py-3 bg-wishes-secondary text-white rounded-xl text-sm font-semibold hover:bg-wishes-secondary/90 transition-colors">
                   <SearchIcon className="w-4 h-4" /> 지도검색으로 이동
                 </Link>
