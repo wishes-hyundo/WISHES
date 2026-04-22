@@ -15,6 +15,9 @@ export default function ComparePage() {
   const { compareList, removeFromCompare, clearCompare } = useFavorites();
 
   useEffect(() => {
+    // L-leak3: compareList 변경/unmount 시 in-flight fetch 취소.
+    const ac = new AbortController();
+
     async function fetchListings() {
       if (compareList.length === 0) {
         setListings([]);
@@ -24,21 +27,25 @@ export default function ComparePage() {
 
       try {
         const ids = compareList.join(',');
-        const res = await fetch(`/api/listings?ids=${ids}`);
+        const res = await fetch(`/api/listings?ids=${ids}`, { signal: ac.signal });
+        if (ac.signal.aborted) return;
         const json = await res.json();
+        if (ac.signal.aborted) return;
 
         // 두 가지 응답 형식 모두 지원
         const data = json.data || json.listings || [];
         setListings(data);
-      } catch (error) {
+      } catch (error: any) {
+        if (ac.signal.aborted || error?.name === 'AbortError') return;
         console.error('매물 조회 실패:', error);
         setListings([]);
       } finally {
-        setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       }
     }
 
     fetchListings();
+    return () => ac.abort();
   }, [compareList]);
 
   const handleRemove = (id: number) => {

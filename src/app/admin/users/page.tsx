@@ -25,22 +25,36 @@ export default function AdminUsersPage() {
 
   // 인증 체크
   useEffect(() => {
+    // L-leak3: unmount 시 /api/auth/me 응답이 늦게 와도 setState 안 하게 차단.
+    const ac = new AbortController();
     (async () => {
-      const sb = createAuthClient();
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) {
-        router.replace('/login?redirect=/admin/users');
-        return;
+      try {
+        const sb = createAuthClient();
+        const { data: { session } } = await sb.auth.getSession();
+        if (ac.signal.aborted) return;
+        if (!session) {
+          router.replace('/login?redirect=/admin/users');
+          return;
+        }
+        const meRes = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          signal: ac.signal,
+        });
+        if (ac.signal.aborted) return;
+        const meData = await meRes.json();
+        if (ac.signal.aborted) return;
+        if (!meData.success || meData.user.role !== 'superadmin') {
+          alert('관리자만 접근 가능합니다.');
+          router.replace('/');
+          return;
+        }
+        setToken(session.access_token);
+      } catch (err: any) {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
+        throw err;
       }
-      const meRes = await fetch('/api/auth/me', { headers: { Authorization: `Bearer ${session.access_token}` } });
-      const meData = await meRes.json();
-      if (!meData.success || meData.user.role !== 'superadmin') {
-        alert('관리자만 접근 가능합니다.');
-        router.replace('/');
-        return;
-      }
-      setToken(session.access_token);
     })();
+    return () => ac.abort();
   }, [router]);
 
   const loadUsers = useCallback(async () => {

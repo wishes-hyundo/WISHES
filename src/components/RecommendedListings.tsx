@@ -23,12 +23,16 @@ export default function RecommendedListings({ allListings }: RecommendedListings
       return;
     }
 
+    // L-leak3: unmount/deps 변경 시 in-flight profile fetch 취소.
+    const ac = new AbortController();
     setLoading(true);
     fetch('/api/profile', {
       headers: { 'Authorization': 'Bearer ' + session.access_token },
+      signal: ac.signal,
     })
       .then(r => r.json())
       .then(profile => {
+        if (ac.signal.aborted) return;
         const areas: string[] = profile.preferred_areas || [];
         const types: string[] = profile.preferred_types || [];
         setProfileAreas(areas);
@@ -63,10 +67,13 @@ export default function RecommendedListings({ allListings }: RecommendedListings
         setRecommended(scored.slice(0, 6));
         setLoading(false);
       })
-      .catch((err) => {
+      .catch((err: any) => {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
         console.error('[RecommendedListings] 프로필 기반 추천 실패:', err);
         setLoading(false);
       });
+
+    return () => ac.abort();
   }, [user, session, allListings]);
 
   // 비로그인 또는 추천 결과 없으면 미표시
