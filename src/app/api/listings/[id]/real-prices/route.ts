@@ -303,10 +303,12 @@ export async function GET(
       return NextResponse.json({ success: false, error: '잘못된 매물 ID' }, { status: 400 });
     }
 
+    // L-sec91 (2026-04-22): IDOR 차단 — 비공개 매물 주소/동 누출 방지.
     const { data: listing, error } = await supabase
       .from('listings')
       .select('type, deal, address, dong')
       .eq('id', listingId)
+      .eq('status', '공개')
       .single();
 
     if (error || !listing) {

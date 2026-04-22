@@ -47,10 +47,12 @@ export async function GET(
 
     // 매물의 좌표 조회
     const supabase = createClient();
+    // L-sec91 (2026-04-22): IDOR 차단 — 비공개 매물 좌표/주소 누출 방지.
     const { data: listing, error } = await supabase
       .from('listings')
       .select('lat, lng, address')
       .eq('id', listingId)
+      .eq('status', '공개')
       .single();
 
     if (error || !listing) {

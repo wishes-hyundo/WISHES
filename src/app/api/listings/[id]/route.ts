@@ -42,10 +42,13 @@ export async function GET(
     const supabase = createClient();
 
     // 매물 조회
+    // L-sec91 (2026-04-22): IDOR 차단. status='공개' 없이는
+    //   익명 사용자가 ID 열거로 임시저장/비공개/삭제 매물 조회 가능했음.
     const { data: listing, error: listingError } = await supabase
       .from('listings')
       .select('*')
       .eq('id', listingId)
+      .eq('status', '공개')
       .single();
 
     if (listingError || !listing) {

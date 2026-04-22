@@ -136,10 +136,12 @@ export async function GET(
     }
 
     // Fetch target listing
+    // L-sec91 (2026-04-22): IDOR 차단 — target 자체가 비공개이면 추천 차단.
     const { data: target, error: targetError } = await supabase
       .from('listings')
       .select('*')
       .eq('id', listingId)
+      .eq('status', '공개')
       .single();
 
     if (targetError || !target) {
