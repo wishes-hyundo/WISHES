@@ -50,11 +50,14 @@ export async function GET(
     }
     const supabase = createServerClient();
 
+    // L-sec93 (2026-04-22): IDOR 차단 — OG 카드도 공개 매물만 렌더.
+    //   status 없으면 임시/비공개/삭제 매물의 제목/가격/위치 카드 이미지 생성 가능했음.
     const { data: listing } = await supabase
       .from('listings')
       .select('title, type, deal, dong, gu, deposit, monthly, price, area_m2, floor_current, floor_total, rooms, source_site')
       .eq('id', nId)
-      .single();
+      .eq('status', '공개')
+      .maybeSingle();
 
     // 기본 카드 (매물 미발견 또는 에러 시)
     if (!listing) {
