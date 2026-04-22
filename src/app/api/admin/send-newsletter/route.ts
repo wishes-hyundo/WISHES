@@ -22,7 +22,13 @@ export async function POST(request: NextRequest) {
     }
     const subject = String(body.subject).slice(0, 120);
     const htmlBody = String(body.body).slice(0, 30000);
-    const targetIds: number[] | undefined = Array.isArray(body.targetIds) ? body.targetIds : undefined;
+    // L-sec47 (2026-04-22): targetIds 배열 길이 cap (PostgREST URL 폭주 + 의도치 않은 대량발송 방지)
+    const rawIds: unknown[] = Array.isArray(body.targetIds) ? body.targetIds : [];
+    const targetIds: number[] | undefined = rawIds.length > 0
+      ? rawIds
+          .slice(0, 5000)
+          .filter((v): v is number => typeof v === 'number' && Number.isInteger(v) && v > 0)
+      : undefined;
 
     const supabase = createServerClient();
     let query = supabase
@@ -65,6 +71,12 @@ export async function POST(request: NextRequest) {
       failedSample: failed.slice(0, 5),
     });
   } catch (e: any) {
-    return NextResponse.json({ success: false, error: e?.message || '서버 오류' }, { status: 500 });
+    // L-sec47: prod 에서는 에러 세부 숨김 (DB 스키마·스택 누출 방지)
+    console.error('send-newsletter error:', e);
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json(
+      { success: false, error: isDev ? (e?.message || '서버 오류') : '서버 오류' },
+      { status: 500 }
+    );
   }
 }

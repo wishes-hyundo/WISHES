@@ -18,16 +18,20 @@ export async function POST(request: NextRequest) {
 
     // Option 1: Delete by source_site
     if (body.source_site && typeof body.source_site === 'string') {
+      // L-sec47 (2026-04-22): source_site 길이 cap — .eq() 는 안전하지만 방어선
+      const sourceSite = body.source_site.slice(0, 60);
       const { data, error, count } = await supabase
         .from('listings')
         .delete()
-        .eq('source_site', body.source_site)
+        .eq('source_site', sourceSite)
         .select('id', { count: 'exact' });
 
       if (error) {
         console.error('Bulk delete by source_site error:', error);
+        // L-sec47: prod 에서는 DB error.message 숨김
+        const isDev = process.env.NODE_ENV !== 'production';
         return NextResponse.json(
-          { success: false, error: error.message },
+          { success: false, error: isDev ? error.message : '삭제 실패' },
           { status: 500 }
         );
       }
@@ -35,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         deleted: data?.length || count || 0,
-        message: `source_site='${body.source_site}' 매물 삭제 완료`,
+        message: `source_site='${sourceSite}' 매물 삭제 완료`,
       });
     }
 
@@ -64,8 +68,10 @@ export async function POST(request: NextRequest) {
 
       if (error) {
         console.error('Bulk delete by IDs error:', error);
+        // L-sec47: prod 에서는 DB error.message 숨김
+        const isDev = process.env.NODE_ENV !== 'production';
         return NextResponse.json(
-          { success: false, error: error.message },
+          { success: false, error: isDev ? error.message : '삭제 실패' },
           { status: 500 }
         );
       }

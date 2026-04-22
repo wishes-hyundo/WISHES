@@ -102,8 +102,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('브리핑 데이터 조회 오류:', error);
+    // L-sec47 (2026-04-22): prod 에서 DB 스키마·스택 누출 방지
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: error?.message || '브리핑 데이터 조회 실패' },
+      { success: false, error: isDev ? (error?.message || '브리핑 데이터 조회 실패') : '브리핑 데이터 조회 실패' },
       { status: 500 }
     );
   }

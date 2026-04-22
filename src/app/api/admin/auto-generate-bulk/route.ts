@@ -127,8 +127,12 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Bulk auto-generate error:', error);
+    // L-sec47 (2026-04-22): prod 에서 details 스택 누출 방지
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { error: 'Bulk processing failed', details: String(error) },
+      isDev
+        ? { error: 'Bulk processing failed', details: String(error) }
+        : { error: 'Bulk processing failed' },
       { status: 500 }
     );
   }

@@ -16,7 +16,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
   try {
-    const data: AnalyzeRequest = await request.json();
+    const raw = await request.json().catch(() => null);
+    if (!raw || typeof raw !== 'object') {
+      return NextResponse.json({ error: '유효한 요청이 아닙니다.' }, { status: 400 });
+    }
+    // L-sec47 (2026-04-22): admin 뒤에 있지만 compromised token/XSS 시 LLM 비용
+    //   드레인 방지용 입력 cap + 타입 검증.
+    const ALLOWED_TX = ['매매', '전세', '월세', '단기', ''] as const;
+    const data: AnalyzeRequest = {
+      address: String(raw.address ?? '').slice(0, 200),
+      transactionType: (ALLOWED_TX as readonly string[]).includes(String(raw.transactionType ?? ''))
+        ? String(raw.transactionType ?? '')
+        : '',
+      propertyType: String(raw.propertyType ?? '').slice(0, 40),
+      price: Number.isFinite(Number(raw.price)) ? Number(raw.price) : 0,
+      deposit: Number.isFinite(Number(raw.deposit)) ? Number(raw.deposit) : undefined,
+      monthlyRent: Number.isFinite(Number(raw.monthlyRent)) ? Number(raw.monthlyRent) : undefined,
+    };
     const { address } = data;
 
     if (!address) {
