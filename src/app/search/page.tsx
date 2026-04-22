@@ -288,6 +288,23 @@ export default function SearchPortalPage() {
       v294Script.defer = false;
       document.body.appendChild(v294Script);
     }
+
+    // v2.9.5 (L-crit3 2026-04-23) — /search 상세모달 본문필드 hydrate
+    //   /api/admin/listings?fields=minimal 응답에는 description / ai_description /
+    //   raw_fields / special_notes / features / contacts / videos / building_name /
+    //   building_purpose / source_url 등 본문 필드가 포함되지 않아 v240 buildHTML 이
+    //   해당 섹션을 빈 값으로 렌더하는 회귀가 있었음. 이 패치는 showDetail 1차 렌더
+    //   직후 /api/admin/listings/[id] (어드민 Bearer 토큰) 로 전체 row 를 회수해
+    //   listing 오브젝트에 머지한 뒤 모달을 재렌더하여 본문을 복구한다.
+    const existingV295 = document.getElementById('ws-ext-patch-v295-detail-hydrate');
+    if (!existingV295) {
+      const v295Script = document.createElement('script');
+      v295Script.id = 'ws-ext-patch-v295-detail-hydrate';
+      v295Script.src = '/search/content-v295-detail-hydrate.js?v=20260423a';
+      v295Script.async = false;
+      v295Script.defer = false;
+      document.body.appendChild(v295Script);
+    }
   }, [state]);
 
   // ========== UI ==========

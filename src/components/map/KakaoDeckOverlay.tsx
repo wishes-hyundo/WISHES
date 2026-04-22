@@ -256,7 +256,11 @@ export default function KakaoDeckOverlay({
     //   화면 52px 셀 안에 같은 가격 라벨을 여러 개 그리면 겹쳐서 알아볼 수 없다.
     //   각 셀에서 price 가장 높은 1개만 남기고 나머지는 라벨 생략 (ScatterPlot 점은
     //   그대로 표시 — 클릭은 여전히 가능).
-    const declutterCell = 52;
+    // L-map-audit1 (2026-04-23): 52px 셀에서는 밀집 지역 라벨 4~5개가
+    //   한 줄에 겹쳐 읽을 수 없었다. 72px (카드 한 폭) 셀로 확대해 가독성을
+    //   확보. 셀 안에서 가장 비싼 매물이 라벨을 가져가므로 시선 진입점은
+    //   유지되고 정보 손실은 최소.
+    const declutterCell = 72;
     const labelBuckets = new Map<string, MapItem | MapCluster>();
     for (const d of itemData) {
       const [projX, projY] = project(d.lat, d.lng);
@@ -364,8 +368,12 @@ export default function KakaoDeckOverlay({
       getSize: () => 11,
       fontWeight: '600',
       background: true,
-      getBackgroundColor: () => [255, 255, 255, 235],
-      backgroundPadding: [4, 2],
+      // L-map-audit1 (2026-04-23): alpha 235→250, padding [4,2]→[8,4].
+      //   배경을 더 불투명하게 하여 타일 위에서 라벨이 번지는 것을 막고,
+      //   padding 을 늘려 인접 라벨과의 시각적 간격을 확보한다
+      //   (declutterCell 확대와 한 세트).
+      getBackgroundColor: () => [255, 255, 255, 250],
+      backgroundPadding: [8, 4],
       sizeUnits: 'pixels',
       getTextAnchor: 'middle',
       getAlignmentBaseline: 'bottom',
