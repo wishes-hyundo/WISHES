@@ -1,15 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { notifyUserApproved, notifyUserRejected } from '@/lib/email';
-import { verifyAdminAuth, verifyAdminAuthStrict } from '@/lib/adminAuth';
+import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
 // GET /api/admin/users - ì¬ì©ì ëª©ë¡ ì¡°í
 export async function GET(request: NextRequest) {
   try {
-    if (!(await verifyAdminAuth(request))) {
+    // L-sec127 (2026-04-22, M-1): verifyAdminAuth 는 role=agent 까지 통과 → 일반
+    //   에이전트가 타 에이전트의 이메일/전화/회사/role/status 를 전부 볼 수 있었음.
+    //   verifyAdminAuthStrict + role gate 로 superadmin/master 만 허용.
+    const caller = await verifyAdminAuthStrict(request);
+    if (!caller.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (caller.role !== 'superadmin' && caller.role !== 'master') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const supabase = createServerClient();
@@ -258,7 +265,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, message: 'ì¬ì©ìê° ì­ì ëììµëë¤.' });
+    return NextResponse.json({ success: true, message: '사용자가 삭제되었습니다.' });
 
   } catch (error) {
     console.error('Admin users DELETE error:', error);

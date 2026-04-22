@@ -17,6 +17,15 @@ export const dynamic = 'force-dynamic';
 
 const LIMIT = 12;
 
+// L-sec126 (2026-04-22): PostgREST .ilike() 와일드카드 escape.
+//   %, _, \ 는 SQL LIKE 메타문자이므로 사용자/AI 파서 값에 섞이면 predicate
+//   의미가 바뀐다. filters.dong / businessType 은 parseMatchQuery 가 자연어에서
+//   뽑은 문자열이라 간접 injection 가능 (프롬프트 주입 등). 전부 escape.
+//   cf. L-sec106 에서 .or() 쪽은 방어했으나 .ilike() 경로는 누락됐던 것 재적용.
+function escapeIlike(s: string): string {
+  return s.replace(/[%_\\]/g, '\\$&');
+}
+
 export async function POST(request: NextRequest) {
   try {
     // L-sec67 (2026-04-22): 공개 AI 검색 스팸 방지
@@ -62,7 +71,7 @@ export async function POST(request: NextRequest) {
 
     if (filters.deal) q = q.eq('deal', filters.deal);
     if (filters.type) q = q.eq('type', filters.type);
-    if (filters.dong) q = q.ilike('dong', `%${filters.dong}%`);
+    if (filters.dong) q = q.ilike('dong', `%${escapeIlike(filters.dong)}%`);
     if (filters.maxDeposit) q = q.lte('deposit', filters.maxDeposit);
     if (filters.minDeposit) q = q.gte('deposit', filters.minDeposit);
     if (filters.maxMonthly) q = q.lte('monthly', filters.maxMonthly);
@@ -72,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (filters.parking) q = q.eq('parking', true);
     if (filters.elevator) q = q.eq('elevator', true);
     if (filters.pet) q = q.eq('pet', true);
-    if (filters.businessType) q = q.ilike('business_type', `%${filters.businessType}%`);
+    if (filters.businessType) q = q.ilike('business_type', `%${escapeIlike(filters.businessType)}%`);
 
     // 최신순 정렬
     q = q.order('created_at', { ascending: false });

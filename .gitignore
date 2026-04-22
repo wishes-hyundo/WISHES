@@ -74,6 +74,11 @@ onhouse_diag.js
 # broad: any hidden root .log is a local artifact
 /.[!.]*.log
 
+# 2026-04-22: 로컬 실행용 .bat + 커밋 메시지 + 결과 로그 (커밋 금지)
+/_run_*.bat
+/_run_*.log
+/_commit_msg.txt
+
 # 2026-04-21 (L-mapfix3): Python 크롤러/seeder 캐시
 scripts/__pycache__/
 **/__pycache__/
