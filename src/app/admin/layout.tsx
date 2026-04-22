@@ -303,6 +303,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Link
           href="/search"
           target="_blank"
+          rel="noopener noreferrer"
           onClick={() => { setMobileMenuOpen(false); }}
           className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] text-emerald-300/90 hover:bg-emerald-500/20 hover:text-emerald-200 active:bg-emerald-500/30"
         >

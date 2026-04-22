@@ -246,6 +246,7 @@ export default function AdminBriefingPanel({ authHeader }: { authHeader: string 
                   <Link
                     href={`/listings/${l.id}`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
                   >
                     <span className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold ${
@@ -297,6 +298,7 @@ export default function AdminBriefingPanel({ authHeader }: { authHeader: string 
                   <Link
                     href={`/listings/${l.id}`}
                     target="_blank"
+                    rel="noopener noreferrer"
                     className="flex items-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors group"
                   >
                     <Calendar className="w-4 h-4 text-gray-300 shrink-0" />
