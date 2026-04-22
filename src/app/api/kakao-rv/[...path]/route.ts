@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 /**
  * Kakao Roadview proxy
@@ -39,6 +40,17 @@ export async function GET(
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
+    // L-sec72 (2026-04-22): Kakao 로드뷰 할당량 보호
+    //   5분 60회/IP cap. 로드뷰 타일 fan-out 을 감안해 일반 엔드포인트보다 높게.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `kakao-rv:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { error: 'rate_limited' },
+        { status: 429, headers: { ...CORS_HEADERS, 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { path } = await params;
     const pathStr = (path || []).join('/');
 
@@ -86,8 +98,10 @@ export async function GET(
       },
     });
   } catch (err: any) {
+    // L-sec72 (2026-04-22): 내부 에러 메시지 prod 노출 차단
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { error: 'proxy_error', message: err?.message || String(err) },
+      { error: 'proxy_error', ...(isDev && { message: err?.message || String(err) }) },
       { status: 502, headers: CORS_HEADERS }
     );
   }
