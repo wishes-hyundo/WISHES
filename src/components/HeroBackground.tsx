@@ -14,6 +14,15 @@ export default function HeroBackground() {
     let animationId: number;
     let time = 0;
 
+    // L-perf4 (2026-04-22): 일시정지 게이팅.
+    //   1) document.hidden — 백그라운드 탭이면 브라우저가 rAF 를 throttle 하지만
+    //      명시적으로 cancel 하여 즉시 중단 (CPU/GPU 절약, 모바일 배터리).
+    //   2) IntersectionObserver — 히어로가 스크롤로 뷰포트 밖이면 중단.
+    //   3) prefers-reduced-motion — OS 접근성 설정 존중(멈춘 상태로 단일 프레임만).
+    let paused = false;
+    const reducedMotion = typeof window !== 'undefined'
+      && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -186,14 +195,45 @@ export default function HeroBackground() {
       ctx.fillStyle = beamGrad;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-      animationId = requestAnimationFrame(animate);
+      if (!paused && !reducedMotion) {
+        animationId = requestAnimationFrame(animate);
+      }
     };
 
+    const start = () => {
+      if (paused) return;
+      cancelAnimationFrame(animationId);
+      animationId = requestAnimationFrame(animate);
+    };
+    const stop = () => {
+      cancelAnimationFrame(animationId);
+    };
+
+    // 초기 단일 프레임 — reduced-motion 환경에서도 정지 이미지는 보여준다.
     animate();
+
+    const onVisibility = () => {
+      paused = document.hidden;
+      if (paused) stop(); else start();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    // 히어로 캔버스 스크롤아웃 시 rAF 중단.
+    const io = typeof IntersectionObserver !== 'undefined'
+      ? new IntersectionObserver((entries) => {
+          const e = entries[0];
+          if (!e) return;
+          paused = !e.isIntersecting || document.hidden;
+          if (paused) stop(); else start();
+        }, { threshold: 0.01 })
+      : null;
+    io?.observe(canvas);
 
     return () => {
       cancelAnimationFrame(animationId);
       window.removeEventListener('resize', resize);
+      document.removeEventListener('visibilitychange', onVisibility);
+      io?.disconnect();
     };
   }, []);
 
