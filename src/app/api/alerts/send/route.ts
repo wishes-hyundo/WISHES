@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+// L-sec98 (2026-04-22): CRON_SECRET 타이밍 공격 차단을 위해 timingSafeEqualStr 도입.
+import { timingSafeEqualStr } from '@/lib/timingSafe';
 
 // Vercel Cron 또는 외부 트리거로 매일 실행
 // vercel.json에 cron 설정 필요: { "crons": [{ "path": "/api/alerts/send", "schedule": "0 9 * * *" }] }
@@ -9,8 +11,17 @@ export async function GET(request: Request) {
   const cronSecret = process.env.CRON_SECRET;
   const isVercelCron = request.headers.get('x-vercel-cron') === '1';
 
-  if (!isVercelCron && authHeader !== 'Bearer ' + cronSecret) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  // L-sec98 (2026-04-22): 기존 `!==` 직접 비교는 초기 바이트 일치 시간으로
+  //   CRON_SECRET 을 byte-by-byte 추론 가능했음. Bearer 프리픽스를 분리한 후
+  //   timingSafeEqualStr 로 상수 시간 비교. cron/update-rates, cron/notify-matches 등과 정책 일치.
+  if (!isVercelCron) {
+    if (!cronSecret || !authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    const token = authHeader.slice('Bearer '.length);
+    if (!timingSafeEqualStr(token, cronSecret)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
   }
 
   try {

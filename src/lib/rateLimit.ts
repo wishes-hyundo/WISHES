@@ -89,7 +89,16 @@ export function checkRateLimit({ key, limit, windowMs }: RateLimitOptions): Rate
 // ─────────────────────────────────────────────────────────────────────────
 // Client IP 추출.
 //   우선순위: cf-connecting-ip → x-real-ip → x-forwarded-for(first hop).
-//   Vercel 은 x-forwarded-for 를 신뢰 가능한 프록시 체인으로 세팅.
+//
+// L-sec98 (2026-04-22): XFF first-hop 정책 명시.
+//   Vercel 환경에서는 Vercel Edge 가 신뢰할 수 있는 클라이언트 IP 를 x-forwarded-for 의
+//   제일 앞(first hop) 에 prepend 한다. 따라서 .split(',')[0] 은 Vercel 에서는
+//   방어적으로 올바른 선택.
+//   단, 비-Vercel 배포(자체 호스팅, 일반 리버스 프록시 뒤)에서는
+//   클라이언트가 임의 XFF 를 주입할 수 있으므로 last hop / 신뢰된 프록시 IP 도메인
+//   기반 필터와 결합해야 안전. 현재 프로덕션 배포는 Vercel icn1 으로 고정되어 있으므로
+//   first-hop 정책 유지.
+//
 //   아무것도 없으면 'unknown' (로컬 dev 환경).
 // ─────────────────────────────────────────────────────────────────────────
 export function getClientIp(request: NextRequest): string {
