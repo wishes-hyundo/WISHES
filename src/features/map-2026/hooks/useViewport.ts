@@ -1,10 +1,27 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 지도 뷰포트 변경 → /api/listings/viewport 호출
 // 디바운스 250ms, AbortController 로 경쟁조건 방지
+//
+// L-vp2 (2026-04-22): 서버가 400 으로 돌려주던 "bbox 너무 큼 / 좌표 반전"
+//   상태를 클라이언트에서 선 차단. 이전에는 Kakao 초기 idle 이벤트가 간혹
+//   SW=NE 로 들어와 console 에 `viewport 400` 을 남기고 빈 리스트가 깜박거렸음.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { useEffect, useRef } from 'react';
 import { useMap2026Store, type FilterState } from '../store';
 import { dealsToParam } from '../lib/priceFormat';
+
+const MAX_VIEWPORT_DEG = 2;
+
+function isValidBbox(b: { west: number; south: number; east: number; north: number }): boolean {
+  // NaN / Infinity 배제
+  if (![b.west, b.south, b.east, b.north].every(Number.isFinite)) return false;
+  // 반전 좌표 배제
+  if (b.east <= b.west || b.north <= b.south) return false;
+  // 과대 영역 배제 (서버 MAX_VIEWPORT_DEG 와 동일 기준)
+  if (b.east - b.west > MAX_VIEWPORT_DEG) return false;
+  if (b.north - b.south > MAX_VIEWPORT_DEG) return false;
+  return true;
+}
 
 function buildQueryString(
   bbox: NonNullable<ReturnType<typeof useMap2026Store.getState>['bbox']>,
@@ -53,6 +70,8 @@ export function useViewport() {
 
   useEffect(() => {
     if (!bbox) return;
+    // L-vp2: 유효하지 않은 bbox 는 조용히 스킵 — 콘솔 스팸 + 빈 리스트 깜박임 방지
+    if (!isValidBbox(bbox)) return;
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
@@ -64,6 +83,14 @@ export function useViewport() {
       try {
         const qs = buildQueryString(bbox, filter);
         const res = await fetch(`/api/listings/viewport?${qs}`, { signal: ctrl.signal });
+        // 4xx 는 경고만 남기고 리스트를 비움 — 기존엔 throw 로 error 로그 폭주
+        if (res.status >= 400 && res.status < 500) {
+          if (!ctrl.signal.aborted) setListings([]);
+          if (res.status !== 400) {
+            console.warn('[useViewport] non-400 4xx', res.status);
+          }
+          return;
+        }
         if (!res.ok) throw new Error(`viewport ${res.status}`);
         const json = await res.json();
         if (!ctrl.signal.aborted) setListings(json.listings ?? []);

@@ -82,6 +82,10 @@ function loadKakaoSdk(appkey: string): Promise<void> {
 export default function MapClient() {
   const containerRef = useRef<HTMLDivElement>(null);
   const kakaoMapRef = useRef<unknown>(null);
+  // L-map2 (2026-04-22): KakaoDeckOverlay 가 mount 되지 않던 경쟁조건 해결.
+  //   useRef 값 변경은 리렌더를 유발하지 않아 {ready && kakaoMapRef.current}
+  //   조건이 false 로 고정되는 경우가 있었다. state 로 미러링해서 마운트 보장.
+  const [kakaoMap, setKakaoMap] = useState<unknown>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [failReason, setFailReason] = useState<string>('');
@@ -140,6 +144,7 @@ export default function MapClient() {
         });
         mapInst = map;
         kakaoMapRef.current = map;
+        setKakaoMap(map); // state 로도 반영 → 오버레이 조건부 마운트 트리거
 
         const sync = () => {
           const b = map.getBounds();
@@ -171,6 +176,7 @@ export default function MapClient() {
       disposed = true;
       // Kakao 는 명시적 destroy API 가 없음 — container 비우고 ref 초기화
       kakaoMapRef.current = null;
+      setKakaoMap(null);
       idleListener = null;
       // 재초기화를 위해 container innerHTML 클리어
       if (container) {
@@ -288,9 +294,9 @@ export default function MapClient() {
             className="absolute inset-0"
             style={{ width: '100%', height: '100%' }}
           />
-          {ready && kakaoMapRef.current ? (
+          {ready && kakaoMap ? (
             <KakaoDeckOverlay
-              map={kakaoMapRef.current}
+              map={kakaoMap}
               items={items}
               onClickListing={onClickListing}
             />
