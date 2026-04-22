@@ -18,9 +18,22 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+// L-sec50 (2026-04-22): open redirect guard.
+//   ?redirect=https://evil.com 로 피싱 리다이렉터 악용 방지.
+//   same-origin path 만 허용: '/' 로 시작, '//' 아님, '\\' 없음.
+function safeRedirect(raw: string | null | undefined): string {
+  const v = String(raw || '').trim();
+  if (!v) return '/search';
+  if (!v.startsWith('/')) return '/search';
+  if (v.startsWith('//')) return '/search';
+  if (v.includes('\\')) return '/search';
+  if (v.length > 512) return '/search';
+  return v;
+}
+
 function LoginForm() {
   const params = useSearchParams();
-  const redirect = params.get('redirect') || '/search';
+  const redirect = safeRedirect(params.get('redirect'));
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

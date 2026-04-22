@@ -14,12 +14,18 @@ function AuthCallbackContent() {
   const [codeProcessed, setCodeProcessed] = useState(false);
 
   // 저장된 리다이렉트 경로 가져오기
+  // L-sec51 (2026-04-22): sessionStorage 값이 XSS/확장프로그램에 의해
+  //   //evil.com 등으로 오염될 경우 router.replace() 가 크로스오리진 네비게이션을
+  //   따라갈 여지. same-origin path 화이트리스트로 방어.
   const getRedirectPath = () => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('wishes-auth-redirect');
       if (saved) {
         sessionStorage.removeItem('wishes-auth-redirect');
-        return saved;
+        const v = String(saved || '').trim();
+        if (v.length > 0 && v.length <= 512 && v.startsWith('/') && !v.startsWith('//') && !v.includes('\\')) {
+          return v;
+        }
       }
     }
     return '/';
