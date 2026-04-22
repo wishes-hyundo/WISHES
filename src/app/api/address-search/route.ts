@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
 
@@ -23,6 +24,17 @@ const MAX_QUERY_LEN = 200;
 
 export async function POST(request: NextRequest) {
   try {
+    // L-sec69 (2026-04-22): Kakao REST API 할당량 보호
+    //   CORS * 라 외부에서도 호출 가능. 5분 30회/IP cap.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `address-search:ip:${_ip}`, limit: 30, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다.', data: [] },
+        { status: 429, headers: { ...CORS_HEADERS, 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const body = await request.json();
     const rawQuery = body.query || body.address || '';
     const query = typeof rawQuery === 'string'

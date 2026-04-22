@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const SERVICE_KEY =
   process.env.DATA_GO_KR_API_KEY || process.env.BUILDING_LEDGER_API_KEY || "";
@@ -33,6 +34,17 @@ const ALLOWED_OPS = new Set(['basis', 'recapTitle', 'title', 'floor', 'exposPubu
 
 export async function POST(request: NextRequest) {
   try {
+    // L-sec69 (2026-04-22): data.go.kr SERVICE_KEY 할당량 보호
+    //   5분 30회/IP cap. 건축물대장 엔드포인트는 사용 빈도 낮음.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `building-ledger:ip:${_ip}`, limit: 30, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const { sigunguCd, bjdongCd, platGbCd, bun, ji, operations } = body || {};
 
