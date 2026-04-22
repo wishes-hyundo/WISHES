@@ -97,8 +97,19 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
 
-  // L-v7 (2026-04-22): host 는 이미 위(51줄)에서 선언했으므로 재사용
-  if (!host.includes('wishes.co.kr') && !host.includes('localhost')) {
+  // L-sec56 (2026-04-22): host substring 매치 → 엄격한 hostname suffix 검증.
+  //   기존 String.includes('wishes.co.kr') 는 'evilwishes.co.kr.attacker.com' 같은
+  //   악성 도메인도 매치되어 X-Robots-Tag 가 누락되는 약점.
+  //   host 헤더는 hostname[:port] 형태라 포트만 제거 후 정확 일치/서픽스 검증.
+  const hostname = host.split(':')[0];
+  const isOwnHost =
+    hostname === 'wishes.co.kr' ||
+    hostname.endsWith('.wishes.co.kr') ||
+    hostname === 'wishes.me' ||
+    hostname.endsWith('.wishes.me') ||
+    hostname === 'localhost' ||
+    hostname.endsWith('.vercel.app');
+  if (!isOwnHost) {
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
 
@@ -140,10 +151,30 @@ export function middleware(request: NextRequest) {
     'csp-endpoint="/api/csp-report"'
   );
 
+  // L-sec56 (2026-04-22): /api/images/ referer 엄격 검증.
+  //   기존 referer.includes('wishes.co.kr') 은 'https://evilwishes.co.kr.attacker.com/'
+  //   같은 서브도메인 스푸핑이 통과. URL 파서로 hostname 추출 후 정확 일치/서픽스 매치.
   if (pathname.startsWith('/api/images/')) {
     const referer = request.headers.get('referer');
-    if (referer && !referer.includes('wishes.co.kr') && !referer.includes('localhost')) {
-      return new NextResponse('Forbidden', { status: 403 });
+    if (referer) {
+      let refHost: string | null = null;
+      try {
+        refHost = new URL(referer).hostname;
+      } catch {
+        /* invalid URL */
+      }
+      const refererOk =
+        refHost !== null && (
+          refHost === 'wishes.co.kr' ||
+          refHost.endsWith('.wishes.co.kr') ||
+          refHost === 'wishes.me' ||
+          refHost.endsWith('.wishes.me') ||
+          refHost === 'localhost' ||
+          refHost.endsWith('.vercel.app')
+        );
+      if (!refererOk) {
+        return new NextResponse('Forbidden', { status: 403 });
+      }
     }
   }
 
