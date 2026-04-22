@@ -197,7 +197,8 @@ export async function PATCH(
       if (Object.keys(updateData).length === 0) { results.push({ id: img.id, success: true }); continue; }
 
       const { error } = await supabase.from('listing_images').update(updateData).eq('id', img.id).eq('listing_id', listingId);
-      results.push({ id: img.id, success: !error, error: error?.message });
+      // L-sec113 (2026-04-22): bulk-results 의 error.message 도 prod 숨김 (IS_DEV 재사용).
+      results.push({ id: img.id, success: !error, error: error ? errMsg('', error) : undefined });
     }
 
     return NextResponse.json({ success: true, results }, { headers: cors });
