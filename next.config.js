@@ -80,6 +80,11 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
 
+  // L-clean1 (2026-04-22): 클라이언트 console 정책 명시.
+  //   SWC 가 프로덕션 빌드 시 client 번들에서 console.log/info/debug 을 제거.
+  //   console.warn / console.error 는 유지 — DevTools, 추후 Sentry 등에 연결.
+  //   서버(Node) 번들에는 영향 없음(Vercel 로그 채널로 전부 통과).
+  //   → 개발 중에는 console.log 자유롭게 사용해도 프로덕션에 유출되지 않음.
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production'
       ? { exclude: ['error', 'warn'] }

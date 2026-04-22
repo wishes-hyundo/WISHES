@@ -113,7 +113,8 @@ function AuthCallbackContent() {
         if (exchangeError) {
           // 코드가 이미 처리된 경우 (detectSessionInUrl에 의해) 무시
           if (exchangeError.message?.includes('code') || exchangeError.message?.includes('verifier')) {
-            console.log('PKCE 코드 이미 처리됨, 세션 감지 대기 중...');
+            // next.config.js `compiler.removeConsole` 로 프로덕션 client 번들에서 제거됨
+            console.debug('PKCE 코드 이미 처리됨, 세션 감지 대기 중...');
             return;
           }
           console.error('PKCE 코드 교환 실패:', exchangeError.message);
