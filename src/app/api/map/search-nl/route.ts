@@ -7,6 +7,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import type {
   DealType,
   FilterState,
@@ -225,6 +226,19 @@ function parseQuery(q: string): {
 }
 
 export async function POST(req: NextRequest) {
+  // L-sec81 (2026-04-22): Phase 1.2 Claude API fallback 대비 선제적 rate limit.
+  //   현재 규칙 보새 파서 cheap 이지만
+  //   관리자가 Claude fallback 켜면 비용 폭증 가능.
+  //   5분 60회/IP cap.
+  const _ip = getClientIp(req);
+  const _rl = checkRateLimit({ key: `search-nl:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();

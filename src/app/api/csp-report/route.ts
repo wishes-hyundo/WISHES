@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // H2 (2026-04-21): CSP Report-Only 전용 수신 엔드포인트
 // 브라우저가 `Content-Security-Policy-Report-Only` 위반을 감지하면
@@ -46,6 +47,15 @@ type ReportingApiReport = {
 
 export async function POST(req: NextRequest) {
   try {
+    // L-sec81 (2026-04-22): 공개 flood 방지. 5분 60회/IP cap.
+    //   정상 브라우저는 violation 발생에만 전송 (세션당 0-5회).
+    const _ip = getClientIp(req);
+    const _rl = checkRateLimit({ key: `csp-report:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      // 204 로 무시 — 브라우저 재시도 없음.
+      return new NextResponse(null, { status: 204 });
+    }
+
     // L-sec34 (2026-04-22): 공개 CSP report endpoint. content-length 64KB cap 으로 스팸 차단.
     //   정상 리포트는 수 KB 이내. 그 이상은 무시 (204 로 브라우저 재시도 차단).
     const contentLength = parseInt(req.headers.get('content-length') || '0', 10);

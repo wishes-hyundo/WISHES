@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
@@ -21,6 +22,18 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  */
 export async function GET(request: NextRequest) {
   try {
+    // L-sec81 (2026-04-22): 토큰 validation brute-force 방지.
+    //   유효한 토큰인지 빠르게 스캔하어 leaked token 탐색 가능함.
+    //   5분 60회/IP cap (정상 사용자는 세션당 몇 번).
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `auth-me:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, message: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
 
