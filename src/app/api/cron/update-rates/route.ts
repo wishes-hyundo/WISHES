@@ -84,9 +84,19 @@ function calculateAllRates(baseRate: number, mortgageRate: number) {
 
 export async function GET(request: Request) {
   try {
-    const authHeader = request.headers.get('authorization');
+    // L-sec32 (2026-04-22): CRON_SECRET 미설정 시 인증 우회되던 로직 수정.
+    //   secret 미설정 = 설정 오류 → 401 로 항상 차단 (dev 제외).
+    const authHeader = request.headers.get('authorization') || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '');
     const cronSecret = process.env.CRON_SECRET;
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    let ok = false;
+    if (cronSecret) {
+      ok = token === cronSecret;
+    } else if (process.env.NODE_ENV !== 'production') {
+      const master = process.env.WISHES_ADMIN_MASTER_PASSWORD;
+      ok = !!master && token === master;
+    }
+    if (!ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -98,7 +108,19 @@ export async function GET(request: Request) {
     ]);
 
     if (!baseRateData || !mortgageRateData) {
-      return NextResponse.json({ error: 'ECOS API 데이터 수집 실패', details: { baseRate: baseRateData ? 'OK' : 'FAILED', mortgageRate: mortgageRateData ? 'OK' : 'FAILED' } }, { status: 500 });
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json(
+        {
+          error: 'ECOS API 데이터 수집 실패',
+          ...(isDev && {
+            details: {
+              baseRate: baseRateData ? 'OK' : 'FAILED',
+              mortgageRate: mortgageRateData ? 'OK' : 'FAILED',
+            },
+          }),
+        },
+        { status: 500 }
+      );
     }
 
     console.log(`[CRON] 기준금리: ${baseRateData.rate}% (${baseRateData.period})`);
@@ -117,7 +139,11 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.from('loan_rates').insert(insertData).select();
 
     if (error) {
-      return NextResponse.json({ error: 'DB update failed', details: error.message }, { status: 500 });
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json(
+        { error: 'DB update failed', ...(isDev && { details: error.message }) },
+        { status: 500 }
+      );
     }
 
     console.log('[CRON] === 금리 자동 업데이트 완료 ===');
@@ -134,6 +160,10 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error('[CRON] error:', error);
-    return NextResponse.json({ error: 'Internal server error', details: String(error) }, { status: 500 });
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json(
+      { error: 'Internal server error', ...(isDev && { details: String(error) }) },
+      { status: 500 }
+    );
   }
 }

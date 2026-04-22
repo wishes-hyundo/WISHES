@@ -118,7 +118,8 @@ export async function GET(
   try {
     const { id } = await params;
     const listingId = parseInt(id, 10);
-    if (isNaN(listingId)) {
+    // L-sec31 (2026-04-22): isNaN 만 체크하면 Infinity/음수 통과 → 정수 범위 검증.
+    if (!Number.isFinite(listingId) || listingId < 0 || listingId > 2_000_000_000) {
       return NextResponse.json({ error: 'Invalid listing ID' }, { status: 400 });
     }
 
