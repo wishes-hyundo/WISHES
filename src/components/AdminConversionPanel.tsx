@@ -262,7 +262,7 @@ export default function AdminConversionPanel({ authHeader }: Props) {
             ))}
           </div>
           <button
-            onClick={load}
+            onClick={() => load()}
             disabled={loading}
             className="flex items-center gap-1 text-white/80 hover:text-white text-xs font-medium transition-colors"
             title="새로고침"

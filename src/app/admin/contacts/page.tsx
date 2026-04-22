@@ -138,7 +138,7 @@ export default function ContactsPage() {
           <p className="text-sm text-gray-500 mt-1">총 {contacts.length}건의 상담</p>
         </div>
         <button
-          onClick={loadContacts}
+          onClick={() => loadContacts()}
           className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition"
           title="새로고침"
         >

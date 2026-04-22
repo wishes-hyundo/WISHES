@@ -129,7 +129,7 @@ export default function AdminBriefingPanel({ authHeader }: { authHeader: string 
       <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-red-700 text-sm flex items-center gap-2">
         <AlertCircle className="w-4 h-4 shrink-0" />
         <span className="flex-1">{error}</span>
-        <button onClick={fetchBriefing} className="px-3 py-1 rounded-lg bg-white border border-red-300 hover:bg-red-100 text-xs font-semibold">
+        <button onClick={() => fetchBriefing()} className="px-3 py-1 rounded-lg bg-white border border-red-300 hover:bg-red-100 text-xs font-semibold">
           다시 시도
         </button>
       </div>
@@ -157,7 +157,7 @@ export default function AdminBriefingPanel({ authHeader }: { authHeader: string 
           </div>
         </div>
         <button
-          onClick={fetchBriefing}
+          onClick={() => fetchBriefing()}
           disabled={loading}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-wishes-primary/30 text-wishes-primary text-xs font-semibold hover:bg-wishes-primary/5 disabled:opacity-50"
         >

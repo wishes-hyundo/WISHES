@@ -97,12 +97,16 @@ export async function GET(request: Request) {
     const results = [];
     for (const notif of notifications) {
       // 알림 로그 저장
-      await supabase.from('alert_logs').insert({
-        user_id: notif.user_id,
-        listing_count: notif.matches.length,
-        listing_ids: notif.matches.map(m => m.id),
-        sent_at: new Date().toISOString()
-      }).catch(() => {});
+      // L-ts1 (2026-04-22): Supabase PostgrestBuilder 는 thenable 이지만 native Promise 가 아님.
+      //   .catch() 체인 대신 try/catch 로 에러 무시.
+      try {
+        await supabase.from('alert_logs').insert({
+          user_id: notif.user_id,
+          listing_count: notif.matches.length,
+          listing_ids: notif.matches.map(m => m.id),
+          sent_at: new Date().toISOString()
+        });
+      } catch { /* 로그 실패는 치명적 X */ }
 
       // Resend API로 이메일 발송
       if (process.env.RESEND_API_KEY) {

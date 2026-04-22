@@ -283,9 +283,11 @@ async function fetchMolitData(
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // L-ts1 (2026-04-22): Next.js 15 params 는 Promise. 사용 전 await 필수.
+    const resolvedParams = await params;
     // L-sec74 (2026-04-22): data.go.kr SERVICE_KEY 할당량 보호
     //   1h ISR 캐시가 있으나 listing id 순회로 cold cache 유도 가능.
     //   5분 30회/IP cap (정상 사용자는 체류 중 몇 개 조회).
@@ -298,7 +300,7 @@ export async function GET(
       );
     }
 
-    const listingId = parseInt(params.id);
+    const listingId = parseInt(resolvedParams.id);
     if (isNaN(listingId)) {
       return NextResponse.json({ success: false, error: '잘못된 매물 ID' }, { status: 400 });
     }

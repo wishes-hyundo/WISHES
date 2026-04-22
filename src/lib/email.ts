@@ -13,12 +13,13 @@ const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'wishes@wishes.co.kr';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
 
 // 새 사용자 가입 시 관리자에게 알림
+// L-ts1 (2026-04-22): admin_users 컬럼들이 nullable 이므로 `string | null` 까지 허용.
 export async function notifyAdminNewRegistration(user: {
   name: string;
   email: string;
-  phone?: string;
-  company?: string;
-  reason?: string;
+  phone?: string | null;
+  company?: string | null;
+  reason?: string | null;
 }) {
   const resend = getResend();
   if (!resend) {

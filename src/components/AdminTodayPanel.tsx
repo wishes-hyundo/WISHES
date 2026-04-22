@@ -132,7 +132,7 @@ export default function AdminTodayPanel({ authHeader }: Props) {
           <span className="ml-2 text-xs text-white/80" suppressHydrationWarning>{displayDate || '\u00A0'}</span>
         </div>
         <button
-          onClick={load}
+          onClick={() => load()}
           disabled={loading}
           className="flex items-center gap-1 text-white/80 hover:text-white text-xs font-medium transition-colors"
         >

@@ -20,11 +20,13 @@ export async function POST(request: NextRequest) {
     if (body.source_site && typeof body.source_site === 'string') {
       // L-sec47 (2026-04-22): source_site 길이 cap — .eq() 는 안전하지만 방어선
       const sourceSite = body.source_site.slice(0, 60);
-      const { data, error, count } = await supabase
+      // L-ts1 (2026-04-22): .select('id', { count: 'exact' }) 는 delete→select 체인에서
+      //   TS 오버로드가 없음. 어차피 `data?.length` 로 충분하므로 count 옵션 제거.
+      const { data, error } = await supabase
         .from('listings')
         .delete()
         .eq('source_site', sourceSite)
-        .select('id', { count: 'exact' });
+        .select('id');
 
       if (error) {
         console.error('Bulk delete by source_site error:', error);
@@ -38,7 +40,7 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        deleted: data?.length || count || 0,
+        deleted: data?.length || 0,
         message: `source_site='${sourceSite}' 매물 삭제 완료`,
       });
     }

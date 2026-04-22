@@ -216,7 +216,7 @@ export default function AdminAppointmentsPanel({ authToken }: { authToken: strin
           </span>
           <button
             type="button"
-            onClick={load}
+            onClick={() => load()}
             className="ml-2 px-3 py-1 rounded-md bg-white border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50"
           >
             새로고침
