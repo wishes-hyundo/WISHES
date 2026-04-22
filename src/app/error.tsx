@@ -14,6 +14,8 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Home, RefreshCw, Phone, Sparkles, AlertTriangle } from 'lucide-react';
 import InquiryModal from '@/components/InquiryModal';
+// L-observe1 (2026-04-23): GlobalError 를 Sentry 로도 전송.
+import { captureError } from '@/lib/observe';
 
 export default function GlobalError({
   error,
@@ -25,10 +27,14 @@ export default function GlobalError({
   const [inquiryOpen, setInquiryOpen] = useState(false);
 
   useEffect(() => {
-    // 에러 로깅 — Sentry 등 연동 시 이 지점에서 전송
+    // L-observe1 (2026-04-23): Sentry 로 전송 (DSN 없으면 no-op) + console fallback.
     if (typeof window !== 'undefined') {
       // eslint-disable-next-line no-console
       console.error('[GlobalError]', error?.digest || error?.message, error);
+      void captureError(error, {
+        route: 'app/global-error',
+        tags: { digest: error?.digest },
+      });
     }
   }, [error]);
 
