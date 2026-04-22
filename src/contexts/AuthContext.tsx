@@ -105,10 +105,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const deleteAccount = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     if (!user) return { success: false, error: '로그인 상태가 아닙니다.' };
     try {
+      // L-sec37 (2026-04-22): 서버가 이제 JWT 에서 user.id 를 가져오므로 Authorization 헤더 필수.
+      const supabase = createAuthClient();
+      const { data: { session: sess } } = await supabase.auth.getSession();
+      if (!sess?.access_token) return { success: false, error: '세션이 만료되었습니다.' };
       const res = await fetch('/api/auth/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sess.access_token}`,
+        },
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data.success) {
