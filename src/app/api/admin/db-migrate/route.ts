@@ -1,7 +1,7 @@
 /**
  * POST /api/admin/db-migrate
  * Supabase DB에 신규 컬럼을 추가하는 마이그레이션 엔드포인트
- * Authorization: Bearer wishes2026
+ * Authorization: Bearer <WISHES_ADMIN_MASTER_PASSWORD env> (또는 Supabase JWT)
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';

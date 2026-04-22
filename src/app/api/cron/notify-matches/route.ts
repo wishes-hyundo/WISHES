@@ -4,7 +4,7 @@
 //
 //   권한:
 //     - CRON_SECRET 환경변수가 설정된 경우 Authorization: Bearer CRON_SECRET 요구
-//     - 미설정 시 개발용으로 어드민 비밀번호(wishes2026) 허용
+//     - 미설정 시 401 (L-sec3 이후 fallback 없음)
 //
 //   발송 규칙:
 //     - 각 구독의 last_notified_at 이후 새로 등록된 공개 매물만 매칭

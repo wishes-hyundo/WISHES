@@ -8,7 +8,7 @@
 //   - 이미 embedding 있는 행은 건너뜀 (멱등)
 //   - 오래된 임베딩만 재생성하려면 ?staleDays=30 옵션
 //
-// Authorization: Bearer wishes2026 (또는 Supabase JWT)
+// Authorization: Bearer <WISHES_ADMIN_MASTER_PASSWORD env> (또는 Supabase JWT)
 //
 // 사용 예:
 //   POST /api/admin/backfill-embeddings?batchSize=200

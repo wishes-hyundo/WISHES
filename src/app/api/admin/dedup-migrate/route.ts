@@ -8,7 +8,7 @@
  *   - dedup_kept_id      BIGINT
  *   - 인덱스 2개
  *
- * Authorization: Bearer wishes2026 (또는 Supabase JWT)
+ * Authorization: Bearer <WISHES_ADMIN_MASTER_PASSWORD env> (또는 Supabase JWT)
  *
  * 배포 후 한 번만 호출하면 된다.
  */

@@ -1,6 +1,6 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 일회성 정리: raw_fields 의 노이즈 라벨 일괄 제거
-// 사용법: GET /api/admin/clean-raw-fields?token=wishes2026
+// 사용법: GET /api/admin/clean-raw-fields (Authorization: Bearer <WISHES_ADMIN_MASTER_PASSWORD env> 또는 Supabase JWT)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';

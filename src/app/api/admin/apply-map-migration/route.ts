@@ -9,7 +9,7 @@
  *   - match_listings RPC (pgvector 자연어 검색)
  *   - listings_map_diff mirror + trigger (Realtime Broadcast 패턴)
  *
- * Authorization: Bearer wishes2026 (또는 Supabase JWT)
+ * Authorization: Bearer <WISHES_ADMIN_MASTER_PASSWORD env> (또는 Supabase JWT)
  *
  * 배포 후 한 번만 호출하면 된다. IF NOT EXISTS 로 멱등성 확보.
  *
