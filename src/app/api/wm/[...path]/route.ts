@@ -12,24 +12,58 @@ const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-e16c7a50584c4db7
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
 const CACHE_SECONDS = 3600;
 
+// L-sec35 (2026-04-22): path traversal + SSRF 방어 상수
+const WM_MAX_BYTES = 25 * 1024 * 1024; // 25MB
+const WM_FETCH_TIMEOUT_MS = 5000;
+const WM_SAFE_SEGMENT_RE = /^[a-zA-Z0-9._\-\[\]]+$/;
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> }
 ) {
   try {
     const { path: pathSegments } = await params;
+
+    // L-sec35: 각 segment 를 보수적인 화이트리스트로 검증.
+    //   - '.', '..', 빈 문자열, 제어문자, 슬래시 제외
+    //   - 경로 조작 (SSRF / path traversal) 차단
+    if (!pathSegments || pathSegments.length === 0 || pathSegments.length > 20) {
+      return new NextResponse('Bad Request', { status: 400 });
+    }
+    for (const seg of pathSegments) {
+      if (!seg || seg === '.' || seg === '..' || !WM_SAFE_SEGMENT_RE.test(seg)) {
+        return new NextResponse('Bad Request', { status: 400 });
+      }
+    }
     const filePath = pathSegments.join('/');
+    if (filePath.length > 500) {
+      return new NextResponse('Bad Request', { status: 400 });
+    }
 
     let imageBuffer: Buffer | null = null;
     let contentType = 'image/jpeg';
 
-    // 1순위: 내부 API 이미지 (api/images/... 경로)
+    // 1순위: 내부 API 이미지 (api/images/... 경로만 허용 — SSRF 방지)
     if (filePath.startsWith('api/')) {
+      if (!filePath.startsWith('api/images/')) {
+        return new NextResponse('Bad Request', { status: 400 });
+      }
       const internalUrl = `${SITE_URL}/${filePath}`;
       try {
-        const internalRes = await fetch(internalUrl, { cache: 'no-store' });
+        const internalRes = await fetch(internalUrl, {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(WM_FETCH_TIMEOUT_MS),
+        });
         if (internalRes.ok) {
-          imageBuffer = Buffer.from(await internalRes.arrayBuffer());
+          const cLen = parseInt(internalRes.headers.get('content-length') || '0', 10);
+          if (cLen > WM_MAX_BYTES) {
+            return new NextResponse('Payload too large', { status: 413 });
+          }
+          const buf = Buffer.from(await internalRes.arrayBuffer());
+          if (buf.length > WM_MAX_BYTES) {
+            return new NextResponse('Payload too large', { status: 413 });
+          }
+          imageBuffer = buf;
           contentType = internalRes.headers.get('content-type') || 'image/jpeg';
         }
       } catch (e) {
@@ -40,20 +74,35 @@ export async function GET(
     // 2순위: Cloudflare R2
     if (!imageBuffer) {
       const r2Url = `${R2_PUBLIC_URL}/${filePath}`;
-      const r2Res = await fetch(r2Url);
-      if (r2Res.ok) {
-        imageBuffer = Buffer.from(await r2Res.arrayBuffer());
-        contentType = r2Res.headers.get('content-type') || contentType;
+      try {
+        const r2Res = await fetch(r2Url, { signal: AbortSignal.timeout(WM_FETCH_TIMEOUT_MS) });
+        if (r2Res.ok) {
+          const cLen = parseInt(r2Res.headers.get('content-length') || '0', 10);
+          if (cLen > WM_MAX_BYTES) {
+            return new NextResponse('Payload too large', { status: 413 });
+          }
+          const buf = Buffer.from(await r2Res.arrayBuffer());
+          if (buf.length > WM_MAX_BYTES) {
+            return new NextResponse('Payload too large', { status: 413 });
+          }
+          imageBuffer = buf;
+          contentType = r2Res.headers.get('content-type') || contentType;
+        }
+      } catch (e) {
+        console.error('[wm-proxy] R2 fetch 실패:', e);
       }
     }
 
-    // 3순위: 로컬 파일 (개발 환경)
+    // 3순위: 로컬 파일 (개발 환경) — path.resolve 로 public/images 밖 이탈 방지
     if (!imageBuffer) {
-      const localPath = path.join(process.cwd(), 'public', 'images', filePath);
-      if (fs.existsSync(localPath)) {
-        imageBuffer = fs.readFileSync(localPath);
-        if (filePath.endsWith('.png')) contentType = 'image/png';
-        else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) contentType = 'image/jpeg';
+      const baseDir = path.resolve(process.cwd(), 'public', 'images');
+      const localPath = path.resolve(baseDir, filePath);
+      if (localPath.startsWith(baseDir + path.sep) || localPath === baseDir) {
+        if (fs.existsSync(localPath) && fs.statSync(localPath).isFile()) {
+          imageBuffer = fs.readFileSync(localPath);
+          if (filePath.endsWith('.png')) contentType = 'image/png';
+          else if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg')) contentType = 'image/jpeg';
+        }
       }
     }
 
