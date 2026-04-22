@@ -92,7 +92,9 @@ export function verifyTotp(
 
   for (let w = -window; w <= window; w++) {
     const c = counter + BigInt(w);
-    if (c < 0n) continue;
+    // L-build-fix3 (2026-04-23): 0n 리터럴은 tsconfig target ES2017 에서 금지
+    //   (ES2020+ 필요). tsconfig 건드리는 대신 BigInt(0) 로 회피.
+    if (c < BigInt(0)) continue;
     const expected = Buffer.from(hotp(secret, c), 'utf8');
     if (expected.length === candidate.length && timingSafeEqual(expected, candidate)) {
       return true;
