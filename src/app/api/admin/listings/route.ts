@@ -2,16 +2,12 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
+import { adminCorsHeaders } from '@/lib/cors';
 
-// CORS 헤더 (크롤러가 외부 도메인에서 POST 가능하도록)
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
-
-export async function OPTIONS() {
-  return new NextResponse(null, { status: 200, headers: CORS_HEADERS });
+// L-sec10 (2026-04-22): 기존 하드코드 '*' 는 browser-based CSRF 창구였음.
+// 외부 크롤러는 서버-투-서버 fetch 라 CORS 영향 없음. 화이트리스트로 축소.
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 200, headers: adminCorsHeaders(req, 'GET, POST, PUT, OPTIONS') });
 }
 import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
@@ -285,11 +281,12 @@ export async function GET(request: NextRequest) {
  * 이미지 URL 배열이 포함된 경우, 매물 생성 후 listing_images 테이블에 연결
  */
 export async function POST(request: NextRequest) {
+  const cors = adminCorsHeaders(request, 'GET, POST, PUT, OPTIONS');
   try {
     if (!(await verifyAuth(request))) {
       return NextResponse.json(
         { success: false, error: '인증 실패' },
-        { status: 401, headers: CORS_HEADERS }
+        { status: 401, headers: cors }
       );
     }
 
@@ -336,7 +333,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json(
         { success: false, error: parsed.error.errors[0].message, detail: JSON.stringify(parsed.error.errors) },
-        { status: 400, headers: CORS_HEADERS }
+        { status: 400, headers: cors }
       );
     }
 
@@ -415,7 +412,7 @@ export async function POST(request: NextRequest) {
       console.error('매물 생성 오류:', error);
       return NextResponse.json(
         { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
-        { status: 500, headers: CORS_HEADERS }
+        { status: 500, headers: cors }
       );
     }
 
@@ -454,13 +451,13 @@ export async function POST(request: NextRequest) {
           listing_images: imageResults,
         },
       },
-      { status: 201, headers: CORS_HEADERS }
+      { status: 201, headers: cors }
     );
   } catch (error: any) {
     console.error('매물 생성 오류:', error);
     return NextResponse.json(
       { success: false, error: '매물 생성에 실패했습니다', detail: error?.message || String(error) },
-      { status: 500, headers: CORS_HEADERS }
+      { status: 500, headers: cors }
     );
   }
 }

@@ -1,19 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { adminCorsHeaders } from '@/lib/cors';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-};
+// L-sec10 (2026-04-22): cors '*' 회귀 제거. adminCorsHeaders() 로
+// origin 화이트리스트 기반 echo 만 허용한다.
 
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: CORS_HEADERS });
+export async function OPTIONS(req: NextRequest) {
+  return NextResponse.json({}, { headers: adminCorsHeaders(req, 'POST, OPTIONS') });
 }
 
 /**
@@ -22,16 +20,17 @@ export async function OPTIONS() {
  * Body: { listingId: number, style?: 'trendy'|'premium'|'clean', aiModel?: 'best'|'latest' }
  */
 export async function POST(req: NextRequest) {
+  const cors = adminCorsHeaders(req, 'POST, OPTIONS');
   try {
     if (!(await verifyAdminAuth(req))) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: cors });
     }
 
     const body = await req.json();
     const { listingId, style, aiModel, autoMode } = body;
 
     if (!listingId) {
-      return NextResponse.json({ success: false, error: 'listingId required' }, { status: 400, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'listingId required' }, { status: 400, headers: cors });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -45,7 +44,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (listingErr || !listing) {
-      return NextResponse.json({ success: false, error: 'Listing not found: ' + (listingErr?.message || '') }, { status: 404, headers: CORS_HEADERS });
+      return NextResponse.json({ success: false, error: 'Listing not found: ' + (listingErr?.message || '') }, { status: 404, headers: cors });
     }
     steps.push({ step: 'listing_fetch', status: 'ok', data: { id: listing.id, address: listing.address } });
 
@@ -78,7 +77,7 @@ export async function POST(req: NextRequest) {
             meta_description: listing.seo_meta_description || '',
           },
           buildingInfo: listing.building_info || null,
-        }, { headers: CORS_HEADERS });
+        }, { headers: cors });
       }
     }
 
@@ -307,13 +306,13 @@ export async function POST(req: NextRequest) {
         총주차대수: buildingInfo.총주차대수,
         승용엘리베이터: buildingInfo.승용엘리베이터,
       } : null,
-    }, { headers: CORS_HEADERS });
+    }, { headers: cors });
 
   } catch (error: any) {
     console.error('[auto-generate] error:', error);
     return NextResponse.json(
       { success: false, error: 'Pipeline error: ' + (error?.message || String(error)) },
-      { status: 500, headers: CORS_HEADERS }
+      { status: 500, headers: cors }
     );
   }
 }
