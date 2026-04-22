@@ -199,7 +199,9 @@ export async function GET(request: NextRequest) {
       .or('lat.is.null,lng.is.null');
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      // L-sec115 (2026-04-22): admin-gated defense-in-depth.
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
     }
 
     return NextResponse.json({

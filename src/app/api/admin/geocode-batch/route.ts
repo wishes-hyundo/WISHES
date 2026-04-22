@@ -70,7 +70,9 @@ export async function POST(request: NextRequest) {
       .limit(batchSize);
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      // L-sec115 (2026-04-22): admin-gated defense-in-depth.
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
     }
 
     if (!listings || listings.length === 0) {
@@ -174,7 +176,11 @@ async function handleDongAverageMode(request: NextRequest) {
       .neq('lat', 0)
       .neq('lng', 0)
       .range(page * pageSize, (page + 1) * pageSize - 1);
-    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    // L-sec115 (2026-04-22): admin-gated defense-in-depth.
+    if (error) {
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
+    }
     if (!data || data.length === 0) break;
     allWithCoords.push(...data);
     if (data.length < pageSize) break;
@@ -220,7 +226,11 @@ async function handleDongAverageMode(request: NextRequest) {
       .select('id, gu, dong')
       .or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0')
       .range(page * pageSize, (page + 1) * pageSize - 1);
-    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    // L-sec115 (2026-04-22): admin-gated defense-in-depth.
+    if (error) {
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
+    }
     if (!data || data.length === 0) break;
     allNoCoords.push(...data);
     if (data.length < pageSize) break;

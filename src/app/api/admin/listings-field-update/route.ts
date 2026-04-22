@@ -58,7 +58,9 @@ export async function PUT(request: NextRequest) {
 
     if (error) {
       console.error('Supabase update error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      // L-sec115 (2026-04-22): admin-gated defense-in-depth.
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ error: '수정 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
     }
 
     return NextResponse.json({ success: true, data });
@@ -119,7 +121,9 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (error) {
-        errors.push({ id, error: error.message });
+        // L-sec115 (2026-04-22): admin-gated defense-in-depth.
+        const isDev = process.env.NODE_ENV !== 'production';
+        errors.push({ id, error: isDev ? error.message : '수정 실패' });
       } else {
         results.push({ id, success: true, title: data?.title });
       }

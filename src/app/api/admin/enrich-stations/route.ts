@@ -71,7 +71,9 @@ export async function POST(request: NextRequest) {
     const { data: listings, error } = await query;
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      // L-sec115 (2026-04-22): admin-gated defense-in-depth.
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
     }
 
     if (!listings || listings.length === 0) {
@@ -136,7 +138,9 @@ export async function GET(request: NextRequest) {
       .or('station_name.is.null,station_name.eq.');
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      // L-sec115 (2026-04-22): admin-gated defense-in-depth.
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ success: false, error: '조회 실패', ...(isDev && { detail: error.message }) }, { status: 500 });
     }
 
     return NextResponse.json({
