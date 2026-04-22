@@ -108,9 +108,14 @@ export default function RootLayout({
             LCP 는 L-perf3 (fade-in 제거) 효과 로 1.7s → 0.74s 까지 내려왔기 때문에
             블로킹 CSS 130ms 를 다시 수용해도 LCP 예산 충분. 단순 <link rel="stylesheet">
             로 복귀해 첫 paint 에서 이미 Pretendard 적용 → CLS 제거. */}
+        {/* L-sec99 (2026-04-22): SRI integrity 추가.
+            jsdelivr CDN 공급망 공격 시 임의 CSS 주입 차단 (attribute selector 로
+            폼 값 exfiltrate, @font-face unicode-range trick 등). hash 은 pinned tag
+            v1.3.9 기준 sha384. 업그레이드 시 hash 재계산 필요. */}
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css"
+          integrity="sha384-GIdEBaqGN9mNkDkMkzMHW8EKUqtpPIe/sLj1X7DIrnc9uPtLROJgmuDlh+3rBw0j"
           crossOrigin="anonymous"
         />
         <link rel="dns-prefetch" href="https://rv.map.daum.net" />
