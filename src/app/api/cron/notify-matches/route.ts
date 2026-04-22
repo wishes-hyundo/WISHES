@@ -24,15 +24,13 @@ export const maxDuration = 60;
 
 function authorized(req: NextRequest): boolean {
   // L-sec3 (2026-04-22): 박제 'wishes2026' fallback 제거 → CRON_SECRET 필수
+  // L-sec90 (2026-04-22): NODE_ENV !== 'production' 분기 WISHES_ADMIN_MASTER_PASSWORD fallback 제거.
+  //   도큐-코드 일치성 + L-sec89 원칙(NODE_ENV 관용 제거). 로컬 테스트시 .env.local 에 CRON_SECRET 설정.
   const header = req.headers.get('authorization') || '';
   const token = header.replace(/^Bearer\s+/i, '');
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) return timingSafeEqualStr(token, cronSecret);
-  if (process.env.NODE_ENV !== 'production') {
-    const master = process.env.WISHES_ADMIN_MASTER_PASSWORD;
-    if (master && timingSafeEqualStr(token, master)) return true;
-  }
-  return false;
+  if (!cronSecret) return false;
+  return timingSafeEqualStr(token, cronSecret);
 }
 
 function matchOne(listing: any, sub: any): boolean {

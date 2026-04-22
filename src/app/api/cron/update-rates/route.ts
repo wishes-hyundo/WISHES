@@ -86,18 +86,11 @@ function calculateAllRates(baseRate: number, mortgageRate: number) {
 export async function GET(request: Request) {
   try {
     // L-sec32 (2026-04-22): CRON_SECRET 미설정 시 인증 우회되던 로직 수정.
-    //   secret 미설정 = 설정 오류 → 401 로 항상 차단 (dev 제외).
+    // L-sec90 (2026-04-22): NODE_ENV !== 'production' dev fallback 제거 → 모든 환경 CRON_SECRET 필수.
     const authHeader = request.headers.get('authorization') || '';
     const token = authHeader.replace(/^Bearer\s+/i, '');
     const cronSecret = process.env.CRON_SECRET;
-    let ok = false;
-    if (cronSecret) {
-      ok = timingSafeEqualStr(token, cronSecret);
-    } else if (process.env.NODE_ENV !== 'production') {
-      const master = process.env.WISHES_ADMIN_MASTER_PASSWORD;
-      ok = timingSafeEqualStr(token, master);
-    }
-    if (!ok) {
+    if (!cronSecret || !timingSafeEqualStr(token, cronSecret)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
