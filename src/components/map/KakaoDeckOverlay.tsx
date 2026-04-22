@@ -149,6 +149,29 @@ export default function KakaoDeckOverlay({
     container.appendChild(canvas);
     canvasRef.current = canvas;
 
+    // L-mapres1 (2026-04-22): 캔버스 intrinsic 해상도를 컨테이너 크기 × DPR 로 맞춘다.
+    //   (이전에는 canvas.style 만 100% 로 두고 canvas.width/height 는 설정하지 않아
+    //   브라우저 기본값 300×150 으로 고정, CSS 로 1100×498 등으로 업스케일 → 핀/라벨/
+    //   텍스트가 3~4 배 블러링 상태로 렌더되던 문제. DPR=2 라면 2200×996 픽셀 버퍼가
+    //   필요하다.) ResizeObserver 로 컨테이너 변경 시 즉시 재동기화.
+    const syncCanvasSize = () => {
+      const dpr = Math.max(1, window.devicePixelRatio || 1);
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (w === 0 || h === 0) return; // 마운트 초기 0×0 스킵 — RO 가 후속 콜.
+      const targetW = Math.round(w * dpr);
+      const targetH = Math.round(h * dpr);
+      if (canvas.width !== targetW) canvas.width = targetW;
+      if (canvas.height !== targetH) canvas.height = targetH;
+      // deck.gl 도 논리 width/height 를 갱신해야 내부 viewport 가 재계산된다.
+      deckRef.current?.setProps({ width: w, height: h });
+    };
+    syncCanvasSize();
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => syncCanvasSize())
+      : null;
+    ro?.observe(container);
+
     // deck.gl 초기화
     // L-map1 (2026-04-21): WebGL 생성 실패를 로컬에서 try/catch 로 삼킨다.
     //   헤드리스 Chrome / WebGL 비활성 브라우저 / 구식 GPU 환경에서 WebGL 컨텍스트
@@ -189,6 +212,7 @@ export default function KakaoDeckOverlay({
 
     return () => {
       disposed = true;
+      ro?.disconnect();
       deck?.finalize();
       deckRef.current = null;
       if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
