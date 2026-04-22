@@ -141,8 +141,10 @@ export async function POST(request: NextRequest) {
     });
   } catch (e: any) {
     console.error('[cron/notify-matches] error:', e);
+    // L-sec34 (2026-04-22): prod 에선 에러 메시지 숨김 (DB/SQL 에러 문자열 유출 방지)
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: e?.message || '서버 오류' },
+      { success: false, error: isDev ? (e?.message || '서버 오류') : '서버 오류' },
       { status: 500 }
     );
   }
@@ -161,6 +163,10 @@ export async function GET(request: NextRequest) {
       .eq('active', true);
     return NextResponse.json({ success: true, activeSubscribers: subCount || 0 });
   } catch (e: any) {
-    return NextResponse.json({ success: false, error: e?.message }, { status: 500 });
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json(
+      { success: false, error: isDev ? (e?.message || '서버 오류') : '서버 오류' },
+      { status: 500 }
+    );
   }
 }

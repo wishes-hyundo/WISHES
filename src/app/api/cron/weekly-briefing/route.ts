@@ -312,13 +312,19 @@ async function handler(request: NextRequest) {
     });
 
     if (error) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      // L-sec34 (2026-04-22): prod 에선 Resend 에러 메시지 숨김
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json(
+        { success: false, error: isDev ? error.message : 'email send failed' },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json({ success: true, emailId: data?.id, summary });
   } catch (err: any) {
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: err?.message || 'briefing failed' },
+      { success: false, error: isDev ? (err?.message || 'briefing failed') : 'briefing failed' },
       { status: 500 }
     );
   }

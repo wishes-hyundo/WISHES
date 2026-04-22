@@ -46,6 +46,12 @@ type ReportingApiReport = {
 
 export async function POST(req: NextRequest) {
   try {
+    // L-sec34 (2026-04-22): 공개 CSP report endpoint. content-length 64KB cap 으로 스팸 차단.
+    //   정상 리포트는 수 KB 이내. 그 이상은 무시 (204 로 브라우저 재시도 차단).
+    const contentLength = parseInt(req.headers.get('content-length') || '0', 10);
+    if (contentLength > 64 * 1024) {
+      return new NextResponse(null, { status: 204 });
+    }
     const contentType = req.headers.get('content-type') || '';
     const raw = (await req.json().catch(() => null)) as
       | LegacyCspReport
@@ -57,9 +63,13 @@ export async function POST(req: NextRequest) {
       return new NextResponse(null, { status: 204 });
     }
 
-    const reports = Array.isArray(raw) ? raw : [raw];
+    // 배열이 비정상적으로 크면 거부
+    const reportsCheck = Array.isArray(raw) ? raw : [raw];
+    if (reportsCheck.length > 100) {
+      return new NextResponse(null, { status: 204 });
+    }
 
-    for (const r of reports) {
+    for (const r of reportsCheck) {
       // Legacy 형식 (application/csp-report)
       const legacy = (r as LegacyCspReport)['csp-report'];
       if (legacy) {
