@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -15,6 +16,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // L-sec83 (2026-04-22): 공개 이미지 상세. id 순회 방지.
+    //   5분 200회/IP cap.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `images-id:ip:${_ip}`, limit: 200, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { id } = await params;
     // L-sec46 (2026-04-22): parseInt NaN guard + range cap
     const nId = Number(id);

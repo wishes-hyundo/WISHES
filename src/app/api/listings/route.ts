@@ -7,6 +7,7 @@ import { createClient, createServerClient } from '@/lib/supabase';
 import { cached, invalidateCache } from '@/lib/cache';
 import { applyImagePolicy } from '@/lib/image-policy';
 import { stripInternalFieldsArray } from '@/lib/listing-public';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 /**
  * 매물 목록 조회
@@ -24,6 +25,18 @@ import { stripInternalFieldsArray } from '@/lib/listing-public';
  */
 export async function GET(request: NextRequest) {
   try {
+    // L-sec83 (2026-04-22): 메인 매물 목록. cached() 있으나
+    //   ids/id/search 조합 unique 로 cache miss 가능.
+    //   5분 300회/IP cap.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `listings:ip:${_ip}`, limit: 300, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { searchParams } = new URL(request.url);
 
     // ━━━ IDs 기반 조회 (비교 페이지용) — 캐시 없이 직접 조회 ━━━

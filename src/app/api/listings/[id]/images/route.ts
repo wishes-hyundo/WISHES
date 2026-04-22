@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { uploadToR2, deleteFromR2 } from '@/lib/r2';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { adminCorsHeaders } from '@/lib/cors';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -117,6 +118,16 @@ export async function GET(
 ) {
   const cors = adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPTIONS');
   try {
+    // L-sec83 (2026-04-22): 공개 GET. id 순회 방지 5분 200회/IP.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `listing-images:ip:${_ip}`, limit: 200, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { ...cors, 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { id } = await params;
     const listingId = parseInt(id);
     if (isNaN(listingId)) return NextResponse.json({ success: false, error: 'Invalid ID' }, { status: 400, headers: cors });
