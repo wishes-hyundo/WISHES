@@ -12,6 +12,12 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 //   listing_images 의 POST/PATCH/DELETE 은 admin 전용이고 GET 은 사이트 내부 호출만
 //   쓰이므로 전부 origin 기반 제한으로 좁힌다 (L-sec10 패턴 준수).
 
+// L-sec41 (2026-04-22): 에러 메시지 프로덕션 숨김 + PATCH images 배열 cap.
+const IS_DEV = process.env.NODE_ENV !== 'production';
+function errMsg(prefix: string, e: any): string {
+  return IS_DEV ? (prefix + (e?.message || String(e))) : prefix + 'internal';
+}
+
 export async function OPTIONS(request: NextRequest) {
   return NextResponse.json({}, { headers: adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPTIONS') });
 }
@@ -38,7 +44,7 @@ export async function POST(
     let formData: FormData;
     try { formData = await request.formData(); }
     catch (e: any) {
-      return NextResponse.json({ success: false, error: 'FormData error: ' + (e?.message || String(e)) }, { status: 400, headers: cors });
+      return NextResponse.json({ success: false, error: errMsg('FormData error: ', e) }, { status: 400, headers: cors });
     }
 
     const files = formData.getAll('images') as File[];
@@ -92,7 +98,7 @@ export async function POST(
         if (de) errors.push({ index: i, name: file.name, error: 'DB: ' + de.message });
         else uploaded.push({ url: imageUrl, id: inserted?.id });
       } catch (err: any) {
-        errors.push({ index: i, name: file.name, error: 'R2: ' + (err?.message || String(err)) });
+        errors.push({ index: i, name: file.name, error: errMsg('R2: ', err) });
       }
     }
 
@@ -101,7 +107,7 @@ export async function POST(
     }
     return NextResponse.json({ success: true, message: uploaded.length + ' uploaded', data: uploaded, images: uploaded, listingId, ...(errors.length > 0 ? { errors } : {}) }, { headers: cors });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: cors });
+    return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
   }
 }
 
@@ -122,10 +128,10 @@ export async function GET(
       .eq('listing_id', listingId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
-    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500, headers: cors });
+    if (error) return NextResponse.json({ success: false, error: IS_DEV ? error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
     return NextResponse.json({ success: true, data: data || [] }, { headers: cors });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: cors });
+    return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
   }
 }
 
@@ -140,10 +146,14 @@ export async function PATCH(
     const { id } = await params;
     const listingId = parseInt(id);
 
-    const body = await request.json();
+    const body = await request.json().catch(() => ({}));
     const { images } = body as { images: { id: number; sort_order?: number; is_thumbnail?: boolean }[] };
     if (!images || !Array.isArray(images)) {
       return NextResponse.json({ success: false, error: 'images array required' }, { status: 400, headers: cors });
+    }
+    // L-sec41: PATCH images 배열 길이 cap — 단일 요청으로 수천 row update 방지
+    if (images.length > 200) {
+      return NextResponse.json({ success: false, error: 'Too many images (max 200)' }, { status: 400, headers: cors });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -167,7 +177,7 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, results }, { headers: cors });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: cors });
+    return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
   }
 }
 
@@ -198,6 +208,6 @@ export async function DELETE(
     await supabase.from('listing_images').delete().eq('id', image.id);
     return NextResponse.json({ success: true, message: 'Deleted' }, { headers: cors });
   } catch (error: any) {
-    return NextResponse.json({ success: false, error: 'Server: ' + (error?.message || String(error)) }, { status: 500, headers: cors });
+    return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
   }
           }
