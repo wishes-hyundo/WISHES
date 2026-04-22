@@ -236,12 +236,21 @@ async function clearCache(cacheKey: string): Promise<void> {
 // ═══════════════════════════════════════════
 // GET /api/mosaic-image?url=<supabase-image-url>&force=1
 // ═══════════════════════════════════════════
+// L-sec24 (2026-04-22): 공개 GET. url 이 Anthropic Vision API 호출까지
+//   흘러가 비용 남용 위험. URL 길이 cap, fetch 타임아웃, 이미지 사이즈 cap 추가.
+const MAX_URL_LEN = 2048;
+const FETCH_TIMEOUT_MS = 10_000;
+const MAX_IMAGE_BYTES = 15 * 1024 * 1024; // 15MB
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl.searchParams.get('url');
   const forceReprocess = request.nextUrl.searchParams.get('force') === '1';
 
   if (!url) {
     return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
+  }
+  if (url.length > MAX_URL_LEN) {
+    return NextResponse.json({ error: 'url too long' }, { status: 413 });
   }
 
   try {
@@ -285,15 +294,26 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // 3. 원본 이미지 다운로드
+  // 3. 원본 이미지 다운로드 (L-sec24: timeout + size cap)
   let imageBuffer: Buffer;
   let mimeType: string;
   try {
-    const imageResp = await fetch(url);
+    const imageResp = await fetch(url, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!imageResp.ok) {
       return NextResponse.redirect(url, { status: 302 });
     }
-    imageBuffer = Buffer.from(await imageResp.arrayBuffer());
+    // Content-Length 선검사 (있으면)
+    const lenHdr = parseInt(imageResp.headers.get('content-length') || '0', 10);
+    if (lenHdr > MAX_IMAGE_BYTES) {
+      return NextResponse.redirect(url, { status: 302 });
+    }
+    const ab = await imageResp.arrayBuffer();
+    if (ab.byteLength > MAX_IMAGE_BYTES) {
+      return NextResponse.redirect(url, { status: 302 });
+    }
+    imageBuffer = Buffer.from(ab);
     mimeType = imageResp.headers.get('content-type') || 'image/jpeg';
   } catch {
     return NextResponse.redirect(url, { status: 302 });
