@@ -132,14 +132,23 @@ export async function GET(request: NextRequest) {
     // L-v7-p3 (2026-04-22): GET scope=mine 서버 파이프라인
     // Authorization Bearer (admin_bridge_ prefix 허용) 에서 auth.getUser() 로
     // UID 추출 후 created_by 필터. UID 미획득 시 빈 결과+scope_auth:'failed'.
+    //
+    // L-crit1 (2026-04-23): scope=mine UID 추출 실패 시 빈 배열 반환이
+    //   "전체 매물 0건 회귀" 로 이어짐. 사용자 보고: /search 에 매물등록됐던 게 전부 0.
+    //   재발성 이슈. verifyAuth 가 이미 어드민 권한을 보장하므로 UID 실패 시
+    //   scope=all 로 degrade 해 최소한 매물이 보이게 복구. 응답에
+    //   scope_auth: 'failed_degrade_all' 표시해 프론트가 배너로 알릴 수 있게.
+    //   + admin_bridge_ 접두사 반복 제거 (이중 접두사 방어)
     const scopeParam = (searchParams.get('scope') || 'all').toLowerCase();
-    const scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
+    let scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
     let scopeUid: string | null = null;
+    let scopeAuth: 'ok' | 'failed_degrade_all' | null = null;
     if (scope === 'mine') {
       try {
         const authHdr = request.headers.get('authorization') || '';
         let token = authHdr.replace(/^Bearer\s+/i, '').trim();
-        if (token.startsWith('admin_bridge_')) token = token.slice('admin_bridge_'.length);
+        // admin_bridge_ 접두사 반복 제거 (이중/삼중 접두사 방어)
+        while (token.startsWith('admin_bridge_')) token = token.slice('admin_bridge_'.length);
         if (token.startsWith('eyJ') && token.split('.').length === 3 && token.length > 40) {
           const { data } = await Promise.race([
             supabase.auth.getUser(token),
@@ -149,12 +158,13 @@ export async function GET(request: NextRequest) {
           ]) as { data: { user: { id: string } | null } };
           scopeUid = data?.user?.id ?? null;
         }
-      } catch { /* UID 추출 실패 → 빈 결과 반환 */ }
+      } catch { /* UID 추출 실패 → 아래 degrade 로직 */ }
       if (!scopeUid) {
-        return NextResponse.json(
-          { success: true, data: [], total: 0, scope: 'mine', scope_auth: 'failed' },
-          { status: 200, headers: { 'Cache-Control': 'private, no-store', 'Content-Type': 'application/json; charset=utf-8' } }
-        );
+        // L-crit1: 빈 배열 대신 scope=all 로 강등. 어드민 권한은 verifyAuth 에서 이미 보장.
+        scope = 'all';
+        scopeAuth = 'failed_degrade_all';
+      } else {
+        scopeAuth = 'ok';
       }
     }
 
@@ -249,7 +259,8 @@ export async function GET(request: NextRequest) {
       const allData = await getCached();
 
       // ETag 기반 304 응답
-      const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length, scope });
+      // L-crit1: scope_auth 필드 포함 — 프론트가 degrade 상태 감지 가능
+      const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length, scope, scope_auth: scopeAuth });
       const etag = '"' + createHash('sha1').update(bodyStr).digest('hex').substring(0, 16) + '"';
       const ifNoneMatch = request.headers.get('if-none-match');
       if (ifNoneMatch === etag) {
@@ -316,6 +327,7 @@ export async function GET(request: NextRequest) {
       data: allData,
       total: allData.length,
       scope,
+      scope_auth: scopeAuth, // L-crit1: degrade 상태 전파
     });
   } catch (error) {
     console.error('매물 조회 오류:', error);
