@@ -198,14 +198,17 @@ async function fetchMolitData(
     // 시도 1: 키를 encodeURIComponent로 인코딩
     const encodedKey = encodeURIComponent(DATA_GO_KR_KEY);
     const baseParams = `&LAWD_CD=${lawdCd}&DEAL_YMD=${dealYmd}&numOfRows=1000&pageNo=1`;
+    // L-sec30 (2026-04-22): 공개 GET 이 외부 data.go.kr 를 월 12회 호출.
+    //   timeout 없으면 외부 API 지연으로 Vercel 함수 전체 hang.
+    const timeoutMs = 6000;
     let url = `${apiUrl}?serviceKey=${encodedKey}${baseParams}`;
-    let response = await fetch(url, { next: { revalidate: 3600 } });
+    let response = await fetch(url, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(timeoutMs) });
     let attempt = 'encoded';
 
     // 시도 2: 403이면 인코딩 없이 원본 키 사용
     if (response.status === 403) {
       url = `${apiUrl}?serviceKey=${DATA_GO_KR_KEY}${baseParams}`;
-      response = await fetch(url, { next: { revalidate: 3600 } });
+      response = await fetch(url, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(timeoutMs) });
       attempt = 'raw';
     }
 
@@ -215,7 +218,7 @@ async function fetchMolitData(
         const decodedKey = decodeURIComponent(DATA_GO_KR_KEY);
         const reEncodedKey = encodeURIComponent(decodedKey);
         url = `${apiUrl}?serviceKey=${reEncodedKey}${baseParams}`;
-        response = await fetch(url, { next: { revalidate: 3600 } });
+        response = await fetch(url, { next: { revalidate: 3600 }, signal: AbortSignal.timeout(timeoutMs) });
         attempt = 'decode-reencode';
       } catch(e) { /* decodeURIComponent failed, skip */ }
     }
@@ -370,27 +373,32 @@ export async function GET(
       };
     }).filter(d => d.avgPrice > 0 || d.count > 0);
 
+    // L-sec30 (2026-04-22): production 에선 debug 응답 제거 (API 키 메타데이터 누출 차단).
+    //   apiKeyLength / keyInfo(first4/last4/hasPercent...) / xmlPreview 는 공격자에게
+    //   키 형식/유효성 확인 경로를 제공. dev 환경에서만 노출.
+    const isDev = process.env.NODE_ENV !== 'production';
     if (chartData.length === 0) {
       return NextResponse.json({
         success: false,
         error: '해당 지역의 실거래 데이터가 없습니다',
         data: [],
-        debug: {
-          rawType,
-          propertyType,
-          dealType,
-          address,
-          dong,
-          lawdCd,
-          isRent,
-          apiUrl,
-          label,
-          recentMonths: recentMonths.slice(0, 3),
-          allDataCount: allData.length,
-          hasApiKey: !!DATA_GO_KR_KEY,
-          apiKeyLength: DATA_GO_KR_KEY.length,
-          firstApiResponse: firstApiDebug,
-        },
+        ...(isDev && {
+          debug: {
+            rawType,
+            propertyType,
+            dealType,
+            address,
+            dong,
+            lawdCd,
+            isRent,
+            apiUrl,
+            label,
+            recentMonths: recentMonths.slice(0, 3),
+            allDataCount: allData.length,
+            hasApiKey: !!DATA_GO_KR_KEY,
+            firstApiResponse: firstApiDebug,
+          },
+        }),
       });
     }
 
