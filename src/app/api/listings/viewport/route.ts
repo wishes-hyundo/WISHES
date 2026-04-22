@@ -30,7 +30,9 @@ function pFloat(v: string | null): number | null {
 
 function pList(v: string | null): string[] | null {
   if (!v) return null;
-  const arr = v.split(',').map((s) => s.trim()).filter(Boolean);
+  // L-sec43 (2026-04-22): CSV 파라미터 길이 + 원소 수 cap — in()/or() 쿼리 폭증 방지.
+  if (v.length > 2000) v = v.slice(0, 2000);
+  const arr = v.split(',').map((s) => s.trim().slice(0, 60)).filter(Boolean).slice(0, 50);
   return arr.length ? arr : null;
 }
 
@@ -224,7 +226,8 @@ export async function GET(req: NextRequest) {
   }
 
   // Category-First 맥락
-  const category = searchParams.get('category');
+  // L-sec43: category 문자열 길이 cap
+  const category = (searchParams.get('category') || '').slice(0, 40) || null;
   const purposes = pList(searchParams.get('purposes'));
 
   const deals = pList(searchParams.get('deals')) as DealType[] | null;
@@ -319,7 +322,9 @@ export async function GET(req: NextRequest) {
 
     if (error) {
       console.error('[viewport]', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      // L-sec43: Postgres/PostgREST 에러 메시지 prod 에서 숨김
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json({ error: isDev ? error.message : 'internal' }, { status: 500 });
     }
 
     const rows = ((data ?? []) as any[]).filter((r) => r.lat != null && r.lng != null);
