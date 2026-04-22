@@ -7,9 +7,9 @@ import RealPriceTrend from '@/components/admin/RealPriceTrend';
 import BuildingRegistry from '@/components/admin/BuildingRegistry';
 import AIAutoGenerate from '@/components/admin/AIAutoGenerate';
 import SmartRecommend from '@/components/admin/SmartRecommend';
-// L-v7-p2 (2026-04-22): v7 §4 scope 전파 — 내 매물 ↔ 전체
-import { ScopeToggle } from '@/features/map-2026/components/ScopeToggle';
-import { useMap2026Store } from '@/features/map-2026/store';
+// L-v7-p2r (2026-04-22): ScopeToggle 을 /admin/search 에서 철회.
+//   사용자 지시: 중개사 포털은 /search 하나만 두고 v7 기능은 거기에 통합.
+//   /admin/search 는 관리자 원본 UI 로 되돌림.
 import '@/styles/admin-modal-enhanced.css';
 
 interface Listing {
@@ -95,17 +95,13 @@ export default function SearchPage() {
   const [page, setPage] = useState(1);
   const perPage = 20;
 
-  // L-v7-p2 (2026-04-22): v7 §4 scope — store 기반 'all' | 'mine' 토글
-  const scope = useMap2026Store((s) => s.scope);
-
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
         const all: Listing[] = [];
-        const scopeParam = scope === 'mine' ? '&scope=mine' : '';
         for (let off = 0; off < 20000; off += 1000) {
-          const r = await fetch('/api/listings?limit=1000&offset='+off+scopeParam);
+          const r = await fetch('/api/listings?limit=1000&offset='+off);
           const d = await r.json();
           if (d.success && d.data?.length) {
             d.data.forEach((item: Listing) => {
@@ -122,7 +118,7 @@ export default function SearchPage() {
       setLoading(false);
     }
     load();
-  }, [scope]);
+  }, []);
 
   const filtered = useMemo(() => {
     let f = [...listings];
@@ -181,15 +177,6 @@ export default function SearchPage() {
             className="flex-1 px-3 py-2 rounded-lg text-sm text-gray-800 bg-white/90 placeholder-gray-400 outline-none"
           />
           <span className="text-xs bg-white/20 px-2 py-1 rounded">{filtered.length}ê±´</span>
-        </div>
-        {/* L-v7-p2 (2026-04-22): ScopeToggle — 내 매물 ↔ 전체 (v7 §4) */}
-        <div className="mt-2 flex items-center gap-2">
-          <ScopeToggle adminMode compact />
-          {scope === 'mine' && (
-            <span className="text-[10.5px] text-white/80">
-              내가 등록한 매물만 표시 중
-            </span>
-          )}
         </div>
         {/* Filter chips */}
         <div className="flex gap-2 mt-2 overflow-x-auto pb-1">

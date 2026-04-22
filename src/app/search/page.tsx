@@ -270,6 +270,19 @@ export default function SearchPortalPage() {
       v293Script.defer = false;
       document.body.appendChild(v293Script);
     }
+
+    // v2.9.4 (v7 §4) — 내 매물/전체 scope 토글
+    //   /admin/search 에 얹었던 ScopeToggle 을 중개사 포털 단일 진입점인 /search 로
+    //   재배치. fetch 래핑 + 토글 UI 주입 + WS.loadData 재호출로 기능 구현.
+    const existingV294 = document.getElementById('ws-ext-patch-v294-scope');
+    if (!existingV294) {
+      const v294Script = document.createElement('script');
+      v294Script.id = 'ws-ext-patch-v294-scope';
+      v294Script.src = '/search/content-v294-scope.js?v=20260422a';
+      v294Script.async = false;
+      v294Script.defer = false;
+      document.body.appendChild(v294Script);
+    }
   }, [state]);
 
   // ========== UI ==========
