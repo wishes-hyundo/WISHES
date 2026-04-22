@@ -1,0 +1,14 @@
+#!/bin/sh
+# pre-commit hook (2026-04-22) — UTF-8 truncation guard
+# ─────────────────────────────────────────────
+# 2026-04-22 build f 실패(dedup/cleanup/route.ts 중간 절단) 재발 방지.
+# staged 파일에 UTF-8 invalid 바이트가 있으면 커밋 차단.
+#
+# 활성화: git config core.hooksPath .githooks
+
+node scripts/verify-utf8.js --staged
+if [ $? -ne 0 ]; then
+  echo ""
+  echo "커밋이 차단되었습니다. 위 파일의 UTF-8 깨짐을 먼저 고치세요."
+  exit 1
+fi
