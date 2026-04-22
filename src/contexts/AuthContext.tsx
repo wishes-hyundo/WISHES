@@ -88,7 +88,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID || '';
     const REDIRECT_URI = `${window.location.origin}/auth/callback?provider=naver`;
-    const STATE = Math.random().toString(36).substring(7);
+    // L-sec107 (2026-04-22): OAuth CSRF state 를 crypto-strong 하게 생성하고
+    //   sessionStorage 에 stash 하여 callback 에서 대조한다. Math.random().toString(36).substring(7)
+    //   은 실효 3~6자 (≈ 18 비트) 라 CSRF 토큰으로 의미 없고, 기존에는 callback 에서
+    //   비교조차 하지 않아 공격자가 임의 state 로 피해자를 로그인 callback 에 유도
+    //   가능한 상태였다. 128-bit 엔트로피 + 세션-스코프 바인딩.
+    let STATE: string;
+    if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+      STATE = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+      try {
+        sessionStorage.setItem('wishes-naver-oauth-state', STATE);
+      } catch {
+        /* quota/privacy mode — continue without stash; callback 에서 비교 실패 처리 */
+      }
+    } else {
+      // 극단적으로 오래된 환경: 안전하게 로그인 중단
+      console.error('Web Crypto API 를 사용할 수 없어 네이버 로그인을 시작할 수 없습니다.');
+      return;
+    }
 
     // 네이버 로그인 페이지로 리다이렉트
     window.location.href =
