@@ -24,16 +24,39 @@ const OPERATIONS: Record<string, string> = {
 
 type OperationType = keyof typeof OPERATIONS;
 
+// L-sec17 (2026-04-22): data.go.kr 프록시 공개 오용 방지.
+//   코드 필드 allowlist (digits only, 길이 cap), operations 화이트리스트 강제,
+//   fetch timeout 8s 로 hangup 공격 차단. SERVICE_KEY 가 그대로 data.go.kr 에 갈 때
+//   URL injection 이 발생하지 않도록 모든 숫자 파라미터는 \d 만 허용.
+const CODE_RE = /^\d{1,20}$/;
+const ALLOWED_OPS = new Set(['basis', 'recapTitle', 'title', 'floor', 'exposPubuseArea', 'ownerInfo']);
+
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { sigunguCd, bjdongCd, platGbCd, bun, ji, operations } = body;
+    const body = await request.json().catch(() => ({}));
+    const { sigunguCd, bjdongCd, platGbCd, bun, ji, operations } = body || {};
 
-    if (!sigunguCd || !bjdongCd) {
+    // L-sec17: 코드 필드 타입/형식 엄격 검증
+    if (typeof sigunguCd !== 'string' || !CODE_RE.test(sigunguCd)) {
       return NextResponse.json(
-        { error: "시군구코드와 법정동코드는 필수입니다." },
+        { error: "sigunguCd 형식 오류 (숫자만 1-20자)." },
         { status: 400 }
       );
+    }
+    if (typeof bjdongCd !== 'string' || !CODE_RE.test(bjdongCd)) {
+      return NextResponse.json(
+        { error: "bjdongCd 형식 오류 (숫자만 1-20자)." },
+        { status: 400 }
+      );
+    }
+    // 선택 필드도 제공되면 같은 검증
+    for (const [k, v] of Object.entries({ platGbCd, bun, ji })) {
+      if (v != null && v !== '' && (typeof v !== 'string' || !CODE_RE.test(v))) {
+        return NextResponse.json(
+          { error: `${k} 형식 오류 (숫자만 1-20자).` },
+          { status: 400 }
+        );
+      }
     }
 
     if (!SERVICE_KEY) {
@@ -43,8 +66,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const opsToFetch: string[] =
-      operations || ["basis", "recapTitle", "title", "floor"];
+    // L-sec17: operations 화이트리스트 + 최대 6개 제한
+    const opsRaw: unknown = operations;
+    const opsInput: string[] = Array.isArray(opsRaw)
+      ? (opsRaw as unknown[]).filter((o): o is string => typeof o === 'string')
+      : ["basis", "recapTitle", "title", "floor"];
+    const opsToFetch = opsInput
+      .filter((o) => ALLOWED_OPS.has(o))
+      .slice(0, 6);
+    if (opsToFetch.length === 0) {
+      return NextResponse.json(
+        { error: "유효한 operations 가 없습니다." },
+        { status: 400 }
+      );
+    }
 
     const baseParams = {
       sigunguCd,
@@ -73,8 +108,10 @@ export async function POST(request: NextRequest) {
         });
 
         const url = BASE_URL + "/" + opName + "?" + params.toString();
+        // L-sec17: 외부 API hangup 공격 차단 (8초 타임아웃)
         const res = await fetch(url, {
           headers: { Accept: "application/json" },
+          signal: AbortSignal.timeout(8000),
         });
         if (!res.ok) throw new Error("API error: " + res.status);
 
@@ -288,7 +325,8 @@ async function fetchOwnerInfoWithFallback(
       });
       const url = baseUrl + "/" + opName + "?" + params.toString();
       console.log("[OwnerInfo] Trying 1613000:", baseUrl.split("/").pop());
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      // L-sec17: 8초 타임아웃
+      const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
       if (!res.ok) {
         errors.push(baseUrl.split("/").pop() + " -> HTTP " + res.status);
         continue;
@@ -334,7 +372,8 @@ async function fetchOwnerInfoWithFallback(
       const qs = new URLSearchParams(ownerParams).toString();
       const fullUrl = OWNER_1611_URL + "?" + qs;
       console.log("[OwnerInfo] Trying 1611000 with", keyType, "key");
-      const res = await fetch(fullUrl);
+      // L-sec17: 8초 타임아웃
+      const res = await fetch(fullUrl, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) { errors.push("1611000_" + keyType + " -> HTTP " + res.status); continue; }
       const xml = await res.text();
       // Simple XML parsing without external library
@@ -368,7 +407,7 @@ function parseXmlItems(xml: string): Record<string, string>[] {
   while ((match = itemRegex.exec(xml)) !== null) {
     const itemXml = match[1];
     const item: Record<string, string> = {};
-    const fieldRegex = /<(\w+)>([^<]*)<\/\1>/g;
+    const fieldRegex = /<(\w+)>([^<]*)<\/>/g;
     let fieldMatch;
     while ((fieldMatch = fieldRegex.exec(itemXml)) !== null) {
       item[fieldMatch[1]] = fieldMatch[2];
