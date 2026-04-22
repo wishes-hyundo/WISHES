@@ -26,9 +26,15 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     // ━━━ IDs 기반 조회 (비교 페이지용) — 캐시 없이 직접 조회 ━━━
+    // L-sec27 (2026-04-22): 공개 GET. ids 파라미터 cap.
+    //   비교 페이지 UX 는 실제로는 4개 내외지만 관대히 100개까지 허용.
     const ids = searchParams.get('ids');
     if (ids) {
-      const idList = ids.split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+      const idList = ids
+        .split(',')
+        .map((id) => parseInt(id.trim()))
+        .filter((id) => Number.isFinite(id) && id >= 0 && id <= 2_000_000_000)
+        .slice(0, 100);
       if (idList.length === 0) {
         return NextResponse.json({ success: true, data: [], listings: [] });
       }
@@ -86,9 +92,10 @@ export async function GET(request: NextRequest) {
     }
 
     // ━━━ 자유 텍스트 검색 (title/address/building_name ilike) ━━━
+    // L-sec27: q 길이 500자 cap. ILIKE pattern 폭증 방지.
     const rawSearch = searchParams.get('search') || searchParams.get('q');
     if (rawSearch) {
-      const q = rawSearch.trim();
+      const q = rawSearch.trim().slice(0, 500);
       if (!q) {
         return NextResponse.json({ success: true, data: [], listings: [], total: 0 });
       }
@@ -145,12 +152,17 @@ export async function GET(request: NextRequest) {
     }
 
     // ━━━ 일반 필터 조회 (인메모리 캐시 적용) ━━━
-    const deal = searchParams.get('deal') || '';
-    const type = searchParams.get('type') || '';
-    const dong = searchParams.get('dong') || '';
-    const minDeposit = searchParams.get('minDeposit') || '';
-    const maxDeposit = searchParams.get('maxDeposit') || '';
+    // L-sec27: deal/type/dong 길이 cap — cacheKey 폭증 방지.
+    const deal = (searchParams.get('deal') || '').slice(0, 20);
+    const type = (searchParams.get('type') || '').slice(0, 40);
+    const dong = (searchParams.get('dong') || '').slice(0, 60);
+    const minDeposit = (searchParams.get('minDeposit') || '').slice(0, 20);
+    const maxDeposit = (searchParams.get('maxDeposit') || '').slice(0, 20);
     const sort = searchParams.get('sort') || 'latest';
+    // L-v7-p2 (2026-04-22): v7 §4 scope — 'mine' 이면 현재 로그인 사용자 소유만.
+    //   auth 확인 실패 시 all 로 폴백 (보안상 타 사용자 매물 노출 방지). 캐시 키에 포함.
+    const scopeParam = (searchParams.get('scope') || 'all').toLowerCase();
+    const scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
     // limit: 기본 20, 최대 1000 (Supabase 단일 쿼리 한도)
     const rawLimit = parseInt(searchParams.get('limit') || '20', 10);
     const limit = Math.min(Math.max(isNaN(rawLimit) ? 20 : rawLimit, 1), 1000);
@@ -159,8 +171,23 @@ export async function GET(request: NextRequest) {
     // 정렬 컬럼: latest(=created_at) 기본, price=deposit, area=area_m2
     const sortColumn = sort === 'price' ? 'deposit' : sort === 'area' ? 'area_m2' : 'created_at';
 
-    // 캐시 키: 필터+정렬+페이징 조합별로 고유 키 생성
-    const cacheKey = `listings:${deal}:${type}:${dong}:${minDeposit}:${maxDeposit}:${sortColumn}:${limit}:${offset}`;
+    // L-v7-p2: scope=mine 이면 auth 헤더에서 사용자 UID 추출 → 캐시 키에 포함
+    //   verifyAdminAuth 는 /api/admin/* 전용이라 여기선 supabase auth 직접 사용.
+    let scopeUid: string | null = null;
+    if (scope === 'mine') {
+      try {
+        const authHdr = request.headers.get('authorization') || '';
+        const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : '';
+        if (token) {
+          const sb = createClient();
+          const { data: { user } } = await sb.auth.getUser(token);
+          scopeUid = user?.id || null;
+        }
+      } catch { /* scope=mine 실패 시 조용히 all 로 폴백 */ }
+    }
+
+    // 캐시 키: 필터+정렬+페이징+scope(uid) 조합별로 고유 키 생성
+    const cacheKey = `listings:${deal}:${type}:${dong}:${minDeposit}:${maxDeposit}:${sortColumn}:${limit}:${offset}:${scopeUid || 'all'}`;
 
     const result = await cached(
       cacheKey,
@@ -183,6 +210,11 @@ export async function GET(request: NextRequest) {
         if (dong) query = query.eq('dong', dong);
         if (minDeposit) query = query.gte('deposit', parseInt(minDeposit));
         if (maxDeposit) query = query.lte('deposit', parseInt(maxDeposit));
+        // L-v7-p2 (2026-04-22): scope=mine 이고 인증 성공한 경우만 사용자 소유로 제한.
+        //   created_by 컬럼이 없는 row 는 자동 제외 (NULL eq 매칭 X).
+        if (scope === 'mine' && scopeUid) {
+          query = query.eq('created_by', scopeUid);
+        }
 
         query = query.range(offset, offset + limit - 1);
 
