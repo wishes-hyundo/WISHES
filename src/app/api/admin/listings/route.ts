@@ -339,10 +339,17 @@ export async function POST(request: NextRequest) {
     // L-v7-p2 (2026-04-22): scope=mine 전파용 — auth 헤더의 JWT 에서
     //   사용자 UID 를 추출해 created_by 로 기록. master/crawler 토큰이면 NULL.
     //   DB round-trip 실패/타임아웃 시 조용히 NULL 로 폴백 (본 트랜잭션 계속).
+    //
+    // L-v7-p4 (2026-04-22, build i): /search 중개사 포털 wrappedFetch 는
+    //   `Bearer admin_bridge_<JWT>` 로 전송하므로, GET 경로(L138)와 동일하게
+    //   admin_bridge_ prefix 를 선제적으로 벗겨내야 auth.getUser() 가 동작.
+    //   prefix 제거를 빠뜨리면 startsWith('eyJ') 가 false → createdByUid=NULL
+    //   로 박제되어 /search 로 등록한 신규 매물의 "내 매물" 귀속이 영구 파손됨.
     let createdByUid: string | null = null;
     try {
       const authHdr = request.headers.get('authorization') || '';
-      const token = authHdr.replace(/^Bearer\s+/i, '').trim();
+      let token = authHdr.replace(/^Bearer\s+/i, '').trim();
+      if (token.startsWith('admin_bridge_')) token = token.slice('admin_bridge_'.length);
       if (token.startsWith('eyJ') && token.split('.').length === 3) {
         const sb = createServerClient();
         const { data } = await Promise.race([
