@@ -88,10 +88,3 @@ export async function GET(request: NextRequest) {
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
-일 핸들러 alias
-export async function GET(request: NextRequest) {
-  return POST(request);
-}
-
-export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
