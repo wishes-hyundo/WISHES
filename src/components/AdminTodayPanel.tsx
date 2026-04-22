@@ -52,26 +52,36 @@ export default function AdminTodayPanel({ authHeader }: Props) {
   //   다른 문자열을 만들어 경고·DOM 리플로우 유발. 마운트 후 클라이언트에서만 채운다.
   const [displayDate, setDisplayDate] = useState('');
 
-  const load = useCallback(async () => {
+  // L-leak4: unmount/deps 변경 시 in-flight fetch 취소.
+  //   refresh 버튼에서 signal 없이도 호출 가능하도록 옵셔널 시그니처.
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/contacts', { headers: { authorization: authHeader } });
+      const res = await fetch('/api/admin/contacts', {
+        headers: { authorization: authHeader },
+        signal,
+      });
+      if (signal?.aborted) return;
       if (res.ok) {
         const json = await res.json();
+        if (signal?.aborted) return;
         setContacts(json.data || []);
       } else {
         setError('상담 목록을 불러오지 못했습니다.');
       }
-    } catch {
+    } catch (err: any) {
+      if (signal?.aborted || err?.name === 'AbortError') return;
       setError('네트워크 오류가 발생했습니다.');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [authHeader]);
 
   useEffect(() => {
-    load();
+    const ac = new AbortController();
+    load(ac.signal);
+    return () => ac.abort();
   }, [load]);
 
   useEffect(() => {

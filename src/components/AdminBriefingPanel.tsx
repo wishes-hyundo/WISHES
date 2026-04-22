@@ -86,26 +86,33 @@ export default function AdminBriefingPanel({ authHeader }: { authHeader: string 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchBriefing = useCallback(async () => {
+  // L-leak4: unmount/deps 변경 시 in-flight fetch 취소. refresh 버튼 호출 호환.
+  const fetchBriefing = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError(null);
     try {
       const res = await fetch('/api/admin/briefing', {
         headers: { authorization: authHeader },
+        signal,
       });
+      if (signal?.aborted) return;
       if (!res.ok) throw new Error('브리핑 데이터를 불러오지 못했습니다');
       const json = await res.json();
+      if (signal?.aborted) return;
       if (!json.success) throw new Error(json.error || '알 수 없는 오류');
       setData(json.data);
     } catch (e: any) {
+      if (signal?.aborted || e?.name === 'AbortError') return;
       setError(e?.message || '조회 실패');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [authHeader]);
 
   useEffect(() => {
-    fetchBriefing();
+    const ac = new AbortController();
+    fetchBriefing(ac.signal);
+    return () => ac.abort();
   }, [fetchBriefing]);
 
   if (loading && !data) {

@@ -89,14 +89,18 @@ export default function AdminAppointmentsPanel({ authToken }: { authToken: strin
   const [memoDirty, setMemoDirty] = useState<Set<number>>(new Set());
   const [error, setError] = useState('');
 
-  const load = useCallback(async () => {
+  // L-leak4: unmount/deps 변경 시 in-flight fetch 취소. refresh 버튼 호출 호환.
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
     try {
       const res = await fetch('/api/admin/appointments', {
         headers: { Authorization: authToken },
+        signal,
       });
+      if (signal?.aborted) return;
       const json = await res.json();
+      if (signal?.aborted) return;
       if (!json.success) throw new Error(json.error || '조회 실패');
       setAppointments(json.appointments || []);
       // 메모 초기 draft
@@ -106,14 +110,18 @@ export default function AdminAppointmentsPanel({ authToken }: { authToken: strin
       });
       setMemoDraft(draft);
     } catch (e: any) {
+      if (signal?.aborted || e?.name === 'AbortError') return;
       setError(e?.message || '오류 발생');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [authToken]);
 
   useEffect(() => {
-    load();
+    // L-leak4: unmount/deps 변경 시 in-flight /api/admin/appointments fetch 취소.
+    const ac = new AbortController();
+    load(ac.signal);
+    return () => ac.abort();
   }, [load]);
 
   const patch = async (id: number, body: any) => {

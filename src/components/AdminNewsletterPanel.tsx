@@ -66,25 +66,34 @@ export default function AdminNewsletterPanel({ authHeader }: { authHeader: strin
   const [triggering, setTriggering] = useState(false);
   const [triggerResult, setTriggerResult] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  // L-leak4: unmount/deps 변경 시 in-flight fetch 취소. refresh 버튼 호출 호환.
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
       const res = await fetch('/api/admin/subscribers?active=1', {
         headers: { Authorization: authHeader },
+        signal,
       });
+      if (signal?.aborted) return;
       const json = await res.json();
+      if (signal?.aborted) return;
       if (json.success) {
         setSubs(json.subscribers || []);
         setStats(json.stats || { total: 0, active: 0, neverNotified: 0 });
       }
-    } catch (e) {
+    } catch (e: any) {
+      if (signal?.aborted || e?.name === 'AbortError') return;
       console.error(e);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [authHeader]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const ac = new AbortController();
+    load(ac.signal);
+    return () => ac.abort();
+  }, [load]);
 
   const sendNewsletter = async () => {
     if (!subject.trim() || !body.trim()) {

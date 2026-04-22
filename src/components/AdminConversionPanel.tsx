@@ -98,25 +98,37 @@ export default function AdminConversionPanel({ authHeader }: Props) {
   const [error, setError] = useState('');
   const [range, setRange] = useState<RangeKey>('7d');
 
-  const load = useCallback(async () => {
+  // L-leak4: unmount/deps 변경 시 in-flight fetch 취소. refresh 버튼 호출 호환.
+  const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/contacts', { headers: { authorization: authHeader } });
+      const res = await fetch('/api/admin/contacts', {
+        headers: { authorization: authHeader },
+        signal,
+      });
+      if (signal?.aborted) return;
       if (res.ok) {
         const json = await res.json();
+        if (signal?.aborted) return;
         setContacts(json.data || []);
       } else {
         setError('전환 데이터를 불러오지 못했습니다.');
       }
-    } catch {
+    } catch (err: any) {
+      if (signal?.aborted || err?.name === 'AbortError') return;
       setError('네트워크 오류가 발생했습니다.');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [authHeader]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    // L-leak4: unmount/deps 변경 시 in-flight /api/admin/analytics fetch 취소.
+    const ac = new AbortController();
+    load(ac.signal);
+    return () => ac.abort();
+  }, [load]);
 
   // 범위 필터링
   const rangeDays = range === '7d' ? 7 : 30;
