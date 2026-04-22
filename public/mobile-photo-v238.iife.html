@@ -19,13 +19,16 @@
   var UNRECOVERABLE = ['FILE_TOO_LARGE','MIME_NOT_ALLOWED','UNAUTHORIZED','FORBIDDEN','INVALID_KEY','INVALID_SIZE'];
 
   // ─── 토큰: v2.3.7 과 동일 우선순위 ─────────────────────────
+  // L-sec53 (2026-04-22): 하드코드 '<legacy>' fallback 제거.
   function getToken(){
     try {
-      return sessionStorage.getItem('wishes_token')
+      return sessionStorage.getItem('ws_token')
+          || localStorage.getItem('ws_token')
+          || sessionStorage.getItem('wishes_token')
           || localStorage.getItem('wishes_token')
           || localStorage.getItem('token')
-          || 'wishes2026';
-    } catch(e){ return 'wishes2026'; }
+          || '';
+    } catch(e){ return ''; }
   }
 
   // ─── 토스트 (기존 함수 있으면 재사용, 없으면 alert) ────────

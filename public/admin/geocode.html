@@ -365,10 +365,27 @@
 
         // API Configuration
         const API_URL = 'https://wishes.co.kr/api/admin/geocode-batch';
-        const API_HEADERS = {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer wishes2026'
-        };
+        // L-sec53 (2026-04-22): 하드코드 'Bearer <legacy>' 제거.
+        //   Supabase 세션 토큰 → 레거시 ws_token → 비어있으면 로그인 페이지로 리다이렉트.
+        function getApiHeaders() {
+            var tok = '';
+            try {
+                tok = sessionStorage.getItem('ws_token')
+                   || localStorage.getItem('ws_token')
+                   || sessionStorage.getItem('wishes_token')
+                   || localStorage.getItem('wishes_token')
+                   || '';
+            } catch (e) { tok = ''; }
+            if (!tok) {
+                alert('관리자 로그인이 필요합니다. /admin 에서 로그인 후 다시 시도해 주세요.');
+                location.href = '/admin';
+                throw new Error('no admin token');
+            }
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + tok
+            };
+        }
 
         function log(message, type = 'info') {
             const logContainer = document.getElementById('logContainer');
@@ -492,7 +509,7 @@
 
                 const response = await fetch(API_URL, {
                     method: 'POST',
-                    headers: API_HEADERS,
+                    headers: getApiHeaders(),
                     body: JSON.stringify({ batchSize: batchSize })
                 });
 

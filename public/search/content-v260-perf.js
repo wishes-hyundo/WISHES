@@ -1,3 +1,4 @@
+// L-sec53 (2026-04-22): 박제된 마스터 비밀번호 스크럽. 실제 토큰은 sessionStorage 에서 조회.
 /**
  * WISHES Search Performance Overlay — v2.6.3
  * ==================================================
@@ -352,7 +353,7 @@
           console.log(TAG + ' listing detail redirect lid=' + lid);
           var newInit = Object.assign({}, init || {});
           var h = Object.assign({}, (init && init.headers) || {});
-          h['Authorization'] = 'Bearer wishes2026';
+          h['Authorization'] = 'Bearer <legacy>';
           newInit.headers = h;
           return origFetch.call(this, newUrl, newInit).then(function(resp) {
             // admin API: data.listing_images 만 있음 → data.images 로 미러링 (content.js 호환)

@@ -1,3 +1,4 @@
+<!-- L-sec53 (2026-04-22): 박제된 마스터 비밀번호 스크럽. 실제 토큰은 sessionStorage 에서 조회. -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -354,12 +355,17 @@
 const API_BASE = window.location.origin;
 // v2.2: 우선순위 sessionStorage → localStorage → hardcoded fallback
 //       URL ?token= 지원 제거 (서버 로그·Referer 유출 방지)
+// L-sec53 (2026-04-22): 하드코드 '' fallback 제거.
+//   Supabase 세션 / 레거시 ws_token / wishes_token 순서로만 조회하고,
+//   없으면 빈 문자열(→ 서버가 401 로 차단).
 const AUTH_TOKEN = (function() {
-  try { return sessionStorage.getItem('wishes_token')
+  try { return sessionStorage.getItem('ws_token')
+          || localStorage.getItem('ws_token')
+          || sessionStorage.getItem('wishes_token')
           || localStorage.getItem('wishes_token')
           || localStorage.getItem('token')
-          || 'wishes2026'; }
-  catch(e){ return 'wishes2026'; }
+          || ''; }
+  catch(e){ return ''; }
 })();
 // URL 에 token= 이 실수로 포함돼 도착했다면 즉시 세션에 저장 후 URL 정리
 try {
@@ -1427,7 +1433,7 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
       // v2.3.4: /api/listings → /api/admin/listings?fields=minimal 로 전환.
       //   이유: 공개 엔드포인트는 1000 건 캡 + 공개 상태만 조회 → 46163(봉천동 62-24)
       //         같은 하위 ID 나 비공개/계약중 매물이 검색 결과에서 누락.
-      var token = (typeof AUTH_TOKEN !== 'undefined' && AUTH_TOKEN) ? AUTH_TOKEN : 'wishes2026';
+      var token = (typeof AUTH_TOKEN !== 'undefined' && AUTH_TOKEN) ? AUTH_TOKEN : '';
       try {
         var r = await fetch('/api/admin/listings?fields=minimal', {
           cache: 'no-store',
@@ -2389,8 +2395,8 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
       return sessionStorage.getItem('wishes_token')
           || localStorage.getItem('wishes_token')
           || localStorage.getItem('token')
-          || 'wishes2026';
-    } catch(e){ return 'wishes2026'; }
+          || '';
+    } catch(e){ return ''; }
   }
 
   function toast(msg, kind){

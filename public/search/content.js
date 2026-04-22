@@ -1,3 +1,4 @@
+// L-sec53 (2026-04-22): 박제된 마스터 비밀번호 스크럽. 실제 토큰은 sessionStorage 에서 조회.
 /**
  * Wishes Search Extension - Content Script
  * Injects property search functionality into wishes.co.kr/admin
@@ -3638,7 +3639,7 @@
 
           return fetch('https://wishes.co.kr/api/listings/' + listing.id + '/images', {
             method: 'POST',
-            headers: { 'Authorization': 'Bearer wishes2026' },
+            headers: { 'Authorization': 'Bearer <legacy>' },
             body: formData
           })
           .then(function(r) {
@@ -5472,7 +5473,7 @@
   // ===== Admin API 공통 설정 (v2.2.0) =====
   var ADMIN_API_URL = 'https://wishes.co.kr/api/admin/listings';
   var ADMIN_API_MINIMAL = ADMIN_API_URL + '?fields=minimal';
-  var ADMIN_TOKEN = 'wishes2026';
+  var ADMIN_TOKEN = '';
 
   function normalizeImages(items) {
     items.forEach(function(item) {
@@ -12268,7 +12269,7 @@
   window.WS._changeListingStatus = function(id, newStatus) {
     fetch(window.WS._FIELD_UPDATE_API || 'https://wishes.co.kr/api/admin/listings-field-update', {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <legacy>' },
       body: JSON.stringify({ id: Number(id), fields: { status: newStatus } })
     }).then(function(r) {
       if (r.ok) {
@@ -12673,7 +12674,7 @@
       selectedIds.forEach(function(id) {
         fetch(window.WS._FIELD_UPDATE_API || 'https://wishes.co.kr/api/admin/listings-field-update', {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <legacy>' },
           body: JSON.stringify({ id: Number(id), fields: { status: newSt } })
         }).then(function(r) {
           if (r.ok) return r.text().then(function(t) { try { return JSON.parse(t); } catch(e) { return { success: true }; } });
@@ -12944,7 +12945,7 @@
       _wsLog('[WISHES-AI] 건축물대장 조회: ' + listing.address + ' → ' + qs);
 
       buildingPromise = fetch('https://wishes.co.kr/api/admin/building-registry?' + qs, {
-        headers: { 'Authorization': 'Bearer wishes2026' }
+        headers: { 'Authorization': 'Bearer <legacy>' }
       })
       .then(function(r) { return safeJson(r); })
       .then(function(bldgData) {
@@ -12989,7 +12990,7 @@
       var fetchFn = window.WS._fetchWithRetry || fetch;
       return fetchFn('https://wishes.co.kr/api/admin/auto-generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <legacy>' },
         body: JSON.stringify({
           listingId: lid,
           style: 'trendy',
@@ -13058,7 +13059,7 @@
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer wishes2026'
+        'Authorization': 'Bearer <legacy>'
       },
       body: JSON.stringify({ listingId: listingId, style: 'trendy', aiModel: 'latest' })
     })
@@ -13233,7 +13234,7 @@
         {
           var qs = 'address=' + encodeURIComponent(listing.address);
           buildingPromise = fetch(window.WS._BUILDING_FULL_API + '?' + qs, {
-            headers: { 'Authorization': 'Bearer wishes2026' }
+            headers: { 'Authorization': 'Bearer <legacy>' }
           })
           .then(function(r) { return safeJson(r); })
           .then(function(bldgData) {
@@ -13274,7 +13275,7 @@
               if (Object.keys(fields).length > 0) {
                 return fetch(window.WS._FIELD_UPDATE_API, {
                   method: 'PUT',
-                  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+                  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <legacy>' },
                   body: JSON.stringify({ id: listing.id, fields: fields })
                 })
                 .then(function(r) { return safeJson(r); })
@@ -13312,7 +13313,7 @@
 
         return fetch(window.WS._SINGLE_API, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer wishes2026' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer <legacy>' },
           body: JSON.stringify({
             listingId: lid,
             style: 'trendy',

@@ -1,3 +1,4 @@
+// L-sec53 (2026-04-22): 박제된 마스터 비밀번호 스크럽. 실제 토큰은 sessionStorage 에서 조회.
 /**
  * WISHES Search Contacts Overlay — v2.7.1 hotfix
  * ============================================================
@@ -15,7 +16,7 @@
  *        (migration_contacts.sql 적용 후)
  *
  * v2.7.1 hotfix (2026-04-18):
- *   - /api/admin/listings/{id} 호출 시 Authorization: Bearer wishes2026 누락으로
+ *   - /api/admin/listings/{id} 호출 시 Authorization: Bearer <legacy> 누락으로
  *     401 이 발생하여 contacts 가 항상 빈 배열로 fallback 되던 버그 수정.
  *   - 실패 시 console.warn 으로 상태코드를 남겨 추후 진단 용이하게 함.
  */
@@ -145,11 +146,11 @@
   var fetchCache = {};
   function fetchContactsById(id) {
     if (fetchCache[id]) return fetchCache[id];
-    // /api/admin/listings 는 고정 관리자 토큰(wishes2026)만 허용.
+    // /api/admin/listings 는 고정 관리자 토큰(<legacy>)만 허용.
     // page.tsx prefetch 와 동일한 헤더를 사용해야 200 을 받는다.
     fetchCache[id] = fetch('/api/admin/listings/' + encodeURIComponent(id), {
       credentials: 'include',
-      headers: { Authorization: 'Bearer wishes2026' },
+      headers: { Authorization: 'Bearer <legacy>' },
       cache: 'no-cache',
     })
       .then(function (r) {

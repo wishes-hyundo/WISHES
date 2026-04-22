@@ -1,3 +1,4 @@
+// L-sec53 (2026-04-22): 박제된 마스터 비밀번호 스크럽. 실제 토큰은 sessionStorage 에서 조회.
 /**
  * WISHES Search Detail — Single-Scroll Layout Patch v2.4.0
  * ================================================================
@@ -240,7 +241,7 @@
 
     fetch(fullApi + '?' + qs, {
       credentials: 'include',
-      headers: { 'Authorization': 'Bearer wishes2026' }
+      headers: { 'Authorization': 'Bearer <legacy>' }
     })
       .then(function(r){
         console.log('[WP v2.5.3] 건축물대장 응답 status=', r.status);
@@ -363,7 +364,7 @@
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer wishes2026'
+        'Authorization': 'Bearer <legacy>'
       },
       body: JSON.stringify({ listingId: String(lid), style: 'trendy', aiModel: 'latest' })
     })
@@ -1597,7 +1598,7 @@
         console.log('[WP v2.5.3] AI 백필 시작 lid=' + lid);
         fetch('/api/admin/auto-generate', {
           method: 'POST', credentials: 'include',
-          headers: {'Content-Type':'application/json', 'Authorization':'Bearer wishes2026'},
+          headers: {'Content-Type':'application/json', 'Authorization':'Bearer <legacy>'},
           body: JSON.stringify({ listingId: String(lid), style:'trendy', aiModel:'latest' })
         })
         .then(function(r){ return r.json(); })

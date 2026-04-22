@@ -1,3 +1,4 @@
+<!-- L-sec53 (2026-04-22): 박제된 마스터 비밀번호 스크럽. 실제 토큰은 sessionStorage 에서 조회. -->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -34,8 +35,8 @@
 <h1>v2.3.8 Smoke Test</h1>
 <div class="sub">Presigned R2 직업로드 전체 플로우 검증. 메인 UI 영향 없음.</div>
 
-<label>관리자 토큰 (비우면 <code>wishes2026</code> 사용)</label>
-<input id="token" type="password" placeholder="wishes2026 또는 JWT" />
+<label>관리자 토큰 (비우면 <code><legacy></code> 사용)</label>
+<input id="token" type="password" placeholder="<legacy> 또는 JWT" />
 
 <label>Listing ID</label>
 <input id="listingId" placeholder="예: 12345" />
@@ -66,7 +67,7 @@
   function clearLog(){ $log.innerHTML = ''; $bar.style.width = '0%'; }
   function getToken(){
     var t = document.getElementById('token').value.trim();
-    return t || 'wishes2026';
+    return t || '';
   }
 
   $diag.addEventListener('click', async function(){
