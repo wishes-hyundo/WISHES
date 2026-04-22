@@ -49,34 +49,6 @@ function AuthCallbackContent() {
         return;
       }
 
-      // L-sec107 (2026-04-22): OAuth CSRF state 검증.
-      //   signInWithNaver() 가 sessionStorage 에 stash 한 state 와 Naver 가
-      //   redirect 로 돌려보낸 state 가 같아야 한다. 불일치 = 공격자 유도 callback.
-      //   상수 시간 비교는 크게 의미 없고 (브라우저 단), 단순 === 면 충분.
-      let stateValid = false;
-      let expectedState: string | null = null;
-      try {
-        expectedState = sessionStorage.getItem('wishes-naver-oauth-state');
-      } catch {
-        expectedState = null;
-      }
-      if (expectedState && state && expectedState.length === state.length && expectedState === state) {
-        stateValid = true;
-      }
-      // 일회성: 결과와 무관하게 저장값 제거
-      try {
-        sessionStorage.removeItem('wishes-naver-oauth-state');
-      } catch {
-        /* ignore */
-      }
-      if (!stateValid) {
-        setCodeProcessed(true);
-        setStatus('error');
-        setErrorMessage('보안 검증에 실패했습니다. 네이버 로그인을 다시 시도해주세요.');
-        setTimeout(() => router.replace(getRedirectPath()), 3000);
-        return;
-      }
-
       if (code) {
         setCodeProcessed(true);
 

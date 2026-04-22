@@ -71,6 +71,8 @@ onhouse_diag.js
 .*_result.log
 .push_retry.log
 .tidy_done.log
+# broad: any hidden root .log is a local artifact
+/.[!.]*.log
 
 # 2026-04-21 (L-mapfix3): Python 크롤러/seeder 캐시
 scripts/__pycache__/
