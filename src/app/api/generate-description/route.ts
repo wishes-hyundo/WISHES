@@ -12,6 +12,11 @@ const supabaseAdmin = createClient(
 //   자가호출용 bearer 는 WISHES_ADMIN_MASTER_PASSWORD 사용
 const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 
+// L-sec116 (2026-04-22): self-fetch origin 을 Host 헤더 (request.url) 에서 추출하면
+//   admin 탈취 시 Host: attacker.com 스푸핑으로 INTERNAL_BEARER 가 공격자 도메인에
+//   노출. SITE_URL 고정으로 SSRF+credential leak 차단.
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
+
 // L-sec40 (2026-04-22): AI 응답 raw + Anthropic 에러 상세 프로덕션에서 숨김.
 //   admin 게이트가 있어도 회귀성 정보 유출 방어 (defense-in-depth).
 const IS_DEV = process.env.NODE_ENV !== 'production';
@@ -217,7 +222,8 @@ export async function PUT(request: NextRequest) {
 
     for (const listing of listings) {
       try {
-        const internalResp = await fetch(new URL('/api/generate-description', request.url), {
+        // L-sec116 (2026-04-22): SITE_URL 고정 (request.url 은 Host 헤더 신뢰 불가).
+        const internalResp = await fetch(SITE_URL + '/api/generate-description', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
