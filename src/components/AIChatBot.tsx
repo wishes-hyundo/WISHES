@@ -331,7 +331,7 @@ export default function AIChatBot() {
                             <div className="w-20 h-20 shrink-0 bg-gradient-to-br from-green-50 to-amber-50 flex items-center justify-center text-gray-300">
                               {thumb ? (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={thumb} alt={l.title || 'listing'} className="w-full h-full object-cover" />
+                                <img src={thumb} alt={l.title || 'listing'} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                               ) : (
                                 <MapPin className="w-6 h-6" />
                               )}

@@ -107,6 +107,7 @@ export function Lightbox({ images, initialIndex = 0, isOpen, onClose }: Lightbox
         <img
           src={current.url}
           alt={current.alt || `이미지 ${currentIndex + 1}`}
+          decoding="async"
           className={cn(
             'max-h-[80vh] max-w-full object-contain transition-transform duration-300 rounded-lg',
             zoomed ? 'scale-150 cursor-zoom-out' : 'cursor-zoom-in'

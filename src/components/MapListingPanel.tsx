@@ -173,6 +173,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
               alt={displayTitle(listing)}
               className="w-full h-full object-cover"
               loading="lazy"
+              decoding="async"
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-gray-300 bg-gradient-to-br from-wishes-primary/5 via-gray-50 to-gray-100 relative">

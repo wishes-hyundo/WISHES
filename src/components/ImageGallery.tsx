@@ -70,6 +70,8 @@ export default function ImageGallery({ images, title, deal, status, dealColor, s
               <img
                 src={getWatermarkedUrl(effectiveImages[currentIdx].url)}
                 alt={effectiveImages[currentIdx].alt || title}
+                decoding="async"
+                fetchPriority="high"
                 className="w-full h-full object-cover transition-transform duration-300"
               />
               {/* 확대 오버레이 */}
