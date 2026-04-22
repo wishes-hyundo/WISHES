@@ -18,9 +18,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient, createServerClient } from '@/lib/supabase';
 import { cached } from '@/lib/cache';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export async function GET(request: NextRequest) {
   try {
+    // L-sec79 (2026-04-22): 60s s-maxage 로 unique 필터 조합 캨시 미히트.
+    //   5분 200회/IP cap.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `listings-stats:ip:${_ip}`, limit: 200, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { searchParams } = new URL(request.url);
 
     // L-sec33 (2026-04-22): 캐시 키에 들어가는 필터 값 길이 cap (cache-key 폭증 방지)

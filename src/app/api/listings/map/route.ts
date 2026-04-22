@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { applyImagePolicy } from '@/lib/image-policy';
 import { cached } from '@/lib/cache';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const MAX_PER_REQUEST = 5000;
 
@@ -23,6 +24,17 @@ const MAX_PER_REQUEST = 5000;
  */
 export async function GET(request: NextRequest) {
   try {
+    // L-sec79 (2026-04-22): 10s s-maxage 로 unique bbox 조합은 캨시 미히트.
+    //   5분 200회/IP cap. 정상 pan/zoom 50-100회/세션.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `listings-map:ip:${_ip}`, limit: 200, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { searchParams } = new URL(request.url);
 
     const swLat = parseFloat(searchParams.get('swLat') || '0');

@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase';
 import { filterSelfHosted } from '@/lib/image-policy';
 import { stripInternalFields } from '@/lib/listing-public';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 /**
  * 매물 상세 조회 (이미지, 특징 포함)
@@ -16,6 +17,17 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // L-sec79 (2026-04-22): 캐시 없음. id 순회 scraping 방지.
+    //   5분 300회/IP cap (정상 상세 페이지 수십 회/세션).
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `listing-detail:ip:${_ip}`, limit: 300, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     const { id } = await params;
     const listingId = parseInt(id, 10);
 
