@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { timingSafeEqualStr } from '@/lib/timingSafe';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec1 (2026-04-22): admin_bridge_ prefix 만 보고 admin 통과시키던 완전한
 //   인증 우회 수정. 이제 prefix 를 벗긴 뒤 inner 토큰이 (a) env CRAWLER_BRIDGE
@@ -18,6 +19,15 @@ function stripBridgePrefix(token: string): { stripped: string; wasBridge: boolea
 
 export async function POST(request: NextRequest) {
   try {
+    // L-sec62 (2026-04-22): verify 엔드포인트 애버용즈 방어 — IP당 1분 60회.
+    const ipP = getClientIp(request);
+    const rlP = checkRateLimit({ key: `verify:ip:${ipP}`, limit: 60, windowMs: 60_000 });
+    if (!rlP.ok) {
+      return NextResponse.json(
+        { success: false, valid: false, error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(rlP.retryAfterSec) } }
+      );
+    }
     const authHeader = request.headers.get('authorization');
     let token = '';
 
@@ -109,6 +119,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
+  // L-sec62 (2026-04-22): verify GET 엔드포인트 애버용즈 방어 — IP당 1분 60회.
+  const ipG = getClientIp(request);
+  const rlG = checkRateLimit({ key: `verify:ip:${ipG}`, limit: 60, windowMs: 60_000 });
+  if (!rlG.ok) {
+    return NextResponse.json(
+      { success: false, valid: false, error: 'Too many requests' },
+      { status: 429, headers: { 'Retry-After': String(rlG.retryAfterSec) } }
+    );
+  }
   const authHeader = request.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return NextResponse.json(

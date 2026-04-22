@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
@@ -24,6 +25,21 @@ export async function POST(request: NextRequest) {
     }
     const { email: rawEmail, password } = parsed.data;
     const email = rawEmail.toLowerCase();
+
+    // L-sec62 (2026-04-22): brute-force 방어용 rate limit.
+    //   (a) IP+email: 15분 5회 — 동일 계정 표적 공격 차단
+    //   (b) IP 전역: 15분 20회 — 단일 IP 다계정 credential stuffing 차단
+    //   per-instance 메모리 제한이라 수평 스케일 시 N배 허용되지만 defense-in-depth.
+    const ip = getClientIp(request);
+    const perIpEmail = checkRateLimit({ key: `login:ip:${ip}:email:${email}`, limit: 5, windowMs: 15 * 60_000 });
+    const perIp = checkRateLimit({ key: `login:ip:${ip}`, limit: 20, windowMs: 15 * 60_000 });
+    if (!perIpEmail.ok || !perIp.ok) {
+      const retry = Math.max(perIpEmail.retryAfterSec, perIp.retryAfterSec);
+      return NextResponse.json(
+        { success: false, message: '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(retry) } }
+      );
+    }
 
     const supabase = createServerClient();
 

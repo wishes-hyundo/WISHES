@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { timingSafeEqualStr } from '@/lib/timingSafe';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec1 (2026-04-22): admin_bridge_ prefix 만 보고 body.userId 로 임의
 //   계정을 삭제하던 치명적 우회 수정.
@@ -13,6 +14,16 @@ function getCrawlerBridgeToken(): string | null {
 // DELETE /api/auth/delete-account - 회원탈퇴 (자기 계정 영구 삭제)
 export async function DELETE(request: NextRequest) {
   try {
+    // L-sec62 (2026-04-22): 계정 삭제 남용 방어 — IP당 1시간 3건.
+    const ip = getClientIp(request);
+    const rl = checkRateLimit({ key: `delacct:ip:${ip}`, limit: 3, windowMs: 60 * 60_000 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { success: false, message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+      );
+    }
+
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ success: false, message: '인증이 필요합니다.' }, { status: 401 });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { notifyAdminNewRegistration } from '@/lib/email';
 import { z } from 'zod';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec39 (2026-04-22): 가입 입력 길이 cap + authError prod 숨김.
 const RegisterSchema = z.object({
@@ -29,6 +30,17 @@ export async function POST(request: NextRequest) {
       );
     }
     const { name, email, password, phone, company, role, reason, requestedRole } = parsed.data;
+
+    // L-sec62 (2026-04-22): 가입 스팸/자동봇 대량 계정 생성 방어.
+    //   IP당 1시간 3건 제한.
+    const ip = getClientIp(request);
+    const rl = checkRateLimit({ key: `register:ip:${ip}`, limit: 3, windowMs: 60 * 60_000 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { success: false, message: '가입 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+      );
+    }
 
     const supabase = createServerClient();
     const isSuperAdmin = SUPERADMIN_EMAILS.includes(email.toLowerCase());
