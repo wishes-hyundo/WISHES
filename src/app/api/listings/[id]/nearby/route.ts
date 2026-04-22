@@ -64,10 +64,12 @@ export async function GET(
     // 카카오 Local API - 카테고리 검색 (지하철역)
     const url = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=${SUBWAY_CATEGORY}&x=${listing.lng}&y=${listing.lat}&radius=2000&sort=distance&size=5`;
 
+    // L-sec30 (2026-04-22): Kakao Local API 호출 timeout (외부 API 지연 차단)
     const kakaoRes = await fetch(url, {
       headers: {
         Authorization: `KakaoAK ${KAKAO_REST_API_KEY}`,
       },
+      signal: AbortSignal.timeout(6000),
     });
 
     if (!kakaoRes.ok) {
