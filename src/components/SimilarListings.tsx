@@ -85,32 +85,31 @@ export default function SimilarListings({ listingId, dong, limit = 4 }: Props) {
 
   useEffect(() => {
     if (!listingId) return;
-    let cancelled = false;
+    // L-leak2: AbortController 로 in-flight 요청 실제 취소.
+    const ac = new AbortController();
     setLoading(true);
     setError('');
 
-    fetch(`/api/listings/${listingId}/recommend`)
+    fetch(`/api/listings/${listingId}/recommend`, { signal: ac.signal })
       .then(async (res) => {
         if (!res.ok) throw new Error('fetch failed');
         return res.json();
       })
       .then((data) => {
-        if (cancelled) return;
+        if (ac.signal.aborted) return;
         const list: SimilarListing[] = (data?.recommendations || []).slice(0, limit);
         setItems(list);
       })
-      .catch(() => {
-        if (cancelled) return;
+      .catch((err: any) => {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
         setError('비슷한 매물을 불러오지 못했습니다.');
         setItems([]);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       });
 
-    return () => {
-      cancelled = true;
-    };
+    return () => ac.abort();
   }, [listingId, limit]);
 
   // 로딩 스켈레톤

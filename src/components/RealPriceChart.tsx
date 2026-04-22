@@ -49,24 +49,29 @@ export default function RealPriceChart({ listingId, dong, type, deal }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    // L-leak2: unmount/listingId 변경 시 in-flight fetch 취소.
+    const ac = new AbortController();
     async function fetchData() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/listings/${listingId}/real-prices`);
+        const res = await fetch(`/api/listings/${listingId}/real-prices`, { signal: ac.signal });
         const json = await res.json();
+        if (ac.signal.aborted) return;
         if (json.success && json.data && json.data.length > 0) {
           setData(json.data);
           setMeta(json.meta);
         } else {
           setError(json.error || '데이터를 불러올 수 없습니다');
         }
-      } catch {
+      } catch (err: any) {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
         setError('네트워크 오류가 발생했습니다');
       } finally {
-        setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       }
     }
     fetchData();
+    return () => ac.abort();
   }, [listingId]);
 
   const drawChart = useCallback(() => {

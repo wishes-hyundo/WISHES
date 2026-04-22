@@ -40,21 +40,27 @@ export default function SmartRecommendations({ listingId, dong }: SmartRecommend
   useEffect(() => {
     if (!listingId) return;
 
+    // L-leak2: unmount/listingId 변경 시 in-flight fetch 취소.
+    const ac = new AbortController();
+
     const fetchRecommendations = async () => {
       try {
-        const res = await fetch(`/api/listings/${listingId}/recommend`);
+        const res = await fetch(`/api/listings/${listingId}/recommend`, { signal: ac.signal });
         if (!res.ok) throw new Error('Failed to fetch');
         const data = await res.json();
+        if (ac.signal.aborted) return;
         setRecommendations(data.recommendations || []);
-      } catch (err) {
+      } catch (err: any) {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
         console.error('[SmartRecommendations]', err);
         setRecommendations([]);
       } finally {
-        setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
       }
     };
 
     fetchRecommendations();
+    return () => ac.abort();
   }, [listingId]);
 
   if (loading) {

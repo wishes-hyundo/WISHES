@@ -28,6 +28,9 @@ export default function TransportInfo({ listingId, address }: TransportInfoProps
   useEffect(() => {
     if (!listingId) return;
 
+    // L-leak2: unmount/listingId 변경 시 in-flight fetch 취소.
+    const ac = new AbortController();
+
     const fetchNearby = async () => {
       try {
         setLoading(true);
@@ -35,23 +38,30 @@ export default function TransportInfo({ listingId, address }: TransportInfoProps
 
         const token = localStorage.getItem('wishes_token') || '';
         const res = await fetch(`/api/listings/${listingId}/nearby`, {
-          headers: { authorization: token }
+          headers: { authorization: token },
+          signal: ac.signal,
         });
+
+        if (ac.signal.aborted) return;
 
         if (!res.ok) {
           throw new Error('êµíµì ë³´ë¥¼ ë¶ë¬ì¬ ì ììµëë¤.');
         }
 
         const data = await res.json();
+        if (ac.signal.aborted) return;
         setStations(data.stations || data.nearby || []);
       } catch (err: any) {
+        if (ac.signal.aborted || err?.name === 'AbortError') return;
         setError(err.message || 'êµíµì ë³´ ë¡ë ì¤í¨');
       } finally {
-        setLoading(false);
+        if (!ac.signal.aborted) setLoading(false);
+      
       }
     };
 
     fetchNearby();
+    return () => ac.abort();
   }, [listingId]);
 
   // í¸ì ë³ ìì ë§¤í
