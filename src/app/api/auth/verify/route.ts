@@ -63,9 +63,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // admin_users 테이블에서 status 확인 (더 정확)
-    let userStatus = user.user_metadata?.status || 'pending';
-    let userRole = user.user_metadata?.role || 'user';
+    // L-sec59 (2026-04-22): CRITICAL user_metadata fallback 제거.
+    //   user_metadata 는 supabase.auth.updateUser({data:...}) 로 사용자 본인이
+    //   자유롭게 수정 가능하므로 role/status 를 사용자가 스스로
+    //   'admin'/'approved' 으로 설정한 뒤 호출하면 임의로 권한 상승 가능.
+    //   admin_users 테이블 row 만 신뢰, 없으면 user/pending 기본값 유지.
+    let userStatus = 'pending';
+    let userRole = 'user';
 
     try {
       const { data: adminRow } = await supabase
@@ -79,7 +83,7 @@ export async function POST(request: NextRequest) {
         userRole = adminRow.role || userRole;
       }
     } catch (e) {
-      // admin_users 테이블 조회 실패 시 user_metadata 사용
+      // admin_users 조회 실패 시 기본값(user/pending) 유지 — 권한 상승 없음
     }
 
     return NextResponse.json({
@@ -136,9 +140,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // admin_users 테이블에서 status 확인 (더 정확)
-    let userStatus = user.user_metadata?.status || 'pending';
-    let userRole = user.user_metadata?.role || 'user';
+    // L-sec59 (2026-04-22): CRITICAL user_metadata fallback 제거.
+    //   user_metadata 는 supabase.auth.updateUser({data:...}) 로 사용자 본인이
+    //   자유롭게 수정 가능하므로 role/status 를 사용자가 스스로
+    //   'admin'/'approved' 으로 설정한 뒤 호출하면 임의로 권한 상승 가능.
+    //   admin_users 테이블 row 만 신뢰, 없으면 user/pending 기본값 유지.
+    let userStatus = 'pending';
+    let userRole = 'user';
 
     try {
       const { data: adminRow } = await supabase
@@ -152,7 +160,7 @@ export async function GET(request: NextRequest) {
         userRole = adminRow.role || userRole;
       }
     } catch (e) {
-      // admin_users 테이블 조회 실패 시 user_metadata 사용
+      // admin_users 조회 실패 시 기본값(user/pending) 유지 — 권한 상승 없음
     }
 
     return NextResponse.json({

@@ -128,8 +128,13 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
       ),
     ]) as { data: { role?: string; status?: string } | null };
 
-    const role = adminUser?.role || data.user.user_metadata?.role || '';
-    const status = adminUser?.status || data.user.user_metadata?.status || '';
+    // L-sec59 (2026-04-22): CRITICAL privilege escalation fix.
+    //   user_metadata 는 supabase.auth.updateUser({data:...}) 로 사용자 본인이
+    //   자유롭게 수정 가능. role='admin'/status='approved' 를 스스로 설정한 뒤
+    //   admin_users 레코드가 없는 채로 /api/admin/* 를 호출하면 user_metadata
+    //   fallback 경로로 어드민 통과. → admin_users 테이블 row 만 신뢰.
+    const role = adminUser?.role || '';
+    const status = adminUser?.status || '';
 
     return status === 'approved' && ADMIN_ROLES.has(role);
   } catch {
@@ -216,8 +221,9 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
       ),
     ]) as { data: { role?: string; status?: string } | null };
 
-    const role = adminUser?.role || data.user.user_metadata?.role || '';
-    const status = adminUser?.status || data.user.user_metadata?.status || '';
+    // L-sec59 (2026-04-22): user_metadata fallback 제거 (self-escalation 차단)
+    const role = adminUser?.role || '';
+    const status = adminUser?.status || '';
 
     if (status !== 'approved') {
       return { ok: false, reason: 'not_approved', email, role };
