@@ -66,7 +66,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, data });
   } catch (err: any) {
     console.error('PUT error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    // L-sec117 (2026-04-22): admin-gated defense-in-depth.
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json({ error: '수정 실패', ...(isDev && { detail: err.message }) }, { status: 500 });
   }
 }
 
@@ -138,6 +140,8 @@ export async function POST(request: NextRequest) {
     });
   } catch (err: any) {
     console.error('POST error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    // L-sec117 (2026-04-22): admin-gated defense-in-depth.
+    const isDev = process.env.NODE_ENV !== 'production';
+    return NextResponse.json({ error: '일괄 수정 실패', ...(isDev && { detail: err.message }) }, { status: 500 });
   }
 }
