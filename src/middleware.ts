@@ -72,24 +72,48 @@ export function middleware(request: NextRequest) {
 
     if (request.method === 'OPTIONS') {
       const headers: Record<string, string> = {
-        'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+        // L-sec145 (2026-04-23): X-CSRF-Token 헤더 허용 (C-2 phase 3a).
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-CSRF-Token',
         'Access-Control-Max-Age': '86400',
         Vary: 'Origin',
       };
       if (allowedOrigin) {
         headers['Access-Control-Allow-Origin'] = allowedOrigin;
+        headers['Access-Control-Allow-Credentials'] = 'true';
       }
       return new NextResponse(null, { status: 200, headers });
+    }
+
+    // L-sec145 (2026-04-23): CSRF double-submit soft-check for admin mutations.
+    //   /api/admin/** POST/PATCH/PUT/DELETE 요청이 쿠키(ws_csrf)==헤더(X-CSRF-Token)
+    //   을 들고 오는지 확인만 한다. 일치 불일치와 무관하게 현 단계는 통과.
+    //   결과를 응답 헤더 `X-CSRF-Check` 로 노출 → Sentry/log drain 에서 실제
+    //   트래픽 중 얼마나 CSRF 헤더를 붙이는지 집계 후 phase 3b 에서 hard-enforce.
+    const mutatingMethods = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+    let csrfStatus: 'pass' | 'mismatch' | 'missing' | 'na' = 'na';
+    if (mutatingMethods.has(request.method)) {
+      try {
+        const csrfCookie = request.cookies.get('ws_csrf')?.value || '';
+        const csrfHeader = request.headers.get('x-csrf-token') || '';
+        if (!csrfCookie && !csrfHeader) csrfStatus = 'missing';
+        else if (csrfCookie && csrfHeader && csrfCookie === csrfHeader) csrfStatus = 'pass';
+        else csrfStatus = 'mismatch';
+      } catch {
+        csrfStatus = 'missing';
+      }
     }
 
     const response = NextResponse.next();
     if (allowedOrigin) {
       response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
-      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
-      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
     }
     response.headers.set('Vary', 'Origin');
+    // monitoring 용 — phase 3b enforce 전에 실제 분포 파악.
+    if (csrfStatus !== 'na') response.headers.set('X-CSRF-Check', csrfStatus);
     return response;
   }
 
@@ -139,7 +163,9 @@ export function middleware(request: NextRequest) {
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
       "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.daumcdn.net https://t1.daumcdn.net https://*.kakao.com https://*.kakao.co.kr https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev https://wishes-image-proxy.wishes-img.workers.dev https://d4k1brqee4emz.cloudfront.net https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://demotiles.maplibre.org https://tiles.openfreemap.org https://*.openfreemap.org",
       "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
-      "connect-src 'self' https://*.supabase.co https://dapi.kakao.com https://*.daumcdn.net https://www.google-analytics.com https://wcs.naver.net https://api.anthropic.com https://cdn.jsdelivr.net https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://demotiles.maplibre.org https://tiles.openfreemap.org https://*.openfreemap.org",
+      // L-sec143 (2026-04-23): Sentry ingest/report 도메인 추가 (L-observe1 연계).
+      //   *.ingest.sentry.io / *.sentry.io 모두 허용. DSN 미설정 시 실제 요청 없음.
+      "connect-src 'self' https://*.supabase.co https://dapi.kakao.com https://*.daumcdn.net https://www.google-analytics.com https://wcs.naver.net https://api.anthropic.com https://cdn.jsdelivr.net https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://demotiles.maplibre.org https://tiles.openfreemap.org https://*.openfreemap.org https://*.sentry.io https://*.ingest.sentry.io",
       "worker-src 'self' blob: https://cdn.jsdelivr.net",
       "frame-ancestors 'none'",
       "base-uri 'self'",

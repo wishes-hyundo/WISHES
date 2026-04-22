@@ -103,7 +103,50 @@ export function audit(event: AuditEvent): void {
         // observe 로딩 실패는 무시 — 요청 영향 없음
       });
     }
+
+    // L-sec146 (2026-04-23): DB 병행 기록 (best-effort, fire-and-forget).
+    //   admin_audit_log 테이블이 존재하고 service_role 키가 있으면 insert.
+    //   실패는 완전 무시 — console/Sentry 경로가 primary 이므로 회귀 없음.
+    //   테이블 미생성 상태(migration 미실행)면 insert 실패 → catch 에서 조용히 무시.
+    void writeAuditToDb(record).catch(() => { /* silent */ });
   } catch {
     // 로그 실패는 요청 자체를 막지 않는다
+  }
+}
+
+// L-sec146: 동적 import 로 Supabase client 지연 로드 (Edge 호환 + cold-start 절약).
+async function writeAuditToDb(record: {
+  ts: string; action: string; actorEmail: string | null; actorRole: string | null;
+  actorUid: string | null; targetType: string | null;
+  targetId: string | number | null; ip: string | null;
+  status: number | null; meta: Record<string, unknown> | null;
+}): Promise<void> {
+  // Edge runtime 은 supabase-js 대신 fetch 만. 환경 분기:
+  if (typeof process === 'undefined') return;
+  if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) return;
+
+  try {
+    // dynamic import 로 supabase-js 로드 (client bundle 에 포함 안 됨).
+    const { createClient } = await import('@supabase/supabase-js');
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      { auth: { persistSession: false } },
+    );
+    await supabase.from('admin_audit_log').insert({
+      ts: record.ts,
+      action: record.action,
+      actor_email: record.actorEmail,
+      actor_role: record.actorRole,
+      actor_uid: record.actorUid,
+      target_type: record.targetType,
+      target_id: record.targetId != null ? String(record.targetId) : null,
+      ip: record.ip,
+      status: record.status,
+      meta: record.meta,
+    });
+  } catch {
+    // 테이블 없음 / 네트워크 실패 등 모든 오류 무시.
   }
 }
