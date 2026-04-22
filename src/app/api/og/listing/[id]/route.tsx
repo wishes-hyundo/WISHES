@@ -9,6 +9,7 @@
 import { ImageResponse } from 'next/og';
 import { NextRequest } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -41,6 +42,18 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // L-sec103 (2026-04-22): IP rate limit + CDN cache 로 abuse 차단.
+    //   무인증 공개 엔드포인트 — Supabase select + satori 렌더 비용이 크다.
+    //   SNS 크롤러(Kakao/FB) 정상 burst 는 초당 몇 건이라 180/1min 은 충분히 여유.
+    const ip = getClientIp(request);
+    const rl = checkRateLimit({ key: `og:listing:ip:${ip}`, limit: 180, windowMs: 60_000 });
+    if (!rl.ok) {
+      return new Response('rate limited', {
+        status: 429,
+        headers: { 'Retry-After': String(rl.retryAfterSec) },
+      });
+    }
+
     const { id } = await params;
     // L-sec46 (2026-04-22): validate id is an integer in range. Raw string to .eq()
     //   can cause 500 on non-numeric input; also caps flood-abuse.
@@ -81,7 +94,14 @@ export async function GET(
             <div>매물 정보</div>
           </div>
         ),
-        { width: 1200, height: 630 }
+        {
+          width: 1200,
+          height: 630,
+          headers: {
+            // L-sec103: 단수 매물 fallback 도 CDN 에 1시간 캐싱
+            'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+          },
+        }
       );
     }
 
@@ -289,6 +309,11 @@ export async function GET(
       {
         width: 1200,
         height: 630,
+        headers: {
+          // L-sec103 (2026-04-22): CDN cache 로 원본 hit 감소.
+          //   s-maxage=3600 (1h), SWR=24h — 매물 info 변화 시 최대 1h 이내 반영.
+          'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400',
+        },
       }
     );
   } catch (e: any) {
