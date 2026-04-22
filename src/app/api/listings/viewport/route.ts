@@ -296,21 +296,23 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    if (deals && deals.length === 1) {
-      const d = deals[0];
-      if (d === '매매') {
-        if (minPrice != null) q = q.gte('price', minPrice);
-        if (maxPrice != null) q = q.lte('price', maxPrice);
-      } else if (d === '전세') {
-        if (minDeposit != null) q = q.gte('deposit', minDeposit);
-        if (maxDeposit != null) q = q.lte('deposit', maxDeposit);
-      } else {
-        if (minDeposit != null) q = q.gte('deposit', minDeposit);
-        if (maxDeposit != null) q = q.lte('deposit', maxDeposit);
-        if (minMonthly != null) q = q.gte('monthly', minMonthly);
-        if (maxMonthly != null) q = q.lte('monthly', maxMonthly);
-      }
-    }
+    // ─── L-sec123 (2026-04-22) 다거래 가격필터 수정 ───
+    //   기존: deals.length === 1 일 때만 price/deposit/monthly 가 적용돼,
+    //         '매매+전세' 다중 선택이나 '전체 거래' 상태에서 가격/보증금 필터가
+    //         완전히 무시됐다. (사용자가 필터를 조정해도 결과가 안 바뀌는 버그)
+    //   수정: 각 가격축을 해당 deal 에만 스코프하고, 비대상 deal 은 OR 로 통과.
+    //         · minPrice/maxPrice  → 매매 전용 (price)
+    //         · minDeposit/maxDeposit → 전세·월세·단기 (deposit, 매매 제외)
+    //         · minMonthly/maxMonthly → 월세 전용 (monthly)
+    //   PostgREST or() 는 chain 시 AND 로 합성되므로 축 간 독립성 유지.
+    //   단일 deal 선택 상황에서도 동일 로직이 그대로 작동 (in 필터로 좁혀진
+    //   행만 OR 대상이므로 비대상 leg 은 자동 no-op).
+    if (minPrice != null) q = q.or(`deal.neq.매매,price.gte.${minPrice}`);
+    if (maxPrice != null) q = q.or(`deal.neq.매매,price.lte.${maxPrice}`);
+    if (minDeposit != null) q = q.or(`deal.eq.매매,deposit.gte.${minDeposit}`);
+    if (maxDeposit != null) q = q.or(`deal.eq.매매,deposit.lte.${maxDeposit}`);
+    if (minMonthly != null) q = q.or(`deal.neq.월세,monthly.gte.${minMonthly}`);
+    if (maxMonthly != null) q = q.or(`deal.neq.월세,monthly.lte.${maxMonthly}`);
 
     if (minArea != null) q = q.gte('area_m2', minArea);
     if (maxArea != null) q = q.lte('area_m2', maxArea);

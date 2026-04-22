@@ -152,6 +152,100 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
   }
 }
 
+// ─── 컨텍스트 검증기 (L-sec112 IDOR 방어용, 2026-04-22 재적용) ────────
+/**
+ * verifyAdminAuth 와 동일한 인증 경로를 타되, 성공 시 호출자의 신원
+ * (uid/email/role)까지 반환한다. listings/[id] DELETE/PATCH 같은 IDOR
+ * 방어에서 "본인 매물만 변경" 체크를 하려면 단순 boolean 으론 부족.
+ *
+ * 반환:
+ *   { ok:true, role:'master' }                                 — env 마스터 패스워드
+ *   { ok:true, role:'crawler_bridge' }                         — 크롤러 브리지
+ *   { ok:true, role:'superadmin'|'admin'|'agent', uid, email } — JWT 경유
+ *   { ok:false }                                               — 실패
+ */
+export async function verifyAdminAuthWithContext(request: NextRequest): Promise<{
+  ok: boolean;
+  uid?: string;
+  email?: string;
+  role?: string;
+}> {
+  const authHeader = request.headers.get('authorization');
+  let token = authHeader?.replace(/^Bearer\s+/i, '').trim() || '';
+
+  if (!token) {
+    try {
+      const { searchParams } = new URL(request.url);
+      token = (searchParams.get('token') || '').trim();
+    } catch { /* noop */ }
+  }
+
+  if (!token) return { ok: false };
+
+  const MASTER_PASSWORD = getMasterPassword();
+  const CRAWLER_BRIDGE = getCrawlerBridgeToken();
+
+  if (timingSafeEqualStr(token, MASTER_PASSWORD)) return { ok: true, role: 'master' };
+  if (CRAWLER_BRIDGE && timingSafeEqualStr(token, CRAWLER_BRIDGE)) {
+    return { ok: true, role: 'crawler_bridge' };
+  }
+
+  if (token.startsWith('admin_bridge_')) {
+    const inner = token.slice('admin_bridge_'.length);
+    if (CRAWLER_BRIDGE && timingSafeEqualStr(inner, CRAWLER_BRIDGE)) {
+      return { ok: true, role: 'crawler_bridge' };
+    }
+    if (timingSafeEqualStr(inner, MASTER_PASSWORD)) return { ok: true, role: 'master' };
+    token = inner;
+  }
+
+  if (!(token.startsWith('eyJ') && token.split('.').length === 3 && token.length > 40)) {
+    return { ok: false };
+  }
+
+  try {
+    const supabase = createServerClient();
+    if (!supabase) return { ok: false };
+
+    const { data, error } = await Promise.race([
+      supabase.auth.getUser(token),
+      new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      ),
+    ]) as { data: { user: any }; error: any };
+
+    if (error || !data?.user) return { ok: false };
+
+    const email = (data.user.email || '').toLowerCase();
+    const uid = data.user.id;
+
+    if (SUPERADMIN_EMAILS.includes(email)) {
+      return { ok: true, uid, email, role: 'superadmin' };
+    }
+
+    const { data: adminUser } = await Promise.race([
+      supabase
+        .from('admin_users')
+        .select('role, status')
+        .or(`id.eq.${uid},email.eq.${email}`)
+        .limit(1)
+        .maybeSingle(),
+      new Promise<{ data: null }>((_, reject) =>
+        setTimeout(() => reject(new Error('db_timeout')), 3000)
+      ),
+    ]) as { data: { role?: string; status?: string } | null };
+
+    const role = adminUser?.role || '';
+    const status = adminUser?.status || '';
+
+    if (status !== 'approved' || !ADMIN_ROLES.has(role)) return { ok: false };
+
+    return { ok: true, uid, email, role };
+  } catch {
+    return { ok: false };
+  }
+}
+
 // ─── 강력 검증기 (#101 신규) ───────────────────────────────────────
 /**
  * JWT 서명 검증 + admin_users.role/status 체크까지 수행하는 엄격 버전.

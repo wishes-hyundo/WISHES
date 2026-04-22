@@ -6,8 +6,49 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
-import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
+import { verifyAdminAuth as verifyAuth, verifyAdminAuthWithContext } from '@/lib/adminAuth';
 import { preferSelfHostedImages } from '@/lib/image-policy';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { audit } from '@/lib/auditLog';
+
+// ─── L-sec112 IDOR 방어 (2026-04-22 재적용) ────────────────────────
+//   DELETE/PATCH /api/admin/listings/:id 는 본인 매물만 변경 가능해야 한다.
+//   이전엔 단순 verifyAdminAuth() boolean 만 검사 → agent A 의 토큰으로
+//   agent B 매물 전량을 삭제할 수 있는 horizontal privilege escalation.
+//   master/crawler_bridge/superadmin 은 기존대로 무제한 허용 (운영 필요).
+//   uid 가 있는 경우 listings.created_by 와 일치 확인. created_by 가 null
+//   인 레거시 매물은 superadmin 만 건드릴 수 있도록 보수적 처리.
+async function authorizeListingMutation(
+  request: NextRequest,
+  listingId: number,
+  supabase: ReturnType<typeof createServerClient>,
+): Promise<{ ok: boolean; status?: number; reason?: string; actor?: { email?: string; role?: string; uid?: string } }> {
+  const ctx = await verifyAdminAuthWithContext(request);
+  if (!ctx.ok) return { ok: false, status: 401, reason: '인증 실패' };
+
+  const actor = { email: ctx.email, role: ctx.role, uid: ctx.uid };
+
+  // 무제한 권한
+  if (ctx.role === 'master' || ctx.role === 'crawler_bridge' || ctx.role === 'superadmin') {
+    return { ok: true, actor };
+  }
+
+  if (!ctx.uid) return { ok: false, status: 403, reason: '권한이 없습니다', actor };
+
+  const { data: owner } = await supabase
+    .from('listings')
+    .select('created_by')
+    .eq('id', listingId)
+    .maybeSingle();
+
+  if (!owner) return { ok: false, status: 404, reason: '매물을 찾을 수 없습니다', actor };
+
+  const createdBy = (owner as any).created_by;
+  if (!createdBy || createdBy !== ctx.uid) {
+    return { ok: false, status: 403, reason: '본인 매물만 변경할 수 있습니다', actor };
+  }
+  return { ok: true, actor };
+}
 
 /**
  * GET /api/admin/listings/[id] - 매물 상세 조회 (이미지 포함)
@@ -108,10 +149,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!(await verifyAuth(request))) {
+    // H-2 (L-sec124 2026-04-22): 변이 엔드포인트에 IP rate limit 추가.
+    //   단일 admin 토큰 유출 시 대량 삭제/수정 자동화 공격의 비용 상승.
+    //   10분 60회/IP — 중개사 정상 대량작업은 bulk-delete 로 처리되므로 단건 60 으로 충분.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `admin-listing-mut:ip:${_ip}`, limit: 60, windowMs: 10 * 60_000 });
+    if (!_rl.ok) {
       return NextResponse.json(
-        { success: false, error: '인증 실패' },
-        { status: 401 }
+        { success: false, error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
       );
     }
 
@@ -126,6 +172,23 @@ export async function DELETE(
     }
 
     const supabase = createServerClient();
+
+    // L-sec112 IDOR: 인증 + 소유권 검사 (master/superadmin/crawler_bridge 는 bypass)
+    const authz = await authorizeListingMutation(request, listingId, supabase);
+    if (!authz.ok) {
+      audit({
+        action: 'listing.delete',
+        actor: authz.actor,
+        target: { type: 'listing', id: listingId },
+        ip: _ip,
+        status: authz.status,
+        meta: { result: 'denied', reason: authz.reason },
+      });
+      return NextResponse.json(
+        { success: false, error: authz.reason },
+        { status: authz.status },
+      );
+    }
 
     const { error } = await supabase
       .from('listings')
@@ -145,6 +208,15 @@ export async function DELETE(
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
     revalidatePath(`/listings/${listingId}`, 'page');
+
+    audit({
+      action: 'listing.delete',
+      actor: authz.actor,
+      target: { type: 'listing', id: listingId },
+      ip: _ip,
+      status: 200,
+      meta: { result: 'success' },
+    });
 
     return NextResponse.json({
       success: true,
@@ -167,10 +239,13 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!(await verifyAuth(request))) {
+    // H-2 (L-sec124): 변이 IP rate limit
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `admin-listing-mut:ip:${_ip}`, limit: 60, windowMs: 10 * 60_000 });
+    if (!_rl.ok) {
       return NextResponse.json(
-        { success: false, error: '인증 실패' },
-        { status: 401 }
+        { success: false, error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
       );
     }
 
@@ -181,6 +256,25 @@ export async function PATCH(
       return NextResponse.json(
         { success: false, error: '유효하지 않은 매물 ID입니다' },
         { status: 400 }
+      );
+    }
+
+    const supabase = createServerClient();
+
+    // L-sec112 IDOR: 인증 + 소유권 검사
+    const authz = await authorizeListingMutation(request, listingId, supabase);
+    if (!authz.ok) {
+      audit({
+        action: 'listing.patch',
+        actor: authz.actor,
+        target: { type: 'listing', id: listingId },
+        ip: _ip,
+        status: authz.status,
+        meta: { result: 'denied', reason: authz.reason },
+      });
+      return NextResponse.json(
+        { success: false, error: authz.reason },
+        { status: authz.status },
       );
     }
 
@@ -196,8 +290,6 @@ export async function PATCH(
         { status: 400 }
       );
     }
-
-    const supabase = createServerClient();
 
     const { data, error } = await supabase
       .from('listings')
@@ -228,6 +320,15 @@ export async function PATCH(
     revalidatePath('/listings', 'page');
     revalidatePath('/map', 'page');
     revalidatePath(`/listings/${listingId}`, 'page');
+
+    audit({
+      action: 'listing.patch',
+      actor: authz.actor,
+      target: { type: 'listing', id: listingId },
+      ip: _ip,
+      status: 200,
+      meta: { result: 'success', status: parsed.data.status },
+    });
 
     return NextResponse.json({
       success: true,

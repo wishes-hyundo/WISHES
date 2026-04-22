@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 /**
  * POST /api/admin/listings-bulk-delete
@@ -9,6 +10,17 @@ import { verifyAdminAuth } from '@/lib/adminAuth';
  */
 export async function POST(request: NextRequest) {
   try {
+    // H-2 (L-sec124 2026-04-22): 대량 삭제 IP rate limit.
+    //   정상 운영: 1시간 10회 이내. 단일 토큰 유출 시 자동화 삭제 대량 방지.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `bulk-delete:ip:${_ip}`, limit: 10, windowMs: 60 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     if (!(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

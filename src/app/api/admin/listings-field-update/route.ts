@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const ALLOWED_FIELDS = [
   'title', 'description', 'type', 'deal',
@@ -21,6 +22,16 @@ const ALLOWED_FIELDS = [
 // PUT: Update single listing fields
 export async function PUT(request: NextRequest) {
   try {
+    // H-2 (L-sec124): 필드 업데이트 IP rate limit (10m 120회 — 단건 편집은 빈도가 높을 수 있음)
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `field-update:ip:${_ip}`, limit: 120, windowMs: 10 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { error: 'rate_limited' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
     if (!(await verifyAdminAuth(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
