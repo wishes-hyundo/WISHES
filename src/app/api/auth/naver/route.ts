@@ -1,14 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { z } from 'zod';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+
+// L-sec66 (2026-04-22): OAuth code/state 입력 검증.
+//   Naver authorization_code 는 일반적으로 30~200자, state 는 클라이언트에서
+//   생성한 nonce 라 길이 상한을 두어 10MB 바디 DoS 방지.
+const NaverOAuthSchema = z.object({
+  code: z.string().min(1).max(512),
+  state: z.string().max(256).optional(),
+});
 
 // 네이버 OAuth 토큰 교환 및 사용자 생성/로그인
 export async function POST(request: NextRequest) {
   try {
-    const { code, state } = await request.json();
+    // L-sec66 (2026-04-22): 공개 OAuth 콜백 스팸 방지
+    //   15분 30회/IP cap. Naver token endpoint 할당량 및 Supabase admin ops 보호.
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `auth:naver:ip:${_ip}`, limit: 30, windowMs: 15 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { error: '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
 
-    if (!code) {
+    const body = await request.json().catch(() => ({}));
+    const parsed = NaverOAuthSchema.safeParse(body);
+    if (!parsed.success) {
       return NextResponse.json({ error: 'Authorization code is required' }, { status: 400 });
     }
+    const { code, state } = parsed.data;
 
     const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
     const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET;
