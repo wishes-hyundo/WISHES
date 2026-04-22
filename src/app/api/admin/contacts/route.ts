@@ -18,8 +18,10 @@ import { listingIdSchema } from '@/lib/schemas';
 /**
  * GET /api/admin/contacts - 모든 상담 조회 (관리자용)
  *
- * L-sec136 note: GET 은 read-only 라 phase 1 범위 밖. 추후 agent scope 필터링을
- *   넣으려면 별도 커밋에서 UI 변경과 같이 진행 (read-side IDOR 는 M-priority).
+ * L-sec137 (2026-04-23): agent scope 필터링 추가.
+ *   이전엔 verifyAuth 만 통과하면 전체 상담 목록 노출 → read-side IDOR.
+ *   agent 는 본인이 created_by 인 매물에 달린 상담만 조회.
+ *   master/superadmin/crawler_bridge 는 전체 조회 유지.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -32,8 +34,37 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
 
+    // ── L-sec137 agent scope ──
+    const ctx = await verifyAdminAuthWithContext(request);
+    const UNLIMITED_ROLES = new Set(['master', 'superadmin', 'crawler_bridge']);
+    const role = ctx.ok ? ctx.role : undefined;
+    const uid = ctx.ok ? ctx.uid : undefined;
+    const unlimited = !!(role && UNLIMITED_ROLES.has(role));
+
+    let scopedListingIds: number[] | null = null;
+    if (!unlimited) {
+      if (!uid) {
+        return NextResponse.json({ success: true, data: [] });
+      }
+      const { data: myListings, error: myErr } = await supabase
+        .from('listings')
+        .select('id')
+        .eq('created_by', uid);
+      if (myErr) {
+        console.error('listing scope 조회 오류:', myErr);
+        return NextResponse.json(
+          { success: false, error: '상담 조회에 실패했습니다' },
+          { status: 500 }
+        );
+      }
+      scopedListingIds = ((myListings || []) as Array<{ id: number }>).map((r) => r.id);
+      if (scopedListingIds.length === 0) {
+        return NextResponse.json({ success: true, data: [] });
+      }
+    }
+
     // 상담과 매물 정보를 함께 조회
-    const { data, error } = await supabase
+    let query = supabase
       .from('contacts')
       .select(
         `
@@ -49,6 +80,12 @@ export async function GET(request: NextRequest) {
       `
       )
       .order('created_at', { ascending: false });
+
+    if (scopedListingIds) {
+      query = query.in('listing_id', scopedListingIds);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('상담 조회 오류:', error);

@@ -6,51 +6,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
-import { verifyAdminAuth as verifyAuth, verifyAdminAuthWithContext } from '@/lib/adminAuth';
+import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
+import { authorizeListingMutation } from '@/lib/adminAuthz';
 import { preferSelfHostedImages } from '@/lib/image-policy';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { audit } from '@/lib/auditLog';
 // L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관.
 import { listingIdSchema } from '@/lib/schemas';
 
-// ─── L-sec112 IDOR 방어 (2026-04-22 재적용) ────────────────────────
-//   DELETE/PATCH /api/admin/listings/:id 는 본인 매물만 변경 가능해야 한다.
-//   이전엔 단순 verifyAdminAuth() boolean 만 검사 → agent A 의 토큰으로
-//   agent B 매물 전량을 삭제할 수 있는 horizontal privilege escalation.
-//   master/crawler_bridge/superadmin 은 기존대로 무제한 허용 (운영 필요).
-//   uid 가 있는 경우 listings.created_by 와 일치 확인. created_by 가 null
-//   인 레거시 매물은 superadmin 만 건드릴 수 있도록 보수적 처리.
-async function authorizeListingMutation(
-  request: NextRequest,
-  listingId: number,
-  supabase: ReturnType<typeof createServerClient>,
-): Promise<{ ok: boolean; status?: number; reason?: string; actor?: { email?: string; role?: string; uid?: string } }> {
-  const ctx = await verifyAdminAuthWithContext(request);
-  if (!ctx.ok) return { ok: false, status: 401, reason: '인증 실패' };
-
-  const actor = { email: ctx.email, role: ctx.role, uid: ctx.uid };
-
-  // 무제한 권한
-  if (ctx.role === 'master' || ctx.role === 'crawler_bridge' || ctx.role === 'superadmin') {
-    return { ok: true, actor };
-  }
-
-  if (!ctx.uid) return { ok: false, status: 403, reason: '권한이 없습니다', actor };
-
-  const { data: owner } = await supabase
-    .from('listings')
-    .select('created_by')
-    .eq('id', listingId)
-    .maybeSingle();
-
-  if (!owner) return { ok: false, status: 404, reason: '매물을 찾을 수 없습니다', actor };
-
-  const createdBy = (owner as any).created_by;
-  if (!createdBy || createdBy !== ctx.uid) {
-    return { ok: false, status: 403, reason: '본인 매물만 변경할 수 있습니다', actor };
-  }
-  return { ok: true, actor };
-}
+// ─── L-sec139 (2026-04-23) ─────────────────────────────────────
+//   이 파일의 local authorizeListingMutation 을 `@/lib/adminAuthz` shared
+//   버전으로 이관. 함수 시그니처 동일(request, listingId, supabase), 결과 타입은
+//   discriminated union (AuthzSingleResult). 호출측 사용 패턴 동일.
+//   L-sec136 에서 contacts/bulk 엔드포인트들도 이미 shared 버전을 쓰고 있어
+//   이걸로 단일화가 끝남. 기존 정책(master/superadmin/crawler_bridge 무제한, agent
+//   는 본인 매물만, created_by null 은 unlimited role 만)은 그대로 유지됨.
 
 /**
  * GET /api/admin/listings/[id] - 매물 상세 조회 (이미지 포함)

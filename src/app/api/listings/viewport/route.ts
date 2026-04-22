@@ -13,6 +13,10 @@ import type { DealType, MapListing } from '@/features/map-2026/store';
 export const dynamic = 'force-dynamic';
 
 const MAX_VIEWPORT_DEG = 2.0;
+// L-sec140 (2026-04-23): per-axis cap (MAX_VIEWPORT_DEG) 위에 영역 cap 추가.
+//   서울+경기 전역 ≈ 1.5 × 0.8 ≈ 1.2 sq-deg 이므로 2.5 면 충분히 수용.
+//   per-axis 2.0 × 2.0 = 4 sq-deg 라 4각 코너 상황을 2.5 로 차단 (전국 스캔 방지).
+const MAX_VIEWPORT_AREA_SQDEG = 2.5;
 const DEFAULT_LIMIT = 800;
 const MAX_LIMIT = 3000;
 const MIN_COMPARABLES = 3;
@@ -232,6 +236,10 @@ export async function GET(req: NextRequest) {
   }
   if (east - west > MAX_VIEWPORT_DEG || north - south > MAX_VIEWPORT_DEG) {
     return NextResponse.json({ error: 'viewport too large' }, { status: 400 });
+  }
+  // L-sec140: 영역 cap (defense-in-depth)
+  if ((east - west) * (north - south) > MAX_VIEWPORT_AREA_SQDEG) {
+    return NextResponse.json({ error: 'viewport area too large' }, { status: 400 });
   }
   if (east < west || north < south) {
     return NextResponse.json({ error: 'invalid bbox order' }, { status: 400 });

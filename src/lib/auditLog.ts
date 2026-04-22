@@ -44,25 +44,6 @@ export type AuditEvent = {
   meta?: Record<string, unknown>;
 };
 
-// L-observe1 (2026-04-23): 중요 감사 이벤트 Sentry breadcrumb/message 전송.
-//   denied/error 상태이거나 delete/권한변경 계열 action 은 Sentry 로도 올린다.
-//   DSN 미설정이면 observe helper 는 no-op.
-const SENTRY_FORWARD_ACTION_PATTERNS = [
-  '.delete',
-  '.patch.denied',
-  '.status_update.denied',
-  '.role_change',
-  '.approve',
-  '.reject',
-];
-
-function shouldForwardToSentry(event: AuditEvent): boolean {
-  // 실패/차단 이벤트는 전부 올림
-  if (typeof event.status === 'number' && event.status >= 400) return true;
-  // 민감 액션 이름 매치
-  return SENTRY_FORWARD_ACTION_PATTERNS.some((p) => event.action.includes(p));
-}
-
 export function audit(event: AuditEvent): void {
   try {
     const record = {
@@ -79,30 +60,6 @@ export function audit(event: AuditEvent): void {
     };
     // 단일 라인 JSON — Vercel Log drain / Sentry ingest 에 안전
     console.log('[AUDIT]', JSON.stringify(record));
-
-    // L-observe1: 중요 이벤트만 Sentry 로 포워딩 (noise 방지 + 검색 용이).
-    if (shouldForwardToSentry(event)) {
-      // require 대신 dynamic import 로 관측 모듈 지연 로드 (Edge 호환).
-      void import('./observe').then(({ captureWarning, addBreadcrumb }) => {
-        const tags = {
-          action: event.action,
-          role: event.actor?.role ?? 'anonymous',
-          targetType: event.target?.type ?? 'none',
-          status: event.status != null ? String(event.status) : 'unknown',
-        };
-        if (typeof event.status === 'number' && event.status >= 400) {
-          void captureWarning(`audit.${event.action}`, {
-            route: 'audit',
-            tags,
-            extra: { record },
-          });
-        } else {
-          void addBreadcrumb('audit', event.action, record);
-        }
-      }).catch(() => {
-        // observe 로딩 실패는 무시 — 요청 영향 없음
-      });
-    }
   } catch {
     // 로그 실패는 요청 자체를 막지 않는다
   }

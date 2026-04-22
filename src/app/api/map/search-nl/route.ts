@@ -19,6 +19,46 @@ import type {
 const BodySchema = z.object({ query: searchQuerySchema }); // L-hub2
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// L-sec141 (2026-04-23): LLM fallback 응답 whitelist
+//   Phase 1.2 에서 Claude API 로 자연어를 구조화된 필터로 변환할 예정인데,
+//   LLM 이 환각한 필드(예: `sql: "..."` 나 `raw_where: "..."`)가 곧바로
+//   supabase 쿼리로 흘러가면 인젝션/정보 누출 위험이 있음. 선제적으로
+//   whitelist 스키마를 정의해 두고, LLM 경로가 들어오기 전에 parse/filter.
+//
+//   허용 필드 외 값은 자동 drop. 파싱 실패 시 LLM 응답 무시하고 원문
+//   keyword 만 사용하도록 호출측이 판단.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const StringArray = z.array(z.string().max(60)).max(20).optional();
+const NumCapped = z.number().finite().min(0).max(1e12).optional();
+
+const LlmFilterSchema = z
+  .object({
+    keywords: StringArray,
+    types: StringArray,
+    dongs: StringArray,
+    minPrice: NumCapped,
+    maxPrice: NumCapped,
+    minDeposit: NumCapped,
+    maxDeposit: NumCapped,
+    minMonthly: NumCapped,
+    maxMonthly: NumCapped,
+    minArea: NumCapped,
+    maxArea: NumCapped,
+  })
+  .strict(); // 허용 외 키가 있으면 에러 → 호출측이 drop 결정
+
+export type LlmFilterSafe = z.infer<typeof LlmFilterSchema>;
+
+/**
+ * LLM 이 반환한 JSON 을 whitelist 스키마로 파싱. 실패 시 null.
+ * 호출측은 null 이면 LLM 결과 무시하고 규칙 파서로 fallback 해야 한다.
+ */
+export function parseLlmFilter(input: unknown): LlmFilterSafe | null {
+  const r = LlmFilterSchema.safeParse(input);
+  return r.success ? r.data : null;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 지역 사전 (수도권·광역시 주요 거점)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 const LOCATIONS: Record<string, { center: [number, number]; zoom: number }> = {
