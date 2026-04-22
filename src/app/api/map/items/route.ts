@@ -23,22 +23,34 @@ export async function GET(request: NextRequest) {
     const neLat = parseFloat(searchParams.get('neLat') || 'NaN');
     const neLng = parseFloat(searchParams.get('neLng') || 'NaN');
 
-    if ([swLat, swLng, neLat, neLng].some(Number.isNaN)) {
+    // L-sec26 (2026-04-22): 좌표 범위 검증. Infinity/밖 값은 PostgREST gte/lte 에 전달하면
+    //   garbage query 가 됨.
+    const inLat = (v: number) => Number.isFinite(v) && v >= -90 && v <= 90;
+    const inLng = (v: number) => Number.isFinite(v) && v >= -180 && v <= 180;
+    if (!inLat(swLat) || !inLat(neLat) || !inLng(swLng) || !inLng(neLng)) {
       return NextResponse.json(
         { success: false, error: 'bounds 파라미터 필요' },
         { status: 400 },
       );
     }
 
-    const deal = searchParams.get('deal');
-    const type = searchParams.get('type');
-    const minPrice = searchParams.get('minPrice');
-    const maxPrice = searchParams.get('maxPrice');
-    const idsParam = searchParams.get('ids'); // 클러스터 샘플 id 기반 조회
+    const deal = searchParams.get('deal')?.slice(0, 20) || null;
+    const type = searchParams.get('type')?.slice(0, 40) || null;
+    const toFinitePrice = (v: string | null): number | null => {
+      if (!v) return null;
+      const n = parseInt(v, 10);
+      if (!Number.isFinite(n) || n < 0 || n > 1e12) return null;
+      return n;
+    };
+    const minPrice = toFinitePrice(searchParams.get('minPrice'));
+    const maxPrice = toFinitePrice(searchParams.get('maxPrice'));
+    // L-sec26: ids 파라미터 최대 100개로 cap (massive IN() 쿼리 방지)
+    const idsRaw = searchParams.get('ids') || '';
+    const idsParam = idsRaw.length > 2000 ? idsRaw.slice(0, 2000) : idsRaw;
 
     // 캐시 키 (소수점 3자리 ≒ 100m 오차)
     const q = (n: number) => n.toFixed(3);
-    const key = `items:${q(swLat)},${q(swLng)}-${q(neLat)},${q(neLng)}:${deal || ''}:${type || ''}:${minPrice || ''}:${maxPrice || ''}:${idsParam || ''}`;
+    const key = `items:${q(swLat)},${q(swLng)}-${q(neLat)},${q(neLng)}:${deal || ''}:${type || ''}:${minPrice ?? ''}:${maxPrice ?? ''}:${idsParam}`;
 
     const result = await cached(
       key,
@@ -50,7 +62,8 @@ export async function GET(request: NextRequest) {
           const ids = idsParam
             .split(',')
             .map((s) => parseInt(s.trim(), 10))
-            .filter((n) => !Number.isNaN(n));
+            .filter((n) => Number.isFinite(n) && n >= 0 && n <= 2_000_000_000)
+            .slice(0, 100); // L-sec26: 100개 cap
           if (ids.length === 0) return { data: [], total: 0 };
 
           const { data, error } = await supabase
@@ -71,8 +84,8 @@ export async function GET(request: NextRequest) {
           .lte('lng', neLng);
         if (deal) q2 = q2.eq('deal', deal);
         if (type) q2 = q2.eq('type', type);
-        if (minPrice) q2 = q2.gte('price_unified', parseInt(minPrice, 10));
-        if (maxPrice) q2 = q2.lte('price_unified', parseInt(maxPrice, 10));
+        if (minPrice != null) q2 = q2.gte('price_unified', minPrice);
+        if (maxPrice != null) q2 = q2.lte('price_unified', maxPrice);
 
         const { data, error, count } = await q2
           .order('updated_at', { ascending: false, nullsFirst: false })
