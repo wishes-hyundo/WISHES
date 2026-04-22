@@ -66,6 +66,9 @@ onhouse_diag.js
 .push_status.ok
 .push_status.fail
 .commit_result.log
+.cleanup_result.log
+.recover_result.log
+.*_result.log
 
 # 2026-04-21 (L-mapfix3): Python 크롤러/seeder 캐시
 scripts/__pycache__/
