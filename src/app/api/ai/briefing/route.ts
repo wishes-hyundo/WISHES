@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -36,6 +37,15 @@ function capStr(v: unknown, max = MAX_FIELD_LEN): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // L-sec63 (2026-04-22): 위젯 외부 임베드 + Anthropic 호출 — IP당 1분 5회.
+    const ip = getClientIp(req);
+    const rl = checkRateLimit({ key: `aibriefing:ip:${ip}`, limit: 5, windowMs: 60_000 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { ...CORS_HEADERS, 'Retry-After': String(rl.retryAfterSec) } }
+      );
+    }
     if (!ANTHROPIC_API_KEY) {
       return NextResponse.json({ success: false, error: 'API key not configured' }, { status: 500, headers: CORS_HEADERS });
     }

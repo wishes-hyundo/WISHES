@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec8 (2026-04-22): 이미지 base64 크기 상한 + mode enum 검증.
 //   - admin 페이지에서만 호출되지만 public route 이므로 방어 로직 필수.
@@ -8,6 +9,15 @@ const ALLOWED_MODES = new Set(['enhance', 'mosaic']);
 
 export async function POST(request: NextRequest) {
   try {
+    // L-sec63 (2026-04-22): Vision API 고비용 호출 — IP당 1분 3회.
+    const ip = getClientIp(request);
+    const rl = checkRateLimit({ key: `analyzephoto:ip:${ip}`, limit: 3, windowMs: 60_000 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+      );
+    }
     const { image, mode } = await request.json();
 
     if (!image || typeof image !== 'string') {

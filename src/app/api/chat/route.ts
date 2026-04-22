@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const SYSTEM_PROMPT = `당신은 "위시스부동산(WISHES)"의 AI 부동산 상담사입니다. 서울과 경기 지역의 부동산 전문 상담을 제공합니다.
 
@@ -39,6 +40,15 @@ const ALLOWED_ROLES = new Set(['user', 'assistant']);
 
 export async function POST(request: NextRequest) {
   try {
+    // L-sec63 (2026-04-22): Anthropic credit-drain 방어 — IP당 1분 10회.
+    const ip = getClientIp(request);
+    const rl = checkRateLimit({ key: `chat:ip:${ip}`, limit: 10, windowMs: 60_000 });
+    if (!rl.ok) {
+      return NextResponse.json(
+        { error: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.' },
+        { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } }
+      );
+    }
     const { messages } = await request.json();
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
