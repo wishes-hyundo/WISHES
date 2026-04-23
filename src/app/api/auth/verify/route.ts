@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       const { data: adminRow } = await supabase
         .from('admin_users')
         .select('status, role')
-        .or(`id.eq.${user.id},email.eq.${emailLower}`)
+        .or(`id.eq.${user.id},email.ilike.${emailLower}`)
         .limit(1)
         .maybeSingle();
 
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
       const { data: adminRow } = await supabase
         .from('admin_users')
         .select('status, role')
-        .or(`id.eq.${user.id},email.eq.${emailLower}`)
+        .or(`id.eq.${user.id},email.ilike.${emailLower}`)
         .limit(1)
         .maybeSingle();
 
