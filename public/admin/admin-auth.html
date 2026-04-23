@@ -2003,6 +2003,15 @@
                     localStorage.setItem('ws_token', data.token);
                     localStorage.setItem('ws_user', JSON.stringify(data.user));
                     localStorage.setItem('ws_login_time', Date.now().toString());
+                    // 2026-04-24: refresh_token 저장 (1h JWT 만료 후 자동 갱신용)
+                    if (data.refresh_token) {
+                        sessionStorage.setItem('ws_refresh_token', data.refresh_token);
+                        localStorage.setItem('ws_refresh_token', data.refresh_token);
+                    }
+                    if (data.expires_at) {
+                        sessionStorage.setItem('ws_token_expires_at', String(data.expires_at));
+                        localStorage.setItem('ws_token_expires_at', String(data.expires_at));
+                    }
 
                     // Keep login flag (30일 로그인 유지)
                     var rememberCheckbox = document.getElementById('rememberMe');
