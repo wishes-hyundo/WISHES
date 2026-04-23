@@ -55,10 +55,11 @@ export function formatDeviation(dev: number | null): { text: string; kind: 'good
 }
 
 /** 면적 표기 (m² + 평) — L-mapfix1 (2026-04-21): 0 값도 '면적 정보 없음'으로 처리
- *    크롤러 수집분 중 상당수가 supply_area / exclusive_area 필드가 비어
- *    DB 에 area_m2 = 0 으로 저장되어 "0.0m² · 0.0평" 로 노출되던 UX 사고 차단. */
+ *    L-areafix1 (2026-04-23 p.m.): 크롤러 파싱 실패분이 0.1 / 0.5 같은
+ *    의미없는 값을 남겨 "0.1m² · 0.0평" 으로 노출되던 버그. 실제 주거·상가
+ *    최소 크기(5m² ≈ 1.5평) 미만은 '-' 반환해 숨김. */
 export function formatArea(m2: number | null): string {
-  if (m2 == null || Number.isNaN(m2) || m2 <= 0) return '-';
+  if (m2 == null || Number.isNaN(m2) || m2 < 5) return '-';
   const pyeong = (m2 / 3.3058).toFixed(1);
   return `${m2.toFixed(1)}m² · ${pyeong}평`;
 }

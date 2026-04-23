@@ -202,14 +202,22 @@ export function ListPanel() {
                   }}
                 >
                   <div className="flex min-w-0 flex-1 flex-col gap-1">
-                    {/* Row 1: 거래방식 pill (+ 상업이면 업종) */}
-                    <div className="flex items-center gap-1">
-                      <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-bold text-white leading-[1.3]">
+                    {/* L-card4 (2026-04-23 p.m.): Row 1 재구성
+                     *   · NEW 를 거래방식 좌측으로 이동 (네이버 패턴)
+                     *   · 우측에 단지명/건물명 (로그인 시만 제공됨 — building_name 이 null 이면 type 로 폴백)
+                     *   · 업종(business_type) 은 단지명 없을 때만 대체 노출  */}
+                    <div className="flex items-center gap-1 min-w-0">
+                      {isNew && (
+                        <span className="shrink-0 rounded bg-rose-600 px-1.5 py-[2px] text-[10px] font-bold text-white leading-[1.2]">
+                          NEW
+                        </span>
+                      )}
+                      <span className="shrink-0 rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-bold text-white leading-[1.3]">
                         {l.deal}
                       </span>
-                      {l.business_type && (
-                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-600 leading-[1.3] truncate max-w-[80px]">
-                          {l.business_type}
+                      {(l.building_name || l.business_type || l.type) && (
+                        <span className="min-w-0 truncate text-[11px] font-medium text-neutral-700">
+                          {l.building_name || l.business_type || l.type}
                         </span>
                       )}
                     </div>
@@ -233,14 +241,9 @@ export function ListPanel() {
                       </div>
                     )}
 
-                    {/* Row 5: 연식 + 타입 chip (최대 3개, wrap 허용) */}
-                    {(isNew || age || typeChip) && (
+                    {/* Row 5: 연식 + 타입 chip (NEW 는 상단으로 이동해 여기선 제외) */}
+                    {(age || typeChip) && (
                       <div className="flex flex-wrap gap-1">
-                        {isNew && (
-                          <span className="rounded bg-rose-600 px-1.5 py-[2px] text-[10px] font-bold text-white leading-[1.2]">
-                            NEW
-                          </span>
-                        )}
                         {age && (
                           <span className={[
                             'rounded px-1.5 py-[2px] text-[10px] font-bold leading-[1.2]',

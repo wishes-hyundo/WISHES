@@ -27,6 +27,11 @@ const nextConfig = {
       { protocol: 'https', hostname: 'pub-e16c7a50584c4db7be3571746cd80716.r2.dev' },
       { protocol: 'https', hostname: 'd4k1brqee4emz.cloudfront.net' },
       { protocol: 'https', hostname: '*.daumcdn.net' },
+      // L-img-proxy1 (2026-04-23 p.m.): 크롤러 이미지 서빙용 Cloudflare Worker.
+      //   DB thumb_url 5,460건 모두 이 도메인. remotePatterns 누락 → Next.js
+      //   Image 가 전부 차단해 /map 카드에 사진이 안 뜨던 버그.
+      { protocol: 'https', hostname: 'wishes-image-proxy.wishes-img.workers.dev' },
+      { protocol: 'https', hostname: '*.workers.dev' },
     ],
   },
 
