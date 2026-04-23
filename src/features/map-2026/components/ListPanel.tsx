@@ -291,11 +291,7 @@ export function ListPanel() {
                         <Video className="size-2.5" /> 영상
                       </div>
                     )}
-                    {l.photo_count > 0 && (
-                      <span className="absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                        {l.photo_count}장
-                      </span>
-                    )}
+                    {/* L-card5 (2026-04-23 p.m.): 사진 개수 배지 제거 — 리스트에선 불필요 */}
                   </div>
                 </button>
               );

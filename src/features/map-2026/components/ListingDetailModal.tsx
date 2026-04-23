@@ -18,6 +18,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { X, ExternalLink, ImageOff, MapPin, Video, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -415,10 +416,12 @@ export function ListingDetailModal() {
         )}
       </div>
 
-      {/* L-lightbox1 (2026-04-23 p.m.): 풀스크린 사진 뷰어 */}
-      {lightboxOpen && galleryImages.length > 0 && (
+      {/* L-lightbox2 (2026-04-23 p.m.): 풀스크린 사진 뷰어를 Portal 로 document.body 루트에 렌더.
+          슬라이드 패널 <aside translate-x-0> 가 fixed 를 가두는 containing block 을 만들어
+          이전엔 라이트박스가 380px 패널 영역에 갇혔음. createPortal 로 루트 렌더 → 진짜 풀스크린. */}
+      {typeof document !== 'undefined' && lightboxOpen && galleryImages.length > 0 && createPortal(
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black"
           onClick={() => setLightboxOpen(false)}
           role="dialog"
           aria-modal="true"
@@ -462,14 +465,15 @@ export function ListingDetailModal() {
             src={galleryImages[galleryIndex]}
             alt={addressLine}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[92vh] max-w-[92vw] object-contain"
+            className="max-h-[95vh] max-w-[95vw] object-contain select-none"
           />
 
           {/* 하단 카운터 */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-[12px] font-semibold text-white tabular-nums">
             {galleryIndex + 1} / {galleryImages.length}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* 푸터 */}
