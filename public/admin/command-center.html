@@ -934,12 +934,39 @@ function renderRecentPending(){
 function renderUsers(){
   var tb=document.getElementById('usersTableBody');
   if(_demoUsers.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">등록된 사용자가 없습니다</td></tr>';return}
+  var roleBg={superadmin:'rgba(237,137,54,.15)',admin:'rgba(66,153,225,.15)',agent:'rgba(56,161,105,.15)',viewer:'rgba(214,158,46,.15)',user:'rgba(122,154,122,.12)'};
+  var roleColor={superadmin:'#ed8936',admin:'#4299e1',agent:'#38a169',viewer:'#d69e2e',user:'#a0aec0'};
   tb.innerHTML=_demoUsers.map(function(u){
     var statusClass=u.status==='approved'?'status-approved':u.status==='pending'?'status-pending':'status-blocked';
     var statusText=u.status==='approved'?'승인됨':u.status==='pending'?'대기중':'차단됨';
-    var onlineClass=u.online?'status-online':'status-offline';
-    var onlineText=u.online?'접속중':'오프라인';
-    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td><span class="status '+(u.role==='superadmin'?'" style="background:rgba(237,137,54,.15);color:var(--accent)':u.role==='admin'?'" style="background:var(--info-bg);color:var(--info)':'status-approved')+'">'+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+(u.lastLogin||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+(u.role!=='superadmin'?'<button class="btn-sm btn-block" onclick="toggleBlock(\''+u.id+'\')">차단</button>':'')+'</div></td></tr>';
+    var bg=roleBg[u.role]||roleBg.user;
+    var col=roleColor[u.role]||roleColor.user;
+    var roleCell;
+    if(u.role==='superadmin'){
+      roleCell='<span class="status" style="background:'+bg+';color:'+col+';font-weight:600">superadmin</span>';
+    } else {
+      var roleOpts=['user','viewer','agent','admin'].map(function(r){
+        return '<option value="'+r+'"'+(r===u.role?' selected':'')+'>'+r+'</option>';
+      }).join('');
+      roleCell='<select data-current="'+u.role+'" onchange="quickChangeRole(\''+u.id+'\',this.value,this)" style="padding:5px 24px 5px 10px;border-radius:6px;background:'+bg+';color:'+col+';border:1px solid '+bg.replace('.15','.35')+';font-size:12px;font-weight:600;cursor:pointer;appearance:none;-webkit-appearance:none;background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%2710%27 viewBox=%270 0 10 10%27%3E%3Cpath d=%27M1 3l4 4 4-4%27 stroke=%27%23aaa%27 fill=%27none%27/%3E%3C/svg%3E&quot;);background-repeat:no-repeat;background-position:right 6px center">'+roleOpts+'</select>';
+    }
+    var lastSeen=u.lastLogin||u.createdAt||'';
+    var phoneStr=u.phone?('<div style="font-size:11px;color:var(--text-dim);margin-top:2px">'+_escHtml(u.phone)+'</div>'):'';
+    var actions='<button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')" title="상세 정보">상세</button>';
+    if(u.role!=='superadmin'){
+      var blockLabel=u.status==='blocked'?'해제':'차단';
+      actions+=' <button class="btn-sm btn-block" onclick="toggleBlock(\''+u.id+'\')" title="'+blockLabel+'">'+blockLabel+'</button>';
+      actions+=' <button class="btn-sm" onclick="deleteUser(\''+u.id+'\')" title="강제 탈퇴(영구 삭제)" style="border-color:rgba(229,62,62,.4);color:#fc8181">삭제</button>';
+    }
+    return '<tr>'+
+      '<td><div style="font-weight:600">'+_escHtml(u.name||'(이름 없음)')+'</div>'+phoneStr+'</td>'+
+      '<td style="font-size:12px;color:var(--text-dim)">'+_escHtml(u.email||'-')+'</td>'+
+      '<td style="font-size:12px">'+_escHtml(u.company||'-')+'</td>'+
+      '<td>'+roleCell+'</td>'+
+      '<td><span class="status '+statusClass+'">'+statusText+'</span></td>'+
+      '<td style="font-size:11px;color:var(--text-dim)">'+_escHtml(lastSeen)+'</td>'+
+      '<td><div style="display:flex;gap:4px;justify-content:flex-end">'+actions+'</div></td>'+
+      '</tr>';
   }).join('');
 }
 
@@ -1045,6 +1072,28 @@ window.toggleBlock=function(id){
 };
 
 // 2026-04-23: 역할 변경 + 회원 삭제 (슈퍼어드민 전용).
+window.quickChangeRole=function(id,newRole,selectEl){
+  var user=_demoUsers.find(function(u){return u.id===id});
+  if(!user){if(selectEl&&selectEl.dataset.current)selectEl.value=selectEl.dataset.current;return}
+  if(user.role===newRole)return;
+  if(!confirm(user.name+' 님의 역할을 "'+newRole+'"(으)로 변경할까요?')){
+    if(selectEl&&selectEl.dataset.current)selectEl.value=selectEl.dataset.current;
+    return;
+  }
+  apiCall('/admin/users','PUT',{userId:id,action:'change_role',role:newRole}).then(function(res){
+    if(res&&res.success){
+      showToast(user.name+' 님의 역할이 '+newRole+'(으)로 변경되었습니다');
+      loadUsersFromApi();
+    } else {
+      showToast('역할 변경 실패: '+(res&&res.error||'unknown'),'error');
+      if(selectEl&&selectEl.dataset.current)selectEl.value=selectEl.dataset.current;
+    }
+  }).catch(function(err){
+    console.error('quickChangeRole failed',err);
+    showToast('역할 변경 API 호출 실패','error');
+    if(selectEl&&selectEl.dataset.current)selectEl.value=selectEl.dataset.current;
+  });
+};
 window.applyRoleChange=function(id){
   var sel=document.getElementById('roleChangeSel_'+id);
   if(!sel){showToast('역할 선택기를 찾을 수 없습니다','error');return}
