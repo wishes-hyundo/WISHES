@@ -1,25 +1,14 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GET /api/auth/oauth-start/[provider]?target=/admin/
 //
-// 목적: 정적 HTML(admin-auth.html) 에서 소셜 로그인/가입을 시작할 때 사용.
-//   해당 페이지는 Supabase/Naver client ID 를 인라인하기 어렵고, 보안상
-//   state 는 서버에서 HttpOnly 쿠키로 관리하는 편이 깔끔하다.
+// 정적 HTML(admin-auth.html) 및 React 페이지에서 공용으로 사용하는 소셜
+// 로그인 시작점. 두 provider 모두 우리 커스텀 백엔드를 거쳐 Supabase 세션을
+// 생성하는 방식이라, Supabase 기본 Kakao/Naver provider(scope 하드코딩 문제)
+// 를 우회한다.
 //
-// 동작:
-//   - provider === 'kakao'  : Supabase 의 Kakao OAuth 시작 URL 로 302 redirect
-//       (Kakao 는 Supabase Auth Providers 에 등록돼 있어야 함)
-//   - provider === 'naver'  : Naver OAuth authorize URL 로 302 redirect
-//       + ws_naver_state (HttpOnly) 쿠키로 CSRF state 주입.
-//       /auth/callback 은 기존대로 sessionStorage 를 보지만, 정적 페이지 흐름을
-//       위해 state 를 쿠키에도 동시 세팅하고 콜백이 sessionStorage 부재 시
-//       쿠키로 fallback 하도록 한다. (이번 PR 에서는 sessionStorage 재생성까지만
-//       처리 — 실제 state 대조는 콜백이 하도록 유지한다.)
-//
-// redirect 경로:
-//   콜백 완료 후 /auth/callback 은 sessionStorage['wishes-auth-redirect']
-//   값을 읽어 이동한다. admin-auth.html 이 리다이렉트 전에 해당 값을 세팅하거나
-//   쿠리 파라미터 target 으로 받은 값을 response 에 심어 브라우저가 sessionStorage
-//   를 채우도록 한다.
+//   - provider === 'kakao' / 'naver': 해당 OAuth authorize URL 로 302 redirect.
+//     state(CSRF) 는 서버에서 HttpOnly 쿠키로, target redirect path 는
+//     non-HttpOnly 쿠키로 심어 /auth/callback 이 fallback 으로 읽는다.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -81,30 +70,38 @@ export async function GET(
   const target = safeTarget(searchParams.get('target'));
   const siteUrl = resolveSiteUrl(request);
   const isProd = process.env.NODE_ENV === 'production';
+  const state = randomBytes(16).toString('hex');
 
   if (provider === 'kakao') {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) {
+    // 2026-04-23: Supabase 기본 Kakao provider 는 scope=account_email+profile_image+profile_nickname
+    //   을 하드코딩해 KOE205 를 유발. Kakao authorize URL 로 직접 리다이렉트 +
+    //   서버 (/api/auth/kakao) 에서 code 교환하도록 전환.
+    const clientId = process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY;
+    if (!clientId) {
       return NextResponse.json(
-        { error: 'Supabase URL 이 설정되지 않았습니다.' },
+        { error: 'Kakao OAuth 가 설정되지 않았습니다.' },
         { status: 500 },
       );
     }
-    // 2026-04-23: scope 를 profile_nickname 만 명시적으로 지정. Supabase 기본 scope
-    //   에는 account_email 이 포함되지만, Kakao Developers 콘솔에서 account_email 은
-    //   비즈 앱 전환 후에만 "선택/필수 동의" 설정 가능 — 비즈 앱이 아니면 "권한 없음"
-    //   상태라 requested scope 에 account_email 이 있으면 KOE205 "잘못된 요청" 에러 발생.
-    //   Supabase 에는 "Allow users without an email" 옵션이 ON 이라 이메일 없이도
-    //   세션 생성 OK. 비즈 앱 전환 완료 후 아래 scope 에 `account_email` 을 다시 추가하면 됨.
-    const redirectTo = `${siteUrl}/auth/callback`;
-    const scopes = 'profile_nickname';
+    const redirectUri = `${siteUrl}/auth/callback?provider=kakao`;
     const authorizeUrl =
-      `${supabaseUrl.replace(/\/$/, '')}/auth/v1/authorize` +
-      `?provider=kakao` +
-      `&redirect_to=${encodeURIComponent(redirectTo)}` +
-      `&scopes=${encodeURIComponent(scopes)}`;
+      `https://kauth.kakao.com/oauth/authorize` +
+      `?response_type=code` +
+      `&client_id=${encodeURIComponent(clientId)}` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&state=${state}` +
+      `&scope=${encodeURIComponent('profile_nickname')}`;
 
     const res = NextResponse.redirect(authorizeUrl, { status: 302 });
+    res.cookies.set({
+      name: 'ws_kakao_state',
+      value: state,
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 600,
+    });
     res.cookies.set({
       name: 'ws_oauth_target',
       value: target,
@@ -125,7 +122,6 @@ export async function GET(
       { status: 500 },
     );
   }
-  const state = randomBytes(16).toString('hex');
   const redirectUri = `${siteUrl}/auth/callback?provider=naver`;
   const naverUrl =
     `https://nid.naver.com/oauth2.0/authorize` +
