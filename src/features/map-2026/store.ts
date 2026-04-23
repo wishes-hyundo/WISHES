@@ -223,6 +223,14 @@ export interface Map2026Store {
   //   localStorage 에 저장되어 24h 동안 숨김.
   precondDismissedAt: number | null;
   dismissPrecond: () => void;
+
+  // L-mapfilter3 (2026-04-23): Gate 패턴 — 기본 상태는 카테고리 탭만 노출,
+  //   사용자가 카테고리 탭을 클릭하면 해당 카테고리 전용 필터 모달이 열림.
+  //   필터를 항상 띄워두던 이전 방식은 화면이 꽉 차고 "사용하기 너무 불편"
+  //   이라는 피드백 → on-demand 모달로 전환.
+  filterModalOpen: boolean;
+  openFilterModal: () => void;
+  closeFilterModal: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -445,5 +453,10 @@ export const useMap2026Store = create<Map2026Store>()(
       lsSet('map2026.precondDismissedAt', String(now));
       set({ precondDismissedAt: now });
     },
+
+    // L-mapfilter3: Gate 패턴 필터 모달
+    filterModalOpen: false,
+    openFilterModal: () => set({ filterModalOpen: true }),
+    closeFilterModal: () => set({ filterModalOpen: false }),
   }))
 );

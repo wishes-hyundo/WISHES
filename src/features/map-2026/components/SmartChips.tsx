@@ -1,131 +1,33 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SmartChips — Category-First 필터바 (2026-04 개편)
+// SmartChips — Gate 진입 영역 (L-mapfilter3 재설계)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🎯 레이아웃 (L-mapfilter2: 완전 재편)
-//   Row 1: CategoryTabs (주거·상가/사무실·토지·투자)                   ← 최상위, 가장 큼
-//   Row 2: 거래유형 (전체·매매·전세·월세·단기) + 사진있음 + 전체해제   ← 카테고리에 종속
-//   Row 3: 카테고리별 전용 칩 (조건부 렌더링)                          ← 카테고리에 종속
+// 🎯 구조 (2026-04-23)
+//   · 상단: CategoryTabs (주거·상가/사무실·토지·투자) 만 노출
+//   · 탭 클릭 → <FilterModal /> 오픈 (거래유형/Quick칩/상세 아코디언)
+//   · 이전 Row 2(거래유형)/Row 3(Quick칩) 및 좌측 FilterAccordion 은
+//     모두 모달 안으로 이관. 기본 화면을 최소화하여 "사용하기 너무
+//     불편" 하던 정보 과밀 문제 해소.
 //
-// L-mapfilter2 (2026-04-23): 사용자 피드백 반영.
-//   이전 구조는 [거래유형 → 카테고리탭 → 빠른선택칩] 순으로 "거래유형" 이
-//   카테고리보다 위에 있었다. 이는 부동산 정보 계층의 실제 구조와 어긋남.
-//   사용자는 "가장 큰 타이틀은 주거·상가/사무실·토지·투자 가 되어야 하고,
-//   그 외 나머지는 그 아래 카테고리에 맞춰 나와야 한다" 고 요구.
-//   또한 이전에 추가했던 "빠른 선택" 라벨도 제거 — 라벨 없이도 카테고리가
-//   최상위에 있으면 하단이 그 카테고리의 칩임이 자연스럽게 드러남.
-//
-// L-ux1 (2026-04-22): 이전 4-row 구조에서 "사진있음/전체해제" row 를 거래 row
-//   우측에 병합. 수직 공간 ~36px 확보.
-//
-// L-ux5-2 (2026-04-22): "전체" pseudo-chip 추가. 이전에는 filter.deals=[]
-//   (기본값) 이 "모든 거래 노출" 을 의미하지만 UI 상으로는 어떤 버튼도
-//   active 가 아니라 "아무것도 선택 안 된 상태" 로 보여, 사용자가 매매 탭이
-//   선택된 것으로 오해하고 카드에 섞여 나오는 월세 포맷(`3,000/97`)을
-//   "매매인데 왜 이래?" 로 읽던 UX 사고가 있었다. 이제 deals=[] 이면 "전체"
-//   가 명확히 active 표기되어 "모든 거래 혼재" 상태임이 드러난다. aria-pressed
-//   로 스크린리더 사용자에게도 상태를 전달.
+// 이전 구현 히스토리 (참고):
+//   L-mapfilter2 — 거래유형·Quick 칩을 카테고리 아래로 재배열 (여전히 always-on)
+//   L-mapfilter1 — 아코디언 12 섹션 커버리지 + 스크롤 컨테이너
+//   L-ux5-2     — "전체" pseudo-chip (deals=[] aria-pressed)
+//   L-ux1       — 사진있음/전체해제 우측 정렬 병합
+// 이 컴포넌트들이 참조하던 요소는 모두 FilterModal 로 옮겨갔으며,
+// ClearAll 등 상시 노출이 필요한 요소는 ActiveFilterPills 쪽에서 제공.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { Image as ImageIcon, X } from 'lucide-react';
-import { useMap2026Store, type DealType } from '../store';
-import { countActiveFilters } from '../lib/filterVisibility';
 import { CategoryTabs } from './CategoryTabs';
-import { ResidenceChips } from './ResidenceChips';
-import { CommercialChips } from './CommercialChips';
-import { LandChips } from './LandChips';
-import { InvestmentChips } from './InvestmentChips';
-
-const DEALS: DealType[] = ['매매', '전세', '월세', '단기'];
+import { FilterModal } from './FilterModal';
 
 export function SmartChips() {
-  const filter = useMap2026Store((s) => s.filter);
-  const toggleDeal = useMap2026Store((s) => s.toggleDeal);
-  const setFilter = useMap2026Store((s) => s.setFilter);
-
   return (
-    <div className="border-b border-neutral-100 bg-white">
-      {/* Row 1 — 카테고리 탭 (최상위 맥락, 가장 큼) */}
-      <CategoryTabs />
-
-      {/* Row 2 — 거래유형 + 사진있음/전체해제 (카테고리에 종속) */}
-      <div className="flex items-center gap-1 px-4 py-2">
-        <span className="pr-1 text-[11px] font-semibold text-neutral-500">거래</span>
-        {/* L-ux5-2: "전체" pseudo-chip — deals=[] 일 때 active */}
-        <button
-          onClick={() => setFilter({ deals: [] })}
-          aria-pressed={filter.deals.length === 0}
-          className={[
-            'rounded-full px-3 py-1 text-[12.5px] font-semibold transition',
-            filter.deals.length === 0
-              ? 'bg-neutral-900 text-white shadow-sm'
-              : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200',
-          ].join(' ')}
-        >
-          전체
-        </button>
-        {DEALS.map((d) => {
-          const active = filter.deals.includes(d);
-          return (
-            <button
-              key={d}
-              onClick={() => toggleDeal(d)}
-              aria-pressed={active}
-              className={[
-                'rounded-full px-3 py-1 text-[12.5px] font-semibold transition',
-                active
-                  ? 'bg-neutral-900 text-white shadow-sm'
-                  : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200',
-              ].join(' ')}
-            >
-              {d}
-            </button>
-          );
-        })}
-        {/* 사진있음 + 전체해제 — 우측 정렬 */}
-        <button
-          onClick={() => setFilter({ hasImages: !filter.hasImages })}
-          aria-pressed={filter.hasImages}
-          className={[
-            'ml-auto flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] transition',
-            filter.hasImages
-              ? 'bg-neutral-900 text-white'
-              : 'text-neutral-600 hover:bg-neutral-100',
-          ].join(' ')}
-        >
-          <ImageIcon className="size-3" />
-          <span className="hidden sm:inline">사진 있음</span>
-        </button>
-        <ClearAll />
+    <>
+      <div className="border-b border-neutral-100 bg-white">
+        <CategoryTabs />
       </div>
-
-      {/* Row 3 — 카테고리별 전용 칩 (조건부 렌더링).
-          L-mapfilter2: "빠른 선택" 라벨 제거 — 카테고리가 최상위에 있으면
-          하단 칩이 그 카테고리의 세부 옵션임이 자연스럽게 드러남. */}
-      <div className="px-4 py-1.5">
-        {filter.category === 'residence'     && <ResidenceChips />}
-        {filter.category === 'retail_office' && <CommercialChips />}
-        {filter.category === 'land'          && <LandChips />}
-        {filter.category === 'investment'    && <InvestmentChips />}
-      </div>
-    </div>
-  );
-}
-
-function ClearAll() {
-  const filter = useMap2026Store((s) => s.filter);
-  const clearFilter = useMap2026Store((s) => s.clearFilter);
-  const active = countActiveFilters(filter);
-
-  if (active === 0) return null;
-
-  return (
-    <button
-      onClick={clearFilter}
-      className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11.5px] font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
-    >
-      <X className="size-3" />
-      <span className="hidden sm:inline">전체 해제</span> ({active})
-    </button>
+      <FilterModal />
+    </>
   );
 }

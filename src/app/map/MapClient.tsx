@@ -34,7 +34,9 @@ import { SemanticZoomIndicator } from '@/features/map-2026/components/SemanticZo
 import { MiniCard } from '@/features/map-2026/components/MiniCard';
 import { SumBox } from '@/features/map-2026/components/SumBox';
 import { CopyToastOutlet } from '@/features/map-2026/components/CopyToast';
-import { FilterAccordion } from '@/features/map-2026/components/FilterAccordion';
+// L-mapfilter3 (2026-04-23): FilterAccordion 은 FilterModal 안에서 렌더된다.
+//   사이드바에서 항상 노출되던 기존 배치는 "사용하기 너무 불편" 피드백으로
+//   Gate 패턴 (카테고리 탭 클릭 → 모달) 으로 전환됨.
 
 import KakaoDeckOverlay, { type MapItem } from '@/components/map/KakaoDeckOverlay';
 
@@ -286,22 +288,14 @@ export default function MapClient() {
           </button>
         ) : (
           <div className="relative flex min-h-0 flex-col">
-            {/* L-mapfilter1 (2026-04-23): SumBox + FilterAccordion 을 단일 스크롤
-                영역으로 묶고 max-h 로 cap. 이전엔 두 박스가 각각 shrink-0 인데
-                아코디언에 overflow 가 없어, "모두 펼치기" 시 12 섹션이 세로로
-                쌓이며 flex-1 ListPanel 을 0 까지 밀어내 매물 카드·사진이 전부
-                사라지는 블로킹 버그가 있었다. 이제 패널 높이의 55% 를 넘으면
-                상단 박스 내부에서 자체 스크롤, 하단 ListPanel 은 최소 45% 의
-                높이를 항상 확보한다.
-                - L-v7-sumbox: SumBox 현재 조건 요약 (v7 §6)
-                - L-v7-p3    : FilterAccordion 12 추가필터 (v7 §6) */}
-            <div className="shrink-0 max-h-[55%] overflow-y-auto border-b border-neutral-100 bg-white">
-              <div className="p-2">
-                <SumBox compact />
-              </div>
-              <div className="p-2 pt-0">
-                <FilterAccordion />
-              </div>
+            {/* L-mapfilter3 (2026-04-23): FilterAccordion 을 FilterModal 안으로
+                이관한 뒤 사이드바는 SumBox (현재 조건 요약) 만 상단에 유지.
+                이전 max-h-[55%] 스크롤 컨테이너는 아코디언이 사라지면서
+                불필요 — SumBox 는 짧고 고정 크기이므로 일반 shrink-0 으로 충분.
+                ListPanel 은 남은 공간 전체를 사용해 매물 카드·사진이 최대한
+                많이 보이도록 한다. */}
+            <div className="shrink-0 border-b border-neutral-100 bg-white p-2">
+              <SumBox compact />
             </div>
             <div className="relative min-h-0 flex-1">
               <ListPanel />

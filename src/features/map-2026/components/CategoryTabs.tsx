@@ -46,6 +46,8 @@ export function CategoryTabs() {
   const setCategory = useMap2026Store((s) => s.setCategory);
   const listings = useMap2026Store((s) => s.listings);
   const map = useMap2026Store((s) => s.map);
+  // L-mapfilter3: 탭 클릭 시 FilterModal 을 열기. 같은 탭 재클릭 = 모달 재오픈.
+  const openFilterModal = useMap2026Store((s) => s.openFilterModal);
 
   // L-ux3e (2026-04-22): WAI-ARIA tab 패턴 — 키보드 사용자가
   //   ←/→ 로 탭 사이를 이동, Home/End 로 첫/끝 탭 점프하도록.
@@ -63,6 +65,7 @@ export function CategoryTabs() {
     if (target) {
       target.focus();
       setCategory(ORDER[next]);
+      openFilterModal();
       if (map) zoomPulse(map);
     }
   };
@@ -97,10 +100,13 @@ export function CategoryTabs() {
             title={active ? `${theme.label} ${count.toLocaleString('ko-KR')}개` : `${theme.label} 카테고리로 전환`}
             onKeyDown={(e) => handleTabKey(e, ORDER.indexOf(cat))}
             onClick={() => {
-              if (active) return;
-              setCategory(cat);
-              // Cinematic: 카테고리 전환 시 zoom pulse 로 컨텍스트 리셋 시각화
-              if (map) zoomPulse(map);
+              // L-mapfilter3: 탭 클릭 = 카테고리 전환 + 모달 오픈.
+              //   이미 활성 카테고리라도 클릭 시 모달 재오픈 (필터 재조정).
+              if (!active) {
+                setCategory(cat);
+                if (map) zoomPulse(map);
+              }
+              openFilterModal();
             }}
             className={[
               // L-mapfilter2: 최상위 타이틀로 승격 — 글씨 + 패딩 증가.
