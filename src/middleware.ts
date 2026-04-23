@@ -102,6 +102,16 @@ export function middleware(request: NextRequest) {
         const csrfCookie = request.cookies.get('ws_csrf')?.value || '';
         const csrfHeader = request.headers.get('x-csrf-token') || '';
         const sessionCookie = request.cookies.get('ws_session')?.value || '';
+        // L-sec-review-phase3 (2026-04-23) 해설:
+        //   cookieBacked 는 "이 클라이언트가 /api/auth/cookie-issue 를 통해
+        //   최소한 한 번이라도 쿠키 발급을 받았다" 를 의미하는 proxy 플래그.
+        //   ws_session(HttpOnly) 이 없어도 ws_csrf 만으로 true 가 되는 이유는,
+        //   공격자가 쿠키 스트리핑으로 ws_session 만 제거해서 CSRF 체크를
+        //   우회하려는 시도(cookie-only downgrade)를 차단하기 위함.
+        //   실제 통과 조건은 아래 csrfStatus==='pass' — cookie == header 동시 일치가
+        //   필요하므로 "쿠키 있음/헤더 없음" 조합은 반드시 hard-fail 된다.
+        //   Bearer-only legacy 클라이언트는 두 쿠키가 모두 없어 cookieBacked=false →
+        //   soft-check 경로로 흘러 기존 동작이 깨지지 않는다.
         const cookieBacked = Boolean(sessionCookie || csrfCookie);
         if (!csrfCookie && !csrfHeader) csrfStatus = 'missing';
         else if (csrfCookie && csrfHeader && csrfCookie === csrfHeader) csrfStatus = 'pass';
