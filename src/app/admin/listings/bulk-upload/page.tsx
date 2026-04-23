@@ -3,6 +3,8 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminSession } from '@/lib/useAdminSession';
+// L-sec147-hotfix (2026-04-23): adminFetch import 누락 복구 — Vercel 빌드 실패 원인.
+import { adminFetch } from '@/lib/adminFetch';
 
 interface BulkListing {
   title: string;
