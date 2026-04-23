@@ -2,6 +2,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
+import { isSelfHostedImage, filterSelfHosted } from '@/lib/image-policy';
 import { adminCorsHeaders } from '@/lib/cors';
 
 // L-sec10 (2026-04-22): 기존 하드코드 '*' 는 browser-based CSRF 창구였음.
@@ -206,6 +207,7 @@ export async function GET(request: NextRequest) {
         //   카드 renderer 가 listing.thumbnail_url 을 fallback 으로 사용.
         'thumbnail_url',
         'created_by', // L-v7-p3: scope=mine 디버그/검증용 echo
+        'source_site', // L-imgpolicy3: 크롤링 판정용 (응답 전 썸네일 스크럽)
         'listing_images(url)' // ⚡ id/is_thumbnail/sort_order 제거 — 이미지 페이로드 -75%
       ].join(',');
 
@@ -257,6 +259,16 @@ export async function GET(request: NextRequest) {
           // 🧹 null / 빈 배열 / 빈 문자열 / false 불리언 제거로 페이로드 20~30% 감소
           // (클라이언트는 접근 시 기본값 fallback 으로 처리)
           const slim = allData.map((row: any) => {
+            // L-imgpolicy3 (2026-04-23 p.m.): 저작권 보호 — 크롤링 매물의 외부 이미지 서버단 필터링
+            //   · source_site NOT NULL 이면 listing_images 를 자체 호스팅만 통과시키고
+            //   · thumbnail_url 도 자체 호스팅 아니면 스크럽
+            //   /search 페이지에서 크롤링 원본 이미지가 노출되지 않도록 차단.
+            if (row.source_site) {
+              row.listing_images = filterSelfHosted(row.listing_images || []);
+              if (row.thumbnail_url && !isSelfHostedImage(row.thumbnail_url)) {
+                row.thumbnail_url = null;
+              }
+            }
             const out: any = {};
             for (const k in row) {
               const v = row[k];

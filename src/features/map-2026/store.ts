@@ -172,6 +172,9 @@ export interface Map2026Store {
 
   listings: MapListing[];
   setListings: (l: MapListing[]) => void;
+  // L-catcount1 (2026-04-23 p.m.): 4개 카테고리별 카운트 (뷰포트 + 필터 기준)
+  categoryCounts: Record<PropertyCategory, number> | null;
+  setCategoryCounts: (c: Record<PropertyCategory, number> | null) => void;
   loading: boolean;
   setLoading: (b: boolean) => void;
 
@@ -371,6 +374,8 @@ export const useMap2026Store = create<Map2026Store>()(
 
     listings: [],
     setListings: (listings) => set({ listings }),
+    categoryCounts: null,
+    setCategoryCounts: (categoryCounts) => set({ categoryCounts }),
     loading: false,
     setLoading: (loading) => set({ loading }),
 

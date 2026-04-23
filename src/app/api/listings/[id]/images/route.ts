@@ -4,6 +4,7 @@ import { uploadToR2, deleteFromR2 } from '@/lib/r2';
 import { verifyAdminAuth } from '@/lib/adminAuth';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { adminCorsHeaders } from '@/lib/cors';
+import { filterSelfHosted } from '@/lib/image-policy';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -140,9 +141,11 @@ export async function GET(
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     // L-sec92 (2026-04-22): IDOR 차단 — 부모 listings.status='공개' 선검증. 없으면 404.
     //   (비공개/삭제 매물 사진 열거 방지)
+    // L-imgpolicy2 (2026-04-23 p.m.): 저작권 보호 — 크롤링 매물(source_site NOT NULL)
+    //   의 외부 원본 이미지는 서버단에서 필터링. 자체 호스팅(/api/images, supabase, r2) 만 통과.
     const { data: parent } = await supabase
       .from('listings')
-      .select('id')
+      .select('id, source_site')
       .eq('id', listingId)
       .eq('status', '공개')
       .maybeSingle();
@@ -154,7 +157,12 @@ export async function GET(
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) return NextResponse.json({ success: false, error: IS_DEV ? error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
-    return NextResponse.json({ success: true, data: data || [] }, { headers: cors });
+    const raw = data || [];
+    // 크롤링 매물이면 자체 호스팅 이미지만 통과. 자체 매물이면 전부 통과.
+    const safe = (parent as { source_site?: string | null }).source_site
+      ? filterSelfHosted(raw)
+      : raw;
+    return NextResponse.json({ success: true, data: safe }, { headers: cors });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
   }

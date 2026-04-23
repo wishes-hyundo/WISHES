@@ -40,6 +40,7 @@ export function ActiveFilterPills() {
   const toggleRoom = useMap2026Store((s) => s.toggleRoom);
   const toggleFeature = useMap2026Store((s) => s.toggleFeature);
   const togglePurpose = useMap2026Store((s) => s.togglePurpose);
+  const clearFilter = useMap2026Store((s) => s.clearFilter);
 
   const pills: Pill[] = [];
 
@@ -141,21 +142,32 @@ export function ActiveFilterPills() {
   // 현재 카테고리 테마 색상으로 pill 영역 테마 통일
   const theme = CATEGORY_THEME[filter.category];
 
+  // L-pill1 (2026-04-23 p.m.): 네이버 스타일로 칩 강화
+  //   · 배경 = 카테고리 accentLight 으로 영역 구분
+  //   · 칩 자체 = 카테고리 accent 필 + 흰 글자 + ✕
+  //   · 우측 끝에 "초기화 (N)" 링크 — 한번에 전체 필터 해제
   return (
-    <div className={`flex flex-wrap items-center gap-1.5 border-b border-neutral-100 ${theme.accentLight}/50 px-4 py-2`}>
+    <div className={`flex flex-wrap items-center gap-1.5 border-b border-neutral-100 ${theme.accentLight}/60 px-4 py-2`}>
       <span className={`text-[11px] font-semibold uppercase tracking-wider ${theme.text}`}>
-        {theme.emoji} {theme.label} · 적용 중
+        필터 {pills.length}
       </span>
       {pills.map((p) => (
         <button
           key={p.key}
           onClick={p.clear}
-          className="group flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[12px] font-medium text-neutral-800 ring-1 ring-neutral-200 hover:bg-neutral-50 hover:ring-neutral-400"
+          aria-label={`${p.label} 필터 해제`}
+          className={`group flex items-center gap-1 rounded-full ${theme.accent} px-2.5 py-1 text-[12px] font-semibold text-white shadow-sm transition hover:opacity-90`}
         >
           {p.label}
-          <X className="size-3 text-neutral-400 group-hover:text-neutral-700" />
+          <X className="size-3 opacity-80 group-hover:opacity-100" />
         </button>
       ))}
+      <button
+        onClick={clearFilter}
+        className="ml-auto text-[11.5px] font-medium text-neutral-500 underline underline-offset-2 hover:text-neutral-800"
+      >
+        전체 해제
+      </button>
     </div>
   );
 }

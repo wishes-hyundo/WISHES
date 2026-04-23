@@ -69,6 +69,7 @@ export function useViewport() {
   const bbox = useMap2026Store((s) => s.bbox);
   const filter = useMap2026Store((s) => s.filter);
   const setListings = useMap2026Store((s) => s.setListings);
+  const setCategoryCounts = useMap2026Store((s) => s.setCategoryCounts);
   const setLoading = useMap2026Store((s) => s.setLoading);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -105,7 +106,11 @@ export function useViewport() {
         }
         if (!res.ok) throw new Error(`viewport ${res.status}`);
         const json = await res.json();
-        if (!ctrl.signal.aborted) setListings(json.listings ?? []);
+        if (!ctrl.signal.aborted) {
+          setListings(json.listings ?? []);
+          // L-catcount1: 서버가 4개 카테고리 count 도 함께 반환 (옵셔널)
+          setCategoryCounts(json.counts ?? null);
+        }
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           console.error('[useViewport]', err);
@@ -118,5 +123,5 @@ export function useViewport() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [bbox, filter, setListings, setLoading]);
+  }, [bbox, filter, setListings, setCategoryCounts, setLoading]);
 }

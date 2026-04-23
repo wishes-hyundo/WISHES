@@ -70,9 +70,9 @@ export function CategoryTabs() {
     }
   };
 
-  // L-ux5-1: 서버가 이미 filter.category 로 필터링한 listings 를 돌려주므로
-  //   활성 탭의 진짜 카운트 = listings.length. 비활성 탭의 카운트는 알 수 없음
-  //   (서버 왕복 없이는) → dim dot 으로 유지.
+  // L-ux5-1: 활성 탭의 진짜 카운트 = listings.length (서버 필터 적용됨)
+  // L-catcount1: 비활성 탭의 카운트는 서버가 추가로 보내주는 counts 객체에서 읽음
+  const categoryCounts = useMap2026Store((s) => s.categoryCounts);
   const activeCount = listings.length;
 
   return (
@@ -85,10 +85,10 @@ export function CategoryTabs() {
         const theme = CATEGORY_THEME[cat];
         const Icon = CATEGORY_ICON[cat];
         const active = filter.category === cat;
-        // L-ux3/L-ux5-1: 활성 탭만 실제 숫자 (서버 listings.length).
-        //   비활성 탭은 dim dot (서버 왕복 없이는 알 수 없음).
-        const count = active ? activeCount : 0;
-        const showCount = active;
+        // L-catcount1: 활성 = listings.length (서버 필터 적용된 정확한 수),
+        // 비활성 = categoryCounts[cat] (없으면 null 로 dim dot 유지)
+        const count = active ? activeCount : (categoryCounts?.[cat] ?? null);
+        const showCount = active || count != null;
 
         return (
           <button
@@ -119,11 +119,11 @@ export function CategoryTabs() {
           >
             <Icon className="size-[17px]" strokeWidth={2.25} aria-hidden="true" />
             <span>{theme.label}</span>
-            {showCount ? (
+            {showCount && count != null ? (
               <span
                 className={[
                   'ml-1 rounded-full px-1.5 py-0.5 text-[10.5px] font-bold tabular-nums transition-colors',
-                  `${theme.accent} text-white`,
+                  active ? `${theme.accent} text-white` : 'bg-neutral-100 text-neutral-600',
                 ].join(' ')}
               >
                 {count.toLocaleString('ko-KR')}

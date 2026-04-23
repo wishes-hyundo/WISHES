@@ -457,8 +457,42 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    // L-catcount1 (2026-04-23 p.m.): 4개 카테고리별 count 를 같이 돌려준다.
+    //   CategoryTabs 가 비활성 탭 숫자 배지를 노출 ("주거 3,487 / 상가 204") — 어느 탭에
+    //   매물이 많은지 한눈에 보이게. bbox + 가격/면적/거래방식 필터는 상속하고
+    //   카테고리(type) 필터만 제외한 base 로 Promise.all 4-parallel count.
+    async function countByCategory(cat: 'residence' | 'retail_office' | 'land' | 'investment'): Promise<number> {
+      let cq = supabase
+        .from('mv_map_listings')
+        .select('*', { count: 'exact', head: true })
+        .gte('lat', south)
+        .lte('lat', north)
+        .gte('lng', west)
+        .lte('lng', east)
+        .eq('status', '공개');
+      if (deals && deals.length) cq = cq.in('deal', deals);
+      if (minArea != null) cq = cq.gte('area_m2', minArea);
+      if (maxArea != null) cq = cq.lte('area_m2', maxArea);
+      const catFilter = categoryToTypeFilter(cat, cat === 'retail_office' ? purposes : null);
+      if (catFilter) cq = cq.or(catFilter);
+      const { count: cnt } = await cq;
+      return cnt ?? 0;
+    }
+    let counts: { residence: number; retail_office: number; land: number; investment: number } | undefined;
+    try {
+      const [r_cnt, o_cnt, l_cnt, i_cnt] = await Promise.all([
+        countByCategory('residence'),
+        countByCategory('retail_office'),
+        countByCategory('land'),
+        countByCategory('investment'),
+      ]);
+      counts = { residence: r_cnt, retail_office: o_cnt, land: l_cnt, investment: i_cnt };
+    } catch {
+      /* count 는 optional — 실패해도 listings 응답엔 영향 없음 */
+    }
+
     return NextResponse.json(
-      { listings },
+      { listings, counts },
       {
         headers: {
           'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
