@@ -5,13 +5,20 @@ import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 // L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관 — loose variants.
 import { nameLooseSchema, phoneLooseSchema } from '@/lib/schemas';
 
-// L-sec38 (2026-04-22): profile PUT 입력 검증 추가.
-//   authenticated 지만 본인 행을 거대 payload 로 채워 DB 스토리지 비용 폭증시킬 수 있음.
+// L-sec38 (2026-04-22): profile PUT 입력 검증.
+// L-agent-profile (2026-04-24): 중개사 전용 필드 추가 — office_name / office_phone /
+//   office_address / registration_no / career_years / avatar_url.
 const ProfileSchema = z.object({
   name: nameLooseSchema.optional(),
   phone: phoneLooseSchema.optional(),
   preferred_areas: z.array(z.string().max(60)).max(50).optional(),
   preferred_types: z.array(z.string().max(40)).max(30).optional(),
+  avatar_url: z.string().url().max(500).optional().nullable(),
+  office_name: z.string().max(120).optional().nullable(),
+  office_phone: z.string().max(30).optional().nullable(),
+  office_address: z.string().max(200).optional().nullable(),
+  registration_no: z.string().max(60).optional().nullable(),
+  career_years: z.number().int().min(0).max(60).optional().nullable(),
 });
 
 function errorBody(msg: string, detail?: unknown) {
@@ -20,7 +27,6 @@ function errorBody(msg: string, detail?: unknown) {
 }
 
 export async function GET(request: NextRequest) {
-  // L-sec82 (2026-04-22): defense-in-depth. 프로필 변경 잠음 → 60/5min.
   const _ip = getClientIp(request);
   const _rl = checkRateLimit({ key: `profile:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
   if (!_rl.ok) {
@@ -42,7 +48,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  // L-sec82 (2026-04-22): defense-in-depth.
   const _ip = getClientIp(request);
   const _rl = checkRateLimit({ key: `profile:ip:${_ip}`, limit: 60, windowMs: 5 * 60_000 });
   if (!_rl.ok) {
@@ -63,16 +68,26 @@ export async function PUT(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: '입력 검증 실패', issue: parsed.error.errors[0]?.message }, { status: 400 });
   }
-  const { name, phone, preferred_areas, preferred_types } = parsed.data;
-  const { data, error } = await supabase.from('profiles').upsert({
+  const {
+    name, phone, preferred_areas, preferred_types,
+    avatar_url, office_name, office_phone, office_address, registration_no, career_years,
+  } = parsed.data;
+  const upsert: Record<string, any> = {
     id: user.id,
-    name: name || '',
-    phone: phone || '',
-    preferred_areas: preferred_areas || [],
-    preferred_types: preferred_types || [],
+    name: name ?? '',
+    phone: phone ?? '',
+    preferred_areas: preferred_areas ?? [],
+    preferred_types: preferred_types ?? [],
     profile_completed: true,
     updated_at: new Date().toISOString(),
-  }, { onConflict: 'id' }).select().single();
+  };
+  if (avatar_url !== undefined) upsert.avatar_url = avatar_url;
+  if (office_name !== undefined) upsert.office_name = office_name;
+  if (office_phone !== undefined) upsert.office_phone = office_phone;
+  if (office_address !== undefined) upsert.office_address = office_address;
+  if (registration_no !== undefined) upsert.registration_no = registration_no;
+  if (career_years !== undefined) upsert.career_years = career_years;
+  const { data, error } = await supabase.from('profiles').upsert(upsert, { onConflict: 'id' }).select().single();
   if (error) return NextResponse.json(errorBody('profile 저장 실패', error.message), { status: 500 });
   return NextResponse.json(data);
 }

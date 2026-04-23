@@ -43,7 +43,16 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   //   '담당자에게 연결' 단일 버튼 + AgentContactModal 구조로 통합.
   const [agentModalOpen, setAgentModalOpen] = useState(false);
   // 담당 중개사 프로필 (listing.created_by 로 /api/agent/[id] 조회). 없으면 폴백.
-  const [agentProfile, setAgentProfile] = useState<{ name: string | null; avatar_url: string | null; phone: string | null } | null>(null);
+  const [agentProfile, setAgentProfile] = useState<{
+    name: string | null;
+    avatar_url: string | null;
+    phone: string | null;
+    office_name: string | null;
+    office_phone: string | null;
+    office_address: string | null;
+    registration_no: string | null;
+    career_years: number | null;
+  } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -96,7 +105,16 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           const r = await fetch(`/api/agent/${createdBy}`);
           if (r.ok) {
             const json = await r.json();
-            setAgentProfile({ name: json.name || null, avatar_url: json.avatar_url || null, phone: json.phone || null });
+            setAgentProfile({
+              name: json.name || null,
+              avatar_url: json.avatar_url || null,
+              phone: json.phone || null,
+              office_name: json.office_name || null,
+              office_phone: json.office_phone || null,
+              office_address: json.office_address || null,
+              registration_no: json.registration_no || null,
+              career_years: (typeof json.career_years === 'number' ? json.career_years : null),
+            });
           }
         } catch { /* 폴백으로 진행 */ }
       }
@@ -626,13 +644,18 @@ function buildAgentInfo(
     ...OFFICE,
   };
 
-  // 1순위 — profiles 테이블에서 가져온 실제 중개사 프로필
-  if (agentProfile && (agentProfile.name || agentProfile.avatar_url || agentProfile.phone)) {
+  // 1순위 — profiles 테이블에서 가져온 실제 중개사 프로필 (L-agent-profile)
+  if (agentProfile && (agentProfile.name || agentProfile.avatar_url || agentProfile.phone || agentProfile.office_name)) {
     return {
       ...FALLBACK,
       name: agentProfile.name || FALLBACK.name,
       phone: agentProfile.phone || FALLBACK.phone,
       avatarUrl: agentProfile.avatar_url || null,
+      officeName: agentProfile.office_name || FALLBACK.officeName,
+      officePhone: agentProfile.office_phone || FALLBACK.officePhone,
+      officeAddress: agentProfile.office_address || FALLBACK.officeAddress,
+      registrationNo: agentProfile.registration_no || null,
+      careerYears: agentProfile.career_years ?? null,
     };
   }
 

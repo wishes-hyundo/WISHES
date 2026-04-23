@@ -168,6 +168,11 @@ export default function EditListingPage() {
   // ── 자동저장 & 변경 하이라이트 ──
   const [lastAutoSave, setLastAutoSave] = useState<string | null>(null);
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  // L-verify-touch (2026-04-24): 허위매물 4단 검증 — 최근 현장확인 일시.
+  //   버튼 한 번 클릭으로 PUT /api/admin/listings { last_verified_at: now() }.
+  //   originalData.last_verified_at 을 초기값으로, 로컬 state 로도 즉시 반영.
+  const [lastVerifiedAt, setLastVerifiedAt] = useState<string | null>(null);
+  const [touchingVerified, setTouchingVerified] = useState(false);
 
   const isFieldChanged = (field: string): boolean => {
     if (!originalData) return false;
@@ -215,6 +220,7 @@ export default function EditListingPage() {
 
         const d = json.data;
         setOriginalData(d);
+        setLastVerifiedAt(d.last_verified_at || null);
 
         // API 필드 → formData 매핑
         setFormData({
@@ -482,6 +488,28 @@ export default function EditListingPage() {
   }, [formData, originalData, listingId, isSubmitting, sessionToken]);
 
   // ── 수정 제출 ──
+  // L-verify-touch (2026-04-24): 현장확인 버튼 핸들러
+  const touchVerified = async () => {
+    if (!listingId || !sessionToken) return;
+    setTouchingVerified(true);
+    try {
+      const now = new Date().toISOString();
+      const res = await adminFetch('/api/admin/listings', {
+        method: 'PUT',
+        headers: { ...authHeader(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: listingId, last_verified_at: now }),
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      setLastVerifiedAt(now);
+      setSubmitMessage({ type: 'success', text: '현장확인이 갱신되었습니다.' });
+      setTimeout(() => setSubmitMessage({ type: '', text: '' }), 2500);
+    } catch (e: any) {
+      setSubmitMessage({ type: 'error', text: '현장확인 갱신 실패: ' + (e?.message || '알 수 없는 오류') });
+    } finally {
+      setTouchingVerified(false);
+    }
+  };
+
   const handleSubmit = async () => {
     // 필수 필드 검증
     if (!formData.title || !formData.address || !formData.area) {
@@ -680,6 +708,27 @@ export default function EditListingPage() {
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* L-verify-touch: 허위매물 4단 검증 배지 + 현장확인 버튼 */}
+      <div className="max-w-4xl mx-auto px-4 pt-4">
+        <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl bg-green-50 border border-green-100">
+          <div className="flex items-start gap-2.5 min-w-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-green-600 flex-shrink-0 mt-0.5"><path d="M12 2 l8 4 v6 c0 5 -3.5 8.5 -8 10 c-4.5 -1.5 -8 -5 -8 -10 v-6 z"/><path d="M9 12 l2 2 l4 -4"/></svg>
+            <div className="min-w-0">
+              <div className="text-[13px] font-semibold text-green-800">허위매물 차단 4단 검증</div>
+              <div className="text-[11px] text-green-700 mt-0.5">
+                {lastVerifiedAt
+                  ? <>최근 현장확인 <span className="font-semibold">{new Date(lastVerifiedAt).toLocaleString('ko-KR')}</span></>
+                  : <>아직 현장확인 기록이 없습니다</>}
+              </div>
+            </div>
+          </div>
+          <button type="button" onClick={touchVerified} disabled={touchingVerified}
+            className="px-3 py-2 text-[12px] font-semibold rounded-lg bg-green-600 text-white hover:brightness-110 active:scale-[0.98] disabled:opacity-50 flex-shrink-0">
+            {touchingVerified ? '기록 중...' : '현장확인 완료 ✓'}
+          </button>
         </div>
       </div>
 

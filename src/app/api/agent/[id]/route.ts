@@ -1,7 +1,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // GET /api/agent/[id]
 //   공개 endpoint — 지정된 UID 가 중개사/관리자 역할인 경우에만
-//   안전 필드(name, avatar_url, phone) 를 반환한다.
+//   안전 필드(name, avatar_url, phone, office_*, registration_no, career_years)를 반환.
 //   AgentContactModal 이 buildAgentInfo 에서 사용.
 //
 // 보안:
@@ -21,7 +21,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // 레이트 리밋 (UID 열거 방어)
     const ip = getClientIp(request);
     const rl = checkRateLimit({ key: `agent:ip:${ip}`, limit: 200, windowMs: 5 * 60_000 });
     if (!rl.ok) {
@@ -32,17 +31,14 @@ export async function GET(
     }
 
     const { id } = await params;
-    // UUID 형식 검증 (열거 방어 + 쿼리 낭비 방지)
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
       return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
     }
 
     const supabase = createServerClient();
-
-    // 대상 사용자의 role 확인 — role 컬럼이 있다면 그것으로, 없으면 user_metadata 로 폴백
     const { data: profile } = await supabase
       .from('profiles')
-      .select('id, name, avatar_url, phone, role')
+      .select('id, name, avatar_url, phone, role, office_name, office_phone, office_address, registration_no, career_years')
       .eq('id', id)
       .maybeSingle();
 
@@ -53,14 +49,18 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // 안전 필드만 반환
     return NextResponse.json({
       id: profile.id,
       name: profile.name || null,
       avatar_url: profile.avatar_url || null,
       phone: profile.phone || null,
+      office_name: (profile as any).office_name || null,
+      office_phone: (profile as any).office_phone || null,
+      office_address: (profile as any).office_address || null,
+      registration_no: (profile as any).registration_no || null,
+      career_years: (profile as any).career_years ?? null,
     });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: 'Server error' }, { status: 500 });
   }
 }

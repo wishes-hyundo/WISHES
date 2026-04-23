@@ -203,6 +203,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin', label: '대시보드', icon: '📊' },
     { href: '/admin?tab=contacts', label: '상담 관리', icon: '📞' },
     { href: '/admin/dedup', label: '중복 정리', icon: '🧹' },
+    // L-agent-profile (2026-04-24): 중개사 프로필 편집 — AgentContactModal 반영
+    { href: '/admin/profile', label: '내 프로필', icon: '👤' },
   ];
 
   const isNewListing = pathname === '/admin/listings/new';
@@ -222,7 +224,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
     } catch (e) {}
-    window.location.href = '/command';
+    window.location.href = '/admin/command-center.html';
   };
 
   const handleLogout = () => {
