@@ -17,15 +17,41 @@ function AuthCallbackContent() {
   // L-sec51 (2026-04-22): sessionStorage 값이 XSS/확장프로그램에 의해
   //   //evil.com 등으로 오염될 경우 router.replace() 가 크로스오리진 네비게이션을
   //   따라갈 여지. same-origin path 화이트리스트로 방어.
+  //
+  // 2026-04-23: admin-auth.html 소셜 로그인 흐름에서 sessionStorage 유실 시
+  // /api/auth/oauth-start 가 세팅한 ws_oauth_target 쿠키로 fallback.
+  const _isSafePath = (raw: string): string | null => {
+    const v = String(raw || '').trim();
+    if (v.length === 0 || v.length > 512) return null;
+    if (!v.startsWith('/')) return null;
+    if (v.startsWith('//')) return null;
+    if (v.includes('\\')) return null;
+    return v;
+  };
+  const _readTargetCookie = (): string | null => {
+    if (typeof document === 'undefined') return null;
+    const parts = (document.cookie || '').split(';');
+    for (const p of parts) {
+      const [rawK, ...rest] = p.trim().split('=');
+      if (rawK === 'ws_oauth_target') {
+        try { return decodeURIComponent(rest.join('=')); } catch { return null; }
+      }
+    }
+    return null;
+  };
   const getRedirectPath = () => {
     if (typeof window !== 'undefined') {
       const saved = sessionStorage.getItem('wishes-auth-redirect');
       if (saved) {
         sessionStorage.removeItem('wishes-auth-redirect');
-        const v = String(saved || '').trim();
-        if (v.length > 0 && v.length <= 512 && v.startsWith('/') && !v.startsWith('//') && !v.includes('\\')) {
-          return v;
-        }
+        const v = _isSafePath(saved);
+        if (v) return v;
+      }
+      const cookieVal = _readTargetCookie();
+      if (cookieVal) {
+        try { document.cookie = 'ws_oauth_target=; Max-Age=0; Path=/; SameSite=Lax'; } catch {}
+        const v = _isSafePath(cookieVal);
+        if (v) return v;
       }
     }
     return '/';
@@ -209,32 +235,4 @@ function AuthCallbackContent() {
         {status === 'error' && (
           <>
             <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <p className="text-lg font-medium text-gray-700">로그인 실패</p>
-            <p className="text-sm text-gray-500">{errorMessage}</p>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-export default function AuthCallbackClient() {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-wishes-bg">
-          <div className="text-center space-y-4 p-8">
-            <div className="w-12 h-12 mx-auto border-4 border-wishes-secondary border-t-transparent rounded-full animate-spin" />
-            <p className="text-lg font-medium text-gray-700">로그인 처리 중...</p>
-          </div>
-        </div>
-      }
-    >
-      <AuthCallbackContent />
-    </Suspense>
-  );
-}
+              <svg className="w-6 h-6 

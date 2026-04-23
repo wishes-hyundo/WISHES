@@ -88,6 +88,18 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg
 .btn-verify-phone{padding:14px 16px;background:var(--primary);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .3s}
 .btn-verify-phone:hover{background:var(--primary-light)}
 .btn-verify-phone:disabled{opacity:.5;cursor:not-allowed}
+/* Social (2026-04-23) */
+.social-divider{display:flex;align-items:center;gap:10px;margin:18px 0 14px}
+.social-divider .line{flex:1;height:1px;background:rgba(122,154,122,.25)}
+.social-divider .label{font-size:11px;color:var(--text-dim);letter-spacing:1px;text-transform:uppercase}
+.btn-social{width:100%;padding:13px;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .25s;margin-bottom:10px}
+.btn-social:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.btn-social:active{transform:translateY(0)}
+.btn-social:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-kakao{background:#FEE500;color:#191919}
+.btn-naver{background:#03C75A;color:#fff}
+.forgot-link{display:block;text-align:right;margin-top:10px;font-size:12px;color:var(--text-dim);text-decoration:none}
+.forgot-link:hover{color:var(--primary-light)}
 /* Terms */
 .terms-box{max-height:120px;overflow-y:auto;background:rgba(30,46,30,.3);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11px;color:var(--text-dim);line-height:1.6;margin-bottom:16px}
 .terms-box::-webkit-scrollbar{width:4px}
@@ -140,7 +152,25 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg
         <span class="btn-text">로그인</span>
         <div class="spinner"></div>
       </button>
-      <div class="auth-link">
+      <!-- 비밀번호 찾기 (2026-04-23) -->
+      <a href="/forgot-password" class="forgot-link">비밀번호를 잊으셨나요?</a>
+      <!-- 소셜 로그인 (2026-04-23) -->
+      <div class="social-divider">
+        <span class="line"></span><span class="label">간편 로그인</span><span class="line"></span>
+      </div>
+      <button type="button" class="btn-social btn-kakao" onclick="handleSocialLogin('kakao')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.722 1.8 5.108 4.509 6.458l-.96 3.56c-.076.282.242.503.487.34l4.233-2.834c.56.068 1.136.104 1.731.104 5.523 0 10-3.463 10-7.628S17.523 3 12 3z"/>
+        </svg>
+        카카오로 시작하기
+      </button>
+      <button type="button" class="btn-social btn-naver" onclick="handleSocialLogin('naver')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z"/>
+        </svg>
+        네이버로 시작하기
+      </button>
+      <div class="auth-link" style="margin-top:16px">
         계정이 없으신가요? <a href="#" onclick="switchTab('register');return false">회원가입</a>
       </div>
     </div>
@@ -206,7 +236,23 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:var(--bg
         <span class="btn-text">가입 신청</span>
         <div class="spinner"></div>
       </button>
-      <div class="auth-link">
+      <!-- 소셜 가입 (2026-04-23) -->
+      <div class="social-divider">
+        <span class="line"></span><span class="label">간편 가입</span><span class="line"></span>
+      </div>
+      <button type="button" class="btn-social btn-kakao" onclick="handleSocialLogin('kakao')">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 3C6.477 3 2 6.463 2 10.691c0 2.722 1.8 5.108 4.509 6.458l-.96 3.56c-.076.282.242.503.487.34l4.233-2.834c.56.068 1.136.104 1.731.104 5.523 0 10-3.463 10-7.628S17.523 3 12 3z"/>
+        </svg>
+        카카오로 간편가입
+      </button>
+      <button type="button" class="btn-social btn-naver" onclick="handleSocialLogin('naver')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z"/>
+        </svg>
+        네이버로 간편가입
+      </button>
+      <div class="auth-link" style="margin-top:16px">
         이미 계정이 있으신가요? <a href="#" onclick="switchTab('login');return false">로그인</a>
       </div>
     </div>
@@ -384,89 +430,4 @@ window.handleRegister = function(){
   // Validations
   if(!name){showError('이름을 입력하세요.');return}
   if(name.length<2){showError('이름은 2자 이상 입력하세요.');return}
-  if(!email){showError('이메일을 입력하세요.');return}
-  if(!validateEmail(email)){showError('올바른 이메일 형식을 입력하세요.');return}
-  if(!password){showError('비밀번호를 입력하세요.');return}
-  if(!validatePassword(password)){showError('비밀번호는 8자 이상, 영문+숫자+특수문자를 포함해야 합니다.');return}
-  if(password!==passwordConfirm){showError('비밀번호가 일치하지 않습니다.');return}
-  if(!phone){showError('연락처를 입력하세요.');return}
-  if(!validatePhone(phone)){showError('올바른 연락처 형식을 입력하세요. (010-0000-0000)');return}
-  if(!company){showError('소속/회사명을 입력하세요.');return}
-  if(!role){showError('직책을 선택하세요.');return}
-  if(!agree){showError('이용약관에 동의해주세요.');return}
-
-  var btn=document.getElementById('btnRegister');
-  btn.classList.add('loading');btn.disabled=true;
-
-  var payload={
-    name:name,email:email,password:password,
-    phone:phone,company:company,role:role,reason:reason,
-    fingerprint:getDeviceFingerprint(),
-    timestamp:Date.now(),
-    userAgent:navigator.userAgent
-  };
-
-  fetch(API_BASE+'/register',{
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(payload)
-  })
-  .then(function(r){return r.json()})
-  .then(function(data){
-    btn.classList.remove('loading');btn.disabled=false;
-    if(data.success){
-      _regAttempts++;
-      showPending();
-    } else {
-      showError(data.message||'가입에 실패했습니다.');
-    }
-  })
-  .catch(function(err){
-    btn.classList.remove('loading');btn.disabled=false;
-    showError('서버 연결에 실패했습니다.');
-  });
-};
-
-// ===== PENDING SCREEN =====
-function showPending(){
-  document.getElementById('loginForm').classList.remove('active');
-  document.getElementById('registerForm').classList.remove('active');
-  document.getElementById('authTabs').style.display='none';
-  document.getElementById('pendingScreen').style.display='block';
-  hideMessages();
-}
-
-// ===== SESSION CHECK ON LOAD =====
-function checkExistingSession(){
-  var token=sessionStorage.getItem('ws_token');
-  if(!token)return;
-  var loginTime=parseInt(sessionStorage.getItem('ws_login_time')||'0');
-  if(Date.now()-loginTime>1800000){sessionStorage.clear();return}// 30min expired
-  // Verify token
-  fetch(API_BASE+'/verify',{
-    method:'POST',
-    headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}
-  })
-  .then(function(r){return r.json()})
-  .then(function(data){
-    if(data.valid){
-      if(data.user.role==='superadmin')window.location.href='/admin/command-center.html';
-      else if(data.user.status==='approved')window.location.href='/admin/';
-    } else {sessionStorage.clear()}
-  })
-  .catch(function(){});
-}
-
-// Enter key support
-document.addEventListener('keydown',function(e){
-  if(e.key==='Enter'){
-    if(document.getElementById('loginForm').classList.contains('active'))handleLogin();
-    else if(document.getElementById('registerForm').classList.contains('active'))handleRegister();
-  }
-});
-
-checkExistingSession();
-})();
-</script>
-</body>
-</html>
+  if(!email){showErro
