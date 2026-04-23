@@ -21,36 +21,6 @@ import type { NextRequest } from 'next/server';
 import { createServerClient } from './supabase';
 import { timingSafeEqualStr } from './timingSafe';
 
-
-// ─── L-sec166 (2026-04-23): Supabase 요청 timeout + retry helper ───
-//   기존엔 Promise.race 로 단순 3초 timeout 만 걸어서 DB 일시적 지연이 있으면
-//   바로 false → 401 → agent bounce. 1회 exponential backoff 로 흡수.
-async function withRetry<T>(
-  fn: () => Promise<T>,
-  timeoutMs: number,
-  retries: number = 1,
-  baseBackoffMs: number = 400,
-  timeoutMsg: string = 'timeout',
-): Promise<T> {
-  let lastErr: unknown;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      return await Promise.race([
-        fn(),
-        new Promise<T>((_, reject) =>
-          setTimeout(() => reject(new Error(timeoutMsg)), timeoutMs),
-        ),
-      ]);
-    } catch (err) {
-      lastErr = err;
-      if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, baseBackoffMs * Math.pow(2, attempt)));
-      }
-    }
-  }
-  throw lastErr;
-}
-
 // ── 환경변수 기반 시크릿 ───────────────────────────────────────────
 // WISHES_ADMIN_MASTER_PASSWORD 는 모든 환경(prod/preview/local dev) 공통 필수.
 // 미설정 시 즉시 무효화 값으로 fallback → admin 경로 자동 차단.
@@ -174,14 +144,12 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
     const supabase = createServerClient();
     if (!supabase) return false;
 
-    const { data, error } = await withRetry(
-      () => supabase.auth.getUser(token),
-      3000,
-      1,
-    ).catch((e): { data: { user: null }; error: Error } => ({
-      data: { user: null },
-      error: e instanceof Error ? e : new Error('timeout'),
-    })) as { data: { user: any }; error: any };
+    const { data, error } = await Promise.race([
+      supabase.auth.getUser(token),
+      new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      ),
+    ]) as { data: { user: any }; error: any };
 
     if (error || !data?.user) return false;
 
@@ -191,18 +159,17 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
     if (SUPERADMIN_EMAILS.includes(email)) return true;
 
     // admin_users 테이블에서 role/status 조회
-    const { data: adminUser } = await withRetry(
-      () => supabase
+    const { data: adminUser } = await Promise.race([
+      supabase
         .from('admin_users')
         .select('role, status')
         .or(`id.eq.${data.user.id},email.eq.${email}`)
         .limit(1)
         .maybeSingle(),
-      3000,
-      1,
-      400,
-      'db_timeout',
-    ).catch((): { data: null } => ({ data: null })) as { data: { role?: string; status?: string } | null };
+      new Promise<{ data: null }>((_, reject) =>
+        setTimeout(() => reject(new Error('db_timeout')), 3000)
+      ),
+    ]) as { data: { role?: string; status?: string } | null };
 
     // L-sec59 (2026-04-22): CRITICAL privilege escalation fix.
     //   user_metadata 는 supabase.auth.updateUser({data:...}) 로 사용자 본인이
@@ -288,14 +255,12 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
     const supabase = createServerClient();
     if (!supabase) return { ok: false };
 
-    const { data, error } = await withRetry(
-      () => supabase.auth.getUser(token),
-      3000,
-      1,
-    ).catch((e): { data: { user: null }; error: Error } => ({
-      data: { user: null },
-      error: e instanceof Error ? e : new Error('timeout'),
-    })) as { data: { user: any }; error: any };
+    const { data, error } = await Promise.race([
+      supabase.auth.getUser(token),
+      new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      ),
+    ]) as { data: { user: any }; error: any };
 
     if (error || !data?.user) return { ok: false };
 
@@ -306,18 +271,17 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
       return { ok: true, uid, email, role: 'superadmin' };
     }
 
-    const { data: adminUser } = await withRetry(
-      () => supabase
+    const { data: adminUser } = await Promise.race([
+      supabase
         .from('admin_users')
         .select('role, status')
         .or(`id.eq.${uid},email.eq.${email}`)
         .limit(1)
         .maybeSingle(),
-      3000,
-      1,
-      400,
-      'db_timeout',
-    ).catch((): { data: null } => ({ data: null })) as { data: { role?: string; status?: string } | null };
+      new Promise<{ data: null }>((_, reject) =>
+        setTimeout(() => reject(new Error('db_timeout')), 3000)
+      ),
+    ]) as { data: { role?: string; status?: string } | null };
 
     const role = adminUser?.role || '';
     const status = adminUser?.status || '';
@@ -390,14 +354,12 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
 
   try {
     const supabase = createServerClient();
-    const { data, error } = await withRetry(
-      () => supabase.auth.getUser(token),
-      3000,
-      1,
-    ).catch((e): { data: { user: null }; error: Error } => ({
-      data: { user: null },
-      error: e instanceof Error ? e : new Error('timeout'),
-    })) as { data: { user: any }; error: any };
+    const { data, error } = await Promise.race([
+      supabase.auth.getUser(token),
+      new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      ),
+    ]) as { data: { user: any }; error: any };
 
     if (error || !data?.user) {
       return { ok: false, reason: 'jwt_verification_failed' };
@@ -411,18 +373,17 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
     }
 
     // admin_users 테이블에서 role/status 조회
-    const { data: adminUser } = await withRetry(
-      () => supabase
+    const { data: adminUser } = await Promise.race([
+      supabase
         .from('admin_users')
         .select('role, status')
         .or(`id.eq.${data.user.id},email.eq.${email}`)
         .limit(1)
         .maybeSingle(),
-      3000,
-      1,
-      400,
-      'db_timeout',
-    ).catch((): { data: null } => ({ data: null })) as { data: { role?: string; status?: string } | null };
+      new Promise<{ data: null }>((_, reject) =>
+        setTimeout(() => reject(new Error('db_timeout')), 3000)
+      ),
+    ]) as { data: { role?: string; status?: string } | null };
 
     // L-sec59 (2026-04-22): user_metadata fallback 제거 (self-escalation 차단)
     const role = adminUser?.role || '';
