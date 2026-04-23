@@ -100,3 +100,16 @@ WISHES_시스템점검_보고서_*.docx
 /_cleanup_*.log
 /_probe_*.log
 /_probe_*.bat
+
+# 2026-04-23 (L-sec157 Phase 3b cleanup): 세션 임시 산출물 포괄 패턴
+/_commit_msg_*.txt
+/_fix_*.log
+/_fix_*.done
+/_verify_*.log
+/_verify_*.done
+/_sync_*.log
+/_sync_*.done
+/_cleanup*.log
+/_cleanup*.done
+/_unlock*.log
+/_unlock*.done
