@@ -73,14 +73,18 @@ interface Props {
 //   level 8    → ~8km
 //   level 9+   → ~15km (행정구 단위)
 function gridSizeForLevel(level: number): number {
-  if (level <= 2) return 0;
-  if (level <= 3) return 0.0018;
-  if (level <= 4) return 0.0036;
-  if (level <= 5) return 0.009;
-  if (level <= 6) return 0.018;
-  if (level <= 7) return 0.036;
-  if (level <= 8) return 0.072;
-  return 0.135;
+  // L-cluster1 (2026-04-23 p.m.): 광역 뷰(level 8+) 에서 강남 전체가 하나의
+  //   4.1k 덩어리로 뭉쳐 보이던 현상 수정. 더 촘촘한 그리드로 여러 작은 클러스터
+  //   나누어 지역별 분포를 보여준다.
+  if (level <= 2) return 0;         // 개별 표시
+  if (level <= 3) return 0.0018;    // ~200m
+  if (level <= 4) return 0.0036;    // ~400m
+  if (level <= 5) return 0.006;     // ~600m (기본 줌, 이전 1km → 더 촘촘)
+  if (level <= 6) return 0.012;     // ~1.3km (이전 2km)
+  if (level <= 7) return 0.020;     // ~2km (이전 4km)
+  if (level <= 8) return 0.032;     // ~3.5km (이전 8km — 핵심 개선)
+  if (level <= 9) return 0.050;     // ~5.5km (이전 15km)
+  return 0.080;                      // ~9km (level 10+ 광역 대한민국 뷰)
 }
 
 /** 카운트 표시 원 — 단일 매물이면 '1', 클러스터면 N. */

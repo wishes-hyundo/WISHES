@@ -80,6 +80,12 @@ export function MapControls() {
         setLocating(false);
         const { latitude: lat, longitude: lng, accuracy } = pos.coords;
         console.log('[my-location]', { lat, lng, accuracy: `${Math.round(accuracy)}m` });
+        // L-mylocation3 (2026-04-23 p.m.): 정확도 5km 초과면 IP 기반 fallback 의심.
+        //   브라우저가 WiFi 위치 DB 접근 실패 → ISP 서버 좌표 반환하는 전형 상황.
+        //   이 경우 알림 한 줄 (panTo 는 일단 진행).
+        if (accuracy > 5000) {
+          showError(`위치 정확도가 낮음 (${(accuracy/1000).toFixed(0)}km) — Windows 위치 서비스 ON 또는 휴대폰에서 확인 권장`);
+        }
 
         const kakao = (window as unknown as {
           kakao?: { maps: { LatLng: new (lat: number, lng: number) => unknown } };
@@ -105,13 +111,13 @@ export function MapControls() {
           err.code === 1 /* PERMISSION_DENIED */
             ? '위치 권한이 차단됨 — 브라우저 주소창 🔒 에서 허용하세요'
             : err.code === 2 /* POSITION_UNAVAILABLE */
-              ? '현재 위치를 가져올 수 없습니다 (GPS/네트워크 확인)'
+              ? 'PC 에서는 WiFi 위치 DB 가 없으면 IP 기반으로 잡혀 부정확할 수 있어요. 휴대폰에서 확인 권장'
               : err.code === 3 /* TIMEOUT */
                 ? '시간 초과 — 다시 시도해주세요'
                 : '알 수 없는 위치 오류';
         showError(msg);
       },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30_000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
 
