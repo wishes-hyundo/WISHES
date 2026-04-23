@@ -5,16 +5,15 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAdminAuth } from '@/lib/adminAuth';
+// L-sec155 (2026-04-23): listings 테이블 대량 ALTER 엔드포인트.
+//   verifyAdminAuth 는 role=agent JWT 까지 통과 → 중개사 계정도 DB 스키마 변경
+//   (ADD COLUMN / CREATE INDEX) 실행 가능했음. superadmin/master/crawler_bridge 만 허용.
+import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// L-sec2 (2026-04-22): 박제 ADMIN_TOKEN = 'wishes2026' 제거 →
-//   공용 verifyAdminAuth (env 마스터 + CRAWLER_BRIDGE + JWT서명+role)
-async function verifyAuth(request: NextRequest): Promise<boolean> {
-  return verifyAdminAuth(request);
-}
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
 
 const MIGRATION_SQL = `
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS business_type TEXT;
@@ -45,7 +44,8 @@ CREATE INDEX IF NOT EXISTS idx_listings_source_id ON listings(source_id);
 `;
 
 export async function POST(request: NextRequest) {
-  if (!(await verifyAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -107,7 +107,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await verifyAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   return NextResponse.json({

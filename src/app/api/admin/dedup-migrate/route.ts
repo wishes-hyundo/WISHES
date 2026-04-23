@@ -14,7 +14,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
+// L-sec155 (2026-04-23): DB 스키마 ALTER 를 수행하는 마이그레이션 엔드포인트는
+//   strict 변형 + role 화이트리스트 (superadmin/master/crawler_bridge) 로 승격.
+//   기존 verifyAdminAuth 는 role='agent' JWT 까지 통과시켜 일반 중개사도 호출 가능했음.
+//   master/crawler_bridge 는 env 일치 비교라 내부 자가호출/크롤러는 그대로 동작.
+import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -28,8 +32,12 @@ CREATE INDEX IF NOT EXISTS idx_listings_dedup_requested_at ON listings(dedup_req
 CREATE INDEX IF NOT EXISTS idx_listings_dedup_group ON listings(dedup_group_id) WHERE dedup_group_id IS NOT NULL;
 `;
 
+// L-sec155: superadmin/master/crawler_bridge 만 DB 스키마 변경 허용.
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
+
 export async function POST(request: NextRequest) {
-  if (!(await verifyAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -84,7 +92,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await verifyAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   return NextResponse.json({

@@ -18,9 +18,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
+// L-sec155 (2026-04-23): DB 스키마/인덱스/RPC 를 대량 생성하는 엔드포인트는
+//   superadmin/master/crawler_bridge 만 허용 (verifyAdminAuthStrict + role gate).
+//   기존 verifyAdminAuth 는 role=agent JWT 도 통과시켜, 중개사 계정이 /map 인프라를
+//   재생성하거나 실수로 덮어쓸 수 있었음.
+import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 import { readFile } from 'fs/promises';
 import path from 'path';
+
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -116,7 +122,8 @@ function splitSqlStatements(sql: string): string[] {
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await verifyAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
@@ -199,7 +206,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await verifyAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   return NextResponse.json({

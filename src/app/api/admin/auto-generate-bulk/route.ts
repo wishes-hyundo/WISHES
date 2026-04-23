@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminAuth } from '@/lib/adminAuth';
+// L-sec155 (2026-04-23): Anthropic 대량 호출 + listings bulk UPDATE 엔드포인트.
+//   verifyAdminAuth 는 role=agent JWT 까지 통과 → 중개사 계정이 고비용 Claude 호출
+//   + 다른 중개사 매물까지 재생성 가능. superadmin/master/crawler_bridge 만 허용.
+import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec3 (2026-04-22): 박제 ADMIN_TOKEN = 'wishes2026' 제거 →
-//   인바운드: verifyAdminAuth(env 마스터 + CRAWLER_BRIDGE + JWT서명+role)
+//   인바운드: verifyAdminAuthStrict (master/superadmin/crawler_bridge only, L-sec155)
 //   아웃바운드: WISHES_ADMIN_MASTER_PASSWORD env 로 /auto-generate 자가호출
+//     → master 롤로 strict 통과 (Phase3 에서 WISHES_INTERNAL_BEARER 로 분리 예정)
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://wishes.co.kr';
 const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
+
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
 
 async function processListing(listingId: string): Promise<{
   id: string;
@@ -97,7 +103,8 @@ export async function POST(request: NextRequest) {
       { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
     );
   }
-  if (!(await verifyAdminAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 
@@ -149,7 +156,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await verifyAdminAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   }
 

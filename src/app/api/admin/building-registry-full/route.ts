@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminAuth } from '@/lib/adminAuth';
+// L-sec155 (2026-04-23): 공공 건축물대장 API 래퍼 + 내부 Kakao/registry 자가호출.
+//   verifyAdminAuth 는 role=agent JWT 도 통과 → 중개사 계정도 고비용 공공 API
+//   + Kakao quota 를 남용 가능. superadmin/master/crawler_bridge 만 허용.
+import { verifyAdminAuthStrict } from '@/lib/adminAuth';
+
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
 
 // L-sec3 (2026-04-22): fallback 'wishes2026' 제거 → WISHES_ADMIN_MASTER_PASSWORD
+// (Phase3 에서 WISHES_INTERNAL_BEARER 로 분리 예정)
 const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
@@ -41,7 +47,8 @@ async function resolveAddress(address: string) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await verifyAdminAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

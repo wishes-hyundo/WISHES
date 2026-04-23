@@ -15,7 +15,12 @@
 //   POST /api/admin/backfill-embeddings?force=1  (전체 재생성)
 
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
+// L-sec155 (2026-04-23): OpenAI 유료 호출 + 대량 UPDATE 엔드포인트는
+//   superadmin/master/crawler_bridge 만 허용. verifyAdminAuth 는 role=agent
+//   JWT 까지 허용해 일반 중개사 계정이 OpenAI 비용 소진 + embedding 덮어쓰기 가능했음.
+import { verifyAdminAuthStrict } from '@/lib/adminAuth';
+
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
 import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
@@ -112,7 +117,8 @@ export async function POST(request: NextRequest) {
       { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
     );
   }
-  if (!(await verifyAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -219,7 +225,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await verifyAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   const supabase = createServerClient();

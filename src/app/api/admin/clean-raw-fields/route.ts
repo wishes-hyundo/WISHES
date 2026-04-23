@@ -6,7 +6,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { invalidateCache } from '@/lib/cache';
-import { verifyAdminAuth } from '@/lib/adminAuth';
+// L-sec155 (2026-04-23): listings.raw_fields 전수 UPDATE 엔드포인트.
+//   verifyAdminAuth 는 role=agent JWT 통과 → 중개사 계정도 전체 매물 raw_fields
+//   덮어쓰기 가능했음. superadmin/master/crawler_bridge 만 허용.
+import { verifyAdminAuthStrict } from '@/lib/adminAuth';
+
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
 
 const JUNK_RE: RegExp[] = [
   /^인쇄$/, /^확대보기$/, /^연락처보기$/, /^네이버전송/, /^정보요청$/,
@@ -28,7 +33,8 @@ function isJunk(k: string, v: any): boolean {
 }
 
 export async function GET(request: NextRequest) {
-  if (!(await verifyAdminAuth(request))) {
+  const auth = await verifyAdminAuthStrict(request);
+  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
