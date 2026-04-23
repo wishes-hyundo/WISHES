@@ -2240,6 +2240,7 @@ ${floorRows}</table></div>` : ''}
                     <h3 className="font-semibold text-gray-800 text-sm">
                       업로드된 사진 ({uploadedImages.length}장)
                     </h3>
+                    <span className="text-[11px] text-gray-400">드래그로 순서 변경 · ★ 버튼으로 대표 지정</span>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {uploadedImages.map((img, i) => (
@@ -2293,12 +2294,21 @@ ${floorRows}</table></div>` : ''}
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition rounded-xl flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
                           {i > 0 && (
                             <button onClick={() => moveImage(i, i - 1)}
+                              title="왼쪽으로 이동"
                               className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow text-sm">←</button>
                           )}
+                          {/* L-newphoto1 (2026-04-24): 드래그 없이 한 번에 대표 지정 */}
+                          {i > 0 && (
+                            <button onClick={() => moveImage(i, 0)}
+                              title="대표 이미지로 지정"
+                              className="w-9 h-9 bg-green-600 text-white rounded-full flex items-center justify-center shadow font-bold text-sm hover:brightness-110">★</button>
+                          )}
                           <button onClick={() => removeImage(i)}
+                            title="삭제"
                             className="w-8 h-8 bg-red-500 text-white rounded-full flex items-center justify-center shadow text-sm">✕</button>
                           {i < uploadedImages.length - 1 && (
                             <button onClick={() => moveImage(i, i + 1)}
+                              title="오른쪽으로 이동"
                               className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow text-sm">→</button>
                           )}
                         </div>
@@ -2560,7 +2570,7 @@ ${floorRows}</table></div>` : ''}
                   {isPublishing && <div className="mt-3 space-y-1">
                     <div className="flex justify-between text-xs text-green-700 font-medium">
                       <span>업로드 진행중...</span>
-                      <span>${uploadProgress}/${uploadedImages.length}</span>
+                      <span>{uploadProgress}/{uploadedImages.length}</span>
                     </div>
                     <div className="w-full bg-green-100 rounded-full h-2.5 overflow-hidden">
                       <div className="bg-green-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadedImages.length > 0 ? (uploadProgress / uploadedImages.length) * 100 : 0}%` }} />
@@ -2579,7 +2589,7 @@ ${floorRows}</table></div>` : ''}
                   {isPublishing && <div className="mt-3 space-y-1">
                     <div className="flex justify-between text-xs text-blue-700 font-medium">
                       <span>업로드 진행중...</span>
-                      <span>${uploadProgress}/${uploadedImages.length}</span>
+                      <span>{uploadProgress}/{uploadedImages.length}</span>
                     </div>
                     <div className="w-full bg-blue-100 rounded-full h-2.5 overflow-hidden">
                       <div className="bg-blue-500 h-2.5 rounded-full transition-all duration-300" style={{ width: `${uploadedImages.length > 0 ? (uploadProgress / uploadedImages.length) * 100 : 0}%` }} />
