@@ -37,6 +37,7 @@ const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const ALLOWED_MIGRATIONS = new Set<string>([
   '20260420_map_performance_foundation.sql',
   '20260423_fix_map_status_invisibility.sql',
+  '20260423_add_map_coverage_drift_view.sql',
 ]);
 async function loadMigrationSql(fileName?: string): Promise<string> {
   const file = fileName && ALLOWED_MIGRATIONS.has(fileName)
