@@ -121,6 +121,8 @@ export default function MapClient() {
   const openListingDetail = useMap2026Store((s) => s.openListingDetail);
   // L-mapmarker1 (2026-04-23): HtmlMarkerOverlay 선택 상태 표시용
   const detailListingId = useMap2026Store((s) => s.detailListingId);
+  // L-mapmarker2 (2026-04-23): 상단 카테고리 탭 → 마커 클라이언트 필터
+  const filterCategory = useMap2026Store((s) => s.filter.category);
   const listPanelCollapsed = useMap2026Store((s) => s.listPanelCollapsed);
   const toggleListPanel = useMap2026Store((s) => s.toggleListPanel);
   const listingsCount = useMap2026Store((s) => s.listings.length);
@@ -361,6 +363,7 @@ export default function MapClient() {
                 map={kakaoMap}
                 listings={listings}
                 selectedListingId={detailListingId}
+                category={filterCategory}
                 onClickListing={onClickListing}
               />
             </>
