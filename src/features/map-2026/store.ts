@@ -487,8 +487,14 @@ export const useMap2026Store = create<Map2026Store>()(
     },
 
     // L-mapfilter3: Gate 패턴 필터 모달
+    // L-panelexclusive1 (2026-04-23 p.m.): 필터 ↔ 매물상세 배타적 제어
+    //   두 패널이 같은 위치에 겹쳐 보이던 문제 해결.
     filterModalOpen: false,
-    openFilterModal: () => set({ filterModalOpen: true }),
+    openFilterModal: () => set({
+      filterModalOpen: true,
+      detailListingId: null,
+      detailListing: null,
+    }),
     closeFilterModal: () => set({ filterModalOpen: false }),
 
     // L-mapmodal1 (2026-04-23): 매물 상세 모달
@@ -497,9 +503,14 @@ export const useMap2026Store = create<Map2026Store>()(
     openListingDetail: (id) => {
       // L-detailcache1 (2026-04-23 p.m.): 클릭 시점의 매물 객체 캐싱 — 뷰포트
       //   재조회로 listings 가 바뀌어도 패널 내용 유지됨. 모바일 초기화 버그 수정.
+      // L-panelexclusive1 (2026-04-23 p.m.): 필터 패널이 열려 있었다면 닫기
       const cached = get().listings.find((l) => l.id === id) ?? null;
       get().selectListing(id, true);
-      set({ detailListingId: id, detailListing: cached });
+      set({
+        detailListingId: id,
+        detailListing: cached,
+        filterModalOpen: false,
+      });
     },
     closeListingDetail: () => set({ detailListingId: null, detailListing: null }),
   }))

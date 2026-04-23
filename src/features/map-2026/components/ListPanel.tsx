@@ -208,7 +208,7 @@ export function ListPanel() {
                      *   · 업종(business_type) 은 단지명 없을 때만 대체 노출  */}
                     <div className="flex items-center gap-1 min-w-0">
                       {isNew && (
-                        <span className="shrink-0 rounded bg-rose-600 px-1.5 py-[2px] text-[10px] font-bold text-white leading-[1.2]">
+                        <span className="shrink-0 rounded bg-amber-400 px-1.5 py-[2px] text-[10px] font-bold text-amber-900 leading-[1.2]">
                           NEW
                         </span>
                       )}

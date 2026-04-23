@@ -17,10 +17,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { X, ExternalLink, ImageOff, MapPin, Video } from 'lucide-react';
+import { X, ExternalLink, ImageOff, MapPin, Video, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMap2026Store, type MapListing } from '../store';
 import {
   formatDealLabel,
@@ -107,6 +107,44 @@ export function ListingDetailModal() {
     if (isOpen) closeBtnRef.current?.focus();
   }, [isOpen]);
 
+  // L-gallery1 (2026-04-23 p.m.): 사진 갤러리 — 슬라이드 패널 내 좌/우 넘기기
+  //   매물 상세 열릴 때 /api/listings/[id]/images 호출 (이미 L-imgpolicy2 로
+  //   크롤링 차단 + self-hosted 만 통과). 자체 업로드 이미지 여러 장 넘겨봄.
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const listingId = listing?.id;
+  useEffect(() => {
+    if (listingId == null) {
+      setGalleryImages([]);
+      setGalleryIndex(0);
+      return;
+    }
+    setGalleryIndex(0);
+    let cancelled = false;
+    fetch(`/api/listings/${listingId}/images`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => {
+        if (cancelled || !json?.data) return;
+        const urls = (json.data as { url: string }[])
+          .map((i) => i.url)
+          .filter(Boolean);
+        setGalleryImages(urls);
+      })
+      .catch(() => { /* 폴백 — thumbnail_url 만 사용 */ });
+    return () => { cancelled = true; };
+  }, [listingId]);
+
+  // 좌/우 키보드 네비게이션
+  useEffect(() => {
+    if (!isOpen || galleryImages.length <= 1) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
+      else if (e.key === 'ArrowRight') setGalleryIndex((i) => (i + 1) % galleryImages.length);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, galleryImages.length]);
+
   if (!listing) return null;
 
   const { isNew, age } = buildListingBadges({
@@ -128,25 +166,61 @@ export function ListingDetailModal() {
       aria-label="매물 상세"
       className="absolute left-0 top-0 z-30 flex h-full w-[360px] max-w-[85%] translate-x-0 flex-col overflow-hidden border-r border-neutral-200 bg-white shadow-2xl transition-transform duration-300"
     >
-      {/* Hero 이미지 200px */}
-      <div className="relative h-[200px] w-full shrink-0 bg-neutral-200">
-        {listing.thumbnail_url ? (
-          <Image
-            src={listing.thumbnail_url}
-            alt={addressLine}
-            fill
-            sizes="360px"
-            className="object-cover"
-            unoptimized
-          />
-        ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-neutral-400">
-            <ImageOff className="size-8" aria-hidden />
-            <span className="text-[11.5px]">사진 없음</span>
-          </div>
+      {/* L-gallery1: Hero 갤러리 (넘김 가능) */}
+      <div className="relative h-[220px] w-full shrink-0 overflow-hidden bg-neutral-200">
+        {(() => {
+          const src = galleryImages[galleryIndex] ?? listing.thumbnail_url;
+          if (src) {
+            return (
+              <Image
+                key={src}
+                src={src}
+                alt={addressLine}
+                fill
+                sizes="380px"
+                className="object-cover"
+                unoptimized
+              />
+            );
+          }
+          return (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-neutral-400">
+              <ImageOff className="size-8" aria-hidden />
+              <span className="text-[11.5px]">사진 없음</span>
+            </div>
+          );
+        })()}
+
+        {/* 좌/우 화살표 (이미지 2장 이상일 때만) */}
+        {galleryImages.length > 1 && (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
+              }}
+              aria-label="이전 사진"
+              className="absolute left-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75"
+            >
+              <ChevronLeft className="size-5" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setGalleryIndex((i) => (i + 1) % galleryImages.length);
+              }}
+              aria-label="다음 사진"
+              className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75"
+            >
+              <ChevronRight className="size-5" />
+            </button>
+          </>
         )}
-        {/* dark gradient overlay at bottom for readability */}
+
+        {/* 하단 그라데이션 */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/40 to-transparent" />
+
+        {/* 닫기 버튼 */}
         <button
           ref={closeBtnRef}
           onClick={closeListingDetail}
@@ -155,24 +229,51 @@ export function ListingDetailModal() {
         >
           <X className="size-4" />
         </button>
+
+        {/* 하단 배지 그룹 — 영상 + 사진 카운터 */}
         <div className="absolute bottom-2.5 right-2.5 flex gap-1.5">
           {listing.has_video && (
             <span className="flex items-center gap-0.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white">
               <Video className="size-3" /> 영상
             </span>
           )}
-          {listing.photo_count > 0 && (
+          {galleryImages.length > 0 ? (
+            <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
+              {galleryIndex + 1} / {galleryImages.length}
+            </span>
+          ) : listing.photo_count > 0 ? (
             <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white">
               {listing.photo_count}장
             </span>
-          )}
+          ) : null}
         </div>
+
+        {/* 하단 도트 인디케이터 (≤8장) */}
+        {galleryImages.length > 1 && galleryImages.length <= 8 && (
+          <div className="pointer-events-none absolute inset-x-0 bottom-1.5 flex justify-center gap-1">
+            {galleryImages.map((_, i) => (
+              <span
+                key={i}
+                className={[
+                  'size-1.5 rounded-full transition',
+                  i === galleryIndex ? 'bg-white' : 'bg-white/40',
+                ].join(' ')}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto">
         {/* 헤더: 배지 + 가격 + 주소 + ai_title */}
         <div className="border-b border-neutral-100 px-4 pb-3 pt-4">
           <div className="mb-2 flex flex-wrap items-center gap-1">
+            {/* L-newbadge1 (2026-04-23 p.m.): NEW 를 좌측 최선두 + 노란색(부담 X) */}
+            {isNew && (
+              <span className="rounded bg-amber-400 px-1.5 py-[2px] text-[10px] font-bold text-amber-900 leading-[1.2]">
+                NEW
+              </span>
+            )}
             <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-bold text-white leading-[1.3]">
               {listing.deal}
             </span>
@@ -182,11 +283,6 @@ export function ListingDetailModal() {
             {listing.business_type && (
               <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600 leading-[1.3]">
                 {listing.business_type}
-              </span>
-            )}
-            {isNew && (
-              <span className="rounded bg-rose-600 px-1.5 py-[2px] text-[10px] font-bold text-white leading-[1.2]">
-                NEW
               </span>
             )}
             {age && (
