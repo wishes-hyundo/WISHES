@@ -12,6 +12,8 @@ export async function OPTIONS(req: NextRequest) {
 import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+// L-geocode1 (2026-04-23): 신규 매물/수정 시 서버단 자동 지오코딩 — lat/lng 누락 영구 차단.
+import { geocodeAddress } from '@/lib/geocode';
 import { z } from 'zod';
 import { createHash } from 'crypto';
 // L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관.
@@ -467,8 +469,18 @@ export async function POST(request: NextRequest) {
         address: listingData.address,
         address_detail: listingData.address_detail || null,
         dong: listingData.dong,
-        lat: listingData.lat || null,
-        lng: listingData.lng || null,
+        // L-geocode1: lat/lng 누락 시 서버에서 Kakao API 로 자동 지오코딩.
+        //   이전엔 클라이언트가 좌표 안 보내면 null 로 insert 되어 mv_map_listings
+        //   에 포함되지 않고 /map 에서 영영 사라지는 매물이 수천 건 누적됨.
+        ...(await (async () => {
+          let lat = listingData.lat ?? null;
+          let lng = listingData.lng ?? null;
+          if ((lat == null || lng == null) && listingData.address) {
+            const hit = await geocodeAddress(listingData.address);
+            if (hit) { lat = hit.lat; lng = hit.lng; }
+          }
+          return { lat, lng };
+        })()),
         description: listingData.description || null,
         available_date: listingData.available_date || null,
         built_year: listingData.built_year || null,
@@ -607,6 +619,17 @@ export async function PUT(request: NextRequest) {
         updateValues[key] = value;
       }
     });
+
+    // L-geocode1 (2026-04-23): 주소는 변경되는데 lat/lng 은 안 들어온 경우
+    //   서버단에서 자동 지오코딩.  수정 경로에서도 좌표 누락을 원천 차단.
+    if (updateValues.address &&
+        (updateValues.lat == null || updateValues.lng == null)) {
+      const hit = await geocodeAddress(updateValues.address as string);
+      if (hit) {
+        updateValues.lat = hit.lat;
+        updateValues.lng = hit.lng;
+      }
+    }
 
     if (Object.keys(updateValues).length === 0 && !images) {
       return NextResponse.json(
