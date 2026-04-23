@@ -212,4 +212,17 @@ export async function GET(request: NextRequest) {
   }
   return NextResponse.json({
     message: 'POST here to apply /map performance foundation migration (idempotent).',
-    file: 
+    file: 'supabase/migrations/20260420_map_performance_foundation.sql',
+    phases: [
+      'Phase 1-A: PostGIS GIST + BRIN + pg_trgm GIN indexes',
+      'Phase 1-B: Materialized View mv_map_listings + pg_cron 3min refresh',
+      'Phase 1-C: pgvector extension + embedding vector(384) + HNSW',
+      'Phase 1-D: rpc_map_clusters RPC',
+      'Phase 1-E: match_listings RPC',
+      'Phase 4-E precursor: listings_map_diff mirror + trigger',
+    ],
+  });
+}
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // pgvector HNSW 빌드 여유시간

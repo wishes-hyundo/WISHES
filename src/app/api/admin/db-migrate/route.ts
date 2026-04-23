@@ -116,4 +116,9 @@ export async function GET(request: NextRequest) {
     columns_to_add: [
       'business_type', 'goodwill_fee', 'vat_included', 'station_name', 'station_distance',
       'usage_approved', 'electric_capacity', 'signage_available', 'meeting_room',
-      'gu', 
+      'gu', 'entrance_type', 'features', 'parking_fee', 'building_purpose',
+      'previous_brand', 'commission_fee', 'special_notes',
+      'ai_title', 'ai_description', 'seo_keywords', 'seo_tags', 'seo_meta_description', 'ai_generated_at',
+    ],
+  });
+}

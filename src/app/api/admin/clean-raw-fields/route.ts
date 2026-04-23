@@ -64,4 +64,19 @@ export async function GET(request: NextRequest) {
         .from('listings')
         .update({ raw_fields: cleaned })
         .eq('id', r.id);
-      if
+      if (!upErr) {
+        updates.push({ id: r.id, before: beforeCount, after: Object.keys(cleaned).length, removed });
+      }
+    }
+  }
+
+  invalidateCache('admin-listings');
+
+  return NextResponse.json({
+    success: true,
+    scannedRows: rows?.length || 0,
+    updatedRows: updates.length,
+    totalRemoved: updates.reduce((s, u) => s + u.removed.length, 0),
+    samples: updates.slice(0, 5),
+  });
+}

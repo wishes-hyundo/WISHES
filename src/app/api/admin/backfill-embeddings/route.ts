@@ -236,4 +236,20 @@ export async function GET(request: NextRequest) {
     .eq('status', '공개');
   const { count: withEmbed } = await supabase
     .from('listings')
-    .select('id', { count: '
+    .select('id', { count: 'exact', head: true })
+    .eq('status', '공개')
+    .not('embedding', 'is', null);
+  return NextResponse.json({
+    message: 'POST here to generate embeddings in batches.',
+    model: EMBEDDING_MODEL,
+    dimensions: EMBEDDING_DIM,
+    openai_key_present: !!process.env.OPENAI_API_KEY,
+    total,
+    with_embedding: withEmbed,
+    pending: (total || 0) - (withEmbed || 0),
+    suggested_batch_size: 100,
+  });
+}
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;

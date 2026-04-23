@@ -68,4 +68,22 @@ export async function GET(request: NextRequest) {
 
     if (!registryRes.ok) {
       const errText = await registryRes.text();
-      throw new Error(`Building registry API error: ${registryRes.status} - ${errText.substring(0, 200)
+      throw new Error(`Building registry API error: ${registryRes.status} - ${errText.substring(0, 200)}`);
+    }
+
+    const registryData = await registryRes.json();
+
+    return NextResponse.json({
+      success: true,
+      query: { address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress },
+      data: registryData.data || {},
+      floors: registryData.floors || [],
+      raw: registryData.raw || {},
+    });
+  } catch (err: any) {
+    return NextResponse.json(
+      { success: false, error: err.message || 'Unknown error', query: { address } },
+      { status: 500 }
+    );
+  }
+}
