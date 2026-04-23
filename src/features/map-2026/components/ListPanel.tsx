@@ -55,7 +55,11 @@ export function ListPanel() {
   const loading = useMap2026Store((s) => s.loading);
   const sort = useMap2026Store((s) => s.sort);
   const selectedId = useMap2026Store((s) => s.selectedId);
-  const selectListing = useMap2026Store((s) => s.selectListing);
+  // L-mapmodal1 (2026-04-23): 카드 클릭 시 상세 요약 모달이 열리도록 교체.
+  //   이전 selectListing(id, true) 는 지도 flyTo + selectedId 업데이트만 수행해
+  //   매물 정보가 보이지 않았다. openListingDetail 은 내부에서 selectListing 을
+  //   재호출하므로 지도 포커스 동작은 그대로 유지된다.
+  const openListingDetail = useMap2026Store((s) => s.openListingDetail);
 
   const sorted = useMemo(() => sortListings(listings, sort), [listings, sort]);
 
@@ -121,7 +125,7 @@ export function ListPanel() {
                   key={l.id}
                   ref={rowVirtualizer.measureElement}
                   data-index={vRow.index}
-                  onClick={() => selectListing(l.id, true)}
+                  onClick={() => openListingDetail(l.id)}
                   className={[
                     'block w-full border-b border-neutral-50 px-4 py-3 text-left transition',
                     active ? 'bg-emerald-50' : 'hover:bg-neutral-50',

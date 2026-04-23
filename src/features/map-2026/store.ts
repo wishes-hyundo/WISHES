@@ -231,6 +231,15 @@ export interface Map2026Store {
   filterModalOpen: boolean;
   openFilterModal: () => void;
   closeFilterModal: () => void;
+
+  // L-mapmodal1 (2026-04-23): 매물 상세 모달 — 핀/리스트 카드 클릭 시 오픈.
+  //   선택(selectedId) 은 하이라이트/flyTo 용으로 이미 있었지만 "페이지
+  //   모달도 안나오고" 피드백대로 실제로 매물 정보를 보여주는 UI 가 없었다.
+  //   openListingDetail 은 selectListing(id, true) + detailListingId 세팅을
+  //   함께 수행해 "지도 포커스 + 모달 노출" 을 한 번에 처리.
+  detailListingId: number | null;
+  openListingDetail: (id: number) => void;
+  closeListingDetail: () => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -458,5 +467,15 @@ export const useMap2026Store = create<Map2026Store>()(
     filterModalOpen: false,
     openFilterModal: () => set({ filterModalOpen: true }),
     closeFilterModal: () => set({ filterModalOpen: false }),
+
+    // L-mapmodal1 (2026-04-23): 매물 상세 모달
+    detailListingId: null,
+    openListingDetail: (id) => {
+      // 1) 지도 포커스 + 하이라이트 (기존 selectListing 로직 재활용)
+      get().selectListing(id, true);
+      // 2) 모달 오픈
+      set({ detailListingId: id });
+    },
+    closeListingDetail: () => set({ detailListingId: null }),
   }))
 );

@@ -30,6 +30,8 @@ import { NlSearchBar } from '@/features/map-2026/components/NlSearchBar';
 //   Row 2 = CategoryTabs 직접 배치, FilterModal 은 루트에 별도 마운트.
 import { CategoryTabs } from '@/features/map-2026/components/CategoryTabs';
 import { FilterModal } from '@/features/map-2026/components/FilterModal';
+// L-mapmodal1 (2026-04-23): 핀/카드 클릭 시 열리는 매물 상세 요약 모달.
+import { ListingDetailModal } from '@/features/map-2026/components/ListingDetailModal';
 import { ActiveFilterPills } from '@/features/map-2026/components/ActiveFilterPills';
 // L-mapfilter4: Row 1 우측 CTA — 로그인/매물내놓기.
 //   /map 페이지는 ConditionalLayout 에서 전역 Header 를 숨기므로 계정 동선이
@@ -111,7 +113,9 @@ export default function MapClient() {
   const setBbox = useMap2026Store((s) => s.setBbox);
   const setZoom = useMap2026Store((s) => s.setZoom);
   const listings = useMap2026Store((s) => s.listings);
-  const selectListing = useMap2026Store((s) => s.selectListing);
+  // L-mapmodal1 (2026-04-23): onClickListing 은 selectListing 대신
+  //   openListingDetail 을 사용해 지도 포커스 + 상세 모달 오픈을 한 번에 처리.
+  const openListingDetail = useMap2026Store((s) => s.openListingDetail);
   const listPanelCollapsed = useMap2026Store((s) => s.listPanelCollapsed);
   const toggleListPanel = useMap2026Store((s) => s.toggleListPanel);
   const listingsCount = useMap2026Store((s) => s.listings.length);
@@ -237,9 +241,10 @@ export default function MapClient() {
 
   const onClickListing = useCallback(
     (id: number) => {
-      selectListing(id, true);
+      // L-mapmodal1: 상세 모달 오픈 + 지도 flyTo (store 에서 한 번에 처리)
+      openListingDetail(id);
     },
-    [selectListing]
+    [openListingDetail]
   );
 
   if (failed) {
@@ -355,6 +360,9 @@ export default function MapClient() {
       {/* L-mapfilter4 (2026-04-23): Gate 패턴 필터 모달 — position:fixed 이므로
           grid track 밖에서 1회 마운트. CategoryTabs 탭 클릭 시 오픈. */}
       <FilterModal />
+      {/* L-mapmodal1 (2026-04-23): 매물 상세 요약 모달 — 핀/카드 클릭 시 오픈.
+          position:fixed, detailListingId 가 null 이면 렌더 스킵. */}
+      <ListingDetailModal />
     </div>
   );
 }
