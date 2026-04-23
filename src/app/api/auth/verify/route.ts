@@ -82,12 +82,19 @@ export async function POST(request: NextRequest) {
     let userStatus = 'pending';
     let userRole = 'user';
 
+    // L-sec161 follow-up (2026-04-23): adminAuth.ts 의 공식 검증기와
+    //   admin_users 조회 패턴 통일. 기존 .eq('id', user.id) 는 agent 의
+    //   admin_users row 가 email 로만 생성되고 id 가 NULL/다른 값일 때 row 를
+    //   못 찾아 role='user', status='pending' 반환 → 클라이언트가 agent 권한
+    //   에서 강등되는 비대칭 발생. (b6da6a2 에서 truncation 으로 빠진 fix 적용)
     try {
+      const emailLower = (user.email || '').toLowerCase();
       const { data: adminRow } = await supabase
         .from('admin_users')
         .select('status, role')
-        .eq('id', user.id)
-        .single();
+        .or(`id.eq.${user.id},email.eq.${emailLower}`)
+        .limit(1)
+        .maybeSingle();
 
       if (adminRow) {
         userStatus = adminRow.status || userStatus;
@@ -168,12 +175,19 @@ export async function GET(request: NextRequest) {
     let userStatus = 'pending';
     let userRole = 'user';
 
+    // L-sec161 follow-up (2026-04-23): adminAuth.ts 의 공식 검증기와
+    //   admin_users 조회 패턴 통일. 기존 .eq('id', user.id) 는 agent 의
+    //   admin_users row 가 email 로만 생성되고 id 가 NULL/다른 값일 때 row 를
+    //   못 찾아 role='user', status='pending' 반환 → 클라이언트가 agent 권한
+    //   에서 강등되는 비대칭 발생. (b6da6a2 에서 truncation 으로 빠진 fix 적용)
     try {
+      const emailLower = (user.email || '').toLowerCase();
       const { data: adminRow } = await supabase
         .from('admin_users')
         .select('status, role')
-        .eq('id', user.id)
-        .single();
+        .or(`id.eq.${user.id},email.eq.${emailLower}`)
+        .limit(1)
+        .maybeSingle();
 
       if (adminRow) {
         userStatus = adminRow.status || userStatus;
