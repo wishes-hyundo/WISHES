@@ -97,7 +97,7 @@ export function CategoryTabs() {
             aria-selected={active}
             tabIndex={active ? 0 : -1}
             ref={(el) => { tabRefs.current[ORDER.indexOf(cat)] = el; }}
-            title={active ? `${theme.label} ${count.toLocaleString('ko-KR')}개` : `${theme.label} 카테고리로 전환`}
+            title={active && count != null ? `${theme.label} ${count.toLocaleString('ko-KR')}개` : `${theme.label} 카테고리로 전환`}
             onKeyDown={(e) => handleTabKey(e, ORDER.indexOf(cat))}
             onClick={() => {
               // L-mapfilter3: 탭 클릭 = 카테고리 전환 + 모달 오픈.
