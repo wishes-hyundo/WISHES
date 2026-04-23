@@ -218,11 +218,16 @@
       var isExtensionContext = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL;
       if (!isExtensionContext) {
         try {
-          var token = null, user = null, loginTime = null, adminPw = null;
+          // L-sec154 (2026-04-23): admin_password 브릿지 철거.
+          //   과거엔 localStorage/sessionStorage 의 admin_password 를
+          //   읽어 pageData.adminPw 로 전달하고, fetch 실패/토큰 부재 시
+          //   이 값만으로 superadmin 을 통과시키는 client-side 쪽문이었음.
+          //   admin-auth.html (Supabase) 경로가 정식화된 이후엔 완전 불필요하며
+          //   ws_token 만으로도 _WS_AUTH_API 서버 검증이 가능하므로 제거.
+          var token = null, user = null, loginTime = null;
           try { token = sessionStorage.getItem('ws_token'); } catch(e) {}
           try { user = sessionStorage.getItem('ws_user'); } catch(e) {}
           try { loginTime = sessionStorage.getItem('ws_login_time'); } catch(e) {}
-          try { adminPw = localStorage.getItem('admin_password') || sessionStorage.getItem('admin_password'); } catch(e) {}
           if (!token) {
             try {
               var wa = localStorage.getItem('wishes-auth');
@@ -238,13 +243,11 @@
             hasToken: !!token,
             token: token,
             user: user,
-            loginTime: loginTime,
-            hasAdminPw: !!adminPw,
-            adminPw: adminPw
+            loginTime: loginTime
           });
           return;
         } catch(e) {
-          onResult({ hasToken: false, hasAdminPw: false });
+          onResult({ hasToken: false });
           return;
         }
       }
@@ -265,7 +268,8 @@
       setTimeout(function() {
         if (!_pageAuthHandled) {
           _pageAuthHandled = true;
-          onResult({ hasToken: false, hasAdminPw: false });
+          // L-sec154: hasAdminPw 전달 필드 제거 (소비자 측에서도 제거됨).
+          onResult({ hasToken: false });
         }
       }, 2000);
     }
@@ -367,24 +371,18 @@
             }
           })
           .catch(function() {
-            // 네트워크 오류 시 admin_password 있으면 허용
-            if (pageData.hasAdminPw && pageData.adminPw) {
-              _wsAuthVerified = true;
-              try { _wsAuthUser = JSON.parse(pageData.user); } catch(e) {
-                _wsAuthUser = { email: 'admin', role: 'superadmin', status: 'approved' };
-              }
-              if (cb) cb(true);
-            } else {
-              _wsShowAuthWall();
-              if (cb) cb(false);
-            }
+            // L-sec154 (2026-04-23): admin_password 네트워크-오류 fallback 제거.
+            //   과거엔 서버 검증(_WS_AUTH_API) 이 네트워크 에러로 실패하면
+            //   localStorage.admin_password 한 줄만 있어도 superadmin 통과시킴.
+            //   → 악성 페이지 XSS 한 번이면 오프라인 모드로 위장한 완전 우회 가능.
+            //   이제 서버 검증 실패 == 인증 실패. 인증 벽 노출하고 재로그인 요구.
+            _wsShowAuthWall();
+            if (cb) cb(false);
           });
-        } else if (pageData.hasAdminPw && pageData.adminPw) {
-          // admin_password만 있는 경우 (구 인증 시스템) → 허용
-          _wsAuthVerified = true;
-          _wsAuthUser = { email: 'admin', role: 'superadmin', status: 'approved' };
-          if (cb) cb(true);
         } else {
+          // L-sec154 (2026-04-23): admin_password 전용 바이패스 제거.
+          //   ws_token 없으면 무조건 인증 벽으로. admin-auth.html 을 거친
+          //   Supabase 세션만 유효.
           _wsShowAuthWall();
           if (cb) cb(false);
         }
