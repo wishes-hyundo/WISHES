@@ -1,110 +1,120 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ListPanel — 좌측 매물 리스트 (정렬 적용)
+// ListPanel — /map 좌측 매물 리스트 (네이버 스타일 v3)
 //
-// L-ux2 (2026-04-22): 실사용 스크린샷(좁은 컴럼 + 크롤러 면적 0) 기반 개선
-//   1) 면적 0 / 층 null 때 "- · 4" 가 찍히던 noise 제거
-//   2) 좁은 카드에서 거래배지("월세")가 overflow 로 숨던 현상 → shrink-0 + flex-wrap
-//   3) 가격 라인 truncate 로 한 줄 보장
+// L-card3 (2026-04-23 p.m.): v3 목업 확정 후 카드 재구성
+//   · 상단 배지: [거래방식] (업무용이면 + business_type). 매물번호·저렴% 제거
+//   · 가격 (17px semibold)
+//   · 메타 1줄 truncate: 타입 · 공급/전용㎡ · 해당층/총층 · 방향
+//   · 제목 1줄 truncate (ai_title. 없으면 skip — 빈 공간 삭제)
+//   · 연식 + 타입별 1 chip (가로 나열, 최대 3개, wrap 허용)
+//   · 확인매물 날짜 (updated_at) — 카드 하단 고정
+//   · 썸네일 108px 우측 align-self: stretch 로 텍스트 높이 매칭
 //
-// L-ux3 (2026-04-22): 가상화 도입 — limit=800 때 초기 paint 및 스크롤 지연 해소
-//   기존 listings.map() 여러 800 개 <button> 정식 렌더 → 초기 랜더 ~3s, 스크롤 FPS ↓
-//   @tanstack/react-virtual 로 뷰포트 내 ~12개만 렌더 → 초기 paint <100ms, 60fps 스크롤
-//   동적 높이: measureElement 로 카드 배지 줄바꿈 자동 보정
-//
-// L-sidebar1 (2026-04-23 p.m.): 카드 표기 중복·단위 누락 수정
-//   기존: title="강남구 논현동 세븐스텝 3층" + meta "3" (층 중복 + 단위 누락)
-//   수정:
-//     - title 에서 trailing 층 suffix (예: " 3층", " B1") 를 stripFloor 로 제거
-//     - floor_current 가 숫자만이면 "3층" 으로 단위 보정, 이미 있으면 그대로
-//     - address line: stripFloor(title) ?? building_name ?? dong 순
+// 정렬 tiebreaker (L-photosort1):
+//   · 모든 정렬 case 에서 thumbnail_url NOT NULL 매물 우선
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
 import { useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import Image from 'next/image';
-import { MapPin, Image as ImageIcon } from 'lucide-react';
+import { MapPin, Image as ImageIcon, Video } from 'lucide-react';
 import { useMap2026Store, type MapListing, type SortKey } from '../store';
-import { formatDealLabel, formatDeviation, formatArea, formatStationDistance } from '../lib/priceFormat';
+import { formatDealLabel, formatArea } from '../lib/priceFormat';
+import { buildListingBadges } from '../lib/buildAgeBadge';
 import { SortMenu } from './SortMenu';
 
-// ─────────────────────────────────────────────────────────────
-// L-sidebar1: 한국 부동산 title 관례 "구 동 건물명 N층" 에서 trailing
-// floor 부분만 제거한다. meta 영역에서 별도 floor 배지를 찍으므로
-// title 내 floor 는 중복이 된다.
-//   "강남구 논현동 세븐스텝 3층"  → "강남구 논현동 세븐스텝"
-//   "강남구 논현동 세븐스텝 B1"   → "강남구 논현동 세븐스텝"
-//   "강남구 논현동 세븐스텝 지하1층" → "강남구 논현동 세븐스텝"
-//   "세븐스텝"                     → "세븐스텝"  (층 없음, 그대로)
-// ─────────────────────────────────────────────────────────────
-function stripTrailingFloor(s: string | null | undefined): string | null {
-  if (!s) return null;
-  const cleaned = String(s)
-    .trim()
-    .replace(/\s+(?:지하\s*\d+\s*층?|지하층?|B\s*\d+\s*층?|옥상층?|\d+\s*층|\d+\s*F)\s*$/i, '')
-    .trim();
-  return cleaned || null;
+// 층 포맷: "3" → "3/8층" (floor_total 있으면) / "3층"
+function formatFloorPair(cur: string | null | undefined, total: string | null | undefined): string | null {
+  if (cur == null) return null;
+  const c = String(cur).trim();
+  if (!c || c === '-') return null;
+  const isNum = /^\d+$/.test(c);
+  const t = total ? String(total).trim() : '';
+  if (isNum && t && /^\d+$/.test(t)) return `${c}/${t}층`;
+  if (isNum) return `${c}층`;
+  return c;
 }
 
-// floor_current 단위 보정:
-//   "3"      → "3층"
-//   "3층"    → "3층"        (이미 단위 있음)
-//   "B1"     → "지하 1층"
-//   "지하1층" → "지하1층"
-//   "-"      → null (표시 안 함)
-function formatFloor(v: string | null | undefined): string | null {
-  if (v == null) return null;
-  const s = String(v).trim();
-  if (!s || s === '-') return null;
-  if (/^\d+$/.test(s)) return `${s}층`;
-  const mB = /^B\s*(\d+)\s*층?$/i.exec(s);
-  if (mB) return `지하 ${mB[1]}층`;
-  const mJ = /^지하\s*(\d+)\s*층?$/.exec(s);
-  if (mJ) return `지하 ${mJ[1]}층`;
-  return s;
+// 타입별 대표 1 chip — 주거: 풀옵션/반려동물/엘리베이터 / 상가: 주차/엘리베이터 / 토지: —
+function typeSpecificChip(l: MapListing): string | null {
+  if (l.full_option) return '풀옵션';
+  if (l.pet) return '반려동물';
+  if (l.elevator) return '엘리베이터';
+  if (l.parking && l.parking !== '불가능' && l.parking !== '없음') return '주차가능';
+  return null;
+}
+
+function photoRank(l: MapListing): number {
+  // thumbnail_url 있는 매물을 상위로 올림 (primary sort 가 동점일 때 tiebreaker)
+  return l.thumbnail_url ? 0 : 1;
 }
 
 function sortListings(list: MapListing[], sort: SortKey): MapListing[] {
   const copy = [...list];
+  const tieBreak = (a: MapListing, b: MapListing) => photoRank(a) - photoRank(b);
   switch (sort) {
     case 'recent':
-      copy.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      copy.sort((a, b) => {
+        const d = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return d !== 0 ? d : tieBreak(a, b);
+      });
       break;
     case 'price_asc':
-      copy.sort(
-        (a, b) =>
+      copy.sort((a, b) => {
+        const d =
           (a.price ?? a.deposit ?? a.monthly ?? Number.MAX_SAFE_INTEGER) -
-          (b.price ?? b.deposit ?? b.monthly ?? Number.MAX_SAFE_INTEGER)
-      );
+          (b.price ?? b.deposit ?? b.monthly ?? Number.MAX_SAFE_INTEGER);
+        return d !== 0 ? d : tieBreak(a, b);
+      });
       break;
     case 'price_desc':
-      copy.sort(
-        (a, b) =>
+      copy.sort((a, b) => {
+        const d =
           (b.price ?? b.deposit ?? b.monthly ?? -1) -
-          (a.price ?? a.deposit ?? a.monthly ?? -1)
-      );
+          (a.price ?? a.deposit ?? a.monthly ?? -1);
+        return d !== 0 ? d : tieBreak(a, b);
+      });
       break;
     case 'area_desc':
-      copy.sort((a, b) => (b.area_m2 ?? 0) - (a.area_m2 ?? 0));
+      copy.sort((a, b) => {
+        const d = (b.area_m2 ?? 0) - (a.area_m2 ?? 0);
+        return d !== 0 ? d : tieBreak(a, b);
+      });
       break;
     case 'deal_score':
-      copy.sort((a, b) => (b.hero_score ?? 0) - (a.hero_score ?? 0));
+      copy.sort((a, b) => {
+        const d = (b.hero_score ?? 0) - (a.hero_score ?? 0);
+        return d !== 0 ? d : tieBreak(a, b);
+      });
       break;
   }
   return copy;
 }
+
+// 확인매물 날짜 포맷: "26.04.22"
+function formatCheckedDate(updated_at: string | null | undefined): string | null {
+  if (!updated_at) return null;
+  const d = new Date(updated_at);
+  if (Number.isNaN(d.getTime())) return null;
+  const y = String(d.getFullYear()).slice(-2);
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}.${m}.${day}`;
+}
+
+const AGE_TONE_CLASS: Record<string, string> = {
+  newest:  'bg-emerald-50 text-emerald-700',    // 5년 이내 (YYYY년 준공)
+  emerald: 'bg-emerald-50 text-emerald-700',    // 10년이내
+  amber:   'bg-amber-50 text-amber-700',        // 15년이내
+  gray:    'bg-neutral-100 text-neutral-600',   // 25년이내
+};
 
 export function ListPanel() {
   const listings = useMap2026Store((s) => s.listings);
   const loading = useMap2026Store((s) => s.loading);
   const sort = useMap2026Store((s) => s.sort);
   const selectedId = useMap2026Store((s) => s.selectedId);
-  // L-mapmodal1 (2026-04-23): 카드 클릭 시 상세 요약 모달이 열리도록 교체.
-  //   이전 selectListing(id, true) 는 지도 flyTo + selectedId 업데이트만 수행해
-  //   매물 정보가 보이지 않았다. openListingDetail 은 내부에서 selectListing 을
-  //   재호출하므로 지도 포커스 동작은 그대로 유지된다.
-  // L-slidepanel1 (2026-04-23 p.m.): 동일 store action 유지. 렌더러 쪽
-  //   (ListingDetailModal → 슬라이드 패널) 에서 UI 표현만 변경.
   const openListingDetail = useMap2026Store((s) => s.openListingDetail);
 
   const sorted = useMemo(() => sortListings(listings, sort), [listings, sort]);
@@ -114,7 +124,7 @@ export function ListPanel() {
   const rowVirtualizer = useVirtualizer({
     count: sorted.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 108,
+    estimateSize: () => 148,
     overscan: 6,
     measureElement: typeof ResizeObserver !== 'undefined'
       ? (el) => el.getBoundingClientRect().height
@@ -152,22 +162,24 @@ export function ListPanel() {
           >
             {rowVirtualizer.getVirtualItems().map((vRow) => {
               const l = sorted[vRow.index];
-              const dev = formatDeviation(l.median_deviation);
-              const station = formatStationDistance(l.station_distance);
               const active = selectedId === l.id;
-              const hasArea = l.area_m2 != null && l.area_m2 > 0;
-              const floorLabel = formatFloor(l.floor_current);
-              const hasFloor = floorLabel != null;
+              const { isNew, age } = buildListingBadges({
+                built_year: l.built_year,
+                created_at: l.created_at,
+              });
 
-              // L-sidebar1: 주소/단지명 line — title 우선이되 trailing 층 제거.
-              //   title 이 없거나 층만 있었다면 building_name, 그 다음 dong.
-              const stripped = stripTrailingFloor(l.title);
-              const addressLine = stripped ?? l.building_name ?? l.dong ?? '주소 미상';
+              const floorLabel = formatFloorPair(l.floor_current, l.floor_total);
+              const areaShort = l.area_m2 && l.area_m2 > 0 ? formatArea(l.area_m2) : null;
 
-              const metaParts: Array<{ text: string; tone?: 'station' }> = [];
-              if (hasArea) metaParts.push({ text: formatArea(l.area_m2) });
-              if (hasFloor) metaParts.push({ text: floorLabel! });
-              if (station) metaParts.push({ text: station, tone: 'station' });
+              // 메타 1줄: 타입 · 면적 · 층 · 방향 (존재하는 것만 · 로 이음)
+              const metaParts: string[] = [];
+              if (l.type) metaParts.push(l.type);
+              if (areaShort) metaParts.push(areaShort);
+              if (floorLabel) metaParts.push(floorLabel);
+              if (l.direction) metaParts.push(l.direction);
+
+              const typeChip = typeSpecificChip(l);
+              const checkDate = formatCheckedDate(l.updated_at);
 
               return (
                 <button
@@ -176,8 +188,10 @@ export function ListPanel() {
                   data-index={vRow.index}
                   onClick={() => openListingDetail(l.id)}
                   className={[
-                    'flex w-full items-start gap-3 border-b border-neutral-50 px-4 py-3 text-left transition',
-                    active ? 'bg-emerald-50' : 'hover:bg-neutral-50',
+                    'flex w-full items-stretch gap-3 border-b border-neutral-50 px-3 py-3 text-left transition',
+                    active
+                      ? 'bg-emerald-50 border-l-[3px] border-l-emerald-600 pl-[9px]'
+                      : 'hover:bg-neutral-50',
                   ].join(' ')}
                   style={{
                     position: 'absolute',
@@ -187,64 +201,76 @@ export function ListPanel() {
                     transform: `translateY(${vRow.start}px)`,
                   }}
                 >
-                  <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                    <span className="shrink-0 rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-bold text-white">
-                      {l.deal}
-                    </span>
-                    {l.type && (
-                      <span className="shrink-0 rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-700">
-                        {l.type}
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    {/* Row 1: 거래방식 pill (+ 상업이면 업종) */}
+                    <div className="flex items-center gap-1">
+                      <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-bold text-white leading-[1.3]">
+                        {l.deal}
                       </span>
-                    )}
-                    {dev.kind !== 'neutral' && (
-                      <span
-                        className={[
-                          'shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-bold',
-                          dev.kind === 'good'
-                            ? 'bg-emerald-100 text-emerald-700'
-                            : 'bg-rose-100 text-rose-700',
-                        ].join(' ')}
-                      >
-                        {dev.text}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="truncate text-[15px] font-bold leading-tight text-neutral-900">
-                    {formatDealLabel(l)}
-                  </div>
-
-                  <div className="mt-0.5 line-clamp-1 text-[12px] text-neutral-500">
-                    {addressLine}
-                  </div>
-
-                  {metaParts.length > 0 && (
-                    <div className="mt-1 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-[11.5px] text-neutral-600">
-                      {metaParts.map((part, i) => (
-                        <span
-                          key={i}
-                          className={[
-                            'inline-flex items-center whitespace-nowrap',
-                            part.tone === 'station' ? 'text-emerald-700' : '',
-                          ].join(' ')}
-                        >
-                          {i > 0 && <span className="mr-1 text-neutral-300">·</span>}
-                          {part.text}
+                      {l.business_type && (
+                        <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-600 leading-[1.3] truncate max-w-[80px]">
+                          {l.business_type}
                         </span>
-                      ))}
+                      )}
                     </div>
-                  )}
+
+                    {/* Row 2: 가격 */}
+                    <div className="text-[17px] font-bold leading-tight text-neutral-900">
+                      {formatDealLabel(l)}
+                    </div>
+
+                    {/* Row 3: 메타 (truncate) */}
+                    {metaParts.length > 0 && (
+                      <div className="truncate text-[11.5px] text-neutral-600">
+                        {metaParts.join(' · ')}
+                      </div>
+                    )}
+
+                    {/* Row 4: 제목 (ai_title 없으면 skip) */}
+                    {l.ai_title && (
+                      <div className="truncate text-[12.5px] font-semibold leading-snug text-neutral-800">
+                        {l.ai_title}
+                      </div>
+                    )}
+
+                    {/* Row 5: 연식 + 타입 chip (최대 3개, wrap 허용) */}
+                    {(isNew || age || typeChip) && (
+                      <div className="flex flex-wrap gap-1">
+                        {isNew && (
+                          <span className="rounded bg-rose-600 px-1.5 py-[2px] text-[10px] font-bold text-white leading-[1.2]">
+                            NEW
+                          </span>
+                        )}
+                        {age && (
+                          <span className={[
+                            'rounded px-1.5 py-[2px] text-[10px] font-bold leading-[1.2]',
+                            AGE_TONE_CLASS[age.tone] ?? AGE_TONE_CLASS.gray,
+                          ].join(' ')}>
+                            {age.text}
+                          </span>
+                        )}
+                        {typeChip && (
+                          <span className="rounded bg-neutral-100 px-1.5 py-[2px] text-[10px] font-medium text-neutral-600 leading-[1.2]">
+                            {typeChip}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Row 6: 확인매물 날짜 (하단 고정) */}
+                    <div className="mt-auto pt-0.5 text-[10px] font-medium text-rose-600">
+                      {checkDate ? `확인매물 ${checkDate}` : ''}
+                    </div>
                   </div>
 
-                  {/* L-thumb2 (2026-04-23 p.m.): 네이버 스타일 — 썸네일은 카드 우측에 */}
-                  <div className="relative size-[84px] shrink-0 overflow-hidden rounded-lg bg-neutral-100">
+                  {/* 우측 썸네일 — align-self: stretch 로 컨텐츠 높이 자동 매칭 */}
+                  <div className="relative w-[108px] shrink-0 self-stretch overflow-hidden rounded-md bg-neutral-100">
                     {l.thumbnail_url ? (
                       <Image
                         src={l.thumbnail_url}
-                        alt={addressLine}
+                        alt={l.ai_title ?? (l.dong ?? '매물')}
                         fill
-                        sizes="84px"
+                        sizes="108px"
                         className="object-cover"
                         unoptimized
                       />
@@ -253,10 +279,15 @@ export function ListPanel() {
                         <ImageIcon className="size-6" aria-hidden />
                       </div>
                     )}
-                    {l.photo_count > 1 && (
-                      <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                        +{l.photo_count - 1}
+                    {l.has_video && (
+                      <div className="absolute top-1 left-1 flex items-center gap-0.5 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                        <Video className="size-2.5" /> 영상
                       </div>
+                    )}
+                    {l.photo_count > 0 && (
+                      <span className="absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                        {l.photo_count}장
+                      </span>
                     )}
                   </div>
                 </button>

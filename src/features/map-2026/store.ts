@@ -66,6 +66,7 @@ export const COMMERCIAL_PURPOSE_LABEL: Record<CommercialPurpose, { label: string
 };
 
 // Viewport RPC 로부터 받는 뷰 모델
+// L-card3 (2026-04-23 p.m.): v3 카드 + 슬라이드 패널용 필드 확장
 export interface MapListing {
   id: number;
   lat: number;
@@ -77,15 +78,26 @@ export interface MapListing {
   price: number | null;
   area_m2: number | null;
   rooms: number | null;
+  bathrooms: number | null;
   floor_current: string | null;
+  floor_total: string | null;
+  direction: string | null;
   station_distance: number | null;
   built_year: string | null;
   building_name: string | null;
   dong: string | null;
   title: string | null;
+  ai_title: string | null;
   thumbnail_url: string | null;
   features: string[];
   photo_count: number;
+  parking: string | null;
+  pet: boolean | null;
+  elevator: boolean | null;
+  full_option: boolean | null;
+  maintenance_fee: number | null;
+  business_type: string | null;
+  has_video: boolean;
   median_price: number | null;
   median_deviation: number | null;
   hero_score: number;

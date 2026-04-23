@@ -310,7 +310,11 @@ export async function GET(req: NextRequest) {
     let q = supabase
       .from('mv_map_listings')
       .select(
-        'id, title, type, deal, deposit, monthly, price, area_m2, rooms, floor_current, lat, lng, dong, status, created_at, updated_at, features, thumb_url, station_distance, built_year, building_name',
+        // L-card3 (2026-04-23 p.m.): v3 카드 + 슬라이드 패널용 필드 확장.
+        //   ai_title (제목 라인), direction/parking/pet/elevator/full_option/
+        //   maintenance_fee/bathrooms/floor_total/business_type (패널 상세 테이블),
+        //   has_video (NEW 뱃지 계산엔 불필요 — created_at 만으로 72h 판정).
+        'id, title, ai_title, ai_description, type, deal, deposit, monthly, price, area_m2, rooms, bathrooms, floor_current, floor_total, direction, lat, lng, dong, status, created_at, updated_at, features, thumb_url, station_distance, built_year, building_name, parking, pet, elevator, full_option, maintenance_fee, business_type, has_video',
       )
       .gte('lat', south)
       .lte('lat', north)
@@ -416,6 +420,20 @@ export async function GET(req: NextRequest) {
         title: authed
           ? (r.title ?? null)
           : (r.title ? maskAddressForPublic(r.title, r.dong) : (r.dong ?? null)),
+        // L-card3: 제목 라인 (ai_title). 없으면 ai_description 첫 줄 (80자 이내).
+        ai_title: r.ai_title ?? (r.ai_description
+          ? String(r.ai_description).split(/[\n.]/)[0].slice(0, 80).trim()
+          : null),
+        direction: r.direction ?? null,
+        parking: r.parking ?? null,
+        pet: r.pet ?? null,
+        elevator: r.elevator ?? null,
+        full_option: r.full_option ?? null,
+        maintenance_fee: r.maintenance_fee ?? null,
+        bathrooms: r.bathrooms ?? null,
+        floor_total: r.floor_total ?? null,
+        business_type: r.business_type ?? null,
+        has_video: !!r.has_video,
         thumbnail_url: r.thumb_url ?? null,
         features: Array.isArray(r.features) ? r.features : [],
         photo_count: photoCount,
