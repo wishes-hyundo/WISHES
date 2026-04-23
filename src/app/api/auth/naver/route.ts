@@ -160,4 +160,38 @@ export async function POST(request: NextRequest) {
         });
       } catch (e) {
         // UNIQUE 충돌(이미 존재) 등은 무시 — 정상 경로.
-        console.warn('admin_users insert (naver) skipped:', (e as any)?.m
+        const msg = (e as { message?: string })?.message;
+        console.warn('admin_users insert (naver) skipped:', msg || e);
+      }
+    }
+
+    // 4. 매직링크 생성 - token_hash를 클라이언트에 반환하여 verifyOtp로 세션 생성
+    const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email: email,
+    });
+
+    if (linkError || !linkData) {
+      console.error('Generate link error:', linkError);
+      return NextResponse.json({ error: 'Failed to generate session' }, { status: 500 });
+    }
+
+    const tokenHash = linkData.properties?.hashed_token;
+
+    if (!tokenHash) {
+      console.error('No hashed_token in generateLink response');
+      return NextResponse.json({ error: 'Failed to generate login token' }, { status: 500 });
+    }
+
+    // token_hash를 반환 - 클라이언트에서 verifyOtp로 세션 생성
+    return NextResponse.json({
+      success: true,
+      token_hash: tokenHash,
+      email: email,
+      userId,
+    });
+  } catch (error) {
+    console.error('Naver auth error:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

@@ -83,7 +83,7 @@ export async function GET(
   const siteUrl = resolveSiteUrl(request);
 
   // admin-auth.html 에서 target 을 sessionStorage 로 직접 세팅하기 어렵기 때문에,
-  // /auth/callback 이 쿠키로 fallback 할 수 있도록 ws_oauth_target HttpOnly 쿠키에 심는다.
+  // /auth/callback 이 쿠키로 fallback 할 수 있도록 ws_oauth_target 쿠키에 심는다.
   // 10분 수명.
   const isProd = process.env.NODE_ENV === 'production';
 
@@ -138,12 +138,23 @@ export async function GET(
 
   const res = NextResponse.redirect(naverUrl, { status: 302 });
   // 콜백에서 sessionStorage 에 쓰인 state 와 이 쿠키를 둘 다 참조할 수 있게 한다.
-  // sessionStorage 는 같은 브라우저 탭에서만 유효하므로 OAuth 리다이렉트 라운드
-  // 트립에서 유지되지만, 정적 HTML → 서버 → 네이버 → 콜백 흐름에서 혹시 누락되는
-  // 경우를 대비해 쿠키를 추가 저장소로 둔다. (실제 검증은 콜백이 수행.)
   res.cookies.set({
     name: 'ws_naver_state',
     value: state,
     httpOnly: true,
     secure: isProd,
-    sameSite: 'lax', // Naver
+    sameSite: 'lax', // Naver 가 리다이렉트로 돌려보낼 때 쿠키 동반되도록 lax.
+    path: '/',
+    maxAge: 600,
+  });
+  res.cookies.set({
+    name: 'ws_oauth_target',
+    value: target,
+    httpOnly: false,
+    secure: isProd,
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 600,
+  });
+  return res;
+}

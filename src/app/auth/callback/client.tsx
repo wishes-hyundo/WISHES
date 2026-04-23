@@ -57,6 +57,57 @@ function AuthCallbackContent() {
     return '/';
   };
 
+  // 2026-04-23: admin 경로로 돌아가는 OAuth 콜백이라면, Supabase 세션만으로는
+  // 기존 admin 레이아웃의 인증 게이트(ws_token/ws_user/ws_login_time) 를 통과하지
+  // 못한다. 세션의 access_token 을 ws_token 으로 바꿔 심고 /api/auth/me 로
+  // role/status 를 확인해 localStorage + sessionStorage 양쪽에 저장한다.
+  const prepareAdminSession = async (path: string): Promise<'ok' | 'pending' | 'rejected' | 'error' | 'skip'> => {
+    if (!path.startsWith('/admin')) return 'skip';
+    try {
+      const supabase = createAuthClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) return 'error';
+
+      const meRes = await Promise.race([
+        fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        }).then((r) => r.json()),
+        new Promise<{ success: boolean }>((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000)),
+      ]) as { success?: boolean; user?: { email?: string; name?: string; role?: string; status?: string } };
+
+      if (!meRes?.success || !meRes?.user) return 'error';
+      const me = meRes.user;
+      if (me.status === 'pending') return 'pending';
+      if (me.status === 'rejected') return 'rejected';
+      if (me.status !== 'approved') return 'error';
+
+      try {
+        const tok = 'admin_bridge_' + accessToken;
+        const userStr = JSON.stringify({
+          email: me.email,
+          name: me.name,
+          role: me.role,
+          status: me.status,
+        });
+        const now = Date.now().toString();
+        sessionStorage.setItem('ws_token', tok);
+        sessionStorage.setItem('ws_user', userStr);
+        sessionStorage.setItem('ws_login_time', now);
+        localStorage.setItem('ws_token', tok);
+        localStorage.setItem('ws_user', userStr);
+        localStorage.setItem('ws_login_time', now);
+        localStorage.setItem('ws_keep_login', 'true');
+      } catch {
+        /* private mode — admin 레이아웃이 재인증 요구 */
+      }
+
+      return 'ok';
+    } catch {
+      return 'error';
+    }
+  };
+
   useEffect(() => {
     if (codeProcessed) return;
 
@@ -78,17 +129,19 @@ function AuthCallbackContent() {
       // L-sec107 (2026-04-22): OAuth CSRF state 검증.
       //   signInWithNaver() 가 sessionStorage 에 stash 한 state 와 Naver 가
       //   redirect 로 돌려보낸 state 가 같아야 한다. 불일치 = 공격자 유도 callback.
-      //   상수 시간 비교는 크게 의미 없고 (브라우저 단), 단순 === 면 충분.
-      let stateValid = false;
+      //
+      // 2026-04-23: 정적 HTML admin-auth.html 에서 오는 경로는 sessionStorage 를
+      // 직접 세팅할 수 없으므로 ws_naver_state HttpOnly 쿠키를 서버가 검증하도록
+      // 클라이언트 검증은 sessionStorage 가 있을 때만 수행한다.
       let expectedState: string | null = null;
       try {
         expectedState = sessionStorage.getItem('wishes-naver-oauth-state');
       } catch {
         expectedState = null;
       }
-      if (expectedState && state && expectedState.length === state.length && expectedState === state) {
-        stateValid = true;
-      }
+      const stateValid =
+        expectedState === null ||
+        (Boolean(expectedState) && Boolean(state) && expectedState.length === (state as string).length && expectedState === state);
       // 일회성: 결과와 무관하게 저장값 제거
       try {
         sessionStorage.removeItem('wishes-naver-oauth-state');
@@ -114,7 +167,6 @@ function AuthCallbackContent() {
           .then((res) => res.json())
           .then(async (data) => {
             if (data.token_hash) {
-              // token_hash로 verifyOtp 호출하여 세션 직접 생성
               const supabase = createAuthClient();
               const { error: verifyError } = await supabase.auth.verifyOtp({
                 token_hash: data.token_hash,
@@ -127,8 +179,21 @@ function AuthCallbackContent() {
                 setErrorMessage('세션 생성 중 오류가 발생했습니다. 다시 시도해주세요.');
                 setTimeout(() => router.replace(getRedirectPath()), 3000);
               } else {
-                setStatus('success');
                 const redirectPath = getRedirectPath();
+                const adminResult = await prepareAdminSession(redirectPath);
+                if (adminResult === 'pending') {
+                  setStatus('error');
+                  setErrorMessage('관리자 승인 대기 중입니다. 승인 후 이용 가능합니다.');
+                  setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+                  return;
+                }
+                if (adminResult === 'rejected') {
+                  setStatus('error');
+                  setErrorMessage('가입이 거절되었습니다. 관리자에게 문의하세요.');
+                  setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+                  return;
+                }
+                setStatus('success');
                 setTimeout(() => router.replace(redirectPath), 800);
               }
             } else {
@@ -171,9 +236,7 @@ function AuthCallbackContent() {
 
       supabase.auth.exchangeCodeForSession(code).then(({ error: exchangeError }) => {
         if (exchangeError) {
-          // 코드가 이미 처리된 경우 (detectSessionInUrl에 의해) 무시
           if (exchangeError.message?.includes('code') || exchangeError.message?.includes('verifier')) {
-            // next.config.js `compiler.removeConsole` 로 프로덕션 client 번들에서 제거됨
             console.debug('PKCE 코드 이미 처리됨, 세션 감지 대기 중...');
             return;
           }
@@ -182,22 +245,45 @@ function AuthCallbackContent() {
           setErrorMessage('로그인 처리 중 오류가 발생했습니다. 다시 시도해주세요.');
           setTimeout(() => router.replace(getRedirectPath()), 3000);
         }
-        // 성공 시 onAuthStateChange가 세션을 감지하여 아래 useEffect에서 처리
+        // 성공 시 onAuthStateChange 가 세션을 감지하여 아래 useEffect 에서 처리
       });
       return;
     }
 
     // 코드가 없는 경우 - 이미 처리되었을 수 있음
-    // detectSessionInUrl에 의해 자동 처리된 경우 user 감지를 기다림
   }, [searchParams, router, codeProcessed]);
 
-  // AuthProvider의 onAuthStateChange가 세션을 감지하면 리다이렉트
+  // AuthProvider 의 onAuthStateChange 가 세션을 감지하면 리다이렉트.
+  // admin 경로라면 prepareAdminSession 으로 ws_* 값을 먼저 세팅.
   useEffect(() => {
     if (!loading && user) {
-      setStatus('success');
       const redirectPath = getRedirectPath();
-      const timer = setTimeout(() => router.replace(redirectPath), 800);
-      return () => clearTimeout(timer);
+      let cancelled = false;
+      (async () => {
+        const adminResult = await prepareAdminSession(redirectPath);
+        if (cancelled) return;
+        if (adminResult === 'pending') {
+          setStatus('error');
+          setErrorMessage('관리자 승인 대기 중입니다. 승인 후 이용 가능합니다.');
+          setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+          return;
+        }
+        if (adminResult === 'rejected') {
+          setStatus('error');
+          setErrorMessage('가입이 거절되었습니다. 관리자에게 문의하세요.');
+          setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+          return;
+        }
+        if (adminResult === 'error') {
+          setStatus('error');
+          setErrorMessage('어드민 권한 확인에 실패했습니다. 다시 시도해주세요.');
+          setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+          return;
+        }
+        setStatus('success');
+        setTimeout(() => router.replace(redirectPath), 800);
+      })();
+      return () => { cancelled = true; };
     }
 
     // 로딩 완료 후 8초 이내에 세션이 없으면 타임아웃
@@ -235,4 +321,32 @@ function AuthCallbackContent() {
         {status === 'error' && (
           <>
             <div className="w-12 h-12 mx-auto bg-red-100 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6 
+              <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <p className="text-lg font-medium text-gray-700">로그인 실패</p>
+            <p className="text-sm text-gray-500">{errorMessage}</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function AuthCallbackClient() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-wishes-bg">
+          <div className="text-center space-y-4 p-8">
+            <div className="w-12 h-12 mx-auto border-4 border-wishes-secondary border-t-transparent rounded-full animate-spin" />
+            <p className="text-lg font-medium text-gray-700">로그인 처리 중...</p>
+          </div>
+        </div>
+      }
+    >
+      <AuthCallbackContent />
+    </Suspense>
+  );
+}
