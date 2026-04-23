@@ -19,12 +19,22 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Image as ImageIcon, X } from 'lucide-react';
+import { Image as ImageIcon, X, Home, Building2, Trees, TrendingUp } from 'lucide-react';
+import type { ComponentType, SVGProps } from 'react';
 import {
   useMap2026Store,
   CATEGORY_THEME,
   type DealType,
+  type PropertyCategory,
 } from '../store';
+
+// L-filtericon1 (2026-04-23 p.m.): 한글 1글자 배지 → 카테고리 아이콘 매핑
+const CATEGORY_ICON: Record<PropertyCategory, ComponentType<SVGProps<SVGSVGElement>>> = {
+  residence:     Home,
+  retail_office: Building2,
+  land:          Trees,
+  investment:    TrendingUp,
+};
 import { ResidenceChips } from './ResidenceChips';
 import { CommercialChips } from './CommercialChips';
 import { LandChips } from './LandChips';
@@ -77,15 +87,20 @@ export function FilterModal() {
       <div className="relative flex h-full flex-col">
         {/* Header */}
         <header className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4">
-          <span
-            className={[
-              'flex size-8 items-center justify-center rounded-lg text-[14px] font-bold text-white',
-              theme.accent,
-            ].join(' ')}
-            aria-hidden
-          >
-            {theme.label.charAt(0)}
-          </span>
+          {(() => {
+            const Icon = CATEGORY_ICON[filter.category];
+            return (
+              <span
+                className={[
+                  'flex size-8 items-center justify-center rounded-lg text-white',
+                  theme.accent,
+                ].join(' ')}
+                aria-hidden
+              >
+                <Icon className="size-[18px]" strokeWidth={2.25} />
+              </span>
+            );
+          })()}
           <div className="flex-1">
             <h2 id="filter-modal-title" className="text-[16px] font-bold text-neutral-900">
               {theme.label} 필터

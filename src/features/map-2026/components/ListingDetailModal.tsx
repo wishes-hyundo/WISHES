@@ -94,11 +94,21 @@ export function ListingDetailModal() {
 
   const isOpen = !!listing;
 
+  // L-gallery1 (2026-04-23 p.m.): 사진 갤러리 — 슬라이드 패널 내 좌/우 넘기기
+  //   매물 상세 열릴 때 /api/listings/[id]/images 호출 (이미 L-imgpolicy2 로
+  //   크롤링 차단 + self-hosted 만 통과). 자체 업로드 이미지 여러 장 넘겨봄.
+  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  // L-lightbox1 (2026-04-23 p.m.): 사진 크게 보기 (풀스크린 라이트박스)
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  // L-tsfix-order1 (2026-04-23 p.m.): useState 를 ESC useEffect 앞으로 옮김.
+  //   이전엔 useEffect 가 lightboxOpen 을 참조하지만 useState 가 뒤에 선언돼
+  //   TS "used before declaration" 빌드 실패.
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      // L-lightbox1: lightbox 가 열려 있으면 그거부터 닫기 (상위 패널은 유지)
       if (lightboxOpen) {
         setLightboxOpen(false);
         return;
@@ -112,14 +122,6 @@ export function ListingDetailModal() {
   useEffect(() => {
     if (isOpen) closeBtnRef.current?.focus();
   }, [isOpen]);
-
-  // L-gallery1 (2026-04-23 p.m.): 사진 갤러리 — 슬라이드 패널 내 좌/우 넘기기
-  //   매물 상세 열릴 때 /api/listings/[id]/images 호출 (이미 L-imgpolicy2 로
-  //   크롤링 차단 + self-hosted 만 통과). 자체 업로드 이미지 여러 장 넘겨봄.
-  const [galleryImages, setGalleryImages] = useState<string[]>([]);
-  const [galleryIndex, setGalleryIndex] = useState(0);
-  // L-lightbox1 (2026-04-23 p.m.): 사진 크게 보기 (풀스크린 라이트박스)
-  const [lightboxOpen, setLightboxOpen] = useState(false);
   const listingId = listing?.id;
   useEffect(() => {
     if (listingId == null) {
@@ -172,7 +174,7 @@ export function ListingDetailModal() {
       role="dialog"
       aria-modal="false"
       aria-label="매물 상세"
-      className="absolute left-0 top-0 z-30 flex h-full w-[360px] max-w-[85%] translate-x-0 flex-col overflow-hidden border-r border-neutral-200 bg-white shadow-2xl transition-transform duration-300"
+      className="absolute left-0 top-0 z-30 flex h-full w-[380px] max-w-[85%] translate-x-0 flex-col overflow-hidden border-r border-neutral-200 bg-white shadow-2xl transition-transform duration-300"
     >
       {/* L-gallery1: Hero 갤러리 (넘김 가능) */}
       <div className="relative h-[220px] w-full shrink-0 overflow-hidden bg-neutral-200">
