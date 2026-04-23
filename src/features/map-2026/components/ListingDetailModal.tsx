@@ -97,11 +97,17 @@ export function ListingDetailModal() {
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeListingDetail();
+      if (e.key !== 'Escape') return;
+      // L-lightbox1: lightbox 가 열려 있으면 그거부터 닫기 (상위 패널은 유지)
+      if (lightboxOpen) {
+        setLightboxOpen(false);
+        return;
+      }
+      closeListingDetail();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, closeListingDetail]);
+  }, [isOpen, closeListingDetail, lightboxOpen]);
 
   useEffect(() => {
     if (isOpen) closeBtnRef.current?.focus();
@@ -112,6 +118,8 @@ export function ListingDetailModal() {
   //   크롤링 차단 + self-hosted 만 통과). 자체 업로드 이미지 여러 장 넘겨봄.
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  // L-lightbox1 (2026-04-23 p.m.): 사진 크게 보기 (풀스크린 라이트박스)
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const listingId = listing?.id;
   useEffect(() => {
     if (listingId == null) {
@@ -172,15 +180,22 @@ export function ListingDetailModal() {
           const src = galleryImages[galleryIndex] ?? listing.thumbnail_url;
           if (src) {
             return (
-              <Image
-                key={src}
-                src={src}
-                alt={addressLine}
-                fill
-                sizes="380px"
-                className="object-cover"
-                unoptimized
-              />
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(true)}
+                aria-label="사진 크게 보기"
+                className="absolute inset-0 block cursor-zoom-in"
+              >
+                <Image
+                  key={src}
+                  src={src}
+                  alt={addressLine}
+                  fill
+                  sizes="380px"
+                  className="object-cover"
+                  unoptimized
+                />
+              </button>
             );
           }
           return (
@@ -397,6 +412,63 @@ export function ListingDetailModal() {
           </div>
         )}
       </div>
+
+      {/* L-lightbox1 (2026-04-23 p.m.): 풀스크린 사진 뷰어 */}
+      {lightboxOpen && galleryImages.length > 0 && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95"
+          onClick={() => setLightboxOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="사진 크게 보기"
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
+            aria-label="닫기"
+            className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
+          >
+            <X className="size-5" />
+          </button>
+
+          {galleryImages.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
+                }}
+                aria-label="이전 사진"
+                className="absolute left-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
+              >
+                <ChevronLeft className="size-6" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGalleryIndex((i) => (i + 1) % galleryImages.length);
+                }}
+                aria-label="다음 사진"
+                className="absolute right-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
+              >
+                <ChevronRight className="size-6" />
+              </button>
+            </>
+          )}
+
+          {/* 현재 사진 (contain 으로 비율 유지, 클릭 전파 방지) */}
+          <img
+            src={galleryImages[galleryIndex]}
+            alt={addressLine}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[92vh] max-w-[92vw] object-contain"
+          />
+
+          {/* 하단 카운터 */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-[12px] font-semibold text-white tabular-nums">
+            {galleryIndex + 1} / {galleryImages.length}
+          </div>
+        </div>
+      )}
 
       {/* 푸터 */}
       <div className="flex items-center gap-2 border-t border-neutral-100 bg-neutral-50 px-4 py-3">

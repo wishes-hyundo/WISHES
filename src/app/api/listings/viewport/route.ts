@@ -426,13 +426,12 @@ export async function GET(req: NextRequest) {
     //   탐색해 첫 장을 썸네일로 복원한다. 중개사가 매물 등록 후 자체 사진만 업로드한
     //   케이스 지원 — "실제로 올린 사진이 있는데 썸네일이 크롤링 원본이라 차단되어
     //   결국 카드에 사진이 안 뜨던" 문제 해결.
-    // L-imgrestore2 (2026-04-23 p.m.): 배치 쿼리 최대 300개로 제한.
-    //   수천 IN 배열은 Postgres plan 이 slow → viewport 응답이 5~10초 걸리던 원인.
-    //   updated_at 최신순 상위 300개만 복구 대상 (사용자에게 가장 눈에 띄는 매물).
-    //   나머지는 placeholder. 근본 해결은 mv_map_listings 를 self-hosted 우선으로 재정의
-    //   하는 SQL migration (별도 수동 실행).
+    // L-photocount2 (2026-04-23 p.m.): 배치 범위를 크롤링 매물 전체 로 넓힘.
+    //   이전 L-imgrestore2 는 '차단될 썸네일' 만 대상 → 이미 L-imgrestore1 로
+    //   복원된 매물은 제외되어 photo_count 가 0 으로 찍히던 버그. 이제 source_site
+    //   NOT NULL 크롤링 매물이면 모두 배치 쿼리에 넣어 실제 사진 수 카운트.
     const blockedIds: number[] = rows
-      .filter((r) => r.source_site && (!r.thumb_url || !isSelfHostedImage(r.thumb_url)))
+      .filter((r) => !!r.source_site)
       .slice(0, 300)
       .map((r) => r.id as number);
 
