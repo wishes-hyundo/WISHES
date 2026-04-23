@@ -83,20 +83,31 @@ export async function POST(request: NextRequest) {
 
     // 순차적으로 지오코딩 (API 레이트 리밋 고려)
     for (const listing of listings) {
-      // 주소 구성: dong+gu 최우선 (address 필드는 크롤링 원시 데이터로 지저분함)
-      // 1순위: gu + dong + building_name (깨끗한 구조화 데이터)
-      // 2순위: address에서 한국 주소 패턴 추출
-      // 3순위: address 원본 (최후의 수단)
+      // L-geocode2 (2026-04-23): 주소 우선순위 역전.
+      // 이전 구현은 dong 이 있으면 address 필드(원본)를 통째로 버리고
+      // 'gu + dong + building_name' 만 조합했는데, 이 경우 번지(11-24 등)
+      // 가 사라져 Kakao 가 건물 포인트를 못 찾고 전수 실패.
+      //
+      // 새 순서 (실패 시 폴백):
+      //   1순위: "구 + 동 + 번지" (address 에서 한국 주소 패턴 추출)
+      //   2순위: address 원본 전체 (줄바꿈·탭만 정리)
+      //   3순위: "gu + dong + building_name" (구조화 필드)
+      //   4순위: "dong + building_name" (구 누락 시)
       let searchAddr = '';
 
-      if (listing.dong) {
-        searchAddr = [listing.gu, listing.dong, listing.building_name].filter(Boolean).join(' ');
+      if (listing.address) {
+        // '[시/도] + 구 + 동 + 번지' 패턴 우선 매칭 (번지 포함 → 정밀)
+        const patternMatch = listing.address.match(/([가-힣]+(?:시|도)\s+)?[가-힣]+(?:구|군)\s+[가-힣]+(?:동|읍|면|리|로|길)\s*[\d\-]+/);
+        if (patternMatch) {
+          searchAddr = patternMatch[0].trim();
+        } else {
+          // 패턴 매칭 실패 시 address 원본 (건물명·층호 포함) 전체 사용 — Kakao 키워드 API 가 받아줌
+          searchAddr = listing.address.replace(/[\t\n\r]+/g, ' ').trim();
+        }
       }
 
-      if (!searchAddr && listing.address) {
-        // address에서 "XX구 XX동" 패턴 추출 (크롤링 데이터 정제)
-        const addrMatch = listing.address.match(/([가-힣]+(?:시|도)\s+)?[가-힣]+(?:구|군)\s+[가-힣]+(?:동|읍|면|리|로|길)\s*[\d\-\s가-힣]*/);
-        searchAddr = addrMatch ? addrMatch[0].trim() : listing.address.replace(/[\t\n\r]+/g, ' ').trim();
+      if (!searchAddr && listing.dong) {
+        searchAddr = [listing.gu, listing.dong, listing.building_name].filter(Boolean).join(' ');
       }
 
       if (!searchAddr) {
