@@ -13,11 +13,8 @@ import { dealsToParam } from '../lib/priceFormat';
 const MAX_VIEWPORT_DEG = 2;
 
 function isValidBbox(b: { west: number; south: number; east: number; north: number }): boolean {
-  // NaN / Infinity 배제
   if (![b.west, b.south, b.east, b.north].every(Number.isFinite)) return false;
-  // 반전 좌표 배제
   if (b.east <= b.west || b.north <= b.south) return false;
-  // 과대 영역 배제 (서버 MAX_VIEWPORT_DEG 와 동일 기준)
   if (b.east - b.west > MAX_VIEWPORT_DEG) return false;
   if (b.north - b.south > MAX_VIEWPORT_DEG) return false;
   return true;
@@ -27,7 +24,11 @@ function buildQueryString(
   bbox: NonNullable<ReturnType<typeof useMap2026Store.getState>['bbox']>,
   filter: FilterState,
   // L-viewport1 (2026-04-23): 6000+ 매물 전부 수신을 위해 800 → 3000.
-  limit = 3000
+  // L-viewport2 (2026-04-23 p.m.): DB 실측 mv_visible=6179 → 3000 cap 으로 여전히
+  //   절반 넘게 잘려 ListPanel 카운트가 "3,000개" 로 고정되어 있었다. 서버
+  //   MAX_LIMIT=10000 을 풀수신하도록 상향. 클라이언트 grid clustering 덕에
+  //   rendering cost 는 매물 수와 무관하게 클러스터 개수만큼만 발생한다.
+  limit = 10000
 ) {
   const p = new URLSearchParams();
   p.set('west', bbox.west.toFixed(6));
@@ -36,7 +37,6 @@ function buildQueryString(
   p.set('north', bbox.north.toFixed(6));
   p.set('limit', String(limit));
 
-  // Category-First — 최상위 맥락
   p.set('category', filter.category);
   if (filter.purposes.length) p.set('purposes', filter.purposes.join(','));
 
@@ -71,7 +71,6 @@ export function useViewport() {
 
   useEffect(() => {
     if (!bbox) return;
-    // L-vp2: 유효하지 않은 bbox 는 조용히 스킵 — 콘솔 스팸 + 빈 리스트 깜박임 방지
     if (!isValidBbox(bbox)) return;
 
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -84,7 +83,6 @@ export function useViewport() {
       try {
         const qs = buildQueryString(bbox, filter);
         const res = await fetch(`/api/listings/viewport?${qs}`, { signal: ctrl.signal });
-        // 4xx 는 경고만 남기고 리스트를 비움 — 기존엔 throw 로 error 로그 폭주
         if (res.status >= 400 && res.status < 500) {
           if (!ctrl.signal.aborted) setListings([]);
           if (res.status !== 400) {
