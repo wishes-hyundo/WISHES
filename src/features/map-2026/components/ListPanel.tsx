@@ -40,7 +40,7 @@ function stripTrailingFloor(s: string | null | undefined): string | null {
   if (!s) return null;
   const cleaned = String(s)
     .trim()
-    .replace(/\s+(?:지하\s*\d+\s*층?|지하층|B\d+|옥상층?|\d+\s*층|\d+F)\s*$/i, '')
+    .replace(/\s+(?:지하\s*\d+\s*층?|지하층?|B\s*\d+\s*층?|옥상층?|\d+\s*층|\d+\s*F)\s*$/i, '')
     .trim();
   return cleaned || null;
 }
@@ -56,8 +56,10 @@ function formatFloor(v: string | null | undefined): string | null {
   const s = String(v).trim();
   if (!s || s === '-') return null;
   if (/^\d+$/.test(s)) return `${s}층`;
-  const m = /^B(\d+)$/i.exec(s);
-  if (m) return `지하 ${m[1]}층`;
+  const mB = /^B\s*(\d+)\s*층?$/i.exec(s);
+  if (mB) return `지하 ${mB[1]}층`;
+  const mJ = /^지하\s*(\d+)\s*층?$/.exec(s);
+  if (mJ) return `지하 ${mJ[1]}층`;
   return s;
 }
 
