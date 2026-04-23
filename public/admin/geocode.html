@@ -521,23 +521,45 @@
 
                 const result = await response.json();
 
+                // L-geocodeui1 (2026-04-23) API 응답 필드명 정정:
+                //   route.ts 는 { updated, failed, remaining } 리턴하지만 이전엔 UI 가
+                //   processed/successful 을 읽어 계속 undefined → 집계 항상 0, 무한루프 위험.
+                const batchSuccess = result.updated ?? result.successful ?? 0;
+                const batchFailed = result.failed ?? 0;
+                const batchProcessed = batchSuccess + batchFailed;
+
                 // Update stats
                 const previousGeocoded = totalGeocoded;
-                totalGeocoded += result.processed || 0;
+                totalGeocoded += batchProcessed;
+                const prevRemaining = totalRemaining;
                 totalRemaining = result.remaining !== undefined ? result.remaining : totalRemaining;
-                totalSuccessful += result.successful || 0;
-                totalAttempts += result.processed || 0;
+                totalSuccessful += batchSuccess;
+                totalAttempts += batchProcessed;
 
                 batches.push({ duration: batchDuration });
 
                 // Log batch result
-                const message = `배치 완료: ${result.processed}개 처리 (성공: ${result.successful || 0}, 실패: ${(result.processed || 0) - (result.successful || 0)}), 남음: ${totalRemaining || 0}개`;
+                const message = `배치 완료: ${batchProcessed}개 처리 (성공: ${batchSuccess}, 실패: ${batchFailed}), 남음: ${totalRemaining || 0}개`;
                 log(message, 'success');
 
                 updateStats();
 
+                // L-geocodeui1: 무한루프 방지 — 연속 3배치 remaining 변화 없으면 stop.
+                if (typeof window.__stuckBatchCount === 'undefined') window.__stuckBatchCount = 0;
+                if (prevRemaining === totalRemaining) {
+                  window.__stuckBatchCount++;
+                  if (window.__stuckBatchCount >= 3) {
+                    log(`⚠️ 남은 건수가 ${window.__stuckBatchCount}배치 연속 변화 없음 — 지오코딩 불가능한 매물로 판단해 자동 중지.`, 'warn');
+                    stopGeocoding();
+                    window.__stuckBatchCount = 0;
+                    return;
+                  }
+                } else {
+                  window.__stuckBatchCount = 0;
+                }
+
                 // Check if completed
-                if (totalRemaining === 0 || totalRemaining === null && result.processed === 0) {
+                if (totalRemaining === 0 || totalRemaining === null && batchProcessed === 0) {
                     stopGeocoding();
                     log('모든 지오코딩이 완료되었습니다!', 'success');
                 }
