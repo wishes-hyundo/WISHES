@@ -113,6 +113,17 @@ const formatDealPrice = (listing: Listing): string => {
 };
 
 /* ── 매물 등록 경과일 뱃지 (만료 알림 시스템) ── */
+// L-verify-list (2026-04-24): 현장확인 배지 렌더 헬퍼
+const getVerifyBadge = (last: string | null | undefined) => {
+  if (!last) return { label: '미확인', color: 'bg-red-50 text-red-600 border border-red-100' };
+  const days = Math.floor((Date.now() - new Date(last).getTime()) / (24*60*60*1000));
+  if (days < 0) return { label: '확인', color: 'bg-emerald-50 text-emerald-700 border border-emerald-100' };
+  if (days === 0) return { label: '오늘 확인', color: 'bg-emerald-50 text-emerald-700 border border-emerald-100' };
+  if (days <= 7) return { label: days + '일 전', color: 'bg-emerald-50 text-emerald-700 border border-emerald-100' };
+  if (days <= 30) return { label: days + '일 전', color: 'bg-amber-50 text-amber-700 border border-amber-100' };
+  return { label: days + '일 전', color: 'bg-red-50 text-red-600 border border-red-100' };
+};
+
 const getListingAgeBadge = (dateStr: string) => {
   if (!dateStr) return { label: '-', color: 'bg-gray-100 text-gray-500', days: -1, urgent: false };
   const d = new Date(dateStr);
@@ -1039,6 +1050,7 @@ export default function AdminListingsPage() {
                       <td className="px-4 py-3">
                         <div className="text-xs text-gray-500">{formatDate(listing.created_at)}</div>
                         {(() => { const b = getListingAgeBadge(listing.created_at); return b.days >= 0 ? <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${b.color}`}>{b.label}</span> : null; })()}
+                        {(() => { const v = getVerifyBadge(listing.last_verified_at); return <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${v.color}`} title={listing.last_verified_at ? `최근 현장확인 ${new Date(listing.last_verified_at).toLocaleString('ko-KR')}` : '현장확인 기록 없음'}>✓ {v.label}</span>; })()}
                         {listing.updated_at && listing.updated_at !== listing.created_at && <div className="text-[10px] text-purple-500 mt-0.5" title={listing.updated_at}>수정됨</div>}
                       </td>
                       <td className="px-4 py-3">
@@ -1215,6 +1227,7 @@ export default function AdminListingsPage() {
                       <div className="flex flex-col items-end gap-0.5">
                         <span className="text-xs text-gray-400">{formatDate(listing.created_at)}</span>
                         {(() => { const b = getListingAgeBadge(listing.created_at); return b.days >= 0 ? <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${b.color}`}>{b.label}</span> : null; })()}
+                        {(() => { const v = getVerifyBadge(listing.last_verified_at); return <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${v.color}`} title={listing.last_verified_at ? `최근 현장확인 ${new Date(listing.last_verified_at).toLocaleString('ko-KR')}` : '현장확인 기록 없음'}>✓ {v.label}</span>; })()}
                       </div>
                     </div>
                   </div>
