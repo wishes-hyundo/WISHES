@@ -49,6 +49,9 @@ import { CopyToastOutlet } from '@/features/map-2026/components/CopyToast';
 //   Gate 패턴 (카테고리 탭 클릭 → 모달) 으로 전환됨.
 
 import KakaoDeckOverlay, { type MapItem } from '@/components/map/KakaoDeckOverlay';
+// L-mapmarker1 (2026-04-23): 네이버·직방 스타일 HTML 마커 (Kakao CustomOverlay).
+//   KakaoDeckOverlay 의 item scatter 는 items=[] 로 비활성화 (cluster 레이어는 유지).
+import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay';
 
 // 서울 기본 중심
 const SEOUL = { lat: 37.4979, lng: 127.0276 };
@@ -116,6 +119,8 @@ export default function MapClient() {
   // L-mapmodal1 (2026-04-23): onClickListing 은 selectListing 대신
   //   openListingDetail 을 사용해 지도 포커스 + 상세 모달 오픈을 한 번에 처리.
   const openListingDetail = useMap2026Store((s) => s.openListingDetail);
+  // L-mapmarker1 (2026-04-23): HtmlMarkerOverlay 선택 상태 표시용
+  const detailListingId = useMap2026Store((s) => s.detailListingId);
   const listPanelCollapsed = useMap2026Store((s) => s.listPanelCollapsed);
   const toggleListPanel = useMap2026Store((s) => s.toggleListPanel);
   const listingsCount = useMap2026Store((s) => s.listings.length);
@@ -338,15 +343,27 @@ export default function MapClient() {
             style={{ width: '100%', height: '100%' }}
           />
           {ready && kakaoMap ? (
-            <KakaoDeckOverlay
-              map={kakaoMap}
-              // L-map3 (2026-04-22): Kakao Maps SDK v2 Map 인스턴스는 getContainer()
-              //   를 노출하지 않아서, 이전에는 오버레이 useEffect 가 early-return 하며
-              //   canvas 를 만들지 못했다. 상위가 동일 element ref 를 직접 내려준다.
-              container={containerRef.current}
-              items={items}
-              onClickListing={onClickListing}
-            />
+            <>
+              <KakaoDeckOverlay
+                map={kakaoMap}
+                // L-map3 (2026-04-22): Kakao Maps SDK v2 Map 인스턴스는 getContainer()
+                //   를 노출하지 않아서, 이전에는 오버레이 useEffect 가 early-return 하며
+                //   canvas 를 만들지 못했다. 상위가 동일 element ref 를 직접 내려준다.
+                container={containerRef.current}
+                // L-mapmarker1 (2026-04-23): 개별 매물 렌더링은 HtmlMarkerOverlay 가
+                //   담당 (네이버·직방 스타일 HTML 마커). deck.gl item scatter/text 를
+                //   비활성화하기 위해 items=[] 로 비워둠. cluster 레이어는 유지.
+                items={[]}
+                onClickListing={onClickListing}
+              />
+              {/* L-mapmarker1: Tier1 pill + Tier2 원 HTML 마커 */}
+              <HtmlMarkerOverlay
+                map={kakaoMap}
+                listings={listings}
+                selectedListingId={detailListingId}
+                onClickListing={onClickListing}
+              />
+            </>
           ) : null}
           <SemanticZoomIndicator />
           <MapControls />
