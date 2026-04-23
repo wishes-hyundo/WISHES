@@ -65,7 +65,11 @@ export function NlSearchBar() {
   }
 
   return (
-    <div className="relative flex-1 max-w-2xl">
+    // L-mapfilter5 (2026-04-23): 검색바 폭을 카테고리 탭(주거·상가/사무실·토지·투자)
+    //   오른쪽 끝선에 맞추기. 이전 max-w-2xl(672px) 은 카테고리 탭 폭(~520px) 을
+    //   훌쩍 넘어 헤더와 탭 줄의 오른쪽 경계가 불일치했다. 420px 로 고정해
+    //   Row 1 (검색바 오른쪽 끝) ≈ Row 2 (투자 탭 오른쪽 끝) 정렬.
+    <div className="relative flex-1 max-w-[420px]">
       <div className="relative">
         {/* L-ux4: left-3 + 인라인 paddingLeft 36px 로 아이콘-placeholder 걹침 방지. */}
         <Sparkles className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-emerald-600" />
