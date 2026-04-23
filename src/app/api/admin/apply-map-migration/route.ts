@@ -31,13 +31,22 @@ const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'intern
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// 마이그레이션 파일을 런타임에 읽어 실행 (번들에 포함시키지 않음)
-async function loadMigrationSql(): Promise<string> {
+// 마이그레이션 파일을 런타임에 읽어 실행 (번들에 포함시키지 않음).
+// L-status1 (2026-04-23): file 파라미터 지원 — 향후 추가 마이그레이션을
+// 동일 엔드포인트에서 적용할 수 있도록.  whitelist 방식으로 traversal 차단.
+const ALLOWED_MIGRATIONS = new Set<string>([
+  '20260420_map_performance_foundation.sql',
+  '20260423_fix_map_status_invisibility.sql',
+]);
+async function loadMigrationSql(fileName?: string): Promise<string> {
+  const file = fileName && ALLOWED_MIGRATIONS.has(fileName)
+    ? fileName
+    : '20260420_map_performance_foundation.sql';
   const filePath = path.join(
     process.cwd(),
     'supabase',
     'migrations',
-    '20260420_map_performance_foundation.sql',
+    file,
   );
   return readFile(filePath, 'utf-8');
 }
@@ -131,7 +140,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const fullSql = await loadMigrationSql();
+    // L-status1: ?file= 쿼리로 적용할 migration 선택.  whitelist 없으면 기본 map_performance.
+    const fileParam = new URL(request.url).searchParams.get('file') || undefined;
+    const fullSql = await loadMigrationSql(fileParam);
 
     // 1차 시도: 전체 한 방에
     const bulk = await runQuery(fullSql);
