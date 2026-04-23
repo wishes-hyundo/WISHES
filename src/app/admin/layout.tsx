@@ -440,6 +440,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       <main className="flex-1 min-h-screen md:p-6 p-4 pt-14 md:pt-6 overflow-x-hidden">
+        {/* 관리자 영역 전환 탭 (Admin <-> Command Center) */}
+        {isAdminRole && (
+          <nav
+            className="flex items-center gap-1 pb-3 mb-4 border-b border-white/10"
+            aria-label="관리자 영역 전환"
+          >
+            <Link
+              href="/admin"
+              aria-current="page"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold border bg-wishes-primary/30 text-wishes-accent border-wishes-accent/40"
+            >
+              <span>🏠</span><span>관리자 홈</span>
+            </Link>
+            <button
+              type="button"
+              onClick={handleCommandCenter}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold border bg-white/5 text-white/60 border-white/10 hover:bg-white/10 hover:text-white hover:border-white/20 transition-colors"
+            >
+              <span>🛡️</span><span>Command Center</span>
+            </button>
+          </nav>
+        )}
         <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin w-8 h-8 border-4 border-wishes-primary border-t-transparent rounded-full" /></div>}>
           {children}
         </Suspense>

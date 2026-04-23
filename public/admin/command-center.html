@@ -40,6 +40,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 .topbar-right{display:flex;align-items:center;gap:12px}
 .topbar-btn{padding:8px 14px;background:rgba(30,46,30,.5);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .2s}
 .topbar-btn:hover{border-color:var(--primary-light);color:var(--text)}
+/* PAGE TABS (Admin <-> Command Center 전환) */
+.page-tabs{display:flex;gap:4px;padding-right:16px;border-right:1px solid var(--border);margin-right:4px}
+.page-tab{padding:7px 14px;background:rgba(30,46,30,.3);border:1px solid var(--border);border-radius:8px;color:var(--text-dim);font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;text-decoration:none;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.page-tab:hover{border-color:var(--primary-light);color:var(--text);background:rgba(30,46,30,.6)}
+.page-tab.active{background:rgba(45,90,39,.25);color:var(--primary-light);border-color:rgba(76,175,80,.35)}
+@media(max-width:768px){.page-tabs{padding-right:8px;margin-right:0}.page-tab{padding:6px 10px;font-size:11px}}
 .live-dot{width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .threat-indicator{padding:6px 12px;border-radius:8px;font-size:11px;font-weight:700;display:flex;align-items:center;gap:6px}
@@ -245,6 +251,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
   <!-- TOP BAR -->
   <div class="topbar">
     <div class="topbar-left">
+      <nav class="page-tabs" aria-label="관리자 영역 전환">
+        <a href="/admin" class="page-tab" title="관리자 대시보드로 이동">
+          <span>🏠</span><span>관리자 홈</span>
+        </a>
+        <a href="/admin/command-center.html" class="page-tab active" aria-current="page">
+          <span>🛡️</span><span>Command Center</span>
+        </a>
+      </nav>
       <span class="page-title" id="pageTitle">대시보드</span>
     </div>
     <div class="topbar-right">
