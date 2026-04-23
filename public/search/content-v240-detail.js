@@ -685,12 +685,27 @@
       // address 에 detail 이 아직 포함되지 않은 경우에만 추가
       fullAddr = addrText + ' ' + detailText;
     }
+    // L-crit4b (2026-04-23): h1 에 주소 금지. AI 제목이 있으면 그것을, 없으면
+    //   building_name → 매물번호 → '매물 상세' 순으로 fallback. 주소는 v240-hero-addr
+    //   단일 서브라인으로 통합 (기존 h1 + road + bldg 3라인 중복 제거). 재생성 버튼은
+    //   content-v296-title.js 가 주입.
+    var __v296Title = (L.ai_title && String(L.ai_title).trim())
+      ? String(L.ai_title).trim()
+      : (L.building_name ? String(L.building_name).trim()
+      : (L.id ? ('매물 ' + L.id) : '매물 상세'));
+    var __v296HasAi = !!(L.ai_title && String(L.ai_title).trim());
     html +=
-      '<section class="v240-hero">' +
+      '<section class="v240-hero" data-v296="1">' +
         '<div class="v240-hero-left">' +
-          '<h1>' + esc(fullAddr || '-') + '</h1>' +
+          '<h1 class="v240-hero-title" id="v240-hero-title"' +
+            ' data-listing-id="' + esc(String(L.id || '')) + '"' +
+            ' data-ai="' + (__v296HasAi ? '1' : '0') + '">' +
+              esc(__v296Title) +
+          '</h1>' +
+          '<div class="v240-hero-addr" id="v240-hero-addr" aria-live="polite">' +
+            esc(fullAddr || '') +
+          '</div>' +
           '<div class="v240-hero-road" id="v240-hero-road" aria-live="polite"></div>' +
-          ((L.building_name && fullAddr.indexOf(L.building_name) === -1) ? '<div class="v240-hero-bldg">🏢 ' + esc(L.building_name) + '</div>' : '') +
         '</div>' +
         '<div class="v240-price-box">' +
           '<div class="v240-kind">' + esc(L.deal || '-') + '</div>' +
@@ -843,9 +858,11 @@
           '</div>' +
 
           // ④ 원본 데이터 (서브카드: 키-값 테이블 + 원본 본문 접기)
-          '<div class="v240-b-card">' +
+          // L-crit4c (2026-04-23): content-v297-edit.js 편집 모드에서 이 카드는 read-only
+          //   로 유지되어야 함. data-v297-lock="original" 로 명시적 락 표시.
+          '<div class="v240-b-card" data-v297-lock="original">' +
             '<div class="v240-b-cardh">' +
-              '<span class="v240-b-cardh-t">📋 원본 데이터</span>' +
+              '<span class="v240-b-cardh-t">📋 원본 데이터 <span style="font-weight:600;font-size:11px;color:#8aa091;">· 🔒 편집 불가 (크롤링 원본)</span></span>' +
             '</div>' +
             '<div class="v240-src-table">' +
               (srcUrl ?

@@ -305,6 +305,40 @@ export default function SearchPortalPage() {
       v295Script.defer = false;
       document.body.appendChild(v295Script);
     }
+
+    // v2.9.6 (L-crit4b 2026-04-23) — 상세모달 제목 재설계 + 재생성 버튼
+    //   v240 h1 에서 fullAddr 대신 L.ai_title 을 표시하도록 데이터 구조 변경
+    //   (content-v240-detail.js). 이 스크립트는 h1 옆에 '재생성/생성' 버튼을
+    //   주입하고, freeze-after-generate 정책에 따라 force:true 로 명시적
+    //   재생성만 호출한다. 서버 (/api/generate-description) 는 listingId+force
+    //   없으면 DB 캐시 반환 (cost=0).
+    const existingV296 = document.getElementById('ws-ext-patch-v296-title');
+    if (!existingV296) {
+      const v296Script = document.createElement('script');
+      v296Script.id = 'ws-ext-patch-v296-title';
+      v296Script.src = '/search/content-v296-title.js?v=20260423a';
+      v296Script.async = false;
+      v296Script.defer = false;
+      document.body.appendChild(v296Script);
+    }
+
+    // v2.9.7 (L-crit4c 2026-04-23) — /search 상세모달 전 필드 편집 (크롤 원본 제외)
+    //   사용자 요구: "상세 모달에 있는 크롤링한 원본보기만 제외하고는 전부다
+    //   수정 및 편집 가능하게 해줘야되고". 이 패치는 상세모달 헤더에
+    //   '✏️ 매물 수정' 버튼을 주입하고, 클릭 시 slide-over 편집 패널을 열어
+    //   기본정보·가격·주소·본문·AI 콘텐츠 등 모든 편집 가능 필드를 폼으로
+    //   제공한다. 저장 시 PUT /api/admin/listings 로 diff 만 전송하고,
+    //   원본 데이터 카드(data-v297-lock="original" — raw_fields/source_url/
+    //   source_site 포함)는 편집 대상에서 완전히 제외된다.
+    const existingV297 = document.getElementById('ws-ext-patch-v297-edit');
+    if (!existingV297) {
+      const v297Script = document.createElement('script');
+      v297Script.id = 'ws-ext-patch-v297-edit';
+      v297Script.src = '/search/content-v297-edit.js?v=20260423a';
+      v297Script.async = false;
+      v297Script.defer = false;
+      document.body.appendChild(v297Script);
+    }
   }, [state]);
 
   // ========== UI ==========
