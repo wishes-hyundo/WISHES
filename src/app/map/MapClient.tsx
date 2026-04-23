@@ -26,8 +26,16 @@ import { useHeroRanking } from '@/features/map-2026/hooks/useHeroRanking';
 import { useFilterUrlSync } from '@/features/map-2026/hooks/useFilterUrlSync';
 
 import { NlSearchBar } from '@/features/map-2026/components/NlSearchBar';
-import { SmartChips } from '@/features/map-2026/components/SmartChips';
+// L-mapfilter4 (2026-04-23): SmartChips 래퍼 해체.
+//   Row 2 = CategoryTabs 직접 배치, FilterModal 은 루트에 별도 마운트.
+import { CategoryTabs } from '@/features/map-2026/components/CategoryTabs';
+import { FilterModal } from '@/features/map-2026/components/FilterModal';
 import { ActiveFilterPills } from '@/features/map-2026/components/ActiveFilterPills';
+// L-mapfilter4: Row 1 우측 CTA — 로그인/매물내놓기.
+//   /map 페이지는 ConditionalLayout 에서 전역 Header 를 숨기므로 계정 동선이
+//   없었다. AuthProvider 는 /map 에도 래핑되어 있어 useAuth 재활용 가능.
+import { useAuth } from '@/contexts/AuthContext';
+import { LogIn } from 'lucide-react';
 import { ListPanel } from '@/features/map-2026/components/ListPanel';
 import { MapControls } from '@/features/map-2026/components/MapControls';
 import { SemanticZoomIndicator } from '@/features/map-2026/components/SemanticZoomIndicator';
@@ -257,14 +265,20 @@ export default function MapClient() {
   }
 
   return (
-    // 4-track grid — 헤더 / SmartChips / ActiveFilterPills / 본문(1fr)
+    // 4-track grid — 헤더 / 카테고리탭 / ActiveFilterPills / 본문(1fr)
+    // L-mapfilter4 (2026-04-23): 2줄 헤더 재설계.
+    //   Row 1 = 로고 + 검색바 + 우측 CTA (매물내놓기/로그인·회원가입)
+    //   Row 2 = 카테고리 탭 (아래 매물정보 영역 위에 얹힘)
+    //   FilterModal 은 카테고리 탭 클릭 시 오픈 — 루트에 별도 마운트하여
+    //   grid track 에 영향 주지 않음 (position: fixed).
     <div className="grid h-full grid-rows-[auto_auto_auto_minmax(0,1fr)]">
       <header className="flex items-center gap-3 border-b border-neutral-100 bg-white px-4 py-2">
         <Brand />
         <NlSearchBar />
+        <TopRightActions />
       </header>
 
-      <SmartChips />
+      <CategoryTabs />
       <ActiveFilterPills />
 
       <div
@@ -338,25 +352,82 @@ export default function MapClient() {
       {/* L-v7-toast (2026-04-22): 단축 URL 복사 토스트 (v7 §9 3-state).
           루트에 1회 마운트되어 어디서든 useCopyToast().show() 로 제어. */}
       <CopyToastOutlet />
+      {/* L-mapfilter4 (2026-04-23): Gate 패턴 필터 모달 — position:fixed 이므로
+          grid track 밖에서 1회 마운트. CategoryTabs 탭 클릭 시 오픈. */}
+      <FilterModal />
     </div>
   );
 }
 
-// 좁은 창에서 브랜드 영역 축소 — md 이하 W 로고, md+ wordmark, lg+ 배지
+// 좁은 창에서 브랜드 영역 축소 — md 이하 W 로고, md+ 워드마크.
+// L-mapfilter4 (2026-04-23): 'MAP 2026' 그래디언트 배지 제거.
+//   의미 없는 코드네임 잔재로 사용자 피드백.
 function Brand() {
   return (
     <Link href="/" aria-label="WISHES 홈" className="flex shrink-0 items-center gap-2">
       <div className="grid size-8 place-items-center rounded-lg bg-emerald-600 text-[14px] font-extrabold text-white">
         W
       </div>
-      <div className="hidden items-baseline gap-1.5 md:flex">
-        <span className="text-[16px] font-bold tracking-tight text-neutral-900">
-          WISHES
-        </span>
-        <span className="hidden rounded-full bg-gradient-to-br from-emerald-600 to-emerald-500 px-1.5 py-0.5 text-[9.5px] font-bold text-white lg:inline">
-          MAP 2026
-        </span>
-      </div>
+      <span className="hidden text-[16px] font-bold tracking-tight text-neutral-900 md:inline">
+        WISHES
+      </span>
     </Link>
+  );
+}
+
+// L-mapfilter4 (2026-04-23): /map 은 사이트 전역 Header 가 숨겨지므로
+// 기본 Header 가 제공하던 [매물내놓기]·[로그인/회원가입] 액션을 자체 렌더.
+// 사용자 피드백: "우측 상단에는 매물내놓기 로그인/회원가입"
+//
+//   · 비로그인 → [매물내놓기] (primary) + [로그인/회원가입] (ghost)
+//   · 로그인   → [매물내놓기] + "{name}님" + [로그아웃]
+//
+// useAuth().setShowAuthModal(true) 는 루트 레이아웃에 마운트된 <AuthModal/>
+// (login + signup 탭 포함) 을 연다. /map 에서도 AuthProvider 가 유효하므로
+// 동일 패턴 재사용 가능.
+function TopRightActions() {
+  const { user, signOut, setShowAuthModal } = useAuth();
+  if (user) {
+    const name =
+      (user.user_metadata as { full_name?: string } | undefined)?.full_name ||
+      user.email?.split('@')[0] ||
+      '회원';
+    return (
+      <div className="ml-auto flex items-center gap-2 shrink-0">
+        <Link
+          href="/contact"
+          className="inline-flex items-center rounded-full bg-emerald-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white shadow-sm hover:bg-emerald-700"
+        >
+          매물내놓기
+        </Link>
+        <span className="hidden text-[12.5px] text-neutral-700 sm:inline">
+          {name}님
+        </span>
+        <button
+          onClick={signOut}
+          className="px-2 py-1 text-[12px] text-neutral-500 hover:text-neutral-900"
+        >
+          로그아웃
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="ml-auto flex items-center gap-1 shrink-0">
+      <Link
+        href="/contact"
+        className="inline-flex items-center rounded-full bg-emerald-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white shadow-sm hover:bg-emerald-700"
+      >
+        매물내놓기
+      </Link>
+      <button
+        onClick={() => setShowAuthModal(true)}
+        className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-medium text-neutral-700 hover:bg-neutral-100"
+      >
+        <LogIn className="size-3.5" />
+        <span className="hidden sm:inline">로그인/회원가입</span>
+        <span className="sm:hidden">로그인</span>
+      </button>
+    </div>
   );
 }
