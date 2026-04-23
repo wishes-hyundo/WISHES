@@ -18,6 +18,7 @@ import { filterSelfHosted } from '@/lib/image-policy';
 import CompassDirection from '@/components/CompassDirection';
 import InquiryModal from '@/components/InquiryModal';
 import AgentContactModal, { type AgentInfo } from '@/components/AgentContactModal';
+import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 import type { Listing } from '@/types';
 import ListingLocationMap from './ListingLocationMap';
 import RealPriceChart from './RealPriceChart';
@@ -307,60 +308,6 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
 
         {/* ── (CTA는 하단 고정 액션 바로 이동: '상세보기' + '문의하기' 2버튼) ── */}
 
-        {/* ── 매물설명 (AI 재가공본 + SEO 태그/키워드 통합: 크롤링 원본 description은 저작권 보호 차원에서 미사용) ── */}
-        {(() => {
-          const seoTagChips: string[] = Array.from(new Set(
-            (Array.isArray((listing as any).seo_tags) ? (listing as any).seo_tags : [])
-              .map((t: any) => (typeof t === 'string' ? t.trim() : ''))
-              .filter((t: string) => t.length > 0)
-          )).slice(0, 12) as string[];
-          const seoKeywordLine: string = (Array.from(new Set(
-            (Array.isArray((listing as any).seo_keywords) ? (listing as any).seo_keywords : [])
-              .map((k: any) => (typeof k === 'string' ? k.trim() : ''))
-              .filter((k: string) => k.length > 0)
-          )) as string[]).slice(0, 20).join(', ');
-          // ai_description / raw description 우선, 없으면 rich 데이터 기반 자동 생성
-          const descText = displayDescription(listing, { maxLength: 400 });
-          const hasDesc = !!descText;
-          const hasSeo = seoTagChips.length > 0 || seoKeywordLine.length > 0;
-          if (!hasDesc && !hasSeo) return null;
-          return (
-            <div className="p-4 border-b border-gray-100">
-              <h3 className="text-sm font-bold text-gray-700 mb-2.5">매물설명</h3>
-              {hasDesc && (
-                <>
-                  <p className={`text-sm text-gray-600 leading-relaxed whitespace-pre-line ${!showFullDescription ? 'line-clamp-4' : ''}`}>
-                    {descText}
-                  </p>
-                  {descText.length > 120 && (
-                    <button
-                      onClick={() => setShowFullDescription(!showFullDescription)}
-                      className="mt-2 text-xs text-wishes-secondary hover:underline font-medium"
-                    >
-                      {showFullDescription ? '접기' : '더보기'}
-                    </button>
-                  )}
-                </>
-              )}
-              {seoTagChips.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {seoTagChips.map((t, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center text-[11px] font-medium text-wishes-primary bg-wishes-primary/5 border border-wishes-primary/15 px-2 py-0.5 rounded-full"
-                    >
-                      #{t}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {seoKeywordLine && (
-                <p className="mt-2 text-[11px] text-gray-400 leading-relaxed">{seoKeywordLine}</p>
-              )}
-            </div>
-          );
-        })()}
-
         {/* ── 핵심 정보 그리드 ── */}
         <div className="p-4 border-b border-gray-100">
           <h3 className="text-sm font-bold text-gray-700 mb-3">매물 정보</h3>
@@ -449,33 +396,119 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           </div>
         )}
 
-        {/* ── 옵션/시설 ── */}
-        {(hasOptions || features.length > 0) && (
-          <div className="p-4 border-b border-gray-100">
-            <h3 className="text-sm font-bold text-gray-700 mb-3">옵션 · 시설</h3>
-            <div className="flex flex-wrap gap-1.5">
-              {optionItems.map((opt) => (
-                <span
-                  key={opt.key}
-                  className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border font-medium ${
-                    opt.value
-                      ? 'bg-wishes-primary/5 text-wishes-primary border-wishes-primary/20'
-                      : 'bg-gray-50 text-gray-300 border-gray-100'
-                  }`}
-                >
-                  {opt.value ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                  {opt.label}
-                </span>
-              ))}
-              {features.map((f: any) => (
-                <span key={f.id} className="inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-full border bg-wishes-primary/5 text-wishes-primary border-wishes-primary/20 font-medium">
-                  <Check className="w-3 h-3" />
-                  {f.feature}
-                </span>
-              ))}
+        {/* ── L-panel-v2 (2026-04-24): 옵션/시설 아이콘 그리드 — 내부시설 / 보안 2섹션 ── */}
+        {(() => {
+          const mergedFeatures: string[] = [];
+          features.forEach((f: any) => mergedFeatures.push(f.feature));
+          if (Array.isArray(listing.features)) listing.features.forEach((f: string) => mergedFeatures.push(f));
+          const bools = { elevator: !!listing.elevator, full_option: !!listing.full_option };
+          const interiorHits = INTERIOR_FEATURES.filter((s) => hasFeatureWithBools(mergedFeatures, s, bools));
+          const securityHits = SECURITY_FEATURES.filter((s) => hasFeatureWithBools(mergedFeatures, s, bools));
+          const boolBadges: { label: string; on: boolean }[] = [
+            { label: '주차', on: !!listing.parking },
+            { label: '반려동물', on: !!listing.pet },
+            { label: '발코니', on: !!listing.balcony },
+            { label: '풀옵션', on: !!listing.full_option },
+            { label: '대출가능', on: !!listing.loan_available },
+          ].filter(b => b.on);
+          if (interiorHits.length + securityHits.length + boolBadges.length === 0) return null;
+          return (
+            <div className="p-4 border-b border-gray-100 space-y-4">
+              {interiorHits.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-2.5">내부 시설</h3>
+                  <div className="grid grid-cols-4 gap-2">
+                    {interiorHits.map((spec) => {
+                      const Icon = spec.icon;
+                      return (
+                        <div key={spec.label} className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg bg-gray-50">
+                          <Icon className="w-5 h-5 text-gray-500" />
+                          <span className="text-[11px] text-gray-800">{spec.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {securityHits.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-2.5">보안 및 기타</h3>
+                  <div className="grid grid-cols-4 gap-2">
+                    {securityHits.map((spec) => {
+                      const Icon = spec.icon;
+                      return (
+                        <div key={spec.label} className="flex flex-col items-center justify-center gap-1 py-2.5 rounded-lg bg-gray-50">
+                          <Icon className="w-5 h-5 text-gray-500" />
+                          <span className="text-[11px] text-gray-800">{spec.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {boolBadges.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {boolBadges.map((b) => (
+                    <span key={b.label} className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-green-50 text-green-700 font-medium">
+                      <Check className="w-3 h-3" /> {b.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* ── L-panel-v2: 허위매물 차단 4단 검증 배지 ── */}
+        <div className="p-4 border-b border-gray-100">
+          <div className="flex items-start gap-2.5 p-3 rounded-xl bg-green-50 border border-green-100">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="text-green-600 flex-shrink-0 mt-0.5"><path d="M12 2 l8 4 v6 c0 5 -3.5 8.5 -8 10 c-4.5 -1.5 -8 -5 -8 -10 v-6 z"/><path d="M9 12 l2 2 l4 -4"/></svg>
+            <div className="flex-1">
+              <div className="text-[13px] font-semibold text-green-800 mb-0.5">허위매물 차단 4단 검증 완료</div>
+              <div className="text-[11px] text-green-700 leading-relaxed">
+                건축물대장 일치 · 사용승인 확인 · 등기부 열람 · 현장확인
+                {listing.last_verified_at && (
+                  <> · <span className="font-medium">{new Date(listing.last_verified_at).toLocaleDateString('ko-KR')}</span></>
+                )}
+              </div>
             </div>
           </div>
-        )}
+        </div>
+
+        {/* ── L-panel-v2 (2026-04-24): 매물 설명 — 최하단 배치, 제목+첫단락 노출 + 더보기/접기 ── */}
+        {(() => {
+          const aiTitle: string | null = (listing as any)?.ai_title || null;
+          const descText = displayDescription(listing);
+          if (!descText) return null;
+          const paragraphs = String(descText).split(/\n{2,}/).map((s: string) => s.trim()).filter(Boolean);
+          if (paragraphs.length === 0) return null;
+          const [first, ...rest] = paragraphs;
+          return (
+            <div className="p-4 border-b border-gray-100">
+              <h3 className="text-sm font-bold text-gray-700 mb-2.5">매물 설명</h3>
+              <div className="bg-white rounded-xl border border-gray-100 p-4">
+                {aiTitle && (
+                  <p className="text-[15px] font-semibold text-gray-900 leading-snug mb-2.5">{aiTitle}</p>
+                )}
+                <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">{first}</p>
+                {rest.length > 0 && (
+                  <>
+                    {showFullDescription && rest.map((para: string, i: number) => (
+                      <p key={i} className="text-sm text-gray-700 leading-relaxed whitespace-pre-line mt-3">{para}</p>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setShowFullDescription(v => !v)}
+                      className="mt-3 pt-3 w-full border-t border-gray-100 text-xs font-medium text-wishes-primary hover:underline flex items-center justify-center gap-1"
+                    >
+                      {showFullDescription ? '접기 ↑' : '더보기 ↓'}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── 주변 교통 정보 (실시간 API) ── */}
         {listing.lat && listing.lng && (
