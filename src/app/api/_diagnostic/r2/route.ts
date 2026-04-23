@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
   const checks: Record<string, { ok: boolean; detail?: string }> = {};
 
   // 1) env 존재 여부
+  // L-sec148 (2026-04-23): 레거시 ADMIN_TOKEN 체크 제거 (L-sec3 에서 사용 중단됨).
+  //   현재 admin 인증은 WISHES_ADMIN_MASTER_PASSWORD + Supabase JWT + ws_session 쿠키 로 이관됨.
+  //   크롤러 브리지는 WISHES_CRAWLER_BRIDGE_TOKEN (optional) 사용.
   const envs = [
     'R2_ENDPOINT',
     'R2_ACCESS_KEY_ID',
@@ -33,6 +36,7 @@ export async function GET(request: NextRequest) {
     'NEXT_PUBLIC_SUPABASE_URL',
     'NEXT_PUBLIC_SUPABASE_ANON_KEY',
     'SUPABASE_SERVICE_ROLE_KEY',
+    'WISHES_ADMIN_MASTER_PASSWORD',
   ];
   for (const name of envs) {
     checks[`env.${name}`] = {
@@ -40,9 +44,12 @@ export async function GET(request: NextRequest) {
       detail: process.env[name] ? 'set' : 'missing',
     };
   }
-  checks['env.ADMIN_TOKEN'] = {
-    ok: !!process.env.ADMIN_TOKEN,
-    detail: process.env.ADMIN_TOKEN ? 'set' : 'missing (required since L-sec3)',
+  // 선택 (크롤러 브리지) — 미설정이어도 fail 로 집계하지 않도록 별도 기록
+  checks['env.WISHES_CRAWLER_BRIDGE_TOKEN'] = {
+    ok: true,
+    detail: process.env.WISHES_CRAWLER_BRIDGE_TOKEN
+      ? 'set'
+      : 'missing (optional: 크롤러 전용 브리지)',
   };
 
   // 2) presign 테스트

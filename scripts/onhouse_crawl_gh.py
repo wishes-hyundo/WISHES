@@ -1,9 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import json, time, re, urllib.request, urllib.parse, urllib.error, http.cookiejar
+#
+# [L-sec148 2026-04-23] 아래 ADMIN_TOKEN="wishes2026" 은 L-sec3/sec89 에서
+#   서버측 fallback 이 제거된 이후 인증 실패 상태. 크롤러를 다시 사용하려면
+#   아래 중 하나로 교체:
+#     1) WISHES_ADMIN_MASTER_PASSWORD env 값 (운영 마스터 키)
+#     2) WISHES_CRAWLER_BRIDGE_TOKEN env 값 (크롤러 전용 브리지, 권장)
+#   교체 후에도 "wishes2026" 문자열은 저장소 이력에 남아 있으므로 운영 시
+#   동일 문자열을 재사용하지 말 것.
+import json, time, re, os, urllib.request, urllib.parse, urllib.error, http.cookiejar
 
 ADMIN_API   = "https://wishes.co.kr/api/admin/listings"
-ADMIN_TOKEN = "wishes2026"
+ADMIN_TOKEN = os.environ.get("WISHES_CRAWLER_BRIDGE_TOKEN") \
+              or os.environ.get("WISHES_ADMIN_MASTER_PASSWORD") \
+              or ""
 ONHOUSE     = "https://www.onhouse.co.kr"
 LAT_MIN, LAT_MAX = 37.38, 37.72
 LNG_MIN, LNG_MAX = 126.75, 127.25
