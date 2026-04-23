@@ -121,14 +121,16 @@ export function ListPanel() {
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  // L-cardheight1 (2026-04-23 p.m.): 카드 높이 고정으로 virtualizer 위치 충돌 해소.
+  //   가변 높이일 때 measureElement 가 rAF 한 틱 뒤 측정 → 그 동안 translateY
+  //   겹침 → "확인매물" 텍스트가 다른 카드와 겹쳐 보이던 버그.
+  //   전부 160px 로 통일 (배지 2줄 + 제목 + 연식 + 날짜 수용).
   const rowVirtualizer = useVirtualizer({
     count: sorted.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 148,
+    estimateSize: () => 160,
     overscan: 6,
-    measureElement: typeof ResizeObserver !== 'undefined'
-      ? (el) => el.getBoundingClientRect().height
-      : undefined,
+    // measureElement 제거 — 고정 높이 사용
   });
 
   return (
@@ -188,7 +190,7 @@ export function ListPanel() {
                   data-index={vRow.index}
                   onClick={() => openListingDetail(l.id)}
                   className={[
-                    'flex w-full items-stretch gap-3 border-b border-neutral-50 px-3 py-3 text-left transition',
+                    'flex w-full items-stretch gap-3 overflow-hidden border-b border-neutral-50 px-3 py-3 text-left transition',
                     active
                       ? 'bg-emerald-50 border-l-[3px] border-l-emerald-600 pl-[9px]'
                       : 'hover:bg-neutral-50',
@@ -198,6 +200,7 @@ export function ListPanel() {
                     top: 0,
                     left: 0,
                     width: '100%',
+                    height: '160px',
                     transform: `translateY(${vRow.start}px)`,
                   }}
                 >
@@ -205,8 +208,9 @@ export function ListPanel() {
                     {/* L-card4 (2026-04-23 p.m.): Row 1 재구성
                      *   · NEW 를 거래방식 좌측으로 이동 (네이버 패턴)
                      *   · 우측에 단지명/건물명 (로그인 시만 제공됨 — building_name 이 null 이면 type 로 폴백)
-                     *   · 업종(business_type) 은 단지명 없을 때만 대체 노출  */}
-                    <div className="flex items-center gap-1 min-w-0">
+                     *   · 업종(business_type) 은 단지명 없을 때만 대체 노출
+                     *   · L-cardheight1: flex-nowrap + overflow-hidden — 고정 높이 내 clip */}
+                    <div className="flex flex-nowrap items-center gap-1 min-w-0 overflow-hidden">
                       {isNew && (
                         <span className="shrink-0 rounded bg-amber-400 px-1.5 py-[2px] text-[10px] font-bold text-amber-900 leading-[1.2]">
                           NEW
@@ -243,7 +247,7 @@ export function ListPanel() {
 
                     {/* Row 5: 연식 + 타입 chip (NEW 는 상단으로 이동해 여기선 제외) */}
                     {(age || typeChip) && (
-                      <div className="flex flex-wrap gap-1">
+                      <div className="flex flex-nowrap gap-1 overflow-hidden">
                         {age && (
                           <span className={[
                             'rounded px-1.5 py-[2px] text-[10px] font-bold leading-[1.2]',
