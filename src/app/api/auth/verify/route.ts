@@ -82,12 +82,20 @@ export async function POST(request: NextRequest) {
     let userStatus = 'pending';
     let userRole = 'user';
 
+    // L-sec161 (2026-04-23): agent bounce 이슈 방어 — adminAuth.ts 의 공식
+    //   검증기와 admin_users 조회 패턴을 통일. 기존엔 `.eq('id', user.id)` 만
+    //   썼기 때문에 agent 의 admin_users row 가 email 로만 생성되고 id 가
+    //   NULL/다른 값이면 verify 는 못 찾고, adminAuth 는 찾는 비대칭 발생.
+    //   클라이언트가 verify 응답 role='user' 를 받아 실제 'agent' 권한에서
+    //   강등되는 부작용이 있었음.
     try {
+      const emailLower = (user.email || '').toLowerCase();
       const { data: adminRow } = await supabase
         .from('admin_users')
         .select('status, role')
-        .eq('id', user.id)
-        .single();
+        .or(`id.eq.${user.id},email.eq.${emailLower}`)
+        .limit(1)
+        .maybeSingle();
 
       if (adminRow) {
         userStatus = adminRow.status || userStatus;
@@ -168,38 +176,8 @@ export async function GET(request: NextRequest) {
     let userStatus = 'pending';
     let userRole = 'user';
 
+    // L-sec161 (2026-04-23): agent bounce 이슈 방어 — adminAuth.ts 의 공식
+    //   검증기와 admin_users 조회 패턴을 통일 (POST 와 동일).
     try {
-      const { data: adminRow } = await supabase
-        .from('admin_users')
-        .select('status, role')
-        .eq('id', user.id)
-        .single();
-
-      if (adminRow) {
-        userStatus = adminRow.status || userStatus;
-        userRole = adminRow.role || userRole;
-      }
-    } catch (e) {
-      // admin_users 조회 실패 시 기본값(user/pending) 유지 — 권한 상승 없음
-    }
-
-    return NextResponse.json({
-      success: true,
-      valid: true,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: userRole,
-        status: userStatus,
-        approved: userStatus === 'approved'
-      }
-    });
-
-  } catch (error) {
-    console.error('Token verification error:', error);
-    return NextResponse.json(
-      { success: false, valid: false, error: 'Verification failed' },
-      { status: 500 }
-    );
-  }
-}
+      const emailLower = (user.email || '').toLowerCase();
+      const { data: adminRow 

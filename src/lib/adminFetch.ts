@@ -70,34 +70,12 @@ export async function adminFetch(
   });
 
   if (response.status === 401 && redirectOn401) {
-    try {
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.clear();
-        window.location.href = '/admin/admin-auth.html';
-      }
-    } catch {
-      /* noop */
-    }
-  }
-
-  return response;
-}
-
-/** 편의: JSON 파싱까지 한 번에. non-2xx 는 throw. */
-export async function adminFetchJson<T = unknown>(
-  input: RequestInfo | URL,
-  init: AdminFetchOptions = {},
-): Promise<T> {
-  const r = await adminFetch(input, init);
-  if (!r.ok) {
-    let msg = 'HTTP ' + r.status;
-    try {
-      const j = await r.json();
-      msg = (j?.error || j?.message || msg) as string;
-    } catch {
-      /* non-json body */
-    }
-    throw new Error(msg);
-  }
-  return (await r.json()) as T;
-}
+    // ─── L-sec161 (2026-04-23): 로그인 직후 grace period ───
+    //   agent 역할 사용자가 로그인 성공 후 /admin/ 진입 시, 대시보드가 stats/
+    //   listings/contacts 3개 admin API 를 병렬 호출한다. 이 중 하나라도 401
+    //   이면 sessionStorage 를 전부 clear 하고 로그인 페이지로 return 하는 동안
+    //   다른 API 호출들도 연쇄 실패. 실제 원인이 일시적(예: Supabase JWT 전파
+    //   지연, admin_users row 비대칭, DB race) 인 경우에도 사용자에게는
+    //   "로그인이 계속 풀리는" 증상으로 보임.
+    //
+    //   로그인 직후 10초(ws_login_time 기준) 내에 발생한 401 은 자�
