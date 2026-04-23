@@ -213,6 +213,7 @@ export async function GET(request: NextRequest) {
         //   카드 renderer 가 listing.thumbnail_url 을 fallback 으로 사용.
         'thumbnail_url',
         'created_by', // L-v7-p3: scope=mine 디버그/검증용 echo
+        'last_verified_at', // L-verify-list (2026-04-24): 목록 현장확인 배지
         'source_site', // L-imgpolicy3: 크롤링 판정용 (응답 전 썸네일 스크럽)
         'listing_images(url)' // ⚡ id/is_thumbnail/sort_order 제거 — 이미지 페이로드 -75%
       ].join(',');
