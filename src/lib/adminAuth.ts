@@ -163,7 +163,7 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
       supabase
         .from('admin_users')
         .select('role, status')
-        .or(`id.eq.${data.user.id},email.ilike.${email}`)
+        .or(`id.eq.${data.user.id},email.eq.${email}`)
         .limit(1)
         .maybeSingle(),
       new Promise<{ data: null }>((_, reject) =>
@@ -275,7 +275,7 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
       supabase
         .from('admin_users')
         .select('role, status')
-        .or(`id.eq.${uid},email.ilike.${email}`)
+        .or(`id.eq.${uid},email.eq.${email}`)
         .limit(1)
         .maybeSingle(),
       new Promise<{ data: null }>((_, reject) =>
@@ -377,7 +377,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
       supabase
         .from('admin_users')
         .select('role, status')
-        .or(`id.eq.${data.user.id},email.ilike.${email}`)
+        .or(`id.eq.${data.user.id},email.eq.${email}`)
         .limit(1)
         .maybeSingle(),
       new Promise<{ data: null }>((_, reject) =>

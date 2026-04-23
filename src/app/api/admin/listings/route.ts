@@ -74,7 +74,13 @@ const createListingSchema = z.object({
   contact: z.string().optional().nullable(),
   lease_period: z.string().optional().nullable(),
   rights_fee: z.number().int().nonnegative().optional().nullable(),
-  status: z.enum(['가용', '계약중', '계약완료']).default('가용').optional(),
+  // L-status1 (2026-04-23): API 기본 status 를 UI 체계와 통일.
+  //   이전: z.enum(['가용', '계약중', '계약완료']).default('가용')
+  //   문제: UI StatusFilter 는 '공개'|'비공개'|'계약중'|'계약완료' 만 사용.
+  //         '가용' 은 API 전용 phantom 값이라 API 로 업로드된 매물은 모두
+  //         status='가용' 으로 박혔고, mv_map_listings 의 status='공개' 필터로
+  //         /map 에서 영영 사라짐.  /search 관리자 뷰는 status 무관 표시라 보임.
+  status: z.enum(['공개', '비공개', '계약중', '계약완료']).default('공개').optional(),
   images: z.array(z.string()).optional(),
   // 신규 필드 (2026-04-12 추가)
   gu: z.string().optional().nullable(),
@@ -481,7 +487,8 @@ export async function POST(request: NextRequest) {
         electric_capacity: listingData.electric_capacity || null,
         signage_available: listingData.signage_available || null,
         meeting_room: listingData.meeting_room || null,
-        status: listingData.status || '가용',
+        // L-status1 (2026-04-23): fallback '가용' → '공개' (UI 와 통일).
+        status: listingData.status || '공개',
         previous_business: listingData.previous_business || null,
         recommended_business: listingData.recommended_business || null,
         restricted_business: listingData.restricted_business || null,

@@ -1214,7 +1214,8 @@
       filtered = filtered.filter(l => l.parking === true);
     }
     if (s.checks.emptyNow) {
-      filtered = filtered.filter(l => l.status === '가용');
+      // L-status1 (2026-04-23): '가용' 영구 제거 — '공개' 로 통일.
+      filtered = filtered.filter(l => l.status === '공개');
     }
     if (s.checks.balcony) {
       // 발코니 필터 (DB 데이터 전부 false - 데이터 존재 시에만 필터링)
@@ -3035,7 +3036,7 @@
             (listing.parking ? '<span class="ws-tag-small">주차' + (getParkingCount(listing) > 1 ? getParkingCount(listing) : '가능') + '</span>' : '') +
             (listing.elevator ? '<span class="ws-tag-small">EV</span>' : '') +
             (listing.full_option ? '<span class="ws-tag-small">풀옵션</span>' : '') +
-            (listing.status === '가용' ? '<span class="ws-tag-small" style="background:#E8F5E9;color:#2D5A27;font-weight:600">공실</span>' : '') +
+            (listing.status === '공개' ? '<span class="ws-tag-small" style="background:#E8F5E9;color:#2D5A27;font-weight:600">공실</span>' : '') +
             (window.WS.state.memos[String(listing.id)] ? '<span class="ws-tag-small" style="background:#FFF3E0;color:#E65100;font-weight:600">📝메모</span>' : '') +
             ((window.WS.state.contacts[String(listing.id)] && window.WS.state.contacts[String(listing.id)].length > 0) ? '<span class="ws-tag-small" style="background:#E3F2FD;color:#1565C0;font-weight:600">📞' + window.WS.state.contacts[String(listing.id)].length + '</span>' : '') +
             (listing.heating_type && !/콘크리트|철골|조적|목구조|경량|벽식|구조/.test(listing.heating_type) ? '<span class="ws-tag-small">' + escHtml(listing.heating_type) + '</span>' : '') +
@@ -4963,7 +4964,7 @@
             ${listing.balcony ? '<span class="tag">🏠 발코니</span>' : ''}
             ${listing.full_option ? '<span class="tag">✨ 풀옵션</span>' : ''}
             ${listing.loan_available ? '<span class="tag">🏦 대출가능</span>' : ''}
-            ${listing.status === '가용' ? '<span class="tag" style="background:#c8e6c9;font-weight:700;">공실</span>' : ''}
+            ${listing.status === '공개' ? '<span class="tag" style="background:#c8e6c9;font-weight:700;">공실</span>' : ''}
           </div>
           ${includeNotes && listing.description ? `<div class="desc">📝 ${escHtml(listing.description)}</div>` : ''}
           ${window.WS.state.memos[String(listing.id)] ? `<div class="desc" style="color:#E65100;">💬 중개사 메모: ${escHtml(window.WS.state.memos[String(listing.id)])}</div>` : ''}
@@ -7986,7 +7987,7 @@
       // 6. 추가 보너스 (사진 있는 매물 +3, 공실 +2)
       var imgs = l.images || l.listing_images || [];
       if (imgs.length > 0) score += 3;
-      if (l.status === '가용' || l.status === '공개') score += 2;
+      if (l.status === '공개') score += 2;
 
       return { listing: l, score: score, reasons: reasons };
     }).filter(function(s) { return s.score >= 25 && s.reasons.length >= 2; })

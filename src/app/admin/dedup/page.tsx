@@ -360,7 +360,7 @@ export default function AdminDedupPage() {
 
   const restoreOne = useCallback(
     async (id: number) => {
-      if (!confirm(`매물 #${id} 을(를) 다시 '가용' 상태로 복구할까요?`)) return;
+      if (!confirm(`매물 #${id} 을(를) 다시 '공개' 상태로 복구할까요?`)) return;
       try {
         const r = await adminFetch('/api/admin/dedup/restore', {
           method: 'POST',
