@@ -253,6 +253,10 @@ export interface Map2026Store {
   //   openListingDetail 은 selectListing(id, true) + detailListingId 세팅을
   //   함께 수행해 "지도 포커스 + 모달 노출" 을 한 번에 처리.
   detailListingId: number | null;
+  // L-detailcache1 (2026-04-23 p.m.): 뷰포트 재조회로 listings 가 갱신되어도
+  //   선택된 매물 정보가 사라지지 않도록 객체 자체를 별도 캐싱.
+  //   모바일에서 매물 클릭 시 패널이 잠깐 떴다 초기화되던 버그 수정.
+  detailListing: MapListing | null;
   openListingDetail: (id: number) => void;
   closeListingDetail: () => void;
 }
@@ -394,9 +398,11 @@ export const useMap2026Store = create<Map2026Store>()(
             try {
               const kakao = (window as unknown as { kakao?: { maps: { LatLng: new (lat: number, lng: number) => unknown } } }).kakao;
               if (kakao) {
+                // L-detailcache1 (2026-04-23 p.m.): setLevel 제거.
+                //   이전 setLevel(Math.min(curLevel, 3)) 은 모바일에서 과도 줌 →
+                //   idle 이벤트 → 뷰포트 재조회 → listings 초기화 → 상세 패널 증발
+                //   사이클을 유발. panTo 만으로 충분 (중앙 정렬 목적).
                 map.panTo(new kakao.maps.LatLng(l.lat, l.lng));
-                const curLevel = map.getLevel ? map.getLevel() : 4;
-                map.setLevel(Math.min(curLevel, 3)); // 가까이
               }
             } catch { /* noop */ }
           } else if (typeof map.flyTo === 'function') {
@@ -487,12 +493,14 @@ export const useMap2026Store = create<Map2026Store>()(
 
     // L-mapmodal1 (2026-04-23): 매물 상세 모달
     detailListingId: null,
+    detailListing: null,
     openListingDetail: (id) => {
-      // 1) 지도 포커스 + 하이라이트 (기존 selectListing 로직 재활용)
+      // L-detailcache1 (2026-04-23 p.m.): 클릭 시점의 매물 객체 캐싱 — 뷰포트
+      //   재조회로 listings 가 바뀌어도 패널 내용 유지됨. 모바일 초기화 버그 수정.
+      const cached = get().listings.find((l) => l.id === id) ?? null;
       get().selectListing(id, true);
-      // 2) 모달 오픈
-      set({ detailListingId: id });
+      set({ detailListingId: id, detailListing: cached });
     },
-    closeListingDetail: () => set({ detailListingId: null }),
+    closeListingDetail: () => set({ detailListingId: null, detailListing: null }),
   }))
 );

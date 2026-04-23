@@ -79,13 +79,18 @@ function Row({ label, value }: RowProps) {
 export function ListingDetailModal() {
   const detailListingId = useMap2026Store((s) => s.detailListingId);
   const closeListingDetail = useMap2026Store((s) => s.closeListingDetail);
+  // L-detailcache1 (2026-04-23 p.m.): 뷰포트 재조회로 listings 가 갱신되어도
+  //   선택된 매물 객체를 안정적으로 참조. listings.find() 가 null 을 반환해
+  //   패널이 사라지던 모바일 버그 해결.
+  const cachedListing = useMap2026Store((s) => s.detailListing);
   const listings = useMap2026Store((s) => s.listings);
 
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
 
-  const listing: MapListing | null = detailListingId != null
-    ? listings.find((l) => l.id === detailListingId) ?? null
-    : null;
+  // 우선순위: cache (클릭 시점 snapshot) > listings 최신 데이터
+  const listing: MapListing | null = detailListingId == null
+    ? null
+    : cachedListing ?? listings.find((l) => l.id === detailListingId) ?? null;
 
   const isOpen = !!listing;
 

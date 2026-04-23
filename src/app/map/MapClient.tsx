@@ -371,6 +371,11 @@ export default function MapClient() {
           <SemanticZoomIndicator />
           <MapControls />
           <MiniCard />
+          {/* L-filterpanel1 (2026-04-23 p.m.): 필터 패널도 지도 영역 내부 좌측으로.
+              매물 상세 패널(z-30)과 같은 자리. 필터는 z-20 이라 매물 상세가 열리면
+              가려짐 (기본 상태에선 필터만 보이는 구조). 둘이 공존하되 사용자 의도대로
+              겹쳐 표시 — 매물 미선택 시 필터 위치, 매물 선택 시 상세 위치. */}
+          <FilterModal />
           {/* L-slidepanel2 (2026-04-23): 슬라이드 패널을 지도 영역 내부로 이동.
               지도 영역의 left-0 에 위치 → ListPanel 바로 오른쪽에 자연스럽게 붙음.
               네이버·직방 스타일. 이전 fixed right-0 (지도 우측 모서리) 은 부자연스러움. */}
@@ -381,9 +386,6 @@ export default function MapClient() {
       {/* L-v7-toast (2026-04-22): 단축 URL 복사 토스트 (v7 §9 3-state).
           루트에 1회 마운트되어 어디서든 useCopyToast().show() 로 제어. */}
       <CopyToastOutlet />
-      {/* L-mapfilter4 (2026-04-23): Gate 패턴 필터 모달 — position:fixed 이므로
-          grid track 밖에서 1회 마운트. CategoryTabs 탭 클릭 시 오픈. */}
-      <FilterModal />
     </div>
   );
 }

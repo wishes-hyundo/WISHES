@@ -437,6 +437,10 @@ export async function GET(req: NextRequest) {
       .map((r) => r.id as number);
 
     const selfHostedThumbMap = new Map<number, string>();
+    // L-photocount1 (2026-04-23 p.m.): 같은 배치 쿼리에서 listing 별 self-hosted
+    //   이미지 수도 카운트 → 카드 "N장" 표기에 사용. 기존 `r.thumb_url ? 1 : 0`
+    //   은 항상 1장으로 찍히던 버그였음.
+    const selfHostedCountMap = new Map<number, number>();
     if (blockedIds.length > 0) {
       try {
         const { data: imgs } = await supabase
@@ -451,6 +455,7 @@ export async function GET(req: NextRequest) {
           if (!selfHostedThumbMap.has(lid)) {
             selfHostedThumbMap.set(lid, (img as { url: string }).url);
           }
+          selfHostedCountMap.set(lid, (selfHostedCountMap.get(lid) ?? 0) + 1);
         }
       } catch (e) {
         console.warn('[viewport] thumbnail restore batch failed', e);
@@ -461,7 +466,10 @@ export async function GET(req: NextRequest) {
 
     const listings: MapListing[] = rows.map((r: any) => {
       const { medianPrice, deviation, comparableTier } = devFn(r);
-      const photoCount = r.thumb_url ? 1 : 0;
+      // L-photocount1: self-hosted 배치 카운트 우선 → 0 이면 fallback.
+      //   크롤링 매물: 자체 업로드 수만 노출 (저작권 정책 일관성).
+      //   자체 매물(source_site NULL): thumb_url 있으면 최소 1.
+      const photoCount = selfHostedCountMap.get(r.id) ?? (r.thumb_url && !r.source_site ? 1 : 0);
       const daysOld = Math.max(0, (Date.now() - new Date(r.updated_at ?? r.created_at).getTime()) / 86400000);
       return {
         id: r.id,

@@ -72,7 +72,7 @@ export function FilterModal() {
       role="dialog"
       aria-modal="false"
       aria-labelledby="filter-modal-title"
-      className="fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-[90vw] translate-x-0 flex-col overflow-hidden border-l border-neutral-200 bg-white shadow-2xl transition-transform duration-300"
+      className="absolute left-0 top-0 z-20 flex h-full w-[380px] max-w-[85%] translate-x-0 flex-col overflow-hidden border-r border-neutral-200 bg-white shadow-2xl transition-transform duration-300"
     >
       <div className="relative flex h-full flex-col">
         {/* Header */}
