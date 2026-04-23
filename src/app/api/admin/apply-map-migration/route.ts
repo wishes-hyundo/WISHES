@@ -38,6 +38,8 @@ const ALLOWED_MIGRATIONS = new Set<string>([
   '20260420_map_performance_foundation.sql',
   '20260423_fix_map_status_invisibility.sql',
   '20260423_add_map_coverage_drift_view.sql',
+  // L-detail-schema (2026-04-24)
+  '20260424_add_detail_card_fields.sql',
 ]);
 async function loadMigrationSql(fileName?: string): Promise<string> {
   const file = fileName && ALLOWED_MIGRATIONS.has(fileName)
