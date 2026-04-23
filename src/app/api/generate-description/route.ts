@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdminAuth } from '@/lib/adminAuth';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
-import { sanitizeAiTitle } from '@/lib/aiTitleSanitizer';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,7 +18,6 @@ const IS_DEV = process.env.NODE_ENV !== 'production';
 function devDetail<T>(detail: T): T | undefined {
   return IS_DEV ? detail : undefined;
 }
-
 
 export async function POST(request: NextRequest) {
   // L-sec77 (2026-04-22): admin 토큰 leak 대비. Claude Opus/Haiku 호출 비용 보호.
@@ -44,10 +42,7 @@ export async function POST(request: NextRequest) {
       deposit, monthly, price, area_m2,
       floor_current, floor_total, direction,
       rooms, bathrooms, features, parking_available,
-      buildingInfo, aiModel,
-      // L-crit4a (2026-04-23): freeze-after-generate + 현 시점 트렌드 컨텍스트
-      force,           // true 면 기존 ai_title 이 있어도 강제 재생성
-      regeneratedAt,   // 재생성 버튼 클릭 시각 (프롬프트에 주입 → 트렌드 앵커)
+      buildingInfo, aiModel
     } = body;
 
     // v2.6.4 hotfix: 삼항연산자의 truthy 분기가 누락되어 있던 문법 에러 복구.
@@ -55,65 +50,11 @@ export async function POST(request: NextRequest) {
       ? 'claude-opus-4-6'
       : 'claude-haiku-4-5-20251001';
 
-    // ─────────────────────────────────────────────────────────────────────
-    // L-crit4a (2026-04-23): freeze-after-generate — 비용 절감 게이트
-    //
-    // 사용자 규칙:
-    //   "매번 상세보기 열면 그떄마다 재생성 되게는 하지 말고
-    //    한번 생성하면 고정시키고 재생성을 눌렀을때만 재생성을 해야돼
-    //    비용이 절약될수 있게"
-    //
-    // 구현: listingId 가 주어졌고, DB 에 ai_title 이 이미 있으며, force 가
-    //   아니면 DB 값을 그대로 반환 — Anthropic 호출 0 회.
-    // ─────────────────────────────────────────────────────────────────────
-    if (listingId && !force) {
-      try {
-        const { data: existing } = await supabaseAdmin
-          .from('listings')
-          .select('ai_title, ai_description, seo_keywords, seo_tags, seo_meta_description, ai_generated_at, address, dong, gu, building_name')
-          .eq('id', listingId)
-          .maybeSingle();
-        if (existing && existing.ai_title && existing.ai_description) {
-          // L-crit5 (2026-04-23): freeze 된 cached ai_title 도 응답 직전 sanitize.
-          //   L-crit4 이전에 생성된 레코드는 주소/동/건물명/지번/층·호 가 그대로
-          //   박제되어 있어 사용자에게 노출됨 → 서버 read 시점에 2차 필터.
-          //   (백필은 /api/admin/listings/regenerate-titles 에서 별도 수행)
-          const sanitized = sanitizeAiTitle(existing.ai_title, {
-            address: existing.address,
-            dong: existing.dong,
-            gu: existing.gu,
-            buildingInfo: existing.building_name,
-          });
-          // sanitize 결과가 너무 짧아지면(주소가 제목의 대부분이었던 케이스)
-          // 원본 대신 안전한 플레이스홀더 반환 → 사용자가 '재생성' 유도 가능.
-          const safeCachedTitle = sanitized && sanitized.length >= 4
-            ? sanitized
-            : '';  // 비어있으면 프론트가 "AI 제목 생성" 버튼을 계속 노출
-          return NextResponse.json({
-            success: true,
-            cached: true,
-            frozen: true,
-            title: safeCachedTitle,
-            description: existing.ai_description,
-            keywords: existing.seo_keywords,
-            tags: existing.seo_tags,
-            meta_description: existing.seo_meta_description,
-            ai_generated_at: existing.ai_generated_at,
-            model: null,
-            // L-crit5 diagnostic: 원본이 스크럽됐는지 프론트에 신호
-            title_sanitized: existing.ai_title !== safeCachedTitle,
-          });
-        }
-      } catch { /* DB 실패 시 즉시 생성 경로로 진행 */ }
-    }
-
-    // 주소 힌트 (LLM 에 전달되긴 하지만 제목에는 절대 못 들어감 — 아래 [절대 규칙] 참조).
     const dongName = dong || '';
     const guName = gu || '';
-    const addrHint = [guName, dongName].filter(Boolean).join(' ') || (address || '');
 
     const listingInfo = [
-      addrHint ? `- 소재지(참고용, 제목 금지): ${addrHint}` : '',
+      `- 소재지: ${guName} ${dongName}`,
       `- 유형: ${type || ''}`,
       `- 거래: ${deal || ''}`,
       area_m2 ? `- 전용면적: ${area_m2}m2` : '',
@@ -125,68 +66,41 @@ export async function POST(request: NextRequest) {
       buildingInfo ? `- 건물정보: ${buildingInfo}` : '',
     ].filter(Boolean).join('\n');
 
-    // 현 시점 컨텍스트 — LLM 이 '매일매일 현 시점 트렌드' 에 맞춰 제목/카피를 바꿀 수 있도록.
-    const now = (() => {
-      try { return new Date(regeneratedAt || Date.now()); } catch { return new Date(); }
-    })();
-    const yyyy = now.getFullYear();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const dd = String(now.getDate()).padStart(2, '0');
-    const wk = ['일','월','화','수','목','금','토'][now.getDay()];
-    const mn = Number(mm);
-    const monthLabel = (mn >= 3 && mn <= 5) ? '봄 이사철'
-      : (mn >= 6 && mn <= 8) ? '여름 장마·휴가철'
-      : (mn >= 9 && mn <= 11) ? '가을 이사철'
-      : '겨울 비수기';
-    const todayLabel = `${yyyy}-${mm}-${dd} (${wk}) · ${monthLabel}`;
-
-    const prompt = `당신은 서울·경기 지역 10년차 부동산 마케팅 카피라이터입니다.
-오늘은 ${todayLabel} 기준입니다. 이 시점의 라이프스타일·임대수요·트렌드를 반영해
-매물 제목과 상세설명을 작성하세요.
+    const prompt = `당신은 서울/경기 지역에서 10년 이상 경력의 부동산 전문가입니다.
+아래 매물 정보를 바탕으로 고객에게 매력적이고 정보 전달력 있는 제목과 상세설명을 작성하세요.
 
 [매물 정보]
 ${listingInfo}
 
-[절대 규칙 — 위반 시 응답 거부]
-1. 금액(보증금/월세/매매가)을 제목·설명에 절대 포함하지 마세요
-2. 면적·평수를 설명에 포함하지 마세요 (이미 상세 스펙에 표기됨)
-3. 제목에 **주소 · 시/구/동/읍/면 · 도로명 · 지번 · 건물명 · 단지명**
-   을 절대 포함하지 마세요. "신림동 2호선 도보3분" 같은 '동명+스펙' 템플릿
-   매우 금지. 이 규칙을 어기면 재작성해야 합니다.
-4. "최고", "완벽", "꿈의", "국내 최대", "업계 1위" 같은 검증 불가 과장 금지
-5. 확인 안 된 편의시설·역명·소요시간을 지어내지 마세요. 매물 정보에 없는
-   숫자(역 도보분·거리·층수 등)는 추정이면 "추정", "예상" 을 명시.
-6. 같은 유형 매물끼리 제목 패턴이 반복되지 않도록 매번 다른 어투·리듬을
-   사용. 템플릿 헤더(예: "OO동 ...") 재사용 금지.
+[절대 규칙]
+1. 금액(보증금, 월세, 매매가)을 제목/설명에 절대 포함하지 마세요
+2. 면적, 평수를 설명에 넣지 마세요 (이미 상세페이지에 표시됨)
+3. "최고", "완벽", "꿈의" 같은 과장 마케팅 문구 금지
+4. 구체적이고 근거 있는 정보만 작성
 
 [제목 작성 규칙]
-- 18~30자
-- 해당 매물 '라이프스타일·가치 제안' 중심. 예시 방향성(단, 그대로 복붙 금지):
-  · 감성형: "햇살 가득한 남향, 혼자만의 리셋 공간"
-  · 실용형: "출퇴근·편의·보안, 3박자 갖춘 원룸"
-  · 트렌드형: "${yyyy}년 ${mn}월, 지금 입주 가능한 투자형 오피스텔"
-  · 타겟형: "워크·리모트 프리 재택러를 위한 넓은 투룸"
-- 위 예시를 복붙하지 말고 '매물 속성 + 오늘의 트렌드' 를 조합해 매번 새로 짜세요.
-- 이모지는 쓰지 마세요.
+- 30자 이내
+- 형식: "${dongName} [핵심차별점] · [유형]"
+- 예: "신림동 2호선 도보3분 남향 원룸"
 
 [상세설명 작성 규칙 - 400~600자]
-사실에 기반한 신뢰성 있는 문장만. 다음 구조 유지:
-1. 한줄평: 이 매물의 핵심 가치를 한 문장으로
-2. 입지: 가장 가까운 지하철역 '이름만 확신이 있을 때' 기재, 소요분은
-   "도보 약 N분 추정" 처럼 추정임을 표시. 확신 없으면 역명 생략하고
-   "대중교통 이용 환경" 수준으로만 서술.
-3. 생활권: 반경 500m 일반적 편의(마트·카페·병원 등) — 특정 상호명 금지
-4. 매물 강점 3가지: 매물 정보에서 확인 가능한 속성만 근거로
-5. 추천 고객: 매물 스펙이 실제로 부합하는 고객층
+다음 구조로 작성:
+1. 한줄평: 이 매물의 핵심 매력을 감성적으로 한 줄 요약
+2. 출퇴근: 가장 가까운 지하철역 + 주요 업무지구 소요시간 (추정)
+3. 도보 생활권: 반경 500m 내 편의시설 (마트, 카페, 병원 등)
+4. 추천 포인트 3가지: 이 매물만의 강점을 구체적 근거와 함께
+5. 추천 고객: 이 매물에 가장 적합한 고객층
 
-[금지 문구]
-- "역세권 확실", "바로 앞 OO역" (구체 역명 확신 없이 금지)
-- "도보 3분" 같이 숫자로 단정 (확인 안 된 경우 "추정" 붙이기)
-- "서울 최고", "강남 제일" 등 비교급 단정
+[SEO 키워드]
+10~15개의 검색 키워드를 배열로 작성
+예: ["${dongName} ${type}", "${guName} ${deal}", "${dongName} 역세권", ...]
 
-[SEO 키워드] 10~15개, 배열.
-[SEO 태그] 10~15개 해시태그, 배열.
-[메타 설명] 160자 이내.
+[SEO 태그]
+10~15개 해시태그
+예: ["#${dongName}${type}", "#${guName}${deal}", ...]
+
+[메타 설명]
+검색엔진용 160자 이내 설명
 
 반드시 아래 JSON 형식으로만 응답:
 {
@@ -226,7 +140,7 @@ ${listingInfo}
     const aiData = await response.json();
     const aiText = aiData.content?.[0]?.text || '';
 
-    let parsed: any = null;
+    let parsed;
     try {
       const jsonMatch = aiText.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
@@ -238,27 +152,15 @@ ${listingInfo}
       return NextResponse.json({ error: 'Failed to parse AI response', raw: devDetail(aiText) }, { status: 500 });
     }
 
-    // L-crit4a/L-crit5 (2026-04-23): 제목 주소-누출 방어 sanitizer.
-    //   프롬프트 규칙을 LLM 이 어겼을 때를 대비한 2차 방어선.
-    //   실제 로직은 모듈 스코프 sanitizeAiTitle() 로 이관 (cached 경로와 공용).
-    const safeTitleRaw = sanitizeAiTitle(parsed.title, {
-      address: typeof address === 'string' ? address : null,
-      dong: dongName,
-      gu: guName,
-      buildingInfo: typeof buildingInfo === 'string' ? buildingInfo : null,
-    });
-    const safeTitle = safeTitleRaw || String(parsed.title || '').trim();
-    const nowIso = new Date().toISOString();
-
     // If listingId provided, update the listing in DB
     if (listingId) {
       const updateData: Record<string, unknown> = {
-        ai_title: safeTitle,
+        ai_title: parsed.title,
         ai_description: parsed.description,
         seo_keywords: parsed.keywords,
         seo_tags: parsed.tags,
         seo_meta_description: parsed.meta_description,
-        ai_generated_at: nowIso,
+        ai_generated_at: new Date().toISOString(),
       };
 
       await supabaseAdmin
@@ -269,14 +171,11 @@ ${listingInfo}
 
     return NextResponse.json({
       success: true,
-      cached: false,
-      frozen: false,
-      title: safeTitle,
+      title: parsed.title,
       description: parsed.description,
       keywords: parsed.keywords,
       tags: parsed.tags,
       meta_description: parsed.meta_description,
-      ai_generated_at: nowIso,
       model,
     });
   } catch (error: unknown) {
