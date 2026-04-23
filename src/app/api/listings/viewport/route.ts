@@ -17,8 +17,13 @@ const MAX_VIEWPORT_DEG = 2.0;
 //   서울+경기 전역 ≈ 1.5 × 0.8 ≈ 1.2 sq-deg 이므로 2.5 면 충분히 수용.
 //   per-axis 2.0 × 2.0 = 4 sq-deg 라 4각 코너 상황을 2.5 로 차단 (전국 스캔 방지).
 const MAX_VIEWPORT_AREA_SQDEG = 2.5;
-const DEFAULT_LIMIT = 800;
-const MAX_LIMIT = 3000;
+// L-viewport1 (2026-04-23): 6000+ 매물 중 일부만 지도에 뜨던 버그 수정.
+//   이전 800/3000 조합은 DB 에 6000+ 매물이 있을 때 default bbox (서울 전역)
+//   기준으로 실제 매물 수의 ~13% 만 렌더됨.  grid clustering (L-mapmarker2)
+//   도입으로 클라이언트 측 rendering cost 는 500→3000 사이에서 거의 선형이므로
+//   상한을 대폭 상향.
+const DEFAULT_LIMIT = 3000;
+const MAX_LIMIT = 10000;
 const MIN_COMPARABLES = 3;
 
 function pInt(v: string | null): number | null {

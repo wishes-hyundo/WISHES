@@ -26,7 +26,8 @@ function isValidBbox(b: { west: number; south: number; east: number; north: numb
 function buildQueryString(
   bbox: NonNullable<ReturnType<typeof useMap2026Store.getState>['bbox']>,
   filter: FilterState,
-  limit = 800
+  // L-viewport1 (2026-04-23): 6000+ 매물 전부 수신을 위해 800 → 3000.
+  limit = 3000
 ) {
   const p = new URLSearchParams();
   p.set('west', bbox.west.toFixed(6));
