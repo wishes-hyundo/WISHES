@@ -178,10 +178,7 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
       () => supabase.auth.getUser(token),
       3000,
       1,
-    ).catch((e): { data: { user: null }; error: Error } => ({
-      data: { user: null },
-      error: e instanceof Error ? e : new Error('timeout'),
-    })) as { data: { user: any }; error: any };
+    ) as { data: { user: any }; error: any };
 
     if (error || !data?.user) return false;
 
@@ -202,7 +199,7 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
       1,
       400,
       'db_timeout',
-    ).catch((): { data: null } => ({ data: null })) as { data: { role?: string; status?: string } | null };
+    ) as { data: { role?: string; status?: string } | null };
 
     // L-sec59 (2026-04-22): CRITICAL privilege escalation fix.
     //   user_metadata 는 supabase.auth.updateUser({data:...}) 로 사용자 본인이
@@ -292,10 +289,7 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
       () => supabase.auth.getUser(token),
       3000,
       1,
-    ).catch((e): { data: { user: null }; error: Error } => ({
-      data: { user: null },
-      error: e instanceof Error ? e : new Error('timeout'),
-    })) as { data: { user: any }; error: any };
+    ) as { data: { user: any }; error: any };
 
     if (error || !data?.user) return { ok: false };
 
@@ -317,7 +311,7 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
       1,
       400,
       'db_timeout',
-    ).catch((): { data: null } => ({ data: null })) as { data: { role?: string; status?: string } | null };
+    ) as { data: { role?: string; status?: string } | null };
 
     const role = adminUser?.role || '';
     const status = adminUser?.status || '';
@@ -394,10 +388,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
       () => supabase.auth.getUser(token),
       3000,
       1,
-    ).catch((e): { data: { user: null }; error: Error } => ({
-      data: { user: null },
-      error: e instanceof Error ? e : new Error('timeout'),
-    })) as { data: { user: any }; error: any };
+    ) as { data: { user: any }; error: any };
 
     if (error || !data?.user) {
       return { ok: false, reason: 'jwt_verification_failed' };
@@ -422,7 +413,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
       1,
       400,
       'db_timeout',
-    ).catch((): { data: null } => ({ data: null })) as { data: { role?: string; status?: string } | null };
+    ) as { data: { role?: string; status?: string } | null };
 
     // L-sec59 (2026-04-22): user_metadata fallback 제거 (self-escalation 차단)
     const role = adminUser?.role || '';
