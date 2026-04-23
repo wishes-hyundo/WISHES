@@ -56,35 +56,25 @@ export function FilterModal() {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, close]);
 
-  // Body scroll lock
-  useEffect(() => {
-    if (!open) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = original;
-    };
-  }, [open]);
-
+  // L-filterpanel1 (2026-04-23 p.m.): body scroll lock 제거
+  //   슬라이드 패널로 바뀌면서 지도 영역은 계속 인터랙티브 유지.
+  //   패널 내부만 overflow-y-auto 로 자체 스크롤.
   if (!open) return null;
 
+  // L-filterpanel1 (2026-04-23 p.m.): 중앙 모달 → 우측 슬라이드 패널
+  //   · 지도를 가리지 않도록 우측 anchored (fixed right-0)
+  //   · 백드롭 제거 — 지도 pan/zoom 계속 가능
+  //   · 너비 420px (데스크탑 기본), max-w-[90vw] 로 모바일 대응
+  //   · 패널 바깥 지도 영역 클릭하면 닫힘: overlay 를 pointer-events: none 으로 두고
+  //     실질 클릭 수용은 우측 패널만. 지도 클릭 = 패널 닫기는 ESC + X 버튼 + 바깥 클릭 용도.
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+    <aside
       role="dialog"
-      aria-modal="true"
+      aria-modal="false"
       aria-labelledby="filter-modal-title"
+      className="fixed right-0 top-0 z-50 flex h-full w-[420px] max-w-[90vw] translate-x-0 flex-col overflow-hidden border-l border-neutral-200 bg-white shadow-2xl transition-transform duration-300"
     >
-      {/* Backdrop */}
-      <button
-        type="button"
-        aria-label="필터 닫기"
-        onClick={close}
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-      />
-
-      {/* Modal card */}
-      <div className="relative flex max-h-[85vh] w-full max-w-[720px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+      <div className="relative flex h-full flex-col">
         {/* Header */}
         <header className="flex items-center gap-3 border-b border-neutral-100 px-5 py-4">
           <span
@@ -100,9 +90,6 @@ export function FilterModal() {
             <h2 id="filter-modal-title" className="text-[16px] font-bold text-neutral-900">
               {theme.label} 필터
             </h2>
-            <p className="text-[11.5px] text-neutral-500">
-              {theme.label} 카테고리에 맞춘 세부 조건을 설정하세요
-            </p>
           </div>
           <button
             onClick={close}
@@ -212,6 +199,6 @@ export function FilterModal() {
           </button>
         </footer>
       </div>
-    </div>
+    </aside>
   );
 }
