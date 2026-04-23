@@ -392,6 +392,38 @@ export async function GET(req: NextRequest) {
     }
 
     const rows = ((data ?? []) as any[]).filter((r) => r.lat != null && r.lng != null);
+
+    // L-imgrestore1 (2026-04-23 p.m.): 썸네일 복원 배치 쿼리
+    //   크롤링 매물(source_site NOT NULL) 중 thumb_url 이 저작권 차단될 매물들만
+    //   listing_images 테이블에서 자체 호스팅 이미지(/api/images, supabase, r2) 를
+    //   탐색해 첫 장을 썸네일로 복원한다. 중개사가 매물 등록 후 자체 사진만 업로드한
+    //   케이스 지원 — "실제로 올린 사진이 있는데 썸네일이 크롤링 원본이라 차단되어
+    //   결국 카드에 사진이 안 뜨던" 문제 해결.
+    const blockedIds: number[] = rows
+      .filter((r) => r.source_site && (!r.thumb_url || !isSelfHostedImage(r.thumb_url)))
+      .map((r) => r.id as number);
+
+    const selfHostedThumbMap = new Map<number, string>();
+    if (blockedIds.length > 0) {
+      try {
+        const { data: imgs } = await supabase
+          .from('listing_images')
+          .select('listing_id, url, sort_order, is_thumbnail')
+          .in('listing_id', blockedIds)
+          .or('url.ilike.%/api/images/%,url.ilike.%.supabase.co/storage/%,url.ilike.%.r2.dev/%,url.ilike.%.r2.cloudflarestorage.com/%')
+          .order('is_thumbnail', { ascending: false, nullsFirst: false })
+          .order('sort_order', { ascending: true, nullsFirst: false });
+        for (const img of imgs ?? []) {
+          const lid = (img as { listing_id: number }).listing_id;
+          if (!selfHostedThumbMap.has(lid)) {
+            selfHostedThumbMap.set(lid, (img as { url: string }).url);
+          }
+        }
+      } catch (e) {
+        console.warn('[viewport] thumbnail restore batch failed', e);
+      }
+    }
+
     const devFn = computeMedianDeviation(rows);
 
     const listings: MapListing[] = rows.map((r: any) => {
@@ -435,17 +467,17 @@ export async function GET(req: NextRequest) {
         floor_total: r.floor_total ?? null,
         business_type: r.business_type ?? null,
         has_video: !!r.has_video,
-        // L-imgpolicy1 (2026-04-23 p.m.): 저작권 보호 - 크롤링 매물 중
-        //   wishes 자체 업로드(/api/images, supabase, r2) 가 아닌 이미지는 서버단에서 null 로 스크럽.
-        //   source_site NOT NULL AND isSelfHostedImage(thumb_url) === false → null
-        //   자체 등록 매물(source_site NULL) 은 그대로 통과.
-        //   동영상 배지(has_video)도 같은 기준 적용 — 아직 viewport 응답엔 영상 url 이
-        //   없어 추가 스크럽 불필요.
+        // L-imgrestore1 (2026-04-23 p.m.): 크롤링 매물에 중개사가 나중에 추가한
+        //   자체 업로드 사진이 있으면 썸네일 복원. selfHostedThumbMap 은 아래에서
+        //   배치 쿼리로 채워짐 (차단된 매물만 대상).
+        //   우선순위: [자체 업로드 복원] > [원본 thumb_url (자체 매물만)]
         thumbnail_url: (() => {
+          const restored = selfHostedThumbMap.get(r.id);
+          if (restored) return restored;
           const u = r.thumb_url ?? null;
           if (!u) return null;
-          if (!r.source_site) return u; // 자체 매물은 통과
-          return isSelfHostedImage(u) ? u : null; // 크롤링 매물은 자체 호스팅만 통과
+          if (!r.source_site) return u; // 자체 매물 — 원본 통과
+          return isSelfHostedImage(u) ? u : null; // 크롤링 매물 — 자체 호스팅만 통과
         })(),
         features: Array.isArray(r.features) ? r.features : [],
         photo_count: photoCount,

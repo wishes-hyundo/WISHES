@@ -9,7 +9,7 @@
 // L-mylocation1 (2026-04-23 p.m.): "내 위치가 제대로 안 먹힌다" 피드백 후 대폭 개선
 //   · 에러 메시지 5초간 노출 (기존 3초 → 놓치기 쉬웠음)
 //   · Permissions API 로 권한 선체크 → denied 면 즉시 안내
-//   · enableHighAccuracy: true 제거 (모바일에서 타임아웃 빈발)
+//   · enableHighAccuracy: true 복원 (L-mylocation2 — false 면 IP 기반으로 잡혀 ISP 서버 위치 반환)
 //   · error.code 별 명확한 한글 메시지
 //   · 지도 또는 Kakao SDK 아직 로드 안된 edge case 구분 처리
 //   · 개발자 콘솔에 [my-location] 로 디버그 로그 (성공/실패 좌표 포함)
@@ -111,7 +111,7 @@ export function MapControls() {
                 : '알 수 없는 위치 오류';
         showError(msg);
       },
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60_000 }
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 30_000 }
     );
   };
 
