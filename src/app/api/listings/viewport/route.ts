@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { maskAddressForPublic } from '@/lib/publicAddress';
+import { isSelfHostedImage } from '@/lib/image-policy';
 import type { DealType, MapListing } from '@/features/map-2026/store';
 
 export const dynamic = 'force-dynamic';
@@ -314,7 +315,7 @@ export async function GET(req: NextRequest) {
         //   ai_title (제목 라인), direction/parking/pet/elevator/full_option/
         //   maintenance_fee/bathrooms/floor_total/business_type (패널 상세 테이블),
         //   has_video (NEW 뱃지 계산엔 불필요 — created_at 만으로 72h 판정).
-        'id, title, ai_title, ai_description, type, deal, deposit, monthly, price, area_m2, rooms, bathrooms, floor_current, floor_total, direction, lat, lng, dong, status, created_at, updated_at, features, thumb_url, station_distance, built_year, building_name, parking, pet, elevator, full_option, maintenance_fee, business_type, has_video',
+        'id, title, ai_title, ai_description, type, deal, deposit, monthly, price, area_m2, rooms, bathrooms, floor_current, floor_total, direction, lat, lng, dong, status, created_at, updated_at, features, thumb_url, station_distance, built_year, building_name, parking, pet, elevator, full_option, maintenance_fee, business_type, has_video, source_site',
       )
       .gte('lat', south)
       .lte('lat', north)
@@ -434,7 +435,18 @@ export async function GET(req: NextRequest) {
         floor_total: r.floor_total ?? null,
         business_type: r.business_type ?? null,
         has_video: !!r.has_video,
-        thumbnail_url: r.thumb_url ?? null,
+        // L-imgpolicy1 (2026-04-23 p.m.): 저작권 보호 - 크롤링 매물 중
+        //   wishes 자체 업로드(/api/images, supabase, r2) 가 아닌 이미지는 서버단에서 null 로 스크럽.
+        //   source_site NOT NULL AND isSelfHostedImage(thumb_url) === false → null
+        //   자체 등록 매물(source_site NULL) 은 그대로 통과.
+        //   동영상 배지(has_video)도 같은 기준 적용 — 아직 viewport 응답엔 영상 url 이
+        //   없어 추가 스크럽 불필요.
+        thumbnail_url: (() => {
+          const u = r.thumb_url ?? null;
+          if (!u) return null;
+          if (!r.source_site) return u; // 자체 매물은 통과
+          return isSelfHostedImage(u) ? u : null; // 크롤링 매물은 자체 호스팅만 통과
+        })(),
         features: Array.isArray(r.features) ? r.features : [],
         photo_count: photoCount,
         median_price: medianPrice,
