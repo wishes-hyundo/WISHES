@@ -60,6 +60,10 @@ function categoryToTypeFilter(
   // L-catfix1 (2026-04-23 p.m.): 기존엔 residence 도 null 반환 → 필터 미적용
   //   → 주거 탭에서 상가/사무실 leak. DB 실측 types 기반 positive ilike 리스트.
   //   원룸·투룸·쓰리룸·아파트·오피스텔·빌라·주택(단독/다가구/다세대/연립)·고시원·쉐어하우스
+  // L-residential-use1 (2026-04-23 p.m.): 한국 부동산 실태 — 공식 type 이
+  //   '사무실'·'근린생활시설'·'학원' 이어도 실제로는 원룸처럼 사용되는 매물이
+  //   많다 (대학가 오피스 원룸 전용, 고시원식 근린 등). area_m2 < 50㎡ 조건으로
+  //   큰 사무실(업무용) 은 제외하고 소형 실사용 주거만 크로스 노출.
   if (category === 'residence') {
     return [
       'type.ilike.%원룸%', 'type.ilike.%투룸%', 'type.ilike.%쓰리룸%',
@@ -67,6 +71,10 @@ function categoryToTypeFilter(
       'type.ilike.%주택%', 'type.ilike.%단독%', 'type.ilike.%다가구%',
       'type.ilike.%다세대%', 'type.ilike.%연립%', 'type.ilike.%고시원%',
       'type.ilike.%쉐어하우스%',
+      // L-residential-use1: 실사용 주거 크로스 (area < 50㎡)
+      'and(type.ilike.%사무실%,area_m2.lt.50)',
+      'and(type.ilike.%근린%,area_m2.lt.50)',
+      'and(type.ilike.%학원%,area_m2.lt.50)',
     ].join(',');
   }
 
