@@ -93,6 +93,8 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
     : [];
 
   const [listing, setListing] = useState<any>(initialListing ?? null);
+  // L-desc-clamp (2026-04-24): 매물 설명 3줄 프리뷰 + 더보기/접기 토글
+  const [showFullDesc, setShowFullDesc] = useState(false);
   const [images, setImages] = useState<any[]>(initialImages);
   const [features, setFeatures] = useState<any[]>(initialFeatures);
   const [relatedListings, setRelatedListings] = useState<any[]>([]);
@@ -803,26 +805,37 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                   >
                     <h2 className="text-sm font-semibold text-gray-700 mb-3">매물 설명</h2>
                     {hasDesc && (() => {
-                      // L-detail-v2 (2026-04-24): 첫 단락만 노출, 나머지는 <details> 더보기 로 접음.
-                      //   단락 분리 기준: 빈 줄 (\n\n+). 단락이 1개뿐이면 더보기 버튼 없이 전체 노출.
-                      const paragraphs = String(descText).split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
-                      if (paragraphs.length === 0) return null;
-                      const [first, ...rest] = paragraphs;
+                      // L-desc-clamp (2026-04-24): ai_title/H1 과 중복된 첫 단락은 제거,
+                      //   본문은 3줄 프리뷰 + 더보기/접기 토글.
+                      const normalize = (s: string) => (s || '').replace(/[\s\.,!?·\-]+/g, '').toLowerCase();
+                      const aiTitle = (listing as any)?.ai_title?.trim?.() || null;
+                      const h1 = displayTitle(listing)?.trim?.() || null;
+                      const paragraphs = String(descText).split(/\n{2,}/).map((pp: string) => pp.trim()).filter(Boolean);
+                      const cleaned = paragraphs.filter((para: string) =>
+                        (!aiTitle || normalize(para) !== normalize(aiTitle)) &&
+                        (!h1 || normalize(para) !== normalize(h1))
+                      );
+                      const bodyText = cleaned.join('\n\n');
+                      if (!bodyText) return null;
                       return (
-                        <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                          <p className="mb-3">{first}</p>
-                          {rest.length > 0 && (
-                            <details className="group">
-                              <div className="hidden group-open:block">
-                                {rest.map((para, i) => (
-                                  <p key={i} className="mb-3 last:mb-0">{para}</p>
-                                ))}
-                              </div>
-                              <summary className="list-none cursor-pointer mt-3 pt-3 border-t border-gray-100 text-center text-xs font-medium text-wishes-primary select-none">
-                                <span className="group-open:hidden">더보기 ↓</span>
-                                <span className="hidden group-open:inline">접기 ↑</span>
-                              </summary>
-                            </details>
+                        <div className="text-sm text-gray-600 leading-relaxed">
+                          {aiTitle && (
+                            <p className="text-[15px] font-semibold text-gray-900 mb-2 leading-snug">{aiTitle}</p>
+                          )}
+                          <p className={[
+                            'whitespace-pre-line',
+                            showFullDesc ? '' : 'line-clamp-3',
+                          ].join(' ')}>
+                            {bodyText}
+                          </p>
+                          {bodyText.length > 90 && (
+                            <button
+                              type="button"
+                              onClick={() => setShowFullDesc(v => !v)}
+                              className="mt-2 text-xs font-medium text-wishes-primary hover:underline"
+                            >
+                              {showFullDesc ? '접기 ↑' : '더보기 ↓'}
+                            </button>
                           )}
                         </div>
                       );

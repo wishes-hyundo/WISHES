@@ -522,39 +522,47 @@ export function ListingDetailModal() {
           </div>
         </div>
 
-        {/* L-modal-v7: 매물 설명 (ai_title + ai_description, 첫 단락 노출 + 더보기) */}
-        {detailExtra?.ai_description && (
-          <div className="border-b border-neutral-100 px-4 py-3">
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">매물 설명</div>
-            <div className="rounded-xl bg-neutral-50 p-3">
-              {listing.ai_title && (
-                <p className="text-[13px] font-semibold leading-snug text-neutral-900 mb-2">{listing.ai_title}</p>
-              )}
-              {(() => {
-                const paragraphs = String(detailExtra.ai_description).split(/\n{2,}/).map((s: string) => s.trim()).filter(Boolean);
-                if (paragraphs.length === 0) return null;
-                const [first, ...rest] = paragraphs;
-                return (
-                  <div className="text-[12.5px] text-neutral-700 leading-relaxed whitespace-pre-line">
-                    <p>{first}</p>
-                    {showFullDesc && rest.map((para: string, i: number) => (
-                      <p key={i} className="mt-2.5">{para}</p>
-                    ))}
-                    {rest.length > 0 && (
+        {/* L-modal-v7 (2026-04-24): 매물 설명 — 제목 중복 제거 + 3줄 프리뷰 + 더보기/접기 */}
+        {detailExtra?.ai_description && (() => {
+          const normalize = (s: string) => (s || '').replace(/[\s\.,!?·\-]+/g, '').toLowerCase();
+          const aiTitle = listing.ai_title?.trim() || null;
+          const paragraphs = String(detailExtra.ai_description).split(/\n{2,}/).map((s: string) => s.trim()).filter(Boolean);
+          // 첫 단락이 ai_title 과 실질적으로 동일하면 제거 (제목·설명 중복 방지)
+          const cleanedParas = (aiTitle && paragraphs[0] && normalize(paragraphs[0]) === normalize(aiTitle))
+            ? paragraphs.slice(1)
+            : paragraphs;
+          const bodyText = cleanedParas.join('\n\n');
+          if (!aiTitle && !bodyText) return null;
+          return (
+            <div className="border-b border-neutral-100 px-4 py-3">
+              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">매물 설명</div>
+              <div className="rounded-xl bg-neutral-50 p-3">
+                {aiTitle && (
+                  <p className="text-[13px] font-semibold leading-snug text-neutral-900 mb-2">{aiTitle}</p>
+                )}
+                {bodyText && (
+                  <>
+                    <p className={[
+                      'text-[12.5px] text-neutral-700 leading-relaxed whitespace-pre-line',
+                      showFullDesc ? '' : 'line-clamp-3',
+                    ].join(' ')}>
+                      {bodyText}
+                    </p>
+                    {bodyText.length > 90 && (
                       <button
                         type="button"
                         onClick={() => setShowFullDesc(v => !v)}
-                        className="mt-2.5 pt-2 w-full border-t border-neutral-200 text-[11.5px] font-medium text-emerald-600 hover:text-emerald-700"
+                        className="mt-2 text-[11.5px] font-medium text-emerald-600 hover:text-emerald-700"
                       >
                         {showFullDesc ? '접기 ↑' : '더보기 ↓'}
                       </button>
                     )}
-                  </div>
-                );
-              })()}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* L-lightbox2 (2026-04-23 p.m.): 풀스크린 사진 뷰어를 Portal 로 document.body 루트에 렌더.
