@@ -358,109 +358,107 @@ export function ListingDetailModal() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* 헤더: 배지 + 가격 + 주소 + ai_title */}
+        {/* L-modal-v7-2 (2026-04-24): 헤더 — H1(건물명·층) + 주소 + 가격 + 비교배지 */}
         <div className="border-b border-neutral-100 px-4 pb-3 pt-4">
-          <div className="mb-2 flex flex-wrap items-center gap-1">
-            {/* L-newbadge1 (2026-04-23 p.m.): NEW 를 좌측 최선두 + 노란색(부담 X) */}
-            {isNew && (
-              <span className="rounded bg-amber-400 px-1.5 py-[2px] text-[10px] font-bold text-amber-900 leading-[1.2]">
-                NEW
-              </span>
-            )}
-            <span className="rounded-full bg-neutral-900 px-2 py-0.5 text-[11px] font-bold text-white leading-[1.3]">
-              {listing.deal}
-            </span>
-            <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600 leading-[1.3]">
-              매물번호 {listing.id}
-            </span>
-            {listing.business_type && (
-              <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-600 leading-[1.3]">
-                {listing.business_type}
-              </span>
-            )}
-            {age && (
-              <span className={[
-                'rounded px-1.5 py-[2px] text-[10px] font-bold leading-[1.2]',
-                AGE_TONE_CLASS[age.tone] ?? AGE_TONE_CLASS.gray,
-              ].join(' ')}>
-                {age.text}
-              </span>
-            )}
-          </div>
-
-          <div className="mb-1.5 text-[22px] font-extrabold leading-tight text-neutral-900">
-            {formatDealLabel(listing)}
-          </div>
-
-          <div className="mb-2 flex items-center gap-1 text-[12px] text-neutral-500">
+          <h1 className="text-[18px] font-bold leading-tight text-neutral-900">
+            {listing.building_name || listing.title || addressLine}
+            {floorLabel && <span className="text-neutral-700"> · {floorLabel}</span>}
+          </h1>
+          <div className="mt-1 flex items-center gap-1 text-[12px] text-neutral-500">
             <MapPin className="size-3 shrink-0" aria-hidden />
-            <span className="line-clamp-2">{addressLine}</span>
+            <span className="line-clamp-2">{listing.title || addressLine}</span>
           </div>
-
-
+          <div className="mt-3 flex items-baseline gap-1.5">
+            <span className="text-[22px] font-extrabold leading-tight text-neutral-900">
+              {formatDealLabel(listing)}
+            </span>
+            {typeof listing.median_deviation === 'number' && Math.abs(listing.median_deviation) >= 1 && (
+              <span className={[
+                'ml-auto rounded-md px-2 py-0.5 text-[11px] font-semibold',
+                listing.median_deviation < 0
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'bg-amber-50 text-amber-700',
+              ].join(' ')}>
+                동일면적 평균 대비 {listing.median_deviation > 0 ? '+' : ''}{Math.round(listing.median_deviation)}%
+              </span>
+            )}
+          </div>
         </div>
 
-        {/* 기본정보 */}
-        <div className="border-b border-neutral-100 px-4 py-3">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
-            기본정보
-          </div>
-          <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 text-[11.5px]">
-            <Row label="매물형태" value={listing.type} />
-            <Row label="면적" value={areaStr} />
-            <Row label="해당층" value={floorLabel} />
-            {listing.rooms != null && listing.rooms > 0 && (
-              <Row label="방/욕실" value={`${listing.rooms}개${listing.bathrooms ? ` / ${listing.bathrooms}개` : ''}`} />
+        {/* L-modal-v7-2: 3 메트릭 카드 */}
+        <div className="border-b border-neutral-100 px-4 py-3 grid grid-cols-3 gap-2">
+          <div className="rounded-lg bg-neutral-50 p-2.5">
+            <div className="text-[10px] text-neutral-500 mb-1">전용 / 공급</div>
+            <div className="text-[13px] font-semibold text-neutral-900">
+              {listing.area_m2 ? `${listing.area_m2}` : '-'}
+              {listing.area_supply_m2 ? ` / ${listing.area_supply_m2}` : ''}㎡
+            </div>
+            {listing.area_m2 && listing.area_supply_m2 && (
+              <div className="text-[10px] text-neutral-400 mt-0.5">
+                전용률 {Math.round((listing.area_m2 / listing.area_supply_m2) * 100)}%
+              </div>
             )}
+          </div>
+          <div className="rounded-lg bg-neutral-50 p-2.5">
+            <div className="text-[10px] text-neutral-500 mb-1">해당층 / 총층</div>
+            <div className="text-[13px] font-semibold text-neutral-900">{floorLabel || '-'}</div>
+            {listing.direction && (
+              <div className="text-[10px] text-neutral-400 mt-0.5">{listing.direction}</div>
+            )}
+          </div>
+          <div className="rounded-lg bg-neutral-50 p-2.5">
+            <div className="text-[10px] text-neutral-500 mb-1">방구조 / 방수</div>
+            <div className="text-[13px] font-semibold text-neutral-900">
+              {detailExtra?.room_layout
+                ? `${listing.type || '원룸'} ${detailExtra.room_layout}`
+                : (listing.type || '-')}
+            </div>
+            <div className="text-[10px] text-neutral-400 mt-0.5">
+              {listing.rooms != null ? `${listing.rooms}/${listing.bathrooms ?? listing.rooms}개` : '-'}
+              {detailExtra?.is_duplex === true ? ' · 복층' : (detailExtra?.is_duplex === false ? ' · 단층' : '')}
+            </div>
+          </div>
+        </div>
+
+        {/* L-modal-v7-2: 매물 정보 — 통합 단일 테이블 */}
+        <div className="border-b border-neutral-100 px-4 py-3">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">매물 정보</div>
+          <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
             <Row label="관리비" value={maintenanceLabel} />
+            <Row label="입주 가능일" value={listing.available_date || '협의가능'} />
+            {listing.built_year && (
+              <Row label="사용 승인일" value={`${listing.built_year}${age ? ` · ${age.text}` : ''}`} />
+            )}
+            <Row label="주차" value={
+              listing.parking
+                ? `${listing.parking}${detailExtra?.total_parking_spaces ? ` · 총 ${detailExtra.total_parking_spaces}대` : ''}`
+                : (detailExtra?.total_parking_spaces ? `총 ${detailExtra.total_parking_spaces}대` : null)
+            } />
+            <Row label="건축물 용도" value={listing.building_purpose} />
+            {detailExtra?.illegal_building === false && (
+              <>
+                <div className="text-neutral-500">위반 건축물</div>
+                <div className="text-emerald-700">해당없음 ✓</div>
+              </>
+            )}
+            {detailExtra?.illegal_building === true && (
+              <>
+                <div className="text-neutral-500">위반 건축물</div>
+                <div className="text-red-600">있음</div>
+              </>
+            )}
+            {(listing.station_name || listing.station_distance) && (
+              <Row label="가까운 역" value={
+                listing.station_name
+                  ? `${listing.station_name}${listing.station_distance ? ` · ${listing.station_distance}m` : ''}`
+                  : `${listing.station_distance}m`
+              } />
+            )}
+            {listing.business_type && <Row label="업종" value={listing.business_type} />}
+            {listing.elevator != null && <Row label="엘리베이터" value={boolLabel(listing.elevator)} />}
+            {listing.pet != null && <Row label="반려동물" value={boolLabel(listing.pet)} />}
           </dl>
         </div>
-
-        {/* 타입별 추가 섹션 */}
-        {isResidential(listing.type) && (
-          <div className="border-b border-neutral-100 px-4 py-3">
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
-              주거 추가
-            </div>
-            <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 text-[11.5px]">
-              {listing.built_year && (
-                <Row label="사용승인" value={`${listing.built_year}${age ? ` · ${age.text}` : ''}`} />
-              )}
-              <Row label="방향" value={listing.direction} />
-              <Row label="주차" value={listing.parking} />
-              {listing.pet != null && <Row label="반려동물" value={boolLabel(listing.pet)} />}
-              {listing.elevator != null && <Row label="엘리베이터" value={boolLabel(listing.elevator)} />}
-            </dl>
-          </div>
-        )}
-
-        {isCommercial(listing.type) && (
-          <div className="border-b border-neutral-100 px-4 py-3">
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
-              상가·사무실 추가
-            </div>
-            <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 text-[11.5px]">
-              {listing.built_year && (
-                <Row label="사용승인" value={`${listing.built_year}${age ? ` · ${age.text}` : ''}`} />
-              )}
-              <Row label="주차" value={listing.parking} />
-              {listing.elevator != null && <Row label="엘리베이터" value={boolLabel(listing.elevator)} />}
-              <Row label="업종" value={listing.business_type} />
-            </dl>
-          </div>
-        )}
-
-        {isLand(listing.type) && (
-          <div className="border-b border-neutral-100 px-4 py-3">
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
-              토지 추가
-            </div>
-            <dl className="grid grid-cols-[72px_1fr] gap-x-3 gap-y-1.5 text-[11.5px]">
-              <Row label="지목" value={listing.type} />
-              {listing.direction && <Row label="방향" value={listing.direction} />}
-            </dl>
-          </div>
-        )}
 
         {/* L-modal-v7 (2026-04-24): 내부시설 + 보안 아이콘 그리드 */}
         {(() => {
