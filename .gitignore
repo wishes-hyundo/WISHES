@@ -61,6 +61,13 @@ git_push*.bat
 gsc_fix_*.js
 onhouse_diag.js
 
+# 2026-04-23 (L-sec161): 세션 cleanup 아티팩트 + 시크릿 덤프 패턴 방어
+_finalize_*.done
+_finalize_*.log
+_wishes_*.txt
+test*.bat
+test*.log
+
 # 2026-04-22 (L-v7): _finalize_v7_commits.bat 실행 후 상태 마커 (로컬 전용)
 .push_result.log
 .push_status.ok
@@ -102,14 +109,4 @@ WISHES_시스템점검_보고서_*.docx
 /_probe_*.bat
 
 # 2026-04-23 (L-sec157 Phase 3b cleanup): 세션 임시 산출물 포괄 패턴
-/_commit_msg_*.txt
-/_fix_*.log
-/_fix_*.done
-/_verify_*.log
-/_verify_*.done
-/_sync_*.log
-/_sync_*.done
-/_cleanup*.log
-/_cleanup*.done
-/_unlock*.log
-/_unlock*.done
+/_commit
