@@ -859,7 +859,11 @@
     };
 
     switch (sortBy) {
+      // L-search1 (2026-04-23): 'newest' alias 추가. 이전엔 legacy fallback
+      //   몇 군데가 'newest' 로 덮어써도 sortListings 는 default(무정렬) 로 빠져
+      //   목록 순서가 섞여 보이는 버그가 있었다.  dropdown value 는 'latest'.
       case 'latest':
+      case 'newest':
         return copy.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       case 'views':
         return copy.sort((a, b) => (b.views || 0) - (a.views || 0));
