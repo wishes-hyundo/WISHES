@@ -25,7 +25,8 @@ import StickyLeadCTA from '@/components/StickyLeadCTA';
 
 export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdmin = pathname.startsWith('/admin');
+  // /command 도 /admin 처럼 전역 Header/Footer/AuthProvider 없이 bare render (2026-04-24)
+  const isAdmin = pathname.startsWith('/admin') || pathname.startsWith('/command');
   // 2026-04-21 migration: MAP 2026 (Phase A~F) promoted to canonical /map.
   // Legacy launch codename /map-2026 is 301-redirected to /map via next.config.js.
   const isMapPage = pathname === '/map';

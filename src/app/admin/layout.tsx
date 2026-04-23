@@ -222,7 +222,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
     } catch (e) {}
-    window.location.href = '/admin/command-center.html';
+    window.location.href = '/command';
   };
 
   const handleLogout = () => {
