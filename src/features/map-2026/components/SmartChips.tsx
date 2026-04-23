@@ -91,8 +91,13 @@ export function SmartChips() {
       {/* Row 2 — 카테고리 탭 (최상위 맥락) */}
       <CategoryTabs />
 
-      {/* Row 3 — 카테고리별 전용 칩 (조건부 렌더링, padding 축소) */}
+      {/* Row 3 — 카테고리별 전용 칩 (조건부 렌더링, padding 축소).
+          L-mapfilter1 (2026-04-23): "빠른 선택" 라벨 추가 — 하단 FilterAccordion
+          "추가 필터" 와 역할 구분을 명시. 상단=원터치 프리셋, 하단=세부 조정.
+          이전엔 두 영역이 시각적으로 동등해 보여 사용자가 "같은 필터가 두 번
+          나온다" 고 혼동했다. 이제 라벨로 상단 칩의 역할(빠른 접근)을 드러낸다. */}
       <div className="px-4 py-1.5">
+        <div className="mb-1 text-[11px] font-semibold text-neutral-500">빠른 선택</div>
         {filter.category === 'residence'     && <ResidenceChips />}
         {filter.category === 'retail_office' && <CommercialChips />}
         {filter.category === 'land'          && <LandChips />}

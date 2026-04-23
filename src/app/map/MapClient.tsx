@@ -286,15 +286,22 @@ export default function MapClient() {
           </button>
         ) : (
           <div className="relative flex min-h-0 flex-col">
-            {/* L-v7-sumbox (2026-04-22): SumBox — 현재 조건 요약 unified panel (v7 §6).
-                ListPanel 상단에 sticky 로 고정. 조건 없으면 자동 숨김(return null). */}
-            <div className="shrink-0 border-b border-neutral-100 bg-white p-2">
-              <SumBox compact />
-            </div>
-            {/* L-v7-p3 (2026-04-22): FilterAccordion — 12 추가필터 (v7 §6).
-                모든 섹션 기본 닫힘, 사용자가 필요한 섹션만 펼침 → localStorage 영속. */}
-            <div className="shrink-0 border-b border-neutral-100 bg-white p-2">
-              <FilterAccordion />
+            {/* L-mapfilter1 (2026-04-23): SumBox + FilterAccordion 을 단일 스크롤
+                영역으로 묶고 max-h 로 cap. 이전엔 두 박스가 각각 shrink-0 인데
+                아코디언에 overflow 가 없어, "모두 펼치기" 시 12 섹션이 세로로
+                쌓이며 flex-1 ListPanel 을 0 까지 밀어내 매물 카드·사진이 전부
+                사라지는 블로킹 버그가 있었다. 이제 패널 높이의 55% 를 넘으면
+                상단 박스 내부에서 자체 스크롤, 하단 ListPanel 은 최소 45% 의
+                높이를 항상 확보한다.
+                - L-v7-sumbox: SumBox 현재 조건 요약 (v7 §6)
+                - L-v7-p3    : FilterAccordion 12 추가필터 (v7 §6) */}
+            <div className="shrink-0 max-h-[55%] overflow-y-auto border-b border-neutral-100 bg-white">
+              <div className="p-2">
+                <SumBox compact />
+              </div>
+              <div className="p-2 pt-0">
+                <FilterAccordion />
+              </div>
             </div>
             <div className="relative min-h-0 flex-1">
               <ListPanel />

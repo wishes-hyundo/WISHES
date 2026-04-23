@@ -181,7 +181,14 @@ const PROPERTY_TYPES_BY_CATEGORY: Record<PropertyCategory, string[]> = {
 // ─────────────────────────────────────────────────────────────────
 // feature 그룹 라벨 (v7 §6 참조)
 // ─────────────────────────────────────────────────────────────────
-const AMENITIES = ['CCTV', '택배함', '경비실', '무인택배', '보안', '헬스장', '카페'] as const;
+// L-mapfilter1 (2026-04-23): 반려동물/주차/엘리베이터 추가 — 이전엔 상단
+//   SmartChips (ResidenceChips) 에서만 토글 가능했고 아코디언에는 누락돼 있어
+//   "추가 필터" 가 전 필드 커버리지를 제공하지 못했다. 상단=원터치 프리셋,
+//   아코디언=완전한 편의시설 체크박스 로 대칭화.
+const AMENITIES = [
+  '반려동물', '주차', '엘리베이터',
+  'CCTV', '택배함', '경비실', '무인택배', '보안', '헬스장', '카페',
+] as const;
 const FLOOR_LEVELS = ['저층', '중층', '고층', '반지하', '옥탑'] as const;
 const DIRECTIONS = ['남향', '동남향', '동향', '서향', '서남향', '북향'] as const;
 const MOVE_IN = ['즉시입주', '1개월 이내', '3개월 이내', '협의가능'] as const;
@@ -202,7 +209,10 @@ function activeCountFor(filter: FilterState, section: string): number {
     case 'deposit':    return filter.minDeposit != null || filter.maxDeposit != null ? 1 : 0;
     case 'monthly':    return filter.minMonthly != null || filter.maxMonthly != null ? 1 : 0;
     case 'area':       return filter.minArea != null || filter.maxArea != null ? 1 : 0;
-    case 'roomsMore':  return filter.rooms.filter((n) => n >= 4).length;
+    // L-mapfilter1 (2026-04-23): roomsMore 를 전체 방 수(1/2/3/4+/5+/6+) 로 확장.
+    //   상단 ResidenceChips 1/2/3 과 아코디언이 같은 store 필드(rooms) 를 공유해
+    //   어느 쪽에서 토글해도 동일하게 반영된다.
+    case 'roomsMore':  return filter.rooms.length;
     case 'propTypes':  return filter.propertyTypes.length;
     case 'newBuild':   return filter.newBuildYears != null ? 1 : 0;
     case 'station':    return filter.nearStation != null ? 1 : 0;
@@ -369,20 +379,30 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
           </Section>
         )}
 
-        {/* 5. 방 수 확장 (4+, 5+, 6+) */}
+        {/* 5. 방 수 — 전체 (1/2/3/4+/5+/6+). L-mapfilter1 (2026-04-23): 상단
+            ResidenceChips 의 원룸/투룸/쓰리룸 과 동일 store 필드를 공유하므로
+            아코디언에서도 접근 가능하도록 확장. 이전엔 4+/5+/6+ 만 노출되어
+            "모두 펼치기" 시 1/2/3 을 놓치는 UX 구멍이 있었다. */}
         {activeList.includes('roomsMore') && (
-          <Section id="roomsMore" emoji="🚪" label="방 수 (4개 이상)" activeCount={activeCountFor(filter, 'roomsMore')}>
+          <Section id="roomsMore" emoji="🚪" label="방 수" activeCount={activeCountFor(filter, 'roomsMore')}>
             <div className="flex flex-wrap gap-1.5">
-              {[4, 5, 6].map((n) => {
+              {[
+                { n: 1, label: '원룸' },
+                { n: 2, label: '투룸' },
+                { n: 3, label: '쓰리룸' },
+                { n: 4, label: '4개 이상' },
+                { n: 5, label: '5개 이상' },
+                { n: 6, label: '6개 이상' },
+              ].map(({ n, label }) => {
                 const active = filter.rooms.includes(n);
                 return (
                   <ToggleChip key={n} active={active} onClick={() => toggleRoom(n)}>
-                    {n}개 이상
+                    {label}
                   </ToggleChip>
                 );
               })}
             </div>
-            <p className="mt-1.5 text-[11px] text-neutral-500">* Row 3 기본 칩 (1/2/3+) 은 별도 노출.</p>
+            <p className="mt-1.5 text-[11px] text-neutral-500">* 상단 &ldquo;빠른 선택&rdquo; 칩과 같은 필드 — 양쪽 어디서나 선택 가능.</p>
           </Section>
         )}
 
