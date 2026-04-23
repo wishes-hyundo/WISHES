@@ -64,7 +64,6 @@ export async function GET(
     return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 });
   }
 
-  // 스팸/봇 방지 — 1분 20회/IP 상한.
   const ip = getClientIp(request);
   const rl = checkRateLimit({
     key: `oauth-start:${provider}:${ip}`,
@@ -81,10 +80,6 @@ export async function GET(
   const { searchParams } = new URL(request.url);
   const target = safeTarget(searchParams.get('target'));
   const siteUrl = resolveSiteUrl(request);
-
-  // admin-auth.html 에서 target 을 sessionStorage 로 직접 세팅하기 어렵기 때문에,
-  // /auth/callback 이 쿠키로 fallback 할 수 있도록 ws_oauth_target 쿠키에 심는다.
-  // 10분 수명.
   const isProd = process.env.NODE_ENV === 'production';
 
   if (provider === 'kakao') {
@@ -95,18 +90,21 @@ export async function GET(
         { status: 500 },
       );
     }
-    // Supabase Auth 의 Kakao OAuth entry. Supabase 대시보드에서 Kakao provider 가
-    // 활성화되어 있고 Redirect URL 로 `${siteUrl}/auth/callback` 이 등록되어 있어야 함.
+    // 2026-04-23: scope 를 profile_nickname 만 명시적으로 지정. Supabase 기본 scope
+    //   에는 account_email 이 포함되지만, Kakao Developers 콘솔에서 account_email 은
+    //   비즈 앱 전환 후에만 "선택/필수 동의" 설정 가능 — 비즈 앱이 아니면 "권한 없음"
+    //   상태라 requested scope 에 account_email 이 있으면 KOE205 "잘못된 요청" 에러 발생.
+    //   Supabase 에는 "Allow users without an email" 옵션이 ON 이라 이메일 없이도
+    //   세션 생성 OK. 비즈 앱 전환 완료 후 아래 scope 에 `account_email` 을 다시 추가하면 됨.
     const redirectTo = `${siteUrl}/auth/callback`;
+    const scopes = 'profile_nickname';
     const authorizeUrl =
       `${supabaseUrl.replace(/\/$/, '')}/auth/v1/authorize` +
       `?provider=kakao` +
-      `&redirect_to=${encodeURIComponent(redirectTo)}`;
+      `&redirect_to=${encodeURIComponent(redirectTo)}` +
+      `&scopes=${encodeURIComponent(scopes)}`;
 
     const res = NextResponse.redirect(authorizeUrl, { status: 302 });
-    // httpOnly:false — /auth/callback 이 document.cookie 로 읽어 sessionStorage
-    // 가 유실된 경우에도 admin 리다이렉트 타겟을 복구할 수 있게 한다.
-    // 값 자체는 same-origin path 화이트리스트로만 구성되므로 열려도 기밀이 아님.
     res.cookies.set({
       name: 'ws_oauth_target',
       value: target,
@@ -137,13 +135,12 @@ export async function GET(
     `&state=${state}`;
 
   const res = NextResponse.redirect(naverUrl, { status: 302 });
-  // 콜백에서 sessionStorage 에 쓰인 state 와 이 쿠키를 둘 다 참조할 수 있게 한다.
   res.cookies.set({
     name: 'ws_naver_state',
     value: state,
     httpOnly: true,
     secure: isProd,
-    sameSite: 'lax', // Naver 가 리다이렉트로 돌려보낼 때 쿠키 동반되도록 lax.
+    sameSite: 'lax',
     path: '/',
     maxAge: 600,
   });

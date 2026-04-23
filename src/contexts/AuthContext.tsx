@@ -68,12 +68,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('wishes-auth-redirect', window.location.pathname + window.location.search);
     }
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
-    });
+    // 2026-04-23: Kakao 는 비즈 앱 전환 전까지 account_email 동의항목 등록 불가 →
+    //   KOE205 회피를 위해 scope 를 profile_nickname 으로 축소. 비즈 앱 승인 후
+    //   'profile_nickname account_email' 로 확장 예정.
+    const options: { redirectTo: string; scopes?: string } = {
+      redirectTo: `${window.location.origin}/auth/callback`,
+    };
+    if (provider === 'kakao') {
+      options.scopes = 'profile_nickname';
+    }
+    const { error } = await supabase.auth.signInWithOAuth({ provider, options });
     if (error) {
       console.error('소셜 로그인 오류:', error.message);
       throw error;
