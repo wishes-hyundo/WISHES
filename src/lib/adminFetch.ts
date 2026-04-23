@@ -1,3 +1,102 @@
+// adminFetch wrapper — L-sec145 (2026-04-23)
+// 401 redirect grace period — L-sec160 (2026-04-23)
+
+type AdminFetchOptions = RequestInit & {
+  redirectOn401?: boolean;
+};
+
+function safeGetSession(key: string): string | null {
+  try {
+    if (typeof window === 'undefined') return null;
+    return window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+export async function adminFetch(
+  input: RequestInfo | URL,
+  init: AdminFetchOptions = {},
+): Promise<Response> {
+  const { redirectOn401 = true, headers: hdrsInit, ...rest } = init;
+  const headers = new Headers(hdrsInit as HeadersInit | undefined);
+
+  if (rest.body && !headers.has('content-type')) {
+    const isString = typeof rest.body === 'string';
+    if (isString) headers.set('content-type', 'application/json');
+  }
+
+  const token = safeGetSession('ws_token');
+  if (token && !headers.has('authorization')) {
+    headers.set('authorization', 'Bearer ' + token);
+  }
+
+  const csrf = safeGetSession('ws_csrf');
+  if (csrf && !headers.has('x-csrf-token')) {
+    headers.set('x-csrf-token', csrf);
+  }
+
+  const response = await fetch(input, {
+    ...rest,
+    headers,
+    credentials: 'include',
+  });
+
+  // L-sec160 (2026-04-23): 로그인 직후 grace period + GET read 관대화.
+  //   과거엔 어떤 /api/admin/* 응답이든 401 이면 즉시 sessionStorage 초기화 +
+  //   login 페이지로 redirect. agent 역할 사용자의 일부 admin API 가 401 을
+  //   뱉을 때 로그인 직후 바로 튕겨나가는 문제 해결.
+  if (response.status === 401 && redirectOn401) {
+    let suppress = false;
+    try {
+      if (typeof window !== 'undefined') {
+        const ts = window.sessionStorage.getItem('ws_login_time') || '0';
+        const loginTs = /^\d+$/.test(ts) ? parseInt(ts, 10) : 0;
+        if (loginTs && Date.now() - loginTs < 10_000) {
+          suppress = true;
+        }
+        if (!suppress) {
+          const method = (rest.method || 'GET').toUpperCase();
+          if (method === 'GET') {
+            suppress = true;
+          }
+        }
+      }
+    } catch {
+      /* noop */
+    }
+    if (!suppress) {
+      try {
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.clear();
+          window.location.href = '/admin/admin-auth.html';
+        }
+      } catch {
+        /* noop */
+      }
+    }
+  }
+
+  return response;
+}
+
+export async function adminFetchJson<T = unknown>(
+  input: RequestInfo | URL,
+  init: AdminFetchOptions = {},
+): Promise<T> {
+  const r = await adminFetch(input, init);
+  if (!r.ok) {
+    let msg = 'HTTP ' + r.status;
+    try {
+      const j = await r.json();
+      msg = (j?.error || j?.message || msg) as string;
+    } catch {
+      /* non-json body */
+    }
+    throw new Error(msg);
+  }
+  return (await r.json()) as T;
+}
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // adminFetch — C-2 phase 3a (L-sec145, 2026-04-23)
 //
