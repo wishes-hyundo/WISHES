@@ -115,6 +115,8 @@ export function ListingDetailModal() {
     is_duplex: boolean | null;
     illegal_building: boolean | null;
     total_parking_spaces: number | null;
+    views: number | null;
+    created_at: string | null;
   } | null>(null);
   const [agentProfile, setAgentProfile] = useState<{
     name: string | null;
@@ -194,6 +196,8 @@ export function ListingDetailModal() {
           is_duplex: (d.is_duplex ?? null),
           illegal_building: (d.illegal_building ?? null),
           total_parking_spaces: (d.total_parking_spaces ?? null),
+          views: (typeof d.views === 'number' ? d.views : null),
+          created_at: d.created_at || null,
         });
         if (d.created_by && !d.source_site) {
           const ag = await fetch(`/api/agent/${d.created_by}`);
@@ -563,6 +567,22 @@ export function ListingDetailModal() {
             </div>
           );
         })()}
+
+        {/* L-modal-meta (2026-04-24): 메타 footer — 매물번호·최초등록·최근확인·조회수 */}
+        <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px] text-neutral-400">
+          <span>매물번호 <span className="font-mono text-neutral-500">W-{listing.id}</span></span>
+          {detailExtra?.created_at && (
+            <span>최초등록 <span className="text-neutral-500">{new Date(detailExtra.created_at).toLocaleDateString('ko-KR')}</span></span>
+          )}
+          {detailExtra?.last_verified_at && (() => {
+            const days = Math.floor((Date.now() - new Date(detailExtra.last_verified_at).getTime()) / (24*60*60*1000));
+            const label = days <= 0 ? '오늘' : `${days}일 전`;
+            return <span>최근확인 <span className="text-neutral-500">{label}</span></span>;
+          })()}
+          {typeof detailExtra?.views === 'number' && detailExtra.views > 0 && (
+            <span>조회 <span className="text-neutral-500">{detailExtra.views.toLocaleString('ko-KR')}회</span></span>
+          )}
+        </div>
       </div>
 
       {/* L-lightbox2 (2026-04-23 p.m.): 풀스크린 사진 뷰어를 Portal 로 document.body 루트에 렌더.
