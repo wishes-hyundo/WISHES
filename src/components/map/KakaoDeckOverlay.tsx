@@ -220,6 +220,13 @@ export default function KakaoDeckOverlay({
   }, [map, containerProp]);
 
   // clusters/items 변경 시 레이어 업데이트
+  // L-mapsync1 (2026-04-23): drag / zoom_changed / center_changed 이벤트로
+  //   레이어를 재빌드하여 "지도가 움직이면 마커가 따로 논다" 피드백 해소.
+  //   이전에는 상위(MapClient) 가 'idle' 하나만 구독 → items prop 변경 → layer 재빌드
+  //   경로로 의존하고 있어서 드래그 중엔 project() 가 옛 픽셀 좌표를 유지,
+  //   카카오 타일은 실시간으로 움직여 마커가 "붕 떠 보이는" 상태가 되었다.
+  //   이제 오버레이 자체가 지도 이벤트를 듣고 requestAnimationFrame 으로
+  //   throttle 된 재투영을 수행한다.
   useEffect(() => {
     if (!deckRef.current || !map) return;
 
@@ -229,24 +236,28 @@ export default function KakaoDeckOverlay({
       };
       getContainer?: () => HTMLElement;
     };
-    const projection = kakaoMap.getProjection?.();
     // L-map3: Kakao 는 getContainer() 가 없음 → prop fallback
     const container = containerProp ?? kakaoMap.getContainer?.();
-    if (!projection || !container) return;
+    if (!container) return;
 
-    const w = container.clientWidth;
-    const h = container.clientHeight;
+    const buildLayers = () => {
+      if (!deckRef.current) return;
+      const projection = kakaoMap.getProjection?.();
+      if (!projection) return;
 
-    // lat/lng → 화면 픽셀 → deck Orthographic 좌표 (원점 중심)
-    const project = (lat: number, lng: number): [number, number] => {
-      const kakao = (window as unknown as { kakao: { maps: { LatLng: new (lat: number, lng: number) => unknown } } }).kakao;
-      const latlng = new kakao.maps.LatLng(lat, lng);
-      const p = projection.pointFromCoords(latlng);
-      return [p.x - w / 2, -(p.y - h / 2)];
-    };
+      const w = container.clientWidth;
+      const h = container.clientHeight;
 
-    // 클러스터 레이어 (≥2 개수)
-    const clusterData = clusters.filter((c) => c.count >= 2);
+      // lat/lng → 화면 픽셀 → deck Orthographic 좌표 (원점 중심)
+      const project = (lat: number, lng: number): [number, number] => {
+        const kakao = (window as unknown as { kakao: { maps: { LatLng: new (lat: number, lng: number) => unknown } } }).kakao;
+        const latlng = new kakao.maps.LatLng(lat, lng);
+        const p = projection.pointFromCoords(latlng);
+        return [p.x - w / 2, -(p.y - h / 2)];
+      };
+
+      // 클러스터 레이어 (≥2 개수)
+      const clusterData = clusters.filter((c) => c.count >= 2);
     // 개별 매물 레이어
     const itemData = items.length > 0
       ? items
@@ -383,12 +394,56 @@ export default function KakaoDeckOverlay({
       },
     });
 
-    deckRef.current.setProps({
-      width: w,
-      height: h,
-      viewState: { target: [0, 0, 0], zoom: 0 } as any,
-      layers: [scatter, clusterText, itemScatter, itemText],
-    });
+      deckRef.current.setProps({
+        width: w,
+        height: h,
+        viewState: { target: [0, 0, 0], zoom: 0 } as any,
+        layers: [scatter, clusterText, itemScatter, itemText],
+      });
+    };
+
+    // 초기 빌드
+    buildLayers();
+
+    // L-mapsync1 (2026-04-23): 카카오 지도 이벤트 → RAF throttle → buildLayers.
+    //   `drag` 는 드래그 중 고빈도로 발화하므로 rAF 에 하나만 예약. `zoom_changed`·
+    //   `center_changed` 도 같은 채널을 재사용해 재렌더 폭주를 방지.
+    //   cleanup 에서 Kakao removeListener 로 구독 해제 + rAF 취소.
+    const kakaoNS = (window as unknown as {
+      kakao?: {
+        maps?: {
+          event?: {
+            addListener: (target: unknown, type: string, handler: () => void) => void;
+            removeListener: (target: unknown, type: string, handler: () => void) => void;
+          };
+        };
+      };
+    }).kakao;
+    const kakaoEvent = kakaoNS?.maps?.event;
+
+    let rafId: number | null = null;
+    const scheduleSync = () => {
+      if (rafId != null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        buildLayers();
+      });
+    };
+
+    if (kakaoEvent) {
+      kakaoEvent.addListener(map, 'drag', scheduleSync);
+      kakaoEvent.addListener(map, 'zoom_changed', scheduleSync);
+      kakaoEvent.addListener(map, 'center_changed', scheduleSync);
+    }
+
+    return () => {
+      if (rafId != null) cancelAnimationFrame(rafId);
+      if (kakaoEvent) {
+        try { kakaoEvent.removeListener(map, 'drag', scheduleSync); } catch { /* noop */ }
+        try { kakaoEvent.removeListener(map, 'zoom_changed', scheduleSync); } catch { /* noop */ }
+        try { kakaoEvent.removeListener(map, 'center_changed', scheduleSync); } catch { /* noop */ }
+      }
+    };
   }, [map, containerProp, clusters, items, colorScale, onClickCluster, onClickListing]);
 
   // pointer-events: auto 처리 — 클러스터/매물 클릭은 받고 싶지만 팬은 지도로 넘긴다.
