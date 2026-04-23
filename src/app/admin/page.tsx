@@ -18,6 +18,8 @@ import AdminAppointmentsPanel from '@/components/AdminAppointmentsPanel';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
 // L-v7-precond (2026-04-22): 선결조건 노트 — /admin API 에러 3건 가시화 (v7 §9)
 import { PreconditionNote } from '@/features/map-2026/components/PreconditionNote';
+// L-sec147 (2026-04-23, C-2 phase 3b): adminFetch wrapper for CSRF + cookie + Bearer.
+import { adminFetch } from '@/lib/adminFetch';
 
 interface Stats {
   totalListings: number;
@@ -165,7 +167,8 @@ export default function AdminPage() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('/api/admin/stats', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const response = await adminFetch('/api/admin/stats', {
         headers: { authorization: getAuthHeader() },
       });
       if (response.ok) {
@@ -190,10 +193,11 @@ export default function AdminPage() {
     try {
       const headers = { authorization: `Bearer ${pwd}` };
 
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
       const [statsRes, listingsRes, contactsRes] = await Promise.all([
-        fetch('/api/admin/stats', { headers }),
-        fetch('/api/admin/listings', { headers }),
-        fetch('/api/admin/contacts', { headers }),
+        adminFetch('/api/admin/stats', { headers }),
+        adminFetch('/api/admin/listings', { headers }),
+        adminFetch('/api/admin/contacts', { headers }),
       ]);
 
       if (statsRes.ok) {
@@ -241,7 +245,8 @@ export default function AdminPage() {
       formData.append('file', validFiles[i]);
 
       try {
-        const response = await fetch('/api/admin/upload', {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const response = await adminFetch('/api/admin/upload', {
           method: 'POST',
           headers: { authorization: getAuthHeader() },
           body: formData,
@@ -339,7 +344,8 @@ export default function AdminPage() {
         payload.images = uploadedImages.map((img: { url: string; path: string }) => img.url);
       }
 
-      const response = await fetch('/api/admin/listings', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const response = await adminFetch('/api/admin/listings', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -373,7 +379,8 @@ export default function AdminPage() {
     if (!confirm('정말 삭제하시겠습니까?')) return;
 
     try {
-      const response = await fetch(`/api/admin/listings/${id}`, {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const response = await adminFetch(`/api/admin/listings/${id}`, {
         method: 'DELETE',
         headers: { authorization: getAuthHeader() },
       });
@@ -388,7 +395,8 @@ export default function AdminPage() {
 
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
-      const response = await fetch(`/api/admin/listings/${id}`, {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const response = await adminFetch(`/api/admin/listings/${id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -408,7 +416,8 @@ export default function AdminPage() {
 
   const handleContactStatusChange = async (id: number, newStatus: string) => {
     try {
-      const response = await fetch('/api/admin/contacts', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const response = await adminFetch('/api/admin/contacts', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -601,7 +610,8 @@ export default function AdminPage() {
                 let failCount = 0;
                 for (const listing of parsedListings) {
                   try {
-                    const res = await fetch('/api/admin/listings', {
+                    // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+                    const res = await adminFetch('/api/admin/listings', {
                       method: 'POST',
                       headers: {
                         'Content-Type': 'application/json',

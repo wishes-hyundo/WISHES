@@ -184,7 +184,8 @@ export default function BulkUploadPage() {
           rooms: l.rooms, description: l.description,
           status: l.status === '비공개' ? '비공개' : '공개',
         };
-        const resp = await fetch('/api/admin/listings', {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const resp = await adminFetch('/api/admin/listings', {
           method: 'POST',
           headers: { ...authHeader(), 'Content-Type': 'application/json' },
           body: JSON.stringify(body),

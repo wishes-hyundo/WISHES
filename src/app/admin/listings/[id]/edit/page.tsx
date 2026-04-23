@@ -5,6 +5,8 @@ import { useRouter, useParams } from 'next/navigation';
 import { useAdminSession } from '@/lib/useAdminSession';
 // L-sec95 (2026-04-22): formData.vrUrl 는 관리자 입력이지만 defense-in-depth 로 http(s) 검증.
 import { safeHttpUrl } from '@/lib/safe-url';
+// L-sec147 (2026-04-23, C-2 phase 3b): adminFetch wrapper for CSRF + cookie + Bearer.
+import { adminFetch } from '@/lib/adminFetch';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 타입 정의
@@ -197,7 +199,8 @@ export default function EditListingPage() {
         setIsLoading(true);
         setLoadError(null);
 
-        const res = await fetch(`/api/admin/listings/${listingId}`, {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const res = await adminFetch(`/api/admin/listings/${listingId}`, {
           headers: { ...authHeader() },
         });
 
@@ -305,7 +308,8 @@ export default function EditListingPage() {
         const uploadFormData = new window.FormData();
         uploadFormData.append('file', file);
 
-        const res = await fetch('/api/admin/upload', {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const res = await adminFetch('/api/admin/upload', {
           method: 'POST',
           headers: { ...authHeader() },
           body: uploadFormData,
@@ -381,7 +385,8 @@ export default function EditListingPage() {
         const fd = new window.FormData();
         arr.forEach((f) => fd.append('videos', f));
 
-        const res = await fetch(`/api/listings/${listingId}/videos`, {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const res = await adminFetch(`/api/listings/${listingId}/videos`, {
           method: 'POST',
           headers: { ...authHeader() },
           body: fd,
@@ -392,7 +397,8 @@ export default function EditListingPage() {
         }
 
         // 서버에서 반환한 최신 목록을 다시 fetch 해서 동기화 (id/sort_order 안정)
-        const listRes = await fetch(`/api/listings/${listingId}/videos`, {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const listRes = await adminFetch(`/api/listings/${listingId}/videos`, {
           headers: { ...authHeader() },
         });
         const listJson = await listRes.json();
@@ -412,7 +418,8 @@ export default function EditListingPage() {
     async (videoId: number) => {
       if (!confirm('이 동영상을 삭제하시겠습니까? 되돌릴 수 없습니다.')) return;
       try {
-        const res = await fetch(
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const res = await adminFetch(
           `/api/listings/${listingId}/videos?videoId=${videoId}`,
           { method: 'DELETE', headers: { ...authHeader() } }
         );
@@ -451,7 +458,8 @@ export default function EditListingPage() {
       if (!hasAnyChanges() || isSubmitting) return;
       try {
         setAutoSaveStatus('saving');
-        const res = await fetch('/api/admin/listings', {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const res = await adminFetch('/api/admin/listings', {
           method: 'PUT',
           headers: {
             ...authHeader(),
@@ -521,7 +529,8 @@ export default function EditListingPage() {
         images: formData.images || [],
       };
 
-      const response = await fetch('/api/admin/listings', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const response = await adminFetch('/api/admin/listings', {
         method: 'PUT',
         headers: {
           ...authHeader(),

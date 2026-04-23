@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { TrendingUp, ArrowRight, RefreshCw, AlertCircle, Target } from 'lucide-react';
+import { adminFetch } from '@/lib/adminFetch';
 
 type PipelineStatus = 'new' | 'contacted' | 'visit_booked' | 'contract' | 'closed_won' | 'closed_lost';
 type LossReason = 'price' | 'inventory' | 'timing' | 'changed_mind' | 'other';
@@ -103,7 +104,8 @@ export default function AdminConversionPanel({ authHeader }: Props) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/contacts', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const res = await adminFetch('/api/admin/contacts', {
         headers: { authorization: authHeader },
         signal,
       });

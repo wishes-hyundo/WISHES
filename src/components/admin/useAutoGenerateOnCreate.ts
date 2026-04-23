@@ -8,6 +8,8 @@
    ============================================================ */
 
 import { useCallback } from 'react';
+// L-sec147 (2026-04-23, C-2 phase 3b): adminFetch wrapper for CSRF + cookie + Bearer.
+import { adminFetch } from '@/lib/adminFetch';
 
 interface ListingData {
   id: string;
@@ -38,7 +40,8 @@ export function useAutoGenerateOnCreate() {
 
     // 1. AI ì ëª©/ì¤ëª/SEO ìë ìì±
     try {
-      const aiRes = await fetch('/api/admin/generate-description', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const aiRes = await adminFetch('/api/admin/generate-description', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -65,7 +68,8 @@ export function useAutoGenerateOnCreate() {
         const aiData = await aiRes.json();
 
         // ìì±ë ë´ì©ì ë§¤ë¬¼ì ë°ë¡ ì ì©
-        const updateRes = await fetch(`/api/admin/listings/${listing.id}`, {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const updateRes = await adminFetch(`/api/admin/listings/${listing.id}`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -89,7 +93,8 @@ export function useAutoGenerateOnCreate() {
 
     // 2. ê±´ì¶ë¬¼ëì¥ ìë ì¡°í
     try {
-      const bldgRes = await fetch('/api/admin/building-registry', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const bldgRes = await adminFetch('/api/admin/building-registry', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

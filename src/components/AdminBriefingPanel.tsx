@@ -9,6 +9,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Eye, Phone, Mail, MessageSquare, Calendar, Flame, PlusCircle, PieChart, Building, Sparkles, RefreshCw, ArrowRight, AlertCircle } from 'lucide-react';
+import { adminFetch } from '@/lib/adminFetch';
 
 type TopListing = {
   id: number;
@@ -91,7 +92,8 @@ export default function AdminBriefingPanel({ authHeader }: { authHeader: string 
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/briefing', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch — credentials+CSRF.
+      const res = await adminFetch('/api/admin/briefing', {
         headers: { authorization: authHeader },
         signal,
       });

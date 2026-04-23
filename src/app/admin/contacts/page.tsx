@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAdminSession } from '@/lib/useAdminSession';
+import { adminFetch } from '@/lib/adminFetch';
 
 interface Contact {
   id: number;
@@ -45,7 +46,8 @@ export default function ContactsPage() {
 
   const loadContacts = async (signal?: AbortSignal) => {
     try {
-      const resp = await fetch('/api/admin/contacts', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const resp = await adminFetch('/api/admin/contacts', {
         headers: { ...authHeader() },
         signal,
       });
@@ -65,7 +67,7 @@ export default function ContactsPage() {
   const updateContact = async (id: number, updates: { status?: string; memo?: string }) => {
     setUpdatingId(id);
     try {
-      const resp = await fetch('/api/admin/contacts', {
+      const resp = await adminFetch('/api/admin/contacts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ id, ...updates })

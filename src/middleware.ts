@@ -90,18 +90,43 @@ export function middleware(request: NextRequest) {
     //   을 들고 오는지 확인만 한다. 일치 불일치와 무관하게 현 단계는 통과.
     //   결과를 응답 헤더 `X-CSRF-Check` 로 노출 → Sentry/log drain 에서 실제
     //   트래픽 중 얼마나 CSRF 헤더를 붙이는지 집계 후 phase 3b 에서 hard-enforce.
+    // L-sec147 (2026-04-23, C-2 phase 3b): 쿠키-기반 세션 트래픽만 hard-enforce.
+    //   ws_session 또는 ws_csrf 쿠키가 붙어온 요청은 CSRF mismatch 시 403 차단.
+    //   Bearer-only legacy 경로(쿠키 없음)는 여전히 soft-check — 마스터암호 로그인
+    //   및 adminFetch 미경유 레거시 콜을 깨뜨리지 않기 위해 점진적 enforce.
     const mutatingMethods = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
     let csrfStatus: 'pass' | 'mismatch' | 'missing' | 'na' = 'na';
+    let csrfHardFail = false;
     if (mutatingMethods.has(request.method)) {
       try {
         const csrfCookie = request.cookies.get('ws_csrf')?.value || '';
         const csrfHeader = request.headers.get('x-csrf-token') || '';
+        const sessionCookie = request.cookies.get('ws_session')?.value || '';
+        const cookieBacked = Boolean(sessionCookie || csrfCookie);
         if (!csrfCookie && !csrfHeader) csrfStatus = 'missing';
         else if (csrfCookie && csrfHeader && csrfCookie === csrfHeader) csrfStatus = 'pass';
         else csrfStatus = 'mismatch';
+        // 쿠키-기반 세션(cookie-issue 완료)인데 CSRF 헤더가 불일치/누락 → 차단.
+        if (cookieBacked && csrfStatus !== 'pass') csrfHardFail = true;
       } catch {
         csrfStatus = 'missing';
       }
+    }
+
+    if (csrfHardFail) {
+      const denyHeaders: Record<string, string> = {
+        'Content-Type': 'application/json; charset=utf-8',
+        'X-CSRF-Check': csrfStatus,
+        Vary: 'Origin',
+      };
+      if (allowedOrigin) {
+        denyHeaders['Access-Control-Allow-Origin'] = allowedOrigin;
+        denyHeaders['Access-Control-Allow-Credentials'] = 'true';
+      }
+      return new NextResponse(
+        JSON.stringify({ success: false, error: 'CSRF token verification failed' }),
+        { status: 403, headers: denyHeaders }
+      );
     }
 
     const response = NextResponse.next();
@@ -112,7 +137,7 @@ export function middleware(request: NextRequest) {
       response.headers.set('Access-Control-Allow-Credentials', 'true');
     }
     response.headers.set('Vary', 'Origin');
-    // monitoring 용 — phase 3b enforce 전에 실제 분포 파악.
+    // monitoring 용 — Bearer-only 경로의 CSRF 분포 파악 (여전히 soft-check).
     if (csrfStatus !== 'na') response.headers.set('X-CSRF-Check', csrfStatus);
     return response;
   }

@@ -12,6 +12,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAdminSession } from '@/lib/useAdminSession';
+import { adminFetch } from '@/lib/adminFetch';
 
 interface Summary {
   id: number;
@@ -280,7 +281,8 @@ export default function AdminDedupPage() {
     setLoading(true);
     setStatusMsg(null);
     try {
-      const r = await fetch('/api/admin/dedup/scan', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const r = await adminFetch('/api/admin/dedup/scan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -310,7 +312,7 @@ export default function AdminDedupPage() {
       }
       setBusyGroup(g.group_id);
       try {
-        const r = await fetch('/api/admin/dedup/hide', {
+        const r = await adminFetch('/api/admin/dedup/hide', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -343,7 +345,7 @@ export default function AdminDedupPage() {
   const loadQueue = useCallback(async () => {
     setQueueLoading(true);
     try {
-      const r = await fetch('/api/admin/dedup/restore', {
+      const r = await adminFetch('/api/admin/dedup/restore', {
         headers: { ...authHeader() },
       });
       const j = await r.json();
@@ -360,7 +362,7 @@ export default function AdminDedupPage() {
     async (id: number) => {
       if (!confirm(`매물 #${id} 을(를) 다시 '가용' 상태로 복구할까요?`)) return;
       try {
-        const r = await fetch('/api/admin/dedup/restore', {
+        const r = await adminFetch('/api/admin/dedup/restore', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -383,7 +385,7 @@ export default function AdminDedupPage() {
     async (group_id: string) => {
       if (!confirm(`그룹 ${group_id} 전체를 복구할까요?`)) return;
       try {
-        const r = await fetch('/api/admin/dedup/restore', {
+        const r = await adminFetch('/api/admin/dedup/restore', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

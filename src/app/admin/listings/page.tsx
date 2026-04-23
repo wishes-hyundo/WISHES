@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminSession } from '@/lib/useAdminSession';
+// L-sec147 (2026-04-23, C-2 phase 3b): adminFetch wrapper for CSRF + cookie + Bearer.
+import { adminFetch } from '@/lib/adminFetch';
 
 /* ─── 타입 정의 ─── */
 interface Listing {
@@ -192,7 +194,8 @@ export default function AdminListingsPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch('/api/admin/listings', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const res = await adminFetch('/api/admin/listings', {
         headers: { ...authHeader() },
       });
       if (!res.ok) throw new Error('API 오류: ' + res.status);
@@ -351,7 +354,8 @@ export default function AdminListingsPage() {
   const handleStatusChange = async (id: number, newStatus: string) => {
     try {
       setUpdatingId(id);
-      const res = await fetch('/api/admin/listings/' + id, {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const res = await adminFetch('/api/admin/listings/' + id, {
         method: 'PATCH',
         headers: {
           ...authHeader(),
@@ -375,7 +379,8 @@ export default function AdminListingsPage() {
     if (!confirm(`매물 #${id}을(를) 정말 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     try {
       setDeletingId(id);
-      const res = await fetch('/api/admin/listings/' + id, {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const res = await adminFetch('/api/admin/listings/' + id, {
         method: 'DELETE',
         headers: { ...authHeader() },
       });
@@ -399,7 +404,8 @@ export default function AdminListingsPage() {
     let failCount = 0;
     for (const id of selectedIds) {
       try {
-        const res = await fetch('/api/admin/listings/' + id, {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const res = await adminFetch('/api/admin/listings/' + id, {
           method: 'PATCH',
           headers: {
             ...authHeader(),
@@ -438,7 +444,8 @@ export default function AdminListingsPage() {
     let failCount = 0;
     for (const id of selectedIds) {
       try {
-        const res = await fetch('/api/admin/listings/' + id, {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const res = await adminFetch('/api/admin/listings/' + id, {
           method: 'DELETE',
           headers: { ...authHeader() },
         });

@@ -20,6 +20,7 @@ import {
   MessageSquare,
   User as UserIcon,
 } from 'lucide-react';
+import { adminFetch } from '@/lib/adminFetch';
 
 type AppointmentStatus = 'requested' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
 
@@ -94,7 +95,8 @@ export default function AdminAppointmentsPanel({ authToken }: { authToken: strin
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/appointments', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const res = await adminFetch('/api/admin/appointments', {
         headers: { Authorization: authToken },
         signal,
       });
@@ -127,7 +129,7 @@ export default function AdminAppointmentsPanel({ authToken }: { authToken: strin
   const patch = async (id: number, body: any) => {
     setUpdating(id);
     try {
-      const res = await fetch('/api/admin/appointments', {
+      const res = await adminFetch('/api/admin/appointments', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

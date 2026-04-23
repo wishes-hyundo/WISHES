@@ -12,6 +12,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { createAuthClient } from '@/lib/supabase';
+// L-sec147 (2026-04-23, C-2 phase 3b): adminFetch wrapper for CSRF + cookie + Bearer.
+import { adminFetch } from '@/lib/adminFetch';
 
 type PageState = 'loading' | 'nosession' | 'ok';
 
@@ -95,7 +97,8 @@ export default function SearchPortalPage() {
           catch { return ''; }
         })();
         if (wsToken) {
-          w.__WS_PREFETCH__ = fetch('/api/admin/listings?fields=minimal', {
+          // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+          w.__WS_PREFETCH__ = adminFetch('/api/admin/listings?fields=minimal', {
             headers: { Authorization: 'Bearer ' + wsToken },
             cache: 'no-cache',
           })

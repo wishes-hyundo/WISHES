@@ -7,6 +7,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Bell, Users, Mail, Send, RefreshCw, Loader2, CheckCircle2, AlertCircle, Play } from 'lucide-react';
+import { adminFetch } from '@/lib/adminFetch';
 
 type Subscriber = {
   id: number;
@@ -70,7 +71,8 @@ export default function AdminNewsletterPanel({ authHeader }: { authHeader: strin
   const load = useCallback(async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/subscribers?active=1', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const res = await adminFetch('/api/admin/subscribers?active=1', {
         headers: { Authorization: authHeader },
         signal,
       });
@@ -105,7 +107,7 @@ export default function AdminNewsletterPanel({ authHeader }: { authHeader: strin
     setSending(true);
     setSendResult(null);
     try {
-      const res = await fetch('/api/admin/send-newsletter', {
+      const res = await adminFetch('/api/admin/send-newsletter', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: authHeader },
         body: JSON.stringify({ subject, body }),

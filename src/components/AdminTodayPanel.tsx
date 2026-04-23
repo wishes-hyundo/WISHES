@@ -12,6 +12,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Phone, CheckCircle2, Clock, AlertCircle, RefreshCw, MessageSquare, TrendingUp, Tag } from 'lucide-react';
+import { adminFetch } from '@/lib/adminFetch';
 
 type PipelineStatus = 'new' | 'contacted' | 'visit_booked' | 'contract' | 'closed_won' | 'closed_lost';
 type LossReason = 'price' | 'inventory' | 'timing' | 'changed_mind' | 'other';
@@ -58,7 +59,10 @@ export default function AdminTodayPanel({ authHeader }: Props) {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/admin/contacts', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch 로 전환.
+      //   credentials:'include' + X-CSRF-Token 자동 부착. authHeader prop 은
+      //   legacy master-password 경로 호환을 위해 그대로 전달.
+      const res = await adminFetch('/api/admin/contacts', {
         headers: { authorization: authHeader },
         signal,
       });
@@ -106,7 +110,7 @@ export default function AdminTodayPanel({ authHeader }: Props) {
 
   const updatePipeline = async (id: number, pipelineStatus: PipelineStatus, markFollowedUp = false) => {
     try {
-      const res = await fetch('/api/admin/contacts', {
+      const res = await adminFetch('/api/admin/contacts', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', authorization: authHeader },
         body: JSON.stringify({ id, pipelineStatus, markFollowedUp }),

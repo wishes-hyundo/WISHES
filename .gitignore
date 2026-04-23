@@ -91,3 +91,10 @@ PROMPT_*.md
 
 # 시스템 점검 보고서 (임시, docs/ 로 이관 시까지 제외)
 WISHES_시스템점검_보고서_*.docx
+
+# Sandbox GitHub PAT bridge (read-only credential, never commit)
+.github_pat
+
+# 2026-04-23: 로컬 임시 커밋 메시지/정리 로그 (커밋 금지)
+/COMMIT_MSG_*.txt
+/_cleanup_*.log

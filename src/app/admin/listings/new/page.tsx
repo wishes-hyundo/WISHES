@@ -46,6 +46,8 @@ import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAdminSession } from '@/lib/useAdminSession';
 import ExclusiveUnitSelector, { ExclusiveUnit, needsExclusivePart } from '@/components/ExclusiveUnitSelector';
+// L-sec147 (2026-04-23, C-2 phase 3b): adminFetch wrapper for CSRF + cookie + Bearer.
+import { adminFetch } from '@/lib/adminFetch';
 
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    타입 정의
@@ -494,7 +496,8 @@ function SmartListingNewPage() {
     
     const fetchListingForCopy = async () => {
       try {
-        const res = await fetch('/api/admin/listings/' + copyFrom, {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const res = await adminFetch('/api/admin/listings/' + copyFrom, {
           headers: { ...authHeader() }
         });
         if (!res.ok) {
@@ -1093,7 +1096,8 @@ ${floorRows}</table></div>` : ''}
         updateForm({ title: newTitle, description: newDesc });
       } else {
         // AI 생성: API 호출 (best=Opus, latest=Sonnet)
-        const res = await fetch('/api/admin/generate-description', {
+        // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+        const res = await adminFetch('/api/admin/generate-description', {
           signal: abortRef.current?.signal,
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1218,7 +1222,8 @@ ${floorRows}</table></div>` : ''}
 
       // console.log('[publishListing] FormData, images:', uploadedImages.length, 'coords:', form.lat, form.lng);
 
-      const res = await withRetry(() => fetch('/api/admin/listings', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const res = await withRetry(() => adminFetch('/api/admin/listings', {
         method: 'POST',
         headers: { ...authHeader() },
         body: fd,

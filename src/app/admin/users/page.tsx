@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createAuthClient } from '@/lib/supabase';
+import { adminFetch } from '@/lib/adminFetch';
 
 interface AdminUser {
   id: string;
@@ -61,7 +62,8 @@ export default function AdminUsersPage() {
     if (!token) return;
     setLoading(true);
     try {
-      const res = await fetch('/api/admin/users', {
+      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
+      const res = await adminFetch('/api/admin/users', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -83,7 +85,7 @@ export default function AdminUsersPage() {
       const body = newStatus === 'approved'
         ? { userId, action, role: 'agent' }
         : { userId, action };
-      const res = await fetch('/api/admin/users', {
+      const res = await adminFetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(body)
