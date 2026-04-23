@@ -44,7 +44,16 @@ interface Props {
 const SEL_BG = '#185FA5';
 const SEL_BD = '#0C447C';
 const SEL_SHADOW = '0 4px 14px rgba(24,95,165,0.4)';
-const DEFAULT_SHADOW = '0 1px 4px rgba(0,0,0,0.16)';
+const DEFAULT_SHADOW = '0 2px 6px rgba(0,0,0,0.22)';
+
+// 헥스 색 + 알파 → rgba. Tier2 원을 "채움 + 살짝 불투명" 으로 표현.
+function hexToRgba(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
 
 function makeTier1Element(opts: {
   name: string;
@@ -110,6 +119,9 @@ function makeTier2Element(opts: {
   selected: boolean;
 }): HTMLDivElement {
   const { count, borderColor, selected } = opts;
+  // 직방·다방 스타일: 카테고리 색 채움 + 흰 글자 + 흰 테두리 + 그림자
+  const bg = selected ? SEL_BG : hexToRgba(borderColor, 0.92);
+  const bd = selected ? SEL_BD : '#ffffff';
   const el = document.createElement('div');
   el.style.cssText = [
     'display:inline-flex',
@@ -118,21 +130,22 @@ function makeTier2Element(opts: {
     'width:36px',
     'height:36px',
     'border-radius:50%',
-    `background:${selected ? SEL_BG : '#fff'}`,
-    `color:${selected ? '#fff' : '#1a1a1a'}`,
-    `border:2px solid ${selected ? SEL_BD : borderColor}`,
+    `background:${bg}`,
+    'color:#fff',
+    `border:1.5px solid ${bd}`,
     `box-shadow:${selected ? SEL_SHADOW : DEFAULT_SHADOW}`,
     'font-size:12px',
-    'font-weight:500',
+    'font-weight:600',
     'cursor:pointer',
     'user-select:none',
     'transition:transform 150ms ease',
     'font-family:inherit',
     'pointer-events:auto',
+    'letter-spacing:-0.2px',
   ].join(';');
   el.textContent = String(count);
 
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.06)'; });
+  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.08)'; });
   el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
 
   return el;
