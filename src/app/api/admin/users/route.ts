@@ -107,7 +107,7 @@ export async function PUT(request: NextRequest) {
     if (action === 'approve') {
       // L-sec48 (2026-04-22): approve path newRole whitelist (defense in depth)
       //   compromised admin injecting arbitrary role blocked
-      const VALID_ROLES = ['admin', 'agent', 'viewer'];
+      const VALID_ROLES = ['admin', 'agent', 'user'];
       const newRole = VALID_ROLES.includes(String(role || '')) ? String(role) : 'agent';
 
       const { error: upsertError } = await supabase.from('admin_users').upsert({
@@ -167,7 +167,7 @@ export async function PUT(request: NextRequest) {
     // ì­í (ì§ì±) ë³ê²½
     if (action === 'change_role') {
       const newRole = role;
-      if (!newRole || !['superadmin', 'admin', 'agent', 'viewer'].includes(newRole)) {
+      if (!newRole || !['superadmin', 'admin', 'agent', 'user'].includes(newRole)) {
         return NextResponse.json({ error: 'ì í¨íì§ ìì ì¬í ìëë¤.' }, { status: 400 });
       }
 

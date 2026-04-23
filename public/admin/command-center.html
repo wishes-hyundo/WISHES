@@ -474,8 +474,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
                 <td style="font-size:12px;color:var(--text-dim)">매물 검색, 브리핑 생성, PDF 카탈로그, 공유 기능</td>
               </tr>
               <tr>
-                <td><span class="status status-pending">Viewer</span></td>
-                <td>열람 전용</td><td id="roleCountViewer">0</td>
+                <td><span class="status status-pending">User</span></td>
+                <td>열람 전용</td><td id="roleCountUser">0</td>
                 <td style="font-size:12px;color:var(--text-dim)">매물 검색 및 열람만 가능 (브리핑, 공유 불가)</td>
               </tr>
             </tbody>
@@ -937,9 +937,55 @@ function renderUsers(){
     var statusText=u.status==='approved'?'승인됨':u.status==='pending'?'대기중':'차단됨';
     var onlineClass=u.online?'status-online':'status-offline';
     var onlineText=u.online?'접속중':'오프라인';
-    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td><span class="status '+(u.role==='superadmin'?'" style="background:rgba(237,137,54,.15);color:var(--accent)':u.role==='admin'?'" style="background:var(--info-bg);color:var(--info)':'status-approved')+'">'+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+(u.lastLogin||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+(u.role!=='superadmin'?'<button class="btn-sm btn-block" onclick="toggleBlock(\''+u.id+'\')">차단</button>':'')+'</div></td></tr>';
+    var isSuperadmin=u.role==='superadmin';
+    var roleSelect=isSuperadmin
+      ? '<span class="status" style="background:rgba(237,137,54,.15);color:var(--accent)">superadmin</span>'
+      : '<select class="role-select" data-user-id="'+_escHtml(u.id)+'" data-current="'+_escHtml(u.role)+'" onchange="changeUserRole(this.dataset.userId, this.value, this.dataset.current, this)" style="background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:4px 8px;border-radius:6px;font-size:12px;cursor:pointer">'
+        +'<option value="admin"'+(u.role==='admin'?' selected':'')+'>admin</option>'
+        +'<option value="agent"'+(u.role==='agent'?' selected':'')+'>agent</option>'
+        +'<option value="user"'+(u.role==='user'?' selected':'')+'>user</option>'
+      +'</select>';
+    var statusAction=u.status==='blocked'
+      ? '<button class="btn-sm btn-approve" onclick="unblockUser(\''+u.id+'\')">차단해제</button>'
+      : (isSuperadmin ? '' : '<button class="btn-sm btn-block" onclick="toggleBlock(\''+u.id+'\')">차단</button>');
+    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td>'+roleSelect+'</td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+(u.lastLogin||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+statusAction+'</div></td></tr>';
   }).join('');
 }
+
+window.changeUserRole=function(userId, newRole, prevRole, selectEl){
+  if(newRole===prevRole)return;
+  if(!confirm('이 사용자의 역할을 '+prevRole+' → '+newRole+' (으)로 변경하시겠습니까?')){
+    if(selectEl) selectEl.value = prevRole;
+    return;
+  }
+  apiCall('/admin/users','PUT',{userId:userId, action:'change_role', role:newRole}).then(function(res){
+    if(res&&res.success){
+      showToast('역할이 '+newRole+'(으)로 변경되었습니다');
+      loadUsersFromApi();
+    } else {
+      showToast('역할 변경 실패: '+(res&&res.error||'unknown'),'error');
+      if(selectEl) selectEl.value = prevRole;
+    }
+  }).catch(function(err){
+    console.error('change_role failed',err);
+    showToast('역할 변경 API 호출 실패','error');
+    if(selectEl) selectEl.value = prevRole;
+  });
+};
+
+window.unblockUser=function(id){
+  apiCall('/admin/users','PUT',{userId:id, action:'unblock'}).then(function(res){
+    if(res&&res.success){
+      showToast('차단이 해제되었습니다');
+      loadUsersFromApi();
+    } else {
+      showToast('차단 해제 실패: '+(res&&res.error||'unknown'),'error');
+    }
+  }).catch(function(err){
+    console.error('unblock failed',err);
+    showToast('차단 해제 API 호출 실패','error');
+  });
+};
 
 function renderPending(){
   var tb=document.getElementById('pendingTableBody');
