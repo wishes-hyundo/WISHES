@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 //   + Kakao quota 를 남용 가능. superadmin/master/crawler_bridge 만 허용.
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 
-const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
 // L-sec3 (2026-04-22): fallback 'wishes2026' 제거 → WISHES_ADMIN_MASTER_PASSWORD
 // (Phase3 에서 WISHES_INTERNAL_BEARER 로 분리 예정)
@@ -68,22 +68,4 @@ export async function GET(request: NextRequest) {
 
     if (!registryRes.ok) {
       const errText = await registryRes.text();
-      throw new Error(`Building registry API error: ${registryRes.status} - ${errText.substring(0, 200)}`);
-    }
-
-    const registryData = await registryRes.json();
-
-    return NextResponse.json({
-      success: true,
-      query: { address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress },
-      data: registryData.data || {},
-      floors: registryData.floors || [],
-      raw: registryData.raw || {},
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: err.message || 'Unknown error', query: { address } },
-      { status: 500 }
-    );
-  }
-}
+      throw new Error(`Building registry API error: ${registryRes.status} - ${errText.substring(0, 200)

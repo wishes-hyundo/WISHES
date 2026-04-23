@@ -12,7 +12,7 @@ import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://wishes.co.kr';
 const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 
-const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
 async function processListing(listingId: string): Promise<{
   id: string;
@@ -158,21 +158,4 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuthStrict(request);
   if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
-    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-  }
-
-  return NextResponse.json({
-    endpoint: '/api/admin/auto-generate-bulk',
-    method: 'POST',
-    description: 'Bulk auto-generate titles and descriptions for multiple listings',
-    body: {
-      listingIds: 'string[] - Array of listing IDs to process',
-      concurrency: 'number (default: 3, max: 5) - Parallel workers',
-      delayMs: 'number (default: 500, min: 300) - Delay between requests per worker',
-    },
-    limits: {
-      maxBatchSize: 50,
-      note: 'Send multiple requests for larger batches',
-    },
-  });
-      }
+   

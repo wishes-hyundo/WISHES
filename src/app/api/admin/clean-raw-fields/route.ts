@@ -11,7 +11,7 @@ import { invalidateCache } from '@/lib/cache';
 //   덮어쓰기 가능했음. superadmin/master/crawler_bridge 만 허용.
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 
-const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
 const JUNK_RE: RegExp[] = [
   /^인쇄$/, /^확대보기$/, /^연락처보기$/, /^네이버전송/, /^정보요청$/,
@@ -64,19 +64,4 @@ export async function GET(request: NextRequest) {
         .from('listings')
         .update({ raw_fields: cleaned })
         .eq('id', r.id);
-      if (!upErr) {
-        updates.push({ id: r.id, before: beforeCount, after: Object.keys(cleaned).length, removed });
-      }
-    }
-  }
-
-  invalidateCache('admin-listings');
-
-  return NextResponse.json({
-    success: true,
-    scannedRows: rows?.length || 0,
-    updatedRows: updates.length,
-    totalRemoved: updates.reduce((s, u) => s + u.removed.length, 0),
-    samples: updates.slice(0, 5),
-  });
-}
+      if

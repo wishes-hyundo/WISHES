@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_listings_dedup_group ON listings(dedup_group_id) 
 `;
 
 // L-sec155: superadmin/master/crawler_bridge 만 DB 스키마 변경 허용.
-const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
 export async function POST(request: NextRequest) {
   const auth = await verifyAdminAuthStrict(request);
@@ -82,24 +82,4 @@ export async function POST(request: NextRequest) {
         method: 'management_api',
         status: resp.status,
         body: bodyTxt.slice(0, 1000),
-        hint: '콘솔에서 직접 SQL 실행 필요: supabase/migrations/20260420_add_dedup_columns.sql',
-      },
-      { status: 500 },
-    );
-  } catch (e: any) {
-    return NextResponse.json({ error: e?.message || 'Unknown error' }, { status: 500 });
-  }
-}
-
-export async function GET(request: NextRequest) {
-  const auth = await verifyAdminAuthStrict(request);
-  if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  return NextResponse.json({
-    message: 'POST here to apply dedup columns migration (idempotent, IF NOT EXISTS).',
-    sql: MIGRATION_SQL.trim(),
-  });
-}
-
-export const dynamic = 'force-dynamic';
+   

@@ -46,6 +46,22 @@ function getCrawlerBridgeToken(): string | null {
   return env && env.length >= 16 ? env : null;
 }
 
+// L-sec156 (2026-04-23, Phase 3a): WISHES_INTERNAL_BEARER 도입.
+//   지금까지는 내부 자가호출(auto-generate-bulk → auto-generate,
+//   generate-description, building-registry-full → building-registry) 이
+//   WISHES_ADMIN_MASTER_PASSWORD 를 Bearer 로 재사용해 master 롤로 통과했다.
+//   마스터 패스워드는 사람(슈퍼어드민) 이 공유·입력하는 운영 토큰과 의미가
+//   겹쳐서, 한 값이 노출되면 내부 배치 + 어드민 마스터 키가 동시에 털린다.
+//   Phase 3a 에서는 '내부 자가호출 전용' 의미를 갖는 새 env 를 병행 수신하도록
+//   추가하고, Phase 3b 에서 3개 self-call 사이트를 새 env 로 교체, Phase 3c
+//   (L-sec158) 에서 MASTER_PASSWORD accept path 를 완전 제거할 예정.
+//
+//   길이 16자 이상만 유효. 미설정 시 검증 실패 (env 가 없으면 경로 OFF).
+function getInternalBearer(): string | null {
+  const env = process.env.WISHES_INTERNAL_BEARER;
+  return env && env.length >= 16 ? env : null;
+}
+
 // 슈퍼어드민 이메일 — JWT 검증 통과 시 추가 역할 확인 면제
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
@@ -98,9 +114,13 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
 
   const MASTER_PASSWORD = getMasterPassword();
   const CRAWLER_BRIDGE = getCrawlerBridgeToken();
+  const INTERNAL_BEARER = getInternalBearer();
 
-  // 1) 마스터 패스워드
+  // 1) 마스터 패스워드 (Phase 3c 에서 제거 예정)
   if (timingSafeEqualStr(token, MASTER_PASSWORD)) return true;
+
+  // 1b) 내부 자가호출 베어러 (L-sec156, Phase 3a 병행)
+  if (INTERNAL_BEARER && timingSafeEqualStr(token, INTERNAL_BEARER)) return true;
 
   // 2) 크롤러 브리지 (env)
   if (CRAWLER_BRIDGE && timingSafeEqualStr(token, CRAWLER_BRIDGE)) return true;
@@ -110,6 +130,7 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
     const inner = token.slice('admin_bridge_'.length);
     if (CRAWLER_BRIDGE && timingSafeEqualStr(inner, CRAWLER_BRIDGE)) return true;
     if (timingSafeEqualStr(inner, MASTER_PASSWORD)) return true;
+    if (INTERNAL_BEARER && timingSafeEqualStr(inner, INTERNAL_BEARER)) return true;
     // inner 가 JWT 인 경우 (슈퍼어드민이 브리지 경유 시) 아래 JWT 경로로 falls through
     token = inner;
   }
@@ -204,8 +225,12 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
 
   const MASTER_PASSWORD = getMasterPassword();
   const CRAWLER_BRIDGE = getCrawlerBridgeToken();
+  const INTERNAL_BEARER = getInternalBearer();
 
   if (timingSafeEqualStr(token, MASTER_PASSWORD)) return { ok: true, role: 'master' };
+  if (INTERNAL_BEARER && timingSafeEqualStr(token, INTERNAL_BEARER)) {
+    return { ok: true, role: 'internal_bearer' };
+  }
   if (CRAWLER_BRIDGE && timingSafeEqualStr(token, CRAWLER_BRIDGE)) {
     return { ok: true, role: 'crawler_bridge' };
   }
@@ -216,6 +241,9 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
       return { ok: true, role: 'crawler_bridge' };
     }
     if (timingSafeEqualStr(inner, MASTER_PASSWORD)) return { ok: true, role: 'master' };
+    if (INTERNAL_BEARER && timingSafeEqualStr(inner, INTERNAL_BEARER)) {
+      return { ok: true, role: 'internal_bearer' };
+    }
     token = inner;
   }
 
@@ -303,9 +331,15 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
     if (!token) return { ok: false, reason: 'no_token' };
   }
 
-  // 마스터 패스워드 (env)
+  // 마스터 패스워드 (env, L-sec158 에서 제거 예정)
   const MASTER_PASSWORD = getMasterPassword();
   if (timingSafeEqualStr(token, MASTER_PASSWORD)) return { ok: true, role: 'master' };
+
+  // 내부 자가호출 베어러 (L-sec156 Phase 3a — master 경로 대체 목표)
+  const INTERNAL_BEARER = getInternalBearer();
+  if (INTERNAL_BEARER && timingSafeEqualStr(token, INTERNAL_BEARER)) {
+    return { ok: true, role: 'internal_bearer' };
+  }
 
   // 크롤러 브리지 토큰 (env 완전 일치)
   const CRAWLER_BRIDGE = getCrawlerBridgeToken();

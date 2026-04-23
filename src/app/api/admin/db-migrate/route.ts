@@ -13,7 +13,7 @@ import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
 const MIGRATION_SQL = `
 ALTER TABLE listings ADD COLUMN IF NOT EXISTS business_type TEXT;
@@ -116,9 +116,4 @@ export async function GET(request: NextRequest) {
     columns_to_add: [
       'business_type', 'goodwill_fee', 'vat_included', 'station_name', 'station_distance',
       'usage_approved', 'electric_capacity', 'signage_available', 'meeting_room',
-      'gu', 'entrance_type', 'features', 'parking_fee', 'building_purpose',
-      'previous_brand', 'commission_fee', 'special_notes',
-      'ai_title', 'ai_description', 'seo_keywords', 'seo_tags', 'seo_meta_description', 'ai_generated_at',
-    ],
-  });
-}
+      'gu', 

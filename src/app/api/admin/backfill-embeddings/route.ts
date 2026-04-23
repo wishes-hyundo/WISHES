@@ -20,7 +20,7 @@ import { NextRequest, NextResponse } from 'next/server';
 //   JWT 까지 허용해 일반 중개사 계정이 OpenAI 비용 소진 + embedding 덮어쓰기 가능했음.
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 
-const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge']);
+const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
@@ -236,20 +236,4 @@ export async function GET(request: NextRequest) {
     .eq('status', '공개');
   const { count: withEmbed } = await supabase
     .from('listings')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', '공개')
-    .not('embedding', 'is', null);
-  return NextResponse.json({
-    message: 'POST here to generate embeddings in batches.',
-    model: EMBEDDING_MODEL,
-    dimensions: EMBEDDING_DIM,
-    openai_key_present: !!process.env.OPENAI_API_KEY,
-    total,
-    with_embedding: withEmbed,
-    pending: (total || 0) - (withEmbed || 0),
-    suggested_batch_size: 100,
-  });
-}
-
-export const dynamic = 'force-dynamic';
-export const maxDuration = 300;
+    .select('id', { count: '
