@@ -32,6 +32,7 @@ interface Listing {
   direction?: string;
   description?: string;
   features?: string[];
+  last_verified_at?: string | null;
 }
 
 type StatusFilter = '전체' | '공개' | '비공개' | '계약중' | '계약완료';
@@ -164,6 +165,8 @@ export default function AdminListingsPage() {
   const [transactionTypeFilter, setTransactionTypeFilter] = useState('전체');
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [dongFilter, setDongFilter] = useState<string>('전체');
+  // L-verify-list (2026-04-24): 현장확인 상태 필터
+  const [verifyFilter, setVerifyFilter] = useState<'전체' | '확인됨' | '미확인' | '7일경과'>('전체');
 
   // 정렬 상태
   const [sortField, setSortField] = useState<SortField>('created_at');
@@ -258,6 +261,14 @@ export default function AdminListingsPage() {
       if (dongFilter !== '전체' && l.dong !== dongFilter) return false;
       // 거래 유형 필터
       if (transactionTypeFilter !== '전체' && l.deal !== transactionTypeFilter) return false;
+      // L-verify-list: 현장확인 상태 필터
+      if (verifyFilter !== '전체') {
+        const v = l.last_verified_at ? new Date(l.last_verified_at).getTime() : 0;
+        const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        if (verifyFilter === '미확인' && v > 0) return false;
+        if (verifyFilter === '확인됨' && (v === 0 || v < weekAgo)) return false;
+        if (verifyFilter === '7일경과' && v >= weekAgo) return false;
+      }
       // 검색어 필터
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -296,7 +307,7 @@ export default function AdminListingsPage() {
     });
 
     return result;
-  }, [listings, statusFilter, propertyTypeFilter, transactionTypeFilter, searchQuery, sortField, sortDirection, dongFilter]);
+  }, [listings, statusFilter, propertyTypeFilter, transactionTypeFilter, searchQuery, sortField, sortDirection, dongFilter, verifyFilter]);
 
   // 페이지네이션 계산
   const totalPages = Math.ceil(filtered.length / pageSize);
@@ -435,7 +446,37 @@ export default function AdminListingsPage() {
     }
   };
 
-  const handleBulkDelete = async () => {
+  // L-verify-list (2026-04-24): 선택 매물 일괄 "현장확인 완료" 갱신
+  const handleBulkVerify = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`선택한 ${selectedIds.size}건의 매물에 현장확인 완료를 기록하시겠습니까?`)) return;
+    setBulkActionLoading(true);
+    setShowBulkMenu(false);
+    const now = new Date().toISOString();
+    let ok = 0, fail = 0;
+    for (const id of selectedIds) {
+      try {
+        const res = await adminFetch('/api/admin/listings', {
+          method: 'PUT',
+          headers: { ...authHeader(), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, last_verified_at: now }),
+        });
+        if (res.ok) {
+          setListings(prev => prev.map(l => l.id === id ? { ...l, last_verified_at: now } : l));
+          ok++;
+        } else fail++;
+      } catch { fail++; }
+    }
+    setBulkActionLoading(false);
+    setSelectedIds(new Set());
+    setSelectAll(false);
+    setToast({
+      message: fail === 0 ? `${ok}건 현장확인 기록 완료` : `${ok}건 성공, ${fail}건 실패`,
+      type: fail === 0 ? 'success' : 'error',
+    });
+  };
+
+    const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
     if (!confirm(`⚠️ 선택한 ${selectedIds.size}건의 매물을 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`)) return;
     setBulkActionLoading(true);
@@ -475,6 +516,7 @@ export default function AdminListingsPage() {
     setPropertyTypeFilter('전체');
     setTransactionTypeFilter('전체'); setDongFilter('전체');
     setCurrentPage(1);
+    setVerifyFilter('전체');
   };
 
   const handleExportCSV = () => {
@@ -749,6 +791,20 @@ export default function AdminListingsPage() {
                   ))}
                 </select>
               </div>
+                {/* L-verify-list: 현장확인 상태 필터 */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">현장확인</label>
+                  <select
+                    value={verifyFilter}
+                    onChange={(e) => { setVerifyFilter(e.target.value as any); setCurrentPage(1); }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="전체">전체</option>
+                    <option value="확인됨">✓ 최근 7일 확인</option>
+                    <option value="7일경과">⚠️ 7일 이상 경과</option>
+                    <option value="미확인">❌ 미확인</option>
+                  </select>
+                </div>
                 <div className="flex items-end">
                   <button
                     onClick={handleResetFilters}
@@ -826,6 +882,15 @@ export default function AdminListingsPage() {
                   </div>
                 )}
               </div>
+              {/* L-verify-list: 일괄 현장확인 버튼 */}
+              <button
+                onClick={handleBulkVerify}
+                disabled={bulkActionLoading}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                title="선택 매물에 현장확인 완료 기록"
+              >
+                ✓ 현장확인
+              </button>
               <button
                 onClick={handleBulkDelete}
                 disabled={bulkActionLoading}
