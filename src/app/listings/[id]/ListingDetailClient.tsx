@@ -29,6 +29,8 @@ import ListingActions from '@/components/ListingActions';
 import ListingEnglishFullView from '@/components/ListingEnglishFullView';
 // L-sec95 (2026-04-22): <a href={DB URL}> XSS 차단 — http(s) 화이트리스트.
 import { safeHttpUrl } from '@/lib/safe-url';
+// L-detail-v2 (2026-04-24): 내부시설/보안 아이콘 그리드용 공용 스펙 테이블.
+import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 
 declare global {
   interface Window {
@@ -690,40 +692,76 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 </div>
               )}
 
-              {/* 옵션 */}
+              {/* ━━ L-detail-v2 (2026-04-24): 내부 시설 아이콘 그리드 (네이버 벤치마크 12종) ━━ */}
               <div
                 id="section-options"
                 ref={(el) => { sectionsRef.current.options = el; }}
                 className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
               >
-                <h2 className="text-sm font-semibold text-gray-700 mb-3">옵션 / 시설</h2>
-                <div className="flex flex-wrap gap-2">
-                  <OptionBadge label="주차" available={listing.parking ?? false} />
-                  <OptionBadge label="엘리베이터" available={listing.elevator ?? false} />
-                  {!['상가', '사무실'].includes(listing.type) && (
+                {(() => {
+                  const mergedFeatures: string[] = [];
+                  features.forEach((f: any) => mergedFeatures.push(f.feature));
+                  if (Array.isArray(listing.features)) listing.features.forEach((f: string) => mergedFeatures.push(f));
+                  const bools = { elevator: !!listing.elevator, full_option: !!listing.full_option };
+                  const interiorHits = INTERIOR_FEATURES.filter((s) => hasFeatureWithBools(mergedFeatures, s, bools));
+                  const securityHits = SECURITY_FEATURES.filter((s) => hasFeatureWithBools(mergedFeatures, s, bools));
+                  return (
                     <>
-                      <OptionBadge label="반려동물" available={listing.pet ?? false} />
-                      <OptionBadge label="발코니" available={listing.balcony ?? false} />
-                      <OptionBadge label="풀옵션" available={listing.full_option ?? false} />
+                      {interiorHits.length > 0 && (
+                        <div>
+                          <h2 className="text-sm font-semibold text-gray-700 mb-3">내부 시설</h2>
+                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                            {interiorHits.map((spec) => {
+                              const Icon = spec.icon;
+                              return (
+                                <div key={spec.label} className="flex flex-col items-center justify-center gap-1.5 py-3 rounded-lg bg-gray-50 text-gray-700">
+                                  <Icon className="w-5 h-5 text-gray-500" />
+                                  <span className="text-[11px] text-gray-800">{spec.label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {securityHits.length > 0 && (
+                        <div className={interiorHits.length > 0 ? 'mt-6' : ''}>
+                          <h2 className="text-sm font-semibold text-gray-700 mb-3">보안 및 기타</h2>
+                          <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+                            {securityHits.map((spec) => {
+                              const Icon = spec.icon;
+                              return (
+                                <div key={spec.label} className="flex flex-col items-center justify-center gap-1.5 py-2.5 rounded-lg bg-gray-50 text-gray-700">
+                                  <Icon className="w-5 h-5 text-gray-500" />
+                                  <span className="text-[11px] text-gray-800">{spec.label}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 주차/반려동물/발코니/대출 등 bool-only 는 별도 작은 배지 줄로 표기 */}
+                      {(listing.parking || listing.pet || listing.balcony || listing.loan_available) && (
+                        <div className={(interiorHits.length + securityHits.length > 0) ? 'mt-6 flex flex-wrap gap-2' : 'flex flex-wrap gap-2'}>
+                          {listing.parking && <span className="flex items-center gap-1 px-3 py-1 text-xs rounded-full bg-green-50 text-green-700"><Check className="w-3 h-3" /> 주차</span>}
+                          {!['상가', '사무실'].includes(listing.type) && listing.pet && <span className="flex items-center gap-1 px-3 py-1 text-xs rounded-full bg-green-50 text-green-700"><Check className="w-3 h-3" /> 반려동물</span>}
+                          {!['상가', '사무실'].includes(listing.type) && listing.balcony && <span className="flex items-center gap-1 px-3 py-1 text-xs rounded-full bg-green-50 text-green-700"><Check className="w-3 h-3" /> 발코니</span>}
+                          {!['상가', '사무실'].includes(listing.type) && listing.full_option && <span className="flex items-center gap-1 px-3 py-1 text-xs rounded-full bg-green-50 text-green-700"><Check className="w-3 h-3" /> 풀옵션</span>}
+                          {listing.loan_available && <span className="flex items-center gap-1 px-3 py-1 text-xs rounded-full bg-blue-50 text-blue-700"><Check className="w-3 h-3" /> 대출가능</span>}
+                        </div>
+                      )}
                     </>
-                  )}
-                  {listing.loan_available && (
-                    <span className="flex items-center gap-1 px-3 py-1 text-sm rounded-full bg-blue-50 text-blue-700">
-                      <Check className="w-3 h-3" /> 대출가능
-                    </span>
-                  )}
-                   {(() => {
-                     const allFeatures = new Set<string>();
-                     features.forEach(f => allFeatures.add(f.feature));
-                     if (listing.features && Array.isArray(listing.features)) {
-                       listing.features.forEach((f: string) => allFeatures.add(f));
-                     }
-                     return Array.from(allFeatures).map((f, idx) => (
-                       <span key={`feat-${idx}`} className="px-3 py-1 text-sm bg-blue-50 text-blue-700 rounded-full">
-                         {f}
-                       </span>
-                     ));
-                   })()}
+                  );
+                })()}
+              </div>
+
+              {/* ━━ L-detail-v2: 허위매물 차단 4단 검증 배지 (wishes 신뢰 차별화) ━━ */}
+              <div className="mt-6 flex items-start gap-3 p-4 rounded-xl bg-green-50 border border-green-100">
+                <ShieldCheck className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="text-sm font-semibold text-green-800 mb-1">허위매물 차단 4단 검증 완료</div>
+                  <div className="text-xs text-green-700 leading-relaxed">건축물대장 일치 · 사용승인 확인 · 등기부 열람 · 현장확인</div>
                 </div>
               </div>
 
@@ -751,12 +789,32 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                     ref={(el) => { sectionsRef.current.description = el; }}
                     className="mt-6 pt-6 border-t border-gray-100 scroll-mt-32"
                   >
-                    <h2 className="text-sm font-semibold text-gray-700 mb-3">매물설명</h2>
-                    {hasDesc && (
-                      <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
-                        {descText}
-                      </p>
-                    )}
+                    <h2 className="text-sm font-semibold text-gray-700 mb-3">매물 설명</h2>
+                    {hasDesc && (() => {
+                      // L-detail-v2 (2026-04-24): 첫 단락만 노출, 나머지는 <details> 더보기 로 접음.
+                      //   단락 분리 기준: 빈 줄 (\n\n+). 단락이 1개뿐이면 더보기 버튼 없이 전체 노출.
+                      const paragraphs = String(descText).split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
+                      if (paragraphs.length === 0) return null;
+                      const [first, ...rest] = paragraphs;
+                      return (
+                        <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                          <p className="mb-3">{first}</p>
+                          {rest.length > 0 && (
+                            <details className="group">
+                              <div className="hidden group-open:block">
+                                {rest.map((para, i) => (
+                                  <p key={i} className="mb-3 last:mb-0">{para}</p>
+                                ))}
+                              </div>
+                              <summary className="list-none cursor-pointer mt-3 pt-3 border-t border-gray-100 text-center text-xs font-medium text-wishes-primary select-none">
+                                <span className="group-open:hidden">더보기 ↓</span>
+                                <span className="hidden group-open:inline">접기 ↑</span>
+                              </summary>
+                            </details>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {seoTagChips.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mt-3">
                         {seoTagChips.map((t, i) => (

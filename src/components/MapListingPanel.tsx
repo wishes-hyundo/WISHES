@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
 import {
-  ArrowLeft, ChevronLeft, ChevronRight, MapPin, Maximize2, Home,
+  ChevronLeft, ChevronRight, MapPin, Maximize2, Home,
   Building2, Layers, Compass, DoorOpen, Thermometer, Banknote,
   Check, X, Eye, Calendar, Train, Clock,
   ParkingCircle, Dog, Warehouse, Zap, CreditCard, Briefcase, FileText,
-  Megaphone, Users, LogIn, Timer, ExternalLink, MessageSquare
+  Megaphone, Users, LogIn, Timer, Phone
 } from 'lucide-react';
 import { getFormattedPrice, sqmToPyeong, formatPrice } from '@/lib/utils';
 import { formatFloorWithTotal } from '@/lib/formatFloor';
@@ -18,6 +17,7 @@ import { displayAddressByAuth } from '@/lib/publicAddress';
 import { filterSelfHosted } from '@/lib/image-policy';
 import CompassDirection from '@/components/CompassDirection';
 import InquiryModal from '@/components/InquiryModal';
+import AgentContactModal, { type AgentInfo } from '@/components/AgentContactModal';
 import type { Listing } from '@/types';
 import ListingLocationMap from './ListingLocationMap';
 import RealPriceChart from './RealPriceChart';
@@ -38,6 +38,11 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [inquiryOpen, setInquiryOpen] = useState(false);
+  // L-panel-agent (2026-04-24): 기존 '닫기/상세보기/문의하기' 3버튼 제거 →
+  //   '담당자에게 연결' 단일 버튼 + AgentContactModal 구조로 통합.
+  const [agentModalOpen, setAgentModalOpen] = useState(false);
+  // 담당 중개사 프로필 (listing.created_by 로 /api/agent/[id] 조회). 없으면 폴백.
+  const [agentProfile, setAgentProfile] = useState<{ name: string | null; avatar_url: string | null; phone: string | null } | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -62,6 +67,8 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         'parking_spaces', 'rights_fee',
         'station_name', 'station_distance',
         'views', 'created_at', 'updated_at', 'source_site',
+        // L-panel-agent (2026-04-24): 담당자 모달 — 자체 등록 매물의 중개사 프로필 fetch 용
+        'created_by',
       ].join(', ');
       const [listingResult, imagesResult, featuresResult] = await Promise.all([
         supabase.from('listings').select(LISTING_COLUMNS).eq('id', listingId).single(),
@@ -79,6 +86,19 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
       setImages(safeImages);
       setFeatures(featuresResult.data || []);
       setLoading(false);
+
+      // 담당자 프로필 비동기 fetch (실패해도 매물 상세는 정상 표시)
+      setAgentProfile(null);
+      const createdBy = listingData?.created_by;
+      if (createdBy && !isCrawled) {
+        try {
+          const r = await fetch(`/api/agent/${createdBy}`);
+          if (r.ok) {
+            const json = await r.json();
+            setAgentProfile({ name: json.name || null, avatar_url: json.avatar_url || null, phone: json.phone || null });
+          }
+        } catch { /* 폴백으로 진행 */ }
+      }
     };
     fetchData();
   }, [listingId]);
@@ -142,18 +162,11 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   return (
     <>
     <div className="h-full flex flex-col">
-      {/* ── 헤더: 뒤로가기 + 매물번호 ── */}
+      {/* ── 헤더: 매물번호 + 조회수 (L-panel-close: ArrowLeft '닫기' 제거 — 지도 핀 클릭으로 전환 유도) ── */}
       <div className="p-3 border-b border-gray-100 flex items-center gap-2 shrink-0 bg-white sticky top-0 z-10">
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
-          title="목록으로 돌아가기"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
         <div className="flex-1 min-w-0 flex items-center gap-2">
           <span className="text-xs font-mono text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
-            매물번호 {listing.id}
+            매물번호 W-{listing.id}
           </span>
           {listing.views > 0 && (
             <span className="text-xs text-gray-400 flex items-center gap-1">
@@ -514,29 +527,31 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         <div className="h-6" />
       </div>
 
-      {/* ── 하단 고정 액션 바: 상세보기(/listings/[id]) + 문의하기(InquiryModal) ── */}
-      <div className="shrink-0 border-t border-gray-100 bg-white p-3 flex items-center gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
-        <Link
-          href={`/listings/${listing.id}`}
-          prefetch={false}
-          className="group flex-[1.1] min-w-0 flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-wishes-primary/30 text-wishes-primary bg-white text-sm font-bold hover:bg-wishes-primary/5 active:scale-[0.98] transition-all"
-          title="전체 상세페이지로 이동"
-        >
-          <ExternalLink className="w-4 h-4" />
-          <span>상세보기</span>
-        </Link>
+      {/* ── 하단 고정 액션 바: 담당자에게 연결 단일 버튼 (L-panel-agent, 2026-04-24) ── */}
+      <div className="shrink-0 border-t border-gray-100 bg-white p-3 shadow-[0_-4px_12px_rgba(0,0,0,0.04)]">
         <button
           type="button"
-          onClick={() => setInquiryOpen(true)}
-          className="group flex-[1.4] min-w-0 flex items-center justify-center gap-1.5 py-3 rounded-xl bg-gradient-to-r from-wishes-primary to-wishes-primary/90 text-white text-sm font-bold shadow-lg hover:shadow-xl hover:brightness-110 active:scale-[0.98] transition-all"
+          onClick={() => setAgentModalOpen(true)}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-gradient-to-r from-wishes-primary to-wishes-primary/90 text-white text-sm font-bold shadow-lg hover:shadow-xl hover:brightness-110 active:scale-[0.98] transition-all"
         >
-          <MessageSquare className="w-4 h-4" />
-          <span>문의하기</span>
+          <Phone className="w-4 h-4" />
+          <span>담당자에게 연결</span>
         </button>
       </div>
     </div>
 
-    {/* ── 인라인 문의 모달 (리드 캡처용, 페이지 이동 없음) ── */}
+    {/* ── 담당자 정보 모달 (프로필·전화·사무소·예약/카톡) ── */}
+    <AgentContactModal
+      open={agentModalOpen}
+      onClose={() => setAgentModalOpen(false)}
+      agent={buildAgentInfo(listing, agentProfile)}
+      listingId={listing.id}
+      listingTitle={displayTitle(listing)}
+      onRequestInquiry={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
+      onRequestVisit={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
+    />
+
+    {/* ── 인라인 문의 모달 (카톡 문의·방문 예약 진입점, 리드 캡처용) ── */}
     <InquiryModal
       open={inquiryOpen}
       onClose={() => setInquiryOpen(false)}
@@ -547,6 +562,60 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
     />
     </>
   );
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   buildAgentInfo — listing + 비동기 fetch 된 agent profile 로 AgentInfo 구성
+   ------------------------------------------------
+   우선순위:
+   1) /api/agent/{listing.created_by} 로 fetch 한 profile (name/avatar_url/phone)
+   2) listing.contact_name / listing.contact (외부 크롤러 매물이 직접 포함 시)
+   3) 폴백: 위시스부동산 통합 컨택
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+function buildAgentInfo(
+  listing: any,
+  agentProfile: { name: string | null; avatar_url: string | null; phone: string | null } | null = null
+): AgentInfo {
+  // 위시스부동산 통합 컨택 (폴백 & 사무소 정보 공통)
+  const OFFICE = {
+    officeName: '위시스부동산 공인중개사사무소',
+    officePhone: '02-6953-7001',
+    officeAddress: '서울시 용산구 한강대로',
+    responseRate: 98,
+    avgResponseMinutes: 12,
+  };
+  const FALLBACK: AgentInfo = {
+    name: '위시스부동산',
+    registrationNo: null,
+    careerYears: null,
+    phone: null,
+    avatarUrl: null,
+    ...OFFICE,
+  };
+
+  // 1순위 — profiles 테이블에서 가져온 실제 중개사 프로필
+  if (agentProfile && (agentProfile.name || agentProfile.avatar_url || agentProfile.phone)) {
+    return {
+      ...FALLBACK,
+      name: agentProfile.name || FALLBACK.name,
+      phone: agentProfile.phone || FALLBACK.phone,
+      avatarUrl: agentProfile.avatar_url || null,
+    };
+  }
+
+  // 2순위 — listing 자체에 박힌 연락처
+  const contactPhone = listing?.contact || null;
+  const contactName = listing?.contact_name || null;
+  if (contactPhone || contactName) {
+    return {
+      ...FALLBACK,
+      name: contactName || FALLBACK.name,
+      phone: contactPhone || FALLBACK.phone,
+    };
+  }
+
+  // 3순위 — 폴백
+  return FALLBACK;
 }
 
 /* ── 정보 아이템 컴포넌트 ── */

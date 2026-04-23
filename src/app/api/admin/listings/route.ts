@@ -408,10 +408,45 @@ export async function POST(request: NextRequest) {
     } catch { /* scope 기록 실패는 치명적 X */ }
 
     // text/plain으로 전송된 JSON도 파싱 (no-cors 크롤러 호환)
+    // L-listingpost1 (2026-04-24): multipart/form-data 수용 — /admin/listings/new 의
+    //   publishListing() 이 FormData 로 images 파일 + 텍스트 필드를 함께 보내고 있었으나
+    //   이전까지 JSON.parse 시도가 실패해 body={} 로 떨어져 zod 검증 400 → "자체 등록
+    //   매물 0건" 영구 회귀의 주원인. 이미지 파일은 listing 생성 후 /api/listings/[id]/images
+    //   로 별도 업로드하는 2단계 플로우로 클라이언트도 병행 수정 예정이지만, 서버는
+    //   multipart 본문의 텍스트 필드를 받아 그대로 insert 할 수 있도록 방어한다.
+    //   (이미지 파일 파트는 서버에서 읽지 않고 무시; images URL 배열은 클라이언트가
+    //    URL 업로드 완료 후 JSON.stringify 로 'images' 필드에 싣는 방식을 지원.)
     let body: any;
+    // multipart 경로에서 수집된 이미지 File 리스트 (리스팅 생성 후 R2 업로드)
+    let multipartImageFiles: File[] | null = null;
     const ct = request.headers.get('content-type') || '';
     if (ct.includes('application/json')) {
       body = await request.json();
+    } else if (ct.includes('multipart/form-data')) {
+      const fd = await request.formData();
+      body = {};
+      for (const [key, val] of fd.entries()) {
+        if (typeof val !== 'string') {
+          // File 엔트리(이미지 파일) — 'images' key 로 수집, listing 생성 후 R2 업로드
+          if (key === 'images' && val instanceof File) {
+            (multipartImageFiles ||= []).push(val);
+          }
+          continue;
+        }
+        if (['deposit','monthly','price','maintenance_fee','area_m2','area_supply_m2','area_land_m2',
+             'rooms','bathrooms','station_distance','goodwill_fee','meeting_room','parking_spaces',
+             'rights_fee','parking_fee','commission_fee','base_price','photo_count','area_pyeong','lat','lng'].includes(key)) {
+          const n = Number(val); body[key] = Number.isFinite(n) ? n : null;
+        } else if (['parking','elevator','pet','balcony','full_option','loan_available','vat_included','signage_available'].includes(key)) {
+          body[key] = val === 'true';
+        } else if (['maintenance_includes','features','images','listing_images'].includes(key)) {
+          try { body[key] = JSON.parse(val); } catch { body[key] = []; }
+        } else {
+          body[key] = val;
+        }
+      }
+      // images 필드가 URL 배열이 아니라 File 목록이었다면 zod 전에 비우기
+      if (Array.isArray(body.images) && body.images.some((x: any) => typeof x !== 'string')) body.images = [];
     } else {
       const text = await request.text();
       try { body = JSON.parse(text); } catch { body = {}; }
@@ -547,7 +582,44 @@ export async function POST(request: NextRequest) {
     }
 
     let imageResults: any[] = [];
-    if (images && images.length > 0 && data?.id) {
+
+    // L-listingpost1 (2026-04-24): multipart 로 올라온 이미지 파일 R2 업로드
+    //   /admin/listings/new 의 publishListing() 과 직통. 기존 JSON-only 엔드포인트를
+    //   유지하면서도 FormData 기반 자체 등록이 성공하도록 확장.
+    if (multipartImageFiles && multipartImageFiles.length > 0 && data?.id) {
+      const { uploadToR2 } = await import('@/lib/r2');
+      const ALLOWED = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < Math.min(multipartImageFiles.length, 20); i++) {
+        const file = multipartImageFiles[i];
+        if (!ALLOWED.has(file.type)) continue;
+        if (file.size > 10 * 1024 * 1024) continue;
+        try {
+          const buf = Buffer.from(await file.arrayBuffer());
+          const ext = (file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
+          const key = `listings/${data.id}/${Date.now()}_${i}.${ext}`;
+          const url = await uploadToR2(key, buf, file.type);
+          uploadedUrls.push(url);
+        } catch (e) {
+          console.error('[POST /api/admin/listings] R2 업로드 실패:', e);
+        }
+      }
+      if (uploadedUrls.length > 0) {
+        const inserts = uploadedUrls.map((url, index) => ({
+          listing_id: data.id,
+          url,
+          alt: `${listingData.title} 이미지 ${index + 1}`,
+          sort_order: index,
+          is_thumbnail: index === 0,
+        }));
+        const { data: imgData, error: imgErr } = await supabase.from('listing_images').insert(inserts).select();
+        if (imgErr) console.error('[POST /api/admin/listings] listing_images insert 실패:', imgErr);
+        else imageResults = imgData || [];
+      }
+    }
+
+    // JSON 경로에서 images URL 배열이 직접 전달된 경우 (기존 크롤러/edit 플로우)
+    if (imageResults.length === 0 && images && images.length > 0 && data?.id) {
       const imageInserts = images.map((url: string, index: number) => ({
         listing_id: data.id,
         url: url,
