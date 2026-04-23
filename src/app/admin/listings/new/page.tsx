@@ -1087,6 +1087,29 @@ ${floorRows}</table></div>` : ''}
     });
   };
 
+  // L-ai-extract (2026-04-24): AI 생성된 description 에서 구조화 필드 자동 추론
+  //   (room_layout / is_duplex / illegal_building)
+  //   폼에 값이 없을 때만 덮어씀 — 사용자 수동 입력 우선.
+  const extractStructuredFields = (desc: string, bi: any): Partial<FormData> => {
+    const d = (desc || '').toLowerCase();
+    const out: Partial<FormData> = {};
+    if (!form.room_layout) {
+      if (/복층|다락|듀플렉스/.test(d)) { out.room_layout = '복층'; out.is_duplex = true; }
+      else if (/분리형|분리\s*원룸|분리\s*형/.test(d)) out.room_layout = '분리형';
+      else if (/일체형|통원룸|오픈\s*형/.test(d)) out.room_layout = '일체형';
+    }
+    if (form.is_duplex === null && out.is_duplex === undefined) {
+      if (/복층|다락|듀플렉스/.test(d)) out.is_duplex = true;
+      else if (/단층/.test(d)) out.is_duplex = false;
+    }
+    if (form.illegal_building === null && bi) {
+      const ib = String((bi as any)?.위반건축물 || (bi as any)?.illegal_building || '').trim();
+      if (/해당없음|없음|N$/i.test(ib)) out.illegal_building = false;
+      else if (/해당|있음|Y$/i.test(ib)) out.illegal_building = true;
+    }
+    return out;
+  };
+
   /* ── AI 자동 완성 (스타일별) ── */
   const runAiAutoFill = async (style: AiStyle = 'trendy', model: AiModel = 'template') => {
     setAiGenerating(true);
@@ -1099,7 +1122,7 @@ ${floorRows}</table></div>` : ''}
         // 빠른생성: 로컬 템플릿 기반
         const newTitle = generateStyledTitle(form, buildingInfo, style);
         const newDesc = generateStyledDescription(form, buildingInfo, style);
-        updateForm({ title: newTitle, description: newDesc });
+        updateForm({ title: newTitle, description: newDesc, ...extractStructuredFields(newDesc, buildingInfo) });
       } else {
         // AI 생성: API 호출 (best=Opus, latest=Sonnet)
         // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
@@ -1133,10 +1156,10 @@ ${floorRows}</table></div>` : ''}
         const data = await res.json();
         if (data.success && data.title) {
           const aiTitle = generateStyledTitle(form, buildingInfo, style);
-          updateForm({ title: aiTitle, description: data.description || '' });
+          updateForm({ title: aiTitle, description: data.description || '', ...extractStructuredFields(data.description || '', buildingInfo) });
         } else if (data.success && data.description) {
           const newTitle = generateStyledTitle(form, buildingInfo, style);
-          updateForm({ title: newTitle, description: data.description });
+          updateForm({ title: newTitle, description: data.description, ...extractStructuredFields(data.description, buildingInfo) });
         } else {
           throw new Error(data.error || 'AI 생성 실패');
         }
@@ -1146,7 +1169,7 @@ ${floorRows}</table></div>` : ''}
       // AI 실패시 템플릿 폴백
       const newTitle = generateStyledTitle(form, buildingInfo, style);
       const newDesc = generateStyledDescription(form, buildingInfo, style);
-      updateForm({ title: newTitle, description: newDesc });
+      updateForm({ title: newTitle, description: newDesc, ...extractStructuredFields(newDesc, buildingInfo) });
     } finally {
       setAiGenerating(false);
     }
