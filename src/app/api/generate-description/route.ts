@@ -207,7 +207,7 @@ ${listingInfo}
     const aiData = await response.json();
     const aiText = aiData.content?.[0]?.text || '';
 
-    let parsed;
+    let parsed: any = null;
     try {
       const jsonMatch = aiText.match(/\{[\s\S]*\}/);
       parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
