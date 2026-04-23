@@ -172,16 +172,15 @@ export async function POST(request: NextRequest) {
       // 소셜 가입자도 admin 승인 flow 에 합류 (Naver route 와 동일 패턴)
       try {
         const isSuper = SUPERADMIN_EMAILS.has(email);
+        // 2026-04-23 v2: 소셜 가입자는 user 권한 자동 승인 (reason 컬럼 없어 제외).
         await supabase.from('admin_users').insert({
           id: userId,
           email,
           name: nickname || null,
           phone: null,
           company: null,
-          role: isSuper ? 'superadmin' : 'viewer',
-          reason: '소셜 가입(Kakao) 자동 등록',
-          status: isSuper ? 'approved' : 'pending',
-          created_at: new Date().toISOString(),
+          role: isSuper ? 'superadmin' : 'user',
+          status: 'approved',
         });
       } catch (e) {
         const msg = (e as { message?: string })?.message;

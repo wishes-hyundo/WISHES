@@ -63,21 +63,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signInWithProvider = useCallback(async (provider: 'kakao' | 'google') => {
-    const supabase = createAuthClient();
-    // 로그인 후 돌아갈 경로 저장
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('wishes-auth-redirect', window.location.pathname + window.location.search);
     }
-    // 2026-04-23: Kakao 는 비즈 앱 전환 전까지 account_email 동의항목 등록 불가 →
-    //   KOE205 회피를 위해 scope 를 profile_nickname 으로 축소. 비즈 앱 승인 후
-    //   'profile_nickname account_email' 로 확장 예정.
-    const options: { redirectTo: string; scopes?: string } = {
-      redirectTo: `${window.location.origin}/auth/callback`,
-    };
-    if (provider === 'kakao') {
-      options.scopes = 'profile_nickname';
+
+    // 2026-04-23: Kakao 는 Supabase 기본 provider 가 scope=account_email 을
+    //   하드코딩해 KOE205 를 유발 (Kakao Developers 의 account_email 은 비즈 앱
+    //   전환 후에만 설정 가능). 커스텀 백엔드 /api/auth/oauth-start/kakao 로
+    //   리다이렉트하여 우리가 직접 Kakao authorize URL 을 구성한다 (scope=profile_nickname).
+    if (provider === 'kakao' && typeof window !== 'undefined') {
+      const target = window.location.pathname + window.location.search;
+      window.location.href = `/api/auth/oauth-start/kakao?target=${encodeURIComponent(target)}`;
+      return;
     }
-    const { error } = await supabase.auth.signInWithOAuth({ provider, options });
+
+    // 구글 등 나머지는 Supabase 네이티브 OAuth.
+    const supabase = createAuthClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
     if (error) {
       console.error('소셜 로그인 오류:', error.message);
       throw error;

@@ -147,16 +147,15 @@ export async function POST(request: NextRequest) {
       //   되었음. wishes@wishes.co.kr 은 즉시 approved, 나머지는 pending/viewer.
       try {
         const _isSuper = email.toLowerCase() === 'wishes@wishes.co.kr';
+        // 2026-04-23 v2: 소셜 가입자는 user 권한 자동 승인 (reason 컬럼 없어 제외).
         await supabase.from('admin_users').insert({
           id: userId,
           email: email.toLowerCase(),
           name: name || null,
           phone: phone || null,
           company: null,
-          role: _isSuper ? 'superadmin' : 'viewer',
-          reason: '소셜 가입(Naver) 자동 등록',
-          status: _isSuper ? 'approved' : 'pending',
-          created_at: new Date().toISOString(),
+          role: _isSuper ? 'superadmin' : 'user',
+          status: 'approved',
         });
       } catch (e) {
         // UNIQUE 충돌(이미 존재) 등은 무시 — 정상 경로.

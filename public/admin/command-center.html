@@ -830,8 +830,10 @@ function showToast(msg,type){
 
 // ===== API HELPERS =====
 function apiCall(endpoint,method,body){
-  var opts={method:method||'GET',headers:{'Content-Type':'application/json'}};
+  // 2026-04-23: middleware 의 CSRF double-submit 통과를 위해 X-CSRF-Token 헤더 + credentials 추가.
+  var opts={method:method||'GET',headers:{'Content-Type':'application/json'},credentials:'include'};
   if(_token)opts.headers['Authorization']='Bearer '+_token;
+  try{var _csrf=sessionStorage.getItem('ws_csrf');if(_csrf)opts.headers['X-CSRF-Token']=_csrf;}catch(e){}
   if(body)opts.body=JSON.stringify(body);
   return fetch(API_BASE+endpoint,opts).then(function(r){return r.json()});
 }
