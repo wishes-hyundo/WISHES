@@ -625,7 +625,16 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 function buildAgentInfo(
   listing: any,
-  agentProfile: { name: string | null; avatar_url: string | null; phone: string | null } | null = null
+  agentProfile: {
+    name: string | null;
+    avatar_url: string | null;
+    phone: string | null;
+    office_name?: string | null;
+    office_phone?: string | null;
+    office_address?: string | null;
+    registration_no?: string | null;
+    career_years?: number | null;
+  } | null = null
 ): AgentInfo {
   // 위시스부동산 통합 컨택 (폴백 & 사무소 정보 공통)
   const OFFICE = {
