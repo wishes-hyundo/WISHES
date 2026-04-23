@@ -371,6 +371,10 @@ export default function MapClient() {
           <SemanticZoomIndicator />
           <MapControls />
           <MiniCard />
+          {/* L-slidepanel2 (2026-04-23): 슬라이드 패널을 지도 영역 내부로 이동.
+              지도 영역의 left-0 에 위치 → ListPanel 바로 오른쪽에 자연스럽게 붙음.
+              네이버·직방 스타일. 이전 fixed right-0 (지도 우측 모서리) 은 부자연스러움. */}
+          <ListingDetailModal />
         </div>
       </div>
 
@@ -380,9 +384,6 @@ export default function MapClient() {
       {/* L-mapfilter4 (2026-04-23): Gate 패턴 필터 모달 — position:fixed 이므로
           grid track 밖에서 1회 마운트. CategoryTabs 탭 클릭 시 오픈. */}
       <FilterModal />
-      {/* L-mapmodal1 (2026-04-23): 매물 상세 요약 모달 — 핀/카드 클릭 시 오픈.
-          position:fixed, detailListingId 가 null 이면 렌더 스킵. */}
-      <ListingDetailModal />
     </div>
   );
 }

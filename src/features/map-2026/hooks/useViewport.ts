@@ -9,6 +9,11 @@
 import { useEffect, useRef } from 'react';
 import { useMap2026Store, type FilterState } from '../store';
 import { dealsToParam } from '../lib/priceFormat';
+// L-privacy1 (2026-04-23 p.m.): 서버에서 비로그인 사용자 주소를 마스킹
+//   하려면 클라이언트가 현재 세션 JWT 를 Authorization 으로 넘겨야 한다.
+//   createAuthClient 는 브라우저 싱글턴이므로 매 호출마다 재초기화 비용
+//   없이 session 을 가져올 수 있다.
+import { createAuthClient } from '@/lib/supabase';
 
 const MAX_VIEWPORT_DEG = 2;
 
@@ -82,7 +87,15 @@ export function useViewport() {
       setLoading(true);
       try {
         const qs = buildQueryString(bbox, filter);
-        const res = await fetch(`/api/listings/viewport?${qs}`, { signal: ctrl.signal });
+        // L-privacy1: 세션 JWT 를 서버에 전달해 authed 판정을 받는다.
+        //   미로그인 시 access_token 이 undefined 라서 헤더 생략 → 서버 guest 처리.
+        let authHeader: Record<string, string> = {};
+        try {
+          const sb = createAuthClient();
+          const { data: { session } } = await sb.auth.getSession();
+          if (session?.access_token) authHeader = { Authorization: `Bearer ${session.access_token}` };
+        } catch { /* guest 로 폴백 */ }
+        const res = await fetch(`/api/listings/viewport?${qs}`, { signal: ctrl.signal, headers: authHeader });
         if (res.status >= 400 && res.status < 500) {
           if (!ctrl.signal.aborted) setListings([]);
           if (res.status !== 400) {

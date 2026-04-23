@@ -103,7 +103,7 @@ export function ListingDetailModal() {
       // translate-x-0 (열림) / full (닫힘) 은 상단에서 isOpen 으로 early return
       // 되므로 렌더시에는 항상 열린 상태. 퇴장 애니메이션이 필요하면 CSS
       // conditional 로 교체 가능.
-      className="fixed right-0 top-0 z-40 flex h-full w-full max-w-[380px] translate-x-0 flex-col overflow-hidden border-l border-neutral-200 bg-white shadow-2xl transition-transform duration-300"
+      className="absolute left-0 top-0 z-30 flex h-full w-[380px] max-w-[85%] translate-x-0 flex-col overflow-hidden border-r border-neutral-200 bg-white shadow-2xl transition-transform duration-300"
     >
       {/* 헤더 — 배지 + X */}
       <div className="flex items-start justify-between gap-2 border-b border-neutral-100 px-5 pt-4 pb-3">

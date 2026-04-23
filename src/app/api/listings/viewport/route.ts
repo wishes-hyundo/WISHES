@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { maskAddressForPublic } from '@/lib/publicAddress';
 import type { DealType, MapListing } from '@/features/map-2026/store';
 
 export const dynamic = 'force-dynamic';
@@ -53,7 +54,20 @@ function categoryToTypeFilter(
   category: string | null,
   purposes: string[] | null
 ): string | null {
-  if (!category || category === 'residence') return null;
+  if (!category) return null;
+
+  // L-catfix1 (2026-04-23 p.m.): 기존엔 residence 도 null 반환 → 필터 미적용
+  //   → 주거 탭에서 상가/사무실 leak. DB 실측 types 기반 positive ilike 리스트.
+  //   원룸·투룸·쓰리룸·아파트·오피스텔·빌라·주택(단독/다가구/다세대/연립)·고시원·쉐어하우스
+  if (category === 'residence') {
+    return [
+      'type.ilike.%원룸%', 'type.ilike.%투룸%', 'type.ilike.%쓰리룸%',
+      'type.ilike.%아파트%', 'type.ilike.%오피스텔%', 'type.ilike.%빌라%',
+      'type.ilike.%주택%', 'type.ilike.%단독%', 'type.ilike.%다가구%',
+      'type.ilike.%다세대%', 'type.ilike.%연립%', 'type.ilike.%고시원%',
+      'type.ilike.%쉐어하우스%',
+    ].join(',');
+  }
 
   if (category === 'retail_office') {
     if (purposes && purposes.length) {
@@ -229,6 +243,24 @@ export async function GET(req: NextRequest) {
     );
   }
 
+  // ─────────────────────────────────────────────────────────────
+  // L-privacy1 (2026-04-23 p.m.): 비로그인 사용자에게는 주소를 동 단위
+  //   까지만 노출. 건물명·호수·층·지번은 서버에서 스크럽되어야 한다
+  //   (클라이언트 필터는 네트워크에 이미 전송된 상태라 우회 가능).
+  //   - authed = Authorization: Bearer <JWT> 유효성 검사 통과
+  //   - useViewport (클라이언트) 가 세션 있을 때만 Authorization 헤더를 보냄
+  // ─────────────────────────────────────────────────────────────
+  let authed = false;
+  try {
+    const authHdr = req.headers.get('authorization') || '';
+    const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : '';
+    if (token) {
+      const sb = createServerClient();
+      const { data: { user }, error: authErr } = await sb.auth.getUser(token);
+      if (!authErr && user) authed = true;
+    }
+  } catch { /* guest 로 폴백 */ }
+
   const { searchParams } = new URL(req.url);
 
   const west = pFloat(searchParams.get('west'));
@@ -375,9 +407,15 @@ export async function GET(req: NextRequest) {
         floor_current: r.floor_current,
         station_distance: r.station_distance ?? null,
         built_year: r.built_year ?? null,
-        building_name: r.building_name ?? null,
+        // L-privacy1: 비로그인 guest 에는 건물명·타이틀 노출 금지.
+        //   · building_name → null
+        //   · title → 주소 마스킹된 '구 동' 형태 (지번·건물명·층 제거)
+        //     title 이 없으면 dong 으로 폴백. 동이 없으면 null.
+        building_name: authed ? (r.building_name ?? null) : null,
         dong: r.dong ?? null,
-        title: r.title ?? null,
+        title: authed
+          ? (r.title ?? null)
+          : (r.title ? maskAddressForPublic(r.title, r.dong) : (r.dong ?? null)),
         thumbnail_url: r.thumb_url ?? null,
         features: Array.isArray(r.features) ? r.features : [],
         photo_count: photoCount,

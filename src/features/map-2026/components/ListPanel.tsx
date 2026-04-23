@@ -22,6 +22,7 @@
 
 import { useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import Image from 'next/image';
 import { MapPin, Image as ImageIcon } from 'lucide-react';
 import { useMap2026Store, type MapListing, type SortKey } from '../store';
 import { formatDealLabel, formatDeviation, formatArea, formatStationDistance } from '../lib/priceFormat';
@@ -175,7 +176,7 @@ export function ListPanel() {
                   data-index={vRow.index}
                   onClick={() => openListingDetail(l.id)}
                   className={[
-                    'block w-full border-b border-neutral-50 px-4 py-3 text-left transition',
+                    'flex w-full items-start gap-3 border-b border-neutral-50 px-4 py-3 text-left transition',
                     active ? 'bg-emerald-50' : 'hover:bg-neutral-50',
                   ].join(' ')}
                   style={{
@@ -186,6 +187,7 @@ export function ListPanel() {
                     transform: `translateY(${vRow.start}px)`,
                   }}
                 >
+                  <div className="min-w-0 flex-1">
                   <div className="mb-1 flex flex-wrap items-center gap-x-1.5 gap-y-1">
                     <span className="shrink-0 rounded-full bg-neutral-900 px-2 py-0.5 text-[10px] font-bold text-white">
                       {l.deal}
@@ -205,12 +207,6 @@ export function ListPanel() {
                         ].join(' ')}
                       >
                         {dev.text}
-                      </span>
-                    )}
-                    {l.photo_count > 0 && (
-                      <span className="ml-auto flex shrink-0 items-center gap-0.5 text-[10px] text-neutral-400">
-                        <ImageIcon className="size-3" />
-                        {l.photo_count}
                       </span>
                     )}
                   </div>
@@ -239,6 +235,30 @@ export function ListPanel() {
                       ))}
                     </div>
                   )}
+                  </div>
+
+                  {/* L-thumb2 (2026-04-23 p.m.): 네이버 스타일 — 썸네일은 카드 우측에 */}
+                  <div className="relative size-[84px] shrink-0 overflow-hidden rounded-lg bg-neutral-100">
+                    {l.thumbnail_url ? (
+                      <Image
+                        src={l.thumbnail_url}
+                        alt={addressLine}
+                        fill
+                        sizes="84px"
+                        className="object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-neutral-300">
+                        <ImageIcon className="size-6" aria-hidden />
+                      </div>
+                    )}
+                    {l.photo_count > 1 && (
+                      <div className="absolute bottom-1 right-1 rounded-full bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                        +{l.photo_count - 1}
+                      </div>
+                    )}
+                  </div>
                 </button>
               );
             })}
