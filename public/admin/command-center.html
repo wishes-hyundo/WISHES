@@ -822,11 +822,59 @@ function apiCall(endpoint,method,body){
   return fetch(API_BASE+endpoint,opts).then(function(r){return r.json()});
 }
 
-// ===== DATA (Demo/Fallback when API not connected) =====
-var _demoUsers=[
-  {id:1,name:'WISHES',email:'admin@wishes.co.kr',company:'WISHES부동산',role:'superadmin',status:'approved',lastLogin:'2026-03-31 14:23',online:true,ip:'125.xxx.xxx.xxx',device:'Chrome/Win11'},
-];
+// ===== DATA =====
+// L-admin1 (2026-04-23): Command Center "전체 사용자" / "승인 대기" 탭을
+//   하드코딩 목업 → 실 API 연동으로 교체. /api/admin/users GET 을 초기 진입
+//   + 액션 후마다 호출해 Supabase auth.admin.listUsers() 결과를 보여준다.
+//   과거엔 superadmin 이 로그인해도 자기 자신 1명만 보여서 회원가입한
+//   직원 계정을 승인/차단할 수 없었음.
+var _demoUsers=[];
 var _demoPending=[];
+
+// 서버 응답을 화면 스키마로 변환.
+function _mapApiUserToRow(u){
+  var lastLogin='-';
+  if(u.last_sign_in_at){
+    try{
+      var d=new Date(u.last_sign_in_at);
+      lastLogin=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
+    }catch(e){}
+  }
+  return {
+    id:u.id,          // Supabase UUID (string)
+    name:u.name||'(이름 없음)',
+    email:u.email||'',
+    company:u.company||'',
+    role:u.role||'user',
+    status:u.status||'pending',
+    lastLogin:lastLogin,
+    online:false,     // 실시간 presence 미구현 — 표시용 기본값
+    ip:'',
+    device:'',
+    phone:u.phone||'',
+    reason:u.reason||'',
+    createdAt:u.created_at||''
+  };
+}
+
+// /api/admin/users 호출해 _demoUsers / _demoPending 채움.
+window.loadUsersFromApi=function(){
+  return apiCall('/admin/users','GET').then(function(res){
+    if(!res||!res.success){
+      showToast('사용자 목록을 불러오지 못했습니다 ('+(res&&res.error||'unknown')+')','error');
+      return;
+    }
+    var rows=(res.users||[]).map(_mapApiUserToRow);
+    _demoUsers=rows.filter(function(u){return u.status!=='pending'});
+    _demoPending=rows.filter(function(u){return u.status==='pending'});
+    renderDashboard();
+    renderUsers();
+    renderPending();
+  }).catch(function(err){
+    console.error('loadUsersFromApi failed',err);
+    showToast('사용자 목록 API 호출 실패','error');
+  });
+};
 var _demoLogs=[
   {time:'14:23',icon:'🔑',type:'login',text:'<span class="highlight">WISHES</span> 관리자 로그인 <span class="ip">125.xxx.xxx.xxx</span>'},
   {time:'14:20',icon:'🛡️',type:'security',text:'시스템 보안 점검 완료 - 이상 없음'},
@@ -863,7 +911,7 @@ function renderRecentPending(){
   var el=document.getElementById('recentPending');
   if(_demoPending.length===0){el.innerHTML='<div style="text-align:center;padding:40px;color:var(--text-dim);font-size:13px">대기 중인 신청이 없습니다</div>';return}
   el.innerHTML=_demoPending.slice(0,5).map(function(u){
-    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(u.company)+' · '+_escHtml(u.email)+'</div></div><div style="display:flex;gap:6px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">승인</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">거절</button></div></div>';
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)"><div><div style="font-size:13px;font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)">'+_escHtml(u.company)+' · '+_escHtml(u.email)+'</div></div><div style="display:flex;gap:6px"><button class="btn-sm btn-approve" onclick="approveUser(\''+u.id+'\')">승인</button><button class="btn-sm btn-block" onclick="rejectUser(\''+u.id+'\')">거절</button></div></div>';
   }).join('');
 }
 
@@ -875,7 +923,7 @@ function renderUsers(){
     var statusText=u.status==='approved'?'승인됨':u.status==='pending'?'대기중':'차단됨';
     var onlineClass=u.online?'status-online':'status-offline';
     var onlineText=u.online?'접속중':'오프라인';
-    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td><span class="status '+(u.role==='superadmin'?'" style="background:rgba(237,137,54,.15);color:var(--accent)':u.role==='admin'?'" style="background:var(--info-bg);color:var(--info)':'status-approved')+'">'+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+(u.lastLogin||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser('+u.id+')">상세</button>'+(u.role!=='superadmin'?'<button class="btn-sm btn-block" onclick="toggleBlock('+u.id+')">차단</button>':'')+'</div></td></tr>';
+    return '<tr><td><div style="font-weight:600">'+_escHtml(u.name)+'</div><div style="font-size:11px;color:var(--text-dim)"><span class="status '+onlineClass+'">'+onlineText+'</span></div></td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td><span class="status '+(u.role==='superadmin'?'" style="background:rgba(237,137,54,.15);color:var(--accent)':u.role==='admin'?'" style="background:var(--info-bg);color:var(--info)':'status-approved')+'">'+u.role+'</span></td><td><span class="status '+statusClass+'">'+statusText+'</span></td><td style="font-size:12px;color:var(--text-dim)">'+(u.lastLogin||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-edit" onclick="viewUser(\''+u.id+'\')">상세</button>'+(u.role!=='superadmin'?'<button class="btn-sm btn-block" onclick="toggleBlock(\''+u.id+'\')">차단</button>':'')+'</div></td></tr>';
   }).join('');
 }
 
@@ -884,7 +932,7 @@ function renderPending(){
   document.getElementById('pendingCount').textContent=_demoPending.length+'건';
   if(_demoPending.length===0){tb.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text-dim);padding:40px">대기 중인 신청이 없습니다</td></tr>';return}
   tb.innerHTML=_demoPending.map(function(u){
-    return '<tr><td style="font-weight:600">'+_escHtml(u.name)+'</td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td style="font-size:12px">'+_escHtml(u.role||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+_escHtml(u.reason||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+(u.createdAt||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-approve" onclick="approveUser('+u.id+')">✅ 승인</button><button class="btn-sm btn-block" onclick="rejectUser('+u.id+')">❌ 거절</button></div></td></tr>';
+    return '<tr><td style="font-weight:600">'+_escHtml(u.name)+'</td><td style="font-size:12px">'+_escHtml(u.email)+'</td><td style="font-size:12px">'+_escHtml(u.company||'-')+'</td><td style="font-size:12px">'+_escHtml(u.role||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+_escHtml(u.reason||'-')+'</td><td style="font-size:12px;color:var(--text-dim)">'+(u.createdAt||'-')+'</td><td><div style="display:flex;gap:4px"><button class="btn-sm btn-approve" onclick="approveUser(\''+u.id+'\')">✅ 승인</button><button class="btn-sm btn-block" onclick="rejectUser(\''+u.id+'\')">❌ 거절</button></div></td></tr>';
   }).join('');
 }
 
@@ -908,62 +956,76 @@ function renderAllLogs(){
 }
 
 // ===== ACTIONS =====
+// L-admin1: 승인/거절/차단 모두 PUT /api/admin/users 호출 후 재로드.
 window.approveUser=function(id){
-  var idx=_demoPending.findIndex(function(u){return u.id===id});
-  if(idx===-1)return;
-  var user=_demoPending.splice(idx,1)[0];
-  user.status='approved';user.lastLogin='-';user.online=false;
-  _demoUsers.push(user);
-  _demoLogs.unshift({time:_now(),icon:'✅',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> 사용자 승인 완료'});
-  renderDashboard();renderPending();renderUsers();renderAllLogs();
-  showToast(user.name+' 님이 승인되었습니다');
+  // 기본 role 은 'agent'. 필요하면 상세 모달에서 change_role 로 변경.
+  apiCall('/admin/users','PUT',{userId:id,action:'approve',role:'agent'}).then(function(res){
+    if(res&&res.success){
+      var target=_demoPending.find(function(u){return u.id===id})||_demoUsers.find(function(u){return u.id===id});
+      showToast((target&&target.name||'사용자')+' 님이 승인되었습니다');
+      loadUsersFromApi();
+    } else {
+      showToast('승인 실패: '+(res&&res.error||'unknown'),'error');
+    }
+  }).catch(function(err){
+    console.error('approve failed',err);
+    showToast('승인 API 호출 실패','error');
+  });
 };
 
 window.rejectUser=function(id){
-  var idx=_demoPending.findIndex(function(u){return u.id===id});
-  if(idx===-1)return;
-  var user=_demoPending.splice(idx,1)[0];
-  _demoLogs.unshift({time:_now(),icon:'❌',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> 가입 거절됨'});
-  renderDashboard();renderPending();renderAllLogs();
-  showToast(user.name+' 님의 가입이 거절되었습니다','warning');
+  apiCall('/admin/users','PUT',{userId:id,action:'reject'}).then(function(res){
+    if(res&&res.success){
+      var target=_demoPending.find(function(u){return u.id===id})||_demoUsers.find(function(u){return u.id===id});
+      showToast((target&&target.name||'사용자')+' 님의 가입이 거절되었습니다','warning');
+      loadUsersFromApi();
+    } else {
+      showToast('거절 실패: '+(res&&res.error||'unknown'),'error');
+    }
+  }).catch(function(err){
+    console.error('reject failed',err);
+    showToast('거절 API 호출 실패','error');
+  });
 };
 
 window.viewUser=function(id){
-  var user=_demoUsers.find(function(u){return u.id===id});
+  var user=_demoUsers.find(function(u){return u.id===id})||_demoPending.find(function(u){return u.id===id});
   if(!user)return;
   document.getElementById('userDetailTitle').textContent=user.name+' 상세 정보';
   document.getElementById('userDetailBody').innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="form-group"><label class="form-label">이름</label><div style="font-size:14px;font-weight:600">'+_escHtml(user.name)+'</div></div><div class="form-group"><label class="form-label">이메일</label><div style="font-size:14px">'+_escHtml(user.email)+'</div></div><div class="form-group"><label class="form-label">소속</label><div style="font-size:14px">'+_escHtml(user.company||'-')+'</div></div><div class="form-group"><label class="form-label">권한</label><div style="font-size:14px">'+user.role+'</div></div><div class="form-group"><label class="form-label">상태</label><div style="font-size:14px">'+user.status+'</div></div><div class="form-group"><label class="form-label">마지막 접속</label><div style="font-size:14px">'+(user.lastLogin||'-')+'</div></div><div class="form-group"><label class="form-label">IP</label><div style="font-size:14px;font-family:monospace">'+(user.ip||'-')+'</div></div><div class="form-group"><label class="form-label">디바이스</label><div style="font-size:14px">'+(user.device||'-')+'</div></div></div>';
   var footer='<button class="btn-modal btn-modal-ghost" onclick="closeModal(\'userDetailModal\')">닫기</button>';
   if(user.role!=='superadmin'){
-    footer+='<button class="btn-modal btn-modal-danger" onclick="toggleBlock('+user.id+');closeModal(\'userDetailModal\')">차단/해제</button>';
+    footer+='<button class="btn-modal btn-modal-danger" onclick="toggleBlock(\''+user.id+'\');closeModal(\'userDetailModal\')">차단/해제</button>';
   }
   document.getElementById('userDetailFooter').innerHTML=footer;
   openModal('userDetailModal');
 };
 
+// L-admin1: 차단/해제 실제 API 호출. superadmin 본인 차단 방지.
 window.toggleBlock=function(id){
-  var user=_demoUsers.find(function(u){return u.id===id});
-  if(!user||user.role==='superadmin')return;
-  user.status=user.status==='blocked'?'approved':'blocked';
-  var action=user.status==='blocked'?'차단':'차단 해제';
-  _demoLogs.unshift({time:_now(),icon:user.status==='blocked'?'🚫':'🔓',type:'admin',text:'<span class="highlight">'+_escHtml(user.name)+'</span> '+action});
-  renderUsers();renderDashboard();renderAllLogs();
-  showToast(user.name+' 님이 '+action+'되었습니다',user.status==='blocked'?'warning':'success');
+  var user=_demoUsers.find(function(u){return u.id===id})||_demoPending.find(function(u){return u.id===id});
+  if(!user){showToast('사용자를 찾을 수 없습니다','error');return}
+  if(user.role==='superadmin'){showToast('슈퍼어드민은 차단할 수 없습니다','error');return}
+  var action=user.status==='blocked'?'unblock':'block';
+  var label=action==='block'?'차단':'차단 해제';
+  apiCall('/admin/users','PUT',{userId:id,action:action}).then(function(res){
+    if(res&&res.success){
+      showToast(user.name+' 님이 '+label+'되었습니다',action==='block'?'warning':'success');
+      loadUsersFromApi();
+    } else {
+      showToast(label+' 실패: '+(res&&res.error||'unknown'),'error');
+    }
+  }).catch(function(err){
+    console.error('toggleBlock failed',err);
+    showToast(label+' API 호출 실패','error');
+  });
 };
 
+// L-admin1: 직접 추가 API 는 별도로 열지 않음 (보안/감사 이유).
+//   새 사용자는 /admin/register 에서 가입 → 관리자가 승인 대기 탭에서 승인.
 window.addUser=function(){
-  var name=document.getElementById('addUserName').value.trim();
-  var email=document.getElementById('addUserEmail').value.trim();
-  var pw=document.getElementById('addUserPw').value;
-  var role=document.getElementById('addUserRole').value;
-  var company=document.getElementById('addUserCompany').value.trim();
-  if(!name||!email||!pw){showToast('필수 정보를 입력하세요','error');return}
-  var newUser={id:Date.now(),name:name,email:email,company:company,role:role,status:'approved',lastLogin:'-',online:false};
-  _demoUsers.push(newUser);
-  _demoLogs.unshift({time:_now(),icon:'➕',type:'admin',text:'관리자가 <span class="highlight">'+_escHtml(name)+'</span> 사용자 직접 추가'});
-  renderUsers();renderDashboard();renderAllLogs();
+  showToast('직접 추가는 지원되지 않습니다. 사용자가 /admin 회원가입 후 승인 대기 탭에서 승인하세요.','warning');
   closeModal('addUserModal');
-  showToast(name+' 님이 추가되었습니다');
 };
 
 window.blockIp=function(){
@@ -1010,7 +1072,11 @@ window.forceLogoutUser=function(name){
 };
 
 window.filterLogs=function(){renderAllLogs()};
-window.refreshAll=function(){renderDashboard();renderUsers();renderPending();renderSessions();renderAllLogs();showToast('새로고침 완료')};
+window.refreshAll=function(){
+  if(_token){ loadUsersFromApi(); }
+  renderDashboard();renderSessions();renderAllLogs();
+  showToast('새로고침 완료');
+};
 window.handleLogout=function(){sessionStorage.clear();window.location.href='/admin/admin-auth.html'};
 
 window.exportLogs=function(){showToast('로그 다운로드 준비 중...')};
@@ -1033,6 +1099,10 @@ renderPending();
 renderSessions();
 renderAllLogs();
 renderBlockedIps();
+
+// L-admin1: 실제 API 에서 사용자 목록 로드 (목업 대체).
+//   토큰이 있으면 /api/admin/users 를 호출해서 _demoUsers / _demoPending 를 채움.
+if(_token){ loadUsersFromApi(); }
 
 // ===== AUTO REFRESH (30s) =====
 setInterval(function(){
