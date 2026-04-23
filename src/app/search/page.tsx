@@ -308,6 +308,21 @@ export default function SearchPortalPage() {
       v295Script.defer = false;
       document.body.appendChild(v295Script);
     }
+
+    // v2.9.7 (L-preserve1 2026-04-23) — /search 상세모달 전 필드 편집 (크롤 원본 제외)
+    //   L-crit4c 에서 도입됐던 "전 필드 편집 가능 UX" 를 L-revert1 이후 복원.
+    //   상세모달 hero 에 '✏️ 매물 수정' 버튼 주입 → slide-over 편집 패널로
+    //   기본정보·가격·주소·본문·AI 콘텐츠 등 모든 편집 가능 필드 제공.
+    //   원본 데이터 카드(raw_fields/source_url/source_site) 는 편집 제외.
+    const existingV297 = document.getElementById('ws-ext-patch-v297-edit');
+    if (!existingV297) {
+      const v297Script = document.createElement('script');
+      v297Script.id = 'ws-ext-patch-v297-edit';
+      v297Script.src = '/search/content-v297-edit.js?v=20260423a';
+      v297Script.async = false;
+      v297Script.defer = false;
+      document.body.appendChild(v297Script);
+    }
   }, [state]);
 
   // ========== UI ==========
