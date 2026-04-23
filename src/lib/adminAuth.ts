@@ -347,6 +347,23 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
     return { ok: true, role: 'crawler_bridge' };
   }
 
+  // 2026-04-24: admin_bridge_<inner> prefix 벗기기.
+  //   과거 admin UI 가 로그인 후 ws_token 을 'admin_bridge_' + JWT 로 저장해 온 관행 때문에
+  //   Authorization 헤더에 'Bearer admin_bridge_eyJ...' 가 실려 오는 경우가 많다.
+  //   verifyAdminAuth (non-strict) 는 129~136행에서 이 prefix 를 벗기는데 strict 는 빠져 있어
+  //   admin API (PUT/DELETE) 전부 401 로 실패하는 버그가 있었음. 동일 로직 이식.
+  if (token.startsWith('admin_bridge_')) {
+    const inner = token.slice('admin_bridge_'.length);
+    if (timingSafeEqualStr(inner, MASTER_PASSWORD)) return { ok: true, role: 'master' };
+    if (INTERNAL_BEARER && timingSafeEqualStr(inner, INTERNAL_BEARER)) {
+      return { ok: true, role: 'internal_bearer' };
+    }
+    if (CRAWLER_BRIDGE && timingSafeEqualStr(inner, CRAWLER_BRIDGE)) {
+      return { ok: true, role: 'crawler_bridge' };
+    }
+    token = inner;
+  }
+
   // JWT 서명 검증
   if (!token.startsWith('eyJ') || token.split('.').length !== 3) {
     return { ok: false, reason: 'invalid_token_format' };
