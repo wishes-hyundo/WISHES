@@ -790,6 +790,10 @@ function checkAuth(){
 }
 if(!checkAuth())throw new Error('Unauthorized');
 
+// 2026-04-23 v6: 페이지 진입 시 항상 쿠키 재발급 (sessionStorage ws_csrf 와 쿠키 동기화 보장).
+//   ws_session(HttpOnly) 1h 만료 이후 superadmin 이 관리 API 를 호출하지 못하는 증상 해결.
+setTimeout(function(){try{_reissueCookie()}catch(e){}},100);
+
 // Set admin name
 if(_user&&_user.name)document.getElementById('adminName').textContent=_user.name;
 
@@ -829,13 +833,46 @@ function showToast(msg,type){
 }
 
 // ===== API HELPERS =====
+// 2026-04-23 v6: ws_session HttpOnly 쿠키의 1h 만료 이후 /api/admin/* 의 CSRF
+//   double-submit 이 불일치로 하드 실패(403)하는 문제. apiCall 이 403 + CSRF 에러를
+//   감지하면 cookie-issue 를 재호출해 쿠키+sessionStorage 재동기화 후 1회 재시도.
+function _reissueCookie(){
+  if(!_token||typeof _token!=='string'||!_token.startsWith('eyJ'))return Promise.resolve(false);
+  return fetch('/api/auth/cookie-issue',{
+    method:'POST',
+    credentials:'include',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({access_token:_token})
+  }).then(function(r){return r.ok?r.json():null}).then(function(j){
+    if(j&&j.success&&j.csrfToken){
+      try{sessionStorage.setItem('ws_csrf',j.csrfToken);sessionStorage.setItem('ws_cookie_synced','1')}catch(e){}
+      return true;
+    }
+    return false;
+  }).catch(function(){return false});
+}
 function apiCall(endpoint,method,body){
-  // 2026-04-23: middleware 의 CSRF double-submit 통과를 위해 X-CSRF-Token 헤더 + credentials 추가.
-  var opts={method:method||'GET',headers:{'Content-Type':'application/json'},credentials:'include'};
-  if(_token)opts.headers['Authorization']='Bearer '+_token;
-  try{var _csrf=sessionStorage.getItem('ws_csrf');if(_csrf)opts.headers['X-CSRF-Token']=_csrf;}catch(e){}
-  if(body)opts.body=JSON.stringify(body);
-  return fetch(API_BASE+endpoint,opts).then(function(r){return r.json()});
+  function _build(){
+    var opts={method:method||'GET',headers:{'Content-Type':'application/json'},credentials:'include'};
+    if(_token)opts.headers['Authorization']='Bearer '+_token;
+    try{var _csrf=sessionStorage.getItem('ws_csrf');if(_csrf)opts.headers['X-CSRF-Token']=_csrf}catch(e){}
+    if(body)opts.body=JSON.stringify(body);
+    return opts;
+  }
+  return fetch(API_BASE+endpoint,_build()).then(function(r){
+    // CSRF hard-fail 시 쿠키 재발급 후 1회 재시도
+    if(r.status===403){
+      return r.clone().json().catch(function(){return null}).then(function(j){
+        var isCsrfErr=j&&(j.error==='CSRF token verification failed'||/CSRF/i.test(j.error||''));
+        if(!isCsrfErr)return r.json();
+        return _reissueCookie().then(function(ok){
+          if(!ok)return r.json();
+          return fetch(API_BASE+endpoint,_build()).then(function(r2){return r2.json()});
+        });
+      });
+    }
+    return r.json();
+  });
 }
 
 // ===== DATA =====
