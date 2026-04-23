@@ -8,9 +8,10 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-// L-sec3 (2026-04-22): 박제 ADMIN_TOKEN fallback 'wishes2026' 제거 → verifyAdminAuth
-//   자가호출용 bearer 는 WISHES_ADMIN_MASTER_PASSWORD 사용
-const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
+// L-sec157 (2026-04-23) Phase 3b: 자가호출용 bearer 를 기계 전용 INTERNAL_BEARER 로 분리.
+//   WISHES_INTERNAL_BEARER 우선, 미설정 시 WISHES_ADMIN_MASTER_PASSWORD 폴백 (회귀 방지).
+const INTERNAL_BEARER =
+  process.env.WISHES_INTERNAL_BEARER || process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 
 // L-sec40 (2026-04-22): AI 응답 raw + Anthropic 에러 상세 프로덕션에서 숨김.
 //   admin 게이트가 있어도 회귀성 정보 유출 방어 (defense-in-depth).

@@ -6,11 +6,13 @@ import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec3 (2026-04-22): 박제 ADMIN_TOKEN = 'wishes2026' 제거 →
-//   인바운드: verifyAdminAuthStrict (master/superadmin/crawler_bridge only, L-sec155)
-//   아웃바운드: WISHES_ADMIN_MASTER_PASSWORD env 로 /auto-generate 자가호출
-//     → master 롤로 strict 통과 (Phase3 에서 WISHES_INTERNAL_BEARER 로 분리 예정)
+//   인바운드: verifyAdminAuthStrict (master/superadmin/crawler_bridge/internal_bearer only, L-sec155/157)
+//   아웃바운드: WISHES_INTERNAL_BEARER 우선, 없으면 WISHES_ADMIN_MASTER_PASSWORD 폴백
+//     L-sec157 (2026-04-23) Phase 3b: 자가호출 토큰을 기계 전용 INTERNAL_BEARER 로 분리.
+//     env 가 세팅될 때까지는 MASTER_PASSWORD 폴백으로 회귀 없음.
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://wishes.co.kr';
-const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
+const INTERNAL_BEARER =
+  process.env.WISHES_INTERNAL_BEARER || process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 

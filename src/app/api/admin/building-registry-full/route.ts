@@ -6,9 +6,10 @@ import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
-// L-sec3 (2026-04-22): fallback 'wishes2026' 제거 → WISHES_ADMIN_MASTER_PASSWORD
-// (Phase3 에서 WISHES_INTERNAL_BEARER 로 분리 예정)
-const INTERNAL_BEARER = process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
+// L-sec157 (2026-04-23) Phase 3b: WISHES_INTERNAL_BEARER 우선, 미설정 시 WISHES_ADMIN_MASTER_PASSWORD 폴백.
+//   목적: 사람용 마스터키와 기계용 자가호출 토큰 분리. env 가 없을 때는 기존 경로 그대로라 회귀 0.
+const INTERNAL_BEARER =
+  process.env.WISHES_INTERNAL_BEARER || process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
 

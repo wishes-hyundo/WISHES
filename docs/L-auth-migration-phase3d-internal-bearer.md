@@ -1,7 +1,7 @@
 # L-auth-migration Phase 3d — Internal Bearer 분리
 
 작성일: 2026-04-23
-상태: **Phase 3a 코드 배포됨 (L-sec156) / Phase 3b·3c 대기**
+상태: **Phase 3a + 3b 코드 배포됨 (L-sec156/157) / Phase 3c 대기 (1주 검증 후)**
 선행: L-sec154 (admin_password 철거), L-sec155 (7개 고위험 admin API strict 승격)
 
 ## 왜 하는가
@@ -25,7 +25,17 @@
 
 기존 MASTER_PASSWORD 경로는 그대로 두었기 때문에 env 가 세팅되지 않아도 회귀는 없다.
 
-### Phase 3b — env 세팅 + self-call 3곳 전환 (유저 action 필요 + L-sec157)
+### Phase 3b — self-call 3곳 전환 (L-sec157, 완료)
+
+2026-04-23 커밋:
+  - `src/app/api/admin/auto-generate-bulk/route.ts` : INTERNAL_BEARER = `WISHES_INTERNAL_BEARER || WISHES_ADMIN_MASTER_PASSWORD`
+  - `src/app/api/generate-description/route.ts`    : 동일 패턴
+  - `src/app/api/admin/building-registry-full/route.ts` : 동일 패턴
+
+핵심 결정: **폴백 체인 (`INTERNAL_BEARER || MASTER_PASSWORD`) 을 유지**하기 때문에
+env 가 세팅되지 않아도 기존 경로 그대로 동작 → 회귀 0. 배포는 바로 진행 가능.
+
+### Phase 3b-post — 유저 Vercel env 설정 (언제든 OK)
 
 1. **Vercel 대시보드 → Settings → Environment Variables** 에 다음 추가:
    - Key: `WISHES_INTERNAL_BEARER`
@@ -35,12 +45,10 @@
 
 2. 설정 반영을 위해 한 번 redeploy.
 
-3. L-sec157 에서 3개 self-call 파일의 `INTERNAL_BEARER` 상수 소스를 `WISHES_ADMIN_MASTER_PASSWORD` → `WISHES_INTERNAL_BEARER` 로 교체:
-   - `src/app/api/admin/auto-generate-bulk/route.ts:13`
-   - `src/app/api/admin/generate-description/route.ts` (해당 라인)
-   - `src/app/api/admin/building-registry-full/route.ts:11`
+3. 배포 후 `/api/admin/auto-generate-bulk` 1건 POST 하여 self-call 경로가 여전히 200 응답 확인.
+   (env 가 없으면 MASTER_PASSWORD 폴백으로 이미 200. env 설정 후에도 200 이면 OK.)
 
-4. 배포 후 `/api/admin/auto-generate-bulk` 1건 호출해서 self-call 경로가 여전히 200 응답하는지 검증.
+이 단계가 1주 안정적이어야 Phase 3c (MASTER_PASSWORD accept path 제거) 로 진입.
 
 ### Phase 3c — MASTER_PASSWORD accept path 완전 제거 (L-sec158)
 
