@@ -2298,31 +2298,9 @@
         /**
          * Disable developer tools and right-click
          */
-        function setupSecurityMeasures() {
-            // Disable right-click
-            document.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                return false;
-            });
-
-            // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
-            document.addEventListener('keydown', (e) => {
-                if (
-                    e.key === 'F12' ||
-                    (e.ctrlKey && e.shiftKey && e.key === 'I') ||
-                    (e.ctrlKey && e.shiftKey && e.key === 'J') ||
-                    (e.ctrlKey && e.shiftKey && e.key === 'C')
-                ) {
-                    e.preventDefault();
-                    return false;
-                }
-            });
-
-            // Disable console warnings
-            Object.defineProperty(console, 'log', { value: () => {} });
-            Object.defineProperty(console, 'warn', { value: () => {} });
-            Object.defineProperty(console, 'error', { value: () => {} });
-        }
+        // 2026-04-24: setupSecurityMeasures 내부의 F12 차단 + console 무력화를 전부 제거.
+        //   운영 중 문제 진단을 위해 개발자도구 접근은 필수. 실질 보안은 서버 인증·CSP 로 유지.
+        function setupSecurityMeasures() { /* no-op */ }
 
         // ========================================
         // Initialization
