@@ -98,3 +98,5 @@ WISHES_시스템점검_보고서_*.docx
 # 2026-04-23: 로컬 임시 커밋 메시지/정리 로그 (커밋 금지)
 /COMMIT_MSG_*.txt
 /_cleanup_*.log
+/_probe_*.log
+/_probe_*.bat
