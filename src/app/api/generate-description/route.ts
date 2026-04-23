@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdminAuth } from '@/lib/adminAuth';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { sanitizeAiTitle } from '@/lib/aiTitleSanitizer';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,6 +19,7 @@ const IS_DEV = process.env.NODE_ENV !== 'production';
 function devDetail<T>(detail: T): T | undefined {
   return IS_DEV ? detail : undefined;
 }
+
 
 export async function POST(request: NextRequest) {
   // L-sec77 (2026-04-22): admin 토큰 leak 대비. Claude Opus/Haiku 호출 비용 보호.
@@ -68,21 +70,38 @@ export async function POST(request: NextRequest) {
       try {
         const { data: existing } = await supabaseAdmin
           .from('listings')
-          .select('ai_title, ai_description, seo_keywords, seo_tags, seo_meta_description, ai_generated_at')
+          .select('ai_title, ai_description, seo_keywords, seo_tags, seo_meta_description, ai_generated_at, address, dong, gu, building_name')
           .eq('id', listingId)
           .maybeSingle();
         if (existing && existing.ai_title && existing.ai_description) {
+          // L-crit5 (2026-04-23): freeze 된 cached ai_title 도 응답 직전 sanitize.
+          //   L-crit4 이전에 생성된 레코드는 주소/동/건물명/지번/층·호 가 그대로
+          //   박제되어 있어 사용자에게 노출됨 → 서버 read 시점에 2차 필터.
+          //   (백필은 /api/admin/listings/regenerate-titles 에서 별도 수행)
+          const sanitized = sanitizeAiTitle(existing.ai_title, {
+            address: existing.address,
+            dong: existing.dong,
+            gu: existing.gu,
+            buildingInfo: existing.building_name,
+          });
+          // sanitize 결과가 너무 짧아지면(주소가 제목의 대부분이었던 케이스)
+          // 원본 대신 안전한 플레이스홀더 반환 → 사용자가 '재생성' 유도 가능.
+          const safeCachedTitle = sanitized && sanitized.length >= 4
+            ? sanitized
+            : '';  // 비어있으면 프론트가 "AI 제목 생성" 버튼을 계속 노출
           return NextResponse.json({
             success: true,
             cached: true,
             frozen: true,
-            title: existing.ai_title,
+            title: safeCachedTitle,
             description: existing.ai_description,
             keywords: existing.seo_keywords,
             tags: existing.seo_tags,
             meta_description: existing.seo_meta_description,
             ai_generated_at: existing.ai_generated_at,
             model: null,
+            // L-crit5 diagnostic: 원본이 스크럽됐는지 프론트에 신호
+            title_sanitized: existing.ai_title !== safeCachedTitle,
           });
         }
       } catch { /* DB 실패 시 즉시 생성 경로로 진행 */ }
@@ -219,36 +238,16 @@ ${listingInfo}
       return NextResponse.json({ error: 'Failed to parse AI response', raw: devDetail(aiText) }, { status: 500 });
     }
 
-    // ─────────────────────────────────────────────────────────────────────
-    // L-crit4a (2026-04-23): 제목 주소-누출 방어 sanitizer.
+    // L-crit4a/L-crit5 (2026-04-23): 제목 주소-누출 방어 sanitizer.
     //   프롬프트 규칙을 LLM 이 어겼을 때를 대비한 2차 방어선.
-    //   주소 후보(구/동/도로명/지번/building_name) 가 제목에 포함되어 있으면
-    //   해당 토큰을 제거하고 공백 정리.
-    // ─────────────────────────────────────────────────────────────────────
-    function sanitizeTitle(raw: string): string {
-      if (!raw) return raw;
-      let t = String(raw).trim();
-      const banned = [
-        guName, dongName,
-        typeof address === 'string' ? address : '',
-        typeof buildingInfo === 'string' ? buildingInfo : '',
-      ]
-        .map(s => String(s || '').trim())
-        .filter(s => s.length >= 2);
-      for (const b of banned) {
-        const esc = b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        t = t.replace(new RegExp(esc, 'g'), '').trim();
-      }
-      // 구/동/읍/면 접미어 한글 토큰 스크럽
-      t = t.replace(/[\uAC00-\uD7A3A-Za-z0-9]{1,8}(?:동|읍|면|구)\b/g, '').trim();
-      // 도로명 흔한 접미어 스크럽
-      t = t.replace(/[\uAC00-\uD7A3]{2,10}(?:로|길)\s?\d*/g, '').trim();
-      t = t.replace(/\s+·\s+/g, ' · ').replace(/·\s*·/g, '·').replace(/\s{2,}/g, ' ').trim();
-      t = t.replace(/^[·\-\s,]+|[·\-\s,]+$/g, '').trim();
-      return t || (parsed.title || '');
-    }
-
-    const safeTitle = sanitizeTitle(parsed.title);
+    //   실제 로직은 모듈 스코프 sanitizeAiTitle() 로 이관 (cached 경로와 공용).
+    const safeTitleRaw = sanitizeAiTitle(parsed.title, {
+      address: typeof address === 'string' ? address : null,
+      dong: dongName,
+      gu: guName,
+      buildingInfo: typeof buildingInfo === 'string' ? buildingInfo : null,
+    });
+    const safeTitle = safeTitleRaw || String(parsed.title || '').trim();
     const nowIso = new Date().toISOString();
 
     // If listingId provided, update the listing in DB

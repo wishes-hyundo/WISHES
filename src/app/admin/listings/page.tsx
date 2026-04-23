@@ -185,6 +185,9 @@ export default function AdminListingsPage() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [showBulkMenu, setShowBulkMenu] = useState(false);
 
+  // L-crit5-B (2026-04-23): 주소 누출 ai_title 일괄 재생성 상태
+  const [regenTitlesLoading, setRegenTitlesLoading] = useState(false);
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const bulkMenuRef = useRef<HTMLDivElement>(null);
 
@@ -506,6 +509,64 @@ export default function AdminListingsPage() {
     setToast({ message: filtered.length + '건 매물 데이터가 CSV로 내보내기 되었습니다.', type: 'success' });
   };
 
+  // L-crit5-B (2026-04-23): 주소 누출 ai_title 일괄 재생성 — DB 백필.
+  //   L-crit4 이전 레코드들은 ai_title 에 주소/동/층·호 가 박제되어 있어
+  //   freeze-after-generate 탓에 상세 모달을 열어도 자동 재생성되지 않음.
+  //   본 버튼을 누르면 의심 레코드를 스캔해서 LLM 으로 재생성 (최대 20건/클릭).
+  const handleRegenerateLeakingTitles = async () => {
+    if (regenTitlesLoading) return;
+
+    // 먼저 dryRun 으로 샘플 확인
+    let estimate = 0;
+    try {
+      const gr = await adminFetch('/api/admin/listings/regenerate-titles?dryRun=1', {
+        headers: { ...authHeader() },
+      });
+      if (gr.ok) {
+        const gj = await gr.json();
+        estimate = Number(gj.estimated_leaking || 0);
+      }
+    } catch { /* 추정 실패해도 진행 가능 */ }
+
+    const msg = estimate > 0
+      ? `최초 100건 스캔 결과 ${estimate}건의 주소 누출 제목이 감지되었습니다.\n최대 20건을 재생성합니다. LLM 호출 비용이 발생합니다.\n계속하시겠어요?`
+      : '주소 누출 제목을 스캔하여 최대 20건을 재생성합니다. LLM 호출 비용이 발생합니다.\n계속하시겠어요?';
+    if (!window.confirm(msg)) return;
+
+    setRegenTitlesLoading(true);
+    try {
+      const res = await adminFetch('/api/admin/listings/regenerate-titles', {
+        method: 'POST',
+        headers: { ...authHeader() },
+        body: JSON.stringify({ limit: 20 }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setToast({ message: '재생성 실패: ' + (j.error || res.status), type: 'error' });
+        return;
+      }
+      const regen = Number(j.regenerated || 0);
+      const failed = Number(j.failed || 0);
+      if (regen === 0 && failed === 0) {
+        setToast({ message: '주소 누출 제목이 더 이상 없습니다.', type: 'info' });
+      } else {
+        setToast({
+          message: `제목 재생성 완료: 성공 ${regen}건 / 실패 ${failed}건`,
+          type: failed > 0 ? 'info' : 'success',
+        });
+      }
+      // 새 제목이 반영되도록 목록 새로고침
+      fetchListings();
+    } catch (err) {
+      setToast({
+        message: '재생성 중 오류: ' + (err instanceof Error ? err.message : '네트워크 오류'),
+        type: 'error',
+      });
+    } finally {
+      setRegenTitlesLoading(false);
+    }
+  };
+
   const isFiltered = searchQuery || statusFilter !== '전체' || propertyTypeFilter !== '전체' || transactionTypeFilter !== '전체';
 
   /* ─── 정렬 아이콘 ─── */
@@ -588,6 +649,18 @@ export default function AdminListingsPage() {
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
               대량 등록
+            </button>
+            {/* L-crit5-B (2026-04-23): 주소 누출 제목 일괄 재생성 */}
+            <button
+              onClick={handleRegenerateLeakingTitles}
+              disabled={regenTitlesLoading}
+              className="flex items-center gap-2 px-4 py-2.5 bg-rose-600 text-white rounded-xl text-sm font-semibold hover:bg-rose-700 transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+              title="L-crit4 이전 레코드의 주소 누출 ai_title 을 LLM 으로 재생성합니다 (최대 20건/클릭)"
+            >
+              <svg className={`w-4 h-4 ${regenTitlesLoading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {regenTitlesLoading ? '재생성 중…' : '주소 누출 제목 재생성'}
             </button>
           </div>
         </div>
