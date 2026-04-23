@@ -3,6 +3,43 @@ import { createServerClient } from '@/lib/supabase';
 import { notifyUserApproved, notifyUserRejected } from '@/lib/email';
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 
+
+/**
+ * admin_users 행 업데이트 헬퍼 — 2026-04-23 L-admin-fix
+ *   PostgREST upsert 는 INSERT 먼저 시도하므로 email NOT NULL 제약으로 조용히 실패.
+ *   UPDATE 먼저, 0 rows 면 email 을 fetch 해서 INSERT 로 fallback.
+ */
+async function _applyAdminUserFields(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+  fields: Record<string, unknown>,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const { data, error } = await supabase
+      .from('admin_users')
+      .update(fields)
+      .eq('id', userId)
+      .select('id');
+    if (error) return { ok: false, error: error.message };
+    if (data && data.length > 0) return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as { message?: string })?.message || 'update failed' };
+  }
+  // 0 rows affected → 새로 INSERT (admin_users 가 없던 사용자). email 필수.
+  try {
+    const { data: userData } = await supabase.auth.admin.getUserById(userId);
+    const email = (userData?.user?.email || '').toLowerCase();
+    if (!email) return { ok: false, error: 'user email missing' };
+    const { error: insertError } = await supabase
+      .from('admin_users')
+      .insert({ id: userId, email, ...fields });
+    if (insertError) return { ok: false, error: insertError.message };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: (e as { message?: string })?.message || 'insert failed' };
+  }
+}
+
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
 // GET /api/admin/users - ì¬ì©ì ëª©ë¡ ì¡°í
@@ -110,10 +147,8 @@ export async function PUT(request: NextRequest) {
       const VALID_ROLES = ['admin', 'agent', 'viewer'];
       const newRole = VALID_ROLES.includes(String(role || '')) ? String(role) : 'agent';
 
-      const { error: upsertError } = await supabase.from('admin_users').upsert({
-        id: userId, status: 'approved', role: newRole,
-      }, { onConflict: 'id' });
-      if (upsertError) { console.warn('admin_users upsert failed:', upsertError.message); }
+      const _r = await _applyAdminUserFields(supabase, userId, { status: 'approved', role: newRole });
+      if (!_r.ok) { console.warn('admin_users update (approve) failed:', _r.error); }
       else { dbUpdated = true; }
 
       const { error: metaError } = await supabase.auth.admin.updateUserById(userId, {
@@ -139,10 +174,8 @@ export async function PUT(request: NextRequest) {
 
     // ê±°ë¶
     if (action === 'reject') {
-      const { error: upsertError } = await supabase.from('admin_users').upsert({
-        id: userId, status: 'rejected',
-      }, { onConflict: 'id' });
-      if (upsertError) { console.warn('admin_users upsert failed:', upsertError.message); }
+      const _r = await _applyAdminUserFields(supabase, userId, { status: 'rejected' });
+      if (!_r.ok) { console.warn('admin_users update (reject) failed:', _r.error); }
       else { dbUpdated = true; }
 
       const { error: metaError } = await supabase.auth.admin.updateUserById(userId, {
@@ -171,10 +204,8 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'ì í¨íì§ ìì ì¬í ìëë¤.' }, { status: 400 });
       }
 
-      const { error: upsertError } = await supabase.from('admin_users').upsert({
-        id: userId, role: newRole,
-      }, { onConflict: 'id' });
-      if (upsertError) { console.warn('admin_users role update failed:', upsertError.message); }
+      const _r = await _applyAdminUserFields(supabase, userId, { role: newRole });
+      if (!_r.ok) { console.warn('admin_users update (change_role) failed:', _r.error); }
       else { dbUpdated = true; }
 
       const { error: metaError } = await supabase.auth.admin.updateUserById(userId, {
@@ -196,10 +227,8 @@ export async function PUT(request: NextRequest) {
 
     // ì°¨ë¨
     if (action === 'block') {
-      const { error: upsertError } = await supabase.from('admin_users').upsert({
-        id: userId, status: 'blocked',
-      }, { onConflict: 'id' });
-      if (!upsertError) dbUpdated = true;
+      const _r = await _applyAdminUserFields(supabase, userId, { status: 'blocked' });
+      if (_r.ok) dbUpdated = true; else console.warn('admin_users update (block) failed:', _r.error);
 
       const { error: metaError } = await supabase.auth.admin.updateUserById(userId, {
         user_metadata: { status: 'blocked' }
@@ -211,10 +240,8 @@ export async function PUT(request: NextRequest) {
 
     // ì°¨ë¨ í´ì 
     if (action === 'unblock') {
-      const { error: upsertError } = await supabase.from('admin_users').upsert({
-        id: userId, status: 'approved',
-      }, { onConflict: 'id' });
-      if (!upsertError) dbUpdated = true;
+      const _r = await _applyAdminUserFields(supabase, userId, { status: 'approved' });
+      if (_r.ok) dbUpdated = true; else console.warn('admin_users update (unblock) failed:', _r.error);
 
       const { error: metaError } = await supabase.auth.admin.updateUserById(userId, {
         user_metadata: { status: 'approved' }
