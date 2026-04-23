@@ -769,17 +769,50 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--
 (function(){
 'use strict';
 
-// ===== SECURITY =====
-var _isProduction = location.hostname!=='localhost'&&location.hostname!=='127.0.0.1';
-if(_isProduction){(function _ad(){try{(function(){}).constructor('debugger')();setTimeout(_ad,3000)}catch(e){}})()}
-document.addEventListener('contextmenu',function(e){e.preventDefault()});
-document.addEventListener('keydown',function(e){if(e.key==='F12'||(e.ctrlKey&&e.shiftKey&&(e.key==='I'||e.key==='J'))||(e.ctrlKey&&e.key==='u'))e.preventDefault()});
+// 2026-04-24: 개발자 도구(F12) 차단 제거 — 운영 중 문제 진단을 위해 반드시 필요. 실질 보안은 CSP + 서버 인증으로.
 
 // ===== AUTH CHECK =====
 var API_BASE = '/api';
-var _token = sessionStorage.getItem('ws_token');
+var _token = sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token');
+var _refreshToken = sessionStorage.getItem('ws_refresh_token') || localStorage.getItem('ws_refresh_token') || '';
 var _user = null;
-try{_user=JSON.parse(sessionStorage.getItem('ws_user'))}catch(e){}
+try{_user=JSON.parse(sessionStorage.getItem('ws_user')||localStorage.getItem('ws_user')||'null')}catch(e){}
+// admin_bridge_ prefix 제거해서 Supabase 로 넘길 수 있는 raw JWT 로 정규화.
+function _rawJwt(t){return (t||'').replace(/^admin_bridge_/, '')}
+
+// 2026-04-24: refresh_token 을 써서 새 access_token 을 가져와 ws_token/쿠키 동기화.
+function _refreshSession(){
+  if(!_refreshToken)return Promise.resolve(false);
+  return fetch('/api/auth/refresh-session',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({refresh_token:_refreshToken})
+  }).then(function(r){return r.ok?r.json():null}).then(function(j){
+    if(!j||!j.success||!j.access_token)return false;
+    // ws_token 형식 유지 — admin_bridge_ 접두사 + raw JWT
+    var newToken='admin_bridge_'+j.access_token;
+    _token=newToken;
+    if(j.refresh_token)_refreshToken=j.refresh_token;
+    try{
+      sessionStorage.setItem('ws_token',newToken);
+      localStorage.setItem('ws_token',newToken);
+      if(j.refresh_token){sessionStorage.setItem('ws_refresh_token',j.refresh_token);localStorage.setItem('ws_refresh_token',j.refresh_token)}
+      if(j.expires_at){sessionStorage.setItem('ws_token_expires_at',String(j.expires_at));localStorage.setItem('ws_token_expires_at',String(j.expires_at))}
+      var now=Date.now().toString();
+      sessionStorage.setItem('ws_login_time',now);
+      localStorage.setItem('ws_login_time',now);
+    }catch(e){}
+    // ws_session 쿠키도 동기화
+    return fetch('/api/auth/cookie-issue',{
+      method:'POST',credentials:'include',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({access_token:j.access_token})
+    }).then(function(r){return r.ok?r.json():null}).then(function(k){
+      if(k&&k.success&&k.csrfToken){try{sessionStorage.setItem('ws_csrf',k.csrfToken)}catch(e){}}
+      return true;
+    }).catch(function(){return true});
+  }).catch(function(){return false});
+}
 
 function checkAuth(){
   if(!_token||!_user){window.location.href='/admin/admin-auth.html';return false}
@@ -792,7 +825,17 @@ if(!checkAuth())throw new Error('Unauthorized');
 
 // 2026-04-23 v6: 페이지 진입 시 항상 쿠키 재발급 (sessionStorage ws_csrf 와 쿠키 동기화 보장).
 //   ws_session(HttpOnly) 1h 만료 이후 superadmin 이 관리 API 를 호출하지 못하는 증상 해결.
-setTimeout(function(){try{_reissueCookie()}catch(e){}},100);
+// 페이지 진입 시 바로 refresh_token 이 있으면 세션 갱신, 없으면 기존 reissueCookie.
+setTimeout(function(){
+  try{
+    if(_refreshToken){_refreshSession()}
+    else{_reissueCookie()}
+  }catch(e){}
+},100);
+// 50분마다 주기적 refresh (Supabase JWT 기본 1h 만료 전에).
+setInterval(function(){
+  try{if(_refreshToken)_refreshSession()}catch(e){}
+},50*60*1000);
 
 // Set admin name
 if(_user&&_user.name)document.getElementById('adminName').textContent=_user.name;
@@ -860,7 +903,18 @@ function apiCall(endpoint,method,body){
     return opts;
   }
   return fetch(API_BASE+endpoint,_build()).then(function(r){
-    // CSRF hard-fail 시 쿠키 재발급 후 1회 재시도
+    // 401 Unauthorized → JWT 만료 가능성 → refresh 후 1회 재시도
+    if(r.status===401){
+      return _refreshSession().then(function(ok){
+        if(!ok){
+          try{showToast('세션이 만료되었습니다. 다시 로그인해주세요.','error')}catch(e){}
+          setTimeout(function(){window.location.href='/admin/admin-auth.html'},1500);
+          return r.json();
+        }
+        return fetch(API_BASE+endpoint,_build()).then(function(r2){return r2.json()});
+      });
+    }
+    // 403 CSRF hard-fail → 쿠키 재발급 후 1회 재시도
     if(r.status===403){
       return r.clone().json().catch(function(){return null}).then(function(j){
         var isCsrfErr=j&&(j.error==='CSRF token verification failed'||/CSRF/i.test(j.error||''));

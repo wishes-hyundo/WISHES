@@ -115,6 +115,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
                   success: true,
                   token: authData.session?.access_token || authData.user.id,
+                  refresh_token: authData.session?.refresh_token || null,
+                  expires_at: authData.session?.expires_at || null,
                   user: {
                               id: authData.user.id,
                               name: userName,
