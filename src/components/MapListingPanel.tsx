@@ -639,8 +639,8 @@ function buildAgentInfo(
   // 위시스부동산 통합 컨택 (폴백 & 사무소 정보 공통)
   const OFFICE = {
     officeName: '위시스부동산 공인중개사사무소',
-    officePhone: '02-6953-7001',
-    officeAddress: '서울시 용산구 한강대로',
+    officePhone: '1533-9580',
+    officeAddress: '서울 관악구 신림동 1431-32 8층',
     responseRate: 98,
     avgResponseMinutes: 12,
   };
