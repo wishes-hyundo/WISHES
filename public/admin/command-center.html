@@ -1011,7 +1011,14 @@ window.viewUser=function(id){
   document.getElementById('userDetailBody').innerHTML='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div class="form-group"><label class="form-label">이름</label><div style="font-size:14px;font-weight:600">'+_escHtml(user.name)+'</div></div><div class="form-group"><label class="form-label">이메일</label><div style="font-size:14px">'+_escHtml(user.email)+'</div></div><div class="form-group"><label class="form-label">소속</label><div style="font-size:14px">'+_escHtml(user.company||'-')+'</div></div><div class="form-group"><label class="form-label">권한</label><div style="font-size:14px">'+user.role+'</div></div><div class="form-group"><label class="form-label">상태</label><div style="font-size:14px">'+user.status+'</div></div><div class="form-group"><label class="form-label">마지막 접속</label><div style="font-size:14px">'+(user.lastLogin||'-')+'</div></div><div class="form-group"><label class="form-label">IP</label><div style="font-size:14px;font-family:monospace">'+(user.ip||'-')+'</div></div><div class="form-group"><label class="form-label">디바이스</label><div style="font-size:14px">'+(user.device||'-')+'</div></div></div>';
   var footer='<button class="btn-modal btn-modal-ghost" onclick="closeModal(\'userDetailModal\')">닫기</button>';
   if(user.role!=='superadmin'){
+    // 역할 변경 드롭다운 — 슈퍼어드민만 가능 (backend 에서 추가 검증)
+    var roleOpts=['user','viewer','agent','admin'].map(function(r){
+      return '<option value="'+r+'"'+(r===user.role?' selected':'')+'>'+r+'</option>';
+    }).join('');
+    footer+='<select id="roleChangeSel_'+user.id+'" style="padding:6px 10px;border-radius:6px;background:var(--bg-surface);color:var(--text);border:1px solid var(--border);font-size:13px">'+roleOpts+'</select>';
+    footer+='<button class="btn-modal" onclick="applyRoleChange(\''+user.id+'\')">역할 변경</button>';
     footer+='<button class="btn-modal btn-modal-danger" onclick="toggleBlock(\''+user.id+'\');closeModal(\'userDetailModal\')">차단/해제</button>';
+    footer+='<button class="btn-modal btn-modal-danger" onclick="deleteUser(\''+user.id+'\')" style="background:rgba(229,62,62,.25)">회원 삭제</button>';
   }
   document.getElementById('userDetailFooter').innerHTML=footer;
   openModal('userDetailModal');
@@ -1034,6 +1041,44 @@ window.toggleBlock=function(id){
   }).catch(function(err){
     console.error('toggleBlock failed',err);
     showToast(label+' API 호출 실패','error');
+  });
+};
+
+// 2026-04-23: 역할 변경 + 회원 삭제 (슈퍼어드민 전용).
+window.applyRoleChange=function(id){
+  var sel=document.getElementById('roleChangeSel_'+id);
+  if(!sel){showToast('역할 선택기를 찾을 수 없습니다','error');return}
+  var newRole=sel.value;
+  if(!confirm('이 사용자의 역할을 "'+newRole+'"(으)로 변경할까요?'))return;
+  apiCall('/admin/users','PUT',{userId:id,action:'change_role',role:newRole}).then(function(res){
+    if(res&&res.success){
+      showToast('역할이 '+newRole+'(으)로 변경되었습니다');
+      closeModal('userDetailModal');
+      loadUsersFromApi();
+    } else {
+      showToast('역할 변경 실패: '+(res&&res.error||'unknown'),'error');
+    }
+  }).catch(function(err){
+    console.error('change_role failed',err);
+    showToast('역할 변경 API 호출 실패','error');
+  });
+};
+window.deleteUser=function(id){
+  var user=_demoUsers.find(function(u){return u.id===id})||_demoPending.find(function(u){return u.id===id});
+  if(!user){showToast('사용자를 찾을 수 없습니다','error');return}
+  if(user.role==='superadmin'){showToast('슈퍼어드민은 삭제할 수 없습니다','error');return}
+  if(!confirm('[강제 탈퇴]\n\n'+user.name+' ('+user.email+') 님을 영구 삭제합니다.\n이 작업은 되돌릴 수 없습니다.\n\n계속하시겠습니까?'))return;
+  apiCall('/admin/users','DELETE',{userId:id}).then(function(res){
+    if(res&&res.success){
+      showToast(user.name+' 님이 삭제되었습니다','warning');
+      closeModal('userDetailModal');
+      loadUsersFromApi();
+    } else {
+      showToast('삭제 실패: '+(res&&res.error||'unknown'),'error');
+    }
+  }).catch(function(err){
+    console.error('delete failed',err);
+    showToast('삭제 API 호출 실패','error');
   });
 };
 

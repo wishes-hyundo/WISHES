@@ -139,12 +139,41 @@ function AuthCallbackContent() {
         return;
       }
       setStatus('success');
-      setTimeout(() => router.replace(redirectPath), 800);
+      setTimeout(() => { void navigateAfterAuth(redirectPath); }, 800);
     } catch {
       setStatus('error');
       setErrorMessage('소셜 로그인 처리 중 오류가 발생했습니다.');
       setTimeout(() => router.replace(getRedirectPath()), 3000);
     }
+  };
+
+  // 2026-04-23: 소셜/이메일 로그인 직후 이름/연락처 누락 여부 확인. 누락이면
+  //   /complete-profile 로 유도. admin_users(또는 profiles)가 name+phone 모두
+  //   채워져야 "완성"으로 본다. /api/auth/me 응답의 name/phone 을 신뢰.
+  const checkProfileComplete = async (): Promise<boolean> => {
+    try {
+      const supabase = createAuthClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+      if (!accessToken) return true; // 미로그인이면 이 gate 무시
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const data = await res.json().catch(() => ({} as any));
+      const name = (data?.user?.name || '').trim();
+      const phone = (data?.user?.phone || '').trim();
+      return Boolean(name && phone);
+    } catch {
+      return true; // 확인 실패 시 진행 차단 않음
+    }
+  };
+  const navigateAfterAuth = async (redirectPath: string) => {
+    const complete = await checkProfileComplete();
+    if (complete) {
+      router.replace(redirectPath);
+      return;
+    }
+    router.replace(`/complete-profile?return=${encodeURIComponent(redirectPath)}`);
   };
 
   useEffect(() => {
@@ -279,7 +308,7 @@ function AuthCallbackContent() {
           return;
         }
         setStatus('success');
-        setTimeout(() => router.replace(redirectPath), 800);
+        setTimeout(() => { void navigateAfterAuth(redirectPath); }, 800);
       })();
       return () => { cancelled = true; };
     }

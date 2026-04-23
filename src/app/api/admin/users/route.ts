@@ -167,7 +167,7 @@ export async function PUT(request: NextRequest) {
     // ì­í (ì§ì±) ë³ê²½
     if (action === 'change_role') {
       const newRole = role;
-      if (!newRole || !['superadmin', 'admin', 'agent', 'viewer'].includes(newRole)) {
+      if (!newRole || !['superadmin', 'admin', 'agent', 'viewer', 'user'].includes(newRole)) {
         return NextResponse.json({ error: 'ì í¨íì§ ìì ì¬í ìëë¤.' }, { status: 400 });
       }
 
