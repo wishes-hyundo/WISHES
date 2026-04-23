@@ -8,7 +8,7 @@
 //
 // 📐 구조
 //   12 섹션 각각:
-//     - header: [emoji] [label] [active count badge] [▽/△]
+//     - header: [icon] [label] [active count badge] [▽/△]
 //     - body  : 섹션별 UI (range slider / checkbox / chip grid)
 //   각 섹션 열림 상태는 store.accordionOpen 으로 localStorage 영속
 //
@@ -33,22 +33,46 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useMemo, type ComponentType, type ReactNode, type SVGProps } from 'react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Coins,
+  Wallet,
+  Banknote,
+  Ruler,
+  DoorOpen,
+  Building2,
+  Sparkles,
+  Train,
+  Wrench,
+  Layers3,
+  Compass,
+  CalendarDays,
+} from 'lucide-react';
 import { useMap2026Store, type FilterState, type PropertyCategory } from '../store';
 
 // ─────────────────────────────────────────────────────────────────
 // 공용 섹션 프레임
 // ─────────────────────────────────────────────────────────────────
+// L-mapfilter2 (2026-04-23): emoji prop → Icon prop.
+//   이전에는 text-[14px] 의 이모지를 렌더해 "아기 장난 같다" 는 피드백을 받음.
+//   Lucide 아이콘 14px 로 전문성·일관성 확보. 각 섹션 의미별 아이콘 매핑:
+//     price→Coins, deposit→Wallet, monthly→Banknote, area→Ruler,
+//     roomsMore→DoorOpen, propTypes→Building2, newBuild→Sparkles,
+//     station→Train, amenities→Wrench, floorLevel→Layers3,
+//     direction→Compass, moveIn→CalendarDays.
+type IconComponent = ComponentType<SVGProps<SVGSVGElement>>;
+
 interface SectionProps {
   id: string;
-  emoji: string;
+  Icon: IconComponent;
   label: string;
   activeCount: number;
   children: ReactNode;
 }
 
-function Section({ id, emoji, label, activeCount, children }: SectionProps) {
+function Section({ id, Icon, label, activeCount, children }: SectionProps) {
   const open = useMap2026Store((s) => !!s.accordionOpen[id]);
   const toggleAccordion = useMap2026Store((s) => s.toggleAccordion);
   const panelId = `fa-panel-${id}`;
@@ -63,7 +87,7 @@ function Section({ id, emoji, label, activeCount, children }: SectionProps) {
         className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-neutral-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-neutral-900"
       >
         <span className="flex items-center gap-2">
-          <span aria-hidden="true" className="text-[14px]">{emoji}</span>
+          <Icon className="size-[14px] text-neutral-600" aria-hidden="true" />
           <span className="text-[13px] font-semibold text-neutral-800">{label}</span>
           {activeCount > 0 && (
             <span className="inline-flex min-w-[18px] items-center justify-center rounded-full bg-neutral-900 px-1.5 py-0.5 text-[10.5px] font-bold text-white tabular-nums">
@@ -295,7 +319,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
       <div>
         {/* 1. 가격 (매매가) */}
         {activeList.includes('price') && (
-          <Section id="price" emoji="💰" label="가격 (매매가)" activeCount={activeCountFor(filter, 'price')}>
+          <Section id="price" Icon={Coins} label="가격 (매매가)" activeCount={activeCountFor(filter, 'price')}>
             <RangeInput
               min={filter.minPrice}
               max={filter.maxPrice}
@@ -311,7 +335,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 2. 보증금 */}
         {activeList.includes('deposit') && (
-          <Section id="deposit" emoji="🏦" label="보증금 / 전세금" activeCount={activeCountFor(filter, 'deposit')}>
+          <Section id="deposit" Icon={Wallet} label="보증금 / 전세금" activeCount={activeCountFor(filter, 'deposit')}>
             <RangeInput
               min={filter.minDeposit}
               max={filter.maxDeposit}
@@ -326,7 +350,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 3. 월세 */}
         {activeList.includes('monthly') && (
-          <Section id="monthly" emoji="💵" label="월세" activeCount={activeCountFor(filter, 'monthly')}>
+          <Section id="monthly" Icon={Banknote} label="월세" activeCount={activeCountFor(filter, 'monthly')}>
             <RangeInput
               min={filter.minMonthly}
               max={filter.maxMonthly}
@@ -341,7 +365,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 4. 전용면적 */}
         {activeList.includes('area') && (
-          <Section id="area" emoji="📐" label="전용면적" activeCount={activeCountFor(filter, 'area')}>
+          <Section id="area" Icon={Ruler} label="전용면적" activeCount={activeCountFor(filter, 'area')}>
             <RangeInput
               min={filter.minArea}
               max={filter.maxArea}
@@ -384,7 +408,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
             아코디언에서도 접근 가능하도록 확장. 이전엔 4+/5+/6+ 만 노출되어
             "모두 펼치기" 시 1/2/3 을 놓치는 UX 구멍이 있었다. */}
         {activeList.includes('roomsMore') && (
-          <Section id="roomsMore" emoji="🚪" label="방 수" activeCount={activeCountFor(filter, 'roomsMore')}>
+          <Section id="roomsMore" Icon={DoorOpen} label="방 수" activeCount={activeCountFor(filter, 'roomsMore')}>
             <div className="flex flex-wrap gap-1.5">
               {[
                 { n: 1, label: '원룸' },
@@ -408,7 +432,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 6. 부동산 유형 (카테고리별 옵션) */}
         {activeList.includes('propTypes') && (
-          <Section id="propTypes" emoji="🏢" label="부동산 유형" activeCount={activeCountFor(filter, 'propTypes')}>
+          <Section id="propTypes" Icon={Building2} label="부동산 유형" activeCount={activeCountFor(filter, 'propTypes')}>
             <div className="flex flex-wrap gap-1.5">
               {propTypeOptions.map((t) => (
                 <ToggleChip
@@ -425,7 +449,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 7. 신축 연식 */}
         {activeList.includes('newBuild') && (
-          <Section id="newBuild" emoji="✨" label="신축 연식" activeCount={activeCountFor(filter, 'newBuild')}>
+          <Section id="newBuild" Icon={Sparkles} label="신축 연식" activeCount={activeCountFor(filter, 'newBuild')}>
             <div className="flex flex-wrap gap-1.5">
               {[1, 3, 5, 10].map((y) => {
                 const active = filter.newBuildYears === y;
@@ -447,7 +471,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 8. 역세권 거리 */}
         {activeList.includes('station') && (
-          <Section id="station" emoji="🚇" label="역세권 거리" activeCount={activeCountFor(filter, 'station')}>
+          <Section id="station" Icon={Train} label="역세권 거리" activeCount={activeCountFor(filter, 'station')}>
             <div className="flex flex-wrap gap-1.5">
               {[
                 { m: 300,  label: '도보 5분 (300m)' },
@@ -473,7 +497,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 9. 편의시설 */}
         {activeList.includes('amenities') && (
-          <Section id="amenities" emoji="🛠️" label="편의시설" activeCount={activeCountFor(filter, 'amenities')}>
+          <Section id="amenities" Icon={Wrench} label="편의시설" activeCount={activeCountFor(filter, 'amenities')}>
             <div className="flex flex-wrap gap-1.5">
               {AMENITIES.map((a) => (
                 <ToggleChip
@@ -490,7 +514,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 10. 층수 */}
         {activeList.includes('floorLevel') && (
-          <Section id="floorLevel" emoji="⛰️" label="층수" activeCount={activeCountFor(filter, 'floorLevel')}>
+          <Section id="floorLevel" Icon={Layers3} label="층수" activeCount={activeCountFor(filter, 'floorLevel')}>
             <div className="flex flex-wrap gap-1.5">
               {FLOOR_LEVELS.map((f) => (
                 <ToggleChip
@@ -507,7 +531,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 11. 방향 */}
         {activeList.includes('direction') && (
-          <Section id="direction" emoji="🧭" label="방향" activeCount={activeCountFor(filter, 'direction')}>
+          <Section id="direction" Icon={Compass} label="방향" activeCount={activeCountFor(filter, 'direction')}>
             <div className="flex flex-wrap gap-1.5">
               {DIRECTIONS.map((d) => (
                 <ToggleChip
@@ -524,7 +548,7 @@ export function FilterAccordion({ showCollapseAll = true, sections }: FilterAcco
 
         {/* 12. 입주 조건 */}
         {activeList.includes('moveIn') && (
-          <Section id="moveIn" emoji="📅" label="입주 가능" activeCount={activeCountFor(filter, 'moveIn')}>
+          <Section id="moveIn" Icon={CalendarDays} label="입주 가능" activeCount={activeCountFor(filter, 'moveIn')}>
             <div className="flex flex-wrap gap-1.5">
               {MOVE_IN.map((m) => (
                 <ToggleChip

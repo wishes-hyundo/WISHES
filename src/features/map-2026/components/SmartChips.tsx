@@ -1,13 +1,21 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // SmartChips — Category-First 필터바 (2026-04 개편)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 🎯 레이아웃
-//   Row 1: 거래유형 (전체·매매·전세·월세·단기) + 사진있음 + 전체해제  ← 전역 공통
-//   Row 2: CategoryTabs (주거·상가/사무실·토지·투자)                    ← 최상위 맥락
-//   Row 3: 카테고리별 전용 칩 (조건부 렌더링)                           ← 맥락 따라 교체
+// 🎯 레이아웃 (L-mapfilter2: 완전 재편)
+//   Row 1: CategoryTabs (주거·상가/사무실·토지·투자)                   ← 최상위, 가장 큼
+//   Row 2: 거래유형 (전체·매매·전세·월세·단기) + 사진있음 + 전체해제   ← 카테고리에 종속
+//   Row 3: 카테고리별 전용 칩 (조건부 렌더링)                          ← 카테고리에 종속
 //
-// L-ux1 (2026-04-22): 이전 4-row 구조에서 "사진있음/전체해제" row 를 Row 1 우측에
-//   병합. 수직 공간 ~36px 확보. Row 3 padding py-2.5 → py-1.5 로 추가 8px.
+// L-mapfilter2 (2026-04-23): 사용자 피드백 반영.
+//   이전 구조는 [거래유형 → 카테고리탭 → 빠른선택칩] 순으로 "거래유형" 이
+//   카테고리보다 위에 있었다. 이는 부동산 정보 계층의 실제 구조와 어긋남.
+//   사용자는 "가장 큰 타이틀은 주거·상가/사무실·토지·투자 가 되어야 하고,
+//   그 외 나머지는 그 아래 카테고리에 맞춰 나와야 한다" 고 요구.
+//   또한 이전에 추가했던 "빠른 선택" 라벨도 제거 — 라벨 없이도 카테고리가
+//   최상위에 있으면 하단이 그 카테고리의 칩임이 자연스럽게 드러남.
+//
+// L-ux1 (2026-04-22): 이전 4-row 구조에서 "사진있음/전체해제" row 를 거래 row
+//   우측에 병합. 수직 공간 ~36px 확보.
 //
 // L-ux5-2 (2026-04-22): "전체" pseudo-chip 추가. 이전에는 filter.deals=[]
 //   (기본값) 이 "모든 거래 노출" 을 의미하지만 UI 상으로는 어떤 버튼도
@@ -37,7 +45,10 @@ export function SmartChips() {
 
   return (
     <div className="border-b border-neutral-100 bg-white">
-      {/* Row 1 — 거래유형 + 사진있음/전체해제 */}
+      {/* Row 1 — 카테고리 탭 (최상위 맥락, 가장 큼) */}
+      <CategoryTabs />
+
+      {/* Row 2 — 거래유형 + 사진있음/전체해제 (카테고리에 종속) */}
       <div className="flex items-center gap-1 px-4 py-2">
         <span className="pr-1 text-[11px] font-semibold text-neutral-500">거래</span>
         {/* L-ux5-2: "전체" pseudo-chip — deals=[] 일 때 active */}
@@ -88,16 +99,10 @@ export function SmartChips() {
         <ClearAll />
       </div>
 
-      {/* Row 2 — 카테고리 탭 (최상위 맥락) */}
-      <CategoryTabs />
-
-      {/* Row 3 — 카테고리별 전용 칩 (조건부 렌더링, padding 축소).
-          L-mapfilter1 (2026-04-23): "빠른 선택" 라벨 추가 — 하단 FilterAccordion
-          "추가 필터" 와 역할 구분을 명시. 상단=원터치 프리셋, 하단=세부 조정.
-          이전엔 두 영역이 시각적으로 동등해 보여 사용자가 "같은 필터가 두 번
-          나온다" 고 혼동했다. 이제 라벨로 상단 칩의 역할(빠른 접근)을 드러낸다. */}
+      {/* Row 3 — 카테고리별 전용 칩 (조건부 렌더링).
+          L-mapfilter2: "빠른 선택" 라벨 제거 — 카테고리가 최상위에 있으면
+          하단 칩이 그 카테고리의 세부 옵션임이 자연스럽게 드러남. */}
       <div className="px-4 py-1.5">
-        <div className="mb-1 text-[11px] font-semibold text-neutral-500">빠른 선택</div>
         {filter.category === 'residence'     && <ResidenceChips />}
         {filter.category === 'retail_office' && <CommercialChips />}
         {filter.category === 'land'          && <LandChips />}

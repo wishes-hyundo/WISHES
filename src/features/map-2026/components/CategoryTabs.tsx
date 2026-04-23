@@ -19,7 +19,8 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent, type ComponentType, type SVGProps } from 'react';
+import { Home, Building2, Trees, TrendingUp } from 'lucide-react';
 import {
   useMap2026Store,
   CATEGORY_THEME,
@@ -29,6 +30,16 @@ import { zoomPulse } from '../lib/cinematicMotion';
 
 // 카테고리 순서 (UI 상 좌→우)
 const ORDER: PropertyCategory[] = ['residence', 'retail_office', 'land', 'investment'];
+
+// L-mapfilter2 (2026-04-23): 이모지 → Lucide 아이콘.
+//   이전에는 store.CATEGORY_THEME.emoji 를 text-[15px] 로 렌더해 "아기 장난
+//   같다" 는 피드백을 받았다. 일관된 라인 아이콘으로 전문성 확보.
+const CATEGORY_ICON: Record<PropertyCategory, ComponentType<SVGProps<SVGSVGElement>>> = {
+  residence:     Home,
+  retail_office: Building2,
+  land:          Trees,
+  investment:    TrendingUp,
+};
 
 export function CategoryTabs() {
   const filter = useMap2026Store((s) => s.filter);
@@ -69,6 +80,7 @@ export function CategoryTabs() {
     >
       {ORDER.map((cat) => {
         const theme = CATEGORY_THEME[cat];
+        const Icon = CATEGORY_ICON[cat];
         const active = filter.category === cat;
         // L-ux3/L-ux5-1: 활성 탭만 실제 숫자 (서버 listings.length).
         //   비활성 탭은 dim dot (서버 왕복 없이는 알 수 없음).
@@ -91,13 +103,15 @@ export function CategoryTabs() {
               if (map) zoomPulse(map);
             }}
             className={[
-              'relative flex items-center gap-1.5 rounded-t-lg px-4 py-2.5 text-[13px] font-semibold transition-all',
+              // L-mapfilter2: 최상위 타이틀로 승격 — 글씨 + 패딩 증가.
+              //   이전 text-[13px] px-4 py-2.5 → text-[14.5px] px-5 py-3.
+              'relative flex items-center gap-2 rounded-t-lg px-5 py-3 text-[14.5px] font-semibold transition-all',
               active
                 ? `${theme.text} bg-white`
                 : 'text-neutral-500 hover:bg-neutral-50 hover:text-neutral-800',
             ].join(' ')}
           >
-            <span className="text-[15px]">{theme.emoji}</span>
+            <Icon className="size-[17px]" strokeWidth={2.25} aria-hidden="true" />
             <span>{theme.label}</span>
             {showCount ? (
               <span

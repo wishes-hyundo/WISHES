@@ -112,9 +112,18 @@ export default function AdminPage() {
   const tab = searchParams.get('tab') || 'dashboard';
 
   // 인증
+  // L-sec153 (2026-04-23): 레거시 마스터 패스워드 UI 제거.
+  //   과거엔 이 페이지가 단일 password 입력 → /api/admin/stats Bearer 로
+  //   env WISHES_ADMIN_MASTER_PASSWORD 일치 여부를 판정하는 "슈퍼 관리자
+  //   전용 쪽문" 이었음. admin-auth.html 로 Supabase Auth + role/status
+  //   체계를 전면 도입했음에도 /admin 루트는 구 화면 그대로였다 → 마스터
+  //   패스워드만 알면 role='agent' 승인 체계 우회 가능한 실제 취약.
+  //   L-sec153 에서 폼 자체를 제거하고, 진입 시 토큰 없으면 즉시
+  //   /admin/admin-auth.html 로 리다이렉트한다. 서버측 verifyAdminAuth
+  //   의 MASTER_PASSWORD 경로는 크롤러 브리지가 아직 의존하므로 별도
+  //   단계(L-sec154 / Phase 3c)에서 제거 예정.
   const [password, setPassword] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [authError, setAuthError] = useState('');
 
   // 데이터
   const [stats, setStats] = useState<Stats | null>(null);
@@ -140,53 +149,44 @@ export default function AdminPage() {
   const getAuthHeader = () => `Bearer ${password}`;
 
   // 인증 체크
-  // L-sec54 (2026-04-22): admin_password 를 localStorage → sessionStorage 로 이동.
-  //   localStorage 는 탭/브라우저 재시작에도 영구 저장되므로 XSS 탈취 창이 무한.
-  //   sessionStorage 는 탭 종료 시 만료 → XSS 공격 윈도우 축소.
-  //   레거시 localStorage 값은 발견 즉시 제거 + 마이그레이션.
+  // L-sec153 (2026-04-23): ws_token (Supabase JWT, admin-auth.html 에서 저장) 을
+  //   1순위로 사용. 과거 sessionStorage 'admin_password' 에 박혀있던 마스터
+  //   패스워드는 2순위 fallback 으로 유지하되, 토큰이 아예 없으면 /admin 루트
+  //   에서 어떤 폼도 보여주지 않고 즉시 admin-auth.html 로 redirect.
+  //   localStorage 에 과거 저장된 레거시 값은 발견 즉시 제거.
   useEffect(() => {
-    let savedPassword: string | null = null;
+    let savedToken: string | null = null;
     try {
-      savedPassword = sessionStorage.getItem('admin_password');
-      if (!savedPassword) {
+      // 1) Supabase JWT (admin-auth.html 로그인 후 저장)
+      savedToken = sessionStorage.getItem('ws_token');
+      // 2) 레거시 마스터 패스워드 fallback (과거 세션 유지용, Phase 3c 에서 제거)
+      if (!savedToken) {
+        savedToken = sessionStorage.getItem('admin_password');
+      }
+      // 3) 아주 오래된 localStorage 레거시 → sessionStorage 로 이관 후 제거
+      if (!savedToken) {
         const legacy = localStorage.getItem('admin_password');
         if (legacy) {
           sessionStorage.setItem('admin_password', legacy);
           localStorage.removeItem('admin_password');
-          savedPassword = legacy;
+          savedToken = legacy;
         }
       }
     } catch {}
-    if (savedPassword) {
-      setPassword(savedPassword);
-      setIsAuthenticated(true);
-      fetchData(savedPassword);
-    }
-  }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
-      const response = await adminFetch('/api/admin/stats', {
-        headers: { authorization: getAuthHeader() },
-      });
-      if (response.ok) {
-        // L-sec54: localStorage → sessionStorage 로 저장 (XSS 창 축소).
-        try {
-          sessionStorage.setItem('admin_password', password);
-          localStorage.removeItem('admin_password');
-        } catch {}
-        setIsAuthenticated(true);
-        setAuthError('');
-        fetchData(password);
-      } else {
-        setAuthError('암호가 올바르지 않습니다');
-      }
-    } catch (error) {
-      setAuthError('인증에 실패했습니다');
+    if (savedToken) {
+      setPassword(savedToken);
+      setIsAuthenticated(true);
+      fetchData(savedToken);
+      return;
     }
-  };
+
+    // L-sec153: 토큰 없음 → Supabase Auth 로그인 페이지로 강제 이동.
+    //   과거에 여기서 마스터 패스워드 입력 폼이 나왔던 자리.
+    try {
+      window.location.replace('/admin/admin-auth.html');
+    } catch {}
+  }, []);
 
   const fetchData = async (pwd: string) => {
     setLoading(true);
@@ -445,30 +445,22 @@ export default function AdminPage() {
   const inputClass = 'w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary text-sm';
   const labelClass = 'block text-xs font-medium text-gray-600 mb-1';
 
-  // ─── 로그인 화면 ───
+  // ─── 로그인 페이지로 이동 중 (L-sec153) ───
+  // useEffect 에서 /admin/admin-auth.html 로 replace 처리됨.
+  // 리다이렉트가 실행되기 직전까지 표시되는 중간 상태.
+  // 과거엔 이 자리에 레거시 마스터 패스워드 입력 폼(한 줄짜리)이 있었음.
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-wishes-primary to-wishes-secondary p-4">
-        <div className="bg-white rounded-2xl shadow-premium p-8 w-full max-w-md">
+        <div className="bg-white rounded-2xl shadow-premium p-8 w-full max-w-md text-center">
           <h1 className="text-3xl font-bold text-wishes-primary mb-2">WISHES</h1>
-          <p className="text-gray-600 mb-6">관리자 로그인</p>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input
-              type="password"
-              placeholder="암호를 입력하세요"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-wishes-secondary"
-            />
-            {authError && <p className="text-red-600 text-sm">{authError}</p>}
-            <button
-              type="submit"
-              className="w-full bg-wishes-secondary text-white py-3 rounded-lg font-semibold hover:bg-wishes-primary transition"
-            >
-              로그인
-            </button>
-          </form>
+          <p className="text-gray-600 mb-6">관리자 로그인 페이지로 이동 중...</p>
+          <a
+            href="/admin/admin-auth.html"
+            className="inline-block w-full bg-wishes-secondary text-white py-3 rounded-lg font-semibold hover:bg-wishes-primary transition"
+          >
+            로그인 페이지로 이동
+          </a>
         </div>
       </div>
     );
