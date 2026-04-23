@@ -132,6 +132,7 @@ export default async function ListingPage({ params }: Props) {
         previous_business, recommended_business, restricted_business,
         parking_spaces, rights_fee, parking_fee, commission_fee, previous_brand,
         special_notes, views, created_at, updated_at, contact, source_site,
+        room_layout, is_duplex, illegal_building, last_verified_at, total_parking_spaces,
         listing_images(url, sort_order), listing_features(feature),
         listing_videos(id, url, poster_url, mime_type, sort_order)
       `)

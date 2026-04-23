@@ -142,6 +142,11 @@ interface FormData {
   bathrooms: number | null;
   direction: string;
   heating_type: string;
+  // L-detail-schema (2026-04-24): 네이버 벤치마크 필드
+  room_layout: string;
+  is_duplex: boolean | null;
+  illegal_building: boolean | null;
+  total_parking_spaces: number | null;
   maintenance_fee: number | null;
   maintenance_includes: string[];
   move_in_type: string;
@@ -213,6 +218,7 @@ const INITIAL_FORM: FormData = {
   road_address: '', jibun_address: '', sigungu_code: '', bcode: '',
   area_m2: null, area_supply_m2: null, floor_current: '', floor_total: '',
   rooms: null, bathrooms: null, direction: '', heating_type: '',
+  room_layout: '', is_duplex: null, illegal_building: null, total_parking_spaces: null,
   maintenance_fee: null, maintenance_includes: [], move_in_type: '즉시',
   move_in_date: '', pet_allowed: false, parking_available: false,
   features: [], title: '', description: '', images: [], lat: null, lng: null, has_management_rules: false,
@@ -1213,6 +1219,11 @@ ${floorRows}</table></div>` : ''}
       fd.append('elevator', String(!!(form.elevator_count && form.elevator_count > 0)));
       fd.append('built_year', form.approval_date || '');
       fd.append('heating_type', form.heating_type || '');
+      // L-detail-schema (2026-04-24)
+      if (form.room_layout) fd.append('room_layout', form.room_layout);
+      if (form.is_duplex !== null) fd.append('is_duplex', String(form.is_duplex));
+      if (form.illegal_building !== null) fd.append('illegal_building', String(form.illegal_building));
+      if (form.total_parking_spaces !== null) fd.append('total_parking_spaces', String(form.total_parking_spaces));
       fd.append('pet', String(!!form.pet_allowed));
       if (form.lat) fd.append('lat', String(form.lat));
       if (form.lng) fd.append('lng', String(form.lng));
@@ -2018,6 +2029,40 @@ ${floorRows}</table></div>` : ''}
                         className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
                         <option value="">선택</option>
                         {HEATING_TYPES.map(h => <option key={h} value={h}>{h}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* 방구조 / 복층 / 위반건축물 (L-detail-schema, 2026-04-24) */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">방구조</label>
+                      <select value={form.room_layout} onChange={e => updateForm({ room_layout: e.target.value })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                        <option value="">선택</option>
+                        <option value="분리형">분리형</option>
+                        <option value="일체형">일체형</option>
+                        <option value="복층">복층</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">복층여부</label>
+                      <select value={form.is_duplex === null ? '' : form.is_duplex ? 'true' : 'false'}
+                        onChange={e => updateForm({ is_duplex: e.target.value === '' ? null : e.target.value === 'true' })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                        <option value="">선택</option>
+                        <option value="false">단층</option>
+                        <option value="true">복층</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">위반건축물</label>
+                      <select value={form.illegal_building === null ? '' : form.illegal_building ? 'true' : 'false'}
+                        onChange={e => updateForm({ illegal_building: e.target.value === '' ? null : e.target.value === 'true' })}
+                        className="w-full px-3 py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 text-sm">
+                        <option value="">선택</option>
+                        <option value="false">해당없음</option>
+                        <option value="true">있음</option>
                       </select>
                     </div>
                   </div>

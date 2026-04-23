@@ -104,6 +104,12 @@ const createListingSchema = z.object({
     listing_images: z.array(z.string()).optional().nullable(),
     area_pyeong: z.number().optional().nullable(),
     floor_info: z.string().optional().nullable(),
+    // L-detail-schema (2026-04-24): 상세 카드 v2 필드.
+    room_layout: z.enum(['분리형', '일체형', '복층']).optional().nullable(),
+    is_duplex: z.boolean().optional().nullable(),
+    illegal_building: z.boolean().optional().nullable(),
+    last_verified_at: z.string().optional().nullable(),
+    total_parking_spaces: z.number().int().nonnegative().optional().nullable(),
 });
 
 /**
@@ -567,6 +573,12 @@ export async function POST(request: NextRequest) {
         previous_brand: listingData.previous_brand || null,
         commission_fee: listingData.commission_fee || null,
         special_notes: listingData.special_notes || null,
+        // L-detail-schema (2026-04-24): 상세 카드 v2 필드
+        room_layout: listingData.room_layout || null,
+        is_duplex: listingData.is_duplex ?? null,
+        illegal_building: listingData.illegal_building ?? null,
+        last_verified_at: listingData.last_verified_at || null,
+        total_parking_spaces: listingData.total_parking_spaces ?? null,
         // L-v7-p2 (2026-04-22): scope=mine 전파 — JWT 사용자 UID 기록
         created_by: createdByUid,
       })

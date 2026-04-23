@@ -617,6 +617,13 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 {listing.lease_period && <InfoRow label="임대기간" value={listing.lease_period} />}
                 {listing.building_purpose && <InfoRow label="건물용도" value={listing.building_purpose} />}
                 {listing.usage_approved && <InfoRow label="사용승인일" value={listing.usage_approved} />}
+                {/* L-detail-schema (2026-04-24): 네이버 벤치마크 필드 */}
+                {listing.room_layout && <InfoRow label="방구조" value={listing.room_layout} />}
+                {listing.is_duplex === true && <InfoRow label="복층여부" value="복층" />}
+                {listing.is_duplex === false && <InfoRow label="복층여부" value="단층" />}
+                {listing.illegal_building === false && <InfoRow label="위반건축물" value="해당없음" />}
+                {listing.illegal_building === true && <InfoRow label="위반건축물" value="있음" />}
+                {listing.total_parking_spaces > 0 && <InfoRow label="총주차대수" value={`${listing.total_parking_spaces}대`} />}
               </div>
 
               {/* V4-10: 방향 나침반 */}
@@ -761,7 +768,12 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
                 <ShieldCheck className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <div className="text-sm font-semibold text-green-800 mb-1">허위매물 차단 4단 검증 완료</div>
-                  <div className="text-xs text-green-700 leading-relaxed">건축물대장 일치 · 사용승인 확인 · 등기부 열람 · 현장확인</div>
+                  <div className="text-xs text-green-700 leading-relaxed">
+                    건축물대장 일치 · 사용승인 확인 · 등기부 열람 · 현장확인
+                    {listing.last_verified_at && (
+                      <> · <span className="font-medium">{new Date(listing.last_verified_at).toLocaleDateString('ko-KR')}</span></>
+                    )}
+                  </div>
                 </div>
               </div>
 
