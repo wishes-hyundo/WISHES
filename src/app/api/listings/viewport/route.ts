@@ -377,7 +377,26 @@ export async function GET(req: NextRequest) {
       q = q.gte('built_year', String(threshold));
     }
 
-    if (hasImages) q = q.not('thumb_url', 'is', null);
+    // L-photofilter1 (2026-04-23 p.m.): 사진 있음 필터 정확도 수정.
+    //   이전: thumb_url IS NOT NULL — 크롤링 썸네일도 NOT NULL 이라 무의미
+    //   이제: listing_images 에 자체 업로드(/api/images, supabase, r2) 있는 매물만 통과.
+    //   현재 DB 는 5개 매물/57장밖에 없어 이 필터 걸면 5건만 반환 — 실상 반영.
+    if (hasImages) {
+      try {
+        const { data: selfHostedListings } = await supabase
+          .from('listing_images')
+          .select('listing_id')
+          .or('url.ilike.%/api/images/%,url.ilike.%.supabase.co/storage/%,url.ilike.%.r2.dev/%,url.ilike.%.r2.cloudflarestorage.com/%');
+        const ids = Array.from(new Set(((selfHostedListings ?? []) as { listing_id: number }[]).map((r) => r.listing_id)));
+        if (ids.length === 0) {
+          q = q.eq('id', -1); // 매치 0건 강제
+        } else {
+          q = q.in('id', ids);
+        }
+      } catch {
+        q = q.not('thumb_url', 'is', null); // 폴백 (완화 조건)
+      }
+    }
     if (features && features.length) q = q.overlaps('features', features);
 
     const { data, error } = await q
@@ -399,8 +418,14 @@ export async function GET(req: NextRequest) {
     //   탐색해 첫 장을 썸네일로 복원한다. 중개사가 매물 등록 후 자체 사진만 업로드한
     //   케이스 지원 — "실제로 올린 사진이 있는데 썸네일이 크롤링 원본이라 차단되어
     //   결국 카드에 사진이 안 뜨던" 문제 해결.
+    // L-imgrestore2 (2026-04-23 p.m.): 배치 쿼리 최대 300개로 제한.
+    //   수천 IN 배열은 Postgres plan 이 slow → viewport 응답이 5~10초 걸리던 원인.
+    //   updated_at 최신순 상위 300개만 복구 대상 (사용자에게 가장 눈에 띄는 매물).
+    //   나머지는 placeholder. 근본 해결은 mv_map_listings 를 self-hosted 우선으로 재정의
+    //   하는 SQL migration (별도 수동 실행).
     const blockedIds: number[] = rows
       .filter((r) => r.source_site && (!r.thumb_url || !isSelfHostedImage(r.thumb_url)))
+      .slice(0, 300)
       .map((r) => r.id as number);
 
     const selfHostedThumbMap = new Map<number, string>();
