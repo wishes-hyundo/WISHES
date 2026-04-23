@@ -397,11 +397,7 @@ export function ListingDetailModal() {
             <span className="line-clamp-2">{addressLine}</span>
           </div>
 
-          {listing.ai_title && (
-            <div className="text-[13px] font-semibold leading-snug text-neutral-800">
-              {listing.ai_title}
-            </div>
-          )}
+
         </div>
 
         {/* 기본정보 */}
@@ -570,7 +566,7 @@ export function ListingDetailModal() {
 
         {/* L-modal-meta (2026-04-24): 메타 footer — 매물번호·최초등록·최근확인·조회수 */}
         <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px] text-neutral-400">
-          <span>매물번호 <span className="font-mono text-neutral-500">W-{listing.id}</span></span>
+          <span>매물번호 <span className="font-mono text-neutral-500">{listing.id}</span></span>
           {detailExtra?.created_at && (
             <span>최초등록 <span className="text-neutral-500">{new Date(detailExtra.created_at).toLocaleDateString('ko-KR')}</span></span>
           )}
