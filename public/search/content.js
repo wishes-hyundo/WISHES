@@ -675,7 +675,9 @@
     keyword: '',                  // Free text search
     sortBy: 'latest',            // Primary sort
     sort2: 'none',               // Secondary sort
-    perPage: 20,
+    // L-search2 (2026-04-23): 기본 perPage 20 → 100.
+    // 6000+ 매물 기준 20/페이지는 300+ 페이지라 체감이 끝없었던 문제 해소.
+    perPage: 100,
     page: 1,
 
     // UI state
@@ -1982,9 +1984,9 @@
             </select>
             <select class="ws-select" id="ws-per-page" style="padding:4px 6px;font-size:12px;">
               <option value="10">10건</option>
-              <option value="20" selected>20건</option>
+              <option value="20">20건</option>
               <option value="50">50건</option>
-              <option value="100">100건</option>
+              <option value="100" selected>100건</option>
             </select>
             <button class="ws-btn ws-btn-group-toggle" id="ws-group-toggle" title="소재지 그룹 전체 펼침/닫힘" style="padding:4px 8px;font-size:11px;">📍그룹</button>
             <label class="ws-checkbox-label" style="font-size:11px;">
@@ -2949,7 +2951,17 @@
     var hideImg = s.hideImages ? 'ws-hide-img' : '';
     var imgs = listing.images || listing.listing_images || [];
     var imageCount = imgs.length || 0;
-    var firstImgUrl = imgs.length > 0 ? (imgs[0].url || imgs[0]) : '';
+    // L-search2 (2026-04-23): thumbnail_url fallback 추가.
+    //   DB 의 listing_images 테이블 row 가 누락된 매물에도 listings.thumbnail_url
+    //   (top-level) 은 있는 케이스가 다수 — 기존 코드는 이 경우 ð  placeholder 만
+    //   표시해서 사진이 안 보이는 증상의 주요 원인이었음.
+    var firstImgUrl = imgs.length > 0
+      ? (imgs[0].url || imgs[0])
+      : (listing.thumbnail_url || '');
+    // 폴백 썸네일이 있으면 imageCount 도 최소 1 로 표기해서 '사진 없음' 뱃지 숨김.
+    if (!imgs.length && firstImgUrl && imageCount === 0) {
+      imageCount = 1;
+    }
     // [add 2026-04-20] 동영상 존재 여부 — 카드 썸네일에 ▶ 배지 노출
     var vidCount = (listing.videos && listing.videos.length) || (listing.listing_videos && listing.listing_videos.length) || 0;
     var areaText = (listing.area_m2 != null && listing.area_m2 > 0) ? listing.area_m2 + 'm² (' + Math.round(listing.area_m2 / 3.30579) + '평)' : '-';

@@ -194,6 +194,9 @@ export async function GET(request: NextRequest) {
         // L-search1: sortBy='latest' 정렬키 — minimal slim 모드에서 누락되어
         //   정렬이 섞여 보이는 증상 수정.
         'created_at',
+        // L-search2 (2026-04-23): listing_images 가 비어있는 매물 폴백용.
+        //   카드 renderer 가 listing.thumbnail_url 을 fallback 으로 사용.
+        'thumbnail_url',
         'created_by', // L-v7-p3: scope=mine 디버그/검증용 echo
         'listing_images(url)' // ⚡ id/is_thumbnail/sort_order 제거 — 이미지 페이로드 -75%
       ].join(',');
