@@ -107,3 +107,29 @@ export async function POST(request: NextRequest) {
 
       // L-sec159 (2026-04-23): 응답에 status 필드 누락 버그 수정.
       //   admin-auth.html 클라이언트는 data.user.sta
+
+        // L-sec159 (2026-04-23): 응답에 status 필드 누락 버그 수정.
+        //   admin-auth.html 클라이언트는 data.user.status === 'approved' 로 분기하는데
+        //   서버가 이 필드를 빼먹어서 '승인됨' 사용자도 전원 '계정이 비활성' 오류로 튕겼음.
+        //   여기 도달했다는 것은 pending/rejected/blocked 가 아니라는 뜻이므로 'approved'.
+        return NextResponse.json({
+                  success: true,
+                  token: authData.session?.access_token || authData.user.id,
+                  user: {
+                              id: authData.user.id,
+                              name: userName,
+                              email,
+                              role: userRole,
+                              company: userCompany,
+                              status: 'approved',
+                  }
+        });
+
+    } catch (error) {
+            console.error('Login error:', error);
+            return NextResponse.json(
+                { success: false, message: '서버 오류가 발생했습니다.' },
+                { status: 500 }
+                    );
+    }
+}
