@@ -62,7 +62,7 @@ export const PUBLIC_LISTING_COLUMNS: readonly string[] = [
   'address', 'dong', 'gu', 'lat', 'lng',
 
   // 설명 — description 은 자체 매물에 한해 노출(sanitizer 에서 크롤링 매물만 제거)
-  'description', 'ai_description',
+  'description', 'ai_description', 'ai_title',
 
   // 입주 / 준공
   'available_date', 'built_year',
@@ -85,6 +85,12 @@ export const PUBLIC_LISTING_COLUMNS: readonly string[] = [
   //   ⚠️ source_site 는 boolean 성격의 플래그로만 쓰인다.
   //      source_url/source_id 등 실제 원본 주소·식별자는 절대 포함하지 않는다.
   'source_site',
+
+  // L-detail-schema (2026-04-24): 상세 카드 v2 필드
+  'room_layout', 'is_duplex', 'illegal_building', 'last_verified_at', 'total_parking_spaces',
+
+  // L-panel-agent (2026-04-24): 담당자 모달용 — profiles fetch 트리거
+  'created_by',
 
   // 조회 메타
   'views', 'created_at', 'updated_at',

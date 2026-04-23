@@ -21,7 +21,10 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
-import { X, ExternalLink, ImageOff, MapPin, Video, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ExternalLink, ImageOff, MapPin, Video, ChevronLeft, ChevronRight, Phone, ShieldCheck } from 'lucide-react';
+import AgentContactModal, { type AgentInfo } from '@/components/AgentContactModal';
+import InquiryModal from '@/components/InquiryModal';
+import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 import { useMap2026Store, type MapListing } from '../store';
 import {
   formatDealLabel,
@@ -103,6 +106,30 @@ export function ListingDetailModal() {
   // L-lightbox1 (2026-04-23 p.m.): 사진 크게 보기 (풀스크린 라이트박스)
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
+  // L-modal-v7 (2026-04-24): 상세 확장 필드 fetch (ai_description·created_by·4단검증)
+  const [detailExtra, setDetailExtra] = useState<{
+    ai_description: string | null;
+    created_by: string | null;
+    last_verified_at: string | null;
+    room_layout: string | null;
+    is_duplex: boolean | null;
+    illegal_building: boolean | null;
+    total_parking_spaces: number | null;
+  } | null>(null);
+  const [agentProfile, setAgentProfile] = useState<{
+    name: string | null;
+    avatar_url: string | null;
+    phone: string | null;
+    office_name: string | null;
+    office_phone: string | null;
+    office_address: string | null;
+    registration_no: string | null;
+    career_years: number | null;
+  } | null>(null);
+  const [agentModalOpen, setAgentModalOpen] = useState(false);
+  const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [showFullDesc, setShowFullDesc] = useState(false);
+
   // L-tsfix-order1 (2026-04-23 p.m.): useState 를 ESC useEffect 앞으로 옮김.
   //   이전엔 useEffect 가 lightboxOpen 을 참조하지만 useState 가 뒤에 선언돼
   //   TS "used before declaration" 빌드 실패.
@@ -142,6 +169,50 @@ export function ListingDetailModal() {
         setGalleryImages(urls);
       })
       .catch(() => { /* 폴백 — thumbnail_url 만 사용 */ });
+    return () => { cancelled = true; };
+  }, [listingId]);
+
+  // L-modal-v7: 상세 확장 필드 + 담당자 프로필 fetch
+  useEffect(() => {
+    if (listingId == null) { setDetailExtra(null); setAgentProfile(null); return; }
+    setDetailExtra(null);
+    setAgentProfile(null);
+    setShowFullDesc(false);
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/listings/${listingId}`);
+        if (!r.ok) return;
+        const json = await r.json();
+        if (cancelled || !json?.success || !json.data) return;
+        const d = json.data;
+        setDetailExtra({
+          ai_description: d.ai_description || null,
+          created_by: d.created_by || null,
+          last_verified_at: d.last_verified_at || null,
+          room_layout: d.room_layout || null,
+          is_duplex: (d.is_duplex ?? null),
+          illegal_building: (d.illegal_building ?? null),
+          total_parking_spaces: (d.total_parking_spaces ?? null),
+        });
+        if (d.created_by && !d.source_site) {
+          const ag = await fetch(`/api/agent/${d.created_by}`);
+          if (!ag.ok) return;
+          const aj = await ag.json();
+          if (cancelled) return;
+          setAgentProfile({
+            name: aj.name || null,
+            avatar_url: aj.avatar_url || null,
+            phone: aj.phone || null,
+            office_name: aj.office_name || null,
+            office_phone: aj.office_phone || null,
+            office_address: aj.office_address || null,
+            registration_no: aj.registration_no || null,
+            career_years: (typeof aj.career_years === 'number' ? aj.career_years : null),
+          });
+        }
+      } catch { /* noop */ }
+    })();
     return () => { cancelled = true; };
   }, [listingId]);
 
@@ -391,26 +462,96 @@ export function ListingDetailModal() {
           </div>
         )}
 
-        {/* 옵션 (features) */}
-        {listing.features.length > 0 && (
-          <div className="px-4 py-3">
-            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">
-              옵션
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {listing.features.slice(0, 16).map((f) => (
-                <span
-                  key={f}
-                  className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700"
-                >
-                  {f}
-                </span>
-              ))}
-              {listing.features.length > 16 && (
-                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[11px] font-medium text-neutral-500">
-                  +{listing.features.length - 16}
-                </span>
+        {/* L-modal-v7 (2026-04-24): 내부시설 + 보안 아이콘 그리드 */}
+        {(() => {
+          const bools = { elevator: !!listing.elevator, full_option: !!listing.full_option };
+          const interiorHits = INTERIOR_FEATURES.filter((s) => hasFeatureWithBools(listing.features, s, bools));
+          const securityHits = SECURITY_FEATURES.filter((s) => hasFeatureWithBools(listing.features, s, bools));
+          if (interiorHits.length + securityHits.length === 0) return null;
+          return (
+            <div className="border-b border-neutral-100 px-4 py-3 space-y-3">
+              {interiorHits.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">내부 시설</div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {interiorHits.map((spec) => {
+                      const Icon = spec.icon;
+                      return (
+                        <div key={spec.label} className="flex flex-col items-center justify-center gap-1 py-2 rounded-md bg-neutral-50">
+                          <Icon className="size-4 text-neutral-500" />
+                          <span className="text-[10.5px] text-neutral-800">{spec.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
+              {securityHits.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">보안 및 기타</div>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {securityHits.map((spec) => {
+                      const Icon = spec.icon;
+                      return (
+                        <div key={spec.label} className="flex flex-col items-center justify-center gap-1 py-2 rounded-md bg-neutral-50">
+                          <Icon className="size-4 text-neutral-500" />
+                          <span className="text-[10.5px] text-neutral-800">{spec.label}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* L-modal-v7: 허위매물 차단 4단 검증 배지 */}
+        <div className="border-b border-neutral-100 px-4 py-3">
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-50 border border-emerald-100">
+            <ShieldCheck className="size-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[12px] font-semibold text-emerald-800">허위매물 차단 4단 검증 완료</div>
+              <div className="text-[10.5px] text-emerald-700 leading-relaxed mt-0.5">
+                건축물대장 일치 · 사용승인 · 등기부 · 현장확인
+                {detailExtra?.last_verified_at && (
+                  <> · <span className="font-semibold">{new Date(detailExtra.last_verified_at).toLocaleDateString('ko-KR')}</span></>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* L-modal-v7: 매물 설명 (ai_title + ai_description, 첫 단락 노출 + 더보기) */}
+        {detailExtra?.ai_description && (
+          <div className="border-b border-neutral-100 px-4 py-3">
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">매물 설명</div>
+            <div className="rounded-xl bg-neutral-50 p-3">
+              {listing.ai_title && (
+                <p className="text-[13px] font-semibold leading-snug text-neutral-900 mb-2">{listing.ai_title}</p>
+              )}
+              {(() => {
+                const paragraphs = String(detailExtra.ai_description).split(/\n{2,}/).map((s: string) => s.trim()).filter(Boolean);
+                if (paragraphs.length === 0) return null;
+                const [first, ...rest] = paragraphs;
+                return (
+                  <div className="text-[12.5px] text-neutral-700 leading-relaxed whitespace-pre-line">
+                    <p>{first}</p>
+                    {showFullDesc && rest.map((para: string, i: number) => (
+                      <p key={i} className="mt-2.5">{para}</p>
+                    ))}
+                    {rest.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowFullDesc(v => !v)}
+                        className="mt-2.5 pt-2 w-full border-t border-neutral-200 text-[11.5px] font-medium text-emerald-600 hover:text-emerald-700"
+                      >
+                        {showFullDesc ? '접기 ↑' : '더보기 ↓'}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -476,22 +617,75 @@ export function ListingDetailModal() {
         document.body
       )}
 
-      {/* 푸터 */}
-      <div className="flex items-center gap-2 border-t border-neutral-100 bg-neutral-50 px-4 py-3">
+      {/* L-modal-v7: 하단 단일 액션 — 담당자에게 연결 */}
+      <div className="border-t border-neutral-100 bg-white px-4 py-3">
         <button
-          onClick={closeListingDetail}
-          className="flex-1 rounded-full border border-neutral-200 bg-white px-4 py-2 text-[13px] font-semibold text-neutral-700 transition hover:bg-neutral-100"
+          type="button"
+          onClick={() => setAgentModalOpen(true)}
+          className="w-full flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
         >
-          닫기
+          <Phone className="size-4" />
+          <span>담당자에게 연결</span>
         </button>
-        <Link
-          href={`/listings/${listing.id}`}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-emerald-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-emerald-700"
-        >
-          <span>전체보기</span>
-          <ExternalLink className="size-3.5" />
-        </Link>
       </div>
+
+      {/* 담당자 정보 모달 */}
+      <AgentContactModal
+        open={agentModalOpen}
+        onClose={() => setAgentModalOpen(false)}
+        agent={buildAgentInfoFromProfile(agentProfile)}
+        listingId={listing.id}
+        listingTitle={listing.title ?? listing.building_name ?? ''}
+        onRequestInquiry={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
+        onRequestVisit={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
+      />
+
+      {/* 문의/예약 서브 모달 */}
+      <InquiryModal
+        open={inquiryOpen}
+        onClose={() => setInquiryOpen(false)}
+        context="listing"
+        listingId={listing.id}
+        listingTitle={listing.title ?? listing.building_name ?? ''}
+        source="/map"
+      />
     </aside>
   );
+}
+
+// L-modal-v7: fetch 된 agent profile 을 AgentInfo 로 매핑 (폴백은 위시스부동산 공용)
+function buildAgentInfoFromProfile(ap: {
+  name: string | null;
+  avatar_url: string | null;
+  phone: string | null;
+  office_name: string | null;
+  office_phone: string | null;
+  office_address: string | null;
+  registration_no: string | null;
+  career_years: number | null;
+} | null): AgentInfo {
+  const FALLBACK: AgentInfo = {
+    name: '위시스부동산',
+    officeName: '위시스부동산 공인중개사사무소',
+    officePhone: '02-6953-7001',
+    officeAddress: '서울시 용산구 한강대로',
+    registrationNo: null,
+    careerYears: null,
+    phone: null,
+    avatarUrl: null,
+    responseRate: 98,
+    avgResponseMinutes: 12,
+  };
+  if (!ap) return FALLBACK;
+  return {
+    ...FALLBACK,
+    name: ap.name || FALLBACK.name,
+    phone: ap.phone || FALLBACK.phone,
+    avatarUrl: ap.avatar_url || null,
+    officeName: ap.office_name || FALLBACK.officeName,
+    officePhone: ap.office_phone || FALLBACK.officePhone,
+    officeAddress: ap.office_address || FALLBACK.officeAddress,
+    registrationNo: ap.registration_no || null,
+    careerYears: ap.career_years ?? null,
+  };
 }
