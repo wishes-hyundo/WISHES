@@ -624,10 +624,10 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
         return;
       }
 
-      // ── 읍/면/동 (level 4~6) — L-naverstyle1 (2026-04-24 pm) ─────────
+      // ── 읍/면/동 (level 3~6) — L-naverstyle5 (2026-04-24 pm) ─────────
       //   네이버 부동산 동 단위 뷰에 해당.  viewport 내 동만 렌더 + 밀도 상한으로
-      //   시각 과부하 방지.
-      if (level >= 4) {
+      //   시각 과부하 방지.  level 3 포함 (사용자 250m scale 에서도 동 chip 유지).
+      if (level >= 3) {
         const data = await loadDong();
         if (!data?.features) return;
         const bounds = typeof mapInst.getBounds === 'function' ? mapInst.getBounds() : null;
