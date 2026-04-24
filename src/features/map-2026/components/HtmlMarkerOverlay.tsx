@@ -49,6 +49,15 @@ interface KakaoNamespace {
   maps?: KakaoMapsNs;
 }
 
+/** 서버 사전집계 클러스터 (rpc_map_clusters 응답) */
+export interface ServerClusterInput {
+  cluster_id: string;
+  lat: number;
+  lng: number;
+  count: number;
+  sample_ids?: number[] | null;
+}
+
 interface Props {
   map: unknown;
   listings: MapListing[];
@@ -60,6 +69,10 @@ interface Props {
   onClickComplex?: (name: string, listings: MapListing[]) => void;
   /** 선택: cluster (count ≥ 2) 클릭 시 리스트 drawer.  없으면 첫 매물 상세. */
   onClickCluster?: (listings: MapListing[]) => void;
+  /** L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터.
+   *  제공되면 이 데이터로 카운트 원을 그린다 — 클라이언트 grid 클러스터링 우회.
+   *  /api/map/clusters (rpc_map_clusters) 에서 Quadkey 캐시 + H3 MV 집계 결과. */
+  serverClusters?: ServerClusterInput[];
 }
 
 // Kakao level(1~14) → 그리드 셀 크기 (위경도 degree).
@@ -200,6 +213,7 @@ export default function HtmlMarkerOverlay({
   onClickListing,
   onClickComplex,
   onClickCluster,
+  serverClusters,
 }: Props) {
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
 
@@ -227,6 +241,52 @@ export default function HtmlMarkerOverlay({
       //   가 시/도 폴리곤 + 카운트 chip 으로 대체 표시.  grid 카운트 원은 숨김 →
       //   시각 중복 제거.
       if (level >= 10) return;
+
+      // ━━ L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 우선 경로 ━━
+      //   serverClusters 가 제공되면 클라이언트 grid 클러스터링을 완전히 건너뛰고
+      //   바로 카운트 원을 렌더한다.  listings[] 는 ListPanel 용으로만 쓰이고
+      //   지도 마커는 /api/map/clusters 의 pre-aggregated 결과로만 그림.
+      if (Array.isArray(serverClusters) && serverClusters.length > 0) {
+        // 개별(count===1) 은 sample_ids 로 listing id 추론 가능.
+        const listingById = new Map<number, MapListing>();
+        for (const l of listings) listingById.set(l.id, l);
+        for (const c of serverClusters) {
+          const count = c.count;
+          const isSingle = count === 1;
+          const singleId = isSingle && c.sample_ids && c.sample_ids.length > 0
+            ? c.sample_ids[0]
+            : null;
+          const single = singleId != null ? listingById.get(singleId) : undefined;
+          const selected = singleId != null && selectedListingId === singleId;
+          const size = count >= 100 ? 46 : count >= 10 ? 42 : count >= 2 ? 40 : 36;
+          const el = makeCircleElement({ count, selected, size });
+          el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (isSingle && singleId != null) {
+              onClickListing(singleId);
+            } else if (onClickCluster && single) {
+              onClickCluster([single]);
+            } else if (singleId != null) {
+              onClickListing(singleId);
+            }
+            // cluster(count≥2) 에서 sample_ids 가 없는 경우는 현재 bbox 를 좁혀가는
+            // UX 로 이어져야 하지만 우선 기본 동작 (아무것도 안 함).  후속 개선 여지.
+          });
+          try {
+            const ov = new maps.CustomOverlay({
+              position: new maps.LatLng(c.lat, c.lng),
+              content: el,
+              xAnchor: 0.5,
+              yAnchor: 0.5,
+              zIndex: 10,
+              clickable: true,
+            });
+            ov.setMap(map);
+            overlaysRef.current.push(ov);
+          } catch { /* SDK race — skip */ }
+        }
+        return;  // 서버 클러스터 모드: 아래 grid 로직 실행 안 함
+      }
 
       // 카테고리 필터 — 'investment' 는 cross-cutting 이므로 필터 해제.
       const filtered = category === 'investment'
@@ -338,7 +398,7 @@ export default function HtmlMarkerOverlay({
       } catch { /* noop */ }
       cleanupOverlays();
     };
-  }, [map, listings, selectedListingId, category, onClickListing, onClickComplex, onClickCluster]);
+  }, [map, listings, selectedListingId, category, onClickListing, onClickComplex, onClickCluster, serverClusters]);
 
   return null;
 }

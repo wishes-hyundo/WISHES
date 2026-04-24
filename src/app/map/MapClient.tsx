@@ -19,7 +19,7 @@ import Link from 'next/link';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 
-import { useMap2026Store } from '@/features/map-2026/store';
+import { useMap2026Store, type MapListing, type PropertyCategory } from '@/features/map-2026/store';
 import { useViewport } from '@/features/map-2026/hooks/useViewport';
 import { useSemanticZoom } from '@/features/map-2026/hooks/useSemanticZoom';
 import { useHeroRanking } from '@/features/map-2026/hooks/useHeroRanking';
@@ -54,6 +54,8 @@ import KakaoDeckOverlay, { type MapItem } from '@/components/map/KakaoDeckOverla
 import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay';
 // L-adminpoly1 (2026-04-24 pm): 축소 뷰 시/도 폴리곤 하이라이트
 import AdminRegionOverlay from '@/features/map-2026/components/AdminRegionOverlay';
+// L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 훅
+import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
 
 // 서울 기본 중심
 const SEOUL = { lat: 37.4979, lng: 127.0276 };
@@ -110,6 +112,8 @@ export default function MapClient() {
   //   useRef 값 변경은 리렌더를 유발하지 않아 {ready && kakaoMapRef.current}
   //   조건이 false 로 고정되는 경우가 있었다. state 로 미러링해서 마운트 보장.
   const [kakaoMap, setKakaoMap] = useState<unknown>(null);
+  // L-worldclass1: Kakao level 추적 → useMapClusters 에 전달
+  const [kakaoLevel, setKakaoLevel] = useState<number>(5);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [failReason, setFailReason] = useState<string>('');
@@ -187,6 +191,7 @@ export default function MapClient() {
             north: ne.getLat(),
           });
           setZoom(levelToZoom(map.getLevel()));
+          setKakaoLevel(map.getLevel());  // L-worldclass1: useMapClusters 에 전달
         };
 
         idleListener = sync;
@@ -360,9 +365,10 @@ export default function MapClient() {
                 items={[]}
                 onClickListing={onClickListing}
               />
-              {/* L-mapmarker1: Tier1 pill + Tier2 원 HTML 마커 */}
-              <HtmlMarkerOverlay
-                map={kakaoMap}
+              {/* L-worldclass1 (2026-04-24 pm): serverClusters 주입 */}
+              <HtmlMarkerOverlayWithClusters
+                kakaoMap={kakaoMap}
+                kakaoLevel={kakaoLevel}
                 listings={listings}
                 selectedListingId={detailListingId}
                 category={filterCategory}
@@ -467,5 +473,31 @@ function TopRightActions() {
         <span className="sm:hidden">로그인</span>
       </button>
     </div>
+  );
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// L-worldclass1 (2026-04-24 pm): HtmlMarkerOverlay 를 useMapClusters 와 묶은 wrapper.
+// useMapClusters 는 hook 이라 map renderer 가 마운트된 상태에서만 호출해야 하므로
+// kakaoMap 이 준비된 조건부 subtree 안에서 쓴다.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function HtmlMarkerOverlayWithClusters(props: {
+  kakaoMap: unknown;
+  kakaoLevel: number;
+  listings: MapListing[];
+  selectedListingId: number | null;
+  category: PropertyCategory;
+  onClickListing: (id: number) => void;
+}) {
+  const { clusters } = useMapClusters(props.kakaoLevel);
+  return (
+    <HtmlMarkerOverlay
+      map={props.kakaoMap}
+      listings={props.listings}
+      selectedListingId={props.selectedListingId}
+      category={props.category}
+      onClickListing={props.onClickListing}
+      serverClusters={clusters}
+    />
   );
 }
