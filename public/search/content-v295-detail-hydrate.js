@@ -57,7 +57,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (function(){
   'use strict';
-  var VERSION = '2.9.7';
+  var VERSION = '2.9.8';
   var TAG = '[WP v' + VERSION + ' detail-hydrate]';
 
   // 이중 탑재 방지 (HMR · 재진입)
@@ -92,8 +92,12 @@
       if (v === undefined) continue;
       l[k] = v;
     }
-    if (full.listing_images && !l.images) l.images = full.listing_images;
-    if (full.listing_videos && !l.videos) l.videos = full.listing_videos;
+    // L-search5c (2026-04-24): 이전 !l.images 게이트는 minimal 응답이 이미
+    //   l.images 에 1장짜리 배열을 심어놨을 때 alias 업데이트를 차단했다.
+    //   content-v240-detail.js 의 갤러리 렌더가 l.images 를 참조하므로 결과적으로
+    //   모달에 1장만 표시되는 핵심 버그. 무조건 덮어써서 17장 전부 반영.
+    if (full.listing_images) l.images = full.listing_images;
+    if (full.listing_videos) l.videos = full.listing_videos;
   }
 
   /** 모달이 여전히 이 매물을 보여주고 있는지 확인 */

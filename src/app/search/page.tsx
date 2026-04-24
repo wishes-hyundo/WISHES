@@ -303,7 +303,7 @@ export default function SearchPortalPage() {
     if (!existingV295) {
       const v295Script = document.createElement('script');
       v295Script.id = 'ws-ext-patch-v295-detail-hydrate';
-      v295Script.src = '/search/content-v295-detail-hydrate.js?v=20260424c';
+      v295Script.src = '/search/content-v295-detail-hydrate.js?v=20260424d';
       v295Script.async = false;
       v295Script.defer = false;
       document.body.appendChild(v295Script);
