@@ -229,8 +229,8 @@ export async function GET(request: NextRequest) {
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v4-mine', scopeUid as string]
-        : ['listings-minimal-v4'];
+        ? ['listings-minimal-v5-mine', scopeUid as string]
+        : ['listings-minimal-v5'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
@@ -242,7 +242,6 @@ export async function GET(request: NextRequest) {
             .from('listings')
             .select(selectFields)
             .order('created_at', { ascending: false })
-            .limit(1, { foreignTable: 'listing_images' })
             .range(0, PAGE_SIZE - 1);
           if (scope === 'mine' && scopeUid) firstQ = firstQ.eq('created_by', scopeUid);
           const { data: firstPage, error: firstError } = await firstQ;
@@ -259,7 +258,6 @@ export async function GET(request: NextRequest) {
                 .from('listings')
                 .select(selectFields)
                 .order('created_at', { ascending: false })
-                .limit(1, { foreignTable: 'listing_images' })
                 .range(from, from + PAGE_SIZE - 1);
               if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
               parallelPages.push(q);
@@ -292,6 +290,15 @@ export async function GET(request: NextRequest) {
               if (row.thumbnail_url && !isSelfHostedImage(row.thumbnail_url)) {
                 row.thumbnail_url = null;
               }
+            }
+            // L-search6 (2026-04-24): supabase-js 의 .limit(1, {foreignTable:'listing_images'})
+            //   가 main pagination (range) 과 충돌해서 range(1000~) 페이지가 조용히 빈 배열
+            //   반환 → 전체 매물이 2,000개로 축소되는 치명적 버그. foreignTable limit 을
+            //   포기하고 DB 에서 모든 이미지 받은 뒤 여기서 첫 1장만 유지. 카드 썸네일
+            //   용도에는 1장이면 충분. 상세 모달은 /api/admin/listings/[id] 에서 전체
+            //   이미지 별도 fetch 하므로 영향 없음. 응답 페이로드는 오히려 줄어듬.
+            if (Array.isArray(row.listing_images) && row.listing_images.length > 1) {
+              row.listing_images = row.listing_images.slice(0, 1);
             }
             const out: any = {};
             for (const k in row) {
