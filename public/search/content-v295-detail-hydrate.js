@@ -1,5 +1,5 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// content-v295-detail-hydrate.js (2026-04-23)
+// content-v295-detail-hydrate.js (2026-04-23, retry patched 2026-04-24)
 //
 // 🚨 L-crit3  —  /search 상세모달 "본문 없음" 회귀 긴급 복구
 //
@@ -57,7 +57,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (function(){
   'use strict';
-  var VERSION = '2.9.5';
+  var VERSION = '2.9.6';
   var TAG = '[WP v' + VERSION + ' detail-hydrate]';
 
   // 이중 탑재 방지 (HMR · 재진입)
@@ -105,6 +105,38 @@
     } catch(_) { return false; }
   }
 
+  // L-search5 (2026-04-24): Vercel serverless cold-start 시 verifyAdminAuth 의
+  //   Supabase getUser() 가 8s race timeout 을 터트려 간헐적 401. 기존에는 fetch
+  //   가 401 이면 silent-skip 해서 모달에 minimal 응답(이미지 1장) 만 남고
+  //   "추가 사진들이 안 나오는" 고착 상태가 재현됐다. 재시도를 한 번 추가 —
+  //   첫 401 은 cold-start 로 간주하고 1.2s 뒤 warm 상태에서 재호출한다. 두 번째도
+  //   실패하면 진짜 인증 문제 (token 만료 등) 로 판단해 silent-skip 로 폴백.
+  function fetchDetailWithRetry(id, token) {
+    var url = '/api/admin/listings/' + encodeURIComponent(id);
+    var opts = {
+      headers: { 'Authorization': 'Bearer ' + token },
+      cache: 'no-store',
+      credentials: 'same-origin'
+    };
+    function tryOnce() { return fetch(url, opts); }
+    return tryOnce().then(function(r){
+      if (r && r.ok) return r.json();
+      // 401/5xx → 1.2s 대기 후 한 번 재시도
+      var code = r ? r.status : 0;
+      console.warn(TAG + ' hydrate 1st attempt failed (HTTP ' + code + '), retrying in 1200ms…');
+      return new Promise(function(resolve){ setTimeout(resolve, 1200); })
+        .then(tryOnce)
+        .then(function(r2){
+          if (r2 && r2.ok) {
+            console.log(TAG + ' hydrate retry succeeded (HTTP ' + r2.status + ')');
+            return r2.json();
+          }
+          console.warn(TAG + ' hydrate retry also failed (HTTP ' + (r2?r2.status:0) + '), skipping');
+          return null;
+        });
+    });
+  }
+
   function hydrate(listing){
     if (!listing || listing.__v295Hydrated || listing.__v295Hydrating) return;
     var id = listing.id;
@@ -113,12 +145,7 @@
     if (!token) return; // 비인증 상태면 skip (/search 본문 무관)
 
     listing.__v295Hydrating = true;
-    fetch('/api/admin/listings/' + encodeURIComponent(id), {
-      headers: { 'Authorization': 'Bearer ' + token },
-      cache: 'no-store',
-      credentials: 'same-origin'
-    })
-      .then(function(r){ return r && r.ok ? r.json() : null; })
+    fetchDetailWithRetry(id, token)
       .then(function(j){
         if (!j || !j.success || !j.data) return;
         mergeFullIntoListing(listing, j.data);
