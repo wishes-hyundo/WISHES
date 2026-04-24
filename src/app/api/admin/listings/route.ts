@@ -209,9 +209,9 @@ export async function GET(request: NextRequest) {
         // L-search1: sortBy='latest' 정렬키 — minimal slim 모드에서 누락되어
         //   정렬이 섞여 보이는 증상 수정.
         'created_at',
-        // L-search2 (2026-04-23): listing_images 가 비어있는 매물 폴백용.
-        //   카드 renderer 가 listing.thumbnail_url 을 fallback 으로 사용.
-        'thumbnail_url',
+        // L-search2 (2026-04-23) rollback: listings.thumbnail_url 컬럼은
+        //   이 스키마에 존재하지 않아 SELECT 전체가 42703 에러로 실패했음.
+        //   listing_images 의 대표 URL 은 별도 경로로 얻는다.
         'created_by', // L-v7-p3: scope=mine 디버그/검증용 echo
         'last_verified_at', // L-verify-list (2026-04-24): 목록 현장확인 배지
         'source_site', // L-imgpolicy3: 크롤링 판정용 (응답 전 썸네일 스크럽)
