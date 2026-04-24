@@ -16,6 +16,10 @@ import { isSelfHostedImage } from '@/lib/image-policy';
 import type { DealType, MapListing } from '@/features/map-2026/store';
 
 export const dynamic = 'force-dynamic';
+// L-viewport4 (2026-04-24 pm): 10s 기본값으로 timeout — 뷰포트 내 매물 다수 + 카테고리
+//   count 4회 병렬 + 차단 이미지 복원까지 합쳐 종종 10s 초과 → FUNCTION_INVOCATION_TIMEOUT 504.
+//   maxDuration=30 으로 상향하면서 아래 쿼리도 병렬화 · count 는 planned(근사) 집계.
+export const maxDuration = 30;
 
 const MAX_VIEWPORT_DEG = 2.0;
 // L-sec140 (2026-04-23): per-axis cap (MAX_VIEWPORT_DEG) 위에 영역 cap 추가.
@@ -552,7 +556,7 @@ export async function GET(req: NextRequest) {
         async () => {
           let cq = supabase
             .from('mv_map_listings')
-            .select('*', { count: 'exact', head: true })
+            .select('*', { count: 'planned', head: true })
             .gte('lat', south)
             .lte('lat', north)
             .gte('lng', west)
@@ -573,13 +577,22 @@ export async function GET(req: NextRequest) {
     }
     let counts: { residence: number; retail_office: number; land: number; investment: number } | undefined;
     try {
+      // L-viewport4: allSettled 로 일부 count 실패해도 나머지는 반환.
+      //   또한 5초 timeout race — count 4개가 너무 오래 걸리면 listings 만 반환.
+      const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T | 0> =>
+        Promise.race([p, new Promise<0>((resolve) => setTimeout(() => resolve(0 as 0), ms))]);
       const [r_cnt, o_cnt, l_cnt, i_cnt] = await Promise.all([
-        countByCategory('residence'),
-        countByCategory('retail_office'),
-        countByCategory('land'),
-        countByCategory('investment'),
+        withTimeout(countByCategory('residence'), 5000),
+        withTimeout(countByCategory('retail_office'), 5000),
+        withTimeout(countByCategory('land'), 5000),
+        withTimeout(countByCategory('investment'), 5000),
       ]);
-      counts = { residence: r_cnt, retail_office: o_cnt, land: l_cnt, investment: i_cnt };
+      counts = {
+        residence: r_cnt || 0,
+        retail_office: o_cnt || 0,
+        land: l_cnt || 0,
+        investment: i_cnt || 0,
+      };
     } catch {
       /* count 는 optional — 실패해도 listings 응답엔 영향 없음 */
     }
