@@ -77,6 +77,10 @@ interface Props {
    *  제공되면 이 데이터로 카운트 원을 그린다 — 클라이언트 grid 클러스터링 우회.
    *  /api/map/clusters (rpc_map_clusters) 에서 Quadkey 캐시 + H3 MV 집계 결과. */
   serverClusters?: ServerClusterInput[];
+  /** L-clusterexact1 (2026-04-24 pm): 클러스터 클릭 시 "정확히 N개 매물만" 필터.
+   *  ids 배열을 받아 사이드바·지도에 그 매물만 남긴다. null 이면 해제. */
+  onClusterFilter?: (ids: number[] | null) => void;
+  clusterFilterIds?: number[] | null;
 }
 
 // Kakao level(1~14) → 그리드 셀 크기 (위경도 degree).
@@ -218,6 +222,8 @@ export default function HtmlMarkerOverlay({
   onClickComplex,
   onClickCluster,
   serverClusters,
+  onClusterFilter,
+  clusterFilterIds,
 }: Props) {
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
 
@@ -241,16 +247,29 @@ export default function HtmlMarkerOverlay({
 
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
 
-      // L-adminpoly1 (2026-04-24 pm): 축소 뷰(level ≥ 10) 에서는 AdminRegionOverlay
-      //   가 시/도 폴리곤 + 카운트 chip 으로 대체 표시.  grid 카운트 원은 숨김 →
-      //   시각 중복 제거.
-      if (level >= 10) return;
+      // L-clusterexact1 (2026-04-24 pm): clusterFilterIds 가 세팅되어 있으면
+      //   지도에도 그 id 의 매물만 렌더 (사이드바와 일관).
+      const filterSet = clusterFilterIds && clusterFilterIds.length > 0
+        ? new Set(clusterFilterIds)
+        : null;
+      const visibleListings = filterSet
+        ? listings.filter((l) => filterSet.has(l.id))
+        : listings;
+      if (visibleListings.length === 0 && !filterSet) return;
+
+      // L-adminpoly1 (2026-04-24 pm) + L-chipexclusive1 (2026-04-24 pm):
+      //   축소 뷰(level ≥ 7) 에서는 AdminRegionOverlay 가 시/도(≥10) 또는
+      //   시/군/구(7~9) chip 으로 대체 표시.  grid 카운트 원은 숨겨 시각 중복 제거.
+      //   사용자 피드백: "구 옆에 개수 표기가 되는데 기본 마커까지 같이 나와 헷갈림".
+      if (level >= 7) return;
 
       // ━━ L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 우선 경로 ━━
       //   serverClusters 가 제공되면 클라이언트 grid 클러스터링을 완전히 건너뛰고
       //   바로 카운트 원을 렌더한다.  listings[] 는 ListPanel 용으로만 쓰이고
       //   지도 마커는 /api/map/clusters 의 pre-aggregated 결과로만 그림.
-      if (Array.isArray(serverClusters) && serverClusters.length > 0) {
+      // L-clusterexact1 (2026-04-24 pm): filterSet 이 활성화되면 서버 경로 skip →
+      //   grid 경로에서 정확한 visibleListings 만 렌더.
+      if (!filterSet && Array.isArray(serverClusters) && serverClusters.length > 0) {
         // 개별(count===1) 은 sample_ids 로 listing id 추론 가능.
         const listingById = new Map<number, MapListing>();
         for (const l of listings) listingById.set(l.id, l);
@@ -264,15 +283,17 @@ export default function HtmlMarkerOverlay({
           const selected = singleId != null && selectedListingId === singleId;
           const size = count >= 100 ? 46 : count >= 10 ? 42 : count >= 2 ? 40 : 36;
           const el = makeCircleElement({ count, selected, size });
+          // L-clusterexact1 (2026-04-24 pm): dblclick 시 지도가 가로채 zoom 하는
+          //   Kakao 기본 동작 차단.  마커 DOM 에서 mousedown 도 stop 해야 함.
+          el.addEventListener('mousedown', (e) => e.stopPropagation());
+          el.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
           el.addEventListener('click', (e) => {
             e.stopPropagation();
-            // L-clusterfit1 (2026-04-24 pm): 클러스터 클릭 UX — 네이버/직방 스타일 fitBounds.
-            //   · count === 1: 단일 매물 상세 모달 오픈
-            //   · count ≥ 2: 클러스터 영역에 map.setBounds → 지도가 자동 줌인 →
-            //     grid 셀이 작아지며 클러스터가 풀리고 bbox 가 좁아지면서 useViewport
-            //     가 /api/listings/map 을 재호출 → ListPanel 도 해당 영역 매물만 자동 필터.
-            //   이전 setLevel(curr-2) 는 줌폭이 약해 5개짜리 클러스터가 풀리지 않고
-            //   엉뚱한 위치에서 지도가 멈춰 버리는 문제 발생 (사용자 피드백).
+            // L-clusterfit1 + L-clusterexact1 (2026-04-24 pm):
+            //   · count === 1: 단일 매물 상세 모달
+            //   · count ≥ 2: ① bbox 내 listings 를 id 추출 → onClusterFilter(ids)
+            //     ② map.setBounds 로 그 영역 확대.  사이드바·지도 모두 N개 매물만
+            //     표시되어 "4개 마커 클릭 → 4개만 보임" 사용자 기대에 부합.
             if (isSingle && singleId != null) {
               onClickListing(singleId);
               return;
@@ -292,6 +313,19 @@ export default function HtmlMarkerOverlay({
               };
               const curLevel = typeof mapApi.getLevel === 'function' ? mapApi.getLevel() : 5;
               const cellHalf = Math.max(0.0005, gridSizeForLevel(curLevel) * 0.55);
+              // L-clusterexact1: bbox 내 listings id 추출 → clusterFilter 세팅
+              if (onClusterFilter) {
+                const idsInBbox: number[] = [];
+                for (const l of listings) {
+                  if (
+                    l.lat >= c.lat - cellHalf && l.lat <= c.lat + cellHalf &&
+                    l.lng >= c.lng - cellHalf && l.lng <= c.lng + cellHalf
+                  ) idsInBbox.push(l.id);
+                }
+                // listings 에 해당 영역 매물이 실제로 있을 때만 filter 적용
+                // (server 클러스터가 bbox 밖일 수도 있어 빈 배열이면 filter skip)
+                if (idsInBbox.length > 0) onClusterFilter(idsInBbox);
+              }
               if (
                 kakaoAny?.maps?.LatLng &&
                 kakaoAny?.maps?.LatLngBounds &&
@@ -330,9 +364,10 @@ export default function HtmlMarkerOverlay({
       }
 
       // 카테고리 필터 — 'investment' 는 cross-cutting 이므로 필터 해제.
+      //   L-clusterexact1: visibleListings (clusterFilterIds 적용 후) 기준.
       const filtered = category === 'investment'
-        ? listings
-        : listings.filter((l) => listingCategory(l.type) === category);
+        ? visibleListings
+        : visibleListings.filter((l) => listingCategory(l.type) === category);
       if (filtered.length === 0) return;
 
       // 근거리 (level ≤ 4) 에서만 단지 pill 사용 — 멀리서는 grid cluster 가 삼킨다.
@@ -409,15 +444,16 @@ export default function HtmlMarkerOverlay({
             onClickListing(arr[0].id);
             return;
           }
-          // L-clusterfit1 (2026-04-24 pm): count ≥ 2 클러스터 클릭.
-          //   onClickCluster 콜백이 제공되면 그것을 우선.  없으면 클러스터 내 실제
-          //   매물 좌표로 tight bbox 를 만들어 map.setBounds 로 fitBounds.
-          //   결과: 지도가 클러스터 영역에 자동 줌인 → 개별 마커로 풀림 + 뷰포트
-          //   축소로 사이드바도 그 영역 매물만 자동 필터.
+          // L-clusterfit1 + L-clusterexact1 (2026-04-24 pm): count ≥ 2 클러스터 클릭.
+          //   ① arr 의 listing id 배열을 onClusterFilter 로 store 에 저장 →
+          //      ListPanel 과 HtmlMarker 가 N개만 렌더 (사각 셀 주변의 다른 매물 배제)
+          //   ② arr 실제 좌표로 tight bbox fitBounds → 지도도 그 N개 범위로 확대
+          //   ③ onClickCluster 콜백 있으면 legacy 경로
           if (onClickCluster) {
             onClickCluster(arr);
             return;
           }
+          if (onClusterFilter) onClusterFilter(arr.map((l) => l.id));
           try {
             const kakaoAny = (window as unknown as {
               kakao?: { maps?: {
@@ -463,6 +499,9 @@ export default function HtmlMarkerOverlay({
           // 최후 폴백 (SDK 미지원): 첫 매물 상세
           onClickListing(arr[0].id);
         };
+        // L-clusterexact1: Kakao 지도 기본 더블클릭 확대 차단 (마커 영역에서만)
+        el.addEventListener('mousedown', (e) => e.stopPropagation());
+        el.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
         el.addEventListener('click', clickHandler);
         try {
           const ov = new maps.CustomOverlay({
@@ -493,7 +532,7 @@ export default function HtmlMarkerOverlay({
       } catch { /* noop */ }
       cleanupOverlays();
     };
-  }, [map, listings, selectedListingId, category, onClickListing, onClickComplex, onClickCluster, serverClusters]);
+  }, [map, listings, selectedListingId, category, onClickListing, onClickComplex, onClickCluster, serverClusters, onClusterFilter, clusterFilterIds]);
 
   return null;
 }

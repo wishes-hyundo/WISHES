@@ -15,10 +15,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import Image from 'next/image';
-import { MapPin, Image as ImageIcon, Video } from 'lucide-react';
+import { MapPin, Image as ImageIcon, Video, X } from 'lucide-react';
 import { useMap2026Store, type MapListing, type SortKey } from '../store';
 import { formatDealLabel, formatArea } from '../lib/priceFormat';
 import { buildListingBadges } from '../lib/buildAgeBadge';
@@ -115,9 +115,19 @@ export function ListPanel() {
   const loading = useMap2026Store((s) => s.loading);
   const sort = useMap2026Store((s) => s.sort);
   const selectedId = useMap2026Store((s) => s.selectedId);
+  const detailListingId = useMap2026Store((s) => s.detailListingId);
   const openListingDetail = useMap2026Store((s) => s.openListingDetail);
+  // L-clusterexact1 (2026-04-24 pm): 클러스터 클릭 시 해당 N개만 필터
+  const clusterFilterIds = useMap2026Store((s) => s.clusterFilterIds);
+  const setClusterFilter = useMap2026Store((s) => s.setClusterFilter);
 
-  const sorted = useMemo(() => sortListings(listings, sort), [listings, sort]);
+  // 정렬은 원본 listings 기준으로 먼저 하고, 그 후 clusterFilter 적용
+  const sorted = useMemo(() => {
+    const base = sortListings(listings, sort);
+    if (!clusterFilterIds || clusterFilterIds.length === 0) return base;
+    const set = new Set(clusterFilterIds);
+    return base.filter((l) => set.has(l.id));
+  }, [listings, sort, clusterFilterIds]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -133,6 +143,18 @@ export function ListPanel() {
     // measureElement 제거 — 고정 높이 사용
   });
 
+  // L-listpanel-select1 (2026-04-24 pm): 매물 선택 시 해당 카드로 자동 스크롤.
+  //   virtualizer 상 그 index 가 viewport 밖이면 사용자가 "어떤 매물인지" 못 찾음.
+  //   detailListingId 나 selectedId 가 바뀌면 scrollToIndex 로 가시권에 가져온다.
+  const focusId = detailListingId ?? selectedId;
+  useEffect(() => {
+    if (focusId == null) return;
+    const idx = sorted.findIndex((l) => l.id === focusId);
+    if (idx >= 0) {
+      rowVirtualizer.scrollToIndex(idx, { align: 'center', behavior: 'smooth' });
+    }
+  }, [focusId, sorted, rowVirtualizer]);
+
   return (
     <aside className="flex h-full flex-col overflow-hidden border-r border-neutral-100 bg-white">
       <header className="flex items-center justify-between border-b border-neutral-100 px-4 py-2.5">
@@ -144,6 +166,17 @@ export function ListPanel() {
         </div>
         <SortMenu />
       </header>
+      {clusterFilterIds && clusterFilterIds.length > 0 && (
+        <div className="flex items-center justify-between gap-2 border-b border-emerald-100 bg-emerald-50 px-3 py-2 text-[11.5px] font-semibold text-emerald-800">
+          <span className="truncate">선택한 {clusterFilterIds.length}개 매물만 보는 중</span>
+          <button
+            onClick={() => setClusterFilter(null)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-100"
+          >
+            <X className="size-3" /> 해제
+          </button>
+        </div>
+      )}
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {sorted.length === 0 && !loading && (
@@ -164,7 +197,7 @@ export function ListPanel() {
           >
             {rowVirtualizer.getVirtualItems().map((vRow) => {
               const l = sorted[vRow.index];
-              const active = selectedId === l.id;
+              const active = focusId === l.id;
               const { isNew, age } = buildListingBadges({
                 built_year: l.built_year,
                 created_at: l.created_at,

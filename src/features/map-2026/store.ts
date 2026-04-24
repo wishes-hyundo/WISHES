@@ -260,6 +260,13 @@ export interface Map2026Store {
   detailListing: MapListing | null;
   openListingDetail: (id: number) => void;
   closeListingDetail: () => void;
+
+  // L-clusterexact1 (2026-04-24 pm): 클러스터 마커 클릭 시 "정확히 N개 매물만"
+  //   사이드바와 지도에 남기는 필터.  grid 기반 클러스터가 사각 셀로 묶기 때문에
+  //   단순 bbox fitBounds 로는 주변 다른 매물이 섞여 보이는 문제 해결.
+  //   null = 필터 해제 (전체 listings 표시).
+  clusterFilterIds: number[] | null;
+  setClusterFilter: (ids: number[] | null) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -497,6 +504,10 @@ export const useMap2026Store = create<Map2026Store>()(
       detailListing: null,
     }),
     closeFilterModal: () => set({ filterModalOpen: false }),
+
+    // L-clusterexact1 (2026-04-24 pm): 클러스터 필터 (정확한 N개 매물만 표시)
+    clusterFilterIds: null,
+    setClusterFilter: (ids) => set({ clusterFilterIds: ids }),
 
     // L-mapmodal1 (2026-04-23): 매물 상세 모달
     detailListingId: null,

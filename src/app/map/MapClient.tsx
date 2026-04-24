@@ -132,6 +132,9 @@ export default function MapClient() {
   const listPanelCollapsed = useMap2026Store((s) => s.listPanelCollapsed);
   const toggleListPanel = useMap2026Store((s) => s.toggleListPanel);
   const listingsCount = useMap2026Store((s) => s.listings.length);
+  // L-clusterexact1 (2026-04-24 pm): 클러스터 필터 state + setter
+  const clusterFilterIds = useMap2026Store((s) => s.clusterFilterIds);
+  const setClusterFilter = useMap2026Store((s) => s.setClusterFilter);
 
   // Kakao 지도 초기화
   useEffect(() => {
@@ -375,6 +378,8 @@ export default function MapClient() {
                 selectedListingId={detailListingId}
                 category={filterCategory}
                 onClickListing={onClickListing}
+                onClusterFilter={setClusterFilter}
+                clusterFilterIds={clusterFilterIds}
               />
             </>
           ) : null}
@@ -486,6 +491,8 @@ function MapOverlaysWithClusters(props: {
   selectedListingId: number | null;
   category: PropertyCategory;
   onClickListing: (id: number) => void;
+  onClusterFilter: (ids: number[] | null) => void;
+  clusterFilterIds: number[] | null;
 }) {
   const { clusters } = useMapClusters(props.kakaoLevel);
   return (
@@ -497,6 +504,8 @@ function MapOverlaysWithClusters(props: {
         category={props.category}
         onClickListing={props.onClickListing}
         serverClusters={clusters}
+        onClusterFilter={props.onClusterFilter}
+        clusterFilterIds={props.clusterFilterIds}
       />
       <AdminRegionOverlay
         map={props.kakaoMap}
