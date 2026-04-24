@@ -470,6 +470,13 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
       overlaysRef.current = [];
     };
 
+    // L-naverstyle6 (2026-04-24 pm): async race condition 방지.
+    //   render() 는 `await loadDong()` 등으로 중단점이 있어서, 그 사이에 listings
+    //   업데이트/zoom_changed 로 render 가 재호출되면 두 개 render 가 동시 진행
+    //   → 둘 다 cleanup() 후 overlay 그림 → 같은 동에 chip 2개씩 겹침.
+    //   해결 — render 시작 시 localId 발급, 이후 await 뒤 currentId 와 같은지 확인.
+    let currentRenderId = 0;
+
     /** 단일 feature 를 폴리곤 + (옵션)chip 으로 렌더.  레벨별 공통 로직.
      *  L-adminpoly6 (2026-04-24 pm): count === 0 지역은 완전히 스킵.
      *  사용자 피드백 '전지역이 다 선택되어 있다' 반영.  매물 있는 지역만
@@ -560,13 +567,15 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
     };
 
     const render = async () => {
+      const myId = ++currentRenderId;
       cleanup();
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
+      const stillOwner = () => myId === currentRenderId;
 
       // ── 시/도 (level ≥ 10) ──────────────────────────────────
       if (level >= 10) {
         const data = await loadSido();
-        if (!data?.features) return;
+        if (!stillOwner() || !data?.features) return;
         // L-adminfit2: listings 가 비었으면(>2° viewport) serverClusters 로 fallback
         let counts = countListingsBySido(listings);
         if (counts.size === 0 && serverClusters?.length) {
@@ -590,7 +599,7 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
       // ── 시/군/구 (level 7~9) — L-adminpoly4 (2026-04-24 pm) ───
       if (level >= 7) {
         const data = await loadSigungu();
-        if (!data?.features) return;
+        if (!stillOwner() || !data?.features) return;
         // viewport bbox 로 필터링 (전국 250개 → 현재 뷰에 보이는 것만)
         const bounds = typeof mapInst.getBounds === 'function' ? mapInst.getBounds() : null;
         const bbox = bounds ? {
@@ -629,7 +638,7 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
       //   시각 과부하 방지.  level 3 포함 (사용자 250m scale 에서도 동 chip 유지).
       if (level >= 3) {
         const data = await loadDong();
-        if (!data?.features) return;
+        if (!stillOwner() || !data?.features) return;
         const bounds = typeof mapInst.getBounds === 'function' ? mapInst.getBounds() : null;
         const bbox = bounds ? {
           west: bounds.getSouthWest().getLng(),
@@ -701,6 +710,7 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
     try { maps.event.addListener(mapInst as unknown, 'zoom_changed', onZoom); } catch { /* noop */ }
 
     return () => {
+      currentRenderId++;  // 진행 중인 render 를 취소 (stillOwner()=false)
       try {
         if (maps.event.removeListener) {
           maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
