@@ -429,6 +429,13 @@ try {
     history.replaceState({}, '', u.pathname + u.search + u.hash);
   }
 } catch(_){}
+// L-www-fix (2026-04-24): DB 에 박혀있는 'www.wishes.co.kr' 이미지 URL 은
+//   Vercel 이 apex 로 307 redirect → 브라우저 Image() 가 Failed to fetch.
+//   렌더 시점에 apex 로 치환해서 redirect 없이 직접 로드.
+function _normImgUrl(u) {
+  if (!u || typeof u !== 'string') return u;
+  return u.replace('://www.wishes.co.kr/', '://wishes.co.kr/');
+}
 const DEBUG = location.hostname === 'localhost' || location.search.includes('debug=1');
 const MAX_DIM = 1920;
 const QUALITY = 0.82;
@@ -735,7 +742,8 @@ async function loadExistingImages(listingId) {
 function renderExistingImages() {
   const grid = document.getElementById('pvExistingGrid');
   grid.innerHTML = existingImagesData.map((img, i) => {
-    const url = img.url || img.image_url || '';
+    // L-www-fix (2026-04-24): DB 에 박힌 www. URL 을 apex 로 치환 (307 redirect 방지)
+    const url = _normImgUrl(img.url || img.image_url || '');
     const isRep = i === 0;
     const sel = selectedForDelete.has(img.id) ? ' selected' : '';
     const selOn = selectedForDelete.has(img.id) ? ' on' : '';
@@ -2758,8 +2766,4 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
     rebindVideoInputs();
   }
 
-  console.log('[mobile-photo] v2.3.10 loaded — rebind 포함 presign R2 직접업로드 활성화');
-})();
-</script>
-</body>
-</html>
+  console.log('[mobile-pho
