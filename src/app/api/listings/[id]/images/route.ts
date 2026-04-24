@@ -8,6 +8,13 @@ import { filterSelfHosted } from '@/lib/image-policy';
 // L-photo-pipeline (2026-04-24): 모든 업로드 이미지에 Classic Negative + 중앙 워터마크
 import { processPhotoUpload } from '@/lib/photoProcess';
 
+// L-photo-timeout (2026-04-24): Classic Negative + 워터마크 파이프라인이 이미지당
+//   2-5초 걸려 여러 장 업로드 시 기본 10초 timeout 에 걸려 Vercel HTML 504 를
+//   반환 → 클라이언트 .json() 파싱 실패 → "응답 파싱 오류" 토스트.
+//   60초 + 1GB 로 확장 (Vercel Hobby 최대).
+export const maxDuration = 60;
+export const runtime = 'nodejs';
+
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 // L-sec3 (2026-04-22): 박제 ADMIN_TOKEN fallback 'wishes2026' 제거 → verifyAdminAuth

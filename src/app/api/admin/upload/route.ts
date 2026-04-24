@@ -10,6 +10,10 @@ import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 // L-photo-pipeline (2026-04-24): Classic Negative + 중앙 WISHES 워터마크 통합.
 import { processPhotoUpload } from '@/lib/photoProcess';
 
+// L-photo-timeout (2026-04-24): sharp 파이프라인 실행 시간 확보.
+export const maxDuration = 60;
+export const runtime = 'nodejs';
+
 /**
  * POST /api/admin/upload - 매물 이미지 업로드
  * @body file - 이미지 파일 (multipart/form-data)

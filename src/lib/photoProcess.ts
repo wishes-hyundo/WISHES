@@ -22,8 +22,14 @@ const GRAIN_STRENGTH  = 14;
 const GRAIN_ALPHA     = 28;
 const WM_SCALE        = 0.55;
 
-async function generateGrain(width: number, height: number): Promise<Buffer> {
-  const px = width * height;
+// L-photo-timeout (2026-04-24): 전체 해상도 grain 을 매번 생성하면 1920x1440 = 2.8M
+//   회 Math.random() 호출로 400-800ms 소요. 512x512 tile 을 한 번만 만들어
+//   sharp composite 가 타일링하도록 하면 40-80ms 로 단축 (~10배 빠름).
+const GRAIN_TILE_SIZE = 512;
+let _grainTileCache: Buffer | null = null;
+async function getGrainTile(): Promise<Buffer> {
+  if (_grainTileCache) return _grainTileCache;
+  const px = GRAIN_TILE_SIZE * GRAIN_TILE_SIZE;
   const data = Buffer.alloc(px * 4);
   for (let i = 0; i < px; i++) {
     const n = Math.round((Math.random() - 0.5) * GRAIN_STRENGTH * 2);
@@ -33,7 +39,14 @@ async function generateGrain(width: number, height: number): Promise<Buffer> {
     data[i * 4 + 2] = v;
     data[i * 4 + 3] = GRAIN_ALPHA;
   }
-  return sharp(data, { raw: { width, height, channels: 4 } }).png().toBuffer();
+  _grainTileCache = await sharp(data, {
+    raw: { width: GRAIN_TILE_SIZE, height: GRAIN_TILE_SIZE, channels: 4 },
+  }).png().toBuffer();
+  return _grainTileCache;
+}
+async function generateGrain(_width: number, _height: number): Promise<Buffer> {
+  // composite 의 tile:true 를 이용 — 타일 PNG 한 장만 반환.
+  return getGrainTile();
 }
 
 let _wmCache: Buffer | null = null;
@@ -88,7 +101,7 @@ export async function processPhotoUpload(buffer: Buffer): Promise<Buffer> {
     const wm = await resizedWatermark(outW);
 
     const overlays: sharp.OverlayOptions[] = [];
-    overlays.push({ input: grain, blend: 'overlay' });
+    overlays.push({ input: grain, blend: 'overlay', tile: true });
     if (wm) overlays.push({ input: wm, gravity: 'center' });
     else console.warn('[photoProcess] watermark unavailable - grain only');
 
