@@ -226,3 +226,29 @@ docs/HANDOFF_2026-04-24_FINAL.md                              (이 파일)
 - 회사 전화: `1533-9580` (NEXT_PUBLIC_COMPANY_PHONE)
 
 다음 세션 Claude, 굿럭.
+
+---
+
+## 🚨 긴급 경고 — git index corruption (2026-04-24 심야 발생)
+
+세션 도중 **src 하위 379개 파일** 이 git tree 에서 누락됐음 (워크스페이스 파일 자체는 있으나 `git ls-tree` 에 없음).
+
+**분포:** src/app 171, src/components 76, src/features 41, supabase/migrations 26 등
+
+**증상:** Vercel build 가 `Module not found: Can't resolve '@/lib/xxx'` 로 연쇄 실패. 개별 파일 복구 push 해도 다른 파일이 또 없어서 계속 실패.
+
+**복구 커밋:** `b66daf2 fix(CRITICAL): restore 379 files lost to git index corruption (FULL scan)`
+
+**재발 방지 — 커밋 시 반드시 스캔:**
+```python
+# workspace 파일 vs git tree 비교
+ws = set(walk('src') + walk('supabase') + walk('public/admin') + walk('public/search'))
+git = set(subprocess.check_output(['git','ls-tree','-r','--name-only','HEAD'], text=True).split('\n'))
+missing = ws - git
+# missing 이 10개 이상이면 즉시 전체 복구 commit
+```
+
+**예방:**
+- Edit 툴로 대용량 파일(>1000줄) 수정 시 파일이 truncate 되는 버그 있음 → python heredoc 사용
+- `.git/index.lock` / `HEAD.lock` 이 stuck 되면 `.git/refs/heads/main` 에 직접 쓰는 plumbing 사용
+- 새 파일 추가 후 `git ls-tree HEAD -- <file>` 로 실제 tree 포함 여부 확인
