@@ -263,7 +263,9 @@ export default function KakaoDeckOverlay({
     //   itemScatter/itemText 는 상위에서 items 를 명시적으로 넘긴 경우에만 활성화.
     //   이전엔 items=[] 이어도 clusters.count===1 을 items 로 치환해 가격
     //   라벨이 찍혀 '최대확대에서 금액 노출' 현상이 있었음 — 사용자 리스크.
-    const itemData = items;
+    //   L-deck-noprice2 (2026-04-24 pm): MapItem | MapCluster 유니언 타입 유지
+    //     — 하위 `(d as MapCluster)` 캐스팅이 좁은 MapItem 타입에서 컴파일 오류나 Vercel 빌드 깨짐.
+    const itemData: (MapItem | MapCluster)[] = items.length > 0 ? items : [];
 
     // L-ux5-3: 그리드-버킷 declutter.
     //   화면 52px 셀 안에 같은 가격 라벨을 여러 개 그리면 겹쳐서 알아볼 수 없다.
