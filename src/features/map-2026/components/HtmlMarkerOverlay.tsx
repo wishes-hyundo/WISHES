@@ -1,17 +1,17 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// HtmlMarkerOverlay — L-mapmarker3 (2026-04-24 pm)
-// 행정구역 계층 클러스터링.  네이버·직방·다방 벤치마크.
+// HtmlMarkerOverlay — L-mapmarker2 (2026-04-23)
+// 네이버·직방·다방 스타일 HTML 마커.  통일 스타벅스 그린 컬러.
 //
-// 이전(L-mapmarker2) grid 방식은 Math.floor(lat/gridSize) 로 좌표를 격자에
-// 넣어 팬/줌 시 마커가 덜덜 떨리는 문제 + "어디에 뭐가 있는지" 를 읽을 수
-// 없는 문제가 있었음.  행정구역 기반은:
-//   · 줌아웃 (시/도): "서울 4,127" / "경기 1,832"
-//   · 중간 (시/군/구): "강남구 1,234" / "서초구 876"
-//   · 줌인 (동): "역삼동 45" / "삼성동 32"
-//   · 근거리 (개별): 단지 pill(기존) + 원 마커
-//
-// 파싱은 adminRegion.ts 의 parseKoreanAddress 를 사용.
-// listing.address 가 없으면 dong 에서 폴백, 그것도 없으면 grid 로 fallback.
+// 본 L-mapmarker2 리비전의 변경점:
+//   1) 카테고리별 색 분기 제거 → 스타벅스 그린 #006241 로 통일 (불투명 0.88).
+//   2) 테두리 흰색 → 채움과 동일 hex (진한 그린) 로 통일, 시각 정돈.
+//   3) 줌 기반 grid clustering — Kakao level 에 따라 셀 크기 가변.
+//      멀리서 보면 한 원 안에 수십~수백 개 매물 개수가 합쳐짐.
+//      가까이 줌인하면 개별 매물로 풀림 (네이버·직방 방식).
+//   4) 카테고리 탭 필터 — 주거/상가사무실/토지 탭이 활성일 때 해당 type 의
+//      매물만 렌더.  '투자' 탭은 cross-cutting 이라 필터 해제 (전부 표시).
+//   5) Tier1 pill (같은 아파트·오피스텔 단지) 은 근거리 줌 (level ≤ 4) 에서만
+//      유지.  멀리서는 grid cluster 가 대신 합침.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 'use client';
@@ -19,16 +19,11 @@
 import { useEffect, useRef } from 'react';
 import type { MapListing, PropertyCategory } from '@/features/map-2026/store';
 import { bucketListings, listingCategory } from '@/features/map-2026/lib/markerTier';
-import { parseKoreanAddress, adminLevelForZoom, type AdminLevel } from '@/features/map-2026/lib/adminRegion';
 
 // ── 컬러 토큰 ──────────────────────────────────────────────────────
-// 스타벅스 시그너처 그린 (#006241). 원 마커용.
+// 스타벅스 시그너처 그린 (#006241). alpha 0.88 채움 + 동일 hex 테두리.
 const BRAND_GREEN = '#006241';
 const BRAND_GREEN_BG = 'rgba(0,98,65,0.88)';
-// 행정구역 레이블 칩 — 네이버 스타일 (흰 배경 + 짙은 글자 + 초록 카운트)
-const REGION_BG = '#ffffff';
-const REGION_FG = '#1a1a1a';
-const REGION_BD = BRAND_GREEN;
 const SEL_BG = '#185FA5';     // 선택 상태: WISHES 브랜드 블루
 const SEL_BD = '#0C447C';
 const SEL_SHADOW = '0 4px 14px rgba(24,95,165,0.45)';
@@ -67,97 +62,68 @@ interface Props {
   onClickCluster?: (listings: MapListing[]) => void;
 }
 
-/** 행정구역 레이블 칩 — 시/도, 구, 동 레벨에서 사용.
- *  네이버 스타일: 흰 배경 + 지역명 + 숫자 배지. */
-function makeRegionChip(opts: {
-  label: string;
+// Kakao level(1~14) → 그리드 셀 크기 (위경도 degree).
+// level 1 (가장 가까움) ~ level 14 (가장 멀음).  1 deg lat ≈ 111km.
+//   level ≤ 2  → 0 (클러스터링 해제, 개별 표시)
+//   level 3    → ~200m
+//   level 4    → ~400m
+//   level 5    → ~1km (/map 기본 줌)
+//   level 6    → ~2km
+//   level 7    → ~4km
+//   level 8    → ~8km
+//   level 9+   → ~15km (행정구 단위)
+function gridSizeForLevel(level: number): number {
+  // L-cluster1 (2026-04-23 p.m.): 광역 뷰(level 8+) 에서 강남 전체가 하나의
+  //   4.1k 덩어리로 뭉쳐 보이던 현상 수정. 더 촘촘한 그리드로 여러 작은 클러스터
+  //   나누어 지역별 분포를 보여준다.
+  if (level <= 2) return 0;         // 개별 표시
+  if (level <= 3) return 0.0018;    // ~200m
+  if (level <= 4) return 0.0036;    // ~400m
+  if (level <= 5) return 0.006;     // ~600m (기본 줌, 이전 1km → 더 촘촘)
+  if (level <= 6) return 0.012;     // ~1.3km (이전 2km)
+  if (level <= 7) return 0.020;     // ~2km (이전 4km)
+  if (level <= 8) return 0.032;     // ~3.5km (이전 8km — 핵심 개선)
+  if (level <= 9) return 0.050;     // ~5.5km (이전 15km)
+  return 0.080;                      // ~9km (level 10+ 광역 대한민국 뷰)
+}
+
+/** 카운트 표시 원 — 단일 매물이면 '1', 클러스터면 N. */
+function makeCircleElement(opts: {
   count: number;
   selected: boolean;
+  size: number;
 }): HTMLDivElement {
-  const { label, count, selected } = opts;
-  const bg = selected ? SEL_BG : REGION_BG;
-  const bd = selected ? SEL_BD : REGION_BD;
-  const fg = selected ? '#fff' : REGION_FG;
+  const { count, selected, size } = opts;
+  const bg = selected ? SEL_BG : BRAND_GREEN_BG;
+  const bd = selected ? SEL_BD : BRAND_GREEN;
   const el = document.createElement('div');
   el.style.cssText = [
     'display:inline-flex',
     'align-items:center',
+    'justify-content:center',
+    `width:${size}px`,
+    `height:${size}px`,
+    'border-radius:50%',
     `background:${bg}`,
-    'border-radius:999px',
-    'padding:6px 5px 6px 12px',
-    'font-size:12px',
-    'font-weight:600',
-    `color:${fg}`,
+    'color:#fff',
     `border:1.5px solid ${bd}`,
     `box-shadow:${selected ? SEL_SHADOW : DEFAULT_SHADOW}`,
-    'white-space:nowrap',
+    `font-size:${count >= 100 ? '11px' : count >= 10 ? '12px' : '13px'}`,
+    'font-weight:700',
+    'letter-spacing:-0.3px',
     'cursor:pointer',
     'user-select:none',
     'transition:transform 150ms ease',
     'font-family:inherit',
     'pointer-events:auto',
-    'letter-spacing:-0.2px',
   ].join(';');
-
-  const labelEl = document.createElement('span');
-  labelEl.textContent = label;
-  el.appendChild(labelEl);
-
-  const badge = document.createElement('span');
-  badge.style.cssText = [
-    'display:inline-flex',
-    'align-items:center',
-    'justify-content:center',
-    `background:${selected ? 'rgba(255,255,255,0.22)' : BRAND_GREEN_BG}`,
-    'color:#fff',
-    'border-radius:999px',
-    'padding:2px 8px',
-    'font-size:11px',
-    'font-weight:700',
-    'margin-left:8px',
-    'min-width:22px',
-    'tabular-nums:1',
-  ].join(';');
-  // 1000+ 일 때 "1.2k" 로 축약
-  badge.textContent = count >= 10000
-    ? `${Math.floor(count / 1000)}k`
-    : count >= 1000
-      ? `${(Math.floor(count / 100) / 10).toFixed(1)}k`
-      : String(count);
-  el.appendChild(badge);
-
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.06)'; });
+  el.textContent = count >= 1000 ? `${Math.floor(count / 100) / 10}k` : String(count);
+  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.08)'; });
   el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
   return el;
 }
 
-/** 개별 매물 원 마커 — 근거리 (level ≤ 3) 에서 개수 없이 점 표시. */
-function makeIndividualMarker(opts: {
-  selected: boolean;
-}): HTMLDivElement {
-  const { selected } = opts;
-  const bg = selected ? SEL_BG : BRAND_GREEN_BG;
-  const bd = selected ? SEL_BD : BRAND_GREEN;
-  const el = document.createElement('div');
-  el.style.cssText = [
-    'display:inline-block',
-    'width:14px',
-    'height:14px',
-    'border-radius:50%',
-    `background:${bg}`,
-    `border:2px solid ${bd}`,
-    `box-shadow:${selected ? SEL_SHADOW : DEFAULT_SHADOW}`,
-    'cursor:pointer',
-    'user-select:none',
-    'transition:transform 150ms ease',
-    'pointer-events:auto',
-  ].join(';');
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.3)'; });
-  el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
-  return el;
-}
-
-/** 단지 pill — 같은 building_name 에 ≥2개 있을 때 한 번에 표시 (기존 L-mapmarker2 재활용). */
+/** 단지 pill — 같은 building_name 에 ≥2개 있을 때 한 번에 표시. */
 function makePillElement(opts: {
   name: string;
   count: number;
@@ -218,16 +184,6 @@ function makePillElement(opts: {
   return el;
 }
 
-/** 매물 한 건의 행정구역 키 추출.
- *  주소 파싱 실패 시 fallback key 를 반환해 표시는 되게 한다. */
-function regionKeyFor(listing: MapListing, level: AdminLevel): string | null {
-  const parsed = parseKoreanAddress(listing.address ?? listing.title ?? null);
-  if (level === 'sido') return parsed.sido;
-  if (level === 'gu') return parsed.gu;
-  if (level === 'dong') return parsed.dong ?? listing.dong;
-  return null;
-}
-
 export default function HtmlMarkerOverlay({
   map,
   listings,
@@ -258,7 +214,6 @@ export default function HtmlMarkerOverlay({
       if (!Array.isArray(listings) || listings.length === 0) return;
 
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
-      const adminLevel = adminLevelForZoom(level);
 
       // 카테고리 필터 — 'investment' 는 cross-cutting 이므로 필터 해제.
       const filtered = category === 'investment'
@@ -266,88 +221,79 @@ export default function HtmlMarkerOverlay({
         : listings.filter((l) => listingCategory(l.type) === category);
       if (filtered.length === 0) return;
 
-      // ── 개별 뷰 (근거리) ──
-      //   단지 pill 그룹핑 유지하되 나머지는 개별 원 마커.
-      if (adminLevel === 'individual') {
+      // 근거리 (level ≤ 4) 에서만 단지 pill 사용 — 멀리서는 grid cluster 가 삼킨다.
+      const usePill = level <= 4;
+      let tier1Groups: ReturnType<typeof bucketListings>['tier1Groups'] = [];
+      let rest: MapListing[] = filtered;
+      if (usePill) {
         const buckets = bucketListings(filtered);
-        const tier1Groups = buckets.tier1Groups;
-        const rest = buckets.tier2Listings;
-
-        for (const g of tier1Groups) {
-          const selected =
-            selectedListingId != null && g.listings.some((l) => l.id === selectedListingId);
-          const el = makePillElement({ name: g.name, count: g.count, selected });
-          el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (onClickComplex) onClickComplex(g.name, g.listings);
-            else if (g.listings.length > 0) onClickListing(g.listings[0].id);
-          });
-          try {
-            const ov = new maps.CustomOverlay({
-              position: new maps.LatLng(g.lat, g.lng),
-              content: el,
-              xAnchor: 0.5,
-              yAnchor: 0.5,
-              zIndex: 11,
-              clickable: true,
-            });
-            ov.setMap(map);
-            overlaysRef.current.push(ov);
-          } catch { /* SDK race — skip */ }
-        }
-
-        for (const l of rest) {
-          const selected = selectedListingId === l.id;
-          const el = makeIndividualMarker({ selected });
-          el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            onClickListing(l.id);
-          });
-          try {
-            const ov = new maps.CustomOverlay({
-              position: new maps.LatLng(l.lat, l.lng),
-              content: el,
-              xAnchor: 0.5,
-              yAnchor: 0.5,
-              zIndex: 10,
-              clickable: true,
-            });
-            ov.setMap(map);
-            overlaysRef.current.push(ov);
-          } catch { /* noop */ }
-        }
-        return;
+        tier1Groups = buckets.tier1Groups;
+        rest = buckets.tier2Listings;
       }
 
-      // ── 행정구역 클러스터링 (sido / gu / dong) ──
-      const groups = new Map<string, { listings: MapListing[]; latSum: number; lngSum: number; label: string }>();
-      const unparsed: MapListing[] = [];
-      for (const l of filtered) {
-        const key = regionKeyFor(l, adminLevel);
-        if (!key) { unparsed.push(l); continue; }
-        const g = groups.get(key);
-        if (g) {
-          g.listings.push(l);
-          g.latSum += l.lat;
-          g.lngSum += l.lng;
-        } else {
-          groups.set(key, { listings: [l], latSum: l.lat, lngSum: l.lng, label: key });
-        }
-      }
-
-      for (const g of groups.values()) {
-        const count = g.listings.length;
-        const lat = g.latSum / count;
-        const lng = g.lngSum / count;
+      // ── Tier 1 단지 pill ──
+      for (const g of tier1Groups) {
         const selected =
           selectedListingId != null && g.listings.some((l) => l.id === selectedListingId);
-        const el = makeRegionChip({ label: g.label, count, selected });
+        const el = makePillElement({ name: g.name, count: g.count, selected });
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (count === 1) onClickListing(g.listings[0].id);
-          else if (onClickCluster) onClickCluster(g.listings);
-          else onClickListing(g.listings[0].id);
+          if (onClickComplex) onClickComplex(g.name, g.listings);
+          else if (g.listings.length > 0) onClickListing(g.listings[0].id);
         });
+        try {
+          const ov = new maps.CustomOverlay({
+            position: new maps.LatLng(g.lat, g.lng),
+            content: el,
+            xAnchor: 0.5,
+            yAnchor: 0.5,
+            zIndex: 11,
+            clickable: true,
+          });
+          ov.setMap(map);
+          overlaysRef.current.push(ov);
+        } catch { /* SDK race — skip */ }
+      }
+
+      // ── Grid clustering ──
+      const gridSize = gridSizeForLevel(level);
+      const clusters = new Map<string, MapListing[]>();
+      if (gridSize === 0) {
+        // 개별 매물 — 클러스터링 해제
+        for (const l of rest) {
+          clusters.set(`i:${l.id}`, [l]);
+        }
+      } else {
+        for (const l of rest) {
+          const cx = Math.floor(l.lat / gridSize);
+          const cy = Math.floor(l.lng / gridSize);
+          const k = `${cx}:${cy}`;
+          const arr = clusters.get(k);
+          if (arr) arr.push(l);
+          else clusters.set(k, [l]);
+        }
+      }
+
+      for (const arr of clusters.values()) {
+        if (arr.length === 0) continue;
+        let latSum = 0;
+        let lngSum = 0;
+        for (const l of arr) { latSum += l.lat; lngSum += l.lng; }
+        const lat = latSum / arr.length;
+        const lng = lngSum / arr.length;
+        const count = arr.length;
+        const selected =
+          selectedListingId != null && arr.some((l) => l.id === selectedListingId);
+        // 개수 따라 원 크기 살짝 증가 — 시각적 weight.
+        const size = count >= 100 ? 46 : count >= 10 ? 42 : count >= 2 ? 40 : 36;
+        const el = makeCircleElement({ count, selected, size });
+        const clickHandler = (e: Event) => {
+          e.stopPropagation();
+          if (count === 1) onClickListing(arr[0].id);
+          else if (onClickCluster) onClickCluster(arr);
+          else onClickListing(arr[0].id);
+        };
+        el.addEventListener('click', clickHandler);
         try {
           const ov = new maps.CustomOverlay({
             position: new maps.LatLng(lat, lng),
@@ -361,54 +307,11 @@ export default function HtmlMarkerOverlay({
           overlaysRef.current.push(ov);
         } catch { /* SDK race — skip */ }
       }
-
-      // ── 주소 파싱 실패 매물 — 좌표 근접 그리드로 폴백 (유실 방지) ──
-      if (unparsed.length > 0) {
-        const gridSize = adminLevel === 'sido' ? 0.25 : adminLevel === 'gu' ? 0.08 : 0.02;
-        const fbGroups = new Map<string, MapListing[]>();
-        for (const l of unparsed) {
-          const cx = Math.floor(l.lat / gridSize);
-          const cy = Math.floor(l.lng / gridSize);
-          const k = `fb:${cx}:${cy}`;
-          const arr = fbGroups.get(k);
-          if (arr) arr.push(l);
-          else fbGroups.set(k, [l]);
-        }
-        for (const arr of fbGroups.values()) {
-          let latSum = 0;
-          let lngSum = 0;
-          for (const l of arr) { latSum += l.lat; lngSum += l.lng; }
-          const lat = latSum / arr.length;
-          const lng = lngSum / arr.length;
-          const count = arr.length;
-          const selected =
-            selectedListingId != null && arr.some((l) => l.id === selectedListingId);
-          const el = makeRegionChip({ label: '기타', count, selected });
-          el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (count === 1) onClickListing(arr[0].id);
-            else if (onClickCluster) onClickCluster(arr);
-            else onClickListing(arr[0].id);
-          });
-          try {
-            const ov = new maps.CustomOverlay({
-              position: new maps.LatLng(lat, lng),
-              content: el,
-              xAnchor: 0.5,
-              yAnchor: 0.5,
-              zIndex: 10,
-              clickable: true,
-            });
-            ov.setMap(map);
-            overlaysRef.current.push(ov);
-          } catch { /* noop */ }
-        }
-      }
     };
 
     render();
 
-    // 줌 변경 시 재렌더 — 행정구역 레벨이 달라짐.
+    // 줌 변경 시 재렌더 — 그리드 셀 크기 & pill 사용 여부가 달라짐.
     const onZoom = () => { render(); };
     try { maps.event.addListener(mapInst as unknown, 'zoom_changed', onZoom); } catch { /* noop */ }
 

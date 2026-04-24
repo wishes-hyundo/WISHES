@@ -86,7 +86,6 @@ export interface MapListing {
   built_year: string | null;
   building_name: string | null;
   dong: string | null;
-  address: string | null;
   title: string | null;
   ai_title: string | null;
   thumbnail_url: string | null;

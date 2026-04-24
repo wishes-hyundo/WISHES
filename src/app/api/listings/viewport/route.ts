@@ -323,7 +323,7 @@ export async function GET(req: NextRequest) {
         //   ai_title (제목 라인), direction/parking/pet/elevator/full_option/
         //   maintenance_fee/bathrooms/floor_total/business_type (패널 상세 테이블),
         //   has_video (NEW 뱃지 계산엔 불필요 — created_at 만으로 72h 판정).
-        'id, title, ai_title, ai_description, type, deal, deposit, monthly, price, area_m2, rooms, bathrooms, floor_current, floor_total, direction, lat, lng, dong, address, status, created_at, updated_at, features, thumb_url, station_distance, built_year, building_name, parking, pet, elevator, full_option, maintenance_fee, business_type, has_video, source_site',
+        'id, title, ai_title, ai_description, type, deal, deposit, monthly, price, area_m2, rooms, bathrooms, floor_current, floor_total, direction, lat, lng, dong, status, created_at, updated_at, features, thumb_url, station_distance, built_year, building_name, parking, pet, elevator, full_option, maintenance_fee, business_type, has_video, source_site',
       )
       .gte('lat', south)
       .lte('lat', north)
@@ -490,9 +490,6 @@ export async function GET(req: NextRequest) {
         //     title 이 없으면 dong 으로 폴백. 동이 없으면 null.
         building_name: authed ? (r.building_name ?? null) : null,
         dong: r.dong ?? null,
-        // L-mapmarker3 (2026-04-24 pm): 행정구역(시도/구) 클러스터링을 위한 address 노출.
-        //   PUBLIC_LISTING_COLUMNS 에 이미 포함된 공개 필드. 로그인 여부와 무관.
-        address: r.address ?? null,
         title: authed
           ? (r.title ?? null)
           : (r.title ? maskAddressForPublic(r.title, r.dong) : (r.dong ?? null)),
