@@ -2,7 +2,9 @@
 // GET /api/img-proxy?url=ENCODED_URL[&raw=1]
 
 import { NextRequest, NextResponse } from 'next/server';
-import { applyWatermark } from '@/lib/watermark';
+// L-photo-pipeline (2026-04-24): 업로드 시점에 이미 중앙 워터마크가 찍히므로
+//   런타임 프록시의 우하단 로고 워터마크는 더 이상 적용하지 않는다.
+// import { applyWatermark } from '@/lib/watermark';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const ALLOWED_HOSTS = [
@@ -112,8 +114,9 @@ export async function GET(request: NextRequest) {
       outputType = contentType;
     } else {
       try {
-        outputBuffer = await applyWatermark(imageBuffer);
-        outputType = 'image/webp';
+        // L-photo-pipeline: 워터마크는 업로드 시 영구 합성. 프록시는 원본 패스스루.
+        outputBuffer = imageBuffer;
+        outputType = contentType;
       } catch {
         outputBuffer = imageBuffer;
         outputType = contentType;

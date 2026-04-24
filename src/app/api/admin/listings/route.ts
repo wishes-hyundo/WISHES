@@ -233,47 +233,12 @@ export async function GET(request: NextRequest) {
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v9-mine', scopeUid as string]
-        : ['listings-minimal-v9'];
+        ? ['listings-minimal-v8-mine', scopeUid as string]
+        : ['listings-minimal-v8'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
         async () => {
-          // L-search9 (2026-04-24): RPC 단일 쿼리 우선 시도.
-          //   migration 20260424_add_rpc_admin_listings_minimal 의 함수가 존재하면
-          //   sequential pagination 7회 + IN 쿼리 1회 (총 3-5s) 를 RPC 1회 (~1.5s)
-          //   로 대체. 함수가 없으면 (not deployed yet) 에러로 fallback 되어 기존
-          //   sequential 경로로 정상 동작. 즉 SQL migration 실행만으로 가속 활성화.
-          let allData: any[] = [];
-          let imageByListing: Record<string, string> = {};
-          let rpcUsed = false;
-          try {
-            const { data: rpcRows, error: rpcErr } = await supabase.rpc(
-              'rpc_admin_listings_minimal',
-              {
-                p_scope_uid: (scope === 'mine' && scopeUid) ? scopeUid : null,
-                p_limit: 10000,
-              }
-            );
-            if (!rpcErr && Array.isArray(rpcRows) && rpcRows.length > 0) {
-              for (const r of rpcRows as any[]) {
-                if (r.first_image_url) imageByListing[String(r.id)] = r.first_image_url;
-                delete r.first_image_url; // downstream shape 와 일치
-              }
-              allData = rpcRows as any[];
-              rpcUsed = true;
-            } else if (rpcErr) {
-              const msg = String(rpcErr.message || '');
-              // 함수 부재 (not found / does not exist) 는 의도된 fallback → 조용히.
-              if (!/not find|does not exist|PGRST202|function.*public\./i.test(msg)) {
-                console.warn('[admin/listings minimal] RPC error, fallback:', msg);
-              }
-            }
-          } catch (e) {
-            console.warn('[admin/listings minimal] RPC exception, fallback:', e);
-          }
-
-          if (!rpcUsed) {
           const PAGE_SIZE = 1000;
 
           // 1차 페이지
@@ -290,7 +255,7 @@ export async function GET(request: NextRequest) {
             return [];
           }
 
-          allData = [...firstPage];
+          let allData: any[] = [...firstPage];
 
           // L-search7b (2026-04-24): parallel 페이지 fetch 가 Vercel cold-start 시
           //   Supabase 연결/rate-limit 와 상호작용하며 간헐적으로 중간 페이지가 빈
@@ -319,6 +284,7 @@ export async function GET(request: NextRequest) {
           // L-search7 (2026-04-24): 수집된 id 로 listing_images 를 IN 쿼리 1번에 fetch.
           //   main rows 보다 10~20배 많지만 (listing_id, url, sort_order) 3 column 만
           //   가져오므로 페이로드 작음. 각 listing 당 첫 1장만 map 으로 빠르게 선정.
+          let imageByListing: Record<string, string> = {};
           if (allData.length > 0) {
             try {
               const listingIds = allData.map((r: any) => r.id);
@@ -343,7 +309,6 @@ export async function GET(request: NextRequest) {
               // 실패 시 이미지 없이 계속 — 전체 매물 수 유지가 최우선
             }
           }
-          } // end: if (!rpcUsed) — L-search9 fallback 블록 종료
 
           // 🧹 null / 빈 배열 / 빈 문자열 / false 불리언 제거로 페이로드 20~30% 감소
           // (클라이언트는 접근 시 기본값 fallback 으로 처리)
@@ -699,10 +664,13 @@ export async function POST(request: NextRequest) {
         if (!ALLOWED.has(file.type)) continue;
         if (file.size > 10 * 1024 * 1024) continue;
         try {
-          const buf = Buffer.from(await file.arrayBuffer());
-          const ext = (file.type.split('/')[1] || 'jpg').replace('jpeg', 'jpg');
-          const key = `listings/${data.id}/${Date.now()}_${i}.${ext}`;
-          const url = await uploadToR2(key, buf, file.type);
+          // L-photo-pipeline (2026-04-24): 신규 매물 등록 인라인 이미지도
+          //   Classic Negative + 중앙 워터마크 강제. WebP 로 저장.
+          const { processPhotoUpload } = await import('@/lib/photoProcess');
+          const rawBuf = Buffer.from(await file.arrayBuffer());
+          const buf = await processPhotoUpload(rawBuf);
+          const key = `listings/${data.id}/${Date.now()}_${i}.webp`;
+          const url = await uploadToR2(key, buf, 'image/webp');
           uploadedUrls.push(url);
         } catch (e) {
           console.error('[POST /api/admin/listings] R2 업로드 실패:', e);

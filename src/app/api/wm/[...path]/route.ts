@@ -6,7 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from 'fs';
-import { applyWatermark } from '@/lib/watermark';
+// L-photo-pipeline (2026-04-24): 업로드 시 중앙 워터마크 영구 합성으로 전환.
+//   이 엔드포인트는 호환성을 위해 유지하나, 더 이상 추가 워터마크를 찍지 않는다.
+// import { applyWatermark } from '@/lib/watermark';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const R2_PUBLIC_URL = process.env.R2_PUBLIC_URL || 'https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev';
@@ -122,7 +124,8 @@ export async function GET(
       return new NextResponse('이미지를 찾을 수 없습니다', { status: 404 });
     }
 
-    const watermarked = await applyWatermark(imageBuffer);
+    // L-photo-pipeline: 원본 그대로 반환 (런타임 워터마크 비활성화)
+    const watermarked = imageBuffer;
 
     return new NextResponse(new Uint8Array(watermarked), {
       status: 200,

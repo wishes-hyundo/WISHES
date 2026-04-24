@@ -83,10 +83,13 @@ export async function POST(
       if (file.size > 10 * 1024 * 1024) { errors.push({ index: i, name: file.name, error: 'Too large' }); continue; }
 
       try {
-        const buf = Buffer.from(await file.arrayBuffer());
-        const ext = file.type.split('/')[1] || 'jpg';
-        const key = `listings/${listingId}/${Date.now()}_${i}.${ext}`;
-        const imageUrl = await uploadToR2(key, buf, file.type);
+        // L-photo-pipeline (2026-04-24): 모바일 사진등록 포함 모든 업로드에
+        //   Classic Negative + 중앙 WISHES 워터마크를 강제 적용. 결과는 WebP.
+        const { processPhotoUpload } = await import('@/lib/photoProcess');
+        const rawBuf = Buffer.from(await file.arrayBuffer());
+        const buf = await processPhotoUpload(rawBuf);
+        const key = `listings/${listingId}/${Date.now()}_${i}.webp`;
+        const imageUrl = await uploadToR2(key, buf, 'image/webp');
 
         // Build insert data with correct column names (sort_order, is_thumbnail)
         const insertData: Record<string, any> = {

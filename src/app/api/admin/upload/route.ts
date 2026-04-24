@@ -6,24 +6,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { storage } from '@/lib/storage';
-import sharp from 'sharp';
 import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
-
-/**
- * 이미지 압축 및 WebP 변환
- * - 최대 1920x1440 리사이즈
- * - WebP 포맷 변환 (품질 80)
- * - 결과: ~200-300KB
- */
-async function compressImage(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer)
-    .resize(1920, 1440, {
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality: 80 })
-    .toBuffer();
-}
+// L-photo-pipeline (2026-04-24): Classic Negative + 중앙 WISHES 워터마크 통합.
+//   기존 compressImage 는 단순 WebP 변환이었고, 워터마크는 런타임 /api/wm
+//   프록시에서만 붙었음. 이제 업로드 시점에 처리된 결과를 영구 저장한다.
 
 /**
  * POST /api/admin/upload - 매물 이미지 업로드
@@ -67,10 +53,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 파일 → Buffer → WebP 압축
+    // 파일 → Buffer → Classic Negative + 중앙 워터마크 + WebP
+    const { processPhotoUpload } = await import('@/lib/photoProcess');
     const arrayBuffer = await file.arrayBuffer();
     const originalBuffer = Buffer.from(arrayBuffer);
-    const compressedBuffer = await compressImage(originalBuffer);
+    const compressedBuffer = await processPhotoUpload(originalBuffer);
 
     // 파일명 생성 (timestamp + random, 항상 .webp)
     const timestamp = Date.now();
