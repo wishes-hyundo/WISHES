@@ -298,3 +298,30 @@ e096d3d fix(admin): 사이드바 '모바일 사진등록' 링크 404 해결
 ---
 
 Good luck. 사진 쪽은 이미 단단하니 참고만 하시고, 동영상 플레이어부터 깨끗하게 시작하세요.
+
+---
+
+## 🔥 급한 별도 버그 — admin_bridge_ 토큰 자동 저장 경로 (우선 처리)
+
+세션 마지막에 발견된 실제 버그. 증상:
+- 사용자가 정상 비밀번호로 로그인 성공
+- 하지만 localStorage.ws_token 이 `admin_bridge_*` 로 시작하는 레거시 문자열 로 저장됨 (JWT 아님)
+- `ws_refresh_token` 도 12자 짧은 랜덤 (정상 Supabase refresh 는 길이 수십~수백자)
+- 몇 분 ~ 몇십 분 후 admin 진입 시 layout.tsx 의 L-sec54 가드가 차단 → /admin/admin-auth.html 로 redirect
+- 사용자 체감: "로그인 세션이 금방 풀린다"
+
+**보안 가드 자체는 정상 동작**. 문제는 **정상 로그인했는데 왜 bridge 토큰이 쓰이는가**.
+
+조사 지점:
+1. `public/admin/admin-auth.html` 의 로그인 submit 핸들러 (line 1921+) 전체를 grep:
+   ```
+   grep -nE "admin_bridge_|setItem.*ws_token|setItem.*ws_refresh" public/admin/admin-auth.html
+   ```
+2. offlineLoginFallback (line 1949 근처) — 서버 장애 시 fallback 로직이 정상 로그인 경로에서도 트리거되는지
+3. `public/admin/auth-bridge.js` — Chrome 확장 브릿지 코드가 bridge 토큰을 쓰는지
+4. layout.tsx 내부 "Chrome 확장 프로그램 인증 브릿지" (line 172+) 가 역방향으로 쓰는지
+
+수정 후 검증:
+1. `localStorage.clear()` → 정상 로그인
+2. `localStorage.getItem('ws_token').startsWith('eyJ')` === true 여야 함 (Supabase JWT)
+3. `localStorage.getIte
