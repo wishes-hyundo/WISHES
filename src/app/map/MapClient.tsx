@@ -52,6 +52,8 @@ import KakaoDeckOverlay, { type MapItem } from '@/components/map/KakaoDeckOverla
 // L-mapmarker1 (2026-04-23): 네이버·직방 스타일 HTML 마커 (Kakao CustomOverlay).
 //   KakaoDeckOverlay 의 item scatter 는 items=[] 로 비활성화 (cluster 레이어는 유지).
 import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay';
+// L-adminpoly1 (2026-04-24 pm): 축소 뷰 시/도 폴리곤 하이라이트
+import AdminRegionOverlay from '@/features/map-2026/components/AdminRegionOverlay';
 
 // 서울 기본 중심
 const SEOUL = { lat: 37.4979, lng: 127.0276 };
@@ -365,6 +367,11 @@ export default function MapClient() {
                 selectedListingId={detailListingId}
                 category={filterCategory}
                 onClickListing={onClickListing}
+              />
+              {/* L-adminpoly1 (2026-04-24 pm): 축소 뷰(level ≥ 10) 에서 시/도 폴리곤 */}
+              <AdminRegionOverlay
+                map={kakaoMap}
+                listings={listings}
               />
             </>
           ) : null}

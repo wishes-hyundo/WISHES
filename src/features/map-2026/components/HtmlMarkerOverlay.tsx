@@ -223,6 +223,11 @@ export default function HtmlMarkerOverlay({
 
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
 
+      // L-adminpoly1 (2026-04-24 pm): 축소 뷰(level ≥ 10) 에서는 AdminRegionOverlay
+      //   가 시/도 폴리곤 + 카운트 chip 으로 대체 표시.  grid 카운트 원은 숨김 →
+      //   시각 중복 제거.
+      if (level >= 10) return;
+
       // 카테고리 필터 — 'investment' 는 cross-cutting 이므로 필터 해제.
       const filtered = category === 'investment'
         ? listings

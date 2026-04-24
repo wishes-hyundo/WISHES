@@ -1,0 +1,341 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// AdminRegionOverlay — L-adminpoly1 (2026-04-24 pm)
+// 행정구역 폴리곤 하이라이트 (시/도 · 구 · 동).
+//
+// 네이버 벤치마크: 축소 뷰에서 특정 행정구역을 색으로 칠해 경계를 시각화.
+// 개별 매물을 점으로 찍으면 주소 정확 위치가 노출돼 경쟁사 매물 뺏기·직거래
+// 리스크가 있다는 사용자 피드백 반영.
+//
+// 데이터 소스:
+//   https://github.com/southkorea/southkorea-maps
+//     · kostat/2018/skorea-provinces-2018-geo.json  (시/도 17개)
+//     · kostat/2018/skorea-municipalities-2018-geo.json  (시/군/구 ~250개)
+//   SGIS(국가통계청) 데이터 기반.  GitHub raw CDN 이 CORS 허용 → 브라우저
+//   fetch 로 lazy-load.  모듈 레벨 in-memory cache 로 반복 fetch 차단.
+//
+// 줌 레벨 매핑:
+//   · level ≥ 10 (국토 뷰): 시/도 17개 폴리곤
+//   · level 7~9 (대도시권): 시/군/구 폴리곤 (bbox 내)
+//   · level ≤ 6: 폴리곤 숨김 (HtmlMarkerOverlay 의 카운트 원이 충분)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+'use client';
+
+import { useEffect, useRef } from 'react';
+import type { MapListing } from '@/features/map-2026/store';
+
+const SIDO_GEOJSON_URL =
+  'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2018/json/skorea-provinces-2018-geo.json';
+const SIGUNGU_GEOJSON_URL =
+  'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2018/json/skorea-municipalities-2018-geo.json';
+
+interface GeoFeature {
+  type: 'Feature';
+  properties: { name?: string; name_eng?: string; code?: string; [k: string]: unknown };
+  geometry:
+    | { type: 'Polygon'; coordinates: number[][][] }
+    | { type: 'MultiPolygon'; coordinates: number[][][][] };
+}
+interface GeoCollection {
+  type: 'FeatureCollection';
+  features: GeoFeature[];
+}
+
+// 모듈 레벨 캐시 — /map 진입 → 마커 오버레이 → 줌아웃 반복에도 fetch 1회만.
+let sidoCache: GeoCollection | null = null;
+let sigunguCache: GeoCollection | null = null;
+let pendingSido: Promise<GeoCollection | null> | null = null;
+let pendingSigungu: Promise<GeoCollection | null> | null = null;
+
+async function loadSido(): Promise<GeoCollection | null> {
+  if (sidoCache) return sidoCache;
+  if (pendingSido) return pendingSido;
+  pendingSido = fetch(SIDO_GEOJSON_URL)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => { sidoCache = j as GeoCollection | null; return sidoCache; })
+    .catch(() => null)
+    .finally(() => { pendingSido = null; });
+  return pendingSido;
+}
+async function loadSigungu(): Promise<GeoCollection | null> {
+  if (sigunguCache) return sigunguCache;
+  if (pendingSigungu) return pendingSigungu;
+  pendingSigungu = fetch(SIGUNGU_GEOJSON_URL)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => { sigunguCache = j as GeoCollection | null; return sigunguCache; })
+    .catch(() => null)
+    .finally(() => { pendingSigungu = null; });
+  return pendingSigungu;
+}
+
+// ── Kakao SDK 타입 최소 ────────────────────────────────────────────
+interface KakaoPolygon { setMap: (m: unknown) => void }
+interface KakaoCustomOverlay { setMap: (m: unknown) => void }
+interface KakaoMapLike { getLevel?: () => number }
+interface KakaoEventNs {
+  addListener: (t: unknown, type: string, cb: () => void) => void;
+  removeListener?: (t: unknown, type: string, cb: () => void) => void;
+}
+interface KakaoMapsNs {
+  Polygon: new (opts: Record<string, unknown>) => KakaoPolygon;
+  CustomOverlay: new (opts: Record<string, unknown>) => KakaoCustomOverlay;
+  LatLng: new (lat: number, lng: number) => unknown;
+  event: KakaoEventNs;
+}
+interface KakaoNs { maps?: KakaoMapsNs }
+
+// 컬러 — 스타벅스 그린 유지 (마커와 동일 톤)
+const FILL = '#006241';
+const FILL_OPACITY = 0.08;
+const STROKE = '#006241';
+const STROKE_OPACITY = 0.6;
+
+// feature name → sido 짧은 이름 매핑 (southkorea-maps 는 name 에 영문/한글 혼재)
+function normalizeSidoName(raw: string | undefined | null): string {
+  if (!raw) return '';
+  // 영문 name 예: "Seoul"/"Gyeonggi"/"Jeju" → 한글 환산
+  const map: Record<string, string> = {
+    Seoul: '서울', Busan: '부산', Daegu: '대구', Incheon: '인천',
+    Gwangju: '광주', Daejeon: '대전', Ulsan: '울산', Sejong: '세종',
+    Gyeonggi: '경기', 'Gangwon-do': '강원', Gangwon: '강원',
+    Chungbuk: '충북', 'Chungcheongbuk-do': '충북',
+    Chungnam: '충남', 'Chungcheongnam-do': '충남',
+    Jeonbuk: '전북', 'Jeollabuk-do': '전북',
+    Jeonnam: '전남', 'Jeollanam-do': '전남',
+    Gyeongbuk: '경북', 'Gyeongsangbuk-do': '경북',
+    Gyeongnam: '경남', 'Gyeongsangnam-do': '경남',
+    Jeju: '제주',
+  };
+  if (map[raw]) return map[raw];
+  // 한글 full: "서울특별시" 등 → 짧은 이름으로
+  if (raw.startsWith('서울')) return '서울';
+  if (raw.startsWith('부산')) return '부산';
+  if (raw.startsWith('대구')) return '대구';
+  if (raw.startsWith('인천')) return '인천';
+  if (raw.startsWith('광주')) return '광주';
+  if (raw.startsWith('대전')) return '대전';
+  if (raw.startsWith('울산')) return '울산';
+  if (raw.startsWith('세종')) return '세종';
+  if (raw.startsWith('경기')) return '경기';
+  if (raw.startsWith('강원')) return '강원';
+  if (raw.startsWith('충청북') || raw.startsWith('충북')) return '충북';
+  if (raw.startsWith('충청남') || raw.startsWith('충남')) return '충남';
+  if (raw.startsWith('전라북') || raw.startsWith('전북')) return '전북';
+  if (raw.startsWith('전라남') || raw.startsWith('전남')) return '전남';
+  if (raw.startsWith('경상북') || raw.startsWith('경북')) return '경북';
+  if (raw.startsWith('경상남') || raw.startsWith('경남')) return '경남';
+  if (raw.startsWith('제주')) return '제주';
+  return raw;
+}
+
+/** listings 를 시/도 이름별 count 로 집계 */
+function countListingsBySido(listings: MapListing[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const l of listings) {
+    // title 에 "서울 관악구..." 형태로 마스킹된 주소가 들어있음 (로그인 시 full address)
+    const src = (l as { address?: string | null }).address || l.title || '';
+    const first = src.trim().split(/\s+/)[0] || '';
+    const key = normalizeSidoName(first);
+    if (!key) continue;
+    out.set(key, (out.get(key) ?? 0) + 1);
+  }
+  return out;
+}
+
+/** 시/도 카운트 chip — 폴리곤 centroid 위에 뜨는 라벨 */
+function makeRegionCountChip(name: string, count: number): HTMLDivElement {
+  const el = document.createElement('div');
+  el.style.cssText = [
+    'display:inline-flex',
+    'align-items:center',
+    'background:#ffffff',
+    'border-radius:999px',
+    'padding:6px 5px 6px 12px',
+    'font-size:12px',
+    'font-weight:700',
+    'color:#1a1a1a',
+    `border:1.5px solid ${STROKE}`,
+    'box-shadow:0 2px 6px rgba(0,0,0,0.15)',
+    'white-space:nowrap',
+    'cursor:pointer',
+    'user-select:none',
+    'font-family:inherit',
+    'pointer-events:auto',
+    'letter-spacing:-0.2px',
+  ].join(';');
+
+  const label = document.createElement('span');
+  label.textContent = name;
+  el.appendChild(label);
+
+  const badge = document.createElement('span');
+  badge.style.cssText = [
+    'display:inline-flex',
+    'align-items:center',
+    'justify-content:center',
+    'background:rgba(0,98,65,0.88)',
+    'color:#fff',
+    'border-radius:999px',
+    'padding:2px 8px',
+    'font-size:11px',
+    'font-weight:700',
+    'margin-left:8px',
+    'min-width:24px',
+  ].join(';');
+  badge.textContent = count >= 10000
+    ? `${Math.floor(count / 1000)}k`
+    : count >= 1000
+      ? `${(Math.floor(count / 100) / 10).toFixed(1)}k`
+      : String(count);
+  el.appendChild(badge);
+  return el;
+}
+
+/** polygon path 평균으로 centroid 근사 */
+function polygonCentroid(coords: number[][][] | number[][][][]): { lat: number; lng: number } | null {
+  // MultiPolygon 이면 첫 polygon 의 첫 ring 으로 근사
+  const firstRing: number[][] = Array.isArray(coords[0]?.[0]?.[0])
+    ? (coords as number[][][][])[0][0]
+    : (coords as number[][][])[0];
+  if (!firstRing || firstRing.length === 0) return null;
+  let lngSum = 0;
+  let latSum = 0;
+  for (const [lng, lat] of firstRing) {
+    lngSum += lng;
+    latSum += lat;
+  }
+  return { lat: latSum / firstRing.length, lng: lngSum / firstRing.length };
+}
+
+interface Props {
+  map: unknown;
+  listings: MapListing[];
+  onClickRegion?: (name: string) => void;
+}
+
+export default function AdminRegionOverlay({ map, listings, onClickRegion }: Props) {
+  const polygonsRef = useRef<KakaoPolygon[]>([]);
+  const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
+
+  useEffect(() => {
+    if (!map || typeof window === 'undefined') return;
+    const kakao = (window as unknown as { kakao?: KakaoNs }).kakao;
+    if (!kakao?.maps) return;
+    const maps = kakao.maps;
+    const mapInst = map as KakaoMapLike;
+
+    const cleanup = () => {
+      for (const p of polygonsRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+      for (const o of overlaysRef.current) { try { o.setMap(null); } catch { /* noop */ } }
+      polygonsRef.current = [];
+      overlaysRef.current = [];
+    };
+
+    const render = async () => {
+      cleanup();
+      const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
+      // L-adminpoly1: level ≥ 10 에서만 시/도 폴리곤 노출.
+      //   level 7~9 시/군/구 폴리곤은 향후 확장.  현재는 국토 뷰 품질이 최우선.
+      if (level < 10) return;
+
+      const data = await loadSido();
+      if (!data?.features) return;
+
+      const counts = countListingsBySido(listings);
+
+      for (const feat of data.features) {
+        const nameRaw = String(
+          (feat.properties as { name?: string; name_eng?: string }).name ??
+          (feat.properties as { name_eng?: string }).name_eng ?? ''
+        );
+        const sidoName = normalizeSidoName(nameRaw);
+        const count = counts.get(sidoName) ?? 0;
+
+        const geom = feat.geometry;
+        const paths: number[][][][] = geom.type === 'Polygon'
+          ? [geom.coordinates as number[][][]]
+          : geom.type === 'MultiPolygon'
+            ? (geom.coordinates as number[][][][])
+            : [];
+
+        // 매물 있는 지역만 조금 더 진하게
+        const fillOp = count > 0 ? FILL_OPACITY * 1.8 : FILL_OPACITY;
+
+        for (const polyCoords of paths) {
+          const outer = polyCoords[0];
+          if (!outer) continue;
+          const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
+          try {
+            const polygon = new maps.Polygon({
+              path,
+              strokeWeight: 1.5,
+              strokeColor: STROKE,
+              strokeOpacity: STROKE_OPACITY,
+              fillColor: FILL,
+              fillOpacity: fillOp,
+            });
+            polygon.setMap(map);
+            polygonsRef.current.push(polygon);
+          } catch { /* SDK race — skip */ }
+        }
+
+        // 카운트 chip — 매물 있는 지역만.  centroid 위에 표시.
+        if (count > 0) {
+          const centroid = polygonCentroid(
+            geom.type === 'Polygon' ? (geom.coordinates as number[][][]) : (geom.coordinates as number[][][][])
+          );
+          if (!centroid) continue;
+          const chip = makeRegionCountChip(sidoName, count);
+          chip.addEventListener('click', (e) => {
+            e.stopPropagation();
+            onClickRegion?.(sidoName);
+          });
+          try {
+            const ov = new maps.CustomOverlay({
+              position: new maps.LatLng(centroid.lat, centroid.lng),
+              content: chip,
+              xAnchor: 0.5,
+              yAnchor: 0.5,
+              zIndex: 12,
+              clickable: true,
+            });
+            ov.setMap(map);
+            overlaysRef.current.push(ov);
+          } catch { /* noop */ }
+        }
+      }
+    };
+
+    void render();
+
+    const onZoom = () => { void render(); };
+    try { maps.event.addListener(mapInst as unknown, 'zoom_changed', onZoom); } catch { /* noop */ }
+
+    return () => {
+      try {
+        if (maps.event.removeListener) {
+          maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
+        }
+      } catch { /* noop */ }
+      cleanup();
+    };
+  }, [map, listings, onClickRegion]);
+
+  // sigungu 캐시 warm-up (다음 줌인 때 즉시 사용 가능) — 나중 단계에서 실제 사용.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // idle 시간에 로드 — 사용자 상호작용 방해 없이
+    const id = (typeof window.requestIdleCallback === 'function')
+      ? window.requestIdleCallback(() => { void loadSigungu(); })
+      : window.setTimeout(() => { void loadSigungu(); }, 2000);
+    return () => {
+      if (typeof window.requestIdleCallback === 'function' && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(id as number);
+      } else {
+        clearTimeout(id as number);
+      }
+    };
+  }, []);
+
+  return null;
+}
