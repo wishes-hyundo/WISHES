@@ -25,9 +25,9 @@ import { useEffect, useRef } from 'react';
 import type { MapListing } from '@/features/map-2026/store';
 
 const SIDO_GEOJSON_URL =
-  'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2018/json/skorea-provinces-2018-geo.json';
+  '/api/geo/sido';
 const SIGUNGU_GEOJSON_URL =
-  'https://raw.githubusercontent.com/southkorea/southkorea-maps/master/kostat/2018/json/skorea-municipalities-2018-geo.json';
+  '/api/geo/sigungu';
 
 interface GeoFeature {
   type: 'Feature';
