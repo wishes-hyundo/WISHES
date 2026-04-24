@@ -5,11 +5,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isSelfHostedImage, filterSelfHosted } from '@/lib/image-policy';
 import { adminCorsHeaders } from '@/lib/cors';
 
-// L-sec10 (2026-04-22): 기존 하드코드 '*' 는 browser-based CSRF 창구였음.
-// 외부 크롤러는 서버-투-서버 fetch 라 CORS 영향 없음. 화이트리스트로 축소.
-export async function OPTIONS(req: NextRequest) {
-  return new NextResponse(null, { status: 200, headers: adminCorsHeaders(req, 'GET, POST, PUT, OPTIONS') });
-}
 import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { verifyAdminAuth } from '@/lib/adminAuth';
@@ -20,6 +15,16 @@ import { createHash } from 'crypto';
 // L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관.
 //   priceWonSchema/areaSqmSchema 는 cap 값 일관성(1조원/10만㎡) 을 보장.
 import { priceWonSchema, areaSqmSchema, latitudeSchema, longitudeSchema } from '@/lib/schemas';
+
+// L-sec10 (2026-04-22): 기존 하드코드 '*' 는 browser-based CSRF 창구였음.
+// 외부 크롤러는 서버-투-서버 fetch 라 CORS 영향 없음. 화이트리스트로 축소.
+// L-importorder1 (2026-04-24): OPTIONS 함수를 imports 뒤로 이동 — 이전엔 함수
+//   선언이 imports 중간에 있어 webpack/swc 파서가 뒤쪽 imports 를 module-level
+//   로 인식 못 해 '@/lib/supabase', '@/lib/adminAuth', '@/lib/geocode' Module
+//   not found 로 빌드 실패.  이 순서 수정만으로 해결.
+export async function OPTIONS(req: NextRequest) {
+  return new NextResponse(null, { status: 200, headers: adminCorsHeaders(req, 'GET, POST, PUT, OPTIONS') });
+}
 
 // 요청 검증 스키마
 // L-hub3: price/area/lat/lng 필드를 hub 기반으로 통일.
