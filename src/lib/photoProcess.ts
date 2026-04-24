@@ -34,9 +34,9 @@ const MAX_H = 1440;
 const WB_RED_GAIN    = 1.08;   // +3 Red (따뜻)
 const WB_BLUE_GAIN   = 0.88;   // -5 Blue (시안 제거, 필름 warm)
 const GREEN_TO_YELLOW = 0.04;  // Classic Negative 시그니처: 녹→올리브 shift
-const COLOUR_SAT     = 1.18;   // Colour +4
+const COLOUR_SAT     = 1.22;   // Colour +4 (약간 더 강한 체감)
 const LINEAR_A       = 1.06;   // 가벼운 대비 부스트
-const LINEAR_B       = 4;      // Shadow lift (검정 깊이 완화, 필름 페이드)
+const LINEAR_B       = 6;      // Shadow lift (검정 깊이 완화, 필름 페이드)
 const GAMMA          = 1.02;   // 아주 약한 midtone lift (S-curve 대체)
 const SHARPEN_SIGMA  = 0.8;    // Sharpness +2
 const SHARPEN_M1     = 0.4;
@@ -68,30 +68,25 @@ async function generateGrain(width: number, height: number): Promise<Buffer> {
 }
 
 /**
- * 중앙 "WISHES" 워터마크 SVG 생성.
- * 흰색 반투명 채움 + 검정 반투명 외곽선으로 밝은/어두운 배경 모두에서 식별 가능.
+ * 중앙 "WISHES" 워터마크를 미리 렌더링된 PNG (public/watermark-center.png) 에서 로드하고
+ * 대상 이미지 크기에 맞춰 resize 한 버퍼를 반환한다.
+ *
+ * SVG <text> composite 은 Vercel serverless 환경에 fontconfig 가 없어서
+ * 렌더 결과가 비게 되는 이슈 때문에 PNG 방식으로 전환. (2026-04-24)
  */
-function buildCenterWatermarkSvg(width: number, height: number): Buffer {
-  const fontSize = Math.round(Math.min(width, height) * WM_SCALE);
-  const stroke = Math.max(1, Math.round(fontSize * 0.022));
-  const letterSpacing = Math.round(fontSize * 0.08);
-  const svg = `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
-  <text
-    x="50%" y="50%"
-    text-anchor="middle"
-    dominant-baseline="central"
-    font-family="'Arial Black', 'Helvetica Neue', 'Pretendard', sans-serif"
-    font-weight="900"
-    font-size="${fontSize}"
-    letter-spacing="${letterSpacing}"
-    fill="rgba(255,255,255,${WM_OPACITY})"
-    stroke="rgba(0,0,0,${WM_STROKE_OP})"
-    stroke-width="${stroke}"
-    paint-order="stroke fill"
-  >${WM_TEXT}</text>
-</svg>`;
-  return Buffer.from(svg, 'utf-8');
+async function loadCenterWatermark(targetWidth: number, _targetHeight: number): Promise<Buffer> {
+  const fs = await import('fs');
+  const path = await import('path');
+  const wmPath = path.join(process.cwd(), 'public', 'watermark-center.png');
+  if (!fs.existsSync(wmPath)) {
+    // 파일 없으면 투명한 1x1 반환 (composite 에 영향 없음)
+    return sharp({
+      create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
+    }).png().toBuffer();
+  }
+  // 이미지 짧은 변의 WM_SCALE 배 width 로 resize (가로 기준 대략 min(w,h)*0.7 정도)
+  const wmW = Math.round(targetWidth * 0.55);
+  return sharp(wmPath).resize(wmW).toBuffer();
 }
 
 /**
@@ -144,8 +139,8 @@ export async function processPhotoUpload(buffer: Buffer): Promise<Buffer> {
     // (1) Classic Negative
     const { buf: filmed, width, height } = await applyClassicNegative(buffer);
 
-    // (2) 중앙 워터마크
-    const wm = buildCenterWatermarkSvg(width, height);
+    // (2) 중앙 WISHES 워터마크 (PNG 기반, fontconfig 비의존)
+    const wm = await loadCenterWatermark(width, height);
     const finalBuf = await sharp(filmed)
       .composite([{ input: wm, gravity: 'center' }])
       .webp({ quality: 85 })
@@ -172,7 +167,7 @@ export async function stampCenterWatermark(buffer: Buffer): Promise<Buffer> {
   const meta = await sharp(buffer).metadata();
   const w = meta.width || MAX_W;
   const h = meta.height || MAX_H;
-  const wm = buildCenterWatermarkSvg(w, h);
+  const wm = await loadCenterWatermark(w, h);
   return sharp(buffer)
     .composite([{ input: wm, gravity: 'center' }])
     .webp({ quality: 85 })
