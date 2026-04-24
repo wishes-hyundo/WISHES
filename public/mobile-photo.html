@@ -218,6 +218,34 @@
   .pv-dropzone-hint { display: none; }
   .pv-dropzone { border: none; padding: 0; background: transparent; }
 }
+/* L-dnd v2: 풀스크린 드래그 오버레이 */
+#wsDndFullscreenOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(30, 60, 30, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+#wsDndFullscreenOverlay.active { opacity: 1; }
+#wsDndFullscreenOverlay .ws-dnd-inner {
+  border: 3px dashed rgba(255, 255, 255, 0.85);
+  border-radius: 24px;
+  padding: 48px 72px;
+  background: rgba(45, 90, 39, 0.35);
+  color: #fff;
+  text-align: center;
+  max-width: 520px;
+}
+#wsDndFullscreenOverlay .ws-dnd-icon { font-size: 64px; margin-bottom: 16px; line-height: 1; }
+#wsDndFullscreenOverlay .ws-dnd-title { font-size: 22px; font-weight: 700; letter-spacing: 0.5px; margin-bottom: 6px; }
+#wsDndFullscreenOverlay .ws-dnd-sub { font-size: 13px; opacity: 0.9; }
 </style>
 </head>
 <body>
@@ -429,13 +457,6 @@ try {
     history.replaceState({}, '', u.pathname + u.search + u.hash);
   }
 } catch(_){}
-// L-www-fix (2026-04-24): DB 에 박혀있는 'www.wishes.co.kr' 이미지 URL 은
-//   Vercel 이 apex 로 307 redirect → 브라우저 Image() 가 Failed to fetch.
-//   렌더 시점에 apex 로 치환해서 redirect 없이 직접 로드.
-function _normImgUrl(u) {
-  if (!u || typeof u !== 'string') return u;
-  return u.replace('://www.wishes.co.kr/', '://wishes.co.kr/');
-}
 const DEBUG = location.hostname === 'localhost' || location.search.includes('debug=1');
 const MAX_DIM = 1920;
 const QUALITY = 0.82;
@@ -742,8 +763,7 @@ async function loadExistingImages(listingId) {
 function renderExistingImages() {
   const grid = document.getElementById('pvExistingGrid');
   grid.innerHTML = existingImagesData.map((img, i) => {
-    // L-www-fix (2026-04-24): DB 에 박힌 www. URL 을 apex 로 치환 (307 redirect 방지)
-    const url = _normImgUrl(img.url || img.image_url || '');
+    const url = img.url || img.image_url || '';
     const isRep = i === 0;
     const sel = selectedForDelete.has(img.id) ? ' selected' : '';
     const selOn = selectedForDelete.has(img.id) ? ' on' : '';
@@ -1399,36 +1419,61 @@ Object.assign(window, {
 document.getElementById('cameraInput').addEventListener('change', handleFiles);
 document.getElementById('galleryInput').addEventListener('change', handleFiles);
 
-// L-dnd (2026-04-24): 드래그앤드롭 핸들러
+// L-dnd v2 (2026-04-24): 전역 드롭 + 풀스크린 오버레이
+// 이전 v1 은 zone 내부만 drop 받아 사용자가 페이지 다른 영역에 놓으면 무시됨.
+// v2 는 window 전체에서 파일 드래그를 감지해 오버레이를 띄우고, 어디에 놓아도
+// 파일을 받아 handleFiles 로 전달.
 (function(){
   const zone = document.getElementById('pvDropZone');
   if (!zone) return;
 
-  function preventAll(e) { e.preventDefault(); e.stopPropagation(); }
+  let overlay = null;
+  function ensureOverlay() {
+    if (overlay) return overlay;
+    overlay = document.createElement('div');
+    overlay.id = 'wsDndFullscreenOverlay';
+    overlay.innerHTML = '<div class="ws-dnd-inner"><div class="ws-dnd-icon">📥</div><div class="ws-dnd-title">사진을 여기에 놓으세요</div><div class="ws-dnd-sub">여러 장 동시 업로드 가능</div></div>';
+    document.body.appendChild(overlay);
+    return overlay;
+  }
 
-  ['dragenter','dragover'].forEach(evt => {
-    zone.addEventListener(evt, (e) => {
-      preventAll(e);
-      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-      zone.classList.add('drag-active');
-    });
-  });
-  ['dragleave','dragend'].forEach(evt => {
-    zone.addEventListener(evt, (e) => {
-      preventAll(e);
-      // 실제 zone 밖으로 벗어났을 때만 해제 (내부 자식 엘리먼트 오가는 경우 무시)
-      if (evt === 'dragend' || (e.relatedTarget && !zone.contains(e.relatedTarget))) {
-        zone.classList.remove('drag-active');
-      } else if (evt === 'dragleave') {
-        zone.classList.remove('drag-active');
-      }
-    });
-  });
+  let dragCounter = 0;
+  function hasFiles(e) {
+    const types = e.dataTransfer && e.dataTransfer.types;
+    if (!types) return false;
+    if (types.includes) return types.includes('Files');
+    for (let i = 0; i < types.length; i++) if (types[i] === 'Files') return true;
+    return false;
+  }
 
-  zone.addEventListener('drop', (e) => {
-    preventAll(e);
+  window.addEventListener('dragenter', (e) => {
+    if (!hasFiles(e)) return;
+    dragCounter++;
+    ensureOverlay().classList.add('active');
+    zone.classList.add('drag-active');
+  });
+  window.addEventListener('dragover', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+  });
+  window.addEventListener('dragleave', (e) => {
+    if (!hasFiles(e)) return;
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      if (overlay) overlay.classList.remove('active');
+      zone.classList.remove('drag-active');
+    }
+  });
+  window.addEventListener('drop', (e) => {
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    dragCounter = 0;
+    if (overlay) overlay.classList.remove('active');
     zone.classList.remove('drag-active');
-    const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter(f => f.type.startsWith('image/'));
+
+    const files = Array.from(e.dataTransfer.files || []).filter(f => f.type.startsWith('image/'));
     if (!files.length) {
       showToast('이미지 파일만 올릴 수 있습니다', 'error');
       return;
@@ -1437,18 +1482,10 @@ document.getElementById('galleryInput').addEventListener('change', handleFiles);
       showToast('먼저 매물을 선택해주세요', 'error');
       return;
     }
-    // handleFiles 는 input event 의 e.target.files 를 쓰므로 같은 모양으로 전달
     handleFiles({ target: { files, value: '' } });
   });
 
-  // window 에서 drop 기본동작 차단 (브라우저가 파일을 열어버리는 걸 방지)
-  window.addEventListener('dragover', (e) => { e.preventDefault(); });
-  window.addEventListener('drop', (e) => {
-    // zone 밖에 drop 되면 그냥 기본동작만 차단
-    if (!zone.contains(e.target)) e.preventDefault();
-  });
-
-  console.log('[mobile-photo] L-dnd 드래그앤드롭 활성화');
+  console.log('[mobile-photo] L-dnd v2 활성화 (전역 수신 + 풀스크린 오버레이)');
 })();
 document.getElementById('replaceInput').addEventListener('change', handleReplace);
 document.getElementById('videoCameraInput').addEventListener('change', handleVideoFiles);
@@ -2766,4 +2803,8 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
     rebindVideoInputs();
   }
 
-  console.log('[mobile-pho
+  console.log('[mobile-photo] v2.3.10 loaded — rebind 포함 presign R2 직접업로드 활성화');
+})();
+</script>
+</body>
+</html>
