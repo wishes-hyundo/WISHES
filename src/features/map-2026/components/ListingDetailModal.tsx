@@ -496,8 +496,8 @@ export function ListingDetailModal() {
               const parts: string[] = [];
               const p = listing.parking;
               if (typeof p === 'string' && p.trim() && p !== 'true' && p !== 'false') parts.push(p.trim());
-              else if (p === true || (p as any) === 'true') parts.push('가능');
-              else if (p === false || (p as any) === 'false') parts.push('불가능');
+              else if ((p as unknown) === true || (p as unknown) === 'true') parts.push('가능');
+              else if ((p as unknown) === false || (p as unknown) === 'false') parts.push('불가능');
               const fee = (listing as any).parking_fee;
               if (fee != null && fee > 0) parts.push(`주차비 ${Number(fee).toLocaleString('ko-KR')}만원/월`);
               const total = detailExtra?.total_parking_spaces;
