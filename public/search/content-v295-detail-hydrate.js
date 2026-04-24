@@ -57,7 +57,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 (function(){
   'use strict';
-  var VERSION = '2.9.6';
+  var VERSION = '2.9.7';
   var TAG = '[WP v' + VERSION + ' detail-hydrate]';
 
   // 이중 탑재 방지 (HMR · 재진입)
@@ -119,22 +119,26 @@
       credentials: 'same-origin'
     };
     function tryOnce() { return fetch(url, opts); }
-    return tryOnce().then(function(r){
-      if (r && r.ok) return r.json();
-      // 401/5xx → 1.2s 대기 후 한 번 재시도
-      var code = r ? r.status : 0;
-      console.warn(TAG + ' hydrate 1st attempt failed (HTTP ' + code + '), retrying in 1200ms…');
-      return new Promise(function(resolve){ setTimeout(resolve, 1200); })
-        .then(tryOnce)
-        .then(function(r2){
-          if (r2 && r2.ok) {
-            console.log(TAG + ' hydrate retry succeeded (HTTP ' + r2.status + ')');
-            return r2.json();
-          }
-          console.warn(TAG + ' hydrate retry also failed (HTTP ' + (r2?r2.status:0) + '), skipping');
+    // L-search5b (2026-04-24): 재시도 2회 (1.2s, 3.5s exponential backoff).
+    //   2번째 cold-start 504 에서도 복구하기 위해 총 3회 시도.
+    var delays = [1200, 3500];
+    function attempt(step){
+      return tryOnce().then(function(r){
+        if (r && r.ok) {
+          if (step > 0) console.log(TAG + ' hydrate retry ' + step + ' succeeded (HTTP ' + r.status + ')');
+          return r.json();
+        }
+        var code = r ? r.status : 0;
+        if (step >= delays.length) {
+          console.warn(TAG + ' hydrate gave up after ' + (step+1) + ' attempts (last HTTP ' + code + ')');
           return null;
-        });
-    });
+        }
+        var delay = delays[step];
+        console.warn(TAG + ' hydrate attempt ' + (step+1) + ' failed (HTTP ' + code + '), retry ' + (step+1) + ' in ' + delay + 'ms…');
+        return new Promise(function(resolve){ setTimeout(resolve, delay); }).then(function(){ return attempt(step+1); });
+      });
+    }
+    return attempt(0);
   }
 
   function hydrate(listing){

@@ -14,6 +14,11 @@ import { audit } from '@/lib/auditLog';
 // L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관.
 import { listingIdSchema } from '@/lib/schemas';
 
+// L-search5 (2026-04-24): 상세 조회도 풀 데이터 (listing_images + videos +
+//   features) + Supabase getUser cold-start 대기까지 합하면 vercel.json 기본
+//   10s 를 넘길 수 있어 간헐적 504. 30s 로 확장.
+export const maxDuration = 30;
+
 // ─── L-sec139 (2026-04-23) ─────────────────────────────────────
 //   이 파일의 local authorizeListingMutation 을 `@/lib/adminAuthz` shared
 //   버전으로 이관. 함수 시그니처 동일(request, listingId, supabase), 결과 타입은
