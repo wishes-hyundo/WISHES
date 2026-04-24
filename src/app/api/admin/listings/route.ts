@@ -2,7 +2,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isSelfHostedImage, filterSelfHosted } from '@/lib/image-policy';
+import { isSelfHostedImage, filterSelfHosted, preferSelfHostedImages } from '@/lib/image-policy';
 import { adminCorsHeaders } from '@/lib/cors';
 
 import { revalidatePath, unstable_cache, revalidateTag } from 'next/cache';
@@ -277,12 +277,18 @@ export async function GET(request: NextRequest) {
           // 🧹 null / 빈 배열 / 빈 문자열 / false 불리언 제거로 페이로드 20~30% 감소
           // (클라이언트는 접근 시 기본값 fallback 으로 처리)
           const slim = allData.map((row: any) => {
-            // L-imgpolicy3 (2026-04-23 p.m.): 저작권 보호 — 크롤링 매물의 외부 이미지 서버단 필터링
-            //   · source_site NOT NULL 이면 listing_images 를 자체 호스팅만 통과시키고
-            //   · thumbnail_url 도 자체 호스팅 아니면 스크럽
-            //   /search 페이지에서 크롤링 원본 이미지가 노출되지 않도록 차단.
+            // L-img2 (2026-04-24): admin(중개사) 포털은 preferSelfHostedImages 정책.
+            //   · 자체 업로드가 있으면 그것만 노출 (저작권 안전)
+            //   · 자체 업로드가 0 이면 크롤링 원본 유지 (카드 썸네일 공백 방지)
+            //   이전엔 공개용 filterSelfHosted 를 쓰고 있어 크롤링 매물의 썸네일이
+            //   전부 공백이 되는 버그(L-img1) 의 2차 증상. image-policy.ts 의
+            //   주석 원래 의도대로 관리자 경로는 preferSelfHostedImages 사용.
             if (row.source_site) {
-              row.listing_images = filterSelfHosted(row.listing_images || []);
+              const policed = preferSelfHostedImages({
+                source_site: row.source_site,
+                listing_images: row.listing_images || [],
+              });
+              row.listing_images = policed.listing_images;
               if (row.thumbnail_url && !isSelfHostedImage(row.thumbnail_url)) {
                 row.thumbnail_url = null;
               }

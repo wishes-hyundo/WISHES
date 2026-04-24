@@ -12,7 +12,15 @@
 //     - https://wishes.co.kr/api/images/...
 //     - *.supabase.co/storage/...       (Supabase Storage)
 //     - pub-*.r2.dev / *.r2.cloudflarestorage.com (Cloudflare R2)
+//     - *.wishes-img.workers.dev           (Cloudflare Worker 이미지 프록시 — 자체 처리)
+//     - d4k1brqee4emz.cloudfront.net       (기존 이미지 프록시 CDN)
 //   그 외 외부 도메인(공실클럽·온하우스 CDN 등)은 모두 차단.
+//
+// ─── L-img1 (2026-04-24) ───
+//   listing_images 샘플 2,000건 중 1,998건(99.9%) 이 wishes-image-proxy 도메인에
+//   있었는데 기존 whitelist 에 없어서 admin/search 카드 썸네일 전부 공백이 되던
+//   '썸네일 전원 실종' 버그의 근본원인. Worker 프록시는 우리 인프라(Cloudflare
+//   Workers 계정) 라 저작권 판정상 '자체 업로드' 와 동치로 처리.
 
 export function isSelfHostedImage(url?: string | null): boolean {
   if (!url) return false;
@@ -31,6 +39,12 @@ export function isSelfHostedImage(url?: string | null): boolean {
   // Cloudflare R2 (pub-*.r2.dev 또는 *.r2.cloudflarestorage.com)
   if (/\.r2\.dev\//i.test(u)) return true;
   if (/\.r2\.cloudflarestorage\.com\//i.test(u)) return true;
+
+  // L-img1 (2026-04-24): Cloudflare Worker 이미지 프록시 (자체 계정 소유, CSP img-src 에 등재)
+  if (/\.wishes-img\.workers\.dev\//i.test(u)) return true;
+
+  // L-img1 (2026-04-24): 기존 CloudFront 이미지 배포 CDN (자체 S3 오리진)
+  if (/\/\/d4k1brqee4emz\.cloudfront\.net\//i.test(u)) return true;
 
   return false;
 }
