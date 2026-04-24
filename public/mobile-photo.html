@@ -207,7 +207,7 @@
     <div class="header-title">WISHES 모바일 사진등록</div>
     <div class="header-sub">매물을 검색하고 사진을 바로 등록하세요</div>
   </div>
-  <button class="header-back" onclick="window.location.href='/admin?tab=search'">← 관리자</button>
+  <button class="header-back" onclick="window.location.href='/admin'">← 관리자</button>
 </div>
 
 <!-- GPS Bar -->
@@ -1389,7 +1389,7 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
 </script>
 
 <!-- ============================================================
-     v2.3.1 핛픽스 — 모바일 사진등록 통합검색 복원 (2026-04-20)
+     v2.3.1 핫픽스 — 모바일 사진등록 통합검색 복원 (2026-04-20)
      배경: /api/listings?search= 가 백엔드에서 파라미터 무시 상태.
            "비룡" 검색 시 무관한 최근 50건이 반환되는 회귀.
      방침: 전체 listings 를 클라이언트에서 prefetch + substring 필터.
@@ -1764,7 +1764,7 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
         if (isPhotoActive()) {
           if (typeof window.backToSearch === 'function') window.backToSearch();
         } else {
-          window.location.href = '/admin?tab=search';
+          window.location.href = '/admin';
         }
       });
     }
@@ -2373,7 +2373,7 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
 <!-- v2.3.9 IIFE — mobile-photo.html 의 </body> 직전에 통째로 붙여넣기 -->
 <!-- ============================================================ -->
 <!--
-  목적: 동영상 업로드를 클라이언트 → R2 직업로드로 전환 (Vercel 4.5MB 한계 우회)
+  목적: 동영상 업로드를 클라이언트 → R2 직접업로드로 전환 (Vercel 4.5MB 한계 우회)
   흐름: presign → XHR PUT to R2 (진행률 표시) → metadata 저장
   안전: 기존 handleVideoFiles 는 __MPH_V239__.__orig 에 백업. rollback() 으로 즉시 복구.
   v2.3.9 변경점: videoCameraInput / videoGalleryInput 의 이벤트 리스너를 강제 재바인딩
@@ -2653,7 +2653,7 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
     rebindVideoInputs();
   }
 
-  console.log('[mobile-photo] v2.3.10 loaded — rebind 포함 presign R2 직업로드 활성화');
+  console.log('[mobile-photo] v2.3.10 loaded — rebind 포함 presign R2 직접업로드 활성화');
 })();
 </script>
 </body>
