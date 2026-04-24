@@ -13,6 +13,8 @@ import { displayDescription } from '@/lib/formatListingDescription';
 // #123: 건물명 표시 방어선 (크롤링 소스·슬로건·URL·지번 차단)
 import { sanitizeBuildingName, canShowSameBuildingSection } from '@/lib/sanitizeBuildingName';
 import ImageGallery from '@/components/ImageGallery';
+// L-video1 (2026-04-24): 공개 매물 상세 동영상 재생 + CSS 워터마크 + 다운로드 방해
+import VideoPlayer from '@/components/VideoPlayer';
 import { ListingCard } from '@/components/ListingCard';
 import RealPriceChart from '@/components/RealPriceChart';
 import { useAuth } from '@/contexts/AuthContext';
@@ -547,6 +549,50 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
               statusColor={getStatusColor(listing.status)}
               isAdListing={!!listing?.source_site}
             />
+
+            {/* L-video1 (2026-04-24): 매물 동영상 갤러리 — 자체 업로드만 렌더 */}
+            {(() => {
+              // 크롤링 매물(source_site) 은 사진 차단 정책과 동일하게 영상도 숨김
+              if (listing?.source_site) return null;
+              const vids = Array.isArray(listing?.listing_videos)
+                ? [...listing.listing_videos]
+                    .filter((v: any) => v && typeof v.url === 'string' && v.url.length > 0)
+                    .sort(
+                      (a: any, b: any) =>
+                        (a.sort_order ?? 0) - (b.sort_order ?? 0)
+                    )
+                : [];
+              if (vids.length === 0) return null;
+              return (
+                <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-base sm:text-lg font-bold text-gray-900">
+                      🎬 매물 영상
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      {vids.length}개
+                    </span>
+                  </div>
+                  <div
+                    className={
+                      vids.length === 1
+                        ? 'grid grid-cols-1 gap-3'
+                        : 'grid grid-cols-1 md:grid-cols-2 gap-3'
+                    }
+                  >
+                    {vids.map((v: any) => (
+                      <VideoPlayer
+                        key={v.id}
+                        src={v.url}
+                        poster={v.poster_url || undefined}
+                        title={v.alt || undefined}
+                        mimeType={v.mime_type || undefined}
+                      />
+                    ))}
+                  </div>
+                </section>
+              );
+            })()}
 
             {/* T2-5: VR 투어 (자체 매물만, vr_url 등록 시 표시) */}
             <VRTour vrUrl={listing?.vr_url} isAd={!!listing?.source_site} />

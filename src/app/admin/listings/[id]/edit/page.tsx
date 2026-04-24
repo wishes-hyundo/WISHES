@@ -7,6 +7,10 @@ import { useAdminSession } from '@/lib/useAdminSession';
 import { safeHttpUrl } from '@/lib/safe-url';
 // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch wrapper for CSRF + cookie + Bearer.
 import { adminFetch } from '@/lib/adminFetch';
+// L-video1 (2026-04-24): 공용 VideoPlayer (관리자는 워터마크 숨김)
+import VideoPlayer from '@/components/VideoPlayer';
+// L-video1 (2026-04-24): 업로드 직후 Canvas 포스터 자동 생성 + /api/admin/upload 재사용
+import { generateVideoPoster, uploadPosterToR2 } from '@/lib/generateVideoPoster';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 타입 정의
@@ -410,6 +414,64 @@ export default function EditListingPage() {
         const listJson = await listRes.json();
         if (listJson.success && Array.isArray(listJson.data)) {
           setPreviewVideos(listJson.data);
+
+          // L-video1 (2026-04-24): 업로드된 각 동영상에 대해 Canvas 포스터 자동 생성
+          //   - 이번 업로드 배치 (arr) 와 서버 반환 목록 (listJson.data) 매칭은
+          //     poster_url 없는 새 row 를 뒤에서부터 arr 개수만큼 사용.
+          //   - 실패해도 업로드 플로우 영향 없음 (silent fail).
+          try {
+            const all = listJson.data as Array<{
+              id: number;
+              url: string;
+              poster_url?: string | null;
+              sort_order: number;
+            }>;
+            // poster_url 이 비어있는 row 중 sort_order 오름차순 뒤쪽 arr.length 개
+            const needPoster = all
+              .filter((r) => !r.poster_url)
+              .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+              .slice(-arr.length);
+            const pairs = needPoster.map((row, idx) => ({ row, file: arr[idx] }));
+            await Promise.all(
+              pairs.map(async ({ row, file }) => {
+                if (!file) return;
+                const posterBlob = await generateVideoPoster(file).catch(() => null);
+                if (!posterBlob) return;
+                const posterUrl = await uploadPosterToR2(
+                  posterBlob,
+                  adminFetch as typeof fetch,
+                  { ...authHeader() }
+                );
+                if (!posterUrl) return;
+                try {
+                  const patchRes = await adminFetch(
+                    `/api/listings/${listingId}/videos`,
+                    {
+                      method: 'PATCH',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        ...authHeader(),
+                      },
+                      body: JSON.stringify({
+                        videos: [{ id: row.id, poster_url: posterUrl }],
+                      }),
+                    }
+                  );
+                  if (patchRes.ok) {
+                    setPreviewVideos((prev) =>
+                      prev.map((p) =>
+                        p.id === row.id ? { ...p, poster_url: posterUrl } : p
+                      )
+                    );
+                  }
+                } catch {}
+              })
+            );
+          } catch (posterErr) {
+            // 포스터 실패는 조용히 — 업로드 자체는 성공
+            // eslint-disable-next-line no-console
+            console.warn('[video poster] generation failed:', posterErr);
+          }
         }
       } catch (err) {
         alert('동영상 업로드 오류: ' + (err instanceof Error ? err.message : String(err)));
@@ -860,13 +922,13 @@ export default function EditListingPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {previewVideos.map((v, idx) => (
                       <div key={v.id} className="relative group border rounded-lg overflow-hidden bg-black">
-                        <video
+                        <VideoPlayer
                           src={v.url}
                           poster={v.poster_url || undefined}
-                          controls
-                          playsInline
-                          preload="metadata"
-                          className="w-full aspect-video object-cover bg-black"
+                          title={v.alt || undefined}
+                          mimeType={v.mime_type || undefined}
+                          hideWatermark
+                          className=""
                         />
                         {idx === 0 && (
                           <div className="absolute top-1 left-1 bg-purple-600 text-white text-xs px-2 py-0.5 rounded">
