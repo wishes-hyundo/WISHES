@@ -313,8 +313,11 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       displayName: string,
       count: number,
       showChip: boolean,
+      strokeOnly: boolean = false,
     ) => {
-      if (count <= 0) return;  // 매물 없는 지역 스킵 — 폴리곤 전혀 렌더 안 함
+      // L-adminpoly7: strokeOnly 면 count=0 도 렌더 (구 경계 시각화 목적).
+      //   fill 모드(sido)는 count>0 만 스킵 유지.
+      if (!strokeOnly && count <= 0) return;
       const geom = feat.geometry;
       const paths: number[][][][] = geom.type === 'Polygon'
         ? [geom.coordinates as number[][][]]
@@ -331,13 +334,13 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
         try {
           const polygon = new maps.Polygon({
             path,
-            strokeWeight: 1.0,  // L-adminpoly6: 얇게
+            strokeWeight: strokeOnly ? 1.2 : 1.0,
             strokeColor: STROKE,
-            strokeOpacity: STROKE_OPACITY,
+            strokeOpacity: strokeOnly ? 0.5 : STROKE_OPACITY,
             fillColor: FILL,
-            fillOpacity: fillOp,
-            // L-adminpoly5 (2026-04-24 pm): 폴리곤이 mouse 이벤트 가로채면 지도
-            //   드래그/줌/마커 클릭이 모두 먹힘.  순수 시각 데코레이션으로만 사용.
+            // L-adminpoly7 (2026-04-24 pm): sigungu 레벨은 fill 제거 — stroke only.
+            //   매물 많은 지역에 fill 이 크게 깔리면 시각 과부하 + 클릭 타겟 식별 방해.
+            fillOpacity: strokeOnly ? 0 : fillOp,
             clickable: false,
           });
           polygon.setMap(map);
@@ -411,7 +414,7 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
           ).trim();
           if (!nameRaw) continue;
           // southkorea-maps 는 'Gangnam-gu' 같은 영문도 있을 수 있음 — 한글만 처리
-          renderFeature(feat, nameRaw, counts.get(nameRaw) ?? 0, false);  // sigungu 는 polygon outline 만, chip 생략 (마커와 시각 충돌 방지)
+          renderFeature(feat, nameRaw, counts.get(nameRaw) ?? 0, false, true);  // sigungu: stroke only + no chip
         }
         return;
       }

@@ -262,15 +262,28 @@ export default function HtmlMarkerOverlay({
           const el = makeCircleElement({ count, selected, size });
           el.addEventListener('click', (e) => {
             e.stopPropagation();
+            // L-worldclass3 (2026-04-24 pm): 클러스터 클릭 UX = 네이버/직방 스타일.
+            //   · count === 1: 단일 매물 상세 모달 오픈
+            //   · count ≥ 2: 해당 위치로 pan + zoom-in 1 레벨 (클러스터 풀림)
             if (isSingle && singleId != null) {
               onClickListing(singleId);
-            } else if (onClickCluster && single) {
-              onClickCluster([single]);
-            } else if (singleId != null) {
-              onClickListing(singleId);
+              return;
             }
-            // cluster(count≥2) 에서 sample_ids 가 없는 경우는 현재 bbox 를 좁혀가는
-            // UX 로 이어져야 하지만 우선 기본 동작 (아무것도 안 함).  후속 개선 여지.
+            // count ≥ 2: 지도 줌인해서 cluster 를 푼다
+            try {
+              const kakaoAny = (window as unknown as { kakao?: { maps?: { LatLng?: new (lat: number, lng: number) => unknown } } }).kakao;
+              const mapApi = mapInst as { setLevel?: (n: number, opt?: unknown) => void; getLevel?: () => number; panTo?: (pos: unknown) => void };
+              const curLevel = typeof mapApi.getLevel === 'function' ? mapApi.getLevel() : 5;
+              // 클러스터 풀릴 때까지 2레벨 확 들어감.  그러나 level 1 이하로는 가지 않음.
+              const nextLevel = Math.max(1, curLevel - 2);
+              if (kakaoAny?.maps?.LatLng && typeof mapApi.panTo === 'function') {
+                const pos = new kakaoAny.maps.LatLng(c.lat, c.lng);
+                mapApi.panTo(pos);
+              }
+              if (typeof mapApi.setLevel === 'function') {
+                mapApi.setLevel(nextLevel);
+              }
+            } catch { /* 폴백: 아무것도 안 함 (이전보다 나쁘지 않음) */ }
           });
           try {
             const ov = new maps.CustomOverlay({
