@@ -1,0 +1,101 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// GET /api/listings/[id] - 매물 상세 조회
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase';
+import { filterSelfHosted } from '@/lib/image-policy';
+import { stripInternalFields, sanitizePublicListing } from '@/lib/listing-public';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+
+/**
+ * 매물 상세 조회 (이미지, 특징 포함)
+ * @param id - 매물 ID
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // L-sec79 (2026-04-22): 캐시 없음. id 순회 scraping 방지.
+    //   5분 300회/IP cap (정상 상세 페이지 수십 회/세션).
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `listing-detail:ip:${_ip}`, limit: 300, windowMs: 5 * 60_000 });
+    if (!_rl.ok) {
+      return NextResponse.json(
+        { success: false, error: '요청이 너무 많습니다.' },
+        { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+      );
+    }
+
+    const { id } = await params;
+    const listingId = parseInt(id, 10);
+
+    // L-sec33 (2026-04-22): isNaN 만 체크하면 Infinity/음수/거대 수 통과. 정수 범위 검증.
+    if (!Number.isFinite(listingId) || listingId < 0 || listingId > 2_000_000_000) {
+      return NextResponse.json(
+        { success: false, error: '유효하지 않은 매물 ID입니다' },
+        { status: 400 }
+      );
+    }
+
+    const supabase = createClient();
+
+    // 매물 조회
+    // L-sec91 (2026-04-22): IDOR 차단. status='공개' 없이는
+    //   익명 사용자가 ID 열거로 임시저장/비공개/삭제 매물 조회 가능했음.
+    const { data: listing, error: listingError } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('id', listingId)
+      .eq('status', '공개')
+      .single();
+
+    if (listingError || !listing) {
+      return NextResponse.json(
+        { success: false, error: '매물을 찾을 수 없습니다' },
+        { status: 404 }
+      );
+    }
+
+    // ※ 저작권 보호 + 자체 업로드 통과
+    //   - 크롤링 매물의 외부 원본 이미지는 차단
+    //   - 중개사가 직접 올린 자체 업로드 이미지(wishes.co.kr, supabase, R2)는 통과 → 광고 노출
+    const isCrawled = !!(listing as any).source_site;
+    const { data: rawImages = [] } = await supabase
+      .from('listing_images')
+      .select('*')
+      .eq('listing_id', listingId)
+      .order('sort_order', { ascending: true });
+    const images = isCrawled ? filterSelfHosted(rawImages || []) : (rawImages || []);
+
+    // 특징 조회
+    const { data: features = [] } = await supabase
+      .from('listing_features')
+      .select('feature')
+      .eq('listing_id', listingId);
+
+    // 고객용 응답: 크롤링 원본 description 제외, ai_description만 노출
+    // L-sec64 (2026-04-22): embedding + dedup_* 등 내부 필드 strip
+    // L-sec96 (2026-04-22): sanitizePublicListing 추가 — FORBIDDEN_PUBLIC_KEYS
+    //   (source_url/contact/source_id/raw_fields/special_notes 등) 응답
+    //   누출 차단. 백엔드에서 정책 일관적 적용.
+    const { description: _rawDesc, ...rest } = listing;
+    const publicListing = sanitizePublicListing(stripInternalFields(rest));
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...publicListing,
+        images: images || [],
+        features: features?.map((f: any) => f.feature) || [],
+      },
+    });
+  } catch (error) {
+    console.error('매물 상세 조회 오류:', error);
+    return NextResponse.json(
+      { success: false, error: '매물 조회에 실패했습니다' },
+      { status: 500 }
+    );
+  }
+}
