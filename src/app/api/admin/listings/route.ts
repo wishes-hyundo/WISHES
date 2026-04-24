@@ -225,8 +225,8 @@ export async function GET(request: NextRequest) {
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v3-mine', scopeUid as string]
-        : ['listings-minimal-v3'];
+        ? ['listings-minimal-v4-mine', scopeUid as string]
+        : ['listings-minimal-v4'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
@@ -238,6 +238,7 @@ export async function GET(request: NextRequest) {
             .from('listings')
             .select(selectFields)
             .order('created_at', { ascending: false })
+            .limit(1, { foreignTable: 'listing_images' })
             .range(0, PAGE_SIZE - 1);
           if (scope === 'mine' && scopeUid) firstQ = firstQ.eq('created_by', scopeUid);
           const { data: firstPage, error: firstError } = await firstQ;
@@ -254,6 +255,7 @@ export async function GET(request: NextRequest) {
                 .from('listings')
                 .select(selectFields)
                 .order('created_at', { ascending: false })
+                .limit(1, { foreignTable: 'listing_images' })
                 .range(from, from + PAGE_SIZE - 1);
               if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
               parallelPages.push(q);
