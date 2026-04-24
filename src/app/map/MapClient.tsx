@@ -230,35 +230,45 @@ export default function MapClient() {
   useSemanticZoom();
   useHeroRanking();
 
-  // L-clusterexact3 (2026-04-24 pm): 사용자가 지도를 직접 조작하면 (wheel 확대,
-  //   drag 이동, touch) clusterFilter 자동 해제.  programmatic setBounds 는 DOM
-  //   이벤트를 발생시키지 않으므로 안전하게 user-initiated 만 감지.
-  //   클러스터 클릭 직후 200ms 는 ignore window — setBounds 로 발생할 수 있는
-  //   관성 스크롤 노이즈 억제.
+  // L-clusterexact3 (2026-04-24 pm) + fix2 (사용자 피드백 "구단위 넘어갈때까지
+  //   해제가 안됨"): 사용자가 지도를 직접 조작하면 (wheel/drag/touch) clusterFilter
+  //   자동 해제.  두 가지 핵심 수정:
+  //     1) subscribeWithSelector 정식 형태 (selector, listener) 로 변경 —
+  //        이전 `(state, prev)` 시그니처는 prev=undefined 로 TypeError 발생 →
+  //        ignoreUntil 아예 세팅 안 됐음.
+  //     2) container 대신 window 에 capture phase 로 리스너 등록 — Kakao 지도는
+  //        내부 canvas 에서 wheel 을 stopPropagation 할 수 있어 container 레벨
+  //        bubble 단계 리스너가 호출되지 않았음.  window + capture 로 이벤트를
+  //        가장 먼저 받고 event.target 이 지도 container 안인지만 확인.
   useEffect(() => {
     const container = containerRef.current;
     if (!container || !kakaoMap) return;
     let ignoreUntil = 0;
-    const onUserInput = () => {
+    const onUserInput = (e: Event) => {
+      if (!container.contains(e.target as Node)) return;
       if (Date.now() < ignoreUntil) return;
       const st = useMap2026Store.getState();
       if (st.clusterFilterIds && st.clusterFilterIds.length > 0) {
         st.setClusterFilter(null);
       }
     };
-    // clusterFilter 가 새로 세팅되면 200ms ignore 창 재시작.
-    const unsub = useMap2026Store.subscribe((state, prev) => {
-      if (state.clusterFilterIds !== prev.clusterFilterIds && state.clusterFilterIds) {
-        ignoreUntil = Date.now() + 200;
-      }
-    });
-    container.addEventListener('wheel', onUserInput, { passive: true });
-    container.addEventListener('mousedown', onUserInput);
-    container.addEventListener('touchstart', onUserInput, { passive: true });
+    // subscribeWithSelector: (selector, listener) 형태 필수
+    const unsub = useMap2026Store.subscribe(
+      (s) => s.clusterFilterIds,
+      (ids) => {
+        if (ids && ids.length > 0) {
+          // setBounds 관성 애니메이션 흡수 창 (400ms)
+          ignoreUntil = Date.now() + 400;
+        }
+      },
+    );
+    window.addEventListener('wheel', onUserInput, { passive: true, capture: true });
+    window.addEventListener('mousedown', onUserInput, true);
+    window.addEventListener('touchstart', onUserInput, { passive: true, capture: true });
     return () => {
-      container.removeEventListener('wheel', onUserInput);
-      container.removeEventListener('mousedown', onUserInput);
-      container.removeEventListener('touchstart', onUserInput);
+      window.removeEventListener('wheel', onUserInput, true);
+      window.removeEventListener('mousedown', onUserInput, true);
+      window.removeEventListener('touchstart', onUserInput, true);
       unsub();
     };
   }, [kakaoMap]);
