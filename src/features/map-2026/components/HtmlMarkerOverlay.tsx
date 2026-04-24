@@ -40,9 +40,13 @@ interface KakaoEventNs {
   addListener: (t: unknown, type: string, cb: () => void) => void;
   removeListener?: (t: unknown, type: string, cb: () => void) => void;
 }
+interface KakaoLatLngBoundsLike {
+  extend: (latlng: unknown) => void;
+}
 interface KakaoMapsNs {
   CustomOverlay: new (opts: Record<string, unknown>) => KakaoCustomOverlay;
   LatLng: new (lat: number, lng: number) => unknown;
+  LatLngBounds: new (sw?: unknown, ne?: unknown) => KakaoLatLngBoundsLike;
   event: KakaoEventNs;
 }
 interface KakaoNamespace {
@@ -262,28 +266,52 @@ export default function HtmlMarkerOverlay({
           const el = makeCircleElement({ count, selected, size });
           el.addEventListener('click', (e) => {
             e.stopPropagation();
-            // L-worldclass3 (2026-04-24 pm): 클러스터 클릭 UX = 네이버/직방 스타일.
+            // L-clusterfit1 (2026-04-24 pm): 클러스터 클릭 UX — 네이버/직방 스타일 fitBounds.
             //   · count === 1: 단일 매물 상세 모달 오픈
-            //   · count ≥ 2: 해당 위치로 pan + zoom-in 1 레벨 (클러스터 풀림)
+            //   · count ≥ 2: 클러스터 영역에 map.setBounds → 지도가 자동 줌인 →
+            //     grid 셀이 작아지며 클러스터가 풀리고 bbox 가 좁아지면서 useViewport
+            //     가 /api/listings/map 을 재호출 → ListPanel 도 해당 영역 매물만 자동 필터.
+            //   이전 setLevel(curr-2) 는 줌폭이 약해 5개짜리 클러스터가 풀리지 않고
+            //   엉뚱한 위치에서 지도가 멈춰 버리는 문제 발생 (사용자 피드백).
             if (isSingle && singleId != null) {
               onClickListing(singleId);
               return;
             }
-            // count ≥ 2: 지도 줌인해서 cluster 를 푼다
             try {
-              const kakaoAny = (window as unknown as { kakao?: { maps?: { LatLng?: new (lat: number, lng: number) => unknown } } }).kakao;
-              const mapApi = mapInst as { setLevel?: (n: number, opt?: unknown) => void; getLevel?: () => number; panTo?: (pos: unknown) => void };
+              const kakaoAny = (window as unknown as {
+                kakao?: { maps?: {
+                  LatLng?: new (lat: number, lng: number) => unknown;
+                  LatLngBounds?: new (sw?: unknown, ne?: unknown) => KakaoLatLngBoundsLike;
+                } };
+              }).kakao;
+              const mapApi = mapInst as {
+                setLevel?: (n: number, opt?: unknown) => void;
+                getLevel?: () => number;
+                panTo?: (pos: unknown) => void;
+                setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
+              };
               const curLevel = typeof mapApi.getLevel === 'function' ? mapApi.getLevel() : 5;
-              // 클러스터 풀릴 때까지 2레벨 확 들어감.  그러나 level 1 이하로는 가지 않음.
+              const cellHalf = Math.max(0.0005, gridSizeForLevel(curLevel) * 0.55);
+              if (
+                kakaoAny?.maps?.LatLng &&
+                kakaoAny?.maps?.LatLngBounds &&
+                typeof mapApi.setBounds === 'function'
+              ) {
+                const sw = new kakaoAny.maps.LatLng(c.lat - cellHalf, c.lng - cellHalf);
+                const ne = new kakaoAny.maps.LatLng(c.lat + cellHalf, c.lng + cellHalf);
+                const bounds = new kakaoAny.maps.LatLngBounds(sw, ne);
+                mapApi.setBounds(bounds, 40, 40, 40, 40);
+                return;
+              }
+              // 폴백: setBounds 미지원 → 기존 panTo + setLevel(-2)
               const nextLevel = Math.max(1, curLevel - 2);
               if (kakaoAny?.maps?.LatLng && typeof mapApi.panTo === 'function') {
-                const pos = new kakaoAny.maps.LatLng(c.lat, c.lng);
-                mapApi.panTo(pos);
+                mapApi.panTo(new kakaoAny.maps.LatLng(c.lat, c.lng));
               }
               if (typeof mapApi.setLevel === 'function') {
                 mapApi.setLevel(nextLevel);
               }
-            } catch { /* 폴백: 아무것도 안 함 (이전보다 나쁘지 않음) */ }
+            } catch { /* 폴백: 아무것도 안 함 */ }
           });
           try {
             const ov = new maps.CustomOverlay({
@@ -377,9 +405,63 @@ export default function HtmlMarkerOverlay({
         const el = makeCircleElement({ count, selected, size });
         const clickHandler = (e: Event) => {
           e.stopPropagation();
-          if (count === 1) onClickListing(arr[0].id);
-          else if (onClickCluster) onClickCluster(arr);
-          else onClickListing(arr[0].id);
+          if (count === 1) {
+            onClickListing(arr[0].id);
+            return;
+          }
+          // L-clusterfit1 (2026-04-24 pm): count ≥ 2 클러스터 클릭.
+          //   onClickCluster 콜백이 제공되면 그것을 우선.  없으면 클러스터 내 실제
+          //   매물 좌표로 tight bbox 를 만들어 map.setBounds 로 fitBounds.
+          //   결과: 지도가 클러스터 영역에 자동 줌인 → 개별 마커로 풀림 + 뷰포트
+          //   축소로 사이드바도 그 영역 매물만 자동 필터.
+          if (onClickCluster) {
+            onClickCluster(arr);
+            return;
+          }
+          try {
+            const kakaoAny = (window as unknown as {
+              kakao?: { maps?: {
+                LatLng?: new (lat: number, lng: number) => unknown;
+                LatLngBounds?: new (sw?: unknown, ne?: unknown) => KakaoLatLngBoundsLike;
+              } };
+            }).kakao;
+            const mapApi = mapInst as {
+              setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
+              panTo?: (pos: unknown) => void;
+              setLevel?: (n: number) => void;
+              getLevel?: () => number;
+            };
+            if (
+              kakaoAny?.maps?.LatLng &&
+              kakaoAny?.maps?.LatLngBounds &&
+              typeof mapApi.setBounds === 'function'
+            ) {
+              let minLat = Infinity, maxLat = -Infinity;
+              let minLng = Infinity, maxLng = -Infinity;
+              for (const l of arr) {
+                if (l.lat < minLat) minLat = l.lat;
+                if (l.lat > maxLat) maxLat = l.lat;
+                if (l.lng < minLng) minLng = l.lng;
+                if (l.lng > maxLng) maxLng = l.lng;
+              }
+              // 동일 좌표에 여러 매물 (같은 건물) → setBounds 무의미.  첫 매물 상세로 폴백.
+              if (minLat === maxLat && minLng === maxLng) {
+                onClickListing(arr[0].id);
+                return;
+              }
+              // 너무 좁으면 최소 반경 확보 (약 40m) — 단일 건물 밀집 매물 풀기
+              const MIN_HALF = 0.00035;
+              const latPad = Math.max(MIN_HALF, (maxLat - minLat) * 0.15);
+              const lngPad = Math.max(MIN_HALF, (maxLng - minLng) * 0.15);
+              const sw = new kakaoAny.maps.LatLng(minLat - latPad, minLng - lngPad);
+              const ne = new kakaoAny.maps.LatLng(maxLat + latPad, maxLng + lngPad);
+              const bounds = new kakaoAny.maps.LatLngBounds(sw, ne);
+              mapApi.setBounds(bounds, 40, 40, 40, 40);
+              return;
+            }
+          } catch { /* noop */ }
+          // 최후 폴백 (SDK 미지원): 첫 매물 상세
+          onClickListing(arr[0].id);
         };
         el.addEventListener('click', clickHandler);
         try {

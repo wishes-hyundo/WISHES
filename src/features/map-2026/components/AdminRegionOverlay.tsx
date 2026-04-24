@@ -78,15 +78,22 @@ interface KakaoBounds {
 interface KakaoMapLike {
   getLevel?: () => number;
   getBounds?: () => KakaoBounds;
+  setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
+  panTo?: (pos: unknown) => void;
+  setLevel?: (n: number, opts?: unknown) => void;
 }
 interface KakaoEventNs {
   addListener: (t: unknown, type: string, cb: () => void) => void;
   removeListener?: (t: unknown, type: string, cb: () => void) => void;
 }
+interface KakaoLatLngBoundsLike {
+  extend: (latlng: unknown) => void;
+}
 interface KakaoMapsNs {
   Polygon: new (opts: Record<string, unknown>) => KakaoPolygon;
   CustomOverlay: new (opts: Record<string, unknown>) => KakaoCustomOverlay;
   LatLng: new (lat: number, lng: number) => unknown;
+  LatLngBounds: new (sw?: unknown, ne?: unknown) => KakaoLatLngBoundsLike;
   event: KakaoEventNs;
 }
 interface KakaoNs { maps?: KakaoMapsNs }
@@ -182,6 +189,35 @@ function countListingsBySigungu(listings: MapListing[]): Map<string, number> {
     out.set(key, (out.get(key) ?? 0) + 1);
   }
   return out;
+}
+
+/** GeoJSON feature → 전체 geometry 의 bounding box.
+ *  MultiPolygon 이어도 모든 ring 을 순회해 정확한 외접 bbox 산출. */
+function computeFeatureBbox(
+  feat: GeoFeature,
+): { west: number; south: number; east: number; north: number } | null {
+  const geom = feat.geometry;
+  const paths: number[][][][] = geom.type === 'Polygon'
+    ? [geom.coordinates as number[][][]]
+    : geom.type === 'MultiPolygon'
+      ? (geom.coordinates as number[][][][])
+      : [];
+  let minLng = Infinity;
+  let maxLng = -Infinity;
+  let minLat = Infinity;
+  let maxLat = -Infinity;
+  for (const poly of paths) {
+    for (const ring of poly) {
+      for (const [lng, lat] of ring) {
+        if (lng < minLng) minLng = lng;
+        if (lng > maxLng) maxLng = lng;
+        if (lat < minLat) minLat = lat;
+        if (lat > maxLat) maxLat = lat;
+      }
+    }
+  }
+  if (!Number.isFinite(minLng)) return null;
+  return { west: minLng, south: minLat, east: maxLng, north: maxLat };
 }
 
 /** GeoJSON feature 의 bbox 가 viewport bbox 와 교차하는지 */
@@ -353,8 +389,29 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
         );
         if (!centroid) return;
         const chip = makeRegionCountChip(displayName, count);
+        // L-adminfit1 (2026-04-24 pm): chip 클릭 = 해당 지역 경계에 fitBounds.
+        //   이전엔 onClickRegion 콜백이 MapClient 에서 제공되지 않아 클릭해도 반응 없었다
+        //   ('폴리곤 기능이 제대로 작동을 안한다' 사용자 피드백의 실제 원인).
+        //   이제 내부에서 map.setBounds 를 직접 호출 → 해당 시/도·시/군/구 영역으로
+        //   자동 줌인. useViewport 가 좁아진 bbox 로 /api/listings/map 재호출 →
+        //   사이드바도 해당 지역 매물만 자동 필터.
+        const regionBbox = computeFeatureBbox(feat);
         chip.addEventListener('click', (e) => {
           e.stopPropagation();
+          try {
+            if (regionBbox && typeof mapInst.setBounds === 'function') {
+              const sw = new maps.LatLng(regionBbox.south, regionBbox.west);
+              const ne = new maps.LatLng(regionBbox.north, regionBbox.east);
+              const bounds = new maps.LatLngBounds(sw, ne);
+              mapInst.setBounds(bounds, 40, 40, 40, 40);
+            } else if (typeof mapInst.panTo === 'function') {
+              mapInst.panTo(new maps.LatLng(centroid.lat, centroid.lng));
+              if (typeof mapInst.setLevel === 'function') {
+                const cur = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 10;
+                mapInst.setLevel(Math.max(4, cur - 3));
+              }
+            }
+          } catch { /* SDK race — skip */ }
           onClickRegion?.(displayName);
         });
         try {
@@ -414,7 +471,10 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
           ).trim();
           if (!nameRaw) continue;
           // southkorea-maps 는 'Gangnam-gu' 같은 영문도 있을 수 있음 — 한글만 처리
-          renderFeature(feat, nameRaw, counts.get(nameRaw) ?? 0, false, true);  // sigungu: stroke only + no chip
+          // L-adminfit1 (2026-04-24 pm): sigungu 에도 chip 표시 (count > 0 만).
+          //   chip 클릭 = 해당 구/시 영역으로 fitBounds → 자동 줌인 → 사이드바 필터.
+          //   이전엔 sigungu 는 stroke 만 + chip 없어 레벨 7~9 에서 클릭 타겟이 없었다.
+          renderFeature(feat, nameRaw, counts.get(nameRaw) ?? 0, true, true);
         }
         return;
       }
