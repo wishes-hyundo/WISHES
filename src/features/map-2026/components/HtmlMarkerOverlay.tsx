@@ -313,18 +313,33 @@ export default function HtmlMarkerOverlay({
               };
               const curLevel = typeof mapApi.getLevel === 'function' ? mapApi.getLevel() : 5;
               const cellHalf = Math.max(0.0005, gridSizeForLevel(curLevel) * 0.55);
-              // L-clusterexact1: bbox 내 listings id 추출 → clusterFilter 세팅
+              // L-clusterexact1 + L-clusterexact2 (2026-04-24 pm): clusterFilter 세팅.
+              //   우선순위:
+              //     ① c.sample_ids (count <= 30 이면 전체 id — RPC L-clusterexact2)
+              //     ② bbox 내 listings filter (폴백, count > 30 대형 클러스터 또는
+              //        RPC 가 아직 이전 버전인 경우)
               if (onClusterFilter) {
-                const idsInBbox: number[] = [];
-                for (const l of listings) {
-                  if (
-                    l.lat >= c.lat - cellHalf && l.lat <= c.lat + cellHalf &&
-                    l.lng >= c.lng - cellHalf && l.lng <= c.lng + cellHalf
-                  ) idsInBbox.push(l.id);
+                if (c.sample_ids && c.sample_ids.length > 0 && c.sample_ids.length >= c.count) {
+                  // 정확한 전체 id (count 과 일치 확인)
+                  onClusterFilter(c.sample_ids);
+                } else {
+                  const idsInBbox: number[] = [];
+                  for (const l of listings) {
+                    if (
+                      l.lat >= c.lat - cellHalf && l.lat <= c.lat + cellHalf &&
+                      l.lng >= c.lng - cellHalf && l.lng <= c.lng + cellHalf
+                    ) idsInBbox.push(l.id);
+                  }
+                  // sample_ids 가 있지만 count 보다 적으면 (대형 클러스터: 30 cap)
+                  // sample_ids 와 bbox 매물의 union 으로 보강
+                  if (c.sample_ids && c.sample_ids.length > 0) {
+                    const union = new Set(idsInBbox);
+                    for (const id of c.sample_ids) union.add(id);
+                    onClusterFilter(Array.from(union));
+                  } else if (idsInBbox.length > 0) {
+                    onClusterFilter(idsInBbox);
+                  }
                 }
-                // listings 에 해당 영역 매물이 실제로 있을 때만 filter 적용
-                // (server 클러스터가 bbox 밖일 수도 있어 빈 배열이면 filter skip)
-                if (idsInBbox.length > 0) onClusterFilter(idsInBbox);
               }
               if (
                 kakaoAny?.maps?.LatLng &&
