@@ -263,23 +263,6 @@ export default function HtmlMarkerOverlay({
         : (filterSet ? listings.filter((l) => filterSet.has(l.id)) : listings);
       if (visibleListings.length === 0 && !filterSet) return;
 
-      // TEMP DEBUG: window.__wishesDebug 에 현재 상태 덤프
-      try {
-        (window as unknown as Record<string, unknown>).__wishesDebug = {
-          level,
-          usePillThreshold: level <= 3,
-          visibleListingsCount: visibleListings.length,
-          sampleListings: visibleListings.slice(0, 3).map((l) => ({
-            id: l.id,
-            dong: l.dong,
-            type: l.type,
-            building_name: l.building_name,
-            lat: l.lat,
-            lng: l.lng,
-          })),
-        };
-      } catch { /* noop */ }
-
       // L-adminpoly1 + L-chipexclusive1 + L-naverstyle5 (2026-04-24 pm):
       //   네이버 4단계 행정구역 체계.  AdminRegionOverlay 가 다음을 담당:
       //     · level ≥ 10 : 시/도 chip (17 개)
@@ -418,15 +401,6 @@ export default function HtmlMarkerOverlay({
         const buckets = bucketListings(filtered);
         tier1Groups = buckets.tier1Groups;
         rest = buckets.tier2Listings;
-        try {
-          const dbg = (window as unknown as Record<string, unknown>).__wishesDebug as Record<string, unknown> | undefined;
-          if (dbg) {
-            dbg.filteredCount = filtered.length;
-            dbg.tier1Count = tier1Groups.length;
-            dbg.tier2Count = rest.length;
-            dbg.tier1Samples = tier1Groups.slice(0, 5).map((g) => ({ name: g.name, count: g.count }));
-          }
-        } catch { /* noop */ }
       }
 
       // ── Tier 1 단지 pill ──
