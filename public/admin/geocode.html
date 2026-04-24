@@ -300,6 +300,37 @@
     </style>
 </head>
 <body>
+    <!-- L-geocode-auth (2026-04-24): UI 렌더 전 인증 체크.
+         이전에는 누구나 URL 로 접속해서 지오코딩 배치 UI 를 볼 수 있었음.
+         API 레벨에서는 getApiHeaders 가 막지만, UI 자체 노출은 불필요.
+         superadmin/admin 만 허용 — agent 는 /admin 으로 돌려보냄. -->
+    <script>
+    (function () {
+      try {
+        var tok = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ws_token'))
+               || (typeof localStorage !== 'undefined' && localStorage.getItem('ws_token'))
+               || '';
+        if (!tok || tok.length < 20 || tok.indexOf('admin_bridge_') === 0) {
+          document.documentElement.style.display = 'none';
+          location.replace('/admin/admin-auth.html');
+          return;
+        }
+        var userStr = (typeof localStorage !== 'undefined' && localStorage.getItem('ws_user'))
+                   || (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ws_user'))
+                   || '';
+        if (userStr) {
+          var u = JSON.parse(userStr);
+          var role = (u && u.role ? String(u.role) : '').toLowerCase();
+          if (role !== 'superadmin' && role !== 'admin') {
+            document.documentElement.style.display = 'none';
+            alert('관리자 권한이 필요합니다.');
+            location.replace('/admin');
+            return;
+          }
+        }
+      } catch (e) { /* parse/storage 접근 실패 — UI 는 렌더하되 API 레벨에서 재차 차단 */ }
+    })();
+    </script>
     <div class="container">
         <h1>🌍 지오코딩 배치 처리</h1>
 
@@ -544,48 +575,4 @@
 
                 updateStats();
 
-                // L-geocodeui1: 무한루프 방지 — 연속 3배치 remaining 변화 없으면 stop.
-                if (typeof window.__stuckBatchCount === 'undefined') window.__stuckBatchCount = 0;
-                if (prevRemaining === totalRemaining) {
-                  window.__stuckBatchCount++;
-                  if (window.__stuckBatchCount >= 3) {
-                    log(`⚠️ 남은 건수가 ${window.__stuckBatchCount}배치 연속 변화 없음 — 지오코딩 불가능한 매물로 판단해 자동 중지.`, 'warn');
-                    stopGeocoding();
-                    window.__stuckBatchCount = 0;
-                    return;
-                  }
-                } else {
-                  window.__stuckBatchCount = 0;
-                }
-
-                // Check if completed
-                if (totalRemaining === 0 || totalRemaining === null && batchProcessed === 0) {
-                    stopGeocoding();
-                    log('모든 지오코딩이 완료되었습니다!', 'success');
-                }
-
-            } catch (error) {
-                log(`❌ 오류: ${error.message}`, 'error');
-                stopGeocoding();
-            }
-        }
-
-        function stopGeocoding() {
-            isRunning = false;
-            updateStatus();
-
-            if (totalRemaining !== null) {
-                log('지오코딩 배치 처리 중지됨', 'info');
-            }
-        }
-
-        function sleep(ms) {
-            return new Promise(resolve => setTimeout(resolve, ms));
-        }
-
-        // Initialize
-        updateStatus();
-        updateStats();
-    </script>
-</body>
-</html>
+                // L-geocodeui1: 무한루프 방지 — 연속 3배치

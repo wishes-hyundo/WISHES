@@ -201,6 +201,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { href: '/admin', label: '대시보드', icon: '📊' },
+    // L-nav-listings (2026-04-24): 매물 목록/수정/삭제 진입점 추가.
+    //   이전에는 사이드바에 링크가 없어 URL 직접 입력으로만 접근 가능.
+    { href: '/admin/listings', label: '매물 관리', icon: '🏢' },
     { href: '/admin?tab=contacts', label: '상담 관리', icon: '📞' },
     { href: '/admin/dedup', label: '중복 정리', icon: '🧹' },
     // L-agent-profile (2026-04-24): 중개사 프로필 편집 — AgentContactModal 반영
@@ -217,14 +220,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   //   Command Center 진입은 Supabase 세션 (ws_token) 이 있어야만 허용.
   const handleCommandCenter = () => {
     try {
-      const token = window.sessionStorage.getItem('ws_token');
+      const token = window.sessionStorage.getItem('ws_token') || window.localStorage.getItem('ws_token');
       if (!token) {
         alert('먼저 관리자 로그인을 진행해주세요.');
         window.location.href = '/admin';
         return;
       }
     } catch (e) {}
-    window.location.href = '/admin/command-center.html';
+    // L-cc-unify (2026-04-24): V2 경로로 직접 이동 (V1 /command 는 legacy).
+    window.location.href = '/admin/command-center-v2';
   };
 
   const handleLogout = () => {

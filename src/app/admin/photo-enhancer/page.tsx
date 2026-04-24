@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface AnalysisResult {
   analysis?: { overall_quality: string; issues: string[] };
@@ -16,16 +17,17 @@ interface MosaicDetection {
 }
 
 const STEPS = [
-  { name: 'HDR ê·¸ë¦¼ì ë¦¬íí¸', desc: 'ì´ëì´ êµ¬ì ëíì¼ ë³µêµ¬' },
-  { name: 'íì´ë¼ì´í¸ ë¦¬ì»¤ë²ë¦¬', desc: 'ë ìê° ë°ì ë¶ë¶ ë³µì' },
-  { name: 'ìë¤ë§í± S-ì»¤ë¸', desc: 'ëªì ê¹ì´ê° í¥ì' },
-  { name: 'ëí¤ì´ì¦', desc: 'ë¿ì° ìê° ì ê±°' },
-  { name: 'ì¤ë§í¸ ë°ì´ë¸ë°ì¤', desc: 'ìê° ì íì  ê°í' },
-  { name: 'ì¸ì¤íë§ì¤í¬ 2í¨ì¤', desc: 'ì ëªë í¥ì' },
-  { name: 'ë¹ë¤í', desc: 'ë§¤ë¬¼ì ìì  ì§ì¤' },
+  { name: 'HDR 그림자 리프트', desc: '어두운 구석 디테일 복구' },
+  { name: '하이라이트 리커버리', desc: '날아간 밝은 부분 복원' },
+  { name: '시네마틱 S-커브', desc: '명암 깊이감 향상' },
+  { name: '디헤이즈', desc: '뿌연 안개 제거' },
+  { name: '스마트 바이브런스', desc: '색감 선택적 강화' },
+  { name: '언샤프마스크 2패스', desc: '선명도 향상' },
+  { name: '비네팅', desc: '매물에 시선 집중' },
 ];
 
 export default function PhotoEnhancer() {
+  const router = useRouter();
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [enhancedImage, setEnhancedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -35,6 +37,25 @@ export default function PhotoEnhancer() {
   const [mosaicAreas, setMosaicAreas] = useState<MosaicDetection[]>([]);
   const [sliderPos, setSliderPos] = useState(50);
   const [error, setError] = useState<string | null>(null);
+  // L-photo-role (2026-04-24): admin/superadmin 전용. agent 이하 차단.
+  //   사진 보정 + 모자이크 도구는 매물 관리 권한과 개인정보 처리 책임이 있는
+  //   관리자만 사용해야 하므로 role gate 를 클라이언트에서 우선 추가.
+  //   API 레벨 추가 보호는 /api/analyze-photo 와 /api/mosaic-image 쪽 과제.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem('ws_user') || window.sessionStorage.getItem('ws_user');
+      const u = raw ? JSON.parse(raw) : null;
+      const role = (u?.role || '').toLowerCase();
+      if (role !== 'superadmin' && role !== 'admin') {
+        alert('사진 자동보정은 관리자 권한이 필요합니다.');
+        router.replace('/admin');
+      }
+    } catch {
+      alert('권한 확인에 실패했습니다. 다시 로그인해주세요.');
+      router.replace('/admin/admin-auth.html');
+    }
+  }, [router]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -57,7 +78,7 @@ export default function PhotoEnhancer() {
     if (file) handleFileSelect(file);
   }, [handleFileSelect]);
 
-  // ââ 7-Step Enhancement Engine ââ
+  // ── 7-Step Enhancement Engine ──
   const applyEnhancement = useCallback((imageData: ImageData, params: AnalysisResult['parameters']) => {
     if (!params) return imageData;
     const d = imageData.data;
@@ -123,7 +144,7 @@ export default function PhotoEnhancer() {
     return imageData;
   }, []);
 
-  // ââ Unsharp Mask ââ
+  // ── Unsharp Mask ──
   const applySharpen = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number, params: AnalysisResult['parameters']) => {
     if (!params) return;
     const imageData = ctx.getImageData(0, 0, w, h);
@@ -143,7 +164,7 @@ export default function PhotoEnhancer() {
     ctx.putImageData(imageData, 0, 0);
   }, []);
 
-  // ââ Vignette ââ
+  // ── Vignette ──
   const applyVignette = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number, strength: number) => {
     const gradient = ctx.createRadialGradient(w/2, h/2, w*0.3, w/2, h/2, w*0.8);
     gradient.addColorStop(0, 'rgba(0,0,0,0)');
@@ -152,7 +173,7 @@ export default function PhotoEnhancer() {
     ctx.fillRect(0, 0, w, h);
   }, []);
 
-  // ââ Mosaic ââ
+  // ── Mosaic ──
   const applyMosaic = useCallback((ctx: CanvasRenderingContext2D, w: number, h: number, detections: MosaicDetection[]) => {
     const blockSize = 20;
     detections.forEach(det => {
@@ -171,7 +192,7 @@ export default function PhotoEnhancer() {
     });
   }, []);
 
-  // ââ Main Enhancement Process ââ
+  // ── Main Enhancement Process ──
   const startEnhancement = useCallback(async () => {
     if (!originalImage) return;
     setError(null);
@@ -260,7 +281,7 @@ export default function PhotoEnhancer() {
     }
   }, [originalImage, applyEnhancement, applySharpen, applyVignette, applyMosaic]);
 
-  // ââ Slider interaction ââ
+  // ── Slider interaction ──
   const handleSliderMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const el = sliderRef.current;
     if (!el) return;

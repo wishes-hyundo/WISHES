@@ -1,10 +1,10 @@
 /* ============================================================
-   ë§¤ë¬¼ ë±ë¡ ì AI ìë ìì± + ê±´ì¶ë¬¼ëì¥ ìë ì¡°í í
-   íì¼: src/components/admin/useAutoGenerateOnCreate.ts
-   ì©ë: ë§¤ë¬¼ ì ê· ë±ë¡ í ìëì¼ë¡:
-         1) AI ì ëª©/ì¤ëª/SEO ìì±
-         2) ê±´ì¶ë¬¼ëì¥ ì ë³´ ì¡°í
-   ì ì©: admin/page.tsx ëë admin/listings/new/page.tsx ìì ì¬ì©
+   매물 등록 시 AI 자동 생성 + 건축물대장 자동 조회 훅
+   파일: src/components/admin/useAutoGenerateOnCreate.ts
+   용도: 매물 신규 등록 후 자동으로:
+         1) AI 제목/설명/SEO 생성
+         2) 건축물대장 정보 조회
+   적용: admin/page.tsx 또는 admin/listings/new/page.tsx 에서 사용
    ============================================================ */
 
 import { useCallback } from 'react';
@@ -38,7 +38,7 @@ export function useAutoGenerateOnCreate() {
       errors: [],
     };
 
-    // 1. AI ì ëª©/ì¤ëª/SEO ìë ìì±
+    // 1. AI 제목/설명/SEO 자동 생성
     try {
       // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
       const aiRes = await adminFetch('/api/admin/generate-description', {
@@ -67,7 +67,7 @@ export function useAutoGenerateOnCreate() {
       if (aiRes.ok) {
         const aiData = await aiRes.json();
 
-        // ìì±ë ë´ì©ì ë§¤ë¬¼ì ë°ë¡ ì ì©
+        // 생성된 내용을 매물에 바로 적용
         // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
         const updateRes = await adminFetch(`/api/admin/listings/${listing.id}`, {
           method: 'PATCH',
@@ -88,10 +88,10 @@ export function useAutoGenerateOnCreate() {
         result.aiGenerated = updateRes.ok;
       }
     } catch (err: any) {
-      result.errors.push('AI ìì± ì¤í¨: ' + err.message);
+      result.errors.push('AI 생성 실패: ' + err.message);
     }
 
-    // 2. ê±´ì¶ë¬¼ëì¥ ìë ì¡°í
+    // 2. 건축물대장 자동 조회
     try {
       // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
       const bldgRes = await adminFetch('/api/admin/building-registry', {
@@ -108,7 +108,7 @@ export function useAutoGenerateOnCreate() {
 
       result.buildingFetched = bldgRes.ok;
     } catch (err: any) {
-      result.errors.push('ê±´ì¶ë¬¼ëì¥ ì¡°í ì¤í¨: ' + err.message);
+      result.errors.push('건축물대장 조회 실패: ' + err.message);
     }
 
     return result;
@@ -117,9 +117,9 @@ export function useAutoGenerateOnCreate() {
   return { autoGenerate };
 }
 
-/* ââ ì¬ì© ìì ââ
+/* ── 사용 예시 ──
 
-// admin/page.tsx ëë admin/listings/new/page.tsx ë´:
+// admin/page.tsx 또는 admin/listings/new/page.tsx 내:
 
 import { useAutoGenerateOnCreate } from '@/components/admin/useAutoGenerateOnCreate';
 
@@ -127,7 +127,7 @@ function AdminPage() {
   const { autoGenerate } = useAutoGenerateOnCreate();
 
   const handleListingCreate = async (newListing) => {
-    // 1. ë¨¼ì  ë§¤ë¬¼ì DBì ì ì¥
+    // 1. 먼저 매물을 DB에 저장
     const res = await fetch('/api/admin/listings', {
       method: 'POST',
       body: JSON.stringify(newListing),
@@ -135,17 +135,17 @@ function AdminPage() {
     });
     const saved = await res.json();
 
-    // 2. ì ì¥ í ìëì¼ë¡ AI + ê±´ì¶ë¬¼ëì¥ ì¡°í
+    // 2. 저장 후 자동으로 AI + 건축물대장 조회
     const result = await autoGenerate(saved);
 
     if (result.aiGenerated) {
-      alert('â AIê° ì ëª©ê³¼ ì¤ëªì ìë ìì±íìµëë¤.');
+      alert('✅ AI가 제목과 설명을 자동 생성했습니다.');
     }
     if (result.buildingFetched) {
-      alert('â ê±´ì¶ë¬¼ëì¥ ì ë³´ë¥¼ ìëì¼ë¡ ê°ì ¸ììµëë¤.');
+      alert('✅ 건축물대장 정보를 자동으로 가져왔습니다.');
     }
     if (result.errors.length > 0) {
-      console.warn('ìë ìì± ì¤ë¥:', result.errors);
+      console.warn('자동 생성 오류:', result.errors);
     }
   };
 }

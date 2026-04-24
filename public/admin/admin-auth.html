@@ -867,23 +867,25 @@
             }
         }
 
-        /* Footer */
+        /* Footer — L-footer-contrast (2026-04-24):
+           이전 opacity 0.5 + 8px 로 WCAG AA 대비 미달.
+           가독성 향상을 위해 밝기·크기 조정. */
         .footer {
             position: fixed;
             bottom: 10px;
             right: 10px;
-            font-size: 10px;
-            color: var(--text-lighter);
-            opacity: 0.5;
+            font-size: 11px;
+            color: rgba(200, 220, 200, 0.65);
             z-index: 1;
-            max-width: 200px;
+            max-width: 240px;
             text-align: right;
         }
 
         .footer-text {
-            font-size: 8px;
-            line-height: 1.2;
-            word-break: break-all;
+            font-size: 10px;
+            line-height: 1.3;
+            letter-spacing: 0.2px;
+            word-break: keep-all;
         }
 
         /* Accessibility */
@@ -1932,9 +1934,18 @@
             const rememberMe = form.rememberMe.checked;
             const submitBtn = form.querySelector('button[type="submit"]');
 
-            // Validation
-            if (!validateEmail(email) || password.length === 0) {
-                showToast('error', '입력 오류', '이메일과 비밀번호를 입력하세요.');
+            // Validation — L-login-empty-pw (2026-04-24):
+            //   브라우저 자동완성이 비밀번호 필드에 점(●●●)을 표시해도 실제
+            //   input.value 는 비어 있을 수 있음. 사용자가 "입력된 줄 알고"
+            //   로그인을 누르면 그냥 "입력 오류"만 떠서 혼란. 더 명확한 안내 + focus.
+            if (password.length === 0) {
+                showToast('error', '비밀번호 입력 필요', '브라우저 자동완성 표시(●●●)는 실제 입력이 아닙니다. 비밀번호를 직접 입력해주세요.');
+                try { form.password.focus(); form.password.select(); } catch (e) {}
+                return;
+            }
+            if (!validateEmail(email)) {
+                showToast('error', '이메일 확인', '올바른 이메일 주소를 입력해주세요.');
+                try { form.email.focus(); } catch (e) {}
                 return;
             }
 
@@ -2465,33 +2476,4 @@
         if (!emailInput || !cb) return;
         try {
             var saved = localStorage.getItem(LS_KEY);
-            var flag = localStorage.getItem(LS_FLAG);
-            if (saved && flag === "true") {
-                emailInput.value = saved;
-                cb.checked = true;
-            }
-        } catch(e) {}
-        var form = document.getElementById("loginForm");
-        if (form) {
-            form.addEventListener("submit", function() {
-                try {
-                    if (cb.checked) {
-                        localStorage.setItem(LS_KEY, emailInput.value);
-                        localStorage.setItem(LS_FLAG, "true");
-                    } else {
-                        localStorage.removeItem(LS_KEY);
-                        localStorage.removeItem(LS_FLAG);
-                    }
-                } catch(e) {}
-            });
-        }
-    }
-    if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", initSaveEmail);
-    } else {
-        initSaveEmail();
-    }
-})();
-</script>
-</body>
-</html>
+            var flag = localStorage.getItem(

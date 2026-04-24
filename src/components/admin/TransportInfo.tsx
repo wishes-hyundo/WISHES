@@ -1,8 +1,8 @@
 'use client';
 /* ============================================================
-   êµíµì ë³´ ì¹ì ì»´í¬ëí¸
-   íì¼: src/components/admin/TransportInfo.tsx
-   ì©ë: ê´ë¦¬ì ë§¤ë¬¼ê²ì ëª¨ë¬ ë´ êµíµì ë³´ íì
+   교통정보 섹션 컴포넌트
+   파일: src/components/admin/TransportInfo.tsx
+   용도: 관리자 매물검색 모달 내 교통정보 표시
    API:  GET /api/listings/{id}/nearby
    ============================================================ */
 
@@ -45,7 +45,7 @@ export default function TransportInfo({ listingId, address }: TransportInfoProps
         if (ac.signal.aborted) return;
 
         if (!res.ok) {
-          throw new Error('êµíµì ë³´ë¥¼ ë¶ë¬ì¬ ì ììµëë¤.');
+          throw new Error('교통정보를 불러올 수 없습니다.');
         }
 
         const data = await res.json();
@@ -53,7 +53,7 @@ export default function TransportInfo({ listingId, address }: TransportInfoProps
         setStations(data.stations || data.nearby || []);
       } catch (err: any) {
         if (ac.signal.aborted || err?.name === 'AbortError') return;
-        setError(err.message || 'êµíµì ë³´ ë¡ë ì¤í¨');
+        setError(err.message || '교통정보 로드 실패');
       } finally {
         if (!ac.signal.aborted) setLoading(false);
       
@@ -64,13 +64,13 @@ export default function TransportInfo({ listingId, address }: TransportInfoProps
     return () => ac.abort();
   }, [listingId]);
 
-  // í¸ì ë³ ìì ë§¤í
+  // 호선별 색상 매핑
   const lineColor: Record<string, string> = {
-    '1í¸ì ': '#0052A4', '2í¸ì ': '#00A84D', '3í¸ì ': '#EF7C1C',
-    '4í¸ì ': '#00A5DE', '5í¸ì ': '#996CAC', '6í¸ì ': '#CD7C2F',
-    '7í¸ì ': '#747F00', '8í¸ì ': '#E6186C', '9í¸ì ': '#BDB092',
-    'ì ë¶ë¹ì ': '#D31145', 'ê²½ìì¤ìì ': '#77C4A3', 'ìì¸ë¶ë¹ì ': '#FABE00',
-    'ê³µí­ì² ë': '#0090D2', 'GTX-A': '#9A6292',
+    '1호선': '#0052A4', '2호선': '#00A84D', '3호선': '#EF7C1C',
+    '4호선': '#00A5DE', '5호선': '#996CAC', '6호선': '#CD7C2F',
+    '7호선': '#747F00', '8호선': '#E6186C', '9호선': '#BDB092',
+    '신분당선': '#D31145', '경의중앙선': '#77C4A3', '수인분당선': '#FABE00',
+    '공항철도': '#0090D2', 'GTX-A': '#9A6292',
   };
 
   const getLineStyle = (line: string) => {
@@ -82,16 +82,16 @@ export default function TransportInfo({ listingId, address }: TransportInfoProps
 
   return (
     <div className="ws-detail-section">
-      <h3>ð êµíµì ë³´</h3>
+      <h3>🚇 교통정보</h3>
 
       {loading ? (
-        <div className="ws-loading-spinner">êµíµì ë³´ ë¡ë© ì¤...</div>
+        <div className="ws-loading-spinner">교통정보 로딩 중...</div>
       ) : error ? (
         <div style={{
           padding: '16px', background: '#fef2f2', borderRadius: '8px',
           color: '#dc2626', fontSize: '13px', textAlign: 'center'
         }}>
-          â ï¸ {error}
+          ⚠️ {error}
           <button
             onClick={() => {
               setLoading(true);
@@ -101,7 +101,7 @@ export default function TransportInfo({ listingId, address }: TransportInfoProps
               })
                 .then(r => r.json())
                 .then(d => setStations(d.stations || d.nearby || []))
-                .catch(() => setError('ì¬ìë ì¤í¨'))
+                .catch(() => setError('재시도 실패'))
                 .finally(() => setLoading(false));
             }}
             style={{
@@ -110,19 +110,19 @@ export default function TransportInfo({ listingId, address }: TransportInfoProps
               cursor: 'pointer'
             }}
           >
-            ì¬ìë
+            재시도
           </button>
         </div>
       ) : stations.length === 0 ? (
         <div className="ws-price-no-data">
-          ì£¼ë³ êµíµì ë³´ê° ììµëë¤.
+          주변 교통정보가 없습니다.
         </div>
       ) : (
         <div className="ws-transport-section">
-          {/* ì§íì²  */}
+          {/* 지하철 */}
           {stations.filter(s => s.type === 'subway' || !s.type).map((station, idx) => (
             <div key={`subway-${idx}`} className="ws-transport-item">
-              <span style={{ fontSize: '18px' }}>ð</span>
+              <span style={{ fontSize: '18px' }}>🚉</span>
               <span className="station-name">{station.name}</span>
               <span
                 className="station-line"
@@ -132,17 +132,17 @@ export default function TransportInfo({ listingId, address }: TransportInfoProps
               </span>
               <span className="station-distance">
                 {station.distance < 1000
-                  ? `ëë³´ ${Math.round(station.distance / 80)}ë¶ (${station.distance}m)`
+                  ? `도보 ${Math.round(station.distance / 80)}분 (${station.distance}m)`
                   : `${(station.distance / 1000).toFixed(1)}km`
                 }
               </span>
             </div>
           ))}
 
-          {/* ë²ì¤ */}
+          {/* 버스 */}
           {stations.filter(s => s.type === 'bus').map((station, idx) => (
             <div key={`bus-${idx}`} className="ws-transport-item" style={{ background: '#f0fff4' }}>
-              <span style={{ fontSize: '18px' }}>ð</span>
+              <span style={{ fontSize: '18px' }}>🚌</span>
               <span className="station-name">{station.name}</span>
               <span className="station-line" style={{ background: '#dcfce7', color: '#15803d' }}>
                 {station.line}

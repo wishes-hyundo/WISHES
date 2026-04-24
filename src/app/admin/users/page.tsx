@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { createAuthClient } from '@/lib/supabase';
 import { adminFetch } from '@/lib/adminFetch';
+import { useAdminSession } from '@/lib/useAdminSession';
 
 interface AdminUser {
   id: string;
@@ -19,26 +19,23 @@ interface AdminUser {
 
 export default function AdminUsersPage() {
   const router = useRouter();
+  // L-session-unify (2026-04-24): useAdminSession 사용.
+  //   이전에는 인라인으로 Supabase getSession() 만 확인해 admin-auth.html 경로
+  //   로그인 사용자가 /admin/users 진입 시 /login 으로 튕기는 문제 발생.
+  const { token } = useAdminSession('/admin/users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [roleChecked, setRoleChecked] = useState(false);
 
-  // 인증 체크
+  // superadmin 역할 체크 (token 확보 후)
   useEffect(() => {
-    // L-leak3: unmount 시 /api/auth/me 응답이 늦게 와도 setState 안 하게 차단.
+    if (!token) return;
     const ac = new AbortController();
     (async () => {
       try {
-        const sb = createAuthClient();
-        const { data: { session } } = await sb.auth.getSession();
-        if (ac.signal.aborted) return;
-        if (!session) {
-          router.replace('/login?redirect=/admin/users');
-          return;
-        }
         const meRes = await fetch('/api/auth/me', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
+          headers: { Authorization: `Bearer ${token}` },
           signal: ac.signal,
         });
         if (ac.signal.aborted) return;
@@ -49,14 +46,15 @@ export default function AdminUsersPage() {
           router.replace('/');
           return;
         }
-        setToken(session.access_token);
+        setRoleChecked(true);
       } catch (err: any) {
         if (ac.signal.aborted || err?.name === 'AbortError') return;
-        throw err;
+        /* verify 실패는 무시 — token 자체는 유효 */
+        setRoleChecked(true);
       }
     })();
     return () => ac.abort();
-  }, [router]);
+  }, [token, router]);
 
   const loadUsers = useCallback(async () => {
     if (!token) return;
@@ -75,8 +73,24 @@ export default function AdminUsersPage() {
   }, [token]);
 
   useEffect(() => {
-    if (token) loadUsers();
-  }, [token, loadUsers]);
+    if (token && roleChecked) loadUsers();
+  }, [token, roleChecked, loadUsers]);
+
+  // L-useradmin-dedupe (2026-04-24): 동명이인 구별 라벨 생성.
+  //   "위시스"가 일반 이메일과 카카오 OAuth 에 중복 존재 → 이메일 특징을
+  //   라벨로 붙여 UI 에서 혼동 없이 구분.
+  const userDisplayName = (u: AdminUser): string => {
+    const base = u.name || '(이름 없음)';
+    const sameName = users.filter(x => (x.name || '') === (u.name || ''));
+    if (sameName.length <= 1) return base;
+    const email = (u.email || '').toLowerCase();
+    let suffix = '';
+    if (email.startsWith('kakao_')) suffix = ' (카카오)';
+    else if (email.startsWith('naver_')) suffix = ' (네이버)';
+    else if (email.startsWith('google_')) suffix = ' (구글)';
+    else if (email.includes('@')) suffix = ` (${email.split('@')[0]})`;
+    return `${base}${suffix}`;
+  };
 
   const updateStatus = async (userId: string, newStatus: 'approved' | 'rejected') => {
     if (!confirm(newStatus === 'approved' ? '이 사용자를 승인하시겠습니까?' : '이 사용자를 거절하시겠습니까?')) return;
@@ -137,7 +151,7 @@ export default function AdminUsersPage() {
             <div key={u.id} style={{ background: '#fff', padding: 18, borderRadius: 10, border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: 240 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>{u.name || '(이름 없음)'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#111' }}>{userDisplayName(u)}</div>
                   <span style={{
                     padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
                     background: u.status === 'approved' ? '#dcfce7' : u.status === 'rejected' ? '#fee2e2' : '#fef3c7',

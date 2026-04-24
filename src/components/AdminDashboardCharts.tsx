@@ -406,52 +406,15 @@ export const AdminDashboardCharts: React.FC<AdminDashboardChartsProps> = ({ list
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold text-wishes-primary">관리자 대시보드</h2>
-        <p className="text-wishes-muted">
-          총 {listings.length}개의 매물 • 실시간 통계
+      {/* L-dashboard-dedupe (2026-04-24): Header + Summary Cards 를 제거.
+          이 카드들은 admin/page.tsx 상단에서 이미 동일한 정보(5개 카드, 미처리
+          상담 포함) 를 표시하고 있어 스크롤 시 같은 숫자가 두 번 노출되는
+          중복을 유발. 소제목 하나만 남기고 곧바로 차트로 진입. */}
+      <div className="flex flex-col gap-1">
+        <h3 className="text-xl font-bold text-wishes-primary">상세 통계</h3>
+        <p className="text-xs text-wishes-muted">
+          매물 유형·거래 유형·지역·월별 분포 · 최근 6개월 기준
         </p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {[
-          {
-            label: '전체 매물',
-            value: listings.length,
-            color: COLORS.primary,
-          },
-          {
-            label: '공개 매물',
-            value: listings.filter((l) => l.status === '공개').length,
-            color: COLORS.accent,
-          },
-          {
-            label: '계약중',
-            value: listings.filter((l) => l.status === '계약중').length,
-            color: COLORS.blue,
-          },
-          {
-            label: '계약완료',
-            value: listings.filter((l) => l.status === '계약완료').length,
-            color: COLORS.red,
-          },
-        ].map((stat, idx) => (
-          <div
-            key={idx}
-            className="card-premium rounded-xl p-4 bg-wishes-card border border-wishes-border"
-            style={{
-              borderLeftWidth: '4px',
-              borderLeftColor: stat.color,
-            }}
-          >
-            <p className="text-sm text-wishes-muted font-medium mb-2">{stat.label}</p>
-            <p className="text-3xl font-bold" style={{ color: stat.color }}>
-              {stat.value}
-            </p>
-          </div>
-        ))}
       </div>
 
       {/* Charts Grid */}

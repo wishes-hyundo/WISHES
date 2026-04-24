@@ -37,37 +37,11 @@ export interface PreconditionItem {
 }
 
 // L-v7-p2 (2026-04-22): 3건 모두 서버측 수정 완료.
-//   - POST /api/admin/listings 500 → created_by 컬럼 신설 + JWT UID 기록
-//   - GET /api/admin/stats 504 → 개별 쿼리 타임아웃 + partial 폴백 (항상 200)
-//   - DELETE /api/admin/dedup/cleanup 400/405 → DELETE 핸들러 alias 추가
-//   아래 목록은 '직전 배포 이전' 잔류 건을 info 로 표시. 실시간 헬스체크는
-//   /api/_diagnostic 이 있으면 그쪽이 override.
-export const DEFAULT_PRECOND_ITEMS: PreconditionItem[] = [
-  {
-    id: 'listings-create-500',
-    severity: 'info',
-    code: 'fixed',
-    title: '매물 등록 API 500 → 수정',
-    detail: 'POST /api/admin/listings — L-v7-p2 에서 created_by 연결 + 에러 가시화',
-    href: '/admin/listings',
-  },
-  {
-    id: 'admin-stats-504',
-    severity: 'info',
-    code: 'fixed',
-    title: '관리자 통계 504 → 완화',
-    detail: 'GET /api/admin/stats — 개별 4초 타임아웃 + partial 폴백 (500 → 200 partial)',
-    href: '/api/admin/stats',
-  },
-  {
-    id: 'dedup-delete-400',
-    severity: 'info',
-    code: 'fixed',
-    title: '중복 제거 DELETE → 수정',
-    detail: 'DELETE /api/admin/dedup/cleanup — L-v7-p2 에서 DELETE 메소드 alias 추가',
-    href: '/admin/dedup',
-  },
-];
+// L-precond-clear (2026-04-24): 3건 모두 오래 전에 fix 되어 "미해결" 이라는
+//   제목과 "fixed" 배지가 모순된 상태로 대시보드에 박제되어 있었음.
+//   히스토리는 docs/L-v7-완료보고 에 유지하고, 기본 목록은 빈 배열로 정리.
+//   실시간 헬스체크/신규 이슈가 있을 때만 items prop 으로 직접 주입해 표시.
+export const DEFAULT_PRECOND_ITEMS: PreconditionItem[] = [];
 
 // dismiss 유효 시간: 24시간
 const DISMISS_TTL_MS = 24 * 60 * 60 * 1000;

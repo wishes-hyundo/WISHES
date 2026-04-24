@@ -31,8 +31,15 @@ export async function GET(request: NextRequest) {
         const supabase = createServerClient();
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-        // 병렬 조회
-        const [topViewsRes, recentRes, pendingContactsRes, dealCountsRes, ownVsCrawledRes] = await Promise.all([
+        // L-briefing-count (2026-04-24): limit(5000) row-fetch → count-only 로 전환.
+        //   기존 구현은 deal/source_site 컬럼을 5000 row 만 가져와서 JS 로 count →
+        //   매물이 5000 넘으면 통계에서 누락 (실측: 대시보드 전세 695건 0건으로 표시됨).
+        //   count-only head:true 쿼리로 바꿔 DB 에서 직접 집계, limit 제약 제거 + 성능 개선.
+        const [
+          topViewsRes, recentRes, pendingContactsRes,
+          jeonseCountRes, wolseCountRes, maemaeCountRes,
+          ownCountRes, crawledCountRes,
+        ] = await Promise.all([
           // 조회수 TOP 10 (공개 매물)
           supabase
             .from('listings')
@@ -57,30 +64,39 @@ export async function GET(request: NextRequest) {
             .order('created_at', { ascending: false })
             .limit(10),
 
-          // 거래유형별 분포 (공개 매물만)
+          // 거래유형별 분포 (공개) — count-only
           supabase
             .from('listings')
-            .select('deal')
-            .eq('status', '공개')
-            .limit(5000),
+            .select('id', { count: 'exact', head: true })
+            .eq('status', '공개').eq('deal', '전세'),
+          supabase
+            .from('listings')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', '공개').eq('deal', '월세'),
+          supabase
+            .from('listings')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', '공개').eq('deal', '매매'),
 
-          // 자체 vs 크롤링 (공개)
+          // 자체 vs 크롤링 (공개) — count-only
           supabase
             .from('listings')
-            .select('source_site')
-            .eq('status', '공개')
-            .limit(5000),
+            .select('id', { count: 'exact', head: true })
+            .eq('status', '공개').is('source_site', null),
+          supabase
+            .from('listings')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', '공개').not('source_site', 'is', null),
         ]);
 
-        // 거래유형 집계
-        const dealCounts: Record<string, number> = { 전세: 0, 월세: 0, 매매: 0 };
-        (dealCountsRes.data || []).forEach((r: any) => {
-          if (r.deal && dealCounts[r.deal] !== undefined) dealCounts[r.deal]++;
-        });
+        const dealCounts: Record<string, number> = {
+          전세: jeonseCountRes.count ?? 0,
+          월세: wolseCountRes.count ?? 0,
+          매매: maemaeCountRes.count ?? 0,
+        };
 
-        // 자체 vs 크롤링
-        const ownCount = (ownVsCrawledRes.data || []).filter((r: any) => !r.source_site).length;
-        const crawledCount = (ownVsCrawledRes.data || []).length - ownCount;
+        const ownCount = ownCountRes.count ?? 0;
+        const crawledCount = crawledCountRes.count ?? 0;
 
         return {
           topViews: topViewsRes.data || [],

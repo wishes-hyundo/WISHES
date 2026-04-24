@@ -487,24 +487,44 @@ export default function AdminPage() {
         </div>
 
         {/* #23: 오늘 할 일 (미처리 리드 + 오늘 방문예약) */}
-        <div className="mb-8">
+        {/* L-dashboard-collapse (2026-04-24): 판넬들을 details 로 감싸 접기 가능.
+            오늘 할 일은 기본 펼침, 나머지 3개(전환율/방문예약/뉴스레터) 는 기본
+            접힘 — 현재 모두 0건이라 대시보드 공간을 차지하는 것 대비 가치가 낮음.
+            사용자가 필요할 때만 펼쳐서 확인하도록 UX 정리. */}
+        <details className="mb-8 group" open>
+          <summary className="cursor-pointer select-none flex items-center gap-2 text-sm font-bold text-wishes-primary mb-3 hover:opacity-80">
+            <span className="transition-transform group-open:rotate-90">▶</span>
+            <span>오늘 할 일</span>
+          </summary>
           <AdminTodayPanel authHeader={getAuthHeader()} />
-        </div>
+        </details>
 
         {/* #27/#31/#37/#38: 주간 전환율 + 이탈 사유 + 리드 소스 분석 */}
-        <div className="mb-8">
+        <details className="mb-8 group">
+          <summary className="cursor-pointer select-none flex items-center gap-2 text-sm font-bold text-wishes-primary mb-3 hover:opacity-80">
+            <span className="transition-transform group-open:rotate-90">▶</span>
+            <span>주간 전환율 · 이탈 사유 · 리드 소스</span>
+          </summary>
           <AdminConversionPanel authHeader={getAuthHeader()} />
-        </div>
+        </details>
 
         {/* #45/#47: 방문 예약 관리 */}
-        <div className="mb-8">
+        <details className="mb-8 group">
+          <summary className="cursor-pointer select-none flex items-center gap-2 text-sm font-bold text-wishes-primary mb-3 hover:opacity-80">
+            <span className="transition-transform group-open:rotate-90">▶</span>
+            <span>방문 예약 관리</span>
+          </summary>
           <AdminAppointmentsPanel authToken={getAuthHeader()} />
-        </div>
+        </details>
 
         {/* T5-7: 매물 알림 구독 / 뉴스레터 */}
-        <div className="mb-8">
+        <details className="mb-8 group">
+          <summary className="cursor-pointer select-none flex items-center gap-2 text-sm font-bold text-wishes-primary mb-3 hover:opacity-80">
+            <span className="transition-transform group-open:rotate-90">▶</span>
+            <span>매물 알림 구독 · 뉴스레터</span>
+          </summary>
           <AdminNewsletterPanel authHeader={getAuthHeader()} />
-        </div>
+        </details>
 
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">

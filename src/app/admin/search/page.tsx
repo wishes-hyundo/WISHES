@@ -52,35 +52,35 @@ interface Listing {
 }
 
 function normalizeAddr(addr: string) {
-  return addr.replace(/^ìì¸í¹ë³ì\s/, 'ìì¸ ')
-    .replace(/^ê²½ê¸°ë\s/, 'ê²½ê¸° ')
-    .replace(/^ì¸ì²ê´ì­ì\s/, 'ì¸ì² ')
-    .replace(/^ë¶ì°ê´ì­ì\s/, 'ë¶ì° ');
+  return addr.replace(/^서울특별시\s/, '서울 ')
+    .replace(/^경기도\s/, '경기 ')
+    .replace(/^인천광역시\s/, '인천 ')
+    .replace(/^부산광역시\s/, '부산 ');
 }
 
 function formatPrice(dep: number, mon: number, price: number, deal: string) {
-  if (deal === 'ë§¤ë§¤') return price >= 10000 ? (price/10000).toFixed(1)+'ìµ' : price+'ë§';
-  if (deal === 'ì ì¸') return dep >= 10000 ? (dep/10000).toFixed(1)+'ìµ' : dep+'ë§';
-  return dep+'/' + mon + 'ë§';
+  if (deal === '매매') return price >= 10000 ? (price/10000).toFixed(1)+'억' : price+'만';
+  if (deal === '전세') return dep >= 10000 ? (dep/10000).toFixed(1)+'억' : dep+'만';
+  return dep+'/' + mon + '만';
 }
 
 function timeAgo(dt: string) {
   if (!dt) return '';
   const diff = Date.now() - new Date(dt).getTime();
   const m = Math.floor(diff/60000);
-  if (m < 60) return m+'ë¶ ì ';
+  if (m < 60) return m+'분 전';
   const h = Math.floor(m/60);
-  if (h < 24) return h+'ìê° ì ';
-  return Math.floor(h/24)+'ì¼ ì ';
+  if (h < 24) return h+'시간 전';
+  return Math.floor(h/24)+'일 전';
 }
 
 function getMaskedAddress(address: string, dong?: string): string {
-  if (!address) return 'ì£¼ì ë¯¸ë±ë¡';
+  if (!address) return '주소 미등록';
   const parts = address.split(' ');
   let masked = '';
   for (const part of parts) {
     masked += (masked ? ' ' : '') + part;
-    if (/[ëìë©´ë¦¬ê°ë¡]$/.test(part) || part === dong) break;
+    if (/[동읍면리가로]$/.test(part) || part === dong) break;
   }
   return masked || parts.slice(0, 3).join(' ');
 }
@@ -89,8 +89,8 @@ export default function SearchPage() {
   const [listings, setListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [keyword, setKeyword] = useState('');
-  const [dealFilter, setDealFilter] = useState('ì ì²´');
-  const [typeFilter, setTypeFilter] = useState('ì ì²´');
+  const [dealFilter, setDealFilter] = useState('전체');
+  const [typeFilter, setTypeFilter] = useState('전체');
   const [selected, setSelected] = useState<Listing|null>(null);
   const [page, setPage] = useState(1);
   const perPage = 20;
@@ -122,8 +122,8 @@ export default function SearchPage() {
 
   const filtered = useMemo(() => {
     let f = [...listings];
-    if (dealFilter !== 'ì ì²´') f = f.filter(l => l.deal === dealFilter);
-    if (typeFilter !== 'ì ì²´') f = f.filter(l => l.type === typeFilter);
+    if (dealFilter !== '전체') f = f.filter(l => l.deal === dealFilter);
+    if (typeFilter !== '전체') f = f.filter(l => l.type === typeFilter);
     if (keyword.trim()) {
       const kw = keyword.trim().toLowerCase();
       f = f.filter(l =>
@@ -142,7 +142,7 @@ export default function SearchPage() {
     const g: Record<string, Listing[]> = {};
     const order: string[] = [];
     pageItems.forEach(l => {
-      const key = (l.address||'').trim() || 'ì£¼ì ë¯¸ì';
+      const key = (l.address||'').trim() || '주소 미상';
       if (!g[key]) { g[key] = []; order.push(key); }
       g[key].push(l);
     });
@@ -159,7 +159,7 @@ export default function SearchPage() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50">
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-700 mx-auto mb-4"></div>
-        <p className="text-gray-600">ë§¤ë¬¼ ë°ì´í°ë¥¼ ë¶ë¬ì¤ë ì¤...</p>
+        <p className="text-gray-600">매물 데이터를 불러오는 중...</p>
       </div>
     </div>
   );
@@ -169,23 +169,23 @@ export default function SearchPage() {
       {/* Header */}
       <div className="sticky top-0 z-50 bg-gradient-to-r from-green-800 to-green-900 text-white px-4 py-3 shadow-lg">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold whitespace-nowrap">ð WISHES</h1>
+          <h1 className="text-lg font-bold whitespace-nowrap">🔍 WISHES</h1>
           <input
             value={keyword}
             onChange={e => { setKeyword(e.target.value); setPage(1); }}
-            placeholder="ì£¼ì, ë, ë§¤ë¬¼ëª ê²ì..."
+            placeholder="주소, 동, 매물명 검색..."
             className="flex-1 px-3 py-2 rounded-lg text-sm text-gray-800 bg-white/90 placeholder-gray-400 outline-none"
           />
-          <span className="text-xs bg-white/20 px-2 py-1 rounded">{filtered.length}ê±´</span>
+          <span className="text-xs bg-white/20 px-2 py-1 rounded">{filtered.length}건</span>
         </div>
         {/* Filter chips */}
         <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
-          {['ì ì²´','ìì¸','ì ì¸','ë§¤ë§¤'].map(d => (
+          {['전체','월세','전세','매매'].map(d => (
             <button key={d} onClick={() => { setDealFilter(d); setPage(1); }}
               className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition ${dealFilter===d ? 'bg-white text-green-800' : 'bg-white/20 text-white'}`}>{d}</button>
           ))}
           <span className="mx-1 border-l border-white/30"></span>
-          {['ì ì²´','ìë£¸','í¬ë£¸','ì¤í¼ì¤í','ë¹ë¼','ìê°'].map(t => (
+          {['전체','원룸','투룸','오피스텔','빌라','상가'].map(t => (
             <button key={t} onClick={() => { setTypeFilter(t); setPage(1); }}
               className={`px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap transition ${typeFilter===t ? 'bg-yellow-400 text-gray-800' : 'bg-white/20 text-white'}`}>{t}</button>
           ))}
@@ -200,8 +200,8 @@ export default function SearchPage() {
             <div key={addr} className={items.length > 1 ? "border border-green-200 rounded-xl mb-3 overflow-hidden" : "mb-3"}>
               {items.length > 1 && (
                 <div className="bg-green-50 px-3 py-2 flex items-center gap-2">
-                  <span className="text-green-800 font-semibold text-xs">ð {addr}</span>
-                  <span className="bg-green-700 text-white text-xs px-2 py-0.5 rounded-full">{items.length}ê±´</span>
+                  <span className="text-green-800 font-semibold text-xs">📍 {addr}</span>
+                  <span className="bg-green-700 text-white text-xs px-2 py-0.5 rounded-full">{items.length}건</span>
                 </div>
               )}
               {items.map(l => {
@@ -212,8 +212,8 @@ export default function SearchPage() {
                     className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 flex gap-3 cursor-pointer hover:shadow-md transition active:bg-gray-50 mb-2">
                     <div className="w-20 h-20 rounded-lg bg-gray-200 flex-shrink-0 overflow-hidden relative">
                       {imgUrl ? <img src={imgUrl} alt="" className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center text-2xl text-gray-400">ð </div>}
-                      {imgs.length > 0 && <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1 rounded">{imgs.length}ì¥</span>}
+                        : <div className="w-full h-full flex items-center justify-center text-2xl text-gray-400">🏠</div>}
+                      {imgs.length > 0 && <span className="absolute bottom-1 right-1 bg-black/60 text-white text-[10px] px-1 rounded">{imgs.length}장</span>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-1">
@@ -224,12 +224,12 @@ export default function SearchPage() {
                       <div className="flex items-center gap-1 mt-1 flex-wrap">
                         <span className="bg-green-100 text-green-800 text-[10px] font-semibold px-1.5 py-0.5 rounded">{l.deal}</span>
                         <span className="bg-blue-50 text-blue-700 text-[10px] px-1.5 py-0.5 rounded">{l.type}</span>
-                        {l.area_m2 > 0 && <span className="text-[10px] text-gray-400">{l.area_m2}mÂ²</span>}
-                        {l.floor_current && <span className="text-[10px] text-gray-400">{l.floor_current}ì¸µ</span>}
+                        {l.area_m2 > 0 && <span className="text-[10px] text-gray-400">{l.area_m2}m²</span>}
+                        {l.floor_current && <span className="text-[10px] text-gray-400">{l.floor_current}층</span>}
                       </div>
                       <div className="mt-1">
                         <span className="text-base font-extrabold text-green-800">{formatPrice(l.deposit, l.monthly, l.price, l.deal)}</span>
-                        {l.maintenance_fee > 0 && <span className="text-[10px] text-gray-400 ml-1">ê´ë¦¬ {l.maintenance_fee}ë§</span>}
+                        {l.maintenance_fee > 0 && <span className="text-[10px] text-gray-400 ml-1">관리 {l.maintenance_fee}만</span>}
                       </div>
                     </div>
                   </div>
@@ -238,23 +238,23 @@ export default function SearchPage() {
             </div>
           );
         })}
-        {filtered.length === 0 && <div className="text-center py-16 text-gray-400">ê°ì ê²°ê³¼ê° ììµëë¤.</div>}
+        {filtered.length === 0 && <div className="text-center py-16 text-gray-400">가색 결과가 없습니다.</div>}
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 py-4">
           <button onClick={() => setPage(Math.max(1,page-1))} disabled={page<=1}
-            className="px-3 py-1 rounded bg-gray-200 text-sm disabled:opacity-40">â</button>
+            className="px-3 py-1 rounded bg-gray-200 text-sm disabled:opacity-40">◀</button>
           <span className="text-sm text-gray-600">{page} / {totalPages}</span>
           <button onClick={() => setPage(Math.min(totalPages,page+1))} disabled={page>=totalPages}
-            className="px-3 py-1 rounded bg-gray-200 text-sm disabled:opacity-40">â¶</button>
+            className="px-3 py-1 rounded bg-gray-200 text-sm disabled:opacity-40">▶</button>
         </div>
       )}
 
-      {/* ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-          Detail Modal â ê°ì ë ìì¸ ëª¨ë¬
-          ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ */}
+      {/* ══════════════════════════════════════════════════════════════
+          Detail Modal — 개선된 상세 모달
+          ══════════════════════════════════════════════════════════════ */}
       {selected && (
         <div className="fixed inset-0 bg-black/60 z-[999] flex items-end sm:items-center justify-center"
           onClick={() => setSelected(null)}>
@@ -268,7 +268,7 @@ export default function SearchPage() {
                 <div className="relative h-56 bg-gray-200 overflow-x-auto flex snap-x snap-mandatory">
                   {imgs.map((img, i) => <img key={i} src={img.url} alt="" className="w-full h-56 object-cover flex-shrink-0 snap-center" />)}
                 </div>
-              ) : <div className="h-32 bg-gray-100 flex items-center justify-center text-4xl">ð </div>;
+              ) : <div className="h-32 bg-gray-100 flex items-center justify-center text-4xl">🏠</div>;
             })()}
 
             <div className="p-4">
@@ -278,31 +278,31 @@ export default function SearchPage() {
                   <h2 className="text-lg font-bold text-gray-900">{selected.title}</h2>
                   <p className="text-sm text-gray-500 mt-1">{getMaskedAddress(selected.address, selected.dong)}</p>
                 </div>
-                <button onClick={() => setSelected(null)} className="text-gray-400 text-xl hover:text-gray-600">â</button>
+                <button onClick={() => setSelected(null)} className="text-gray-400 text-xl hover:text-gray-600">✕</button>
               </div>
 
-              {/* ââ ê°ê²©ì ë³´ ââ */}
+              {/* ── 가격정보 ── */}
               <div className="mt-3 bg-green-50 rounded-xl p-3">
                 <div className="text-xs text-green-700 font-semibold">{selected.deal}</div>
                 <div className="text-2xl font-extrabold text-green-800">
                   {formatPrice(selected.deposit, selected.monthly, selected.price, selected.deal)}
                 </div>
                 {selected.maintenance_fee > 0 && (
-                  <div className="text-xs text-gray-500">ê´ë¦¬ë¹ {selected.maintenance_fee}ë§ì</div>
+                  <div className="text-xs text-gray-500">관리비 {selected.maintenance_fee}만원</div>
                 )}
               </div>
 
-              {/* ââ ê¸°ë³¸ì ë³´ ââ */}
+              {/* ── 기본정보 ── */}
               <div className="ws-detail-section">
-                <h3>ê¸°ë³¸ì ë³´</h3>
+                <h3>기본정보</h3>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   {[
-                    ['ë©´ì ', selected.area_m2 ? selected.area_m2+'mÂ²' : '-'],
-                    ['ì¸µì', selected.floor_current ? selected.floor_current+'/'+(selected.floor_total||'?')+'ì¸µ' : '-'],
-                    ['ì í', selected.type || '-'],
-                    ['ë°©', selected.rooms ? selected.rooms+'ê°' : '-'],
-                    ['ìì¤', selected.bathrooms ? selected.bathrooms+'ê°' : '-'],
-                    ['ë°©í¥', selected.direction || '-'],
+                    ['면적', selected.area_m2 ? selected.area_m2+'m²' : '-'],
+                    ['층수', selected.floor_current ? selected.floor_current+'/'+(selected.floor_total||'?')+'층' : '-'],
+                    ['유형', selected.type || '-'],
+                    ['방', selected.rooms ? selected.rooms+'개' : '-'],
+                    ['욕실', selected.bathrooms ? selected.bathrooms+'개' : '-'],
+                    ['방향', selected.direction || '-'],
                   ].map(([label, val]) => (
                     <div key={label as string} className="bg-gray-50 rounded-lg p-2">
                       <div className="text-[10px] text-gray-400">{label}</div>
@@ -312,31 +312,31 @@ export default function SearchPage() {
                 </div>
               </div>
 
-              {/* ââ ì¶ê°ì ë³´ ââ */}
+              {/* ── 추가정보 ── */}
               <div className="ws-detail-section">
-                <h3>ì¶ê°ì ë³´</h3>
+                <h3>추가정보</h3>
                 <div className="flex gap-2 flex-wrap">
-                  {selected.parking && <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded">ð¿ï¸ ì£¼ì°¨</span>}
-                  {selected.elevator && <span className="bg-purple-50 text-purple-700 text-xs px-2 py-1 rounded">ð ìë¦¬ë² ì´í°</span>}
-                  {selected.pet && <span className="bg-orange-50 text-orange-700 text-xs px-2 py-1 rounded">ð¾ ë°ë ¤ëë¬¼</span>}
-                  {selected.balcony && <span className="bg-teal-50 text-teal-700 text-xs px-2 py-1 rounded">ðª ë°ëë¤</span>}
-                  {selected.full_option && <span className="bg-pink-50 text-pink-700 text-xs px-2 py-1 rounded">â¨ íìµì</span>}
-                  {selected.loan_available && <span className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded">ð¦ ì ì¸ëì¶</span>}
+                  {selected.parking && <span className="bg-blue-50 text-blue-700 text-xs px-2 py-1 rounded">🅿️ 주차</span>}
+                  {selected.elevator && <span className="bg-purple-50 text-purple-700 text-xs px-2 py-1 rounded">🛗 엘리베이터</span>}
+                  {selected.pet && <span className="bg-orange-50 text-orange-700 text-xs px-2 py-1 rounded">🐾 반려동물</span>}
+                  {selected.balcony && <span className="bg-teal-50 text-teal-700 text-xs px-2 py-1 rounded">🪟 발랄다</span>}
+                  {selected.full_option && <span className="bg-pink-50 text-pink-700 text-xs px-2 py-1 rounded">✨ 풀옵션</span>}
+                  {selected.loan_available && <span className="bg-green-50 text-green-700 text-xs px-2 py-1 rounded">🏦 전세대출</span>}
                 </div>
                 <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                  {selected.built_year && <div><span className="text-gray-400 text-xs">ì¤ê³µëë</span> <span className="text-gray-700">{selected.built_year}</span></div>}
-                  {selected.available_date && <div><span className="text-gray-400 text-xs">ìì£¼ê°ë¥</span> <span className="text-gray-700">{selected.available_date}</span></div>}
-                  {selected.heating_type && <div><span className="text-gray-400 text-xs">ëë°©</span> <span className="text-gray-700">{selected.heating_type}</span></div>}
+                  {selected.built_year && <div><span className="text-gray-400 text-xs">준공년도</span> <span className="text-gray-700">{selected.built_year}</span></div>}
+                  {selected.available_date && <div><span className="text-gray-400 text-xs">입주가능</span> <span className="text-gray-700">{selected.available_date}</span></div>}
+                  {selected.heating_type && <div><span className="text-gray-400 text-xs">난방</span> <span className="text-gray-700">{selected.heating_type}</span></div>}
                 </div>
               </div>
 
-              {/* ââââââ êµíµì ë³´ â ì ê· ââââââ */}
+              {/* ══════ 교통정보 ★ 신규 ══════ */}
               <TransportInfo
                 listingId={String(selected.id)}
                 address={selected.address}
               />
 
-              {/* ââââââ ìì¹/ì§ë â ì ê· ââââââ */}
+              {/* ══════ 위치/지도 ★ 신규 ══════ */}
               <LocationMap
                 address={selected.address}
                 dong={selected.dong}
@@ -344,27 +344,27 @@ export default function SearchPage() {
                 lng={selected.lng}
               />
 
-              {/* ââââââ ì¤ê±°ëê° ëí¥ â ì ê· ââââââ */}
+              {/* ══════ 실거래가 동향 ★ 신규 ══════ */}
               <RealPriceTrend
                 listingId={String(selected.id)}
                 dealType={selected.deal}
                 dong={selected.dong}
               />
 
-              {/* ââââââ ê±´ì¶ë¬¼ëì¥ â ì ê· + ê²ì¦ ââââââ */}
+              {/* ══════ 건축물대장 ★ 신규 + 검증 ══════ */}
               <BuildingRegistry listing={selected as any} />
 
-              {/* ââââââ ìì¸ì¤ëª â ë ì´ìì ê°ì  ââââââ */}
+              {/* ══════ 상세설명 ★ 레이아웃 개선 ══════ */}
               <div className="ws-detail-section">
                 <h3 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>ìì¸ì¤ëª</span>
+                  <span>상세설명</span>
                   <AIAutoGenerate
                     listing={selected as any}
                     onUpdate={(field: string, value: any) => handleListingUpdate({ [field]: value })}
                   />
                 </h3>
 
-                {/* SEO íê·¸ */}
+                {/* SEO 태그 */}
                 {selected.seo_tags && selected.seo_tags.length > 0 && (
                   <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
                     {selected.seo_tags.map((tag, i) => (
@@ -377,7 +377,7 @@ export default function SearchPage() {
                   </div>
                 )}
 
-                {/* â íµì¬ ìì : pre-line + í°í¸/ì¤ê°ê²© ê°ì  */}
+                {/* ★ 핵심 수정: pre-line + 폰트/줄간격 개선 */}
                 <p style={{
                   whiteSpace: 'pre-line',
                   fontSize: '14px',
@@ -390,13 +390,13 @@ export default function SearchPage() {
                   border: '1px solid #eef0f3',
                   margin: 0,
                 }}>
-                  {selected.description || 'ìì¸ì¤ëªì´ ììµëë¤. AI SEO ì¤ëª ìì± ë²í¼ì¼ë¡ ìë ìì±í  ì ììµëë¤.'}
+                  {selected.description || '상세설명이 없습니다. AI SEO 설명 생성 버튼으로 자동 생성할 수 있습니다.'}
                 </p>
 
-                {/* SEO í¤ìë */}
+                {/* SEO 키워드 */}
                 {selected.seo_keywords && selected.seo_keywords.length > 0 && (
                   <div style={{ marginTop: '8px' }}>
-                    <span style={{ fontSize: '11px', color: '#888' }}>SEO í¤ìë: </span>
+                    <span style={{ fontSize: '11px', color: '#888' }}>SEO 키워드: </span>
                     <span style={{ fontSize: '11px', color: '#0f3460' }}>
                       {selected.seo_keywords.join(', ')}
                     </span>
@@ -404,7 +404,7 @@ export default function SearchPage() {
                 )}
               </div>
 
-              {/* ââââââ ì¤ë§í¸ ì¶ì² â ì ê· ââââââ */}
+              {/* ══════ 스마트 추천 ★ 신규 ══════ */}
               <SmartRecommend
                 currentListing={selected as any}
                 onSelect={(rec) => {
@@ -413,11 +413,11 @@ export default function SearchPage() {
                 }}
               />
 
-              {/* ââ ë©ëª¨ ââ */}
+              {/* ── 메모 ── */}
               <div className="ws-detail-section">
-                <h3>ë©ëª¨</h3>
+                <h3>메모</h3>
                 <textarea
-                  placeholder="ë§¤ë¬¼ì ëí ë©ëª¨ë¥¼ ìë ¥íì¸ì..."
+                  placeholder="매물에 대한 메모를 입력하세요..."
                   style={{
                     width: '100%', minHeight: '60px', padding: '10px',
                     border: '1px solid #e0e0e0', borderRadius: '8px',
