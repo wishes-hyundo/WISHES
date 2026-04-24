@@ -147,7 +147,7 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
     const { data, error } = await Promise.race([
       supabase.auth.getUser(token),
       new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 3000)
+        setTimeout(() => reject(new Error('timeout')), 8000)
       ),
     ]) as { data: { user: any }; error: any };
 
@@ -167,7 +167,7 @@ export async function verifyAdminAuth(request: NextRequest): Promise<boolean> {
         .limit(1)
         .maybeSingle(),
       new Promise<{ data: null }>((_, reject) =>
-        setTimeout(() => reject(new Error('db_timeout')), 3000)
+        setTimeout(() => reject(new Error('db_timeout')), 8000)
       ),
     ]) as { data: { role?: string; status?: string } | null };
 
@@ -258,7 +258,7 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
     const { data, error } = await Promise.race([
       supabase.auth.getUser(token),
       new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 3000)
+        setTimeout(() => reject(new Error('timeout')), 8000)
       ),
     ]) as { data: { user: any }; error: any };
 
@@ -279,7 +279,7 @@ export async function verifyAdminAuthWithContext(request: NextRequest): Promise<
         .limit(1)
         .maybeSingle(),
       new Promise<{ data: null }>((_, reject) =>
-        setTimeout(() => reject(new Error('db_timeout')), 3000)
+        setTimeout(() => reject(new Error('db_timeout')), 8000)
       ),
     ]) as { data: { role?: string; status?: string } | null };
 
@@ -374,7 +374,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
     const { data, error } = await Promise.race([
       supabase.auth.getUser(token),
       new Promise<{ data: { user: null }; error: Error }>((_, reject) =>
-        setTimeout(() => reject(new Error('timeout')), 3000)
+        setTimeout(() => reject(new Error('timeout')), 8000)
       ),
     ]) as { data: { user: any }; error: any };
 
@@ -398,7 +398,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
         .limit(1)
         .maybeSingle(),
       new Promise<{ data: null }>((_, reject) =>
-        setTimeout(() => reject(new Error('db_timeout')), 3000)
+        setTimeout(() => reject(new Error('db_timeout')), 8000)
       ),
     ]) as { data: { role?: string; status?: string } | null };
 
