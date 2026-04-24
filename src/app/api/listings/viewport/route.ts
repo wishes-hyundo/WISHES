@@ -330,7 +330,7 @@ export async function GET(req: NextRequest) {
         //   ai_title (제목 라인), direction/parking/pet/elevator/full_option/
         //   maintenance_fee/bathrooms/floor_total/business_type (패널 상세 테이블),
         //   has_video (NEW 뱃지 계산엔 불필요 — created_at 만으로 72h 판정).
-        'id, title, ai_title, ai_description, type, deal, deposit, monthly, price, area_m2, rooms, bathrooms, floor_current, floor_total, direction, lat, lng, dong, status, created_at, updated_at, features, thumb_url, station_distance, built_year, building_name, parking, pet, elevator, full_option, maintenance_fee, business_type, has_video, source_site',
+        'id, title, ai_title, ai_description, type, deal, deposit, monthly, price, area_m2, rooms, bathrooms, floor_current, floor_total, direction, lat, lng, dong, address, status, created_at, updated_at, features, thumb_url, station_distance, built_year, building_name, parking, pet, elevator, full_option, maintenance_fee, business_type, has_video, source_site',
       )
       .gte('lat', south)
       .lte('lat', north)
@@ -497,6 +497,9 @@ export async function GET(req: NextRequest) {
         //     title 이 없으면 dong 으로 폴백. 동이 없으면 null.
         building_name: authed ? (r.building_name ?? null) : null,
         dong: r.dong ?? null,
+        // L-adminpoly3 (2026-04-24 pm): 행정구역 폴리곤 카운트 집계용 주소 노출.
+        //   PUBLIC_LISTING_COLUMNS 화이트리스트에 있는 공개 필드.
+        address: r.address ?? null,
         title: authed
           ? (r.title ?? null)
           : (r.title ? maskAddressForPublic(r.title, r.dong) : (r.dong ?? null)),
