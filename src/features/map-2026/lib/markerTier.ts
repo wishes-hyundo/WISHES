@@ -6,11 +6,15 @@
 
 import type { MapListing, PropertyCategory } from '@/features/map-2026/store';
 
-// 단지명이 의미 있는 카테고리 — 같은 building_name 이면 pill 로 묶는다.
-const BRANDED_TYPES = new Set<string>(['아파트', '오피스텔']);
+// L-naverstyle2 (2026-04-24 pm): 네이버 부동산은 모든 타입에 건물명 pill 을 씀.
+//   BRANDED_TYPES 제한 제거 — building_name 있으면 타입 무관하게 pill.
+// (강남 상가/원룸 지역에서도 "써패스이앤티", "잠원동양타운" 같은 건물명 pill 이 나오도록)
+// const BRANDED_TYPES removed — 모든 타입이 brand-able.
 
-// 같은 building_name + type 그룹이 이만큼 이상이어야 pill 로 승격.
-const TIER1_MIN_GROUP = 2;
+// L-naverstyle2: 같은 건물 1개짜리도 pill 로 (네이버는 건물 단위 일관 표시).
+//   기존 ≥2 기준은 pill 이 안 나온 매물을 grid cluster 숫자 원 으로 떨어뜨려
+//   근거리 뷰가 숫자 원 bar 드 로 뒤덮였음.
+const TIER1_MIN_GROUP = 1;
 
 export type MarkerTier = 'tier1' | 'tier2';
 
@@ -66,8 +70,9 @@ export function bucketListings(listings: MapListing[]): MarkerBuckets {
   for (const l of listings) {
     const nn = normalizeName(l.building_name);
     const type = l.type ?? '';
-    if (nn && BRANDED_TYPES.has(type)) {
-      const key = `${type}:${nn}`;
+    // L-naverstyle2: building_name 있으면 모든 타입에 pill 적용.
+    if (nn) {
+      const key = `${type || 'x'}:${nn}`;
       const arr = groups.get(key);
       if (arr) arr.push(l);
       else groups.set(key, [l]);
