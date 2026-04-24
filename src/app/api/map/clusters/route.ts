@@ -70,24 +70,71 @@ export async function GET(request: NextRequest) {
     }
     const zoom = Number.isFinite(zoomRaw) ? Math.min(22, Math.max(1, zoomRaw)) : 12;
 
-    const deal = searchParams.get('deal')?.slice(0, 20) || null;
-    const type = searchParams.get('type')?.slice(0, 40) || null;
-    const minPriceRaw = searchParams.get('minPrice');
-    const maxPriceRaw = searchParams.get('maxPrice');
+    // L-filtercluster1 (2026-04-24 pm): viewport API 와 동일한 전체 필터 셋 파싱.
     const toFinitePrice = (v: string | null): number | null => {
       if (!v) return null;
       const n = parseInt(v, 10);
       if (!Number.isFinite(n) || n < 0 || n > 1e12) return null;
       return n;
     };
-    const minPrice = toFinitePrice(minPriceRaw);
-    const maxPrice = toFinitePrice(maxPriceRaw);
+    const toFiniteFloat = (v: string | null): number | null => {
+      if (!v) return null;
+      const n = parseFloat(v);
+      if (!Number.isFinite(n)) return null;
+      return n;
+    };
+    const toFiniteInt = (v: string | null): number | null => {
+      if (!v) return null;
+      const n = parseInt(v, 10);
+      if (!Number.isFinite(n)) return null;
+      return n;
+    };
+    const toList = (v: string | null): string[] | null => {
+      if (!v) return null;
+      const arr = v.split(',').map((s) => s.trim().slice(0, 60)).filter(Boolean).slice(0, 50);
+      return arr.length ? arr : null;
+    };
 
+    const deals = toList(searchParams.get('deals')) ??
+      (searchParams.get('deal') ? [String(searchParams.get('deal')).slice(0, 20)] : null);
+    const types = toList(searchParams.get('types')) ??
+      (searchParams.get('type') ? [String(searchParams.get('type')).slice(0, 40)] : null);
+    const minPrice   = toFinitePrice(searchParams.get('minPrice'));
+    const maxPrice   = toFinitePrice(searchParams.get('maxPrice'));
+    const minDeposit = toFinitePrice(searchParams.get('minDeposit'));
+    const maxDeposit = toFinitePrice(searchParams.get('maxDeposit'));
+    const minMonthly = toFinitePrice(searchParams.get('minMonthly'));
+    const maxMonthly = toFinitePrice(searchParams.get('maxMonthly'));
+    const minArea    = toFiniteFloat(searchParams.get('minArea'));
+    const maxArea    = toFiniteFloat(searchParams.get('maxArea'));
+    const rooms = (() => {
+      const raw = toList(searchParams.get('rooms'));
+      if (!raw) return null;
+      const nums = raw.map((s) => parseInt(s, 10)).filter((n) => Number.isFinite(n));
+      return nums.length ? nums : null;
+    })();
+    const newYears = toFiniteInt(searchParams.get('newBuild'));
+    const stationM = toFiniteInt(searchParams.get('nearStation'));
+    const features = toList(searchParams.get('features'));
+    const hasImages = searchParams.get('hasImages') === '1' || searchParams.get('hasImages') === 'true';
+
+    // L-filtercluster1: 전체 필터를 캐시 키에 포함 — 서로 다른 필터 조합은 별개 캐시.
     const key = quantizeKey(swLat, swLng, neLat, neLng, zoom, {
-      deal,
-      type,
+      deals: deals ? deals.join(',') : null,
+      types: types ? types.join(',') : null,
       minPrice: minPrice != null ? String(minPrice) : null,
       maxPrice: maxPrice != null ? String(maxPrice) : null,
+      minDeposit: minDeposit != null ? String(minDeposit) : null,
+      maxDeposit: maxDeposit != null ? String(maxDeposit) : null,
+      minMonthly: minMonthly != null ? String(minMonthly) : null,
+      maxMonthly: maxMonthly != null ? String(maxMonthly) : null,
+      minArea: minArea != null ? String(minArea) : null,
+      maxArea: maxArea != null ? String(maxArea) : null,
+      rooms: rooms ? rooms.join(',') : null,
+      newYears: newYears != null ? String(newYears) : null,
+      stationM: stationM != null ? String(stationM) : null,
+      features: features ? features.join(',') : null,
+      hasImages: hasImages ? '1' : null,
     });
 
     const result = await cached(
@@ -100,10 +147,21 @@ export async function GET(request: NextRequest) {
           ne_lat: neLat,
           ne_lng: neLng,
           zoom,
-          p_deal: deal,
-          p_type: type,
+          p_deals: deals,
+          p_types: types,
           p_min_price: minPrice,
           p_max_price: maxPrice,
+          p_min_deposit: minDeposit,
+          p_max_deposit: maxDeposit,
+          p_min_monthly: minMonthly,
+          p_max_monthly: maxMonthly,
+          p_min_area: minArea,
+          p_max_area: maxArea,
+          p_rooms: rooms,
+          p_new_years: newYears,
+          p_station_m: stationM,
+          p_features: features,
+          p_has_images: hasImages || null,
         });
         if (error) throw error;
         return data || [];

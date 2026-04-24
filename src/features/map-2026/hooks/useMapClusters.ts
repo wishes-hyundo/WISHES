@@ -48,13 +48,23 @@ function buildQs(
   p.set('neLat', bbox.north.toFixed(6));
   p.set('neLng', bbox.east.toFixed(6));
   p.set('zoom', String(zoom));
+  // L-filtercluster1 (2026-04-24 pm): viewport 와 동일한 전체 필터 셋 전파.
   const deals = dealsToParam(filter.deals);
-  if (deals) p.set('deal', deals);
+  if (deals) p.set('deals', deals);
+  if (filter.propertyTypes.length > 0) p.set('types', filter.propertyTypes.join(','));
   if (filter.minPrice != null) p.set('minPrice', String(filter.minPrice));
   if (filter.maxPrice != null) p.set('maxPrice', String(filter.maxPrice));
-  // propertyTypes 단일화 — RPC 는 single type 만 받으므로 첫 값.  다중 지원은
-  // viewport API 쪽이 담당하고 클러스터는 coarse view 라 허용.
-  if (filter.propertyTypes.length === 1) p.set('type', filter.propertyTypes[0]);
+  if (filter.minDeposit != null) p.set('minDeposit', String(filter.minDeposit));
+  if (filter.maxDeposit != null) p.set('maxDeposit', String(filter.maxDeposit));
+  if (filter.minMonthly != null) p.set('minMonthly', String(filter.minMonthly));
+  if (filter.maxMonthly != null) p.set('maxMonthly', String(filter.maxMonthly));
+  if (filter.minArea != null) p.set('minArea', String(filter.minArea));
+  if (filter.maxArea != null) p.set('maxArea', String(filter.maxArea));
+  if (filter.rooms.length > 0) p.set('rooms', filter.rooms.join(','));
+  if (filter.newBuildYears != null) p.set('newBuild', String(filter.newBuildYears));
+  if (filter.nearStation != null) p.set('nearStation', String(filter.nearStation));
+  if (filter.features.length > 0) p.set('features', filter.features.join(','));
+  if (filter.hasImages) p.set('hasImages', '1');
   return p.toString();
 }
 
