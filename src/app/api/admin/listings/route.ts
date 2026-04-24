@@ -232,8 +232,8 @@ export async function GET(request: NextRequest) {
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v6-mine', scopeUid as string]
-        : ['listings-minimal-v6'];
+        ? ['listings-minimal-v7-mine', scopeUid as string]
+        : ['listings-minimal-v7'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
@@ -256,9 +256,12 @@ export async function GET(request: NextRequest) {
 
           let allData: any[] = [...firstPage];
 
-          // 나머지 페이지 병렬 fetch
+          // L-search7b (2026-04-24): parallel 페이지 fetch 가 Vercel cold-start 시
+          //   Supabase 연결/rate-limit 와 상호작용하며 간헐적으로 중간 페이지가 빈
+          //   배열 반환 → 부분 데이터 (4000/6204) 로 끝나는 증상. sequential 로
+          //   전환해 각 페이지 결과를 확인 후 다음 페이지 요청. 총 시간 약간 증가
+          //   하지만 일관성 대폭 향상 (no join, 페이지당 0.3~0.6s).
           if (firstPage.length === PAGE_SIZE) {
-            const parallelPages = [];
             for (let from = PAGE_SIZE; from < 10000; from += PAGE_SIZE) {
               let q = supabase
                 .from('listings')
@@ -266,15 +269,14 @@ export async function GET(request: NextRequest) {
                 .order('created_at', { ascending: false })
                 .range(from, from + PAGE_SIZE - 1);
               if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
-              parallelPages.push(q);
-            }
-            const results = await Promise.all(parallelPages);
-            for (const { data } of results) {
-              if (data && data.length > 0) {
-                allData = allData.concat(data);
-              } else {
-                break;
+              const { data: page, error: pageError } = await q;
+              if (pageError) {
+                console.error('[admin/listings minimal] page ' + from + ' error', pageError);
+                break; // 에러면 중단 (이미 받은 allData 는 반환)
               }
+              if (!page || page.length === 0) break;
+              allData = allData.concat(page);
+              if (page.length < PAGE_SIZE) break; // 마지막 페이지 확인
             }
           }
 
