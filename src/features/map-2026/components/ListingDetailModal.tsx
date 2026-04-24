@@ -26,6 +26,7 @@ import AgentContactModal, { type AgentInfo } from '@/components/AgentContactModa
 import InquiryModal from '@/components/InquiryModal';
 import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 import { useMap2026Store, type MapListing } from '../store';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   formatDealLabel,
   formatArea,
@@ -119,6 +120,8 @@ function Row({ label, value }: RowProps) {
 }
 
 export function ListingDetailModal() {
+  const { user } = useAuth();
+  const isAuthed = !!user;
   const detailListingId = useMap2026Store((s) => s.detailListingId);
   const closeListingDetail = useMap2026Store((s) => s.closeListingDetail);
   // L-detailcache1 (2026-04-23 p.m.): 뷰포트 재조회로 listings 가 갱신되어도
@@ -155,6 +158,7 @@ export function ListingDetailModal() {
     total_parking_spaces: number | null;
     views: number | null;
     created_at: string | null;
+    usage_approved: string | null;
   } | null>(null);
   const [agentProfile, setAgentProfile] = useState<{
     name: string | null;
@@ -236,6 +240,7 @@ export function ListingDetailModal() {
           total_parking_spaces: (d.total_parking_spaces ?? null),
           views: (typeof d.views === 'number' ? d.views : null),
           created_at: d.created_at || null,
+          usage_approved: d.usage_approved || null,
         });
         if (d.created_by && !d.source_site) {
           const ag = await fetch(`/api/agent/${d.created_by}`);
@@ -461,20 +466,43 @@ export function ListingDetailModal() {
         <div className="border-b border-neutral-100 px-4 py-3">
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">매물 정보</div>
           <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
-            <Row label="관리비" value={maintenanceLabel} />
-            <Row label="입주 가능일" value={(listing as any).available_date || '협의가능'} />
-            {listing.built_year && (
-              <Row label="사용 승인일" value={`${listing.built_year}${age ? ` · ${age.text}` : ''}`} />
+            {/* 관리비 — 금액 + 포함 항목 칩 */}
+            {(maintenanceLabel || (((listing as any).maintenance_includes?.length ?? 0) > 0)) && (
+              <>
+                <div className="text-neutral-500">관리비</div>
+                <div>
+                  {maintenanceLabel && <div className="text-neutral-800">{maintenanceLabel}</div>}
+                  {(((listing as any).maintenance_includes?.length ?? 0) > 0) && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {(listing as any).maintenance_includes.map((it: string) => (
+                        <span key={it} className="text-[10px] bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded">{it}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
+            <Row label="입주 가능일" value={(listing as any).available_date || '협의가능'} />
+            {/* 사용 승인일 — 로그인 시 정확한 날짜(usage_approved) 우선, age 라벨 제거 */}
+            {((detailExtra?.usage_approved && isAuthed) || listing.built_year) && (
+              <Row label="사용 승인일" value={
+                isAuthed && detailExtra?.usage_approved
+                  ? detailExtra.usage_approved
+                  : listing.built_year
+              } />
+            )}
+            {/* 주차 — 입력 텍스트 우선 + 주차비 + 총주차대수 */}
             <Row label="주차" value={(() => {
-              // listing.parking 이 string 일 수도, boolean 일 수도 — 통일 처리
+              const parts: string[] = [];
               const p = listing.parking;
+              if (typeof p === 'string' && p.trim() && p !== 'true' && p !== 'false') parts.push(p.trim());
+              else if (p === true || (p as any) === 'true') parts.push('가능');
+              else if (p === false || (p as any) === 'false') parts.push('불가능');
+              const fee = (listing as any).parking_fee;
+              if (fee != null && fee > 0) parts.push(`주차비 ${Number(fee).toLocaleString('ko-KR')}만원/월`);
               const total = detailExtra?.total_parking_spaces;
-              const baseLabel = (p === true || p === '가능' || p === 'true') ? '가능'
-                : (p === false || p === '불가능' || p === 'false') ? '불가능'
-                : (typeof p === 'string' && p.trim() ? p : null);
-              if (!baseLabel && !total) return null;
-              return `${baseLabel || '-'}${total ? ` · 총 ${total}대` : ''}`;
+              if (total != null && total > 0) parts.push(`총 ${total}대`);
+              return parts.length > 0 ? parts.join(' · ') : null;
             })()} />
             <Row label="건축물 용도" value={(listing as any).building_purpose} />
             {detailExtra?.illegal_building === false && (
