@@ -47,46 +47,39 @@ export default function SearchPortalPage() {
 
     let cancelled = false;
     const refreshAndPersist = async () => {
+      // L-session3 (2026-04-24): client-side supabase-js 경로 폐기. 서버
+      //   /api/auth/refresh-session 으로 단일화. refresh_token 만 있으면
+      //   sb-<ref>-auth-token 세션 부재 여부와 무관하게 항상 갱신 성공.
       try {
-        const sb = createAuthClient();
-        let session: { access_token: string; refresh_token?: string } | null = null;
-
-        // 1차: Supabase-js 내부 persist 세션으로 refresh
+        if (cancelled) return;
+        let stored = '';
         try {
-          const r = await sb.auth.refreshSession();
-          if (!cancelled && !r.error && r.data.session) {
-            session = r.data.session;
-          }
+          stored = sessionStorage.getItem('ws_refresh_token')
+            || localStorage.getItem('ws_refresh_token') || '';
         } catch {}
+        if (!stored) return;
 
-        // 2차 (L-session2): ws_refresh_token 으로 setSession fallback
-        if (!session && !cancelled) {
-          let stored = '';
-          try {
-            stored = sessionStorage.getItem('ws_refresh_token')
-              || localStorage.getItem('ws_refresh_token') || '';
-          } catch {}
-          if (stored) {
-            try {
-              const r2 = await sb.auth.setSession({ access_token: '', refresh_token: stored });
-              if (!cancelled && !r2.error && r2.data.session) {
-                session = r2.data.session;
-              }
-            } catch {}
-          }
-        }
+        const r = await fetch('/api/auth/refresh-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refresh_token: stored }),
+          cache: 'no-store',
+          credentials: 'same-origin',
+        });
+        if (cancelled || !r.ok) return;
+        const j = await r.json() as { access_token?: string; refresh_token?: string };
+        if (!j?.access_token) return;
 
-        if (cancelled || !session) return;
-        const tok = 'admin_bridge_' + session.access_token;
+        const tok = 'admin_bridge_' + j.access_token;
         const now = Date.now().toString();
         try {
           sessionStorage.setItem('ws_token', tok);
           sessionStorage.setItem('ws_login_time', now);
           localStorage.setItem('ws_token', tok);
           localStorage.setItem('ws_login_time', now);
-          if (session.refresh_token) {
-            sessionStorage.setItem('ws_refresh_token', session.refresh_token);
-            localStorage.setItem('ws_refresh_token', session.refresh_token);
+          if (j.refresh_token) {
+            sessionStorage.setItem('ws_refresh_token', j.refresh_token);
+            localStorage.setItem('ws_refresh_token', j.refresh_token);
           }
         } catch {}
       } catch {}

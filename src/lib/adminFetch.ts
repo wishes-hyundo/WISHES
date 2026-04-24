@@ -121,59 +121,48 @@ export async function adminFetch(
 }
 
 /**
- * L-session1 (2026-04-24): supabase 세션 강제 refresh.
- *   성공 시 ws_token / ws_login_time 을 재기록하고 새 access_token 리턴.
- *   실패 시 null. supabase-js 의 refreshSession 은 refresh_token 이 유효하면
- *   브라우저 내 어디서든 1회 호출로 새 access_token 을 얻을 수 있음.
+ * L-session3 (2026-04-24): 세션 refresh — 서버 엔드포인트 기반 (결정적 유효).
+ *
+ *   이전 L-session1/2 는 supabase-js 클라이언트의 refreshSession/setSession 을
+ *   호출했는데, 브라우저에 sb-<ref>-auth-token 세션이 없으면 실패. 실제 프로덕션
+ *   환경에서 이 키가 비어있는 케이스 다수 — 결국 refresh 가 항상 실패하고 세션
+ *   종료로 이어지는 현상을 일으켰다.
+ *
+ *   이 버전은 /api/auth/refresh-session 서버 엔드포인트를 호출한다. 서버는
+ *   service-role 권한으로 Supabase 에 refreshSession({refresh_token}) 직접 호출 →
+ *   client-side Supabase 세션 부재 여부와 무관하게 refresh_token 만 유효하면
+ *   항상 새 access_token 을 리턴받는다. 사용자 refresh_token 이 실측상 유효함을
+ *   확인 (테스트 /api/auth/refresh-session 응답 200 + access_token 포함).
  */
 async function tryRefreshToken(): Promise<string | null> {
   try {
-    // Dynamic import 로 circular import 회피 (adminFetch 가 lib 저층에 있음)
-    const mod = await import('./supabase');
-    const sb = mod.createAuthClient();
+    if (typeof window === 'undefined') return null;
+    const stored =
+      window.sessionStorage.getItem('ws_refresh_token') ||
+      window.localStorage.getItem('ws_refresh_token');
+    if (!stored) return null;
 
-    // 1차 시도: 일반 refreshSession() — Supabase-js 내부 세션이 있을 때
-    let refreshData: { session: { access_token: string; refresh_token?: string } | null } | null = null;
-    try {
-      const r = await sb.auth.refreshSession();
-      if (!r.error && r.data?.session?.access_token) {
-        refreshData = r.data;
-      }
-    } catch { /* fallthrough */ }
+    const r = await fetch('/api/auth/refresh-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh_token: stored }),
+      cache: 'no-store',
+      credentials: 'same-origin',
+    });
+    if (!r.ok) return null;
+    const j = await r.json() as { access_token?: string; refresh_token?: string };
+    if (!j?.access_token) return null;
 
-    // 2차 시도: L-session2 (2026-04-24) — Supabase-js persist 누락 환경 대응.
-    //   저장해둔 ws_refresh_token 으로 setSession 호출 → Supabase 가 refresh_token
-    //   으로 새 access_token 재발급. 세션 만료 시 실제로 거의 항상 1차가 실패하고
-    //   이 경로로 복구됨.
-    if (!refreshData) {
-      const stored =
-        window.sessionStorage.getItem('ws_refresh_token') ||
-        window.localStorage.getItem('ws_refresh_token');
-      if (stored) {
-        try {
-          const r2 = await sb.auth.setSession({
-            access_token: '', // setSession 은 access_token 도 요구하지만 빈 문자열이면
-            refresh_token: stored, // refresh_token 으로 강제 refresh 시도
-          });
-          if (!r2.error && r2.data?.session?.access_token) {
-            refreshData = r2.data;
-          }
-        } catch { /* noop */ }
-      }
-    }
-
-    if (!refreshData?.session?.access_token) return null;
-    const tok = 'admin_bridge_' + refreshData.session.access_token;
+    const tok = 'admin_bridge_' + j.access_token;
     const now = Date.now().toString();
     try {
       window.sessionStorage.setItem('ws_token', tok);
       window.sessionStorage.setItem('ws_login_time', now);
       window.localStorage.setItem('ws_token', tok);
       window.localStorage.setItem('ws_login_time', now);
-      // 새 refresh_token 도 갱신 (회전식 refresh 대응)
-      if (refreshData.session.refresh_token) {
-        window.sessionStorage.setItem('ws_refresh_token', refreshData.session.refresh_token);
-        window.localStorage.setItem('ws_refresh_token', refreshData.session.refresh_token);
+      if (j.refresh_token) {
+        window.sessionStorage.setItem('ws_refresh_token', j.refresh_token);
+        window.localStorage.setItem('ws_refresh_token', j.refresh_token);
       }
     } catch { /* noop */ }
     return tok;
