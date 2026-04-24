@@ -5491,7 +5491,16 @@
   // ===== Admin API 공통 설정 (v2.2.0) =====
   var ADMIN_API_URL = 'https://wishes.co.kr/api/admin/listings';
   var ADMIN_API_MINIMAL = ADMIN_API_URL + '?fields=minimal';
-  var ADMIN_TOKEN = '';
+  // L-search3 (2026-04-23): 이전엔 ADMIN_TOKEN = '' dead 상수라 Bearer 뒤에
+  //   빈 토큰을 보내 401 인증실패 → WS.allListings = [] → /search 전체 0 표시.
+  //   세션 토큰을 실제로 읽어 사용하도록 getter 로 교체.
+  function _getAdminToken() {
+    try {
+      return sessionStorage.getItem('ws_token')
+          || localStorage.getItem('ws_token')
+          || '';
+    } catch (e) { return ''; }
+  }
 
   function normalizeImages(items) {
     items.forEach(function(item) {
@@ -5593,7 +5602,8 @@
       var tm = setTimeout(function() { ctrl.abort(); }, 60000);
       return fetch(ADMIN_API_MINIMAL, {
         signal: ctrl.signal,
-        headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN }
+        credentials: 'include',
+        headers: { 'Authorization': 'Bearer ' + _getAdminToken() }
       })
         .then(function(r) { clearTimeout(tm); if (!r.ok) throw new Error('API ' + r.status); return r.json(); })
         .then(function(data) {
@@ -6513,7 +6523,7 @@
       var deltaURL = ADMIN_API_MINIMAL + (ADMIN_API_MINIMAL.indexOf('?') >= 0 ? '&' : '?') + 'since=' + encodeURIComponent(sinceISO);
       fetch(deltaURL, {
         signal: ctrl.signal,
-        headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN }
+        headers: { 'Authorization': 'Bearer ' + _getAdminToken() }
       })
         .then(function(r) {
           clearTimeout(tm);
@@ -6553,7 +6563,7 @@
           window.WS._refreshTickCount = (window.WS._refreshTickCount || 0) + 1;
           if (window.WS._refreshTickCount % 3 === 0) {
             var idsURL = ADMIN_API_MINIMAL.replace(/\?.*$/, '') + '?ids_only=1';
-            fetch(idsURL, { headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN } })
+            fetch(idsURL, { headers: { 'Authorization': 'Bearer ' + _getAdminToken() } })
               .then(function(r) { return r.ok ? r.json() : null; })
               .then(function(ids) {
                 if (!ids || !ids.success || !Array.isArray(ids.data)) return;
@@ -10286,7 +10296,7 @@
     window.WS._autoRefreshInterval = setInterval(function() {
       // Admin API 단일 호출로 전체 데이터 다시 가져오기 (v2.1.0)
       fetch(ADMIN_API_MINIMAL, {
-        headers: { 'Authorization': 'Bearer ' + ADMIN_TOKEN }
+        headers: { 'Authorization': 'Bearer ' + _getAdminToken() }
       })
         .then(function(r) {
           if (!r.ok) throw new Error('서버 오류: ' + r.status);
