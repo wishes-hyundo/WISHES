@@ -191,6 +191,33 @@
 
   /* Touch-friendly: disallow native image drag */
   img { -webkit-user-drag: none; user-drag: none; }
+
+/* L-dnd (2026-04-24): 드래그앤드롭 zone */
+.pv-dropzone {
+  border: 2px dashed rgba(120, 190, 120, 0.45);
+  border-radius: 14px;
+  padding: 8px;
+  background: rgba(240, 248, 240, 0.35);
+  transition: all 0.15s ease;
+}
+.pv-dropzone.drag-active {
+  border-color: #2D5A27;
+  background: rgba(200, 230, 200, 0.55);
+  box-shadow: 0 0 0 3px rgba(45, 90, 39, 0.2);
+  transform: scale(1.01);
+}
+.pv-dropzone-hint {
+  margin-top: 8px;
+  text-align: center;
+  font-size: 11px;
+  color: rgba(120, 140, 120, 0.7);
+  user-select: none;
+  pointer-events: none;
+}
+@media (max-width: 640px) {
+  .pv-dropzone-hint { display: none; }
+  .pv-dropzone { border: none; padding: 0; background: transparent; }
+}
 </style>
 </head>
 <body>
@@ -247,9 +274,13 @@
     </div>
   </div>
 
-  <div class="pv-upload-btns">
-    <button class="pv-btn camera" onclick="openCamera()">📷 카메라 촬영</button>
-    <button class="pv-btn gallery" onclick="openGallery()">🖼️ 갤러리 선택</button>
+  <!-- L-dnd (2026-04-24): 데스크톱용 드래그앤드롭 zone -->
+  <div class="pv-dropzone" id="pvDropZone" data-hint="여기에 사진을 끌어다 놓으세요">
+    <div class="pv-upload-btns">
+      <button class="pv-btn camera" onclick="openCamera()">📷 카메라 촬영</button>
+      <button class="pv-btn gallery" onclick="openGallery()">🖼️ 갤러리 선택</button>
+    </div>
+    <div class="pv-dropzone-hint">또는 파일을 이 영역에 끌어다 놓으세요</div>
   </div>
 
   <!-- NEW photos -->
@@ -359,13 +390,35 @@ const API_BASE = window.location.origin;
 //   Supabase 세션 / 레거시 ws_token / wishes_token 순서로만 조회하고,
 //   없으면 빈 문자열(→ 서버가 401 로 차단).
 const AUTH_TOKEN = (function() {
-  try { return sessionStorage.getItem('ws_token')
-          || localStorage.getItem('ws_token')
-          || sessionStorage.getItem('wishes_token')
-          || localStorage.getItem('wishes_token')
-          || localStorage.getItem('token')
-          || ''; }
-  catch(e){ return ''; }
+  try {
+    let t = sessionStorage.getItem('ws_token')
+         || localStorage.getItem('ws_token')
+         || sessionStorage.getItem('wishes_token')
+         || localStorage.getItem('wishes_token')
+         || localStorage.getItem('token')
+         || '';
+    // L-sec-bridge-remove (2026-04-24): admin_bridge_ 오염 토큰 자동 마이그레이션.
+    //   과거 login/auth callback 6곳이 JWT 를 'admin_bridge_' + JWT 로 래핑 저장해온 관행 때문에
+    //   mobile-photo 의 apiCall 이 Authorization: Bearer admin_bridge_<NON-JWT> 로 서버에 전송 →
+    //   verifyAdminAuth 에서 401 → 삭제/순서저장 등 모든 mutate 실패.
+    //   정책: admin_bridge_ 접두사 있고 내부가 유효 JWT (eyJ + 3-part) 면 벗겨서 정정 저장.
+    //        내부가 JWT 아니면 오염이라 비움 (이후 페이지 가드가 로그인으로 유도).
+    while (t && t.indexOf('admin_bridge_') === 0) {
+      const inner = t.slice('admin_bridge_'.length);
+      const looksLikeJwt = inner.startsWith('eyJ') && inner.split('.').length === 3;
+      if (looksLikeJwt) {
+        try { localStorage.setItem('ws_token', inner); sessionStorage.setItem('ws_token', inner); } catch(_){}
+        t = inner;
+        break;
+      } else {
+        // 무효 bridge 토큰 — 제거
+        try { localStorage.removeItem('ws_token'); sessionStorage.removeItem('ws_token'); } catch(_){}
+        t = '';
+        break;
+      }
+    }
+    return t;
+  } catch(e){ return ''; }
 })();
 // URL 에 token= 이 실수로 포함돼 도착했다면 즉시 세션에 저장 후 URL 정리
 try {
@@ -1337,6 +1390,58 @@ Object.assign(window, {
 // ═══════════════ Init / offline / deep-link ═══════════════
 document.getElementById('cameraInput').addEventListener('change', handleFiles);
 document.getElementById('galleryInput').addEventListener('change', handleFiles);
+
+// L-dnd (2026-04-24): 드래그앤드롭 핸들러
+(function(){
+  const zone = document.getElementById('pvDropZone');
+  if (!zone) return;
+
+  function preventAll(e) { e.preventDefault(); e.stopPropagation(); }
+
+  ['dragenter','dragover'].forEach(evt => {
+    zone.addEventListener(evt, (e) => {
+      preventAll(e);
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      zone.classList.add('drag-active');
+    });
+  });
+  ['dragleave','dragend'].forEach(evt => {
+    zone.addEventListener(evt, (e) => {
+      preventAll(e);
+      // 실제 zone 밖으로 벗어났을 때만 해제 (내부 자식 엘리먼트 오가는 경우 무시)
+      if (evt === 'dragend' || (e.relatedTarget && !zone.contains(e.relatedTarget))) {
+        zone.classList.remove('drag-active');
+      } else if (evt === 'dragleave') {
+        zone.classList.remove('drag-active');
+      }
+    });
+  });
+
+  zone.addEventListener('drop', (e) => {
+    preventAll(e);
+    zone.classList.remove('drag-active');
+    const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter(f => f.type.startsWith('image/'));
+    if (!files.length) {
+      showToast('이미지 파일만 올릴 수 있습니다', 'error');
+      return;
+    }
+    if (!selectedListing) {
+      showToast('먼저 매물을 선택해주세요', 'error');
+      return;
+    }
+    // handleFiles 는 input event 의 e.target.files 를 쓰므로 같은 모양으로 전달
+    handleFiles({ target: { files, value: '' } });
+  });
+
+  // window 에서 drop 기본동작 차단 (브라우저가 파일을 열어버리는 걸 방지)
+  window.addEventListener('dragover', (e) => { e.preventDefault(); });
+  window.addEventListener('drop', (e) => {
+    // zone 밖에 drop 되면 그냥 기본동작만 차단
+    if (!zone.contains(e.target)) e.preventDefault();
+  });
+
+  console.log('[mobile-photo] L-dnd 드래그앤드롭 활성화');
+})();
 document.getElementById('replaceInput').addEventListener('change', handleReplace);
 document.getElementById('videoCameraInput').addEventListener('change', handleVideoFiles);
 document.getElementById('videoGalleryInput').addEventListener('change', handleVideoFiles);
