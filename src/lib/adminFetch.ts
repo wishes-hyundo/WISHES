@@ -153,7 +153,7 @@ async function tryRefreshToken(): Promise<string | null> {
     const j = await r.json() as { access_token?: string; refresh_token?: string };
     if (!j?.access_token) return null;
 
-    const tok = 'admin_bridge_' + j.access_token;
+    const tok = j.access_token; // L-sec-bridge-remove: prefix 제거
     const now = Date.now().toString();
     try {
       window.sessionStorage.setItem('ws_token', tok);

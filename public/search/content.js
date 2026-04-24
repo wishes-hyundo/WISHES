@@ -234,7 +234,7 @@
               if (wa) {
                 var parsed = JSON.parse(wa);
                 if (parsed && parsed.access_token) {
-                  token = 'admin_bridge_' + parsed.access_token;
+                  token = parsed.access_token; // L-sec-bridge-remove: prefix 제거
                 }
               }
             } catch(e) {}

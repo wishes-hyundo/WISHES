@@ -61,7 +61,7 @@ function LoginForm() {
           // 세션 유효 → ws_token 세팅 후 이동
           // sessionStorage + localStorage 이중 저장: 탭/브라우저 재시작에도 세션 유지
           try {
-            const tok = 'admin_bridge_' + session.access_token;
+            const tok = session.access_token; // L-sec-bridge-remove (2026-04-24): prefix 제거, bare JWT 저장
             const now = Date.now().toString();
             sessionStorage.setItem('ws_token', tok);
             sessionStorage.setItem('ws_login_time', now);
@@ -153,7 +153,7 @@ function LoginForm() {
         // ✅ 승인된 회원 → 세션 토큰 저장
         // sessionStorage + localStorage 이중 저장: 탭/브라우저 재시작에도 세션 유지
         try {
-          const tok = 'admin_bridge_' + (data.session?.access_token || '');
+          const tok = data.session?.access_token || ''; // L-sec-bridge-remove: prefix 제거
           const userStr = JSON.stringify({
             email: meData.user.email,
             name: meData.user.name,
@@ -177,7 +177,7 @@ function LoginForm() {
       } catch {
         // /api/auth/me 타임아웃 → Supabase 인증은 성공했으므로 기본 토큰만 저장
         try {
-          const tok = 'admin_bridge_' + (data.session?.access_token || '');
+          const tok = data.session?.access_token || ''; // L-sec-bridge-remove: prefix 제거
           const now = Date.now().toString();
           sessionStorage.setItem('ws_token', tok);
           sessionStorage.setItem('ws_login_time', now);

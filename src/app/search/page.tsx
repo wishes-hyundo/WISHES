@@ -70,7 +70,7 @@ export default function SearchPortalPage() {
         const j = await r.json() as { access_token?: string; refresh_token?: string };
         if (!j?.access_token) return;
 
-        const tok = 'admin_bridge_' + j.access_token;
+        const tok = j.access_token; // L-sec-bridge-remove: prefix 제거
         const now = Date.now().toString();
         try {
           sessionStorage.setItem('ws_token', tok);

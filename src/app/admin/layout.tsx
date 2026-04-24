@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           window.sessionStorage.setItem('ws_user', window.localStorage.getItem('ws_user') || '');
           window.sessionStorage.setItem('ws_login_time', window.localStorage.getItem('ws_login_time') || '');
         }
-        const token = window.sessionStorage.getItem('ws_token');
+        let token = window.sessionStorage.getItem('ws_token');
         const userStr = window.sessionStorage.getItem('ws_user');
         const loginTime = window.sessionStorage.getItem('ws_login_time');
 
@@ -55,14 +55,30 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           return;
         }
 
-        // L-sec54 (2026-04-22): admin_bridge_ prefix 토큰은 무조건 차단.
-        //   기존: !startsWith('admin_bridge_') 인 경우에만 /api/auth/verify 로 재검증 →
-        //         admin_bridge_ 위조 토큰은 검증 없이 통과 (UI 레벨 인증 우회).
-        //   수정: admin_bridge_ 토큰은 감지 즉시 세션 폐기 + 로그인 페이지로.
+        // L-sec-bridge-remove (2026-04-24): 기존 오염 토큰 자동 마이그레이션 + 위조 차단.
+        //   배경: login/auth callback/command/search/adminFetch 6곳이 Supabase JWT 를
+        //   받을 때마다 'admin_bridge_' + JWT 로 래핑해서 저장해온 레거시 크롤러 호환 코드가
+        //   있었음. L-sec54 의 엄격 prefix 가드가 이 합법 토큰까지 "위조" 로 오판해
+        //   정상 로그인 후 몇 분 내 세션 폐기 → 무한 재로그인 루프 유발.
+        //   이번 세션에서 6곳 모두 bare JWT 저장으로 교체했지만, 이미 브라우저에 저장된
+        //   오염 토큰들은 사용자 수동 clear 없이 자동 정정되어야 함.
+        //   정책: 내부 JWT 가 유효 (eyJ 접두사 + 3-part dot) 이면 prefix 만 벗겨 정정 저장
+        //        후 계속 진행. 내부가 JWT 형식 아니면 진짜 위조 → 폐기 + redirect.
         if (token.startsWith('admin_bridge_')) {
-          window.sessionStorage.clear();
-          window.location.href = '/admin/admin-auth.html';
-          return;
+          const inner = token.slice('admin_bridge_'.length);
+          const looksLikeJwt = inner.startsWith('eyJ') && inner.split('.').length === 3;
+          if (looksLikeJwt) {
+            try {
+              window.localStorage.setItem('ws_token', inner);
+              window.sessionStorage.setItem('ws_token', inner);
+            } catch {}
+            token = inner;
+          } else {
+            window.sessionStorage.clear();
+            try { window.localStorage.removeItem('ws_token'); } catch {}
+            window.location.href = '/admin/admin-auth.html';
+            return;
+          }
         }
 
         // Supabase token verify (비동기 백그라운드 - 인증 체크를 블로킹하지 않음)

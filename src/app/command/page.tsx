@@ -97,7 +97,7 @@ async function refreshAccessToken(): Promise<boolean> {
     if (!res.ok) return false;
     const j = await res.json();
     if (!j?.success || !j?.access_token) return false;
-    const newToken = 'admin_bridge_' + j.access_token;
+    const newToken = j.access_token; // L-sec-bridge-remove: prefix 제거
     sessionStorage.setItem('ws_token', newToken);
     localStorage.setItem('ws_token', newToken);
     if (j.refresh_token) {

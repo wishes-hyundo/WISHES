@@ -72,7 +72,7 @@ function AuthCallbackContent() {
       if (me.status !== 'approved') return 'error';
 
       try {
-        const tok = 'admin_bridge_' + accessToken;
+        const tok = accessToken; // L-sec-bridge-remove: prefix 제거
         const userStr = JSON.stringify({
           email: me.email,
           name: me.name,
