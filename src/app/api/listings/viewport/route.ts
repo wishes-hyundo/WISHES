@@ -6,6 +6,9 @@
 // Phase E  : Comparable-Aware deviation — dong | deal | areaBand | rooms 래더 fallback
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { NextRequest, NextResponse } from 'next/server';
+// L-viewport3 (2026-04-24 pm): 카테고리 count 4개를 매 pan/zoom 마다 다시 집계하던
+//   것을 Node 레벨 30초 cache 로 묶는다.
+import { unstable_cache } from 'next/cache';
 import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { maskAddressForPublic } from '@/lib/publicAddress';
@@ -533,22 +536,40 @@ export async function GET(req: NextRequest) {
     //   CategoryTabs 가 비활성 탭 숫자 배지를 노출 ("주거 3,487 / 상가 204") — 어느 탭에
     //   매물이 많은지 한눈에 보이게. bbox + 가격/면적/거래방식 필터는 상속하고
     //   카테고리(type) 필터만 제외한 base 로 Promise.all 4-parallel count.
+    // L-viewport3 (2026-04-24 pm): 4개 카테고리 count 가 매 pan/zoom 마다
+    //   `count: 'exact', head: true` × 4 로 돌아 체감 지연의 주 원인이었음.
+    //   bbox 좌표를 3자리(≈100m)로 라운딩해 근접 이동은 동일 캐시 키 재활용.
+    const cacheKeyBase = [
+      'viewport-catcount-v1',
+      south.toFixed(3), north.toFixed(3), west.toFixed(3), east.toFixed(3),
+      (deals ?? []).join(','),
+      minArea ?? '', maxArea ?? '',
+      (purposes ?? []).join(','),
+    ].join('|');
     async function countByCategory(cat: 'residence' | 'retail_office' | 'land' | 'investment'): Promise<number> {
-      let cq = supabase
-        .from('mv_map_listings')
-        .select('*', { count: 'exact', head: true })
-        .gte('lat', south)
-        .lte('lat', north)
-        .gte('lng', west)
-        .lte('lng', east)
-        .eq('status', '공개');
-      if (deals && deals.length) cq = cq.in('deal', deals);
-      if (minArea != null) cq = cq.gte('area_m2', minArea);
-      if (maxArea != null) cq = cq.lte('area_m2', maxArea);
-      const catFilter = categoryToTypeFilter(cat, cat === 'retail_office' ? purposes : null);
-      if (catFilter) cq = cq.or(catFilter);
-      const { count: cnt } = await cq;
-      return cnt ?? 0;
+      const cacheKey = `${cacheKeyBase}|${cat}`;
+      const getCached = unstable_cache(
+        async () => {
+          let cq = supabase
+            .from('mv_map_listings')
+            .select('*', { count: 'exact', head: true })
+            .gte('lat', south)
+            .lte('lat', north)
+            .gte('lng', west)
+            .lte('lng', east)
+            .eq('status', '공개');
+          if (deals && deals.length) cq = cq.in('deal', deals);
+          if (minArea != null) cq = cq.gte('area_m2', minArea);
+          if (maxArea != null) cq = cq.lte('area_m2', maxArea);
+          const catFilter = categoryToTypeFilter(cat, cat === 'retail_office' ? purposes : null);
+          if (catFilter) cq = cq.or(catFilter);
+          const { count: cnt } = await cq;
+          return cnt ?? 0;
+        },
+        [cacheKey],
+        { revalidate: 30, tags: ['viewport-catcount'] },
+      );
+      return getCached();
     }
     let counts: { residence: number; retail_office: number; land: number; investment: number } | undefined;
     try {

@@ -19,8 +19,6 @@
 import { useEffect, useRef } from 'react';
 import type { MapListing, PropertyCategory } from '@/features/map-2026/store';
 import { bucketListings, listingCategory } from '@/features/map-2026/lib/markerTier';
-// L-mapmarker2b (2026-04-24 pm): 개별 마커에 가격 표시 (직방/다방 벤치마크)
-import { formatDealLabel } from '@/features/map-2026/lib/priceFormat';
 
 // ── 컬러 토큰 ──────────────────────────────────────────────────────
 // 스타벅스 시그너처 그린 (#006241). alpha 0.88 채움 + 동일 hex 테두리.
@@ -80,8 +78,11 @@ function gridSizeForLevel(level: number): number {
   // L-mapmarker2b (2026-04-24 pm): 국토 뷰(level 10+) 에서 4,000+ 매물이
   //   2개 덩어리로 뭉쳐 보이던 문제 추가 수정. 셀을 더 쪼개 시/도/권역별로
   //   분리되도록 조정.
-  if (level <= 2) return 0;         // 개별 표시
-  if (level <= 3) return 0.0018;    // ~200m
+  // L-mapmarker2c (2026-04-24 pm): 최대확대에서도 건물 단위로 뭉쳐 주소 정확 노출 방지.
+  //   사용자 피드백 — 개별 점으로 찍히면 경쟁사·직거래 유출 리스크.
+  if (level <= 1) return 0.0005;    // ~55m (단일 건물 단위)
+  if (level <= 2) return 0.0012;    // ~130m (블록 단위)
+  if (level <= 3) return 0.0020;    // ~220m
   if (level <= 4) return 0.0036;    // ~400m
   if (level <= 5) return 0.006;     // ~600m (기본 줌)
   if (level <= 6) return 0.010;     // ~1.1km (이전 1.3km → 약간 더 촘촘)
@@ -125,45 +126,6 @@ function makeCircleElement(opts: {
     'pointer-events:auto',
   ].join(';');
   el.textContent = count >= 1000 ? `${Math.floor(count / 100) / 10}k` : String(count);
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.08)'; });
-  el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
-  return el;
-}
-
-/** 개별 매물 가격 마커 (직방/다방 벤치마크).
- *  count === 1 인 경우 카운트 "1" 대신 가격을 보여줘 정보 밀도를 높임.
- *  월세: "500/50", 전세: "5,000", 매매: "5억", 단기: "50/월" */
-function makePriceMarker(opts: {
-  listing: MapListing;
-  selected: boolean;
-}): HTMLDivElement {
-  const { listing, selected } = opts;
-  const bg = selected ? SEL_BG : BRAND_GREEN_BG;
-  const bd = selected ? SEL_BD : BRAND_GREEN;
-  const label = formatDealLabel(listing);
-  const el = document.createElement('div');
-  el.style.cssText = [
-    'display:inline-flex',
-    'align-items:center',
-    'justify-content:center',
-    'padding:5px 9px',
-    'border-radius:999px',
-    `background:${bg}`,
-    'color:#fff',
-    `border:1.5px solid ${bd}`,
-    `box-shadow:${selected ? SEL_SHADOW : DEFAULT_SHADOW}`,
-    'font-size:11.5px',
-    'font-weight:700',
-    'letter-spacing:-0.3px',
-    'cursor:pointer',
-    'user-select:none',
-    'transition:transform 150ms ease',
-    'font-family:inherit',
-    'pointer-events:auto',
-    'white-space:nowrap',
-    'tabular-nums:1',
-  ].join(';');
-  el.textContent = label && label !== '-' ? label : '매물';
   el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.08)'; });
   el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
   return el;
@@ -330,15 +292,11 @@ export default function HtmlMarkerOverlay({
         const count = arr.length;
         const selected =
           selectedListingId != null && arr.some((l) => l.id === selectedListingId);
-        // L-mapmarker2b: 단일 매물이면 가격 마커, 클러스터면 카운트 원.
-        const el = count === 1
-          ? makePriceMarker({ listing: arr[0], selected })
-          : makeCircleElement({
-              count,
-              selected,
-              // 개수 따라 원 크기 살짝 증가 — 시각적 weight.
-              size: count >= 100 ? 46 : count >= 10 ? 42 : 40,
-            });
+        // L-mapmarker2c: 개별/클러스터 모두 카운트 원으로 통일.
+        //   사용자 피드백 (네이버 벤치마크): 가격 노출은 경쟁·직거래 리스크.
+        //   주소 정확한 위치 표기 금지 — 카운트만 보여주고 최대확대에서도 건물 단위 묶음.
+        const size = count >= 100 ? 46 : count >= 10 ? 42 : count >= 2 ? 40 : 36;
+        const el = makeCircleElement({ count, selected, size });
         const clickHandler = (e: Event) => {
           e.stopPropagation();
           if (count === 1) onClickListing(arr[0].id);

@@ -30,10 +30,12 @@ function buildQueryString(
   filter: FilterState,
   // L-viewport1 (2026-04-23): 6000+ 매물 전부 수신을 위해 800 → 3000.
   // L-viewport2 (2026-04-23 p.m.): DB 실측 mv_visible=6179 → 3000 cap 으로 여전히
-  //   절반 넘게 잘려 ListPanel 카운트가 "3,000개" 로 고정되어 있었다. 서버
-  //   MAX_LIMIT=10000 을 풀수신하도록 상향. 클라이언트 grid clustering 덕에
-  //   rendering cost 는 매물 수와 무관하게 클러스터 개수만큼만 발생한다.
-  limit = 10000
+  //   절반 넘게 잘려 ListPanel 카운트가 "3,000개" 로 고정되어 있었다.
+  // L-viewport3 (2026-04-24 pm): 10000 → 4000 으로 하향.
+  //   매 pan/zoom 마다 6000+ row payload(~3~5MB) 가 매번 왕복해 체감 로딩
+  //   속도가 느렸음.  4000 이면 수도권 포함 대부분 bbox 커버 + payload ~2MB.
+  //   서버 count 는 별도 메타로 오고 ListPanel 상단 "N개 매물" 은 count 값 사용.
+  limit = 4000
 ) {
   const p = new URLSearchParams();
   p.set('west', bbox.west.toFixed(6));
