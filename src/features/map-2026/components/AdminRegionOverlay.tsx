@@ -573,7 +573,8 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
       const stillOwner = () => myId === currentRenderId;
 
       // ── 시/도 (level ≥ 10) ──────────────────────────────────
-      if (level >= 10) {
+      // L-granularity1 (2026-04-24 pm): sido 경계를 10 → 11 로 이동.
+      if (level >= 11) {
         const data = await loadSido();
         if (!stillOwner() || !data?.features) return;
         // L-adminfit2: listings 가 비었으면(>2° viewport) serverClusters 로 fallback
@@ -597,7 +598,9 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
       }
 
       // ── 시/군/구 (level 7~9) — L-adminpoly4 (2026-04-24 pm) ───
-      if (level >= 7) {
+      // L-granularity1 (2026-04-24 pm): sigungu 경계를 7 → 8 로 이동.
+      //   level 7 은 동 chip 으로 편입되어 zoom in 시 구→동 전환 체감 개선.
+      if (level >= 8) {
         const data = await loadSigungu();
         if (!stillOwner() || !data?.features) return;
         // viewport bbox 로 필터링 (전국 250개 → 현재 뷰에 보이는 것만)

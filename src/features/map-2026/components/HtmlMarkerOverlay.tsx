@@ -277,7 +277,12 @@ export default function HtmlMarkerOverlay({
       //   지도 마커는 /api/map/clusters 의 pre-aggregated 결과로만 그림.
       // L-clusterexact1 (2026-04-24 pm): filterSet 이 활성화되면 서버 경로 skip →
       //   grid 경로에서 정확한 visibleListings 만 렌더.
-      if (!filterSet && Array.isArray(serverClusters) && serverClusters.length > 0) {
+      // L-naverstyle7 (2026-04-24 pm): 격자 배치 제거.  serverClusters (H3/Quadkey 셀 중심) 을
+      //   level <= 2 근거리 뷰에서 그대로 쓰면 시각적으로 격자 배치가 된다.  근거리는
+      //   client-side bucketListings (building_name / dong+type centroid) 으로 대체.
+      //   line 272 `if (level >= 3) return;` 때문에 level > 2 조건은 실효상 false 지만
+      //   의도를 명시.
+      if (level > 2 && !filterSet && Array.isArray(serverClusters) && serverClusters.length > 0) {
         // 개별(count===1) 은 sample_ids 로 listing id 추론 가능.
         const listingById = new Map<number, MapListing>();
         for (const l of listings) listingById.set(l.id, l);
