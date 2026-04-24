@@ -303,11 +303,12 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       overlaysRef.current = [];
     };
 
-    /** 단일 feature 를 폴리곤 + chip 으로 렌더.  레벨별 공통 로직. */
+    /** 단일 feature 를 폴리곤 + (옵션)chip 으로 렌더.  레벨별 공통 로직. */
     const renderFeature = (
       feat: GeoFeature,
       displayName: string,
       count: number,
+      showChip: boolean,
     ) => {
       const geom = feat.geometry;
       const paths: number[][][][] = geom.type === 'Polygon'
@@ -328,12 +329,15 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
             strokeOpacity: STROKE_OPACITY,
             fillColor: FILL,
             fillOpacity: fillOp,
+            // L-adminpoly5 (2026-04-24 pm): 폴리곤이 mouse 이벤트 가로채면 지도
+            //   드래그/줌/마커 클릭이 모두 먹힘.  순수 시각 데코레이션으로만 사용.
+            clickable: false,
           });
           polygon.setMap(map);
           polygonsRef.current.push(polygon);
         } catch { /* SDK race — skip */ }
       }
-      if (count > 0) {
+      if (showChip && count > 0) {
         const centroid = polygonCentroid(
           geom.type === 'Polygon' ? (geom.coordinates as number[][][]) : (geom.coordinates as number[][][][])
         );
@@ -373,7 +377,7 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
             (feat.properties as { name_eng?: string }).name_eng ?? ''
           );
           const sidoName = normalizeSidoName(nameRaw);
-          renderFeature(feat, sidoName, counts.get(sidoName) ?? 0);
+          renderFeature(feat, sidoName, counts.get(sidoName) ?? 0, true);  // sido chip 표시
         }
         return;
       }
@@ -400,7 +404,7 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
           ).trim();
           if (!nameRaw) continue;
           // southkorea-maps 는 'Gangnam-gu' 같은 영문도 있을 수 있음 — 한글만 처리
-          renderFeature(feat, nameRaw, counts.get(nameRaw) ?? 0);
+          renderFeature(feat, nameRaw, counts.get(nameRaw) ?? 0, false);  // sigungu 는 polygon outline 만, chip 생략 (마커와 시각 충돌 방지)
         }
         return;
       }
