@@ -117,17 +117,23 @@ export function ListPanel() {
   const selectedId = useMap2026Store((s) => s.selectedId);
   const detailListingId = useMap2026Store((s) => s.detailListingId);
   const openListingDetail = useMap2026Store((s) => s.openListingDetail);
-  // L-clusterexact1 (2026-04-24 pm): 클러스터 클릭 시 해당 N개만 필터
+  // L-clusterexact1 + L-clusterexact3 (2026-04-24 pm): 클러스터 클릭 시 정확한 N개만.
   const clusterFilterIds = useMap2026Store((s) => s.clusterFilterIds);
+  const clusterFilterListings = useMap2026Store((s) => s.clusterFilterListings);
   const setClusterFilter = useMap2026Store((s) => s.setClusterFilter);
 
-  // 정렬은 원본 listings 기준으로 먼저 하고, 그 후 clusterFilter 적용
+  // 정렬 + 필터:
+  //   clusterFilterListings 있으면 (by-ids fetch 완료) 그걸 base 로 사용 → 100% 정확
+  //   없으면 기존 listings 에서 clusterFilterIds 교집합 (hydrate 대기 중 임시)
   const sorted = useMemo(() => {
+    if (clusterFilterListings && clusterFilterListings.length > 0) {
+      return sortListings(clusterFilterListings, sort);
+    }
     const base = sortListings(listings, sort);
     if (!clusterFilterIds || clusterFilterIds.length === 0) return base;
     const set = new Set(clusterFilterIds);
     return base.filter((l) => set.has(l.id));
-  }, [listings, sort, clusterFilterIds]);
+  }, [listings, sort, clusterFilterIds, clusterFilterListings]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -168,7 +174,10 @@ export function ListPanel() {
       </header>
       {clusterFilterIds && clusterFilterIds.length > 0 && (
         <div className="flex items-center justify-between gap-2 border-b border-emerald-100 bg-emerald-50 px-3 py-2 text-[11.5px] font-semibold text-emerald-800">
-          <span className="truncate">선택한 {clusterFilterIds.length}개 매물만 보는 중</span>
+          <span className="truncate">
+            선택한 {clusterFilterIds.length}개 매물만 보는 중
+            {clusterFilterListings == null && <span className="ml-1 opacity-70">(로딩 중…)</span>}
+          </span>
           <button
             onClick={() => setClusterFilter(null)}
             className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-100"

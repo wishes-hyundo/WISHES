@@ -81,6 +81,9 @@ interface Props {
    *  ids 배열을 받아 사이드바·지도에 그 매물만 남긴다. null 이면 해제. */
   onClusterFilter?: (ids: number[] | null) => void;
   clusterFilterIds?: number[] | null;
+  /** L-clusterexact3 (2026-04-24 pm): /api/listings/by-ids 로 fetch 한 정확한 매물.
+   *  viewport listings 에 없는 id 도 포함되므로 100% 정확한 N개 렌더 가능. */
+  clusterFilterListings?: MapListing[] | null;
 }
 
 // Kakao level(1~14) → 그리드 셀 크기 (위경도 degree).
@@ -224,6 +227,7 @@ export default function HtmlMarkerOverlay({
   serverClusters,
   onClusterFilter,
   clusterFilterIds,
+  clusterFilterListings,
 }: Props) {
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
 
@@ -247,14 +251,16 @@ export default function HtmlMarkerOverlay({
 
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
 
-      // L-clusterexact1 (2026-04-24 pm): clusterFilterIds 가 세팅되어 있으면
-      //   지도에도 그 id 의 매물만 렌더 (사이드바와 일관).
+      // L-clusterexact1 + L-clusterexact3 (2026-04-24 pm):
+      //   · clusterFilterListings 있으면 (by-ids fetch 완료) 그걸 그대로 visibleListings
+      //   · 없으면 clusterFilterIds 교집합 (hydrate 대기 임시)
+      //   · 필터 자체가 없으면 일반 listings
       const filterSet = clusterFilterIds && clusterFilterIds.length > 0
         ? new Set(clusterFilterIds)
         : null;
-      const visibleListings = filterSet
-        ? listings.filter((l) => filterSet.has(l.id))
-        : listings;
+      const visibleListings = clusterFilterListings && clusterFilterListings.length > 0
+        ? clusterFilterListings
+        : (filterSet ? listings.filter((l) => filterSet.has(l.id)) : listings);
       if (visibleListings.length === 0 && !filterSet) return;
 
       // L-adminpoly1 (2026-04-24 pm) + L-chipexclusive1 (2026-04-24 pm):
@@ -547,7 +553,7 @@ export default function HtmlMarkerOverlay({
       } catch { /* noop */ }
       cleanupOverlays();
     };
-  }, [map, listings, selectedListingId, category, onClickListing, onClickComplex, onClickCluster, serverClusters, onClusterFilter, clusterFilterIds]);
+  }, [map, listings, selectedListingId, category, onClickListing, onClickComplex, onClickCluster, serverClusters, onClusterFilter, clusterFilterIds, clusterFilterListings]);
 
   return null;
 }

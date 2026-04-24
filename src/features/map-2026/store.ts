@@ -261,11 +261,14 @@ export interface Map2026Store {
   openListingDetail: (id: number) => void;
   closeListingDetail: () => void;
 
-  // L-clusterexact1 (2026-04-24 pm): 클러스터 마커 클릭 시 "정확히 N개 매물만"
-  //   사이드바와 지도에 남기는 필터.  grid 기반 클러스터가 사각 셀로 묶기 때문에
-  //   단순 bbox fitBounds 로는 주변 다른 매물이 섞여 보이는 문제 해결.
-  //   null = 필터 해제 (전체 listings 표시).
+  // L-clusterexact1 + L-clusterexact3 (2026-04-24 pm): 클러스터 마커 클릭 시
+  //   "정확히 N개 매물만" 사이드바와 지도에 남기는 필터.
+  //   · clusterFilterIds: 필터할 매물 id 배열 (null = 필터 해제)
+  //   · clusterFilterListings: /api/listings/by-ids 로 fetch 한 전체 매물 객체.
+  //     useViewport limit 4000 로 일부 id 가 listings 에서 누락될 수 있으므로
+  //     별도 로 fetch 해서 100% 정확한 N개 표시.
   clusterFilterIds: number[] | null;
+  clusterFilterListings: MapListing[] | null;
   setClusterFilter: (ids: number[] | null) => void;
 }
 
@@ -505,9 +508,35 @@ export const useMap2026Store = create<Map2026Store>()(
     }),
     closeFilterModal: () => set({ filterModalOpen: false }),
 
-    // L-clusterexact1 (2026-04-24 pm): 클러스터 필터 (정확한 N개 매물만 표시)
+    // L-clusterexact1 + L-clusterexact3 (2026-04-24 pm): 클러스터 필터
     clusterFilterIds: null,
-    setClusterFilter: (ids) => set({ clusterFilterIds: ids }),
+    clusterFilterListings: null,
+    setClusterFilter: (ids) => {
+      if (!ids || ids.length === 0) {
+        set({ clusterFilterIds: null, clusterFilterListings: null });
+        return;
+      }
+      // 동일한 id 세트로 중복 호출되면 skip (연속 클릭 방지)
+      const prev = get().clusterFilterIds;
+      if (prev && prev.length === ids.length && prev.every((v, i) => v === ids[i])) return;
+      // ids 먼저 저장 → ListPanel/HtmlMarker 즉시 필터 반영 (listings 교집합)
+      set({ clusterFilterIds: ids, clusterFilterListings: null });
+      // L-clusterexact3: by-ids 로 정확한 매물 객체 hydrate (viewport limit 회피).
+      //   응답 도착 시점에 여전히 같은 필터 상태일 때만 반영 (race condition 방지).
+      (async () => {
+        try {
+          const qs = ids.join(',');
+          const res = await fetch(`/api/listings/by-ids?ids=${qs}`);
+          if (!res.ok) return;
+          const json = await res.json();
+          const arr: MapListing[] = Array.isArray(json?.listings) ? json.listings : [];
+          if (arr.length === 0) return;
+          const cur = get().clusterFilterIds;
+          if (!cur || cur.length !== ids.length || !cur.every((v, i) => v === ids[i])) return;
+          set({ clusterFilterListings: arr });
+        } catch { /* 무시 — 기존 listings 교집합으로 대체 표시 */ }
+      })();
+    },
 
     // L-mapmodal1 (2026-04-23): 매물 상세 모달
     detailListingId: null,

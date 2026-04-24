@@ -132,8 +132,9 @@ export default function MapClient() {
   const listPanelCollapsed = useMap2026Store((s) => s.listPanelCollapsed);
   const toggleListPanel = useMap2026Store((s) => s.toggleListPanel);
   const listingsCount = useMap2026Store((s) => s.listings.length);
-  // L-clusterexact1 (2026-04-24 pm): 클러스터 필터 state + setter
+  // L-clusterexact1 + L-clusterexact3 (2026-04-24 pm): 클러스터 필터 state + setter
   const clusterFilterIds = useMap2026Store((s) => s.clusterFilterIds);
+  const clusterFilterListings = useMap2026Store((s) => s.clusterFilterListings);
   const setClusterFilter = useMap2026Store((s) => s.setClusterFilter);
 
   // Kakao 지도 초기화
@@ -228,6 +229,39 @@ export default function MapClient() {
   useViewport();
   useSemanticZoom();
   useHeroRanking();
+
+  // L-clusterexact3 (2026-04-24 pm): 사용자가 지도를 직접 조작하면 (wheel 확대,
+  //   drag 이동, touch) clusterFilter 자동 해제.  programmatic setBounds 는 DOM
+  //   이벤트를 발생시키지 않으므로 안전하게 user-initiated 만 감지.
+  //   클러스터 클릭 직후 200ms 는 ignore window — setBounds 로 발생할 수 있는
+  //   관성 스크롤 노이즈 억제.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !kakaoMap) return;
+    let ignoreUntil = 0;
+    const onUserInput = () => {
+      if (Date.now() < ignoreUntil) return;
+      const st = useMap2026Store.getState();
+      if (st.clusterFilterIds && st.clusterFilterIds.length > 0) {
+        st.setClusterFilter(null);
+      }
+    };
+    // clusterFilter 가 새로 세팅되면 200ms ignore 창 재시작.
+    const unsub = useMap2026Store.subscribe((state, prev) => {
+      if (state.clusterFilterIds !== prev.clusterFilterIds && state.clusterFilterIds) {
+        ignoreUntil = Date.now() + 200;
+      }
+    });
+    container.addEventListener('wheel', onUserInput, { passive: true });
+    container.addEventListener('mousedown', onUserInput);
+    container.addEventListener('touchstart', onUserInput, { passive: true });
+    return () => {
+      container.removeEventListener('wheel', onUserInput);
+      container.removeEventListener('mousedown', onUserInput);
+      container.removeEventListener('touchstart', onUserInput);
+      unsub();
+    };
+  }, [kakaoMap]);
 
   // L-v7-url (2026-04-22): URL ↔ FilterState 양방향 동기화. 페이지 진입 시
   //   1회 수화 → 이후 filter/sort/nlQuery 변경 시 replaceState 반영. v7 §5.
@@ -380,6 +414,7 @@ export default function MapClient() {
                 onClickListing={onClickListing}
                 onClusterFilter={setClusterFilter}
                 clusterFilterIds={clusterFilterIds}
+                clusterFilterListings={clusterFilterListings}
               />
             </>
           ) : null}
@@ -493,6 +528,7 @@ function MapOverlaysWithClusters(props: {
   onClickListing: (id: number) => void;
   onClusterFilter: (ids: number[] | null) => void;
   clusterFilterIds: number[] | null;
+  clusterFilterListings: MapListing[] | null;
 }) {
   const { clusters } = useMapClusters(props.kakaoLevel);
   return (
@@ -506,6 +542,7 @@ function MapOverlaysWithClusters(props: {
         serverClusters={clusters}
         onClusterFilter={props.onClusterFilter}
         clusterFilterIds={props.clusterFilterIds}
+        clusterFilterListings={props.clusterFilterListings}
       />
       <AdminRegionOverlay
         map={props.kakaoMap}
