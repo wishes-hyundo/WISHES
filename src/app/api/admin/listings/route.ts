@@ -26,6 +26,10 @@ export async function OPTIONS(req: NextRequest) {
   return new NextResponse(null, { status: 200, headers: adminCorsHeaders(req, 'GET, POST, PUT, OPTIONS') });
 }
 
+// L-search4 (2026-04-24): 어드민 리스트 조회는 전체 6,200+ 매물을 7페이지로
+//   paginate 하므로 vercel.json 의 기본 10s 로는 좁음. 30s 로 확장.
+export const maxDuration = 30;
+
 // 요청 검증 스키마
 // L-hub3: price/area/lat/lng 필드를 hub 기반으로 통일.
 const createListingSchema = z.object({
@@ -250,7 +254,7 @@ export async function GET(request: NextRequest) {
           // 나머지 페이지 병렬 fetch
           if (firstPage.length === PAGE_SIZE) {
             const parallelPages = [];
-            for (let from = PAGE_SIZE; from < 20000; from += PAGE_SIZE) {
+            for (let from = PAGE_SIZE; from < 10000; from += PAGE_SIZE) {
               let q = supabase
                 .from('listings')
                 .select(selectFields)
