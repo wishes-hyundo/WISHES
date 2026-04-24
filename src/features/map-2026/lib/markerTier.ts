@@ -61,21 +61,43 @@ export function listingCategory(type: string | null | undefined): PropertyCatego
 }
 
 // 매물 리스트를 Tier1 그룹과 Tier2 개별로 분류.
-// 브랜드 타입 + building_name 있고 같은 그룹에 ≥2개 → Tier1
-// 그 외 전부 → Tier2 (단일 매물)
+// L-naverstyle3 (2026-04-24 pm): 비로그인 상태에서는 viewport API 가 privacy
+//   보호로 building_name 을 null 로 돌려주므로 pill 이 만들어지지 않는 문제가
+//   있었음 (사용자 스크린샷: 강남에서 전부 grid cluster 숫자 원).
+//   해결 — building_name 이 없으면 `dong + type` 을 대체 key 로 사용.
+//   · 1순위: building_name (로그인 사용자 또는 건물명 공개 매물)
+//   · 2순위: dong + type  (예: "역삼동 원룸" pill)
+//   · 그 외: tier2 (개별 grid cluster)
 export function bucketListings(listings: MapListing[]): MarkerBuckets {
   const groups = new Map<string, MapListing[]>();
+  // groups 엔 그룹의 representative 이름도 같이 저장 (dong+type 표시용).
+  const groupName = new Map<string, string>();
   const tier2Listings: MapListing[] = [];
 
   for (const l of listings) {
     const nn = normalizeName(l.building_name);
-    const type = l.type ?? '';
-    // L-naverstyle2: building_name 있으면 모든 타입에 pill 적용.
+    const type = (l.type ?? '').trim();
+    const dong = (l.dong ?? '').trim();
+
+    let key: string | null = null;
+    let displayName: string | null = null;
+
     if (nn) {
-      const key = `${type || 'x'}:${nn}`;
+      // 1순위: building_name 기반
+      key = `b:${type || 'x'}:${nn}`;
+      displayName = l.building_name || '';
+    } else if (dong) {
+      // 2순위: dong + type (privacy-safe 대체)
+      //   같은 동 + 같은 타입 매물끼리 묶음.  "역삼동 원룸 15" pill.
+      key = `d:${dong}:${type || 'x'}`;
+      displayName = type ? `${dong} ${type}` : dong;
+    }
+
+    if (key) {
       const arr = groups.get(key);
       if (arr) arr.push(l);
       else groups.set(key, [l]);
+      if (displayName && !groupName.has(key)) groupName.set(key, displayName);
     } else {
       tier2Listings.push(l);
     }
@@ -93,7 +115,7 @@ export function bucketListings(listings: MapListing[]): MarkerBuckets {
       }
       tier1Groups.push({
         key,
-        name: arr[0].building_name || '',
+        name: groupName.get(key) || arr[0].building_name || '',
         type: arr[0].type || '',
         lat: latSum / arr.length,
         lng: lngSum / arr.length,
