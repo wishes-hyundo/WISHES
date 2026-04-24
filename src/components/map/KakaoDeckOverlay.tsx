@@ -258,10 +258,12 @@ export default function KakaoDeckOverlay({
 
       // 클러스터 레이어 (≥2 개수)
       const clusterData = clusters.filter((c) => c.count >= 2);
-    // 개별 매물 레이어
-    const itemData = items.length > 0
-      ? items
-      : clusters.filter((c) => c.count === 1);
+    // 개별 매물 레이어 (L-deck-noprice, 2026-04-24 pm)
+    //   HtmlMarkerOverlay 가 개별 매물을 카운트 원으로 처리하므로, deck.gl 의
+    //   itemScatter/itemText 는 상위에서 items 를 명시적으로 넘긴 경우에만 활성화.
+    //   이전엔 items=[] 이어도 clusters.count===1 을 items 로 치환해 가격
+    //   라벨이 찍혀 '최대확대에서 금액 노출' 현상이 있었음 — 사용자 리스크.
+    const itemData = items;
 
     // L-ux5-3: 그리드-버킷 declutter.
     //   화면 52px 셀 안에 같은 가격 라벨을 여러 개 그리면 겹쳐서 알아볼 수 없다.
