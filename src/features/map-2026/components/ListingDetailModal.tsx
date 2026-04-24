@@ -494,10 +494,11 @@ export function ListingDetailModal() {
             {/* 주차 — 입력 텍스트 우선 + 주차비 + 총주차대수 */}
             <Row label="주차" value={(() => {
               const parts: string[] = [];
-              const p = listing.parking;
-              if (typeof p === 'string' && p.trim() && p !== 'true' && p !== 'false') parts.push(p.trim());
-              else if ((p as unknown) === true || (p as unknown) === 'true') parts.push('가능');
-              else if ((p as unknown) === false || (p as unknown) === 'false') parts.push('불가능');
+              const p: any = listing.parking;
+              const pStr = typeof p === 'string' ? p.trim() : '';
+              if (pStr && pStr !== 'true' && pStr !== 'false') parts.push(pStr);
+              else if (p === true || pStr === 'true') parts.push('가능');
+              else if (p === false || pStr === 'false') parts.push('불가능');
               const fee = (listing as any).parking_fee;
               if (fee != null && fee > 0) parts.push(`주차비 ${Number(fee).toLocaleString('ko-KR')}만원/월`);
               const total = detailExtra?.total_parking_spaces;
