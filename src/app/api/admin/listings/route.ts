@@ -224,13 +224,16 @@ export async function GET(request: NextRequest) {
         'created_by', // L-v7-p3: scope=mine 디버그/검증용 echo
         'last_verified_at', // L-verify-list (2026-04-24): 목록 현장확인 배지
         'source_site', // L-imgpolicy3: 크롤링 판정용 (응답 전 썸네일 스크럽)
-        'listing_images(url)' // ⚡ id/is_thumbnail/sort_order 제거 — 이미지 페이로드 -75%
+        // L-search7 (2026-04-24): listing_images JOIN 제거. JOIN 된 1000-row 쿼리가
+        //   ~4.8s 걸리고 7 pages parallel → Vercel 27s 소비 + supabase-js 의 range
+        //   pagination 버그 트리거 (매물 2000~4000 축소). 대신 main rows 수집 후
+        //   ids 로 listing_images 를 별도 IN 쿼리 1번에 가져옴 (총 3-4s 예상).
       ].join(',');
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v5-mine', scopeUid as string]
-        : ['listings-minimal-v5'];
+        ? ['listings-minimal-v6-mine', scopeUid as string]
+        : ['listings-minimal-v6'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
@@ -246,7 +249,10 @@ export async function GET(request: NextRequest) {
           if (scope === 'mine' && scopeUid) firstQ = firstQ.eq('created_by', scopeUid);
           const { data: firstPage, error: firstError } = await firstQ;
 
-          if (firstError || !firstPage) return [];
+          if (firstError || !firstPage) {
+            console.error('[admin/listings minimal] firstQ error:', firstError);
+            return [];
+          }
 
           let allData: any[] = [...firstPage];
 
@@ -272,9 +278,41 @@ export async function GET(request: NextRequest) {
             }
           }
 
+          // L-search7 (2026-04-24): 수집된 id 로 listing_images 를 IN 쿼리 1번에 fetch.
+          //   main rows 보다 10~20배 많지만 (listing_id, url, sort_order) 3 column 만
+          //   가져오므로 페이로드 작음. 각 listing 당 첫 1장만 map 으로 빠르게 선정.
+          let imageByListing: Record<string, string> = {};
+          if (allData.length > 0) {
+            try {
+              const listingIds = allData.map((r: any) => r.id);
+              const BATCH = 1000; // Supabase IN 쿼리도 row limit 적용되므로 1000 씩 분할
+              for (let i = 0; i < listingIds.length; i += BATCH) {
+                const batch = listingIds.slice(i, i + BATCH);
+                const { data: imgs } = await supabase
+                  .from('listing_images')
+                  .select('listing_id, url, sort_order')
+                  .in('listing_id', batch)
+                  .order('sort_order', { ascending: true, nullsFirst: false })
+                  .limit(10000);
+                if (imgs) {
+                  for (const im of imgs as any[]) {
+                    const lid = String(im.listing_id);
+                    if (!imageByListing[lid] && im.url) imageByListing[lid] = im.url;
+                  }
+                }
+              }
+            } catch (e) {
+              console.error('[admin/listings] image fetch error', e);
+              // 실패 시 이미지 없이 계속 — 전체 매물 수 유지가 최우선
+            }
+          }
+
           // 🧹 null / 빈 배열 / 빈 문자열 / false 불리언 제거로 페이로드 20~30% 감소
           // (클라이언트는 접근 시 기본값 fallback 으로 처리)
           const slim = allData.map((row: any) => {
+            // L-search7: 별도 쿼리로 가져온 이미지 매핑 → row.listing_images 주입
+            const imgUrl = imageByListing[String(row.id)];
+            row.listing_images = imgUrl ? [{ url: imgUrl }] : [];
             // L-img2 (2026-04-24): admin(중개사) 포털은 preferSelfHostedImages 정책.
             //   · 자체 업로드가 있으면 그것만 노출 (저작권 안전)
             //   · 자체 업로드가 0 이면 크롤링 원본 유지 (카드 썸네일 공백 방지)
@@ -290,15 +328,6 @@ export async function GET(request: NextRequest) {
               if (row.thumbnail_url && !isSelfHostedImage(row.thumbnail_url)) {
                 row.thumbnail_url = null;
               }
-            }
-            // L-search6 (2026-04-24): supabase-js 의 .limit(1, {foreignTable:'listing_images'})
-            //   가 main pagination (range) 과 충돌해서 range(1000~) 페이지가 조용히 빈 배열
-            //   반환 → 전체 매물이 2,000개로 축소되는 치명적 버그. foreignTable limit 을
-            //   포기하고 DB 에서 모든 이미지 받은 뒤 여기서 첫 1장만 유지. 카드 썸네일
-            //   용도에는 1장이면 충분. 상세 모달은 /api/admin/listings/[id] 에서 전체
-            //   이미지 별도 fetch 하므로 영향 없음. 응답 페이로드는 오히려 줄어듬.
-            if (Array.isArray(row.listing_images) && row.listing_images.length > 1) {
-              row.listing_images = row.listing_images.slice(0, 1);
             }
             const out: any = {};
             for (const k in row) {
