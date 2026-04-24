@@ -12,15 +12,19 @@
 //     - https://wishes.co.kr/api/images/...
 //     - *.supabase.co/storage/...       (Supabase Storage)
 //     - pub-*.r2.dev / *.r2.cloudflarestorage.com (Cloudflare R2)
-//     - *.wishes-img.workers.dev           (Cloudflare Worker 이미지 프록시 — 자체 처리)
-//     - d4k1brqee4emz.cloudfront.net       (기존 이미지 프록시 CDN)
 //   그 외 외부 도메인(공실클럽·온하우스 CDN 등)은 모두 차단.
 //
-// ─── L-img1 (2026-04-24) ───
-//   listing_images 샘플 2,000건 중 1,998건(99.9%) 이 wishes-image-proxy 도메인에
-//   있었는데 기존 whitelist 에 없어서 admin/search 카드 썸네일 전부 공백이 되던
-//   '썸네일 전원 실종' 버그의 근본원인. Worker 프록시는 우리 인프라(Cloudflare
-//   Workers 계정) 라 저작권 판정상 '자체 업로드' 와 동치로 처리.
+// ⚠️ L-img1-revert (2026-04-24): wishes-image-proxy.wishes-img.workers.dev 와
+//   d4k1brqee4emz.cloudfront.net 을 whitelist 에 넣었던 L-img1 을 롤백한다.
+//   이 두 도메인은 '우리가 운영하는' 인프라이긴 하지만 그 역할은 크롤링 원본
+//   이미지를 다운받아 재서빙하는 프록시 역할이며, 원본 저작권은 여전히
+//   공실클럽/온하우스 등 외부 크롤링 소스에 있다. 따라서 저작권 판정상 '외부'
+//   로 분류되어야 한다. L-img1 은 /search 카드 썸네일을 살리려는 좋은 의도였지만
+//   부작용으로 공개 /map/검색 페이지에 워터마크 박힌 크롤링 사진이 노출됐다.
+//   admin 포털 (/api/admin/listings, [id]) 의 preferSelfHostedImages 는 '자체
+//   업로드 없으면 원본 유지' 로직이라 whitelist 제거 후에도 중개사 뷰에서는
+//   크롤링 썸네일이 정상 표시됨. 공개 엔드포인트는 applyImagePolicy 경로로
+//   crawl 원본이 자동 차단된다.
 
 export function isSelfHostedImage(url?: string | null): boolean {
   if (!url) return false;
@@ -40,11 +44,9 @@ export function isSelfHostedImage(url?: string | null): boolean {
   if (/\.r2\.dev\//i.test(u)) return true;
   if (/\.r2\.cloudflarestorage\.com\//i.test(u)) return true;
 
-  // L-img1 (2026-04-24): Cloudflare Worker 이미지 프록시 (자체 계정 소유, CSP img-src 에 등재)
-  if (/\.wishes-img\.workers\.dev\//i.test(u)) return true;
-
-  // L-img1 (2026-04-24): 기존 CloudFront 이미지 배포 CDN (자체 S3 오리진)
-  if (/\/\/d4k1brqee4emz\.cloudfront\.net\//i.test(u)) return true;
+  // ⚠️ L-img1-revert (2026-04-24): wishes-image-proxy.wishes-img.workers.dev 와
+  //   d4k1brqee4emz.cloudfront.net 은 whitelist 에서 제외 (위 주석 참조).
+  //   공개 페이지에서 크롤링 원본 사진이 노출되는 저작권 침해를 막기 위함.
 
   return false;
 }
