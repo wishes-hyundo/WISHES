@@ -756,16 +756,20 @@
   /* 지역 버튼 그리드 더 좁게 — 78→64 최소 */
   .ws-districts { grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)) !important; }
   /* 태그/뱃지 wrap 우선 */
-  .ws-tag, .ws-badge { font-size: 11.5px; }
+  .ws-tag, .ws-badge { font-size: 12px; }
   /* 하단 액션바 3열 → 세로 flex wrap */
   .ws-bottom-actions { flex-wrap: wrap; gap: 6px; }
 }
 
+/* L-mob3 (2026-04-24): WCAG 2.1 AA 터치 타겟 (44px 최소) + 폰트 가독성 (12px 최소).
+   <=380: .ws-district-btn 이 40px 였어 Fold/SE 에서 WCAG 미달. 44px 로 교정.
+   <=360: .ws-tag, .ws-badge 가 11.5px 였어 노인/저시력 사용자 가독성 저하.
+   12px 은 WCAG non-binding 권장 하한이자 iOS HIG 의 minimum text size. */
 @media (max-width: 380px) {
   .ws-listing-image-wrap { height:180px; }
   .ws-price-main { font-size:18px; }
   .ws-filter-grid { grid-template-columns:1fr; }
-  .ws-district-btn { font-size:12.5px; min-height:40px; }
+  .ws-district-btn { font-size:12.5px; min-height:44px; }
 }
 
 /* AI Briefing Button Highlight */
