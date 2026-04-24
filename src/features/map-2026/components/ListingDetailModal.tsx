@@ -276,7 +276,7 @@ export function ListingDetailModal() {
   });
   const floorLabel = formatFloorPair(listing.floor_current, listing.floor_total);
   const areaStr = listing.area_m2 && listing.area_m2 > 0 ? formatArea(listing.area_m2) : null;
-  const addressLine = listing.title ?? listing.building_name ?? listing.dong ?? '주소 미상';
+  const addressLine = listing.title ?? (listing as any).building_name ?? listing.dong ?? '주소 미상';
 
   const maintenanceLabel = listing.maintenance_fee != null
     ? `${listing.maintenance_fee.toLocaleString()}만원`
@@ -371,9 +371,9 @@ export function ListingDetailModal() {
             <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
               {galleryIndex + 1} / {galleryImages.length}
             </span>
-          ) : listing.photo_count > 0 ? (
+          ) : (listing as any).photo_count > 0 ? (
             <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white">
-              {listing.photo_count}장
+              {(listing as any).photo_count}장
             </span>
           ) : null}
         </div>
@@ -461,7 +461,7 @@ export function ListingDetailModal() {
           <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">매물 정보</div>
           <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
             <Row label="관리비" value={maintenanceLabel} />
-            <Row label="입주 가능일" value={listing.available_date || '협의가능'} />
+            <Row label="입주 가능일" value={(listing as any).available_date || '협의가능'} />
             {listing.built_year && (
               <Row label="사용 승인일" value={`${listing.built_year}${age ? ` · ${age.text}` : ''}`} />
             )}
@@ -483,10 +483,10 @@ export function ListingDetailModal() {
                 <div className="text-red-600">있음</div>
               </>
             )}
-            {(listing.station_name || listing.station_distance) && (
+            {((listing as any).station_name || listing.station_distance) && (
               <Row label="가까운 역" value={
-                listing.station_name
-                  ? `${listing.station_name}${listing.station_distance ? ` · ${listing.station_distance}m` : ''}`
+                (listing as any).station_name
+                  ? `${(listing as any).station_name}${listing.station_distance ? ` · ${listing.station_distance}m` : ''}`
                   : `${listing.station_distance}m`
               } />
             )}
@@ -693,7 +693,7 @@ export function ListingDetailModal() {
         onClose={() => setAgentModalOpen(false)}
         agent={buildAgentInfoFromProfile(agentProfile)}
         listingId={listing.id}
-        listingTitle={listing.title ?? listing.building_name ?? ''}
+        listingTitle={listing.title ?? (listing as any).building_name ?? ''}
         onRequestInquiry={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
         onRequestVisit={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
       />
@@ -704,7 +704,7 @@ export function ListingDetailModal() {
         onClose={() => setInquiryOpen(false)}
         context="listing"
         listingId={listing.id}
-        listingTitle={listing.title ?? listing.building_name ?? ''}
+        listingTitle={listing.title ?? (listing as any).building_name ?? ''}
         source="/map"
       />
     </aside>
