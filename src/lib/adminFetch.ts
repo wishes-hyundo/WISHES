@@ -131,15 +131,50 @@ async function tryRefreshToken(): Promise<string | null> {
     // Dynamic import 로 circular import 회피 (adminFetch 가 lib 저층에 있음)
     const mod = await import('./supabase');
     const sb = mod.createAuthClient();
-    const { data, error } = await sb.auth.refreshSession();
-    if (error || !data?.session?.access_token) return null;
-    const tok = 'admin_bridge_' + data.session.access_token;
+
+    // 1차 시도: 일반 refreshSession() — Supabase-js 내부 세션이 있을 때
+    let refreshData: { session: { access_token: string; refresh_token?: string } | null } | null = null;
+    try {
+      const r = await sb.auth.refreshSession();
+      if (!r.error && r.data?.session?.access_token) {
+        refreshData = r.data;
+      }
+    } catch { /* fallthrough */ }
+
+    // 2차 시도: L-session2 (2026-04-24) — Supabase-js persist 누락 환경 대응.
+    //   저장해둔 ws_refresh_token 으로 setSession 호출 → Supabase 가 refresh_token
+    //   으로 새 access_token 재발급. 세션 만료 시 실제로 거의 항상 1차가 실패하고
+    //   이 경로로 복구됨.
+    if (!refreshData) {
+      const stored =
+        window.sessionStorage.getItem('ws_refresh_token') ||
+        window.localStorage.getItem('ws_refresh_token');
+      if (stored) {
+        try {
+          const r2 = await sb.auth.setSession({
+            access_token: '', // setSession 은 access_token 도 요구하지만 빈 문자열이면
+            refresh_token: stored, // refresh_token 으로 강제 refresh 시도
+          });
+          if (!r2.error && r2.data?.session?.access_token) {
+            refreshData = r2.data;
+          }
+        } catch { /* noop */ }
+      }
+    }
+
+    if (!refreshData?.session?.access_token) return null;
+    const tok = 'admin_bridge_' + refreshData.session.access_token;
     const now = Date.now().toString();
     try {
       window.sessionStorage.setItem('ws_token', tok);
       window.sessionStorage.setItem('ws_login_time', now);
       window.localStorage.setItem('ws_token', tok);
       window.localStorage.setItem('ws_login_time', now);
+      // 새 refresh_token 도 갱신 (회전식 refresh 대응)
+      if (refreshData.session.refresh_token) {
+        window.sessionStorage.setItem('ws_refresh_token', refreshData.session.refresh_token);
+        window.localStorage.setItem('ws_refresh_token', refreshData.session.refresh_token);
+      }
     } catch { /* noop */ }
     return tok;
   } catch {

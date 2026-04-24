@@ -67,6 +67,13 @@ function LoginForm() {
             sessionStorage.setItem('ws_login_time', now);
             localStorage.setItem('ws_token', tok);
             localStorage.setItem('ws_login_time', now);
+            // L-session2 (2026-04-24): refresh_token 도 저장 — 세션 만료 시 재발급용.
+            //   Supabase-js 의 persistSession 이 특정 환경에서 localStorage 에 세션을
+            //   저장하지 않아 refresh_token 유실 → 60분 후 강제 로그아웃 문제의 원인.
+            if (session.refresh_token) {
+              sessionStorage.setItem('ws_refresh_token', session.refresh_token);
+              localStorage.setItem('ws_refresh_token', session.refresh_token);
+            }
           } catch {}
           hardRedirect(redirect);
           return;
@@ -160,6 +167,11 @@ function LoginForm() {
           localStorage.setItem('ws_token', tok);
           localStorage.setItem('ws_user', userStr);
           localStorage.setItem('ws_login_time', now);
+          // L-session2 (2026-04-24): refresh_token 이중 저장 (세션 갱신용)
+          if (data.session?.refresh_token) {
+            sessionStorage.setItem('ws_refresh_token', data.session.refresh_token);
+            localStorage.setItem('ws_refresh_token', data.session.refresh_token);
+          }
         } catch {}
 
       } catch {
@@ -171,6 +183,11 @@ function LoginForm() {
           sessionStorage.setItem('ws_login_time', now);
           localStorage.setItem('ws_token', tok);
           localStorage.setItem('ws_login_time', now);
+          // L-session2 (2026-04-24): refresh_token 이중 저장 (세션 갱신용)
+          if (data.session?.refresh_token) {
+            sessionStorage.setItem('ws_refresh_token', data.session.refresh_token);
+            localStorage.setItem('ws_refresh_token', data.session.refresh_token);
+          }
         } catch {}
       }
 

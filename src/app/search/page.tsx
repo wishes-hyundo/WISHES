@@ -49,16 +49,45 @@ export default function SearchPortalPage() {
     const refreshAndPersist = async () => {
       try {
         const sb = createAuthClient();
-        const { data, error } = await sb.auth.refreshSession();
-        if (cancelled) return;
-        if (error || !data.session) return;
-        const tok = 'admin_bridge_' + data.session.access_token;
+        let session: { access_token: string; refresh_token?: string } | null = null;
+
+        // 1차: Supabase-js 내부 persist 세션으로 refresh
+        try {
+          const r = await sb.auth.refreshSession();
+          if (!cancelled && !r.error && r.data.session) {
+            session = r.data.session;
+          }
+        } catch {}
+
+        // 2차 (L-session2): ws_refresh_token 으로 setSession fallback
+        if (!session && !cancelled) {
+          let stored = '';
+          try {
+            stored = sessionStorage.getItem('ws_refresh_token')
+              || localStorage.getItem('ws_refresh_token') || '';
+          } catch {}
+          if (stored) {
+            try {
+              const r2 = await sb.auth.setSession({ access_token: '', refresh_token: stored });
+              if (!cancelled && !r2.error && r2.data.session) {
+                session = r2.data.session;
+              }
+            } catch {}
+          }
+        }
+
+        if (cancelled || !session) return;
+        const tok = 'admin_bridge_' + session.access_token;
         const now = Date.now().toString();
         try {
           sessionStorage.setItem('ws_token', tok);
           sessionStorage.setItem('ws_login_time', now);
           localStorage.setItem('ws_token', tok);
           localStorage.setItem('ws_login_time', now);
+          if (session.refresh_token) {
+            sessionStorage.setItem('ws_refresh_token', session.refresh_token);
+            localStorage.setItem('ws_refresh_token', session.refresh_token);
+          }
         } catch {}
       } catch {}
     };
