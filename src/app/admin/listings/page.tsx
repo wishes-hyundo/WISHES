@@ -209,7 +209,8 @@ export default function AdminListingsPage() {
       setLoading(true);
       setError(null);
       // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
-      const res = await adminFetch('/api/admin/listings', {
+      // L-search8 (2026-04-24): fields=minimal 전환. updated_at 는 route.ts minimal 에 추가됨.
+      const res = await adminFetch('/api/admin/listings?fields=minimal', {
         headers: { ...authHeader() },
       });
       if (!res.ok) throw new Error('API 오류: ' + res.status);

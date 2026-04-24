@@ -196,7 +196,11 @@ export default function AdminPage() {
       // L-sec147 (2026-04-23, C-2 phase 3b): adminFetch.
       const [statsRes, listingsRes, contactsRes] = await Promise.all([
         adminFetch('/api/admin/stats', { headers }),
-        adminFetch('/api/admin/listings', { headers }),
+        // L-search8 (2026-04-24): fields=minimal 전환 — non-minimal full-scan JOIN
+        //   (.select('*, listing_images(*)')) 는 timeout/cache 보호 없이 6,204행을
+        //   PAGE_SIZE 1000 sequential 로 가져와 Vercel cold-start 시 10s 위험.
+        //   dashboard 가 쓰는 필드는 모두 minimal selectFields 에 포함됨.
+        adminFetch('/api/admin/listings?fields=minimal', { headers }),
         adminFetch('/api/admin/contacts', { headers }),
       ]);
 

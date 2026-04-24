@@ -224,6 +224,7 @@ export async function GET(request: NextRequest) {
         'created_by', // L-v7-p3: scope=mine 디버그/검증용 echo
         'last_verified_at', // L-verify-list (2026-04-24): 목록 현장확인 배지
         'source_site', // L-imgpolicy3: 크롤링 판정용 (응답 전 썸네일 스크럽)
+        'updated_at', // L-search8 (2026-04-24): admin/listings 페이지 '수정됨' 배지용 (minimal 전환 시 필요)
         // L-search7 (2026-04-24): listing_images JOIN 제거. JOIN 된 1000-row 쿼리가
         //   ~4.8s 걸리고 7 pages parallel → Vercel 27s 소비 + supabase-js 의 range
         //   pagination 버그 트리거 (매물 2000~4000 축소). 대신 main rows 수집 후
@@ -232,8 +233,8 @@ export async function GET(request: NextRequest) {
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v7-mine', scopeUid as string]
-        : ['listings-minimal-v7'];
+        ? ['listings-minimal-v8-mine', scopeUid as string]
+        : ['listings-minimal-v8'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
