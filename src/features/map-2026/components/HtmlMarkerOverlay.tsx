@@ -263,11 +263,13 @@ export default function HtmlMarkerOverlay({
         : (filterSet ? listings.filter((l) => filterSet.has(l.id)) : listings);
       if (visibleListings.length === 0 && !filterSet) return;
 
-      // L-adminpoly1 (2026-04-24 pm) + L-chipexclusive1 (2026-04-24 pm):
-      //   축소 뷰(level ≥ 7) 에서는 AdminRegionOverlay 가 시/도(≥10) 또는
-      //   시/군/구(7~9) chip 으로 대체 표시.  grid 카운트 원은 숨겨 시각 중복 제거.
-      //   사용자 피드백: "구 옆에 개수 표기가 되는데 기본 마커까지 같이 나와 헷갈림".
-      if (level >= 7) return;
+      // L-adminpoly1 + L-chipexclusive1 + L-naverstyle1 (2026-04-24 pm):
+      //   네이버 4단계 행정구역 체계 완성.  AdminRegionOverlay 가 다음을 담당:
+      //     · level ≥ 10 : 시/도 chip (17 개)
+      //     · level 7~9  : 시/군/구 chip (~250 개)
+      //     · level 4~6  : 읍/면/동 chip (~3500 개, viewport filter + top 25)
+      //   HtmlMarkerOverlay 는 level ≤ 3 (근거리) 에서만 활성화 → 단지 pill + 개별.
+      if (level >= 4) return;
 
       // ━━ L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 우선 경로 ━━
       //   serverClusters 가 제공되면 클라이언트 grid 클러스터링을 완전히 건너뛰고
@@ -391,8 +393,8 @@ export default function HtmlMarkerOverlay({
         : visibleListings.filter((l) => listingCategory(l.type) === category);
       if (filtered.length === 0) return;
 
-      // 근거리 (level ≤ 4) 에서만 단지 pill 사용 — 멀리서는 grid cluster 가 삼킨다.
-      const usePill = level <= 4;
+      // 근거리 (level ≤ 3) 에서만 단지 pill 사용 — level 4 이상은 AdminRegionOverlay 담당.
+      const usePill = level <= 3;
       let tier1Groups: ReturnType<typeof bucketListings>['tier1Groups'] = [];
       let rest: MapListing[] = filtered;
       if (usePill) {

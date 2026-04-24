@@ -28,6 +28,9 @@ const SIDO_GEOJSON_URL =
   '/api/geo/sido';
 const SIGUNGU_GEOJSON_URL =
   '/api/geo/sigungu';
+// L-naverstyle1 (2026-04-24 pm): 읍/면/동 경계 (simplified ~1.7MB)
+const DONG_GEOJSON_URL =
+  '/api/geo/dong';
 
 interface GeoFeature {
   type: 'Feature';
@@ -44,8 +47,10 @@ interface GeoCollection {
 // 모듈 레벨 캐시 — /map 진입 → 마커 오버레이 → 줌아웃 반복에도 fetch 1회만.
 let sidoCache: GeoCollection | null = null;
 let sigunguCache: GeoCollection | null = null;
+let dongCache: GeoCollection | null = null;
 let pendingSido: Promise<GeoCollection | null> | null = null;
 let pendingSigungu: Promise<GeoCollection | null> | null = null;
+let pendingDong: Promise<GeoCollection | null> | null = null;
 
 async function loadSido(): Promise<GeoCollection | null> {
   if (sidoCache) return sidoCache;
@@ -66,6 +71,16 @@ async function loadSigungu(): Promise<GeoCollection | null> {
     .catch(() => null)
     .finally(() => { pendingSigungu = null; });
   return pendingSigungu;
+}
+async function loadDong(): Promise<GeoCollection | null> {
+  if (dongCache) return dongCache;
+  if (pendingDong) return pendingDong;
+  pendingDong = fetch(DONG_GEOJSON_URL)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => { dongCache = j as GeoCollection | null; return dongCache; })
+    .catch(() => null)
+    .finally(() => { pendingDong = null; });
+  return pendingDong;
 }
 
 // ── Kakao SDK 타입 최소 ────────────────────────────────────────────
@@ -177,6 +192,37 @@ function parseGu(src: string | null | undefined): string | null {
     if (/구$/.test(t)) return t;  // 강남구, 관악구 (광역시 직할)
   }
   return null;
+}
+
+/** address 에서 읍/면/동 이름 추출.
+ *  "서울 관악구 신림동 1536-8 ..." → "신림동"
+ *  "경기 수원시 장안구 조원동 ..." → "조원동"
+ *  "강원 홍천군 서면 ..." → "서면"
+ *  dong 컬럼이 있으면 그것 우선, 없으면 address 에서 정규식 추출. */
+function parseDongName(src: string | null | undefined, dongField: string | null | undefined): string | null {
+  if (dongField && dongField.trim()) {
+    const d = dongField.trim();
+    if (/[동읍면]$/.test(d)) return d;
+  }
+  if (!src) return null;
+  const parts = String(src).trim().split(/\s+/);
+  for (const t of parts) {
+    // "동", "읍", "면" 으로 끝나는 토큰 (단, 시/도 명칭 "강원도" 같은 건 배제)
+    if (/^[가-힣]{2,5}[동읍면]$/.test(t) && !/[도시군구]$/.test(t)) return t;
+  }
+  return null;
+}
+
+/** listings 를 읍/면/동 이름별 count 로 집계 */
+function countListingsByDong(listings: MapListing[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const l of listings) {
+    const src = (l as { address?: string | null }).address || l.title || '';
+    const key = parseDongName(src, l.dong);
+    if (!key) continue;
+    out.set(key, (out.get(key) ?? 0) + 1);
+  }
+  return out;
 }
 
 /** listings 를 시/군/구 이름별 count 로 집계 */
@@ -555,7 +601,62 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
         return;
       }
 
-      // level ≤ 6: 폴리곤 숨김 (HtmlMarkerOverlay 의 카운트 원이 담당)
+      // ── 읍/면/동 (level 4~6) — L-naverstyle1 (2026-04-24 pm) ─────────
+      //   네이버 부동산 동 단위 뷰에 해당.  viewport 내 동만 렌더 + 밀도 상한으로
+      //   시각 과부하 방지.
+      if (level >= 4) {
+        const data = await loadDong();
+        if (!data?.features) return;
+        const bounds = typeof mapInst.getBounds === 'function' ? mapInst.getBounds() : null;
+        const bbox = bounds ? {
+          west: bounds.getSouthWest().getLng(),
+          south: bounds.getSouthWest().getLat(),
+          east: bounds.getNorthEast().getLng(),
+          north: bounds.getNorthEast().getLat(),
+        } : null;
+
+        let counts = countListingsByDong(listings);
+        if (counts.size === 0 && serverClusters?.length) {
+          counts = countByRegionFromClusters(
+            serverClusters,
+            data.features,
+            (feat) => String(feat.properties.name ?? feat.properties.name_eng ?? '').trim(),
+          );
+        }
+
+        // viewport 안 + count > 0 만 후보로.  top 25 chip 표시 (시각 밀도 제어).
+        type Cand = { feat: GeoFeature; name: string; count: number };
+        const candidates: Cand[] = [];
+        for (const feat of data.features) {
+          if (bbox && !featureIntersectsBbox(feat, bbox)) continue;
+          const nameRaw = String(
+            (feat.properties as { name?: string; name_eng?: string }).name ??
+            (feat.properties as { name_eng?: string }).name_eng ?? ''
+          ).trim();
+          if (!nameRaw) continue;
+          const c = counts.get(nameRaw) ?? 0;
+          candidates.push({ feat, name: nameRaw, count: c });
+        }
+
+        // count > 0 은 모두 렌더.  count=0 은 stroke 만 (경계 context 유지)
+        // top 25 까지는 chip 표시, 초과분은 stroke only (밀집 뷰 대비).
+        const withCount = candidates.filter((c) => c.count > 0)
+          .sort((a, b) => b.count - a.count);
+        const CHIP_LIMIT = 25;
+        const chipSet = new Set(withCount.slice(0, CHIP_LIMIT).map((c) => c.name));
+
+        for (const { feat, name, count } of candidates) {
+          if (chipSet.has(name)) {
+            renderFeature(feat, name, count, true, true);
+          } else {
+            // count 초과분 또는 count=0 은 stroke 만
+            renderFeature(feat, name, count, false, true);
+          }
+        }
+        return;
+      }
+
+      // level ≤ 3: 폴리곤 숨김 (HtmlMarkerOverlay 의 단지 pill + 개별 매물)
     };
 
     void render();
@@ -573,13 +674,12 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
     };
   }, [map, listings, serverClusters, onClickRegion]);
 
-  // sigungu 캐시 warm-up (다음 줌인 때 즉시 사용 가능) — 나중 단계에서 실제 사용.
+  // sigungu + dong 캐시 warm-up (다음 줌인 때 즉시 사용 가능)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    // idle 시간에 로드 — 사용자 상호작용 방해 없이
     const id = (typeof window.requestIdleCallback === 'function')
-      ? window.requestIdleCallback(() => { void loadSigungu(); })
-      : window.setTimeout(() => { void loadSigungu(); }, 2000);
+      ? window.requestIdleCallback(() => { void loadSigungu(); void loadDong(); })
+      : window.setTimeout(() => { void loadSigungu(); void loadDong(); }, 2000);
     return () => {
       if (typeof window.requestIdleCallback === 'function' && typeof window.cancelIdleCallback === 'function') {
         window.cancelIdleCallback(id as number);
