@@ -191,6 +191,64 @@ function countListingsBySigungu(listings: MapListing[]): Map<string, number> {
   return out;
 }
 
+/** Ray-casting point-in-polygon (GeoJSON [lng,lat] 순서). */
+function pointInRing(lng: number, lat: number, ring: number[][]): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i][0], yi = ring[i][1];
+    const xj = ring[j][0], yj = ring[j][1];
+    const intersect =
+      ((yi > lat) !== (yj > lat)) &&
+      (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+/** feature (Polygon|MultiPolygon) 안에 (lat, lng) 가 있는지 */
+function pointInFeature(lat: number, lng: number, feat: GeoFeature): boolean {
+  const geom = feat.geometry;
+  const paths: number[][][][] = geom.type === 'Polygon'
+    ? [geom.coordinates as number[][][]]
+    : geom.type === 'MultiPolygon'
+      ? (geom.coordinates as number[][][][])
+      : [];
+  for (const poly of paths) {
+    const outer = poly[0];
+    if (!outer) continue;
+    if (pointInRing(lng, lat, outer)) {
+      // holes 체크 (있다면 inside=false)
+      let inHole = false;
+      for (let h = 1; h < poly.length; h++) {
+        if (pointInRing(lng, lat, poly[h])) { inHole = true; break; }
+      }
+      if (!inHole) return true;
+    }
+  }
+  return false;
+}
+
+/** L-adminfit2 (2026-04-24 pm): listings 가 빈 배열이어도 서버 클러스터로 count 계산.
+ *  서버 사전집계(H3) 는 항상 응답하므로 최대 축소 뷰에서도 폴리곤 그릴 수 있음. */
+function countByRegionFromClusters(
+  clusters: { lat: number; lng: number; count: number }[] | undefined,
+  features: GeoFeature[],
+  keyFn: (feat: GeoFeature) => string,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!clusters?.length) return out;
+  for (const c of clusters) {
+    for (const feat of features) {
+      if (pointInFeature(c.lat, c.lng, feat)) {
+        const key = keyFn(feat);
+        if (key) out.set(key, (out.get(key) ?? 0) + c.count);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 /** GeoJSON feature → 전체 geometry 의 bounding box.
  *  MultiPolygon 이어도 모든 ring 을 순회해 정확한 외접 bbox 산출. */
 function computeFeatureBbox(
@@ -319,10 +377,13 @@ function polygonCentroid(coords: number[][][] | number[][][][]): { lat: number; 
 interface Props {
   map: unknown;
   listings: MapListing[];
+  /** L-adminfit2 (2026-04-24 pm): 서버 사전집계 클러스터 (H3).  listings 가 빈
+   *  bbox(>2°) 에서도 sido/sigungu count 를 정확히 계산할 수 있도록 prop 으로 받음. */
+  serverClusters?: { lat: number; lng: number; count: number }[];
   onClickRegion?: (name: string) => void;
 }
 
-export default function AdminRegionOverlay({ map, listings, onClickRegion }: Props) {
+export default function AdminRegionOverlay({ map, listings, serverClusters, onClickRegion }: Props) {
   const polygonsRef = useRef<KakaoPolygon[]>([]);
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
 
@@ -437,7 +498,15 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       if (level >= 10) {
         const data = await loadSido();
         if (!data?.features) return;
-        const counts = countListingsBySido(listings);
+        // L-adminfit2: listings 가 비었으면(>2° viewport) serverClusters 로 fallback
+        let counts = countListingsBySido(listings);
+        if (counts.size === 0 && serverClusters?.length) {
+          counts = countByRegionFromClusters(
+            serverClusters,
+            data.features,
+            (feat) => normalizeSidoName(String(feat.properties.name ?? feat.properties.name_eng ?? '')),
+          );
+        }
         for (const feat of data.features) {
           const nameRaw = String(
             (feat.properties as { name?: string; name_eng?: string }).name ??
@@ -461,7 +530,14 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
           east: bounds.getNorthEast().getLng(),
           north: bounds.getNorthEast().getLat(),
         } : null;
-        const counts = countListingsBySigungu(listings);
+        let counts = countListingsBySigungu(listings);
+        if (counts.size === 0 && serverClusters?.length) {
+          counts = countByRegionFromClusters(
+            serverClusters,
+            data.features,
+            (feat) => String(feat.properties.name ?? feat.properties.name_eng ?? '').trim(),
+          );
+        }
         for (const feat of data.features) {
           if (bbox && !featureIntersectsBbox(feat, bbox)) continue;
           // feature.name 은 보통 "강남구" 또는 "수원시 장안구" 형태
@@ -495,7 +571,7 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       } catch { /* noop */ }
       cleanup();
     };
-  }, [map, listings, onClickRegion]);
+  }, [map, listings, serverClusters, onClickRegion]);
 
   // sigungu 캐시 warm-up (다음 줌인 때 즉시 사용 가능) — 나중 단계에서 실제 사용.
   useEffect(() => {

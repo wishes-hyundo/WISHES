@@ -365,19 +365,16 @@ export default function MapClient() {
                 items={[]}
                 onClickListing={onClickListing}
               />
-              {/* L-worldclass1 (2026-04-24 pm): serverClusters 주입 */}
-              <HtmlMarkerOverlayWithClusters
+              {/* L-worldclass1 (2026-04-24 pm) + L-adminfit2 (2026-04-24 pm):
+                  useMapClusters 결과를 HtmlMarkerOverlay 와 AdminRegionOverlay
+                  양쪽에 공유하여 축소 뷰에서도 시/도 폴리곤 count 계산 가능. */}
+              <MapOverlaysWithClusters
                 kakaoMap={kakaoMap}
                 kakaoLevel={kakaoLevel}
                 listings={listings}
                 selectedListingId={detailListingId}
                 category={filterCategory}
                 onClickListing={onClickListing}
-              />
-              {/* L-adminpoly1 (2026-04-24 pm): 축소 뷰(level ≥ 10) 에서 시/도 폴리곤 */}
-              <AdminRegionOverlay
-                map={kakaoMap}
-                listings={listings}
               />
             </>
           ) : null}
@@ -477,11 +474,12 @@ function TopRightActions() {
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// L-worldclass1 (2026-04-24 pm): HtmlMarkerOverlay 를 useMapClusters 와 묶은 wrapper.
-// useMapClusters 는 hook 이라 map renderer 가 마운트된 상태에서만 호출해야 하므로
-// kakaoMap 이 준비된 조건부 subtree 안에서 쓴다.
+// L-worldclass1 (2026-04-24 pm) + L-adminfit2 (2026-04-24 pm):
+// useMapClusters 결과를 HtmlMarkerOverlay 와 AdminRegionOverlay 양쪽이
+// 공유하는 wrapper. hook 호출은 map mount 이후에만 유효하므로 조건부 subtree
+// 안에서 쓴다.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function HtmlMarkerOverlayWithClusters(props: {
+function MapOverlaysWithClusters(props: {
   kakaoMap: unknown;
   kakaoLevel: number;
   listings: MapListing[];
@@ -491,13 +489,20 @@ function HtmlMarkerOverlayWithClusters(props: {
 }) {
   const { clusters } = useMapClusters(props.kakaoLevel);
   return (
-    <HtmlMarkerOverlay
-      map={props.kakaoMap}
-      listings={props.listings}
-      selectedListingId={props.selectedListingId}
-      category={props.category}
-      onClickListing={props.onClickListing}
-      serverClusters={clusters}
-    />
+    <>
+      <HtmlMarkerOverlay
+        map={props.kakaoMap}
+        listings={props.listings}
+        selectedListingId={props.selectedListingId}
+        category={props.category}
+        onClickListing={props.onClickListing}
+        serverClusters={clusters}
+      />
+      <AdminRegionOverlay
+        map={props.kakaoMap}
+        listings={props.listings}
+        serverClusters={clusters}
+      />
+    </>
   );
 }
