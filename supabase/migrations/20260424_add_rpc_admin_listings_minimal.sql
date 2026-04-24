@@ -1,5 +1,13 @@
 -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
--- L-search9 (2026-04-24): rpc_admin_listings_minimal 단일 쿼리 함수
+-- L-search9 (2026-04-24): rpc_admin_listings_minimal
+--
+-- 2026-04-24 hotfix: 타입 불일치 수정. 초기 배포 시 선언 타입이 listings 실제
+--   컬럼과 안 맞아 `ERROR 42P13: return type mismatch` 로 함수 생성 실패. 실제
+--   DB 조회(information_schema.columns)로 모든 컬럼 타입 재확인 후 반영:
+--     deposit/monthly/price/maintenance_fee/goodwill_fee/station_distance: integer
+--     area_m2/area_supply_m2: real (float4)
+--     maintenance_includes: text[]
+--     available_date: text (date 아님) 단일 쿼리 함수
 --
 -- 목적:
 --   /api/admin/listings?fields=minimal 가 현재 sequential pagination 7회
@@ -38,13 +46,13 @@ RETURNS TABLE (
   type             text,
   deal             text,
   status           text,
-  deposit          numeric,
-  monthly          numeric,
-  price            numeric,
-  maintenance_fee  numeric,
-  maintenance_includes text,
-  area_m2          numeric,
-  area_supply_m2   numeric,
+  deposit          integer,
+  monthly          integer,
+  price            integer,
+  maintenance_fee  integer,
+  maintenance_includes text[],
+  area_m2          real,
+  area_supply_m2   real,
   floor_current    text,
   floor_total      text,
   rooms            int,
@@ -56,7 +64,7 @@ RETURNS TABLE (
   building_name    text,
   lat              double precision,
   lng              double precision,
-  available_date   date,
+  available_date   text,
   built_year       text,
   parking          boolean,
   elevator         boolean,
@@ -65,9 +73,9 @@ RETURNS TABLE (
   full_option      boolean,
   loan_available   boolean,
   business_type    text,
-  goodwill_fee     numeric,
+  goodwill_fee     integer,
   station_name     text,
-  station_distance text,
+  station_distance integer,
   created_at       timestamptz,
   created_by       uuid,
   last_verified_at timestamptz,
