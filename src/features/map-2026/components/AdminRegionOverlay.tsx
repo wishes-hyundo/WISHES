@@ -95,7 +95,8 @@ interface KakaoNs { maps?: KakaoMapsNs }
 const FILL = '#006241';
 const FILL_OPACITY = 0.08;
 const STROKE = '#006241';
-const STROKE_OPACITY = 0.6;
+// L-adminpoly6: stroke 조금 더 투명하게 (0.6 → 0.35).  지도 내용 가독성 우선.
+const STROKE_OPACITY = 0.35;
 
 // feature name → sido 짧은 이름 매핑 (southkorea-maps 는 name 에 영문/한글 혼재)
 function normalizeSidoName(raw: string | undefined | null): string {
@@ -303,20 +304,26 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       overlaysRef.current = [];
     };
 
-    /** 단일 feature 를 폴리곤 + (옵션)chip 으로 렌더.  레벨별 공통 로직. */
+    /** 단일 feature 를 폴리곤 + (옵션)chip 으로 렌더.  레벨별 공통 로직.
+     *  L-adminpoly6 (2026-04-24 pm): count === 0 지역은 완전히 스킵.
+     *  사용자 피드백 '전지역이 다 선택되어 있다' 반영.  매물 있는 지역만
+     *  시각화해 정보 가치 극대화 + 시각 노이즈 제거. */
     const renderFeature = (
       feat: GeoFeature,
       displayName: string,
       count: number,
       showChip: boolean,
     ) => {
+      if (count <= 0) return;  // 매물 없는 지역 스킵 — 폴리곤 전혀 렌더 안 함
       const geom = feat.geometry;
       const paths: number[][][][] = geom.type === 'Polygon'
         ? [geom.coordinates as number[][][]]
         : geom.type === 'MultiPolygon'
           ? (geom.coordinates as number[][][][])
           : [];
-      const fillOp = count > 0 ? FILL_OPACITY * 1.8 : FILL_OPACITY;
+      // L-adminpoly6: count > 0 만 렌더되므로 일관된 강조 opacity.
+      //   매물 많을수록 조금 더 진하게 (최대 0.25).
+      const fillOp = Math.min(0.25, FILL_OPACITY + Math.log10(Math.max(1, count)) * 0.04);
       for (const polyCoords of paths) {
         const outer = polyCoords[0];
         if (!outer) continue;
@@ -324,7 +331,7 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
         try {
           const polygon = new maps.Polygon({
             path,
-            strokeWeight: 1.5,
+            strokeWeight: 1.0,  // L-adminpoly6: 얇게
             strokeColor: STROKE,
             strokeOpacity: STROKE_OPACITY,
             fillColor: FILL,
