@@ -74,19 +74,43 @@ async function generateGrain(width: number, height: number): Promise<Buffer> {
  * SVG <text> composite 은 Vercel serverless 환경에 fontconfig 가 없어서
  * 렌더 결과가 비게 되는 이슈 때문에 PNG 방식으로 전환. (2026-04-24)
  */
-async function loadCenterWatermark(targetWidth: number, _targetHeight: number): Promise<Buffer> {
-  const fs = await import('fs');
-  const path = await import('path');
-  const wmPath = path.join(process.cwd(), 'public', 'watermark-center.png');
-  if (!fs.existsSync(wmPath)) {
-    // 파일 없으면 투명한 1x1 반환 (composite 에 영향 없음)
-    return sharp({
-      create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } },
-    }).png().toBuffer();
+// 워터마크 PNG 를 메모리에 캐시 (서버 프로세스 생존 기간 내)
+let _wmCache: Buffer | null = null;
+async function getWatermarkPng(): Promise<Buffer | null> {
+  if (_wmCache) return _wmCache;
+  // 1) fs 접근 시도 (Vercel 의 경우 outputFileTracingIncludes 로 함께 번들되면 가능)
+  try {
+    const fs = await import('fs');
+    const path = await import('path');
+    const wmPath = path.join(process.cwd(), 'public', 'watermark-center.png');
+    if (fs.existsSync(wmPath)) {
+      _wmCache = fs.readFileSync(wmPath);
+      return _wmCache;
+    }
+  } catch (e) {
+    console.warn('[photoProcess] fs.readFileSync failed:', (e as Error)?.message);
   }
-  // 이미지 짧은 변의 WM_SCALE 배 width 로 resize (가로 기준 대략 min(w,h)*0.7 정도)
+  // 2) 자기 자신의 정적 자산 fetch
+  try {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
+    const res = await fetch(`${siteUrl}/watermark-center.png`, { cache: 'force-cache' });
+    if (res.ok) {
+      const ab = await res.arrayBuffer();
+      _wmCache = Buffer.from(ab);
+      return _wmCache;
+    }
+    console.warn('[photoProcess] fetch watermark failed:', res.status);
+  } catch (e) {
+    console.warn('[photoProcess] fetch watermark threw:', (e as Error)?.message);
+  }
+  return null;
+}
+
+async function loadCenterWatermark(targetWidth: number, _targetHeight: number): Promise<Buffer | null> {
+  const raw = await getWatermarkPng();
+  if (!raw) return null;
   const wmW = Math.round(targetWidth * 0.55);
-  return sharp(wmPath).resize(wmW).toBuffer();
+  return sharp(raw).resize(wmW).toBuffer();
 }
 
 /**
@@ -135,22 +159,31 @@ async function applyClassicNegative(buffer: Buffer): Promise<{ buf: Buffer; widt
  * 가 이 함수 단 하나를 호출해 룩을 통일한다.
  */
 export async function processPhotoUpload(buffer: Buffer): Promise<Buffer> {
+  let stage = 'init';
   try {
     // (1) Classic Negative
+    stage = 'classic-negative';
     const { buf: filmed, width, height } = await applyClassicNegative(buffer);
+    console.log('[photoProcess] classic-negative OK', width, 'x', height);
 
-    // (2) 중앙 WISHES 워터마크 (PNG 기반, fontconfig 비의존)
+    // (2) 중앙 WISHES 워터마크 (PNG 기반)
+    stage = 'load-watermark';
     const wm = await loadCenterWatermark(width, height);
-    const finalBuf = await sharp(filmed)
-      .composite([{ input: wm, gravity: 'center' }])
-      .webp({ quality: 85 })
-      .toBuffer();
 
+    stage = 'final-composite';
+    let pipe = sharp(filmed);
+    if (wm) {
+      pipe = pipe.composite([{ input: wm, gravity: 'center' }]);
+      console.log('[photoProcess] watermark applied');
+    } else {
+      console.warn('[photoProcess] watermark null — skipping center stamp');
+    }
+    const finalBuf = await pipe.webp({ quality: 85 }).toBuffer();
+    console.log('[photoProcess] pipeline OK', buffer.length, '->', finalBuf.length);
     return finalBuf;
   } catch (err) {
-    // 실패 시 원본 WebP 변환만 수행 (파이프라인 깨져도 업로드 자체는 진행)
-    // eslint-disable-next-line no-console
-    console.error('[photoProcess] pipeline failed — fallback to plain webp:', err);
+    console.error(`[photoProcess] FAIL at stage=${stage}:`, err);
+    // 필터는 실패했어도 최소한 리사이즈 + webp 는 되도록
     return sharp(buffer, { failOn: 'none' })
       .rotate()
       .resize(MAX_W, MAX_H, { fit: 'inside', withoutEnlargement: true })

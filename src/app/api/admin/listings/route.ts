@@ -669,6 +669,7 @@ export async function POST(request: NextRequest) {
           const { processPhotoUpload } = await import('@/lib/photoProcess');
           const rawBuf = Buffer.from(await file.arrayBuffer());
           const buf = await processPhotoUpload(rawBuf);
+          console.log('[upload-pipeline] processed', rawBuf.length, '->', buf.length, 'bytes');
           const key = `listings/${data.id}/${Date.now()}_${i}.webp`;
           const url = await uploadToR2(key, buf, 'image/webp');
           uploadedUrls.push(url);

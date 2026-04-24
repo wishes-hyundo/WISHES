@@ -8,8 +8,7 @@ import { createServerClient } from '@/lib/supabase';
 import { storage } from '@/lib/storage';
 import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
 // L-photo-pipeline (2026-04-24): Classic Negative + 중앙 WISHES 워터마크 통합.
-//   기존 compressImage 는 단순 WebP 변환이었고, 워터마크는 런타임 /api/wm
-//   프록시에서만 붙었음. 이제 업로드 시점에 처리된 결과를 영구 저장한다.
+import { processPhotoUpload } from '@/lib/photoProcess';
 
 /**
  * POST /api/admin/upload - 매물 이미지 업로드
@@ -54,7 +53,6 @@ export async function POST(request: NextRequest) {
     }
 
     // 파일 → Buffer → Classic Negative + 중앙 워터마크 + WebP
-    const { processPhotoUpload } = await import('@/lib/photoProcess');
     const arrayBuffer = await file.arrayBuffer();
     const originalBuffer = Buffer.from(arrayBuffer);
     const compressedBuffer = await processPhotoUpload(originalBuffer);

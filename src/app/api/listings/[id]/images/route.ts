@@ -5,6 +5,8 @@ import { verifyAdminAuth } from '@/lib/adminAuth';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { adminCorsHeaders } from '@/lib/cors';
 import { filterSelfHosted } from '@/lib/image-policy';
+// L-photo-pipeline (2026-04-24): 모든 업로드 이미지에 Classic Negative + 중앙 워터마크
+import { processPhotoUpload } from '@/lib/photoProcess';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -85,7 +87,6 @@ export async function POST(
       try {
         // L-photo-pipeline (2026-04-24): 모바일 사진등록 포함 모든 업로드에
         //   Classic Negative + 중앙 WISHES 워터마크를 강제 적용. 결과는 WebP.
-        const { processPhotoUpload } = await import('@/lib/photoProcess');
         const rawBuf = Buffer.from(await file.arrayBuffer());
         const buf = await processPhotoUpload(rawBuf);
         const key = `listings/${listingId}/${Date.now()}_${i}.webp`;
