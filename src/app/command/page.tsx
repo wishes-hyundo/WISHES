@@ -76,43 +76,13 @@ function getStoredToken(): string {
   if (typeof window === 'undefined') return '';
   return sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token') || '';
 }
-/**
- * ws_csrf 는 double-submit 방식 CSRF 토큰 — 서버가 쿠키(ws_csrf)로 쓰고 같은 값을
- * JSON 응답에도 담아 클라이언트가 X-CSRF-Token 헤더로 같이 보낸다.
- * 과거엔 sessionStorage 만 신뢰했는데, login/refresh/cookie-issue 중 어느 한
- * 경로가 쿠키만 갱신하고 sessionStorage 는 갱신하지 않으면 둘이 어긋난다 →
- * middleware 에서 mismatch 로 403 "CSRF token verification failed".
- * 2026-04-24 L-cc-csrf-fix : 쿠키를 source of truth 로 삼아 항상 최신 값을 읽는다.
- */
-function readCsrfCookie(): string {
-  if (typeof document === 'undefined') return '';
-  const m = document.cookie.match(/(?:^|;\s*)ws_csrf=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : '';
-}
 function getStoredCsrf(): string {
   if (typeof window === 'undefined') return '';
-  // cookie 가 있으면 그것이 진실. fallback 으로만 sessionStorage.
-  return readCsrfCookie() || sessionStorage.getItem('ws_csrf') || '';
+  return sessionStorage.getItem('ws_csrf') || '';
 }
 function getStoredRefreshToken(): string {
   if (typeof window === 'undefined') return '';
   return sessionStorage.getItem('ws_refresh_token') || localStorage.getItem('ws_refresh_token') || '';
-}
-
-/**
- * 세션이 완전히 죽었을 때 (access_token 만료 + refresh_token 재사용 거부)
- * 강제로 모든 local state 를 비우고 로그인 페이지로 돌린다.
- */
-function forceReLogin(reason: string) {
-  if (typeof window === 'undefined') return;
-  try {
-    const keys = ['ws_token', 'ws_refresh_token', 'ws_csrf', 'ws_user', 'ws_login_time', 'ws_token_expires_at'];
-    keys.forEach((k) => { try { sessionStorage.removeItem(k); } catch {} try { localStorage.removeItem(k); } catch {} });
-  } catch { /* noop */ }
-  // ws_csrf 쿠키는 HttpOnly 가 아니므로 직접 만료
-  try { document.cookie = 'ws_csrf=; path=/; max-age=0'; } catch { /* noop */ }
-  console.warn('[command] forceReLogin:', reason);
-  window.location.href = '/admin/admin-auth.html?reason=' + encodeURIComponent(reason);
 }
 
 async function refreshAccessToken(): Promise<boolean> {
@@ -124,16 +94,6 @@ async function refreshAccessToken(): Promise<boolean> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: rt }),
     });
-    // 401 + "Already Used" 또는 "Invalid" 이면 refresh_token 이 재사용·무효화 상태.
-    // 이 경우 session 복구는 불가능하므로 즉시 login 페이지로 이동.
-    if (res.status === 401) {
-      const j = await res.clone().json().catch(() => ({}));
-      const msg = (j?.error || j?.message || '').toString().toLowerCase();
-      if (msg.includes('already used') || msg.includes('invalid') || msg.includes('not found')) {
-        forceReLogin('refresh_token_' + (msg.includes('already') ? 'already_used' : 'invalid'));
-        return false;
-      }
-    }
     if (!res.ok) return false;
     const j = await res.json();
     if (!j?.success || !j?.access_token) return false;
@@ -284,26 +244,12 @@ export default function CommandCenterPage() {
       setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 1500);
       return;
     }
-    // 진입 직후: access_token 이 만료 이하 5분이거나 이미 만료면 proactive refresh.
-    // 이걸 AWAIT 해야 첫 loadUsers() 가 새 토큰/CSRF 로 나가므로 console 401 noise 가 사라짐.
-    (async () => {
-      const rawToken = token.replace(/^admin_bridge_/, '');
-      let needRefresh = false;
-      try {
-        if (rawToken.startsWith('eyJ') && rawToken.split('.').length === 3) {
-          const payload = JSON.parse(atob(rawToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-          const now = Math.floor(Date.now() / 1000);
-          if (!payload?.exp || payload.exp - now < 300) needRefresh = true;
-        }
-      } catch { needRefresh = true; }
+    setAuthChecking(false);
 
-      if (needRefresh && getStoredRefreshToken()) {
-        await refreshAccessToken(); // 실패 시 forceReLogin 이 redirect 처리
-      } else {
-        // 토큰이 아직 유효하면 쿠키만 싱크
-        await reissueCookie();
-      }
-      setAuthChecking(false);
+    // 진입 시 쿠키/리프레시 한 번 먼저 돌려 CSRF 동기화
+    (async () => {
+      if (getStoredRefreshToken()) await refreshAccessToken();
+      else await reissueCookie();
     })();
   }, []);
 
@@ -570,6 +516,7 @@ export default function CommandCenterPage() {
                       <td style={{ padding: '10px 14px' }}>
                         <span style={{ padding: '4px 10px', borderRadius: 6, background: sp.bg, color: sp.fg, fontSize: 11, fontWeight: 600 }}>{sp.label}</span>
                       </td>
+                      <td style={{ padding: '10px 14px', fontSize: 11, color: dim }}>{u.last_sign_in_at || u.created_at || '-'}</td>
                       <td style={{ padding: '10px 14px', textAlign: 'right' }}>
                         <div style={{ display: 'inline-flex', gap: 4 }}>
                           {isPending && !isSuper && (

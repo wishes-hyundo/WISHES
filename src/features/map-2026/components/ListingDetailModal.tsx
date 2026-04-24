@@ -95,9 +95,10 @@ function formatPropertyHeading(listing: MapListing, fallbackFloorLabel: string |
       return fallbackFloorLabel ? `${head} · ${fallbackFloorLabel}` : head;
     }
   }
-  // 주거(원룸/투룸/쓰리룸/빌라/다가구/단독): "매물종류·층위"
+  // 주거(원룸/투룸/쓰리룸/빌라/다가구/단독): 매물종류만
+  //   (층위/방수는 아래 3메트릭 카드에 이미 나오므로 H1 중복 제거)
   if (/원룸|투룸|쓰리룸|빌라|다가구|단독|연립|다세대|주택/.test(type)) {
-    return floorPos ? `${type}·${floorPos}` : type;
+    return type;
   }
   // 상가 / 사무실 / 공장 / 창고 / 토지: 매물종류만
   if (/상가|사무|오피스|공장|창고|지식산업|근생|복합|토지|대지|전|답|임야|잡종지/.test(type)) {
@@ -465,11 +466,16 @@ export function ListingDetailModal() {
             {listing.built_year && (
               <Row label="사용 승인일" value={`${listing.built_year}${age ? ` · ${age.text}` : ''}`} />
             )}
-            <Row label="주차" value={
-              listing.parking
-                ? `${listing.parking}${detailExtra?.total_parking_spaces ? ` · 총 ${detailExtra.total_parking_spaces}대` : ''}`
-                : (detailExtra?.total_parking_spaces ? `총 ${detailExtra.total_parking_spaces}대` : null)
-            } />
+            <Row label="주차" value={(() => {
+              // listing.parking 이 string 일 수도, boolean 일 수도 — 통일 처리
+              const p = listing.parking;
+              const total = detailExtra?.total_parking_spaces;
+              const baseLabel = (p === true || p === '가능' || p === 'true') ? '가능'
+                : (p === false || p === '불가능' || p === 'false') ? '불가능'
+                : (typeof p === 'string' && p.trim() ? p : null);
+              if (!baseLabel && !total) return null;
+              return `${baseLabel || '-'}${total ? ` · 총 ${total}대` : ''}`;
+            })()} />
             <Row label="건축물 용도" value={(listing as any).building_purpose} />
             {detailExtra?.illegal_building === false && (
               <>

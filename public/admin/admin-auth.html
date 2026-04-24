@@ -2003,6 +2003,15 @@
                     localStorage.setItem('ws_token', data.token);
                     localStorage.setItem('ws_user', JSON.stringify(data.user));
                     localStorage.setItem('ws_login_time', Date.now().toString());
+                    // 2026-04-24: refresh_token 저장 (1h JWT 만료 후 자동 갱신용)
+                    if (data.refresh_token) {
+                        sessionStorage.setItem('ws_refresh_token', data.refresh_token);
+                        localStorage.setItem('ws_refresh_token', data.refresh_token);
+                    }
+                    if (data.expires_at) {
+                        sessionStorage.setItem('ws_token_expires_at', String(data.expires_at));
+                        localStorage.setItem('ws_token_expires_at', String(data.expires_at));
+                    }
 
                     // Keep login flag (30일 로그인 유지)
                     var rememberCheckbox = document.getElementById('rememberMe');
@@ -2289,31 +2298,9 @@
         /**
          * Disable developer tools and right-click
          */
-        function setupSecurityMeasures() {
-            // Disable right-click
-            document.addEventListener('contextmenu', (e) => {
-                e.preventDefault();
-                return false;
-            });
-
-            // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C
-            document.addEventListener('keydown', (e) => {
-                if (
-                    e.key === 'F12' ||
-                    (e.ctrlKey && e.shiftKey && e.key === 'I') ||
-                    (e.ctrlKey && e.shiftKey && e.key === 'J') ||
-                    (e.ctrlKey && e.shiftKey && e.key === 'C')
-                ) {
-                    e.preventDefault();
-                    return false;
-                }
-            });
-
-            // Disable console warnings
-            Object.defineProperty(console, 'log', { value: () => {} });
-            Object.defineProperty(console, 'warn', { value: () => {} });
-            Object.defineProperty(console, 'error', { value: () => {} });
-        }
+        // 2026-04-24: setupSecurityMeasures 내부의 F12 차단 + console 무력화를 전부 제거.
+        //   운영 중 문제 진단을 위해 개발자도구 접근은 필수. 실질 보안은 서버 인증·CSP 로 유지.
+        function setupSecurityMeasures() { /* no-op */ }
 
         // ========================================
         // Initialization
@@ -2329,23 +2316,6 @@
 
             // Setup security
             setupSecurityMeasures();
-
-            // 2026-04-24 L-cc-reason-banner:
-            // /command 페이지가 세션 문제로 redirect 해 왔을 때 왜 돌아왔는지 설명해 준다.
-            // 이유 없이 로그인 페이지로 튕기면 사용자가 "또 뭐가 문제야?" 라고 느끼므로
-            // 죽은 세션 원인별로 친근한 메시지를 보여 재로그인 장벽을 낮춘다.
-            try {
-                var reason = new URLSearchParams(location.search).get('reason');
-                var REASON_MESSAGES = {
-                    'refresh_token_already_used': '다른 탭/기기에서 먼저 세션을 갱신하여 이 탭의 세션이 만료되었어요. 다시 로그인해 주세요.',
-                    'refresh_token_invalid': '저장된 세션이 더 이상 유효하지 않아요. 다시 로그인해 주세요.',
-                    'refresh_token_not_found': '세션 기록을 찾을 수 없어요. 다시 로그인해 주세요.'
-                };
-                if (reason && REASON_MESSAGES[reason]) {
-                    setTimeout(function(){ showToast('warning', '세션 재로그인 필요', REASON_MESSAGES[reason]); }, 400);
-                    try { history.replaceState({}, '', location.pathname); } catch (_) {}
-                }
-            } catch (_) { /* noop */ }
 
             // Check existing session
             if (state.sessionToken) {
@@ -2485,4 +2455,43 @@
         }
     </script>
 <script>
-// 아이디 저장 (Save Email) Featur
+// 아이디 저장 (Save Email) Feature
+(function() {
+    var LS_KEY = "ws_saved_email";
+    var LS_FLAG = "ws_save_email_checked";
+    function initSaveEmail() {
+        var emailInput = document.getElementById("loginEmail");
+        var cb = document.getElementById("saveEmail");
+        if (!emailInput || !cb) return;
+        try {
+            var saved = localStorage.getItem(LS_KEY);
+            var flag = localStorage.getItem(LS_FLAG);
+            if (saved && flag === "true") {
+                emailInput.value = saved;
+                cb.checked = true;
+            }
+        } catch(e) {}
+        var form = document.getElementById("loginForm");
+        if (form) {
+            form.addEventListener("submit", function() {
+                try {
+                    if (cb.checked) {
+                        localStorage.setItem(LS_KEY, emailInput.value);
+                        localStorage.setItem(LS_FLAG, "true");
+                    } else {
+                        localStorage.removeItem(LS_KEY);
+                        localStorage.removeItem(LS_FLAG);
+                    }
+                } catch(e) {}
+            });
+        }
+    }
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", initSaveEmail);
+    } else {
+        initSaveEmail();
+    }
+})();
+</script>
+</body>
+</html>
