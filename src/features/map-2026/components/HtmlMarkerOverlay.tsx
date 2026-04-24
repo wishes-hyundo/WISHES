@@ -453,32 +453,23 @@ export default function HtmlMarkerOverlay({
         } catch { /* SDK race — skip */ }
       }
 
-      // ── Grid clustering ──
-      const gridSize = gridSizeForLevel(level);
+      // ── L-naverstyle4 (2026-04-24 pm): Grid clustering 완전 제거 ──
+      //   사용자 피드백: "아직도 밸런스가 딱딱 떨어지는게 네이버 기준이 아님".
+      //   기존 cell-snap (FLOOR(lat/g)) 배치가 바둑판처럼 보여 네이버 스타일 아님.
+      //   네이버는 행정구역/건물 centroid 기반 — 그래서:
+      //     · tier1Groups (pill) = building_name 또는 dong+type 기반 pill (이미 centroid)
+      //     · tier2Listings (rest) = 실제 매물 좌표에 개별 원 (cell-snap 없음)
+      //   → 격자 배치가 근본적으로 사라짐.
       const clusters = new Map<string, MapListing[]>();
-      if (gridSize === 0) {
-        // 개별 매물 — 클러스터링 해제
-        for (const l of rest) {
-          clusters.set(`i:${l.id}`, [l]);
-        }
-      } else {
-        for (const l of rest) {
-          const cx = Math.floor(l.lat / gridSize);
-          const cy = Math.floor(l.lng / gridSize);
-          const k = `${cx}:${cy}`;
-          const arr = clusters.get(k);
-          if (arr) arr.push(l);
-          else clusters.set(k, [l]);
-        }
+      for (const l of rest) {
+        clusters.set(`i:${l.id}`, [l]);
       }
 
       for (const arr of clusters.values()) {
         if (arr.length === 0) continue;
-        let latSum = 0;
-        let lngSum = 0;
-        for (const l of arr) { latSum += l.lat; lngSum += l.lng; }
-        const lat = latSum / arr.length;
-        const lng = lngSum / arr.length;
+        // rest 는 항상 1 매물 1 엔트리이므로 실제 lat/lng 사용 (cell-snap X)
+        const lat = arr[0].lat;
+        const lng = arr[0].lng;
         const count = arr.length;
         const selected =
           selectedListingId != null && arr.some((l) => l.id === selectedListingId);
