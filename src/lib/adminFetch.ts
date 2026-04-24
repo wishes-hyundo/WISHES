@@ -33,7 +33,7 @@ function safeGetSession(key: string): string | null {
 
 // L-sec161: 로그인 직후 grace period (ms).  ws_login_time 을 login 성공 시
 // sessionStorage 에 저장해 두면 이 창 안에서 발생한 401 은 redirect 억제.
-const LOGIN_GRACE_MS = 10_000;
+const LOGIN_GRACE_MS = 30_000; // L-session1: 10s → 30s (Vercel cold-start 최대 8s + 여유)
 
 function isWithinLoginGrace(): boolean {
   const ts = safeGetSession('ws_login_time');
@@ -78,12 +78,37 @@ export async function adminFetch(
   });
 
   if (response.status === 401 && redirectOn401) {
-    // L-sec161: 로그인 직후 10초 grace period — 일시적 401 연쇄 방어.
+    // L-sec161: 로그인 직후 grace period — 일시적 401 연쇄 방어.
     if (isWithinLoginGrace()) {
       return response;
     }
+
+    // L-session1 (2026-04-24): 이전엔 401 을 무조건 세션만료로 간주하고 즉시
+    //   sessionStorage.clear() + 로그인 페이지로 redirect. 하지만 Vercel
+    //   serverless cold-start 시 Supabase auth.getUser() stall 로 verifyAdminAuth
+    //   가 간헐적으로 401 반환하는 현실이 있다. 이 경우 사용자는 세션이 멀쩡한데
+    //   강제 로그아웃 당함 — 로그인을 계속 하게 되는 주요 원인.
+    //
+    //   이제 먼저 supabase.auth.refreshSession() 으로 토큰을 갱신 시도하고,
+    //   성공하면 원래 요청을 한 번 재시도한다. 재시도도 401 이면 진짜 세션
+    //   만료로 판정하여 redirect.
     try {
       if (typeof window !== 'undefined') {
+        const refreshed = await tryRefreshToken();
+        if (refreshed) {
+          // 새 토큰으로 Authorization 헤더 갱신 후 재시도
+          const retryHeaders = new Headers(headers);
+          retryHeaders.set('authorization', 'Bearer ' + refreshed);
+          const retryResp = await fetch(input, {
+            ...rest,
+            headers: retryHeaders,
+            credentials: 'include',
+          });
+          if (retryResp.status !== 401) {
+            return retryResp;
+          }
+          // refresh 해도 여전히 401 이면 진짜 만료 — 아래로 fallthrough 해서 redirect
+        }
         window.sessionStorage.clear();
         window.location.href = '/admin/admin-auth.html';
       }
@@ -93,6 +118,33 @@ export async function adminFetch(
   }
 
   return response;
+}
+
+/**
+ * L-session1 (2026-04-24): supabase 세션 강제 refresh.
+ *   성공 시 ws_token / ws_login_time 을 재기록하고 새 access_token 리턴.
+ *   실패 시 null. supabase-js 의 refreshSession 은 refresh_token 이 유효하면
+ *   브라우저 내 어디서든 1회 호출로 새 access_token 을 얻을 수 있음.
+ */
+async function tryRefreshToken(): Promise<string | null> {
+  try {
+    // Dynamic import 로 circular import 회피 (adminFetch 가 lib 저층에 있음)
+    const mod = await import('./supabase');
+    const sb = mod.createAuthClient();
+    const { data, error } = await sb.auth.refreshSession();
+    if (error || !data?.session?.access_token) return null;
+    const tok = 'admin_bridge_' + data.session.access_token;
+    const now = Date.now().toString();
+    try {
+      window.sessionStorage.setItem('ws_token', tok);
+      window.sessionStorage.setItem('ws_login_time', now);
+      window.localStorage.setItem('ws_token', tok);
+      window.localStorage.setItem('ws_login_time', now);
+    } catch { /* noop */ }
+    return tok;
+  } catch {
+    return null;
+  }
 }
 
 /** 편의: JSON 파싱까지 한 번에. non-2xx 는 throw. */

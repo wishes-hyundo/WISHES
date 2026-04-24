@@ -63,21 +63,36 @@ export default function SearchPortalPage() {
       } catch {}
     };
 
-    // 첫 실행: 페이지 마운트 후 10초 뒤 (초기 로딩 방해 X)
-    const initialTimer = setTimeout(refreshAndPersist, 10000);
-    // 주기 실행: 45분마다
-    const interval = setInterval(refreshAndPersist, 45 * 60 * 1000);
-    // 탭 포커스 복귀 시도 1회 갱신 (탭 비활성 중 setInterval 일시정지 대응)
-    const onVisibility = () => {
+    // L-session1 (2026-04-24): 세션 유지 강화.
+    //   이전엔 10s 지연 후 첫 refresh + 45분 주기 + visibility 변경 시. 문제:
+    //   (1) Chrome 백그라운드 탭 setInterval 쓰로틀 → 45분이 60분 넘어갈 위험
+    //   (2) 10s 지연 중 token 만료 API 호출이 401 → 강제 로그아웃 (adminFetch 가
+    //       자동 redirect) — 사용자가 '세션 계속 종료' 로 호소하는 핵심 원인.
+    //   (3) visibilitychange 만으로는 탭이 오래 foreground 일 때 갱신 누락.
+    //
+    //   개선:
+    //   · 첫 refresh = 마운트 직후 100ms (렌더 블록 최소)
+    //   · 주기 15분 (여유 3배 확보)
+    //   · visibilitychange + window focus + online 이벤트 모두 hook
+    const initialTimer = setTimeout(refreshAndPersist, 100);
+    const interval = setInterval(refreshAndPersist, 15 * 60 * 1000);
+
+    const onActivate = () => {
       if (document.visibilityState === 'visible') refreshAndPersist();
     };
-    document.addEventListener('visibilitychange', onVisibility);
+    const onFocus = () => refreshAndPersist();
+    const onOnline = () => refreshAndPersist();
+    document.addEventListener('visibilitychange', onActivate);
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('online', onOnline);
 
     return () => {
       cancelled = true;
       clearTimeout(initialTimer);
       clearInterval(interval);
-      document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener('visibilitychange', onActivate);
+      window.removeEventListener('focus', onFocus);
+      window.removeEventListener('online', onOnline);
     };
   }, [state]);
 
