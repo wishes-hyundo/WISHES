@@ -63,6 +63,14 @@ function boolLabel(v: boolean | null | undefined): string {
   return '-';
 }
 
+// L-modal-fields2 (2026-04-24 pm): usage_approved 날짜 가드.
+// DB 의 일부 매물에 "주거용" 같은 비날짜 값이 들어있어 연도로 시작하는 값만 통과시킨다.
+function isValidDateLike(v: string | null | undefined): boolean {
+  if (!v) return false;
+  const s = String(v).trim();
+  return /^(18|19|20|21)[0-9]{2}/.test(s);
+}
+
 const AGE_TONE_CLASS: Record<string, string> = {
   newest:  'bg-emerald-50 text-emerald-700',
   emerald: 'bg-emerald-50 text-emerald-700',
@@ -159,6 +167,14 @@ export function ListingDetailModal() {
     views: number | null;
     created_at: string | null;
     usage_approved: string | null;
+    // L-modal-fields2 (2026-04-24 pm): 누락 필드 복구
+    maintenance_includes: string[] | null;
+    parking_fee: number | null;
+    station_name: string | null;
+    station_distance: number | null;
+    building_purpose: string | null;
+    available_date: string | null;
+    area_supply_m2: number | null;
   } | null>(null);
   const [agentProfile, setAgentProfile] = useState<{
     name: string | null;
@@ -241,6 +257,14 @@ export function ListingDetailModal() {
           views: (typeof d.views === 'number' ? d.views : null),
           created_at: d.created_at || null,
           usage_approved: d.usage_approved || null,
+          // L-modal-fields2 (2026-04-24 pm)
+          maintenance_includes: Array.isArray(d.maintenance_includes) ? d.maintenance_includes : null,
+          parking_fee: (typeof d.parking_fee === 'number' ? d.parking_fee : null),
+          station_name: d.station_name || null,
+          station_distance: (typeof d.station_distance === 'number' ? d.station_distance : null),
+          building_purpose: d.building_purpose || null,
+          available_date: d.available_date || null,
+          area_supply_m2: (typeof d.area_supply_m2 === 'number' ? d.area_supply_m2 : null),
         });
         if (d.created_by && !d.source_site) {
           const ag = await fetch(`/api/agent/${d.created_by}`);
@@ -432,18 +456,23 @@ export function ListingDetailModal() {
 
         {/* L-modal-v7-2: 3 메트릭 카드 */}
         <div className="border-b border-neutral-100 px-4 py-3 grid grid-cols-3 gap-2">
-          <div className="rounded-lg bg-neutral-50 p-2.5">
-            <div className="text-[10px] text-neutral-500 mb-1">전용 / 공급</div>
-            <div className="text-[13px] font-semibold text-neutral-900">
-              {listing.area_m2 ? `${listing.area_m2}` : '-'}
-              {(listing as any).area_supply_m2 ? ` / ${(listing as any).area_supply_m2}` : ''}㎡
-            </div>
-            {listing.area_m2 && (listing as any).area_supply_m2 && (
-              <div className="text-[10px] text-neutral-400 mt-0.5">
-                전용률 {Math.round((listing.area_m2 / (listing as any).area_supply_m2) * 100)}%
+          {(() => {
+            const supply = detailExtra?.area_supply_m2 ?? (listing as any).area_supply_m2;
+            return (
+              <div className="rounded-lg bg-neutral-50 p-2.5">
+                <div className="text-[10px] text-neutral-500 mb-1">전용 / 공급</div>
+                <div className="text-[13px] font-semibold text-neutral-900">
+                  {listing.area_m2 ? `${listing.area_m2}` : '-'}
+                  {supply ? ` / ${supply}` : ''}㎡
+                </div>
+                {listing.area_m2 && supply && (
+                  <div className="text-[10px] text-neutral-400 mt-0.5">
+                    전용률 {Math.round((listing.area_m2 / supply) * 100)}%
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
           <div className="rounded-lg bg-neutral-50 p-2.5">
             <div className="text-[10px] text-neutral-500 mb-1">해당층 / 총층</div>
             <div className="text-[13px] font-semibold text-neutral-900">{floorLabel || '-'}</div>
@@ -476,24 +505,29 @@ export function ListingDetailModal() {
               <div className="text-neutral-500">관리비</div>
               <div>
                 <div className="text-neutral-800">{maintenanceLabel || <span className="text-neutral-400">정보 미입력</span>}</div>
-                {(((listing as any).maintenance_includes?.length ?? 0) > 0) && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {(listing as any).maintenance_includes.map((it: string) => (
-                      <span key={it} className="text-[10px] bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded">{it}</span>
-                    ))}
-                  </div>
-                )}
+                {(() => {
+                  const includes = detailExtra?.maintenance_includes ?? (listing as any).maintenance_includes;
+                  if (!Array.isArray(includes) || includes.length === 0) return null;
+                  return (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {includes.map((it: string) => (
+                        <span key={it} className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">{it} 포함</span>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             </>
-            <Row label="입주 가능일" value={(listing as any).available_date || '협의가능'} />
-            {/* 사용 승인일 — 로그인 시 정확한 날짜(usage_approved) 우선, age 라벨 제거 */}
-            {((detailExtra?.usage_approved && isAuthed) || listing.built_year) && (
-              <Row label="사용 승인일" value={
-                isAuthed && detailExtra?.usage_approved
-                  ? detailExtra.usage_approved
-                  : listing.built_year
-              } />
-            )}
+            <Row label="입주 가능일" value={detailExtra?.available_date || (listing as any).available_date || '협의가능'} />
+            {/* 사용 승인일 — 날짜 패턴 가드 (L-modal-fields2)
+                DB 의 usage_approved 컬럼에 비정상 값이 섞여 있어 isValidDateLike 통과만 표시 */}
+            {(() => {
+              const ua = isAuthed && detailExtra?.usage_approved ? detailExtra.usage_approved : null;
+              const by = listing.built_year;
+              const display = isValidDateLike(ua) ? ua : (isValidDateLike(by) ? by : null);
+              if (!display) return null;
+              return <Row label="사용 승인일" value={display} />;
+            })()}
             {/* 주차 — 항상 표시. 입력 텍스트 + 주차비 + 총주차대수 결합 */}
             <>
               <div className="text-neutral-500">주차</div>
@@ -504,7 +538,7 @@ export function ListingDetailModal() {
                 if (pStr && pStr !== 'true' && pStr !== 'false') parts.push(pStr);
                 else if (p === true || pStr === 'true') parts.push('주차 가능');
                 else if (p === false || pStr === 'false') parts.push('주차 불가');
-                const fee = (listing as any).parking_fee;
+                const fee = detailExtra?.parking_fee ?? (listing as any).parking_fee;
                 if (fee != null && Number(fee) > 0) parts.push(`주차비 ${Number(fee).toLocaleString('ko-KR')}만원/월`);
                 else if (fee === 0) parts.push('주차비 무료');
                 const total = detailExtra?.total_parking_spaces;
@@ -512,7 +546,7 @@ export function ListingDetailModal() {
                 return parts.length > 0 ? parts.join(' · ') : <span className="text-neutral-400">정보 미입력</span>;
               })()}</div>
             </>
-            <Row label="건축물 용도" value={(listing as any).building_purpose} />
+            <Row label="건축물 용도" value={detailExtra?.building_purpose ?? (listing as any).building_purpose} />
             {detailExtra?.illegal_building === false && (
               <>
                 <div className="text-neutral-500">위반 건축물</div>
@@ -525,13 +559,20 @@ export function ListingDetailModal() {
                 <div className="text-red-600">있음</div>
               </>
             )}
-            {((listing as any).station_name || listing.station_distance) && (
-              <Row label="가까운 역" value={
-                (listing as any).station_name
-                  ? `${(listing as any).station_name}${listing.station_distance ? ` · ${listing.station_distance}m` : ''}`
-                  : `${listing.station_distance}m`
-              } />
-            )}
+            {/* 가까운 역 — 도보 분 계산 (80m/분, 네이버·KB 표준) */}
+            {(() => {
+              const name = detailExtra?.station_name ?? (listing as any).station_name;
+              const distRaw = detailExtra?.station_distance ?? listing.station_distance;
+              const distNum = typeof distRaw === 'number' ? distRaw : (distRaw ? Number(distRaw) : null);
+              if (!name && (distNum == null || !(distNum > 0))) return null;
+              const walkMin = distNum != null && distNum > 0 ? Math.max(1, Math.round(distNum / 80)) : null;
+              const parts: string[] = [];
+              if (name) parts.push(String(name));
+              if (distNum != null && distNum > 0) {
+                parts.push(walkMin != null ? `도보 ${walkMin}분 (${distNum}m)` : `${distNum}m`);
+              }
+              return <Row label="가까운 역" value={parts.join(' · ')} />;
+            })()}
             {listing.business_type && <Row label="업종" value={listing.business_type} />}
             {listing.elevator != null && <Row label="엘리베이터" value={boolLabel(listing.elevator)} />}
             {listing.pet != null && <Row label="반려동물" value={boolLabel(listing.pet)} />}
