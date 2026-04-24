@@ -15,7 +15,7 @@
 //
 // 줌 레벨 매핑:
 //   · level ≥ 10 (국토 뷰): 시/도 17개 폴리곤
-//   · level 7~9 (대도시권): 시/군/구 폴리곤 (bbox 내)
+//   · level 7~9 (대도시권): 시/군/구 폴리곤 (bbox 내) ← L-adminpoly4 구현
 //   · level ≤ 6: 폴리곤 숨김 (HtmlMarkerOverlay 의 카운트 원이 충분)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -71,7 +71,14 @@ async function loadSigungu(): Promise<GeoCollection | null> {
 // ── Kakao SDK 타입 최소 ────────────────────────────────────────────
 interface KakaoPolygon { setMap: (m: unknown) => void }
 interface KakaoCustomOverlay { setMap: (m: unknown) => void }
-interface KakaoMapLike { getLevel?: () => number }
+interface KakaoBounds {
+  getSouthWest: () => { getLat: () => number; getLng: () => number };
+  getNorthEast: () => { getLat: () => number; getLng: () => number };
+}
+interface KakaoMapLike {
+  getLevel?: () => number;
+  getBounds?: () => KakaoBounds;
+}
 interface KakaoEventNs {
   addListener: (t: unknown, type: string, cb: () => void) => void;
   removeListener?: (t: unknown, type: string, cb: () => void) => void;
@@ -140,6 +147,71 @@ function countListingsBySido(listings: MapListing[]): Map<string, number> {
     out.set(key, (out.get(key) ?? 0) + 1);
   }
   return out;
+}
+
+/** address 에서 시/군/구 키 추출.
+ *  "서울 관악구 신림동..." → "관악구"
+ *  "경기 수원시 장안구 조원동..." → "수원시 장안구"
+ *  "경기 시흥시 정왕동..." → "시흥시"
+ *  "경기 가평군 가평읍..." → "가평군" */
+function parseGu(src: string | null | undefined): string | null {
+  if (!src) return null;
+  const parts = String(src).trim().split(/\s+/);
+  if (parts.length === 0) return null;
+  // 첫 토큰은 시/도 (스킵).  그 다음 시·군·구 탐색.
+  for (let i = 1; i < parts.length; i++) {
+    const t = parts[i];
+    if (/[시군]$/.test(t)) {
+      const next = parts[i + 1];
+      if (next && /구$/.test(next)) return `${t} ${next}`;  // 수원시 장안구
+      return t;  // 시흥시, 가평군
+    }
+    if (/구$/.test(t)) return t;  // 강남구, 관악구 (광역시 직할)
+  }
+  return null;
+}
+
+/** listings 를 시/군/구 이름별 count 로 집계 */
+function countListingsBySigungu(listings: MapListing[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const l of listings) {
+    const src = (l as { address?: string | null }).address || l.title || '';
+    const key = parseGu(src);
+    if (!key) continue;
+    out.set(key, (out.get(key) ?? 0) + 1);
+  }
+  return out;
+}
+
+/** GeoJSON feature 의 bbox 가 viewport bbox 와 교차하는지 */
+function featureIntersectsBbox(
+  feat: GeoFeature,
+  bbox: { west: number; south: number; east: number; north: number },
+): boolean {
+  const geom = feat.geometry;
+  const paths: number[][][][] = geom.type === 'Polygon'
+    ? [geom.coordinates as number[][][]]
+    : geom.type === 'MultiPolygon'
+      ? (geom.coordinates as number[][][][])
+      : [];
+  for (const poly of paths) {
+    const ring = poly[0];
+    if (!ring) continue;
+    // 외접 bbox 빠르게 계산
+    let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+    for (const [lng, lat] of ring) {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+    // 교차 판정 (AABB intersect)
+    if (maxLng >= bbox.west && minLng <= bbox.east &&
+        maxLat >= bbox.south && minLat <= bbox.north) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** 시/도 카운트 chip — 폴리곤 centroid 위에 뜨는 라벨 */
@@ -231,79 +303,109 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       overlaysRef.current = [];
     };
 
+    /** 단일 feature 를 폴리곤 + chip 으로 렌더.  레벨별 공통 로직. */
+    const renderFeature = (
+      feat: GeoFeature,
+      displayName: string,
+      count: number,
+    ) => {
+      const geom = feat.geometry;
+      const paths: number[][][][] = geom.type === 'Polygon'
+        ? [geom.coordinates as number[][][]]
+        : geom.type === 'MultiPolygon'
+          ? (geom.coordinates as number[][][][])
+          : [];
+      const fillOp = count > 0 ? FILL_OPACITY * 1.8 : FILL_OPACITY;
+      for (const polyCoords of paths) {
+        const outer = polyCoords[0];
+        if (!outer) continue;
+        const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
+        try {
+          const polygon = new maps.Polygon({
+            path,
+            strokeWeight: 1.5,
+            strokeColor: STROKE,
+            strokeOpacity: STROKE_OPACITY,
+            fillColor: FILL,
+            fillOpacity: fillOp,
+          });
+          polygon.setMap(map);
+          polygonsRef.current.push(polygon);
+        } catch { /* SDK race — skip */ }
+      }
+      if (count > 0) {
+        const centroid = polygonCentroid(
+          geom.type === 'Polygon' ? (geom.coordinates as number[][][]) : (geom.coordinates as number[][][][])
+        );
+        if (!centroid) return;
+        const chip = makeRegionCountChip(displayName, count);
+        chip.addEventListener('click', (e) => {
+          e.stopPropagation();
+          onClickRegion?.(displayName);
+        });
+        try {
+          const ov = new maps.CustomOverlay({
+            position: new maps.LatLng(centroid.lat, centroid.lng),
+            content: chip,
+            xAnchor: 0.5,
+            yAnchor: 0.5,
+            zIndex: 12,
+            clickable: true,
+          });
+          ov.setMap(map);
+          overlaysRef.current.push(ov);
+        } catch { /* noop */ }
+      }
+    };
+
     const render = async () => {
       cleanup();
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
-      // L-adminpoly1: level ≥ 10 에서만 시/도 폴리곤 노출.
-      //   level 7~9 시/군/구 폴리곤은 향후 확장.  현재는 국토 뷰 품질이 최우선.
-      if (level < 10) return;
 
-      const data = await loadSido();
-      if (!data?.features) return;
-
-      const counts = countListingsBySido(listings);
-
-      for (const feat of data.features) {
-        const nameRaw = String(
-          (feat.properties as { name?: string; name_eng?: string }).name ??
-          (feat.properties as { name_eng?: string }).name_eng ?? ''
-        );
-        const sidoName = normalizeSidoName(nameRaw);
-        const count = counts.get(sidoName) ?? 0;
-
-        const geom = feat.geometry;
-        const paths: number[][][][] = geom.type === 'Polygon'
-          ? [geom.coordinates as number[][][]]
-          : geom.type === 'MultiPolygon'
-            ? (geom.coordinates as number[][][][])
-            : [];
-
-        // 매물 있는 지역만 조금 더 진하게
-        const fillOp = count > 0 ? FILL_OPACITY * 1.8 : FILL_OPACITY;
-
-        for (const polyCoords of paths) {
-          const outer = polyCoords[0];
-          if (!outer) continue;
-          const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
-          try {
-            const polygon = new maps.Polygon({
-              path,
-              strokeWeight: 1.5,
-              strokeColor: STROKE,
-              strokeOpacity: STROKE_OPACITY,
-              fillColor: FILL,
-              fillOpacity: fillOp,
-            });
-            polygon.setMap(map);
-            polygonsRef.current.push(polygon);
-          } catch { /* SDK race — skip */ }
-        }
-
-        // 카운트 chip — 매물 있는 지역만.  centroid 위에 표시.
-        if (count > 0) {
-          const centroid = polygonCentroid(
-            geom.type === 'Polygon' ? (geom.coordinates as number[][][]) : (geom.coordinates as number[][][][])
+      // ── 시/도 (level ≥ 10) ──────────────────────────────────
+      if (level >= 10) {
+        const data = await loadSido();
+        if (!data?.features) return;
+        const counts = countListingsBySido(listings);
+        for (const feat of data.features) {
+          const nameRaw = String(
+            (feat.properties as { name?: string; name_eng?: string }).name ??
+            (feat.properties as { name_eng?: string }).name_eng ?? ''
           );
-          if (!centroid) continue;
-          const chip = makeRegionCountChip(sidoName, count);
-          chip.addEventListener('click', (e) => {
-            e.stopPropagation();
-            onClickRegion?.(sidoName);
-          });
-          try {
-            const ov = new maps.CustomOverlay({
-              position: new maps.LatLng(centroid.lat, centroid.lng),
-              content: chip,
-              xAnchor: 0.5,
-              yAnchor: 0.5,
-              zIndex: 12,
-              clickable: true,
-            });
-            ov.setMap(map);
-            overlaysRef.current.push(ov);
-          } catch { /* noop */ }
+          const sidoName = normalizeSidoName(nameRaw);
+          renderFeature(feat, sidoName, counts.get(sidoName) ?? 0);
         }
+        return;
       }
+
+      // ── 시/군/구 (level 7~9) — L-adminpoly4 (2026-04-24 pm) ───
+      if (level >= 7) {
+        const data = await loadSigungu();
+        if (!data?.features) return;
+        // viewport bbox 로 필터링 (전국 250개 → 현재 뷰에 보이는 것만)
+        const bounds = typeof mapInst.getBounds === 'function' ? mapInst.getBounds() : null;
+        const bbox = bounds ? {
+          west: bounds.getSouthWest().getLng(),
+          south: bounds.getSouthWest().getLat(),
+          east: bounds.getNorthEast().getLng(),
+          north: bounds.getNorthEast().getLat(),
+        } : null;
+        const counts = countListingsBySigungu(listings);
+        for (const feat of data.features) {
+          if (bbox && !featureIntersectsBbox(feat, bbox)) continue;
+          // feature.name 은 보통 "강남구" 또는 "수원시 장안구" 형태
+          const nameRaw = String(
+            (feat.properties as { name?: string; name_eng?: string }).name ??
+            (feat.properties as { name_eng?: string }).name_eng ?? ''
+          ).trim();
+          if (!nameRaw) continue;
+          // southkorea-maps 는 'Gangnam-gu' 같은 영문도 있을 수 있음 — 한글만 처리
+          renderFeature(feat, nameRaw, counts.get(nameRaw) ?? 0);
+        }
+        return;
+      }
+
+      // level ≤ 6: 폴리곤 숨김 (HtmlMarkerOverlay 의 카운트 원이 담당)
     };
 
     void render();
