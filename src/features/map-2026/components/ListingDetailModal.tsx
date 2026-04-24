@@ -69,6 +69,43 @@ const AGE_TONE_CLASS: Record<string, string> = {
   gray:    'bg-neutral-100 text-neutral-600',
 };
 
+// L-modal-v7-3 (2026-04-24): 네이버 벤치마크 — 매물 타입별 헤더 H1 분기
+//   - 아파트/오피스텔: 단지명 강조 (예: "도시형생활주택 지안타워 · 16층")
+//   - 주거(원룸/투룸/빌라/다가구/단독): 매물종류 + 층위 (예: "빌라·중층", "투룸")
+//   - 상가/사무실/공장/토지: 매물종류만 (예: "대형사무실", "일반상가")
+function floorPosition(cur: string | null | undefined, total: string | null | undefined): string | null {
+  const c = parseInt(String(cur || '').trim(), 10);
+  const t = parseInt(String(total || '').trim(), 10);
+  if (!c || !t) return null;
+  const r = c / t;
+  if (r < 0.34) return '저층';
+  if (r < 0.67) return '중층';
+  return '고층';
+}
+function formatPropertyHeading(listing: MapListing, fallbackFloorLabel: string | null): string {
+  const type = listing.type || '';
+  const purpose = (listing as any).building_purpose?.trim?.() || null;
+  const buildingName = (listing as any).building_name?.trim?.() || null;
+  const floorPos = floorPosition(listing.floor_current, listing.floor_total);
+
+  // 아파트 / 오피스텔: 단지명 + 층 (네이버처럼 단지가 핵심)
+  if (type === '아파트' || type === '오피스텔') {
+    if (buildingName) {
+      const head = purpose ? `${purpose} ${buildingName}` : buildingName;
+      return fallbackFloorLabel ? `${head} · ${fallbackFloorLabel}` : head;
+    }
+  }
+  // 주거(원룸/투룸/쓰리룸/빌라/다가구/단독): "매물종류·층위"
+  if (/원룸|투룸|쓰리룸|빌라|다가구|단독|연립|다세대|주택/.test(type)) {
+    return floorPos ? `${type}·${floorPos}` : type;
+  }
+  // 상가 / 사무실 / 공장 / 창고 / 토지: 매물종류만
+  if (/상가|사무|오피스|공장|창고|지식산업|근생|복합|토지|대지|전|답|임야|잡종지/.test(type)) {
+    return type;
+  }
+  return type || '매물';
+}
+
 type RowProps = { label: string; value: React.ReactNode | null | undefined };
 function Row({ label, value }: RowProps) {
   if (value == null || value === '' || value === '-') return null;
@@ -361,8 +398,7 @@ export function ListingDetailModal() {
         {/* L-modal-v7-2 (2026-04-24): 헤더 — H1(건물명·층) + 주소 + 가격 + 비교배지 */}
         <div className="border-b border-neutral-100 px-4 pb-3 pt-4">
           <h1 className="text-[18px] font-bold leading-tight text-neutral-900">
-            {listing.building_name || listing.title || addressLine}
-            {floorLabel && <span className="text-neutral-700"> · {floorLabel}</span>}
+            {formatPropertyHeading(listing, floorLabel)}
           </h1>
           <div className="mt-1 flex items-center gap-1 text-[12px] text-neutral-500">
             <MapPin className="size-3 shrink-0" aria-hidden />
@@ -391,11 +427,11 @@ export function ListingDetailModal() {
             <div className="text-[10px] text-neutral-500 mb-1">전용 / 공급</div>
             <div className="text-[13px] font-semibold text-neutral-900">
               {listing.area_m2 ? `${listing.area_m2}` : '-'}
-              {listing.area_supply_m2 ? ` / ${listing.area_supply_m2}` : ''}㎡
+              {(listing as any).area_supply_m2 ? ` / ${(listing as any).area_supply_m2}` : ''}㎡
             </div>
-            {listing.area_m2 && listing.area_supply_m2 && (
+            {listing.area_m2 && (listing as any).area_supply_m2 && (
               <div className="text-[10px] text-neutral-400 mt-0.5">
-                전용률 {Math.round((listing.area_m2 / listing.area_supply_m2) * 100)}%
+                전용률 {Math.round((listing.area_m2 / (listing as any).area_supply_m2) * 100)}%
               </div>
             )}
           </div>
@@ -434,7 +470,7 @@ export function ListingDetailModal() {
                 ? `${listing.parking}${detailExtra?.total_parking_spaces ? ` · 총 ${detailExtra.total_parking_spaces}대` : ''}`
                 : (detailExtra?.total_parking_spaces ? `총 ${detailExtra.total_parking_spaces}대` : null)
             } />
-            <Row label="건축물 용도" value={listing.building_purpose} />
+            <Row label="건축물 용도" value={(listing as any).building_purpose} />
             {detailExtra?.illegal_building === false && (
               <>
                 <div className="text-neutral-500">위반 건축물</div>
