@@ -44,7 +44,7 @@ export const PUBLIC_LISTING_COLUMNS: readonly string[] = [
 
   // 금액
   'deposit', 'monthly', 'price',
-  'maintenance_fee', 'maintenance_includes',
+  'maintenance_fee', 'maintenance_includes', 'maintenance_excludes',
   'goodwill_fee', 'rights_fee', 'parking_fee', 'commission_fee',
   'vat_included',
 

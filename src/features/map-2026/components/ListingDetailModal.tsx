@@ -169,6 +169,7 @@ export function ListingDetailModal() {
     usage_approved: string | null;
     // L-modal-fields2 (2026-04-24 pm): 누락 필드 복구
     maintenance_includes: string[] | null;
+    maintenance_excludes: string[] | null;
     parking_fee: number | null;
     station_name: string | null;
     station_distance: number | null;
@@ -259,6 +260,7 @@ export function ListingDetailModal() {
           usage_approved: d.usage_approved || null,
           // L-modal-fields2 (2026-04-24 pm)
           maintenance_includes: Array.isArray(d.maintenance_includes) ? d.maintenance_includes : null,
+          maintenance_excludes: Array.isArray(d.maintenance_excludes) ? d.maintenance_excludes : null,
           parking_fee: (typeof d.parking_fee === 'number' ? d.parking_fee : null),
           station_name: d.station_name || null,
           station_distance: (typeof d.station_distance === 'number' ? d.station_distance : null),
@@ -507,11 +509,17 @@ export function ListingDetailModal() {
                 <div className="text-neutral-800">{maintenanceLabel || <span className="text-neutral-400">정보 미입력</span>}</div>
                 {(() => {
                   const includes = detailExtra?.maintenance_includes ?? (listing as any).maintenance_includes;
-                  if (!Array.isArray(includes) || includes.length === 0) return null;
+                  const excludes = detailExtra?.maintenance_excludes ?? (listing as any).maintenance_excludes;
+                  const hasInc = Array.isArray(includes) && includes.length > 0;
+                  const hasExc = Array.isArray(excludes) && excludes.length > 0;
+                  if (!hasInc && !hasExc) return null;
                   return (
                     <div className="flex flex-wrap gap-1 mt-1">
-                      {includes.map((it: string) => (
-                        <span key={it} className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">{it} 포함</span>
+                      {hasInc && includes!.map((it: string) => (
+                        <span key={`inc:${it}`} className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded">{it} 포함</span>
+                      ))}
+                      {hasExc && excludes!.map((it: string) => (
+                        <span key={`exc:${it}`} className="text-[10px] bg-rose-50 text-rose-700 px-1.5 py-0.5 rounded">{it} 별도</span>
                       ))}
                     </div>
                   );
