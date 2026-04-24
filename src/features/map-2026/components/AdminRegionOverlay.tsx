@@ -295,6 +295,29 @@ function countByRegionFromClusters(
   return out;
 }
 
+/** L-naverstyle1 (2026-04-24 pm): listings 를 polygon-contains 로 feature 에 배정.
+ *  dong 단위에서는 법정동(서초동) vs 통계동(서초1동/2동) 이름 차이로 name-match 가
+ *  실패하므로 lat/lng 기반이 더 정확.  feature 가 수천 개지만 viewport bbox 로
+ *  사전 필터하므로 루프 비용은 수십×수천 수준.  폴리곤 내부 판정 O(n) per ring. */
+function countListingsByFeature(
+  listings: MapListing[],
+  features: GeoFeature[],
+  keyFn: (feat: GeoFeature) => string,
+): Map<string, number> {
+  const out = new Map<string, number>();
+  if (!listings.length || !features.length) return out;
+  for (const l of listings) {
+    for (const feat of features) {
+      if (pointInFeature(l.lat, l.lng, feat)) {
+        const key = keyFn(feat);
+        if (key) out.set(key, (out.get(key) ?? 0) + 1);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 /** GeoJSON feature → 전체 geometry 의 bounding box.
  *  MultiPolygon 이어도 모든 ring 을 순회해 정확한 외접 bbox 산출. */
 function computeFeatureBbox(
@@ -615,18 +638,12 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           north: bounds.getNorthEast().getLat(),
         } : null;
 
-        let counts = countListingsByDong(listings);
-        if (counts.size === 0 && serverClusters?.length) {
-          counts = countByRegionFromClusters(
-            serverClusters,
-            data.features,
-            (feat) => String(feat.properties.name ?? feat.properties.name_eng ?? '').trim(),
-          );
-        }
-
-        // viewport 안 + count > 0 만 후보로.  top 25 chip 표시 (시각 밀도 제어).
+        // L-naverstyle1 fix: viewport 내 feature 만 후보로 만든 뒤 그 위에서
+        //   listings 를 polygon-contains 로 count.  통계동(서초1동/2동) 이름이
+        //   listings dong 필드(서초동) 와 안 맞아도 lat/lng 기반이라 정확.
         type Cand = { feat: GeoFeature; name: string; count: number };
-        const candidates: Cand[] = [];
+        const visibleFeatures: GeoFeature[] = [];
+        const nameByFeat = new Map<GeoFeature, string>();
         for (const feat of data.features) {
           if (bbox && !featureIntersectsBbox(feat, bbox)) continue;
           const nameRaw = String(
@@ -634,9 +651,28 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
             (feat.properties as { name_eng?: string }).name_eng ?? ''
           ).trim();
           if (!nameRaw) continue;
-          const c = counts.get(nameRaw) ?? 0;
-          candidates.push({ feat, name: nameRaw, count: c });
+          visibleFeatures.push(feat);
+          nameByFeat.set(feat, nameRaw);
         }
+
+        let counts = countListingsByFeature(
+          listings,
+          visibleFeatures,
+          (feat) => nameByFeat.get(feat) ?? '',
+        );
+        if (counts.size === 0 && serverClusters?.length) {
+          counts = countByRegionFromClusters(
+            serverClusters,
+            visibleFeatures,
+            (feat) => nameByFeat.get(feat) ?? '',
+          );
+        }
+
+        const candidates: Cand[] = visibleFeatures.map((feat) => ({
+          feat,
+          name: nameByFeat.get(feat) ?? '',
+          count: counts.get(nameByFeat.get(feat) ?? '') ?? 0,
+        }));
 
         // count > 0 은 모두 렌더.  count=0 은 stroke 만 (경계 context 유지)
         // top 25 까지는 chip 표시, 초과분은 stroke only (밀집 뷰 대비).
