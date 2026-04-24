@@ -408,15 +408,38 @@ export default function HtmlMarkerOverlay({
         rest = buckets.tier2Listings;
       }
 
-      // ── Tier 1 단지 pill ──
+      // ── Tier 1 그룹 렌더 ──
+      // L-naverstyle8 (2026-04-24 pm): 사용자 피드백 "동그라미 마커로 유지하라고
+      //   했는데 역삼동 원룸 45 같은 pill 이 뜬다".
+      //   bucketListings 는 두 경로로 그룹을 만든다:
+      //     · key 'b:…'  — building_name 기반 ("잠원동양타운 3")  → pill (네이버 style 유지)
+      //     · key 'd:…'  — dong+type 폴백      ("역삼동 원룸 45")  → circle (숫자만)
+      //   후자는 privacy-safe 폴백으로 만든 group 이므로 시각적으로는 개별 집계와
+      //   같은 의미 — 숫자 circle 이 적절. 건물명 pill 과 circle 을 혼재시켜
+      //   정보 우선순위를 분명히 드러낸다.
       for (const g of tier1Groups) {
         const selected =
           selectedListingId != null && g.listings.some((l) => l.id === selectedListingId);
-        const el = makePillElement({ name: g.name, count: g.count, selected });
+        const isBuildingPill = g.key.startsWith('b:');
+        let el: HTMLDivElement;
+        if (isBuildingPill) {
+          el = makePillElement({ name: g.name, count: g.count, selected });
+        } else {
+          // dong+type 폴백 → circle (네이버 '숫자 원' 스타일)
+          const size = g.count >= 100 ? 46 : g.count >= 10 ? 42 : g.count >= 2 ? 40 : 36;
+          el = makeCircleElement({ count: g.count, selected, size });
+        }
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (onClickComplex) onClickComplex(g.name, g.listings);
-          else if (g.listings.length > 0) onClickListing(g.listings[0].id);
+          if (onClickCluster && g.listings.length > 1 && !isBuildingPill) {
+            onClickCluster(g.listings);
+            return;
+          }
+          if (onClickComplex && isBuildingPill) {
+            onClickComplex(g.name, g.listings);
+            return;
+          }
+          if (g.listings.length > 0) onClickListing(g.listings[0].id);
         });
         try {
           const ov = new maps.CustomOverlay({
@@ -424,7 +447,7 @@ export default function HtmlMarkerOverlay({
             content: el,
             xAnchor: 0.5,
             yAnchor: 0.5,
-            zIndex: 11,
+            zIndex: isBuildingPill ? 11 : 10,
             clickable: true,
           });
           ov.setMap(map);
