@@ -161,7 +161,14 @@ export default function MapClient() {
               LatLng: new (lat: number, lng: number) => unknown;
               Map: new (
                 el: HTMLElement,
-                opts: { center: unknown; level: number }
+                opts: {
+                  center: unknown;
+                  level: number;
+                  disableDoubleClick?: boolean;
+                  disableDoubleClickZoom?: boolean;
+                  draggable?: boolean;
+                  scrollwheel?: boolean;
+                }
               ) => {
                 getBounds: () => {
                   getSouthWest: () => { getLat: () => number; getLng: () => number };
