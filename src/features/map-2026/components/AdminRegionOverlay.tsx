@@ -295,12 +295,30 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     };
     document.addEventListener('mousemove', updateTooltipPosition);
 
-    /** 단일/다중 features → 1 시각 영역 (라벨 1개) */
-    const drawRegion = (feats: GeoFeature[], labelText: string, mode: 'sido' | 'sigungu' | 'dong') => {
+    /** 단일/다중 features → 시각 영역 (라벨 + 옵션) */
+    // L-naver-dual1 (2026-04-26): drawRegion 에 layer 옵션 추가 (backdrop vs foreground).
+    //   네이버 패턴: dong 모드 = 시군구 backdrop (light, non-clickable) + dong foreground (dark, clickable).
+    type LayerOpts = {
+      fillOpacityOverride?: number;
+      strokeOpacityOverride?: number;
+      strokeWeightOverride?: number;
+      clickable?: boolean;
+      isBackdrop?: boolean;  // backdrop = tooltip 갱신 안 함, click 안 함
+    };
+    const drawRegion = (
+      feats: GeoFeature[],
+      labelText: string,
+      mode: 'sido' | 'sigungu' | 'dong',
+      opts: LayerOpts = {},
+    ) => {
+      const fillOp = opts.fillOpacityOverride ?? FILL_OPACITY;
+      const strokeOp = opts.strokeOpacityOverride ?? STROKE_OPACITY;
+      const strokeW = opts.strokeWeightOverride ?? STROKE_WEIGHT;
+      const clickable = opts.clickable ?? !opts.isBackdrop;
       // L-naver-click5 (2026-04-26 night): Naver 깊은 줌인 매칭 — z8 click → z13 (5 levels).
       //   sido(13+) → 9 (z11, sigungu detail) — 4-5 levels deep
-      //   sigungu(8~12) → 6 (z14, dong polygon visible) — 2-6 levels deep
-      //   dong(5~7) → 3 (z17, marker close-up) — 2-4 levels deep
+      //   sigungu(7~12) → 6 (z14, dong polygon visible) — 2-6 levels deep
+      //   dong(4~6) → 3 (z17, marker close-up) — 1-3 levels deep
       const targetLevel = mode === 'sido' ? 9 : mode === 'sigungu' ? 6 : 3;
 
       const onClick = () => {
@@ -368,16 +386,18 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           try {
             const polygon = new maps.Polygon({
               path,
-              strokeWeight: STROKE_WEIGHT,
+              strokeWeight: strokeW,
               strokeColor: STROKE,
-              strokeOpacity: STROKE_OPACITY,
+              strokeOpacity: strokeOp,
               fillColor: FILL,
-              fillOpacity: FILL_OPACITY,
-              clickable: true,
+              fillOpacity: fillOp,
+              clickable,
             });
-            try { maps.event.addListener(polygon as unknown, 'click', onClick); } catch { /*noop*/ }
-            try { maps.event.addListener(polygon as unknown, 'mouseover', onPolyMouseOver); } catch { /*noop*/ }
-            try { maps.event.addListener(polygon as unknown, 'mouseout', onPolyMouseOut); } catch { /*noop*/ }
+            if (clickable) {
+              try { maps.event.addListener(polygon as unknown, 'click', onClick); } catch { /*noop*/ }
+              try { maps.event.addListener(polygon as unknown, 'mouseover', onPolyMouseOver); } catch { /*noop*/ }
+              try { maps.event.addListener(polygon as unknown, 'mouseout', onPolyMouseOut); } catch { /*noop*/ }
+            }
             polygon.setMap(map);
             polygonsRef.current.push(polygon);
           } catch (e) { console.error('[AdminPoly] create fail', e); }
@@ -386,23 +406,23 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       // L-naver-tooltip1 (2026-04-26): 라벨을 폴리곤 centroid 가 아닌 마우스 커서 따라가는
       //   툴팁으로 변경.  centroid label 이 폴리곤 클릭 영역을 가려 클릭 무반응 문제 해결.
       //   사용자 요청 — 네이버처럼 hover 시 커서 옆에 심플하게 표시.
-      currentTooltipText = labelText;
+      // L-naver-dual1 (2026-04-26): backdrop 은 tooltip 갱신 안 함 (foreground 만 표시).
+      if (!opts.isBackdrop) currentTooltipText = labelText;
     };
 
     /** 마우스 위치(또는 viewport 중심) 좌표를 받아 폴리곤 갱신 */
     const updateAt = async (lat: number, lng: number) => {
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
       let mode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
-      // L-naver-zoom5 (2026-04-26 night): 사용자 라이브 비교 후 1단계 조정.
-      //   네이버 z8 = 시군구 폴리곤 (양평군, 평창군).  위시스 z8 = level 12 였으나
-      //   sido 모드로 잘못 분류.  level 12 도 sigungu 로 변경.
-      //   sido: level 13+ (z7-)
-      //   sigungu: level 8~12 (z8~z12)
-      //   dong: level 5~7 (z13~z15)
-      //   markers: level 1~4 (z16~z19)
+      // L-naver-zoom6 (2026-04-26): 사용자 네이버 z13 비교 — z13 = 시군구 (관악구 전체 보임).
+      //   WISHES kakao level 7 ≈ 네이버 z13. 이전 매핑 (level 7 = dong) 은 한 단계 너무 zoom-in.
+      //   sido: level >= 13 (z7-)
+      //   sigungu: level 7~12 (z8~z13) — 네이버 광역 시군구 클릭 결과
+      //   dong: level 4~6 (z14~z16) — 네이버 동 hover/클릭 단계
+      //   markers: level 1~3 (z17~z19)
       if (level >= 13) mode = 'sido';
-      else if (level >= 8) mode = 'sigungu';
-      else if (level >= 5) mode = 'dong';
+      else if (level >= 7) mode = 'sigungu';
+      else if (level >= 4) mode = 'dong';
       // level ≤ 4: 마커만, 폴리곤 클리어
       if (mode === 'none') {
         if (currentKey !== '' || currentLevelMode !== 'none') {
@@ -457,11 +477,14 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'dong') {
-        // L-naver-true4 (2026-04-26 night): 마우스 위치 1개 법정동 폴리곤 (네이버 동일).
-        //   사용자 명확히 지적 — 네이버는 ONE 폴리곤만 표시. 여러 동 동시 표시는 노이즈.
+        // L-naver-dual1 (2026-04-26): 네이버 동 모드 = 시군구 backdrop + 동 foreground 2-layer.
+        //   사용자 스크린샷: 네이버는 관악구 폴리곤이 light-pink 으로 항상 표시 + 마우스 가르킨 동만 darker.
+        //   기존 ONE 폴리곤 방식 → DUAL layer 로 전환.
         if (!dongData?.features) return;
         const feat = findFeatureAt(dongData.features, lat, lng);
         if (!feat) return;
+        // 부모 시군구 feature (mouse 위치 기준 — sigData 에서 찾기)
+        const sigParentFeat = sigData?.features ? findFeatureAt(sigData.features, lat, lng) : null;
         const rawName = String((feat.properties as { name?: string }).name ?? '').trim();
         const legalName = normalizeLegalDong(rawName);
         const key = `dong:${parentSido}:${parentSig}:${legalName}`;
@@ -472,8 +495,21 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           return normalizeLegalDong(n) === legalName;
         });
         cleanup();
+        // L-naver-dual1: backdrop 시군구 (light) → 그 위에 dong foreground (darker).
+        if (sigParentFeat) {
+          const sigParentName = parentSido && parentSig ? `${parentSido} ${parentSig}` : parentSig;
+          drawRegion([sigParentFeat], sigParentName, 'sigungu', {
+            fillOpacityOverride: 0.06,
+            strokeOpacityOverride: 0.45,
+            strokeWeightOverride: 1.5,
+            isBackdrop: true,
+          });
+        }
         const parts = [parentSido, parentSig, legalName].filter(Boolean);
-        drawRegion(groupFeats.length > 0 ? groupFeats : [feat], parts.join(' '), 'dong');
+        drawRegion(groupFeats.length > 0 ? groupFeats : [feat], parts.join(' '), 'dong', {
+          fillOpacityOverride: 0.22,
+          strokeOpacityOverride: 0.85,
+        });
         currentKey = key;
         currentLevelMode = mode;
       }
