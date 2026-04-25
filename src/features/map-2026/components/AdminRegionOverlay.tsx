@@ -420,56 +420,23 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'dong') {
-        // L-naver-true3 (2026-04-26 night): 동 zoom 에서 viewport 내 모든 법정동
-        //   폴리곤 동시 표시 — 사용자가 동을 "선택" 할 수 있게.
-        //   네이버 동일 — 구 안의 동들이 모두 보임 → 클릭하여 선택.
+        // L-naver-true4 (2026-04-26 night): 마우스 위치 1개 법정동 폴리곤 (네이버 동일).
+        //   사용자 명확히 지적 — 네이버는 ONE 폴리곤만 표시. 여러 동 동시 표시는 노이즈.
         if (!dongData?.features) return;
-        // viewport bbox 가져오기
-        const bounds = (mapInst as KakaoMapLike & { getBounds?: () => { getSouthWest:() => KakaoLatLng; getNorthEast:() => KakaoLatLng } }).getBounds?.();
-        if (!bounds) return;
-        const sw = bounds.getSouthWest();
-        const ne = bounds.getNorthEast();
-        const vbbox = {
-          west: sw.getLng(), south: sw.getLat(),
-          east: ne.getLng(), north: ne.getLat(),
-        };
-        // viewport 내 동들 필터
-        const visibleFeats = dongData.features.filter((f) => {
-          const fb = computeFeatureBbox(f);
-          if (!fb) return false;
-          return !(fb.east < vbbox.west || fb.west > vbbox.east ||
-                   fb.north < vbbox.south || fb.south > vbbox.north);
-        });
-        // 법정동별 그룹핑
-        const groups = new Map<string, GeoFeature[]>();
-        for (const f of visibleFeats) {
-          const rawName = String((f.properties as { name?: string }).name ?? '').trim();
-          const legalName = normalizeLegalDong(rawName);
-          if (!legalName) continue;
-          if (!groups.has(legalName)) groups.set(legalName, []);
-          groups.get(legalName)!.push(f);
-        }
-        // 그룹 단위 키 (전체 viewport 의 동 집합)
-        const allLegalNames = Array.from(groups.keys()).sort().join(',');
-        const key = `dong-multi:${allLegalNames}`;
+        const feat = findFeatureAt(dongData.features, lat, lng);
+        if (!feat) return;
+        const rawName = String((feat.properties as { name?: string }).name ?? '').trim();
+        const legalName = normalizeLegalDong(rawName);
+        const key = `dong:${parentSido}:${parentSig}:${legalName}`;
         if (key === currentKey && currentLevelMode === mode) return;
+        // 같은 법정동 모든 통계동 묶기 (서초1~4동 → 서초동 한 덩어리)
+        const groupFeats = dongData.features.filter((f) => {
+          const n = String((f.properties as { name?: string }).name ?? '').trim();
+          return normalizeLegalDong(n) === legalName;
+        });
         cleanup();
-        for (const [legalName, feats] of groups) {
-          // 각 동의 부모 시/구 이름 다시 계산 (동의 centroid 기준)
-          const c = multiFeatureCentroid(feats);
-          if (!c) continue;
-          let parSido = '', parSig = '';
-          if (sidoData?.features) {
-            const sf = findFeatureAt(sidoData.features, c.lat, c.lng);
-            if (sf) parSido = shortSidoName(normalizeSidoName(String((sf.properties as { name?: string }).name ?? '')));
-          }
-          if (sigData?.features) {
-            const sf = findFeatureAt(sigData.features, c.lat, c.lng);
-            if (sf) parSig = String((sf.properties as { name?: string }).name ?? '').trim();
-          }
-          const parts = [parSido, parSig, legalName].filter(Boolean);
-          drawRegion(feats, parts.join(' '), 'dong');
-        }
+        const parts = [parentSido, parentSig, legalName].filter(Boolean);
+        drawRegion(groupFeats.length > 0 ? groupFeats : [feat], parts.join(' '), 'dong');
         currentKey = key;
         currentLevelMode = mode;
       }
@@ -483,13 +450,10 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     };
     void renderAtCenter();
 
-    // 마우스 이동 → 폴리곤 갱신 (sido/sigungu 단계만 — dong 단계는 viewport 전체 표시)
+    // 마우스 이동 → 폴리곤 갱신 (모든 zoom 레벨)
     const onMouseMove = (e?: KakaoMouseEvent) => {
       if (!e?.latLng) return;
       if (Date.now() - lastClickAt < 250) return;
-      // dong 모드에서는 mousemove 무시 (viewport 전체 동 표시)
-      const lv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
-      if (lv >= 4 && lv <= 6) return;  // dong zoom range
       void updateAt(e.latLng.getLat(), e.latLng.getLng());
     };
     try { maps.event.addListener(mapInst as unknown, 'mousemove', onMouseMove); } catch { /*noop*/ }
