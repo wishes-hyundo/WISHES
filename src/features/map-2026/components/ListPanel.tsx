@@ -120,6 +120,7 @@ export function ListPanel() {
   // L-clusterexact1 + L-clusterexact3 (2026-04-24 pm): 클러스터 클릭 시 정확한 N개만.
   const clusterFilterIds = useMap2026Store((s) => s.clusterFilterIds);
   const clusterFilterListings = useMap2026Store((s) => s.clusterFilterListings);
+  const clusterFilterLabel = useMap2026Store((s) => s.clusterFilterLabel);
   const setClusterFilter = useMap2026Store((s) => s.setClusterFilter);
   // L-truecount1 (2026-04-26): 사이드바 카운트를 정확한 총합으로.
   //   listings.length 는 viewport limit (4000) 에 캡되므로 부정확.
@@ -210,7 +211,15 @@ export function ListPanel() {
       {clusterFilterIds && clusterFilterIds.length > 0 && (
         <div className="flex items-center justify-between gap-2 border-b border-emerald-100 bg-emerald-50 px-3 py-2 text-[11.5px] font-semibold text-emerald-800">
           <span className="truncate">
-            선택한 {clusterFilterIds.length}개 매물만 보는 중
+            {/* L-complexlabel1 (2026-04-26): 단지명/지역명 라벨 우선 표시 */}
+            {clusterFilterLabel ? (
+              <>
+                <span className="font-bold">{clusterFilterLabel}</span>
+                <span className="ml-1 opacity-80">{clusterFilterIds.length}개 매물</span>
+              </>
+            ) : (
+              <>선택한 {clusterFilterIds.length}개 매물만 보는 중</>
+            )}
             {clusterFilterListings == null && <span className="ml-1 opacity-70">(로딩 중…)</span>}
           </span>
           <button

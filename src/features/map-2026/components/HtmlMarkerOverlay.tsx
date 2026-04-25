@@ -79,7 +79,7 @@ interface Props {
   serverClusters?: ServerClusterInput[];
   /** L-clusterexact1 (2026-04-24 pm): 클러스터 클릭 시 "정확히 N개 매물만" 필터.
    *  ids 배열을 받아 사이드바·지도에 그 매물만 남긴다. null 이면 해제. */
-  onClusterFilter?: (ids: number[] | null) => void;
+  onClusterFilter?: (ids: number[] | null, label?: string | null) => void;
   clusterFilterIds?: number[] | null;
   /** L-clusterexact3 (2026-04-24 pm): /api/listings/by-ids 로 fetch 한 정확한 매물.
    *  viewport listings 에 없는 id 도 포함되므로 100% 정확한 N개 렌더 가능. */
@@ -453,6 +453,7 @@ const size = _isMobile1
           // L-clusterfix1 (2026-04-25): 단일 매물이면 detail modal, 클러스터면
           //   사이드바 필터 + 줌인.  이전에는 onClickCluster prop 미전달 시
           //   "엉뚱한 첫 매물 모달" 이 떠서 사용자 혼란 (피드백 #4).
+          // L-complexlabel1 (2026-04-26): 마커 클릭 시 단지명/지역명 라벨 추가
           // 단지명 (b:) 그룹: 단일이면 모달, 다수면 단지 drawer
           if (isBuildingPill) {
             if (g.count === 1 && g.listings[0]) {
@@ -476,7 +477,8 @@ const size = _isMobile1
             return;
           }
           // onClusterFilter + setBounds 폴백 — N개 매물만 사이드바·지도 필터
-          if (onClusterFilter) onClusterFilter(g.listings.map((l) => l.id));
+          //   L-complexlabel1: g.name 을 label 로 함께 전달 (단지명 또는 동+타입)
+          if (onClusterFilter) onClusterFilter(g.listings.map((l) => l.id), g.name || null);
           try {
             const kakaoAny = (window as unknown as {
               kakao?: { maps?: {

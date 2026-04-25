@@ -536,7 +536,8 @@ function MapOverlaysWithClusters(props: {
   selectedListingId: number | null;
   category: PropertyCategory;
   onClickListing: (id: number) => void;
-  onClusterFilter: (ids: number[] | null) => void;
+  // L-complexlabel1 (2026-04-26): label 추가 (단지명/지역명 표시용)
+  onClusterFilter: (ids: number[] | null, label?: string | null) => void;
   clusterFilterIds: number[] | null;
   clusterFilterListings: MapListing[] | null;
 }) {

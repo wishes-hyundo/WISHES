@@ -269,7 +269,10 @@ export interface Map2026Store {
   //     별도 로 fetch 해서 100% 정확한 N개 표시.
   clusterFilterIds: number[] | null;
   clusterFilterListings: MapListing[] | null;
-  setClusterFilter: (ids: number[] | null) => void;
+  // L-complexlabel1 (2026-04-26): 단지명 (또는 동 이름) 라벨 — 사이드바 헤더에 표시.
+  //   네이버 스타일: 마커 클릭 시 "잠원동양타운 (5)" 같은 헤더 + 매물 카드.
+  clusterFilterLabel: string | null;
+  setClusterFilter: (ids: number[] | null, label?: string | null) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -508,19 +511,20 @@ export const useMap2026Store = create<Map2026Store>()(
     }),
     closeFilterModal: () => set({ filterModalOpen: false }),
 
-    // L-clusterexact1 + L-clusterexact3 (2026-04-24 pm): 클러스터 필터
+    // L-clusterexact1 + L-clusterexact3 (2026-04-24 pm) + L-complexlabel1 (2026-04-26): 클러스터 필터
     clusterFilterIds: null,
     clusterFilterListings: null,
-    setClusterFilter: (ids) => {
+    clusterFilterLabel: null,
+    setClusterFilter: (ids, label = null) => {
       if (!ids || ids.length === 0) {
-        set({ clusterFilterIds: null, clusterFilterListings: null });
+        set({ clusterFilterIds: null, clusterFilterListings: null, clusterFilterLabel: null });
         return;
       }
       // 동일한 id 세트로 중복 호출되면 skip (연속 클릭 방지)
       const prev = get().clusterFilterIds;
       if (prev && prev.length === ids.length && prev.every((v, i) => v === ids[i])) return;
       // ids 먼저 저장 → ListPanel/HtmlMarker 즉시 필터 반영 (listings 교집합)
-      set({ clusterFilterIds: ids, clusterFilterListings: null });
+      set({ clusterFilterIds: ids, clusterFilterListings: null, clusterFilterLabel: label });
       // L-clusterexact3: by-ids 로 정확한 매물 객체 hydrate (viewport limit 회피).
       //   응답 도착 시점에 여전히 같은 필터 상태일 때만 반영 (race condition 방지).
       (async () => {
