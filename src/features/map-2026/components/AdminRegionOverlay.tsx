@@ -83,6 +83,9 @@ interface KakaoMapLike {
   getCenter?: () => KakaoLatLng;
   setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
   setLevel?: (n: number, opts?: unknown) => void;
+  panTo?: (latlng: unknown) => void;
+  getNode?: () => HTMLElement;
+  getBounds?: () => { getSouthWest: () => KakaoLatLng; getNorthEast: () => KakaoLatLng };
 }
 interface KakaoEventNs {
   addListener: (t: unknown, type: string, cb: (e?: KakaoMouseEvent) => void) => void;
@@ -281,6 +284,11 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       for (const o of overlaysRef.current) { try { o.setMap(null); } catch { /*noop*/ } }
       polygonsRef.current = [];
       overlaysRef.current = [];
+      // 커서 리셋
+      try {
+        const node = typeof mapInst.getNode === 'function' ? mapInst.getNode() : undefined;
+        if (node) node.style.cursor = '';
+      } catch { /*noop*/ }
     };
 
     let currentKey = '';        // 현재 표시 중인 폴리곤 key (e.g., "서울특별시", "관악구", "서초동")
@@ -289,30 +297,44 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
     /** 단일/다중 features → 1 시각 영역 (라벨 1개) */
     const drawRegion = (feats: GeoFeature[], labelText: string, mode: 'sido' | 'sigungu' | 'dong') => {
-      const bbox = multiFeatureBbox(feats);
+      const centroid = multiFeatureCentroid(feats);
+      // L-naver-click1 (2026-04-26 night): 네이버 클릭 패턴 — panTo (애니메이션) +
+      //   setLevel({animate}) 동시 + 클릭 flash + pointer 커서.
+      const targetLevel = mode === 'sido' ? 11 : mode === 'sigungu' ? 7 : 4;
+
+      const drawnPolys: KakaoPolygon[] = [];
+
       const onClick = () => {
         lastClickAt = Date.now();
+        // 1. 클릭 피드백 — 잠깐 폴리곤 진하게
+        for (const p of drawnPolys) {
+          try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0.30, strokeOpacity: 0.95 }); } catch {/*noop*/}
+        }
+        // 2. 부드러운 panTo (애니메이션)
         try {
-          if (bbox && typeof mapInst.setBounds === 'function') {
-            const sw = new maps.LatLng(bbox.south, bbox.west);
-            const ne = new maps.LatLng(bbox.north, bbox.east);
-            const bounds = new maps.LatLngBounds(sw, ne);
-            mapInst.setBounds(bounds, 40, 40, 40, 40);
-            // L-naver-zoom1: 네이버 zoom 라벨링 기준 클릭 전이.
-            //   sido(level 13+) 클릭 → level 11 (z10, sigungu 폴리곤 보임)
-            //   sigungu(level 9~12) 클릭 → level 7 (z14, dong 폴리곤 보임)
-            //   dong(level 6~8) 클릭 → level 4 (z17, 매물 마커 보임, level≤5 마커 영역)
-            setTimeout(() => {
-              try {
-                if (typeof mapInst.setLevel !== 'function') return;
-                if (mode === 'sido') mapInst.setLevel(11);
-                else if (mode === 'sigungu') mapInst.setLevel(7);
-                else if (mode === 'dong') mapInst.setLevel(4);
-              } catch { /*noop*/ }
-            }, 120);
+          if (centroid && typeof mapInst.panTo === 'function') {
+            mapInst.panTo(new maps.LatLng(centroid.lat, centroid.lng));
           }
         } catch { /*noop*/ }
+        // 3. 부드러운 줌 (panTo 와 살짝 겹쳐 시작)
+        setTimeout(() => {
+          try {
+            if (typeof mapInst.setLevel !== 'function') return;
+            mapInst.setLevel(targetLevel, { animate: { duration: 400 } });
+          } catch {
+            try { (mapInst.setLevel as (n: number) => void)(targetLevel); } catch {/*noop*/}
+          }
+        }, 60);
         onClickRegion?.(labelText);
+      };
+
+      // pointer 커서 핸들러 (지도 컨테이너에 cursor 설정)
+      const mapNode = typeof mapInst.getNode === 'function' ? mapInst.getNode() : undefined;
+      const onPolyMouseOver = () => {
+        if (mapNode) mapNode.style.cursor = 'pointer';
+      };
+      const onPolyMouseOut = () => {
+        if (mapNode) mapNode.style.cursor = '';
       };
       // 모든 feature 그리기
       for (const feat of feats) {
@@ -335,8 +357,11 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
               clickable: true,
             });
             try { maps.event.addListener(polygon as unknown, 'click', onClick); } catch { /*noop*/ }
+            try { maps.event.addListener(polygon as unknown, 'mouseover', onPolyMouseOver); } catch { /*noop*/ }
+            try { maps.event.addListener(polygon as unknown, 'mouseout', onPolyMouseOut); } catch { /*noop*/ }
             polygon.setMap(map);
             polygonsRef.current.push(polygon);
+            drawnPolys.push(polygon);
           } catch { /*noop*/ }
         }
       }
