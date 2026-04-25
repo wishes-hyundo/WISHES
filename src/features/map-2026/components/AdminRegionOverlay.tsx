@@ -567,11 +567,21 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
             try {
               maps.event.addListener(polygon as unknown, 'click', () => {
                 try {
+                  const beforeLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
                   if (polyBbox && typeof mapInst.setBounds === 'function') {
                     const sw = new maps.LatLng(polyBbox.south, polyBbox.west);
                     const ne = new maps.LatLng(polyBbox.north, polyBbox.east);
                     const bounds = new maps.LatLngBounds(sw, ne);
                     mapInst.setBounds(bounds, 40, 40, 40, 40);
+                    // L-clickfix2 (2026-04-26): 강제 줌인 (chip 클릭 동일)
+                    setTimeout(() => {
+                      try {
+                        const afterLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : beforeLv;
+                        if (afterLv >= beforeLv && typeof mapInst.setLevel === 'function') {
+                          mapInst.setLevel(Math.max(1, beforeLv - 1));
+                        }
+                      } catch { /* noop */ }
+                    }, 100);
                   }
                 } catch { /* noop */ }
                 onClickRegion?.(displayName);
@@ -604,16 +614,27 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           e.stopPropagation();
           e.preventDefault();
           try {
+            const beforeLevel = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
             if (regionBbox && typeof mapInst.setBounds === 'function') {
               const sw = new maps.LatLng(regionBbox.south, regionBbox.west);
               const ne = new maps.LatLng(regionBbox.north, regionBbox.east);
               const bounds = new maps.LatLngBounds(sw, ne);
               mapInst.setBounds(bounds, 40, 40, 40, 40);
+              // L-clickfix2 (2026-04-26): setBounds 후 줌 단계 변화 없거나 미미하면
+              //   강제 줌인.  동/구 폴리곤 bbox 가 현재 viewport 와 비슷할 때
+              //   "클릭해도 변화 없음" 처럼 보이는 문제 해결.
+              setTimeout(() => {
+                try {
+                  const afterLevel = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : beforeLevel;
+                  if (afterLevel >= beforeLevel && typeof mapInst.setLevel === 'function') {
+                    mapInst.setLevel(Math.max(1, beforeLevel - 1));
+                  }
+                } catch { /* noop */ }
+              }, 100);
             } else if (typeof mapInst.panTo === 'function') {
               mapInst.panTo(new maps.LatLng(centroid.lat, centroid.lng));
               if (typeof mapInst.setLevel === 'function') {
-                const cur = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 10;
-                mapInst.setLevel(Math.max(4, cur - 3));
+                mapInst.setLevel(Math.max(1, beforeLevel - 2));
               }
             }
           } catch { /* SDK race — skip */ }
