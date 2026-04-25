@@ -118,17 +118,17 @@ interface KakaoMapsNs {
 }
 interface KakaoNs { maps?: KakaoMapsNs }
 
-// L-greenpoly1 (2026-04-26 night): 위시스 그린으로 변경 — 카카오 자체 행정구역
-//   빨간색 점선과 색이 겹쳐 그물망처럼 보이던 문제 해결.  마커(chip)와 동일한
-//   브랜드 컬러(#006241)로 통일 → 폴리곤이 어떤 마커와 묶이는지 시각적으로 명확.
-//   사용자 피드책 "폴리곤이 마커랑 묶여서 작동하고... 빨간선이 도대체 왜 그런거야"
-//   카카오 base 타일의 기본 행정 경계는 빨강 점선 (built-in, 비활성 불가) — 우리
-//   폴리곤만 그린으로 빼면 즉시 구분됨.
-const FILL = '#006241';        // wishes brand green (matches markers)
-const FILL_OPACITY = 0.18;     // hover 시 적용되는 강조 opacity
+// L-naverexact1 (2026-04-26 night): 네이버 부동산 정확한 동작.
+//   폴리곤은 기본 완전 invisible (stroke 0, fill 0).  마커(chip)만 보임.
+//   hover/click 시에만 폴리곤이 나타남.  사용자 피드백 "폴리곤이 마커랑 묶여서
+//   작동하고... 빨간선들이 도대체 왜 그런거야" 해결.  빨간선 = 카카오 base 타일
+//   built-in 행정경계 (변경 불가) + 우리 폴리곤 stroke 가 같이 보여서 노이즈.
+//   우리 폴리곤을 default invisible 로 두면 카카오 빨간선만 남고 chip 만 보임.
+const FILL = '#006241';        // wishes brand green (hover 시에만 표시)
+const FILL_OPACITY = 0.20;     // hover 시 적용되는 강조 opacity
 const STROKE = '#006241';
-const STROKE_OPACITY = 0.75;   // chip 있는 영역의 default stroke — 1:1 binding 이라 진하게
-const STROKE_OPACITY_FAINT = 0.0;  // L-marker-poly-bind1 이후 사용 안 함
+const STROKE_OPACITY = 0.85;   // hover 시에만 표시 (default 0)
+const STROKE_OPACITY_FAINT = 0.0;
 
 // feature name → sido 짧은 이름 매핑 (southkorea-maps 는 name 에 영문/한글 혼재)
 function normalizeSidoName(raw: string | undefined | null): string {
@@ -574,21 +574,23 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           const hasCount = count > 0;
           const polygon = new maps.Polygon({
             path,
-            strokeWeight: hasCount ? 1.4 : 0.8,
+            // L-naverexact1 (2026-04-26 night): default 완전 invisible (네이버 동일).
+            //   chip 만 보임. hover 시에만 stroke + fill 등장.
+            strokeWeight: 1.6,
             strokeColor: STROKE,
-            strokeOpacity: hasCount ? STROKE_OPACITY : STROKE_OPACITY_FAINT,
+            strokeOpacity: 0,  // default invisible
             fillColor: FILL,
-            fillOpacity: 0,  // L-naverhover1: 기본 0 (hover 시에만 표시)
+            fillOpacity: 0,  // default invisible
             clickable: hasCount && showChip,
           });
-          // L-naverhover1: hover 시 fill 등장 → 마우스가 올라간 영역만 강조 (네이버 동일)
+          // L-naverexact1: hover 시 stroke + fill 동시 등장
           if (hasCount && showChip) {
             try {
               maps.event.addListener(polygon as unknown, 'mouseover', () => {
-                try { (polygon as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: 0.85 }); } catch {/*noop*/}
+                try { (polygon as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
               });
               maps.event.addListener(polygon as unknown, 'mouseout', () => {
-                try { (polygon as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
+                try { (polygon as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: 0 }); } catch {/*noop*/}
               });
             } catch { /*noop*/ }
           }
@@ -642,15 +644,15 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
         //   사용자 피드백 "단일 클릭 무반응, 더블클릭만 반응" → 해결.
         chip.addEventListener('mousedown', (e) => e.stopPropagation());
         chip.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
-        // L-naverhover1 (2026-04-26 evening): chip hover → 해당 시/도·시/군/구 폴리곤 강조
+        // L-naverexact1 (2026-04-26 night): chip hover → 해당 폴리곤 stroke+fill 동시 등장
         chip.addEventListener('mouseenter', () => {
           for (const p of featurePolygons) {
-            try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: 0.85 }); } catch {/*noop*/}
+            try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
           }
         });
         chip.addEventListener('mouseleave', () => {
           for (const p of featurePolygons) {
-            try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
+            try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: 0 }); } catch {/*noop*/}
           }
         });
         chip.addEventListener('click', (e) => {
@@ -902,26 +904,27 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
               try {
                 const polygon = new maps.Polygon({
                   path,
-                  // L-marker-poly-bind1: chip 있는 그룹만 그리므로 항상 강한 stroke
-                  strokeWeight: 1.0,
+                  // L-naverexact1 (2026-04-26 night): default 완전 invisible.
+                  //   chip hover/polygon hover 시에만 stroke + fill 등장.
+                  strokeWeight: 1.4,
                   strokeColor: STROKE,
-                  strokeOpacity: STROKE_OPACITY,
+                  strokeOpacity: 0,  // default invisible (네이버 동일)
                   fillColor: FILL,
-                  fillOpacity: 0,  // L-naverhover1: 기본 0 (hover 시에만 표시)
+                  fillOpacity: 0,
                   clickable: true,
                 });
                 {
                   const grpBbox = groupBbox(cand.feats);
-                  // L-naverhover1: 그룹 hover 시 같은 법정동 모든 통계동 폴리곤 일괄 강조
+                  // L-naverexact1 (2026-04-26 night): 그룹 hover 시 stroke + fill 동시 등장
                   try {
                     maps.event.addListener(polygon as unknown, 'mouseover', () => {
                       for (const p of groupPolygons) {
-                        try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: 0.85 }); } catch {/*noop*/}
+                        try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
                       }
                     });
                     maps.event.addListener(polygon as unknown, 'mouseout', () => {
                       for (const p of groupPolygons) {
-                        try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
+                        try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: 0 }); } catch {/*noop*/}
                       }
                     });
                   } catch { /*noop*/ }
@@ -963,16 +966,16 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
             const grpBbox = groupBbox(cand.feats);
             chip.addEventListener('mousedown', (e) => e.stopPropagation());
             chip.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
-            // L-naverhover1 (2026-04-26 evening): chip hover → 그룹 폴리곤 일괄 강조
-            //   네이버처럼 chip 위에 마우스 올리면 해당 동 영역만 빨간색 강조됨.
+            // L-naverexact1 (2026-04-26 night): chip hover → 그룹 폴리곤 stroke+fill 동시 등장
+            //   네이버 동일.  default 폴리곤 invisible → chip 위 hover 시에만 영역 표시.
             chip.addEventListener('mouseenter', () => {
               for (const p of groupPolygons) {
-                try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: 0.85 }); } catch {/*noop*/}
+                try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
               }
             });
             chip.addEventListener('mouseleave', () => {
               for (const p of groupPolygons) {
-                try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
+                try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: 0 }); } catch {/*noop*/}
               }
             });
             chip.addEventListener('click', (e) => {
