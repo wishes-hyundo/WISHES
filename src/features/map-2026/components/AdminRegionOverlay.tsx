@@ -418,15 +418,17 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       if (level >= 13) mode = 'sido';
       else if (level >= 6) mode = 'sigungu';
       else if (level >= 4) mode = 'dong';
-      // level ≤ 4: 마커만, 폴리곤 클리어
-      if (mode === 'none') {
-        if (currentKey !== '' || currentLevelMode !== 'none') {
-          cleanup();
-          currentKey = '';
-          currentLevelMode = 'none';
-        }
-        return;
+      // L-naver-cleanup1 (2026-04-26): mode 전환 즉시 unconditional cleanup.
+      //   기존 버그: dong→sigungu 전환 시 sigData/feat null 로 early return 되면 이전
+      //   dong polygon 잔류 → sigungu(0.15) + dong(0.15) 겹쳐 0.30 짙은 영역 (서울대 일대 보라색).
+      //   fix: mode 가 변하면 어떤 분기로 가든 무조건 먼저 cleanup.
+      if (currentLevelMode !== mode) {
+        cleanup();
+        currentKey = '';
+        currentLevelMode = mode;
       }
+      // level ≤ 4: 마커만, 폴리곤 클리어 (cleanup 은 위에서 이미 처리됨)
+      if (mode === 'none') return;
 
       // 라벨 prefix 계산 (시도/구 이름)
       const sidoData = await loadSido();
