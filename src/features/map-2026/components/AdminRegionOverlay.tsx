@@ -433,7 +433,9 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       // 라벨 prefix 계산 (시도/구 이름)
       const sidoData = await loadSido();
       const sigData = mode !== 'sido' ? await loadSigungu() : null;
-      const dongData = mode === 'dong' ? await loadDong() : null;
+      // L-naver-multi2 (2026-04-26): sigungu 모드도 dongData 필요 (multi-dong 렌더).
+      //   기존 'dong' 모드에서만 로드 → 새 multi-dong sigungu 에서 legalGroups 비어 클릭 안 됨.
+      const dongData = (mode === 'dong' || mode === 'sigungu') ? await loadDong() : null;
 
       let parentSido = '';
       let parentSig = '';
