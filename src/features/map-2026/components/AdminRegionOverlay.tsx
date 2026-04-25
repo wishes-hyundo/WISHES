@@ -464,16 +464,27 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'sigungu') {
-        // L-naver-multi1 (2026-04-26): 네이버 sigungu 줌 = outline + 그 안 모든 법정동 동시 표시.
-        //   사용자 피드백: 위시스는 sigungu 폴리곤만 → 동 hover/클릭 안 됨.
-        //   네이버: 관악구 안에 신림동·봉천동·남현동 3개 light pink + 마우스 위 동 짙어짐.
+        // L-naver-multi3 (2026-04-26): 네이버 패턴 — 광역 → 시군구 클릭 → 동 표시 시작.
+        //   level 9~12 (광역뷰): 시군구 polygon ONLY (동 안 보임, 클릭 가능).
+        //   level 6~8 (시군구 줌인 후): 시군구 outline + 모든 법정동 (hover 가능).
         if (!sigData?.features) return;
         const sigFeat = findFeatureAt(sigData.features, lat, lng);
         if (!sigFeat) return;
         const sigName = String((sigFeat.properties as { name?: string }).name ?? '').trim();
         const sigLabel = parentSido ? `${parentSido} ${sigName}` : sigName;
 
-        // dongData 사용해서 그 sigungu 의 법정동 그룹 만들기
+        // 광역뷰 (level 9~12): 시군구 polygon 단독 — 동 그리지 않음
+        if (level >= 9) {
+          const key = `sig-only:${parentSido}:${sigName}`;
+          if (key === currentKey && currentLevelMode === mode) return;
+          cleanup();
+          drawRegion([sigFeat], sigLabel, 'sigungu');
+          currentKey = key;
+          currentLevelMode = mode;
+          return;
+        }
+
+        // 시군구 줌인 (level 6~8): 시군구 outline + 모든 법정동 dual layer
         let hoveredLegalName: string | null = null;
         const legalGroups: Map<string, GeoFeature[]> = new Map();
         if (dongData?.features) {
