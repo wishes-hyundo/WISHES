@@ -13,10 +13,15 @@
 //   SGIS(국가통계청) 데이터 기반.  GitHub raw CDN 이 CORS 허용 → 브라우저
 //   fetch 로 lazy-load.  모듈 레벨 in-memory cache 로 반복 fetch 차단.
 //
-// 줌 레벨 매핑:
-//   · level ≥ 10 (국토 뷰): 시/도 17개 폴리곤
-//   · level 7~9 (대도시권): 시/군/구 폴리곤 (bbox 내) ← L-adminpoly4 구현
-//   · level ≤ 6: 폴리곤 숨김 (HtmlMarkerOverlay 의 카운트 원이 충분)
+// 줌 레벨 매핑 (L-granularity1 + L-closeview1 2026-04-24 pm 업데이트):
+//   · level ≥ 11 (국토/대권역): 시/도 17개 폴리곤
+//   · level 8~10 (대도시권): 시/군/구 폴리곤 (bbox 내)
+//   · level 4~7 (시가지~상세): 읍/면/동 폴리곤 (bbox 내, top 25 chip)
+//   · level ≤ 3 (근거리): HtmlMarkerOverlay 단지 pill + 개별 원
+//
+// 전환 이력:
+//   · L-granularity1: sigungu 7→8, sido 10→11 (zoom in/out 체감 개선)
+//   · L-closeview1:  dong 3→4 (250m 뷰에서 1 chip 만 뜨는 문제 — 개별 마커로)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 'use client';
@@ -636,10 +641,13 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
         return;
       }
 
-      // ── 읍/면/동 (level 3~6) — L-naverstyle5 (2026-04-24 pm) ─────────
-      //   네이버 부동산 동 단위 뷰에 해당.  viewport 내 동만 렌더 + 밀도 상한으로
-      //   시각 과부하 방지.  level 3 포함 (사용자 250m scale 에서도 동 chip 유지).
-      if (level >= 3) {
+      // ── 읍/면/동 (level 4~7) — L-naverstyle5 + L-granularity1 + L-closeview1 (2026-04-24 pm) ─
+      //   네이버 부동산 동 단위 뷰.  viewport 내 동만 렌더 + 밀도 상한으로
+      //   시각 과부하 방지.
+      //   L-closeview1: 경계 3 → 4.  level 3 (250m) 은 viewport 가 동 1개에
+      //   꽉 차서 "역삼1동 347" chip 하나만 뜨는 문제가 있어 HtmlMarkerOverlay
+      //   (개별 원·pill) 에게 넘김.
+      if (level >= 4) {
         const data = await loadDong();
         if (!stillOwner() || !data?.features) return;
         const bounds = typeof mapInst.getBounds === 'function' ? mapInst.getBounds() : null;

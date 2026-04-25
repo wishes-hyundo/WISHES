@@ -263,13 +263,19 @@ export default function HtmlMarkerOverlay({
         : (filterSet ? listings.filter((l) => filterSet.has(l.id)) : listings);
       if (visibleListings.length === 0 && !filterSet) return;
 
-      // L-adminpoly1 + L-chipexclusive1 + L-naverstyle5 (2026-04-24 pm):
+      // L-adminpoly1 + L-chipexclusive1 + L-naverstyle5 + L-granularity1 +
+      // L-closeview1 (2026-04-24 pm):
       //   네이버 4단계 행정구역 체계.  AdminRegionOverlay 가 다음을 담당:
-      //     · level ≥ 10 : 시/도 chip (17 개)
-      //     · level 7~9  : 시/군/구 chip (~250 개)
-      //     · level 3~6  : 읍/면/동 chip (~3500 개, viewport filter + top 25)
-      //   HtmlMarkerOverlay 는 level ≤ 2 (최대 근거리) 에서만 활성화 → 단지 pill + 개별.
-      if (level >= 3) return;
+      //     · level ≥ 11 : 시/도 chip (17 개)
+      //     · level 8~10 : 시/군/구 chip (~250 개)
+      //     · level 4~7  : 읍/면/동 chip (~3500 개, viewport filter + top 25)
+      //   HtmlMarkerOverlay 는 level ≤ 3 (근거리) 에서 활성화 → 단지 pill + 개별 원.
+      //
+      // L-closeview1: 경계를 2 → 3 으로 확장.  이전에는 level 3 (250m) 에서
+      //   동 chip 만 뜨는데, viewport 가 한 동 안에 완전히 들어가면 "역삼1동
+      //   347" 같은 큰 chip 하나만 보였다 (사용자 피드백 "더 엉망진창").
+      //   250m 는 개별 건물·단지 마커가 훨씬 직관적인 줌 수준.
+      if (level >= 4) return;
 
       // ━━ L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 우선 경로 ━━
       //   serverClusters 가 제공되면 클라이언트 grid 클러스터링을 완전히 건너뛰고
@@ -277,12 +283,13 @@ export default function HtmlMarkerOverlay({
       //   지도 마커는 /api/map/clusters 의 pre-aggregated 결과로만 그림.
       // L-clusterexact1 (2026-04-24 pm): filterSet 이 활성화되면 서버 경로 skip →
       //   grid 경로에서 정확한 visibleListings 만 렌더.
-      // L-naverstyle7 (2026-04-24 pm): 격자 배치 제거.  serverClusters (H3/Quadkey 셀 중심) 을
-      //   level <= 2 근거리 뷰에서 그대로 쓰면 시각적으로 격자 배치가 된다.  근거리는
-      //   client-side bucketListings (building_name / dong+type centroid) 으로 대체.
-      //   line 272 `if (level >= 3) return;` 때문에 level > 2 조건은 실효상 false 지만
-      //   의도를 명시.
-      if (level > 2 && !filterSet && Array.isArray(serverClusters) && serverClusters.length > 0) {
+      // L-naverstyle7 + L-closeview1 (2026-04-24 pm): 격자 배치 제거.
+      //   serverClusters (H3/Quadkey 셀 중심) 을 근거리 뷰에서 그대로 쓰면
+      //   시각적 격자 배치가 됨 → client-side bucketListings (building_name /
+      //   dong+type centroid) 으로 대체.
+      //   상단 `if (level >= 4) return;` 때문에 이 블록은 사실상 dead path 지만
+      //   향후 level 정책 변경 시 보호 차원에서 명시적 가드 유지.
+      if (level > 3 && !filterSet && Array.isArray(serverClusters) && serverClusters.length > 0) {
         // 개별(count===1) 은 sample_ids 로 listing id 추론 가능.
         const listingById = new Map<number, MapListing>();
         for (const l of listings) listingById.set(l.id, l);
@@ -398,8 +405,9 @@ export default function HtmlMarkerOverlay({
         : visibleListings.filter((l) => listingCategory(l.type) === category);
       if (filtered.length === 0) return;
 
-      // L-naverstyle5: 근거리 (level ≤ 2) 에서만 단지 pill — level 3 이상은 AdminRegionOverlay 동 chip.
-      const usePill = level <= 2;
+      // L-naverstyle5 + L-closeview1: 근거리 (level ≤ 3) 에서 단지 pill/circle.
+      //   level 4 이상은 AdminRegionOverlay 동 chip 담당.
+      const usePill = level <= 3;
       let tier1Groups: ReturnType<typeof bucketListings>['tier1Groups'] = [];
       let rest: MapListing[] = filtered;
       if (usePill) {
