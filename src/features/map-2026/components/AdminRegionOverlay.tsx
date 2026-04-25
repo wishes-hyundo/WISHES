@@ -462,15 +462,73 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'sigungu') {
+        // L-naver-multi1 (2026-04-26): 네이버 sigungu 줌 = outline + 그 안 모든 법정동 동시 표시.
+        //   사용자 피드백: 위시스는 sigungu 폴리곤만 → 동 hover/클릭 안 됨.
+        //   네이버: 관악구 안에 신림동·봉천동·남현동 3개 light pink + 마우스 위 동 짙어짐.
         if (!sigData?.features) return;
-        const feat = findFeatureAt(sigData.features, lat, lng);
-        if (!feat) return;
-        const sigName = String((feat.properties as { name?: string }).name ?? '').trim();
-        const key = `sig:${parentSido}:${sigName}`;
+        const sigFeat = findFeatureAt(sigData.features, lat, lng);
+        if (!sigFeat) return;
+        const sigName = String((sigFeat.properties as { name?: string }).name ?? '').trim();
+        const sigLabel = parentSido ? `${parentSido} ${sigName}` : sigName;
+
+        // dongData 사용해서 그 sigungu 의 법정동 그룹 만들기
+        let hoveredLegalName: string | null = null;
+        const legalGroups: Map<string, GeoFeature[]> = new Map();
+        if (dongData?.features) {
+          // 마우스 위치의 dong 찾아 hovered legalName 결정
+          const hoverDong = findFeatureAt(dongData.features, lat, lng);
+          if (hoverDong) {
+            const hd = String((hoverDong.properties as { name?: string }).name ?? '').trim();
+            // 부모 sigungu 안에 있는지 확인 (동명 중복 방지)
+            const hgeom = hoverDong.geometry;
+            const hfp = hgeom.type === 'Polygon'
+              ? (hgeom.coordinates as number[][][])[0]?.[0]
+              : (hgeom.coordinates as number[][][][])[0]?.[0]?.[0];
+            const hokInside = hfp ? pointInFeature(hfp[1], hfp[0], sigFeat) : false;
+            if (hokInside) hoveredLegalName = adminToLegalDong(hd, sigName);
+          }
+          // 모든 dong feature 를 sigungu 안에 있는지 + 법정동으로 그룹화
+          for (const f of dongData.features) {
+            const n = String((f.properties as { name?: string }).name ?? '').trim();
+            if (!n) continue;
+            const geom = f.geometry;
+            const firstPt = geom.type === 'Polygon'
+              ? (geom.coordinates as number[][][])[0]?.[0]
+              : (geom.coordinates as number[][][][])[0]?.[0]?.[0];
+            if (!firstPt) continue;
+            if (!pointInFeature(firstPt[1], firstPt[0], sigFeat)) continue;
+            const lname = adminToLegalDong(n, sigName);
+            if (!legalGroups.has(lname)) legalGroups.set(lname, []);
+            legalGroups.get(lname)!.push(f);
+          }
+        }
+
+        const key = `sig-multi:${parentSido}:${sigName}:hov=${hoveredLegalName ?? ''}:n=${legalGroups.size}`;
         if (key === currentKey && currentLevelMode === mode) return;
         cleanup();
-        const labelText = parentSido ? `${parentSido} ${sigName}` : sigName;
-        drawRegion([feat], labelText, 'sigungu');
+
+        // 1) sigungu outline (외곽 stroke 만 진하게, fill 거의 없음)
+        drawRegion([sigFeat], sigLabel, 'sigungu', {
+          fillOpacityOverride: 0.03,
+          strokeOpacityOverride: 0.7,
+          strokeWeightOverride: 2,
+          clickable: false,           // 동이 위에 있으니 sigungu 클릭 막음
+          isBackdrop: !!hoveredLegalName, // hover 한 동 있으면 sigungu 툴팁 안 띄움
+        });
+
+        // 2) 각 법정동 그룹 (light fill, 호버된 동만 짙게)
+        if (legalGroups.size > 0) {
+          for (const [legalName, feats] of legalGroups) {
+            const isHovered = legalName === hoveredLegalName;
+            const dongLabel = `${sigLabel} ${legalName}`;
+            drawRegion(feats, dongLabel, 'dong', {
+              fillOpacityOverride: isHovered ? 0.28 : 0.10,
+              strokeOpacityOverride: 0,        // inner border 숨김
+              clickable: true,                  // 동 클릭 → 줌인
+              isBackdrop: !isHovered,           // hover 동만 툴팁
+            });
+          }
+        }
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'dong') {
