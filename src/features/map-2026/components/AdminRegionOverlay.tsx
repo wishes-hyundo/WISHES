@@ -306,17 +306,18 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
       const onClick = () => {
         lastClickAt = Date.now();
-        // 1. 클릭 피드백 — 잠깐 폴리곤 진하게
-        for (const p of drawnPolys) {
-          try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0.30, strokeOpacity: 0.95 }); } catch {/*noop*/}
-        }
-        // 2. 부드러운 panTo (애니메이션)
+        // L-naver-click2 (2026-04-26 night): 클릭 즉시 폴리곤 cleanup → stuck 방지.
+        //   이전: 클릭 flash 가 남아 cleanup 안 됨. 이제 즉시 invisible + cleanup.
+        cleanup();
+        currentKey = '';
+        currentLevelMode = 'none';
+        // 부드러운 panTo (애니메이션)
         try {
           if (centroid && typeof mapInst.panTo === 'function') {
             mapInst.panTo(new maps.LatLng(centroid.lat, centroid.lng));
           }
         } catch { /*noop*/ }
-        // 3. 부드러운 줌 (panTo 와 살짝 겹쳐 시작)
+        // 부드러운 줌 (panTo 와 살짝 겹쳐 시작)
         setTimeout(() => {
           try {
             if (typeof mapInst.setLevel !== 'function') return;
@@ -325,6 +326,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             try { (mapInst.setLevel as (n: number) => void)(targetLevel); } catch {/*noop*/}
           }
         }, 60);
+        // 새 폴리곤은 zoom_changed/idle 이벤트로 자동 재렌더 (mousemove 도 가능)
         onClickRegion?.(labelText);
       };
 
