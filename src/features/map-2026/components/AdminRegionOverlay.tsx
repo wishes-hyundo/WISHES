@@ -221,45 +221,8 @@ function multiFeatureBbox(feats: GeoFeature[]): { west: number; south: number; e
   return { west: minLng, south: minLat, east: maxLng, north: maxLat };
 }
 
-function multiFeatureCentroid(feats: GeoFeature[]): { lat: number; lng: number } | null {
-  let lng = 0, lat = 0, n = 0;
-  for (const f of feats) {
-    const geom = f.geometry;
-    const paths: number[][][][] = geom.type === 'Polygon'
-      ? [geom.coordinates as number[][][]]
-      : geom.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]) : [];
-    for (const poly of paths) {
-      const outer = poly[0];
-      if (!outer) continue;
-      for (const [x, y] of outer) { lng += x; lat += y; n++; }
-    }
-  }
-  if (n === 0) return null;
-  return { lat: lat / n, lng: lng / n };
-}
-
-/** 깔끔한 라벨 — 화이트 pill, 이모지 없음, 작은 폰트 */
-function makeRegionLabel(text: string): HTMLDivElement {
-  const wrapper = document.createElement('div');
-  wrapper.style.cssText = [
-    'display:inline-block',
-    'padding:5px 10px',
-    'background:rgba(255,255,255,0.97)',
-    'border:1px solid rgba(0,0,0,0.08)',
-    'border-radius:14px',
-    'box-shadow:0 1px 4px rgba(0,0,0,0.12)',
-    'font-size:12px',
-    'font-weight:600',
-    'color:#1a1a1a',
-    'white-space:nowrap',
-    'pointer-events:none',
-    'user-select:none',
-    'letter-spacing:-0.2px',
-    'font-family:inherit',
-  ].join(';');
-  wrapper.textContent = text;
-  return wrapper;
-}
+// L-naver-tooltip2 (2026-04-26): centroid label 제거 — 마우스 커서 따라가는 툴팁으로 대체.
+//   makeRegionLabel + multiFeatureCentroid 함수 사용처 없음 → 삭제.
 
 interface Props {
   map: unknown;
@@ -289,11 +252,48 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         const node = typeof mapInst.getNode === 'function' ? mapInst.getNode() : undefined;
         if (node) node.style.cursor = '';
       } catch { /*noop*/ }
+      // L-naver-tooltip2 (2026-04-26): 폴리곤 사라지면 툴팁도 사라짐.
+      currentTooltipText = '';
     };
 
     let currentKey = '';        // 현재 표시 중인 폴리곤 key (e.g., "서울특별시", "관악구", "서초동")
     let currentLevelMode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
     let lastClickAt = 0;
+    let currentTooltipText = '';
+
+    // L-naver-tooltip1 (2026-04-26): 마우스 커서 따라가는 툴팁 (네이버 hover 스타일).
+    //   centroid label 이 폴리곤 클릭 영역 가리는 문제 해결 + 시각적으로 깔끔.
+    const tooltipEl = document.createElement('div');
+    tooltipEl.style.cssText = [
+      'position:fixed',
+      'pointer-events:none',
+      'user-select:none',
+      'padding:5px 10px',
+      'background:rgba(255,255,255,0.97)',
+      'border:1px solid rgba(0,0,0,0.08)',
+      'border-radius:14px',
+      'box-shadow:0 1px 4px rgba(0,0,0,0.12)',
+      'font-size:12px',
+      'font-weight:600',
+      'color:#1a1a1a',
+      'white-space:nowrap',
+      'letter-spacing:-0.2px',
+      'z-index:9999',
+      'display:none',
+      'transform:translate(12px,12px)',  // 커서 우하단 12px 떨어진 위치
+    ].join(';');
+    document.body.appendChild(tooltipEl);
+    const updateTooltipPosition = (e: MouseEvent) => {
+      if (currentTooltipText) {
+        tooltipEl.textContent = currentTooltipText;
+        tooltipEl.style.left = `${e.clientX}px`;
+        tooltipEl.style.top = `${e.clientY}px`;
+        tooltipEl.style.display = 'inline-block';
+      } else {
+        tooltipEl.style.display = 'none';
+      }
+    };
+    document.addEventListener('mousemove', updateTooltipPosition);
 
     /** 단일/다중 features → 1 시각 영역 (라벨 1개) */
     const drawRegion = (feats: GeoFeature[], labelText: string, mode: 'sido' | 'sigungu' | 'dong') => {
@@ -369,23 +369,10 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           } catch { /*noop*/ }
         }
       }
-      // 라벨 1개 (그룹 centroid)
-      const centroid = multiFeatureCentroid(feats);
-      if (centroid && labelText) {
-        try {
-          const label = makeRegionLabel(labelText);
-          const overlay = new maps.CustomOverlay({
-            position: new maps.LatLng(centroid.lat, centroid.lng),
-            content: label,
-            xAnchor: 0.5,
-            yAnchor: 0.5,
-            zIndex: 50,
-            clickable: false,
-          });
-          overlay.setMap(map);
-          overlaysRef.current.push(overlay);
-        } catch { /*noop*/ }
-      }
+      // L-naver-tooltip1 (2026-04-26): 라벨을 폴리곤 centroid 가 아닌 마우스 커서 따라가는
+      //   툴팁으로 변경.  centroid label 이 폴리곤 클릭 영역을 가려 클릭 무반응 문제 해결.
+      //   사용자 요청 — 네이버처럼 hover 시 커서 옆에 심플하게 표시.
+      currentTooltipText = labelText;
     };
 
     /** 마우스 위치(또는 viewport 중심) 좌표를 받아 폴리곤 갱신 */
@@ -506,27 +493,4 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (maps.event.removeListener) {
           maps.event.removeListener(mapInst as unknown, 'mousemove', onMouseMove);
           maps.event.removeListener(mapInst as unknown, 'idle', onIdle);
-          maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
-        }
-      } catch { /*noop*/ }
-      cleanup();
-    };
-  }, [map, onClickRegion]);
-
-  // sigungu + dong 캐시 warm-up
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const id = (typeof window.requestIdleCallback === 'function')
-      ? window.requestIdleCallback(() => { void loadSigungu(); void loadDong(); })
-      : window.setTimeout(() => { void loadSigungu(); void loadDong(); }, 2000);
-    return () => {
-      if (typeof window.requestIdleCallback === 'function' && typeof window.cancelIdleCallback === 'function') {
-        window.cancelIdleCallback(id as number);
-      } else {
-        clearTimeout(id as number);
-      }
-    };
-  }, []);
-
-  return null;
-}
+          maps.event.removeListener(mapInst as 
