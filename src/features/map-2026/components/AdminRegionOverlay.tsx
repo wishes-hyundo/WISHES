@@ -409,14 +409,14 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     const updateAt = async (lat: number, lng: number) => {
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
       let mode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
-      // L-naver-zoom6 (2026-04-26): 사용자 네이버 z13 비교 — z13 = 시군구 (관악구 전체 보임).
-      //   WISHES kakao level 7 ≈ 네이버 z13. 이전 매핑 (level 7 = dong) 은 한 단계 너무 zoom-in.
+      // L-naver-zoom7 (2026-04-26): 사용자 라이브 비교 2회차 — 더 zoom-out 으로 sigungu 확장.
+      //   네이버 z13 광역 = 관악구 전체 (sigungu).  WISHES level 6 (사용자 view) 도 sigungu 여야 함.
       //   sido: level >= 13 (z7-)
-      //   sigungu: level 7~12 (z8~z13) — 네이버 광역 시군구 클릭 결과
-      //   dong: level 4~6 (z14~z16) — 네이버 동 hover/클릭 단계
+      //   sigungu: level 6~12 (z8~z14) — 광역 + 시군구 zoom 까지 sigungu polygon
+      //   dong: level 4~5 (z15~z16) — 가까운 줌에서만 dong dual layer
       //   markers: level 1~3 (z17~z19)
       if (level >= 13) mode = 'sido';
-      else if (level >= 7) mode = 'sigungu';
+      else if (level >= 6) mode = 'sigungu';
       else if (level >= 4) mode = 'dong';
       // level ≤ 4: 마커만, 폴리곤 클리어
       if (mode === 'none') {
@@ -487,9 +487,25 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         const key = `dong:${parentSido}:${parentSig}:${legalName}`;
         if (key === currentKey && currentLevelMode === mode) return;
         // 같은 법정동 모든 행정동 묶기 (신원동·서원동·대학동 → 신림동 한 덩어리)
+        // L-naver-legal2 (2026-04-26): 동명 중복 시군구 필터.
+        //   '중앙동' 이 관악구·동작구·성북구 등 여러 곳에 있어 단순 이름 매칭 시
+        //   봉천동 polygon 이 동작구까지 확장되는 버그.  feature 가 부모 sigungu polygon
+        //   안에 있는지 확인 (centroid point-in-polygon).
         const groupFeats = dongData.features.filter((f) => {
           const n = String((f.properties as { name?: string }).name ?? '').trim();
-          return adminToLegalDong(n, parentSig) === legalName;
+          if (adminToLegalDong(n, parentSig) !== legalName) return false;
+          if (sigParentFeat) {
+            // feature 의 첫 번째 좌표를 centroid 대용으로 사용 (cheap heuristic)
+            const geom = f.geometry;
+            const firstPt = geom.type === 'Polygon'
+              ? (geom.coordinates as number[][][])[0]?.[0]
+              : (geom.coordinates as number[][][][])[0]?.[0]?.[0];
+            if (firstPt) {
+              const [flng, flat] = firstPt;
+              if (!pointInFeature(flat, flng, sigParentFeat)) return false;
+            }
+          }
+          return true;
         });
         cleanup();
         // L-naver-dual1: backdrop 시군구 (light) → 그 위에 dong foreground (darker).
@@ -572,4 +588,3 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
   return null;
 }
- 
