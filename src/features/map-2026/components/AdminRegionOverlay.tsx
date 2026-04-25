@@ -297,10 +297,11 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
     /** 단일/다중 features → 1 시각 영역 (라벨 1개) */
     const drawRegion = (feats: GeoFeature[], labelText: string, mode: 'sido' | 'sigungu' | 'dong') => {
-      // L-naver-click4 (2026-04-26 night): 클릭 시 너무 깊이 줌인되어 매물이 시야 밖으로
-      //   나가는 문제 해결.  dong 클릭 → level 4 (z16, ~200m 시야) 로 변경.
-      //   sido(level 12+) → 10, sigungu(8~11) → 6, dong(5~7) → 4.
-      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 6 : 4;
+      // L-naver-zoom3: 클릭 시 다음 단계로 이동 (viewport 보정 후).
+      //   sido(12+) → 10 (z10, sigungu)
+      //   sigungu(8~11) → 6 (z14, dong, level 6 = dong zone start)
+      //   dong(6~7) → 5 (z15, markers + 250m viewport)
+      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 6 : 5;
 
       const onClick = () => {
         lastClickAt = Date.now();
@@ -387,15 +388,17 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     const updateAt = async (lat: number, lng: number) => {
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
       let mode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
-      // L-naver-zoom2 (2026-04-26 night): 정밀 검수 후 1단계 보정 (zoom = 20 - level).
-      //   Naver z9~z12 (Kakao level 8~11): 시군구 폴리곤
-      //   Naver z13~z15 (Kakao level 5~7): 동 폴리곤
-      //   Naver z16~z19 (Kakao level 1~4): 매물 마커
-      //   level 12+ (z8+): 시도 폴리곤
+      // L-naver-zoom3 (2026-04-26 night): viewport 보정 — 마커 영역 1단계 확장.
+      //   Kakao viewport 가 같은 z 라벨에서 Naver 보다 좁아서 z16 (level 4) 에서
+      //   매물이 거의 안 보임.  마커 시작을 z15 (level 5) 부터로 변경.
+      //   sido: level 12+ (z8+)
+      //   sigungu: level 8~11 (z9~z12)
+      //   dong: level 6~7 (z13~z14만)
+      //   markers: level 1~5 (z15~z19, viewport 250m 이상에서 마커 표시)
       if (level >= 12) mode = 'sido';
       else if (level >= 8) mode = 'sigungu';
-      else if (level >= 5) mode = 'dong';
-      // level ≤ 4: 마커만, 폴리곤 클리어
+      else if (level >= 6) mode = 'dong';
+      // level ≤ 5: 마커만, 폴리곤 클리어
       if (mode === 'none') {
         if (currentKey !== '' || currentLevelMode !== 'none') {
           cleanup();
