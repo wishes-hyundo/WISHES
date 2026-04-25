@@ -48,10 +48,25 @@ function buildQs(
   p.set('neLat', bbox.north.toFixed(6));
   p.set('neLng', bbox.east.toFixed(6));
   p.set('zoom', String(zoom));
-  // L-filtercluster1 (2026-04-24 pm): viewport 와 동일한 전체 필터 셋 전파.
+  // L-filtercluster1 (2026-04-24 pm) + L-clustercat1 (2026-04-26):
+  //   viewport 동일 필터 + 카테고리 → types 자동 매핑.
+  //   사용자 피드백 "주거↔상가 변경 시 마커 카운트 동일" 해결.
+  //   propertyTypes 가 명시 안 됐으면 카테고리에 해당하는 default types 사용.
   const deals = dealsToParam(filter.deals);
   if (deals) p.set('deals', deals);
-  if (filter.propertyTypes.length > 0) p.set('types', filter.propertyTypes.join(','));
+  let types = filter.propertyTypes;
+  if (types.length === 0) {
+    // 카테고리별 default types
+    if (filter.category === 'residence') {
+      types = ['아파트','오피스텔','원룸','투룸','쓰리룸','빌라','주택','단독주택','다가구주택','다세대주택','연립주택','쉐어하우스','고시원','단기'];
+    } else if (filter.category === 'retail_office') {
+      types = ['상가','사무실','지식산업센터','복합건물','상가주택','사무용','오피스','점포','근생'];
+    } else if (filter.category === 'land') {
+      types = ['토지','대지','임야','전','답','과수원'];
+    }
+    // 'investment' 는 cross-cutting → 필터 미적용 (전부 표시)
+  }
+  if (types.length > 0) p.set('types', types.join(','));
   if (filter.minPrice != null) p.set('minPrice', String(filter.minPrice));
   if (filter.maxPrice != null) p.set('maxPrice', String(filter.maxPrice));
   if (filter.minDeposit != null) p.set('minDeposit', String(filter.minDeposit));

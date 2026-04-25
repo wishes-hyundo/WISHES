@@ -393,22 +393,34 @@ function featureIntersectsBbox(
  *  · padding 2~4px 로 숫자만 들어가는 정사각 박스가 아닌 자연스러운 원형
  *  · 위시스 그린 (#006241) 채움으로 브랜드 일관성 유지 (네이버는 파란색) */
 function makeRegionCountChip(name: string, count: number): HTMLDivElement {
-  const el = document.createElement('div');
-  // L-tooltip1 (2026-04-26): 마커 hover 시 동/구/시도 이름 tooltip 표시.
-  //   사용자 피드백 "동/구 제대로 인지 못함" 해결.  마커 시각은 깔끔 유지하되
-  //   호버로 즉시 위치 정보 제공.
-  if (name) el.title = `${name} (${count.toLocaleString()})`;
-  // L-naversize1 + L-mobile1 (2026-04-26): 카운트별 사이즈 + 모바일 반응형
-  //   데스크톱: 32/40/52/68/80   모바일(<768): 24/30/40/52/62
+  // L-naverlabel1 (2026-04-26): 네이버 스타일 wrapper.
+  //   wrapper 안에 (1) 영역 이름 라벨 + (2) 원형 카운트 마커 함께 표시.
+  //   사용자 피드백 "동/구 제대로 인지 못함" 해결 — tooltip 만으로는 부족.
+  //   네이버는 폴리곤마다 "서울시 관악구 신림동" 같은 라벨을 항상 표시.
+  const wrapper = document.createElement('div');
+  wrapper.style.cssText = [
+    'display:flex',
+    'flex-direction:column',
+    'align-items:center',
+    'gap:3px',
+    'cursor:pointer',
+    'user-select:none',
+    'pointer-events:auto',
+  ].join(';');
+  if (name) wrapper.title = `${name} (${count.toLocaleString()})`;
+
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  // 사이즈 spread (네이버 스타일)
   const size = isMobile
     ? (count >= 5000 ? 62 : count >= 1000 ? 52 : count >= 100 ? 40 : count >= 10 ? 30 : 24)
     : (count >= 5000 ? 80 : count >= 1000 ? 68 : count >= 100 ? 52 : count >= 10 ? 40 : 32);
   const fontSize = isMobile
     ? (count >= 5000 ? 13 : count >= 1000 ? 12 : count >= 100 ? 11 : count >= 10 ? 11 : 10)
     : (count >= 5000 ? 16 : count >= 1000 ? 15 : count >= 100 ? 14 : count >= 10 ? 13 : 12);
-  // L-noborder1 (2026-04-26): 테두리 제거.  사용자 명시 요청.
-  el.style.cssText = [
+
+  // (1) 원형 카운트 마커 — 위시스 그린, 테두리 없음
+  const circle = document.createElement('div');
+  circle.style.cssText = [
     'display:inline-flex',
     'align-items:center',
     'justify-content:center',
@@ -422,20 +434,39 @@ function makeRegionCountChip(name: string, count: number): HTMLDivElement {
     `font-size:${fontSize}px`,
     'font-weight:800',
     'letter-spacing:-0.3px',
-    'cursor:pointer',
-    'user-select:none',
     'font-family:inherit',
-    'pointer-events:auto',
     'transition:transform 150ms ease',
   ].join(';');
-  el.textContent = count >= 10000
+  circle.textContent = count >= 10000
     ? `${Math.floor(count / 1000)}k`
     : count >= 1000
       ? `${(Math.floor(count / 100) / 10).toFixed(1)}k`
       : String(count);
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.1)'; });
-  el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
-  return el;
+  wrapper.appendChild(circle);
+
+  // (2) 영역 이름 라벨 — 흰 배경 + 작은 글씨 (네이버 스타일)
+  if (name) {
+    const label = document.createElement('div');
+    label.textContent = name;
+    label.style.cssText = [
+      'background:rgba(255,255,255,0.95)',
+      'color:#1a1a1a',
+      `padding:${isMobile ? '2px 6px' : '3px 8px'}`,
+      'border-radius:6px',
+      `font-size:${isMobile ? '10.5px' : '11.5px'}`,
+      'font-weight:700',
+      'letter-spacing:-0.2px',
+      'box-shadow:0 1px 4px rgba(0,0,0,0.18)',
+      'white-space:nowrap',
+      'font-family:inherit',
+      'border:1px solid rgba(220,38,38,0.35)',
+    ].join(';');
+    wrapper.appendChild(label);
+  }
+
+  wrapper.addEventListener('mouseenter', () => { circle.style.transform = 'scale(1.1)'; });
+  wrapper.addEventListener('mouseleave', () => { circle.style.transform = 'scale(1)'; });
+  return wrapper;
 }
 
 /** polygon path 평균으로 centroid 근사 */
@@ -641,15 +672,16 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           onClickRegion?.(displayName);
         });
         try {
-          // L-zorder1 (2026-04-26): zIndex 를 count 에 비례.  큰 마커가 작은
-          //   마커 위에 올라가야 가독성 ↑ (네이버 동작 일치).
+          // L-zorder1 + L-naverlabel1 (2026-04-26):
+          //   wrapper [원형, 라벨] 두 개 child — 원형이 polygon centroid 에 오도록
+          //   yAnchor 를 ~0.36 으로 조정 (전체 wrapper 의 약 1/3 지점).
           const zBase = 12;
           const zBoost = count >= 1000 ? 6 : count >= 100 ? 4 : count >= 10 ? 2 : 0;
           const ov = new maps.CustomOverlay({
             position: new maps.LatLng(centroid.lat, centroid.lng),
             content: chip,
             xAnchor: 0.5,
-            yAnchor: 0.5,
+            yAnchor: 0.36,
             zIndex: zBase + zBoost,
             clickable: true,
           });
