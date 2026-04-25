@@ -15,7 +15,11 @@ import { dealsToParam } from '../lib/priceFormat';
 //   없이 session 을 가져올 수 있다.
 import { createAuthClient } from '@/lib/supabase';
 
-const MAX_VIEWPORT_DEG = 2;
+// L-nolimit1 (2026-04-26): bbox 가 동 단위 (≤ 0.3°) 이하일 때만 listings fetch.
+//   광역 뷰 (구/시도) 에선 마커는 serverClusters 로 충분, 카드는 의미 없음.
+//   사이드바 총합은 categoryCounts (서버 정확 집계) 으로 표시됨.
+//   동 단위 viewport 안에서는 매물 수가 자연스럽게 적어 limit 불필요.
+const MAX_VIEWPORT_DEG = 0.3;
 
 function isValidBbox(b: { west: number; south: number; east: number; north: number }): boolean {
   if (![b.west, b.south, b.east, b.north].every(Number.isFinite)) return false;
@@ -28,14 +32,12 @@ function isValidBbox(b: { west: number; south: number; east: number; north: numb
 function buildQueryString(
   bbox: NonNullable<ReturnType<typeof useMap2026Store.getState>['bbox']>,
   filter: FilterState,
-  // L-viewport1 (2026-04-23): 6000+ 매물 전부 수신을 위해 800 → 3000.
-  // L-viewport2 (2026-04-23 p.m.): DB 실측 mv_visible=6179 → 3000 cap 으로 여전히
-  //   절반 넘게 잘려 ListPanel 카운트가 "3,000개" 로 고정되어 있었다.
-  // L-viewport3 (2026-04-24 pm): 10000 → 4000 으로 하향.
-  //   매 pan/zoom 마다 6000+ row payload(~3~5MB) 가 매번 왕복해 체감 로딩
-  //   속도가 느렸음.  4000 이면 수도권 포함 대부분 bbox 커버 + payload ~2MB.
-  //   서버 count 는 별도 메타로 오고 ListPanel 상단 "N개 매물" 은 count 값 사용.
-  limit = 4000
+  // L-nolimit1 (2026-04-26): limit 제거.  bbox 가 ≤ 0.3° 일 때만 listings 를
+  //   fetch 하므로 (위 isValidBbox), 동 단위 viewport 에서는 자연스럽게 매물
+  //   수가 수백~수천 단위.  넓은 viewport 에선 fetch 자체가 차단됨.
+  //   사이드바 총합은 categoryCounts (서버 정확 집계) 으로 표시.
+  //   10만 매물 추가되어도 동 단위 viewport 안에는 일부만 들어옴.
+  limit = 100000
 ) {
   const p = new URLSearchParams();
   p.set('west', bbox.west.toFixed(6));

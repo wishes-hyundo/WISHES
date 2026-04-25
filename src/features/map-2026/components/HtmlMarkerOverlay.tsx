@@ -305,8 +305,11 @@ export default function HtmlMarkerOverlay({
             : null;
           const single = singleId != null ? listingById.get(singleId) : undefined;
           const selected = singleId != null && selectedListingId === singleId;
-          // L-naversize1 (2026-04-26): 사이즈 차이 확장 — 네이버처럼 큰 카운트가 시각적 임팩트
-const size = count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count >= 10 ? 40 : count >= 2 ? 34 : 30;
+          // L-naversize1 + L-mobile1 (2026-04-26): 사이즈 + 모바일 반응형
+const _isMobile1 = typeof window !== 'undefined' && window.innerWidth < 768;
+const size = _isMobile1
+  ? (count >= 1000 ? 56 : count >= 500 ? 48 : count >= 100 ? 40 : count >= 10 ? 32 : count >= 2 ? 28 : 24)
+  : (count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count >= 10 ? 40 : count >= 2 ? 34 : 30);
           const el = makeCircleElement({ count, selected, size });
           // L-clusterexact1 (2026-04-24 pm): dblclick 시 지도가 가로채 zoom 하는
           //   Kakao 기본 동작 차단.  마커 DOM 에서 mousedown 도 stop 해야 함.
@@ -434,8 +437,11 @@ const size = count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count 
         const selected =
           selectedListingId != null && g.listings.some((l) => l.id === selectedListingId);
         const isBuildingPill = g.key.startsWith('b:');
-        // L-naversize1: 큰 카운트가 시각적 임팩트
-        const size = g.count >= 1000 ? 72 : g.count >= 500 ? 60 : g.count >= 100 ? 50 : g.count >= 10 ? 40 : g.count >= 2 ? 34 : 30;
+        // L-naversize1 + L-mobile1: 사이즈 + 모바일 반응형
+        const _isMobileT1 = typeof window !== 'undefined' && window.innerWidth < 768;
+        const size = _isMobileT1
+          ? (g.count >= 1000 ? 56 : g.count >= 500 ? 48 : g.count >= 100 ? 40 : g.count >= 10 ? 32 : g.count >= 2 ? 28 : 24)
+          : (g.count >= 1000 ? 72 : g.count >= 500 ? 60 : g.count >= 100 ? 50 : g.count >= 10 ? 40 : g.count >= 2 ? 34 : 30);
         const el = makeCircleElement({ count: g.count, selected, size });
         // L-clickfix1 (2026-04-25): mousedown/dblclick 잡아 Kakao 기본 더블클릭
         //   zoom 이 클릭을 가로채는 문제 차단.
@@ -544,8 +550,11 @@ const size = count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count 
         // L-mapmarker2c: 개별/클러스터 모두 카운트 원으로 통일.
         //   사용자 피드백 (네이버 벤치마크): 가격 노출은 경쟁·직거래 리스크.
         //   주소 정확한 위치 표기 금지 — 카운트만 보여주고 최대확대에서도 건물 단위 묶음.
-        // L-naversize1 (2026-04-26): 사이즈 차이 확장 — 네이버처럼 큰 카운트가 시각적 임팩트
-const size = count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count >= 10 ? 40 : count >= 2 ? 34 : 30;
+        // L-naversize1 + L-mobile1 (2026-04-26): 사이즈 + 모바일 반응형
+const _isMobile1 = typeof window !== 'undefined' && window.innerWidth < 768;
+const size = _isMobile1
+  ? (count >= 1000 ? 56 : count >= 500 ? 48 : count >= 100 ? 40 : count >= 10 ? 32 : count >= 2 ? 28 : 24)
+  : (count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count >= 10 ? 40 : count >= 2 ? 34 : 30);
         const el = makeCircleElement({ count, selected, size });
         const clickHandler = (e: Event) => {
           e.stopPropagation();

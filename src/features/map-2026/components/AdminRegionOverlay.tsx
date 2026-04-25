@@ -393,12 +393,15 @@ function featureIntersectsBbox(
  *  · 위시스 그린 (#006241) 채움으로 브랜드 일관성 유지 (네이버는 파란색) */
 function makeRegionCountChip(_name: string, count: number): HTMLDivElement {
   const el = document.createElement('div');
-  // L-naversize1 (2026-04-26): 네이버 스타일 — 카운트 크기 차이를 더 분명히.
-  //   기존 36/42/48/56 (16px 차) → 32/40/52/68/80 (48px 차)
-  //   사용자 피드백 "네이버처럼 큰 카운트가 시각적으로 두드러져야".
-  //   1k+ 는 80px (네이버 큰 마커와 유사), 100+ 52px, 10+ 40px, 단일 32px
-  const size = count >= 5000 ? 80 : count >= 1000 ? 68 : count >= 100 ? 52 : count >= 10 ? 40 : 32;
-  const fontSize = count >= 5000 ? 16 : count >= 1000 ? 15 : count >= 100 ? 14 : count >= 10 ? 13 : 12;
+  // L-naversize1 + L-mobile1 (2026-04-26): 카운트별 사이즈 + 모바일 반응형
+  //   데스크톱: 32/40/52/68/80   모바일(<768): 24/30/40/52/62
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const size = isMobile
+    ? (count >= 5000 ? 62 : count >= 1000 ? 52 : count >= 100 ? 40 : count >= 10 ? 30 : 24)
+    : (count >= 5000 ? 80 : count >= 1000 ? 68 : count >= 100 ? 52 : count >= 10 ? 40 : 32);
+  const fontSize = isMobile
+    ? (count >= 5000 ? 13 : count >= 1000 ? 12 : count >= 100 ? 11 : count >= 10 ? 11 : 10)
+    : (count >= 5000 ? 16 : count >= 1000 ? 15 : count >= 100 ? 14 : count >= 10 ? 13 : 12);
   el.style.cssText = [
     'display:inline-flex',
     'align-items:center',

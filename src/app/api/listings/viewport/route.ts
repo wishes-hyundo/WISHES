@@ -31,8 +31,11 @@ const MAX_VIEWPORT_AREA_SQDEG = 2.5;
 //   기준으로 실제 매물 수의 ~13% 만 렌더됨.  grid clustering (L-mapmarker2)
 //   도입으로 클라이언트 측 rendering cost 는 500→3000 사이에서 거의 선형이므로
 //   상한을 대폭 상향.
+// L-nolimit1 (2026-04-26): MAX_LIMIT 제거.  클라이언트 useViewport 가
+//   bbox ≤ 0.3° 일 때만 호출하므로 자연스러운 안전장치.  10만+ 매물 추가
+//   되어도 동 단위 viewport 에는 일부만 들어옴.
 const DEFAULT_LIMIT = 3000;
-const MAX_LIMIT = 10000;
+const MAX_LIMIT = 100000;
 const MIN_COMPARABLES = 3;
 
 function pInt(v: string | null): number | null {

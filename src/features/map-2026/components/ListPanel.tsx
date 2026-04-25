@@ -121,6 +121,17 @@ export function ListPanel() {
   const clusterFilterIds = useMap2026Store((s) => s.clusterFilterIds);
   const clusterFilterListings = useMap2026Store((s) => s.clusterFilterListings);
   const setClusterFilter = useMap2026Store((s) => s.setClusterFilter);
+  // L-truecount1 (2026-04-26): 사이드바 카운트를 정확한 총합으로.
+  //   listings.length 는 viewport limit (4000) 에 캡되므로 부정확.
+  //   API 가 별도 반환하는 categoryCounts 는 정확한 총합.
+  const categoryCounts = useMap2026Store((s) => s.categoryCounts);
+  const filterCategory = useMap2026Store((s) => s.filter.category);
+  // L-nolimit1 (2026-04-26): bbox > 0.3° 면 listings fetch 안 됨 (광역 뷰).
+  //   광역 뷰에선 빈 listings 라 안내 메시지 다르게.
+  const bbox = useMap2026Store((s) => s.bbox);
+  const isWideView = bbox && (
+    (bbox.east - bbox.west > 0.3) || (bbox.north - bbox.south > 0.3)
+  );
 
   // 정렬 + 필터:
   //   clusterFilterListings 있으면 (by-ids fetch 완료) 그걸 base 로 사용 → 100% 정확
@@ -165,9 +176,33 @@ export function ListPanel() {
     <aside className="flex h-full flex-col overflow-hidden border-r border-neutral-100 bg-white">
       <header className="flex items-center justify-between border-b border-neutral-100 px-4 py-2.5">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-[14px] font-bold text-neutral-900">
-            {loading ? '검색 중…' : `${sorted.length.toLocaleString()}개`}
-          </span>
+          {/* L-truecount1 (2026-04-26): 정확한 총합 표시.
+              · 클러스터 필터 활성: 그 N 개만
+              · 일반: categoryCounts (서버 정확 집계) > sorted.length (4k 캡)
+              · loading: '검색 중…' */}
+          {(() => {
+            if (loading) {
+              return <span className="text-[14px] font-bold text-neutral-900">검색 중…</span>;
+            }
+            const inFilter = clusterFilterIds && clusterFilterIds.length > 0;
+            const total = inFilter
+              ? sorted.length
+              : (categoryCounts?.[filterCategory] ?? sorted.length);
+            const visible = sorted.length;
+            const isCapped = !inFilter && visible < total;
+            return (
+              <>
+                <span className="text-[14px] font-bold text-neutral-900">
+                  {total.toLocaleString()}개
+                </span>
+                {isCapped && (
+                  <span className="text-[10px] text-neutral-400" title="지도 줌인 시 더 정확한 매물이 표시됩니다">
+                    (표시 {visible.toLocaleString()})
+                  </span>
+                )}
+              </>
+            );
+          })()}
           <span className="text-[11.5px] text-neutral-500">매물</span>
         </div>
         <SortMenu />
@@ -191,8 +226,17 @@ export function ListPanel() {
         {sorted.length === 0 && !loading && (
           <div className="flex h-full flex-col items-center justify-center gap-1 p-8 text-center text-neutral-400">
             <MapPin className="size-8 opacity-50" />
-            <div className="text-[13px]">이 영역에 매물이 없습니다</div>
-            <div className="text-[11.5px]">지도를 움직이거나 필터를 조정해 보세요</div>
+            {isWideView ? (
+              <>
+                <div className="text-[13px]">동 단위로 줌인하여 매물을 확인하세요</div>
+                <div className="text-[11.5px]">지도의 마커를 클릭하거나 휠로 확대해 보세요</div>
+              </>
+            ) : (
+              <>
+                <div className="text-[13px]">이 영역에 매물이 없습니다</div>
+                <div className="text-[11.5px]">지도를 움직이거나 필터를 조정해 보세요</div>
+              </>
+            )}
           </div>
         )}
 
