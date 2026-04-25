@@ -282,8 +282,8 @@ export default function HtmlMarkerOverlay({
       //   250m 는 개별 건물·단지 마커가 훨씬 직관적인 줌 수준.
       // L-naver-zoom2 (2026-04-26 night): 정밀 보정 — Naver z16+ 매물 마커 = Kakao level ≤4.
       //   동 폴리곤은 level 5~7 (z13~z15), 마커는 level 1~4 (z16~z19).
-      // L-naver-zoom3 (2026-04-26 night): 마커 영역 level 5 까지 확장 — viewport 250m 이상에서 마커 표시.
-      if (level >= 6) return;
+      // L-naver-zoom4 (2026-04-26 night): 마커 영역 level 1-4 (z16-z19) 유지.  level 5 는 dong 폴리곤.
+      if (level >= 5) return;
 
       // ━━ L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 우선 경로 ━━
       //   serverClusters 가 제공되면 클라이언트 grid 클러스터링을 완전히 건너뛰고
@@ -418,8 +418,9 @@ const size = _isMobile1
       if (filtered.length === 0) return;
 
       // L-naverstyle5 + L-closeview1: 근거리 (level ≤ 3) 에서 단지 pill/circle.
-      //   level 4 이상은 AdminRegionOverlay 동 chip 담당.
-      const usePill = level <= 3;
+      //   L-naver-zoom4 (2026-04-26 night): level 4 도 bucketing — 클러스터링으로
+      //   마커 갯수 줄여 시각 노이즈 해소 (z16 viewport ~100m 에 1000개 마커 방지).
+      const usePill = level <= 4;
       let tier1Groups: ReturnType<typeof bucketListings>['tier1Groups'] = [];
       let rest: MapListing[] = filtered;
       if (usePill) {
