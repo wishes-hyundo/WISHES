@@ -288,7 +288,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     let lastClickAt = 0;
 
     /** 단일/다중 features → 1 시각 영역 (라벨 1개) */
-    const drawRegion = (feats: GeoFeature[], labelText: string) => {
+    const drawRegion = (feats: GeoFeature[], labelText: string, mode: 'sido' | 'sigungu' | 'dong') => {
       const bbox = multiFeatureBbox(feats);
       const onClick = () => {
         lastClickAt = Date.now();
@@ -298,18 +298,18 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             const ne = new maps.LatLng(bbox.north, bbox.east);
             const bounds = new maps.LatLngBounds(sw, ne);
             mapInst.setBounds(bounds, 40, 40, 40, 40);
+            // 모드별 명시적 줌 레벨 강제 — 클릭 시 항상 다음 단계로 진입 보장
+            //   sido(10+) 클릭 → 8 (sigungu 폴리곤 보임)
+            //   sigungu(7~9) 클릭 → 5 (dong 폴리곤 보임)
+            //   dong(4~6) 클릭 → 2 (HtmlMarkerOverlay 매물 마커 보임)
             setTimeout(() => {
               try {
-                const lv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
-                // 시/구 → 동: lv 7+ → lv 5
-                // 동 → 마커: lv 4+ → lv 2
-                if (lv >= 7 && typeof mapInst.setLevel === 'function') {
-                  mapInst.setLevel(Math.max(4, lv - 3));
-                } else if (lv >= 4 && typeof mapInst.setLevel === 'function') {
-                  mapInst.setLevel(Math.max(2, lv - 2));
-                }
+                if (typeof mapInst.setLevel !== 'function') return;
+                if (mode === 'sido') mapInst.setLevel(8);
+                else if (mode === 'sigungu') mapInst.setLevel(5);
+                else if (mode === 'dong') mapInst.setLevel(2);
               } catch { /*noop*/ }
-            }, 100);
+            }, 120);
           }
         } catch { /*noop*/ }
         onClickRegion?.(labelText);
@@ -404,7 +404,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         const key = `sido:${fullName}`;
         if (key === currentKey && currentLevelMode === mode) return;
         cleanup();
-        drawRegion([feat], shortSidoName(fullName));
+        drawRegion([feat], shortSidoName(fullName), 'sido');
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'sigungu') {
@@ -416,7 +416,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (key === currentKey && currentLevelMode === mode) return;
         cleanup();
         const labelText = parentSido ? `${parentSido} ${sigName}` : sigName;
-        drawRegion([feat], labelText);
+        drawRegion([feat], labelText, 'sigungu');
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'dong') {
@@ -435,7 +435,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         cleanup();
         const parts = [parentSido, parentSig, legalName].filter(Boolean);
         const labelText = parts.join(' ');
-        drawRegion(groupFeats.length > 0 ? groupFeats : [feat], labelText);
+        drawRegion(groupFeats.length > 0 ? groupFeats : [feat], labelText, 'dong');
         currentKey = key;
         currentLevelMode = mode;
       }

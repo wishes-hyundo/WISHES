@@ -88,10 +88,20 @@ export function useViewport() {
       // L-widecount1 (2026-04-26): 광역 뷰에서도 categoryCounts 만 lightweight fetch.
       //   listings 는 비우고 (큰 viewport 에서 카드는 의미 없음), 카운트만 정확히
       //   표시하여 카테고리 탭 카운트 "0" 으로 잘못 보이는 문제 해결.
+      // L-widecount2 (2026-04-26 night): 서버 bbox cap 2°.  광역 뷰 (>2°) 에선
+      //   bbox 를 1.8° 로 클램프하여 viewport 중심 영역 카운트 표시.
       setListings([]);
       setLoading(false);
-      // 카운트만 별도 fetch (limit=1 로 payload 최소)
-      const qs = buildQueryString(bbox, filter, 1);
+      const cw = (bbox.west + bbox.east) / 2;
+      const ch = (bbox.south + bbox.north) / 2;
+      const halfDeg = 0.9;  // 1.8° box
+      const clamped = {
+        west: cw - halfDeg,
+        east: cw + halfDeg,
+        south: ch - halfDeg,
+        north: ch + halfDeg,
+      };
+      const qs = buildQueryString(clamped, filter, 1);
       (async () => {
         try {
           const res = await fetch(`/api/listings/viewport?${qs}`);
