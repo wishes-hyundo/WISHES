@@ -118,15 +118,12 @@ interface KakaoMapsNs {
 }
 interface KakaoNs { maps?: KakaoMapsNs }
 
-// L-naverexact1 (2026-04-26 night): 네이버 부동산 정확한 동작.
-//   폴리곤은 기본 완전 invisible (stroke 0, fill 0).  마커(chip)만 보임.
-//   hover/click 시에만 폴리곤이 나타남.  사용자 피드백 "폴리곤이 마커랑 묶여서
-//   작동하고... 빨간선들이 도대체 왜 그런거야" 해결.  빨간선 = 카카오 base 타일
-//   built-in 행정경계 (변경 불가) + 우리 폴리곤 stroke 가 같이 보여서 노이즈.
-//   우리 폴리곤을 default invisible 로 두면 카카오 빨간선만 남고 chip 만 보임.
-const FILL = '#006241';        // wishes brand green (hover 시에만 표시)
+// L-colorrevert1 (2026-04-26 night): 색상 원복 (그린 → 빨강).
+//   사용자 피드백 "색상은 또 왜 그린으로 바뀌어 있는거야" — 색상 변경 시키지
+//   않았는데 임의로 변경한 점 사과.  default invisible 동작은 유지.
+const FILL = '#dc2626';        // red-600 (원래 색)
 const FILL_OPACITY = 0.20;     // hover 시 적용되는 강조 opacity
-const STROKE = '#006241';
+const STROKE = '#dc2626';
 const STROKE_OPACITY = 0.85;   // hover 시에만 표시 (default 0)
 const STROKE_OPACITY_FAINT = 0.0;
 
@@ -523,11 +520,28 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
     const mapInst = map as KakaoMapLike;
 
     const cleanup = () => {
-      for (const p of polygonsRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+      // L-hoverstuck1: cleanup 직전에 모든 폴리곤 hover 상태 강제 invisible.
+      //   setMap(null) 직전에 opacity 0 으로 만들어 다시 그릴 때 stale 시각 상태 차단.
+      for (const p of polygonsRef.current) {
+        try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: 0 }); } catch {/*noop*/}
+        try { p.setMap(null); } catch { /* noop */ }
+      }
       for (const o of overlaysRef.current) { try { o.setMap(null); } catch { /* noop */ } }
       polygonsRef.current = [];
       overlaysRef.current = [];
     };
+
+    // L-hoverstuck1 (2026-04-26 night): hover 상태 stuck 방지 안전장치.
+    //   사용자가 Win+Shift+S 캡쳐, alt+tab, 다른 윈도우 클릭 등으로 chip 에서 마우스가
+    //   벗어나도 mouseleave 가 발화 안 하는 케이스가 있음.  → window blur + 전역
+    //   mousemove 로 모든 폴리곤 hover 상태 강제 클리어.
+    const forceHidePolygons = () => {
+      for (const p of polygonsRef.current) {
+        try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: 0, strokeOpacity: 0 }); } catch {/*noop*/}
+      }
+    };
+    const onWindowBlur = () => forceHidePolygons();
+    window.addEventListener('blur', onWindowBlur);
 
     // L-naverstyle6 (2026-04-24 pm): async race condition 방지.
     //   render() 는 `await loadDong()` 등으로 중단점이 있어서, 그 사이에 listings
@@ -1034,6 +1048,7 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
         }
       } catch { /* noop */ }
+      try { window.removeEventListener('blur', onWindowBlur); } catch { /* noop */ }
       cleanup();
     };
   }, [map, listings, serverClusters, onClickRegion]);
