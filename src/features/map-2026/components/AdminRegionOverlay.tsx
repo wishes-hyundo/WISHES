@@ -297,14 +297,22 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
     /** 단일/다중 features → 1 시각 영역 (라벨 1개) */
     const drawRegion = (feats: GeoFeature[], labelText: string, mode: 'sido' | 'sigungu' | 'dong') => {
-      // L-naver-zoom4: 클릭 시 다음 단계로 이동.
-      //   sido(12+) → 10 (z10, sigungu), sigungu(8~11) → 6 (z14, dong), dong(5~7) → 4 (z16, markers).
-      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 6 : 4;
+      // L-naver-click5 (2026-04-26 night): Naver 깊은 줌인 매칭 — z8 click → z13 (5 levels).
+      //   sido(13+) → 9 (z11, sigungu detail) — 4-5 levels deep
+      //   sigungu(8~12) → 6 (z14, dong polygon visible) — 2-6 levels deep
+      //   dong(5~7) → 3 (z17, marker close-up) — 2-4 levels deep
+      const targetLevel = mode === 'sido' ? 9 : mode === 'sigungu' ? 6 : 3;
 
-      const onClick = () => {
+      const onClick = (mouseEvent?: { stopPropagation?: () => void }) => {
         lastClickAt = Date.now();
-        // L-naver-click3 (2026-04-26 night): 안정적 클릭 — setBounds (자동 fit) + 즉시 setLevel.
-        //   panTo 와 setLevel race 제거. cleanup 은 zoom_changed 이벤트가 자동 처리.
+        // L-naver-click5: Kakao 기본 doubleClick 줌 가로채기 방지.
+        try {
+          // Kakao polygon mouseEvent 가 있으면 stopPropagation
+          if (mouseEvent?.stopPropagation) mouseEvent.stopPropagation();
+          // Kakao 의 preventMap 으로 map level 이벤트 차단
+          const ev = (maps.event as unknown as { preventMap?: () => void });
+          if (typeof ev?.preventMap === 'function') ev.preventMap();
+        } catch { /*noop*/ }
         try {
           const bbox = multiFeatureBbox(feats);
           if (bbox && typeof mapInst.setBounds === 'function') {

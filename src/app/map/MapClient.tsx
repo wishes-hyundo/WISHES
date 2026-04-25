@@ -179,6 +179,12 @@ export default function MapClient() {
         const map = new kakao.maps.Map(container, {
           center: new kakao.maps.LatLng(SEOUL.lat, SEOUL.lng),
           level: 5,
+          // L-naver-click5 (2026-04-26): Kakao 기본 더블클릭 줌 비활성화.
+          //   사용자 피드백 — single click 으로 폴리곤 클릭 → 줌인 동작이
+          //   Kakao 기본 doubleClick 으로 가로채여 single click 무반응 + 더블클릭만 1단계 줌.
+          //   네이버 동일하게 single click 으로 깊이 줌인되도록 default 비활성화.
+          disableDoubleClick: true,
+          disableDoubleClickZoom: true,
         });
         mapInst = map;
         kakaoMapRef.current = map;
