@@ -485,31 +485,36 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         }
 
         // 시군구 줌인 (level 6~8): 시군구 outline + 모든 법정동 dual layer
+        // L-naver-multi4 (2026-04-26): 동명 중복 시군구 필터를 code prefix 매칭으로.
+        //   sigungu code (관악구='11210') 첫 5자리 = dong code 첫 5자리 → 같은 시군구.
+        //   point-in-polygon 은 boundary edge 에서 일부 행정동 누락 (신림동 group 에 대학동만
+        //   들어가고 신원동·서원동 빠지는 버그) → 신림동 hover 시 서울대 영역만 칠해짐.
+        const sigCode = String((sigFeat.properties as { code?: string }).code ?? '');
+        const sigPrefix = sigCode.slice(0, 5);
+        const inSigungu = (f: GeoFeature): boolean => {
+          const c = String((f.properties as { code?: string }).code ?? '');
+          if (sigPrefix && c && c.length >= 5) return c.slice(0, 5) === sigPrefix;
+          // fallback: point-in-polygon
+          const geom = f.geometry;
+          const fp = geom.type === 'Polygon'
+            ? (geom.coordinates as number[][][])[0]?.[0]
+            : (geom.coordinates as number[][][][])[0]?.[0]?.[0];
+          return fp ? pointInFeature(fp[1], fp[0], sigFeat) : false;
+        };
         let hoveredLegalName: string | null = null;
         const legalGroups: Map<string, GeoFeature[]> = new Map();
         if (dongData?.features) {
           // 마우스 위치의 dong 찾아 hovered legalName 결정
           const hoverDong = findFeatureAt(dongData.features, lat, lng);
-          if (hoverDong) {
+          if (hoverDong && inSigungu(hoverDong)) {
             const hd = String((hoverDong.properties as { name?: string }).name ?? '').trim();
-            // 부모 sigungu 안에 있는지 확인 (동명 중복 방지)
-            const hgeom = hoverDong.geometry;
-            const hfp = hgeom.type === 'Polygon'
-              ? (hgeom.coordinates as number[][][])[0]?.[0]
-              : (hgeom.coordinates as number[][][][])[0]?.[0]?.[0];
-            const hokInside = hfp ? pointInFeature(hfp[1], hfp[0], sigFeat) : false;
-            if (hokInside) hoveredLegalName = adminToLegalDong(hd, sigName);
+            hoveredLegalName = adminToLegalDong(hd, sigName);
           }
           // 모든 dong feature 를 sigungu 안에 있는지 + 법정동으로 그룹화
           for (const f of dongData.features) {
             const n = String((f.properties as { name?: string }).name ?? '').trim();
             if (!n) continue;
-            const geom = f.geometry;
-            const firstPt = geom.type === 'Polygon'
-              ? (geom.coordinates as number[][][])[0]?.[0]
-              : (geom.coordinates as number[][][][])[0]?.[0]?.[0];
-            if (!firstPt) continue;
-            if (!pointInFeature(firstPt[1], firstPt[0], sigFeat)) continue;
+            if (!inSigungu(f)) continue;
             const lname = adminToLegalDong(n, sigName);
             if (!legalGroups.has(lname)) legalGroups.set(lname, []);
             legalGroups.get(lname)!.push(f);
@@ -564,19 +569,16 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         //   '중앙동' 이 관악구·동작구·성북구 등 여러 곳에 있어 단순 이름 매칭 시
         //   봉천동 polygon 이 동작구까지 확장되는 버그.  feature 가 부모 sigungu polygon
         //   안에 있는지 확인 (centroid point-in-polygon).
+        // L-naver-multi4 (2026-04-26): code prefix 매칭 (point-in-polygon 보다 안정).
+        const sigParentCode = sigParentFeat
+          ? String((sigParentFeat.properties as { code?: string }).code ?? '').slice(0, 5)
+          : '';
         const groupFeats = dongData.features.filter((f) => {
           const n = String((f.properties as { name?: string }).name ?? '').trim();
           if (adminToLegalDong(n, parentSig) !== legalName) return false;
-          if (sigParentFeat) {
-            // feature 의 첫 번째 좌표를 centroid 대용으로 사용 (cheap heuristic)
-            const geom = f.geometry;
-            const firstPt = geom.type === 'Polygon'
-              ? (geom.coordinates as number[][][])[0]?.[0]
-              : (geom.coordinates as number[][][][])[0]?.[0]?.[0];
-            if (firstPt) {
-              const [flng, flat] = firstPt;
-              if (!pointInFeature(flat, flng, sigParentFeat)) return false;
-            }
+          if (sigParentCode) {
+            const c = String((f.properties as { code?: string }).code ?? '');
+            if (c.length >= 5 && c.slice(0, 5) !== sigParentCode) return false;
           }
           return true;
         });
@@ -661,3 +663,4 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
   return null;
 }
+ 
