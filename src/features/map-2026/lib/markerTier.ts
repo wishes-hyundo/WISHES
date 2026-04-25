@@ -77,20 +77,18 @@ export function bucketListings(listings: MapListing[]): MarkerBuckets {
   for (const l of listings) {
     const nn = normalizeName(l.building_name);
     const type = (l.type ?? '').trim();
-    const dong = (l.dong ?? '').trim();
 
+    // L-marker-stable1 (2026-04-26 night): dong+type fallback 제거.
+    //   사용자 피드백 "마커 위치가 panning 시 이동" — fallback 의 centroid 가
+    //   viewport 따라 변동되는 문제.  building_name 있는 매물만 그룹화 (정확한
+    //   building centroid 는 안정적), 나머지는 개별 마커 (각 매물 lat/lng).
     let key: string | null = null;
     let displayName: string | null = null;
 
     if (nn) {
-      // 1순위: building_name 기반
+      // building_name 기반 그룹화 (안정적 centroid)
       key = `b:${type || 'x'}:${nn}`;
       displayName = l.building_name || '';
-    } else if (dong) {
-      // 2순위: dong + type (privacy-safe 대체)
-      //   같은 동 + 같은 타입 매물끼리 묶음.  "역삼동 원룸 15" pill.
-      key = `d:${dong}:${type || 'x'}`;
-      displayName = type ? `${dong} ${type}` : dong;
     }
 
     if (key) {
@@ -99,6 +97,7 @@ export function bucketListings(listings: MapListing[]): MarkerBuckets {
       else groups.set(key, [l]);
       if (displayName && !groupName.has(key)) groupName.set(key, displayName);
     } else {
+      // building_name 없음 → 개별 마커 (정확한 lat/lng 유지)
       tier2Listings.push(l);
     }
   }
