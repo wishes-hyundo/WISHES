@@ -183,7 +183,14 @@ export function ListPanel() {
               · loading: '검색 중…' */}
           {(() => {
             if (loading) {
-              return <span className="text-[14px] font-bold text-neutral-900">검색 중…</span>;
+              return (<>
+                <span className="text-[14px] font-bold text-neutral-900">검색 중…</span>
+                <span className="text-[11.5px] text-neutral-500">매물</span>
+              </>);
+            }
+            // L-nolimit2 (2026-04-26): 광역 뷰에서는 카운트 없이 안내만
+            if (isWideView) {
+              return <span className="text-[12.5px] font-semibold text-neutral-500">지도 줌인 필요</span>;
             }
             const inFilter = clusterFilterIds && clusterFilterIds.length > 0;
             const total = inFilter
@@ -201,10 +208,10 @@ export function ListPanel() {
                     (표시 {visible.toLocaleString()})
                   </span>
                 )}
+                <span className="text-[11.5px] text-neutral-500">매물</span>
               </>
             );
           })()}
-          <span className="text-[11.5px] text-neutral-500">매물</span>
         </div>
         <SortMenu />
       </header>

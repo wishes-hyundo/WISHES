@@ -81,7 +81,15 @@ export function useViewport() {
 
   useEffect(() => {
     if (!bbox) return;
-    if (!isValidBbox(bbox)) return;
+    // L-nolimit2 (2026-04-26): 광역 뷰 (>0.3°) 진입 시 listings/categoryCounts 를
+    //   명시적으로 reset.  이전 cached 값이 남아 사이드바에 stale 카드/카운트가
+    //   표시되던 문제 해결.
+    if (!isValidBbox(bbox)) {
+      setListings([]);
+      setCategoryCounts(null);
+      setLoading(false);
+      return;
+    }
 
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(async () => {
