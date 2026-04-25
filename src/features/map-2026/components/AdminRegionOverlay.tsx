@@ -118,15 +118,17 @@ interface KakaoMapsNs {
 }
 interface KakaoNs { maps?: KakaoMapsNs }
 
-// L-naverhover1 (2026-04-26 evening): 네이버 부동산 스타일 — 기본 fill 없음, hover 시에만 강조.
-//   사용자 피드백 "내가 선택한것도 아닌데 폴리곤이 여러곳에서 표시" 해결.
-//   네이버는 모든 동/구를 자동 색칠하지 않고, 마우스 hover 또는 chip 클릭 시
-//   해당 영역만 강조한다.  default 는 매우 옅은 stroke 만 (경계 인지용).
-const FILL = '#dc2626';        // red-600
+// L-greenpoly1 (2026-04-26 night): 위시스 그린으로 변경 — 카카오 자체 행정구역
+//   빨간색 점선과 색이 겹쳐 그물망처럼 보이던 문제 해결.  마커(chip)와 동일한
+//   브랜드 컬러(#006241)로 통일 → 폴리곤이 어떤 마커와 묶이는지 시각적으로 명확.
+//   사용자 피드책 "폴리곤이 마커랑 묶여서 작동하고... 빨간선이 도대체 왜 그런거야"
+//   카카오 base 타일의 기본 행정 경계는 빨강 점선 (built-in, 비활성 불가) — 우리
+//   폴리곤만 그린으로 빼면 즉시 구분됨.
+const FILL = '#006241';        // wishes brand green (matches markers)
 const FILL_OPACITY = 0.18;     // hover 시 적용되는 강조 opacity
-const STROKE = '#dc2626';
-const STROKE_OPACITY = 0.35;   // chip 있는 영역의 default stroke (네이버 수준)
-const STROKE_OPACITY_FAINT = 0.12;  // chip 없는 영역 stroke (거의 투명)
+const STROKE = '#006241';
+const STROKE_OPACITY = 0.75;   // chip 있는 영역의 default stroke — 1:1 binding 이라 진하게
+const STROKE_OPACITY_FAINT = 0.0;  // L-marker-poly-bind1 이후 사용 안 함
 
 // feature name → sido 짧은 이름 매핑 (southkorea-maps 는 name 에 영문/한글 혼재)
 function normalizeSidoName(raw: string | undefined | null): string {
@@ -543,11 +545,14 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
       displayName: string,
       count: number,
       showChip: boolean,
-      strokeOnly: boolean = false,
+      _strokeOnly: boolean = false,  // L-marker-poly-bind1 (2026-04-26 night): 더 이상 사용 안 함
     ) => {
-      // L-adminpoly7: strokeOnly 면 count=0 도 렌더 (구 경계 시각화 목적).
-      //   fill 모드(sido)는 count>0 만 스킵 유지.
-      if (!strokeOnly && count <= 0) return;
+      // L-marker-poly-bind1 (2026-04-26 night): 매물 없는 영역은 폴리곤 자체를 안 그림.
+      //   사용자 피드백: "폴리곤이 마커랑 묶여서 작동... 빨간선이 도대체 왜 그런거야".
+      //   기존엔 strokeOpacity 0.12 로 옅게 그렸지만 viewport 내 수십 개가 누적되어
+      //   빨간 그물망처럼 보임. 마커(chip) 있는 영역에만 폴리곤 그림 → 1:1 binding.
+      if (count <= 0) return;
+      void _strokeOnly;
       const geom = feat.geometry;
       const paths: number[][][][] = geom.type === 'Polygon'
         ? [geom.coordinates as number[][][]]
@@ -872,11 +877,14 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           return { west: minLng, south: minLat, east: maxLng, north: maxLat };
         }
 
-        // L-naverhover1 (2026-04-26 evening): 폴리곤 default = stroke 만 (fill 없음).
-        //   그룹 내 모든 통계동 폴리곤을 한꺼번에 hover-highlight 하기 위해
-        //   그룹별 polygon 배열을 보관 → mouseover/mouseout 에서 일괄 setOptions.
+        // L-marker-poly-bind1 (2026-04-26 night): 매물 0인 영역 폴리곤 자체 스킵.
+        //   사용자 피드백 "선택 안 했는데 빨간선이 여기저기" 원인 = count=0 폴리곤들의
+        //   stroke 0.12 opacity 가 viewport 내 수십 개 누적되어 그물망처럼 보임.
+        //   해결: chip 있는 그룹만 폴리곤 그림 → 마커 ↔ 폴리곤 1:1 bind (사용자 요구).
         for (const cand of legalCandidates) {
-          const hasChip = chipSet.has(cand.name) && cand.count > 0;
+          if (cand.count <= 0) continue;  // L-marker-poly-bind1: count 0 즉시 스킵
+          const hasChip = chipSet.has(cand.name);
+          if (!hasChip) continue;  // chip top-25 밖이면 폴리곤도 스킵 (마커 없으면 폴리곤도 없음)
           const hoverFillOp = Math.min(0.28, FILL_OPACITY + Math.log10(Math.max(1, cand.count)) * 0.04);
           const groupPolygons: KakaoPolygon[] = [];  // 그룹 hover 시 일괄 강조
           // 그룹 내 모든 통계동 폴리곤
@@ -894,15 +902,15 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
               try {
                 const polygon = new maps.Polygon({
                   path,
-                  // L-naverhover1: 그룹 내 통계동들의 stroke 매우 약하게 (분할선 안 보이게)
-                  strokeWeight: hasChip ? 1.0 : 0.5,
+                  // L-marker-poly-bind1: chip 있는 그룹만 그리므로 항상 강한 stroke
+                  strokeWeight: 1.0,
                   strokeColor: STROKE,
-                  strokeOpacity: hasChip ? STROKE_OPACITY : STROKE_OPACITY_FAINT,
+                  strokeOpacity: STROKE_OPACITY,
                   fillColor: FILL,
                   fillOpacity: 0,  // L-naverhover1: 기본 0 (hover 시에만 표시)
-                  clickable: hasChip,
+                  clickable: true,
                 });
-                if (hasChip) {
+                {
                   const grpBbox = groupBbox(cand.feats);
                   // L-naverhover1: 그룹 hover 시 같은 법정동 모든 통계동 폴리곤 일괄 강조
                   try {
