@@ -307,27 +307,27 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
       const onClick = () => {
         lastClickAt = Date.now();
-        // L-naver-click2 (2026-04-26 night): 클릭 즉시 폴리곤 cleanup → stuck 방지.
-        //   이전: 클릭 flash 가 남아 cleanup 안 됨. 이제 즉시 invisible + cleanup.
-        cleanup();
-        currentKey = '';
-        currentLevelMode = 'none';
-        // 부드러운 panTo (애니메이션)
+        // L-naver-click3 (2026-04-26 night): 안정적 클릭 — setBounds (자동 fit) + 즉시 setLevel.
+        //   panTo 와 setLevel race 제거. cleanup 은 zoom_changed 이벤트가 자동 처리.
         try {
-          if (centroid && typeof mapInst.panTo === 'function') {
-            mapInst.panTo(new maps.LatLng(centroid.lat, centroid.lng));
+          const bbox = multiFeatureBbox(feats);
+          if (bbox && typeof mapInst.setBounds === 'function') {
+            const sw = new maps.LatLng(bbox.south, bbox.west);
+            const ne = new maps.LatLng(bbox.north, bbox.east);
+            const bounds = new maps.LatLngBounds(sw, ne);
+            mapInst.setBounds(bounds, 40, 40, 40, 40);
           }
         } catch { /*noop*/ }
-        // 부드러운 줌 (panTo 와 살짝 겹쳐 시작)
+        // setBounds 후 정확한 target level 강제 (애니메이션)
         setTimeout(() => {
           try {
-            if (typeof mapInst.setLevel !== 'function') return;
-            mapInst.setLevel(targetLevel, { animate: { duration: 400 } });
+            if (typeof mapInst.setLevel === 'function') {
+              mapInst.setLevel(targetLevel, { animate: true });
+            }
           } catch {
             try { (mapInst.setLevel as (n: number) => void)(targetLevel); } catch {/*noop*/}
           }
-        }, 60);
-        // 새 폴리곤은 zoom_changed/idle 이벤트로 자동 재렌더 (mousemove 도 가능)
+        }, 100);
         onClickRegion?.(labelText);
       };
 
@@ -486,7 +486,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     // 마우스 이동 → 폴리곤 갱신 (모든 zoom 레벨)
     const onMouseMove = (e?: KakaoMouseEvent) => {
       if (!e?.latLng) return;
-      if (Date.now() - lastClickAt < 250) return;
+      // L-naver-click3: 클릭 후 600ms 동안 mousemove 무시 (줌 애니메이션 안정화)
+      if (Date.now() - lastClickAt < 600) return;
       void updateAt(e.latLng.getLat(), e.latLng.getLng());
     };
     try { maps.event.addListener(mapInst as unknown, 'mousemove', onMouseMove); } catch { /*noop*/ }
