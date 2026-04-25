@@ -542,6 +542,14 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
     };
     const onWindowBlur = () => forceHidePolygons();
     window.addEventListener('blur', onWindowBlur);
+    // L-ghosthover1: visibilitychange (탭 전환, 캡쳐 도구 등) 도 처리
+    const onVisChange = () => { if (document.hidden) forceHidePolygons(); };
+    document.addEventListener('visibilitychange', onVisChange);
+    // L-ghosthover1: 마우스가 브라우저 윈도우 밖으로 나가면 클리어
+    const onDocMouseOut = (e: MouseEvent) => {
+      if (!e.relatedTarget && !(e as unknown as {toElement?: unknown}).toElement) forceHidePolygons();
+    };
+    document.addEventListener('mouseout', onDocMouseOut);
 
     // L-naverstyle6 (2026-04-24 pm): async race condition 방지.
     //   render() 는 `await loadDong()` 등으로 중단점이 있어서, 그 사이에 listings
@@ -597,10 +605,14 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
             fillOpacity: 0,  // default invisible
             clickable: hasCount && showChip,
           });
-          // L-naverexact1: hover 시 stroke + fill 동시 등장
+          // L-ghosthover1 (2026-04-26 night): hover 시 다른 모든 폴리곤 강제 invisible.
+          //   사용자 피드백 "두 폴리곤 stuck" — mouseleave 미발화 race condition 해결.
+          //   mouseenter 시 polygonsRef.current 전체를 0으로 만든 후 자기 그룹만 visible.
+          //   → mouseleave 발화 여부와 무관하게 항상 1개 그룹만 표시 보장.
           if (hasCount && showChip) {
             try {
               maps.event.addListener(polygon as unknown, 'mouseover', () => {
+                forceHidePolygons();
                 try { (polygon as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
               });
               maps.event.addListener(polygon as unknown, 'mouseout', () => {
@@ -658,8 +670,9 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
         //   사용자 피드백 "단일 클릭 무반응, 더블클릭만 반응" → 해결.
         chip.addEventListener('mousedown', (e) => e.stopPropagation());
         chip.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
-        // L-naverexact1 (2026-04-26 night): chip hover → 해당 폴리곤 stroke+fill 동시 등장
+        // L-ghosthover1 (2026-04-26 night): chip hover → 다른 모든 폴리곤 강제 invisible 후 자기 그룹만 visible
         chip.addEventListener('mouseenter', () => {
+          forceHidePolygons();
           for (const p of featurePolygons) {
             try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
           }
@@ -929,9 +942,10 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
                 });
                 {
                   const grpBbox = groupBbox(cand.feats);
-                  // L-naverexact1 (2026-04-26 night): 그룹 hover 시 stroke + fill 동시 등장
+                  // L-ghosthover1 (2026-04-26 night): 그룹 hover → 다른 모든 폴리곤 강제 invisible 후 자기 그룹만 visible
                   try {
                     maps.event.addListener(polygon as unknown, 'mouseover', () => {
+                      forceHidePolygons();
                       for (const p of groupPolygons) {
                         try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
                       }
@@ -980,9 +994,9 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
             const grpBbox = groupBbox(cand.feats);
             chip.addEventListener('mousedown', (e) => e.stopPropagation());
             chip.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
-            // L-naverexact1 (2026-04-26 night): chip hover → 그룹 폴리곤 stroke+fill 동시 등장
-            //   네이버 동일.  default 폴리곤 invisible → chip 위 hover 시에만 영역 표시.
+            // L-ghosthover1 (2026-04-26 night): chip hover → 다른 모든 폴리곤 강제 invisible 후 자기 그룹만 visible
             chip.addEventListener('mouseenter', () => {
+              forceHidePolygons();
               for (const p of groupPolygons) {
                 try { (p as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: hoverFillOp, strokeOpacity: STROKE_OPACITY }); } catch {/*noop*/}
               }
@@ -1049,6 +1063,8 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
         }
       } catch { /* noop */ }
       try { window.removeEventListener('blur', onWindowBlur); } catch { /* noop */ }
+      try { document.removeEventListener('visibilitychange', onVisChange); } catch { /* noop */ }
+      try { document.removeEventListener('mouseout', onDocMouseOut); } catch { /* noop */ }
       cleanup();
     };
   }, [map, listings, serverClusters, onClickRegion]);
