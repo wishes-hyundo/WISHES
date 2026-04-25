@@ -300,8 +300,13 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       const centroid = multiFeatureCentroid(feats);
       // L-naver-click1 (2026-04-26 night): 네이버 클릭 패턴 — panTo (애니메이션) +
       //   setLevel({animate}) 동시 + 클릭 flash + pointer 커서.
-      // L-naver-zoom2: sido(level 12+) → 10 (z10, sigungu), sigungu(8~11) → 6 (z14, dong), dong(5~7) → 3 (z17, markers)
-      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 6 : 3;
+      // L-naver-click4 (2026-04-26 night): 클릭 시 너무 깊이 줌인되어 매물이 시야 밖으로
+      //   나가는 문제 해결.  dong 클릭 → level 4 (z16, ~200m 시야) 로 변경.
+      //   level 3 (~50m) 은 너무 좁아 매물 마커가 안 보임.
+      //   sido(level 12+) → 10 (z10, sigungu),
+      //   sigungu(8~11) → 6 (z14, dong),
+      //   dong(5~7) → 4 (z16, 매물 마커 영역 + 적절한 시야).
+      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 6 : 4;
 
       const drawnPolys: KakaoPolygon[] = [];
 
