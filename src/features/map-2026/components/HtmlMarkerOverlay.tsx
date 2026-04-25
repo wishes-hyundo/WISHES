@@ -119,7 +119,9 @@ function gridSizeForLevel(level: number): number {
   return 0.120;                     // ~13km (level 13+ 전국 뷰)
 }
 
-/** 카운트 표시 원 — 단일 매물이면 '1', 클러스터면 N. */
+/** 카운트 표시 원 — 단일 매물이면 '1', 클러스터면 N.
+ *  L-naversize1 (2026-04-26): 사이즈 차이 확장 (네이버 스타일).
+ *  size 인자가 직접 지정되지만, font-size 는 count 별로 자동 결정. */
 function makeCircleElement(opts: {
   count: number;
   selected: boolean;
@@ -129,6 +131,8 @@ function makeCircleElement(opts: {
   const bg = selected ? SEL_BG : BRAND_GREEN_BG;
   const bd = selected ? SEL_BD : BRAND_GREEN;
   const el = document.createElement('div');
+  // 큰 카운트일수록 글자도 크게 (사이즈에 비례)
+  const fontSize = size >= 60 ? '14px' : size >= 50 ? '13px' : size >= 42 ? '12px' : size >= 36 ? '12px' : '11px';
   el.style.cssText = [
     'display:inline-flex',
     'align-items:center',
@@ -138,10 +142,10 @@ function makeCircleElement(opts: {
     'border-radius:50%',
     `background:${bg}`,
     'color:#fff',
-    `border:1.5px solid ${bd}`,
-    `box-shadow:${selected ? SEL_SHADOW : DEFAULT_SHADOW}`,
-    `font-size:${count >= 100 ? '11px' : count >= 10 ? '12px' : '13px'}`,
-    'font-weight:700',
+    `border:2px solid ${selected ? bd : '#fff'}`,
+    `box-shadow:${selected ? SEL_SHADOW : '0 3px 10px rgba(0,0,0,0.3)'}`,
+    `font-size:${fontSize}`,
+    'font-weight:800',
     'letter-spacing:-0.3px',
     'cursor:pointer',
     'user-select:none',
@@ -149,8 +153,8 @@ function makeCircleElement(opts: {
     'font-family:inherit',
     'pointer-events:auto',
   ].join(';');
-  el.textContent = count >= 1000 ? `${Math.floor(count / 100) / 10}k` : String(count);
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.08)'; });
+  el.textContent = count >= 1000 ? `${(Math.floor(count / 100) / 10).toFixed(1)}k` : String(count);
+  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.1)'; });
   el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
   return el;
 }
@@ -301,7 +305,8 @@ export default function HtmlMarkerOverlay({
             : null;
           const single = singleId != null ? listingById.get(singleId) : undefined;
           const selected = singleId != null && selectedListingId === singleId;
-          const size = count >= 100 ? 46 : count >= 10 ? 42 : count >= 2 ? 40 : 36;
+          // L-naversize1 (2026-04-26): 사이즈 차이 확장 — 네이버처럼 큰 카운트가 시각적 임팩트
+const size = count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count >= 10 ? 40 : count >= 2 ? 34 : 30;
           const el = makeCircleElement({ count, selected, size });
           // L-clusterexact1 (2026-04-24 pm): dblclick 시 지도가 가로채 zoom 하는
           //   Kakao 기본 동작 차단.  마커 DOM 에서 mousedown 도 stop 해야 함.
@@ -429,7 +434,8 @@ export default function HtmlMarkerOverlay({
         const selected =
           selectedListingId != null && g.listings.some((l) => l.id === selectedListingId);
         const isBuildingPill = g.key.startsWith('b:');
-        const size = g.count >= 100 ? 46 : g.count >= 10 ? 42 : g.count >= 2 ? 40 : 36;
+        // L-naversize1: 큰 카운트가 시각적 임팩트
+        const size = g.count >= 1000 ? 72 : g.count >= 500 ? 60 : g.count >= 100 ? 50 : g.count >= 10 ? 40 : g.count >= 2 ? 34 : 30;
         const el = makeCircleElement({ count: g.count, selected, size });
         // L-clickfix1 (2026-04-25): mousedown/dblclick 잡아 Kakao 기본 더블클릭
         //   zoom 이 클릭을 가로채는 문제 차단.
@@ -499,12 +505,15 @@ export default function HtmlMarkerOverlay({
           } catch { /* SDK race — noop */ }
         });
         try {
+          // L-zorder1 (2026-04-26): zIndex 를 count 비례로 — 큰 마커가 위로
+          const zBase = isBuildingPill ? 11 : 10;
+          const zBoost = g.count >= 100 ? 5 : g.count >= 10 ? 3 : g.count >= 2 ? 1 : 0;
           const ov = new maps.CustomOverlay({
             position: new maps.LatLng(g.lat, g.lng),
             content: el,
             xAnchor: 0.5,
             yAnchor: 0.5,
-            zIndex: isBuildingPill ? 11 : 10,
+            zIndex: zBase + zBoost,
             clickable: true,
           });
           ov.setMap(map);
@@ -535,7 +544,8 @@ export default function HtmlMarkerOverlay({
         // L-mapmarker2c: 개별/클러스터 모두 카운트 원으로 통일.
         //   사용자 피드백 (네이버 벤치마크): 가격 노출은 경쟁·직거래 리스크.
         //   주소 정확한 위치 표기 금지 — 카운트만 보여주고 최대확대에서도 건물 단위 묶음.
-        const size = count >= 100 ? 46 : count >= 10 ? 42 : count >= 2 ? 40 : 36;
+        // L-naversize1 (2026-04-26): 사이즈 차이 확장 — 네이버처럼 큰 카운트가 시각적 임팩트
+const size = count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count >= 10 ? 40 : count >= 2 ? 34 : 30;
         const el = makeCircleElement({ count, selected, size });
         const clickHandler = (e: Event) => {
           e.stopPropagation();

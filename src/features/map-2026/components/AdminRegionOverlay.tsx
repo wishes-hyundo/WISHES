@@ -393,9 +393,12 @@ function featureIntersectsBbox(
  *  · 위시스 그린 (#006241) 채움으로 브랜드 일관성 유지 (네이버는 파란색) */
 function makeRegionCountChip(_name: string, count: number): HTMLDivElement {
   const el = document.createElement('div');
-  // 카운트 크기에 비례한 마커 사이즈
-  const size = count >= 1000 ? 56 : count >= 100 ? 48 : count >= 10 ? 42 : 36;
-  const fontSize = count >= 1000 ? 13 : count >= 100 ? 13 : count >= 10 ? 13 : 12;
+  // L-naversize1 (2026-04-26): 네이버 스타일 — 카운트 크기 차이를 더 분명히.
+  //   기존 36/42/48/56 (16px 차) → 32/40/52/68/80 (48px 차)
+  //   사용자 피드백 "네이버처럼 큰 카운트가 시각적으로 두드러져야".
+  //   1k+ 는 80px (네이버 큰 마커와 유사), 100+ 52px, 10+ 40px, 단일 32px
+  const size = count >= 5000 ? 80 : count >= 1000 ? 68 : count >= 100 ? 52 : count >= 10 ? 40 : 32;
+  const fontSize = count >= 5000 ? 16 : count >= 1000 ? 15 : count >= 100 ? 14 : count >= 10 ? 13 : 12;
   el.style.cssText = [
     'display:inline-flex',
     'align-items:center',
@@ -403,12 +406,12 @@ function makeRegionCountChip(_name: string, count: number): HTMLDivElement {
     `width:${size}px`,
     `height:${size}px`,
     'border-radius:50%',
-    'background:rgba(0,98,65,0.92)',
+    'background:rgba(0,98,65,0.95)',
     'color:#fff',
-    `border:2px solid #fff`,
-    'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
+    `border:2.5px solid #fff`,
+    'box-shadow:0 3px 10px rgba(0,0,0,0.3)',
     `font-size:${fontSize}px`,
-    'font-weight:700',
+    'font-weight:800',
     'letter-spacing:-0.3px',
     'cursor:pointer',
     'user-select:none',
@@ -504,10 +507,9 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
         if (!outer) continue;
         const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
         try {
-          // L-naverpoly1 (2026-04-25): 네이버 스타일 정렬 — sigungu/dong 도 fill 표시.
-          //   네이버는 동/구 폴리곤에 빨간색 fill 로 영역을 강조한다.
-          //   strokeOnly 그룹도 count > 0 이면 약한 fill 추가 → 사용자 피드백
-          //   "폴리곤이 시 단위로만 보임" 해결.  count=0 인 형식 폴리곤만 stroke-only.
+          // L-naverpoly1 + L-polyclick1 (2026-04-26): 폴리곤 fill + 클릭 가능.
+          //   네이버는 동/구 폴리곤 영역 어디든 클릭하면 줌인 됨 — chip centroid
+          //   바깥을 클릭해도 해당 영역으로 이동.
           const hasCount = count > 0;
           const polygon = new maps.Polygon({
             path,
@@ -516,8 +518,26 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
             strokeOpacity: strokeOnly && !hasCount ? 0.4 : STROKE_OPACITY,
             fillColor: FILL,
             fillOpacity: hasCount ? fillOp : 0,
-            clickable: false,
+            // L-polyclick1: count > 0 폴리곤은 클릭 가능 (영역 어디든 클릭 → 줌인)
+            clickable: hasCount && showChip,
           });
+          if (hasCount && showChip) {
+            // 폴리곤 클릭 = chip 클릭과 동일 동작 (computeFeatureBbox 로 zoom in)
+            const polyBbox = computeFeatureBbox(feat);
+            try {
+              maps.event.addListener(polygon as unknown, 'click', () => {
+                try {
+                  if (polyBbox && typeof mapInst.setBounds === 'function') {
+                    const sw = new maps.LatLng(polyBbox.south, polyBbox.west);
+                    const ne = new maps.LatLng(polyBbox.north, polyBbox.east);
+                    const bounds = new maps.LatLngBounds(sw, ne);
+                    mapInst.setBounds(bounds, 40, 40, 40, 40);
+                  }
+                } catch { /* noop */ }
+                onClickRegion?.(displayName);
+              });
+            } catch { /* noop */ }
+          }
           polygon.setMap(map);
           polygonsRef.current.push(polygon);
         } catch { /* SDK race — skip */ }
@@ -560,12 +580,16 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           onClickRegion?.(displayName);
         });
         try {
+          // L-zorder1 (2026-04-26): zIndex 를 count 에 비례.  큰 마커가 작은
+          //   마커 위에 올라가야 가독성 ↑ (네이버 동작 일치).
+          const zBase = 12;
+          const zBoost = count >= 1000 ? 6 : count >= 100 ? 4 : count >= 10 ? 2 : 0;
           const ov = new maps.CustomOverlay({
             position: new maps.LatLng(centroid.lat, centroid.lng),
             content: chip,
             xAnchor: 0.5,
             yAnchor: 0.5,
-            zIndex: 12,
+            zIndex: zBase + zBoost,
             clickable: true,
           });
           ov.setMap(map);
