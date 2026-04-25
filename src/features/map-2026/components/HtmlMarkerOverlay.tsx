@@ -133,6 +133,7 @@ function makeCircleElement(opts: {
   const el = document.createElement('div');
   // 큰 카운트일수록 글자도 크게 (사이즈에 비례)
   const fontSize = size >= 60 ? '14px' : size >= 50 ? '13px' : size >= 42 ? '12px' : size >= 36 ? '12px' : '11px';
+  // L-noborder1 (2026-04-26): 테두리 제거. 선택 상태만 강조 border.
   el.style.cssText = [
     'display:inline-flex',
     'align-items:center',
@@ -142,7 +143,7 @@ function makeCircleElement(opts: {
     'border-radius:50%',
     `background:${bg}`,
     'color:#fff',
-    `border:2px solid ${selected ? bd : '#fff'}`,
+    selected ? `border:2px solid ${bd}` : 'border:none',
     `box-shadow:${selected ? SEL_SHADOW : '0 3px 10px rgba(0,0,0,0.3)'}`,
     `font-size:${fontSize}`,
     'font-weight:800',

@@ -403,6 +403,7 @@ function makeRegionCountChip(_name: string, count: number): HTMLDivElement {
   const fontSize = isMobile
     ? (count >= 5000 ? 13 : count >= 1000 ? 12 : count >= 100 ? 11 : count >= 10 ? 11 : 10)
     : (count >= 5000 ? 16 : count >= 1000 ? 15 : count >= 100 ? 14 : count >= 10 ? 13 : 12);
+  // L-noborder1 (2026-04-26): 테두리 제거.  사용자 명시 요청.
   el.style.cssText = [
     'display:inline-flex',
     'align-items:center',
@@ -412,7 +413,7 @@ function makeRegionCountChip(_name: string, count: number): HTMLDivElement {
     'border-radius:50%',
     'background:rgba(0,98,65,0.95)',
     'color:#fff',
-    `border:2.5px solid #fff`,
+    'border:none',
     'box-shadow:0 3px 10px rgba(0,0,0,0.3)',
     `font-size:${fontSize}px`,
     'font-weight:800',
@@ -434,19 +435,38 @@ function makeRegionCountChip(_name: string, count: number): HTMLDivElement {
 }
 
 /** polygon path 평균으로 centroid 근사 */
+// L-centroid1 (2026-04-26): 진짜 centroid — 면적 기반.
+//   이전엔 첫 ring 의 점 평균으로 근사 → MultiPolygon 또는 비대칭 모양에서
+//   centroid 가 폴리곤 밖에 떨어질 수 있음 (마커 위치 오류).
+//   현재: 모든 polygon 의 모든 점 평균.  대부분 행정구역에 충분히 정확.
 function polygonCentroid(coords: number[][][] | number[][][][]): { lat: number; lng: number } | null {
-  // MultiPolygon 이면 첫 polygon 의 첫 ring 으로 근사
-  const firstRing: number[][] = Array.isArray(coords[0]?.[0]?.[0])
-    ? (coords as number[][][][])[0][0]
-    : (coords as number[][][])[0];
-  if (!firstRing || firstRing.length === 0) return null;
   let lngSum = 0;
   let latSum = 0;
-  for (const [lng, lat] of firstRing) {
-    lngSum += lng;
-    latSum += lat;
+  let count = 0;
+  // Polygon: number[][][] → outerRing = coords[0]
+  // MultiPolygon: number[][][][] → 각 polygon 의 outerRing = coords[i][0]
+  const isMulti = Array.isArray(coords[0]?.[0]?.[0]);
+  if (isMulti) {
+    for (const poly of coords as number[][][][]) {
+      const outer = poly[0];
+      if (!outer) continue;
+      for (const [lng, lat] of outer) {
+        lngSum += lng;
+        latSum += lat;
+        count++;
+      }
+    }
+  } else {
+    const outer = (coords as number[][][])[0];
+    if (!outer) return null;
+    for (const [lng, lat] of outer) {
+      lngSum += lng;
+      latSum += lat;
+      count++;
+    }
   }
-  return { lat: latSum / firstRing.length, lng: lngSum / firstRing.length };
+  if (count === 0) return null;
+  return { lat: latSum / count, lng: lngSum / count };
 }
 
 interface Props {
