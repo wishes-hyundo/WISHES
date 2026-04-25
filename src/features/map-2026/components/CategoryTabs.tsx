@@ -72,6 +72,8 @@ export function CategoryTabs() {
 
   // L-ux5-1: 활성 탭의 진짜 카운트 = listings.length (서버 필터 적용됨)
   // L-catcount1: 비활성 탭의 카운트는 서버가 추가로 보내주는 counts 객체에서 읽음
+  // L-widecount3 (2026-04-26 night): 광역 뷰 (listings 비어있음) 일 때도 정확한
+  //   카운트 표시 — listings 가 0 이면 categoryCounts 우선 사용 (광역 fetch 결과).
   const categoryCounts = useMap2026Store((s) => s.categoryCounts);
   const activeCount = listings.length;
 
@@ -85,9 +87,12 @@ export function CategoryTabs() {
         const theme = CATEGORY_THEME[cat];
         const Icon = CATEGORY_ICON[cat];
         const active = filter.category === cat;
-        // L-catcount1: 활성 = listings.length (서버 필터 적용된 정확한 수),
-        // 비활성 = categoryCounts[cat] (없으면 null 로 dim dot 유지)
-        const count = active ? activeCount : (categoryCounts?.[cat] ?? null);
+        // L-widecount3: 활성 탭은 listings.length 우선, 0 이거나 광역 뷰면 categoryCounts.
+        // 비활성 탭은 categoryCounts (없으면 null).
+        const serverCount = categoryCounts?.[cat] ?? null;
+        const count = active
+          ? (activeCount > 0 ? activeCount : serverCount)
+          : serverCount;
         const showCount = active || count != null;
 
         return (
