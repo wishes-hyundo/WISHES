@@ -300,7 +300,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       const centroid = multiFeatureCentroid(feats);
       // L-naver-click1 (2026-04-26 night): 네이버 클릭 패턴 — panTo (애니메이션) +
       //   setLevel({animate}) 동시 + 클릭 flash + pointer 커서.
-      const targetLevel = mode === 'sido' ? 11 : mode === 'sigungu' ? 7 : 4;
+      // L-naver-zoom2: sido(level 12+) → 10 (z10, sigungu), sigungu(8~11) → 6 (z14, dong), dong(5~7) → 3 (z17, markers)
+      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 6 : 3;
 
       const drawnPolys: KakaoPolygon[] = [];
 
@@ -390,15 +391,15 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     const updateAt = async (lat: number, lng: number) => {
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
       let mode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
-      // L-naver-zoom1 (2026-04-26 night): Naver z9~z19 라벨링 매칭.
-      //   Naver z9~z12 (Kakao level 9~12): 시군구 폴리곤
-      //   Naver z13~z15 (Kakao level 6~8): 동 폴리곤
-      //   Naver z16~z19 (Kakao level 1~5): 매물 마커 (HtmlMarkerOverlay)
-      //   level 13~14 (z7~z8): 시도 폴리곤 (very wide, 한반도)
-      if (level >= 13) mode = 'sido';
-      else if (level >= 9) mode = 'sigungu';
-      else if (level >= 6) mode = 'dong';
-      // level ≤ 5: 마커만, 폴리곤 클리어
+      // L-naver-zoom2 (2026-04-26 night): 정밀 검수 후 1단계 보정 (zoom = 20 - level).
+      //   Naver z9~z12 (Kakao level 8~11): 시군구 폴리곤
+      //   Naver z13~z15 (Kakao level 5~7): 동 폴리곤
+      //   Naver z16~z19 (Kakao level 1~4): 매물 마커
+      //   level 12+ (z8+): 시도 폴리곤
+      if (level >= 12) mode = 'sido';
+      else if (level >= 8) mode = 'sigungu';
+      else if (level >= 5) mode = 'dong';
+      // level ≤ 4: 마커만, 폴리곤 클리어
       if (mode === 'none') {
         if (currentKey !== '' || currentLevelMode !== 'none') {
           cleanup();

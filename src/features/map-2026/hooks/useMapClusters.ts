@@ -32,9 +32,9 @@ export interface ServerCluster {
   sample_ids?: number[] | null;
 }
 
-// L-naver-zoom1: 네이버 부동산과 동일한 라벨링 (zoom = 21 - level).  MapClient 와 동일.
+// L-naver-zoom2: 정밀 검수 후 1단계 보정 (zoom = 20 - level).  MapClient 와 동일.
 function levelToZoom(level: number): number {
-  return Math.max(0, 21 - level);
+  return Math.max(0, 20 - level);
 }
 
 function buildQs(

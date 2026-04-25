@@ -60,12 +60,11 @@ import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
 // 서울 기본 중심
 const SEOUL = { lat: 37.4979, lng: 127.0276 };
 
-// L-naver-zoom1 (2026-04-26 night): 네이버 부동산과 동일한 zoom 라벨링.
-//   네이버 zoom 9~19 (Mapbox 타일 시스템) 에 맞춰 매핑 재설정.
-//   level 1 → z20 (건물), level 5 → z16 (마커), level 8 → z13 (동/구), level 12 → z9 (광역).
-//   사용자 피드백 — Naver 와 라벨이 1:1 매칭되어야 함.
+// L-naver-zoom2 (2026-04-26 night): 정밀 검수 후 1단계 보정.
+//   이전 21-level 은 z13 = level 8 (sigungu) 이었으나 Naver z13 = dong 이어야 함.
+//   20-level 로 변경: level 7 = z13 (dong), level 4 = z16 (markers).
 function levelToZoom(level: number): number {
-  return Math.max(0, 21 - level);
+  return Math.max(0, 20 - level);
 }
 
 // Kakao SDK 동적 로더 — autoload=false 로 SSR 안전, 다중 호출 중복 방지
