@@ -219,6 +219,17 @@ function parseDongName(src: string | null | undefined, dongField: string | null 
   return null;
 }
 
+/** L-legaldong1 (2026-04-26): 통계동 → 법정동 정규화.
+ *  southkorea-maps GeoJSON 은 통계동 (신림1동, 신림2동, ..., 신림13동) 으로
+ *  세분화되어 있어 한 동이 13 조각으로 보임.  네이버는 법정동 단위 (신림동
+ *  한 덩어리).  이름에서 숫자 부분을 제거해 같은 법정동끼리 그룹핑. */
+function normalizeLegalDong(name: string): string {
+  if (!name) return name;
+  // "신림1동" → "신림동", "역삼1동" → "역삼동", "사당3동" → "사당동"
+  // "행운동", "잠원동" 등 숫자 없는 동은 그대로
+  return name.replace(/(.+?)\d+동$/, '$1동');
+}
+
 /** listings 를 읍/면/동 이름별 count 로 집계 */
 function countListingsByDong(listings: MapListing[]): Map<string, number> {
   const out = new Map<string, number>();
@@ -444,25 +455,8 @@ function makeRegionCountChip(name: string, count: number): HTMLDivElement {
       : String(count);
   wrapper.appendChild(circle);
 
-  // (2) 영역 이름 라벨 — 흰 배경 + 작은 글씨 (네이버 스타일)
-  if (name) {
-    const label = document.createElement('div');
-    label.textContent = name;
-    label.style.cssText = [
-      'background:rgba(255,255,255,0.95)',
-      'color:#1a1a1a',
-      `padding:${isMobile ? '2px 6px' : '3px 8px'}`,
-      'border-radius:6px',
-      `font-size:${isMobile ? '10.5px' : '11.5px'}`,
-      'font-weight:700',
-      'letter-spacing:-0.2px',
-      'box-shadow:0 1px 4px rgba(0,0,0,0.18)',
-      'white-space:nowrap',
-      'font-family:inherit',
-      'border:1px solid rgba(220,38,38,0.35)',
-    ].join(';');
-    wrapper.appendChild(label);
-  }
+  // L-noinlinelabel1 (2026-04-26): 영역 이름 라벨 제거 — 사용자 피드백 "번잡".
+  //   동/구 인지는 (1) hover tooltip 으로, (2) 폴리곤 fill (빨간색) + stroke 으로 가능.
 
   wrapper.addEventListener('mouseenter', () => { circle.style.transform = 'scale(1.1)'; });
   wrapper.addEventListener('mouseleave', () => { circle.style.transform = 'scale(1)'; });
@@ -672,16 +666,14 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           onClickRegion?.(displayName);
         });
         try {
-          // L-zorder1 + L-naverlabel1 (2026-04-26):
-          //   wrapper [원형, 라벨] 두 개 child — 원형이 polygon centroid 에 오도록
-          //   yAnchor 를 ~0.36 으로 조정 (전체 wrapper 의 약 1/3 지점).
+          // L-noinlinelabel1 (2026-04-26): wrapper 안 라벨 제거 → yAnchor 0.5 복원
           const zBase = 12;
           const zBoost = count >= 1000 ? 6 : count >= 100 ? 4 : count >= 10 ? 2 : 0;
           const ov = new maps.CustomOverlay({
             position: new maps.LatLng(centroid.lat, centroid.lng),
             content: chip,
             xAnchor: 0.5,
-            yAnchor: 0.36,
+            yAnchor: 0.5,
             zIndex: zBase + zBoost,
             clickable: true,
           });
@@ -785,12 +777,11 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           north: bounds.getNorthEast().getLat(),
         } : null;
 
-        // L-naverstyle1 fix: viewport 내 feature 만 후보로 만든 뒤 그 위에서
-        //   listings 를 polygon-contains 로 count.  통계동(서초1동/2동) 이름이
-        //   listings dong 필드(서초동) 와 안 맞아도 lat/lng 기반이라 정확.
-        type Cand = { feat: GeoFeature; name: string; count: number };
+        // L-legaldong1 (2026-04-26): 통계동 → 법정동 그룹핑.
+        //   viewport 내 통계동 feature 들을 법정동 이름 (정규화) 으로 그룹핑.
+        //   각 그룹은 폴리곤 여러 개 (각 통계동) + chip 1개 (그룹 centroid).
         const visibleFeatures: GeoFeature[] = [];
-        const nameByFeat = new Map<GeoFeature, string>();
+        const rawNameByFeat = new Map<GeoFeature, string>();
         for (const feat of data.features) {
           if (bbox && !featureIntersectsBbox(feat, bbox)) continue;
           const nameRaw = String(
@@ -799,44 +790,178 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           ).trim();
           if (!nameRaw) continue;
           visibleFeatures.push(feat);
-          nameByFeat.set(feat, nameRaw);
+          rawNameByFeat.set(feat, nameRaw);
         }
 
-        // L-cluster-pref1 (2026-04-25): serverClusters 우선
-        let counts: Map<string, number>;
-        if (serverClusters?.length) {
-          counts = countByRegionFromClusters(
-            serverClusters,
-            visibleFeatures,
-            (feat) => nameByFeat.get(feat) ?? '',
-          );
-        } else {
-          counts = countListingsByFeature(
-            listings,
-            visibleFeatures,
-            (feat) => nameByFeat.get(feat) ?? '',
-          );
+        // 법정동 이름 정규화 그룹화: { "신림동": [신림1동 feat, 신림2동 feat, ...] }
+        const groupByLegal = new Map<string, GeoFeature[]>();
+        for (const feat of visibleFeatures) {
+          const legalName = normalizeLegalDong(rawNameByFeat.get(feat) ?? '');
+          if (!legalName) continue;
+          const arr = groupByLegal.get(legalName) ?? [];
+          arr.push(feat);
+          groupByLegal.set(legalName, arr);
         }
 
-        const candidates: Cand[] = visibleFeatures.map((feat) => ({
-          feat,
-          name: nameByFeat.get(feat) ?? '',
-          count: counts.get(nameByFeat.get(feat) ?? '') ?? 0,
+        // count: 통계동 단위로 계산 후 법정동 단위로 합산
+        const rawCounts: Map<string, number> = serverClusters?.length
+          ? countByRegionFromClusters(serverClusters, visibleFeatures, (f) => rawNameByFeat.get(f) ?? '')
+          : countListingsByFeature(listings, visibleFeatures, (f) => rawNameByFeat.get(f) ?? '');
+        const legalCounts = new Map<string, number>();
+        for (const [rawName, cnt] of rawCounts) {
+          const legalName = normalizeLegalDong(rawName);
+          legalCounts.set(legalName, (legalCounts.get(legalName) ?? 0) + cnt);
+        }
+
+        // 법정동 그룹별 candidate
+        type LegalCand = { name: string; count: number; feats: GeoFeature[] };
+        const legalCandidates: LegalCand[] = [...groupByLegal.entries()].map(([legalName, feats]) => ({
+          name: legalName,
+          count: legalCounts.get(legalName) ?? 0,
+          feats,
         }));
 
-        // count > 0 은 모두 렌더.  count=0 은 stroke 만 (경계 context 유지)
-        // top 25 까지는 chip 표시, 초과분은 stroke only (밀집 뷰 대비).
-        const withCount = candidates.filter((c) => c.count > 0)
-          .sort((a, b) => b.count - a.count);
+        const withCount = legalCandidates.filter((c) => c.count > 0).sort((a, b) => b.count - a.count);
         const CHIP_LIMIT = 25;
         const chipSet = new Set(withCount.slice(0, CHIP_LIMIT).map((c) => c.name));
 
-        for (const { feat, name, count } of candidates) {
-          if (chipSet.has(name)) {
-            renderFeature(feat, name, count, true, true);
-          } else {
-            // count 초과분 또는 count=0 은 stroke 만
-            renderFeature(feat, name, count, false, true);
+        // 그룹별 합집합 centroid (모든 feat 의 모든 점 평균) 계산
+        function groupCentroid(feats: GeoFeature[]): { lat: number; lng: number } | null {
+          let lat = 0, lng = 0, n = 0;
+          for (const f of feats) {
+            const coords = f.geometry.type === 'Polygon'
+              ? [f.geometry.coordinates as number[][][]]
+              : f.geometry.type === 'MultiPolygon'
+                ? (f.geometry.coordinates as number[][][][])
+                : [];
+            for (const poly of coords) {
+              const outer = poly[0];
+              if (!outer) continue;
+              for (const [x, y] of outer) { lng += x; lat += y; n++; }
+            }
+          }
+          if (n === 0) return null;
+          return { lat: lat / n, lng: lng / n };
+        }
+
+        // 그룹별 합집합 bbox
+        function groupBbox(feats: GeoFeature[]): { west: number; south: number; east: number; north: number } | null {
+          let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+          for (const f of feats) {
+            const b = computeFeatureBbox(f);
+            if (!b) continue;
+            if (b.west < minLng) minLng = b.west;
+            if (b.east > maxLng) maxLng = b.east;
+            if (b.south < minLat) minLat = b.south;
+            if (b.north > maxLat) maxLat = b.north;
+          }
+          if (!Number.isFinite(minLng)) return null;
+          return { west: minLng, south: minLat, east: maxLng, north: maxLat };
+        }
+
+        // 폴리곤 그리기 — 그룹 내 각 통계동 feat 의 폴리곤을 모두 그리되,
+        //   stroke 없이 fill 만 (한 덩어리로 보이게).
+        for (const cand of legalCandidates) {
+          const hasChip = chipSet.has(cand.name) && cand.count > 0;
+          const fillOp = Math.min(0.25, FILL_OPACITY + Math.log10(Math.max(1, cand.count)) * 0.04);
+          // 그룹 내 모든 통계동 폴리곤을 fill (stroke 약하게)
+          for (const feat of cand.feats) {
+            const geom = feat.geometry;
+            const paths: number[][][][] = geom.type === 'Polygon'
+              ? [geom.coordinates as number[][][]]
+              : geom.type === 'MultiPolygon'
+                ? (geom.coordinates as number[][][][])
+                : [];
+            for (const polyCoords of paths) {
+              const outer = polyCoords[0];
+              if (!outer) continue;
+              const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
+              try {
+                const polygon = new maps.Polygon({
+                  path,
+                  // L-legaldong1: 그룹 내 통계동들의 stroke 매우 약하게 (분할선 안 보이게)
+                  strokeWeight: 0.5,
+                  strokeColor: STROKE,
+                  strokeOpacity: cand.count > 0 ? 0.25 : 0.15,
+                  fillColor: FILL,
+                  fillOpacity: cand.count > 0 ? fillOp : 0,
+                  clickable: hasChip,
+                });
+                if (hasChip) {
+                  const grpBbox = groupBbox(cand.feats);
+                  try {
+                    maps.event.addListener(polygon as unknown, 'click', () => {
+                      try {
+                        const beforeLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
+                        if (grpBbox && typeof mapInst.setBounds === 'function') {
+                          const sw = new maps.LatLng(grpBbox.south, grpBbox.west);
+                          const ne = new maps.LatLng(grpBbox.north, grpBbox.east);
+                          const bounds = new maps.LatLngBounds(sw, ne);
+                          mapInst.setBounds(bounds, 40, 40, 40, 40);
+                          setTimeout(() => {
+                            try {
+                              const afterLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : beforeLv;
+                              if (afterLv >= beforeLv && typeof mapInst.setLevel === 'function') {
+                                mapInst.setLevel(Math.max(1, beforeLv - 1));
+                              }
+                            } catch { /*noop*/ }
+                          }, 100);
+                        }
+                      } catch { /*noop*/ }
+                      onClickRegion?.(cand.name);
+                    });
+                  } catch { /*noop*/ }
+                }
+                polygon.setMap(map);
+                polygonsRef.current.push(polygon);
+              } catch { /*SDK race - skip*/ }
+            }
+          }
+
+          // chip 1개만 (그룹 centroid 위치)
+          if (hasChip) {
+            const centroid = groupCentroid(cand.feats);
+            if (!centroid) continue;
+            const chip = makeRegionCountChip(cand.name, cand.count);
+            const grpBbox = groupBbox(cand.feats);
+            chip.addEventListener('mousedown', (e) => e.stopPropagation());
+            chip.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
+            chip.addEventListener('click', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              try {
+                const beforeLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
+                if (grpBbox && typeof mapInst.setBounds === 'function') {
+                  const sw = new maps.LatLng(grpBbox.south, grpBbox.west);
+                  const ne = new maps.LatLng(grpBbox.north, grpBbox.east);
+                  const bounds = new maps.LatLngBounds(sw, ne);
+                  mapInst.setBounds(bounds, 40, 40, 40, 40);
+                  setTimeout(() => {
+                    try {
+                      const afterLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : beforeLv;
+                      if (afterLv >= beforeLv && typeof mapInst.setLevel === 'function') {
+                        mapInst.setLevel(Math.max(1, beforeLv - 1));
+                      }
+                    } catch { /*noop*/ }
+                  }, 100);
+                }
+              } catch { /*noop*/ }
+              onClickRegion?.(cand.name);
+            });
+            try {
+              const zBase = 12;
+              const zBoost = cand.count >= 1000 ? 6 : cand.count >= 100 ? 4 : cand.count >= 10 ? 2 : 0;
+              const ov = new maps.CustomOverlay({
+                position: new maps.LatLng(centroid.lat, centroid.lng),
+                content: chip,
+                xAnchor: 0.5,
+                yAnchor: 0.5,
+                zIndex: zBase + zBoost,
+                clickable: true,
+              });
+              ov.setMap(map);
+              overlaysRef.current.push(ov);
+            } catch { /*noop*/ }
           }
         }
         return;

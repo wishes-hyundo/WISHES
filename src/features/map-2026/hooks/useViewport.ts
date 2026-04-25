@@ -85,9 +85,21 @@ export function useViewport() {
     //   명시적으로 reset.  이전 cached 값이 남아 사이드바에 stale 카드/카운트가
     //   표시되던 문제 해결.
     if (!isValidBbox(bbox)) {
+      // L-widecount1 (2026-04-26): 광역 뷰에서도 categoryCounts 만 lightweight fetch.
+      //   listings 는 비우고 (큰 viewport 에서 카드는 의미 없음), 카운트만 정확히
+      //   표시하여 카테고리 탭 카운트 "0" 으로 잘못 보이는 문제 해결.
       setListings([]);
-      setCategoryCounts(null);
       setLoading(false);
+      // 카운트만 별도 fetch (limit=1 로 payload 최소)
+      const qs = buildQueryString(bbox, filter, 1);
+      (async () => {
+        try {
+          const res = await fetch(`/api/listings/viewport?${qs}`);
+          if (!res.ok) { setCategoryCounts(null); return; }
+          const json = await res.json();
+          setCategoryCounts(json.counts ?? null);
+        } catch { setCategoryCounts(null); }
+      })();
       return;
     }
 
