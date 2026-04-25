@@ -303,13 +303,11 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   dong(5~7) → 3 (z17, marker close-up) — 2-4 levels deep
       const targetLevel = mode === 'sido' ? 9 : mode === 'sigungu' ? 6 : 3;
 
-      const onClick = (mouseEvent?: { stopPropagation?: () => void }) => {
+      const onClick = () => {
         lastClickAt = Date.now();
         // L-naver-click5: Kakao 기본 doubleClick 줌 가로채기 방지.
+        //   map 옵션 disableDoubleClick + preventMap 으로 차단.
         try {
-          // Kakao polygon mouseEvent 가 있으면 stopPropagation
-          if (mouseEvent?.stopPropagation) mouseEvent.stopPropagation();
-          // Kakao 의 preventMap 으로 map level 이벤트 차단
           const ev = (maps.event as unknown as { preventMap?: () => void });
           if (typeof ev?.preventMap === 'function') ev.preventMap();
         } catch { /*noop*/ }
