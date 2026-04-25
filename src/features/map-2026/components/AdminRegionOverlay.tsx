@@ -342,15 +342,29 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (mapNode) mapNode.style.cursor = '';
       };
       // 모든 feature 그리기
+      // L-naver-poly1 (2026-04-26): 관악구 폴리곤이 남쪽 절반만 그려지는 버그 픽스.
+      //   southkorea-maps 의 ring 이 CW (역방향) 인데 Kakao Polygon 렌더링 시
+      //   비정상 fill 발생. signedArea > 0 → CW → reverse() 로 CCW 전환.
+      const ensureCCW = (ring: number[][]): number[][] => {
+        let area = 0;
+        for (let i = 0; i < ring.length - 1; i++) {
+          area += (ring[i + 1][0] - ring[i][0]) * (ring[i + 1][1] + ring[i][1]);
+        }
+        return area > 0 ? [...ring].reverse() : ring;
+      };
       for (const feat of feats) {
         const geom = feat.geometry;
         const paths: number[][][][] = geom.type === 'Polygon'
           ? [geom.coordinates as number[][][]]
           : geom.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]) : [];
         for (const polyCoords of paths) {
-          const outer = polyCoords[0];
-          if (!outer) continue;
+          const rawOuter = polyCoords[0];
+          if (!rawOuter) continue;
+          const outer = ensureCCW(rawOuter);
           const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
+          // L-naver-poly1: 진단 로그 — 실제 kakao 에 들어간 path 길이 + 처음/끝 점 확인.
+          console.log('[AdminPoly]', mode, labelText, 'pts=', path.length,
+            'first=', rawOuter[0], 'last=', rawOuter[rawOuter.length - 1]);
           try {
             const polygon = new maps.Polygon({
               path,
@@ -366,7 +380,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             try { maps.event.addListener(polygon as unknown, 'mouseout', onPolyMouseOut); } catch { /*noop*/ }
             polygon.setMap(map);
             polygonsRef.current.push(polygon);
-          } catch { /*noop*/ }
+          } catch (e) { console.error('[AdminPoly] create fail', e); }
         }
       }
       // L-naver-tooltip1 (2026-04-26): 라벨을 폴리곤 centroid 가 아닌 마우스 커서 따라가는
