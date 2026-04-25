@@ -304,23 +304,29 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       const targetLevel = mode === 'sido' ? 9 : mode === 'sigungu' ? 6 : 3;
 
       const onClick = () => {
+        // L-naver-click7 (2026-04-26): 진단 로그 — 클릭이 발화하는지 명확히 확인.
+        console.log('[Polygon Click]', { labelText, mode, targetLevel, currentLevel: typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 'unknown' });
         lastClickAt = Date.now();
         try {
           const bbox = multiFeatureBbox(feats);
+          console.log('[Polygon Click] bbox:', bbox, 'setBounds:', typeof mapInst.setBounds);
           if (bbox && typeof mapInst.setBounds === 'function') {
             const sw = new maps.LatLng(bbox.south, bbox.west);
             const ne = new maps.LatLng(bbox.north, bbox.east);
             const bounds = new maps.LatLngBounds(sw, ne);
             mapInst.setBounds(bounds, 40, 40, 40, 40);
+            console.log('[Polygon Click] setBounds called');
           }
-        } catch { /*noop*/ }
+        } catch (e) { console.error('[Polygon Click] setBounds error:', e); }
         // setBounds 후 정확한 target level 강제 (애니메이션)
         setTimeout(() => {
           try {
             if (typeof mapInst.setLevel === 'function') {
               mapInst.setLevel(targetLevel, { animate: true });
+              console.log('[Polygon Click] setLevel called', targetLevel, 'now', mapInst.getLevel?.());
             }
-          } catch {
+          } catch (e) {
+            console.error('[Polygon Click] setLevel error:', e);
             try { (mapInst.setLevel as (n: number) => void)(targetLevel); } catch {/*noop*/}
           }
         }, 100);
