@@ -305,12 +305,6 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
       const onClick = () => {
         lastClickAt = Date.now();
-        // L-naver-click5: Kakao 기본 doubleClick 줌 가로채기 방지.
-        //   map 옵션 disableDoubleClick + preventMap 으로 차단.
-        try {
-          const ev = (maps.event as unknown as { preventMap?: () => void });
-          if (typeof ev?.preventMap === 'function') ev.preventMap();
-        } catch { /*noop*/ }
         try {
           const bbox = multiFeatureBbox(feats);
           if (bbox && typeof mapInst.setBounds === 'function') {
