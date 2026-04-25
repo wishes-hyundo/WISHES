@@ -444,6 +444,8 @@ const size = _isMobile1
           ? (g.count >= 1000 ? 56 : g.count >= 500 ? 48 : g.count >= 100 ? 40 : g.count >= 10 ? 32 : g.count >= 2 ? 28 : 24)
           : (g.count >= 1000 ? 72 : g.count >= 500 ? 60 : g.count >= 100 ? 50 : g.count >= 10 ? 40 : g.count >= 2 ? 34 : 30);
         const el = makeCircleElement({ count: g.count, selected, size });
+        // L-tooltip1 (2026-04-26): 마커 hover tooltip — 단지명/지역명 표시.
+        if (g.name) el.title = `${g.name} (${g.count.toLocaleString()})`;
         // L-clickfix1 (2026-04-25): mousedown/dblclick 잡아 Kakao 기본 더블클릭
         //   zoom 이 클릭을 가로채는 문제 차단.
         el.addEventListener('mousedown', (e) => e.stopPropagation());

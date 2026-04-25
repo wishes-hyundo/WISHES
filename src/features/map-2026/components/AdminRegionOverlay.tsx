@@ -118,13 +118,13 @@ interface KakaoMapsNs {
 }
 interface KakaoNs { maps?: KakaoMapsNs }
 
-// L-naverpoly2 (2026-04-26): 폴리곤 fill 색상 — 네이버처럼 빨간색.
-//   마커는 위시스 그린 유지 (브랜드), 폴리곤만 네이버 톤으로.
-//   네이버 부동산 폴리곤 ≈ #f87171 (red-400) 톤.  fill opacity 낮게 유지.
-const FILL = '#dc2626';        // red-600 (Tailwind), 채도 강한 빨강
-const FILL_OPACITY = 0.10;
+// L-naverpoly2 + L-stroke1 (2026-04-26): 폴리곤 fill 빨강 + stroke 강화.
+//   stroke weight/opacity 를 올려 동·구 경계가 더 명확하게 보임 — 사용자
+//   "동/구 인지 못함" 해결.
+const FILL = '#dc2626';        // red-600
+const FILL_OPACITY = 0.08;
 const STROKE = '#dc2626';
-const STROKE_OPACITY = 0.45;
+const STROKE_OPACITY = 0.65;
 
 // feature name → sido 짧은 이름 매핑 (southkorea-maps 는 name 에 영문/한글 혼재)
 function normalizeSidoName(raw: string | undefined | null): string {
@@ -392,8 +392,12 @@ function featureIntersectsBbox(
  *  · count 기반 사이즈 — 1k 이상은 큰 원, 작은 카운트는 작은 원
  *  · padding 2~4px 로 숫자만 들어가는 정사각 박스가 아닌 자연스러운 원형
  *  · 위시스 그린 (#006241) 채움으로 브랜드 일관성 유지 (네이버는 파란색) */
-function makeRegionCountChip(_name: string, count: number): HTMLDivElement {
+function makeRegionCountChip(name: string, count: number): HTMLDivElement {
   const el = document.createElement('div');
+  // L-tooltip1 (2026-04-26): 마커 hover 시 동/구/시도 이름 tooltip 표시.
+  //   사용자 피드백 "동/구 제대로 인지 못함" 해결.  마커 시각은 깔끔 유지하되
+  //   호버로 즉시 위치 정보 제공.
+  if (name) el.title = `${name} (${count.toLocaleString()})`;
   // L-naversize1 + L-mobile1 (2026-04-26): 카운트별 사이즈 + 모바일 반응형
   //   데스크톱: 32/40/52/68/80   모바일(<768): 24/30/40/52/62
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
@@ -537,14 +541,26 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           const hasCount = count > 0;
           const polygon = new maps.Polygon({
             path,
-            strokeWeight: strokeOnly ? 1.2 : 1.0,
+            // L-stroke1 (2026-04-26): weight 1.5px (was 1.0px) — 경계 명확
+            strokeWeight: hasCount ? 1.6 : 1.0,
             strokeColor: STROKE,
-            strokeOpacity: strokeOnly && !hasCount ? 0.4 : STROKE_OPACITY,
+            strokeOpacity: hasCount ? STROKE_OPACITY : 0.3,
             fillColor: FILL,
             fillOpacity: hasCount ? fillOp : 0,
             // L-polyclick1: count > 0 폴리곤은 클릭 가능 (영역 어디든 클릭 → 줌인)
             clickable: hasCount && showChip,
           });
+          // L-polyhover1 (2026-04-26): hover 시 fill 진해지며 영역 강조
+          if (hasCount && showChip) {
+            try {
+              maps.event.addListener(polygon as unknown, 'mouseover', () => {
+                try { (polygon as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: Math.min(0.30, fillOp + 0.10) }); } catch {/*noop*/}
+              });
+              maps.event.addListener(polygon as unknown, 'mouseout', () => {
+                try { (polygon as unknown as {setOptions:(o:Record<string,unknown>)=>void}).setOptions({ fillOpacity: fillOp }); } catch {/*noop*/}
+              });
+            } catch { /*noop*/ }
+          }
           if (hasCount && showChip) {
             // 폴리곤 클릭 = chip 클릭과 동일 동작 (computeFeatureBbox 로 zoom in)
             const polyBbox = computeFeatureBbox(feat);
