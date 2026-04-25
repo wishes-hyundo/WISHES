@@ -431,18 +431,72 @@ export default function HtmlMarkerOverlay({
         const isBuildingPill = g.key.startsWith('b:');
         const size = g.count >= 100 ? 46 : g.count >= 10 ? 42 : g.count >= 2 ? 40 : 36;
         const el = makeCircleElement({ count: g.count, selected, size });
+        // L-clickfix1 (2026-04-25): mousedown/dblclick 잡아 Kakao 기본 더블클릭
+        //   zoom 이 클릭을 가로채는 문제 차단.
+        el.addEventListener('mousedown', (e) => e.stopPropagation());
+        el.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          // 단지(building_name) 그룹은 단지 drawer, 그 외는 cluster filter
-          if (isBuildingPill && onClickComplex) {
-            onClickComplex(g.name, g.listings);
+          e.preventDefault();
+          // L-clusterfix1 (2026-04-25): 단일 매물이면 detail modal, 클러스터면
+          //   사이드바 필터 + 줌인.  이전에는 onClickCluster prop 미전달 시
+          //   "엉뚱한 첫 매물 모달" 이 떠서 사용자 혼란 (피드백 #4).
+          // 단지명 (b:) 그룹: 단일이면 모달, 다수면 단지 drawer
+          if (isBuildingPill) {
+            if (g.count === 1 && g.listings[0]) {
+              onClickListing(g.listings[0].id);
+              return;
+            }
+            if (onClickComplex) {
+              onClickComplex(g.name, g.listings);
+              return;
+            }
+          }
+          // dong+type (d:) 그룹 OR 단지 drawer 미제공:
+          //   단일이면 모달, 다수면 cluster filter + 줌인 setBounds
+          if (g.count === 1 && g.listings[0]) {
+            onClickListing(g.listings[0].id);
             return;
           }
+          // 다수 매물 — onClickCluster 가 있으면 그걸 우선 (legacy)
           if (onClickCluster && g.listings.length > 1) {
             onClickCluster(g.listings);
             return;
           }
-          if (g.listings.length > 0) onClickListing(g.listings[0].id);
+          // onClusterFilter + setBounds 폴백 — N개 매물만 사이드바·지도 필터
+          if (onClusterFilter) onClusterFilter(g.listings.map((l) => l.id));
+          try {
+            const kakaoAny = (window as unknown as {
+              kakao?: { maps?: {
+                LatLng?: new (lat: number, lng: number) => unknown;
+                LatLngBounds?: new (sw?: unknown, ne?: unknown) => KakaoLatLngBoundsLike;
+              } };
+            }).kakao;
+            const mapApi = mapInst as {
+              setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
+            };
+            if (kakaoAny?.maps?.LatLng && kakaoAny?.maps?.LatLngBounds && typeof mapApi.setBounds === 'function') {
+              let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+              for (const l of g.listings) {
+                if (l.lat < minLat) minLat = l.lat;
+                if (l.lat > maxLat) maxLat = l.lat;
+                if (l.lng < minLng) minLng = l.lng;
+                if (l.lng > maxLng) maxLng = l.lng;
+              }
+              if (minLat === maxLat && minLng === maxLng) {
+                // 같은 좌표 다수 매물 → 첫 매물 모달
+                onClickListing(g.listings[0].id);
+                return;
+              }
+              const MIN_HALF = 0.00035;
+              const latPad = Math.max(MIN_HALF, (maxLat - minLat) * 0.15);
+              const lngPad = Math.max(MIN_HALF, (maxLng - minLng) * 0.15);
+              const sw = new kakaoAny.maps.LatLng(minLat - latPad, minLng - lngPad);
+              const ne = new kakaoAny.maps.LatLng(maxLat + latPad, maxLng + lngPad);
+              const bounds = new kakaoAny.maps.LatLngBounds(sw, ne);
+              mapApi.setBounds(bounds, 40, 40, 40, 40);
+            }
+          } catch { /* SDK race — noop */ }
         });
         try {
           const ov = new maps.CustomOverlay({

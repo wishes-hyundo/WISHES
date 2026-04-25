@@ -504,15 +504,18 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
         if (!outer) continue;
         const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
         try {
+          // L-naverpoly1 (2026-04-25): 네이버 스타일 정렬 — sigungu/dong 도 fill 표시.
+          //   네이버는 동/구 폴리곤에 빨간색 fill 로 영역을 강조한다.
+          //   strokeOnly 그룹도 count > 0 이면 약한 fill 추가 → 사용자 피드백
+          //   "폴리곤이 시 단위로만 보임" 해결.  count=0 인 형식 폴리곤만 stroke-only.
+          const hasCount = count > 0;
           const polygon = new maps.Polygon({
             path,
             strokeWeight: strokeOnly ? 1.2 : 1.0,
             strokeColor: STROKE,
-            strokeOpacity: strokeOnly ? 0.5 : STROKE_OPACITY,
+            strokeOpacity: strokeOnly && !hasCount ? 0.4 : STROKE_OPACITY,
             fillColor: FILL,
-            // L-adminpoly7 (2026-04-24 pm): sigungu 레벨은 fill 제거 — stroke only.
-            //   매물 많은 지역에 fill 이 크게 깔리면 시각 과부하 + 클릭 타겟 식별 방해.
-            fillOpacity: strokeOnly ? 0 : fillOp,
+            fillOpacity: hasCount ? fillOp : 0,
             clickable: false,
           });
           polygon.setMap(map);
@@ -532,8 +535,14 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
         //   자동 줌인. useViewport 가 좁아진 bbox 로 /api/listings/map 재호출 →
         //   사이드바도 해당 지역 매물만 자동 필터.
         const regionBbox = computeFeatureBbox(feat);
+        // L-clickfix1 (2026-04-25): mousedown/dblclick 까지 잡아 Kakao 의 기본
+        //   더블클릭 zoom 동작이 chip 클릭을 가로채는 문제 해결.
+        //   사용자 피드백 "단일 클릭 무반응, 더블클릭만 반응" → 해결.
+        chip.addEventListener('mousedown', (e) => e.stopPropagation());
+        chip.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
         chip.addEventListener('click', (e) => {
           e.stopPropagation();
+          e.preventDefault();
           try {
             if (regionBbox && typeof mapInst.setBounds === 'function') {
               const sw = new maps.LatLng(regionBbox.south, regionBbox.west);
@@ -576,14 +585,18 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
       if (level >= 11) {
         const data = await loadSido();
         if (!stillOwner() || !data?.features) return;
-        // L-adminfit2: listings 가 비었으면(>2° viewport) serverClusters 로 fallback
-        let counts = countListingsBySido(listings);
-        if (counts.size === 0 && serverClusters?.length) {
+        // L-cluster-pref1 (2026-04-25): serverClusters 우선.
+        //   useViewport limit=4000 때문에 listings 기반 count 는 캡되어 부정확.
+        //   serverClusters 는 RPC 사전집계라 캡 없음 → 정확한 총합 표시.
+        let counts: Map<string, number>;
+        if (serverClusters?.length) {
           counts = countByRegionFromClusters(
             serverClusters,
             data.features,
             (feat) => normalizeSidoName(String(feat.properties.name ?? feat.properties.name_eng ?? '')),
           );
+        } else {
+          counts = countListingsBySido(listings);
         }
         for (const feat of data.features) {
           const nameRaw = String(
@@ -610,13 +623,16 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           east: bounds.getNorthEast().getLng(),
           north: bounds.getNorthEast().getLat(),
         } : null;
-        let counts = countListingsBySigungu(listings);
-        if (counts.size === 0 && serverClusters?.length) {
+        // L-cluster-pref1 (2026-04-25): serverClusters 우선
+        let counts: Map<string, number>;
+        if (serverClusters?.length) {
           counts = countByRegionFromClusters(
             serverClusters,
             data.features,
             (feat) => String(feat.properties.name ?? feat.properties.name_eng ?? '').trim(),
           );
+        } else {
+          counts = countListingsBySigungu(listings);
         }
         for (const feat of data.features) {
           if (bbox && !featureIntersectsBbox(feat, bbox)) continue;
@@ -669,14 +685,17 @@ export default function AdminRegionOverlay({ map, listings, serverClusters, onCl
           nameByFeat.set(feat, nameRaw);
         }
 
-        let counts = countListingsByFeature(
-          listings,
-          visibleFeatures,
-          (feat) => nameByFeat.get(feat) ?? '',
-        );
-        if (counts.size === 0 && serverClusters?.length) {
+        // L-cluster-pref1 (2026-04-25): serverClusters 우선
+        let counts: Map<string, number>;
+        if (serverClusters?.length) {
           counts = countByRegionFromClusters(
             serverClusters,
+            visibleFeatures,
+            (feat) => nameByFeat.get(feat) ?? '',
+          );
+        } else {
+          counts = countListingsByFeature(
+            listings,
             visibleFeatures,
             (feat) => nameByFeat.get(feat) ?? '',
           );
