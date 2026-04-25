@@ -493,4 +493,30 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (maps.event.removeListener) {
           maps.event.removeListener(mapInst as unknown, 'mousemove', onMouseMove);
           maps.event.removeListener(mapInst as unknown, 'idle', onIdle);
-          maps.event.removeListener(mapInst as 
+          maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
+        }
+      } catch { /*noop*/ }
+      // L-naver-tooltip2 (2026-04-26): 툴팁 DOM + 전역 mousemove 리스너 cleanup.
+      try { document.removeEventListener('mousemove', updateTooltipPosition); } catch { /*noop*/ }
+      try { tooltipEl.remove(); } catch { /*noop*/ }
+      cleanup();
+    };
+  }, [map, onClickRegion]);
+
+  // sigungu + dong 캐시 warm-up
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = (typeof window.requestIdleCallback === 'function')
+      ? window.requestIdleCallback(() => { void loadSigungu(); void loadDong(); })
+      : window.setTimeout(() => { void loadSigungu(); void loadDong(); }, 2000);
+    return () => {
+      if (typeof window.requestIdleCallback === 'function' && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(id as number);
+      } else {
+        clearTimeout(id as number);
+      }
+    };
+  }, []);
+
+  return null;
+}
