@@ -19,6 +19,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { MapListing } from '@/features/map-2026/store';
+import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
 
 const SIDO_GEOJSON_URL    = '/api/geo/sido';
 const SIGUNGU_GEOJSON_URL = '/api/geo/sigungu';
@@ -143,12 +144,6 @@ function shortSidoName(full: string): string {
   if (full.startsWith('경상남') || full.startsWith('경남')) return '경남';
   if (full.startsWith('제주')) return '제주';
   return full;
-}
-
-/** 통계동 → 법정동 (서초3동 → 서초동) */
-function normalizeLegalDong(name: string): string {
-  if (!name) return name;
-  return name.replace(/(.+?)\d+동$/, '$1동');
 }
 
 function pointInRing(lng: number, lat: number, ring: number[][]): boolean {
@@ -486,13 +481,15 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         // 부모 시군구 feature (mouse 위치 기준 — sigData 에서 찾기)
         const sigParentFeat = sigData?.features ? findFeatureAt(sigData.features, lat, lng) : null;
         const rawName = String((feat.properties as { name?: string }).name ?? '').trim();
-        const legalName = normalizeLegalDong(rawName);
+        // L-naver-legal1 (2026-04-26): 행정동 → 법정동 매핑.  네이버는 법정동 (신림·봉천·남현)
+        //   기준이라 신원동·서원동·대학동 같은 행정동을 신림동으로 묶어야 함.
+        const legalName = adminToLegalDong(rawName, parentSig);
         const key = `dong:${parentSido}:${parentSig}:${legalName}`;
         if (key === currentKey && currentLevelMode === mode) return;
-        // 같은 법정동 모든 통계동 묶기 (서초1~4동 → 서초동 한 덩어리)
+        // 같은 법정동 모든 행정동 묶기 (신원동·서원동·대학동 → 신림동 한 덩어리)
         const groupFeats = dongData.features.filter((f) => {
           const n = String((f.properties as { name?: string }).name ?? '').trim();
-          return normalizeLegalDong(n) === legalName;
+          return adminToLegalDong(n, parentSig) === legalName;
         });
         cleanup();
         // L-naver-dual1: backdrop 시군구 (light) → 그 위에 dong foreground (darker).
@@ -506,9 +503,14 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           });
         }
         const parts = [parentSido, parentSig, legalName].filter(Boolean);
-        drawRegion(groupFeats.length > 0 ? groupFeats : [feat], parts.join(' '), 'dong', {
-          fillOpacityOverride: 0.22,
-          strokeOpacityOverride: 0.85,
+        // L-naver-legal1: 여러 행정동을 하나의 법정동으로 시각화할 때 inner border 숨김.
+        //   strokeOpacity=0 으로 fill 만 표시 → 인접 행정동들이 시각적으로 한 덩어리로 보임.
+        //   1개 (남현동 등) 일 땐 정상 stroke 유지.
+        const grouped = groupFeats.length > 0 ? groupFeats : [feat];
+        const isMultiAdmin = grouped.length > 1;
+        drawRegion(grouped, parts.join(' '), 'dong', {
+          fillOpacityOverride: isMultiAdmin ? 0.28 : 0.22,
+          strokeOpacityOverride: isMultiAdmin ? 0 : 0.85,
         });
         currentKey = key;
         currentLevelMode = mode;
@@ -570,3 +572,4 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
   return null;
 }
+ 
