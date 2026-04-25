@@ -383,52 +383,46 @@ function featureIntersectsBbox(
   return false;
 }
 
-/** 시/도 카운트 chip — 폴리곤 centroid 위에 뜨는 라벨 */
-function makeRegionCountChip(name: string, count: number): HTMLDivElement {
+/** L-naverstyle9 (2026-04-25): 네이버 부동산 스타일 통일 원형 마커.
+ *  네이버는 행정구역 chip 에 텍스트(이름) 를 넣지 않고 폴리곤 색칠 + 단순한
+ *  원형 + 숫자만으로 표시한다.  지도 자체의 동/구 이름 라벨이 위치 정보를
+ *  보완하므로 마커가 시각적으로 깔끔.
+ *
+ *  · count 기반 사이즈 — 1k 이상은 큰 원, 작은 카운트는 작은 원
+ *  · padding 2~4px 로 숫자만 들어가는 정사각 박스가 아닌 자연스러운 원형
+ *  · 위시스 그린 (#006241) 채움으로 브랜드 일관성 유지 (네이버는 파란색) */
+function makeRegionCountChip(_name: string, count: number): HTMLDivElement {
   const el = document.createElement('div');
+  // 카운트 크기에 비례한 마커 사이즈
+  const size = count >= 1000 ? 56 : count >= 100 ? 48 : count >= 10 ? 42 : 36;
+  const fontSize = count >= 1000 ? 13 : count >= 100 ? 13 : count >= 10 ? 13 : 12;
   el.style.cssText = [
     'display:inline-flex',
     'align-items:center',
-    'background:#ffffff',
-    'border-radius:999px',
-    'padding:6px 5px 6px 12px',
-    'font-size:12px',
+    'justify-content:center',
+    `width:${size}px`,
+    `height:${size}px`,
+    'border-radius:50%',
+    'background:rgba(0,98,65,0.92)',
+    'color:#fff',
+    `border:2px solid #fff`,
+    'box-shadow:0 2px 8px rgba(0,0,0,0.25)',
+    `font-size:${fontSize}px`,
     'font-weight:700',
-    'color:#1a1a1a',
-    `border:1.5px solid ${STROKE}`,
-    'box-shadow:0 2px 6px rgba(0,0,0,0.15)',
-    'white-space:nowrap',
+    'letter-spacing:-0.3px',
     'cursor:pointer',
     'user-select:none',
     'font-family:inherit',
     'pointer-events:auto',
-    'letter-spacing:-0.2px',
+    'transition:transform 150ms ease',
   ].join(';');
-
-  const label = document.createElement('span');
-  label.textContent = name;
-  el.appendChild(label);
-
-  const badge = document.createElement('span');
-  badge.style.cssText = [
-    'display:inline-flex',
-    'align-items:center',
-    'justify-content:center',
-    'background:rgba(0,98,65,0.88)',
-    'color:#fff',
-    'border-radius:999px',
-    'padding:2px 8px',
-    'font-size:11px',
-    'font-weight:700',
-    'margin-left:8px',
-    'min-width:24px',
-  ].join(';');
-  badge.textContent = count >= 10000
+  el.textContent = count >= 10000
     ? `${Math.floor(count / 1000)}k`
     : count >= 1000
       ? `${(Math.floor(count / 100) / 10).toFixed(1)}k`
       : String(count);
-  el.appendChild(badge);
+  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.1)'; });
+  el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
   return el;
 }
 

@@ -417,34 +417,29 @@ export default function HtmlMarkerOverlay({
       }
 
       // ── Tier 1 그룹 렌더 ──
-      // L-naverstyle8 (2026-04-24 pm): 사용자 피드백 "동그라미 마커로 유지하라고
-      //   했는데 역삼동 원룸 45 같은 pill 이 뜬다".
-      //   bucketListings 는 두 경로로 그룹을 만든다:
-      //     · key 'b:…'  — building_name 기반 ("잠원동양타운 3")  → pill (네이버 style 유지)
-      //     · key 'd:…'  — dong+type 폴백      ("역삼동 원룸 45")  → circle (숫자만)
-      //   후자는 privacy-safe 폴백으로 만든 group 이므로 시각적으로는 개별 집계와
-      //   같은 의미 — 숫자 circle 이 적절. 건물명 pill 과 circle 을 혼재시켜
-      //   정보 우선순위를 분명히 드러낸다.
+      // L-naverstyle9 (2026-04-25): 네이버 부동산 스타일 통일.
+      //   네이버는 단지명 / 동 이름 등 텍스트 라벨을 마커에 넣지 않고
+      //   "파란 원형 + 숫자" 만 표시.  카카오 지도 자체에 단지·건물명
+      //   라벨이 풍부하므로 중복 정보 제거 + 시각적 노이즈 절감.
+      //
+      //   bucketListings 의 두 그룹 (b: building_name, d: dong+type) 모두
+      //   동일하게 makeCircleElement 로 렌더.  단지명은 클릭 시 drawer 로
+      //   확인.  group.name 은 click handler 에서만 활용.
       for (const g of tier1Groups) {
         const selected =
           selectedListingId != null && g.listings.some((l) => l.id === selectedListingId);
         const isBuildingPill = g.key.startsWith('b:');
-        let el: HTMLDivElement;
-        if (isBuildingPill) {
-          el = makePillElement({ name: g.name, count: g.count, selected });
-        } else {
-          // dong+type 폴백 → circle (네이버 '숫자 원' 스타일)
-          const size = g.count >= 100 ? 46 : g.count >= 10 ? 42 : g.count >= 2 ? 40 : 36;
-          el = makeCircleElement({ count: g.count, selected, size });
-        }
+        const size = g.count >= 100 ? 46 : g.count >= 10 ? 42 : g.count >= 2 ? 40 : 36;
+        const el = makeCircleElement({ count: g.count, selected, size });
         el.addEventListener('click', (e) => {
           e.stopPropagation();
-          if (onClickCluster && g.listings.length > 1 && !isBuildingPill) {
-            onClickCluster(g.listings);
+          // 단지(building_name) 그룹은 단지 drawer, 그 외는 cluster filter
+          if (isBuildingPill && onClickComplex) {
+            onClickComplex(g.name, g.listings);
             return;
           }
-          if (onClickComplex && isBuildingPill) {
-            onClickComplex(g.name, g.listings);
+          if (onClickCluster && g.listings.length > 1) {
+            onClickCluster(g.listings);
             return;
           }
           if (g.listings.length > 0) onClickListing(g.listings[0].id);
