@@ -1,25 +1,18 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// AdminRegionOverlay — L-naver-true1 (2026-04-26 night)
-// 네이버 부동산과 동일한 동작 — 사용자 4개 스크린샷 기반 100% 매칭.
+// AdminRegionOverlay — L-naver-true2 (2026-04-26 night, mouse-tracking)
+// 사용자 피드백: 마우스 포인터 따라 폴리곤이 변경되어야 함.
 //
 // 핵심:
-//   · 줌 레벨별 viewport 중심 지역 1개 폴리곤만 표시 (네이버처럼)
-//   · 폴리곤은 항상 visible (hover 개념 X — 사용자 명시적 지적)
-//   · 폴리곤 안에 지역명 라벨 ("서울시 관악구" / "서울시 관악구 신림동")
-//   · 폴리곤 클릭 → fitBounds → 자동으로 다음 단계 폴리곤 표시
-//   · 매물 마커는 level ≤ 3 (HtmlMarkerOverlay) — 동 폴리곤 클릭 후
+//   · 마우스 위치 기반 폴리곤 1개 표시 (mousemove 추적)
+//   · 법정동 그룹화 (서초1동·서초2동·서초3동 → "서초동" 한 덩어리)
+//   · 깔끔한 라벨 (이모지 없는 화이트 pill)
+//   · 클릭 → fitBounds → 다음 단계 폴리곤 자동 등장
 //
 // 줌 레벨 매핑:
-//   · level ≥ 10 : 시/도 폴리곤 1개 (viewport 중심 시/도)
-//   · level 7~9  : 시/군/구 폴리곤 1개 (viewport 중심 시/군/구)
-//   · level 4~6  : 읍/면/동 폴리곤 1개 (viewport 중심 동)
-//   · level ≤ 3  : 폴리곤 없음, HtmlMarkerOverlay 가 매물 마커 표시
-//
-// 데이터 소스:
-//   https://github.com/southkorea/southkorea-maps
-//     · 시/도 17개 (skorea-provinces-2018-geo.json)
-//     · 시/군/구 ~250개 (skorea-municipalities-2018-geo.json)
-//     · 읍/면/동 ~3,500개 (simplified)
+//   · level ≥ 10 : 시/도 (서울시 / 경기도 등)
+//   · level 7~9  : 시/군/구 (관악구 / 수원시 등)
+//   · level 4~6  : 읍/면/동 (법정동 단위, 그룹화)
+//   · level ≤ 3  : 폴리곤 없음, HtmlMarkerOverlay 매물 마커
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 'use client';
@@ -43,7 +36,6 @@ interface GeoCollection {
   features: GeoFeature[];
 }
 
-// 모듈 레벨 캐시
 let sidoCache: GeoCollection | null = null;
 let sigunguCache: GeoCollection | null = null;
 let dongCache: GeoCollection | null = null;
@@ -82,20 +74,19 @@ async function loadDong(): Promise<GeoCollection | null> {
   return pendingDong;
 }
 
-// ── Kakao SDK 타입 최소 ────────────────────────────────────────────
 interface KakaoPolygon { setMap: (m: unknown) => void }
 interface KakaoCustomOverlay { setMap: (m: unknown) => void }
 interface KakaoLatLng { getLat: () => number; getLng: () => number }
+interface KakaoMouseEvent { latLng: KakaoLatLng }
 interface KakaoMapLike {
   getLevel?: () => number;
   getCenter?: () => KakaoLatLng;
-  getBounds?: () => { getSouthWest: () => KakaoLatLng; getNorthEast: () => KakaoLatLng };
   setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
   setLevel?: (n: number, opts?: unknown) => void;
 }
 interface KakaoEventNs {
-  addListener: (t: unknown, type: string, cb: () => void) => void;
-  removeListener?: (t: unknown, type: string, cb: () => void) => void;
+  addListener: (t: unknown, type: string, cb: (e?: KakaoMouseEvent) => void) => void;
+  removeListener?: (t: unknown, type: string, cb: (e?: KakaoMouseEvent) => void) => void;
 }
 interface KakaoMapsNs {
   Polygon: new (opts: Record<string, unknown>) => KakaoPolygon;
@@ -106,14 +97,12 @@ interface KakaoMapsNs {
 }
 interface KakaoNs { maps?: KakaoMapsNs }
 
-// L-naver-true1: 네이버 동일 — 빨간색 외곽선 + 옅은 핑크 fill, 라벨 박스
 const FILL = '#dc2626';
 const FILL_OPACITY = 0.15;
 const STROKE = '#dc2626';
 const STROKE_OPACITY = 0.7;
 const STROKE_WEIGHT = 2;
 
-// 시/도 이름 정규화
 function normalizeSidoName(raw: string | undefined | null): string {
   if (!raw) return '';
   const map: Record<string, string> = {
@@ -153,7 +142,12 @@ function shortSidoName(full: string): string {
   return full;
 }
 
-// Ray-casting point-in-polygon
+/** 통계동 → 법정동 (서초3동 → 서초동) */
+function normalizeLegalDong(name: string): string {
+  if (!name) return name;
+  return name.replace(/(.+?)\d+동$/, '$1동');
+}
+
 function pointInRing(lng: number, lat: number, ring: number[][]): boolean {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -184,8 +178,6 @@ function pointInFeature(lat: number, lng: number, feat: GeoFeature): boolean {
   }
   return false;
 }
-
-/** viewport 중심 좌표를 포함하는 첫 feature 찾기 */
 function findFeatureAt(features: GeoFeature[], lat: number, lng: number): GeoFeature | null {
   for (const f of features) {
     if (pointInFeature(lat, lng, f)) return f;
@@ -193,7 +185,6 @@ function findFeatureAt(features: GeoFeature[], lat: number, lng: number): GeoFea
   return null;
 }
 
-/** feature → bbox */
 function computeFeatureBbox(feat: GeoFeature): { west: number; south: number; east: number; north: number } | null {
   const geom = feat.geometry;
   const paths: number[][][][] = geom.type === 'Polygon'
@@ -213,54 +204,57 @@ function computeFeatureBbox(feat: GeoFeature): { west: number; south: number; ea
   if (!Number.isFinite(minLng)) return null;
   return { west: minLng, south: minLat, east: maxLng, north: maxLat };
 }
+function multiFeatureBbox(feats: GeoFeature[]): { west: number; south: number; east: number; north: number } | null {
+  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
+  for (const f of feats) {
+    const b = computeFeatureBbox(f);
+    if (!b) continue;
+    if (b.west < minLng) minLng = b.west;
+    if (b.east > maxLng) maxLng = b.east;
+    if (b.south < minLat) minLat = b.south;
+    if (b.north > maxLat) maxLat = b.north;
+  }
+  if (!Number.isFinite(minLng)) return null;
+  return { west: minLng, south: minLat, east: maxLng, north: maxLat };
+}
 
-/** feature 면적 가중 centroid (라벨 위치용) */
-function featureCentroid(feat: GeoFeature): { lat: number; lng: number } | null {
-  const geom = feat.geometry;
-  const paths: number[][][][] = geom.type === 'Polygon'
-    ? [geom.coordinates as number[][][]]
-    : geom.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]) : [];
+function multiFeatureCentroid(feats: GeoFeature[]): { lat: number; lng: number } | null {
   let lng = 0, lat = 0, n = 0;
-  for (const poly of paths) {
-    const outer = poly[0];
-    if (!outer) continue;
-    for (const [x, y] of outer) {
-      lng += x; lat += y; n++;
+  for (const f of feats) {
+    const geom = f.geometry;
+    const paths: number[][][][] = geom.type === 'Polygon'
+      ? [geom.coordinates as number[][][]]
+      : geom.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]) : [];
+    for (const poly of paths) {
+      const outer = poly[0];
+      if (!outer) continue;
+      for (const [x, y] of outer) { lng += x; lat += y; n++; }
     }
   }
   if (n === 0) return null;
   return { lat: lat / n, lng: lng / n };
 }
 
-/** 네이버 스타일 라벨 박스 (📍 서울시 관악구) */
+/** 깔끔한 라벨 — 화이트 pill, 이모지 없음, 작은 폰트 */
 function makeRegionLabel(text: string): HTMLDivElement {
   const wrapper = document.createElement('div');
   wrapper.style.cssText = [
-    'display:inline-flex',
-    'align-items:center',
-    'gap:6px',
-    'padding:6px 12px',
-    'background:#fff',
-    'border:1px solid rgba(0,0,0,0.12)',
-    'border-radius:18px',
-    'box-shadow:0 2px 8px rgba(0,0,0,0.15)',
-    'font-size:13px',
+    'display:inline-block',
+    'padding:5px 10px',
+    'background:rgba(255,255,255,0.97)',
+    'border:1px solid rgba(0,0,0,0.08)',
+    'border-radius:14px',
+    'box-shadow:0 1px 4px rgba(0,0,0,0.12)',
+    'font-size:12px',
     'font-weight:600',
-    'color:#222',
+    'color:#1a1a1a',
     'white-space:nowrap',
     'pointer-events:none',
     'user-select:none',
+    'letter-spacing:-0.2px',
     'font-family:inherit',
   ].join(';');
-  // 📍 아이콘
-  const pin = document.createElement('span');
-  pin.textContent = '📍';
-  pin.style.cssText = 'font-size:13px;line-height:1;';
-  wrapper.appendChild(pin);
-  // 텍스트
-  const t = document.createElement('span');
-  t.textContent = text;
-  wrapper.appendChild(t);
+  wrapper.textContent = text;
   return wrapper;
 }
 
@@ -289,60 +283,65 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       overlaysRef.current = [];
     };
 
-    let currentRenderId = 0;
+    let currentKey = '';        // 현재 표시 중인 폴리곤 key (e.g., "서울특별시", "관악구", "서초동")
+    let currentLevelMode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
+    let lastClickAt = 0;
 
-    /** 단일 feature 폴리곤 + 라벨 그리기 (네이버 동일) */
-    const drawFeature = (feat: GeoFeature, labelText: string) => {
-      const geom = feat.geometry;
-      const paths: number[][][][] = geom.type === 'Polygon'
-        ? [geom.coordinates as number[][][]]
-        : geom.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]) : [];
-      const bbox = computeFeatureBbox(feat);
-      // 모든 ring 폴리곤 그림 (MultiPolygon 지원)
-      for (const polyCoords of paths) {
-        const outer = polyCoords[0];
-        if (!outer) continue;
-        const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
+    /** 단일/다중 features → 1 시각 영역 (라벨 1개) */
+    const drawRegion = (feats: GeoFeature[], labelText: string) => {
+      const bbox = multiFeatureBbox(feats);
+      const onClick = () => {
+        lastClickAt = Date.now();
         try {
-          const polygon = new maps.Polygon({
-            path,
-            strokeWeight: STROKE_WEIGHT,
-            strokeColor: STROKE,
-            strokeOpacity: STROKE_OPACITY,
-            fillColor: FILL,
-            fillOpacity: FILL_OPACITY,
-            clickable: true,
-          });
-          // 클릭 → fitBounds로 줌인 (자동으로 다음 단계 폴리곤 등장)
-          try {
-            maps.event.addListener(polygon as unknown, 'click', () => {
+          if (bbox && typeof mapInst.setBounds === 'function') {
+            const sw = new maps.LatLng(bbox.south, bbox.west);
+            const ne = new maps.LatLng(bbox.north, bbox.east);
+            const bounds = new maps.LatLngBounds(sw, ne);
+            mapInst.setBounds(bounds, 40, 40, 40, 40);
+            setTimeout(() => {
               try {
-                if (bbox && typeof mapInst.setBounds === 'function') {
-                  const sw = new maps.LatLng(bbox.south, bbox.west);
-                  const ne = new maps.LatLng(bbox.north, bbox.east);
-                  const bounds = new maps.LatLngBounds(sw, ne);
-                  mapInst.setBounds(bounds, 40, 40, 40, 40);
-                  // setBounds 후 줌이 충분히 안 들어가면 강제 줌인
-                  setTimeout(() => {
-                    try {
-                      const beforeLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
-                      if (beforeLv >= 7 && typeof mapInst.setLevel === 'function') {
-                        // 시/구 polygon click → 동 level (4-6)
-                        mapInst.setLevel(Math.max(3, beforeLv - 3));
-                      }
-                    } catch { /*noop*/ }
-                  }, 150);
+                const lv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
+                // 시/구 → 동: lv 7+ → lv 5
+                // 동 → 마커: lv 4+ → lv 2
+                if (lv >= 7 && typeof mapInst.setLevel === 'function') {
+                  mapInst.setLevel(Math.max(4, lv - 3));
+                } else if (lv >= 4 && typeof mapInst.setLevel === 'function') {
+                  mapInst.setLevel(Math.max(2, lv - 2));
                 }
               } catch { /*noop*/ }
-              onClickRegion?.(labelText);
-            });
-          } catch { /*noop*/ }
-          polygon.setMap(map);
-          polygonsRef.current.push(polygon);
+            }, 100);
+          }
         } catch { /*noop*/ }
+        onClickRegion?.(labelText);
+      };
+      // 모든 feature 그리기
+      for (const feat of feats) {
+        const geom = feat.geometry;
+        const paths: number[][][][] = geom.type === 'Polygon'
+          ? [geom.coordinates as number[][][]]
+          : geom.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]) : [];
+        for (const polyCoords of paths) {
+          const outer = polyCoords[0];
+          if (!outer) continue;
+          const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
+          try {
+            const polygon = new maps.Polygon({
+              path,
+              strokeWeight: STROKE_WEIGHT,
+              strokeColor: STROKE,
+              strokeOpacity: STROKE_OPACITY,
+              fillColor: FILL,
+              fillOpacity: FILL_OPACITY,
+              clickable: true,
+            });
+            try { maps.event.addListener(polygon as unknown, 'click', onClick); } catch { /*noop*/ }
+            polygon.setMap(map);
+            polygonsRef.current.push(polygon);
+          } catch { /*noop*/ }
+        }
       }
-      // 라벨 (centroid 위치)
-      const centroid = featureCentroid(feat);
+      // 라벨 1개 (그룹 centroid)
+      const centroid = multiFeatureCentroid(feats);
       if (centroid && labelText) {
         try {
           const label = makeRegionLabel(labelText);
@@ -360,95 +359,115 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       }
     };
 
-    const render = async () => {
-      const myId = ++currentRenderId;
-      cleanup();
-      const stillOwner = () => myId === currentRenderId;
-
+    /** 마우스 위치(또는 viewport 중심) 좌표를 받아 폴리곤 갱신 */
+    const updateAt = async (lat: number, lng: number) => {
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
-      const center = typeof mapInst.getCenter === 'function' ? mapInst.getCenter() : null;
-      if (!center) return;
-      const lat = center.getLat();
-      const lng = center.getLng();
-
-      // ── 시/도 (level ≥ 10) ──
-      if (level >= 10) {
-        const data = await loadSido();
-        if (!stillOwner() || !data?.features) return;
-        const feat = findFeatureAt(data.features, lat, lng);
-        if (!feat) return;
-        const sidoName = normalizeSidoName(
-          String((feat.properties as { name?: string }).name ?? '')
-        );
-        drawFeature(feat, shortSidoName(sidoName));
+      let mode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
+      if (level >= 10) mode = 'sido';
+      else if (level >= 7) mode = 'sigungu';
+      else if (level >= 4) mode = 'dong';
+      // level <= 3: 마커만, 폴리곤 클리어
+      if (mode === 'none') {
+        if (currentKey !== '' || currentLevelMode !== 'none') {
+          cleanup();
+          currentKey = '';
+          currentLevelMode = 'none';
+        }
         return;
       }
 
-      // ── 시/군/구 (level 7~9) ──
-      if (level >= 7) {
-        // 부모 시/도 이름 같이 표시 (예: "서울시 관악구")
-        const sidoData = await loadSido();
-        const sigData = await loadSigungu();
-        if (!stillOwner() || !sigData?.features) return;
+      // 라벨 prefix 계산 (시도/구 이름)
+      const sidoData = await loadSido();
+      const sigData = mode !== 'sido' ? await loadSigungu() : null;
+      const dongData = mode === 'dong' ? await loadDong() : null;
+
+      let parentSido = '';
+      let parentSig = '';
+      if (sidoData?.features) {
+        const sidoFeat = findFeatureAt(sidoData.features, lat, lng);
+        if (sidoFeat) {
+          parentSido = shortSidoName(normalizeSidoName(String((sidoFeat.properties as { name?: string }).name ?? '')));
+        }
+      }
+      if (sigData?.features) {
         const sigFeat = findFeatureAt(sigData.features, lat, lng);
-        if (!sigFeat) return;
-        const sigName = String((sigFeat.properties as { name?: string }).name ?? '').trim();
-        let parentSido = '';
-        if (sidoData?.features) {
-          const sidoFeat = findFeatureAt(sidoData.features, lat, lng);
-          if (sidoFeat) {
-            const fullSido = normalizeSidoName(String((sidoFeat.properties as { name?: string }).name ?? ''));
-            parentSido = shortSidoName(fullSido);
-          }
+        if (sigFeat) {
+          parentSig = String((sigFeat.properties as { name?: string }).name ?? '').trim();
         }
+      }
+
+      if (mode === 'sido') {
+        if (!sidoData?.features) return;
+        const feat = findFeatureAt(sidoData.features, lat, lng);
+        if (!feat) return;
+        const fullName = normalizeSidoName(String((feat.properties as { name?: string }).name ?? ''));
+        const key = `sido:${fullName}`;
+        if (key === currentKey && currentLevelMode === mode) return;
+        cleanup();
+        drawRegion([feat], shortSidoName(fullName));
+        currentKey = key;
+        currentLevelMode = mode;
+      } else if (mode === 'sigungu') {
+        if (!sigData?.features) return;
+        const feat = findFeatureAt(sigData.features, lat, lng);
+        if (!feat) return;
+        const sigName = String((feat.properties as { name?: string }).name ?? '').trim();
+        const key = `sig:${parentSido}:${sigName}`;
+        if (key === currentKey && currentLevelMode === mode) return;
+        cleanup();
         const labelText = parentSido ? `${parentSido} ${sigName}` : sigName;
-        drawFeature(sigFeat, labelText);
-        return;
-      }
-
-      // ── 읍/면/동 (level 4~6) ──
-      if (level >= 4) {
-        const sidoData = await loadSido();
-        const sigData = await loadSigungu();
-        const dongData = await loadDong();
-        if (!stillOwner() || !dongData?.features) return;
-        const dongFeat = findFeatureAt(dongData.features, lat, lng);
-        if (!dongFeat) return;
-        const dongName = String((dongFeat.properties as { name?: string }).name ?? '').trim();
-        let parentSido = '';
-        let parentSig = '';
-        if (sidoData?.features) {
-          const sidoFeat = findFeatureAt(sidoData.features, lat, lng);
-          if (sidoFeat) {
-            parentSido = shortSidoName(normalizeSidoName(String((sidoFeat.properties as { name?: string }).name ?? '')));
-          }
-        }
-        if (sigData?.features) {
-          const sigFeat = findFeatureAt(sigData.features, lat, lng);
-          if (sigFeat) {
-            parentSig = String((sigFeat.properties as { name?: string }).name ?? '').trim();
-          }
-        }
-        const parts = [parentSido, parentSig, dongName].filter(Boolean);
+        drawRegion([feat], labelText);
+        currentKey = key;
+        currentLevelMode = mode;
+      } else if (mode === 'dong') {
+        if (!dongData?.features) return;
+        const feat = findFeatureAt(dongData.features, lat, lng);
+        if (!feat) return;
+        const rawName = String((feat.properties as { name?: string }).name ?? '').trim();
+        const legalName = normalizeLegalDong(rawName);
+        const key = `dong:${parentSido}:${parentSig}:${legalName}`;
+        if (key === currentKey && currentLevelMode === mode) return;
+        // 같은 법정동 모든 통계동 묶기
+        const groupFeats = dongData.features.filter((f) => {
+          const n = String((f.properties as { name?: string }).name ?? '').trim();
+          return normalizeLegalDong(n) === legalName;
+        });
+        cleanup();
+        const parts = [parentSido, parentSig, legalName].filter(Boolean);
         const labelText = parts.join(' ');
-        drawFeature(dongFeat, labelText);
-        return;
+        drawRegion(groupFeats.length > 0 ? groupFeats : [feat], labelText);
+        currentKey = key;
+        currentLevelMode = mode;
       }
-
-      // level ≤ 3: 폴리곤 없음, HtmlMarkerOverlay 가 매물 마커 처리
     };
 
-    void render();
+    // 초기 렌더 (viewport 중심)
+    const renderAtCenter = async () => {
+      const center = typeof mapInst.getCenter === 'function' ? mapInst.getCenter() : null;
+      if (!center) return;
+      await updateAt(center.getLat(), center.getLng());
+    };
+    void renderAtCenter();
 
-    const onIdle = () => { void render(); };
-    const onZoom = () => { void render(); };
+    // 마우스 이동 → 폴리곤 갱신
+    const onMouseMove = (e?: KakaoMouseEvent) => {
+      if (!e?.latLng) return;
+      // 클릭 직후 200ms 안에는 mousemove 처리 스킵 (zoom 전환 안정화)
+      if (Date.now() - lastClickAt < 250) return;
+      void updateAt(e.latLng.getLat(), e.latLng.getLng());
+    };
+    try { maps.event.addListener(mapInst as unknown, 'mousemove', onMouseMove); } catch { /*noop*/ }
+
+    // zoom/idle 시에도 갱신 (viewport 중심 기준)
+    const onIdle = () => { void renderAtCenter(); };
+    const onZoom = () => { void renderAtCenter(); };
     try { maps.event.addListener(mapInst as unknown, 'idle', onIdle); } catch { /*noop*/ }
     try { maps.event.addListener(mapInst as unknown, 'zoom_changed', onZoom); } catch { /*noop*/ }
 
     return () => {
-      currentRenderId++;
       try {
         if (maps.event.removeListener) {
+          maps.event.removeListener(mapInst as unknown, 'mousemove', onMouseMove);
           maps.event.removeListener(mapInst as unknown, 'idle', onIdle);
           maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
         }
