@@ -118,12 +118,13 @@ interface KakaoMapsNs {
 }
 interface KakaoNs { maps?: KakaoMapsNs }
 
-// 컬러 — 스타벅스 그린 유지 (마커와 동일 톤)
-const FILL = '#006241';
-const FILL_OPACITY = 0.08;
-const STROKE = '#006241';
-// L-adminpoly6: stroke 조금 더 투명하게 (0.6 → 0.35).  지도 내용 가독성 우선.
-const STROKE_OPACITY = 0.35;
+// L-naverpoly2 (2026-04-26): 폴리곤 fill 색상 — 네이버처럼 빨간색.
+//   마커는 위시스 그린 유지 (브랜드), 폴리곤만 네이버 톤으로.
+//   네이버 부동산 폴리곤 ≈ #f87171 (red-400) 톤.  fill opacity 낮게 유지.
+const FILL = '#dc2626';        // red-600 (Tailwind), 채도 강한 빨강
+const FILL_OPACITY = 0.10;
+const STROKE = '#dc2626';
+const STROKE_OPACITY = 0.45;
 
 // feature name → sido 짧은 이름 매핑 (southkorea-maps 는 name 에 영문/한글 혼재)
 function normalizeSidoName(raw: string | undefined | null): string {
