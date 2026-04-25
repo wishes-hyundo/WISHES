@@ -386,10 +386,14 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     const updateAt = async (lat: number, lng: number) => {
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
       let mode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
-      // L-naver-zoom4 (2026-04-26 night): zoom3 revert — z15 마커 너무 많음 (969개) 문제.
-      //   z15 → 동 폴리곤 복원.  마커 영역 level 1-4 유지.  Naver z15 = 동 폴리곤 매칭.
-      //   클러스터링은 HtmlMarkerOverlay 의 usePill 임계값 확장으로 별도 해결.
-      if (level >= 12) mode = 'sido';
+      // L-naver-zoom5 (2026-04-26 night): 사용자 라이브 비교 후 1단계 조정.
+      //   네이버 z8 = 시군구 폴리곤 (양평군, 평창군).  위시스 z8 = level 12 였으나
+      //   sido 모드로 잘못 분류.  level 12 도 sigungu 로 변경.
+      //   sido: level 13+ (z7-)
+      //   sigungu: level 8~12 (z8~z12)
+      //   dong: level 5~7 (z13~z15)
+      //   markers: level 1~4 (z16~z19)
+      if (level >= 13) mode = 'sido';
       else if (level >= 8) mode = 'sigungu';
       else if (level >= 5) mode = 'dong';
       // level ≤ 4: 마커만, 폴리곤 클리어
