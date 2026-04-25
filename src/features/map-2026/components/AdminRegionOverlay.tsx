@@ -298,16 +298,16 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             const ne = new maps.LatLng(bbox.north, bbox.east);
             const bounds = new maps.LatLngBounds(sw, ne);
             mapInst.setBounds(bounds, 40, 40, 40, 40);
-            // 모드별 명시적 줌 레벨 강제 — 클릭 시 항상 다음 단계로 진입 보장
-            //   sido(10+) 클릭 → 8 (sigungu 폴리곤 보임)
-            //   sigungu(7~9) 클릭 → 6 (dong 폴리곤 보임)
-            //   dong(5~6) 클릭 → 3 (HtmlMarkerOverlay 매물 마커 보임, level≤4 마커 영역)
+            // L-naver-zoom1: 네이버 zoom 라벨링 기준 클릭 전이.
+            //   sido(level 13+) 클릭 → level 11 (z10, sigungu 폴리곤 보임)
+            //   sigungu(level 9~12) 클릭 → level 7 (z14, dong 폴리곤 보임)
+            //   dong(level 6~8) 클릭 → level 4 (z17, 매물 마커 보임, level≤5 마커 영역)
             setTimeout(() => {
               try {
                 if (typeof mapInst.setLevel !== 'function') return;
-                if (mode === 'sido') mapInst.setLevel(8);
-                else if (mode === 'sigungu') mapInst.setLevel(6);
-                else if (mode === 'dong') mapInst.setLevel(3);
+                if (mode === 'sido') mapInst.setLevel(11);
+                else if (mode === 'sigungu') mapInst.setLevel(7);
+                else if (mode === 'dong') mapInst.setLevel(4);
               } catch { /*noop*/ }
             }, 120);
           }
@@ -363,12 +363,15 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     const updateAt = async (lat: number, lng: number) => {
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
       let mode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
-      // L-zoom-shift1 (2026-04-26 night): 사용자 피드백 "너무 세분화" → 동 폴리곤
-      //   범위 축소.  dong: 5~6 (이전 4~6), 마커: ≤4 (이전 ≤3) 로 전환.
-      if (level >= 10) mode = 'sido';
-      else if (level >= 7) mode = 'sigungu';
-      else if (level >= 5) mode = 'dong';
-      // level ≤ 4: 마커만, 폴리곤 클리어
+      // L-naver-zoom1 (2026-04-26 night): Naver z9~z19 라벨링 매칭.
+      //   Naver z9~z12 (Kakao level 9~12): 시군구 폴리곤
+      //   Naver z13~z15 (Kakao level 6~8): 동 폴리곤
+      //   Naver z16~z19 (Kakao level 1~5): 매물 마커 (HtmlMarkerOverlay)
+      //   level 13~14 (z7~z8): 시도 폴리곤 (very wide, 한반도)
+      if (level >= 13) mode = 'sido';
+      else if (level >= 9) mode = 'sigungu';
+      else if (level >= 6) mode = 'dong';
+      // level ≤ 5: 마커만, 폴리곤 클리어
       if (mode === 'none') {
         if (currentKey !== '' || currentLevelMode !== 'none') {
           cleanup();

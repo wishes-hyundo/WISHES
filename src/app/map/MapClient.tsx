@@ -60,11 +60,12 @@ import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
 // 서울 기본 중심
 const SEOUL = { lat: 37.4979, lng: 127.0276 };
 
-// Kakao level(1~14) ↔ 내부 zoom(5~17) 근사 매핑
-//   level 1 → zoom 17 (건물), level 5 → zoom 13 (동), level 8 → zoom 10 (구)
-//   semantic zoom 경계(11.5 / 13.5) 와 호환되도록 `zoom = 18 - level` 선택.
+// L-naver-zoom1 (2026-04-26 night): 네이버 부동산과 동일한 zoom 라벨링.
+//   네이버 zoom 9~19 (Mapbox 타일 시스템) 에 맞춰 매핑 재설정.
+//   level 1 → z20 (건물), level 5 → z16 (마커), level 8 → z13 (동/구), level 12 → z9 (광역).
+//   사용자 피드백 — Naver 와 라벨이 1:1 매칭되어야 함.
 function levelToZoom(level: number): number {
-  return Math.max(0, 18 - level);
+  return Math.max(0, 21 - level);
 }
 
 // Kakao SDK 동적 로더 — autoload=false 로 SSR 안전, 다중 호출 중복 방지

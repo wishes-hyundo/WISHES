@@ -32,9 +32,9 @@ export interface ServerCluster {
   sample_ids?: number[] | null;
 }
 
-// Kakao level(1~14) → 표준 웹 zoom(5~17).  MapClient 와 동일 공식.
+// L-naver-zoom1: 네이버 부동산과 동일한 라벨링 (zoom = 21 - level).  MapClient 와 동일.
 function levelToZoom(level: number): number {
-  return Math.max(0, 18 - level);
+  return Math.max(0, 21 - level);
 }
 
 function buildQs(
