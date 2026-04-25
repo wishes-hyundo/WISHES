@@ -300,14 +300,14 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             mapInst.setBounds(bounds, 40, 40, 40, 40);
             // 모드별 명시적 줌 레벨 강제 — 클릭 시 항상 다음 단계로 진입 보장
             //   sido(10+) 클릭 → 8 (sigungu 폴리곤 보임)
-            //   sigungu(7~9) 클릭 → 5 (dong 폴리곤 보임)
-            //   dong(4~6) 클릭 → 2 (HtmlMarkerOverlay 매물 마커 보임)
+            //   sigungu(7~9) 클릭 → 6 (dong 폴리곤 보임)
+            //   dong(5~6) 클릭 → 3 (HtmlMarkerOverlay 매물 마커 보임, level≤4 마커 영역)
             setTimeout(() => {
               try {
                 if (typeof mapInst.setLevel !== 'function') return;
                 if (mode === 'sido') mapInst.setLevel(8);
-                else if (mode === 'sigungu') mapInst.setLevel(5);
-                else if (mode === 'dong') mapInst.setLevel(2);
+                else if (mode === 'sigungu') mapInst.setLevel(6);
+                else if (mode === 'dong') mapInst.setLevel(3);
               } catch { /*noop*/ }
             }, 120);
           }
@@ -363,10 +363,12 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     const updateAt = async (lat: number, lng: number) => {
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
       let mode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
+      // L-zoom-shift1 (2026-04-26 night): 사용자 피드백 "너무 세분화" → 동 폴리곤
+      //   범위 축소.  dong: 5~6 (이전 4~6), 마커: ≤4 (이전 ≤3) 로 전환.
       if (level >= 10) mode = 'sido';
       else if (level >= 7) mode = 'sigungu';
-      else if (level >= 4) mode = 'dong';
-      // level <= 3: 마커만, 폴리곤 클리어
+      else if (level >= 5) mode = 'dong';
+      // level ≤ 4: 마커만, 폴리곤 클리어
       if (mode === 'none') {
         if (currentKey !== '' || currentLevelMode !== 'none') {
           cleanup();
