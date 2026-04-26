@@ -402,26 +402,33 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
 
       const onClick = () => {
-        // L-naver-clickfix2 (2026-04-26): 폴리곤 bbox center 사용으로 복귀.
-        //   e.latLng 사용 시 사용자가 클릭한 정확한 위치로 panTo 되어 폴리곤
-        //   center 가 화면 밖으로 빠지는 문제 (관악구 클릭 → 서초 area 가
-        //   화면 중앙에 위치).  Naver 처럼 항상 폴리곤 정중앙으로 이동.
+        // L-naver-clickfix2: bbox center 로 panTo + setLevel.
+        // L-naver-2026vt1: View Transitions API 로 zoom 전환 cross-fade.
+        //   미지원 브라우저는 직접 실행 폴백.
         lastClickAt = Date.now();
-        // L-naver-click4 + 2026clean1: 클릭 줌 시작 → idle 까지 mousemove 차단 (useRef)
         zoomingFromClickRef.current = true;
-        try {
-          const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
-          const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
-          const bbox = multiFeatureBbox(feats);
-          if (bbox && typeof mapInst.panTo === 'function') {
-            const cy = (bbox.south + bbox.north) / 2;
-            const cx = (bbox.west + bbox.east) / 2;
-            mapInst.panTo(new maps.LatLng(cy, cx));
-          }
-          if (typeof mapInst.setLevel === 'function') {
-            mapInst.setLevel(finalLv, { animate: true });
-          }
-        } catch (err) { console.error('[click] error:', err); }
+        const performZoom = () => {
+          try {
+            const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
+            const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
+            const bbox = multiFeatureBbox(feats);
+            if (bbox && typeof mapInst.panTo === 'function') {
+              const cy = (bbox.south + bbox.north) / 2;
+              const cx = (bbox.west + bbox.east) / 2;
+              mapInst.panTo(new maps.LatLng(cy, cx));
+            }
+            if (typeof mapInst.setLevel === 'function') {
+              mapInst.setLevel(finalLv, { animate: true });
+            }
+          } catch (err) { console.error('[click] error:', err); }
+        };
+        const docVt = document as unknown as { startViewTransition?: (cb: () => void) => { ready: Promise<void> } };
+        if (typeof docVt.startViewTransition === 'function') {
+          try { docVt.startViewTransition(() => performZoom()); }
+          catch { performZoom(); }
+        } else {
+          performZoom();
+        }
         onClickRegion?.(labelText);
       };
 
