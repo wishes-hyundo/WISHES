@@ -19,6 +19,7 @@
 import { useEffect, useRef } from 'react';
 import type { MapListing, PropertyCategory } from '@/features/map-2026/store';
 import { bucketListings, listingCategory } from '@/features/map-2026/lib/markerTier';
+import { kakaoFlyTo } from '@/features/map-2026/lib/cinematicMotion';
 
 // ── 컬러 토큰 ──────────────────────────────────────────────────────
 // L-naver-2026catcolor1 (2026-04-27): 카테고리별 색상 구분 (사용자 요청).
@@ -662,25 +663,30 @@ const size = _isMobile1
             const tightCluster = latSpread < 0.0008 && lngSpread < 0.0008;  // ~88m
             const dec = (count >= 20 || tightCluster) ? 2 : 1;
             const nextLv = Math.max(1, curLv - dec);
-            // L-naver-2026sequential1 (2026-04-27): 시퀀셜 부드러운 모션 (panTo → idle → setLevel animate).
-            const kakaoEv = kakaoAny?.maps as unknown as { event?: { addListener: (t: unknown, type: string, cb: () => void) => void; removeListener?: (t: unknown, type: string, cb: () => void) => void } };
-            if (kakaoAny?.maps?.LatLng) {
-              const target = new kakaoAny.maps.LatLng(targetLat, targetLng);
-              const onArrive = () => {
-                try { kakaoEv?.event?.removeListener?.(mapInst as unknown, 'idle', onArrive); } catch { /*noop*/ }
-                if (typeof mapApi2.setLevel === 'function') {
-                  try { mapApi2.setLevel(nextLv, { animate: true }); } catch { /*noop*/ }
-                }
-              };
-              try { kakaoEv?.event?.addListener(mapInst as unknown, 'idle', onArrive); } catch { /*noop*/ }
-              if (typeof mapApi2.panTo === 'function') {
-                mapApi2.panTo(target);
-              } else if (typeof mapApi2.setCenter === 'function') {
-                mapApi2.setCenter(target);
-                onArrive();
+            // L-naver-2026flyto1 (2026-04-27): 자체 RAF cinematic flyTo (위치+줌 동시 부드럽게).
+            const mapApi4 = mapInst as {
+              getCenter?: () => { getLat: () => number; getLng: () => number };
+              getLevel?: () => number;
+              setCenter?: (latlng: unknown) => void;
+              setLevel?: (n: number, opts?: unknown) => void;
+            };
+            if (kakaoAny?.maps?.LatLng
+                && typeof mapApi4.getCenter === 'function'
+                && typeof mapApi4.setCenter === 'function'
+                && typeof mapApi4.setLevel === 'function'
+                && typeof mapApi4.getLevel === 'function') {
+              try {
+                kakaoFlyTo(
+                  mapApi4 as Parameters<typeof kakaoFlyTo>[0],
+                  kakaoAny.maps.LatLng,
+                  targetLat, targetLng, nextLv,
+                );
+              } catch {
+                mapApi4.setCenter?.(new kakaoAny.maps.LatLng(targetLat, targetLng));
+                mapApi4.setLevel?.(nextLv, { animate: false });
               }
             } else if (typeof mapApi2.setLevel === 'function') {
-              mapApi2.setLevel(nextLv, { animate: true });
+              mapApi2.setLevel(nextLv, { animate: false });
             }
           } catch { /* noop */ }
           return;

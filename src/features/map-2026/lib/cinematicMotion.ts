@@ -23,6 +23,71 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
+// L-naver-2026flyto1 (2026-04-27): 자체 RAF cinematic flyTo (Kakao SDK 한계 극복).
+//   문제: panTo + setLevel(animate) 동시 호출 시 race / 시퀀셜 시 끊김 / setBounds 시 freeze.
+//   해결: requestAnimationFrame loop 으로 위치+줌 동시 보간 + cubic-bezier easing.
+//   구글맵/Mapbox flyTo 동등한 cinematic 모션. 한 번의 부드러운 zoom+pan.
+//
+// duration 자동 계산: 거리 + level 차이 기반 (250~700ms).
+// level 변화: 정수 단위만 setLevel(no animate) 호출.  매 frame setCenter (60fps).
+export function kakaoFlyTo(
+  mapInst: {
+    getCenter: () => { getLat: () => number; getLng: () => number };
+    getLevel: () => number;
+    setCenter: (latlng: unknown) => void;
+    setLevel: (n: number, opts?: unknown) => void;
+  },
+  LatLngCtor: new (lat: number, lng: number) => unknown,
+  targetLat: number,
+  targetLng: number,
+  finalLevel: number,
+  duration?: number,
+): void {
+  const startCenter = mapInst.getCenter();
+  const startLat = startCenter.getLat();
+  const startLng = startCenter.getLng();
+  const startLevel = mapInst.getLevel();
+
+  const dLat = Math.abs(targetLat - startLat);
+  const dLng = Math.abs(targetLng - startLng);
+  const distDeg = Math.sqrt(dLat * dLat + dLng * dLng);
+  const dLevel = Math.abs(finalLevel - startLevel);
+  const auto = Math.min(700, Math.max(250, 250 + distDeg * 4000 + dLevel * 80));
+  const dur = duration ?? auto;
+
+  const startTime = performance.now();
+  let lastSetLevel = startLevel;
+
+  const step = (now: number) => {
+    const elapsed = now - startTime;
+    const t = Math.min(elapsed / dur, 1);
+    const eased = easeInOutCubic(t);
+
+    const lat = startLat + (targetLat - startLat) * eased;
+    const lng = startLng + (targetLng - startLng) * eased;
+    try { mapInst.setCenter(new LatLngCtor(lat, lng)); } catch { /*noop*/ }
+
+    const lvLerp = startLevel + (finalLevel - startLevel) * eased;
+    const rounded = Math.round(lvLerp);
+    if (rounded !== lastSetLevel) {
+      try { mapInst.setLevel(rounded, { animate: false }); } catch { /*noop*/ }
+      lastSetLevel = rounded;
+    }
+
+    if (t < 1) {
+      requestAnimationFrame(step);
+    } else {
+      // 마지막 프레임 보정 (정확한 final 위치/level)
+      try { mapInst.setCenter(new LatLngCtor(targetLat, targetLng)); } catch { /*noop*/ }
+      if (lastSetLevel !== finalLevel) {
+        try { mapInst.setLevel(finalLevel, { animate: false }); } catch { /*noop*/ }
+      }
+    }
+  };
+
+  requestAnimationFrame(step);
+}
+
 // 내부 타입 가드 — runtime 에서 MapLibre vs Kakao 판별
 interface MapLibreLike {
   flyTo: (opts: Record<string, unknown>) => void;

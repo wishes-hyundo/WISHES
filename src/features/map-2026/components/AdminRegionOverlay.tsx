@@ -23,6 +23,7 @@ import simplify from '@turf/simplify';
 import type { Feature as GjFeature, Polygon as GjPolygon, MultiPolygon as GjMP } from 'geojson';
 import type { MapListing } from '@/features/map-2026/store';
 import { useMap2026Store } from '@/features/map-2026/store';
+import { kakaoFlyTo } from '@/features/map-2026/lib/cinematicMotion';
 // L-naver-2026legalunion1: adminToLegalDong 제거 — 서버에서 union 으로 1 feature 생성.
 // L-naver-precise2 (2026-04-26): @turf import 가 빌드 에러. 일단 union 제거.
 //   정밀 GeoJSON (48 pts/feat) 자체로도 충분히 깔끔 → fill 만 stack 으로도 매끄러움.
@@ -646,29 +647,26 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
             //     · panTo+setLevel(animate:true) 동시: race → 위치 못 찾음.
             //   해결: setBounds 한 번 호출 → SDK 가 zoom+center 동시 보간 → race 원천 차단.
             //   bounds 크기를 finalLv 의 viewport 와 일치시켜 zoom 결과 정확히 finalLv.
-            // L-naver-2026sequential1 (2026-04-27): 시퀀셜 부드러운 모션 (사용자 옵션 A).
-            //   panTo (부드러운 이동) → idle 이벤트 → setLevel(animate:true) (부드러운 줌).
-            //   사용자 인지: 클릭 → 위치 이동 부드럽게 → 도착 후 부드러운 줌인.
-            //   "사이드 빠짐" 사라짐. trade-off: 약 0.7s 시퀀셜 (panTo 0.3s + setLevel 0.4s).
-            //   카카오 SDK 가 zoom+pan 동시 부드러운 보간을 안정적으로 못 함 (시도 5번 실패).
-            if (cy != null && cx != null) {
-              const target = new maps.LatLng(cy, cx);
-              const onArrive = () => {
-                try { maps.event.removeListener?.(mapInst as unknown, 'idle', onArrive); } catch { /*noop*/ }
-                if (typeof mapInst.setLevel === 'function') {
-                  try { mapInst.setLevel(finalLv, { animate: true }); } catch { /*noop*/ }
-                }
-              };
-              try { maps.event.addListener(mapInst as unknown, 'idle', onArrive); } catch { /*noop*/ }
-              if (typeof mapInst.panTo === 'function') {
-                mapInst.panTo(target);
-              } else if (typeof mapInst.setCenter === 'function') {
-                mapInst.setCenter(target);
-                // setCenter 가 idle 안 발화할 수 있어 직접 호출
-                onArrive();
+            // L-naver-2026flyto1 (2026-04-27): 자체 RAF cinematic flyTo.
+            //   Kakao SDK 의 panTo+setLevel 동시 호출은 race / 시퀀셜은 끊김 → 자체 보간으로 해결.
+            //   requestAnimationFrame + easeInOutCubic + 정수 level 단계 변화 → 구글맵 flyTo 수준.
+            if (cy != null && cx != null
+                && typeof mapInst.getCenter === 'function'
+                && typeof mapInst.setCenter === 'function'
+                && typeof mapInst.setLevel === 'function') {
+              try {
+                kakaoFlyTo(
+                  mapInst as Parameters<typeof kakaoFlyTo>[0],
+                  maps.LatLng,
+                  cy, cx, finalLv,
+                );
+              } catch {
+                // 폴백
+                mapInst.setCenter(new maps.LatLng(cy, cx));
+                mapInst.setLevel(finalLv, { animate: false });
               }
             } else if (typeof mapInst.setLevel === 'function') {
-              mapInst.setLevel(finalLv, { animate: true });
+              mapInst.setLevel(finalLv, { animate: false });
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
