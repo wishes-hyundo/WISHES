@@ -326,13 +326,14 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
 
       const onClick = () => {
-        // L-naver-smooth2 (2026-04-26): panTo (centroid) + setLevel (target) 한 번에 transition.
-        //   이전 setBounds 만 → 큰 지역 (경기도/강원도 등) 은 zoom 거의 안 변함 → 사용자 "반응 없음".
-        //   이전 setBounds + setTimeout setLevel → 깜빡임 (이중 zoom 변경).
-        //   해결: 명시적 panTo (중심 이동) + setLevel (즉시 zoom).
+        // L-naver-smooth3 (2026-04-26): 모든 지역 동일 transition 보장.
+        //   현재 zoom 과 target 같거나 가까우면 강제로 1단계 차이 (반응 없음 방지).
         lastClickAt = Date.now();
         try {
           const bbox = multiFeatureBbox(feats);
+          const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
+          // target zoom 보장 — 현재와 같으면 한 단계 더 zoom-in
+          const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
           if (bbox) {
             const cy = (bbox.south + bbox.north) / 2;
             const cx = (bbox.west + bbox.east) / 2;
@@ -341,7 +342,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             }
           }
           if (typeof mapInst.setLevel === 'function') {
-            mapInst.setLevel(targetLevel, { animate: true });
+            mapInst.setLevel(finalLv, { animate: { duration: 400 } });
           }
         } catch (e) { console.error('[Polygon Click] error:', e); }
         onClickRegion?.(labelText);
@@ -464,7 +465,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (key === currentKey && currentLevelMode === mode) return;
         cleanup();
         drawRegion([feat], shortSidoName(fullName), 'sido', {
-          fillOpacityOverride: 0.15,    // L-naver-hier3: 시도 진하게
+          fillOpacityOverride: 0.20,    // L-naver-hier5: 더 진하게 (기존 색상)
           strokeOpacityOverride: 0,
           strokeWeightOverride: 0,
         });
@@ -486,7 +487,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           if (key === currentKey && currentLevelMode === mode) return;
           cleanup();
           drawRegion([sigFeat], sigLabel, 'sigungu', {
-            fillOpacityOverride: 0.15,    // L-naver-hier3: 시군구 진하게 (이전 색상)
+            fillOpacityOverride: 0.20,    // L-naver-hier5: 더 진하게 (기존 색상)
             strokeOpacityOverride: 0,
             strokeWeightOverride: 0,
           });
@@ -540,7 +541,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         // L-naver-hier4: 시도/시군구/동 색상 통일 0.15.  마커 zoom (level <= 4) 만 옅게 0.04.
         const isMarkerZoom = level <= 4;
         drawRegion(renderFeats, parts.join(' '), 'dong', {
-          fillOpacityOverride: isMarkerZoom ? 0.04 : 0.15,
+          fillOpacityOverride: isMarkerZoom ? 0.04 : 0.20,    // L-naver-hier5: 더 진하게
           strokeOpacityOverride: 0,
           strokeWeightOverride: 0,
         });
