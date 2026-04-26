@@ -464,17 +464,23 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   dong(4~6) → 3 (z17, marker close-up) — 1-3 levels deep
       const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
 
+      // L-naver-2026clickfix4 (2026-04-26): bbox 를 onClick 등록 시점에 미리 계산해
+      //   closure 에 immutable 하게 캡처.  나중에 feats 가 어떤 이유로 mutate/share
+      //   되어도 click 시 panTo 좌표는 등록 당시 그대로.
+      const lockedBbox = multiFeatureBbox(feats);
+      const lockedLabelText = labelText;
+      const lockedFeatNames = feats.map((f) => String((f.properties as { name?: string }).name ?? '?')).join(',');
+      const lockedFeatCodes = feats.map((f) => String((f.properties as { code?: string }).code ?? '?')).join(',');
+
       const onClick = () => {
-        // L-naver-clickfix2: bbox center 로 panTo + setLevel.
-        // L-naver-2026vt1: View Transitions API 로 zoom 전환 cross-fade.
-        //   미지원 브라우저는 직접 실행 폴백.
+        // L-naver-clickfix2 + 2026clickfix4: pre-locked bbox 로 panTo + setLevel.
         lastClickAt = Date.now();
         zoomingFromClickRef.current = true;
         const performZoom = () => {
           try {
             const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
             const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
-            const bbox = multiFeatureBbox(feats);
+            const bbox = lockedBbox;
             const cy = bbox ? (bbox.south + bbox.north) / 2 : null;
             const cx = bbox ? (bbox.west + bbox.east) / 2 : null;
             // L-naver-2026clickdiag1: click handler 진단 — Sentry breadcrumb + dev console.
@@ -485,14 +491,15 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
               if (Sentry?.addBreadcrumb) {
                 Sentry.addBreadcrumb({
                   category: 'map.click',
-                  message: `${labelText} → (${cy?.toFixed(4)},${cx?.toFixed(4)}) lv ${curLv}→${finalLv}`,
+                  message: `${lockedLabelText} (${lockedFeatNames}) → (${cy?.toFixed(4)},${cx?.toFixed(4)}) lv ${curLv}→${finalLv}`,
                   level: 'info',
-                  data: { labelText, mode, cy, cx, curLv, finalLv, featCount: feats.length },
+                  data: { lockedLabelText, mode, cy, cx, curLv, finalLv, lockedFeatNames, lockedFeatCodes },
                 });
               }
-              if (process.env.NODE_ENV === 'development') {
-                console.debug('[map.click]', labelText, { cy, cx, curLv, finalLv, mode, feats: feats.length });
-              }
+              // L-naver-2026clickfix4: production 에서도 보이도록 console.log (한시적 디버그)
+              try {
+                console.log('[map.click]', lockedLabelText, { cy, cx, curLv, finalLv, mode, names: lockedFeatNames, codes: lockedFeatCodes });
+              } catch { /*noop*/ }
             } catch { /*noop*/ }
             if (cy != null && cx != null && typeof mapInst.panTo === 'function') {
               mapInst.panTo(new maps.LatLng(cy, cx));
@@ -512,7 +519,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         } else {
           performZoom();
         }
-        onClickRegion?.(labelText);
+        onClickRegion?.(lockedLabelText);
       };
 
       // pointer 커서 핸들러 (지도 컨테이너에 cursor 설정)
