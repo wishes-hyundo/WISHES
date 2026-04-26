@@ -238,6 +238,12 @@ interface Props {
 export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
   const polygonsRef = useRef<KakaoPolygon[]>([]);
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
+  // L-naver-2026clean1: window global hack 제거. useRef 로 closure 간 state 공유.
+  const zoomingFromClickRef = useRef<boolean>(false);
+  // L-naver-2026clean1: sido name → 그 sido 안의 sigungus 캐싱.  같은 sido 진입 반복 시
+  //   computeFeatureBbox + pointInFeature O(N) 재계산 회피.  sigData 가 한 번 로드되면
+  //   불변이므로 일생 캐시.
+  const sidoSigCacheRef = useRef<Map<string, GeoFeature[]>>(new Map());
 
   useEffect(() => {
     if (!map || typeof window === 'undefined') return;
@@ -333,11 +339,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         //   center 가 화면 밖으로 빠지는 문제 (관악구 클릭 → 서초 area 가
         //   화면 중앙에 위치).  Naver 처럼 항상 폴리곤 정중앙으로 이동.
         lastClickAt = Date.now();
-        // L-naver-click4: 클릭 줌 시작 → idle 까지 mousemove 완전 차단
-        try {
-          const setZ = (window as unknown as { __wishesSetZooming?: () => void }).__wishesSetZooming;
-          if (typeof setZ === 'function') setZ();
-        } catch { /*noop*/ }
+        // L-naver-click4 + 2026clean1: 클릭 줌 시작 → idle 까지 mousemove 차단 (useRef)
+        zoomingFromClickRef.current = true;
         try {
           const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
           const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
@@ -392,9 +395,6 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           if (!rawOuter) continue;
           const outer = ensureCCW(rawOuter);
           const path = outer.map(([lng, lat]) => new maps.LatLng(lat, lng));
-          // L-naver-poly1: 진단 로그 — 실제 kakao 에 들어간 path 길이 + 처음/끝 점 확인.
-          console.log('[AdminPoly]', mode, labelText, 'pts=', path.length,
-            'first=', rawOuter[0], 'last=', rawOuter[rawOuter.length - 1]);
           try {
             const polygon = new maps.Polygon({
               path,
@@ -498,16 +498,21 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (key === currentKey && currentLevelMode === mode) return;
         cleanup();
 
-        // 같은 sido 안에 들어가는 sigungus 필터 (centroid point-in-polygon)
-        const insideSigungus: GeoFeature[] = [];
-        if (sigData?.features) {
-          for (const sig of sigData.features) {
-            const sb = computeFeatureBbox(sig);
-            if (!sb) continue;
-            const cy = (sb.south + sb.north) / 2;
-            const cx = (sb.west + sb.east) / 2;
-            if (pointInFeature(cy, cx, sidoFeat)) insideSigungus.push(sig);
+        // L-naver-2026clean1: sido→sigungus 캐싱.  같은 sido 재진입 시
+        //   point-in-polygon O(N) 재계산 안 함.
+        let insideSigungus = sidoSigCacheRef.current.get(fullName);
+        if (!insideSigungus) {
+          insideSigungus = [];
+          if (sigData?.features) {
+            for (const sig of sigData.features) {
+              const sb = computeFeatureBbox(sig);
+              if (!sb) continue;
+              const cy = (sb.south + sb.north) / 2;
+              const cx = (sb.west + sb.east) / 2;
+              if (pointInFeature(cy, cx, sidoFeat)) insideSigungus.push(sig);
+            }
           }
+          sidoSigCacheRef.current.set(fullName, insideSigungus);
         }
 
         if (insideSigungus.length === 0) {
@@ -632,22 +637,17 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     //   기존: 600ms timer 만 → 줌 애니메이션이 600ms 넘게 걸리거나 cursor 가
     //   stale lat/lng 으로 mousemove 발화 시 잘못된 polygon (예: 관악 클릭 후 서초동) 그려짐.
     //   해결: zoomingFromClick 플래그 → idle 이벤트로만 해제.
-    let zoomingFromClick = false;
-    // 클릭 핸들러는 lastClickAt 갱신 이후 zoomingFromClick=true 로 셋업하기 위해
-    // window 객체로 트리거 (drawRegion 의 onClick 에서 직접 set)
-    (window as unknown as { __wishesSetZooming?: () => void }).__wishesSetZooming = () => {
-      zoomingFromClick = true;
-    };
+    // L-naver-2026clean1: useRef 로 zoomingFromClick 공유 (window global 제거)
     const onMouseMove = (e?: KakaoMouseEvent) => {
       if (!e?.latLng) return;
-      if (zoomingFromClick) return;  // 클릭 줌 진행 중 → idle 까지 대기
+      if (zoomingFromClickRef.current) return;  // 클릭 줌 진행 중 → idle 까지 대기
       if (Date.now() - lastClickAt < 600) return;  // backup timer
       void updateAt(e.latLng.getLat(), e.latLng.getLng());
     };
     try { maps.event.addListener(mapInst as unknown, 'mousemove', onMouseMove); } catch { /*noop*/ }
 
     // zoom/idle 시에도 갱신 (viewport 중심 기준)
-    const onIdle = () => { zoomingFromClick = false; void renderAtCenter(); };
+    const onIdle = () => { zoomingFromClickRef.current = false; void renderAtCenter(); };
     const onZoom = () => { void renderAtCenter(); };
     try { maps.event.addListener(mapInst as unknown, 'idle', onIdle); } catch { /*noop*/ }
     try { maps.event.addListener(mapInst as unknown, 'zoom_changed', onZoom); } catch { /*noop*/ }
