@@ -22,6 +22,7 @@ import RBush from 'rbush';
 import simplify from '@turf/simplify';
 import type { Feature as GjFeature, Polygon as GjPolygon, MultiPolygon as GjMP } from 'geojson';
 import type { MapListing } from '@/features/map-2026/store';
+import { useMap2026Store } from '@/features/map-2026/store';
 import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
 // L-naver-precise2 (2026-04-26): @turf import 가 빌드 에러. 일단 union 제거.
 //   정밀 GeoJSON (48 pts/feat) 자체로도 충분히 깔끔 → fill 만 stack 으로도 매끄러움.
@@ -50,34 +51,50 @@ let pendingSido: Promise<GeoCollection | null> | null = null;
 let pendingSigungu: Promise<GeoCollection | null> | null = null;
 let pendingDong: Promise<GeoCollection | null> | null = null;
 
+// L-naver-2026skel2: loading state 추적용 inflight 카운터.
+let loadInFlight = 0;
+const loadingListeners = new Set<(loading: boolean) => void>();
+function setLoadInFlight(delta: number) {
+  loadInFlight += delta;
+  const isLoading = loadInFlight > 0;
+  loadingListeners.forEach((l) => l(isLoading));
+}
+function subscribeLoading(cb: (loading: boolean) => void): () => void {
+  loadingListeners.add(cb);
+  return () => loadingListeners.delete(cb);
+}
+
 async function loadSido(): Promise<GeoCollection | null> {
   if (sidoCache) return sidoCache;
   if (pendingSido) return pendingSido;
+  setLoadInFlight(1);
   pendingSido = fetch(SIDO_GEOJSON_URL)
     .then((r) => (r.ok ? r.json() : null))
     .then((j) => { sidoCache = j as GeoCollection | null; return sidoCache; })
     .catch(() => null)
-    .finally(() => { pendingSido = null; });
+    .finally(() => { pendingSido = null; setLoadInFlight(-1); });
   return pendingSido;
 }
 async function loadSigungu(): Promise<GeoCollection | null> {
   if (sigunguCache) return sigunguCache;
   if (pendingSigungu) return pendingSigungu;
+  setLoadInFlight(1);
   pendingSigungu = fetch(SIGUNGU_GEOJSON_URL)
     .then((r) => (r.ok ? r.json() : null))
     .then((j) => { sigunguCache = j as GeoCollection | null; return sigunguCache; })
     .catch(() => null)
-    .finally(() => { pendingSigungu = null; });
+    .finally(() => { pendingSigungu = null; setLoadInFlight(-1); });
   return pendingSigungu;
 }
 async function loadDong(): Promise<GeoCollection | null> {
   if (dongCache) return dongCache;
   if (pendingDong) return pendingDong;
+  setLoadInFlight(1);
   pendingDong = fetch(DONG_GEOJSON_URL)
     .then((r) => (r.ok ? r.json() : null))
     .then((j) => { dongCache = j as GeoCollection | null; return dongCache; })
     .catch(() => null)
-    .finally(() => { pendingDong = null; });
+    .finally(() => { pendingDong = null; setLoadInFlight(-1); });
   return pendingDong;
 }
 
@@ -295,6 +312,11 @@ interface Props {
 export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
   const polygonsRef = useRef<KakaoPolygon[]>([]);
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
+  // L-naver-2026skel2: GeoJSON inflight → store 로 push (MapLoadingIndicator 표시용)
+  const setGeoLoading = useMap2026Store((s) => s.setGeoLoading);
+  useEffect(() => {
+    return subscribeLoading(setGeoLoading);
+  }, [setGeoLoading]);
   // L-naver-2026clean1: window global hack 제거. useRef 로 closure 간 state 공유.
   const zoomingFromClickRef = useRef<boolean>(false);
   // L-naver-2026clean1: sido name → 그 sido 안의 sigungus 캐싱.  같은 sido 진입 반복 시

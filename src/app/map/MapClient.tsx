@@ -55,6 +55,7 @@ import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay'
 // L-adminpoly1 (2026-04-24 pm): 축소 뷰 시/도 폴리곤 하이라이트
 import AdminRegionOverlay from '@/features/map-2026/components/AdminRegionOverlay';
 import { MapErrorBoundary } from '@/features/map-2026/components/MapErrorBoundary';
+import MapLoadingIndicator from '@/features/map-2026/components/MapLoadingIndicator';
 // L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 훅
 import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
 
@@ -573,6 +574,13 @@ function MapOverlaysWithClusters(props: {
           serverClusters={clusters}
         />
       </MapErrorBoundary>
+      <GeoLoadingIndicator />
     </>
   );
+}
+
+// L-naver-2026skel2: store 의 geoLoading 구독해서 MapLoadingIndicator 표시.
+function GeoLoadingIndicator() {
+  const loading = useMap2026Store((s) => s.geoLoading);
+  return <MapLoadingIndicator show={loading} />;
 }

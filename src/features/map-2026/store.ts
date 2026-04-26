@@ -151,6 +151,10 @@ export interface Map2026Store {
   overlay: unknown | null;
   setMap: (m: MapInstance, o?: unknown) => void;
 
+  // L-naver-2026skel2 (2026-04-26): GeoJSON 로딩 상태 — MapLoadingIndicator 표시.
+  geoLoading: boolean;
+  setGeoLoading: (loading: boolean) => void;
+
   zoom: number;
   mode: ZoomMode;
   bbox: BBox | null;
@@ -313,6 +317,9 @@ export const useMap2026Store = create<Map2026Store>()(
     map: null,
     overlay: null,
     setMap: (map, overlay = null) => set({ map, overlay }),
+
+    geoLoading: false,
+    setGeoLoading: (geoLoading) => set({ geoLoading }),
 
     zoom: 12.3,
     mode: 'pins',
