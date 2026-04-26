@@ -662,39 +662,14 @@ const size = _isMobile1
             const tightCluster = latSpread < 0.0008 && lngSpread < 0.0008;  // ~88m
             const dec = (count >= 20 || tightCluster) ? 2 : 1;
             const nextLv = Math.max(1, curLv - dec);
-            // L-naver-2026atomicbounds1 (2026-04-27): setBounds 단일 호출 atomic.
-            //   panTo+setLevel 동시 호출의 race 제거. SDK 가 zoom+center 한 번에 보간.
-            const halfDegForLevel = (lv: number): number => {
-              if (lv <= 1) return 0.0008;
-              if (lv <= 2) return 0.0016;
-              if (lv <= 3) return 0.0032;
-              if (lv <= 4) return 0.0065;
-              if (lv <= 5) return 0.013;
-              return 0.026;
-            };
-            const mapApi3 = mapInst as {
-              setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
-            };
-            const LatLngCtor = kakaoAny?.maps?.LatLng;
-            const BoundsCtor = kakaoAny?.maps?.LatLngBounds;
-            if (
-              LatLngCtor &&
-              BoundsCtor &&
-              typeof mapApi3.setBounds === 'function'
-            ) {
-              const half = halfDegForLevel(nextLv);
-              const sw = new LatLngCtor(targetLat - half, targetLng - half);
-              const ne = new LatLngCtor(targetLat + half, targetLng + half);
-              const bounds = new BoundsCtor(sw, ne);
-              mapApi3.setBounds(bounds);
-            } else {
-              // 폴백
-              if (kakaoAny?.maps?.LatLng && typeof mapApi2.setCenter === 'function') {
-                mapApi2.setCenter(new kakaoAny.maps.LatLng(targetLat, targetLng));
-              }
-              if (typeof mapApi2.setLevel === 'function') {
-                mapApi2.setLevel(nextLv, { animate: true });
-              }
+            // L-naver-2026atomicbounds3 (2026-04-27): setCenter (instant) + setLevel (animate).
+            //   setCenter 가 동기 완료 → setLevel 의 animate 가 진행되며 viewport center 정확.
+            //   race 없음 (setCenter 비동기 아님).
+            if (kakaoAny?.maps?.LatLng && typeof mapApi2.setCenter === 'function') {
+              mapApi2.setCenter(new kakaoAny.maps.LatLng(targetLat, targetLng));
+            }
+            if (typeof mapApi2.setLevel === 'function') {
+              mapApi2.setLevel(nextLv, { animate: true });
             }
           } catch { /* noop */ }
           return;

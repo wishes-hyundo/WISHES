@@ -646,32 +646,20 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
             //     · panTo+setLevel(animate:true) 동시: race → 위치 못 찾음.
             //   해결: setBounds 한 번 호출 → SDK 가 zoom+center 동시 보간 → race 원천 차단.
             //   bounds 크기를 finalLv 의 viewport 와 일치시켜 zoom 결과 정확히 finalLv.
-            const halfDegForLevel = (lv: number): number => {
-              if (lv <= 1) return 0.0008;
-              if (lv <= 2) return 0.0016;
-              if (lv <= 3) return 0.0032;
-              if (lv <= 4) return 0.0065;
-              if (lv <= 5) return 0.013;
-              if (lv <= 6) return 0.026;
-              if (lv <= 7) return 0.052;
-              if (lv <= 8) return 0.10;
-              if (lv <= 9) return 0.20;
-              return 0.40;
-            };
-            if (cy != null && cx != null && typeof mapInst.setBounds === 'function') {
-              const half = halfDegForLevel(finalLv);
-              const sw = new maps.LatLng(cy - half, cx - half);
-              const ne = new maps.LatLng(cy + half, cx + half);
-              const bounds = new maps.LatLngBounds(sw, ne);
-              mapInst.setBounds(bounds);
-            } else {
-              // 폴백 (setBounds 미지원 환경): 시퀀셜 setCenter → setLevel.
-              if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
-                mapInst.setCenter(new maps.LatLng(cy, cx));
-              }
-              if (typeof mapInst.setLevel === 'function') {
-                mapInst.setLevel(finalLv, { animate: true });
-              }
+            // L-naver-2026atomicbounds3 (2026-04-27): setBounds → 카카오가 자동 zoom 결정 →
+            //   의도한 finalLv 보다 1 작게 멈출 수 있음 (예: 신림동 폴리곤 클릭 시 level 5 에서
+            //   멈춰 polygon 다시 그려짐, 마커 모드 미진입).
+            //   해결: setBounds 후 setLevel 강제 동기화 (level 일치할 때까지).
+            //   setBounds 가 거의 즉시 → 그 후 setLevel 도 즉시 → 사용자 인지 한 번의 모션.
+            if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
+              // setCenter (instant) 로 위치 정확히 보장.
+              mapInst.setCenter(new maps.LatLng(cy, cx));
+            }
+            if (typeof mapInst.setLevel === 'function') {
+              // setLevel(animate:true) — 줌 부드럽게.
+              //   setCenter 가 instant 라 setLevel 진행 중 viewport center = target.
+              //   race 없음 (setCenter 는 동기 완료, setLevel 만 비동기 보간).
+              mapInst.setLevel(finalLv, { animate: true });
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
