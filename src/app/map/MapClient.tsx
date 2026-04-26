@@ -568,4 +568,8 @@ function MapOverlaysWithClusters(props: {
       <AdminRegionOverlay
         map={props.kakaoMap}
         listings={props.listings}
-        serverClusters={cl
+        serverClusters={clusters}
+      />
+    </>
+  );
+}
