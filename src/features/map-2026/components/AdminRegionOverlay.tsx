@@ -533,9 +533,16 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             if (Sentry?.captureException) Sentry.captureException(err);
           }
         };
-        // L-naver-2026clickfix5: View Transitions wrapper 제거 — onClick 즉시 실행.
-        //   브라우저별 transition 콜백 timing 이슈 회피.
-        performZoom();
+        // L-naver-2026vt2 (2026-04-26): View Transitions API 조심스럽게 재도입.
+        //   clickfix8 setBounds 패턴으로 click 동작 정상 → 안전하게 native cross-fade 시도.
+        //   미지원 브라우저는 직접 실행 (graceful degradation).
+        const docVt = document as unknown as { startViewTransition?: (cb: () => void) => unknown };
+        if (typeof docVt.startViewTransition === 'function') {
+          try { docVt.startViewTransition(() => performZoom()); }
+          catch { performZoom(); }
+        } else {
+          performZoom();
+        }
         onClickRegion?.(lockedLabelText);
       };
 
