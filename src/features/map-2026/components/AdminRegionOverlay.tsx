@@ -111,7 +111,7 @@ interface KakaoMapsNs {
 interface KakaoNs { maps?: KakaoMapsNs }
 
 const FILL = '#dc2626';
-const FILL_OPACITY = 0.15;
+const FILL_OPACITY = 0.08;  // L-naver-uniform1: 모든 줌 옅게 통일
 const STROKE = '#dc2626';
 const STROKE_OPACITY = 0;  // L-naver-noborder1 (2026-04-26): 모든 줌 폴리곤 경계선 제거
 const STROKE_WEIGHT = 0;
@@ -536,8 +536,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
         // 1) sigungu outline (외곽 stroke 만 진하게, fill 거의 없음)
         drawRegion([sigFeat], sigLabel, 'sigungu', {
-          fillOpacityOverride: 0.03,
-          strokeOpacityOverride: 0,    // L-naver-noborder1: 경계선 제거
+          fillOpacityOverride: 0.02,    // L-naver-uniform1: 매우 옅은 backdrop
+          strokeOpacityOverride: 0,
           strokeWeightOverride: 0,
           clickable: false,
           isBackdrop: !!hoveredLegalName,
@@ -555,8 +555,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             //   multi-dong 시 stroke=0 → fill 만 stack 으로 한 덩어리처럼 보임.
             //   hover 동만 약한 stroke 살림 (구분 위해).
             drawRegion(renderFeats, dongLabel, 'dong', {
-              // L-naver-soft1 (2026-04-26): 빨간 fill 옅게 (마커 가독성 우선).
-              fillOpacityOverride: isHovered ? 0.18 : 0.04,
+              // L-naver-uniform1 (2026-04-26): 모든 줌에서 fill 옅게 (마커 가독성 최우선).
+              fillOpacityOverride: isHovered ? 0.12 : 0.02,
               strokeOpacityOverride: 0,
               strokeWeightOverride: 0,
               clickable: true,
@@ -604,8 +604,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (sigParentFeat) {
           const sigParentName = parentSido && parentSig ? `${parentSido} ${parentSig}` : parentSig;
           drawRegion([sigParentFeat], sigParentName, 'sigungu', {
-            fillOpacityOverride: 0.06,
-            strokeOpacityOverride: 0,    // L-naver-noborder1: 경계선 제거
+            fillOpacityOverride: 0.02,    // L-naver-uniform1: 매우 옅은 backdrop
+            strokeOpacityOverride: 0,
             strokeWeightOverride: 0,
             isBackdrop: true,
           });
