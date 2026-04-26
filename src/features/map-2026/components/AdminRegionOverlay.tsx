@@ -20,7 +20,9 @@
 import { useEffect, useRef } from 'react';
 import type { MapListing } from '@/features/map-2026/store';
 import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
-// L-naver-union3 (2026-04-26): turf 가 build fail.  stroke 모두 0 으로 → 굵은 줄 사라짐.
+// L-naver-precise2 (2026-04-26): @turf import 가 빌드 에러. 일단 union 제거.
+//   정밀 GeoJSON (48 pts/feat) 자체로도 충분히 깔끔 → fill 만 stack 으로도 매끄러움.
+// import { union as turfUnion, featureCollection as turfFC } from '@turf/turf';
 
 const SIDO_GEOJSON_URL    = '/api/geo/sido';
 const SIGUNGU_GEOJSON_URL = '/api/geo/sigungu';
@@ -76,7 +78,8 @@ async function loadDong(): Promise<GeoCollection | null> {
   return pendingDong;
 }
 
-// L-naver-union3 (2026-04-26): turf 빌드 호환 문제로 비활성. caller 에서 stroke 0 처리.
+// L-naver-precise2 (2026-04-26): turf union 임시 비활성. null 반환해 caller 가
+//   feats 전체를 stack 으로 그림 (정밀 데이터로도 충분히 깔끔).
 function unionLegalDong(_sigCode: string, _legalName: string, _feats: GeoFeature[]): GeoFeature | null {
   return null;
 }
@@ -470,15 +473,16 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'sigungu') {
-        // L-naver-multi6 (2026-04-26): 네이버 z13 광역에서도 dong hover 동작.
-        //   매우광역 (level 11+) 만 sigungu only.  나머지 (level 6~10) multi-dong.
+        // L-naver-multi5 (2026-04-26): 광역 vs 줌인 단계 한 단계 더 zoom-in 으로 미룸.
+        //   네이버 z13 (광역뷰) ≈ 위시스 level 7~8.  level 7~12 = sigungu only.
+        //   level 6 부터 multi-dong (줌인 후 동 표시).
         if (!sigData?.features) return;
         const sigFeat = findFeatureAt(sigData.features, lat, lng);
         if (!sigFeat) return;
         const sigName = String((sigFeat.properties as { name?: string }).name ?? '').trim();
         const sigLabel = parentSido ? `${parentSido} ${sigName}` : sigName;
 
-        // 매우 광역 (level 11~12): 시군구 polygon 단독
+        // 매우 광역 (level 11~12): 시군구 polygon 단독 — 광역에서도 multi-dong 가능
         if (level >= 11) {
           const key = `sig-only:${parentSido}:${sigName}`;
           if (key === currentKey && currentLevelMode === mode) return;
@@ -547,8 +551,9 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             const dongLabel = `${sigLabel} ${legalName}`;
             const merged = unionLegalDong(sigCode, legalName, feats);
             const renderFeats = merged ? [merged] : feats;
-            // L-naver-union3 (2026-04-26): union 비활성 상태에서 행정동 사이 굵은 빨간줄 제거.
-            //   stroke 모두 0, fill 강도로만 시각 표현.  hover 0.40 (진함) / non-hover 0.08 (옅음).
+            // L-naver-stroke1 (2026-04-26): 인접 행정동 사이 굵은 빨간줄 제거.
+            //   multi-dong 시 stroke=0 → fill 만 stack 으로 한 덩어리처럼 보임.
+            //   hover 동만 약한 stroke 살림 (구분 위해).
             drawRegion(renderFeats, dongLabel, 'dong', {
               fillOpacityOverride: isHovered ? 0.40 : 0.08,
               strokeOpacityOverride: 0,
@@ -648,42 +653,6 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (maps.event.removeListener) {
           maps.event.removeListener(mapInst as unknown, 'mousemove', onMouseMove);
           maps.event.removeListener(mapInst as unknown, 'idle', onIdle);
-          maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
-        }
-      } catch { /*noop*/ }
-      try { document.removeEventListener('mousemove', updateTooltipPosition); } catch { /*noop*/ }
-      try { tooltipEl.remove(); } catch { /*noop*/ }
-      cleanup();
-    };
-  }, [map, onClickRegion]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const id = (typeof window.requestIdleCallback === 'function')
-      ? window.requestIdleCallback(() => { void loadSigungu(); void loadDong(); })
-      : window.setTimeout(() => { void loadSigungu(); void loadDong(); }, 2000);
-    return () => {
-      if (typeof window.requestIdleCallback === 'function' && typeof window.cancelIdleCallback === 'function') {
-        window.cancelIdleCallback(id as number);
-      } else {
-        clearTimeout(id as number);
-      }
-    };
-  }, []);
-
-  return null;
-}
-function' && typeof window.cancelIdleCallback === 'function') {
-        window.cancelIdleCallback(id as number);
-      } else {
-        clearTimeout(id as number);
-      }
-    };
-  }, []);
-
-  return null;
-}
-ner(mapInst as unknown, 'idle', onIdle);
           maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
         }
       } catch { /*noop*/ }
