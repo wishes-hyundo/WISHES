@@ -591,6 +591,18 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         }
         return area > 0 ? [...ring].reverse() : ring;
       };
+      // L-naver-2026hovergroup1 (2026-04-26): 같은 drawRegion 호출에서 만든 polygon 들을
+      //   group 으로 묶어서 hover 시 모두 동시에 boost.  사용자 피드백:
+      //   신림동 = 2 piece MultiPolygon → cursor 가 있는 piece 만 진해지고 다른 piece
+      //   는 base opacity → 시각적 분리.  group all-or-none boost 으로 해결.
+      const groupPolys: Array<{ setOptions?: (o: Record<string, unknown>) => void }> = [];
+      const baseFill = fillOp;
+      const hoverFill = Math.min(0.40, fillOp * 2.5 + 0.05);
+      const setGroupFill = (op: number) => {
+        for (const p of groupPolys) {
+          try { p.setOptions?.({ fillOpacity: op }); } catch { /*noop*/ }
+        }
+      };
       for (const feat of renderFeats) {
         const geom = feat.geometry;
         const paths: number[][][][] = geom.type === 'Polygon'
@@ -611,24 +623,22 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
               fillOpacity: fillOp,
               clickable,
             });
+            const polyTyped = polygon as unknown as { setOptions?: (o: Record<string, unknown>) => void };
+            groupPolys.push(polyTyped);
             if (clickable) {
-              // L-naver-2026hover1: hover 시 fillOpacity boost (네이버 동일).
-              //   광역 모드에서 25개 sigungu 옅게 표시 → hover 한 것만 진해짐.
-              //   in-place setOptions → polygon 재생성 X (성능 + flicker 없음).
-              const baseFill = fillOp;
-              const hoverFill = Math.min(0.40, fillOp * 2.5 + 0.05);
-              const polyTyped = polygon as unknown as { setOptions?: (o: Record<string, unknown>) => void };
-              const onPolyMouseOverWithBoost = () => {
+              // L-naver-2026hovergroup1: hover 시 group 의 모든 polygon 함께 boost.
+              //   MultiPolygon piece 끼리 같이 진해짐 → 시각적 통일.
+              const onPolyMouseOverGroup = () => {
                 onPolyMouseOver();
-                try { polyTyped.setOptions?.({ fillOpacity: hoverFill }); } catch { /*noop*/ }
+                setGroupFill(hoverFill);
               };
-              const onPolyMouseOutWithBoost = () => {
+              const onPolyMouseOutGroup = () => {
                 onPolyMouseOut();
-                try { polyTyped.setOptions?.({ fillOpacity: baseFill }); } catch { /*noop*/ }
+                setGroupFill(baseFill);
               };
               try { maps.event.addListener(polygon as unknown, 'click', onClick); } catch { /*noop*/ }
-              try { maps.event.addListener(polygon as unknown, 'mouseover', onPolyMouseOverWithBoost); } catch { /*noop*/ }
-              try { maps.event.addListener(polygon as unknown, 'mouseout', onPolyMouseOutWithBoost); } catch { /*noop*/ }
+              try { maps.event.addListener(polygon as unknown, 'mouseover', onPolyMouseOverGroup); } catch { /*noop*/ }
+              try { maps.event.addListener(polygon as unknown, 'mouseout', onPolyMouseOutGroup); } catch { /*noop*/ }
             }
             polygon.setMap(map);
             polygonsRef.current.push(polygon);
