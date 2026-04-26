@@ -406,9 +406,23 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
               clickable,
             });
             if (clickable) {
+              // L-naver-2026hover1: hover 시 fillOpacity boost (네이버 동일).
+              //   광역 모드에서 25개 sigungu 옅게 표시 → hover 한 것만 진해짐.
+              //   in-place setOptions → polygon 재생성 X (성능 + flicker 없음).
+              const baseFill = fillOp;
+              const hoverFill = Math.min(0.40, fillOp * 2.5 + 0.05);
+              const polyTyped = polygon as unknown as { setOptions?: (o: Record<string, unknown>) => void };
+              const onPolyMouseOverWithBoost = () => {
+                onPolyMouseOver();
+                try { polyTyped.setOptions?.({ fillOpacity: hoverFill }); } catch { /*noop*/ }
+              };
+              const onPolyMouseOutWithBoost = () => {
+                onPolyMouseOut();
+                try { polyTyped.setOptions?.({ fillOpacity: baseFill }); } catch { /*noop*/ }
+              };
               try { maps.event.addListener(polygon as unknown, 'click', onClick); } catch { /*noop*/ }
-              try { maps.event.addListener(polygon as unknown, 'mouseover', onPolyMouseOver); } catch { /*noop*/ }
-              try { maps.event.addListener(polygon as unknown, 'mouseout', onPolyMouseOut); } catch { /*noop*/ }
+              try { maps.event.addListener(polygon as unknown, 'mouseover', onPolyMouseOverWithBoost); } catch { /*noop*/ }
+              try { maps.event.addListener(polygon as unknown, 'mouseout', onPolyMouseOutWithBoost); } catch { /*noop*/ }
             }
             polygon.setMap(map);
             polygonsRef.current.push(polygon);
@@ -637,12 +651,28 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     //   기존: 600ms timer 만 → 줌 애니메이션이 600ms 넘게 걸리거나 cursor 가
     //   stale lat/lng 으로 mousemove 발화 시 잘못된 polygon (예: 관악 클릭 후 서초동) 그려짐.
     //   해결: zoomingFromClick 플래그 → idle 이벤트로만 해제.
-    // L-naver-2026clean1: useRef 로 zoomingFromClick 공유 (window global 제거)
+    // L-naver-2026clean1 + 2026raf1: useRef 로 zoomingFromClick 공유 + rAF throttle.
+    //   매 mousemove (60Hz) updateAt 즉시 호출 대신 rAF 로 paint 타이밍 동기화.
+    //   60fps 보장 + 같은 frame 안 다중 mousemove 는 마지막 좌표만 사용.
+    let pendingMoveLat = 0;
+    let pendingMoveLng = 0;
+    let pendingFrame = 0;
+    const flushMove = () => {
+      pendingFrame = 0;
+      if (zoomingFromClickRef.current) return;
+      void updateAt(pendingMoveLat, pendingMoveLng);
+    };
     const onMouseMove = (e?: KakaoMouseEvent) => {
       if (!e?.latLng) return;
       if (zoomingFromClickRef.current) return;  // 클릭 줌 진행 중 → idle 까지 대기
       if (Date.now() - lastClickAt < 600) return;  // backup timer
-      void updateAt(e.latLng.getLat(), e.latLng.getLng());
+      pendingMoveLat = e.latLng.getLat();
+      pendingMoveLng = e.latLng.getLng();
+      if (pendingFrame === 0 && typeof window.requestAnimationFrame === 'function') {
+        pendingFrame = window.requestAnimationFrame(flushMove);
+      } else if (pendingFrame === 0) {
+        flushMove();
+      }
     };
     try { maps.event.addListener(mapInst as unknown, 'mousemove', onMouseMove); } catch { /*noop*/ }
 
@@ -653,6 +683,12 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     try { maps.event.addListener(mapInst as unknown, 'zoom_changed', onZoom); } catch { /*noop*/ }
 
     return () => {
+      // L-naver-2026raf1: pending rAF 취소
+      try {
+        if (pendingFrame !== 0 && typeof window.cancelAnimationFrame === 'function') {
+          window.cancelAnimationFrame(pendingFrame);
+        }
+      } catch { /*noop*/ }
       try {
         if (maps.event.removeListener) {
           maps.event.removeListener(mapInst as unknown, 'mousemove', onMouseMove);
