@@ -616,56 +616,6 @@ const size = _isMobile1
             }
           } catch { /* noop */ }
           return;
-          // L-clusterfit1 (legacy, dead): count ≥ 2 클러스터 클릭 — onClusterFilter 활성화.
-          if (onClickCluster) {
-            onClickCluster(arr);
-            return;
-          }
-          if (onClusterFilter) onClusterFilter(arr.map((l) => l.id));
-          try {
-            const kakaoAny = (window as unknown as {
-              kakao?: { maps?: {
-                LatLng?: new (lat: number, lng: number) => unknown;
-                LatLngBounds?: new (sw?: unknown, ne?: unknown) => KakaoLatLngBoundsLike;
-              } };
-            }).kakao;
-            const mapApi = mapInst as {
-              setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
-              panTo?: (pos: unknown) => void;
-              setLevel?: (n: number) => void;
-              getLevel?: () => number;
-            };
-            if (
-              kakaoAny?.maps?.LatLng &&
-              kakaoAny?.maps?.LatLngBounds &&
-              typeof mapApi.setBounds === 'function'
-            ) {
-              let minLat = Infinity, maxLat = -Infinity;
-              let minLng = Infinity, maxLng = -Infinity;
-              for (const l of arr) {
-                if (l.lat < minLat) minLat = l.lat;
-                if (l.lat > maxLat) maxLat = l.lat;
-                if (l.lng < minLng) minLng = l.lng;
-                if (l.lng > maxLng) maxLng = l.lng;
-              }
-              // 동일 좌표에 여러 매물 (같은 건물) → setBounds 무의미.  첫 매물 상세로 폴백.
-              if (minLat === maxLat && minLng === maxLng) {
-                onClickListing(arr[0].id);
-                return;
-              }
-              // 너무 좁으면 최소 반경 확보 (약 40m) — 단일 건물 밀집 매물 풀기
-              const MIN_HALF = 0.00035;
-              const latPad = Math.max(MIN_HALF, (maxLat - minLat) * 0.15);
-              const lngPad = Math.max(MIN_HALF, (maxLng - minLng) * 0.15);
-              const sw = new kakaoAny.maps.LatLng(minLat - latPad, minLng - lngPad);
-              const ne = new kakaoAny.maps.LatLng(maxLat + latPad, maxLng + lngPad);
-              const bounds = new kakaoAny.maps.LatLngBounds(sw, ne);
-              mapApi.setBounds(bounds, 40, 40, 40, 40);
-              return;
-            }
-          } catch { /* noop */ }
-          // 최후 폴백 (SDK 미지원): 첫 매물 상세
-          onClickListing(arr[0].id);
         };
         // L-clusterexact1: Kakao 지도 기본 더블클릭 확대 차단 (마커 영역에서만)
         el.addEventListener('mousedown', (e) => e.stopPropagation());
