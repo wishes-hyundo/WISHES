@@ -52,17 +52,28 @@ export function kakaoFlyTo(
   const dLng = Math.abs(targetLng - startLng);
   const distDeg = Math.sqrt(dLat * dLat + dLng * dLng);
   const dLevel = Math.abs(finalLevel - startLevel);
-  const auto = Math.min(700, Math.max(250, 250 + distDeg * 4000 + dLevel * 80));
+  // L-naver-2026flyto2: duration 줄임 (250-500ms) — 큰 polygon redraw 부담 감소.
+  const auto = Math.min(500, Math.max(250, 250 + distDeg * 2500 + dLevel * 50));
   const dur = duration ?? auto;
 
   const startTime = performance.now();
   let lastSetLevel = startLevel;
+  // L-naver-2026flyto2: 30fps throttle (매 ~33ms). 큰 polygon redraw 부담 절반.
+  let lastFrameTime = 0;
+  const FRAME_INTERVAL = 33;
 
   const step = (now: number) => {
     const elapsed = now - startTime;
     const t = Math.min(elapsed / dur, 1);
-    const eased = easeInOutCubic(t);
 
+    // throttle: 33ms 안 지났으면 다음 frame 대기 (마지막 frame 은 항상 실행)
+    if (t < 1 && now - lastFrameTime < FRAME_INTERVAL) {
+      requestAnimationFrame(step);
+      return;
+    }
+    lastFrameTime = now;
+
+    const eased = easeInOutCubic(t);
     const lat = startLat + (targetLat - startLat) * eased;
     const lng = startLng + (targetLng - startLng) * eased;
     try { mapInst.setCenter(new LatLngCtor(lat, lng)); } catch { /*noop*/ }
@@ -77,7 +88,6 @@ export function kakaoFlyTo(
     if (t < 1) {
       requestAnimationFrame(step);
     } else {
-      // 마지막 프레임 보정 (정확한 final 위치/level)
       try { mapInst.setCenter(new LatLngCtor(targetLat, targetLng)); } catch { /*noop*/ }
       if (lastSetLevel !== finalLevel) {
         try { mapInst.setLevel(finalLevel, { animate: false }); } catch { /*noop*/ }
