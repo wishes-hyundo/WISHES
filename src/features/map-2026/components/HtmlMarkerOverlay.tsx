@@ -420,17 +420,13 @@ const size = _isMobile1
         : visibleListings.filter((l) => listingCategory(l.type) === category);
       if (filtered.length === 0) return;
 
-      // L-naverstyle5 + L-closeview1: 근거리 (level ≤ 3) 에서 단지 pill/circle.
-      //   L-naver-zoom4 (2026-04-26 night): level 4 도 bucketing — 클러스터링으로
-      //   마커 갯수 줄여 시각 노이즈 해소 (z16 viewport ~100m 에 1000개 마커 방지).
-      const usePill = level <= 4;
-      let tier1Groups: ReturnType<typeof bucketListings>['tier1Groups'] = [];
-      let rest: MapListing[] = filtered;
-      if (usePill) {
-        const buckets = bucketListings(filtered);
-        tier1Groups = buckets.tier1Groups;
-        rest = buckets.tier2Listings;
-      }
+      // L-naver-2026gridcluster1 (2026-04-26): 네이버 부동산 정확 매칭.
+      //   사용자 피드백 "네이버랑 배치 기준이 다르다" — 네이버는 viewport
+      //   grid cell 기반 cluster (단지명 무시).  WISHES 의 building_name 기반
+      //   centroid 단지 pill 은 단지가 많을 때 동그라미 과다 + 위치 부정확.
+      //   해결: bucketListings 우회 → 모든 매물 = rest (grid cluster 대상).
+      const tier1Groups: ReturnType<typeof bucketListings>['tier1Groups'] = [];
+      const rest: MapListing[] = filtered;
 
       // ── Tier 1 그룹 렌더 ──
       // L-naverstyle9 (2026-04-25): 네이버 부동산 스타일 통일.
@@ -545,23 +541,30 @@ const size = _isMobile1
         } catch { /* SDK race — skip */ }
       }
 
-      // ── L-naverstyle4 (2026-04-24 pm): Grid clustering 완전 제거 ──
-      //   사용자 피드백: "아직도 밸런스가 딱딱 떨어지는게 네이버 기준이 아님".
-      //   기존 cell-snap (FLOOR(lat/g)) 배치가 바둑판처럼 보여 네이버 스타일 아님.
-      //   네이버는 행정구역/건물 centroid 기반 — 그래서:
-      //     · tier1Groups (pill) = building_name 또는 dong+type 기반 pill (이미 centroid)
-      //     · tier2Listings (rest) = 실제 매물 좌표에 개별 원 (cell-snap 없음)
-      //   → 격자 배치가 근본적으로 사라짐.
+      // L-naver-2026gridcluster1 (2026-04-26): grid cell snap 활성화.
+      //   이전 L-naverstyle4 가 격자 제거했지만 사용자 재요청 "네이버랑 똑같이".
+      //   네이버 부동산 = viewport grid cluster (cell 단위 1 동그라미).
+      //   cellSize 는 zoom level 별 fine-tune (gridSizeForLevel — L-naver-cluster1).
       const clusters = new Map<string, MapListing[]>();
-      for (const l of rest) {
-        clusters.set(`i:${l.id}`, [l]);
+      const cellSize = gridSizeForLevel(level);
+      if (cellSize > 0) {
+        for (const l of rest) {
+          const key = `g:${Math.floor(l.lat / cellSize)}:${Math.floor(l.lng / cellSize)}`;
+          const arr = clusters.get(key);
+          if (arr) arr.push(l);
+          else clusters.set(key, [l]);
+        }
+      } else {
+        for (const l of rest) clusters.set(`i:${l.id}`, [l]);
       }
 
       for (const arr of clusters.values()) {
         if (arr.length === 0) continue;
-        // rest 는 항상 1 매물 1 엔트리이므로 실제 lat/lng 사용 (cell-snap X)
-        const lat = arr[0].lat;
-        const lng = arr[0].lng;
+        // cell 중심: 매물들 lat/lng 평균 (centroid)
+        let latSum = 0, lngSum = 0;
+        for (const l of arr) { latSum += l.lat; lngSum += l.lng; }
+        const lat = latSum / arr.length;
+        const lng = lngSum / arr.length;
         const count = arr.length;
         const selected =
           selectedListingId != null && arr.some((l) => l.id === selectedListingId);
