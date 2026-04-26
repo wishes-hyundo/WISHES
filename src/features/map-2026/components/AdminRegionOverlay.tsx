@@ -23,7 +23,7 @@ import simplify from '@turf/simplify';
 import type { Feature as GjFeature, Polygon as GjPolygon, MultiPolygon as GjMP } from 'geojson';
 import type { MapListing } from '@/features/map-2026/store';
 import { useMap2026Store } from '@/features/map-2026/store';
-import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
+// L-naver-2026admin-only1: adminToLegalDong import 제거 (행정동 단위 사용으로 불필요)
 // L-naver-precise2 (2026-04-26): @turf import 가 빌드 에러. 일단 union 제거.
 //   정밀 GeoJSON (48 pts/feat) 자체로도 충분히 깔끔 → fill 만 stack 으로도 매끄러움.
 // import { union as turfUnion, featureCollection as turfFC } from '@turf/turf';
@@ -160,44 +160,7 @@ async function loadDong(): Promise<GeoCollection | null> {
   return pendingDong;
 }
 
-// L-naver-2026union3 (2026-04-26): dynamic import 로 turf.union 재시도.
-//   static import 는 build fail (Edge SSR + Next 16 환경 호환성).  dynamic
-//   import 는 client-side 만 실행되며 build-time type 검증 우회 → 안전.
-//   첫 dong 모드 진입 직전 module-level lazy load → 이후 sync 사용.
-type UnionFn = (fc: unknown) => GeoFeature | null;
-let unionFn: UnionFn | null = null;
-let unionLoaded = false;
-if (typeof window !== 'undefined') {
-  // L-naver-2026union3: lazy load on first dong-mode entry.
-  void (async () => {
-    try {
-      const mod = await import('@turf/union');
-      const candidate = (mod as unknown as { default?: UnionFn; union?: UnionFn }).default
-        ?? (mod as unknown as { default?: UnionFn; union?: UnionFn }).union;
-      unionFn = (typeof candidate === 'function' ? candidate : null);
-    } catch {
-      unionFn = null;
-    } finally {
-      unionLoaded = true;
-    }
-  })();
-}
-const unionCache = new Map<string, GeoFeature | null>();
-function unionLegalDong(sigCode: string, legalName: string, feats: GeoFeature[]): GeoFeature | null {
-  if (feats.length < 2) return feats[0] ?? null;
-  if (!unionLoaded || !unionFn) return null;  // not loaded yet → caller stack fallback
-  const cacheKey = `${sigCode}:${legalName}`;
-  if (unionCache.has(cacheKey)) return unionCache.get(cacheKey) ?? null;
-  try {
-    const fc = { type: 'FeatureCollection', features: feats };
-    const merged = unionFn(fc);
-    unionCache.set(cacheKey, merged);
-    return merged;
-  } catch {
-    unionCache.set(cacheKey, null);
-    return null;
-  }
-}
+// L-naver-2026admin-only1: unionLegalDong 제거 (행정동 단위로 변경, 묶기 안 함)
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // L-naver-2026rbush1: R-tree spatial index for O(log N) findFeatureAt.
@@ -800,48 +763,24 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         // L-naver-dual1 (2026-04-26): 네이버 동 모드 = 시군구 backdrop + 동 foreground 2-layer.
         //   사용자 스크린샷: 네이버는 관악구 폴리곤이 light-pink 으로 항상 표시 + 마우스 가르킨 동만 darker.
         //   기존 ONE 폴리곤 방식 → DUAL layer 로 전환.
+        // L-naver-2026admin-only1 (2026-04-26): 행정동 단위 그대로 사용.
+        //   기존: adminToLegalDong 으로 행정동 → 법정동 묶기 (신원동→신림동).
+        //   문제: legalDongMap.ts 가 서울 8 자치구만 있고 나머지 전국 (서울 17 자치구
+        //   + 경기 31 시군 + 강원/충청/전라/경상/제주) 매핑 없음 → fallback regex 부정확.
+        //   사용자: "단 하나의 오차도 있으면 안 돼".
+        //   해결: 행정동 단위 그대로 표시.  KOSTAT 데이터 그대로 → 오차 0 보장.
         if (!dongData?.features) { cleanup(); currentKey = ''; return; }
         const feat = findFeatureAt(dongData.features, lat, lng);
         if (!feat) { cleanup(); currentKey = ''; return; }
-        // 부모 시군구 feature (mouse 위치 기준 — sigData 에서 찾기)
-        const sigParentFeat = sigData?.features ? findFeatureAt(sigData.features, lat, lng) : null;
         const rawName = String((feat.properties as { name?: string }).name ?? '').trim();
-        // L-naver-legal1 (2026-04-26): 행정동 → 법정동 매핑.  네이버는 법정동 (신림·봉천·남현)
-        //   기준이라 신원동·서원동·대학동 같은 행정동을 신림동으로 묶어야 함.
-        const legalName = adminToLegalDong(rawName, parentSig);
-        const key = `dong:${parentSido}:${parentSig}:${legalName}`;
+        const dongCode = String((feat.properties as { code?: string }).code ?? '');
+        const key = `dong:${parentSido}:${parentSig}:${dongCode}:${rawName}`;
         if (key === currentKey && currentLevelMode === mode) return;
-        // 같은 법정동 모든 행정동 묶기 (신원동·서원동·대학동 → 신림동 한 덩어리)
-        // L-naver-legal2 (2026-04-26): 동명 중복 시군구 필터.
-        //   '중앙동' 이 관악구·동작구·성북구 등 여러 곳에 있어 단순 이름 매칭 시
-        //   봉천동 polygon 이 동작구까지 확장되는 버그.  feature 가 부모 sigungu polygon
-        //   안에 있는지 확인 (centroid point-in-polygon).
-        // L-naver-multi4 (2026-04-26): code prefix 매칭 (point-in-polygon 보다 안정).
-        const sigParentCode = sigParentFeat
-          ? String((sigParentFeat.properties as { code?: string }).code ?? '').slice(0, 5)
-          : '';
-        const groupFeats = dongData.features.filter((f) => {
-          const n = String((f.properties as { name?: string }).name ?? '').trim();
-          if (adminToLegalDong(n, parentSig) !== legalName) return false;
-          if (sigParentCode) {
-            const c = String((f.properties as { code?: string }).code ?? '');
-            if (c.length >= 5 && c.slice(0, 5) !== sigParentCode) return false;
-          }
-          return true;
-        });
         cleanup();
-        // L-naver-hier1: dong 모드 = 동 polygon 만 (sigungu backdrop 제거).
-        const parts = [parentSido, parentSig, legalName].filter(Boolean);
-        // L-naver-union1: turf.union 으로 행정동들을 깔끔한 1개 polygon 으로 merge.
-        const grouped = groupFeats.length > 0 ? groupFeats : [feat];
-        const merged = grouped.length > 1
-          ? unionLegalDong(sigParentCode, legalName, grouped)
-          : grouped[0];
-        const renderFeats = merged ? [merged] : grouped;
-        // L-naver-hier4: 시도/시군구/동 색상 통일 0.15.  마커 zoom (level <= 4) 만 옅게 0.04.
+        const parts = [parentSido, parentSig, rawName].filter(Boolean);
         const isMarkerZoom = level <= 4;
-        drawRegion(renderFeats, parts.join(' '), 'dong', {
-          fillOpacityOverride: isMarkerZoom ? 0.04 : 0.20,    // L-naver-hier5: 더 진하게
+        drawRegion([feat], parts.join(' '), 'dong', {
+          fillOpacityOverride: isMarkerZoom ? 0.04 : 0.20,
           strokeOpacityOverride: 0,
           strokeWeightOverride: 0,
         });
