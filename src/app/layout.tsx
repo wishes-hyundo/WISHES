@@ -4,6 +4,7 @@ import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
 import QueryProvider from '@/components/providers/QueryProvider';
 import SpeculationRules from '@/components/SpeculationRules';
+import WebVitalsReporter from '@/components/WebVitalsReporter';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
@@ -178,6 +179,7 @@ export default function RootLayout({
         className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col"
       >
         <SpeculationRules />
+        <WebVitalsReporter />
         <QueryProvider>
           <ConditionalLayout>
             {children}
