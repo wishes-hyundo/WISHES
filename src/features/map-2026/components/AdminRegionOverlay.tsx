@@ -164,11 +164,14 @@ function simplifyFeature(feat: GeoFeature, tolerance: number, cacheKey: string):
     return feat;
   }
 }
-function toleranceForLevel(_level: number): number {
-  // L-naver-2026clickfix5 (2026-04-26): simplification 일시 disable.
-  //   사용자: 폴리곤 클릭해도 반응 없음 → simplification 이 click hit-test 깨뜨릴
-  //   가능성 의심. 원본 정밀 데이터로 그리기.  성능은 rbush + rAF 로 보완.
-  return 0;
+function toleranceForLevel(level: number): number {
+  // L-naver-2026simplify2 (2026-04-26): clickfix5 disable 후 클릭 정상 동작 확인.
+  //   이제 setBounds atomic 처리로 click 자체가 polygon 기반이 아니라 lockedBbox
+  //   기반 → simplification 이 hit-test 영향 없음. 50m tolerance 재활성.
+  //   광역/시군구는 가벼운 단순화로 렌더 빠름. 동/마커는 풀 정밀 (가까운 줌).
+  if (level >= 11) return 0.0005;    // 광역 — 50m simplification
+  if (level >= 8) return 0.0002;     // 시군구 — 20m
+  return 0;                           // 동/마커 — 풀 정밀
 }
 
 interface KakaoPolygon { setMap: (m: unknown) => void }
