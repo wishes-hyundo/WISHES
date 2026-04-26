@@ -17,7 +17,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Minus, LocateFixed, Map as MapIcon, Satellite } from 'lucide-react';
+import { Plus, Minus, LocateFixed, Map as MapIcon, Satellite, Clock } from 'lucide-react';
 import { useMap2026Store } from '../store';
 
 type KakaoMap = {
@@ -25,12 +25,39 @@ type KakaoMap = {
   setLevel?: (n: number) => void;
   panTo?: (latlng: unknown) => void;
   setMapTypeId?: (typeId: unknown) => void;
+  getCenter?: () => { getLat: () => number; getLng: () => number };
 };
 
 export function MapControls() {
   const map = useMap2026Store((s) => s.map) as KakaoMap | null;
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
+  // L-naver-2026isochrone1 (2026-04-27): 도달시간 토글 + 시간 선택 UI.
+  const isochroneOn = useMap2026Store((s) => s.isochrone);
+  const isochroneMinutes = useMap2026Store((s) => s.isochroneMinutes);
+  const isochroneCenter = useMap2026Store((s) => s.isochroneCenter);
+  const setIsochroneCenter = useMap2026Store((s) => s.setIsochroneCenter);
+  const setIsochroneMinutes = useMap2026Store((s) => s.setIsochroneMinutes);
+  const toggleLayer = useMap2026Store((s) => s.toggleLayer);
+  const selectedId = useMap2026Store((s) => s.selectedId);
+  const listings = useMap2026Store((s) => s.listings);
+  const handleIsochroneToggle = () => {
+    // 토글 ON 시 center 자동 설정 (선택 매물 → viewport 중심 → 강남역 fallback)
+    if (!isochroneOn && !isochroneCenter) {
+      const sel = selectedId != null ? listings.find((l) => l.id === selectedId) : null;
+      if (sel) {
+        setIsochroneCenter([sel.lng, sel.lat]);
+      } else if (map?.getCenter) {
+        try {
+          const c = (map as unknown as { getCenter: () => { getLat: () => number; getLng: () => number } }).getCenter();
+          setIsochroneCenter([c.getLng(), c.getLat()]);
+        } catch { setIsochroneCenter([127.0276, 37.4979]); /* 강남역 fallback */ }
+      } else {
+        setIsochroneCenter([127.0276, 37.4979]);
+      }
+    }
+    toggleLayer('isochrone');
+  };
   // L-naver-2026maptype1 (2026-04-27): 위성/지도 토글 (사용자 요청).
   //   Kakao SDK MapTypeId: ROADMAP (지도) / SKYVIEW (위성) / HYBRID (위성 + 라벨).
   //   기본 = ROADMAP. 토글 시 HYBRID (위성 + 도로/지명 라벨) — 더 실용적.
@@ -163,6 +190,41 @@ export function MapControls() {
           ? <Satellite className="size-4" />
           : <MapIcon className="size-4 text-emerald-600" />}
       </button>
+
+      {/* L-naver-2026isochrone1: 도달시간 토글 + 분 선택 (5/15/30분) */}
+      <div className="pointer-events-auto flex flex-col items-end gap-1">
+        <button
+          onClick={handleIsochroneToggle}
+          aria-label={isochroneOn ? '도달시간 끄기' : '도달시간 켜기'}
+          title={isochroneOn ? `도달시간 ${isochroneMinutes}분 (끄기)` : '도달시간 표시'}
+          className={[
+            'flex size-10 items-center justify-center rounded-full border shadow-md transition',
+            isochroneOn
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+              : 'border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50',
+          ].join(' ')}
+        >
+          <Clock className="size-4" />
+        </button>
+        {isochroneOn && (
+          <div className="flex overflow-hidden rounded-full border border-emerald-200 bg-white shadow-md">
+            {[5, 15, 30].map((m) => (
+              <button
+                key={m}
+                onClick={() => setIsochroneMinutes(m)}
+                className={[
+                  'px-2.5 py-1 text-[11px] font-semibold transition',
+                  isochroneMinutes === m
+                    ? 'bg-emerald-600 text-white'
+                    : 'text-emerald-700 hover:bg-emerald-50',
+                ].join(' ')}
+              >
+                {m}분
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* 내 위치 */}
       <button
