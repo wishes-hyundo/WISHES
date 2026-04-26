@@ -326,23 +326,24 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
 
       const onClick = () => {
-        // L-naver-click7 (2026-04-26): 진단 로그 — 클릭이 발화하는지 명확히 확인.
-        console.log('[Polygon Click]', { labelText, mode, targetLevel, currentLevel: typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 'unknown' });
+        // L-naver-smooth2 (2026-04-26): panTo (centroid) + setLevel (target) 한 번에 transition.
+        //   이전 setBounds 만 → 큰 지역 (경기도/강원도 등) 은 zoom 거의 안 변함 → 사용자 "반응 없음".
+        //   이전 setBounds + setTimeout setLevel → 깜빡임 (이중 zoom 변경).
+        //   해결: 명시적 panTo (중심 이동) + setLevel (즉시 zoom).
         lastClickAt = Date.now();
         try {
           const bbox = multiFeatureBbox(feats);
-          console.log('[Polygon Click] bbox:', bbox, 'setBounds:', typeof mapInst.setBounds);
-          if (bbox && typeof mapInst.setBounds === 'function') {
-            const sw = new maps.LatLng(bbox.south, bbox.west);
-            const ne = new maps.LatLng(bbox.north, bbox.east);
-            const bounds = new maps.LatLngBounds(sw, ne);
-            mapInst.setBounds(bounds, 40, 40, 40, 40);
-            console.log('[Polygon Click] setBounds called');
+          if (bbox) {
+            const cy = (bbox.south + bbox.north) / 2;
+            const cx = (bbox.west + bbox.east) / 2;
+            if (typeof mapInst.panTo === 'function') {
+              mapInst.panTo(new maps.LatLng(cy, cx));
+            }
           }
-        } catch (e) { console.error('[Polygon Click] setBounds error:', e); }
-        // L-naver-smooth1 (2026-04-26): 클릭 시 깜빡임 fix.  setBounds 후 setLevel
-        //   이중 zoom 변경이 flicker.  bbox-fit 만으로 충분 — setLevel 호출 제거.
-        //   사용자가 너무 zoom-in 됐을 때만 setLevel 한번 (바운스 방지).
+          if (typeof mapInst.setLevel === 'function') {
+            mapInst.setLevel(targetLevel, { animate: true });
+          }
+        } catch (e) { console.error('[Polygon Click] error:', e); }
         onClickRegion?.(labelText);
       };
 
