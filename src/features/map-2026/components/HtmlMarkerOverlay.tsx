@@ -143,14 +143,15 @@ function makeCircleElement(opts: {
   category?: 'residence' | 'retail_office' | 'land' | 'investment';
 }): HTMLDivElement {
   const { count, selected, size, category = 'residence' } = opts;
-  // L-naver-2026catcolor1: 카테고리별 fg/bg 적용.
   const cc = CAT_COLORS[category];
   const bg = selected ? SEL_BG : cc.bg;
   const bd = selected ? SEL_BD : cc.fg;
   const el = document.createElement('div');
-  // 큰 카운트일수록 글자도 크게 (사이즈에 비례)
   const fontSize = size >= 60 ? '14px' : size >= 50 ? '13px' : size >= 42 ? '12px' : size >= 36 ? '12px' : '11px';
-  // L-noborder1 (2026-04-26): 테두리 제거. 선택 상태만 강조 border.
+  // L-naver-2026clusterselected1 (2026-04-27): selected 시각 효과 강화.
+  //   ① 살짝 커짐 (1.15x)  ② ring 효과 (outline + offset)  ③ z-index 우선
+  //   사용자: "눌렀다는 걸 알 수 있는 상태" 명확하게.
+  const baseScale = selected ? 1.15 : 1;
   el.style.cssText = [
     'display:inline-flex',
     'align-items:center',
@@ -160,20 +161,23 @@ function makeCircleElement(opts: {
     'border-radius:50%',
     `background:${bg}`,
     'color:#fff',
-    selected ? `border:2px solid ${bd}` : 'border:none',
-    `box-shadow:${selected ? SEL_SHADOW : '0 4px 14px rgba(0,0,0,0.22), 0 1px 3px rgba(0,0,0,0.12)'}`,
+    selected ? `border:3px solid ${bd}` : 'border:none',
+    selected ? `outline:3px solid rgba(24,95,165,0.35); outline-offset:2px` : '',
+    `box-shadow:${selected ? '0 6px 20px rgba(24,95,165,0.55), 0 2px 4px rgba(0,0,0,0.18)' : '0 4px 14px rgba(0,0,0,0.22), 0 1px 3px rgba(0,0,0,0.12)'}`,
     `font-size:${fontSize}`,
     'font-weight:800',
     'letter-spacing:-0.3px',
     'cursor:pointer',
     'user-select:none',
-    'transition:transform 150ms ease',
+    'transition:transform 180ms cubic-bezier(0.34,1.56,0.64,1)',
+    `transform:scale(${baseScale})`,
     'font-family:inherit',
     'pointer-events:auto',
-  ].join(';');
+    selected ? 'z-index:50' : '',
+  ].filter(Boolean).join(';');
   el.textContent = count >= 1000 ? `${(Math.floor(count / 100) / 10).toFixed(1)}k` : String(count);
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.1)'; });
-  el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
+  el.addEventListener('mouseenter', () => { el.style.transform = `scale(${baseScale * 1.08})`; });
+  el.addEventListener('mouseleave', () => { el.style.transform = `scale(${baseScale})`; });
   return el;
 }
 
@@ -577,16 +581,27 @@ const size = _isMobile1
         for (const l of rest) clusters.set(`i:${l.id}`, [l]);
       }
 
+      // L-naver-2026clusterselected1 (2026-04-27): selected 판정 강화.
+      //   selectedListingId 매칭 + clusterFilterIds 가 정확히 cluster 안 매물 모두 매칭.
+      //   사용자가 cluster 클릭 → cluster 안 매물 ID 들이 clusterFilterIds 로 set →
+      //   해당 cluster 만 selected (다른 cluster 는 normal).
+      const filterIdSet = clusterFilterIds && clusterFilterIds.length > 0
+        ? new Set(clusterFilterIds)
+        : null;
+
       for (const arr of clusters.values()) {
         if (arr.length === 0) continue;
-        // cell 중심: 매물들 lat/lng 평균 (centroid)
         let latSum = 0, lngSum = 0;
         for (const l of arr) { latSum += l.lat; lngSum += l.lng; }
         const lat = latSum / arr.length;
         const lng = lngSum / arr.length;
         const count = arr.length;
-        const selected =
-          selectedListingId != null && arr.some((l) => l.id === selectedListingId);
+        // selected: ① selected 매물 포함 또는 ② cluster 안 매물 == filterIdSet (클릭 cluster).
+        const hasSelected = selectedListingId != null && arr.some((l) => l.id === selectedListingId);
+        const isClusterFiltered = filterIdSet != null
+          && arr.length === filterIdSet.size
+          && arr.every((l) => filterIdSet.has(l.id));
+        const selected = hasSelected || isClusterFiltered;
         // L-naver-2026catcolor1: cluster 안 매물 다수 카테고리로 색 결정.
         //   investment 탭에서는 cluster 안 매물 majority category 사용 (cross-cutting).
         //   다른 탭에서는 그 category 그대로.
@@ -620,6 +635,22 @@ const size = _isMobile1
             onClickListing(arr[0].id);
             return;
           }
+          // L-naver-2026clusterfilter1 (2026-04-27): cluster 클릭 = 사이드바 필터 (사용자 요청).
+          //   사용자 명시 요구: "마커 누르면 누른 마커에 해당하는 매물이 좌측 사이드바에 보여줘".
+          //   동작:
+          //     ① onClusterFilter(ids) → store.clusterFilterIds set → ListPanel 필터링
+          //     ② cluster 안 매물 spread 만큼 살짝 zoom in (풀어보기 효과)
+          //     ③ selected 시각 표시 (위 isClusterFiltered 분기에서 처리)
+          //     ④ 다시 같은 cluster 클릭 또는 ActiveFilterPills X → setClusterFilter(null)
+          const ids = arr.map((l) => l.id);
+          const labelDong = arr.find((l) => l.dong)?.dong ?? null;
+          const label = labelDong ? `${labelDong} ${count}개` : `${count}개 매물`;
+          // toggle 동작: 이미 같은 cluster 가 selected 면 해제
+          if (filterIdSet && filterIdSet.size === ids.length && ids.every((id) => filterIdSet.has(id))) {
+            if (onClusterFilter) onClusterFilter(null, null);
+            return;
+          }
+          if (onClusterFilter) onClusterFilter(ids, label);
           // L-naver-2026clusterprecise1 (2026-04-27): cluster 클릭 위치 정밀도 fix.
           //   사용자 피드백 "동그라미 마커 클릭 시 그 마커 기준에 맞춰 정확히 이동 안 됨".
           //   원인 (clusterclick1/3):
