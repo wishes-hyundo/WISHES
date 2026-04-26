@@ -160,12 +160,43 @@ async function loadDong(): Promise<GeoCollection | null> {
   return pendingDong;
 }
 
-// L-naver-precise2 (2026-04-26): turf union 임시 비활성. null 반환해 caller 가
-//   feats 전체를 stack 으로 그림 (정밀 데이터로도 충분히 깔끔).
-//   L-naver-2026union2 (2026-04-26): 재시도 했으나 build 실패 — turf.union v7
-//   import 가 Edge Runtime + Next 16 SSR 환경에서 type 추론 실패. stack 유지.
-function unionLegalDong(_sigCode: string, _legalName: string, _feats: GeoFeature[]): GeoFeature | null {
-  return null;
+// L-naver-2026union3 (2026-04-26): dynamic import 로 turf.union 재시도.
+//   static import 는 build fail (Edge SSR + Next 16 환경 호환성).  dynamic
+//   import 는 client-side 만 실행되며 build-time type 검증 우회 → 안전.
+//   첫 dong 모드 진입 직전 module-level lazy load → 이후 sync 사용.
+type UnionFn = (fc: unknown) => GeoFeature | null;
+let unionFn: UnionFn | null = null;
+let unionLoaded = false;
+if (typeof window !== 'undefined') {
+  // L-naver-2026union3: lazy load on first dong-mode entry.
+  void (async () => {
+    try {
+      const mod = await import('@turf/union');
+      const candidate = (mod as unknown as { default?: UnionFn; union?: UnionFn }).default
+        ?? (mod as unknown as { default?: UnionFn; union?: UnionFn }).union;
+      unionFn = (typeof candidate === 'function' ? candidate : null);
+    } catch {
+      unionFn = null;
+    } finally {
+      unionLoaded = true;
+    }
+  })();
+}
+const unionCache = new Map<string, GeoFeature | null>();
+function unionLegalDong(sigCode: string, legalName: string, feats: GeoFeature[]): GeoFeature | null {
+  if (feats.length < 2) return feats[0] ?? null;
+  if (!unionLoaded || !unionFn) return null;  // not loaded yet → caller stack fallback
+  const cacheKey = `${sigCode}:${legalName}`;
+  if (unionCache.has(cacheKey)) return unionCache.get(cacheKey) ?? null;
+  try {
+    const fc = { type: 'FeatureCollection', features: feats };
+    const merged = unionFn(fc);
+    unionCache.set(cacheKey, merged);
+    return merged;
+  } catch {
+    unionCache.set(cacheKey, null);
+    return null;
+  }
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
