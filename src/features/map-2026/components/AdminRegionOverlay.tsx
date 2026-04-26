@@ -20,9 +20,7 @@
 import { useEffect, useRef } from 'react';
 import type { MapListing } from '@/features/map-2026/store';
 import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
-// L-naver-union2 (2026-04-26): turf 재도입.  simple import + any cast 으로 build 통과.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-import { union as turfUnion } from '@turf/turf';
+// L-naver-union3 (2026-04-26): turf 가 build fail.  stroke 모두 0 으로 → 굵은 줄 사라짐.
 
 const SIDO_GEOJSON_URL    = '/api/geo/sido';
 const SIGUNGU_GEOJSON_URL = '/api/geo/sigungu';
@@ -78,32 +76,8 @@ async function loadDong(): Promise<GeoCollection | null> {
   return pendingDong;
 }
 
-// L-naver-union2 (2026-04-26): turf union 으로 행정동들을 1개 polygon 으로 merge.
-//   "돼지 부위" 빨간 줄 (행정동 사이 stroke) 제거 — 외곽선만 보임.
-const unionCache: Map<string, GeoFeature | null> = new Map();
-function unionLegalDong(sigCode: string, legalName: string, feats: GeoFeature[]): GeoFeature | null {
-  const k = `${sigCode}:${legalName}`;
-  if (unionCache.has(k)) return unionCache.get(k) ?? null;
-  if (feats.length === 0) { unionCache.set(k, null); return null; }
-  if (feats.length === 1) { unionCache.set(k, feats[0]); return feats[0]; }
-  try {
-    const fc = { type: 'FeatureCollection' as const, features: feats };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const merged = turfUnion(fc as any);
-    if (merged && merged.geometry) {
-      const g = merged.geometry as { type: 'Polygon' | 'MultiPolygon'; coordinates: unknown };
-      const result: GeoFeature = {
-        type: 'Feature',
-        properties: { name: legalName },
-        geometry: g.type === 'Polygon'
-          ? { type: 'Polygon', coordinates: g.coordinates as number[][][] }
-          : { type: 'MultiPolygon', coordinates: g.coordinates as number[][][][] },
-      };
-      unionCache.set(k, result);
-      return result;
-    }
-  } catch (e) { console.error('[union]', legalName, e); }
-  unionCache.set(k, null);
+// L-naver-union3 (2026-04-26): turf 빌드 호환 문제로 비활성. caller 에서 stroke 0 처리.
+function unionLegalDong(_sigCode: string, _legalName: string, _feats: GeoFeature[]): GeoFeature | null {
   return null;
 }
 
@@ -573,12 +547,12 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             const dongLabel = `${sigLabel} ${legalName}`;
             const merged = unionLegalDong(sigCode, legalName, feats);
             const renderFeats = merged ? [merged] : feats;
-            // L-naver-union2: turf 으로 merge 된 polygon → 외곽 stroke 만 보임 (인접 행정동 사이
-            //   "돼지 부위" 굵은 빨간줄 제거).  hover 동만 진한 fill + 외곽 stroke.
+            // L-naver-union3 (2026-04-26): union 비활성 상태에서 행정동 사이 굵은 빨간줄 제거.
+            //   stroke 모두 0, fill 강도로만 시각 표현.  hover 0.40 (진함) / non-hover 0.08 (옅음).
             drawRegion(renderFeats, dongLabel, 'dong', {
-              fillOpacityOverride: isHovered ? 0.34 : 0.10,
-              strokeOpacityOverride: merged ? (isHovered ? 0.7 : 0.3) : 0,  // merged 가 1개면 외곽선만
-              strokeWeightOverride: isHovered ? 1.5 : 0.8,
+              fillOpacityOverride: isHovered ? 0.40 : 0.08,
+              strokeOpacityOverride: 0,
+              strokeWeightOverride: 0,
               clickable: true,
               isBackdrop: !isHovered,
             });
@@ -699,3 +673,40 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
   return null;
 }
+function' && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(id as number);
+      } else {
+        clearTimeout(id as number);
+      }
+    };
+  }, []);
+
+  return null;
+}
+ner(mapInst as unknown, 'idle', onIdle);
+          maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
+        }
+      } catch { /*noop*/ }
+      try { document.removeEventListener('mousemove', updateTooltipPosition); } catch { /*noop*/ }
+      try { tooltipEl.remove(); } catch { /*noop*/ }
+      cleanup();
+    };
+  }, [map, onClickRegion]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const id = (typeof window.requestIdleCallback === 'function')
+      ? window.requestIdleCallback(() => { void loadSigungu(); void loadDong(); })
+      : window.setTimeout(() => { void loadSigungu(); void loadDong(); }, 2000);
+    return () => {
+      if (typeof window.requestIdleCallback === 'function' && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(id as number);
+      } else {
+        clearTimeout(id as number);
+      }
+    };
+  }, []);
+
+  return null;
+}
+                                                                                                                                                                                                  
