@@ -185,9 +185,9 @@ export default function MapClient() {
 
         const map = new kakao.maps.Map(container, {
           center: new kakao.maps.LatLng(SEOUL.lat, SEOUL.lng),
-          // L-naver-zoom8 (2026-04-26): 기본 zoom level 5 (~2km, 아파트 단위) → 8 (~14km, 시군구).
-          //   네이버 z13 광역뷰와 동등 시작. 사용자가 줌인 시 자연스럽게 동 단위로 transition.
-          level: 8,
+          // L-naver-zoom9 (2026-04-26): 기본 zoom level 8 → 9 (네이버 z13 visual scale 정확 매칭).
+          //   level 9 = sigungu only (광역뷰).  사용자 1회 줌인 시 multi-dong 시작.
+          level: 9,
           disableDoubleClickZoom: true,
         });
         mapInst = map;

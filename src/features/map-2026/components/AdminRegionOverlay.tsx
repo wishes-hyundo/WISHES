@@ -473,17 +473,17 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'sigungu') {
-        // L-naver-multi3 (2026-04-26): 네이버 패턴 — 광역 → 시군구 클릭 → 동 표시 시작.
-        //   level 9~12 (광역뷰): 시군구 polygon ONLY (동 안 보임, 클릭 가능).
-        //   level 6~8 (시군구 줌인 후): 시군구 outline + 모든 법정동 (hover 가능).
+        // L-naver-multi5 (2026-04-26): 광역 vs 줌인 단계 한 단계 더 zoom-in 으로 미룸.
+        //   네이버 z13 (광역뷰) ≈ 위시스 level 7~8.  level 7~12 = sigungu only.
+        //   level 6 부터 multi-dong (줌인 후 동 표시).
         if (!sigData?.features) return;
         const sigFeat = findFeatureAt(sigData.features, lat, lng);
         if (!sigFeat) return;
         const sigName = String((sigFeat.properties as { name?: string }).name ?? '').trim();
         const sigLabel = parentSido ? `${parentSido} ${sigName}` : sigName;
 
-        // 광역뷰 (level 9~12): 시군구 polygon 단독 — 동 그리지 않음
-        if (level >= 9) {
+        // 광역뷰 (level 7~12): 시군구 polygon 단독 — 동 그리지 않음
+        if (level >= 7) {
           const key = `sig-only:${parentSido}:${sigName}`;
           if (key === currentKey && currentLevelMode === mode) return;
           cleanup();
@@ -551,10 +551,13 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             const dongLabel = `${sigLabel} ${legalName}`;
             const merged = unionLegalDong(sigCode, legalName, feats);
             const renderFeats = merged ? [merged] : feats;
+            // L-naver-stroke1 (2026-04-26): 인접 행정동 사이 굵은 빨간줄 제거.
+            //   multi-dong 시 stroke=0 → fill 만 stack 으로 한 덩어리처럼 보임.
+            //   hover 동만 약한 stroke 살림 (구분 위해).
             drawRegion(renderFeats, dongLabel, 'dong', {
-              fillOpacityOverride: isHovered ? 0.28 : 0.10,
-              strokeOpacityOverride: isHovered ? 0.6 : 0.25,
-              strokeWeightOverride: isHovered ? 1.8 : 1,
+              fillOpacityOverride: isHovered ? 0.32 : 0.12,
+              strokeOpacityOverride: isHovered ? 0.5 : 0,
+              strokeWeightOverride: isHovered ? 1.5 : 0,
               clickable: true,
               isBackdrop: !isHovered,
             });
