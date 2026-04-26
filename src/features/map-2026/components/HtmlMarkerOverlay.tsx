@@ -302,7 +302,8 @@ export default function HtmlMarkerOverlay({
       // L-naver-2026noserver1 (2026-04-26): server cluster path 비활성.
       //   사용자 피드백: server H3 cluster 가 client grid cluster 를 가려서
       //   네이버 매칭 변경 안 보임.  client grid path 만 사용.
-      if (false && level > 3 && !filterSet && Array.isArray(serverClusters) && serverClusters.length > 0) {
+      const SERVER_CLUSTER_DISABLED = true;
+      if (!SERVER_CLUSTER_DISABLED && level > 3 && !filterSet && Array.isArray(serverClusters) && serverClusters.length > 0) {
         // 개별(count===1) 은 sample_ids 로 listing id 추론 가능.
         const listingById = new Map<number, MapListing>();
         for (const l of listings) listingById.set(l.id, l);
