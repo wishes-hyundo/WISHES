@@ -11,10 +11,13 @@
 //   - dapi.kakao.com 타일                                →  cache-first (7일)
 //   - 그 외 요청은 SW 가 건드리지 않고 네트워크 통과 (safe passthrough)
 
-const CACHE_VERSION = 'v1-2026-04-20';
+// L-naver-2026sw1 (2026-04-26): 캐시 버전 bump + GeoJSON 캐시 추가.
+const CACHE_VERSION = 'v2-2026-04-26';
 const MAP_CACHE = `wishes-map-${CACHE_VERSION}`;
 const TILE_CACHE = `wishes-tiles-${CACHE_VERSION}`;
 const IMG_CACHE = `wishes-img-${CACHE_VERSION}`;
+// L-naver-2026sw1: GeoJSON 전용 캐시 (long-lived, 행정구역 거의 변하지 않음)
+const GEO_CACHE = `wishes-geo-${CACHE_VERSION}`;
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -28,7 +31,8 @@ self.addEventListener('activate', (event) => {
       keys.filter((k) =>
         k.startsWith('wishes-map-') ||
         k.startsWith('wishes-tiles-') ||
-        k.startsWith('wishes-img-'),
+        k.startsWith('wishes-img-') ||
+        k.startsWith('wishes-geo-'),
       )
       .filter((k) => !k.endsWith(CACHE_VERSION))
       .map((k) => caches.delete(k)),
@@ -99,6 +103,14 @@ self.addEventListener('fetch', (event) => {
   // 3) /api/map/* 클러스터·아이템 (SWR)
   if (url.pathname.startsWith('/api/map/')) {
     event.respondWith(staleWhileRevalidate(req, MAP_CACHE));
+    return;
+  }
+
+  // 4) /api/geo/* GeoJSON (cache-first 30일 — 행정구역 거의 변경 안 됨)
+  //    L-naver-2026sw1: dong (~34MB) / sigungu / sido 모두 long-lived 캐시.
+  //    재방문 시 즉시 응답 → 폴리곤 instant 표시.
+  if (url.pathname.startsWith('/api/geo/')) {
+    event.respondWith(cacheFirst(req, GEO_CACHE, 30 * 24 * 60 * 60 * 1000));
     return;
   }
 
