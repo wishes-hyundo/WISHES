@@ -86,6 +86,36 @@ async function loadSigungu(): Promise<GeoCollection | null> {
     .finally(() => { pendingSigungu = null; setLoadInFlight(-1); });
   return pendingSigungu;
 }
+// L-naver-2026chunk1 (2026-04-26): 시군구별 dong chunk lazy-loading.
+//   네이버처럼 viewport 의 시군구만 lazy-fetch.  33MB → 44KB/시군구.
+//   sigCode (5 digits) 기반.  per-sigungu cache.
+const dongChunkCache = new Map<string, GeoCollection>();
+const pendingChunks = new Map<string, Promise<GeoCollection | null>>();
+async function loadDongChunk(sigCode: string): Promise<GeoCollection | null> {
+  if (!/^\d{5}$/.test(sigCode)) return null;
+  const cached = dongChunkCache.get(sigCode);
+  if (cached) return cached;
+  const pending = pendingChunks.get(sigCode);
+  if (pending) return pending;
+  setLoadInFlight(1);
+  const promise = (async () => {
+    try {
+      const r = await fetch(`/api/geo/dong/sigungu/${sigCode}`);
+      if (!r.ok) return null;
+      const j = (await r.json()) as GeoCollection;
+      dongChunkCache.set(sigCode, j);
+      return j;
+    } catch {
+      return null;
+    } finally {
+      pendingChunks.delete(sigCode);
+      setLoadInFlight(-1);
+    }
+  })();
+  pendingChunks.set(sigCode, promise);
+  return promise;
+}
+
 // L-naver-2026worker2 (2026-04-26): dong GeoJSON 은 Web Worker 에서 파싱
 //   + bbox 사전계산.  ~34MB JSON.parse + 1000+ feature bbox 가 메인 스레드
 //   막던 문제 해결.
@@ -668,9 +698,18 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   sido 모드에서도 sigData 미리 로드.
       const sidoData = await loadSido();
       const sigData = await loadSigungu();
-      // L-naver-multi2 (2026-04-26): sigungu 모드도 dongData 필요 (multi-dong 렌더).
-      //   기존 'dong' 모드에서만 로드 → 새 multi-dong sigungu 에서 legalGroups 비어 클릭 안 됨.
-      const dongData = (mode === 'dong' || mode === 'sigungu') ? await loadDong() : null;
+      // L-naver-2026chunk1 (2026-04-26): dong 모드에서만 chunk 로드, cursor 의 sigungu 만.
+      //   기존 33MB full → 시군구별 ~50KB chunk.  사용자 영향 큼 (모바일 데이터/속도).
+      let dongData: GeoCollection | null = null;
+      if (mode === 'dong' && sigData?.features) {
+        const cursorSig = findFeatureAt(sigData.features, lat, lng);
+        const cursorSigCode = cursorSig
+          ? String((cursorSig.properties as { code?: string }).code ?? '').slice(0, 5)
+          : '';
+        if (cursorSigCode) {
+          dongData = await loadDongChunk(cursorSigCode);
+        }
+      }
 
       let parentSido = '';
       let parentSig = '';
@@ -859,8 +898,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const id = (typeof window.requestIdleCallback === 'function')
-      ? window.requestIdleCallback(() => { void loadSigungu(); void loadDong(); })
-      : window.setTimeout(() => { void loadSigungu(); void loadDong(); }, 2000);
+      ? window.requestIdleCallback(() => { void loadSigungu(); })
+      : window.setTimeout(() => { void loadSigungu(); }, 2000);
     return () => {
       if (typeof window.requestIdleCallback === 'function' && typeof window.cancelIdleCallback === 'function') {
         window.cancelIdleCallback(id as number);
