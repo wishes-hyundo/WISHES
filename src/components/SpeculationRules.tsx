@@ -35,16 +35,8 @@ export default function SpeculationRules() {
     prefetch: [
       {
         where: {
-          href_matches: ['/api/map/*', '/api/listings/*', '/map', '/map?*'],
+          // L-naver-2026spec1 (2026-04-26): /api/geo/* 추가.
+          //   /map 진입 전에 sido/sigungu/dong-chunk prefetch → 폴리곤 instant.
+          href_matches: ['/api/map/*', '/api/listings/*', '/api/geo/*', '/map', '/map?*'],
         },
-        eagerness: 'eager',
-      },
-    ],
-  };
-  return (
-    <script
-      type="speculationrules"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(rules) }}
-    />
-  );
-}
+        eagern
