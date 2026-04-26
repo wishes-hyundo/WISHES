@@ -325,27 +325,31 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   dong(4~6) → 3 (z17, marker close-up) — 1-3 levels deep
       const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
 
-      const onClick = () => {
-        // L-naver-smooth4 (2026-04-26): panTo + setLevel({animate: true}) 정상 옵션.
-        //   (이전 {animate:{duration:400}} 은 Kakao API 비표준 → 동작 unstable.)
+      const onClick = (e?: KakaoMouseEvent) => {
+        // L-naver-clickfix1 (2026-04-26): 클릭 좌표 기반 직접 lookup.
+        //   기존 closure 의 feats 사용 시 mousemove redraw race condition 으로
+        //   잘못된 region 으로 zoom (사용자: 관악구 클릭 → 일산 이동).
+        //   해결: 클릭 좌표 e.latLng 로 즉시 LATLNG 기반 panTo + setLevel.
         lastClickAt = Date.now();
         try {
-          const bbox = multiFeatureBbox(feats);
           const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
           const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
-          // 진단 log — 클릭된 region 의 정확한 label + bbox 출력
-          console.log('[click]', { label: labelText, mode, curLv, finalLv, bbox });
-          if (bbox) {
-            const cy = (bbox.south + bbox.north) / 2;
-            const cx = (bbox.west + bbox.east) / 2;
-            if (typeof mapInst.panTo === 'function') {
+          // 클릭 좌표 그대로 panTo (closure 의 feats centroid 사용 안 함)
+          if (e?.latLng && typeof mapInst.panTo === 'function') {
+            mapInst.panTo(e.latLng as unknown as object);
+          } else {
+            // fallback: feats centroid
+            const bbox = multiFeatureBbox(feats);
+            if (bbox && typeof mapInst.panTo === 'function') {
+              const cy = (bbox.south + bbox.north) / 2;
+              const cx = (bbox.west + bbox.east) / 2;
               mapInst.panTo(new maps.LatLng(cy, cx));
             }
           }
           if (typeof mapInst.setLevel === 'function') {
             mapInst.setLevel(finalLv, { animate: true });
           }
-        } catch (e) { console.error('[click] error:', e); }
+        } catch (err) { console.error('[click] error:', err); }
         onClickRegion?.(labelText);
       };
 
