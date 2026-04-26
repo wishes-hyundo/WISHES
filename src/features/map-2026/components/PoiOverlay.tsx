@@ -43,35 +43,29 @@ const POI_CATEGORIES = {
 export type PoiCategoryKey = keyof typeof POI_CATEGORIES;
 export const POI_CATEGORY_LIST = Object.entries(POI_CATEGORIES).map(([k, v]) => ({ key: k as PoiCategoryKey, ...v }));
 
+// L-naver-2026poi2 (2026-04-27): light dot 마커 (freeze fix).
+//   pill 형태 (텍스트+이모지 box) 가 한 번에 15개 mount 시 reflow 무거워 freeze.
+//   해결: 18px 작은 colored dot + emoji 단독 (DOM 가벼움). title 로 hover 시 시설명.
 function makePoiMarker(label: string, color: string, emoji: string): HTMLDivElement {
   const el = document.createElement('div');
+  el.title = label;
   el.style.cssText = [
-    'display:inline-flex',
+    'display:flex',
     'align-items:center',
-    'gap:4px',
-    'padding:3px 8px 3px 5px',
-    'background:rgba(255,255,255,0.95)',
-    `border:1.5px solid ${color}`,
-    'border-radius:999px',
-    'font-size:10.5px',
-    'font-weight:600',
-    'color:#1a1a1a',
-    'white-space:nowrap',
-    'letter-spacing:-0.2px',
-    'box-shadow:0 2px 6px rgba(0,0,0,0.15)',
-    'pointer-events:none',
+    'justify-content:center',
+    'width:22px',
+    'height:22px',
+    'border-radius:50%',
+    `background:${color}`,
+    'color:#fff',
+    'font-size:11px',
+    'line-height:1',
+    'box-shadow:0 1px 3px rgba(0,0,0,0.25)',
+    'pointer-events:auto',
     'user-select:none',
-    'max-width:140px',
-    'overflow:hidden',
-    'text-overflow:ellipsis',
+    'cursor:default',
   ].join(';');
-  const dot = document.createElement('span');
-  dot.style.cssText = 'font-size:11px;line-height:1';
-  dot.textContent = emoji;
-  el.appendChild(dot);
-  const text = document.createElement('span');
-  text.textContent = label.length > 12 ? label.slice(0, 11) + '…' : label;
-  el.appendChild(text);
+  el.textContent = emoji;
   return el;
 }
 
@@ -118,26 +112,39 @@ export default function PoiOverlay({ map }: Props) {
           cat.code,
           (data, status) => {
             if (status !== (maps.services?.Status?.OK ?? 'OK')) return;
-            for (const item of data) {
-              const lat = parseFloat(item.y);
-              const lng = parseFloat(item.x);
-              if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
-              const el = makePoiMarker(item.place_name, cat.color, cat.emoji);
-              try {
-                const ov = new maps.CustomOverlay({
-                  position: new maps.LatLng(lat, lng),
-                  content: el,
-                  xAnchor: 0.5,
-                  yAnchor: 0.5,
-                  zIndex: 6,
-                  clickable: false,
-                });
-                ov.setMap(map);
-                overlaysRef.current[key].push(ov);
-              } catch { /* SDK race — skip */ }
-            }
+            // L-naver-2026poi2: requestIdleCallback 으로 stagger 생성 (freeze fix).
+            //   15 마커 동시 mount → reflow 무거워 freeze.
+            //   해결: idle callback 으로 chunk 단위 (3 markers/chunk).
+            const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback
+              ?? ((cb: () => void) => setTimeout(cb, 16));
+            const items = data.slice(0, 10);  // 15 → 10 으로 축소
+            let idx = 0;
+            const processChunk = () => {
+              const end = Math.min(idx + 3, items.length);
+              for (; idx < end; idx++) {
+                const item = items[idx];
+                const lat = parseFloat(item.y);
+                const lng = parseFloat(item.x);
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+                const el = makePoiMarker(item.place_name, cat.color, cat.emoji);
+                try {
+                  const ov = new maps.CustomOverlay({
+                    position: new maps.LatLng(lat, lng),
+                    content: el,
+                    xAnchor: 0.5,
+                    yAnchor: 0.5,
+                    zIndex: 6,
+                    clickable: false,
+                  });
+                  ov.setMap(map);
+                  overlaysRef.current[key].push(ov);
+                } catch { /* SDK race — skip */ }
+              }
+              if (idx < items.length) ric(processChunk);
+            };
+            ric(processChunk);
           },
-          { useMapBounds: true, size: 15 }
+          { useMapBounds: true, size: 10 }
         );
       } catch (e) {
         console.warn('[poi] category search fail', key, e);
