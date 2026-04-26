@@ -607,7 +607,14 @@ const size = _isMobile1
               setCenter?: (pos: unknown) => void;
             };
             const curLv = typeof mapApi2.getLevel === 'function' ? mapApi2.getLevel() : 4;
-            const nextLv = Math.max(1, curLv - 1);
+            // L-naver-2026clusterclick3 (2026-04-26): zoom -1 → 동적.  count 큰 cluster
+            //   는 -2 (한 번에 더 풀림), 작은 cluster 는 -1.  매물 lat/lng spread 도
+            //   고려 — spread 작으면 같은 단지 → -2 필수.
+            const latSpread = arr.reduce((mx, l) => Math.max(mx, Math.abs(l.lat - lat)), 0);
+            const lngSpread = arr.reduce((mx, l) => Math.max(mx, Math.abs(l.lng - lng)), 0);
+            const tightCluster = latSpread < 0.0008 && lngSpread < 0.0008;  // ~88m 안에 다 모여있음
+            const dec = (count >= 20 || tightCluster) ? 2 : 1;
+            const nextLv = Math.max(1, curLv - dec);
             if (kakaoAny?.maps?.LatLng && typeof mapApi2.setCenter === 'function') {
               mapApi2.setCenter(new kakaoAny.maps.LatLng(lat, lng));
             }

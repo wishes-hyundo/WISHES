@@ -498,7 +498,38 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       // L-naver-2026clickfix4 (2026-04-26): bbox 를 onClick 등록 시점에 미리 계산해
       //   closure 에 immutable 하게 캡처.  나중에 feats 가 어떤 이유로 mutate/share
       //   되어도 click 시 panTo 좌표는 등록 당시 그대로.
+      // L-naver-2026center1 (2026-04-26): MultiPolygon 의 가장 큰 piece centroid 사용.
+      //   bbox 중심은 두 disjoint piece 사이 빈 공간일 수 있음 (신림동 같은 case).
+      //   가장 큰 piece (vertex 최다) 의 outer ring 평균 = 시각적으로 자연스러움.
       const lockedBbox = multiFeatureBbox(feats);
+      const lockedCenter = (() => {
+        let bestArea = -1;
+        let bestCx = 0, bestCy = 0;
+        for (const f of feats) {
+          const geom = f.geometry;
+          const polys = geom.type === 'Polygon'
+            ? [geom.coordinates as number[][][]]
+            : geom.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]) : [];
+          for (const poly of polys) {
+            const ring = poly[0];
+            if (!ring || ring.length < 3) continue;
+            // 간단한 면적 (signed area)
+            let area = 0;
+            for (let i = 0; i < ring.length - 1; i++) {
+              area += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+            }
+            area = Math.abs(area) / 2;
+            if (area > bestArea) {
+              bestArea = area;
+              let sx = 0, sy = 0;
+              for (const [x, y] of ring) { sx += x; sy += y; }
+              bestCx = sx / ring.length;
+              bestCy = sy / ring.length;
+            }
+          }
+        }
+        return bestArea > 0 ? { cy: bestCy, cx: bestCx } : null;
+      })();
       const lockedLabelText = labelText;
       const lockedFeatNames = feats.map((f) => String((f.properties as { name?: string }).name ?? '?')).join(',');
       const lockedFeatCodes = feats.map((f) => String((f.properties as { code?: string }).code ?? '?')).join(',');
@@ -507,13 +538,21 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         // L-naver-clickfix2 + 2026clickfix4: pre-locked bbox 로 panTo + setLevel.
         lastClickAt = Date.now();
         zoomingFromClickRef.current = true;
+        // L-naver-2026noresidual1 (2026-04-26): polygon 잔상 제거 fix.
+        //   사용자 피드백 "동 polygon 클릭 후 빨간 배경 잔상".
+        //   기존: cleanup 이 idle 이벤트 (setLevel 애니메이션 끝) 시점에서만 실행.
+        //   변경: 클릭 즉시 cleanup() → polygon 즉시 사라짐.  setLevel 애니메이션
+        //   동안 빈 지도만 보임 → 다음 mode 진입 시 자연스러움.
+        cleanup();
+        currentKey = '';
         const performZoom = () => {
           try {
             const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
             const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
             const bbox = lockedBbox;
-            const cy = bbox ? (bbox.south + bbox.north) / 2 : null;
-            const cx = bbox ? (bbox.west + bbox.east) / 2 : null;
+            // L-naver-2026center1: lockedCenter (가장 큰 piece centroid) 우선, fallback bbox 중심.
+            const cy = lockedCenter ? lockedCenter.cy : (bbox ? (bbox.south + bbox.north) / 2 : null);
+            const cx = lockedCenter ? lockedCenter.cx : (bbox ? (bbox.west + bbox.east) / 2 : null);
             // L-naver-2026clickdiag1: click handler 진단 — Sentry breadcrumb + dev console.
             //   사용자 reproduction (관악구 클릭 → 서초/일산) 디버깅 위해 어떤 polygon
             //   의 onClick 이 어떤 좌표로 panTo 했는지 추적.
