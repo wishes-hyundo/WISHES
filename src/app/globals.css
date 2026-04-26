@@ -3,34 +3,21 @@
    뒤에야 @import 대상을 재요청)이라 Lighthouse render-blocking 170ms 주범.
    <link> 로 이동 → 병렬 로드 → critical path 단축. */
 
-/* Gmarket Sans - woff (공식 CDN)
-   L-cls2 (2026-04-21): font-display: swap → optional.
-   swap 은 fallback → GmarketSans swap 시 메트릭 차이로 CLS 0.234 유발 (Lighthouse
-   cls-culprits-insight 가 Medium/Bold .woff 직접 지목). optional 은 100ms block 후
-   도착 못 하면 fallback 고정·swap 안 함 → CLS 0 보장. 느린 네트워크에선 Pretendard
-   로 렌더되지만 Pretendard 도 브랜드 수준 한글 폰트라 UX 훼손 최소화.
-   woff2 CDN 이 존재하면 교체 필요 — 현재 noonfonts_2001 은 woff 만 제공. */
-@font-face {
-  font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansLight.woff') format('woff');
-  font-weight: 300;
-  font-style: normal;
-  font-display: optional;
-}
-@font-face {
-  font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');
-  font-weight: 500;
-  font-style: normal;
-  font-display: optional;
-}
-@font-face {
-  font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-  font-display: optional;
-}
+/* L-font-stable1 (2026-04-26):
+   사용자 피드백 — "전체 글씨체가 이랬다 저랬다 굵어졌다가" 인식.
+   원인:
+     1) Gmarket Sans 는 woff 만 (woff2 없음) + font-display: optional 로
+        100ms 안에 못 받으면 fallback 영구 고정 → 페이지마다 다른 폰트.
+     2) Light/Medium/Bold 3종 woff = 3 round-trips 가 캐시 hit/miss 에 따라
+        다른 weight 로 fallback → "굵어졌다 어쨌다" 시각.
+     3) `*, *::before, *::after { font-family }` universal selector 가
+        모든 element 에서 폰트 재계산 강제 → React 리렌더 시점에 fluctuation.
+   해결:
+     - Gmarket Sans 제거. Pretendard Variable 단일 폰트 사용.
+     - Pretendard 는 layout.tsx 에서 <link rel="stylesheet"> 로 blocking
+       로드 → 첫 paint 부터 모든 페이지에서 동일.
+     - Variable font (1 file, all weights) → swap event 없음 → CLS 0.
+     - 2026 한글 웹 표준 (네이버·카카오·토스 모두 Pretendard 사용). */
 
 @tailwind base;
 @tailwind components;
@@ -62,14 +49,15 @@ html {
   scroll-behavior: smooth;
 }
 
-*, *::before, *::after {
-  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-}
-
+/* L-font-stable1: universal selector 제거.
+   기존 `*, *::before, *::after { font-family }` 는 모든 element 에서 폰트 재계산
+   유발 + body !important 와 충돌. Body 에만 폰트 지정 → 자연 cascade. */
 body {
-  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-synthesis: none;  /* 브라우저가 fake bold/italic 합성 못 하게 (실제 weight 만 사용) */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   color: var(--color-text);
   background-color: var(--color-bg);
   line-height: 1.7;
@@ -188,7 +176,7 @@ body {
   color: #1b5e20;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(46,125,50,0.15);
-  font-family: 'GmarketSans', 'Pretendard', sans-serif;
+  font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
 }
 .map-marker-label.deal-전세 { border-color: #1565c0; color: #1565c0; }
 .map-marker-label.deal-월세 { border-color: #2e7d32; color: #2e7d32; }
@@ -361,6 +349,4 @@ body {
     ::view-transition-old(*),
     ::view-transition-new(*) {
       animation: none !important;
-    }
-  }
-}
+    

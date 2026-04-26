@@ -92,7 +92,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://t1.daumcdn.net" crossOrigin="" />
         <link rel="preconnect" href="https://map.daumcdn.net" crossOrigin="" />
         <link rel="preconnect" href="https://mts.daumcdn.net" crossOrigin="" />
-        {/* L2 (2026-04-21): Pretendard / GmarketSans 폰트가 jsdelivr 로부터 로드되므로
+        {/* L2 (2026-04-21, L-font-stable1 2026-04-26): Pretendard 폰트가 jsdelivr 로부터 로드되므로
             preconnect 로 TLS 핸드셰이크 1RTT 를 제거.
             crossOrigin="anonymous" 는 필수 — 폰트 요청은 CORS 모드라 matching
             anonymous preconnect 만 재사용됨 (없으면 중복 connection 생성). */}
@@ -184,6 +184,4 @@ export default function RootLayout({
           </ConditionalLayout>
         </QueryProvider>
       </body>
-    </html>
-  );
-}
+    </

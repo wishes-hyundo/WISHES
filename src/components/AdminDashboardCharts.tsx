@@ -93,7 +93,7 @@ const HorizontalBarChart = ({
                 fontSize="12"
                 fontWeight="bold"
                 fill="#1b3a24"
-                fontFamily="GmarketSans, sans-serif"
+                fontFamily="Pretendard Variable, Pretendard, sans-serif"
               >
                 {item.label}
               </text>
@@ -104,7 +104,7 @@ const HorizontalBarChart = ({
                 fontSize="12"
                 fontWeight="bold"
                 fill="#1b3a24"
-                fontFamily="GmarketSans, sans-serif"
+                fontFamily="Pretendard Variable, Pretendard, sans-serif"
               >
                 {item.value}
               </text>
@@ -191,7 +191,7 @@ const DonutChart = ({
                 fill="white"
                 textAnchor="middle"
                 dominantBaseline="middle"
-                fontFamily="GmarketSans, sans-serif"
+                fontFamily="Pretendard Variable, Pretendard, sans-serif"
               >
                 {slice.percentage}%
               </text>
@@ -252,7 +252,7 @@ const BarChart = ({
                 fontSize="11"
                 fill="#999"
                 textAnchor="end"
-                fontFamily="GmarketSans, sans-serif"
+                fontFamily="Pretendard Variable, Pretendard, sans-serif"
               >
                 {value}
               </text>
@@ -285,7 +285,7 @@ const BarChart = ({
                 fill="#1b3a24"
                 textAnchor="middle"
                 fontWeight="bold"
-                fontFamily="GmarketSans, sans-serif"
+                fontFamily="Pretendard Variable, Pretendard, sans-serif"
               >
                 {item.label}
               </text>
@@ -297,7 +297,7 @@ const BarChart = ({
                 fill={COLORS.primary}
                 textAnchor="middle"
                 fontWeight="bold"
-                fontFamily="GmarketSans, sans-serif"
+                fontFamily="Pretendard Variable, Pretendard, sans-serif"
               >
                 {item.value}
               </text>
