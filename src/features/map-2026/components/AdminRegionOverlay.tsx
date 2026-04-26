@@ -23,7 +23,7 @@ import simplify from '@turf/simplify';
 import type { Feature as GjFeature, Polygon as GjPolygon, MultiPolygon as GjMP } from 'geojson';
 import type { MapListing } from '@/features/map-2026/store';
 import { useMap2026Store } from '@/features/map-2026/store';
-// L-naver-2026admin-only1: adminToLegalDong import 제거 (행정동 단위 사용으로 불필요)
+import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
 // L-naver-precise2 (2026-04-26): @turf import 가 빌드 에러. 일단 union 제거.
 //   정밀 GeoJSON (48 pts/feat) 자체로도 충분히 깔끔 → fill 만 stack 으로도 매끄러움.
 // import { union as turfUnion, featureCollection as turfFC } from '@turf/turf';
@@ -763,23 +763,36 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         // L-naver-dual1 (2026-04-26): 네이버 동 모드 = 시군구 backdrop + 동 foreground 2-layer.
         //   사용자 스크린샷: 네이버는 관악구 폴리곤이 light-pink 으로 항상 표시 + 마우스 가르킨 동만 darker.
         //   기존 ONE 폴리곤 방식 → DUAL layer 로 전환.
-        // L-naver-2026admin-only1 (2026-04-26): 행정동 단위 그대로 사용.
-        //   기존: adminToLegalDong 으로 행정동 → 법정동 묶기 (신원동→신림동).
-        //   문제: legalDongMap.ts 가 서울 8 자치구만 있고 나머지 전국 (서울 17 자치구
-        //   + 경기 31 시군 + 강원/충청/전라/경상/제주) 매핑 없음 → fallback regex 부정확.
-        //   사용자: "단 하나의 오차도 있으면 안 돼".
-        //   해결: 행정동 단위 그대로 표시.  KOSTAT 데이터 그대로 → 오차 0 보장.
+        // L-naver-2026legal2 (2026-04-26): 법정동 단위 복원 (사용자 요청).
+        //   행정동 단위는 너무 세분화 (신림1동/2동/3동...) → 사용자 혼란.
+        //   해결: adminToLegalDong 으로 법정동 base name 으로 묶기.
+        //   - 서울 8 자치구 (관악/동작/강남/서초/송파/강동/마포/영등포): 명시 매핑
+        //     예: 신원동→신림동, 청림동→봉천동 (정확)
+        //   - 나머지 전국: regex /(\d+)동$/ 단순화 (예: 권선1동→권선동, 횡성읍→횡성읍)
+        //   - 같은 base name 의 행정동들 stack 으로 그려서 시각적 1개 영역
         if (!dongData?.features) { cleanup(); currentKey = ''; return; }
         const feat = findFeatureAt(dongData.features, lat, lng);
         if (!feat) { cleanup(); currentKey = ''; return; }
         const rawName = String((feat.properties as { name?: string }).name ?? '').trim();
-        const dongCode = String((feat.properties as { code?: string }).code ?? '');
-        const key = `dong:${parentSido}:${parentSig}:${dongCode}:${rawName}`;
+        const legalName = adminToLegalDong(rawName, parentSig);
+        const key = `dong:${parentSido}:${parentSig}:${legalName}`;
         if (key === currentKey && currentLevelMode === mode) return;
+        // 같은 법정동 내 행정동들 묶기 (sigungu code prefix 로 다른 시군구 차단)
+        const sigParentCode = String((feat.properties as { code?: string }).code ?? '').slice(0, 5);
+        const groupFeats = dongData.features.filter((f) => {
+          const n = String((f.properties as { name?: string }).name ?? '').trim();
+          if (adminToLegalDong(n, parentSig) !== legalName) return false;
+          if (sigParentCode) {
+            const c = String((f.properties as { code?: string }).code ?? '');
+            if (c.length >= 5 && c.slice(0, 5) !== sigParentCode) return false;
+          }
+          return true;
+        });
         cleanup();
-        const parts = [parentSido, parentSig, rawName].filter(Boolean);
+        const parts = [parentSido, parentSig, legalName].filter(Boolean);
+        const renderFeats = groupFeats.length > 0 ? groupFeats : [feat];
         const isMarkerZoom = level <= 4;
-        drawRegion([feat], parts.join(' '), 'dong', {
+        drawRegion(renderFeats, parts.join(' '), 'dong', {
           fillOpacityOverride: isMarkerZoom ? 0.04 : 0.20,
           strokeOpacityOverride: 0,
           strokeWeightOverride: 0,
