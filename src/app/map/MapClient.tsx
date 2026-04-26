@@ -408,7 +408,15 @@ export default function MapClient() {
           <div
             ref={containerRef}
             className="absolute inset-0"
-            style={{ width: '100%', height: '100%' }}
+            style={{
+              width: '100%',
+              height: '100%',
+              touchAction: 'none',
+              WebkitTouchCallout: 'none',
+              WebkitUserSelect: 'none',
+              userSelect: 'none',
+              overscrollBehavior: 'contain',
+            }}
           />
           {ready && kakaoMap ? (
             <>
