@@ -18,6 +18,9 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import RBush from 'rbush';
+import simplify from '@turf/simplify';
+import type { Feature as GjFeature, Polygon as GjPolygon, MultiPolygon as GjMP } from 'geojson';
 import type { MapListing } from '@/features/map-2026/store';
 import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
 // L-naver-precise2 (2026-04-26): @turf import 가 빌드 에러. 일단 union 제거.
@@ -82,6 +85,40 @@ async function loadDong(): Promise<GeoCollection | null> {
 //   feats 전체를 stack 으로 그림 (정밀 데이터로도 충분히 깔끔).
 function unionLegalDong(_sigCode: string, _legalName: string, _feats: GeoFeature[]): GeoFeature | null {
   return null;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// L-naver-2026rbush1: R-tree spatial index for O(log N) findFeatureAt.
+//   매 mousemove 마다 250개 sigungu / 1000+ dong 순차 탐색하던 것을
+//   bbox-based prefilter (O(log N)) 후 정확한 point-in-polygon 만 검사.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+type RBushItem = { minX: number; minY: number; maxX: number; maxY: number; idx: number };
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// L-naver-2026simplify1: zoom-based GeoJSON simplification (Douglas-Peucker)
+//   광역 (level >= 11): tolerance 0.005 → ~10pts/feat (10x 빠른 렌더)
+//   시군구 (level 8~10): tolerance 0.001 → ~30pts/feat
+//   동 (level 1~7): 풀 정밀 (사용자가 가까이 보는 단계)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const simplifyCache = new Map<string, GeoFeature>();
+function simplifyFeature(feat: GeoFeature, tolerance: number, cacheKey: string): GeoFeature {
+  if (tolerance <= 0) return feat;
+  const cached = simplifyCache.get(cacheKey);
+  if (cached) return cached;
+  try {
+    const gjFeat = feat as unknown as GjFeature<GjPolygon | GjMP>;
+    const simplified = simplify(gjFeat, { tolerance, highQuality: false });
+    const out = simplified as unknown as GeoFeature;
+    simplifyCache.set(cacheKey, out);
+    return out;
+  } catch {
+    return feat;
+  }
+}
+function toleranceForLevel(level: number): number {
+  if (level >= 11) return 0.005;     // 광역 — 큰 단순화
+  if (level >= 8) return 0.001;      // 시군구 — 중간
+  return 0;                           // 동/마커 — 풀 정밀
 }
 
 interface KakaoPolygon { setMap: (m: unknown) => void }
@@ -185,9 +222,29 @@ function pointInFeature(lat: number, lng: number, feat: GeoFeature): boolean {
   }
   return false;
 }
+// L-naver-2026rbush1: features 배열을 key 로 한 WeakMap 캐시.
+//   Same array → same index.  array 가 새로 생성되면 자동으로 새 index 빌드.
+const findFeatureCache = new WeakMap<GeoFeature[], { tree: RBush<RBushItem> }>();
 function findFeatureAt(features: GeoFeature[], lat: number, lng: number): GeoFeature | null {
-  for (const f of features) {
-    if (pointInFeature(lat, lng, f)) return f;
+  if (!features.length) return null;
+  let cached = findFeatureCache.get(features);
+  if (!cached) {
+    const tree = new RBush<RBushItem>();
+    const items: RBushItem[] = [];
+    features.forEach((f, idx) => {
+      const b = computeFeatureBbox(f);
+      if (!b) return;
+      items.push({ minX: b.west, minY: b.south, maxX: b.east, maxY: b.north, idx });
+    });
+    tree.load(items);
+    cached = { tree };
+    findFeatureCache.set(features, cached);
+  }
+  // O(log N) bbox query → 후보들에 한해서만 정확한 point-in-polygon
+  const candidates = cached.tree.search({ minX: lng, minY: lat, maxX: lng, maxY: lat });
+  for (const c of candidates) {
+    const f = features[c.idx];
+    if (f && pointInFeature(lat, lng, f)) return f;
   }
   return null;
 }
@@ -323,6 +380,17 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       mode: 'sido' | 'sigungu' | 'dong',
       opts: LayerOpts = {},
     ) => {
+      // L-naver-2026simplify1: zoom 별 polygon 단순화로 렌더링 비용 감소
+      const curLevel = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 8;
+      const tolerance = toleranceForLevel(curLevel);
+      const renderFeats: GeoFeature[] = tolerance > 0
+        ? feats.map((f) => {
+            const code = String((f.properties as { code?: string }).code ?? '');
+            const name = String((f.properties as { name?: string }).name ?? '');
+            const cacheKey = `${code || name}:${tolerance.toFixed(4)}`;
+            return simplifyFeature(f, tolerance, cacheKey);
+          })
+        : feats;
       const fillOp = opts.fillOpacityOverride ?? FILL_OPACITY;
       const strokeOp = opts.strokeOpacityOverride ?? STROKE_OPACITY;
       const strokeW = opts.strokeWeightOverride ?? STROKE_WEIGHT;
@@ -385,7 +453,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         }
         return area > 0 ? [...ring].reverse() : ring;
       };
-      for (const feat of feats) {
+      for (const feat of renderFeats) {
         const geom = feat.geometry;
         const paths: number[][][][] = geom.type === 'Polygon'
           ? [geom.coordinates as number[][][]]
