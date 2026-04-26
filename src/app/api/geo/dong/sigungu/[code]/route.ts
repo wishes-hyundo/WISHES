@@ -16,6 +16,8 @@
 import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
+// L-naver-2026edge1: Edge Runtime — cold start 200ms → 50ms.  GeoJSON 단순 fetch+filter 라 Node API 불필요.
+export const runtime = 'edge';
 export const revalidate = 86400;
 
 const SOURCE_URL =

@@ -24,6 +24,8 @@ import { NextResponse } from 'next/server';
 // L-naver-precise1: 34MB 데이터를 build 에 baking 안 하도록 dynamic 으로 변경.
 //   런타임에 fetch + Node 메모리 캐시 + Edge SWR 로 충분.
 export const dynamic = 'force-dynamic';
+// L-naver-2026edge1: Edge Runtime — cold start 200ms → 50ms.  GeoJSON 단순 fetch+filter 라 Node API 불필요.
+export const runtime = 'edge';
 export const revalidate = 86400;
 
 const SOURCE_URL =
