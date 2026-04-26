@@ -20,6 +20,8 @@
 import { useEffect, useRef } from 'react';
 import type { MapListing } from '@/features/map-2026/store';
 import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
+import { union as turfUnion, featureCollection as turfFC } from '@turf/turf';
+import type { Feature, Polygon as TurfPolygon, MultiPolygon as TurfMultiPolygon } from 'geojson';
 
 const SIDO_GEOJSON_URL    = '/api/geo/sido';
 const SIGUNGU_GEOJSON_URL = '/api/geo/sigungu';
@@ -73,6 +75,32 @@ async function loadDong(): Promise<GeoCollection | null> {
     .catch(() => null)
     .finally(() => { pendingDong = null; });
   return pendingDong;
+}
+
+// L-naver-union1 (2026-04-26): 행정동들을 법정동으로 union — 깔끔한 1개 polygon.
+//   key: `${sigCode}:${legalName}` → 캐시된 merged GeoFeature.
+//   행정동 fragments 가 fill 만으로 stack 되어 jagged 모양이던 문제 해결.
+const unionCache: Map<string, GeoFeature | null> = new Map();
+function unionLegalDong(sigCode: string, legalName: string, feats: GeoFeature[]): GeoFeature | null {
+  const k = `${sigCode}:${legalName}`;
+  if (unionCache.has(k)) return unionCache.get(k) ?? null;
+  if (feats.length === 0) { unionCache.set(k, null); return null; }
+  if (feats.length === 1) { unionCache.set(k, feats[0]); return feats[0]; }
+  try {
+    const fc = turfFC(feats as Feature<TurfPolygon | TurfMultiPolygon>[]);
+    const merged = turfUnion(fc);
+    if (merged) {
+      const mergedAsGeo: GeoFeature = {
+        type: 'Feature',
+        properties: { name: legalName },
+        geometry: merged.geometry as GeoFeature['geometry'],
+      };
+      unionCache.set(k, mergedAsGeo);
+      return mergedAsGeo;
+    }
+  } catch (e) { console.error('[union] failed', legalName, e); }
+  unionCache.set(k, null);
+  return null;
 }
 
 interface KakaoPolygon { setMap: (m: unknown) => void }
@@ -535,15 +563,19 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         });
 
         // 2) 각 법정동 그룹 (light fill, 호버된 동만 짙게)
+        // L-naver-union1: 행정동들을 turf.union 으로 merge → 1개 깔끔한 polygon.
         if (legalGroups.size > 0) {
           for (const [legalName, feats] of legalGroups) {
             const isHovered = legalName === hoveredLegalName;
             const dongLabel = `${sigLabel} ${legalName}`;
-            drawRegion(feats, dongLabel, 'dong', {
+            const merged = unionLegalDong(sigCode, legalName, feats);
+            const renderFeats = merged ? [merged] : feats;
+            drawRegion(renderFeats, dongLabel, 'dong', {
               fillOpacityOverride: isHovered ? 0.28 : 0.10,
-              strokeOpacityOverride: 0,        // inner border 숨김
-              clickable: true,                  // 동 클릭 → 줌인
-              isBackdrop: !isHovered,           // hover 동만 툴팁
+              strokeOpacityOverride: isHovered ? 0.6 : 0.25,
+              strokeWeightOverride: isHovered ? 1.8 : 1,
+              clickable: true,
+              isBackdrop: !isHovered,
             });
           }
         }
@@ -594,14 +626,15 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           });
         }
         const parts = [parentSido, parentSig, legalName].filter(Boolean);
-        // L-naver-legal1: 여러 행정동을 하나의 법정동으로 시각화할 때 inner border 숨김.
-        //   strokeOpacity=0 으로 fill 만 표시 → 인접 행정동들이 시각적으로 한 덩어리로 보임.
-        //   1개 (남현동 등) 일 땐 정상 stroke 유지.
+        // L-naver-union1: turf.union 으로 행정동들을 깔끔한 1개 polygon 으로 merge.
         const grouped = groupFeats.length > 0 ? groupFeats : [feat];
-        const isMultiAdmin = grouped.length > 1;
-        drawRegion(grouped, parts.join(' '), 'dong', {
-          fillOpacityOverride: isMultiAdmin ? 0.28 : 0.22,
-          strokeOpacityOverride: isMultiAdmin ? 0 : 0.85,
+        const merged = grouped.length > 1
+          ? unionLegalDong(sigParentCode, legalName, grouped)
+          : grouped[0];
+        const renderFeats = merged ? [merged] : grouped;
+        drawRegion(renderFeats, parts.join(' '), 'dong', {
+          fillOpacityOverride: 0.28,
+          strokeOpacityOverride: 0.7,
         });
         currentKey = key;
         currentLevelMode = mode;
@@ -663,4 +696,3 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
   return null;
 }
- 
