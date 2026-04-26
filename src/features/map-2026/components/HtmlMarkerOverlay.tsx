@@ -588,12 +588,19 @@ const size = _isMobile1
             onClickListing(arr[0].id);
             return;
           }
-          // L-naver-2026clusterclick1 (2026-04-26): cluster 클릭 동작 단순화.
-          //   사용자 피드백:
-          //     · onClusterFilter 가 listings 를 N개로 좁혀 좌측 카운트 ↔ 마커 sum 불일치
-          //     · setBounds 가 작은 bbox (cluster 안 매물 가까움) 라 viewport 변경 없음
-          //   해결: filter/setBounds 안 함.  단순히 cell 중심으로 panTo + setLevel(-1)
-          //   네이버 부동산 동일 — cluster 클릭 = 한 단계 zoom in.
+          // L-naver-2026clusterprecise1 (2026-04-27): cluster 클릭 위치 정밀도 fix.
+          //   사용자 피드백 "동그라미 마커 클릭 시 그 마커 기준에 맞춰 정확히 이동 안 됨".
+          //   원인 (clusterclick1/3):
+          //     · setCenter(lat, lng) + setLevel(nextLv, {animate:true}) 동시 호출 →
+          //       Kakao SDK 가 두 액션을 독립 처리.  setLevel 의 animate 가 진행되며
+          //       카메라가 이동하는 사이 setCenter 의 즉시 jump 가 일어나 미묘한 race.
+          //     · cluster 안 매물 spread 가 cell 보다 작거나 큰 경우 cell centroid ≠
+          //       매물의 진짜 visual center → 클릭 후 마커 위치가 화면 정중앙 아님.
+          //   해결:
+          //     ① setLevel({animate:false}) 로 zoom 부터 atomic 변경 → race 제거.
+          //     ② setLevel 후 setCenter — 다음 frame 에 panTo 로 부드럽게.
+          //     ③ cluster 안 매물의 진짜 bbox center (min/max 평균) 사용.
+          //        cell centroid (단순 평균) 는 매물 분포 편향에 약함.
           try {
             const kakaoAny = (window as unknown as {
               kakao?: { maps?: {
@@ -607,19 +614,34 @@ const size = _isMobile1
               setCenter?: (pos: unknown) => void;
             };
             const curLv = typeof mapApi2.getLevel === 'function' ? mapApi2.getLevel() : 4;
-            // L-naver-2026clusterclick3 (2026-04-26): zoom -1 → 동적.  count 큰 cluster
-            //   는 -2 (한 번에 더 풀림), 작은 cluster 는 -1.  매물 lat/lng spread 도
-            //   고려 — spread 작으면 같은 단지 → -2 필수.
-            const latSpread = arr.reduce((mx, l) => Math.max(mx, Math.abs(l.lat - lat)), 0);
-            const lngSpread = arr.reduce((mx, l) => Math.max(mx, Math.abs(l.lng - lng)), 0);
-            const tightCluster = latSpread < 0.0008 && lngSpread < 0.0008;  // ~88m 안에 다 모여있음
+            // ③ 매물 진짜 bbox center (visual center) — cell centroid 보다 정확.
+            let minLat = Infinity, maxLat = -Infinity, minLng = Infinity, maxLng = -Infinity;
+            for (const l of arr) {
+              if (l.lat < minLat) minLat = l.lat;
+              if (l.lat > maxLat) maxLat = l.lat;
+              if (l.lng < minLng) minLng = l.lng;
+              if (l.lng > maxLng) maxLng = l.lng;
+            }
+            const targetLat = (minLat + maxLat) / 2;
+            const targetLng = (minLng + maxLng) / 2;
+            // L-naver-2026clusterclick3 (2026-04-26): zoom 동적 (count 큰 cluster -2, tight cluster -2).
+            const latSpread = maxLat - minLat;
+            const lngSpread = maxLng - minLng;
+            const tightCluster = latSpread < 0.0008 && lngSpread < 0.0008;  // ~88m
             const dec = (count >= 20 || tightCluster) ? 2 : 1;
             const nextLv = Math.max(1, curLv - dec);
-            if (kakaoAny?.maps?.LatLng && typeof mapApi2.setCenter === 'function') {
-              mapApi2.setCenter(new kakaoAny.maps.LatLng(lat, lng));
-            }
+            // ① setLevel atomic (no animate) — race 제거.
             if (typeof mapApi2.setLevel === 'function') {
-              mapApi2.setLevel(nextLv, { animate: true });
+              mapApi2.setLevel(nextLv, { animate: false });
+            }
+            // ② setCenter (panTo 가 있으면 부드럽게).
+            if (kakaoAny?.maps?.LatLng) {
+              const target = new kakaoAny.maps.LatLng(targetLat, targetLng);
+              if (typeof mapApi2.panTo === 'function') {
+                mapApi2.panTo(target);
+              } else if (typeof mapApi2.setCenter === 'function') {
+                mapApi2.setCenter(target);
+              }
             }
           } catch { /* noop */ }
           return;

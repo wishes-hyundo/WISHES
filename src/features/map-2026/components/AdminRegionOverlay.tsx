@@ -395,7 +395,20 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     const mapInst = map as KakaoMapLike;
 
     const cleanup = () => {
-      for (const p of polygonsRef.current) { try { p.setMap(null); } catch { /*noop*/ } }
+      // L-naver-2026hardcleanup1 (2026-04-27): polygon 잔상 박멸.
+      //   기존 setMap(null) 만으로는 카카오 SDK 가 다음 paint frame 에서 DOM 제거 →
+      //   사용자에게 한 frame (~16ms) 잔상 보임.  더 큰 문제: setLevel(animate)
+      //   진행 중에는 SVG 가 매 frame redraw 되며 stale polygon 도 같이 그려져
+      //   200~300ms 동안 빨간 잔상.
+      //   해결: setMap(null) 직후 polygon 의 fillOpacity/strokeOpacity 도 0 으로
+      //   강제 reset → 카카오 가 next frame 에서 paint 해도 보이지 않음.
+      for (const p of polygonsRef.current) {
+        try {
+          const polyTyped = p as unknown as { setOptions?: (o: Record<string, unknown>) => void };
+          polyTyped.setOptions?.({ fillOpacity: 0, strokeOpacity: 0 });
+        } catch { /*noop*/ }
+        try { p.setMap(null); } catch { /*noop*/ }
+      }
       for (const o of overlaysRef.current) { try { o.setMap(null); } catch { /*noop*/ } }
       polygonsRef.current = [];
       overlaysRef.current = [];
@@ -498,9 +511,13 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       // L-naver-2026clickfix4 (2026-04-26): bbox 를 onClick 등록 시점에 미리 계산해
       //   closure 에 immutable 하게 캡처.  나중에 feats 가 어떤 이유로 mutate/share
       //   되어도 click 시 panTo 좌표는 등록 당시 그대로.
-      // L-naver-2026center1 (2026-04-26): MultiPolygon 의 가장 큰 piece centroid 사용.
-      //   bbox 중심은 두 disjoint piece 사이 빈 공간일 수 있음 (신림동 같은 case).
-      //   가장 큰 piece (vertex 최다) 의 outer ring 평균 = 시각적으로 자연스러움.
+      // L-naver-2026center2 (2026-04-27): MultiPolygon 가장 큰 piece + 진짜 면적-가중 centroid.
+      //   기존 (center1): 단순 vertex 평균 → 산악지대(관악산 등) 포함된 동에서 산쪽 편향.
+      //   개선 (center2):
+      //     ① Shoelace formula 면적-가중 centroid 사용 (vertex 분포 무관, 면적 진짜 중심).
+      //     ② closed ring 마지막 점이 첫 점과 같으니 length-1 만큼만 iterate.
+      //     ③ MultiPolygon 의 piece 중 면적 최대 → 그 piece 의 area centroid.
+      //   결과: 신림동 같은 산악 동에서도 도심부 (인구 밀집) 좌표 ≈ 진짜 area centroid.
       const lockedBbox = multiFeatureBbox(feats);
       const lockedCenter = (() => {
         let bestArea = -1;
@@ -512,19 +529,29 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             : geom.type === 'MultiPolygon' ? (geom.coordinates as number[][][][]) : [];
           for (const poly of polys) {
             const ring = poly[0];
-            if (!ring || ring.length < 3) continue;
-            // 간단한 면적 (signed area)
-            let area = 0;
-            for (let i = 0; i < ring.length - 1; i++) {
-              area += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+            if (!ring || ring.length < 4) continue;
+            // L-naver-2026center2: Shoelace area-weighted centroid.
+            //   Cx = (1/6A) * Σ (xi+xi+1)(xi*yi+1 - xi+1*yi)
+            //   Cy = (1/6A) * Σ (yi+yi+1)(xi*yi+1 - xi+1*yi)
+            //   A  = (1/2)  * Σ (xi*yi+1 - xi+1*yi)
+            const n = ring[ring.length - 1][0] === ring[0][0] && ring[ring.length - 1][1] === ring[0][1]
+              ? ring.length - 1
+              : ring.length;
+            let signedArea = 0, cx = 0, cy = 0;
+            for (let i = 0; i < n; i++) {
+              const [xi, yi] = ring[i];
+              const [xj, yj] = ring[(i + 1) % n];
+              const cross = xi * yj - xj * yi;
+              signedArea += cross;
+              cx += (xi + xj) * cross;
+              cy += (yi + yj) * cross;
             }
-            area = Math.abs(area) / 2;
-            if (area > bestArea) {
+            const area = Math.abs(signedArea) / 2;
+            if (area > 0 && area > bestArea) {
               bestArea = area;
-              let sx = 0, sy = 0;
-              for (const [x, y] of ring) { sx += x; sy += y; }
-              bestCx = sx / ring.length;
-              bestCy = sy / ring.length;
+              const factor = 1 / (3 * signedArea);
+              bestCx = cx * factor;
+              bestCy = cy * factor;
             }
           }
         }
@@ -573,35 +600,34 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
               // L-naver-2026prodclean1: production console.log 제거.  Sentry breadcrumb
               //   (위쪽 addBreadcrumb 콜) 만 남겨서 issue tracking 은 유지.
             } catch { /*noop*/ }
-            // L-naver-2026clickfix10 (2026-04-26): 모든 mode 에서 setCenter + setLevel.
-            //   사용자: 비-서울 sido (경기/강원/충청) 클릭 시 깜빡만 거리고 안 움직임.
-            //   원인: setBounds 가 큰 sido bbox 에 fit 하려고 zoom 9 이하로 줄여서
-            //   여전히 sido mode → 시각 변화 없음.
-            //   해결: 모든 mode 에서 setCenter (즉시 center) + setLevel (명시 zoom).
-            //   targetLevel: sido→10 (sigungu mode), sigungu→7 (dong mode), dong→3 (marker).
-            if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
-              mapInst.setCenter(new maps.LatLng(cy, cx));
-            }
+            // L-naver-2026polygonprecise1 (2026-04-27): polygon click 정밀도 + race fix.
+            //   기존 (clickfix10): setCenter + setLevel({animate:true}) 동시 호출.
+            //   문제 ①: animate 진행 중 setCenter 가 jumping → 카메라 이동 정밀도 ↓.
+            //   문제 ②: 두 비동기 액션 race → 최종 viewport 가 의도와 미세 어긋남.
+            //   해결: setLevel(no animate) atomic 으로 먼저, 그 다음 panTo (자체 animate).
+            //   네이버 부동산 동작 동일 — zoom step 후 부드러운 pan.
             if (typeof mapInst.setLevel === 'function') {
-              // L-naver-2026clickfix12 (2026-04-26): 동 클릭 → 바로 마커 모드 (사용자 피드백
-              //   "동 폴리곤 클릭하면 바로 동그라미 마커로").  targetLevel(3) → finalLv 그대로.
-              mapInst.setLevel(finalLv, { animate: true });
+              mapInst.setLevel(finalLv, { animate: false });
+            }
+            if (cy != null && cx != null) {
+              const target = new maps.LatLng(cy, cx);
+              if (typeof mapInst.panTo === 'function') {
+                mapInst.panTo(target);
+              } else if (typeof mapInst.setCenter === 'function') {
+                mapInst.setCenter(target);
+              }
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
             if (Sentry?.captureException) Sentry.captureException(err);
           }
         };
-        // L-naver-2026vt2 (2026-04-26): View Transitions API 조심스럽게 재도입.
-        //   clickfix8 setBounds 패턴으로 click 동작 정상 → 안전하게 native cross-fade 시도.
-        //   미지원 브라우저는 직접 실행 (graceful degradation).
-        const docVt = document as unknown as { startViewTransition?: (cb: () => void) => unknown };
-        if (typeof docVt.startViewTransition === 'function') {
-          try { docVt.startViewTransition(() => performZoom()); }
-          catch { performZoom(); }
-        } else {
-          performZoom();
-        }
+        // L-naver-2026noVT1 (2026-04-27): View Transitions API 제거.
+        //   사용자 피드백 "동 폴리곤 클릭 후 빨간 배경 잔상 딜레이".
+        //   원인: docVt.startViewTransition() 의 native cross-fade 가 cleanup 직후
+        //   사라진 polygon 의 DOM snapshot 을 200~300ms 동안 fade out → 빨간 잔상.
+        //   해결: VT 우회, performZoom 즉시 실행 → cleanup 즉시 반영.
+        performZoom();
         onClickRegion?.(lockedLabelText);
       };
 
@@ -886,8 +912,15 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     try { maps.event.addListener(mapInst as unknown, 'mousemove', onMouseMove); } catch { /*noop*/ }
 
     // zoom/idle 시에도 갱신 (viewport 중심 기준)
+    // L-naver-2026zoomguard1 (2026-04-27): onZoom 에 zoomingFromClickRef 가드 추가.
+    //   기존: 클릭 → setLevel({animate:true}) 진행 중 zoom_changed 이벤트 fire
+    //   → renderAtCenter() 호출 → 중간 zoom level 기준 polygon 그려짐 → 잔상.
+    //   해결: 클릭 줌 진행 중에는 onZoom skip. idle 도달 시점에만 renderAtCenter.
     const onIdle = () => { zoomingFromClickRef.current = false; void renderAtCenter(); };
-    const onZoom = () => { void renderAtCenter(); };
+    const onZoom = () => {
+      if (zoomingFromClickRef.current) return;  // 클릭 줌 진행 중 → skip
+      void renderAtCenter();
+    };
     try { maps.event.addListener(mapInst as unknown, 'idle', onIdle); } catch { /*noop*/ }
     try { maps.event.addListener(mapInst as unknown, 'zoom_changed', onZoom); } catch { /*noop*/ }
 
