@@ -185,10 +185,9 @@ export default function MapClient() {
 
         const map = new kakao.maps.Map(container, {
           center: new kakao.maps.LatLng(SEOUL.lat, SEOUL.lng),
-          level: 5,
-          // L-naver-click6 (2026-04-26): disableDoubleClick: true 가 단일 click 까지 차단해
-          //   폴리곤 click 안 먹는 문제.  disableDoubleClickZoom 만 유지 (dblclick 시 자동
-          //   줌만 차단, click 이벤트 자체는 정상 작동).
+          // L-naver-zoom8 (2026-04-26): 기본 zoom level 5 (~2km, 아파트 단위) → 8 (~14km, 시군구).
+          //   네이버 z13 광역뷰와 동등 시작. 사용자가 줌인 시 자연스럽게 동 단위로 transition.
+          level: 8,
           disableDoubleClickZoom: true,
         });
         mapInst = map;
@@ -569,8 +568,4 @@ function MapOverlaysWithClusters(props: {
       <AdminRegionOverlay
         map={props.kakaoMap}
         listings={props.listings}
-        serverClusters={clusters}
-      />
-    </>
-  );
-}
+        serverClusters={cl
