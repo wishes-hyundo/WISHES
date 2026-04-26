@@ -475,10 +475,17 @@ export const useMap2026Store = create<Map2026Store>()(
     setNlQuery: (q) => set({ nlQuery: q }),
 
     // L-ux2: ListPanel collapse (localStorage 영속)
+    // L-naver-2026mobile1 (2026-04-27): 모바일 첫 진입 시 자동 collapsed (지도 영역 확보).
+    //   사용자 명시 저장값 우선 → 없으면 width < 768px 일 때 collapsed 기본.
     listPanelCollapsed: (() => {
       if (typeof window === 'undefined') return false;
-      try { return window.localStorage.getItem('map2026.listPanel') === 'collapsed'; }
-      catch { return false; }
+      try {
+        const saved = window.localStorage.getItem('map2026.listPanel');
+        if (saved === 'collapsed') return true;
+        if (saved === 'open' || saved === 'expanded') return false;
+        // 저장값 없음 → 모바일이면 collapsed (지도 영역 우선)
+        return window.innerWidth < 768;
+      } catch { return false; }
     })(),
     toggleListPanel: () =>
       set((s) => {
