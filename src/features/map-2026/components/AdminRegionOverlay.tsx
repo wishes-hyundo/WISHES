@@ -333,6 +333,11 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         //   center 가 화면 밖으로 빠지는 문제 (관악구 클릭 → 서초 area 가
         //   화면 중앙에 위치).  Naver 처럼 항상 폴리곤 정중앙으로 이동.
         lastClickAt = Date.now();
+        // L-naver-click4: 클릭 줌 시작 → idle 까지 mousemove 완전 차단
+        try {
+          const setZ = (window as unknown as { __wishesSetZooming?: () => void }).__wishesSetZooming;
+          if (typeof setZ === 'function') setZ();
+        } catch { /*noop*/ }
         try {
           const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
           const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
@@ -623,16 +628,26 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     void renderAtCenter();
 
     // 마우스 이동 → 폴리곤 갱신 (모든 zoom 레벨)
+    // L-naver-click4 (2026-04-26): 클릭 후 idle 이벤트 fire 전까지 mousemove 완전 차단.
+    //   기존: 600ms timer 만 → 줌 애니메이션이 600ms 넘게 걸리거나 cursor 가
+    //   stale lat/lng 으로 mousemove 발화 시 잘못된 polygon (예: 관악 클릭 후 서초동) 그려짐.
+    //   해결: zoomingFromClick 플래그 → idle 이벤트로만 해제.
+    let zoomingFromClick = false;
+    // 클릭 핸들러는 lastClickAt 갱신 이후 zoomingFromClick=true 로 셋업하기 위해
+    // window 객체로 트리거 (drawRegion 의 onClick 에서 직접 set)
+    (window as unknown as { __wishesSetZooming?: () => void }).__wishesSetZooming = () => {
+      zoomingFromClick = true;
+    };
     const onMouseMove = (e?: KakaoMouseEvent) => {
       if (!e?.latLng) return;
-      // L-naver-click3: 클릭 후 600ms 동안 mousemove 무시 (줌 애니메이션 안정화)
-      if (Date.now() - lastClickAt < 600) return;
+      if (zoomingFromClick) return;  // 클릭 줌 진행 중 → idle 까지 대기
+      if (Date.now() - lastClickAt < 600) return;  // backup timer
       void updateAt(e.latLng.getLat(), e.latLng.getLng());
     };
     try { maps.event.addListener(mapInst as unknown, 'mousemove', onMouseMove); } catch { /*noop*/ }
 
     // zoom/idle 시에도 갱신 (viewport 중심 기준)
-    const onIdle = () => { void renderAtCenter(); };
+    const onIdle = () => { zoomingFromClick = false; void renderAtCenter(); };
     const onZoom = () => { void renderAtCenter(); };
     try { maps.event.addListener(mapInst as unknown, 'idle', onIdle); } catch { /*noop*/ }
     try { maps.event.addListener(mapInst as unknown, 'zoom_changed', onZoom); } catch { /*noop*/ }
