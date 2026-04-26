@@ -22,6 +22,7 @@ import { MapPin, Image as ImageIcon, Video, X } from 'lucide-react';
 import { useMap2026Store, type MapListing, type SortKey } from '../store';
 import { formatDealLabel, formatArea } from '../lib/priceFormat';
 import { buildListingBadges } from '../lib/buildAgeBadge';
+import { listingCategory } from '../lib/markerTier';
 import { SortMenu } from './SortMenu';
 
 // 층 포맷: "3" → "3/8층" (floor_total 있으면) / "3층"
@@ -122,10 +123,7 @@ export function ListPanel() {
   const clusterFilterListings = useMap2026Store((s) => s.clusterFilterListings);
   const clusterFilterLabel = useMap2026Store((s) => s.clusterFilterLabel);
   const setClusterFilter = useMap2026Store((s) => s.setClusterFilter);
-  // L-truecount1 (2026-04-26): 사이드바 카운트를 정확한 총합으로.
-  //   listings.length 는 viewport limit (4000) 에 캡되므로 부정확.
-  //   API 가 별도 반환하는 categoryCounts 는 정확한 총합.
-  const categoryCounts = useMap2026Store((s) => s.categoryCounts);
+  // L-naver-2026truecount2 (2026-04-27): categoryCounts 미사용 (client sorted.length 단일화).
   const filterCategory = useMap2026Store((s) => s.filter.category);
   // L-nolimit1 (2026-04-26): bbox > 0.3° 면 listings fetch 안 됨 (광역 뷰).
   //   광역 뷰에선 빈 listings 라 안내 메시지 다르게.
@@ -137,15 +135,24 @@ export function ListPanel() {
   // 정렬 + 필터:
   //   clusterFilterListings 있으면 (by-ids fetch 완료) 그걸 base 로 사용 → 100% 정확
   //   없으면 기존 listings 에서 clusterFilterIds 교집합 (hydrate 대기 중 임시)
+  // L-naver-2026catfilter1 (2026-04-27): 카테고리 클라이언트 필터 추가.
+  //   사용자 피드백 "지도상 매물 개수와 좌측 카운트 안 맞음" — 서버 categoryCounts (별도
+  //   query) 와 listings 메인 query 가 조건 불일치 (hasImages/features/rooms 등이
+  //   counts 에 미적용). 또한 "주거 누르면 주거만" 보장 안 됨.
+  //   해결: 클라이언트에서 listingCategory(type) 기준 강제 필터 → 마커/사이드바 일관.
   const sorted = useMemo(() => {
-    if (clusterFilterListings && clusterFilterListings.length > 0) {
-      return sortListings(clusterFilterListings, sort);
-    }
-    const base = sortListings(listings, sort);
+    const baseList = clusterFilterListings && clusterFilterListings.length > 0
+      ? clusterFilterListings
+      : listings;
+    // 카테고리 필터 적용 (investment 는 cross-cutting → 미적용).
+    const catFiltered = filterCategory === 'investment'
+      ? baseList
+      : baseList.filter((l) => listingCategory(l.type) === filterCategory);
+    const base = sortListings(catFiltered, sort);
     if (!clusterFilterIds || clusterFilterIds.length === 0) return base;
     const set = new Set(clusterFilterIds);
     return base.filter((l) => set.has(l.id));
-  }, [listings, sort, clusterFilterIds, clusterFilterListings]);
+  }, [listings, sort, clusterFilterIds, clusterFilterListings, filterCategory]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -177,10 +184,12 @@ export function ListPanel() {
     <aside className="flex h-full flex-col overflow-hidden border-r border-neutral-100 bg-white">
       <header className="flex items-center justify-between border-b border-neutral-100 px-4 py-2.5">
         <div className="flex items-baseline gap-1.5">
-          {/* L-truecount1 (2026-04-26): 정확한 총합 표시.
-              · 클러스터 필터 활성: 그 N 개만
-              · 일반: categoryCounts (서버 정확 집계) > sorted.length (4k 캡)
-              · loading: '검색 중…' */}
+          {/* L-naver-2026truecount2 (2026-04-27): 카운트를 sorted.length 로 단일화.
+              사용자 피드백 "지도상 매물 개수와 좌측 카운트 안 맞음".
+              원인: 서버 categoryCounts query 가 메인 listings query 와 다른 조건
+                    (hasImages/features/rooms/price 미적용) → 두 카운트 불일치.
+              해결: client 측 sorted.length (= 마커가 사용하는 listings 와 동일 source) 로
+                    단일화 → 마커, 사이드바, 탭 카운트 모두 일치 보장. */}
           {(() => {
             if (loading) {
               return (<>
@@ -188,26 +197,15 @@ export function ListPanel() {
                 <span className="text-[11.5px] text-neutral-500">매물</span>
               </>);
             }
-            // L-nolimit2 (2026-04-26): 광역 뷰에서는 카운트 없이 안내만
             if (isWideView) {
               return <span className="text-[12.5px] font-semibold text-neutral-500">지도 줌인 필요</span>;
             }
-            const inFilter = clusterFilterIds && clusterFilterIds.length > 0;
-            const total = inFilter
-              ? sorted.length
-              : (categoryCounts?.[filterCategory] ?? sorted.length);
-            const visible = sorted.length;
-            const isCapped = !inFilter && visible < total;
+            const total = sorted.length;
             return (
               <>
                 <span className="text-[14px] font-bold text-neutral-900">
                   {total.toLocaleString()}개
                 </span>
-                {isCapped && (
-                  <span className="text-[10px] text-neutral-400" title="지도 줌인 시 더 정확한 매물이 표시됩니다">
-                    (표시 {visible.toLocaleString()})
-                  </span>
-                )}
                 <span className="text-[11.5px] text-neutral-500">매물</span>
               </>
             );

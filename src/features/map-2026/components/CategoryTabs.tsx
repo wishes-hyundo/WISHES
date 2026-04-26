@@ -19,7 +19,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useRef, type KeyboardEvent, type ComponentType, type SVGProps } from 'react';
+import { useMemo, useRef, type KeyboardEvent, type ComponentType, type SVGProps } from 'react';
 import { Home, Building2, Trees, TrendingUp } from 'lucide-react';
 import {
   useMap2026Store,
@@ -27,6 +27,7 @@ import {
   type PropertyCategory,
 } from '../store';
 import { zoomPulse } from '../lib/cinematicMotion';
+import { listingCategory } from '../lib/markerTier';
 
 // 카테고리 순서 (UI 상 좌→우)
 const ORDER: PropertyCategory[] = ['residence', 'retail_office', 'land', 'investment'];
@@ -70,12 +71,22 @@ export function CategoryTabs() {
     }
   };
 
-  // L-ux5-1: 활성 탭의 진짜 카운트 = listings.length (서버 필터 적용됨)
-  // L-catcount1: 비활성 탭의 카운트는 서버가 추가로 보내주는 counts 객체에서 읽음
-  // L-widecount3 (2026-04-26 night): 광역 뷰 (listings 비어있음) 일 때도 정확한
-  //   카운트 표시 — listings 가 0 이면 categoryCounts 우선 사용 (광역 fetch 결과).
+  // L-naver-2026catcount2 (2026-04-27): 카운트 source 단일화.
+  //   사용자 피드백 "지도상 매물 vs 좌측 카운트 안 맞음" — 서버 categoryCounts 와
+  //   메인 listings query 가 조건 불일치라 두 source 가 다른 숫자.
+  //   해결: 4개 카테고리 카운트 모두 client 측 listings 기반 listingCategory 분류로
+  //   재계산 → 마커, 사이드바, 탭 모두 동일 source. 서버 categoryCounts 는 광역 뷰
+  //   (listings 비어있음) fallback 용으로만 유지.
   const categoryCounts = useMap2026Store((s) => s.categoryCounts);
-  const activeCount = listings.length;
+  const clientCounts = useMemo(() => {
+    const out: Record<PropertyCategory, number> = { residence: 0, retail_office: 0, land: 0, investment: 0 };
+    for (const l of listings) {
+      const c = listingCategory(l.type);
+      out[c]++;
+    }
+    out.investment = listings.length;  // investment = cross-cutting (전체)
+    return out;
+  }, [listings]);
 
   return (
     <div
@@ -87,12 +98,10 @@ export function CategoryTabs() {
         const theme = CATEGORY_THEME[cat];
         const Icon = CATEGORY_ICON[cat];
         const active = filter.category === cat;
-        // L-widecount3: 활성 탭은 listings.length 우선, 0 이거나 광역 뷰면 categoryCounts.
-        // 비활성 탭은 categoryCounts (없으면 null).
+        // L-naver-2026catcount2: client 카운트 우선, listings 비어있으면 (광역 뷰) 서버 fallback.
+        const clientCount = clientCounts[cat];
         const serverCount = categoryCounts?.[cat] ?? null;
-        const count = active
-          ? (activeCount > 0 ? activeCount : serverCount)
-          : serverCount;
+        const count = listings.length > 0 ? clientCount : serverCount;
         const showCount = active || count != null;
 
         return (

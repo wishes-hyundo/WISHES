@@ -21,9 +21,20 @@ import type { MapListing, PropertyCategory } from '@/features/map-2026/store';
 import { bucketListings, listingCategory } from '@/features/map-2026/lib/markerTier';
 
 // ── 컬러 토큰 ──────────────────────────────────────────────────────
-// 스타벅스 시그너처 그린 (#006241). alpha 0.88 채움 + 동일 hex 테두리.
-const BRAND_GREEN = '#006241';
-const BRAND_GREEN_BG = 'rgba(0,98,65,0.82)';  // L-naver-soft2 (2026-04-26): 0.95→0.82 살짝 투명 (사용자 피드백)
+// L-naver-2026catcolor1 (2026-04-27): 카테고리별 색상 구분 (사용자 요청).
+//   주거 → 스타벅스 그린 (기존 브랜드)
+//   상가/사무실 → 앰버 (warm, 비즈니스 인상)
+//   토지 → 다크 브라운 (땅 색)
+//   투자 → 퍼플 (cross-cutting, 차별화)
+//   투명도: 0.82 → 0.68 (사용자 요청 더 투명).
+const CAT_COLORS: Record<'residence' | 'retail_office' | 'land' | 'investment', { fg: string; bg: string }> = {
+  residence:    { fg: '#006241', bg: 'rgba(0,98,65,0.68)' },     // 그린
+  retail_office:{ fg: '#b45309', bg: 'rgba(180,83,9,0.68)' },    // 앰버
+  land:         { fg: '#78350f', bg: 'rgba(120,53,15,0.68)' },   // 다크 브라운
+  investment:   { fg: '#7e22ce', bg: 'rgba(126,34,206,0.68)' },  // 퍼플
+};
+const BRAND_GREEN = CAT_COLORS.residence.fg;
+const BRAND_GREEN_BG = CAT_COLORS.residence.bg;  // backward compat (단지 pill 등)
 const SEL_BG = '#185FA5';     // 선택 상태: WISHES 브랜드 블루
 const SEL_BD = '#0C447C';
 const SEL_SHADOW = '0 4px 14px rgba(24,95,165,0.45)';
@@ -128,10 +139,13 @@ function makeCircleElement(opts: {
   count: number;
   selected: boolean;
   size: number;
+  category?: 'residence' | 'retail_office' | 'land' | 'investment';
 }): HTMLDivElement {
-  const { count, selected, size } = opts;
-  const bg = selected ? SEL_BG : BRAND_GREEN_BG;
-  const bd = selected ? SEL_BD : BRAND_GREEN;
+  const { count, selected, size, category = 'residence' } = opts;
+  // L-naver-2026catcolor1: 카테고리별 fg/bg 적용.
+  const cc = CAT_COLORS[category];
+  const bg = selected ? SEL_BG : cc.bg;
+  const bd = selected ? SEL_BD : cc.fg;
   const el = document.createElement('div');
   // 큰 카운트일수록 글자도 크게 (사이즈에 비례)
   const fontSize = size >= 60 ? '14px' : size >= 50 ? '13px' : size >= 42 ? '12px' : size >= 36 ? '12px' : '11px';
@@ -572,6 +586,23 @@ const size = _isMobile1
         const count = arr.length;
         const selected =
           selectedListingId != null && arr.some((l) => l.id === selectedListingId);
+        // L-naver-2026catcolor1: cluster 안 매물 다수 카테고리로 색 결정.
+        //   investment 탭에서는 cluster 안 매물 majority category 사용 (cross-cutting).
+        //   다른 탭에서는 그 category 그대로.
+        let clusterCat: 'residence' | 'retail_office' | 'land' | 'investment' = 'residence';
+        if (category === 'investment') {
+          const counts: Record<string, number> = {};
+          for (const l of arr) {
+            const c = listingCategory(l.type);
+            counts[c] = (counts[c] ?? 0) + 1;
+          }
+          let max = 0;
+          for (const k of Object.keys(counts)) {
+            if (counts[k] > max) { max = counts[k]; clusterCat = k as typeof clusterCat; }
+          }
+        } else {
+          clusterCat = category;
+        }
         // L-mapmarker2c: 개별/클러스터 모두 카운트 원으로 통일.
         //   사용자 피드백 (네이버 벤치마크): 가격 노출은 경쟁·직거래 리스크.
         //   주소 정확한 위치 표기 금지 — 카운트만 보여주고 최대확대에서도 건물 단위 묶음.
@@ -581,7 +612,7 @@ const _isMobile1 = typeof window !== 'undefined' && window.innerWidth < 768;
 const size = _isMobile1
   ? (count >= 1000 ? 64 : count >= 500 ? 54 : count >= 100 ? 44 : count >= 50 ? 38 : count >= 20 ? 34 : count >= 10 ? 30 : count >= 2 ? 26 : 22)
   : (count >= 1000 ? 80 : count >= 500 ? 68 : count >= 100 ? 56 : count >= 50 ? 48 : count >= 20 ? 42 : count >= 10 ? 36 : count >= 2 ? 30 : 26);
-        const el = makeCircleElement({ count, selected, size });
+        const el = makeCircleElement({ count, selected, size, category: clusterCat });
         const clickHandler = (e: Event) => {
           e.stopPropagation();
           if (count === 1) {
