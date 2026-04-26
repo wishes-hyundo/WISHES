@@ -472,7 +472,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (key === currentKey && currentLevelMode === mode) return;
         cleanup();
         drawRegion([feat], shortSidoName(fullName), 'sido', {
-          fillOpacityOverride: 0.08,    // L-naver-hier2: 광역 시도 polygon 표시
+          fillOpacityOverride: 0.15,    // L-naver-hier3: 시도 진하게
           strokeOpacityOverride: 0,
           strokeWeightOverride: 0,
         });
@@ -494,7 +494,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           if (key === currentKey && currentLevelMode === mode) return;
           cleanup();
           drawRegion([sigFeat], sigLabel, 'sigungu', {
-            fillOpacityOverride: 0.06,
+            fillOpacityOverride: 0.15,    // L-naver-hier3: 시군구 진하게 (이전 색상)
             strokeOpacityOverride: 0,
             strokeWeightOverride: 0,
           });
