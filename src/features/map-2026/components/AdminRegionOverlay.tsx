@@ -539,12 +539,12 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         lastClickAt = Date.now();
         zoomingFromClickRef.current = true;
         // L-naver-2026noresidual1 (2026-04-26): polygon 잔상 제거 fix.
-        //   사용자 피드백 "동 polygon 클릭 후 빨간 배경 잔상".
-        //   기존: cleanup 이 idle 이벤트 (setLevel 애니메이션 끝) 시점에서만 실행.
-        //   변경: 클릭 즉시 cleanup() → polygon 즉시 사라짐.  setLevel 애니메이션
-        //   동안 빈 지도만 보임 → 다음 mode 진입 시 자연스러움.
         cleanup();
         currentKey = '';
+        // L-naver-2026stuckfix1 (2026-04-26): zoomingFromClickRef stuck fallback.
+        //   idle 이벤트가 어떤 이유로든 fire 안 되면 ref 가 영구 stuck → mousemove 영구 차단.
+        //   1500ms 후 강제 reset (idle 이벤트가 빨리 fire 되면 onIdle 이 먼저 reset).
+        setTimeout(() => { zoomingFromClickRef.current = false; }, 1500);
         const performZoom = () => {
           try {
             const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
