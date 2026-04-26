@@ -19,6 +19,7 @@
 import { useEffect, useState } from 'react';
 import { Plus, Minus, LocateFixed, Map as MapIcon, Satellite, Clock } from 'lucide-react';
 import { useMap2026Store } from '../store';
+import { POI_CATEGORY_LIST, type PoiCategoryKey } from './PoiOverlay';
 
 type KakaoMap = {
   getLevel?: () => number;
@@ -41,6 +42,11 @@ export function MapControls() {
   const toggleLayer = useMap2026Store((s) => s.toggleLayer);
   const selectedId = useMap2026Store((s) => s.selectedId);
   const listings = useMap2026Store((s) => s.listings);
+  // L-naver-2026poi1 (2026-04-27): 학세권/인근시설 토글
+  const poi = useMap2026Store((s) => s.poi);
+  const togglePoi = useMap2026Store((s) => s.togglePoi);
+  const poiAnyOn = Object.values(poi).some(Boolean);
+
   const handleIsochroneToggle = () => {
     // 토글 ON 시 center 자동 설정 (선택 매물 → viewport 중심 → 강남역 fallback)
     if (!isochroneOn && !isochroneCenter) {
@@ -257,6 +263,34 @@ export function MapControls() {
           <Minus className="size-4" />
         </button>
       </div>
+
+      {/* L-naver-2026poi1: 학세권/인근시설 토글 칩 */}
+      <div className="pointer-events-auto flex flex-wrap gap-1 max-w-[180px] justify-end">
+        {POI_CATEGORY_LIST.map(({ key, label, color, emoji }) => {
+          const on = poi[key];
+          return (
+            <button
+              key={key}
+              onClick={() => togglePoi(key as PoiCategoryKey)}
+              aria-label={`${label} ${on ? '끄기' : '표시'}`}
+              title={`${label} ${on ? '끄기' : '표시'}`}
+              className={[
+                'inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[10.5px] font-semibold shadow-sm transition',
+                on ? 'bg-white text-neutral-900' : 'bg-white/80 text-neutral-500 hover:bg-white',
+              ].join(' ')}
+              style={on ? { borderColor: color, color: '#1a1a1a' } : { borderColor: '#e5e7eb' }}
+            >
+              <span>{emoji}</span>
+              <span>{label}</span>
+            </button>
+          );
+        })}
+      </div>
+      {poiAnyOn && (
+        <div className="pointer-events-auto rounded-md bg-white/95 px-2 py-1 text-[10px] text-neutral-500 shadow-sm">
+          줌인 (Lv ≤ 5) 시 표시
+        </div>
+      )}
 
       {/* 위치 안내 토스트 (5초) */}
       {locating && !locateError && (

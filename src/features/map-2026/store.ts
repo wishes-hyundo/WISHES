@@ -199,6 +199,13 @@ export interface Map2026Store {
   similar: boolean;
   toggleLayer: (key: 'isochrone' | 'heatmap' | 'threeD' | 'similar') => void;
 
+  // L-naver-2026poi1 (2026-04-27): 학세권/인근시설 토글 (학교/병원/지하철/은행/마트/편의점)
+  poi: {
+    school: boolean; hospital: boolean; subway: boolean;
+    bank: boolean; mart: boolean; cvs: boolean;
+  };
+  togglePoi: (key: 'school' | 'hospital' | 'subway' | 'bank' | 'mart' | 'cvs') => void;
+
   // Phase D — 통근 등고선 상태 (중심점/분/페이로드)
   isochroneCenter: [number, number] | null;
   isochroneMinutes: number;
@@ -451,6 +458,10 @@ export const useMap2026Store = create<Map2026Store>()(
     threeD: false,
     similar: false,
     toggleLayer: (key) => set((s) => ({ [key]: !s[key] } as Partial<Map2026Store>)),
+
+    // L-naver-2026poi1: 학세권/인근시설 기본 모두 OFF
+    poi: { school: false, hospital: false, subway: false, bank: false, mart: false, cvs: false },
+    togglePoi: (key) => set((s) => ({ poi: { ...s.poi, [key]: !s.poi[key] } })),
 
     // Phase D — 등고선 상태 (기본: 15분, 중심점 아직 없음)
     isochroneCenter: null,

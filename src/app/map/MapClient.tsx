@@ -55,6 +55,7 @@ import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay'
 // L-adminpoly1 (2026-04-24 pm): 축소 뷰 시/도 폴리곤 하이라이트
 import AdminRegionOverlay from '@/features/map-2026/components/AdminRegionOverlay';
 import IsochroneOverlay from '@/features/map-2026/components/IsochroneOverlay';
+import PoiOverlay from '@/features/map-2026/components/PoiOverlay';
 import { MapErrorBoundary } from '@/features/map-2026/components/MapErrorBoundary';
 import MapLoadingIndicator from '@/features/map-2026/components/MapLoadingIndicator';
 // L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 훅
@@ -585,6 +586,8 @@ function MapOverlaysWithClusters(props: {
       </MapErrorBoundary>
       {/* L-naver-2026isochrone1: 도달시간 등고선 (4단계 활성화) */}
       <IsochroneOverlay map={props.kakaoMap} />
+      {/* L-naver-2026poi1: 학세권/인근시설 (3단계 활성화) */}
+      <PoiOverlay map={props.kakaoMap} />
       <GeoLoadingIndicator />
     </>
   );
