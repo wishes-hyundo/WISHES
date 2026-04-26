@@ -165,8 +165,13 @@ function simplifyFeature(feat: GeoFeature, tolerance: number, cacheKey: string):
   }
 }
 function toleranceForLevel(level: number): number {
-  if (level >= 11) return 0.005;     // 광역 — 큰 단순화
-  if (level >= 8) return 0.001;      // 시군구 — 중간
+  // L-naver-2026clickfix3 (2026-04-26): tolerance 축소.
+  //   기존 0.005 (~500m) 는 광역에서 sigungu 들 click 영역이 실제와 어긋나서
+  //   사용자가 관악구 클릭 → simplified 폴리곤은 동작/영등포 영역으로 잡혀
+  //   wrong onClick 이 firing.  tolerance 0.0005 (~50m) 로 축소.
+  //   여전히 풀 정밀 (50~200pts) 보다 훨씬 가벼움.
+  if (level >= 11) return 0.0005;    // 광역 — 50m simplification (click hit 정확)
+  if (level >= 8) return 0.0002;     // 시군구 — 20m
   return 0;                           // 동/마커 — 풀 정밀
 }
 
