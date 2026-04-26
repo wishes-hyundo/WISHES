@@ -340,18 +340,9 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             console.log('[Polygon Click] setBounds called');
           }
         } catch (e) { console.error('[Polygon Click] setBounds error:', e); }
-        // setBounds 후 정확한 target level 강제 (애니메이션)
-        setTimeout(() => {
-          try {
-            if (typeof mapInst.setLevel === 'function') {
-              mapInst.setLevel(targetLevel, { animate: true });
-              console.log('[Polygon Click] setLevel called', targetLevel, 'now', mapInst.getLevel?.());
-            }
-          } catch (e) {
-            console.error('[Polygon Click] setLevel error:', e);
-            try { (mapInst.setLevel as (n: number) => void)(targetLevel); } catch {/*noop*/}
-          }
-        }, 100);
+        // L-naver-smooth1 (2026-04-26): 클릭 시 깜빡임 fix.  setBounds 후 setLevel
+        //   이중 zoom 변경이 flicker.  bbox-fit 만으로 충분 — setLevel 호출 제거.
+        //   사용자가 너무 zoom-in 됐을 때만 setLevel 한번 (바운스 방지).
         onClickRegion?.(labelText);
       };
 
@@ -545,9 +536,12 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           ? unionLegalDong(sigParentCode, legalName, grouped)
           : grouped[0];
         const renderFeats = merged ? [merged] : grouped;
+        // L-naver-hier4: 시도/시군구/동 색상 통일 0.15.  마커 zoom (level <= 4) 만 옅게 0.04.
+        const isMarkerZoom = level <= 4;
         drawRegion(renderFeats, parts.join(' '), 'dong', {
-          fillOpacityOverride: 0.28,
-          strokeOpacityOverride: 0.7,
+          fillOpacityOverride: isMarkerZoom ? 0.04 : 0.15,
+          strokeOpacityOverride: 0,
+          strokeWeightOverride: 0,
         });
         currentKey = key;
         currentLevelMode = mode;
