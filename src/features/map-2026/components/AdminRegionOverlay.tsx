@@ -375,7 +375,7 @@ interface Props {
   onClickRegion?: (name: string) => void;
 }
 
-export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
+export default function AdminRegionOverlay({ map, listings, onClickRegion }: Props) {
   const polygonsRef = useRef<KakaoPolygon[]>([]);
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
   // L-naver-2026skel2: GeoJSON inflight → store 로 push (MapLoadingIndicator 표시용)
@@ -385,6 +385,15 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
   }, [setGeoLoading]);
   // L-naver-2026clean1: window global hack 제거. useRef 로 closure 간 state 공유.
   const zoomingFromClickRef = useRef<boolean>(false);
+  // L-naver-2026listingscentroid1 (2026-04-27): 동 클릭 시 polygon 안 매물 centroid 사용.
+  //   이유: Shoelace area centroid 는 폴리곤 면적 진짜 중심 (수학적 정확).
+  //   그러나 신림동처럼 관악산 산악지대까지 polygon 에 포함되면 area centroid 가
+  //   산쪽으로 치우침 → 사용자가 보고 싶은 도심부 (매물 밀집) 와 어긋남.
+  //   해결: polygon 안 매물 (lat,lng) 평균을 1순위, area centroid 를 fallback.
+  //   useEffect 가 [map, onClickRegion] 의존이라 listings 변경마다 reset 안 됨.
+  //   ref 로 최신 listings 유지 → click handler 에서 즉시 접근.
+  const listingsRef = useRef<MapListing[]>(listings);
+  useEffect(() => { listingsRef.current = listings; }, [listings]);
 
 
   useEffect(() => {
@@ -577,9 +586,39 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
             const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
             const bbox = lockedBbox;
-            // L-naver-2026center1: lockedCenter (가장 큰 piece centroid) 우선, fallback bbox 중심.
-            const cy = lockedCenter ? lockedCenter.cy : (bbox ? (bbox.south + bbox.north) / 2 : null);
-            const cx = lockedCenter ? lockedCenter.cx : (bbox ? (bbox.west + bbox.east) / 2 : null);
+            // L-naver-2026listingscentroid1 (2026-04-27): polygon 안 매물 centroid 1순위.
+            //   동 클릭 시 사용자가 보고 싶은 곳 = 매물 밀집 지역 (도심부).
+            //   feats 안에 매물 N개 있으면 그 lat/lng 평균 (자연스럽게 도심 중심).
+            //   매물 5개 미만이면 area centroid (lockedCenter) → bbox 중심 순으로 fallback.
+            //   이걸 하면 신림동 같은 산악 polygon 도 매물 분포 따라 도심 자동 이동.
+            let listingsCx: number | null = null;
+            let listingsCy: number | null = null;
+            if (mode === 'dong' || mode === 'sigungu') {
+              const cur = listingsRef.current;
+              if (Array.isArray(cur) && cur.length > 0 && bbox) {
+                let sumLat = 0, sumLng = 0, count = 0;
+                for (const l of cur) {
+                  if (l.lat == null || l.lng == null) continue;
+                  // bbox 빠른 prefilter → 그 후 정확한 point-in-polygon
+                  if (l.lat < bbox.south || l.lat > bbox.north) continue;
+                  if (l.lng < bbox.west || l.lng > bbox.east) continue;
+                  let inside = false;
+                  for (const f of feats) {
+                    if (pointInFeature(l.lat, l.lng, f)) { inside = true; break; }
+                  }
+                  if (inside) { sumLat += l.lat; sumLng += l.lng; count++; }
+                }
+                if (count >= 5) {
+                  listingsCy = sumLat / count;
+                  listingsCx = sumLng / count;
+                }
+              }
+            }
+            // 우선순위: ① listings centroid (≥5 매물) ② area centroid ③ bbox center
+            const cy = listingsCy != null ? listingsCy
+              : (lockedCenter ? lockedCenter.cy : (bbox ? (bbox.south + bbox.north) / 2 : null));
+            const cx = listingsCx != null ? listingsCx
+              : (lockedCenter ? lockedCenter.cx : (bbox ? (bbox.west + bbox.east) / 2 : null));
             // L-naver-2026clickdiag1: click handler 진단 — Sentry breadcrumb + dev console.
             //   사용자 reproduction (관악구 클릭 → 서초/일산) 디버깅 위해 어떤 polygon
             //   의 onClick 이 어떤 좌표로 panTo 했는지 추적.
