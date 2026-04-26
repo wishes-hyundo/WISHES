@@ -75,7 +75,8 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
             {!isMapPage && <BottomCTA />}
             {!isMapPage && <CookieConsent />}
             {/* 모바일 5탭 하단 네비: /admin · /map · 중개사 포털은 내부에서 비노출 */}
-            <MobileBottomNav />
+            {/* L-naver-2026bottomsheet1 (2026-04-27): /map 은 MobileListSheet 가 bottom 차지 → 숨김 */}
+            {!isMapPage && <MobileBottomNav />}
             {/* #33 + #45: /listings/[id] 상세에서만 노출되는 sticky 문의/방문예약 CTA */}
             {!isMapPage && <StickyLeadCTA />}
           </ToastProvider>

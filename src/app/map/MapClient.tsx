@@ -55,6 +55,7 @@ import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay'
 // L-adminpoly1 (2026-04-24 pm): 축소 뷰 시/도 폴리곤 하이라이트
 import AdminRegionOverlay from '@/features/map-2026/components/AdminRegionOverlay';
 // L-naver-2026minimal1 (2026-04-27): IsochroneOverlay / PoiOverlay 제거 (사용자 요청).
+import MobileListSheet from '@/features/map-2026/components/MobileListSheet';
 import { MapErrorBoundary } from '@/features/map-2026/components/MapErrorBoundary';
 import MapLoadingIndicator from '@/features/map-2026/components/MapLoadingIndicator';
 // L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 훅
@@ -362,17 +363,21 @@ export default function MapClient() {
 
       <div
         className={[
+          // L-naver-2026bottomsheet1 (2026-04-27): 모바일은 ListPanel 시트로 옮김.
+          //   md 미만: grid 1열 (지도 100%). ListPanel 은 MobileListSheet 가 별도 fixed.
+          //   md+: 기존 grid (좌측 사이드바 + 지도).
           'grid h-full min-h-0 overflow-hidden grid-rows-[minmax(0,1fr)]',
+          'grid-cols-1',
           listPanelCollapsed
-            ? 'grid-cols-[28px_minmax(0,1fr)]'
-            : 'grid-cols-[280px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]',
+            ? 'md:grid-cols-[28px_minmax(0,1fr)]'
+            : 'md:grid-cols-[280px_minmax(0,1fr)] lg:grid-cols-[340px_minmax(0,1fr)] 2xl:grid-cols-[380px_minmax(0,1fr)]',
         ].join(' ')}
       >
         {listPanelCollapsed ? (
           <button
             onClick={toggleListPanel}
             aria-label={`매물 리스트 펼치기 (${listingsCount}개)`}
-            className="group flex h-full flex-col items-center gap-2 border-r border-neutral-200 bg-white py-3 transition hover:bg-neutral-50"
+            className="group hidden h-full flex-col items-center gap-2 border-r border-neutral-200 bg-white py-3 transition hover:bg-neutral-50 md:flex"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-neutral-500 group-hover:text-neutral-900"><path d="M9 18l6-6-6-6"/></svg>
             <span className="[writing-mode:vertical-rl] rotate-180 text-[11px] font-bold tabular-nums text-neutral-700">
@@ -380,7 +385,7 @@ export default function MapClient() {
             </span>
           </button>
         ) : (
-          <div className="relative flex min-h-0 flex-col">
+          <div className="relative hidden min-h-0 flex-col md:flex">
             {/* L-mapfilter3 (2026-04-23): FilterAccordion 을 FilterModal 안으로
                 이관한 뒤 사이드바는 SumBox (현재 조건 요약) 만 상단에 유지.
                 이전 max-h-[55%] 스크롤 컨테이너는 아코디언이 사라지면서
@@ -463,6 +468,9 @@ export default function MapClient() {
           <ListingDetailModal />
         </div>
       </div>
+      {/* L-naver-2026bottomsheet1 (2026-04-27): 모바일 하단 시트 (md 미만에서만).
+          드래그/탭 토글 — peek (72px) / mid (50vh) / full (90vh). */}
+      <MobileListSheet />
 
       {/* L-v7-toast (2026-04-22): 단축 URL 복사 토스트 (v7 §9 3-state).
           루트에 1회 마운트되어 어디서든 useCopyToast().show() 로 제어. */}
