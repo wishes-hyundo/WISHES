@@ -20,8 +20,6 @@
 import { useEffect, useRef } from 'react';
 import RBush from 'rbush';
 import simplify from '@turf/simplify';
-import union from '@turf/union';
-import { featureCollection } from '@turf/helpers';
 import type { Feature as GjFeature, Polygon as GjPolygon, MultiPolygon as GjMP } from 'geojson';
 import type { MapListing } from '@/features/map-2026/store';
 import { useMap2026Store } from '@/features/map-2026/store';
@@ -162,23 +160,12 @@ async function loadDong(): Promise<GeoCollection | null> {
   return pendingDong;
 }
 
-// L-naver-2026union1 (2026-04-26): turf.union 으로 같은 법정동의 행정동들을
-//   1개 polygon 으로 merge.  네이버 동일.  ex: 신원동·서원동·대학동 → 신림동.
-//   per-(sigCode, legalName) cache.  실패 시 null 반환 → caller 가 stack 으로 fallback.
-const unionCache = new Map<string, GeoFeature | null>();
-function unionLegalDong(sigCode: string, legalName: string, feats: GeoFeature[]): GeoFeature | null {
-  if (feats.length < 2) return feats[0] ?? null;
-  const cacheKey = `${sigCode}:${legalName}`;
-  if (unionCache.has(cacheKey)) return unionCache.get(cacheKey) ?? null;
-  try {
-    const fc = featureCollection(feats as unknown as GjFeature<GjPolygon | GjMP>[]);
-    const merged = union(fc) as unknown as GeoFeature | null;
-    unionCache.set(cacheKey, merged);
-    return merged;
-  } catch {
-    unionCache.set(cacheKey, null);
-    return null;
-  }
+// L-naver-precise2 (2026-04-26): turf union 임시 비활성. null 반환해 caller 가
+//   feats 전체를 stack 으로 그림 (정밀 데이터로도 충분히 깔끔).
+//   L-naver-2026union2 (2026-04-26): 재시도 했으나 build 실패 — turf.union v7
+//   import 가 Edge Runtime + Next 16 SSR 환경에서 type 추론 실패. stack 유지.
+function unionLegalDong(_sigCode: string, _legalName: string, _feats: GeoFeature[]): GeoFeature | null {
+  return null;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
