@@ -350,9 +350,18 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       };
 
       // pointer 커서 핸들러 (지도 컨테이너에 cursor 설정)
+      // L-naver-sidoclick2: hover 시 해당 polygon 의 라벨로 tooltip 갱신.
+      //   광역 모드에서 25개 sigungu 동시 표시 시 hover 따라가는 라벨이 필수.
       const mapNode = typeof mapInst.getNode === 'function' ? mapInst.getNode() : undefined;
       const onPolyMouseOver = () => {
         if (mapNode) mapNode.style.cursor = 'pointer';
+        if (!opts.isBackdrop) {
+          currentTooltipText = labelText;
+          tooltipEl.textContent = labelText;
+          if (tooltipEl.style.display === 'none') {
+            tooltipEl.style.display = 'inline-block';
+          }
+        }
       };
       const onPolyMouseOut = () => {
         if (mapNode) mapNode.style.cursor = '';
@@ -447,8 +456,10 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       if (mode === 'none') return;
 
       // 라벨 prefix 계산 (시도/구 이름)
+      // L-naver-sidoclick2 (2026-04-26): 광역에서 sigungu 들을 직접 그리기 위해
+      //   sido 모드에서도 sigData 미리 로드.
       const sidoData = await loadSido();
-      const sigData = mode !== 'sido' ? await loadSigungu() : null;
+      const sigData = await loadSigungu();
       // L-naver-multi2 (2026-04-26): sigungu 모드도 dongData 필요 (multi-dong 렌더).
       //   기존 'dong' 모드에서만 로드 → 새 multi-dong sigungu 에서 legalGroups 비어 클릭 안 됨.
       const dongData = (mode === 'dong' || mode === 'sigungu') ? await loadDong() : null;
@@ -469,18 +480,55 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       }
 
       if (mode === 'sido') {
+        // L-naver-sidoclick2 (2026-04-26): 광역에서 sido 한 폴리곤 → 그 sido 안의
+        //   sigungu 들을 각각 클릭 가능한 폴리곤으로 그리기 (네이버 z13 패턴).
+        //   효과: 관악구 클릭 = 관악구 polygon 의 onClick = 관악구 bbox 로 직행
+        //   (1-click flow). 좌표 lookup 없이 closure 만으로 자연스럽게 매칭.
         if (!sidoData?.features) { cleanup(); currentKey = ''; return; }
-        const feat = findFeatureAt(sidoData.features, lat, lng);
-        if (!feat) { cleanup(); currentKey = ''; return; }
-        const fullName = normalizeSidoName(String((feat.properties as { name?: string }).name ?? ''));
-        const key = `sido:${fullName}`;
+        const sidoFeat = findFeatureAt(sidoData.features, lat, lng);
+        if (!sidoFeat) { cleanup(); currentKey = ''; return; }
+        const fullName = normalizeSidoName(String((sidoFeat.properties as { name?: string }).name ?? ''));
+        const sidoShort = shortSidoName(fullName);
+        const key = `sido-multi:${fullName}`;
         if (key === currentKey && currentLevelMode === mode) return;
         cleanup();
-        drawRegion([feat], shortSidoName(fullName), 'sido', {
-          fillOpacityOverride: 0.20,    // L-naver-hier5: 더 진하게 (기존 색상)
-          strokeOpacityOverride: 0,
-          strokeWeightOverride: 0,
-        });
+
+        // 같은 sido 안에 들어가는 sigungus 필터 (centroid point-in-polygon)
+        const insideSigungus: GeoFeature[] = [];
+        if (sigData?.features) {
+          for (const sig of sigData.features) {
+            const sb = computeFeatureBbox(sig);
+            if (!sb) continue;
+            const cy = (sb.south + sb.north) / 2;
+            const cx = (sb.west + sb.east) / 2;
+            if (pointInFeature(cy, cx, sidoFeat)) insideSigungus.push(sig);
+          }
+        }
+
+        if (insideSigungus.length === 0) {
+          // fallback: sigData 가 없거나 매칭 실패 → 기존 단일 sido 폴리곤
+          drawRegion([sidoFeat], sidoShort, 'sido', {
+            fillOpacityOverride: 0.20,
+            strokeOpacityOverride: 0,
+            strokeWeightOverride: 0,
+          });
+        } else {
+          // 각 sigungu 를 따로 drawRegion 호출 → 각자 자기 bbox onClick closure 갖음
+          for (const sig of insideSigungus) {
+            const sigName = String((sig.properties as { name?: string }).name ?? '').trim();
+            const sigLabel = `${sidoShort} ${sigName}`;
+            drawRegion([sig], sigLabel, 'sigungu', {
+              fillOpacityOverride: 0.10,    // 광역에서는 옅게 — 25개 동시
+              strokeOpacityOverride: 0,
+              strokeWeightOverride: 0,
+            });
+          }
+          // L-naver-sidoclick2: drawRegion 들이 currentTooltipText 를 마지막 sigungu 로
+          //   설정해 두지만, 다중 표시 모드에서는 hover 전까지 라벨 비표시. mouseover
+          //   가 자기 라벨로 갱신할 것.
+          currentTooltipText = '';
+          tooltipEl.style.display = 'none';
+        }
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'sigungu') {
