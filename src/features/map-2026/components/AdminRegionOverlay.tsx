@@ -502,20 +502,31 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
                 };
               } catch { /*noop*/ }
             } catch { /*noop*/ }
-            // L-naver-2026clickfix6 (2026-04-26): panTo + setLevel race fix.
-            //   diagnostic 에서 panTo 좌표는 정확한데 화면은 다른 곳에 있던 버그 →
-            //   panTo (animated) + setLevel (animated) 가 같은 tick 에 충돌.
-            //   해결: setLevel 먼저 (animated zoom 시작) → 즉시 setCenter (instant center).
-            //   둘 다 즉시 enqueue 되지만 setCenter 가 final position 결정.
+            // L-naver-2026clickfix7 (2026-04-26): 첫 클릭 race fix.
+            //   사용자: 첫 클릭만 실패 (map 강남/서초로), 이후 정상.
+            //   원인: setLevel 의 animation 이 setCenter 를 override. 첫 클릭 시
+            //   map 내부 상태 안정화 안 돼서 두드러짐.
+            //   해결: setLevel 먼저 호출 (animation kicks off) → rAF 로 다음 frame
+            //   에서 setCenter 호출 → setLevel 의 internal state commit 후 center 잡힘.
             if (typeof mapInst.setLevel === 'function') {
               mapInst.setLevel(finalLv, { animate: true });
             }
             if (cy != null && cx != null) {
               const targetLatLng = new maps.LatLng(cy, cx);
-              if (typeof mapInst.setCenter === 'function') {
-                mapInst.setCenter(targetLatLng);
-              } else if (typeof mapInst.panTo === 'function') {
-                mapInst.panTo(targetLatLng);
+              const applyCenter = () => {
+                if (typeof mapInst.setCenter === 'function') {
+                  mapInst.setCenter(targetLatLng);
+                } else if (typeof mapInst.panTo === 'function') {
+                  mapInst.panTo(targetLatLng);
+                }
+              };
+              if (typeof window.requestAnimationFrame === 'function') {
+                window.requestAnimationFrame(() => {
+                  // 두 번째 rAF 로 한 번 더 보장 (setLevel commit 후 확실히 적용)
+                  window.requestAnimationFrame(applyCenter);
+                });
+              } else {
+                applyCenter();
               }
             }
           } catch (err) {
