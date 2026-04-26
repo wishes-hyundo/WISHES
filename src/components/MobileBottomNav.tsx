@@ -76,7 +76,8 @@ function MobileBottomNavInner() {
               <Link
                 href={href}
                 className={
-                  'relative flex flex-col items-center justify-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ' +
+                  // L-naver-2026touch1 (2026-04-27): 모바일 터치 영역 44px+ (Apple/Google guideline)
+                  'relative flex min-h-[52px] flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-medium transition-colors active:scale-95 active:bg-gray-50 ' +
                   (active
                     ? 'text-wishes-primary'
                     : 'text-gray-500 hover:text-wishes-primary')

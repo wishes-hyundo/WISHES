@@ -140,7 +140,7 @@ export function FilterModal() {
                 onClick={() => setFilter({ deals: [] })}
                 aria-pressed={filter.deals.length === 0}
                 className={[
-                  'rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition',
+                  'rounded-full px-4 min-h-[44px] text-[12.5px] font-semibold transition active:scale-95 inline-flex items-center justify-center',
                   filter.deals.length === 0
                     ? 'bg-neutral-900 text-white shadow-sm'
                     : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200',
@@ -156,7 +156,7 @@ export function FilterModal() {
                     onClick={() => toggleDeal(d)}
                     aria-pressed={active}
                     className={[
-                      'rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition',
+                      'rounded-full px-4 min-h-[44px] text-[12.5px] font-semibold transition active:scale-95 inline-flex items-center justify-center',
                       active
                         ? 'bg-neutral-900 text-white shadow-sm'
                         : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200',
@@ -193,7 +193,7 @@ export function FilterModal() {
             onClick={clearFilter}
             disabled={activeCount === 0}
             className={[
-              'flex items-center gap-1 rounded-lg px-3 py-2 text-[12.5px] font-medium transition',
+              'flex items-center gap-1 rounded-lg px-4 min-h-[44px] text-[12.5px] font-medium transition active:scale-95',
               activeCount === 0
                 ? 'cursor-not-allowed text-neutral-300'
                 : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900',
@@ -206,7 +206,7 @@ export function FilterModal() {
           <button
             onClick={close}
             className={[
-              'flex items-center gap-2 rounded-lg px-5 py-2.5 text-[13.5px] font-bold text-white shadow-sm transition hover:brightness-110',
+              'flex items-center justify-center gap-2 rounded-lg px-6 min-h-[48px] text-[14px] font-bold text-white shadow-sm transition hover:brightness-110 active:scale-95',
               theme.accent,
             ].join(' ')}
           >
