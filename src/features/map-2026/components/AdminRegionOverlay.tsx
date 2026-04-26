@@ -323,7 +323,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   sido(13+) → 9 (z11, sigungu detail) — 4-5 levels deep
       //   sigungu(7~12) → 6 (z14, dong polygon visible) — 2-6 levels deep
       //   dong(4~6) → 3 (z17, marker close-up) — 1-3 levels deep
-      const targetLevel = mode === 'sido' ? 9 : mode === 'sigungu' ? 6 : 3;
+      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
 
       const onClick = () => {
         // L-naver-click7 (2026-04-26): 진단 로그 — 클릭이 발화하는지 명확히 확인.
