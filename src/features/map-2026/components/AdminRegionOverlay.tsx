@@ -20,8 +20,9 @@
 import { useEffect, useRef } from 'react';
 import type { MapListing } from '@/features/map-2026/store';
 import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
-import { union as turfUnion, featureCollection as turfFC } from '@turf/turf';
-import type { Feature, Polygon as TurfPolygon, MultiPolygon as TurfMultiPolygon } from 'geojson';
+// L-naver-precise2 (2026-04-26): @turf import 가 빌드 에러. 일단 union 제거.
+//   정밀 GeoJSON (48 pts/feat) 자체로도 충분히 깔끔 → fill 만 stack 으로도 매끄러움.
+// import { union as turfUnion, featureCollection as turfFC } from '@turf/turf';
 
 const SIDO_GEOJSON_URL    = '/api/geo/sido';
 const SIGUNGU_GEOJSON_URL = '/api/geo/sigungu';
@@ -77,29 +78,9 @@ async function loadDong(): Promise<GeoCollection | null> {
   return pendingDong;
 }
 
-// L-naver-union1 (2026-04-26): 행정동들을 법정동으로 union — 깔끔한 1개 polygon.
-//   key: `${sigCode}:${legalName}` → 캐시된 merged GeoFeature.
-//   행정동 fragments 가 fill 만으로 stack 되어 jagged 모양이던 문제 해결.
-const unionCache: Map<string, GeoFeature | null> = new Map();
-function unionLegalDong(sigCode: string, legalName: string, feats: GeoFeature[]): GeoFeature | null {
-  const k = `${sigCode}:${legalName}`;
-  if (unionCache.has(k)) return unionCache.get(k) ?? null;
-  if (feats.length === 0) { unionCache.set(k, null); return null; }
-  if (feats.length === 1) { unionCache.set(k, feats[0]); return feats[0]; }
-  try {
-    const fc = turfFC(feats as Feature<TurfPolygon | TurfMultiPolygon>[]);
-    const merged = turfUnion(fc);
-    if (merged) {
-      const mergedAsGeo: GeoFeature = {
-        type: 'Feature',
-        properties: { name: legalName },
-        geometry: merged.geometry as GeoFeature['geometry'],
-      };
-      unionCache.set(k, mergedAsGeo);
-      return mergedAsGeo;
-    }
-  } catch (e) { console.error('[union] failed', legalName, e); }
-  unionCache.set(k, null);
+// L-naver-precise2 (2026-04-26): turf union 임시 비활성. null 반환해 caller 가
+//   feats 전체를 stack 으로 그림 (정밀 데이터로도 충분히 깔끔).
+function unionLegalDong(_sigCode: string, _legalName: string, _feats: GeoFeature[]): GeoFeature | null {
   return null;
 }
 
@@ -672,14 +653,12 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           maps.event.removeListener(mapInst as unknown, 'zoom_changed', onZoom);
         }
       } catch { /*noop*/ }
-      // L-naver-tooltip2 (2026-04-26): 툴팁 DOM + 전역 mousemove 리스너 cleanup.
       try { document.removeEventListener('mousemove', updateTooltipPosition); } catch { /*noop*/ }
       try { tooltipEl.remove(); } catch { /*noop*/ }
       cleanup();
     };
   }, [map, onClickRegion]);
 
-  // sigungu + dong 캐시 warm-up
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const id = (typeof window.requestIdleCallback === 'function')
