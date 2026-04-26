@@ -471,7 +471,11 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         const key = `sido:${fullName}`;
         if (key === currentKey && currentLevelMode === mode) return;
         cleanup();
-        drawRegion([feat], shortSidoName(fullName), 'sido');
+        drawRegion([feat], shortSidoName(fullName), 'sido', {
+          fillOpacityOverride: 0.08,    // L-naver-hier2: 광역 시도 polygon 표시
+          strokeOpacityOverride: 0,
+          strokeWeightOverride: 0,
+        });
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'sigungu') {
