@@ -502,31 +502,36 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
                 };
               } catch { /*noop*/ }
             } catch { /*noop*/ }
-            // L-naver-2026clickfix7 (2026-04-26): 첫 클릭 race fix.
-            //   사용자: 첫 클릭만 실패 (map 강남/서초로), 이후 정상.
-            //   원인: setLevel 의 animation 이 setCenter 를 override. 첫 클릭 시
-            //   map 내부 상태 안정화 안 돼서 두드러짐.
-            //   해결: setLevel 먼저 호출 (animation kicks off) → rAF 로 다음 frame
-            //   에서 setCenter 호출 → setLevel 의 internal state commit 후 center 잡힘.
-            if (typeof mapInst.setLevel === 'function') {
-              mapInst.setLevel(finalLv, { animate: true });
-            }
-            if (cy != null && cx != null) {
-              const targetLatLng = new maps.LatLng(cy, cx);
-              const applyCenter = () => {
-                if (typeof mapInst.setCenter === 'function') {
-                  mapInst.setCenter(targetLatLng);
-                } else if (typeof mapInst.panTo === 'function') {
-                  mapInst.panTo(targetLatLng);
+            // L-naver-2026clickfix8 (2026-04-26): setBounds 로 atomic 처리.
+            //   clickfix7 의 rAF 분리 + setCenter 후행 패턴이 첫 클릭에서 여전히
+            //   실패. Kakao 의 setLevel animation 이 setCenter 를 override.
+            //   해결: setLevel 호출 안 함. 대신 lockedBbox 로 LatLngBounds 만들어
+            //   setBounds 호출 → Kakao 가 center+zoom 을 atomic 으로 설정.
+            //   targetLevel 보다 약간 다를 수 있지만 폴리곤이 viewport 에 정확히
+            //   fit 되니 사용자 경험 더 자연스러움.
+            if (lockedBbox && typeof mapInst.setBounds === 'function') {
+              const sw = new maps.LatLng(lockedBbox.south, lockedBbox.west);
+              const ne = new maps.LatLng(lockedBbox.north, lockedBbox.east);
+              try {
+                const bounds = new maps.LatLngBounds(sw, ne);
+                // padding 30px 모두 → 폴리곤 가장자리 여백 확보
+                mapInst.setBounds(bounds, 30, 30, 30, 30);
+              } catch {
+                // setBounds 실패 시 fallback: setCenter + setLevel (순서 반대)
+                if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
+                  mapInst.setCenter(new maps.LatLng(cy, cx));
                 }
-              };
-              if (typeof window.requestAnimationFrame === 'function') {
-                window.requestAnimationFrame(() => {
-                  // 두 번째 rAF 로 한 번 더 보장 (setLevel commit 후 확실히 적용)
-                  window.requestAnimationFrame(applyCenter);
-                });
-              } else {
-                applyCenter();
+                if (typeof mapInst.setLevel === 'function') {
+                  mapInst.setLevel(finalLv, { animate: true });
+                }
+              }
+            } else {
+              // setBounds 없으면 fallback: setCenter 먼저 (instant) → setLevel
+              if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
+                mapInst.setCenter(new maps.LatLng(cy, cx));
+              }
+              if (typeof mapInst.setLevel === 'function') {
+                mapInst.setLevel(finalLv, { animate: true });
               }
             }
           } catch (err) {
