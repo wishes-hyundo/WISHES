@@ -763,21 +763,20 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         // L-naver-dual1 (2026-04-26): 네이버 동 모드 = 시군구 backdrop + 동 foreground 2-layer.
         //   사용자 스크린샷: 네이버는 관악구 폴리곤이 light-pink 으로 항상 표시 + 마우스 가르킨 동만 darker.
         //   기존 ONE 폴리곤 방식 → DUAL layer 로 전환.
-        // L-naver-2026legal2 (2026-04-26): 법정동 단위 복원 (사용자 요청).
-        //   행정동 단위는 너무 세분화 (신림1동/2동/3동...) → 사용자 혼란.
-        //   해결: adminToLegalDong 으로 법정동 base name 으로 묶기.
-        //   - 서울 8 자치구 (관악/동작/강남/서초/송파/강동/마포/영등포): 명시 매핑
-        //     예: 신원동→신림동, 청림동→봉천동 (정확)
-        //   - 나머지 전국: regex /(\d+)동$/ 단순화 (예: 권선1동→권선동, 횡성읍→횡성읍)
-        //   - 같은 base name 의 행정동들 stack 으로 그려서 시각적 1개 영역
+        // L-naver-2026dual2 (2026-04-26): 법정동 단위 + dual-layer (사용자 피드백).
+        //   사용자: "조각이 났다" — 신림동의 11개 행정동 중 일부가 봉천동을 사이에 두고
+        //   떨어져 있어서 시각적으로 두 조각.  데이터는 정확하지만 어색.
+        //   해결: 시군구 backdrop 을 옅게 (0.06) 깔아서 시각적 연결성 확보.
+        //   foreground 는 hover 한 법정동의 행정동들 (0.20) — 같은 색 진하게.
+        //   네이버 z14 동 모드 동일 패턴.
         if (!dongData?.features) { cleanup(); currentKey = ''; return; }
         const feat = findFeatureAt(dongData.features, lat, lng);
         if (!feat) { cleanup(); currentKey = ''; return; }
+        const sigParentFeat = sigData?.features ? findFeatureAt(sigData.features, lat, lng) : null;
         const rawName = String((feat.properties as { name?: string }).name ?? '').trim();
         const legalName = adminToLegalDong(rawName, parentSig);
         const key = `dong:${parentSido}:${parentSig}:${legalName}`;
         if (key === currentKey && currentLevelMode === mode) return;
-        // 같은 법정동 내 행정동들 묶기 (sigungu code prefix 로 다른 시군구 차단)
         const sigParentCode = String((feat.properties as { code?: string }).code ?? '').slice(0, 5);
         const groupFeats = dongData.features.filter((f) => {
           const n = String((f.properties as { name?: string }).name ?? '').trim();
@@ -792,6 +791,17 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         const parts = [parentSido, parentSig, legalName].filter(Boolean);
         const renderFeats = groupFeats.length > 0 ? groupFeats : [feat];
         const isMarkerZoom = level <= 4;
+        // L-naver-2026dual2: backdrop 시군구 (옅게).  isBackdrop=true → 클릭 안 함 + 툴팁 갱신 안 함.
+        if (sigParentFeat && !isMarkerZoom) {
+          drawRegion([sigParentFeat], '', 'dong', {
+            fillOpacityOverride: 0.06,
+            strokeOpacityOverride: 0,
+            strokeWeightOverride: 0,
+            clickable: false,
+            isBackdrop: true,
+          });
+        }
+        // foreground: 법정동의 모든 행정동 (진하게)
         drawRegion(renderFeats, parts.join(' '), 'dong', {
           fillOpacityOverride: isMarkerZoom ? 0.04 : 0.20,
           strokeOpacityOverride: 0,
