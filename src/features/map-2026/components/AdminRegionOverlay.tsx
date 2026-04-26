@@ -86,15 +86,47 @@ async function loadSigungu(): Promise<GeoCollection | null> {
     .finally(() => { pendingSigungu = null; setLoadInFlight(-1); });
   return pendingSigungu;
 }
+// L-naver-2026worker2 (2026-04-26): dong GeoJSON 은 Web Worker 에서 파싱
+//   + bbox 사전계산.  ~34MB JSON.parse + 1000+ feature bbox 가 메인 스레드
+//   막던 문제 해결.
 async function loadDong(): Promise<GeoCollection | null> {
   if (dongCache) return dongCache;
   if (pendingDong) return pendingDong;
   setLoadInFlight(1);
-  pendingDong = fetch(DONG_GEOJSON_URL)
-    .then((r) => (r.ok ? r.json() : null))
-    .then((j) => { dongCache = j as GeoCollection | null; return dongCache; })
-    .catch(() => null)
-    .finally(() => { pendingDong = null; setLoadInFlight(-1); });
+  pendingDong = (async () => {
+    try {
+      const res = await fetch(DONG_GEOJSON_URL);
+      if (!res.ok) return null;
+      const json = await res.json();
+      // Worker 사용 가능 시 메인 스레드 분리
+      if (typeof Worker !== 'undefined') {
+        try {
+          const w = new Worker(new URL('../workers/geojsonProcessor.ts', import.meta.url), { type: 'module' });
+          const out = await new Promise<{ features: GeoFeature[] } | null>((resolve) => {
+            const timeout = setTimeout(() => { resolve(null); w.terminate(); }, 15000);
+            w.onmessage = (e: MessageEvent<{ features: GeoFeature[] }>) => {
+              clearTimeout(timeout);
+              resolve(e.data);
+              w.terminate();
+            };
+            w.onerror = () => { clearTimeout(timeout); resolve(null); w.terminate(); };
+            w.postMessage({ type: 'process', json });
+          });
+          if (out?.features) {
+            dongCache = { type: 'FeatureCollection', features: out.features };
+            return dongCache;
+          }
+        } catch { /* fallback to main-thread parsing */ }
+      }
+      dongCache = json as GeoCollection;
+      return dongCache;
+    } catch {
+      return null;
+    } finally {
+      pendingDong = null;
+      setLoadInFlight(-1);
+    }
+  })();
   return pendingDong;
 }
 
