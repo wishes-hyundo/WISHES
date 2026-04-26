@@ -353,10 +353,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
   }, [setGeoLoading]);
   // L-naver-2026clean1: window global hack 제거. useRef 로 closure 간 state 공유.
   const zoomingFromClickRef = useRef<boolean>(false);
-  // L-naver-2026clean1: sido name → 그 sido 안의 sigungus 캐싱.  같은 sido 진입 반복 시
-  //   computeFeatureBbox + pointInFeature O(N) 재계산 회피.  sigData 가 한 번 로드되면
-  //   불변이므로 일생 캐시.
-  const sidoSigCacheRef = useRef<Map<string, GeoFeature[]>>(new Map());
+
 
   useEffect(() => {
     if (!map || typeof window === 'undefined') return;
@@ -674,60 +671,25 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       }
 
       if (mode === 'sido') {
-        // L-naver-sidoclick2 (2026-04-26): 광역에서 sido 한 폴리곤 → 그 sido 안의
-        //   sigungu 들을 각각 클릭 가능한 폴리곤으로 그리기 (네이버 z13 패턴).
-        //   효과: 관악구 클릭 = 관악구 polygon 의 onClick = 관악구 bbox 로 직행
-        //   (1-click flow). 좌표 lookup 없이 closure 만으로 자연스럽게 매칭.
+        // L-naver-2026hier1 (2026-04-26): 4단계 hierarchy 복원.
+        //   광역 = sido 1개 (서울특별시), 시군구 = sigungu 1개 (관악구),
+        //   동 = dong 1개 (신림동), 마커 = 그 이후.
+        //   sidoclick2 의 25개 sigungu 동시 표시는 정확도 떨어져 사용자 피드백
+        //   에 따라 원래대로 복귀.  clickfix6 으로 panTo 가 정확해진 지금은
+        //   sido 클릭 → 시군구 mode 로 자연스럽게 진입 가능.
         if (!sidoData?.features) { cleanup(); currentKey = ''; return; }
         const sidoFeat = findFeatureAt(sidoData.features, lat, lng);
         if (!sidoFeat) { cleanup(); currentKey = ''; return; }
         const fullName = normalizeSidoName(String((sidoFeat.properties as { name?: string }).name ?? ''));
         const sidoShort = shortSidoName(fullName);
-        const key = `sido-multi:${fullName}`;
+        const key = `sido:${fullName}`;
         if (key === currentKey && currentLevelMode === mode) return;
         cleanup();
-
-        // L-naver-2026clean1: sido→sigungus 캐싱.  같은 sido 재진입 시
-        //   point-in-polygon O(N) 재계산 안 함.
-        let insideSigungus = sidoSigCacheRef.current.get(fullName);
-        if (!insideSigungus) {
-          insideSigungus = [];
-          if (sigData?.features) {
-            for (const sig of sigData.features) {
-              const sb = computeFeatureBbox(sig);
-              if (!sb) continue;
-              const cy = (sb.south + sb.north) / 2;
-              const cx = (sb.west + sb.east) / 2;
-              if (pointInFeature(cy, cx, sidoFeat)) insideSigungus.push(sig);
-            }
-          }
-          sidoSigCacheRef.current.set(fullName, insideSigungus);
-        }
-
-        if (insideSigungus.length === 0) {
-          // fallback: sigData 가 없거나 매칭 실패 → 기존 단일 sido 폴리곤
-          drawRegion([sidoFeat], sidoShort, 'sido', {
-            fillOpacityOverride: 0.20,
-            strokeOpacityOverride: 0,
-            strokeWeightOverride: 0,
-          });
-        } else {
-          // 각 sigungu 를 따로 drawRegion 호출 → 각자 자기 bbox onClick closure 갖음
-          for (const sig of insideSigungus) {
-            const sigName = String((sig.properties as { name?: string }).name ?? '').trim();
-            const sigLabel = `${sidoShort} ${sigName}`;
-            drawRegion([sig], sigLabel, 'sigungu', {
-              fillOpacityOverride: 0.10,    // 광역에서는 옅게 — 25개 동시
-              strokeOpacityOverride: 0,
-              strokeWeightOverride: 0,
-            });
-          }
-          // L-naver-sidoclick2: drawRegion 들이 currentTooltipText 를 마지막 sigungu 로
-          //   설정해 두지만, 다중 표시 모드에서는 hover 전까지 라벨 비표시. mouseover
-          //   가 자기 라벨로 갱신할 것.
-          currentTooltipText = '';
-          tooltipEl.style.display = 'none';
-        }
+        drawRegion([sidoFeat], sidoShort, 'sido', {
+          fillOpacityOverride: 0.20,
+          strokeOpacityOverride: 0,
+          strokeWeightOverride: 0,
+        });
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'sigungu') {
