@@ -563,22 +563,28 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
               // L-naver-2026prodclean1: production console.log 제거.  Sentry breadcrumb
               //   (위쪽 addBreadcrumb 콜) 만 남겨서 issue tracking 은 유지.
             } catch { /*noop*/ }
-            // L-naver-2026clickfix8 (2026-04-26): setBounds 로 atomic 처리.
-            //   clickfix7 의 rAF 분리 + setCenter 후행 패턴이 첫 클릭에서 여전히
-            //   실패. Kakao 의 setLevel animation 이 setCenter 를 override.
-            //   해결: setLevel 호출 안 함. 대신 lockedBbox 로 LatLngBounds 만들어
-            //   setBounds 호출 → Kakao 가 center+zoom 을 atomic 으로 설정.
-            //   targetLevel 보다 약간 다를 수 있지만 폴리곤이 viewport 에 정확히
-            //   fit 되니 사용자 경험 더 자연스러움.
-            if (lockedBbox && typeof mapInst.setBounds === 'function') {
+            // L-naver-2026clickfix9 (2026-04-26): mode 별 분기 처리.
+            //   사용자: 동 클릭 → 마커 진입 안 됨. 원인: setBounds 가 dong bbox 에
+            //   맞춰 자동 줌 → level 5-6 정도 → 여전히 dong mode → 마커 안 보임.
+            //   해결: sido/sigungu 는 setBounds (자연스러운 fit), dong 은 setCenter
+            //   + setLevel 명시 줌인 (targetLevel=4 → level 4 이하 → marker zoom).
+            if (mode === 'dong') {
+              // dong → marker: 강제 마커 zoom 진입
+              if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
+                mapInst.setCenter(new maps.LatLng(cy, cx));
+              }
+              if (typeof mapInst.setLevel === 'function') {
+                // targetLevel=4 (마커 zoom 경계).  더 줌인 (level 3) 으로 마커 명확히.
+                mapInst.setLevel(Math.max(1, finalLv - 1), { animate: true });
+              }
+            } else if (lockedBbox && typeof mapInst.setBounds === 'function') {
+              // sido/sigungu: setBounds atomic
               const sw = new maps.LatLng(lockedBbox.south, lockedBbox.west);
               const ne = new maps.LatLng(lockedBbox.north, lockedBbox.east);
               try {
                 const bounds = new maps.LatLngBounds(sw, ne);
-                // padding 30px 모두 → 폴리곤 가장자리 여백 확보
                 mapInst.setBounds(bounds, 30, 30, 30, 30);
               } catch {
-                // setBounds 실패 시 fallback: setCenter + setLevel (순서 반대)
                 if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
                   mapInst.setCenter(new maps.LatLng(cy, cx));
                 }
@@ -587,7 +593,6 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
                 }
               }
             } else {
-              // setBounds 없으면 fallback: setCenter 먼저 (instant) → setLevel
               if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
                 mapInst.setCenter(new maps.LatLng(cy, cx));
               }
