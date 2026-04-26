@@ -23,7 +23,7 @@ import { bucketListings, listingCategory } from '@/features/map-2026/lib/markerT
 // ── 컬러 토큰 ──────────────────────────────────────────────────────
 // 스타벅스 시그너처 그린 (#006241). alpha 0.88 채움 + 동일 hex 테두리.
 const BRAND_GREEN = '#006241';
-const BRAND_GREEN_BG = 'rgba(0,98,65,0.88)';
+const BRAND_GREEN_BG = 'rgba(0,98,65,0.95)';  // L-naver-soft1: 더 진하게 (가독성)
 const SEL_BG = '#185FA5';     // 선택 상태: WISHES 브랜드 블루
 const SEL_BD = '#0C447C';
 const SEL_SHADOW = '0 4px 14px rgba(24,95,165,0.45)';
@@ -144,7 +144,7 @@ function makeCircleElement(opts: {
     `background:${bg}`,
     'color:#fff',
     selected ? `border:2px solid ${bd}` : 'border:none',
-    `box-shadow:${selected ? SEL_SHADOW : '0 3px 10px rgba(0,0,0,0.3)'}`,
+    `box-shadow:${selected ? SEL_SHADOW : '0 4px 14px rgba(0,0,0,0.22), 0 1px 3px rgba(0,0,0,0.12)'}`,
     `font-size:${fontSize}`,
     'font-weight:800',
     'letter-spacing:-0.3px',
@@ -311,9 +311,10 @@ export default function HtmlMarkerOverlay({
           const selected = singleId != null && selectedListingId === singleId;
           // L-naversize1 + L-mobile1 (2026-04-26): 사이즈 + 모바일 반응형
 const _isMobile1 = typeof window !== 'undefined' && window.innerWidth < 768;
+// L-naver-size1 (2026-04-26): count 별 size 차이 확장 (네이버처럼 큰 숫자는 훨씬 큼).
 const size = _isMobile1
-  ? (count >= 1000 ? 56 : count >= 500 ? 48 : count >= 100 ? 40 : count >= 10 ? 32 : count >= 2 ? 28 : 24)
-  : (count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count >= 10 ? 40 : count >= 2 ? 34 : 30);
+  ? (count >= 1000 ? 64 : count >= 500 ? 54 : count >= 100 ? 44 : count >= 50 ? 38 : count >= 20 ? 34 : count >= 10 ? 30 : count >= 2 ? 26 : 22)
+  : (count >= 1000 ? 80 : count >= 500 ? 68 : count >= 100 ? 56 : count >= 50 ? 48 : count >= 20 ? 42 : count >= 10 ? 36 : count >= 2 ? 30 : 26);
           const el = makeCircleElement({ count, selected, size });
           // L-clusterexact1 (2026-04-24 pm): dblclick 시 지도가 가로채 zoom 하는
           //   Kakao 기본 동작 차단.  마커 DOM 에서 mousedown 도 stop 해야 함.
@@ -561,9 +562,10 @@ const size = _isMobile1
         //   주소 정확한 위치 표기 금지 — 카운트만 보여주고 최대확대에서도 건물 단위 묶음.
         // L-naversize1 + L-mobile1 (2026-04-26): 사이즈 + 모바일 반응형
 const _isMobile1 = typeof window !== 'undefined' && window.innerWidth < 768;
+// L-naver-size1 (2026-04-26): count 별 size 차이 확장 (네이버처럼 큰 숫자는 훨씬 큼).
 const size = _isMobile1
-  ? (count >= 1000 ? 56 : count >= 500 ? 48 : count >= 100 ? 40 : count >= 10 ? 32 : count >= 2 ? 28 : 24)
-  : (count >= 1000 ? 72 : count >= 500 ? 60 : count >= 100 ? 50 : count >= 10 ? 40 : count >= 2 ? 34 : 30);
+  ? (count >= 1000 ? 64 : count >= 500 ? 54 : count >= 100 ? 44 : count >= 50 ? 38 : count >= 20 ? 34 : count >= 10 ? 30 : count >= 2 ? 26 : 22)
+  : (count >= 1000 ? 80 : count >= 500 ? 68 : count >= 100 ? 56 : count >= 50 ? 48 : count >= 20 ? 42 : count >= 10 ? 36 : count >= 2 ? 30 : 26);
         const el = makeCircleElement({ count, selected, size });
         const clickHandler = (e: Event) => {
           e.stopPropagation();

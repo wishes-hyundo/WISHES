@@ -555,7 +555,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             //   multi-dong 시 stroke=0 → fill 만 stack 으로 한 덩어리처럼 보임.
             //   hover 동만 약한 stroke 살림 (구분 위해).
             drawRegion(renderFeats, dongLabel, 'dong', {
-              fillOpacityOverride: isHovered ? 0.40 : 0.08,
+              // L-naver-soft1 (2026-04-26): 빨간 fill 옅게 (마커 가독성 우선).
+              fillOpacityOverride: isHovered ? 0.18 : 0.04,
               strokeOpacityOverride: 0,
               strokeWeightOverride: 0,
               clickable: true,
