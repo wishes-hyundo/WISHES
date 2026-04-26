@@ -636,6 +636,7 @@ const size = _isMobile1
             const kakaoAny = (window as unknown as {
               kakao?: { maps?: {
                 LatLng?: new (lat: number, lng: number) => unknown;
+                LatLngBounds?: new (sw?: unknown, ne?: unknown) => unknown;
               } };
             }).kakao;
             const mapApi2 = mapInst as {
@@ -674,16 +675,17 @@ const size = _isMobile1
             const mapApi3 = mapInst as {
               setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
             };
+            const LatLngCtor = kakaoAny?.maps?.LatLng;
+            const BoundsCtor = kakaoAny?.maps?.LatLngBounds;
             if (
-              kakaoAny?.maps?.LatLng &&
-              kakaoAny?.maps?.LatLngBounds &&
+              LatLngCtor &&
+              BoundsCtor &&
               typeof mapApi3.setBounds === 'function'
             ) {
               const half = halfDegForLevel(nextLv);
-              const sw = new kakaoAny.maps.LatLng(targetLat - half, targetLng - half);
-              const ne = new kakaoAny.maps.LatLng(targetLat + half, targetLng + half);
-              const Bounds = (kakaoAny.maps as { LatLngBounds: new (sw: unknown, ne: unknown) => unknown }).LatLngBounds;
-              const bounds = new Bounds(sw, ne);
+              const sw = new LatLngCtor(targetLat - half, targetLng - half);
+              const ne = new LatLngCtor(targetLat + half, targetLng + half);
+              const bounds = new BoundsCtor(sw, ne);
               mapApi3.setBounds(bounds);
             } else {
               // 폴백
