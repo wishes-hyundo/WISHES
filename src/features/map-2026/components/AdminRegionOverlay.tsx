@@ -496,9 +496,16 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
                   data: { lockedLabelText, mode, cy, cx, curLv, finalLv, lockedFeatNames, lockedFeatCodes },
                 });
               }
-              // L-naver-2026clickfix4: production 에서도 보이도록 console.log (한시적 디버그)
+              // L-naver-2026clickdiag2: window.__lastMapClick 에도 기록 → on-screen panel 표시
               try {
                 console.log('[map.click]', lockedLabelText, { cy, cx, curLv, finalLv, mode, names: lockedFeatNames, codes: lockedFeatCodes });
+                (window as unknown as { __lastMapClick?: unknown }).__lastMapClick = {
+                  ts: Date.now(),
+                  label: lockedLabelText,
+                  names: lockedFeatNames,
+                  codes: lockedFeatCodes,
+                  cy, cx, curLv, finalLv, mode,
+                };
               } catch { /*noop*/ }
             } catch { /*noop*/ }
             if (cy != null && cx != null && typeof mapInst.panTo === 'function') {
