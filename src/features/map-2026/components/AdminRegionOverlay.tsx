@@ -20,9 +20,9 @@
 import { useEffect, useRef } from 'react';
 import type { MapListing } from '@/features/map-2026/store';
 import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
-// L-naver-precise2 (2026-04-26): @turf import 가 빌드 에러. 일단 union 제거.
-//   정밀 GeoJSON (48 pts/feat) 자체로도 충분히 깔끔 → fill 만 stack 으로도 매끄러움.
-// import { union as turfUnion, featureCollection as turfFC } from '@turf/turf';
+// L-naver-union2 (2026-04-26): turf 재도입.  simple import + any cast 으로 build 통과.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import { union as turfUnion } from '@turf/turf';
 
 const SIDO_GEOJSON_URL    = '/api/geo/sido';
 const SIGUNGU_GEOJSON_URL = '/api/geo/sigungu';
@@ -78,9 +78,32 @@ async function loadDong(): Promise<GeoCollection | null> {
   return pendingDong;
 }
 
-// L-naver-precise2 (2026-04-26): turf union 임시 비활성. null 반환해 caller 가
-//   feats 전체를 stack 으로 그림 (정밀 데이터로도 충분히 깔끔).
-function unionLegalDong(_sigCode: string, _legalName: string, _feats: GeoFeature[]): GeoFeature | null {
+// L-naver-union2 (2026-04-26): turf union 으로 행정동들을 1개 polygon 으로 merge.
+//   "돼지 부위" 빨간 줄 (행정동 사이 stroke) 제거 — 외곽선만 보임.
+const unionCache: Map<string, GeoFeature | null> = new Map();
+function unionLegalDong(sigCode: string, legalName: string, feats: GeoFeature[]): GeoFeature | null {
+  const k = `${sigCode}:${legalName}`;
+  if (unionCache.has(k)) return unionCache.get(k) ?? null;
+  if (feats.length === 0) { unionCache.set(k, null); return null; }
+  if (feats.length === 1) { unionCache.set(k, feats[0]); return feats[0]; }
+  try {
+    const fc = { type: 'FeatureCollection' as const, features: feats };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const merged = turfUnion(fc as any);
+    if (merged && merged.geometry) {
+      const g = merged.geometry as { type: 'Polygon' | 'MultiPolygon'; coordinates: unknown };
+      const result: GeoFeature = {
+        type: 'Feature',
+        properties: { name: legalName },
+        geometry: g.type === 'Polygon'
+          ? { type: 'Polygon', coordinates: g.coordinates as number[][][] }
+          : { type: 'MultiPolygon', coordinates: g.coordinates as number[][][][] },
+      };
+      unionCache.set(k, result);
+      return result;
+    }
+  } catch (e) { console.error('[union]', legalName, e); }
+  unionCache.set(k, null);
   return null;
 }
 
@@ -473,17 +496,16 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         currentKey = key;
         currentLevelMode = mode;
       } else if (mode === 'sigungu') {
-        // L-naver-multi5 (2026-04-26): 광역 vs 줌인 단계 한 단계 더 zoom-in 으로 미룸.
-        //   네이버 z13 (광역뷰) ≈ 위시스 level 7~8.  level 7~12 = sigungu only.
-        //   level 6 부터 multi-dong (줌인 후 동 표시).
+        // L-naver-multi6 (2026-04-26): 네이버 z13 광역에서도 dong hover 동작.
+        //   매우광역 (level 11+) 만 sigungu only.  나머지 (level 6~10) multi-dong.
         if (!sigData?.features) return;
         const sigFeat = findFeatureAt(sigData.features, lat, lng);
         if (!sigFeat) return;
         const sigName = String((sigFeat.properties as { name?: string }).name ?? '').trim();
         const sigLabel = parentSido ? `${parentSido} ${sigName}` : sigName;
 
-        // 광역뷰 (level 7~12): 시군구 polygon 단독 — 동 그리지 않음
-        if (level >= 7) {
+        // 매우 광역 (level 11~12): 시군구 polygon 단독
+        if (level >= 11) {
           const key = `sig-only:${parentSido}:${sigName}`;
           if (key === currentKey && currentLevelMode === mode) return;
           cleanup();
@@ -551,13 +573,12 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             const dongLabel = `${sigLabel} ${legalName}`;
             const merged = unionLegalDong(sigCode, legalName, feats);
             const renderFeats = merged ? [merged] : feats;
-            // L-naver-stroke1 (2026-04-26): 인접 행정동 사이 굵은 빨간줄 제거.
-            //   multi-dong 시 stroke=0 → fill 만 stack 으로 한 덩어리처럼 보임.
-            //   hover 동만 약한 stroke 살림 (구분 위해).
+            // L-naver-union2: turf 으로 merge 된 polygon → 외곽 stroke 만 보임 (인접 행정동 사이
+            //   "돼지 부위" 굵은 빨간줄 제거).  hover 동만 진한 fill + 외곽 stroke.
             drawRegion(renderFeats, dongLabel, 'dong', {
-              fillOpacityOverride: isHovered ? 0.32 : 0.12,
-              strokeOpacityOverride: isHovered ? 0.5 : 0,
-              strokeWeightOverride: isHovered ? 1.5 : 0,
+              fillOpacityOverride: isHovered ? 0.34 : 0.10,
+              strokeOpacityOverride: merged ? (isHovered ? 0.7 : 0.3) : 0,  // merged 가 1개면 외곽선만
+              strokeWeightOverride: isHovered ? 1.5 : 0.8,
               clickable: true,
               isBackdrop: !isHovered,
             });
