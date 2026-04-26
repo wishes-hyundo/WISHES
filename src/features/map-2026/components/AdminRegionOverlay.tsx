@@ -310,8 +310,6 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       strokeWeightOverride?: number;
       clickable?: boolean;
       isBackdrop?: boolean;  // backdrop = tooltip 갱신 안 함, click 안 함
-      // L-naver-sidoclick1 (2026-04-26): sido 모드에서 클릭 좌표로 sigungu lookup 용
-      sigDataForClick?: { features?: GeoFeature[] } | null;
     };
     const drawRegion = (
       feats: GeoFeature[],
@@ -329,35 +327,19 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   dong(4~6) → 3 (z17, marker close-up) — 1-3 levels deep
       const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
 
-      const onClick = (e?: KakaoMouseEvent) => {
-        // L-naver-sidoclick1 (2026-04-26): sido 모드에서 클릭한 sigungu 로 직행.
-        //   기존 버그: sido 폴리곤이 서울 전체라 어딜 클릭해도 서울 bbox center
-        //   (용산/한남) 으로 panTo. 사용자: 관악 클릭하면 관악으로 가야 함.
-        //   해결: sido + e.latLng + sigData → 클릭 sigungu lookup → 그 bbox center.
+      const onClick = () => {
+        // L-naver-clickfix2 (2026-04-26): 폴리곤 bbox center 사용으로 복귀.
+        //   e.latLng 사용 시 사용자가 클릭한 정확한 위치로 panTo 되어 폴리곤
+        //   center 가 화면 밖으로 빠지는 문제 (관악구 클릭 → 서초 area 가
+        //   화면 중앙에 위치).  Naver 처럼 항상 폴리곤 정중앙으로 이동.
         lastClickAt = Date.now();
         try {
           const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
           const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
-
-          // sido 모드 + 클릭 좌표 + sigData 가 있으면 클릭 sigungu 의 bbox 사용
-          let panBbox = multiFeatureBbox(feats);
-          if (mode === 'sido' && e?.latLng && opts.sigDataForClick?.features) {
-            try {
-              const clickLat = typeof e.latLng.getLat === 'function' ? e.latLng.getLat() : 0;
-              const clickLng = typeof e.latLng.getLng === 'function' ? e.latLng.getLng() : 0;
-              if (clickLat && clickLng) {
-                const clickedSig = findFeatureAt(opts.sigDataForClick.features, clickLat, clickLng);
-                if (clickedSig) {
-                  const sigBbox = multiFeatureBbox([clickedSig]);
-                  if (sigBbox) panBbox = sigBbox;
-                }
-              }
-            } catch { /*noop*/ }
-          }
-
-          if (panBbox && typeof mapInst.panTo === 'function') {
-            const cy = (panBbox.south + panBbox.north) / 2;
-            const cx = (panBbox.west + panBbox.east) / 2;
+          const bbox = multiFeatureBbox(feats);
+          if (bbox && typeof mapInst.panTo === 'function') {
+            const cy = (bbox.south + bbox.north) / 2;
+            const cx = (bbox.west + bbox.east) / 2;
             mapInst.panTo(new maps.LatLng(cy, cx));
           }
           if (typeof mapInst.setLevel === 'function') {
@@ -465,11 +447,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       if (mode === 'none') return;
 
       // 라벨 prefix 계산 (시도/구 이름)
-      // L-naver-sidoclick1 (2026-04-26): sido 모드에서도 sigData 미리 로드.
-      //   사용자: 광역에서 관악구 클릭 → 서울 전체 bbox center (용산) 로 가는 버그.
-      //   클릭 핸들러가 정확한 sigungu 로 zoom 하려면 sigData 가 필요.
       const sidoData = await loadSido();
-      const sigData = await loadSigungu();
+      const sigData = mode !== 'sido' ? await loadSigungu() : null;
       // L-naver-multi2 (2026-04-26): sigungu 모드도 dongData 필요 (multi-dong 렌더).
       //   기존 'dong' 모드에서만 로드 → 새 multi-dong sigungu 에서 legalGroups 비어 클릭 안 됨.
       const dongData = (mode === 'dong' || mode === 'sigungu') ? await loadDong() : null;
@@ -501,8 +480,6 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           fillOpacityOverride: 0.20,    // L-naver-hier5: 더 진하게 (기존 색상)
           strokeOpacityOverride: 0,
           strokeWeightOverride: 0,
-          // L-naver-sidoclick1: 클릭 시 sigungu lookup 가능하도록 sigData 전달
-          sigDataForClick: sigData,
         });
         currentKey = key;
         currentLevelMode = mode;
