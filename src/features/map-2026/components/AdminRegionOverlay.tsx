@@ -765,15 +765,15 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         }
 
       } else if (mode === 'dong') {
-        // L-naver-dual1 (2026-04-26): 네이버 동 모드 = 시군구 backdrop + 동 foreground 2-layer.
-        // L-naver-2026legalunion1 (2026-04-26): 서버에서 turf.union 으로 합친 법정동
-        //   1 feature = 1 법정동.  client 측 group-and-stack 제거 → fillOpacity 중첩
-        //   문제 (사용자 스크린샷: 신림동 안에서 또 분리) 완전 해결.
-        //   네이버 스크린샷처럼 한 덩어리 polygon 으로 깔끔히 표시.
+        // L-naver-2026legalunion1 (2026-04-26): 서버 union 으로 1 feature = 1 법정동.
+        // L-naver-2026nobackdrop1 (2026-04-26): backdrop 제거.
+        //   사용자 피드백: 신림동만 진하게 + 봉천동/남현동 backdrop(0.15) 깔리니
+        //   "왜 신림동이 두 개로 나뉘냐" 시각적 혼란.
+        //   union 으로 신림동 자체가 한 덩어리 → backdrop 역할 사라짐.
+        //   네이버 스크린샷도 hover 한 법정동만 단일 색 → 동일 동작.
         if (!dongData?.features) { cleanup(); currentKey = ''; return; }
         const feat = findFeatureAt(dongData.features, lat, lng);
         if (!feat) { cleanup(); currentKey = ''; return; }
-        const sigParentFeat = sigData?.features ? findFeatureAt(sigData.features, lat, lng) : null;
         // 법정동 endpoint 응답은 properties.name 이 이미 법정동명 (e.g. 신림동).
         const legalName = String((feat.properties as { name?: string }).name ?? '').trim();
         const key = `legaldong:${parentSido}:${parentSig}:${legalName}`;
@@ -781,18 +781,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         cleanup();
         const parts = [parentSido, parentSig, legalName].filter(Boolean);
         const isMarkerZoom = level <= 4;
-        // L-naver-2026dual3: backdrop 시군구 (0.15) → 시각적 연결성.
-        //   non-marker zoom 만 backdrop 표시.
-        if (sigParentFeat && !isMarkerZoom) {
-          drawRegion([sigParentFeat], '', 'dong', {
-            fillOpacityOverride: 0.15,
-            strokeOpacityOverride: 0,
-            strokeWeightOverride: 0,
-            clickable: false,
-            isBackdrop: true,
-          });
-        }
-        // foreground: union 된 법정동 1 feature (진하게)
+        // foreground only: union 된 법정동 1 feature (진하게).  backdrop 제거.
         drawRegion([feat], parts.join(' '), 'dong', {
           fillOpacityOverride: isMarkerZoom ? 0.04 : 0.20,
           strokeOpacityOverride: 0,
