@@ -646,20 +646,40 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
             //     · panTo+setLevel(animate:true) 동시: race → 위치 못 찾음.
             //   해결: setBounds 한 번 호출 → SDK 가 zoom+center 동시 보간 → race 원천 차단.
             //   bounds 크기를 finalLv 의 viewport 와 일치시켜 zoom 결과 정확히 finalLv.
-            // L-naver-2026atomicbounds3 (2026-04-27): setBounds → 카카오가 자동 zoom 결정 →
-            //   의도한 finalLv 보다 1 작게 멈출 수 있음 (예: 신림동 폴리곤 클릭 시 level 5 에서
-            //   멈춰 polygon 다시 그려짐, 마커 모드 미진입).
-            //   해결: setBounds 후 setLevel 강제 동기화 (level 일치할 때까지).
-            //   setBounds 가 거의 즉시 → 그 후 setLevel 도 즉시 → 사용자 인지 한 번의 모션.
-            if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
-              // setCenter (instant) 로 위치 정확히 보장.
-              mapInst.setCenter(new maps.LatLng(cy, cx));
-            }
-            if (typeof mapInst.setLevel === 'function') {
-              // setLevel(animate:true) — 줌 부드럽게.
-              //   setCenter 가 instant 라 setLevel 진행 중 viewport center = target.
-              //   race 없음 (setCenter 는 동기 완료, setLevel 만 비동기 보간).
-              mapInst.setLevel(finalLv, { animate: true });
+            // L-naver-2026atomicbounds4 (2026-04-27): setBounds 단일 호출 + halfDeg fine-tune.
+            //   이전 시도 실패:
+            //     · setBounds(half=0.0065) → level 5 결과, finalLv=4 와 1 차이 → polygon 잔류.
+            //     · setCenter+setLevel(animate:true) → 무거운 polygon redraw 로 페이지 freeze.
+            //   해결: setBounds 만 사용 + halfDeg 더 작게 → 카카오 fit 결과 정확히 finalLv.
+            //   카카오가 viewport 안에 bounds 들어가도록 zoom out → 작은 bounds = 깊은 zoom.
+            //   side effect: setBounds 가 atomic 부드럽게 zoom+center 보간 → 한 번의 모션.
+            const halfDegForLevel = (lv: number): number => {
+              // 카카오 viewport 약 1500px × 800px @ level별
+              // bounds 가 viewport 의 ~70~80% 면 setBounds 결과 = lv
+              if (lv <= 1) return 0.0004;
+              if (lv <= 2) return 0.0008;
+              if (lv <= 3) return 0.0016;
+              if (lv <= 4) return 0.0033;
+              if (lv <= 5) return 0.0066;
+              if (lv <= 6) return 0.013;
+              if (lv <= 7) return 0.026;
+              if (lv <= 8) return 0.052;
+              if (lv <= 9) return 0.10;
+              return 0.20;
+            };
+            if (cy != null && cx != null && typeof mapInst.setBounds === 'function') {
+              const half = halfDegForLevel(finalLv);
+              const sw = new maps.LatLng(cy - half, cx - half);
+              const ne = new maps.LatLng(cy + half, cx + half);
+              const bounds = new maps.LatLngBounds(sw, ne);
+              mapInst.setBounds(bounds);
+            } else if (cy != null && cx != null) {
+              if (typeof mapInst.setCenter === 'function') {
+                mapInst.setCenter(new maps.LatLng(cy, cx));
+              }
+              if (typeof mapInst.setLevel === 'function') {
+                mapInst.setLevel(finalLv, { animate: false });
+              }
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
