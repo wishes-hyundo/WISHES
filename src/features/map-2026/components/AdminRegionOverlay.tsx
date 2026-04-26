@@ -536,8 +536,10 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
               mapInst.setCenter(new maps.LatLng(cy, cx));
             }
             if (typeof mapInst.setLevel === 'function') {
-              // dong 은 마커 명확히 보이게 한 단계 더 줌인
-              const lv = mode === 'dong' ? Math.max(1, finalLv - 1) : finalLv;
+              // L-naver-2026clickfix11: 동 클릭 시 zoom 한 두 단계 덜 (사용자 피드백).
+              //   기존: dong → finalLv-1 (level 3, 마커 zoom 강제 진입)
+              //   변경: dong → finalLv+1 (level 5, dong polygon 명확히 보이고 마커도 일부 보임)
+              const lv = mode === 'dong' ? Math.min(20, finalLv + 1) : finalLv;
               mapInst.setLevel(lv, { animate: true });
             }
           } catch (err) {
@@ -793,8 +795,9 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         const isMarkerZoom = level <= 4;
         // L-naver-2026dual2: backdrop 시군구 (옅게).  isBackdrop=true → 클릭 안 함 + 툴팁 갱신 안 함.
         if (sigParentFeat && !isMarkerZoom) {
+          // L-naver-2026dual3: backdrop 0.06 → 0.15 진하게.  사용자: 시각적 연결성 안 보임.
           drawRegion([sigParentFeat], '', 'dong', {
-            fillOpacityOverride: 0.06,
+            fillOpacityOverride: 0.15,
             strokeOpacityOverride: 0,
             strokeWeightOverride: 0,
             clickable: false,
