@@ -16,6 +16,11 @@ export default function MapPage() {
     // 외곽 ConditionalLayout 의 <main class="h-[100dvh] overflow-hidden"> 가
     // 뷰포트 높이를 책임지므로 여기서는 h-full 만 깔아 부모 높이를 그대로 물려받는다.
     <div className="h-full w-full">
+      {/* L-naver-2026prefetch1 (2026-04-26): GeoJSON 프리페치 — 페이지 mount 시점에
+          sido/sigungu 사전 다운로드. 사용자가 지도 보자마자 폴리곤 즉시 표시.
+          dong 은 너무 커서 prefetch 안 함 (필요 시 동 모드 진입할 때만). */}
+      <link rel="prefetch" href="/api/geo/sido" as="fetch" crossOrigin="anonymous" />
+      <link rel="prefetch" href="/api/geo/sigungu" as="fetch" crossOrigin="anonymous" />
       <MapClientWrapper />
     </div>
   );
