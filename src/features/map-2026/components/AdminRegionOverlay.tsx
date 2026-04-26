@@ -113,8 +113,8 @@ interface KakaoNs { maps?: KakaoMapsNs }
 const FILL = '#dc2626';
 const FILL_OPACITY = 0.15;
 const STROKE = '#dc2626';
-const STROKE_OPACITY = 0.7;
-const STROKE_WEIGHT = 2;
+const STROKE_OPACITY = 0;  // L-naver-noborder1 (2026-04-26): 모든 줌 폴리곤 경계선 제거
+const STROKE_WEIGHT = 0;
 
 function normalizeSidoName(raw: string | undefined | null): string {
   if (!raw) return '';
@@ -537,10 +537,10 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         // 1) sigungu outline (외곽 stroke 만 진하게, fill 거의 없음)
         drawRegion([sigFeat], sigLabel, 'sigungu', {
           fillOpacityOverride: 0.03,
-          strokeOpacityOverride: 0.7,
-          strokeWeightOverride: 2,
-          clickable: false,           // 동이 위에 있으니 sigungu 클릭 막음
-          isBackdrop: !!hoveredLegalName, // hover 한 동 있으면 sigungu 툴팁 안 띄움
+          strokeOpacityOverride: 0,    // L-naver-noborder1: 경계선 제거
+          strokeWeightOverride: 0,
+          clickable: false,
+          isBackdrop: !!hoveredLegalName,
         });
 
         // 2) 각 법정동 그룹 (light fill, 호버된 동만 짙게)
@@ -605,8 +605,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           const sigParentName = parentSido && parentSig ? `${parentSido} ${parentSig}` : parentSig;
           drawRegion([sigParentFeat], sigParentName, 'sigungu', {
             fillOpacityOverride: 0.06,
-            strokeOpacityOverride: 0.45,
-            strokeWeightOverride: 1.5,
+            strokeOpacityOverride: 0,    // L-naver-noborder1: 경계선 제거
+            strokeWeightOverride: 0,
             isBackdrop: true,
           });
         }
