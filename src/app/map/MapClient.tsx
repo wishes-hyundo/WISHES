@@ -56,7 +56,6 @@ import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay'
 import AdminRegionOverlay from '@/features/map-2026/components/AdminRegionOverlay';
 import { MapErrorBoundary } from '@/features/map-2026/components/MapErrorBoundary';
 import MapLoadingIndicator from '@/features/map-2026/components/MapLoadingIndicator';
-import MapClickDebug from '@/features/map-2026/components/MapClickDebug';
 // L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 훅
 import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
 
@@ -584,7 +583,6 @@ function MapOverlaysWithClusters(props: {
         />
       </MapErrorBoundary>
       <GeoLoadingIndicator />
-      <MapClickDebug />
     </>
   );
 }

@@ -490,17 +490,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
                   data: { lockedLabelText, mode, cy, cx, curLv, finalLv, lockedFeatNames, lockedFeatCodes },
                 });
               }
-              // L-naver-2026clickdiag2: window.__lastMapClick 에도 기록 → on-screen panel 표시
-              try {
-                console.log('[map.click]', lockedLabelText, { cy, cx, curLv, finalLv, mode, names: lockedFeatNames, codes: lockedFeatCodes });
-                (window as unknown as { __lastMapClick?: unknown }).__lastMapClick = {
-                  ts: Date.now(),
-                  label: lockedLabelText,
-                  names: lockedFeatNames,
-                  codes: lockedFeatCodes,
-                  cy, cx, curLv, finalLv, mode,
-                };
-              } catch { /*noop*/ }
+              // L-naver-2026prodclean1: production console.log 제거.  Sentry breadcrumb
+              //   (위쪽 addBreadcrumb 콜) 만 남겨서 issue tracking 은 유지.
             } catch { /*noop*/ }
             // L-naver-2026clickfix8 (2026-04-26): setBounds 로 atomic 처리.
             //   clickfix7 의 rAF 분리 + setCenter 후행 패턴이 첫 클릭에서 여전히
