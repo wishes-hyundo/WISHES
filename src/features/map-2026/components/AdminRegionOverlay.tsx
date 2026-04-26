@@ -639,15 +639,12 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
               // L-naver-2026prodclean1: production console.log 제거.  Sentry breadcrumb
               //   (위쪽 addBreadcrumb 콜) 만 남겨서 issue tracking 은 유지.
             } catch { /*noop*/ }
-            // L-naver-2026polygonprecise1 (2026-04-27): polygon click 정밀도 + race fix.
-            //   기존 (clickfix10): setCenter + setLevel({animate:true}) 동시 호출.
-            //   문제 ①: animate 진행 중 setCenter 가 jumping → 카메라 이동 정밀도 ↓.
-            //   문제 ②: 두 비동기 액션 race → 최종 viewport 가 의도와 미세 어긋남.
-            //   해결: setLevel(no animate) atomic 으로 먼저, 그 다음 panTo (자체 animate).
-            //   네이버 부동산 동작 동일 — zoom step 후 부드러운 pan.
-            if (typeof mapInst.setLevel === 'function') {
-              mapInst.setLevel(finalLv, { animate: false });
-            }
+            // L-naver-2026smoothzoom1 (2026-04-27): 줌+이동 동시 부드럽게.
+            //   기존 (polygonprecise1): setLevel(no animate) → panTo. 줌이 즉시 변하고
+            //   그 후 위치만 부드럽게 → 사용자가 "사이드로 빠지는듯" 어색하게 인지.
+            //   해결: panTo + setLevel(animate:true) 동시 호출.  Kakao SDK 가 두
+            //   애니메이션을 동시 보간 → 한 번의 부드러운 zoom+pan 모션.
+            //   네이버 부동산/구글맵의 flyTo 와 동일한 cinematic 동작.
             if (cy != null && cx != null) {
               const target = new maps.LatLng(cy, cx);
               if (typeof mapInst.panTo === 'function') {
@@ -655,6 +652,9 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
               } else if (typeof mapInst.setCenter === 'function') {
                 mapInst.setCenter(target);
               }
+            }
+            if (typeof mapInst.setLevel === 'function') {
+              mapInst.setLevel(finalLv, { animate: true });
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;

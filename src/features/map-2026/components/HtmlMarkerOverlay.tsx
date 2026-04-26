@@ -661,11 +661,9 @@ const size = _isMobile1
             const tightCluster = latSpread < 0.0008 && lngSpread < 0.0008;  // ~88m
             const dec = (count >= 20 || tightCluster) ? 2 : 1;
             const nextLv = Math.max(1, curLv - dec);
-            // ① setLevel atomic (no animate) — race 제거.
-            if (typeof mapApi2.setLevel === 'function') {
-              mapApi2.setLevel(nextLv, { animate: false });
-            }
-            // ② setCenter (panTo 가 있으면 부드럽게).
+            // L-naver-2026smoothzoom1 (2026-04-27): 줌+이동 동시 부드럽게.
+            //   기존: setLevel(no animate) → panTo 분리 → 사이드로 빠지는듯한 어색한 모션.
+            //   해결: panTo + setLevel(animate:true) 동시 호출 → SDK 가 보간 한 번에.
             if (kakaoAny?.maps?.LatLng) {
               const target = new kakaoAny.maps.LatLng(targetLat, targetLng);
               if (typeof mapApi2.panTo === 'function') {
@@ -673,6 +671,9 @@ const size = _isMobile1
               } else if (typeof mapApi2.setCenter === 'function') {
                 mapApi2.setCenter(target);
               }
+            }
+            if (typeof mapApi2.setLevel === 'function') {
+              mapApi2.setLevel(nextLv, { animate: true });
             }
           } catch { /* noop */ }
           return;
