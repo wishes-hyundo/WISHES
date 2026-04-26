@@ -54,6 +54,7 @@ import KakaoDeckOverlay, { type MapItem } from '@/components/map/KakaoDeckOverla
 import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay';
 // L-adminpoly1 (2026-04-24 pm): 축소 뷰 시/도 폴리곤 하이라이트
 import AdminRegionOverlay from '@/features/map-2026/components/AdminRegionOverlay';
+import { MapErrorBoundary } from '@/features/map-2026/components/MapErrorBoundary';
 // L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 훅
 import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
 
@@ -565,11 +566,13 @@ function MapOverlaysWithClusters(props: {
         clusterFilterIds={props.clusterFilterIds}
         clusterFilterListings={props.clusterFilterListings}
       />
-      <AdminRegionOverlay
-        map={props.kakaoMap}
-        listings={props.listings}
-        serverClusters={clusters}
-      />
+      <MapErrorBoundary>
+        <AdminRegionOverlay
+          map={props.kakaoMap}
+          listings={props.listings}
+          serverClusters={clusters}
+        />
+      </MapErrorBoundary>
     </>
   );
 }
