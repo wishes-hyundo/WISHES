@@ -325,26 +325,20 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   dong(4~6) → 3 (z17, marker close-up) — 1-3 levels deep
       const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
 
-      const onClick = (e?: KakaoMouseEvent) => {
-        // L-naver-clickfix1 (2026-04-26): 클릭 좌표 기반 직접 lookup.
-        //   기존 closure 의 feats 사용 시 mousemove redraw race condition 으로
-        //   잘못된 region 으로 zoom (사용자: 관악구 클릭 → 일산 이동).
-        //   해결: 클릭 좌표 e.latLng 로 즉시 LATLNG 기반 panTo + setLevel.
+      const onClick = () => {
+        // L-naver-clickfix2 (2026-04-26): 폴리곤 bbox center 사용으로 복귀.
+        //   e.latLng 사용 시 사용자가 클릭한 정확한 위치로 panTo 되어 폴리곤
+        //   center 가 화면 밖으로 빠지는 문제 (관악구 클릭 → 서초 area 가
+        //   화면 중앙에 위치).  Naver 처럼 항상 폴리곤 정중앙으로 이동.
         lastClickAt = Date.now();
         try {
           const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
           const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
-          // 클릭 좌표 그대로 panTo (closure 의 feats centroid 사용 안 함)
-          if (e?.latLng && typeof mapInst.panTo === 'function') {
-            mapInst.panTo(e.latLng as unknown as object);
-          } else {
-            // fallback: feats centroid
-            const bbox = multiFeatureBbox(feats);
-            if (bbox && typeof mapInst.panTo === 'function') {
-              const cy = (bbox.south + bbox.north) / 2;
-              const cx = (bbox.west + bbox.east) / 2;
-              mapInst.panTo(new maps.LatLng(cy, cx));
-            }
+          const bbox = multiFeatureBbox(feats);
+          if (bbox && typeof mapInst.panTo === 'function') {
+            const cy = (bbox.south + bbox.north) / 2;
+            const cx = (bbox.west + bbox.east) / 2;
+            mapInst.panTo(new maps.LatLng(cy, cx));
           }
           if (typeof mapInst.setLevel === 'function') {
             mapInst.setLevel(finalLv, { animate: true });
@@ -462,9 +456,9 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       }
 
       if (mode === 'sido') {
-        if (!sidoData?.features) return;
+        if (!sidoData?.features) { cleanup(); currentKey = ''; return; }
         const feat = findFeatureAt(sidoData.features, lat, lng);
-        if (!feat) return;
+        if (!feat) { cleanup(); currentKey = ''; return; }
         const fullName = normalizeSidoName(String((feat.properties as { name?: string }).name ?? ''));
         const key = `sido:${fullName}`;
         if (key === currentKey && currentLevelMode === mode) return;
@@ -480,9 +474,13 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         // L-naver-multi5 (2026-04-26): 광역 vs 줌인 단계 한 단계 더 zoom-in 으로 미룸.
         //   네이버 z13 (광역뷰) ≈ 위시스 level 7~8.  level 7~12 = sigungu only.
         //   level 6 부터 multi-dong (줌인 후 동 표시).
-        if (!sigData?.features) return;
+        // L-naver-staleclear1 (2026-04-26): early return 시 이전 polygon 잔류 fix.
+        //   기존 버그: 충청도/강원도 처럼 sigData 에 없는 지역으로 panTo 시
+        //   findFeatureAt 가 null → 그냥 return 해서 이전 (예: 경기도 광주시)
+        //   polygon 이 화면에 그대로 남음. fix: 항상 cleanup 후 return.
+        if (!sigData?.features) { cleanup(); currentKey = ''; return; }
         const sigFeat = findFeatureAt(sigData.features, lat, lng);
-        if (!sigFeat) return;
+        if (!sigFeat) { cleanup(); currentKey = ''; return; }
         const sigName = String((sigFeat.properties as { name?: string }).name ?? '').trim();
         const sigLabel = parentSido ? `${parentSido} ${sigName}` : sigName;
 
@@ -505,9 +503,9 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         // L-naver-dual1 (2026-04-26): 네이버 동 모드 = 시군구 backdrop + 동 foreground 2-layer.
         //   사용자 스크린샷: 네이버는 관악구 폴리곤이 light-pink 으로 항상 표시 + 마우스 가르킨 동만 darker.
         //   기존 ONE 폴리곤 방식 → DUAL layer 로 전환.
-        if (!dongData?.features) return;
+        if (!dongData?.features) { cleanup(); currentKey = ''; return; }
         const feat = findFeatureAt(dongData.features, lat, lng);
-        if (!feat) return;
+        if (!feat) { cleanup(); currentKey = ''; return; }
         // 부모 시군구 feature (mouse 위치 기준 — sigData 에서 찾기)
         const sigParentFeat = sigData?.features ? findFeatureAt(sigData.features, lat, lng) : null;
         const rawName = String((feat.properties as { name?: string }).name ?? '').trim();
