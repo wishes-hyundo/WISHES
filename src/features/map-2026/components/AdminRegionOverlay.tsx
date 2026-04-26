@@ -470,15 +470,35 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
             const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
             const bbox = multiFeatureBbox(feats);
-            if (bbox && typeof mapInst.panTo === 'function') {
-              const cy = (bbox.south + bbox.north) / 2;
-              const cx = (bbox.west + bbox.east) / 2;
+            const cy = bbox ? (bbox.south + bbox.north) / 2 : null;
+            const cx = bbox ? (bbox.west + bbox.east) / 2 : null;
+            // L-naver-2026clickdiag1: click handler 진단 — Sentry breadcrumb + dev console.
+            //   사용자 reproduction (관악구 클릭 → 서초/일산) 디버깅 위해 어떤 polygon
+            //   의 onClick 이 어떤 좌표로 panTo 했는지 추적.
+            try {
+              const Sentry = (window as unknown as { Sentry?: { addBreadcrumb?: (b: unknown) => void } }).Sentry;
+              if (Sentry?.addBreadcrumb) {
+                Sentry.addBreadcrumb({
+                  category: 'map.click',
+                  message: `${labelText} → (${cy?.toFixed(4)},${cx?.toFixed(4)}) lv ${curLv}→${finalLv}`,
+                  level: 'info',
+                  data: { labelText, mode, cy, cx, curLv, finalLv, featCount: feats.length },
+                });
+              }
+              if (process.env.NODE_ENV === 'development') {
+                console.debug('[map.click]', labelText, { cy, cx, curLv, finalLv, mode, feats: feats.length });
+              }
+            } catch { /*noop*/ }
+            if (cy != null && cx != null && typeof mapInst.panTo === 'function') {
               mapInst.panTo(new maps.LatLng(cy, cx));
             }
             if (typeof mapInst.setLevel === 'function') {
               mapInst.setLevel(finalLv, { animate: true });
             }
-          } catch (err) { console.error('[click] error:', err); }
+          } catch (err) {
+            const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
+            if (Sentry?.captureException) Sentry.captureException(err);
+          }
         };
         const docVt = document as unknown as { startViewTransition?: (cb: () => void) => { ready: Promise<void> } };
         if (typeof docVt.startViewTransition === 'function') {
