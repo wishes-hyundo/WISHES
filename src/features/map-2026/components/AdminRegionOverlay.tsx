@@ -563,42 +563,19 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
               // L-naver-2026prodclean1: production console.log 제거.  Sentry breadcrumb
               //   (위쪽 addBreadcrumb 콜) 만 남겨서 issue tracking 은 유지.
             } catch { /*noop*/ }
-            // L-naver-2026clickfix9 (2026-04-26): mode 별 분기 처리.
-            //   사용자: 동 클릭 → 마커 진입 안 됨. 원인: setBounds 가 dong bbox 에
-            //   맞춰 자동 줌 → level 5-6 정도 → 여전히 dong mode → 마커 안 보임.
-            //   해결: sido/sigungu 는 setBounds (자연스러운 fit), dong 은 setCenter
-            //   + setLevel 명시 줌인 (targetLevel=4 → level 4 이하 → marker zoom).
-            if (mode === 'dong') {
-              // dong → marker: 강제 마커 zoom 진입
-              if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
-                mapInst.setCenter(new maps.LatLng(cy, cx));
-              }
-              if (typeof mapInst.setLevel === 'function') {
-                // targetLevel=4 (마커 zoom 경계).  더 줌인 (level 3) 으로 마커 명확히.
-                mapInst.setLevel(Math.max(1, finalLv - 1), { animate: true });
-              }
-            } else if (lockedBbox && typeof mapInst.setBounds === 'function') {
-              // sido/sigungu: setBounds atomic
-              const sw = new maps.LatLng(lockedBbox.south, lockedBbox.west);
-              const ne = new maps.LatLng(lockedBbox.north, lockedBbox.east);
-              try {
-                const bounds = new maps.LatLngBounds(sw, ne);
-                mapInst.setBounds(bounds, 30, 30, 30, 30);
-              } catch {
-                if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
-                  mapInst.setCenter(new maps.LatLng(cy, cx));
-                }
-                if (typeof mapInst.setLevel === 'function') {
-                  mapInst.setLevel(finalLv, { animate: true });
-                }
-              }
-            } else {
-              if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
-                mapInst.setCenter(new maps.LatLng(cy, cx));
-              }
-              if (typeof mapInst.setLevel === 'function') {
-                mapInst.setLevel(finalLv, { animate: true });
-              }
+            // L-naver-2026clickfix10 (2026-04-26): 모든 mode 에서 setCenter + setLevel.
+            //   사용자: 비-서울 sido (경기/강원/충청) 클릭 시 깜빡만 거리고 안 움직임.
+            //   원인: setBounds 가 큰 sido bbox 에 fit 하려고 zoom 9 이하로 줄여서
+            //   여전히 sido mode → 시각 변화 없음.
+            //   해결: 모든 mode 에서 setCenter (즉시 center) + setLevel (명시 zoom).
+            //   targetLevel: sido→10 (sigungu mode), sigungu→7 (dong mode), dong→3 (marker).
+            if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
+              mapInst.setCenter(new maps.LatLng(cy, cx));
+            }
+            if (typeof mapInst.setLevel === 'function') {
+              // dong 은 마커 명확히 보이게 한 단계 더 줌인
+              const lv = mode === 'dong' ? Math.max(1, finalLv - 1) : finalLv;
+              mapInst.setLevel(lv, { animate: true });
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
