@@ -333,6 +333,10 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
     // L-naver-tooltip1 (2026-04-26): 마우스 커서 따라가는 툴팁 (네이버 hover 스타일).
     //   centroid label 이 폴리곤 클릭 영역 가리는 문제 해결 + 시각적으로 깔끔.
     const tooltipEl = document.createElement('div');
+    // L-naver-2026a11y1: ARIA live region — screen reader 에 region 이름 announce
+    tooltipEl.setAttribute('role', 'status');
+    tooltipEl.setAttribute('aria-live', 'polite');
+    tooltipEl.setAttribute('aria-atomic', 'true');
     tooltipEl.style.cssText = [
       'position:fixed',
       'pointer-events:none',
