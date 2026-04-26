@@ -326,14 +326,15 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
 
       const onClick = () => {
-        // L-naver-smooth3 (2026-04-26): 모든 지역 동일 transition 보장.
-        //   현재 zoom 과 target 같거나 가까우면 강제로 1단계 차이 (반응 없음 방지).
+        // L-naver-smooth4 (2026-04-26): panTo + setLevel({animate: true}) 정상 옵션.
+        //   (이전 {animate:{duration:400}} 은 Kakao API 비표준 → 동작 unstable.)
         lastClickAt = Date.now();
         try {
           const bbox = multiFeatureBbox(feats);
           const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
-          // target zoom 보장 — 현재와 같으면 한 단계 더 zoom-in
           const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
+          // 진단 log — 클릭된 region 의 정확한 label + bbox 출력
+          console.log('[click]', { label: labelText, mode, curLv, finalLv, bbox });
           if (bbox) {
             const cy = (bbox.south + bbox.north) / 2;
             const cx = (bbox.west + bbox.east) / 2;
@@ -342,9 +343,9 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             }
           }
           if (typeof mapInst.setLevel === 'function') {
-            mapInst.setLevel(finalLv, { animate: { duration: 400 } });
+            mapInst.setLevel(finalLv, { animate: true });
           }
-        } catch (e) { console.error('[Polygon Click] error:', e); }
+        } catch (e) { console.error('[click] error:', e); }
         onClickRegion?.(labelText);
       };
 
