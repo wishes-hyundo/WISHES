@@ -257,7 +257,9 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         if (node) node.style.cursor = '';
       } catch { /*noop*/ }
       // L-naver-tooltip2 (2026-04-26): 폴리곤 사라지면 툴팁도 사라짐.
+      // L-naver-tooltipfix1 (2026-04-26): cleanup 시 tooltip element 도 즉시 숨김.
       currentTooltipText = '';
+      tooltipEl.style.display = 'none';
     };
 
     let currentKey = '';        // 현재 표시 중인 폴리곤 key (e.g., "서울특별시", "관악구", "서초동")
@@ -403,7 +405,18 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   툴팁으로 변경.  centroid label 이 폴리곤 클릭 영역을 가려 클릭 무반응 문제 해결.
       //   사용자 요청 — 네이버처럼 hover 시 커서 옆에 심플하게 표시.
       // L-naver-dual1 (2026-04-26): backdrop 은 tooltip 갱신 안 함 (foreground 만 표시).
-      if (!opts.isBackdrop) currentTooltipText = labelText;
+      // L-naver-tooltipfix1 (2026-04-26): currentTooltipText 변경 후 즉시 tooltip
+      //   element textContent 도 강제 갱신.  기존 버그: 클릭+setLevel 직후 커서가
+      //   정지하면 mousemove 안 터져서 tooltipEl 가 이전 라벨 ("관악구") 그대로
+      //   고정되어 폴리곤은 새 sigungu (서초/하남) 인데 라벨만 관악구로 stuck.
+      if (!opts.isBackdrop) {
+        currentTooltipText = labelText;
+        tooltipEl.textContent = labelText;
+        // display 이미 inline-block 이면 그대로, 아니면 켜기
+        if (tooltipEl.style.display === 'none') {
+          tooltipEl.style.display = 'inline-block';
+        }
+      }
     };
 
     /** 마우스 위치(또는 viewport 중심) 좌표를 받아 폴리곤 갱신 */
