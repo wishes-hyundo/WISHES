@@ -662,18 +662,25 @@ const size = _isMobile1
             const tightCluster = latSpread < 0.0008 && lngSpread < 0.0008;  // ~88m
             const dec = (count >= 20 || tightCluster) ? 2 : 1;
             const nextLv = Math.max(1, curLv - dec);
-            // L-naver-2026revert9ca (2026-04-27): atomicbounds 시리즈 freeze → 9ca4f57 패턴 복귀.
-            //   setLevel(no animate) atomic + panTo (animate) — 가장 안정적.
-            if (typeof mapApi2.setLevel === 'function') {
-              mapApi2.setLevel(nextLv, { animate: false });
-            }
+            // L-naver-2026sequential1 (2026-04-27): 시퀀셜 부드러운 모션 (panTo → idle → setLevel animate).
+            const kakaoEv = kakaoAny?.maps as unknown as { event?: { addListener: (t: unknown, type: string, cb: () => void) => void; removeListener?: (t: unknown, type: string, cb: () => void) => void } };
             if (kakaoAny?.maps?.LatLng) {
               const target = new kakaoAny.maps.LatLng(targetLat, targetLng);
+              const onArrive = () => {
+                try { kakaoEv?.event?.removeListener?.(mapInst as unknown, 'idle', onArrive); } catch { /*noop*/ }
+                if (typeof mapApi2.setLevel === 'function') {
+                  try { mapApi2.setLevel(nextLv, { animate: true }); } catch { /*noop*/ }
+                }
+              };
+              try { kakaoEv?.event?.addListener(mapInst as unknown, 'idle', onArrive); } catch { /*noop*/ }
               if (typeof mapApi2.panTo === 'function') {
                 mapApi2.panTo(target);
               } else if (typeof mapApi2.setCenter === 'function') {
                 mapApi2.setCenter(target);
+                onArrive();
               }
+            } else if (typeof mapApi2.setLevel === 'function') {
+              mapApi2.setLevel(nextLv, { animate: true });
             }
           } catch { /* noop */ }
           return;

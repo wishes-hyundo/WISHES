@@ -16,20 +16,49 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useState } from 'react';
-import { Plus, Minus, LocateFixed } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Plus, Minus, LocateFixed, Map as MapIcon, Satellite } from 'lucide-react';
 import { useMap2026Store } from '../store';
 
 type KakaoMap = {
   getLevel?: () => number;
   setLevel?: (n: number) => void;
   panTo?: (latlng: unknown) => void;
+  setMapTypeId?: (typeId: unknown) => void;
 };
 
 export function MapControls() {
   const map = useMap2026Store((s) => s.map) as KakaoMap | null;
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
+  // L-naver-2026maptype1 (2026-04-27): 위성/지도 토글 (사용자 요청).
+  //   Kakao SDK MapTypeId: ROADMAP (지도) / SKYVIEW (위성) / HYBRID (위성 + 라벨).
+  //   기본 = ROADMAP. 토글 시 HYBRID (위성 + 도로/지명 라벨) — 더 실용적.
+  const [mapType, setMapType] = useState<'roadmap' | 'hybrid'>('roadmap');
+  const toggleMapType = () => {
+    if (!map?.setMapTypeId) return;
+    const kakao = (window as unknown as {
+      kakao?: { maps?: { MapTypeId?: { ROADMAP?: unknown; HYBRID?: unknown } } };
+    }).kakao;
+    const Ids = kakao?.maps?.MapTypeId;
+    if (!Ids) return;
+    const next = mapType === 'roadmap' ? 'hybrid' : 'roadmap';
+    try {
+      map.setMapTypeId(next === 'hybrid' ? Ids.HYBRID : Ids.ROADMAP);
+      setMapType(next);
+    } catch (e) {
+      console.warn('[map-type] failed', e);
+    }
+  };
+  // 페이지 떠날 때 ROADMAP 으로 복귀 (memory leak 방지 + UX 일관성)
+  useEffect(() => {
+    return () => {
+      if (!map?.setMapTypeId) return;
+      const kakao = (window as unknown as { kakao?: { maps?: { MapTypeId?: { ROADMAP?: unknown } } } }).kakao;
+      const id = kakao?.maps?.MapTypeId?.ROADMAP;
+      if (id) try { map.setMapTypeId(id); } catch { /*noop*/ }
+    };
+  }, [map]);
 
   const showError = (msg: string) => {
     setLocateError(msg);
@@ -123,6 +152,18 @@ export function MapControls() {
 
   return (
     <div className="pointer-events-none absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
+      {/* L-naver-2026maptype1: 위성/지도 토글 */}
+      <button
+        onClick={toggleMapType}
+        aria-label={mapType === 'roadmap' ? '위성 지도로 전환' : '일반 지도로 전환'}
+        title={mapType === 'roadmap' ? '위성뷰' : '일반 지도'}
+        className="pointer-events-auto flex size-10 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md transition hover:bg-neutral-50"
+      >
+        {mapType === 'roadmap'
+          ? <Satellite className="size-4" />
+          : <MapIcon className="size-4 text-emerald-600" />}
+      </button>
+
       {/* 내 위치 */}
       <button
         onClick={goToMyLocation}

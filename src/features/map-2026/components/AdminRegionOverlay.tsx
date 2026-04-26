@@ -646,20 +646,29 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
             //     · panTo+setLevel(animate:true) 동시: race → 위치 못 찾음.
             //   해결: setBounds 한 번 호출 → SDK 가 zoom+center 동시 보간 → race 원천 차단.
             //   bounds 크기를 finalLv 의 viewport 와 일치시켜 zoom 결과 정확히 finalLv.
-            // L-naver-2026revert9ca (2026-04-27): atomicbounds 시리즈 모두 freeze 유발 →
-            //   마지막으로 정상 작동한 9ca4f57 의 setLevel(no animate) + panTo 패턴으로 revert.
-            //   trade-off: 줌 즉시 변경 + 위치 부드럽게 = 사용자 인지 "사이드 빠짐" 살짝.
-            //   그러나 freeze 보다 100배 나음. cleanup 에서 polygon hide 즉시 → 잔상 없음.
-            if (typeof mapInst.setLevel === 'function') {
-              mapInst.setLevel(finalLv, { animate: false });
-            }
+            // L-naver-2026sequential1 (2026-04-27): 시퀀셜 부드러운 모션 (사용자 옵션 A).
+            //   panTo (부드러운 이동) → idle 이벤트 → setLevel(animate:true) (부드러운 줌).
+            //   사용자 인지: 클릭 → 위치 이동 부드럽게 → 도착 후 부드러운 줌인.
+            //   "사이드 빠짐" 사라짐. trade-off: 약 0.7s 시퀀셜 (panTo 0.3s + setLevel 0.4s).
+            //   카카오 SDK 가 zoom+pan 동시 부드러운 보간을 안정적으로 못 함 (시도 5번 실패).
             if (cy != null && cx != null) {
               const target = new maps.LatLng(cy, cx);
+              const onArrive = () => {
+                try { maps.event.removeListener?.(mapInst as unknown, 'idle', onArrive); } catch { /*noop*/ }
+                if (typeof mapInst.setLevel === 'function') {
+                  try { mapInst.setLevel(finalLv, { animate: true }); } catch { /*noop*/ }
+                }
+              };
+              try { maps.event.addListener(mapInst as unknown, 'idle', onArrive); } catch { /*noop*/ }
               if (typeof mapInst.panTo === 'function') {
                 mapInst.panTo(target);
               } else if (typeof mapInst.setCenter === 'function') {
                 mapInst.setCenter(target);
+                // setCenter 가 idle 안 발화할 수 있어 직접 호출
+                onArrive();
               }
+            } else if (typeof mapInst.setLevel === 'function') {
+              mapInst.setLevel(finalLv, { animate: true });
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
