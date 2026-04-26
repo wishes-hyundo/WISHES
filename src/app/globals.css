@@ -3,34 +3,9 @@
    뒤에야 @import 대상을 재요청)이라 Lighthouse render-blocking 170ms 주범.
    <link> 로 이동 → 병렬 로드 → critical path 단축. */
 
-/* Gmarket Sans - woff (공식 CDN)
-   L-cls2 (2026-04-21): font-display: swap → optional.
-   swap 은 fallback → GmarketSans swap 시 메트릭 차이로 CLS 0.234 유발 (Lighthouse
-   cls-culprits-insight 가 Medium/Bold .woff 직접 지목). optional 은 100ms block 후
-   도착 못 하면 fallback 고정·swap 안 함 → CLS 0 보장. 느린 네트워크에선 Pretendard
-   로 렌더되지만 Pretendard 도 브랜드 수준 한글 폰트라 UX 훼손 최소화.
-   woff2 CDN 이 존재하면 교체 필요 — 현재 noonfonts_2001 은 woff 만 제공. */
-@font-face {
-  font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansLight.woff') format('woff');
-  font-weight: 300;
-  font-style: normal;
-  font-display: optional;
-}
-@font-face {
-  font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansMedium.woff') format('woff');
-  font-weight: 500;
-  font-style: normal;
-  font-display: optional;
-}
-@font-face {
-  font-family: 'GmarketSans';
-  src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts_2001@1.1/GmarketSansBold.woff') format('woff');
-  font-weight: 700;
-  font-style: normal;
-  font-display: optional;
-}
+/* L-font-stable2 (2026-04-26): GmarketSans @font-face 제거.
+   font-display: optional 의 비결정적 swap 동작 (어떨 땐 로드 / 어떨 땐 fallback)
+   으로 사용자가 글씨 굵기 차이 인식 → Pretendard 단일화로 일관성 확보. */
 
 @tailwind base;
 @tailwind components;
@@ -63,11 +38,11 @@ html {
 }
 
 *, *::before, *::after {
-  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 }
 
 body {
-  font-family: 'GmarketSans', 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--color-text);
@@ -188,7 +163,7 @@ body {
   color: #1b5e20;
   white-space: nowrap;
   box-shadow: 0 4px 12px rgba(46,125,50,0.15);
-  font-family: 'GmarketSans', 'Pretendard', sans-serif;
+  font-family: 'Pretendard Variable', 'Pretendard', sans-serif;
 }
 .map-marker-label.deal-전세 { border-color: #1565c0; color: #1565c0; }
 .map-marker-label.deal-월세 { border-color: #2e7d32; color: #2e7d32; }
