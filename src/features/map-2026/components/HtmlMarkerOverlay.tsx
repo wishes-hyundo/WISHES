@@ -661,19 +661,38 @@ const size = _isMobile1
             const tightCluster = latSpread < 0.0008 && lngSpread < 0.0008;  // ~88m
             const dec = (count >= 20 || tightCluster) ? 2 : 1;
             const nextLv = Math.max(1, curLv - dec);
-            // L-naver-2026smoothzoom1 (2026-04-27): 줌+이동 동시 부드럽게.
-            //   기존: setLevel(no animate) → panTo 분리 → 사이드로 빠지는듯한 어색한 모션.
-            //   해결: panTo + setLevel(animate:true) 동시 호출 → SDK 가 보간 한 번에.
-            if (kakaoAny?.maps?.LatLng) {
-              const target = new kakaoAny.maps.LatLng(targetLat, targetLng);
-              if (typeof mapApi2.panTo === 'function') {
-                mapApi2.panTo(target);
-              } else if (typeof mapApi2.setCenter === 'function') {
-                mapApi2.setCenter(target);
+            // L-naver-2026atomicbounds1 (2026-04-27): setBounds 단일 호출 atomic.
+            //   panTo+setLevel 동시 호출의 race 제거. SDK 가 zoom+center 한 번에 보간.
+            const halfDegForLevel = (lv: number): number => {
+              if (lv <= 1) return 0.0008;
+              if (lv <= 2) return 0.0016;
+              if (lv <= 3) return 0.0032;
+              if (lv <= 4) return 0.0065;
+              if (lv <= 5) return 0.013;
+              return 0.026;
+            };
+            const mapApi3 = mapInst as {
+              setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
+            };
+            if (
+              kakaoAny?.maps?.LatLng &&
+              kakaoAny?.maps?.LatLngBounds &&
+              typeof mapApi3.setBounds === 'function'
+            ) {
+              const half = halfDegForLevel(nextLv);
+              const sw = new kakaoAny.maps.LatLng(targetLat - half, targetLng - half);
+              const ne = new kakaoAny.maps.LatLng(targetLat + half, targetLng + half);
+              const Bounds = (kakaoAny.maps as { LatLngBounds: new (sw: unknown, ne: unknown) => unknown }).LatLngBounds;
+              const bounds = new Bounds(sw, ne);
+              mapApi3.setBounds(bounds);
+            } else {
+              // 폴백
+              if (kakaoAny?.maps?.LatLng && typeof mapApi2.setCenter === 'function') {
+                mapApi2.setCenter(new kakaoAny.maps.LatLng(targetLat, targetLng));
               }
-            }
-            if (typeof mapApi2.setLevel === 'function') {
-              mapApi2.setLevel(nextLv, { animate: true });
+              if (typeof mapApi2.setLevel === 'function') {
+                mapApi2.setLevel(nextLv, { animate: true });
+              }
             }
           } catch { /* noop */ }
           return;

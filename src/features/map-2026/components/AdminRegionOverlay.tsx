@@ -639,22 +639,39 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
               // L-naver-2026prodclean1: production console.log 제거.  Sentry breadcrumb
               //   (위쪽 addBreadcrumb 콜) 만 남겨서 issue tracking 은 유지.
             } catch { /*noop*/ }
-            // L-naver-2026smoothzoom1 (2026-04-27): 줌+이동 동시 부드럽게.
-            //   기존 (polygonprecise1): setLevel(no animate) → panTo. 줌이 즉시 변하고
-            //   그 후 위치만 부드럽게 → 사용자가 "사이드로 빠지는듯" 어색하게 인지.
-            //   해결: panTo + setLevel(animate:true) 동시 호출.  Kakao SDK 가 두
-            //   애니메이션을 동시 보간 → 한 번의 부드러운 zoom+pan 모션.
-            //   네이버 부동산/구글맵의 flyTo 와 동일한 cinematic 동작.
-            if (cy != null && cx != null) {
-              const target = new maps.LatLng(cy, cx);
-              if (typeof mapInst.panTo === 'function') {
-                mapInst.panTo(target);
-              } else if (typeof mapInst.setCenter === 'function') {
-                mapInst.setCenter(target);
+            // L-naver-2026atomicbounds1 (2026-04-27): setBounds 단일 호출 atomic.
+            //   기존 시도들의 실패:
+            //     · setCenter+setLevel(animate:true): race → 위치 부정확.
+            //     · setLevel(no animate)+panTo: 줌 즉시변경 후 위치 미끄러짐 → 사이드 빠짐.
+            //     · panTo+setLevel(animate:true) 동시: race → 위치 못 찾음.
+            //   해결: setBounds 한 번 호출 → SDK 가 zoom+center 동시 보간 → race 원천 차단.
+            //   bounds 크기를 finalLv 의 viewport 와 일치시켜 zoom 결과 정확히 finalLv.
+            const halfDegForLevel = (lv: number): number => {
+              if (lv <= 1) return 0.0008;
+              if (lv <= 2) return 0.0016;
+              if (lv <= 3) return 0.0032;
+              if (lv <= 4) return 0.0065;
+              if (lv <= 5) return 0.013;
+              if (lv <= 6) return 0.026;
+              if (lv <= 7) return 0.052;
+              if (lv <= 8) return 0.10;
+              if (lv <= 9) return 0.20;
+              return 0.40;
+            };
+            if (cy != null && cx != null && typeof mapInst.setBounds === 'function') {
+              const half = halfDegForLevel(finalLv);
+              const sw = new maps.LatLng(cy - half, cx - half);
+              const ne = new maps.LatLng(cy + half, cx + half);
+              const bounds = new maps.LatLngBounds(sw, ne);
+              mapInst.setBounds(bounds);
+            } else {
+              // 폴백 (setBounds 미지원 환경): 시퀀셜 setCenter → setLevel.
+              if (cy != null && cx != null && typeof mapInst.setCenter === 'function') {
+                mapInst.setCenter(new maps.LatLng(cy, cx));
               }
-            }
-            if (typeof mapInst.setLevel === 'function') {
-              mapInst.setLevel(finalLv, { animate: true });
+              if (typeof mapInst.setLevel === 'function') {
+                mapInst.setLevel(finalLv, { animate: true });
+              }
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
