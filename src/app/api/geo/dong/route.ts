@@ -46,4 +46,18 @@ export async function GET() {
       }
       const body = await r.text();
       const etag = `"dong-${body.length}"`;
-      cached = { body, eta
+      cached = { body, etag };
+    }
+    return new NextResponse(cached.body, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'public, s-maxage=86400, stale-while-revalidate=604800',
+        ETag: cached.etag,
+      },
+    });
+  } catch (e) {
+    console.error('[geo/dong] fatal', e);
+    return NextResponse.json({ error: 'internal' }, { status: 500 });
+  }
+}
