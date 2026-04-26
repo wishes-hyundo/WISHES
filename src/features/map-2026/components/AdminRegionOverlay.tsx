@@ -180,6 +180,7 @@ interface KakaoMapLike {
   getCenter?: () => KakaoLatLng;
   setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
   setLevel?: (n: number, opts?: unknown) => void;
+  setCenter?: (latlng: unknown) => void;
   panTo?: (latlng: unknown) => void;
   getNode?: () => HTMLElement;
   getBounds?: () => { getSouthWest: () => KakaoLatLng; getNorthEast: () => KakaoLatLng };
@@ -504,11 +505,21 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
                 };
               } catch { /*noop*/ }
             } catch { /*noop*/ }
-            if (cy != null && cx != null && typeof mapInst.panTo === 'function') {
-              mapInst.panTo(new maps.LatLng(cy, cx));
-            }
+            // L-naver-2026clickfix6 (2026-04-26): panTo + setLevel race fix.
+            //   diagnostic 에서 panTo 좌표는 정확한데 화면은 다른 곳에 있던 버그 →
+            //   panTo (animated) + setLevel (animated) 가 같은 tick 에 충돌.
+            //   해결: setLevel 먼저 (animated zoom 시작) → 즉시 setCenter (instant center).
+            //   둘 다 즉시 enqueue 되지만 setCenter 가 final position 결정.
             if (typeof mapInst.setLevel === 'function') {
               mapInst.setLevel(finalLv, { animate: true });
+            }
+            if (cy != null && cx != null) {
+              const targetLatLng = new maps.LatLng(cy, cx);
+              if (typeof mapInst.setCenter === 'function') {
+                mapInst.setCenter(targetLatLng);
+              } else if (typeof mapInst.panTo === 'function') {
+                mapInst.panTo(targetLatLng);
+              }
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
