@@ -23,7 +23,7 @@ import simplify from '@turf/simplify';
 import type { Feature as GjFeature, Polygon as GjPolygon, MultiPolygon as GjMP } from 'geojson';
 import type { MapListing } from '@/features/map-2026/store';
 import { useMap2026Store } from '@/features/map-2026/store';
-import { adminToLegalDong } from '@/features/map-2026/lib/legalDongMap';
+// L-naver-2026legalunion1: adminToLegalDong 제거 — 서버에서 union 으로 1 feature 생성.
 // L-naver-precise2 (2026-04-26): @turf import 가 빌드 에러. 일단 union 제거.
 //   정밀 GeoJSON (48 pts/feat) 자체로도 충분히 깔끔 → fill 만 stack 으로도 매끄러움.
 // import { union as turfUnion, featureCollection as turfFC } from '@turf/turf';
@@ -89,6 +89,9 @@ async function loadSigungu(): Promise<GeoCollection | null> {
 // L-naver-2026chunk1 (2026-04-26): 시군구별 dong chunk lazy-loading.
 //   네이버처럼 viewport 의 시군구만 lazy-fetch.  33MB → 44KB/시군구.
 //   sigCode (5 digits) 기반.  per-sigungu cache.
+// L-naver-2026legalunion1 (2026-04-26): 법정동 endpoint 로 전환.
+//   서버에서 turf.union 으로 같은 법정동의 행정동들 1개 polygon merge → 클라
+//   에서는 1 feature = 1 법정동.  fillOpacity 누적/공백 문제 완전 제거.
 const dongChunkCache = new Map<string, GeoCollection>();
 const pendingChunks = new Map<string, Promise<GeoCollection | null>>();
 async function loadDongChunk(sigCode: string): Promise<GeoCollection | null> {
@@ -100,7 +103,7 @@ async function loadDongChunk(sigCode: string): Promise<GeoCollection | null> {
   setLoadInFlight(1);
   const promise = (async () => {
     try {
-      const r = await fetch(`/api/geo/dong/sigungu/${sigCode}`);
+      const r = await fetch(`/api/geo/legaldong/sigungu/${sigCode}`);
       if (!r.ok) return null;
       const j = (await r.json()) as GeoCollection;
       dongChunkCache.set(sigCode, j);
@@ -482,10 +485,12 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       const strokeW = opts.strokeWeightOverride ?? STROKE_WEIGHT;
       const clickable = opts.clickable ?? !opts.isBackdrop;
       // L-naver-click5 (2026-04-26 night): Naver 깊은 줌인 매칭 — z8 click → z13 (5 levels).
-      //   sido(13+) → 9 (z11, sigungu detail) — 4-5 levels deep
-      //   sigungu(7~12) → 6 (z14, dong polygon visible) — 2-6 levels deep
+      //   sido(13+) → 10 (z10, sigungu detail) — 3-4 levels deep
+      //   sigungu(7~12) → 7 (z13, dong polygon visible) — 0-5 levels deep
       //   dong(4~6) → 3 (z17, marker close-up) — 1-3 levels deep
-      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;  // L-naver-clickzoom1: 한 단계 zoom-out (사용자 피드백 — 너무 zoom-in 됐었음)
+      // L-naver-2026clickfix12 (2026-04-26): 사용자 피드백 "동 폴리곤 클릭하면 바로 동그라미 마커로".
+      //   dong target 4 → 3 으로 변경 + clickfix11 의 +1 보정 제거.  이제 dong 클릭 = 마커 모드 직행.
+      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 3;
 
       // L-naver-2026clickfix4 (2026-04-26): bbox 를 onClick 등록 시점에 미리 계산해
       //   closure 에 immutable 하게 캡처.  나중에 feats 가 어떤 이유로 mutate/share
@@ -536,11 +541,9 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
               mapInst.setCenter(new maps.LatLng(cy, cx));
             }
             if (typeof mapInst.setLevel === 'function') {
-              // L-naver-2026clickfix11: 동 클릭 시 zoom 한 두 단계 덜 (사용자 피드백).
-              //   기존: dong → finalLv-1 (level 3, 마커 zoom 강제 진입)
-              //   변경: dong → finalLv+1 (level 5, dong polygon 명확히 보이고 마커도 일부 보임)
-              const lv = mode === 'dong' ? Math.min(20, finalLv + 1) : finalLv;
-              mapInst.setLevel(lv, { animate: true });
+              // L-naver-2026clickfix12 (2026-04-26): 동 클릭 → 바로 마커 모드 (사용자 피드백
+              //   "동 폴리곤 클릭하면 바로 동그라미 마커로").  targetLevel(3) → finalLv 그대로.
+              mapInst.setLevel(finalLv, { animate: true });
             }
           } catch (err) {
             const Sentry = (window as unknown as { Sentry?: { captureException?: (e: unknown) => void } }).Sentry;
@@ -763,39 +766,24 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
 
       } else if (mode === 'dong') {
         // L-naver-dual1 (2026-04-26): 네이버 동 모드 = 시군구 backdrop + 동 foreground 2-layer.
-        //   사용자 스크린샷: 네이버는 관악구 폴리곤이 light-pink 으로 항상 표시 + 마우스 가르킨 동만 darker.
-        //   기존 ONE 폴리곤 방식 → DUAL layer 로 전환.
-        // L-naver-2026dual2 (2026-04-26): 법정동 단위 + dual-layer (사용자 피드백).
-        //   사용자: "조각이 났다" — 신림동의 11개 행정동 중 일부가 봉천동을 사이에 두고
-        //   떨어져 있어서 시각적으로 두 조각.  데이터는 정확하지만 어색.
-        //   해결: 시군구 backdrop 을 옅게 (0.06) 깔아서 시각적 연결성 확보.
-        //   foreground 는 hover 한 법정동의 행정동들 (0.20) — 같은 색 진하게.
-        //   네이버 z14 동 모드 동일 패턴.
+        // L-naver-2026legalunion1 (2026-04-26): 서버에서 turf.union 으로 합친 법정동
+        //   1 feature = 1 법정동.  client 측 group-and-stack 제거 → fillOpacity 중첩
+        //   문제 (사용자 스크린샷: 신림동 안에서 또 분리) 완전 해결.
+        //   네이버 스크린샷처럼 한 덩어리 polygon 으로 깔끔히 표시.
         if (!dongData?.features) { cleanup(); currentKey = ''; return; }
         const feat = findFeatureAt(dongData.features, lat, lng);
         if (!feat) { cleanup(); currentKey = ''; return; }
         const sigParentFeat = sigData?.features ? findFeatureAt(sigData.features, lat, lng) : null;
-        const rawName = String((feat.properties as { name?: string }).name ?? '').trim();
-        const legalName = adminToLegalDong(rawName, parentSig);
-        const key = `dong:${parentSido}:${parentSig}:${legalName}`;
+        // 법정동 endpoint 응답은 properties.name 이 이미 법정동명 (e.g. 신림동).
+        const legalName = String((feat.properties as { name?: string }).name ?? '').trim();
+        const key = `legaldong:${parentSido}:${parentSig}:${legalName}`;
         if (key === currentKey && currentLevelMode === mode) return;
-        const sigParentCode = String((feat.properties as { code?: string }).code ?? '').slice(0, 5);
-        const groupFeats = dongData.features.filter((f) => {
-          const n = String((f.properties as { name?: string }).name ?? '').trim();
-          if (adminToLegalDong(n, parentSig) !== legalName) return false;
-          if (sigParentCode) {
-            const c = String((f.properties as { code?: string }).code ?? '');
-            if (c.length >= 5 && c.slice(0, 5) !== sigParentCode) return false;
-          }
-          return true;
-        });
         cleanup();
         const parts = [parentSido, parentSig, legalName].filter(Boolean);
-        const renderFeats = groupFeats.length > 0 ? groupFeats : [feat];
         const isMarkerZoom = level <= 4;
-        // L-naver-2026dual2: backdrop 시군구 (옅게).  isBackdrop=true → 클릭 안 함 + 툴팁 갱신 안 함.
+        // L-naver-2026dual3: backdrop 시군구 (0.15) → 시각적 연결성.
+        //   non-marker zoom 만 backdrop 표시.
         if (sigParentFeat && !isMarkerZoom) {
-          // L-naver-2026dual3: backdrop 0.06 → 0.15 진하게.  사용자: 시각적 연결성 안 보임.
           drawRegion([sigParentFeat], '', 'dong', {
             fillOpacityOverride: 0.15,
             strokeOpacityOverride: 0,
@@ -804,8 +792,8 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             isBackdrop: true,
           });
         }
-        // foreground: 법정동의 모든 행정동 (진하게)
-        drawRegion(renderFeats, parts.join(' '), 'dong', {
+        // foreground: union 된 법정동 1 feature (진하게)
+        drawRegion([feat], parts.join(' '), 'dong', {
           fillOpacityOverride: isMarkerZoom ? 0.04 : 0.20,
           strokeOpacityOverride: 0,
           strokeWeightOverride: 0,
