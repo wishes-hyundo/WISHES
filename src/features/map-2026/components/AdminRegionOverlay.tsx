@@ -424,9 +424,11 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   sigungu: level 6~12 (z8~z14) — 광역 + 시군구 zoom 까지 sigungu polygon
       //   dong: level 4~5 (z15~z16) — 가까운 줌에서만 dong dual layer
       //   markers: level 1~3 (z17~z19)
-      if (level >= 13) mode = 'sido';
-      else if (level >= 6) mode = 'sigungu';
-      else if (level >= 4) mode = 'dong';
+      // L-naver-hier1 (2026-04-26): 4단계 hierarchy (사용자 요구).
+      //   광역(z11+) = 시도, 시군구 줌(z8~10) = 시군구, 동 줌(z1~7) = 동만.
+      if (level >= 11) mode = 'sido';
+      else if (level >= 8) mode = 'sigungu';
+      else if (level >= 1) mode = 'dong';
       // L-naver-cleanup1 (2026-04-26): mode 전환 즉시 unconditional cleanup.
       //   기존 버그: dong→sigungu 전환 시 sigData/feat null 로 early return 되면 이전
       //   dong polygon 잔류 → sigungu(0.15) + dong(0.15) 겹쳐 0.30 짙은 영역 (서울대 일대 보라색).
@@ -482,12 +484,16 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
         const sigName = String((sigFeat.properties as { name?: string }).name ?? '').trim();
         const sigLabel = parentSido ? `${parentSido} ${sigName}` : sigName;
 
-        // 매우 광역 (level 11~12): 시군구 polygon 단독 — 광역에서도 multi-dong 가능
-        if (level >= 11) {
+        // L-naver-hier1: sigungu 모드 = 마우스 위 시군구 1개만 (multi-dong path 우회).
+        {
           const key = `sig-only:${parentSido}:${sigName}`;
           if (key === currentKey && currentLevelMode === mode) return;
           cleanup();
-          drawRegion([sigFeat], sigLabel, 'sigungu');
+          drawRegion([sigFeat], sigLabel, 'sigungu', {
+            fillOpacityOverride: 0.06,
+            strokeOpacityOverride: 0,
+            strokeWeightOverride: 0,
+          });
           currentKey = key;
           currentLevelMode = mode;
           return;
@@ -600,16 +606,7 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
           return true;
         });
         cleanup();
-        // L-naver-dual1: backdrop 시군구 (light) → 그 위에 dong foreground (darker).
-        if (sigParentFeat) {
-          const sigParentName = parentSido && parentSig ? `${parentSido} ${parentSig}` : parentSig;
-          drawRegion([sigParentFeat], sigParentName, 'sigungu', {
-            fillOpacityOverride: 0,       // L-naver-clear1: 완전 투명
-            strokeOpacityOverride: 0,
-            strokeWeightOverride: 0,
-            isBackdrop: true,
-          });
-        }
+        // L-naver-hier1: dong 모드 = 동 polygon 만 (sigungu backdrop 제거).
         const parts = [parentSido, parentSig, legalName].filter(Boolean);
         // L-naver-union1: turf.union 으로 행정동들을 깔끔한 1개 polygon 으로 merge.
         const grouped = groupFeats.length > 0 ? groupFeats : [feat];
