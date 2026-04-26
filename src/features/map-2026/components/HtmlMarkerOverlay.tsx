@@ -445,12 +445,18 @@ const size = _isMobile1
         const selected =
           selectedListingId != null && g.listings.some((l) => l.id === selectedListingId);
         const isBuildingPill = g.key.startsWith('b:');
-        // L-naversize1 + L-mobile1: 사이즈 + 모바일 반응형
-        const _isMobileT1 = typeof window !== 'undefined' && window.innerWidth < 768;
-        const size = _isMobileT1
-          ? (g.count >= 1000 ? 56 : g.count >= 500 ? 48 : g.count >= 100 ? 40 : g.count >= 10 ? 32 : g.count >= 2 ? 28 : 24)
-          : (g.count >= 1000 ? 72 : g.count >= 500 ? 60 : g.count >= 100 ? 50 : g.count >= 10 ? 40 : g.count >= 2 ? 34 : 30);
-        const el = makeCircleElement({ count: g.count, selected, size });
+        // L-naver-pill1 (2026-04-26): 사용자 피드백 "마커 배치가 네이버랑 다르다" —
+        //   네이버 부동산은 단지명 + 매물수 pill 형태 (예: "관악아파트 9").
+        //   단지명 (b:) 그룹은 pill, dong+type (d:) 그룹은 동그라미 fallback.
+        const el: HTMLDivElement = isBuildingPill && g.name
+          ? makePillElement({ name: g.name, count: g.count, selected })
+          : (() => {
+              const _isMobileT1 = typeof window !== 'undefined' && window.innerWidth < 768;
+              const size = _isMobileT1
+                ? (g.count >= 1000 ? 56 : g.count >= 500 ? 48 : g.count >= 100 ? 40 : g.count >= 10 ? 32 : g.count >= 2 ? 28 : 24)
+                : (g.count >= 1000 ? 72 : g.count >= 500 ? 60 : g.count >= 100 ? 50 : g.count >= 10 ? 40 : g.count >= 2 ? 34 : 30);
+              return makeCircleElement({ count: g.count, selected, size });
+            })();
         // L-tooltip1 (2026-04-26): 마커 hover tooltip — 단지명/지역명 표시.
         if (g.name) el.title = `${g.name} (${g.count.toLocaleString()})`;
         // L-clickfix1 (2026-04-25): mousedown/dblclick 잡아 Kakao 기본 더블클릭

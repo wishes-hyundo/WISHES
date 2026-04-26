@@ -678,9 +678,12 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   markers: level 1~3 (z17~z19)
       // L-naver-hier1 (2026-04-26): 4단계 hierarchy (사용자 요구).
       //   광역(z11+) = 시도, 시군구 줌(z8~10) = 시군구, 동 줌(z1~7) = 동만.
+      // L-naver-2026nopolymarker1 (2026-04-26): 사용자 피드백 "동 폴리곤 클릭 이후
+      //   폴리곤 배경 보기 안 좋다" — 마커 zoom (level <= 4) 에서는 polygon 안 그림.
+      //   level 5~7 = dong polygon, level 1~4 = 마커만.
       if (level >= 11) mode = 'sido';
       else if (level >= 8) mode = 'sigungu';
-      else if (level >= 1) mode = 'dong';
+      else if (level >= 5) mode = 'dong';
       // L-naver-cleanup1 (2026-04-26): mode 전환 즉시 unconditional cleanup.
       //   기존 버그: dong→sigungu 전환 시 sigData/feat null 로 early return 되면 이전
       //   dong polygon 잔류 → sigungu(0.15) + dong(0.15) 겹쳐 0.30 짙은 영역 (서울대 일대 보라색).
