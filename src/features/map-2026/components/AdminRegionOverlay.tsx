@@ -514,7 +514,11 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
             //   사용자 reproduction (관악구 클릭 → 서초/일산) 디버깅 위해 어떤 polygon
             //   의 onClick 이 어떤 좌표로 panTo 했는지 추적.
             try {
-              const Sentry = (window as unknown as { Sentry?: { addBreadcrumb?: (b: unknown) => void } }).Sentry;
+              const Sentry = (window as unknown as { Sentry?: { addBreadcrumb?: (b: unknown) => void; startSpan?: (opts: unknown, cb: () => unknown) => unknown } }).Sentry;
+              // L-naver-2026span1: Sentry custom span — click→zoom 측정 (UI perf 모니터링)
+              if (Sentry?.startSpan) {
+                try { Sentry.startSpan({ name: 'map.click.zoom', op: 'ui.click' }, () => undefined); } catch { /*noop*/ }
+              }
               if (Sentry?.addBreadcrumb) {
                 Sentry.addBreadcrumb({
                   category: 'map.click',
