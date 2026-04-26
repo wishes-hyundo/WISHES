@@ -662,38 +662,17 @@ const size = _isMobile1
             const tightCluster = latSpread < 0.0008 && lngSpread < 0.0008;  // ~88m
             const dec = (count >= 20 || tightCluster) ? 2 : 1;
             const nextLv = Math.max(1, curLv - dec);
-            // L-naver-2026atomicbounds4 (2026-04-27): setBounds 단일 호출.
-            //   bounds 크기를 nextLv viewport 의 ~70% 로 fine-tune → 결과 level 정확.
-            //   atomic, race 없음, freeze 없음.
-            const halfDegForLevel = (lv: number): number => {
-              if (lv <= 1) return 0.0004;
-              if (lv <= 2) return 0.0008;
-              if (lv <= 3) return 0.0016;
-              if (lv <= 4) return 0.0033;
-              if (lv <= 5) return 0.0066;
-              return 0.013;
-            };
-            const mapApi3 = mapInst as {
-              setBounds?: (b: unknown, t?: number, r?: number, bo?: number, l?: number) => void;
-            };
-            const LatLngCtor = kakaoAny?.maps?.LatLng;
-            const BoundsCtor = kakaoAny?.maps?.LatLngBounds;
-            if (
-              LatLngCtor &&
-              BoundsCtor &&
-              typeof mapApi3.setBounds === 'function'
-            ) {
-              const half = halfDegForLevel(nextLv);
-              const sw = new LatLngCtor(targetLat - half, targetLng - half);
-              const ne = new LatLngCtor(targetLat + half, targetLng + half);
-              const bounds = new BoundsCtor(sw, ne);
-              mapApi3.setBounds(bounds);
-            } else {
-              if (LatLngCtor && typeof mapApi2.setCenter === 'function') {
-                mapApi2.setCenter(new LatLngCtor(targetLat, targetLng));
-              }
-              if (typeof mapApi2.setLevel === 'function') {
-                mapApi2.setLevel(nextLv, { animate: false });
+            // L-naver-2026revert9ca (2026-04-27): atomicbounds 시리즈 freeze → 9ca4f57 패턴 복귀.
+            //   setLevel(no animate) atomic + panTo (animate) — 가장 안정적.
+            if (typeof mapApi2.setLevel === 'function') {
+              mapApi2.setLevel(nextLv, { animate: false });
+            }
+            if (kakaoAny?.maps?.LatLng) {
+              const target = new kakaoAny.maps.LatLng(targetLat, targetLng);
+              if (typeof mapApi2.panTo === 'function') {
+                mapApi2.panTo(target);
+              } else if (typeof mapApi2.setCenter === 'function') {
+                mapApi2.setCenter(target);
               }
             }
           } catch { /* noop */ }
