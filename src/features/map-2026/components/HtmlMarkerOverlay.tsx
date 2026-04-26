@@ -588,11 +588,35 @@ const size = _isMobile1
             onClickListing(arr[0].id);
             return;
           }
-          // L-clusterfit1 + L-clusterexact1 (2026-04-24 pm): count ≥ 2 클러스터 클릭.
-          //   ① arr 의 listing id 배열을 onClusterFilter 로 store 에 저장 →
-          //      ListPanel 과 HtmlMarker 가 N개만 렌더 (사각 셀 주변의 다른 매물 배제)
-          //   ② arr 실제 좌표로 tight bbox fitBounds → 지도도 그 N개 범위로 확대
-          //   ③ onClickCluster 콜백 있으면 legacy 경로
+          // L-naver-2026clusterclick1 (2026-04-26): cluster 클릭 동작 단순화.
+          //   사용자 피드백:
+          //     · onClusterFilter 가 listings 를 N개로 좁혀 좌측 카운트 ↔ 마커 sum 불일치
+          //     · setBounds 가 작은 bbox (cluster 안 매물 가까움) 라 viewport 변경 없음
+          //   해결: filter/setBounds 안 함.  단순히 cell 중심으로 panTo + setLevel(-1)
+          //   네이버 부동산 동일 — cluster 클릭 = 한 단계 zoom in.
+          try {
+            const kakaoAny = (window as unknown as {
+              kakao?: { maps?: {
+                LatLng?: new (lat: number, lng: number) => unknown;
+              } };
+            }).kakao;
+            const mapApi2 = mapInst as {
+              setLevel?: (n: number, opts?: unknown) => void;
+              getLevel?: () => number;
+              panTo?: (pos: unknown) => void;
+              setCenter?: (pos: unknown) => void;
+            };
+            const curLv = typeof mapApi2.getLevel === 'function' ? mapApi2.getLevel() : 4;
+            const nextLv = Math.max(1, curLv - 1);
+            if (kakaoAny?.maps?.LatLng && typeof mapApi2.setCenter === 'function') {
+              mapApi2.setCenter(new kakaoAny.maps.LatLng(lat, lng));
+            }
+            if (typeof mapApi2.setLevel === 'function') {
+              mapApi2.setLevel(nextLv, { animate: true });
+            }
+          } catch { /* noop */ }
+          return;
+          // L-clusterfit1 (legacy, dead): count ≥ 2 클러스터 클릭 — onClusterFilter 활성화.
           if (onClickCluster) {
             onClickCluster(arr);
             return;
