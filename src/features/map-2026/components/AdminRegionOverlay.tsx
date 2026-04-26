@@ -490,7 +490,10 @@ export default function AdminRegionOverlay({ map, onClickRegion }: Props) {
       //   dong(4~6) → 3 (z17, marker close-up) — 1-3 levels deep
       // L-naver-2026clickfix12 (2026-04-26): 사용자 피드백 "동 폴리곤 클릭하면 바로 동그라미 마커로".
       //   dong target 4 → 3 으로 변경 + clickfix11 의 +1 보정 제거.  이제 dong 클릭 = 마커 모드 직행.
-      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 3;
+      // L-naver-2026clickfix13 (2026-04-26): dong target 3 → 4 (사용자 피드백 한 단계 덜).
+      //   dong 클릭 후 마커 모드 진입 시 너무 확대됐다는 피드백.  level 4 = 마커 + dong 폴리곤
+      //   동시 표시 (네이버 z16 동일).
+      const targetLevel = mode === 'sido' ? 10 : mode === 'sigungu' ? 7 : 4;
 
       // L-naver-2026clickfix4 (2026-04-26): bbox 를 onClick 등록 시점에 미리 계산해
       //   closure 에 immutable 하게 캡처.  나중에 feats 가 어떤 이유로 mutate/share

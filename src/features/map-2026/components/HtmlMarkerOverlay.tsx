@@ -23,7 +23,7 @@ import { bucketListings, listingCategory } from '@/features/map-2026/lib/markerT
 // ── 컬러 토큰 ──────────────────────────────────────────────────────
 // 스타벅스 시그너처 그린 (#006241). alpha 0.88 채움 + 동일 hex 테두리.
 const BRAND_GREEN = '#006241';
-const BRAND_GREEN_BG = 'rgba(0,98,65,0.95)';  // L-naver-soft1: 더 진하게 (가독성)
+const BRAND_GREEN_BG = 'rgba(0,98,65,0.82)';  // L-naver-soft2 (2026-04-26): 0.95→0.82 살짝 투명 (사용자 피드백)
 const SEL_BG = '#185FA5';     // 선택 상태: WISHES 브랜드 블루
 const SEL_BD = '#0C447C';
 const SEL_SHADOW = '0 4px 14px rgba(24,95,165,0.45)';
@@ -104,10 +104,12 @@ function gridSizeForLevel(level: number): number {
   //   분리되도록 조정.
   // L-mapmarker2c (2026-04-24 pm): 최대확대에서도 건물 단위로 뭉쳐 주소 정확 노출 방지.
   //   사용자 피드백 — 개별 점으로 찍히면 경쟁사·직거래 유출 리스크.
-  if (level <= 1) return 0.0005;    // ~55m (단일 건물 단위)
-  if (level <= 2) return 0.0012;    // ~130m (블록 단위)
-  if (level <= 3) return 0.0020;    // ~220m
-  if (level <= 4) return 0.0036;    // ~400m
+  // L-naver-cluster1 (2026-04-26): 네이버 부동산 z16~z19 매칭 close-up 미세조정.
+  //   네이버 z19 (Kakao level 1) = 동·호수 단위 / z18 (level 2) = 단지 1개 / z17 (level 3) = 인근 단지 묶음 / z16 (level 4) = 동네 묶음.
+  if (level <= 1) return 0.0006;    // ~66m (네이버 z19, 단지내)
+  if (level <= 2) return 0.0014;    // ~155m (네이버 z18, 단지)
+  if (level <= 3) return 0.0028;    // ~310m (네이버 z17, 인근 단지 묶음 — 더 깔끔)
+  if (level <= 4) return 0.0050;    // ~550m (네이버 z16, 동네 단위)
   if (level <= 5) return 0.006;     // ~600m (기본 줌)
   if (level <= 6) return 0.010;     // ~1.1km (이전 1.3km → 약간 더 촘촘)
   if (level <= 7) return 0.016;     // ~1.8km (이전 2km)
