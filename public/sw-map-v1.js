@@ -12,7 +12,10 @@
 //   - 그 외 요청은 SW 가 건드리지 않고 네트워크 통과 (safe passthrough)
 
 // L-naver-2026sw1 (2026-04-26): 캐시 버전 bump + GeoJSON 캐시 추가.
-const CACHE_VERSION = 'v2-2026-04-26';
+// L-naver-2026sw2 (2026-04-26 evening): legalunion endpoint 적용 + backdrop 제거 후
+//   사용자에게 변경사항 안 보임 → 30일 GEO_CACHE 의 옛 응답 사용 의심.
+//   version bump 으로 activate 시 모든 wishes-* 캐시 wipe.
+const CACHE_VERSION = 'v3-2026-04-26-legalunion';
 const MAP_CACHE = `wishes-map-${CACHE_VERSION}`;
 const TILE_CACHE = `wishes-tiles-${CACHE_VERSION}`;
 const IMG_CACHE = `wishes-img-${CACHE_VERSION}`;
@@ -108,11 +111,4 @@ self.addEventListener('fetch', (event) => {
 
   // 4) /api/geo/* GeoJSON (cache-first 30일 — 행정구역 거의 변경 안 됨)
   //    L-naver-2026sw1: dong (~34MB) / sigungu / sido 모두 long-lived 캐시.
-  //    재방문 시 즉시 응답 → 폴리곤 instant 표시.
-  if (url.pathname.startsWith('/api/geo/')) {
-    event.respondWith(cacheFirst(req, GEO_CACHE, 30 * 24 * 60 * 60 * 1000));
-    return;
-  }
-
-  // 그 외 — 건드리지 않음 (네트워크 통과)
-});
+  //  
