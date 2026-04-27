@@ -55,6 +55,18 @@
     {
       "path": "/api/cron/backfill-building-info?limit=25",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/auto-fix-problematic",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/pipa-anonymize",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/integrity-audit",
+      "schedule": "0 17 * * *"
     }
   ]
 }
