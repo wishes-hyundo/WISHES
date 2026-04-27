@@ -787,12 +787,10 @@ export function ListingDetailModal() {
         listingId={listing.id}
         listingTitle={listing.title ?? (listing as any).building_name ?? ''}
         onRequestInquiry={() => {
-          // L-naver-2026contact1: 카톡문의 → 카카오 채널 chat (모바일 앱 딥링크)
           setAgentModalOpen(false);
           if (!openKakaoChannelChat()) setInquiryOpen(true);
         }}
         onRequestVisit={() => {
-          // L-naver-2026contact1: 방문예약 → 네이버 예약 직링크
           setAgentModalOpen(false);
           openNaverBooking();
         }}
@@ -838,4 +836,12 @@ function buildAgentInfoFromProfile(ap: {
   return {
     ...FALLBACK,
     name: ap.name || FALLBACK.name,
-    phone
+    phone: ap.phone || FALLBACK.phone,
+    avatarUrl: ap.avatar_url || null,
+    officeName: ap.office_name || FALLBACK.officeName,
+    officePhone: ap.office_phone || FALLBACK.officePhone,
+    officeAddress: ap.office_address || FALLBACK.officeAddress,
+    registrationNo: ap.registration_no || null,
+    careerYears: ap.career_years ?? null,
+  };
+}
