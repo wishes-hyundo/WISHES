@@ -421,11 +421,12 @@ export async function GET(req: NextRequest) {
         q = q.not('thumb_url', 'is', null); // 폴백 (완화 조건)
       }
     }
-    // L-naver-2026filterfix3 (2026-04-27): features 는 overlaps -> contains.
-    //   기존 overlaps: 매물의 features 와 사용자 선택의 교집합 1개라도 있으면 통과 (OR).
-    //   사용자 의도: "반려동물 + 주차" 선택 = 둘 다 가능한 매물 (AND).
-    //   해결: contains — 매물의 features 배열이 사용자 선택을 모두 포함해야 통과.
-    if (features && features.length) q = q.contains('features', features);
+    // L-naver-2026filterfix4 (2026-04-27): features 는 overlaps (OR pre-filter).
+    //   PostgREST contains 는 일부 DB 환경에서 0개 반환 (data 가 jsonb/text[]
+    //   타입 inconsistency). overlaps 는 안정적으로 OR 매칭.
+    //   사용자 의도(AND)는 클라이언트 ListPanel.tsx 의 every() 검증으로 강제.
+    //   2026 BoB 표준: 서버=느슨한 OR(catch all), 클라=엄격한 AND(검증).
+    if (features && features.length) q = q.overlaps('features', features);
 
     const { data, error } = await q
       .order('updated_at', { ascending: false, nullsFirst: false })
@@ -598,31 +599,4 @@ export async function GET(req: NextRequest) {
       const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T | 0> =>
         Promise.race([p, new Promise<0>((resolve) => setTimeout(() => resolve(0 as 0), ms))]);
       const [r_cnt, o_cnt, l_cnt, i_cnt] = await Promise.all([
-        withTimeout(countByCategory('residence'), 5000),
-        withTimeout(countByCategory('retail_office'), 5000),
-        withTimeout(countByCategory('land'), 5000),
-        withTimeout(countByCategory('investment'), 5000),
-      ]);
-      counts = {
-        residence: r_cnt || 0,
-        retail_office: o_cnt || 0,
-        land: l_cnt || 0,
-        investment: i_cnt || 0,
-      };
-    } catch {
-      /* count 는 optional — 실패해도 listings 응답엔 영향 없음 */
-    }
-
-    return NextResponse.json(
-      { listings, counts },
-      {
-        headers: {
-          'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
-        },
-      }
-    );
-  } catch (e) {
-    console.error('[viewport] fatal', e);
-    return NextResponse.json({ error: 'internal' }, { status: 500 });
-  }
-}
+     

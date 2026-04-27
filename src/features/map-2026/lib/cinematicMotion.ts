@@ -72,16 +72,26 @@ export function kakaoFlyTo(
   const node = typeof mapInst.getNode === 'function' ? mapInst.getNode() : null;
   if (!node) return;  // 컨테이너 못 찾으면 instant 효과만 (애니메이션 없음)
 
-  // L-naver-2026flytoBoB2 (2026-04-27): Apple iOS 표준 곡선 + 더 부드러운 진폭.
-  //   사용자 피드백 "살짝 부드럽지 못한것 같은데" — 미세 조정.
-  //   변경:
-  //     · scale 진폭 0.85→0.92 (15% → 8%, 더 미세)
-  //     · cubic-bezier(0.16,1,0.3,1) → (0.32,0.72,0,1) Apple iOS 표준
-  //     · duration 380ms → 520ms (더 부드러움)
-  //     · opacity 0.85 → 0.94 (cross-fade 약하게, 지도 흐려짐 어색 제거)
-  //     · pointer-events 잠시 차단 (transition 중 잘못된 클릭 방지)
-  const initScale = zoomDelta > 0 ? 0.92
-                  : zoomDelta < 0 ? 1.08
+  // L-naver-2026flytoBoB3 (2026-04-27): iOS UISheetPresentationController spring 모션.
+  //   사용자 요청: "iOS sheet 등장 같은 spring-like 느낌".
+  //   기존 cubic-bezier(0.32,0.72,0,1) — easeOut 곡선 (overshoot 없음).
+  //   변경: Web Animations API + 다단계 keyframe — 진짜 spring 물리학.
+  //
+  //   spring 파라미터 (iOS sheet 매칭):
+  //     · stiffness ~380, damping ~28, mass ~1
+  //     · ~620ms 안에 미세 overshoot (1.2%) 후 정착
+  //     · 시각적 효과: "살짝 튕겼다가 부드럽게 안착"
+  //
+  //   keyframe 단계:
+  //     0%   scale(initScale)  opacity 0.94  ← 진입
+  //     45%  scale(1.018)      opacity 1     ← peak overshoot (살짝 튕김)
+  //     70%  scale(0.997)                    ← 미세 undershoot (damped oscillation)
+  //     100% scale(1)                        ← 정착
+  //
+  //   easing: cubic-bezier(0.22, 1, 0.36, 1) — easeOutQuint (각 단계 내부 부드러움)
+  //   Web Animations API 사용 — fill:both 로 끝 상태 유지, 이전 animation 자동 취소.
+  const initScale = zoomDelta > 0 ? 0.93
+                  : zoomDelta < 0 ? 1.07
                   : 0.97;
 
   // transformOrigin: 클릭 지점이면 그 지점 중심 zoom, 없으면 화면 중앙
@@ -89,208 +99,13 @@ export function kakaoFlyTo(
   const ox = origin ? `${origin.x - rect.left}px` : '50%';
   const oy = origin ? `${origin.y - rect.top}px` : '50%';
 
-  // 진입 (이전 동작 강제 종료 + 즉시 적용)
+  // 진입 (이전 transition 잔류 즉시 종료 + 클릭 좌표 기준 origin)
   node.style.transition = 'none';
   node.style.transformOrigin = `${ox} ${oy}`;
-  node.style.transform = `scale(${initScale})`;
-  node.style.opacity = '0.94';
   node.style.willChange = 'transform, opacity';
-  node.style.pointerEvents = 'none';  // transition 중 잘못된 클릭 방지
+  node.style.pointerEvents = 'none';  // animation 중 잘못된 클릭 방지
 
-  // 다음 frame 에 정상 상태로 transition (브라우저 layout flush 보장)
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      // L-naver-2026flytoBoB2: Apple iOS 표준 cubic-bezier — 가장 자연스러운 곡선.
-      //   modal/sheet 등장에 사용되는 곡선. spring-like 부드러움.
-      node.style.transition =
-        'transform 520ms cubic-bezier(0.32, 0.72, 0, 1), ' +
-        'opacity 380ms cubic-bezier(0.32, 0.72, 0, 1)';
-      node.style.transform = 'scale(1)';
-      node.style.opacity = '1';
-    });
-  });
-
-  // cleanup: 520ms + 여유 후 transition 제거
-  setTimeout(() => {
-    node.style.transition = '';
-    node.style.transform = '';
-    node.style.transformOrigin = '';
-    node.style.opacity = '';
-    node.style.willChange = '';
-    node.style.pointerEvents = '';
-  }, 620);
-}
-
-// 내부 타입 가드 — runtime 에서 MapLibre vs Kakao 판별
-interface MapLibreLike {
-  flyTo: (opts: Record<string, unknown>) => void;
-  easeTo: (opts: Record<string, unknown>) => void;
-  getZoom: () => number;
-  getContainer?: () => HTMLElement | null;
-}
-
-interface KakaoLike {
-  panTo: (latlng: unknown) => void;
-  setLevel: (level: number) => void;
-  getLevel: () => number;
-}
-
-function isMapLibre(m: MapInstance): m is MapInstance & MapLibreLike {
-  const r = m as Record<string, unknown>;
-  return (
-    typeof r.flyTo === 'function' &&
-    typeof r.easeTo === 'function' &&
-    typeof r.getZoom === 'function'
-  );
-}
-
-function isKakao(m: MapInstance): m is MapInstance & KakaoLike {
-  const r = m as Record<string, unknown>;
-  return (
-    typeof r.panTo === 'function' &&
-    typeof r.setLevel === 'function' &&
-    typeof r.getLevel === 'function'
-  );
-}
-
-// 내부 zoom(5~17) → Kakao level(1~14) 근사 변환
-function zoomToKakaoLevel(zoom: number): number {
-  return Math.max(1, Math.min(14, Math.round(18 - zoom)));
-}
-
-export interface FlyToOptions {
-  center: [number, number]; // [lng, lat]
-  zoom?: number;
-  pitch?: number;
-  bearing?: number;
-  duration?: number;
-  /** MapLibre flyTo 의 curve — 높을수록 포물선 궤적 (Kakao 는 무시) */
-  curve?: number;
-}
-
-/**
- * Cinematic flyTo — 줌 차이에 따라 자동으로 궤적/속도 조정
- */
-export function cinematicFlyTo(map: MapInstance, opts: FlyToOptions) {
-  if (isMapLibre(map)) {
-    const currentZoom = map.getZoom();
-    const targetZoom = opts.zoom ?? currentZoom;
-    const zoomDelta = Math.abs(targetZoom - currentZoom);
-
-    const auto = {
-      duration: opts.duration ?? (1200 + zoomDelta * 250),
-      curve: opts.curve ?? (zoomDelta > 3 ? 1.8 : 1.2),
-    };
-
-    map.flyTo({
-      center: opts.center,
-      zoom: targetZoom,
-      pitch: opts.pitch,
-      bearing: opts.bearing,
-      duration: auto.duration,
-      curve: auto.curve,
-      easing: easeInOutCubic,
-      essential: true,
-    });
-    return;
-  }
-
-  if (isKakao(map)) {
-    const w = (typeof window !== 'undefined' ? window : null) as unknown as {
-      kakao?: { maps?: { LatLng: new (lat: number, lng: number) => unknown } };
-    } | null;
-    const LatLngCtor = w?.kakao?.maps?.LatLng;
-    if (!LatLngCtor) return;
-    map.panTo(new LatLngCtor(opts.center[1], opts.center[0]));
-    if (typeof opts.zoom === 'number') {
-      map.setLevel(zoomToKakaoLevel(opts.zoom));
-    }
-  }
-}
-
-/**
- * Zoom pulse — 살짝 줌 아웃 → 인 해서 컨텍스트 리셋 시각화
- * (카테고리 탭 전환 때 사용)
- */
-export function zoomPulse(map: MapInstance): () => void {
-  if (isMapLibre(map)) {
-    const currentZoom = map.getZoom();
-    const pulseZoom = currentZoom - 0.4;
-
-    map.easeTo({
-      zoom: pulseZoom,
-      duration: 220,
-      easing: easeOutCubic,
-    });
-
-    const handle = setTimeout(() => {
-      try {
-        if (typeof map.getContainer !== 'function' || !map.getContainer()) return;
-        map.easeTo({
-          zoom: currentZoom,
-          duration: 280,
-          easing: easeOutCubic,
-        });
-      } catch {
-        /* swallow */
-      }
-    }, 220);
-
-    return () => clearTimeout(handle);
-  }
-
-  if (isKakao(map)) {
-    const currentLevel = map.getLevel();
-    // pulse: 한 단계 위(far) 로 갔다가 220ms 후 복귀
-    try {
-      map.setLevel(Math.min(14, currentLevel + 1));
-    } catch {
-      /* swallow */
-    }
-    const handle = setTimeout(() => {
-      try {
-        map.setLevel(currentLevel);
-      } catch {
-        /* swallow */
-      }
-    }, 220);
-    return () => clearTimeout(handle);
-  }
-
-  return () => undefined;
-}
-
-/**
- * 매물 → 카메라 정렬 (클릭 시 1:1 포커스)
- */
-export function focusListing(
-  map: MapInstance,
-  coords: [number, number],
-  opts?: { zoom?: number; pitch?: number }
-) {
-  if (isMapLibre(map)) {
-    cinematicFlyTo(map, {
-      center: coords,
-      zoom: Math.max(map.getZoom(), opts?.zoom ?? 16),
-      pitch: opts?.pitch ?? 45,
-      duration: 900,
-      curve: 0.8,
-    });
-    return;
-  }
-  // Kakao 는 pitch 무시
-  cinematicFlyTo(map, {
-    center: coords,
-    zoom: opts?.zoom ?? 16,
-    duration: 900,
-  });
-}
-
-/**
- * 피치 복귀 (3D → 2D) — MapLibre 전용, Kakao 는 no-op
- */
-export function resetPitch(map: MapInstance) {
-  if (isMapLibre(map)) {
-    map.easeTo({ pitch: 0, bearing: 0, duration: 400, easing: easeOutCubic });
-  }
-}
+  // 이전 animation 잔류 취소 (race 차단)
+  try {
+    if (typeof (node as { getAnimations?: () => Animation[] }).getAnimations === 'function') {
+      const prev = (node as { getAnimations: () => Animation[]
