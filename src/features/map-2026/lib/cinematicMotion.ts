@@ -23,79 +23,95 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// L-naver-2026flyto1 (2026-04-27): 자체 RAF cinematic flyTo (Kakao SDK 한계 극복).
-//   문제: panTo + setLevel(animate) 동시 호출 시 race / 시퀀셜 시 끊김 / setBounds 시 freeze.
-//   해결: requestAnimationFrame loop 으로 위치+줌 동시 보간 + cubic-bezier easing.
-//   구글맵/Mapbox flyTo 동등한 cinematic 모션. 한 번의 부드러운 zoom+pan.
+// L-naver-2026flytoBoB (2026-04-27): 2026 BoB 진짜 정답 — GPU CSS transform 분리.
 //
-// duration 자동 계산: 거리 + level 차이 기반 (250~700ms).
-// level 변화: 정수 단위만 setLevel(no animate) 호출.  매 frame setCenter (60fps).
+// 이전 시도 모두 실패한 이유:
+//   · Kakao SDK 의 setLevel(animate:true) 는 fixed center 기준 zoom 보간 → race
+//   · panTo + setLevel 동시는 두 비동기 액션 충돌 → 위치 부정확
+//   · setBounds atomic 은 level off-by-1 → polygon 잔류
+//   · RAF 매 frame setCenter+setLevel 은 큰 polygon redraw 60fps × DOM 무거움 → freeze
+//   · 시퀀셜 panTo→idle→setLevel 은 두 단계 끊김
+//
+// BoB 인사이트: **카카오 SDK 와 시각 효과를 분리**.
+//   · 카카오 SDK: 한 번의 instant 호출 (race/freeze 자체 차단)
+//   · 시각 효과: GPU CSS transform + opacity (60fps 보장, polygon redraw 무관)
+//   · 사용자 인지: 부드러운 zoom in 모션 + cross-fade
+//
+// 동작 (~400ms 총):
+//   1) [t=0]      카카오 viewport instant 변경 (setCenter + setLevel(no animate))
+//   2) [t=0]      컨테이너 transform: scale(zoom-in-from / zoom-out-from)
+//                 + opacity: 0.85
+//   3) [t=0+RAF]  transform: scale(1) + opacity: 1
+//                 cubic-bezier(0.16, 1, 0.3, 1) — easeOutQuint (iOS-like)
+//   4) [t=400]    transition cleanup (다른 동작 방해 안 하게)
+//
+// transformOrigin = clickX/clickY 로 클릭 지점 중심 zoom 효과 가능 (옵션).
 export function kakaoFlyTo(
   mapInst: {
     getCenter: () => { getLat: () => number; getLng: () => number };
     getLevel: () => number;
     setCenter: (latlng: unknown) => void;
     setLevel: (n: number, opts?: unknown) => void;
+    getNode?: () => HTMLElement | null | undefined;
   },
   LatLngCtor: new (lat: number, lng: number) => unknown,
   targetLat: number,
   targetLng: number,
   finalLevel: number,
-  duration?: number,
+  // 옵션: transformOrigin 으로 사용할 클릭 지점 (px). 미지정 시 화면 중앙.
+  origin?: { x: number; y: number },
 ): void {
-  const startCenter = mapInst.getCenter();
-  const startLat = startCenter.getLat();
-  const startLng = startCenter.getLng();
   const startLevel = mapInst.getLevel();
+  const zoomDelta = startLevel - finalLevel;  // +면 zoom in, -면 zoom out
 
-  const dLat = Math.abs(targetLat - startLat);
-  const dLng = Math.abs(targetLng - startLng);
-  const distDeg = Math.sqrt(dLat * dLat + dLng * dLng);
-  const dLevel = Math.abs(finalLevel - startLevel);
-  // L-naver-2026flyto2: duration 줄임 (250-500ms) — 큰 polygon redraw 부담 감소.
-  const auto = Math.min(500, Math.max(250, 250 + distDeg * 2500 + dLevel * 50));
-  const dur = duration ?? auto;
+  // 1) 카카오 SDK instant 변경 (race/freeze 차단)
+  try { mapInst.setCenter(new LatLngCtor(targetLat, targetLng)); } catch { /*noop*/ }
+  try { mapInst.setLevel(finalLevel, { animate: false }); } catch { /*noop*/ }
 
-  const startTime = performance.now();
-  let lastSetLevel = startLevel;
-  // L-naver-2026flyto2: 30fps throttle (매 ~33ms). 큰 polygon redraw 부담 절반.
-  let lastFrameTime = 0;
-  const FRAME_INTERVAL = 33;
+  // 2) 컨테이너 GPU CSS transform 시각 효과
+  const node = typeof mapInst.getNode === 'function' ? mapInst.getNode() : null;
+  if (!node) return;  // 컨테이너 못 찾으면 instant 효과만 (애니메이션 없음)
 
-  const step = (now: number) => {
-    const elapsed = now - startTime;
-    const t = Math.min(elapsed / dur, 1);
+  // zoomDelta 따라 시작 scale 결정:
+  //   zoom in (delta > 0): 0.85 → 1.0  (확대 인상)
+  //   zoom out (delta < 0): 1.15 → 1.0 (축소 인상)
+  //   같은 level: 0.95 → 1.0          (살짝 pulse)
+  const initScale = zoomDelta > 0 ? 0.85
+                  : zoomDelta < 0 ? 1.15
+                  : 0.95;
 
-    // throttle: 33ms 안 지났으면 다음 frame 대기 (마지막 frame 은 항상 실행)
-    if (t < 1 && now - lastFrameTime < FRAME_INTERVAL) {
-      requestAnimationFrame(step);
-      return;
-    }
-    lastFrameTime = now;
+  // transformOrigin: 클릭 지점이면 그 지점 중심 zoom, 없으면 화면 중앙
+  const rect = node.getBoundingClientRect();
+  const ox = origin ? `${origin.x - rect.left}px` : '50%';
+  const oy = origin ? `${origin.y - rect.top}px` : '50%';
 
-    const eased = easeInOutCubic(t);
-    const lat = startLat + (targetLat - startLat) * eased;
-    const lng = startLng + (targetLng - startLng) * eased;
-    try { mapInst.setCenter(new LatLngCtor(lat, lng)); } catch { /*noop*/ }
+  // 진입 (이전 동작 강제 종료 + 즉시 적용)
+  node.style.transition = 'none';
+  node.style.transformOrigin = `${ox} ${oy}`;
+  node.style.transform = `scale(${initScale})`;
+  node.style.opacity = '0.85';
+  node.style.willChange = 'transform, opacity';
 
-    const lvLerp = startLevel + (finalLevel - startLevel) * eased;
-    const rounded = Math.round(lvLerp);
-    if (rounded !== lastSetLevel) {
-      try { mapInst.setLevel(rounded, { animate: false }); } catch { /*noop*/ }
-      lastSetLevel = rounded;
-    }
+  // 다음 frame 에 정상 상태로 transition (브라우저 layout flush 보장)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      // easeOutQuint cubic-bezier — 빠른 시작 + 부드러운 도착 (iOS 스타일)
+      node.style.transition =
+        'transform 380ms cubic-bezier(0.16, 1, 0.3, 1), ' +
+        'opacity 280ms ease-out';
+      node.style.transform = 'scale(1)';
+      node.style.opacity = '1';
+    });
+  });
 
-    if (t < 1) {
-      requestAnimationFrame(step);
-    } else {
-      try { mapInst.setCenter(new LatLngCtor(targetLat, targetLng)); } catch { /*noop*/ }
-      if (lastSetLevel !== finalLevel) {
-        try { mapInst.setLevel(finalLevel, { animate: false }); } catch { /*noop*/ }
-      }
-    }
-  };
-
-  requestAnimationFrame(step);
+  // cleanup: 380ms + 여유 후 transition 제거 (다른 동작 영향 없게)
+  setTimeout(() => {
+    node.style.transition = '';
+    node.style.transform = '';
+    node.style.transformOrigin = '';
+    node.style.opacity = '';
+    node.style.willChange = '';
+  }, 480);
 }
 
 // 내부 타입 가드 — runtime 에서 MapLibre vs Kakao 판별
