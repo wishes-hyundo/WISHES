@@ -61,14 +61,31 @@ export async function PUT(request: NextRequest) {
     }
 
     const updateData: Record<string, unknown> = {};
+    const newSources: Record<string, string> = {};
     for (const [key, value] of Object.entries(fields)) {
       if (ALLOWED_FIELDS.includes(key)) {
         updateData[key] = value;
+        // L-cascade1 (2026-04-27 v3 세션): 중개사 직접 수정 → field_sources['X']='broker'
+        // status 는 cascade 무관 (운영 메타)
+        if (key !== 'status') {
+          newSources[key] = 'broker';
+        }
       }
     }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
+
+    // L-cascade1: 기존 field_sources fetch 후 broker 표시 병합
+    if (Object.keys(newSources).length > 0) {
+      const { data: existing } = await supabase
+        .from('listings')
+        .select('field_sources')
+        .eq('id', id)
+        .single();
+      const existingFs = (existing?.field_sources as Record<string, string>) || {};
+      updateData.field_sources = { ...existingFs, ...newSources };
     }
 
     updateData.updated_at = new Date().toISOString();
@@ -182,9 +199,14 @@ export async function POST(request: NextRequest) {
       }
 
       const updateData: Record<string, any> = {};
+      const newSources: Record<string, string> = {};
       for (const [key, value] of Object.entries(fields)) {
         if (ALLOWED_FIELDS.includes(key)) {
           updateData[key] = value;
+          // L-cascade1 (2026-04-27 v3): 중개사 직접 수정 → broker 잠금
+          if (key !== 'status') {
+            newSources[key] = 'broker';
+          }
         }
       }
 
@@ -193,55 +215,15 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      updateData.updated_at = new Date().toISOString();
-
-      const { data, error } = await supabase
-        .from('listings')
-        .update(updateData)
-        .eq('id', id)
-        .select('id, title')
-        .single();
-
-      if (error) {
-        errors.push({ id, error: error.message });
-      } else {
-        results.push({ id, success: true, title: (data as any)?.title });
+      // L-cascade1: 기존 field_sources fetch 후 broker 표시 병합
+      if (Object.keys(newSources).length > 0) {
+        const { data: existing } = await supabase
+          .from('listings')
+          .select('field_sources')
+          .eq('id', id)
+          .single();
+        const existingFs = (existing?.field_sources as Record<string, string>) || {};
+        updateData.field_sources = { ...existingFs, ...newSources };
       }
-    }
 
-    const updated = results.filter((r) => r.success).length;
-    const skipped = results.filter((r) => r.skipped).length;
-
-    audit({
-      action: 'listing.field_update_bulk.ok',
-      actor: authz.actor,
-      ip,
-      status: 200,
-      meta: {
-        requestedCount: requestedIds.length,
-        ownedCount: authz.ownedIds.length,
-        filteredOutCount: authz.filteredOut.length,
-        updated,
-        failed: errors.length,
-        skipped,
-        bypassed: authz.bypassed,
-      },
-    });
-
-    return NextResponse.json({
-      success: true,
-      updated,
-      failed: errors.length,
-      skipped,
-      results,
-      errors: errors.length > 0 ? errors : undefined,
-    });
-  } catch (err: any) {
-    console.error('POST error:', err);
-    audit({ action: 'listing.field_update_bulk.error', ip, status: 500, meta: { reason: 'exception' } });
-    return NextResponse.json(
-      { error: process.env.NODE_ENV !== 'production' ? err?.message : '수정 실패' },
-      { status: 500 },
-    );
-  }
-}
+      updateData.updated_at = new Date().toIS
