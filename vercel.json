@@ -40,6 +40,10 @@
     {
       "path": "/api/cron/backfill-building-info?limit=25",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/cron/generate-descriptions?limit=100",
+      "schedule": "5,35 * * * *"
     }
   ]
 }
