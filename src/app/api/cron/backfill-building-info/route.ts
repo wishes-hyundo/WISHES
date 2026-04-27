@@ -1,28 +1,28 @@
-// ──────────────────────────────────────────────────────────────────────
-// BoB Phase 0-C 3단계 + Phase 0-D 4-3 cascade: 건축물대장 자동 보강 cron
-// 작성: 2026-04-27 v3 세션 (cascade 적용)
+// Phase 0: Building Registry API Area Automation (Area Automation v1)
+// Created: 2026-04-28 (based on AREA_AUTOMATION_RESEARCH)
 //
-// 동작:
-//   1. building_info IS NULL 매물 N건 (default 25, ?limit= 으로 조정)
-//   2. 각 매물 주소 → 카카오로 시군구/법정동 코드 변환
-//   3. data.go.kr 건축물대장 API 호출 (8s timeout per request)
-//   4. listings.building_info(jsonb) / building_purpose / building_name UPDATE
-//      ※ NULL 인 칸 + field_sources != 'broker' 인 칸만 채움 (cascade 보호)
-//      ※ UPDATE 시 field_sources 에 'auto' 표시
+// Goal: Automate area mapping for 3,862 missing listings (32%)
+//   Phase 0 (1 week): Fill via building registry API (2,700 listings, 85% confidence)
 //
-// 비용 0 정책:
-//   - 카카오 무료 (일 100,000건)
-//   - data.go.kr 무료 (일 10,000건)
-//   - Vercel cron Hobby 무료
+// Flow:
+//   1. Select: building_info IS NULL + area_m2 IS NULL + area_locked_at IS NULL
+//   2. Resolve: Address -> Kakao API -> legal codes (sigunguCd, bjdongCd, bun, ji)
+//   3. Fetch: data.go.kr building registry (3 endpoints parallel)
+//   4. Extract: Area fields per property type:
+//      - Apartments/Officetel: supply area > exclusive area > total area
+//      - Detached houses: total area > building footprint
+//      - Commercial: total area (highest confidence)
+//   5. Update: area_m2, area_source='building_registry', area_confidence (85-90)
+//      Keep area_locked_at null (indicates auto-processed)
 //
-// Cron 등록 (vercel.json):
-//   { "path": "/api/cron/backfill-building-info?limit=25", "schedule": "*/30 * * * *" }
-//   매 30분마다 25건 → 일 1,200건 → 약 10일에 11,500건 backfill 완료
+// Zero-cost policy:
+//   - Kakao API: free (100k/day quota)
+//   - data.go.kr: free (10k/day quota)
+//   - Vercel cron: free hobby plan
 //
-// 인증:
-//   - Vercel cron: Authorization: Bearer ${CRON_SECRET}
-//   - 수동 호출: GET /api/cron/backfill-building-info?secret=...&limit=5
-// ──────────────────────────────────────────────────────────────────────
+// Deployment:
+//   vercel.json: { "path": "/api/cron/backfill-building-info?limit=50", "schedule": "0 */2 * * *" }
+//   60 requests/day * 50 listings = 3,000 listings/day = ~1 week to complete
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
@@ -36,7 +36,6 @@ const SERVICE_KEY =
   process.env.DATA_GO_KR_API_KEY || process.env.BUILDING_LEDGER_API_KEY || '';
 const API_BASE = 'https://apis.data.go.kr/1613000/BldRgstHubService';
 
-// ── 1. 카카오 주소 → 시군구/법정동 코드 ──────────────────────
 type Resolved = {
   sigunguCd: string;
   bjdongCd: string;
@@ -82,7 +81,6 @@ async function resolveViaKakao(address: string): Promise<Resolved | null> {
   }
 }
 
-// ── 2. data.go.kr 건축물대장 호출 ─────────────────────────────
 type AnyObj = Record<string, unknown>;
 
 async function fetchBuildingInfo(r: Resolved): Promise<AnyObj | null> {
@@ -129,17 +127,21 @@ async function fetchBuildingInfo(r: Resolved): Promise<AnyObj | null> {
   return Object.keys(merged).length > 1 ? merged : null;
 }
 
-// ── 3. 핵심 필드 추출 ─────────────────────────────────────────
-function extractFields(buildingInfo: AnyObj): {
+interface ExtractedFields {
   building_purpose?: string;
   building_name?: string;
   built_year?: string;
-} {
+  area_m2?: number;
+  area_source?: 'building_registry';
+  area_confidence?: number;
+}
+
+function extractFields(buildingInfo: AnyObj): ExtractedFields {
   const b = (buildingInfo['getBrBasisOulnInfo'] as AnyObj) || {};
   const t = (buildingInfo['getBrTitleInfo'] as AnyObj) || {};
   const r = (buildingInfo['getBrRecapTitleInfo'] as AnyObj) || {};
 
-  const out: { building_purpose?: string; building_name?: string; built_year?: string } = {};
+  const out: ExtractedFields = {};
 
   const purpose = String(t['mainPurpsCdNm'] || r['mainPurpsCdNm'] || b['mainPurpsCdNm'] || '').trim();
   if (purpose) out.building_purpose = purpose;
@@ -150,10 +152,67 @@ function extractFields(buildingInfo: AnyObj): {
   const aprDay = String(t['useAprDay'] || r['useAprDay'] || b['useAprDay'] || '').trim();
   if (aprDay && /^\d{8}/.test(aprDay)) out.built_year = aprDay.substring(0, 4);
 
+  // Phase 0: Area field extraction per Korean building registry spec
+  // Reference: Section A.1 of AREA_AUTOMATION_RESEARCH_2026-04-28.md
+  const mainPurpose = out.building_purpose || purpose || '';
+  const isApartment = /^(아파트|오피스텔|다세대|복합)/.test(mainPurpose);
+  const isDetached = /^(단독주택|주택)/.test(mainPurpose);
+
+  const parseArea = (v: unknown): number | null => {
+    const n = parseFloat(String(v || '0'));
+    return n > 0 ? n : null;
+  };
+
+  const supplyArea = parseArea(t['supplyArea'] || r['supplyArea']);
+  const privArea = parseArea(t['privArea'] || r['privArea']);
+  const totArea = parseArea(t['totArea'] || b['totArea']);
+  const archArea = parseArea(t['archArea'] || b['archArea']);
+
+  let selectedArea: number | null = null;
+  let selectedConfidence = 85;
+
+  if (isApartment) {
+    if (supplyArea) {
+      selectedArea = supplyArea;
+      selectedConfidence = 90;
+    } else if (privArea) {
+      selectedArea = privArea;
+      selectedConfidence = 88;
+    } else if (totArea) {
+      selectedArea = totArea;
+      selectedConfidence = 80;
+    }
+  } else if (isDetached) {
+    if (totArea) {
+      selectedArea = totArea;
+      selectedConfidence = 85;
+    } else if (archArea) {
+      selectedArea = archArea;
+      selectedConfidence = 75;
+    }
+  } else {
+    if (totArea) {
+      selectedArea = totArea;
+      selectedConfidence = 85;
+    } else if (supplyArea) {
+      selectedArea = supplyArea;
+      selectedConfidence = 80;
+    } else if (archArea) {
+      selectedArea = archArea;
+      selectedConfidence = 75;
+    }
+  }
+
+  const maxArea = isApartment && !isDetached ? 500 : 3000;
+  if (selectedArea && selectedArea >= 10 && selectedArea <= maxArea) {
+    out.area_m2 = selectedArea;
+    out.area_source = 'building_registry';
+    out.area_confidence = selectedConfidence;
+  }
+
   return out;
 }
 
-// ── 4. GET 핸들러 ─────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
@@ -171,7 +230,7 @@ export async function GET(request: NextRequest) {
 
   if (!KAKAO_REST_API_KEY || !SERVICE_KEY) {
     return NextResponse.json(
-      { error: 'KAKAO_REST_API_KEY 또는 DATA_GO_KR_API_KEY 미설정' },
+      { error: 'KAKAO_REST_API_KEY or DATA_GO_KR_API_KEY not configured' },
       { status: 500 },
     );
   }
@@ -182,11 +241,12 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServerClient();
 
-  // building_info NULL + cascade 보호 (broker 잠금 아닌 칸만 대상)
   const { data: targets, error: selErr } = await supabase
     .from('listings')
-    .select('id, address, building_name, field_sources')
+    .select('id, address, building_name, area_m2, area_locked_at, field_sources')
     .is('building_info', null)
+    .is('area_m2', null)
+    .is('area_locked_at', null)
     .not('address', 'is', null)
     .order('created_at', { ascending: false })
     .limit(limit);
@@ -231,7 +291,12 @@ export async function GET(request: NextRequest) {
           locked_fields: listing.field_sources,
         });
       } else {
-        // cascade 보호 (Phase 0-D): field_sources='broker' 칸은 절대 안 덮어씀
+        if (listing.area_locked_at) {
+          results.skipped_broker_locked++;
+          await new Promise((r) => setTimeout(r, 200));
+          continue;
+        }
+
         const fs: Record<string, string> = (listing.field_sources as FieldSources) || {};
         const isBrokerLocked = (k: string) => fs[k] === 'broker';
 
@@ -255,13 +320,19 @@ export async function GET(request: NextRequest) {
           newSources.built_year = 'auto';
         }
 
+        if (fields.area_m2 && !isBrokerLocked('area_m2')) {
+          updateData.area_m2 = fields.area_m2;
+          newSources.area_m2 = 'building_registry';
+          updateData.area_source = fields.area_source;
+          updateData.area_confidence = fields.area_confidence;
+        }
+
         if (Object.keys(updateData).length === 0) {
           results.skipped_broker_locked++;
           await new Promise((r) => setTimeout(r, 200));
           continue;
         }
 
-        // field_sources 병합
         updateData.field_sources = { ...fs, ...newSources };
 
         const { error: upErr } = await supabase
