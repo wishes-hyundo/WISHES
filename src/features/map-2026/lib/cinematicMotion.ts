@@ -74,22 +74,18 @@ export function kakaoFlyTo(
 
   // L-naver-2026flytoBoB3 (2026-04-27): iOS UISheetPresentationController spring 모션.
   //   사용자 요청: "iOS sheet 등장 같은 spring-like 느낌".
-  //   기존 cubic-bezier(0.32,0.72,0,1) — easeOut 곡선 (overshoot 없음).
-  //   변경: Web Animations API + 다단계 keyframe — 진짜 spring 물리학.
+  //   기존 cubic-bezier(0.32,0.72,0,1) — easeOut (overshoot 없음).
+  //   변경: cubic-bezier(0.34, 1.56, 0.64, 1) — back-out — 미세 overshoot + 정착.
   //
-  //   spring 파라미터 (iOS sheet 매칭):
-  //     · stiffness ~380, damping ~28, mass ~1
-  //     · ~620ms 안에 미세 overshoot (1.2%) 후 정착
-  //     · 시각적 효과: "살짝 튕겼다가 부드럽게 안착"
+  //   spring 효과:
+  //     · scale 진폭 0.93 → 1.0 (zoom in 시) — 7% 미세
+  //     · 1.56 control point 가 약 5~6% overshoot 만들고 부드럽게 정착
+  //     · duration 620ms — iOS sheet appearance 와 동일
+  //     · pointerEvents=none — 트랜지션 중 잘못된 클릭 차단
+  //     · 시각적 인상: "살짝 튕겼다가 부드럽게 안착"
   //
-  //   keyframe 단계:
-  //     0%   scale(initScale)  opacity 0.94  ← 진입
-  //     45%  scale(1.018)      opacity 1     ← peak overshoot (살짝 튕김)
-  //     70%  scale(0.997)                    ← 미세 undershoot (damped oscillation)
-  //     100% scale(1)                        ← 정착
-  //
-  //   easing: cubic-bezier(0.22, 1, 0.36, 1) — easeOutQuint (각 단계 내부 부드러움)
-  //   Web Animations API 사용 — fill:both 로 끝 상태 유지, 이전 animation 자동 취소.
+  //   기존 Web Animations API keyframe 시도는 SSR/strict TS 환경에서
+  //   Animation type 의존성으로 빌드 실패 — 순수 CSS transition 으로 대체.
   const initScale = zoomDelta > 0 ? 0.93
                   : zoomDelta < 0 ? 1.07
                   : 0.97;
@@ -102,10 +98,15 @@ export function kakaoFlyTo(
   // 진입 (이전 transition 잔류 즉시 종료 + 클릭 좌표 기준 origin)
   node.style.transition = 'none';
   node.style.transformOrigin = `${ox} ${oy}`;
+  node.style.transform = `scale(${initScale})`;
+  node.style.opacity = '0.94';
   node.style.willChange = 'transform, opacity';
-  node.style.pointerEvents = 'none';  // animation 중 잘못된 클릭 방지
+  node.style.pointerEvents = 'none';
 
-  // 이전 animation 잔류 취소 (race 차단)
-  try {
-    if (typeof (node as { getAnimations?: () => Animation[] }).getAnimations === 'function') {
-      const prev = (node as { getAnimations: () => Animation[]
+  // 다음 frame 에 정상 상태로 transition (브라우저 layout flush 보장)
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      // back-out cubic-bezier — control point y > 1 에서 overshoot 후 정착.
+      // (0.34, 1.56, 0.64, 1) 은 iOS sheet 등장 곡선과 시각적 동등.
+      node.style.transition =
+        'transfo
