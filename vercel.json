@@ -54,7 +54,7 @@
   "crons": [
     {
       "path": "/api/cron/backfill-building-info?limit=25",
-      "schedule": "*/30 * * * *"
+      "schedule": "*/15 * * * *"
     },
     {
       "path": "/api/cron/auto-fix-problematic",
@@ -67,6 +67,10 @@
     {
       "path": "/api/cron/integrity-audit",
       "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/geocode-missing",
+      "schedule": "0 */6 * * *"
     }
   ]
 }
