@@ -15,9 +15,12 @@ export async function GET(request: Request, ctx: { params: Promise<{ id: string 
   const supabase = createServerClient();
   const { data: l } = await supabase
     .from('listings')
-    .select('type, deal, address, dong, gu, area_m2, floor_current, rooms, deposit, monthly, price')
+    .select('type, deal, address, dong, gu, area_m2, floor_current, rooms, deposit, monthly, price, listing_images(url)')
     .eq('id', id)
     .maybeSingle();
+
+  // 매물 첫 사진 (있으면 배경)
+  const heroImage = (l as any)?.listing_images?.[0]?.url || null;
 
   if (!l) {
     return new ImageResponse(
@@ -32,7 +35,7 @@ export async function GET(request: Request, ctx: { params: Promise<{ id: string 
 
   return new ImageResponse(
     (
-      <div style={{ width: 1080, height: 1080, display: 'flex', flexDirection: 'column', background: 'linear-gradient(135deg, #2D5A27 0%, #1a3d18 100%)', color: '#fff', padding: 80, fontFamily: 'sans-serif' }}>
+      <div style={{ width: 1080, height: 1080, display: 'flex', flexDirection: 'column', background: heroImage ? `linear-gradient(180deg, rgba(45,90,39,0.4) 0%, rgba(26,61,24,0.92) 100%), url(${heroImage}) center/cover` : 'linear-gradient(135deg, #2D5A27 0%, #1a3d18 100%)', color: '#fff', padding: 80, fontFamily: 'sans-serif' }}>
         <div style={{ fontSize: 56, fontWeight: 800, marginBottom: 30, opacity: 0.95 }}>
           {l.deal} · {l.type}
         </div>

@@ -119,6 +119,10 @@
     {
       "path": "/api/cron/backup-r2",
       "schedule": "0 17 * * 0"
+    },
+    {
+      "path": "/api/cron/notify-matches",
+      "schedule": "0 22 * * *"
     }
   ]
 }
