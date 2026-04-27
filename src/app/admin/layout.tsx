@@ -215,14 +215,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     };
   }, [isAuthenticated]);
 
+  // L-merge-portal (2026-04-27 v3): 사용자 명시 — 매물 관리/검색 제거, 중개사 포털로 통합.
+  //   매물 목록/수정/삭제/검색은 모두 /search content.js 에 이미 구현됨.
+  //   /admin/listings 와 /admin/search 는 /search 로 redirect.
   const navItems = [
     { href: '/admin', label: '대시보드', icon: '📊' },
-    // L-nav-listings (2026-04-24): 매물 목록/수정/삭제 진입점 추가.
-    //   이전에는 사이드바에 링크가 없어 URL 직접 입력으로만 접근 가능.
-    { href: '/admin/listings', label: '매물 관리', icon: '🏢' },
     { href: '/admin?tab=contacts', label: '상담 관리', icon: '📞' },
     { href: '/admin/dedup', label: '중복 정리', icon: '🧹' },
-    // L-agent-profile (2026-04-24): 중개사 프로필 편집 — AgentContactModal 반영
     { href: '/admin/profile', label: '내 프로필', icon: '👤' },
   ];
 
@@ -335,7 +334,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       <nav className="flex-1 px-3 py-2 space-y-1.5 overflow-y-auto">
-        {navItems.map((item) => (
+        {/* 1. 대시보드 */}
+        <Link key={navItems[0].href} href={navItems[0].href} onClick={() => { setMobileMenuOpen(false); setSelectedNav(navItems[0].href); }}
+          className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] ${
+            isActive(navItems[0].href) ? 'bg-white/20 text-white shadow-inner font-bold'
+              : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
+          }`}>
+          <span className="text-lg flex-shrink-0">{navItems[0].icon}</span>
+          {sidebarOpen && <span>{navItems[0].label}</span>}
+        </Link>
+
+        {/* 2. 중개사 포털 — 사용자 명시 위치 (대시보드 바로 아래) */}
+        <Link
+          href="/search"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => { setMobileMenuOpen(false); }}
+          className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-bold transition-colors duration-150 min-h-[48px] text-emerald-100 bg-emerald-600/25 hover:bg-emerald-500/40 hover:text-white active:bg-emerald-500/50 border border-emerald-400/30 shadow-md"
+        >
+          <span className="text-lg flex-shrink-0">🌐</span>
+          {sidebarOpen && (
+            <div className="flex flex-col text-left">
+              <span>중개사 포털</span>
+              <span className="text-[10px] font-normal opacity-80">wishes.co.kr/search</span>
+            </div>
+          )}
+        </Link>
+
+        {/* 3. 나머지 (상담 관리 / 중복 정리 / 내 프로필) */}
+        {navItems.slice(1).map((item) => (
           <Link key={item.href} href={item.href} onClick={() => { setMobileMenuOpen(false); setSelectedNav(item.href); }}
             className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] ${
               isActive(item.href) ? 'bg-white/20 text-white shadow-inner font-bold'
@@ -345,20 +372,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {sidebarOpen && <span>{item.label}</span>}
           </Link>
         ))}
-      
-        {hasExtension && (
-          <Link
-            href="/admin?tab=search"
-            onClick={() => { setMobileMenuOpen(false); setSelectedNav('/admin?tab=search'); }}
-            className={`flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] ${
-              isActive('/admin?tab=search')
-                ? 'bg-white/20 text-white shadow-inner font-bold'
-                : 'text-white/80 hover:bg-white/10 hover:text-white active:bg-white/15'
-            }`}>
-            <span className="text-lg flex-shrink-0">🔍</span>
-            {sidebarOpen && <span>매물 검색</span>}
-          </Link>
-        )}
 
         <a
           href="/mobile-photo.html"
@@ -369,24 +382,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <span className="text-lg flex-shrink-0">📷</span>
           {sidebarOpen && <span>모바일 사진등록</span>}
         </a>
-
-        {/* 중개사 포털 - 웹 기반, 어디서든 접근 가능 */}
-        <Link
-          href="/search"
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => { setMobileMenuOpen(false); }}
-          className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm font-medium transition-colors duration-150 min-h-[48px] text-emerald-300/90 hover:bg-emerald-500/20 hover:text-emerald-200 active:bg-emerald-500/30"
-        >
-          <span className="text-lg flex-shrink-0">🌐</span>
-          {sidebarOpen && (
-            <div className="flex flex-col text-left">
-              <span>중개사 포털</span>
-              <span className="text-[10px] font-normal opacity-70">wishes.co.kr/search</span>
-            </div>
-          )}
-        </Link>
-
 </nav>
 
 
