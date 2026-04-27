@@ -1,34 +1,6 @@
 'use client';
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // AgentContactModal — 담당 중개사 연결 모달
-//   /map 패널 하단 "담당자에게 연결" 버튼 클릭 시 표시.
-//   (기존 InquiryModal 은 리드 캡처 폼, 이 모달은 담당자 정보 노출)
-//
-//   사용법
-//   ------
-//   <AgentContactModal
-//     open={open}
-//     onClose={() => setOpen(false)}
-//     agent={{
-//       name: '오종우',
-//       officeName: '단비공인중개사사무소',
-//       registrationNo: '11620-2024-00123',
-//       careerYears: 6,
-//       phone: '010-6737-7014',
-//       officePhone: '02-885-9200',
-//       officeAddress: '서울시 관악구 봉천로 485',
-//       avatarUrl: null,  // 없으면 이니셜 폴백
-//       responseRate: 98, // 응답률 %
-//       avgResponseMinutes: 12,
-//     }}
-//     listingId={12345}
-//     listingTitle="도시형생활주택 지안타워"
-//     onRequestInquiry={() => { ... }}   // 카톡 문의 핸들러
-//     onRequestVisit={() => { ... }}     // 방문 예약 핸들러
-//   />
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 import { useEffect } from 'react';
 import { X, Phone, MessageSquare, Calendar, Navigation, MessageCircle } from 'lucide-react';
 
@@ -41,7 +13,7 @@ export interface AgentInfo {
   officePhone?: string | null;
   officeAddress?: string | null;
   avatarUrl?: string | null;
-  responseRate?: number | null;        // 0~100
+  responseRate?: number | null;
   avgResponseMinutes?: number | null;
 }
 
@@ -59,12 +31,10 @@ export default function AgentContactModal({
   open, onClose, agent,
   onRequestInquiry, onRequestVisit,
 }: Props) {
-  // ESC 닫기
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', onKey);
-    // body scroll lock
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
@@ -78,6 +48,9 @@ export default function AgentContactModal({
   const initials = (agent.name || '중개사').trim().slice(0, 3);
   const phoneHref = agent.phone ? `tel:${agent.phone.replace(/-/g, '')}` : undefined;
   const smsHref = agent.phone ? `sms:${agent.phone.replace(/-/g, '')}` : undefined;
+  const officeTelHref = agent.officePhone
+    ? `tel:${String(agent.officePhone).replace(/[^0-9+]/g, '')}`
+    : undefined;
   const mapSearchUrl = agent.officeAddress
     ? `https://map.kakao.com/?q=${encodeURIComponent(agent.officeAddress)}`
     : undefined;
@@ -166,7 +139,7 @@ export default function AgentContactModal({
           </div>
         )}
 
-        {/* 사무소 */}
+        {/* 사무소 — L-naver-2026contact1: officePhone tap-to-call 활성화 */}
         {(agent.officeAddress || agent.officePhone) && (
           <div className="px-5 pb-4">
             <div className="flex items-center justify-between px-3.5 py-3 rounded-xl bg-gray-50">
@@ -175,28 +148,39 @@ export default function AgentContactModal({
                 {agent.officeAddress && (
                   <div className="text-[13px] text-gray-800 truncate">{agent.officeAddress}</div>
                 )}
-                {/* L-naver-2026contact1: officePhone 도 tap-to-call 활성화 */}
-                {agent.officePhone && (
+                {agent.officePhone && officeTelHref && (
                   <a
-                    href={`tel:${String(agent.officePhone).replace(/[^0-9+]/g, '')}`}
+                    href={officeTelHref}
                     className="block text-[12px] font-medium text-wishes-primary mt-0.5 truncate underline-offset-2 hover:underline active:opacity-70"
-                    aria-label={`사무소 ${agent.officePhone} 으로 전화`}
+                    aria-label={`사무소 ${agent.officePhone} 으로 전화 걸기`}
                   >
                     {agent.officePhone}
                   </a>
                 )}
               </div>
-              {mapSearchUrl && (
-                <a
-                  href={mapSearchUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-[11px] px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-white flex items-center gap-1 flex-shrink-0"
-                >
-                  <Navigation className="w-3 h-3" />
-                  길찾기
-                </a>
-              )}
+              <div className="flex gap-1.5 flex-shrink-0">
+                {officeTelHref && (
+                  <a
+                    href={officeTelHref}
+                    className="w-9 h-9 rounded-full bg-wishes-primary text-white flex items-center justify-center hover:brightness-110 active:scale-95 transition-all"
+                    aria-label="사무소 전화 걸기"
+                    title="전화"
+                  >
+                    <Phone className="w-4 h-4" />
+                  </a>
+                )}
+                {mapSearchUrl && (
+                  <a
+                    href={mapSearchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-white flex items-center gap-1"
+                  >
+                    <Navigation className="w-3 h-3" />
+                    길찾기
+                  </a>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -225,4 +209,16 @@ export default function AgentContactModal({
         {(agent.responseRate != null || agent.avgResponseMinutes != null) && (
           <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-500 text-center">
             {agent.responseRate != null && `응답률 ${agent.responseRate}%`}
-            {agent.responseRate != null && agent.avgResponseMinutes != null
+            {agent.responseRate != null && agent.avgResponseMinutes != null && ' · '}
+            {agent.avgResponseMinutes != null && `평균 ${agent.avgResponseMinutes}분 내 응답`}
+          </div>
+        )}
+      </div>
+
+      <style jsx>{`
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: translateY(0) } }
+      `}</style>
+    </div>
+  );
+}
