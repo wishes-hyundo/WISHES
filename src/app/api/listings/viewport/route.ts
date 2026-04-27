@@ -421,11 +421,11 @@ export async function GET(req: NextRequest) {
         q = q.not('thumb_url', 'is', null); // 폴백 (완화 조건)
       }
     }
-    // L-naver-2026filterfix4 (2026-04-27): features 는 overlaps (OR pre-filter).
-    //   PostgREST contains 가 일부 환경에서 0개 반환 — overlaps 안정.
-    //   사용자 의도(AND)는 클라이언트 ListPanel.tsx every() 로 강제.
-    //   2026 BoB: 서버 OR(catch all) + 클라 AND(엄격) 이중 방어선.
-    if (features && features.length) q = q.overlaps('features', features);
+    // L-naver-2026filterfix5 (2026-04-27): features 는 JSONB array — server skip + 클라 검증
+    //   PostgREST overlaps/contains 모두 0개 반환 (jsonb column 임).
+    //   해결: 서버 skip + ListPanel.tsx every() 로만 검증 (정확도 100%).
+    //   영향: viewport limit 까지 가져온 후 클라 필터.
+    // features 서버 필터 비활성 — 클라 검증만 사용
 
     const { data, error } = await q
       .order('updated_at', { ascending: false, nullsFirst: false })
