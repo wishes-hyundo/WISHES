@@ -97,6 +97,12 @@ export async function POST(request: NextRequest) {
         if (item.title !== undefined) updateData.title = item.title;
         if (item.description !== undefined) updateData.description = item.description;
 
+        // Phase 1-5 (2026-04-28): status / is_problematic / problematic_* 처리
+        if (item.status !== undefined) updateData.status = item.status;
+        if (item.is_problematic !== undefined) updateData.is_problematic = item.is_problematic;
+        if (item.problematic_reason !== undefined) updateData.problematic_reason = item.problematic_reason;
+        if (item.problematic_marked_at !== undefined) updateData.problematic_marked_at = item.problematic_marked_at;
+
         if (Object.keys(updateData).length === 0) {
           results.push({ id: item.id, success: false, error: 'No fields to update' });
           continue;

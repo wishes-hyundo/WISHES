@@ -165,6 +165,8 @@ export async function GET(request: NextRequest) {
     //   + admin_bridge_ 접두사 반복 제거 (이중 접두사 방어)
     const scopeParam = (searchParams.get('scope') || 'all').toLowerCase();
     let scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
+    // Phase 1-5 (2026-04-28): problematic=true 매물만 조회 (사장님 검토 페이지)
+    const onlyProblematic = searchParams.get('problematic') === 'true';
     let scopeUid: string | null = null;
     let scopeAuth: 'ok' | 'failed_degrade_all' | null = null;
     if (scope === 'mine') {
