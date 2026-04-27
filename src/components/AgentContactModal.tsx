@@ -175,8 +175,15 @@ export default function AgentContactModal({
                 {agent.officeAddress && (
                   <div className="text-[13px] text-gray-800 truncate">{agent.officeAddress}</div>
                 )}
+                {/* L-naver-2026contact1: officePhone 도 tap-to-call 활성화 */}
                 {agent.officePhone && (
-                  <div className="text-[11px] text-gray-400 mt-0.5 truncate">{agent.officePhone}</div>
+                  <a
+                    href={`tel:${String(agent.officePhone).replace(/[^0-9+]/g, '')}`}
+                    className="block text-[12px] font-medium text-wishes-primary mt-0.5 truncate underline-offset-2 hover:underline active:opacity-70"
+                    aria-label={`사무소 ${agent.officePhone} 으로 전화`}
+                  >
+                    {agent.officePhone}
+                  </a>
                 )}
               </div>
               {mapSearchUrl && (
@@ -218,16 +225,4 @@ export default function AgentContactModal({
         {(agent.responseRate != null || agent.avgResponseMinutes != null) && (
           <div className="px-5 py-2.5 bg-gray-50 border-t border-gray-100 text-[11px] text-gray-500 text-center">
             {agent.responseRate != null && `응답률 ${agent.responseRate}%`}
-            {agent.responseRate != null && agent.avgResponseMinutes != null && ' · '}
-            {agent.avgResponseMinutes != null && `평균 ${agent.avgResponseMinutes}분 내 응답`}
-          </div>
-        )}
-      </div>
-
-      <style jsx>{`
-        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(12px) } to { opacity: 1; transform: translateY(0) } }
-      `}</style>
-    </div>
-  );
-}
+            {agent.responseRate != null && agent.avgResponseMinutes != null

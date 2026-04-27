@@ -24,6 +24,7 @@ import Image from 'next/image';
 import { X, ExternalLink, ImageOff, MapPin, Video, ChevronLeft, ChevronRight, Phone, ShieldCheck } from 'lucide-react';
 import AgentContactModal, { type AgentInfo } from '@/components/AgentContactModal';
 import InquiryModal from '@/components/InquiryModal';
+import { openKakaoChannelChat, openNaverBooking } from '@/lib/externalContact';
 import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 import { useMap2026Store, type MapListing } from '../store';
 import { useAuth } from '@/contexts/AuthContext';
@@ -785,8 +786,16 @@ export function ListingDetailModal() {
         agent={buildAgentInfoFromProfile(agentProfile)}
         listingId={listing.id}
         listingTitle={listing.title ?? (listing as any).building_name ?? ''}
-        onRequestInquiry={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
-        onRequestVisit={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
+        onRequestInquiry={() => {
+          // L-naver-2026contact1: 카톡문의 → 카카오 채널 chat (모바일 앱 딥링크)
+          setAgentModalOpen(false);
+          if (!openKakaoChannelChat()) setInquiryOpen(true);
+        }}
+        onRequestVisit={() => {
+          // L-naver-2026contact1: 방문예약 → 네이버 예약 직링크
+          setAgentModalOpen(false);
+          openNaverBooking();
+        }}
       />
 
       {/* 문의/예약 서브 모달 */}
@@ -829,12 +838,4 @@ function buildAgentInfoFromProfile(ap: {
   return {
     ...FALLBACK,
     name: ap.name || FALLBACK.name,
-    phone: ap.phone || FALLBACK.phone,
-    avatarUrl: ap.avatar_url || null,
-    officeName: ap.office_name || FALLBACK.officeName,
-    officePhone: ap.office_phone || FALLBACK.officePhone,
-    officeAddress: ap.office_address || FALLBACK.officeAddress,
-    registrationNo: ap.registration_no || null,
-    careerYears: ap.career_years ?? null,
-  };
-}
+    phone

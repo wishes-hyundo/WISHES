@@ -18,6 +18,7 @@ import { filterSelfHosted } from '@/lib/image-policy';
 import CompassDirection from '@/components/CompassDirection';
 import InquiryModal from '@/components/InquiryModal';
 import AgentContactModal, { type AgentInfo } from '@/components/AgentContactModal';
+import { openKakaoChannelChat, openNaverBooking } from '@/lib/externalContact';
 import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 import type { Listing } from '@/types';
 import ListingLocationMap from './ListingLocationMap';
@@ -598,8 +599,17 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
       agent={buildAgentInfo(listing, agentProfile)}
       listingId={listing.id}
       listingTitle={displayTitle(listing)}
-      onRequestInquiry={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
-      onRequestVisit={() => { setAgentModalOpen(false); setInquiryOpen(true); }}
+      onRequestInquiry={() => {
+        // L-naver-2026contact1: 카톡문의 → 카카오 채널 chat (모바일 앱 딥링크)
+        // 채널 미설정 시 InquiryModal 폴백.
+        setAgentModalOpen(false);
+        if (!openKakaoChannelChat()) setInquiryOpen(true);
+      }}
+      onRequestVisit={() => {
+        // L-naver-2026contact1: 방문예약 → 네이버 예약 직링크
+        setAgentModalOpen(false);
+        openNaverBooking();
+      }}
     />
 
     {/* ── 인라인 문의 모달 (카톡 문의·방문 예약 진입점, 리드 캡처용) ── */}
@@ -742,16 +752,4 @@ function NearbyStationsSection({ listingId }: { listingId: number }) {
               <div key={idx} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center font-bold">{station.line}</span>
-                  <span className="text-sm font-medium text-gray-800">{station.name}역</span>
-                </div>
-                <span className="text-xs text-blue-600 font-medium">도보 {station.walkMin}분</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-gray-400">반경 2km 내 지하철역 없음</p>
-        )}
-      </div>
-    </div>
-  );
-}
+                  <span className="tex
