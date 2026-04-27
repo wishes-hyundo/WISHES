@@ -28,6 +28,14 @@ const config: Config = {
           border: '#c8e6c9',
           dark: '#0a2e12',
           'dark-light': '#133a1b',
+          // Phase 2 (2026-04-28): 옛날 /search 픽셀 색상 (content.js + styles.css 분석)
+          'search-primary': '#2D5A27',
+          'search-primary-dark': '#1a3d18',
+          'search-primary-pale': '#E8F5E9',
+          'search-card-hover': '#fafff9',
+          'search-card-selected': '#f0fdf4',
+          'search-deal-bg': '#FFF3E0',
+          'search-deal-fg': '#E65100',
         },
       },
       fontFamily: {
