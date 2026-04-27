@@ -600,13 +600,10 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
       listingId={listing.id}
       listingTitle={displayTitle(listing)}
       onRequestInquiry={() => {
-        // L-naver-2026contact1: 카톡문의 → 카카오 채널 chat (모바일 앱 딥링크)
-        // 채널 미설정 시 InquiryModal 폴백.
         setAgentModalOpen(false);
         if (!openKakaoChannelChat()) setInquiryOpen(true);
       }}
       onRequestVisit={() => {
-        // L-naver-2026contact1: 방문예약 → 네이버 예약 직링크
         setAgentModalOpen(false);
         openNaverBooking();
       }}
@@ -752,4 +749,16 @@ function NearbyStationsSection({ listingId }: { listingId: number }) {
               <div key={idx} className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] flex items-center justify-center font-bold">{station.line}</span>
-                  <span className="tex
+                  <span className="text-sm font-medium text-gray-800">{station.name}역</span>
+                </div>
+                <span className="text-xs text-blue-600 font-medium">도보 {station.walkMin}분</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-gray-400">반경 2km 내 지하철역 없음</p>
+        )}
+      </div>
+    </div>
+  );
+}
