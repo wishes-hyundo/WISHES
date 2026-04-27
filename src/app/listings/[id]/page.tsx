@@ -25,6 +25,15 @@ function formatPrice(price: number): string {
   return price.toLocaleString();
 }
 
+// L-seo1 (2026-04-27 v3): 자체 콘텐츠 검사 (page + sitemap 일관)
+function checkHasOwnContent(listing: any): boolean {
+  return !!(
+    (listing.ai_description && String(listing.ai_description).trim().length > 30)
+    || (listing.description && String(listing.description).trim().length > 30)
+    || (listing.seo_meta_description && String(listing.seo_meta_description).trim().length > 30)
+  );
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const fallback = { title: '매물 상세' };
   try {
@@ -41,15 +50,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     if (!listing) return fallback;
 
     // L-seo1 (2026-04-27 v3 세션): SEO 우선 정책 — 자체 콘텐츠 있는 매물 색인 허용.
-    //   기존 정책: source_site 있는 모든 크롤링 매물 noindex (= 12,114/12,115건 색인 차단)
-    //   신 정책: ai_description / description / seo_meta_description 중 하나라도 30자 이상 있는
-    //           매물은 색인 허용 (저작권 안전: title/desc/이미지 모두 자체 생성). cron 으로 ai_description
-    //           보강 진행되면서 색인 매물 수 점진 증가. 사용자 명시 — "구글/네이버 무조건 노출".
-    const hasOwnContent = !!(
-      (listing.ai_description && String(listing.ai_description).trim().length > 30)
-      || (listing.description && String(listing.description).trim().length > 30)
-      || (listing.seo_meta_description && String(listing.seo_meta_description).trim().length > 30)
-    );
+    const hasOwnContent = checkHasOwnContent(listing);
 
     const priceText = listing.deal === '월세'
       ? formatPrice(listing.deposit) + '/' + formatPrice(listing.monthly) + '만원'
@@ -57,14 +58,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     const title = listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
 
-    // ─ description: seo_meta_description > ai_description > fallback (검색엔진 노출용 최대 160자)
     const rawDesc =
       listing.seo_meta_description
       || listing.ai_description
       || (listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText);
     const description = String(rawDesc).replace(/\s+/g, ' ').trim().slice(0, 160);
 
-    // ─ keywords: SEO 키워드/태그 통합 + 정적 기본어 (중복 제거, 공백 trim, 빈 값 필터)
     const mergedKeywords = Array.from(new Set(
       [
         ...(Array.isArray(listing.seo_keywords) ? listing.seo_keywords : []),
@@ -77,7 +76,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         .filter((k) => k.length > 0)
     ));
 
-    // 동적 OG 이미지 — 자체 렌더 카드 (외부 사진 미사용 → 크롤링 매물도 안전)
     const ogImageUrl = 'https://wishes.co.kr/api/og/listing/' + id;
 
     return {
@@ -108,13 +106,92 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       alternates: {
         canonical: 'https://wishes.co.kr/listings/' + id,
       },
-      // L-seo1 (2026-04-27 v3): 자체 콘텐츠 있는 매물만 색인 (저작권 안전)
-      //   미보강 매물은 noindex 유지 → cron 보강 진행으로 점진적으로 색인 매물 수 증가
       ...(hasOwnContent ? {} : { robots: { index: false, follow: true } }),
     };
   } catch {
     return fallback;
   }
+}
+
+// L-seo2 (2026-04-27 v3): RealEstateListing JSON-LD 생성 (구글 리치 결과)
+function buildJsonLd(listing: any, id: string): Record<string, any> | null {
+  if (!listing) return null;
+
+  const priceText = listing.deal === '월세'
+    ? formatPrice(listing.deposit) + '/' + formatPrice(listing.monthly) + '만원'
+    : formatPrice(listing.price || listing.deposit) + '만원';
+  const name = listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
+
+  // 가격 (Offer): 월세는 monthly, 전세/매매는 price 또는 deposit
+  let priceWon = 0;
+  if (listing.deal === '월세') priceWon = (listing.monthly || 0) * 10000;
+  else priceWon = ((listing.price || listing.deposit || 0) as number) * 10000;
+
+  const description = String(
+    listing.seo_meta_description || listing.ai_description || listing.description || name
+  ).replace(/\s+/g, ' ').trim().slice(0, 300);
+
+  const jsonLd: Record<string, any> = {
+    '@context': 'https://schema.org',
+    '@type': 'RealEstateListing',
+    'name': name,
+    'description': description,
+    'url': 'https://wishes.co.kr/listings/' + id,
+    'image': 'https://wishes.co.kr/api/og/listing/' + id,
+    'datePosted': listing.created_at,
+    'dateModified': listing.updated_at,
+  };
+
+  if (listing.address) {
+    jsonLd['address'] = {
+      '@type': 'PostalAddress',
+      'streetAddress': listing.address,
+      'addressLocality': listing.gu || listing.dong,
+      'addressRegion': '서울특별시',
+      'addressCountry': 'KR',
+    };
+  }
+
+  if (listing.lat && listing.lng) {
+    jsonLd['geo'] = {
+      '@type': 'GeoCoordinates',
+      'latitude': listing.lat,
+      'longitude': listing.lng,
+    };
+  }
+
+  if (priceWon > 0) {
+    jsonLd['offers'] = {
+      '@type': 'Offer',
+      'price': priceWon,
+      'priceCurrency': 'KRW',
+      'availability': listing.status === '공개' ? 'https://schema.org/InStock' : 'https://schema.org/LimitedAvailability',
+      'url': 'https://wishes.co.kr/listings/' + id,
+    };
+  }
+
+  if (listing.area_m2 && listing.area_m2 > 0) {
+    jsonLd['floorSize'] = {
+      '@type': 'QuantitativeValue',
+      'value': listing.area_m2,
+      'unitCode': 'MTK', // 제곱미터
+    };
+  }
+
+  if (listing.rooms && listing.rooms > 0) {
+    jsonLd['numberOfRooms'] = listing.rooms;
+  }
+
+  if (listing.bathrooms && listing.bathrooms > 0) {
+    jsonLd['numberOfBathroomsTotal'] = listing.bathrooms;
+  }
+
+  if (listing.built_year) {
+    const yearStr = String(listing.built_year).match(/\d{4}/);
+    if (yearStr) jsonLd['yearBuilt'] = parseInt(yearStr[0]);
+  }
+
+  return jsonLd;
 }
 
 export default async function ListingPage({ params }: Props) {
@@ -147,12 +224,27 @@ export default async function ListingPage({ params }: Props) {
       .eq('status', '공개')
       .single())) as { data: any };
 
-    // ※ 저작권 보호 + 자체 업로드 통과
     const sanitized = listing
       ? sanitizePublicListing(applyImagePolicy(listing as any))
       : listing;
 
-    return <ListingDetailClient id={id} listing={sanitized} />;
+    // L-seo2 (2026-04-27 v3): 자체 콘텐츠 있는 매물에만 JSON-LD inject
+    //   (noindex 매물에 schema 데이터 올리는 건 무의미 + 일관성)
+    const jsonLd = sanitized && checkHasOwnContent(sanitized)
+      ? buildJsonLd(sanitized, id)
+      : null;
+
+    return (
+      <>
+        {jsonLd && (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          />
+        )}
+        <ListingDetailClient id={id} listing={sanitized} />
+      </>
+    );
   } catch {
     return <ListingDetailClient id={id} listing={null} />;
   }
