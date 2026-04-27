@@ -132,6 +132,7 @@ interface ExtractedFields {
   building_name?: string;
   built_year?: string;
   area_m2?: number;
+  area_supply_m2?: number;
   area_source?: 'building_registry';
   area_confidence?: number;
 }
@@ -172,15 +173,22 @@ function extractFields(buildingInfo: AnyObj): ExtractedFields {
   let selectedConfidence = 85;
 
   if (isApartment) {
-    if (supplyArea) {
-      selectedArea = supplyArea;
-      selectedConfidence = 90;
-    } else if (privArea) {
+    // 사장님 명령 (2026-04-28): 전유부가 있는 경우 = 전용면적이 가장 중요
+    //   Korean real estate: 전용(privArea) > 공급(supplyArea) > 연면적(totArea)
+    //   KISO 14항 + 부동산 거래 신고법: 전용면적 표시 의무
+    if (privArea) {
       selectedArea = privArea;
-      selectedConfidence = 88;
+      selectedConfidence = 95;
+    } else if (supplyArea) {
+      selectedArea = supplyArea;
+      selectedConfidence = 80;  // 공급면적은 공용 분담 포함 → 정확도 낮음
     } else if (totArea) {
       selectedArea = totArea;
-      selectedConfidence = 80;
+      selectedConfidence = 65;  // 연면적은 건물 전체 → 단지 1동 한 호 매핑 어려움
+    }
+    // 추가: area_supply_m2 컬럼에도 supplyArea 동시 채움 (있으면)
+    if (supplyArea && supplyArea !== selectedArea) {
+      out.area_supply_m2 = supplyArea;
     }
   } else if (isDetached) {
     if (totArea) {
