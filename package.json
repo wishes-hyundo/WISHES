@@ -101,6 +101,7 @@
   "overrides": {
     "fast-xml-parser": "^5.7.0",
     "esbuild": "^0.25.0",
-    "postcss": "^8.5.10"
+    "postcss": "^8.5.10",
+    "@tanstack/query-core": "5.99.2"
   }
 }

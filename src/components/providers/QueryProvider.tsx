@@ -88,7 +88,10 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
     const persister = createIdbPersister();
     if (!persister) return;
     persistQueryClient({
-      queryClient: client,
+      // L-bob-phase1-fix (2026-04-27 v3): TanStack 의 nested query-core type 충돌 우회.
+      //   react-query 와 react-query-persist-client 가 각자 자체 query-core 를 nest 해서 #private brand 비교 실패.
+      //   root override @tanstack/query-core: 5.99.2 만으로는 부족 — 임시로 as unknown 캐스트.
+      queryClient: client as unknown as Parameters<typeof persistQueryClient>[0]['queryClient'],
       // @ts-expect-error — 우리의 IDB persister 는 공식 Persister shape 와 구조 호환
       persister,
       maxAge: 1000 * 60 * 60 * 24, // 24h
