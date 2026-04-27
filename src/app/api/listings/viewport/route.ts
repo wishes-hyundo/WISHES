@@ -352,35 +352,41 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ─── L-naver-2026filterfix1 (2026-04-27) rooms 필터 type 기반 정확화 ───
+    //   사용자 발견 버그: rooms=2 (투룸) 필터인데 type='원룸' 인 매물 노출.
+    //   원인: 기존은 rooms 컬럼만 필터. DB 무결성 깨짐 (type='원룸' + rooms=2).
+    //   해결: type 기반 정확 필터 (사용자 기대 — "투룸" 클릭 = type='투룸' 만).
+    //     · rooms=1 → type='원룸'
+    //     · rooms=2 → type='투룸'
+    //     · rooms=3+ → rooms >= 3 OR type LIKE '%쓰리룸%'
     if (rooms && rooms.length) {
-      const exactRooms = rooms.filter((n) => n < 3);
-      const hasThreePlus = rooms.some((n) => n >= 3);
-      if (exactRooms.length && hasThreePlus) {
-        q = q.or(`rooms.in.(${exactRooms.join(',')}),rooms.gte.3`);
-      } else if (exactRooms.length) {
-        q = q.in('rooms', exactRooms);
-      } else if (hasThreePlus) {
-        q = q.gte('rooms', 3);
+      const ors: string[] = [];
+      if (rooms.includes(1)) ors.push('type.eq.원룸');
+      if (rooms.includes(2)) ors.push('type.eq.투룸');
+      if (rooms.some((n) => n >= 3)) {
+        ors.push('rooms.gte.3');
+        // type 에 "쓰리룸"/"포룸"/"오룸" 명시된 매물도 포함 (DB 무결성 보강)
+        ors.push('type.like.*쓰리룸*');
+        ors.push('type.like.*포룸*');
       }
+      if (ors.length) q = q.or(ors.join(','));
     }
 
-    // ─── L-sec123 (2026-04-22) 다거래 가격필터 수정 ───
-    //   기존: deals.length === 1 일 때만 price/deposit/monthly 가 적용돼,
-    //         '매매+전세' 다중 선택이나 '전체 거래' 상태에서 가격/보증금 필터가
-    //         완전히 무시됐다. (사용자가 필터를 조정해도 결과가 안 바뀌는 버그)
-    //   수정: 각 가격축을 해당 deal 에만 스코프하고, 비대상 deal 은 OR 로 통과.
-    //         · minPrice/maxPrice  → 매매 전용 (price)
-    //         · minDeposit/maxDeposit → 전세·월세·단기 (deposit, 매매 제외)
-    //         · minMonthly/maxMonthly → 월세 전용 (monthly)
-    //   PostgREST or() 는 chain 시 AND 로 합성되므로 축 간 독립성 유지.
-    //   단일 deal 선택 상황에서도 동일 로직이 그대로 작동 (in 필터로 좁혀진
-    //   행만 OR 대상이므로 비대상 leg 은 자동 no-op).
-    if (minPrice != null) q = q.or(`deal.neq.매매,price.gte.${minPrice}`);
-    if (maxPrice != null) q = q.or(`deal.neq.매매,price.lte.${maxPrice}`);
-    if (minDeposit != null) q = q.or(`deal.eq.매매,deposit.gte.${minDeposit}`);
-    if (maxDeposit != null) q = q.or(`deal.eq.매매,deposit.lte.${maxDeposit}`);
-    if (minMonthly != null) q = q.or(`deal.neq.월세,monthly.gte.${minMonthly}`);
-    if (maxMonthly != null) q = q.or(`deal.neq.월세,monthly.lte.${maxMonthly}`);
+    // ─── L-naver-2026filterfix2 (2026-04-27) 가격 필터 NULL 안전 처리 ───
+    //   사용자 발견 버그: 보증금 500~1000 필터인데 매매 매물 (보증금 NULL) 노출.
+    //   원인: 기존 q.or(`deal.eq.매매,deposit.gte.500`) — 매매면 무조건 통과.
+    //   해결: 단순 gte/lte 사용. PostgreSQL 의 NULL 비교는 NULL=false →
+    //         자동으로 deposit IS NULL 인 매매 매물 제외.
+    //         · price 필터: 매매만 통과 (전세/월세는 price=NULL → 제외) ✅
+    //         · deposit 필터: 전세/월세/단기만 통과 (매매=NULL → 제외) ✅
+    //         · monthly 필터: 월세/단기만 통과 (매매/전세=NULL → 제외) ✅
+    //   이 logic 이 사용자 기대와 일치 (각 거래 타입의 의미 있는 필터만 적용).
+    if (minPrice != null) q = q.gte('price', minPrice);
+    if (maxPrice != null) q = q.lte('price', maxPrice);
+    if (minDeposit != null) q = q.gte('deposit', minDeposit);
+    if (maxDeposit != null) q = q.lte('deposit', maxDeposit);
+    if (minMonthly != null) q = q.gte('monthly', minMonthly);
+    if (maxMonthly != null) q = q.lte('monthly', maxMonthly);
 
     if (minArea != null) q = q.gte('area_m2', minArea);
     if (maxArea != null) q = q.lte('area_m2', maxArea);
@@ -415,7 +421,11 @@ export async function GET(req: NextRequest) {
         q = q.not('thumb_url', 'is', null); // 폴백 (완화 조건)
       }
     }
-    if (features && features.length) q = q.overlaps('features', features);
+    // L-naver-2026filterfix3 (2026-04-27): features 는 overlaps -> contains.
+    //   기존 overlaps: 매물의 features 와 사용자 선택의 교집합 1개라도 있으면 통과 (OR).
+    //   사용자 의도: "반려동물 + 주차" 선택 = 둘 다 가능한 매물 (AND).
+    //   해결: contains — 매물의 features 배열이 사용자 선택을 모두 포함해야 통과.
+    if (features && features.length) q = q.contains('features', features);
 
     const { data, error } = await q
       .order('updated_at', { ascending: false, nullsFirst: false })

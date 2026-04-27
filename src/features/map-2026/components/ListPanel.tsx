@@ -125,6 +125,12 @@ export function ListPanel() {
   const setClusterFilter = useMap2026Store((s) => s.setClusterFilter);
   // L-naver-2026truecount2 (2026-04-27): categoryCounts 미사용 (client sorted.length 단일화).
   const filterCategory = useMap2026Store((s) => s.filter.category);
+  // L-naver-2026clientvalidation1 (2026-04-27): BoB 이중 방어선 — 전체 filter 가져옴.
+  //   사용자 발견 버그: 서버 query 가 데이터 무결성 문제로 잘못된 매물 통과시킴.
+  //   (rooms=2 인데 type='원룸', deposit 필터인데 매매 매물 등)
+  //   BoB 표준: 서버 1차 필터 + 클라이언트 2차 검증 = 이중 방어선.
+  //   사용자가 보는 모든 매물은 100% 필터 조건 충족 보장.
+  const fullFilter = useMap2026Store((s) => s.filter);
   // L-nolimit1 (2026-04-26): bbox > 0.3° 면 listings fetch 안 됨 (광역 뷰).
   //   광역 뷰에선 빈 listings 라 안내 메시지 다르게.
   const bbox = useMap2026Store((s) => s.bbox);
@@ -148,11 +154,88 @@ export function ListPanel() {
     const catFiltered = filterCategory === 'investment'
       ? baseList
       : baseList.filter((l) => listingCategory(l.type) === filterCategory);
-    const base = sortListings(catFiltered, sort);
+
+    // L-naver-2026clientvalidation1 (2026-04-27): BoB 이중 방어선 — 매 매물 100% 검증.
+    //   서버 query 의 데이터 무결성 누락을 클라이언트가 강제 차단.
+    //   다음 모든 조건이 정확히 매칭되는 매물만 통과.
+    const validated = catFiltered.filter((l) => {
+      // 1. rooms 필터 (type 기반 정확 매칭)
+      if (fullFilter.rooms.length > 0) {
+        const t = (l.type ?? '').trim();
+        const wantOne = fullFilter.rooms.includes(1);
+        const wantTwo = fullFilter.rooms.includes(2);
+        const wantThreePlus = fullFilter.rooms.some((n) => n >= 3);
+        const isOneRoom = t === '원룸';
+        const isTwoRoom = t === '투룸';
+        const isThreeRoomPlus = t.includes('쓰리룸') || t.includes('포룸')
+          || (l.rooms != null && Number(l.rooms) >= 3);
+        const matches = (wantOne && isOneRoom)
+          || (wantTwo && isTwoRoom)
+          || (wantThreePlus && isThreeRoomPlus);
+        if (!matches) return false;
+      }
+      // 2. 거래 유형 (deals)
+      if (fullFilter.deals.length > 0 && !fullFilter.deals.includes(l.deal)) {
+        return false;
+      }
+      // 3. 매매가 (price): 매매 매물만 의미 — 다른 거래는 자동 통과
+      if (fullFilter.minPrice != null) {
+        if (l.deal === '매매' && (l.price == null || l.price < fullFilter.minPrice)) return false;
+      }
+      if (fullFilter.maxPrice != null) {
+        if (l.deal === '매매' && (l.price == null || l.price > fullFilter.maxPrice)) return false;
+      }
+      // 4. 보증금 (deposit): 전세/월세/단기 의미 — 매매는 자동 제외
+      if (fullFilter.minDeposit != null) {
+        if (l.deal === '매매') return false;  // 매매는 보증금 개념 없음 → 제외
+        if (l.deposit == null || l.deposit < fullFilter.minDeposit) return false;
+      }
+      if (fullFilter.maxDeposit != null) {
+        if (l.deal === '매매') return false;
+        if (l.deposit == null || l.deposit > fullFilter.maxDeposit) return false;
+      }
+      // 5. 월세 (monthly): 월세/단기 의미 — 매매/전세 제외
+      if (fullFilter.minMonthly != null) {
+        if (l.deal === '매매' || l.deal === '전세') return false;
+        if (l.monthly == null || l.monthly < fullFilter.minMonthly) return false;
+      }
+      if (fullFilter.maxMonthly != null) {
+        if (l.deal === '매매' || l.deal === '전세') return false;
+        if (l.monthly == null || l.monthly > fullFilter.maxMonthly) return false;
+      }
+      // 6. 면적 (m²)
+      if (fullFilter.minArea != null && (l.area_m2 == null || l.area_m2 < fullFilter.minArea)) return false;
+      if (fullFilter.maxArea != null && (l.area_m2 == null || l.area_m2 > fullFilter.maxArea)) return false;
+      // 7. 역세권 (nearStation seconds → meters: 80m/min)
+      if (fullFilter.nearStation != null) {
+        const meters = Math.max(80, Math.round((fullFilter.nearStation / 60) * 80));
+        if (l.station_distance == null || l.station_distance > meters) return false;
+      }
+      // 8. 신축 (N년 이내)
+      if (fullFilter.newBuildYears != null) {
+        const threshold = new Date().getFullYear() - fullFilter.newBuildYears;
+        const yr = Number(l.built_year);
+        if (!Number.isFinite(yr) || yr < threshold) return false;
+      }
+      // 9. property types (UI 의 빠른 선택과 별개로 detail 의 type 선택)
+      if (fullFilter.propertyTypes.length > 0 && !fullFilter.propertyTypes.includes(l.type ?? '')) {
+        return false;
+      }
+      // 10. features (반려동물/주차/엘리베이터 등 — AND 조건)
+      if (fullFilter.features.length > 0) {
+        const f = Array.isArray(l.features) ? l.features : [];
+        if (!fullFilter.features.every((req) => f.includes(req))) return false;
+      }
+      // 11. 사진 있음
+      if (fullFilter.hasImages && !l.thumbnail_url) return false;
+      return true;
+    });
+
+    const base = sortListings(validated, sort);
     if (!clusterFilterIds || clusterFilterIds.length === 0) return base;
     const set = new Set(clusterFilterIds);
     return base.filter((l) => set.has(l.id));
-  }, [listings, sort, clusterFilterIds, clusterFilterListings, filterCategory]);
+  }, [listings, sort, clusterFilterIds, clusterFilterListings, filterCategory, fullFilter]);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
