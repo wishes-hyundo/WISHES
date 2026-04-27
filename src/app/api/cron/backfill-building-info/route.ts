@@ -1,13 +1,14 @@
 // ──────────────────────────────────────────────────────────────────────
-// BoB Phase 0-C 3단계: 건축물대장 자동 보강 cron
-// 작성: 2026-04-27 (인계 v2 → v3 세션, 사용자 명시 — 차근차근 자동 진행)
+// BoB Phase 0-C 3단계 + Phase 0-D 4-3 cascade: 건축물대장 자동 보강 cron
+// 작성: 2026-04-27 v3 세션 (cascade 적용)
 //
 // 동작:
 //   1. building_info IS NULL 매물 N건 (default 25, ?limit= 으로 조정)
 //   2. 각 매물 주소 → 카카오로 시군구/법정동 코드 변환
 //   3. data.go.kr 건축물대장 API 호출 (8s timeout per request)
 //   4. listings.building_info(jsonb) / building_purpose / building_name UPDATE
-//      ※ NULL 인 칸만 채움 (cascade 도입 전이라 안전 보수적)
+//      ※ NULL 인 칸 + field_sources != 'broker' 인 칸만 채움 (cascade 보호)
+//      ※ UPDATE 시 field_sources 에 'auto' 표시
 //
 // 비용 0 정책:
 //   - 카카오 무료 (일 100,000건)
@@ -15,7 +16,7 @@
 //   - Vercel cron Hobby 무료
 //
 // Cron 등록 (vercel.json):
-//   { "path": "/api/cron/backfill-building-info", "schedule": "*/30 * * * *" }
+//   { "path": "/api/cron/backfill-building-info?limit=25", "schedule": "*/30 * * * *" }
 //   매 30분마다 25건 → 일 1,200건 → 약 10일에 11,500건 backfill 완료
 //
 // 인증:
@@ -56,7 +57,6 @@ async function resolveViaKakao(address: string): Promise<Resolved | null> {
     const json = await res.json();
     let doc = json.documents?.[0];
     if (!doc) {
-      // similar 모드 재시도
       const url2 = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}&analyze_type=similar`;
       const res2 = await fetch(url2, {
         headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
@@ -106,7 +106,6 @@ async function fetchBuildingInfo(r: Resolved): Promise<AnyObj | null> {
     _type: 'json',
   });
 
-  // 핵심 endpoint 3개 (총괄·표제·층별)
   const endpoints = ['getBrBasisOulnInfo', 'getBrRecapTitleInfo', 'getBrTitleInfo'];
   const merged: AnyObj = { resolved: r };
 
@@ -120,7 +119,7 @@ async function fetchBuildingInfo(r: Resolved): Promise<AnyObj | null> {
       const items = (body?.['items'] as AnyObj)?.['item'];
       const list = Array.isArray(items) ? items : items ? [items] : [];
       if (list.length > 0) {
-        merged[ep] = list[0]; // 첫 결과만 (대표 정보)
+        merged[ep] = list[0];
       }
     } catch {
       /* skip this endpoint, continue others */
@@ -130,7 +129,7 @@ async function fetchBuildingInfo(r: Resolved): Promise<AnyObj | null> {
   return Object.keys(merged).length > 1 ? merged : null;
 }
 
-// ── 3. 핵심 필드 추출 (jsonb → listings 칸) ───────────────────
+// ── 3. 핵심 필드 추출 ─────────────────────────────────────────
 function extractFields(buildingInfo: AnyObj): {
   building_purpose?: string;
   building_name?: string;
@@ -148,7 +147,6 @@ function extractFields(buildingInfo: AnyObj): {
   const name = String(b['bldNm'] || t['bldNm'] || r['bldNm'] || '').trim();
   if (name) out.building_name = name;
 
-  // 사용승인일 yyyymmdd → yyyy
   const aprDay = String(t['useAprDay'] || r['useAprDay'] || b['useAprDay'] || '').trim();
   if (aprDay && /^\d{8}/.test(aprDay)) out.built_year = aprDay.substring(0, 4);
 
@@ -157,7 +155,6 @@ function extractFields(buildingInfo: AnyObj): {
 
 // ── 4. GET 핸들러 ─────────────────────────────────────────────
 export async function GET(request: NextRequest) {
-  // 인증: Vercel cron Bearer 또는 ?secret=
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
     return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
@@ -185,10 +182,10 @@ export async function GET(request: NextRequest) {
 
   const supabase = createServerClient();
 
-  // building_info NULL 인 매물 N건 — 가장 최근 등록순 (사용자 노출 우선순위)
+  // building_info NULL + cascade 보호 (broker 잠금 아닌 칸만 대상)
   const { data: targets, error: selErr } = await supabase
     .from('listings')
-    .select('id, address, building_name')
+    .select('id, address, building_name, field_sources')
     .is('building_info', null)
     .not('address', 'is', null)
     .order('created_at', { ascending: false })
@@ -203,10 +200,13 @@ export async function GET(request: NextRequest) {
     success: 0,
     no_kakao: 0,
     no_building: 0,
+    skipped_broker_locked: 0,
     error: 0,
     dry_run: dryRun,
     samples: [] as unknown[],
   };
+
+  type FieldSources = Record<string, string> | null | undefined;
 
   for (const listing of targets || []) {
     try {
@@ -228,19 +228,42 @@ export async function GET(request: NextRequest) {
           id: listing.id,
           address: listing.address,
           extracted: fields,
+          locked_fields: listing.field_sources,
         });
       } else {
-        // NULL 인 칸만 채움 (cascade 보수적)
-        const updateData: Record<string, unknown> = { building_info: buildingInfo };
-        if (fields.building_purpose && !listing.building_name) {
+        // cascade 보호 (Phase 0-D): field_sources='broker' 칸은 절대 안 덮어씀
+        const fs: Record<string, string> = (listing.field_sources as FieldSources) || {};
+        const isBrokerLocked = (k: string) => fs[k] === 'broker';
+
+        const updateData: Record<string, unknown> = {};
+        const newSources: Record<string, string> = {};
+
+        if (!isBrokerLocked('building_info')) {
+          updateData.building_info = buildingInfo;
+          newSources.building_info = 'auto';
+        }
+        if (fields.building_purpose && !listing.building_name && !isBrokerLocked('building_purpose')) {
           updateData.building_purpose = fields.building_purpose;
+          newSources.building_purpose = 'auto';
         }
-        if (fields.building_name && !listing.building_name) {
+        if (fields.building_name && !listing.building_name && !isBrokerLocked('building_name')) {
           updateData.building_name = fields.building_name;
+          newSources.building_name = 'auto';
         }
-        if (fields.built_year) {
+        if (fields.built_year && !isBrokerLocked('built_year')) {
           updateData.built_year = fields.built_year;
+          newSources.built_year = 'auto';
         }
+
+        if (Object.keys(updateData).length === 0) {
+          results.skipped_broker_locked++;
+          await new Promise((r) => setTimeout(r, 200));
+          continue;
+        }
+
+        // field_sources 병합
+        updateData.field_sources = { ...fs, ...newSources };
+
         const { error: upErr } = await supabase
           .from('listings')
           .update(updateData)
@@ -252,7 +275,6 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // rate limit: 카카오/data.go.kr 둘 다 — 200ms 간격
       await new Promise((r) => setTimeout(r, 200));
     } catch {
       results.error++;
