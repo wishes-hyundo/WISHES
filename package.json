@@ -63,10 +63,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.0",
-    "zustand": "^5.0.2",
-    "qrcode": "^1.5.4",
-    "@sparticuz/chromium": "^131.0.1",
-    "puppeteer-core": "^23.10.4"
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.0",
