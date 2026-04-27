@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { emailSchema } from '@/lib/schemas';
 
 // L-sec39 (2026-04-22): 가입 입력 길이 cap + authError prod 숨김.
+// Phase 1 (2026-04-28): PIPA 동의 필드 추가 (acceptedTerms/Privacy/Marketing).
 const RegisterSchema = z.object({
   name: z.string().min(1).max(100),
   email: emailSchema, // L-hub1
@@ -16,6 +17,12 @@ const RegisterSchema = z.object({
   reason: z.string().max(2000).optional().nullable(),
   autoApprove: z.boolean().optional(),
   requestedRole: z.string().max(40).optional().nullable(),
+  // PIPA / 정보통신망법 동의 — 약관 + 개인정보 필수, 마케팅 옵션
+  acceptedTerms: z.boolean().optional(),
+  acceptedPrivacy: z.boolean().optional(),
+  acceptedMarketing: z.boolean().optional(),
+  termsVersion: z.string().max(50).optional().nullable(),
+  privacyVersion: z.string().max(50).optional().nullable(),
 });
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
@@ -30,7 +37,20 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    const { name, email, password, phone, company, role, reason, requestedRole } = parsed.data;
+    const {
+      name, email, password, phone, company, role, reason, requestedRole,
+      acceptedTerms, acceptedPrivacy, acceptedMarketing,
+      termsVersion, privacyVersion,
+    } = parsed.data;
+
+    // Phase 1 (2026-04-28): PIPA — 약관/개인정보 동의 필수 (사장님 본인은 면제)
+    const isSuperAdminEmail = ['wishes@wishes.co.kr'].includes(email.toLowerCase());
+    if (!isSuperAdminEmail && (!acceptedTerms || !acceptedPrivacy)) {
+      return NextResponse.json(
+        { success: false, message: '약관 및 개인정보 처리방침 동의가 필요합니다.' },
+        { status: 400 }
+      );
+    }
 
     // L-sec62 (2026-04-22): 가입 스팸/자동봇 대량 계정 생성 방어.
     //   IP당 1시간 3건 제한.
@@ -83,6 +103,14 @@ export async function POST(request: NextRequest) {
     const initialRole = isSuperAdmin ? 'owner' : 'pending';
     const initialStatus = isSuperAdmin ? 'approved' : 'pending';
 
+    // Phase 1 (2026-04-28): 동의 시각 기록 (PIPA)
+    const nowIso = new Date().toISOString();
+    const consentAt = isSuperAdmin ? nowIso : (acceptedTerms ? nowIso : null);
+    const privacyAt = isSuperAdmin ? nowIso : (acceptedPrivacy ? nowIso : null);
+    const marketingAt = acceptedMarketing ? nowIso : null;
+    const tVer = termsVersion || 'v2026-04-28';
+    const pVer = privacyVersion || 'v2026-04-28';
+
     const { error: insertError } = await supabase.from('admin_users').insert({
       id: authData.user.id,
       email: email.toLowerCase(),
@@ -92,7 +120,13 @@ export async function POST(request: NextRequest) {
       role: initialRole,
       reason: reason || null,
       status: initialStatus,
-      created_at: new Date().toISOString(),
+      created_at: nowIso,
+      terms_consent_at: consentAt,
+      terms_version: consentAt ? tVer : null,
+      privacy_consent_at: privacyAt,
+      privacy_version: privacyAt ? pVer : null,
+      marketing_consent_at: marketingAt,
+      marketing_consent: !!acceptedMarketing,
     });
 
     if (insertError) {
@@ -108,6 +142,53 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
+
+    // Phase 1 (2026-04-28): user_consents 이력 기록 (PIPA 증빙)
+    try {
+      const ua = request.headers.get('user-agent') || null;
+      const consentRows: Array<{ user_id: string; doc_type: string; doc_version: string; consented: boolean; ip: string | null; user_agent: string | null; }> = [];
+      if (acceptedTerms || isSuperAdmin) {
+        consentRows.push({
+          user_id: authData.user.id, doc_type: 'terms', doc_version: tVer,
+          consented: true, ip, user_agent: ua,
+        });
+      }
+      if (acceptedPrivacy || isSuperAdmin) {
+        consentRows.push({
+          user_id: authData.user.id, doc_type: 'privacy', doc_version: pVer,
+          consented: true, ip, user_agent: ua,
+        });
+      }
+      consentRows.push({
+        user_id: authData.user.id, doc_type: 'marketing', doc_version: 'v2026-04-28',
+        consented: !!acceptedMarketing, ip, user_agent: ua,
+      });
+      if (consentRows.length > 0) {
+        await supabase.from('user_consents').insert(consentRows);
+      }
+    } catch (e) {
+      console.warn('[register] user_consents insert failed (non-blocking):', e);
+    }
+
+    // Phase 1 (2026-04-28): audit log
+    try {
+      const { audit } = await import('@/lib/auditLog');
+      audit({
+        action: 'auth.register',
+        actor: { email: email.toLowerCase(), role: initialRole, uid: authData.user.id },
+        target: { type: 'admin_users', id: authData.user.id },
+        ip,
+        userAgent: request.headers.get('user-agent') || undefined,
+        route: '/api/auth/register',
+        status: 200,
+        meta: {
+          requested_role: requestedRole,
+          terms_consent: !!acceptedTerms,
+          privacy_consent: !!acceptedPrivacy,
+          marketing_consent: !!acceptedMarketing,
+        },
+      });
+    } catch { /* audit 실패는 무시 */ }
 
     // Superadmin: sign in and return token
     if (isSuperAdmin) {

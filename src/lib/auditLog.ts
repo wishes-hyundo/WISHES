@@ -40,6 +40,10 @@ export type AuditEvent = {
   actor?: AuditActor;
   target?: AuditTarget;
   ip?: string;
+  // Phase 1 (2026-04-28): user_agent 추가 — PIPA 증빙 강화.
+  userAgent?: string;
+  // Phase 1 (2026-04-28): route 추가 — 어느 API 에서 발생했는지.
+  route?: string;
   status?: number;        // HTTP 응답 상태 (success/failure 구분)
   meta?: Record<string, unknown>;
 };
@@ -74,6 +78,8 @@ export function audit(event: AuditEvent): void {
       targetType: event.target?.type ?? null,
       targetId: event.target?.id ?? null,
       ip: event.ip ?? null,
+      userAgent: event.userAgent ?? null,
+      route: event.route ?? null,
       status: event.status ?? null,
       meta: event.meta ?? null,
     };
@@ -119,6 +125,7 @@ async function writeAuditToDb(record: {
   ts: string; action: string; actorEmail: string | null; actorRole: string | null;
   actorUid: string | null; targetType: string | null;
   targetId: string | number | null; ip: string | null;
+  userAgent: string | null; route: string | null;
   status: number | null; meta: Record<string, unknown> | null;
 }): Promise<void> {
   // Edge runtime 은 supabase-js 대신 fetch 만. 환경 분기:
@@ -134,6 +141,12 @@ async function writeAuditToDb(record: {
       process.env.SUPABASE_SERVICE_ROLE_KEY,
       { auth: { persistSession: false } },
     );
+    // user_agent / route 는 admin_audit_log 컬럼이 없으므로 meta 안에 머지.
+    const mergedMeta = {
+      ...(record.meta || {}),
+      ...(record.userAgent ? { user_agent: record.userAgent } : {}),
+      ...(record.route     ? { route: record.route }           : {}),
+    };
     await supabase.from('admin_audit_log').insert({
       ts: record.ts,
       action: record.action,
@@ -144,7 +157,7 @@ async function writeAuditToDb(record: {
       target_id: record.targetId != null ? String(record.targetId) : null,
       ip: record.ip,
       status: record.status,
-      meta: record.meta,
+      meta: Object.keys(mergedMeta).length > 0 ? mergedMeta : null,
     });
   } catch {
     // 테이블 없음 / 네트워크 실패 등 모든 오류 무시.

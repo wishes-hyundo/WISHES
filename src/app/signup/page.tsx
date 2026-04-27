@@ -15,6 +15,10 @@ export default function SignupPage() {
     company: '',
     reason: '',
   });
+  // Phase 1 (2026-04-28): PIPA / 정보통신망법 동의 (약관·개인정보 필수, 마케팅 옵션)
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+  const [acceptedMarketing, setAcceptedMarketing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -33,6 +37,15 @@ export default function SignupPage() {
       setError('비밀번호가 일치하지 않습니다.');
       return;
     }
+    // Phase 1 (2026-04-28): 약관·개인정보 동의 필수
+    if (!acceptedTerms) {
+      setError('이용약관에 동의해주세요.');
+      return;
+    }
+    if (!acceptedPrivacy) {
+      setError('개인정보 처리방침에 동의해주세요.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -47,6 +60,11 @@ export default function SignupPage() {
           company: form.company,
           reason: form.reason,
           requestedRole: 'broker',
+          acceptedTerms,
+          acceptedPrivacy,
+          acceptedMarketing,
+          termsVersion: 'v2026-04-28',
+          privacyVersion: 'v2026-04-28',
         }),
       });
 
@@ -125,6 +143,36 @@ export default function SignupPage() {
           <div style={{ marginBottom: 18 }}>
             <label style={labelStyle}>가입 사유 (선택)</label>
             <textarea value={form.reason} onChange={(e) => update('reason', e.target.value)} rows={3} style={{ ...inputStyle, resize: 'vertical' as const }} />
+          </div>
+
+          {/* Phase 1 (2026-04-28) PIPA / 정보통신망법 동의 */}
+          <div style={{ background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14, marginBottom: 18 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#333', marginBottom: 10 }}>약관 동의</div>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: '#444', marginBottom: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} style={{ marginTop: 3 }} />
+              <span>
+                <strong>이용약관</strong> 동의 (필수){' '}
+                <Link href="/terms" target="_blank" style={{ color: '#2D5A27', textDecoration: 'underline' }}>보기</Link>
+              </span>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: '#444', marginBottom: 8, cursor: 'pointer' }}>
+              <input type="checkbox" checked={acceptedPrivacy} onChange={(e) => setAcceptedPrivacy(e.target.checked)} style={{ marginTop: 3 }} />
+              <span>
+                <strong>개인정보 처리방침</strong> 동의 (필수){' '}
+                <Link href="/privacy" target="_blank" style={{ color: '#2D5A27', textDecoration: 'underline' }}>보기</Link>
+                <br /><span style={{ fontSize: 11, color: '#888' }}>거래 종료 후 3년 보관 후 자동 삭제 (PIPA)</span>
+              </span>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: '#444', cursor: 'pointer' }}>
+              <input type="checkbox" checked={acceptedMarketing} onChange={(e) => setAcceptedMarketing(e.target.checked)} style={{ marginTop: 3 }} />
+              <span>
+                <strong>마케팅 정보 수신</strong> 동의 (선택){' '}
+                <span style={{ fontSize: 11, color: '#888' }}>이메일/카카오 알림톡, 월 2회 이내</span>
+              </span>
+            </label>
           </div>
 
           {error && (

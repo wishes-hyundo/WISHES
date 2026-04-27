@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { notifyUserApproved, notifyUserRejected } from '@/lib/email';
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
+import { audit } from '@/lib/auditLog';
+import { getClientIp } from '@/lib/rateLimit';
 
 
 /**
@@ -178,6 +180,17 @@ export async function PUT(request: NextRequest) {
         role: newRole,
       }).catch(console.error);
 
+      audit({
+        action: 'users.approve',
+        actor: { email: caller.email, role: caller.role, uid: caller.role === 'master' ? null : undefined },
+        target: { type: 'admin_users', id: userId },
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        route: '/api/admin/users',
+        status: 200,
+        meta: { new_role: newRole, target_email: approvedUser?.email || null },
+      });
+
       return NextResponse.json({ success: true, message: 'ì¬ì©ìê° ì¹ì¸ëììµëë¤.', dbUpdated, metaUpdated });
     }
 
@@ -202,6 +215,17 @@ export async function PUT(request: NextRequest) {
         email: rejectedUser?.email || '',
         name: rejectedUser?.user_metadata?.name || '',
       }).catch(console.error);
+
+      audit({
+        action: 'users.reject',
+        actor: { email: caller.email, role: caller.role },
+        target: { type: 'admin_users', id: userId },
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        route: '/api/admin/users',
+        status: 200,
+        meta: { target_email: rejectedUser?.email || null },
+      });
 
       return NextResponse.json({ success: true, message: 'ì¬ì©ìê° ê±°ë¶ëììµëë¤.', dbUpdated, metaUpdated });
     }

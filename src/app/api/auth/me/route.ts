@@ -108,7 +108,12 @@ export async function GET(request: NextRequest) {
     const role = adminUser?.role || 'user';
     const status = adminUser?.status || 'pending';
 
-    const APPROVED_ROLES = ['superadmin', 'admin', 'agent', 'broker', 'viewer', 'user'];
+    // Phase 1 (2026-04-28): 5단계 enum + legacy 양립. 'pending' 차단 (canAccessBroker=false).
+    //   'viewer'/'user' 라벨은 deprecated — 기존 데이터에서만 일시 호환 (Phase 2 정리).
+    const APPROVED_ROLES = [
+      'owner', 'admin', 'broker', 'partner',  // 신
+      'superadmin', 'agent',                   // legacy
+    ];
     const canAccessBroker = status === 'approved' && APPROVED_ROLES.includes(role);
 
     return NextResponse.json({
