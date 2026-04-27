@@ -158,29 +158,19 @@ export default function AgentContactModal({
                   </a>
                 )}
               </div>
-              <div className="flex gap-1.5 flex-shrink-0">
-                {officeTelHref && (
-                  <a
-                    href={officeTelHref}
-                    className="w-9 h-9 rounded-full bg-wishes-primary text-white flex items-center justify-center hover:brightness-110 active:scale-95 transition-all"
-                    aria-label="사무소 전화 걸기"
-                    title="전화"
-                  >
-                    <Phone className="w-4 h-4" />
-                  </a>
-                )}
-                {mapSearchUrl && (
-                  <a
-                    href={mapSearchUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[11px] px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-white flex items-center gap-1"
-                  >
-                    <Navigation className="w-3 h-3" />
-                    길찾기
-                  </a>
-                )}
-              </div>
+              {/* L-naver-2026contact3 (2026-04-27): 전화 아이콘 제거.
+                  번호 텍스트 자체가 tap-to-call 이라 중복. 길찾기만 유지. */}
+              {mapSearchUrl && (
+                <a
+                  href={mapSearchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-700 hover:bg-white flex items-center gap-1 flex-shrink-0"
+                >
+                  <Navigation className="w-3 h-3" />
+                  길찾기
+                </a>
+              )}
             </div>
           </div>
         )}
