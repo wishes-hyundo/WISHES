@@ -95,6 +95,18 @@
     {
       "path": "/api/cron/sota-recommend",
       "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/enrich-school-zone",
+      "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/enrich-air-quality",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/verify-business",
+      "schedule": "0 4 * * 1"
     }
   ]
 }
