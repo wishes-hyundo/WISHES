@@ -31,18 +31,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const { id } = await params;
     const supabase = createServerClient();
     // L-sec94 (2026-04-22): IDOR 차단 — SSR metadata 도 공개 매물만 조회.
-    //   필터 없으면 임시/비공개/삭제 매물의 동·가격·주소가 <title>/<meta>/OG 에 노출됨.
     const { data: listing } = (await withTimeout(supabase
       .from('listings')
-      .select('title, type, deal, dong, address, deposit, monthly, price, area_m2, source_site, ai_description, seo_keywords, seo_tags, seo_meta_description, building_purpose, business_type, station_name')
+      .select('title, type, deal, dong, address, deposit, monthly, price, area_m2, source_site, ai_description, description, seo_keywords, seo_tags, seo_meta_description, building_purpose, business_type, station_name')
       .eq('id', id)
       .eq('status', '공개')
       .single())) as { data: any };
 
     if (!listing) return fallback;
-    // ※ 저작권 보호: 크롤링 매물도 메타데이터는 정상 노출 (정보는 광고용)
-    //   단 이미지 OG는 제공하지 않음 (사진 차단)
-    const isCrawled = !!listing.source_site;
+
+    // L-seo1 (2026-04-27 v3 세션): SEO 우선 정책 — 자체 콘텐츠 있는 매물 색인 허용.
+    //   기존 정책: source_site 있는 모든 크롤링 매물 noindex (= 12,114/12,115건 색인 차단)
+    //   신 정책: ai_description / description / seo_meta_description 중 하나라도 30자 이상 있는
+    //           매물은 색인 허용 (저작권 안전: title/desc/이미지 모두 자체 생성). cron 으로 ai_description
+    //           보강 진행되면서 색인 매물 수 점진 증가. 사용자 명시 — "구글/네이버 무조건 노출".
+    const hasOwnContent = !!(
+      (listing.ai_description && String(listing.ai_description).trim().length > 30)
+      || (listing.description && String(listing.description).trim().length > 30)
+      || (listing.seo_meta_description && String(listing.seo_meta_description).trim().length > 30)
+    );
 
     const priceText = listing.deal === '월세'
       ? formatPrice(listing.deposit) + '/' + formatPrice(listing.monthly) + '만원'
@@ -101,8 +108,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       alternates: {
         canonical: 'https://wishes.co.kr/listings/' + id,
       },
-      // 크롤링 매물: 이미지 저작권 리스크로 검색엔진 인덱스에선 제외 (정보는 페이지에 노출됨)
-      ...(isCrawled ? { robots: { index: false, follow: true } } : {}),
+      // L-seo1 (2026-04-27 v3): 자체 콘텐츠 있는 매물만 색인 (저작권 안전)
+      //   미보강 매물은 noindex 유지 → cron 보강 진행으로 점진적으로 색인 매물 수 증가
+      ...(hasOwnContent ? {} : { robots: { index: false, follow: true } }),
     };
   } catch {
     return fallback;
@@ -114,7 +122,6 @@ export default async function ListingPage({ params }: Props) {
   try {
     const supabase = createServerClient();
     // L-sec94 (2026-04-22): IDOR 차단 — SSR 본문도 status='공개' 필터 필수.
-    //   비공개 매물의 주소/좌표/연락처/설명/사진/영상이 SSR HTML 에 그대로 유출되던 경로.
     const { data: listing } = (await withTimeout(supabase
       .from('listings')
       .select(`
@@ -141,10 +148,6 @@ export default async function ListingPage({ params }: Props) {
       .single())) as { data: any };
 
     // ※ 저작권 보호 + 자체 업로드 통과
-    //   - 크롤링 매물의 외부 원본 이미지는 차단
-    //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
-    // L-sec96 (2026-04-22): sanitizePublicListing 체인 — contact/address_detail/special_notes 등
-    //   FORBIDDEN 필드 제거. UI 가드(`listing.contact && ...`) 때문에 시각 회귀 없음.
     const sanitized = listing
       ? sanitizePublicListing(applyImagePolicy(listing as any))
       : listing;
