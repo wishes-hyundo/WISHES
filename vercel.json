@@ -1,5 +1,8 @@
 {
-  "regions": ["icn1"],
+  "installCommand": "npm install --no-audit --no-fund",
+  "regions": [
+    "icn1"
+  ],
   "functions": {
     "src/app/api/**/*.js": {
       "maxDuration": 10,
@@ -14,25 +17,37 @@
     {
       "source": "/api/listings(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, s-maxage=60, stale-while-revalidate=300" }
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=60, stale-while-revalidate=300"
+        }
       ]
     },
     {
       "source": "/_next/static/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
     },
     {
       "source": "/api/auth/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "private, no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
       ]
     },
     {
       "source": "/api/admin/(.*)",
       "headers": [
-        { "key": "Cache-Control", "value": "private, no-store" }
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
       ]
     }
   ],
