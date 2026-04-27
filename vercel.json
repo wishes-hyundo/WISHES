@@ -107,6 +107,14 @@
     {
       "path": "/api/cron/verify-business",
       "schedule": "0 4 * * 1"
+    },
+    {
+      "path": "/api/cron/monthly-report",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/rtms-sync",
+      "schedule": "0 19 * * *"
     }
   ]
 }
