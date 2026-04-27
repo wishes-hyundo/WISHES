@@ -72,13 +72,17 @@ export function kakaoFlyTo(
   const node = typeof mapInst.getNode === 'function' ? mapInst.getNode() : null;
   if (!node) return;  // 컨테이너 못 찾으면 instant 효과만 (애니메이션 없음)
 
-  // zoomDelta 따라 시작 scale 결정:
-  //   zoom in (delta > 0): 0.85 → 1.0  (확대 인상)
-  //   zoom out (delta < 0): 1.15 → 1.0 (축소 인상)
-  //   같은 level: 0.95 → 1.0          (살짝 pulse)
-  const initScale = zoomDelta > 0 ? 0.85
-                  : zoomDelta < 0 ? 1.15
-                  : 0.95;
+  // L-naver-2026flytoBoB2 (2026-04-27): Apple iOS 표준 곡선 + 더 부드러운 진폭.
+  //   사용자 피드백 "살짝 부드럽지 못한것 같은데" — 미세 조정.
+  //   변경:
+  //     · scale 진폭 0.85→0.92 (15% → 8%, 더 미세)
+  //     · cubic-bezier(0.16,1,0.3,1) → (0.32,0.72,0,1) Apple iOS 표준
+  //     · duration 380ms → 520ms (더 부드러움)
+  //     · opacity 0.85 → 0.94 (cross-fade 약하게, 지도 흐려짐 어색 제거)
+  //     · pointer-events 잠시 차단 (transition 중 잘못된 클릭 방지)
+  const initScale = zoomDelta > 0 ? 0.92
+                  : zoomDelta < 0 ? 1.08
+                  : 0.97;
 
   // transformOrigin: 클릭 지점이면 그 지점 중심 zoom, 없으면 화면 중앙
   const rect = node.getBoundingClientRect();
@@ -89,29 +93,32 @@ export function kakaoFlyTo(
   node.style.transition = 'none';
   node.style.transformOrigin = `${ox} ${oy}`;
   node.style.transform = `scale(${initScale})`;
-  node.style.opacity = '0.85';
+  node.style.opacity = '0.94';
   node.style.willChange = 'transform, opacity';
+  node.style.pointerEvents = 'none';  // transition 중 잘못된 클릭 방지
 
   // 다음 frame 에 정상 상태로 transition (브라우저 layout flush 보장)
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      // easeOutQuint cubic-bezier — 빠른 시작 + 부드러운 도착 (iOS 스타일)
+      // L-naver-2026flytoBoB2: Apple iOS 표준 cubic-bezier — 가장 자연스러운 곡선.
+      //   modal/sheet 등장에 사용되는 곡선. spring-like 부드러움.
       node.style.transition =
-        'transform 380ms cubic-bezier(0.16, 1, 0.3, 1), ' +
-        'opacity 280ms ease-out';
+        'transform 520ms cubic-bezier(0.32, 0.72, 0, 1), ' +
+        'opacity 380ms cubic-bezier(0.32, 0.72, 0, 1)';
       node.style.transform = 'scale(1)';
       node.style.opacity = '1';
     });
   });
 
-  // cleanup: 380ms + 여유 후 transition 제거 (다른 동작 영향 없게)
+  // cleanup: 520ms + 여유 후 transition 제거
   setTimeout(() => {
     node.style.transition = '';
     node.style.transform = '';
     node.style.transformOrigin = '';
     node.style.opacity = '';
     node.style.willChange = '';
-  }, 480);
+    node.style.pointerEvents = '';
+  }, 620);
 }
 
 // 내부 타입 가드 — runtime 에서 MapLibre vs Kakao 판별
