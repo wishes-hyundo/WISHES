@@ -95,7 +95,11 @@ const config: Config = {
       transitionDuration: { '400': '400ms' },
     },
   },
-  plugins: [],
+  plugins: [
+    // L-bob-A (2026-04-28): shadcn UI 애니메이션 utility (data-state, animate-in 등).
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    require('tailwindcss-animate'),
+  ],
 };
 
 export default config;
