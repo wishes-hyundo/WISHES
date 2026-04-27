@@ -75,21 +75,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Try insert into admin_users (gracefully handle if table doesn't exist)
-    try {
-      await supabase.from('admin_users').insert({
-        id: authData.user.id,
-        email: email.toLowerCase(),
-        name,
-        phone: phone || null,
-        company: company || null,
-        role: isSuperAdmin ? 'superadmin' : 'viewer',
-        reason: reason || null,
-        status: isSuperAdmin ? 'approved' : 'pending',
-        created_at: new Date().toISOString(),
-      });
-    } catch (e) {
-      console.error('admin_users insert skipped:', e);
+    // Phase 1 (2026-04-28): 신 5단계 enum 도입 — 'viewer' 라벨 폐기.
+    //   isSuperAdmin → 'owner' (신) 또는 'superadmin' (legacy 양립) 둘 다 통과.
+    //   일반 가입자 → 'pending' (승인 후 /admin/users 에서 broker/admin/partner 변경)
+    //   admin_users.role CHECK constraint 가 잘못된 라벨을 막아주므로
+    //   silent failure 가 아니라 명시적 에러 응답으로 전환.
+    const initialRole = isSuperAdmin ? 'owner' : 'pending';
+    const initialStatus = isSuperAdmin ? 'approved' : 'pending';
+
+    const { error: insertError } = await supabase.from('admin_users').insert({
+      id: authData.user.id,
+      email: email.toLowerCase(),
+      name,
+      phone: phone || null,
+      company: company || null,
+      role: initialRole,
+      reason: reason || null,
+      status: initialStatus,
+      created_at: new Date().toISOString(),
+    });
+
+    if (insertError) {
+      // CHECK constraint 위반 / FK 위반 등 — auth.users 는 만들어진 상태이므로 보고만
+      console.error('[register] admin_users insert failed:', insertError);
+      // L-sec39: 프로덕션에선 상세 에러 숨김
+      const isDev = process.env.NODE_ENV !== 'production';
+      return NextResponse.json(
+        {
+          success: false,
+          message: isDev ? `사용자 프로필 저장 실패: ${insertError.message}` : '가입 처리 중 오류가 발생했습니다.',
+        },
+        { status: 500 }
+      );
     }
 
     // Superadmin: sign in and return token

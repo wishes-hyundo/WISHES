@@ -66,7 +66,15 @@ function getInternalBearer(): string | null {
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
 // 어드민 role 화이트리스트
-const ADMIN_ROLES = new Set(['superadmin', 'admin', 'agent']);
+//   Phase 1 (2026-04-28): 5단계 enum (owner/admin/broker/partner/pending) 도입.
+//   legacy 라벨(superadmin/agent)은 admin_users.role CHECK constraint 에서 양립 허용.
+//   helper 함수는 enum 으로 정규화하지만 본 set 은 application 레이어에서 양쪽 인정.
+const ADMIN_ROLES = new Set([
+  // 신 5단계 (pending 은 의도적 제외)
+  'owner', 'admin', 'broker', 'partner',
+  // legacy (Phase 1 동안 양립)
+  'superadmin', 'agent',
+]);
 
 // ─── 공용 검증기 (#L-sec2 이후, async) ────────────────────────
 /**

@@ -41,7 +41,9 @@ export default function AdminUsersPage() {
         if (ac.signal.aborted) return;
         const meData = await meRes.json();
         if (ac.signal.aborted) return;
-        if (!meData.success || meData.user.role !== 'superadmin') {
+        // Phase 1 (2026-04-28): owner(신)/superadmin(legacy) 모두 허용. admin 등급은 SELECT 까지.
+        const ALLOWED = new Set(['owner', 'superadmin', 'admin', 'master']);
+        if (!meData.success || !ALLOWED.has(meData.user.role)) {
           alert('관리자만 접근 가능합니다.');
           router.replace('/');
           return;
@@ -96,8 +98,9 @@ export default function AdminUsersPage() {
     if (!confirm(newStatus === 'approved' ? '이 사용자를 승인하시겠습니까?' : '이 사용자를 거절하시겠습니까?')) return;
     try {
       const action = newStatus === 'approved' ? 'approve' : 'reject';
+      // Phase 1 (2026-04-28): 신 5단계 enum 기본 라벨 'broker' (legacy 'agent' 매핑됨).
       const body = newStatus === 'approved'
-        ? { userId, action, role: 'agent' }
+        ? { userId, action, role: 'broker' }
         : { userId, action };
       const res = await adminFetch('/api/admin/users', {
         method: 'PUT',

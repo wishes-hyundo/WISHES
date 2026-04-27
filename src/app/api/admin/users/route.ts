@@ -52,7 +52,10 @@ export async function GET(request: NextRequest) {
     if (!caller.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    if (caller.role !== 'superadmin' && caller.role !== 'master') {
+    // Phase 1 (2026-04-28): 'owner' (신 enum) 또는 'superadmin' (legacy) 모두 허용.
+    //   master 는 토큰 운영용. admin 등급도 사용자 관리 SELECT 허용 (RLS 가 backstop).
+    const ALLOWED_VIEW_ROLES = new Set(['superadmin', 'owner', 'admin', 'master']);
+    if (!ALLOWED_VIEW_ROLES.has(caller.role || '')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -122,9 +125,12 @@ export async function PUT(request: NextRequest) {
     if (!caller.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    if (caller.role !== 'superadmin' && caller.role !== 'master') {
+    // Phase 1 (2026-04-28): owner/superadmin/master 만 사용자 관리 (privilege escalation 차단).
+    //   admin 등급은 SELECT 까지만 허용했고, role 변경은 owner 만 가능 (RLS 와 일치).
+    const ALLOWED_MUTATION_ROLES = new Set(['superadmin', 'owner', 'master']);
+    if (!ALLOWED_MUTATION_ROLES.has(caller.role || '')) {
       return NextResponse.json(
-        { error: '사용자 계정 관리는 슈퍼어드민만 가능합니다.' },
+        { error: '사용자 계정 관리는 사장님(owner)만 가능합니다.' },
         { status: 403 },
       );
     }
@@ -144,8 +150,11 @@ export async function PUT(request: NextRequest) {
     if (action === 'approve') {
       // L-sec48 (2026-04-22): approve path newRole whitelist (defense in depth)
       //   compromised admin injecting arbitrary role blocked
-      const VALID_ROLES = ['admin', 'agent', 'viewer'];
-      const newRole = VALID_ROLES.includes(String(role || '')) ? String(role) : 'agent';
+      // Phase 1 (2026-04-28): 신 5단계 (admin/broker/partner) + legacy(agent) 양립.
+      //   기본 승인 role 'broker'. 'pending'/'owner' 명시적 거부.
+      const VALID_APPROVE_ROLES = new Set(['admin', 'broker', 'partner', 'agent']);
+      const requested = String(role || '');
+      const newRole = VALID_APPROVE_ROLES.has(requested) ? requested : 'broker';
 
       const _r = await _applyAdminUserFields(supabase, userId, { status: 'approved', role: newRole });
       if (!_r.ok) { console.warn('admin_users update (approve) failed:', _r.error); }
@@ -200,7 +209,21 @@ export async function PUT(request: NextRequest) {
     // ì­í (ì§ì±) ë³ê²½
     if (action === 'change_role') {
       const newRole = role;
-      if (!newRole || !['superadmin', 'admin', 'agent', 'viewer', 'user'].includes(newRole)) {
+      // Phase 1 (2026-04-28): 5단계 + legacy 양립. owner 부여는 owner 만.
+      const VALID_CHANGE_ROLES = new Set([
+        'owner', 'admin', 'broker', 'partner', 'pending',
+        'superadmin', 'agent',
+      ]);
+      if (
+        (newRole === 'owner' || newRole === 'superadmin') &&
+        !['superadmin', 'owner', 'master'].includes(caller.role || '')
+      ) {
+        return NextResponse.json(
+          { error: 'owner 권한 부여는 owner 만 가능합니다.' },
+          { status: 403 },
+        );
+      }
+      if (!newRole || !VALID_CHANGE_ROLES.has(newRole)) {
         return NextResponse.json({ error: 'ì í¨íì§ ìì ì¬í ìëë¤.' }, { status: 400 });
       }
 

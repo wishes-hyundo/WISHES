@@ -41,7 +41,14 @@ export type AuthzBulkResult =
     }
   | { ok: false; status: number; reason: string; actor?: AuthzActor };
 
-const UNLIMITED_ROLES = new Set(['master', 'crawler_bridge', 'superadmin']);
+// Phase 1 (2026-04-28): 5단계 enum 도입. owner = 신 superadmin, admin 등급도 unlimited 추가.
+//   master / crawler_bridge / internal_bearer = 토큰 기반 운영 role
+//   superadmin / owner = 사장님 (legacy + 신 라벨 양립)
+//   admin = Owner 외 모든 + Pending 승인 권한 (broker 매물 unlimited 우회 OK)
+const UNLIMITED_ROLES = new Set([
+  'master', 'crawler_bridge', 'internal_bearer',
+  'superadmin', 'owner', 'admin',
+]);
 
 /**
  * 단건 매물 mutation 권한.
