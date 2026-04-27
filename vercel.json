@@ -115,6 +115,10 @@
     {
       "path": "/api/cron/rtms-sync",
       "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/backup-r2",
+      "schedule": "0 17 * * 0"
     }
   ]
 }
