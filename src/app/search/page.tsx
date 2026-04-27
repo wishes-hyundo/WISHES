@@ -359,6 +359,17 @@ export default function SearchPortalPage() {
       v297Script.async = false;
       v297Script.defer = false;
       document.body.appendChild(v297Script);
+
+    // L-aidesc-v2 (2026-04-27 v3): v2 AI 매물 설명 시스템 통합
+    const existingV300 = document.getElementById('ws-ext-patch-v300-aidesc-v2');
+    if (!existingV300) {
+      const v300Script = document.createElement('script');
+      v300Script.id = 'ws-ext-patch-v300-aidesc-v2';
+      v300Script.src = '/search/content-v300-aidesc-v2.js?v=20260427a';
+      v300Script.async = false;
+      v300Script.defer = false;
+      document.body.appendChild(v300Script);
+    }
     }
   }, [state]);
 
