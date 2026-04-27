@@ -1,8 +1,25 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // WISHES photoProcess — 업로드 사진 공통 파이프라인 (2026-04-24)
+//
+// L-bob-sharp-lazy (2026-04-27): sharp 를 동적 import 로 변경.
+//   원인: Static `import sharp from 'sharp'` 가 Next.js build 의
+//     "collect page data" 단계에서 sharp 모듈을 강제 로드 →
+//     libvips-cpp.so.8.17.3 binary 못 찾아 빌드 실패.
+//   해결: 타입은 `import type` 로 (런타임 사이드 이펙트 0),
+//     실제 sharp 인스턴스는 함수 안에서 dynamic import.
+//   효과: 빌드 통과 보장 + 런타임 동작 동일.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import sharp from 'sharp';
+import type { OverlayOptions } from 'sharp';
+
+// L-bob-sharp-lazy: sharp 모듈 동적 로더 (모듈 캐시 활용 — 첫 호출만 느림).
+type SharpModule = typeof import('sharp');
+let _sharpMod: SharpModule['default'] | null = null;
+async function loadSharp(): Promise<SharpModule['default']> {
+  if (_sharpMod) return _sharpMod;
+  _sharpMod = (await import('sharp')).default;
+  return _sharpMod;
+}
 
 const MAX_W = 1920;
 const MAX_H = 1440;
@@ -29,6 +46,7 @@ const GRAIN_TILE_SIZE = 512;
 let _grainTileCache: Buffer | null = null;
 async function getGrainTile(): Promise<Buffer> {
   if (_grainTileCache) return _grainTileCache;
+  const sharp = await loadSharp();
   const px = GRAIN_TILE_SIZE * GRAIN_TILE_SIZE;
   const data = Buffer.alloc(px * 4);
   for (let i = 0; i < px; i++) {
@@ -80,11 +98,13 @@ async function getWatermarkPng(): Promise<Buffer | null> {
 async function resizedWatermark(targetWidth: number): Promise<Buffer | null> {
   const raw = await getWatermarkPng();
   if (!raw) return null;
+  const sharp = await loadSharp();
   const wmW = Math.max(200, Math.round(targetWidth * WM_SCALE));
   return sharp(raw).resize(wmW).png().toBuffer();
 }
 
 export async function processPhotoUpload(buffer: Buffer): Promise<Buffer> {
+  const sharp = await loadSharp();
   let stage = 'init';
   try {
     stage = 'metadata';
@@ -100,7 +120,7 @@ export async function processPhotoUpload(buffer: Buffer): Promise<Buffer> {
     const grain = await generateGrain(outW, outH);
     const wm = await resizedWatermark(outW);
 
-    const overlays: sharp.OverlayOptions[] = [];
+    const overlays: OverlayOptions[] = [];
     overlays.push({ input: grain, blend: 'overlay', tile: true });
     if (wm) overlays.push({ input: wm, gravity: 'center' });
     else console.warn('[photoProcess] watermark unavailable - grain only');
@@ -112,33 +132,4 @@ export async function processPhotoUpload(buffer: Buffer): Promise<Buffer> {
       .resize(outW, outH, { fit: 'inside', withoutEnlargement: true })
       .recomb([
         [WB_RED_GAIN,  GREEN_TO_YELLOW,               0.0],
-        [0.00,         1.0 - GREEN_TO_YELLOW * 0.5,   0.0],
-        [-0.02,        0.00,                          WB_BLUE_GAIN],
-      ])
-      .modulate({ saturation: COLOUR_SAT })
-      .linear(LINEAR_A, LINEAR_B)
-      .gamma(GAMMA)
-      .sharpen({ sigma: SHARPEN_SIGMA, m1: SHARPEN_M1, m2: SHARPEN_M2 })
-      .composite(overlays)
-      .webp({ quality: 85 })
-      .toBuffer();
-
-    console.log(`[photoProcess] OK ${buffer.length}B -> ${finalBuf.length}B`);
-    return finalBuf;
-  } catch (err) {
-    console.error(`[photoProcess] FAIL stage=${stage}:`, err);
-    return sharp(buffer, { failOn: 'none' })
-      .rotate()
-      .resize(MAX_W, MAX_H, { fit: 'inside', withoutEnlargement: true })
-      .webp({ quality: 85 })
-      .toBuffer();
-  }
-}
-
-export async function processPosterImage(posterBuffer: Buffer): Promise<Buffer> {
-  return processPhotoUpload(posterBuffer);
-}
-
-export async function stampCenterWatermark(buffer: Buffer): Promise<Buffer> {
-  return processPhotoUpload(buffer);
-}
+        [0.00,         1.0 - GREEN_TO_

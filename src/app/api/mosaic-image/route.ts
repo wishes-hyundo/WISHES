@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import sharp from 'sharp';
+// L-bob-sharp-lazy (2026-04-27): sharp 동적 import (build 시 page data collection 차단).
+import type { OverlayOptions } from 'sharp';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+
+type SharpModule = typeof import('sharp');
+let _sharpMod: SharpModule['default'] | null = null;
+async function loadSharp(): Promise<SharpModule['default']> {
+  if (_sharpMod) return _sharpMod;
+  _sharpMod = (await import('sharp')).default;
+  return _sharpMod;
+}
 
 export const maxDuration = 60;
 export const runtime = 'nodejs';
@@ -120,12 +129,13 @@ async function applyMosaicWithSharp(
   imageBuffer: Buffer,
   regions: { x: number; y: number; w: number; h: number }[]
 ): Promise<Buffer> {
+  const sharp = await loadSharp();
   const metadata = await sharp(imageBuffer).metadata();
   const width = metadata.width!;
   const height = metadata.height!;
 
   let pipeline = sharp(imageBuffer);
-  const composites: sharp.OverlayOptions[] = [];
+  const composites: OverlayOptions[] = [];
 
   for (const region of regions) {
     const left = Math.max(0, Math.round(region.x * width));
@@ -353,19 +363,4 @@ export async function GET(request: NextRequest) {
     processedBuffer = await applyMosaicWithSharp(imageBuffer, regions);
   } catch (e) {
     console.error('Mosaic processing error:', e);
-    return NextResponse.redirect(url, { status: 302 });
-  }
-
-  // 7. 캐시 저장
-  saveToCache(cacheKey, processedBuffer).catch(() => {});
-
-  // 8. 처리된 이미지 반환
-  return new NextResponse(new Uint8Array(processedBuffer), {
-    headers: {
-      'Content-Type': 'image/webp',
-      'Cache-Control': 'public, max-age=31536000, immutable',
-      'X-Mosaic-Phone': 'DETECTED',
-      'X-Mosaic-Regions': String(regions.length),
-    },
-  });
-}
+    return NextResponse.redirect(url, { status:
