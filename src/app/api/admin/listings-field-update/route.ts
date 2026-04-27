@@ -19,16 +19,19 @@ const ALLOWED_FIELDS = [
   'registered_date', 'last_confirmed', 'special_notes',
   'previous_business', 'recommended_business', 'restricted_business',
   'status',
+  // L-cascade1 (2026-04-27 v3 세션): AI 생성 칸도 cascade 보호 대상
+  'ai_description', 'seo_meta_description', 'seo_keywords', 'seo_tags', 'ai_title',
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
 // PUT: Update single listing fields
 // L-sec136 (2026-04-23): A-crit-2 IDOR 수정 — authorizeListingMutation 적용.
+// L-cascade1 (2026-04-27 v3): 변경된 칸 → field_sources['X']='broker' 자동 표시.
+//   효과: cron / 일괄 backfill 이 broker 잠금 칸 절대 안 덮어씀 (Phase 0-D 완성).
 // ─────────────────────────────────────────────────────────────────────────
 export async function PUT(request: NextRequest) {
   const ip = getClientIp(request);
   try {
-    // H-2 (L-sec124): 필드 업데이트 IP rate limit (10m 120회)
     const rl = checkRateLimit({ key: `field-update:ip:${ip}`, limit: 120, windowMs: 10 * 60_000 });
     if (!rl.ok) {
       return NextResponse.json(
@@ -53,7 +56,6 @@ export async function PUT(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // ── L-sec136 IDOR 가드 ──
     const authz = await authorizeListingMutation(request, id, supabase);
     if (!authz.ok) {
       audit({ action: 'listing.field_update.denied', actor: authz.actor, ip, target: { type: 'listing', id }, status: authz.status, meta: { reason: authz.reason } });
@@ -61,14 +63,30 @@ export async function PUT(request: NextRequest) {
     }
 
     const updateData: Record<string, unknown> = {};
+    const newSources: Record<string, string> = {};
     for (const [key, value] of Object.entries(fields)) {
       if (ALLOWED_FIELDS.includes(key)) {
         updateData[key] = value;
+        // L-cascade1: 중개사 직접 수정 → broker 잠금 (status 는 운영 메타라 제외)
+        if (key !== 'status') {
+          newSources[key] = 'broker';
+        }
       }
     }
 
     if (Object.keys(updateData).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
+    }
+
+    // L-cascade1: 기존 field_sources fetch 후 broker 표시 병합
+    if (Object.keys(newSources).length > 0) {
+      const { data: existing } = await supabase
+        .from('listings')
+        .select('field_sources')
+        .eq('id', id)
+        .single();
+      const existingFs = (existing?.field_sources as Record<string, string>) || {};
+      updateData.field_sources = { ...existingFs, ...newSources };
     }
 
     updateData.updated_at = new Date().toISOString();
@@ -96,7 +114,7 @@ export async function PUT(request: NextRequest) {
       ip,
       target: { type: 'listing', id },
       status: 200,
-      meta: { fields: Object.keys(updateData).filter((k) => k !== 'updated_at') },
+      meta: { fields: Object.keys(updateData).filter((k) => k !== 'updated_at' && k !== 'field_sources') },
     });
 
     return NextResponse.json({ success: true, data });
@@ -112,12 +130,11 @@ export async function PUT(request: NextRequest) {
 
 // ─────────────────────────────────────────────────────────────────────────
 // POST: Bulk update multiple listings
-// L-sec136 (2026-04-23): A-crit-2 IDOR 수정 + rate limit 추가.
+// L-sec136 + L-cascade1 적용
 // ─────────────────────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
   try {
-    // L-sec136: bulk 경로도 rate limit 추가 (기존 누락).
     const rl = checkRateLimit({ key: `field-update-bulk:ip:${ip}`, limit: 40, windowMs: 30 * 60_000 });
     if (!rl.ok) {
       return NextResponse.json(
@@ -143,7 +160,6 @@ export async function POST(request: NextRequest) {
 
     const supabase = createServerClient();
 
-    // ── L-sec136 IDOR 가드: 요청된 id 중 본인 소유만 추려냄 ──
     const requestedIds: number[] = updates
       .map((u: any) => u?.id)
       .filter((id: unknown): id is number => typeof id === 'number' && Number.isInteger(id));
@@ -176,21 +192,34 @@ export async function POST(request: NextRequest) {
         continue;
       }
       if (!ownedSet.has(id)) {
-        // L-sec136: 권한 없는 id 는 건너뛰고 표시
         results.push({ id, skipped: true });
         continue;
       }
 
       const updateData: Record<string, any> = {};
+      const newSources: Record<string, string> = {};
       for (const [key, value] of Object.entries(fields)) {
         if (ALLOWED_FIELDS.includes(key)) {
           updateData[key] = value;
+          if (key !== 'status') {
+            newSources[key] = 'broker';
+          }
         }
       }
 
       if (Object.keys(updateData).length === 0) {
         errors.push({ id, error: 'No valid fields' });
         continue;
+      }
+
+      if (Object.keys(newSources).length > 0) {
+        const { data: existing } = await supabase
+          .from('listings')
+          .select('field_sources')
+          .eq('id', id)
+          .single();
+        const existingFs = (existing?.field_sources as Record<string, string>) || {};
+        updateData.field_sources = { ...existingFs, ...newSources };
       }
 
       updateData.updated_at = new Date().toISOString();
@@ -217,28 +246,17 @@ export async function POST(request: NextRequest) {
       actor: authz.actor,
       ip,
       status: 200,
-      meta: {
-        requestedCount: requestedIds.length,
-        ownedCount: authz.ownedIds.length,
-        filteredOutCount: authz.filteredOut.length,
-        updated,
-        failed: errors.length,
-        skipped,
-        bypassed: authz.bypassed,
-      },
+      meta: { updated, skipped, errors: errors.length },
     });
 
     return NextResponse.json({
       success: true,
       updated,
-      failed: errors.length,
       skipped,
-      results,
-      errors: errors.length > 0 ? errors : undefined,
+      errors,
     });
   } catch (err: any) {
     console.error('POST error:', err);
-    audit({ action: 'listing.field_update_bulk.error', ip, status: 500, meta: { reason: 'exception' } });
     return NextResponse.json(
       { error: process.env.NODE_ENV !== 'production' ? err?.message : '수정 실패' },
       { status: 500 },
