@@ -442,9 +442,11 @@
       var keys   = Object.keys(delta);
 
       if (keys.length === 0) {
-        // L-photo-autosave (2026-04-29): 사장님 혼란 해소 — 사진/동영상은 v315 가
-        //   업로드 즉시 자동 저장. 이 toast 는 폼 필드 (가격/주소 등) 변경 없을 때만.
-        toast('사진/동영상은 자동 저장됨 · 폼 필드 변경 없음', 'info');
+        // L-save-autoclose (2026-04-29): 사장님 명령 — 저장 누르면 '저장됐습니다' + 닫기.
+        //   사진/동영상은 v315 가 즉시 자동 저장 — 폼 필드 변경 없어도 저장됐습니다 표시.
+        toast('✅ 저장됐습니다', 'ok');
+        closePanel(overlay);
+        document.removeEventListener('keydown', onKey, true);
         return;
       }
 
