@@ -89,7 +89,7 @@
       "schedule": "0 */6 * * *"
     },
     {
-      "path": "/api/cron/prewarm-bldg-cache?limit=50",
+      "path": "/api/cron/prewarm-bldg-cache",
       "schedule": "30 */6 * * *"
     },
     {
