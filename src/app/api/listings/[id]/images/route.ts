@@ -160,26 +160,37 @@ export async function GET(
     //   (비공개/삭제 매물 사진 열거 방지)
     // L-imgpolicy2 (2026-04-23 p.m.): 저작권 보호 — 크롤링 매물(source_site NOT NULL)
     //   의 외부 원본 이미지는 서버단에서 필터링. 자체 호스팅(/api/images, supabase, r2) 만 통과.
-    const { data: parent } = await supabase
+    // L-wishes-source (2026-04-28): 사장님 명령 점진 전환 —
+    //   매물에 위시스 사진 ≥1장 (has_wishes_media=true) → crawled 모두 숨김 (저작권 안전 + 차별화).
+    //   위시스 사진 없으면 기존 정책 유지 (점진 전환).
+    const parentRes: any = await supabase
       .from('listings')
-      .select('id, source_site')
+      .select('id, source_site, has_wishes_media')
       .eq('id', listingId)
       .eq('status', '공개')
       .maybeSingle();
+    const parent: any = parentRes?.data;
     if (!parent) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: cors });
-    const { data, error } = await supabase
+    const imgRes: any = await supabase
       .from('listing_images')
-      .select('id, url, alt, sort_order, is_thumbnail, created_at')
+      .select('id, url, alt, sort_order, is_thumbnail, source, film_look_applied, watermark_applied, created_at')
       .eq('listing_id', listingId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
-    if (error) return NextResponse.json({ success: false, error: IS_DEV ? error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
-    const raw = data || [];
-    // 크롤링 매물이면 자체 호스팅 이미지만 통과. 자체 매물이면 전부 통과.
-    const safe = (parent as { source_site?: string | null }).source_site
-      ? filterSelfHosted(raw)
-      : raw;
-    return NextResponse.json({ success: true, data: safe }, { headers: cors });
+    if (imgRes?.error) return NextResponse.json({ success: false, error: IS_DEV ? imgRes.error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
+    const raw: any[] = (imgRes?.data as any[]) || [];
+    let safe: any[];
+    if (parent.has_wishes_media) {
+      // 위시스 사진 ≥1장 매물 — crawled 숨김 (저작권 안전 + 차별화)
+      safe = raw.filter((img: any) => img && img.source !== 'crawled');
+    } else if (parent.source_site) {
+      // 위시스 사진 없는 크롤링 매물 — 자체 호스팅만 통과 (기존 정책)
+      safe = filterSelfHosted(raw);
+    } else {
+      // 위시스 사진 없는 자체 매물 — 전부 통과 (기존 정책)
+      safe = raw;
+    }
+    return NextResponse.json({ success: true, data: safe, has_wishes_media: !!parent.has_wishes_media }, { headers: cors });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
   }

@@ -190,21 +190,27 @@ export async function GET(
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     // L-sec92 (2026-04-22): IDOR 차단 — 부모 listings.status='공개' 선검증. 없으면 404.
-    const { data: parent } = await supabase
+    // L-wishes-source (2026-04-28): 매물에 위시스 사진/영상 있으면 crawled 영상 숨김.
+    const parentRes: any = await supabase
       .from('listings')
-      .select('id')
+      .select('id, has_wishes_media')
       .eq('id', listingId)
       .eq('status', '공개')
       .maybeSingle();
+    const parent: any = parentRes?.data;
     if (!parent) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: cors });
-    const { data, error } = await supabase
+    const vidRes: any = await supabase
       .from('listing_videos')
-      .select('id, url, poster_url, mime_type, file_size, duration_sec, width, height, alt, sort_order, created_at')
+      .select('id, url, poster_url, mime_type, file_size, duration_sec, width, height, alt, sort_order, source, film_look_applied, watermark_applied, created_at')
       .eq('listing_id', listingId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
-    if (error) return NextResponse.json({ success: false, error: IS_DEV ? error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
-    return NextResponse.json({ success: true, data: data || [] }, { headers: cors });
+    if (vidRes?.error) return NextResponse.json({ success: false, error: IS_DEV ? vidRes.error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
+    const raw: any[] = (vidRes?.data as any[]) || [];
+    const safe: any[] = parent.has_wishes_media
+      ? raw.filter((v: any) => v && v.source !== 'crawled')
+      : raw;
+    return NextResponse.json({ success: true, data: safe, has_wishes_media: !!parent.has_wishes_media }, { headers: cors });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
   }
