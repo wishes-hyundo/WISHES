@@ -1046,6 +1046,12 @@ ${floorRows}</table></div>` : ''}
 
     setUploadedImages(prev => [...prev, ...newImages]);
 
+    // L-Step4 (2026-04-29): 첫 사진이 도면일 가능성 → Vision LLM 자동 분석
+    // 사장님 손 가는 작업 0 (자동화 우선 정책)
+    if (uploadedImages.length === 0 && fileArray.length > 0) {
+      tryAutoFloorplan(fileArray[0]);
+    }
+
     // 자동 품질 개선
     for (let i = 0; i < fileArray.length; i++) {
       try {
@@ -1065,6 +1071,57 @@ ${floorRows}</table></div>` : ''}
           return updated;
         });
       }
+    }
+  };
+
+  // L-Step4 (2026-04-29): Vision LLM 도면 자동 분석 → 폼 자동 채우기
+  const tryAutoFloorplan = async (file: File) => {
+    try {
+      // file → base64
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      let bin = '';
+      for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+      const b64 = btoa(bin);
+
+      const wsToken = (() => {
+        try { return sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token') || ''; }
+        catch { return ''; }
+      })();
+      if (!wsToken) return;
+
+      const res = await fetch('/api/admin/extract-floorplan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + wsToken,
+        },
+        body: JSON.stringify({ imageBase64: b64, mime: file.type || 'image/jpeg' }),
+      });
+      if (!res.ok) return;
+      const json = await res.json() as {
+        success?: boolean;
+        floorplan?: {
+          isFloorplan?: boolean;
+          rooms?: number | null;
+          bathrooms?: number | null;
+          direction?: string | null;
+          confidence?: number;
+        };
+      };
+      if (!json.success || !json.floorplan?.isFloorplan) return;
+      if ((json.floorplan.confidence ?? 0) < 50) return;
+
+      const fp = json.floorplan;
+      setForm(prev => ({
+        ...prev,
+        rooms: fp.rooms ?? prev.rooms,
+        bathrooms: fp.bathrooms ?? prev.bathrooms,
+        direction: fp.direction || prev.direction,
+      }));
+      setToast({ type: 'success', text: `🤖 도면 자동 분석: 방 ${fp.rooms ?? '?'}개 · 화장실 ${fp.bathrooms ?? '?'}개${fp.direction ? ' · ' + fp.direction : ''}` });
+    } catch (e) {
+      console.warn('[L-Step4] floorplan extract failed', e);
     }
   };
 
@@ -2696,44 +2753,4 @@ ${floorRows}</table></div>` : ''}
 
       {showAddressModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowAddressModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden" style={{ width: '420px', height: '520px', maxWidth: '95vw', maxHeight: '90vh' }}>
-            <div className="flex items-center justify-between px-4 py-3 bg-green-700 text-white">
-              <span className="font-semibold text-sm flex items-center gap-2">{String.fromCodePoint(0x1F4CD)} 주소 검색</span>
-              <button onClick={() => setShowAddressModal(false)} className="text-white/80 hover:text-white text-xl leading-none">&times;</button>
-            </div>
-            <div ref={postcodeContainerRef} className="w-full" style={{ height: 'calc(100% - 48px)' }} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-     }
-
-interface ListingErrorBoundaryProps { children: React.ReactNode }
-interface ListingErrorBoundaryState { hasError: boolean }
-class ListingErrorBoundary extends React.Component<ListingErrorBoundaryProps, ListingErrorBoundaryState> {
-  constructor(props: ListingErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  render() {
-    if (this.state.hasError) {
-      return React.createElement('div', {className: 'min-h-screen flex items-center justify-center'},
-        React.createElement('div', {className: 'text-center p-8'},
-          React.createElement('h2', {className: 'text-xl font-bold mb-4'}, '오류가 발생했습니다'),
-          React.createElement('button', {onClick: () => this.setState({hasError: false}), className: 'px-4 py-2 bg-black text-white rounded-lg'}, '다시 시도')
-        )
-      );
-    }
-    return this.props.children;
-  }
-}
-
-export default function SmartListingNewPageWithErrorBoundary() {
-  return React.createElement(ListingErrorBoundary, null, React.createElement(Suspense, {fallback: React.createElement('div', {style:{padding:'40px',textAlign:'center'}}, '로딩 중...')}, React.createElement(SmartListingNewPage)));
-}
-
+   
