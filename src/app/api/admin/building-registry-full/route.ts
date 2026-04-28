@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 //   verifyAdminAuth 는 role=agent JWT 도 통과 → 중개사 계정도 고비용 공공 API
 //   + Kakao quota 를 남용 가능. superadmin/master/crawler_bridge 만 허용.
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
+import { fetchBuildingData } from '@/app/api/admin/building-registry/route';
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
@@ -61,48 +62,30 @@ export async function GET(request: NextRequest) {
   try {
     const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await resolveAddress(address);
 
-    // Call the existing working building-registry endpoint.
-    // L-fix-jwt-passthrough (2026-04-28): cookie/Bearer/INTERNAL_BEARER 를 모두
-    //   self-call 에 forward 했지만 Vercel 내부 fetch 에서 Cookie 가 inner route
-    //   의 NextRequest.cookies 에 안 잡히는 케이스 발견. 가장 확실한 방법: outer
-    //   가 caller 의 인증 정보 (cookie 의 JWT 또는 Bearer 의 JWT) 를 직접 추출해
-    //   inner 의 Authorization Bearer 에 주입. JWT 가 없으면 INTERNAL_BEARER fallback.
-    let bearerToken = '';
-    const userAuth = request.headers.get('authorization') || '';
-    if (userAuth) {
-      // 'Bearer admin_bridge_<JWT>' 또는 'Bearer <JWT>' 둘 다 처리.
-      const t = userAuth.replace(/^Bearer\s+/i, '').trim();
-      bearerToken = t.startsWith('admin_bridge_') ? t.slice('admin_bridge_'.length) : t;
-    } else {
-      // cookie-only caller — ws_session 쿠키의 JWT 추출
-      const sessionCookie = request.cookies.get('ws_session')?.value?.trim() || '';
-      if (sessionCookie) bearerToken = sessionCookie;
-    }
-    // inner 호출에 사용할 Authorization 결정
-    const innerAuth = bearerToken
-      ? `Bearer ${bearerToken}`
-      : (INTERNAL_BEARER ? `Bearer ${INTERNAL_BEARER}` : '');
-    const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
-    const fetchHdrs: Record<string, string> = {};
-    if (innerAuth) fetchHdrs.Authorization = innerAuth;
-    // Cookie 도 같이 보냄 (이중 안전장치)
-    const userCookie = request.headers.get('cookie') || '';
-    if (userCookie) fetchHdrs.Cookie = userCookie;
-    const registryRes = await fetch(registryUrl, { headers: fetchHdrs });
+    // L-fix-no-self-call (2026-04-28): self-call (HTTP fetch wishes.co.kr/api/admin/
+    //   building-registry) 자체를 제거. Vercel CDN 거쳐 다시 들어오면서 인증
+    //   컨텍스트 손실 + middleware 중복 실행 등으로 401. fetchBuildingData 함수를
+    //   직접 호출 → 인증 우회 + 빠름 + 안정적.
+    const debugInfo: string[] = [];
+    const { buildingData, floors } = await fetchBuildingData(
+      sigunguCd, bjdongCd, bun, ji, '0', debugInfo
+    );
 
-    if (!registryRes.ok) {
-      const errText = await registryRes.text();
-      throw new Error(`Building registry API error: ${registryRes.status} - ${errText.substring(0, 200)}`);
+    if (Object.keys(buildingData).length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Building registry data not found',
+        query: { address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress },
+        debugInfo,
+      });
     }
-
-    const registryData = await registryRes.json();
 
     return NextResponse.json({
       success: true,
       query: { address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress },
-      data: registryData.data || {},
-      floors: registryData.floors || [],
-      raw: registryData.raw || {},
+      data: buildingData,
+      floors,
+      raw: {},
     });
   } catch (err: any) {
     return NextResponse.json(
