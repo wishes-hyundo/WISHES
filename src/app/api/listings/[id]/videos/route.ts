@@ -205,12 +205,14 @@ export async function GET(
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     // L-sec92 (2026-04-22): IDOR 차단 — 부모 listings.status='공개' 선검증. 없으면 404.
     // L-wishes-source (2026-04-28): 매물에 위시스 사진/영상 있으면 crawled 영상 숨김.
-    const parentRes: any = await supabase
+    // L-bug2-fix (2026-04-29): admin 인증 시 status='공개' 우회.
+    const isAdminUser = await verifyAdminAuth(request).catch(() => false);
+    let parentQ: any = supabase
       .from('listings')
       .select('id, has_wishes_media')
-      .eq('id', listingId)
-      .eq('status', '공개')
-      .maybeSingle();
+      .eq('id', listingId);
+    if (!isAdminUser) parentQ = parentQ.eq('status', '공개');
+    const parentRes: any = await parentQ.maybeSingle();
     const parent: any = parentRes?.data;
     if (!parent) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: cors });
     const vidRes: any = await supabase

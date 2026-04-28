@@ -467,16 +467,22 @@
       var bar = ph.querySelector('.v313-card-prog>span');
       uploadImage(lid, file, function (p) { if (bar) bar.style.width = (Math.round(p * 100)) + '%'; })
         .then(function (j) {
-          if (!j || !j.success || !j.uploaded || !j.uploaded.length) {
+          // L-resp-shape (2026-04-29): 서버 응답 = { success, data: [...], images: [...] }.
+          //   이전 'j.uploaded' 는 undefined → 카드 항상 placeholder 잔존 버그.
+          var arr = (j && (j.data || j.images || j.uploaded)) || [];
+          if (!j || !j.success || !arr.length) {
             withTransition(function () { ph.remove(); });
             toast('업로드 실패: ' + (file.name || ''), 'err');
             return;
           }
           // 서버는 이미 Classic Negative + 워터마크 적용 완료
-          // 응답에서 새 image id 받아서 카드 swap
-          var newImg = j.uploaded[0];
+          var newImg = arr[0];
+          if (!newImg.id) {
+            // ID 없음 — 서버 insert 응답 누락. 새로고침 후 정렬/삭제 가능.
+            console.warn('[v313] image id missing — reload modal to enable PATCH/DELETE');
+          }
           var card = renderCard({
-            id: newImg.id || Math.random(),
+            id: newImg.id || ('tmp_' + Date.now() + '_' + Math.random()),
             url: newImg.url,
             sort_order: 9999,
             is_thumbnail: false,
