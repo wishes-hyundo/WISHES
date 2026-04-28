@@ -198,9 +198,17 @@ export async function POST(req: NextRequest) {
     // === STEP 3: AI SEO 설명 생성 ===
     let aiResult: any = null;
     try {
+      // L-fix-self-call-auth (2026-04-28): self-call generate-description 가
+      //   verifyAdminAuth 를 요구. caller 의 Authorization + Cookie 를 forward
+      //   해야 인증 통과. 안 그러면 401 → ai_generate step failed → result null.
+      const __callerAuth = req.headers.get('authorization') || '';
+      const __callerCookie = req.headers.get('cookie') || '';
+      const __genHdrs: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (__callerAuth) __genHdrs.Authorization = __callerAuth;
+      if (__callerCookie) __genHdrs.Cookie = __callerCookie;
       const genRes = await fetch(SITE_URL + '/api/admin/generate-description', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: __genHdrs,
         body: JSON.stringify({
           address: listing.address || '',
           dong: listing.dong || '',
