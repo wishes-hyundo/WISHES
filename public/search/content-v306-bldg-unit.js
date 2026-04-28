@@ -2,6 +2,10 @@
  * /search content-v306 — 건축물대장 전유부 (호실) 정보 표시
  * 작성: 2026-04-28 (rev2 — fetch wrap 제거 + MutationObserver)
  * 갱신: 2026-04-29 rev3 — truncated EOF 복구 + hoNm/dongNm 자동 추출
+ * 갱신: 2026-04-29 rev4 — sessionStorage cache 무효화 (TTL 1시간 → 5분, prefix V3)
+ *   세움터 13/115 mismatch 후 server fix 했지만 client sessionStorage 에 이전
+ *   13건 응답이 1시간 캐싱돼서 모달이 stale 데이터 표시. cacheKey prefix 변경 +
+ *   TTL 단축으로 즉시 무효화 + 향후 fresh data 빠르게 반영.
  *
  * v303/v304 와 동일한 v294 fetch wrap 충돌 (stack overflow) 회피.
  * v306 는 window.fetch wrap 안 함. 대신 MutationObserver 로 v240 모달 감지 →
@@ -9,7 +13,9 @@
  */
 (function () {
   'use strict';
-  var V = 'v306-bldg-unit-rev3';
+  var V = 'v306-bldg-unit-rev4';
+  var CACHE_PREFIX = 'wsBldgV3:';   // rev4: V2 → V3 강제 무효화
+  var CACHE_TTL_MS = 5 * 60 * 1000; // rev4: 1시간 → 5분
   var _processed = new WeakSet();
 
   function escHtml(s) {
@@ -222,13 +228,14 @@
     }
   }
 
-  // L-cache (2026-04-29): client sessionStorage 1시간 캐시 — 사장님 매번 새로 조회 X
+  // L-cache rev4 (2026-04-29): client sessionStorage 5분 캐시. TTL 단축으로
+  //   server fix 가 빠르게 client 에 반영. 사장님 모달 매번 새로 조회 X (5분 동안만 hit).
   function getCachedPayload(cacheKey) {
     try {
       var raw = sessionStorage.getItem(cacheKey);
       if (!raw) return null;
       var obj = JSON.parse(raw);
-      if (obj && obj.ts && Date.now() - obj.ts < 60 * 60 * 1000) {
+      if (obj && obj.ts && Date.now() - obj.ts < CACHE_TTL_MS) {
         return obj.payload;
       }
     } catch (_) {}
@@ -265,7 +272,8 @@
     if (!address) return;
     try {
       var dh = extractDongHoFromAddress(address);
-      var cacheKey = 'wsBldg:' + (lid || '') + ':' + address + ':' + dh.dongNm + ':' + dh.hoNm;
+      // rev4: prefix 'wsBldg:' → CACHE_PREFIX (V3) 강제 무효화 — 이전 13건 stale 캐시 폐기
+      var cacheKey = CACHE_PREFIX + (lid || '') + ':' + address + ':' + dh.dongNm + ':' + dh.hoNm;
       var cached = getCachedPayload(cacheKey);
       if (cached && cached.success) {
         renderUnitSection(modalBody, cached);
