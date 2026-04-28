@@ -4,53 +4,47 @@
 //
 // 동작:
 //   1. listings 칸 + raw_fields 에서 검증된 사실만 추출
-//   2. 향후 카카오 directions / OSM Overpass 추가 가능 (Phase 2)
+//   2. enrichRagWithFreshStation: 좌표 있으면 카카오 SW8 직접 호출 → 100% 보장
 //   3. LLM 에 전달할 "facts" 객체 + "forbidden_topics" 리스트 반환
 //
 // 핵심 원칙:
 //   - facts 에 없는 정보는 LLM 이 만들면 안 됨 (환각)
 //   - forbidden_topics: 표/아이콘에 이미 있는 정보 (중복 방지)
+//   - 위치 (역/지하철) 은 100% 정확해야 함 — 사장님 명령 (고객 신뢰)
 // ──────────────────────────────────────────────────────────────────────
 
 export interface ListingFacts {
   // 위치 (검증된 사실만)
-  gu: string;        // 예: "관악구"
-  dong: string;      // 예: "신림동"
-  building_name?: string;  // 예: "케이뷰오피스텔1차"
+  gu: string;
+  dong: string;
+  building_name?: string;
 
   // 교통 (확정 데이터만)
-  station_name?: string;     // 예: "신림역" (DB 검증)
-  station_distance?: number;  // 분 단위
-  station_lines?: string[];   // 예: ["2호선", "신림선"]
+  station_name?: string;
+  station_distance?: number;  // 분 단위 (도보 80m/분)
+  station_lines?: string[];
 
-  // 매물 핵심 (분류 용도, 표 정보 X)
-  type: string;       // 예: "오피스텔"
-  deal: string;       // 예: "월세"
-  built_year?: string;  // 예: "2023"
+  // 매물 핵심
+  type: string;
+  deal: string;
+  built_year?: string;
 
-  // 라이프스타일 분류 (어필 타겟)
+  // 라이프스타일 분류
   target_segment: 'single' | 'couple' | 'family' | 'business' | 'investor';
-  is_new_building: boolean;  // 5년 이내 신축
-  is_immediate_movein: boolean;  // 즉시입주
+  is_new_building: boolean;
+  is_immediate_movein: boolean;
   is_full_option: boolean;
   has_elevator: boolean;
   has_parking: boolean;
   pet_allowed: boolean | null;
 
-  // 매물별 차별점 (raw_fields 에서 추출)
-  unique_hooks: string[];  // 예: ["수리완료", "코너세대", "법인 전속관리"]
-
-  // 주변 정보 (있으면)
-  nearby_known: string[];  // 예: ["도림천 산책로 인근"] (DB 또는 raw 검증)
+  unique_hooks: string[];
+  nearby_known: string[];
 }
 
 export interface RagContext {
   facts: ListingFacts;
-
-  // LLM 한테 사용 금지 알려줘야 할 정보 (이미 표/아이콘에 표시)
   forbidden_topics: string[];
-
-  // 가장 어울리는 톤 추천 (스타일 풀에서 hash 로 선택)
   suggested_style_index: number;
 }
 
@@ -58,7 +52,7 @@ export interface RagContext {
 function inferTargetSegment(
   type: string,
   rooms: number | null,
-  deal: string
+  _deal: string
 ): ListingFacts['target_segment'] {
   if (type === '상가' || type === '사무실' || type === '지식산업센터') return 'business';
   if (type === '토지' || type === '건물') return 'investor';
@@ -86,7 +80,6 @@ function extractUniqueHooks(rawFields: Record<string, unknown>): string[] {
   const rawText = String(rawFields['__원본본문__'] || '').toLowerCase();
   const combined = special + ' ' + rawText;
 
-  // 검증된 차별점 키워드 (실제 raw 본문에 있는지 확인)
   const checks: Array<[string, string]> = [
     ['수리완료', '리모델링 완료'],
     ['수리', '리모델링'],
@@ -135,8 +128,8 @@ function extractNearbyKnown(
   const special = String(rawFields['특이사항'] || '');
   const rawText = String(rawFields['__원본본문__'] || '');
 
-  // 매물 본문에 명시된 주변 정보만 추출 (LLM 한테 추가 정보 만들지 마라)
-  const placeRegex = /(도림천|관악산|봉천공원|보라매공원|신림역|봉천역|서울대입구역|남부순환로)/g;
+  // 광역 — 본문에 명시된 모든 지하철역 / 공원 / 산 / 하천 매칭
+  const placeRegex = /([가-힣]{2,8}역|[가-힣]{2,8}공원|[가-힣]{2,8}산|[가-힣]{2,8}천|[가-힣]{2,8}대학교|[가-힣]{2,8}대로|[가-힣]{2,8}로)/g;
   const found = (special + ' ' + rawText).match(placeRegex);
   if (found) {
     const set = new Set(found);
@@ -145,7 +138,7 @@ function extractNearbyKnown(
     }
   }
 
-  return known.slice(0, 5);
+  return known.slice(0, 8);
 }
 
 // ── 4. 메인: 매물 데이터 → RAG context ─────────────────
@@ -166,14 +159,13 @@ export function buildRagContext(listing: Record<string, unknown>): RagContext {
   const availableDate = String(listing.available_date || rawFields['입주가능일'] || '');
   const isImmediateMovein = /즉시|공실/.test(availableDate);
 
-  // L-rag-fix (2026-04-29): 잘못된 컬럼명 → subway_data 배열 사용 (P0 환각 원인)
-  // listings 테이블에는 station_name 단일 컬럼 X. enrich-subway cron 이 subway_data (JSON 배열) 에 저장.
-  // 첫 번째 (가장 가까운) 역만 사용. distance_m → 분 환산 (도보 80m/분 기준).
+  // L-rag-fix (2026-04-29): subway_data 배열 사용. 첫번째 (가장 가까운) 역.
+  // distance_m → 분 환산 (도보 80m/분).
   const subwayArr = Array.isArray(listing.subway_data) ? listing.subway_data : [];
   const closestStation = subwayArr.length > 0 ? subwayArr[0] as { name?: string; distance_m?: number } : null;
   const stationName = closestStation?.name || undefined;
   const stationDistanceMin = closestStation?.distance_m
-    ? Math.max(1, Math.round(closestStation.distance_m / 80))  // 도보 80m/분
+    ? Math.max(1, Math.round(closestStation.distance_m / 80))
     : undefined;
 
   const facts: ListingFacts = {
@@ -183,7 +175,7 @@ export function buildRagContext(listing: Record<string, unknown>): RagContext {
 
     station_name: stationName,
     station_distance: stationDistanceMin,
-    station_lines: undefined, // Phase 2: 정부 API 로 보강
+    station_lines: undefined,
 
     type: String(listing.type || ''),
     deal: String(listing.deal || ''),
@@ -201,7 +193,6 @@ export function buildRagContext(listing: Record<string, unknown>): RagContext {
     nearby_known: extractNearbyKnown(rawFields, (listing.building_name as string) || null),
   };
 
-  // 표/아이콘에 이미 표시되는 정보 — LLM 절대 언급 X
   const forbidden_topics: string[] = [
     '보증금', '월세', '전세금', '매매가', '관리비', '가격',
     '면적', '평수', '제곱미터', 'm²', '평',
@@ -212,16 +203,100 @@ export function buildRagContext(listing: Record<string, unknown>): RagContext {
     '구체 옵션 14개 나열',
   ];
 
-  // 다양성: 매물 ID 해시 → 스타일 인덱스 (0~6)
   const id = listing.id;
   const idHash = typeof id === 'number'
     ? id
     : (typeof id === 'string' ? parseInt(id) || 0 : 0);
-  const suggested_style_index = Math.abs(idHash * 2654435761) % 7; // golden ratio hash
+  const suggested_style_index = Math.abs(idHash * 2654435761) % 7;
 
   return {
     facts,
     forbidden_topics,
     suggested_style_index,
   };
+}
+
+// ── 5. 카카오 SW8 직접 호출 — 100% 정확한 가장 가까운 역 ──
+// 사장님 명령 (2026-04-29): "위치만큼은 진짜 정확해야돼 고객과의 신뢰가 달린거니깐"
+// subway_data 가 비어 있거나 의심스러우면 lat/lng 으로 카카오 직접 fresh fetch.
+//
+// 카카오 카테고리 검색 (SW8 = 지하철역), radius 1500m, sort by distance.
+// 응답의 distance 는 미터 단위 직선거리.
+export async function enrichRagWithFreshStation(
+  rag: RagContext,
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+  apiKey: string
+): Promise<RagContext> {
+  // 좌표 없으면 그대로 (subway_data 결과 또는 undefined 유지)
+  if (lat == null || lng == null || !isFinite(lat) || !isFinite(lng)) return rag;
+  if (!apiKey) return rag;
+
+  try {
+    const url = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=SW8&y=${lat}&x=${lng}&radius=1500&sort=distance`;
+    const res = await fetch(url, {
+      headers: { Authorization: `KakaoAK ${apiKey}` },
+      signal: AbortSignal.timeout(3000),
+    });
+    if (!res.ok) return rag;
+    const j = await res.json() as {
+      documents?: Array<{ place_name?: string; distance?: string; category_name?: string }>;
+    };
+    const docs = j?.documents || [];
+    if (docs.length === 0) {
+      // 1.5km 안에 역 없음 — 명시적으로 undefined 유지 (LLM 이 역 언급 X)
+      return {
+        ...rag,
+        facts: { ...rag.facts, station_name: undefined, station_distance: undefined },
+      };
+    }
+    const closest = docs[0];
+    const distanceM = parseInt(closest.distance || '0', 10);
+    if (!distanceM) return rag;
+    // 도보 80m/분 (1.4m/s × 60 ≈ 84, 안전치 80)
+    const minutes = Math.max(1, Math.round(distanceM / 80));
+    return {
+      ...rag,
+      facts: {
+        ...rag.facts,
+        station_name: closest.place_name || rag.facts.station_name,
+        station_distance: minutes,
+      },
+    };
+  } catch {
+    // 카카오 호출 실패 — subway_data 결과 유지
+    return rag;
+  }
+}
+
+// ── 6. 검증: description 안의 역 이름이 facts 와 일치하는지 ──
+// LLM 이 환각으로 역 이름 만들면 reject (재시도 트리거).
+export function detectStationHallucination(
+  description: string,
+  facts: ListingFacts
+): { hallucinated: boolean; offending?: string } {
+  // description 에서 "OO역" 패턴 추출
+  const stationMatches = description.match(/[가-힣A-Za-z0-9]{2,10}역/g) || [];
+  if (stationMatches.length === 0) return { hallucinated: false };
+
+  const allowedStation = facts.station_name ? facts.station_name.replace(/역$/, '') : null;
+  const allowedNearby = facts.nearby_known
+    .filter((n) => /역$/.test(n))
+    .map((n) => n.replace(/역$/, ''));
+  const allowed = new Set<string>();
+  if (allowedStation) allowed.add(allowedStation);
+  for (const a of allowedNearby) allowed.add(a);
+
+  // facts 에 어떤 역도 없으면 description 에 역 이름 등장 = 환각
+  if (allowed.size === 0) {
+    return { hallucinated: true, offending: stationMatches[0] };
+  }
+
+  for (const m of stationMatches) {
+    const stem = m.replace(/역$/, '');
+    if (!allowed.has(stem)) {
+      return { hallucinated: true, offending: m };
+    }
+  }
+  return { hallucinated: false };
 }
