@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     .select('id, type, deal, address, dong, gu, area_m2, floor_current, rooms, bathrooms, deposit, monthly, price, parking, elevator, direction, heating_type, description')
     .eq('status', '공개')
     .or('description.is.null,description.eq.')
-    .limit(30);
+    .limit(60);  // L-fix-throughput (2026-04-28): 30→60 (2배). text 호출 빠름.
 
   let updated = 0;
   for (const t of (targets || []) as any[]) {

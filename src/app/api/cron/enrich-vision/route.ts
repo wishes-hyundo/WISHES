@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     .eq('status', '공개')
     .or('direction.is.null,heating_type.is.null')
     .not('listing_images', 'is', null)
-    .limit(50);
+    .limit(80);  // L-fix-throughput (2026-04-28): 50→80 (1.6배). 60s 안전 한도 내.
 
   let updated = 0;
   for (const t of (targets || []) as any[]) {
