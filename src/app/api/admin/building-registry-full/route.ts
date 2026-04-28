@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
-import { fetchBuildingData, fetchExposureUnits, type BuildingUnit } from '@/app/api/admin/building-registry/route';
+import { fetchBuildingData, fetchExposureUnits, type BuildingUnit } from '@/lib/external/buildingRegistry';
 import { createServerClient } from '@/lib/supabase';
 import { fetchRtmsSummary, type RtmsSummary } from '@/lib/external/realEstateRtms';
 
+export const runtime = 'nodejs';
 export const maxDuration = 30;
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
@@ -188,7 +189,7 @@ export async function GET(request: NextRequest) {
 
     const selectedUnit = findSelectedUnit(units, reqDong, reqHo);
 
-    // Layer 8: same building cross-link
+    // Layer 8: same_building cross-link
     let sameBuilding: Array<Record<string, unknown>> = [];
     if (supabase && fullAddress) {
       try {
@@ -227,14 +228,12 @@ export async function GET(request: NextRequest) {
         );
         const lrow = (lookup as { data: { building_type?: string; deal_type?: string } | null }).data;
         if (lrow && lrow.building_type) {
-          rtms = await fetchRtmsSummary({
+          rtms = await fetchRtmsSummary(
+            lrow.building_type,
+            lrow.deal_type || '매매',
             sigunguCd,
-            bjdongCd,
-            bun,
-            ji,
-            buildingType: lrow.building_type,
-            dealType: lrow.deal_type || 'sale',
-          }).catch((e) => {
+            6,
+          ).catch((e) => {
             debugInfo.push(`rtms_err: ${(e as Error).message}`);
             return null;
           });

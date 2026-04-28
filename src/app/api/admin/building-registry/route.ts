@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { fetchBuildingData } from '@/lib/external/buildingRegistry';
 
 const API_KEY = process.env.DATA_GO_KR_API_KEY || '';
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
@@ -186,267 +187,127 @@ function resolveViaHardcoded(address: string, dong: string, sigungu: string) {
 }
 
 // ──────────────────────────────────────────────
-// 건축물대장 API 조회 (공통 로직)
+// GET 핸들러
 // ──────────────────────────────────────────────
-const FIELD_MAP: [string, string][] = [
-  ['bldNm', 'buildingName'],
-  ['mainPurpsCdNm', 'buildingPurpose'],
-  ['etcPurps', 'etcPurpose'],
-  ['strctCdNm', 'buildingStructure'],
-  ['roofCdNm', 'roofStructure'],
-  ['platArea', 'siteArea'],
-  ['archArea', 'buildingArea'],
-  ['totArea', 'totalFloorArea'],
-  ['bcRat', 'buildingCoverageRatio'],
-  ['vlRat', 'floorAreaRatio'],
-  ['grndFlrCnt', 'totalFloors'],
-  ['ugrndFlrCnt', 'undergroundFloors'],
-  ['rideUseElvtCnt', 'rideElevatorCount'],
-  ['emgenUseElvtCnt', 'emergencyElevatorCount'],
-  ['indrMechUtcnt', 'indoorMechParking'],
-  ['indrAutoUtcnt', 'indoorAutoParking'],
-  ['oudrMechUtcnt', 'outdoorMechParking'],
-  ['oudrAutoUtcnt', 'outdoorAutoParking'],
-  ['useAprDay', 'approvalDate'],
-  ['pmsDay', 'permitDate'],
-  ['stcnsDay', 'constructionStartDate'],
-  ['newPlatPlc', 'roadAddress'],
-  ['platPlc', 'jibunAddress'],
-  ['regstrGbCdNm', 'registryType'],
-  ['regstrKindCdNm', 'registryKind'],
-  ['hhldCnt', 'householdCount'],
-  ['hoCnt', 'unitCount'],
-  ['fmlyCnt', 'familyCount'],
-  ['dongNm', 'dongName'],
-  // L-Layer5 (2026-04-28): 위반건축물 (vlitn) — data.go.kr 무료, getBrTitleInfo 응답 포함
-  ['vlitnYn', 'illegalBuilding'],
-  ['vlitnVilDt', 'illegalBuildingDate'],
-  ['vlitnLawNm', 'illegalLawName'],
-  ['vlitnLawArtNm', 'illegalLawArticle'],
-];
+export async function GET(request: NextRequest) {
+  // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가
+  if (!(await verifyAdminAuth(request))) {
+    return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
+  }
+  const { searchParams } = new URL(request.url);
 
-// L-urgent1 (2026-04-22): ESLint 지시자 정리 — 동일 이유 (rule not found).
-type AnyObj = Record<string, any>;
+  let sigunguCd = searchParams.get('sigunguCd') || '';
+  let bjdongCd = searchParams.get('bjdongCd') || '';
+  let bun = searchParams.get('bun') || '';
+  let ji = searchParams.get('ji') || '';
+  const platGbCd = searchParams.get('platGbCd') || '0';
+  const address = searchParams.get('address') || '';
+  const dong = searchParams.get('dong') || '';
+  const sigungu = searchParams.get('sigungu') || '';
+  const debug = searchParams.get('debug') === 'true';
+  const debugInfo: string[] = [];
 
-export async function fetchBuildingData(
-  sigunguCd: string,
-  bjdongCd: string,
-  bun: string,
-  ji: string,
-  platGbCd: string,
-  debugInfo: string[],
-) {
-  let decodedKey = API_KEY;
-  try { if (API_KEY.includes('%')) decodedKey = decodeURIComponent(API_KEY); } catch { /* keep original */ }
+  // 코드가 직접 전달되지 않은 경우: 주소에서 변환
+  if (!sigunguCd && address) {
+    // ★ 1순위: 카카오 API — 도로명/지번 모두 처리, 전국 커버
+    debugInfo.push(`[resolve] 카카오 API 시도: "${address}"`);
+    const kakaoResult = await resolveViaKakao(address);
 
-  const endpoints = ['getBrBasisOulnInfo', 'getBrRecapTitleInfo', 'getBrTitleInfo', 'getBrFlrOulnInfo'];
-
-  // data.go.kr 공식 스펙: ServiceKey (대문자 S)
-  const baseParams: Record<string, string> = {
-    ServiceKey: decodedKey,
-    sigunguCd,
-    numOfRows: '100',
-    pageNo: '1',
-    _type: 'json',
-  };
-  if (bjdongCd) baseParams.bjdongCd = bjdongCd;
-  if (bun && bun !== '0000') baseParams.bun = bun;
-  if (ji && ji !== '0000') baseParams.ji = ji;
-  baseParams.platGbCd = platGbCd;
-
-  const results = await Promise.allSettled(
-    endpoints.map(async (ep) => {
-      const params = new URLSearchParams(baseParams);
-      const url = `${API_BASE}/${ep}?${params.toString()}`;
-      debugInfo.push(`${ep}: requesting [sigungu=${sigunguCd}, bjdong=${bjdongCd}, bun=${bun}, ji=${ji}]`);
-
-      const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 15000);
-      const res = await fetch(url, { signal: ctrl.signal });
-      clearTimeout(tid);
-
-      if (!res.ok) {
-        debugInfo.push(`${ep}: HTTP ${res.status}`);
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const json = await res.json() as AnyObj;
-      const header = json.response?.header || json.header || {};
-      const body = json.response?.body || json.body || {};
-
-      if (header.resultCode && header.resultCode !== '00') {
-        debugInfo.push(`${ep}: api_err=${header.resultCode} ${header.resultMsg || ''}`);
-        throw new Error(`API error: ${header.resultCode}`);
-      }
-
-      const items = body.items?.item;
-      const itemArray = Array.isArray(items) ? items : (items ? [items] : []);
-      debugInfo.push(`${ep}: ok (${itemArray.length} items)`);
-      return { endpoint: ep, items: itemArray };
-    })
-  );
-
-  const buildingData: Record<string, string | number> = {};
-  const floorData: AnyObj[] = [];
-
-  for (let i = 0; i < endpoints.length; i++) {
-    const r = results[i];
-    if (r.status !== 'fulfilled') continue;
-    const { items } = r.value;
-
-    if (endpoints[i] === 'getBrFlrOulnInfo') {
-      floorData.push(...items);
-      continue;
-    }
-
-    const firstItem = items[0];
-    if (!firstItem) continue;
-
-    for (const [apiField, dataField] of FIELD_MAP) {
-      if (firstItem[apiField] != null && buildingData[dataField] == null) {
-        buildingData[dataField] = String(firstItem[apiField]);
-      }
+    if (kakaoResult) {
+      sigunguCd = kakaoResult.sigunguCd;
+      bjdongCd = kakaoResult.bjdongCd;
+      bun = kakaoResult.bun;
+      ji = kakaoResult.ji;
+      debugInfo.push(`[resolve] 카카오 성공: sigungu=${sigunguCd}, bjdong=${bjdongCd}, bun=${bun}, ji=${ji}, addr=${kakaoResult.fullAddress}`);
+    } else {
+      // ★ 2순위: 하드코딩 테이블 (카카오 실패 시 fallback)
+      debugInfo.push(`[resolve] 카카오 실패 → 하드코딩 테이블 시도`);
+      const hc = resolveViaHardcoded(address, dong, sigungu);
+      sigunguCd = hc.sigunguCd;
+      bjdongCd = hc.bjdongCd;
+      if (!bun) bun = hc.bun;
+      if (!ji) ji = hc.ji;
+      debugInfo.push(`[resolve] 하드코딩 결과: sigungu=${sigunguCd}, bjdong=${bjdongCd}, bun=${bun}, ji=${ji}`);
     }
   }
 
-  // 계산 필드
-  const rideElv = parseInt(String(buildingData.rideElevatorCount || '0'));
-  const emgElv = parseInt(String(buildingData.emergencyElevatorCount || '0'));
-  buildingData.elevatorCount = String(rideElv + emgElv);
+  // bun/ji가 아직 없으면 주소에서 추출 시도
+  if (!bun && address) {
+    const bunJi = extractBunJi(address);
+    bun = bunJi.bun;
+    ji = bunJi.ji;
+  }
 
-  const iM = parseInt(String(buildingData.indoorMechParking || '0'));
-  const iA = parseInt(String(buildingData.indoorAutoParking || '0'));
-  const oM = parseInt(String(buildingData.outdoorMechParking || '0'));
-  const oA = parseInt(String(buildingData.outdoorAutoParking || '0'));
-  buildingData.parkingCount = String(iM + iA + oM + oA);
+  if (!sigunguCd) {
+    return NextResponse.json({
+      success: false,
+      message: '시군구코드를 확인할 수 없습니다. 주소를 다시 확인해주세요.',
+      debug: debug ? { address, sigungu, dong, debugInfo } : undefined,
+    });
+  }
 
-  const floors = floorData.map((f: AnyObj) => ({
-    floorNo: f.flrNo,
-    floorType: f.flrGbCdNm,
-    purpose: f.mainPurpsCdNm || f.etcPurps || '',
-    area: parseFloat(f.area || '0'),
-  }));
-
-  return { buildingData, floors };
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// L-bldg-unit (2026-04-28): 전유부 (호실별) 데이터 fetch + 가공
-//   getBrExposPubuseAreaInfo endpoint 호출 → 한 건물의 모든 호실 (전유 + 공용)
-//   레코드를 dongNm + hoNm 으로 group → 호실별 전용/공용/총면적 + 주용도 산출.
-//   /api/building-ledger 의 processExclusiveUnits 와 같은 알고리즘.
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-export interface BuildingUnit {
-  dongNm: string;
-  hoNm: string;
-  flrNo: string;
-  flrNoNm: string;
-  exclusiveArea: number;
-  commonArea: number;
-  totalArea: number;
-  mainPurpsCdNm: string;
-  etcPurps: string;
-  strctCdNm: string;
-  floorNum: number;
-}
-
-export async function fetchExposureUnits(
-  sigunguCd: string,
-  bjdongCd: string,
-  bun: string,
-  ji: string,
-  platGbCd: string,
-  debugInfo: string[],
-): Promise<BuildingUnit[]> {
-  let decodedKey = API_KEY;
-  try { if (API_KEY.includes('%')) decodedKey = decodeURIComponent(API_KEY); } catch { /* keep original */ }
-
-  const baseParams: Record<string, string> = {
-    ServiceKey: decodedKey,
-    sigunguCd,
-    numOfRows: '500', // 큰 단지도 한 번에
-    pageNo: '1',
-    _type: 'json',
-  };
-  if (bjdongCd) baseParams.bjdongCd = bjdongCd;
-  if (bun && bun !== '0000') baseParams.bun = bun;
-  if (ji && ji !== '0000') baseParams.ji = ji;
-  baseParams.platGbCd = platGbCd;
+  if (!API_KEY) {
+    return NextResponse.json({
+      success: false,
+      message: '건축물대장 API 키가 설정되지 않았습니다.',
+      estimatedData: estimatedData(address),
+    });
+  }
 
   try {
-    const params = new URLSearchParams(baseParams);
-    const url = `${API_BASE}/getBrExposPubuseAreaInfo?${params.toString()}`;
-    debugInfo.push(`getBrExposPubuseAreaInfo: requesting`);
-
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 15000);
-    const res = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(tid);
-
-    if (!res.ok) {
-      debugInfo.push(`getBrExposPubuseAreaInfo: HTTP ${res.status}`);
-      return [];
-    }
-
-    const json = await res.json() as AnyObj;
-    const header = json.response?.header || json.header || {};
-    const body = json.response?.body || json.body || {};
-
-    if (header.resultCode && header.resultCode !== '00') {
-      debugInfo.push(`getBrExposPubuseAreaInfo: api_err=${header.resultCode}`);
-      return [];
-    }
-
-    const itemsRaw = body.items?.item;
-    const items: AnyObj[] = Array.isArray(itemsRaw) ? itemsRaw : (itemsRaw ? [itemsRaw] : []);
-    debugInfo.push(`getBrExposPubuseAreaInfo: ok (${items.length} records)`);
-
-    // 전유 (exposPubuseGbCdNm === '전유' 또는 exposPubuseGbCd === '1')
-    // 공용 (exposPubuseGbCdNm === '공용' 또는 exposPubuseGbCd === '2')
-    const exclusive = items.filter(
-      (it) => it.exposPubuseGbCdNm === '전유' || it.exposPubuseGbCd === '1',
-    );
-    const common = items.filter(
-      (it) => it.exposPubuseGbCdNm === '공용' || it.exposPubuseGbCd === '2',
+    const { buildingData, floors } = await fetchBuildingData(
+      sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo
     );
 
-    const unitMap = new Map<string, BuildingUnit>();
+    if (Object.keys(buildingData).length > 0) {
+      return NextResponse.json({
+        success: true,
+        data: buildingData,
+        floors,
+        source: 'building_registry_api',
+        ...(debug ? { debugInfo, sigunguCd, bjdongCd, bun, ji } : {}),
+      });
+    }
 
-    for (const r of exclusive) {
-      const key = (r.dongNm || '') + '_' + (r.hoNm || '');
-      if (!unitMap.has(key)) {
-        unitMap.set(key, {
-          dongNm: String(r.dongNm || ''),
-          hoNm: String(r.hoNm || ''),
-          flrNo: String(r.flrNo || ''),
-          flrNoNm: String(r.flrNoNm || r.flrGbCdNm || ''),
-          exclusiveArea: parseFloat(r.area || '0'),
-          commonArea: 0,
-          totalArea: 0,
-          mainPurpsCdNm: String(r.mainPurpsCdNm || ''),
-          etcPurps: String(r.etcPurps || ''),
-          strctCdNm: String(r.strctCdNm || ''),
-          floorNum: parseInt(String(r.flrNo || '0')) || 0,
+    // 데이터가 없고, 카카오로 변환했는데도 못 찾으면 → 번지 없이 재시도
+    if (bun !== '0000') {
+      debugInfo.push('[retry] 번지 제외하고 동 단위로 재시도');
+      const { buildingData: retryData, floors: retryFloors } = await fetchBuildingData(
+        sigunguCd, bjdongCd, '0000', '0000', platGbCd, debugInfo
+      );
+      if (Object.keys(retryData).length > 0) {
+        return NextResponse.json({
+          success: true,
+          data: retryData,
+          floors: retryFloors,
+          source: 'building_registry_api_broad',
+          ...(debug ? { debugInfo, sigunguCd, bjdongCd, bun: '0000', ji: '0000' } : {}),
         });
-      } else {
-        const u = unitMap.get(key)!;
-        u.exclusiveArea += parseFloat(r.area || '0');
       }
     }
-    for (const r of common) {
-      const key = (r.dongNm || '') + '_' + (r.hoNm || '');
-      const u = unitMap.get(key);
-      if (u) u.commonArea += parseFloat(r.area || '0');
-    }
 
-    const units = Array.from(unitMap.values()).map((u) => ({
-      ...u,
-      exclusiveArea: parseFloat(u.exclusiveArea.toFixed(2)),
-      commonArea: parseFloat(u.commonArea.toFixed(2)),
-      totalArea: parseFloat((u.exclusiveArea + u.commonArea).toFixed(2)),
-    }));
+    return NextResponse.json({
+      success: false,
+      message: '건축물대장 정보를 찾을 수 없습니다.',
+      estimatedData: estimatedData(address),
+      ...(debug ? { debugInfo, sigunguCd, bjdongCd, bun, ji } : {}),
+    });
 
-    units.sort((a, b) => {
-      if (a.dongNm !== b.dongNm) return a.dongNm.localeCompare(b.dongNm);
-      if (a.floorNum !== b.floorNum) return a.fl
+  } catch (error) {
+    console.error('[building-registry] error:', error);
+    return NextResponse.json({
+      success: false,
+      message: '조회 오류: ' + (error instanceof Error ? error.message : String(error)),
+      estimatedData: estimatedData(address),
+      ...(debug ? { debugInfo } : {}),
+    });
+  }
+}
+
+function estimatedData(address: string) {
+  return {
+    buildingType: address.includes('아파트') ? '아파트' : '다세대주택',
+    structure: '철근콘크리트구조',
+    note: '건축물대장 API에서 데이터를 찾을 수 없어 추정 데이터입니다.',
+  };
+}

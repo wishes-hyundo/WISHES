@@ -1,233 +1,125 @@
-/**
- * L-Layer6 (2026-04-28): RTMS 실거래가 요약 — data.go.kr 무료
- *
- * 부동산 거래가 공개 시스템 (RTMS) — 같은 동 (법정동) 의 최근 실거래 평균/중간/최저/최고.
- * 매물 가격이 시장 대비 어떤 수준인지 사장님이 한눈에 비교 가능.
- *
- * 무료. ServiceKey: data.go.kr 동일 키.
- *
- * building_type → endpoint 매핑:
- *   apartment   → getRTMSDataSvcAptTrade / getRTMSDataSvcAptRent
- *   officetel   → getRTMSDataSvcOffiTrade / getRTMSDataSvcOffiRent
- *   villa       → getRTMSDataSvcRHTrade / getRTMSDataSvcRHRent  (연립/다세대)
- *   default     → getRTMSDataSvcRHTrade
- *
- * deal_type:
- *   sale       → Trade (매매)
- *   else       → Rent (전세/월세)
- */
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// L-bldg-unit Layer 6 (2026-04-28): RTMS 실거래가 통합
+//   data.go.kr 부동산 실거래가 API → 같은 법정동 + type/deal 의 최근 6개월
+//   거래 평균/중간값/recent_3m_avg 산출. 사장님 가격 협상 시세 무기.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const RTMS_API_KEY =
-  process.env.DATA_GO_KR_API_KEY ||
-  process.env.PUBLIC_DATA_API_KEY ||
-  process.env.BLDG_RGST_API_KEY ||
-  '';
+const API_KEY = process.env.DATA_GO_KR_API_KEY || '';
+const RTMS_BASE = 'https://apis.data.go.kr/1613000';
 
-export interface RtmsTransaction {
-  dealAmount?: number;       // 만원 (매매)
-  deposit?: number;          // 만원 (전월세 보증금)
-  monthlyRent?: number;      // 만원 (월세)
-  exclusiveArea?: number;    // m²
-  floor?: number;
-  buildYear?: number;
-  dealYear?: number;
-  dealMonth?: number;
-  dealDay?: number;
-  apartmentName?: string;
-}
+type AnyObj = Record<string, unknown>;
 
 export interface RtmsSummary {
+  available: boolean;
+  reason?: string;
   endpoint: string;
-  dealType: 'sale' | 'rent';
-  totalCount: number;
-  recent: RtmsTransaction[];          // 최근 5건
-  stats: {
-    median?: number;
-    avg?: number;
-    min?: number;
-    max?: number;
-    unit: 'krw_10k' | 'krw_10k_deposit';
-  };
-  fetchedAt: string;
-  monthsSearched: string[];
+  count: number;
+  avg: number;
+  median: number;
+  min: number;
+  max: number;
+  recent_3m_avg: number;
 }
 
-interface RtmsArgs {
-  sigunguCd: string;
-  bjdongCd: string;
-  bun?: string;
-  ji?: string;
-  buildingType: string;
-  dealType: string;
+function pickEndpoint(type: string, deal: string): string | null {
+  const t = (type || '').trim();
+  const d = (deal || '').trim();
+  const isTrade = d === '매매';
+  const isRent = d === '전세' || d === '월세';
+  if (t === '아파트') return isTrade ? 'getRTMSDataSvcAptTrade' : (isRent ? 'getRTMSDataSvcAptRent' : null);
+  if (t === '오피스텔') return isTrade ? 'getRTMSDataSvcOffiTrade' : (isRent ? 'getRTMSDataSvcOffiRent' : null);
+  if (['원룸', '투룸', '쓰리룸'].includes(t))
+    return isTrade ? 'getRTMSDataSvcRHTrade' : (isRent ? 'getRTMSDataSvcRHRent' : null);
+  return null;
 }
 
-function pickEndpoint(buildingType: string, isSale: boolean): string {
-  const t = (buildingType || '').toLowerCase();
-  if (t.includes('apart') || t === '아파트') {
-    return isSale ? 'getRTMSDataSvcAptTrade' : 'getRTMSDataSvcAptRent';
-  }
-  if (t.includes('office') || t === '오피스텔') {
-    return isSale ? 'getRTMSDataSvcOffiTrade' : 'getRTMSDataSvcOffiRent';
-  }
-  // villa / 빌라 / 다세대 / 연립 / 단독 → RH (Row House)
-  return isSale ? 'getRTMSDataSvcRHTrade' : 'getRTMSDataSvcRHRent';
+function parseAmount(raw: unknown): number {
+  if (raw == null) return 0;
+  const s = String(raw).replace(/,/g, '').trim();
+  const n = parseFloat(s);
+  return isFinite(n) ? n : 0;
 }
 
-function buildMonths(count: number): string[] {
-  const out: string[] = [];
-  const now = new Date();
-  for (let i = 0; i < count; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    out.push(`${y}${m}`);
-  }
-  return out;
-}
-
-interface RtmsItem {
-  거래금액?: string | number;
-  보증금액?: string | number;
-  월세금액?: string | number;
-  전용면적?: string | number;
-  층?: string | number;
-  건축년도?: string | number;
-  년?: string | number;
-  월?: string | number;
-  일?: string | number;
-  아파트?: string;
-  연립다세대?: string;
-  오피스텔?: string;
-}
-
-function parseAmount(v: unknown): number | undefined {
-  if (v == null) return undefined;
-  const n = Number(String(v).replace(/[,\s]/g, ''));
-  return isNaN(n) ? undefined : n;
-}
-
-function mapItem(it: RtmsItem): RtmsTransaction {
-  return {
-    dealAmount: parseAmount(it['거래금액']),
-    deposit: parseAmount(it['보증금액']),
-    monthlyRent: parseAmount(it['월세금액']),
-    exclusiveArea: parseAmount(it['전용면적']),
-    floor: parseAmount(it['층']),
-    buildYear: parseAmount(it['건축년도']),
-    dealYear: parseAmount(it['년']),
-    dealMonth: parseAmount(it['월']),
-    dealDay: parseAmount(it['일']),
-    apartmentName: it['아파트'] || it['연립다세대'] || it['오피스텔'] || undefined,
-  };
-}
-
-function median(arr: number[]): number | undefined {
-  if (!arr.length) return undefined;
+function median(arr: number[]): number {
+  if (arr.length === 0) return 0;
   const sorted = [...arr].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-export async function fetchRtmsSummary(args: RtmsArgs): Promise<RtmsSummary | null> {
-  if (!RTMS_API_KEY) return null;
+export async function fetchRtmsSummary(
+  type: string,
+  deal: string,
+  sigunguCd: string,
+  monthsBack = 6,
+): Promise<RtmsSummary> {
+  const endpoint = pickEndpoint(type, deal);
+  if (!endpoint) {
+    return { available: false, reason: 'unsupported_type_deal', endpoint: '', count: 0, avg: 0, median: 0, min: 0, max: 0, recent_3m_avg: 0 };
+  }
+  if (!API_KEY) {
+    return { available: false, reason: 'no_api_key', endpoint, count: 0, avg: 0, median: 0, min: 0, max: 0, recent_3m_avg: 0 };
+  }
 
-  const isSale = (args.dealType || 'sale').toLowerCase() === 'sale';
-  const endpoint = pickEndpoint(args.buildingType, isSale);
+  const lawdCd = sigunguCd.substring(0, 5);
+  const now = new Date();
+  let decodedKey = API_KEY;
+  try { if (API_KEY.includes('%')) decodedKey = decodeURIComponent(API_KEY); } catch { /* keep */ }
 
-  const lawd = args.sigunguCd; // RTMS 는 5자리 LAWD_CD 사용
-  const months = buildMonths(3); // 최근 3개월
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
 
-  let decodedKey = RTMS_API_KEY;
-  try { if (RTMS_API_KEY.includes('%')) decodedKey = decodeURIComponent(RTMS_API_KEY); } catch { /* keep */ }
-
-  const all: RtmsTransaction[] = [];
-  const monthsTried: string[] = [];
-
-  await Promise.all(
-    months.map(async (yyyymm) => {
-      try {
-        const params = new URLSearchParams({
-          ServiceKey: decodedKey,
-          LAWD_CD: lawd,
-          DEAL_YMD: yyyymm,
-          numOfRows: '100',
-          pageNo: '1',
-          _type: 'json',
-        });
-        const url = `https://apis.data.go.kr/1613000/RTMSDataSvcAptTrade/${endpoint}?${params.toString()}`
-          .replace('RTMSDataSvcAptTrade', endpoint.replace('get', '').replace('Trade', 'Trade').replace('Rent', 'Rent'));
-        // Actual base path varies per endpoint family — use mapping
-        const base =
-          endpoint.startsWith('getRTMSDataSvcApt') ? 'RTMSDataSvcAptTrade' :
-          endpoint.startsWith('getRTMSDataSvcOffi') ? 'RTMSDataSvcOffiTrade' :
-          'RTMSDataSvcRHTrade';
-        const finalUrl = `https://apis.data.go.kr/1613000/${base}/${endpoint}?${params.toString()}`;
-
+  // L-fix-perf (2026-04-28): 6개월을 sequential 로 호출하면 timeout. Promise.all 병렬.
+  const monthFetches = await Promise.allSettled(
+    Array.from({ length: monthsBack }, (_, i) => {
+      const target = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const yyyymm = String(target.getFullYear()) + String(target.getMonth() + 1).padStart(2, '0');
+      const params = new URLSearchParams({
+        ServiceKey: decodedKey, LAWD_CD: lawdCd, DEAL_YMD: yyyymm,
+        pageNo: '1', numOfRows: '50', _type: 'json',
+      });
+      const url = `${RTMS_BASE}/${endpoint.replace('get', '')}/${endpoint}?${params.toString()}`;
+      return (async () => {
         const ctrl = new AbortController();
-        const tid = setTimeout(() => ctrl.abort(), 4000);
-        const res = await fetch(finalUrl, { signal: ctrl.signal });
-        clearTimeout(tid);
-        if (!res.ok) return;
-
-        const text = await res.text();
-        let json: { response?: { body?: { items?: { item?: RtmsItem | RtmsItem[] } } } };
-        try { json = JSON.parse(text); } catch { return; }
-        monthsTried.push(yyyymm);
-
-        const items = json.response?.body?.items?.item;
-        if (!items) return;
-        const arr = Array.isArray(items) ? items : [items];
-
-        // 같은 번지 (bun/ji) 만 필터링 — 가능하면
-        for (const it of arr) {
-          all.push(mapItem(it));
+        const tid = setTimeout(() => ctrl.abort(), 5000);
+        try {
+          const res = await fetch(url, { signal: ctrl.signal });
+          clearTimeout(tid);
+          if (!res.ok) return { target, items: [] as AnyObj[] };
+          const json = await res.json() as AnyObj;
+          const response = (json.response as AnyObj | undefined) || {};
+          const body = (response.body as AnyObj | undefined) || {};
+          const itemsRaw = (body.items as AnyObj | undefined)?.item;
+          const items: AnyObj[] = Array.isArray(itemsRaw) ? itemsRaw : (itemsRaw ? [itemsRaw as AnyObj] : []);
+          return { target, items };
+        } catch {
+          clearTimeout(tid);
+          return { target, items: [] as AnyObj[] };
         }
-        // suppress unused warning for url
-        void url;
-      } catch {
-        /* per-month fail ignored */
-      }
+      })();
     }),
   );
 
-  if (all.length === 0) {
-    return {
-      endpoint,
-      dealType: isSale ? 'sale' : 'rent',
-      totalCount: 0,
-      recent: [],
-      stats: { unit: isSale ? 'krw_10k' : 'krw_10k_deposit' },
-      fetchedAt: new Date().toISOString(),
-      monthsSearched: monthsTried,
-    };
+  const amounts: number[] = [];
+  const recentAmounts: number[] = [];
+  for (const m of monthFetches) {
+    if (m.status !== 'fulfilled') continue;
+    for (const r of m.value.items) {
+      const dealAmount = parseAmount(r['거래금액'] || r['보증금액']);
+      if (dealAmount === 0) continue;
+      amounts.push(dealAmount);
+      if (m.value.target >= threeMonthsAgo) recentAmounts.push(dealAmount);
+    }
   }
 
-  // 정렬: 거래일 최신 → 오래된
-  all.sort((a, b) => {
-    const ka = (a.dealYear || 0) * 10000 + (a.dealMonth || 0) * 100 + (a.dealDay || 0);
-    const kb = (b.dealYear || 0) * 10000 + (b.dealMonth || 0) * 100 + (b.dealDay || 0);
-    return kb - ka;
-  });
-
-  const amounts = all
-    .map((t) => (isSale ? t.dealAmount : t.deposit))
-    .filter((n): n is number => typeof n === 'number' && n > 0);
-
-  const stats = {
-    median: median(amounts),
-    avg: amounts.length ? Math.round(amounts.reduce((s, n) => s + n, 0) / amounts.length) : undefined,
-    min: amounts.length ? Math.min(...amounts) : undefined,
-    max: amounts.length ? Math.max(...amounts) : undefined,
-    unit: (isSale ? 'krw_10k' : 'krw_10k_deposit') as 'krw_10k' | 'krw_10k_deposit',
-  };
-
+  if (amounts.length === 0) {
+    return { available: false, reason: 'no_transactions', endpoint, count: 0, avg: 0, median: 0, min: 0, max: 0, recent_3m_avg: 0 };
+  }
+  const avg = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+  const recentAvg = recentAmounts.length > 0 ? recentAmounts.reduce((a, b) => a + b, 0) / recentAmounts.length : 0;
   return {
-    endpoint,
-    dealType: isSale ? 'sale' : 'rent',
-    totalCount: all.length,
-    recent: all.slice(0, 5),
-    stats,
-    fetchedAt: new Date().toISOString(),
-    monthsSearched: monthsTried,
+    available: true, endpoint, count: amounts.length,
+    avg: Math.round(avg), median: Math.round(median(amounts)),
+    min: Math.min(...amounts), max: Math.max(...amounts),
+    recent_3m_avg: Math.round(recentAvg),
   };
 }
