@@ -139,6 +139,9 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v308-roadview', '/search/content-v308-roadview.js?v=20260429e'],
       ['ws-ext-patch-v310-modal-completeness', '/search/content-v310-modal-completeness.js?v=20260429a'],
       ['ws-ext-patch-v311-nearest-stations', '/search/content-v311-nearest-stations.js?v=20260429a'],
+      // v312 (2026-04-29): 메인 모달 전유부 (.v240-info2 에 전용/공용/총면적 row) +
+      //   Hero 영역 매물수정 버튼 + priceBox 밸런스 fix.
+      ['ws-ext-patch-v312-main-modal-unit', '/search/content-v312-main-modal-unit.js?v=20260429a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
