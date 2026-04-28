@@ -95,12 +95,16 @@ function LoginForm() {
     try {
       const sb = createAuthClient();
 
-      // Supabase 로그인 (15초 타임아웃)
-      let data;
+      // L-login-fallback (2026-04-29): Supabase SDK 가 광고차단/확장/ISP 등에 의해
+      //   직접 호출이 막힐 수 있음. 8초 timeout 후 server-side proxy /api/auth/login
+      //   으로 자동 fallback. 응답 형식 일치 (token/refresh_token/user).
+      let data: { session: { access_token: string; refresh_token: string | null } | null; user: { id: string } } | null = null;
+      let supabaseFailed = false;
+
       try {
         const result = await withTimeout(
           sb.auth.signInWithPassword({ email: email.toLowerCase(), password }),
-          15000,
+          8000,
         );
         if (result.error) {
           const msg = result.error.message || '';
@@ -112,9 +116,71 @@ function LoginForm() {
           setLoading(false);
           return;
         }
-        data = result.data;
+        data = result.data as typeof data;
       } catch {
-        setError('서버 연결 시간 초과입니다. 현재 서버가 불안정합니다. 잠시 후 다시 시도해주세요.');
+        // Supabase SDK 직접 호출 실패 — server-side proxy 로 fallback
+        supabaseFailed = true;
+      }
+
+      if (supabaseFailed) {
+        try {
+          const r = await withTimeout(
+            fetch('/api/auth/login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ email: email.toLowerCase(), password }),
+            }),
+            10000,
+          );
+          if (!r.ok) {
+            const j = await r.json().catch(() => ({}));
+            if (r.status === 401) {
+              setError('이메일 또는 비밀번호가 올바르지 않습니다.');
+            } else if (r.status === 403) {
+              setError(j.message || '관리자 승인 대기 중입니다.');
+            } else if (r.status === 429) {
+              setError('로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.');
+            } else {
+              setError('로그인 실패 — 잠시 후 다시 시도해주세요.');
+            }
+            setLoading(false);
+            return;
+          }
+          const j = await r.json();
+          if (!j.success || !j.token) {
+            setError(j.message || '로그인 응답 처리 실패');
+            setLoading(false);
+            return;
+          }
+          // server proxy 응답 → SDK 와 동일 형식으로 정규화
+          data = {
+            session: {
+              access_token: j.token,
+              refresh_token: j.refresh_token || null,
+            },
+            user: { id: j.user?.id || '' },
+          };
+          // 사용자 정보도 즉시 저장 (me 단계 우회 가능)
+          try {
+            const userStr = JSON.stringify({
+              email: j.user?.email || email,
+              name: j.user?.name || '',
+              role: j.user?.role || 'user',
+              status: j.user?.status || 'approved',
+            });
+            sessionStorage.setItem('ws_user', userStr);
+            localStorage.setItem('ws_user', userStr);
+          } catch {}
+        } catch {
+          setError('서버 연결 시간 초과입니다. 잠시 후 다시 시도해주세요.');
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (!data) {
+        setError('로그인 처리 실패');
         setLoading(false);
         return;
       }
