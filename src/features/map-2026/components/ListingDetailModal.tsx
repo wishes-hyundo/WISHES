@@ -142,9 +142,72 @@ export function ListingDetailModal() {
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
 
   // 우선순위: cache (클릭 시점 snapshot) > listings 최신 데이터
+  // L-listingurl-fix1 (2026-04-29 사장님 명령 #1 후속 fix):
+  //   /map/<ID> URL 직접 진입 시 광역 뷰에서 listings=[] 라 listing 객체가 null
+  //   → 모달이 안 떴음. 직접 fetch 한 fallback 매물 객체를 채워 모달 열리게.
+  const [fallbackListing, setFallbackListing] = useState<MapListing | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (detailListingId == null) { setFallbackListing(null); return; }
+    // 이미 cached 또는 listings 에 있으면 fetch 불필요
+    const found = cachedListing ?? listings.find((l) => l.id === detailListingId) ?? null;
+    if (found) { setFallbackListing(null); return; }
+    // /api/listings/[id] 로 fetch — 응답 형식이 MapListing 과 거의 호환
+    fetch(`/api/listings/${detailListingId}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((j) => {
+        if (cancelled) return;
+        if (!j || !j.success || !j.data) { setFallbackListing(null); return; }
+        const d = j.data;
+        // MapListing 필수 필드만 매핑 (없는 필드는 null/기본값)
+        const ml: MapListing = {
+          id: d.id,
+          lat: d.lat ?? null,
+          lng: d.lng ?? null,
+          deal: d.deal,
+          type: d.type ?? null,
+          deposit: d.deposit ?? null,
+          monthly: d.monthly ?? null,
+          price: d.price ?? null,
+          area_m2: d.area_m2 ?? null,
+          rooms: d.rooms ?? null,
+          floor_current: d.floor_current ?? null,
+          station_distance: d.station_distance ?? null,
+          built_year: d.built_year ?? null,
+          building_name: d.building_name ?? null,
+          dong: d.dong ?? null,
+          address: d.address ?? null,
+          title: d.title ?? null,
+          ai_title: d.ai_title ?? null,
+          direction: d.direction ?? null,
+          parking: d.parking ?? null,
+          pet: d.pet ?? null,
+          elevator: d.elevator ?? null,
+          full_option: d.full_option ?? null,
+          maintenance_fee: d.maintenance_fee ?? null,
+          bathrooms: d.bathrooms ?? null,
+          floor_total: d.floor_total ?? null,
+          business_type: d.business_type ?? null,
+          has_video: !!d.has_video,
+          thumbnail_url: d.thumb_url ?? null,
+          features: Array.isArray(d.features) ? d.features : [],
+          photo_count: 0,
+          median_price: null,
+          median_deviation: null,
+          hero_score: 50,
+          created_at: d.created_at ?? null,
+          updated_at: d.updated_at ?? null,
+        } as MapListing;
+        setFallbackListing(ml);
+      })
+      .catch(() => { if (!cancelled) setFallbackListing(null); });
+    return () => { cancelled = true; };
+  }, [detailListingId, cachedListing, listings]);
+
   const listing: MapListing | null = detailListingId == null
     ? null
-    : cachedListing ?? listings.find((l) => l.id === detailListingId) ?? null;
+    : cachedListing ?? listings.find((l) => l.id === detailListingId) ?? fallbackListing ?? null;
 
   const isOpen = !!listing;
 
