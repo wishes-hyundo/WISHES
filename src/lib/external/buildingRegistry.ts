@@ -164,6 +164,54 @@ export interface BuildingUnit {
   floorNum: number;
 }
 
+/**
+ * L-bldg-paging+platgb (2026-04-29): 사장님 발견 13/115 mismatch fix.
+ *
+ * 원인: 세움터는 같은 주소 단지 전체 (전유부 115건) 표시. 우리 단일 호출은 13건.
+ *   - 정부 OpenAPI numOfRows max 가 100 (silent cap)
+ *   - pageNo=1 만 호출 → totalCount 가 100+ 면 페이지 누락
+ *   - platGbCd '0' 만 시도 → 산/블록 등 다른 코드 매물 누락
+ *
+ * Fix:
+ *   1. numOfRows=100 (정부 API 표준 max), 페이지 totalCount 까지 모두 fetch
+ *   2. platGbCd 후보 ['0','1','2','3'] 모두 시도, 결과 union
+ *   3. dongNm+hoNm 키로 dedup (같은 호실 중복 제거)
+ *   4. debugInfo 에 단계별 카운트 기록 — 추후 진단용
+ */
+async function fetchExposurePage(
+  url: string,
+  debugInfo: string[],
+  tag: string,
+): Promise<{ items: AnyObj[]; totalCount: number }> {
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 6000);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+    if (!res.ok) {
+      debugInfo.push(`${tag}: HTTP ${res.status}`);
+      return { items: [], totalCount: 0 };
+    }
+    const json = await res.json() as AnyObj;
+    const response = (json.response as AnyObj | undefined) || {};
+    const header = (response.header as AnyObj | undefined) || (json.header as AnyObj | undefined) || {};
+    const body = (response.body as AnyObj | undefined) || (json.body as AnyObj | undefined) || {};
+    if (header.resultCode && header.resultCode !== '00') {
+      debugInfo.push(`${tag}: api_err=${header.resultCode}`);
+      return { items: [], totalCount: 0 };
+    }
+    const itemsRaw = (body.items as AnyObj | undefined)?.item;
+    const items: AnyObj[] = Array.isArray(itemsRaw) ? itemsRaw : (itemsRaw ? [itemsRaw as AnyObj] : []);
+    const totalCount = parseInt(String(body.totalCount || '0'), 10) || items.length;
+    return { items, totalCount };
+  } catch (e: unknown) {
+    clearTimeout(tid);
+    const msg = e instanceof Error ? e.message : String(e);
+    debugInfo.push(`${tag}: error ${msg}`);
+    return { items: [], totalCount: 0 };
+  }
+}
+
 export async function fetchExposureUnits(
   sigunguCd: string,
   bjdongCd: string,
@@ -175,100 +223,114 @@ export async function fetchExposureUnits(
   let decodedKey = API_KEY;
   try { if (API_KEY.includes('%')) decodedKey = decodeURIComponent(API_KEY); } catch { /* keep */ }
 
-  const baseParams: Record<string, string> = {
-    ServiceKey: decodedKey,
-    sigunguCd,
-    numOfRows: '500',
-    pageNo: '1',
-    _type: 'json',
-  };
-  if (bjdongCd) baseParams.bjdongCd = bjdongCd;
-  if (bun && bun !== '0000') baseParams.bun = bun;
-  if (ji && ji !== '0000') baseParams.ji = ji;
-  baseParams.platGbCd = platGbCd;
+  // L-bldg-paging+platgb: platGbCd 후보 시도 — '0' (대지) 가 가장 흔하지만 산/블록 등도 시도.
+  //   첫 호출에서 platGbCd 명시값으로 시도. 13 건 미만이면 다른 후보도 시도하여 union.
+  const platCandidates = platGbCd
+    ? [platGbCd, ...(['0', '1', '2', '3'].filter((c) => c !== platGbCd))]
+    : ['0', '1', '2', '3'];
 
-  try {
-    const params = new URLSearchParams(baseParams);
-    const url = `${API_BASE}/getBrExposPubuseAreaInfo?${params.toString()}`;
-    debugInfo.push(`getBrExposPubuseAreaInfo: requesting`);
+  const allItems: AnyObj[] = [];
+  let calledOnce = false;
 
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 5000);
-    const res = await fetch(url, { signal: ctrl.signal });
-    clearTimeout(tid);
+  for (const plat of platCandidates) {
+    const baseParams: Record<string, string> = {
+      ServiceKey: decodedKey,
+      sigunguCd,
+      numOfRows: '100', // 정부 OpenAPI 표준 max — 이상 요청해도 100 으로 silent cap.
+      pageNo: '1',
+      _type: 'json',
+    };
+    if (bjdongCd) baseParams.bjdongCd = bjdongCd;
+    if (bun && bun !== '0000') baseParams.bun = bun;
+    if (ji && ji !== '0000') baseParams.ji = ji;
+    baseParams.platGbCd = plat;
 
-    if (!res.ok) {
-      debugInfo.push(`getBrExposPubuseAreaInfo: HTTP ${res.status}`);
-      return [];
+    // Page 1
+    const params1 = new URLSearchParams(baseParams);
+    const url1 = `${API_BASE}/getBrExposPubuseAreaInfo?${params1.toString()}`;
+    const tag1 = `expos.plat${plat}.p1`;
+    const r1 = await fetchExposurePage(url1, debugInfo, tag1);
+    if (r1.totalCount > 0) {
+      debugInfo.push(`${tag1}: items=${r1.items.length} totalCount=${r1.totalCount}`);
     }
+    allItems.push(...r1.items);
+    calledOnce = true;
 
-    const json = await res.json() as AnyObj;
-    const response = (json.response as AnyObj | undefined) || {};
-    const header = (response.header as AnyObj | undefined) || (json.header as AnyObj | undefined) || {};
-    const body = (response.body as AnyObj | undefined) || (json.body as AnyObj | undefined) || {};
-
-    if (header.resultCode && header.resultCode !== '00') {
-      debugInfo.push(`getBrExposPubuseAreaInfo: api_err=${header.resultCode}`);
-      return [];
-    }
-
-    const itemsRaw = (body.items as AnyObj | undefined)?.item;
-    const items: AnyObj[] = Array.isArray(itemsRaw) ? itemsRaw : (itemsRaw ? [itemsRaw as AnyObj] : []);
-    debugInfo.push(`getBrExposPubuseAreaInfo: ok (${items.length} records)`);
-
-    const exclusive = items.filter(
-      (it) => it.exposPubuseGbCdNm === '전유' || it.exposPubuseGbCd === '1',
-    );
-    const common = items.filter(
-      (it) => it.exposPubuseGbCdNm === '공용' || it.exposPubuseGbCd === '2',
-    );
-
-    const unitMap = new Map<string, BuildingUnit>();
-
-    for (const r of exclusive) {
-      const key = (r.dongNm || '') + '_' + (r.hoNm || '');
-      if (!unitMap.has(key)) {
-        unitMap.set(key, {
-          dongNm: String(r.dongNm || ''),
-          hoNm: String(r.hoNm || ''),
-          flrNo: String(r.flrNo || ''),
-          flrNoNm: String(r.flrNoNm || r.flrGbCdNm || ''),
-          exclusiveArea: parseFloat(String(r.area || '0')),
-          commonArea: 0,
-          totalArea: 0,
-          mainPurpsCdNm: String(r.mainPurpsCdNm || ''),
-          etcPurps: String(r.etcPurps || ''),
-          strctCdNm: String(r.strctCdNm || ''),
-          floorNum: parseInt(String(r.flrNo || '0')) || 0,
-        });
-      } else {
-        const u = unitMap.get(key)!;
-        u.exclusiveArea += parseFloat(String(r.area || '0'));
+    // Pagination — totalCount 가 100+ 면 추가 페이지 fetch
+    if (r1.totalCount > 100) {
+      const totalPages = Math.min(20, Math.ceil(r1.totalCount / 100)); // safety cap 20 pages = 2000 rows
+      for (let p = 2; p <= totalPages; p++) {
+        const ps = new URLSearchParams({ ...baseParams, pageNo: String(p) });
+        const urlP = `${API_BASE}/getBrExposPubuseAreaInfo?${ps.toString()}`;
+        const tagP = `expos.plat${plat}.p${p}`;
+        const rP = await fetchExposurePage(urlP, debugInfo, tagP);
+        debugInfo.push(`${tagP}: items=${rP.items.length}`);
+        allItems.push(...rP.items);
       }
     }
-    for (const r of common) {
-      const key = (r.dongNm || '') + '_' + (r.hoNm || '');
-      const u = unitMap.get(key);
-      if (u) u.commonArea += parseFloat(String(r.area || '0'));
-    }
 
-    const units = Array.from(unitMap.values()).map((u) => ({
-      ...u,
-      exclusiveArea: parseFloat(u.exclusiveArea.toFixed(2)),
-      commonArea: parseFloat(u.commonArea.toFixed(2)),
-      totalArea: parseFloat((u.exclusiveArea + u.commonArea).toFixed(2)),
-    }));
+    // 첫 platGbCd 에서 충분히 받았으면 (totalCount > 0 + items > 0) 다른 plat 안 시도
+    // — 정부 시스템상 한 주소 = 한 plat_gb_cd 매칭이므로
+    if (r1.totalCount > 0 && r1.items.length > 0) break;
+  }
 
-    units.sort((a, b) => {
-      if (a.dongNm !== b.dongNm) return a.dongNm.localeCompare(b.dongNm);
-      if (a.floorNum !== b.floorNum) return a.floorNum - b.floorNum;
-      return a.hoNm.localeCompare(b.hoNm);
-    });
-
-    return units;
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    debugInfo.push(`getBrExposPubuseAreaInfo: error ${msg}`);
+  if (!calledOnce) {
+    debugInfo.push('getBrExposPubuseAreaInfo: no candidates tried');
     return [];
   }
+
+  debugInfo.push(`getBrExposPubuseAreaInfo: total raw items=${allItems.length}`);
+
+  const exclusive = allItems.filter(
+    (it) => it.exposPubuseGbCdNm === '전유' || it.exposPubuseGbCd === '1',
+  );
+  const common = allItems.filter(
+    (it) => it.exposPubuseGbCdNm === '공용' || it.exposPubuseGbCd === '2',
+  );
+  debugInfo.push(`expos: exclusive=${exclusive.length} common=${common.length}`);
+
+  const unitMap = new Map<string, BuildingUnit>();
+
+  for (const r of exclusive) {
+    const key = (r.dongNm || '') + '_' + (r.hoNm || '');
+    if (!unitMap.has(key)) {
+      unitMap.set(key, {
+        dongNm: String(r.dongNm || ''),
+        hoNm: String(r.hoNm || ''),
+        flrNo: String(r.flrNo || ''),
+        flrNoNm: String(r.flrNoNm || r.flrGbCdNm || ''),
+        exclusiveArea: parseFloat(String(r.area || '0')),
+        commonArea: 0,
+        totalArea: 0,
+        mainPurpsCdNm: String(r.mainPurpsCdNm || ''),
+        etcPurps: String(r.etcPurps || ''),
+        strctCdNm: String(r.strctCdNm || ''),
+        floorNum: parseInt(String(r.flrNo || '0')) || 0,
+      });
+    } else {
+      const u = unitMap.get(key)!;
+      u.exclusiveArea += parseFloat(String(r.area || '0'));
+    }
+  }
+  for (const r of common) {
+    const key = (r.dongNm || '') + '_' + (r.hoNm || '');
+    const u = unitMap.get(key);
+    if (u) u.commonArea += parseFloat(String(r.area || '0'));
+  }
+
+  const units = Array.from(unitMap.values()).map((u) => ({
+    ...u,
+    exclusiveArea: parseFloat(u.exclusiveArea.toFixed(2)),
+    commonArea: parseFloat(u.commonArea.toFixed(2)),
+    totalArea: parseFloat((u.exclusiveArea + u.commonArea).toFixed(2)),
+  }));
+
+  units.sort((a, b) => {
+    if (a.dongNm !== b.dongNm) return a.dongNm.localeCompare(b.dongNm);
+    if (a.floorNum !== b.floorNum) return a.floorNum - b.floorNum;
+    return a.hoNm.localeCompare(b.hoNm);
+  });
+
+  debugInfo.push(`expos: final units=${units.length}`);
+  return units;
 }
