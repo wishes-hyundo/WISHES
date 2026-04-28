@@ -28,10 +28,6 @@ import { openKakaoChannelChat, openNaverBooking } from '@/lib/externalContact';
 import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 import { useMap2026Store, type MapListing } from '../store';
 import { cinematicFlyTo } from '../lib/cinematicMotion';
-// L-listings-merge1 (2026-04-29): /listings 폐기 시 핵심 기능 매물카드 통합.
-import RealPriceChart from '@/components/RealPriceChart';
-import ListingLocationMap from '@/components/ListingLocationMap';
-import ListingActions from '@/components/ListingActions';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   formatDealLabel,
@@ -875,42 +871,6 @@ export function ListingDetailModal() {
         </div>,
         document.body
       )}
-
-      {/* L-listings-merge1 (2026-04-29 사장님 명령): /listings 핵심 기능 통합 */}
-      {/* 1) 매물 위치 — 카카오맵 미니맵 */}
-      {listing.lat != null && listing.lng != null && (
-        <div className="border-t border-neutral-100 bg-white px-4 py-4">
-          <h3 className="mb-3 text-[13px] font-bold text-neutral-900">매물 위치</h3>
-          <ListingLocationMap
-            lat={listing.lat}
-            lng={listing.lng}
-            address={listing.address ?? listing.title ?? null}
-            title={listing.title ?? listing.dong ?? null}
-          />
-        </div>
-      )}
-
-      {/* 2) 실거래가 차트 — 동/유형/거래방식 기준 */}
-      {listing.dong && listing.type && (
-        <div className="border-t border-neutral-100 bg-white px-4 py-4">
-          <RealPriceChart
-            listingId={listing.id}
-            dong={listing.dong}
-            type={listing.type}
-            deal={listing.deal}
-          />
-        </div>
-      )}
-
-      {/* 3) 매물 공유 — navigator.share + 링크 복사 + SMS/이메일 */}
-      <div className="border-t border-neutral-100 bg-white px-4 py-3">
-        <ListingActions
-          listingId={String(listing.id)}
-          shareUrl={`https://wishes.co.kr/map/${listing.id}`}
-          shareTitle={`${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim() + ' | WISHES'}
-          shareDescription={listing.title || `${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim()}
-        />
-      </div>
 
       {/* L-modal-v7: 하단 단일 액션 — 담당자에게 연결 */}
       <div className="border-t border-neutral-100 bg-white px-4 py-3">
