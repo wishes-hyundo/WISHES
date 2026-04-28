@@ -1,18 +1,50 @@
-// auto-regenerate-ai-desc — Pure Symbolic Briefing (LLM 0%, 환각 0%)
-// 작성: 2026-04-29 사장님 명령 "단 하나의 거짓도 없이 + 추가 가치 정보만"
-//
-// LLM 미사용 → 환각 수학적 0% 보장
-// 검증된 enrich 데이터 + station_top3 + 매물 등록자 입력 사실만 사용
+// auto-regenerate-ai-desc — Hybrid (LLM 산문 + facts 검증 + Symbolic Fallback)
+// 작성: 2026-04-29 사장님 명령 "사람이 작성하는것처럼 + 100% 사실 + 추천 이유"
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { findStationsForListing } from '@/lib/subway-finder';
-import { buildBriefing, type BriefingInput } from '@/lib/listing-briefing';
+import {
+  buildBriefingPrompt,
+  detectBriefingHallucination,
+  buildSymbolicFallback,
+  buildSymbolicTitle,
+  type BriefingFacts,
+} from '@/lib/listing-briefing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const BATCH_SIZE = 50;  // LLM 0% 라 빠름, 50건 가능
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || '';
+const BATCH_SIZE = 20;
+
+async function callGemini(prompt: string): Promise<string | null> {
+  if (!GEMINI_API_KEY) return null;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.6, topP: 0.85, maxOutputTokens: 1024, responseMimeType: 'application/json' },
+      }),
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    return json?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch { return null; }
+}
+
+function parseLLMJson(raw: string): { title?: string; description?: string } | null {
+  if (!raw) return null;
+  let cleaned = raw.replace(/^```(?:json)?/gm, '').replace(/```$/gm, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start < 0 || end < 0) return null;
+  try { return JSON.parse(cleaned.substring(start, end + 1)); } catch { return null; }
+}
 
 export async function GET(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
@@ -25,16 +57,11 @@ export async function GET(request: NextRequest) {
   const { data: targets, error } = await supabase
     .from('listings')
     .select(`
-      id, type, deal, status, gu, dong,
-      rooms, bathrooms, built_year,
-      parking, parking_spaces, elevator, full_option,
-      lat, lng, available_date,
-      rtms_avg_price, rtms_data, land_price_per_m2,
-      academy_count, school_count, school_zone_score, school_zone_data,
-      commercial_score, crime_safety_score,
-      air_quality_avg, air_quality_data,
-      trust_score, grade, last_verified_at, enriched_at,
-      raw_fields
+      id, type, deal, status, gu, dong, address, building_name,
+      area_m2, floor_current, floor_total, rooms, bathrooms,
+      direction, room_shape, available_date, built_year,
+      parking, parking_spaces, parking_fee, elevator, full_option,
+      lat, lng, raw_fields
     `)
     .is('ai_description', null)
     .eq('status', '공개')
@@ -46,83 +73,110 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, processed: 0, error: error?.message });
   }
 
-  let success = 0, failed = 0;
+  let llmSuccess = 0, fallbackUsed = 0, failed = 0;
   const startedAt = Date.now();
 
   for (const listing of targets) {
     if (Date.now() - startedAt > 50000) break;
 
     try {
-      // PostGIS + 카카오 모빌리티 도보 routing (정확한 위치)
       const stations = await findStationsForListing(
         (listing as { lat: number }).lat,
         (listing as { lng: number }).lng,
         3
       );
 
-      // 신축 판정
       const builtYearStr = String(listing.built_year || '');
       const builtYear = parseInt(builtYearStr.match(/\d{4}/)?.[0] || '0');
       const isNewBuilding = builtYear > 0 && (new Date().getFullYear() - builtYear) <= 5;
 
-      // 즉시입주 판정
-      const availableDate = String(listing.available_date || '');
       const rawFields = (listing.raw_fields as Record<string, unknown>) || {};
-      const isImmediate = /즉시|공실/.test(availableDate) ||
-        /즉시|공실/.test(String(rawFields['입주가능일'] || ''));
+      const builtFull = String(rawFields['준공년도'] || rawFields['준공연도'] || builtYearStr || '');
+      const availableDate = String(listing.available_date || rawFields['입주가능일'] || '');
+      const isImmediate = /즉시|공실/.test(availableDate);
 
-      const input: BriefingInput = {
+      // 옵션 텍스트 추출 (raw_fields 우선)
+      let optionsText = String(rawFields['옵션'] || '').trim();
+      if (!optionsText && listing.full_option) optionsText = '풀옵션';
+
+      // 룸/욕실 — raw_fields["룸/욕실수"] 우선 (1.5 같은 소수 보존)
+      const rbText = String(rawFields['룸/욕실수'] || '');
+      const rbMatch = rbText.match(/룸\s*([\d.]+)\s*개?\s*[\/／]?\s*욕실\s*([\d.]+)?\s*개?/);
+      const rooms = rbMatch ? parseFloat(rbMatch[1]) : ((listing.rooms as number) || null);
+      const bathrooms = rbMatch && rbMatch[2] ? parseFloat(rbMatch[2]) : ((listing.bathrooms as number) || null);
+
+      const facts: BriefingFacts = {
         type: String(listing.type || ''),
         deal: String(listing.deal || ''),
-        is_immediate_movein: isImmediate,
+        building_name: (listing.building_name as string) || null,
+        built_year_full: builtFull || null,
+        floor_current: (listing.floor_current as number) || null,
+        floor_total: (listing.floor_total as number) || null,
+        rooms,
+        bathrooms,
+        room_shape: (listing.room_shape as string) || null,
         is_full_option: !!listing.full_option,
         has_elevator: !!listing.elevator,
         has_parking: !!listing.parking || ((listing.parking_spaces as number) || 0) > 0,
-        rooms: (listing.rooms as number) || null,
-        bathrooms: (listing.bathrooms as number) || null,
-        built_year: builtYearStr || null,
+        parking_fee: (listing.parking_fee as number) || null,
+        is_immediate_movein: isImmediate,
         is_new_building: isNewBuilding,
         station_top3: stations,
-        rtms_avg_price: listing.rtms_avg_price as number | null,
-        rtms_data: listing.rtms_data as Record<string, unknown> | null,
-        land_price_per_m2: listing.land_price_per_m2 as number | null,
-        academy_count: listing.academy_count as number | null,
-        school_count: listing.school_count as number | null,
-        school_zone_score: listing.school_zone_score as number | null,
-        school_zone_data: listing.school_zone_data as Record<string, unknown> | null,
-        commercial_score: listing.commercial_score as number | null,
-        crime_safety_score: listing.crime_safety_score as number | null,
-        air_quality_avg: listing.air_quality_avg as number | null,
-        air_quality_data: listing.air_quality_data as Record<string, unknown> | null,
-        trust_score: listing.trust_score as number | null,
-        grade: listing.grade as string | null,
-        last_verified_at: listing.last_verified_at as string | null,
-        enriched_at: listing.enriched_at as string | null,
-        special_notes: String(rawFields['특이사항'] || '') || null,
+        options_text: optionsText || null,
+        special_notes: String(rawFields['특이사항'] || '').trim() || null,
+        gu: (listing.gu as string) || null,
+        dong: (listing.dong as string) || null,
       };
 
-      const briefing = buildBriefing(input);
+      // facts 0개 (좌표만 있고 다른 정보 없음) → 저장 안 함
+      if (!facts.type) { failed++; continue; }
 
-      // 사실 0개 = 데이터 부족 → 저장 안 함 (사장님 정책 — 빈 안내 표시 X)
-      if (briefing.facts_count === 0) {
-        failed++;
-        continue;
+      // ── LLM 호출 (3회 retry) ──
+      let title = '';
+      let description = '';
+      let usedMethod: 'llm' | 'fallback' = 'fallback';
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const prompt = buildBriefingPrompt(facts);
+        const raw = await callGemini(prompt);
+        if (!raw) continue;
+        const parsed = parseLLMJson(raw);
+        if (!parsed || !parsed.description) continue;
+
+        const tTitle = String(parsed.title || '').trim();
+        const tDesc = String(parsed.description || '').trim();
+        const hT = detectBriefingHallucination(tTitle, facts);
+        const hD = detectBriefingHallucination(tDesc, facts);
+
+        if (!hT.hallucinated && !hD.hallucinated) {
+          title = tTitle.slice(0, 30);
+          description = tDesc;
+          usedMethod = 'llm';
+          break;
+        }
       }
 
-      // 헤드라인 추출 (가장 강한 추천 사유 1번)
-      const title = briefing.recommendation_reasons[0] || '검증된 매물';
+      // LLM 모두 실패 → Symbolic Fallback (자연스러운 산문 형태)
+      if (!description) {
+        title = buildSymbolicTitle(facts);
+        description = buildSymbolicFallback(facts);
+        usedMethod = 'fallback';
+      }
+
+      if (!description || description.length < 50) { failed++; continue; }
 
       await supabase.from('listings').update({
-        ai_title: title.slice(0, 35),
-        ai_description: briefing.description,
+        ai_title: title,
+        ai_description: description,
         ai_generated_at: new Date().toISOString(),
-        ai_generated_fields: briefing.sources_used,  // text[] 호환
-        seo_keywords: briefing.recommendation_reasons.slice(0, 10),
-        seo_meta_description: title.slice(0, 160),
-        seo_tags: briefing.sources_used.map((s) => `#${s.replace(/\s/g, '')}`),
+        ai_generated_fields: [usedMethod, `stations:${stations.length}`],
+        seo_keywords: stations.slice(0, 3).map((s) => `${s.name} ${facts.type}`),
+        seo_meta_description: description.slice(0, 160),
+        seo_tags: [`#${facts.type}`, `#${facts.deal}`].filter((t) => t.length > 1),
       }).eq('id', listing.id);
 
-      success++;
+      if (usedMethod === 'llm') llmSuccess++;
+      else fallbackUsed++;
     } catch {
       failed++;
     }
@@ -137,11 +191,11 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({
     success: true,
     batch: targets.length,
-    processed: success,
+    llm_success: llmSuccess,
+    fallback_used: fallbackUsed,
     failed,
     remaining: remaining ?? null,
     duration_ms: Date.now() - startedAt,
-    method: 'pure-symbolic-briefing',
-    llm_calls: 0,  // LLM 미사용 — 환각 수학적 0%
+    method: 'hybrid (LLM + symbolic fallback)',
   });
 }
