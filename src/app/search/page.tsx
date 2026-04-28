@@ -165,6 +165,9 @@ export default function SearchPortalPage() {
       // v313 entry 제거 (CDN stale cache + v315 와 중복 mount 문제). v315 만 사용.
       // v315 (2026-04-29): 매물수정 패널 inline 사진/동영상 매니저 BoB.
       ['ws-ext-patch-v315-edit-photos', '/search/content-v315-edit-photos.js?v=20260429-compress'],
+      // v316 (2026-04-29): raw_fields 의 구조형태/임대기간/주차대수/면적/룸 등을
+      //   모달 빈 셀에 자동 채움. 사장님 명령 — 본문보기엔 다 있는데 표시 X 문제 fix.
+      ['ws-ext-patch-v316-rawfields-fill', '/search/content-v316-modal-rawfields-fill.js?v=20260429a'],
       // v314 (2026-04-29): 매물수정 버튼 위치 이동 — hero 에서 '기본 정보·옵션'
       //   섹션 헤더 우측 끝으로 (사장님 제안). View Transitions 60fps + oklch.
       ['ws-ext-patch-v314-edit-btn-pos', '/search/content-v314-edit-btn-pos.js?v=20260429a'],
