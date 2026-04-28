@@ -116,7 +116,14 @@ function LoginForm() {
           setLoading(false);
           return;
         }
-        data = result.data as typeof data;
+        // Supabase Session/User → 내 좁은 타입으로 명시적 매핑 (TS 호환)
+        data = {
+          session: result.data.session ? {
+            access_token: result.data.session.access_token,
+            refresh_token: result.data.session.refresh_token || null,
+          } : null,
+          user: { id: result.data.user?.id || '' },
+        };
       } catch {
         // Supabase SDK 직접 호출 실패 — server-side proxy 로 fallback
         supabaseFailed = true;
