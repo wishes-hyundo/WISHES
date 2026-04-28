@@ -317,11 +317,19 @@ export async function POST(req: NextRequest) {
 
     // === 결과 반환 ===
     const allOk = steps.every(s => s.status === 'ok');
+    // L-fix-debug-flat (2026-04-28): 사장님이 콘솔에서 steps 펼쳐서 보지 않아도
+    //   첫 번째 failed step 의 에러를 top-level 로 노출. UI 가 'AI 생성 실패' 외에
+    //   상세 원인 표시 가능.
+    const firstFailed = steps.find(s => s.status === 'failed');
+    const failureSummary = firstFailed
+      ? { failed_step: firstFailed.step, failed_error: firstFailed.error }
+      : {};
     return NextResponse.json({
       success: true,
       listingId,
       pipeline_status: allOk ? 'complete' : 'partial',
       steps,
+      ...failureSummary,
       result: aiResult?.success ? {
         title: aiResult.title || '',
         description: aiResult.description || '',
