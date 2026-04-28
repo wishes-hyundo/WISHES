@@ -126,14 +126,9 @@ export async function POST(req: NextRequest) {
             const jiPad = (jiRaw || '0').padStart(4, '0');
 
             // 건축물대장 API 호출
-            // L-fix-internal-bearer (2026-04-28): 사용자 admin 토큰 전달 (인증 필요 시 통과)
-            const userAuthBld = request.headers.get('authorization') || request.headers.get('Authorization') || '';
             const bldRes = await fetch(SITE_URL + '/api/building-ledger', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(userAuthBld ? { Authorization: userAuthBld } : {}),
-              },
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 sigunguCd,
                 bjdongCd,

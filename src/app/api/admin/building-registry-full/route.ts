@@ -63,12 +63,8 @@ export async function GET(request: NextRequest) {
 
     // Call the existing working building-registry endpoint
     const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
-    // L-fix-internal-bearer (2026-04-28): WISHES_INTERNAL_BEARER env 미등록 시
-    //   401 발생 → 사용자 admin 토큰 그대로 전달 (이미 verifyAdminAuthStrict 통과)
-    //   INTERNAL_BEARER 등록되면 해당 우선 사용 (자동 cron 호출 호환)
-    const userAuth = request.headers.get('authorization') || request.headers.get('Authorization') || '';
     const registryRes = await fetch(registryUrl, {
-      headers: { Authorization: INTERNAL_BEARER ? `Bearer ${INTERNAL_BEARER}` : userAuth },
+      headers: { Authorization: `Bearer ${INTERNAL_BEARER}` },
     });
 
     if (!registryRes.ok) {
