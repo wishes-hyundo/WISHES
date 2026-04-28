@@ -1,41 +1,12 @@
-// auto-generate — DEPRECATED → buildBriefing 사용
-// 모달의 'AI 자동작성' 메인 버튼 호출 endpoint
+// auto-generate — Pure Symbolic (LLM 0%, 환각 수학적 0%)
+// 2026-04-29 사장님 명령 "확실한 기능만"
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { verifyAdminAuth } from '@/lib/adminAuth';
 import { findStationsForListing } from '@/lib/subway-finder';
-import {
-  buildBriefingPrompt, detectBriefingHallucination,
-  buildSymbolicFallback, buildSymbolicTitle, type BriefingFacts,
-} from '@/lib/listing-briefing';
+import { buildSymbolicFallback, buildSymbolicTitle, type BriefingFacts } from '@/lib/listing-briefing';
 
 export const maxDuration = 30;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || '';
-
-async function callGemini(prompt: string): Promise<string | null> {
-  if (!GEMINI_API_KEY) return null;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
-  try {
-    const res = await fetch(url, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, topP: 0.85, maxOutputTokens: 1024, responseMimeType: 'application/json' },
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) return null;
-    const j = await res.json();
-    return j?.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch { return null; }
-}
-
-function parseLLM(raw: string): { title?: string; description?: string } | null {
-  if (!raw) return null;
-  const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
-  if (s < 0 || e < 0) return null;
-  try { return JSON.parse(raw.substring(s, e + 1)); } catch { return null; }
-}
 
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminAuth(request))) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
@@ -76,32 +47,16 @@ export async function POST(request: NextRequest) {
     dong: (listing.dong as string) || null,
   };
 
-  let title = '', description = '', method: 'llm' | 'fallback' = 'fallback';
-  for (let i = 0; i < 3; i++) {
-    const prompt = buildBriefingPrompt(facts);
-    const raw = await callGemini(prompt);
-    if (!raw) continue;
-    const p = parseLLM(raw);
-    if (!p?.description) continue;
-    const tT = String(p.title || '').trim();
-    const tD = String(p.description || '').trim();
-    const hT = detectBriefingHallucination(tT, facts);
-    const hD = detectBriefingHallucination(tD, facts);
-    if (!hT.hallucinated && !hD.hallucinated) {
-      title = tT.slice(0, 30); description = tD; method = 'llm'; break;
-    }
-  }
-  if (!description) {
-    title = buildSymbolicTitle(facts); description = buildSymbolicFallback(facts); method = 'fallback';
-  }
+  // Pure Symbolic — 환각 가능성 수학적 0%
+  const title = buildSymbolicTitle(facts);
+  const description = buildSymbolicFallback(facts);
 
-  // saveToDb 면 listings 업데이트
   if (body.saveToDb !== false) {
     await supabase.from('listings').update({
       ai_title: title,
       ai_description: description,
       ai_generated_at: new Date().toISOString(),
-      ai_generated_fields: [method, `stations:${stations.length}`],
+      ai_generated_fields: ['symbolic-pure', `stations:${stations.length}`],
       seo_keywords: stations.slice(0, 3).map((s) => `${s.name} ${facts.type}`),
       seo_meta_description: description.slice(0, 160),
       seo_tags: [`#${facts.type}`, `#${facts.deal}`].filter((t) => t.length > 1),
@@ -113,11 +68,7 @@ export async function POST(request: NextRequest) {
     meta_description: description.slice(0, 160),
     keywords: stations.slice(0, 3).map((s) => `${s.name} ${facts.type}`),
     tags: [`#${facts.type}`, `#${facts.deal}`],
-    method, stations: stations.length,
+    method: 'symbolic-pure', stations: stations.length,
   };
-  return NextResponse.json({
-    success: true,
-    ...responsePayload,
-    result: responsePayload,  // v240 client 호환
-  });
+  return NextResponse.json({ success: true, ...responsePayload, result: responsePayload });
 }
