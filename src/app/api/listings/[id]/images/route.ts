@@ -178,12 +178,12 @@ export async function GET(
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) return NextResponse.json({ success: false, error: IS_DEV ? error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
-    const raw = data || [];
-    const p = parent as { source_site?: string | null; has_wishes_media?: boolean };
-    let safe;
+    const raw: any[] = (data as any[]) || [];
+    const p: any = parent || {};
+    let safe: any[];
     if (p.has_wishes_media) {
       // 위시스 사진 ≥1장 있는 매물 — crawled 모두 숨김 (저작권 안전 + 차별화)
-      safe = raw.filter((img: { source?: string }) => img.source !== 'crawled');
+      safe = raw.filter((img: any) => img && img.source !== 'crawled');
     } else if (p.source_site) {
       // 위시스 사진 없는 크롤링 매물 — 자체 호스팅만 통과 (기존 정책)
       safe = filterSelfHosted(raw);
@@ -247,4 +247,6 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cors = adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPT
+  const cors = adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPTIONS');
+  try {
+    if (!(await isAd

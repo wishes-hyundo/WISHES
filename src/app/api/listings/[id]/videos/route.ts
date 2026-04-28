@@ -206,10 +206,10 @@ export async function GET(
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) return NextResponse.json({ success: false, error: IS_DEV ? error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
-    const raw = data || [];
-    const p = parent as { has_wishes_media?: boolean };
-    const safe = p.has_wishes_media
-      ? raw.filter((v: { source?: string }) => v.source !== 'crawled')
+    const raw: any[] = (data as any[]) || [];
+    const p: any = parent || {};
+    const safe: any[] = p.has_wishes_media
+      ? raw.filter((v: any) => v && v.source !== 'crawled')
       : raw;
     return NextResponse.json({ success: true, data: safe, has_wishes_media: !!p.has_wishes_media }, { headers: cors });
   } catch (error: any) {
@@ -269,4 +269,4 @@ export async function DELETE(
     if (!videoId) return NextResponse.json({ success: false, error: 'videoId required' }, { status: 400, headers: cors });
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: vid
+    const { data: video, error
