@@ -20,7 +20,6 @@ export const maxDuration = 25;
 export const dynamic = 'force-dynamic';
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'agent', 'crawler_bridge', 'internal_bearer']);
-const KAKAO_REST_KEY = process.env.KAKAO_REST_API_KEY || '';
 const GEMINI_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || '';
 
 const PROMPT = `한국 부동산 매물 위성뷰 분석. 다음 위성 이미지에서:
