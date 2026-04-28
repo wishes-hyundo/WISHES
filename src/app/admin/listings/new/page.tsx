@@ -1033,47 +1033,6 @@ ${floorRows}</table></div>` : ''}
   };
 
   /* ── Step 3: 이미지 업로드 + 자동 품질 개선 ── */
-  const handleImageFiles = async (files: FileList | File[]) => {
-    const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
-    if (fileArray.length === 0) return;
-
-    const newImages: UploadedImage[] = fileArray.map(file => ({
-      file,
-      preview: URL.createObjectURL(file),
-      enhanced: null,
-      isEnhancing: true,
-    }));
-
-    setUploadedImages(prev => [...prev, ...newImages]);
-
-    // L-Step4 (2026-04-29): 첫 사진이 도면일 가능성 → Vision LLM 자동 분석
-    // 사장님 손 가는 작업 0 (자동화 우선 정책)
-    if (uploadedImages.length === 0 && fileArray.length > 0) {
-      tryAutoFloorplan(fileArray[0]);
-    }
-
-    // 자동 품질 개선
-    for (let i = 0; i < fileArray.length; i++) {
-      try {
-        const enhanced = await enhanceImage(fileArray[i]);
-        setUploadedImages(prev => {
-          const updated = [...prev];
-          const idx = updated.findIndex(img => img.file === fileArray[i]);
-          if (idx >= 0) { updated[idx] = { ...updated[idx], enhanced, isEnhancing: false }; }
-          return updated;
-        });
-      } catch {
-        console.error('[ENHANCE] enhanceImage FAILED for:', fileArray[i].name);
-        setUploadedImages(prev => {
-          const updated = [...prev];
-          const idx = updated.findIndex(img => img.file === fileArray[i]);
-          if (idx >= 0) { updated[idx] = { ...updated[idx], isEnhancing: false }; }
-          return updated;
-        });
-      }
-    }
-  };
-
   // L-Step4 (2026-04-29): Vision LLM 도면 자동 분석 → 폼 자동 채우기
   const tryAutoFloorplan = async (file: File) => {
     try {
@@ -1124,6 +1083,49 @@ ${floorRows}</table></div>` : ''}
       console.warn('[L-Step4] floorplan extract failed', e);
     }
   };
+
+  const handleImageFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files).filter(f => f.type.startsWith('image/'));
+    if (fileArray.length === 0) return;
+
+    const newImages: UploadedImage[] = fileArray.map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+      enhanced: null,
+      isEnhancing: true,
+    }));
+
+    setUploadedImages(prev => [...prev, ...newImages]);
+
+    // L-Step4 (2026-04-29): 첫 사진이 도면일 가능성 → Vision LLM 자동 분석
+    // 사장님 손 가는 작업 0 (자동화 우선 정책)
+    if (uploadedImages.length === 0 && fileArray.length > 0) {
+      tryAutoFloorplan(fileArray[0]);
+    }
+
+    // 자동 품질 개선
+    for (let i = 0; i < fileArray.length; i++) {
+      try {
+        const enhanced = await enhanceImage(fileArray[i]);
+        setUploadedImages(prev => {
+          const updated = [...prev];
+          const idx = updated.findIndex(img => img.file === fileArray[i]);
+          if (idx >= 0) { updated[idx] = { ...updated[idx], enhanced, isEnhancing: false }; }
+          return updated;
+        });
+      } catch {
+        console.error('[ENHANCE] enhanceImage FAILED for:', fileArray[i].name);
+        setUploadedImages(prev => {
+          const updated = [...prev];
+          const idx = updated.findIndex(img => img.file === fileArray[i]);
+          if (idx >= 0) { updated[idx] = { ...updated[idx], isEnhancing: false }; }
+          return updated;
+        });
+      }
+    }
+  };
+
+
 
   const removeImage = (index: number) => {
     setUploadedImages(prev => {
