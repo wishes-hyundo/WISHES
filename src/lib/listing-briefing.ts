@@ -286,6 +286,38 @@ export function detectBriefingHallucination(
     if (!allowed.has(stem)) return { hallucinated: true, offending: m };
   }
 
+  // 1.5 숫자 검증 — '{역}역 ~ 도보 N분' 의 N 이 facts 의 walk_minutes 와 일치하는지
+  if (f.station_top3) {
+    // '신림역 도보 4분', '봉천역까지 5분', '신림역(2호선) 도보 4분' 등 모든 변형
+    const walkPattern = /([가-힣A-Za-z0-9]{2,10})역(?:\([^)]+\))?(?:까지)?(?:\s|[\u00b7,])*도보(?:로)?\s*(\d+)\s*분/g;
+    let wm: RegExpExecArray | null;
+    while ((wm = walkPattern.exec(text)) !== null) {
+      const stationName = wm[1];
+      const claimedMin = parseInt(wm[2], 10);
+      const factStation = f.station_top3.find((s) => s.name === stationName);
+      if (factStation) {
+        const realMin = factStation.walk_minutes ?? Math.round(factStation.distance_m / 80);
+        // 1분 오차 허용 (반올림 차이)
+        if (Math.abs(claimedMin - realMin) > 1) {
+          return { hallucinated: true, offending: `${stationName}역 도보 ${claimedMin}분 (실제 ${realMin}분)` };
+        }
+      }
+    }
+    // '5분 거리' 같은 모호한 거리 표기도 검사
+    const vagueDistPattern = /([가-힣A-Za-z0-9]{2,10})역(?:\([^)]+\))?(?:까지|도)?\s*([\d]+)\s*분\s*(?:거리|이내|안)/g;
+    while ((wm = vagueDistPattern.exec(text)) !== null) {
+      const stationName = wm[1];
+      const claimedMin = parseInt(wm[2], 10);
+      const factStation = f.station_top3.find((s) => s.name === stationName);
+      if (factStation) {
+        const realMin = factStation.walk_minutes ?? Math.round(factStation.distance_m / 80);
+        if (Math.abs(claimedMin - realMin) > 1) {
+          return { hallucinated: true, offending: `${stationName}역 ${claimedMin}분 거리 (실제 ${realMin}분)` };
+        }
+      }
+    }
+  }
+
   const REGIONS = [
     /(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)\s*(?:특별시|광역시|도)?/,
     // 동/구 다음 모든 조사 (의/은/는/이/가/에/로/에서/으로) + 공백 + 끝
