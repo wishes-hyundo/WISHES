@@ -145,7 +145,7 @@ export default function SearchPortalPage() {
       // v313 (2026-04-29): 매물수정 패널 inline 사진 매니저 — drag-drop 업로드,
       //   서버측 Classic Negative + 워터마크 자동, '고급 보정' → /admin/photo-enhancer.
       //   View Transitions / Container Queries / Popover / WCAG 2.2 AAA / oklch.
-      ['ws-ext-patch-v313-edit-photos', '/search/content-v313-edit-photos.js?v=20260429bob'],
+      ['ws-ext-patch-v313-edit-photos', '/search/content-v313-edit-photos.js?v=20260429-cap20'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {

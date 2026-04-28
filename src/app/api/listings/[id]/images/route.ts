@@ -60,7 +60,23 @@ export async function POST(
 
     const files = formData.getAll('images') as File[];
     if (!files || files.length === 0) return NextResponse.json({ success: false, error: 'No images' }, { status: 400, headers: cors });
-    if (files.length > 20) return NextResponse.json({ success: false, error: 'Max 20 images' }, { status: 400, headers: cors });
+    // 한 번에 최대 20장
+    if (files.length > 20) return NextResponse.json({ success: false, error: '한 번에 최대 20장까지 업로드 가능합니다.' }, { status: 400, headers: cors });
+
+    // L-photo20 (2026-04-29): 매물당 총 20장 한도 — 사장님 명령. 기존 사진 + 신규 합산 검사.
+    const supabaseCheck = createClient(supabaseUrl, supabaseServiceKey);
+    const { count: existingCount } = await supabaseCheck
+      .from('listing_images')
+      .select('id', { count: 'exact', head: true })
+      .eq('listing_id', listingId);
+    const currentCount = existingCount || 0;
+    if (currentCount + files.length > 20) {
+      const remaining = Math.max(0, 20 - currentCount);
+      return NextResponse.json(
+        { success: false, error: `매물당 최대 20장입니다. 현재 ${currentCount}장 등록됨 (추가 가능 ${remaining}장).` },
+        { status: 400, headers: cors }
+      );
+    }
 
     // sort_order and is_thumbnail from FormData (optional)
     const sortOrderStr = formData.get('sort_order') as string | null;

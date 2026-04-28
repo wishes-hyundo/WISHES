@@ -340,7 +340,7 @@
 
     var hd = document.createElement('div');
     hd.className = 'v313-hd';
-    hd.innerHTML = '<div class="v313-hd-t">📷 사진 관리</div><div class="v313-hd-n" data-slot="count">0장</div>';
+    hd.innerHTML = '<div class="v313-hd-t">📷 사진 관리</div><div class="v313-hd-n" data-slot="count">0 / 20장</div>';
     sec.appendChild(hd);
 
     var drop = document.createElement('label');
@@ -351,7 +351,7 @@
     drop.innerHTML =
       '<span class="v313-drop-emoji">📤</span>' +
       '<div>사진 드래그 또는 클릭해서 업로드</div>' +
-      '<div class="v313-drop-hint">위시스 필름 룩 + 워터마크 자동 적용 · JPEG/PNG/WebP/GIF · 최대 10MB · 한 번에 20장</div>' +
+      '<div class="v313-drop-hint" data-slot="hint">위시스 필름 룩 + 워터마크 자동 적용 · JPEG/PNG/WebP/GIF · 최대 10MB · 매물당 최대 20장</div>' +
       '<input type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple>';
     sec.appendChild(drop);
 
@@ -378,7 +378,8 @@
 
     // 초기 로드
     listImages(lid).then(function (imgs) {
-      hd.querySelector('[data-slot=count]').textContent = imgs.length + '장';
+      hd.querySelector('[data-slot=count]').textContent = imgs.length + ' / 20장';
+      updateHintRemaining(sec, imgs.length);
       withTransition(function () {
         imgs.forEach(function (img) { grid.appendChild(renderCard(img, lid)); });
       });
@@ -387,8 +388,33 @@
     return sec;
   }
 
+  function updateHintRemaining(sec, current) {
+    var hint = sec.querySelector('[data-slot=hint]');
+    if (!hint) return;
+    var remaining = Math.max(0, 20 - current);
+    hint.textContent = '위시스 필름 룩 + 워터마크 자동 적용 · JPEG/PNG/WebP/GIF · 최대 10MB · 추가 가능 ' + remaining + '장';
+    var drop = sec.querySelector('.v313-drop');
+    if (drop) {
+      drop.style.opacity = remaining === 0 ? '0.5' : '1';
+      drop.style.pointerEvents = remaining === 0 ? 'none' : '';
+      var input = drop.querySelector('input[type=file]');
+      if (input) input.disabled = remaining === 0;
+    }
+  }
+
   function handleUploads(grid, countEl, files, lid) {
     if (!files || !files.length) return;
+    // L-photo20: 매물당 총 20장 한도 — 클라이언트 사전 체크
+    var current = grid.querySelectorAll('.v313-card:not(.v313-card-loading)').length;
+    var remaining = Math.max(0, 20 - current);
+    if (remaining === 0) {
+      toast('이미 매물당 최대 20장이 등록됐습니다', 'err');
+      return;
+    }
+    if (files.length > remaining) {
+      toast('추가 가능 ' + remaining + '장 — 앞쪽 ' + remaining + '장만 업로드합니다', 'err');
+      files = files.slice(0, remaining);
+    }
     files.slice(0, 20).forEach(function (file) {
       var ph = placeholderCard();
       withTransition(function () { grid.appendChild(ph); });
@@ -411,7 +437,9 @@
           }, lid);
           withTransition(function () {
             ph.replaceWith(card);
-            countEl.textContent = grid.querySelectorAll('.v313-card:not(.v313-card-loading)').length + '장';
+            var n = grid.querySelectorAll('.v313-card:not(.v313-card-loading)').length;
+            countEl.textContent = n + ' / 20장';
+            var sec = grid.closest('.v313-photos-sec'); if (sec) updateHintRemaining(sec, n);
           });
           toast('필름 룩 + 워터마크 적용 완료', 'ok');
         })
