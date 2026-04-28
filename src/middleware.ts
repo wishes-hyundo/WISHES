@@ -70,6 +70,18 @@ export function middleware(request: NextRequest) {
   if (pathname.startsWith('/api/admin/')) {
     const allowedOrigin = resolveAdminOrigin(request);
 
+    // L-fix-legacy-strip (2026-04-28): /search 의 옛날 content.js + content-v260-perf.js
+    //   가 'Authorization: Bearer <legacy>' literal 을 hardcode 로 보냄. 과거
+    //   Chrome Extension 이 치환하던 가정인데 지금은 없음 → verifyAdminAuth 가
+    //   literal '<legacy>' 를 그대로 받아 401.
+    //   client-side patch (v294) 가 v260-perf 의 native fetch 를 인터셉트 못
+    //   하는 케이스 (script load 순서) 가 있어 server-side 에서 일괄 처리.
+    //   literal 'Bearer <legacy>' 를 strip → verifyAdminAuth 의 ws_session
+    //   쿠키 fallback path 가 인증 처리.
+    const incomingAuth = request.headers.get('authorization') || '';
+    const strippedAuth =
+      incomingAuth === 'Bearer <legacy>' || incomingAuth === 'bearer <legacy>';
+
     if (request.method === 'OPTIONS') {
       const headers: Record<string, string> = {
         'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
@@ -139,7 +151,17 @@ export function middleware(request: NextRequest) {
       );
     }
 
-    const response = NextResponse.next();
+    let response: NextResponse;
+    if (strippedAuth) {
+      // request 헤더 복제 + Authorization 제거 → downstream route 가 cookie path 로 인증
+      const newReqHdrs = new Headers(request.headers);
+      newReqHdrs.delete('authorization');
+      newReqHdrs.delete('Authorization');
+      response = NextResponse.next({ request: { headers: newReqHdrs } });
+      response.headers.set('X-Auth-Stripped', 'legacy-literal');
+    } else {
+      response = NextResponse.next();
+    }
     if (allowedOrigin) {
       response.headers.set('Access-Control-Allow-Origin', allowedOrigin);
       response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
