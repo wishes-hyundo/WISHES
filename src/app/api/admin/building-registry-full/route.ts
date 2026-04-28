@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
-import { fetchBuildingData, fetchExposureUnits, type BuildingUnit } from '@/app/api/admin/building-registry/route';
+import { fetchBuildingData, fetchExposureUnits, type BuildingUnit } from '@/lib/external/buildingRegistry';
 import { createServerClient } from '@/lib/supabase';
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
