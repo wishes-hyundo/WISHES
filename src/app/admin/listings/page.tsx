@@ -623,7 +623,7 @@ export default function AdminListingsPage() {
               </svg>
             </button>
             <button
-              onClick={() => router.push('/admin/listings/new')}
+              onClick={() => router.push('/new')}
               className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg transition-colors flex items-center gap-2 shadow-sm"
             >
               <span className="text-lg leading-none">+</span> 새 매물 등록
@@ -943,7 +943,7 @@ export default function AdminListingsPage() {
               </button>
             ) : (
               <button
-                onClick={() => router.push('/admin/listings/new')}
+                onClick={() => router.push('/new')}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm mt-3 transition-colors"
               >
                 첫 매물 등록하기
@@ -1066,7 +1066,7 @@ export default function AdminListingsPage() {
                             </svg>
                           </button>
                           <button
-                          onClick={() => router.push(`/admin/listings/new?copyFrom=${listing.id}`)}
+                          onClick={() => router.push(`/new?copyFrom=${listing.id}`)}
                           className="p-1.5 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                           title="복사"
                         >
