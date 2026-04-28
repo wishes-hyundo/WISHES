@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { findStationsForListing } from '@/lib/subway-finder';
-import { buildSymbolicFallback, buildSymbolicTitle, type BriefingFacts } from '@/lib/listing-briefing';
+import { buildSymbolicFallback, buildSymbolicTitle, buildKeywords, buildTags, buildMetaDescription, type BriefingFacts } from '@/lib/listing-briefing';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -76,9 +76,9 @@ export async function GET(request: NextRequest) {
         ai_description: description,
         ai_generated_at: new Date().toISOString(),
         ai_generated_fields: ['symbolic-pure', `stations:${stations.length}`],
-        seo_keywords: stations.slice(0, 3).map((s) => `${s.name} ${facts.type}`),
-        seo_meta_description: description.slice(0, 160),
-        seo_tags: [`#${facts.type}`, `#${facts.deal}`].filter((t) => t.length > 1),
+        seo_keywords: buildKeywords(facts),
+        seo_meta_description: buildMetaDescription(facts),
+        seo_tags: buildTags(facts),
       }).eq('id', listing.id);
 
       success++;

@@ -414,3 +414,145 @@ export function buildSymbolicTitle(f: BriefingFacts): string {
   if (!station) title = `${feature} ${f.type}`;
   return title.slice(0, 30);
 }
+
+
+// ── SEO 풍부한 keywords (15개) ──
+export function buildKeywords(f: BriefingFacts): string[] {
+  const out: string[] = [];
+
+  // 역 기반
+  if (f.station_top3) {
+    for (const s of f.station_top3.slice(0, 3)) {
+      out.push(`${s.name}역 ${f.type}`);
+      out.push(`${s.name}역 ${f.deal}`);
+      out.push(`${s.name}역 인근 ${f.type}`);
+      out.push(`${s.line} ${f.type}`);
+    }
+    const top = f.station_top3[0];
+    out.push(`${top.name}역 ${f.deal} ${f.type}`);
+  }
+
+  // 매물 type 기반
+  out.push(`${f.type} ${f.deal}`);
+  out.push(`${f.type} 추천`);
+
+  // boolean fact 조합
+  if (f.is_new_building) {
+    out.push(`신축 ${f.type}`);
+    out.push(`${f.type} 신축`);
+  }
+  if (f.is_full_option) {
+    out.push(`풀옵션 ${f.type}`);
+    out.push(`${f.type} 풀옵션`);
+  }
+  if (f.is_immediate_movein) {
+    out.push(`즉시입주 ${f.type}`);
+    out.push(`바로 입주 ${f.type}`);
+  }
+  if (f.has_parking) {
+    out.push(`주차 가능 ${f.type}`);
+  }
+
+  // 추천 대상
+  const r = f.rooms_for_target ?? 1;
+  if (r <= 1.5) {
+    out.push(`1인 가구 ${f.type}`);
+    out.push(`자취 ${f.type}`);
+    out.push(`직장인 ${f.type}`);
+  } else if (r === 2) {
+    out.push(`신혼 ${f.type}`);
+    out.push(`커플 ${f.type}`);
+  } else if (r >= 3) {
+    out.push(`가족 ${f.type}`);
+    out.push(`3~4인 ${f.type}`);
+  }
+
+  // 복합
+  if (f.is_new_building && f.is_full_option) out.push(`신축 풀옵션 ${f.type}`);
+  if (f.is_immediate_movein && f.is_full_option) out.push(`즉시입주 풀옵션 ${f.type}`);
+
+  // dedupe + 15개 제한
+  return [...new Set(out)].slice(0, 15);
+}
+
+// ── SEO 풍부한 tags (12개) ──
+export function buildTags(f: BriefingFacts): string[] {
+  const out: string[] = [];
+
+  // 매물 + 거래
+  out.push(`#${f.type}`);
+  out.push(`#${f.deal}`);
+  out.push(`#${f.type}${f.deal}`);
+
+  // 역 + 호선
+  if (f.station_top3 && f.station_top3.length > 0) {
+    const top = f.station_top3[0];
+    out.push(`#${top.name}역`);
+    out.push(`#${top.name}역${f.type}`);
+    out.push(`#${top.line}`);
+    if (f.station_top3.length > 1) {
+      out.push(`#${f.station_top3[1].name}역`);
+    }
+  }
+
+  // boolean
+  if (f.is_new_building) {
+    out.push('#신축');
+    out.push(`#신축${f.type}`);
+  }
+  if (f.is_full_option) {
+    out.push('#풀옵션');
+    out.push(`#풀옵션${f.type}`);
+  }
+  if (f.is_immediate_movein) out.push('#즉시입주');
+  if (f.has_parking) out.push('#주차가능');
+
+  // 추천 대상
+  const r = f.rooms_for_target ?? 1;
+  if (r <= 1.5) {
+    out.push('#1인추천');
+    out.push('#자취방');
+  } else if (r === 2) {
+    out.push('#신혼집');
+  } else if (r >= 3) {
+    out.push('#가족추천');
+  }
+
+  return [...new Set(out)].slice(0, 12);
+}
+
+// ── SEO 메타 description (160자) — 핵심 키워드 풍부 ──
+export function buildMetaDescription(f: BriefingFacts): string {
+  const parts: string[] = [];
+
+  if (f.station_top3 && f.station_top3.length > 0) {
+    const top = f.station_top3[0];
+    const min = Math.max(1, Math.round(top.distance_m / 80));
+    parts.push(`${top.name}역(${top.line}) 도보 ${min}분`);
+    if (f.station_top3.length > 1) {
+      const sec = f.station_top3[1];
+      const sm = Math.max(1, Math.round(sec.distance_m / 80));
+      if (sm <= 15 && sec.name !== top.name) {
+        parts.push(`${sec.name}역 도보 ${sm}분`);
+      }
+    }
+  }
+
+  const features: string[] = [];
+  if (f.is_new_building) features.push('신축');
+  if (f.is_full_option) features.push('풀옵션');
+  if (f.is_immediate_movein) features.push('즉시입주');
+  if (f.has_parking) features.push('주차가능');
+  if (features.length > 0) parts.push(features.join(' '));
+
+  parts.push(`${f.type} ${f.deal}`);
+
+  // 추천 대상
+  const r = f.rooms_for_target ?? 1;
+  if (r <= 1.5) parts.push('1인 직장인 학생 추천');
+  else if (r === 2) parts.push('신혼부부 추천');
+  else if (r >= 3) parts.push('3~4인 가족 추천');
+
+  return parts.join(' · ').slice(0, 160);
+}
+

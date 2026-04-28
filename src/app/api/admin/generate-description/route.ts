@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { verifyAdminAuth } from '@/lib/adminAuth';
 import { findStationsForListing } from '@/lib/subway-finder';
-import { buildSymbolicFallback, buildSymbolicTitle, type BriefingFacts } from '@/lib/listing-briefing';
+import { buildSymbolicFallback, buildSymbolicTitle, buildKeywords, buildTags, buildMetaDescription, type BriefingFacts } from '@/lib/listing-briefing';
 
 export const maxDuration = 30;
 
@@ -50,9 +50,9 @@ export async function POST(request: NextRequest) {
   const description = buildSymbolicFallback(facts);
   return NextResponse.json({
     success: true, title, description,
-    meta_description: description.slice(0, 160),
-    keywords: stations.slice(0, 3).map((s) => `${s.name} ${facts.type}`),
-    tags: [`#${facts.type}`, `#${facts.deal}`],
+    meta_description: buildMetaDescription(facts),
+    keywords: buildKeywords(facts),
+    tags: buildTags(facts),
     method: 'symbolic-pure', stations: stations.length,
   });
 }
