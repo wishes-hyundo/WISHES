@@ -70,11 +70,28 @@ export async function GET(request: NextRequest) {
 
   const sp = request.nextUrl.searchParams;
   const address = sp.get('address');
-  const reqDong = (sp.get('dongNm') || '').trim();
-  const reqHo = (sp.get('hoNm') || '').trim();
+  let reqDong = (sp.get('dongNm') || '').trim();
+  let reqHo = (sp.get('hoNm') || '').trim();
+  const lid = sp.get('lid') || sp.get('listing_id') || '';
 
   if (!address) {
     return NextResponse.json({ error: 'address parameter required' }, { status: 400 });
+  }
+
+  // L-bldg-unit (2026-04-28): lid 있고 dongNm/hoNm 비어있으면 DB 자동 조회
+  if (lid && (!reqDong || !reqHo)) {
+    const sb = createServerClient();
+    if (sb) {
+      const { data: lst } = await sb
+        .from('listings')
+        .select('building_dong, building_ho')
+        .eq('id', parseInt(lid, 10))
+        .maybeSingle();
+      if (lst) {
+        if (!reqDong && lst.building_dong) reqDong = String(lst.building_dong);
+        if (!reqHo && lst.building_ho) reqHo = String(lst.building_ho);
+      }
+    }
   }
 
   try {
