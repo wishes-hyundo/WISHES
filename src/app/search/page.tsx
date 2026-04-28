@@ -370,6 +370,18 @@ export default function SearchPortalPage() {
       v300Script.defer = false;
       document.body.appendChild(v300Script);
     }
+    // L-curated-badge-v301 (2026-04-28): 위시스 직접 촬영/편집 매물 뱃지 자동 추가
+    //   /api/listings 응답의 has_wishes_media 캡처 → 카드 DOM 자동 데코레이션
+    //   /search HTML/CSS 무손상 (vanilla patch)
+    const existingV301 = document.getElementById('ws-ext-patch-v301-curated');
+    if (!existingV301) {
+      const v301Script = document.createElement('script');
+      v301Script.id = 'ws-ext-patch-v301-curated';
+      v301Script.src = '/search/content-v301-curated-badge.js?v=20260428a';
+      v301Script.async = false;
+      v301Script.defer = false;
+      document.body.appendChild(v301Script);
+    }
     }
   }, [state]);
 
