@@ -360,6 +360,18 @@ export default function SearchPortalPage() {
       v297Script.defer = false;
       document.body.appendChild(v297Script);
 
+    // L-auto-refresh-v305 (2026-04-28): 토큰 만료 자동 감지 + alert
+    //   v303/v304/v301 비활성화 후에도 사장님 토큰 만료 시 silent 401.
+    //   v305 는 fetch wrap 사용 X (v294 충돌 회피) — 5분 주기 체크 + 만료 alert modal.
+    const existingV305 = document.getElementById('ws-ext-patch-v305-auto-refresh');
+    if (!existingV305) {
+      const v305Script = document.createElement('script');
+      v305Script.id = 'ws-ext-patch-v305-auto-refresh';
+      v305Script.src = '/search/content-v305-auto-refresh.js?v=20260428a';
+      v305Script.async = false;
+      v305Script.defer = false;
+      document.body.appendChild(v305Script);
+    }
     // L-aidesc-v2 (2026-04-27 v3): v2 AI 매물 설명 시스템 통합
     const existingV300 = document.getElementById('ws-ext-patch-v300-aidesc-v2');
     if (!existingV300) {
