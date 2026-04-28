@@ -104,10 +104,19 @@ const nextConfig: NextConfig = {
         destination: 'https://wishes.co.kr/:path*',
         permanent: true,
       },
-      // /listings (index)만 /map으로 통합 — /listings/[id] 상세 랜딩은 절대 유지 (SEO)
+      // L-listings-deprecate (2026-04-29 사장님 명령): /listings 영구 폐기.
+      //   · /listings (index) → /map
+      //   · /listings/:id (상세) → /map?listing=:id (매물카드 자동 오픈)
+      //   기존 SEO 보존 의도 무효 — 사장님이 listings 완전 폐기 명령.
+      //   매물 카드 자체 URL 라우팅 (f9bf3c1) 으로 동일 가치 제공.
       {
         source: '/listings',
         destination: '/map',
+        permanent: true,
+      },
+      {
+        source: '/listings/:id',
+        destination: '/map?listing=:id',
         permanent: true,
       },
     ];

@@ -35,7 +35,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 정적 페이지
   const staticPages: MetadataRoute.Sitemap = [
     { url: baseUrl, lastModified: now, changeFrequency: 'daily', priority: 1 },
-    { url: baseUrl + '/listings', lastModified: now, changeFrequency: 'daily', priority: 0.9 },
     { url: baseUrl + '/map', lastModified: now, changeFrequency: 'daily', priority: 0.9 },
     { url: baseUrl + '/calculator', lastModified: now, changeFrequency: 'monthly', priority: 0.8 },
     { url: baseUrl + '/about', lastModified: now, changeFrequency: 'monthly', priority: 0.7 },
@@ -81,7 +80,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         if (!hasOwnContent) continue;
 
         listingPages.push({
-          url: baseUrl + '/listings/' + listing.id,
+          url: baseUrl + '/map?listing=' + listing.id,
           lastModified: listing.updated_at || now,
           changeFrequency: 'weekly' as const,
           priority: 0.8,

@@ -5,7 +5,9 @@ export default function SpeculationRules() {
     prerender: [
       {
         where: {
-          href_matches: ['/listings', '/listings?*', '/listings/*', '/'],
+          // L-listings-deprecate (2026-04-29): /listings → /map?listing=:id 영구 redirect.
+          //   prerender 대상도 /map 으로 변경.
+          href_matches: ['/map', '/map?*', '/'],
         },
         eagerness: 'moderate',
       },
