@@ -681,7 +681,22 @@
     });
   }
 
-  // ── observer — v297 패널 등장 감지 ──
+
+  // ── 통합 미디어 섹션 (사진 + 동영상 한 영역, 사장님 명령) ──
+  function buildUnifiedMediaSection(lid) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'margin:14px 18px 0;display:grid;gap:14px';
+    // 사진 섹션 + 동영상 섹션을 한 wrap 안에 (각자 drop + 한도 별도)
+    var sec = buildSection(lid);
+    sec.style.margin = '0';
+    var vsec = buildVideoSection(lid);
+    vsec.style.margin = '0';
+    wrap.appendChild(sec);
+    wrap.appendChild(vsec);
+    return wrap;
+  }
+
+    // ── observer — v297 패널 등장 감지 ──
   function tryAttach() {
     try {
       ensureSheet();
@@ -718,23 +733,26 @@
       console.log('[' + V + '] attaching for listing #' + lid);
 
       panel.dataset.v315 = '1';
-      var body = panel.querySelector('.v297-bd, .v297-body, form, [data-v297-body]') || panel;
-      var sec = buildSection(lid);
-      var vsec = buildVideoSection(lid);
 
-      // L-photos-top (2026-04-29): 사장님 명령 — 사진/동영상 매니저는 폼의 가장 상단.
-      //   v297-hd (헤더) 가 있으면 그 다음 (sticky 헤더 유지), 없으면 body 최상단.
+      // L-form-isolate (2026-04-29) [CRITICAL]: v297 의 .v297-body 는 <form> 이라
+      //   그 안에 prepend 하면 form snapshot/save diff 깨져서 '수정할 필드가
+      //   없습니다' 메시지 + 모든 수정 무효화. fix: form 외부 (panel 자식, form
+      //   형제) 에 mount. v297 form 동작에 영향 0.
+      var formEl = panel.querySelector('form.v297-body, .v297-body');
       var headerEl = panel.querySelector('.v297-hd');
-      if (headerEl && headerEl.parentNode === body) {
-        // 헤더 바로 다음에 사진 섹션 → 동영상 섹션 (역순 insertBefore)
-        body.insertBefore(vsec, headerEl.nextSibling);
-        body.insertBefore(sec, headerEl.nextSibling);
+
+      // 통합 미디어 섹션 (사진 + 동영상 한 영역)
+      var sec = buildUnifiedMediaSection(lid);
+
+      if (formEl && formEl.parentNode === panel) {
+        // form 직전에 mount — header 다음, form 위
+        panel.insertBefore(sec, formEl);
+      } else if (headerEl && headerEl.parentNode === panel) {
+        panel.insertBefore(sec, headerEl.nextSibling);
       } else {
-        // body 최상단 — 사진 → 동영상 (prepend 역순)
-        body.insertBefore(vsec, body.firstChild);
-        body.insertBefore(sec, body.firstChild);
+        panel.insertBefore(sec, panel.firstChild);
       }
-      console.log('[' + V + '] 사진+동영상 매니저 (상단) attached for listing #' + lid);
+      console.log('[' + V + '] 통합 미디어 매니저 mounted (form 외부) for listing #' + lid);
     } catch (e) {
       console.warn('[' + V + '] attach failed:', e && e.message);
     }
