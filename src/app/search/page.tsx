@@ -370,42 +370,14 @@ export default function SearchPortalPage() {
       v300Script.defer = false;
       document.body.appendChild(v300Script);
     }
-    // L-legacy-token-v303 (2026-04-28 critical): Chrome Extension 대체 monkey-patch
-    //   옛 content.js + 14 patch 의 'Bearer <legacy>' literal 토큰을 진짜 admin JWT 로
-    //   자동 치환. 영향: AI 매물 콘텐츠 / 건축물대장 / admin/listings 등 모든 admin 기능 부활.
-    //   ★ 다른 patch 보다 먼저 로드 (모든 fetch intercept 보장).
-    const existingV303 = document.getElementById('ws-ext-patch-v303-legacy-token');
-    if (!existingV303) {
-      const v303Script = document.createElement('script');
-      v303Script.id = 'ws-ext-patch-v303-legacy-token';
-      v303Script.src = '/search/content-v303-legacy-token-replace.js?v=20260428a';
-      v303Script.async = false;
-      v303Script.defer = false;
-      document.body.appendChild(v303Script);
-    }
-    // L-comprehensive-v304 (2026-04-28): 응답 호환 + 토큰 통일 + 401 alert + timeout
-    //   agent 병렬 분석 후 발견된 모든 mismatch (token source, response shape, silent fail) 일괄 fix
-    const existingV304 = document.getElementById('ws-ext-patch-v304-comprehensive');
-    if (!existingV304) {
-      const v304Script = document.createElement('script');
-      v304Script.id = 'ws-ext-patch-v304-comprehensive';
-      v304Script.src = '/search/content-v304-comprehensive-fixes.js?v=20260428a';
-      v304Script.async = false;
-      v304Script.defer = false;
-      document.body.appendChild(v304Script);
-    }
-    // L-curated-badge-v301 (2026-04-28): 위시스 직접 촬영/편집 매물 뱃지 자동 추가
-    //   /api/listings 응답의 has_wishes_media 캡처 → 카드 DOM 자동 데코레이션
-    //   /search HTML/CSS 무손상 (vanilla patch)
-    const existingV301 = document.getElementById('ws-ext-patch-v301-curated');
-    if (!existingV301) {
-      const v301Script = document.createElement('script');
-      v301Script.id = 'ws-ext-patch-v301-curated';
-      v301Script.src = '/search/content-v301-curated-badge.js?v=20260428a';
-      v301Script.async = false;
-      v301Script.defer = false;
-      document.body.appendChild(v301Script);
-    }
+    // L-disable-v303 (2026-04-28 P0 critical): Chrome MCP 라이브 검증 결과 stack overflow 발견.
+    //   v294-scope.js 가 이미 admin token 자동 주입 (Bearer admin_bridge_<token>) 중.
+    //   v303 + v304 + v301 의 window.fetch wrap 이 v294 의 origFetch 재할당 (line 258, 274) 과 충돌
+    //   → RangeError: Maximum call stack size exceeded → 모든 admin 기능 마비.
+    //   v303 비활성화 (v294 가 이미 admin 토큰 처리).
+    // L-disable-v304 (2026-04-28 P0 critical): v303 와 동일 사유 (window.fetch wrap 재귀).
+    // L-disable-v301 (2026-04-28 P0 critical): v294 fetch wrap 재귀 충돌 (RangeError).
+    //   임시 비활성화. 위시스 매물 뱃지 기능은 향후 wrap 충돌 회피 패턴으로 재작성 예정.
     }
   }, [state]);
 
