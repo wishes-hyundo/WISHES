@@ -225,7 +225,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/profile', label: '내 프로필', icon: '👤' },
   ];
 
-  const isNewListing = pathname === '/admin/listings/new';
   const isAdminRole = userRole === 'superadmin' || userRole === 'admin';
 
   // L-sec54 (2026-04-22): admin_bridge_ 위조 토큰 발급 로직 제거.
@@ -322,15 +321,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </button>
       </div>
 
+      {/* L-deprecate-listing-new (2026-04-28): 매물 등록은 /search 모달로 통합.
+          /admin/listings/new 페이지 redirect 만 유지. 사이드바 buttons 제거. */}
       <div className="px-3 pt-4 pb-2">
-        <Link href="/admin/listings/new" onClick={() => { setMobileMenuOpen(false); setSelectedNav('/admin/listings/new'); }}
-          className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 ${
-            isNewListing ? 'bg-yellow-500 text-black shadow-lg scale-[1.02]'
-              : 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black hover:shadow-lg hover:scale-[1.02] active:scale-95'
-          }`}>
+        <a href="/search?action=new-listing"
+          className="flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm bg-gradient-to-r from-yellow-400 to-orange-400 text-black hover:shadow-lg transition-all">
           <span>+</span>
-          {sidebarOpen && <span>스마트 매물 등록</span>}
-        </Link>
+          {sidebarOpen && <span>매물 등록 (/search)</span>}
+        </a>
       </div>
 
       <nav className="flex-1 px-3 py-2 space-y-1.5 overflow-y-auto">

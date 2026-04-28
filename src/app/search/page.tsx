@@ -381,6 +381,17 @@ export default function SearchPortalPage() {
       v306Script.defer = false;
       document.body.appendChild(v306Script);
     }
+
+    // L-tier4-phase1 (2026-04-28): 매물 등록 모달 enhance (자동 건축물대장 + 호실 선택)
+    const existingV307 = document.getElementById('ws-ext-patch-v307-listing-form');
+    if (!existingV307) {
+      const v307Script = document.createElement('script');
+      v307Script.id = 'ws-ext-patch-v307-listing-form';
+      v307Script.src = '/search/content-v307-listing-form.js?v=20260428a';
+      v307Script.async = false;
+      v307Script.defer = false;
+      document.body.appendChild(v307Script);
+    }
     }
   }, [state]);
 
