@@ -160,7 +160,18 @@ export default function AdminUsersPage() {
                     background: u.status === 'approved' ? '#dcfce7' : u.status === 'rejected' ? '#fee2e2' : '#fef3c7',
                     color: u.status === 'approved' ? '#16a34a' : u.status === 'rejected' ? '#dc2626' : '#d97706'
                   }}>{u.status === 'approved' ? '승인됨' : u.status === 'rejected' ? '거절됨' : '승인 대기'}</span>
-                  {u.role && <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, background: '#e0e7ff', color: '#4338ca' }}>{u.role}</span>}
+                  {u.role && (() => {
+                                const roleDesc: Record<string, string> = {
+                                  owner: '소유자 — 모든 권한 + 사용자 관리',
+                                  admin: '관리자 — Owner 외 모든 권한',
+                                  superadmin: '슈퍼관리자 (legacy) → owner 매핑',
+                                  broker: '중개사 — 자기 매물 + CRM',
+                                  agent: '중개사 (legacy) → broker 매핑',
+                                  partner: '파트너 — 회사 매물 조회',
+                                  pending: '승인 대기',
+                                };
+                                return <span title={roleDesc[u.role] || u.role} style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, background: '#e0e7ff', color: '#4338ca', cursor: 'help' }}>{u.role}</span>;
+                              })()}
                 </div>
                 <div style={{ fontSize: 13, color: '#4b5563' }}>{u.email}</div>
                 <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
