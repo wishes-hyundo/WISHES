@@ -367,6 +367,36 @@
     var card = getCardTpl().content.firstElementChild.cloneNode(true);
     card.dataset.imageId = String(img.id);
     card.dataset.sortOrder = String(img.sort_order || 0);
+    // L-drag (2026-04-29): drag-drop 정렬 추가
+    card.draggable = true;
+    card.addEventListener('dragstart', function (ev) {
+      ev.dataTransfer.effectAllowed = 'move';
+      ev.dataTransfer.setData('text/plain', String(img.id));
+      card.classList.add('v313-dragging');
+    });
+    card.addEventListener('dragend', function () {
+      card.classList.remove('v313-dragging');
+    });
+    card.addEventListener('dragover', function (ev) {
+      ev.preventDefault();
+      ev.dataTransfer.dropEffect = 'move';
+      card.classList.add('v313-dragover');
+    });
+    card.addEventListener('dragleave', function () {
+      card.classList.remove('v313-dragover');
+    });
+    card.addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      card.classList.remove('v313-dragover');
+      var srcId = ev.dataTransfer.getData('text/plain');
+      var grid = card.parentElement;
+      var srcCard = grid && grid.querySelector('.v313-card[data-image-id="' + srcId + '"]');
+      if (!srcCard || srcCard === card) return;
+      withTransition(function () { grid.insertBefore(srcCard, card); });
+      rebuildSortOrders(grid, lid).then(function (j) {
+        if (j && j.success) toast('드래그 정렬 저장', 'ok');
+      });
+    });
     var imgEl = card.querySelector('img');
     imgEl.src = img.url;
     imgEl.alt = img.alt || '매물 사진';
@@ -391,37 +421,74 @@
     return card;
   }
 
+  // L-sort-rebuild (2026-04-29): 사장님 명령 — 정렬/대표 제대로 동작.
+  //   카드 위치 변경 시 grid 의 모든 사진 카드의 sort_order 를 0..N 으로 재계산
+  //   하고 PATCH 한 번에. 안정적 정렬.
+  function rebuildSortOrders(grid, lid) {
+    var cards = Array.prototype.filter.call(
+      grid.querySelectorAll('.v313-card[data-image-id]:not(.v313-vcard):not(.v313-card-loading)'),
+      function () { return true; }
+    );
+    var items = [];
+    cards.forEach(function (c, i) {
+      var id = parseInt(c.dataset.imageId, 10);
+      if (isNaN(id)) return;
+      c.dataset.sortOrder = String(i);
+      items.push({ id: id, sort_order: i });
+    });
+    if (items.length === 0) return Promise.resolve(null);
+    return patchImages(lid, items);
+  }
+
   function handleAction(act, img, card, lid) {
     var grid = card.parentElement;
     if (act === 'thumb') {
-      // optimistic
+      // 1. 첫 번째 위치로 이동 + thumb 표시
       withTransition(function () {
         grid.querySelectorAll('.v313-card').forEach(function (c) {
           c.classList.remove('v313-thumb');
           var b = c.querySelector('.v313-card-thumb-badge'); if (b) b.hidden = true;
         });
         card.classList.add('v313-thumb');
-        card.querySelector('.v313-card-thumb-badge').hidden = false;
+        var badge = card.querySelector('.v313-card-thumb-badge');
+        if (badge) badge.hidden = false;
+        // 첫 번째 사진 카드로 이동 (동영상 카드는 별개)
+        var firstPhotoCard = grid.querySelector('.v313-card[data-image-id]:not(.v313-vcard)');
+        if (firstPhotoCard && firstPhotoCard !== card) {
+          grid.insertBefore(card, firstPhotoCard);
+        }
       });
-      patchImages(lid, [{ id: img.id, is_thumbnail: true }])
-        .then(function (j) { if (j && j.success) toast('대표 사진 설정', 'ok'); else toast('설정 실패', 'err'); });
+      // 2. PATCH: is_thumbnail + 모든 사진 sort_order 재계산
+      var items = [{ id: img.id, is_thumbnail: true }];
+      var photoCards = Array.prototype.slice.call(
+        grid.querySelectorAll('.v313-card[data-image-id]:not(.v313-vcard):not(.v313-card-loading)')
+      );
+      photoCards.forEach(function (c, i) {
+        var id = parseInt(c.dataset.imageId, 10);
+        if (isNaN(id)) return;
+        c.dataset.sortOrder = String(i);
+        if (id !== img.id) items.push({ id: id, sort_order: i });
+        else items[0].sort_order = i;
+      });
+      patchImages(lid, items).then(function (j) {
+        if (j && j.success) toast('⭐ 대표 사진 설정 + 정렬 저장', 'ok');
+        else toast('설정 실패', 'err');
+      }).catch(function () { toast('대표 설정 실패', 'err'); });
     } else if (act === 'up' || act === 'down') {
-      var sib = act === 'up' ? card.previousElementSibling : card.nextElementSibling;
-      if (!sib) return;
-      var aId = parseInt(card.dataset.imageId);
-      var bId = parseInt(sib.dataset.imageId);
-      var aOrd = parseInt(card.dataset.sortOrder);
-      var bOrd = parseInt(sib.dataset.sortOrder);
+      // 같은 type (사진) 카드끼리만 이동 — 동영상 건너뛰기
+      var sib = card;
+      do {
+        sib = act === 'up' ? sib.previousElementSibling : sib.nextElementSibling;
+      } while (sib && sib.classList.contains('v313-vcard'));
+      if (!sib || !sib.dataset.imageId) return;
       withTransition(function () {
         if (act === 'up') grid.insertBefore(card, sib);
         else grid.insertBefore(sib, card);
       });
-      card.dataset.sortOrder = String(bOrd);
-      sib.dataset.sortOrder = String(aOrd);
-      patchImages(lid, [
-        { id: aId, sort_order: bOrd },
-        { id: bId, sort_order: aOrd },
-      ]).catch(function () { toast('정렬 저장 실패', 'err'); });
+      rebuildSortOrders(grid, lid).then(function (j) {
+        if (j && j.success) toast('정렬 저장', 'ok');
+        else toast('정렬 저장 실패', 'err');
+      }).catch(function () { toast('정렬 저장 실패', 'err'); });
     } else if (act === 'delete') {
       if (!confirm('이 사진을 삭제할까요?')) return;
       withTransition(function () { card.remove(); });
