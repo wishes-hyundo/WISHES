@@ -182,12 +182,14 @@ export async function GET(
     // L-wishes-source (2026-04-28): 사장님 명령 점진 전환 —
     //   매물에 위시스 사진 ≥1장 (has_wishes_media=true) → crawled 모두 숨김 (저작권 안전 + 차별화).
     //   위시스 사진 없으면 기존 정책 유지 (점진 전환).
-    const parentRes: any = await supabase
+    // L-bug2-fix (2026-04-29): admin 인증 시 status='공개' 우회.
+    const isAdminUser = await verifyAdminAuth(request).catch(() => false);
+    let parentQ: any = supabase
       .from('listings')
       .select('id, source_site, has_wishes_media')
-      .eq('id', listingId)
-      .eq('status', '공개')
-      .maybeSingle();
+      .eq('id', listingId);
+    if (!isAdminUser) parentQ = parentQ.eq('status', '공개');
+    const parentRes: any = await parentQ.maybeSingle();
     const parent: any = parentRes?.data;
     if (!parent) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: cors });
     const imgRes: any = await supabase
