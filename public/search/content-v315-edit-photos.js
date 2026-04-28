@@ -682,18 +682,169 @@
   }
 
 
-  // ── 통합 미디어 섹션 (사진 + 동영상 한 영역, 사장님 명령) ──
+  // ── 진짜 통합 미디어 섹션 (단일 drop zone + 단일 grid + mime 분기) ──
   function buildUnifiedMediaSection(lid) {
-    var wrap = document.createElement('div');
-    wrap.style.cssText = 'margin:14px 18px 0;display:grid;gap:14px';
-    // 사진 섹션 + 동영상 섹션을 한 wrap 안에 (각자 drop + 한도 별도)
-    var sec = buildSection(lid);
-    sec.style.margin = '0';
-    var vsec = buildVideoSection(lid);
-    vsec.style.margin = '0';
-    wrap.appendChild(sec);
-    wrap.appendChild(vsec);
-    return wrap;
+    var sec = document.createElement('section');
+    sec.className = 'v313-photos-sec v315-unified';
+    sec.style.margin = '14px 18px 0';
+    sec.setAttribute('aria-label', '매물 사진 + 동영상 관리');
+
+    var hd = document.createElement('div');
+    hd.className = 'v313-hd';
+    hd.innerHTML = '<div class="v313-hd-t">📷🎬 사진 + 동영상</div>' +
+      '<div class="v313-hd-n" data-slot="ucount">사진 0/20장 · 동영상 0/5장</div>';
+    sec.appendChild(hd);
+
+    var drop = document.createElement('label');
+    drop.className = 'v313-drop';
+    drop.setAttribute('tabindex', '0');
+    drop.setAttribute('role', 'button');
+    drop.setAttribute('aria-label', '사진 또는 동영상 추가');
+    drop.innerHTML =
+      '<span class="v313-drop-emoji">📤</span>' +
+      '<div>사진 또는 동영상 드래그 / 클릭해서 업로드</div>' +
+      '<div class="v313-drop-hint" data-slot="uhint">' +
+      '사진: 위시스 룩 + 워터마크 자동 · JPG/PNG/WebP/GIF · 10MB · 20장 / ' +
+      '동영상: MP4/MOV/WebM · 50MB · 5장' +
+      '</div>' +
+      '<input type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm,video/x-m4v,video/x-matroska" multiple>';
+    sec.appendChild(drop);
+
+    var grid = document.createElement('div');
+    grid.className = 'v313-grid v315-unified-grid';
+    grid.setAttribute('role', 'list');
+    sec.appendChild(grid);
+
+    function refreshCount() {
+      var photos = grid.querySelectorAll('.v313-card:not(.v313-vcard):not(.v313-card-loading)').length;
+      var vids = grid.querySelectorAll('.v313-vcard:not(.v313-card-loading)').length;
+      hd.querySelector('[data-slot=ucount]').textContent = '사진 ' + photos + '/20장 · 동영상 ' + vids + '/5장';
+      var photoFull = photos >= 20;
+      var vidFull = vids >= 5;
+      var hint = sec.querySelector('[data-slot=uhint]');
+      if (hint) {
+        hint.textContent = '사진 추가 가능 ' + Math.max(0, 20 - photos) + '장 · ' +
+                          '동영상 추가 가능 ' + Math.max(0, 5 - vids) + '장 · ' +
+                          '위시스 룩 + 워터마크 자동';
+      }
+      drop.style.opacity = (photoFull && vidFull) ? '0.5' : '1';
+      drop.style.pointerEvents = (photoFull && vidFull) ? 'none' : '';
+      var input = drop.querySelector('input[type=file]');
+      if (input) input.disabled = photoFull && vidFull;
+    }
+
+    function handleFiles(files) {
+      if (!files || !files.length) return;
+      var photos = grid.querySelectorAll('.v313-card:not(.v313-vcard):not(.v313-card-loading)').length;
+      var vids = grid.querySelectorAll('.v313-vcard:not(.v313-card-loading)').length;
+      var photoArr = [], vidArr = [];
+      files.forEach(function (f) {
+        if (/^image\//.test(f.type)) photoArr.push(f);
+        else if (/^video\//.test(f.type)) vidArr.push(f);
+      });
+      // 한도 검사
+      if (photos + photoArr.length > 20) {
+        var allowedP = Math.max(0, 20 - photos);
+        if (allowedP < photoArr.length) {
+          toast('사진 ' + allowedP + '장만 업로드 (20장 한도)', 'err');
+          photoArr = photoArr.slice(0, allowedP);
+        }
+      }
+      if (vids + vidArr.length > 5) {
+        var allowedV = Math.max(0, 5 - vids);
+        if (allowedV < vidArr.length) {
+          toast('동영상 ' + allowedV + '장만 업로드 (5장 한도)', 'err');
+          vidArr = vidArr.slice(0, allowedV);
+        }
+      }
+      // 사진 업로드
+      photoArr.forEach(function (file) {
+        var ph = placeholderCard();
+        withTransition(function () { grid.appendChild(ph); });
+        var bar = ph.querySelector('.v313-card-prog>span');
+        uploadImage(lid, file, function (p) { if (bar) bar.style.width = (Math.round(p * 100)) + '%'; })
+          .then(function (j) {
+            var arr = (j && (j.data || j.images || j.uploaded)) || [];
+            if (!j || !j.success || !arr.length) {
+              withTransition(function () { ph.remove(); });
+              toast('사진 업로드 실패: ' + (file.name || ''), 'err');
+              return;
+            }
+            var newImg = arr[0];
+            var card = renderCard({
+              id: newImg.id || ('tmp_' + Date.now() + '_' + Math.random()),
+              url: newImg.url,
+              sort_order: 9999,
+              is_thumbnail: false,
+            }, lid);
+            withTransition(function () { ph.replaceWith(card); });
+            refreshCount();
+            toast('필름 룩 + 워터마크 적용 완료', 'ok');
+          })
+          .catch(function () {
+            withTransition(function () { ph.remove(); });
+            toast('사진 업로드 실패: ' + (file.name || ''), 'err');
+          });
+      });
+      // 동영상 업로드
+      vidArr.forEach(function (file) {
+        var ph = document.createElement('div');
+        ph.className = 'v313-vcard v313-card v313-card-loading';
+        ph.textContent = '⏳ 업로드 중…';
+        var prog = document.createElement('div');
+        prog.className = 'v313-card-prog';
+        prog.innerHTML = '<span></span>';
+        ph.appendChild(prog);
+        withTransition(function () { grid.appendChild(ph); });
+        var bar = ph.querySelector('.v313-card-prog>span');
+        uploadVideo(lid, file, function (p) { if (bar) bar.style.width = (Math.round(p * 100)) + '%'; })
+          .then(function (j) {
+            var arr = (j && (j.data || j.videos || j.uploaded)) || [];
+            if (!j || !j.success || !arr.length) {
+              withTransition(function () { ph.remove(); });
+              toast('동영상 업로드 실패: ' + (file.name || ''), 'err');
+              return;
+            }
+            var newV = arr[0];
+            var card = renderVideoCard({
+              id: newV.id || ('tmp_' + Date.now() + '_' + Math.random()),
+              url: newV.url,
+            }, lid);
+            withTransition(function () { ph.replaceWith(card); });
+            refreshCount();
+            toast('동영상 업로드 완료', 'ok');
+          })
+          .catch(function () {
+            withTransition(function () { ph.remove(); });
+            toast('동영상 업로드 실패: ' + (file.name || ''), 'err');
+          });
+      });
+    }
+
+    drop.addEventListener('dragover', function (ev) { ev.preventDefault(); drop.classList.add('v313-drop-active'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('v313-drop-active'); });
+    drop.addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      drop.classList.remove('v313-drop-active');
+      handleFiles(Array.from(ev.dataTransfer.files || []));
+    });
+    var fileInput = drop.querySelector('input[type=file]');
+    fileInput.addEventListener('change', function (ev) {
+      handleFiles(Array.from(ev.target.files || []));
+      fileInput.value = '';
+    });
+
+    // 초기 로드 — 사진 + 동영상 동시 fetch + grid 렌더
+    Promise.all([listImages(lid), listVideos(lid)]).then(function (res) {
+      var imgs = res[0], vids = res[1];
+      withTransition(function () {
+        imgs.forEach(function (img) { grid.appendChild(renderCard(img, lid)); });
+        vids.forEach(function (v) { grid.appendChild(renderVideoCard(v, lid)); });
+      });
+      refreshCount();
+    });
+
+    return sec;
   }
 
     // ── observer — v297 패널 등장 감지 ──
