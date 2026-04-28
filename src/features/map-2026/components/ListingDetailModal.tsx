@@ -30,6 +30,9 @@ import { useMap2026Store, type MapListing } from '../store';
 import { cinematicFlyTo } from '../lib/cinematicMotion';
 // L-listings-merge3 (2026-04-29 사장님 명령): footer 공유 우측 작게.
 import ShareButton from '@/components/ShareButton';
+// L-listings-merge4 (2026-04-29 사장님 명령): Step 2 본문 끝 1-10-2-5.
+import RealPriceChart from '@/components/RealPriceChart';
+import ListingLocationMap from '@/components/ListingLocationMap';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   formatDealLabel,
@@ -150,6 +153,19 @@ export function ListingDetailModal() {
   //   → 모달이 안 떴음. 직접 fetch 한 fallback 매물 객체를 채워 모달 열리게.
   const [fallbackListing, setFallbackListing] = useState<MapListing | null>(null);
 
+  // L-listings-merge4 (2026-04-29): 10번 주변 교통 — /api/listings/[id]/nearby
+  const [nearbyStations, setNearbyStations] = useState<Array<{
+    name: string; line: string; distance: number; walkMin: number;
+  }>>([]);
+  const [stationsLoading, setStationsLoading] = useState(false);
+
+  // L-listings-merge4: 5번 추천 매물 (compact 2개) — /api/listings/[id]/recommend
+  const [recommendations, setRecommendations] = useState<Array<{
+    id: number; title: string; type: string; deal: string;
+    deposit: number | null; monthly: number | null; price: number | null;
+    area_m2: number | null; dong: string | null; matchPercent: number;
+  }>>([]);
+
   useEffect(() => {
     let cancelled = false;
     if (detailListingId == null) { setFallbackListing(null); return; }
@@ -213,6 +229,36 @@ export function ListingDetailModal() {
       .catch(() => { if (!cancelled) setFallbackListing(null); });
     return () => { cancelled = true; };
   }, [detailListingId, cachedListing, listings]);
+
+  // L-listings-merge4: 10번 주변 지하철 fetch
+  useEffect(() => {
+    if (detailListingId == null) { setNearbyStations([]); return; }
+    const ac = new AbortController();
+    setStationsLoading(true);
+    fetch(`/api/listings/${detailListingId}/nearby`, { signal: ac.signal })
+      .then((r) => r.ok ? r.json() : null)
+      .then((j) => {
+        if (j?.success && j?.data?.stations) setNearbyStations(j.data.stations);
+        else setNearbyStations([]);
+      })
+      .catch(() => { /* abort */ })
+      .finally(() => { if (!ac.signal.aborted) setStationsLoading(false); });
+    return () => ac.abort();
+  }, [detailListingId]);
+
+  // L-listings-merge4: 5번 추천 매물 fetch (2개 compact)
+  useEffect(() => {
+    if (detailListingId == null) { setRecommendations([]); return; }
+    const ac = new AbortController();
+    fetch(`/api/listings/${detailListingId}/recommend`, { signal: ac.signal })
+      .then((r) => r.ok ? r.json() : null)
+      .then((j) => {
+        const arr = (j?.recommendations ?? []) as Array<typeof recommendations[number]>;
+        setRecommendations(arr.slice(0, 2));
+      })
+      .catch(() => { /* abort */ });
+    return () => ac.abort();
+  }, [detailListingId]);
 
   const listing: MapListing | null = detailListingId == null
     ? null
@@ -872,6 +918,101 @@ export function ListingDetailModal() {
           </div>
         </div>,
         document.body
+      )}
+
+      {/* L-listings-merge4 (2026-04-29 사장님 명령): 본문 끝 위→아래 1-10-2-5 */}
+
+      {/* 1) 실거래가 차트 — 동/유형/거래방식 12개월 추이 */}
+      {listing.dong && listing.type && (
+        <div className="border-t border-neutral-100 bg-white px-4 py-3">
+          <RealPriceChart
+            listingId={listing.id}
+            dong={listing.dong}
+            type={listing.type}
+            deal={listing.deal}
+          />
+        </div>
+      )}
+
+      {/* 10) 주변 교통 — 반경 2km 지하철 */}
+      {listing.lat != null && listing.lng != null && (
+        <div className="border-t border-neutral-100 bg-white px-4 py-3">
+          <h3 className="mb-2 text-[12px] font-bold text-neutral-900 flex items-center gap-1.5">
+            <span className="inline-block size-2 rounded-full bg-blue-500" />
+            주변 교통
+          </h3>
+          <div className="rounded-lg bg-blue-50/50 p-2.5">
+            {stationsLoading ? (
+              <div className="space-y-1 animate-pulse">
+                <div className="h-3 bg-blue-100 rounded" />
+                <div className="h-3 w-2/3 bg-blue-100 rounded" />
+              </div>
+            ) : nearbyStations.length > 0 ? (
+              <div className="space-y-1">
+                {nearbyStations.slice(0, 4).map((s, i) => (
+                  <div key={i} className="flex items-center justify-between text-[11.5px]">
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-blue-500 text-[8px] font-bold text-white">{s.line}</span>
+                      <span className="font-medium text-neutral-800">{s.name}역</span>
+                    </div>
+                    <span className="text-blue-600 font-medium">도보 {s.walkMin}분</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[11px] text-neutral-500">반경 2km 지하철역 없음</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* 2) 매물 위치 — 카카오맵 미니맵 */}
+      {listing.lat != null && listing.lng != null && (
+        <div className="border-t border-neutral-100 bg-white px-4 py-3">
+          <h3 className="mb-2 text-[12px] font-bold text-neutral-900">매물 위치</h3>
+          <ListingLocationMap
+            lat={listing.lat}
+            lng={listing.lng}
+            address={listing.address ?? listing.title ?? null}
+            title={listing.title ?? listing.dong ?? null}
+          />
+        </div>
+      )}
+
+      {/* 5) 추천 매물 — compact 2개 (매물카드 안에 자연스럽게) */}
+      {recommendations.length > 0 && (
+        <div className="border-t border-neutral-100 bg-white px-4 py-3">
+          <h3 className="mb-2 text-[12px] font-bold text-neutral-900">비슷한 추천 매물</h3>
+          <div className="space-y-2">
+            {recommendations.map((r) => {
+              const priceLabel = r.deal === '매매'
+                ? (r.price ? `${(r.price / 10000).toFixed(1)}억` : '-')
+                : r.deal === '전세'
+                  ? (r.deposit ? `${(r.deposit / 10000).toFixed(1)}억` : '-')
+                  : (r.deposit && r.monthly ? `${r.deposit.toLocaleString()}/${r.monthly}` : '-');
+              return (
+                <a
+                  key={r.id}
+                  href={`/map/${r.id}`}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 px-3 py-2 hover:border-emerald-500 transition"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{r.matchPercent}%</span>
+                      <span className="text-[11px] font-semibold text-neutral-700">{r.deal} · {r.type}</span>
+                    </div>
+                    <div className="mt-0.5 truncate text-[11px] text-neutral-500">
+                      {r.dong || ''} · {r.area_m2 ? `${r.area_m2.toFixed(1)}㎡` : ''}
+                    </div>
+                  </div>
+                  <div className="shrink-0 text-[13px] font-bold text-emerald-600 tabular-nums">
+                    {priceLabel}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* L-listings-merge3 (2026-04-29): footer — 담당자 연결 (메인) + 공유 (우측 작게) */}
