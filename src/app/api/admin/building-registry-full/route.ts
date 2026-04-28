@@ -61,19 +61,26 @@ export async function GET(request: NextRequest) {
   try {
     const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await resolveAddress(address);
 
-    // Call the existing working building-registry endpoint
-    // L-fix-cookie-forward (2026-04-28): /admin 로그인 사용자는 ws_session 쿠키만
-    //   가지고 /search 에서 building-registry-full 을 호출 → Authorization 헤더가
-    //   비어 있을 수 있다. inner self-call 에 Authorization 만 forward 하면 inner
-    //   verifyAdminAuth 가 쿠키 fallback 도 못 본다 (Cookie 헤더가 없으니까).
-    //   → caller 의 Authorization + Cookie 를 둘 다 forward. INTERNAL_BEARER env 가
-    //   설정돼 있으면 Bearer 우선 (cron/내부 자동화 호환).
+    // Call the existing working building-registry endpoint.
+    // L-fix-passthrough (2026-04-28): caller 는 이미 verifyAdminAuthStrict 통과
+    //   (superadmin/master/crawler_bridge/internal_bearer 만 ALLOWED_ROLES). 따라서
+    //   caller 의 Authorization + Cookie 를 그대로 forward 하면 inner 도 동일
+    //   토큰으로 통과. INTERNAL_BEARER env 의 길이/매칭 issue 회피.
+    //   query token (?token=master) fallback 도 같이 forward (cron 호환).
     const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
-    const userAuth = request.headers.get('authorization') || request.headers.get('Authorization') || '';
+    const userAuth = request.headers.get('authorization') || '';
     const userCookie = request.headers.get('cookie') || '';
-    const fwdAuth = INTERNAL_BEARER ? `Bearer ${INTERNAL_BEARER}` : userAuth;
     const fetchHdrs: Record<string, string> = {};
-    if (fwdAuth) fetchHdrs.Authorization = fwdAuth;
+    if (userAuth) {
+      // caller 가 Authorization 들고 옴 → 그대로 forward.
+      fetchHdrs.Authorization = userAuth;
+    } else if (userCookie) {
+      // cookie-only caller (사장님 /admin 로그인 케이스) → Authorization 추가 X.
+      // inner verifyAdminAuth 의 ws_session 쿠키 fallback 으로 인증.
+    } else if (INTERNAL_BEARER) {
+      // 둘 다 없는 cron/내부 자동화 — INTERNAL_BEARER fallback.
+      fetchHdrs.Authorization = `Bearer ${INTERNAL_BEARER}`;
+    }
     if (userCookie) fetchHdrs.Cookie = userCookie;
     const registryRes = await fetch(registryUrl, { headers: fetchHdrs });
 

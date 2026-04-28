@@ -323,7 +323,7 @@ export default function SearchPortalPage() {
     if (!existingV294) {
       const v294Script = document.createElement('script');
       v294Script.id = 'ws-ext-patch-v294-scope';
-      v294Script.src = '/search/content-v294-scope.js?v=20260428cookie';
+      v294Script.src = '/search/content-v294-scope.js?v=20260428pri';
       v294Script.async = false;
       v294Script.defer = false;
       document.body.appendChild(v294Script);
