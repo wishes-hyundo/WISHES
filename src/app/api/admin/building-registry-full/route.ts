@@ -62,11 +62,19 @@ export async function GET(request: NextRequest) {
     const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await resolveAddress(address);
 
     // Call the existing working building-registry endpoint
+    // L-fix-cookie-forward (2026-04-28): /admin 로그인 사용자는 ws_session 쿠키만
+    //   가지고 /search 에서 building-registry-full 을 호출 → Authorization 헤더가
+    //   비어 있을 수 있다. inner self-call 에 Authorization 만 forward 하면 inner
+    //   verifyAdminAuth 가 쿠키 fallback 도 못 본다 (Cookie 헤더가 없으니까).
+    //   → caller 의 Authorization + Cookie 를 둘 다 forward. INTERNAL_BEARER env 가
+    //   설정돼 있으면 Bearer 우선 (cron/내부 자동화 호환).
     const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
-    // L-fix-internal-bearer (2026-04-28): WISHES_INTERNAL_BEARER env 미등록 시 사용자 토큰 fallback
     const userAuth = request.headers.get('authorization') || request.headers.get('Authorization') || '';
+    const userCookie = request.headers.get('cookie') || '';
     const fwdAuth = INTERNAL_BEARER ? `Bearer ${INTERNAL_BEARER}` : userAuth;
-    const fetchHdrs: Record<string, string> = fwdAuth ? { Authorization: fwdAuth } : {};
+    const fetchHdrs: Record<string, string> = {};
+    if (fwdAuth) fetchHdrs.Authorization = fwdAuth;
+    if (userCookie) fetchHdrs.Cookie = userCookie;
     const registryRes = await fetch(registryUrl, { headers: fetchHdrs });
 
     if (!registryRes.ok) {

@@ -149,9 +149,14 @@
       if (tok) hdr.set('Authorization', 'Bearer admin_bridge_' + tok);
     } else if (!auth) {
       // 헤더 자체 부재 (예: GET /api/admin/listings/[id] 단건 — SCOPE_TARGET_RE 매치 X)
-      // → 진짜 admin JWT 자동 주입.
-      var tokA = getWsToken();
-      if (tokA) hdr.set('Authorization', 'Bearer admin_bridge_' + tokA);
+      // L-fix-cookie-priority (2026-04-28): ws_session 쿠키가 있으면 인증은 쿠키 path
+      //   (verifyAdminAuth 내부 cookie fallback) 가 처리. sessionStorage 의 OLD/만료
+      //   JWT 를 강제 주입하면 서버가 만료된 Bearer 를 우선 적용해서 401 → 쿠키 무시.
+      //   따라서 쿠키 있으면 Authorization 추가 X. 쿠키 없을 때만 sessionStorage 토큰 fallback.
+      if (!getCookie('ws_session')) {
+        var tokA = getWsToken();
+        if (tokA) hdr.set('Authorization', 'Bearer admin_bridge_' + tokA);
+      }
     }
     init.headers = hdr;
     return init;
@@ -174,8 +179,10 @@
               var tokR = getWsToken();
               if (tokR) rqHdr.set('Authorization', 'Bearer admin_bridge_' + tokR);
             } else if (!authR) {
-              var tokRA = getWsToken();
-              if (tokRA) rqHdr.set('Authorization', 'Bearer admin_bridge_' + tokRA);
+              if (!getCookie('ws_session')) {
+                var tokRA = getWsToken();
+                if (tokRA) rqHdr.set('Authorization', 'Bearer admin_bridge_' + tokRA);
+              }
             }
             var rqInit = {
               method: input.method, headers: rqHdr,
