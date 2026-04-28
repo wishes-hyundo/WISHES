@@ -24,10 +24,14 @@ interface KakaoResult {
 }
 
 async function resolveAddress(address: string) {
+  // L-fix-kakao-timeout (2026-04-28): timeout 없이 hang 가능 → 3s 강제
   const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`;
+  const ctrl = new AbortController();
+  const tid = setTimeout(() => ctrl.abort(), 3000);
   const res = await fetch(url, {
     headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
-  });
+    signal: ctrl.signal,
+  }).finally(() => clearTimeout(tid));
   if (!res.ok) throw new Error(`Kakao API error: ${res.status}`);
   const json = await res.json();
   if (!json.documents || json.documents.length === 0) {
@@ -67,6 +71,17 @@ function findSelectedUnit(
   return byNumeric || null;
 }
 
+// L-fix-hard-timeout (2026-04-28): 어느 단계도 hang 시 8초 강제 종료.
+//   사장님 화면 영원히 '조회 중...' 멈춤 방지.
+async function withHardTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`hard_timeout_${label}_${ms}ms`)), ms),
+    ),
+  ]);
+}
+
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuthStrict(request);
   if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
@@ -100,7 +115,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await resolveAddress(address);
+    const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await withHardTimeout(
+      resolveAddress(address), 4000, 'kakao'
+    );
     const platGbCd = '0';
 
     let buildingData: Record<string, string | number> = {};
@@ -111,15 +128,22 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
     if (supabase) {
-      const { data: cached } = await supabase
-        .from('building_registry_cache')
-        .select('raw_data, units_data, fetched_at')
-        .eq('sigungu_cd', sigunguCd)
-        .eq('bjdong_cd', bjdongCd)
-        .eq('bun', bun)
-        .eq('ji', ji)
-        .eq('plat_gb_cd', platGbCd)
-        .maybeSingle();
+      let cached: { raw_data?: unknown; units_data?: unknown; fetched_at?: string } | null = null;
+      try {
+        const cacheRes = await withHardTimeout(
+          supabase
+            .from('building_registry_cache')
+            .select('raw_data, units_data, fetched_at')
+            .eq('sigungu_cd', sigunguCd)
+            .eq('bjdong_cd', bjdongCd)
+            .eq('bun', bun)
+            .eq('ji', ji)
+            .eq('plat_gb_cd', platGbCd)
+            .maybeSingle(),
+          2000, 'cache_select'
+        );
+        cached = (cacheRes as { data: typeof cached }).data;
+      } catch { cached = null; }
 
       if (cached) {
         const fetchedMs = new Date(cached.fetched_at as string).getTime();
@@ -141,10 +165,16 @@ export async function GET(request: NextRequest) {
     }
 
     if (cacheStatus !== 'hit') {
-      const [bdResult, unitsResult] = await Promise.all([
-        fetchBuildingData(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
-        fetchExposureUnits(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
-      ]);
+      const [bdResult, unitsResult] = await withHardTimeout(
+        Promise.all([
+          fetchBuildingData(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
+          fetchExposureUnits(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
+        ]),
+        7000, 'bldg_apis'
+      ).catch((e) => {
+        debugInfo.push('parallel timeout: ' + (e as Error).message);
+        return [{ buildingData: {}, floors: [] }, [] as BuildingUnit[]] as const;
+      });
       buildingData = bdResult.buildingData;
       floors = bdResult.floors;
       units = unitsResult;
@@ -211,13 +241,18 @@ export async function GET(request: NextRequest) {
       try {
         // 빠른 prefix 매칭만 (ilike % wildcard 제거 — index 활용)
         const addrPrefix = fullAddress.split(' ').slice(0, 3).join(' ');
-        const { data: same } = await supabase
-          .from('listings')
-          .select('id, address, address_detail, type, deal, price, deposit, monthly, building_dong, building_ho, status')
-          .like('address', addrPrefix + '%')
-          .neq('id', lid ? parseInt(lid, 10) : -1)
-          .limit(10);
-        sameBuilding = (same as typeof sameBuilding) || [];
+        try {
+          const sbRes = await withHardTimeout(
+            supabase
+              .from('listings')
+              .select('id, address, address_detail, type, deal, price, deposit, monthly, building_dong, building_ho, status')
+              .like('address', addrPrefix + '%')
+              .neq('id', lid ? parseInt(lid, 10) : -1)
+              .limit(10),
+            1500, 'same_building'
+          );
+          sameBuilding = ((sbRes as { data: typeof sameBuilding }).data) || [];
+        } catch { sameBuilding = []; }
       } catch { /* silent */ }
     }
 
