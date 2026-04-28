@@ -16,13 +16,15 @@ const withTimeout = <T,>(promise: PromiseLike<T>, ms = 5000): Promise<T> =>
     new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
   ]);
 
-function formatPrice(price: number): string {
+function formatPrice(price: number | null | undefined): string {
+  // L-fix-unit (2026-04-28): 단위 '만원' 명시. 사장님 발견 — "1억5000" 만 단위 누락
+  if (!price || price <= 0) return '-';
   if (price >= 10000) {
     const uk = Math.floor(price / 10000);
     const remainder = price % 10000;
-    return remainder > 0 ? uk + '억 ' + remainder.toLocaleString() : uk + '억';
+    return remainder > 0 ? uk + '억 ' + remainder.toLocaleString() + '만원' : uk + '억원';
   }
-  return price.toLocaleString();
+  return price.toLocaleString() + '만원';
 }
 
 // L-seo1 (2026-04-27 v3): 자체 콘텐츠 검사 (page + sitemap 일관)
@@ -117,9 +119,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 function buildJsonLd(listing: any, id: string): Record<string, any> | null {
   if (!listing) return null;
 
+  // L-fix-unit (2026-04-28): formatPrice 가 이미 '만원' 포함 → 중복 제거
   const priceText = listing.deal === '월세'
-    ? formatPrice(listing.deposit) + '/' + formatPrice(listing.monthly) + '만원'
-    : formatPrice(listing.price || listing.deposit) + '만원';
+    ? formatPrice(listing.deposit) + ' / ' + formatPrice(listing.monthly)
+    : formatPrice(listing.price || listing.deposit);
   const name = listing.dong + ' ' + listing.type + ' ' + listing.deal + ' ' + priceText;
 
   // 가격 (Offer): 월세는 monthly, 전세/매매는 price 또는 deposit
@@ -143,11 +146,24 @@ function buildJsonLd(listing: any, id: string): Record<string, any> | null {
   };
 
   if (listing.address) {
+    // L-fix-region (2026-04-28): addressRegion 동적 (전국 17 시도, 사장님 정책)
+    //   주소 첫 토큰 → 시/도 정확 매핑 (서울 박제 X)
+    const REGION_MAP: Record<string, string> = {
+      '서울': '서울특별시', '부산': '부산광역시', '대구': '대구광역시',
+      '인천': '인천광역시', '광주': '광주광역시', '대전': '대전광역시',
+      '울산': '울산광역시', '세종': '세종특별자치시', '경기': '경기도',
+      '강원': '강원특별자치도', '충북': '충청북도', '충남': '충청남도',
+      '전북': '전북특별자치도', '전남': '전라남도', '경북': '경상북도',
+      '경남': '경상남도', '제주': '제주특별자치도',
+    };
+    const firstTok = (listing.address || '').trim().split(/\s+/)[0] || '';
+    const detected = Object.keys(REGION_MAP).find(k => firstTok.startsWith(k));
+    const region = detected ? REGION_MAP[detected] : (listing.region || '서울특별시');
     jsonLd['address'] = {
       '@type': 'PostalAddress',
       'streetAddress': listing.address,
       'addressLocality': listing.gu || listing.dong,
-      'addressRegion': '서울특별시',
+      'addressRegion': region,
       'addressCountry': 'KR',
     };
   }
