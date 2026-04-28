@@ -11,6 +11,10 @@
     "src/app/api/**/*.ts": {
       "maxDuration": 10,
       "memory": 256
+    },
+    "src/app/api/admin/briefing-pdf/[id]/route.ts": {
+      "maxDuration": 60,
+      "memory": 1024
     }
   },
   "headers": [
