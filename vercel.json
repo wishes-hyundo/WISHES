@@ -123,6 +123,10 @@
     {
       "path": "/api/cron/notify-matches",
       "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/ai-hallucination-fix",
+      "schedule": "0 5 * * 0"
     }
   ]
 }
