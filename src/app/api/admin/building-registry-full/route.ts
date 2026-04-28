@@ -62,25 +62,31 @@ export async function GET(request: NextRequest) {
     const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await resolveAddress(address);
 
     // Call the existing working building-registry endpoint.
-    // L-fix-passthrough (2026-04-28): caller 는 이미 verifyAdminAuthStrict 통과
-    //   (superadmin/master/crawler_bridge/internal_bearer 만 ALLOWED_ROLES). 따라서
-    //   caller 의 Authorization + Cookie 를 그대로 forward 하면 inner 도 동일
-    //   토큰으로 통과. INTERNAL_BEARER env 의 길이/매칭 issue 회피.
-    //   query token (?token=master) fallback 도 같이 forward (cron 호환).
-    const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
+    // L-fix-jwt-passthrough (2026-04-28): cookie/Bearer/INTERNAL_BEARER 를 모두
+    //   self-call 에 forward 했지만 Vercel 내부 fetch 에서 Cookie 가 inner route
+    //   의 NextRequest.cookies 에 안 잡히는 케이스 발견. 가장 확실한 방법: outer
+    //   가 caller 의 인증 정보 (cookie 의 JWT 또는 Bearer 의 JWT) 를 직접 추출해
+    //   inner 의 Authorization Bearer 에 주입. JWT 가 없으면 INTERNAL_BEARER fallback.
+    let bearerToken = '';
     const userAuth = request.headers.get('authorization') || '';
-    const userCookie = request.headers.get('cookie') || '';
-    const fetchHdrs: Record<string, string> = {};
     if (userAuth) {
-      // caller 가 Authorization 들고 옴 → 그대로 forward.
-      fetchHdrs.Authorization = userAuth;
-    } else if (userCookie) {
-      // cookie-only caller (사장님 /admin 로그인 케이스) → Authorization 추가 X.
-      // inner verifyAdminAuth 의 ws_session 쿠키 fallback 으로 인증.
-    } else if (INTERNAL_BEARER) {
-      // 둘 다 없는 cron/내부 자동화 — INTERNAL_BEARER fallback.
-      fetchHdrs.Authorization = `Bearer ${INTERNAL_BEARER}`;
+      // 'Bearer admin_bridge_<JWT>' 또는 'Bearer <JWT>' 둘 다 처리.
+      const t = userAuth.replace(/^Bearer\s+/i, '').trim();
+      bearerToken = t.startsWith('admin_bridge_') ? t.slice('admin_bridge_'.length) : t;
+    } else {
+      // cookie-only caller — ws_session 쿠키의 JWT 추출
+      const sessionCookie = request.cookies.get('ws_session')?.value?.trim() || '';
+      if (sessionCookie) bearerToken = sessionCookie;
     }
+    // inner 호출에 사용할 Authorization 결정
+    const innerAuth = bearerToken
+      ? `Bearer ${bearerToken}`
+      : (INTERNAL_BEARER ? `Bearer ${INTERNAL_BEARER}` : '');
+    const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
+    const fetchHdrs: Record<string, string> = {};
+    if (innerAuth) fetchHdrs.Authorization = innerAuth;
+    // Cookie 도 같이 보냄 (이중 안전장치)
+    const userCookie = request.headers.get('cookie') || '';
     if (userCookie) fetchHdrs.Cookie = userCookie;
     const registryRes = await fetch(registryUrl, { headers: fetchHdrs });
 
