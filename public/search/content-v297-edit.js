@@ -442,11 +442,12 @@
       var keys   = Object.keys(delta);
 
       if (keys.length === 0) {
-        // L-save-autoclose (2026-04-29): 사장님 명령 — 저장 누르면 '저장됐습니다' + 닫기.
-        //   사진/동영상은 v315 가 즉시 자동 저장 — 폼 필드 변경 없어도 저장됐습니다 표시.
-        toast('✅ 저장됐습니다', 'ok');
+        // L-save-autoreload (2026-04-29): 사장님 명령 — 저장 시 모달+search 페이지 즉시 적용.
+        //   사진/동영상 자동 저장 → 변경 없어도 reload 강제 (search 매물 목록 + 모달 갱신).
+        toast('✅ 저장됐습니다 · 새로고침 중…', 'ok');
         closePanel(overlay);
         document.removeEventListener('keydown', onKey, true);
+        setTimeout(function () { try { window.location.reload(); } catch (_) {} }, 600);
         return;
       }
 
@@ -482,9 +483,10 @@
           // 서버 응답에 data 가 있으면 그것으로, 없으면 delta 로 merge
           var merged = (res.body && res.body.data) ? res.body.data : delta;
           mergeInto(listing, merged);
-          // hydrate 플래그는 유지 (v295)
-          toast('저장 완료 · 재렌더 중…', 'ok');
+          // L-save-autoreload (2026-04-29): 사장님 명령 — search 매물 목록도 즉시 적용.
+          toast('✅ 저장 완료 · 새로고침 중…', 'ok');
           closePanel(overlay);
+          setTimeout(function () { try { window.location.reload(); } catch (_) {} }, 600);
           document.removeEventListener('keydown', onKey, true);
           // 모달이 여전히 이 매물이라면 재렌더
           try {
