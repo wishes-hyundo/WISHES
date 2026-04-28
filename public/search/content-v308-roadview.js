@@ -87,7 +87,7 @@
   function renderRoadview(panel) {
     try {
       const lat = _lat, lng = _lng;
-      const hasCoord = isFinite(lat) && isFinite(lng);
+      const hasCoord = lat != null && lng != null && isFinite(lat) && isFinite(lng);
       const kakaoMapUrl = hasCoord
         ? 'https://map.kakao.com/link/map/' + encodeURIComponent(_addr || '매물') + ',' + lat + ',' + lng
         : 'https://map.kakao.com/?q=' + encodeURIComponent(_addr || '매물');
