@@ -376,7 +376,7 @@ export default function SearchPortalPage() {
     if (!existingV306) {
       const v306Script = document.createElement('script');
       v306Script.id = 'ws-ext-patch-v306-bldg-unit';
-      v306Script.src = '/search/content-v306-bldg-unit.js?v=20260429e';
+      v306Script.src = '/search/content-v306-bldg-unit.js?v=20260429-rag';
       v306Script.async = false;
       v306Script.defer = false;
       document.body.appendChild(v306Script);
