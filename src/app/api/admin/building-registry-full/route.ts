@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 import { fetchBuildingData, fetchExposureUnits, type BuildingUnit } from '@/lib/external/buildingRegistry';
+import { fetchRtmsSummary, type RtmsSummary } from '@/lib/external/realEstateRtms';
 import { createServerClient } from '@/lib/supabase';
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
@@ -174,6 +175,21 @@ export async function GET(request: NextRequest) {
 
     const selectedUnit = findSelectedUnit(units, reqDong, reqHo);
 
+    // L-bldg-unit Layer 6 (2026-04-28): RTMS 실거래가 시세 (lid 있을 때만)
+    let rtms: RtmsSummary | null = null;
+    if (lid && supabase) {
+      try {
+        const { data: lst } = await supabase
+          .from('listings')
+          .select('type, deal')
+          .eq('id', parseInt(lid, 10))
+          .maybeSingle();
+        if (lst && lst.type && lst.deal) {
+          rtms = await fetchRtmsSummary(String(lst.type), String(lst.deal), sigunguCd, 6);
+        }
+      } catch { /* silent */ }
+    }
+
     // L-bldg-unit Layer 8 (2026-04-28): 같은 단지 (sigungu+bjdong+bun+ji) 의
     //   다른 wishes 매물 자동 grouping. 사장님이 한 건물의 매물 현황 한 눈에 파악.
     let sameBuilding: Array<{
@@ -206,6 +222,7 @@ export async function GET(request: NextRequest) {
       units,
       selected_unit: selectedUnit,
       same_building: sameBuilding,
+      rtms,
       cache: cacheStatus,
       raw: {},
     });

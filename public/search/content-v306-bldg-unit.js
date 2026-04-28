@@ -150,6 +150,30 @@
         }
       } catch (_e) {}
 
+      // ────────── Layer 6: RTMS 실거래가 시세 ──────────
+      try {
+        var rt = payload.rtms;
+        if (rt && rt.available && rt.count > 0) {
+          var fmtMan = function(n) {
+            if (n >= 10000) return (n/10000).toFixed(1) + '억 (' + n.toLocaleString() + '만)';
+            return n.toLocaleString() + '만';
+          };
+          html += '<div style="margin-top:14px;padding:12px;background:#f0f7ff;border:1px solid #c5dcff;border-radius:8px">' +
+                  '<div style="font-weight:700;color:#1a4480;font-size:13px;margin-bottom:8px">' +
+                  '💹 동일 단지 실거래가 (최근 6개월, ' + rt.count + '건)</div>' +
+                  '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px 10px;font-size:11.5px">' +
+                  '<div><span style="color:#888">평균</span> <strong style="margin-left:6px">' + fmtMan(rt.avg) + '</strong></div>' +
+                  '<div><span style="color:#888">중간값</span> <strong style="margin-left:6px">' + fmtMan(rt.median) + '</strong></div>' +
+                  '<div><span style="color:#888">최저</span> <strong style="margin-left:6px;color:#1a8050">' + fmtMan(rt.min) + '</strong></div>' +
+                  '<div><span style="color:#888">최고</span> <strong style="margin-left:6px;color:#a04">' + fmtMan(rt.max) + '</strong></div>';
+          if (rt.recent_3m_avg > 0) {
+            html += '<div style="grid-column:span 2;margin-top:4px;padding-top:6px;border-top:1px solid #c5dcff">' +
+                    '<span style="color:#888">최근 3개월 평균</span> <strong style="margin-left:6px;color:#1a4480">' + fmtMan(rt.recent_3m_avg) + '</strong></div>';
+          }
+          html += '</div></div>';
+        }
+      } catch (_e3) {}
+
       // ────────── Layer 8: 같은 건물 다른 wishes 매물 ──────────
       try {
         var sb = Array.isArray(payload.same_building) ? payload.same_building : [];
