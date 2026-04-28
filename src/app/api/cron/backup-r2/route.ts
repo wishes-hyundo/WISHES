@@ -39,9 +39,17 @@ export async function GET(request: NextRequest) {
 
   // 백업 대상 SELECT
   const tables = ['listings', 'admin_users', 'admin_audit_log', 'contacts', 'appointments', 'legal_documents', 'user_consents', 'sota_reports'];
+  // L-fix-pii-leak (2026-04-28): admin_users 의 password_hash, mfa_secret 등 민감 PII 제외
+  //   contacts/appointments 도 PIPA 익명화 후 데이터만 백업 (이미 retention_until 후 익명화됨)
+  const SAFE_COLS: Record<string, string> = {
+    admin_users: 'id, email, role, status, business_number, business_verified, last_login_at, created_at, updated_at',
+    contacts: 'id, listing_id, name, phone, email, message, status, retention_until, created_at',
+    appointments: 'id, listing_id, name, phone, email, status, scheduled_at, retention_until, created_at',
+  };
   const dump: Record<string, any[]> = {};
   for (const t of tables) {
-    const { data } = await supabase.from(t).select('*').limit(50000);
+    const cols = SAFE_COLS[t] || '*';
+    const { data } = await supabase.from(t).select(cols).limit(50000);
     dump[t] = data || [];
   }
 
