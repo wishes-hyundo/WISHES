@@ -49,11 +49,41 @@
     [/룸\s*구조|룸구조/, ['룸구조', '룸형태', '룸타입']],
   ];
 
+  // L-overwrite (2026-04-29): 주차/면적 같은 일부 라벨은 raw_fields 가 더 풍부.
+  //   v240 의 'parking=true' → '가능' 보다 raw['주차대수']='유료 1대, 9만원' 이 정답.
+  var FORCE_OVERWRITE_LABELS = [/^주차$|주차가능/, /^면적$|연면적|건축면적/];
+
+  // building data 면적 추출 — v306/v311 이 sessionStorage 에 저장한 cache 활용
+  function getBuildingArea() {
+    try {
+      var L = window.WS && window.WS.__lastListing;
+      if (!L) return null;
+      // v306 cache (wsBldgV3:lid:addr:dong:ho)
+      for (var i = 0; i < sessionStorage.length; i++) {
+        var k = sessionStorage.key(i);
+        if (!k || k.indexOf('wsBldgV3:') !== 0 && k.indexOf('wsBldgMainV4:') !== 0) continue;
+        try {
+          var raw = JSON.parse(sessionStorage.getItem(k));
+          var p = raw && raw.payload;
+          if (!p || !p.success) continue;
+          var sel = p.selected_unit;
+          if (sel && sel.exclusiveArea) {
+            return Number(sel.exclusiveArea).toFixed(2) + ' m² (전용)';
+          }
+          var d = p.data || {};
+          if (d.archArea) return Number(d.archArea).toFixed(2) + ' m² (건축)';
+          if (d.totArea) return Number(d.totArea).toFixed(2) + ' m² (연면적)';
+        } catch (_) {}
+      }
+    } catch (_) {}
+    return null;
+  }
+
   function fillRows(modal) {
     var rf = getRaw();
     if (!rf) return;
     var info2 = modal.querySelector('.v240-info2');
-    if (!info2 || info2.dataset.v316 === '1') return;
+    if (!info2 || info2.dataset.v316done === '1') return;
 
     var filled = 0;
     var rows = info2.querySelectorAll('.v240-r');
@@ -61,7 +91,6 @@
       var pairs = [];
       var ks = r.querySelectorAll('.v240-k');
       var vs = r.querySelectorAll('.v240-v');
-      // 4-col grid: k v k v 순서
       for (var i = 0; i < ks.length; i++) {
         if (vs[i]) pairs.push([ks[i], vs[i]]);
       }
@@ -70,7 +99,18 @@
         if (k.classList.contains('v240-empty') || v.classList.contains('v240-empty')) return;
         var label = (k.textContent || '').trim();
         var current = (v.textContent || '').trim();
-        if (current && current !== '-') return; // 이미 값 있음
+
+        // FORCE_OVERWRITE: 주차/면적은 raw_fields/building 가 더 풍부하면 덮어쓰기
+        var isForceLabel = FORCE_OVERWRITE_LABELS.some(function (re) { return re.test(label); });
+        if (current && current !== '-' && !isForceLabel) return; // 이미 값 있음 (force 아님)
+
+        // 면적 — building cache 우선
+        if (/^면적$|연면적|건축면적/.test(label)) {
+          var ba = getBuildingArea();
+          if (ba) { v.textContent = ba; filled++; return; }
+          // fallback raw_fields
+        }
+
         for (var i = 0; i < LABEL_MAP.length; i++) {
           if (LABEL_MAP[i][0].test(label)) {
             var picked = pickRaw(rf, LABEL_MAP[i][1]);
@@ -84,9 +124,9 @@
       });
     });
     if (filled > 0) {
-      console.log('[' + V + '] filled ' + filled + ' rows from raw_fields');
+      console.log('[' + V + '] filled ' + filled + ' rows (raw_fields + building)');
     }
-    info2.dataset.v316 = '1';
+    info2.dataset.v316done = '1';
   }
 
   function applyAll() {
