@@ -218,7 +218,7 @@ export default function SearchPortalPage() {
     if (!existingV260Perf) {
       const v260PerfScript = document.createElement('script');
       v260PerfScript.id = 'ws-ext-patch-v260-perf';
-      v260PerfScript.src = '/search/content-v260-perf.js?v=20260428real';
+      v260PerfScript.src = '/search/content-v260-perf.js?v=20260420a';
       v260PerfScript.async = false;
       v260PerfScript.defer = false;
       document.body.appendChild(v260PerfScript);
@@ -323,7 +323,7 @@ export default function SearchPortalPage() {
     if (!existingV294) {
       const v294Script = document.createElement('script');
       v294Script.id = 'ws-ext-patch-v294-scope';
-      v294Script.src = '/search/content-v294-scope.js?v=20260428legacy2';
+      v294Script.src = '/search/content-v294-scope.js?v=20260428inject';
       v294Script.async = false;
       v294Script.defer = false;
       document.body.appendChild(v294Script);
@@ -376,21 +376,20 @@ export default function SearchPortalPage() {
     if (!existingV306) {
       const v306Script = document.createElement('script');
       v306Script.id = 'ws-ext-patch-v306-bldg-unit';
-      v306Script.src = '/search/content-v306-bldg-unit.js?v=20260428rev2';
+      v306Script.src = '/search/content-v306-bldg-unit.js?v=20260429a';
       v306Script.async = false;
       v306Script.defer = false;
       document.body.appendChild(v306Script);
     }
-
-    // L-tier4-phase1 (2026-04-28): 매물 등록 모달 enhance (자동 건축물대장 + 호실 선택)
-    const existingV307 = document.getElementById('ws-ext-patch-v307-listing-form');
-    if (!existingV307) {
-      const v307Script = document.createElement('script');
-      v307Script.id = 'ws-ext-patch-v307-listing-form';
-      v307Script.src = '/search/content-v307-listing-form.js?v=20260428redirect';
-      v307Script.async = false;
-      v307Script.defer = false;
-      document.body.appendChild(v307Script);
+    // L-Step3 (2026-04-29): v308 로드뷰 패치
+    const existingV308 = document.getElementById('ws-ext-patch-v308-roadview');
+    if (!existingV308) {
+      const v308Script = document.createElement('script');
+      v308Script.id = 'ws-ext-patch-v308-roadview';
+      v308Script.src = '/search/content-v308-roadview.js?v=20260429a';
+      v308Script.async = false;
+      v308Script.defer = false;
+      document.body.appendChild(v308Script);
     }
     }
   }, [state]);
@@ -425,49 +424,4 @@ export default function SearchPortalPage() {
 
   // state === 'ok' — content.js 가 #ws-search-overlay 를 document.body 에 직접 삽입
   return (
-    <div id="ws-search-root" style={{ minHeight: '100vh' }} />
-  );
-}
-
-// ── 스타일 ──
-const wrapStyle: React.CSSProperties = {
-  minHeight: '100vh',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '24px',
-  background: '#f7faf7',
-};
-
-const cardStyle: React.CSSProperties = {
-  maxWidth: 420,
-  width: '100%',
-  background: '#fff',
-  border: '1px solid #e5eee5',
-  borderRadius: 12,
-  padding: '32px 28px',
-  textAlign: 'center',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#2D5A27',
-  color: '#fff',
-  borderRadius: 8,
-  border: 'none',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#f0f5f0',
-  color: '#2D5A27',
-  borderRadius: 8,
-  border: '1px solid #d5e5d5',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
+    <div 
