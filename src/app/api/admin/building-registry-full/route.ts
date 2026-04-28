@@ -1,18 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-// L-sec155 (2026-04-23): 공공 건축물대장 API 래퍼 + 내부 Kakao/registry 자가호출.
-//   verifyAdminAuth 는 role=agent JWT 도 통과 → 중개사 계정도 고비용 공공 API
-//   + Kakao quota 를 남용 가능. superadmin/master/crawler_bridge 만 허용.
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
-import { fetchBuildingData } from '@/app/api/admin/building-registry/route';
+import { fetchBuildingData, fetchExposureUnits, type BuildingUnit } from '@/app/api/admin/building-registry/route';
+import { createServerClient } from '@/lib/supabase';
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
-// L-sec157 (2026-04-23) Phase 3b: WISHES_INTERNAL_BEARER 우선, 미설정 시 WISHES_ADMIN_MASTER_PASSWORD 폴백.
-//   목적: 사람용 마스터키와 기계용 자가호출 토큰 분리. env 가 없을 때는 기존 경로 그대로라 회귀 0.
-const INTERNAL_BEARER =
-  process.env.WISHES_INTERNAL_BEARER || process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
 
 interface KakaoAddress {
   address_name: string;
@@ -48,49 +41,140 @@ async function resolveAddress(address: string) {
   return { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress: addr.address_name };
 }
 
+// L-bldg-unit (2026-04-28): Supabase 24h 캐시 — 같은 건물의 여러 매물이 결과 공유
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+function findSelectedUnit(
+  units: BuildingUnit[],
+  reqDong: string,
+  reqHo: string,
+): BuildingUnit | null {
+  if (!units.length) return null;
+  if (!reqHo) return null;
+  const exact = units.find(
+    (u) => (!reqDong || u.dongNm === reqDong) && u.hoNm === reqHo,
+  );
+  if (exact) return exact;
+  const byHoOnly = units.find((u) => u.hoNm === reqHo);
+  if (byHoOnly) return byHoOnly;
+  const normHo = reqHo.replace(/호$/, '').trim();
+  const byNumeric = units.find((u) => u.hoNm.replace(/호$/, '').trim() === normHo);
+  return byNumeric || null;
+}
+
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuthStrict(request);
   if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const address = request.nextUrl.searchParams.get('address');
+  const sp = request.nextUrl.searchParams;
+  const address = sp.get('address');
+  const reqDong = (sp.get('dongNm') || '').trim();
+  const reqHo = (sp.get('hoNm') || '').trim();
+
   if (!address) {
     return NextResponse.json({ error: 'address parameter required' }, { status: 400 });
   }
 
   try {
     const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await resolveAddress(address);
+    const platGbCd = '0';
 
-    // L-fix-no-self-call (2026-04-28): self-call (HTTP fetch wishes.co.kr/api/admin/
-    //   building-registry) 자체를 제거. Vercel CDN 거쳐 다시 들어오면서 인증
-    //   컨텍스트 손실 + middleware 중복 실행 등으로 401. fetchBuildingData 함수를
-    //   직접 호출 → 인증 우회 + 빠름 + 안정적.
+    let buildingData: Record<string, string | number> = {};
+    let floors: Array<Record<string, unknown>> = [];
+    let units: BuildingUnit[] = [];
+    let cacheStatus: 'hit' | 'miss' | 'stale' | 'none' = 'none';
     const debugInfo: string[] = [];
-    const { buildingData, floors } = await fetchBuildingData(
-      sigunguCd, bjdongCd, bun, ji, '0', debugInfo
-    );
+
+    const supabase = createServerClient();
+    if (supabase) {
+      const { data: cached } = await supabase
+        .from('building_registry_cache')
+        .select('raw_data, units_data, fetched_at')
+        .eq('sigungu_cd', sigunguCd)
+        .eq('bjdong_cd', bjdongCd)
+        .eq('bun', bun)
+        .eq('ji', ji)
+        .eq('plat_gb_cd', platGbCd)
+        .maybeSingle();
+
+      if (cached) {
+        const fetchedMs = new Date(cached.fetched_at as string).getTime();
+        const ageMs = Date.now() - fetchedMs;
+        if (ageMs < CACHE_TTL_MS) {
+          cacheStatus = 'hit';
+          const raw = cached.raw_data as { buildingData?: typeof buildingData; floors?: typeof floors };
+          buildingData = raw?.buildingData || {};
+          floors = raw?.floors || [];
+          units = (cached.units_data as BuildingUnit[]) || [];
+          debugInfo.push(`cache_hit (age ${Math.round(ageMs / 1000)}s)`);
+        } else {
+          cacheStatus = 'stale';
+          debugInfo.push(`cache_stale (age ${Math.round(ageMs / 1000)}s) — refetch`);
+        }
+      } else {
+        cacheStatus = 'miss';
+      }
+    }
+
+    if (cacheStatus !== 'hit') {
+      const [bdResult, unitsResult] = await Promise.all([
+        fetchBuildingData(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
+        fetchExposureUnits(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
+      ]);
+      buildingData = bdResult.buildingData;
+      floors = bdResult.floors;
+      units = unitsResult;
+
+      if (supabase && Object.keys(buildingData).length > 0) {
+        await supabase
+          .from('building_registry_cache')
+          .upsert({
+            sigungu_cd: sigunguCd,
+            bjdong_cd: bjdongCd,
+            bun,
+            ji,
+            plat_gb_cd: platGbCd,
+            raw_data: { buildingData, floors },
+            units_data: units,
+            fetched_at: new Date().toISOString(),
+          }, {
+            onConflict: 'sigungu_cd,bjdong_cd,bun,ji,plat_gb_cd',
+          });
+      }
+    }
 
     if (Object.keys(buildingData).length === 0) {
       return NextResponse.json({
         success: false,
         error: 'Building registry data not found',
-        query: { address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress },
+        query: { address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress, dongNm: reqDong, hoNm: reqHo },
         debugInfo,
+        cache: cacheStatus,
       });
     }
 
+    const selectedUnit = findSelectedUnit(units, reqDong, reqHo);
+
     return NextResponse.json({
       success: true,
-      query: { address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress },
+      query: {
+        address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress,
+        requestedDong: reqDong, requestedHo: reqHo,
+      },
       data: buildingData,
       floors,
+      units,
+      selected_unit: selectedUnit,
+      cache: cacheStatus,
       raw: {},
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { success: false, error: err.message || 'Unknown error', query: { address } },
-      { status: 500 }
+      { success: false, error: msg || 'Unknown error', query: { address } },
+      { status: 500 },
     );
   }
 }
