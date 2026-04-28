@@ -44,6 +44,21 @@ const nextConfig = {
         destination: '/map',
         permanent: true,
       },
+      // L-listings-deprecate (2026-04-29 사장님 명령): /listings 영구 폐기.
+      //   · /listings (index) → /map
+      //   · /listings/:id (상세) → /map?listing=:id (매물카드 자동 오픈)
+      //   매물카드 URL 라우팅 (f9bf3c1) 으로 동일 가치 제공.
+      //   ※ next.config.ts 에도 동일 redirect 있지만 빌드는 .js 만 사용 중.
+      {
+        source: '/listings',
+        destination: '/map',
+        permanent: true,
+      },
+      {
+        source: '/listings/:id',
+        destination: '/map?listing=:id',
+        permanent: true,
+      },
     ];
   },
 
