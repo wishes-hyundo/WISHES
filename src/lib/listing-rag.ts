@@ -166,13 +166,23 @@ export function buildRagContext(listing: Record<string, unknown>): RagContext {
   const availableDate = String(listing.available_date || rawFields['입주가능일'] || '');
   const isImmediateMovein = /즉시|공실/.test(availableDate);
 
+  // L-rag-fix (2026-04-29): 잘못된 컬럼명 → subway_data 배열 사용 (P0 환각 원인)
+  // listings 테이블에는 station_name 단일 컬럼 X. enrich-subway cron 이 subway_data (JSON 배열) 에 저장.
+  // 첫 번째 (가장 가까운) 역만 사용. distance_m → 분 환산 (도보 80m/분 기준).
+  const subwayArr = Array.isArray(listing.subway_data) ? listing.subway_data : [];
+  const closestStation = subwayArr.length > 0 ? subwayArr[0] as { name?: string; distance_m?: number } : null;
+  const stationName = closestStation?.name || undefined;
+  const stationDistanceMin = closestStation?.distance_m
+    ? Math.max(1, Math.round(closestStation.distance_m / 80))  // 도보 80m/분
+    : undefined;
+
   const facts: ListingFacts = {
     gu: String(listing.gu || ''),
     dong: String(listing.dong || ''),
     building_name: (listing.building_name as string) || undefined,
 
-    station_name: (listing.station_name as string) || undefined,
-    station_distance: (listing.station_distance as number) || undefined,
+    station_name: stationName,
+    station_distance: stationDistanceMin,
     station_lines: undefined, // Phase 2: 정부 API 로 보강
 
     type: String(listing.type || ''),
@@ -193,25 +203,4 @@ export function buildRagContext(listing: Record<string, unknown>): RagContext {
 
   // 표/아이콘에 이미 표시되는 정보 — LLM 절대 언급 X
   const forbidden_topics: string[] = [
-    '보증금', '월세', '전세금', '매매가', '관리비', '가격',
-    '면적', '평수', '제곱미터', 'm²', '평',
-    '방 개수', '방수', '욕실 개수',
-    '주차대수', '주차 N대',
-    '엘리베이터 N대',
-    '준공년도', '사용승인일',
-    '구체 옵션 14개 나열', // 옵션 표에 있음
-  ];
-
-  // 다양성: 매물 ID 해시 → 스타일 인덱스 (0~6)
-  const id = listing.id;
-  const idHash = typeof id === 'number'
-    ? id
-    : (typeof id === 'string' ? parseInt(id) || 0 : 0);
-  const suggested_style_index = Math.abs(idHash * 2654435761) % 7; // golden ratio hash
-
-  return {
-    facts,
-    forbidden_topics,
-    suggested_style_index,
-  };
-}
+    '보증금', '월세', '전세금', 

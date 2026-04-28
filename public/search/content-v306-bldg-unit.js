@@ -110,8 +110,16 @@
         }
         html += '</div>';
       } else if (reqHo) {
-        html += '<div style="color:#a04;font-size:12px;background:#fff5f0;padding:8px;border-radius:6px">' +
-                '⚠️ 매물 호실 (' + escHtml(reqHo) + '호) 의 전유부를 찾을 수 없습니다.</div>';
+        html += '<div style="color:#a04;font-size:12px;background:#fff5f0;padding:8px;border-radius:6px;line-height:1.6">' +
+                '⚠️ 매물 호실 (' + escHtml(reqHo) + '호) 의 전유부를 찾을 수 없습니다.<br>' +
+                '<span style="font-size:11px;color:#666">' +
+                '- 단독·다가구주택은 전유부 미발급 (정상)<br>' +
+                '- 일부 신축 건물은 정부 DB 등재 지연 (수개월 소요)<br>' +
+                '- 호번호 형식 차이 (예: \'4층 403호\' vs \'403\')</span></div>';
+      } else if (units.length === 0) {
+        html += '<div style="color:#888;font-size:12px;background:#f5f5f5;padding:8px;border-radius:6px;line-height:1.6">' +
+                'ℹ️ 이 건물은 전유부(호별 면적) 데이터가 없습니다.<br>' +
+                '<span style="font-size:11px">단독주택 / 다가구 / 일부 신축 건물 = 정부 DB 미발급 (정상)</span></div>';
       }
 
       if (units.length > 1) {
@@ -213,9 +221,33 @@
     }
   }
 
+  // L-cache (2026-04-29): client sessionStorage 1시간 캐시 — 사장님 매번 새로 조회 X
+  function getCachedPayload(cacheKey) {
+    try {
+      var raw = sessionStorage.getItem(cacheKey);
+      if (!raw) return null;
+      var obj = JSON.parse(raw);
+      if (obj && obj.ts && Date.now() - obj.ts < 60 * 60 * 1000) {
+        return obj.payload;
+      }
+    } catch (_) {}
+    return null;
+  }
+  function setCachedPayload(cacheKey, payload) {
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), payload: payload }));
+    } catch (_) {}
+  }
+
   function enrichModal(modalBody, address, lid) {
     if (!address) return;
     try {
+      var cacheKey = 'wsBldg:' + (lid || '') + ':' + address;
+      var cached = getCachedPayload(cacheKey);
+      if (cached && cached.success) {
+        renderUnitSection(modalBody, cached);
+        return;
+      }
       var token = getRealAdminToken();
       var url = '/api/admin/building-registry-full?address=' + encodeURIComponent(address);
       if (lid) url += '&lid=' + encodeURIComponent(lid);
@@ -228,6 +260,7 @@
         .then(function (payload) {
           if (!payload || !payload.success) return;
           if (!document.body.contains(modalBody)) return;
+          setCachedPayload(cacheKey, payload);
           renderUnitSection(modalBody, payload);
         })
         .catch(function (e) { console.warn('[' + V + '] enrich failed', e); });
