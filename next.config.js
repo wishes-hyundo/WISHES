@@ -50,7 +50,7 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/_next/static/:path*',
+        source: '/_next/static/:slug*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
         ],
@@ -68,34 +68,15 @@ const nextConfig = {
         ],
       },
       {
-        source: '/api/auth/:path*',
+        source: '/api/auth/:slug*',
         headers: [
           { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
-        source: '/api/admin/:path*',
+        source: '/api/admin/:slug*',
         headers: [
           { key: 'Cache-Control', value: 'private, no-store' },
-        ],
-      },
-      // L-search-cache (2026-04-29): 사장님 명령 — /search/content-v*.js patch 파일은
-      //   매 commit 마다 변경 가능성. CDN 가 stale 캐싱하면 사장님이 hard refresh
-      //   해도 옛날 파일 받음. no-store 강제 — 항상 fresh.
-      {
-        // path-to-regexp: 'content-v' prefix 다음 named param (regex 형식)
-        //   '/search/content-v306-bldg-unit.js' 등 모든 v* patch 파일 매칭.
-        source: '/search/:file(content-v.+\\.js)',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate, no-store' },
-          { key: 'CDN-Cache-Control', value: 'no-store' },
-          { key: 'Vercel-CDN-Cache-Control', value: 'no-store' },
-        ],
-      },
-      {
-        source: '/search/styles.css',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=300, must-revalidate' },
         ],
       },
     ];
