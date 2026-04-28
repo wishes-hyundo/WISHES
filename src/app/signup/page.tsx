@@ -153,7 +153,7 @@ export default function SignupPage() {
               <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} style={{ marginTop: 3 }} />
               <span>
                 <strong>이용약관</strong> 동의 (필수){' '}
-                <Link href="/terms" target="_blank" style={{ color: '#2D5A27', textDecoration: 'underline' }}>보기</Link>
+                <Link href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: '#2D5A27', textDecoration: 'underline' }}>보기</Link>
               </span>
             </label>
 
@@ -161,7 +161,7 @@ export default function SignupPage() {
               <input type="checkbox" checked={acceptedPrivacy} onChange={(e) => setAcceptedPrivacy(e.target.checked)} style={{ marginTop: 3 }} />
               <span>
                 <strong>개인정보 처리방침</strong> 동의 (필수){' '}
-                <Link href="/privacy" target="_blank" style={{ color: '#2D5A27', textDecoration: 'underline' }}>보기</Link>
+                <Link href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: '#2D5A27', textDecoration: 'underline' }}>보기</Link>
                 <br /><span style={{ fontSize: 11, color: '#888' }}>거래 종료 후 3년 보관 후 자동 삭제 (PIPA)</span>
               </span>
             </label>
