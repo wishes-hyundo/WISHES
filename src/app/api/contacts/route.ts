@@ -12,7 +12,16 @@ import { optionalEmailSchema, listingIdSchema } from '@/lib/schemas'; // L-hub2
 //   contacts 테이블을 채우지 못하도록 각 문자열 필드에 max() 강제.
 const contactSchema = z.object({
   name: z.string().min(1, '이름을 입력해주세요').max(100),
-  phone: z.string().min(1, '연락처를 입력해주세요').max(30),
+  // L-fix-phone (2026-04-28): 전화번호 형식 검증 (스팸 봇 + 잘못된 번호 차단)
+  //   허용: 숫자/하이픈/공백/괄호/+. 7-15자리 숫자 (한국 010 + 국제번호 모두)
+  phone: z.string()
+    .min(1, '연락처를 입력해주세요')
+    .max(30)
+    .regex(/^[\d\-+()x. ]{7,30}$/, '유효한 전화번호 형식 (숫자/하이픈)을 입력해주세요')
+    .refine((p) => {
+      const digits = p.replace(/\D/g, '');
+      return digits.length >= 7 && digits.length <= 15;
+    }, '전화번호는 7-15자리 숫자여야 합니다'),
   email: optionalEmailSchema, // L-hub2
   message: z.string().max(2000).optional(),
   listingId: listingIdSchema.nullable().optional(), // L-hub2

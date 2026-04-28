@@ -42,6 +42,11 @@ export async function GET(
       );
     }
 
+    // L-fix-rate-limit-get (2026-04-28): admin token 유출 시 대량 조회 방어
+    const _ip = getClientIp(request);
+    const _rl = checkRateLimit({ key: `admin-listing-get:ip:${_ip}`, limit: 300, windowMs: 10 * 60_000 });
+    if (!_rl.ok) return NextResponse.json({ success: false, error: 'rate_limited' }, { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } });
+
     const { id } = await params;
     // L-hub3: listingIdSchema 로 cap 포함 정수 검증 통일.
     const _idParsed = listingIdSchema.safeParse(id);
