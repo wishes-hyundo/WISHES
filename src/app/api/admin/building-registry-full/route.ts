@@ -179,9 +179,12 @@ export async function GET(request: NextRequest) {
 
     const selectedUnit = findSelectedUnit(units, reqDong, reqHo);
 
-    // L-bldg-unit Layer 6 (2026-04-28): RTMS 실거래가 시세 (lid 있을 때만)
+    // L-bldg-unit Layer 6 (2026-04-28): RTMS 실거래가 시세
+    //   기본 disabled (timeout 위험) — query ?withRtms=1 일 때만 또는 lid+빠른 경로.
+    //   추후 lazy-load 별도 endpoint 로 분리 가능.
     let rtms: RtmsSummary | null = null;
-    if (lid && supabase) {
+    const wantRtms = sp.get('withRtms') === '1';
+    if (wantRtms && lid && supabase) {
       try {
         const { data: lst } = await supabase
           .from('listings')
@@ -189,7 +192,8 @@ export async function GET(request: NextRequest) {
           .eq('id', parseInt(lid, 10))
           .maybeSingle();
         if (lst && lst.type && lst.deal) {
-          rtms = await fetchRtmsSummary(String(lst.type), String(lst.deal), sigunguCd, 6);
+          // 3개월만 (속도 우선)
+          rtms = await fetchRtmsSummary(String(lst.type), String(lst.deal), sigunguCd, 3);
         }
       } catch { /* silent */ }
     }
@@ -205,12 +209,14 @@ export async function GET(request: NextRequest) {
     }> = [];
     if (supabase) {
       try {
+        // 빠른 prefix 매칭만 (ilike % wildcard 제거 — index 활용)
+        const addrPrefix = fullAddress.split(' ').slice(0, 3).join(' ');
         const { data: same } = await supabase
           .from('listings')
           .select('id, address, address_detail, type, deal, price, deposit, monthly, building_dong, building_ho, status')
-          .ilike('address', '%' + (fullAddress.split(' ').slice(0, 3).join(' ')) + '%')
+          .like('address', addrPrefix + '%')
           .neq('id', lid ? parseInt(lid, 10) : -1)
-          .limit(20);
+          .limit(10);
         sameBuilding = (same as typeof sameBuilding) || [];
       } catch { /* silent */ }
     }

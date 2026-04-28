@@ -81,7 +81,7 @@ export async function fetchBuildingData(
       debugInfo.push(`${ep}: requesting [sigungu=${sigunguCd}, bjdong=${bjdongCd}, bun=${bun}, ji=${ji}]`);
 
       const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 15000);
+      const tid = setTimeout(() => ctrl.abort(), 5000);
       const res = await fetch(url, { signal: ctrl.signal });
       clearTimeout(tid);
 
@@ -193,7 +193,7 @@ export async function fetchExposureUnits(
     debugInfo.push(`getBrExposPubuseAreaInfo: requesting`);
 
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 15000);
+    const tid = setTimeout(() => ctrl.abort(), 5000);
     const res = await fetch(url, { signal: ctrl.signal });
     clearTimeout(tid);
 

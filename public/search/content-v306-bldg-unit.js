@@ -57,14 +57,20 @@
           }
         }
 
-        // 응답 가로채기 — 모달에 unit 섹션 inject
-        return _origFetch.call(this, input, init).then(async function (res) {
+        // 응답 가로채기 — 모달에 unit 섹션 inject (5s timeout)
+        return _origFetch.call(this, input, init).then(function (res) {
           try {
-            const cloned = res.clone();
-            const body = await cloned.json();
-            if (body && body.success) {
-              setTimeout(function () { renderUnitSection(body); }, 100);
-            }
+            var cloned = res.clone();
+            // race with timeout — clone.json() hang 방지
+            var jsonP = cloned.json();
+            var timeoutP = new Promise(function(_, rej){
+              setTimeout(function(){ rej(new Error('json-timeout')); }, 5000);
+            });
+            Promise.race([jsonP, timeoutP]).then(function(body){
+              if (body && body.success) {
+                setTimeout(function () { renderUnitSection(body); }, 100);
+              }
+            }).catch(function(){ /* timeout or parse fail — silent */ });
           } catch (_) {}
           return res;
         });
