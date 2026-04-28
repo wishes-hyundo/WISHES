@@ -3,7 +3,6 @@ import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 import { fetchBuildingData, fetchExposureUnits, type BuildingUnit } from '@/lib/external/buildingRegistry';
 import { createServerClient } from '@/lib/supabase';
 import { fetchRtmsSummary, type RtmsSummary } from '@/lib/external/realEstateRtms';
-import { fetchBlcmFloorplansByBldKey, type BlcmFloorplanResult } from '@/lib/external/blcmFloorplan';
 
 export const runtime = 'nodejs';
 export const maxDuration = 30;
@@ -214,26 +213,6 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Layer-BLCM: 건축물 도면정보 (정부 공식 평면도 이미지)
-    let floorplans: BlcmFloorplanResult | null = null;
-    try {
-      const bldKey = (buildingData.mgmBldrgstPk as string) || '';
-      if (bldKey && bldKey.length > 0) {
-        floorplans = await withHardTimeout(
-          fetchBlcmFloorplansByBldKey(bldKey),
-          5000,
-          'blcm',
-        ).catch((e) => {
-          debugInfo.push(`blcm_err: ${(e as Error).message}`);
-          return null;
-        });
-      } else {
-        debugInfo.push('blcm_skip: no mgmBldrgstPk in buildingData');
-      }
-    } catch (e) {
-      debugInfo.push(`blcm_outer_err: ${(e as Error).message}`);
-    }
-
     // Layer 6: RTMS realestate transactions (?withRtms=1)
     let rtms: RtmsSummary | null = null;
     if (wantRtms && supabase && lid && /^\d+$/.test(lid)) {
@@ -273,7 +252,6 @@ export async function GET(request: NextRequest) {
       selected_unit: selectedUnit,
       same_building: sameBuilding,
       rtms,
-      floorplans,
       cache: cacheStatus,
       debugInfo,
       raw: {},

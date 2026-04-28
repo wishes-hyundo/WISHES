@@ -188,29 +188,6 @@
         html += '</div>';
       }
 
-      // L-BLCM (2026-04-29): 정부 공식 평면도 이미지 (blcm.go.kr)
-      var fp = payload.floorplans;
-      if (fp && fp.ok && fp.items && fp.items.length > 0) {
-        html += '<div style="margin-top:14px;border-top:1px dashed #d0e0c8;padding-top:10px">' +
-                '<div style="font-weight:700;font-size:13px;color:#2D5A27;margin-bottom:8px">' +
-                '📐 정부 공식 평면도 (' + fp.items.length + '건 · blcm.go.kr)</div>' +
-                '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;max-height:320px;overflow:auto">';
-        for (var fi = 0; fi < Math.min(fp.items.length, 12); fi++) {
-          var it = fp.items[fi];
-          var imgSrc = it.image || '';
-          var label = (it.flrNoNm || it.flrNo || '') + ' ' + (it.blprtKindName || '');
-          html += '<a href="' + escHtml(imgSrc) + '" target="_blank" rel="noopener" style="display:block;padding:6px;background:#fff;border:1px solid #d0e0c8;border-radius:6px;text-decoration:none">' +
-                  (imgSrc ? '<img src="' + escHtml(imgSrc) + '" alt="' + escHtml(label) + '" style="width:100%;aspect-ratio:4/3;object-fit:contain;background:#f5f5f5;border-radius:4px"/>' : '') +
-                  '<div style="margin-top:4px;font-size:10px;color:#666;text-align:center">' + escHtml(label) + '</div>' +
-                  '</a>';
-        }
-        html += '</div>' +
-                '<div style="margin-top:6px;font-size:10px;color:#888;text-align:right">출처: 국토교통부 건축물 생애이력 관리시스템 (blcm.go.kr) — 정부 공식 무료</div>' +
-                '</div>';
-      } else if (fp && !fp.ok && fp.error) {
-        html += '<div style="margin-top:14px;font-size:11px;color:#a04;background:#fff5f0;padding:8px;border-radius:6px">⚠️ 정부 평면도 조회 실패: ' + escHtml(fp.error) + ' (BLCM_API_KEY 환경변수 미설정 가능)</div>';
-      }
-
       // L-Layer-empty (2026-04-29): 데이터 0 일 때 안내 메시지 표시
       var hasNoExtras = (!sameBuilding || sameBuilding.length === 0)
         && (!rtms || !rtms.count || rtms.count === 0)
