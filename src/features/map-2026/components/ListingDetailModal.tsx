@@ -177,6 +177,12 @@ export function ListingDetailModal() {
     building_purpose: string | null;
     available_date: string | null;
     area_supply_m2: number | null;
+    // L-Phase2 (2026-04-29): 건축물대장 전유부 — /search v306 와 동일 데이터 소스.
+    //   listing.building_dong + listing.building_ho 로 building_registry_cache 조회.
+    exclusive_area_m2: number | null;
+    common_area_m2: number | null;
+    total_area_m2: number | null;
+    unit_floor: string | null;
   } | null>(null);
   const [agentProfile, setAgentProfile] = useState<{
     name: string | null;
@@ -268,6 +274,11 @@ export function ListingDetailModal() {
           building_purpose: d.building_purpose || null,
           available_date: d.available_date || null,
           area_supply_m2: (typeof d.area_supply_m2 === 'number' ? d.area_supply_m2 : null),
+          // L-Phase2 (2026-04-29): 전유부 — /api/listings/[id] 에서 building_registry_cache 조회 결과
+          exclusive_area_m2: (typeof d.exclusive_area_m2 === 'number' ? d.exclusive_area_m2 : null),
+          common_area_m2: (typeof d.common_area_m2 === 'number' ? d.common_area_m2 : null),
+          total_area_m2: (typeof d.total_area_m2 === 'number' ? d.total_area_m2 : null),
+          unit_floor: d.unit_floor || null,
         });
         if (d.created_by && !d.source_site) {
           const ag = await fetch(`/api/agent/${d.created_by}`);
@@ -556,6 +567,30 @@ export function ListingDetailModal() {
               })()}</div>
             </>
             <Row label="건축물 용도" value={detailExtra?.building_purpose ?? (listing as any).building_purpose} />
+            {/* L-Phase2 (2026-04-29): 전유부 (전용/공용/총면적) — 건축물대장 selected_unit
+                /search v306 와 동일 소스. listing.building_dong + listing.building_ho 매칭. */}
+            {(detailExtra?.exclusive_area_m2 != null || detailExtra?.total_area_m2 != null) && (
+              <>
+                <div className="text-neutral-500">전유부</div>
+                <div className="text-neutral-800">
+                  {(() => {
+                    const parts: string[] = [];
+                    if (detailExtra?.exclusive_area_m2 != null) {
+                      parts.push(`전용 ${Number(detailExtra.exclusive_area_m2).toFixed(2)}m²`);
+                    }
+                    if (detailExtra?.common_area_m2 != null && detailExtra.common_area_m2 > 0) {
+                      parts.push(`공용 ${Number(detailExtra.common_area_m2).toFixed(2)}m²`);
+                    }
+                    if (detailExtra?.total_area_m2 != null && detailExtra.total_area_m2 > 0) {
+                      parts.push(`총 ${Number(detailExtra.total_area_m2).toFixed(2)}m²`);
+                    }
+                    if (detailExtra?.unit_floor) parts.push(detailExtra.unit_floor);
+                    return parts.join(' · ') || <span className="text-neutral-400">정보 없음</span>;
+                  })()}
+                  <div className="text-[10px] text-neutral-400 mt-0.5">건축물대장</div>
+                </div>
+              </>
+            )}
             {detailExtra?.illegal_building === false && (
               <>
                 <div className="text-neutral-500">위반 건축물</div>
