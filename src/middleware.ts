@@ -52,7 +52,21 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = (request.headers.get('host') ?? '').toLowerCase();
 
-  // v7 §5: wishes.me 호스트 최상위 단축 URL → /s/<code> rewrite
+  // L-listingurl-path (2026-04-29 사장님 명령): /map/<숫자> 매물 path → query rewrite.
+  //   사용자 URL 은 /map/53190 그대로 유지 (rewrite, not redirect).
+  //   page.tsx 는 ?listing=ID 로 받아 처리. 클라이언트의 useListingUrlSync 가
+  //   history.replaceState 로 다시 /map/53190 형식 URL 노출.
+  if (pathname.startsWith('/map/') && !pathname.startsWith('/map-')) {
+    const m = /^\/map\/(\d+)$/.exec(pathname);
+    if (m) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/map';
+      url.searchParams.set('listing', m[1]);
+      return NextResponse.rewrite(url);
+    }
+  }
+
+    // v7 §5: wishes.me 호스트 최상위 단축 URL → /s/<code> rewrite
   if (isShortUrlHost(host)) {
     const m = SHORT_CODE_PATTERN.exec(pathname);
     if (m && !SHORT_CODE_RESERVED.has(m[1].toLowerCase())) {

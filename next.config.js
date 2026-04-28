@@ -56,7 +56,7 @@ const nextConfig = {
       },
       {
         source: '/listings/:id',
-        destination: '/map?listing=:id',
+        destination: '/map/:id',
         permanent: true,
       },
     ];

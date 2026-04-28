@@ -80,7 +80,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         if (!hasOwnContent) continue;
 
         listingPages.push({
-          url: baseUrl + '/map?listing=' + listing.id,
+          url: baseUrl + '/map/' + listing.id,
           lastModified: listing.updated_at || now,
           changeFrequency: 'weekly' as const,
           priority: 0.8,
