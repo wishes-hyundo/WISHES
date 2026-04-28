@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyAdminAuth } from '@/lib/adminAuth';
+import { generateAiDescriptionInternal } from '@/app/api/admin/generate-description/route';
 import { adminCorsHeaders } from '@/lib/cors';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
@@ -196,30 +197,13 @@ export async function POST(req: NextRequest) {
     }
 
     // === STEP 3: AI SEO 설명 생성 ===
+    // L-fix-no-self-call (2026-04-28): self-call 자체 제거. generate-description
+    //   의 핵심 로직 (generateAiDescriptionInternal) 을 직접 함수 호출. HTTP 우회
+    //   → 인증 컨텍스트/env 의존성 제거 → 안정적.
     let aiResult: any = null;
-    try {
-      // L-fix-self-call-master (2026-04-28): self-call generate-description 가
-      //   verifyAdminAuth 를 요구. caller 의 Authorization/Cookie forward 만
-      //   으로는 Vercel 내부 fetch 환경의 cookie 인식 이슈로 실패하는 케이스 발견.
-      //   가장 안정적인 방법: outer 가 이미 verifyAdminAuthStrict 통과한 상태이므로
-      //   server-side 에서 MASTER_PASSWORD env 를 Bearer 로 주입 → inner 가
-      //   verifyAdminAuth line 128 (MASTER_PASSWORD 매칭) 으로 통과.
-      //   caller 의 Cookie/Authorization 도 같이 forward (이중 안전장치).
-      const __masterPwd = process.env.WISHES_ADMIN_MASTER_PASSWORD || process.env.WISHES_INTERNAL_BEARER || '';
-      const __callerAuth = req.headers.get('authorization') || '';
-      const __callerCookie = req.headers.get('cookie') || '';
-      const __genHdrs: Record<string, string> = { 'Content-Type': 'application/json' };
-      // master 우선 — env 가 있으면 그걸 사용 (caller auth 의존성 없음)
-      if (__masterPwd) {
-        __genHdrs.Authorization = `Bearer ${__masterPwd}`;
-      } else if (__callerAuth) {
-        __genHdrs.Authorization = __callerAuth;
-      }
-      if (__callerCookie) __genHdrs.Cookie = __callerCookie;
-      const genRes = await fetch(SITE_URL + '/api/admin/generate-description', {
-        method: 'POST',
-        headers: __genHdrs,
-        body: JSON.stringify({
+    {
+      try {
+        const __aiInput = {
           address: listing.address || '',
           dong: listing.dong || '',
           type: listing.type || '',
@@ -239,12 +223,9 @@ export async function POST(req: NextRequest) {
           buildingInfo: buildingInfo || {},
           style: style || 'trendy',
           aiModel: aiModel || 'latest',
-        }),
-      });
-
-      if (genRes.ok) {
-        aiResult = await genRes.json();
-        if (aiResult.success) {
+        };
+        aiResult = await generateAiDescriptionInternal(__aiInput);
+        if (aiResult?.success) {
           steps.push({ step: 'ai_generate', status: 'ok', data: {
             title: (aiResult.title || '').substring(0, 50) + '...',
             keywords_count: (aiResult.keywords || []).length,
@@ -252,13 +233,11 @@ export async function POST(req: NextRequest) {
             model: aiResult.model,
           }});
         } else {
-          steps.push({ step: 'ai_generate', status: 'failed', error: aiResult.error });
+          steps.push({ step: 'ai_generate', status: 'failed', error: aiResult?.error || 'unknown' });
         }
-      } else {
-        steps.push({ step: 'ai_generate', status: 'failed', error: 'API ' + genRes.status });
+      } catch (e: any) {
+        steps.push({ step: 'ai_generate', status: 'failed', error: e?.message || String(e) });
       }
-    } catch (e: any) {
-      steps.push({ step: 'ai_generate', status: 'failed', error: e?.message || String(e) });
     }
 
     // === STEP 4: DB 업데이트 (제목 + 설명 + SEO 메타) ===

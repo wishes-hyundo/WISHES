@@ -115,6 +115,44 @@ async function callAnthropicWithRetry(
     throw new Error('Unreachable');
 }
 
+// L-fix-no-self-call (2026-04-28): auto-generate route 가 self-call 로
+//   /api/admin/generate-description 호출 시 Vercel 내부 fetch 환경의 인증
+//   컨텍스트 손실 + master password env 미설정 등으로 401 반복.
+//   해결: 핵심 로직을 generateAiDescriptionInternal 함수로 분리해 export.
+//   auto-generate 가 직접 함수 호출 → HTTP self-call 제거 → 인증 우회.
+export interface AiDescriptionInput {
+  address?: string; dong?: string; type?: string; deal?: string;
+  deposit?: number; monthly?: number; price?: number;
+  area_m2?: number; area_supply_m2?: number;
+  floor_current?: string; floor_total?: string;
+  direction?: string; rooms?: number; bathrooms?: number;
+  features?: string[]; parking_available?: boolean;
+  buildingInfo?: any; style?: string; aiModel?: string;
+}
+export interface AiDescriptionResult {
+  success: boolean;
+  title?: string;
+  description?: string;
+  keywords?: string[];
+  tags?: string[];
+  meta_description?: string;
+  model?: string;
+  error?: string;
+  status?: number;
+}
+
+export async function generateAiDescriptionInternal(body: AiDescriptionInput): Promise<AiDescriptionResult> {
+  if (!ANTHROPIC_API_KEY) {
+    return { success: false, error: 'API key not configured', status: 500 };
+  }
+  try {
+    const result = await __runGenerateAiCore(body);
+    return result;
+  } catch (e: any) {
+    return { success: false, error: e?.message || 'AI generation failed', status: 500 };
+  }
+}
+
 export async function POST(req: NextRequest) {
     try {
           // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가 (Anthropic API 비용 보호)
@@ -395,3 +433,98 @@ export async function POST(req: NextRequest) {
                 );
     }
 }
+
+
+// __runGenerateAiCore: POST body 핵심 로직 — Anthropic 호출 + 응답 파싱.
+// POST 와 generateAiDescriptionInternal 둘 다 사용.
+async function __runGenerateAiCore(body: AiDescriptionInput): Promise<AiDescriptionResult> {
+  const {
+    address, dong, type, deal,
+    direction, rooms, features, parking_available,
+    buildingInfo,
+  } = body;
+  const model = 'claude-haiku-4-5-20251001';
+  const dongName = dong || '';
+  const addressParts = (address || '').split(' ');
+  const guName = addressParts.find((p: string) => p.endsWith('구')) || '';
+  const dongOnly = addressParts.find((p: string) => p.endsWith('동')) || dongName || '';
+
+  const contextInfo = [
+    `지역: ${guName} ${dongOnly}`,
+    `매물유형: ${type || ''}`,
+    `거래유형: ${deal || ''}`,
+    direction ? `방향: ${direction}` : '',
+    rooms ? `방 구조: ${rooms}개` : '',
+    features?.length ? `특징: ${features.join(', ')}` : '',
+    parking_available ? '주차 가능' : '',
+    buildingInfo?.건물명 ? `건물명: ${buildingInfo.건물명}` : '',
+    buildingInfo?.사용승인일 ? `준공시기: ${String(buildingInfo.사용승인일).substring(0, 4)}년대` : '',
+  ].filter(Boolean).join('\n');
+
+  const prompt = `당신은 서울/경기 현장을 직접 다니며 수백 건의 매물을 봐온 10년차 부동산 전문 중개사입니다.
+이 매물에 대한 SEO 친화적 제목·설명·태그를 만들어주세요.
+
+[참고 정보]
+${contextInfo}
+
+⛔ 절대 금지: 금액(보증금/월세/매매가), 주소(번지/도로명), 면적/층수/방개수 수치, 건축물대장 수치
+✅ 집중: 주변 환경, 교통, 동네 분위기, 타겟 추천
+
+반드시 아래 JSON으로만 응답:
+{
+  "title": "제목 (22자 이내, 금액/층수/면적 수치 절대 불포함)",
+  "description": "350~500자 설명 (감성 카피 + 출퇴근 + 도보생활권 + 추천포인트 + 타겟)",
+  "keywords": ["10~15개"],
+  "tags": ["#태그1", "..."],
+  "meta_description": "검색엔진 메타 설명 160자 이내"
+}`;
+
+  const response = await callAnthropicWithRetry({
+    model,
+    max_tokens: 2048,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  if (!response.ok) {
+    return { success: false, error: `AI API 오류 (${response.status})`, status: response.status === 429 ? 429 : 500 };
+  }
+
+  const result = await response.json() as any;
+  const text = result.content?.[0]?.text || '';
+
+  try {
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      let finalTitle = scrubTitle(parsed.title || '', dongOnly, false);
+      if (!finalTitle || finalTitle.length < 5) {
+        finalTitle = buildFallbackTitle({
+          type, direction, rooms,
+          parking_available, features, buildingInfo,
+        });
+      }
+      if (finalTitle.length > 28) finalTitle = finalTitle.slice(0, 27) + '…';
+      return {
+        success: true,
+        title: finalTitle,
+        description: parsed.description || text,
+        keywords: parsed.keywords || [],
+        tags: parsed.tags || [],
+        meta_description: parsed.meta_description || '',
+        model,
+      };
+    }
+  } catch {
+    // JSON 파싱 실패
+  }
+  return {
+    success: true,
+    title: '',
+    description: text,
+    keywords: [],
+    tags: [],
+    meta_description: '',
+    model,
+  };
+}
+
