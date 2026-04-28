@@ -167,7 +167,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v315-edit-photos', '/search/content-v315-edit-photos.js?v=20260429-dragonly'],
       // v316 (2026-04-29): raw_fields 의 구조형태/임대기간/주차대수/면적/룸 등을
       //   모달 빈 셀에 자동 채움. 사장님 명령 — 본문보기엔 다 있는데 표시 X 문제 fix.
-      ['ws-ext-patch-v316-rawfields-fill', '/search/content-v316-modal-rawfields-fill.js?v=20260429c'],
+      ['ws-ext-patch-v316-rawfields-fill', '/search/content-v316-modal-rawfields-fill.js?v=20260429-domfb'],
       // v317 (2026-04-29): 카카오 기반 주변 시설 (지하철 + 버스정류장)
       ['ws-ext-patch-v317-nearby-poi', '/search/content-v317-nearby-poi.js?v=20260429a'],
       // v314 (2026-04-29): 매물수정 버튼 위치 이동 — hero 에서 '기본 정보·옵션'

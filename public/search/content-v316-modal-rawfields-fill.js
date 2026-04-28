@@ -87,14 +87,31 @@
     } catch (_) {}
     return null;
   }
-  function getBuildingArea() {
+  function getBuildingArea(modal) {
+    // 1순위: sessionStorage cache (v306/v311 이 만든 것)
     var p = getBuildingData();
-    if (!p) return null;
-    var sel = p.selected_unit;
-    if (sel && sel.exclusiveArea) return Number(sel.exclusiveArea).toFixed(2) + ' m² (전용)';
-    var d = p.data || {};
-    if (d.archArea) return Number(d.archArea).toFixed(2) + ' m² (건축)';
-    if (d.totArea) return Number(d.totArea).toFixed(2) + ' m² (연면적)';
+    if (p) {
+      var sel = p.selected_unit;
+      if (sel && sel.exclusiveArea) return Number(sel.exclusiveArea).toFixed(2) + ' m² (전용)';
+      var d = p.data || {};
+      if (d.archArea) return Number(d.archArea).toFixed(2) + ' m² (건축)';
+      if (d.totArea) return Number(d.totArea).toFixed(2) + ' m² (연면적)';
+    }
+    // 2순위: DOM 에서 직접 추출 — 이미 화면에 표시된 전유부 row 또는 .v306-unit-section
+    if (modal) {
+      var unitSelectors = ['.v316-unit-row', '.v306-unit-section', '.v312-unit-row'];
+      for (var i = 0; i < unitSelectors.length; i++) {
+        var el = modal.querySelector(unitSelectors[i]);
+        if (el) {
+          var txt = el.textContent || '';
+          // '전용' 단어 다음의 m² 값 우선
+          var m1 = txt.match(/전용[^0-9]*([0-9]+\.?[0-9]*)\s*m/i);
+          if (m1) return m1[1] + ' m² (전용)';
+          var m2 = txt.match(/([0-9]+\.?[0-9]*)\s*m²/);
+          if (m2) return m2[1] + ' m² (전용)';
+        }
+      }
+    }
     return null;
   }
 
@@ -125,7 +142,7 @@
 
         // 면적 — building cache 우선
         if (/^면적$|연면적|건축면적/.test(label)) {
-          var ba = getBuildingArea();
+          var ba = getBuildingArea(modal);
           if (ba) { v.textContent = ba; filled++; return; }
           // fallback raw_fields
         }
