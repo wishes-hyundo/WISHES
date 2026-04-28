@@ -63,9 +63,11 @@ export async function GET(request: NextRequest) {
 
     // Call the existing working building-registry endpoint
     const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
-    const registryRes = await fetch(registryUrl, {
-      headers: { Authorization: `Bearer ${INTERNAL_BEARER}` },
-    });
+    // L-fix-internal-bearer (2026-04-28): WISHES_INTERNAL_BEARER env 미등록 시 사용자 토큰 fallback
+    const userAuth = request.headers.get('authorization') || request.headers.get('Authorization') || '';
+    const fwdAuth = INTERNAL_BEARER ? `Bearer ${INTERNAL_BEARER}` : userAuth;
+    const fetchHdrs: Record<string, string> = fwdAuth ? { Authorization: fwdAuth } : {};
+    const registryRes = await fetch(registryUrl, { headers: fetchHdrs });
 
     if (!registryRes.ok) {
       const errText = await registryRes.text();
