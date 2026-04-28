@@ -174,6 +174,27 @@ export async function GET(request: NextRequest) {
 
     const selectedUnit = findSelectedUnit(units, reqDong, reqHo);
 
+    // L-bldg-unit Layer 8 (2026-04-28): 같은 단지 (sigungu+bjdong+bun+ji) 의
+    //   다른 wishes 매물 자동 grouping. 사장님이 한 건물의 매물 현황 한 눈에 파악.
+    let sameBuilding: Array<{
+      id: number; address: string | null; address_detail: string | null;
+      type: string | null; deal: string | null; price: number | null;
+      deposit: number | null; monthly: number | null;
+      building_dong: string | null; building_ho: string | null;
+      status: string | null;
+    }> = [];
+    if (supabase) {
+      try {
+        const { data: same } = await supabase
+          .from('listings')
+          .select('id, address, address_detail, type, deal, price, deposit, monthly, building_dong, building_ho, status')
+          .ilike('address', '%' + (fullAddress.split(' ').slice(0, 3).join(' ')) + '%')
+          .neq('id', lid ? parseInt(lid, 10) : -1)
+          .limit(20);
+        sameBuilding = (same as typeof sameBuilding) || [];
+      } catch { /* silent */ }
+    }
+
     return NextResponse.json({
       success: true,
       query: {
@@ -184,6 +205,7 @@ export async function GET(request: NextRequest) {
       floors,
       units,
       selected_unit: selectedUnit,
+      same_building: sameBuilding,
       cache: cacheStatus,
       raw: {},
     });

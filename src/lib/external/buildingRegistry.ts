@@ -42,6 +42,11 @@ const FIELD_MAP: [string, string][] = [
   ['hoCnt', 'unitCount'],
   ['fmlyCnt', 'familyCount'],
   ['dongNm', 'dongName'],
+  // L-bldg-unit Layer 5 (2026-04-28): 위반건축물 정보 (사장님 법적 책임 보호)
+  ['vlitnYn', 'illegalBuilding'],          // Y/N
+  ['vlitnVilDt', 'illegalBuildingDate'],   // 위반표시일
+  ['vlitnLawNm', 'illegalLawName'],        // 위반 법령
+  ['vlitnLawArtNm', 'illegalLawArticle'],  // 위반 조항
 ];
 
 export async function fetchBuildingData(

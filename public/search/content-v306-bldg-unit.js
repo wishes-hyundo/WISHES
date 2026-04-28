@@ -134,6 +134,44 @@
         html += '</div>';
       }
 
+      // ────────── Layer 5: 위반건축물 경고 ──────────
+      try {
+        var d = payload.data || {};
+        var isIllegal = d.illegalBuilding === 'Y' || d.illegalBuilding === '1';
+        if (isIllegal) {
+          html += '<div style="margin-top:14px;padding:10px;background:#fff5f0;border:1px solid #f0c0a0;border-radius:8px">' +
+                  '<div style="font-weight:700;color:#a04;font-size:13px;margin-bottom:4px">⚠️ 위반건축물 등록</div>' +
+                  '<div style="font-size:11.5px;color:#555;line-height:1.5">' +
+                  (d.illegalLawName ? '법령: ' + escHtml(d.illegalLawName) + '<br>' : '') +
+                  (d.illegalLawArticle ? '조항: ' + escHtml(d.illegalLawArticle) + '<br>' : '') +
+                  (d.illegalBuildingDate ? '표시일: ' + escHtml(d.illegalBuildingDate) + '<br>' : '') +
+                  '<span style="color:#a04;font-weight:600">중개 시 임차인에게 고지 의무 (공인중개사법 §25)</span>' +
+                  '</div></div>';
+        }
+      } catch (_e) {}
+
+      // ────────── Layer 8: 같은 건물 다른 wishes 매물 ──────────
+      try {
+        var sb = Array.isArray(payload.same_building) ? payload.same_building : [];
+        if (sb.length > 0) {
+          html += '<div style="margin-top:14px"><div style="font-weight:700;font-size:13px;color:#2D5A27;margin-bottom:8px">' +
+                  '🏘️ 같은 건물 다른 매물 (' + sb.length + '개)</div>';
+          html += '<div style="display:flex;flex-direction:column;gap:6px;max-height:200px;overflow:auto">';
+          for (var i = 0; i < sb.length; i++) {
+            var L = sb[i];
+            var dealLabel = L.deal === '월세' ? (L.deposit + '/' + L.monthly + '만') :
+                            L.deal === '전세' ? (L.deposit + '만') :
+                            L.deal === '매매' ? (L.price + '만') : '-';
+            html += '<a href="/search?lid=' + encodeURIComponent(L.id) + '" target="_blank" ' +
+                    'style="display:flex;justify-content:space-between;padding:8px 10px;font-size:11.5px;background:#f9fbf7;border:1px solid #e5eee5;border-radius:6px;text-decoration:none;color:#333">' +
+                    '<span><strong>#' + L.id + '</strong> ' + escHtml(L.building_dong ? L.building_dong + ' ' : '') + escHtml(L.building_ho || L.address_detail || '-') + '호</span>' +
+                    '<span style="color:#2D5A27;font-weight:600">' + escHtml(L.type || '') + ' · ' + escHtml(L.deal || '') + ' ' + escHtml(dealLabel) + '</span>' +
+                    '</a>';
+          }
+          html += '</div></div>';
+        }
+      } catch (_e2) {}
+
       // 캐시 표시
       if (payload.cache && payload.cache !== 'none') {
         html += '<div style="margin-top:8px;font-size:10px;color:#aaa;text-align:right">cache: ' +
