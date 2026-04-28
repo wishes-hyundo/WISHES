@@ -92,7 +92,7 @@ export default function QueryProvider({ children }: { children: ReactNode }) {
       // @ts-expect-error — 우리의 IDB persister 는 공식 Persister shape 와 구조 호환
       persister,
       maxAge: 1000 * 60 * 60 * 24, // 24h
-      buster: 'wishes-v2',
+      buster: 'wishes-v3',
     });
   });
 
