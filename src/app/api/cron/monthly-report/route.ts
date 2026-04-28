@@ -26,20 +26,13 @@ export async function GET(request: NextRequest) {
   const month = new Date().toISOString().slice(0, 7);
 
   // 통계 수집
-  // L-fix-allsettled (2026-04-28): 일부 fetch 실패해도 보고서 생성 (Promise.all → allSettled)
-  const settled = await Promise.allSettled([
+  const [users, listings, audits, sota, integrity] = await Promise.all([
     supabase.from('admin_users').select('role, status', { count: 'exact', head: false }),
     supabase.from('listings').select('status, is_problematic, trust_score', { head: false }),
     supabase.from('admin_audit_log').select('action').gte('ts', `${month}-01`),
     supabase.from('sota_reports').select('topics').eq('month', month).maybeSingle(),
     supabase.rpc('data_integrity_audit'),
   ]);
-  const _safe = (r: any) => r.status === 'fulfilled' ? r.value : { data: null, error: r.reason, count: 0 };
-  const users = _safe(settled[0]);
-  const listings = _safe(settled[1]);
-  const audits = _safe(settled[2]);
-  const sota = _safe(settled[3]);
-  const integrity = _safe(settled[4]);
 
   const userStats = (users.data || []).reduce<Record<string, number>>((acc: any, u: any) => {
     acc[u.role || 'unknown'] = (acc[u.role || 'unknown'] || 0) + 1; return acc;
