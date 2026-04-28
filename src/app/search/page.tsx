@@ -383,6 +383,17 @@ export default function SearchPortalPage() {
       v303Script.defer = false;
       document.body.appendChild(v303Script);
     }
+    // L-comprehensive-v304 (2026-04-28): 응답 호환 + 토큰 통일 + 401 alert + timeout
+    //   agent 병렬 분석 후 발견된 모든 mismatch (token source, response shape, silent fail) 일괄 fix
+    const existingV304 = document.getElementById('ws-ext-patch-v304-comprehensive');
+    if (!existingV304) {
+      const v304Script = document.createElement('script');
+      v304Script.id = 'ws-ext-patch-v304-comprehensive';
+      v304Script.src = '/search/content-v304-comprehensive-fixes.js?v=20260428a';
+      v304Script.async = false;
+      v304Script.defer = false;
+      document.body.appendChild(v304Script);
+    }
     // L-curated-badge-v301 (2026-04-28): 위시스 직접 촬영/편집 매물 뱃지 자동 추가
     //   /api/listings 응답의 has_wishes_media 캡처 → 카드 DOM 자동 데코레이션
     //   /search HTML/CSS 무손상 (vanilla patch)
