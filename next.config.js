@@ -83,7 +83,9 @@ const nextConfig = {
       //   매 commit 마다 변경 가능성. CDN 가 stale 캐싱하면 사장님이 hard refresh
       //   해도 옛날 파일 받음. no-store 강제 — 항상 fresh.
       {
-        source: '/search/content-v:path*',
+        // path-to-regexp: 'content-v' prefix 다음 named param (regex 형식)
+        //   '/search/content-v306-bldg-unit.js' 등 모든 v* patch 파일 매칭.
+        source: '/search/:file(content-v.+\\.js)',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate, no-store' },
           { key: 'CDN-Cache-Control', value: 'no-store' },
