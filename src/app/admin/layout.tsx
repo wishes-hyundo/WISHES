@@ -225,7 +225,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/profile', label: '내 프로필', icon: '👤' },
   ];
 
-  const isNewListing = pathname === '/new';
+  const isNewListing = pathname === '/new' || pathname === '/admin/listings/new';
   const isAdminRole = userRole === 'superadmin' || userRole === 'admin';
 
   // L-sec54 (2026-04-22): admin_bridge_ 위조 토큰 발급 로직 제거.
