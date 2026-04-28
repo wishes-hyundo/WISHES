@@ -198,13 +198,23 @@ export async function POST(req: NextRequest) {
     // === STEP 3: AI SEO 설명 생성 ===
     let aiResult: any = null;
     try {
-      // L-fix-self-call-auth (2026-04-28): self-call generate-description 가
-      //   verifyAdminAuth 를 요구. caller 의 Authorization + Cookie 를 forward
-      //   해야 인증 통과. 안 그러면 401 → ai_generate step failed → result null.
+      // L-fix-self-call-master (2026-04-28): self-call generate-description 가
+      //   verifyAdminAuth 를 요구. caller 의 Authorization/Cookie forward 만
+      //   으로는 Vercel 내부 fetch 환경의 cookie 인식 이슈로 실패하는 케이스 발견.
+      //   가장 안정적인 방법: outer 가 이미 verifyAdminAuthStrict 통과한 상태이므로
+      //   server-side 에서 MASTER_PASSWORD env 를 Bearer 로 주입 → inner 가
+      //   verifyAdminAuth line 128 (MASTER_PASSWORD 매칭) 으로 통과.
+      //   caller 의 Cookie/Authorization 도 같이 forward (이중 안전장치).
+      const __masterPwd = process.env.WISHES_ADMIN_MASTER_PASSWORD || process.env.WISHES_INTERNAL_BEARER || '';
       const __callerAuth = req.headers.get('authorization') || '';
       const __callerCookie = req.headers.get('cookie') || '';
       const __genHdrs: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (__callerAuth) __genHdrs.Authorization = __callerAuth;
+      // master 우선 — env 가 있으면 그걸 사용 (caller auth 의존성 없음)
+      if (__masterPwd) {
+        __genHdrs.Authorization = `Bearer ${__masterPwd}`;
+      } else if (__callerAuth) {
+        __genHdrs.Authorization = __callerAuth;
+      }
       if (__callerCookie) __genHdrs.Cookie = __callerCookie;
       const genRes = await fetch(SITE_URL + '/api/admin/generate-description', {
         method: 'POST',
