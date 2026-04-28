@@ -33,7 +33,7 @@
  * ════════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
-  var V = 'v313-edit-photos';
+  var V = 'v315-edit-photos';
 
   // ── token / esc ──
   function getToken() {
@@ -507,7 +507,7 @@
     try {
       ensureSheet();
       var panel = document.querySelector('.v297-panel');
-      if (!panel || panel.dataset.v313 === '1') return;
+      if (!panel || panel.dataset.v315 === '1') return;
 
       // listing.id 추출 — 5단계 fallback (보편)
       var lid = panel.getAttribute('data-listing-id');
@@ -538,7 +538,7 @@
       }
       console.log('[' + V + '] attaching for listing #' + lid);
 
-      panel.dataset.v313 = '1';
+      panel.dataset.v315 = '1';
       var body = panel.querySelector('.v297-bd, .v297-body, form, [data-v297-body]') || panel;
       var sec = buildSection(lid);
       var vsec = buildVideoSection(lid);
