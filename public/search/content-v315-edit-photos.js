@@ -434,6 +434,160 @@
     return sec;
   }
 
+
+  // ── 동영상 카드 + 섹션 (L-video-funcs-restore 2026-04-29) ──
+  function renderVideoCard(vid, lid) {
+    var card = document.createElement('div');
+    card.className = 'v313-vcard v313-card';
+    card.dataset.videoId = String(vid.id);
+    card.setAttribute('role', 'listitem');
+    card.tabIndex = 0;
+    var v = document.createElement('video');
+    v.src = vid.url;
+    v.controls = true;
+    v.preload = 'metadata';
+    v.playsInline = true;
+    if (vid.poster_url) v.poster = vid.poster_url;
+    card.appendChild(v);
+    var badge = document.createElement('div');
+    badge.className = 'v313-vbadge';
+    badge.textContent = '🎬 동영상';
+    card.appendChild(badge);
+    var acts = document.createElement('div');
+    acts.className = 'v313-card-acts';
+    acts.innerHTML =
+      '<div></div>' +
+      '<div class="v313-card-row-r">' +
+        '<button type="button" class="v313-card-btn v313-card-btn-danger" data-act="delete" aria-label="동영상 삭제">✕</button>' +
+      '</div>';
+    acts.querySelector('[data-act=delete]').addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (!confirm('이 동영상을 삭제할까요?')) return;
+      withTransition(function () { card.remove(); });
+      deleteVideo(lid, vid.id).then(function (j) {
+        if (j && j.success) toast('동영상 삭제 완료', 'ok');
+        else toast('삭제 실패', 'err');
+      });
+    });
+    card.appendChild(acts);
+    return card;
+  }
+
+  function updateVideoHint(sec, current) {
+    var hint = sec.querySelector('[data-slot=vhint]');
+    if (!hint) return;
+    var remaining = Math.max(0, 5 - current);
+    hint.textContent = 'MP4 / MOV / WebM · 최대 50MB · 추가 가능 ' + remaining + '장 (위시스 룩 자동 적용 예정)';
+    var drop = sec.querySelector('.v313-drop');
+    if (drop) {
+      drop.style.opacity = remaining === 0 ? '0.5' : '1';
+      drop.style.pointerEvents = remaining === 0 ? 'none' : '';
+      var input = drop.querySelector('input[type=file]');
+      if (input) input.disabled = remaining === 0;
+    }
+  }
+
+  function buildVideoSection(lid) {
+    var sec = document.createElement('section');
+    sec.className = 'v313-photos-sec';
+    sec.setAttribute('aria-label', '매물 동영상 관리');
+    sec.style.marginTop = '12px';
+
+    var hd = document.createElement('div');
+    hd.className = 'v313-hd';
+    hd.innerHTML = '<div class="v313-hd-t">🎬 동영상 관리</div><div class="v313-hd-n" data-slot="vcount">0 / 5장</div>';
+    sec.appendChild(hd);
+
+    var drop = document.createElement('label');
+    drop.className = 'v313-drop';
+    drop.setAttribute('tabindex', '0');
+    drop.setAttribute('role', 'button');
+    drop.setAttribute('aria-label', '동영상 추가 — 드래그하거나 클릭');
+    drop.innerHTML =
+      '<span class="v313-drop-emoji">🎥</span>' +
+      '<div>동영상 드래그 또는 클릭해서 업로드</div>' +
+      '<div class="v313-drop-hint" data-slot="vhint">MP4 / MOV / WebM · 최대 50MB · 매물당 최대 5장 (위시스 룩 자동 적용 예정)</div>' +
+      '<input type="file" accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/x-matroska" multiple>';
+    sec.appendChild(drop);
+
+    var grid = document.createElement('div');
+    grid.className = 'v313-vgrid';
+    grid.setAttribute('role', 'list');
+    sec.appendChild(grid);
+
+    drop.addEventListener('dragover', function (ev) { ev.preventDefault(); drop.classList.add('v313-drop-active'); });
+    drop.addEventListener('dragleave', function () { drop.classList.remove('v313-drop-active'); });
+    drop.addEventListener('drop', function (ev) {
+      ev.preventDefault();
+      drop.classList.remove('v313-drop-active');
+      var files = Array.from(ev.dataTransfer.files || []).filter(function (f) { return /^video\//.test(f.type); });
+      handleVideoUploads(grid, hd.querySelector('[data-slot=vcount]'), files, lid);
+    });
+    var fi = drop.querySelector('input[type=file]');
+    fi.addEventListener('change', function (ev) {
+      var files = Array.from(ev.target.files || []);
+      handleVideoUploads(grid, hd.querySelector('[data-slot=vcount]'), files, lid);
+      fi.value = '';
+    });
+
+    listVideos(lid).then(function (vids) {
+      hd.querySelector('[data-slot=vcount]').textContent = vids.length + ' / 5장';
+      withTransition(function () {
+        vids.forEach(function (v) { grid.appendChild(renderVideoCard(v, lid)); });
+      });
+      updateVideoHint(sec, vids.length);
+    });
+
+    return sec;
+  }
+
+  function handleVideoUploads(grid, countEl, files, lid) {
+    if (!files || !files.length) return;
+    var current = grid.querySelectorAll('.v313-vcard').length;
+    var remaining = Math.max(0, 5 - current);
+    if (remaining === 0) { toast('이미 매물당 최대 5장이 등록됐습니다', 'err'); return; }
+    if (files.length > remaining) {
+      toast('추가 가능 ' + remaining + '장 — 앞쪽 ' + remaining + '장만 업로드합니다', 'err');
+      files = files.slice(0, remaining);
+    }
+    var sec = grid.closest('.v313-photos-sec');
+    files.forEach(function (file) {
+      var ph = document.createElement('div');
+      ph.className = 'v313-vcard v313-card v313-card-loading';
+      ph.textContent = '⏳ 업로드 중…';
+      var prog = document.createElement('div');
+      prog.className = 'v313-card-prog';
+      prog.innerHTML = '<span></span>';
+      ph.appendChild(prog);
+      withTransition(function () { grid.appendChild(ph); });
+      var bar = ph.querySelector('.v313-card-prog>span');
+      uploadVideo(lid, file, function (p) { if (bar) bar.style.width = (Math.round(p * 100)) + '%'; })
+        .then(function (j) {
+          var arr = (j && (j.data || j.videos || j.uploaded)) || [];
+          if (!j || !j.success || !arr.length) {
+            withTransition(function () { ph.remove(); });
+            toast('동영상 업로드 실패: ' + (file.name || ''), 'err');
+            return;
+          }
+          var newV = arr[0];
+          if (!newV.id) console.warn('[v313] video id missing — reload modal to enable DELETE');
+          var card = renderVideoCard({
+            id: newV.id || ('tmp_' + Date.now() + '_' + Math.random()),
+            url: newV.url,
+          }, lid);
+          withTransition(function () { ph.replaceWith(card); });
+          var n = grid.querySelectorAll('.v313-vcard:not(.v313-card-loading)').length;
+          countEl.textContent = n + ' / 5장';
+          if (sec) updateVideoHint(sec, n);
+          toast('동영상 업로드 완료', 'ok');
+        })
+        .catch(function () {
+          withTransition(function () { ph.remove(); });
+          toast('동영상 업로드 실패: ' + (file.name || ''), 'err');
+        });
+    });
+  }
+
   function updateHintRemaining(sec, current) {
     var hint = sec.querySelector('[data-slot=hint]');
     if (!hint) return;
