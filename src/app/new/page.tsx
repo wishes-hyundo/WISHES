@@ -5,18 +5,23 @@ import ListingNewPage from '../admin/listings/new/page';
 import { extractFloorplanFromFile } from '@/lib/hooks/extractFloorplan';
 
 /**
- * /new — 매물 등록 짧은 URL (사장님 명령 2026-04-28)
- * admin/listings/new 의 풀 form 재사용.
+ * /new — 매물 등록 짧은 URL.
  *
- * L-Step4 (2026-04-29): wrapper 에 두 가지 자동화 추가
- * 1. file change listener → 도면 사진 업로드 시 자동 분석 + 폼 자동 채우기
- * 2. AutoFP 패널 → 사진 0장이면 SVG 자동 생성 평면도 표시 (사장님 평면도 못 구해도 OK)
+ * L-Step4-rev2 (2026-04-29 사장님 지적 반영):
+ *   "100% 확실한 정보 바탕으로 근거와 이유 확실해야"
+ *
+ * 자동 SVG 평면도 폐기 — 사장님 입력값 기반 추정은 부정확.
+ *
+ * 유지:
+ * 1. file change listener — 사장님이 평면도 사진 직접 업로드 시 자동 분석 (사진 = 100% 진짜 데이터)
+ *
+ * 추가:
+ * 2. STEP 3 사진 영역에 외부 평면도 검색 링크 (네이버 부동산 / 호갱노노 / 다방) — 사장님이 직접 확인
  */
 export default function NewListingPage() {
   useEffect(() => {
     let _firedForFile: File | null = null;
 
-    // ─── 1. file change → Vision LLM 자동 분석 ───
     const fileHandler = async (ev: Event) => {
       const target = ev.target as HTMLInputElement | null;
       if (!target || target.type !== 'file' || !target.files || target.files.length === 0) return;
@@ -46,102 +51,63 @@ export default function NewListingPage() {
 
         const toast = document.createElement('div');
         toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2D5A27;color:#fff;padding:12px 18px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 4px 12px rgba(0,0,0,0.15)';
-        toast.textContent = '🤖 도면 자동 분석: 방 ' + (fp.rooms ?? '?') + '개 · 화장실 ' + (fp.bathrooms ?? '?') + '개' + (fp.direction ? ' · ' + fp.direction : '');
+        toast.textContent = '🤖 도면 자동 분석 (Gemini Vision): 방 ' + (fp.rooms ?? '?') + '개 · 화장실 ' + (fp.bathrooms ?? '?') + '개' + (fp.direction ? ' · ' + fp.direction : '');
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 3500);
       } catch (e) {
-        console.warn('[L-Step4 wrapper] auto-floorplan failed', e);
+        console.warn('[L-Step4] auto-floorplan failed', e);
       }
     };
 
     document.addEventListener('change', fileHandler, true);
 
-    // ─── 2. AutoFP 패널 — STEP 3 (사진) 영역에 자동 SVG 평면도 미리보기 ───
-    const autoFpPanelId = 'wishes-autofp-panel';
-    let autoFpInjected = false;
-
-    const renderAutoFpPanel = () => {
+    // ─── STEP 3 영역에 외부 평면도 검색 링크 inject ───
+    const panelId = 'wishes-fp-search-panel';
+    let injected = false;
+    const renderSearchPanel = () => {
       try {
-        if (autoFpInjected) return;
-        // STEP 3 활성 시에만 동작 — currentStep === 3 라는 step-content 가 mount 됨
+        if (injected) return;
         const step3Node = document.querySelector('.step-content');
         if (!step3Node) return;
-        // 이미지 업로드 영역 헤더 ("사진 등록" h2) 있을 때만 STEP 3 으로 간주
         const h2Texts = Array.from(step3Node.querySelectorAll('h2')).map(h => (h.textContent || '').trim());
         if (!h2Texts.some(t => t.includes('사진 등록') || t.includes('사진 업로드'))) return;
-        // 이미 패널 있으면 skip
-        if (document.getElementById(autoFpPanelId)) return;
+        if (document.getElementById(panelId)) return;
 
-        // 면적/방수/화장실/향 값 읽기
-        const getNumByName = (n: string): number => {
-          const el = document.querySelector(`input[name="${n}"]`) as HTMLInputElement | null;
-          if (!el) return 0;
-          return parseFloat(el.value) || 0;
-        };
+        // 주소 + 단지명 추출
         const getStrByName = (n: string): string => {
           const el = document.querySelector(`input[name="${n}"], select[name="${n}"]`) as HTMLInputElement | null;
           return el?.value || '';
         };
-        const areaM2 = getNumByName('area_m2');
-        const rooms = getNumByName('rooms') || 2;
-        const bathrooms = getNumByName('bathrooms') || 1;
-        const direction = getStrByName('direction');
+        const address = getStrByName('address');
         const buildingName = getStrByName('building_name');
-        if (!areaM2 || areaM2 < 5) return; // 면적 없으면 자동 생성 X
+        const query = encodeURIComponent((buildingName || address || '평면도').trim());
 
-        const params = new URLSearchParams({
-          areaM2: String(areaM2),
-          rooms: String(rooms),
-          bathrooms: String(bathrooms),
-          direction,
-          buildingName: buildingName || '매물',
-        });
-        const svgUrl = '/api/admin/generate-floorplan-svg?' + params.toString();
+        const naverUrl = 'https://land.naver.com/search/result.naver?searchType=APT&query=' + query;
+        const hogangUrl = 'https://hogangnono.com/search/' + query;
+        const dabangUrl = 'https://www.dabangapp.com/search?q=' + query;
 
-        // 토큰 헤더 필요 — fetch 로 SVG 가져온 뒤 inline
-        const wsToken = (() => {
-          try { return sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token') || ''; }
-          catch { return ''; }
-        })();
-        if (!wsToken) return;
-
-        fetch(svgUrl, { headers: { Authorization: 'Bearer ' + wsToken } })
-          .then(res => res.ok ? res.text() : null)
-          .then(svg => {
-            if (!svg || svg.indexOf('<svg') < 0) return;
-            const panel = document.createElement('div');
-            panel.id = autoFpPanelId;
-            panel.style.cssText = 'margin-top:20px;padding:16px;background:#f9faf6;border:2px dashed #2D5A27;border-radius:12px';
-            panel.innerHTML =
-              '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
-                '<h3 style="font-weight:700;color:#2D5A27;font-size:14px;margin:0">🤖 AI 자동 생성 평면도 (사진 없을 때 사용)</h3>' +
-                '<button type="button" id="wishes-autofp-toggle" style="padding:4px 10px;background:#2D5A27;color:#fff;border:0;border-radius:4px;font-size:11px;cursor:pointer">새로고침</button>' +
-              '</div>' +
-              '<div id="wishes-autofp-svg" style="background:#fff;border-radius:8px;padding:8px">' + svg + '</div>' +
-              '<p style="margin-top:8px;font-size:11px;color:#888;line-height:1.5">' +
-              '면적/방수/화장실/향 값으로 표준 평면도 자동 생성. 정확한 평면도 사진 있으면 위에 업로드 (자동 인식).' +
-              '</p>';
-            // STEP 3 영역의 마지막 자식으로 추가
-            const card = step3Node.querySelector('.bg-white.rounded-2xl');
-            (card || step3Node).appendChild(panel);
-            autoFpInjected = true;
-
-            // 새로고침 버튼
-            const btn = document.getElementById('wishes-autofp-toggle');
-            btn?.addEventListener('click', () => {
-              autoFpInjected = false;
-              panel.remove();
-              setTimeout(renderAutoFpPanel, 100);
-            });
-          })
-          .catch(() => {});
+        const panel = document.createElement('div');
+        panel.id = panelId;
+        panel.style.cssText = 'margin-top:20px;padding:16px;background:#f9faf6;border:1px solid #d0e0c8;border-radius:12px';
+        panel.innerHTML =
+          '<div style="font-weight:700;color:#2D5A27;font-size:13px;margin-bottom:10px">📐 평면도 검색 (외부 사이트)</div>' +
+          '<p style="font-size:11px;color:#666;margin-bottom:12px;line-height:1.6">' +
+          '⚠️ 위시스는 평면도 자동 생성 안 함 (정확한 정보만 제공 정책).<br>' +
+          '아래 외부 사이트에서 진짜 평면도 확인 후, 캡처해서 위에 업로드 → AI 가 자동 분석합니다.' +
+          '</p>' +
+          '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">' +
+            '<a href="' + naverUrl + '" target="_blank" rel="noopener" style="display:block;padding:8px;background:#03C75A;color:#fff;border-radius:6px;text-decoration:none;text-align:center;font-size:12px;font-weight:600">네이버 부동산</a>' +
+            '<a href="' + hogangUrl + '" target="_blank" rel="noopener" style="display:block;padding:8px;background:#FFB800;color:#000;border-radius:6px;text-decoration:none;text-align:center;font-size:12px;font-weight:600">호갱노노</a>' +
+            '<a href="' + dabangUrl + '" target="_blank" rel="noopener" style="display:block;padding:8px;background:#FF6B6B;color:#fff;border-radius:6px;text-decoration:none;text-align:center;font-size:12px;font-weight:600">다방</a>' +
+          '</div>';
+        const card = step3Node.querySelector('.bg-white.rounded-2xl');
+        (card || step3Node).appendChild(panel);
+        injected = true;
       } catch (e) {
-        console.warn('[L-AutoFP] panel inject error', e);
+        console.warn('[L-FP-search] inject error', e);
       }
     };
-
-    // STEP 변경 감지 — 1초마다 폴링 (간단)
-    const interval = setInterval(renderAutoFpPanel, 1000);
+    const interval = setInterval(renderSearchPanel, 1000);
 
     return () => {
       document.removeEventListener('change', fileHandler, true);
