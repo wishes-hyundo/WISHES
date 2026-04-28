@@ -100,12 +100,12 @@
     html += '</div>';
     sec.innerHTML = html;
 
-    // 위치 섹션 다음에 추가 (또는 모달 끝)
+    // L-poi-above (2026-04-29): 사장님 명령 — 주변 시설 섹션을 위치 위로.
     var locSec = null;
     modal.querySelectorAll('.v240-section h2').forEach(function (h) {
       if (/위치/.test(h.textContent || '')) locSec = h.parentElement;
     });
-    if (locSec && locSec.parentNode) locSec.parentNode.insertBefore(sec, locSec.nextSibling);
+    if (locSec && locSec.parentNode) locSec.parentNode.insertBefore(sec, locSec);
     else modal.appendChild(sec);
   }
 
