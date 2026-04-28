@@ -74,11 +74,11 @@
     },
     {
       "path": "/api/cron/enrich-vision",
-      "schedule": "15 */3 * * *"
+      "schedule": "15 */6 * * *"
     },
     {
       "path": "/api/cron/enrich-text",
-      "schedule": "30 */3 * * *"
+      "schedule": "30 */6 * * *"
     },
     {
       "path": "/api/cron/auto-extract-options",
@@ -86,14 +86,6 @@
     },
     {
       "path": "/api/cron/extract-building-units",
-      "schedule": "0 */6 * * *"
-    },
-    {
-      "path": "/api/cron/auto-fix-area",
-      "schedule": "0 */12 * * *"
-    },
-    {
-      "path": "/api/cron/ad-law-audit",
       "schedule": "0 */6 * * *"
     },
     {
@@ -111,10 +103,6 @@
     {
       "path": "/api/cron/enrich-school-zone",
       "schedule": "0 2 * * *"
-    },
-    {
-      "path": "/api/cron/enrich-air-quality",
-      "schedule": "0 3 * * *"
     },
     {
       "path": "/api/cron/verify-business",
@@ -146,15 +134,4 @@
     },
     {
       "path": "/api/cron/enrich-subway",
-      "schedule": "0 12 * * *"
-    },
-    {
-      "path": "/api/cron/enrich-land-price",
-      "schedule": "0 13 * * 1"
-    },
-    {
-      "path": "/api/cron/enrich-crime-safety",
-      "schedule": "30 13 * * 1"
-    }
-  ]
-}
+      "schedule": "0 12 * * 
