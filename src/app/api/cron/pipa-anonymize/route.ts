@@ -14,12 +14,12 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
+  // L-fix-cron-secret (2026-04-28): CRON_SECRET 미설정 시 fail-safe
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = request.headers.get('authorization') || '';
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+  if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  const authHeader = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (authHeader !== cronSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {

@@ -750,7 +750,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div>
-                    <label className={labelClass}>맠매가</label>
+                    <label className={labelClass}>매매가</label>
                     <input
                       type="number"
                       inputMode="numeric"

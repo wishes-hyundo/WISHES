@@ -58,11 +58,11 @@ JSON만 출력. 설명 없이.` },
 }
 
 export async function GET(request: NextRequest) {
+  // L-fix-cron-secret (2026-04-28): CRON_SECRET 미설정 시 fail-safe (이전: 통과)
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const auth = request.headers.get('authorization') || '';
-    if (auth !== `Bearer ${cronSecret}`) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  if (!cronSecret) return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  const auth = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (auth !== cronSecret) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   if (!GEMINI_KEY) {
     return NextResponse.json({ success: false, error: 'GEMINI_API_KEY 미설정' }, { status: 500 });
