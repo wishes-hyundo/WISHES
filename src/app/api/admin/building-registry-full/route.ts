@@ -128,7 +128,8 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
     if (supabase) {
-      let cached: { raw_data?: unknown; units_data?: unknown; fetched_at?: string } | null = null;
+      type CachedRow = { raw_data?: unknown; units_data?: unknown; fetched_at?: string };
+      let cached: CachedRow | null = null;
       try {
         const cacheRes = await withHardTimeout(
           supabase
@@ -142,7 +143,7 @@ export async function GET(request: NextRequest) {
             .maybeSingle(),
           2000, 'cache_select'
         );
-        cached = (cacheRes as { data: typeof cached }).data;
+        cached = (cacheRes as { data: CachedRow | null }).data;
       } catch { cached = null; }
 
       if (cached) {
