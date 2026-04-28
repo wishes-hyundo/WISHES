@@ -2,27 +2,22 @@
 // subway-finder — 매물 좌표 → 100% 정확한 가장 가까운 역 + 출구 + 도보
 // 작성: 2026-04-29 사장님 명령 "정확도 100% 무조건"
 //
-// 데이터 소스 (모두 정부 공식 + 카카오 모빌리티):
-//   1. Supabase subway_stations / subway_exits (PostGIS) — 역 + 출구 마스터
-//   2. PostGIS find_nearest_stations / find_nearest_exits RPC — top N
-//   3. 카카오 모빌리티 도보 routing — 출구 → 매물 실제 도보 거리/시간
-//
 // 100% 보장:
-//   - 모든 좌표는 정부 공식 소스
-//   - 도보 거리는 카카오 모빌리티 실제 routing (직선 환산 X)
-//   - 데이터 누락 시 명시적 null 반환 (잘못된 정보 X)
+//   - PostGIS GIST nearest-neighbor (정부 공식 좌표)
+//   - 카카오 모빌리티 도보 routing (실제 경로, 직선 환산 X)
+//   - DB 비었으면 자동 sync 트리거 (lazy bootstrap, fire-and-forget)
 // ──────────────────────────────────────────────────────────────────────
 
 import { createServerClient } from '@/lib/supabase';
 
 export interface NearestStation {
   station_id: number;
-  name: string;          // "암사역"
-  line: string;          // "8호선"
+  name: string;
+  line: string;
   operator: string | null;
-  distance_m: number;    // 직선거리 (PostGIS)
-  walk_distance_m?: number;  // 카카오 도보 routing 결과
-  walk_minutes?: number;     // 도보 분 (라우팅 기반)
+  distance_m: number;
+  walk_distance_m?: number;
+  walk_minutes?: number;
   nearest_exit?: {
     exit_no: string;
     distance_m: number;
@@ -34,7 +29,23 @@ export interface NearestStation {
 
 const KAKAO_MOBILITY_KEY = process.env.KAKAO_REST_API_KEY || '';
 
-// ── 1. PostGIS RPC: 가장 가까운 역 top N ─────────────
+// ── lazy bootstrap: subway_stations 비었으면 자동 sync 트리거 ──
+let bootstrapTriggered = false;
+async function maybeTriggerBootstrap(): Promise<void> {
+  if (bootstrapTriggered) return;
+  bootstrapTriggered = true;
+  // fire-and-forget: 응답 기다리지 않음
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_BASE_URL || 'https://wishes.co.kr';
+    const cronSecret = process.env.CRON_SECRET || '';
+    fetch(`${baseUrl}/api/cron/sync-subway-stations`, {
+      method: 'GET',
+      headers: cronSecret ? { Authorization: `Bearer ${cronSecret}` } : {},
+      signal: AbortSignal.timeout(60000),
+    }).catch(() => { /* skip */ });
+  } catch { /* skip */ }
+}
+
 export async function findNearestStations(
   lat: number,
   lng: number,
@@ -50,7 +61,11 @@ export async function findNearestStations(
     p_limit: options.limit ?? 5,
   });
 
-  if (error || !Array.isArray(data)) return [];
+  if (error || !Array.isArray(data) || data.length === 0) {
+    // DB 가 비었을 가능성 → lazy bootstrap 트리거
+    void maybeTriggerBootstrap();
+    return [];
+  }
 
   return data.map((r) => ({
     station_id: r.station_id,
@@ -63,7 +78,6 @@ export async function findNearestStations(
   }));
 }
 
-// ── 2. PostGIS RPC: 가장 가까운 출구 top N ───────────
 export async function findNearestExits(
   lat: number,
   lng: number,
@@ -91,9 +105,7 @@ export async function findNearestExits(
   }));
 }
 
-// ── 3. 카카오 모빌리티 도보 routing ──────────────────
-// 출구 → 매물 실제 도보 거리 (직선 환산 X, 굴곡 반영)
-// 무료 한도: 일 100,000건
+// 카카오 모빌리티 도보 routing (실제 경로)
 export async function walkRoutingKakao(
   fromLat: number, fromLng: number,
   toLat: number, toLng: number
@@ -118,21 +130,16 @@ export async function walkRoutingKakao(
   }
 }
 
-// ── 4. 통합: 매물 좌표 → top 3 역 + 가까운 출구 + 도보 ──
-// 100% 보장 응답: 데이터 없으면 빈 배열 (추측 X)
 export async function findStationsForListing(
   lat: number,
   lng: number,
   topN: number = 3
 ): Promise<NearestStation[]> {
-  // 1. PostGIS 로 가장 가까운 역 top N (직선거리)
   const stations = await findNearestStations(lat, lng, { radiusM: 2000, limit: topN });
   if (stations.length === 0) return [];
 
-  // 2. 각 역의 가장 가까운 출구 + 카카오 도보 routing
   const enriched: NearestStation[] = [];
   for (const s of stations) {
-    // 그 역의 출구 중 매물에 가장 가까운 것
     const exits = await findNearestExits(lat, lng, { radiusM: 1500, limit: 30 });
     const sameStationExits = exits.filter((e) => e.station_name === s.name && e.line === s.line);
     sameStationExits.sort((a, b) => a.distance_m - b.distance_m);
@@ -140,10 +147,8 @@ export async function findStationsForListing(
 
     let walkResult: { distance_m: number; duration_s: number } | null = null;
     if (closestExit) {
-      // 가장 가까운 출구 → 매물 도보 라우팅
       walkResult = await walkRoutingKakao(closestExit.lat, closestExit.lng, lat, lng);
     } else {
-      // 출구 데이터 없으면 역 중심 → 매물
       walkResult = await walkRoutingKakao(s.lat, s.lng, lat, lng);
     }
 
