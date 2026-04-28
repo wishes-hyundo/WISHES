@@ -29,12 +29,17 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const isAdmin = pathname.startsWith('/admin') || pathname.startsWith('/command');
   // 2026-04-21 migration: MAP 2026 (Phase A~F) promoted to canonical /map.
   // Legacy launch codename /map-2026 is 301-redirected to /map via next.config.js.
-  const isMapPage = pathname === '/map';
+  // L-listingurl-path (2026-04-29 사장님 명령): /map/<숫자> 도 매물 path 형식.
+  //   middleware 가 server-side 로 ?listing=<숫자> rewrite 하지만 클라이언트
+  //   usePathname() 은 외부 URL 그대로 → /map 체크가 false 가 되어 레이아웃 깨짐.
+  //   /map 또는 /map/<숫자> 둘 다 매물 지도 페이지로 인식.
+  const isMapPath = pathname === '/map' || /^\/map\/\d+$/.test(pathname);
+  const isMapPage = isMapPath;
   // /map hides the site Header and mounts main with explicit 100dvh so the
   // inner grid's h-full chain resolves in pixels. (min-h-screen would let
   // the long ListPanel push body, collapsing h-full to auto and ballooning
   // the container to ~38,000px.)
-  const isFullScreenMap = pathname === '/map';
+  const isFullScreenMap = isMapPath;
   // 중개사 포털 관련 페이지는 헤더/푸터 없이 전체화면 렌더링
   const isBrokerPortal = pathname === '/search' || pathname === '/login' || pathname === '/signup';
 

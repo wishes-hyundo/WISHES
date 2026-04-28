@@ -49,7 +49,7 @@ function MobileBottomNavInner() {
   // 비노출 경로
   const hide =
     pathname.startsWith('/admin') ||
-    pathname === '/map' ||
+    pathname === '/map' || /^\/map\/\d+$/.test(pathname) ||
     pathname === '/search' ||
     pathname === '/login' ||
     pathname === '/signup';
