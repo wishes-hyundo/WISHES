@@ -134,7 +134,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v295-detail-hydrate', '/search/content-v295-detail-hydrate.js?v=20260424d'],
       ['ws-ext-patch-v297-edit', '/search/content-v297-edit.js?v=20260423a'],
       ['ws-ext-patch-v300-aidesc-v2', '/search/content-v300-aidesc-v2.js?v=20260427a'],
-      ['ws-ext-patch-v306-bldg-unit', '/search/content-v306-bldg-unit.js?v=20260429rev3'],
+      ['ws-ext-patch-v306-bldg-unit', '/search/content-v306-bldg-unit.js?v=20260429rev4'],
       ['ws-ext-patch-v307-listing-form', '/search/content-v307-listing-form.js?v=20260428redirect'],
       ['ws-ext-patch-v308-roadview', '/search/content-v308-roadview.js?v=20260429e'],
       ['ws-ext-patch-v310-modal-completeness', '/search/content-v310-modal-completeness.js?v=20260429a'],
