@@ -82,10 +82,24 @@ export async function POST(
       return NextResponse.json({ success: false, error: 'No videos' }, { status: 400, headers: cors });
     }
     if (files.length > 5) {
-      return NextResponse.json({ success: false, error: 'Max 5 videos per request' }, { status: 400, headers: cors });
+      return NextResponse.json({ success: false, error: '한 번에 최대 5장까지 업로드 가능합니다.' }, { status: 400, headers: cors });
     }
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // L-video5 (2026-04-29): 매물당 총 5장 한도 — 사장님 명령 (사진 20장 패턴 동일).
+    const { count: existingCount } = await supabase
+      .from('listing_videos')
+      .select('id', { count: 'exact', head: true })
+      .eq('listing_id', listingId);
+    const currentVideoCount = existingCount || 0;
+    if (currentVideoCount + files.length > 5) {
+      const remaining = Math.max(0, 5 - currentVideoCount);
+      return NextResponse.json(
+        { success: false, error: `매물당 최대 5장입니다. 현재 ${currentVideoCount}장 등록됨 (추가 가능 ${remaining}장).` },
+        { status: 400, headers: cors }
+      );
+    }
     const { data: listing, error: le } = await supabase.from('listings').select('id').eq('id', listingId).single();
     if (le || !listing) {
       return NextResponse.json({ success: false, error: 'Listing not found' }, { status: 404, headers: cors });

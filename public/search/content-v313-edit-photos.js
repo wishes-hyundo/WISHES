@@ -170,6 +170,19 @@
       '  ::view-transition-old(v313-card),::view-transition-new(v313-card){animation:none}',
       '  .v313-card:hover{transform:none}',
       '}',
+
+      // L-video5 (2026-04-29): 동영상 카드 — 사진과 동일 그리드, video element
+      '.v313-vcard{position:relative;aspect-ratio:16/9;border-radius:10px;overflow:hidden;',
+      '  background:oklch(20% 0.02 145);border:2px solid transparent;',
+      '  view-transition-name:v313-vcard;}',
+      '.v313-vcard video{width:100%;height:100%;object-fit:cover;display:block;background:#111}',
+      '.v313-vcard .v313-card-acts{align-items:flex-end}',
+      '.v313-vbadge{position:absolute;top:6px;left:6px;background:oklch(50% 0.20 25);color:white;',
+      '  font-size:10px;font-weight:800;padding:3px 6px;border-radius:4px}',
+      '.v313-vgrid{display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:10px}',
+      '@container v313 (max-width: 480px){',
+      '  .v313-vgrid{grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));gap:8px}',
+      '}',
     ].join('');
   }
 
@@ -225,6 +238,39 @@
   }
   function deleteImage(lid, imageId) {
     return fetch('/api/listings/' + lid + '/images?imageId=' + encodeURIComponent(imageId), {
+      method: 'DELETE',
+      headers: authHdr(),
+      signal: AbortSignal.timeout(8000),
+    }).then(function (r) { return r.ok ? r.json() : null; });
+  }
+
+  // ── videos API (사진과 동일 패턴) ──
+  function listVideos(lid) {
+    return fetch('/api/listings/' + lid + '/videos', { credentials: 'include', signal: AbortSignal.timeout(8000) })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) { return (j && j.success && Array.isArray(j.data)) ? j.data : []; })
+      .catch(function () { return []; });
+  }
+  function uploadVideo(lid, file, onProgress) {
+    return new Promise(function (resolve, reject) {
+      var fd = new FormData();
+      fd.append('videos', file);
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/api/listings/' + lid + '/videos');
+      var hdr = authHdr();
+      Object.keys(hdr).forEach(function (k) { xhr.setRequestHeader(k, hdr[k]); });
+      xhr.upload.onprogress = function (e) { if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total); };
+      xhr.onload = function () {
+        if (xhr.status === 200 || xhr.status === 201) {
+          try { resolve(JSON.parse(xhr.responseText)); } catch (_) { resolve(null); }
+        } else { reject(new Error('upload ' + xhr.status)); }
+      };
+      xhr.onerror = function () { reject(new Error('network')); };
+      xhr.send(fd);
+    });
+  }
+  function deleteVideo(lid, videoId) {
+    return fetch('/api/listings/' + lid + '/videos?videoId=' + encodeURIComponent(videoId), {
       method: 'DELETE',
       headers: authHdr(),
       signal: AbortSignal.timeout(8000),
@@ -471,7 +517,9 @@
       var body = panel.querySelector('.v297-bd, .v297-body, form, [data-v297-body]') || panel;
       var sec = buildSection(lid);
       body.appendChild(sec);
-      console.log('[' + V + '] 사진 매니저 attached for listing #' + lid);
+      var vsec = buildVideoSection(lid);
+      body.appendChild(vsec);
+      console.log('[' + V + '] 사진+동영상 매니저 attached for listing #' + lid);
     } catch (e) {
       console.warn('[' + V + '] attach failed:', e && e.message);
     }
