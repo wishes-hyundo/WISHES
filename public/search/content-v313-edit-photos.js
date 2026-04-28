@@ -516,10 +516,21 @@
       panel.dataset.v313 = '1';
       var body = panel.querySelector('.v297-bd, .v297-body, form, [data-v297-body]') || panel;
       var sec = buildSection(lid);
-      body.appendChild(sec);
       var vsec = buildVideoSection(lid);
-      body.appendChild(vsec);
-      console.log('[' + V + '] 사진+동영상 매니저 attached for listing #' + lid);
+
+      // L-photos-top (2026-04-29): 사장님 명령 — 사진/동영상 매니저는 폼의 가장 상단.
+      //   v297-hd (헤더) 가 있으면 그 다음 (sticky 헤더 유지), 없으면 body 최상단.
+      var headerEl = panel.querySelector('.v297-hd');
+      if (headerEl && headerEl.parentNode === body) {
+        // 헤더 바로 다음에 사진 섹션 → 동영상 섹션 (역순 insertBefore)
+        body.insertBefore(vsec, headerEl.nextSibling);
+        body.insertBefore(sec, headerEl.nextSibling);
+      } else {
+        // body 최상단 — 사진 → 동영상 (prepend 역순)
+        body.insertBefore(vsec, body.firstChild);
+        body.insertBefore(sec, body.firstChild);
+      }
+      console.log('[' + V + '] 사진+동영상 매니저 (상단) attached for listing #' + lid);
     } catch (e) {
       console.warn('[' + V + '] attach failed:', e && e.message);
     }
