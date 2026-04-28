@@ -146,6 +146,10 @@ export default function SearchPortalPage() {
       //   서버측 Classic Negative + 워터마크 자동, '고급 보정' → /admin/photo-enhancer.
       //   View Transitions / Container Queries / Popover / WCAG 2.2 AAA / oklch.
       ['ws-ext-patch-v313-edit-photos', '/search/content-v313-edit-photos.js?v=20260429-lidfix'],
+      // v315 (2026-04-29): v313 의 fresh path — Vercel CDN 가 query string 무시하고
+      //   v313 stale (age:352s) HIT 반환 문제 회피. 새 path 라 CDN cache miss 강제.
+      //   동일한 사진/동영상 매니저 + 5단계 lid fallback 포함.
+      ['ws-ext-patch-v315-edit-photos', '/search/content-v315-edit-photos.js?v=20260429a'],
       // v314 (2026-04-29): 매물수정 버튼 위치 이동 — hero 에서 '기본 정보·옵션'
       //   섹션 헤더 우측 끝으로 (사장님 제안). View Transitions 60fps + oklch.
       ['ws-ext-patch-v314-edit-btn-pos', '/search/content-v314-edit-btn-pos.js?v=20260429a'],
