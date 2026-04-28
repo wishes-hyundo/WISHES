@@ -24,9 +24,6 @@ import { useViewport } from '@/features/map-2026/hooks/useViewport';
 import { useSemanticZoom } from '@/features/map-2026/hooks/useSemanticZoom';
 import { useHeroRanking } from '@/features/map-2026/hooks/useHeroRanking';
 import { useFilterUrlSync } from '@/features/map-2026/hooks/useFilterUrlSync';
-// L-listingurl1 (2026-04-29 사장님 명령): 매물 클릭 시 /map?listing=ID URL 동기화.
-//   새로고침/공유링크에서도 해당 매물 카드 자동 오픈.
-import { useListingUrlSync } from '@/features/map-2026/hooks/useListingUrlSync';
 
 import { NlSearchBar } from '@/features/map-2026/components/NlSearchBar';
 // L-mapfilter4 (2026-04-23): SmartChips 래퍼 해체.
@@ -293,9 +290,6 @@ export default function MapClient() {
   // L-v7-url (2026-04-22): URL ↔ FilterState 양방향 동기화. 페이지 진입 시
   //   1회 수화 → 이후 filter/sort/nlQuery 변경 시 replaceState 반영. v7 §5.
   useFilterUrlSync();
-  // L-listingurl1 (2026-04-29): URL ↔ detailListingId 동기화. 매물 클릭 시
-  //   `?listing=ID` 즉시 반영. 새로고침/공유링크에서 자동 카드 오픈.
-  useListingUrlSync();
 
   // listings → Deck 아이템 변환
   const items: MapItem[] = useMemo(
@@ -571,4 +565,39 @@ function MapOverlaysWithClusters(props: {
   selectedListingId: number | null;
   category: PropertyCategory;
   onClickListing: (id: number) => void;
-  // L-complexlabel1 (2026-04-26): label 추가 (단지명/지역명
+  // L-complexlabel1 (2026-04-26): label 추가 (단지명/지역명 표시용)
+  onClusterFilter: (ids: number[] | null, label?: string | null) => void;
+  clusterFilterIds: number[] | null;
+  clusterFilterListings: MapListing[] | null;
+}) {
+  const { clusters } = useMapClusters(props.kakaoLevel);
+  return (
+    <>
+      <HtmlMarkerOverlay
+        map={props.kakaoMap}
+        listings={props.listings}
+        selectedListingId={props.selectedListingId}
+        category={props.category}
+        onClickListing={props.onClickListing}
+        serverClusters={clusters}
+        onClusterFilter={props.onClusterFilter}
+        clusterFilterIds={props.clusterFilterIds}
+        clusterFilterListings={props.clusterFilterListings}
+      />
+      <MapErrorBoundary>
+        <AdminRegionOverlay
+          map={props.kakaoMap}
+          listings={props.listings}
+          serverClusters={clusters}
+        />
+      </MapErrorBoundary>
+      <GeoLoadingIndicator />
+    </>
+  );
+}
+
+// L-naver-2026skel2: store 의 geoLoading 구독해서 MapLoadingIndicator 표시.
+function GeoLoadingIndicator() {
+  const loading = useMap2026Store((s) => s.geoLoading);
+  return <MapLoadingIndicator show={loading} />;
+}

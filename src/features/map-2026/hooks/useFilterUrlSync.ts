@@ -139,14 +139,6 @@ function paramsEqual(a: URLSearchParams, b: URLSearchParams): boolean {
   return aEntries.every(([k, v], i) => bEntries[i][0] === k && bEntries[i][1] === v);
 }
 
-// L-listingurl1 (2026-04-29): filter sync 가 다루는 키 목록.
-//   merge 시 이 키들만 지우고 나머지(listing 등)는 보존.
-const FILTER_KEYS = [
-  'cat', 'deals', 'purposes', 'rooms', 'types', 'features',
-  'priceMin', 'priceMax', 'depositMin', 'depositMax', 'monthlyMin', 'monthlyMax',
-  'areaMin', 'areaMax', 'near', 'new', 'photos', 'sort', 'q',
-] as const;
-
 /**
  * useFilterUrlSync — 한 번만 호출하세요 (최상위 페이지 컴포넌트에서).
  *
@@ -193,17 +185,11 @@ export function useFilterUrlSync(debounceMs = 300): void {
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
 
     debounceTimerRef.current = setTimeout(() => {
-      const nextFilterParams = filterToParams(filter, { sort, nlQuery });
-      // L-listingurl1 (2026-04-29): listing 등 filter 외 파라미터 보존.
-      //   기존 URL 에서 filter 키만 지우고 새 값으로 덮어쓴 뒤 비교.
-      const merged = new URLSearchParams(window.location.search);
-      FILTER_KEYS.forEach((k) => merged.delete(k));
-      nextFilterParams.forEach((v, k) => merged.set(k, v));
-
+      const nextParams = filterToParams(filter, { sort, nlQuery });
       const currentParams = new URLSearchParams(window.location.search);
-      if (paramsEqual(merged, currentParams)) return;
+      if (paramsEqual(nextParams, currentParams)) return;
 
-      const qs = merged.toString();
+      const qs = nextParams.toString();
       const nextUrl = qs ? `${pathname}?${qs}` : pathname;
       router.replace(nextUrl, { scroll: false });
     }, debounceMs);
@@ -211,4 +197,24 @@ export function useFilterUrlSync(debounceMs = 300): void {
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [filter, sort, nlQuery, pathname, router, 
+  }, [filter, sort, nlQuery, pathname, router, debounceMs]);
+
+  // ─── 브라우저 back/forward → store 재수화 ────────────────────────
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const onPopState = () => {
+      const sp = new URLSearchParams(window.location.search);
+      setFilter(paramsToFilter(sp));
+
+      const sortRaw = sp.get('sort');
+      setSort(
+        sortRaw && (SORTS as readonly string[]).includes(sortRaw)
+          ? (sortRaw as SortKey)
+          : 'recent'
+      );
+      setNlQuery(sp.get('q') ?? '');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [setFilter, setSort, setNlQuery]);
+}
