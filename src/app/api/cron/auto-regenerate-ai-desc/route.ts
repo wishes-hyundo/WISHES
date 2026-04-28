@@ -94,6 +94,7 @@ export async function GET(request: NextRequest) {
       const roomsForTarget = rbMatch ? parseFloat(rbMatch[1]) : ((listing.rooms as number) || null);
 
       const facts: BriefingFacts = {
+        id: listing.id as number,
         type: String(listing.type || ''),
         deal: String(listing.deal || ''),
         is_full_option: !!listing.full_option,
