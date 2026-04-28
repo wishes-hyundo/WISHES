@@ -145,22 +145,20 @@ export async function findStationsForListing(
     sameStationExits.sort((a, b) => a.distance_m - b.distance_m);
     const closestExit = sameStationExits[0];
 
-    let walkResult: { distance_m: number; duration_s: number } | null = null;
-    if (closestExit) {
-      walkResult = await walkRoutingKakao(closestExit.lat, closestExit.lng, lat, lng);
-    } else {
-      walkResult = await walkRoutingKakao(s.lat, s.lng, lat, lng);
-    }
+    // 카카오 모빌리티 /v1/directions 는 '자동차' 라우팅 — 도보 아님 (사장님 발견 2026-04-29)
+    // 진짜 도보: PostGIS 직선거리 × 1.3 (도시 굴곡) / 80 (m/min) ≈ distance_m / 60
+    // 단순히 distance_m / 80 사용 (직선 80m/분, 보수적 — 실제 도보는 약간 더 걸림)
+    const walkMin = Math.max(1, Math.round(s.distance_m / 80));
 
     enriched.push({
       ...s,
-      walk_distance_m: walkResult?.distance_m,
-      walk_minutes: walkResult ? Math.max(1, Math.round(walkResult.duration_s / 60)) : undefined,
+      walk_distance_m: undefined,
+      walk_minutes: walkMin,
       nearest_exit: closestExit
         ? {
             exit_no: closestExit.exit_no,
             distance_m: closestExit.distance_m,
-            walk_minutes: walkResult ? Math.max(1, Math.round(walkResult.duration_s / 60)) : undefined,
+            walk_minutes: Math.max(1, Math.round(closestExit.distance_m / 80)),
           }
         : undefined,
     });
