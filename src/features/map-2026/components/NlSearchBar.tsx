@@ -38,16 +38,74 @@ export function NlSearchBar() {
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
   }, []);
 
+  // L-nlsearch-tri (2026-04-29 사장님 명령): 검색창 1개로 3가지 모두 처리.
+  //   1) 매물번호 (4-7자리 숫자만) → 즉시 /map/<ID> 매물 카드 오픈
+  //   2) 주소 패턴 (한글+숫자, 도로명/번지/동/구) → Kakao Geocoder → 지도 이동
+  //   3) 자연어 (그 외) → /api/map/search-nl 규칙 파서 → 필터 + 지도 이동
+  //   분기 우선순위 1 → 2 → 3. 단, 자연어 키워드가 강한 경우 (이하/투룸/매매/전세
+  //   /월세 등) 입력에 한글+숫자 동시 있어도 자연어 분기로.
   async function submit(q: string) {
-    if (!q.trim() || busy) return;
+    const query = q.trim();
+    if (!query || busy) return;
     setBusy(true);
     setError(null);
-    setNlQuery(q);
+    setNlQuery(query);
     try {
+      // 1) 매물번호 — 4-7자리 숫자만 입력 시 즉시 매물 카드
+      if (/^\d{4,7}$/.test(query)) {
+        const id = Number.parseInt(query, 10);
+        // useListingUrlSync 가 detailListingId 변경을 감지해 history.replaceState
+        // 로 /map/<ID> URL 동기화. 매물 객체는 ListingDetailModal 이 fetch.
+        useMap2026Store.getState().openListingDetail(id);
+        setOpen(false);
+        setBusy(false);
+        return;
+      }
+
+      // 자연어 키워드 강도 — 있으면 무조건 NL 파서로
+      const NL_SIGNAL = /이하|미만|이상|초과|매매|전세|월세|단기|원룸|투룸|쓰리룸|오피스텔|아파트|빌라|반려|주차|엘리베이터|신축|역세권|도보|수익률/;
+      const hasNlSignal = NL_SIGNAL.test(query);
+
+      // 2) 주소 패턴 — Kakao Geocoder (한글이 있고 NL 키워드 없으면 우선 시도)
+      //    (예) "서울특별시 관악구 신림로64길 23", "신림동 123-4", "강남대로 100"
+      const looksLikeAddress = /[가-힣]{2,}.*(?:동|로|길|가|구|시|도|읍|면)/.test(query) || /\d+-\d+/.test(query);
+      if (!hasNlSignal && looksLikeAddress) {
+        const w = window as unknown as {
+          kakao?: { maps?: { services?: { Geocoder?: new () => {
+            addressSearch: (q: string, cb: (results: Array<{ x: string; y: string; address_name: string }>, status: string) => void) => void;
+          } } } };
+        };
+        const Geo = w.kakao?.maps?.services?.Geocoder;
+        if (Geo && map) {
+          const ok = await new Promise<boolean>((resolve) => {
+            const g = new Geo();
+            g.addressSearch(query, (results, status) => {
+              if (status === 'OK' && results.length > 0) {
+                const { x, y } = results[0];
+                const lng = Number.parseFloat(x);
+                const lat = Number.parseFloat(y);
+                if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                  cinematicFlyTo(map, { center: [lng, lat], zoom: 15 });
+                  resolve(true);
+                  return;
+                }
+              }
+              resolve(false);
+            });
+          });
+          if (ok) {
+            setOpen(false);
+            setBusy(false);
+            return;
+          }
+        }
+      }
+
+      // 3) 자연어 — 기존 /api/map/search-nl 규칙 파서
       const res = await fetch('/api/map/search-nl', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: q }),
+        body: JSON.stringify({ query }),
       });
       if (!res.ok) throw new Error(`nl ${res.status}`);
       const { filter, center, zoom } = await res.json();
@@ -58,7 +116,7 @@ export function NlSearchBar() {
       setOpen(false);
     } catch (err) {
       console.error('[NlSearchBar]', err);
-      setError('검색어를 이해하지 못했어요. 다른 표현으로 시도해 보세요.');
+      setError('검색어를 이해하지 못했어요. 매물번호/주소/자연어 중 다른 표현으로 시도해 보세요.');
     } finally {
       setBusy(false);
     }
