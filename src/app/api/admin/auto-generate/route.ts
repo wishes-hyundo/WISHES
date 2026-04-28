@@ -39,10 +39,11 @@ function parseLLM(raw: string): { title?: string; description?: string } | null 
 
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminAuth(request))) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-  let body: { listingId?: number; saveToDb?: boolean } = {};
+  let body: { listingId?: number | string; saveToDb?: boolean } = {};
   try { body = await request.json(); } catch { return NextResponse.json({ error: 'invalid body' }, { status: 400 }); }
-  const lid = body.listingId;
-  if (!lid || typeof lid !== 'number') return NextResponse.json({ error: 'listingId required' }, { status: 400 });
+  const lidRaw = body.listingId;
+  const lid = typeof lidRaw === 'number' ? lidRaw : (typeof lidRaw === 'string' ? parseInt(lidRaw, 10) : 0);
+  if (!lid || isNaN(lid) || lid <= 0) return NextResponse.json({ error: 'listingId required' }, { status: 400 });
 
   const supabase = createServerClient();
   const { data: listing, error } = await supabase
@@ -107,12 +108,16 @@ export async function POST(request: NextRequest) {
     }).eq('id', lid);
   }
 
-  return NextResponse.json({
-    success: true,
+  const responsePayload = {
     title, description,
     meta_description: description.slice(0, 160),
     keywords: stations.slice(0, 3).map((s) => `${s.name} ${facts.type}`),
     tags: [`#${facts.type}`, `#${facts.deal}`],
     method, stations: stations.length,
+  };
+  return NextResponse.json({
+    success: true,
+    ...responsePayload,
+    result: responsePayload,  // v240 client 호환
   });
 }
