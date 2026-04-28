@@ -117,13 +117,14 @@
       '}',
       '.v313-card-prog>span{display:block;height:100%;background:oklch(58% 0.13 145);width:0%;transition:width .2s ease}',
 
-      // ── 카드 액션 (호버 시 표시) ──
+      // ── 카드 액션 (항상 표시 — 사장님 명령) ──
       '.v313-card-acts{',
       '  position:absolute;inset:0;',
-      '  background:linear-gradient(to bottom, transparent 50%, color-mix(in oklch, black 60%, transparent) 100%);',
-      '  opacity:0;transition:opacity .15s ease;display:flex;align-items:flex-end;justify-content:space-between;padding:8px;',
+      '  background:linear-gradient(to bottom, transparent 60%, color-mix(in oklch, black 75%, transparent) 100%);',
+      '  opacity:1;display:flex;align-items:flex-end;justify-content:space-between;padding:8px;pointer-events:none;',
       '}',
-      '.v313-card:hover .v313-card-acts, .v313-card:focus-within .v313-card-acts{opacity:1}',
+      // 액션 버튼 자체는 클릭 가능
+      '.v313-card-acts > *{pointer-events:auto}',
       '.v313-card-btn{',
       '  background:color-mix(in oklch, white 92%, transparent);color:oklch(20% 0.05 145);',
       '  border:none;border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;',
@@ -131,8 +132,8 @@
       '}',
       '.v313-card-btn:hover{background:white;transform:translateY(-1px)}',
       '.v313-card-btn:focus-visible{outline:2px solid oklch(58% 0.18 145);outline-offset:2px}',
-      '.v313-card-btn-danger{background:color-mix(in oklch, oklch(60% 0.18 25) 88%, transparent);color:white}',
-      '.v313-card-btn-danger:hover{background:oklch(55% 0.18 25)}',
+      '.v313-card-btn-danger{background:color-mix(in oklch, oklch(58% 0.20 25) 90%, transparent);color:white;font-size:13px;padding:6px 9px}',
+      '.v313-card-btn-danger:hover{background:oklch(50% 0.20 25);transform:scale(1.05)}',
       '.v313-card-thumb-badge{',
       '  position:absolute;top:6px;left:6px;background:oklch(58% 0.13 145);color:white;',
       '  font-size:10px;font-weight:800;padding:3px 6px;border-radius:4px;letter-spacing:.02em;',
