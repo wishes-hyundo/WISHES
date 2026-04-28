@@ -10,6 +10,8 @@
 <meta name="theme-color" content="#2d5016">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<!-- L-film-look v3 (2026-04-28): WISHES Classic Negative WebGPU/WebGL2 + Oklab 셰이더 엔진 -->
+<script src="/lib/wishes-film-look.js" defer></script>
 <title>WISHES 모바일 사진등록</title>
 <style>
   :root {
@@ -595,11 +597,30 @@ function compressImage(file) {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, width, height);
         canvas.toBlob(blob => {
-          if (blob) {
-            const f = new File([blob], file.name.replace(/\.\w+$/, '.jpg'),
-              { type: 'image/jpeg', lastModified: file.lastModified });
-            resolve({ compressed: f, originalSize: file.size, compressedSize: f.size });
-          } else resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
+          if (!blob) return resolve({ compressed: file, originalSize: file.size, compressedSize: file.size });
+          const interFile = new File([blob], file.name.replace(/\.\w+$/, '.jpg'),
+            { type: 'image/jpeg', lastModified: file.lastModified });
+          // L-film-look v3 (2026-04-28): WISHES Classic Negative WebGPU/WebGL2 자동 적용
+          //   사장님 12 파라미터 정확 (Fujifilm Classic Negative + Grain Strong/Large
+          //   + Colour Chrome FX Strong + Blue Strong + WB +3R/-5B + DR400 + Colour +4
+          //   + Highlight -2 + Shadow -2 + Sharp +2 + NR -4 + Clarity -2). Oklab 색공간.
+          //   미지원 (WebGL2 X) 또는 실패 시 자동 fallback = 압축 JPEG 그대로 사용.
+          (async () => {
+            const FilmLook = (typeof window !== 'undefined') && window.WishesFilmLook;
+            if (!FilmLook) return resolve({ compressed: interFile, originalSize: file.size, compressedSize: interFile.size });
+            try {
+              const fl = await FilmLook.create({ preset: 'classic-negative-A' });
+              const flBlob = await fl.applyToFile(interFile, { mime: 'image/webp', quality: 0.92, maxDim: MAX_DIM });
+              const f = new File([flBlob], interFile.name.replace(/\.\w+$/, '.webp'),
+                { type: 'image/webp', lastModified: file.lastModified });
+              fl.destroy();
+              if (typeof log === 'function') log('film-look applied:', fl.getBackend ? fl.getBackend() : 'webgl2', f.size, 'bytes');
+              resolve({ compressed: f, originalSize: file.size, compressedSize: f.size, filmLookApplied: true });
+            } catch (e) {
+              console.warn('[WISHES film-look] failed, fallback JPEG:', e);
+              resolve({ compressed: interFile, originalSize: file.size, compressedSize: interFile.size, filmLookApplied: false });
+            }
+          })();
         }, 'image/jpeg', QUALITY);
       };
       img.src = e.target.result;
@@ -2754,57 +2775,4 @@ window.addEventListener('beforeunload', () => revokePendingUrls());
       } catch(err){
         var code = err && err.code ? err.code : '';
         toast('✗ '+file.name+': '+humanError(code, err && err.message), 'error');
-        console.error('[v239]', err);
-      }
-    }
-
-    if (typeof window.refreshVideoList === 'function'){
-      try { window.refreshVideoList(); } catch(e){}
-    } else if (typeof window.loadVideos === 'function'){
-      try { window.loadVideos(); } catch(e){}
-    }
-  }
-
-  // ★★★ v2.3.9 핵심: 기존 input 에 박힌 리스너 제거 + 새 리스너 바인딩 ★★★
-  function rebindVideoInputs(){
-    var bound = 0;
-    ['videoCameraInput', 'videoGalleryInput'].forEach(function(id){
-      var el = document.getElementById(id);
-      if (!el) return;
-      var clone = el.cloneNode(true);
-      el.parentNode.replaceChild(clone, el);
-      clone.addEventListener('change', function(e){
-        handleVideoFiles_v239(e);
-        // 다음 선택을 위해 value 리셋 (같은 파일 재선택 허용)
-        try { clone.value = ''; } catch(err){}
-      });
-      bound++;
-    });
-    console.log('[v239] rebound ' + bound + ' video input(s)');
-    return bound;
-  }
-
-  window.handleVideoFiles = handleVideoFiles_v239;
-  window.__MPH_V239__ = {
-    version: V,
-    __orig: __orig,
-    rebind: rebindVideoInputs,
-    rollback: function(){
-      toast('v2.3.9 롤백 시 페이지 새로고침 필요.', 'info');
-      try { delete window.__MPH_V239__; } catch(e){ window.__MPH_V239__ = null; }
-    },
-    uploadOne: uploadOne
-  };
-
-  // DOM 준비됐으면 즉시, 아니면 DOMContentLoaded 대기
-  if (document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', rebindVideoInputs);
-  } else {
-    rebindVideoInputs();
-  }
-
-  console.log('[mobile-photo] v2.3.10 loaded — rebind 포함 presign R2 직접업로드 활성화');
-})();
-</script>
-</body>
-</html>
+        console
