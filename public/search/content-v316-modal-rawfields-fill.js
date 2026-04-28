@@ -53,29 +53,48 @@
   //   v240 의 'parking=true' → '가능' 보다 raw['주차대수']='유료 1대, 9만원' 이 정답.
   var FORCE_OVERWRITE_LABELS = [/^주차$|주차가능/, /^면적$|연면적|건축면적/];
 
-  // building data 면적 추출 — v306/v311 이 sessionStorage 에 저장한 cache 활용
-  function getBuildingArea() {
+  // 주차 단순화 — '유료 1대, 주차비: 1대당 9만원' → '1대 (월 9만원)'
+  function simplifyParking(s) {
+    if (!s) return s;
+    var t = String(s).trim();
+    // 'N대' 매칭
+    var dae = t.match(/(\d+)\s*대/);
+    var won = t.match(/(\d+(?:,\d+)*)\s*만원/);
+    if (dae) {
+      var out = dae[1] + '대';
+      if (won) out += ' (월 ' + won[1] + '만원)';
+      else if (/무료/.test(t)) out += ' 무료';
+      else if (/유료/.test(t)) out += ' 유료';
+      return out;
+    }
+    return t;
+  }
+
+  // building cache 면적 데이터 — selected_unit + data 모두 반환
+  function getBuildingData() {
     try {
       var L = window.WS && window.WS.__lastListing;
       if (!L) return null;
-      // v306 cache (wsBldgV3:lid:addr:dong:ho)
       for (var i = 0; i < sessionStorage.length; i++) {
         var k = sessionStorage.key(i);
-        if (!k || k.indexOf('wsBldgV3:') !== 0 && k.indexOf('wsBldgMainV4:') !== 0) continue;
+        if (!k || (k.indexOf('wsBldgV3:') !== 0 && k.indexOf('wsBldgMainV4:') !== 0)) continue;
         try {
           var raw = JSON.parse(sessionStorage.getItem(k));
           var p = raw && raw.payload;
-          if (!p || !p.success) continue;
-          var sel = p.selected_unit;
-          if (sel && sel.exclusiveArea) {
-            return Number(sel.exclusiveArea).toFixed(2) + ' m² (전용)';
-          }
-          var d = p.data || {};
-          if (d.archArea) return Number(d.archArea).toFixed(2) + ' m² (건축)';
-          if (d.totArea) return Number(d.totArea).toFixed(2) + ' m² (연면적)';
+          if (p && p.success) return p;
         } catch (_) {}
       }
     } catch (_) {}
+    return null;
+  }
+  function getBuildingArea() {
+    var p = getBuildingData();
+    if (!p) return null;
+    var sel = p.selected_unit;
+    if (sel && sel.exclusiveArea) return Number(sel.exclusiveArea).toFixed(2) + ' m² (전용)';
+    var d = p.data || {};
+    if (d.archArea) return Number(d.archArea).toFixed(2) + ' m² (건축)';
+    if (d.totArea) return Number(d.totArea).toFixed(2) + ' m² (연면적)';
     return null;
   }
 
@@ -115,6 +134,7 @@
           if (LABEL_MAP[i][0].test(label)) {
             var picked = pickRaw(rf, LABEL_MAP[i][1]);
             if (picked) {
+              if (/^주차$|주차가능/.test(label)) picked = simplifyParking(picked);
               v.textContent = picked;
               filled++;
             }
@@ -126,6 +146,27 @@
     if (filled > 0) {
       console.log('[' + V + '] filled ' + filled + ' rows (raw_fields + building)');
     }
+
+    // 전용/공용 별도 row 추가 — v311/v312 가 mount 안 될 때 v316 fallback
+    var bp = getBuildingData();
+    if (bp && bp.selected_unit) {
+      var sel = bp.selected_unit;
+      if (sel.exclusiveArea && !info2.querySelector('.v316-unit-row')) {
+        var row = document.createElement('div');
+        row.className = 'v240-r v316-unit-row';
+        var ex = sel.exclusiveArea ? Number(sel.exclusiveArea).toFixed(2) + ' m²' : '-';
+        var co = (sel.commonArea && sel.commonArea > 0) ? Number(sel.commonArea).toFixed(2) + ' m²' : '-';
+        var tot = (sel.totalArea && sel.totalArea > 0) ? Number(sel.totalArea).toFixed(2) + ' m²' : '-';
+        row.innerHTML =
+          '<div class="v240-k">전용/공용</div>' +
+          '<div class="v240-v">' + ex + ' / ' + co + '</div>' +
+          '<div class="v240-k">총면적</div>' +
+          '<div class="v240-v">' + tot + ' <span style="color:#888;font-size:11px;margin-left:4px">건축물대장</span></div>';
+        info2.appendChild(row);
+        console.log('[' + V + '] 전용/공용 row 추가');
+      }
+    }
+
     info2.dataset.v316done = '1';
   }
 
