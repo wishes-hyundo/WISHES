@@ -5,6 +5,9 @@ import { fetchRtmsSummary, type RtmsSummary } from '@/lib/external/realEstateRtm
 import { createServerClient } from '@/lib/supabase';
 import { captureError } from '@/lib/observe';
 
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';

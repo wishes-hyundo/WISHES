@@ -66,38 +66,49 @@ export async function fetchRtmsSummary(
   let decodedKey = API_KEY;
   try { if (API_KEY.includes('%')) decodedKey = decodeURIComponent(API_KEY); } catch { /* keep */ }
 
-  const amounts: number[] = [];
-  const recentAmounts: number[] = [];
   const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
 
-  for (let i = 0; i < monthsBack; i++) {
-    const target = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const yyyymm = String(target.getFullYear()) + String(target.getMonth() + 1).padStart(2, '0');
-    const params = new URLSearchParams({
-      ServiceKey: decodedKey, LAWD_CD: lawdCd, DEAL_YMD: yyyymm,
-      pageNo: '1', numOfRows: '50', _type: 'json',
-    });
-    const url = `${RTMS_BASE}/${endpoint.replace('get', '')}/${endpoint}?${params.toString()}`;
+  // L-fix-perf (2026-04-28): 6개월을 sequential 로 호출하면 timeout. Promise.all 병렬.
+  const monthFetches = await Promise.allSettled(
+    Array.from({ length: monthsBack }, (_, i) => {
+      const target = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const yyyymm = String(target.getFullYear()) + String(target.getMonth() + 1).padStart(2, '0');
+      const params = new URLSearchParams({
+        ServiceKey: decodedKey, LAWD_CD: lawdCd, DEAL_YMD: yyyymm,
+        pageNo: '1', numOfRows: '50', _type: 'json',
+      });
+      const url = `${RTMS_BASE}/${endpoint.replace('get', '')}/${endpoint}?${params.toString()}`;
+      return (async () => {
+        const ctrl = new AbortController();
+        const tid = setTimeout(() => ctrl.abort(), 5000);
+        try {
+          const res = await fetch(url, { signal: ctrl.signal });
+          clearTimeout(tid);
+          if (!res.ok) return { target, items: [] as AnyObj[] };
+          const json = await res.json() as AnyObj;
+          const response = (json.response as AnyObj | undefined) || {};
+          const body = (response.body as AnyObj | undefined) || {};
+          const itemsRaw = (body.items as AnyObj | undefined)?.item;
+          const items: AnyObj[] = Array.isArray(itemsRaw) ? itemsRaw : (itemsRaw ? [itemsRaw as AnyObj] : []);
+          return { target, items };
+        } catch {
+          clearTimeout(tid);
+          return { target, items: [] as AnyObj[] };
+        }
+      })();
+    }),
+  );
 
-    try {
-      const ctrl = new AbortController();
-      const tid = setTimeout(() => ctrl.abort(), 8000);
-      const res = await fetch(url, { signal: ctrl.signal });
-      clearTimeout(tid);
-      if (!res.ok) continue;
-      const json = await res.json() as AnyObj;
-      const response = (json.response as AnyObj | undefined) || {};
-      const body = (response.body as AnyObj | undefined) || {};
-      const itemsRaw = (body.items as AnyObj | undefined)?.item;
-      const items: AnyObj[] = Array.isArray(itemsRaw) ? itemsRaw : (itemsRaw ? [itemsRaw as AnyObj] : []);
-
-      for (const r of items) {
-        const dealAmount = parseAmount(r['거래금액'] || r['보증금액']);
-        if (dealAmount === 0) continue;
-        amounts.push(dealAmount);
-        if (target >= threeMonthsAgo) recentAmounts.push(dealAmount);
-      }
-    } catch { /* skip month */ }
+  const amounts: number[] = [];
+  const recentAmounts: number[] = [];
+  for (const m of monthFetches) {
+    if (m.status !== 'fulfilled') continue;
+    for (const r of m.value.items) {
+      const dealAmount = parseAmount(r['거래금액'] || r['보증금액']);
+      if (dealAmount === 0) continue;
+      amounts.push(dealAmount);
+      if (m.value.target >= threeMonthsAgo) recentAmounts.push(dealAmount);
+    }
   }
 
   if (amounts.length === 0) {
