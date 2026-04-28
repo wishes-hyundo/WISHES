@@ -753,6 +753,10 @@
         panel.insertBefore(sec, panel.firstChild);
       }
       console.log('[' + V + '] 통합 미디어 매니저 mounted (form 외부) for listing #' + lid);
+      // 사장님 시각 확인용 — 새 코드 mount 시 1.5초 toast
+      try {
+        toast('✅ v315-2026-04-29-form-isolate mounted #' + lid, 'ok');
+      } catch (_) {}
     } catch (e) {
       console.warn('[' + V + '] attach failed:', e && e.message);
     }
