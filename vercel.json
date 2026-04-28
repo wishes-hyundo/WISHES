@@ -93,6 +93,10 @@
       "schedule": "0 */12 * * *"
     },
     {
+      "path": "/api/cron/ad-law-audit",
+      "schedule": "0 */6 * * *"
+    },
+    {
       "path": "/api/cron/price-outliers",
       "schedule": "30 1 * * *"
     },
