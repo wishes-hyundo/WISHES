@@ -62,31 +62,15 @@ export async function GET(request: NextRequest) {
     const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await resolveAddress(address);
 
     // Call the existing working building-registry endpoint
+    // L-fix-internal-bearer (2026-04-28): WISHES_INTERNAL_BEARER env 가 unset 인
+    //   Vercel 환경에서 INTERNAL_BEARER==='' → 401. 보호장치로 caller 의 원본
+    //   Authorization 헤더를 forward (caller 는 이미 verifyAdminAuthStrict 통과).
+    //   ws_session 쿠키도 같이 forward (cookie 기반 세션 호환).
+    const callerAuth = request.headers.get('authorization') || '';
+    const callerCookie = request.headers.get('cookie') || '';
+    const innerAuth = INTERNAL_BEARER ? `Bearer ${INTERNAL_BEARER}` : callerAuth;
     const registryUrl = `${SITE_URL}/api/admin/building-registry?sigunguCd=${sigunguCd}&bjdongCd=${bjdongCd}&bun=${bun}&ji=${ji}`;
-    // L-fix-internal-bearer (2026-04-28): WISHES_INTERNAL_BEARER env 미등록 시 사용자 토큰 fallback
-    const userAuth = request.headers.get('authorization') || request.headers.get('Authorization') || '';
-    const fwdAuth = INTERNAL_BEARER ? `Bearer ${INTERNAL_BEARER}` : userAuth;
-    const fetchHdrs: Record<string, string> = fwdAuth ? { Authorization: fwdAuth } : {};
-    const registryRes = await fetch(registryUrl, { headers: fetchHdrs });
-
-    if (!registryRes.ok) {
-      const errText = await registryRes.text();
-      throw new Error(`Building registry API error: ${registryRes.status} - ${errText.substring(0, 200)}`);
-    }
-
-    const registryData = await registryRes.json();
-
-    return NextResponse.json({
-      success: true,
-      query: { address, sigunguCd, bjdongCd, bun, ji, bCode, fullAddress },
-      data: registryData.data || {},
-      floors: registryData.floors || [],
-      raw: registryData.raw || {},
-    });
-  } catch (err: any) {
-    return NextResponse.json(
-      { success: false, error: err.message || 'Unknown error', query: { address } },
-      { status: 500 }
-    );
-  }
-}
+    const registryHeaders: Record<string, string> = {};
+    if (innerAuth) registryHeaders.Authorization = innerAuth;
+    if (callerCookie) registryHeaders.Cookie = callerCookie;
+    const registryRes = await fetch(registryUrl, { he

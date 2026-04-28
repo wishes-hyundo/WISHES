@@ -147,6 +147,11 @@
     if (auth === 'Bearer <legacy>' || auth === 'bearer <legacy>') {
       var tok = getWsToken();
       if (tok) hdr.set('Authorization', 'Bearer admin_bridge_' + tok);
+    } else if (!auth) {
+      // 헤더 자체 부재 (예: GET /api/admin/listings/[id] 단건 — SCOPE_TARGET_RE 매치 X)
+      // → 진짜 admin JWT 자동 주입.
+      var tokA = getWsToken();
+      if (tokA) hdr.set('Authorization', 'Bearer admin_bridge_' + tokA);
     }
     init.headers = hdr;
     return init;
@@ -168,6 +173,9 @@
             if (authR === 'Bearer <legacy>' || authR === 'bearer <legacy>') {
               var tokR = getWsToken();
               if (tokR) rqHdr.set('Authorization', 'Bearer admin_bridge_' + tokR);
+            } else if (!authR) {
+              var tokRA = getWsToken();
+              if (tokRA) rqHdr.set('Authorization', 'Bearer admin_bridge_' + tokRA);
             }
             var rqInit = {
               method: input.method, headers: rqHdr,
