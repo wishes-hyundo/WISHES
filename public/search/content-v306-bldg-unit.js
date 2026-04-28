@@ -1,6 +1,7 @@
 /**
  * /search content-v306 — 건축물대장 전유부 (호실) 정보 표시
  * 작성: 2026-04-28 (rev2 — fetch wrap 제거 + MutationObserver)
+ * 갱신: 2026-04-29 rev3 — truncated EOF 복구 + hoNm/dongNm 자동 추출
  *
  * v303/v304 와 동일한 v294 fetch wrap 충돌 (stack overflow) 회피.
  * v306 는 window.fetch wrap 안 함. 대신 MutationObserver 로 v240 모달 감지 →
@@ -8,7 +9,7 @@
  */
 (function () {
   'use strict';
-  var V = 'v306-bldg-unit-rev2';
+  var V = 'v306-bldg-unit-rev3';
   var _processed = new WeakSet();
 
   function escHtml(s) {
@@ -239,10 +240,32 @@
     } catch (_) {}
   }
 
+  // L-v306-rev3 (2026-04-29): 주소에서 동/호 추출 → API 에 전달 → selected_unit 매칭
+  // 예: "서울 관악구 신림동 1423-3 로사이신림 4층 403호" → hoNm="403"
+  //     "서울 강남구 역삼동 123 어쩌구아파트 101동 1502호" → dongNm="101", hoNm="1502"
+  function extractDongHoFromAddress(addr) {
+    if (!addr) return { dongNm: '', hoNm: '' };
+    var s = String(addr);
+    var dongNm = '';
+    var hoNm = '';
+    // "101동 1502호" 또는 "101동" 형태
+    var dm = s.match(/(\d{1,4})\s*동(?!시|구|군|도)/);
+    if (dm) dongNm = dm[1];
+    // "403호" / "1502호" / "B1호" — 가장 마지막 N호 매칭 (앞쪽 층수와 혼동 X)
+    var hoMatches = s.match(/(\d{1,5})\s*호(?:\s|$)/g);
+    if (hoMatches && hoMatches.length > 0) {
+      var lastHo = hoMatches[hoMatches.length - 1];
+      var m = lastHo.match(/(\d{1,5})/);
+      if (m) hoNm = m[1];
+    }
+    return { dongNm: dongNm, hoNm: hoNm };
+  }
+
   function enrichModal(modalBody, address, lid) {
     if (!address) return;
     try {
-      var cacheKey = 'wsBldg:' + (lid || '') + ':' + address;
+      var dh = extractDongHoFromAddress(address);
+      var cacheKey = 'wsBldg:' + (lid || '') + ':' + address + ':' + dh.dongNm + ':' + dh.hoNm;
       var cached = getCachedPayload(cacheKey);
       if (cached && cached.success) {
         renderUnitSection(modalBody, cached);
@@ -251,6 +274,9 @@
       var token = getRealAdminToken();
       var url = '/api/admin/building-registry-full?address=' + encodeURIComponent(address);
       if (lid) url += '&lid=' + encodeURIComponent(lid);
+      // L-v306-rev3: hoNm 없으면 selected_unit 항상 null → 전유부 표시 X. 보편 fix.
+      if (dh.dongNm) url += '&dongNm=' + encodeURIComponent(dh.dongNm);
+      if (dh.hoNm) url += '&hoNm=' + encodeURIComponent(dh.hoNm);
       var headers = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = 'Bearer admin_bridge_' + token;
       var ctrl = new AbortController();
@@ -281,4 +307,47 @@
       if (body.querySelector('.v245-bldg-row, .blabel')) {
         clearInterval(checkInterval);
         var addr = extractAddress(modalEl);
-        var
+        var lid = extractListingId();
+        enrichModal(body, addr, lid);
+      }
+    }, 200);
+  }
+
+  // ── observer ─────────────────────────────────────────
+  // v240-detail.js 가 .v240-ai-modal class 를 가진 모달을 body 에 append.
+  // 이 옵저버가 그 모달이 추가될 때 onModalAppear 호출.
+  var observer = new MutationObserver(function (muts) {
+    for (var i = 0; i < muts.length; i++) {
+      var m = muts[i];
+      if (!m.addedNodes) continue;
+      for (var j = 0; j < m.addedNodes.length; j++) {
+        var n = m.addedNodes[j];
+        if (!n || n.nodeType !== 1) continue;
+        if (n.classList && n.classList.contains('v240-ai-modal')) {
+          onModalAppear(n);
+        } else if (n.querySelectorAll) {
+          var nested = n.querySelectorAll('.v240-ai-modal');
+          for (var k = 0; k < nested.length; k++) onModalAppear(nested[k]);
+        }
+      }
+    }
+  });
+
+  function start() {
+    try {
+      observer.observe(document.body, { childList: true, subtree: true });
+      // 이미 열려있는 모달도 처리 (페이지 로드 후 patch 가 늦게 attach 된 경우)
+      var existing = document.querySelectorAll('.v240-ai-modal');
+      for (var i = 0; i < existing.length; i++) onModalAppear(existing[i]);
+      console.log('[' + V + '] observer 시작 (rev3 hoNm/dongNm)');
+    } catch (e) {
+      console.warn('[' + V + '] start failed:', e);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start);
+  } else {
+    start();
+  }
+})();

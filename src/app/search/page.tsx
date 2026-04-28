@@ -299,11 +299,14 @@ export default function SearchPortalPage() {
       document.body.appendChild(v300Script);
     }
 
+    // v306 rev3 (2026-04-29): truncated EOF 복구 + hoNm/dongNm 자동 추출.
+    //   selected_unit 매칭이 항상 null 이던 보편 버그 fix — 모든 공동주택 매물
+    //   에서 전유부 (전용/공용/총면적) 정확 표시.
     const existingV306 = document.getElementById('ws-ext-patch-v306-bldg-unit');
     if (!existingV306) {
       const v306Script = document.createElement('script');
       v306Script.id = 'ws-ext-patch-v306-bldg-unit';
-      v306Script.src = '/search/content-v306-bldg-unit.js?v=20260429-rag';
+      v306Script.src = '/search/content-v306-bldg-unit.js?v=20260429rev3';
       v306Script.async = false;
       v306Script.defer = false;
       document.body.appendChild(v306Script);
@@ -329,15 +332,19 @@ export default function SearchPortalPage() {
       document.body.appendChild(v308Script);
     }
 
-    // P0 (2026-04-29): v309 — 사장님 발견 4가지 (옵션·관리비·룸·UI 밸런스)
-    const existingV309 = document.getElementById('ws-ext-patch-v309-modal-completeness');
-    if (!existingV309) {
-      const v309Script = document.createElement('script');
-      v309Script.id = 'ws-ext-patch-v309-modal-completeness';
-      v309Script.src = '/search/content-v309-modal-completeness.js?v=20260429b';
-      v309Script.async = false;
-      v309Script.defer = false;
-      document.body.appendChild(v309Script);
+    // P1 (2026-04-29): v310 — v309 의 두 dedup 버그 fix.
+    //   1) 본문 옵션 raw 줄 항상 표시 → chips.length === 0 일 때만 (제거됨)
+    //   2) 관리비 "공과금 별도" substring dedup (이전엔 두 번 표시)
+    //   v309 가 이미 head 에 styleId="v309-hero-balance-style" 등록한 경우 충돌 X
+    //   (각 fix 함수가 dataset 마커로 중복 실행 방지).
+    const existingV310 = document.getElementById('ws-ext-patch-v310-modal-completeness');
+    if (!existingV310) {
+      const v310Script = document.createElement('script');
+      v310Script.id = 'ws-ext-patch-v310-modal-completeness';
+      v310Script.src = '/search/content-v310-modal-completeness.js?v=20260429a';
+      v310Script.async = false;
+      v310Script.defer = false;
+      document.body.appendChild(v310Script);
     }
 
   }, [state]);
