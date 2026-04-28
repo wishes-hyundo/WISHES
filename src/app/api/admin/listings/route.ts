@@ -263,7 +263,7 @@ export async function GET(request: NextRequest) {
           //   전환해 각 페이지 결과를 확인 후 다음 페이지 요청. 총 시간 약간 증가
           //   하지만 일관성 대폭 향상 (no join, 페이지당 0.3~0.6s).
           if (firstPage.length === PAGE_SIZE) {
-            for (let from = PAGE_SIZE; from < 10000; from += PAGE_SIZE) {
+            for (let from = PAGE_SIZE; from < 100000; from += PAGE_SIZE) {
               let q = supabase
                 .from('listings')
                 .select(selectFields)
@@ -296,7 +296,7 @@ export async function GET(request: NextRequest) {
                   .select('listing_id, url, sort_order')
                   .in('listing_id', batch)
                   .order('sort_order', { ascending: true, nullsFirst: false })
-                  .limit(10000);
+                  .limit(100000);
                 if (imgs) {
                   for (const im of imgs as any[]) {
                     const lid = String(im.listing_id);
