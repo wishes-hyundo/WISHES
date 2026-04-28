@@ -15,11 +15,6 @@ export async function GET(request: NextRequest) {
     supabase.rpc('auto_extract_options_from_raw_fields'),
     supabase.rpc('auto_extract_rooms_bathrooms_from_raw'),
   ]);
-  // L-fix-audit (2026-04-28): cron 실행 추적 가능 (사장님 dashboard 노출)
-  await supabase.from('admin_audit_log').insert({
-    action: 'auto_extract_options_run', target_type: 'system',
-    meta: { options: opt.data, rooms_bath: rb.data, ts: new Date().toISOString() },
-  }).then(() => {}).catch(() => {});
   return NextResponse.json({
     success: true,
     options: opt.data,

@@ -39,15 +39,12 @@ export function generateCsrfToken(): string {
  */
 export function verifyCsrfDoubleSubmit(request: NextRequest): boolean {
   try {
-    const cookieVal = (request.cookies?.get?.(CSRF_COOKIE_NAME)?.value || '').trim();
-    const headerVal = (request.headers.get(CSRF_HEADER_NAME) || '').trim();
+    const cookieVal = request.cookies?.get?.(CSRF_COOKIE_NAME)?.value || '';
+    const headerVal = request.headers.get(CSRF_HEADER_NAME) || '';
     if (!cookieVal || !headerVal) return false;
-    // L-fix-csrf-hex (2026-04-28): hex 인코딩 검증 (64자 = 32바이트 random)
-    //   잘못된 형식의 토큰 (Unicode/공백/특수문자 등) 즉시 거부
-    if (!/^[0-9a-f]{64}$/i.test(cookieVal)) return false;
-    if (!/^[0-9a-f]{64}$/i.test(headerVal)) return false;
-    const a = Buffer.from(cookieVal, 'hex');
-    const b = Buffer.from(headerVal, 'hex');
+    if (cookieVal.length !== headerVal.length) return false;
+    const a = Buffer.from(cookieVal, 'utf8');
+    const b = Buffer.from(headerVal, 'utf8');
     if (a.length !== b.length) return false;
     return timingSafeEqual(a, b);
   } catch {
