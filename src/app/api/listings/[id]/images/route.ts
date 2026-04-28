@@ -100,11 +100,17 @@ export async function POST(
         const imageUrl = await uploadToR2(key, buf, 'image/webp');
 
         // Build insert data with correct column names (sort_order, is_thumbnail)
+        // L-wishes-source (2026-04-28): 사장님 명령 — POST 는 모두 위시스 편집 사진
+        //   processPhotoUpload (서버) 또는 wishes-film-look (클라이언트) 통과한 wishes_edited
         const insertData: Record<string, any> = {
           listing_id: listingId,
           url: imageUrl,
           sort_order: sortOrderStr !== null ? parseInt(sortOrderStr) + i : nextSortOrder + i,
           is_thumbnail: (isThumbnailStr === 'true' && i === 0) || (nextSortOrder === 0 && i === 0),
+          source: 'wishes_edited',
+          film_look_applied: true,
+          watermark_applied: true,
+          exif_stripped: true,
         };
 
         // Add metadata tag as alt text if available

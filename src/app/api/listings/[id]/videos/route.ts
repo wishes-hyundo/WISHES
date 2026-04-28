@@ -125,6 +125,8 @@ export async function POST(
         const key = `listings/${listingId}/video-${Date.now()}_${i}.${ext}`;
         const url = await uploadToR2(key, buf, effectiveMime);
 
+        // L-wishes-source (2026-04-28): 사장님 명령 — 위시스 직접 업로드 비디오 = wishes_original
+        //   다음 단계에서 FFmpeg.wasm 필름룩 처리 추가되면 wishes_edited 로 갱신
         const { data: inserted, error: de } = await supabase
           .from('listing_videos')
           .insert({
@@ -134,6 +136,9 @@ export async function POST(
             file_size: file.size,
             alt: name,
             sort_order: nextSortOrder + i,
+            source: 'wishes_original',
+            film_look_applied: false,
+            watermark_applied: false,
           })
           .select('id, url')
           .single();
