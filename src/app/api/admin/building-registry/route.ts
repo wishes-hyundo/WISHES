@@ -223,7 +223,7 @@ const FIELD_MAP: [string, string][] = [
 // L-urgent1 (2026-04-22): ESLint 지시자 정리 — 동일 이유 (rule not found).
 type AnyObj = Record<string, any>;
 
-async function fetchBuildingData(
+export async function fetchBuildingData(
   sigunguCd: string,
   bjdongCd: string,
   bun: string,
