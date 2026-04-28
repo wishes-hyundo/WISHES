@@ -218,6 +218,44 @@
       .then(function (j) { return (j && j.success && Array.isArray(j.data)) ? j.data : []; })
       .catch(function () { return []; });
   }
+
+  // L-413-fix (2026-04-29) [CRITICAL]: 사장님 console '413 Request Entity Too Large'.
+  //   Vercel function body limit 4.5MB. 스마트폰 사진 4~12MB → 압축 필수.
+  //   Canvas API: max 1920px + JPEG 0.85 → 보통 1~2MB. 서버 sharp 가 다시 Classic Negative.
+  function compressImage(file) {
+    return new Promise(function (resolve, reject) {
+      // 4MB 이하면 그대로 (압축 손실 회피)
+      if (file.size <= 4 * 1024 * 1024) { resolve(file); return; }
+      var reader = new FileReader();
+      reader.onload = function (e) {
+        var img = new Image();
+        img.onload = function () {
+          var MAX = 1920;
+          var w = img.width, h = img.height;
+          if (w > MAX || h > MAX) {
+            var ratio = Math.min(MAX / w, MAX / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+          }
+          var canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          var ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          canvas.toBlob(function (blob) {
+            if (!blob) { reject(new Error('canvas toBlob failed')); return; }
+            var compressed = new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' });
+            console.log('[v315] compressed ' + (file.size/1024/1024).toFixed(1) + 'MB → ' + (compressed.size/1024/1024).toFixed(1) + 'MB');
+            resolve(compressed);
+          }, 'image/jpeg', 0.85);
+        };
+        img.onerror = function () { reject(new Error('image load failed')); };
+        img.src = e.target.result;
+      };
+      reader.onerror = function () { reject(new Error('file read failed')); };
+      reader.readAsDataURL(file);
+    });
+  }
+
   function uploadImage(lid, file, onProgress) {
     return new Promise(function (resolve, reject) {
       var fd = new FormData();
@@ -761,12 +799,14 @@
           vidArr = vidArr.slice(0, allowedV);
         }
       }
-      // 사진 업로드
+      // 사진 업로드 — 4MB 초과 시 Canvas 압축 (Vercel 4.5MB body limit 회피)
       photoArr.forEach(function (file) {
         var ph = placeholderCard();
         withTransition(function () { grid.appendChild(ph); });
         var bar = ph.querySelector('.v313-card-prog>span');
-        uploadImage(lid, file, function (p) { if (bar) bar.style.width = (Math.round(p * 100)) + '%'; })
+        compressImage(file).then(function (cf) {
+          return uploadImage(lid, cf, function (p) { if (bar) bar.style.width = (Math.round(p * 100)) + '%'; });
+        })
           .then(function (j) {
             var arr = (j && (j.data || j.images || j.uploaded)) || [];
             if (!j || !j.success || !arr.length) {
