@@ -49,7 +49,7 @@
   function authHdr() {
     var t = getToken();
     if (!t) return {};
-    return { Authorization: 'Bearer admin_bridge_' + t };
+    return { Authorization: 'Bearer ' + t };
   }
 
   // ── Constructable Stylesheet (2026) ──
@@ -606,9 +606,13 @@
           if (sec) updateVideoHint(sec, n);
           toast('동영상 업로드 완료', 'ok');
         })
-        .catch(function () {
+        .catch(function (e) {
           withTransition(function () { ph.remove(); });
-          toast('동영상 업로드 실패: ' + (file.name || ''), 'err');
+          var msg = (e && e.message) || (file.name || '');
+          if (msg.indexOf('401') >= 0) toast('인증 만료 — 새로고침 후 재로그인', 'err');
+          else if (msg.indexOf('413') >= 0) toast('동영상 50MB 초과', 'err');
+          else if (msg.indexOf('500') >= 0) toast('서버 처리 실패', 'err');
+          else toast('동영상 업로드 실패 ' + msg.substring(0, 80), 'err');
         });
     });
   }
@@ -781,9 +785,13 @@
             refreshCount();
             toast('필름 룩 + 워터마크 적용 완료', 'ok');
           })
-          .catch(function () {
+          .catch(function (e) {
             withTransition(function () { ph.remove(); });
-            toast('사진 업로드 실패: ' + (file.name || ''), 'err');
+            var msg = (e && e.message) || (file.name || '');
+            if (msg.indexOf('401') >= 0) toast('인증 만료 — 새로고침 후 재로그인', 'err');
+            else if (msg.indexOf('413') >= 0) toast('사진 10MB 초과', 'err');
+            else if (msg.indexOf('500') >= 0) toast('서버 처리 실패 (필름 룩)', 'err');
+            else toast('사진 업로드 실패 ' + msg.substring(0, 80), 'err');
           });
       });
       // 동영상 업로드
@@ -814,9 +822,13 @@
             refreshCount();
             toast('동영상 업로드 완료', 'ok');
           })
-          .catch(function () {
+          .catch(function (e) {
             withTransition(function () { ph.remove(); });
-            toast('동영상 업로드 실패: ' + (file.name || ''), 'err');
+            var msg = (e && e.message) || (file.name || '');
+            if (msg.indexOf('401') >= 0) toast('인증 만료 — 새로고침 후 재로그인', 'err');
+            else if (msg.indexOf('413') >= 0) toast('동영상 50MB 초과', 'err');
+            else if (msg.indexOf('500') >= 0) toast('서버 처리 실패', 'err');
+            else toast('동영상 업로드 실패 ' + msg.substring(0, 80), 'err');
           });
       });
     }

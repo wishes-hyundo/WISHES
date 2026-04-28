@@ -164,7 +164,7 @@ export default function SearchPortalPage() {
       //   View Transitions / Container Queries / Popover / WCAG 2.2 AAA / oklch.
       // v313 entry 제거 (CDN stale cache + v315 와 중복 mount 문제). v315 만 사용.
       // v315 (2026-04-29): 매물수정 패널 inline 사진/동영상 매니저 BoB.
-      ['ws-ext-patch-v315-edit-photos', '/search/content-v315-edit-photos.js?v=20260429-truly-unified'],
+      ['ws-ext-patch-v315-edit-photos', '/search/content-v315-edit-photos.js?v=20260429-bareauth'],
       // v314 (2026-04-29): 매물수정 버튼 위치 이동 — hero 에서 '기본 정보·옵션'
       //   섹션 헤더 우측 끝으로 (사장님 제안). View Transitions 60fps + oklch.
       ['ws-ext-patch-v314-edit-btn-pos', '/search/content-v314-edit-btn-pos.js?v=20260429a'],
