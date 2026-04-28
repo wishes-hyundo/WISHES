@@ -371,8 +371,6 @@ export default function SearchPortalPage() {
       document.body.appendChild(v300Script);
     }
     // L-curated-badge-v301 (2026-04-28): 위시스 직접 촬영/편집 매물 뱃지 자동 추가
-    //   /api/listings 응답의 has_wishes_media 캡처 → 카드 DOM 자동 데코레이션
-    //   /search HTML/CSS 무손상 (vanilla patch)
     const existingV301 = document.getElementById('ws-ext-patch-v301-curated');
     if (!existingV301) {
       const v301Script = document.createElement('script');
@@ -381,6 +379,19 @@ export default function SearchPortalPage() {
       v301Script.async = false;
       v301Script.defer = false;
       document.body.appendChild(v301Script);
+    }
+    // L-detail-fixes-v302 (2026-04-28): 사장님 정밀 검수 5개 fix
+    //   - 금액 표기 ("1억5000" → "1억 5,000만원") via window.WS.formatPrice override
+    //   - 옵션 chips 확장 (full_option, parking false, raw_fields 구조형태/임대기간)
+    //   - 🔍 원본 데이터 보기 / 🤖 AI 설명 생성 / 🏢 건축물대장 조회 버튼 주입
+    const existingV302 = document.getElementById('ws-ext-patch-v302-detail-fixes');
+    if (!existingV302) {
+      const v302Script = document.createElement('script');
+      v302Script.id = 'ws-ext-patch-v302-detail-fixes';
+      v302Script.src = '/search/content-v302-detail-fixes.js?v=20260428a';
+      v302Script.async = false;
+      v302Script.defer = false;
+      document.body.appendChild(v302Script);
     }
     }
   }, [state]);
