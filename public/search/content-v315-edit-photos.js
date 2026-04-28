@@ -346,15 +346,14 @@
     if (cardTpl) return cardTpl;
     cardTpl = document.createElement('template');
     cardTpl.innerHTML =
-      '<div class="v313-card" role="listitem" tabindex="0">' +
+      '<div class="v313-card" role="listitem" tabindex="0" title="드래그로 순서 변경">' +
         '<img alt="" loading="lazy" decoding="async">' +
         '<div class="v313-card-thumb-badge" hidden>대표</div>' +
+        '<div class="v313-card-drag-hint">⠿ 드래그</div>' +
         '<div class="v313-card-acts">' +
           '<button type="button" class="v313-card-btn" data-act="thumb" aria-label="대표 사진으로 설정">⭐ 대표</button>' +
           '<div class="v313-card-row-r">' +
-            '<button type="button" class="v313-card-btn" data-act="up" aria-label="앞으로 이동">↑</button>' +
-            '<button type="button" class="v313-card-btn" data-act="down" aria-label="뒤로 이동">↓</button>' +
-            '<button type="button" class="v313-card-btn" data-act="more" aria-label="더 보기">⋯</button>' +
+            '<button type="button" class="v313-card-btn" data-act="more" aria-label="고급 보정">⋯</button>' +
             '<button type="button" class="v313-card-btn v313-card-btn-danger" data-act="delete" aria-label="삭제">✕</button>' +
           '</div>' +
         '</div>' +
