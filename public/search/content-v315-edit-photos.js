@@ -37,12 +37,19 @@
 
   // ── token / esc ──
   function getToken() {
-    try { return sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token') || ''; }
-    catch (_) { return ''; }
+    try {
+      var t = sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token') || '';
+      // L-sec-bridge-strip: legacy admin_bridge_ prefix sanitize
+      while (t && t.indexOf('admin_bridge_') === 0) t = t.slice('admin_bridge_'.length);
+      return t;
+    } catch (_) { return ''; }
   }
+  // L-auth-fix (2026-04-29): /api/listings/[id]/images verifyAdminAuth 가 'admin_bridge_'
+  //   prefix 도 허용. v306 와 동일 패턴 사용 (전유부 fetch 잘 동작 확인된 형식).
   function authHdr() {
     var t = getToken();
-    return t ? { Authorization: 'Bearer ' + t } : {};
+    if (!t) return {};
+    return { Authorization: 'Bearer admin_bridge_' + t };
   }
 
   // ── Constructable Stylesheet (2026) ──
@@ -223,9 +230,18 @@
       xhr.onload = function () {
         if (xhr.status === 200 || xhr.status === 201) {
           try { resolve(JSON.parse(xhr.responseText)); } catch (_) { resolve(null); }
-        } else { reject(new Error('upload ' + xhr.status)); }
+        } else {
+          // L-uploadfail-debug (2026-04-29): status + body 일부 노출 — 사장님 진단용
+          var bodySnippet = '';
+          try { bodySnippet = (xhr.responseText || '').substring(0, 120); } catch (_) {}
+          console.warn('[v315] image upload status=' + xhr.status + ' body=' + bodySnippet);
+          reject(new Error('upload ' + xhr.status + ': ' + bodySnippet));
+        }
       };
-      xhr.onerror = function () { reject(new Error('network')); };
+      xhr.onerror = function () {
+        console.warn('[v315] image upload network error');
+        reject(new Error('network'));
+      };
       xhr.send(fd);
     });
   }
@@ -264,9 +280,17 @@
       xhr.onload = function () {
         if (xhr.status === 200 || xhr.status === 201) {
           try { resolve(JSON.parse(xhr.responseText)); } catch (_) { resolve(null); }
-        } else { reject(new Error('upload ' + xhr.status)); }
+        } else {
+          var bodySnippet = '';
+          try { bodySnippet = (xhr.responseText || '').substring(0, 120); } catch (_) {}
+          console.warn('[v315] video upload status=' + xhr.status + ' body=' + bodySnippet);
+          reject(new Error('upload ' + xhr.status + ': ' + bodySnippet));
+        }
       };
-      xhr.onerror = function () { reject(new Error('network')); };
+      xhr.onerror = function () {
+        console.warn('[v315] video upload network error');
+        reject(new Error('network'));
+      };
       xhr.send(fd);
     });
   }
