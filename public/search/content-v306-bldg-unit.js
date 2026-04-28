@@ -188,6 +188,19 @@
         html += '</div>';
       }
 
+      // L-Layer-empty (2026-04-29): 데이터 0 일 때 안내 메시지 표시
+      var hasNoExtras = (!sameBuilding || sameBuilding.length === 0)
+        && (!rtms || !rtms.count || rtms.count === 0)
+        && (!data.illegalBuilding || data.illegalBuilding === 'N');
+      if (hasNoExtras) {
+        html += '<div style="margin-top:14px;background:#f5f5f5;padding:10px;border-radius:6px;font-size:11px;color:#666;line-height:1.7">' +
+                '<div style="font-weight:600;color:#444;margin-bottom:4px">📋 추가 정보 점검</div>' +
+                '✅ <strong>위반건축물</strong>: 정상 건물 (등재 X)<br>' +
+                'ℹ️ <strong>같은 주소 매물</strong>: 0건 (같은 건물 다른 호실 매물 등록 시 자동 표시)<br>' +
+                'ℹ️ <strong>RTMS 실거래</strong>: 데이터 없음 (단독·상가 등 일부 유형 미공개)' +
+                '</div>';
+      }
+
       if (payload.cache && payload.cache !== 'none') {
         html += '<div style="margin-top:8px;font-size:10px;color:#aaa;text-align:right">cache: ' +
                 escHtml(payload.cache) + '</div>';
@@ -235,32 +248,4 @@
       if (body.querySelector('.v245-bldg-row, .blabel')) {
         clearInterval(checkInterval);
         var addr = extractAddress(modalEl);
-        var lid = extractListingId();
-        setTimeout(function () { enrichModal(body, addr, lid); }, 200);
-      }
-    }, 300);
-  }
-
-  try {
-    var obs = new MutationObserver(function (mutations) {
-      for (var i = 0; i < mutations.length; i++) {
-        var nodes = mutations[i].addedNodes || [];
-        for (var j = 0; j < nodes.length; j++) {
-          var n = nodes[j];
-          if (!(n instanceof HTMLElement)) continue;
-          if (n.classList && n.classList.contains('v240-ai-modal')) {
-            var h3 = n.querySelector('h3');
-            if (h3 && /건축물대장/.test(h3.textContent || '')) {
-              onModalAppear(n);
-            }
-          }
-        }
-      }
-    });
-    obs.observe(document.body, { childList: true, subtree: false });
-  } catch (e) {
-    console.warn('[' + V + '] observer failed', e);
-  }
-
-  console.log('[' + V + '] 건축물대장 전유부 표시 활성 (v294 충돌 회피)');
-})();
+        var

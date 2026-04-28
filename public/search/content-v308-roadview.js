@@ -21,7 +21,6 @@
 
   function captureLocFromDom() {
     try {
-      // v240 모달 또는 매물 카드에 좌표/주소 attribute 있는 경우
       const el =
         document.querySelector('[data-listing-lat][data-listing-lng]') ||
         document.querySelector('.v240-ai-modal [data-lat][data-lng]') ||
@@ -31,9 +30,21 @@
         const lng = parseFloat(el.getAttribute('data-listing-lng') || el.getAttribute('data-lng'));
         if (isFinite(lat) && isFinite(lng)) { _lat = lat; _lng = lng; }
       }
-      // 주소 텍스트 caption
       const addrEl = document.querySelector('.v240-ai-modal [data-listing-address]');
       if (addrEl) _addr = addrEl.getAttribute('data-listing-address') || '';
+      // 주소 fallback — v245 모달 헤더 .sub 텍스트
+      if (!_addr) {
+        const bldgModal = document.querySelector('#v245-bldg-modal, .v240-ai-modal');
+        if (bldgModal) {
+          const subEl = bldgModal.querySelector('.sub, .v245-sub, p, h3 + div');
+          if (subEl) {
+            const t = (subEl.textContent || '').trim();
+            const m = t.match(/(서울|경기|인천|부산|대구|광주|대전|울산|세종|강원|충북|충남|전북|전남|경북|경남|제주)[\s\S]{0,100}?(?=·|$)/);
+            if (m) _addr = m[0].trim();
+            else if (t) _addr = t.split(/[·\n]/)[0].trim();
+          }
+        }
+      }
     } catch (_) {}
   }
 
@@ -42,7 +53,7 @@
       const body = document.getElementById('v245-bldg-body');
       if (!body) return;
       if (body.querySelector('.v308-roadview-section')) return;
-      if (!_lat || !_lng) return;
+      if (!_lat && !_lng && !_addr) return;  // 셋 다 없으면 skip
 
       const root = document.createElement('div');
       root.className = 'v308-roadview-section';
@@ -75,14 +86,17 @@
 
   function renderRoadview(panel) {
     try {
-      // Kakao 로드뷰 = iframe URL (JS SDK 로드 안 해도 됨)
-      // 카카오맵 로드뷰 페이지: https://map.kakao.com/link/roadview/<lat>,<lng>
-      // 하지만 iframe 임베드는 카카오 정책상 자체 SDK 필요 → CSP 안전한 fallback:
-      // map.kakao.com 링크 + Kakao Maps Static (위성) iframe
       const lat = _lat, lng = _lng;
-      const kakaoMapUrl = 'https://map.kakao.com/link/map/' + encodeURIComponent(_addr || '매물') + ',' + lat + ',' + lng;
-      const kakaoRvUrl = 'https://map.kakao.com/link/roadview/' + lat + ',' + lng;
-      const naverMapUrl = 'https://map.naver.com/v5/?c=' + lng + ',' + lat + ',16,0,0,0,dh';
+      const hasCoord = isFinite(lat) && isFinite(lng);
+      const kakaoMapUrl = hasCoord
+        ? 'https://map.kakao.com/link/map/' + encodeURIComponent(_addr || '매물') + ',' + lat + ',' + lng
+        : 'https://map.kakao.com/?q=' + encodeURIComponent(_addr || '매물');
+      const kakaoRvUrl = hasCoord
+        ? 'https://map.kakao.com/link/roadview/' + lat + ',' + lng
+        : 'https://map.kakao.com/?map_type=TYPE_SKYVIEW&q=' + encodeURIComponent(_addr || '매물');
+      const naverMapUrl = hasCoord
+        ? 'https://map.naver.com/v5/?c=' + lng + ',' + lat + ',16,0,0,0,dh'
+        : 'https://map.naver.com/p/search/' + encodeURIComponent(_addr || '매물');
 
       panel.innerHTML =
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">' +
@@ -99,7 +113,7 @@
         '     style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" ' +
         '     loading="lazy" referrerpolicy="no-referrer"></iframe>' +
         '</div>' +
-        '<div style="margin-top:6px;font-size:10px;color:#888">좌표: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</div>';
+        (hasCoord ? '<div style="margin-top:6px;font-size:10px;color:#888">좌표: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</div>' : '<div style="margin-top:6px;font-size:10px;color:#888">주소: ' + escHtml(_addr || '-') + '</div>');
     } catch (e) {
       panel.innerHTML = '<div style="color:#a04;font-size:12px">로드뷰 로드 실패: ' + (e && e.message || 'unknown') + '</div>';
     }
@@ -118,6 +132,13 @@
     });
     obs.observe(document.body, { childList: true, subtree: true });
   } catch (_) {}
+
+
+  function escHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
 
   console.log('[' + V + '] 로드뷰 + 위성뷰 버튼 활성');
 })();
