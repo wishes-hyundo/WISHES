@@ -789,8 +789,15 @@ export async function PUT(request: NextRequest) {
     }
 
     if (Object.keys(updateValues).length === 0 && !images) {
+      // L-debug-fields (2026-04-29): 사장님 화면에 직접 진단 정보 표시.
+      //   client 가 보낸 키 vs zod 통과 키 vs undefined 키 inline.
+      const recvKeys = Object.keys(updateData || {});
+      const parsedKeys = Object.keys(parsed.data || {});
+      const undefKeys = Object.entries(parsed.data || {})
+        .filter(([, v]) => v === undefined).map(([k]) => k);
+      const detail = ` (받은:${recvKeys.length}개[${recvKeys.slice(0,5).join(',')}] · zod통과:${parsedKeys.length}개 · undefined:${undefKeys.length}개[${undefKeys.slice(0,3).join(',')}])`;
       return NextResponse.json(
-        { success: false, error: '수정할 필드가 없습니다' },
+        { success: false, error: '수정할 필드가 없습니다' + detail, debug: { recvKeys, parsedKeys, undefKeys } },
         { status: 400 }
       );
     }
