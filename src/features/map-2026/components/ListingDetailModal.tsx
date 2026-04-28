@@ -27,6 +27,7 @@ import InquiryModal from '@/components/InquiryModal';
 import { openKakaoChannelChat, openNaverBooking } from '@/lib/externalContact';
 import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 import { useMap2026Store, type MapListing } from '../store';
+import { cinematicFlyTo } from '../lib/cinematicMotion';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   formatDealLabel,
@@ -200,6 +201,12 @@ export function ListingDetailModal() {
           updated_at: d.updated_at ?? null,
         } as MapListing;
         setFallbackListing(ml);
+        // L-listingurl-fix2 (2026-04-29): fallback fetch 매물 lat/lng 로 지도 자동 flyTo.
+        //   광역 뷰에서 /map/<ID> 직접 진입 시 사이드바도 매물 표시되도록.
+        const map = useMap2026Store.getState().map;
+        if (map && ml.lat != null && ml.lng != null) {
+          cinematicFlyTo(map, { center: [ml.lng, ml.lat], zoom: 16 });
+        }
       })
       .catch(() => { if (!cancelled) setFallbackListing(null); });
     return () => { cancelled = true; };
