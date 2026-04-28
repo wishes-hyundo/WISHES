@@ -107,11 +107,9 @@
         '     style="display:block;padding:10px;background:#03C75A;color:#fff;border-radius:6px;text-align:center;text-decoration:none;font-weight:700;font-size:12px">' +
         '    🛰️ 네이버 거리뷰 새창</a>' +
         '</div>' +
-        '<div style="position:relative;width:100%;padding-top:60%;background:#000;border-radius:6px;overflow:hidden">' +
-        '  <iframe ' +
-        '     src="' + kakaoMapUrl + '" ' +
-        '     style="position:absolute;top:0;left:0;width:100%;height:100%;border:0" ' +
-        '     loading="lazy" referrerpolicy="no-referrer"></iframe>' +
+        '<div style="background:#f4f9f1;padding:12px;border-radius:6px;font-size:12px;color:#666;line-height:1.6;text-align:center">' +
+        '🛰️ 위 버튼을 눌러 새 창에서 로드뷰/거리뷰를 확인하세요.<br>' +
+        '<span style="font-size:11px;color:#aaa">(카카오/네이버 정책상 페이지 내 임베드 X)</span>' +
         '</div>' +
         (hasCoord ? '<div style="margin-top:6px;font-size:10px;color:#888">좌표: ' + lat.toFixed(6) + ', ' + lng.toFixed(6) + '</div>' : '<div style="margin-top:6px;font-size:10px;color:#888">주소: ' + escHtml(_addr || '-') + '</div>');
     } catch (e) {

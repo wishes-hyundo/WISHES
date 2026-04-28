@@ -376,7 +376,7 @@ export default function SearchPortalPage() {
     if (!existingV306) {
       const v306Script = document.createElement('script');
       v306Script.id = 'ws-ext-patch-v306-bldg-unit';
-      v306Script.src = '/search/content-v306-bldg-unit.js?v=20260429c';
+      v306Script.src = '/search/content-v306-bldg-unit.js?v=20260429d';
       v306Script.async = false;
       v306Script.defer = false;
       document.body.appendChild(v306Script);
@@ -399,7 +399,7 @@ export default function SearchPortalPage() {
     if (!existingV308) {
       const v308Script = document.createElement('script');
       v308Script.id = 'ws-ext-patch-v308-roadview';
-      v308Script.src = '/search/content-v308-roadview.js?v=20260429c';
+      v308Script.src = '/search/content-v308-roadview.js?v=20260429d';
       v308Script.async = false;
       v308Script.defer = false;
       document.body.appendChild(v308Script);
