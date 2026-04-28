@@ -92,10 +92,13 @@ export async function POST(
       if (file.size > 10 * 1024 * 1024) { errors.push({ index: i, name: file.name, error: 'Too large' }); continue; }
 
       try {
-        // L-photo-pipeline (2026-04-24): 모바일 사진등록 포함 모든 업로드에
-        //   Classic Negative + 중앙 WISHES 워터마크를 강제 적용. 결과는 WebP.
+        // L-photo-pipeline (2026-04-24): Classic Negative + 워터마크 강제 (서버측).
+        // L-skip-server-process (2026-04-28): 클라이언트 wishes-film-look (모바일 v3) 가
+        //   이미 적용했으면 서버 processPhotoUpload skip = 이중 처리 회피
+        //   (grain/saturation 너무 강해지는 것 방지). metadata[i].filmLookApplied 마킹 검증.
         const rawBuf = Buffer.from(await file.arrayBuffer());
-        const buf = await processPhotoUpload(rawBuf);
+        const clientApplied = !!(metadata && metadata[i] && (metadata[i] as any).filmLookApplied);
+        const buf = clientApplied ? rawBuf : await processPhotoUpload(rawBuf);
         const key = `listings/${listingId}/${Date.now()}_${i}.webp`;
         const imageUrl = await uploadToR2(key, buf, 'image/webp');
 

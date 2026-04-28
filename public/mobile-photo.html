@@ -1052,9 +1052,10 @@ async function handleFiles(e) {
       break;
     }
     try {
-      const { compressed, originalSize, compressedSize } = await compressImage(file);
+      const { compressed, originalSize, compressedSize, filmLookApplied } = await compressImage(file);
       pendingFiles.push({
         file: compressed, originalSize, compressedSize,
+        filmLookApplied: !!filmLookApplied,
         gps: currentGPS ? { ...currentGPS } : null
       });
       added++;
@@ -1168,7 +1169,8 @@ async function uploadImages() {
   const formData = new FormData();
   filesToUpload.forEach(pf => formData.append('images', pf.file));
   const metadata = filesToUpload.map(pf => ({
-    gps: pf.gps, originalSize: pf.originalSize, compressedSize: pf.compressedSize
+    gps: pf.gps, originalSize: pf.originalSize, compressedSize: pf.compressedSize,
+    filmLookApplied: !!pf.filmLookApplied
   }));
   formData.append('metadata', JSON.stringify(metadata));
 
