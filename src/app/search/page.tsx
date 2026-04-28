@@ -405,6 +405,17 @@ export default function SearchPortalPage() {
       document.body.appendChild(v308Script);
     }
 
+    // P0 (2026-04-29): v309 — 사장님 발견 4가지 (옵션·관리비·룸·UI 밸런스)
+    const existingV309 = document.getElementById('ws-ext-patch-v309-modal-completeness');
+    if (!existingV309) {
+      const v309Script = document.createElement('script');
+      v309Script.id = 'ws-ext-patch-v309-modal-completeness';
+      v309Script.src = '/search/content-v309-modal-completeness.js?v=20260429a';
+      v309Script.async = false;
+      v309Script.defer = false;
+      document.body.appendChild(v309Script);
+    }
+
   }, [state]);
 
   // ========== UI ==========
@@ -456,30 +467,4 @@ const cardStyle: React.CSSProperties = {
   width: '100%',
   background: '#fff',
   border: '1px solid #e5eee5',
-  borderRadius: 12,
-  padding: '32px 28px',
-  textAlign: 'center',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#2D5A27',
-  color: '#fff',
-  borderRadius: 8,
-  border: 'none',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#f0f5f0',
-  color: '#2D5A27',
-  borderRadius: 8,
-  border: '1px solid #d5e5d5',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
+  borderRadi
