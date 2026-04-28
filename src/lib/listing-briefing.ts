@@ -378,16 +378,70 @@ export function detectBriefingHallucination(
 // ── Symbolic Fallback (해시 기반 풀 선택, 매물별 다양) ──
 export function buildSymbolicFallback(f: BriefingFacts): string {
   const paragraphs: string[] = [];
-  paragraphs.push(pickGreeting(f));
-  const value = pickValueParagraph(f);
-  if (value) paragraphs.push(value);
-  const traffic = pickTrafficParagraph(f);
-  if (traffic) paragraphs.push(traffic);
-  paragraphs.push(pickCtaParagraph(f));
-  return paragraphs.join('\n\n');
+
+  // 1단락 — 인사 (👋)
+  const greetings: string[] = [];
+  if (f.is_new_building && f.is_full_option) {
+    greetings.push(`👋 안녕하세요. 신축에 풀옵션까지 갖춘 좋은 ${f.type} 매물이에요.`);
+  } else if (f.is_new_building) {
+    greetings.push(`👋 안녕하세요. 신축이라 시설 깔끔한 ${f.type} 매물 추천드려요.`);
+  } else if (f.is_full_option) {
+    greetings.push(`👋 안녕하세요. 풀옵션으로 바로 입주 가능한 ${f.type} 매물이에요.`);
+  } else {
+    greetings.push(`👋 안녕하세요. 정성껏 추천드리는 ${f.type} 매물이에요.`);
+  }
+  paragraphs.push(greetings.join(' '));
+
+  // 2단락 — 매물 가치 (✨ 또는 🔑)
+  const valueLines: string[] = [];
+  if (f.is_new_building && f.is_full_option) {
+    valueLines.push('5년 이내 신축으로 시설 상태가 정말 좋고, 풀옵션이라 이사할 때 가전 걱정 없이 짐만 들고 들어가실 수 있어요.');
+  } else if (f.is_new_building) {
+    valueLines.push('5년 이내 신축이라 시설 상태가 정말 좋아요.');
+  } else if (f.is_full_option) {
+    valueLines.push('풀옵션이라 이사할 때 가전 걱정 없이 바로 입주 가능하시고요.');
+  }
+  if (f.is_immediate_movein) {
+    valueLines.push('현재 공실 상태로 즉시 입주가 가능해서, 빠른 이사 일정에도 잘 맞춰드릴 수 있어요.');
+  }
+  if (valueLines.length > 0) {
+    const valueIcon = (f.is_new_building || f.is_full_option) ? '✨' : '🔑';
+    paragraphs.push(`${valueIcon} ${valueLines.join(' ')}`);
+  }
+
+  // 3단락 — 교통 (🚇)
+  const trafficLines: string[] = [];
+  if (f.station_top3 && f.station_top3.length > 0) {
+    const walkable = f.station_top3.filter((s) => {
+      const min = s.walk_minutes ?? Math.round(s.distance_m / 80);
+      return min <= 15;
+    });
+    if (walkable.length > 0) {
+      const top = walkable[0];
+      const min = top.walk_minutes ?? Math.round(top.distance_m / 80);
+      trafficLines.push(`${top.name}역(${top.line})까지 도보 ${min}분 거리로 출퇴근 동선이 편리합니다.`);
+      if (walkable.length > 1) {
+        const second = walkable[1];
+        const min2 = second.walk_minutes ?? Math.round(second.distance_m / 80);
+        if (second.name !== top.name) {
+          trafficLines.push(`${second.name}역(${second.line})도 도보 ${min2}분 거리에 있어 노선 활용도가 높아요.`);
+        }
+      }
+    }
+  }
+  if (f.has_parking) {
+    trafficLines.push('차량 가지고 계신 분들도 주차 공간이 마련되어 있어 안심하고 이용하실 수 있어요.');
+  }
+  if (trafficLines.length > 0) paragraphs.push(`🚇 ${trafficLines.join(' ')}`);
+
+  // 4단락 — 추천 대상 + 행동 유도 (📞)
+  const r = f.rooms_for_target ?? 1;
+  const target = r >= 3 ? '3~4인 가족' : r >= 2 ? '신혼부부나 2인 가구' : '1인 직장인이나 학생';
+  paragraphs.push(`📞 ${target}분께 정말 잘 맞는 매물이에요. 직접 보시면 마음에 드실 테니 편하게 연락 주세요!`);
+
+  return paragraphs.length > 0 ? paragraphs.join('\n\n') : '추천 정보 검토 중입니다.';
 }
 
-// ── Title — 헤드라인 패턴 풀 + 해시 ──
 export function buildSymbolicTitle(f: BriefingFacts): string {
   const features: string[] = [];
   if (f.is_new_building) features.push('신축');
