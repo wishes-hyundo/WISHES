@@ -28,6 +28,8 @@ import { openKakaoChannelChat, openNaverBooking } from '@/lib/externalContact';
 import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 import { useMap2026Store, type MapListing } from '../store';
 import { cinematicFlyTo } from '../lib/cinematicMotion';
+// L-listings-merge3 (2026-04-29 사장님 명령): footer 공유 우측 작게.
+import ShareButton from '@/components/ShareButton';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   formatDealLabel,
@@ -872,16 +874,21 @@ export function ListingDetailModal() {
         document.body
       )}
 
-      {/* L-modal-v7: 하단 단일 액션 — 담당자에게 연결 */}
-      <div className="border-t border-neutral-100 bg-white px-4 py-3">
+      {/* L-listings-merge3 (2026-04-29): footer — 담당자 연결 (메인) + 공유 (우측 작게) */}
+      <div className="border-t border-neutral-100 bg-white px-4 py-3 flex items-center gap-2">
         <button
           type="button"
           onClick={() => setAgentModalOpen(true)}
-          className="w-full flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
+          className="flex-1 flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
         >
           <Phone className="size-4" />
           <span>담당자에게 연결</span>
         </button>
+        <ShareButton
+          url={`https://wishes.co.kr/map/${listing.id}`}
+          title={`${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim() + ' | WISHES'}
+          description={listing.title || `${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim()}
+        />
       </div>
 
       {/* 담당자 정보 모달 */}
