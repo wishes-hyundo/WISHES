@@ -16,7 +16,6 @@ export const maxDuration = 30;
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || '';
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
 
 // ── 1. 프롬프트 빌더 ─────────────────────────────
 function buildPrompt(
