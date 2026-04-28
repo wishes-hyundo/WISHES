@@ -74,15 +74,19 @@
     },
     {
       "path": "/api/cron/enrich-vision",
-      "schedule": "15 */3 * * *"
+      "schedule": "15 */6 * * *"
     },
     {
       "path": "/api/cron/enrich-text",
-      "schedule": "30 */3 * * *"
+      "schedule": "30 */6 * * *"
     },
     {
       "path": "/api/cron/auto-extract-options",
       "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/extract-building-units",
+      "schedule": "0 */6 * * *"
     },
     {
       "path": "/api/cron/price-outliers",
@@ -140,9 +144,4 @@
       "path": "/api/cron/enrich-land-price",
       "schedule": "0 13 * * 1"
     },
-    {
-      "path": "/api/cron/enrich-crime-safety",
-      "schedule": "30 13 * * 1"
-    }
-  ]
-}
+  
