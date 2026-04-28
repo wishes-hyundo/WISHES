@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
     if (supabase) {
       try {
         const cacheRes = await withHardTimeout(
-          supabase
+          (async () => supabase
             .from('building_registry_cache')
             .select('raw_data, units_data, fetched_at')
             .eq('sigungu_cd', sigunguCd)
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
             .eq('bun', bun)
             .eq('ji', ji)
             .eq('plat_gb_cd', platGbCd)
-            .maybeSingle(),
+            .maybeSingle())(),
           2000,
           'cache',
         );
@@ -158,7 +158,7 @@ export async function GET(request: NextRequest) {
       if (supabase && Object.keys(buildingData).length > 0) {
         try {
           await withHardTimeout(
-            supabase.from('building_registry_cache').upsert({
+            (async () => supabase.from('building_registry_cache').upsert({
               sigungu_cd: sigunguCd,
               bjdong_cd: bjdongCd,
               bun,
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
               raw_data: { buildingData, floors },
               units_data: units,
               fetched_at: new Date().toISOString(),
-            }, { onConflict: 'sigungu_cd,bjdong_cd,bun,ji,plat_gb_cd' }),
+            }, { onConflict: 'sigungu_cd,bjdong_cd,bun,ji,plat_gb_cd' }))(),
             2000,
             'cache_upsert',
           );
@@ -195,13 +195,13 @@ export async function GET(request: NextRequest) {
       try {
         const addrPrefix = fullAddress.split(' ').slice(0, 3).join(' ');
         const sbRes = await withHardTimeout(
-          supabase
+          (async () => supabase
             .from('listings')
             .select('id, listing_id, deal_type, building_type, area_m2, area_supply_m2, price, deposit, monthly_rent, building_dong, building_ho, floor_current, address')
             .like('address', addrPrefix + '%')
             .neq('id', lid && /^\d+$/.test(lid) ? parseInt(lid, 10) : -1)
             .eq('status', 'active')
-            .limit(10),
+            .limit(10))(),
           1500,
           'same_building',
         );
@@ -218,11 +218,11 @@ export async function GET(request: NextRequest) {
     if (wantRtms && supabase && lid && /^\d+$/.test(lid)) {
       try {
         const lookup = await withHardTimeout(
-          supabase
+          (async () => supabase
             .from('listings')
             .select('building_type, deal_type')
             .eq('id', parseInt(lid, 10))
-            .maybeSingle(),
+            .maybeSingle())(),
           1000,
           'rtms_listing',
         );
