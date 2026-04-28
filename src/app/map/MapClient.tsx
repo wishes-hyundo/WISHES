@@ -24,6 +24,9 @@ import { useViewport } from '@/features/map-2026/hooks/useViewport';
 import { useSemanticZoom } from '@/features/map-2026/hooks/useSemanticZoom';
 import { useHeroRanking } from '@/features/map-2026/hooks/useHeroRanking';
 import { useFilterUrlSync } from '@/features/map-2026/hooks/useFilterUrlSync';
+// L-listingurl1 (2026-04-29 사장님 명령): 매물 클릭 시 /map?listing=ID URL 동기화.
+//   새로고침/공유링크에서도 해당 매물 카드 자동 오픈.
+import { useListingUrlSync } from '@/features/map-2026/hooks/useListingUrlSync';
 
 import { NlSearchBar } from '@/features/map-2026/components/NlSearchBar';
 // L-mapfilter4 (2026-04-23): SmartChips 래퍼 해체.
@@ -290,6 +293,9 @@ export default function MapClient() {
   // L-v7-url (2026-04-22): URL ↔ FilterState 양방향 동기화. 페이지 진입 시
   //   1회 수화 → 이후 filter/sort/nlQuery 변경 시 replaceState 반영. v7 §5.
   useFilterUrlSync();
+  // L-listingurl1 (2026-04-29): URL ↔ detailListingId 동기화. 매물 클릭 시
+  //   `?listing=ID` 즉시 반영. 새로고침/공유링크에서 자동 카드 오픈.
+  useListingUrlSync();
 
   // listings → Deck 아이템 변환
   const items: MapItem[] = useMemo(
