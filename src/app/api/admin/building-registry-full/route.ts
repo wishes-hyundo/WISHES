@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 import { fetchBuildingData, fetchExposureUnits, type BuildingUnit } from '@/lib/external/buildingRegistry';
-import { fetchRtmsSummary, type RtmsSummary } from '@/lib/external/realEstateRtms';
 import { createServerClient } from '@/lib/supabase';
-import { captureError } from '@/lib/observe';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
+export const maxDuration = 30;
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
@@ -24,7 +22,6 @@ interface KakaoResult {
 }
 
 async function resolveAddress(address: string) {
-  // L-fix-kakao-timeout (2026-04-28): timeout 없이 hang 가능 → 3s 강제
   const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`;
   const ctrl = new AbortController();
   const tid = setTimeout(() => ctrl.abort(), 3000);
@@ -71,17 +68,6 @@ function findSelectedUnit(
   return byNumeric || null;
 }
 
-// L-fix-hard-timeout (2026-04-28): 어느 단계도 hang 시 8초 강제 종료.
-//   사장님 화면 영원히 '조회 중...' 멈춤 방지.
-async function withHardTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    p,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`hard_timeout_${label}_${ms}ms`)), ms),
-    ),
-  ]);
-}
-
 export async function GET(request: NextRequest) {
   const auth = await verifyAdminAuthStrict(request);
   if (!auth.ok || !ALLOWED_ROLES.has(auth.role || '')) {
@@ -90,34 +76,15 @@ export async function GET(request: NextRequest) {
 
   const sp = request.nextUrl.searchParams;
   const address = sp.get('address');
-  let reqDong = (sp.get('dongNm') || '').trim();
-  let reqHo = (sp.get('hoNm') || '').trim();
-  const lid = sp.get('lid') || sp.get('listing_id') || '';
+  const reqDong = (sp.get('dongNm') || '').trim();
+  const reqHo = (sp.get('hoNm') || '').trim();
 
   if (!address) {
     return NextResponse.json({ error: 'address parameter required' }, { status: 400 });
   }
 
-  // L-bldg-unit (2026-04-28): lid 있고 dongNm/hoNm 비어있으면 DB 자동 조회
-  if (lid && (!reqDong || !reqHo)) {
-    const sb = createServerClient();
-    if (sb) {
-      const { data: lst } = await sb
-        .from('listings')
-        .select('building_dong, building_ho')
-        .eq('id', parseInt(lid, 10))
-        .maybeSingle();
-      if (lst) {
-        if (!reqDong && lst.building_dong) reqDong = String(lst.building_dong);
-        if (!reqHo && lst.building_ho) reqHo = String(lst.building_ho);
-      }
-    }
-  }
-
   try {
-    const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await withHardTimeout(
-      resolveAddress(address), 4000, 'kakao'
-    );
+    const { sigunguCd, bjdongCd, bun, ji, bCode, fullAddress } = await resolveAddress(address);
     const platGbCd = '0';
 
     let buildingData: Record<string, string | number> = {};
@@ -128,23 +95,15 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServerClient();
     if (supabase) {
-      type CachedRow = { raw_data?: unknown; units_data?: unknown; fetched_at?: string };
-      let cached: CachedRow | null = null;
-      try {
-        const cacheRes = await withHardTimeout(
-          supabase
-            .from('building_registry_cache')
-            .select('raw_data, units_data, fetched_at')
-            .eq('sigungu_cd', sigunguCd)
-            .eq('bjdong_cd', bjdongCd)
-            .eq('bun', bun)
-            .eq('ji', ji)
-            .eq('plat_gb_cd', platGbCd)
-            .maybeSingle(),
-          2000, 'cache_select'
-        );
-        cached = (cacheRes as { data: CachedRow | null }).data;
-      } catch { cached = null; }
+      const { data: cached } = await supabase
+        .from('building_registry_cache')
+        .select('raw_data, units_data, fetched_at')
+        .eq('sigungu_cd', sigunguCd)
+        .eq('bjdong_cd', bjdongCd)
+        .eq('bun', bun)
+        .eq('ji', ji)
+        .eq('plat_gb_cd', platGbCd)
+        .maybeSingle();
 
       if (cached) {
         const fetchedMs = new Date(cached.fetched_at as string).getTime();
@@ -166,16 +125,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (cacheStatus !== 'hit') {
-      const [bdResult, unitsResult] = await withHardTimeout(
-        Promise.all([
-          fetchBuildingData(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
-          fetchExposureUnits(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
-        ]),
-        7000, 'bldg_apis'
-      ).catch((e) => {
-        debugInfo.push('parallel timeout: ' + (e as Error).message);
-        return [{ buildingData: {}, floors: [] }, [] as BuildingUnit[]] as const;
-      });
+      const [bdResult, unitsResult] = await Promise.all([
+        fetchBuildingData(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
+        fetchExposureUnits(sigunguCd, bjdongCd, bun, ji, platGbCd, debugInfo),
+      ]);
       buildingData = bdResult.buildingData;
       floors = bdResult.floors;
       units = unitsResult;
@@ -210,53 +163,6 @@ export async function GET(request: NextRequest) {
 
     const selectedUnit = findSelectedUnit(units, reqDong, reqHo);
 
-    // L-bldg-unit Layer 6 (2026-04-28): RTMS 실거래가 시세
-    //   기본 disabled (timeout 위험) — query ?withRtms=1 일 때만 또는 lid+빠른 경로.
-    //   추후 lazy-load 별도 endpoint 로 분리 가능.
-    let rtms: RtmsSummary | null = null;
-    const wantRtms = sp.get('withRtms') === '1';
-    if (wantRtms && lid && supabase) {
-      try {
-        const { data: lst } = await supabase
-          .from('listings')
-          .select('type, deal')
-          .eq('id', parseInt(lid, 10))
-          .maybeSingle();
-        if (lst && lst.type && lst.deal) {
-          // 3개월만 (속도 우선)
-          rtms = await fetchRtmsSummary(String(lst.type), String(lst.deal), sigunguCd, 3);
-        }
-      } catch { /* silent */ }
-    }
-
-    // L-bldg-unit Layer 8 (2026-04-28): 같은 단지 (sigungu+bjdong+bun+ji) 의
-    //   다른 wishes 매물 자동 grouping. 사장님이 한 건물의 매물 현황 한 눈에 파악.
-    let sameBuilding: Array<{
-      id: number; address: string | null; address_detail: string | null;
-      type: string | null; deal: string | null; price: number | null;
-      deposit: number | null; monthly: number | null;
-      building_dong: string | null; building_ho: string | null;
-      status: string | null;
-    }> = [];
-    if (supabase) {
-      try {
-        // 빠른 prefix 매칭만 (ilike % wildcard 제거 — index 활용)
-        const addrPrefix = fullAddress.split(' ').slice(0, 3).join(' ');
-        try {
-          const sbRes = await withHardTimeout(
-            supabase
-              .from('listings')
-              .select('id, address, address_detail, type, deal, price, deposit, monthly, building_dong, building_ho, status')
-              .like('address', addrPrefix + '%')
-              .neq('id', lid ? parseInt(lid, 10) : -1)
-              .limit(10),
-            1500, 'same_building'
-          );
-          sameBuilding = ((sbRes as { data: typeof sameBuilding }).data) || [];
-        } catch { sameBuilding = []; }
-      } catch { /* silent */ }
-    }
-
     return NextResponse.json({
       success: true,
       query: {
@@ -267,14 +173,11 @@ export async function GET(request: NextRequest) {
       floors,
       units,
       selected_unit: selectedUnit,
-      same_building: sameBuilding,
-      rtms,
       cache: cacheStatus,
       raw: {},
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    captureError(err, { route: 'admin/building-registry-full', tags: { address: address.slice(0, 100) } });
     return NextResponse.json(
       { success: false, error: msg || 'Unknown error', query: { address } },
       { status: 500 },
