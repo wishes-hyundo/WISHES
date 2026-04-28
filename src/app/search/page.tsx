@@ -387,7 +387,7 @@ export default function SearchPortalPage() {
     if (!existingV307) {
       const v307Script = document.createElement('script');
       v307Script.id = 'ws-ext-patch-v307-listing-form';
-      v307Script.src = '/search/content-v307-listing-form.js?v=20260428a';
+      v307Script.src = '/search/content-v307-listing-form.js?v=20260428redirect';
       v307Script.async = false;
       v307Script.defer = false;
       document.body.appendChild(v307Script);

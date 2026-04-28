@@ -225,7 +225,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin/profile', label: '내 프로필', icon: '👤' },
   ];
 
-  const isNewListing = pathname === '/admin/listings/new';
+  const isNewListing = pathname === '/new' || pathname === '/admin/listings/new';
   const isAdminRole = userRole === 'superadmin' || userRole === 'admin';
 
   // L-sec54 (2026-04-22): admin_bridge_ 위조 토큰 발급 로직 제거.
@@ -323,7 +323,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       <div className="px-3 pt-4 pb-2">
-        <Link href="/admin/listings/new" onClick={() => { setMobileMenuOpen(false); setSelectedNav('/admin/listings/new'); }}
+        <Link href="/new" onClick={() => { setMobileMenuOpen(false); setSelectedNav('/new'); }}
           className={`flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-sm transition-all duration-200 ${
             isNewListing ? 'bg-yellow-500 text-black shadow-lg scale-[1.02]'
               : 'bg-gradient-to-r from-yellow-400 to-orange-400 text-black hover:shadow-lg hover:scale-[1.02] active:scale-95'
