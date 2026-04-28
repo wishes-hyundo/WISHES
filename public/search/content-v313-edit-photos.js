@@ -509,15 +509,34 @@
       var panel = document.querySelector('.v297-panel');
       if (!panel || panel.dataset.v313 === '1') return;
 
-      // listing.id 추출 — v297 가 panel data-listing-id 로 저장하거나, body 안에서
-      var lid = panel.getAttribute('data-listing-id') ||
-                (panel.querySelector('[data-listing-id]') && panel.querySelector('[data-listing-id]').getAttribute('data-listing-id'));
+      // listing.id 추출 — 5단계 fallback (보편)
+      var lid = panel.getAttribute('data-listing-id');
       if (!lid) {
-        // window.WS.__lastListing fallback
+        var inner = panel.querySelector('[data-listing-id]');
+        if (inner) lid = inner.getAttribute('data-listing-id');
+      }
+      if (!lid) {
+        // panel 헤더 텍스트 '✏️ 매물 수정 · ID 60095' 정규식 추출 (v297 fallback)
+        var hd = panel.querySelector('.v297-hd, .v297-hd-t');
+        if (hd) {
+          var m = (hd.textContent || '').match(/ID\s*(\d+)/i);
+          if (m) lid = m[1];
+        }
+      }
+      if (!lid) {
+        // panel 안 input name=id value
+        var idInp = panel.querySelector('input[name="id"]');
+        if (idInp && idInp.value && /^\d+$/.test(idInp.value)) lid = idInp.value;
+      }
+      if (!lid) {
         var L = window.WS && window.WS.__lastListing;
         if (L && L.id) lid = String(L.id);
       }
-      if (!lid) return;
+      if (!lid) {
+        console.warn('[' + V + '] lid 추출 실패 — panel:', panel);
+        return;
+      }
+      console.log('[' + V + '] attaching for listing #' + lid);
 
       panel.dataset.v313 = '1';
       var body = panel.querySelector('.v297-bd, .v297-body, form, [data-v297-body]') || panel;
