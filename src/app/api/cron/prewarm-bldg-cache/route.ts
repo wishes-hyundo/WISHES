@@ -68,16 +68,19 @@ export async function GET(request: NextRequest) {
   const limit = Math.min(parseInt(url.searchParams.get('limit') || '50', 10), 100);
 
   // 활성 매물 중 address 있고 cache 에 아직 없는 것 우선
-  const { data: listings, error } = await supabase
+  type ListingRow = { id: number; address: string | null };
+  const lookupRes = await (async () => supabase
     .from('listings')
     .select('id, address')
     .eq('status', 'active')
     .not('address', 'is', null)
     .order('updated_at', { ascending: false })
-    .limit(limit);
+    .limit(limit))();
+  const listings = (lookupRes as { data: ListingRow[] | null }).data;
+  const error = (lookupRes as { error: unknown }).error;
 
   if (error || !listings || listings.length === 0) {
-    return NextResponse.json({ ok: true, processed: 0, error: error?.message });
+    return NextResponse.json({ ok: true, processed: 0, error: error ? String(error) : undefined });
   }
 
   let cacheHits = 0;
@@ -94,14 +97,15 @@ export async function GET(request: NextRequest) {
       if (!lookup) { errors++; continue; }
 
       // cache 존재 여부 확인 (24h 내)
-      const { data: cached } = await supabase
+      const cacheRes = await (async () => supabase
         .from('building_registry_cache')
         .select('fetched_at')
         .eq('sigungu_cd', lookup.sigunguCd)
         .eq('bjdong_cd', lookup.bjdongCd)
         .eq('bun', lookup.bun)
         .eq('ji', lookup.ji)
-        .maybeSingle();
+        .maybeSingle())();
+      const cached = (cacheRes as { data: { fetched_at: string } | null }).data;
 
       if (cached) {
         const ageMs = Date.now() - new Date(cached.fetched_at as string).getTime();
