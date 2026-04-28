@@ -10,7 +10,7 @@ export const maxDuration = 30;
 
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminAuth(request))) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
-  let body: { listingId?: number | string; saveToDb?: boolean } = {};
+  let body: { listingId?: number | string; saveToDb?: boolean; regenerate?: boolean } = {};
   try { body = await request.json(); } catch { return NextResponse.json({ error: 'invalid body' }, { status: 400 }); }
   const lidRaw = body.listingId;
   const lid = typeof lidRaw === 'number' ? lidRaw : (typeof lidRaw === 'string' ? parseInt(lidRaw, 10) : 0);
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   const roomsForTarget = rbMatch ? parseFloat(rbMatch[1]) : ((listing.rooms as number) || null);
 
   const facts: BriefingFacts = {
-    id: listing.id as number,
+    id: (listing.id as number) + Math.floor(Date.now() / 1000),  // 매번 다른 시드 (수동 호출)
     type: String(listing.type || ''),
     deal: String(listing.deal || ''),
     is_full_option: !!listing.full_option,
