@@ -100,11 +100,19 @@ export async function POST(
         const imageUrl = await uploadToR2(key, buf, 'image/webp');
 
         // Build insert data with correct column names (sort_order, is_thumbnail)
+        // L-wishes-source (2026-04-28): 사장님 명령 — POST 로 들어오는 모든 이미지는
+        //   processPhotoUpload (Classic Negative + 워터마크) 통과한 위시스 사진.
+        //   source='wishes_edited' + 처리 플래그 모두 true. 트리거가 listings.has_wishes_media 자동 갱신.
         const insertData: Record<string, any> = {
           listing_id: listingId,
           url: imageUrl,
           sort_order: sortOrderStr !== null ? parseInt(sortOrderStr) + i : nextSortOrder + i,
           is_thumbnail: (isThumbnailStr === 'true' && i === 0) || (nextSortOrder === 0 && i === 0),
+          source: 'wishes_edited',
+          film_look_applied: true,
+          watermark_applied: true,
+          exif_stripped: true,  // sharp recomb + WebP 변환 시 자연 EXIF strip
+          face_mosaic_applied: false,  // 추후 클라이언트 모자이크 처리 시 PATCH 로 갱신
         };
 
         // Add metadata tag as alt text if available
@@ -154,26 +162,36 @@ export async function GET(
     //   (비공개/삭제 매물 사진 열거 방지)
     // L-imgpolicy2 (2026-04-23 p.m.): 저작권 보호 — 크롤링 매물(source_site NOT NULL)
     //   의 외부 원본 이미지는 서버단에서 필터링. 자체 호스팅(/api/images, supabase, r2) 만 통과.
+    // L-wishes-source (2026-04-28): 사장님 명령 점진 전환 — 매물에 위시스 사진 ≥1장 있으면
+    //   crawled 모두 숨김 (저작권 안전 + 위시스 사진만 노출). 위시스 사진 없으면 기존 정책.
     const { data: parent } = await supabase
       .from('listings')
-      .select('id, source_site')
+      .select('id, source_site, has_wishes_media')
       .eq('id', listingId)
       .eq('status', '공개')
       .maybeSingle();
     if (!parent) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: cors });
     const { data, error } = await supabase
       .from('listing_images')
-      .select('id, url, alt, sort_order, is_thumbnail, created_at')
+      .select('id, url, alt, sort_order, is_thumbnail, source, film_look_applied, watermark_applied, created_at')
       .eq('listing_id', listingId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) return NextResponse.json({ success: false, error: IS_DEV ? error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
     const raw = data || [];
-    // 크롤링 매물이면 자체 호스팅 이미지만 통과. 자체 매물이면 전부 통과.
-    const safe = (parent as { source_site?: string | null }).source_site
-      ? filterSelfHosted(raw)
-      : raw;
-    return NextResponse.json({ success: true, data: safe }, { headers: cors });
+    const p = parent as { source_site?: string | null; has_wishes_media?: boolean };
+    let safe;
+    if (p.has_wishes_media) {
+      // 위시스 사진 ≥1장 있는 매물 — crawled 모두 숨김 (저작권 안전 + 차별화)
+      safe = raw.filter((img: { source?: string }) => img.source !== 'crawled');
+    } else if (p.source_site) {
+      // 위시스 사진 없는 크롤링 매물 — 자체 호스팅만 통과 (기존 정책)
+      safe = filterSelfHosted(raw);
+    } else {
+      // 위시스 사진 없는 자체 매물 — 전부 통과 (기존 정책)
+      safe = raw;
+    }
+    return NextResponse.json({ success: true, data: safe, has_wishes_media: !!p.has_wishes_media }, { headers: cors });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
   }
@@ -229,29 +247,4 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const cors = adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPTIONS');
-  try {
-    if (!(await isAdmin(request))) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401, headers: cors });
-    const { id } = await params;
-    const listingId = parseInt(id);
-    const imageId = new URL(request.url).searchParams.get('imageId');
-    if (!imageId) return NextResponse.json({ success: false, error: 'imageId required' }, { status: 400, headers: cors });
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: image, error: fe } = await supabase.from('listing_images').select('id, url').eq('id', parseInt(imageId)).eq('listing_id', listingId).single();
-    if (fe || !image) return NextResponse.json({ success: false, error: 'Image not found' }, { status: 404, headers: cors });
-
-    if (image.url) {
-      try {
-        const urlPath = new URL(image.url).pathname;
-        const key = urlPath.replace('/api/images/', '');
-        if (key) await deleteFromR2(key);
-      } catch (e) { console.warn('R2 delete fail:', e); }
-    }
-
-    await supabase.from('listing_images').delete().eq('id', image.id);
-    return NextResponse.json({ success: true, message: 'Deleted' }, { headers: cors });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
-  }
-          }
+  const cors = adminCorsHeaders(request, 'GET, POST, PATCH, DELETE, OPT
