@@ -642,7 +642,7 @@
           var n = grid.querySelectorAll('.v313-vcard:not(.v313-card-loading)').length;
           countEl.textContent = n + ' / 5장';
           if (sec) updateVideoHint(sec, n);
-          toast('동영상 업로드 완료', 'ok');
+          toast('✅ 동영상 자동 저장 완료', 'ok');
         })
         .catch(function (e) {
           withTransition(function () { ph.remove(); });
@@ -714,7 +714,7 @@
             countEl.textContent = n + ' / 20장';
             var sec = grid.closest('.v313-photos-sec'); if (sec) updateHintRemaining(sec, n);
           });
-          toast('필름 룩 + 워터마크 적용 완료', 'ok');
+          toast('✅ 사진 자동 저장 완료 (필름 룩 + 워터마크)', 'ok');
         })
         .catch(function () {
           withTransition(function () { ph.remove(); });
@@ -823,7 +823,7 @@
             }, lid);
             withTransition(function () { ph.replaceWith(card); });
             refreshCount();
-            toast('필름 룩 + 워터마크 적용 완료', 'ok');
+            toast('✅ 사진 자동 저장 완료 (필름 룩 + 워터마크)', 'ok');
           })
           .catch(function (e) {
             withTransition(function () { ph.remove(); });
@@ -860,7 +860,7 @@
             }, lid);
             withTransition(function () { ph.replaceWith(card); });
             refreshCount();
-            toast('동영상 업로드 완료', 'ok');
+            toast('✅ 동영상 자동 저장 완료', 'ok');
           })
           .catch(function (e) {
             withTransition(function () { ph.remove(); });
