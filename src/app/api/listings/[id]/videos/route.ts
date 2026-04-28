@@ -125,9 +125,6 @@ export async function POST(
         const key = `listings/${listingId}/video-${Date.now()}_${i}.${ext}`;
         const url = await uploadToR2(key, buf, effectiveMime);
 
-        // L-wishes-source (2026-04-28): 사장님 명령 — 모든 비디오 업로드는 위시스 원본.
-        //   source='wishes_original' (편집 X). 다음 단계에서 Classic Negative + 워터마크 처리
-        //   추가되면 source='wishes_edited' + film_look_applied=true 로 갱신.
         const { data: inserted, error: de } = await supabase
           .from('listing_videos')
           .insert({
@@ -137,9 +134,6 @@ export async function POST(
             file_size: file.size,
             alt: name,
             sort_order: nextSortOrder + i,
-            source: 'wishes_original',
-            film_look_applied: false,
-            watermark_applied: false,
           })
           .select('id, url')
           .single();
@@ -191,27 +185,21 @@ export async function GET(
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     // L-sec92 (2026-04-22): IDOR 차단 — 부모 listings.status='공개' 선검증. 없으면 404.
-    // L-wishes-source (2026-04-28): 매물에 위시스 비디오/사진 ≥1 있으면 crawled 비디오 숨김.
     const { data: parent } = await supabase
       .from('listings')
-      .select('id, has_wishes_media')
+      .select('id')
       .eq('id', listingId)
       .eq('status', '공개')
       .maybeSingle();
     if (!parent) return NextResponse.json({ success: false, error: 'Not found' }, { status: 404, headers: cors });
     const { data, error } = await supabase
       .from('listing_videos')
-      .select('id, url, poster_url, mime_type, file_size, duration_sec, width, height, alt, sort_order, source, film_look_applied, watermark_applied, created_at')
+      .select('id, url, poster_url, mime_type, file_size, duration_sec, width, height, alt, sort_order, created_at')
       .eq('listing_id', listingId)
       .order('sort_order', { ascending: true })
       .order('created_at', { ascending: true });
     if (error) return NextResponse.json({ success: false, error: IS_DEV ? error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
-    const raw = data || [];
-    const p = parent as { has_wishes_media?: boolean };
-    const safe = p.has_wishes_media
-      ? raw.filter((v: { source?: string }) => v.source !== 'crawled')
-      : raw;
-    return NextResponse.json({ success: true, data: safe, has_wishes_media: !!p.has_wishes_media }, { headers: cors });
+    return NextResponse.json({ success: true, data: data || [] }, { headers: cors });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
   }
@@ -269,4 +257,25 @@ export async function DELETE(
     if (!videoId) return NextResponse.json({ success: false, error: 'videoId required' }, { status: 400, headers: cors });
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    const { data: vid
+    const { data: video, error: fe } = await supabase
+      .from('listing_videos')
+      .select('id, url')
+      .eq('id', parseInt(videoId))
+      .eq('listing_id', listingId)
+      .single();
+    if (fe || !video) return NextResponse.json({ success: false, error: 'Video not found' }, { status: 404, headers: cors });
+
+    if (video.url) {
+      try {
+        const u = new URL(video.url);
+        const key = u.pathname.replace(/^\//, '');
+        if (key) await deleteFromR2(key);
+      } catch (e) { console.warn('R2 delete fail:', e); }
+    }
+
+    await supabase.from('listing_videos').delete().eq('id', video.id);
+    return NextResponse.json({ success: true, message: 'Deleted' }, { headers: cors });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: errMsg('Server: ', error) }, { status: 500, headers: cors });
+  }
+}
