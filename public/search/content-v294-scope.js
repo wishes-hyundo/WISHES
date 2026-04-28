@@ -112,7 +112,80 @@
     } catch (_) { return ''; }
   }
 
+  // ── L-fix-csrf-legacy (2026-04-28, v294 inline) ──────────────────
+  // 문제 1) /admin 로그인 시 middleware 가 ws_csrf 쿠키를 굽고, 이후 모든
+  //   /api/admin/** 변경 요청(POST/PATCH/PUT/DELETE) 은 X-CSRF-Token
+  //   헤더를 같이 들고 와야 통과한다. /search 의 vanilla content.js + 패치
+  //   들은 csrf 헤더를 모름 → 모든 admin 변경 요청 403.
+  // 문제 2) 옛날 content.js 가 Authorization: Bearer <legacy> 리터럴을
+  //   넣어 보낸다. 과거 Chrome Extension 이 치환했으나 지금은 없음 → 401.
+  // v303/v304 로 별도 wrap 추가 시 v294 의 defineProperty setter 가
+  //   바깥 wrap 을 origFetch 로 채택 → 무한 재귀 (RangeError).
+  //   따라서 fix 는 v294 내부에 직접 inline.
+  var ADMIN_API_RE = /\/api\/(?:admin|cron|ai)\//;
+  function getCookie(name) {
+    try {
+      var m = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]+)'));
+      return m ? decodeURIComponent(m[1]) : '';
+    } catch (_) { return ''; }
+  }
+  function preprocessAdminInit(init) {
+    init = init || {};
+    var hdr = null;
+    try {
+      if (init.headers instanceof Headers) hdr = init.headers;
+      else if (init.headers) hdr = new Headers(init.headers);
+      else hdr = new Headers();
+    } catch (_) {
+      try { hdr = new Headers(); } catch (__) { return init; }
+    }
+    if (!hdr.get('X-CSRF-Token') && !hdr.get('x-csrf-token')) {
+      var csrf = getCookie('ws_csrf');
+      if (csrf) hdr.set('X-CSRF-Token', csrf);
+    }
+    var auth = hdr.get('Authorization') || hdr.get('authorization') || '';
+    if (auth === 'Bearer <legacy>' || auth === 'bearer <legacy>') {
+      var tok = getWsToken();
+      if (tok) hdr.set('Authorization', 'Bearer admin_bridge_' + tok);
+    }
+    init.headers = hdr;
+    return init;
+  }
+
   function wrappedFetch(input, init) {
+    // ── 모든 admin/cron/ai 요청 사전처리 (CSRF + legacy token) ──
+    try {
+      var preUrl = typeof input === 'string' ? input : (input && input.url) || '';
+      if (ADMIN_API_RE.test(preUrl)) {
+        if (typeof input !== 'string' && input && 'url' in input) {
+          try {
+            var rqHdr = new Headers(input.headers || {});
+            if (!rqHdr.get('X-CSRF-Token') && !rqHdr.get('x-csrf-token')) {
+              var csrfR = getCookie('ws_csrf');
+              if (csrfR) rqHdr.set('X-CSRF-Token', csrfR);
+            }
+            var authR = rqHdr.get('Authorization') || '';
+            if (authR === 'Bearer <legacy>' || authR === 'bearer <legacy>') {
+              var tokR = getWsToken();
+              if (tokR) rqHdr.set('Authorization', 'Bearer admin_bridge_' + tokR);
+            }
+            var rqInit = {
+              method: input.method, headers: rqHdr,
+              credentials: input.credentials || 'include',
+              cache: input.cache, redirect: input.redirect,
+              referrer: input.referrer, integrity: input.integrity, mode: input.mode,
+            };
+            if (input.method && input.method !== 'GET' && input.method !== 'HEAD') {
+              rqInit.body = input.body;
+            }
+            input = new Request(preUrl, rqInit);
+          } catch (_) {}
+        } else {
+          init = preprocessAdminInit(init);
+        }
+      }
+    } catch (_) {}
+
     try {
       var url = typeof input === 'string' ? input : (input && input.url) || '';
       // build f (2026-04-22): SCOPE_TARGET_RE 매치되는 admin 엔드포인트는

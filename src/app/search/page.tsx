@@ -323,7 +323,7 @@ export default function SearchPortalPage() {
     if (!existingV294) {
       const v294Script = document.createElement('script');
       v294Script.id = 'ws-ext-patch-v294-scope';
-      v294Script.src = '/search/content-v294-scope.js?v=20260422h';
+      v294Script.src = '/search/content-v294-scope.js?v=20260428csrf';
       v294Script.async = false;
       v294Script.defer = false;
       document.body.appendChild(v294Script);
@@ -360,18 +360,6 @@ export default function SearchPortalPage() {
       v297Script.defer = false;
       document.body.appendChild(v297Script);
 
-    // L-auto-refresh-v305 (2026-04-28): 토큰 만료 자동 감지 + alert
-    //   v303/v304/v301 비활성화 후에도 사장님 토큰 만료 시 silent 401.
-    //   v305 는 fetch wrap 사용 X (v294 충돌 회피) — 5분 주기 체크 + 만료 alert modal.
-    const existingV305 = document.getElementById('ws-ext-patch-v305-auto-refresh');
-    if (!existingV305) {
-      const v305Script = document.createElement('script');
-      v305Script.id = 'ws-ext-patch-v305-auto-refresh';
-      v305Script.src = '/search/content-v305-auto-refresh.js?v=20260428a';
-      v305Script.async = false;
-      v305Script.defer = false;
-      document.body.appendChild(v305Script);
-    }
     // L-aidesc-v2 (2026-04-27 v3): v2 AI 매물 설명 시스템 통합
     const existingV300 = document.getElementById('ws-ext-patch-v300-aidesc-v2');
     if (!existingV300) {
@@ -382,14 +370,6 @@ export default function SearchPortalPage() {
       v300Script.defer = false;
       document.body.appendChild(v300Script);
     }
-    // L-disable-v303 (2026-04-28 P0 critical): Chrome MCP 라이브 검증 결과 stack overflow 발견.
-    //   v294-scope.js 가 이미 admin token 자동 주입 (Bearer admin_bridge_<token>) 중.
-    //   v303 + v304 + v301 의 window.fetch wrap 이 v294 의 origFetch 재할당 (line 258, 274) 과 충돌
-    //   → RangeError: Maximum call stack size exceeded → 모든 admin 기능 마비.
-    //   v303 비활성화 (v294 가 이미 admin 토큰 처리).
-    // L-disable-v304 (2026-04-28 P0 critical): v303 와 동일 사유 (window.fetch wrap 재귀).
-    // L-disable-v301 (2026-04-28 P0 critical): v294 fetch wrap 재귀 충돌 (RangeError).
-    //   임시 비활성화. 위시스 매물 뱃지 기능은 향후 wrap 충돌 회피 패턴으로 재작성 예정.
     }
   }, [state]);
 
