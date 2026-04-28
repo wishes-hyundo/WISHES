@@ -1,5 +1,5 @@
 // auto-regenerate-ai-desc — Hybrid (LLM 산문 + facts 검증 + Symbolic Fallback)
-// 작성: 2026-04-29 사장님 명령 "사람이 작성하는것처럼 + 100% 사실 + 추천 이유"
+// 위치노출 + 중복 제거 (사장님 명령 반영)
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { findStationsForListing } from '@/lib/subway-finder';
@@ -39,11 +39,9 @@ async function callGemini(prompt: string): Promise<string | null> {
 
 function parseLLMJson(raw: string): { title?: string; description?: string } | null {
   if (!raw) return null;
-  let cleaned = raw.replace(/^```(?:json)?/gm, '').replace(/```$/gm, '').trim();
-  const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  if (start < 0 || end < 0) return null;
-  try { return JSON.parse(cleaned.substring(start, end + 1)); } catch { return null; }
+  const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+  if (s < 0 || e < 0) return null;
+  try { return JSON.parse(raw.substring(s, e + 1)); } catch { return null; }
 }
 
 export async function GET(request: NextRequest) {
@@ -57,10 +55,9 @@ export async function GET(request: NextRequest) {
   const { data: targets, error } = await supabase
     .from('listings')
     .select(`
-      id, type, deal, status, gu, dong, address, building_name,
-      area_m2, floor_current, floor_total, rooms, bathrooms,
-      direction, room_shape, available_date, built_year,
-      parking, parking_spaces, parking_fee, elevator, full_option,
+      id, type, deal, status, gu, dong, building_name,
+      rooms, available_date, built_year,
+      parking, parking_spaces, full_option,
       lat, lng, raw_fields
     `)
     .is('ai_description', null)
@@ -86,54 +83,34 @@ export async function GET(request: NextRequest) {
         3
       );
 
-      const builtYearStr = String(listing.built_year || '');
-      const builtYear = parseInt(builtYearStr.match(/\d{4}/)?.[0] || '0');
+      const builtYear = parseInt(String(listing.built_year || '').match(/\d{4}/)?.[0] || '0');
       const isNewBuilding = builtYear > 0 && (new Date().getFullYear() - builtYear) <= 5;
-
       const rawFields = (listing.raw_fields as Record<string, unknown>) || {};
-      const builtFull = String(rawFields['준공년도'] || rawFields['준공연도'] || builtYearStr || '');
-      const availableDate = String(listing.available_date || rawFields['입주가능일'] || '');
-      const isImmediate = /즉시|공실/.test(availableDate);
+      const isImmediate = /즉시|공실/.test(String(listing.available_date || rawFields['입주가능일'] || ''));
 
-      // 옵션 텍스트 추출 (raw_fields 우선)
-      let optionsText = String(rawFields['옵션'] || '').trim();
-      if (!optionsText && listing.full_option) optionsText = '풀옵션';
-
-      // 룸/욕실 — raw_fields["룸/욕실수"] 우선 (1.5 같은 소수 보존)
+      // 룸 1.5개 같은 소수 보존 (추천 대상 분류 용도)
       const rbText = String(rawFields['룸/욕실수'] || '');
-      const rbMatch = rbText.match(/룸\s*([\d.]+)\s*개?\s*[\/／]?\s*욕실\s*([\d.]+)?\s*개?/);
-      const rooms = rbMatch ? parseFloat(rbMatch[1]) : ((listing.rooms as number) || null);
-      const bathrooms = rbMatch && rbMatch[2] ? parseFloat(rbMatch[2]) : ((listing.bathrooms as number) || null);
+      const rbMatch = rbText.match(/룸\s*([\d.]+)/);
+      const roomsForTarget = rbMatch ? parseFloat(rbMatch[1]) : ((listing.rooms as number) || null);
 
       const facts: BriefingFacts = {
         type: String(listing.type || ''),
         deal: String(listing.deal || ''),
-        building_name: (listing.building_name as string) || null,
-        built_year_full: builtFull || null,
-        floor_current: (listing.floor_current as number) || null,
-        floor_total: (listing.floor_total as number) || null,
-        rooms,
-        bathrooms,
-        room_shape: (listing.room_shape as string) || null,
         is_full_option: !!listing.full_option,
-        has_elevator: !!listing.elevator,
         has_parking: !!listing.parking || ((listing.parking_spaces as number) || 0) > 0,
-        parking_fee: (listing.parking_fee as number) || null,
         is_immediate_movein: isImmediate,
         is_new_building: isNewBuilding,
+        rooms_for_target: roomsForTarget,
         station_top3: stations,
-        options_text: optionsText || null,
-        special_notes: String(rawFields['특이사항'] || '').trim() || null,
+        building_name: (listing.building_name as string) || null,
         gu: (listing.gu as string) || null,
         dong: (listing.dong as string) || null,
       };
 
-      // facts 0개 (좌표만 있고 다른 정보 없음) → 저장 안 함
       if (!facts.type) { failed++; continue; }
 
       // ── LLM 호출 (3회 retry) ──
-      let title = '';
-      let description = '';
+      let title = '', description = '';
       let usedMethod: 'llm' | 'fallback' = 'fallback';
 
       for (let attempt = 0; attempt < 3; attempt++) {
@@ -142,21 +119,19 @@ export async function GET(request: NextRequest) {
         if (!raw) continue;
         const parsed = parseLLMJson(raw);
         if (!parsed || !parsed.description) continue;
-
-        const tTitle = String(parsed.title || '').trim();
-        const tDesc = String(parsed.description || '').trim();
-        const hT = detectBriefingHallucination(tTitle, facts);
-        const hD = detectBriefingHallucination(tDesc, facts);
-
+        const tT = String(parsed.title || '').trim();
+        const tD = String(parsed.description || '').trim();
+        const hT = detectBriefingHallucination(tT, facts);
+        const hD = detectBriefingHallucination(tD, facts);
         if (!hT.hallucinated && !hD.hallucinated) {
-          title = tTitle.slice(0, 30);
-          description = tDesc;
+          title = tT.slice(0, 30);
+          description = tD;
           usedMethod = 'llm';
           break;
         }
       }
 
-      // LLM 모두 실패 → Symbolic Fallback (자연스러운 산문 형태)
+      // LLM 모두 실패 → Symbolic Fallback
       if (!description) {
         title = buildSymbolicTitle(facts);
         description = buildSymbolicFallback(facts);
@@ -196,6 +171,5 @@ export async function GET(request: NextRequest) {
     failed,
     remaining: remaining ?? null,
     duration_ms: Date.now() - startedAt,
-    method: 'hybrid (LLM + symbolic fallback)',
   });
 }
