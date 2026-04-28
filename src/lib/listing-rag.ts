@@ -129,7 +129,7 @@ function extractUniqueHooks(rawFields: Record<string, unknown>): string[] {
 // ── 3. 주변 환경 — DB 검증된 것만 ───────────────────────
 function extractNearbyKnown(
   rawFields: Record<string, unknown>,
-  buildingName: string | null
+  _buildingName: string | null
 ): string[] {
   const known: string[] = [];
   const special = String(rawFields['특이사항'] || '');
@@ -203,4 +203,25 @@ export function buildRagContext(listing: Record<string, unknown>): RagContext {
 
   // 표/아이콘에 이미 표시되는 정보 — LLM 절대 언급 X
   const forbidden_topics: string[] = [
-    '보증금', '월세', '전세금', 
+    '보증금', '월세', '전세금', '매매가', '관리비', '가격',
+    '면적', '평수', '제곱미터', 'm²', '평',
+    '방 개수', '방수', '욕실 개수',
+    '주차대수', '주차 N대',
+    '엘리베이터 N대',
+    '준공년도', '사용승인일',
+    '구체 옵션 14개 나열',
+  ];
+
+  // 다양성: 매물 ID 해시 → 스타일 인덱스 (0~6)
+  const id = listing.id;
+  const idHash = typeof id === 'number'
+    ? id
+    : (typeof id === 'string' ? parseInt(id) || 0 : 0);
+  const suggested_style_index = Math.abs(idHash * 2654435761) % 7; // golden ratio hash
+
+  return {
+    facts,
+    forbidden_topics,
+    suggested_style_index,
+  };
+}
