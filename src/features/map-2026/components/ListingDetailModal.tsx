@@ -28,12 +28,6 @@ import { openKakaoChannelChat, openNaverBooking } from '@/lib/externalContact';
 import { INTERIOR_FEATURES, SECURITY_FEATURES, hasFeatureWithBools } from '@/lib/featureIcons';
 import { useMap2026Store, type MapListing } from '../store';
 import { cinematicFlyTo } from '../lib/cinematicMotion';
-// L-listings-merge2 (2026-04-29 사장님 명령): 기존 매물카드 본문 절대 유지 +
-//   하단에 5-2-10-1 (추천/위치/주변교통/실거래가) + 담당자 옆 3번 공유 버튼.
-import SmartRecommendations from '@/components/SmartRecommendations';
-import ListingLocationMap from '@/components/ListingLocationMap';
-import RealPriceChart from '@/components/RealPriceChart';
-import ShareButton from '@/components/ShareButton';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   formatDealLabel,
@@ -154,12 +148,6 @@ export function ListingDetailModal() {
   //   → 모달이 안 떴음. 직접 fetch 한 fallback 매물 객체를 채워 모달 열리게.
   const [fallbackListing, setFallbackListing] = useState<MapListing | null>(null);
 
-  // L-listings-merge2: 주변 교통 (10번) — /api/listings/[id]/nearby
-  const [nearbyStations, setNearbyStations] = useState<Array<{
-    name: string; line: string; distance: number; walkMin: number;
-  }>>([]);
-  const [stationsLoading, setStationsLoading] = useState(false);
-
   useEffect(() => {
     let cancelled = false;
     if (detailListingId == null) { setFallbackListing(null); return; }
@@ -223,22 +211,6 @@ export function ListingDetailModal() {
       .catch(() => { if (!cancelled) setFallbackListing(null); });
     return () => { cancelled = true; };
   }, [detailListingId, cachedListing, listings]);
-
-  // L-listings-merge2 (2026-04-29): 주변 지하철 fetch
-  useEffect(() => {
-    if (detailListingId == null) { setNearbyStations([]); return; }
-    const ac = new AbortController();
-    setStationsLoading(true);
-    fetch(`/api/listings/${detailListingId}/nearby`, { signal: ac.signal })
-      .then((r) => r.ok ? r.json() : null)
-      .then((j) => {
-        if (j?.success && j?.data?.stations) setNearbyStations(j.data.stations);
-        else setNearbyStations([]);
-      })
-      .catch(() => { /* abort 무시 */ })
-      .finally(() => { if (!ac.signal.aborted) setStationsLoading(false); });
-    return () => ac.abort();
-  }, [detailListingId]);
 
   const listing: MapListing | null = detailListingId == null
     ? null
@@ -900,90 +872,12 @@ export function ListingDetailModal() {
         document.body
       )}
 
-      {/* L-listings-merge2 (2026-04-29 사장님 명령): 위→아래 5-2-10-1 순서 */}
-      {/* 5) 추천 매물 (SmartRecommendations) */}
-      {listing.dong && (
-        <div className="border-t border-neutral-100 bg-white px-4 py-4">
-          <SmartRecommendations listingId={listing.id} dong={listing.dong} />
-        </div>
-      )}
-
-      {/* 2) 매물 위치 — 카카오맵 미니맵 */}
-      {listing.lat != null && listing.lng != null && (
-        <div className="border-t border-neutral-100 bg-white px-4 py-4">
-          <h3 className="mb-3 text-[13px] font-bold text-neutral-900">매물 위치</h3>
-          <ListingLocationMap
-            lat={listing.lat}
-            lng={listing.lng}
-            address={listing.address ?? listing.title ?? null}
-            title={listing.title ?? listing.dong ?? null}
-          />
-        </div>
-      )}
-
-      {/* 10) 주변 교통 — 반경 2km 지하철 */}
-      {listing.lat != null && listing.lng != null && (
-        <div className="border-t border-neutral-100 bg-white px-4 py-4">
-          <h3 className="mb-3 text-[13px] font-bold text-neutral-900 flex items-center gap-1.5">
-            <span className="inline-block size-3 rounded-full bg-blue-500/70" />
-            주변 교통
-          </h3>
-          <div className="rounded-xl bg-blue-50/50 p-3">
-            <p className="mb-2 text-[11px] text-neutral-500">반경 2km 내 지하철역</p>
-            {stationsLoading ? (
-              <div className="space-y-1.5">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="flex items-center justify-between animate-pulse">
-                    <div className="h-3 w-20 bg-blue-100 rounded" />
-                    <div className="h-3 w-12 bg-blue-100 rounded" />
-                  </div>
-                ))}
-              </div>
-            ) : nearbyStations.length > 0 ? (
-              <div className="space-y-1.5">
-                {nearbyStations.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-flex size-4 items-center justify-center rounded-full bg-blue-500 text-[9px] font-bold text-white">{s.line}</span>
-                      <span className="text-[12.5px] font-medium text-neutral-800">{s.name}역</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[11px] text-neutral-500">{s.distance}m</span>
-                      <span className="text-[11px] font-medium text-blue-600">도보 {s.walkMin}분</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[12px] text-neutral-500">반경 2km 내 지하철역이 없습니다.</p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 1) 실거래가 차트 — 동/유형/거래방식 */}
-      {listing.dong && listing.type && (
-        <div className="border-t border-neutral-100 bg-white px-4 py-4">
-          <RealPriceChart
-            listingId={listing.id}
-            dong={listing.dong}
-            type={listing.type}
-            deal={listing.deal}
-          />
-        </div>
-      )}
-
-      {/* L-modal-v7 + L-listings-merge2: 하단 액션 — 3번 공유 (작게) + 담당자에게 연결 */}
-      <div className="border-t border-neutral-100 bg-white px-4 py-3 flex items-center gap-2">
-        <ShareButton
-          url={`https://wishes.co.kr/map/${listing.id}`}
-          title={`${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim() + ' | WISHES'}
-          description={listing.title || `${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim()}
-        />
+      {/* L-modal-v7: 하단 단일 액션 — 담당자에게 연결 */}
+      <div className="border-t border-neutral-100 bg-white px-4 py-3">
         <button
           type="button"
           onClick={() => setAgentModalOpen(true)}
-          className="flex-1 flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
+          className="w-full flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
         >
           <Phone className="size-4" />
           <span>담당자에게 연결</span>
