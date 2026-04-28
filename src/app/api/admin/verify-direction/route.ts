@@ -44,7 +44,6 @@ interface VisionResult {
 }
 
 async function fetchSatelliteAsBase64(lat: number, lng: number): Promise<{ b64: string; mime: string } | null> {
-  if (!KAKAO_REST_KEY) return null;
   // 카카오 Static Map API (위성)
   // https://apis-navi.kakaomobility.com 도 있지만 무료 정적 위성은 카카오 공식 X
   // 대안: V-World 위성 정적 이미지 (무료)
