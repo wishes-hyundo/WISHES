@@ -21,6 +21,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { captureError, captureWarning, addBreadcrumb } from '@/lib/observe';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -92,6 +93,7 @@ ${addressDetail}
     };
   } catch (e) {
     console.warn('[extract-building-units] one failed:', e);
+    captureError(e, { route: 'cron/extract-building-units', tags: { phase: 'gemini_fetch' } });
     return null;
   }
 }
@@ -167,9 +169,22 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  await addBreadcrumb('cron', 'extract-building-units', {
+    scanned: targets?.length || 0, updated, with_dong: withDong, with_ho: withHo,
+  });
+
+  // 추출 실패율이 50% 넘으면 warning
+  const scanned = targets?.length || 0;
+  if (scanned >= 10 && updated < scanned * 0.5) {
+    await captureWarning(
+      `[extract-building-units] 낮은 추출 성공률: ${updated}/${scanned}`,
+      { route: 'cron/extract-building-units', tags: { scanned: String(scanned), updated: String(updated) } },
+    );
+  }
+
   return NextResponse.json({
     success: true,
-    scanned: targets?.length || 0,
+    scanned,
     updated,
     with_dong: withDong,
     with_ho: withHo,

@@ -3,6 +3,7 @@ import { verifyAdminAuthStrict } from '@/lib/adminAuth';
 import { fetchBuildingData, fetchExposureUnits, type BuildingUnit } from '@/lib/external/buildingRegistry';
 import { fetchRtmsSummary, type RtmsSummary } from '@/lib/external/realEstateRtms';
 import { createServerClient } from '@/lib/supabase';
+import { captureError } from '@/lib/observe';
 
 const ALLOWED_ROLES = new Set(['superadmin', 'master', 'crawler_bridge', 'internal_bearer']);
 
@@ -228,6 +229,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
+    captureError(err, { route: 'admin/building-registry-full', tags: { address: address.slice(0, 100) } });
     return NextResponse.json(
       { success: false, error: msg || 'Unknown error', query: { address } },
       { status: 500 },
