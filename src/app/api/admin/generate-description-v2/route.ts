@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { verifyAdminAuth } from '@/lib/adminAuth';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
-import { buildRagContext, enrichRagWithFreshStation, detectStationHallucination, type ListingFacts } from '@/lib/listing-rag';
+import { buildRagContext, enrichRagWithStations, detectStationHallucination, type ListingFacts } from '@/lib/listing-rag';
 import { selectStyle, selectHeadlinePattern, type ListingStyle } from '@/lib/listing-styles';
 import { verifyDescription, type VerifyResult } from '@/lib/listing-verify';
 
@@ -244,7 +244,7 @@ export async function POST(request: NextRequest) {
   // L-loc-fix (2026-04-29): 카카오 SW8 직접 호출로 100% 정확한 가장 가까운 역 보장.
   const lat = (listing as { lat?: number }).lat;
   const lng = (listing as { lng?: number }).lng;
-  rag = await enrichRagWithFreshStation(rag, lat, lng, KAKAO_REST_API_KEY);
+  rag = await enrichRagWithStations(rag, lat, lng);
 
   const style = body.force_style_id
     ? require('@/lib/listing-styles').LISTING_STYLES.find((s: ListingStyle) => s.id === body.force_style_id) || selectStyle(listingId, rag.facts.target_segment)
