@@ -370,6 +370,19 @@ export default function SearchPortalPage() {
       v300Script.defer = false;
       document.body.appendChild(v300Script);
     }
+    // L-legacy-token-v303 (2026-04-28 critical): Chrome Extension 대체 monkey-patch
+    //   옛 content.js + 14 patch 의 'Bearer <legacy>' literal 토큰을 진짜 admin JWT 로
+    //   자동 치환. 영향: AI 매물 콘텐츠 / 건축물대장 / admin/listings 등 모든 admin 기능 부활.
+    //   ★ 다른 patch 보다 먼저 로드 (모든 fetch intercept 보장).
+    const existingV303 = document.getElementById('ws-ext-patch-v303-legacy-token');
+    if (!existingV303) {
+      const v303Script = document.createElement('script');
+      v303Script.id = 'ws-ext-patch-v303-legacy-token';
+      v303Script.src = '/search/content-v303-legacy-token-replace.js?v=20260428a';
+      v303Script.async = false;
+      v303Script.defer = false;
+      document.body.appendChild(v303Script);
+    }
     // L-curated-badge-v301 (2026-04-28): 위시스 직접 촬영/편집 매물 뱃지 자동 추가
     //   /api/listings 응답의 has_wishes_media 캡처 → 카드 DOM 자동 데코레이션
     //   /search HTML/CSS 무손상 (vanilla patch)
