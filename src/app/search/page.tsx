@@ -218,7 +218,7 @@ export default function SearchPortalPage() {
     if (!existingV260Perf) {
       const v260PerfScript = document.createElement('script');
       v260PerfScript.id = 'ws-ext-patch-v260-perf';
-      v260PerfScript.src = '/search/content-v260-perf.js?v=20260420a';
+      v260PerfScript.src = '/search/content-v260-perf.js?v=20260428real';
       v260PerfScript.async = false;
       v260PerfScript.defer = false;
       document.body.appendChild(v260PerfScript);

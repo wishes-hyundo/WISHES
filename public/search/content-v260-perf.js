@@ -353,8 +353,37 @@
           console.log(TAG + ' listing detail redirect lid=' + lid);
           var newInit = Object.assign({}, init || {});
           var h = Object.assign({}, (init && init.headers) || {});
-          h['Authorization'] = 'Bearer <legacy>';
+          // L-fix-v260-real-token (2026-04-28): 'Bearer <legacy>' literal 은 옛날
+          //   Chrome Extension 이 치환하던 가정. 지금은 없으니 sessionStorage 의
+          //   진짜 admin JWT 를 직접 주입해야 인증 통과. 토큰 없으면 (cookie-only
+          //   사용자) Authorization 추가 X — 서버 cookie path + middleware
+          //   strip(legacy) 가 처리.
+          var __realTok = '';
+          try {
+            var __t = sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token') || '';
+            while (__t && __t.indexOf('admin_bridge_') === 0) __t = __t.slice('admin_bridge_'.length);
+            if (__t && __t.indexOf('eyJ') === 0 && __t.split('.').length === 3) __realTok = __t;
+            if (!__realTok) {
+              for (var __i = 0; __i < localStorage.length; __i++) {
+                var __k = localStorage.key(__i);
+                if (!__k || !/^sb-.*-auth-token$/.test(__k)) continue;
+                try {
+                  var __o = JSON.parse(localStorage.getItem(__k) || 'null');
+                  var __at = __o && (__o.access_token || (__o.currentSession && __o.currentSession.access_token));
+                  if (__at && __at.indexOf('eyJ') === 0) { __realTok = __at; break; }
+                } catch (__e) {}
+              }
+            }
+          } catch (__e) {}
+          if (__realTok) {
+            h['Authorization'] = 'Bearer admin_bridge_' + __realTok;
+          } else if (h['Authorization'] === 'Bearer <legacy>') {
+            // 아무 토큰도 없으면 literal 보내봤자 401. Authorization 자체 안 보냄
+            // → server middleware/route 의 cookie fallback 시도.
+            delete h['Authorization'];
+          }
           newInit.headers = h;
+          newInit.credentials = newInit.credentials || 'include';
           return origFetch.call(this, newUrl, newInit).then(function(resp) {
             // admin API: data.listing_images 만 있음 → data.images 로 미러링 (content.js 호환)
             return resp.clone().json().then(function(j) {
