@@ -127,6 +127,22 @@
     {
       "path": "/api/cron/ai-hallucination-fix",
       "schedule": "0 5 * * 0"
+    },
+    {
+      "path": "/api/cron/enrich-academies",
+      "schedule": "30 11 * * *"
+    },
+    {
+      "path": "/api/cron/enrich-subway",
+      "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/enrich-land-price",
+      "schedule": "0 13 * * 1"
+    },
+    {
+      "path": "/api/cron/enrich-crime-safety",
+      "schedule": "30 13 * * 1"
     }
   ]
 }
