@@ -584,7 +584,7 @@ export function ListingDetailModal() {
             <h1 className="text-[18px] font-bold leading-tight text-neutral-900">
               {formatPropertyHeading(listing, floorLabel)}
             </h1>
-            <span className="flex-shrink-0 text-[11px] font-mono text-neutral-400">매물번호 {listing.id}</span>
+            {/* L-listing-id-bottom (2026-04-29 사장님 명령): 매물번호 footer 로 이동 — 여기서 제거 */}
           </div>
           <div className="mt-1 flex items-center gap-1 text-[12px] text-neutral-500">
             <MapPin className="size-3 shrink-0" aria-hidden />
@@ -610,18 +610,29 @@ export function ListingDetailModal() {
         {/* L-modal-v7-2: 3 메트릭 카드 */}
         <div className="border-b border-neutral-100 px-4 py-3 grid grid-cols-3 gap-2">
           {(() => {
+            // L-area-fallback (2026-04-29 사장님 명령): listing.area_m2=0/null 일 때
+            //   detailExtra.exclusive_area_m2 (건축물대장) 또는 common_area_m2 활용.
             const supply = detailExtra?.area_supply_m2 ?? (listing as any).area_supply_m2;
+            const exclusive = (listing.area_m2 && listing.area_m2 > 0)
+              ? listing.area_m2
+              : (detailExtra?.exclusive_area_m2 ?? null);
+            const common = detailExtra?.common_area_m2 ?? null;
+            const supplyDisp = (supply && supply > 0) ? supply : (common && exclusive ? (Number(exclusive) + Number(common)) : null);
+            const exDisp = exclusive ? Number(exclusive).toFixed(1) : null;
+            const spDisp = supplyDisp ? Number(supplyDisp).toFixed(1) : null;
             return (
               <div className="rounded-lg bg-neutral-50 p-2.5">
                 <div className="text-[10px] text-neutral-500 mb-1">전용 / 공급</div>
                 <div className="text-[13px] font-semibold text-neutral-900">
-                  {listing.area_m2 ? `${listing.area_m2}` : '-'}
-                  {supply ? ` / ${supply}` : ''}㎡
+                  {exDisp || '-'}{spDisp ? ` / ${spDisp}` : ''}㎡
                 </div>
-                {listing.area_m2 && supply && (
+                {exDisp && spDisp && (
                   <div className="text-[10px] text-neutral-400 mt-0.5">
-                    전용률 {Math.round((listing.area_m2 / supply) * 100)}%
+                    전용률 {Math.round((Number(exclusive) / Number(supplyDisp)) * 100)}%
                   </div>
+                )}
+                {!listing.area_m2 && exclusive && (
+                  <div className="text-[10px] text-neutral-400 mt-0.5">건축물대장</div>
                 )}
               </div>
             );
