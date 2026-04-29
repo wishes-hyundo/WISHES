@@ -84,6 +84,14 @@ const createListingSchema = z.object({
   source_url: z.string().optional().nullable(),
   building_name: z.string().optional().nullable(),
   contact: z.string().optional().nullable(),
+  // L-contacts-jsonb (2026-04-29 사장님 명령): 관계자 연락처 (JSONB 배열).
+  //   [{role, name, phone, memo}] — v240 모달 [+ 추가] 버튼이 PUT 으로 저장.
+  contacts: z.array(z.object({
+    role: z.string().max(40),
+    name: z.string().max(40).optional().nullable(),
+    phone: z.string().max(40),
+    memo: z.string().max(200).optional().nullable(),
+  })).max(50).optional().nullable(),
   lease_period: z.string().optional().nullable(),
   rights_fee: z.number().int().nonnegative().optional().nullable(),
   // L-status1 (2026-04-23): API 기본 status 를 UI 체계와 통일.

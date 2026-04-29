@@ -136,9 +136,60 @@
           if (!window.WS.state.contacts[lid]) window.WS.state.contacts[lid] = [];
           window.WS.state.contacts[lid].push({ role: role, name: name, phone: phone, memo: memo });
           safeSet('ws-contacts', JSON.stringify(window.WS.state.contacts));
-          close();
-          showToast('연락처가 추가되었습니다.');
-          refreshDetail(lid);
+
+          // L-v321-db-save (2026-04-29 사장님 명령): localStorage + DB 저장.
+          //   기존 매물의 listings.contacts (JSONB) 컬럼에 새 contact 합쳐서 PUT.
+          //   서버 createListingSchema.partial() 에 contacts 필드 추가됨.
+          var saveBtn = backdrop.querySelector('[data-v320="save"]');
+          var origText = saveBtn.textContent;
+          saveBtn.disabled = true;
+          saveBtn.textContent = '저장 중...';
+
+          // 현재 매물의 contacts 가져오기 (서버 기준)
+          fetch('/api/admin/listings/' + encodeURIComponent(lid), {
+            credentials: 'include',
+            headers: { 'Authorization': 'Bearer <legacy>' },
+            cache: 'no-cache',
+          })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (j) {
+              var existing = [];
+              try {
+                var row = j && (j.listing || j.data || j);
+                if (row && Array.isArray(row.contacts)) existing = row.contacts;
+              } catch (e) {}
+              var merged = existing.concat([{ role: role, name: name, phone: phone, memo: memo }]);
+              return fetch('/api/admin/listings', {
+                method: 'PUT',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'Bearer <legacy>',
+                },
+                body: JSON.stringify({ id: Number(lid), contacts: merged }),
+              });
+            })
+            .then(function (r) {
+              if (!r) throw new Error('no response');
+              if (!r.ok) {
+                return r.json().then(function (err) {
+                  throw new Error(err && err.error ? err.error : ('HTTP ' + r.status));
+                }).catch(function () { throw new Error('HTTP ' + r.status); });
+              }
+              return r.json();
+            })
+            .then(function () {
+              close();
+              showToast('연락처가 추가되었습니다.');
+              refreshDetail(lid);
+            })
+            .catch(function (err) {
+              try { console.error(TAG, 'DB save fail', err); } catch (_) {}
+              saveBtn.disabled = false;
+              saveBtn.textContent = origText;
+              alert('저장 실패: ' + (err && err.message ? err.message : '알 수 없는 오류'));
+            });
+          return;  // localStorage 저장 후 DB 저장 (위에서 비동기 처리)
         } catch (e) {
           try { console.error(TAG, 'save fail', e); } catch (_) {}
           try { alert('저장 실패'); } catch (_) {}

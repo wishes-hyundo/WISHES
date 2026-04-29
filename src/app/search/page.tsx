@@ -172,7 +172,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v317-nearby-poi', '/search/content-v317-nearby-poi.js?v=20260429-addrfb'],
       // v320 (2026-04-29 사장님 명령): v240 모달 [+ 추가] 핸들러 누락 fix.
       //   IIFE + try/catch + MutationObserver. UI/검색결과 영향 0.
-      ['ws-ext-patch-v320-contact-add', '/search/content-v320-contact-add.js?v=20260429-safe'],
+      ['ws-ext-patch-v320-contact-add', '/search/content-v320-contact-add.js?v=20260429-dbsave'],
       // v314 (2026-04-29): 매물수정 버튼 위치 이동 — hero 에서 '기본 정보·옵션'
       //   섹션 헤더 우측 끝으로 (사장님 제안). View Transitions 60fps + oklch.
       ['ws-ext-patch-v314-edit-btn-pos', '/search/content-v314-edit-btn-pos.js?v=20260429a'],
