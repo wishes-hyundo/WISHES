@@ -273,7 +273,11 @@ export function ListingDetailModal() {
   // L-gallery1 (2026-04-23 p.m.): 사진 갤러리 — 슬라이드 패널 내 좌/우 넘기기
   //   매물 상세 열릴 때 /api/listings/[id]/images 호출 (이미 L-imgpolicy2 로
   //   크롤링 차단 + self-hosted 만 통과). 자체 업로드 이미지 여러 장 넘겨봄.
-  const [galleryImages, setGalleryImages] = useState<string[]>([]);
+  // L-listings-merge8 (2026-04-29 사장님 명령): 갤러리 영상+사진 통합.
+  //   배열 순서: [영상들, 대표사진, 다른 사진들]
+  //   첫 슬라이드 = 대표사진 (영상 있으면 인덱스 = 영상 수)
+  type GalleryItem = { type: 'video' | 'image'; url: string; poster: string | null };
+  const [galleryItems, setGalleryItems] = useState<GalleryItem[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
   // L-lightbox1 (2026-04-23 p.m.): 사진 크게 보기 (풀스크린 라이트박스)
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -358,16 +362,36 @@ export function ListingDetailModal() {
     }
     setGalleryIndex(0);
     let cancelled = false;
-    fetch(`/api/listings/${listingId}/images`)
-      .then((r) => r.ok ? r.json() : null)
-      .then((json) => {
-        if (cancelled || !json?.data) return;
-        const urls = (json.data as { url: string }[])
-          .map((i) => i.url)
-          .filter(Boolean);
-        setGalleryImages(urls);
-      })
-      .catch(() => { /* 폴백 — thumbnail_url 만 사용 */ });
+    // L-listings-merge8: 영상 + 사진 병렬 fetch
+    Promise.all([
+      fetch(`/api/listings/${listingId}/videos`).then((r) => r.ok ? r.json() : null).catch(() => null),
+      fetch(`/api/listings/${listingId}/images`).then((r) => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([vRes, iRes]) => {
+      if (cancelled) return;
+      const videos: GalleryItem[] = (vRes?.data ?? []).map((v: { url: string; poster_url?: string | null }) => ({
+        type: 'video' as const,
+        url: v.url,
+        poster: v.poster_url ?? null,
+      })).filter((v: GalleryItem) => !!v.url);
+
+      // 사진 정렬: is_thumbnail=true 가 먼저, 그 다음 sort_order
+      const rawImages = (iRes?.data ?? []) as Array<{ url: string; sort_order?: number; is_thumbnail?: boolean }>;
+      const sorted = [...rawImages].sort((a, b) => {
+        const aThumb = a.is_thumbnail ? 0 : 1;
+        const bThumb = b.is_thumbnail ? 0 : 1;
+        if (aThumb !== bThumb) return aThumb - bThumb;
+        return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+      });
+      const images: GalleryItem[] = sorted
+        .map((i) => ({ type: 'image' as const, url: i.url, poster: null }))
+        .filter((i) => !!i.url);
+
+      // 배열: 영상 → 대표사진 → 다른 사진들
+      const items = [...videos, ...images];
+      setGalleryItems(items);
+      // 첫 슬라이드 = 대표사진 (영상 수만큼 skip)
+      setGalleryIndex(videos.length);
+    });
     return () => { cancelled = true; };
   }, [listingId]);
 
@@ -441,14 +465,14 @@ export function ListingDetailModal() {
 
   // 좌/우 키보드 네비게이션
   useEffect(() => {
-    if (!isOpen || galleryImages.length <= 1) return;
+    if (!isOpen || galleryItems.length <= 1) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
-      else if (e.key === 'ArrowRight') setGalleryIndex((i) => (i + 1) % galleryImages.length);
+      if (e.key === 'ArrowLeft') setGalleryIndex((i) => (i - 1 + galleryItems.length) % galleryItems.length);
+      else if (e.key === 'ArrowRight') setGalleryIndex((i) => (i + 1) % galleryItems.length);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, galleryImages.length]);
+  }, [isOpen, galleryItems.length]);
 
   if (!listing) return null;
 
@@ -480,8 +504,22 @@ export function ListingDetailModal() {
       {/* L-gallery1: Hero 갤러리 (넘김 가능) */}
       <div className="relative h-[220px] w-full shrink-0 overflow-hidden bg-neutral-200">
         {(() => {
-          const src = galleryImages[galleryIndex] ?? listing.thumbnail_url;
-          if (src) {
+          // L-listings-merge8 (2026-04-29): hero 갤러리 영상/사진 분기 렌더
+          const item = galleryItems[galleryIndex];
+          if (item) {
+            if (item.type === 'video') {
+              return (
+                <video
+                  key={item.url}
+                  src={item.url}
+                  poster={item.poster ?? undefined}
+                  controls
+                  preload="metadata"
+                  className="absolute inset-0 h-full w-full object-cover bg-black"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              );
+            }
             return (
               <button
                 type="button"
@@ -490,8 +528,29 @@ export function ListingDetailModal() {
                 className="absolute inset-0 block cursor-zoom-in"
               >
                 <Image
-                  key={src}
-                  src={src}
+                  key={item.url}
+                  src={item.url}
+                  alt={addressLine}
+                  fill
+                  sizes="380px"
+                  className="object-cover"
+                  unoptimized
+                />
+              </button>
+            );
+          }
+          // fallback: store cached thumbnail
+          if (listing.thumbnail_url) {
+            return (
+              <button
+                type="button"
+                onClick={() => setLightboxOpen(true)}
+                aria-label="사진 크게 보기"
+                className="absolute inset-0 block cursor-zoom-in"
+              >
+                <Image
+                  key={listing.thumbnail_url}
+                  src={listing.thumbnail_url}
                   alt={addressLine}
                   fill
                   sizes="380px"
@@ -510,12 +569,12 @@ export function ListingDetailModal() {
         })()}
 
         {/* 좌/우 화살표 (이미지 2장 이상일 때만) */}
-        {galleryImages.length > 1 && (
+        {galleryItems.length > 1 && (
           <>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
+                setGalleryIndex((i) => (i - 1 + galleryItems.length) % galleryItems.length);
               }}
               aria-label="이전 사진"
               className="absolute left-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75"
@@ -525,7 +584,7 @@ export function ListingDetailModal() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setGalleryIndex((i) => (i + 1) % galleryImages.length);
+                setGalleryIndex((i) => (i + 1) % galleryItems.length);
               }}
               aria-label="다음 사진"
               className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75"
@@ -550,14 +609,15 @@ export function ListingDetailModal() {
 
         {/* 하단 배지 그룹 — 영상 + 사진 카운터 */}
         <div className="absolute bottom-2.5 right-2.5 flex gap-1.5">
-          {listing.has_video && (
+          {/* L-listings-merge8: 영상 배지 — 갤러리에 영상 있으면 표시 */}
+          {galleryItems.some((g) => g.type === 'video') && (
             <span className="flex items-center gap-0.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white">
               <Video className="size-3" /> 영상
             </span>
           )}
-          {galleryImages.length > 0 ? (
+          {galleryItems.length > 0 ? (
             <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
-              {galleryIndex + 1} / {galleryImages.length}
+              {galleryIndex + 1} / {galleryItems.length}
             </span>
           ) : (listing as any).photo_count > 0 ? (
             <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white">
@@ -567,9 +627,9 @@ export function ListingDetailModal() {
         </div>
 
         {/* 하단 도트 인디케이터 (≤8장) */}
-        {galleryImages.length > 1 && galleryImages.length <= 8 && (
+        {galleryItems.length > 1 && galleryItems.length <= 8 && (
           <div className="pointer-events-none absolute inset-x-0 bottom-1.5 flex justify-center gap-1">
-            {galleryImages.map((_, i) => (
+            {galleryItems.map((_, i) => (
               <span
                 key={i}
                 className={[
@@ -1046,7 +1106,7 @@ export function ListingDetailModal() {
       {/* L-lightbox2 (2026-04-23 p.m.): 풀스크린 사진 뷰어를 Portal 로 document.body 루트에 렌더.
           슬라이드 패널 <aside translate-x-0> 가 fixed 를 가두는 containing block 을 만들어
           이전엔 라이트박스가 380px 패널 영역에 갇혔음. createPortal 로 루트 렌더 → 진짜 풀스크린. */}
-      {typeof document !== 'undefined' && lightboxOpen && galleryImages.length > 0 && createPortal(
+      {typeof document !== 'undefined' && lightboxOpen && galleryItems.length > 0 && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black"
           onClick={() => setLightboxOpen(false)}
@@ -1062,12 +1122,12 @@ export function ListingDetailModal() {
             <X className="size-5" />
           </button>
 
-          {galleryImages.length > 1 && (
+          {galleryItems.length > 1 && (
             <>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
+                  setGalleryIndex((i) => (i - 1 + galleryItems.length) % galleryItems.length);
                 }}
                 aria-label="이전 사진"
                 className="absolute left-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
@@ -1077,7 +1137,7 @@ export function ListingDetailModal() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setGalleryIndex((i) => (i + 1) % galleryImages.length);
+                  setGalleryIndex((i) => (i + 1) % galleryItems.length);
                 }}
                 aria-label="다음 사진"
                 className="absolute right-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
@@ -1087,17 +1147,37 @@ export function ListingDetailModal() {
             </>
           )}
 
-          {/* 현재 사진 (contain 으로 비율 유지, 클릭 전파 방지) */}
-          <img
-            src={galleryImages[galleryIndex]}
-            alt={addressLine}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[95vh] max-w-[95vw] object-contain select-none"
-          />
+          {/* L-listings-merge8: 라이트박스 영상/사진 분기 */}
+          {(() => {
+            const it = galleryItems[galleryIndex];
+            if (!it) return null;
+            if (it.type === 'video') {
+              return (
+                // eslint-disable-next-line jsx-a11y/media-has-caption
+                <video
+                  src={it.url}
+                  poster={it.poster ?? undefined}
+                  controls
+                  autoPlay
+                  className="max-h-[95vh] max-w-[95vw] object-contain bg-black"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              );
+            }
+            return (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={it.url}
+                alt={addressLine}
+                onClick={(e) => e.stopPropagation()}
+                className="max-h-[95vh] max-w-[95vw] object-contain select-none"
+              />
+            );
+          })()}
 
           {/* 하단 카운터 */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-[12px] font-semibold text-white tabular-nums">
-            {galleryIndex + 1} / {galleryImages.length}
+            {galleryIndex + 1} / {galleryItems.length}
           </div>
         </div>,
         document.body
