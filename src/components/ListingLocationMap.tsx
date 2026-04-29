@@ -49,6 +49,8 @@ export default function ListingLocationMap({ lat, lng, address, title, authed = 
         // L-listings-merge6 (2026-04-29 사장님 명령): authed 분기.
         //   - 로그인: 정확한 Marker (주소 InfoWindow 제거)
         //   - 비로그인: Circle 반경 100m 불투명 fill (대략 위치만 노출)
+        // L-priv-debug (2026-04-29): 사장님 진단용 console.log
+        console.log('[ListingLocationMap] authed=' + authed + ' lat=' + lat + ' lng=' + lng);
         if (authed) {
           // 로그인 사용자: 정확한 마커
           new kakao.maps.Marker({ position: center, map });

@@ -311,6 +311,9 @@ export function ListingDetailModal() {
     raw_parking_text: string | null;
     raw_structure_text: string | null;
     raw_lease_text: string | null;
+    // L-seo (2026-04-29 사장님 명령 C): 매물 설명 본문에 첨부 + 별도 박스
+    seo_keywords: string[] | null;
+    seo_tags: string[] | null;
   } | null>(null);
   const [agentProfile, setAgentProfile] = useState<{
     name: string | null;
@@ -412,6 +415,8 @@ export function ListingDetailModal() {
           raw_parking_text: d.raw_parking_text || null,
           raw_structure_text: d.raw_structure_text || null,
           raw_lease_text: d.raw_lease_text || null,
+          seo_keywords: Array.isArray(d.seo_keywords) ? d.seo_keywords : (typeof d.seo_keywords === 'string' ? d.seo_keywords.split(',').map((s: string) => s.trim()).filter(Boolean) : null),
+          seo_tags: Array.isArray(d.seo_tags) ? d.seo_tags : (typeof d.seo_tags === 'string' ? d.seo_tags.split(',').map((s: string) => s.trim()).filter(Boolean) : null),
         });
         if (d.created_by && !d.source_site) {
           const ag = await fetch(`/api/agent/${d.created_by}`);
@@ -942,6 +947,28 @@ export function ListingDetailModal() {
           </div>
         </div>
       )}
+
+      {/* L-seo-box (2026-04-29 사장님 명령 C): 키워드 박스 — 매물 설명 다음, 위치 직전 */}
+      {(() => {
+        const kws = detailExtra?.seo_keywords;
+        const tags = detailExtra?.seo_tags;
+        const hasKws = Array.isArray(kws) && kws.length > 0;
+        const hasTags = Array.isArray(tags) && tags.length > 0;
+        if (!hasKws && !hasTags) return null;
+        return (
+          <div className="border-t border-neutral-100 bg-white px-4 py-3">
+            <h3 className="mb-2 text-[12px] font-bold text-neutral-900">🏷️ 핵심 키워드</h3>
+            <div className="flex flex-wrap gap-1.5">
+              {hasKws && kws!.map((k, i) => (
+                <span key={'kw' + i} className="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full font-medium">{k}</span>
+              ))}
+              {hasTags && tags!.map((t, i) => (
+                <span key={'tag' + i} className="text-[11px] bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">#{t.replace(/^#/, '')}</span>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 2) 매물 위치 — 카카오맵 미니맵 */}
       {listing.lat != null && listing.lng != null && (
