@@ -1201,7 +1201,7 @@ export function ListingDetailModal() {
       {/* L-lightbox2 (2026-04-23 p.m.): 풀스크린 사진 뷰어를 Portal 로 document.body 루트에 렌더.
           슬라이드 패널 <aside translate-x-0> 가 fixed 를 가두는 containing block 을 만들어
           이전엔 라이트박스가 380px 패널 영역에 갇혔음. createPortal 로 루트 렌더 → 진짜 풀스크린. */}
-      {typeof document !== 'undefined' && lightboxOpen && galleryImages.length > 0 && createPortal(
+      {typeof document !== 'undefined' && lightboxOpen && galleryItems.length > 0 && createPortal(
         <div
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black"
           onClick={() => setLightboxOpen(false)}
@@ -1217,14 +1217,14 @@ export function ListingDetailModal() {
             <X className="size-5" />
           </button>
 
-          {galleryImages.length > 1 && (
+          {galleryItems.length > 1 && (
             <>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
+                  setGalleryIndex((i) => (i - 1 + galleryItems.length) % galleryItems.length);
                 }}
-                aria-label="이전 사진"
+                aria-label="이전"
                 className="absolute left-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
               >
                 <ChevronLeft className="size-6" />
@@ -1232,9 +1232,9 @@ export function ListingDetailModal() {
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setGalleryIndex((i) => (i + 1) % galleryImages.length);
+                  setGalleryIndex((i) => (i + 1) % galleryItems.length);
                 }}
-                aria-label="다음 사진"
+                aria-label="다음"
                 className="absolute right-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
               >
                 <ChevronRight className="size-6" />
@@ -1242,17 +1242,37 @@ export function ListingDetailModal() {
             </>
           )}
 
-          {/* 현재 사진 (contain 으로 비율 유지, 클릭 전파 방지) */}
-          <img
-            src={galleryImages[galleryIndex]}
-            alt={addressLine}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[95vh] max-w-[95vw] object-contain select-none"
-          />
+          {/* L-listings-merge9-3c (2026-04-29): 라이트박스 영상/사진 분기 */}
+          {(() => {
+            const it = galleryItems[galleryIndex];
+            if (!it) return null;
+            if (it.type === 'video') {
+              return (
+                // eslint-disable-next-line jsx-a11y/media-has-caption
+                <video
+                  src={it.url}
+                  poster={it.poster ?? undefined}
+                  controls
+                  autoPlay
+                  className="max-h-[95vh] max-w-[95vw] object-contain bg-black"
+                  onClick={(e) => e.stopPropagation()}
+                />
+              );
+            }
+            return (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={it.url}
+                alt={addressLine}
+                onClick={(e) => e.stopPropagation()}
+                className="max-h-[95vh] max-w-[95vw] object-contain select-none"
+              />
+            );
+          })()}
 
           {/* 하단 카운터 */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-[12px] font-semibold text-white tabular-nums">
-            {galleryIndex + 1} / {galleryImages.length}
+            {galleryIndex + 1} / {galleryItems.length}
           </div>
         </div>,
         document.body
