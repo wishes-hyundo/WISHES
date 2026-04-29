@@ -250,8 +250,8 @@ export async function GET(request: NextRequest) {
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v11-mine', scopeUid as string]
-        : ['listings-minimal-v11'];
+        ? ['listings-minimal-v12-mine', scopeUid as string]
+        : ['listings-minimal-v12'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
