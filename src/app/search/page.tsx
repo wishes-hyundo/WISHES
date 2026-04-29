@@ -184,9 +184,13 @@ export default function SearchPortalPage() {
       //   섹션 헤더 우측 끝으로 (사장님 제안). View Transitions 60fps + oklch.
       ['ws-ext-patch-v314-edit-btn-pos', '/search/content-v314-edit-btn-pos.js?v=20260429a'],
       // v324 (2026-04-29 사장님 명령): 출처 뱃지 — 공실클럽=파랑G / 온하우스=빨강O.
-      //   카드 주소 라인 + 매물번호 옆 + 모달 hero 까지 강제 보장. content.js 의 기존
-      //   녹색/주황 뱃지 자동 교체. 자체 매물(source_site null)은 뱃지 X.
+      //   카드 주소 라인 + 모달 hero 강제 보장. content.js 의 기존 녹색/주황 뱃지
+      //   자동 교체. v324b: 매물번호 옆 mini 뱃지는 중복이라 제거.
       ['ws-ext-patch-v324-source-badge', '/search/content-v324-source-badge.js?v=20260429b'],
+      // v325 (2026-04-29 사장님 명령): 매물번호 강조 뱃지 — 카드 .ws-listing-tags
+      //   첫 자식으로 "매물 {id}" 뱃지 (#2D5A27 짙은 녹색) prepend, 클릭 시 복사.
+      //   기존 우측 .ws-listing-id 가 안 보인다는 보고 → 층수 앞 고정 배치.
+      ['ws-ext-patch-v325-listing-id-tag', '/search/content-v325-listing-id-tag.js?v=20260429a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
