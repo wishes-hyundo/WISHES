@@ -195,6 +195,10 @@ export default function SearchPortalPage() {
       //   v324b 가 만든 cleanup 코드가 Vercel CDN edge stale 로 풀리지 않아 별개
       //   path 의 단일책임 patch 로 우회. .ws-src-badge-mini 만 제거.
       ['ws-ext-patch-v326-cleanup-mini-badge', '/search/content-v326-cleanup-mini-badge.js?v=20260429a'],
+      // v327 (2026-04-29 사장님 명령): 카드 부 라인 = 도로명주소 (있을 때만).
+      //   메인은 굵은 지번주소 그대로 / 부는 옅은 회색 도로명주소 (#6b7280).
+      //   building_info.도로명주소 우선, 없으면 listing.road_address, 없으면 원본 유지.
+      ['ws-ext-patch-v327-road-address-sub', '/search/content-v327-road-address-sub.js?v=20260429a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
