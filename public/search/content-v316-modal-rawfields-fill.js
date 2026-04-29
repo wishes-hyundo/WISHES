@@ -164,8 +164,17 @@
       console.log('[' + V + '] filled ' + filled + ' rows (raw_fields + building)');
     }
 
-    // 전용/공용 별도 row 추가 — v311/v312 가 mount 안 될 때 v316 fallback
-    var bp = getBuildingData();
+    // 전용/공용 별도 row 추가 — v311/v312 가 mount 안 될 때만 v316 fallback
+    // 중복 방지: 이미 .v311/.v312/.v316-unit-row 있거나 textContent 에 '전용' 포함 row 있으면 skip
+    var hasUnitRow = false;
+    if (info2.querySelector('.v316-unit-row, .v311-unit-row, .v312-unit-row')) hasUnitRow = true;
+    if (!hasUnitRow) {
+      var allRows = info2.querySelectorAll('.v240-r');
+      for (var ri = 0; ri < allRows.length; ri++) {
+        if (/전용\s*\/\s*공용|전유부/.test(allRows[ri].textContent || '')) { hasUnitRow = true; break; }
+      }
+    }
+    var bp = !hasUnitRow ? getBuildingData() : null;
     if (bp && bp.selected_unit) {
       var sel = bp.selected_unit;
       if (sel.exclusiveArea && !info2.querySelector('.v316-unit-row')) {
