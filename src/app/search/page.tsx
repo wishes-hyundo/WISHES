@@ -170,6 +170,9 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v316-rawfields-fill', '/search/content-v316-modal-rawfields-fill.js?v=20260429-lidmarker'],
       // v317 (2026-04-29): 카카오 기반 주변 시설 (지하철 + 버스정류장)
       ['ws-ext-patch-v317-nearby-poi', '/search/content-v317-nearby-poi.js?v=20260429-addrfb'],
+      // v319 (2026-04-29): v240 모달 [+ 추가] 핸들러 — MutationObserver 기반 안전 attach.
+      //   v318 revert 후 외과적 방식 (document.click capture / stopPropagation 사용 X).
+      ['ws-ext-patch-v319-contact-add', '/search/content-v319-contact-add.js?v=20260429-mutation'],
       // v314 (2026-04-29): 매물수정 버튼 위치 이동 — hero 에서 '기본 정보·옵션'
       //   섹션 헤더 우측 끝으로 (사장님 제안). View Transitions 60fps + oklch.
       ['ws-ext-patch-v314-edit-btn-pos', '/search/content-v314-edit-btn-pos.js?v=20260429a'],
