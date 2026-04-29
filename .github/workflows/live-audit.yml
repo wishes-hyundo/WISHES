@@ -1,0 +1,26 @@
+# L-audit-2026 (2026-04-29 사장님 명령): 자동 정밀 검수.
+#   "이럴때야 말로 최첨단 최고의 스킬과 기술 기능을 사용해서 정밀 검수해서 고쳐"
+#
+# 동작:
+#   1. main push → Vercel 자동 배포 (~60s) 대기
+#   2. live-health.mjs 실행 → wishes.co.kr 라이브 8개 항목 검증
+#   3. 실패 시 workflow fail + 사장님 이메일/슬랙 알림
+#   4. 성공 시 commit status 'green' 표시
+name: Live Audit
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  live-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Wait for Vercel deployment
+        run: sleep 90
+      - name: Live audit (8 checks)
+        run: node scripts/audit/live-health.mjs
