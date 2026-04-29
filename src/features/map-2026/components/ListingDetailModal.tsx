@@ -98,29 +98,36 @@ function floorPosition(cur: string | null | undefined, total: string | null | un
   if (r < 0.67) return '중층';
   return '고층';
 }
-function formatPropertyHeading(listing: MapListing, fallbackFloorLabel: string | null): string {
-  const type = listing.type || '';
-  const purpose = (listing as any).building_purpose?.trim?.() || null;
+// L-modal-h1 (2026-04-29): listing.type 제거. 사장님 명령:
+//   "건축물대장 주용도(아파트)와 listing.type(원룸) 둘 다 정확하지 않으니 제거"
+//   우선순위: 1) 단지명+주용도 → 2) 주용도 → 3) 단지명 → 4) 동·층 → 5) "매물"
+function formatPropertyHeading(
+  listing: MapListing,
+  fallbackFloorLabel: string | null,
+  buildingPurposeFromExtra?: string | null,
+): string {
+  const purpose = (
+    (buildingPurposeFromExtra && String(buildingPurposeFromExtra).trim()) ||
+    ((listing as any).building_purpose?.trim?.() || '')
+  ) || null;
   const buildingName = (listing as any).building_name?.trim?.() || null;
-  const floorPos = floorPosition(listing.floor_current, listing.floor_total);
 
-  // 아파트 / 오피스텔: 단지명 + 층 (네이버처럼 단지가 핵심)
-  if (type === '아파트' || type === '오피스텔') {
-    if (buildingName) {
-      const head = purpose ? `${purpose} ${buildingName}` : buildingName;
-      return fallbackFloorLabel ? `${head} · ${fallbackFloorLabel}` : head;
-    }
+  if (buildingName && purpose) {
+    return fallbackFloorLabel
+      ? `${purpose} · ${buildingName} · ${fallbackFloorLabel}`
+      : `${purpose} · ${buildingName}`;
   }
-  // 주거(원룸/투룸/쓰리룸/빌라/다가구/단독): 매물종류만
-  //   (층위/방수는 아래 3메트릭 카드에 이미 나오므로 H1 중복 제거)
-  if (/원룸|투룸|쓰리룸|빌라|다가구|단독|연립|다세대|주택/.test(type)) {
-    return type;
+  if (purpose) {
+    return fallbackFloorLabel ? `${purpose} · ${fallbackFloorLabel}` : purpose;
   }
-  // 상가 / 사무실 / 공장 / 창고 / 토지: 매물종류만
-  if (/상가|사무|오피스|공장|창고|지식산업|근생|복합|토지|대지|전|답|임야|잡종지/.test(type)) {
-    return type;
+  if (buildingName) {
+    return fallbackFloorLabel ? `${buildingName} · ${fallbackFloorLabel}` : buildingName;
   }
-  return type || '매물';
+  const dong = (listing as any).dong || '';
+  if (dong) {
+    return fallbackFloorLabel ? `${dong} · ${fallbackFloorLabel}` : dong;
+  }
+  return fallbackFloorLabel || '매물';
 }
 
 type RowProps = { label: string; value: React.ReactNode | null | undefined };
@@ -156,6 +163,10 @@ export function ListingDetailModal() {
   // L-listings-merge4 (2026-04-29): 10번 주변 교통 — /api/listings/[id]/nearby
   const [nearbyStations, setNearbyStations] = useState<Array<{
     name: string; line: string; distance: number; walkMin: number;
+  }>>([]);
+  // L-modal-transit (2026-04-29): 사장님 명령 — 카카오맵 기반 정확한 m + 도보분, 지하철+버스
+  const [nearbyBuses, setNearbyBuses] = useState<Array<{
+    name: string; distance: number; walkMin: number;
   }>>([]);
   const [stationsLoading, setStationsLoading] = useState(false);
 
@@ -244,6 +255,8 @@ export function ListingDetailModal() {
       .then((j) => {
         if (j?.success && j?.data?.stations) setNearbyStations(j.data.stations);
         else setNearbyStations([]);
+        if (j?.success && Array.isArray(j?.data?.buses)) setNearbyBuses(j.data.buses);
+        else setNearbyBuses([]);
       })
       .catch(() => { /* abort */ })
       .finally(() => { if (!ac.signal.aborted) setStationsLoading(false); });
@@ -302,6 +315,13 @@ export function ListingDetailModal() {
     // L-Phase2 (2026-04-29): 건축물대장 전유부 — /search v306 와 동일 데이터 소스.
     //   listing.building_dong + listing.building_ho 로 building_registry_cache 조회.
     exclusive_area_m2: number | null;
+    // L-modal-area (2026-04-29): 면적 fallback (DB > 정부 캐시 > raw_fields)
+    area_m2_resolved: number | null;
+    area_supply_m2_resolved: number | null;
+    area_common_m2_resolved: number | null;
+    area_total_m2_resolved: number | null;
+    // L-modal-h1 (2026-04-29): 건축물대장 주용도 (DB 컬럼 또는 정부 캐시 fallback)
+    building_purpose_resolved: string | null;
     common_area_m2: number | null;
     total_area_m2: number | null;
     unit_floor: string | null;
@@ -407,6 +427,12 @@ export function ListingDetailModal() {
           area_supply_m2: (typeof d.area_supply_m2 === 'number' ? d.area_supply_m2 : null),
           // L-Phase2 (2026-04-29): 전유부 — /api/listings/[id] 에서 building_registry_cache 조회 결과
           exclusive_area_m2: (typeof d.exclusive_area_m2 === 'number' ? d.exclusive_area_m2 : null),
+          // L-modal-area (2026-04-29): resolved 필드 매핑
+          area_m2_resolved: typeof d.area_m2_resolved === 'number' && d.area_m2_resolved > 0 ? d.area_m2_resolved : null,
+          area_supply_m2_resolved: typeof d.area_supply_m2_resolved === 'number' && d.area_supply_m2_resolved > 0 ? d.area_supply_m2_resolved : null,
+          area_common_m2_resolved: typeof d.area_common_m2_resolved === 'number' && d.area_common_m2_resolved > 0 ? d.area_common_m2_resolved : null,
+          area_total_m2_resolved: typeof d.area_total_m2_resolved === 'number' && d.area_total_m2_resolved > 0 ? d.area_total_m2_resolved : null,
+          building_purpose_resolved: d.building_purpose_resolved || null,
           common_area_m2: (typeof d.common_area_m2 === 'number' ? d.common_area_m2 : null),
           total_area_m2: (typeof d.total_area_m2 === 'number' ? d.total_area_m2 : null),
           unit_floor: d.unit_floor || null,
@@ -587,7 +613,7 @@ export function ListingDetailModal() {
         <div className="border-b border-neutral-100 px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-[18px] font-bold leading-tight text-neutral-900">
-              {formatPropertyHeading(listing, floorLabel)}
+              {formatPropertyHeading(listing, floorLabel, detailExtra?.building_purpose_resolved || detailExtra?.building_purpose)}
             </h1>
             {/* L-listing-id-bottom (2026-04-29 사장님 명령): 매물번호 footer 로 이동 — 여기서 제거 */}
           </div>
@@ -617,11 +643,13 @@ export function ListingDetailModal() {
           {(() => {
             // L-area-fallback (2026-04-29 사장님 명령): listing.area_m2=0/null 일 때
             //   detailExtra.exclusive_area_m2 (건축물대장) 또는 common_area_m2 활용.
-            const supply = detailExtra?.area_supply_m2 ?? (listing as any).area_supply_m2;
+            //   L-modal-area (2026-04-29 추가): area_m2_resolved/area_supply_m2_resolved
+            //     (raw_fields 까지 포함) 도 마지막 fallback 으로 사용.
+            const supply = detailExtra?.area_supply_m2 ?? (listing as any).area_supply_m2 ?? detailExtra?.area_supply_m2_resolved ?? null;
             const exclusive = (listing.area_m2 && listing.area_m2 > 0)
               ? listing.area_m2
-              : (detailExtra?.exclusive_area_m2 ?? null);
-            const common = detailExtra?.common_area_m2 ?? null;
+              : (detailExtra?.exclusive_area_m2 ?? detailExtra?.area_m2_resolved ?? null);
+            const common = detailExtra?.common_area_m2 ?? detailExtra?.area_common_m2_resolved ?? null;
             const supplyDisp = (supply && supply > 0) ? supply : (common && exclusive ? (Number(exclusive) + Number(common)) : null);
             const exDisp = exclusive ? Number(exclusive).toFixed(1) : null;
             const spDisp = supplyDisp ? Number(supplyDisp).toFixed(1) : null;
@@ -863,24 +891,69 @@ export function ListingDetailModal() {
                   <p className="text-[13px] font-semibold leading-snug text-neutral-900 mb-2">{aiTitle}</p>
                 )}
                 {bodyText && (
-                  <>
-                    <p className={[
-                      'text-[12.5px] text-neutral-700 leading-relaxed whitespace-pre-line',
-                      showFullDesc ? '' : 'line-clamp-3',
-                    ].join(' ')}>
-                      {bodyText}
-                    </p>
-                    {bodyText.length > 90 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowFullDesc(v => !v)}
-                        className="mt-2 text-[11.5px] font-medium text-emerald-600 hover:text-emerald-700"
-                      >
-                        {showFullDesc ? '접기 ↑' : '더보기 ↓'}
-                      </button>
-                    )}
-                  </>
+                  <p className={[
+                    'text-[12.5px] text-neutral-700 leading-relaxed whitespace-pre-line',
+                    showFullDesc ? '' : 'line-clamp-3',
+                  ].join(' ')}>
+                    {bodyText}
+                  </p>
                 )}
+                {/* L-modal-seo (2026-04-29 사장님 명령): 핵심 키워드/태그를 더보기 안으로.
+                    "고객용 모달에 핵심 키워드 이 내용이 매물 설명 안에 더보기 안으로 들어가야돼"
+                    별도 박스 X — 펼쳤을 때만 노출. */}
+                {showFullDesc && (() => {
+                  const kws = (detailExtra?.seo_keywords || []).filter(Boolean);
+                  const tagsArr = (detailExtra?.seo_tags || []).filter(Boolean);
+                  if (kws.length === 0 && tagsArr.length === 0) return null;
+                  return (
+                    <div className="mt-3 pt-3 border-t border-neutral-200/70 space-y-2">
+                      {kws.length > 0 && (
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">
+                            🏷️ 핵심 키워드
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {kws.map((k, i) => (
+                              <span key={'kw' + i} className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-inset ring-emerald-100">
+                                {k}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {tagsArr.length > 0 && (
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-1.5">
+                            # 태그
+                          </div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {tagsArr.map((t, i) => (
+                              <span key={'tag' + i} className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-medium text-blue-700 ring-1 ring-inset ring-blue-100">
+                                #{t.replace(/^#/, '')}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                {(() => {
+                  const kws = detailExtra?.seo_keywords || [];
+                  const tagsArr = detailExtra?.seo_tags || [];
+                  const hasKwBlock = kws.length > 0 || tagsArr.length > 0;
+                  const showToggle = bodyText.length > 90 || hasKwBlock;
+                  if (!showToggle) return null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setShowFullDesc(v => !v)}
+                      className="mt-2 text-[11.5px] font-medium text-emerald-600 hover:text-emerald-700"
+                    >
+                      {showFullDesc ? '접기 ↑' : '더보기 ↓'}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           );
@@ -916,59 +989,72 @@ export function ListingDetailModal() {
         </div>
       )}
 
-      {/* 10) 주변 교통 — 반경 2km 지하철 */}
+      {/* 10) 주변 교통 — 카카오 SW8(지하철) + BS3(버스), m + 도보분.
+          사장님 명령: "주변 교통에 카카오맵 기반으로 정확한 수치여야되고 미터가 빠져있어" */}
       {listing.lat != null && listing.lng != null && (
         <div className="border-t border-neutral-100 bg-white px-4 py-3">
-          <h3 className="mb-2 text-[12px] font-bold text-neutral-900 flex items-center gap-1.5">
-            <span className="inline-block size-2 rounded-full bg-blue-500" />
-            주변 교통
-          </h3>
-          <div className="rounded-lg bg-blue-50/50 p-2.5">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="text-[12px] font-bold text-neutral-900 flex items-center gap-1.5">
+              <span className="inline-block size-2 rounded-full bg-blue-500" />
+              주변 교통
+            </h3>
+            <span className="text-[9.5px] text-neutral-400">카카오맵 직선거리 · 도보 4km/h</span>
+          </div>
+          <div className="rounded-lg bg-blue-50/50 p-2.5 space-y-2">
             {stationsLoading ? (
               <div className="space-y-1 animate-pulse">
                 <div className="h-3 bg-blue-100 rounded" />
                 <div className="h-3 w-2/3 bg-blue-100 rounded" />
               </div>
-            ) : nearbyStations.length > 0 ? (
-              <div className="space-y-1">
-                {nearbyStations.slice(0, 4).map((s, i) => (
-                  <div key={i} className="flex items-center justify-between text-[11.5px]">
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-blue-500 text-[8px] font-bold text-white">{s.line}</span>
-                      <span className="font-medium text-neutral-800">{s.name}역</span>
-                    </div>
-                    <span className="text-blue-600 font-medium">도보 {s.walkMin}분</span>
-                  </div>
-                ))}
-              </div>
             ) : (
-              <p className="text-[11px] text-neutral-500">반경 2km 지하철역 없음</p>
+              <>
+                {nearbyStations.length > 0 && (
+                  <div>
+                    <div className="text-[10.5px] font-semibold text-neutral-700 mb-1">🚇 지하철</div>
+                    <ul className="space-y-1">
+                      {nearbyStations.slice(0, 3).map((s, i) => (
+                        <li key={'st' + i} className="flex items-center justify-between text-[11.5px]">
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex size-3.5 items-center justify-center rounded-full bg-blue-500 text-[8px] font-bold text-white">{s.line}</span>
+                            <span className="font-medium text-neutral-800">{s.name}역</span>
+                          </div>
+                          <span className="tabular-nums text-neutral-600">
+                            <span className="text-neutral-800">{Number(s.distance).toLocaleString('ko-KR')}m</span>
+                            <span className="mx-1 text-neutral-300">·</span>
+                            <span>도보 {s.walkMin}분</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {nearbyBuses.length > 0 && (
+                  <div>
+                    <div className="text-[10.5px] font-semibold text-neutral-700 mb-1">🚌 버스</div>
+                    <ul className="space-y-1">
+                      {nearbyBuses.slice(0, 3).map((b, i) => (
+                        <li key={'bs' + i} className="flex items-center justify-between text-[11.5px]">
+                          <span className="font-medium text-neutral-800 truncate pr-2">{b.name}</span>
+                          <span className="tabular-nums text-neutral-600 shrink-0">
+                            <span className="text-neutral-800">{Number(b.distance).toLocaleString('ko-KR')}m</span>
+                            <span className="mx-1 text-neutral-300">·</span>
+                            <span>도보 {b.walkMin}분</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {nearbyStations.length === 0 && nearbyBuses.length === 0 && (
+                  <p className="text-[11px] text-neutral-500">주변 교통 정보가 없습니다</p>
+                )}
+              </>
             )}
           </div>
         </div>
       )}
 
-      {/* L-seo-box (2026-04-29 사장님 명령 C): 키워드 박스 — 매물 설명 다음, 위치 직전 */}
-      {(() => {
-        const kws = detailExtra?.seo_keywords;
-        const tags = detailExtra?.seo_tags;
-        const hasKws = Array.isArray(kws) && kws.length > 0;
-        const hasTags = Array.isArray(tags) && tags.length > 0;
-        if (!hasKws && !hasTags) return null;
-        return (
-          <div className="border-t border-neutral-100 bg-white px-4 py-3">
-            <h3 className="mb-2 text-[12px] font-bold text-neutral-900">🏷️ 핵심 키워드</h3>
-            <div className="flex flex-wrap gap-1.5">
-              {hasKws && kws!.map((k, i) => (
-                <span key={'kw' + i} className="text-[11px] bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full font-medium">{k}</span>
-              ))}
-              {hasTags && tags!.map((t, i) => (
-                <span key={'tag' + i} className="text-[11px] bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">#{t.replace(/^#/, '')}</span>
-              ))}
-            </div>
-          </div>
-        );
-      })()}
+      {/* L-modal-seo (2026-04-29): 별도 키워드 박스 제거 — 매물설명 더보기 안으로 통합 */}
 
       {/* 2) 매물 위치 — 카카오맵 미니맵 */}
       {listing.lat != null && listing.lng != null && (

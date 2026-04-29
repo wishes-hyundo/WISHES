@@ -466,6 +466,27 @@ export function buildSymbolicTitle(f: BriefingFacts): string {
     .replace('{type}', f.type);
   // station 없으면 패턴 단순화
   if (!station) title = `${feature} ${f.type}`;
+
+  // L-aititle-guard (2026-04-29): 룸타입 모순 감지·자동 정정.
+  //   사장님 명령: "원룸 ... 투룸형" 모순 차단.
+  //   원룸/투룸/쓰리룸/포룸 키워드 2개 이상 등장 시 rooms 기반 정답 1개로 통일.
+  const ROOM_TYPES = ['원룸', '투룸', '쓰리룸', '포룸'];
+  const presentRoomTypes = ROOM_TYPES.filter((rt) => title.includes(rt));
+  if (presentRoomTypes.length > 1) {
+    let canonical = f.type;
+    if (f.rooms_for_target != null) {
+      const r = f.rooms_for_target;
+      if (r >= 3) canonical = '쓰리룸';
+      else if (r >= 2) canonical = '투룸';
+      else canonical = '원룸';
+    }
+    for (const rt of ROOM_TYPES) {
+      if (rt !== canonical) {
+        title = title.split(rt).join('').replace(/\s{2,}/g, ' ').trim();
+      }
+    }
+    if (!title.includes(canonical)) title = `${title} ${canonical}`.trim();
+  }
   return title.slice(0, 30);
 }
 

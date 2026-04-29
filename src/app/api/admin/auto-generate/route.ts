@@ -19,9 +19,31 @@ export async function POST(request: NextRequest) {
   const supabase = createServerClient();
   const { data: listing, error } = await supabase
     .from('listings')
-    .select('id, type, deal, status, gu, dong, building_name, rooms, available_date, built_year, parking, parking_spaces, full_option, lat, lng, raw_fields')
+    .select('id, type, deal, status, gu, dong, address, building_name, building_purpose, rooms, available_date, built_year, parking, parking_spaces, full_option, lat, lng, raw_fields')
     .eq('id', lid).single();
   if (error || !listing) return NextResponse.json({ error: 'listing not found' }, { status: 404 });
+
+  // L-aitype (2026-04-29): listing.type vs 정부 건축물대장 주용도 모순 자동 보정.
+  //   사장님 명령: "원룸으로 표기됐지만 주용도가 아파트 → 잘못된 정보"
+  let resolvedType = String(listing.type || '').trim();
+  const dbPurpose = (listing as any).building_purpose ? String((listing as any).building_purpose).trim() : '';
+  if (dbPurpose) {
+    resolvedType = dbPurpose;
+  } else {
+    try {
+      const addr = String((listing as any).address || '').trim();
+      if (addr) {
+        const { data: cached } = await supabase
+          .from('building_registry_cache')
+          .select('units_data')
+          .eq('address', addr)
+          .maybeSingle();
+        const items: any[] = (cached as any)?.units_data || [];
+        const head = items.find((it: any) => it && it.mainPurpsCdNm);
+        if (head?.mainPurpsCdNm) resolvedType = String(head.mainPurpsCdNm).trim();
+      }
+    } catch { /* 캐시 없음 OK */ }
+  }
 
   const stations = await findStationsForListing((listing as { lat: number }).lat, (listing as { lng: number }).lng, 3);
   const builtYear = parseInt(String(listing.built_year || '').match(/\d{4}/)?.[0] || '0');
@@ -32,9 +54,16 @@ export async function POST(request: NextRequest) {
   const rbMatch = rbText.match(/룸\s*([\d.]+)/);
   const roomsForTarget = rbMatch ? parseFloat(rbMatch[1]) : ((listing.rooms as number) || null);
 
+  // L-aitype: rooms 기반 룸타입 정답 (rooms=2 인데 type='원룸' 등 모순 차단)
+  if (roomsForTarget != null && roomsForTarget >= 2 && /^원룸$/.test(resolvedType)) {
+    resolvedType = roomsForTarget >= 3 ? '쓰리룸' : '투룸';
+  } else if (roomsForTarget != null && roomsForTarget < 2 && /^(투룸|쓰리룸|포룸)$/.test(resolvedType)) {
+    resolvedType = '원룸';
+  }
+
   const facts: BriefingFacts = {
     id: (listing.id as number) + Math.floor(Date.now() / 1000),  // 매번 다른 시드 (수동 호출)
-    type: String(listing.type || ''),
+    type: resolvedType || String(listing.type || ''),
     deal: String(listing.deal || ''),
     is_full_option: !!listing.full_option,
     has_parking: !!listing.parking || ((listing.parking_spaces as number) || 0) > 0,
@@ -52,7 +81,8 @@ export async function POST(request: NextRequest) {
   const description = buildSymbolicFallback(facts);
 
   if (body.saveToDb !== false) {
-    await supabase.from('listings').update({
+    // L-aitype: resolvedType 이 listing.type 와 다르면 type 컬럼도 함께 업데이트.
+    const updates: Record<string, any> = {
       ai_title: title,
       ai_description: description,
       ai_generated_at: new Date().toISOString(),
@@ -60,7 +90,12 @@ export async function POST(request: NextRequest) {
       seo_keywords: buildKeywords(facts),
       seo_meta_description: buildMetaDescription(facts),
       seo_tags: buildTags(facts),
-    }).eq('id', lid);
+    };
+    const originalType = String(listing.type || '').trim();
+    if (resolvedType && resolvedType !== originalType) {
+      updates.type = resolvedType;
+    }
+    await supabase.from('listings').update(updates).eq('id', lid);
   }
 
   const responsePayload = {

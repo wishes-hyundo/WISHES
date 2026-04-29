@@ -10,11 +10,19 @@ const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 
 // 지하철역 카테고리 코드
 const SUBWAY_CATEGORY = 'SW8';
+// 버스정류장 카테고리 코드 (Kakao Local)
+const BUS_CATEGORY = 'BS3';
 
 interface NearbyStation {
   name: string;
   line: string;
   distance: number; // meters
+  walkMin: number;
+}
+
+interface NearbyBus {
+  name: string;
+  distance: number;
   walkMin: number;
 }
 
@@ -76,29 +84,30 @@ export async function GET(
       });
     }
 
-    // 카카오 Local API - 카테고리 검색 (지하철역)
-    const url = `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=${SUBWAY_CATEGORY}&x=${listing.lng}&y=${listing.lat}&radius=2000&sort=distance&size=5`;
-
-    // L-sec30 (2026-04-22): Kakao Local API 호출 timeout (외부 API 지연 차단)
-    const kakaoRes = await fetch(url, {
-      headers: {
-        Authorization: `KakaoAK ${KAKAO_REST_API_KEY}`,
-      },
-      signal: AbortSignal.timeout(6000),
-    });
-
-    if (!kakaoRes.ok) {
-      console.error('Kakao API error:', kakaoRes.status, await kakaoRes.text());
-      return NextResponse.json({
-        success: true,
-        data: { stations: [], message: '교통 정보 조회 중 오류가 발생했습니다.' }
-      });
-    }
-
-    const kakaoData = await kakaoRes.json();
+    // L-modal-transit (2026-04-29): 지하철 + 버스정류장 동시 조회.
+    //   사장님 명령: "주변 교통에 카카오맵 기반으로 정확한 수치여야되고 미터가 빠져있어"
+    //   - 지하철: SW8, 반경 1500m (도보 ~20분)
+    //   - 버스정류장: BS3, 반경 800m (도보 ~12분, 그 이상은 무의미)
+    const buildUrl = (cat: string, radius: number) =>
+      `https://dapi.kakao.com/v2/local/search/category.json?category_group_code=${cat}` +
+      `&x=${listing.lng}&y=${listing.lat}&radius=${radius}&sort=distance&size=15`;
+    const fetchKakao = async (cat: string, radius: number) => {
+      try {
+        const r = await fetch(buildUrl(cat, radius), {
+          headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` },
+          signal: AbortSignal.timeout(6000),
+        });
+        if (!r.ok) return null;
+        return await r.json();
+      } catch { return null; }
+    };
+    const [subwayJson, busJson] = await Promise.all([
+      fetchKakao(SUBWAY_CATEGORY, 1500),
+      fetchKakao(BUS_CATEGORY, 800),
+    ]);
 
     // 결과 파싱
-    const stations: NearbyStation[] = (kakaoData.documents || []).map((doc: any) => {
+    const stations: NearbyStation[] = ((subwayJson?.documents) || []).map((doc: any) => {
       const distance = parseInt(doc.distance) || 0;
       const walkMin = Math.round(distance / 67); // 평균 보행속도 ~4km/h = 67m/min
 
@@ -139,11 +148,29 @@ export async function GET(
       }
     }
 
+    // 버스정류장 파싱
+    const buses: NearbyBus[] = ((busJson?.documents) || []).map((doc: any) => {
+      const distance = parseInt(doc.distance) || 0;
+      const walkMin = Math.max(1, Math.round(distance / 67));
+      const name = String(doc.place_name || '').trim();
+      return { name, distance, walkMin };
+    });
+    const uniqueBuses: NearbyBus[] = [];
+    const seenBus = new Set<string>();
+    for (const b of buses) {
+      if (!b.name) continue;
+      if (!seenBus.has(b.name)) {
+        seenBus.add(b.name);
+        uniqueBuses.push(b);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         stations: uniqueStations.slice(0, 3),
-        searchRadius: 2000,
+        buses: uniqueBuses.slice(0, 3),
+        searchRadius: { subway: 1500, bus: 800 },
       }
     }, {
       headers: {

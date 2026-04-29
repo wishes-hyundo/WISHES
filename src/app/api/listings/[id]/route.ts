@@ -212,6 +212,30 @@ export async function GET(
       raw_lease_text: typeof rf['임대기간'] === 'string' ? rf['임대기간'] : null,
     };
 
+    // L-modal-area (2026-04-29): 면적 fallback (raw_fields).
+    //   사장님 명령: "전용/공급 면적도 안채워지고 있잖아"
+    //   listing.area_m2 / area_supply_m2 / unitEnrich 가 모두 비면 raw_fields 에서 추출.
+    const parseM2 = (v: any): number | null => {
+      if (v == null) return null;
+      const m = String(v).match(/(\d+(?:\.\d+)?)/);
+      if (!m) return null;
+      const n = parseFloat(m[1]);
+      return isNaN(n) || n <= 0 ? null : n;
+    };
+    const rfExclusive = parseM2(rf['전용면적']) ?? parseM2(rf['전용 면적']) ?? parseM2(rf['전용']) ?? null;
+    const rfSupply = parseM2(rf['공급면적']) ?? parseM2(rf['공급 면적']) ?? parseM2(rf['공급']) ?? parseM2(rf['분양면적']) ?? null;
+    const rfCommon = parseM2(rf['공용면적']) ?? parseM2(rf['공용 면적']) ?? parseM2(rf['공용']) ?? null;
+    const rfTotal = parseM2(rf['연면적']) ?? parseM2(rf['총면적']) ?? null;
+    // 최종 resolved: DB 컬럼 → 정부 캐시(unitEnrich) → raw_fields
+    const dbExclusive = (listing as any).area_m2 && (listing as any).area_m2 > 0 ? (listing as any).area_m2 : null;
+    const dbSupply = (listing as any).area_supply_m2 && (listing as any).area_supply_m2 > 0 ? (listing as any).area_supply_m2 : null;
+    const areaResolved = {
+      area_m2_resolved: dbExclusive ?? unitEnrich?.exclusive_area_m2 ?? rfExclusive ?? null,
+      area_supply_m2_resolved: dbSupply ?? rfSupply ?? null,
+      area_common_m2_resolved: unitEnrich?.common_area_m2 ?? rfCommon ?? null,
+      area_total_m2_resolved: unitEnrich?.total_area_m2 ?? rfTotal ?? null,
+    };
+
     const { description: _rawDesc, ...rest } = listing as Record<string, unknown>;
     const publicListing = sanitizePublicListing(stripInternalFields(rest));
 
@@ -221,6 +245,7 @@ export async function GET(
         ...publicListing,
         ...rawExtract,
         ...(unitEnrich || {}),
+        ...areaResolved,
         images: images || [],
         features: features?.map((f: any) => f.feature) || [],
       },
