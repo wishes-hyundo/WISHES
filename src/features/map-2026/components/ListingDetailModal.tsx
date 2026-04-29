@@ -695,8 +695,9 @@ export function ListingDetailModal() {
                 || (listing as any).dong
                 || '매물')}
             </h1>
-            <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 tabular-nums">
-              <span className="text-emerald-500/80">#</span>{listing.id}
+            <span className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+              <span className="text-emerald-600/80">매물번호</span>
+              <span className="tabular-nums">{listing.id}</span>
             </span>
           </div>
           {/* L-modal-h1-simple: 주소 = address(원본 그대로). listing.title 은 부정확한 광고 문구가 섞여 있어 제거. */}
