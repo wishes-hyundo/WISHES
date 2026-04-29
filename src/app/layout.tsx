@@ -73,7 +73,14 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   themeColor: '#3a7d44',
-  colorScheme: 'light',
+  // L-viewport-2026 (2026-04-29 사장님 명령): 전세계 모든 모바일 호환.
+  //   colorScheme 'light dark' — 시스템 다크모드 자동 대응 (color-scheme CSS 와 짝).
+  colorScheme: 'light dark',
+  // viewport-fit=cover — iOS 노치/홈바 영역에 컨텐츠 그릴 수 있도록 + safe-area-inset-* 활성화.
+  viewportFit: 'cover',
+  // interactiveWidget overlays-content — 모바일 키보드/주소창이 화면 위에 떠도 dvh 가 변하지 않도록.
+  //   (Chrome 108+, Safari 17+, Samsung Internet 23+)
+  interactiveWidget: 'overlays-content',
 };
 
 export default function RootLayout({

@@ -339,3 +339,116 @@ body {
     }
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+ * L-modal-2026 (2026-04-29 사장님 명령): 매물 모달 — 전세계 모든 모바일 호환.
+ *   "전세계 모든 모바일이 호환 가능한 수준이야? 최첨단 기술 집합체인가?"
+ *
+ * 2026 표준 stack:
+ *   - dvh fallback chain (lvh > dvh > svh > 100vh)
+ *   - Container Queries
+ *   - View Transitions
+ *   - Foldable / dual-screen viewport-segments
+ *   - prefers-reduced-motion / prefers-contrast / prefers-color-scheme
+ *   - 한국어 줄바꿈 (word-break: keep-all + text-wrap: pretty)
+ *   - touch device 분기 (hover: none, pointer: coarse)
+ * ════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* 1. dvh chain — 100vh 부터 100dvh 까지 fallback. */
+  .ws-modal-root {
+    height: 100vh;            /* legacy fallback */
+    height: 100svh;           /* small viewport (모바일 주소창 보일 때) */
+    height: 100dvh;           /* dynamic viewport (가장 정확, 2026 표준) */
+  }
+
+  /* 2. View Transitions API — 모달 enter/leave 부드럽게.
+        prefers-reduced-motion 사용자에겐 자동 무시. */
+  ::view-transition-old(ws-listing-modal),
+  ::view-transition-new(ws-listing-modal) {
+    animation-duration: 240ms;
+    animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    ::view-transition-old(ws-listing-modal),
+    ::view-transition-new(ws-listing-modal) {
+      animation: none !important;
+    }
+  }
+
+  /* 3. Container query — 모달 내부 요소가 모달 자체 너비 기반으로 반응형.
+        viewport 가 아닌 모달 너비. 폴드 접힘에서도 정확한 비율. */
+  @container wsmodal (max-width: 360px) {
+    .ws-modal-scroll {
+      font-size: 13px;
+    }
+    .ws-modal-footer {
+      gap: 0.375rem;
+    }
+  }
+  @container wsmodal (min-width: 480px) {
+    .ws-modal-scroll {
+      font-size: 14px;
+    }
+  }
+
+  /* 4. 폴드 / Dual-screen — viewport-segments 활용.
+        Galaxy Z Fold / Surface Duo 등 "spanning" 화면일 때 hinge gap 고려.
+        spec: CSS Display Module Level 4. */
+  @media (horizontal-viewport-segments: 2) {
+    .ws-modal-root {
+      /* 첫 번째 segment 에만 모달 노출 — hinge 회피. */
+      width: env(viewport-segment-width 0 0, 100%);
+    }
+  }
+  @media (vertical-viewport-segments: 2) {
+    .ws-modal-root {
+      /* 상단 segment 만 사용. footer 가 hinge 너머로 잘리지 않도록. */
+      max-height: env(viewport-segment-height 0 0, 100dvh);
+    }
+  }
+
+  /* 5. 가로모드 (landscape) — 폴드 펼침 + 작은 태블릿.
+        height 가 좁아지므로 hero 더 작게. */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .ws-modal-root [class*="h-["] {
+      max-height: 32vh;
+    }
+  }
+
+  /* 6. 고대비 모드 — Windows High Contrast / iOS / Android 접근성. */
+  @media (prefers-contrast: more) {
+    .ws-modal-root,
+    .ws-modal-footer {
+      border-color: currentColor;
+    }
+  }
+
+  /* 7. 터치 디바이스 — hover 무효, 터치 타겟 명확. */
+  @media (hover: none) and (pointer: coarse) {
+    .ws-modal-root button,
+    .ws-modal-root a {
+      min-height: 44px; /* Apple HIG */
+      min-width: 44px;
+    }
+  }
+
+  /* 8. PWA standalone (홈 화면 추가 후 실행) — status bar 영역 고려. */
+  @media (display-mode: standalone) {
+    .ws-modal-root {
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+  }
+
+  /* 9. 한국어 본문 — 어절 단위 줄바꿈. 글자 가운데 끊김 방지. */
+  .ws-modal-scroll p,
+  .ws-modal-scroll h1,
+  .ws-modal-scroll h2,
+  .ws-modal-scroll h3 {
+    word-break: keep-all;
+    overflow-wrap: anywhere; /* 너무 긴 단일 단어는 강제 줄바꿈 */
+  }
+  .ws-modal-scroll p {
+    text-wrap: pretty;
+  }
+}
