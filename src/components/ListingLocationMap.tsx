@@ -50,21 +50,28 @@ export default function ListingLocationMap({ lat, lng, address, title, authed = 
         //   - 로그인: 정확한 Marker (주소 InfoWindow 제거)
         //   - 비로그인: Circle 반경 100m 불투명 fill (대략 위치만 노출)
         if (authed) {
-          // 정확한 마커 — 주소 InfoWindow 노출 X
+          // 로그인 사용자: 정확한 마커
           new kakao.maps.Marker({ position: center, map });
         } else {
-          // 비로그인 — 100m 불투명 동그라미. 정확한 좌표 noise 추가 (약 30m).
-          // 동그라미 안에 마커가 어디 있는지 알 수 없도록 보호.
+          // L-priv-noise (2026-04-29 사장님 명령): 비로그인 — Circle 100m + 좌표 noise.
+          //   정확한 lat/lng 로 Circle 그리면 사용자가 좌표 inspect 가능.
+          //   ±0.00045° (~50m) 시드 노이즈 적용 → 매물 ID 기반 결정론적 (로드 시마다 동일)
+          //   Circle 100m radius 안에 매물이 있다는 것만 노출 (정확한 점 X)
+          const seed = Math.abs(((lat * 17 + lng * 31) * 1000) | 0);
+          const r1 = ((seed % 1000) / 1000 - 0.5) * 0.0009;   // ±~50m lat
+          const r2 = (((seed >> 10) % 1000) / 1000 - 0.5) * 0.0009;
+          const blurredCenter = new kakao.maps.LatLng(lat + r1, lng + r2);
+          map.setCenter(blurredCenter);
           new kakao.maps.Circle({
             map,
-            center,
+            center: blurredCenter,
             radius: 100,                          // meters
             strokeWeight: 2,
             strokeColor: '#10b981',               // emerald-500
-            strokeOpacity: 0.6,
+            strokeOpacity: 0.5,
             strokeStyle: 'solid',
             fillColor: '#10b981',
-            fillOpacity: 0.18,
+            fillOpacity: 0.20,
           });
         }
         void address; void title;  // 사장님 명령: 주소 노출 X (사용 안 함)
