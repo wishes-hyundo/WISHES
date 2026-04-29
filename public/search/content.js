@@ -3074,11 +3074,20 @@
   // ADDRESS GROUPING HELPER
   // ============================================================================
   function _getAddressGroupKey(listing) {
-    // 소재지 그룹핑 키: address 필드 전체 (지번주소 포함)
-    // 예: "서울특별시 관악구 신림동 246-1" 전체가 그룹핑 키
-    // 같은 건물(지번)의 다른 호수 매물들을 하나로 묶음
+    // 소재지 그룹핑 키: 건물 단위 (호수/층 제거).
+    // L-group-building (2026-04-29 사장님 명령): 같은 건물의 모든 호수/거래방식
+    //   을 한 그룹으로. 예: 쿼렌시아 122-104 의 1층 101/102호, 4층 401호 등 매매/
+    //   월세/전세 모두 한 그룹.
+    // 키 = address 에서 마지막 "X층 NNN호" / "NNN호" / "X층" 패턴 제거.
     var addr = (listing.address || '').trim();
-    return addr || '주소 미상';
+    if (!addr) return '주소 미상';
+    // 호수 제거 (B1호 / 지하1호 / 101호 / NNN호)
+    addr = addr.replace(/\s*(지하|B)?\s*[A-Z]?\d+\s*호$/i, '');
+    // 층 제거 (X층 / 지하X층 / B1층)
+    addr = addr.replace(/\s*(지하|B)?\s*\d+\s*층$/i, '');
+    // 호 제거 한 번 더 (층 → 호 순서 케이스)
+    addr = addr.replace(/\s*(지하|B)?\s*[A-Z]?\d+\s*호$/i, '');
+    return addr.trim() || '주소 미상';
   }
 
   window.WS.renderListings = function() {

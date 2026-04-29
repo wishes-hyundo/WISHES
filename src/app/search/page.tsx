@@ -133,7 +133,7 @@ export default function SearchPortalPage() {
     }
     const script = document.createElement('script');
     script.id = 'ws-ext-content';
-    script.src = '/search/content.js?v=20260420h-scrub';
+    script.src = '/search/content.js?v=20260429-bldggroup';
     script.async = false;
     document.body.appendChild(script);
 
