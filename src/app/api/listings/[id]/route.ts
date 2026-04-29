@@ -308,9 +308,18 @@ export async function GET(
     // 최종 resolved: DB 컬럼 → 정부 캐시(unitEnrich) → raw_fields
     const dbExclusive = (listing as any).area_m2 && (listing as any).area_m2 > 0 ? (listing as any).area_m2 : null;
     const dbSupply = (listing as any).area_supply_m2 && (listing as any).area_supply_m2 > 0 ? (listing as any).area_supply_m2 : null;
+    // L-area-supply (2026-04-29): 공급면적 = 전용 + 공용 (= total_area_m2).
+    //   사장님 명령: "전용/공급 면적이 계속 Null 상태"
+    //   DB 컬럼이 비어 있어도 unitEnrich.total_area_m2 또는 (전용+공용 합) 으로 자동 계산.
+    const supplyFromUnit =
+      (unitEnrich?.total_area_m2 != null && unitEnrich.total_area_m2 > 0)
+        ? unitEnrich.total_area_m2
+        : ((unitEnrich?.exclusive_area_m2 != null && unitEnrich?.common_area_m2 != null)
+          ? Number(unitEnrich.exclusive_area_m2) + Number(unitEnrich.common_area_m2)
+          : null);
     const areaResolved = {
       area_m2_resolved: dbExclusive ?? unitEnrich?.exclusive_area_m2 ?? rfExclusive ?? null,
-      area_supply_m2_resolved: dbSupply ?? rfSupply ?? null,
+      area_supply_m2_resolved: dbSupply ?? supplyFromUnit ?? rfSupply ?? null,
       area_common_m2_resolved: unitEnrich?.common_area_m2 ?? rfCommon ?? null,
       area_total_m2_resolved: unitEnrich?.total_area_m2 ?? rfTotal ?? null,
     };
