@@ -149,13 +149,151 @@ function Row({ label, value }: RowProps) {
   );
 }
 
-/* L-modal-2026-uxopt (2026-04-29): 2026 모바일 사용 최적화 심화 hooks.
-   사장님: "모바일 사용에 있어서 최적화된 가장 최첨단 시스템이야?"
-   - useVisualViewport: 모바일 키보드 감지 → 모달 footer 위로 띄움
-   - useNetworkAware: 저속망 (2g/slow-2g/save-data) 감지 → 인터랙션/이미지 단순화
-   - useHaptic: 진동 피드백 (Android Web)
-   - useFocusTrap: 모달 안에 포커스 가둠 + 닫을 때 복원 (WCAG 2.2)
+/* L-modal-2026-endgame (2026-04-29): 진짜 끝판왕 — 사장님 검증 통과용.
+   "이게 정말 끝판왕 최선이야?"
+   적용된 모든 hooks (이전 + 신규):
+   - useVisualViewport: 키보드 감지 (이전)
+   - useNetworkAware: 저속망 감지 (이전)
+   - haptic(): 진동 피드백 (이전)
+   - useWakeLock: 모달 열린 동안 화면 안 꺼지게 (영상/사진 천천히 보기)
+   - useIdleRevalidation: 5분 이상 idle 후 돌아오면 데이터 자동 갱신
 */
+
+/** ⑦ Pinch-to-zoom 사진 — 두 손가락 벌리면 확대, 모으면 축소, 더블탭으로 reset.
+ *    네이티브 앱처럼 사진 디테일 (가구, 벽지) 자세히 볼 수 있음.
+ *    Pointer Events 통합 (touch/mouse/pen) — 모든 입력 디바이스 지원. */
+function PinchZoomImage({ src, alt }: { src: string; alt: string }) {
+  const [scale, setScale] = useState(1);
+  const [tx, setTx] = useState(0);
+  const [ty, setTy] = useState(0);
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const startDistRef = useRef<number | null>(null);
+  const startScaleRef = useRef(1);
+  const lastTapRef = useRef(0);
+  const dragStartRef = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+
+  const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => {
+    const dx = a.x - b.x, dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  const reset = () => { setScale(1); setTx(0); setTy(0); };
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={alt}
+      draggable={false}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
+        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const pts = Array.from(pointersRef.current.values());
+        if (pts.length === 2) {
+          startDistRef.current = dist(pts[0], pts[1]);
+          startScaleRef.current = scale;
+        } else if (pts.length === 1 && scale > 1) {
+          dragStartRef.current = { x: e.clientX, y: e.clientY, tx, ty };
+        }
+        // 더블탭으로 reset (300ms 안에 두 번 탭)
+        const now = Date.now();
+        if (now - lastTapRef.current < 300 && pts.length === 1) {
+          if (scale > 1) reset();
+          else { setScale(2.5); setTx(0); setTy(0); }
+        }
+        lastTapRef.current = now;
+      }}
+      onPointerMove={(e) => {
+        if (!pointersRef.current.has(e.pointerId)) return;
+        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const pts = Array.from(pointersRef.current.values());
+        if (pts.length === 2 && startDistRef.current != null) {
+          const newDist = dist(pts[0], pts[1]);
+          const ratio = newDist / startDistRef.current;
+          const newScale = Math.max(1, Math.min(5, startScaleRef.current * ratio));
+          setScale(newScale);
+        } else if (pts.length === 1 && dragStartRef.current && scale > 1) {
+          setTx(dragStartRef.current.tx + (e.clientX - dragStartRef.current.x));
+          setTy(dragStartRef.current.ty + (e.clientY - dragStartRef.current.y));
+        }
+      }}
+      onPointerUp={(e) => {
+        pointersRef.current.delete(e.pointerId);
+        if (pointersRef.current.size < 2) startDistRef.current = null;
+        if (pointersRef.current.size === 0) dragStartRef.current = null;
+        if (scale <= 1.05) reset();
+      }}
+      onPointerCancel={(e) => {
+        pointersRef.current.delete(e.pointerId);
+        startDistRef.current = null;
+        dragStartRef.current = null;
+      }}
+      style={{
+        transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
+        transformOrigin: 'center',
+        transition: pointersRef.current.size === 0 ? 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1)' : 'none',
+        touchAction: 'none', // pinch + drag 처리 위해 브라우저 기본 제스처 차단
+        willChange: 'transform',
+      }}
+      className="max-h-[95vh] max-w-[95vw] object-contain select-none cursor-grab active:cursor-grabbing"
+    />
+  );
+}
+
+/** ⑤ Wake Lock API — 모달 열려있는 동안 화면 안 꺼지게.
+ *    "사진/영상 천천히 보다가 화면 어두워지면 짜증" 방지. */
+function useWakeLock(active: boolean) {
+  useEffect(() => {
+    if (!active || typeof navigator === 'undefined') return;
+    const wl: any = (navigator as any).wakeLock;
+    if (!wl?.request) return;
+    let sentinel: any = null;
+    let cancelled = false;
+    (async () => {
+      try {
+        sentinel = await wl.request('screen');
+      } catch { /* permission denied or not supported */ }
+    })();
+    const onVisibility = async () => {
+      if (cancelled) return;
+      if (document.visibilityState === 'visible' && !sentinel) {
+        try { sentinel = await wl.request('screen'); } catch { /* noop */ }
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', onVisibility);
+      try { sentinel?.release?.(); } catch { /* noop */ }
+    };
+  }, [active]);
+}
+
+/** ⑥ Idle Revalidation — 5분 idle 후 돌아오면 트리거 발생 → fetch 재실행.
+ *    페이지 다시 활성화 시 데이터 자동 갱신. "오래된 정보" 방지. */
+function useIdleRevalidation(active: boolean): number {
+  const [bumpKey, setBumpKey] = useState(0);
+  const lastVisibleAt = useRef<number>(Date.now());
+  useEffect(() => {
+    if (!active) return;
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        const idleMs = Date.now() - lastVisibleAt.current;
+        if (idleMs > 5 * 60 * 1000) {
+          // 5분 이상 idle 후 복귀 → 데이터 갱신 트리거
+          setBumpKey((k) => k + 1);
+        }
+      } else {
+        lastVisibleAt.current = Date.now();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [active]);
+  return bumpKey;
+}
 function useVisualViewport(): { offsetTop: number; height: number; keyboardOpen: boolean } {
   const [state, setState] = useState({ offsetTop: 0, height: 0, keyboardOpen: false });
   useEffect(() => {
@@ -222,6 +360,11 @@ export function ListingDetailModal() {
   const listings = useMap2026Store((s) => s.listings);
 
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  // L-modal-2026-endgame ② Swipe-down to close — 모바일 위에서 아래로 끌어 닫기.
+  const [dragOffsetY, setDragOffsetY] = useState(0);
+  const dragStartYRef = useRef<number | null>(null);
+  // L-modal-2026-endgame ③ AbortController — 빠른 클릭 race 방지.
+  const detailAbortRef = useRef<AbortController | null>(null);
 
   // 우선순위: cache (클릭 시점 snapshot) > listings 최신 데이터
   // L-listingurl-fix1 (2026-04-29 사장님 명령 #1 후속 fix):
@@ -565,16 +708,24 @@ export function ListingDetailModal() {
     return () => { cancelled = true; };
   }, [listingId]);
 
-  // L-modal-v7: 상세 확장 필드 + 담당자 프로필 fetch
+  // L-modal-2026-endgame ⑥ Idle revalidation — 5분 idle 복귀 시 detail 재fetch.
+  const idleBump = useIdleRevalidation(detailListingId != null);
+
+  // L-modal-v7 + L-modal-2026-endgame ③ AbortController:
+  //   listingId 빠르게 변경 시 이전 fetch 자동 취소 → race condition 방지.
   useEffect(() => {
     if (listingId == null) { setDetailExtra(null); setAgentProfile(null); return; }
     setDetailExtra(null);
     setAgentProfile(null);
     setShowFullDesc(false);
+    // 이전 요청 취소
+    detailAbortRef.current?.abort();
+    const ac = new AbortController();
+    detailAbortRef.current = ac;
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`/api/listings/${listingId}`);
+        const r = await fetch(`/api/listings/${listingId}`, { signal: ac.signal });
         if (!r.ok) return;
         const json = await r.json();
         if (cancelled || !json?.success || !json.data) return;
@@ -626,7 +777,7 @@ export function ListingDetailModal() {
           seo_tags: Array.isArray(d.seo_tags) ? d.seo_tags : (typeof d.seo_tags === 'string' ? d.seo_tags.split(',').map((s: string) => s.trim()).filter(Boolean) : null),
         });
         if (d.created_by && !d.source_site) {
-          const ag = await fetch(`/api/agent/${d.created_by}`);
+          const ag = await fetch(`/api/agent/${d.created_by}`, { signal: ac.signal });
           if (!ag.ok) return;
           const aj = await ag.json();
           if (cancelled) return;
@@ -641,10 +792,18 @@ export function ListingDetailModal() {
             career_years: (typeof aj.career_years === 'number' ? aj.career_years : null),
           });
         }
-      } catch { /* noop */ }
+      } catch (e: any) {
+        // AbortError 는 정상 (race condition 보호) — 무시.
+        if (e?.name !== 'AbortError') {
+          console.warn('[modal] detail fetch failed:', e?.message);
+        }
+      }
     })();
-    return () => { cancelled = true; };
-  }, [listingId]);
+    return () => { cancelled = true; ac.abort(); };
+  }, [listingId, idleBump]);
+
+  // ⑤ Wake Lock — 모달 열려있는 동안 화면 안 꺼지게 (사진/영상 천천히 볼 때).
+  useWakeLock(isOpen);
 
   // 좌/우 키보드 네비게이션
   useEffect(() => {
@@ -702,6 +861,34 @@ export function ListingDetailModal() {
       aria-modal="true"
       aria-label="매물 상세"
       data-ws-modal=""
+      // ② Swipe-down to close — pointer events 통합 (touch/mouse/pen 모두).
+      //    헤더 (위쪽 50px) 안에서 시작한 swipe 만 처리 → 컨텐츠 스크롤과 충돌 X.
+      onPointerDown={(e) => {
+        if ((e.target as HTMLElement)?.closest('button, a, input, video, [role="button"]')) return;
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const localY = e.clientY - rect.top;
+        if (localY > 60) return; // 헤더 영역 외 swipe 무시
+        if (window.matchMedia('(min-width: 768px)').matches) return; // 데스크탑 X
+        dragStartYRef.current = e.clientY;
+      }}
+      onPointerMove={(e) => {
+        if (dragStartYRef.current == null) return;
+        const dy = Math.max(0, e.clientY - dragStartYRef.current);
+        setDragOffsetY(dy);
+      }}
+      onPointerUp={() => {
+        const dy = dragOffsetY;
+        dragStartYRef.current = null;
+        if (dy > 120) {
+          haptic([20, 30, 20]); // 닫힘 햅틱
+          closeListingDetail();
+        }
+        setDragOffsetY(0);
+      }}
+      onPointerCancel={() => {
+        dragStartYRef.current = null;
+        setDragOffsetY(0);
+      }}
       className={[
         'ws-modal-root',
         'fixed inset-0 md:absolute md:left-0 md:top-0 md:inset-auto',
@@ -713,6 +900,11 @@ export function ListingDetailModal() {
       style={{
         // 1) Modern viewport units (with svh fallback).
         height: '100dvh',
+        // ② Swipe-down 진행 중 transform — drag 만큼 아래로 + opacity 줄임 (네이티브 앱 느낌).
+        transform: dragOffsetY > 0 ? `translateY(${Math.min(dragOffsetY, 200)}px)` : undefined,
+        opacity: dragOffsetY > 0 ? Math.max(0.4, 1 - dragOffsetY / 400) : undefined,
+        transition: dragOffsetY > 0 ? 'none' : 'transform 200ms cubic-bezier(0.32, 0.72, 0, 1), opacity 200ms ease',
+        willChange: dragOffsetY > 0 ? 'transform, opacity' : undefined,
         ['--ws-modal-h' as any]: '100dvh',
         // 2) 폴드/듀얼스크린: viewport-segment.
         ['--ws-segment-w' as any]: 'env(viewport-segment-width 0 0, 100%)',
@@ -928,8 +1120,20 @@ export function ListingDetailModal() {
           </div>
         </div>
 
-        {/* L-modal-v7-2: 3 메트릭 카드 */}
-        <div className="border-b border-neutral-100 px-4 py-3 grid grid-cols-3 gap-2">
+        {/* L-modal-2026-endgame ① Skeleton — detailExtra 도착 전 회색 박스 미리 표시.
+            "텅 빈 화면" 대신 "곧 데이터 옴" 시각적 신호 → 체감 속도 개선. */}
+        {!detailExtra && (
+          <div className="border-b border-neutral-100 px-4 py-3 grid grid-cols-3 gap-2 motion-safe:animate-pulse" aria-hidden>
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="rounded-lg bg-neutral-100 p-2.5 h-[58px]">
+                <div className="h-2 w-12 bg-neutral-200 rounded mb-1.5" />
+                <div className="h-3 w-16 bg-neutral-200 rounded" />
+              </div>
+            ))}
+          </div>
+        )}
+        {/* L-modal-v7-2: 3 메트릭 카드 (실제 값) */}
+        {detailExtra && <div className="border-b border-neutral-100 px-4 py-3 grid grid-cols-3 gap-2">
           {(() => {
             // L-area-fallback (2026-04-29 사장님 명령): listing.area_m2=0/null 일 때
             //   detailExtra.exclusive_area_m2 (건축물대장) 또는 common_area_m2 활용.
@@ -1073,7 +1277,7 @@ export function ListingDetailModal() {
             {listing.elevator != null && <Row label="엘리베이터" value={boolLabel(listing.elevator)} />}
             <Row label="반려동물" value={listing.pet == null ? '협의' : (listing.pet ? '가능' : '협의')} />
           </dl>
-        </div>
+        </div>}
 
         {/* L-modal-v7 (2026-04-24): 내부시설 + 보안 아이콘 그리드 */}
         {(() => {
@@ -1456,12 +1660,9 @@ export function ListingDetailModal() {
               );
             }
             return (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <PinchZoomImage
                 src={it.url}
                 alt={addressLine}
-                onClick={(e) => e.stopPropagation()}
-                className="max-h-[95vh] max-w-[95vw] object-contain select-none"
               />
             );
           })()}

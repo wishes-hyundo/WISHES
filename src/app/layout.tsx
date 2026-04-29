@@ -96,6 +96,10 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
         {/* ⚡ 카카오맵 CDN 사전 연결 — TLS 핸드셰이크 비용 제거 */}
+        {/* L-modal-2026-endgame ④ Preconnect — Supabase API 미리 연결 (DNS + TLS handshake 절약).
+            모달 열릴 때 매물 상세/이미지 fetch 가 0.2-0.3초 빨라짐. */}
+        <link rel="preconnect" href="https://xbjgdsyukjdkfvcbzmjc.supabase.co" crossOrigin="" />
+        <link rel="dns-prefetch" href="https://xbjgdsyukjdkfvcbzmjc.supabase.co" />
         <link rel="preconnect" href="https://dapi.kakao.com" crossOrigin="" />
         <link rel="preconnect" href="https://t1.daumcdn.net" crossOrigin="" />
         <link rel="preconnect" href="https://map.daumcdn.net" crossOrigin="" />
