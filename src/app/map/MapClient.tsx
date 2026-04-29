@@ -195,7 +195,8 @@ export default function MapClient() {
           // L-naver-zoom9 (2026-04-26): 기본 zoom level 8 → 9 (네이버 z13 visual scale 정확 매칭).
           //   level 9 = sigungu only (광역뷰).  사용자 1회 줌인 시 multi-dong 시작.
           level: 9,
-          disableDoubleClickZoom: true,
+          // L-mobile-tap (2026-04-29 사장님 명령): "더블 탭하면 지도 확대" — 카카오 기본 더블탭 줌 활성.
+          disableDoubleClickZoom: false,
         });
         mapInst = map;
         kakaoMapRef.current = map;
@@ -218,6 +219,60 @@ export default function MapClient() {
         idleListener = sync;
         kakao.maps.event.addListener(map, 'idle', sync);
         sync(); // 초기 1회 강제 호출 → RPC 트리거
+
+        // L-mobile-tap (2026-04-29 사장님 명령): 단일 탭 → 그 위치에 폴리곤(임시 영역) 표시.
+        //   "한번 누르면 그 위치에 폴리곤이 떠야돼" — 폴리곤 안 보이는 광역 줌에서도 즉시 매물 검색.
+        //   동작:
+        //     · 현재 level >= 7 (광역) → 그 좌표 panTo + setLevel(5) — 동 단위 폴리곤 등장 레벨.
+        //     · 현재 level <= 6 (이미 가까움) → 그 좌표 중심 250m radius Circle 임시 표시 (1.5초 후 자동 제거).
+        //     · 더블탭은 카카오 기본 줌인이 자동 처리.
+        let tapCircle: any = null;
+        let tapCircleTimer: any = null;
+        const onMapClick = (mouseEvent: any) => {
+          try {
+            // 모바일 + 태블릿에서만 작동 (데스크탑은 마우스 click 빈번해서 UX 방해)
+            if (typeof window !== 'undefined' && window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+            const latlng = mouseEvent?.latLng;
+            if (!latlng) return;
+            const currentLevel = map.getLevel();
+            // 햅틱 — Android 진동 피드백
+            try { (navigator as any).vibrate?.(8); } catch {}
+            if (currentLevel >= 7) {
+              // 광역 → 동 단위 폴리곤 등장 레벨로 줌인 + panTo
+              try { (map as any).setLevel?.(5, { anchor: latlng, animate: true }); } catch {
+                try { (map as any).setLevel?.(5); } catch {}
+              }
+              try { (map as any).panTo?.(latlng); } catch {}
+            } else {
+              // 이미 가까운 줌 → 그 위치 임시 Circle 표시 (시각 신호)
+              if (tapCircle) { try { tapCircle.setMap(null); } catch {} tapCircle = null; }
+              if (tapCircleTimer) { clearTimeout(tapCircleTimer); tapCircleTimer = null; }
+              try {
+                tapCircle = new (kakao as any).maps.Circle({
+                  center: latlng,
+                  radius: 250,
+                  strokeWeight: 2,
+                  strokeColor: '#2D5A27',
+                  strokeOpacity: 0.9,
+                  strokeStyle: 'solid',
+                  fillColor: '#3a7d44',
+                  fillOpacity: 0.18,
+                });
+                tapCircle.setMap(map);
+                try { (map as any).panTo?.(latlng); } catch {}
+                tapCircleTimer = setTimeout(() => {
+                  try { tapCircle?.setMap(null); } catch {}
+                  tapCircle = null;
+                }, 1800);
+              } catch (e) {
+                console.warn('[MapClient] tap Circle failed:', (e as Error)?.message);
+              }
+            }
+          } catch (err) {
+            console.warn('[MapClient] click handler failed:', (err as Error)?.message);
+          }
+        };
+        kakao.maps.event.addListener(map, 'click', onMapClick);
 
         setMap(map as never);
         setReady(true);
