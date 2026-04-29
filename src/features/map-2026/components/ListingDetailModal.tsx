@@ -344,6 +344,10 @@ export function ListingDetailModal() {
     area_total_m2_resolved: number | null;
     // L-modal-h1 (2026-04-29): 건축물대장 주용도 (DB 컬럼 또는 정부 캐시 fallback)
     building_purpose_resolved: string | null;
+    // L-purpose-split (2026-04-29 사장님 명령): 표제부 / 전유부 명시적 분리
+    //   "금액 위 용도는 전유부 우선 / 매물정보 건축물 용도는 표제부 기준"
+    title_purpose_resolved: string | null;  // 표제부 (예: 공동주택)
+    unit_purpose_resolved: string | null;   // 전유부 (예: 아파트)
     // L-modal-h1 (2026-04-29 사장님 명령): viewport API 가 비로그인에 building_name 을
     //   마스킹하므로 detailExtra(/api/listings/[id]) 의 값을 H1 fallback 으로 사용.
     building_name: string | null;
@@ -476,6 +480,8 @@ export function ListingDetailModal() {
           area_common_m2_resolved: typeof d.area_common_m2_resolved === 'number' && d.area_common_m2_resolved > 0 ? d.area_common_m2_resolved : null,
           area_total_m2_resolved: typeof d.area_total_m2_resolved === 'number' && d.area_total_m2_resolved > 0 ? d.area_total_m2_resolved : null,
           building_purpose_resolved: d.building_purpose_resolved || null,
+          title_purpose_resolved: d.title_purpose_resolved || null,
+          unit_purpose_resolved: d.unit_purpose_resolved || null,
           building_name: d.building_name || null,
           // L-bldg-purpose (2026-04-29): 표제부 resolved fallback
           building_name_resolved: d.building_name_resolved || null,
@@ -674,17 +680,29 @@ export function ListingDetailModal() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {/* L-modal-v7-2 (2026-04-24): 헤더 — H1(건물명·층) + 주소 + 가격 + 비교배지 */}
+        {/* L-modal-h1-simple (2026-04-29 사장님 명령):
+            "금액 위에 주용도 옆에 건물명/층/총수 제거 / 매물번호 우측 끝 눈에 띄게 / listing.title 부정확 문구 제거"
+            H1 = 전유부 주용도 (없으면 표제부 → 단지명 fallback). 매물번호 = 우측 끝 강조. */}
         <div className="border-b border-neutral-100 px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-[18px] font-bold leading-tight text-neutral-900">
-              {formatPropertyHeading(listing, floorLabel, detailExtra?.building_purpose_resolved || detailExtra?.building_purpose, detailExtra?.building_name_resolved || detailExtra?.building_name)}
+              {(detailExtra?.unit_purpose_resolved
+                || detailExtra?.title_purpose_resolved
+                || detailExtra?.building_purpose_resolved
+                || detailExtra?.building_name_resolved
+                || detailExtra?.building_name
+                || (listing as any).building_name
+                || (listing as any).dong
+                || '매물')}
             </h1>
-            {/* L-listing-id-bottom (2026-04-29 사장님 명령): 매물번호 footer 로 이동 — 여기서 제거 */}
+            <span className="shrink-0 inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200 tabular-nums">
+              <span className="text-emerald-500/80">#</span>{listing.id}
+            </span>
           </div>
+          {/* L-modal-h1-simple: 주소 = address(원본 그대로). listing.title 은 부정확한 광고 문구가 섞여 있어 제거. */}
           <div className="mt-1 flex items-center gap-1 text-[12px] text-neutral-500">
             <MapPin className="size-3 shrink-0" aria-hidden />
-            <span className="line-clamp-2">{listing.title || addressLine}</span>
+            <span className="line-clamp-2">{(listing as any).address || addressLine}</span>
           </div>
           <div className="mt-3 flex items-baseline gap-1.5">
             <span className="text-[22px] font-extrabold leading-tight text-neutral-900">
@@ -724,14 +742,7 @@ export function ListingDetailModal() {
                 <div className="text-[13px] font-semibold text-neutral-900">
                   {exDisp || '-'}{spDisp ? ` / ${spDisp}` : ''}㎡
                 </div>
-                {exDisp && spDisp && (
-                  <div className="text-[10px] text-neutral-400 mt-0.5">
-                    전용률 {Math.round((Number(exclusive) / Number(supplyDisp)) * 100)}%
-                  </div>
-                )}
-                {!listing.area_m2 && exclusive && (
-                  <div className="text-[10px] text-neutral-400 mt-0.5">건축물대장</div>
-                )}
+                {/* L-modal-metric-clean (2026-04-29 사장님 명령): 전용률·건축물대장 subtitle 제거 — 굳이 필요없는 정보 */}
               </div>
             );
           })()}
@@ -766,7 +777,7 @@ export function ListingDetailModal() {
 
         {/* L-modal-v7-2: 매물 정보 — 통합 단일 테이블 */}
         <div className="border-b border-neutral-100 px-4 py-3">
-          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">매물 정보</div>
+          <div className="mb-2 text-[13px] font-bold text-neutral-900">매물 정보</div>
           <dl className="grid grid-cols-[88px_1fr] gap-x-3 gap-y-1.5 text-[12px]">
             {/* 관리비 — 항상 표시. 금액·포함 항목 둘 다 없으면 "정보 미입력" */}
             <>
@@ -821,13 +832,11 @@ export function ListingDetailModal() {
                 return parts.length > 0 ? parts.join(' · ') : <span className="text-neutral-400">정보 미입력</span>;
               })()}</div>
             </>
-            {/* L-bldg-purpose (2026-04-29 사장님 명령): 건축물대장 주용도 우선 노출.
-                "건축물대장상 주용도가 나오는게 더 낫지 않겠어?" — DB 컬럼이 비어있어도
-                building_registry_cache 의 raw_data.buildingData.buildingPurpose 사용. */}
-            <Row label="건축물 용도 (주용도)" value={detailExtra?.building_purpose_resolved ?? detailExtra?.building_purpose ?? (listing as any).building_purpose} />
-            {/* L-Phase2 (2026-04-29): 전유부 (전용/공용/총면적) — 건축물대장 selected_unit
-                /search v306 와 동일 소스. listing.building_dong + listing.building_ho 매칭. */}
-            {(detailExtra?.exclusive_area_m2 != null || detailExtra?.total_area_m2 != null) && (
+            {/* L-purpose-split (2026-04-29 사장님 명령): 매물 정보의 "건축물 용도" 는 표제부 기준
+                (예: 공동주택). H1 의 전유부 주용도(예: 아파트)와 별개. */}
+            <Row label="건축물 용도 (주용도)" value={detailExtra?.title_purpose_resolved ?? (listing as any).building_purpose} />
+            {/* L-modal-clean (2026-04-29 사장님 명령): 전유부 Row 제거 — 위 메트릭카드(전용/공급)와 중복. */}
+            {false && (detailExtra?.exclusive_area_m2 != null || detailExtra?.total_area_m2 != null) && (
               <>
                 <div className="text-neutral-500">전유부</div>
                 <div className="text-neutral-800">
@@ -891,7 +900,7 @@ export function ListingDetailModal() {
             <div className="border-b border-neutral-100 px-4 py-3 space-y-3">
               {interiorHits.length > 0 && (
                 <div>
-                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">내부 시설</div>
+                  <div className="mb-2 text-[13px] font-bold text-neutral-900">내부 시설</div>
                   <div className="grid grid-cols-4 gap-1.5">
                     {interiorHits.map((spec) => {
                       const Icon = spec.icon;
@@ -907,7 +916,7 @@ export function ListingDetailModal() {
               )}
               {securityHits.length > 0 && (
                 <div>
-                  <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">보안 및 기타</div>
+                  <div className="mb-2 text-[13px] font-bold text-neutral-900">보안 및 기타</div>
                   <div className="grid grid-cols-4 gap-1.5">
                     {securityHits.map((spec) => {
                       const Icon = spec.icon;
@@ -954,7 +963,7 @@ export function ListingDetailModal() {
           if (!aiTitle && !bodyText) return null;
           return (
             <div className="border-b border-neutral-100 px-4 py-3">
-              <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400">매물 설명</div>
+              <div className="mb-2 text-[13px] font-bold text-neutral-900">매물 설명</div>
               <div className="rounded-xl bg-neutral-50 p-3">
                 {aiTitle && (
                   <p className="text-[13px] font-semibold leading-snug text-neutral-900 mb-2">{aiTitle}</p>
@@ -1028,9 +1037,10 @@ export function ListingDetailModal() {
           );
         })()}
 
-        {/* L-modal-meta (2026-04-24): 메타 footer — 매물번호·최초등록·최근확인·조회수 */}
+        {/* L-modal-meta (2026-04-24): 메타 footer — 최초등록·최근확인·조회수
+            사장님 명령: 매물번호는 헤더 우측 끝 #뱃지에 이미 노출, 여기서 제거.
+            최초등록은 최하단(여기) 유지. */}
         <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px] text-neutral-400">
-          <span>매물번호 <span className="font-mono text-neutral-500">{listing.id}</span></span>
           {detailExtra?.created_at && (
             <span>최초등록 <span className="text-neutral-500">{new Date(detailExtra.created_at).toLocaleDateString('ko-KR')}</span></span>
           )}
@@ -1063,7 +1073,7 @@ export function ListingDetailModal() {
       {listing.lat != null && listing.lng != null && (
         <div className="border-t border-neutral-100 bg-white px-4 py-3">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-[12px] font-bold text-neutral-900 flex items-center gap-1.5">
+            <h3 className="mb-2 text-[13px] font-bold text-neutral-900 flex items-center gap-1.5 mb-0">
               <span className="inline-block size-2 rounded-full bg-blue-500" />
               주변 교통
             </h3>
@@ -1128,7 +1138,7 @@ export function ListingDetailModal() {
       {/* 2) 매물 위치 — 카카오맵 미니맵 */}
       {listing.lat != null && listing.lng != null && (
         <div className="border-t border-neutral-100 bg-white px-4 py-3">
-          <h3 className="mb-2 text-[12px] font-bold text-neutral-900">매물 위치</h3>
+          <h3 className="mb-2 text-[13px] font-bold text-neutral-900">매물 위치</h3>
           <ListingLocationMap
             lat={listing.lat}
             lng={listing.lng}
@@ -1142,7 +1152,7 @@ export function ListingDetailModal() {
       {/* 5) 추천 매물 — compact 2개 (썸네일 + 정보, 매물카드 안에 자연스럽게) */}
       {recommendations.length > 0 && (
         <div className="border-t border-neutral-100 bg-white px-4 py-3">
-          <h3 className="mb-2 text-[12px] font-bold text-neutral-900">비슷한 추천 매물</h3>
+          <h3 className="mb-2 text-[13px] font-bold text-neutral-900">비슷한 추천 매물</h3>
           <div className="space-y-2">
             {recommendations.map((r) => {
               const priceLabel = r.deal === '매매'

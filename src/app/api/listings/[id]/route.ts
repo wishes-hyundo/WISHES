@@ -332,6 +332,15 @@ export async function GET(
       unitEnrich?.unit_purpose ||
       buildingTitleEnrich?.buildingPurpose ||
       null;
+    // L-purpose-split (2026-04-29 사장님 명령):
+    //   "금액 위에 용도는 전유부 우선 / 매물정보 건축물 용도는 표제부 기준"
+    //   → 모달이 두 가지를 별도 위치에 노출하므로 응답도 분리.
+    const titlePurposeResolved =
+      buildingTitleEnrich?.buildingPurpose || null; // 표제부만
+    const unitPurposeResolved =
+      unitEnrich?.unit_purpose ||
+      ((listing as any).building_purpose || '').trim() ||
+      null;
     const buildingNameResolved =
       ((listing as any).building_name || '').trim() ||
       buildingTitleEnrich?.buildingName ||
@@ -357,6 +366,9 @@ export async function GET(
         ...areaResolved,
         // L-bldg-purpose (2026-04-29): 표제부 resolved 필드 (모달 H1 등)
         building_purpose_resolved: buildingPurposeResolved,
+        // L-purpose-split: 표제부 / 전유부 명시적 분리
+        title_purpose_resolved: titlePurposeResolved,
+        unit_purpose_resolved: unitPurposeResolved,
         building_name_resolved: buildingNameResolved,
         floor_total_resolved: floorTotalResolved,
         usage_approved_resolved: usageApprovedResolved,
