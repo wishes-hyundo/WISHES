@@ -218,6 +218,11 @@ export async function GET(request: NextRequest) {
         // L-search1 (2026-04-23): 좌측 카드 단지명 표기용 building_name 추가.
         //   기존엔 minimal 응답에서 누락되어 모든 카드에 '(단지명)' 이 공란.
         'building_name',
+        // L-search-v328 (2026-04-29 사장님 명령): 메인 라인 형식 — "[지번] [건물명] [N층] [동] [호]"
+        //   동(가동/나동) 이 호수 앞에 위치. v328 patch 가 buildText 에서 사용.
+        'building_dong', 'building_ho',
+        // 룸 라벨 (v330) — listing.rooms 변환 ('1' → '원룸', '2' → '투룸' 등)
+        'rooms',
         'lat', 'lng',
         'available_date', 'built_year',
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
@@ -245,8 +250,8 @@ export async function GET(request: NextRequest) {
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v10-mine', scopeUid as string]
-        : ['listings-minimal-v10'];
+        ? ['listings-minimal-v11-mine', scopeUid as string]
+        : ['listings-minimal-v11'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(

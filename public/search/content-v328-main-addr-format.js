@@ -37,26 +37,36 @@
     if (!l) return null;
     var addr = String(l.address || '').trim();
     if (!addr) return null;
-    // 이미 풀형식 ("층" 들어있음) 이면 그대로 (단 (괄호) 만 제거)
-    var hasFullFloor = /\d+\s*층\s*[\d]/.test(addr);
-    // 괄호 (한자 또는 영문 또는 한글 안의 건물명 패턴) 제거
-    var stripped = addr.replace(/\s*\(([^)]+)\)\s*$/, '').trim();
+    // 사장님 기준 (2026-04-29): 매물 61443 형식 — "[지번] [건물명] [N]층 [Nho]"
+    //   슬래시(/Nt) 없음, 분모층 없음, "호" 글자 없음, 쉼표 없음.
+    //
+    //   1) 이미 풀형식("\d+층\s*\d+") → 쉼표만 정리 후 그대로
+    //   2) 그 외 → [지번주소] [건물명] [Nf층] [Nho]
 
-    if (hasFullFloor) return stripped; // 이미 풀
+    // (괄호) 표기 제거 — 끝의 "(엠코빌)" 패턴
+    var stripped = addr.replace(/\s*\(([^)]+)\)\s*$/, '').trim();
+    // 쉼표 정리: "895-14, 5층 501" → "895-14 5층 501"
+    stripped = stripped.replace(/,\s+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+
+    var hasFullFloor = /\d+\s*층\s*[\d]/.test(stripped);
+    if (hasFullFloor) return stripped;
 
     var bn = String(l.building_name || '').trim();
     var fc = l.floor_current ? String(l.floor_current).trim() : '';
-    var ft = l.floor_total ? String(l.floor_total).trim() : '';
+    var bdong = String(l.building_dong || '').trim();
     var ho = l.building_ho ? String(l.building_ho).trim() : '';
 
     var parts = [stripped];
-    // 건물명 (이미 stripped 안에 들어있지 않을 때만)
     if (bn && bn.length > 1 && stripped.indexOf(bn) === -1) parts.push(bn);
-    // 층
-    if (fc && ft) parts.push(fc + '/' + ft + '층');
-    else if (fc) parts.push(fc + '층');
-    // 호
-    if (ho && /^\d+/.test(ho)) parts.push(ho + '호');
+    // 층 — 분모 없음, "[Nf]층"
+    if (fc) parts.push(fc + '층');
+    // 동 (가동/나동/A동/B동 등) — 호 앞에 위치 (사장님 명령 2026-04-29)
+    if (bdong && bdong.length > 0 && stripped.indexOf(bdong) === -1) {
+      // bdong 이 이미 '동' 으로 끝나면 그대로, 아니면 + '동'
+      parts.push(/동$/.test(bdong) ? bdong : bdong + '동');
+    }
+    // 호수 — '호' 글자 없음, 숫자만
+    if (ho && /^\d/.test(ho)) parts.push(ho);
 
     return parts.join(' ');
   }
