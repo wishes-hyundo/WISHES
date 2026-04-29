@@ -49,11 +49,15 @@
     try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: data })); } catch (_) {}
   }
 
-  function fetchNearby(lat, lng) {
-    var key = 'wsNearbyV1:' + lat.toFixed(5) + ':' + lng.toFixed(5);
+  function fetchNearby(lat, lng, addr) {
+    var keyParts = (lat && lng) ? (lat.toFixed(5) + ':' + lng.toFixed(5)) : ('addr:' + (addr || ''));
+    var key = 'wsNearbyV2:' + keyParts;
     var cached = getCached(key);
     if (cached) return Promise.resolve(cached);
-    return fetch('/api/admin/nearby-poi?lat=' + lat + '&lng=' + lng, {
+    var qs = '';
+    if (lat && lng) qs += 'lat=' + lat + '&lng=' + lng;
+    if (addr) qs += (qs ? '&' : '') + 'address=' + encodeURIComponent(addr);
+    return fetch('/api/admin/nearby-poi?' + qs, {
       credentials: 'include',
       signal: AbortSignal.timeout(8000),
     })
@@ -133,7 +137,12 @@
                   document.querySelector('#ws-detail-content');
       if (!modal) return;
       var ll = getLatLng();
-      if (!ll) return;
+      var L = window.WS && window.WS.__lastListing;
+      var addr = (L && L.address) ? String(L.address) : '';
+      if (!ll && !addr) {
+        console.warn('[' + V + '] lat/lng + address 모두 없음 — skip');
+        return;
+      }
       // L-lid-marker (2026-04-29): 매물 ID 별 마커 — ID 변경 시 섹션 새로 갱신.
       var L = window.WS && window.WS.__lastListing;
       var lid = (L && L.id) ? String(L.id) : (ll.lat + ',' + ll.lng);
@@ -142,8 +151,16 @@
       var oldSec = modal.querySelector('.v317-poi-sec');
       if (oldSec && oldSec.parentNode) oldSec.parentNode.removeChild(oldSec);
       modal.dataset.v317lid = lid;
-      fetchNearby(ll.lat, ll.lng).then(function (data) {
-        if (data) renderSection(modal, data);
+      var lat = ll ? ll.lat : null;
+      var lng = ll ? ll.lng : null;
+      console.log('[' + V + '] fetching for lid=' + lid + ' lat=' + lat + ' lng=' + lng + ' addr=' + addr);
+      fetchNearby(lat, lng, addr).then(function (data) {
+        if (data) {
+          renderSection(modal, data);
+          console.log('[' + V + '] rendered ' + (data.subway||[]).length + ' 지하철 + ' + (data.bus||[]).length + ' 버스');
+        } else {
+          console.warn('[' + V + '] nearby fetch returned null');
+        }
       });
     } catch (e) { console.warn('[' + V + '] failed:', e && e.message); }
   }

@@ -52,16 +52,37 @@ async function searchKakao(category: 'SW8' | 'BS3', lat: number, lng: number): P
   }
 }
 
+async function geocodeAddress(addr: string): Promise<{ lat: number; lng: number } | null> {
+  if (!KAKAO_REST_API_KEY || !addr) return null;
+  try {
+    const res = await fetch(
+      `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(addr)}`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` }, signal: AbortSignal.timeout(3000) },
+    );
+    if (!res.ok) return null;
+    const j = (await res.json()) as { documents?: Array<{ x?: string; y?: string }> };
+    const d = j.documents?.[0];
+    if (d?.x && d?.y) return { lat: Number(d.y), lng: Number(d.x) };
+    return null;
+  } catch { return null; }
+}
+
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
-  const lat = Number(sp.get('lat'));
-  const lng = Number(sp.get('lng'));
-  if (!isFinite(lat) || !isFinite(lng)) {
-    return NextResponse.json({ success: false, error: 'lat/lng required' }, { status: 400 });
+  let lat = Number(sp.get('lat'));
+  let lng = Number(sp.get('lng'));
+  const addr = sp.get('address') || '';
+  // L-addr-fallback (2026-04-29): lat/lng 없으면 address 로 Kakao geocoding.
+  if ((!isFinite(lat) || !isFinite(lng) || (lat === 0 && lng === 0)) && addr) {
+    const geo = await geocodeAddress(addr);
+    if (geo) { lat = geo.lat; lng = geo.lng; }
+  }
+  if (!isFinite(lat) || !isFinite(lng) || (lat === 0 && lng === 0)) {
+    return NextResponse.json({ success: false, error: 'lat/lng or address required' }, { status: 400 });
   }
   const [subway, bus] = await Promise.all([
     searchKakao('SW8', lat, lng),
     searchKakao('BS3', lat, lng),
   ]);
-  return NextResponse.json({ success: true, subway, bus });
+  return NextResponse.json({ success: true, lat, lng, subway, bus });
 }
