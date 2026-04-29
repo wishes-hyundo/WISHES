@@ -538,3 +538,105 @@ body {
     @starting-style { .ws-modal-root { transform: none !important; opacity: 1 !important; } }
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════
+ * L-page-2026-mobile (2026-04-29 사장님 명령): /admin · /search 모바일 끝판왕.
+ *   "관련된 곳도 지금 모바일 관련된 작업 모두 적용 시켜줘"
+ *
+ * 매물 모달의 .ws-modal-* 와 동등한 기술을 페이지 전반에 적용.
+ * /search 는 디자인 보존 정책 (CLAUDE.md) — viewport/touch 만 적용 (디자인 X).
+ * /admin 은 자유 — 풀 스택 적용.
+ * ════════════════════════════════════════════════════════════════════ */
+
+@layer components {
+  /* 공용 모바일 페이지 utility — admin/search 양쪽 사용. */
+  .ws-mobile-page {
+    /* 1) Viewport units fallback chain — 모바일 주소창 변동 대응 */
+    min-height: 100vh;
+    min-height: 100svh;
+    min-height: 100dvh;
+
+    /* 2) Safe-area 4방향 — 노치/홈바/제스처바/가로 노치 모두 */
+    padding-top: env(safe-area-inset-top, 0);
+    padding-right: env(safe-area-inset-right, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    padding-left: env(safe-area-inset-left, 0);
+
+    /* 3) iOS 사파리 자동 텍스트 확대 방지 */
+    -webkit-text-size-adjust: none;
+    text-size-adjust: none;
+
+    /* 4) 다크모드 자동 (시스템 환경설정 존중) */
+    color-scheme: light dark;
+
+    /* 5) 더블탭 zoom + 300ms 클릭 지연 제거 */
+    touch-action: manipulation;
+
+    /* 6) 스크롤바 등장 시 흔들림 방지 */
+    scrollbar-gutter: stable;
+
+    /* 7) 한국어 본문 — 어절 단위 줄바꿈 */
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  /* iOS 사파리 :focus 자동 zoom 방지 — input 16px 이상 */
+  .ws-mobile-page input,
+  .ws-mobile-page textarea,
+  .ws-mobile-page select {
+    font-size: max(16px, 1rem);
+  }
+
+  /* 모든 버튼 ≥44px — Apple HIG / Material 충족 */
+  @media (hover: none) and (pointer: coarse) {
+    .ws-mobile-page button,
+    .ws-mobile-page a[role="button"] {
+      min-height: 44px;
+    }
+  }
+
+  /* focus-visible 키보드/터치 분기 */
+  .ws-mobile-page button:focus-visible,
+  .ws-mobile-page a:focus-visible {
+    outline: 2px solid #2D5A27;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* 저속망 — 사진 quality 다운그레이드 */
+  @media (prefers-reduced-data: reduce) {
+    .ws-mobile-page img:not([src*="data:"]) {
+      filter: contrast(1) brightness(1);
+    }
+  }
+
+  /* 투명도 줄이기 (시스템 접근성 설정) */
+  @media (prefers-reduced-transparency: reduce) {
+    .ws-mobile-page [class*="bg-black/"],
+    .ws-mobile-page [class*="bg-white/"] {
+      background-color: rgba(255, 255, 255, 0.95) !important;
+    }
+  }
+
+  /* 모션 감소 — 시스템 환경설정 */
+  @media (prefers-reduced-motion: reduce) {
+    .ws-mobile-page * {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* 폴드 / 듀얼스크린 — viewport-segments 활용 */
+  @media (horizontal-viewport-segments: 2) {
+    .ws-mobile-page {
+      max-width: env(viewport-segment-width 0 0, 100%);
+    }
+  }
+
+  /* PWA standalone — status bar 영역 추가 padding */
+  @media (display-mode: standalone) {
+    .ws-mobile-page {
+      padding-top: env(safe-area-inset-top, 24px);
+    }
+  }
+}

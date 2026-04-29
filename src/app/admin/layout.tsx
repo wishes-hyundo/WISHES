@@ -427,9 +427,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 
   return (
-    <div className="flex min-h-screen bg-wishes-bg">
+    <div className="ws-mobile-page flex min-h-screen md:min-h-[100dvh] bg-wishes-bg" style={{ minHeight: '100dvh' }}>
       <button onClick={() => setMobileMenuOpen(true)}
-        className="md:hidden fixed top-3 left-3 z-50 p-2.5 bg-wishes-primary text-white rounded-xl shadow-lg active:scale-95 transition"
+        className="md:hidden fixed left-3 z-50 p-2.5 bg-wishes-primary text-white rounded-xl shadow-lg active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        style={{
+          top: 'max(12px, env(safe-area-inset-top, 12px))',
+          touchAction: 'manipulation',
+          minWidth: '44px', minHeight: '44px',
+        }}
         aria-label="메뉴 열기">
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -440,11 +445,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="md:hidden fixed inset-0 z-40 bg-black/50 backdrop-blur-sm" onClick={() => setMobileMenuOpen(false)} />
       )}
 
-      <aside className={`hidden md:flex flex-col sticky top-0 h-screen bg-wishes-primary text-white transition-all duration-300 flex-shrink-0 ${sidebarOpen ? 'w-60' : 'w-20'}`}>
+      <aside className={`hidden md:flex flex-col sticky top-0 bg-wishes-primary text-white transition-all duration-300 flex-shrink-0 ${sidebarOpen ? 'w-60' : 'w-20'}`} style={{ height: '100dvh' }}>
         <SidebarContent />
       </aside>
 
-      <aside className={`md:hidden fixed inset-y-0 left-0 z-50 w-72 bg-wishes-primary text-white flex flex-col transform transition-transform duration-300 ease-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside
+        className={`md:hidden fixed inset-y-0 left-0 z-50 w-72 bg-wishes-primary text-white flex flex-col transform transition-transform duration-300 ease-out ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}
+        style={{
+          height: '100dvh',
+          paddingTop: 'env(safe-area-inset-top, 0)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0)',
+          paddingLeft: 'env(safe-area-inset-left, 0)',
+          touchAction: 'manipulation',
+          overscrollBehavior: 'contain',
+        }}>
         <div className="flex items-center justify-between px-4 pt-3">
           <span></span>
           <button onClick={() => setMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-white/10 text-white/70" aria-label="메뉴 닫기">
@@ -456,7 +470,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <SidebarContent />
       </aside>
 
-      <main className="flex-1 min-h-screen md:p-6 p-4 pt-14 md:pt-6 overflow-x-hidden">
+      <main
+        className="flex-1 md:p-6 p-4 pt-14 md:pt-6 overflow-x-hidden"
+        style={{
+          minHeight: '100dvh',
+          paddingBottom: 'max(16px, env(safe-area-inset-bottom, 16px))',
+          paddingRight: 'max(16px, env(safe-area-inset-right, 16px))',
+        }}>
         {/* 관리자 영역 전환 탭 (Admin <-> Command Center) */}
         {isAdminRole && (
           <nav

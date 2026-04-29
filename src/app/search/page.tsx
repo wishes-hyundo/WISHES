@@ -233,7 +233,22 @@ export default function SearchPortalPage() {
   }
 
   return (
-    <div id="ws-search-root" style={{ minHeight: '100vh' }} />
+    /* L-page-2026-mobile (2026-04-29 사장님 명령): 중개사 포털도 모바일 끝판왕.
+       CLAUDE.md 정책: 디자인 X, content.js X. viewport/touch 만 적용. */
+    <div
+      id="ws-search-root"
+      className="ws-mobile-page"
+      style={{
+        minHeight: '100dvh',
+        // dvh 미지원 fallback 은 ws-mobile-page CSS 가 처리.
+        WebkitTextSizeAdjust: 'none',
+        textSizeAdjust: 'none',
+        colorScheme: 'light dark',
+        touchAction: 'manipulation',
+        wordBreak: 'keep-all',
+        scrollbarGutter: 'stable',
+      } as React.CSSProperties}
+    />
   );
 }
 
