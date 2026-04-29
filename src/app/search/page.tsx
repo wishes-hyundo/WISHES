@@ -183,6 +183,10 @@ export default function SearchPortalPage() {
       // v314 (2026-04-29): 매물수정 버튼 위치 이동 — hero 에서 '기본 정보·옵션'
       //   섹션 헤더 우측 끝으로 (사장님 제안). View Transitions 60fps + oklch.
       ['ws-ext-patch-v314-edit-btn-pos', '/search/content-v314-edit-btn-pos.js?v=20260429a'],
+      // v324 (2026-04-29 사장님 명령): 출처 뱃지 — 공실클럽=파랑G / 온하우스=빨강O.
+      //   카드 주소 라인 + 매물번호 옆 + 모달 hero 까지 강제 보장. content.js 의 기존
+      //   녹색/주황 뱃지 자동 교체. 자체 매물(source_site null)은 뱃지 X.
+      ['ws-ext-patch-v324-source-badge', '/search/content-v324-source-badge.js?v=20260429a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
