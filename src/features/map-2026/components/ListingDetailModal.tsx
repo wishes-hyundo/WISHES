@@ -551,14 +551,23 @@ export function ListingDetailModal() {
     : null;
 
   return (
+    /* L-modal-mobile (2026-04-29 사장님 명령):
+       "갤럭시Z폴드7 접은 상태에서 모달이 잘리고 담당자 연결 버튼 안 눌림"
+       2026 dvh/svh 사용 — 모바일 주소창 변동 시에도 정확히 visible viewport.
+       - 폴드 접힘 (~370px): width: 100% (max 100vw)
+       - 일반 모바일 (~390px): width: 100%
+       - 태블릿/데스크탑 (md+): width: 380px
+       - height: 100dvh (dynamic viewport height) → footer 항상 보임 */
     <aside
       role="dialog"
       aria-modal="false"
       aria-label="매물 상세"
-      className="absolute left-0 top-0 z-30 flex h-full w-[380px] max-w-[85%] translate-x-0 flex-col overflow-hidden border-r border-neutral-200 bg-white shadow-2xl transition-transform duration-300"
+      // 모바일: fixed inset-0 (전체 화면 커버, MobileListSheet 가림). 데스크탑: absolute (지도 영역 내부).
+      className="fixed inset-0 md:absolute md:left-0 md:top-0 md:inset-auto z-40 md:z-30 flex w-full max-w-full md:w-[380px] md:max-w-[85%] translate-x-0 flex-col overflow-hidden bg-white shadow-2xl md:border-r md:border-neutral-200 transition-transform duration-300"
+      style={{ height: '100dvh' }}
     >
-      {/* L-gallery1: Hero 갤러리 (넘김 가능) */}
-      <div className="relative h-[220px] w-full shrink-0 overflow-hidden bg-neutral-200">
+      {/* L-gallery1: Hero 갤러리 (넘김 가능) — 폴드/소형 모바일 대응 (사장님 명령). */}
+      <div className="relative h-[180px] sm:h-[220px] w-full shrink-0 overflow-hidden bg-neutral-200">
         {(() => {
           // L-listings-merge9-3b (2026-04-29): galleryItems 사용 + 영상/사진 분기
           const it = galleryItems[galleryIndex];
@@ -1265,17 +1274,22 @@ export function ListingDetailModal() {
         document.body
       )}
 
-      {/* L-listings-merge3 (2026-04-29): footer — 담당자 연결 (메인) + 공유 (우측 작게)
-          L-footer-lift (2026-04-29 사장님 명령): 데스크탑 작업표시줄 회피 — 하단 padding 증가 +
-          safe-area-inset-bottom 환경변수 활용 (모바일 홈바 / 데스크탑 OS bar). */}
-      <div className="border-t border-neutral-100 bg-white px-4 pt-3 pb-5 sm:pb-6 flex items-center gap-2"
-           style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom, 24px))' }}>
+      {/* L-modal-mobile-footer (2026-04-29 사장님 명령): footer 항상 viewport 하단 고정.
+          flex-shrink-0 + safe-area-inset-bottom — 폴드/소형 모바일에서도 담당자 연결 버튼 노출 보장.
+          flex parent (aside) 가 dvh 이므로 sticky 없이도 layout 으로 자연 고정. */}
+      <div
+        className="shrink-0 border-t border-neutral-100 bg-white px-3 sm:px-4 pt-2.5 sm:pt-3 flex items-center gap-2"
+        style={{
+          paddingBottom: 'max(12px, env(safe-area-inset-bottom, 16px))',
+        }}
+      >
         <button
           type="button"
           onClick={() => setAgentModalOpen(true)}
-          className="flex-1 flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-4 py-3 text-[13px] font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
+          // L-modal-mobile-cta (2026-04-29): min-h-[44px] (Apple HIG / Material) 보장 — 모든 손가락 크기 OK.
+          className="flex-1 flex items-center justify-center gap-2 min-h-[44px] rounded-full bg-emerald-600 px-4 py-2.5 text-[13.5px] font-bold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.98]"
         >
-          <Phone className="size-4" />
+          <Phone className="size-4 shrink-0" />
           <span>담당자에게 연결</span>
         </button>
         <ShareButton
