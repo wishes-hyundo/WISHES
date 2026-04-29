@@ -191,6 +191,10 @@ export default function SearchPortalPage() {
       //   첫 자식으로 "매물 {id}" 뱃지 (#2D5A27 짙은 녹색) prepend, 클릭 시 복사.
       //   기존 우측 .ws-listing-id 가 안 보인다는 보고 → 층수 앞 고정 배치.
       ['ws-ext-patch-v325-listing-id-tag', '/search/content-v325-listing-id-tag.js?v=20260429a'],
+      // v326 (2026-04-29 사장님 명령): mini 출처 뱃지 cleanup-only.
+      //   v324b 가 만든 cleanup 코드가 Vercel CDN edge stale 로 풀리지 않아 별개
+      //   path 의 단일책임 patch 로 우회. .ws-src-badge-mini 만 제거.
+      ['ws-ext-patch-v326-cleanup-mini-badge', '/search/content-v326-cleanup-mini-badge.js?v=20260429a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
