@@ -33,6 +33,28 @@ interface CachedRow {
 }
 
 /**
+ * L-bldg-unit-extract (2026-04-29): 주소 텍스트에서 동/호 추출.
+ *   사장님 명령: 전유부 주용도가 표제부 주용도보다 정확. building_ho 컬럼이 null 이어도
+ *   address 텍스트에서 호수 자동 추출 → units_data 매칭 → 전유부 주용도 노출.
+ *   v306 patch (content-v306-bldg-unit) 와 동일 정규식.
+ */
+function extractDongHoFromAddress(addr: string): { dongNm: string; hoNm: string } {
+  if (!addr) return { dongNm: '', hoNm: '' };
+  const s = String(addr);
+  let dongNm = '';
+  let hoNm = '';
+  const dm = s.match(/(\d{1,4})\s*동(?!시|구|군|도)/);
+  if (dm) dongNm = dm[1];
+  const hoMatches = s.match(/(\d{1,5})\s*호(?:\s|$)/g);
+  if (hoMatches && hoMatches.length > 0) {
+    const lastHo = hoMatches[hoMatches.length - 1];
+    const m = lastHo.match(/(\d{1,5})/);
+    if (m) hoNm = m[1];
+  }
+  return { dongNm, hoNm };
+}
+
+/**
  * 주소 → (sigunguCd, bjdongCd, bun, ji) 빠른 변환 (Kakao 1회).
  * 1.5s 타임아웃. 실패 시 null — 전유부 enrich 만 skip, 매물 응답엔 영향 X.
  */
@@ -154,6 +176,8 @@ export async function GET(
       unit_dong: string | null;
       unit_ho: string | null;
       unit_floor: string | null;
+      unit_purpose: string | null;
+      unit_structure: string | null;
     } | null = null;
     // L-bldg-purpose (2026-04-29 사장님 명령): 표제부 (raw_data.buildingData) 정보를
     //   항상 조회 — building_ho 없는 매물(원룸/단독/일반룸 등)도 주용도/단지명 노출.
@@ -165,9 +189,15 @@ export async function GET(
       approvalDate: string | null;
     } | null = null;
     try {
-      const reqDong = String((listing as any).building_dong || '').trim();
-      const reqHo = String((listing as any).building_ho || '').trim();
+      let reqDong = String((listing as any).building_dong || '').trim();
+      let reqHo = String((listing as any).building_ho || '').trim();
       const addr = String((listing as any).address || '').trim();
+      // L-bldg-unit-extract: 컬럼이 비어있으면 address 텍스트에서 추출
+      if (!reqHo) {
+        const ext = extractDongHoFromAddress(addr);
+        if (!reqDong) reqDong = ext.dongNm;
+        reqHo = ext.hoNm;
+      }
       if (addr) {
         const r = await quickResolve(addr);
         if (r) {
@@ -196,6 +226,11 @@ export async function GET(
                 unit_dong: sel.dongNm || null,
                 unit_ho: sel.hoNm || null,
                 unit_floor: sel.flrNoNm || (sel.flrNo ? `${sel.flrNo}층` : null),
+                // L-bldg-unit-purpose (2026-04-29 사장님 명령):
+                //   "전유부 주용도가 더 정확. 이걸 기준으로 가야되지 않아?"
+                //   표제부(공동주택) 보다 전유부 주용도(아파트/오피스텔/다세대 등) 우선.
+                unit_purpose: sel.mainPurpsCdNm || null,
+                unit_structure: sel.strctCdNm || null,
               };
             }
           }
@@ -255,9 +290,13 @@ export async function GET(
       area_common_m2_resolved: unitEnrich?.common_area_m2 ?? rfCommon ?? null,
       area_total_m2_resolved: unitEnrich?.total_area_m2 ?? rfTotal ?? null,
     };
-    // L-bldg-purpose: 주용도/단지명/총층 resolved — DB 컬럼 → 표제부 캐시
+    // L-bldg-purpose: 주용도/단지명/총층 resolved
+    //   우선순위: (1) DB 컬럼 → (2) 전유부 unit.mainPurpsCdNm (가장 정확)
+    //              → (3) 표제부 buildingPurpose (공동주택 같은 큰 분류) → null
+    //   사장님 명령: "전유부 보면 아파트가 주용도인데 이걸 기준으로 가야되지 않아?"
     const buildingPurposeResolved =
       ((listing as any).building_purpose || '').trim() ||
+      unitEnrich?.unit_purpose ||
       buildingTitleEnrich?.buildingPurpose ||
       null;
     const buildingNameResolved =
