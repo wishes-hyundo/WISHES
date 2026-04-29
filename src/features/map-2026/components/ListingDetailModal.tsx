@@ -748,12 +748,13 @@ export function ListingDetailModal() {
               </div>
             </>
             <Row label="입주 가능일" value={detailExtra?.available_date || (listing as any).available_date || '협의가능'} />
-            {/* 사용 승인일 — 날짜 패턴 가드 (L-modal-fields2)
-                DB 의 usage_approved 컬럼에 비정상 값이 섞여 있어 isValidDateLike 통과만 표시 */}
+            {/* 사용 승인일 — 건축물대장 공개 정보. resolved fallback 우선, 비로그인도 노출.
+                L-bldg-purpose (2026-04-29): usage_approved_resolved (정부 캐시) 추가. */}
             {(() => {
-              const ua = isAuthed && detailExtra?.usage_approved ? detailExtra.usage_approved : null;
-              const by = listing.built_year;
-              const display = isValidDateLike(ua) ? ua : (isValidDateLike(by) ? by : null);
+              const uaRaw = detailExtra?.usage_approved_resolved
+                ?? detailExtra?.usage_approved
+                ?? listing.built_year;
+              const display = isValidDateLike(uaRaw) ? uaRaw : null;
               if (!display) return null;
               return <Row label="사용 승인일" value={display} />;
             })()}
@@ -775,7 +776,10 @@ export function ListingDetailModal() {
                 return parts.length > 0 ? parts.join(' · ') : <span className="text-neutral-400">정보 미입력</span>;
               })()}</div>
             </>
-            <Row label="건축물 용도" value={detailExtra?.building_purpose ?? (listing as any).building_purpose} />
+            {/* L-bldg-purpose (2026-04-29 사장님 명령): 건축물대장 주용도 우선 노출.
+                "건축물대장상 주용도가 나오는게 더 낫지 않겠어?" — DB 컬럼이 비어있어도
+                building_registry_cache 의 raw_data.buildingData.buildingPurpose 사용. */}
+            <Row label="건축물 용도 (주용도)" value={detailExtra?.building_purpose_resolved ?? detailExtra?.building_purpose ?? (listing as any).building_purpose} />
             {/* L-Phase2 (2026-04-29): 전유부 (전용/공용/총면적) — 건축물대장 selected_unit
                 /search v306 와 동일 소스. listing.building_dong + listing.building_ho 매칭. */}
             {(detailExtra?.exclusive_area_m2 != null || detailExtra?.total_area_m2 != null) && (
