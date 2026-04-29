@@ -25,8 +25,28 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
-const ONHOUSE_USERNAME = process.env.ONHOUSE_USERNAME || '';
-const ONHOUSE_PASSWORD = process.env.ONHOUSE_PASSWORD || '';
+// env 우선, 없으면 DB(app_secrets) fallback
+const ONHOUSE_USERNAME_ENV = process.env.ONHOUSE_USERNAME || '';
+const ONHOUSE_PASSWORD_ENV = process.env.ONHOUSE_PASSWORD || '';
+
+async function loadCredentials(): Promise<{ username: string; password: string; source: string }> {
+  if (ONHOUSE_USERNAME_ENV && ONHOUSE_PASSWORD_ENV) {
+    return { username: ONHOUSE_USERNAME_ENV, password: ONHOUSE_PASSWORD_ENV, source: 'env' };
+  }
+  try {
+    const sb = createServerClient();
+    const { data: rows } = await sb
+      .from('app_secrets')
+      .select('key, value')
+      .in('key', ['onhouse_username', 'onhouse_password']);
+    const map: Record<string, string> = {};
+    for (const r of (rows || []) as { key: string; value: string }[]) map[r.key] = r.value || '';
+    if (map.onhouse_username && map.onhouse_password) {
+      return { username: map.onhouse_username, password: map.onhouse_password, source: 'db' };
+    }
+  } catch (_) {}
+  return { username: '', password: '', source: 'none' };
+}
 const ONHOUSE_BASE = 'https://www.onhouse.com';
 const ENRICH_TOKEN = 'wishes-enrich-2026-04-29-onetime-Y3b8H2mK';
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
@@ -41,7 +61,8 @@ interface ListingRow {
 }
 
 // 1. 초기 ci_session 받기 + 로그인 → 인증 cookie 반환
-async function login(): Promise<string | null> {
+async function login(creds: { username: string; password: string }): Promise<string | null> {
+  if (!creds.username || !creds.password) return null;
   try {
     const initRes = await fetch(ONHOUSE_BASE + '/', {
       headers: { 'User-Agent': UA },
@@ -51,8 +72,8 @@ async function login(): Promise<string | null> {
     const initSession = (initCookie.match(/ci_session=([^;]+)/) || [])[1] || '';
 
     const form = new URLSearchParams();
-    form.set('id', ONHOUSE_USERNAME);
-    form.set('pwd', ONHOUSE_PASSWORD);
+    form.set('id', creds.username);
+    form.set('pwd', creds.password);
     form.set('save_id', 'on');
 
     const loginRes = await fetch(ONHOUSE_BASE + '/index.php/dataFunction/login', {
@@ -156,11 +177,12 @@ export async function GET(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
-  // ID/PW 미등록 시 graceful skip (cron 로그에 에러 안 쌓임)
-  if (!ONHOUSE_USERNAME || !ONHOUSE_PASSWORD) {
+  // 자격증명 미등록 시 graceful skip (cron 로그에 에러 안 쌓임)
+  const credsCheck = await loadCredentials();
+  if (!credsCheck.username || !credsCheck.password) {
     return NextResponse.json({
       ok: true, skipped: true,
-      hint: 'ONHOUSE_USERNAME / ONHOUSE_PASSWORD env 미등록 — Vercel UI에서 등록하면 자동 시작.',
+      hint: '/admin/onhouse-setup 에서 등록하거나 Vercel env 에 ONHOUSE_USERNAME/ONHOUSE_PASSWORD 추가하면 자동 시작.',
     });
   }
   const url = new URL(request.url);
@@ -177,11 +199,12 @@ export async function POST(request: NextRequest) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
-  if (!ONHOUSE_USERNAME || !ONHOUSE_PASSWORD) {
+  const creds = await loadCredentials();
+  if (!creds.username || !creds.password) {
     return NextResponse.json({
       ok: false,
-      error: 'ONHOUSE_USERNAME / ONHOUSE_PASSWORD 환경변수 누락. Vercel UI에 등록하세요.',
-      hint: 'https://vercel.com/wishes-hyundo/wishes/settings/environment-variables',
+      error: 'onhouse 자격증명 누락',
+      hint: '/admin/onhouse-setup 에서 등록하거나 Vercel env 에 ONHOUSE_USERNAME/ONHOUSE_PASSWORD 추가',
     }, { status: 500 });
   }
 
@@ -190,7 +213,7 @@ export async function POST(request: NextRequest) {
   const debug = !!body.debug;
   const sampleId = body.sampleId as number | undefined;
 
-  const session = await login();
+  const session = await login(creds);
   if (!session) return NextResponse.json({ ok: false, error: 'onhouse login 실패 — 계정 정보 확인' }, { status: 502 });
 
   const supabase = createServerClient();
