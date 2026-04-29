@@ -274,8 +274,15 @@ export async function GET(req: NextRequest) {
     const authHdr = req.headers.get('authorization') || '';
     const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : '';
     if (token) {
+      // L-perf-1 (2026-04-29 사장님 명령): JWT auth Promise.race timeout 200ms.
+      //   기존: supabase.auth.getUser() 가 50-400ms 가변 → viewport 응답 지연.
+      //   변경: 200ms 안에 응답 없으면 guest 폴백 (UI 영향 0 — masked address 동일).
       const sb = createServerClient();
-      const { data: { user }, error: authErr } = await sb.auth.getUser(token);
+      const authPromise = sb.auth.getUser(token).then(({ data, error }) => ({ user: data?.user, error }));
+      const timeoutPromise = new Promise<{ user: null; error: Error }>((resolve) => {
+        setTimeout(() => resolve({ user: null, error: new Error('auth timeout') }), 200);
+      });
+      const { user, error: authErr } = await Promise.race([authPromise, timeoutPromise]);
       if (!authErr && user) authed = true;
     }
   } catch { /* guest 로 폴백 */ }
@@ -597,11 +604,14 @@ export async function GET(req: NextRequest) {
       //   또한 5초 timeout race — count 4개가 너무 오래 걸리면 listings 만 반환.
       const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T | 0> =>
         Promise.race([p, new Promise<0>((resolve) => setTimeout(() => resolve(0 as 0), ms))]);
+      // L-perf-1 (2026-04-29 사장님 명령): 카테고리 count timeout 5s → 1s.
+      //   DB 평균 27ms 라 1s 면 충분 (이미 fallback 0 처리됨).
+      //   응답 형식 동일 — 단지 max wait 시간 단축.
       const [r_cnt, o_cnt, l_cnt, i_cnt] = await Promise.all([
-        withTimeout(countByCategory('residence'), 5000),
-        withTimeout(countByCategory('retail_office'), 5000),
-        withTimeout(countByCategory('land'), 5000),
-        withTimeout(countByCategory('investment'), 5000),
+        withTimeout(countByCategory('residence'), 1000),
+        withTimeout(countByCategory('retail_office'), 1000),
+        withTimeout(countByCategory('land'), 1000),
+        withTimeout(countByCategory('investment'), 1000),
       ]);
       counts = {
         residence: r_cnt || 0,
