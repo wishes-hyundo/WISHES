@@ -17,7 +17,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -299,6 +299,17 @@ export function ListingDetailModal() {
   // L-listings-merge9-3a (2026-04-29 사장님 명령): 영상 갤러리 데이터 준비.
   //   3a 단계에서는 fetch 만 하고 UI 변경 X. 3b 에서 hero 분기 추가.
   const [galleryVideos, setGalleryVideos] = useState<Array<{ url: string; poster: string | null }>>([]);
+
+  // L-listings-merge9-3b (2026-04-29 사장님 명령): 영상+사진 통합 갤러리.
+  //   배열 순서: [영상들, 대표사진, 다른 사진들]
+  //   첫 슬라이드 (panel 진입) = 대표사진 (영상 수만큼 skip)
+  const galleryItems = useMemo<Array<{ type: 'video' | 'image'; url: string; poster: string | null }>>(
+    () => [
+      ...galleryVideos.map((v) => ({ type: 'video' as const, url: v.url, poster: v.poster })),
+      ...galleryImages.map((u) => ({ type: 'image' as const, url: u, poster: null })),
+    ],
+    [galleryVideos, galleryImages],
+  );
   // L-lightbox1 (2026-04-23 p.m.): 사진 크게 보기 (풀스크린 라이트박스)
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -407,7 +418,7 @@ export function ListingDetailModal() {
         setGalleryImages(urls);
       })
       .catch(() => { /* 폴백 — thumbnail_url 만 사용 */ });
-    // L-listings-merge9-3a (2026-04-29): 영상도 별도 fetch (병렬). UI 변경 0.
+    // L-listings-merge9-3a/3b: 영상 fetch + 첫 슬라이드 = 대표사진
     fetch(`/api/listings/${listingId}/videos`)
       .then((r) => r.ok ? r.json() : null)
       .then((json) => {
@@ -416,6 +427,8 @@ export function ListingDetailModal() {
           .map((v) => ({ url: v.url, poster: v.poster_url ?? null }))
           .filter((v) => !!v.url);
         setGalleryVideos(items);
+        // L-listings-merge9-3b: 영상 있으면 panel 첫 슬라이드 = 대표사진 (영상 skip)
+        if (items.length > 0) setGalleryIndex(items.length);
       })
       .catch(() => { /* 폴백 — 영상 없음 */ });
     return () => { cancelled = true; };
@@ -502,14 +515,14 @@ export function ListingDetailModal() {
 
   // 좌/우 키보드 네비게이션
   useEffect(() => {
-    if (!isOpen || galleryImages.length <= 1) return;
+    if (!isOpen || galleryItems.length <= 1) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft') setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
-      else if (e.key === 'ArrowRight') setGalleryIndex((i) => (i + 1) % galleryImages.length);
+      if (e.key === 'ArrowLeft') setGalleryIndex((i) => (i - 1 + galleryItems.length) % galleryItems.length);
+      else if (e.key === 'ArrowRight') setGalleryIndex((i) => (i + 1) % galleryItems.length);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [isOpen, galleryImages.length]);
+  }, [isOpen, galleryItems.length]);
 
   if (!listing) return null;
 
@@ -541,8 +554,24 @@ export function ListingDetailModal() {
       {/* L-gallery1: Hero 갤러리 (넘김 가능) */}
       <div className="relative h-[220px] w-full shrink-0 overflow-hidden bg-neutral-200">
         {(() => {
-          const src = galleryImages[galleryIndex] ?? listing.thumbnail_url;
-          if (src) {
+          // L-listings-merge9-3b (2026-04-29): galleryItems 사용 + 영상/사진 분기
+          const it = galleryItems[galleryIndex];
+          if (it && it.type === 'video') {
+            return (
+              // eslint-disable-next-line jsx-a11y/media-has-caption
+              <video
+                key={it.url}
+                src={it.url}
+                poster={it.poster ?? undefined}
+                controls
+                preload="metadata"
+                className="absolute inset-0 h-full w-full object-cover bg-black"
+                onClick={(e) => e.stopPropagation()}
+              />
+            );
+          }
+          const heroSrc = it?.url ?? listing.thumbnail_url;
+          if (heroSrc) {
             return (
               <button
                 type="button"
@@ -551,8 +580,8 @@ export function ListingDetailModal() {
                 className="absolute inset-0 block cursor-zoom-in"
               >
                 <Image
-                  key={src}
-                  src={src}
+                  key={heroSrc}
+                  src={heroSrc}
                   alt={addressLine}
                   fill
                   sizes="380px"
@@ -571,12 +600,12 @@ export function ListingDetailModal() {
         })()}
 
         {/* 좌/우 화살표 (이미지 2장 이상일 때만) */}
-        {galleryImages.length > 1 && (
+        {galleryItems.length > 1 && (
           <>
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
+                setGalleryIndex((i) => (i - 1 + galleryItems.length) % galleryItems.length);
               }}
               aria-label="이전 사진"
               className="absolute left-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75"
@@ -586,7 +615,7 @@ export function ListingDetailModal() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setGalleryIndex((i) => (i + 1) % galleryImages.length);
+                setGalleryIndex((i) => (i + 1) % galleryItems.length);
               }}
               aria-label="다음 사진"
               className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75"
@@ -611,14 +640,15 @@ export function ListingDetailModal() {
 
         {/* 하단 배지 그룹 — 영상 + 사진 카운터 */}
         <div className="absolute bottom-2.5 right-2.5 flex gap-1.5">
-          {listing.has_video && (
+          {/* L-listings-merge9-3b: 영상 배지 — galleryItems 안 영상 있으면 표시 */}
+          {(galleryVideos.length > 0 || listing.has_video) && (
             <span className="flex items-center gap-0.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white">
               <Video className="size-3" /> 영상
             </span>
           )}
-          {galleryImages.length > 0 ? (
+          {galleryItems.length > 0 ? (
             <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
-              {galleryIndex + 1} / {galleryImages.length}
+              {galleryIndex + 1} / {galleryItems.length}
             </span>
           ) : (listing as any).photo_count > 0 ? (
             <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white">
@@ -628,9 +658,9 @@ export function ListingDetailModal() {
         </div>
 
         {/* 하단 도트 인디케이터 (≤8장) */}
-        {galleryImages.length > 1 && galleryImages.length <= 8 && (
+        {galleryItems.length > 1 && galleryItems.length <= 8 && (
           <div className="pointer-events-none absolute inset-x-0 bottom-1.5 flex justify-center gap-1">
-            {galleryImages.map((_, i) => (
+            {galleryItems.map((_, i) => (
               <span
                 key={i}
                 className={[
