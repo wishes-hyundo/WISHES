@@ -1184,7 +1184,7 @@ export function ListingDetailModal() {
               ].filter(Boolean).join(' · ') || '-'}
             </div>
           </div>
-        </div>
+        </div>}
 
         {/* L-modal-v7-2: 매물 정보 — 통합 단일 테이블 */}
         <div className="border-b border-neutral-100 px-4 py-3">
@@ -1277,7 +1277,7 @@ export function ListingDetailModal() {
             {listing.elevator != null && <Row label="엘리베이터" value={boolLabel(listing.elevator)} />}
             <Row label="반려동물" value={listing.pet == null ? '협의' : (listing.pet ? '가능' : '협의')} />
           </dl>
-        </div>}
+        </div>
 
         {/* L-modal-v7 (2026-04-24): 내부시설 + 보안 아이콘 그리드 */}
         {(() => {
