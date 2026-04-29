@@ -33,6 +33,28 @@ interface CachedRow {
 }
 
 /**
+ * L-addr-sanitize (2026-04-29): Kakao geocoder 가 인식할 수 있도록 주소 정제.
+ *   사장님 명령: "전용/공급 면적 계속 Null"
+ *   원인: "서울 관악구 신림동 1423-3 로사이신림 4층 403호" 처럼 건물명+층+호가
+ *         붙은 풀 주소를 Kakao 에 보내면 b_code 매칭 실패 → cache lookup miss.
+ *   대책: 지번/도로명 부분만 남기고 건물명/층/호 suffix 제거.
+ */
+function sanitizeAddressForKakao(addr: string): string {
+  if (!addr) return '';
+  let s = String(addr).trim();
+  // 1) "N층 N호" 또는 "지하 N층" 부분 제거
+  s = s.replace(/\s+(?:지하\s*)?\d+\s*층(?:\s+\d+\s*호)?\s*$/g, '');
+  s = s.replace(/\s+\d+\s*호\s*$/g, '');
+  // 2) "동" 단위 제거 (예: "101동 1502호")
+  s = s.replace(/\s+\d+\s*동(?:\s+\d+\s*호)?\s*$/g, '');
+  // 3) 지번 패턴(NNN-NN 또는 NNN) 까지만 남기기 — 그 뒤 건물명 제거
+  //    한국 주소는 "시 구 동 NNN[-NN] [건물명]" 형식.
+  const m = s.match(/^(.+?\s+\d{1,5}(?:-\d{1,5})?)(\s+[^0-9].*)?$/);
+  if (m) s = m[1];
+  return s.trim();
+}
+
+/**
  * L-bldg-unit-extract (2026-04-29): 주소 텍스트에서 동/호 추출.
  *   사장님 명령: 전유부 주용도가 표제부 주용도보다 정확. building_ho 컬럼이 null 이어도
  *   address 텍스트에서 호수 자동 추출 → units_data 매칭 → 전유부 주용도 노출.
@@ -199,7 +221,9 @@ export async function GET(
         reqHo = ext.hoNm;
       }
       if (addr) {
-        const r = await quickResolve(addr);
+        // L-addr-sanitize: Kakao 매칭률 향상 — 건물명/층/호 suffix 제거
+        const addrForKakao = sanitizeAddressForKakao(addr);
+        const r = await quickResolve(addrForKakao || addr);
         if (r) {
           // 1.5s 타임아웃 — cache 는 ms 단위 응답이므로 충분.
           const cacheLookup = supabase
