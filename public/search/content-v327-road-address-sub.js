@@ -59,13 +59,19 @@
     }
 
     if (road && road.length > 4) {
-      // 도로명 있음 → 교체
-      if (sub.dataset.v327Mode !== 'road' || (sub.textContent || '').trim() !== road) {
-        sub.textContent = road;
+      // 도로명 있음 → "서울특별시 X구 / 서울 X구 / X구" prefix 제거 (메인과 중복).
+      // 사장님 명령 (2026-04-29): "굳이 서울 관악구 반복하지 말고 신림로11길 123-14 이렇게만"
+      var roadShort = road.replace(/^서울특별시\s+[가-힣]+[구군]\s+/, '')
+                          .replace(/^서울\s+[가-힣]+[구군]\s+/, '')
+                          .replace(/^경기도?\s+[가-힣]+[시군]\s+/, '')
+                          .replace(/^인천(광역시)?\s+[가-힣]+[구군]\s+/, '')
+                          .replace(/^[가-힣]+[구군]\s+/, '');
+      if (sub.dataset.v327Mode !== 'road' || (sub.textContent || '').trim() !== roadShort) {
+        sub.textContent = roadShort;
         sub.dataset.v327Mode = 'road';
-        sub.style.color = '#6b7280'; // neutral-500 옅은 회색
+        sub.style.color = '#6b7280';
         sub.style.fontWeight = '400';
-        sub.title = '도로명주소 — 클릭하면 상세보기';
+        sub.title = '도로명주소: ' + road;
       }
     } else {
       // 도로명 없음 → 원본 유지 (한 번만 reset)

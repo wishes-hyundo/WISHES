@@ -197,8 +197,14 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v326-cleanup-mini-badge', '/search/content-v326-cleanup-mini-badge.js?v=20260429a'],
       // v327 (2026-04-29 사장님 명령): 카드 부 라인 = 도로명주소 (있을 때만).
       //   메인은 굵은 지번주소 그대로 / 부는 옅은 회색 도로명주소 (#6b7280).
-      //   building_info.도로명주소 우선, 없으면 listing.road_address, 없으면 원본 유지.
-      ['ws-ext-patch-v327-road-address-sub', '/search/content-v327-road-address-sub.js?v=20260429a'],
+      //   v327b: 도로명에서 시/구 prefix 제거 (메인 중복 방지).
+      ['ws-ext-patch-v327-road-address-sub', '/search/content-v327-road-address-sub.js?v=20260429b'],
+      // v328 (2026-04-29 사장님 명령): 메인 주소 라인 형식 — "(건물명)" 괄호 제거 후
+      //   "[지번주소] [건물명] [층] [호]" 형식으로 재구성.
+      ['ws-ext-patch-v328-main-addr-format', '/search/content-v328-main-addr-format.js?v=20260429a'],
+      // v329 (2026-04-29 사장님 명령): 공실 라벨 정확화 — status=공개 무차별 → 
+      //   available_date 기준 "공실/거주중/협의입주/YY.MM 입주/hide" 분기.
+      ['ws-ext-patch-v329-vacancy-label', '/search/content-v329-vacancy-label.js?v=20260429a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
