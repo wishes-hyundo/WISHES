@@ -184,7 +184,7 @@ export default function MapClient() {
                 getLevel: () => number;
               };
               event: {
-                addListener: (target: unknown, type: string, handler: () => void) => void;
+                addListener: (target: unknown, type: string, handler: (...args: any[]) => void) => void;
               };
             };
           };
