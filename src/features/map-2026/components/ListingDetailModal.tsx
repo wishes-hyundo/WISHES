@@ -1029,6 +1029,7 @@ export function ListingDetailModal() {
           url={`https://wishes.co.kr/map/${listing.id}`}
           title={`${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim() + ' | WISHES'}
           description={listing.title || `${listing.dong || ''} ${listing.type || ''} ${listing.deal || ''}`.trim()}
+          iconOnly
         />
       </div>
 

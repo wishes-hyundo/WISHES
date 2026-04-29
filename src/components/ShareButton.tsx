@@ -14,9 +14,11 @@ interface ShareButtonProps {
   url: string;
   title: string;
   description: string;
+  // L-listings-merge5 (2026-04-29 사장님 명령): footer 아이콘만 mode
+  iconOnly?: boolean;
 }
 
-export default function ShareButton({ url, title, description }: ShareButtonProps) {
+export default function ShareButton({ url, title, description, iconOnly = false }: ShareButtonProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -80,10 +82,15 @@ export default function ShareButton({ url, title, description }: ShareButtonProp
       <button
         onClick={handleShare}
         aria-label="매물 상세 페이지 공유"
-        className="flex items-center justify-center gap-2 w-full bg-white border border-wishes-primary/30 text-wishes-primary py-2.5 rounded-xl font-semibold text-sm hover:bg-wishes-primary/5 transition-colors"
+        className={
+          iconOnly
+            // L-listings-merge5: 아이콘만 작은 정사각 (footer 우측)
+            ? 'flex size-11 items-center justify-center rounded-full bg-white border border-neutral-200 text-neutral-600 hover:bg-neutral-50 hover:text-emerald-600 transition-colors'
+            : 'flex items-center justify-center gap-2 w-full bg-white border border-wishes-primary/30 text-wishes-primary py-2.5 rounded-xl font-semibold text-sm hover:bg-wishes-primary/5 transition-colors'
+        }
       >
         <Share2 className="w-4 h-4" />
-        매물 공유하기
+        {!iconOnly && '매물 공유하기'}
       </button>
 
       {showMenu && (
