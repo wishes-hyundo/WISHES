@@ -164,6 +164,10 @@ export function ListingDetailModal() {
     id: number; title: string; type: string; deal: string;
     deposit: number | null; monthly: number | null; price: number | null;
     area_m2: number | null; dong: string | null; matchPercent: number;
+    // L-listings-merge7 (2026-04-29): 썸네일 + 부가 정보
+    thumb_url: string | null;
+    floor_current: number | null;
+    floor_total: number | null;
   }>>([]);
 
   useEffect(() => {
@@ -919,7 +923,7 @@ export function ListingDetailModal() {
         </div>
       )}
 
-      {/* 5) 추천 매물 — compact 2개 (매물카드 안에 자연스럽게) */}
+      {/* 5) 추천 매물 — compact 2개 (썸네일 + 정보, 매물카드 안에 자연스럽게) */}
       {recommendations.length > 0 && (
         <div className="border-t border-neutral-100 bg-white px-4 py-3">
           <h3 className="mb-2 text-[12px] font-bold text-neutral-900">비슷한 추천 매물</h3>
@@ -930,23 +934,45 @@ export function ListingDetailModal() {
                 : r.deal === '전세'
                   ? (r.deposit ? `${(r.deposit / 10000).toFixed(1)}억` : '-')
                   : (r.deposit && r.monthly ? `${r.deposit.toLocaleString()}/${r.monthly}` : '-');
+              const floorLabel = r.floor_current != null
+                ? (r.floor_total != null ? `${r.floor_current}/${r.floor_total}층` : `${r.floor_current}층`)
+                : null;
               return (
                 <a
                   key={r.id}
                   href={`/map/${r.id}`}
-                  className="flex items-center justify-between gap-2 rounded-lg border border-neutral-200 px-3 py-2 hover:border-emerald-500 transition"
+                  className="flex items-stretch gap-2 rounded-lg border border-neutral-200 p-2 hover:border-emerald-500 transition"
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{r.matchPercent}%</span>
-                      <span className="text-[11px] font-semibold text-neutral-700">{r.deal} · {r.type}</span>
-                    </div>
-                    <div className="mt-0.5 truncate text-[11px] text-neutral-500">
-                      {r.dong || ''} · {r.area_m2 ? `${r.area_m2.toFixed(1)}㎡` : ''}
-                    </div>
+                  {/* 썸네일 64×64 — 없으면 placeholder */}
+                  <div className="relative size-16 shrink-0 overflow-hidden rounded-md bg-neutral-100">
+                    {r.thumb_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={r.thumb_url}
+                        alt=""
+                        className="size-full object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center text-neutral-400">
+                        <ImageOff className="size-5" aria-hidden />
+                      </div>
+                    )}
                   </div>
-                  <div className="shrink-0 text-[13px] font-bold text-emerald-600 tabular-nums">
-                    {priceLabel}
+                  {/* 정보 우측 */}
+                  <div className="flex min-w-0 flex-1 flex-col justify-between">
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">{r.matchPercent}%</span>
+                        <span className="text-[11px] font-semibold text-neutral-700">{r.deal} · {r.type}</span>
+                      </div>
+                      <div className="mt-0.5 truncate text-[11px] text-neutral-500">
+                        {r.dong || ''}{floorLabel ? ` · ${floorLabel}` : ''}{r.area_m2 ? ` · ${r.area_m2.toFixed(1)}㎡` : ''}
+                      </div>
+                    </div>
+                    <div className="text-[13px] font-bold text-emerald-600 tabular-nums">
+                      {priceLabel}
+                    </div>
                   </div>
                 </a>
               );

@@ -167,7 +167,7 @@ export async function GET(
       .sort((a: ScoredListing, b: ScoredListing) => b.score - a.score)
       .slice(0, 6);
 
-    // Return slim response
+    // L-listings-merge7 (2026-04-29 사장님 명령): 썸네일 + lat/lng 추가
     const results = scored.map(s => ({
       id: s.listing.id,
       title: s.listing.title,
@@ -186,6 +186,11 @@ export async function GET(
       elevator: s.listing.elevator,
       parking: s.listing.parking,
       created_at: s.listing.created_at,
+      // L-listings-merge7: 추천 매물 썸네일 (image-policy 보존 — 크롤링 차단 후의 url 또는 null)
+      thumb_url: (s.listing.thumb_url ?? null) as string | null,
+      has_video: !!s.listing.has_video,
+      lat: (s.listing.lat ?? null) as number | null,
+      lng: (s.listing.lng ?? null) as number | null,
       matchPercent: s.matchPercent,
       reasons: s.reasons.slice(0, 3),
     }));
