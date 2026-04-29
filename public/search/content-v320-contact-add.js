@@ -179,6 +179,15 @@
               return r.json();
             })
             .then(function () {
+              // L-v321b (2026-04-29): v270-contacts.js 가 window.__currentListing.contacts
+              //   를 우선 사용 → DB 저장 성공해도 cur.contacts 가 stale 이면 화면 미표시.
+              //   여기서 직접 push 해서 v270 fetchCache 무효화 없이도 즉시 표시.
+              try {
+                if (window.__currentListing && String(window.__currentListing.id) === String(lid)) {
+                  if (!Array.isArray(window.__currentListing.contacts)) window.__currentListing.contacts = [];
+                  window.__currentListing.contacts.push({ role: role, name: name, phone: phone, memo: memo });
+                }
+              } catch (e) {}
               close();
               showToast('연락처가 추가되었습니다.');
               refreshDetail(lid);
