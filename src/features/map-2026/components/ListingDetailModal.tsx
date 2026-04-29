@@ -835,29 +835,7 @@ export function ListingDetailModal() {
             {/* L-purpose-split (2026-04-29 사장님 명령): 매물 정보의 "건축물 용도" 는 표제부 기준
                 (예: 공동주택). H1 의 전유부 주용도(예: 아파트)와 별개. */}
             <Row label="건축물 용도 (주용도)" value={detailExtra?.title_purpose_resolved ?? (listing as any).building_purpose} />
-            {/* L-modal-clean (2026-04-29 사장님 명령): 전유부 Row 제거 — 위 메트릭카드(전용/공급)와 중복. */}
-            {false && (detailExtra?.exclusive_area_m2 != null || detailExtra?.total_area_m2 != null) && (
-              <>
-                <div className="text-neutral-500">전유부</div>
-                <div className="text-neutral-800">
-                  {(() => {
-                    const parts: string[] = [];
-                    if (detailExtra?.exclusive_area_m2 != null) {
-                      parts.push(`전용 ${Number(detailExtra.exclusive_area_m2).toFixed(2)}m²`);
-                    }
-                    if (detailExtra?.common_area_m2 != null && detailExtra.common_area_m2 > 0) {
-                      parts.push(`공용 ${Number(detailExtra.common_area_m2).toFixed(2)}m²`);
-                    }
-                    if (detailExtra?.total_area_m2 != null && detailExtra.total_area_m2 > 0) {
-                      parts.push(`총 ${Number(detailExtra.total_area_m2).toFixed(2)}m²`);
-                    }
-                    if (detailExtra?.unit_floor) parts.push(detailExtra.unit_floor);
-                    return parts.join(' · ') || <span className="text-neutral-400">정보 없음</span>;
-                  })()}
-                  <div className="text-[10px] text-neutral-400 mt-0.5">건축물대장</div>
-                </div>
-              </>
-            )}
+            {/* L-modal-clean (2026-04-29 사장님 명령): 전유부 Row 완전 제거 — 위 메트릭카드의 "전용/공급"과 중복. */}
             {detailExtra?.illegal_building === false && (
               <>
                 <div className="text-neutral-500">위반 건축물</div>
