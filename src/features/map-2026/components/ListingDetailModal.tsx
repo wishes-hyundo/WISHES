@@ -305,6 +305,12 @@ export function ListingDetailModal() {
     common_area_m2: number | null;
     total_area_m2: number | null;
     unit_floor: string | null;
+    // L-rawfields (2026-04-29): server 가 raw_fields 에서 추출한 정규화 텍스트
+    raw_rooms_text: string | null;
+    raw_maintenance_text: string | null;
+    raw_parking_text: string | null;
+    raw_structure_text: string | null;
+    raw_lease_text: string | null;
   } | null>(null);
   const [agentProfile, setAgentProfile] = useState<{
     name: string | null;
@@ -401,6 +407,11 @@ export function ListingDetailModal() {
           common_area_m2: (typeof d.common_area_m2 === 'number' ? d.common_area_m2 : null),
           total_area_m2: (typeof d.total_area_m2 === 'number' ? d.total_area_m2 : null),
           unit_floor: d.unit_floor || null,
+          raw_rooms_text: d.raw_rooms_text || null,
+          raw_maintenance_text: d.raw_maintenance_text || null,
+          raw_parking_text: d.raw_parking_text || null,
+          raw_structure_text: d.raw_structure_text || null,
+          raw_lease_text: d.raw_lease_text || null,
         });
         if (d.created_by && !d.source_site) {
           const ag = await fetch(`/api/agent/${d.created_by}`);
@@ -444,7 +455,13 @@ export function ListingDetailModal() {
   const areaStr = listing.area_m2 && listing.area_m2 > 0 ? formatArea(listing.area_m2) : null;
   const addressLine = listing.title ?? (listing as any).building_name ?? listing.dong ?? '주소 미상';
 
-  const maintenanceLabel = listing.maintenance_fee != null
+  // L-fallback (2026-04-29): 사장님 명령 — 관리비 0/null + raw 'X 별도' 면 그것 우선
+  const _mfee = listing.maintenance_fee;
+  const _rawMaint = (detailExtra as any)?.raw_maintenance_text;
+  const maintenanceLabel = (_mfee != null && _mfee > 0)
+    ? `${_mfee.toLocaleString()}만원`
+    : (_rawMaint && _rawMaint.trim() ? _rawMaint.trim() : null);
+  const _maintenanceLabelLegacy = listing.maintenance_fee != null
     ? `${listing.maintenance_fee.toLocaleString()}만원`
     : null;
 
@@ -619,9 +636,15 @@ export function ListingDetailModal() {
           <div className="rounded-lg bg-neutral-50 p-2.5">
             <div className="text-[10px] text-neutral-500 mb-1">방수 / 방구조</div>
             <div className="text-[13px] font-semibold text-neutral-900">
-              {listing.rooms != null && listing.rooms > 0
-                ? `${listing.rooms}/${listing.bathrooms ?? listing.rooms}개`
-                : (detailExtra?.room_layout || listing.type || '-')}
+              {(() => {
+                // L-fallback: raw_rooms_text ('룸 1.5개 / 욕실 1개') 우선
+                const raw = (detailExtra as any)?.raw_rooms_text;
+                if (raw && /\d/.test(raw)) return raw;
+                if (listing.rooms != null && listing.rooms > 0) {
+                  return `${listing.rooms}/${listing.bathrooms ?? listing.rooms}개`;
+                }
+                return (detailExtra?.room_layout || listing.type || '-');
+              })()}
             </div>
             <div className="text-[10px] text-neutral-400 mt-0.5">
               {[
@@ -741,7 +764,7 @@ export function ListingDetailModal() {
             })()}
             {listing.business_type && <Row label="업종" value={listing.business_type} />}
             {listing.elevator != null && <Row label="엘리베이터" value={boolLabel(listing.elevator)} />}
-            {listing.pet != null && <Row label="반려동물" value={boolLabel(listing.pet)} />}
+            <Row label="반려동물" value={listing.pet == null ? '협의' : (listing.pet ? '가능' : '협의')} />
           </dl>
         </div>
 

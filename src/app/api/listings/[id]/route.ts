@@ -201,6 +201,17 @@ export async function GET(
     // L-sec96 (2026-04-22): sanitizePublicListing 추가 — FORBIDDEN_PUBLIC_KEYS
     //   (source_url/contact/source_id/raw_fields/special_notes 등) 응답
     //   누출 차단. 백엔드에서 정책 일관적 적용.
+    // L-rawfields-extract (2026-04-29): raw_fields 의 일부 정규화된 텍스트 추출.
+    //   sanitize 가 raw_fields 자체는 strip 하지만 추출된 텍스트는 별도 필드로 응답에 포함.
+    const rf = (listing as any).raw_fields || {};
+    const rawExtract: Record<string, string | null> = {
+      raw_rooms_text: typeof rf['룸/욕실수'] === 'string' ? rf['룸/욕실수'] : (typeof rf['룸/욕실'] === 'string' ? rf['룸/욕실'] : null),
+      raw_maintenance_text: typeof rf['월관리비'] === 'string' ? rf['월관리비'] : (typeof rf['관리비'] === 'string' ? rf['관리비'] : null),
+      raw_parking_text: typeof rf['주차대수'] === 'string' ? rf['주차대수'] : null,
+      raw_structure_text: typeof rf['구조형태'] === 'string' ? rf['구조형태'] : null,
+      raw_lease_text: typeof rf['임대기간'] === 'string' ? rf['임대기간'] : null,
+    };
+
     const { description: _rawDesc, ...rest } = listing as Record<string, unknown>;
     const publicListing = sanitizePublicListing(stripInternalFields(rest));
 
@@ -208,6 +219,7 @@ export async function GET(
       success: true,
       data: {
         ...publicListing,
+        ...rawExtract,
         ...(unitEnrich || {}),
         images: images || [],
         features: features?.map((f: any) => f.feature) || [],
