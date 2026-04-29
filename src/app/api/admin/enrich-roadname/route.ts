@@ -86,10 +86,39 @@ function pickJibunName(doc: Record<string, unknown>): string {
   return '';
 }
 
-export async function POST(request: NextRequest) {
+// Vercel cron 인증 헬퍼
+function isAuthorized(request: NextRequest): boolean {
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || request.headers.get('x-enrich-token') || '';
-  if (token !== ENRICH_TOKEN) {
+  if (token === ENRICH_TOKEN) return true;
+  const auth = request.headers.get('authorization') || '';
+  const cronSecret = process.env.CRON_SECRET || '';
+  if (cronSecret && auth === `Bearer ${cronSecret}`) return true;
+  // Vercel cron user-agent (자동 인증)
+  const ua = request.headers.get('user-agent') || '';
+  if (/vercel-cron/i.test(ua)) return true;
+  return false;
+}
+
+// GET — Vercel cron 호출용 (mode=roadname 기본, batchSize=50)
+export async function GET(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+  }
+  const url = new URL(request.url);
+  const mode = url.searchParams.get('mode') || 'roadname';
+  const batchSize = Math.min(parseInt(url.searchParams.get('batchSize') || '50', 10) || 50, 100);
+  // POST 와 동일 로직 호출 — body fake
+  const fakeReq = new Request(request.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mode, batchSize }),
+  });
+  return POST(Object.assign(fakeReq, { headers: request.headers }) as NextRequest);
+}
+
+export async function POST(request: NextRequest) {
+  if (!isAuthorized(request)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
   if (!KAKAO_REST_KEY) {

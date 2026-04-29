@@ -140,10 +140,41 @@ async function parseListing(session: string, sourceUrl: string) {
   };
 }
 
-export async function POST(request: NextRequest) {
+function isAuthorized(request: NextRequest): boolean {
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
-  if (token !== ENRICH_TOKEN) {
+  if (token === ENRICH_TOKEN) return true;
+  const auth = request.headers.get('authorization') || '';
+  const cronSecret = process.env.CRON_SECRET || '';
+  if (cronSecret && auth === `Bearer ${cronSecret}`) return true;
+  const ua = request.headers.get('user-agent') || '';
+  if (/vercel-cron/i.test(ua)) return true;
+  return false;
+}
+
+export async function GET(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+  }
+  // ID/PW 미등록 시 graceful skip (cron 로그에 에러 안 쌓임)
+  if (!ONHOUSE_USERNAME || !ONHOUSE_PASSWORD) {
+    return NextResponse.json({
+      ok: true, skipped: true,
+      hint: 'ONHOUSE_USERNAME / ONHOUSE_PASSWORD env 미등록 — Vercel UI에서 등록하면 자동 시작.',
+    });
+  }
+  const url = new URL(request.url);
+  const batchSize = Math.min(parseInt(url.searchParams.get('batchSize') || '15', 10) || 15, 30);
+  const fakeReq = new Request(request.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ batchSize }),
+  });
+  return POST(Object.assign(fakeReq, { headers: request.headers }) as NextRequest);
+}
+
+export async function POST(request: NextRequest) {
+  if (!isAuthorized(request)) {
     return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
   }
   if (!ONHOUSE_USERNAME || !ONHOUSE_PASSWORD) {

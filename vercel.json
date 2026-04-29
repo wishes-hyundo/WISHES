@@ -159,6 +159,14 @@
     {
       "path": "/api/cron/auto-regenerate-ai-desc",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/admin/enrich-roadname?mode=roadname&batchSize=80",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/admin/enrich-onhouse-detail?batchSize=20",
+      "schedule": "0 18 * * *"
     }
   ]
 }

@@ -11,6 +11,16 @@ const ALLOWED_HOSTS = [
   'wishes-image-proxy.wishes-img.workers.dev',
   'pub-e16c7a50584c4db7be3571746cd80716.r2.dev',
   'd4k1brqee4emz.cloudfront.net',
+  // L-onhouse-img (2026-04-29 사장님 보고): 온하우스 사진 검정 fix — 호스트 화이트리스트 확장.
+  'www.onhouse.com',
+  'onhouse.com',
+  'image.onhouse.com',
+  'img.onhouse.com',
+  'cdn.onhouse.com',
+  // 공실클럽 직접 URL (현재는 wishes-image-proxy 통과 중이지만 future-proof)
+  'gongsilclub.com',
+  'www.gongsilclub.com',
+  'image.gongsilclub.com',
 ];
 
 export async function GET(request: NextRequest) {

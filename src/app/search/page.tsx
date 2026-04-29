@@ -208,6 +208,9 @@ export default function SearchPortalPage() {
       // v330 (2026-04-29 사장님 명령): 룸 라벨 — "1개 방" → "원룸/투룸/1.5룸/쓰리룸/쓰리룸+"
       //   listing.rooms 숫자 기준 변환. selectFields 에 'rooms' 포함.
       ['ws-ext-patch-v330-room-label', '/search/content-v330-room-label.js?v=20260429a'],
+      // v331 (2026-04-29 사장님 보고): onhouse 모달 검정 화면 → placeholder.
+      //   listing_images 0건 매물의 hero 영역 검정 → "사진 준비중" + 원본 링크.
+      ['ws-ext-patch-v331-onhouse-image-placeholder', '/search/content-v331-onhouse-image-placeholder.js?v=20260429a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
