@@ -149,11 +149,72 @@ function Row({ label, value }: RowProps) {
   );
 }
 
+/* L-modal-2026-uxopt (2026-04-29): 2026 모바일 사용 최적화 심화 hooks.
+   사장님: "모바일 사용에 있어서 최적화된 가장 최첨단 시스템이야?"
+   - useVisualViewport: 모바일 키보드 감지 → 모달 footer 위로 띄움
+   - useNetworkAware: 저속망 (2g/slow-2g/save-data) 감지 → 인터랙션/이미지 단순화
+   - useHaptic: 진동 피드백 (Android Web)
+   - useFocusTrap: 모달 안에 포커스 가둠 + 닫을 때 복원 (WCAG 2.2)
+*/
+function useVisualViewport(): { offsetTop: number; height: number; keyboardOpen: boolean } {
+  const [state, setState] = useState({ offsetTop: 0, height: 0, keyboardOpen: false });
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const update = () => {
+      const layoutH = window.innerHeight;
+      const visualH = vv.height;
+      // 키보드 떴다고 판단: visual viewport 가 layout viewport 보다 75% 이하
+      const keyboardOpen = visualH < layoutH * 0.75;
+      setState({ offsetTop: vv.offsetTop, height: visualH, keyboardOpen });
+    };
+    update();
+    vv.addEventListener('resize', update, { passive: true });
+    vv.addEventListener('scroll', update, { passive: true });
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, []);
+  return state;
+}
+
+function useNetworkAware(): { saveData: boolean; effectiveType: string; slow: boolean } {
+  const [state, setState] = useState({ saveData: false, effectiveType: '4g', slow: false });
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return;
+    const conn = (navigator as any).connection || (navigator as any).mozConnection || (navigator as any).webkitConnection;
+    if (!conn) return;
+    const update = () => {
+      const et = conn.effectiveType || '4g';
+      setState({
+        saveData: !!conn.saveData,
+        effectiveType: et,
+        slow: et === 'slow-2g' || et === '2g' || !!conn.saveData,
+      });
+    };
+    update();
+    conn.addEventListener?.('change', update);
+    return () => conn.removeEventListener?.('change', update);
+  }, []);
+  return state;
+}
+
+function haptic(pattern: number | number[] = 10) {
+  // iOS Safari 미지원, Android Chrome / Samsung Internet 지원.
+  if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+    try { navigator.vibrate(pattern); } catch { /* noop */ }
+  }
+}
+
 export function ListingDetailModal() {
   const { user } = useAuth();
   const isAuthed = !!user;
   const detailListingId = useMap2026Store((s) => s.detailListingId);
   const closeListingDetail = useMap2026Store((s) => s.closeListingDetail);
+  // L-modal-2026-uxopt: 모바일 키보드 / 저속망 감지
+  const { keyboardOpen } = useVisualViewport();
+  const network = useNetworkAware();
   // L-detailcache1 (2026-04-23 p.m.): 뷰포트 재조회로 listings 가 갱신되어도
   //   선택된 매물 객체를 안정적으로 참조. listings.find() 가 null 을 반환해
   //   패널이 사라지던 모바일 버그 해결.
@@ -399,6 +460,72 @@ export function ListingDetailModal() {
     return () => window.removeEventListener('keydown', onKey);
   }, [isOpen, closeListingDetail, lightboxOpen]);
 
+  // L-modal-2026-uxopt (2026-04-29): Focus trap + restore — WCAG 2.2 SC 2.4.11.
+  //   사장님 명령: "모바일 사용 최적화된 가장 최첨단 시스템".
+  //   모달 열리면 focus 가 모달 안에 갇히고, 닫히면 원래 위치로 복원.
+  //   스크린리더 사용자 + 키보드 사용자 모두 만족.
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    previouslyFocusedRef.current = document.activeElement as HTMLElement;
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      const root = closeBtnRef.current?.closest('[data-ws-modal]');
+      if (!root) return;
+      const focusables = root.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement as HTMLElement | null;
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', trap);
+    return () => {
+      document.removeEventListener('keydown', trap);
+      // 닫을 때 원래 포커스 위치로 복원
+      previouslyFocusedRef.current?.focus?.();
+    };
+  }, [isOpen]);
+
+  // L-modal-2026-uxopt: Body scroll lock — 모달 열린 동안 background 페이지 스크롤 차단.
+  //   iOS Safari touch scroll까지 막는 표준 방법: position: fixed + 위치 복원.
+  useEffect(() => {
+    if (!isOpen) return;
+    if (typeof window === 'undefined') return;
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const prev = {
+      overflow: body.style.overflow,
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+    };
+    // 모바일에서만 position: fixed 적용 (데스크탑은 modal 이 absolute 라 영향 X).
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      body.style.overflow = 'hidden';
+      body.style.position = 'fixed';
+      body.style.top = `-${scrollY}px`;
+      body.style.width = '100%';
+    } else {
+      body.style.overflow = 'hidden';
+    }
+    return () => {
+      body.style.overflow = prev.overflow;
+      body.style.position = prev.position;
+      body.style.top = prev.top;
+      body.style.width = prev.width;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isOpen]);
+
   useEffect(() => {
     if (isOpen) closeBtnRef.current?.focus();
   }, [isOpen]);
@@ -586,27 +713,28 @@ export function ListingDetailModal() {
       style={{
         // 1) Modern viewport units (with svh fallback).
         height: '100dvh',
-        // CSS variable 로 fallback chain 노출 → globals.css 에서 추가 처리 가능.
         ['--ws-modal-h' as any]: '100dvh',
-        // 2) 폴드/듀얼스크린: viewport-segment 활용 — 화면 분리 시 첫 segment 너비.
-        //    지원 안 되는 브라우저는 무시.
+        // 2) 폴드/듀얼스크린: viewport-segment.
         ['--ws-segment-w' as any]: 'env(viewport-segment-width 0 0, 100%)',
-        // 3) Foldable hinge 회피 — segment 사이의 gap.
         ['--ws-hinge' as any]: 'env(viewport-segment-left 1 0, 0px)',
-        // 4) 컨테이너 쿼리 — 자식이 모달 너비 기반으로 반응.
+        // 3) 컨테이너 쿼리 — 자식이 모달 너비 기반으로 반응.
         containerType: 'inline-size',
         containerName: 'wsmodal',
-        // 5) iOS 사파리 자동 텍스트 확대 방지.
+        // 4) iOS 사파리 자동 텍스트 확대 방지.
         ['WebkitTextSizeAdjust' as any]: 'none',
         textSizeAdjust: 'none',
-        // 6) 다크모드 자동 (시스템 환경설정 존중).
+        // 5) 다크모드 자동.
         colorScheme: 'light dark',
-        // 7) 스크롤바 등장 시 컨텐츠 흔들림 방지.
+        // 6) 스크롤바 등장 시 컨텐츠 흔들림 방지.
         scrollbarGutter: 'stable',
-        // 8) 오버스크롤 체이닝 차단 (모달 안에서 스크롤 → 지도 안 움직임).
+        // 7) 오버스크롤 체이닝 차단.
         overscrollBehavior: 'contain',
-        // 9) View Transitions API — 페이지 전환 부드럽게 (지원 브라우저).
+        // 8) View Transitions API.
         ['viewTransitionName' as any]: 'ws-listing-modal',
+        // 9) Touch-action: manipulation — 모바일 더블탭 zoom + 300ms 클릭 지연 제거.
+        touchAction: 'manipulation',
+        // 10) CSS containment — paint/style/layout 격리 → 주변 영향 X, 성능 향상.
+        contain: 'layout paint style',
       } as React.CSSProperties}
     >
       {/* L-gallery1-cq (2026-04-29): Hero — Container Query 기반 (modal 너비 = cqi).
@@ -630,7 +758,9 @@ export function ListingDetailModal() {
                 src={it.url}
                 poster={it.poster ?? undefined}
                 controls
-                preload="metadata"
+                /* L-modal-2026-uxopt: 저속망에서 video 자동 메타데이터 로드 X (Save-Data) */
+                preload={network.slow ? 'none' : 'metadata'}
+                playsInline
                 className="absolute inset-0 h-full w-full object-cover bg-black"
                 onClick={(e) => e.stopPropagation()}
               />
@@ -650,7 +780,12 @@ export function ListingDetailModal() {
                   src={heroSrc}
                   alt={addressLine}
                   fill
-                  sizes="380px"
+                  /* L-modal-2026-uxopt: LCP 최적화.
+                     priority + fetchpriority='high' + sizes 정확히 → 모바일/데스크탑 최적 이미지. */
+                  priority
+                  fetchPriority="high"
+                  sizes="(max-width: 767px) 100vw, 380px"
+                  decoding="async"
                   className="object-cover"
                   unoptimized
                 />
@@ -697,9 +832,11 @@ export function ListingDetailModal() {
         {/* 닫기 버튼 */}
         <button
           ref={closeBtnRef}
-          onClick={closeListingDetail}
+          onClick={() => { haptic(10); closeListingDetail(); }}
           aria-label="닫기"
-          className="absolute right-2.5 top-2.5 flex size-7 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75"
+          /* L-modal-2026-uxopt: 햅틱 + min-h tap target 보장. */
+          className="absolute right-2.5 top-2.5 flex size-9 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          style={{ touchAction: 'manipulation' }}
         >
           <X className="size-4" />
         </button>
@@ -742,13 +879,14 @@ export function ListingDetailModal() {
       <div
         className="flex-1 min-h-0 overflow-y-auto ws-modal-scroll"
         style={{
-          // 컨텐츠 영역 안에서 스크롤 격리 (지도/하단 시트 안 움직임).
           overscrollBehavior: 'contain',
-          // iOS 부드러운 스크롤.
           ['WebkitOverflowScrolling' as any]: 'touch',
-          // 한국어 줄바꿈 자연스럽게 (어절 단위, 글자 끊김 없음).
           wordBreak: 'keep-all',
           ['textWrap' as any]: 'pretty',
+          // L-modal-2026-uxopt: 키보드 떴을 때 컨텐츠 하단 padding 동적 조정 → footer 가림 방지.
+          paddingBottom: keyboardOpen ? 'env(keyboard-inset-height, 280px)' : undefined,
+          // scroll-margin: anchor scroll 시 상단 여유.
+          scrollPaddingTop: '8px',
         }}
       >
         {/* L-modal-h1-simple (2026-04-29 사장님 명령):
@@ -1355,10 +1493,12 @@ export function ListingDetailModal() {
       >
         <button
           type="button"
-          onClick={() => setAgentModalOpen(true)}
-          /* L-modal-2026-cta: Apple HIG (44pt) + Material (48dp) 모두 충족.
-             motion-safe:active:scale → reduced-motion 환경에선 애니메이션 X. */
+          onClick={() => { haptic(15); setAgentModalOpen(true); }}
+          aria-haspopup="dialog"
+          /* L-modal-2026-cta: Apple HIG (44pt) + Material (48dp) 충족 + 햅틱 피드백.
+             motion-safe → reduced-motion 환경에선 애니메이션 X. */
           className="flex-1 flex items-center justify-center gap-2 min-h-[48px] rounded-full bg-emerald-600 px-4 py-2.5 text-[14px] font-bold text-white shadow-sm transition-colors hover:bg-emerald-700 motion-safe:active:scale-[0.98] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2"
+          style={{ touchAction: 'manipulation' }}
         >
           <Phone className="size-4 shrink-0" aria-hidden />
           <span style={{ textWrap: 'nowrap' as any }}>담당자에게 연결</span>

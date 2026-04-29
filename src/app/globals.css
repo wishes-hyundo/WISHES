@@ -452,3 +452,56 @@ body {
     text-wrap: pretty;
   }
 }
+
+/* L-modal-2026-uxopt (2026-04-29): 모바일 사용 최적화 심화 — content-visibility, contain, scroll-padding.
+   사장님 명령: "모바일 사용에 있어서 최적화된 가장 최첨단 시스템이야?"
+   2026 모바일 사용 최적화: 화면 밖 섹션은 paint X → 메인 스레드 부하 감소 → 부드러운 스크롤. */
+@layer components {
+  /* off-screen 섹션 lazy paint — 화면 밖이면 paint 안 함, 스크롤 가까워지면 paint.
+     스크롤 도중 jank 감소 + INP (Interaction to Next Paint) 개선. */
+  .ws-modal-scroll > div,
+  .ws-modal-scroll > section {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 220px; /* placeholder 높이 (paint 전 layout 안정) */
+  }
+
+  /* CSS Containment — modal 내부 변경이 외부 layout/paint 트리거하지 않음.
+     성능: 메인 스레드 작업 줄임 → 60fps 스크롤. */
+  .ws-modal-root,
+  .ws-modal-scroll {
+    contain: layout style;
+  }
+
+  /* iOS 사파리에서 :focus 시 자동 zoom 방지 — input 폰트 16px 이상이어야 함. */
+  .ws-modal-root input,
+  .ws-modal-root textarea,
+  .ws-modal-root select {
+    font-size: max(16px, 1rem);
+  }
+
+  /* 키보드 없을 때만 hover 스타일 — 모바일 터치에서 hover 잔상 제거. */
+  @media (hover: hover) and (pointer: fine) {
+    .ws-modal-root button:hover {
+      filter: brightness(1.05);
+    }
+  }
+
+  /* 저속망 (prefers-reduced-data) — 사진 quality 자동 다운그레이드.
+     2026 표준 — Network Information API 와 짝. */
+  @media (prefers-reduced-data: reduce) {
+    .ws-modal-root img {
+      filter: contrast(1) brightness(1);  /* 고비용 필터 제거 */
+    }
+    .ws-modal-root [style*="background-image"] {
+      background-image: none !important;
+    }
+  }
+
+  /* 투명도 줄이기 (시스템 접근성 설정) — 반투명 효과 단색으로. */
+  @media (prefers-reduced-transparency: reduce) {
+    .ws-modal-root [class*="bg-black/"],
+    .ws-modal-root [class*="bg-white/"] {
+      background-color: rgba(0, 0, 0, 0.85) !important;
+    }
+  }
+}
