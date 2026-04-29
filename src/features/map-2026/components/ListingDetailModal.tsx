@@ -296,6 +296,9 @@ export function ListingDetailModal() {
   //   크롤링 차단 + self-hosted 만 통과). 자체 업로드 이미지 여러 장 넘겨봄.
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
+  // L-listings-merge9-3a (2026-04-29 사장님 명령): 영상 갤러리 데이터 준비.
+  //   3a 단계에서는 fetch 만 하고 UI 변경 X. 3b 에서 hero 분기 추가.
+  const [galleryVideos, setGalleryVideos] = useState<Array<{ url: string; poster: string | null }>>([]);
   // L-lightbox1 (2026-04-23 p.m.): 사진 크게 보기 (풀스크린 라이트박스)
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
@@ -388,6 +391,7 @@ export function ListingDetailModal() {
   useEffect(() => {
     if (listingId == null) {
       setGalleryImages([]);
+      setGalleryVideos([]);
       setGalleryIndex(0);
       return;
     }
@@ -403,6 +407,17 @@ export function ListingDetailModal() {
         setGalleryImages(urls);
       })
       .catch(() => { /* 폴백 — thumbnail_url 만 사용 */ });
+    // L-listings-merge9-3a (2026-04-29): 영상도 별도 fetch (병렬). UI 변경 0.
+    fetch(`/api/listings/${listingId}/videos`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((json) => {
+        if (cancelled || !json?.data) return;
+        const items = (json.data as Array<{ url: string; poster_url?: string | null }>)
+          .map((v) => ({ url: v.url, poster: v.poster_url ?? null }))
+          .filter((v) => !!v.url);
+        setGalleryVideos(items);
+      })
+      .catch(() => { /* 폴백 — 영상 없음 */ });
     return () => { cancelled = true; };
   }, [listingId]);
 
