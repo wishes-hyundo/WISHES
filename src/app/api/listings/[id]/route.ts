@@ -155,17 +155,26 @@ export async function GET(
       unit_ho: string | null;
       unit_floor: string | null;
     } | null = null;
+    // L-bldg-purpose (2026-04-29 사장님 명령): 표제부 (raw_data.buildingData) 정보를
+    //   항상 조회 — building_ho 없는 매물(원룸/단독/일반룸 등)도 주용도/단지명 노출.
+    //   사장님: "뜬금없이 신림동 4/16층 나오지 말고 주용도가 나와야지"
+    let buildingTitleEnrich: {
+      buildingPurpose: string | null;
+      buildingName: string | null;
+      totalFloors: number | null;
+      approvalDate: string | null;
+    } | null = null;
     try {
       const reqDong = String((listing as any).building_dong || '').trim();
       const reqHo = String((listing as any).building_ho || '').trim();
       const addr = String((listing as any).address || '').trim();
-      if (reqHo && addr) {
+      if (addr) {
         const r = await quickResolve(addr);
         if (r) {
           // 1.5s 타임아웃 — cache 는 ms 단위 응답이므로 충분.
           const cacheLookup = supabase
             .from('building_registry_cache')
-            .select('units_data, fetched_at')
+            .select('units_data, raw_data, fetched_at')
             .eq('sigungu_cd', r.sigunguCd)
             .eq('bjdong_cd', r.bjdongCd)
             .eq('bun', r.bun)
@@ -175,8 +184,9 @@ export async function GET(
           const { data: cached } = (await Promise.race([
             cacheLookup,
             new Promise((_, rej) => setTimeout(() => rej(new Error('cache_timeout')), 1500)),
-          ])) as { data: CachedRow | null };
-          if (cached?.units_data && Array.isArray(cached.units_data)) {
+          ])) as { data: (CachedRow & { raw_data?: any }) | null };
+          // 1) units_data 가 있고 building_ho 매칭 가능하면 unit-level enrich
+          if (reqHo && cached?.units_data && Array.isArray(cached.units_data)) {
             const sel = findUnit(cached.units_data as UnitRow[], reqDong, reqHo);
             if (sel) {
               unitEnrich = {
@@ -189,11 +199,21 @@ export async function GET(
               };
             }
           }
+          // 2) raw_data.buildingData — 건물 표제부 (주용도/단지명/총층/사용승인) 항상 사용 가능.
+          const bd = cached?.raw_data?.buildingData;
+          if (bd && typeof bd === 'object') {
+            buildingTitleEnrich = {
+              buildingPurpose: bd.buildingPurpose || bd.mainPurpose || null,
+              buildingName: bd.buildingName || null,
+              totalFloors: bd.totalFloors ? parseInt(String(bd.totalFloors), 10) || null : null,
+              approvalDate: bd.approvalDate || null,
+            };
+          }
         }
       }
     } catch (e) {
-      // enrich 실패해도 매물 응답엔 영향 X — 전유부 row 만 사라짐.
-      console.warn('[listings/[id]] unit enrich skipped:', (e as Error).message);
+      // enrich 실패해도 매물 응답엔 영향 X.
+      console.warn('[listings/[id]] enrich skipped:', (e as Error).message);
     }
 
     // 고객용 응답: 크롤링 원본 description 제외, ai_description만 노출
@@ -235,6 +255,23 @@ export async function GET(
       area_common_m2_resolved: unitEnrich?.common_area_m2 ?? rfCommon ?? null,
       area_total_m2_resolved: unitEnrich?.total_area_m2 ?? rfTotal ?? null,
     };
+    // L-bldg-purpose: 주용도/단지명/총층 resolved — DB 컬럼 → 표제부 캐시
+    const buildingPurposeResolved =
+      ((listing as any).building_purpose || '').trim() ||
+      buildingTitleEnrich?.buildingPurpose ||
+      null;
+    const buildingNameResolved =
+      ((listing as any).building_name || '').trim() ||
+      buildingTitleEnrich?.buildingName ||
+      null;
+    const floorTotalResolved =
+      ((listing as any).floor_total != null && (listing as any).floor_total !== '')
+        ? (listing as any).floor_total
+        : (buildingTitleEnrich?.totalFloors ?? null);
+    const usageApprovedResolved =
+      ((listing as any).usage_approved || '').trim() ||
+      buildingTitleEnrich?.approvalDate ||
+      null;
 
     const { description: _rawDesc, ...rest } = listing as Record<string, unknown>;
     const publicListing = sanitizePublicListing(stripInternalFields(rest));
@@ -246,6 +283,11 @@ export async function GET(
         ...rawExtract,
         ...(unitEnrich || {}),
         ...areaResolved,
+        // L-bldg-purpose (2026-04-29): 표제부 resolved 필드 (모달 H1 등)
+        building_purpose_resolved: buildingPurposeResolved,
+        building_name_resolved: buildingNameResolved,
+        floor_total_resolved: floorTotalResolved,
+        usage_approved_resolved: usageApprovedResolved,
         images: images || [],
         features: features?.map((f: any) => f.feature) || [],
       },

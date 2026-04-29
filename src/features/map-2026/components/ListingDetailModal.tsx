@@ -100,17 +100,25 @@ function floorPosition(cur: string | null | undefined, total: string | null | un
 }
 // L-modal-h1 (2026-04-29): listing.type 제거. 사장님 명령:
 //   "건축물대장 주용도(아파트)와 listing.type(원룸) 둘 다 정확하지 않으니 제거"
+//   "뜬금없이 신림동 4/16층 나오지 말고 주용도가 나와야지"
 //   우선순위: 1) 단지명+주용도 → 2) 주용도 → 3) 단지명 → 4) 동·층 → 5) "매물"
+//   ※ 비로그인 사용자는 viewport API 가 building_name 을 마스킹해 listing 에 없을 수 있음.
+//     /api/listings/[id] 응답(detailExtra)에는 building_name 이 채워져 오므로
+//     buildingNameFromExtra 인자를 추가로 받아 우선 사용.
 function formatPropertyHeading(
   listing: MapListing,
   fallbackFloorLabel: string | null,
   buildingPurposeFromExtra?: string | null,
+  buildingNameFromExtra?: string | null,
 ): string {
   const purpose = (
     (buildingPurposeFromExtra && String(buildingPurposeFromExtra).trim()) ||
     ((listing as any).building_purpose?.trim?.() || '')
   ) || null;
-  const buildingName = (listing as any).building_name?.trim?.() || null;
+  const buildingName = (
+    (buildingNameFromExtra && String(buildingNameFromExtra).trim()) ||
+    ((listing as any).building_name?.trim?.() || '')
+  ) || null;
 
   if (buildingName && purpose) {
     return fallbackFloorLabel
@@ -322,6 +330,13 @@ export function ListingDetailModal() {
     area_total_m2_resolved: number | null;
     // L-modal-h1 (2026-04-29): 건축물대장 주용도 (DB 컬럼 또는 정부 캐시 fallback)
     building_purpose_resolved: string | null;
+    // L-modal-h1 (2026-04-29 사장님 명령): viewport API 가 비로그인에 building_name 을
+    //   마스킹하므로 detailExtra(/api/listings/[id]) 의 값을 H1 fallback 으로 사용.
+    building_name: string | null;
+    // L-bldg-purpose (2026-04-29): 표제부(건축물대장) resolved fallback
+    building_name_resolved: string | null;
+    floor_total_resolved: number | string | null;
+    usage_approved_resolved: string | null;
     common_area_m2: number | null;
     total_area_m2: number | null;
     unit_floor: string | null;
@@ -433,6 +448,11 @@ export function ListingDetailModal() {
           area_common_m2_resolved: typeof d.area_common_m2_resolved === 'number' && d.area_common_m2_resolved > 0 ? d.area_common_m2_resolved : null,
           area_total_m2_resolved: typeof d.area_total_m2_resolved === 'number' && d.area_total_m2_resolved > 0 ? d.area_total_m2_resolved : null,
           building_purpose_resolved: d.building_purpose_resolved || null,
+          building_name: d.building_name || null,
+          // L-bldg-purpose (2026-04-29): 표제부 resolved fallback
+          building_name_resolved: d.building_name_resolved || null,
+          floor_total_resolved: d.floor_total_resolved ?? null,
+          usage_approved_resolved: d.usage_approved_resolved || null,
           common_area_m2: (typeof d.common_area_m2 === 'number' ? d.common_area_m2 : null),
           total_area_m2: (typeof d.total_area_m2 === 'number' ? d.total_area_m2 : null),
           unit_floor: d.unit_floor || null,
@@ -613,7 +633,7 @@ export function ListingDetailModal() {
         <div className="border-b border-neutral-100 px-4 pb-3 pt-4">
           <div className="flex items-center justify-between gap-2">
             <h1 className="text-[18px] font-bold leading-tight text-neutral-900">
-              {formatPropertyHeading(listing, floorLabel, detailExtra?.building_purpose_resolved || detailExtra?.building_purpose)}
+              {formatPropertyHeading(listing, floorLabel, detailExtra?.building_purpose_resolved || detailExtra?.building_purpose, detailExtra?.building_name_resolved || detailExtra?.building_name)}
             </h1>
             {/* L-listing-id-bottom (2026-04-29 사장님 명령): 매물번호 footer 로 이동 — 여기서 제거 */}
           </div>
