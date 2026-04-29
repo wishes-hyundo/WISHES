@@ -700,11 +700,8 @@ export function ListingDetailModal() {
               <span className="tabular-nums">{listing.id}</span>
             </span>
           </div>
-          {/* L-modal-h1-simple: 주소 = address(원본 그대로). listing.title 은 부정확한 광고 문구가 섞여 있어 제거. */}
-          <div className="mt-1 flex items-center gap-1 text-[12px] text-neutral-500">
-            <MapPin className="size-3 shrink-0" aria-hidden />
-            <span className="line-clamp-2">{(listing as any).address || addressLine}</span>
-          </div>
+          {/* L-modal-addr-hide (2026-04-29 사장님 명령): 헤더 주소 라인 삭제 — 노출 자체를 차단.
+              "금액위에 주소가 노출되는거니 이것도 삭제해". 매물 위치 미니맵에 좌표만 표시. */}
           <div className="mt-3 flex items-baseline gap-1.5">
             <span className="text-[22px] font-extrabold leading-tight text-neutral-900">
               {formatDealLabel(listing)}
@@ -835,7 +832,7 @@ export function ListingDetailModal() {
             </>
             {/* L-purpose-split (2026-04-29 사장님 명령): 매물 정보의 "건축물 용도" 는 표제부 기준
                 (예: 공동주택). H1 의 전유부 주용도(예: 아파트)와 별개. */}
-            <Row label="건축물 용도 (주용도)" value={detailExtra?.title_purpose_resolved ?? (listing as any).building_purpose} />
+            <Row label="건축물 용도" value={detailExtra?.title_purpose_resolved ?? (listing as any).building_purpose} />
             {/* L-modal-clean (2026-04-29 사장님 명령): 전유부 Row 완전 제거 — 위 메트릭카드의 "전용/공급"과 중복. */}
             {detailExtra?.illegal_building === false && (
               <>
@@ -1016,22 +1013,7 @@ export function ListingDetailModal() {
           );
         })()}
 
-        {/* L-modal-meta (2026-04-24): 메타 footer — 최초등록·최근확인·조회수
-            사장님 명령: 매물번호는 헤더 우측 끝 #뱃지에 이미 노출, 여기서 제거.
-            최초등록은 최하단(여기) 유지. */}
-        <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px] text-neutral-400">
-          {detailExtra?.created_at && (
-            <span>최초등록 <span className="text-neutral-500">{new Date(detailExtra.created_at).toLocaleDateString('ko-KR')}</span></span>
-          )}
-          {detailExtra?.last_verified_at && (() => {
-            const days = Math.floor((Date.now() - new Date(detailExtra.last_verified_at).getTime()) / (24*60*60*1000));
-            const label = days <= 0 ? '오늘' : `${days}일 전`;
-            return <span>최근확인 <span className="text-neutral-500">{label}</span></span>;
-          })()}
-          {typeof detailExtra?.views === 'number' && detailExtra.views > 0 && (
-            <span>조회 <span className="text-neutral-500">{detailExtra.views.toLocaleString('ko-KR')}회</span></span>
-          )}
-        </div>
+        {/* L-modal-meta-bottom (2026-04-29 사장님 명령): 최초등록은 진짜 최하단으로 이동 → 추천매물 다음. */}
 
       {/* L-listings-merge4 (2026-04-29 사장님 명령): 본문 끝 위→아래 1-10-2-5 */}
 
@@ -1185,6 +1167,22 @@ export function ListingDetailModal() {
           </div>
         </div>
       )}
+
+      {/* L-modal-meta-bottom (2026-04-29 사장님 명령): 최초등록 / 최근확인 / 조회수 — 모달 진짜 최하단.
+          사장님: "계속 말했지만 최초등록 이거 최하단으로 내려" — 추천매물 다음, 담당자 연결 직전. */}
+      <div className="px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10.5px] text-neutral-400 border-t border-neutral-100">
+        {detailExtra?.created_at && (
+          <span>최초등록 <span className="text-neutral-500">{new Date(detailExtra.created_at).toLocaleDateString('ko-KR')}</span></span>
+        )}
+        {detailExtra?.last_verified_at && (() => {
+          const days = Math.floor((Date.now() - new Date(detailExtra.last_verified_at).getTime()) / (24*60*60*1000));
+          const label = days <= 0 ? '오늘' : `${days}일 전`;
+          return <span>최근확인 <span className="text-neutral-500">{label}</span></span>;
+        })()}
+        {typeof detailExtra?.views === 'number' && detailExtra.views > 0 && (
+          <span>조회 <span className="text-neutral-500">{detailExtra.views.toLocaleString('ko-KR')}회</span></span>
+        )}
+      </div>
       </div>
 
       {/* L-lightbox2 (2026-04-23 p.m.): 풀스크린 사진 뷰어를 Portal 로 document.body 루트에 렌더.
