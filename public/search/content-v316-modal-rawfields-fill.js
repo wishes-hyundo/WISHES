@@ -119,7 +119,15 @@
     var rf = getRaw();
     if (!rf) return;
     var info2 = modal.querySelector('.v240-info2');
-    if (!info2 || info2.dataset.v316done === '1') return;
+    if (!info2) return;
+    // L-lid-marker (2026-04-29): 매물 ID 별 마커 — 매물 변경 시 다시 채움
+    var L = window.WS && window.WS.__lastListing;
+    var lid = (L && L.id) ? String(L.id) : '';
+    if (info2.dataset.v316lid === lid) return;
+    info2.dataset.v316lid = lid;
+    // 이전 v316 추가 row 제거 (매물 변경 시 stale 데이터 방지)
+    var oldUnitRow = info2.querySelector('.v316-unit-row');
+    if (oldUnitRow && oldUnitRow.parentNode) oldUnitRow.parentNode.removeChild(oldUnitRow);
 
     var filled = 0;
     var rows = info2.querySelectorAll('.v240-r');
@@ -193,7 +201,6 @@
       }
     }
 
-    info2.dataset.v316done = '1';
   }
 
   function applyAll() {

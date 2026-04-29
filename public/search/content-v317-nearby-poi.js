@@ -70,7 +70,7 @@
 
   function renderSection(modal, data) {
     if (!data || (!data.subway && !data.bus)) return;
-    if (modal.querySelector('.v317-poi-sec')) return;
+    // 중복 체크 제거 — applyAll 이 매물 변경 시 옛 섹션 이미 제거
 
     var sec = document.createElement('section');
     sec.className = 'v240-section v317-poi-sec';
@@ -131,10 +131,17 @@
                   document.querySelector('.ws-detail-container') ||
                   document.querySelector('[id^="ws-detail-modal"]') ||
                   document.querySelector('#ws-detail-content');
-      if (!modal || modal.dataset.v317done === '1') return;
+      if (!modal) return;
       var ll = getLatLng();
       if (!ll) return;
-      modal.dataset.v317done = '1';
+      // L-lid-marker (2026-04-29): 매물 ID 별 마커 — ID 변경 시 섹션 새로 갱신.
+      var L = window.WS && window.WS.__lastListing;
+      var lid = (L && L.id) ? String(L.id) : (ll.lat + ',' + ll.lng);
+      if (modal.dataset.v317lid === lid) return;
+      // 옛날 섹션 제거 후 새로 추가 (매물 변경 시 갱신)
+      var oldSec = modal.querySelector('.v317-poi-sec');
+      if (oldSec && oldSec.parentNode) oldSec.parentNode.removeChild(oldSec);
+      modal.dataset.v317lid = lid;
       fetchNearby(ll.lat, ll.lng).then(function (data) {
         if (data) renderSection(modal, data);
       });
