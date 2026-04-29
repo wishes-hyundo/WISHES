@@ -15,7 +15,10 @@ import { maskAddressForPublic } from '@/lib/publicAddress';
 import { isSelfHostedImage } from '@/lib/image-policy';
 import type { DealType, MapListing } from '@/features/map-2026/store';
 
-export const dynamic = 'force-dynamic';
+// L-perf-2 (2026-04-29 사장님 명령): force-dynamic 제거 → Edge cache 적용 가능.
+//   searchParams + Authorization 사용으로 자동 dynamic — 동일 동작.
+//   응답 Cache-Control 헤더로 Edge cache 제어.
+// export const dynamic = 'force-dynamic'; — 제거됨
 // L-viewport4 (2026-04-24 pm): 10s 기본값으로 timeout — 뷰포트 내 매물 다수 + 카테고리
 //   count 4회 병렬 + 차단 이미지 복원까지 합쳐 종종 10s 초과 → FUNCTION_INVOCATION_TIMEOUT 504.
 //   maxDuration=30 으로 상향하면서 아래 쿼리도 병렬화 · count 는 planned(근사) 집계.
@@ -627,7 +630,13 @@ export async function GET(req: NextRequest) {
       { listings, counts },
       {
         headers: {
-          'Cache-Control': 'public, max-age=30, stale-while-revalidate=60',
+          // L-perf-2 (2026-04-29): Edge cache 강화. UI 영향 0.
+          //   - max-age=30: 브라우저 30초 (사용자 동작 동일)
+          //   - s-maxage=60: Vercel CDN 60초 → 같은 bbox+filter 재방문 0ms
+          //   - stale-while-revalidate=300: 60s 후 5분간 stale 반환 + bg 갱신
+          //   - Vary: Authorization → 로그인/비로그인 각각 별도 cache (privacy 일관)
+          'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+          'Vary': 'Authorization',
         },
       }
     );
