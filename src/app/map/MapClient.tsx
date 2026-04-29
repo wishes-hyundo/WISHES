@@ -358,7 +358,10 @@ export default function MapClient() {
     //   FilterModal 은 카테고리 탭 클릭 시 오픈 — 루트에 별도 마운트하여
     //   grid track 에 영향 주지 않음 (position: fixed).
     <div className="grid h-full grid-rows-[auto_auto_auto_minmax(0,1fr)]">
-      <header className="flex items-center gap-3 border-b border-neutral-100 bg-white px-4 py-2">
+      <header
+        className="flex items-center gap-1.5 sm:gap-3 border-b border-neutral-100 bg-white px-2 sm:px-4 py-2 min-w-0 overflow-hidden"
+        style={{ paddingLeft: 'max(8px, env(safe-area-inset-left, 8px))', paddingRight: 'max(8px, env(safe-area-inset-right, 8px))' }}
+      >
         <Brand />
         <NlSearchBar />
         <TopRightActions />
@@ -519,19 +522,19 @@ function TopRightActions() {
       user.email?.split('@')[0] ||
       '회원';
     return (
-      <div className="ml-auto flex items-center gap-2 shrink-0">
+      <div className="ml-auto flex items-center gap-1.5 shrink-0">
         <Link
           href="/contact"
-          className="inline-flex items-center rounded-full bg-emerald-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white shadow-sm hover:bg-emerald-700"
+          className="inline-flex items-center rounded-full bg-emerald-600 px-2.5 sm:px-3.5 py-1.5 text-[11.5px] sm:text-[12.5px] font-semibold text-white shadow-sm hover:bg-emerald-700 whitespace-nowrap"
         >
           매물내놓기
         </Link>
-        <span className="hidden text-[12.5px] text-neutral-700 sm:inline">
+        <span className="hidden text-[12.5px] text-neutral-700 lg:inline">
           {name}님
         </span>
         <button
           onClick={signOut}
-          className="px-2 py-1 text-[12px] text-neutral-500 hover:text-neutral-900"
+          className="px-1.5 sm:px-2 py-1 text-[11.5px] sm:text-[12px] text-neutral-500 hover:text-neutral-900 whitespace-nowrap"
         >
           로그아웃
         </button>
@@ -542,13 +545,14 @@ function TopRightActions() {
     <div className="ml-auto flex items-center gap-1 shrink-0">
       <Link
         href="/contact"
-        className="inline-flex items-center rounded-full bg-emerald-600 px-3.5 py-1.5 text-[12.5px] font-semibold text-white shadow-sm hover:bg-emerald-700"
+        className="inline-flex items-center rounded-full bg-emerald-600 px-2.5 sm:px-3.5 py-1.5 text-[11.5px] sm:text-[12.5px] font-semibold text-white shadow-sm hover:bg-emerald-700 whitespace-nowrap"
       >
         매물내놓기
       </Link>
       <button
         onClick={() => setShowAuthModal(true)}
-        className="inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12.5px] font-medium text-neutral-700 hover:bg-neutral-100"
+        className="inline-flex items-center gap-1 rounded-full px-2 sm:px-3 py-1.5 text-[11.5px] sm:text-[12.5px] font-medium text-neutral-700 hover:bg-neutral-100 whitespace-nowrap"
+        aria-label="로그인 또는 회원가입"
       >
         <LogIn className="size-3.5" />
         <span className="hidden sm:inline">로그인/회원가입</span>

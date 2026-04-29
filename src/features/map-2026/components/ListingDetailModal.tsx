@@ -952,10 +952,12 @@ export function ListingDetailModal() {
       }}
       className={[
         'ws-modal-root',
-        'fixed inset-0 md:absolute md:left-0 md:top-0 md:inset-auto',
-        'z-40 md:z-30',
+        // L-modal-fix-fold (2026-04-29 사장님 명령): "폴드7 펼쳤을 때 담당자 연결/공유 안 보임"
+        // 모든 viewport 에서 fixed — 부모 박스 무관하게 viewport 기준 정확한 height 보장.
+        // 데스크탑에서 좌측 380px 만 차지 (지도 우측 영역은 그대로 보임).
+        'fixed left-0 top-0 z-40 md:z-30',
         'flex flex-col',
-        'w-full max-w-full md:w-[380px] md:max-w-[85%]',
+        'w-full md:w-[380px]',
         'overflow-hidden bg-white shadow-2xl md:border-r md:border-neutral-200',
       ].join(' ')}
       style={{
