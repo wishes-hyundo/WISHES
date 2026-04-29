@@ -35,21 +35,10 @@ export default async function Briefing(props: { params: Promise<{ id: string }> 
     return <div style={{ padding: 40 }}>잘못된 매물 ID</div>;
   }
 
-  // L-fix-error-handling (2026-04-28): supabase 에러 catch + 사용자 친화 메시지
-  let l: ListingRow | null = null;
-  try {
-    const supabase = createServerClient();
-    const { data, error } = await supabase.from('listings').select('*').eq('id', Number(id)).maybeSingle();
-    if (error) {
-      console.error('[briefing] supabase error:', error.message);
-      return <div style={{ padding: 40, color: '#dc2626' }}>매물 조회 실패. 잠시 후 다시 시도해주세요.</div>;
-    }
-    l = data as ListingRow | null;
-  } catch (e: any) {
-    console.error('[briefing] DB 연결 실패:', e?.message);
-    return <div style={{ padding: 40, color: '#dc2626' }}>서버 연결 실패. 관리자에게 문의해주세요.</div>;
-  }
-  if (!l) return <div style={{ padding: 40 }}>매물 없음 (ID: {id})</div>;
+  const supabase = createServerClient();
+  const { data } = await supabase.from('listings').select('*').eq('id', Number(id)).maybeSingle();
+  const l = data as ListingRow | null;
+  if (!l) return <div style={{ padding: 40 }}>매물 없음</div>;
 
   const pyeong = l.area_m2 ? Math.round((l.area_m2 / 3.305) * 10) / 10 : null;
   const priceLabel = l.deal === '월세'

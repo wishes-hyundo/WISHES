@@ -83,26 +83,14 @@ function TrustGauge({ avg, high, low, total }: { avg: number; high: number; low:
 export default async function AutomationStatus() {
   const supabase = createServerClient();
 
-  // L-fix-stability (2026-04-28): Promise.all 일부 실패 시 dashboard crash 방지
-  //   각 RPC try/catch wrap → 일부 실패해도 dashboard 정상 렌더 (사장님 매일 봄)
-  const safeRpc = async (name: string, params?: any) => {
-    try {
-      return params ? await supabase.rpc(name, params) : await supabase.rpc(name);
-    } catch (e) { console.warn('[automation-status] rpc fail:', name, e); return { data: null, error: e }; }
-  };
-  const safeFrom = async () => {
-    try {
-      return await supabase.from('listings').select('status, trust_score, fingerprint, ai_generated_fields');
-    } catch (e) { console.warn('[automation-status] listings fail:', e); return { data: null, error: e }; }
-  };
   const [enrich, integrity, aiCost, aiHallucination, cronHealth, trend, listingStats] = await Promise.all([
-    safeRpc('korean_data_enrich_audit'),
-    safeRpc('data_integrity_audit'),
-    safeRpc('ai_cost_estimate_monthly'),
-    safeRpc('ai_hallucination_detect'),
-    safeRpc('cron_health_check'),
-    safeRpc('listings_monthly_trend', { p_months: 6 }),
-    safeFrom(),
+    supabase.rpc('korean_data_enrich_audit'),
+    supabase.rpc('data_integrity_audit'),
+    supabase.rpc('ai_cost_estimate_monthly'),
+    supabase.rpc('ai_hallucination_detect'),
+    supabase.rpc('cron_health_check'),
+    supabase.rpc('listings_monthly_trend', { p_months: 6 }),
+    supabase.from('listings').select('status, trust_score, fingerprint, ai_generated_fields'),
   ]);
 
   type ListingMini = { status: string | null; trust_score: number | null; fingerprint: string | null; ai_generated_fields: string[] | null };
