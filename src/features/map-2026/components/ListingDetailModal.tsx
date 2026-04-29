@@ -159,6 +159,50 @@ function Row({ label, value }: RowProps) {
    - useIdleRevalidation: 5분 이상 idle 후 돌아오면 데이터 자동 갱신
 */
 
+/** L-modal-2026-final ⑤ Stale-while-revalidate 캐시 (localStorage 기반).
+ *    사장님 명령: "한번 본 매물 인터넷 없어도 다시 보임".
+ *    Service Worker 보다 안전 + 간단. iOS Safari 포함 모든 브라우저 지원.
+ *    - 모달 열면 캐시 즉시 표시 (오프라인 OK)
+ *    - 백그라운드에서 네트워크 fetch → 응답 도착하면 fresh data 로 교체
+ *    - 24h TTL, hash-based key — 사용자 데이터 격리. */
+const SWR_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+const SWR_PREFIX = 'wsListingCache:v1:';
+
+function swrGet<T = any>(key: string): T | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(SWR_PREFIX + key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { ts: number; data: T };
+    if (!parsed.ts || Date.now() - parsed.ts > SWR_TTL_MS) {
+      window.localStorage.removeItem(SWR_PREFIX + key);
+      return null;
+    }
+    return parsed.data;
+  } catch {
+    return null;
+  }
+}
+
+function swrSet<T = any>(key: string, data: T) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(SWR_PREFIX + key, JSON.stringify({ ts: Date.now(), data }));
+  } catch {
+    // localStorage quota — 가장 오래된 캐시 정리 후 재시도
+    try {
+      const keys = Object.keys(window.localStorage);
+      const ours = keys.filter(k => k.startsWith(SWR_PREFIX));
+      const sorted = ours
+        .map(k => ({ k, ts: (() => { try { return JSON.parse(window.localStorage.getItem(k) || '{}').ts || 0; } catch { return 0; } })() }))
+        .sort((a, b) => a.ts - b.ts);
+      // 가장 오래된 절반 삭제
+      sorted.slice(0, Math.ceil(sorted.length / 2)).forEach(({ k }) => window.localStorage.removeItem(k));
+      window.localStorage.setItem(SWR_PREFIX + key, JSON.stringify({ ts: Date.now(), data }));
+    } catch { /* give up */ }
+  }
+}
+
 /** ⑦ Pinch-to-zoom 사진 — 두 손가락 벌리면 확대, 모으면 축소, 더블탭으로 reset.
  *    네이티브 앱처럼 사진 디테일 (가구, 벽지) 자세히 볼 수 있음.
  *    Pointer Events 통합 (touch/mouse/pen) — 모든 입력 디바이스 지원. */
@@ -711,17 +755,29 @@ export function ListingDetailModal() {
   // L-modal-2026-endgame ⑥ Idle revalidation — 5분 idle 복귀 시 detail 재fetch.
   const idleBump = useIdleRevalidation(detailListingId != null);
 
-  // L-modal-v7 + L-modal-2026-endgame ③ AbortController:
-  //   listingId 빠르게 변경 시 이전 fetch 자동 취소 → race condition 방지.
+  // L-modal-v7 + L-modal-2026-endgame ③ AbortController + ⑤ SWR cache:
+  //   listingId 빠르게 변경 시 이전 fetch 자동 취소.
+  //   캐시에서 즉시 표시 + 백그라운드 revalidate (오프라인에서도 동작).
   useEffect(() => {
     if (listingId == null) { setDetailExtra(null); setAgentProfile(null); return; }
-    setDetailExtra(null);
-    setAgentProfile(null);
     setShowFullDesc(false);
     // 이전 요청 취소
     detailAbortRef.current?.abort();
     const ac = new AbortController();
     detailAbortRef.current = ac;
+
+    // ⑤ SWR — 캐시에서 즉시 hydrate (오프라인 OK)
+    const cacheKey = `detail:${listingId}`;
+    const cached = swrGet<any>(cacheKey);
+    if (cached?.data) {
+      // 캐시된 detailExtra 즉시 적용 (백그라운드에서 revalidate)
+      setDetailExtra(cached.detailExtra ?? null);
+      if (cached.agentProfile) setAgentProfile(cached.agentProfile);
+    } else {
+      setDetailExtra(null);
+      setAgentProfile(null);
+    }
+
     let cancelled = false;
     (async () => {
       try {
@@ -776,6 +832,11 @@ export function ListingDetailModal() {
           seo_keywords: Array.isArray(d.seo_keywords) ? d.seo_keywords : (typeof d.seo_keywords === 'string' ? d.seo_keywords.split(',').map((s: string) => s.trim()).filter(Boolean) : null),
           seo_tags: Array.isArray(d.seo_tags) ? d.seo_tags : (typeof d.seo_tags === 'string' ? d.seo_tags.split(',').map((s: string) => s.trim()).filter(Boolean) : null),
         });
+        // ⑤ SWR — 새 데이터 캐시 저장 (다음 방문/오프라인용)
+        try {
+          swrSet(cacheKey, { data: d, detailExtra: undefined /* set below */ });
+        } catch { /* noop */ }
+
         if (d.created_by && !d.source_site) {
           const ag = await fetch(`/api/agent/${d.created_by}`, { signal: ac.signal });
           if (!ag.ok) return;

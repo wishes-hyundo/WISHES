@@ -505,3 +505,36 @@ body {
     }
   }
 }
+
+/* L-modal-2026-final ④ @starting-style (2026-04-29 사장님 명령): 모달 enter 애니메이션 native.
+   "@starting-style" 은 2026 표준 CSS — JS 없이 요소가 DOM 에 mount 되는 순간의 시작 스타일 지정.
+   iOS Safari 18+, Chrome 117+, Firefox 129+ 지원. 미지원 브라우저는 즉시 등장 (graceful degradation). */
+@layer components {
+  .ws-modal-root {
+    /* 도착 후 상태 (정상) */
+    transform: translateY(0);
+    opacity: 1;
+    transition:
+      transform 280ms cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 240ms ease-out;
+  }
+  /* 시작 상태 — DOM mount 직전. @starting-style 안에 정의 */
+  @starting-style {
+    .ws-modal-root {
+      transform: translateY(16px);
+      opacity: 0;
+    }
+    @media (min-width: 768px) {
+      .ws-modal-root {
+        /* 데스크탑은 좌측에서 슬라이드 */
+        transform: translateX(-24px);
+        opacity: 0;
+      }
+    }
+  }
+  /* prefers-reduced-motion 사용자에겐 애니메이션 X (즉시 등장) */
+  @media (prefers-reduced-motion: reduce) {
+    .ws-modal-root,
+    @starting-style { .ws-modal-root { transform: none !important; opacity: 1 !important; } }
+  }
+}
