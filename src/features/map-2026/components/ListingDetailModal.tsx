@@ -858,67 +858,6 @@ export function ListingDetailModal() {
             <span>조회 <span className="text-neutral-500">{detailExtra.views.toLocaleString('ko-KR')}회</span></span>
           )}
         </div>
-      </div>
-
-      {/* L-lightbox2 (2026-04-23 p.m.): 풀스크린 사진 뷰어를 Portal 로 document.body 루트에 렌더.
-          슬라이드 패널 <aside translate-x-0> 가 fixed 를 가두는 containing block 을 만들어
-          이전엔 라이트박스가 380px 패널 영역에 갇혔음. createPortal 로 루트 렌더 → 진짜 풀스크린. */}
-      {typeof document !== 'undefined' && lightboxOpen && galleryImages.length > 0 && createPortal(
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black"
-          onClick={() => setLightboxOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="사진 크게 보기"
-        >
-          <button
-            onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
-            aria-label="닫기"
-            className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
-          >
-            <X className="size-5" />
-          </button>
-
-          {galleryImages.length > 1 && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
-                }}
-                aria-label="이전 사진"
-                className="absolute left-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
-              >
-                <ChevronLeft className="size-6" />
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setGalleryIndex((i) => (i + 1) % galleryImages.length);
-                }}
-                aria-label="다음 사진"
-                className="absolute right-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
-              >
-                <ChevronRight className="size-6" />
-              </button>
-            </>
-          )}
-
-          {/* 현재 사진 (contain 으로 비율 유지, 클릭 전파 방지) */}
-          <img
-            src={galleryImages[galleryIndex]}
-            alt={addressLine}
-            onClick={(e) => e.stopPropagation()}
-            className="max-h-[95vh] max-w-[95vw] object-contain select-none"
-          />
-
-          {/* 하단 카운터 */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-[12px] font-semibold text-white tabular-nums">
-            {galleryIndex + 1} / {galleryImages.length}
-          </div>
-        </div>,
-        document.body
-      )}
 
       {/* L-listings-merge4 (2026-04-29 사장님 명령): 본문 끝 위→아래 1-10-2-5 */}
 
@@ -1013,6 +952,67 @@ export function ListingDetailModal() {
             })}
           </div>
         </div>
+      )}
+      </div>
+
+      {/* L-lightbox2 (2026-04-23 p.m.): 풀스크린 사진 뷰어를 Portal 로 document.body 루트에 렌더.
+          슬라이드 패널 <aside translate-x-0> 가 fixed 를 가두는 containing block 을 만들어
+          이전엔 라이트박스가 380px 패널 영역에 갇혔음. createPortal 로 루트 렌더 → 진짜 풀스크린. */}
+      {typeof document !== 'undefined' && lightboxOpen && galleryImages.length > 0 && createPortal(
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black"
+          onClick={() => setLightboxOpen(false)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="사진 크게 보기"
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
+            aria-label="닫기"
+            className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
+          >
+            <X className="size-5" />
+          </button>
+
+          {galleryImages.length > 1 && (
+            <>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGalleryIndex((i) => (i - 1 + galleryImages.length) % galleryImages.length);
+                }}
+                aria-label="이전 사진"
+                className="absolute left-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
+              >
+                <ChevronLeft className="size-6" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setGalleryIndex((i) => (i + 1) % galleryImages.length);
+                }}
+                aria-label="다음 사진"
+                className="absolute right-4 top-1/2 z-10 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
+              >
+                <ChevronRight className="size-6" />
+              </button>
+            </>
+          )}
+
+          {/* 현재 사진 (contain 으로 비율 유지, 클릭 전파 방지) */}
+          <img
+            src={galleryImages[galleryIndex]}
+            alt={addressLine}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[95vh] max-w-[95vw] object-contain select-none"
+          />
+
+          {/* 하단 카운터 */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-[12px] font-semibold text-white tabular-nums">
+            {galleryIndex + 1} / {galleryImages.length}
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* L-listings-merge3 (2026-04-29): footer — 담당자 연결 (메인) + 공유 (우측 작게) */}
