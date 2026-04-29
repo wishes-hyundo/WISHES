@@ -580,6 +580,16 @@ body {
     overflow-wrap: anywhere;
   }
 
+  /* L-darkmode-input-fix (2026-04-29 사장님 명령): 폼 요소만 항상 light.
+   *   - 사장님 OS 다크모드 시 Chrome 이 <input> 등을 자동으로 검은 배경+검은 글자
+   *     로 렌더링 → 입력 칸이 통째로 까매서 글자 안 보임.
+   *   - HTML 전체 'light dark' 유지 (사장님 모바일 호환 명령) + 폼만 light 강제.
+   *   - 다른 페이지 영향 0 — input/textarea/select/button 시각만 정상화.
+   */
+  input, textarea, select, button {
+    color-scheme: light;
+  }
+
   /* iOS 사파리 :focus 자동 zoom 방지 — input 16px 이상 */
   .ws-mobile-page input,
   .ws-mobile-page textarea,
