@@ -1065,8 +1065,11 @@ export function ListingDetailModal() {
         document.body
       )}
 
-      {/* L-listings-merge3 (2026-04-29): footer — 담당자 연결 (메인) + 공유 (우측 작게) */}
-      <div className="border-t border-neutral-100 bg-white px-4 py-3 flex items-center gap-2">
+      {/* L-listings-merge3 (2026-04-29): footer — 담당자 연결 (메인) + 공유 (우측 작게)
+          L-footer-lift (2026-04-29 사장님 명령): 데스크탑 작업표시줄 회피 — 하단 padding 증가 +
+          safe-area-inset-bottom 환경변수 활용 (모바일 홈바 / 데스크탑 OS bar). */}
+      <div className="border-t border-neutral-100 bg-white px-4 pt-3 pb-5 sm:pb-6 flex items-center gap-2"
+           style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom, 24px))' }}>
         <button
           type="button"
           onClick={() => setAgentModalOpen(true)}
