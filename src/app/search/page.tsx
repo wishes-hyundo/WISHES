@@ -177,6 +177,8 @@ export default function SearchPortalPage() {
       // v322 (2026-04-29 사장님 명령): contacts 화면 미표시 fix.
       //   v270 fetchCache 우회 + DB fresh fetch 후 .v240-contacts-empty 영역 직접 렌더.
       ['ws-ext-patch-v322-contacts-render', '/search/content-v322-contacts-render.js?v=20260429-fresh'],
+      // v323 (2026-04-29 사장님 명령): contacts 수정/삭제 버튼 + 핸들러 + DB sync.
+      ['ws-ext-patch-v323-contact-edit-del', '/search/content-v323-contact-edit-del.js?v=20260429-editdel'],
       // v314 (2026-04-29): 매물수정 버튼 위치 이동 — hero 에서 '기본 정보·옵션'
       //   섹션 헤더 우측 끝으로 (사장님 제안). View Transitions 60fps + oklch.
       ['ws-ext-patch-v314-edit-btn-pos', '/search/content-v314-edit-btn-pos.js?v=20260429a'],
