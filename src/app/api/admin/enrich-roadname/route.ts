@@ -154,16 +154,30 @@ export async function POST(request: NextRequest) {
     }
   } else if (mode === 'roadname') {
     // 도로명주소 누락 + address 풀주소
-    const { data, error } = await supabase
+    // 사장님 명령 (2026-04-29): cursor pagination 으로 매번 다른 매물 fetch.
+    //   이전 버전은 항상 id desc top 400 fetch → 첫 batch 후엔 모두 enriched 라
+    //   다음 호출이 0건 처리. lastId(=마지막 처리 id) cursor 로 진행.
+    //   gu/dong filter 도 옵션 (사장님 화면 우선 백필용).
+    const lastId = (body.lastId as number | undefined);
+    const guFilter = (body.gu as string | undefined);
+    const dongFilter = (body.dong as string | undefined);
+
+    let q = supabase
       .from('listings')
       .select('id, address, building_info')
-      .gte('id', 0)
       .order('id', { ascending: false })
-      .limit(batchSize * 4); // filter 클라이언트 side
+      .limit(batchSize * 5);
+    if (typeof lastId === 'number' && lastId > 0) q = q.lt('id', lastId);
+    if (guFilter) q = q.ilike('address', `%${guFilter}%`);
+    if (dongFilter) q = q.ilike('address', `%${dongFilter}%`);
+
+    const { data, error } = await q;
     if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
     let processed = 0;
+    let cursorId: number | null = null;
     for (const row of (data || []) as ListingRow[]) {
+      cursorId = row.id; // 마지막 본 id 추적 (skip 포함)
       if (processed >= batchSize) break;
       const addr = (row.address || '').trim();
       if (addr.length < 15) continue;
@@ -198,5 +212,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: false, error: 'unknown mode' }, { status: 400 });
   }
 
-  return NextResponse.json({ ok: true, mode, batchSize, updated, failed, total: results.length, results });
+  // mode=roadname 일 때 cursorId 포함
+  const respPayload: Record<string, unknown> = { ok: true, mode, batchSize, updated, failed, total: results.length, results };
+  if (mode === 'roadname') {
+    // cursorId 가 마지막으로 본 id (다음 호출 시 lastId 로 사용)
+    // results 마지막 id 또는 fetched 마지막 id
+    const lastSeen = (results as Array<Record<string, unknown>>).slice(-1)[0];
+    if (lastSeen && typeof lastSeen.id === 'number') respPayload.nextLastId = lastSeen.id;
+  }
+  return NextResponse.json(respPayload);
 }

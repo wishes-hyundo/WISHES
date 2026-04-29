@@ -233,6 +233,10 @@ export async function GET(request: NextRequest) {
         'last_verified_at', // L-verify-list (2026-04-24): 목록 현장확인 배지
         'source_site', // L-imgpolicy3: 크롤링 판정용 (응답 전 썸네일 스크럽)
         'updated_at', // L-search8 (2026-04-24): admin/listings 페이지 '수정됨' 배지용 (minimal 전환 시 필요)
+        // L-roadname (2026-04-29 사장님 명령): v327 patch 가 카드 부 라인을 도로명주소로
+        //   교체할 때 listing.building_info.도로명주소 를 읽음. 응답에 포함되어야 동작.
+        //   slim 단계에서 도로명/지번 두 키만 남기고 나머지 jsonb 키는 제거 (size 절감).
+        'building_info',
         // L-search7 (2026-04-24): listing_images JOIN 제거. JOIN 된 1000-row 쿼리가
         //   ~4.8s 걸리고 7 pages parallel → Vercel 27s 소비 + supabase-js 의 range
         //   pagination 버그 트리거 (매물 2000~4000 축소). 대신 main rows 수집 후
@@ -241,8 +245,8 @@ export async function GET(request: NextRequest) {
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v9-mine', scopeUid as string]
-        : ['listings-minimal-v9'];
+        ? ['listings-minimal-v10-mine', scopeUid as string]
+        : ['listings-minimal-v10'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
@@ -338,6 +342,22 @@ export async function GET(request: NextRequest) {
               row.listing_images = policed.listing_images;
               if (row.thumbnail_url && !isSelfHostedImage(row.thumbnail_url)) {
                 row.thumbnail_url = null;
+              }
+            }
+            // L-roadname (2026-04-29): building_info jsonb 슬림화 — 도로명주소/지번주소 두 키만.
+            //   원본 building_info 는 basic/recapTitle/전유부/층별개요 등 큰 객체 다수 보유.
+            //   카드 표시에는 도로명/지번만 필요하므로 페이로드 size 절감.
+            if (row.building_info && typeof row.building_info === 'object') {
+              const bi = row.building_info as Record<string, unknown>;
+              const road = (bi['도로명주소'] as string) || '';
+              const jibun = (bi['지번주소'] as string) || '';
+              if (road || jibun) {
+                row.building_info = {
+                  ...(road ? { '도로명주소': road } : {}),
+                  ...(jibun ? { '지번주소': jibun } : {}),
+                };
+              } else {
+                row.building_info = null; // 빈 객체로 슬림제거 트리거
               }
             }
             const out: any = {};
