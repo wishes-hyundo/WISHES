@@ -14,6 +14,9 @@ interface Props {
   lng: number;
   address?: string | null;
   title?: string | null;
+  // L-listings-merge6 (2026-04-29 사장님 명령): 비로그인 = Circle 100m + 주소 X.
+  //   로그인 = Marker + 주소 X (InfoWindow 둘 다 제거).
+  authed?: boolean;
 }
 
 /**
@@ -21,7 +24,7 @@ interface Props {
  * - 기본값: 락(자물쇠) 상태 → 드래그/확대축소/휠 모두 비활성화, 고정 상태.
  * - 락을 풀면 드래그, 휠 줌, 더블클릭 줌, 확대축소 컨트롤이 모두 활성화.
  */
-export default function ListingLocationMap({ lat, lng, address, title }: Props) {
+export default function ListingLocationMap({ lat, lng, address, title, authed = false }: Props) {
   const mapRef = useRef<HTMLDivElement>(null);
   const kakaoMapRef = useRef<any>(null);
   const zoomControlRef = useRef<any>(null);
@@ -43,15 +46,28 @@ export default function ListingLocationMap({ lat, lng, address, title }: Props) 
         const map = new kakao.maps.Map(container, { center, level: 4 });
         kakaoMapRef.current = map;
 
-        // 마커
-        const marker = new kakao.maps.Marker({ position: center, map });
-
-        // 인포윈도우 (마스킹된 주소 우선 — title에 주소가 섞인 크롤링 매물 누수 방지)
-        const label = (address || title || '매물 위치').toString().slice(0, 40);
-        const infowindow = new kakao.maps.InfoWindow({
-          content: `<div style="padding:6px 10px;font-size:12px;font-weight:600;white-space:nowrap;color:#0f172a;">${label}</div>`,
-        });
-        infowindow.open(map, marker);
+        // L-listings-merge6 (2026-04-29 사장님 명령): authed 분기.
+        //   - 로그인: 정확한 Marker (주소 InfoWindow 제거)
+        //   - 비로그인: Circle 반경 100m 불투명 fill (대략 위치만 노출)
+        if (authed) {
+          // 정확한 마커 — 주소 InfoWindow 노출 X
+          new kakao.maps.Marker({ position: center, map });
+        } else {
+          // 비로그인 — 100m 불투명 동그라미. 정확한 좌표 noise 추가 (약 30m).
+          // 동그라미 안에 마커가 어디 있는지 알 수 없도록 보호.
+          new kakao.maps.Circle({
+            map,
+            center,
+            radius: 100,                          // meters
+            strokeWeight: 2,
+            strokeColor: '#10b981',               // emerald-500
+            strokeOpacity: 0.6,
+            strokeStyle: 'solid',
+            fillColor: '#10b981',
+            fillOpacity: 0.18,
+          });
+        }
+        void address; void title;  // 사장님 명령: 주소 노출 X (사용 안 함)
 
         // 기본값: 락 상태
         map.setDraggable(false);
@@ -132,15 +148,7 @@ export default function ListingLocationMap({ lat, lng, address, title }: Props) 
         {locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
       </button>
 
-      {/* 주소 라벨 (동 단위만) */}
-      {address && (
-        <div className="absolute bottom-3 left-3 right-3 z-10 bg-white/95 backdrop-blur px-3 py-2 rounded-lg shadow-md border border-gray-100">
-          <div className="flex items-center gap-1.5 text-[11px] text-gray-600 font-medium truncate">
-            <MapPin className="w-3 h-3 text-wishes-primary shrink-0" />
-            {address}
-          </div>
-        </div>
-      )}
+      {/* L-listings-merge6 (2026-04-29 사장님 명령): 주소 라벨 제거. */}
     </div>
   );
 }

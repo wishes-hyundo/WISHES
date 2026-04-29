@@ -914,6 +914,7 @@ export function ListingDetailModal() {
             lng={listing.lng}
             address={listing.address ?? listing.title ?? null}
             title={listing.title ?? listing.dong ?? null}
+            authed={isAuthed}
           />
         </div>
       )}
