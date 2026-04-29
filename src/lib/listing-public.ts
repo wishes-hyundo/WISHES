@@ -63,6 +63,8 @@ export const PUBLIC_LISTING_COLUMNS: readonly string[] = [
 
   // 설명 — description 은 자체 매물에 한해 노출(sanitizer 에서 크롤링 매물만 제거)
   'description', 'ai_description', 'ai_title',
+  // L-seo (2026-04-29 사장님 명령): SEO 키워드/태그 노출 (메타 키워드 박스 표시)
+  'seo_keywords', 'seo_tags', 'seo_meta_description',
 
   // 입주 / 준공
   'available_date', 'built_year',
