@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
             .gte('lng', swLng)
             .lte('lng', neLng);
           if (deal) q2 = q2.eq('deal', deal);
-          if (type) q2 = q2.eq('type', type);
+          if (type) q2 = q2.eq('type_normalized', type);
           if (minDeposit != null) q2 = q2.gte(priceColumn, minDeposit);
           if (maxDeposit != null) q2 = q2.lte(priceColumn, maxDeposit);
 
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
             .gte('lng', swLng)
             .lte('lng', neLng);
           if (deal) q2 = q2.eq('deal', deal);
-          if (type) q2 = q2.eq('type', type);
+          if (type) q2 = q2.eq('type_normalized', type);
           if (minDeposit != null) q2 = q2.gte(priceColumn, minDeposit);
           if (maxDeposit != null) q2 = q2.lte(priceColumn, maxDeposit);
 

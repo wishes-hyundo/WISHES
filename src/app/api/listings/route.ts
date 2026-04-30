@@ -244,7 +244,7 @@ export async function GET(request: NextRequest) {
           .order(sortColumn, { ascending: false });
 
         if (deal) query = query.eq('deal', deal);
-        if (type) query = query.eq('type', type);
+        if (type) query = query.eq('type_normalized', type);
         if (dong) query = query.eq('dong', dong);
         if (minDeposit) query = query.gte('deposit', parseInt(minDeposit));
         if (maxDeposit) query = query.lte('deposit', parseInt(maxDeposit));

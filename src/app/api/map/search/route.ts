@@ -153,7 +153,7 @@ export async function GET(request: NextRequest) {
         //   (벡터가 있으면 구조 부스트로 대체)
         if (!hasVector) {
           if (parsed.deal) base = base.eq('deal', parsed.deal);
-          if (parsed.type) base = base.eq('type', parsed.type);
+          if (parsed.type) base = base.eq('type_normalized', parsed.type);
           if (parsed.dong) base = base.eq('dong', parsed.dong);
           if (parsed.rooms) base = base.eq('rooms', parsed.rooms);
           if (parsed.parking) base = base.eq('parking', true);

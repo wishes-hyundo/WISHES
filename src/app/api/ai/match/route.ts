@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       .limit(LIMIT);
 
     if (filters.deal) q = q.eq('deal', filters.deal);
-    if (filters.type) q = q.eq('type', filters.type);
+    if (filters.type) q = q.eq('type_normalized', filters.type);
     if (filters.dong) q = q.ilike('dong', `%${escapeIlike(filters.dong)}%`);
     if (filters.maxDeposit) q = q.lte('deposit', filters.maxDeposit);
     if (filters.minDeposit) q = q.gte('deposit', filters.minDeposit);

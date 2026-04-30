@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
           .select('id', { count: 'exact', head: true })
           .eq('status', '공개');
         if (deal) countQ = countQ.eq('deal', deal);
-        if (type) countQ = countQ.eq('type', type);
+        if (type) countQ = countQ.eq('type_normalized', type);
         if (dong) countQ = countQ.eq('dong', dong);
         if (scope === 'mine' && scopeUid) countQ = countQ.eq('created_by', scopeUid);
 
@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
           .select('deal, deposit, monthly, price')
           .eq('status', '공개');
         if (deal) priceQ = priceQ.eq('deal', deal);
-        if (type) priceQ = priceQ.eq('type', type);
+        if (type) priceQ = priceQ.eq('type_normalized', type);
         if (dong) priceQ = priceQ.eq('dong', dong);
         if (scope === 'mine' && scopeUid) priceQ = priceQ.eq('created_by', scopeUid);
         priceQ = priceQ.limit(2000); // 통계용 표본 cap
