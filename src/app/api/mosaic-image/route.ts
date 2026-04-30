@@ -4,11 +4,12 @@ import { createClient } from '@supabase/supabase-js';
 import type { OverlayOptions } from 'sharp';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
-type SharpModule = typeof import('sharp');
-let _sharpMod: SharpModule['default'] | null = null;
-async function loadSharp(): Promise<SharpModule['default']> {
+// PR-FIX2: typeof import('sharp')['default'] 가 'never' 추론되는 typecheck 잔재 회피
+let _sharpMod: any = null;
+async function loadSharp(): Promise<any> {
   if (_sharpMod) return _sharpMod;
-  _sharpMod = (await import('sharp')).default;
+  const mod = await import('sharp');
+  _sharpMod = (mod as any).default ?? mod;
   return _sharpMod;
 }
 
