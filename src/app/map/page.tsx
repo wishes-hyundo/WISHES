@@ -4,24 +4,32 @@
 //   2026-04-21 마이그레이션: 레거시 /map 페이지를 제거하고 MAP 2026
 //   (Phase A~F, Category-First + Semantic Zoom + Hero Pin + 3D +
 //   Cinematic Motion + Comparable-Aware) 을 canonical /map 경로로 승격.
-//   기존 /map-2026 URL 은 next.config.js 에서 301 리디렉트로 보존.
 //
-//   SEO 메타데이터는 이 파일 상위의 src/app/map/layout.tsx 가 관리한다.
-//   (title / description / canonical / openGraph — public indexable)
+//   2026-04-30 PR-D2: /listings/:id → /map?listing=:id 301 영구 redirect
+//   (next.config.js). 본 page 의 generateMetadata 가 listing query 받으면
+//   매물별 SSR metadata + RealEstateListing JSON-LD 생성 (SEO 보존).
+//
+//   기본 metadata 는 src/app/map/layout.tsx 가 fallback.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+import type { Metadata } from 'next';
+import { createServerClient } from '@/lib/supabase';
 import MapClientWrapper from './MapClientWrapper';
 
-export default function MapPage() {
-  return (
-    // 외곽 ConditionalLayout 의 <main class="h-[100dvh] overflow-hidden"> 가
-    // 뷰포트 높이를 책임지므로 여기서는 h-full 만 깔아 부모 높이를 그대로 물려받는다.
-    <div className="h-full w-full">
-      {/* L-naver-2026prefetch1 (2026-04-26): GeoJSON 프리페치 — 페이지 mount 시점에
-          sido/sigungu 사전 다운로드. 사용자가 지도 보자마자 폴리곤 즉시 표시.
-          dong 은 너무 커서 prefetch 안 함 (필요 시 동 모드 진입할 때만). */}
-      <link rel="prefetch" href="/api/geo/sido" as="fetch" crossOrigin="anonymous" />
-      <link rel="prefetch" href="/api/geo/sigungu" as="fetch" crossOrigin="anonymous" />
-      <MapClientWrapper />
-    </div>
-  );
-}
+type Props = {
+  searchParams: Promise<{ listing?: string; [k: string]: string | string[] | undefined }>;
+};
+
+// 5초 타임아웃 래퍼 (Supabase PostgrestBuilder 가 PromiseLike)
+const withTimeout = <T,>(promise: PromiseLike<T>, ms = 5000): Promise<T> =>
+  Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+  ]);
+
+function formatPrice(price: number): string {
+  if (price >= 10000) {
+    const uk = Math.floor(price / 10000);
+    const remainder = price % 10000;
+    return remainder > 0 ? uk + '억 ' + remainder.toLocaleString() : uk + '억';
+  }
+  return price
