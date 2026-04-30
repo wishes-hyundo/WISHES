@@ -29,7 +29,7 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
   try {
     // 동적 import — Edge runtime 회피
     const chromiumMod = await import('@sparticuz/chromium-min');
-    const chromium = (chromiumMod as { default?: typeof chromiumMod }).default ?? chromiumMod;
+    const chromium = (chromiumMod as { default?: any }).default ?? chromiumMod;
     const puppeteer = await import('puppeteer-core');
 
     const launched = await puppeteer.launch({
