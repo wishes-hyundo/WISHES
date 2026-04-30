@@ -13,11 +13,13 @@
 import type { OverlayOptions } from 'sharp';
 
 // L-bob-sharp-lazy: sharp 모듈 동적 로더 (모듈 캐시 활용 — 첫 호출만 느림).
-type SharpModule = typeof import('sharp');
-let _sharpMod: SharpModule['default'] | null = null;
-async function loadSharp(): Promise<SharpModule['default']> {
+// PR-FIX2: typeof import('sharp')['default'] 가 'never' 추론되는 typecheck 잔재 회피.
+//   런타임 동작 동일, type 만 any 로 단순화.
+let _sharpMod: any = null;
+async function loadSharp(): Promise<any> {
   if (_sharpMod) return _sharpMod;
-  _sharpMod = (await import('sharp')).default;
+  const mod = await import('sharp');
+  _sharpMod = (mod as any).default ?? mod;
   return _sharpMod;
 }
 
@@ -57,10 +59,12 @@ async function getGrainTile(): Promise<Buffer> {
     data[i * 4 + 2] = v;
     data[i * 4 + 3] = GRAIN_ALPHA;
   }
-  _grainTileCache = await sharp(data, {
+  // PR-FIX2: local variable 로 받아 type narrow (Buffer | null → Buffer)
+  const result = await sharp(data, {
     raw: { width: GRAIN_TILE_SIZE, height: GRAIN_TILE_SIZE, channels: 4 },
   }).png().toBuffer();
-  return _grainTileCache;
+  _grainTileCache = result;
+  return result;
 }
 async function generateGrain(_width: number, _height: number): Promise<Buffer> {
   // composite 의 tile:true 를 이용 — 타일 PNG 한 장만 반환.
