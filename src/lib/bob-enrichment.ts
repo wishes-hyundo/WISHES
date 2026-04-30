@@ -84,7 +84,7 @@ export async function getReviewQueue(
   }
 
   // Transform to review items
-  return (listings || []).map(listing => ({
+  return (listings || []).map((listing: Listing) => ({
     id: listing.id,
     address: listing.address || 'Unknown Address',
     enrichmentStatus: listing.enrichment_status as any,
