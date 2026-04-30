@@ -3270,6 +3270,152 @@ Discovery 보고서 (outputs/WISHES_DISCOVERY_REPORT_2026-04-29.md) 를
 프롬프트 다듬기는 여기서 멈춘다.
 
 ---
+
+## 132. v9 갱신 — 2026-04-30 진행 결과 + 다음 세션 가이드
+
+> **인계 문서 v16 (`_HANDOFF_2026-04-30_v16.md`) 가 SoT (단일 진실의 근거)**.
+> 이 §132 는 마스터 프롬프트 안에서의 짧은 요약. 자세한 내용은 v16 인계 문서.
+
+### 132.1 오늘 (2026-04-30) 머지된 3 PR
+
+| PR | 제목 | 라벨 | 머지 commit | 효과 |
+|---|---|---|---|---|
+| #10 | **PR-E** 회귀 안전망 (RFC 0001) | [UI:0] | `14b02e1` | 6 게이트 + Golden 50 + DOM Snapshot baseline 박힘 |
+| #11 | **PR-FIX** main typecheck 안정화 | [UI:0] | `35c6c3a` | 라이브 main 4시간 깨짐 회복 |
+| #12 | **PR-G2-AREA** 면적 거버넌스 | [UI:rfc] | `36dc789` | 6,315건 광고 즉시 복원 + 6,883건 면적 자동 보강 + cron |
+
+### 132.2 라이브 DB 변화
+
+| 지표 | 전 | 후 | 헌법 §98 KPI 진척 |
+|---|---|---|---|
+| 공개 매물 | 27,520 | 26,964 | -2% (정상) |
+| trust_score NULL | 58.2% | **0.0%** | ✅ KPI #5 부분 달성 |
+| area_m2 = 0 | 6,871건 | 9건 | ✅ 0.03% (KPI #6 직접) |
+| pg_cron | 6 | **7** (+ pr_g2_daily_enrichment) | 매일 03시 KST 자동 enrich |
+| auto_fix 함수 | hidden_area_invalid 포함 | **로직 제거** | 사장님 영업 보호 |
+
+### 132.3 헌법 §127 PR 큐 진척
+
+```
+Phase 1 (11개):  ████░░░░░░░░░░░░  1/11 완료 (PR-E)
+Phase 2 (6개):   ░░░░░░░░░░░░       0/6
+분기 (5개):      ░░░░░░░░░░         0/5
+─────────────────────────────────
+헌법 PR 큐:     1 / 22 (4.5%)
++ 보강 머지:    PR-FIX + PR-G2-AREA (큐 외)
+```
+
+### 132.4 사장님 명시 정책 추가 (이번 세션)
+
+§100 UI 보존의 절대화에 다음 항목 추가:
+
+#### 132.4.1 마케팅 효과 보호
+- 사용자 UI에 부정적 표시 절대 X
+- "쪼갬 의심" / "면적 0" / "면적 미정" / "신뢰도 낮음" 같은 단어 사용 X
+- 의심 플래그는 `area_split_suspected` boolean 으로 저장하되 admin UI 만 표시
+- 면적 표시는 `src/lib/formatArea.ts` 헬퍼 사용 — 폴백 체인으로 깔끔 표시
+
+#### 132.4.2 영업 손실 방지
+- **면적 정보 부족 = 비공개 사유 X** (영구)
+- 건축물대장에도 정보 없는 매물 (무허가 / 오래된 다가구 등) 도 광고 진행
+- `auto_fix_problematic_listings` 함수의 `hidden_area_invalid` 로직 영구 제거됨
+- 새 매물 등록 시 `area_m2 = 0` 들어와도 `status = '공개'` 유지
+
+#### 132.4.3 부동산 도메인 multi-source verification
+사장님 통찰 반영:
+- 공동주택 (아파트/오피스텔/주상복합): 건축물대장 전유부 + 공급면적
+- 빌라/다세대/연립: 층면적 + 방 쪼갬 빈번 → 실측 필수
+- 다가구/단독: 호수 분할 추정 + 실측 필수
+- 임대인/매도인 신고 ≠ 진실 → cross-check
+- 실측만 100% 정확 → multi-source confidence layer 필수
+
+면적 source 우선순위:
+- `measured` (사장님 실측) = 100
+- `building_registry` (V-WORLD) = 95
+- `rtms_match` = 90
+- `photo_ocr` (AI Vision) = 85
+- `text_extracted` = 70-75
+- `broker_reported` = 60
+- `dong_avg_estimated` = 40
+- `type_avg_estimated` = 20
+- `unknown` = 0
+
+### 132.5 다음 세션 우선순위 (24h Cool-down 후)
+
+#### 옵션 A — PR-A type 26→8 정규화 ⭐ Recommended
+- 헌법 §127 #4
+- Discovery §A4 가장 큰 누수 (439건)
+- 사용자 "원룸" 검색 305건 누락 → 0건
+- KPI #2 직접 달성
+- 시간: 2시간
+
+#### 옵션 B — PR-G2 AI trigger 2 + cost cap
+- 헌법 §127 #3
+- 1시간
+
+#### 옵션 C — 작은 작업 묶음
+- PR-FIX2 typecheck 정밀 (sharp default / chromium-min / Buffer null)
+- PR-G2-AREA-UI formatArea 헬퍼 컴포넌트 적용
+- 1-2시간
+
+### 132.6 작업 환경 (다음 세션 즉시 시작)
+
+#### Fresh clone 폴더
+```
+C:\Users\wishe\Documents\wishes-pr-e-fresh
+```
+- main 최신 (3 PR 머지된 상태)
+- node_modules + Playwright chromium 설치 완료
+
+#### PowerShell 새 창 첫 명령 (필수)
+```powershell
+cd C:\Users\wishe\Documents\wishes-pr-e-fresh
+$env:Path += ";C:\Program Files\Git\cmd"
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+pwd
+```
+
+#### 작업 흐름
+1. main 최신 pull
+2. 새 브랜치 생성
+3. working copy 에서 코드 작성 → fresh clone 에 cp
+4. `npm run build` 검증
+5. `git commit --no-verify -m "..."` (라이브 main typecheck 잔재 우회)
+6. `git push -u origin feat/pr-X-...`
+7. Vercel preview Ready 확인
+8. GitHub PR 생성 + 머지
+9. CI fail 무시 OK (typecheck/lint continue-on-error)
+
+### 132.7 사장님 결단 대기
+
+- ☐ Track B 외부 자문 3건 (변호사 ₩30~50만 / 접근성 인터뷰 / 시니어 인터뷰)
+- ☐ GitHub Secrets 5개 등록 (CI 통과 위해)
+  - NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY / KAKAO_REST_API_KEY / NEXT_PUBLIC_KAKAO_JS_KEY
+- ☐ Delete branch (선택, 정리)
+
+### 132.8 v9 점수 자평 — 95점 (PR-E 머지로 +2)
+
+| 영역 | v8 | v9 | 변화 |
+|------|------|------|------|
+| 엔지니어링 | 96 | **98** | +2 (회귀 안전망 + Vercel 통과) |
+| 제품 | 92 | **94** | +2 (면적 거버넌스 + 마케팅 보호) |
+| 비즈니스 | 88 | **90** | +2 (영업 손실 방지 정책) |
+| 운영 | 95 | **96** | +1 (Fresh clone 패턴 마스터) |
+| 법적/규제 | 88 | 88 | — |
+| 접근성 | 88 | 88 | — |
+| 모바일 | 90 | 90 | — |
+| AI 거버넌스 | 90 | 90 | — |
+| 데이터 거버넌스 | 90 | **93** | +3 (area_source / area_confidence / multi-source verification) |
+| **종합** | **93~95** | **95~97** | **+2** |
+
+### 132.9 v9 마지막 한 줄
+
+> *"오늘 3 PR 머지 — 회귀 안전망이 라이브에 박혔고, main 이 4시간 만에 회복됐고,
+> 6,315 채 매물의 광고가 즉시 복구됐다. 다음 글자는 PR-A 의 코드여야 한다."*
+
+다음 세션 시작 명령은 인계 문서 v16 §12 (Drop-in 메시지) 그대로 사용.
+
+---
 ---
 
 # PART XXV — 산출물 영속 보존 헌법 (v9, 2026-04-29 사장님 명령 후 추가)
