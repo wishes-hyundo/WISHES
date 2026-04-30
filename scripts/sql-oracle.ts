@@ -94,7 +94,8 @@ async function runCase(c: GoldenCase): Promise<BaselineEntry> {
   const i = c.input;
   let q = supabase.from('listings').select('id', { count: 'exact' }).eq('status', '공개');
 
-  if (i.type?.length) q = q.in('type', i.type);
+  // PR-A: type_normalized 사용 (raw type 컬럼은 dual-write 보존, SSOT 는 type_normalized)
+  if (i.type?.length) q = q.in('type_normalized', i.type);
   if (i.deal?.length) q = q.in('deal', i.deal);
   if (i.gu?.length) q = q.in('gu', i.gu);
   if (i.monthly_max != null) q = q.lte('monthly', i.monthly_max);
@@ -170,11 +171,4 @@ async function main() {
   console.log(`[oracle] 총 케이스: ${cases.length} | 총 ID: ${totalIds} | 경고: ${warnings.length}`);
   if (warnings.length > 0) {
     console.log('[oracle] 경고 목록:');
-    warnings.forEach((w) => console.log(`  - ${w}`));
-  }
-}
-
-main().catch((err) => {
-  console.error('[oracle] 실패:', err);
-  process.exit(1);
-});
+    warnings.forEach((w) => console.log(

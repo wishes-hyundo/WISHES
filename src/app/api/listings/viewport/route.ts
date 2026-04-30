@@ -79,11 +79,11 @@ function categoryToTypeFilter(
   //   큰 사무실(업무용) 은 제외하고 소형 실사용 주거만 크로스 노출.
   if (category === 'residence') {
     return [
-      'type.ilike.%원룸%', 'type.ilike.%투룸%', 'type.ilike.%쓰리룸%',
-      'type.ilike.%아파트%', 'type.ilike.%오피스텔%', 'type.ilike.%빌라%',
-      'type.ilike.%주택%', 'type.ilike.%단독%', 'type.ilike.%다가구%',
-      'type.ilike.%다세대%', 'type.ilike.%연립%', 'type.ilike.%고시원%',
-      'type.ilike.%쉐어하우스%',
+      'type_normalized.ilike.%원룸%', 'type_normalized.ilike.%투룸%', 'type_normalized.ilike.%쓰리룸%',
+      'type_normalized.ilike.%아파트%', 'type_normalized.ilike.%오피스텔%', 'type_normalized.ilike.%빌라%',
+      'type_normalized.ilike.%주택%', 'type_normalized.ilike.%단독%', 'type_normalized.ilike.%다가구%',
+      'type_normalized.ilike.%다세대%', 'type_normalized.ilike.%연립%', 'type_normalized.ilike.%고시원%',
+      'type_normalized.ilike.%쉐어하우스%',
       // L-residential-use1: 실사용 주거 크로스 (area < 50㎡)
       'and(type.ilike.%사무실%,area_m2.lt.50)',
       'and(type.ilike.%근린%,area_m2.lt.50)',
@@ -95,31 +95,31 @@ function categoryToTypeFilter(
     if (purposes && purposes.length) {
       const parts: string[] = [];
       for (const p of purposes) {
-        if (p === 'retail')           parts.push('type.ilike.%상가%', 'type.ilike.%근생%');
-        if (p === 'office')           parts.push('type.ilike.%사무%', 'type.ilike.%오피스%');
-        if (p === 'knowledge_center') parts.push('type.ilike.%지식산업%', 'type.ilike.%아파트형%');
-        if (p === 'coworking')        parts.push('type.ilike.%공유오피스%', 'type.ilike.%코워킹%');
-        if (p === 'mixed_use')        parts.push('type.ilike.%복합%', 'type.ilike.%주상복합%');
+        if (p === 'retail')           parts.push('type_normalized.ilike.%상가%', 'type_normalized.ilike.%근생%');
+        if (p === 'office')           parts.push('type_normalized.ilike.%사무%', 'type_normalized.ilike.%오피스%');
+        if (p === 'knowledge_center') parts.push('type_normalized.ilike.%지식산업%', 'type_normalized.ilike.%아파트형%');
+        if (p === 'coworking')        parts.push('type_normalized.ilike.%공유오피스%', 'type_normalized.ilike.%코워킹%');
+        if (p === 'mixed_use')        parts.push('type_normalized.ilike.%복합%', 'type_normalized.ilike.%주상복합%');
       }
       return parts.length ? parts.join(',') : null;
     }
     return [
-      'type.ilike.%상가%', 'type.ilike.%사무%', 'type.ilike.%오피스%',
-      'type.ilike.%지식산업%', 'type.ilike.%공유오피스%', 'type.ilike.%복합%',
-      'type.ilike.%근생%',
+      'type_normalized.ilike.%상가%', 'type_normalized.ilike.%사무%', 'type_normalized.ilike.%오피스%',
+      'type_normalized.ilike.%지식산업%', 'type_normalized.ilike.%공유오피스%', 'type_normalized.ilike.%복합%',
+      'type_normalized.ilike.%근생%',
     ].join(',');
   }
 
   if (category === 'land') {
     return [
-      'type.ilike.%토지%', 'type.ilike.%대지%',
-      'type.eq.전', 'type.eq.답', 'type.ilike.%임야%', 'type.ilike.%잡종지%',
+      'type_normalized.ilike.%토지%', 'type_normalized.ilike.%대지%',
+      'type_normalized.eq.전', 'type_normalized.eq.답', 'type_normalized.ilike.%임야%', 'type_normalized.ilike.%잡종지%',
     ].join(',');
   }
 
   if (category === 'investment') {
     return [
-      'type.ilike.%수익%', 'type.ilike.%재건축%', 'type.ilike.%경매%',
+      'type_normalized.ilike.%수익%', 'type_normalized.ilike.%재건축%', 'type_normalized.ilike.%경매%',
     ].join(',');
   }
 
@@ -352,7 +352,7 @@ export async function GET(req: NextRequest) {
       .eq('status', '공개');
 
     if (deals && deals.length) q = q.in('deal', deals);
-    if (types && types.length) q = q.in('type', types);
+    if (types && types.length) q = q.in('type_normalized', types);
 
     // 카테고리 필터 (types 가 이미 있으면 그걸 우선)
     if (!types && category) {
@@ -371,13 +371,13 @@ export async function GET(req: NextRequest) {
     //     · rooms=3+ → rooms >= 3 OR type LIKE '%쓰리룸%'
     if (rooms && rooms.length) {
       const ors: string[] = [];
-      if (rooms.includes(1)) ors.push('type.eq.원룸');
-      if (rooms.includes(2)) ors.push('type.eq.투룸');
+      if (rooms.includes(1)) ors.push('type_normalized.eq.원룸');
+      if (rooms.includes(2)) ors.push('type_normalized.eq.투룸');
       if (rooms.some((n) => n >= 3)) {
         ors.push('rooms.gte.3');
         // type 에 "쓰리룸"/"포룸"/"오룸" 명시된 매물도 포함 (DB 무결성 보강)
-        ors.push('type.like.*쓰리룸*');
-        ors.push('type.like.*포룸*');
+        ors.push('type_normalized.like.*쓰리룸*');
+        ors.push('type_normalized.like.*포룸*');
       }
       if (ors.length) q = q.or(ors.join(','));
     }

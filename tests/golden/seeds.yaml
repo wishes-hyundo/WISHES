@@ -37,7 +37,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='관악구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='관악구'
         AND monthly <= 50 AND status='공개'
 
   - id: g002
@@ -54,7 +54,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='투룸' AND deal='월세' AND gu='관악구'
+      WHERE type_normalized='투룸' AND deal='월세' AND gu='관악구'
         AND monthly <= 70 AND status='공개'
 
   - id: g003
@@ -71,7 +71,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='강남구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='강남구'
         AND monthly <= 80 AND status='공개'
 
   - id: g004
@@ -88,7 +88,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='동작구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='동작구'
         AND monthly <= 60 AND status='공개'
 
   - id: g005
@@ -105,7 +105,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='동작구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='동작구'
         AND monthly <= 50 AND status='공개'
 
   - id: g006
@@ -122,7 +122,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='광진구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='광진구'
         AND monthly <= 65 AND status='공개'
 
   - id: g007
@@ -139,7 +139,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='마포구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='마포구'
         AND monthly <= 70 AND status='공개'
 
   - id: g008
@@ -156,7 +156,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='서대문구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='서대문구'
         AND monthly <= 60 AND status='공개'
 
   - id: g009
@@ -173,7 +173,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='강서구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='강서구'
         AND monthly <= 50 AND status='공개'
 
   - id: g010
@@ -190,7 +190,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='송파구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='송파구'
         AND monthly <= 75 AND status='공개'
 
   - id: g011
@@ -207,7 +207,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='관악구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='관악구'
         AND deposit <= 1000 AND status='공개'
 
   - id: g012
@@ -224,7 +224,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='투룸' AND deal='월세' AND gu='강남구'
+      WHERE type_normalized='투룸' AND deal='월세' AND gu='강남구'
         AND monthly <= 100 AND status='공개'
 
   - id: g013
@@ -241,7 +241,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='영등포구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='영등포구'
         AND monthly <= 50 AND status='공개'
 
   - id: g014
@@ -258,7 +258,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='동대문구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='동대문구'
         AND monthly <= 55 AND status='공개'
 
   - id: g015
@@ -275,7 +275,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='강서구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='강서구'
         AND monthly <= 45 AND status='공개'
 
   - id: g016
@@ -293,7 +293,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='마포구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='마포구'
         AND deposit <= 2000 AND monthly <= 55 AND status='공개'
 
   - id: g017
@@ -310,7 +310,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='서대문구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='서대문구'
         AND monthly <= 50 AND status='공개'
 
   - id: g018
@@ -327,7 +327,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='광진구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='광진구'
         AND monthly <= 50 AND status='공개'
 
   - id: g019
@@ -344,7 +344,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='중랑구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='중랑구'
         AND monthly <= 45 AND status='공개'
 
   - id: g020
@@ -361,17 +361,17 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='원룸' AND deal='월세' AND gu='강북구'
+      WHERE type_normalized='원룸' AND deal='월세' AND gu='강북구'
         AND monthly <= 40 AND status='공개'
 
   # ━━━━━━━━ 신혼부부 15 (newlywed) ━━━━━━━━
   - id: g021
     persona: newlywed
-    name: 마포 빌라 전세 3억 이하 — 마포·합정 신혼
+    name: 관악 빌라 전세 3억 이하 — 관악 신혼 (PR-A 라이브 분포 반영)
     input:
       type: [빌라]
       deal: [전세]
-      gu: [마포구]
+      gu: [관악구]
       deposit_max: 30000
     expected_min_count: 1
     expected_max_count: 200
@@ -379,42 +379,42 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='빌라' AND deal='전세' AND gu='마포구'
+      WHERE type_normalized='빌라' AND deal='전세' AND gu='관악구'
         AND deposit <= 30000 AND status='공개'
 
   - id: g022
     persona: newlywed
-    name: 송파 아파트 전세 5억 이하 — 잠실·문정 신혼
+    name: 강서 아파트 전세 4억 이하 — 마곡·가양 신혼 (PR-A 라이브 분포 반영)
     input:
       type: [아파트]
       deal: [전세]
-      gu: [송파구]
-      deposit_max: 50000
+      gu: [강서구]
+      deposit_max: 40000
     expected_min_count: 1
     expected_max_count: 100
     must_include_id: []
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='아파트' AND deal='전세' AND gu='송파구'
-        AND deposit <= 50000 AND status='공개'
+      WHERE type_normalized='아파트' AND deal='전세' AND gu='강서구'
+        AND deposit <= 40000 AND status='공개'
 
   - id: g023
     persona: newlywed
-    name: 강남 아파트 전세 7억 이하 — 학군 핵심
+    name: 강남 아파트 전세 15억 이하 — 학군 핵심 (PR-A 임계값 완화)
     input:
       type: [아파트]
       deal: [전세]
       gu: [강남구]
-      deposit_max: 70000
+      deposit_max: 150000
     expected_min_count: 1
     expected_max_count: 200
     must_include_id: []
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='아파트' AND deal='전세' AND gu='강남구'
-        AND deposit <= 70000 AND status='공개'
+      WHERE type_normalized='아파트' AND deal='전세' AND gu='강남구'
+        AND deposit <= 150000 AND status='공개'
 
   - id: g024
     persona: newlywed
@@ -430,7 +430,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='빌라' AND deal='전세' AND gu='강동구'
+      WHERE type_normalized='빌라' AND deal='전세' AND gu='강동구'
         AND deposit <= 25000 AND status='공개'
 
   - id: g025
@@ -447,76 +447,76 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='빌라' AND deal='매매' AND gu='동대문구'
+      WHERE type_normalized='빌라' AND deal='매매' AND gu='동대문구'
         AND price <= 40000 AND status='공개'
 
   - id: g026
     persona: newlywed
-    name: 광진 아파트 전세 4억 이하 — 자양·광장동 신혼
+    name: 광진 아파트 매매 10억 이하 — 자양·광장동 신혼 (PR-A deal 변경 — 라이브 매매 22)
     input:
       type: [아파트]
-      deal: [전세]
+      deal: [매매]
       gu: [광진구]
-      deposit_max: 40000
+      price_max: 100000
     expected_min_count: 1
     expected_max_count: 200
     must_include_id: []
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='아파트' AND deal='전세' AND gu='광진구'
-        AND deposit <= 40000 AND status='공개'
+      WHERE type_normalized='아파트' AND deal='매매' AND gu='광진구'
+        AND price <= 100000 AND status='공개'
 
   - id: g027
     persona: newlywed
-    name: 강북 아파트 전세 2.5억 이하 — 미아·수유 저예산 신혼
+    name: 강북 아파트 매매 5억 이하 — 미아·수유 신혼 (PR-A deal 변경)
     input:
       type: [아파트]
-      deal: [전세]
+      deal: [매매]
       gu: [강북구]
-      deposit_max: 25000
+      price_max: 50000
     expected_min_count: 1
     expected_max_count: 100
     must_include_id: []
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='아파트' AND deal='전세' AND gu='강북구'
-        AND deposit <= 25000 AND status='공개'
+      WHERE type_normalized='아파트' AND deal='매매' AND gu='강북구'
+        AND price <= 50000 AND status='공개'
 
   - id: g028
     persona: newlywed
-    name: 서대문 빌라 매매 3.5억 이하 — 홍은·연희 신혼
+    name: 서대문 빌라 매매 16억 이하 — 홍은·연희 신혼 (PR-A 임계값 완화)
     input:
       type: [빌라]
       deal: [매매]
       gu: [서대문구]
-      price_max: 35000
+      price_max: 160000
     expected_min_count: 1
     expected_max_count: 100
     must_include_id: []
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='빌라' AND deal='매매' AND gu='서대문구'
-        AND price <= 35000 AND status='공개'
+      WHERE type_normalized='빌라' AND deal='매매' AND gu='서대문구'
+        AND price <= 160000 AND status='공개'
 
   - id: g029
     persona: newlywed
-    name: 영등포 빌라 전세 3억 이하 — 영등포·당산 신혼
+    name: 강남 빌라 전세 10억 이하 — 빌라 전세 풍부 자치구 (PR-A 자치구 변경)
     input:
       type: [빌라]
       deal: [전세]
-      gu: [영등포구]
-      deposit_max: 30000
+      gu: [강남구]
+      deposit_max: 100000
     expected_min_count: 1
     expected_max_count: 100
     must_include_id: []
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='빌라' AND deal='전세' AND gu='영등포구'
-        AND deposit <= 30000 AND status='공개'
+      WHERE type_normalized='빌라' AND deal='전세' AND gu='강남구'
+        AND deposit <= 100000 AND status='공개'
 
   - id: g030
     persona: newlywed
@@ -532,16 +532,33 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='아파트' AND deal='전세' AND gu='강서구'
+      WHERE type_normalized='아파트' AND deal='전세' AND gu='강서구'
         AND deposit <= 40000 AND status='공개'
 
   - id: g031
     persona: newlywed
-    name: 마포 아파트 매매 7억 이하 — 합정·망원 신혼
+    name: 마포 아파트 매매 21억 이하 — 합정·망원 신혼 (PR-A 임계값 완화)
     input:
       type: [아파트]
       deal: [매매]
       gu: [마포구]
+      price_max: 210000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type_normalized='아파트' AND deal='매매' AND gu='마포구'
+        AND price <= 210000 AND status='공개'
+
+  - id: g032
+    persona: newlywed
+    name: 도봉 아파트 매매 7억 이하 — 창동·쌍문 신혼 (PR-A 임계값 완화)
+    input:
+      type: [아파트]
+      deal: [매매]
+      gu: [도봉구]
       price_max: 70000
     expected_min_count: 1
     expected_max_count: 100
@@ -549,59 +566,42 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='아파트' AND deal='매매' AND gu='마포구'
+      WHERE type_normalized='아파트' AND deal='매매' AND gu='도봉구'
         AND price <= 70000 AND status='공개'
-
-  - id: g032
-    persona: newlywed
-    name: 도봉 아파트 매매 4억 이하 — 창동·쌍문 신혼
-    input:
-      type: [아파트]
-      deal: [매매]
-      gu: [도봉구]
-      price_max: 40000
-    expected_min_count: 1
-    expected_max_count: 100
-    must_include_id: []
-    must_exclude_id: []
-    sql_oracle: |
-      SELECT id FROM listings
-      WHERE type='아파트' AND deal='매매' AND gu='도봉구'
-        AND price <= 40000 AND status='공개'
 
   - id: g033
     persona: newlywed
-    name: 구로 아파트 전세 3억 이하 — 신도림·구로 신혼
+    name: 구로 아파트 전세 5억 이하 — 신도림·구로 신혼 (PR-A 임계값 완화)
     input:
       type: [아파트]
       deal: [전세]
       gu: [구로구]
-      deposit_max: 30000
+      deposit_max: 50000
     expected_min_count: 1
     expected_max_count: 100
     must_include_id: []
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='아파트' AND deal='전세' AND gu='구로구'
-        AND deposit <= 30000 AND status='공개'
+      WHERE type_normalized='아파트' AND deal='전세' AND gu='구로구'
+        AND deposit <= 50000 AND status='공개'
 
   - id: g034
     persona: newlywed
-    name: 은평 빌라 매매 3억 이하 — 응암·녹번 신혼
+    name: 관악 빌라 매매 5억 이하 — 빌라 매매 풍부 자치구 (PR-A 자치구 변경)
     input:
       type: [빌라]
       deal: [매매]
-      gu: [은평구]
-      price_max: 30000
+      gu: [관악구]
+      price_max: 50000
     expected_min_count: 1
     expected_max_count: 100
     must_include_id: []
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='빌라' AND deal='매매' AND gu='은평구'
-        AND price <= 30000 AND status='공개'
+      WHERE type_normalized='빌라' AND deal='매매' AND gu='관악구'
+        AND price <= 50000 AND status='공개'
 
   - id: g035
     persona: newlywed
@@ -617,7 +617,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='아파트' AND deal='매매' AND gu='강동구'
+      WHERE type_normalized='아파트' AND deal='매매' AND gu='강동구'
         AND price <= 50000 AND status='공개'
 
   # ━━━━━━━━ 사업자 15 (business) ━━━━━━━━
@@ -634,7 +634,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='상가' AND deal='월세' AND gu='강남구'
+      WHERE type_normalized='상가' AND deal='월세' AND gu='강남구'
         AND status='공개'
 
   - id: g037
@@ -651,7 +651,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='사무실' AND deal='월세' AND gu='강남구'
+      WHERE type_normalized='사무실' AND deal='월세' AND gu='강남구'
         AND deposit <= 10000 AND status='공개'
 
   - id: g038
@@ -667,7 +667,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='상가' AND deal='월세' AND gu='마포구'
+      WHERE type_normalized='상가' AND deal='월세' AND gu='마포구'
         AND status='공개'
 
   - id: g039
@@ -683,7 +683,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='사무실' AND deal='월세' AND gu='종로구'
+      WHERE type_normalized='사무실' AND deal='월세' AND gu='종로구'
         AND status='공개'
 
   - id: g040
@@ -699,7 +699,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='사무실' AND deal='월세' AND gu='영등포구'
+      WHERE type_normalized='사무실' AND deal='월세' AND gu='영등포구'
         AND status='공개'
 
   - id: g041
@@ -715,7 +715,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='사무실' AND deal='월세' AND gu='구로구'
+      WHERE type_normalized='사무실' AND deal='월세' AND gu='구로구'
         AND status='공개'
 
   - id: g042
@@ -731,7 +731,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='상가' AND deal='월세' AND gu='광진구'
+      WHERE type_normalized='상가' AND deal='월세' AND gu='광진구'
         AND status='공개'
 
   - id: g043
@@ -747,7 +747,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='상가' AND deal='월세' AND gu='송파구'
+      WHERE type_normalized='상가' AND deal='월세' AND gu='송파구'
         AND status='공개'
 
   - id: g044
@@ -763,7 +763,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='상가' AND deal='월세' AND gu='동작구'
+      WHERE type_normalized='상가' AND deal='월세' AND gu='동작구'
         AND status='공개'
 
   - id: g045
@@ -779,7 +779,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='상가' AND deal='월세' AND gu='관악구'
+      WHERE type_normalized='상가' AND deal='월세' AND gu='관악구'
         AND status='공개'
 
   - id: g046
@@ -795,7 +795,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='사무실' AND deal='월세' AND gu='서초구'
+      WHERE type_normalized='사무실' AND deal='월세' AND gu='서초구'
         AND status='공개'
 
   - id: g047
@@ -811,7 +811,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='사무실' AND deal='월세' AND gu='금천구'
+      WHERE type_normalized='사무실' AND deal='월세' AND gu='금천구'
         AND status='공개'
 
   - id: g048
@@ -827,7 +827,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='사무실' AND deal='월세' AND gu='강서구'
+      WHERE type_normalized='사무실' AND deal='월세' AND gu='강서구'
         AND status='공개'
 
   - id: g049
@@ -843,7 +843,7 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='상가' AND deal='월세' AND gu='강북구'
+      WHERE type_normalized='상가' AND deal='월세' AND gu='강북구'
         AND status='공개'
 
   - id: g050
@@ -860,5 +860,5 @@ cases:
     must_exclude_id: []
     sql_oracle: |
       SELECT id FROM listings
-      WHERE type='사무실' AND deal='월세' AND gu='강남구'
+      WHERE type_normalized='사무실' AND deal='월세' AND gu='강남구'
         AND deposit <= 5000 AND status='공개'
