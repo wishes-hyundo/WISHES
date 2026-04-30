@@ -1,22 +1,15 @@
-/**
- * 임시 stub 타입 — 정확한 타입은 Supabase CLI 로 재생성 권장:
- *   npx supabase gen types typescript --project-id xbjgdsyukjdkfvcbzmjc > src/types/supabase.ts
- *
- * 작성: 2026-04-29 wishes-v2 → wishes-fresh 이전 빌드 복구용
- * 다음 세션 PR-A (SSOT registry v0.1) 에서 정확한 타입으로 교체.
- */
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PR-FIX: Supabase Database type stub (라이브 main 안정화)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// 사장님 commit 99feedd "fix(types+deps): supabase types stub" 시도가
+// working copy 에서 손실된 상태. PR-FIX 로 generic stub 보강.
+//
+// 임시 형식 — type 안전성 X, 빌드 통과 우선.
+// 정식 generated types 는 `npm run db:generate` 후 자동 생성 (별도 PR).
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-type AnyTable = { Row: any; Insert: any; Update: any; Relationships: any[] };
-
-export type Database = {
-  public: {
-    Tables: Record<string, AnyTable>;
-    Views: Record<string, { Row: any }>;
-    Functions: Record<string, any>;
-    Enums: Record<string, any>;
-    CompositeTypes: Record<string, any>;
-  };
-};
+/* eslint-disable */
 
 export type Json =
   | string
@@ -25,3 +18,25 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      [key: string]: {
+        Row: any;
+        Insert: any;
+        Update: any;
+        Relationships: [];
+      };
+    };
+    Views: {
+      [key: string]: { Row: any };
+    };
+    Functions: {
+      [key: string]: { Args: any; Returns: any };
+    };
+    Enums: {
+      [key: string]: string;
+    };
+  };
+};
