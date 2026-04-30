@@ -79,15 +79,12 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const urls = eligible.map((l) => `${BASE}/listings/${l.id}`);
+  // PR-D2 (2026-04-30): /listings → /map?listing 영구 마이그레이션 후 새 URL ping
+  const urls = eligible.map((l) => `${BASE}/map?listing=${l.id}`);
   const result = await pingIndexNow(urls);
 
   return NextResponse.json({
     success: result.ok,
     since,
     eligible: eligible.length,
-    submitted: result.submitted ?? 0,
-    status: result.status,
-    reason: result.reason,
-  });
-}
+  
