@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PR-E (RFC 0001) §125.1 단계 3 — pre-commit 검문소
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# commit 직전 자동 차단:
+#   1. ESLint --fix  (변경된 *.ts / *.tsx 만)
+#   2. tsc --noEmit  (전체 typecheck — bash -c 로 lint-staged 인자 차단)
+#
+# 우회 (사장님 긴급 commit 시):
+#   git commit --no-verify -m "..."
+#
+# 헌법 §125.1 명시 + §96 Phase 1 새 기능 0 + §101 보존 5 원칙
+
+npx lint-staged
