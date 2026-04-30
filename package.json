@@ -19,8 +19,13 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/seed.ts",
     "geocode": "tsx scripts/geocode-listings.ts",
+    "oracle": "tsx scripts/sql-oracle.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "dom-snapshot": "playwright test",
+    "dom-snapshot:update": "playwright test --update-snapshots",
+    "dom-snapshot:report": "playwright show-report",
+    "prepare": "husky"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.700.0",
@@ -34,9 +39,7 @@
     "@radix-ui/react-checkbox": "^1.1.5",
     "@radix-ui/react-dialog": "^1.1.7",
     "@radix-ui/react-slot": "^1.2.0",
-    "@react-pdf/renderer": "^4.1.6",
     "@sentry/nextjs": "^10.49.0",
-    "@sparticuz/chromium-min": "^148.0.0",
     "@supabase/supabase-js": "^2.45.0",
     "@tanstack/query-sync-storage-persister": "^5.99.2",
     "@tanstack/react-query": "^5.99.2",
@@ -56,8 +59,6 @@
     "lucide-react": "^0.577.0",
     "maplibre-gl": "^4.7.1",
     "next": "^15.2.0",
-    "puppeteer-core": "^23.10.4",
-    "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hook-form": "^7.55.0",
@@ -67,7 +68,9 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "zod": "^3.24.0",
-    "zustand": "^5.0.2"
+    "zustand": "^5.0.2",
+    "qrcode": "^1.5.4",
+    "@react-pdf/renderer": "^4.1.6"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.0.0",
@@ -75,7 +78,6 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^22.0.0",
-    "@types/qrcode": "^1.5.5",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "autoprefixer": "^10.4.0",
@@ -86,7 +88,13 @@
     "tailwindcss": "^3.4.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "@types/qrcode": "^1.5.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "msw": "^2.6.0",
+    "yaml": "^2.6.0",
+    "@playwright/test": "^1.49.0"
   },
   "overrides": {
     "fast-xml-parser": "^5.7.0",

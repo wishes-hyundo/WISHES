@@ -1,0 +1,864 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Golden 50 — PR-E (RFC 0001) §125.1 단계 4 + §72.1
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 페르소나 50 케이스. 절대 깨지면 안 되는 보장 라인.
+#   사회초년생 20 (g001 ~ g020) — 월세 / 원룸·투룸 / 직장근처·대학가
+#   신혼부부   15 (g021 ~ g035) — 전세·매매 / 빌라·아파트 / 학군·출퇴근
+#   사업자     15 (g036 ~ g050) — 월세 / 상가·사무실 / 권리금·업종·위치
+#
+# 단위:
+#   deposit  = 만원 (5000 = 5천만원, 30000 = 3억)
+#   monthly  = 만원 (50 = 월세 50만원)
+#   price    = 만원 (매매만, 전세·월세는 null)
+#
+# must_include_id / must_exclude_id:
+#   단계 4 = 빈 배열 (유연한 expected_min/max_count 만)
+#   단계 5 (SQL Oracle) 에서 라이브 DB 결과로 박제
+#
+# expected_min_count = 1 (탄력 — 데이터 변동 흡수)
+# expected_max_count = 라이브 분포 + 50% 마진
+#
+# 헌법: §72.1 형식 + §125.1 + §96 Phase 1 새 기능 0 + §101 보존 5
+
+cases:
+  # ━━━━━━━━ 사회초년생 20 (newcomer) ━━━━━━━━
+  - id: g001
+    persona: newcomer
+    name: 신림 봉천 원룸 월세 50만원 이하 — 관악 학생/직장인
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [관악구]
+      monthly_max: 50
+    expected_min_count: 1
+    expected_max_count: 5000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='관악구'
+        AND monthly <= 50 AND status='공개'
+
+  - id: g002
+    persona: newcomer
+    name: 봉천 투룸 월세 70만원 이하 — 관악 직장인 커플
+    input:
+      type: [투룸]
+      deal: [월세]
+      gu: [관악구]
+      monthly_max: 70
+    expected_min_count: 1
+    expected_max_count: 2000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='투룸' AND deal='월세' AND gu='관악구'
+        AND monthly <= 70 AND status='공개'
+
+  - id: g003
+    persona: newcomer
+    name: 강남 원룸 월세 80만원 이하 — 강남 직장인
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [강남구]
+      monthly_max: 80
+    expected_min_count: 1
+    expected_max_count: 4000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='강남구'
+        AND monthly <= 80 AND status='공개'
+
+  - id: g004
+    persona: newcomer
+    name: 사당 원룸 월세 60만원 이하 — 동작 직장인
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [동작구]
+      monthly_max: 60
+    expected_min_count: 1
+    expected_max_count: 1500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='동작구'
+        AND monthly <= 60 AND status='공개'
+
+  - id: g005
+    persona: newcomer
+    name: 노량진 원룸 월세 50만원 이하 — 동작 학생
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [동작구]
+      monthly_max: 50
+    expected_min_count: 1
+    expected_max_count: 1500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='동작구'
+        AND monthly <= 50 AND status='공개'
+
+  - id: g006
+    persona: newcomer
+    name: 건대 원룸 월세 65만원 이하 — 광진 학생
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [광진구]
+      monthly_max: 65
+    expected_min_count: 1
+    expected_max_count: 800
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='광진구'
+        AND monthly <= 65 AND status='공개'
+
+  - id: g007
+    persona: newcomer
+    name: 합정 원룸 월세 70만원 이하 — 마포 직장인
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [마포구]
+      monthly_max: 70
+    expected_min_count: 1
+    expected_max_count: 600
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='마포구'
+        AND monthly <= 70 AND status='공개'
+
+  - id: g008
+    persona: newcomer
+    name: 신촌 원룸 월세 60만원 이하 — 서대문 학생
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [서대문구]
+      monthly_max: 60
+    expected_min_count: 1
+    expected_max_count: 500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='서대문구'
+        AND monthly <= 60 AND status='공개'
+
+  - id: g009
+    persona: newcomer
+    name: 강서 원룸 월세 50만원 이하 — 강서 직장인
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [강서구]
+      monthly_max: 50
+    expected_min_count: 1
+    expected_max_count: 1000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='강서구'
+        AND monthly <= 50 AND status='공개'
+
+  - id: g010
+    persona: newcomer
+    name: 잠실 원룸 월세 75만원 이하 — 송파 직장인
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [송파구]
+      monthly_max: 75
+    expected_min_count: 1
+    expected_max_count: 300
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='송파구'
+        AND monthly <= 75 AND status='공개'
+
+  - id: g011
+    persona: newcomer
+    name: 관악 원룸 보증금 1천 이하 — 저예산 첫 자취
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [관악구]
+      deposit_max: 1000
+    expected_min_count: 1
+    expected_max_count: 3000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='관악구'
+        AND deposit <= 1000 AND status='공개'
+
+  - id: g012
+    persona: newcomer
+    name: 강남 투룸 월세 100만원 이하 — 강남 커플
+    input:
+      type: [투룸]
+      deal: [월세]
+      gu: [강남구]
+      monthly_max: 100
+    expected_min_count: 1
+    expected_max_count: 1500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='투룸' AND deal='월세' AND gu='강남구'
+        AND monthly <= 100 AND status='공개'
+
+  - id: g013
+    persona: newcomer
+    name: 영등포 원룸 월세 50만원 이하 — 영등포 직장인
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [영등포구]
+      monthly_max: 50
+    expected_min_count: 1
+    expected_max_count: 400
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='영등포구'
+        AND monthly <= 50 AND status='공개'
+
+  - id: g014
+    persona: newcomer
+    name: 동대문 원룸 월세 55만원 이하 — 회기 학생
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [동대문구]
+      monthly_max: 55
+    expected_min_count: 1
+    expected_max_count: 600
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='동대문구'
+        AND monthly <= 55 AND status='공개'
+
+  - id: g015
+    persona: newcomer
+    name: 강서 화곡 원룸 월세 45만원 이하 — 저예산
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [강서구]
+      monthly_max: 45
+    expected_min_count: 1
+    expected_max_count: 800
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='강서구'
+        AND monthly <= 45 AND status='공개'
+
+  - id: g016
+    persona: newcomer
+    name: 마포 원룸 보증금 2천 월세 55 이하 — 마포 직장인 저예산
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [마포구]
+      deposit_max: 2000
+      monthly_max: 55
+    expected_min_count: 1
+    expected_max_count: 400
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='마포구'
+        AND deposit <= 2000 AND monthly <= 55 AND status='공개'
+
+  - id: g017
+    persona: newcomer
+    name: 서대문 원룸 월세 50만원 이하 — 신촌·연남 학생
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [서대문구]
+      monthly_max: 50
+    expected_min_count: 1
+    expected_max_count: 400
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='서대문구'
+        AND monthly <= 50 AND status='공개'
+
+  - id: g018
+    persona: newcomer
+    name: 광진 원룸 월세 50만원 이하 — 자양 직장인
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [광진구]
+      monthly_max: 50
+    expected_min_count: 1
+    expected_max_count: 600
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='광진구'
+        AND monthly <= 50 AND status='공개'
+
+  - id: g019
+    persona: newcomer
+    name: 중랑 원룸 월세 45만원 이하 — 동북부 저예산
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [중랑구]
+      monthly_max: 45
+    expected_min_count: 1
+    expected_max_count: 200
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='중랑구'
+        AND monthly <= 45 AND status='공개'
+
+  - id: g020
+    persona: newcomer
+    name: 강북 원룸 월세 40만원 이하 — 최저예산 첫 자취
+    input:
+      type: [원룸]
+      deal: [월세]
+      gu: [강북구]
+      monthly_max: 40
+    expected_min_count: 1
+    expected_max_count: 400
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='원룸' AND deal='월세' AND gu='강북구'
+        AND monthly <= 40 AND status='공개'
+
+  # ━━━━━━━━ 신혼부부 15 (newlywed) ━━━━━━━━
+  - id: g021
+    persona: newlywed
+    name: 마포 빌라 전세 3억 이하 — 마포·합정 신혼
+    input:
+      type: [빌라]
+      deal: [전세]
+      gu: [마포구]
+      deposit_max: 30000
+    expected_min_count: 1
+    expected_max_count: 200
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='빌라' AND deal='전세' AND gu='마포구'
+        AND deposit <= 30000 AND status='공개'
+
+  - id: g022
+    persona: newlywed
+    name: 송파 아파트 전세 5억 이하 — 잠실·문정 신혼
+    input:
+      type: [아파트]
+      deal: [전세]
+      gu: [송파구]
+      deposit_max: 50000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='아파트' AND deal='전세' AND gu='송파구'
+        AND deposit <= 50000 AND status='공개'
+
+  - id: g023
+    persona: newlywed
+    name: 강남 아파트 전세 7억 이하 — 학군 핵심
+    input:
+      type: [아파트]
+      deal: [전세]
+      gu: [강남구]
+      deposit_max: 70000
+    expected_min_count: 1
+    expected_max_count: 200
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='아파트' AND deal='전세' AND gu='강남구'
+        AND deposit <= 70000 AND status='공개'
+
+  - id: g024
+    persona: newlywed
+    name: 강동 빌라 전세 2.5억 이하 — 천호·길동 신혼
+    input:
+      type: [빌라]
+      deal: [전세]
+      gu: [강동구]
+      deposit_max: 25000
+    expected_min_count: 1
+    expected_max_count: 200
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='빌라' AND deal='전세' AND gu='강동구'
+        AND deposit <= 25000 AND status='공개'
+
+  - id: g025
+    persona: newlywed
+    name: 동대문 빌라 매매 4억 이하 — 회기·청량리 매매 신혼
+    input:
+      type: [빌라]
+      deal: [매매]
+      gu: [동대문구]
+      price_max: 40000
+    expected_min_count: 1
+    expected_max_count: 200
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='빌라' AND deal='매매' AND gu='동대문구'
+        AND price <= 40000 AND status='공개'
+
+  - id: g026
+    persona: newlywed
+    name: 광진 아파트 전세 4억 이하 — 자양·광장동 신혼
+    input:
+      type: [아파트]
+      deal: [전세]
+      gu: [광진구]
+      deposit_max: 40000
+    expected_min_count: 1
+    expected_max_count: 200
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='아파트' AND deal='전세' AND gu='광진구'
+        AND deposit <= 40000 AND status='공개'
+
+  - id: g027
+    persona: newlywed
+    name: 강북 아파트 전세 2.5억 이하 — 미아·수유 저예산 신혼
+    input:
+      type: [아파트]
+      deal: [전세]
+      gu: [강북구]
+      deposit_max: 25000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='아파트' AND deal='전세' AND gu='강북구'
+        AND deposit <= 25000 AND status='공개'
+
+  - id: g028
+    persona: newlywed
+    name: 서대문 빌라 매매 3.5억 이하 — 홍은·연희 신혼
+    input:
+      type: [빌라]
+      deal: [매매]
+      gu: [서대문구]
+      price_max: 35000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='빌라' AND deal='매매' AND gu='서대문구'
+        AND price <= 35000 AND status='공개'
+
+  - id: g029
+    persona: newlywed
+    name: 영등포 빌라 전세 3억 이하 — 영등포·당산 신혼
+    input:
+      type: [빌라]
+      deal: [전세]
+      gu: [영등포구]
+      deposit_max: 30000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='빌라' AND deal='전세' AND gu='영등포구'
+        AND deposit <= 30000 AND status='공개'
+
+  - id: g030
+    persona: newlywed
+    name: 강서 아파트 전세 4억 이하 — 마곡·가양 신혼
+    input:
+      type: [아파트]
+      deal: [전세]
+      gu: [강서구]
+      deposit_max: 40000
+    expected_min_count: 1
+    expected_max_count: 200
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='아파트' AND deal='전세' AND gu='강서구'
+        AND deposit <= 40000 AND status='공개'
+
+  - id: g031
+    persona: newlywed
+    name: 마포 아파트 매매 7억 이하 — 합정·망원 신혼
+    input:
+      type: [아파트]
+      deal: [매매]
+      gu: [마포구]
+      price_max: 70000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='아파트' AND deal='매매' AND gu='마포구'
+        AND price <= 70000 AND status='공개'
+
+  - id: g032
+    persona: newlywed
+    name: 도봉 아파트 매매 4억 이하 — 창동·쌍문 신혼
+    input:
+      type: [아파트]
+      deal: [매매]
+      gu: [도봉구]
+      price_max: 40000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='아파트' AND deal='매매' AND gu='도봉구'
+        AND price <= 40000 AND status='공개'
+
+  - id: g033
+    persona: newlywed
+    name: 구로 아파트 전세 3억 이하 — 신도림·구로 신혼
+    input:
+      type: [아파트]
+      deal: [전세]
+      gu: [구로구]
+      deposit_max: 30000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='아파트' AND deal='전세' AND gu='구로구'
+        AND deposit <= 30000 AND status='공개'
+
+  - id: g034
+    persona: newlywed
+    name: 은평 빌라 매매 3억 이하 — 응암·녹번 신혼
+    input:
+      type: [빌라]
+      deal: [매매]
+      gu: [은평구]
+      price_max: 30000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='빌라' AND deal='매매' AND gu='은평구'
+        AND price <= 30000 AND status='공개'
+
+  - id: g035
+    persona: newlywed
+    name: 강동 아파트 매매 5억 이하 — 천호·둔촌 신혼
+    input:
+      type: [아파트]
+      deal: [매매]
+      gu: [강동구]
+      price_max: 50000
+    expected_min_count: 1
+    expected_max_count: 100
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='아파트' AND deal='매매' AND gu='강동구'
+        AND price <= 50000 AND status='공개'
+
+  # ━━━━━━━━ 사업자 15 (business) ━━━━━━━━
+  - id: g036
+    persona: business
+    name: 강남 상가 — 핵심 상권 (역삼·삼성)
+    input:
+      type: [상가]
+      deal: [월세]
+      gu: [강남구]
+    expected_min_count: 1
+    expected_max_count: 5000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='상가' AND deal='월세' AND gu='강남구'
+        AND status='공개'
+
+  - id: g037
+    persona: business
+    name: 강남 사무실 보증금 1억 이하 — 스타트업
+    input:
+      type: [사무실]
+      deal: [월세]
+      gu: [강남구]
+      deposit_max: 10000
+    expected_min_count: 1
+    expected_max_count: 1000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='사무실' AND deal='월세' AND gu='강남구'
+        AND deposit <= 10000 AND status='공개'
+
+  - id: g038
+    persona: business
+    name: 마포 상가 — 합정·홍대 음식점/카페
+    input:
+      type: [상가]
+      deal: [월세]
+      gu: [마포구]
+    expected_min_count: 1
+    expected_max_count: 500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='상가' AND deal='월세' AND gu='마포구'
+        AND status='공개'
+
+  - id: g039
+    persona: business
+    name: 종로 사무실 — 광화문·종각 (도심)
+    input:
+      type: [사무실]
+      deal: [월세]
+      gu: [종로구]
+    expected_min_count: 1
+    expected_max_count: 300
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='사무실' AND deal='월세' AND gu='종로구'
+        AND status='공개'
+
+  - id: g040
+    persona: business
+    name: 영등포 사무실 — 영등포·여의도
+    input:
+      type: [사무실]
+      deal: [월세]
+      gu: [영등포구]
+    expected_min_count: 1
+    expected_max_count: 300
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='사무실' AND deal='월세' AND gu='영등포구'
+        AND status='공개'
+
+  - id: g041
+    persona: business
+    name: 구로 사무실 — 가산·구로디지털 (스타트업)
+    input:
+      type: [사무실]
+      deal: [월세]
+      gu: [구로구]
+    expected_min_count: 1
+    expected_max_count: 500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='사무실' AND deal='월세' AND gu='구로구'
+        AND status='공개'
+
+  - id: g042
+    persona: business
+    name: 광진 상가 — 건대·자양 (대학상권)
+    input:
+      type: [상가]
+      deal: [월세]
+      gu: [광진구]
+    expected_min_count: 1
+    expected_max_count: 500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='상가' AND deal='월세' AND gu='광진구'
+        AND status='공개'
+
+  - id: g043
+    persona: business
+    name: 송파 상가 — 잠실·문정 (잠실 LCT)
+    input:
+      type: [상가]
+      deal: [월세]
+      gu: [송파구]
+    expected_min_count: 1
+    expected_max_count: 200
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='상가' AND deal='월세' AND gu='송파구'
+        AND status='공개'
+
+  - id: g044
+    persona: business
+    name: 동작 상가 — 사당·이수 (서남부)
+    input:
+      type: [상가]
+      deal: [월세]
+      gu: [동작구]
+    expected_min_count: 1
+    expected_max_count: 1000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='상가' AND deal='월세' AND gu='동작구'
+        AND status='공개'
+
+  - id: g045
+    persona: business
+    name: 관악 상가 — 신림·서울대입구 (관악 메인)
+    input:
+      type: [상가]
+      deal: [월세]
+      gu: [관악구]
+    expected_min_count: 1
+    expected_max_count: 4000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='상가' AND deal='월세' AND gu='관악구'
+        AND status='공개'
+
+  - id: g046
+    persona: business
+    name: 서초 사무실 — 서초·강남 인접
+    input:
+      type: [사무실]
+      deal: [월세]
+      gu: [서초구]
+    expected_min_count: 1
+    expected_max_count: 1000
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='사무실' AND deal='월세' AND gu='서초구'
+        AND status='공개'
+
+  - id: g047
+    persona: business
+    name: 금천 사무실 — 가산·독산 (저비용)
+    input:
+      type: [사무실]
+      deal: [월세]
+      gu: [금천구]
+    expected_min_count: 1
+    expected_max_count: 500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='사무실' AND deal='월세' AND gu='금천구'
+        AND status='공개'
+
+  - id: g048
+    persona: business
+    name: 강서 사무실 — 마곡·가양 (성장 상권)
+    input:
+      type: [사무실]
+      deal: [월세]
+      gu: [강서구]
+    expected_min_count: 1
+    expected_max_count: 500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='사무실' AND deal='월세' AND gu='강서구'
+        AND status='공개'
+
+  - id: g049
+    persona: business
+    name: 강북 상가 — 미아·수유 (저비용 상권)
+    input:
+      type: [상가]
+      deal: [월세]
+      gu: [강북구]
+    expected_min_count: 1
+    expected_max_count: 200
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='상가' AND deal='월세' AND gu='강북구'
+        AND status='공개'
+
+  - id: g050
+    persona: business
+    name: 강남 사무실 — 보증금 5천 이하 (1인 사무실)
+    input:
+      type: [사무실]
+      deal: [월세]
+      gu: [강남구]
+      deposit_max: 5000
+    expected_min_count: 1
+    expected_max_count: 500
+    must_include_id: []
+    must_exclude_id: []
+    sql_oracle: |
+      SELECT id FROM listings
+      WHERE type='사무실' AND deal='월세' AND gu='강남구'
+        AND deposit <= 5000 AND status='공개'

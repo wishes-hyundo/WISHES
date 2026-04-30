@@ -109,4 +109,12 @@ WISHES_시스템점검_보고서_*.docx
 /_probe_*.bat
 
 # 2026-04-23 (L-sec157 Phase 3b cleanup): 세션 임시 산출물 포괄 패턴
-/_commit*.bak
+/_commit
+
+# 2026-04-30 (PR-E §125 단계 6): Playwright 실행 산출물
+# snapshot 본체 (tests/dom-snapshot/__html-snapshots__/) 는 commit 대상.
+# 아래는 실행 산출물 (report / 임시 trace / video) — commit 금지.
+/playwright-report/
+/test-results/
+/blob-report/
+/playwright/.cache/

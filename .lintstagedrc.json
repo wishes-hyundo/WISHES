@@ -1,0 +1,9 @@
+{
+  "*.{ts,tsx}": [
+    "eslint --fix",
+    "bash -c 'npm run typecheck'"
+  ],
+  "*.{js,jsx,mjs,cjs}": [
+    "eslint --fix"
+  ]
+}

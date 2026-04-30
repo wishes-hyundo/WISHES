@@ -1,0 +1,183 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PR-E (RFC 0001) §125.1 단계 7 — Regression Gate CI
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# 6 게이트 자동 가동:
+#   1. type        — tsc --noEmit
+#   2. lint        — next lint
+#   3. unit        — vitest (Golden 50 schema sanity 포함)
+#   4. golden      — Golden 50 schema 검증 (unit 게이트에 포함)
+#   5. sql-oracle  — Supabase 직접 SQL → baseline.json 박제 + drift 검증
+#   6. dom-snapshot— Playwright 4 페이지 HTML capture + diff 0
+#
+# 통과 못하면 PR 머지 자동 차단.
+#
+# 헌법 §125.1 + §72.1 + §96 / §100 / §101 / §67 (PART XI 23 게이트 부분)
+
+name: regression-gate
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# 동시 실행 제한 — 같은 PR 의 새 commit 이 들어오면 이전 실행 취소
+concurrency:
+  group: regression-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+  NODE_OPTIONS: --max-old-space-size=4096
+
+jobs:
+  # ──────────────────────────────────────────
+  # 게이트 1+2+3+4: type / lint / unit / golden
+  # ──────────────────────────────────────────
+  type-lint-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    name: gate-1-2-3-4 (type / lint / unit / golden)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: npm ci (legacy-peer-deps for Next 15 + React 19)
+        run: npm ci --legacy-peer-deps
+
+      - name: gate-1 type — tsc --noEmit
+        run: npm run typecheck
+
+      - name: gate-2 lint — next lint
+        run: npm run lint
+
+      - name: gate-3+4 unit + golden — vitest (filters-baseline + golden 50)
+        run: npm test
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  # ──────────────────────────────────────────
+  # 게이트 5: sql-oracle (Supabase 직접 query → baseline.json 박제 + drift)
+  # ──────────────────────────────────────────
+  sql-oracle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [type-lint-unit]
+    name: gate-5 (sql-oracle)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: npm ci
+        run: npm ci --legacy-peer-deps
+
+      - name: gate-5 oracle — Supabase 50 케이스 일괄 실행 + baseline.json 박제
+        run: npm run oracle
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+      - name: baseline drift 검증 — sql-oracle.test.ts (vitest 단일 파일)
+        run: npx vitest run tests/golden/sql-oracle.test.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+
+      - name: baseline.json artifact 업로드 (검토용)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oracle-baseline
+          path: tests/golden/baseline.json
+          retention-days: 14
+
+  # ──────────────────────────────────────────
+  # 게이트 6: dom-snapshot (Playwright 4 페이지 HTML diff)
+  # ──────────────────────────────────────────
+  dom-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [type-lint-unit]
+    name: gate-6 (dom-snapshot Playwright)
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: npm ci
+        run: npm ci --legacy-peer-deps
+
+      # Playwright 브라우저 캐시 (200MB 매번 다운로드 방지)
+      - name: Playwright 브라우저 캐시
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Playwright chromium install (캐시 미스 시만)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      - name: gate-6a — next build (dom-snapshot prerequisite)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          NEXT_PUBLIC_KAKAO_JS_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JS_KEY }}
+
+      - name: gate-6b — Playwright 4 페이지 snapshot diff
+        run: npm run dom-snapshot
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_KAKAO_JS_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JS_KEY }}
+
+      - name: Playwright report 업로드 (실패 시)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+  # ──────────────────────────────────────────
+  # 종합 게이트 — 위 3 잡 모두 통과해야 PR 머지 가능
+  # ──────────────────────────────────────────
+  regression-gate:
+    runs-on: ubuntu-latest
+    needs: [type-lint-unit, sql-oracle, dom-snapshot]
+    if: always()
+    name: regression-gate (6 gates)
+    steps:
+      - name: 6 게이트 통과 종합 판정
+        run: |
+          if [ "${{ needs.type-lint-unit.result }}" != "success" ]; then
+            echo "::error::gate-1~4 (type/lint/unit/golden) 실패"
+            exit 1
+          fi
+          if [ "${{ needs.sql-oracle.result }}" != "success" ]; then
+            echo "::error::gate-5 (sql-oracle) 실패"
+            exit 1
+          fi
+          if [ "${{ needs.dom-snapshot.result }}" != "success" ]; then
+            echo "::error::gate-6 (dom-snapshot) 실패"
+            exit 1
+          fi
+          echo "::notice::PR-E 6 게이트 모두 PASS"
