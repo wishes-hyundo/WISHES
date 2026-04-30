@@ -33,7 +33,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date().toISOString();
 
   // 정적 페이지
-  // PR-D2 (2026-04-30): /listings 영구 폐기 → /map 단일 (CLAUDE.md 명령)
   const staticPages: MetadataRoute.Sitemap = [
     { url: baseUrl, lastModified: now, changeFrequency: 'daily', priority: 1 },
     { url: baseUrl + '/map', lastModified: now, changeFrequency: 'daily', priority: 0.9 },
@@ -80,9 +79,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         );
         if (!hasOwnContent) continue;
 
-        // PR-D2 (2026-04-30): /listings/:id → /map?listing=:id 영구 마이그레이션
         listingPages.push({
-          url: baseUrl + '/map?listing=' + listing.id,
+          url: baseUrl + '/map/' + listing.id,
           lastModified: listing.updated_at || now,
           changeFrequency: 'weekly' as const,
           priority: 0.8,
@@ -94,4 +92,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     console.log('[sitemap] static=' + staticPages.length + ' listings=' + listingPages.length);
   } catch (e) {
-    console.error('[sitemap] fatal er
+    console.error('[sitemap] fatal error building listing URLs', e);
+  }
+
+  return [...staticPages, ...listingPages];
+}
