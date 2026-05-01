@@ -132,8 +132,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'update_failed' }, { status: 500 });
   }
 
-  // CODEF 호출 트리거 (env 등록 후 PR-R-3-B 활성화)
-  // TODO: PR-R-3-B 에서 fetchRegistry() + analyzeRights() 비동기 실행
+  // CODEF 호출 트리거 — /api/cron/process-paid-reports 가 5분 간격으로
+  // status='paid' 보고서를 픽업하여 fetchRegistry() + analyzeRights() 자동 실행.
+  // CODEF env 미설정 시 cron 이 graceful no-op (paid 유지) — env 등록 후 자동 활성화.
+  // PR-R-3-B (2026-05-02) 완료.
 
   return NextResponse.json({
     success: true,
