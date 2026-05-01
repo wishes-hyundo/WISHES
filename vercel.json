@@ -142,7 +142,7 @@
     },
     {
       "path": "/api/cron/enrich-subway",
-      "schedule": "0 12 * * *"
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/enrich-land-price",
