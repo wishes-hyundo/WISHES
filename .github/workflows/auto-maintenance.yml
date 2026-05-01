@@ -1,0 +1,117 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Auto Maintenance — workflow_dispatch trigger 자동화 (PR-AUTO, 2026-05-02)
+#
+# 작업:
+#   1. lock-regen — package.json 변경 후 package-lock.json 재생성
+#   2. dom-snapshot-update — Playwright DOM snapshot baseline 재박제
+#
+# 호출:
+#   gh workflow run auto-maintenance.yml -f task=lock-regen
+#   gh workflow run auto-maintenance.yml -f task=baseline-regen
+#   또는 GitHub UI Actions 탭 > Auto Maintenance > Run workflow
+#   또는 GitHub REST API POST /repos/.../actions/workflows/auto-maintenance.yml/dispatches
+#
+# 결과:
+#   변경 사항이 있으면 새 브랜치 + PR 자동 생성. 사장님이 머지 또는 Claude 가 자동 머지.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+name: Auto Maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: '실행할 작업'
+        required: true
+        default: 'lock-regen'
+        type: choice
+        options:
+          - lock-regen
+          - baseline-regen
+
+jobs:
+  run-task:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: git config
+        run: |
+          git config user.email "wishes@wishes.co.kr"
+          git config user.name "WISHES Auto"
+
+      # ─────────────────────────────────────────────
+      # Task 1: lock-regen
+      # ─────────────────────────────────────────────
+      - name: lock-regen — npm install + commit
+        if: ${{ inputs.task == 'lock-regen' }}
+        run: |
+          BRANCH="auto/lock-regen-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+
+          # web-push 등 main 의 의존성 기준으로 lock 재생성
+          npm install --legacy-peer-deps --no-audit --no-fund
+
+          if git diff --quiet package-lock.json; then
+            echo "::notice::lock 변경 없음 — PR 생성 생략"
+            exit 0
+          fi
+
+          git add package-lock.json
+          git commit -m "chore: auto-regenerate package-lock.json (auto-maintenance)"
+          git push origin "$BRANCH"
+
+          # PR 생성
+          gh pr create \
+            --title "chore: auto-regenerate package-lock.json" \
+            --body "Auto-maintenance workflow 가 npm install --legacy-peer-deps 로 lock 재생성. PR-A3 (web-push) 추가 후 동기화. **strict 복귀 가능**." \
+            --base main --head "$BRANCH"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ─────────────────────────────────────────────
+      # Task 2: baseline-regen
+      # ─────────────────────────────────────────────
+      - name: baseline-regen — npm install + build + snapshot
+        if: ${{ inputs.task == 'baseline-regen' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          NEXT_PUBLIC_KAKAO_JS_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JS_KEY }}
+        run: |
+          BRANCH="auto/baseline-regen-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b "$BRANCH"
+
+          npm install --legacy-peer-deps --no-audit --no-fund
+          npx playwright install --with-deps chromium webkit
+          npm run build
+          npm run dom-snapshot:update
+
+          if git diff --quiet tests/dom-snapshot/__html-snapshots__/; then
+            echo "::notice::baseline 변경 없음 — PR 생성 생략"
+            exit 0
+          fi
+
+          git add tests/dom-snapshot/__html-snapshots__/
+          git commit -m "chore: auto-regenerate dom-snapshot baseline (auto-maintenance)"
+          git push origin "$BRANCH"
+
+          gh pr create \
+            --title "chore: auto-regenerate dom-snapshot baseline" \
+            --body "Auto-maintenance workflow 가 npm run dom-snapshot:update 로 baseline 재박제. gate-6 strict 복귀 가능." \
+            --base main --head "$BRANCH"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
