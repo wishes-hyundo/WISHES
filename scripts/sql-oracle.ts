@@ -171,4 +171,6 @@ async function main() {
   console.log(`[oracle] 총 케이스: ${cases.length} | 총 ID: ${totalIds} | 경고: ${warnings.length}`);
   if (warnings.length > 0) {
     console.log('[oracle] 경고 목록:');
-    warnings.forEach((w) => console.log(
+    warnings.forEach((w) => console.log(`  - ${w}`));
+  }
+}
