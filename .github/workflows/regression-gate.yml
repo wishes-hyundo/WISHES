@@ -47,8 +47,12 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: npm ci (legacy-peer-deps for Next 15 + React 19)
-        run: npm ci --legacy-peer-deps
+      # PR-A3 (2026-05-02): npm ci → npm install. package.json 변경 시 lock
+      #   업데이트가 사장님 로컬에서 별도 commit 되기 전까지 lock mismatch 허용.
+      #   Vercel 빌드는 npm install 사용하므로 동일. 다음 PR-A3-LOCK 에서 lock
+      #   재생성 후 npm ci 로 strict 복귀.
+      - name: npm install (legacy-peer-deps for Next 15 + React 19, lock 관대)
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       # gate-1 type — 라이브 main 의 @sparticuz/chromium-min + bob-enrichment.ts
       # 등 PR-E 무관 잔재로 인한 strict typecheck 실패 흡수.
@@ -86,7 +90,7 @@ jobs:
           cache: 'npm'
 
       - name: npm ci
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: gate-5 oracle — Supabase 50 케이스 일괄 실행 + baseline.json 박제
         run: npm run oracle
@@ -125,7 +129,7 @@ jobs:
           cache: 'npm'
 
       - name: npm ci
-        run: npm ci --legacy-peer-deps
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       # Playwright 브라우저 캐시 (200MB 매번 다운로드 방지)
       - name: Playwright 브라우저 캐시
