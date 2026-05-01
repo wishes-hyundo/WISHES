@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { sendNewListingAlert, NotifyListing } from '@/lib/email';
+import { sendPushBatch, isPushConfigured, type PushSubscriptionRow } from '@/lib/push';
 import { timingSafeEqualStr } from '@/lib/timingSafe';
 
 export const runtime = 'nodejs';
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
     if (lErr) throw lErr;
 
     let sent = 0;
-    const results: Array<{ sub_id: number; email: string; matches: number; sent: boolean }> = [];
+    const results: Array<{ sub_id: number; email: string; matches: number; sent: boolean; pushSent?: number }> = [];
 
     for (const sub of subs) {
       const threshold = new Date(sub.last_notified_at || sub.created_at);
@@ -129,7 +130,40 @@ export async function POST(request: NextRequest) {
           })
           .eq('id', sub.id);
       }
-      results.push({ sub_id: sub.id, email: sub.email, matches: matches.length, sent: ok });
+
+      // L-sec170 (PR-A3): 이메일 + 푸시 동시 발송. 푸시 실패는 이메일 결과에 영향 X.
+      let pushSent = 0;
+      if (isPushConfigured() && matches.length > 0) {
+        try {
+          const { data: pushSubs } = await supabase
+            .from('push_subscriptions')
+            .select('endpoint, p256dh, auth')
+            .eq('active', true)
+            .or(`saved_search_id.eq.${sub.id},email.eq.${sub.email}`);
+          if (pushSubs && pushSubs.length > 0) {
+            const top = matches[0];
+            const more = matches.length > 1 ? ` 외 ${matches.length - 1}건` : '';
+            const title = `${buildLabel(sub)} 신규 매물`;
+            const body = `${top.title || top.dong || '매물'}${more}`;
+            const url = `/map?listing=${top.id}`;
+            const result = await sendPushBatch(
+              pushSubs as PushSubscriptionRow[],
+              { title, body, url, tag: `saved-${sub.id}` },
+            );
+            pushSent = result.sent;
+            if (result.expiredEndpoints.length > 0) {
+              await supabase
+                .from('push_subscriptions')
+                .update({ active: false, last_failed_at: new Date().toISOString() })
+                .in('endpoint', result.expiredEndpoints);
+            }
+          }
+        } catch (pushErr) {
+          console.warn('[notify-matches] push 발송 실패 (이메일은 정상):', pushErr);
+        }
+      }
+
+      results.push({ sub_id: sub.id, email: sub.email, matches: matches.length, sent: ok, pushSent });
     }
 
     return NextResponse.json({
