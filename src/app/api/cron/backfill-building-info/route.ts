@@ -135,6 +135,10 @@ interface ExtractedFields {
   area_supply_m2?: number;
   area_source?: 'building_registry';
   area_confidence?: number;
+  // PR-R-1-V2 (2026-05-01): data.go.kr 위반건축물 + 사용승인일 추가 추출
+  is_violation_building?: boolean;
+  violation_reason?: string;
+  approval_date?: string;
 }
 
 function extractFields(buildingInfo: AnyObj): ExtractedFields {
@@ -163,6 +167,23 @@ function extractFields(buildingInfo: AnyObj): ExtractedFields {
     const n = parseFloat(String(v || '0'));
     return n > 0 ? n : null;
   };
+
+  // PR-R-1-V2: 위반건축물 + 사용승인일 추출 (data.go.kr 'getBrBasisOulnInfo' / 'getBrTitleInfo')
+  const violationFlag = String(
+    b['vlNoticeYn'] || t['vlNoticeYn'] || r['vlNoticeYn'] || ''
+  ).toUpperCase();
+  if (violationFlag === 'Y') {
+    out.is_violation_building = true;
+    const reason = String(b['vlNoticeRsnCn'] || t['vlNoticeRsnCn'] || r['vlNoticeRsnCn'] || '위반건축물').trim();
+    if (reason) out.violation_reason = reason;
+  } else if (violationFlag === 'N') {
+    out.is_violation_building = false;
+  }
+
+  // 사용승인일 (YYYYMMDD → YYYY-MM-DD)
+  if (aprDay && /^\d{8}$/.test(aprDay)) {
+    out.approval_date = `${aprDay.substring(0, 4)}-${aprDay.substring(4, 6)}-${aprDay.substring(6, 8)}`;
+  }
 
   const supplyArea = parseArea(t['supplyArea'] || r['supplyArea']);
   const privArea = parseArea(t['privArea'] || r['privArea']);
@@ -334,6 +355,22 @@ export async function GET(request: NextRequest) {
           updateData.area_source = fields.area_source;
           updateData.area_confidence = fields.area_confidence;
         }
+
+        // PR-R-1-V2: 위반건축물 + 사용승인일 (admin 만 표시 — 사용자 UI 부정적 표시 X)
+        if (fields.is_violation_building !== undefined && !isBrokerLocked('is_violation_building')) {
+          updateData.is_violation_building = fields.is_violation_building;
+          newSources.is_violation_building = 'data_go_kr';
+          if (fields.violation_reason) {
+            updateData.violation_reason = fields.violation_reason;
+          }
+        }
+        if (fields.approval_date && !isBrokerLocked('approval_date')) {
+          updateData.approval_date = fields.approval_date;
+          newSources.approval_date = 'data_go_kr';
+        }
+        // 마킹 — 다음 cron 에서 skip
+        updateData.building_register_fetched_at = new Date().toISOString();
+        updateData.building_register_source = 'data_go_kr';
 
         if (Object.keys(updateData).length === 0) {
           results.skipped_broker_locked++;
