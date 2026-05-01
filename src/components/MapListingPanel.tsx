@@ -66,7 +66,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
         'id', 'title', 'type', 'deal', 'status', 'dong', 'gu', 'address', 'address_detail',
         'lat', 'lng', 'deposit', 'monthly', 'price',
         'area_m2', 'area_supply_m2', 'floor_current', 'floor_total', 'rooms', 'bathrooms',
-        'direction', 'heating_type', 'available_date', 'built_year',
+        'direction', 'heating_type', 'available_date', 'built_year', 'approval_date',
         'ai_description', 'ai_title', 'ai_generated_at',
         'seo_tags', 'seo_keywords', 'seo_meta_description',
         'building_purpose',
@@ -355,9 +355,17 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
             {listing.heating_type && (
               <InfoItem icon={Thermometer} label="난방" value={listing.heating_type} />
             )}
-            {listing.built_year && (
-              <InfoItem icon={Calendar} label="준공년도" value={listing.built_year} />
-            )}
+            {/* PR-R-1-FE: 신축 라벨 + approval_date fallback (사장님 마케팅 친화) */}
+            {(() => {
+              const ad = (listing as Record<string, unknown>)['approval_date'];
+              const adStr = typeof ad === 'string' ? ad : '';
+              const yearStr = listing.built_year || (adStr ? adStr.substring(0, 4) : '');
+              if (!yearStr) return null;
+              const year = Number.parseInt(yearStr, 10);
+              const isNew = Number.isFinite(year) && new Date().getFullYear() - year <= 3;
+              const display = isNew ? yearStr + ' ✨ 신축' : yearStr;
+              return <InfoItem icon={Calendar} label="준공년도" value={display} />;
+            })()}
             {listing.available_date && (
               <InfoItem icon={Clock} label="입주가능일" value={listing.available_date} />
             )}
