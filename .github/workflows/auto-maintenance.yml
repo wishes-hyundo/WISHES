@@ -91,6 +91,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
           NEXT_PUBLIC_KAKAO_JS_KEY: ${{ secrets.NEXT_PUBLIC_KAKAO_JS_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BRANCH="auto/baseline-regen-$(date +%Y%m%d-%H%M%S)"
           git checkout -b "$BRANCH"
@@ -113,5 +114,3 @@ jobs:
             --title "chore: auto-regenerate dom-snapshot baseline" \
             --body "Auto-maintenance workflow 가 npm run dom-snapshot:update 로 baseline 재박제. gate-6 strict 복귀 가능." \
             --base main --head "$BRANCH"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
