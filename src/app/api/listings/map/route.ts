@@ -16,14 +16,23 @@ import { createServerClient } from '@/lib/supabase';
 import { applyImagePolicy } from '@/lib/image-policy';
 import { cached } from '@/lib/cache';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { maskListingsCoordinates } from '@/lib/coordinateMask';
 
 const MAX_PER_REQUEST = 5000;
 
 /**
  * 지도 바운드 범위 내 매물 조회 (mv_map_listings 우선, 실패 시 listings 폴백)
+ *
+ * L-sec170 (2026-05-02): Coordinate masking for non-logged-in users
+ *   - Logged-in: precise lat/lng
+ *   - Not logged-in: masked to dong-level (0.01° = ~1.1km) via maskListingsCoordinates
  */
 export async function GET(request: NextRequest) {
   try {
+    // Check if user is authenticated via Authorization header
+    const authHeader = request.headers.get('authorization');
+    const isAuthenticated = !!authHeader?.startsWith('Bearer ');
+
     // L-sec79 (2026-04-22): 10s s-maxage 로 unique bbox 조합은 캨시 미히트.
     //   5분 200회/IP cap. 정상 pan/zoom 50-100회/세션.
     const _ip = getClientIp(request);
@@ -174,10 +183,13 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // L-sec170 (2026-05-02): Apply coordinate masking for non-authenticated users
+    const maskedData = maskListingsCoordinates(sorted as any[], isAuthenticated);
+
     return NextResponse.json(
       {
         success: true,
-        data: sorted,
+        data: maskedData,
         total: result.total ?? sorted.length,
         source: result.fromMv ? 'mv' : 'legacy',
       },

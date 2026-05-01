@@ -143,9 +143,23 @@ export default function AuthModal() {
         <div className="px-8 pb-6 text-center">
           <p className="text-xs text-gray-500 leading-relaxed">
             로그인 시{' '}
-            <span className="underline cursor-pointer hover:text-gray-500">이용약관</span>
+            <a
+              href="/legal/terms"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline cursor-pointer hover:text-gray-700 transition-colors"
+            >
+              이용약관
+            </a>
             {' '}및{' '}
-            <span className="underline cursor-pointer hover:text-gray-500">개인정보 처리방침</span>
+            <a
+              href="/legal/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline cursor-pointer hover:text-gray-700 transition-colors"
+            >
+              개인정보 처리방침
+            </a>
             에 동의합니다.
           </p>
         </div>

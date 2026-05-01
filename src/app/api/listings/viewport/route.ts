@@ -13,6 +13,7 @@ import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { maskAddressForPublic } from '@/lib/publicAddress';
 import { isSelfHostedImage } from '@/lib/image-policy';
+import { maskCoordinate } from '@/lib/coordinateMask';
 import type { DealType, MapListing } from '@/features/map-2026/store';
 
 // L-perf-2 (2026-04-29 사장님 명령): force-dynamic 제거 → Edge cache 적용 가능.
@@ -500,10 +501,16 @@ export async function GET(req: NextRequest) {
       //   자체 매물(source_site NULL): thumb_url 있으면 최소 1.
       const photoCount = selfHostedCountMap.get(r.id) ?? (r.thumb_url && !r.source_site ? 1 : 0);
       const daysOld = Math.max(0, (Date.now() - new Date(r.updated_at ?? r.created_at).getTime()) / 86400000);
+
+      // L-sec170 (2026-05-02): Coordinate masking for non-authenticated users
+      //   - authed = true: return precise coordinates (lat/lng)
+      //   - authed = false: mask to dong-level (0.01° precision ≈ 1.1km)
+      const { lat, lng } = authed ? { lat: r.lat, lng: r.lng } : maskCoordinate(r.lat, r.lng);
+
       return {
         id: r.id,
-        lat: r.lat,
-        lng: r.lng,
+        lat,
+        lng,
         deal: r.deal,
         type: r.type ?? null,
         deposit: r.deposit,
