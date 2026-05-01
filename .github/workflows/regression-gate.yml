@@ -135,9 +135,15 @@ jobs:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
 
-      - name: Playwright chromium install (캐시 미스 시만)
+      # PR-S5 (2026-05-02): chromium + webkit 모두 install.
+      #   playwright.config.ts 의 'mobile-iphone13' 프로젝트가 devices['iPhone 13']
+      #   (webkit 기반) 을 사용하는데, chromium 만 install 하면 mobile-*.spec.ts 가
+      #   "Executable doesn't exist at .../webkit-2272/pw_run.sh" 로 실패.
+      #   캐시 키는 package-lock.json hash 라 webkit 추가 시 한 번만 받으면 다음부터
+      #   캐시 히트.
+      - name: Playwright chromium + webkit install (캐시 미스 시만)
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
 
       - name: gate-6a — next build (dom-snapshot prerequisite)
         run: npm run build
