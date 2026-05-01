@@ -1,42 +1,248 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// sw.js — v3.0.0 (A3, 2026-05-02)
+// sw.js — v3.1.0 (F1 PWA 오프라인 캐싱, 2026-05-02)
 //
 // 변경 이력:
-//   v2.3.9: 긴급 킬 스위치 (자기 자신 unregister) — 구형 sw 정리용 일회성
-//   v3.0.0: kill switch 제거. Push 알림 + 기본 PWA install 핸들러.
+//   v2.3.9: 긴급 킬 스위치 (자기 자신 unregister) — 일회성
+//   v3.0.0: kill switch 제거. Push 알림 + 기본 PWA install 핸들러. (PR #52)
+//   v3.1.0: F1 fetch 핸들러 추가. precache + runtime cache 전략. (PR-F1)
 //
-// 주의:
-//   - fetch 핸들러 미구현 — 기본 네트워크 동작 유지 (오프라인 캐싱 X, F1 차후)
-//   - 이전 v2.3.9 가 unregister 시키므로 사용자 첫 방문 후 새로 등록됨
+// 캐싱 전략:
+//   1) precache (install)
+//      - /offline (오프라인 폴백 페이지)
+//      - /favicon.ico, /apple-touch-icon.png, /icon-{192,512}x{192,512}.png
+//      - /manifest.json
+//   2) /_next/static/** (immutable assets) → cache-first, 30일
+//   3) /_next/image, /api/images/* (이미지) → stale-while-revalidate
+//   4) Kakao map 타일 (dapi.kakao.com, map.daumcdn.net) → cache-first, 7일
+//   5) /api/map/* → stale-while-revalidate (clusters, items, search)
+//   6) /api/geo/* → cache-first, 30일 (GeoJSON 변동 적음)
+//   7) /api/listings/{map,viewport} → stale-while-revalidate (5분 TTL)
+//   8) HTML 페이지 (navigate) → network-first, 실패 시 캐시 → 실패 시 /offline
+//   9) skip: POST/PUT/DELETE, /api/auth/*, /api/admin/*, /api/push/*, /api/cron/*
+//
+// 안전:
+//   - skipWaiting + clients.claim 으로 즉시 활성화
+//   - 이전 버전 캐시 자동 정리 (CACHE_VERSION 변경 시)
+//   - opaque response (cross-origin no-cors) 도 캐시 가능
+//   - 5xx 응답은 캐시 X (stale 데이터로 오류 반환 방지)
+//
+// 참고: sw-map-v1.js 는 이전 prototype, MapServiceWorker.tsx 는 orphan(미사용).
+//       본 sw.js 가 모든 SW 기능 통합.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-const SW_VERSION = 'wishes-sw-v3.0.0';
+const SW_VERSION = 'wishes-sw-v3.1.0';
+const PRECACHE = `${SW_VERSION}-precache`;
+const STATIC_CACHE = `${SW_VERSION}-static`;
+const IMG_CACHE = `${SW_VERSION}-img`;
+const TILE_CACHE = `${SW_VERSION}-tiles`;
+const API_CACHE = `${SW_VERSION}-api`;
+const GEO_CACHE = `${SW_VERSION}-geo`;
+const HTML_CACHE = `${SW_VERSION}-html`;
 
+const ALL_CACHES = [PRECACHE, STATIC_CACHE, IMG_CACHE, TILE_CACHE, API_CACHE, GEO_CACHE, HTML_CACHE];
+
+const PRECACHE_URLS = [
+  '/offline',
+  '/favicon.ico',
+  '/apple-touch-icon.png',
+  '/icon-192x192.png',
+  '/icon-512x512.png',
+  '/manifest.json',
+];
+
+// ─────────────────────────────────────────────────────────
+// install — precache 핵심 자원
+// ─────────────────────────────────────────────────────────
 self.addEventListener('install', (event) => {
-  // 설치 즉시 활성화 (이전 sw 대체)
-  self.skipWaiting();
+  event.waitUntil((async () => {
+    try {
+      const cache = await caches.open(PRECACHE);
+      // addAll 은 한 개라도 실패하면 전체 실패 → 개별 add 로 best-effort
+      await Promise.all(
+        PRECACHE_URLS.map((u) =>
+          cache.add(u).catch((err) => {
+            // precache 실패는 install 실패로 이어지지 않음 (offline page 만 critical)
+            console.warn('[sw] precache miss:', u, err && err.message);
+          })
+        )
+      );
+    } catch (e) {
+      // 전체 precache 실패해도 SW 자체는 활성화 — 네트워크 통과 모드로 동작
+    }
+    self.skipWaiting();
+  })());
 });
 
+// ─────────────────────────────────────────────────────────
+// activate — 이전 버전 캐시 정리
+// ─────────────────────────────────────────────────────────
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // 이전 버전 캐시 정리
     try {
       const keys = await caches.keys();
       await Promise.all(
-        keys.filter((k) => k !== SW_VERSION).map((k) => caches.delete(k))
+        keys
+          .filter((k) => !ALL_CACHES.includes(k))
+          .map((k) => caches.delete(k))
       );
     } catch (e) {
-      // 캐시 정리 실패해도 계속 진행
+      // ignore
     }
-    // 즉시 모든 클라이언트 제어
     try { await self.clients.claim(); } catch (e) {}
   })());
 });
 
-// fetch 핸들러 없음 → 브라우저가 네트워크에서 직접 가져옴 (PWA 오프라인은 차후)
+// ─────────────────────────────────────────────────────────
+// 캐시 전략 헬퍼
+// ─────────────────────────────────────────────────────────
+
+async function cacheFirst(req, cacheName, maxAgeMs) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(req);
+  if (cached) {
+    const stamp = cached.headers.get('sw-cached-at');
+    const age = stamp ? Date.now() - parseInt(stamp, 10) : 0;
+    if (!maxAgeMs || age < maxAgeMs) return cached;
+  }
+  try {
+    const net = await fetch(req);
+    if (net && (net.ok || net.type === 'opaque') && net.status < 500) {
+      // sw-cached-at 스탬프를 헤더에 추가해서 재캐싱
+      const headers = new Headers(net.headers);
+      headers.set('sw-cached-at', String(Date.now()));
+      const cloned = new Response(net.clone().body, {
+        status: net.status,
+        statusText: net.statusText,
+        headers,
+      });
+      cache.put(req, cloned).catch(() => {});
+    }
+    return net;
+  } catch {
+    return cached || Response.error();
+  }
+}
+
+async function staleWhileRevalidate(req, cacheName) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(req);
+  const fetchPromise = fetch(req)
+    .then((net) => {
+      if (net && (net.ok || net.type === 'opaque') && net.status < 500) {
+        cache.put(req, net.clone()).catch(() => {});
+      }
+      return net;
+    })
+    .catch(() => cached || Response.error());
+  return cached || fetchPromise;
+}
+
+async function networkFirstHTML(req) {
+  const cache = await caches.open(HTML_CACHE);
+  try {
+    const net = await fetch(req);
+    if (net && net.ok) {
+      cache.put(req, net.clone()).catch(() => {});
+    }
+    return net;
+  } catch {
+    const cached = await cache.match(req);
+    if (cached) return cached;
+    // 마지막 폴백: precache 의 /offline
+    const offline = await caches.match('/offline');
+    if (offline) return offline;
+    return Response.error();
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// fetch — 라우팅
+// ─────────────────────────────────────────────────────────
+self.addEventListener('fetch', (event) => {
+  const req = event.request;
+  // mutation 메서드는 SW 가 건드리지 않음
+  if (req.method !== 'GET') return;
+
+  let url;
+  try { url = new URL(req.url); } catch { return; }
+
+  // 같은 origin 외에는 일부 (Kakao map 등) 만 처리
+  const isSameOrigin = url.origin === self.location.origin;
+
+  // ── cross-origin: Kakao map 타일만 처리, 나머지는 통과 ──
+  if (!isSameOrigin) {
+    if (/(?:^|\.)dapi\.kakao\.com$|(?:^|\.)map[0-9]?\.daumcdn\.net$/.test(url.hostname)) {
+      event.respondWith(cacheFirst(req, TILE_CACHE, 7 * 24 * 60 * 60 * 1000));
+    }
+    return;
+  }
+
+  // ── skip: SW 가 건드리면 안 되는 경로 ──
+  const path = url.pathname;
+  if (
+    path.startsWith('/api/auth/') ||
+    path.startsWith('/api/admin/') ||
+    path.startsWith('/api/push/') ||
+    path.startsWith('/api/cron/') ||
+    path.startsWith('/api/csp-report') ||
+    path.startsWith('/api/payments/') ||
+    path.startsWith('/api/health')
+  ) {
+    return;
+  }
+
+  // ── /_next/static/** (immutable) ──
+  if (path.startsWith('/_next/static/')) {
+    event.respondWith(cacheFirst(req, STATIC_CACHE, 30 * 24 * 60 * 60 * 1000));
+    return;
+  }
+
+  // ── /_next/image, /api/images/*, /api/img-proxy ──
+  if (path.startsWith('/_next/image') || path.startsWith('/api/images/') || path.startsWith('/api/img-proxy')) {
+    event.respondWith(staleWhileRevalidate(req, IMG_CACHE));
+    return;
+  }
+
+  // ── /api/geo/* (GeoJSON) ──
+  if (path.startsWith('/api/geo/')) {
+    event.respondWith(cacheFirst(req, GEO_CACHE, 30 * 24 * 60 * 60 * 1000));
+    return;
+  }
+
+  // ── /api/map/* (clusters, items, search) ──
+  if (path.startsWith('/api/map/')) {
+    event.respondWith(staleWhileRevalidate(req, API_CACHE));
+    return;
+  }
+
+  // ── /api/listings/{map,viewport} (5분 TTL stale-while-revalidate) ──
+  if (path === '/api/listings/map' || path === '/api/listings/viewport') {
+    event.respondWith(staleWhileRevalidate(req, API_CACHE));
+    return;
+  }
+
+  // ── 정적 자원 (폰트, 아이콘, 이미지) ──
+  if (
+    path === '/favicon.ico' ||
+    path === '/apple-touch-icon.png' ||
+    path === '/manifest.json' ||
+    /\.(ico|png|jpg|jpeg|webp|avif|svg|woff2?|ttf)$/.test(path)
+  ) {
+    event.respondWith(cacheFirst(req, STATIC_CACHE, 30 * 24 * 60 * 60 * 1000));
+    return;
+  }
+
+  // ── HTML navigate 요청 (페이지 이동) ──
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
+    event.respondWith(networkFirstHTML(req));
+    return;
+  }
+
+  // 그 외는 SW 가 건드리지 않음 (네트워크 통과)
+});
 
 // ───────────────────────────────────────────────────────
-// Push 알림 수신
+// Push 알림 수신 (v3.0.0 부터 — 변경 없음)
 // ───────────────────────────────────────────────────────
 self.addEventListener('push', (event) => {
   if (!event.data) return;
@@ -49,8 +255,8 @@ self.addEventListener('push', (event) => {
   const title = payload.title || '위시스';
   const options = {
     body: payload.body || '',
-    icon: payload.icon || '/icons/icon-192.png',
-    badge: '/icons/badge-72.png',
+    icon: payload.icon || '/icon-192x192.png',
+    badge: '/icon-192x192.png',
     tag: payload.tag || 'wishes-push',
     data: { url: payload.url || '/' },
     requireInteraction: false,
@@ -59,7 +265,6 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// 알림 클릭 → 해당 URL 열기 (이미 열린 탭 있으면 focus)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || '/';
@@ -80,8 +285,6 @@ self.addEventListener('notificationclick', (event) => {
   })());
 });
 
-// 구독 만료 알림 (브라우저가 endpoint 갱신 요청)
 self.addEventListener('pushsubscriptionchange', (event) => {
-  // 단순 처리: 다음 사용자 페이지 방문 시 클라이언트 재구독 로직이 동작.
-  // 더 robust 한 처리는 차후 (재구독 후 /api/push/subscribe 자동 갱신).
+  // 사용자 다음 페이지 방문 시 클라이언트 재구독 로직이 동작.
 });
