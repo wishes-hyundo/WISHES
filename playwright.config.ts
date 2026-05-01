@@ -52,11 +52,19 @@ export default defineConfig({
   snapshotPathTemplate:
     '{testDir}/__html-snapshots__/{testFilePath}/{arg}{ext}',
 
-  // 단일 chromium 프로젝트 — 단계 6 sanity (단계 8 후속에서 firefox/webkit 추가 가능)
+  // 단계 6 chromium + PR-N-3 (2026-04-30) mobile viewport 추가.
+  //   mobile 은 사용자 트래픽 70% 경로 — iPhone 13 emulation 으로 회귀 catch.
+  //   testMatch 분리로 desktop 4 + mobile 2 = 6 test 자동 실행.
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testMatch: /^(?!.*mobile-).*\.spec\.ts$/,
+    },
+    {
+      name: 'mobile-iphone13',
+      use: { ...devices['iPhone 13'] },
+      testMatch: /mobile-.*\.spec\.ts$/,
     },
   ],
 
