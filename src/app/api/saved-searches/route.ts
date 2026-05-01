@@ -1,4 +1,4 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // POST /api/saved-searches  (T5-7)
 //   고객이 검색 조건 + 이메일을 저장하여 알림 구독
 //   입력: { name?, email, phone?, deal?, type?, gu?, dong?,
@@ -6,7 +6,7 @@
 //           max_monthly?, min_area_m2?, max_area_m2?, source? }
 //   반환: { success, id, unsubToken }
 //   opt-in 확인 메일도 함께 발송
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
@@ -34,7 +34,7 @@ function buildLabel(body: any): string {
 
 export async function POST(request: NextRequest) {
   try {
-    // L-sec65 (2026-04-22):  공개 POST 엔드포인트 스팸 방지
+    // L-sec65 (2026-04-22):  공개 POST 엔드포인트 스팸 방지
     //   1시간 10회/IP cap. checkRateLimit 인프라(L-sec62) 재사용.
     const _ip = getClientIp(request);
     const _rl = checkRateLimit({ key: `saved-searches:ip:${_ip}`, limit: 10, windowMs: 60 * 60_000 });
@@ -64,13 +64,26 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const unsubToken = crypto.randomBytes(24).toString('hex');
 
-    // L-sec20: 유한수/범위 검증. Number() 가 NaN/Infinity 면 null 로 떨어뜨림.
-    //   상한 1e12 = 1조 (만원 단위 가격) — 현실 가격보다 충분히 크고 DB numeric overflow 방지.
-    const finiteNum = (v: any): number | null => {
+    // L-sec170 (2026-05-02, PR-S1 P0-C): 가격은 정수(만원), 면적은 실수(㎡) 분리.
+    //   기존 finiteNum 은 부동소수도 통과 → max_price=3.14 같은 입력이 314원으로 저장.
+    //   비즈니스 도메인 상 한국 부동산 가격은 만원 단위 정수, 면적은 23.5㎡ 같은
+    //   소수 1자리 까지 허용. 두 검증기로 분리한다.
+    //   상한 1e12 = 1조 (만원) → 현실 가격보다 충분히 크고 DB numeric overflow 방지.
+    const finiteIntManwon = (v: any): number | null => {
       if (v === null || v === undefined || v === '') return null;
       const n = Number(v);
       if (!Number.isFinite(n) || n < 0 || n > 1e12) return null;
+      if (!Number.isInteger(n)) return null;
       return n;
+    };
+    // 면적은 부동소수 허용 — 23.5㎡, 31.27㎡ 등 실측값.
+    //   상한 1e7 = 1천만㎡ (1만 헥타르) → 단일 매물 면적 한계 충분.
+    const finiteFloatArea = (v: any): number | null => {
+      if (v === null || v === undefined || v === '') return null;
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < 0 || n > 1e7) return null;
+      // 소수 2자리로 반올림 (DB numeric(8,2) 가정 + UI 입력 단순화)
+      return Math.round(n * 100) / 100;
     };
     // L-sec20: filters_extra JSON 직렬화 후 크기 cap (8KB). 더 크면 {} 로 폴백.
     let filtersExtraSafe: Record<string, any> = {};
@@ -91,13 +104,13 @@ export async function POST(request: NextRequest) {
       type: capStr(body.type, 40),
       gu: capStr(body.gu, 40),
       dong: capStr(body.dong, 60),
-      min_price: finiteNum(body.min_price),
-      max_price: finiteNum(body.max_price),
-      min_deposit: finiteNum(body.min_deposit),
-      max_deposit: finiteNum(body.max_deposit),
-      max_monthly: finiteNum(body.max_monthly),
-      min_area_m2: finiteNum(body.min_area_m2),
-      max_area_m2: finiteNum(body.max_area_m2),
+      min_price: finiteIntManwon(body.min_price),
+      max_price: finiteIntManwon(body.max_price),
+      min_deposit: finiteIntManwon(body.min_deposit),
+      max_deposit: finiteIntManwon(body.max_deposit),
+      max_monthly: finiteIntManwon(body.max_monthly),
+      min_area_m2: finiteFloatArea(body.min_area_m2),
+      max_area_m2: finiteFloatArea(body.max_area_m2),
       filters_extra: filtersExtraSafe,
       source: capStr(body.source, 80),
       unsub_token: unsubToken,
