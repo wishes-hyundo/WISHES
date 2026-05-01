@@ -6,17 +6,9 @@ import { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createAuthClient } from '@/lib/supabase';
+import { withTimeout } from '@/lib/withTimeout';
 
-// ⏱ 타임아웃 헬퍼
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout')), ms);
-    promise.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
-    );
-  });
-}
+
 
 // L-sec50 (2026-04-22): open redirect guard.
 //   ?redirect=https://evil.com 로 피싱 리다이렉터 악용 방지.

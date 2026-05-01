@@ -1,3 +1,4 @@
+import { withTimeout } from './withTimeout';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 프로세스 레벨 인메모리 캐시 (Stale-While-Revalidate)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -53,7 +54,7 @@ export async function cached<T>(
 
   // 3) 캐시 없거나 완전 만료 → 직접 fetch (타임아웃 적용)
   try {
-    const data = await withTimeout(fetcher(), timeoutMs);
+    const data = await withTimeout(fetcher(), timeoutMs, 'cache-timeout');
     store.set(key, { data, timestamp: now, isRefreshing: false });
     return data;
   } catch {
@@ -95,7 +96,7 @@ async function refreshInBackground<T>(
   timeoutMs: number,
 ) {
   try {
-    const data = await withTimeout(fetcher(), timeoutMs);
+    const data = await withTimeout(fetcher(), timeoutMs, 'cache-timeout');
     store.set(key, { data, timestamp: Date.now(), isRefreshing: false });
   } catch {
     // 갱신 실패 → refreshing 플래그만 해제 (기존 stale 데이터 유지)
@@ -104,12 +105,4 @@ async function refreshInBackground<T>(
   }
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('cache-timeout')), ms);
-    promise.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
-    );
-  });
-}
+
