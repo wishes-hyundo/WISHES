@@ -3,6 +3,7 @@ import Script from 'next/script';
 import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
 import QueryProvider from '@/components/providers/QueryProvider';
+import SeniorToggle from '@/components/SeniorToggle';
 import SpeculationRules from '@/components/SpeculationRules';
 import WebVitalsReporter from '@/components/WebVitalsReporter';
 
@@ -196,6 +197,7 @@ export default function RootLayout({
             {children}
           </ConditionalLayout>
         </QueryProvider>
+        <SeniorToggle />
       </body>
     </html>
   );
