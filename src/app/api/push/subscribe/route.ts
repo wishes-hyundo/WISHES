@@ -1,84 +1,104 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// POST /api/push/subscribe — PR-N-1
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// POST /api/push/subscribe — Push 구독 등록 (A3, 2026-05-02)
 //
-// Web Push 구독 등록. 사용자 동의 후만 호출 가능 (RLS 보호).
-// 헌법 §54 / 사장님 명시: 동의 후만 / 1인당 월 ≤ 4회 / 22~08시 차단
+// Body:
+//   {
+//     endpoint: string (PushSubscription.endpoint),
+//     keys: { p256dh: string, auth: string },
+//     savedSearchId?: number,  // saved_searches FK
+//     email?: string           // 게스트 식별자
+//   }
 //
-// Body: { endpoint, keys: { p256dh, auth }, userAgent? }
-// Auth: Authorization: Bearer <Supabase JWT> 필요
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 인증:
+//   - Authorization: Bearer <Supabase JWT> 가 있으면 user_id 자동 주입
+//   - 없으면 email 필수 (게스트 saved_search 구독)
+//
+// upsert(onConflict: endpoint) — 같은 endpoint 가 같은 사용자/이메일로
+// 다시 등록되면 active=true 갱신. RLS 우회 위해 service-role 사용.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient, createServerClient } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase';
+import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-interface SubscribeBody {
-  endpoint?: string;
-  keys?: { p256dh?: string; auth?: string };
-  userAgent?: string;
-}
+const Schema = z.object({
+  endpoint: z.string().url().max(2000),
+  keys: z.object({
+    p256dh: z.string().min(10).max(500),
+    auth: z.string().min(8).max(500),
+  }),
+  savedSearchId: z.number().int().nonnegative().optional().nullable(),
+  email: z.string().email().max(320).optional().nullable(),
+});
 
 export async function POST(request: NextRequest) {
-  // Rate limit — 분당 5회/IP (스팸 방지)
+  // L-sec170 (PR-A3): 신규 구독 endpoint 스팸 방지 — 30회/분/IP
   const ip = getClientIp(request);
-  const rl = checkRateLimit({ key: `push:subscribe:${ip}`, limit: 5, windowMs: 60_000 });
+  const rl = checkRateLimit({ key: `push-subscribe:${ip}`, limit: 30, windowMs: 60_000 });
   if (!rl.ok) {
-    return NextResponse.json({ success: false, error: 'rate_limited' }, { status: 429 });
+    return NextResponse.json(
+      { error: 'rate_limited' },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
   }
 
-  // 인증 — Supabase JWT 필수
-  const authHdr = request.headers.get('authorization') || '';
-  const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : '';
-  if (!token) {
-    return NextResponse.json({ success: false, error: 'unauthenticated' }, { status: 401 });
+  const body = await request.json().catch(() => null);
+  const parsed = Schema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'invalid_input' }, { status: 400 });
   }
-
-  const sb = createClient();
-  const { data: { user }, error: authErr } = await sb.auth.getUser(token);
-  if (authErr || !user) {
-    return NextResponse.json({ success: false, error: 'invalid_token' }, { status: 401 });
-  }
-
-  // Body 검증
-  let body: SubscribeBody;
-  try {
-    body = (await request.json()) as SubscribeBody;
-  } catch {
-    return NextResponse.json({ success: false, error: 'invalid_json' }, { status: 400 });
-  }
-
-  if (
-    !body.endpoint ||
-    typeof body.endpoint !== 'string' ||
-    !body.keys ||
-    !body.keys.p256dh ||
-    !body.keys.auth ||
-    body.endpoint.length > 2000
-  ) {
-    return NextResponse.json({ success: false, error: 'invalid_payload' }, { status: 400 });
-  }
+  const { endpoint, keys, savedSearchId, email } = parsed.data;
 
   const supabase = createServerClient();
-  const { error: upsertErr } = await supabase
+
+  // Authorization 헤더 → user_id 추출 (있으면)
+  let userId: string | null = null;
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7);
+    try {
+      const { data } = await supabase.auth.getUser(token);
+      userId = data?.user?.id || null;
+    } catch {
+      /* invalid token — guest 폴백 */
+    }
+  }
+
+  if (!userId && !email) {
+    return NextResponse.json(
+      { error: 'auth_required', message: '로그인 또는 이메일 필요' },
+      { status: 401 },
+    );
+  }
+
+  const userAgent = request.headers.get('user-agent')?.slice(0, 200) || null;
+
+  const { error } = await supabase
     .from('push_subscriptions')
     .upsert(
       {
-        user_id: user.id,
-        endpoint: body.endpoint,
-        p256dh: body.keys.p256dh,
-        auth: body.keys.auth,
-        user_agent: typeof body.userAgent === 'string' ? body.userAgent.slice(0, 500) : null,
-        is_blocked: false,
+        endpoint,
+        p256dh: keys.p256dh,
+        auth: keys.auth,
+        user_id: userId,
+        email: email || null,
+        saved_search_id: savedSearchId || null,
+        user_agent: userAgent,
+        active: true,
+        last_used_at: new Date().toISOString(),
+        fail_count: 0,
       },
       { onConflict: 'endpoint' },
     );
 
-  if (upsertErr) {
+  if (error) {
+    const isDev = process.env.NODE_ENV !== 'production';
     return NextResponse.json(
-      { success: false, error: 'db_error', detail: upsertErr.message?.slice(0, 100) },
+      { error: 'db_error', detail: isDev ? error.message : undefined },
       { status: 500 },
     );
   }
