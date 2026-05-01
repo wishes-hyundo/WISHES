@@ -33,7 +33,7 @@ describe('Coordinate Masking (L-sec170)', () => {
       const coord2 = maskCoordinate(37.51, 127.0);
 
       // Difference is 0.01°, which is approximately 1.1km at Seoul
-      expect(Math.abs(coord2.lat - coord1.lat)).toBe(0.01);
+      expect(Math.abs(coord2.lat - coord1.lat)).toBeCloseTo(0.01, 5);
     });
   });
 
