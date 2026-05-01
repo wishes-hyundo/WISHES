@@ -6,8 +6,9 @@
 //   부모는 filters prop으로 현재 /listings 필터를 전달
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { useState } from 'react';
-import { X, Bell, Check, Loader2 } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { X, Bell, Check, Loader2, Smartphone } from 'lucide-react';
+import { isPushSupported, subscribePush } from '@/lib/pushClient';
 
 export type SubscribeFilters = {
   deal?: string | null;
@@ -39,6 +40,14 @@ export default function AlertSubscribeModal({
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
+  // PR-A3-UI (2026-05-02): 푸시 알림 토글
+  const [pushOptIn, setPushOptIn] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushNote, setPushNote] = useState('');
+  useEffect(() => {
+    setPushSupported(isPushSupported());
+  }, []);
+
   if (!open) return null;
 
   const filterSummary: string[] = [];
@@ -67,6 +76,22 @@ export default function AlertSubscribeModal({
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || '등록 실패');
+
+      // PR-A3-UI: 푸시 옵트인 시 브라우저 구독 등록 (실패해도 saved-search 는 정상)
+      if (pushOptIn && pushSupported) {
+        try {
+          const r = await subscribePush({
+            email,
+            savedSearchId: json.id,
+          });
+          if (!r.ok) {
+            setPushNote(r.error || '푸시 알림 등록은 실패했습니다 (이메일 알림은 정상)');
+          }
+        } catch {
+          setPushNote('푸시 알림 등록은 실패했습니다 (이메일 알림은 정상)');
+        }
+      }
+
       setDone(true);
     } catch (err: any) {
       setError(err?.message || '네트워크 오류');
@@ -77,6 +102,7 @@ export default function AlertSubscribeModal({
 
   const handleClose = () => {
     setName(''); setEmail(''); setPhone(''); setDone(false); setError('');
+    setPushOptIn(false); setPushNote('');
     onClose();
   };
 
@@ -108,6 +134,16 @@ export default function AlertSubscribeModal({
               조건에 맞는 신규 매물이 등록되면 <strong>{email}</strong> 주소로 알림을 보내드립니다.
               확인 메일도 곧 도착합니다.
             </p>
+            {pushNote && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mb-4">
+                {pushNote}
+              </p>
+            )}
+            {pushOptIn && !pushNote && (
+              <p className="text-[11px] text-green-700 bg-green-50 border border-green-200 rounded-lg p-2 mb-4">
+                ✓ 브라우저 푸시 알림도 활성화 완료
+              </p>
+            )}
             <button
               type="button"
               onClick={handleClose}
@@ -191,6 +227,39 @@ export default function AlertSubscribeModal({
                   />
                 </div>
               </div>
+
+              {/* PR-A3-UI (2026-05-02): 푸시 알림 토글 */}
+              {pushSupported && (
+                <button
+                  type="button"
+                  onClick={() => setPushOptIn((v) => !v)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                    pushOptIn
+                      ? 'bg-wishes-primary/[0.06] border-wishes-primary/40'
+                      : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                  }`}
+                  aria-pressed={pushOptIn}
+                >
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center ${
+                    pushOptIn ? 'bg-wishes-primary text-white' : 'bg-white text-gray-400 border border-gray-200'
+                  }`}>
+                    <Smartphone className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="text-sm font-semibold text-gray-800">브라우저 푸시 알림도 받기</div>
+                    <div className="text-[11px] text-gray-500 leading-tight mt-0.5">
+                      이메일 + 즉시 푸시 (PC/모바일)
+                    </div>
+                  </div>
+                  <div className={`w-11 h-6 rounded-full relative transition-colors ${
+                    pushOptIn ? 'bg-wishes-primary' : 'bg-gray-300'
+                  }`}>
+                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${
+                      pushOptIn ? 'left-[22px]' : 'left-0.5'
+                    }`} />
+                  </div>
+                </button>
+              )}
 
               {error && (
                 <div className="p-2.5 rounded-lg bg-red-50 border border-red-200 text-xs text-red-700">{error}</div>
