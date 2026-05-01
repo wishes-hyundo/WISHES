@@ -38,7 +38,7 @@ const Schema = z.object({
 export async function POST(request: NextRequest) {
   // L-sec170 (PR-A3): 신규 구독 endpoint 스팸 방지 — 30회/분/IP
   const ip = getClientIp(request);
-  const rl = checkRateLimit({ key: `push-subscribe:${ip}`, limit: 30, windowMs: 60_000 });
+  const rl = checkRateLimit({ key: `push-subscribe:ip:${ip}`, limit: 30, windowMs: 60_000 });
   if (!rl.ok) {
     return NextResponse.json(
       { error: 'rate_limited' },

@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
   // L-urgent1 (2026-04-22): /api/map/isochrone IP rate limit — 공개 엔드포인트이며
   //   향후 Kakao Mobility API 과금 연동 예정이므로 선제적으로 120/min 상한을 둔다.
   const ip = getClientIp(req);
-  const rl = checkRateLimit({ key: `isochrone:${ip}`, limit: 120, windowMs: 60_000 });
+  const rl = checkRateLimit({ key: `isochrone:ip:${ip}`, limit: 120, windowMs: 60_000 });
   if (!rl.ok) {
     return NextResponse.json(
       { error: 'Too many requests' },

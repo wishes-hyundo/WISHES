@@ -55,7 +55,7 @@ export async function GET(
 
   const ip = getClientIp(request);
   const rl = checkRateLimit({
-    key: `oauth-start:${provider}:${ip}`,
+    key: `oauth-start:${provider}:ip:${ip}`,
     limit: 20,
     windowMs: 60_000,
   });

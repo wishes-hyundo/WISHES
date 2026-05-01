@@ -1,21 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { withTimeout } from '@/lib/withTimeout';
 
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
-// 타임아웃 헬퍼
-// L-ts1 (2026-04-22): Supabase PostgrestBuilder 는 thenable 이지만 Promise 타입이 아니라
-//   PromiseLike<T> 로 받아야 tsc 에러 없이 await 가능. src/app/listings/[id]/page.tsx 와 동일 패턴.
-function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('timeout')), ms);
-    promise.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
-    );
-  });
-}
+
 
 /**
  * GET /api/auth/me

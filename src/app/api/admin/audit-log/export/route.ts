@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 
   // rate limit — brute exfil 방지
   const rl = checkRateLimit({
-    key: `audit-export:${ip}`,
+    key: `audit-export:ip:${ip}`,
     limit: 5,
     windowMs: 10 * 60_000,
   });

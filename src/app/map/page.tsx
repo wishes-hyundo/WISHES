@@ -16,17 +16,13 @@
 import type { Metadata } from 'next';
 import { createServerClient } from '@/lib/supabase';
 import MapClientWrapper from './MapClientWrapper';
+import { withTimeout } from '@/lib/withTimeout';
 
 type Props = {
   searchParams: Promise<{ listing?: string; [k: string]: string | string[] | undefined }>;
 };
 
-// 5초 타임아웃 래퍼 — Supabase PostgrestBuilder 가 PromiseLike
-const withTimeout = <T,>(promise: PromiseLike<T>, ms = 5000): Promise<T> =>
-  Promise.race([
-    Promise.resolve(promise),
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
-  ]);
+
 
 function formatPrice(price: number): string {
   if (price >= 10000) {
@@ -74,7 +70,8 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
         )
         .eq('id', listingId)
         .eq('status', '공개')
-        .single()
+        .single(),
+      5000
     )) as { data: any };
 
     if (!listing) return fallback;
@@ -223,7 +220,8 @@ export default async function MapPage({ searchParams }: Props) {
           )
           .eq('id', listingId)
           .eq('status', '공개')
-          .single()
+          .single(),
+        5000
       )) as { data: any };
 
       if (listing && checkHasOwnContent(listing)) {

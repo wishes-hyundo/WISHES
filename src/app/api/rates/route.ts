@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 //   60/min 상한을 두어 Supabase free-tier PostgREST 요청 폭주 방어.
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = checkRateLimit({ key: `rates:${ip}`, limit: 60, windowMs: 60_000 });
+  const rl = checkRateLimit({ key: `rates:ip:${ip}`, limit: 60, windowMs: 60_000 });
   if (!rl.ok) {
     return NextResponse.json(
       { error: 'Too many requests' },

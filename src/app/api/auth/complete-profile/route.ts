@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { normalizePhone } from '@/lib/normalizePhone';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -30,24 +31,10 @@ const Schema = z.object({
   phone: z.string().trim().min(8).max(30),
 });
 
-function normalizePhone(raw: string): string {
-  // 숫자와 하이픈만 남기고 다른 문자 제거
-  const cleaned = raw.replace(/[^\d-]/g, '').trim();
-  // 010xxxxxxxx → 010-xxxx-xxxx 포매팅 (11자리 숫자)
-  const digits = cleaned.replace(/-/g, '');
-  if (/^\d{11}$/.test(digits) && digits.startsWith('010')) {
-    return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
-  }
-  if (/^\d{10}$/.test(digits) && (digits.startsWith('02') || digits.startsWith('011'))) {
-    return digits;
-  }
-  return cleaned;
-}
-
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const rl = checkRateLimit({ key: `complete-profile:${ip}`, limit: 20, windowMs: 15 * 60_000 });
+    const rl = checkRateLimit({ key: `complete-profile:ip:${ip}`, limit: 20, windowMs: 15 * 60_000 });
     if (!rl.ok) {
       return NextResponse.json(
         { success: false, message: '요청이 너무 많습니다.' },

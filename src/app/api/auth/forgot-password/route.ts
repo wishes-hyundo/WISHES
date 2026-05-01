@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
     const rl = checkRateLimit({
-      key: `forgot-password:${ip}`,
+      key: `forgot-password:ip:${ip}`,
       limit: 5,
       windowMs: 15 * 60_000,
     });

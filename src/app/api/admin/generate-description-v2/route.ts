@@ -159,7 +159,7 @@ function parseLLMJson(raw: string): Record<string, unknown> | null {
 export async function POST(request: NextRequest) {
   if (!(await verifyAdminAuth(request))) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 });
   const ip = getClientIp(request);
-  const rl = checkRateLimit({ key: `gen-desc-v2:${ip}`, limit: 30, windowMs: 15 * 60_000 });
+  const rl = checkRateLimit({ key: `gen-desc-v2:ip:${ip}`, limit: 30, windowMs: 15 * 60_000 });
   if (!rl.ok) return NextResponse.json({ error: '요청 너무 많음' }, { status: 429 });
   if (!GEMINI_API_KEY && !ANTHROPIC_API_KEY) return NextResponse.json({ error: 'no LLM key' }, { status: 500 });
 
