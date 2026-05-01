@@ -1,5 +1,8 @@
 'use client';
 
+// L-sec170 (2026-05-02, PR-S7): react/no-unescaped-entities ESLint 위반 fix.
+//   본문 텍스트의 영문 큰따옴표를 한국어 인용부호「」로 변경.
+
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-white pt-20 pb-16">
@@ -9,7 +12,7 @@ export default function PrivacyPage() {
         <div className="prose prose-lg max-w-none text-gray-700 space-y-6">
           <section>
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">1. 개인정보의 수집 및 이용목적</h2>
-            <p>WISHES 부동산(이하 "회사")은 다음과 같은 목적으로 개인정보를 수집하고 이용합니다:</p>
+            <p>WISHES 부동산(이하 「회사」)은 다음과 같은 목적으로 개인정보를 수집하고 이용합니다:</p>
             <ul className="list-disc pl-6 space-y-2 mt-2">
               <li>회원 가입 및 관리</li>
               <li>부동산 거래 중개 및 상담 제공</li>

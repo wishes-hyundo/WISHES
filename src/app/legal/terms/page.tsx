@@ -1,5 +1,9 @@
 'use client';
 
+// L-sec170 (2026-05-02, PR-S7): react/no-unescaped-entities ESLint 위반 fix.
+//   본문 텍스트의 영문 큰따옴표("…") 를 한국어 인용부호「…」으로 변경.
+//   JSX 속성 값의 따옴표(className="…")는 그대로 — ESLint 가 잡지 않음.
+
 export default function TermsPage() {
   return (
     <div className="min-h-screen bg-white pt-20 pb-16">
@@ -9,15 +13,15 @@ export default function TermsPage() {
         <div className="prose prose-lg max-w-none text-gray-700 space-y-6">
           <section>
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">제1조 목적</h2>
-            <p>이 약관은 WISHES 부동산 회사(이하 "회사")가 제공하는 모든 인터넷 서비스(이하 "서비스")의 이용에 있어 회사와 이용자의 권리ㆍ의무 및 책임사항을 규정함을 목적으로 합니다.</p>
+            <p>이 약관은 WISHES 부동산 회사(이하 「회사」)가 제공하는 모든 인터넷 서비스(이하 「서비스」)의 이용에 있어 회사와 이용자의 권리ㆍ의무 및 책임사항을 규정함을 목적으로 합니다.</p>
           </section>
 
           <section>
             <h2 className="text-2xl font-semibold text-gray-800 mb-4">제2조 정의</h2>
             <ul className="list-disc pl-6 space-y-2">
-              <li>"이용자"라 함은 본 약관에 동의하고 서비스를 이용하는 자를 의미합니다.</li>
-              <li>"서비스"라 함은 회사가 제공하는 모든 온라인 및 모바일 부동산 거래 관련 서비스입니다.</li>
-              <li>"계정"이라 함은 이용자가 회사에 개인정보를 제공하여 생성한 식별 정보입니다.</li>
+              <li>「이용자」라 함은 본 약관에 동의하고 서비스를 이용하는 자를 의미합니다.</li>
+              <li>「서비스」라 함은 회사가 제공하는 모든 온라인 및 모바일 부동산 거래 관련 서비스입니다.</li>
+              <li>「계정」이라 함은 이용자가 회사에 개인정보를 제공하여 생성한 식별 정보입니다.</li>
             </ul>
           </section>
 
