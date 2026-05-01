@@ -94,7 +94,8 @@
     "lint-staged": "^15.5.2",
     "msw": "^2.6.0",
     "yaml": "^2.6.0",
-    "@playwright/test": "^1.49.0"
+    "@playwright/test": "^1.49.0",
+    "@axe-core/playwright": "^4.10.2"
   },
   "overrides": {
     "fast-xml-parser": "^5.7.0",
