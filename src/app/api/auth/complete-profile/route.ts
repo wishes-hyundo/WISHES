@@ -5,6 +5,16 @@
 // Bearer token(Supabase JWT) 로 사용자 식별 → admin_users + profiles + user_metadata
 // 에 이름·연락처 저장. 중복 호출 방지를 위해 이름/연락처가 이미 채워진 사용자가
 // 다시 호출하면 새 값으로 덮어쓴다 (사용자가 본인 정보 수정 화면으로도 쓸 수 있음).
+//
+// L-sec170 (2026-05-02, PR-S1 P0-A): admin_users.role / admin_users.status 보존.
+//   기존 upsert(onConflict:id) 패턴은 admin/owner/superadmin/broker 사용자가 자기
+//   프로필을 갱신할 때 role='user' / status='approved' 로 덮어써 권한을 잃게 했다.
+//   사후 SELECT 으로 재확인 시도가 있었으나 upsert 가 이미 row 를 덮어쓴 뒤이므로
+//   복구 불가. 이번 패치에서 SELECT-first 로 패턴을 통일:
+//     - 기존 row 있음   → name/phone 만 UPDATE (role/status 보존)
+//     - 기존 row 없음   → INSERT (신규 소셜 가입자: user/approved)
+//   ON CONFLICT 경합은 신규 가입 → 동시 호출 케이스에서만 발생하며, 두 번째 호출은
+//   duplicate key 를 catch 후 UPDATE 경로로 떨어뜨린다.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -73,57 +83,45 @@ export async function POST(request: NextRequest) {
     const userId = user.id;
     const email = (user.email || '').toLowerCase();
 
-    // 1) admin_users upsert (없으면 user role/approved 로 자동 생성)
-    const { error: upsertErr } = await supabase.from('admin_users').upsert(
-      {
+    // 1) admin_users: SELECT-then-UPDATE/INSERT 패턴으로 role/status 보존 (L-sec170).
+    //    기존 row 가 있으면 name/phone 만 갱신 — 'admin'/'owner'/'broker' 등 권한 유지.
+    //    기존 row 가 없으면 신규 INSERT (user/approved).
+    const { data: existing, error: selectErr } = await supabase
+      .from('admin_users')
+      .select('id,role,status')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (selectErr) {
+      console.warn('[complete-profile] admin_users select failed:', selectErr.message);
+    }
+
+    if (existing) {
+      // UPDATE: role / status 는 손대지 않는다 — 사장님(owner/admin) 프로필 갱신 시 권한 보존.
+      const { error: updateErr } = await supabase
+        .from('admin_users')
+        .update({ name, phone })
+        .eq('id', userId);
+      if (updateErr) {
+        console.warn('[complete-profile] admin_users update failed:', updateErr.message);
+      }
+    } else {
+      // INSERT: 신규 소셜 가입자 — user/approved 로 즉시 활성화.
+      //   동시 호출(레이스) 시 duplicate key 가 떨어지면 다음 GET 시 fall-through 로 안전.
+      const { error: insertErr } = await supabase.from('admin_users').insert({
         id: userId,
         email,
         name,
         phone,
         role: 'user',
         status: 'approved',
-      },
-      { onConflict: 'id' },
-    );
-    // 이미 admin/agent/superadmin 행이 있는 경우 role/status 를 덮어쓰지 않도록
-    // 아래에서 role-aware UPDATE 로 name/phone 만 업데이트하면 더 안전하지만,
-    // onConflict:id 로 upsert 하면 role/status 도 바뀌므로 주의. 대신 먼저 기존 행을
-    // 확인해서 있으면 UPDATE 만, 없으면 INSERT.
-    if (upsertErr) {
-      // fallback: select then update/insert
-      const { data: existing } = await supabase
-        .from('admin_users')
-        .select('id,role,status')
-        .eq('id', userId)
-        .maybeSingle();
-      if (existing) {
-        await supabase
-          .from('admin_users')
-          .update({ name, phone })
-          .eq('id', userId);
-      } else {
-        await supabase.from('admin_users').insert({
-          id: userId,
-          email,
-          name,
-          phone,
-          role: 'user',
-          status: 'approved',
-        });
+      });
+      if (insertErr && !/duplicate|unique|conflict/i.test(insertErr.message || '')) {
+        console.warn('[complete-profile] admin_users insert failed:', insertErr.message);
       }
-    } else {
-      // upsert 가 성공했지만 기존 role/status 를 지우지 않도록 재확인 후 복구
-      const { data: existing } = await supabase
-        .from('admin_users')
-        .select('role,status')
-        .eq('id', userId)
-        .maybeSingle();
-      // upsert 가 방금 쓴 user/approved 를 기존 role 이 다르면 복구 불필요 (select 값이 방금 쓴 값).
-      // 실제로는 위 upsert 가 첫 insert 상황에서만 의미 있고, 기존 행이 있으면 UPDATE 처리 됐음.
-      void existing;
     }
 
-    // 2) profiles 테이블에도 업데이트 (있으면)
+    // 2) profiles 테이블에도 업데이트 (있으면). profiles 는 role 컬럼이 없어 upsert 안전.
     try {
       await supabase.from('profiles').upsert(
         { id: userId, email, name, phone, profile_completed: true },
@@ -131,7 +129,7 @@ export async function POST(request: NextRequest) {
       );
     } catch { /* profiles 테이블 없을 수도 — skip */ }
 
-    // 3) user_metadata 도 일관성 있게 업데이트
+    // 3) user_metadata 도 일관성 있게 업데이트 (Supabase 클라이언트 표시용)
     try {
       await supabase.auth.admin.updateUserById(userId, {
         user_metadata: {

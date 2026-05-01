@@ -3,7 +3,7 @@ import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 // L-sec36 (2026-04-22): listing_id 는 0 이상 20억 이하 정수만 허용 (Supabase bigint 안전 범위).
-//   \!listing_id 로만 검증하면 0 / 객체 / 배열 통과.
+//   !listing_id 로만 검증하면 0 / 객체 / 배열 통과.
 function parseListingId(v: unknown): number | null {
   const n = typeof v === 'number' ? v : typeof v === 'string' ? parseInt(v, 10) : NaN;
   if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > 2_000_000_000) return null;
@@ -49,9 +49,21 @@ export async function GET(request: NextRequest) {
   const liveIds = allIds.filter(id => validIds.has(id));
   const orphans = allIds.filter(id => !validIds.has(id));
 
-  // 고아 즉시 삭제 (응답은 대기하지 않음)
+  // L-sec170 (2026-05-02, PR-S1 P0-B): 고아 즉시 삭제 — Promise rejection 캡처.
+  //   이전: .then(() => {}) 패턴은 unhandled rejection 으로 silent failure.
+  //   삭제가 실패하면 다음 GET 호출도 같은 orphan 을 다시 정리 시도 → 반복 부하.
+  //   이제 실패 시 warn 로그만 남기고 응답 200 OK 는 유지 (사용자 경험 보호).
   if (orphans.length > 0) {
-    supabase.from('favorites').delete().eq('user_id', user.id).in('listing_id', orphans).then(() => {});
+    supabase
+      .from('favorites')
+      .delete()
+      .eq('user_id', user.id)
+      .in('listing_id', orphans)
+      .then(({ error: cleanupErr }) => {
+        if (cleanupErr) {
+          console.warn('[favorites] orphan cleanup failed:', cleanupErr.message);
+        }
+      });
   }
 
   return NextResponse.json({ favorites: liveIds });
