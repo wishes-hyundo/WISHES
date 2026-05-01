@@ -171,6 +171,10 @@
     {
       "path": "/api/cron/enrich-house-price",
       "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/process-paid-reports",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
