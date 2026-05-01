@@ -171,6 +171,10 @@
     {
       "path": "/api/cron/enrich-building-register",
       "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/enrich-house-price",
+      "schedule": "30 4 * * *"
     }
   ]
 }
