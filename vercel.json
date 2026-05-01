@@ -149,10 +149,6 @@
       "schedule": "0 13 * * 1"
     },
     {
-      "path": "/api/cron/enrich-crime-safety",
-      "schedule": "30 13 * * 1"
-    },
-    {
       "path": "/api/cron/sync-subway-stations",
       "schedule": "0 3 1 * *"
     },
