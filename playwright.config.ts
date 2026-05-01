@@ -52,19 +52,25 @@ export default defineConfig({
   snapshotPathTemplate:
     '{testDir}/__html-snapshots__/{testFilePath}/{arg}{ext}',
 
-  // 단계 6 chromium + PR-N-3 (2026-04-30) mobile viewport 추가.
-  //   mobile 은 사용자 트래픽 70% 경로 — iPhone 13 emulation 으로 회귀 catch.
-  //   testMatch 분리로 desktop 4 + mobile 2 = 6 test 자동 실행.
+  // 단계 6 chromium + PR-N-3 mobile + PR-M-1 (2026-04-30) a11y axe-core.
+  //   chromium  — DOM snapshot (mobile-/a11y- 제외)
+  //   mobile    — iPhone 13 emulation (mobile-*.spec.ts)
+  //   a11y      — desktop axe-core 검증 (a11y-*.spec.ts)
   projects: [
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: /^(?!.*mobile-).*\.spec\.ts$/,
+      testMatch: /^(?!.*(?:mobile-|a11y-)).*\.spec\.ts$/,
     },
     {
       name: 'mobile-iphone13',
       use: { ...devices['iPhone 13'] },
       testMatch: /mobile-.*\.spec\.ts$/,
+    },
+    {
+      name: 'a11y',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /a11y-.*\.spec\.ts$/,
     },
   ],
 
