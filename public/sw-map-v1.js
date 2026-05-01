@@ -1,5 +1,5 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// sw-map-v1.js — /map 전용 경량 Service Worker
+// sw-map-v1.js — /map 전용 경량 Service Worker + Web Push (PR-N-1)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //
 // ※ 기존 /public/sw.js 는 과거 구형 SW 를 전부 unregister 하는 킬스위치.
@@ -9,17 +9,17 @@
 // 전략:
 //   - /_next/image, /api/map/clusters, /api/map/items  →  stale-while-revalidate (24h)
 //   - dapi.kakao.com 타일                                →  cache-first (7일)
+//   - /api/geo/* GeoJSON                                  →  cache-first (30일)
 //   - 그 외 요청은 SW 가 건드리지 않고 네트워크 통과 (safe passthrough)
+//
+// PR-N-1 (2026-04-30): Web Push event handler 추가.
+//   사장님 명시: 동의 후만 / 1인당 월 ≤ 4회 / 22~08시 차단 (cron 강제).
 
-// L-naver-2026sw1 (2026-04-26): 캐시 버전 bump + GeoJSON 캐시 추가.
-// L-naver-2026sw2 (2026-04-26 evening): legalunion endpoint 적용 + backdrop 제거 후
-//   사용자에게 변경사항 안 보임 → 30일 GEO_CACHE 의 옛 응답 사용 의심.
-//   version bump 으로 activate 시 모든 wishes-* 캐시 wipe.
+// L-naver-2026sw2 (2026-04-26): 캐시 버전 bump.
 const CACHE_VERSION = 'v3-2026-04-26-legalunion';
 const MAP_CACHE = `wishes-map-${CACHE_VERSION}`;
 const TILE_CACHE = `wishes-tiles-${CACHE_VERSION}`;
 const IMG_CACHE = `wishes-img-${CACHE_VERSION}`;
-// L-naver-2026sw1: GeoJSON 전용 캐시 (long-lived, 행정구역 거의 변하지 않음)
 const GEO_CACHE = `wishes-geo-${CACHE_VERSION}`;
 
 self.addEventListener('install', (event) => {
@@ -28,7 +28,6 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // 구버전 캐시 정리
     const keys = await caches.keys();
     await Promise.all(
       keys.filter((k) =>
@@ -61,7 +60,6 @@ function cacheFirst(request, cacheName, maxAgeMs) {
   return caches.open(cacheName).then(async (cache) => {
     const cached = await cache.match(request);
     if (cached) {
-      // 오래된 캐시면 백그라운드 갱신
       const dateHeader = cached.headers.get('sw-cached-at');
       const age = dateHeader ? Date.now() - parseInt(dateHeader, 10) : 0;
       if (age < maxAgeMs) return cached;
@@ -109,6 +107,49 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4) /api/geo/* GeoJSON (cache-first 30일 — 행정구역 거의 변경 안 됨)
-  //    L-naver-2026sw1: dong (~34MB) / sigungu / sido 모두 long-lived 캐시.
-  //  
+  // 4) /api/geo/* GeoJSON (cache-first 30일)
+  if (url.pathname.startsWith('/api/geo/')) {
+    event.respondWith(cacheFirst(req, GEO_CACHE, 30 * 24 * 60 * 60 * 1000));
+    return;
+  }
+});
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PR-N-1 (2026-04-30): Web Push event handler
+//   payload schema:
+//     { title, body, url?, icon?, badge?, tag? }
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { title: 'WISHES', body: event.data ? event.data.text() : '' };
+  }
+
+  const title = payload.title || 'WISHES';
+  const options = {
+    body: payload.body || '',
+    icon: payload.icon || '/icon-192x192.png',
+    badge: payload.badge || '/favicon-32x32.png',
+    tag: payload.tag || 'wishes-default',
+    data: { url: payload.url || '/' },
+    requireInteraction: false,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(url) && 'focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(url);
+    }),
+  );
+});
