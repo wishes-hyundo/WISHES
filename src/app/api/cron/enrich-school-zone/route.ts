@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     .eq('status', '공개')
     .not('lat', 'is', null)
     .is('school_zone_score', null)
-    .limit(50);
+    .limit(100);
 
   let updated = 0;
   for (const t of (targets || []) as any[]) {
