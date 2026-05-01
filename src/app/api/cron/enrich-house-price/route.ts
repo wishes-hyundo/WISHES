@@ -1,13 +1,12 @@
 /**
- * /api/cron/enrich-land-price — 표준지 공시지가 자동 fetch (PR-R-2)
+ * /api/cron/enrich-house-price — 개별주택가격 자동 fetch (PR-R-2)
  *
- * V-World 무료 API. 정부 공식 평가액 (시세 추정 X — CLAUDE.md 일관).
- * admin 만 참고 표시. 사용자 UI 영향 0.
+ * V-World 무료 API. 단독주택/다가구 대상 (빌라/건물 type_normalized).
+ * 정부 공식 평가액 — CLAUDE.md 'AI 시세 추정 X' 일관 (정부 데이터만).
+ * admin 만 참고 표시.
  *
- * env: VWORLD_API_KEY (PR-R-1 가이드 docs/setup/vworld-api-key.md)
- *
- * 매일 04:00 cron — 100건/run, 600ms throttle.
- * 일 1,000 호출 한도 — 건축물대장(100) + 공시지가(100) + 주택가격(100) = 30%.
+ * env: VWORLD_API_KEY
+ * 매일 04:30 cron — 100건/run.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -19,33 +18,33 @@ export const maxDuration = 60;
 
 const VWORLD_KEY = process.env.VWORLD_API_KEY || '';
 const BATCH_SIZE = 100;
-// V-World 표준지 공시지가 API
-const VWORLD_LAND_ENDPOINT = 'https://api.vworld.kr/ned/data/getLdaregVLInfo';
+// V-World 개별주택가격 API
+const VWORLD_HOUSE_ENDPOINT = 'https://api.vworld.kr/ned/data/getApIndvdLandPriceAttr';
+
+// 사장님 도메인 — 단독주택/다가구만 (빌라 type 안에 다가구 포함)
+const HOUSE_ELIGIBLE = new Set(['빌라', '건물']);
 
 interface ListingRow {
   id: number;
-  pnu: string | null; // 19자리 PNU 코드 (지번 → PNU)
-  jibun: string | null;
-  address: string | null;
+  pnu: string | null;
+  type_normalized: string | null;
 }
 
-interface LandPriceResult {
+interface HousePriceResult {
   ok: boolean;
-  price_per_m2: number | null;
+  price_total: number | null;
   year: number | null;
   error?: string;
 }
 
-async function fetchLandPrice(pnu: string): Promise<LandPriceResult> {
-  if (!pnu) return { ok: false, price_per_m2: null, year: null, error: 'no_pnu' };
+async function fetchHousePrice(pnu: string): Promise<HousePriceResult> {
+  if (!pnu) return { ok: false, price_total: null, year: null, error: 'no_pnu' };
 
-  const url = new URL(VWORLD_LAND_ENDPOINT);
+  const url = new URL(VWORLD_HOUSE_ENDPOINT);
   url.searchParams.set('key', VWORLD_KEY);
   url.searchParams.set('domain', 'wishes.co.kr');
   url.searchParams.set('format', 'json');
   url.searchParams.set('pnu', pnu);
-  url.searchParams.set('numOfRows', '1');
-  url.searchParams.set('pageNo', '1');
 
   try {
     const res = await fetch(url.toString(), {
@@ -53,27 +52,27 @@ async function fetchLandPrice(pnu: string): Promise<LandPriceResult> {
       signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {
-      return { ok: false, price_per_m2: null, year: null, error: `vworld_${res.status}` };
+      return { ok: false, price_total: null, year: null, error: `vworld_${res.status}` };
     }
     const data = await res.json();
-    const item = data?.ldaregVLInfo?.field?.[0] || data?.field?.[0] || null;
+    const item = data?.apIndvdLandPriceAttr?.field?.[0] || data?.field?.[0] || null;
     if (!item) {
-      return { ok: false, price_per_m2: null, year: null, error: 'no_data' };
+      return { ok: false, price_total: null, year: null, error: 'no_data' };
     }
 
-    const priceRaw = item.pblntfPclnd || item.land_price || null;
+    const priceRaw = item.indvdHousePrice || item.house_price || null;
     const yearRaw = item.stdrYear || item.year || null;
     const price = priceRaw ? Number.parseInt(String(priceRaw), 10) : null;
     const year = yearRaw ? Number.parseInt(String(yearRaw), 10) : null;
 
     return {
       ok: true,
-      price_per_m2: Number.isFinite(price) ? price : null,
+      price_total: Number.isFinite(price) ? price : null,
       year: Number.isFinite(year) ? year : null,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'unknown';
-    return { ok: false, price_per_m2: null, year: null, error: `fetch_${msg}` };
+    return { ok: false, price_total: null, year: null, error: `fetch_${msg}` };
   }
 }
 
@@ -98,9 +97,10 @@ export async function GET(request: NextRequest) {
 
   const { data: targets, error } = await supabase
     .from('listings')
-    .select('id, pnu, jibun, address')
+    .select('id, pnu, type_normalized')
     .eq('status', '공개')
-    .is('land_price_fetched_at', null)
+    .in('type_normalized', Array.from(HOUSE_ELIGIBLE))
+    .is('house_price_fetched_at', null)
     .not('pnu', 'is', null)
     .limit(BATCH_SIZE)
     .returns<ListingRow[]>();
@@ -120,19 +120,19 @@ export async function GET(request: NextRequest) {
     if (!listing.pnu) {
       await supabase
         .from('listings')
-        .update({ land_price_fetched_at: new Date().toISOString() })
+        .update({ house_price_fetched_at: new Date().toISOString() })
         .eq('id', listing.id);
       failed++;
       continue;
     }
 
-    const result = await fetchLandPrice(listing.pnu);
+    const result = await fetchHousePrice(listing.pnu);
     const updatePayload: Record<string, unknown> = {
-      land_price_fetched_at: new Date().toISOString(),
+      house_price_fetched_at: new Date().toISOString(),
     };
-    if (result.ok && result.price_per_m2) {
-      updatePayload.land_price_per_m2 = result.price_per_m2;
-      if (result.year) updatePayload.land_price_year = result.year;
+    if (result.ok && result.price_total) {
+      updatePayload.house_price_total = result.price_total;
+      if (result.year) updatePayload.house_price_year = result.year;
       succeeded++;
     } else {
       failed++;
@@ -146,5 +146,6 @@ export async function GET(request: NextRequest) {
     processed: targets.length,
     succeeded,
     failed,
+    eligible_types: Array.from(HOUSE_ELIGIBLE),
   });
 }
