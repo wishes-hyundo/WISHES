@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     .eq('status', '공개')
     .not('lat', 'is', null)
     .is('subway_count', null)
-    .limit(50);
+    .limit(100);
 
   let updated = 0;
   for (const t of (targets || []) as { id: number; lat: number; lng: number }[]) {
