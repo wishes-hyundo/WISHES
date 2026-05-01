@@ -6,6 +6,7 @@ import QueryProvider from '@/components/providers/QueryProvider';
 import SeniorToggle from '@/components/SeniorToggle';
 import SpeculationRules from '@/components/SpeculationRules';
 import WebVitalsReporter from '@/components/WebVitalsReporter';
+import ServiceWorkerProvider from '@/components/providers/ServiceWorkerProvider';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
@@ -198,6 +199,7 @@ export default function RootLayout({
           </ConditionalLayout>
         </QueryProvider>
         <SeniorToggle />
+        <ServiceWorkerProvider />
       </body>
     </html>
   );
