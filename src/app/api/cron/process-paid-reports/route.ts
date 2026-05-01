@@ -132,13 +132,18 @@ export async function GET(request: NextRequest) {
 
   for (const r of reports) {
     try {
-      // 2-a) lock: status='fetching'
-      const { error: lockErr } = await supabase
+      // 2-a) lock: status='fetching' (compare-and-swap, .select() 으로 실제 갱신 확인)
+      // L-audit-2026-05-02: UPDATE 만 호출하면 0 rows 매칭도 error=null 반환 →
+      //   다른 워커가 이미 픽업한 row 도 통과해 CODEF 중복 호출 / 결과 덮어쓰기 가능.
+      //   .select('id') 로 실제 갱신된 row 를 확인해 race 차단.
+      const { data: lockedRows, error: lockErr } = await supabase
         .from('reports')
         .update({ status: 'fetching' })
         .eq('id', r.id)
-        .eq('status', 'paid'); // 다른 워커가 먼저 가져갔으면 skip
-      if (lockErr) {
+        .eq('status', 'paid')
+        .select('id');
+      if (lockErr || !lockedRows || lockedRows.length === 0) {
+        // 다른 워커가 먼저 가져갔거나 사장님 수동 변경 — skip
         summary.skipped += 1;
         continue;
       }
@@ -147,7 +152,8 @@ export async function GET(request: NextRequest) {
         await supabase
           .from('reports')
           .update({ status: 'failed', failed_reason: 'listing_id_null' })
-          .eq('id', r.id);
+          .eq('id', r.id)
+          .eq('status', 'fetching');
         summary.failed += 1;
         summary.errors.push({ report_id: r.id, reason: 'listing_id_null' });
         continue;
@@ -167,7 +173,8 @@ export async function GET(request: NextRequest) {
             status: 'failed',
             failed_reason: listingErr?.message || 'listing_not_found',
           })
-          .eq('id', r.id);
+          .eq('id', r.id)
+          .eq('status', 'fetching');
         summary.failed += 1;
         summary.errors.push({
           report_id: r.id,
@@ -181,7 +188,8 @@ export async function GET(request: NextRequest) {
         await supabase
           .from('reports')
           .update({ status: 'failed', failed_reason: 'listing_address_empty' })
-          .eq('id', r.id);
+          .eq('id', r.id)
+          .eq('status', 'fetching');
         summary.failed += 1;
         summary.errors.push({ report_id: r.id, reason: 'listing_address_empty' });
         continue;
@@ -196,7 +204,13 @@ export async function GET(request: NextRequest) {
 
       if (!codefResp.ok || !codefResp.parsed) {
         // env 미설정 / API 일시 오류 — paid 로 복구해 다음 cron 재시도
-        await supabase.from('reports').update({ status: 'paid' }).eq('id', r.id);
+        // L-audit-2026-05-02: .eq('status','fetching') 추가 — admin 수동 변경 (failed/refunded
+        //   등) 을 cron 이 덮어쓰는 것 방지.
+        await supabase
+          .from('reports')
+          .update({ status: 'paid' })
+          .eq('id', r.id)
+          .eq('status', 'fetching');
         summary.skipped += 1;
         summary.errors.push({
           report_id: r.id,
@@ -226,7 +240,8 @@ export async function GET(request: NextRequest) {
             status: 'failed',
             failed_reason: `registry_raw_insert_failed: ${rawErr.message}`,
           })
-          .eq('id', r.id);
+          .eq('id', r.id)
+          .eq('status', 'fetching');
         summary.failed += 1;
         summary.errors.push({ report_id: r.id, reason: rawErr.message });
         continue;
@@ -242,7 +257,8 @@ export async function GET(request: NextRequest) {
           risk_level: analysis.level,
           risk_reasons: analysis.reasons,
         })
-        .eq('id', r.id);
+        .eq('id', r.id)
+        .eq('status', 'fetching');
 
       if (updErr) {
         summary.failed += 1;
