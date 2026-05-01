@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     // 로그인 직후 1회성 엔드포인트라 관대하게 잡되, brute-force 에는 제한.
     const ip = getClientIp(request);
     const rl = checkRateLimit({
-      key: `cookie-issue:${ip}`,
+      key: `cookie-issue:ip:${ip}`,
       limit: 30,
       windowMs: 15 * 60_000,
     });

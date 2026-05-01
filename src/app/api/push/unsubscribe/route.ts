@@ -18,7 +18,7 @@ const Schema = z.object({
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request);
-  const rl = checkRateLimit({ key: `push-unsubscribe:${ip}`, limit: 30, windowMs: 60_000 });
+  const rl = checkRateLimit({ key: `push-unsubscribe:ip:${ip}`, limit: 30, windowMs: 60_000 });
   if (!rl.ok) {
     return NextResponse.json(
       { error: 'rate_limited' },

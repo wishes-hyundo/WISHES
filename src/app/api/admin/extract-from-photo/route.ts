@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
   }
   // L-fix-rate-limit (2026-04-28): Gemini Vision 비용 abuse 방어 — 시간당 20회/IP
   const ip = getClientIp(request);
-  const rl = checkRateLimit({ key: `extract-from-photo:${ip}`, limit: 20, windowMs: 60 * 60_000 });
+  const rl = checkRateLimit({ key: `extract-from-photo:ip:${ip}`, limit: 20, windowMs: 60 * 60_000 });
   if (!rl.ok) return NextResponse.json({ error: '요청이 너무 많습니다 (시간당 20회)' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } });
   // L-fix-error-redact (2026-04-28): env 이름 노출 X (production 정보 누출 방지)
   if (!GEMINI_KEY) return NextResponse.json({ error: '서버 설정 오류 — 관리자에게 문의' }, { status: 500 });

@@ -34,7 +34,7 @@ const Schema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const rl = checkRateLimit({ key: `complete-profile:${ip}`, limit: 20, windowMs: 15 * 60_000 });
+    const rl = checkRateLimit({ key: `complete-profile:ip:${ip}`, limit: 20, windowMs: 15 * 60_000 });
     if (!rl.ok) {
       return NextResponse.json(
         { success: false, message: '요청이 너무 많습니다.' },

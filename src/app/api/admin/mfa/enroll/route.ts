@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   try {
     // rate limit — enroll 남발 방지 (secret rotation 남용)
     const ip = getClientIp(request);
-    const rl = checkRateLimit({ key: `mfa:enroll:${ip}`, limit: 5, windowMs: 10 * 60_000 });
+    const rl = checkRateLimit({ key: `mfa:enroll:ip:${ip}`, limit: 5, windowMs: 10 * 60_000 });
     if (!rl.ok) {
       return NextResponse.json(
         { success: false, error: 'rate_limited' },

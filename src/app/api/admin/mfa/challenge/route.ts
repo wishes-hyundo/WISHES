@@ -26,7 +26,7 @@ const MFA_HARD_CUTOFF = process.env.MFA_HARD_CUTOFF_ISO
 export async function POST(request: NextRequest) {
   try {
     const ip = getClientIp(request);
-    const rl = checkRateLimit({ key: `mfa:challenge:${ip}`, limit: 30, windowMs: 10 * 60_000 });
+    const rl = checkRateLimit({ key: `mfa:challenge:ip:${ip}`, limit: 30, windowMs: 10 * 60_000 });
     if (!rl.ok) {
       return NextResponse.json(
         { success: false, error: 'rate_limited' },
