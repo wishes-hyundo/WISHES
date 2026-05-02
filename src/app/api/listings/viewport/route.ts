@@ -14,6 +14,23 @@ import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { maskAddressForPublic } from '@/lib/publicAddress';
 import { isSelfHostedImage } from '@/lib/image-policy';
 import { maskCoordinate } from '@/lib/coordinateMask';
+// L-cluster-token1 (사장님 명령 2026-05-02): 단지명 마스킹 유지 + cluster 그룹화 가능.
+//   비로그인엔 단지명 노출 X (사장님 결정). 대신 단지명 hash (cluster_token) 만 노출.
+//   같은 단지명 → 같은 token → 클라이언트 cluster key 로 그룹 가능.
+//   다른 단지명 → 다른 token → cluster 분리 (다른 단지 매물 합쳐지지 않음).
+//   단지명 자체는 알 수 없어 privacy 보호. 16자리 hash 면 충돌 확률 무시 가능.
+function buildClusterToken(buildingName: string | null | undefined): string | null {
+  if (!buildingName) return null;
+  const norm = String(buildingName).replace(/\s+/g, ' ').trim();
+  if (!norm) return null;
+  // 간단 hash (FNV-1a 32bit) — privacy + cluster 용도엔 충분.
+  let h = 0x811c9dc5 >>> 0;
+  for (let i = 0; i < norm.length; i++) {
+    h ^= norm.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36).padStart(7, '0');
+}
 import type { DealType, MapListing } from '@/features/map-2026/store';
 
 // L-perf-2 (2026-04-29 사장님 명령): force-dynamic 제거 → Edge cache 적용 가능.
@@ -526,6 +543,8 @@ export async function GET(req: NextRequest) {
         //   · title → 주소 마스킹된 '구 동' 형태 (지번·건물명·층 제거)
         //     title 이 없으면 dong 으로 폴백. 동이 없으면 null.
         building_name: authed ? (r.building_name ?? null) : null,
+        // L-cluster-token1: 비로그인에도 단지 그룹화 가능 (이름은 가림, hash 만)
+        cluster_token: buildClusterToken(r.building_name as string | null | undefined),
         dong: r.dong ?? null,
         // L-adminpoly3 (2026-04-24 pm): 행정구역 폴리곤 카운트 집계용 주소 노출.
         //   PUBLIC_LISTING_COLUMNS 화이트리스트에 있는 공개 필드.
