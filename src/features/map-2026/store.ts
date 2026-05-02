@@ -88,6 +88,11 @@ export interface MapListing {
   // L-cluster-token1 (사장님 명령 2026-05-02): 비로그인에도 단지 그룹화 가능
   //   단지명 hash 만 노출 (이름은 비로그인에 마스킹). cluster key 로 사용.
   cluster_token?: string | null;
+  // K-2 (사장님 명령 2026-05-02): TIER1 매물 (아파트/오피스텔/주상복합/도시형생활주택) 단지 좌표
+  //   네이버 표준 단지 마커용. 좌표 평균 X, building_centroids 의 정확 단지 좌표.
+  //   TIER1 가 아니면 null. 비로그인에도 노출 (공공 정보).
+  tier1_lat?: number | null;
+  tier1_lng?: number | null;
   dong: string | null;
   address: string | null;
   title: string | null;
