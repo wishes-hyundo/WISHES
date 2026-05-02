@@ -85,6 +85,9 @@ export interface MapListing {
   station_distance: number | null;
   built_year: string | null;
   building_name: string | null;
+  // L-cluster-token1 (사장님 명령 2026-05-02): 비로그인에도 단지 그룹화 가능
+  //   단지명 hash 만 노출 (이름은 비로그인에 마스킹). cluster key 로 사용.
+  cluster_token?: string | null;
   dong: string | null;
   address: string | null;
   title: string | null;

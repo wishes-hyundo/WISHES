@@ -680,13 +680,24 @@ export default function HtmlMarkerOverlay({
       //   INVARIANT I-MARKER-2: 같은 단지명 매물 1 마커 / 다른 단지명 매물 분리.
       //   직방/네이버 z19~z14 모두 단지 단위 표시 — WISHES 동일 표준.
       //
-      // 정규화 — '\u00A0' (NBSP) / 다중 공백 / 공백을 한 칸으로.
+      // L-cluster-token1 (사장님 명령 2026-05-02): cluster_token (단지명 hash) 우선.
+      //   비로그인엔 building_name 노출 X — 그러나 cluster_token (hash) 은 노출.
+      //   같은 단지명 = 같은 token → 1 cluster. 다른 단지명 = 다른 token → 분리.
+      //   서버: viewport / by-ids route 의 buildClusterToken() 이 응답에 포함.
+      //   정규화 — '\u00A0' (NBSP) / 다중 공백 / 공백을 한 칸으로.
       const normName = (s: string | null | undefined): string =>
         (s ?? '').replace(/\s+/g, ' ').trim();
-      const buildKey = (l: { building_name: string | null; lat: number; lng: number }, fallbackPrefix: string): string => {
+      const buildKey = (
+        l: { building_name?: string | null; cluster_token?: string | null; lat: number; lng: number },
+        fallbackPrefix: string,
+      ): string => {
+        // 1) cluster_token (서버 hash) 우선 — 비로그인/로그인 모두 작동
+        if (l.cluster_token) return `t:${l.cluster_token}`;
+        // 2) building_name (로그인 시 노출) — token 없으면 사용
         const n = normName(l.building_name);
-        if (n) return `b:${n}`;          // 단지명 우선 (좌표 무관)
-        return fallbackPrefix;            // 단지명 없으면 fallback (좌표/cell)
+        if (n) return `b:${n}`;
+        // 3) fallback (좌표/cell)
+        return fallbackPrefix;
       };
 
       if (cellSize > 0) {

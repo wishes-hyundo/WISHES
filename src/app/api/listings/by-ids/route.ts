@@ -16,6 +16,18 @@ import { maskAddressForPublic } from '@/lib/publicAddress';
 import { isSelfHostedImage } from '@/lib/image-policy';
 // L-listing-byids-mask1 (2026-05-02): 비로그인 110m 마스킹 (다른 listing endpoint 와 일관)
 import { maskCoordinate } from '@/lib/coordinateMask';
+// L-cluster-token1 (사장님 명령 2026-05-02) — viewport 와 동일 정의.
+function buildClusterToken(buildingName: string | null | undefined): string | null {
+  if (!buildingName) return null;
+  const norm = String(buildingName).replace(/\s+/g, ' ').trim();
+  if (!norm) return null;
+  let h = 0x811c9dc5 >>> 0;
+  for (let i = 0; i < norm.length; i++) {
+    h ^= norm.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h.toString(36).padStart(7, '0');
+}
 import type { MapListing } from '@/features/map-2026/store';
 
 export const dynamic = 'force-dynamic';
@@ -98,6 +110,8 @@ export async function GET(request: NextRequest) {
         station_distance: (r.station_distance as number | null) ?? null,
         built_year: (r.built_year as string | null) ?? null,
         building_name: authed ? ((r.building_name as string | null) ?? null) : null,
+        // L-cluster-token1: 비로그인 단지 그룹화 가능 (이름 가림, hash 만)
+        cluster_token: buildClusterToken(r.building_name as string | null | undefined),
         dong: dong ?? null,
         address: (r.address as string | null) ?? null,
         title: authed
