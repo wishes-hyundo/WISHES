@@ -150,8 +150,13 @@ export function ListPanel() {
     const baseList = clusterFilterListings && clusterFilterListings.length > 0
       ? clusterFilterListings
       : listings;
-    // 카테고리 필터 적용 (investment 는 cross-cutting → 미적용).
-    const catFiltered = filterCategory === 'investment'
+    // L-mapfix-2026-05-02 (사장님 명령): cluster filter active 시
+    //   카테고리 filter skip. 사용자가 클러스터 클릭 = 그 영역 전체 매물 보고 싶다
+    //   는 의도. category 가 추가로 줄이면 사이드바 카운트와 cluster 표기 mismatch.
+    const isClusterFilterActive = !!(clusterFilterListings && clusterFilterListings.length > 0)
+      || !!(clusterFilterIds && clusterFilterIds.length > 0);
+    // 카테고리 필터 적용 (investment 는 cross-cutting → 미적용 / cluster filter 시도 미적용)
+    const catFiltered = (filterCategory === 'investment' || isClusterFilterActive)
       ? baseList
       : baseList.filter((l) => listingCategory(l.type) === filterCategory);
 
