@@ -98,6 +98,93 @@ interface Props {
   clusterFilterListings?: MapListing[] | null;
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// L-naver-zoomscale1 (2026-05-02, 사장님 명령 — "줌 단계에 맞게 세밀 조정")
+//
+// 마커 동그라미 사이즈는 (1) count, (2) Kakao level (zoom), (3) 모바일 여부
+// 세 차원으로 결정한다. 이전엔 count + 모바일만 고려해서 줌인/줌아웃 시 마커가
+// 같은 크기로 보여 사용자가 "줌 단계에 안 맞다"고 지적.
+//
+// 핵심 원칙:
+//   · 모바일 최소 44px (WCAG 2.2 + iOS 권장 터치 타겟)
+//   · 줌인 (level 1-3): 단일 매물/단지 식별 우선 — 큰 사이즈 (1.10~1.35x)
+//   · 표준 줌 (level 4-5): 기본 사이즈 (1.0x)
+//   · 줌아웃 (level 6-9): 점진 압축 (0.88~0.95x)
+//   · 광역/전국 (level 10+): 클러스터 강조, 작은 카운트는 추가 압축 (0.82x × 0.88)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * 줌 + count + 모바일 기반 마커 동그라미 px 사이즈.
+ * 모든 마커 렌더 코드는 본 함수 한 곳에서 사이즈를 결정 (DRY).
+ */
+function markerSize(opts: {
+  count: number;
+  level: number;
+  isMobile: boolean;
+}): number {
+  const { count, level, isMobile } = opts;
+
+  // ── 1) Base size (count 기반) ──
+  const baseDesktop =
+    count >= 1000 ? 80 :
+    count >= 500  ? 68 :
+    count >= 100  ? 56 :
+    count >= 50   ? 48 :
+    count >= 20   ? 42 :
+    count >= 10   ? 36 :
+    count >= 2    ? 30 :
+                    26;
+  const baseMobile =
+    count >= 1000 ? 64 :
+    count >= 500  ? 54 :
+    count >= 100  ? 44 :
+    count >= 50   ? 38 :
+    count >= 20   ? 34 :
+    count >= 10   ? 30 :
+    count >= 2    ? 26 :
+                    22;
+  const base = isMobile ? baseMobile : baseDesktop;
+
+  // ── 2) Zoom multiplier (Kakao level 1=가까움 ~ 14=전국) ──
+  let mult: number;
+  if (level <= 1)      mult = 1.35;  // z19 단지내 — 단일 매물 식별 강조
+  else if (level <= 2) mult = 1.20;  // z18 단지
+  else if (level <= 3) mult = 1.10;  // z17 인근 단지 묶음
+  else if (level <= 5) mult = 1.00;  // z16-15 동/기본 줌 — 표준
+  else if (level <= 6) mult = 0.95;  // z14
+  else if (level <= 7) mult = 0.92;  // z13
+  else if (level <= 9) mult = 0.88;  // z12-11 광역
+  else                 mult = 0.82;  // z10- 시도/전국
+
+  // ── 3) 줌아웃 시 작은 클러스터 추가 압축 (시각 노이즈 감소) ──
+  if (level >= 8 && count < 10) mult *= 0.88;
+
+  let size = Math.round(base * mult);
+
+  // ── 4) 모바일 최소 44px (WCAG 2.2 AAA + iOS 권장 터치 타겟) ──
+  if (isMobile && size < 44) size = 44;
+
+  // ── 5) 데스크탑 최소 24px (가독성) ──
+  if (!isMobile && size < 24) size = 24;
+
+  // ── 6) 최대 사이즈 캡 (overflow 방지) ──
+  const maxSize = isMobile ? 96 : 110;
+  if (size > maxSize) size = maxSize;
+
+  return size;
+}
+
+/** 사이즈에 비례한 카운트 텍스트 폰트 사이즈. 사이즈 22~110 매핑. */
+function markerFontSize(size: number): string {
+  if (size >= 80) return '16px';
+  if (size >= 64) return '15px';
+  if (size >= 52) return '14px';
+  if (size >= 42) return '13px';
+  if (size >= 32) return '12px';
+  if (size >= 26) return '11px';
+  return '10px';
+}
+
 // Kakao level(1~14) → 그리드 셀 크기 (위경도 degree).
 // level 1 (가장 가까움) ~ level 14 (가장 멀음).  1 deg lat ≈ 111km.
 //   level ≤ 2  → 0 (클러스터링 해제, 개별 표시)
@@ -147,7 +234,7 @@ function makeCircleElement(opts: {
   const bg = selected ? SEL_BG : cc.bg;
   const bd = selected ? SEL_BD : cc.fg;
   const el = document.createElement('div');
-  const fontSize = size >= 60 ? '14px' : size >= 50 ? '13px' : size >= 42 ? '12px' : size >= 36 ? '12px' : '11px';
+  const fontSize = markerFontSize(size);
   // L-naver-2026clusterselected1 (2026-04-27): selected 시각 효과 강화.
   //   ① 살짝 커짐 (1.15x)  ② ring 효과 (outline + offset)  ③ z-index 우선
   //   사용자: "눌렀다는 걸 알 수 있는 상태" 명확하게.
@@ -334,12 +421,9 @@ export default function HtmlMarkerOverlay({
             : null;
           const single = singleId != null ? listingById.get(singleId) : undefined;
           const selected = singleId != null && selectedListingId === singleId;
-          // L-naversize1 + L-mobile1 (2026-04-26): 사이즈 + 모바일 반응형
-const _isMobile1 = typeof window !== 'undefined' && window.innerWidth < 768;
-// L-naver-size1 (2026-04-26): count 별 size 차이 확장 (네이버처럼 큰 숫자는 훨씬 큼).
-const size = _isMobile1
-  ? (count >= 1000 ? 64 : count >= 500 ? 54 : count >= 100 ? 44 : count >= 50 ? 38 : count >= 20 ? 34 : count >= 10 ? 30 : count >= 2 ? 26 : 22)
-  : (count >= 1000 ? 80 : count >= 500 ? 68 : count >= 100 ? 56 : count >= 50 ? 48 : count >= 20 ? 42 : count >= 10 ? 36 : count >= 2 ? 30 : 26);
+          // L-naver-zoomscale1 (2026-05-02): 줌 단계까지 고려한 사이즈.
+          const isMobileViewport = typeof window !== 'undefined' && window.innerWidth < 768;
+          const size = markerSize({ count, level, isMobile: isMobileViewport });
           const el = makeCircleElement({ count, selected, size });
           // L-clusterexact1 (2026-04-24 pm): dblclick 시 지도가 가로채 zoom 하는
           //   Kakao 기본 동작 차단.  마커 DOM 에서 mousedown 도 stop 해야 함.
@@ -470,10 +554,8 @@ const size = _isMobile1
         const el: HTMLDivElement = isBuildingPill && g.name
           ? makePillElement({ name: g.name, count: g.count, selected })
           : (() => {
-              const _isMobileT1 = typeof window !== 'undefined' && window.innerWidth < 768;
-              const size = _isMobileT1
-                ? (g.count >= 1000 ? 56 : g.count >= 500 ? 48 : g.count >= 100 ? 40 : g.count >= 10 ? 32 : g.count >= 2 ? 28 : 24)
-                : (g.count >= 1000 ? 72 : g.count >= 500 ? 60 : g.count >= 100 ? 50 : g.count >= 10 ? 40 : g.count >= 2 ? 34 : 30);
+              const isMobileViewportT = typeof window !== 'undefined' && window.innerWidth < 768;
+              const size = markerSize({ count: g.count, level, isMobile: isMobileViewportT });
               return makeCircleElement({ count: g.count, selected, size });
             })();
         // L-tooltip1 (2026-04-26): 마커 hover tooltip — 단지명/지역명 표시.
@@ -622,12 +704,9 @@ const size = _isMobile1
         // L-mapmarker2c: 개별/클러스터 모두 카운트 원으로 통일.
         //   사용자 피드백 (네이버 벤치마크): 가격 노출은 경쟁·직거래 리스크.
         //   주소 정확한 위치 표기 금지 — 카운트만 보여주고 최대확대에서도 건물 단위 묶음.
-        // L-naversize1 + L-mobile1 (2026-04-26): 사이즈 + 모바일 반응형
-const _isMobile1 = typeof window !== 'undefined' && window.innerWidth < 768;
-// L-naver-size1 (2026-04-26): count 별 size 차이 확장 (네이버처럼 큰 숫자는 훨씬 큼).
-const size = _isMobile1
-  ? (count >= 1000 ? 64 : count >= 500 ? 54 : count >= 100 ? 44 : count >= 50 ? 38 : count >= 20 ? 34 : count >= 10 ? 30 : count >= 2 ? 26 : 22)
-  : (count >= 1000 ? 80 : count >= 500 ? 68 : count >= 100 ? 56 : count >= 50 ? 48 : count >= 20 ? 42 : count >= 10 ? 36 : count >= 2 ? 30 : 26);
+        // L-naver-zoomscale1 (2026-05-02): 줌 단계까지 고려한 사이즈.
+        const isMobileViewport2 = typeof window !== 'undefined' && window.innerWidth < 768;
+        const size = markerSize({ count, level, isMobile: isMobileViewport2 });
         const el = makeCircleElement({ count, selected, size, category: clusterCat });
         const clickHandler = (e: Event) => {
           e.stopPropagation();
