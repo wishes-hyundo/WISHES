@@ -695,34 +695,57 @@ body {
   transition-duration: 0.01ms !important;
 }
 
-/* 토글 floating button (우측 하단) — 기본 표시 */
+/* L-largetext-mini1 (사장님 명령 2026-05-02): 큰글씨 버튼 minimize.
+   사장님 피드백 "꼴뵈기 싫게 있어 다 가려가면서".
+   기본: 작은 아이콘 (40px round) — 콘텐츠 안 가림.
+   hover/focus: 텍스트 확장 노출.
+   data-senior=true 시: 강조 색 + 텍스트 노출 (사용자가 ON 한 상태 인지 가능). */
 .senior-toggle {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: 12px;
+  bottom: 12px;
   z-index: 99;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 12px 16px;
+  padding: 8px 10px;
   background: #ffffff;
-  border: 2px solid #1f2937;
+  border: 1.5px solid rgba(31, 41, 55, 0.25);
   border-radius: 999px;
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  color: #1f2937;
+  color: #6b7280;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: background 0.15s, color 0.15s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: background 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s;
+  opacity: 0.55;  /* 기본 흐릿하게 — 콘텐츠 가림 최소 */
 }
-.senior-toggle:hover {
+.senior-toggle:hover, .senior-toggle:focus-visible {
+  opacity: 1;
   background: #f9fafb;
+  border-color: rgba(31, 41, 55, 0.6);
+  color: #1f2937;
+}
+.senior-toggle > span:nth-child(2) {
+  /* 텍스트는 hover/focus 시만 보이게 (모바일 X) */
+  display: none;
+}
+@media (min-width: 641px) {
+  .senior-toggle:hover > span:nth-child(2),
+  .senior-toggle:focus-visible > span:nth-child(2) {
+    display: inline;
+  }
 }
 [data-senior="true"] .senior-toggle {
   background: #1f2937;
   color: #ffffff;
-  font-size: 16px;
-  padding: 14px 20px;
+  border-color: #1f2937;
+  opacity: 1;
+  padding: 10px 14px;
+  font-size: 14px;
+}
+[data-senior="true"] .senior-toggle > span:nth-child(2) {
+  display: inline;
 }
 @media (max-width: 640px) {
   .senior-toggle {

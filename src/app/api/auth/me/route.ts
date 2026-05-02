@@ -70,22 +70,40 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // admin_users 테이블에서 역할/상태 조회 (3초 타임아웃 — 실패해도 user_metadata로 진행)
+    // L-login-fix1 (사장님 명령 2026-05-02 — 직원 가입+승인 후 로그인 안 됨):
+    //   기존: .or('id.eq.UUID,email.eq.X') 문자열 escaping 문제 + id 타입 mismatch 가능성.
+    //   해결: email 우선 쿼리 (소문자 정규화), 실패 시 id 로 fallback.
     let adminUser: { role?: string; name?: string; company?: string; phone?: string; status?: string } | null = null;
     try {
+      const emailLc = (email || '').toLowerCase();
+      // 1) email 우선 (가장 안정적 — register 에서 항상 소문자 저장)
       const res = await withTimeout(
         supabase
           .from('admin_users')
           .select('role, name, company, phone, status')
-          .or(`id.eq.${user.id},email.eq.${email}`)
+          .eq('email', emailLc)
           .limit(1)
           .maybeSingle(),
         3000,
       ) as any;
       const data = res?.data;
-      if (data) adminUser = data;
-    } catch {
-      // DB 타임아웃 → user_metadata만으로 진행
+      if (data) {
+        adminUser = data;
+      } else if (user?.id) {
+        // 2) email mismatch (혹시) 시 id 로 fallback
+        const res2 = await withTimeout(
+          supabase
+            .from('admin_users')
+            .select('role, name, company, phone, status')
+            .eq('id', user.id)
+            .limit(1)
+            .maybeSingle(),
+          3000,
+        ) as any;
+        if (res2?.data) adminUser = res2.data;
+      }
+    } catch (e) {
+      console.warn('[auth/me] admin_users lookup failed', e);
     }
 
     // L-sec60 (2026-04-22): CRITICAL user_metadata role/status fallback 제거.
@@ -96,10 +114,11 @@ export async function GET(request: NextRequest) {
     const meta = (user.user_metadata || {}) as { name?: string; company?: string; phone?: string };
 
     const role = adminUser?.role || 'user';
-    const status = adminUser?.status || 'pending';
+    const rawStatus = adminUser?.status || 'pending';
+    // L-login-fix1: status enum 양립 — 'approved' / 'active' / '승인' 모두 인정
+    const APPROVED_STATUSES = ['approved', 'active', '승인', 'enabled'];
+    const status = APPROVED_STATUSES.includes(rawStatus) ? 'approved' : rawStatus;
 
-    // Phase 1 (2026-04-28): 5단계 enum + legacy 양립. 'pending' 차단 (canAccessBroker=false).
-    //   'viewer'/'user' 라벨은 deprecated — 기존 데이터에서만 일시 호환 (Phase 2 정리).
     const APPROVED_ROLES = [
       'owner', 'admin', 'broker', 'partner',  // 신
       'superadmin', 'agent',                   // legacy
