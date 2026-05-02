@@ -1064,7 +1064,8 @@ export function ListingDetailModal() {
                 setGalleryIndex((i) => (i - 1 + galleryItems.length) % galleryItems.length);
               }}
               aria-label="이전 사진"
-              className="absolute left-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75"
+              // L-touchaaa1 (2026-05-02): WCAG 2.2 AAA 터치 타깃 44px (size-11)
+              className="absolute left-2 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75 sm:size-9"
             >
               <ChevronLeft className="size-5" />
             </button>
@@ -1074,7 +1075,8 @@ export function ListingDetailModal() {
                 setGalleryIndex((i) => (i + 1) % galleryItems.length);
               }}
               aria-label="다음 사진"
-              className="absolute right-2 top-1/2 flex size-8 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75"
+              // L-touchaaa1 (2026-05-02): WCAG 2.2 AAA 터치 타깃 44px (size-11)
+              className="absolute right-2 top-1/2 flex size-11 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white transition hover:bg-black/75 sm:size-9"
             >
               <ChevronRight className="size-5" />
             </button>
@@ -1090,7 +1092,8 @@ export function ListingDetailModal() {
           onClick={() => { haptic(10); closeListingDetail(); }}
           aria-label="닫기"
           /* L-modal-2026-uxopt: 햅틱 + min-h tap target 보장. */
-          className="absolute right-2.5 top-2.5 flex size-9 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+          // L-touchaaa1 (2026-05-02): WCAG 2.2 AAA 터치 타깃 44px (size-11) on mobile
+          className="absolute right-2 top-2 flex size-11 items-center justify-center rounded-full bg-black/55 text-white transition hover:bg-black/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:size-9"
           style={{ touchAction: 'manipulation' }}
         >
           <X className="size-4" />
@@ -1675,7 +1678,8 @@ export function ListingDetailModal() {
           <button
             onClick={(e) => { e.stopPropagation(); setLightboxOpen(false); }}
             aria-label="닫기"
-            className="absolute right-4 top-4 z-10 flex size-10 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
+            // L-touchaaa1 (2026-05-02): WCAG 2.2 AAA 터치 타깃 44px (size-11)
+            className="absolute right-4 top-4 z-10 flex size-11 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
           >
             <X className="size-5" />
           </button>

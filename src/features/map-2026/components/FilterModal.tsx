@@ -109,7 +109,8 @@ export function FilterModal() {
           <button
             onClick={close}
             aria-label="닫기"
-            className="flex size-9 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900"
+            // L-touchaaa1 (2026-05-02): WCAG 2.2 AAA 터치 타깃 44px (size-11) on mobile
+            className="flex size-11 items-center justify-center rounded-full text-neutral-500 transition hover:bg-neutral-100 hover:text-neutral-900 sm:size-9"
           >
             <X className="size-[18px]" />
           </button>
