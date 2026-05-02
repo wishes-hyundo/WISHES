@@ -205,11 +205,16 @@ function gridSizeForLevel(level: number): number {
   //   사용자 피드백 — 개별 점으로 찍히면 경쟁사·직거래 유출 리스크.
   // L-naver-cluster1 (2026-04-26): 네이버 부동산 z16~z19 매칭 close-up 미세조정.
   //   네이버 z19 (Kakao level 1) = 동·호수 단위 / z18 (level 2) = 단지 1개 / z17 (level 3) = 인근 단지 묶음 / z16 (level 4) = 동네 묶음.
-  if (level <= 1) return 0.0006;    // ~66m (네이버 z19, 단지내)
-  if (level <= 2) return 0.0014;    // ~155m (네이버 z18, 단지)
-  if (level <= 3) return 0.0028;    // ~310m (네이버 z17, 인근 단지 묶음 — 더 깔끔)
-  if (level <= 4) return 0.0050;    // ~550m (네이버 z16, 동네 단위)
-  if (level <= 5) return 0.006;     // ~600m (기본 줌)
+  // L-mapfix-2026-05-02 (사장님 명령 — "가까이 줌인했는데 매물 다 합쳐짐"):
+  //   이전 level 1~2 의 cellSize (66m, 155m) 가 너무 거침. 신림동처럼 매물 밀집한
+  //   지역에서 18~32개 매물이 한 1마커로 묶여 사용성 매우 떨어짐.
+  //   해결: level 1~3 의 cellSize 대폭 축소 → 같은 건물 매물만 1 마커, 다른 건물은
+  //   각각 단독.  신림동 분포 (3,525개 매물 / 고유 좌표 2,001개 = 평균 1.76 매물/좌표).
+  if (level <= 1) return 0.00008;   // ~9m (정확히 같은 건물만 묶임, 다른 건물 단독)
+  if (level <= 2) return 0.00020;   // ~22m (한 골목 안 같은 줄 매물만)
+  if (level <= 3) return 0.00060;   // ~66m (이전 level 1 사이즈 = 인근 골목)
+  if (level <= 4) return 0.0020;    // ~220m
+  if (level <= 5) return 0.004;     // ~440m
   if (level <= 6) return 0.010;     // ~1.1km (이전 1.3km → 약간 더 촘촘)
   if (level <= 7) return 0.016;     // ~1.8km (이전 2km)
   if (level <= 8) return 0.024;     // ~2.7km (이전 3.5km)
