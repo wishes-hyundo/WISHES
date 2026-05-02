@@ -591,7 +591,12 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
             //   해결: 한 번 클릭 = 최대 2 단계만 줌인 (네이버 부동산과 동일 패턴).
             //   더 가까이 가려면 사용자가 다시 클릭 → 점진적 진입.
             //   targetLevel 보다는 더 가까이 안 가도록 클램프.
-            const STEP = 2;
+            // L-polygon-zoom1 (사장님 명령 2026-05-02 — z13 클릭 후 z15 까지만 줌인 버그):
+            //   기존: STEP=2 → curLv 7 → finalLv 5 (폴리곤 zone 안에서 멈춤).
+            //   사용자가 한 번 더 클릭해야 마커 zone — 사용성 매우 저해.
+            //   수정: STEP=3 → curLv 7 → finalLv 4 (마커 zone 한 방 진입).
+            //   targetLevel 보다는 더 가까이 안 가도록 클램프 유지.
+            const STEP = 3;
             const finalLv = curLv > 0
               ? Math.max(targetLevel, curLv - STEP)
               : targetLevel;
@@ -806,9 +811,14 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       // L-naver-2026nopolymarker1 (2026-04-26): 사용자 피드백 "동 폴리곤 클릭 이후
       //   폴리곤 배경 보기 안 좋다" — 마커 zoom (level <= 4) 에서는 polygon 안 그림.
       //   level 5~7 = dong polygon, level 1~4 = 마커만.
+      // L-polygon-cutoff1 (사장님 명령 2026-05-02 — z15에서도 폴리곤 보이는 버그):
+      //   기존: level >= 5 (z15 까지) dong 폴리곤 → 사용자 폴리곤 클릭 후에도
+      //         z15 (level 5) 에서 빨간 영역 그대로 남아 매물 안 보임.
+      //   수정: level >= 6 (z14 까지) 만 dong, z15 (level 5) 부터 마커 zone.
+      //   네이버 부동산 동일 표준 — 가까운 줌(z15+) = 매물만, 광역(z14-) = 폴리곤.
       if (level >= 11) mode = 'sido';
       else if (level >= 8) mode = 'sigungu';
-      else if (level >= 5) mode = 'dong';
+      else if (level >= 6) mode = 'dong';
       // L-naver-cleanup1 (2026-04-26): mode 전환 즉시 unconditional cleanup.
       //   기존 버그: dong→sigungu 전환 시 sigData/feat null 로 early return 되면 이전
       //   dong polygon 잔류 → sigungu(0.15) + dong(0.15) 겹쳐 0.30 짙은 영역 (서울대 일대 보라색).

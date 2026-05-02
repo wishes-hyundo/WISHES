@@ -52,6 +52,48 @@
 - `npm run gate` 통과만으로는 부족. 사장님 화면이 정답.
 - 사장님이 못 잡고 제가 못 잡으면 INVARIANT 누락 → 즉시 추가
 
+### I-IMG-1: 크롤링 원본 사진 영구 차단 (사장님 명령 2026-05-02)
+- `image-policy.ts` `isSelfHostedImage()` whitelist 만 허용 (wishes.co.kr / supabase / r2)
+- onhouse / naver / 직방 등 외부 크롤링 사이트 사진 절대 노출 X
+- 사장님이 매물별 사진 직접 업로드 — admin/listings/new + mobile-photo.html 에서
+- 위시스 필름 룩 자동 적용 (자체 매물만, 크롤링은 적용 X)
+- 위반 결과: 저작권 분쟁 + 위시스 차별화 가치 손실
+
+### I-COUNT-1: 카운트 single source — 서버 categoryCounts = 클라이언트 sorted.length
+- 사용자 발견 버그: "지도 매물 개수와 좌측 카운트 안 맞음"
+- 해결 (L-naver-2026truecount2): 클라이언트 sorted.length 단일화 (서버 categoryCounts 부 보조용)
+- 서버 categoryCounts 와 listings 메인 query 의 조건 불일치 시 무조건 client sorted 신뢰
+- 코드: `src/features/map-2026/components/ListPanel.tsx` header 카운트 = `sorted.length`
+
+### I-DATA-1: type 컬럼 표준 값 enum (DB 입력 표준화)
+- 허용 값: 원룸 / 투룸 / 쓰리룸 / 포룸+ / 오피스텔 / 아파트 / 빌라 / 다세대 / 다가구 / 단독주택 / 쉐어하우스 / 고시원 / 상가 / 사무실 / 지식산업센터 / 공유오피스 / 근린생활시설 / 복합건물 / 토지 / 대지 / 전 / 답 / 임야 / 잡종지
+- 자유 입력 (`주거용`, `건물` 등) 금지 — admin/listings/new 에서 select dropdown
+- 위반 결과: 카테고리 탭에 노출 안 되어 사용자가 매물 못 봄 (영업 손실)
+- 검증: 카테고리 분류 누락 매물 0 (cron `auto-fix-problematic` 또는 `integrity-audit` 에서 alert)
+
+### I-POLY-1: 폴리곤 표시 zoom 컷오프 (사장님 명령 2026-05-02)
+- Kakao level 5 (z15) 부터는 마커 zone — 폴리곤 절대 X
+- level 6~7 (z13~z14) = dong polygon, level 8~10 = sigungu, level 11+ = sido
+- 코드: `AdminRegionOverlay.tsx` `level >= 6` 만 dong (절대 `level >= 5` 금지)
+- 폴리곤 클릭 시 STEP=3 → 한 방에 마커 zone 진입 (절대 STEP=2 회귀 X)
+- 위반 결과: 사장님 z15에서도 빨간 영역 그대로 → 매물 안 보임
+
+### I-MARKER-1: 마커 grid 단지 단위 정밀 (직방/네이버 표준)
+- z14 (level 6): cellSize ~440m (이전 1.1km 너무 큼)
+- z15 (level 5): cellSize ~220m
+- z16 (level 4): cellSize ~110m
+- z17 (level 3): cellSize ~66m
+- z18+ (level 2): cellSize=0 (단독 + 같은 좌표 자연 그룹)
+- 코드: `HtmlMarkerOverlay.tsx` `gridSizeForLevel()`
+- 위반 결과: 마커가 grid 균일 배치로 보임 (직방/네이버 시각 ≠)
+
+### I-TEST-1: Critical Flow Playwright 시각 회귀 (E-1 도입 2026-05-02)
+- `tests/dom-snapshot/critical-flows.spec.ts` 5 시나리오 매 PR 자동 검증
+- 실패 시 머지 차단 (gate-6 의 일부)
+- 사장님이 보는 화면 = 컴퓨터가 미리 봄 → 사장님 시간 빼앗김 0
+- 새 결함 발견 → 시나리오 추가 → 재발 차단 자동화
+- 코드 review 통과만으로는 부족 — 시각 회귀 통과 필수
+
 ---
 
 ## 🚫 `/search` 절대 손대지 마라 (사장님 명령 2026-04-28)
@@ -251,95 +293,3 @@
 **여전히 X**:
 - 큰 비용 옵션 (VR Matterport / Bright Data / 음성 AI / 데이터 웨어하우스)
 - 사장님 손 가는 검수 페이지
-- 카톡 알림톡 (Solapi) — 사장님 명령 2026-04-28: 사용 X. **알림은 Resend 이메일만**
-
-## 🌍 비즈니스 영역 (사장님 명령 2026-04-28)
-
-**전국 부동산 운영**. 서울 매물이 가장 많지만 서울 전문 X.
-- 매물 데이터: 전국 17 시도 모두
-- 자동 enrich: 전국 학교/어린이집/병원 (Kakao Local 무료)
-- 미세먼지: 시도별 매핑 (현재 12K 매물이 모두 서울이라 100% 서울 매칭, 매물 추가되면 자동 다른 시도)
-- 부트스트랩 §3 한국 17 데이터 모두 전국 영역
-
-**무료 한도 활용**:
-- Gemini 2.5 Flash (Google) — 일 100K 호출 무료 (Vision 포함)
-- Claude API — Prompt caching 90% 비용 절감
-- 카카오 Local API — 무료
-- V-World 건축물대장 / RTMS / data.go.kr — 무료
-- Google Earth Engine — 무료
-- Vercel Cron — 무료
-- Resend — 100K 무료
-- Inngest — free tier
-- Microsoft Clarity / GA4 / GrowthBook / PostHog — 무료
-
-**자동화 제안 시 항상 무료 옵션 우선**. 비용 들어가는 옵션 제시 X.
-
-**허용 (사장님 결과 확인용)**:
-- 실시간 dashboard (지표만, 클릭 없이)
-- 자동 처리된 결과 요약 (audit log)
-- 정기 PDF 보고서
-
-### 적용 기준
-
-#### 1. 기술 스택
-- 항상 최신 LTS 버전 사용 (Next.js 16+, React 19+, TypeScript 5.7+)
-- 최신 React 패턴 (Server Components, Suspense, use API)
-- 최신 Web API (Container Queries, View Transitions, Anchor Positioning, Popover API)
-- 최신 CSS (subgrid, :has(), color-mix(), oklch, view transitions)
-- ESM only, no CommonJS
-- Edge Runtime 우선
-
-#### 2. AI/ML 기능
-- 2026년 기준 SOTA 모델 사용 (Claude Sonnet 4.6+, GPT-5+, Gemini 2.5+)
-- LLM 기반 자연어 검색
-- 임베딩 기반 시맨틱 검색
-- AI 추천 시스템
-
-#### 3. UI/UX 기준
-- 2026년 최신 디자인 트렌드 (글래스모피즘 + 미니멀)
-- 마이크로 인터랙션
-- 60fps 애니메이션
-- 다크모드 기본 지원
-- 접근성 WCAG 2.2 AAA
-
-#### 4. 부동산 도메인 (네이버/직방/호갱노노 벤치마크)
-- 학세권 필터 (학교/학원/병원)
-- 거리뷰/항공뷰/위성뷰
-- VR 투어
-- AI 시세 추정
-- 단지별 실거래가 그래프
-- 관심 매물 핀
-- 세부 필터 (계단식/복도식, 전용면적)
-
-#### 5. 성능
-- Core Web Vitals 모든 지표 Good
-- 첫 페이지 로드 1초 이내
-- INP < 200ms
-- 이미지 AVIF/WebP 자동 최적화
-- 코드 스플리팅 + 프리페치
-
-#### 6. 보안
-- Content Security Policy 엄격
-- 매물 위치 마스킹 (비로그인)
-- Rate limiting
-- SQL injection 방지
-
-#### 7. 개발 프로세스
-- 매 commit 후 Vercel 배포 상태 즉시 확인
-- TypeScript strict mode
-- ESLint no-warnings
-- 빌드 통과 후에만 "완료" 보고
-
----
-
-## 작업 후 체크리스트
-
-매 commit 후 반드시 확인:
-- [ ] Vercel 배포 status가 "Ready" (Error 아님)
-- [ ] 라이브 사이트 동작 검증
-- [ ] 사용자 영향 피드백 수집
-
----
-
-작성: 2026-04-26
-규칙 추가: 사용자 명시 — "절대 까먹지 않게"

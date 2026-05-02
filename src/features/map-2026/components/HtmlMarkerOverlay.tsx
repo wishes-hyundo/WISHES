@@ -212,18 +212,23 @@ function gridSizeForLevel(level: number): number {
   //
   //   이전 PR #74 의 9m cellSize 도 큰 건물 (오피스텔 한 동) 안 매물 다 묶었음.
   //   사장님 본 거동: 18~32개 매물이 1마커로 → 사용 어려움.
-  if (level <= 2) return 0;          // 가장 가까이 — 매물별 단독 마커 (같은 좌표만 자연 겹침)
-  if (level <= 3) return 0.00060;   // ~66m (인근 골목)
-  if (level <= 4) return 0.0020;    // ~220m
-  if (level <= 5) return 0.004;     // ~440m
-  if (level <= 6) return 0.010;     // ~1.1km (이전 1.3km → 약간 더 촘촘)
-  if (level <= 7) return 0.016;     // ~1.8km (이전 2km)
-  if (level <= 8) return 0.024;     // ~2.7km (이전 3.5km)
-  if (level <= 9) return 0.035;     // ~3.9km (이전 5.5km)
-  if (level <= 10) return 0.045;    // ~5km (이전 9km — 핵심 개선, 수도권 분리)
-  if (level <= 11) return 0.060;    // ~6.7km (광역시 구분)
-  if (level <= 12) return 0.090;    // ~10km
-  return 0.120;                     // ~13km (level 13+ 전국 뷰)
+  // L-grid-precision1 (사장님 명령 2026-05-02 — 끝판왕 마커 위치 정확도):
+  //   기존: level 6 = 1.1km grid → 한 cell 에 여러 단지 매물 들어가서 centroid 가
+  //         단지 사이 빈 공간에 표시 → 시각상 "균일 배치" 보임 (직방/네이버 ≠).
+  //   수정: cellSize 약 1/3 ~ 1/2 로 축소 → 단지 단위 그룹 + centroid 가 단지 좌표에 가깝게.
+  //   직방/네이버 z14 표준 ~200m grid (단지·빌딩 단위).
+  if (level <= 2) return 0;          // 가장 가까이 — 매물별 단독 (같은 좌표 자연 그룹)
+  if (level <= 3) return 0.00060;    // ~66m (인근 골목, 동일)
+  if (level <= 4) return 0.0010;     // ~110m (220m → 110m, 단지 단위)
+  if (level <= 5) return 0.0020;     // ~220m (440m → 220m)
+  if (level <= 6) return 0.0040;     // ~440m (1.1km → 440m, 단지 분리)
+  if (level <= 7) return 0.0080;     // ~880m (1.8km → 880m)
+  if (level <= 8) return 0.0140;     // ~1.5km (2.7km → 1.5km)
+  if (level <= 9) return 0.0220;     // ~2.4km (3.9km → 2.4km)
+  if (level <= 10) return 0.035;     // ~3.9km (5km → 3.9km)
+  if (level <= 11) return 0.050;     // ~5.5km
+  if (level <= 12) return 0.075;     // ~8.3km
+  return 0.110;                      // ~12km (level 13+ 전국 뷰)
 }
 
 /** 카운트 표시 원 — 단일 매물이면 '1', 클러스터면 N.
