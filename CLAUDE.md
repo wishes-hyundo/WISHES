@@ -135,6 +135,60 @@
 - 위반 결과: 사장님 시간 낭비 + 신뢰 붕괴 + 옆구리 터지는 사이클 반복
 - 위반 발견 시: 즉시 정정 + 추측 부분 명시 + 검증된 답으로 교체
 
+### I-COORD-3: 메인 지도 viewport API raw 좌표 (직방/네이버 표준 — 사장님 명령 2026-05-02 M-6)
+- `/api/listings/viewport` `/api/listings/by-ids` 응답 lat/lng = DB raw 좌표 그대로
+- maskCoordinate 호출 금지 (마스킹 = 격자 패턴 원인)
+- privacy 보호 = 줌 락 (I-COORD-4) + 매물 detail modal 미니맵 100m 반경 원 (I-DETAIL-1) 으로
+- 직방 API 라이브 응답 검증: lat/lng 소수점 13자리 정확 노출 표준
+- 검증: viewport 응답 마스킹 비율 (≤ 1%) — Playwright 시각 회귀
+
+### I-COORD-4: 비로그인 줌 락 setMinLevel(4) (사장님 명령 2026-05-02 M-6)
+- `MapClient.tsx`: 비로그인 사용자 setMinLevel(4) → z16 (level 4) 까지만 줌인 가능
+- 로그인 사용자 setMinLevel(1) → 모든 zoom 가능
+- 정확 매물 위치 = 로그인 후 봐야 — 수익화 모델
+- privacy 보호의 1차 layer (raw 좌표 + 줌 락 결합)
+- 위반 결과: 비로그인 줌인 무제한 → 직거래 유출
+
+### I-MARKER-4: 광역 줌 (cellSize > 0) grid cluster 우선 (사장님 명령 2026-05-02 M-7)
+- `HtmlMarkerOverlay.tsx`: cellSize > 0 일 때 cluster key = `g:${cellX}:${cellY}` (grid)
+- cluster_token / building_name 무시 — z14~z17 광역 뷰에 맞는 큰 묶음
+- 위반 결과: cluster_token 1순위 사용 시 광역 뷰에 마커 수천개 (사장님 z14 캡처)
+- 검증: z14 viewport 응답에서 unique cluster ≤ 100 — Playwright 시각 회귀
+
+### I-MARKER-5: 가까이 줌 (cellSize == 0) 같은 좌표 매물 cluster (사장님 명령 2026-05-02 M-7)
+- `HtmlMarkerOverlay.tsx`: cellSize == 0 (z18+) 일 때 cluster key = `c:${lat.toFixed(6)}:${lng.toFixed(6)}`
+- 같은 lat/lng 매물 (소수점 6자리) = 1 cluster (직방 동작 — 같은 건물 다른 호)
+- 다른 lat/lng = 분리 (가까이서 매물 위치 정확히)
+- 위반 결과: token 우선 시 가까이 줌인해도 분리 안 됨
+
+### I-DATA-2: maintenance_includes/excludes 의 '관리비' 메타 항목 금지 (사장님 명령 2026-05-02 N-1)
+- listings.maintenance_includes/excludes 는 **실제 항목** (수도/전기/가스/인터넷 등) 만 포함
+- "관리비" 자체를 항목으로 넣으면 안 됨 — 메타 의미 없음 ("관리비 포함" = 무엇이 포함?)
+- ListingDetailModal 클라이언트 방어선: '관리비' 항목 자동 필터
+- DB cleanup 완료 (10,926 매물 정리)
+- 위반 결과: 칩에 "관리비 포함" 표시되어 별도 항목 구분 시각 깨짐
+
+### I-UI-1: ListingDetailModal left = ListPanel grid col 옆 (사장님 명령 2026-05-02 N-2)
+- 데스크탑 modal 위치: `md:left-[280px] lg:left-[340px] 2xl:left-[380px]`
+- ListPanel grid 첫 컬럼 (280/340/380px) 옆에 modal 시작 → 두 패널 동시 가시
+- 모바일은 전체 화면 fixed (기존 동작)
+- 위반 결과: modal 이 ListPanel 영역 가려 매물 목록 안 보임 (네이버 표준 위반)
+
+### I-DETAIL-1: 매물 detail modal 미니맵 = 100m 반경 원 (사장님 명령 2026-05-02)
+- 비로그인 매물 정확 위치 노출 X
+- 매물 상세 페이지 (/map/[id] modal) 의 "매물 위치" 섹션 = 100m 반경 녹색 원 표시
+- 정확 좌표 marker 금지
+- privacy 보호의 2차 layer (메인 지도 raw 좌표 사용해도 detail modal 은 흐림)
+
+### I-PROC-2: 새 결함 발견 시 INVARIANT + Playwright 시나리오 동시 등록 (사장님 명령 2026-05-02 O-1)
+- 모든 결함 fix PR 는 다음 3가지를 함께 포함해야 머지 가능:
+  1. 코드 fix (실제 변경)
+  2. CLAUDE.md 새 INVARIANT 추가 (재발 방지 규칙)
+  3. Playwright `tests/dom-snapshot/critical-flows.spec.ts` 시나리오 추가 (자동 회귀 검증)
+- 한 가지라도 빠지면 같은 결함이 다시 생김 (사장님 시간 낭비 패턴)
+- 위반 발견 시: 즉시 회수 + 누락된 부분 별도 PR
+- 코드만 push 하고 INVARIANT/시나리오 빠뜨림 = 가장 흔한 위반 — 의식적으로 체크
+
 ## 🚫 `/search` 절대 손대지 마라 (사장님 명령 2026-04-28)
 
 `wishes.co.kr/search` = 중개사가 사용하기 가장 편한 UI 로 13년 동안 최적화된 작업장.
@@ -159,97 +213,4 @@
 **무효화된 부트스트랩 항목**:
 - §7 Phase 2 ("UI 픽셀 React 재현") — 취소
 - §11 #2 ("vanilla content.js 폐기") — 무효
-- §11 #6 ("새 페이지 생성 X, 모든 게 /search 한 곳") — `/search` 강제 통합 의도 무효
-
----
-
-## 🔍 `/map` 검색·라우팅·성능 (사장님 명령 2026-04-29)
-
-`wishes.co.kr/map` = 일반 사용자/방문자가 매물 찾는 메인 페이지. 모든 매물 검색은 여기 한 곳.
-
-**4가지 영구 요구사항**:
-
-1. **AI 자연어 검색 활성화** — 검색창 1개로 3가지 모두:
-   - 매물번호 (5-6자리 숫자만) → 즉시 해당 매물 카드 오픈
-   - 주소 패턴 (지역명/도로명/번지) → /api/address-search → 지도 이동
-   - 자연어 ("신림동 3억 이하 투룸 5층 이상") → /api/map/search-nl (Gemini 2.5 Flash 무료) → 매물 필터 적용
-
-2. **/listings 영구 폐기** — `/listings/*` → `/map?listing=ID` 또는 `/map` 리다이렉트.
-   - 모든 매물 검색은 `/map` 한 곳
-   - 사이드바/네비/SEO 메뉴에서 `/listings` 제거
-   - listings에 있던 추가 필터/기능은 매물카드(MapListingPanel)에 통합
-
-3. **매물카드 URL 라우팅** — 매물 클릭 시 `/map?listing=ID` 자동 변경 (history.replaceState).
-   - 새로고침/직접접근 시 해당 매물 카드 자동 오픈
-   - 공유링크 동작 (og:image / og:title 매물별)
-
-4. **폴리곤/매물 렌더링 딜레이 0** — 폴리곤 클릭 → 지도 확대 → 매물 표시 사이 버퍼링/렉/딜레이 **체감 0**.
-   - clusters/items API 응답 < 100ms (Edge cache + tile-based)
-   - 마커 렌더링 GPU canvas (대량 시 SVG → Canvas)
-   - viewport-based prefetch + throttle 16ms (60fps)
-
-**무효화된 부트스트랩 항목**:
-- 부트스트랩 §4 "AI 자연어 검색 / pgvector AI 추천 X" — `/map` 검색창에 한해 무효화 (Gemini Flash 무료 한도)
-- 부트스트랩 §11 "/listings 유지" — 영구 폐기
-
-**보존 (혼동 금지)**:
-- `/search` (중개사용 vanilla content.js) — `/map`(일반 사용자용)과 별개. 둘 다 영구.
-- `/admin/*` — 사장님 전용. 별개.
-
----
-
-## ✅ `/admin/*` 자유 (사장님 명령 2026-04-28)
-
-`/admin/*` = 사장님이 사용. UI/UX 자유.
-
-**허용**:
-- 새 React 컴포넌트, shadcn/ui, Tailwind v4
-- 디자인 변경, 새 admin 페이지 생성
-- 기존 admin 페이지 강화/리팩토링
-
-**무효화된 부트스트랩 항목**:
-- §11 #7 ("/admin/* 유지 (Phase 3 후 폐기)") — `/admin/*` 영구 유지로 변경
-
----
-
-## 🎞️ 위시스 필름 룩 영구 적용 (사장님 명령 2026-04-28)
-
-**모든 위시스 사진/영상은 Fujifilm Classic Negative 레시피 자동 적용**.
-명세 파일: `_WISHES_FILM_LOOK_RECIPE.md` (절대 삭제 X, 변경 시 사장님 승인 필수)
-
-핵심 수치 (절대 까먹지 마라):
-- Film: **Classic Negative**, Grain: Strong/Large, Colour Chrome FX: Strong (+ Blue Strong)
-- WB: Auto (+3R/-5B) 또는 (0R/-2B) | DR400 | Colour +4
-- Highlight -2, Shadow -2, Sharpness +2, NR -4, Clarity -2
-
-적용 위치 (모든 곳):
-- `mobile-photo.html` 업로드/편집
-- `/api/admin/extract-from-photo` Gemini OCR
-- `/api/listings/[id]/images` POST
-- `/api/listings/[id]/videos` POST + FFmpeg.wasm 자동
-- `/api/cron/enrich-vision` 사진 처리
-
-예외 (적용 X):
-- `source='crawled'` 사진 — 위시스 룩 적용 X (저작권 안전 + 차별화)
-- 사장님 명시 "원본 보존" 선택
-
----
-
-## 🤖 자동화 우선 (사장님 명령 2026-04-28)
-
-**사장님께 일 시키지 마라.** 사장님은 결과만 받음.
-
-**자동 처리 원칙**:
-- 데이터 보정 / 정리 / enrich → SQL 함수 + cron
-- 매물 등록 시 KISO 14항 자동 검증 (trigger)
-- 이상치 / 중복 / 오류 → 자동 탐지 + 자동 보정
-- 정기 보고서 → 사장님 이메일 또는 dashboard (월/주 단위)
-
-**금지**:
-- "사장님이 직접 검토하는 페이지" 만들기 X
-- "사장님이 일일이 클릭해서 처리" UI X
-- 사장님 시간 빼앗는 모든 패턴 X
-
----
-
-## 🎯 마케팅 효과 보호 (사장님 명령 2026-04-30 PR-G2-A
+- §11 #6 ("새 페이지 생성 X, 모든 게 /

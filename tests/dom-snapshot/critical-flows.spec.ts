@@ -66,4 +66,42 @@ test.describe('Critical User Flows — 사장님 시각 회귀 가드', () => {
     const res = await request.get('/search');
     expect(res.status()).toBeLessThan(400);
   });
+
+  test('⑥ viewport API raw 좌표 (I-COORD-3) — 마스킹 비율 ≤ 1%', async ({ request }) => {
+    const res = await request.get('/api/listings/viewport?west=126.92&south=37.47&east=126.95&north=37.49&category=residence');
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    const items = body.listings || [];
+    if (items.length < 100) return;
+    const masked = items.filter((l: { lat: number }) => {
+      const after3 = String(l.lat.toFixed(7)).split('.')[1].slice(3);
+      return /^0+$/.test(after3);
+    });
+    const maskedRatio = masked.length / items.length;
+    expect(maskedRatio).toBeLessThan(0.01);
+  });
+
+  test('⑦ 광역 cluster (I-MARKER-4) — unique 좌표 < 매물 수', async ({ request }) => {
+    const res = await request.get('/api/listings/viewport?west=126.85&south=37.42&east=127.00&north=37.55&category=residence');
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    const items = body.listings || [];
+    if (items.length < 50) return;
+    const uniqueCoords = new Set(
+      items.map((l: { lat: number; lng: number }) => l.lat.toFixed(5) + ':' + l.lng.toFixed(5))
+    );
+    expect(uniqueCoords.size).toBeLessThan(items.length);
+  });
+
+  test('⑧ 관리비 메타 항목 (I-DATA-2) — maintenance_includes 에 "관리비" 없음', async ({ request }) => {
+    const res = await request.get('/api/listings/viewport?west=126.85&south=37.42&east=127.00&north=37.55&category=residence');
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    const items = body.listings || [];
+    const violations = items.filter((l: { maintenance_includes?: string[] }) =>
+      Array.isArray(l.maintenance_includes) &&
+      l.maintenance_includes.some((it) => String(it).trim() === '관리비')
+    );
+    expect(violations.length).toBe(0);
+  });
 });
