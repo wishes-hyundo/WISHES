@@ -218,18 +218,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // L-merge-portal (2026-04-27 v3): 사용자 명시 — 매물 관리/검색 제거, 중개사 포털로 통합.
   //   매물 목록/수정/삭제/검색은 모두 /search content.js 에 이미 구현됨.
   //   /admin/listings 와 /admin/search 는 /search 로 redirect.
-  const navItems = [
-    { href: '/admin', label: '대시보드', icon: '📊' },
-    { href: '/admin?tab=contacts', label: '상담 관리', icon: '📞' },
-    // P2-2 (2026-05-03): 사장님 명령 — 회원 페이지 접근 가능하게 사이드바 노출.
-    //   고객(profiles) + 운영자(admin_users) 두 탭 통합 페이지.
-    { href: '/admin/users', label: '회원 관리', icon: '👥' },
-    { href: '/admin/dedup', label: '중복 정리', icon: '🧹' },
-    { href: '/admin/profile', label: '내 프로필', icon: '👤' },
+  // P3-1 (2026-05-03): 사장님 명령 — 사장님 전용 nav 시각 분리 (직원에게 노출 X).
+  //   ownerOnly: true 인 항목은 isAdminRole(owner/admin/superadmin) 인 사용자에게만 표시.
+  //   직원(broker/agent) 은 사이드바에서 아예 안 보임 (시각 분리).
+  const navItemsAll = [
+    { href: '/admin', label: '대시보드', icon: '📊', ownerOnly: false },
+    { href: '/admin?tab=contacts', label: '상담 관리', icon: '📞', ownerOnly: false },
+    { href: '/admin/users', label: '회원 관리', icon: '👥', ownerOnly: true },  // 사장님만
+    { href: '/admin/dedup', label: '중복 정리', icon: '🧹', ownerOnly: true },  // 사장님만
+    { href: '/admin/profile', label: '내 프로필', icon: '👤', ownerOnly: false },
   ];
 
   const isNewListing = pathname === '/new';
-  const isAdminRole = userRole === 'superadmin' || userRole === 'admin';
+  const isAdminRole = userRole === 'superadmin' || userRole === 'admin' || userRole === 'owner' || userRole === 'master';
+
+  // 직원에게는 ownerOnly nav 숨김
+  const navItems = navItemsAll.filter(item => !item.ownerOnly || isAdminRole);
 
   // L-sec54 (2026-04-22): admin_bridge_ 위조 토큰 발급 로직 제거.
   //   해당 패턴은 L-sec1 에서 서버가 거부하므로 기능상 dead-code 였고,

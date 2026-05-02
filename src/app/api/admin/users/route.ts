@@ -98,10 +98,51 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const statusFilter = url.searchParams.get('status');
-    const filtered = statusFilter ? mergedUsers.filter(u => u.status === statusFilter) : mergedUsers;
+    // P3-2 (2026-05-03): type 파라미터 — 'customer' 면 profiles 조회 (고객 명부)
+    //   기본 (또는 type=staff) 이면 admin_users 기반 운영자 목록 (기존 동작 그대로).
+    const typeFilter = url.searchParams.get('type');
 
+    if (typeFilter === 'customer') {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, name, phone, email, source, purpose, budget_min, budget_max, move_in_date, profile_level, profile_completed, created_at, last_engagement_at')
+        .order('created_at', { ascending: false });
+      if (profilesError) {
+        return NextResponse.json({ error: profilesError.message }, { status: 500 });
+      }
+      // auth.users 와 매칭해서 last_sign_in_at 추가
+      const customers = (profilesData || []).map(p => {
+        const u = (users || []).find(x => x.id === p.id);
+        return {
+          id: p.id,
+          email: p.email || u?.email || '',
+          name: p.name || u?.user_metadata?.name || '',
+          phone: p.phone || '',
+          source: p.source || u?.app_metadata?.provider || 'email',
+          purpose: p.purpose,
+          budget_min: p.budget_min,
+          budget_max: p.budget_max,
+          move_in_date: p.move_in_date,
+          profile_level: p.profile_level || 0,
+          profile_completed: p.profile_completed,
+          created_at: p.created_at,
+          last_sign_in_at: u?.last_sign_in_at,
+          last_engagement_at: p.last_engagement_at,
+        };
+      });
+      return NextResponse.json({
+        success: true,
+        type: 'customer',
+        users: customers,
+        total: customers.length,
+      });
+    }
+
+    // type=staff (default): 기존 admin_users 기반 운영자 목록
+    const filtered = statusFilter ? mergedUsers.filter(u => u.status === statusFilter) : mergedUsers;
     return NextResponse.json({
       success: true,
+      type: 'staff',
       users: filtered,
       total: mergedUsers.length,
       pending: mergedUsers.filter(u => u.status === 'pending').length,

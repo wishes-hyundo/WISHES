@@ -110,9 +110,13 @@ export default function SignupPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 20 }}>
       <div style={{ background: '#fff', borderRadius: 12, padding: 40, width: '100%', maxWidth: 480, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, textAlign: 'center', marginBottom: 8, color: '#2D5A27' }}>중개사 회원가입</h1>
+        <h1 style={{ fontSize: 26, fontWeight: 700, textAlign: 'center', marginBottom: 8, color: '#2D5A27' }}>직원 / 운영자 회원가입</h1>
         <p style={{ textAlign: 'center', color: '#666', marginBottom: 30, fontSize: 13 }}>
-          가입 후 관리자 승인을 거쳐 매물 검색을 이용할 수 있습니다
+          WISHES 직원 / 운영자만 가입 가능. 가입 후 관리자 승인 필요.
+          <br /><br />
+          <span style={{ fontSize: 12, color: '#9ca3af' }}>
+            외부 중개업체이신가요? <a href="/signup/broker" style={{ color: '#2D5A27', fontWeight: 600 }}>중개업체 가입 안내</a>
+          </span>
         </p>
 
         <form onSubmit={handleSubmit}>
