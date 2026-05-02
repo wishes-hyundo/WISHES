@@ -132,36 +132,18 @@ export async function POST(request: NextRequest) {
 
       userId = newUser.user.id;
 
+      // P2-3 (2026-05-03): 사장님 명령 — 고객(OAuth)은 profiles, 직원(자체)은 admin_users 분리.
+      //   기존: naver 도 admin_users 에 insert (혼재). 정합성 깨짐 + 사장님 검증 흐름 혼란.
+      //   변경: OAuth 가입자는 profiles 만. admin_users insert 코드 제거.
+      //   provider 컬럼 → source 컬럼 통일.
       await supabase.from('profiles').upsert({
         id: userId,
         email: email,
         name: name,
         avatar_url: avatarUrl,
-        provider: 'naver',
+        source: 'naver',
         profile_completed: false,
       }, { onConflict: 'id' });
-
-      // 2026-04-23: 소셜 가입자도 admin_users 승인 플로우 합류.
-      //   기존 register route 가 admin_users 를 만들었지만 Naver 경로가 이걸
-      //   빠뜨려, 소셜 가입 사용자는 관리 승인 대기 목록에 보이지 않는 유령 계정이
-      //   되었음. wishes@wishes.co.kr 은 즉시 approved, 나머지는 pending/viewer.
-      try {
-        const _isSuper = email.toLowerCase() === 'wishes@wishes.co.kr';
-        // 2026-04-23 v2: 소셜 가입자는 user 권한 자동 승인 (reason 컬럼 없어 제외).
-        await supabase.from('admin_users').insert({
-          id: userId,
-          email: email.toLowerCase(),
-          name: name || null,
-          phone: phone || null,
-          company: null,
-          role: _isSuper ? 'superadmin' : 'user',
-          status: 'approved',
-        });
-      } catch (e) {
-        // UNIQUE 충돌(이미 존재) 등은 무시 — 정상 경로.
-        const msg = (e as { message?: string })?.message;
-        console.warn('admin_users insert (naver) skipped:', msg || e);
-      }
     }
 
     // 4. 매직링크 생성 - token_hash를 클라이언트에 반환하여 verifyOtp로 세션 생성

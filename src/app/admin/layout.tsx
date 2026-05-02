@@ -221,6 +221,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItems = [
     { href: '/admin', label: '대시보드', icon: '📊' },
     { href: '/admin?tab=contacts', label: '상담 관리', icon: '📞' },
+    // P2-2 (2026-05-03): 사장님 명령 — 회원 페이지 접근 가능하게 사이드바 노출.
+    //   고객(profiles) + 운영자(admin_users) 두 탭 통합 페이지.
+    { href: '/admin/users', label: '회원 관리', icon: '👥' },
     { href: '/admin/dedup', label: '중복 정리', icon: '🧹' },
     { href: '/admin/profile', label: '내 프로필', icon: '👤' },
   ];

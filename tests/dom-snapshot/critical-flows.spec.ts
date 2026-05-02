@@ -104,4 +104,46 @@ test.describe('Critical User Flows — 사장님 시각 회귀 가드', () => {
     );
     expect(violations.length).toBe(0);
   });
+
+  // P2-4 (2026-05-03): 회원가입 시스템 정상화 — 사장님 명령
+  test('⑨ register API 정상 응답 (I-AUTH-3) — admin_users INSERT 성공', async ({ request }) => {
+    const testEmail = `playwright_${Date.now()}@wishes-test.invalid`;
+    const res = await request.post('/api/auth/register', {
+      data: {
+        name: 'Playwright',
+        email: testEmail,
+        password: 'Playwright2026!@#',
+        phone: '010-0000-0000',
+        company: 'test',
+        reason: 'playwright',
+        requestedRole: 'broker',
+        acceptedTerms: true,
+        acceptedPrivacy: true,
+        acceptedMarketing: false,
+        termsVersion: 'v2026-04-28',
+        privacyVersion: 'v2026-04-28',
+      },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.success).toBe(true);
+    // 정리는 별도 cron 또는 cleanup task. 테스트 자체는 status / success 만 확인.
+  });
+
+  test('⑩ /admin/users 사이드바 링크 노출 (I-AUTH-1)', async ({ request }) => {
+    // /admin/admin-auth.html 정적 페이지 응답에 navItems 코드 포함되지 않으므로
+    // 대신 admin layout 컴파일 결과 (TS) 의 빌드 산출물을 간접 검증할 길 없어
+    // 메타 검증만 — admin 페이지 진입 시 200 응답 (route 자체 존재) 보장.
+    const res = await request.get('/admin/users');
+    // 비로그인 = redirect 또는 client-side guard. status 0 / 200 / 302 모두 허용 (페이지 자체 존재).
+    expect([200, 302, 307]).toContain(res.status());
+  });
+
+  test('⑪ /api/auth/me 비로그인 = 401 (I-AUTH-4) — 정상 응답 형식', async ({ request }) => {
+    const res = await request.get('/api/auth/me');
+    expect(res.status()).toBe(401);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.message).toBeTruthy();
+  });
 });

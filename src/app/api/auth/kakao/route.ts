@@ -160,32 +160,18 @@ export async function POST(request: NextRequest) {
       }
       userId = newUser.user.id;
 
+      // P2-3 (2026-05-03): 사장님 명령 — 고객(OAuth)은 profiles, 직원(자체)은 admin_users 분리.
+      //   기존: kakao/naver 도 admin_users 에 insert (혼재). 정합성 깨짐 + 사장님 검증 흐름 혼란.
+      //   변경: OAuth 가입자는 profiles 만. admin_users insert 코드 제거.
+      //   provider 컬럼 → source 컬럼 통일 (P2-3 마이그레이션).
       await supabase.from('profiles').upsert({
         id: userId,
         email,
         name: nickname,
         avatar_url: profileImageUrl,
-        provider: 'kakao',
+        source: 'kakao',
         profile_completed: false,
       }, { onConflict: 'id' });
-
-      // 소셜 가입자도 admin 승인 flow 에 합류 (Naver route 와 동일 패턴)
-      try {
-        const isSuper = SUPERADMIN_EMAILS.has(email);
-        // 2026-04-23 v2: 소셜 가입자는 user 권한 자동 승인 (reason 컬럼 없어 제외).
-        await supabase.from('admin_users').insert({
-          id: userId,
-          email,
-          name: nickname || null,
-          phone: null,
-          company: null,
-          role: isSuper ? 'superadmin' : 'user',
-          status: 'approved',
-        });
-      } catch (e) {
-        const msg = (e as { message?: string })?.message;
-        console.warn('admin_users insert (kakao) skipped:', msg || e);
-      }
     }
 
     // 4) 매직링크 생성 → token_hash 만 클라이언트에 반환 (verifyOtp 로 세션 복원)

@@ -25,7 +25,7 @@ export default function AdminUsersPage() {
   const { token } = useAdminSession('/admin/users');
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all'); // P2-2 (2026-05-03): default 'pending' → 'all' (사장님 첫 진입 시 전체 회원 노출)
   const [roleChecked, setRoleChecked] = useState(false);
 
   // superadmin 역할 체크 (token 확보 후)
@@ -124,7 +124,7 @@ export default function AdminUsersPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f5f5f5' }}>
       <header style={{ background: '#2D5A27', color: '#fff', padding: '14px 24px' }}>
-        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>직원 승인 관리</h1>
+        <h1 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>회원 관리 (운영자/직원)</h1>
       </header>
 
       <div style={{ padding: 24 }}>

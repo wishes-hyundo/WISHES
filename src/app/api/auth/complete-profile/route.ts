@@ -83,8 +83,10 @@ export async function POST(request: NextRequest) {
       console.warn('[complete-profile] admin_users select failed:', selectErr.message);
     }
 
+    // P2-3 (2026-05-03): 사장님 명령 — 고객(OAuth)은 profiles, 직원(자체)은 admin_users 분리.
+    //   existing admin_users 있음 → 직원 (사장님/owner/admin) 프로필 갱신만, role/status 보존.
+    //   없음 → admin_users INSERT 하지 않음 (고객은 profiles 만 사용). 이전: 신규 OAuth 도 admin_users 에 박혀 정합성 깨짐.
     if (existing) {
-      // UPDATE: role / status 는 손대지 않는다 — 사장님(owner/admin) 프로필 갱신 시 권한 보존.
       const { error: updateErr } = await supabase
         .from('admin_users')
         .update({ name, phone })
@@ -92,26 +94,17 @@ export async function POST(request: NextRequest) {
       if (updateErr) {
         console.warn('[complete-profile] admin_users update failed:', updateErr.message);
       }
-    } else {
-      // INSERT: 신규 소셜 가입자 — user/approved 로 즉시 활성화.
-      //   동시 호출(레이스) 시 duplicate key 가 떨어지면 다음 GET 시 fall-through 로 안전.
-      const { error: insertErr } = await supabase.from('admin_users').insert({
-        id: userId,
-        email,
-        name,
-        phone,
-        role: 'user',
-        status: 'approved',
-      });
-      if (insertErr && !/duplicate|unique|conflict/i.test(insertErr.message || '')) {
-        console.warn('[complete-profile] admin_users insert failed:', insertErr.message);
-      }
     }
+    // else: 고객(OAuth) — admin_users 에 row 만들지 않음. 아래 profiles upsert 만 유효.
 
     // 2) profiles 테이블에도 업데이트 (있으면). profiles 는 role 컬럼이 없어 upsert 안전.
     try {
+      // P2-3 (2026-05-03): source 자동 박음 — kakao/naver 는 callback 에서 이미 박힘.
+      //   google native OAuth + 자체 가입자도 여기서 source 결정.
+      const provider = (user.app_metadata?.provider as string) || (user.user_metadata?.provider as string) || 'email';
+      const source = ['kakao','naver','google','email'].includes(provider) ? provider : 'email';
       await supabase.from('profiles').upsert(
-        { id: userId, email, name, phone, profile_completed: true },
+        { id: userId, email, name, phone, source, profile_completed: true },
         { onConflict: 'id' },
       );
     } catch { /* profiles 테이블 없을 수도 — skip */ }

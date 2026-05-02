@@ -189,6 +189,49 @@
 - 위반 발견 시: 즉시 회수 + 누락된 부분 별도 PR
 - 코드만 push 하고 INVARIANT/시나리오 빠뜨림 = 가장 흔한 위반 — 의식적으로 체크
 
+### I-PROC-3: 기능 추가 전 현재 작동 확인 + 새 결함 0 (사장님 영구 명령 2026-05-03)
+- 새 기능 / 변경 / 마이그레이션 시작 전:
+  1. prod 핵심 동작 (main / map / viewport API / health) 정상 확인
+  2. 기존 데이터 무결성 (auth.users / admin_users / profiles / listings count) 기록
+- 변경 후 즉시 regression 검사:
+  1. 위 동일 항목 재확인 — 깨졌으면 즉시 fix 또는 롤백
+  2. 새 결함 발견 시 즉시 fix (다음 단계 진행 X)
+- "절대 문제점 만들지 마라. 있으면 바로 고쳐서 수정해" — 사장님 영구 명령
+
+### I-LEGACY-1: legacy 잔존 발견 시 즉시 정리, 최신 버전 단일 유지 (사장님 영구 명령 2026-05-03)
+- DB CHECK 제약 / 컬럼 / 테이블 / 코드 — 구버전 + 신버전 동시 존재 발견 시:
+  1. 신버전 (더 포괄적) 만 유지
+  2. 구버전 즉시 DROP (위험 평가 후)
+- 예: admin_users_role_check (구) + admin_users_role_chk (신) → 구 DROP
+- 항시 최신 버전에 맞춰서 버그 없이 진행
+
+### I-AUTH-1: 직원/고객 분리 — admin_users(직원) vs profiles(고객) (사장님 명령 2026-05-03)
+- 직원/운영자 (사장님 + 운영팀) = `admin_users` 테이블 + 사장님 승인 필요 (status='pending' → 'approved')
+- 고객 (매물 검색자) = `profiles` 테이블 + OAuth 가입 즉시 활성
+- 같은 사용자가 두 테이블에 동시 존재 금지
+- 중개업체 (외부 중개사) = 추후 활성화 (현재 영구 pending — 홈페이지 자리 잡은 후)
+
+### I-AUTH-2: OAuth 가입자(kakao/naver/google) = profiles 만 INSERT (사장님 명령 2026-05-03)
+- `/api/auth/kakao` / `/api/auth/naver` callback = profiles upsert (admin_users INSERT 금지)
+- Google native OAuth = `/api/auth/complete-profile` 도 profiles 만 (existing admin_users 권한 보존 UPDATE 만 허용)
+- 직원이 OAuth 로 가입 시도 시 = profiles 로 들어감. 사장님이 admin_users 수동 등록으로 직원 권한 부여.
+- profiles 의 `source` 컬럼 = 가입 경로 ('kakao'/'naver'/'google'/'email')
+
+### I-AUTH-3: 자체 가입(/api/auth/register) = admin_users 만 INSERT (직원 등록 흐름)
+- `register` route = admin_users insert. 신 enum 'pending' status, role='pending'
+- 사장님이 /admin/users 에서 승인 → status='approved', role 변경 (broker/agent/admin/owner)
+- 자체 가입자는 profiles 에 row 만들지 않음
+
+### I-AUTH-4: auth.users <-> admin_users / profiles 정합성 1:1 (사장님 명령 2026-05-03)
+- auth.users 의 id 와 email = admin_users / profiles 의 id 와 email 정확히 일치 필수
+- mismatch (id 같은데 email 다름) 발견 시 = 즉시 정리 (UPDATE 또는 DELETE)
+- 정기 검증 cron 권장: `SELECT au.id FROM admin_users au JOIN auth.users u ON u.id = au.id WHERE LOWER(au.email) != LOWER(u.email);` → 0 row 이어야
+
+### I-AUTH-5: 중개업체 가입 = 영구 pending (홈페이지 자리 잡은 후 활성화)
+- 사장님 결정 (2026-05-03): 중개업체 가입 흐름은 바탕만 만들어 두고 실제 활성화는 추후
+- 가입 페이지 자체는 존재 가능 (status='pending' 영구). 사장님 수동 승인만 가능
+- 정부 OpenAPI (국세청 / nsdi.go.kr) 자동 검증은 추후 활성화 시 도입
+
 ## 🚫 `/search` 절대 손대지 마라 (사장님 명령 2026-04-28)
 
 `wishes.co.kr/search` = 중개사가 사용하기 가장 편한 UI 로 13년 동안 최적화된 작업장.
