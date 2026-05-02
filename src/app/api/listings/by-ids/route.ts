@@ -14,6 +14,8 @@ import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { maskAddressForPublic } from '@/lib/publicAddress';
 import { isSelfHostedImage } from '@/lib/image-policy';
+// L-listing-byids-mask1 (2026-05-02): 비로그인 110m 마스킹 (다른 listing endpoint 와 일관)
+import { maskCoordinate } from '@/lib/coordinateMask';
 import type { MapListing } from '@/features/map-2026/store';
 
 export const dynamic = 'force-dynamic';
@@ -73,10 +75,15 @@ export async function GET(request: NextRequest) {
       const source_site = r.source_site as string | null;
       const title = r.title as string | null;
       const dong = r.dong as string | null;
+      const _lat = Number(r.lat);
+      const _lng = Number(r.lng);
+      const _coords = (Number.isFinite(_lat) && Number.isFinite(_lng))
+        ? (authed ? { lat: _lat, lng: _lng } : maskCoordinate(_lat, _lng))
+        : { lat: null as number | null, lng: null as number | null };
       return {
         id: r.id as number,
-        lat: r.lat as number,
-        lng: r.lng as number,
+        lat: _coords.lat as number,
+        lng: _coords.lng as number,
         deal: r.deal as MapListing['deal'],
         type: (r.type as string) ?? null,
         deposit: (r.deposit as number | null) ?? null,

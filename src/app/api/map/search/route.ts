@@ -19,6 +19,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { parseMatchQuery } from '@/lib/ai-match-parser';
 import { applyImagePolicy } from '@/lib/image-policy';
+// L-mapsearch-mask1 (2026-05-02): 비로그인 110m 마스킹 (다른 listing endpoint 와 일관)
+import { maskCoordinate } from '@/lib/coordinateMask';
 import { cached } from '@/lib/cache';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
@@ -79,7 +81,25 @@ async function embedQuery(text: string): Promise<number[] | null> {
 
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
+        // L-mapsearch-mask1 (2026-05-02): authed 판정 — viewport/by-ids 와 동일 패턴
+    let authed = false;
+    {
+      const authHdr = request.headers.get('authorization') || '';
+      const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : '';
+      if (token) {
+        try {
+          const sbAuth = createServerClient();
+          const authPromise = sbAuth.auth.getUser(token).then(({ data, error }) => ({ user: data?.user, error }));
+          const timeoutPromise = new Promise<{ user: null; error: Error }>((resolve) => {
+            setTimeout(() => resolve({ user: null, error: new Error('auth timeout') }), 200);
+          });
+          const { user, error: authErr } = await Promise.race([authPromise, timeoutPromise]);
+          if (!authErr && user) authed = true;
+        } catch { /* guest */ }
+      }
+    }
+
+const { searchParams } = new URL(request.url);
     const q = (searchParams.get('q') || '').trim();
     if (!q) {
       return NextResponse.json({ success: true, data: [], total: 0, parsed: null });
@@ -279,10 +299,16 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // listing_images shape 정규화 + 이미지 정책
+    // listing_images shape 정규화 + 이미지 정책 + 좌표 마스킹
     const sanitized = result.map((r) => {
       const imgs = r.thumb_url ? [{ url: r.thumb_url }] : [];
-      return applyImagePolicy({ ...r, listing_images: imgs });
+      // L-mapsearch-mask1 (2026-05-02): 비로그인 110m 마스킹
+      const _lat = Number(r.lat);
+      const _lng = Number(r.lng);
+      const _coords = (Number.isFinite(_lat) && Number.isFinite(_lng))
+        ? (authed ? { lat: _lat, lng: _lng } : maskCoordinate(_lat, _lng))
+        : { lat: null as number | null, lng: null as number | null };
+      return applyImagePolicy({ ...r, lat: _coords.lat, lng: _coords.lng, listing_images: imgs });
     });
 
     return NextResponse.json(
