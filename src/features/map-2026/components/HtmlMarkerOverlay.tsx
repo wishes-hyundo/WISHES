@@ -750,33 +750,25 @@ export default function HtmlMarkerOverlay({
       //   정규화 — '\u00A0' (NBSP) / 다중 공백 / 공백을 한 칸으로.
       const normName = (s: string | null | undefined): string =>
         (s ?? '').replace(/\s+/g, ' ').trim();
-      const buildKey = (
-        l: { building_name?: string | null; cluster_token?: string | null; lat: number; lng: number },
-        fallbackPrefix: string,
-      ): string => {
-        // 1) cluster_token (서버 hash) 우선 — 비로그인/로그인 모두 작동
-        if (l.cluster_token) return `t:${l.cluster_token}`;
-        // 2) building_name (로그인 시 노출) — token 없으면 사용
-        const n = normName(l.building_name);
-        if (n) return `b:${n}`;
-        // 3) fallback (좌표/cell)
-        return fallbackPrefix;
-      };
-
+      // M-7 (사장님 명령 2026-05-02 — z14 광역 뷰 cluster 안 됨 fix):
+      //   직방/네이버 표준 — 광역 줌은 grid cluster (큰 묶음), 가까이는 단지/좌표 cluster.
+      //   cellSize > 0 (z14~z17 광역) → grid cell 우선, token 무시
+      //   cellSize == 0 (z18+ 가까이) → 같은 좌표 매물끼리만 cluster (직방 동작)
+      //   raw 좌표라 cell 안 매물 평균 = 자연스러운 위치 (격자 X).
       if (cellSize > 0) {
         for (const l of rest) {
-          const fallback = `g:${Math.floor(l.lat / cellSize)}:${Math.floor(l.lng / cellSize)}`;
-          const key = buildKey(l, fallback);
+          // 광역 줌: grid cell 단위 cluster (token 무시)
+          const key = `g:${Math.floor(l.lat / cellSize)}:${Math.floor(l.lng / cellSize)}`;
           const arr = clusters.get(key);
           if (arr) arr.push(l);
           else clusters.set(key, [l]);
         }
       } else {
-        // L-cluster-coord-stack1 (2026-05-02): cellSize=0 일 때도 단지명 우선,
-        //   단지명 없는 매물만 (lat,lng) 동일 그룹.
+        // 가까이 줌 (z18+): 같은 좌표 매물끼리만 cluster (직방 동작)
+        // 같은 lat/lng 매물 = 같은 건물 다른 호 → 1 마커
+        // 다른 lat/lng = 분리
         for (const l of rest) {
-          const fallback = `c:${l.lat}:${l.lng}`;
-          const key = buildKey(l, fallback);
+          const key = `c:${l.lat.toFixed(6)}:${l.lng.toFixed(6)}`;
           const arr = clusters.get(key);
           if (arr) arr.push(l);
           else clusters.set(key, [l]);
