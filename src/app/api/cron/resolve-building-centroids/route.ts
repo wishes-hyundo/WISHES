@@ -34,7 +34,7 @@ const TIER1_TYPES = new Set<string>([
 
 // 30일 이내 재조회 skip — 카카오 API 할당 보호
 const STALE_DAYS = 30;
-const MAX_PER_RUN = 200;  // 한 cron 실행 당 최대 단지 수 (카카오 무료 30K/day 한도 안전)
+const MAX_PER_RUN = 1500;  // 한 cron 실행 당 최대 단지 수 (카카오 무료 30K/day 한도 안전)
 const REQUEST_DELAY_MS = 50;  // 단지 간 50ms 딜레이 (rate limit)
 
 interface KakaoDocument {
@@ -89,15 +89,16 @@ export async function GET(req: NextRequest) {
   const supabase = createServerClient();
   const startedAt = Date.now();
 
-  // 1) TIER1 매물의 (building_name, dong) 유니크 페어 추출
-  const tier1Array = Array.from(TIER1_TYPES);
+  // M-3 (사장님 명령 2026-05-02 — "병신같은 grid 방식 걍 나가뒤져"):
+  //   TIER1 제한 풀고 모든 building_name 매물 단지 좌표 채움.
+  //   격자 패턴 = 마스킹 좌표 사용 매물이 cell 중심에 모이는 결과.
+  //   building_centroids 에 모든 단지 채우면 viewport API 가 정확 좌표 사용 → 격자 사라짐.
   const { data: listings, error: listErr } = await supabase
     .from('listings')
     .select('building_name, dong, type, lat, lng')
-    .in('type', tier1Array)
     .not('building_name', 'is', null)
     .eq('status', '공개')
-    .limit(20000);
+    .limit(50000);
 
   if (listErr) {
     return NextResponse.json({ success: false, error: listErr.message }, { status: 500 });

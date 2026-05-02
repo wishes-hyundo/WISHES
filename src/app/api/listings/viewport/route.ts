@@ -571,7 +571,28 @@ export async function GET(req: NextRequest) {
       // L-sec170 (2026-05-02): Coordinate masking for non-authenticated users
       //   - authed = true: return precise coordinates (lat/lng)
       //   - authed = false: mask to dong-level (0.01° precision ≈ 1.1km)
-      const { lat, lng } = authed ? { lat: r.lat, lng: r.lng } : maskCoordinate(r.lat, r.lng);
+      // M-3 (사장님 명령 2026-05-02 — "병신같은 grid 방식 걍 나가뒤져"):
+      //   building_centroids 에 단지명 정확 좌표 있으면 그걸 lat/lng 로 사용 —
+      //   TIER1 만이 아니라 모든 매물. 마스킹 좌표 (격자 패턴 원인) 대신 단지 진짜 위치.
+      //   privacy: 단지 좌표는 공공 정보 (네이버/직방 동일), building_name 자체는 비로그인에 노출 X 유지.
+      let lat: number, lng: number;
+      if (authed) {
+        lat = r.lat as number;
+        lng = r.lng as number;
+      } else {
+        const bn = r.building_name ? String(r.building_name).trim() : '';
+        const centroid = bn ? buildingCentroidMap.get(bn) : undefined;
+        if (centroid && Number.isFinite(centroid.lat) && Number.isFinite(centroid.lng)) {
+          // 단지 정확 좌표 (네이버 표준) — 격자 패턴 사라짐
+          lat = centroid.lat;
+          lng = centroid.lng;
+        } else {
+          // building_centroid 없는 매물 (12% 단지명 없음 + cron 미처리 단지) — 마스킹 좌표 fallback
+          const masked = maskCoordinate(r.lat, r.lng);
+          lat = masked.lat;
+          lng = masked.lng;
+        }
+      }
 
       return {
         id: r.id,
