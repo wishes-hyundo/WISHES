@@ -4,7 +4,10 @@ import { usePathname } from 'next/navigation';
 import Header from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { FloatingButtons } from '@/components/FloatingButtons';
-import { CookieConsent } from '@/components/CookieConsent';
+// L-cookie-remove1 (사장님 명령 2026-05-02): 한국 PIPA — 쿠키 별도 동의 배너 불필요.
+//   개인정보 처리방침 (legal/privacy) 에 쿠키 사용 명시되어 있어 충분.
+//   사장님 피드백 "꼴뵈기 싫게 가려가면서" — 콘텐츠 가림 + 사장님 영업 저해.
+// import { CookieConsent } from '@/components/CookieConsent';
 import { BottomCTA } from '@/components/BottomCTA';
 import { ToastProvider } from '@/components/Toast';
 import { ChatbotWidget } from '@/components/ChatbotWidget';
@@ -78,7 +81,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
             {!isMapPage && <AIChatBot />}
             {!isMapPage && <ChatbotWidget />}
             {!isMapPage && <BottomCTA />}
-            {!isMapPage && <CookieConsent />}
+            {/* L-cookie-remove1 (2026-05-02): CookieConsent 제거 — 한국 PIPA 별도 동의 불필요 */}
             {/* 모바일 5탭 하단 네비: /admin · /map · 중개사 포털은 내부에서 비노출 */}
             {/* L-naver-2026bottomsheet1 (2026-04-27): /map 은 MobileListSheet 가 bottom 차지 → 숨김 */}
             {!isMapPage && <MobileBottomNav />}
