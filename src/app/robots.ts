@@ -6,7 +6,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        disallow: ['/api/', '/admin/'],
+        disallow: ['/api/', '/admin/', '/CLAUDE_CONTEXT.md', '/CLAUDE_BOOT.md'],
       },
     ],
     sitemap: 'https://wishes.co.kr/sitemap.xml',
