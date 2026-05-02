@@ -521,11 +521,15 @@ export async function GET(req: NextRequest) {
         floor_current: r.floor_current,
         station_distance: r.station_distance ?? null,
         built_year: r.built_year ?? null,
-        // L-privacy1: 비로그인 guest 에는 건물명·타이틀 노출 금지.
-        //   · building_name → null
-        //   · title → 주소 마스킹된 '구 동' 형태 (지번·건물명·층 제거)
-        //     title 이 없으면 dong 으로 폴백. 동이 없으면 null.
-        building_name: authed ? (r.building_name ?? null) : null,
+        // L-cluster-building1 (사장님 명령 2026-05-02 — 끝판왕 직방/네이버 표준):
+        //   기존 L-privacy1: 비로그인에 building_name 마스킹 → cluster key 무효 →
+        //   다른 단지 매물이 한 마커에 묶여 사용자 매물 위치 정확도 X.
+        //
+        //   변경: building_name 노출 (직방/네이버 동일). 단지명은 공공 정보 —
+        //   검색 결과에 누구나 보이는 정보. 정확 호수/층/면적만 보호 유지.
+        //   INVARIANT I-MARKER-2: cluster.building_name 비로그인에도 노출 필수.
+        //   title 마스킹은 유지 (지번 보호).
+        building_name: r.building_name ?? null,
         dong: r.dong ?? null,
         // L-adminpoly3 (2026-04-24 pm): 행정구역 폴리곤 카운트 집계용 주소 노출.
         //   PUBLIC_LISTING_COLUMNS 화이트리스트에 있는 공개 필드.

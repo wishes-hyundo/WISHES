@@ -97,7 +97,8 @@ export async function GET(request: NextRequest) {
         direction: (r.direction as string | null) ?? null,
         station_distance: (r.station_distance as number | null) ?? null,
         built_year: (r.built_year as string | null) ?? null,
-        building_name: authed ? ((r.building_name as string | null) ?? null) : null,
+        // L-cluster-building1 (사장님 명령 2026-05-02): viewport 와 일관 — 비로그인 노출
+        building_name: (r.building_name as string | null) ?? null,
         dong: dong ?? null,
         address: (r.address as string | null) ?? null,
         title: authed
