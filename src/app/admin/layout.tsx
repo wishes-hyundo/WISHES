@@ -264,7 +264,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navItemsAll = [
     { href: '/admin', label: '대시보드', icon: '📊', ownerOnly: false },
     { href: '/admin?tab=contacts', label: '상담 관리', icon: '📞', ownerOnly: false },
-    { href: '/admin/users', label: '회원 관리', icon: '👥', ownerOnly: true },  // 사장님만
+    { href: '/admin/command-center-v2', label: '회원 관리', icon: '👥', ownerOnly: true },  // G-16 통합: V2 가 메인
     { href: '/admin/dedup', label: '중복 정리', icon: '🧹', ownerOnly: true },  // 사장님만
     { href: '/admin/profile', label: '내 프로필', icon: '👤', ownerOnly: false },
   ];
@@ -433,23 +433,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
 
 
-      {/* Command Center - admin/superadmin만 표시 */}
-      {isAdminRole && (
-        <div className="px-3 pb-2">
-          <button onClick={handleCommandCenter}
-            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-200 bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-95 min-h-[48px] ${!sidebarOpen ? 'justify-center' : ''}`}>
-            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            {sidebarOpen && (
-              <div className="flex flex-col text-left">
-                <span>Command Center</span>
-                <span className="text-[10px] font-normal opacity-75">통합 관리 센터</span>
-              </div>
-            )}
-          </button>
-        </div>
-      )}
+      {/* G-16 (2026-05-03): Command Center 별도 버튼 제거 — '회원 관리' nav 와 통합 (사장님 명령). */}
 
       <div className="px-3 pb-4">
         <button onClick={handleLogout}
