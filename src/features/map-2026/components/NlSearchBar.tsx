@@ -1,5 +1,16 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 자연어 검색바 — 엔터 또는 "검색" 클릭하면 Claude 파서 호출
+// NlSearchBar — /map 통합 검색바 (3-in-1)
+//
+// CLAUDE.md (사장님 명령 2026-04-29) — 검색창 1개로 3가지 동시 처리:
+//   1) 매물번호 (5-6자리 숫자만)        → 즉시 해당 매물 카드 오픈
+//   2) 주소 패턴 (지역명/도로명/번지)   → /api/address-search → 지도 이동
+//   3) 자연어                          → /api/map/search-nl (Gemini Flash 무료)
+//
+// L-mapsearch3in1 (2026-05-02): 입력 라우팅 추가.
+//   detectIntent() 가 입력을 분석해 상위 3 경로 중 하나로 dispatch.
+//   - 매물번호 우선 (가장 빠름, 정확)
+//   - 한글/숫자 혼합 + 동/구/로/길 키워드 → 주소
+//   - 그 외 → NL parser
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
@@ -16,6 +27,33 @@ const SUGGESTIONS = [
   '여의도 단기 임대 100만원',
 ];
 
+// L-mapsearch3in1: 입력 의도 분류
+type SearchIntent =
+  | { kind: 'listing'; id: number }
+  | { kind: 'address'; query: string }
+  | { kind: 'nl'; query: string };
+
+function detectIntent(raw: string): SearchIntent {
+  const q = raw.trim();
+  // 1) 매물번호 — 5-6 자리 숫자만 (공백/comma 등 무시)
+  if (/^\d{5,6}$/.test(q)) {
+    return { kind: 'listing', id: Number.parseInt(q, 10) };
+  }
+  // 2) 주소 패턴 — 동/구/로/길/번지 등 키워드 + 한글 위주
+  //    NL 트리거 키워드(투룸/월세/매매/이하/반려/주차 등) 가 없을 때만 주소로 인식
+  const hasNlKeyword = /(원룸|투룸|쓰리룸|포룸|월세|전세|매매|보증금|단기|이하|이상|미만|초과|반려|주차|풀옵|엘리베|신축|역세권|도보|분|평|만원|억|천만|보안)/.test(q);
+  const hasAddressKeyword = /(동|구|로|길|번지|읍|면|리|시|군|광역시|특별시|특별자치도|도청)$/.test(q)
+    || /\b(\d+)(번지|동|호)\b/.test(q)
+    || /(동|로|길)\s*\d+/.test(q);
+  // 한글만 있고 NL 키워드 없음 + 주소 키워드 또는 한글+숫자 혼합 → 주소
+  const isKoreanOnly = /^[가-힣\s\d-]+$/.test(q);
+  if (!hasNlKeyword && isKoreanOnly && (hasAddressKeyword || /\d/.test(q))) {
+    return { kind: 'address', query: q };
+  }
+  // 3) 그 외 → NL
+  return { kind: 'nl', query: q };
+}
+
 export function NlSearchBar() {
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -27,6 +65,7 @@ export function NlSearchBar() {
   const setFilter = useMap2026Store((s) => s.setFilter);
   const setNlQuery = useMap2026Store((s) => s.setNlQuery);
   const map = useMap2026Store((s) => s.map);
+  const openListingDetail = useMap2026Store((s) => s.openListingDetail);
 
   useEffect(() => {
     if (!error) return;
@@ -38,74 +77,62 @@ export function NlSearchBar() {
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
   }, []);
 
-  // L-nlsearch-tri (2026-04-29 사장님 명령): 검색창 1개로 3가지 모두 처리.
-  //   1) 매물번호 (4-7자리 숫자만) → 즉시 /map/<ID> 매물 카드 오픈
-  //   2) 주소 패턴 (한글+숫자, 도로명/번지/동/구) → Kakao Geocoder → 지도 이동
-  //   3) 자연어 (그 외) → /api/map/search-nl 규칙 파서 → 필터 + 지도 이동
-  //   분기 우선순위 1 → 2 → 3. 단, 자연어 키워드가 강한 경우 (이하/투룸/매매/전세
-  //   /월세 등) 입력에 한글+숫자 동시 있어도 자연어 분기로.
   async function submit(q: string) {
-    const query = q.trim();
-    if (!query || busy) return;
+    if (!q.trim() || busy) return;
     setBusy(true);
     setError(null);
-    setNlQuery(query);
+    const intent = detectIntent(q);
     try {
-      // 1) 매물번호 — 4-7자리 숫자만 입력 시 즉시 매물 카드
-      if (/^\d{4,7}$/.test(query)) {
-        const id = Number.parseInt(query, 10);
-        // useListingUrlSync 가 detailListingId 변경을 감지해 history.replaceState
-        // 로 /map/<ID> URL 동기화. 매물 객체는 ListingDetailModal 이 fetch.
-        useMap2026Store.getState().openListingDetail(id);
+      // ─── 1) 매물번호 ────────────────────────────────────
+      if (intent.kind === 'listing') {
+        // 매물 존재 확인 — /api/listings/[id] 호출
+        const res = await fetch(`/api/listings/${intent.id}`, { method: 'GET' });
+        if (res.status === 404) {
+          setError(`매물 #${intent.id} 을(를) 찾을 수 없어요.`);
+          return;
+        }
+        if (!res.ok) {
+          setError('매물 조회 중 오류가 발생했어요.');
+          return;
+        }
+        const data = await res.json();
+        const lst = data?.listing ?? data;
+        // 지도 이동 (매물 좌표 있으면)
+        const lat = Number(lst?.lat);
+        const lng = Number(lst?.lng);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && map) {
+          cinematicFlyTo(map, { center: [lng, lat], zoom: 16 });
+        }
+        // 카드 오픈 — useListingUrlSync 가 URL ?listing=ID 자동 동기화
+        openListingDetail(intent.id);
         setOpen(false);
-        setBusy(false);
         return;
       }
-
-      // 자연어 키워드 강도 — 있으면 무조건 NL 파서로
-      const NL_SIGNAL = /이하|미만|이상|초과|매매|전세|월세|단기|원룸|투룸|쓰리룸|오피스텔|아파트|빌라|반려|주차|엘리베이터|신축|역세권|도보|수익률/;
-      const hasNlSignal = NL_SIGNAL.test(query);
-
-      // 2) 주소 패턴 — Kakao Geocoder (한글이 있고 NL 키워드 없으면 우선 시도)
-      //    (예) "서울특별시 관악구 신림로64길 23", "신림동 123-4", "강남대로 100"
-      const looksLikeAddress = /[가-힣]{2,}.*(?:동|로|길|가|구|시|도|읍|면)/.test(query) || /\d+-\d+/.test(query);
-      if (!hasNlSignal && looksLikeAddress) {
-        const w = window as unknown as {
-          kakao?: { maps?: { services?: { Geocoder?: new () => {
-            addressSearch: (q: string, cb: (results: Array<{ x: string; y: string; address_name: string }>, status: string) => void) => void;
-          } } } };
-        };
-        const Geo = w.kakao?.maps?.services?.Geocoder;
-        if (Geo && map) {
-          const ok = await new Promise<boolean>((resolve) => {
-            const g = new Geo();
-            g.addressSearch(query, (results, status) => {
-              if (status === 'OK' && results.length > 0) {
-                const { x, y } = results[0];
-                const lng = Number.parseFloat(x);
-                const lat = Number.parseFloat(y);
-                if (Number.isFinite(lat) && Number.isFinite(lng)) {
-                  cinematicFlyTo(map, { center: [lng, lat], zoom: 15 });
-                  resolve(true);
-                  return;
-                }
-              }
-              resolve(false);
-            });
-          });
-          if (ok) {
-            setOpen(false);
-            setBusy(false);
-            return;
-          }
+      // ─── 2) 주소 패턴 ───────────────────────────────────
+      if (intent.kind === 'address') {
+        const res = await fetch('/api/address-search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: intent.query }),
+        });
+        if (!res.ok) throw new Error(`address ${res.status}`);
+        const json = await res.json();
+        const top = Array.isArray(json?.data) ? json.data[0] : null;
+        const lat = Number(top?.lat ?? top?.y);
+        const lng = Number(top?.lng ?? top?.x);
+        if (Number.isFinite(lat) && Number.isFinite(lng) && map) {
+          cinematicFlyTo(map, { center: [lng, lat], zoom: 14 });
+          setOpen(false);
+          return;
         }
+        // 주소 미스 → NL 로 fallback (사용자 의도가 자연어였을 수 있음)
       }
-
-      // 3) 자연어 — 기존 /api/map/search-nl 규칙 파서
+      // ─── 3) 자연어 ──────────────────────────────────────
+      setNlQuery(q);
       const res = await fetch('/api/map/search-nl', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query: q }),
       });
       if (!res.ok) throw new Error(`nl ${res.status}`);
       const { filter, center, zoom } = await res.json();
@@ -116,7 +143,7 @@ export function NlSearchBar() {
       setOpen(false);
     } catch (err) {
       console.error('[NlSearchBar]', err);
-      setError('검색어를 이해하지 못했어요. 매물번호/주소/자연어 중 다른 표현으로 시도해 보세요.');
+      setError('검색어를 이해하지 못했어요. 다른 표현으로 시도해 보세요.');
     } finally {
       setBusy(false);
     }
@@ -157,10 +184,12 @@ export function NlSearchBar() {
               inputRef.current?.blur();
             }
           }}
-          placeholder="원하는 집을 자연스럽게 설명해 보세요"
+          placeholder="매물번호 · 주소 · 자연어 검색"
           style={{ paddingLeft: '36px' }}
           className="w-full rounded-full border border-neutral-200 bg-white pr-24 py-2.5 text-[14px] placeholder:text-neutral-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           disabled={busy}
+          inputMode="search"
+          autoComplete="off"
         />
         {input && (
           <button
@@ -203,6 +232,23 @@ export function NlSearchBar() {
           <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
             이렇게 검색해 보세요
           </div>
+          {/* L-mapsearch3in1: 매물번호 / 주소 예시 추가 */}
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { setInput('53190'); submit('53190'); }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-neutral-50"
+          >
+            <Search className="size-3.5 text-neutral-400" />
+            <span className="text-neutral-700">매물번호 — <span className="font-mono">53190</span></span>
+          </button>
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => { setInput('서울특별시 관악구 신림동'); submit('서울특별시 관악구 신림동'); }}
+            className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-neutral-50"
+          >
+            <Search className="size-3.5 text-neutral-400" />
+            <span className="text-neutral-700">주소 — 서울특별시 관악구 신림동</span>
+          </button>
           {SUGGESTIONS.map((s) => (
             <button
               key={s}
