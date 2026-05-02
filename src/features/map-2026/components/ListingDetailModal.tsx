@@ -955,7 +955,11 @@ export function ListingDetailModal() {
         // L-modal-fix-fold (2026-04-29 사장님 명령): "폴드7 펼쳤을 때 담당자 연결/공유 안 보임"
         // 모든 viewport 에서 fixed — 부모 박스 무관하게 viewport 기준 정확한 height 보장.
         // 데스크탑에서 좌측 380px 만 차지 (지도 우측 영역은 그대로 보임).
-        'fixed left-0 top-0 z-40 md:z-30',
+        // N-2 (사장님 명령 2026-05-02): modal 이 ListPanel 옆에 떠야 — 겹침 X.
+        //   md+: ListPanel grid col (280/340/380px) 옆 시작 → 두 패널 모두 보임 (네이버 표준).
+        //   모바일: 전체 화면 fixed (기존 동작 유지).
+        'fixed top-0 z-40 md:z-30',
+        'left-0 md:left-[280px] lg:left-[340px] 2xl:left-[380px]',
         'flex flex-col',
         'w-full md:w-[380px]',
         'overflow-hidden bg-white shadow-2xl md:border-r md:border-neutral-200',
@@ -1262,8 +1266,13 @@ export function ListingDetailModal() {
               <div>
                 <div className="text-neutral-800">{maintenanceLabel || <span className="text-neutral-400">정보 미입력</span>}</div>
                 {(() => {
-                  const includes = detailExtra?.maintenance_includes ?? (listing as any).maintenance_includes;
-                  const excludes = detailExtra?.maintenance_excludes ?? (listing as any).maintenance_excludes;
+                  // N-1 (사장님 명령 2026-05-02): "관리비" 자체는 의미 없는 메타 항목 — 필터.
+                  //   includes/excludes 는 관리비에 포함되거나 별도인 실제 항목 (수도/전기/가스/인터넷 등).
+                  const _filterMeta = (arr: any) => Array.isArray(arr)
+                    ? arr.filter((it: string) => it && String(it).trim() !== '관리비')
+                    : null;
+                  const includes = _filterMeta(detailExtra?.maintenance_includes ?? (listing as any).maintenance_includes);
+                  const excludes = _filterMeta(detailExtra?.maintenance_excludes ?? (listing as any).maintenance_excludes);
                   const hasInc = Array.isArray(includes) && includes.length > 0;
                   const hasExc = Array.isArray(excludes) && excludes.length > 0;
                   if (!hasInc && !hasExc) return null;
