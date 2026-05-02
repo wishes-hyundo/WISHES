@@ -329,12 +329,7 @@ export default function CommandCenterV2Page() {
               <RefreshCw className={'h-3.5 w-3.5 ' + (loading ? 'animate-spin' : '')} />
               새로고침
             </button>
-            <a
-              href="/admin/command-center.html"
-              className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-600 hover:bg-zinc-800/60 transition"
-            >
-              기존 v1
-            </a>
+            {/* G-21 (2026-05-03): 사장님 명령 — '기존 v1' 버튼 제거. 사장님 헷갈림 방지. */}
             <a
               href="/admin/admin-auth.html"
               onClick={(e) => {
