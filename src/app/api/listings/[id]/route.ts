@@ -11,6 +11,9 @@ import { createClient } from '@/lib/supabase';
 import { filterSelfHosted } from '@/lib/image-policy';
 import { stripInternalFields, sanitizePublicListing } from '@/lib/listing-public';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+// L-listing-id-mask1 (2026-05-02): 비로그인 좌표 마스킹 (110m). /api/listings/map 과 일관.
+import { maskCoordinate } from '@/lib/coordinateMask';
+import { createClient as createServerClient } from '@/lib/supabase';
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY || '';
 
@@ -357,10 +360,38 @@ export async function GET(
     const { description: _rawDesc, ...rest } = listing as Record<string, unknown>;
     const publicListing = sanitizePublicListing(stripInternalFields(rest));
 
+    // L-listing-id-mask1 (2026-05-02): 비로그인 좌표 마스킹 (110m).
+    //   /api/listings/map 은 마스킹 적용 — 단건 detail 만 정확 좌표 노출되면 회피 가능.
+    //   200ms 타임아웃 (viewport 와 동일 패턴) — auth 지연이 detail 응답 막지 않게.
+    let authed = false;
+    try {
+      const authHdr = request.headers.get('authorization') || '';
+      const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : '';
+      if (token) {
+        const sbAuth = createServerClient();
+        const authPromise = sbAuth.auth.getUser(token).then(({ data, error }) => ({ user: data?.user, error }));
+        const timeoutPromise = new Promise<{ user: null; error: Error }>((resolve) => {
+          setTimeout(() => resolve({ user: null, error: new Error('auth timeout') }), 200);
+        });
+        const { user, error: authErr } = await Promise.race([authPromise, timeoutPromise]);
+        if (!authErr && user) authed = true;
+      }
+    } catch { /* guest 로 폴백 */ }
+
+    const maskedCoords = (() => {
+      const lat = Number((publicListing as any).lat);
+      const lng = Number((publicListing as any).lng);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { lat: null, lng: null };
+      return authed ? { lat, lng } : maskCoordinate(lat, lng);
+    })();
+
     return NextResponse.json({
       success: true,
       data: {
         ...publicListing,
+        // 좌표 덮어쓰기 (비로그인은 110m 마스킹, 로그인은 정확)
+        lat: maskedCoords.lat,
+        lng: maskedCoords.lng,
         ...rawExtract,
         ...(unitEnrich || {}),
         ...areaResolved,
