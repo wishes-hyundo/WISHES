@@ -1,17 +1,15 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// ServiceWorkerProvider — 전역 SW 등록 (PR-F1, 2026-05-02)
+// ServiceWorkerProvider — 비활성화 (사장님 명령 2026-05-02)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 //
-// /public/sw.js v3.1.0 부터는 push handler + PWA 오프라인 캐싱을 모두 제공.
-// 사용자 push opt-in 여부와 무관하게 전역 등록하여 PWA 캐싱 혜택 부여.
+// PR #60 에서 prod 캐싱 활성화 → PR #69-71 의 코드 변경 미반영.
+// 사장님 피드백 "여전히 전혀 변경된게 없음" 후 SW 비활성화.
 //
-// 안전장치:
-//   - production 환경에서만 등록 (dev/preview 빌드는 SW 캐시로 인한 디버깅 혼란 회피)
-//   - 'serviceWorker' 미지원 브라우저는 silent skip
-//   - register 실패는 사용자 영향 0 (네트워크 통과 모드로 동작)
+// 기존 등록된 SW (v3.1.0) 들은 sw.js v4.0.0 (킬 스위치) 가 자기 자신을
+// unregister 하므로 사용자 다음 방문 시 자동 정리됨.
 //
-// ※ pushClient.ts 가 동일 sw.js 를 push opt-in 시 register 하는데,
-//    동일 URL register 는 idempotent (이미 등록된 경우 기존 registration 반환).
+// 본 컴포넌트는 register 자체를 더 이상 호출하지 않음. 향후 PWA 캐싱 재
+// 도입 시 revision 기반 짧은 TTL + 명시적 update 흐름으로 재설계 후 활성화.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 'use client';
@@ -22,24 +20,22 @@ export default function ServiceWorkerProvider() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (!('serviceWorker' in navigator)) return;
-    // production 환경에서만 활성 (dev 빌드는 캐싱 시 디버깅 혼란)
-    if (process.env.NODE_ENV !== 'production') return;
 
-    // 페이지 idle 까지 대기 (LCP/INP 영향 최소화)
-    const register = () => {
-      navigator.serviceWorker
-        .register('/sw.js', { scope: '/' })
-        .catch(() => {
-          // 등록 실패 = 사용자 영향 0 (네트워크 통과)
-        });
-    };
+    // 기존 등록된 SW 모두 강제 unregister (v3.1.0 의 캐시 문제 해결)
+    // sw.js v4.0.0 자체도 자기를 unregister 하지만, 이중 안전 차원에서 한 번 더.
+    navigator.serviceWorker.getRegistrations().then((regs) => {
+      for (const reg of regs) {
+        try { reg.unregister(); } catch { /* noop */ }
+      }
+    }).catch(() => { /* noop */ });
 
-    if ('requestIdleCallback' in window) {
-      (window as Window & { requestIdleCallback: (cb: () => void) => void })
-        .requestIdleCallback(register);
-    } else {
-      // requestIdleCallback 미지원 (Safari 등) → load 후 1초
-      setTimeout(register, 1000);
+    // 모든 캐시 강제 삭제
+    if ('caches' in window) {
+      caches.keys().then((keys) => {
+        for (const k of keys) {
+          try { caches.delete(k); } catch { /* noop */ }
+        }
+      }).catch(() => { /* noop */ });
     }
   }, []);
 
