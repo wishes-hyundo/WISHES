@@ -399,10 +399,14 @@ export default function HtmlMarkerOverlay({
       //   동 chip 만 뜨는데, viewport 가 한 동 안에 완전히 들어가면 "역삼1동
       //   347" 같은 큰 chip 하나만 보였다 (사용자 피드백 "더 엉망진창").
       //   250m 는 개별 건물·단지 마커가 훨씬 직관적인 줌 수준.
-      // L-naver-zoom2 (2026-04-26 night): 정밀 보정 — Naver z16+ 매물 마커 = Kakao level ≤4.
-      //   동 폴리곤은 level 5~7 (z13~z15), 마커는 level 1~4 (z16~z19).
-      // L-naver-zoom4 (2026-04-26 night): 마커 영역 level 1-4 (z16-z19) 유지.  level 5 는 dong 폴리곤.
-      if (level >= 5) return;
+      // L-marker-cutoff-extend1 (사장님 명령 2026-05-02 — z14/z15 빈 화면 fix):
+      //   PR #85 폴리곤 cutoff 변경 (level >= 7 만 dong) 후 z14 (level 6) / z15 (level 5)
+      //   에서 폴리곤도 X + 마커도 X = 빈 화면. 마커 cutoff 도 함께 확장해야 일관.
+      //
+      //   기존: level >= 5 return → 마커 z16~z19 만
+      //   수정: level >= 7 return → 마커 z14~z19 (폴리곤 zone 진입 직전까지)
+      //   결과: z14, z15 에 마커 정상 표시, z13 부터 폴리곤.
+      if (level >= 7) return;
 
       // ━━ L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 우선 경로 ━━
       //   serverClusters 가 제공되면 클라이언트 grid 클러스터링을 완전히 건너뛰고
