@@ -36,7 +36,7 @@ import {
   LogOut,
 } from 'lucide-react';
 
-type Role = 'superadmin' | 'admin' | 'agent' | 'user';
+type Role = 'superadmin' | 'owner' | 'admin' | 'broker' | 'agent' | 'partner' | 'pending' | 'user';
 type Status = 'approved' | 'pending' | 'rejected' | 'blocked';
 
 interface AdminUser {
@@ -72,13 +72,17 @@ interface CustomerUser {
   last_sign_in_at?: string;
 }
 
-const ROLES: Role[] = ['superadmin', 'admin', 'agent', 'user'];
+const ROLES: Role[] = ['superadmin', 'owner', 'admin', 'broker', 'agent', 'partner', 'pending', 'user'];
 const STATUSES: Status[] = ['approved', 'pending', 'rejected', 'blocked'];
 
 const ROLE_LABEL: Record<Role, string> = {
   superadmin: '슈퍼어드민',
+  owner: '오너 (사장님)',
   admin: '관리자',
-  agent: '중개사',
+  broker: '중개사',
+  agent: '중개사 (구)',
+  partner: '파트너',
+  pending: '승인 대기',
   user: '일반',
 };
 
@@ -91,8 +95,12 @@ const STATUS_LABEL: Record<Status, string> = {
 
 const ROLE_TONE: Record<Role, string> = {
   superadmin: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+  owner: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
   admin: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+  broker: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
   agent: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+  partner: 'bg-purple-500/15 text-purple-300 border-purple-500/30',
+  pending: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
   user: 'bg-zinc-500/15 text-zinc-300 border-zinc-500/30',
 };
 
