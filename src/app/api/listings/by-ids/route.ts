@@ -100,30 +100,12 @@ export async function GET(request: NextRequest) {
       const dong = r.dong as string | null;
       const _lat = Number(r.lat);
       const _lng = Number(r.lng);
-      // M-5 (사장님 명령 2026-05-02 — 격자 패턴 fix): 마스킹 + ID jitter ±55m
-      let _coords: { lat: number | null; lng: number | null };
-      let _maskedLat: number = _lat;
-      let _maskedLng: number = _lng;
-      if (Number.isFinite(_lat) && Number.isFinite(_lng)) {
-        if (authed) {
-          _coords = { lat: _lat, lng: _lng };
-        } else {
-          const masked = maskCoordinate(_lat, _lng);
-          _maskedLat = masked.lat;
-          _maskedLng = masked.lng;
-          let h = 0x811c9dc5 >>> 0;
-          const idStr = String(r.id);
-          for (let i = 0; i < idStr.length; i++) {
-            h ^= idStr.charCodeAt(i);
-            h = Math.imul(h, 0x01000193) >>> 0;
-          }
-          const jLat = (((h & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010;
-          const jLng = ((((h >>> 16) & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010;
-          _coords = { lat: masked.lat + jLat, lng: masked.lng + jLng };
-        }
-      } else {
-        _coords = { lat: null, lng: null };
-      }
+      // M-6 (사장님 명령 2026-05-02 — 직방/네이버 표준):
+      //   메인 지도는 raw 좌표 사용. privacy 보호 = 줌 락 + 매물 modal 미니맵 100m 반경.
+      const _coords: { lat: number | null; lng: number | null } =
+        (Number.isFinite(_lat) && Number.isFinite(_lng))
+          ? { lat: _lat, lng: _lng }
+          : { lat: null, lng: null };
       return {
         id: r.id as number,
         lat: _coords.lat as number,
@@ -143,7 +125,7 @@ export async function GET(request: NextRequest) {
         built_year: (r.built_year as string | null) ?? null,
         building_name: authed ? ((r.building_name as string | null) ?? null) : null,
         // L-cluster-token1: 비로그인 단지 그룹화 가능 (이름 가림, hash 만)
-        cluster_token: buildClusterToken(r.building_name as string | null | undefined, _maskedLat, _maskedLng),
+        cluster_token: buildClusterToken(r.building_name as string | null | undefined, _lat, _lng),
         dong: dong ?? null,
         address: (r.address as string | null) ?? null,
         title: authed

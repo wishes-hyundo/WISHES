@@ -578,38 +578,14 @@ export async function GET(req: NextRequest) {
       const photoCount = selfHostedCountMap.get(r.id) ?? (r.thumb_url && !r.source_site ? 1 : 0);
       const daysOld = Math.max(0, (Date.now() - new Date(r.updated_at ?? r.created_at).getTime()) / 86400000);
 
-      // L-sec170 (2026-05-02): Coordinate masking for non-authenticated users
-      //   - authed = true: return precise coordinates (lat/lng)
-      //   - authed = false: mask to 0.001° (~110m) + ID-based jitter
+      // M-6 (사장님 명령 2026-05-02 — 직방/네이버 표준):
+      //   메인 지도 마커는 raw 정확 좌표 사용. 비로그인도 동일 (직방 API 와 동일 정책).
+      //   privacy 보호 = 메인 지도 줌 락 + 매물 detail modal 미니맵 100m 반경 원.
+      //   같은 좌표 매물 = 자동 1 cluster (직방 동작과 동일).
       //
-      // M-5 (사장님 명령 2026-05-02 — "마커가 주소 위치에 따라서 패턴이 잡혀야지"):
-      //   격자 패턴 진짜 원인 = 110m 마스킹으로 같은 cell 매물이 cell 중심에 모임.
-      //   해결: 마스킹 좌표에 매물 ID 기반 deterministic jitter ±55m (cell 안에서 분산).
-      //   같은 매물 = 항상 같은 좌표 (안정), 다른 매물 = 다른 좌표 (자연 분산).
-      //   privacy 유지: cell 안의 random offset 이라 정확 위치 역산 불가.
-      //   cluster_token 은 마스킹 좌표 (jitter 전) 사용 → 같은 cell 매물 cluster 합치기 유지.
-      let lat: number, lng: number;
-      let maskedLatForToken: number = r.lat as number;
-      let maskedLngForToken: number = r.lng as number;
-      if (authed) {
-        lat = r.lat as number;
-        lng = r.lng as number;
-      } else {
-        const masked = maskCoordinate(r.lat, r.lng);
-        maskedLatForToken = masked.lat;
-        maskedLngForToken = masked.lng;
-        // ID 기반 FNV-1a hash → ±55m jitter (cell 안에서 분산)
-        let h = 0x811c9dc5 >>> 0;
-        const idStr = String(r.id);
-        for (let i = 0; i < idStr.length; i++) {
-          h ^= idStr.charCodeAt(i);
-          h = Math.imul(h, 0x01000193) >>> 0;
-        }
-        const jitterLat = (((h & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010; // ±55m
-        const jitterLng = ((((h >>> 16) & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010;
-        lat = masked.lat + jitterLat;
-        lng = masked.lng + jitterLng;
-      }
+      //   I-COORD-1 마스킹은 매물 detail modal 의 미니맵에만 적용, viewport API 에는 X.
+      const lat: number = r.lat as number;
+      const lng: number = r.lng as number;
 
       return {
         id: r.id,
@@ -642,7 +618,7 @@ export async function GET(req: NextRequest) {
           return c ? c.lng : null;
         })(),
         // L-cluster-token1: 비로그인에도 단지 그룹화 가능 (이름은 가림, hash 만)
-        cluster_token: buildClusterToken(r.building_name as string | null | undefined, maskedLatForToken, maskedLngForToken),
+        cluster_token: buildClusterToken(r.building_name as string | null | undefined, lat, lng),
         dong: r.dong ?? null,
         // L-adminpoly3 (2026-04-24 pm): 행정구역 폴리곤 카운트 집계용 주소 노출.
         //   PUBLIC_LISTING_COLUMNS 화이트리스트에 있는 공개 필드.

@@ -113,6 +113,10 @@ function loadKakaoSdk(appkey: string): Promise<void> {
 }
 
 export default function MapClient() {
+  // M-6 (사장님 명령 2026-05-02): 비로그인 줌 락 — privacy 보호 + 수익화.
+  //   직방/네이버처럼 raw 정확 좌표 사용하지만 비로그인은 너무 가까이 줌인 X.
+  //   setMinLevel(4) = z16 까지만 (Kakao level 작을수록 가까이).
+  const { user: _userM6 } = useAuth();
   const containerRef = useRef<HTMLDivElement>(null);
   const kakaoMapRef = useRef<unknown>(null);
   // L-map2 (2026-04-22): KakaoDeckOverlay 가 mount 되지 않던 경쟁조건 해결.
@@ -204,6 +208,14 @@ export default function MapClient() {
         mapInst = map;
         kakaoMapRef.current = map;
         setKakaoMap(map); // state 로도 반영 → 오버레이 조건부 마운트 트리거
+
+        // M-6: 비로그인 줌 락 — z16 까지만.
+        try {
+          const m = map as { setMinLevel?: (n: number) => void };
+          if (typeof m.setMinLevel === 'function') {
+            m.setMinLevel(_userM6 ? 1 : 4);
+          }
+        } catch { /* SDK race — skip */ }
 
         const sync = () => {
           const b = map.getBounds();
