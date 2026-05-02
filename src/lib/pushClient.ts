@@ -84,7 +84,9 @@ export async function subscribePush(opts: SubscribeOptions = {}): Promise<Subscr
     const existing = await reg.pushManager.getSubscription();
     sub = existing || await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      // L-mapfix-2026-05-02: TS 18.0 의 Uint8Array<ArrayBufferLike> 타입 변경
+      //   PushManager.subscribe 의 BufferSource 시그니처와 호환 cast 필요.
+      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as unknown as BufferSource,
     });
   } catch (e) {
     const msg = (e as { message?: string })?.message || '구독 실패';
