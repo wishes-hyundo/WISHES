@@ -580,28 +580,35 @@ export async function GET(req: NextRequest) {
 
       // L-sec170 (2026-05-02): Coordinate masking for non-authenticated users
       //   - authed = true: return precise coordinates (lat/lng)
-      //   - authed = false: mask to dong-level (0.01° precision ≈ 1.1km)
-      // M-3 (사장님 명령 2026-05-02 — "병신같은 grid 방식 걍 나가뒤져"):
-      //   building_centroids 에 단지명 정확 좌표 있으면 그걸 lat/lng 로 사용 —
-      //   TIER1 만이 아니라 모든 매물. 마스킹 좌표 (격자 패턴 원인) 대신 단지 진짜 위치.
-      //   privacy: 단지 좌표는 공공 정보 (네이버/직방 동일), building_name 자체는 비로그인에 노출 X 유지.
+      //   - authed = false: mask to 0.001° (~110m) + ID-based jitter
+      //
+      // M-5 (사장님 명령 2026-05-02 — "마커가 주소 위치에 따라서 패턴이 잡혀야지"):
+      //   격자 패턴 진짜 원인 = 110m 마스킹으로 같은 cell 매물이 cell 중심에 모임.
+      //   해결: 마스킹 좌표에 매물 ID 기반 deterministic jitter ±55m (cell 안에서 분산).
+      //   같은 매물 = 항상 같은 좌표 (안정), 다른 매물 = 다른 좌표 (자연 분산).
+      //   privacy 유지: cell 안의 random offset 이라 정확 위치 역산 불가.
+      //   cluster_token 은 마스킹 좌표 (jitter 전) 사용 → 같은 cell 매물 cluster 합치기 유지.
       let lat: number, lng: number;
+      let maskedLatForToken: number = r.lat as number;
+      let maskedLngForToken: number = r.lng as number;
       if (authed) {
         lat = r.lat as number;
         lng = r.lng as number;
       } else {
-        const bn = r.building_name ? String(r.building_name).trim() : '';
-        const centroid = bn ? buildingCentroidMap.get(bn) : undefined;
-        if (centroid && Number.isFinite(centroid.lat) && Number.isFinite(centroid.lng)) {
-          // 단지 정확 좌표 (네이버 표준) — 격자 패턴 사라짐
-          lat = centroid.lat;
-          lng = centroid.lng;
-        } else {
-          // building_centroid 없는 매물 (12% 단지명 없음 + cron 미처리 단지) — 마스킹 좌표 fallback
-          const masked = maskCoordinate(r.lat, r.lng);
-          lat = masked.lat;
-          lng = masked.lng;
+        const masked = maskCoordinate(r.lat, r.lng);
+        maskedLatForToken = masked.lat;
+        maskedLngForToken = masked.lng;
+        // ID 기반 FNV-1a hash → ±55m jitter (cell 안에서 분산)
+        let h = 0x811c9dc5 >>> 0;
+        const idStr = String(r.id);
+        for (let i = 0; i < idStr.length; i++) {
+          h ^= idStr.charCodeAt(i);
+          h = Math.imul(h, 0x01000193) >>> 0;
         }
+        const jitterLat = (((h & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010; // ±55m
+        const jitterLng = ((((h >>> 16) & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010;
+        lat = masked.lat + jitterLat;
+        lng = masked.lng + jitterLng;
       }
 
       return {
@@ -635,7 +642,7 @@ export async function GET(req: NextRequest) {
           return c ? c.lng : null;
         })(),
         // L-cluster-token1: 비로그인에도 단지 그룹화 가능 (이름은 가림, hash 만)
-        cluster_token: buildClusterToken(r.building_name as string | null | undefined, lat, lng),
+        cluster_token: buildClusterToken(r.building_name as string | null | undefined, maskedLatForToken, maskedLngForToken),
         dong: r.dong ?? null,
         // L-adminpoly3 (2026-04-24 pm): 행정구역 폴리곤 카운트 집계용 주소 노출.
         //   PUBLIC_LISTING_COLUMNS 화이트리스트에 있는 공개 필드.
