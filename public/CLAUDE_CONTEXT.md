@@ -507,3 +507,34 @@ violations = [l for l in items
 작성: 2026-05-02 23:30 KST
 이전 마스터: `docs/NEXT_SESSION_PROMPT_2026-04-29.md` (구버전)
 다음 갱신: 다음 세션 종료 시 v27 등으로
+
+---
+
+## 🔍 2026-05-03 회원가입 시스템 정밀검수 (사장님 명령)
+
+### 검증 결과 — 결정적 결함 식별
+**G-1 [CRITICAL]**: `admin_users` 테이블에 `phone`, `reason` 컬럼 부재. register / complete-profile 코드는 INSERT 시 두 컬럼 사용 → SQLSTATE 42703 → 자체 회원가입 100% HTTP 500. (검증: prod register POST 직접 호출 → 500, PostgreSQL 에러 메시지 직접 확인)
+
+**G-3 [HIGH]**: `profiles` 테이블에 `email` 컬럼 부재. kakao/naver/complete-profile 코드는 upsert 시 email 사용 → 항상 실패.
+
+**G-4 [HIGH]**: `/admin/users` 사이드바 링크 부재 (admin/layout.tsx line 221-225 navItems 누락).
+
+**G-5 [CRITICAL]**: admin_users 13명 모두 created_at 동일 (2026-04-23 12:42:56.892948+00) — 정상 register 흐름이 한 번도 동작 안 했음. 외부 마이그레이션으로 생성.
+
+**G-6 [MEDIUM]**: Google native OAuth callback 에 admin_users sync 코드 없음. 사장님 본인 (id=69c9e14e) 도 admin_users 누락. SUPERADMIN_EMAILS hard-code 로 우회되어 운영만 가능.
+
+**G-7 [MEDIUM]**: 카카오/네이버 사용자가 auth.identities 에 provider='email' 만 등록. Supabase 표준 OAuth identity 흐름 미사용.
+
+### 검증 자료
+- 상세 검증 로그: `docs/AUTH_VERIFICATION_2026-05-03.md`
+- 검증 보고서 + fix 방안: `docs/AUTH_AUDIT_2026-05-03.md`
+- 검증 방법: prod API 호출 + Supabase MCP 직접 SQL + 코드 line trace + auth.identities 분석. 추측 0.
+
+### 다음 작업 (사장님 결정 대기)
+1. **G-1 fix 결정**: admin_users 에 phone/reason 컬럼 추가 vs 코드에서 컬럼 제거 (둘 다 가능, 데이터 모델 의도에 달림)
+2. **G-3 fix**: profiles 에 email 컬럼 추가 또는 코드에서 제거
+3. **G-4 fix**: admin/layout.tsx navItems 에 `/admin/users` 추가
+4. **G-5 후속**: register / OAuth 흐름 정상 동작 검증 (G-1 fix 후 자동 해결)
+5. **G-6 fix**: Google callback 에 admin_users upsert 추가 + 사장님 본인 SQL 보정
+6. INVARIANT 등록 + Playwright 시나리오 (I-PROC-2)
+
