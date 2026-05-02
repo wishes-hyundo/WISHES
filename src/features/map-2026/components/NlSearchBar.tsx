@@ -96,7 +96,9 @@ export function NlSearchBar() {
           return;
         }
         const data = await res.json();
-        const lst = data?.listing ?? data;
+        // /api/listings/[id] 응답 shape: { success: true, data: { id, lat, lng, ... } }
+        // L-mapsearch3in1-fix1 (2026-05-02): data.data 우선 — 이전엔 data.listing 만 봐서 좌표 0
+        const lst = data?.data ?? data?.listing ?? data;
         // 지도 이동 (매물 좌표 있으면)
         const lat = Number(lst?.lat);
         const lng = Number(lst?.lng);
