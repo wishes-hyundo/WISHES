@@ -511,6 +511,39 @@ export async function GET(req: NextRequest) {
 
     const devFn = computeMedianDeviation(rows);
 
+    // K-2 (사장님 명령 2026-05-02): TIER1 매물 단지 좌표 조회 (building_centroids).
+    //   네이버 표준 — 아파트/오피스텔/주상복합/도시형생활주택 = 단지 마커.
+    //   좌표 = building_centroids 의 정확 단지 좌표 (좌표 평균 X — 격자 패턴 회피).
+    const TIER1_TYPES_VIEWPORT = ['아파트', '오피스텔', '주상복합', '도시형생활주택'];
+    const tier1Names = new Set<string>();
+    for (const r of (rows ?? []) as Array<{ type?: string | null; building_name?: string | null }>) {
+      if (r.type && TIER1_TYPES_VIEWPORT.includes(r.type) && r.building_name) {
+        tier1Names.add(String(r.building_name).trim());
+      }
+    }
+    const buildingCentroidMap = new Map<string, { lat: number; lng: number }>();
+    if (tier1Names.size > 0) {
+      try {
+        const centroidPromise = supabase
+          .from('building_centroids')
+          .select('building_name, dong, lat, lng, source, match_score')
+          .in('building_name', Array.from(tier1Names))
+          .order('match_score', { ascending: false });
+        const timeoutPromise = new Promise<{ data: null }>((resolve) => {
+          setTimeout(() => resolve({ data: null }), 1500);
+        });
+        const { data: centroids } = await Promise.race([centroidPromise, timeoutPromise]) as { data: Array<{ building_name: string; lat: number; lng: number }> | null };
+        for (const c of (centroids ?? []) as Array<{ building_name: string; lat: number; lng: number }>) {
+          const k = String(c.building_name).trim();
+          if (!buildingCentroidMap.has(k)) {
+            buildingCentroidMap.set(k, { lat: c.lat, lng: c.lng });
+          }
+        }
+      } catch {
+        // building_centroids 미구현 / 비어있음 → 폴백 (동그라미 마커, 현재 동작)
+      }
+    }
+
     const listings: MapListing[] = rows.map((r: any) => {
       const { medianPrice, deviation, comparableTier } = devFn(r);
       // L-photocount1: self-hosted 배치 카운트 우선 → 0 이면 fallback.
@@ -543,6 +576,17 @@ export async function GET(req: NextRequest) {
         //   · title → 주소 마스킹된 '구 동' 형태 (지번·건물명·층 제거)
         //     title 이 없으면 dong 으로 폴백. 동이 없으면 null.
         building_name: authed ? (r.building_name ?? null) : null,
+        // K-2: TIER1 매물 단지 좌표 (네이버 표준 단지 마커용). 비로그인 노출 OK (공공 정보).
+        tier1_lat: (() => {
+          if (!r.type || !TIER1_TYPES_VIEWPORT.includes(r.type) || !r.building_name) return null;
+          const c = buildingCentroidMap.get(String(r.building_name).trim());
+          return c ? c.lat : null;
+        })(),
+        tier1_lng: (() => {
+          if (!r.type || !TIER1_TYPES_VIEWPORT.includes(r.type) || !r.building_name) return null;
+          const c = buildingCentroidMap.get(String(r.building_name).trim());
+          return c ? c.lng : null;
+        })(),
         // L-cluster-token1: 비로그인에도 단지 그룹화 가능 (이름은 가림, hash 만)
         cluster_token: buildClusterToken(r.building_name as string | null | undefined),
         dong: r.dong ?? null,

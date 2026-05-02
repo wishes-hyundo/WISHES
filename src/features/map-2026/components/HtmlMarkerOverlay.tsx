@@ -279,6 +279,61 @@ function makeCircleElement(opts: {
   return el;
 }
 
+/** TIER1 단지 마커 — 사각형 chip (네이버 표준).
+ *  K-2 (사장님 명령 2026-05-02): 아파트/오피스텔/주상복합/도시형생활주택 매물.
+ *  표시: 매물 카운트 (가격대는 Phase B-2 에서 추가).
+ *  단지명은 비로그인 마스킹 정책으로 표시 X — 클릭 시 모달에서 표시.
+ */
+function makeSquareElement(opts: {
+  count: number;
+  selected: boolean;
+}): HTMLDivElement {
+  const { count, selected } = opts;
+  const bg = selected ? SEL_BG : '#5b21b6';  // 보라색 (네이버 단지 마커 톤)
+  const bd = selected ? SEL_BD : '#5b21b6';
+  const el = document.createElement('div');
+  const baseScale = selected ? 1.10 : 1;
+  el.style.cssText = [
+    'display:inline-flex',
+    'align-items:center',
+    'justify-content:center',
+    'flex-direction:column',
+    'min-width:54px',
+    'min-height:36px',
+    'padding:6px 10px',
+    'border-radius:8px',
+    `background:${bg}`,
+    'color:#fff',
+    selected ? `border:2px solid ${bd}` : 'border:1.5px solid rgba(255,255,255,0.4)',
+    selected ? 'outline:3px solid rgba(91,33,182,0.35); outline-offset:2px' : '',
+    `box-shadow:${selected ? '0 6px 18px rgba(91,33,182,0.45), 0 2px 4px rgba(0,0,0,0.15)' : '0 3px 10px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.08)'}`,
+    'font-weight:700',
+    'font-size:13px',
+    'letter-spacing:-0.2px',
+    'cursor:pointer',
+    'user-select:none',
+    'transition:transform 180ms cubic-bezier(0.34,1.56,0.64,1)',
+    `transform:scale(${baseScale})`,
+    'font-family:inherit',
+    'pointer-events:auto',
+    'line-height:1.15',
+    'text-align:center',
+    selected ? 'z-index:50' : '',
+  ].filter(Boolean).join(';');
+  // 단지 아이콘 + 매물 N개
+  const labelTop = document.createElement('span');
+  labelTop.textContent = '단지';
+  labelTop.style.cssText = 'font-size:9px;opacity:0.85;letter-spacing:0.2px;font-weight:600';
+  const labelBot = document.createElement('span');
+  labelBot.textContent = `${count}개`;
+  labelBot.style.cssText = 'font-size:13px;font-weight:800';
+  el.appendChild(labelTop);
+  el.appendChild(labelBot);
+  el.addEventListener('mouseenter', () => { el.style.transform = `scale(${baseScale * 1.06})`; });
+  el.addEventListener('mouseleave', () => { el.style.transform = `scale(${baseScale})`; });
+  return el;
+}
+
 /** 단지 pill — 같은 building_name 에 ≥2개 있을 때 한 번에 표시. */
 function makePillElement(opts: {
   name: string;
@@ -732,12 +787,27 @@ export default function HtmlMarkerOverlay({
         ? new Set(clusterFilterIds)
         : null;
 
+      // K-2 (사장님 명령 2026-05-02): TIER1 매물 단지 마커 — 좌표 평균 X, 단지 진짜 좌표.
+      const TIER1_TYPES = new Set<string>(['아파트', '오피스텔', '주상복합', '도시형생활주택']);
       for (const arr of clusters.values()) {
         if (arr.length === 0) continue;
-        let latSum = 0, lngSum = 0;
-        for (const l of arr) { latSum += l.lat; lngSum += l.lng; }
-        const lat = latSum / arr.length;
-        const lng = lngSum / arr.length;
+        // K-2: cluster 안 매물 중 1개라도 TIER1 + tier1_lat/lng 있으면 그 좌표 사용 (단지 정확 위치)
+        const tier1Listing = arr.find((l) => {
+          const t = (l.type ?? '').trim();
+          return TIER1_TYPES.has(t) && typeof l.tier1_lat === 'number' && typeof l.tier1_lng === 'number';
+        });
+        let lat: number, lng: number;
+        if (tier1Listing) {
+          lat = tier1Listing.tier1_lat as number;
+          lng = tier1Listing.tier1_lng as number;
+        } else {
+          // 폴백: cluster centroid (좌표 평균) — 기존 동작
+          let latSum = 0, lngSum = 0;
+          for (const l of arr) { latSum += l.lat; lngSum += l.lng; }
+          lat = latSum / arr.length;
+          lng = lngSum / arr.length;
+        }
+        const isTier1Cluster = !!tier1Listing;
         const count = arr.length;
         // selected: ① selected 매물 포함 또는 ② cluster 안 매물 == filterIdSet (클릭 cluster).
         const hasSelected = selectedListingId != null && arr.some((l) => l.id === selectedListingId);
@@ -768,7 +838,10 @@ export default function HtmlMarkerOverlay({
         // L-naver-zoomscale1 (2026-05-02): 줌 단계까지 고려한 사이즈.
         const isMobileViewport2 = typeof window !== 'undefined' && window.innerWidth < 768;
         const size = markerSize({ count, level, isMobile: isMobileViewport2 });
-        const el = makeCircleElement({ count, selected, size, category: clusterCat });
+        // K-2: TIER1 매물 = 사각형 단지 마커 (네이버 표준), 그 외 = 동그라미
+        const el = isTier1Cluster
+          ? makeSquareElement({ count, selected })
+          : makeCircleElement({ count, selected, size, category: clusterCat });
         const clickHandler = (e: Event) => {
           e.stopPropagation();
           if (count === 1) {
