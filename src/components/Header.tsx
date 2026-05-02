@@ -84,7 +84,7 @@ export default function Header() {
           </Link>
 
           {/* 데스크탑 네비게이션 */}
-          <nav className="hidden lg:flex items-center gap-1" aria-label="메인 네비게이션">
+          <nav className="hidden lg:flex items-center gap-1">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -197,7 +197,7 @@ export default function Header() {
           )}
         >
           <div className="border-t border-wishes-border/30 pt-3">
-            <nav className="flex flex-col gap-1 px-1" aria-label="모바일 네비게이션">
+            <nav className="flex flex-col gap-0.5 px-1">
               {navItems.map((item) => (
                 <Link
                   key={item.href}

@@ -126,7 +126,7 @@ export default async function HomePage() {
                       <Link
                         key={dong}
                         href={`/map?dong=${encodeURIComponent(dong)}`}
-                        className="inline-flex items-center gap-1 min-h-[44px] sm:min-h-[32px] px-3.5 sm:px-3 py-2 sm:py-1.5 rounded-full bg-white/10 text-white/90 text-sm sm:text-xs font-medium border border-white/20 backdrop-blur-sm hover:bg-white/20 hover:border-white/40 active:scale-95 transition-all"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white/10 text-white/90 text-xs font-medium border border-white/20 backdrop-blur-sm hover:bg-white/20 hover:border-white/40 transition-all"
                       >
                         <MapPin className="w-3 h-3" />
                         {dong}
