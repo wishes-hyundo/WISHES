@@ -383,8 +383,6 @@ export default function CommandCenterV2Page() {
           <StatCard icon={<Clock className="h-4 w-4" />} label="승인 대기" value={statusCounts.pending || 0} tone="amber" />
           <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="차단" value={statusCounts.blocked || 0} tone="red" />
         </div>
-        </>
-        )}
 
         {/* ─── Filters bar ─── */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
