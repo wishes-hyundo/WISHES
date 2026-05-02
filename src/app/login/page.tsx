@@ -287,8 +287,11 @@ function LoginForm() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: '20px' }}>
       <div style={{ background: '#fff', borderRadius: 12, padding: 40, width: '100%', maxWidth: 420, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
-        <h1 style={{ fontSize: 26, fontWeight: 700, textAlign: 'center', marginBottom: 8, color: '#2D5A27' }}>WISHES 중개사 포털</h1>
-        <p style={{ textAlign: 'center', color: '#666', marginBottom: 30, fontSize: 14 }}>로그인하여 매물 검색을 시작하세요</p>
+        <h1 style={{ fontSize: 26, fontWeight: 700, textAlign: 'center', marginBottom: 8, color: '#2D5A27' }}>WISHES 중개사 로그인</h1>
+        <p style={{ textAlign: 'center', color: '#666', marginBottom: 12, fontSize: 14 }}>중개사 전용 포털 — 매물 등록/관리</p>
+        <div style={{ textAlign: 'center', marginBottom: 24, padding: '10px 12px', background: '#f0f7ee', borderRadius: 8, fontSize: 13, color: '#2D5A27', border: '1px solid #d4e8d0' }}>
+          일반 회원이신가요? <a href="/" style={{ color: '#2D5A27', fontWeight: 700, textDecoration: 'underline' }}>홈에서 간편 로그인</a> (카카오·네이버·Google) 을 이용해주세요.
+        </div>
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
