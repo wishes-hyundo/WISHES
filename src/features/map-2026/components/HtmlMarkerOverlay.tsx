@@ -522,7 +522,11 @@ export default function HtmlMarkerOverlay({
 
       // 카테고리 필터 — 'investment' 는 cross-cutting 이므로 필터 해제.
       //   L-clusterexact1: visibleListings (clusterFilterIds 적용 후) 기준.
-      const filtered = category === 'investment'
+      // L-mapfix-2026-05-02 (사장님 명령): cluster filter active 시 카테고리 skip
+      //   (사용자가 클러스터 클릭 = 그 영역 전체 매물 보고 싶다는 의도).
+      const isClusterFilterActive = !!filterSet
+        || !!(clusterFilterListings && clusterFilterListings.length > 0);
+      const filtered = (category === 'investment' || isClusterFilterActive)
         ? visibleListings
         : visibleListings.filter((l) => listingCategory(l.type) === category);
       if (filtered.length === 0) return;
@@ -651,7 +655,12 @@ export default function HtmlMarkerOverlay({
       //   네이버 부동산 = viewport grid cluster (cell 단위 1 동그라미).
       //   cellSize 는 zoom level 별 fine-tune (gridSizeForLevel — L-naver-cluster1).
       const clusters = new Map<string, MapListing[]>();
-      const cellSize = gridSizeForLevel(level);
+      // L-mapfix-2026-05-02 (사장님 명령 — "다시 마커가 합쳐지고"):
+      //   cluster filter active (사용자가 클러스터 클릭한 상태) 시 grid 비활성화.
+      //   사용자 의도 = "이 영역의 매물 N개 각각 보기" 인데 grid 가 다시 묶으면
+      //   다시 같은 마커 1-2개로 압축돼 사용성 매우 떨어짐.
+      //   cluster filter 해제 시 일반 grid 동작 (광역 뷰 시각 노이즈 방지).
+      const cellSize = isClusterFilterActive ? 0 : gridSizeForLevel(level);
       if (cellSize > 0) {
         for (const l of rest) {
           const key = `g:${Math.floor(l.lat / cellSize)}:${Math.floor(l.lng / cellSize)}`;
