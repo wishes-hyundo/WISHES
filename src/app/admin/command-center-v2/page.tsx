@@ -55,6 +55,23 @@ interface AdminUser {
 
 type Toast = { id: number; type: 'success' | 'error' | 'info'; text: string };
 
+// G-16-2 (2026-05-03): 고객 (profiles) 통합
+interface CustomerUser {
+  id: string;
+  email: string;
+  name: string;
+  phone: string;
+  source: string;
+  purpose?: string;
+  budget_min?: number;
+  budget_max?: number;
+  move_in_date?: string;
+  profile_level?: number;
+  profile_completed?: boolean;
+  created_at?: string;
+  last_sign_in_at?: string;
+}
+
 const ROLES: Role[] = ['superadmin', 'admin', 'agent', 'user'];
 const STATUSES: Status[] = ['approved', 'pending', 'rejected', 'blocked'];
 
@@ -100,6 +117,9 @@ function getAuthHeaders(): HeadersInit {
 
 export default function CommandCenterV2Page() {
   const [users, setUsers] = useState<AdminUser[]>([]);
+  const [customers, setCustomers] = useState<CustomerUser[]>([]);
+  // G-16-2 (2026-05-03): 두 탭 — 운영자(staff) / 고객(customer)
+  const [tab, setTab] = useState<'staff' | 'customer'>('staff');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -128,40 +148,60 @@ export default function CommandCenterV2Page() {
     setLoading(true);
     setError(null);
     try {
-      const r = await fetch('/api/admin/users', {
+      const url = tab === 'customer' ? '/api/admin/users?type=customer' : '/api/admin/users';
+      const r = await fetch(url, {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const j = await r.json();
       if (!j.success) throw new Error(j.error || 'unknown');
-      const rows = (j.users || []).map(
-        (u: any): AdminUser => ({
-          id: u.id,
-          email: u.email,
-          name: u.name || '',
-          phone: u.phone || '',
-          company: u.company || '',
-          role: (u.role || 'user') as Role,
-          status: (u.status || 'pending') as Status,
-          reason: u.reason || '',
-          createdAt: u.createdAt || u.created_at,
-          lastLogin: u.lastLogin || u.last_sign_in_at,
-          online: Boolean(u.online),
-        }),
-      );
-      setUsers(rows);
+      if (tab === 'customer') {
+        const rows = (j.users || []).map((c: any): CustomerUser => ({
+          id: c.id,
+          email: c.email || '',
+          name: c.name || '',
+          phone: c.phone || '',
+          source: c.source || 'email',
+          purpose: c.purpose,
+          budget_min: c.budget_min,
+          budget_max: c.budget_max,
+          move_in_date: c.move_in_date,
+          profile_level: c.profile_level || 0,
+          profile_completed: c.profile_completed,
+          created_at: c.created_at,
+          last_sign_in_at: c.last_sign_in_at,
+        }));
+        setCustomers(rows);
+      } else {
+        const rows = (j.users || []).map(
+          (u: any): AdminUser => ({
+            id: u.id,
+            email: u.email,
+            name: u.name || '',
+            phone: u.phone || '',
+            company: u.company || '',
+            role: (u.role || 'user') as Role,
+            status: (u.status || 'pending') as Status,
+            reason: u.reason || '',
+            createdAt: u.createdAt || u.created_at,
+            lastLogin: u.lastLogin || u.last_sign_in_at,
+            online: Boolean(u.online),
+          }),
+        );
+        setUsers(rows);
+      }
     } catch (e: any) {
       setError(e.message || '사용자 목록을 불러오지 못했습니다');
       pushToast('error', '사용자 목록 로드 실패');
     } finally {
       setLoading(false);
     }
-  }, [pushToast]);
+  }, [pushToast, tab]);
 
   useEffect(() => {
     loadUsers();
-  }, [loadUsers]);
+  }, [loadUsers, tab]);
 
   // ─── keyboard shortcuts ───
   useEffect(() => {
@@ -310,13 +350,41 @@ export default function CommandCenterV2Page() {
       </header>
 
       <main className="mx-auto max-w-7xl px-6 py-6">
-        {/* ─── Stat strip ─── */}
+        {/* G-16-2 (2026-05-03): 탭 — 운영자 / 고객 */}
+        <div className="mb-4 flex gap-0 border-b border-zinc-800">
+          <button
+            onClick={() => setTab('staff')}
+            className={`px-5 py-2.5 text-sm font-semibold transition-colors -mb-px border-b-2 ${
+              tab === 'staff'
+                ? 'border-emerald-500 text-emerald-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            운영자/직원 ({tab === 'staff' ? users.length : '...'})
+          </button>
+          <button
+            onClick={() => setTab('customer')}
+            className={`px-5 py-2.5 text-sm font-semibold transition-colors -mb-px border-b-2 ${
+              tab === 'customer'
+                ? 'border-emerald-500 text-emerald-400'
+                : 'border-transparent text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            고객 ({tab === 'customer' ? customers.length : '...'})
+          </button>
+        </div>
+
+        {tab === 'staff' && (
+        <>
+        {/* ─── Stat strip (운영자) ─── */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <StatCard icon={<Users className="h-4 w-4" />} label="전체 사용자" value={users.length} tone="slate" />
           <StatCard icon={<Check className="h-4 w-4" />} label="활성 (승인됨)" value={statusCounts.approved || 0} tone="emerald" />
           <StatCard icon={<Clock className="h-4 w-4" />} label="승인 대기" value={statusCounts.pending || 0} tone="amber" />
           <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="차단" value={statusCounts.blocked || 0} tone="red" />
         </div>
+        </>
+        )}
 
         {/* ─── Filters bar ─── */}
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -452,6 +520,80 @@ export default function CommandCenterV2Page() {
             <Kbd>r</Kbd> 새로고침
           </div>
         </footer>
+        </>
+        )}
+
+        {tab === 'customer' && (
+        <>
+        {/* G-16-2 (2026-05-03): 고객 명부 (profiles 테이블) */}
+        <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <StatCard icon={<Users className="h-4 w-4" />} label="전체 고객" value={customers.length} tone="slate" />
+          <StatCard icon={<Check className="h-4 w-4" />} label="프로필 완료" value={customers.filter(c => c.profile_completed).length} tone="emerald" />
+          <StatCard icon={<Clock className="h-4 w-4" />} label="카카오/네이버" value={customers.filter(c => c.source === 'kakao' || c.source === 'naver').length} tone="amber" />
+          <StatCard icon={<Users className="h-4 w-4" />} label="구글/이메일" value={customers.filter(c => c.source === 'google' || c.source === 'email').length} tone="slate" />
+        </div>
+
+        <div className="overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900/40">
+          <table className="w-full text-sm">
+            <thead className="bg-zinc-900/80">
+              <tr>
+                <Th>이름</Th>
+                <Th>이메일</Th>
+                <Th className="hidden md:table-cell">연락처</Th>
+                <Th>가입경로</Th>
+                <Th className="hidden lg:table-cell">목적/예산</Th>
+                <Th className="hidden lg:table-cell">가입일</Th>
+                <Th className="hidden xl:table-cell">마지막 접속</Th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-800/60">
+              {loading ? (
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-zinc-500"><RefreshCw className="inline h-4 w-4 animate-spin" /> 불러오는 중…</td></tr>
+              ) : customers.length === 0 ? (
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-zinc-500">아직 가입된 고객이 없습니다. 카카오 / 네이버 / 구글 로그인으로 가입한 사용자가 여기 표시됩니다.</td></tr>
+              ) : (
+                customers.map((c) => {
+                  const sourceMap: Record<string, { label: string; tone: string }> = {
+                    kakao: { label: '카카오', tone: 'border-yellow-700/40 bg-yellow-950/40 text-yellow-300' },
+                    naver: { label: '네이버', tone: 'border-emerald-700/40 bg-emerald-950/40 text-emerald-300' },
+                    google: { label: '구글', tone: 'border-blue-700/40 bg-blue-950/40 text-blue-300' },
+                    email: { label: '이메일', tone: 'border-zinc-700/40 bg-zinc-950/40 text-zinc-300' },
+                  };
+                  const s = sourceMap[c.source] || sourceMap.email;
+                  const purposeMap: Record<string, string> = { residence: '거주', investment: '투자', lease: '임대', other: '기타' };
+                  return (
+                    <tr key={c.id} className="hover:bg-zinc-900/40 transition">
+                      <td className="px-4 py-3"><span className="font-medium">{c.name || '—'}</span></td>
+                      <td className="px-4 py-3 text-zinc-400 font-mono text-xs">{c.email || '—'}</td>
+                      <td className="hidden md:table-cell px-4 py-3 text-zinc-400">{c.phone || '—'}</td>
+                      <td className="px-4 py-3">
+                        <Badge className={s.tone}>{s.label}</Badge>
+                        {c.profile_completed && <span className="ml-2 text-[10px] text-emerald-400">완료</span>}
+                      </td>
+                      <td className="hidden lg:table-cell px-4 py-3 text-zinc-400 text-xs">
+                        {c.purpose && <div>{purposeMap[c.purpose] || c.purpose}</div>}
+                        {c.budget_min && c.budget_max && <div>{c.budget_min}~{c.budget_max}만원</div>}
+                        {c.move_in_date && <div className="text-zinc-500">{c.move_in_date}</div>}
+                        {!c.purpose && !c.budget_min && !c.move_in_date && <span className="text-zinc-600">—</span>}
+                      </td>
+                      <td className="hidden lg:table-cell px-4 py-3 text-zinc-500 font-mono text-xs">
+                        {c.created_at ? new Date(c.created_at).toLocaleDateString('ko-KR') : '—'}
+                      </td>
+                      <td className="hidden xl:table-cell px-4 py-3 text-zinc-500 font-mono text-xs">
+                        {c.last_sign_in_at ? new Date(c.last_sign_in_at).toLocaleString('ko-KR') : '—'}
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        <footer className="mt-4 flex items-center justify-between text-xs text-zinc-500">
+          <div>{customers.length} 명</div>
+        </footer>
+        </>
+        )}
       </main>
 
       {/* ─── Toasts ─── */}
