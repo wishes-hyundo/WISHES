@@ -585,7 +585,16 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
         const performZoom = () => {
           try {
             const curLv = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 0;
-            const finalLv = (curLv > 0 && curLv <= targetLevel) ? Math.max(1, targetLevel - 1) : targetLevel;
+            // L-mapfix-2026-05-02 (사장님 명령 — "섬세하지 못하게 확대"):
+            //   이전: targetLevel 까지 한 번에 점프 (sido z14→z10 = 4단계 점프).
+            //   사용자가 "원하는 위치에 매물 찾아가기 힘들다" 피드백.
+            //   해결: 한 번 클릭 = 최대 2 단계만 줌인 (네이버 부동산과 동일 패턴).
+            //   더 가까이 가려면 사용자가 다시 클릭 → 점진적 진입.
+            //   targetLevel 보다는 더 가까이 안 가도록 클램프.
+            const STEP = 2;
+            const finalLv = curLv > 0
+              ? Math.max(targetLevel, curLv - STEP)
+              : targetLevel;
             const bbox = lockedBbox;
             // L-naver-2026listingscentroid1 (2026-04-27): polygon 안 매물 centroid 1순위.
             //   동 클릭 시 사용자가 보고 싶은 곳 = 매물 밀집 지역 (도심부).

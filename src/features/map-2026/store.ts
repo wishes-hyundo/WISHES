@@ -426,11 +426,22 @@ export const useMap2026Store = create<Map2026Store>()(
             try {
               const kakao = (window as unknown as { kakao?: { maps: { LatLng: new (lat: number, lng: number) => unknown } } }).kakao;
               if (kakao) {
-                // L-detailcache1 (2026-04-23 p.m.): setLevel 제거.
-                //   이전 setLevel(Math.min(curLevel, 3)) 은 모바일에서 과도 줌 →
-                //   idle 이벤트 → 뷰포트 재조회 → listings 초기화 → 상세 패널 증발
-                //   사이클을 유발. panTo 만으로 충분 (중앙 정렬 목적).
-                map.panTo(new kakao.maps.LatLng(l.lat, l.lng));
+                // L-mapfix-2026-05-02 (사장님 명령 — "1마커 일때 클릭하면 매물표시가
+                //   안되고 다시 마커가 합쳐지고"):
+                //   가까이 줌인 (Kakao level ≤ 3, ~z17 이상) 상태에서는 panTo 가
+                //   idle event → 뷰포트 재조회 → grid clustering 재발화 → 클릭한
+                //   마커가 다른 매물과 묶여 보이는 문제 유발.
+                //   사용자가 이미 그 위치를 보고 있을 가능성이 매우 높으므로
+                //   panTo 도 skip — selectedId 만 set 하고 modal 만 띄움.
+                const curLv = typeof map.getLevel === 'function'
+                  ? Number(map.getLevel())
+                  : 5;
+                if (curLv > 3) {
+                  // 충분히 가까이 있지 않으면 중앙 정렬
+                  map.panTo(new kakao.maps.LatLng(l.lat, l.lng));
+                }
+                // L-detailcache1 (2026-04-23 p.m.): setLevel 제거 (모바일 과도 줌
+                //   → idle → listings 초기화 → 상세 패널 증발 사이클 유발).
               }
             } catch { /* noop */ }
           } else if (typeof map.flyTo === 'function') {
