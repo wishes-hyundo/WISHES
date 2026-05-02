@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
+// G-22 (2026-05-03): G-15 fix 의 dynamic import 를 정적 import 로 교체 (안정성).
+import { createAuthClient } from '@/lib/supabase';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -46,7 +48,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         //   변경: Supabase 세션 + admin_users 권한 있으면 ws_* 자동 세팅 후 통과.
         if (!token || !userStr || !loginTime) {
           try {
-            const { createAuthClient } = await import('@/lib/supabase');
             const sb = createAuthClient();
             const { data: { session } } = await sb.auth.getSession();
             if (session?.access_token) {
@@ -174,8 +175,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           }
         } catch { /* noop */ }
       } catch (e) {
-        window.sessionStorage.clear();
-        window.location.href = '/admin/admin-auth.html';
+        // G-22 fix (2026-05-03): catch 분기에서 무조건 sessionStorage.clear() + redirect 가
+        //   사장님 ws_token 정상 상태에서도 발동하는 버그. ws_token 있으면 보존.
+        //   원인: G-15 fix 의 dynamic import('@/lib/supabase') 가 fail 할 때 fallback
+        //   분기가 throw → 이 catch 가 잡아서 정상 세션 clear → admin-auth.html redirect.
+        console.warn('admin layout 가드 catch:', e);
+        if (!window.sessionStorage.getItem('ws_token')) {
+          window.location.href = '/admin/admin-auth.html';
+        }
+        // ws_token 있으면 그대로 진행 (이미 setIsAuthenticated 호출됐을 수도)
       } finally {
         setIsAuthChecking(false);
       }
