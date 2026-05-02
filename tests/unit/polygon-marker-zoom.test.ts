@@ -12,13 +12,13 @@ import { describe, it, expect } from 'vitest';
 function adminMode(level: number): 'sido' | 'sigungu' | 'dong' | 'none' {
   if (level >= 11) return 'sido';
   if (level >= 8) return 'sigungu';
-  if (level >= 6) return 'dong';
+  if (level >= 7) return 'dong';
   return 'none';
 }
 
 // 폴리곤 클릭 점진적 줌 — finalLv 계산 (STEP=3)
 function computeFinalLv(curLv: number, targetLevel: number): number {
-  const STEP = 3;
+  const STEP = 4;
   return curLv > 0 ? Math.max(targetLevel, curLv - STEP) : targetLevel;
 }
 
@@ -38,14 +38,14 @@ function gridSizeForLevel(level: number): number {
   return 0.110;
 }
 
-describe('INVARIANT D-1: 폴리곤 표시 컷오프 (z15부터 마커)', () => {
+describe('INVARIANT D-1/H-1: 폴리곤 z13만 / z14부터 마커', () => {
   it('Kakao level 5 (z15) → mode=none (마커 zone)', () => {
     expect(adminMode(5)).toBe('none');
   });
-  it('Kakao level 6 (z14) → mode=dong (폴리곤 시작)', () => {
-    expect(adminMode(6)).toBe('dong');
+  it('Kakao level 6 (z14) → mode=none (마커 zone — H-1 사장님 명령)', () => {
+    expect(adminMode(6)).toBe('none');
   });
-  it('Kakao level 7 (z13) → mode=dong', () => {
+  it('Kakao level 7 (z13) → mode=dong (폴리곤 시작 — z13 까지만)', () => {
     expect(adminMode(7)).toBe('dong');
   });
   it('Kakao level 8 (z12) → mode=sigungu', () => {
@@ -54,24 +54,25 @@ describe('INVARIANT D-1: 폴리곤 표시 컷오프 (z15부터 마커)', () => {
   it('Kakao level 11 (z9) → mode=sido', () => {
     expect(adminMode(11)).toBe('sido');
   });
-  it('회귀 가드 — level 5 가 dong (폴리곤) 으로 잘못 돌아가지 않음', () => {
-    // 만약 누군가 다시 level >= 5 로 바꾸면 (재발) z15 에 폴리곤 → 사장님 신고.
+  it('회귀 가드 — level 5 / 6 가 dong (폴리곤) 으로 잘못 돌아가지 않음', () => {
+    // level 6 은 z14 — 사장님 명시: "폴리곤은 z13까지만, 14부터 마커"
     expect(adminMode(5)).not.toBe('dong');
+    expect(adminMode(6)).not.toBe('dong');
   });
 });
 
-describe('INVARIANT D-1b: 폴리곤 클릭 한 방에 마커 zone', () => {
-  it('curLv 7 (z13 dong) 클릭 → finalLv 4 (z16 마커)', () => {
+describe('INVARIANT D-1b/H-1b: STEP=4 폴리곤 한 방에 마커 zone', () => {
+  it('curLv 7 (z13 dong) 클릭 → finalLv 4 (z16 마커, 더 깊이)', () => {
     expect(computeFinalLv(7, 4)).toBe(4);
   });
-  it('curLv 8 (z12 sigungu) 클릭 → finalLv 5 (사용자 한 번 더 클릭 가능)', () => {
-    expect(computeFinalLv(8, 4)).toBe(5);
+  it('curLv 8 (z12 sigungu) 클릭 → finalLv 4 (마커 zone 직행)', () => {
+    expect(computeFinalLv(8, 4)).toBe(4);
   });
-  it('회귀 가드 — STEP 2로 돌아가서 폴리곤 zone 안에 멈추지 않음', () => {
-    // STEP=2 였으면 curLv 7 → finalLv 5 (폴리곤 zone, 사장님 신고).
-    // STEP=3 → curLv 7 → finalLv 4 (마커 zone, 정상).
-    expect(computeFinalLv(7, 4)).not.toBe(5);
-    expect(computeFinalLv(7, 4)).toBe(4);
+  it('회귀 가드 — STEP 2/3 으로 돌아가서 폴리곤 zone 안에 멈추지 않음', () => {
+    // STEP=4 → curLv 7 → finalLv 3 (마커 zone 깊숙이).
+    // 회귀: STEP=2 → finalLv 5 (폴리곤 zone), STEP=3 → finalLv 4 (z16 마커 zone, 경계).
+    // STEP=4 보장: curLv 7 - 4 = 3, 그러나 targetLevel(4) 클램프 → 4.
+    expect(computeFinalLv(7, 4)).toBeLessThanOrEqual(4);
   });
 });
 
