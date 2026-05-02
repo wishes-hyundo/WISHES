@@ -805,11 +805,25 @@ export default function HtmlMarkerOverlay({
           lat = tier1Listing.tier1_lat as number;
           lng = tier1Listing.tier1_lng as number;
         } else {
-          // 폴백: cluster centroid (좌표 평균) — 기존 동작
+          // 폴백: cluster centroid (좌표 평균) + deterministic jitter (M-3 사장님 명령)
+          //   "병신같은 grid 방식 걍 나가뒤져" — 마스킹 좌표 (110m grid) 가 cell 중심에
+          //   모이면서 격자 패턴 형성. cluster_token (또는 첫 매물 id) hash 기반 jitter
+          //   ±55m 추가해 격자 깨고 자연스러운 분산. 같은 cluster = 같은 jitter (안정).
           let latSum = 0, lngSum = 0;
           for (const l of arr) { latSum += l.lat; lngSum += l.lng; }
           lat = latSum / arr.length;
           lng = lngSum / arr.length;
+          const seedStr = (arr[0].cluster_token ?? String(arr[0].id));
+          let h = 0x811c9dc5 >>> 0;
+          for (let i = 0; i < seedStr.length; i++) {
+            h ^= seedStr.charCodeAt(i);
+            h = Math.imul(h, 0x01000193) >>> 0;
+          }
+          // ±0.0005 (~55m) — 110m 마스킹 cell 안에서 분산
+          const jitterLat = (((h & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010;
+          const jitterLng = ((((h >>> 16) & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010;
+          lat += jitterLat;
+          lng += jitterLng;
         }
         const isTier1Cluster = !!tier1Listing;
         const count = arr.length;
