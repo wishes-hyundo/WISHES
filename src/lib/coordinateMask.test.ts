@@ -55,8 +55,8 @@ describe('Coordinate Masking (L-sec170)', () => {
     it('should mask coordinates when not authenticated', () => {
       const result = maskListingCoordinates(mockListing, false);
 
-      expect(result.lat).toBe(37.50);
-      expect(result.lng).toBe(127.03);
+      expect(result.lat).toBe(37.498);
+      expect(result.lng).toBe(127.028);
       expect(result.title).toBe('Test Listing'); // Other fields unchanged
     });
 
@@ -64,25 +64,25 @@ describe('Coordinate Masking (L-sec170)', () => {
       const listing = { ...mockListing, deal: '월세', price: 5000 };
       const result = maskListingCoordinates(listing, false);
 
-      expect(result.lat).toBe(37.50);
-      expect(result.lng).toBe(127.03);
+      expect(result.lat).toBe(37.498);
+      expect(result.lng).toBe(127.028);
       expect(result.deal).toBe('월세');
       expect(result.price).toBe(5000);
     });
   });
 
   describe('isCoordinateMasked', () => {
-    it('should detect masked coordinates (2 decimal places)', () => {
-      expect(isCoordinateMasked(37.50, 127.03)).toBe(true);
+    it('should detect masked coordinates (3 decimal places)', () => {
+      expect(isCoordinateMasked(37.498, 127.028)).toBe(true);
     });
 
-    it('should detect unmasked coordinates (more than 2 decimals)', () => {
+    it('should detect unmasked coordinates (more than 3 decimals)', () => {
       expect(isCoordinateMasked(37.4979852, 127.0276368)).toBe(false);
     });
 
     it('should detect partially masked coordinates', () => {
       // One masked, one precise
-      expect(isCoordinateMasked(37.50, 127.0276368)).toBe(false);
+      expect(isCoordinateMasked(37.498, 127.0276368)).toBe(false);
     });
 
     it('should handle integer coordinates as masked', () => {
