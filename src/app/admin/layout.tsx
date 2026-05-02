@@ -36,8 +36,48 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           window.sessionStorage.setItem('ws_login_time', window.localStorage.getItem('ws_login_time') || '');
         }
         let token = window.sessionStorage.getItem('ws_token');
-        const userStr = window.sessionStorage.getItem('ws_user');
-        const loginTime = window.sessionStorage.getItem('ws_login_time');
+        let userStr = window.sessionStorage.getItem('ws_user');
+        let loginTime = window.sessionStorage.getItem('ws_login_time');
+
+        // G-15 fix (2026-05-03): OAuth 로그인 사용자 (Google/Kakao/Naver) 가 ws_* 없이
+        //   /admin/* 진입 시 Supabase 세션 fallback 으로 자동 통과.
+        //   기존: ws_token 없으면 무조건 admin-auth.html 로 redirect → 사장님 Google 가입자는
+        //         admin 진입 불가 (admin-auth.html 에 OAuth 버튼 없음).
+        //   변경: Supabase 세션 + admin_users 권한 있으면 ws_* 자동 세팅 후 통과.
+        if (!token || !userStr || !loginTime) {
+          try {
+            const { createAuthClient } = await import('@/lib/supabase');
+            const sb = createAuthClient();
+            const { data: { session } } = await sb.auth.getSession();
+            if (session?.access_token) {
+              const meRes = await fetch('/api/auth/me', {
+                headers: { Authorization: `Bearer ${session.access_token}` },
+              });
+              const meData = await meRes.json();
+              if (meData?.success && meData?.user?.status === 'approved') {
+                const tok = session.access_token;
+                const u = meData.user;
+                token = tok;
+                userStr = JSON.stringify({ email: u.email, name: u.name, role: u.role, status: u.status });
+                loginTime = Date.now().toString();
+                try {
+                  window.sessionStorage.setItem('ws_token', tok);
+                  window.sessionStorage.setItem('ws_user', userStr);
+                  window.sessionStorage.setItem('ws_login_time', loginTime);
+                  window.localStorage.setItem('ws_token', tok);
+                  window.localStorage.setItem('ws_user', userStr);
+                  window.localStorage.setItem('ws_login_time', loginTime);
+                  if (session.refresh_token) {
+                    window.sessionStorage.setItem('ws_refresh_token', session.refresh_token);
+                    window.localStorage.setItem('ws_refresh_token', session.refresh_token);
+                  }
+                } catch {}
+              }
+            }
+          } catch (e) {
+            console.warn('Supabase fallback failed:', e);
+          }
+        }
 
         if (!token || !userStr || !loginTime) {
           window.location.href = '/admin/admin-auth.html';

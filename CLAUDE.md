@@ -232,6 +232,19 @@
 - 가입 페이지 자체는 존재 가능 (status='pending' 영구). 사장님 수동 승인만 가능
 - 정부 OpenAPI (국세청 / nsdi.go.kr) 자동 검증은 추후 활성화 시 도입
 
+### I-AUTO-1: 모든 운영 자동화 — 사장님 손 안 가게 (사장님 영구 명령 2026-05-03)
+- 시각 검증 / 회원 승인 / cleanup / cron 등 사장님이 일일이 클릭/확인 X
+- Chrome MCP / Playwright / cron / 자동 알림 으로 처리
+- 사장님 액션 = 결과 확인만
+- 새 결함 발견 시 즉시 fix → 다시는 같은 결함 0
+- "내가 접속해서 시각적인 부분도 다 해결해" — 사장님 영구 명령
+
+### I-AUTH-6: OAuth 로그인 후 admin 진입 흐름 (G-15 fix 2026-05-03)
+- 사장님 (Google/Kakao/Naver OAuth) 가 메인 헤더에서 로그인 후 /admin/* 진입 시
+- admin layout 가드 = ws_* 부재면 Supabase 세션 + /api/auth/me fallback → admin_users.status='approved' 시 자동 통과
+- ws_* legacy 기반 + Supabase 세션 fallback 이중 보호
+- admin-auth.html 정적 페이지에 OAuth 버튼 없어도 사장님이 메인에서 로그인하면 /admin 자동 진입 가능
+
 ## 🚫 `/search` 절대 손대지 마라 (사장님 명령 2026-04-28)
 
 `wishes.co.kr/search` = 중개사가 사용하기 가장 편한 UI 로 13년 동안 최적화된 작업장.
