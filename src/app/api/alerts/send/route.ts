@@ -135,7 +135,7 @@ export async function GET(request: Request) {
               html: `<div style="max-width:600px;margin:0 auto;font-family:sans-serif">
                 <div style="background:#1a5632;padding:24px;text-align:center;border-radius:12px 12px 0 0">
                   <h1 style="color:white;margin:0;font-size:24px">WISHES</h1>
-                  <p style="color:rgba(255,255,255,0.7);margin:4px 0 0">서울·경기 종합부동산 서비스</p>
+                  <p style="color:rgba(255,255,255,0.7);margin:4px 0 0">전국 종합부동산 서비스</p>
                 </div>
                 <div style="padding:24px;background:white;border:1px solid #e5e7eb;border-top:none">
                   <h2 style="color:#1a5632;margin-top:0">신규 매물 알림</h2>

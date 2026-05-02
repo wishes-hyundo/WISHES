@@ -12,19 +12,19 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://wishes.co.kr'),
   manifest: '/manifest.json',
   title: {
-    default: 'WISHES | 서울·경기 종합부동산 서비스',
+    default: 'WISHES | 전국 종합부동산 서비스',
     template: '%s | WISHES',
   },
   description:
-    '서울·경기 전 지역 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요.',
+    '전국 17 시도 원룸, 투룸, 오피스텔, 아파트 종합부동산 중개. 전세, 월세, 매매 매물을 지도에서 쉽게 찾아보세요.',
   keywords: [
-    '서울 부동산', '경기 부동산', '원룸 전세', '월세 매물',
+    '전국 부동산', '서울 부동산', '경기 부동산', '원룸 전세', '월세 매물',
     '오피스텔', '아파트 매매', 'WISHES', '종합부동산',
     '관악구 부동산', '신림동 원룸', '전세대출 상담',
   ],
   openGraph: {
-    title: 'WISHES | 서울·경기 종합부동산',
-    description: '서울·경기 전 지역 종합부동산. 지도로 매물을 쉽게 찾아보세요.',
+    title: 'WISHES | 전국 종합부동산',
+    description: '전국 17 시도 종합부동산. 지도로 매물을 쉽게 찾아보세요.',
     url: 'https://wishes.co.kr',
     siteName: 'WISHES',
     locale: 'ko_KR',
@@ -33,13 +33,13 @@ export const metadata: Metadata = {
       url: '/og-image.png',
       width: 1200,
       height: 630,
-      alt: 'WISHES - 서울·경기 종합부동산',
+      alt: 'WISHES - 전국 종합부동산',
     }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'WISHES | 서울·경기 종합부동산',
-    description: '서울·경기 전 지역 종합부동산 서비스.',
+    title: 'WISHES | 전국 종합부동산',
+    description: '전국 17 시도 종합부동산 서비스.',
     images: ['/og-image.png'],
   },
   robots: {

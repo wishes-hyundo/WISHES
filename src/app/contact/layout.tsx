@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: '상담·매물접수',
   description:
-    'WISHES 부동산 상담·매물접수. 서울·경기 전 지역 원룸·투룸·오피스텔·아파트, 전세·월세·매매 매물 상담을 받아보세요.',
+    'WISHES 부동산 상담·매물접수. 전국 17 시도 원룸·투룸·오피스텔·아파트, 전세·월세·매매 매물 상담을 받아보세요.',
   keywords: [
     '부동산 상담',
     '매물 접수',
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: '상담·매물접수 | WISHES',
     description:
-      '서울·경기 전 지역 부동산 상담·매물접수. WISHES가 꼼꼼하게 도와드립니다.',
+      '전국 17 시도 부동산 상담·매물접수. WISHES가 꼼꼼하게 도와드립니다.',
     url: 'https://wishes.co.kr/contact',
     siteName: 'WISHES',
     type: 'website',

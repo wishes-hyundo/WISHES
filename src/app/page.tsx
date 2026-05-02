@@ -81,7 +81,7 @@ export default async function HomePage() {
               <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 border border-white/25 backdrop-blur-md">
                 <Sparkles className="w-3.5 h-3.5 text-wishes-accent" />
                 <span className="text-xs font-medium text-white/90">
-                  위시스부동산 · 서울·경기 전문 · {totalListings.toLocaleString('ko-KR')}개 매물
+                  위시스부동산 · 전국 17 시도 · {totalListings.toLocaleString('ko-KR')}개 매물
                 </span>
               </div>
 
