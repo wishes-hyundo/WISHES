@@ -531,19 +531,29 @@ export async function GET(req: NextRequest) {
     //   네이버 표준 — 아파트/오피스텔/주상복합/도시형생활주택 = 단지 마커.
     //   좌표 = building_centroids 의 정확 단지 좌표 (좌표 평균 X — 격자 패턴 회피).
     const TIER1_TYPES_VIEWPORT = ['아파트', '오피스텔', '주상복합', '도시형생활주택'];
+    // M-3 (사장님 명령 2026-05-02): 모든 매물 building_name 수집 (TIER1 제한 풀기).
+    //   격자 패턴 fix — building_centroids 에 모든 단지 정확 좌표 사용.
+    //   tier1Names 는 사각형 마커 분기용 유지, allBuildingNames 는 좌표 lookup 용.
     const tier1Names = new Set<string>();
+    const allBuildingNames = new Set<string>();
     for (const r of (rows ?? []) as Array<{ type?: string | null; building_name?: string | null }>) {
-      if (r.type && TIER1_TYPES_VIEWPORT.includes(r.type) && r.building_name) {
-        tier1Names.add(String(r.building_name).trim());
+      if (r.building_name) {
+        const bn = String(r.building_name).trim();
+        if (bn) {
+          allBuildingNames.add(bn);
+          if (r.type && TIER1_TYPES_VIEWPORT.includes(r.type)) {
+            tier1Names.add(bn);
+          }
+        }
       }
     }
     const buildingCentroidMap = new Map<string, { lat: number; lng: number }>();
-    if (tier1Names.size > 0) {
+    if (allBuildingNames.size > 0) {
       try {
         const centroidPromise = supabase
           .from('building_centroids')
           .select('building_name, dong, lat, lng, source, match_score')
-          .in('building_name', Array.from(tier1Names))
+          .in('building_name', Array.from(allBuildingNames))
           .order('match_score', { ascending: false });
         const timeoutPromise = new Promise<{ data: null }>((resolve) => {
           setTimeout(() => resolve({ data: null }), 1500);
