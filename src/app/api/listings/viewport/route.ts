@@ -24,11 +24,19 @@ function buildClusterToken(
   lat: number | null | undefined,
   lng: number | null | undefined,
 ): string | null {
-  // 1) building_name 있으면 단지명 hash (정확) — 같은 단지 = 같은 token, 어디 좌표든 합쳐짐
+  // M-2 (사장님 명령 2026-05-02 — "완전 매물을 위치에 따라서 마커를 합치지를 못하잖아"):
+  //   좌표 hash 우선. 같은 (마스킹된) 좌표 매물 = 같은 token = 1 cluster.
+  //   M-1 의 b/c prefix 분리는 같은 좌표 매물 분리시킴 (94% 분리율) → 사장님 의도와 어긋남.
+  //   단지명은 좌표 없는 매물 fallback 으로만 사용 (거의 없음).
+  //   TIER1 단지 마커는 클라이언트 tier1_lat/lng 좌표로 별도 분기 — buildClusterToken 영향 X.
+  //   I-COORD-1: 110m 마스킹 (toFixed(3) = 0.001°) 와 정확히 일치.
+  if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
+    return 'c' + lat.toFixed(3) + '_' + lng.toFixed(3);
+  }
+  // 좌표 없는 매물 fallback — 단지명 hash (FNV-1a)
   if (buildingName) {
     const norm = String(buildingName).replace(/\s+/g, ' ').trim();
     if (norm) {
-      // 간단 hash (FNV-1a 32bit) — privacy + cluster 용도엔 충분.
       let h = 0x811c9dc5 >>> 0;
       for (let i = 0; i < norm.length; i++) {
         h ^= norm.charCodeAt(i);
@@ -36,14 +44,6 @@ function buildClusterToken(
       }
       return 'b' + h.toString(36).padStart(7, '0');
     }
-  }
-  // 2) M-1 fallback (사장님 명령 2026-05-02 — z16 신림동 마커 미합침 fix):
-  //    building_name 없는 매물(원룸/빌라/단독 등 12%) 도 cluster 가능하게 —
-  //    같은 좌표(110m 마스킹 후) 매물 자동 같은 token. 사용자 시각:
-  //    "같은 위치인데 왜 따로 보이냐" → 합쳐서 1 마커 "이 위치에 N개" 로 표시.
-  if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
-    // 3자리 round = ~110m precision (I-COORD-1 마스킹과 일치)
-    return 'c' + lat.toFixed(3) + '_' + lng.toFixed(3);
   }
   return null;
 }

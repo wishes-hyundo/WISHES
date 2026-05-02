@@ -22,8 +22,10 @@ function buildClusterToken(
   lat: number | null | undefined,
   lng: number | null | undefined,
 ): string | null {
-  // M-1 (사장님 명령 2026-05-02 — z16 신림동 마커 미합침 fix):
-  //   building_name 있으면 단지명 hash, 없으면 좌표 fallback 으로 같은 좌표 매물 cluster.
+  // M-2 (사장님 명령 2026-05-02): 좌표 hash 우선 — 같은 위치 매물 무조건 합치기.
+  if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
+    return 'c' + lat.toFixed(3) + '_' + lng.toFixed(3);
+  }
   if (buildingName) {
     const norm = String(buildingName).replace(/\s+/g, ' ').trim();
     if (norm) {
@@ -34,9 +36,6 @@ function buildClusterToken(
       }
       return 'b' + h.toString(36).padStart(7, '0');
     }
-  }
-  if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
-    return 'c' + lat.toFixed(3) + '_' + lng.toFixed(3);
   }
   return null;
 }
