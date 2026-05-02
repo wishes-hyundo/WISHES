@@ -1121,7 +1121,7 @@ export default function AdminPage() {
                       wishes.co.kr › listings › ...
                     </p>
                     <p className="text-[#545454] text-xs mt-1 line-clamp-2">
-                      {newListing.description || `${newListing.dong} ${newListing.type} ${newListing.deal} - 서울·경기 종합부동산 WISHES`}
+                      {newListing.description || `${newListing.dong} ${newListing.type} ${newListing.deal} - 전국 종합부동산 WISHES`}
                     </p>
                   </div>
                 </div>

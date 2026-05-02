@@ -168,7 +168,7 @@ export async function GET(
                   WISHES
                 </div>
                 <div style={{ fontSize: 16, color: '#5f7d68', marginTop: 2 }}>
-                  서울·경기 부동산 전문
+                  전국 부동산 전문
                 </div>
               </div>
             </div>
