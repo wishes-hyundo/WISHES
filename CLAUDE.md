@@ -9,6 +9,51 @@
 
 ---
 
+## 🛡️ INVARIANTS — 영구 불변식 (사장님 명령 2026-05-02)
+
+**C 프로그램 빌드 원칙**: 한 번 발견한 결함은 다시는 생기지 않게 INVARIANT 로 기록.
+모든 PR 은 아래 INVARIANT 를 위반하면 안 됨. 위반 발견 시 즉시 fix + 새 INVARIANT 추가.
+
+### I-COORD-1: 좌표 마스킹 정밀도 = 110m (round to 0.001°)
+- `src/lib/coordinateMask.ts` `maskCoordinate()` 만 사용 (절대 자체 round 금지)
+- 위반 결과: 마커 1점에 모이거나, prod 캐시 키 mismatch
+- 영향 endpoint (전수): `/api/listings/map`, `/api/listings/viewport`, `/api/listings/[id]`,
+  `/api/listings/by-ids`, `/api/map/search`. 모두 비로그인 마스킹 필수.
+- 검증: `src/lib/coordinateMask.test.ts` 13 tests
+
+### I-COORD-2: 같은 좌표 매물은 1 클러스터 (절대 stack 금지)
+- HtmlMarkerOverlay cellSize=0 분기에서 (lat,lng) 동일 매물은 자동 그룹
+- 위반 결과: 화면에 마커 "1" N개가 한 픽셀에 stack → 사용자가 매물 카운트 X
+- 코드: `src/features/map-2026/components/HtmlMarkerOverlay.tsx` `c:${lat}:${lng}` 키
+
+### I-MAP-1: 검색창 = 매물번호 / 주소 / 자연어 3-in-1
+- 매물번호 (5-6자리) → `/api/listings/[id]` → openListingDetail + cinematicFlyTo
+- 주소 (한글+동/구/로/길/번지) → `/api/address-search` → 지도 이동
+- 자연어 → `/api/map/search-nl`
+- 코드: `src/features/map-2026/components/NlSearchBar.tsx` `detectIntent()`
+
+### I-MAP-2: /listings/* 영구 폐기 → /map?listing=ID
+- `next.config.js` redirect destination 은 반드시 `/map?listing=:id` (절대 `/map/:id` 금지)
+- 위반 결과: 공유링크 → 모달 자동 오픈 X (사장님 SEO 의도 깨짐)
+
+### I-MOBILE-1: BottomSheet 드래그는 핸들에서만
+- `framer-motion` `useDragControls()` + `dragListener=false` + 핸들 `onPointerDown={controls.start}`
+- ListPanel 은 native overflow scroll 보장 (touchAction:'none' 시트 전체에 절대 X)
+
+### I-A11Y-1: 모든 모바일 터치 타깃 ≥ 44px (WCAG 2.2 AAA)
+- 닫기/네비/갤러리 화살표 등 모든 인터랙티브 버튼
+- desktop 은 `sm:size-N` 으로 작게 OK, 모바일만 size-11+
+
+### I-API-1: 응답 shape `{ success, data }` 통일
+- /api/listings/[id] 응답: `{ success: true, data: { id, lat, lng, ... } }`
+- 클라이언트 파싱: `data?.data ?? data?.listing ?? data` (3-tier fallback)
+
+### I-PROC-1: 모든 PR 는 prod 시각 회귀 검증 후 완료
+- `npm run gate` 통과만으로는 부족. 사장님 화면이 정답.
+- 사장님이 못 잡고 제가 못 잡으면 INVARIANT 누락 → 즉시 추가
+
+---
+
 ## 🚫 `/search` 절대 손대지 마라 (사장님 명령 2026-04-28)
 
 `wishes.co.kr/search` = 중개사가 사용하기 가장 편한 UI 로 13년 동안 최적화된 작업장.

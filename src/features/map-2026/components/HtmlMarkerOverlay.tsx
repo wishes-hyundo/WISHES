@@ -675,7 +675,23 @@ export default function HtmlMarkerOverlay({
           else clusters.set(key, [l]);
         }
       } else {
-        for (const l of rest) clusters.set(`i:${l.id}`, [l]);
+        // L-cluster-coord-stack1 (2026-05-02 사장님 명령 — C 프로그램처럼 빠짐없이):
+        //   PR #76 좌표 마스킹 (110m) 으로 같은 격자 매물은 lat/lng 가 동일.
+        //   기존 코드 (i:${id}) 는 매물 ID 별로 분리 → 같은 좌표 매물 30개가
+        //   30개 분리된 "1" 마커로 한 픽셀에 stack 됨 → 사용자 화면에 모두 "1"
+        //   동그라미만 보임 (실제로는 30개 매물이 겹쳐있음).
+        //
+        //   수정: cellSize=0 일 때도 (lat, lng) 동일 매물은 자동 그룹 → 마커에
+        //         정확한 카운트(N) 표시. 매물 ID 분리는 lat/lng 다른 매물에만 적용.
+        //
+        //   INVARIANT (CLAUDE.md ≪마커-카운트 일치≫): cluster.count = 그 좌표의
+        //   실제 매물 개수. 마커가 "1" 인데 뒤에 N개가 stack 된 상태 X.
+        for (const l of rest) {
+          const key = `c:${l.lat}:${l.lng}`;
+          const arr = clusters.get(key);
+          if (arr) arr.push(l);
+          else clusters.set(key, [l]);
+        }
       }
 
       // L-naver-2026clusterselected1 (2026-04-27): selected 판정 강화.
