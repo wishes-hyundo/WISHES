@@ -672,27 +672,37 @@ export default function HtmlMarkerOverlay({
       //   다시 같은 마커 1-2개로 압축돼 사용성 매우 떨어짐.
       //   cluster filter 해제 시 일반 grid 동작 (광역 뷰 시각 노이즈 방지).
       const cellSize = isClusterFilterActive ? 0 : gridSizeForLevel(level);
+      // L-cluster-building1 (2026-05-02 사장님 명령 — 직방/네이버 표준):
+      //   사장님 z19 발견 — 21 마커가 다른 주소 매물을 묶음.
+      //   원인: 좌표 마스킹 110m 으로 다른 단지 매물도 같은 좌표 → 1 클러스터.
+      //   수정: building_name (단지명) 우선 cluster key. 같은 단지명 매물만 그룹,
+      //         단지명 다르면 좌표/cell 같아도 분리.
+      //   INVARIANT I-MARKER-2: 같은 단지명 매물 1 마커 / 다른 단지명 매물 분리.
+      //   직방/네이버 z19~z14 모두 단지 단위 표시 — WISHES 동일 표준.
+      //
+      // 정규화 — '\u00A0' (NBSP) / 다중 공백 / 공백을 한 칸으로.
+      const normName = (s: string | null | undefined): string =>
+        (s ?? '').replace(/\s+/g, ' ').trim();
+      const buildKey = (l: { building_name: string | null; lat: number; lng: number }, fallbackPrefix: string): string => {
+        const n = normName(l.building_name);
+        if (n) return `b:${n}`;          // 단지명 우선 (좌표 무관)
+        return fallbackPrefix;            // 단지명 없으면 fallback (좌표/cell)
+      };
+
       if (cellSize > 0) {
         for (const l of rest) {
-          const key = `g:${Math.floor(l.lat / cellSize)}:${Math.floor(l.lng / cellSize)}`;
+          const fallback = `g:${Math.floor(l.lat / cellSize)}:${Math.floor(l.lng / cellSize)}`;
+          const key = buildKey(l, fallback);
           const arr = clusters.get(key);
           if (arr) arr.push(l);
           else clusters.set(key, [l]);
         }
       } else {
-        // L-cluster-coord-stack1 (2026-05-02 사장님 명령 — C 프로그램처럼 빠짐없이):
-        //   PR #76 좌표 마스킹 (110m) 으로 같은 격자 매물은 lat/lng 가 동일.
-        //   기존 코드 (i:${id}) 는 매물 ID 별로 분리 → 같은 좌표 매물 30개가
-        //   30개 분리된 "1" 마커로 한 픽셀에 stack 됨 → 사용자 화면에 모두 "1"
-        //   동그라미만 보임 (실제로는 30개 매물이 겹쳐있음).
-        //
-        //   수정: cellSize=0 일 때도 (lat, lng) 동일 매물은 자동 그룹 → 마커에
-        //         정확한 카운트(N) 표시. 매물 ID 분리는 lat/lng 다른 매물에만 적용.
-        //
-        //   INVARIANT (CLAUDE.md ≪마커-카운트 일치≫): cluster.count = 그 좌표의
-        //   실제 매물 개수. 마커가 "1" 인데 뒤에 N개가 stack 된 상태 X.
+        // L-cluster-coord-stack1 (2026-05-02): cellSize=0 일 때도 단지명 우선,
+        //   단지명 없는 매물만 (lat,lng) 동일 그룹.
         for (const l of rest) {
-          const key = `c:${l.lat}:${l.lng}`;
+          const fallback = `c:${l.lat}:${l.lng}`;
+          const key = buildKey(l, fallback);
           const arr = clusters.get(key);
           if (arr) arr.push(l);
           else clusters.set(key, [l]);

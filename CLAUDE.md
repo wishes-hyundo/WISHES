@@ -87,6 +87,15 @@
 - 코드: `HtmlMarkerOverlay.tsx` `gridSizeForLevel()`
 - 위반 결과: 마커가 grid 균일 배치로 보임 (직방/네이버 시각 ≠)
 
+### I-MARKER-2: building_name 우선 cluster (직방/네이버 표준 강화)
+- 같은 단지명 매물 → 무조건 1 마커 (좌표/cell 무관)
+- 다른 단지명 매물 → 좌표/cell 같아도 분리
+- 단지명 없는 매물끼리만 좌표/cell fallback
+- 정규화: NBSP/다중 공백 → 한 칸 (`푸리마 타운` = `푸리마  타운`)
+- 사장님 z19 발견: 110m 마스킹으로 다른 단지 매물 같은 좌표 → 21 마커 한 곳 → 단지명 우선으로 fix
+- 코드: `HtmlMarkerOverlay.tsx` `buildKey()` `b:${name}` / `g:${cell}` / `c:${lat}:${lng}` 우선순위
+- 위반 결과: 다른 단지 매물이 한 마커에 묶여 사용자 매물 위치 정확도 X
+
 ### I-TEST-1: Critical Flow Playwright 시각 회귀 (E-1 도입 2026-05-02)
 - `tests/dom-snapshot/critical-flows.spec.ts` 5 시나리오 매 PR 자동 검증
 - 실패 시 머지 차단 (gate-6 의 일부)
@@ -279,17 +288,4 @@
 - `photo_ocr` (AI Vision) = 85
 - `text_extracted` (정규식) = 70-75
 - `broker_reported` (사장님 신고) = 60
-- `dong_avg_estimated` (동·type 평균) = 40
-- `type_avg_estimated` (전국 type 평균) = 20
-- `unknown` = 0
-
-## 💰 비용 정책 (사장님 명령 2026-04-28)
-
-**무료 + 극소액 OK**. 큰 비용 (월 $500+) X.
-- 무료 우선 — Gemini Flash / Kakao / V-World / data.go.kr / Resend / GA4 / Clarity / GrowthBook / PostHog
-- 극소액 OK — Sentry $26/월, Vercel Pro $20, Supabase Pro $25, Cloudflare R2 $5, Anthropic API $50~300 (Prompt cache 90% 절감)
-- 부트스트랩 §9 매트릭스: 월 $400~1,200 OK (사장님 결정 완료)
-
-**여전히 X**:
-- 큰 비용 옵션 (VR Matterport / Bright Data / 음성 AI / 데이터 웨어하우스)
-- 사장님 손 가는 검수 페이지
+- `don
