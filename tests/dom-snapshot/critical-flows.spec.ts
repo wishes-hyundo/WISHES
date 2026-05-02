@@ -146,4 +146,129 @@ test.describe('Critical User Flows — 사장님 시각 회귀 가드', () => {
     expect(body.success).toBe(false);
     expect(body.message).toBeTruthy();
   });
+
+  // F6 (2026-05-03): 사장님 명령 — 홈페이지 정밀검수 자동 회귀
+  test('⑫ /map 카테고리별 매물 수 응답 (I-MAP-1)', async ({ request }) => {
+    const res = await request.get('/api/listings/viewport?west=126.92&south=37.47&east=126.95&north=37.49&category=residence');
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.listings)).toBe(true);
+    expect(body.listings.length).toBeGreaterThan(0);
+  });
+
+  test('⑬ /map 상가/사무실 카테고리 (?cat=retail_office)', async ({ request }) => {
+    const res = await request.get('/map?cat=retail_office');
+    expect(res.status()).toBe(200);
+  });
+
+  test('⑭ /signup/broker 안내 페이지 (I-AUTH-5)', async ({ request }) => {
+    const res = await request.get('/signup/broker');
+    expect(res.status()).toBe(200);
+    const text = await res.text();
+    expect(text).toContain('중개업체 가입 준비 중');
+  });
+
+  test('⑮ /signup 헤더 \'직원 / 운영자 회원가입\' (P3-3)', async ({ request }) => {
+    const res = await request.get('/signup');
+    expect(res.status()).toBe(200);
+    const text = await res.text();
+    expect(text).toContain('직원 / 운영자 회원가입');
+  });
+
+  test('⑯ /admin/users → /admin/command-center-v2 redirect (G-16)', async ({ request }) => {
+    const res = await request.get('/admin/users', { maxRedirects: 0 });
+    // SPA redirect: 200 (router.replace) 또는 302
+    expect([200, 302, 307]).toContain(res.status());
+  });
+
+  test('⑰ /api/auth/register 빈 body 400 응답 (입력 검증)', async ({ request }) => {
+    const res = await request.post('/api/auth/register', { data: {} });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.success).toBe(false);
+  });
+
+  test('⑱ /api/auth/register 비밀번호 8자 미만 — 클라 검증 (서버는 통과 OK)', async ({ request }) => {
+    const res = await request.post('/api/auth/register', {
+      data: {
+        name: 'Short',
+        email: `short_${Date.now()}@wishes-test.invalid`,
+        password: 'a',
+        phone: '010-0',
+        company: 'x',
+        reason: 'x',
+        requestedRole: 'broker',
+        acceptedTerms: true,
+        acceptedPrivacy: true,
+        acceptedMarketing: false,
+        termsVersion: 'v2026-04-28',
+        privacyVersion: 'v2026-04-28',
+      },
+    });
+    // 서버 = password.min(1) 통과. 클라 검증 (8자) 별도. 서버 200 또는 400 둘 다 허용.
+    expect([200, 400]).toContain(res.status());
+  });
+
+  test('⑲ /api/auth/register 약관 미동의 시 400 (PIPA)', async ({ request }) => {
+    const res = await request.post('/api/auth/register', {
+      data: {
+        name: 'NoConsent',
+        email: `noconsent_${Date.now()}@wishes-test.invalid`,
+        password: 'Password2026!',
+        acceptedTerms: false,
+        acceptedPrivacy: false,
+      },
+    });
+    expect(res.status()).toBe(400);
+    const body = await res.json();
+    expect(body.message).toContain('동의');
+  });
+
+  test('⑳ /admin/command-center-v2 진입 (G-16 통합 페이지)', async ({ request }) => {
+    const res = await request.get('/admin/command-center-v2');
+    expect([200, 302, 307]).toContain(res.status());
+  });
+
+  test('㉑ /api/admin/users?type=customer 비인증 = 401 (G-16-2)', async ({ request }) => {
+    const res = await request.get('/api/admin/users?type=customer');
+    expect(res.status()).toBe(401);
+  });
+
+  test('㉒ /calculator 페이지 정상 응답', async ({ request }) => {
+    const res = await request.get('/calculator');
+    expect(res.status()).toBe(200);
+  });
+
+  test('㉓ /contact 상담·매물접수 페이지', async ({ request }) => {
+    const res = await request.get('/contact');
+    expect(res.status()).toBe(200);
+  });
+
+  test('㉔ /listings/:id → /map?listing=:id 308 redirect (I-MAP-2)', async ({ request }) => {
+    const res = await request.get('/listings/45913', { maxRedirects: 0 });
+    expect(res.status()).toBe(308);
+    expect(res.headers()['location']).toBe('/map?listing=45913');
+  });
+
+  test('㉕ /api/auth/oauth-start/kakao 302 redirect to Kakao', async ({ request }) => {
+    const res = await request.get('/api/auth/oauth-start/kakao', { maxRedirects: 0 });
+    expect(res.status()).toBe(302);
+    expect(res.headers()['location']).toContain('kauth.kakao.com');
+  });
+
+  test('㉖ /api/auth/oauth-start/naver 302 redirect to Naver', async ({ request }) => {
+    const res = await request.get('/api/auth/oauth-start/naver', { maxRedirects: 0 });
+    expect(res.status()).toBe(302);
+    expect(res.headers()['location']).toContain('nid.naver.com');
+  });
+
+  test('㉗ /api/auth/oauth-start/google = 400 (Supabase native, oauth-start 미지원)', async ({ request }) => {
+    const res = await request.get('/api/auth/oauth-start/google');
+    expect(res.status()).toBe(400);
+  });
+
+  test('㉘ /api/health 정상', async ({ request }) => {
+    const res = await request.get('/api/health');
+    expect([200, 204]).toContain(res.status());
+  });
 });
