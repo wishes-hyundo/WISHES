@@ -217,18 +217,22 @@ function gridSizeForLevel(level: number): number {
   //         단지 사이 빈 공간에 표시 → 시각상 "균일 배치" 보임 (직방/네이버 ≠).
   //   수정: cellSize 약 1/3 ~ 1/2 로 축소 → 단지 단위 그룹 + centroid 가 단지 좌표에 가깝게.
   //   직방/네이버 z14 표준 ~200m grid (단지·빌딩 단위).
-  if (level <= 2) return 0;          // 가장 가까이 — 매물별 단독 (같은 좌표 자연 그룹)
-  if (level <= 3) return 0.00060;    // ~66m (인근 골목, 동일)
-  if (level <= 4) return 0.0010;     // ~110m (220m → 110m, 단지 단위)
-  if (level <= 5) return 0.0020;     // ~220m (440m → 220m)
-  if (level <= 6) return 0.0040;     // ~440m (1.1km → 440m, 단지 분리)
-  if (level <= 7) return 0.0080;     // ~880m (1.8km → 880m)
-  if (level <= 8) return 0.0140;     // ~1.5km (2.7km → 1.5km)
-  if (level <= 9) return 0.0220;     // ~2.4km (3.9km → 2.4km)
-  if (level <= 10) return 0.035;     // ~3.9km (5km → 3.9km)
-  if (level <= 11) return 0.050;     // ~5.5km
-  if (level <= 12) return 0.075;     // ~8.3km
-  return 0.110;                      // ~12km (level 13+ 전국 뷰)
+  // L-marker-noise-fix1 (사장님 명령 2026-05-02 — 화면 마커 빽빽 노이즈):
+  //   사장님 z16 캡처 100+ 매물 마커 시각 노이즈. cellSize 적정화로 그룹 강화.
+  //   네이버/직방 z16 표준 = 매물 5-10개 깔끔 (단지 단위).
+  //   기존 110m → 220m → 매물 4배 더 강하게 그룹.
+  if (level <= 2) return 0;          // z18+ 단독 (같은 좌표 자연 그룹)
+  if (level <= 3) return 0.0010;     // z17 ~110m (이전 66m → 110m)
+  if (level <= 4) return 0.0020;     // z16 ~220m (이전 110m → 220m, 핵심 fix)
+  if (level <= 5) return 0.0040;     // z15 ~440m (이전 220m → 440m)
+  if (level <= 6) return 0.0080;     // z14 ~880m (이전 440m → 880m)
+  if (level <= 7) return 0.0140;     // z13 ~1.5km
+  if (level <= 8) return 0.0220;     // z12 ~2.4km
+  if (level <= 9) return 0.035;      // z11 ~3.9km
+  if (level <= 10) return 0.050;     // z10 ~5.5km
+  if (level <= 11) return 0.075;     // z9 ~8.3km
+  if (level <= 12) return 0.110;     // z8 ~12km
+  return 0.180;                      // z7- ~20km (전국 뷰)
 }
 
 /** 카운트 표시 원 — 단일 매물이면 '1', 클러스터면 N.
