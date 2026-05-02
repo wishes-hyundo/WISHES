@@ -19,17 +19,33 @@ import { maskCoordinate } from '@/lib/coordinateMask';
 //   같은 단지명 → 같은 token → 클라이언트 cluster key 로 그룹 가능.
 //   다른 단지명 → 다른 token → cluster 분리 (다른 단지 매물 합쳐지지 않음).
 //   단지명 자체는 알 수 없어 privacy 보호. 16자리 hash 면 충돌 확률 무시 가능.
-function buildClusterToken(buildingName: string | null | undefined): string | null {
-  if (!buildingName) return null;
-  const norm = String(buildingName).replace(/\s+/g, ' ').trim();
-  if (!norm) return null;
-  // 간단 hash (FNV-1a 32bit) — privacy + cluster 용도엔 충분.
-  let h = 0x811c9dc5 >>> 0;
-  for (let i = 0; i < norm.length; i++) {
-    h ^= norm.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
+function buildClusterToken(
+  buildingName: string | null | undefined,
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+): string | null {
+  // 1) building_name 있으면 단지명 hash (정확) — 같은 단지 = 같은 token, 어디 좌표든 합쳐짐
+  if (buildingName) {
+    const norm = String(buildingName).replace(/\s+/g, ' ').trim();
+    if (norm) {
+      // 간단 hash (FNV-1a 32bit) — privacy + cluster 용도엔 충분.
+      let h = 0x811c9dc5 >>> 0;
+      for (let i = 0; i < norm.length; i++) {
+        h ^= norm.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+      }
+      return 'b' + h.toString(36).padStart(7, '0');
+    }
   }
-  return h.toString(36).padStart(7, '0');
+  // 2) M-1 fallback (사장님 명령 2026-05-02 — z16 신림동 마커 미합침 fix):
+  //    building_name 없는 매물(원룸/빌라/단독 등 12%) 도 cluster 가능하게 —
+  //    같은 좌표(110m 마스킹 후) 매물 자동 같은 token. 사용자 시각:
+  //    "같은 위치인데 왜 따로 보이냐" → 합쳐서 1 마커 "이 위치에 N개" 로 표시.
+  if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
+    // 3자리 round = ~110m precision (I-COORD-1 마스킹과 일치)
+    return 'c' + lat.toFixed(3) + '_' + lng.toFixed(3);
+  }
+  return null;
 }
 import type { DealType, MapListing } from '@/features/map-2026/store';
 
@@ -588,7 +604,7 @@ export async function GET(req: NextRequest) {
           return c ? c.lng : null;
         })(),
         // L-cluster-token1: 비로그인에도 단지 그룹화 가능 (이름은 가림, hash 만)
-        cluster_token: buildClusterToken(r.building_name as string | null | undefined),
+        cluster_token: buildClusterToken(r.building_name as string | null | undefined, lat, lng),
         dong: r.dong ?? null,
         // L-adminpoly3 (2026-04-24 pm): 행정구역 폴리곤 카운트 집계용 주소 노출.
         //   PUBLIC_LISTING_COLUMNS 화이트리스트에 있는 공개 필드.

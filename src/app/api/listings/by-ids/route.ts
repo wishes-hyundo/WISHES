@@ -17,16 +17,28 @@ import { isSelfHostedImage } from '@/lib/image-policy';
 // L-listing-byids-mask1 (2026-05-02): 비로그인 110m 마스킹 (다른 listing endpoint 와 일관)
 import { maskCoordinate } from '@/lib/coordinateMask';
 // L-cluster-token1 (사장님 명령 2026-05-02) — viewport 와 동일 정의.
-function buildClusterToken(buildingName: string | null | undefined): string | null {
-  if (!buildingName) return null;
-  const norm = String(buildingName).replace(/\s+/g, ' ').trim();
-  if (!norm) return null;
-  let h = 0x811c9dc5 >>> 0;
-  for (let i = 0; i < norm.length; i++) {
-    h ^= norm.charCodeAt(i);
-    h = Math.imul(h, 0x01000193) >>> 0;
+function buildClusterToken(
+  buildingName: string | null | undefined,
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+): string | null {
+  // M-1 (사장님 명령 2026-05-02 — z16 신림동 마커 미합침 fix):
+  //   building_name 있으면 단지명 hash, 없으면 좌표 fallback 으로 같은 좌표 매물 cluster.
+  if (buildingName) {
+    const norm = String(buildingName).replace(/\s+/g, ' ').trim();
+    if (norm) {
+      let h = 0x811c9dc5 >>> 0;
+      for (let i = 0; i < norm.length; i++) {
+        h ^= norm.charCodeAt(i);
+        h = Math.imul(h, 0x01000193) >>> 0;
+      }
+      return 'b' + h.toString(36).padStart(7, '0');
+    }
   }
-  return h.toString(36).padStart(7, '0');
+  if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
+    return 'c' + lat.toFixed(3) + '_' + lng.toFixed(3);
+  }
+  return null;
 }
 import type { MapListing } from '@/features/map-2026/store';
 
@@ -111,7 +123,7 @@ export async function GET(request: NextRequest) {
         built_year: (r.built_year as string | null) ?? null,
         building_name: authed ? ((r.building_name as string | null) ?? null) : null,
         // L-cluster-token1: 비로그인 단지 그룹화 가능 (이름 가림, hash 만)
-        cluster_token: buildClusterToken(r.building_name as string | null | undefined),
+        cluster_token: buildClusterToken(r.building_name as string | null | undefined, lat, lng),
         dong: dong ?? null,
         address: (r.address as string | null) ?? null,
         title: authed
