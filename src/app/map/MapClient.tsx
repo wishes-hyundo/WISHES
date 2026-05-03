@@ -792,9 +792,10 @@ function MapOverlaysWithClusters(props: {
           컴포넌트 자체는 mount 상태 → Wave 26 의 회귀 (WebGL 동시 사라짐) 회피.
           영구 freeze 해결 시도 #2.
           롤백: listings={[]} 를 listings={props.listings} 로 변경 (1줄). */}
+      {/* Wave 26.3 (2026-05-04): props.listings 복원 - hypothesis 2 도 실패. */}
       <HtmlMarkerOverlay
         map={props.kakaoMap}
-        listings={[]}
+        listings={props.listings}
         selectedListingId={props.selectedListingId}
         category={props.category}
         onClickListing={props.onClickListing}
