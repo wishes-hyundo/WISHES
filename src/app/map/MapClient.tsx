@@ -786,19 +786,22 @@ function MapOverlaysWithClusters(props: {
           모든 인터랙션 (cluster click / spider-fy / individual click) 은 KakaoDeckOverlay
           (Wave 24~25c) 가 담당. 코드 자체는 Wave 27 까지 유지 — 1주일 안정화 후 삭제.
           롤백 필요 시: 이 분기를 false → true 로 변경 후 재배포 (1분). */}
-      {/* Wave 26.1 (2026-05-04): WebGL 단독 모드에서 마커 0 회귀 발견 - DOM 복원 (true). WebGL 의존성 분석 별도 진행. */}
-      {true ? (
-        <HtmlMarkerOverlay
-          map={props.kakaoMap}
-          listings={props.listings}
-          selectedListingId={props.selectedListingId}
-          category={props.category}
-          onClickListing={props.onClickListing}
-          onClusterFilter={props.onClusterFilter}
-          clusterFilterIds={props.clusterFilterIds}
-          clusterFilterListings={props.clusterFilterListings}
-        />
-      ) : null}
+      {/* Wave 26.2 (2026-05-04 사장님 명령): HtmlMarkerOverlay 컴포넌트는 mount 유지 (Kakao map
+          idle/zoom event listener 등록 유지 — KakaoDeckOverlay 의 redraw 사이클 의존성 보존).
+          listings={[]} 만 전달 → bucketListings([]) → 마커 0개 생성. DOM 마커 사라지지만
+          컴포넌트 자체는 mount 상태 → Wave 26 의 회귀 (WebGL 동시 사라짐) 회피.
+          영구 freeze 해결 시도 #2.
+          롤백: listings={[]} 를 listings={props.listings} 로 변경 (1줄). */}
+      <HtmlMarkerOverlay
+        map={props.kakaoMap}
+        listings={[]}
+        selectedListingId={props.selectedListingId}
+        category={props.category}
+        onClickListing={props.onClickListing}
+        onClusterFilter={props.onClusterFilter}
+        clusterFilterIds={props.clusterFilterIds}
+        clusterFilterListings={props.clusterFilterListings}
+      />
       <MapErrorBoundary>
         <AdminRegionOverlay
           map={props.kakaoMap}
