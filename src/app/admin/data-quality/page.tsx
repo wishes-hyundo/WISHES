@@ -51,7 +51,7 @@ export default function DataQualityPage() {
       }
     })();
     return () => { cancel = true; };
-  }, []);
+  }, [token]);
 
   const wrap: React.CSSProperties = {
     maxWidth: 1100,
