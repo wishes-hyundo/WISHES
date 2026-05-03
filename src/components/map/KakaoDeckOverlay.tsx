@@ -32,7 +32,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import type { Deck } from '@deck.gl/core';
 import { ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 
@@ -141,11 +141,6 @@ export default function KakaoDeckOverlay({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const deckRef = useRef<Deck | null>(null);
-  // Wave 26.6 (2026-05-04 사장님 명령): deck.gl 비동기 init 완료 신호.
-  //   원인: useEffect #1 (deck init) 가 async — useEffect #2 (layer build) 가 mount
-  //   직후 실행될 때 deckRef.current 가 null → early return → layer 0개 → WebGL invisible.
-  //   fix: init 완료 시 setDeckReady(true) → useEffect #2 deps 에 deckReady → 자동 재실행.
-  const [deckReady, setDeckReady] = useState(false);
 
   // 지도 mount 후 캔버스 + Deck 생성
   useEffect(() => {
@@ -220,8 +215,6 @@ export default function KakaoDeckOverlay({
           },
         });
         deckRef.current = deck;
-        // Wave 26.6: 초기화 완료 신호 → useEffect #2 (layer build) 자동 trigger.
-        if (!disposed) setDeckReady(true);
       } catch (e) {
         if (typeof console !== 'undefined') {
           console.warn('[KakaoDeckOverlay] WebGL 초기화 실패 → 카카오맵 2D 만 표시합니다:', e);
@@ -237,7 +230,6 @@ export default function KakaoDeckOverlay({
       ro?.disconnect();
       deck?.finalize();
       deckRef.current = null;
-      setDeckReady(false);
       if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
     };
   }, [map, containerProp]);
@@ -472,7 +464,7 @@ export default function KakaoDeckOverlay({
         try { kakaoEvent.removeListener(map, 'center_changed', scheduleSync); } catch { /* noop */ }
       }
     };
-  }, [map, containerProp, clusters, items, colorScale, onClickCluster, onClickListing, deckReady]);
+  }, [map, containerProp, clusters, items, colorScale, onClickCluster, onClickListing]);
 
   // pointer-events: auto 처리 — 클러스터/매물 클릭은 받고 싶지만 팬은 지도로 넘긴다.
   // Deck.gl 은 canvas pointer-events: none 이어도 onClick 동작 X → 동적 토글 전략 사용.
