@@ -10,7 +10,12 @@
 
 'use client';
 
+// G-26 fix (2026-05-03): adminFetch + useAdminSession 으로 인증 토큰 자동 첨부.
+//   기존 fetch + credentials:'include' 만으로는 ws_session cookie 없을 시 401.
+
 import { useEffect, useState } from 'react';
+import { useAdminSession } from '@/lib/useAdminSession';
+import { adminFetch } from '@/lib/adminFetch';
 import Link from 'next/link';
 
 interface ViolationListing {
@@ -40,11 +45,15 @@ export default function ViolationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { token } = useAdminSession('/admin/violations');
+
   useEffect(() => {
+    if (!token) return;
     let cancel = false;
     (async () => {
       try {
-        const res = await fetch('/api/admin/violations?limit=200', {
+        const res = await adminFetch('/api/admin/violations?limit=200', {
+          headers: { Authorization: `Bearer ${token}` },
           credentials: 'include',
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -64,7 +73,7 @@ export default function ViolationsPage() {
     return () => {
       cancel = true;
     };
-  }, []);
+  }, [token]);
 
   const wrap: React.CSSProperties = {
     maxWidth: 1200,

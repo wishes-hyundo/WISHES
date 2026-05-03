@@ -6,7 +6,11 @@
  */
 'use client';
 
+// G-27 fix (2026-05-03): adminFetch + useAdminSession 으로 인증 토큰 자동 첨부.
+
 import { useEffect, useState } from 'react';
+import { useAdminSession } from '@/lib/useAdminSession';
+import { adminFetch } from '@/lib/adminFetch';
 
 interface QualityStats {
   total: number;
@@ -22,11 +26,15 @@ export default function DataQualityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { token } = useAdminSession('/admin/data-quality');
+
   useEffect(() => {
+    if (!token) return;
     let cancel = false;
     (async () => {
       try {
-        const res = await fetch('/api/admin/data-quality-stats', {
+        const res = await adminFetch('/api/admin/data-quality-stats', {
+          headers: { Authorization: `Bearer ${token}` },
           credentials: 'include',
         });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
