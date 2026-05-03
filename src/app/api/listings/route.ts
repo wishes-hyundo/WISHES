@@ -7,7 +7,27 @@ import { createClient, createServerClient } from '@/lib/supabase';
 import { cached, invalidateCache } from '@/lib/cache';
 import { applyImagePolicy } from '@/lib/image-policy';
 import { stripInternalFieldsArray, sanitizePublicListing } from '@/lib/listing-public';
+// G-121 (2026-05-04 사장님): /api/listings 응답 title 호수 leak 차단.
+import { maskAddressForPublic } from '@/lib/publicAddress';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+
+// G-121: 비로그인 사용자에게 title/address 호수까지 leak 차단.
+//   API 가 isAuthenticated 판단 어려운 경우 (Authorization 헤더 없는 모든 호출 포함)
+//   기본적으로 anon 으로 간주하고 마스킹.  로그인 동선이 필요하면 Authorization
+//   헤더 첨부하여 별도 분기.  현재 routes 에서 일관되게 적용.
+function maskListingTitleAddress(rows: any[], isAnon: boolean): any[] {
+  if (!isAnon) return rows;
+  return rows.map((r) => {
+    const dong = r.dong as string | undefined;
+    return {
+      ...r,
+      building_name: null,
+      title: r.title ? maskAddressForPublic(r.title, dong) : (dong ?? null),
+      address: r.address ? maskAddressForPublic(r.address, dong) : (dong ?? null),
+    };
+  });
+}
+
 
 /**
  * 매물 목록 조회
@@ -74,7 +94,10 @@ export async function GET(request: NextRequest) {
       //   - 크롤링 매물의 외부 원본 이미지는 차단
       //   - 중개사가 직접 올린 자체 업로드 이미지(wishes.co.kr, supabase, R2)는 통과
       // L-sec64: embedding/dedup_* 제거
-      const sanitized = stripInternalFieldsArray((data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r))));
+      const sanitized = maskListingTitleAddress(
+        stripInternalFieldsArray((data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r)))),
+        true,
+      );
 
       return NextResponse.json({
         success: true,
@@ -103,7 +126,10 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ success: false, error: '매물 조회에 실패했습니다' }, { status: 500 });
       }
       // L-sec64: embedding/dedup_* 제거
-      const sanitized = stripInternalFieldsArray((data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r))));
+      const sanitized = maskListingTitleAddress(
+        stripInternalFieldsArray((data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r)))),
+        true,
+      );
       return NextResponse.json({
         success: true,
         data: sanitized,
@@ -146,7 +172,10 @@ export async function GET(request: NextRequest) {
             { status: 500 },
           );
         }
-        const sanitized = (data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r)));
+        const sanitized = maskListingTitleAddress(
+        (data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r))),
+        true,
+      );
         return NextResponse.json({ success: true, data: sanitized, listings: sanitized, total: sanitized.length });
       }
 
@@ -180,7 +209,10 @@ export async function GET(request: NextRequest) {
           { status: 500 },
         );
       }
-      const sanitized = (data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r)));
+      const sanitized = maskListingTitleAddress(
+        (data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r))),
+        true,
+      );
       return NextResponse.json({
         success: true,
         data: sanitized,
@@ -264,7 +296,10 @@ export async function GET(request: NextRequest) {
         //   - 크롤링 매물의 외부 원본 이미지는 차단
         //   - 중개사가 직접 올린 자체 업로드 이미지는 통과 (광고 노출)
         // L-sec64: embedding/dedup_* 제거
-        const sanitized = stripInternalFieldsArray((data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r))));
+        const sanitized = maskListingTitleAddress(
+        stripInternalFieldsArray((data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r)))),
+        true,
+      );
 
         return { data: sanitized, total: count || 0 };
       },
