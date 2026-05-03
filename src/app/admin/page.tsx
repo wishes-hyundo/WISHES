@@ -159,6 +159,16 @@ export default function AdminPage() {
     try {
       // 1) Supabase JWT (admin-auth.html 로그인 후 저장)
       savedToken = sessionStorage.getItem('ws_token');
+      // G-35 fix (2026-05-03): admin layout 가 localStorage→sessionStorage 동기화하지만
+      //   /admin/page.tsx 가 layout 보다 먼저 실행되거나 레이아웃이 다른 탭에서 sessionStorage
+      //   초기화 후 이 탭만 localStorage 보유 시 redirect 됨. localStorage fallback 추가.
+      if (!savedToken) {
+        const lsTok = localStorage.getItem('ws_token');
+        if (lsTok) {
+          try { sessionStorage.setItem('ws_token', lsTok); } catch {}
+          savedToken = lsTok;
+        }
+      }
       // 2) 레거시 마스터 패스워드 fallback (과거 세션 유지용, Phase 3c 에서 제거)
       if (!savedToken) {
         savedToken = sessionStorage.getItem('admin_password');
