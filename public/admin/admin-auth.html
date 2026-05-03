@@ -1087,8 +1087,23 @@
                     <button type="submit" class="btn" aria-label="로그인 버튼" style="margin-top: 20px;">로그인</button>
                 </form>
 
+                <!-- G-103 (2026-05-04): 소셜 로그인 (Google/Kakao/Naver). G-14 fix 가 이전엔 누락됐던 결함.
+                     oauth-start 경유로 G-91 OAuth state CSRF cookie 검증 호환. -->
+                <div style="display: flex; align-items: center; gap: 8px; margin: 18px 0 12px;">
+                    <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.15);"></div>
+                    <span style="font-size: 11px; color: var(--text-lighter);">또는</span>
+                    <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.15);"></div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <a href="/api/auth/oauth-start/kakao?target=/admin/" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; background: #FEE500; color: #191919; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none;" aria-label="카카오로 로그인">카카오로 로그인</a>
+                    <a href="/api/auth/oauth-start/naver?target=/admin/" style="display: flex; align-items: center; justify-content: center; gap: 8px; height: 42px; background: #03C75A; color: #fff; border-radius: 8px; font-size: 13px; font-weight: 600; text-decoration: none;" aria-label="네이버로 로그인">네이버로 로그인</a>
+                </div>
+
                 <p style="text-align: center; font-size: 13px; color: var(--text-lighter); margin-top: 16px;">
                     아직 계정이 없으신가요? <button type="button" class="link" onclick="switchTab('register')" style="border: none; background: none; padding: 0; cursor: pointer; font-size: 13px;">가입하기</button>
+                </p>
+                <p style="text-align: center; font-size: 12px; margin-top: 6px;">
+                    <a href="/forgot-password" style="color: var(--text-lighter); text-decoration: underline;">비밀번호 찾기</a>
                 </p>
             </div>
 
