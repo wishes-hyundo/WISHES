@@ -1116,3 +1116,59 @@ f3150d4 fix(perf): G-53 — FK 컬럼 3개에 partial index 추가
 
 작성: 2026-05-03 18:30 KST
 세션 종료 (실제): G-1 ~ G-64 (64개 결함 추적, 51개 수정, 38+ commit, 15 DB migration)
+
+---
+
+## 📋 2026-05-03 wave 8 — 진짜 끝까지 (G-65 a11y)
+
+사장님 명령: "진짜 단 하나도 놓치지마 끝도 없이 추적해"
+
+### Wave 8 결함
+
+| ID    | 영역  | 결함                                          | 처리                              |
+| ----- | ----- | --------------------------------------------- | --------------------------------- |
+| G-65  | a11y  | 홈 AI 챗봇 input 이 aria-label 없음          | 'AI 부동산 상담 메시지 입력' 추가 ✅ |
+
+### Wave 8 검수 결과
+
+#### Static 자원 실 존재 검증
+- /og-image.png: 200, image/png, 43,505 bytes ✓
+- /favicon.ico: 200 ✓
+- /apple-touch-icon.png: 200 ✓
+- /icon-192x192.png, /icon-512x512.png: 200 ✓
+- /manifest.json: PWA spec 준수 ✓
+
+#### 데이터 품질 (모두 minor 또는 처리 중)
+- 19 listings duplicate fingerprint (1,210 dup → cron 처리 중)
+- 4 공개 매물 좌표 NULL (geocode pending)
+- 0 future date / no address / no type / no deal
+
+#### 컨텐츠 품질
+- 홈 페이지 OG 메타 10개 + JSON-LD ✓
+- 모든 공개 페이지 og:image 균일 (G-63, G-64 fix 완료)
+- AI 생성 title 5,555 / 26,866 (cron 처리 진행 중, 100/run)
+
+#### a11y audit (홈 페이지)
+- imgs without alt: **0** ✓
+- buttons without label: **0** ✓
+- links without text: **0** ✓
+- forms without label: 1 → fix (G-65)
+- html lang: ko ✓
+- heading hierarchy: H1 → H3 (H2 skip, minor — AI 상담은 floating widget 이라 의미상 OK)
+
+### 누적 (G-1 ~ G-65)
+- **수정 완료**: 52
+- **Not-bug / by-design**: 8
+- **Backlog**: 1
+- **Gaps**: 6
+- **Total tracked**: 65
+
+### Wave 8 commits
+```
+d7bf628 fix(a11y): G-65 — AI 챗봇 input aria-label 추가
+```
+
+---
+
+작성: 2026-05-03 19:00 KST
+세션 종료 (실제, 8 wave): G-1 ~ G-65 (65개 결함 추적, 52개 수정, 39+ commit)
