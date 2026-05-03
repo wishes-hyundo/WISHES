@@ -752,3 +752,69 @@ c76707d fix(admin): G-29+G-30 — government-prices, enrichment-progress, onhous
 작성: 2026-05-03 16:00 KST
 세션: G-1 ~ G-52 (52개 결함 추적, 41개 수정, 22+ commit)
 다음: 어드민 페이지 detail 검수 (admin login 후) 또는 사장님 다음 명령
+
+---
+
+## 📋 2026-05-03 wave 3 — G-53~G-58 DB 깊은 침투 검수
+
+사장님 명령: "단 하나도 빠짐없이 전부다 깊게 더 깊게 침투해서 문제점 찾아서 수정해"
+
+### Wave 3 결함 (G-53~G-58, 6개)
+
+| ID    | 영역      | 결함                                                       | 처리                                |
+| ----- | --------- | ---------------------------------------------------------- | ----------------------------------- |
+| G-53  | perf      | FK 컬럼 3개에 index 누락 (appointments.contact_id, contacts.listing_id, listings.problematic_marked_by) | partial index 3개 추가 ✅           |
+| G-54  | perf      | 중복 btree index 4개 (favorites x2, admin_users, audit_log) | DROP ✅                             |
+| G-55  | RLS       | listing_raw_html / listings_map_diff USING(true) — 검증 결과 polroles=service_role 로 차단 | not-bug ✅                          |
+| G-56  | **CRITICAL** | listing_features 의 USING(true) 정책이 G-45 fix 무력화 (anon 가 비공개 매물 features 도 노출 가능) | 오래된 USING(true) 정책 DROP ✅     |
+| G-57  | 보안      | RLS 정책 4개 ('wishes@wishes.co.kr' 하드코드) — info_requests x2, registry_raw, reports | is_admin_or_above() helper 로 통일 ✅ |
+| G-58  | perf      | push_subscriptions 중복 정책 (delete x2, select x2)        | _owner_* 2개 DROP ✅                |
+
+### Wave 3 commits
+
+```
+76d67ac fix(perf): G-58 — push_subscriptions 중복 RLS 정책 DROP
+896be27 fix(security): G-57 — RLS 사장님 이메일 하드코드 → is_admin_or_above()
+aa14fc4 fix(security): G-56 — listing_features USING(true) 정책 DROP (G-45 무력화)
+f228dcf fix(perf): G-54 — 중복 btree index 4개 DROP
+f3150d4 fix(perf): G-53 — FK 컬럼 3개에 partial index 추가
+```
+
+### DB 마이그레이션 추가 (Wave 3, 5개)
+
+1. `20260503_add_missing_fk_indexes.sql` (G-53)
+2. `20260503_drop_duplicate_indexes.sql` (G-54)
+3. `20260503_drop_redundant_listing_features_policy.sql` (G-56)
+4. `20260503_replace_hardcoded_admin_email_policies.sql` (G-57)
+5. `20260503_drop_duplicate_push_sub_policies.sql` (G-58)
+
+### 누적 합계 (G-1 ~ G-58)
+- **수정 완료**: 46 (이전 41 + Wave 3 5 fix)
+- **Not-bug / by-design**: 7 (G-7, G-19, G-28, G-36, G-43, G-51, G-55)
+- **Backlog**: 1 (G-32 search perf)
+- **Gaps**: 6
+- **Total tracked**: 58
+
+### 시스템 무결성 (Wave 3 후)
+- auth.users / admin_users / profiles: 13 / 13 / **0** (mismatch=0)
+- I-AUTH-1: 100% 준수
+- '가용' RLS 잔여: 0
+- 사장님 이메일 하드코드 정책: **0**
+- FK without index: **0**
+- 공개 매물: 26,866
+- 모든 admin 페이지 200 OK + 사진 노출
+- DB 마이그레이션 13개 (Wave 1+2+3) 모두 prod 적용
+
+### 검수한 영역 (Wave 3 추가)
+- DB orphan rows (8 종 검증) — 0
+- FK 누락 인덱스 — 3개 발견 fix
+- 중복 인덱스 — 4개 발견 DROP
+- RLS 정책 36 개 전수 검증 — 6개 issue 발견 fix
+- 데이터 무결성 (negative price, area 0 등) — 0
+- 모든 테이블 RLS enabled (spatial_ref_sys 제외, PostGIS 시스템)
+- PRIMARY KEY 누락 — 0
+
+---
+
+작성: 2026-05-03 16:30 KST
+세션: G-1 ~ G-58 (58개 결함 추적, 46개 수정, 27+ commit, 13 DB migration)
