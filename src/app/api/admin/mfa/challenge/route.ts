@@ -18,10 +18,20 @@ import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { signChallenge } from '@/lib/mfaChallenge';
 
 // 14일 grace — 이 기간 안에는 mfa 미등록도 통과시킨다 (setup 유도 배너)
+//
+// G-66 (2026-05-03): MFA backend 5 endpoint 존재하지만 client UI 미구현 상태.
+// 따라서 MFA_HARD_CUTOFF_ISO 를 prod 에 설정하면 admin 전원 lockout 위험.
+// UI 구현 전까지 env 미설정 + cold-start 마다 14일 재충전 (실질 무기한 grace).
+// /admin/mfa/setup 페이지 + admin layout 내 /challenge 호출 추가 필요.
 const GRACE_PERIOD_MS = 14 * 24 * 60 * 60_000;
 const MFA_HARD_CUTOFF = process.env.MFA_HARD_CUTOFF_ISO
   ? new Date(process.env.MFA_HARD_CUTOFF_ISO).getTime()
   : Date.now() + GRACE_PERIOD_MS;
+
+if (process.env.MFA_HARD_CUTOFF_ISO && process.env.NODE_ENV === 'production') {
+  // G-66 safety: env 설정됨에도 client UI 가 미구현이라면 배포 시 admin lockout.
+  console.warn('[MFA G-66] MFA_HARD_CUTOFF_ISO set but client UI not implemented yet. Admins may be locked out.');
+}
 
 export async function POST(request: NextRequest) {
   try {
