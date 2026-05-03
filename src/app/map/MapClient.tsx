@@ -786,7 +786,8 @@ function MapOverlaysWithClusters(props: {
           모든 인터랙션 (cluster click / spider-fy / individual click) 은 KakaoDeckOverlay
           (Wave 24~25c) 가 담당. 코드 자체는 Wave 27 까지 유지 — 1주일 안정화 후 삭제.
           롤백 필요 시: 이 분기를 false → true 로 변경 후 재배포 (1분). */}
-      {false ? (
+      {/* Wave 26.1 (2026-05-04): WebGL 단독 모드에서 마커 0 회귀 발견 - DOM 복원 (true). WebGL 의존성 분석 별도 진행. */}
+      {true ? (
         <HtmlMarkerOverlay
           map={props.kakaoMap}
           listings={props.listings}
