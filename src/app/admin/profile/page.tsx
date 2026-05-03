@@ -11,8 +11,9 @@
 //   - 공인중개사 등록번호, 경력(년차)
 //
 // 의존성:
-//   - GET /api/profile (본인 프로필 조회)
-//   - PUT /api/profile (본인 프로필 수정; L-agent-profile 필드 포함)
+//   - GET /api/admin/profile (본인 admin_users 행 조회) — G-37 분리
+//   - PUT /api/admin/profile (본인 admin_users 행 수정)
+//   - 과거에는 /api/profile (profiles 테이블) 호출 → I-AUTH-1 위반.
 //   - POST /api/admin/upload (avatar 파일 → R2 → URL 획득)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -58,7 +59,7 @@ export default function AgentProfilePage() {
     if (!token) return;
     (async () => {
       try {
-        const r = await adminFetch('/api/profile', { headers: { ...authHeader() } });
+        const r = await adminFetch('/api/admin/profile', { headers: { ...authHeader() } });
         if (!r.ok) { setLoading(false); return; }
         const data = await r.json();
         setForm({
@@ -66,7 +67,8 @@ export default function AgentProfilePage() {
           name: data.name || '',
           phone: data.phone || '',
           avatar_url: data.avatar_url || null,
-          office_name: data.office_name || '',
+          // G-37: admin_users.company 가 사무소명으로 표시되도록 매핑.
+          office_name: data.office_name || data.company || '',
           office_phone: data.office_phone || '',
           office_address: data.office_address || '',
           registration_no: data.registration_no || '',
@@ -113,17 +115,18 @@ export default function AgentProfilePage() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // G-37: admin_users 에 저장. office_name → company 매핑.
       const payload = {
         name: form.name,
         phone: form.phone,
         avatar_url: form.avatar_url,
-        office_name: form.office_name || null,
+        company: form.office_name || null,
         office_phone: form.office_phone || null,
         office_address: form.office_address || null,
         registration_no: form.registration_no || null,
         career_years: form.career_years,
       };
-      const r = await adminFetch('/api/profile', {
+      const r = await adminFetch('/api/admin/profile', {
         method: 'PUT',
         headers: { ...authHeader(), 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
