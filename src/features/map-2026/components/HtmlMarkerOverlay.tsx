@@ -18,7 +18,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { MapListing, PropertyCategory } from '@/features/map-2026/store';
-import { bucketListings, listingCategory } from '@/features/map-2026/lib/markerTier';
+import { bucketListings, listingCategory, listingCategoryOf } from '@/features/map-2026/lib/markerTier';
 import { kakaoFlyTo } from '@/features/map-2026/lib/cinematicMotion';
 
 // ── 컬러 토큰 ──────────────────────────────────────────────────────
@@ -602,7 +602,8 @@ export default function HtmlMarkerOverlay({
         || !!(clusterFilterListings && clusterFilterListings.length > 0);
       const filtered = (category === 'investment' || isClusterFilterActive)
         ? visibleListings
-        : visibleListings.filter((l) => listingCategory(l.type) === category);
+        // G-122 (2026-05-04): cross-residential 매물 포함 (서버 정렬)
+        : visibleListings.filter((l) => listingCategoryOf(l) === category);
       if (filtered.length === 0) return;
 
       // L-naver-2026gridcluster1 (2026-04-26): 네이버 부동산 정확 매칭.
@@ -832,7 +833,7 @@ export default function HtmlMarkerOverlay({
         if (category === 'investment') {
           const counts: Record<string, number> = {};
           for (const l of arr) {
-            const c = listingCategory(l.type);
+            const c = listingCategoryOf(l);
             counts[c] = (counts[c] ?? 0) + 1;
           }
           let max = 0;

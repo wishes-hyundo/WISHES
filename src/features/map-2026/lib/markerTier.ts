@@ -50,13 +50,41 @@ const RETAIL_OFFICE_TYPES = new Set<string>([
   '상가', '사무실', '지식산업센터', '복합건물', '상가주택', '사무용', '오피스', '점포', '근생',
 ]);
 
+// G-122 (2026-05-04 사장님): cross-residential 매물 = 실사용 주거 (cluster RPC viewport 정렬).
+//   서버 categoryToTypeFilter('residence') 가 사무실/근린/학원 area_m2 < 50㎡ 도
+//   주거에 포함시키므로 클라도 동일 logic 으로 분류해야 panel/마커 일치.
+const CROSS_RESIDENTIAL_TYPE_PATTERNS = ['사무실', '근린', '학원'] as const;
+const CROSS_RESIDENTIAL_MAX_AREA = 50;
+
+function isCrossResidential(type: string, areaM2: number | null | undefined): boolean {
+  if (!type) return false;
+  if (areaM2 == null || areaM2 >= CROSS_RESIDENTIAL_MAX_AREA) return false;
+  return CROSS_RESIDENTIAL_TYPE_PATTERNS.some((p) => type.includes(p));
+}
+
+/**
+ * type 만 보는 simple 분류 (legacy 시그니처 호환).
+ * 가능하면 listingCategoryOf(listing) 을 사용해 cross-residential 처리하기.
+ */
 export function listingCategory(type: string | null | undefined): PropertyCategory {
   const t = (type ?? '').trim();
   if (!t) return 'residence';
   if (LAND_TYPES.has(t)) return 'land';
   if (RETAIL_OFFICE_TYPES.has(t)) return 'retail_office';
-  // 'investment' 는 cross-cutting 라벨 — type 으로 결정되지 않고 상위 로직에서
-  // 탭 선택 시 카테고리 필터를 완전히 해제하는 방식으로 처리한다.
+  return 'residence';
+}
+
+/**
+ * G-122: listing object 전체를 받아 cross-residential 도 'residence' 로 분류.
+ *   서버 categoryToTypeFilter 와 동일 logic — 클라/서버 카운트 일치 보장.
+ */
+export function listingCategoryOf(listing: { type?: string | null; area_m2?: number | null }): PropertyCategory {
+  const t = (listing.type ?? '').trim();
+  if (!t) return 'residence';
+  if (LAND_TYPES.has(t)) return 'land';
+  // cross-residential: 사무실/근린/학원 + area_m2 < 50 → residence (서버 정렬)
+  if (isCrossResidential(t, listing.area_m2)) return 'residence';
+  if (RETAIL_OFFICE_TYPES.has(t)) return 'retail_office';
   return 'residence';
 }
 

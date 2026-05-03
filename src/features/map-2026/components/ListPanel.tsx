@@ -22,7 +22,7 @@ import { MapPin, Video, X } from "lucide-react";
 import { useMap2026Store, type MapListing, type SortKey } from '../store';
 import { formatDealLabel, formatArea } from '../lib/priceFormat';
 import { buildListingBadges } from '../lib/buildAgeBadge';
-import { listingCategory } from '../lib/markerTier';
+import { listingCategory, listingCategoryOf } from '../lib/markerTier';
 import { SortMenu } from './SortMenu';
 
 // 층 포맷: "3" → "3/8층" (floor_total 있으면) / "3층"
@@ -158,7 +158,8 @@ export function ListPanel() {
     // 카테고리 필터 적용 (investment 는 cross-cutting → 미적용 / cluster filter 시도 미적용)
     const catFiltered = (filterCategory === 'investment' || isClusterFilterActive)
       ? baseList
-      : baseList.filter((l) => listingCategory(l.type) === filterCategory);
+      // G-122 (2026-05-04): listingCategoryOf 로 cross-residential (사무실/근린/학원 < 50㎡) 도 residence 분류 — 서버 정렬.
+      : baseList.filter((l) => listingCategoryOf(l) === filterCategory);
 
     // L-naver-2026clientvalidation1 (2026-04-27): BoB 이중 방어선 — 매 매물 100% 검증.
     //   서버 query 의 데이터 무결성 누락을 클라이언트가 강제 차단.
