@@ -139,11 +139,15 @@ async function fetchTagoExitsForStation(
 }
 
 export async function GET(request: NextRequest) {
+  // G-86 (2026-05-04): fail-safe — CRON_SECRET 미설정이면 500 (이전엔 fail-open)
   const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  }
   const auth = request.headers.get('authorization') || '';
-  const isUserSecret = !!cronSecret && auth === `Bearer ${cronSecret}`;
+  const isUserSecret = auth === `Bearer ${cronSecret}`;
   const isVercelCron = request.headers.get('x-vercel-cron') === '1';
-  if (cronSecret && !isUserSecret && !isVercelCron) {
+  if (!isUserSecret && !isVercelCron) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
