@@ -10,10 +10,14 @@ export const maxDuration = 60;
 const KAKAO_KEY = process.env.KAKAO_REST_API_KEY || '';
 
 export async function GET(request: NextRequest) {
+  // G-73 (2026-05-03): fail-safe — CRON_SECRET 미설정이면 500 (이전엔 무인증 통과)
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const auth = request.headers.get('authorization') || '';
-    if (auth !== `Bearer ${cronSecret}`) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  }
+  const auth = (request.headers.get('authorization') || '');
+  if (auth !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   if (!KAKAO_KEY) return NextResponse.json({ error: 'KAKAO_REST_API_KEY 미설정' }, { status: 500 });
 
