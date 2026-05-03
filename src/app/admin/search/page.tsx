@@ -96,13 +96,20 @@ export default function SearchPage() {
   const perPage = 20;
 
   useEffect(() => {
+    // G-79 (2026-05-03): AbortController 추가 — unmount 시 stale state 업데이트 방지.
+    //   기존엔 cancelled 플래그 / AbortController 없어 빠르게 페이지 이탈 시 React warning.
+    //   장기적으로는 서버 페이지네이션 으로 refactor 필요 (G-32 backlog).
+    const ctrl = new AbortController();
+    let cancelled = false;
     async function load() {
       setLoading(true);
       try {
         const all: Listing[] = [];
         for (let off = 0; off < 20000; off += 1000) {
-          const r = await fetch('/api/listings?limit=1000&offset='+off);
+          if (cancelled) return;
+          const r = await fetch('/api/listings?limit=1000&offset='+off, { signal: ctrl.signal });
           const d = await r.json();
+          if (cancelled) return;
           if (d.success && d.data?.length) {
             d.data.forEach((item: Listing) => {
               if (item.address) item.address = normalizeAddr(item.address);
@@ -113,11 +120,18 @@ export default function SearchPage() {
             if (d.data.length < 1000) break;
           } else break;
         }
-        setListings(all);
-      } catch(e) { console.error(e); }
-      setLoading(false);
+        if (!cancelled) setListings(all);
+      } catch(e: unknown) {
+        // AbortError 는 정상 unmount 케이스 — 무시
+        if ((e as { name?: string })?.name !== 'AbortError') console.error(e);
+      }
+      if (!cancelled) setLoading(false);
     }
     load();
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+    };
   }, []);
 
   const filtered = useMemo(() => {

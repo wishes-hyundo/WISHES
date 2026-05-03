@@ -56,6 +56,8 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
   } | null>(null);
 
   useEffect(() => {
+    // G-80 (2026-05-03): cancelled flag — 빠르게 다른 매물 전환 시 stale fetch 결과 setState 차단.
+    let cancelled = false;
     setLoading(true);
     setCurrentImageIndex(0);
     setShowFullDescription(false);
@@ -93,11 +95,13 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
       const isCrawled = !!listingData?.source_site;
       const rawImages = imagesResult.data || [];
       const safeImages = isCrawled ? filterSelfHosted(rawImages) : rawImages;
+      if (cancelled) return;
       setListing(listingData);
       setImages(safeImages);
       setFeatures(featuresResult.data || []);
       setLoading(false);
 
+      if (cancelled) return;
       // 담당자 프로필 비동기 fetch (실패해도 매물 상세는 정상 표시)
       setAgentProfile(null);
       const createdBy = listingData?.created_by;
@@ -106,6 +110,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
           const r = await fetch(`/api/agent/${createdBy}`);
           if (r.ok) {
             const json = await r.json();
+            if (cancelled) return;
             setAgentProfile({
               name: json.name || null,
               avatar_url: json.avatar_url || null,
@@ -121,6 +126,7 @@ export default function MapListingPanel({ listingId, onClose }: MapListingPanelP
       }
     };
     fetchData();
+    return () => { cancelled = true; };
   }, [listingId]);
 
   if (loading) {
