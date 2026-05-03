@@ -196,6 +196,43 @@ const INTERNAL_LISTING_FIELDS = [
   'dedup_reason',
   'dedup_group_id',
   'dedup_kept_id',
+  // G-60 (2026-05-03): 공개 API 에서 admin/내부 전용 필드 노출 차단.
+  'source_url',           // 크롤러 원본 URL — 출처 누출
+  'source_id',            // 크롤러 내부 ID
+  'raw_fields',           // 크롤러 raw 데이터 (구조 노출)
+  'field_sources',        // 어떤 cron 이 어떤 필드 채웠는지 (admin 추적용)
+  'price_history',        // 가격 변동 이력 (내부 분석)
+  'special_notes',        // admin 내부 메모
+  'commission_note',      // 중개 수수료 메모
+  'problematic_reason',   // 결함 사유 (admin 추적)
+  'problematic_marked_at',
+  'problematic_marked_by',
+  'is_problematic',
+  'fingerprint',          // 중복 검출용 hash
+  'fingerprint_at',
+  'last_crawled_at',      // 크롤 추적 시간
+  'last_verified_at',
+  'building_register_fetched_at',
+  'building_register_source',
+  'land_price_fetched_at',
+  'house_price_fetched_at',
+  'enriched_at',
+  'building_unit_extracted_at',
+  'created_by',           // 등록한 admin/agent uid
+  'miss_count',           // 크롤 실패 횟수
+  'contacts_history',     // 담당자 변동 이력
+  'contacts_crawled_at',
+  'area_measured_at',
+  'area_measured_by',
+  'is_violation_building',  // 위반 건축물 (admin 검토용)
+  'violation_reason',
+  'approval_date',          // 사용승인일 (admin 참고)
+  'trust_score_at',
+  'score_breakdown',
+  'rtms_data',
+  'rtms_avg_price',
+  'school_zone_data',
+  'air_quality_data',
 ] as const;
 
 export function stripInternalFields<T extends Record<string, any>>(row: T): T {
