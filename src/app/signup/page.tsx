@@ -119,6 +119,11 @@ export default function SignupPage() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: 20 }}>
       <div style={{ background: '#fff', borderRadius: 12, padding: 40, width: '100%', maxWidth: 480, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+        {/* G-101 (2026-05-04): 헤더 없는 broker portal 페이지에서 사용자가 홈으로 갈 수 있도록 로고 링크 */}
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16, textDecoration: 'none' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, background: '#2D5A27', color: '#fff', fontWeight: 800, fontSize: 14 }}>W</span>
+          <span style={{ color: '#2D5A27', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em' }}>WISHES</span>
+        </Link>
         <h1 style={{ fontSize: 26, fontWeight: 700, textAlign: 'center', marginBottom: 8, color: '#2D5A27' }}>직원 / 운영자 회원가입</h1>
         <p style={{ textAlign: 'center', color: '#666', marginBottom: 30, fontSize: 13 }}>
           WISHES 직원 / 운영자만 가입 가능. 가입 후 관리자 승인 필요.
@@ -138,7 +143,7 @@ export default function SignupPage() {
             <input type="email" required autoComplete="email" value={form.email} onChange={(e) => update('email', e.target.value)} style={inputStyle} />
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>비밀번호 * (8자 이상)</label>
+            <label style={labelStyle}>비밀번호 * (8자 이상 · 영문+숫자 포함)</label>
             <input type="password" required autoComplete="new-password" value={form.password} onChange={(e) => update('password', e.target.value)} style={inputStyle} />
           </div>
           <div style={{ marginBottom: 14 }}>

@@ -287,6 +287,11 @@ function LoginForm() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: '20px' }}>
       <div style={{ background: '#fff', borderRadius: 12, padding: 40, width: '100%', maxWidth: 420, boxShadow: '0 4px 20px rgba(0,0,0,0.08)' }}>
+        {/* G-101/G-102 (2026-05-04): broker portal 페이지에 홈 링크 (로고 클릭 시 / 로 이동) */}
+        <Link href="/" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 16, textDecoration: 'none' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, background: '#2D5A27', color: '#fff', fontWeight: 800, fontSize: 14 }}>W</span>
+          <span style={{ color: '#2D5A27', fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em' }}>WISHES</span>
+        </Link>
         <h1 style={{ fontSize: 26, fontWeight: 700, textAlign: 'center', marginBottom: 8, color: '#2D5A27' }}>WISHES 중개사 포털</h1>
         <p style={{ textAlign: 'center', color: '#666', marginBottom: 30, fontSize: 14 }}>로그인하여 매물 검색을 시작하세요</p>
 
@@ -330,6 +335,23 @@ function LoginForm() {
           </button>
         </form>
 
+        {/* G-102 (2026-05-04): 비밀번호 찾기 + 소셜 로그인 */}
+        <div style={{ textAlign: 'center', marginTop: 14, fontSize: 13 }}>
+          <Link href="/forgot-password" style={{ color: '#666', textDecoration: 'underline' }}>비밀번호 찾기</Link>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '24px 0 16px' }}>
+          <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+          <span style={{ fontSize: 12, color: '#9ca3af' }}>또는</span>
+          <div style={{ flex: 1, height: 1, background: '#e5e7eb' }} />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <a href={`/api/auth/oauth-start/kakao?target=${encodeURIComponent(redirect)}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 44, background: '#FEE500', color: '#191919', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+            카카오로 로그인
+          </a>
+          <a href={`/api/auth/oauth-start/naver?target=${encodeURIComponent(redirect)}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 44, background: '#03C75A', color: '#fff', borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}>
+            네이버로 로그인
+          </a>
+        </div>
         <div style={{ textAlign: 'center', marginTop: 24, fontSize: 13, color: '#666' }}>
           아직 계정이 없으신가요?{' '}
           <Link href="/signup" style={{ color: '#2D5A27', fontWeight: 600, textDecoration: 'none' }}>회원가입</Link>
