@@ -13,6 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
+import { sanitizePublicListing } from '@/lib/listing-public';
 import { applyImagePolicy } from '@/lib/image-policy';
 import { cached } from '@/lib/cache';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
@@ -182,6 +183,9 @@ export async function GET(request: NextRequest) {
         return bd - ad;
       });
     }
+
+    // G-81 (2026-05-03): sanitizePublicListing 적용 — address_detail 등 FORBIDDEN_PUBLIC_KEYS 제거.
+    sorted = sorted.map((r) => sanitizePublicListing(r));
 
     // L-sec170 (2026-05-02): Apply coordinate masking for non-authenticated users
     const maskedData = maskListingsCoordinates(sorted as any[], isAuthenticated);
