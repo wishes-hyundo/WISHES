@@ -18,7 +18,7 @@
 import { useMemo, useRef, useEffect } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import Image from 'next/image';
-import { MapPin, Image as ImageIcon, Video, X } from 'lucide-react';
+import { MapPin, Video, X } from "lucide-react";
 import { useMap2026Store, type MapListing, type SortKey } from '../store';
 import { formatDealLabel, formatArea } from '../lib/priceFormat';
 import { buildListingBadges } from '../lib/buildAgeBadge';
@@ -458,9 +458,10 @@ export function ListPanel() {
                     </div>
                   </div>
 
-                  {/* 우측 썸네일 — align-self: stretch 로 컨텐츠 높이 자동 매칭 */}
-                  <div className="relative w-[108px] shrink-0 self-stretch overflow-hidden rounded-md bg-neutral-100">
-                    {l.thumbnail_url ? (
+                  {/* G-93 (2026-05-04): 사진 없는 매물(크롤링 + 자체 업로드 0)은 thumb 영역 숨김.
+                      이전엔 회색 placeholder 가 카드 우측에 빈 박스로 보여 22개 매물 모두 사진 없을 때 카드 줄줄이 회색 박스. */}
+                  {l.thumbnail_url ? (
+                    <div className="relative w-[108px] shrink-0 self-stretch overflow-hidden rounded-md bg-neutral-100">
                       <Image
                         src={l.thumbnail_url}
                         alt={l.ai_title ?? (l.dong ?? '매물')}
@@ -469,18 +470,13 @@ export function ListPanel() {
                         className="object-cover"
                         unoptimized
                       />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center text-neutral-300">
-                        <ImageIcon className="size-6" aria-hidden />
-                      </div>
-                    )}
-                    {l.has_video && (
-                      <div className="absolute top-1 left-1 flex items-center gap-0.5 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white">
-                        <Video className="size-2.5" /> 영상
-                      </div>
-                    )}
-                    {/* L-card5 (2026-04-23 p.m.): 사진 개수 배지 제거 — 리스트에선 불필요 */}
-                  </div>
+                      {l.has_video && (
+                        <div className="absolute top-1 left-1 flex items-center gap-0.5 rounded bg-black/60 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                          <Video className="size-2.5" /> 영상
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
                 </button>
               );
             })}

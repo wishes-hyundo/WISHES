@@ -866,8 +866,10 @@ export default function HtmlMarkerOverlay({
           //     ③ selected 시각 표시 (위 isClusterFiltered 분기에서 처리)
           //     ④ 다시 같은 cluster 클릭 또는 ActiveFilterPills X → setClusterFilter(null)
           const ids = arr.map((l) => l.id);
+          // G-94 (2026-05-04): label 에 count 박지 않음 — ListPanel 이 별도로 "{count}개 매물" 렌더.
+          //   이전: "신림동 22개" 라벨 + ListPanel 의 "22개 매물" → "신림동 22개 22개 매물" 중복.
           const labelDong = arr.find((l) => l.dong)?.dong ?? null;
-          const label = labelDong ? `${labelDong} ${count}개` : `${count}개 매물`;
+          const label = labelDong ? labelDong : null;
           // toggle 동작: 이미 같은 cluster 가 selected 면 해제
           if (filterIdSet && filterIdSet.size === ids.length && ids.every((id) => filterIdSet.has(id))) {
             if (onClusterFilter) onClusterFilter(null, null);
