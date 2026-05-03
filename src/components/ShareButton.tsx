@@ -40,27 +40,49 @@ export default function ShareButton({ url, title, description, iconOnly = false 
   };
 
   const copyLink = async () => {
+    // G-109 (2026-05-04): Clipboard API 가 'Document is not focused' 등으로 실패하면
+    //   사용자에겐 '복사 완료' UI 메시지 떠도 실제 클립보드엔 빈 결과. textarea fallback 항상 시도.
+    const fallbackCopy = (text: string): boolean => {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '0';
+        ta.setAttribute('readonly', '');
+        document.body.appendChild(ta);
+        ta.focus();
+        ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch {
+        return false;
+      }
+    };
+
+    let success = false;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(url);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = url;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
+        success = true;
       }
+    } catch {
+      // Clipboard API 실패 — fallback 으로 처리 (NotAllowedError, document not focused 등)
+    }
+    if (!success) {
+      success = fallbackCopy(url);
+    }
+
+    if (success) {
       setCopied(true);
       setTimeout(() => {
         setCopied(false);
         setShowMenu(false);
       }, 2000);
-    } catch (e) {
-      console.error('링크 복사 실패', e);
-      window.prompt('링크를 복사하세요', url);
+    } else {
+      // 모든 fallback 실패 — prompt 로 직접 복사 유도
+      window.prompt('링크를 복사하세요 (Ctrl+C):', url);
     }
   };
 
