@@ -16,7 +16,10 @@ export const metadata: Metadata = {
         siteName: 'WISHES - 전국 종합부동산',
         type: 'website',
         locale: 'ko_KR',
+        // G-64 (2026-05-03): og:image 추가 (카카오톡 공유 + SEO).
+        images: [{ url: 'https://wishes.co.kr/og-image.png', width: 1200, height: 630, alt: 'WISHES' }],
     },
+    twitter: { card: 'summary_large_image', images: ['https://wishes.co.kr/og-image.png'] },
 };
 
 export default function AboutPage() {

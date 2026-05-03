@@ -14,7 +14,10 @@ export const metadata: Metadata = {
         siteName: 'WISHES - 전국 종합부동산',
         type: 'website',
         locale: 'ko_KR',
+        // G-64 (2026-05-03): og:image 추가.
+        images: [{ url: 'https://wishes.co.kr/og-image.png', width: 1200, height: 630, alt: 'WISHES 계산기' }],
     },
+    twitter: { card: 'summary_large_image', images: ['https://wishes.co.kr/og-image.png'] },
 };
 
 export default function CalculatorLayout({

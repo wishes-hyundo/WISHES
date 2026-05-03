@@ -21,7 +21,11 @@ export const metadata: Metadata = {
     url: 'https://wishes.co.kr/contact',
     siteName: 'WISHES',
     type: 'website',
+    locale: 'ko_KR',
+    // G-64 (2026-05-03): og:image 추가.
+    images: [{ url: 'https://wishes.co.kr/og-image.png', width: 1200, height: 630, alt: 'WISHES 상담' }],
   },
+  twitter: { card: 'summary_large_image', images: ['https://wishes.co.kr/og-image.png'] },
   alternates: {
     canonical: 'https://wishes.co.kr/contact',
   },
