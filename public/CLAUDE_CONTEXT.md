@@ -1647,3 +1647,27 @@ da85e280 fix(db): G-75 + G-76 — Supabase advisor 보안 권장사항 처리
 ---
 
 **누적 G-1~G-87: 87 추적, 72 수정, 56+ commit, 19 마이그레이션. Supabase advisor 0 actionable.**
+
+---
+
+## Wave 14 (continued) — G-89 결제 cron audit (2026-05-04 03:00 KST)
+
+| ID    | 영역 | 결함 | 우선순위 | 상태 |
+| ----- | ---- | ---- | -------- | ---- |
+| G-89  | audit | process-paid-reports cron 결제 status 변경 흔적 0 | High | ✅ fix |
+
+### 누적 G-89 (Wave 14 6개) commits
+
+```
+39d0f2b0 fix(audit): G-89 — process-paid-reports cron summary audit log
+8a6b684d fix(security): G-88 — /api/reports/init rate limit 추가
+160eb9fe fix(security): G-87 — prewarm-bldg-cache + resolve-building-centroids 인증 강화
+44786881 fix(security): G-86 — 7 cron isVercelCron fail-open 패턴 fail-safe
+5cfea1e0 fix(audit): G-85 — pipa-anonymize cron PIPA 법적 흔적 audit log
+2afa0f7a fix(security): G-84 — /api/ai/match 에 sanitizePublicListing
+7bd677fd fix(security): G-83 — /api/map/items 에 sanitizePublicListing
+```
+
+---
+
+**누적 G-1~G-89: 89 추적, 73 수정, 57+ commit, 19 마이그레이션. Supabase advisor 0 actionable.**
