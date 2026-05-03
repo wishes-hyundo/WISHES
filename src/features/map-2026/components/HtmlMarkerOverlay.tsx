@@ -19,6 +19,14 @@
 import { useEffect, useRef } from 'react';
 import type { MapListing, PropertyCategory } from '@/features/map-2026/store';
 import { bucketListings, listingCategory, listingCategoryOf } from '@/features/map-2026/lib/markerTier';
+// Wave 23 (2026-05-04 사장님 명령): cluster 집계 / centroid / spider-fy 로직을 공통 lib 로 추출.
+//   동작 100% 동일 보장 (refactor only). KakaoDeckOverlay 에서도 같은 함수 재사용 (Wave 24~).
+import {
+  gridSizeForLevel,
+  aggregateClusters,
+  computeClusterPosition,
+  applySpiderFy,
+} from '@/features/map-2026/lib/clusterAggregation';
 import { kakaoFlyTo } from '@/features/map-2026/lib/cinematicMotion';
 
 // ── 컬러 토큰 ──────────────────────────────────────────────────────
@@ -195,45 +203,7 @@ function markerFontSize(size: number): string {
 //   level 7    → ~4km
 //   level 8    → ~8km
 //   level 9+   → ~15km (행정구 단위)
-function gridSizeForLevel(level: number): number {
-  // L-cluster1 (2026-04-23 p.m.): 광역 뷰(level 8+) 에서 강남 전체가 하나의
-  //   4.1k 덩어리로 뭉쳐 보이던 현상 수정.
-  // L-mapmarker2b (2026-04-24 pm): 국토 뷰(level 10+) 에서 4,000+ 매물이
-  //   2개 덩어리로 뭉쳐 보이던 문제 추가 수정. 셀을 더 쪼개 시/도/권역별로
-  //   분리되도록 조정.
-  // L-mapmarker2c (2026-04-24 pm): 최대확대에서도 건물 단위로 뭉쳐 주소 정확 노출 방지.
-  //   사용자 피드백 — 개별 점으로 찍히면 경쟁사·직거래 유출 리스크.
-  // L-naver-cluster1 (2026-04-26): 네이버 부동산 z16~z19 매칭 close-up 미세조정.
-  //   네이버 z19 (Kakao level 1) = 동·호수 단위 / z18 (level 2) = 단지 1개 / z17 (level 3) = 인근 단지 묶음 / z16 (level 4) = 동네 묶음.
-  // L-mapfix-2026-05-02 (사장님 명령 — 가까이 줌인 시 매물 단독 표시):
-  //   level 1~2 (z18+, 가장 가까운 줌) 에서 grid 비활성화 (cellSize=0).
-  //   매물별 단독 마커 (좌표가 정확히 같은 매물만 자동으로 한 점에 겹침 — 같은 호수 매물).
-  //   level 3+ 부터 일반 grid 활성화 (광역 뷰 시각 노이즈 방지).
-  //
-  //   이전 PR #74 의 9m cellSize 도 큰 건물 (오피스텔 한 동) 안 매물 다 묶었음.
-  //   사장님 본 거동: 18~32개 매물이 1마커로 → 사용 어려움.
-  // L-grid-precision1 (사장님 명령 2026-05-02 — 끝판왕 마커 위치 정확도):
-  //   기존: level 6 = 1.1km grid → 한 cell 에 여러 단지 매물 들어가서 centroid 가
-  //         단지 사이 빈 공간에 표시 → 시각상 "균일 배치" 보임 (직방/네이버 ≠).
-  //   수정: cellSize 약 1/3 ~ 1/2 로 축소 → 단지 단위 그룹 + centroid 가 단지 좌표에 가깝게.
-  //   직방/네이버 z14 표준 ~200m grid (단지·빌딩 단위).
-  // L-marker-noise-fix1 (사장님 명령 2026-05-02 — 화면 마커 빽빽 노이즈):
-  //   사장님 z16 캡처 100+ 매물 마커 시각 노이즈. cellSize 적정화로 그룹 강화.
-  //   네이버/직방 z16 표준 = 매물 5-10개 깔끔 (단지 단위).
-  //   기존 110m → 220m → 매물 4배 더 강하게 그룹.
-  if (level <= 2) return 0;          // z18+ 단독 (같은 좌표 자연 그룹)
-  if (level <= 3) return 0.0010;     // z17 ~110m (이전 66m → 110m)
-  if (level <= 4) return 0.0020;     // z16 ~220m (이전 110m → 220m, 핵심 fix)
-  if (level <= 5) return 0.0040;     // z15 ~440m (이전 220m → 440m)
-  if (level <= 6) return 0.0080;     // z14 ~880m (이전 440m → 880m)
-  if (level <= 7) return 0.0140;     // z13 ~1.5km
-  if (level <= 8) return 0.0220;     // z12 ~2.4km
-  if (level <= 9) return 0.035;      // z11 ~3.9km
-  if (level <= 10) return 0.050;     // z10 ~5.5km
-  if (level <= 11) return 0.075;     // z9 ~8.3km
-  if (level <= 12) return 0.110;     // z8 ~12km
-  return 0.180;                      // z7- ~20km (전국 뷰)
-}
+// Wave 23: gridSizeForLevel 은 lib/clusterAggregation 에서 import. 인라인 정의 제거.
 
 /** 카운트 표시 원 — 단일 매물이면 '1', 클러스터면 N.
  *  L-naversize1 (2026-04-26): 사이즈 차이 확장 (네이버 스타일).
@@ -613,33 +583,16 @@ export default function HtmlMarkerOverlay({
       //   직방/네이버 표준 — cluster 클릭 시 그 안 매물 모두 펼쳐 보이게.
       //   각 매물을 individual marker 로 렌더 + 좌표 동일하면 radial jitter.
       if (isClusterFilterActive && filtered.length > 1) {
-        // 같은 좌표 그룹 찾기 (소수점 5자리 = ~1m 정밀도)
-        const coordGroups = new Map<string, MapListing[]>();
-        for (const l of filtered) {
-          const key = `${l.lat.toFixed(5)}:${l.lng.toFixed(5)}`;
-          const arr = coordGroups.get(key);
-          if (arr) arr.push(l); else coordGroups.set(key, [l]);
-        }
+        // Wave 23: spider-fy 좌표 계산을 lib/clusterAggregation.applySpiderFy() 로 위임.
+        //   I-MARKER-6 (G-123): 같은 좌표 매물 N등분 원형 분산 (12시 방향부터).
+        const _spiderResults = applySpiderFy(filtered);
         const _isMobileCF = typeof window !== 'undefined' && window.innerWidth < 768;
         const sizeCF = _isMobileCF ? 22 : 26;
-        for (const [, group] of coordGroups) {
-          const baseLat = group[0].lat;
-          const baseLng = group[0].lng;
-          // 같은 좌표 매물 N개 → 반지름 R 원 위에 N등분 spread
-          // R 은 N 에 비례 (N=2: ±15m, N=10: ±40m, N=20+: ±60m)
-          const N = group.length;
-          // 위도 1° ≈ 111km — R 미터 → 도 단위
-          const radiusDeg = N === 1 ? 0 : Math.min(0.0006, 0.00015 + N * 0.000025);
-          group.forEach((l, idx) => {
-            let lat: number, lng: number;
-            if (N === 1) {
-              lat = l.lat;
-              lng = l.lng;
-            } else {
-              const angle = (2 * Math.PI * idx) / N - Math.PI / 2; // 12시 방향부터
-              lat = baseLat + radiusDeg * Math.sin(angle);
-              lng = baseLng + radiusDeg * Math.cos(angle);
-            }
+        // 결과를 group 단위로 다시 묶지 않고, 결과 그대로 마커 생성.
+        for (const _sf of _spiderResults) {
+          const l = _sf.listing;
+          const lat = _sf.displayLat;
+          const lng = _sf.displayLng;
             const selectedSF = selectedListingId === l.id;
             const elSF = makeCircleElement({ count: 1, selected: selectedSF, size: sizeCF });
             elSF.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -661,8 +614,7 @@ export default function HtmlMarkerOverlay({
               ovSF.setMap(map);
               overlaysRef.current.push(ovSF);
             } catch { /* SDK race */ }
-          });
-        }
+          }
         // cluster filter 모드 spider-fy 완료. 기존 bucketing 건너뛰기.
         return;
       }
@@ -796,46 +748,12 @@ export default function HtmlMarkerOverlay({
       //   사용자 의도 = "이 영역의 매물 N개 각각 보기" 인데 grid 가 다시 묶으면
       //   다시 같은 마커 1-2개로 압축돼 사용성 매우 떨어짐.
       //   cluster filter 해제 시 일반 grid 동작 (광역 뷰 시각 노이즈 방지).
+      // Wave 23: cluster 집계를 lib/clusterAggregation.aggregateClusters() 로 위임.
+      //   동일 알고리즘 (cellSize > 0 → grid / cellSize == 0 → 같은 좌표).
+      //   KakaoDeckOverlay (WebGL) 에서도 같은 함수 사용.
+      const aggregated = aggregateClusters(rest, level, isClusterFilterActive);
+      for (const [k, v] of aggregated) clusters.set(k, v);
       const cellSize = isClusterFilterActive ? 0 : gridSizeForLevel(level);
-      // L-cluster-building1 (2026-05-02 사장님 명령 — 직방/네이버 표준):
-      //   사장님 z19 발견 — 21 마커가 다른 주소 매물을 묶음.
-      //   원인: 좌표 마스킹 110m 으로 다른 단지 매물도 같은 좌표 → 1 클러스터.
-      //   수정: building_name (단지명) 우선 cluster key. 같은 단지명 매물만 그룹,
-      //         단지명 다르면 좌표/cell 같아도 분리.
-      //   INVARIANT I-MARKER-2: 같은 단지명 매물 1 마커 / 다른 단지명 매물 분리.
-      //   직방/네이버 z19~z14 모두 단지 단위 표시 — WISHES 동일 표준.
-      //
-      // L-cluster-token1 (사장님 명령 2026-05-02): cluster_token (단지명 hash) 우선.
-      //   비로그인엔 building_name 노출 X — 그러나 cluster_token (hash) 은 노출.
-      //   같은 단지명 = 같은 token → 1 cluster. 다른 단지명 = 다른 token → 분리.
-      //   서버: viewport / by-ids route 의 buildClusterToken() 이 응답에 포함.
-      //   정규화 — '\u00A0' (NBSP) / 다중 공백 / 공백을 한 칸으로.
-      const normName = (s: string | null | undefined): string =>
-        (s ?? '').replace(/\s+/g, ' ').trim();
-      // M-7 (사장님 명령 2026-05-02 — z14 광역 뷰 cluster 안 됨 fix):
-      //   직방/네이버 표준 — 광역 줌은 grid cluster (큰 묶음), 가까이는 단지/좌표 cluster.
-      //   cellSize > 0 (z14~z17 광역) → grid cell 우선, token 무시
-      //   cellSize == 0 (z18+ 가까이) → 같은 좌표 매물끼리만 cluster (직방 동작)
-      //   raw 좌표라 cell 안 매물 평균 = 자연스러운 위치 (격자 X).
-      if (cellSize > 0) {
-        for (const l of rest) {
-          // 광역 줌: grid cell 단위 cluster (token 무시)
-          const key = `g:${Math.floor(l.lat / cellSize)}:${Math.floor(l.lng / cellSize)}`;
-          const arr = clusters.get(key);
-          if (arr) arr.push(l);
-          else clusters.set(key, [l]);
-        }
-      } else {
-        // 가까이 줌 (z18+): 같은 좌표 매물끼리만 cluster (직방 동작)
-        // 같은 lat/lng 매물 = 같은 건물 다른 호 → 1 마커
-        // 다른 lat/lng = 분리
-        for (const l of rest) {
-          const key = `c:${l.lat.toFixed(6)}:${l.lng.toFixed(6)}`;
-          const arr = clusters.get(key);
-          if (arr) arr.push(l);
-          else clusters.set(key, [l]);
-        }
-      }
 
       // L-naver-2026clusterselected1 (2026-04-27): selected 판정 강화.
       //   selectedListingId 매칭 + clusterFilterIds 가 정확히 cluster 안 매물 모두 매칭.
@@ -859,36 +777,12 @@ export default function HtmlMarkerOverlay({
         for (let _i = _bIdx; _i < _end; _i++) {
           const arr = _clusterArr[_i];
         if (arr.length === 0) continue;
-        // K-2: cluster 안 매물 중 1개라도 TIER1 + tier1_lat/lng 있으면 그 좌표 사용 (단지 정확 위치)
-        const tier1Listing = arr.find((l) => {
-          const t = (l.type ?? '').trim();
-          return TIER1_TYPES.has(t) && typeof l.tier1_lat === 'number' && typeof l.tier1_lng === 'number';
-        });
-        let lat: number, lng: number;
-        if (tier1Listing) {
-          lat = tier1Listing.tier1_lat as number;
-          lng = tier1Listing.tier1_lng as number;
-        } else {
-          // 폴백: cluster centroid (좌표 평균) + deterministic jitter (M-3 사장님 명령)
-          //   "병신같은 grid 방식 걍 나가뒤져" — 마스킹 좌표 (110m grid) 가 cell 중심에
-          //   모이면서 격자 패턴 형성. cluster_token (또는 첫 매물 id) hash 기반 jitter
-          //   ±55m 추가해 격자 깨고 자연스러운 분산. 같은 cluster = 같은 jitter (안정).
-          let latSum = 0, lngSum = 0;
-          for (const l of arr) { latSum += l.lat; lngSum += l.lng; }
-          lat = latSum / arr.length;
-          lng = lngSum / arr.length;
-          const seedStr = (arr[0].cluster_token ?? String(arr[0].id));
-          let h = 0x811c9dc5 >>> 0;
-          for (let i = 0; i < seedStr.length; i++) {
-            h ^= seedStr.charCodeAt(i);
-            h = Math.imul(h, 0x01000193) >>> 0;
-          }
-          // ±0.0005 (~55m) — 110m 마스킹 cell 안에서 분산
-          const jitterLat = (((h & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010;
-          const jitterLng = ((((h >>> 16) & 0xFFFF) / 0xFFFF) - 0.5) * 0.0010;
-          lat += jitterLat;
-          lng += jitterLng;
-        }
+        // Wave 23: centroid + jitter 를 lib/clusterAggregation.computeClusterPosition() 로 위임.
+        //   I-MARKER-3 (TIER1 정확 좌표) + cluster_token hash jitter (격자 패턴 회피).
+        const _pos = computeClusterPosition(arr);
+        let lat: number = _pos.lat;
+        let lng: number = _pos.lng;
+        const tier1Listing = _pos.tier1Listing;
         const isTier1Cluster = !!tier1Listing;
         const count = arr.length;
         // selected: ① selected 매물 포함 또는 ② cluster 안 매물 == filterIdSet (클릭 cluster).
