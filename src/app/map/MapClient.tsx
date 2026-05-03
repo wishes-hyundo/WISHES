@@ -62,7 +62,8 @@ import MobileListSheet from '@/features/map-2026/components/MobileListSheet';
 import { MapErrorBoundary } from '@/features/map-2026/components/MapErrorBoundary';
 import MapLoadingIndicator from '@/features/map-2026/components/MapLoadingIndicator';
 // L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 훅
-import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
+// G-114 (2026-05-04): useMapClusters import 제거 — 결과 미사용.
+// import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
 
 // 서울 기본 중심
 const SEOUL = { lat: 37.4979, lng: 127.0276 };
@@ -665,7 +666,10 @@ function MapOverlaysWithClusters(props: {
   clusterFilterIds: number[] | null;
   clusterFilterListings: MapListing[] | null;
 }) {
-  const { clusters } = useMapClusters(props.kakaoLevel);
+  // G-114 (2026-05-04 사장님): useMapClusters 호출 제거.
+  //   HtmlMarkerOverlay 는 SERVER_CLUSTER_DISABLED=true 로 serverClusters 무시,
+  //   AdminRegionOverlay 는 serverClusters prop 선언만 하고 본문에서 사용 안 함.
+  //   /api/map/clusters fetch 가 100% wasted (분당 수십 회 무용 HTTP 요청).
   return (
     <>
       <HtmlMarkerOverlay
@@ -674,7 +678,6 @@ function MapOverlaysWithClusters(props: {
         selectedListingId={props.selectedListingId}
         category={props.category}
         onClickListing={props.onClickListing}
-        serverClusters={clusters}
         onClusterFilter={props.onClusterFilter}
         clusterFilterIds={props.clusterFilterIds}
         clusterFilterListings={props.clusterFilterListings}
@@ -683,7 +686,6 @@ function MapOverlaysWithClusters(props: {
         <AdminRegionOverlay
           map={props.kakaoMap}
           listings={props.listings}
-          serverClusters={clusters}
         />
       </MapErrorBoundary>
       <GeoLoadingIndicator />

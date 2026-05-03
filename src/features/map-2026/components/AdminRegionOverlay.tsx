@@ -372,7 +372,7 @@ function multiFeatureBbox(feats: GeoFeature[]): { west: number; south: number; e
 interface Props {
   map: unknown;
   listings: MapListing[];
-  serverClusters?: { lat: number; lng: number; count: number }[];
+  // G-114 (2026-05-04): serverClusters prop 제거 — 본문에서 사용 안 함.
   onClickRegion?: (name: string) => void;
 }
 
