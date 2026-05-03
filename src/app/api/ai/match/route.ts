@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { parseMatchQuery } from '@/lib/ai-match-parser';
 import { applyImagePolicy } from '@/lib/image-policy';
-import { stripInternalFieldsArray } from '@/lib/listing-public';
+import { stripInternalFieldsArray, sanitizePublicListing } from '@/lib/listing-public';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
@@ -104,8 +104,9 @@ export async function POST(request: NextRequest) {
     //   - 크롤링 매물의 외부 원본 이미지는 차단
     //   - 중개사가 직접 올린 자체 업로드 이미지는 통과
     // L-sec67 (2026-04-22): embedding + dedup_* 등 내부 필드 strip
+    // G-84 (2026-05-04): sanitizePublicListing 추가 — FORBIDDEN_PUBLIC_KEYS 제거.
     const sanitized = stripInternalFieldsArray(
-      (data || []).map((r: any) => applyImagePolicy(r)),
+      (data || []).map((r: any) => sanitizePublicListing(applyImagePolicy(r))),
     );
 
     // 인식된 필터를 URL 쿼리스트링으로도 제공 (사용자가 /listings 로 이동할 때 재사용)
