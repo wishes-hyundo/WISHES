@@ -307,6 +307,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
   reason?: string;
   email?: string;
   role?: string;
+  uid?: string;
 }> {
   const authHeader = request.headers.get('authorization');
   let token = authHeader?.replace(/^Bearer\s+/i, '').trim() || '';
@@ -378,7 +379,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
 
     // 슈퍼어드민 즉시 통과
     if (SUPERADMIN_EMAILS.includes(email)) {
-      return { ok: true, email, role: 'superadmin' };
+      return { ok: true, email, role: 'superadmin', uid: data.user.id };
     }
 
     // admin_users 테이블에서 role/status 조회
@@ -404,7 +405,7 @@ export async function verifyAdminAuthStrict(request: NextRequest): Promise<{
       return { ok: false, reason: 'insufficient_role', email, role };
     }
 
-    return { ok: true, email, role };
+    return { ok: true, email, role, uid: data.user.id };
   } catch (err: any) {
     return { ok: false, reason: 'exception:' + (err?.message || 'unknown') };
   }

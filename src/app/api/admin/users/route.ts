@@ -223,7 +223,7 @@ export async function PUT(request: NextRequest) {
 
       audit({
         action: 'users.approve',
-        actor: { email: caller.email, role: caller.role, uid: caller.role === 'master' ? null : undefined },
+        actor: { email: caller.email, role: caller.role, uid: caller.uid },
         target: { type: 'admin_users', id: userId },
         ip: getClientIp(request),
         userAgent: request.headers.get('user-agent') || undefined,
@@ -259,7 +259,7 @@ export async function PUT(request: NextRequest) {
 
       audit({
         action: 'users.reject',
-        actor: { email: caller.email, role: caller.role },
+        actor: { email: caller.email, role: caller.role, uid: caller.uid },
         target: { type: 'admin_users', id: userId },
         ip: getClientIp(request),
         userAgent: request.headers.get('user-agent') || undefined,
@@ -289,7 +289,37 @@ export async function PUT(request: NextRequest) {
         );
       }
       if (!newRole || !VALID_CHANGE_ROLES.has(newRole)) {
-        return NextResponse.json({ error: 'ì í¨íì§ ìì ì¬í ìëë¤.' }, { status: 400 });
+        return NextResponse.json({ error: '유효하지 않은 역할입니다.' }, { status: 400 });
+      }
+
+      // G-72 (2026-05-03): caller 자기 자신 강등 차단 + last owner/superadmin 보호.
+      if (caller.uid && caller.uid === userId && newRole !== caller.role) {
+        return NextResponse.json(
+          { error: '자기 자신의 역할은 변경할 수 없습니다. 다른 owner 에게 위임 후 진행하세요.' },
+          { status: 400 },
+        );
+      }
+      // last-owner-guard
+      if (newRole !== 'owner' && newRole !== 'superadmin') {
+        const { data: targetCurrent } = await supabase
+          .from('admin_users')
+          .select('role')
+          .eq('id', userId)
+          .maybeSingle();
+        const wasOwner = (targetCurrent?.role || '') === 'owner' || (targetCurrent?.role || '') === 'superadmin';
+        if (wasOwner) {
+          const { count: ownerCount } = await supabase
+            .from('admin_users')
+            .select('id', { count: 'exact', head: true })
+            .in('role', ['owner', 'superadmin'])
+            .eq('status', 'approved');
+          if ((ownerCount || 0) <= 1) {
+            return NextResponse.json(
+              { error: '시스템에 owner/superadmin 가 1명만 남아 있습니다. 강등 차단.' },
+              { status: 400 },
+            );
+          }
+        }
       }
 
       const _r = await _applyAdminUserFields(supabase, userId, { role: newRole });
@@ -303,18 +333,37 @@ export async function PUT(request: NextRequest) {
       else { metaUpdated = true; }
 
       if (!dbUpdated && !metaUpdated) {
-        return NextResponse.json({ success: false, error: 'ì­í  ë³ê²½ ì¤í¨' }, { status: 500 });
+        return NextResponse.json({ success: false, error: '역할 변경 실패' }, { status: 500 });
       }
+
+      // G-70 (2026-05-03): privilege escalation 추적용 audit log
+      audit({
+        action: 'users.change_role',
+        actor: { email: caller.email, role: caller.role, uid: caller.uid },
+        target: { type: 'admin_users', id: userId },
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        route: '/api/admin/users',
+        status: 200,
+        meta: { new_role: newRole },
+      });
 
       return NextResponse.json({
         success: true,
-        message: 'ì­í ì´ ' + newRole + '(ì¼)ë¡ ë³ê²½ëììµëë¤.',
+        message: '역할이 ' + newRole + '(으)로 변경되었습니다.',
         dbUpdated, metaUpdated,
       });
     }
 
     // ì°¨ë¨
     if (action === 'block') {
+      // G-71 (2026-05-03): 자기 자신 차단 차단 (lockout 방지)
+      if (caller.uid && caller.uid === userId) {
+        return NextResponse.json(
+          { error: '자기 자신은 차단할 수 없습니다.' },
+          { status: 400 },
+        );
+      }
       const _r = await _applyAdminUserFields(supabase, userId, { status: 'blocked' });
       if (_r.ok) dbUpdated = true; else console.warn('admin_users update (block) failed:', _r.error);
 
@@ -323,7 +372,19 @@ export async function PUT(request: NextRequest) {
       });
       if (!metaError) metaUpdated = true;
 
-      return NextResponse.json({ success: true, message: 'ì¬ì©ìê° ì°¨ë¨ëììµëë¤.', dbUpdated, metaUpdated });
+      // G-70: audit
+      audit({
+        action: 'users.block',
+        actor: { email: caller.email, role: caller.role, uid: caller.uid },
+        target: { type: 'admin_users', id: userId },
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        route: '/api/admin/users',
+        status: 200,
+        meta: {},
+      });
+
+      return NextResponse.json({ success: true, message: '사용자가 차단되었습니다.', dbUpdated, metaUpdated });
     }
 
     // ì°¨ë¨ í´ì 
@@ -336,7 +397,19 @@ export async function PUT(request: NextRequest) {
       });
       if (!metaError) metaUpdated = true;
 
-      return NextResponse.json({ success: true, message: 'ì°¨ë¨ì´ í´ì ëììµëë¤.', dbUpdated, metaUpdated });
+      // G-70: audit
+      audit({
+        action: 'users.unblock',
+        actor: { email: caller.email, role: caller.role, uid: caller.uid },
+        target: { type: 'admin_users', id: userId },
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        route: '/api/admin/users',
+        status: 200,
+        meta: {},
+      });
+
+      return NextResponse.json({ success: true, message: '차단이 해제되었습니다.', dbUpdated, metaUpdated });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
@@ -351,7 +424,6 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     // L-sec97 (2026-04-22): DELETE 도 superadmin/master 만.
-    //   일반 admin 이 다른 admin 계정(심지어 superadmin)을 삭제하는 것을 차단.
     const caller = await verifyAdminAuthStrict(request);
     if (!caller.ok) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -370,7 +442,38 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
+    // G-71 (2026-05-03): 자기 자신 삭제 차단 + last superadmin/owner 보호.
+    if (caller.uid && caller.uid === userId) {
+      return NextResponse.json(
+        { error: '자기 자신은 삭제할 수 없습니다. 다른 owner 에게 위임 후 진행하세요.' },
+        { status: 400 },
+      );
+    }
+
     const supabase = createServerClient();
+
+    // last-owner/superadmin 보호
+    {
+      const { data: target } = await supabase
+        .from('admin_users')
+        .select('role, email')
+        .eq('id', userId)
+        .maybeSingle();
+      const targetRole = (target?.role || '');
+      if (targetRole === 'owner' || targetRole === 'superadmin') {
+        const { count: ownerCount } = await supabase
+          .from('admin_users')
+          .select('id', { count: 'exact', head: true })
+          .in('role', ['owner', 'superadmin'])
+          .eq('status', 'approved');
+        if ((ownerCount || 0) <= 1) {
+          return NextResponse.json(
+            { error: '시스템에 owner/superadmin 가 1명만 남아 있습니다. 삭제 차단.' },
+            { status: 400 },
+          );
+        }
+      }
+    }
 
     const { error: deleteError } = await supabase.from('admin_users').delete().eq('id', userId);
     if (deleteError) { console.warn('admin_users delete failed:', deleteError.message); }
@@ -379,6 +482,18 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // G-70 (2026-05-03): DELETE audit log (이전엔 흔적 0).
+    audit({
+      action: 'users.delete',
+      actor: { email: caller.email, role: caller.role, uid: caller.uid },
+      target: { type: 'admin_users', id: userId },
+      ip: getClientIp(request),
+      userAgent: request.headers.get('user-agent') || undefined,
+      route: '/api/admin/users',
+      status: 200,
+      meta: {},
+    });
 
     return NextResponse.json({ success: true, message: '사용자가 삭제되었습니다.' });
 
