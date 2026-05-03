@@ -24,7 +24,7 @@ interface ScheduleRow {
 const DEFAULT_MORTGAGE_PRESETS: RatePreset[] = [
   { label: '시중은행 주담대(고정)', rate: 4.8, description: '시중은행 평균 고정금리' },
   { label: '보금자리론', rate: 4.5, description: '한국주택금융공사 고정금리' },
-  { label: '디딤돌대출', rate: 3.5, description: '죸택도시기금 정책대출' },
+  { label: '디딤돌대출', rate: 3.5, description: '주택도시기금 정책대출' },
   { label: '신혼부부 디딤돌', rate: 2.7, description: '주택도시기금 신혼부부 우대' },
 ];
 
@@ -252,7 +252,7 @@ function LoanCalculator() {
                   : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
               )}
             >
-              죸택담보대출
+              주택담보대출
             </button>
             <button
               type="button"
