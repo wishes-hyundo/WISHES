@@ -8,7 +8,7 @@
 //   1) authorization_code → Kakao token endpoint 교환
 //   2) Kakao /v2/user/me 로 프로필 조회
 //   3) Supabase admin API 로 사용자 생성/업데이트
-//   4) admin_users 에 pending 행 생성 (소셜 가입자 승인 flow)
+//   4) profiles 에 row 생성 (P2-3: 고객은 profiles, 직원은 admin_users 분리)
 //   5) generateLink('magiclink') 의 token_hash 를 클라이언트에 반환
 //      → /auth/callback 이 verifyOtp 로 세션 생성
 //
