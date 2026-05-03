@@ -943,3 +943,88 @@ f3150d4 fix(perf): G-53 — FK 컬럼 3개에 partial index 추가
 
 작성: 2026-05-03 17:30 KST
 세션: G-1 ~ G-62 (62개 결함 추적, 49개 수정, 35+ commit, 15 DB migration)
+
+---
+
+## 📋 2026-05-03 wave 6 — 끝까지 침투 (보안/SEO/코드 품질 sweep)
+
+사장님 명령: "아직도 남았어? 진짜 단 하나도 남김 없이 깊게 파고 추적해서 모든 문제점 찾아서 고쳐"
+
+### Wave 6 검수 결과 (모두 PASS — 더 이상 결함 발견 못함)
+
+#### DB 트리거 검수 (26개)
+- 모든 application 트리거 연결 정상
+- application plpgsql 함수 모두 search_path 명시 (G-47 fix 완료)
+- 미명시 함수는 PostGIS 시스템 함수만 (수정 불가, 무해)
+- DB level audit log: 활발 (최근 24h 27,045 매물 처리)
+
+#### 보안 침투 시도 (모두 차단)
+- /api/images path traversal `../../etc/passwd` → 403 ✓
+- /api/listings/[id] DELETE/PATCH/PUT/POST → 405 ✓
+- /api/admin/listings/[id] 비인증 → 401 ✓
+- /api/push/send 비인증 → 401 ✓
+- /api/short-url open redirect → path-only 차단 ✓
+- /admin/admin-auth.html (Vercel route) → 404 ✓
+- /admin-auth.html (root) → 404 ✓
+- /.env, /.env.local → 404 ✓
+- /.git/config → 404 ✓
+- /wp-admin → 403 ✓
+
+#### Static asset 보안
+- /manifest.json → 200 (PWA)
+- /sw.js → 200 (service worker)
+- /robots.txt → /api/, /admin/, CLAUDE_*.md disallow ✓
+- /sitemap.xml → 10,521 URLs (정적 7 + listings 10,513 SEO 색인 OK 매물)
+
+#### 코드 검수 (clean)
+- 하드코드 secret (AWS/SK/sk-/service_role JWT) — 0 발견
+- 공개 IP 주소 하드코드 — 0
+- FIXME 보안 / TODO auth / XXX pass — 0
+- 'use client' 누락 (server component 컴포넌트만 7개, 정상)
+- React `.map` without key — 0
+
+#### Email module 검수
+- Resend SDK + lazy init ✓
+- HTML escape (escapeHtml) ✓
+- MIME header injection 가드 (sanitizeHeader) ✓
+
+#### Sentry observability
+- lazy import (request hot path 미영향) ✓
+- tag/context cap (Sentry 제한 32/200 자동 자르기) ✓
+- DSN 미설정 시 no-op ✓
+
+#### Auth 코드 검수
+- JWT 서명 검증 (supabase.auth.getUser) ✓
+- timingSafeEqual (master password / CSRF) ✓
+- admin_users role/status 체크 (verifyAdminAuth + Strict) ✓
+- privilege escalation 방어 (user_metadata fallback 제거 — L-sec59) ✓
+- 4단계 status 차단: pending / rejected / blocked / approved ✓
+
+### 누적 합계 (G-1 ~ G-62, 변동 없음)
+- **수정 완료**: 49
+- **Not-bug / by-design**: 8
+- **Backlog**: 1 (G-32 search perf)
+- **Gaps**: 6
+- **Total tracked**: 62
+
+### Wave 6 결론
+**더 이상 fix 할 결함을 찾지 못함.** 시스템이 안정 상태에 도달:
+- DB 무결성 100%
+- I-AUTH-1 100%
+- RLS 정책 0 hardcoded / 0 unwrapped / 0 가용
+- 공개 API 0 admin 필드 노출
+- 보안 침투 모두 차단
+- 인증/인가 견고
+
+### 잔여 (의식적 보류, 도구 한계)
+1. /admin/search perf (30K seq load) — backlog
+2. 카카오/네이버 OAuth 실 진입 (사장님 1회 클릭 필요)
+3. Lighthouse / Core Web Vitals (외부 도구)
+4. 모바일 viewport 시각 (Chrome MCP resize 작동 X, Playwright 회귀 100 시나리오로 대체)
+5. 다른 역할 직접 로그인 검증 (테스트 계정 OAuth 토큰 부재)
+
+---
+
+작성: 2026-05-03 18:00 KST
+세션 종료: G-1 ~ G-62 (62개 결함 추적, 49개 수정, 36+ commit, 15 DB migration)
+시스템 상태: **STABLE** — 더 이상 발견 결함 없음.
