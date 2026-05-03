@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { isTossEnabled } from '@/lib/toss-client';
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -23,6 +24,15 @@ interface InitRequest {
 }
 
 export async function POST(request: NextRequest) {
+  // G-88 (2026-05-04): 결제 spam + DB 오염 방지 — IP당 1시간 5회 cap.
+  const _ip = getClientIp(request);
+  const _rl = checkRateLimit({ key: `reports-init:ip:${_ip}`, limit: 5, windowMs: 60 * 60_000 });
+  if (!_rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limit', retry_after: _rl.retryAfterSec },
+      { status: 429, headers: { 'Retry-After': String(_rl.retryAfterSec) } },
+    );
+  }
   if (!isTossEnabled()) {
     return NextResponse.json(
       {
