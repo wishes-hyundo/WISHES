@@ -416,6 +416,7 @@ export default function AIChatBot() {
                   onChange={e => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="궁금한 점을 물어보세요..."
+                  aria-label="AI 부동산 상담 메시지 입력"
                   className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white transition-colors"
                   disabled={isLoading}
                 />
