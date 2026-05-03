@@ -5,6 +5,11 @@
 
 import { useEffect, useState } from 'react';
 
+// G-30 fix (2026-05-03): adminFetch + useAdminSession 으로 인증 토큰 자동 첨부.
+// 직전 결함: fetch('/api/admin/onhouse-creds', ...) → HTTP 401.
+import { useAdminSession } from '@/lib/useAdminSession';
+import { adminFetch } from '@/lib/adminFetch';
+
 interface CredsStatus {
   ok: boolean;
   db: { hasUsername: boolean; hasPassword: boolean; masked: string };
@@ -20,15 +25,22 @@ export default function OnhouseSetupPage() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err' | 'info'; text: string } | null>(null);
 
+  const { token } = useAdminSession('/admin/onhouse-setup');
+  const authHeaders = (): Record<string, string> => (token ? { Authorization: `Bearer ${token}` } : {});
+
   async function fetchStatus() {
     try {
-      const r = await fetch('/api/admin/onhouse-creds', { cache: 'no-store' });
+      const r = await adminFetch('/api/admin/onhouse-creds', {
+        cache: 'no-store',
+        headers: authHeaders(),
+        credentials: 'include',
+      });
       const j = await r.json();
       if (j.ok) setStatus(j);
     } catch {}
   }
 
-  useEffect(() => { fetchStatus(); }, []);
+  useEffect(() => { if (token) fetchStatus(); }, [token]);
 
   async function save() {
     if (!username.trim() || !password.trim()) {
@@ -38,9 +50,10 @@ export default function OnhouseSetupPage() {
     setBusy(true);
     setMsg({ type: 'info', text: 'onhouse 로그인 테스트 + 저장 중...' });
     try {
-      const r = await fetch('/api/admin/onhouse-creds', {
+      const r = await adminFetch('/api/admin/onhouse-creds', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        credentials: 'include',
         body: JSON.stringify({ username: username.trim(), password: password.trim(), test: true }),
       });
       const j = await r.json();
@@ -62,9 +75,10 @@ export default function OnhouseSetupPage() {
     setBusy(true);
     setMsg({ type: 'info', text: '단일 매물(맥스텔 62381) sample 로 호수 추출 테스트 중... 약 10초' });
     try {
-      const r = await fetch('/api/admin/enrich-onhouse-detail', {
+      const r = await adminFetch('/api/admin/enrich-onhouse-detail', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        credentials: 'include',
         body: JSON.stringify({ sampleId: 62381, debug: true }),
       });
       const j = await r.json();
@@ -88,7 +102,7 @@ export default function OnhouseSetupPage() {
     if (!confirm('저장된 onhouse 자격증명을 삭제하시겠습니까?')) return;
     setBusy(true);
     try {
-      const r = await fetch('/api/admin/onhouse-creds', { method: 'DELETE' });
+      const r = await adminFetch('/api/admin/onhouse-creds', { method: 'DELETE', headers: authHeaders(), credentials: 'include' });
       const j = await r.json();
       if (j.ok) {
         setMsg({ type: 'ok', text: '🗑 삭제 완료' });

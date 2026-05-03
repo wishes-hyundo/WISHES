@@ -8,6 +8,11 @@
 
 import { useEffect, useState } from 'react';
 
+// G-30 fix (2026-05-03): adminFetch + useAdminSession 으로 인증 토큰 자동 첨부.
+// 직전 결함: fetch('/api/admin/enrichment-progress', credentials:'include') → HTTP 401.
+import { useAdminSession } from '@/lib/useAdminSession';
+import { adminFetch } from '@/lib/adminFetch';
+
 interface EnrichmentRow {
   filled: number;
   ratio: number;
@@ -54,11 +59,17 @@ export default function EnrichmentProgressPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { token } = useAdminSession('/admin/enrichment-progress');
+
   useEffect(() => {
+    if (!token) return;
     let cancel = false;
     (async () => {
       try {
-        const res = await fetch('/api/admin/enrichment-progress', { credentials: 'include' });
+        const res = await adminFetch('/api/admin/enrichment-progress', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const j = await res.json();
         if (!cancel) {
@@ -73,7 +84,7 @@ export default function EnrichmentProgressPage() {
       }
     })();
     return () => { cancel = true; };
-  }, []);
+  }, [token]);
 
   const wrap: React.CSSProperties = { maxWidth: 1100, margin: '0 auto', padding: '32px 24px', fontFamily: 'Pretendard, system-ui, sans-serif' };
   const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '20px 22px', marginBottom: 16 };

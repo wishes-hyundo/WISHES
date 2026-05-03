@@ -9,6 +9,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
+// G-29 fix (2026-05-03): adminFetch + useAdminSession 으로 인증 토큰 자동 첨부.
+// 직전 결함: fetch('/api/admin/government-prices', credentials:'include') → HTTP 401.
+import { useAdminSession } from '@/lib/useAdminSession';
+import { adminFetch } from '@/lib/adminFetch';
+
 interface PriceRow {
   id: number;
   address: string | null;
@@ -41,11 +46,17 @@ export default function GovernmentPricesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { token } = useAdminSession('/admin/government-prices');
+
   useEffect(() => {
+    if (!token) return;
     let cancel = false;
     (async () => {
       try {
-        const res = await fetch('/api/admin/government-prices?limit=200', { credentials: 'include' });
+        const res = await adminFetch('/api/admin/government-prices?limit=200', {
+          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const j = await res.json();
         if (!cancel) {
@@ -61,7 +72,7 @@ export default function GovernmentPricesPage() {
       }
     })();
     return () => { cancel = true; };
-  }, []);
+  }, [token]);
 
   const wrap: React.CSSProperties = { maxWidth: 1200, margin: '0 auto', padding: '32px 24px', fontFamily: 'Pretendard, system-ui, sans-serif' };
   const card: React.CSSProperties = { background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, padding: '20px 22px' };
