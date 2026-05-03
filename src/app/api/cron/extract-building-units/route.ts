@@ -173,6 +173,24 @@ export async function GET(request: NextRequest) {
     scanned: targets?.length || 0, updated, with_dong: withDong, with_ho: withHo,
   });
 
+  // G-69 (2026-05-03): admin_audit_log 에 기록 — cron 실행 추적 + cron_health_check 가시화.
+  try {
+    await supabase.from('admin_audit_log').insert({
+      action: 'auto_extract_building_units_run',
+      target_type: 'system',
+      meta: {
+        scanned: targets?.length || 0,
+        updated,
+        with_dong: withDong,
+        with_ho: withHo,
+        gemini_configured: !!GEMINI_KEY,
+        ts: new Date().toISOString(),
+      },
+    });
+  } catch (e) {
+    console.warn('[extract-building-units] audit insert failed:', e);
+  }
+
   // 추출 실패율이 50% 넘으면 warning
   const scanned = targets?.length || 0;
   if (scanned >= 10 && updated < scanned * 0.5) {
