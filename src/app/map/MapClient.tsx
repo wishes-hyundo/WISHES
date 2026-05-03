@@ -417,16 +417,55 @@ export default function MapClient() {
     const out: MapCluster[] = [];
     for (const [key, arr] of aggregated) {
       const pos = computeClusterPosition(arr);
+      // Wave 25b (2026-05-04): cluster 안 모든 매물 ID + 다수 카테고리 — DOM 마커와 일치.
+      const allIds = arr.map((l) => l.id);
+      // 카테고리 = cluster 안 매물 majority. 'investment' 탭에선 카테고리별 다양 → majority 결과 사용.
+      const catCounts: Record<string, number> = {};
+      for (const l of arr) {
+        const c = listingCategoryOf(l);
+        catCounts[c] = (catCounts[c] ?? 0) + 1;
+      }
+      let topCat: 'residence' | 'retail_office' | 'land' | 'investment' = 'residence';
+      let topN = 0;
+      for (const [c, n] of Object.entries(catCounts)) {
+        if (n > topN) {
+          topN = n;
+          topCat = c as typeof topCat;
+        }
+      }
       out.push({
         cluster_id: key,
         lat: pos.lat,
         lng: pos.lng,
         count: arr.length,
-        sample_ids: arr.slice(0, 5).map((l) => l.id),
+        sample_ids: allIds.slice(0, 5),
+        all_ids: allIds,
+        category: topCat,
       });
     }
     return out;
   }, [listings, kakaoLevel, clusterFilterIds, filterCategory]);
+
+  // Wave 25b (2026-05-04): WebGL cluster 클릭 핸들러.
+  //   count == 1 → 매물 detail modal. count > 1 → setClusterFilter (사이드바에 N개 매물만 표시).
+  //   DOM HtmlMarkerOverlay 와 동일 동작 (병렬 모드라 둘 다 클릭 가능).
+  const onClickWebglCluster = useCallback(
+    (cluster: MapCluster) => {
+      if (!cluster) return;
+      if (cluster.count === 1 && cluster.all_ids?.[0]) {
+        const id = cluster.all_ids[0];
+        // listings 에서 매물 찾아 detail modal
+        // openListingDetail 은 store action — selectListing + detailListingId 세팅 모두 처리.
+        useMap2026Store.getState().openListingDetail(id);
+        return;
+      }
+      const ids = cluster.all_ids ?? cluster.sample_ids ?? [];
+      if (ids.length > 0) {
+        setClusterFilter(ids, null);
+      }
+    },
+    [setClusterFilter]
+  );
 
   const onClickListing = useCallback(
     (id: number) => {
@@ -550,6 +589,8 @@ export default function MapClient() {
                 items={[]}
                 // Wave 24 (2026-05-04): WebGL cluster 활성. HtmlMarkerOverlay (DOM) 와 병렬.
                 clusters={webglClusters}
+                // Wave 25b: WebGL cluster 클릭 핸들러 - DOM 과 동일 동작 (setClusterFilter or modal).
+                onClickCluster={onClickWebglCluster}
                 onClickListing={onClickListing}
               />
               {/* L-worldclass1 (2026-04-24 pm) + L-adminfit2 (2026-04-24 pm):
