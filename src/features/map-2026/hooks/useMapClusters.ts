@@ -54,19 +54,18 @@ function buildQs(
   //   propertyTypes 가 명시 안 됐으면 카테고리에 해당하는 default types 사용.
   const deals = dealsToParam(filter.deals);
   if (deals) p.set('deals', deals);
-  let types = filter.propertyTypes;
-  if (types.length === 0) {
-    // 카테고리별 default types
-    if (filter.category === 'residence') {
-      types = ['아파트','오피스텔','원룸','투룸','쓰리룸','빌라','주택','단독주택','다가구주택','다세대주택','연립주택','쉐어하우스','고시원','단기'];
-    } else if (filter.category === 'retail_office') {
-      types = ['상가','사무실','지식산업센터','복합건물','상가주택','사무용','오피스','점포','근생'];
-    } else if (filter.category === 'land') {
-      types = ['토지','대지','임야','전','답','과수원'];
-    }
-    // 'investment' 는 cross-cutting → 필터 미적용 (전부 표시)
+  // G-111 (2026-05-04 사장님): default category mapping을 서버 RPC p_category로 위임.
+  //   이전: client에서 propertyTypes를 hardcode list로 set → cluster RPC가
+  //         residence 카테고리에서 cross-residential (사무실/근린/학원 < 50sqm) 미포함.
+  //         viewport API는 cross-residential 포함하여 cluster vs panel count 차이 발생.
+  //   현재: propertyTypes가 명시되면 그대로 보냄. 명시 안 됐으면 category만 보내고
+  //         서버 RPC가 viewport categoryToTypeFilter와 동일 logic으로 매칭.
+  if (filter.propertyTypes.length > 0) {
+    p.set('types', filter.propertyTypes.join(','));
+  } else if (filter.category && filter.category !== 'investment') {
+    p.set('category', filter.category);
   }
-  if (types.length > 0) p.set('types', types.join(','));
+  // 'investment'는 cross-cutting → category/types 모두 미적용 (전부 표시)
   if (filter.minPrice != null) p.set('minPrice', String(filter.minPrice));
   if (filter.maxPrice != null) p.set('maxPrice', String(filter.maxPrice));
   if (filter.minDeposit != null) p.set('minDeposit', String(filter.minDeposit));
