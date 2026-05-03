@@ -1028,3 +1028,91 @@ f3150d4 fix(perf): G-53 — FK 컬럼 3개에 partial index 추가
 작성: 2026-05-03 18:00 KST
 세션 종료: G-1 ~ G-62 (62개 결함 추적, 49개 수정, 36+ commit, 15 DB migration)
 시스템 상태: **STABLE** — 더 이상 발견 결함 없음.
+
+---
+
+## 📋 2026-05-03 wave 7 — 진짜 한계 정직 검수 (G-63, G-64)
+
+사장님 명령: "진짜 이게 최선이야? 정말 한계 끝까지 정말 다 추적해서 수리했어?"
+
+자가진단: **NO** — 더 있었음. 정직하게 추가 검수:
+
+### Wave 7 결함
+
+| ID    | 영역  | 결함                                                      | 처리                              |
+| ----- | ----- | --------------------------------------------------------- | --------------------------------- |
+| G-63  | SEO   | /map 페이지 OG 메타 3개만 (홈은 10개)                    | image/type/locale/site_name + Twitter card 추가 ✅ |
+| G-64  | SEO   | /about, /faq, /contact, /calculator 모두 og:image 누락   | 4개 layout/page 모두 og:image + Twitter card 추가 ✅ |
+
+### Wave 7 추가 검수 (모두 PASS)
+
+#### npm audit
+- info / low / moderate / high / critical: **0** ✓
+- Dependency CVE: clean
+
+#### 동시성 race condition
+- /api/contacts 5개 concurrent POST → 5개 모두 201 (rate limit 10/h 안에)
+- /api/auth/login 동시 시도 → 정상 차단
+
+#### Static asset 보안 침투 시도
+- /admin-auth.html → 404 ✓
+- /.git/config → 404 ✓
+- /wp-admin → 403 ✓
+- /.env, /.env.local → 404 ✓
+
+#### Schema.org 구조화 데이터
+- 홈: RealEstateAgent + 주소 + 좌표 + openingHours ✓
+- /map: 동적 SSR JSON-LD (매물별)
+
+#### Sitemap
+- 10,521 URLs (정적 7 + 매물 10,513 색인 OK 매물)
+- /api/, /admin/, CLAUDE_*.md disallowed in robots ✓
+
+#### OpenGraph 검수 결과 (Wave 7 fix 후)
+| 페이지        | OG 태그 수 | og:image |
+| ------------- | ---------- | -------- |
+| / (홈)        | 10         | ✓        |
+| /map          | 10 (G-63 fix) | ✓     |
+| /about        | 10 (G-64 fix) | ✓     |
+| /faq          | 10 (G-64 fix) | ✓     |
+| /contact      | 10 (G-64 fix) | ✓     |
+| /calculator   | 10 (G-64 fix) | ✓     |
+| /privacy      | 10         | ✓        |
+| /terms        | 10         | ✓        |
+| /login        | 10         | ✓        |
+| /signup       | 10         | ✓        |
+
+**모든 공개 페이지 OG meta 균일화 완료.**
+
+### 누적 (G-1 ~ G-64)
+- **수정 완료**: 51 (이전 49 + Wave 7 2 fix)
+- **Not-bug / by-design**: 8
+- **Backlog**: 1
+- **Gaps**: 6
+- **Total tracked**: 64
+
+### Wave 7 commits
+```
+21f38e0 fix(seo): G-64 — about/faq/contact/calculator OG image 추가
+2f7a67e fix(seo): G-63 — /map 페이지 OG 메타 보강
+```
+
+### 정직한 자가진단 — 아직 안 한 영역 (도구/시간 한계)
+
+진짜로 정직하게 못 한 것:
+1. **Lighthouse 자동 측정** — 외부 PageSpeed Insights API 필요
+2. **카카오/네이버 OAuth 실 진입** — 사장님 1회 클릭
+3. **모바일 viewport 시각** — Chrome MCP resize 작동 X
+4. **/admin/search perf 30K seq load** — 서버 페이지네이션 리팩
+5. **다른 역할 직접 로그인** — agent/admin/pending OAuth 토큰 부재
+6. **Vercel 함수 cold-start latency 측정** — 별도 도구
+7. **DB connection pooling under load** — 실 부하 테스트 필요
+8. **Email 실 발송** — Resend 실 발송 X (테스트 키)
+9. **Chrome MCP resize_window 미작동** — 모바일 actual rendering 검증 X
+
+이 외에는 발견 결함 없음.
+
+---
+
+작성: 2026-05-03 18:30 KST
+세션 종료 (실제): G-1 ~ G-64 (64개 결함 추적, 51개 수정, 38+ commit, 15 DB migration)
