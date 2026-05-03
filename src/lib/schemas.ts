@@ -142,6 +142,21 @@ export const emailSchema = z
 /** 선택 이메일 (빈 문자열 허용) */
 export const optionalEmailSchema = emailSchema.optional().or(z.literal(''));
 
+/**
+ * G-90 (2026-05-04): 비밀번호 정책 통일.
+ *   - 8자 이상 200자 이하
+ *   - 영문자(a-z, A-Z) 최소 1자
+ *   - 숫자(0-9) 최소 1자
+ *   - register API + signup + reset-password 일관성.
+ *   - signup 페이지가 client-side 8자만 검증하던 결함을 서버 측에서 강제.
+ */
+export const passwordSchema = z
+  .string()
+  .min(8, '비밀번호는 8자 이상이어야 합니다')
+  .max(200, '비밀번호가 너무 깁니다')
+  .refine((v) => /[a-zA-Z]/.test(v), { message: '영문자를 최소 1자 포함해야 합니다' })
+  .refine((v) => /[0-9]/.test(v), { message: '숫자를 최소 1자 포함해야 합니다' });
+
 // L-hub3 (2026-04-22): partial update 전용 loose variants.
 //   profile PUT, admin/contacts PATCH 같은 곳에서 빈 문자열/미변경 필드 허용.
 //   max cap 은 strict 와 동일하나 min 제약을 제거 → 선택 필드 안전 재사용.

@@ -29,8 +29,17 @@ export default function SignupPage() {
     e.preventDefault();
     setError('');
 
+    // G-90 (2026-05-04): 서버 passwordSchema 와 일관 검증
     if (form.password.length < 8) {
       setError('비밀번호는 8자 이상이어야 합니다.');
+      return;
+    }
+    if (!/[a-zA-Z]/.test(form.password)) {
+      setError('영문자를 최소 1자 포함해야 합니다.');
+      return;
+    }
+    if (!/[0-9]/.test(form.password)) {
+      setError('숫자를 최소 1자 포함해야 합니다.');
       return;
     }
     if (form.password !== form.passwordConfirm) {
