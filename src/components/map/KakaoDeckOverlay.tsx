@@ -45,6 +45,10 @@ export interface MapCluster {
   avg_price?: number | null;
   max_price?: number | null;
   sample_ids?: number[] | null;
+  // Wave 25b (2026-05-04): cluster 안 모든 매물 ID — cluster click 시 setClusterFilter 에 전달.
+  all_ids?: number[] | null;
+  // Wave 25b: cluster 색상 카테고리 — DOM 마커 (HtmlMarkerOverlay) 와 일치.
+  category?: 'residence' | 'retail_office' | 'land' | 'investment' | null;
 }
 
 export interface MapItem {
@@ -77,12 +81,23 @@ interface Props {
 }
 
 function defaultColorScale(count: number): [number, number, number, number] {
-  // 위시스 브랜드 톤 (indigo-500 ~ indigo-700)
-  if (count >= 100) return [79, 70, 229, 230]; // indigo-600
-  if (count >= 30) return [99, 102, 241, 220]; // indigo-500
-  if (count >= 10) return [129, 140, 248, 210]; // indigo-400
-  if (count >= 2) return [165, 180, 252, 200]; // indigo-300
-  return [219, 39, 119, 210]; // pink-600 (개별 매물)
+  // 위시스 브랜드 톤 (indigo-500 ~ indigo-700) — Wave 24 병렬 모드 디버그 용 fallback.
+  if (count >= 100) return [79, 70, 229, 230];
+  if (count >= 30) return [99, 102, 241, 220];
+  if (count >= 10) return [129, 140, 248, 210];
+  if (count >= 2) return [165, 180, 252, 200];
+  return [219, 39, 119, 210];
+}
+
+// Wave 25b (2026-05-04 사장님 명령): WebGL cluster 색상을 DOM 마커 (HtmlMarkerOverlay) 와 일치.
+//   residence=emerald #006241 / retail_office=amber #b45309 / land=brown #78350f / investment=violet #7e22ce
+//   투명도 alpha 174 (DOM 의 0.68 과 동일).
+function categoryColorScale(c: MapCluster): [number, number, number, number] {
+  const cat = c.category;
+  if (cat === 'retail_office') return [180, 83, 9, 220];
+  if (cat === 'land') return [120, 53, 15, 220];
+  if (cat === 'investment') return [126, 34, 206, 220];
+  return [0, 98, 65, 220]; // residence default
 }
 
 /**
@@ -310,7 +325,8 @@ export default function KakaoDeckOverlay({
       getPosition: (d: MapCluster) => [...project(d.lat, d.lng), 0],
       getRadius: (d: MapCluster) =>
         Math.min(56, 14 + Math.log2(d.count) * 4),
-      getFillColor: (d: MapCluster) => colorScale(d.count),
+      // Wave 25b: cluster.category 기반 색상 (DOM 과 일치). count 기반 colorScale 은 fallback.
+      getFillColor: (d: MapCluster) => (d.category ? categoryColorScale(d) : colorScale(d.count)),
       getLineColor: () => [255, 255, 255, 255],
       onClick: ({ object }) => {
         if (object && onClickCluster) onClickCluster(object as MapCluster);
