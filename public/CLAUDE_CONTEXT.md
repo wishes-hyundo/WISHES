@@ -1671,3 +1671,35 @@ da85e280 fix(db): G-75 + G-76 — Supabase advisor 보안 권장사항 처리
 ---
 
 **누적 G-1~G-89: 89 추적, 73 수정, 57+ commit, 19 마이그레이션. Supabase advisor 0 actionable.**
+
+---
+
+## Wave 14 (continued) — G-90/91 password + OAuth CSRF (2026-05-04 03:30 KST)
+
+| ID    | 영역 | 결함 | 우선순위 | 상태 |
+| ----- | ---- | ---- | -------- | ---- |
+| G-90  | security | 비밀번호 정책 일관성 부재 (register min 1, signup 8, reset 8+영문+숫자) | High | ✅ fix |
+| G-91  | security | OAuth state CSRF — kakao/naver POST 가 state 쿠키 검증 안 함 | **CRITICAL** | ✅ fix |
+
+### G-91 영향
+
+oauth-start 가 `ws_kakao_state` / `ws_naver_state` HttpOnly cookie 에 random hex32 state 설정했으나, kakao/naver POST 가 body.state 를 cookie 와 비교 안 함 → 공격자가 자기 authorization_code 를 피해자에게 redirect 시켜 OAuth session fixation 가능. timingSafeEqualStr 로 비교 추가.
+
+### Wave 14 누적 8개 (G-83~G-91)
+
+```
+6ea81d93 fix(security): G-91 CRITICAL — OAuth state CSRF
+136b8918 fix(security): G-90 — 비밀번호 정책 통일
+da7c313b docs: Wave 14 G-89
+39d0f2b0 fix(audit): G-89 — process-paid-reports cron summary audit
+8a6b684d fix(security): G-88 — /api/reports/init rate limit
+160eb9fe fix(security): G-87 — prewarm/resolve cron 인증 강화
+44786881 fix(security): G-86 — 7 cron isVercelCron fail-safe
+5cfea1e0 fix(audit): G-85 — pipa-anonymize PIPA audit
+2afa0f7a fix(security): G-84 — /api/ai/match sanitize
+7bd677fd fix(security): G-83 — /api/map/items sanitize
+```
+
+---
+
+**누적 G-1~G-91: 91 추적, 75 수정, 60+ commit, 19 마이그레이션. CRITICAL OAuth state CSRF 방어 완료.**
