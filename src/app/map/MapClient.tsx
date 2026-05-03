@@ -793,16 +793,22 @@ function MapOverlaysWithClusters(props: {
           영구 freeze 해결 시도 #2.
           롤백: listings={[]} 를 listings={props.listings} 로 변경 (1줄). */}
       {/* Wave 26.3 (2026-05-04): props.listings 복원 - hypothesis 2 도 실패. */}
-      <HtmlMarkerOverlay
-        map={props.kakaoMap}
-        listings={props.listings}
-        selectedListingId={props.selectedListingId}
-        category={props.category}
-        onClickListing={props.onClickListing}
-        onClusterFilter={props.onClusterFilter}
-        clusterFilterIds={props.clusterFilterIds}
-        clusterFilterListings={props.clusterFilterListings}
-      />
+      {/* Wave 26.6 (2026-05-04 사장님 명령): DOM 마커 비활성 — KakaoDeckOverlay deckReady fix
+          (useEffect #1 init 완료 → setDeckReady(true) → useEffect #2 자동 재실행) 로 WebGL only 모드 가능.
+          Wave 26 의 회귀 (WebGL invisible) 의 진짜 원인 = deck.gl 비동기 init timing.
+          롤백: false → true 로 변경 (1줄). */}
+      {false ? (
+        <HtmlMarkerOverlay
+          map={props.kakaoMap}
+          listings={props.listings}
+          selectedListingId={props.selectedListingId}
+          category={props.category}
+          onClickListing={props.onClickListing}
+          onClusterFilter={props.onClusterFilter}
+          clusterFilterIds={props.clusterFilterIds}
+          clusterFilterListings={props.clusterFilterListings}
+        />
+      ) : null}
       <MapErrorBoundary>
         <AdminRegionOverlay
           map={props.kakaoMap}
