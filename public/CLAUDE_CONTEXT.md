@@ -818,3 +818,69 @@ f3150d4 fix(perf): G-53 — FK 컬럼 3개에 partial index 추가
 
 작성: 2026-05-03 16:30 KST
 세션: G-1 ~ G-58 (58개 결함 추적, 46개 수정, 27+ commit, 13 DB migration)
+
+---
+
+## 📋 2026-05-03 wave 4 — G-59~G-61 진짜 끝까지 침투
+
+사장님 명령: "아주 끝까지 가보자 계속 깊게 침투해서 문제점 찾아서 고쳐놔"
+
+### Wave 4 결함 (G-59~G-61, 3개)
+
+| ID    | 영역      | 결함                                                        | 처리                                  |
+| ----- | --------- | ----------------------------------------------------------- | ------------------------------------- |
+| G-59  | cron      | auto_hide_area_invalid + auto_restore_area_zero 7 일 3849 vs 3848 | 동일 timestamp 일회성 bulk operation — not-bug ✅ |
+| G-60  | **CRITICAL** | 공개 /api/listings 가 admin 전용 30+ 필드 노출 (source_url, raw_fields, price_history, special_notes 등) | INTERNAL_LISTING_FIELDS 8개 → 38개 확장 ✅ |
+| G-61  | perf      | RLS 정책 45개 auth.<func>() 가 row 마다 재평가 (Supabase advisor) | 25+ 개 (SELECT auth.<func>()) 로 래핑, 45 → 12 (73% 감소) ✅ |
+
+### Wave 4 commits
+```
+7de2428 fix(perf): G-61 — RLS auth.<func>() 를 (SELECT) 래핑 (25+ 정책)
+6a7ad4a fix(security): G-60 — 공개 /api/listings admin 전용 필드 strip 확장
+```
+
+### DB 마이그레이션 추가 (Wave 4, 1개)
+14. `20260503_wrap_auth_calls_in_select_perf.sql` (G-61)
+
+### Wave 4 추가 검수
+- DB 무결성: 8 종 orphan rows 검사 → 0 ✅
+- 데이터 품질 (negative price, area 극단치 등) → 0 ✅
+- RLS 정책 36 개 전수 정합성 검증
+- audit_log 활성도 (24h 27,045 매물 처리 cron 활발)
+- DB 사이즈 (listing_raw_html 835MB, listings 277MB — 모두 정상)
+- 죽은 튜플 비율 (listings 18% — autovacuum 일일 동작 중)
+- 미사용 인덱스 15+ — 제거 보류 (HNSW 등 향후 사용 가능)
+- 중복 인덱스 → 4개 DROP (G-54)
+- 보안 advisor: SECURITY DEFINER 7개 REVOKE
+- pg_stat 통계 검증 — 신규 컬럼 (G-31/G-33/G-37) 만 n_distinct=0 (정상)
+
+### 누적 합계 (G-1 ~ G-61)
+- **수정 완료**: 48 (이전 46 + Wave 4 2 fix)
+- **Not-bug / by-design**: 8 (G-7, G-19, G-28, G-36, G-43, G-51, G-55, G-59)
+- **Backlog**: 1 (G-32 search perf)
+- **Gaps**: 6
+- **Total tracked**: 61
+
+### 시스템 무결성 (Wave 4 후)
+- auth.users / admin_users / profiles: 13 / 13 / 0 ✓
+- mismatch: 0 ✓
+- I-AUTH-1: 100% ✓
+- 사장님 이메일 하드코드: 0 ✓
+- RLS '가용' 잔여: 0 ✓
+- FK 누락 인덱스: 0 ✓
+- RLS auth() 래핑 누락: 12 (45 → 12, 73% 감소) ✓
+- 공개 매물: 26,866 ✓
+- 공개 API admin 필드 노출: 0 (38개 strip)
+
+### 검수한 영역 (Wave 4)
+- DB 모든 orphan / FK / index / 중복 — 정밀 sweep
+- RLS 정책 전수 (45 + 4 + 6) — 수정
+- 보안 advisor + perf advisor (Supabase 자체 도구)
+- 공개 API 응답 필드 노출 검증 — 38개 strip
+- 인증 코드 (timingSafeEqual 검증)
+- 에러 처리 일관성
+
+---
+
+작성: 2026-05-03 17:00 KST
+세션: G-1 ~ G-61 (61개 결함 추적, 48개 수정, 33+ commit, 14 DB migration)
