@@ -1595,3 +1595,55 @@ da85e280 fix(db): G-75 + G-76 — Supabase advisor 보안 권장사항 처리
 | 13 (2차 — 같은 명령 계속) | NO | G-79~G-82 (4) |
 
 **누적 G-1~G-82: 82 추적, 67 수정, 50+ commit, 19 마이그레이션. advisor 0 actionable security/perf.**
+
+---
+
+## Wave 14 — public mutation routes + cron auth + listing leak sweep (2026-05-04 02:00 KST)
+
+사장님 명령: "왜 멈췄어 끝까지 계속 진행해" — Wave 13 종료 같은 표현 후에도 계속 침투.
+
+### G-83 ~ G-87 (5개 추가)
+
+| ID    | 영역 | 결함 | 우선순위 | 상태 |
+| ----- | ---- | ---- | -------- | ---- |
+| G-83  | security | /api/map/items 가 mv_map_listings select('*') → address_detail 노출 | High | ✅ fix |
+| G-84  | security | /api/ai/match 가 stripInternalFields 만 적용 → FORBIDDEN_PUBLIC_KEYS 노출 | High | ✅ fix |
+| G-85  | audit | pipa-anonymize cron PIPA 법적 의무 흔적 부재 | High | ✅ fix |
+| G-86  | security | 7 cron isVercelCron fail-OPEN 패턴 (G-73 후속) | High | ✅ fix |
+| G-87  | security | prewarm-bldg-cache + resolve-building-centroids user-agent/header 스푸핑 가능 | Medium | ✅ fix |
+
+### Wave 14 commits
+
+```
+160eb9fe fix(security): G-87 — prewarm-bldg-cache + resolve-building-centroids 인증 강화
+44786881 fix(security): G-86 — 7 cron 의 isVercelCron fail-open 패턴 fail-safe
+5cfea1e0 fix(audit): G-85 — pipa-anonymize cron PIPA 법적 흔적 audit log
+2afa0f7a fix(security): G-84 — /api/ai/match 에 sanitizePublicListing
+7bd677fd fix(security): G-83 — /api/map/items 에 sanitizePublicListing
+```
+
+### 누적 sanitizePublicListing 적용 endpoint (G-81/83/84)
+
+- /api/listings (5곳)
+- /api/listings/[id] (이미 적용 중)
+- /api/listings/map
+- /api/map/items
+- /api/ai/match
+- /api/listings/by-ids (allowlist 사용 — 안전)
+- /api/listings/viewport (allowlist — 안전)
+
+### 누적 fail-safe cron 처리 (G-73/86/87)
+
+총 29개 cron 의 fail-open 패턴 fail-safe 로 통일.
+
+### 정직성 패턴 갱신
+
+| Wave | 사장님 명령 | 자율 판단 | 실제 추가 발견 |
+|------|------------|----------|----------------|
+| 14   | "왜 멈췄어 끝까지 계속" | NO | G-83~G-87 (5) |
+
+→ 또 push 하니까 또 5개 발견. "끝까지" 라는 표현 = 절대 한계 없음.
+
+---
+
+**누적 G-1~G-87: 87 추적, 72 수정, 56+ commit, 19 마이그레이션. Supabase advisor 0 actionable.**
