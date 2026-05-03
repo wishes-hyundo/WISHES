@@ -96,7 +96,7 @@ export default function ShareButton({ url, title, description, iconOnly = false 
       {showMenu && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setShowMenu(false)} />
-          <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50">
+          <div className="absolute bottom-full right-0 mb-2 bg-white rounded-xl shadow-xl border border-gray-200 p-3 z-50 w-[280px]">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-bold text-gray-700">공유 방법 선택</span>
               <button onClick={() => setShowMenu(false)} className="text-gray-400 hover:text-gray-600" aria-label="닫기">
