@@ -56,6 +56,7 @@ import KakaoDeckOverlay, { type MapItem, type MapCluster } from '@/components/ma
 //   HtmlMarkerOverlay (DOM) 와 병렬 렌더 — 시각 비교 검증용. Wave 26 에 DOM 비활성.
 import {
   aggregateClusters,
+  applySpiderFy,
   computeClusterPosition,
 } from '@/features/map-2026/lib/clusterAggregation';
 // Wave 25a (2026-05-04): WebGL cluster 도 카테고리 필터 + cross-residential 적용
@@ -406,14 +407,16 @@ export default function MapClient() {
   //   병렬 렌더 모드: WebGL 마커 (인디고) + DOM 마커 (그린) 동시 표시 → 시각 비교.
   //   Wave 25 에서 click + spider-fy 포팅, Wave 26 에 DOM 비활성.
   const webglClusters: MapCluster[] = useMemo(() => {
+    // Wave 25c (2026-05-04): clusterFilterIds 활성 시 cluster 미표시 (spider-fy 모드).
+    //   DOM HtmlMarkerOverlay G-123 'return after spider-fy' 동작과 동일.
+    if (clusterFilterIds != null) return [];
     if (!listings || listings.length === 0) return [];
-    // Wave 25a: 카테고리 필터 + cross-residential — DOM 마커 (HtmlMarkerOverlay) 와 동일 데이터.
-    //   'investment' 탭은 cross-cutting 라 필터 미적용 (HtmlMarkerOverlay 와 동일 동작).
+    // Wave 25a: 카테고리 필터 + cross-residential — DOM 마커와 동일 데이터.
     const filtered = filterCategory === 'investment'
       ? listings
       : listings.filter((l) => listingCategoryOf(l) === filterCategory);
     if (filtered.length === 0) return [];
-    const aggregated = aggregateClusters(filtered, kakaoLevel, clusterFilterIds != null);
+    const aggregated = aggregateClusters(filtered, kakaoLevel, false);
     const out: MapCluster[] = [];
     for (const [key, arr] of aggregated) {
       const pos = computeClusterPosition(arr);
@@ -445,6 +448,36 @@ export default function MapClient() {
     }
     return out;
   }, [listings, kakaoLevel, clusterFilterIds, filterCategory]);
+
+  // Wave 25c (2026-05-04): clusterFilterIds 활성 시 spider-fy 결과를 individual marker (MapItem) 로 변환.
+  //   DOM HtmlMarkerOverlay G-123 spider-fy 와 동일 좌표 (applySpiderFy 같은 함수).
+  //   비활성 시 [] — KakaoDeckOverlay itemScatter 비활성.
+  const webglItems: MapItem[] = useMemo(() => {
+    if (clusterFilterIds == null) return [];
+    const source: MapListing[] = clusterFilterListings && clusterFilterListings.length > 0
+      ? clusterFilterListings
+      : listings.filter((l) => clusterFilterIds.includes(l.id));
+    if (source.length === 0) return [];
+    const spiderFied = applySpiderFy(source);
+    return spiderFied.map((s) => {
+      const l = s.listing;
+      const unified =
+        l.deal === '매매'
+          ? l.price
+          : l.deal === '전세'
+          ? l.deposit
+          : l.monthly;
+      return {
+        id: l.id,
+        lat: s.displayLat,
+        lng: s.displayLng,
+        price_unified: unified,
+        type: l.type,
+        deal: l.deal,
+        thumb_url: l.thumbnail_url,
+      };
+    });
+  }, [clusterFilterIds, clusterFilterListings, listings]);
 
   // Wave 25b (2026-05-04): WebGL cluster 클릭 핸들러.
   //   count == 1 → 매물 detail modal. count > 1 → setClusterFilter (사이드바에 N개 매물만 표시).
@@ -585,9 +618,9 @@ export default function MapClient() {
               <KakaoDeckOverlay
                 map={kakaoMap}
                 container={containerRef.current}
-                // L-mapmarker1: 개별 매물 (item scatter/text) 비활성. HtmlMarkerOverlay 담당.
-                items={[]}
-                // Wave 24 (2026-05-04): WebGL cluster 활성. HtmlMarkerOverlay (DOM) 와 병렬.
+                // Wave 25c: clusterFilterIds 활성 시 spider-fy individual marker (cluster 비표시).
+                items={webglItems}
+                // Wave 24~25b: WebGL cluster - 카테고리 색상 + click handler.
                 clusters={webglClusters}
                 // Wave 25b: WebGL cluster 클릭 핸들러 - DOM 과 동일 동작 (setClusterFilter or modal).
                 onClickCluster={onClickWebglCluster}
