@@ -125,10 +125,15 @@ function parseRooms(text: string): number | undefined {
 // 지역명 추출: 단어 중 "구"/"동"/"시"로 끝나는 토큰
 // G-68 (2026-05-03): 구/동 분리 반환 (DB 가 gu/dong 분리 컬럼이라 매칭 정확도 위해).
 function parseLocation(text: string): { gu?: string; dong?: string } {
+  // G-104 (2026-05-04): JS regex \b 는 ASCII 만 word boundary 인식.
+  //   "강남구 원룸" 에서 \b/\B 둘 다 매칭 안 함 ([가-힣]도 non-word, 공백도 non-word).
+  //   결과: G-68 fix 가 처음부터 작동 안 했음 — 사용자가 챗봇에 "강남구" 입력해도
+  //   filters.gu 가 undefined 였던 것. 이번엔 (?=$|\s|[^가-힣]) lookahead 로
+  //   한글 다음에 끝/공백/비한글이 와야 매칭 — 한글 boundary 정확히 인식.
   const out: { gu?: string; dong?: string } = {};
-  const guMatch = text.match(/([가-힣]{2,4}구)\b/);
+  const guMatch = text.match(/([가-힣]{2,4}구)(?=$|\s|[^가-힣])/);
   if (guMatch) out.gu = guMatch[1];
-  const dongMatch = text.match(/([가-힣]{2,5}동)\b/);
+  const dongMatch = text.match(/([가-힣]{2,5}동)(?=$|\s|[^가-힣])/);
   if (dongMatch) out.dong = dongMatch[1];
   // 시 단위는 한국 부동산 검색에서 드문 사용 — 무시
   return out;
