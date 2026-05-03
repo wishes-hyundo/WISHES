@@ -684,3 +684,71 @@ c76707d fix(admin): G-29+G-30 — government-prices, enrichment-progress, onhous
 작성: 2026-05-03 15:00 KST
 세션: G-1 ~ G-47 (47개 결함 추적, 35개 수정, 17 commit, 8 마이그레이션)
 다음: 사장님 검수 또는 카카오/네이버 OAuth 진입 시뮬레이션
+
+---
+
+## 📋 2026-05-03 wave 2 — G-48~G-52 추가 결함 (정밀검수 계속)
+
+사장님 명령: "지금 폼 전부 채워서 필드 다 채워서 아이콘 다 눌러보고 버튼 눌러보면서 단 하나도 빠짐없이 버그 다 찾아"
+
+### 결함 + 처리
+
+| ID    | 영역      | 결함                                              | 처리                                         |
+| ----- | --------- | ------------------------------------------------- | -------------------------------------------- |
+| G-48  | 보안      | register API name 필드 XSS payload 통과 (200)    | nameSchema 에 stripHtml transform 추가 ✅    |
+| G-49  | 보안      | contacts API name/message XSS payload 통과 (201)  | contactSchema 의 name/message/additional_requirements 에 stripHtml ✅ |
+| G-50  | UI        | /calculator 페이지 한글 typo '죸택' (2 곳)         | sed 로 '주택' 으로 수정 ✅                   |
+| G-51  | UX        | 전세↔월세 환산 input 매핑 결함 (false alarm)      | not-bug — 검증 결과 정상 동작 ✅             |
+| G-52  | 콘텐츠    | 영업시간 페이지마다 불일치 (/faq vs others)       | /faq 답변 09:00-19:00 통일 ✅                |
+
+### 폼 + API edge case 테스트 결과 (모두 PASS)
+
+- /api/auth/register: empty/invalid/short/SQL/XSS — 모두 적절히 거부
+- /api/auth/login: 8 cases — 모두 적절한 status (400/401)
+- /api/contacts: 6 cases — 5/6 거부, 1개 XSS 통과 → G-49 fix
+- /api/listings/[id]/info-request: 5 cases — invalid type 거부 + rate limit 동작
+- /api/listings GET: 18 cases (id/ids/limit/offset) — 모두 안전
+- /api/auth/forgot-password: 4 cases — 항상 200 (anti-enumeration, by design)
+- /api/admin/*: 비인증 401 ✅
+
+### 시각 검증 PASS
+
+- 홈 페이지: 17 unique links (모두 200), 0 broken images
+- /map filter sidebar: 가격/면적/방수/유형/편의시설 등 모든 필터 정상
+- /map?listing=46114 modal: 사진 갤러리 + 담당자 모달 + 공유 모달 + 방문예약 모두 동작
+- /calculator: 대출 (3억/3.5%/30년 = 134만/월) + 전세↔월세 (2억→79만원) 정확
+- /faq: 6 탭 모두 동작, Q/A 표시
+- AI 채팅: 자연어 매물 검색 → 12 매물 응답 (조건 + 카드)
+- 모든 footer 링크: about/faq/privacy/terms (200)
+
+### 추가 commit (이번 wave)
+
+```
+8bcc2a7 fix(ui): G-50 — calculator 페이지 한글 typo 수정 (죸택 → 주택)
+054cb4c fix(security): G-49 — contacts API name/message XSS sanitize
+1009f95 fix(security): G-48 — nameSchema HTML strip 추가 (XSS sanitize)
+5120cc6 fix(content): G-52 — FAQ 영업시간 통일
+667beeb docs(master-prompt): 2026-05-03 G-1~G-47 전체 결함 카탈로그 추가
+```
+
+### 누적 합계 (G-1 ~ G-52)
+- **수정 완료**: 41 (이전 35 + 이번 6)
+- **Not-bug / by-design**: 6 (이전 5 + G-51 false alarm)
+- **Backlog**: 1 (G-32 search perf)
+- **Gaps**: 6
+- **Total**: 52
+
+### 시스템 무결성 (재검증)
+- auth.users / admin_users / profiles: 13 / 13 / **0** (mismatch=0)
+- I-AUTO-1 + I-AUTH-1 invariant: 100% 준수
+- DB '가용' 정책 잔여: 0
+- 모든 admin/public 페이지: 200 OK
+- 폼 제출 (5종): 모두 정상 동작
+- 보안 헤더: HSTS, CSP, X-Frame-Options, Referrer-Policy 모두 활성
+- AI chatbot: /api/ai/match endpoint 정상
+
+---
+
+작성: 2026-05-03 16:00 KST
+세션: G-1 ~ G-52 (52개 결함 추적, 41개 수정, 22+ commit)
+다음: 어드민 페이지 detail 검수 (admin login 후) 또는 사장님 다음 명령
