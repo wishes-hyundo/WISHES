@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { timingSafeEqualStr } from '@/lib/timingSafe';
 import { oauthCodeSchema, oauthStateSchema } from '@/lib/schemas';
 
 export const runtime = 'nodejs';
@@ -66,7 +67,15 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Authorization code is required' }, { status: 400 });
     }
-    const { code, redirect_uri: clientRedirect } = parsed.data;
+    const { code, state, redirect_uri: clientRedirect } = parsed.data;
+
+    // G-91 (2026-05-04): OAuth state CSRF — body.state 가 ws_kakao_state 쿠키와 일치해야 함.
+    //   /api/auth/oauth-start/kakao 가 random hex32 state 를 HttpOnly 쿠키에 설정.
+    //   상수 시간 비교 + 쿠키 일회성 (다음 줄에서 expire 강제).
+    const stateCookie = (request.cookies.get('ws_kakao_state')?.value || '').trim();
+    if (!stateCookie || !state || !timingSafeEqualStr(stateCookie, state)) {
+      return NextResponse.json({ error: 'OAuth state mismatch' }, { status: 403 });
+    }
 
     const clientId = process.env.NEXT_PUBLIC_KAKAO_REST_API_KEY;
     const clientSecret = process.env.KAKAO_CLIENT_SECRET;

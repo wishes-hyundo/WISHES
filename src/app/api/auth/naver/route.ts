@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
+import { timingSafeEqualStr } from '@/lib/timingSafe';
 // L-hub3 (2026-04-22): Zod 공용 스키마 허브 이관.
 import { oauthCodeSchema, oauthStateSchema } from '@/lib/schemas';
 
@@ -34,6 +35,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authorization code is required' }, { status: 400 });
     }
     const { code, state } = parsed.data;
+
+    // G-91 (2026-05-04): OAuth state CSRF — body.state 가 ws_naver_state 쿠키와 일치해야 함.
+    const stateCookie = (request.cookies.get('ws_naver_state')?.value || '').trim();
+    if (!stateCookie || !state || !timingSafeEqualStr(stateCookie, state)) {
+      return NextResponse.json({ error: 'OAuth state mismatch' }, { status: 403 });
+    }
 
     const NAVER_CLIENT_ID = process.env.NEXT_PUBLIC_NAVER_CLIENT_ID;
     const NAVER_CLIENT_SECRET = process.env.NAVER_CLIENT_SECRET;
