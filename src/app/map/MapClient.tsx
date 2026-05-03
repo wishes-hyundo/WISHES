@@ -51,7 +51,13 @@ import { CopyToastOutlet } from '@/features/map-2026/components/CopyToast';
 //   사이드바에서 항상 노출되던 기존 배치는 "사용하기 너무 불편" 피드백으로
 //   Gate 패턴 (카테고리 탭 클릭 → 모달) 으로 전환됨.
 
-import KakaoDeckOverlay, { type MapItem } from '@/components/map/KakaoDeckOverlay';
+import KakaoDeckOverlay, { type MapItem, type MapCluster } from '@/components/map/KakaoDeckOverlay';
+// Wave 24 (2026-05-04 사장님 명령): WebGL cluster 활성 — clusterAggregation lib 으로 cluster Map 생성.
+//   HtmlMarkerOverlay (DOM) 와 병렬 렌더 — 시각 비교 검증용. Wave 26 에 DOM 비활성.
+import {
+  aggregateClusters,
+  computeClusterPosition,
+} from '@/features/map-2026/lib/clusterAggregation';
 // L-mapmarker1 (2026-04-23): 네이버·직방 스타일 HTML 마커 (Kakao CustomOverlay).
 //   KakaoDeckOverlay 의 item scatter 는 items=[] 로 비활성화 (cluster 레이어는 유지).
 import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay';
@@ -391,6 +397,28 @@ export default function MapClient() {
     [listings]
   );
 
+  // Wave 24 (2026-05-04): WebGL cluster ScatterplotLayer 데이터 생성.
+  //   clusterAggregation lib 의 aggregateClusters + computeClusterPosition 사용
+  //   → HtmlMarkerOverlay 가 사용하는 것과 동일 알고리즘 = 동일 cluster 결과.
+  //   병렬 렌더 모드: WebGL 마커 (인디고) + DOM 마커 (그린) 동시 표시 → 시각 비교.
+  //   Wave 25 에서 click + spider-fy 포팅, Wave 26 에 DOM 비활성.
+  const webglClusters: MapCluster[] = useMemo(() => {
+    if (!listings || listings.length === 0) return [];
+    const aggregated = aggregateClusters(listings, kakaoLevel, clusterFilterIds != null);
+    const out: MapCluster[] = [];
+    for (const [key, arr] of aggregated) {
+      const pos = computeClusterPosition(arr);
+      out.push({
+        cluster_id: key,
+        lat: pos.lat,
+        lng: pos.lng,
+        count: arr.length,
+        sample_ids: arr.slice(0, 5).map((l) => l.id),
+      });
+    }
+    return out;
+  }, [listings, kakaoLevel, clusterFilterIds]);
+
   const onClickListing = useCallback(
     (id: number) => {
       // L-mapmodal1: 상세 모달 오픈 + 지도 flyTo (store 에서 한 번에 처리)
@@ -508,14 +536,11 @@ export default function MapClient() {
             <>
               <KakaoDeckOverlay
                 map={kakaoMap}
-                // L-map3 (2026-04-22): Kakao Maps SDK v2 Map 인스턴스는 getContainer()
-                //   를 노출하지 않아서, 이전에는 오버레이 useEffect 가 early-return 하며
-                //   canvas 를 만들지 못했다. 상위가 동일 element ref 를 직접 내려준다.
                 container={containerRef.current}
-                // L-mapmarker1 (2026-04-23): 개별 매물 렌더링은 HtmlMarkerOverlay 가
-                //   담당 (네이버·직방 스타일 HTML 마커). deck.gl item scatter/text 를
-                //   비활성화하기 위해 items=[] 로 비워둠. cluster 레이어는 유지.
+                // L-mapmarker1: 개별 매물 (item scatter/text) 비활성. HtmlMarkerOverlay 담당.
                 items={[]}
+                // Wave 24 (2026-05-04): WebGL cluster 활성. HtmlMarkerOverlay (DOM) 와 병렬.
+                clusters={webglClusters}
                 onClickListing={onClickListing}
               />
               {/* L-worldclass1 (2026-04-24 pm) + L-adminfit2 (2026-04-24 pm):
