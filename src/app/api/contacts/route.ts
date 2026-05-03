@@ -8,10 +8,16 @@ import { createClient } from '@/lib/supabase';
 import { z } from 'zod';
 import { optionalEmailSchema, listingIdSchema } from '@/lib/schemas'; // L-hub2
 
+// G-49 (2026-05-03): name/message XSS sanitize.
+function stripHtml(s: string): string {
+  return s.replace(/<[^>]*>/g, '').replace(/javascript:/gi, '').trim();
+}
+
 // L-sec18 (2026-04-22): 공개 POST 엔드포인트. 스팸 봇이 대용량 페이로드로
 //   contacts 테이블을 채우지 못하도록 각 문자열 필드에 max() 강제.
+// G-49: name/message 에 stripHtml transform 적용 → XSS 사전 차단.
 const contactSchema = z.object({
-  name: z.string().min(1, '이름을 입력해주세요').max(100),
+  name: z.string().min(1, '이름을 입력해주세요').max(100).transform(stripHtml).pipe(z.string().min(1)),
   // L-fix-phone (2026-04-28): 전화번호 형식 검증 (스팸 봇 + 잘못된 번호 차단)
   //   허용: 숫자/하이픈/공백/괄호/+. 7-15자리 숫자 (한국 010 + 국제번호 모두)
   phone: z.string()
@@ -23,7 +29,7 @@ const contactSchema = z.object({
       return digits.length >= 7 && digits.length <= 15;
     }, '전화번호는 7-15자리 숫자여야 합니다'),
   email: optionalEmailSchema, // L-hub2
-  message: z.string().max(2000).optional(),
+  message: z.string().max(2000).optional().transform((s) => s ? stripHtml(s) : s),
   listingId: listingIdSchema.nullable().optional(), // L-hub2
   inquiry_type: z.string().max(40).optional().default('consultation'),
   property_type: z.string().max(40).optional().nullable(),
@@ -32,7 +38,7 @@ const contactSchema = z.object({
   move_date: z.string().max(40).optional().nullable(),
   business_category: z.string().max(100).optional().nullable(),
   preferred_floor: z.string().max(40).optional().nullable(),
-  additional_requirements: z.string().max(2000).optional().nullable(),
+  additional_requirements: z.string().max(2000).optional().nullable().transform((s) => s ? stripHtml(s) : s),
 });
 
 /**
