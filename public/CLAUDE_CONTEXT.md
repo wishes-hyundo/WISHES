@@ -1552,3 +1552,46 @@ da85e280 fix(db): G-75 + G-76 — Supabase advisor 보안 권장사항 처리
 ---
 
 누적 G-1~G-78: 78 추적, 64 수정, 47+ commit, 19 마이그레이션. 잔여 0 actionable security advisor.
+
+---
+
+## Wave 13 (continued) — G-79 ~ G-82 (2026-05-04 00:30 KST)
+
+추가 4개 발견 + 수정. 사장님 push 가 매번 더 발견.
+
+| ID    | 영역 | 결함 | 우선순위 | 상태 |
+| ----- | ---- | ---- | -------- | ---- |
+| G-79  | perf | /admin/search useEffect 20K sequential fetch + abort 미처리 | High | ✅ fix |
+| G-80  | perf | MapListingPanel listingId 변경 race condition (stale state) | Medium | ✅ fix |
+| G-81  | security | 공개 /api/listings 가 address_detail/special_notes/base_price 등 노출 | **HIGH** | ✅ fix (prod 검증: 123 → 114 keys) |
+| G-82  | audit | admin/listings PUT/POST audit log 0 (가격/주소/면적 변경 추적 불가) | High | ✅ fix |
+
+### Wave 13 commit (전체 8개)
+
+```
+3e50b99c fix(audit): G-82 — admin/listings PUT/POST audit log 추가
+1122800f fix(security): G-81 — 공개 /api/listings 에 sanitizePublicListing 적용
+73494912 fix(perf): G-79 + G-80 — useEffect race condition / abort 처리
+6f6d624a docs(master-prompt): Wave 13 — admin write/delete + cron secret + advisor sweep
+525bb3e9 fix(perf): G-77 + G-78 — Supabase advisor 성능 권장사항 처리
+da85e280 fix(db): G-75 + G-76 — Supabase advisor 보안 권장사항 처리
+5cee6941 fix(security): G-73 — 20 cron 의 fail-open 패턴 fail-safe 로 변환
+891b77f2 fix(admin): G-70/G-71/G-72 — admin/users audit log + self-protection
+```
+
+### Wave 13 누적 13개 결함 (G-70~G-82)
+
+- 보안: G-70 (audit log 부재), G-73 (cron fail-open), G-75 (DEFINER 함수 anon), G-76 (info_requests 무제한 INSERT), G-81 (공개 API 민감 필드 노출)
+- 안전망: G-71 (last superadmin 보호), G-72 (last owner 보호)
+- 성능: G-77 (RLS auth 미래핑), G-78 (multiple permissive), G-79 (20K sequential), G-80 (race)
+- audit: G-82 (매물 PUT/POST 흔적 부재)
+- 검증 결과 not-bug: G-74 (CSRF 이미 middleware 처리)
+
+### Wave 마다 정직성 패턴 갱신
+
+| Wave | 사장님 명령 | 자율 판단 | 실제 추가 발견 |
+|------|------------|----------|----------------|
+| 13 (1차) | "더 이상 안나올때까지" | NO | G-70~G-78 (9) |
+| 13 (2차 — 같은 명령 계속) | NO | G-79~G-82 (4) |
+
+**누적 G-1~G-82: 82 추적, 67 수정, 50+ commit, 19 마이그레이션. advisor 0 actionable security/perf.**
