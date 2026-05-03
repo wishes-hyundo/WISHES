@@ -51,11 +51,14 @@ async function quickKakao(address: string): Promise<KakaoLookup | null> {
 }
 
 export async function GET(request: NextRequest) {
-  // Vercel cron 또는 cron secret 검증
+  // G-87 (2026-05-04): user-agent 스푸핑 방어 — CRON_SECRET 강제 + x-vercel-cron 보조.
+  if (!CRON_SECRET) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  }
   const auth = request.headers.get('authorization') || '';
-  const isCron = request.headers.get('user-agent')?.includes('vercel-cron') ||
-                 (CRON_SECRET && auth === `Bearer ${CRON_SECRET}`);
-  if (!isCron) {
+  const isUserSecret = auth === `Bearer ${CRON_SECRET}`;
+  const isVercelCron = request.headers.get('x-vercel-cron') === '1';
+  if (!isUserSecret && !isVercelCron) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

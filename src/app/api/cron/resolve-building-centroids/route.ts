@@ -69,12 +69,17 @@ async function searchKakao(query: string): Promise<KakaoDocument | null> {
 }
 
 function authorize(req: NextRequest): boolean {
-  // Vercel cron 자동 호출 헤더
+  // G-87 (2026-05-04): CRON_SECRET 미설정이면 fail-safe — 호출 자체를 차단.
+  if (!CRON_SECRET) return false;
+  // Vercel cron 자동 호출 헤더 (Vercel infra 내부 추가, 외부 스푸핑 가능 — Bearer 보조).
+  const auth = req.headers.get('authorization') || '';
+  const isUserSecret = auth === `Bearer ${CRON_SECRET}`;
+  if (isUserSecret) return true;
   if (req.headers.get('x-vercel-cron') === '1') return true;
-  // Manual key 호출 (admin)
+  // Manual key 호출 (admin) — query string 으로 노출 위험 있어 deprecated, 일관성 차원에서 유지
   const url = new URL(req.url);
   const key = url.searchParams.get('key');
-  if (key && CRON_SECRET && key === CRON_SECRET) return true;
+  if (key && key === CRON_SECRET) return true;
   return false;
 }
 
