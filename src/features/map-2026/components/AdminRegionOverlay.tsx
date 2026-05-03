@@ -705,15 +705,19 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       const onPolyMouseOver = () => {
         if (mapNode) mapNode.style.cursor = 'pointer';
         if (!opts.isBackdrop) {
+          // G-107 (2026-05-04): 즉시 display 활성화 X — updateTooltipPosition 의 mousemove
+          //   이벤트가 다음 frame 에 좌표 갱신하면서 자연스럽게 표시. 이전엔 마우스 좌표
+          //   설정 전에 display=inline-block 하면서 (0,0) 또는 마지막 위치에 stuck.
           currentTooltipText = labelText;
           tooltipEl.textContent = labelText;
-          if (tooltipEl.style.display === 'none') {
-            tooltipEl.style.display = 'inline-block';
-          }
         }
       };
       const onPolyMouseOut = () => {
         if (mapNode) mapNode.style.cursor = '';
+        // G-107: polygon 떠나면 tooltip 즉시 숨김. updateTooltipPosition 이 다음
+        //   mousemove 에서 재평가.
+        currentTooltipText = '';
+        tooltipEl.style.display = 'none';
       };
       // 모든 feature 그리기
       // L-naver-poly1 (2026-04-26): 관악구 폴리곤이 남쪽 절반만 그려지는 버그 픽스.
@@ -789,15 +793,10 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       //   정지하면 mousemove 안 터져서 tooltipEl 가 이전 라벨 ("관악구") 그대로
       //   고정되어 폴리곤은 새 sigungu (서초/하남) 인데 라벨만 관악구로 stuck.
       if (!opts.isBackdrop) {
+        // G-107 (2026-05-04): setLabel 에서 직접 display 활성화 X — onPolyMouseOver 후
+        //   다음 mousemove 에서만 tooltip 표시. 이전 위치 stuck 결함 방지.
         currentTooltipText = labelText;
         tooltipEl.textContent = labelText;
-        // G-95 (2026-05-04): tooltip 가 마우스 좌표를 받기 전엔 표시하지 않음.
-        //   updateTooltipPosition 이 mousemove 마다 left/top 갱신. 그 전엔 -9999px 위치 그대로.
-        //   기존 버그: display:inline-block 활성 + top/left 미설정 → 좌측 상단 W 로고 자리.
-        const hasPosition = tooltipEl.style.left !== '-9999px' && tooltipEl.style.left !== '';
-        if (hasPosition && tooltipEl.style.display === 'none') {
-          tooltipEl.style.display = 'inline-block';
-        }
       }
     };
 
