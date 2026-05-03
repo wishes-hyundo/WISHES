@@ -29,13 +29,11 @@ export default async function HomePage() {
         new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
       ]);
 
+    // G-100 (2026-05-04): 이전 limit(300) + 클라이언트 카운팅은 PostgREST default 정렬로
+    //   "가" 로 시작하는 dong 만 잡혀 가산동/가곡로/가마을안길 등이 "인기"로 표시.
+    //   popular_dongs RPC 로 GROUP BY + ORDER BY count DESC.
     const [dongRes, countRes] = await Promise.allSettled([
-      withTimeout(supabase
-        .from('listings')
-        .select('dong')
-        .eq('status', '공개')
-        .not('dong', 'is', null)
-        .limit(300) as unknown as PromiseLike<any>),
+      withTimeout(supabase.rpc('popular_dongs', { n: 8 }) as unknown as PromiseLike<any>),
       withTimeout(supabase
         .from('listings')
         .select('id', { count: 'exact', head: true })
@@ -44,15 +42,7 @@ export default async function HomePage() {
 
     if (dongRes.status === 'fulfilled') {
       const rows = (dongRes.value as any).data || [];
-      const counter = new Map<string, number>();
-      rows.forEach((r: any) => {
-        if (!r.dong) return;
-        counter.set(r.dong, (counter.get(r.dong) || 0) + 1);
-      });
-      popularDongs = Array.from(counter.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 8)
-        .map(([d]) => d);
+      popularDongs = rows.map((r: any) => r.dong).filter(Boolean);
     }
     if (countRes.status === 'fulfilled') {
       totalListings = (countRes.value as any).count || 0;
