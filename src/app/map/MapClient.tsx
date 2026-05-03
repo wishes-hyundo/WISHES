@@ -780,16 +780,24 @@ function MapOverlaysWithClusters(props: {
   //   /api/map/clusters fetch 가 100% wasted (분당 수십 회 무용 HTTP 요청).
   return (
     <>
-      <HtmlMarkerOverlay
-        map={props.kakaoMap}
-        listings={props.listings}
-        selectedListingId={props.selectedListingId}
-        category={props.category}
-        onClickListing={props.onClickListing}
-        onClusterFilter={props.onClusterFilter}
-        clusterFilterIds={props.clusterFilterIds}
-        clusterFilterListings={props.clusterFilterListings}
-      />
+      {/* Wave 26 (2026-05-04 사장님 명령): DOM 마커 비활성, WebGL (KakaoDeckOverlay) only.
+          영구 freeze 해결 — HtmlMarkerOverlay 의 1068줄 DOM CustomOverlay 코드가
+          167~244ms longtask 의 원인이었음 (사장님 측정). WebGL 로 60fps 보장.
+          모든 인터랙션 (cluster click / spider-fy / individual click) 은 KakaoDeckOverlay
+          (Wave 24~25c) 가 담당. 코드 자체는 Wave 27 까지 유지 — 1주일 안정화 후 삭제.
+          롤백 필요 시: 이 분기를 false → true 로 변경 후 재배포 (1분). */}
+      {false ? (
+        <HtmlMarkerOverlay
+          map={props.kakaoMap}
+          listings={props.listings}
+          selectedListingId={props.selectedListingId}
+          category={props.category}
+          onClickListing={props.onClickListing}
+          onClusterFilter={props.onClusterFilter}
+          clusterFilterIds={props.clusterFilterIds}
+          clusterFilterListings={props.clusterFilterListings}
+        />
+      ) : null}
       <MapErrorBoundary>
         <AdminRegionOverlay
           map={props.kakaoMap}
