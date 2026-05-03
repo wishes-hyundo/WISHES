@@ -606,6 +606,65 @@ export default function HtmlMarkerOverlay({
         : visibleListings.filter((l) => listingCategoryOf(l) === category);
       if (filtered.length === 0) return;
 
+      // G-123 (2026-05-04 사장님): cluster filter 활성 시 spider-fy.
+      //   같은 좌표 매물들이 한 점에 stack 되어 시각적으로 1개로 보이는 문제.
+      //   직방/네이버 표준 — cluster 클릭 시 그 안 매물 모두 펼쳐 보이게.
+      //   각 매물을 individual marker 로 렌더 + 좌표 동일하면 radial jitter.
+      if (isClusterFilterActive && filtered.length > 1) {
+        // 같은 좌표 그룹 찾기 (소수점 5자리 = ~1m 정밀도)
+        const coordGroups = new Map<string, MapListing[]>();
+        for (const l of filtered) {
+          const key = `${l.lat.toFixed(5)}:${l.lng.toFixed(5)}`;
+          const arr = coordGroups.get(key);
+          if (arr) arr.push(l); else coordGroups.set(key, [l]);
+        }
+        const _isMobileCF = typeof window !== 'undefined' && window.innerWidth < 768;
+        const sizeCF = _isMobileCF ? 22 : 26;
+        for (const [, group] of coordGroups) {
+          const baseLat = group[0].lat;
+          const baseLng = group[0].lng;
+          // 같은 좌표 매물 N개 → 반지름 R 원 위에 N등분 spread
+          // R 은 N 에 비례 (N=2: ±15m, N=10: ±40m, N=20+: ±60m)
+          const N = group.length;
+          // 위도 1° ≈ 111km — R 미터 → 도 단위
+          const radiusDeg = N === 1 ? 0 : Math.min(0.0006, 0.00015 + N * 0.000025);
+          group.forEach((l, idx) => {
+            let lat: number, lng: number;
+            if (N === 1) {
+              lat = l.lat;
+              lng = l.lng;
+            } else {
+              const angle = (2 * Math.PI * idx) / N - Math.PI / 2; // 12시 방향부터
+              lat = baseLat + radiusDeg * Math.sin(angle);
+              lng = baseLng + radiusDeg * Math.cos(angle);
+            }
+            const selectedSF = selectedListingId === l.id;
+            const elSF = makeCircleElement({ count: 1, selected: selectedSF, size: sizeCF });
+            elSF.addEventListener('mousedown', (e) => e.stopPropagation());
+            elSF.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
+            elSF.addEventListener('click', (e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              onClickListing(l.id);
+            });
+            try {
+              const ovSF = new maps.CustomOverlay({
+                position: new maps.LatLng(lat, lng),
+                content: elSF,
+                xAnchor: 0.5,
+                yAnchor: 0.5,
+                zIndex: selectedSF ? 50 : 20,
+                clickable: true,
+              });
+              ovSF.setMap(map);
+              overlaysRef.current.push(ovSF);
+            } catch { /* SDK race */ }
+          });
+        }
+        // cluster filter 모드 spider-fy 완료. 기존 bucketing 건너뛰기.
+        return;
+      }
+
       // L-naver-2026gridcluster1 (2026-04-26): 네이버 부동산 정확 매칭.
       //   사용자 피드백 "네이버랑 배치 기준이 다르다" — 네이버는 viewport
       //   grid cell 기반 cluster (단지명 무시).  WISHES 의 building_name 기반
