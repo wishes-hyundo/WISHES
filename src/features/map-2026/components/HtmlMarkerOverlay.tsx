@@ -413,6 +413,8 @@ export default function HtmlMarkerOverlay({
   clusterFilterListings,
 }: Props) {
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
+  // G-117: render batch token — 새 render 시작 시 이전 batch 자동 abort
+  const renderTokenRef = useRef<number>(0);
 
   useEffect(() => {
     if (!map || typeof window === 'undefined') return;
@@ -845,7 +847,17 @@ export default function HtmlMarkerOverlay({
 
       // K-2 (사장님 명령 2026-05-02): TIER1 매물 단지 마커 — 좌표 평균 X, 단지 진짜 좌표.
       const TIER1_TYPES = new Set<string>(['아파트', '오피스텔', '주상복합', '도시형생활주택']);
-      for (const arr of clusters.values()) {
+      // G-117 (2026-05-04 사장님 측정 — 167ms longtask freeze): 마커 동기 생성 batched rAF 로 분할.
+      //   415 markers / batch 50 = 9 frames × ~16ms = 60fps 유지. 사용자 freeze 체감 X.
+      const _clusterArr = [...clusters.values()];
+      const _renderToken = ++renderTokenRef.current;
+      const _BATCH = 50;
+      let _bIdx = 0;
+      const _processBatch = () => {
+        if (renderTokenRef.current !== _renderToken) return; // 다른 render 가 시작됨 — abort
+        const _end = Math.min(_bIdx + _BATCH, _clusterArr.length);
+        for (let _i = _bIdx; _i < _end; _i++) {
+          const arr = _clusterArr[_i];
         if (arr.length === 0) continue;
         // K-2: cluster 안 매물 중 1개라도 TIER1 + tier1_lat/lng 있으면 그 좌표 사용 (단지 정확 위치)
         const tier1Listing = arr.find((l) => {
@@ -1023,7 +1035,17 @@ export default function HtmlMarkerOverlay({
           ov.setMap(map);
           overlaysRef.current.push(ov);
         } catch { /* SDK race — skip */ }
-      }
+        }
+        _bIdx = _end;
+        if (_bIdx < _clusterArr.length) {
+          if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(_processBatch);
+          } else {
+            _processBatch();
+          }
+        }
+      };
+      _processBatch();
     };
 
     render();
