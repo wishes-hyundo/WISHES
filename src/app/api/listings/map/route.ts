@@ -14,6 +14,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { sanitizePublicListing } from '@/lib/listing-public';
+// G-118 (2026-05-04 사장님): title/address 호수 leak 차단 — viewport API 와 동일 마스킹.
+import { maskAddressForPublic } from '@/lib/publicAddress';
 import { applyImagePolicy } from '@/lib/image-policy';
 import { cached } from '@/lib/cache';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
@@ -188,7 +190,22 @@ export async function GET(request: NextRequest) {
     sorted = sorted.map((r) => sanitizePublicListing(r));
 
     // L-sec170 (2026-05-02): Apply coordinate masking for non-authenticated users
-    const maskedData = maskListingsCoordinates(sorted as any[], isAuthenticated);
+    let maskedData = maskListingsCoordinates(sorted as any[], isAuthenticated);
+
+    // G-118 (2026-05-04 사장님): 비로그인에 title/address 호수까지 leak 차단.
+    //   기존: sanitizePublicListing 이 address_detail 만 제거. title 과 address 는
+    //         그대로 노출 → 호수/지번 leak.  viewport API 와 동일 logic 으로 마스킹.
+    if (!isAuthenticated) {
+      maskedData = maskedData.map((r: any) => {
+        const dong = r.dong as string | undefined;
+        return {
+          ...r,
+          building_name: null,
+          title: r.title ? maskAddressForPublic(r.title, dong) : (dong ?? null),
+          address: r.address ? maskAddressForPublic(r.address, dong) : (dong ?? null),
+        };
+      });
+    }
 
     return NextResponse.json(
       {
