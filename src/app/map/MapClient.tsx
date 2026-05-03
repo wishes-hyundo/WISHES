@@ -58,6 +58,9 @@ import {
   aggregateClusters,
   computeClusterPosition,
 } from '@/features/map-2026/lib/clusterAggregation';
+// Wave 25a (2026-05-04): WebGL cluster 도 카테고리 필터 + cross-residential 적용
+//   → DOM 마커와 카운트 일치. 'investment' 탭은 cross-cutting (필터 미적용).
+import { listingCategoryOf } from '@/features/map-2026/lib/markerTier';
 // L-mapmarker1 (2026-04-23): 네이버·직방 스타일 HTML 마커 (Kakao CustomOverlay).
 //   KakaoDeckOverlay 의 item scatter 는 items=[] 로 비활성화 (cluster 레이어는 유지).
 import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay';
@@ -404,7 +407,13 @@ export default function MapClient() {
   //   Wave 25 에서 click + spider-fy 포팅, Wave 26 에 DOM 비활성.
   const webglClusters: MapCluster[] = useMemo(() => {
     if (!listings || listings.length === 0) return [];
-    const aggregated = aggregateClusters(listings, kakaoLevel, clusterFilterIds != null);
+    // Wave 25a: 카테고리 필터 + cross-residential — DOM 마커 (HtmlMarkerOverlay) 와 동일 데이터.
+    //   'investment' 탭은 cross-cutting 라 필터 미적용 (HtmlMarkerOverlay 와 동일 동작).
+    const filtered = filterCategory === 'investment'
+      ? listings
+      : listings.filter((l) => listingCategoryOf(l) === filterCategory);
+    if (filtered.length === 0) return [];
+    const aggregated = aggregateClusters(filtered, kakaoLevel, clusterFilterIds != null);
     const out: MapCluster[] = [];
     for (const [key, arr] of aggregated) {
       const pos = computeClusterPosition(arr);
@@ -417,7 +426,7 @@ export default function MapClient() {
       });
     }
     return out;
-  }, [listings, kakaoLevel, clusterFilterIds]);
+  }, [listings, kakaoLevel, clusterFilterIds, filterCategory]);
 
   const onClickListing = useCallback(
     (id: number) => {
