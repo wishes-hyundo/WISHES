@@ -558,3 +558,107 @@ test.describe('Critical User Flows — 사장님 시각 회귀 가드', () => {
     expect([400, 401]).toContain(r.status());
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────
+// 200 시리즈 (2026-05-03): G-29~G-38 회귀 보호 + 신규 검수 항목
+// ─────────────────────────────────────────────────────────────────────
+test.describe('Wave 200 — G-29 to G-38 회귀 보호', () => {
+  test('200-01 /admin/government-prices 페이지 로드 (G-29)', async ({ request }) => {
+    const r = await request.get('/admin/government-prices');
+    expect(r.status()).toBe(200);
+  });
+  test('200-02 /admin/enrichment-progress 페이지 로드 (G-30)', async ({ request }) => {
+    const r = await request.get('/admin/enrichment-progress');
+    expect(r.status()).toBe(200);
+  });
+  test('200-03 /admin/onhouse-setup 페이지 로드 (G-30)', async ({ request }) => {
+    const r = await request.get('/admin/onhouse-setup');
+    expect(r.status()).toBe(200);
+  });
+  test('200-04 /admin/violations 페이지 로드 (G-33)', async ({ request }) => {
+    const r = await request.get('/admin/violations');
+    expect(r.status()).toBe(200);
+  });
+  test('200-05 /admin/data-quality 페이지 로드 (G-34)', async ({ request }) => {
+    const r = await request.get('/admin/data-quality');
+    expect(r.status()).toBe(200);
+  });
+  test('200-06 /admin root 페이지 200 (G-35)', async ({ request }) => {
+    const r = await request.get('/admin');
+    // SSR 200 또는 client-side redirect 후 200
+    expect([200, 307, 308]).toContain(r.status());
+  });
+  test('200-07 /api/admin/government-prices 401 비인증 (G-29)', async ({ request }) => {
+    const r = await request.get('/api/admin/government-prices?limit=10');
+    expect(r.status()).toBe(401);
+  });
+  test('200-08 /api/admin/profile 401 비인증 (G-37)', async ({ request }) => {
+    const r = await request.get('/api/admin/profile');
+    expect(r.status()).toBe(401);
+  });
+  test('200-09 /api/admin/profile PUT 401 비인증 (G-37)', async ({ request }) => {
+    const r = await request.put('/api/admin/profile', {
+      data: { name: 'x' },
+    });
+    expect([401, 403]).toContain(r.status());
+  });
+  test('200-10 /api/auth/register I-AUTH-1 (admin_users only)', async ({ request }) => {
+    const ts = Date.now();
+    const r = await request.post('/api/auth/register', {
+      data: {
+        name: 'wave200-' + ts,
+        email: `wave200-${ts}@wishes-test.local`,
+        password: 'TestPwd!9876',
+        requestedRole: 'broker',
+        acceptedTerms: true,
+        acceptedPrivacy: true,
+        termsVersion: 'v2026-04-28',
+        privacyVersion: 'v2026-04-28',
+      },
+    });
+    // success 200 OR rate-limit 429 둘 다 허용 (CI 환경별)
+    expect([200, 429]).toContain(r.status());
+  });
+  test('200-11 /api/contacts public POST 동작 확인', async ({ request }) => {
+    const ts = Date.now();
+    const r = await request.post('/api/contacts', {
+      data: { name: 'wave200-' + ts, phone: '010-1234-5678', email: 'a@b.c', message: 'wave200 정밀검수' },
+    });
+    expect([200, 429]).toContain(r.status());
+  });
+  test('200-12 /api/listings 공개 응답 (anon RLS)', async ({ request }) => {
+    const r = await request.get('/api/listings?limit=5');
+    expect(r.status()).toBe(200);
+    const j = await r.json();
+    expect(j.success).toBe(true);
+    expect(Array.isArray(j.data)).toBe(true);
+    expect(j.data.length).toBeGreaterThan(0);
+  });
+  test('200-13 /api/auth/login wrong creds 401', async ({ request }) => {
+    const r = await request.post('/api/auth/login', {
+      data: { email: 'wrong-' + Date.now() + '@wishes-test.local', password: 'WrongPwd!9876' },
+    });
+    expect([400, 401]).toContain(r.status());
+  });
+  test('200-14 /admin/violations API 응답 200 (인증 후) — 비인증 401', async ({ request }) => {
+    const r = await request.get('/api/admin/violations?limit=5');
+    expect(r.status()).toBe(401);
+  });
+  test('200-15 /admin/data-quality-stats 401 비인증 (G-34)', async ({ request }) => {
+    const r = await request.get('/api/admin/data-quality-stats');
+    expect(r.status()).toBe(401);
+  });
+  test('200-16 register without terms → 400', async ({ request }) => {
+    const ts = Date.now();
+    const r = await request.post('/api/auth/register', {
+      data: {
+        name: 'noterms-' + ts,
+        email: `noterms-${ts}@wishes-test.local`,
+        password: 'TestPwd!9876',
+        acceptedTerms: false,
+        acceptedPrivacy: false,
+      },
+    });
+    expect([400, 429]).toContain(r.status());
+  });
+});
