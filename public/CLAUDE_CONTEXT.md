@@ -884,3 +884,62 @@ f3150d4 fix(perf): G-53 — FK 컬럼 3개에 partial index 추가
 
 작성: 2026-05-03 17:00 KST
 세션: G-1 ~ G-61 (61개 결함 추적, 48개 수정, 33+ commit, 14 DB migration)
+
+---
+
+## 📋 2026-05-03 wave 5 — G-62 + 검수 완료
+
+사장님 명령: "끝도 없이 나오네 끝까지 추적해서 문제점 전부 다 찾아서 수정해"
+
+### Wave 5 결함
+
+| ID    | 영역      | 결함                                                       | 처리                              |
+| ----- | --------- | ---------------------------------------------------------- | --------------------------------- |
+| G-62  | perf      | G-61 후속 — 12개 복잡 EXISTS / IN subquery 안의 auth() 미래핑 | (SELECT auth.<func>()) 래핑 → 0 ✅ |
+
+### Wave 5 추가 검수 (모두 PASS)
+
+- 모든 cron route 33 개 인증 체크 — 3 개 deprecated stub 외 모두 CRON_SECRET 보호 ✅
+- /api/images path traversal: 403 ✅
+- /api/listings/[id] DELETE/PATCH/PUT/POST: 405 ✅
+- /api/admin/listings/[id]: 401 ✅
+- /api/push/send: 401 ✅
+- /api/short-url: open redirect 차단 ✅
+- /api/auth/forgot-password: anti-enumeration ✅
+- /api/auth/login: rate limit + status 차단 (pending/rejected/blocked) ✅
+- /api/admin/users: verifyAdminAuthStrict + role gate (privilege escalation 방어) ✅
+- email 모듈: HTML escape + MIME header injection 가드 ✅
+- Sentry observability: lazy import + tag/context cap ✅
+- 공개 API 응답 38 개 admin 필드 strip ✅
+- DB orphan rows: 0 ✅
+- 데이터 품질 (price/area 극단치): 0 ✅
+- pg_stat 통계 정상 ✅
+
+### 누적 시스템 무결성 (Wave 5 후)
+| 항목                              | 값       |
+| --------------------------------- | -------- |
+| auth.users / admin_users / profiles | 13/13/0 |
+| mismatch                          | 0        |
+| RLS auth() 미래핑                 | **0**    |
+| 사장님 이메일 하드코드 정책        | **0**    |
+| FK 누락 인덱스                    | **0**    |
+| RLS '가용' 정책                    | 0        |
+| 공개 매물                         | 26,866   |
+| Public API admin 필드 노출         | **0**    |
+
+### 누적 합계 (G-1 ~ G-62)
+- **수정 완료**: 49 (G-1~G-58 46개 + G-60 + G-61 + G-62)
+- **Not-bug / by-design**: 8 (G-7, G-19, G-28, G-36, G-43, G-51, G-55, G-59)
+- **Backlog**: 1 (G-32 search perf)
+- **Gaps**: 6
+- **Total tracked**: 62
+
+### Wave 1~5 합산
+- **DB 마이그레이션**: 15
+- **Code commit (이번 세션 누적)**: 35+
+- **Playwright 시나리오**: 100 (84 + Wave 200 16개)
+
+---
+
+작성: 2026-05-03 17:30 KST
+세션: G-1 ~ G-62 (62개 결함 추적, 49개 수정, 35+ commit, 15 DB migration)
