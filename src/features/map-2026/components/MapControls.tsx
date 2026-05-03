@@ -106,7 +106,7 @@ export function MapControls() {
   const baseBtn = 'pointer-events-auto flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-md transition active:scale-95 active:bg-neutral-100 disabled:cursor-wait disabled:opacity-60 sm:size-10';
 
   return (
-    <div className="pointer-events-none absolute top-3 right-3 z-20 flex flex-col items-end gap-2 sm:top-4 sm:right-4">
+    <div className="pointer-events-none absolute top-3 right-3 z-50 flex flex-col items-end gap-2 sm:top-4 sm:right-4">
       <button
         onClick={goToMyLocation}
         aria-label="내 위치로 이동"
