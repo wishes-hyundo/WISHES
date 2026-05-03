@@ -19,6 +19,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { confirmPayment, isTossEnabled } from '@/lib/toss-client';
+// G-41 (2026-05-03): 결제 confirm endpoint rate limit — IP당 5분 30회 제한.
+import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -31,6 +33,16 @@ interface ConfirmRequest {
 }
 
 export async function POST(request: NextRequest) {
+  // G-41: rate limit. 정상 결제 confirm 은 1건 → IP당 5분 30회 cap (재시도/error 여유).
+  const ip = getClientIp(request);
+  const rl = checkRateLimit({ key: `toss-confirm:ip:${ip}`, limit: 30, windowMs: 5 * 60_000 });
+  if (!rl.ok) {
+    return NextResponse.json(
+      { error: 'rate_limit', retry_after: rl.retryAfterSec },
+      { status: 429, headers: { 'Retry-After': String(rl.retryAfterSec) } },
+    );
+  }
+
   if (!isTossEnabled()) {
     return NextResponse.json(
       { error: 'payment_not_configured' },
