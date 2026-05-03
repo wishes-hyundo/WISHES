@@ -31,6 +31,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { fetchRegistry, isCodefEnabled, type CodefRegistryRequest } from '@/lib/codef-client';
 import { analyzeRights } from '@/lib/rights-analyzer';
+import { audit } from '@/lib/auditLog';
+import { getClientIp } from '@/lib/rateLimit';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -277,6 +279,17 @@ export async function GET(request: NextRequest) {
       summary.errors.push({ report_id: r.id, reason: `unexpected: ${msg}` });
     }
   }
+
+  // G-89 (2026-05-04): 결제 처리 summary audit. 결제 분쟁 forensic 가능.
+  audit({
+    action: 'cron.process_paid_reports.run',
+    actor: { role: 'cron' },
+    ip: getClientIp(request),
+    userAgent: request.headers.get('user-agent') || undefined,
+    route: '/api/cron/process-paid-reports',
+    status: 200,
+    meta: { summary, ts: new Date().toISOString() },
+  });
 
   return NextResponse.json({
     success: true,
