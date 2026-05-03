@@ -8,6 +8,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { NextRequest, NextResponse } from 'next/server';
+import { verifyAdminAuth } from '@/lib/adminAuth';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -68,6 +69,11 @@ async function geocodeAddress(addr: string): Promise<{ lat: number; lng: number 
 }
 
 export async function GET(request: NextRequest) {
+  // G-40 (2026-05-03): admin 가드 추가. 카카오 API 호출 비용 보호 + RBAC.
+  const ok = await verifyAdminAuth(request);
+  if (!ok) {
+    return NextResponse.json({ success: false, error: 'unauthorized' }, { status: 401 });
+  }
   const sp = request.nextUrl.searchParams;
   let lat = Number(sp.get('lat'));
   let lng = Number(sp.get('lng'));

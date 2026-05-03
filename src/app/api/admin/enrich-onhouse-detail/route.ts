@@ -14,7 +14,7 @@
 // 패턴 (사장님 페이지 sample):
 //   "맥스텔 | 관악구 봉천동 866-11 3층 3층302"
 //
-// 인증: ENRICH_TOKEN (다음 commit 으로 env 화 예정).
+// 인증: CRON_SECRET (Vercel env) — G-40 (2026-05-03) 하드코드 제거.
 // 한도: batchSize ≤ 30, 200ms 간격, maxDuration 60s → 한 호출 최대 25-30건.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -48,7 +48,7 @@ async function loadCredentials(): Promise<{ username: string; password: string; 
   return { username: '', password: '', source: 'none' };
 }
 const ONHOUSE_BASE = 'https://www.onhouse.com';
-const ENRICH_TOKEN = 'wishes-enrich-2026-04-29-onetime-Y3b8H2mK';
+// G-40 (2026-05-03): 하드코드된 ENRICH_TOKEN 제거 — CRON_SECRET + admin Bearer 만 허용.
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
 
 interface ListingRow {
@@ -164,7 +164,6 @@ async function parseListing(session: string, sourceUrl: string) {
 function isAuthorized(request: NextRequest): boolean {
   const url = new URL(request.url);
   const token = url.searchParams.get('token') || '';
-  if (token === ENRICH_TOKEN) return true;
   const auth = request.headers.get('authorization') || '';
   const cronSecret = process.env.CRON_SECRET || '';
   if (cronSecret && auth === `Bearer ${cronSecret}`) return true;

@@ -28,7 +28,7 @@ export const maxDuration = 60;
 
 const KAKAO_REST_KEY = process.env.KAKAO_REST_API_KEY || '';
 // 일회성 secret — 호출 후 즉시 제거 (다음 commit). git history 에 남으니 보안 약함을 인지하고 사용.
-const ENRICH_TOKEN = 'wishes-enrich-2026-04-29-onetime-Y3b8H2mK';
+// G-40 (2026-05-03): 하드코드된 ENRICH_TOKEN 제거 — CRON_SECRET + admin Bearer 만 허용.
 
 interface ListingRow {
   id: number;
@@ -89,8 +89,6 @@ function pickJibunName(doc: Record<string, unknown>): string {
 // Vercel cron 인증 헬퍼
 function isAuthorized(request: NextRequest): boolean {
   const url = new URL(request.url);
-  const token = url.searchParams.get('token') || request.headers.get('x-enrich-token') || '';
-  if (token === ENRICH_TOKEN) return true;
   const auth = request.headers.get('authorization') || '';
   const cronSecret = process.env.CRON_SECRET || '';
   if (cronSecret && auth === `Bearer ${cronSecret}`) return true;
