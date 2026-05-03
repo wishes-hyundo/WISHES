@@ -106,12 +106,23 @@ export const zoomSchema = z.coerce.number().min(0).max(22);
 
 // ── User-input strings ─────────────────────────────────────────────────
 
-/** 사용자 이름 — 2~100자 */
+// G-48 (2026-05-03): name 필드 XSS sanitize.
+//   <script>, <img onerror>, javascript:, on* 핸들러 등 HTML 태그 전체 제거.
+//   사용자 이름에 HTML 이 들어갈 정당한 이유 없음.
+function stripHtml(s: string): string {
+  return s.replace(/<[^>]*>/g, '').replace(/javascript:/gi, '').trim();
+}
+
+/** 사용자 이름 — 2~100자, HTML 태그 자동 제거 (G-48) */
 export const nameSchema = z
   .string()
   .trim()
-  .min(2, '이름을 입력해주세요')
-  .max(100, '이름이 너무 깁니다');
+  .transform(stripHtml)
+  .pipe(
+    z.string()
+      .min(2, '이름을 입력해주세요')
+      .max(100, '이름이 너무 깁니다'),
+  );
 
 /** 휴대폰 번호 — 숫자/+/- 포함 9~30자 */
 export const phoneSchema = z
@@ -135,8 +146,11 @@ export const optionalEmailSchema = emailSchema.optional().or(z.literal(''));
 //   profile PUT, admin/contacts PATCH 같은 곳에서 빈 문자열/미변경 필드 허용.
 //   max cap 은 strict 와 동일하나 min 제약을 제거 → 선택 필드 안전 재사용.
 
-/** 이름 loose — 100자 cap, min 없음 (profile partial update 용) */
-export const nameLooseSchema = z.string().max(100);
+/** 이름 loose — 100자 cap, min 없음, HTML strip (G-48) */
+export const nameLooseSchema = z
+  .string()
+  .max(100)
+  .transform(stripHtml);
 
 /** 휴대폰 loose — 30자 cap, min 없음, 포맷 검증 유지 */
 export const phoneLooseSchema = z
