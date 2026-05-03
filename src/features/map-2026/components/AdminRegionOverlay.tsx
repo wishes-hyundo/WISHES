@@ -447,6 +447,10 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
     tooltipEl.setAttribute('aria-atomic', 'true');
     tooltipEl.style.cssText = [
       'position:fixed',
+      // G-95 (2026-05-04): 초기 위치를 화면 밖으로. polygon hover 이 mousemove 전에 발생하면
+      //   기본 top/left 0 이라 좌측 상단 W 로고 위에 "서울시 서초구" 가 stuck. off-screen 으로 시작.
+      'top:-9999px',
+      'left:-9999px',
       'pointer-events:none',
       'user-select:none',
       'padding:5px 10px',
@@ -787,8 +791,11 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       if (!opts.isBackdrop) {
         currentTooltipText = labelText;
         tooltipEl.textContent = labelText;
-        // display 이미 inline-block 이면 그대로, 아니면 켜기
-        if (tooltipEl.style.display === 'none') {
+        // G-95 (2026-05-04): tooltip 가 마우스 좌표를 받기 전엔 표시하지 않음.
+        //   updateTooltipPosition 이 mousemove 마다 left/top 갱신. 그 전엔 -9999px 위치 그대로.
+        //   기존 버그: display:inline-block 활성 + top/left 미설정 → 좌측 상단 W 로고 자리.
+        const hasPosition = tooltipEl.style.left !== '-9999px' && tooltipEl.style.left !== '';
+        if (hasPosition && tooltipEl.style.display === 'none') {
           tooltipEl.style.display = 'inline-block';
         }
       }
