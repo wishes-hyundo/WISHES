@@ -117,11 +117,17 @@ export async function GET(request: NextRequest) {
     const stationM = toFiniteInt(searchParams.get('nearStation'));
     const features = toList(searchParams.get('features'));
     const hasImages = searchParams.get('hasImages') === '1' || searchParams.get('hasImages') === 'true';
+    // G-111 (2026-05-04 사장님): category 파라미터를 RPC로 전달 — viewport categoryToTypeFilter 정렬.
+    const categoryRaw = searchParams.get('category');
+    const category = categoryRaw && /^(residence|retail_office|land|investment)$/.test(categoryRaw)
+      ? categoryRaw
+      : null;
 
     // L-filtercluster1: 전체 필터를 캐시 키에 포함 — 서로 다른 필터 조합은 별개 캐시.
     const key = quantizeKey(swLat, swLng, neLat, neLng, zoom, {
       deals: deals ? deals.join(',') : null,
       types: types ? types.join(',') : null,
+      category,
       minPrice: minPrice != null ? String(minPrice) : null,
       maxPrice: maxPrice != null ? String(maxPrice) : null,
       minDeposit: minDeposit != null ? String(minDeposit) : null,
@@ -162,6 +168,8 @@ export async function GET(request: NextRequest) {
           p_station_m: stationM,
           p_features: features,
           p_has_images: hasImages || null,
+          // G-111: viewport categoryToTypeFilter 정렬
+          p_category: category,
         });
         if (error) throw error;
         return data || [];
