@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 import { cached } from '@/lib/cache';
 import { applyImagePolicy } from '@/lib/image-policy';
+import { sanitizePublicListing } from '@/lib/listing-public';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const ITEMS_LIMIT = 500;
@@ -129,7 +130,8 @@ export async function GET(request: NextRequest) {
       };
       const policed = applyImagePolicy(wrapped);
       return {
-        ...r,
+        // G-83 (2026-05-04): sanitizePublicListing — address_detail/special_notes 등 제거.
+        ...sanitizePublicListing(r as Record<string, any>),
         thumb_url: policed.listing_images?.[0]?.url || null,
       };
     });
