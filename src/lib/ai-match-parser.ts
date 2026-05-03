@@ -9,7 +9,8 @@
 export interface ParsedMatchFilter {
   deal?: '전세' | '월세' | '매매';
   type?: '원룸' | '투룸' | '쓰리룸' | '오피스텔' | '아파트' | '상가' | '사무실';
-  dong?: string;          // 동/구/시 단위 단어 하나 (예: "강남동", "관악구")
+  gu?: string;            // 구/시 단위 (예: "강남구", "관악구")  G-68
+  dong?: string;          // 동 단위 (예: "신림동", "양재동")
   maxDeposit?: number;    // 만원
   minDeposit?: number;    // 만원
   maxMonthly?: number;    // 만원
@@ -122,15 +123,15 @@ function parseRooms(text: string): number | undefined {
 }
 
 // 지역명 추출: 단어 중 "구"/"동"/"시"로 끝나는 토큰
-function parseLocation(text: string): string | undefined {
-  // 우선순위: 구 > 동 > 시
+// G-68 (2026-05-03): 구/동 분리 반환 (DB 가 gu/dong 분리 컬럼이라 매칭 정확도 위해).
+function parseLocation(text: string): { gu?: string; dong?: string } {
+  const out: { gu?: string; dong?: string } = {};
   const guMatch = text.match(/([가-힣]{2,4}구)\b/);
-  if (guMatch) return guMatch[1];
+  if (guMatch) out.gu = guMatch[1];
   const dongMatch = text.match(/([가-힣]{2,5}동)\b/);
-  if (dongMatch) return dongMatch[1];
-  const siMatch = text.match(/([가-힣]{2,4}시)\b/);
-  if (siMatch) return siMatch[1];
-  return undefined;
+  if (dongMatch) out.dong = dongMatch[1];
+  // 시 단위는 한국 부동산 검색에서 드문 사용 — 무시
+  return out;
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -151,9 +152,10 @@ export function parseMatchQuery(raw: string): ParsedMatchFilter {
     if (text.includes(t)) { result.type = t; break; }
   }
 
-  // 지역
+  // 지역 (G-68: 구/동 분리)
   const loc = parseLocation(text);
-  if (loc) result.dong = loc;
+  if (loc.gu) result.gu = loc.gu;
+  if (loc.dong) result.dong = loc.dong;
 
   // 가격
   Object.assign(result, parsePrice(text));
@@ -180,6 +182,7 @@ export function parseMatchQuery(raw: string): ParsedMatchFilter {
 
   // 사람 친화 요약 생성
   const parts: string[] = [];
+  if (result.gu) parts.push(result.gu);
   if (result.dong) parts.push(result.dong);
   if (result.type) parts.push(result.type);
   if (result.deal) parts.push(result.deal);
@@ -195,7 +198,7 @@ export function parseMatchQuery(raw: string): ParsedMatchFilter {
   // 잔여 텍스트 계산 — 단순히 인식된 토큰 제거
   let residue = text;
   [
-    result.deal, result.type, result.dong,
+    result.deal, result.type, result.gu, result.dong,
     result.maxDeposit && String(result.maxDeposit),
     result.maxMonthly && String(result.maxMonthly),
     '보증금', '월세', '전세', '매매', '이하', '이상',

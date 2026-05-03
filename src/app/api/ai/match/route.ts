@@ -71,6 +71,8 @@ export async function POST(request: NextRequest) {
 
     if (filters.deal) q = q.eq('deal', filters.deal);
     if (filters.type) q = q.eq('type_normalized', filters.type);
+    // G-68 (2026-05-03): 구는 gu 컬럼, 동은 dong 컬럼에 분리 매칭.
+    if (filters.gu) q = q.ilike('gu', `%${escapeIlike(filters.gu)}%`);
     if (filters.dong) q = q.ilike('dong', `%${escapeIlike(filters.dong)}%`);
     if (filters.maxDeposit) q = q.lte('deposit', filters.maxDeposit);
     if (filters.minDeposit) q = q.gte('deposit', filters.minDeposit);
@@ -110,6 +112,7 @@ export async function POST(request: NextRequest) {
     const urlParams = new URLSearchParams();
     if (filters.deal) urlParams.set('deal', filters.deal);
     if (filters.type) urlParams.set('type', filters.type);
+    if (filters.gu) urlParams.set('gu', filters.gu);
     if (filters.dong) urlParams.set('dong', filters.dong);
     if (filters.maxDeposit) urlParams.set('maxDeposit', String(filters.maxDeposit));
     if (filters.minArea) urlParams.set('minArea', String(filters.minArea));
