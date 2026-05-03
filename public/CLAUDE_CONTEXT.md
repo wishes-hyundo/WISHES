@@ -1703,3 +1703,28 @@ da7c313b docs: Wave 14 G-89
 ---
 
 **누적 G-1~G-91: 91 추적, 75 수정, 60+ commit, 19 마이그레이션. CRITICAL OAuth state CSRF 방어 완료.**
+
+---
+
+## Wave 14 (continued) — G-92 G-91 self-regression fix (2026-05-04 04:00 KST)
+
+| ID    | 영역 | 결함 | 우선순위 | 상태 |
+| ----- | ---- | ---- | -------- | ---- |
+| G-92  | security | G-91 cookie 강제가 AuthModal Naver flow 깨뜨림 | High | ✅ fix |
+
+G-91 fix 후 self-regression 발견 — sajangnim push 가 self-regression 까지 발견.
+signInWithNaver 가 direct nid.naver.com 호출하던 것을 oauth-start 경유로 통일.
+이제 두 경로 (admin-auth.html, AuthModal) 모두 cookie 기반 state 검증.
+
+**누적 G-1~G-92: 92 추적, 76 수정, 62+ commit, 19 마이그레이션.**
+
+### 정직성 패턴 (Wave 14 끝)
+
+| 측정 | 결과 |
+| ---- | ---- |
+| Wave 14 추가 발견 | 10 (G-83 ~ G-92) |
+| 그 중 self-regression | 1 (G-92) |
+| Wave 14 commits | 13 |
+| Wave 14 advisor 변화 | actionable WARN 14→0 (security), perf RLS initplan 6→0, multiple_permissive 98→5 |
+
+→ 사장님 push 마다 더 발견. 자기 fix 의 부작용까지.
