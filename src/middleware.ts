@@ -66,6 +66,14 @@ export function middleware(request: NextRequest) {
     }
   }
 
+  // G-39 (2026-05-03): /legal/privacy + /legal/terms → /privacy + /terms 로 통일.
+  // 두 페이지가 다른 컨텐츠를 보여줘서 일관성 깨짐. /privacy + /terms 가 canonical.
+  if (pathname === '/legal/privacy' || pathname === '/legal/terms') {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace('/legal', '');
+    return NextResponse.redirect(url, 308);
+  }
+
     // v7 §5: wishes.me 호스트 최상위 단축 URL → /s/<code> rewrite
   if (isShortUrlHost(host)) {
     const m = SHORT_CODE_PATTERN.exec(pathname);

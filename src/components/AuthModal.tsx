@@ -144,7 +144,7 @@ export default function AuthModal() {
           <p className="text-xs text-gray-500 leading-relaxed">
             로그인 시{' '}
             <a
-              href="/legal/terms"
+              href="/terms"
               target="_blank"
               rel="noopener noreferrer"
               className="underline cursor-pointer hover:text-gray-700 transition-colors"
@@ -153,7 +153,7 @@ export default function AuthModal() {
             </a>
             {' '}및{' '}
             <a
-              href="/legal/privacy"
+              href="/privacy"
               target="_blank"
               rel="noopener noreferrer"
               className="underline cursor-pointer hover:text-gray-700 transition-colors"
