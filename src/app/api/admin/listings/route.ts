@@ -751,6 +751,21 @@ export async function POST(request: NextRequest) {
     revalidatePath('/map', 'page');
     revalidateTag('listings');
 
+    // G-82 (2026-05-03): 매물 등록 audit
+    try {
+      const _caller = await verifyAdminAuthStrict(request);
+      audit({
+        action: 'listing.create',
+        actor: { email: _caller.email ?? null, role: _caller.role ?? null, uid: _caller.uid ?? null },
+        target: { type: 'listing', id: String(data?.id ?? null) },
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        route: '/api/admin/listings',
+        status: 201,
+        meta: { images_count: imageResults.length },
+      });
+    } catch { /* audit 실패 무시 */ }
+
     return NextResponse.json(
       {
         success: true,
@@ -898,6 +913,21 @@ export async function PUT(request: NextRequest) {
     revalidatePath('/map', 'page');
     revalidatePath(`/listings/${id}`, 'page');
     revalidateTag('listings');
+
+    // G-82 (2026-05-03): 매물 수정 audit
+    try {
+      const _caller = await verifyAdminAuthStrict(request);
+      audit({
+        action: 'listing.update',
+        actor: { email: _caller.email ?? null, role: _caller.role ?? null, uid: _caller.uid ?? null },
+        target: { type: 'listing', id: String(id) },
+        ip: getClientIp(request),
+        userAgent: request.headers.get('user-agent') || undefined,
+        route: '/api/admin/listings',
+        status: 200,
+        meta: { fields: Object.keys(updateValues), images_count: Array.isArray(images) ? images.length : 0 },
+      });
+    } catch { /* audit 실패 무시 */ }
 
     return NextResponse.json({
       success: true,
