@@ -586,10 +586,25 @@ function Brand() {
 // 동일 패턴 재사용 가능.
 function TopRightActions() {
   const { user, signOut, setShowAuthModal } = useAuth();
-  if (user) {
+  // G-25 fix (2026-05-03): ws_user (admin 자체 로그인) fallback.
+  //   사장님이 admin-auth.html 또는 OAuth 후 admin 로그인했을 때 ws_user 만 있고
+  //   Supabase native session 은 hydration 직후 비어있을 수 있음.
+  //   /map 헤더가 "로그인/회원가입" 으로 잘못 표시되는 결함 fix.
+  const [wsUser, setWsUser] = useState<{ name?: string; email?: string; role?: string } | null>(null);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem('ws_user') || window.sessionStorage.getItem('ws_user');
+      if (raw) setWsUser(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  const effectiveLoggedIn = !!user || !!wsUser;
+  if (effectiveLoggedIn) {
     const name =
-      (user.user_metadata as { full_name?: string } | undefined)?.full_name ||
-      user.email?.split('@')[0] ||
+      (user?.user_metadata as { full_name?: string } | undefined)?.full_name ||
+      wsUser?.name ||
+      user?.email?.split('@')[0] ||
+      wsUser?.email?.split('@')[0] ||
       '회원';
     return (
       <div className="ml-auto flex items-center gap-1.5 shrink-0">
