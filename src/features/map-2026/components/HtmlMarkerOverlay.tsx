@@ -967,21 +967,31 @@ export default function HtmlMarkerOverlay({
         el.addEventListener('mousedown', (e) => e.stopPropagation());
         el.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
         el.addEventListener('click', clickHandler);
-        // Wave 35: pool key 단순화 — lat/lng (4dec ~11m) 만. setContent 로 dynamic update.
+        // Wave 36: pool key + element direct mutation — Kakao setContent/setPosition 우회.
+        //   Wave 35 setContent 가 더 무거움 (max 125 → 223ms). 진짜 fix = element 자체 직접 mutate.
+        //   element 가 이미 Kakao 가 mount 시킨 DOM 안. textContent / className 변경 = 즉시 반영.
+        //   API call 0, DOM mutation only (browser 가 batch 처리).
         const _wave34Key = `m:${lat.toFixed(4)}:${lng.toFixed(4)}`;
         if (_wave34NewKeys) _wave34NewKeys.add(_wave34Key);
         const _existing = poolRef.current.get(_wave34Key);
         if (_existing) {
-          // reuse: setContent + setPosition (count/selected/category 변경 가능). setMap 호출 X.
+          // reuse: 기존 element 의 textContent + className 만 update.
+          // count 같으면 변화 X. count 다르면 첫 child (count text) 만 update.
+          // selected/category 변경 = className 변경 (CSS 가 색 swap).
+          // setContent / setPosition / setMap 호출 모두 X.
           try {
-            const ovAny = _existing.ov as unknown as {
-              setContent?: (c: HTMLElement) => void;
-              setPosition?: (p: unknown) => void;
-            };
-            ovAny.setContent?.(el);
-            ovAny.setPosition?.(new maps.LatLng(lat, lng));
-            _existing.lastContent = el;
-          } catch { /* SDK race */ }
+            const oldEl = _existing.lastContent;
+            // count text update (첫 번째 text-bearing element)
+            const newText = el.textContent || '';
+            const oldText = oldEl.textContent || '';
+            if (newText !== oldText) oldEl.textContent = newText;
+            // className update (color/selected swap via CSS class)
+            if (oldEl.className !== el.className) oldEl.className = el.className;
+            // background color (inline style) update if changed
+            if (oldEl.style.background !== el.style.background) {
+              oldEl.style.background = el.style.background;
+            }
+          } catch { /* mutation failed — skip */ }
           continue;
         }
         try {
