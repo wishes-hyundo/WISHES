@@ -831,8 +831,17 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
         currentKey = '';
         currentLevelMode = mode;
       }
-      // level ≤ 4: 마커만, 폴리곤 클리어 (cleanup 은 위에서 이미 처리됨)
-      if (mode === 'none') return;
+      // L-naver-2026forcedcleanup1 (Wave 54, 사장님 명령 2026-05-04 7장 스크린샷):
+      //   z16 (level 4) 진입 시 mode='none' 인데 polygon 잔존 (사장님 발견).
+      //   원인: idle event timing race + zoomingFromClickRef 가드로 cleanup 누락.
+      //   fix: mode='none' 인데 polygon 있으면 무조건 cleanup (currentLevelMode 무시).
+      //   I-POLY-1 (z14+ 폴리곤 X) 강제 보장.
+      if (mode === 'none') {
+        if (polygonsRef.current.length > 0) cleanup();
+        currentLevelMode = 'none';
+        currentKey = '';
+        return;
+      }
 
       // 라벨 prefix 계산 (시도/구 이름)
       // L-naver-sidoclick2 (2026-04-26): 광역에서 sigungu 들을 직접 그리기 위해
