@@ -795,12 +795,13 @@ function MapOverlaysWithClusters(props: {
           롤백: listings={[]} 를 listings={props.listings} 로 변경 (1줄). */}
       {/* Wave 26.3 (2026-05-04): props.listings 복원 - hypothesis 2 도 실패. */}
       {/* Wave 26.7 (2026-05-04): DOM only - WebGL only 시도 (26, 26.2, 26.6) 모두 실패. */}
-      {/* Wave 30 (2026-05-04 사장님 명령 끝까지 마무리): DOM 마커 비활성 → freeze 영구 0 시도.
-          Wave 26.15 WebGL 정상 검증 후 (607,814 pixels) 안전 가능.
-          listings={[]} = HtmlMarkerOverlay mount 유지 + 마커 0개 생성. invisible 시 즉시 ROLLBACK. */}
+      {/* Wave 31 ROLLBACK (2026-05-04): Wave 30 의 listings={[]} 가 prod 측정 결과 WebGL invisible 회귀.
+          v28 가설 (DOM trigger 끊김 → WebGL setProps reconcile 안 됨) 사실 확정.
+          listings={props.listings} 복원 = DOM + WebGL 병렬. freeze 146ms baseline 유지.
+          진짜 freeze 영구 fix = Web Worker + supercluster (Wave 32 plan). */}
       <HtmlMarkerOverlay
         map={props.kakaoMap}
-        listings={[]}
+        listings={props.listings}
         selectedListingId={props.selectedListingId}
         category={props.category}
         onClickListing={props.onClickListing}
