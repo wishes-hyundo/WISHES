@@ -876,6 +876,7 @@ function MapOverlaysWithClusters(props: {
         <AdminRegionOverlay
           map={props.kakaoMap}
           listings={props.listings}
+          kakaoLevel={props.kakaoLevel}
         />
       </MapErrorBoundary>
       <GeoLoadingIndicator />

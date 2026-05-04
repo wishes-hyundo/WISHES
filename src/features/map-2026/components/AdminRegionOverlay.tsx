@@ -374,11 +374,15 @@ interface Props {
   listings: MapListing[];
   // G-114 (2026-05-04): serverClusters prop 제거 — 본문에서 사용 안 함.
   onClickRegion?: (name: string) => void;
+  // Wave 55 (사장님 명령 2026-05-04): kakaoLevel prop 으로 외부에서 cleanup 강제.
+  kakaoLevel?: number;
 }
 
-export default function AdminRegionOverlay({ map, listings, onClickRegion }: Props) {
+export default function AdminRegionOverlay({ map, listings, onClickRegion, kakaoLevel }: Props) {
   const polygonsRef = useRef<KakaoPolygon[]>([]);
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
+  // Wave 55: cleanup function 외부 노출
+  const cleanupRef = useRef<() => void>(() => {});
   // L-naver-2026skel2: GeoJSON inflight → store 로 push (MapLoadingIndicator 표시용)
   const setGeoLoading = useMap2026Store((s) => s.setGeoLoading);
   useEffect(() => {
@@ -432,6 +436,8 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       currentTooltipText = '';
       tooltipEl.style.display = 'none';
     };
+    // Wave 55: 외부 노출
+    cleanupRef.current = cleanup;
 
     let currentKey = '';        // 현재 표시 중인 폴리곤 key (e.g., "서울특별시", "관악구", "서초동")
     let currentLevelMode: 'sido' | 'sigungu' | 'dong' | 'none' = 'none';
@@ -1025,6 +1031,14 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion }: Pro
       cleanup();
     };
   }, [map, onClickRegion]);
+
+  // Wave 55 (사장님 명령 2026-05-04): kakaoLevel watch — level<=6 (z14+) 즉시 cleanup
+  //   Wave 54 fix 가 updateAt 호출 안 되어 무효 → 이 effect 가 React state 변경 시 발화.
+  //   I-POLY-1 강제: z14+ 폴리곤 0.
+  useEffect(() => {
+    if (typeof kakaoLevel !== 'number') return;
+    if (kakaoLevel <= 6) cleanupRef.current();
+  }, [kakaoLevel]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
