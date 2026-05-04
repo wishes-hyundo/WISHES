@@ -470,32 +470,28 @@ export default function KakaoDeckOverlay({
       //   Without this, deck.props.layers updates correctly (visible via __deckInstance.props)
       //   but layerManager.getLayers() returns 0 and canvas stays empty -> silent invisible.
       //   Verified prod: this single line restores 779,463 canvas pixels with 7 mounted layers.
-      try {
-        const dk = deckRef.current as unknown as { redraw?: (reason: string) => void; layerManager?: { getLayers?: () => unknown[] } };
-        dk?.redraw?.('manual');
-        _w268trace('w2614 redraw-1 done', { layerCount: dk?.layerManager?.getLayers?.()?.length });
-        // Wave 26.14 attempt: if first redraw didn't mount layers, retry after rAF + setTimeout
-        if ((dk?.layerManager?.getLayers?.()?.length || 0) === 0) {
-          requestAnimationFrame(() => {
-            try {
-              dk?.redraw?.('manual rAF');
-              _w268trace('w2614 redraw-2 rAF', { layerCount: dk?.layerManager?.getLayers?.()?.length });
-            } catch {}
-          });
-          setTimeout(() => {
-            try {
-              dk?.redraw?.('manual 500ms');
-              _w268trace('w2614 redraw-3 500ms', { layerCount: dk?.layerManager?.getLayers?.()?.length });
-            } catch {}
-          }, 500);
-          setTimeout(() => {
-            try {
-              dk?.redraw?.('manual 2s');
-              _w268trace('w2614 redraw-4 2s', { layerCount: dk?.layerManager?.getLayers?.()?.length });
-            } catch {}
-          }, 2000);
-        }
-      } catch { /* noop */ }
+      const dk = deckRef.current as unknown as {
+        redraw?: (reason: string) => void;
+        layerManager?: { getLayers?: () => unknown[] };
+      };
+      if (dk && typeof dk.redraw === 'function') {
+        dk.redraw('manual');
+        const lc1 = dk.layerManager?.getLayers?.()?.length ?? 0;
+        _w268trace('w2614 redraw-1 done', { layerCount: lc1 });
+        // Wave 26.14: retry after rAF + setTimeout for diagnosis (no nested try/catch to avoid lint).
+        requestAnimationFrame(() => {
+          dk.redraw?.('manual rAF');
+          _w268trace('w2614 redraw-2 rAF', { layerCount: dk.layerManager?.getLayers?.()?.length ?? 0 });
+        });
+        setTimeout(() => {
+          dk.redraw?.('manual 500ms');
+          _w268trace('w2614 redraw-3 500ms', { layerCount: dk.layerManager?.getLayers?.()?.length ?? 0 });
+        }, 500);
+        setTimeout(() => {
+          dk.redraw?.('manual 2s');
+          _w268trace('w2614 redraw-4 2s', { layerCount: dk.layerManager?.getLayers?.()?.length ?? 0 });
+        }, 2000);
+      }
     };
 
     // 초기 빌드
