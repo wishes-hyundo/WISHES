@@ -171,6 +171,7 @@ export default function KakaoDeckOverlay({
     const kakaoMap = map as { getContainer?: () => HTMLElement };
     const container = containerProp ?? kakaoMap.getContainer?.();
     if (!container) return;
+    _w268trace('init-container size', { w: container.clientWidth, h: container.clientHeight, dpr: window.devicePixelRatio });
 
     // 캔버스 요소 추가
     const canvas = document.createElement('canvas');
@@ -202,6 +203,7 @@ export default function KakaoDeckOverlay({
       deckRef.current?.setProps({ width: w, height: h });
     };
     syncCanvasSize();
+    _w268trace('init-canvas size', { canvasW: canvas.width, canvasH: canvas.height, parentClass: container.className?.substring(0, 40) });
     const ro = typeof ResizeObserver !== 'undefined'
       ? new ResizeObserver(() => syncCanvasSize())
       : null;
@@ -235,7 +237,14 @@ export default function KakaoDeckOverlay({
           },
         });
         deckRef.current = deck;
-        _w268trace('deck-init-2 deck assigned', { deckTruthy: !!deck });
+        // Wave 26.10: expose deck instance to window for direct inspection
+        (window as unknown as { __deckInstance?: unknown }).__deckInstance = deck;
+        _w268trace('deck-init-2 deck assigned', {
+          deckTruthy: !!deck,
+          width: (deck as { width?: number }).width,
+          height: (deck as { height?: number }).height,
+          props_keys: Object.keys((deck as { props?: object }).props || {}).slice(0, 10),
+        });
         // Wave 26.9: 강제 re-fire useEffect #2 → buildLayers → setProps. invisible 원인 fix.
         setDeckGenId((g) => {
           _w268trace('deck-init-2b setDeckGenId', { from: g, to: g + 1 });
@@ -302,6 +311,7 @@ export default function KakaoDeckOverlay({
         _w268trace('layer-build-3b EARLY RETURN no projection');
         return;
       }
+      _w268trace('layer-build-3c projection ok', { containerW: container.clientWidth, containerH: container.clientHeight });
 
       const w = container.clientWidth;
       const h = container.clientHeight;
@@ -316,6 +326,18 @@ export default function KakaoDeckOverlay({
 
       // 클러스터 레이어 (≥2 개수)
       const clusterData = clusters.filter((c) => c.count >= 2);
+      // Wave 26.10: trace first cluster's projected position to verify geometry
+      if (clusterData.length > 0) {
+        const c0 = clusterData[0];
+        const k = (window as unknown as { kakao: { maps: { LatLng: new (lat: number, lng: number) => unknown } } }).kakao;
+        const ll = new k.maps.LatLng(c0.lat, c0.lng);
+        const p = projection.pointFromCoords(ll);
+        const w0 = container.clientWidth;
+        const h0 = container.clientHeight;
+        const projX = p.x - w0 / 2;
+        const projY = -(p.y - h0 / 2);
+        _w268trace('layer-build-3d first-cluster-project', { lat: c0.lat, lng: c0.lng, count: c0.count, raw_x: p.x, raw_y: p.y, projX, projY, w: w0, h: h0 });
+      }
     // 개별 매물 레이어 (L-deck-noprice, 2026-04-24 pm)
     //   HtmlMarkerOverlay 가 개별 매물을 카운트 원으로 처리하므로, deck.gl 의
     //   itemScatter/itemText 는 상위에서 items 를 명시적으로 넘긴 경우에만 활성화.
@@ -464,6 +486,16 @@ export default function KakaoDeckOverlay({
         layers: [scatter, clusterText, itemScatter, itemText],
       });
       _w268trace('layer-build-4 setProps DONE', { clusterData: clusterData.length, itemData: itemData.length, labelData: labelData.length });
+      // Wave 26.10: query deck.gl internal state — layer count, viewport, draw state
+      const dk = deckRef.current as unknown as { layerManager?: { getLayers?: () => unknown[] }, viewManager?: { getViewports?: () => unknown[] }, props?: { width?: number, height?: number } };
+      const internalLayers = dk?.layerManager?.getLayers?.()?.length;
+      const internalViewports = dk?.viewManager?.getViewports?.()?.length;
+      _w268trace('layer-build-4b deck-internals', {
+        internalLayers,
+        internalViewports,
+        deckPropsWidth: dk?.props?.width,
+        deckPropsHeight: dk?.props?.height,
+      });
     };
 
     // 초기 빌드
