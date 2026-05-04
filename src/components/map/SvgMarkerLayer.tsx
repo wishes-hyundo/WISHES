@@ -222,6 +222,13 @@ export default function SvgMarkerLayer({
   const anchorLatRef = useRef<number>(0);
   const anchorLngRef = useRef<number>(0);
   const anchorPxRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Wave 48 (2026-05-04 사장님 명령 "끝까지"): SVG element pool.
+  //   Wave 47 rapid zoom 잔여 87ms = createElementNS 53번 (모든 cluster 신규).
+  //   Pool 패턴: 사라진 cluster 의 g 는 removeChild 대신 unusedPool 에 보관 (display:none).
+  //   새 cluster 필요 시 pool.pop() 으로 재사용 → createElementNS 0번.
+  //   Pool size 상한 200 (메모리 폭증 방지).
+  const poolRef = useRef<SVGGElement[]>([]);
+  const POOL_MAX = 200;
 
   // ──────────────────────────────────────────────────────
   // Mount SVG layer + parent g.markers + Worker boot
@@ -276,6 +283,7 @@ export default function SvgMarkerLayer({
       svgRef.current = null;
       markersGRef.current = null;
       clusterMapRef.current.clear();
+      poolRef.current = [];  // Wave 48: pool 정리
       try { workerRef.current?.terminate(); } catch { /* noop */ }
       workerRef.current = null;
     };
@@ -326,10 +334,11 @@ export default function SvgMarkerLayer({
       const newMap = new Map<string, SVGGElement>();
       const seen = new Set<string>();
 
-      // Pass 1: 새 items 처리 — 기존 재사용 또는 신규 생성
+      // Pass 1: 새 items 처리 — 같은 key 재사용 / pool 재사용 / 마지막 createElement
+      const pool = poolRef.current;
       for (const it of items) {
         const key = keyOf(it);
-        if (seen.has(key)) continue;  // 중복 방어
+        if (seen.has(key)) continue;
         seen.add(key);
 
         const ll = new maps.LatLng(it.lat, it.lng);
@@ -337,21 +346,49 @@ export default function SvgMarkerLayer({
 
         const existing = oldMap.get(key);
         if (existing) {
-          // 재사용 (no reflow, just attr update)
+          // 같은 key reuse (no reflow, just attr update)
           updateClusterG(existing, it, p.x, p.y);
           newMap.set(key, existing);
-          oldMap.delete(key);  // 처리됨 표시
+          oldMap.delete(key);
+        } else if (pool.length > 0) {
+          // Wave 48: pool 에서 idle g 꺼내서 재사용 (createElementNS 0번)
+          const g = pool.pop()!;
+          // hidden 상태였다면 다시 보이게
+          if (g.style.display === 'none') g.style.display = '';
+          // attrs/text/circle 모두 새 it 으로 갱신 (full update)
+          // pool g 는 spider-fy 상태일 수도 cluster 상태일 수도 있어서 data-* attr 도 재설정
+          if (it.isSpiderFy) {
+            g.setAttribute('data-id', String(it.spiderFyId));
+            g.removeAttribute('data-cluster-ids');
+            g.removeAttribute('data-single-id');
+          } else {
+            g.removeAttribute('data-id');
+            g.setAttribute('data-cluster-ids', it.ids);
+            g.setAttribute('data-single-id', it.singleId);
+          }
+          g.setAttribute('data-lat', String(it.lat));
+          g.setAttribute('data-lng', String(it.lng));
+          updateClusterG(g, it, p.x, p.y);
+          if (g.parentNode !== markersG) markersG.appendChild(g);
+          newMap.set(key, g);
         } else {
-          // 신규 생성
+          // pool 비었음 → 진짜 신규 생성
           const g = createClusterG(it, p.x, p.y);
           markersG.appendChild(g);
           newMap.set(key, g);
         }
       }
 
-      // Pass 2: 사라진 cluster 제거
+      // Pass 2: 사라진 cluster 는 pool 에 보관 (removeChild 대신 hide → 다음 zoom 시 재사용)
       for (const g of oldMap.values()) {
-        if (g.parentNode === markersG) markersG.removeChild(g);
+        if (pool.length < POOL_MAX) {
+          // hide + pool 에 보관 (DOM 에는 그대로 — removeChild 비용 0)
+          g.style.display = 'none';
+          pool.push(g);
+        } else {
+          // pool 가득 — 진짜 제거
+          if (g.parentNode === markersG) markersG.removeChild(g);
+        }
       }
 
       clusterMapRef.current = newMap;
