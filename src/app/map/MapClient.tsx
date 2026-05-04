@@ -56,6 +56,10 @@ import KakaoDeckOverlay, { type MapItem, type MapCluster } from '@/components/ma
 //   Kakao CustomOverlay 415개 setMap = 146ms freeze 한계. SVG 1 layer 안 모든 cluster = 1 reflow.
 //   URL ?svg=1 시 활성 (사장님 검증). 다음 Wave 39 에서 기본 활성 + HtmlMarkerOverlay 비활성.
 import SvgMarkerLayer from '@/components/map/SvgMarkerLayer';
+// Wave 49 (2026-05-04 사장님 명령 "끝까지 무조건"): Canvas 2D marker layer.
+//   SVG 50ms 한계 도달 (SVG DOM reflow 자체). Canvas 2D = 53 cluster 5ms 예상.
+//   ?canvas=1 활성 (검증), Wave 50 에서 default.
+import CanvasMarkerLayer from '@/components/map/CanvasMarkerLayer';
 // Wave 24 (2026-05-04 사장님 명령): WebGL cluster 활성 — clusterAggregation lib 으로 cluster Map 생성.
 //   HtmlMarkerOverlay (DOM) 와 병렬 렌더 — 시각 비교 검증용. Wave 26 에 DOM 비활성.
 import {
@@ -145,16 +149,21 @@ export default function MapClient() {
   //   ?svg=0 = 비상 롤백 (HtmlMarkerOverlay 옛날 모드 복원).
   //   I-PERF-2 영구 INVARIANT 로 보존.
   const [useSvg, setUseSvg] = useState(true);
+  // Wave 49 (2026-05-04): Canvas 2D layer 검증 토글 (?canvas=1).
+  //   true 시 SvgMarkerLayer 비활성 + CanvasMarkerLayer 활성. SVG 코드 비상 롤백용 보존.
+  const [useCanvas, setUseCanvas] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [failReason, setFailReason] = useState<string>('');
 
   // Wave 44: URL query opt-out (?svg=0 시 옛날 HtmlMarkerOverlay 모드).
+  // Wave 49: ?canvas=1 시 Canvas 2D layer 활성 (검증 모드).
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get('svg') === '0') setUseSvg(false);
+      if (params.get('canvas') === '1') setUseCanvas(true);
     } catch { /* noop */ }
   }, []);
 
@@ -633,8 +642,20 @@ export default function MapClient() {
           />
           {ready && kakaoMap ? (
             <>
-              {/* Wave 38: SvgMarkerLayer (직방/네모 패턴) — ?svg=1 query 시만 활성 */}
-              {useSvg && (
+              {/* Wave 49: Canvas 2D layer 우선 (?canvas=1), 그 외 SvgMarkerLayer (Wave 38~48). */}
+              {useCanvas ? (
+                <CanvasMarkerLayer
+                  map={kakaoMap}
+                  container={containerRef.current}
+                  listings={listings}
+                  selectedListingId={detailListingId}
+                  category={filterCategory}
+                  clusterFilterIds={clusterFilterIds}
+                  clusterFilterListings={clusterFilterListings}
+                  onClickListing={onClickListing}
+                  onClusterFilter={(ids, label) => setClusterFilter(ids, label)}
+                />
+              ) : useSvg && (
                 <SvgMarkerLayer
                   map={kakaoMap}
                   container={containerRef.current}
