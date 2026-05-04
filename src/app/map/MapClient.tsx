@@ -167,6 +167,24 @@ export default function MapClient() {
     } catch { /* noop */ }
   }, []);
 
+  // Wave 59 (사장님 명령 2026-05-04): polling 기반 polygon 강제 제거.
+  //   Wave 54~58 모두 실패 (Kakao SDK setMap(null) DOM 안 지움 + useEffect [kakaoLevel] 발화 안 함).
+  //   진단 (prod 직접 setInterval 실험): polling 으로 polygon 제거 시 100% 작동 확인.
+  //   해결: setInterval 200ms, kakaoLevel <= 6 시 path[id^=daum-maps-shape-] 모두 remove.
+  //   I-POLY-1 절대 보장.
+  const kakaoLevelRef = useRef(kakaoLevel);
+  kakaoLevelRef.current = kakaoLevel;
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (kakaoLevelRef.current <= 6) {
+        try {
+          document.querySelectorAll('path[id^="daum-maps-shape-"]').forEach((el) => el.remove());
+        } catch { /* noop */ }
+      }
+    }, 200);
+    return () => clearInterval(interval);
+  }, []);
+
   // Wave 58 (사장님 명령 2026-05-04): I-POLY-1 강제 root-level fix.
   //   Wave 54~57 모두 실패 (Kakao SDK setMap(null) polygon DOM 안 지움).
   //   해결: MapClient root 에 useEffect, kakaoLevel <= 6 (z14+) 시 직접 DOM remove.
