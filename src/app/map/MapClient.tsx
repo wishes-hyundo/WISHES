@@ -833,17 +833,24 @@ function MapOverlaysWithClusters(props: {
           v28 가설 (DOM trigger 끊김 → WebGL setProps reconcile 안 됨) 사실 확정.
           listings={props.listings} 복원 = DOM + WebGL 병렬. freeze 146ms baseline 유지.
           진짜 freeze 영구 fix = Web Worker + supercluster (Wave 32 plan). */}
-      {/* Wave 39 (2026-05-04): useSvg 시 HtmlMarkerOverlay 마커 0 (SVG only). */}
-      <HtmlMarkerOverlay
-        map={props.kakaoMap}
-        listings={props.useSvg ? [] : props.listings}
-        selectedListingId={props.selectedListingId}
-        category={props.category}
-        onClickListing={props.onClickListing}
-        onClusterFilter={props.onClusterFilter}
-        clusterFilterIds={props.clusterFilterIds}
-        clusterFilterListings={props.clusterFilterListings}
-      />
+      {/* Wave 45 (2026-05-04 사장님 명령 "끝까지"): SVG 기본 모드에서 HtmlMarkerOverlay 완전 unmount.
+          - useSvg=true (default): SvgMarkerLayer + KakaoDeckOverlay self-trigger (Wave 32) 만 사용.
+            HtmlMarkerOverlay 컴포넌트 자체 unmount → listings=[] 잔여 부하 (event listener / map idle handler) 0.
+          - useSvg=false (?svg=0 비상 롤백): 옛날 모드 복원 (HtmlMarkerOverlay 마운트, listings full).
+          Wave 30/31 회귀 (WebGL invisible) 는 Wave 32 self-trigger fallback (100/500/1000/2000/5000ms 재시도) 로 해결.
+          기대: zoom freeze 60ms → 20~30ms (HtmlMarkerOverlay 잔여 부하 제거). */}
+      {!props.useSvg && (
+        <HtmlMarkerOverlay
+          map={props.kakaoMap}
+          listings={props.listings}
+          selectedListingId={props.selectedListingId}
+          category={props.category}
+          onClickListing={props.onClickListing}
+          onClusterFilter={props.onClusterFilter}
+          clusterFilterIds={props.clusterFilterIds}
+          clusterFilterListings={props.clusterFilterListings}
+        />
+      )}
       <MapErrorBoundary>
         <AdminRegionOverlay
           map={props.kakaoMap}
