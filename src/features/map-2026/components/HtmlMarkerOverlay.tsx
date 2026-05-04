@@ -382,6 +382,12 @@ export default function HtmlMarkerOverlay({
   clusterFilterIds,
   clusterFilterListings,
 }: Props) {
+  // Wave 34 (2026-05-04 사장님 명령 끝까지 마무리): Marker Pool — key-based reuse.
+  //   Wave 33 cluster limit 효과 측정 결과 0. 진짜 freeze 원인 = setMap 1245회 (cleanup 415 + new 415 + setMap 415).
+  //   Pool 패턴: 같은 cluster key 면 marker reuse (setMap 호출 X). 다른 key 만 new+setMap.
+  //   zoom 변경 시 cluster keys 일부 동일 → setMap 호출 ~40-60% 감소 예상.
+  //   key = lat:lng:count:selected:category 조합.
+  const poolRef = useRef<Map<string, KakaoCustomOverlay>>(new Map());
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
   // G-117: render batch token — 새 render 시작 시 이전 batch 자동 abort
   const renderTokenRef = useRef<number>(0);
@@ -398,11 +404,43 @@ export default function HtmlMarkerOverlay({
         try { ov.setMap(null); } catch { /* noop */ }
       }
       overlaysRef.current = [];
+      // Wave 34: pool 도 cleanup (unmount 시)
+      for (const ov of poolRef.current.values()) {
+        try { ov.setMap(null); } catch { /* noop */ }
+      }
+      poolRef.current.clear();
+    };
+    // Wave 34: render 시작 시 사용된 keys 추적 (사라진 것 제거용)
+    let _wave34NewKeys: Set<string> | null = null;
+    const _wave34StartRender = () => { _wave34NewKeys = new Set<string>(); };
+    const _wave34EndRender = () => {
+      if (!_wave34NewKeys) return;
+      const newKeys = _wave34NewKeys;
+      _wave34NewKeys = null;
+      for (const [key, ov] of poolRef.current) {
+        if (!newKeys.has(key)) {
+          try { ov.setMap(null); } catch { /* noop */ }
+          poolRef.current.delete(key);
+        }
+      }
     };
 
     const render = () => {
-      cleanupOverlays();
-      if (!Array.isArray(listings) || listings.length === 0) return;
+      // Wave 34: cleanupOverlays 대신 pool 패턴. 사라진 marker 만 cleanup.
+      _wave34StartRender();
+      // overlaysRef (server-cluster + spider-fy 용 임시 array) 만 cleanup
+      for (const ov of overlaysRef.current) {
+        try { ov.setMap(null); } catch { /* noop */ }
+      }
+      overlaysRef.current = [];
+      if (!Array.isArray(listings) || listings.length === 0) {
+        // 빈 listings — pool 도 모두 cleanup
+        for (const ov of poolRef.current.values()) {
+          try { ov.setMap(null); } catch { /* noop */ }
+        }
+        poolRef.current.clear();
+        return;
+      }
 
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
 
@@ -928,6 +966,13 @@ export default function HtmlMarkerOverlay({
         el.addEventListener('mousedown', (e) => e.stopPropagation());
         el.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
         el.addEventListener('click', clickHandler);
+        // Wave 34: pool key check — same lat/lng/count/selected/category 면 reuse (no new + no setMap)
+        const _wave34Key = `m:${lat.toFixed(5)}:${lng.toFixed(5)}:${count}:${selected ? 1 : 0}:${clusterCat}`;
+        if (_wave34NewKeys) _wave34NewKeys.add(_wave34Key);
+        if (poolRef.current.has(_wave34Key)) {
+          // reuse: existing overlay still valid (same position + content). Skip new + setMap.
+          continue;
+        }
         try {
           const ov = new maps.CustomOverlay({
             position: new maps.LatLng(lat, lng),
@@ -938,7 +983,7 @@ export default function HtmlMarkerOverlay({
             clickable: true,
           });
           ov.setMap(map);
-          overlaysRef.current.push(ov);
+          poolRef.current.set(_wave34Key, ov);
         } catch { /* SDK race — skip */ }
         }
         _bIdx = _end;
@@ -951,6 +996,9 @@ export default function HtmlMarkerOverlay({
         }
       };
       _processBatch();
+      // Wave 34: render 끝 시점에 사라진 marker 제거 (rAF batch 다 끝나야 호출)
+      // batch 마지막에 호출하기 위해 setTimeout 0 (다음 macrotask)
+      setTimeout(() => _wave34EndRender(), 100);
     };
 
     render();
