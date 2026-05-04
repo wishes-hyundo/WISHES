@@ -130,18 +130,6 @@ function formatPriceShort(won?: number | null, deal?: string | null): string {
   return `${won.toLocaleString()}`;
 }
 
-// Wave 26.14 (2026-05-04): 자연 mount 실패 진단 — trace 임시 복원 + __deckInstance 노출.
-//   Wave 26.13 cleanup 후 prod 자연 상태에서 WebGL pixel 0 발견.
-//   외부 manipulation (Wave 26.12 시점) 으로는 779,463 픽셀 검증됐었음.
-//   진짜 원인 진단 후 정리 예정.
-function _w268trace(tag: string, data?: unknown) {
-  if (typeof window === 'undefined') return;
-  const w = window as unknown as { __wave26_8_trace__?: Array<{ tag: string; t: number; data?: unknown }> };
-  if (!w.__wave26_8_trace__) w.__wave26_8_trace__ = [];
-  w.__wave26_8_trace__.push({ tag, t: performance.now(), data });
-  if (w.__wave26_8_trace__.length > 500) w.__wave26_8_trace__ = w.__wave26_8_trace__.slice(-500);
-}
-
 export default function KakaoDeckOverlay({
   map,
   container: containerProp,
@@ -241,13 +229,13 @@ export default function KakaoDeckOverlay({
           },
         });
         deckRef.current = deck;
+        // Wave 26.14c (2026-05-04): expose deck to window for Chrome MCP diagnosis (no other code change vs Wave 26.13).
         (window as unknown as { __deckInstance?: unknown }).__deckInstance = deck;
-        _w268trace('w2614 deck-init-2', { width: (deck as { width?: number }).width, height: (deck as { height?: number }).height });
         // Wave 26.9 (I-WEBGL-3): force useEffect #2 re-fire after async deck init completes.
-        setDeckGenId((g) => {
-          _w268trace('w2614 setDeckGenId', { from: g, to: g + 1 });
-          return g + 1;
-        });
+        //   deck.gl init takes ~700ms via dynamic import. During that window useEffect #2 has
+        //   already fired with deckRef=null and bailed via early return. Without this state
+        //   bump, layer reconcile never triggers -> canvas stays empty.
+        setDeckGenId((g) => g + 1);
       } catch (e) {
         if (typeof console !== 'undefined') {
           console.warn('[KakaoDeckOverlay] WebGL 초기화 실패 → 카카오맵 2D 만 표시합니다:', e);
@@ -456,42 +444,22 @@ export default function KakaoDeckOverlay({
       },
     });
 
-      _w268trace('w2614 buildLayers entry', { hasDeck: !!deckRef.current, clusterDataLen: clusterData.length, itemDataLen: itemData.length });
       deckRef.current.setProps({
         width: w,
         height: h,
         viewState: { target: [0, 0, 0], zoom: 0 } as any,
         layers: [scatter, clusterText, itemScatter, itemText],
       });
-      _w268trace('w2614 setProps DONE', { propsLayers: (deckRef.current as unknown as { props?: { layers?: unknown[] } }).props?.layers?.length });
       // Wave 26.12 (I-WEBGL-2): force redraw to trigger layerManager reconcile.
       //   setProps({layers}) alone does NOT trigger layer reconciliation in this codepath.
       //   redraw('manual') is REQUIRED to force layer mount + GPU draw.
       //   Without this, deck.props.layers updates correctly (visible via __deckInstance.props)
       //   but layerManager.getLayers() returns 0 and canvas stays empty -> silent invisible.
       //   Verified prod: this single line restores 779,463 canvas pixels with 7 mounted layers.
-      const dk = deckRef.current as unknown as {
-        redraw?: (reason: string) => void;
-        layerManager?: { getLayers?: () => unknown[] };
-      };
-      if (dk && typeof dk.redraw === 'function') {
-        dk.redraw('manual');
-        const lc1 = dk.layerManager?.getLayers?.()?.length ?? 0;
-        _w268trace('w2614 redraw-1 done', { layerCount: lc1 });
-        // Wave 26.14: retry after rAF + setTimeout for diagnosis (no nested try/catch to avoid lint).
-        requestAnimationFrame(() => {
-          dk.redraw?.('manual rAF');
-          _w268trace('w2614 redraw-2 rAF', { layerCount: dk.layerManager?.getLayers?.()?.length ?? 0 });
-        });
-        setTimeout(() => {
-          dk.redraw?.('manual 500ms');
-          _w268trace('w2614 redraw-3 500ms', { layerCount: dk.layerManager?.getLayers?.()?.length ?? 0 });
-        }, 500);
-        setTimeout(() => {
-          dk.redraw?.('manual 2s');
-          _w268trace('w2614 redraw-4 2s', { layerCount: dk.layerManager?.getLayers?.()?.length ?? 0 });
-        }, 2000);
-      }
+      try {
+        const dk = deckRef.current as unknown as { redraw?: (reason: string) => void };
+        dk?.redraw?.('manual');
+      } catch { /* noop */ }
     };
 
     // 초기 빌드
