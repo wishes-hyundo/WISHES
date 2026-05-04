@@ -130,18 +130,6 @@ function formatPriceShort(won?: number | null, deal?: string | null): string {
   return `${won.toLocaleString()}`;
 }
 
-// Wave 26.8 TRACE (2026-05-04): Next.js production compiler strips console.log.
-//   Replace with window.__wave26_8_trace__ array push for prod-readable diagnostics.
-//   Read via Chrome MCP: window.__wave26_8_trace__
-function _w268trace(tag: string, data?: unknown) {
-  if (typeof window === 'undefined') return;
-  const w = window as unknown as { __wave26_8_trace__?: Array<{ tag: string; t: number; data?: unknown }> };
-  if (!w.__wave26_8_trace__) w.__wave26_8_trace__ = [];
-  w.__wave26_8_trace__.push({ tag, t: performance.now(), data });
-  // Cap at 500 entries to avoid memory blow-up on long sessions
-  if (w.__wave26_8_trace__.length > 500) w.__wave26_8_trace__ = w.__wave26_8_trace__.slice(-500);
-}
-
 export default function KakaoDeckOverlay({
   map,
   container: containerProp,
@@ -163,7 +151,6 @@ export default function KakaoDeckOverlay({
   useEffect(() => {
     // Wave 26.8 DEBUG (2026-05-04): WebGL invisible 진단 — Wave 26/26.2/26.6 회귀 원인 파악용 console.log.
     //   prod 검증 후 로그만 정리하고 fix 또는 다음 path 결정. INVARIANT 영향 0.
-    _w268trace('deck-init-1 effect-1 start', { hasMap: !!map, hasContainer: !!containerProp });
     if (!map || typeof window === 'undefined') return;
     // L-map3 (2026-04-22): Kakao Map 인스턴스는 getContainer() 를 노출하지 않음.
     //   1) 상위가 직접 내려주는 containerProp 우선
@@ -171,7 +158,6 @@ export default function KakaoDeckOverlay({
     const kakaoMap = map as { getContainer?: () => HTMLElement };
     const container = containerProp ?? kakaoMap.getContainer?.();
     if (!container) return;
-    _w268trace('init-container size', { w: container.clientWidth, h: container.clientHeight, dpr: window.devicePixelRatio });
 
     // 캔버스 요소 추가
     const canvas = document.createElement('canvas');
@@ -203,7 +189,6 @@ export default function KakaoDeckOverlay({
       deckRef.current?.setProps({ width: w, height: h });
     };
     syncCanvasSize();
-    _w268trace('init-canvas size', { canvasW: canvas.width, canvasH: canvas.height, parentClass: container.className?.substring(0, 40) });
     const ro = typeof ResizeObserver !== 'undefined'
       ? new ResizeObserver(() => syncCanvasSize())
       : null;
@@ -244,22 +229,12 @@ export default function KakaoDeckOverlay({
           },
         });
         deckRef.current = deck;
-        // Wave 26.10: expose deck instance to window for direct inspection
-        (window as unknown as { __deckInstance?: unknown }).__deckInstance = deck;
-        _w268trace('deck-init-2 deck assigned', {
-          deckTruthy: !!deck,
-          width: (deck as { width?: number }).width,
-          height: (deck as { height?: number }).height,
-          props_keys: Object.keys((deck as { props?: object }).props || {}).slice(0, 10),
-        });
-        // Wave 26.9: 강제 re-fire useEffect #2 → buildLayers → setProps. invisible 원인 fix.
-        setDeckGenId((g) => {
-          _w268trace('deck-init-2b setDeckGenId', { from: g, to: g + 1 });
-          return g + 1;
-        });
+        // Wave 26.9 (I-WEBGL-3): force useEffect #2 re-fire after async deck init completes.
+        //   deck.gl init takes ~700ms via dynamic import. During that window useEffect #2 has
+        //   already fired with deckRef=null and bailed via early return. Without this state
+        //   bump, layer reconcile never triggers -> canvas stays empty.
+        setDeckGenId((g) => g + 1);
       } catch (e) {
-        _w268trace('deck-init-3 FAILED', { error: String(e) });
-        console.warn('[wave26-8 deck-init-3] FAILED', performance.now(), e);
         if (typeof console !== 'undefined') {
           console.warn('[KakaoDeckOverlay] WebGL 초기화 실패 → 카카오맵 2D 만 표시합니다:', e);
         }
@@ -288,9 +263,7 @@ export default function KakaoDeckOverlay({
   //   throttle 된 재투영을 수행한다.
   useEffect(() => {
     // Wave 26.8 DEBUG: useEffect #2 매 실행 시점 + early return 분기 캡처.
-    _w268trace('layer-build-1 effect-2 run', { hasDeck: !!deckRef.current, hasMap: !!map, clusters: clusters.length, items: items.length, deckGenId });
     if (!deckRef.current || !map) {
-      _w268trace('layer-build-2 EARLY RETURN', { hasDeck: !!deckRef.current, hasMap: !!map });
       return;
     }
 
@@ -303,22 +276,17 @@ export default function KakaoDeckOverlay({
     // L-map3: Kakao 는 getContainer() 가 없음 → prop fallback
     const container = containerProp ?? kakaoMap.getContainer?.();
     if (!container) {
-      _w268trace('layer-build-2b EARLY RETURN no container');
       return;
     }
 
     const buildLayers = () => {
-      _w268trace('layer-build-3 buildLayers entry', { hasDeck: !!deckRef.current });
       if (!deckRef.current) {
-        _w268trace('layer-build-3a EARLY RETURN no deck');
         return;
       }
       const projection = kakaoMap.getProjection?.();
       if (!projection) {
-        _w268trace('layer-build-3b EARLY RETURN no projection');
         return;
       }
-      _w268trace('layer-build-3c projection ok', { containerW: container.clientWidth, containerH: container.clientHeight });
 
       const w = container.clientWidth;
       const h = container.clientHeight;
@@ -333,18 +301,6 @@ export default function KakaoDeckOverlay({
 
       // 클러스터 레이어 (≥2 개수)
       const clusterData = clusters.filter((c) => c.count >= 2);
-      // Wave 26.10: trace first cluster's projected position to verify geometry
-      if (clusterData.length > 0) {
-        const c0 = clusterData[0];
-        const k = (window as unknown as { kakao: { maps: { LatLng: new (lat: number, lng: number) => unknown } } }).kakao;
-        const ll = new k.maps.LatLng(c0.lat, c0.lng);
-        const p = projection.pointFromCoords(ll);
-        const w0 = container.clientWidth;
-        const h0 = container.clientHeight;
-        const projX = p.x - w0 / 2;
-        const projY = -(p.y - h0 / 2);
-        _w268trace('layer-build-3d first-cluster-project', { lat: c0.lat, lng: c0.lng, count: c0.count, raw_x: p.x, raw_y: p.y, projX, projY, w: w0, h: h0 });
-      }
     // 개별 매물 레이어 (L-deck-noprice, 2026-04-24 pm)
     //   HtmlMarkerOverlay 가 개별 매물을 카운트 원으로 처리하므로, deck.gl 의
     //   itemScatter/itemText 는 상위에서 items 를 명시적으로 넘긴 경우에만 활성화.
@@ -492,30 +448,16 @@ export default function KakaoDeckOverlay({
         viewState: { target: [0, 0, 0], zoom: 0 } as any,
         layers: [scatter, clusterText, itemScatter, itemText],
       });
-      // Wave 26.12 (2026-05-04): force redraw to trigger layerManager reconcile.
-      //   diagnosis (Wave 26.11 prod): setProps alone does NOT trigger layer reconciliation
-      //   in this codepath. External manipulation (deck.setProps + deck.redraw('manual'))
-      //   produced 779382 pixels with 7 layers. Inlining the redraw('manual') call here
-      //   replicates that behavior - layers mount + canvas pixels render.
-      //   I-WEBGL-2 INVARIANT: after setProps with layers, must call redraw('manual') to
-      //   force reconcile. Otherwise deck.gl animation loop may not auto-trigger reconcile.
+      // Wave 26.12 (I-WEBGL-2): force redraw to trigger layerManager reconcile.
+      //   setProps({layers}) alone does NOT trigger layer reconciliation in this codepath.
+      //   redraw('manual') is REQUIRED to force layer mount + GPU draw.
+      //   Without this, deck.props.layers updates correctly (visible via __deckInstance.props)
+      //   but layerManager.getLayers() returns 0 and canvas stays empty -> silent invisible.
+      //   Verified prod: this single line restores 779,463 canvas pixels with 7 mounted layers.
       try {
         const dk = deckRef.current as unknown as { redraw?: (reason: string) => void };
-        dk?.redraw?.('Wave 26.12 force reconcile');
-      } catch (e) {
-        _w268trace('layer-build-4c redraw error', { error: String(e) });
-      }
-      _w268trace('layer-build-4 setProps DONE', { clusterData: clusterData.length, itemData: itemData.length, labelData: labelData.length });
-      // Wave 26.10: query deck.gl internal state — layer count, viewport, draw state
-      const dk = deckRef.current as unknown as { layerManager?: { getLayers?: () => unknown[] }, viewManager?: { getViewports?: () => unknown[] }, props?: { width?: number, height?: number } };
-      const internalLayers = dk?.layerManager?.getLayers?.()?.length;
-      const internalViewports = dk?.viewManager?.getViewports?.()?.length;
-      _w268trace('layer-build-4b deck-internals', {
-        internalLayers,
-        internalViewports,
-        deckPropsWidth: dk?.props?.width,
-        deckPropsHeight: dk?.props?.height,
-      });
+        dk?.redraw?.('manual');
+      } catch { /* noop */ }
     };
 
     // 초기 빌드
