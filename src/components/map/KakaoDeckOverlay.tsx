@@ -130,6 +130,18 @@ function formatPriceShort(won?: number | null, deal?: string | null): string {
   return `${won.toLocaleString()}`;
 }
 
+// Wave 26.8 TRACE (2026-05-04): Next.js production compiler strips console.log.
+//   Replace with window.__wave26_8_trace__ array push for prod-readable diagnostics.
+//   Read via Chrome MCP: window.__wave26_8_trace__
+function _w268trace(tag: string, data?: unknown) {
+  if (typeof window === 'undefined') return;
+  const w = window as unknown as { __wave26_8_trace__?: Array<{ tag: string; t: number; data?: unknown }> };
+  if (!w.__wave26_8_trace__) w.__wave26_8_trace__ = [];
+  w.__wave26_8_trace__.push({ tag, t: performance.now(), data });
+  // Cap at 500 entries to avoid memory blow-up on long sessions
+  if (w.__wave26_8_trace__.length > 500) w.__wave26_8_trace__ = w.__wave26_8_trace__.slice(-500);
+}
+
 export default function KakaoDeckOverlay({
   map,
   container: containerProp,
@@ -146,7 +158,7 @@ export default function KakaoDeckOverlay({
   useEffect(() => {
     // Wave 26.8 DEBUG (2026-05-04): WebGL invisible 진단 — Wave 26/26.2/26.6 회귀 원인 파악용 console.log.
     //   prod 검증 후 로그만 정리하고 fix 또는 다음 path 결정. INVARIANT 영향 0.
-    console.log('[wave26-8 deck-init-1] effect-1 start', performance.now(), { hasMap: !!map, hasContainer: !!containerProp });
+    _w268trace('deck-init-1 effect-1 start', { hasMap: !!map, hasContainer: !!containerProp });
     if (!map || typeof window === 'undefined') return;
     // L-map3 (2026-04-22): Kakao Map 인스턴스는 getContainer() 를 노출하지 않음.
     //   1) 상위가 직접 내려주는 containerProp 우선
@@ -218,8 +230,9 @@ export default function KakaoDeckOverlay({
           },
         });
         deckRef.current = deck;
-        console.log('[wave26-8 deck-init-2] deck assigned to ref', performance.now(), { deckTruthy: !!deck });
+        _w268trace('deck-init-2 deck assigned', { deckTruthy: !!deck });
       } catch (e) {
+        _w268trace('deck-init-3 FAILED', { error: String(e) });
         console.warn('[wave26-8 deck-init-3] FAILED', performance.now(), e);
         if (typeof console !== 'undefined') {
           console.warn('[KakaoDeckOverlay] WebGL 초기화 실패 → 카카오맵 2D 만 표시합니다:', e);
@@ -249,14 +262,9 @@ export default function KakaoDeckOverlay({
   //   throttle 된 재투영을 수행한다.
   useEffect(() => {
     // Wave 26.8 DEBUG: useEffect #2 매 실행 시점 + early return 분기 캡처.
-    console.log('[wave26-8 layer-build-1] effect-2 run', performance.now(), {
-      hasDeck: !!deckRef.current,
-      hasMap: !!map,
-      clusters: clusters.length,
-      items: items.length,
-    });
+    _w268trace('layer-build-1 effect-2 run', { hasDeck: !!deckRef.current, hasMap: !!map, clusters: clusters.length, items: items.length });
     if (!deckRef.current || !map) {
-      console.log('[wave26-8 layer-build-2] EARLY RETURN', { hasDeck: !!deckRef.current, hasMap: !!map });
+      _w268trace('layer-build-2 EARLY RETURN', { hasDeck: !!deckRef.current, hasMap: !!map });
       return;
     }
 
@@ -269,19 +277,19 @@ export default function KakaoDeckOverlay({
     // L-map3: Kakao 는 getContainer() 가 없음 → prop fallback
     const container = containerProp ?? kakaoMap.getContainer?.();
     if (!container) {
-      console.log('[wave26-8 layer-build-2b] EARLY RETURN no container');
+      _w268trace('layer-build-2b EARLY RETURN no container');
       return;
     }
 
     const buildLayers = () => {
-      console.log('[wave26-8 layer-build-3] buildLayers entry', performance.now(), { hasDeck: !!deckRef.current });
+      _w268trace('layer-build-3 buildLayers entry', { hasDeck: !!deckRef.current });
       if (!deckRef.current) {
-        console.log('[wave26-8 layer-build-3a] EARLY RETURN no deck');
+        _w268trace('layer-build-3a EARLY RETURN no deck');
         return;
       }
       const projection = kakaoMap.getProjection?.();
       if (!projection) {
-        console.log('[wave26-8 layer-build-3b] EARLY RETURN no projection');
+        _w268trace('layer-build-3b EARLY RETURN no projection');
         return;
       }
 
@@ -445,11 +453,7 @@ export default function KakaoDeckOverlay({
         viewState: { target: [0, 0, 0], zoom: 0 } as any,
         layers: [scatter, clusterText, itemScatter, itemText],
       });
-      console.log('[wave26-8 layer-build-4] setProps DONE', performance.now(), {
-        clusterData: clusterData.length,
-        itemData: itemData.length,
-        labelData: labelData.length,
-      });
+      _w268trace('layer-build-4 setProps DONE', { clusterData: clusterData.length, itemData: itemData.length, labelData: labelData.length });
     };
 
     // 초기 빌드
