@@ -170,6 +170,9 @@ export default function SvgMarkerLayer({
     const maps = kakao.maps;
     const mapInst = map as KakaoMapLike;
 
+    // Wave 41: zoom level tracking for pan-only optimization
+    let lastLevel = -1;
+
     const render = () => {
       const svg = svgRef.current;
       if (!svg) return;
@@ -178,6 +181,28 @@ export default function SvgMarkerLayer({
 
       const level = mapInst.getLevel?.() ?? 5;
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
+      // Wave 41: pan-only optimization. Same level + same listings -> only update transforms.
+      //   Existing g.m elements have data-lat/data-lng attributes set on rebuild.
+      //   On pan: re-project lat/lng -> new px, setAttribute transform on each g.m.
+      //   No innerHTML rebuild = no DOM allocation = much faster.
+      if (lastLevel === level && svg.children.length > 0) {
+        const markersG = svg.firstElementChild as SVGGElement | null;
+        if (markersG && markersG.children.length > 0) {
+          let allHaveCoords = true;
+          for (let i = 0; i < markersG.children.length; i++) {
+            const g = markersG.children[i] as SVGGElement;
+            const latStr = g.getAttribute('data-lat');
+            const lngStr = g.getAttribute('data-lng');
+            if (!latStr || !lngStr) { allHaveCoords = false; break; }
+            const ll = new maps.LatLng(parseFloat(latStr), parseFloat(lngStr));
+            const p = projection.pointFromCoords(ll);
+            g.setAttribute('transform', `translate(${p.x},${p.y})`);
+          }
+          if (allHaveCoords) return;  // pan-only path complete
+        }
+      }
+      lastLevel = level;
 
       // viewport listings (clusterFilter 우선)
       const filterSet = clusterFilterIds && clusterFilterIds.length > 0
@@ -214,7 +239,7 @@ export default function SvgMarkerLayer({
           const bg = isSel ? SEL_BG : cat.bg;
           const r = sfSize / 2;
           elements.push(
-            `<g class="m" data-id="${l.id}" transform="translate(${p.x},${p.y})">` +
+            `<g class="m" data-id="${l.id}" data-lat="${_sf.displayLat}" data-lng="${_sf.displayLng}" transform="translate(${p.x},${p.y})">` +
               `<circle r="${r}" fill="${bg}" stroke="white" stroke-width="2" style="pointer-events:auto;cursor:pointer"/>` +
               `<text y="4" text-anchor="middle" font-size="11" font-weight="bold" fill="white" style="pointer-events:none;user-select:none">1</text>` +
             `</g>`
@@ -260,7 +285,7 @@ export default function SvgMarkerLayer({
         const ids = arr.map((l) => l.id).join(',');
 
         elements.push(
-          `<g class="m" data-cluster-ids="${ids}" data-single-id="${count === 1 ? arr[0].id : ''}" transform="translate(${p.x},${p.y})">` +
+          `<g class="m" data-cluster-ids="${ids}" data-single-id="${count === 1 ? arr[0].id : ''}" data-lat="${_pos.lat}" data-lng="${_pos.lng}" transform="translate(${p.x},${p.y})">` +
             `<circle r="${r}" fill="${bg}" stroke="white" stroke-width="2" style="pointer-events:auto;cursor:pointer"/>` +
             `<text y="4" text-anchor="middle" font-size="${fontSize}" font-weight="bold" fill="white" style="pointer-events:none;user-select:none">${count}</text>` +
           `</g>`
