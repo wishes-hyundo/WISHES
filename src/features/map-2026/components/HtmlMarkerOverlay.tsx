@@ -765,11 +765,13 @@ export default function HtmlMarkerOverlay({
 
       // K-2 (사장님 명령 2026-05-02): TIER1 매물 단지 마커 — 좌표 평균 X, 단지 진짜 좌표.
       const TIER1_TYPES = new Set<string>(['아파트', '오피스텔', '주상복합', '도시형생활주택']);
-      // G-117 (2026-05-04 사장님 측정 — 167ms longtask freeze): 마커 동기 생성 batched rAF 로 분할.
-      //   415 markers / batch 50 = 9 frames × ~16ms = 60fps 유지. 사용자 freeze 체감 X.
+      // G-117 (2026-05-04): 마커 동기 생성 batched rAF 로 분할.
+      // Wave 27 (2026-05-04 사장님 명령 끝까지 해결): _BATCH 50 → 25 절반 감소 → frame 부담 절반.
+      //   415 markers / batch 25 = ~17 frames. Wave 26.15 prod 측정 freeze max 146ms → 예상 ~70ms.
+      //   trade-off: 마커 모두 보일 때까지 약 280ms (이전 144ms 의 2배). 사용자 시각엔 변화 미미.
       const _clusterArr = [...clusters.values()];
       const _renderToken = ++renderTokenRef.current;
-      const _BATCH = 50;
+      const _BATCH = 25;
       let _bIdx = 0;
       const _processBatch = () => {
         if (renderTokenRef.current !== _renderToken) return; // 다른 render 가 시작됨 — abort
