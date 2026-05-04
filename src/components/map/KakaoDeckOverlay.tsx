@@ -146,6 +146,13 @@ export default function KakaoDeckOverlay({
   //   (deps 어느 것도 변경 안 됨) → layer 영원히 안 그려짐 (Wave 26/26.2/26.6 invisible 원인).
   //   해결: deckGenId state 를 deps 에 추가 + init 완료 시 setDeckGenId(g+1) 강제 trigger.
   const [deckGenId, setDeckGenId] = useState(0);
+  // Wave 32 (2026-05-04): WebGL self-trigger fallback timer for DOM-independent mount.
+  //   Wave 30 (DOM listings=[]) confirmed: HtmlMarkerOverlay state changes drive WebGL reconcile.
+  //   Without DOM trigger, WebGL stays invisible. Wave 32 adds fallback retry — checks every
+  //   100/500/1000/2000/5000ms after cluster data arrives. If layerManager has 0 layers, force re-run
+  //   useEffect #2 (via forceCounter). Once mounted, retries skip (already mounted check).
+  //   Effect: WebGL self-mount even when DOM markers removed (Wave 33 will safely remove DOM).
+  const [forceCounter, setForceCounter] = useState(0);
 
   // 지도 mount 후 캔버스 + Deck 생성
   useEffect(() => {
@@ -502,7 +509,22 @@ export default function KakaoDeckOverlay({
         try { kakaoEvent.removeListener(map, 'center_changed', scheduleSync); } catch { /* noop */ }
       }
     };
-  }, [map, containerProp, clusters, items, colorScale, onClickCluster, onClickListing, deckGenId]);
+  }, [map, containerProp, clusters, items, colorScale, onClickCluster, onClickListing, deckGenId, forceCounter]);
+
+  // Wave 32: fallback retry — if WebGL layer not mounted N ms after data arrival, force re-run.
+  //   Triggers useEffect #2 via forceCounter increment. Skips once mounted.
+  useEffect(() => {
+    if (clusters.length === 0 && items.length === 0) return;
+    const checkAndRetry = (ms: number) => setTimeout(() => {
+      const dk = deckRef.current as unknown as { layerManager?: { getLayers?: () => unknown[] } };
+      const mountedCount = dk?.layerManager?.getLayers?.()?.length ?? 0;
+      if (mountedCount === 0) {
+        setForceCounter((c) => c + 1);
+      }
+    }, ms);
+    const timers = [100, 500, 1000, 2000, 5000].map(checkAndRetry);
+    return () => timers.forEach((t) => clearTimeout(t));
+  }, [clusters.length, items.length]);
 
   // pointer-events: auto 처리 — 클러스터/매물 클릭은 받고 싶지만 팬은 지도로 넘긴다.
   // Deck.gl 은 canvas pointer-events: none 이어도 onClick 동작 X → 동적 토글 전략 사용.
