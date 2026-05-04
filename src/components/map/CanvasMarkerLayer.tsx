@@ -1,16 +1,25 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CanvasMarkerLayer.tsx — Wave 50 (2026-05-04 사장님 명령 "끝까지 무조건")
+// CanvasMarkerLayer.tsx — Wave 51 (2026-05-04 사장님 명령 "끝까지 무조건")
 //
-// Wave 49 측정 결과 50-112ms (SVG 보다 느림). 원인 추측 X — 직접 측정 + 배치 최적화.
+// Wave 50 진단 결과 (window.__canvasTrace):
+//   - commit 함수 자체 = 1-5ms (3ms 평균) ← 진짜 빠름!
+//   - 그러나 longtask = 89ms ← 86ms 는 commit 밖
 //
-// Wave 50 변경:
-//   1. ★ Path2D 배치: 같은 색깔 cluster 의 모든 arc 를 single path 에 묶음 → 1 fill + 1 stroke (53번 → 4번)
-//   2. ★ Text image cache: 0~999 텍스트 미리 OffscreenCanvas 에 렌더 → drawImage (fillText 5x 빠름)
-//   3. ★ Font set 1회 (loop 밖, 가장 흔한 11px 우선)
-//   4. ★ performance.mark 으로 각 단계 측정 → window.__canvasTrace 에 노출
-//   5. Pan path (Wave 47): canvas.style.transform translate (그대로)
+// 진짜 freeze 원인:
+//   1. useEffect 가 listings/category/filters/onClickListing/onClusterFilter 의존성으로
+//      매 listings prop 변경마다 재실행 → Kakao SDK addListener/removeListener × 6 비싼
+//   2. Worker postMessage round-trip 자체
+//   3. React 의 다른 컴포넌트 (HtmlMarkerOverlay, AdminRegionOverlay, ListPanel) 도 listings
+//      prop 변경으로 re-render
 //
-// 보존: I-MARKER-*, I-COORD-3, I-PERF-2
+// Wave 51 fix:
+//   1. ★ mount-only useEffect [container] — listener / canvas / worker setup 1번만
+//   2. ★ Refs for all dynamic data (listings, category, filters, callbacks)
+//   3. ★ listings 변경 시 worker postMessage + render() 호출만 (no useEffect re-mount)
+//   4. ★ Kakao listener add/remove 매 listings 변경 마다 호출하지 않음
+//
+// 예상: 89ms longtask → ~5ms (commit 만 남음).
+// SVG Wave 47 도 같은 패턴 적용 필요 (Wave 52 plan).
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 'use client';
@@ -102,16 +111,12 @@ interface DrawnCluster {
   y: number;
 }
 
-// ──────────────────────────────────────────────────────
-// Wave 50 #2: Text image cache (pre-rendered 숫자 → drawImage)
-// ──────────────────────────────────────────────────────
 const TEXT_CACHE = new Map<string, HTMLCanvasElement>();
 function getTextCanvas(text: string, fontSize: number, dpr: number): HTMLCanvasElement {
   const key = `${text}_${fontSize}`;
   const cached = TEXT_CACHE.get(key);
   if (cached) return cached;
   const c = document.createElement('canvas');
-  // 텍스트 크기 측정용 임시 ctx
   const tmpCtx = c.getContext('2d')!;
   tmpCtx.font = `bold ${fontSize}px sans-serif`;
   const m = tmpCtx.measureText(text);
@@ -132,17 +137,13 @@ function getTextCanvas(text: string, fontSize: number, dpr: number): HTMLCanvasE
   return c;
 }
 
-export default function CanvasMarkerLayer({
-  map,
-  container,
-  listings,
-  selectedListingId,
-  category,
-  clusterFilterIds,
-  clusterFilterListings,
-  onClickListing,
-  onClusterFilter,
-}: CanvasMarkerLayerProps) {
+export default function CanvasMarkerLayer(props: CanvasMarkerLayerProps) {
+  // ──────────────────────────────────────────────────────
+  // Wave 51: 모든 dynamic prop 을 ref 로 (useEffect re-run 회피)
+  // ──────────────────────────────────────────────────────
+  const propsRef = useRef(props);
+  propsRef.current = props;  // 매 render 마다 latest props (ref 만, useEffect 재실행 없음)
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const drawnRef = useRef<DrawnCluster[]>([]);
@@ -153,9 +154,16 @@ export default function CanvasMarkerLayer({
   const anchorLatRef = useRef<number>(0);
   const anchorLngRef = useRef<number>(0);
   const anchorPxRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  // render 함수 ref (useEffect 재생성 안 됨)
+  const renderRef = useRef<() => void>(() => {});
 
+  // ──────────────────────────────────────────────────────
+  // Wave 51: Mount-only useEffect (deps: [map, container] - 마운트 시 한 번)
+  // ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!container || typeof window === 'undefined') return;
+    if (!props.map || !props.container || typeof window === 'undefined') return;
+    const container = props.container;
+    const map = props.map;
     const canvas = document.createElement('canvas');
     const dpr = window.devicePixelRatio || 1;
     dprRef.current = dpr;
@@ -181,6 +189,7 @@ export default function CanvasMarkerLayer({
       ctxRef.current = ctx;
     }
 
+    // Worker boot
     try {
       if (typeof Worker !== 'undefined') {
         const wkr = new Worker(
@@ -193,114 +202,65 @@ export default function CanvasMarkerLayer({
       workerRef.current = null;
     }
 
-    const ro = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => {
-          const c = canvasRef.current;
-          if (!c) return;
-          const dpr2 = window.devicePixelRatio || 1;
-          dprRef.current = dpr2;
-          const w2 = container.clientWidth;
-          const h2 = container.clientHeight;
-          c.width = Math.round(w2 * dpr2);
-          c.height = Math.round(h2 * dpr2);
-          const ctx2 = c.getContext('2d');
-          if (ctx2) {
-            ctx2.scale(dpr2, dpr2);
-            ctxRef.current = ctx2;
-          }
-        })
-      : null;
-    ro?.observe(container);
-
-    return () => {
-      ro?.disconnect();
-      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
-      canvasRef.current = null;
-      ctxRef.current = null;
-      drawnRef.current = [];
-      try { workerRef.current?.terminate(); } catch { /* noop */ }
-      workerRef.current = null;
-    };
-  }, [container]);
-
-  useEffect(() => {
-    const w = workerRef.current;
-    if (!w) return;
-    try { w.postMessage({ type: 'setListings', listings }); } catch { /* noop */ }
-  }, [listings]);
-
-  useEffect(() => {
-    if (!map || !container || !canvasRef.current || !ctxRef.current) return;
     const win = window as unknown as { kakao?: KakaoNamespace };
     const kakao = win.kakao;
     if (!kakao?.maps) return;
     const maps = kakao.maps;
     const mapInst = map as KakaoMapLike;
 
-    const filterSet = clusterFilterIds && clusterFilterIds.length > 0
-      ? new Set(clusterFilterIds) : null;
-
-    // ────────────────────────────────────────────────
-    // Wave 50: Batch optimized commit (perf instrumented)
-    // ────────────────────────────────────────────────
+    // ──────────────────────────────────────────────────────
+    // commit (Wave 50 그대로 — Path2D batch + text cache + perf trace)
+    // ──────────────────────────────────────────────────────
     const commitItems = (
       items: ClusterRenderItem[],
       anchorL: number, anchorN: number,
       projection: { pointFromCoords: (c: unknown) => { x: number; y: number } },
     ) => {
-      const canvas = canvasRef.current;
-      const ctx = ctxRef.current;
-      if (!canvas || !ctx) return;
-      const dpr = dprRef.current;
+      const cv = canvasRef.current;
+      const cx = ctxRef.current;
+      if (!cv || !cx) return;
+      const dprNow = dprRef.current;
       const t0 = performance.now();
-
-      // pan transform reset (zoom path)
-      canvas.style.transform = '';
-
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      ctx.clearRect(0, 0, w, h);
+      cv.style.transform = '';
+      const ww = container.clientWidth;
+      const hh = container.clientHeight;
+      cx.clearRect(0, 0, ww, hh);
       const t1 = performance.now();
 
-      // ── Phase 1: project all + filter visible
       const visible: { it: ClusterRenderItem; x: number; y: number }[] = [];
       for (const it of items) {
         const ll = new maps.LatLng(it.lat, it.lng);
         const p = projection.pointFromCoords(ll);
-        if (p.x < -50 || p.y < -50 || p.x > w + 50 || p.y > h + 50) continue;
+        if (p.x < -50 || p.y < -50 || p.x > ww + 50 || p.y > hh + 50) continue;
         visible.push({ it, x: p.x, y: p.y });
       }
       const t2 = performance.now();
 
-      // ── Phase 2: Batch arcs by background color (single path per color)
       const byColor = new Map<string, typeof visible>();
       for (const v of visible) {
         const arr = byColor.get(v.it.bg);
         if (arr) arr.push(v); else byColor.set(v.it.bg, [v]);
       }
-      ctx.lineWidth = 2;
-      ctx.strokeStyle = 'white';
+      cx.lineWidth = 2;
+      cx.strokeStyle = 'white';
       for (const [bg, arr] of byColor) {
-        ctx.fillStyle = bg;
-        ctx.beginPath();
+        cx.fillStyle = bg;
+        cx.beginPath();
         for (const v of arr) {
-          // CRITICAL: arc 사이 moveTo 로 sub-path 끊어서 stroke 가 connecting line 안 그리게
-          ctx.moveTo(v.x + v.it.r, v.y);
-          ctx.arc(v.x, v.y, v.it.r, 0, 2 * Math.PI);
+          cx.moveTo(v.x + v.it.r, v.y);
+          cx.arc(v.x, v.y, v.it.r, 0, 2 * Math.PI);
         }
-        ctx.fill();
-        ctx.stroke();
+        cx.fill();
+        cx.stroke();
       }
       const t3 = performance.now();
 
-      // ── Phase 3: Text via cached image (drawImage > fillText)
       for (const v of visible) {
         const text = v.it.isSpiderFy ? '1' : String(v.it.count);
-        const tc = getTextCanvas(text, v.it.fontSize, dpr);
-        // tc is HiDPI scaled; we want its CSS size center-aligned at (x,y)
+        const tc = getTextCanvas(text, v.it.fontSize, dprNow);
         const cw = parseFloat(tc.style.width);
         const ch = parseFloat(tc.style.height);
-        ctx.drawImage(tc, v.x - cw / 2, v.y - ch / 2, cw, ch);
+        cx.drawImage(tc, v.x - cw / 2, v.y - ch / 2, cw, ch);
       }
       const t4 = performance.now();
 
@@ -314,10 +274,9 @@ export default function CanvasMarkerLayer({
       }
       const t5 = performance.now();
 
-      // Wave 50: trace 노출 (Chrome MCP 로 읽기)
-      const win = window as unknown as { __canvasTrace?: object[] };
-      win.__canvasTrace = win.__canvasTrace || [];
-      (win.__canvasTrace as object[]).push({
+      const w2 = window as unknown as { __canvasTrace?: object[] };
+      w2.__canvasTrace = w2.__canvasTrace || [];
+      (w2.__canvasTrace as object[]).push({
         ts: Math.round(t0),
         n: visible.length,
         clear: Math.round((t1 - t0) * 100) / 100,
@@ -327,41 +286,41 @@ export default function CanvasMarkerLayer({
         anchor: Math.round((t5 - t4) * 100) / 100,
         total: Math.round((t5 - t0) * 100) / 100,
       });
-      // 최근 50개만 유지
-      if ((win.__canvasTrace as object[]).length > 50) (win.__canvasTrace as object[]).shift();
+      if ((w2.__canvasTrace as object[]).length > 50) (w2.__canvasTrace as object[]).shift();
     };
 
+    // syncRender (worker fallback)
     const syncRender = () => {
       const projection = mapInst.getProjection?.();
       if (!projection) return;
 
       const level = mapInst.getLevel?.() ?? 5;
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const p = propsRef.current;
 
-      const visibleListings = clusterFilterListings && clusterFilterListings.length > 0
-        ? clusterFilterListings
-        : (filterSet ? listings.filter((l) => filterSet.has(l.id)) : listings);
+      const filterSet = p.clusterFilterIds && p.clusterFilterIds.length > 0
+        ? new Set(p.clusterFilterIds) : null;
+      const visibleListings = p.clusterFilterListings && p.clusterFilterListings.length > 0
+        ? p.clusterFilterListings
+        : (filterSet ? p.listings.filter((l) => filterSet.has(l.id)) : p.listings);
       const isClusterFilterActive = !!filterSet
-        || !!(clusterFilterListings && clusterFilterListings.length > 0);
-      const filtered = (category === 'investment' || isClusterFilterActive)
+        || !!(p.clusterFilterListings && p.clusterFilterListings.length > 0);
+      const filtered = (p.category === 'investment' || isClusterFilterActive)
         ? visibleListings
-        : visibleListings.filter((l) => listingCategoryOf(l) === category);
+        : visibleListings.filter((l) => listingCategoryOf(l) === p.category);
 
       const items: ClusterRenderItem[] = [];
       let anchorL = 0; let anchorN = 0; let firstAnchor = false;
 
-      if (filtered.length === 0) {
-        commitItems(items, 0, 0, projection);
-        return;
-      }
+      if (filtered.length === 0) { commitItems(items, 0, 0, projection); return; }
 
       if (isClusterFilterActive && filtered.length > 1) {
         const sf = applySpiderFy(filtered);
         const sfSize = isMobile ? 22 : 26;
-        const cat = CAT_COLORS[category];
+        const cat = CAT_COLORS[p.category];
         for (const _sf of sf) {
           const l = _sf.listing;
-          const isSel = selectedListingId === l.id;
+          const isSel = p.selectedListingId === l.id;
           const bg = isSel ? SEL_BG : cat.bg;
           items.push({
             lat: _sf.displayLat, lng: _sf.displayLng,
@@ -379,13 +338,13 @@ export default function CanvasMarkerLayer({
         if (arr.length === 0) continue;
         const _pos = computeClusterPosition(arr);
         const count = arr.length;
-        const hasSel = selectedListingId != null && arr.some((l) => l.id === selectedListingId);
+        const hasSel = p.selectedListingId != null && arr.some((l) => l.id === p.selectedListingId);
         const isFilteredCluster = filterSet != null
           && arr.length === filterSet.size
           && arr.every((l) => filterSet.has(l.id));
         const sel = hasSel || isFilteredCluster;
         let clusterCat: 'residence' | 'retail_office' | 'land' | 'investment' = 'residence';
-        if (category === 'investment') {
+        if (p.category === 'investment') {
           const counts: Record<string, number> = {};
           for (const l of arr) {
             const c = listingCategoryOf(l);
@@ -396,7 +355,7 @@ export default function CanvasMarkerLayer({
             if (counts[k] > max) { max = counts[k]; clusterCat = k as typeof clusterCat; }
           }
         } else {
-          clusterCat = category;
+          clusterCat = p.category;
         }
         const bg = sel ? SEL_BG : CAT_COLORS[clusterCat].bg;
         const size = markerSize(count, level, isMobile);
@@ -423,22 +382,25 @@ export default function CanvasMarkerLayer({
     };
     workerRef.current?.addEventListener('message', onWorkerMessage);
 
+    // ──────────────────────────────────────────────────────
+    // render — propsRef.current 에서 latest 읽음
+    // ──────────────────────────────────────────────────────
     const render = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
+      const cv = canvasRef.current;
+      if (!cv) return;
       const projection = mapInst.getProjection?.();
       if (!projection) return;
-
       const level = mapInst.getLevel?.() ?? 5;
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const p = propsRef.current;
 
-      // Pan path: same level → CSS transform translate (~0ms)
+      // Pan path: 같은 level → CSS transform translate
       if (lastLevelRef.current === level && drawnRef.current.length > 0) {
         const ll = new maps.LatLng(anchorLatRef.current, anchorLngRef.current);
-        const p = projection.pointFromCoords(ll);
-        const dx = p.x - anchorPxRef.current.x;
-        const dy = p.y - anchorPxRef.current.y;
-        canvas.style.transform = `translate(${dx}px, ${dy}px)`;
+        const pp = projection.pointFromCoords(ll);
+        const dx = pp.x - anchorPxRef.current.x;
+        const dy = pp.y - anchorPxRef.current.y;
+        cv.style.transform = `translate(${dx}px, ${dy}px)`;
         return;
       }
       lastLevelRef.current = level;
@@ -450,10 +412,10 @@ export default function CanvasMarkerLayer({
             type: 'render',
             reqId: reqIdRef.current,
             level,
-            category,
-            clusterFilterIds: clusterFilterIds ?? null,
-            clusterFilterListings: clusterFilterListings ?? null,
-            selectedListingId,
+            category: p.category,
+            clusterFilterIds: p.clusterFilterIds ?? null,
+            clusterFilterListings: p.clusterFilterListings ?? null,
+            selectedListingId: p.selectedListingId,
             isMobile,
           });
         } catch {
@@ -463,14 +425,16 @@ export default function CanvasMarkerLayer({
         syncRender();
       }
     };
+    renderRef.current = render;
 
     render();
 
+    // Click hit test
     const onCanvasClick = (e: MouseEvent) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const cssTransform = canvas.style.transform;
+      const cv = canvasRef.current;
+      if (!cv) return;
+      const rect = cv.getBoundingClientRect();
+      const cssTransform = cv.style.transform;
       let tx = 0, ty = 0;
       if (cssTransform) {
         const m = cssTransform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
@@ -479,6 +443,9 @@ export default function CanvasMarkerLayer({
       const x = e.clientX - rect.left - tx;
       const y = e.clientY - rect.top - ty;
       const drawn = drawnRef.current;
+      const p = propsRef.current;
+      const filterSet = p.clusterFilterIds && p.clusterFilterIds.length > 0
+        ? new Set(p.clusterFilterIds) : null;
       for (let i = drawn.length - 1; i >= 0; i--) {
         const d = drawn[i];
         const dx = x - d.x;
@@ -486,27 +453,27 @@ export default function CanvasMarkerLayer({
         if (dx * dx + dy * dy <= d.it.r * d.it.r) {
           e.stopPropagation();
           e.preventDefault();
-          if (d.it.isSpiderFy) { onClickListing(d.it.spiderFyId); return; }
-          if (d.it.singleId) { onClickListing(parseInt(d.it.singleId, 10)); return; }
+          if (d.it.isSpiderFy) { p.onClickListing(d.it.spiderFyId); return; }
+          if (d.it.singleId) { p.onClickListing(parseInt(d.it.singleId, 10)); return; }
           if (d.it.ids) {
             const ids = d.it.ids.split(',').map((s) => parseInt(s, 10)).filter((n) => !isNaN(n));
             if (filterSet && filterSet.size === ids.length && ids.every((id) => filterSet.has(id))) {
-              onClusterFilter?.(null, null);
+              p.onClusterFilter?.(null, null);
             } else {
-              onClusterFilter?.(ids, null);
+              p.onClusterFilter?.(ids, null);
             }
           }
           return;
         }
       }
     };
-    canvasRef.current.addEventListener('click', onCanvasClick);
+    canvas.addEventListener('click', onCanvasClick);
 
     const onCanvasMouseMove = (e: MouseEvent) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const rect = canvas.getBoundingClientRect();
-      const cssTransform = canvas.style.transform;
+      const cv = canvasRef.current;
+      if (!cv) return;
+      const rect = cv.getBoundingClientRect();
+      const cssTransform = cv.style.transform;
       let tx = 0, ty = 0;
       if (cssTransform) {
         const m = cssTransform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
@@ -522,7 +489,7 @@ export default function CanvasMarkerLayer({
         const dy = y - d.y;
         if (dx * dx + dy * dy <= d.it.r * d.it.r) { hit = true; break; }
       }
-      canvas.style.pointerEvents = hit ? 'auto' : 'none';
+      cv.style.pointerEvents = hit ? 'auto' : 'none';
     };
     container.addEventListener('mousemove', onCanvasMouseMove, { passive: true });
 
@@ -538,9 +505,29 @@ export default function CanvasMarkerLayer({
       evt.addListener(map, 'center_changed', scheduleRender);
     }
 
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          const c = canvasRef.current;
+          if (!c) return;
+          const dpr2 = window.devicePixelRatio || 1;
+          dprRef.current = dpr2;
+          const w2 = container.clientWidth;
+          const h2 = container.clientHeight;
+          c.width = Math.round(w2 * dpr2);
+          c.height = Math.round(h2 * dpr2);
+          const ctx2 = c.getContext('2d');
+          if (ctx2) {
+            ctx2.scale(dpr2, dpr2);
+            ctxRef.current = ctx2;
+          }
+        })
+      : null;
+    ro?.observe(container);
+
     return () => {
+      ro?.disconnect();
       if (rafId != null) cancelAnimationFrame(rafId);
-      canvasRef.current?.removeEventListener('click', onCanvasClick);
+      canvas.removeEventListener('click', onCanvasClick);
       container.removeEventListener('mousemove', onCanvasMouseMove);
       workerRef.current?.removeEventListener('message', onWorkerMessage);
       if (evt) {
@@ -548,13 +535,30 @@ export default function CanvasMarkerLayer({
         try { evt.removeListener(map, 'zoom_changed', scheduleRender); } catch { /* noop */ }
         try { evt.removeListener(map, 'center_changed', scheduleRender); } catch { /* noop */ }
       }
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      canvasRef.current = null;
+      ctxRef.current = null;
+      drawnRef.current = [];
+      try { workerRef.current?.terminate(); } catch { /* noop */ }
+      workerRef.current = null;
     };
-  }, [
-    map, container,
-    listings, selectedListingId, category,
-    clusterFilterIds, clusterFilterListings,
-    onClickListing, onClusterFilter,
-  ]);
+  }, [props.map, props.container]);  // ★ Wave 51: only mount-time deps
+
+  // ──────────────────────────────────────────────────────
+  // Wave 51: listings 변경 시 worker setListings + render() 호출만 (lightweight)
+  // ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const w = workerRef.current;
+    if (w) {
+      try { w.postMessage({ type: 'setListings', listings: props.listings }); } catch { /* noop */ }
+    }
+    renderRef.current();
+  }, [props.listings]);
+
+  // category / filter 변경 시 render() 만 호출 (no remount)
+  useEffect(() => {
+    renderRef.current();
+  }, [props.category, props.selectedListingId, props.clusterFilterIds, props.clusterFilterListings]);
 
   return null;
 }
