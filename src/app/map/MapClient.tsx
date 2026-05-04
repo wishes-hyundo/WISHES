@@ -167,6 +167,24 @@ export default function MapClient() {
     } catch { /* noop */ }
   }, []);
 
+  // Wave 58 (사장님 명령 2026-05-04): I-POLY-1 강제 root-level fix.
+  //   Wave 54~57 모두 실패 (Kakao SDK setMap(null) polygon DOM 안 지움).
+  //   해결: MapClient root 에 useEffect, kakaoLevel <= 6 (z14+) 시 직접 DOM remove.
+  //   AdminRegionOverlay 만 daum-maps-shape-* 사용 → 안전.
+  useEffect(() => {
+    if (kakaoLevel > 6) return;
+    const removeAll = () => {
+      try {
+        document.querySelectorAll('path[id^="daum-maps-shape-"]').forEach((el) => el.remove());
+      } catch { /* noop */ }
+    };
+    removeAll();
+    const t1 = setTimeout(removeAll, 50);
+    const t2 = setTimeout(removeAll, 200);
+    const t3 = setTimeout(removeAll, 500);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+  }, [kakaoLevel]);
+
   const setMap = useMap2026Store((s) => s.setMap);
   const setBbox = useMap2026Store((s) => s.setBbox);
   const setZoom = useMap2026Store((s) => s.setZoom);
