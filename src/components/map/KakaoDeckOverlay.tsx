@@ -32,7 +32,7 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Deck } from '@deck.gl/core';
 import { ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 
@@ -153,6 +153,11 @@ export default function KakaoDeckOverlay({
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const deckRef = useRef<Deck | null>(null);
+  // Wave 26.9 (2026-05-04): deck.gl init 비동기 (~692ms) 동안 useEffect #2 가 두 번 fire 하지만
+  //   둘 다 deckRef.current=null 이라 early return. init 완료 후 useEffect #2 가 자동 재실행되지 않음
+  //   (deps 어느 것도 변경 안 됨) → layer 영원히 안 그려짐 (Wave 26/26.2/26.6 invisible 원인).
+  //   해결: deckGenId state 를 deps 에 추가 + init 완료 시 setDeckGenId(g+1) 강제 trigger.
+  const [deckGenId, setDeckGenId] = useState(0);
 
   // 지도 mount 후 캔버스 + Deck 생성
   useEffect(() => {
@@ -231,6 +236,11 @@ export default function KakaoDeckOverlay({
         });
         deckRef.current = deck;
         _w268trace('deck-init-2 deck assigned', { deckTruthy: !!deck });
+        // Wave 26.9: 강제 re-fire useEffect #2 → buildLayers → setProps. invisible 원인 fix.
+        setDeckGenId((g) => {
+          _w268trace('deck-init-2b setDeckGenId', { from: g, to: g + 1 });
+          return g + 1;
+        });
       } catch (e) {
         _w268trace('deck-init-3 FAILED', { error: String(e) });
         console.warn('[wave26-8 deck-init-3] FAILED', performance.now(), e);
@@ -262,7 +272,7 @@ export default function KakaoDeckOverlay({
   //   throttle 된 재투영을 수행한다.
   useEffect(() => {
     // Wave 26.8 DEBUG: useEffect #2 매 실행 시점 + early return 분기 캡처.
-    _w268trace('layer-build-1 effect-2 run', { hasDeck: !!deckRef.current, hasMap: !!map, clusters: clusters.length, items: items.length });
+    _w268trace('layer-build-1 effect-2 run', { hasDeck: !!deckRef.current, hasMap: !!map, clusters: clusters.length, items: items.length, deckGenId });
     if (!deckRef.current || !map) {
       _w268trace('layer-build-2 EARLY RETURN', { hasDeck: !!deckRef.current, hasMap: !!map });
       return;
@@ -498,7 +508,7 @@ export default function KakaoDeckOverlay({
         try { kakaoEvent.removeListener(map, 'center_changed', scheduleSync); } catch { /* noop */ }
       }
     };
-  }, [map, containerProp, clusters, items, colorScale, onClickCluster, onClickListing]);
+  }, [map, containerProp, clusters, items, colorScale, onClickCluster, onClickListing, deckGenId]);
 
   // pointer-events: auto 처리 — 클러스터/매물 클릭은 받고 싶지만 팬은 지도로 넘긴다.
   // Deck.gl 은 canvas pointer-events: none 이어도 onClick 동작 X → 동적 토글 전략 사용.
