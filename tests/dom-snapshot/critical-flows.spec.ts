@@ -662,3 +662,42 @@ test.describe('Wave 200 — G-29 to G-38 회귀 보호', () => {
     expect([400, 429]).toContain(r.status());
   });
 });
+
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Wave 44 / I-PERF-2 — SVG layer + Web Worker 영구 활성 회귀 가드
+//   사장님 명령 2026-05-04 옵션 B (옵션 A 와 동시 머지).
+//   prod 측정: zoom freeze 95ms → 0ms (warm worker), pan freeze 0ms.
+//   3-layer 영구 보존: SvgMarkerLayer + svg-cluster.worker + HtmlMarkerOverlay mount.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+test.describe('Wave 44 / I-PERF-2 — SVG layer + Worker 회귀 가드', () => {
+  test('I-PERF-2 ① /map 기본 진입 = SvgMarkerLayer 자동 mount (z-index 6 SVG)', async ({ page }) => {
+    // Wave 44 이후 ?svg=1 없어도 SVG layer 가 기본 활성.
+    await page.goto('/map');
+    await expect(page.locator('text=WISHES').first()).toBeVisible({ timeout: 10000 });
+    // SvgMarkerLayer 가 mount 한 SVG 확인 (zIndex='6', pointer-events:none)
+    await page.waitForFunction(() => {
+      const svgs = Array.from(document.querySelectorAll('svg'));
+      return svgs.some((s) => (s as SVGElement).style.zIndex === '6');
+    }, { timeout: 15000 });
+  });
+
+  test('I-PERF-2 ② ?svg=0 비상 롤백 = SvgMarkerLayer mount 안 됨 (옛날 모드)', async ({ page }) => {
+    // 비상 출구: ?svg=0 시 옛날 HtmlMarkerOverlay 전용 모드 복원.
+    await page.goto('/map?svg=0');
+    await expect(page.locator('text=WISHES').first()).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(3000);
+    const hasSvgLayer = await page.evaluate(() => {
+      const svgs = Array.from(document.querySelectorAll('svg'));
+      return svgs.some((s) => (s as SVGElement).style.zIndex === '6');
+    });
+    expect(hasSvgLayer).toBe(false);
+  });
+
+  test('I-PERF-2 ③ /map 페이지 200 OK (Wave 44 build 무결성)', async ({ request }) => {
+    // Web Worker 가 Webpack 으로 hashed chunk 로 bundle 되어야 함.
+    // build 실패 시 /map 자체가 500. 200 통과 = build 성공 인증.
+    const res = await request.get('/map');
+    expect(res.status()).toBe(200);
+  });
+});

@@ -140,18 +140,21 @@ export default function MapClient() {
   const [kakaoMap, setKakaoMap] = useState<unknown>(null);
   // L-worldclass1: Kakao level 추적 → useMapClusters 에 전달
   const [kakaoLevel, setKakaoLevel] = useState<number>(5);
-  // Wave 38: ?svg=1 query 로 SvgMarkerLayer 활성 (검증 모드).
-  const [useSvg, setUseSvg] = useState(false);
+  // Wave 44 (2026-05-04): SVG 기본 활성 (Wave 38~43 검증 완료, 사장님 명령 옵션 A).
+  //   prod 측정: zoom freeze 95ms → 0ms (warm worker), pan freeze 0ms 유지.
+  //   ?svg=0 = 비상 롤백 (HtmlMarkerOverlay 옛날 모드 복원).
+  //   I-PERF-2 영구 INVARIANT 로 보존.
+  const [useSvg, setUseSvg] = useState(true);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [failReason, setFailReason] = useState<string>('');
 
-  // Wave 38: URL query parse for SVG marker toggle
+  // Wave 44: URL query opt-out (?svg=0 시 옛날 HtmlMarkerOverlay 모드).
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
       const params = new URLSearchParams(window.location.search);
-      if (params.get('svg') === '1') setUseSvg(true);
+      if (params.get('svg') === '0') setUseSvg(false);
     } catch { /* noop */ }
   }, []);
 
