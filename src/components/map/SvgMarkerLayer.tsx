@@ -1,37 +1,26 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SvgMarkerLayer.tsx — Wave 46 (2026-05-04 사장님 명령 "끝까지 직진")
+// SvgMarkerLayer.tsx — Wave 52 (2026-05-04 사장님 명령 "끝까지 무조건")
 //
-// 누적 진화:
-//   Wave 38: 단일 SVG element + zigbang/nemo 패턴
-//   Wave 41: pan vs zoom 분기 (per-g transform)
-//   Wave 42: parent g single transform pan (1 setAttribute) — pan 0ms 달성
-//   Wave 43: cluster aggregation Web Worker → main thread zoom freeze 95ms → 60ms
-//   Wave 44: SVG 기본화
-//   Wave 45 ROLLBACK 안 함 (HtmlMarkerOverlay 그대로 mount, 회귀 없음)
-//   Wave 46: ★ svg.innerHTML 완전 폐기 + DOM reuse 패턴
+// Wave 50 Canvas trace 진단 결과: commit 자체 = 2.5ms, longtask 89ms 의 86ms 가
+//   useEffect re-run 비용 (listener add/remove × 6 매 listings 변경마다).
+// Wave 51 가 Canvas 에 mount-only useEffect + propsRef 패턴 적용.
+// Wave 52 = ★ default SvgMarkerLayer 도 동일 패턴 적용 (default 사용자 혜택).
 //
-// 진짜 bottleneck (Wave 45 측정 실패 후 재진단):
-//   `svg.innerHTML = '<g>...</g>'` 이 매 zoom 마다 호출됨
-//   = browser parser (HTML→SVG) + reflow 30ms
-//   53 cluster × 3 child = 159 DOM node 매번 destroy + create
+// 변경:
+//   1. propsRef 로 모든 dynamic prop 보관
+//   2. useEffect [map, container] = mount-only — listener / svg / worker 1번 setup
+//   3. listings 변경 = postMessage worker + render() 호출만 (no useEffect re-mount)
+//   4. category / filter 변경 = render() 호출만
 //
-// Wave 46 fix:
-//   1. Map<key, SVGGElement> 으로 기존 cluster 추적
-//   2. Worker 응답 받으면 ClusterRenderItem[] 의 ids 를 key 로 사용
-//   3. 같은 key 존재 → 기존 g 의 transform 만 update (1 setAttribute, no reflow)
-//   4. 새 key → createElementNS + appendChild (1 reflow per new)
-//   5. 사라진 key → removeChild (1 reflow per removed)
-//   6. innerHTML 호출 0번
+// 보존: Wave 38~48 의 모든 최적화 (Path2D 없지만 SVG DOM reuse + element pool)
+//   - 단일 SVG element + parent g.markers
+//   - Map<key, SVGGElement> reuse (Wave 46)
+//   - Anchor refs persistent (Wave 47)
+//   - Element pool (Wave 48)
+//   - Worker offload (Wave 43)
+//   - Pan parent g translate (Wave 42)
 //
-// 효과 (예상):
-//   - zoom freeze 60ms → 10~15ms (innerHTML reflow 30ms 절감)
-//   - 같은 cluster 가 다른 zoom 에서 재사용되면 추가 절감
-//   - pan 회귀 (Wave 45 의 52ms) 도 자연 fix — DOM 자체가 안 변함
-//
-// 보존 INVARIANTs:
-//   I-MARKER-1/2/3/4/5/6/7 (cluster 로직 — worker 가 처리)
-//   I-COORD-3 (raw lat/lng)
-//   I-PERF-2 (3-layer 영구 보존)
+// 예상: zoom freeze 50ms → ~5ms (commit 자체만 남음).
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 'use client';
@@ -45,9 +34,6 @@ import {
 } from '@/features/map-2026/lib/clusterAggregation';
 import { listingCategoryOf } from '@/features/map-2026/lib/markerTier';
 
-// ──────────────────────────────────────────────────────
-// Worker 메시지 타입 (svg-cluster.worker.ts 와 동일)
-// ──────────────────────────────────────────────────────
 interface ClusterRenderItem {
   lat: number;
   lng: number;
@@ -68,9 +54,6 @@ interface RenderResultMsg {
   anchorLng: number;
 }
 
-// ──────────────────────────────────────────────────────
-// Kakao map 타입
-// ──────────────────────────────────────────────────────
 interface KakaoMapLike {
   getLevel?: () => number;
   getProjection?: () => {
@@ -88,9 +71,6 @@ interface KakaoNamespace {
   };
 }
 
-// ──────────────────────────────────────────────────────
-// Props
-// ──────────────────────────────────────────────────────
 export interface SvgMarkerLayerProps {
   map: unknown;
   container: HTMLElement | null;
@@ -103,9 +83,6 @@ export interface SvgMarkerLayerProps {
   onClusterFilter?: (ids: number[] | null, label: string | null) => void;
 }
 
-// ──────────────────────────────────────────────────────
-// Color
-// ──────────────────────────────────────────────────────
 const CAT_COLORS = {
   residence: { bg: 'rgba(0, 98, 65, 0.68)', text: '#ffffff' },
   retail_office: { bg: 'rgba(180, 83, 9, 0.68)', text: '#ffffff' },
@@ -131,9 +108,6 @@ function markerSize(count: number, level: number, isMobile: boolean): number {
   return Math.round(base * mult);
 }
 
-// ──────────────────────────────────────────────────────
-// 단일 cluster <g> 생성 (DOM reuse 시에도 spec 동일)
-// ──────────────────────────────────────────────────────
 function createClusterG(it: ClusterRenderItem, x: number, y: number): SVGGElement {
   const g = document.createElementNS(SVG_NS, 'g') as SVGGElement;
   g.setAttribute('class', 'm');
@@ -168,10 +142,8 @@ function createClusterG(it: ClusterRenderItem, x: number, y: number): SVGGElemen
   return g;
 }
 
-// 기존 g 업데이트 (transform + 변경 가능 속성만)
 function updateClusterG(g: SVGGElement, it: ClusterRenderItem, x: number, y: number) {
   g.setAttribute('transform', `translate(${x},${y})`);
-  // 색상이 변할 수 있음 (selected 상태 등)
   const circle = g.firstElementChild as SVGCircleElement | null;
   if (circle) {
     if (circle.getAttribute('fill') !== it.bg) circle.setAttribute('fill', it.bg);
@@ -187,54 +159,36 @@ function updateClusterG(g: SVGGElement, it: ClusterRenderItem, x: number, y: num
   }
 }
 
-// item key 추출 (worker 와 main 양쪽 동일 규칙)
 function keyOf(it: ClusterRenderItem): string {
   if (it.isSpiderFy) return 's:' + it.spiderFyId;
   if (it.singleId) return '1:' + it.singleId;
-  return 'c:' + it.ids;  // cluster ids 가 unique key
+  return 'c:' + it.ids;
 }
 
-// ──────────────────────────────────────────────────────
-// Component
-// ──────────────────────────────────────────────────────
-export default function SvgMarkerLayer({
-  map,
-  container,
-  listings,
-  selectedListingId,
-  category,
-  clusterFilterIds,
-  clusterFilterListings,
-  onClickListing,
-  onClusterFilter,
-}: SvgMarkerLayerProps) {
+export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
+  // Wave 52: propsRef 로 모든 dynamic prop (useEffect re-run 회피)
+  const propsRef = useRef(props);
+  propsRef.current = props;
+
   const svgRef = useRef<SVGSVGElement | null>(null);
   const markersGRef = useRef<SVGGElement | null>(null);
   const clusterMapRef = useRef<Map<string, SVGGElement>>(new Map());
+  const poolRef = useRef<SVGGElement[]>([]);
+  const POOL_MAX = 200;
   const workerRef = useRef<Worker | null>(null);
   const reqIdRef = useRef<number>(0);
-  // Wave 47 (2026-05-04 사장님 명령 "끝까지 직진"): pan anchor 영속 ref.
-  //   Wave 46 측정에서 pan 137ms 회귀 발견. 원인: lastLevel/anchorLat/anchorLng/anchorPx 가
-  //   useEffect 안의 local 변수라 listings prop 변경 시 useEffect 재실행 → 모두 reset →
-  //   pan path 못 거치고 매번 worker 호출 + 53 신규 cluster create = 137ms.
-  //   해결: useRef 로 옮겨서 useEffect 재실행에도 살아남음. pan 0ms 복원.
   const lastLevelRef = useRef<number>(-1);
   const anchorLatRef = useRef<number>(0);
   const anchorLngRef = useRef<number>(0);
   const anchorPxRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  // Wave 48 (2026-05-04 사장님 명령 "끝까지"): SVG element pool.
-  //   Wave 47 rapid zoom 잔여 87ms = createElementNS 53번 (모든 cluster 신규).
-  //   Pool 패턴: 사라진 cluster 의 g 는 removeChild 대신 unusedPool 에 보관 (display:none).
-  //   새 cluster 필요 시 pool.pop() 으로 재사용 → createElementNS 0번.
-  //   Pool size 상한 200 (메모리 폭증 방지).
-  const poolRef = useRef<SVGGElement[]>([]);
-  const POOL_MAX = 200;
+  const renderRef = useRef<() => void>(() => {});
 
-  // ──────────────────────────────────────────────────────
-  // Mount SVG layer + parent g.markers + Worker boot
-  // ──────────────────────────────────────────────────────
+  // Wave 52: Mount-only useEffect [map, container]
   useEffect(() => {
-    if (!container || typeof window === 'undefined') return;
+    if (!props.map || !props.container || typeof window === 'undefined') return;
+    const container = props.container;
+    const map = props.map;
+
     const svg = document.createElementNS(SVG_NS, 'svg') as SVGSVGElement;
     svg.style.position = 'absolute';
     svg.style.top = '0';
@@ -248,13 +202,11 @@ export default function SvgMarkerLayer({
     container.appendChild(svg);
     svgRef.current = svg;
 
-    // parent g.markers 한 번 생성 (Wave 42 anchor pan 의 핵심)
     const markersG = document.createElementNS(SVG_NS, 'g') as SVGGElement;
     markersG.setAttribute('class', 'markers');
     svg.appendChild(markersG);
     markersGRef.current = markersG;
 
-    // Worker boot
     try {
       if (typeof Worker !== 'undefined') {
         const w = new Worker(
@@ -267,75 +219,26 @@ export default function SvgMarkerLayer({
       workerRef.current = null;
     }
 
-    // Resize observer
-    const ro = typeof ResizeObserver !== 'undefined'
-      ? new ResizeObserver(() => {
-          if (!svgRef.current) return;
-          svgRef.current.setAttribute('width', String(container.clientWidth));
-          svgRef.current.setAttribute('height', String(container.clientHeight));
-        })
-      : null;
-    ro?.observe(container);
-
-    return () => {
-      ro?.disconnect();
-      if (svg.parentNode) svg.parentNode.removeChild(svg);
-      svgRef.current = null;
-      markersGRef.current = null;
-      clusterMapRef.current.clear();
-      poolRef.current = [];  // Wave 48: pool 정리
-      try { workerRef.current?.terminate(); } catch { /* noop */ }
-      workerRef.current = null;
-    };
-  }, [container]);
-
-  // ──────────────────────────────────────────────────────
-  // Worker 에 listings 캐시
-  // ──────────────────────────────────────────────────────
-  useEffect(() => {
-    const w = workerRef.current;
-    if (!w) return;
-    try {
-      w.postMessage({ type: 'setListings', listings });
-    } catch { /* noop */ }
-  }, [listings]);
-
-  // ──────────────────────────────────────────────────────
-  // Render markers (Wave 46 DOM reuse)
-  // ──────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!map || !container || !svgRef.current || !markersGRef.current) return;
     const win = window as unknown as { kakao?: KakaoNamespace };
     const kakao = win.kakao;
     if (!kakao?.maps) return;
     const maps = kakao.maps;
     const mapInst = map as KakaoMapLike;
 
-    // Wave 47: pan anchor refs (persistent across useEffect re-runs).
-    //   listings prop 변경 시 useEffect 재실행되어도 anchor 가 살아남아 pan path 유지.
-    const filterSet = clusterFilterIds && clusterFilterIds.length > 0
-      ? new Set(clusterFilterIds) : null;
-
-    // ────────────────────────────────────────────────
-    // Wave 46 핵심: ClusterRenderItem[] → DOM diff (innerHTML 0회)
-    // ────────────────────────────────────────────────
     const commitItems = (
       items: ClusterRenderItem[],
       anchorL: number, anchorN: number,
       projection: { pointFromCoords: (c: unknown) => { x: number; y: number } },
     ) => {
-      const markersG = markersGRef.current;
-      if (!markersG) return;
-
-      // Wave 42: zoom 시 parent transform reset (pan delta 누적 방지)
-      markersG.setAttribute('transform', '');
+      const mg = markersGRef.current;
+      if (!mg) return;
+      mg.setAttribute('transform', '');
 
       const oldMap = clusterMapRef.current;
       const newMap = new Map<string, SVGGElement>();
       const seen = new Set<string>();
-
-      // Pass 1: 새 items 처리 — 같은 key 재사용 / pool 재사용 / 마지막 createElement
       const pool = poolRef.current;
+
       for (const it of items) {
         const key = keyOf(it);
         if (seen.has(key)) continue;
@@ -346,17 +249,12 @@ export default function SvgMarkerLayer({
 
         const existing = oldMap.get(key);
         if (existing) {
-          // 같은 key reuse (no reflow, just attr update)
           updateClusterG(existing, it, p.x, p.y);
           newMap.set(key, existing);
           oldMap.delete(key);
         } else if (pool.length > 0) {
-          // Wave 48: pool 에서 idle g 꺼내서 재사용 (createElementNS 0번)
           const g = pool.pop()!;
-          // hidden 상태였다면 다시 보이게
           if (g.style.display === 'none') g.style.display = '';
-          // attrs/text/circle 모두 새 it 으로 갱신 (full update)
-          // pool g 는 spider-fy 상태일 수도 cluster 상태일 수도 있어서 data-* attr 도 재설정
           if (it.isSpiderFy) {
             g.setAttribute('data-id', String(it.spiderFyId));
             g.removeAttribute('data-cluster-ids');
@@ -369,31 +267,26 @@ export default function SvgMarkerLayer({
           g.setAttribute('data-lat', String(it.lat));
           g.setAttribute('data-lng', String(it.lng));
           updateClusterG(g, it, p.x, p.y);
-          if (g.parentNode !== markersG) markersG.appendChild(g);
+          if (g.parentNode !== mg) mg.appendChild(g);
           newMap.set(key, g);
         } else {
-          // pool 비었음 → 진짜 신규 생성
           const g = createClusterG(it, p.x, p.y);
-          markersG.appendChild(g);
+          mg.appendChild(g);
           newMap.set(key, g);
         }
       }
 
-      // Pass 2: 사라진 cluster 는 pool 에 보관 (removeChild 대신 hide → 다음 zoom 시 재사용)
       for (const g of oldMap.values()) {
         if (pool.length < POOL_MAX) {
-          // hide + pool 에 보관 (DOM 에는 그대로 — removeChild 비용 0)
           g.style.display = 'none';
           pool.push(g);
         } else {
-          // pool 가득 — 진짜 제거
-          if (g.parentNode === markersG) markersG.removeChild(g);
+          if (g.parentNode === mg) mg.removeChild(g);
         }
       }
 
       clusterMapRef.current = newMap;
 
-      // anchor 저장 (다음 pan delta 계산)
       if (anchorL !== 0 || anchorN !== 0) {
         anchorLatRef.current = anchorL;
         anchorLngRef.current = anchorN;
@@ -402,40 +295,36 @@ export default function SvgMarkerLayer({
       }
     };
 
-    // ────────────────────────────────────────────────
-    // Sync fallback (worker 부팅 실패 시)
-    // ────────────────────────────────────────────────
     const syncRender = () => {
       const projection = mapInst.getProjection?.();
       if (!projection) return;
-
       const level = mapInst.getLevel?.() ?? 5;
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const p = propsRef.current;
 
-      const visibleListings = clusterFilterListings && clusterFilterListings.length > 0
-        ? clusterFilterListings
-        : (filterSet ? listings.filter((l) => filterSet.has(l.id)) : listings);
+      const filterSet = p.clusterFilterIds && p.clusterFilterIds.length > 0
+        ? new Set(p.clusterFilterIds) : null;
+      const visibleListings = p.clusterFilterListings && p.clusterFilterListings.length > 0
+        ? p.clusterFilterListings
+        : (filterSet ? p.listings.filter((l) => filterSet.has(l.id)) : p.listings);
       const isClusterFilterActive = !!filterSet
-        || !!(clusterFilterListings && clusterFilterListings.length > 0);
-      const filtered = (category === 'investment' || isClusterFilterActive)
+        || !!(p.clusterFilterListings && p.clusterFilterListings.length > 0);
+      const filtered = (p.category === 'investment' || isClusterFilterActive)
         ? visibleListings
-        : visibleListings.filter((l) => listingCategoryOf(l) === category);
+        : visibleListings.filter((l) => listingCategoryOf(l) === p.category);
 
       const items: ClusterRenderItem[] = [];
       let anchorL = 0; let anchorN = 0; let firstAnchor = false;
 
-      if (filtered.length === 0) {
-        commitItems(items, 0, 0, projection);
-        return;
-      }
+      if (filtered.length === 0) { commitItems(items, 0, 0, projection); return; }
 
       if (isClusterFilterActive && filtered.length > 1) {
         const sf = applySpiderFy(filtered);
         const sfSize = isMobile ? 22 : 26;
-        const cat = CAT_COLORS[category];
+        const cat = CAT_COLORS[p.category];
         for (const _sf of sf) {
           const l = _sf.listing;
-          const isSel = selectedListingId === l.id;
+          const isSel = p.selectedListingId === l.id;
           const bg = isSel ? SEL_BG : cat.bg;
           items.push({
             lat: _sf.displayLat, lng: _sf.displayLng,
@@ -453,13 +342,13 @@ export default function SvgMarkerLayer({
         if (arr.length === 0) continue;
         const _pos = computeClusterPosition(arr);
         const count = arr.length;
-        const hasSel = selectedListingId != null && arr.some((l) => l.id === selectedListingId);
+        const hasSel = p.selectedListingId != null && arr.some((l) => l.id === p.selectedListingId);
         const isFilteredCluster = filterSet != null
           && arr.length === filterSet.size
           && arr.every((l) => filterSet.has(l.id));
         const sel = hasSel || isFilteredCluster;
         let clusterCat: 'residence' | 'retail_office' | 'land' | 'investment' = 'residence';
-        if (category === 'investment') {
+        if (p.category === 'investment') {
           const counts: Record<string, number> = {};
           for (const l of arr) {
             const c = listingCategoryOf(l);
@@ -470,7 +359,7 @@ export default function SvgMarkerLayer({
             if (counts[k] > max) { max = counts[k]; clusterCat = k as typeof clusterCat; }
           }
         } else {
-          clusterCat = category;
+          clusterCat = p.category;
         }
         const bg = sel ? SEL_BG : CAT_COLORS[clusterCat].bg;
         const size = markerSize(count, level, isMobile);
@@ -487,13 +376,10 @@ export default function SvgMarkerLayer({
       commitItems(items, anchorL, anchorN, projection);
     };
 
-    // ────────────────────────────────────────────────
-    // Worker 응답 핸들러
-    // ────────────────────────────────────────────────
     const onWorkerMessage = (e: MessageEvent<RenderResultMsg>) => {
       const data = e.data;
       if (!data || data.type !== 'render-result') return;
-      if (data.reqId !== reqIdRef.current) return;  // stale frame guard
+      if (data.reqId !== reqIdRef.current) return;
       const projection = mapInst.getProjection?.();
       if (!projection) return;
       commitItems(data.items, data.anchorLat, data.anchorLng, projection);
@@ -501,27 +387,26 @@ export default function SvgMarkerLayer({
     workerRef.current?.addEventListener('message', onWorkerMessage);
 
     const render = () => {
-      const svg = svgRef.current;
-      const markersG = markersGRef.current;
-      if (!svg || !markersG) return;
+      const sv = svgRef.current;
+      const mg = markersGRef.current;
+      if (!sv || !mg) return;
       const projection = mapInst.getProjection?.();
       if (!projection) return;
-
       const level = mapInst.getLevel?.() ?? 5;
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const p = propsRef.current;
 
-      // Pan path: 같은 level + 기존 cluster 있음 → parent g translate (1 setAttribute)
+      // Pan path: same level → parent g translate
       if (lastLevelRef.current === level && clusterMapRef.current.size > 0) {
         const ll = new maps.LatLng(anchorLatRef.current, anchorLngRef.current);
-        const p = projection.pointFromCoords(ll);
-        const dx = p.x - anchorPxRef.current.x;
-        const dy = p.y - anchorPxRef.current.y;
-        markersG.setAttribute('transform', `translate(${dx},${dy})`);
+        const pp = projection.pointFromCoords(ll);
+        const dx = pp.x - anchorPxRef.current.x;
+        const dy = pp.y - anchorPxRef.current.y;
+        mg.setAttribute('transform', `translate(${dx},${dy})`);
         return;
       }
       lastLevelRef.current = level;
 
-      // Zoom / mount / category 변경: full re-aggregate via worker
       if (workerRef.current) {
         reqIdRef.current += 1;
         try {
@@ -529,10 +414,10 @@ export default function SvgMarkerLayer({
             type: 'render',
             reqId: reqIdRef.current,
             level,
-            category,
-            clusterFilterIds: clusterFilterIds ?? null,
-            clusterFilterListings: clusterFilterListings ?? null,
-            selectedListingId,
+            category: p.category,
+            clusterFilterIds: p.clusterFilterIds ?? null,
+            clusterFilterListings: p.clusterFilterListings ?? null,
+            selectedListingId: p.selectedListingId,
             isMobile,
           });
         } catch {
@@ -542,39 +427,34 @@ export default function SvgMarkerLayer({
         syncRender();
       }
     };
-
+    renderRef.current = render;
     render();
 
-    // Click event delegation (svgRef 자체에 1개)
     const onSvgClick = (e: Event) => {
       const target = e.target as Element;
       const g = target.closest('g.m') as SVGGElement | null;
       if (!g) return;
       e.stopPropagation();
       e.preventDefault();
+      const p = propsRef.current;
+      const filterSet = p.clusterFilterIds && p.clusterFilterIds.length > 0
+        ? new Set(p.clusterFilterIds) : null;
       const single = g.dataset.singleId;
       const idsStr = g.dataset.clusterIds;
       const dataId = g.dataset.id;
-      if (single) {
-        onClickListing(parseInt(single, 10));
-        return;
-      }
-      if (dataId) {
-        onClickListing(parseInt(dataId, 10));
-        return;
-      }
+      if (single) { p.onClickListing(parseInt(single, 10)); return; }
+      if (dataId) { p.onClickListing(parseInt(dataId, 10)); return; }
       if (idsStr) {
         const ids = idsStr.split(',').map((s) => parseInt(s, 10)).filter((n) => !isNaN(n));
         if (filterSet && filterSet.size === ids.length && ids.every((id) => filterSet.has(id))) {
-          onClusterFilter?.(null, null);
+          p.onClusterFilter?.(null, null);
         } else {
-          onClusterFilter?.(ids, null);
+          p.onClusterFilter?.(ids, null);
         }
       }
     };
-    svgRef.current.addEventListener('click', onSvgClick);
+    svg.addEventListener('click', onSvgClick);
 
-    // Pan/zoom event listener (rAF throttle)
     let rafId: number | null = null;
     const scheduleRender = () => {
       if (rafId != null) return;
@@ -587,7 +467,17 @@ export default function SvgMarkerLayer({
       evt.addListener(map, 'center_changed', scheduleRender);
     }
 
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => {
+          if (!svgRef.current) return;
+          svgRef.current.setAttribute('width', String(container.clientWidth));
+          svgRef.current.setAttribute('height', String(container.clientHeight));
+        })
+      : null;
+    ro?.observe(container);
+
     return () => {
+      ro?.disconnect();
       if (rafId != null) cancelAnimationFrame(rafId);
       svgRef.current?.removeEventListener('click', onSvgClick);
       workerRef.current?.removeEventListener('message', onWorkerMessage);
@@ -596,13 +486,29 @@ export default function SvgMarkerLayer({
         try { evt.removeListener(map, 'zoom_changed', scheduleRender); } catch { /* noop */ }
         try { evt.removeListener(map, 'center_changed', scheduleRender); } catch { /* noop */ }
       }
+      if (svg.parentNode) svg.parentNode.removeChild(svg);
+      svgRef.current = null;
+      markersGRef.current = null;
+      clusterMapRef.current.clear();
+      poolRef.current = [];
+      try { workerRef.current?.terminate(); } catch { /* noop */ }
+      workerRef.current = null;
     };
-  }, [
-    map, container,
-    listings, selectedListingId, category,
-    clusterFilterIds, clusterFilterListings,
-    onClickListing, onClusterFilter,
-  ]);
+  }, [props.map, props.container]);  // ★ Wave 52: mount-only
+
+  // listings 변경 = worker setListings + render() 만
+  useEffect(() => {
+    const w = workerRef.current;
+    if (w) {
+      try { w.postMessage({ type: 'setListings', listings: props.listings }); } catch { /* noop */ }
+    }
+    renderRef.current();
+  }, [props.listings]);
+
+  // category / filter 변경 = render() 만
+  useEffect(() => {
+    renderRef.current();
+  }, [props.category, props.selectedListingId, props.clusterFilterIds, props.clusterFilterListings]);
 
   return null;
 }
