@@ -83,12 +83,22 @@ export interface SvgMarkerLayerProps {
   onClusterFilter?: (ids: number[] | null, label: string | null) => void;
 }
 
+// Wave 60 (사장님 명령 2026-05-04 Apple 스타일): 색 부드러운 톤
 const CAT_COLORS = {
-  residence: { bg: 'rgba(0, 98, 65, 0.68)', text: '#ffffff' },
-  retail_office: { bg: 'rgba(180, 83, 9, 0.68)', text: '#ffffff' },
-  land: { bg: 'rgba(120, 53, 15, 0.68)', text: '#ffffff' },
-  investment: { bg: 'rgba(126, 34, 206, 0.68)', text: '#ffffff' },
+  residence: { bg: 'rgba(34, 119, 80, 0.85)', text: '#ffffff' },
+  retail_office: { bg: 'rgba(196, 121, 47, 0.85)', text: '#ffffff' },
+  land: { bg: 'rgba(140, 88, 50, 0.85)', text: '#ffffff' },
+  investment: { bg: 'rgba(135, 75, 200, 0.85)', text: '#ffffff' },
 };
+// Wave 60: 큰 숫자 압축 표기 (Apple 스타일 — 1k+ 는 K 단위)
+function formatClusterCount(n: number): string {
+  if (n < 1000) return String(n);
+  if (n < 10000) {
+    const v = (n / 1000).toFixed(1);
+    return v.endsWith('.0') ? v.slice(0, -2) + 'K' : v + 'K';
+  }
+  return Math.round(n / 1000) + 'K';
+}
 const SEL_BG = 'rgba(220, 38, 38, 0.85)';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -136,7 +146,7 @@ function createClusterG(it: ClusterRenderItem, x: number, y: number): SVGGElemen
   text.setAttribute('font-weight', 'bold');
   text.setAttribute('fill', 'white');
   text.setAttribute('style', 'pointer-events:none;user-select:none');
-  text.textContent = it.isSpiderFy ? '1' : String(it.count);
+  text.textContent = it.isSpiderFy ? '1' : formatClusterCount(it.count);
   g.appendChild(text);
 
   return g;
@@ -152,7 +162,7 @@ function updateClusterG(g: SVGGElement, it: ClusterRenderItem, x: number, y: num
   }
   const text = g.lastElementChild as SVGTextElement | null;
   if (text) {
-    const newCount = it.isSpiderFy ? '1' : String(it.count);
+    const newCount = it.isSpiderFy ? '1' : formatClusterCount(it.count);
     if (text.textContent !== newCount) text.textContent = newCount;
     const fs = String(it.fontSize);
     if (text.getAttribute('font-size') !== fs) text.setAttribute('font-size', fs);

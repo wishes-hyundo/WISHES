@@ -37,11 +37,14 @@ import { listingCategoryOf } from '@/features/map-2026/lib/markerTier';
 // ──────────────────────────────────────────────────────
 // 색상 (SvgMarkerLayer 와 1:1 일치 — main 과 worker 양쪽 공유 X 라 직접 정의)
 // ──────────────────────────────────────────────────────
+// Wave 60 (사장님 명령 2026-05-04 Apple 스타일): 색 채도 부드럽게 (saturation down).
+//   기존: rgba 0.68 opacity (강함). 새: 0.82 opacity 로 더 진하지만 색조 자체 부드러움.
+//   기존 그린 너무 진해서 cluster 폭격 느낌 → Apple Maps 처럼 부드러운 톤.
 const CAT_COLORS = {
-  residence: { bg: 'rgba(0, 98, 65, 0.68)', text: '#ffffff' },
-  retail_office: { bg: 'rgba(180, 83, 9, 0.68)', text: '#ffffff' },
-  land: { bg: 'rgba(120, 53, 15, 0.68)', text: '#ffffff' },
-  investment: { bg: 'rgba(126, 34, 206, 0.68)', text: '#ffffff' },
+  residence: { bg: 'rgba(34, 119, 80, 0.85)', text: '#ffffff' },     // 부드러운 그린
+  retail_office: { bg: 'rgba(196, 121, 47, 0.85)', text: '#ffffff' }, // 부드러운 오렌지
+  land: { bg: 'rgba(140, 88, 50, 0.85)', text: '#ffffff' },          // 부드러운 브라운
+  investment: { bg: 'rgba(135, 75, 200, 0.85)', text: '#ffffff' },   // 부드러운 퍼플
 } as const;
 const SEL_BG = 'rgba(220, 38, 38, 0.85)';
 
