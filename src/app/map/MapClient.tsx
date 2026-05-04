@@ -872,13 +872,19 @@ function MapOverlaysWithClusters(props: {
           clusterFilterListings={props.clusterFilterListings}
         />
       )}
-      <MapErrorBoundary>
-        <AdminRegionOverlay
-          map={props.kakaoMap}
-          listings={props.listings}
-          kakaoLevel={props.kakaoLevel}
-        />
-      </MapErrorBoundary>
+      {/* Wave 57 (사장님 명령 2026-05-04): I-POLY-1 강제 — z14+ (level<=6) 시 AdminRegionOverlay
+          자체 unmount. Wave 54/55/56 의 cleanup 시도 모두 실패 후 결정.
+          unmount = useEffect cleanup 자동 호출 + DOM 자동 제거 = 100% 보장.
+          비상 롤백: 이 조건 제거 → 항상 mount. */}
+      {props.kakaoLevel >= 7 && (
+        <MapErrorBoundary>
+          <AdminRegionOverlay
+            map={props.kakaoMap}
+            listings={props.listings}
+            kakaoLevel={props.kakaoLevel}
+          />
+        </MapErrorBoundary>
+      )}
       <GeoLoadingIndicator />
     </>
   );
