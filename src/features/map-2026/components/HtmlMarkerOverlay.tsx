@@ -770,7 +770,15 @@ export default function HtmlMarkerOverlay({
       // Wave 28 ROLLBACK (2026-05-04): Wave 27 의 _BATCH 25 시도 prod 측정 결과 freeze 146ms → 321ms 악화.
       //   원인: longtask API 가 여러 frame 누적 측정 (17 frames × ~19ms = 323ms). batch 더 작게 = 누적 더 큼.
       //   _BATCH 50 으로 즉시 복원. 다음 진짜 freeze fix = Web Worker + supercluster (Wave 29).
-      const _clusterArr = [...clusters.values()];
+      const _allClusters = [...clusters.values()];
+      // Wave 33 (2026-05-04 CEO end-to-end fix): cluster count limit per viewport = 250.
+      //   prod measured freeze 146ms with 415 clusters. Linear scaling: 250 = ~88ms expected.
+      //   cluster size desc sort, top 250 (large clusters first, user visual priority).
+      //   spider-fy mode (clusterFilterActive=true) skips limit (must show all after cluster click).
+      const _WAVE33_MAX = 250;
+      const _clusterArr = (!isClusterFilterActive && _allClusters.length > _WAVE33_MAX)
+        ? _allClusters.sort((a, b) => b.length - a.length).slice(0, _WAVE33_MAX)
+        : _allClusters
       const _renderToken = ++renderTokenRef.current;
       const _BATCH = 50;
       let _bIdx = 0;
