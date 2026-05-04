@@ -211,8 +211,24 @@
 - 위반 결과: 카테고리 탭 / 줌 변경 시 415 markers 동기 생성 → 167ms longtask → 사용자 freeze 체감.
 - 검증: Performance API longtask < 50ms, 60fps 유지.
 - 코드: `src/features/map-2026/components/HtmlMarkerOverlay.tsx` `_processBatch()` + `renderTokenRef`.
-- ⚠️ **궁극 해결책 X** — DOM CustomOverlay 자체가 한계. WebGL (deck.gl) 마이그레이션이 항구 fix.
-  rAF batching 은 freeze 완화 (band-aid). G-124~129 에서 deck.gl 로 교체.
+- Wave 44 이후 HtmlMarkerOverlay 는 `listings={[]}` 로 사실상 비활성. I-PERF-2 가 영구 fix.
+
+### I-PERF-2: SVG layer + Web Worker 영구 활성 (Wave 38~44 / 사장님 명령 2026-05-04 옵션 A+B)
+- **3-layer 구조 영구 보존** (한 부분 빠지면 freeze 회귀):
+  1. `SvgMarkerLayer` (Wave 38~42): 단일 SVG element, parent g `translate(dx,dy)` pan = 1 setAttribute
+  2. `svg-cluster.worker.ts` (Wave 43): aggregateClusters/applySpiderFy/computeClusterPosition/listingCategoryOf off-main
+  3. `HtmlMarkerOverlay` mount 유지 + `listings={[]}` (Wave 31 lesson — 컴포넌트 unmount 시 WebGL/event listener 회귀)
+- prod 검증 (사장님 + Claude 2026-05-04): z16 강남 53 cluster, 6 연속 zoom round-trip = longtask **0**, max **0ms** (warm worker)
+- 위반 결과:
+  - SvgMarkerLayer 비활성 → HtmlMarkerOverlay 의 415 setMap/setContent → 95~146ms longtask 회귀
+  - Web Worker 제거 → main thread aggregation → cold zoom 60~95ms
+  - HtmlMarkerOverlay 완전 unmount → Wave 30/31 의 WebGL invisible 회귀 (deck.gl trigger 끊김)
+- 코드:
+  - `src/components/map/SvgMarkerLayer.tsx` (Wave 42 anchor + Wave 43 worker round-trip)
+  - `src/features/map-2026/workers/svg-cluster.worker.ts` (Wave 43)
+  - `src/app/map/MapClient.tsx` `useState(true)` (Wave 44 SVG 기본화)
+- 비상 롤백: URL `?svg=0` (5초 안에 옛날 모드 복원, 코드 push 없이)
+- 회귀 차단: `tests/dom-snapshot/critical-flows.spec.ts` Wave 44 시나리오
 
 ### I-WEBGL-1: deck.gl `new Deck()` 호출 시 width/height 명시 필수 (사장님 명령 2026-05-04 Wave 26.7~26.12 진단)
 - `new DeckCtor({ canvas, width: container.clientWidth, height: container.clientHeight, views: [...], ... })` — width/height 옵션 없으면 deck.gl 내부 0×0 init.
