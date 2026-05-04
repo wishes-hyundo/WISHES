@@ -661,6 +661,7 @@ export default function MapClient() {
                   양쪽에 공유하여 축소 뷰에서도 시/도 폴리곤 count 계산 가능. */}
               <MapOverlaysWithClusters
                 kakaoMap={kakaoMap}
+                useSvg={useSvg}
                 kakaoLevel={kakaoLevel}
                 listings={listings}
                 selectedListingId={detailListingId}
@@ -796,6 +797,7 @@ function MapOverlaysWithClusters(props: {
   kakaoMap: unknown;
   kakaoLevel: number;
   listings: MapListing[];
+  useSvg?: boolean;
   selectedListingId: number | null;
   category: PropertyCategory;
   onClickListing: (id: number) => void;
@@ -828,9 +830,10 @@ function MapOverlaysWithClusters(props: {
           v28 가설 (DOM trigger 끊김 → WebGL setProps reconcile 안 됨) 사실 확정.
           listings={props.listings} 복원 = DOM + WebGL 병렬. freeze 146ms baseline 유지.
           진짜 freeze 영구 fix = Web Worker + supercluster (Wave 32 plan). */}
+      {/* Wave 39 (2026-05-04): useSvg 시 HtmlMarkerOverlay 마커 0 (SVG only). */}
       <HtmlMarkerOverlay
         map={props.kakaoMap}
-        listings={props.listings}
+        listings={props.useSvg ? [] : props.listings}
         selectedListingId={props.selectedListingId}
         category={props.category}
         onClickListing={props.onClickListing}
