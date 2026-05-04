@@ -213,6 +213,15 @@ export default function SvgMarkerLayer({
   const clusterMapRef = useRef<Map<string, SVGGElement>>(new Map());
   const workerRef = useRef<Worker | null>(null);
   const reqIdRef = useRef<number>(0);
+  // Wave 47 (2026-05-04 사장님 명령 "끝까지 직진"): pan anchor 영속 ref.
+  //   Wave 46 측정에서 pan 137ms 회귀 발견. 원인: lastLevel/anchorLat/anchorLng/anchorPx 가
+  //   useEffect 안의 local 변수라 listings prop 변경 시 useEffect 재실행 → 모두 reset →
+  //   pan path 못 거치고 매번 worker 호출 + 53 신규 cluster create = 137ms.
+  //   해결: useRef 로 옮겨서 useEffect 재실행에도 살아남음. pan 0ms 복원.
+  const lastLevelRef = useRef<number>(-1);
+  const anchorLatRef = useRef<number>(0);
+  const anchorLngRef = useRef<number>(0);
+  const anchorPxRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // ──────────────────────────────────────────────────────
   // Mount SVG layer + parent g.markers + Worker boot
@@ -294,12 +303,8 @@ export default function SvgMarkerLayer({
     const maps = kakao.maps;
     const mapInst = map as KakaoMapLike;
 
-    // Wave 42 pan anchor (parent g translate)
-    let lastLevel = -1;
-    let anchorLat = 0;
-    let anchorLng = 0;
-    let anchorPx = { x: 0, y: 0 };
-
+    // Wave 47: pan anchor refs (persistent across useEffect re-runs).
+    //   listings prop 변경 시 useEffect 재실행되어도 anchor 가 살아남아 pan path 유지.
     const filterSet = clusterFilterIds && clusterFilterIds.length > 0
       ? new Set(clusterFilterIds) : null;
 
@@ -353,10 +358,10 @@ export default function SvgMarkerLayer({
 
       // anchor 저장 (다음 pan delta 계산)
       if (anchorL !== 0 || anchorN !== 0) {
-        anchorLat = anchorL;
-        anchorLng = anchorN;
+        anchorLatRef.current = anchorL;
+        anchorLngRef.current = anchorN;
         const ap = projection.pointFromCoords(new maps.LatLng(anchorL, anchorN));
-        anchorPx = { x: ap.x, y: ap.y };
+        anchorPxRef.current = { x: ap.x, y: ap.y };
       }
     };
 
@@ -469,15 +474,15 @@ export default function SvgMarkerLayer({
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
       // Pan path: 같은 level + 기존 cluster 있음 → parent g translate (1 setAttribute)
-      if (lastLevel === level && clusterMapRef.current.size > 0) {
-        const ll = new maps.LatLng(anchorLat, anchorLng);
+      if (lastLevelRef.current === level && clusterMapRef.current.size > 0) {
+        const ll = new maps.LatLng(anchorLatRef.current, anchorLngRef.current);
         const p = projection.pointFromCoords(ll);
-        const dx = p.x - anchorPx.x;
-        const dy = p.y - anchorPx.y;
+        const dx = p.x - anchorPxRef.current.x;
+        const dy = p.y - anchorPxRef.current.y;
         markersG.setAttribute('transform', `translate(${dx},${dy})`);
         return;
       }
-      lastLevel = level;
+      lastLevelRef.current = level;
 
       // Zoom / mount / category 변경: full re-aggregate via worker
       if (workerRef.current) {
