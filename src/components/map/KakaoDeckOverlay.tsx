@@ -229,8 +229,6 @@ export default function KakaoDeckOverlay({
           },
         });
         deckRef.current = deck;
-        // Wave 26.14c (2026-05-04): expose deck to window for Chrome MCP diagnosis (no other code change vs Wave 26.13).
-        (window as unknown as { __deckInstance?: unknown }).__deckInstance = deck;
         // Wave 26.9 (I-WEBGL-3): force useEffect #2 re-fire after async deck init completes.
         //   deck.gl init takes ~700ms via dynamic import. During that window useEffect #2 has
         //   already fired with deckRef=null and bailed via early return. Without this state
