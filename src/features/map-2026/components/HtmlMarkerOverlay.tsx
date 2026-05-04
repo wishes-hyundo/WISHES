@@ -382,13 +382,6 @@ export default function HtmlMarkerOverlay({
   clusterFilterIds,
   clusterFilterListings,
 }: Props) {
-  // Wave 34 (2026-05-04 사장님 명령 끝까지 마무리): Marker Pool — key-based reuse.
-  //   Wave 33 cluster limit 효과 측정 결과 0. 진짜 freeze 원인 = setMap 1245회 (cleanup 415 + new 415 + setMap 415).
-  //   Pool 패턴: 같은 cluster key 면 marker reuse (setMap 호출 X). 다른 key 만 new+setMap.
-  //   zoom 변경 시 cluster keys 일부 동일 → setMap 호출 ~40-60% 감소 예상.
-  //   key = lat:lng:count:selected:category 조합.
-  // Wave 35: pool entry includes lastContent for setContent dynamic update.
-  const poolRef = useRef<Map<string, { ov: KakaoCustomOverlay; lastContent: HTMLElement }>>(new Map());
   const overlaysRef = useRef<KakaoCustomOverlay[]>([]);
   // G-117: render batch token — 새 render 시작 시 이전 batch 자동 abort
   const renderTokenRef = useRef<number>(0);
@@ -405,43 +398,11 @@ export default function HtmlMarkerOverlay({
         try { ov.setMap(null); } catch { /* noop */ }
       }
       overlaysRef.current = [];
-      // Wave 34/35: pool 도 cleanup (unmount 시)
-      for (const entry of poolRef.current.values()) {
-        try { entry.ov.setMap(null); } catch { /* noop */ }
-      }
-      poolRef.current.clear();
-    };
-    // Wave 34: render 시작 시 사용된 keys 추적 (사라진 것 제거용)
-    let _wave34NewKeys: Set<string> | null = null;
-    const _wave34StartRender = () => { _wave34NewKeys = new Set<string>(); };
-    const _wave34EndRender = () => {
-      if (!_wave34NewKeys) return;
-      const newKeys = _wave34NewKeys;
-      _wave34NewKeys = null;
-      for (const [key, entry] of poolRef.current) {
-        if (!newKeys.has(key)) {
-          try { entry.ov.setMap(null); } catch { /* noop */ }
-          poolRef.current.delete(key);
-        }
-      }
     };
 
     const render = () => {
-      // Wave 34: cleanupOverlays 대신 pool 패턴. 사라진 marker 만 cleanup.
-      _wave34StartRender();
-      // overlaysRef (server-cluster + spider-fy 용 임시 array) 만 cleanup
-      for (const ov of overlaysRef.current) {
-        try { ov.setMap(null); } catch { /* noop */ }
-      }
-      overlaysRef.current = [];
-      if (!Array.isArray(listings) || listings.length === 0) {
-        // 빈 listings — pool 도 모두 cleanup
-        for (const entry of poolRef.current.values()) {
-          try { entry.ov.setMap(null); } catch { /* noop */ }
-        }
-        poolRef.current.clear();
-        return;
-      }
+      cleanupOverlays();
+      if (!Array.isArray(listings) || listings.length === 0) return;
 
       const level = typeof mapInst.getLevel === 'function' ? mapInst.getLevel() : 5;
 
@@ -809,15 +770,7 @@ export default function HtmlMarkerOverlay({
       // Wave 28 ROLLBACK (2026-05-04): Wave 27 의 _BATCH 25 시도 prod 측정 결과 freeze 146ms → 321ms 악화.
       //   원인: longtask API 가 여러 frame 누적 측정 (17 frames × ~19ms = 323ms). batch 더 작게 = 누적 더 큼.
       //   _BATCH 50 으로 즉시 복원. 다음 진짜 freeze fix = Web Worker + supercluster (Wave 29).
-      const _allClusters = [...clusters.values()];
-      // Wave 33 (2026-05-04 CEO end-to-end fix): cluster count limit per viewport = 250.
-      //   prod measured freeze 146ms with 415 clusters. Linear scaling: 250 = ~88ms expected.
-      //   cluster size desc sort, top 250 (large clusters first, user visual priority).
-      //   spider-fy mode (clusterFilterActive=true) skips limit (must show all after cluster click).
-      const _WAVE33_MAX = 250;
-      const _clusterArr = (!isClusterFilterActive && _allClusters.length > _WAVE33_MAX)
-        ? _allClusters.sort((a, b) => b.length - a.length).slice(0, _WAVE33_MAX)
-        : _allClusters
+      const _clusterArr = [...clusters.values()];
       const _renderToken = ++renderTokenRef.current;
       const _BATCH = 50;
       let _bIdx = 0;
@@ -967,33 +920,6 @@ export default function HtmlMarkerOverlay({
         el.addEventListener('mousedown', (e) => e.stopPropagation());
         el.addEventListener('dblclick', (e) => { e.preventDefault(); e.stopPropagation(); });
         el.addEventListener('click', clickHandler);
-        // Wave 36: pool key + element direct mutation — Kakao setContent/setPosition 우회.
-        //   Wave 35 setContent 가 더 무거움 (max 125 → 223ms). 진짜 fix = element 자체 직접 mutate.
-        //   element 가 이미 Kakao 가 mount 시킨 DOM 안. textContent / className 변경 = 즉시 반영.
-        //   API call 0, DOM mutation only (browser 가 batch 처리).
-        const _wave34Key = `m:${lat.toFixed(4)}:${lng.toFixed(4)}`;
-        if (_wave34NewKeys) _wave34NewKeys.add(_wave34Key);
-        const _existing = poolRef.current.get(_wave34Key);
-        if (_existing) {
-          // reuse: 기존 element 의 textContent + className 만 update.
-          // count 같으면 변화 X. count 다르면 첫 child (count text) 만 update.
-          // selected/category 변경 = className 변경 (CSS 가 색 swap).
-          // setContent / setPosition / setMap 호출 모두 X.
-          try {
-            const oldEl = _existing.lastContent;
-            // count text update (첫 번째 text-bearing element)
-            const newText = el.textContent || '';
-            const oldText = oldEl.textContent || '';
-            if (newText !== oldText) oldEl.textContent = newText;
-            // className update (color/selected swap via CSS class)
-            if (oldEl.className !== el.className) oldEl.className = el.className;
-            // background color (inline style) update if changed
-            if (oldEl.style.background !== el.style.background) {
-              oldEl.style.background = el.style.background;
-            }
-          } catch { /* mutation failed — skip */ }
-          continue;
-        }
         try {
           const ov = new maps.CustomOverlay({
             position: new maps.LatLng(lat, lng),
@@ -1004,7 +930,7 @@ export default function HtmlMarkerOverlay({
             clickable: true,
           });
           ov.setMap(map);
-          poolRef.current.set(_wave34Key, { ov, lastContent: el });
+          overlaysRef.current.push(ov);
         } catch { /* SDK race — skip */ }
         }
         _bIdx = _end;
@@ -1017,9 +943,6 @@ export default function HtmlMarkerOverlay({
         }
       };
       _processBatch();
-      // Wave 34: render 끝 시점에 사라진 marker 제거 (rAF batch 다 끝나야 호출)
-      // batch 마지막에 호출하기 위해 setTimeout 0 (다음 macrotask)
-      setTimeout(() => _wave34EndRender(), 100);
     };
 
     render();
