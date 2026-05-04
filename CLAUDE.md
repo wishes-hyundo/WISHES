@@ -214,6 +214,26 @@
 - ⚠️ **궁극 해결책 X** — DOM CustomOverlay 자체가 한계. WebGL (deck.gl) 마이그레이션이 항구 fix.
   rAF batching 은 freeze 완화 (band-aid). G-124~129 에서 deck.gl 로 교체.
 
+### I-WEBGL-1: deck.gl `new Deck()` 호출 시 width/height 명시 필수 (사장님 명령 2026-05-04 Wave 26.7~26.12 진단)
+- `new DeckCtor({ canvas, width: container.clientWidth, height: container.clientHeight, views: [...], ... })` — width/height 옵션 없으면 deck.gl 내부 0×0 init.
+- 위반 결과: layerManager 가 layer reconcile 영구 skip → setProps({layers}) 호출해도 internal layers 0 → canvas 픽셀 0 = silent invisible.
+- 검증된 사실 (Wave 26.10 prod 측정): width/height 미지정 시 `deck.props.width=0, deck.props.height=0` 으로 init → 모든 후속 setProps 효과 X.
+- 코드: `src/components/map/KakaoDeckOverlay.tsx` 의 `new DeckCtor({...})` 호출.
+- 영향: Wave 25c / Wave 26 / Wave 26.2 / Wave 26.6 모든 invisible 회귀 = 같은 root cause.
+
+### I-WEBGL-2: deck.gl `setProps({layers})` 호출 후 `redraw('manual')` 필수 (사장님 명령 2026-05-04 Wave 26.12 검증)
+- buildLayers 안 `deckRef.current.setProps({...layers})` 호출 직후 반드시 `deckRef.current.redraw('manual')` 호출.
+- 위반 결과: deck.props.layers 는 정상 업데이트되지만 layerManager.getLayers() = 0 (reconcile 트리거 안 됨) → canvas 픽셀 0 = silent invisible.
+- 검증된 사실 (Wave 26.12 prod 측정): redraw('manual') 추가 후 자연 상태에서 779,463 canvas 픽셀 (emerald 673,753 = 81 cluster) 정상 렌더.
+- 코드: `src/components/map/KakaoDeckOverlay.tsx` 의 buildLayers 함수 끝.
+- 추가 주의: layer mount 는 비동기 — setProps + redraw 후 ~10-15초 측정 시간 필요. 너무 일찍 측정하면 0 으로 보임.
+
+### I-WEBGL-3: deck.gl async init 후 useEffect #2 강제 재실행 trigger 필수 (사장님 명령 2026-05-04 Wave 26.9 검증)
+- `await import('@deck.gl/core')` 가 ~700ms 소요. 그 동안 useEffect #2 가 fire 됐다면 `deckRef.current=null` 로 early return.
+- 해결: useState `deckGenId` 를 useEffect #2 deps 에 추가 + deck assignment 직후 `setDeckGenId(g => g + 1)` 강제 trigger.
+- 위반 결과: deck init 완료 후 useEffect #2 가 자동 재실행 안 됨 → buildLayers 호출 안 됨 → invisible 까지 동일.
+- 코드: `src/components/map/KakaoDeckOverlay.tsx` 의 deckRef.current = deck 직후 + useEffect #2 deps.
+
 ## 🚫 `/search` 절대 손대지 마라 (사장님 명령 2026-04-28)
 
 `wishes.co.kr/search` = 중개사가 사용하기 가장 편한 UI 로 13년 동안 최적화된 작업장.
