@@ -618,9 +618,13 @@ export default function MapClient() {
               <KakaoDeckOverlay
                 map={kakaoMap}
                 container={containerRef.current}
-                // Wave 26.7 (2026-05-04): WebGL 비활성 — 깔끔한 DOM only.
-                items={[]}
-                clusters={[]}
+                // Wave 26.8 DEBUG (2026-05-04): Wave 25c 모드 부활 (DOM 마커 + WebGL cluster + WebGL items 병렬).
+                //   목적: Wave 26/26.2/26.6 의 'WebGL invisible' 회귀 진짜 원인 파악 (KakaoDeckOverlay 의 console.log 캡처).
+                //   안전: HtmlMarkerOverlay 그대로 (DOM 마커 살아있음 → 사용자 영업 영향 0).
+                //   시각: DOM 그린 + WebGL 인디고 마커 동시 표시 (Wave 25c prod 통과 상태와 동일).
+                //   진단 후: invisible 원인 발견 시 Day 1 (IconLayer 가격 chip + items 풀 활성) 안전하게 진행.
+                items={webglItems}
+                clusters={webglClusters}
                 onClickListing={onClickListing}
               />
               {/* L-worldclass1 (2026-04-24 pm) + L-adminfit2 (2026-04-24 pm):

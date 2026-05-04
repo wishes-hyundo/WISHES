@@ -144,6 +144,9 @@ export default function KakaoDeckOverlay({
 
   // 지도 mount 후 캔버스 + Deck 생성
   useEffect(() => {
+    // Wave 26.8 DEBUG (2026-05-04): WebGL invisible 진단 — Wave 26/26.2/26.6 회귀 원인 파악용 console.log.
+    //   prod 검증 후 로그만 정리하고 fix 또는 다음 path 결정. INVARIANT 영향 0.
+    console.log('[wave26-8 deck-init-1] effect-1 start', performance.now(), { hasMap: !!map, hasContainer: !!containerProp });
     if (!map || typeof window === 'undefined') return;
     // L-map3 (2026-04-22): Kakao Map 인스턴스는 getContainer() 를 노출하지 않음.
     //   1) 상위가 직접 내려주는 containerProp 우선
@@ -215,7 +218,9 @@ export default function KakaoDeckOverlay({
           },
         });
         deckRef.current = deck;
+        console.log('[wave26-8 deck-init-2] deck assigned to ref', performance.now(), { deckTruthy: !!deck });
       } catch (e) {
+        console.warn('[wave26-8 deck-init-3] FAILED', performance.now(), e);
         if (typeof console !== 'undefined') {
           console.warn('[KakaoDeckOverlay] WebGL 초기화 실패 → 카카오맵 2D 만 표시합니다:', e);
         }
@@ -243,7 +248,17 @@ export default function KakaoDeckOverlay({
   //   이제 오버레이 자체가 지도 이벤트를 듣고 requestAnimationFrame 으로
   //   throttle 된 재투영을 수행한다.
   useEffect(() => {
-    if (!deckRef.current || !map) return;
+    // Wave 26.8 DEBUG: useEffect #2 매 실행 시점 + early return 분기 캡처.
+    console.log('[wave26-8 layer-build-1] effect-2 run', performance.now(), {
+      hasDeck: !!deckRef.current,
+      hasMap: !!map,
+      clusters: clusters.length,
+      items: items.length,
+    });
+    if (!deckRef.current || !map) {
+      console.log('[wave26-8 layer-build-2] EARLY RETURN', { hasDeck: !!deckRef.current, hasMap: !!map });
+      return;
+    }
 
     const kakaoMap = map as {
       getProjection?: () => {
@@ -253,12 +268,22 @@ export default function KakaoDeckOverlay({
     };
     // L-map3: Kakao 는 getContainer() 가 없음 → prop fallback
     const container = containerProp ?? kakaoMap.getContainer?.();
-    if (!container) return;
+    if (!container) {
+      console.log('[wave26-8 layer-build-2b] EARLY RETURN no container');
+      return;
+    }
 
     const buildLayers = () => {
-      if (!deckRef.current) return;
+      console.log('[wave26-8 layer-build-3] buildLayers entry', performance.now(), { hasDeck: !!deckRef.current });
+      if (!deckRef.current) {
+        console.log('[wave26-8 layer-build-3a] EARLY RETURN no deck');
+        return;
+      }
       const projection = kakaoMap.getProjection?.();
-      if (!projection) return;
+      if (!projection) {
+        console.log('[wave26-8 layer-build-3b] EARLY RETURN no projection');
+        return;
+      }
 
       const w = container.clientWidth;
       const h = container.clientHeight;
@@ -419,6 +444,11 @@ export default function KakaoDeckOverlay({
         height: h,
         viewState: { target: [0, 0, 0], zoom: 0 } as any,
         layers: [scatter, clusterText, itemScatter, itemText],
+      });
+      console.log('[wave26-8 layer-build-4] setProps DONE', performance.now(), {
+        clusterData: clusterData.length,
+        itemData: itemData.length,
+        labelData: labelData.length,
       });
     };
 
