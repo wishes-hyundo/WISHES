@@ -1,25 +1,16 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// CanvasMarkerLayer.tsx — Wave 49 (2026-05-04 사장님 명령 "끝까지 무조건")
+// CanvasMarkerLayer.tsx — Wave 50 (2026-05-04 사장님 명령 "끝까지 무조건")
 //
-// SvgMarkerLayer 의 50ms 한계 도달 (SVG DOM reflow 자체).
-// Canvas 2D 로 전환 — 53 cluster = arc + fillText = ~3-5ms (DOM 무관).
+// Wave 49 측정 결과 50-112ms (SVG 보다 느림). 원인 추측 X — 직접 측정 + 배치 최적화.
 //
-// 동작:
-//   1. <canvas> overlay (HiDPI scaled) on Kakao map container
-//   2. Worker (svg-cluster.worker.ts 그대로) → ClusterRenderItem[]
-//   3. Main thread: ctx.clearRect + 53 arc + 53 fillText (단일 frame ~5ms)
-//   4. Pan: canvas.style.transform translate (Wave 42 패턴, no redraw)
-//   5. Click: canvas hit test (distance check, iterate reverse for top-first)
+// Wave 50 변경:
+//   1. ★ Path2D 배치: 같은 색깔 cluster 의 모든 arc 를 single path 에 묶음 → 1 fill + 1 stroke (53번 → 4번)
+//   2. ★ Text image cache: 0~999 텍스트 미리 OffscreenCanvas 에 렌더 → drawImage (fillText 5x 빠름)
+//   3. ★ Font set 1회 (loop 밖, 가장 흔한 11px 우선)
+//   4. ★ performance.mark 으로 각 단계 측정 → window.__canvasTrace 에 노출
+//   5. Pan path (Wave 47): canvas.style.transform translate (그대로)
 //
-// 위험 관리:
-//   - SvgMarkerLayer 그대로 보존 (?canvas=1 없으면 SVG 사용)
-//   - ?canvas=0 = SVG 강제 (이중 안전망)
-//   - Wave 50 에서 검증 후 default
-//
-// 보존 INVARIANTs:
-//   I-MARKER-1/2/3/4/5/6/7 (worker 가 처리)
-//   I-COORD-3 (raw lat/lng)
-//   I-PERF-2 (3-layer 영구 보존)
+// 보존: I-MARKER-*, I-COORD-3, I-PERF-2
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 'use client';
@@ -105,13 +96,40 @@ function markerSize(count: number, level: number, isMobile: boolean): number {
   return Math.round(base * mult);
 }
 
-// ──────────────────────────────────────────────────────
-// Hit test 위해 마지막 render 의 cluster pixel 위치 보관
-// ──────────────────────────────────────────────────────
 interface DrawnCluster {
   it: ClusterRenderItem;
   x: number;
   y: number;
+}
+
+// ──────────────────────────────────────────────────────
+// Wave 50 #2: Text image cache (pre-rendered 숫자 → drawImage)
+// ──────────────────────────────────────────────────────
+const TEXT_CACHE = new Map<string, HTMLCanvasElement>();
+function getTextCanvas(text: string, fontSize: number, dpr: number): HTMLCanvasElement {
+  const key = `${text}_${fontSize}`;
+  const cached = TEXT_CACHE.get(key);
+  if (cached) return cached;
+  const c = document.createElement('canvas');
+  // 텍스트 크기 측정용 임시 ctx
+  const tmpCtx = c.getContext('2d')!;
+  tmpCtx.font = `bold ${fontSize}px sans-serif`;
+  const m = tmpCtx.measureText(text);
+  const w = Math.ceil(m.width) + 4;
+  const h = fontSize + 4;
+  c.width = Math.round(w * dpr);
+  c.height = Math.round(h * dpr);
+  c.style.width = `${w}px`;
+  c.style.height = `${h}px`;
+  const ctx = c.getContext('2d')!;
+  ctx.scale(dpr, dpr);
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.fillText(text, w / 2, h / 2);
+  TEXT_CACHE.set(key, c);
+  return c;
 }
 
 export default function CanvasMarkerLayer({
@@ -130,19 +148,17 @@ export default function CanvasMarkerLayer({
   const drawnRef = useRef<DrawnCluster[]>([]);
   const workerRef = useRef<Worker | null>(null);
   const reqIdRef = useRef<number>(0);
-  // Pan anchor (Wave 42 mechanism via canvas.style.transform)
+  const dprRef = useRef<number>(1);
   const lastLevelRef = useRef<number>(-1);
   const anchorLatRef = useRef<number>(0);
   const anchorLngRef = useRef<number>(0);
   const anchorPxRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  // ──────────────────────────────────────────────────────
-  // Mount canvas + worker
-  // ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!container || typeof window === 'undefined') return;
     const canvas = document.createElement('canvas');
     const dpr = window.devicePixelRatio || 1;
+    dprRef.current = dpr;
     const w = container.clientWidth;
     const h = container.clientHeight;
     canvas.width = Math.round(w * dpr);
@@ -165,7 +181,6 @@ export default function CanvasMarkerLayer({
       ctxRef.current = ctx;
     }
 
-    // Worker boot
     try {
       if (typeof Worker !== 'undefined') {
         const wkr = new Worker(
@@ -183,6 +198,7 @@ export default function CanvasMarkerLayer({
           const c = canvasRef.current;
           if (!c) return;
           const dpr2 = window.devicePixelRatio || 1;
+          dprRef.current = dpr2;
           const w2 = container.clientWidth;
           const h2 = container.clientHeight;
           c.width = Math.round(w2 * dpr2);
@@ -207,16 +223,12 @@ export default function CanvasMarkerLayer({
     };
   }, [container]);
 
-  // Worker 에 listings sync
   useEffect(() => {
     const w = workerRef.current;
     if (!w) return;
     try { w.postMessage({ type: 'setListings', listings }); } catch { /* noop */ }
   }, [listings]);
 
-  // ──────────────────────────────────────────────────────
-  // Render
-  // ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!map || !container || !canvasRef.current || !ctxRef.current) return;
     const win = window as unknown as { kakao?: KakaoNamespace };
@@ -229,7 +241,7 @@ export default function CanvasMarkerLayer({
       ? new Set(clusterFilterIds) : null;
 
     // ────────────────────────────────────────────────
-    // commit: ClusterRenderItem[] → canvas 2D draw
+    // Wave 50: Batch optimized commit (perf instrumented)
     // ────────────────────────────────────────────────
     const commitItems = (
       items: ClusterRenderItem[],
@@ -239,52 +251,86 @@ export default function CanvasMarkerLayer({
       const canvas = canvasRef.current;
       const ctx = ctxRef.current;
       if (!canvas || !ctx) return;
+      const dpr = dprRef.current;
+      const t0 = performance.now();
 
-      // Wave 42 reset: zoom path 시 transform 초기화
+      // pan transform reset (zoom path)
       canvas.style.transform = '';
 
       const w = container.clientWidth;
       const h = container.clientHeight;
       ctx.clearRect(0, 0, w, h);
+      const t1 = performance.now();
 
-      const drawn: DrawnCluster[] = [];
-
+      // ── Phase 1: project all + filter visible
+      const visible: { it: ClusterRenderItem; x: number; y: number }[] = [];
       for (const it of items) {
         const ll = new maps.LatLng(it.lat, it.lng);
         const p = projection.pointFromCoords(ll);
-        // 화면 밖 마커는 skip (clipping)
         if (p.x < -50 || p.y < -50 || p.x > w + 50 || p.y > h + 50) continue;
-
-        // Circle
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, it.r, 0, 2 * Math.PI);
-        ctx.fillStyle = it.bg;
-        ctx.fill();
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Text
-        ctx.fillStyle = '#ffffff';
-        ctx.font = `bold ${it.fontSize}px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(it.isSpiderFy ? '1' : String(it.count), p.x, p.y);
-
-        drawn.push({ it, x: p.x, y: p.y });
+        visible.push({ it, x: p.x, y: p.y });
       }
-      drawnRef.current = drawn;
+      const t2 = performance.now();
 
-      // anchor 저장 (pan delta 계산)
+      // ── Phase 2: Batch arcs by background color (single path per color)
+      const byColor = new Map<string, typeof visible>();
+      for (const v of visible) {
+        const arr = byColor.get(v.it.bg);
+        if (arr) arr.push(v); else byColor.set(v.it.bg, [v]);
+      }
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = 'white';
+      for (const [bg, arr] of byColor) {
+        ctx.fillStyle = bg;
+        ctx.beginPath();
+        for (const v of arr) {
+          // CRITICAL: arc 사이 moveTo 로 sub-path 끊어서 stroke 가 connecting line 안 그리게
+          ctx.moveTo(v.x + v.it.r, v.y);
+          ctx.arc(v.x, v.y, v.it.r, 0, 2 * Math.PI);
+        }
+        ctx.fill();
+        ctx.stroke();
+      }
+      const t3 = performance.now();
+
+      // ── Phase 3: Text via cached image (drawImage > fillText)
+      for (const v of visible) {
+        const text = v.it.isSpiderFy ? '1' : String(v.it.count);
+        const tc = getTextCanvas(text, v.it.fontSize, dpr);
+        // tc is HiDPI scaled; we want its CSS size center-aligned at (x,y)
+        const cw = parseFloat(tc.style.width);
+        const ch = parseFloat(tc.style.height);
+        ctx.drawImage(tc, v.x - cw / 2, v.y - ch / 2, cw, ch);
+      }
+      const t4 = performance.now();
+
+      drawnRef.current = visible;
+
       if (anchorL !== 0 || anchorN !== 0) {
         anchorLatRef.current = anchorL;
         anchorLngRef.current = anchorN;
         const ap = projection.pointFromCoords(new maps.LatLng(anchorL, anchorN));
         anchorPxRef.current = { x: ap.x, y: ap.y };
       }
+      const t5 = performance.now();
+
+      // Wave 50: trace 노출 (Chrome MCP 로 읽기)
+      const win = window as unknown as { __canvasTrace?: object[] };
+      win.__canvasTrace = win.__canvasTrace || [];
+      (win.__canvasTrace as object[]).push({
+        ts: Math.round(t0),
+        n: visible.length,
+        clear: Math.round((t1 - t0) * 100) / 100,
+        project: Math.round((t2 - t1) * 100) / 100,
+        arcs: Math.round((t3 - t2) * 100) / 100,
+        text: Math.round((t4 - t3) * 100) / 100,
+        anchor: Math.round((t5 - t4) * 100) / 100,
+        total: Math.round((t5 - t0) * 100) / 100,
+      });
+      // 최근 50개만 유지
+      if ((win.__canvasTrace as object[]).length > 50) (win.__canvasTrace as object[]).shift();
     };
 
-    // Sync fallback (worker 부팅 실패 시)
     const syncRender = () => {
       const projection = mapInst.getProjection?.();
       if (!projection) return;
@@ -367,7 +413,6 @@ export default function CanvasMarkerLayer({
       commitItems(items, anchorL, anchorN, projection);
     };
 
-    // Worker response handler
     const onWorkerMessage = (e: MessageEvent<RenderResultMsg>) => {
       const data = e.data;
       if (!data || data.type !== 'render-result') return;
@@ -387,7 +432,7 @@ export default function CanvasMarkerLayer({
       const level = mapInst.getLevel?.() ?? 5;
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-      // Pan path: 같은 level → canvas CSS transform translate (no redraw, ~0ms)
+      // Pan path: same level → CSS transform translate (~0ms)
       if (lastLevelRef.current === level && drawnRef.current.length > 0) {
         const ll = new maps.LatLng(anchorLatRef.current, anchorLngRef.current);
         const p = projection.pointFromCoords(ll);
@@ -398,7 +443,6 @@ export default function CanvasMarkerLayer({
       }
       lastLevelRef.current = level;
 
-      // Zoom path: full redraw via worker
       if (workerRef.current) {
         reqIdRef.current += 1;
         try {
@@ -422,14 +466,10 @@ export default function CanvasMarkerLayer({
 
     render();
 
-    // ────────────────────────────────────────────────
-    // Click hit test (canvas 는 child 가 없어서 직접 distance check)
-    // ────────────────────────────────────────────────
     const onCanvasClick = (e: MouseEvent) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const rect = canvas.getBoundingClientRect();
-      // canvas.style.transform 의 영향 빼고 viewport 좌표만 계산
       const cssTransform = canvas.style.transform;
       let tx = 0, ty = 0;
       if (cssTransform) {
@@ -438,25 +478,16 @@ export default function CanvasMarkerLayer({
       }
       const x = e.clientX - rect.left - tx;
       const y = e.clientY - rect.top - ty;
-
-      // 마지막 마커가 위에 그려졌으니 reverse 로 hit test
       const drawn = drawnRef.current;
       for (let i = drawn.length - 1; i >= 0; i--) {
         const d = drawn[i];
         const dx = x - d.x;
         const dy = y - d.y;
         if (dx * dx + dy * dy <= d.it.r * d.it.r) {
-          // hit
           e.stopPropagation();
           e.preventDefault();
-          if (d.it.isSpiderFy) {
-            onClickListing(d.it.spiderFyId);
-            return;
-          }
-          if (d.it.singleId) {
-            onClickListing(parseInt(d.it.singleId, 10));
-            return;
-          }
+          if (d.it.isSpiderFy) { onClickListing(d.it.spiderFyId); return; }
+          if (d.it.singleId) { onClickListing(parseInt(d.it.singleId, 10)); return; }
           if (d.it.ids) {
             const ids = d.it.ids.split(',').map((s) => parseInt(s, 10)).filter((n) => !isNaN(n));
             if (filterSet && filterSet.size === ids.length && ids.every((id) => filterSet.has(id))) {
@@ -468,11 +499,9 @@ export default function CanvasMarkerLayer({
           return;
         }
       }
-      // miss → 이벤트 통과 (Kakao map 으로)
     };
     canvasRef.current.addEventListener('click', onCanvasClick);
 
-    // pointer-events 동적 토글 — pan 시 지도가 받게
     const onCanvasMouseMove = (e: MouseEvent) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -497,7 +526,6 @@ export default function CanvasMarkerLayer({
     };
     container.addEventListener('mousemove', onCanvasMouseMove, { passive: true });
 
-    // Pan/zoom listeners
     let rafId: number | null = null;
     const scheduleRender = () => {
       if (rafId != null) return;
