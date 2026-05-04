@@ -165,6 +165,18 @@ function keyOf(it: ClusterRenderItem): string {
   return 'c:' + it.ids;
 }
 
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Wave 53: window.__svgDiag — phase timing instrumentation
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+function svgDiagPush(phase: string, dur: number, n?: number) {
+  if (typeof window === 'undefined') return;
+  const w = window as unknown as { __svgDiag?: object[] };
+  w.__svgDiag = w.__svgDiag || [];
+  (w.__svgDiag as object[]).push({ phase, dur: Math.round(dur * 100) / 100, n: n ?? -1, ts: Math.round(performance.now()) });
+  if ((w.__svgDiag as object[]).length > 200) (w.__svgDiag as object[]).shift();
+}
+
 export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
   // Wave 52: propsRef 로 모든 dynamic prop (useEffect re-run 회피)
   const propsRef = useRef(props);
@@ -230,6 +242,7 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
       anchorL: number, anchorN: number,
       projection: { pointFromCoords: (c: unknown) => { x: number; y: number } },
     ) => {
+      const _tC0 = performance.now();
       const mg = markersGRef.current;
       if (!mg) return;
       mg.setAttribute('transform', '');
@@ -293,6 +306,7 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
         const ap = projection.pointFromCoords(new maps.LatLng(anchorL, anchorN));
         anchorPxRef.current = { x: ap.x, y: ap.y };
       }
+      svgDiagPush('commit', performance.now() - _tC0, items.length);
     };
 
     const syncRender = () => {
@@ -377,16 +391,19 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
     };
 
     const onWorkerMessage = (e: MessageEvent<RenderResultMsg>) => {
+      const _tM0 = performance.now();
       const data = e.data;
       if (!data || data.type !== 'render-result') return;
       if (data.reqId !== reqIdRef.current) return;
       const projection = mapInst.getProjection?.();
       if (!projection) return;
       commitItems(data.items, data.anchorLat, data.anchorLng, projection);
+      svgDiagPush('worker_msg_handler', performance.now() - _tM0);
     };
     workerRef.current?.addEventListener('message', onWorkerMessage);
 
     const render = () => {
+      const _t0 = performance.now();
       const sv = svgRef.current;
       const mg = markersGRef.current;
       if (!sv || !mg) return;
@@ -403,12 +420,16 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
         const dx = pp.x - anchorPxRef.current.x;
         const dy = pp.y - anchorPxRef.current.y;
         mg.setAttribute('transform', `translate(${dx},${dy})`);
+        svgDiagPush('pan', performance.now() - _t0);
         return;
       }
       lastLevelRef.current = level;
+      const _tAfterPanCheck = performance.now();
+      svgDiagPush('zoom_path_setup', _tAfterPanCheck - _t0);
 
       if (workerRef.current) {
         reqIdRef.current += 1;
+        const _tPost0 = performance.now();
         try {
           workerRef.current.postMessage({
             type: 'render',
@@ -420,12 +441,14 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
             selectedListingId: p.selectedListingId,
             isMobile,
           });
+          svgDiagPush('worker_postMessage', performance.now() - _tPost0);
         } catch {
           syncRender();
         }
       } else {
         syncRender();
       }
+      svgDiagPush('render_total', performance.now() - _t0);
     };
     renderRef.current = render;
     render();
@@ -456,9 +479,11 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
     svg.addEventListener('click', onSvgClick);
 
     let rafId: number | null = null;
+    let _scheduleCount = 0;
     const scheduleRender = () => {
+      _scheduleCount++;
       if (rafId != null) return;
-      rafId = requestAnimationFrame(() => { rafId = null; render(); });
+      rafId = requestAnimationFrame(() => { rafId = null; svgDiagPush('rafId_count_since_last', _scheduleCount); _scheduleCount = 0; render(); });
     };
     const evt = maps.event;
     if (evt) {
