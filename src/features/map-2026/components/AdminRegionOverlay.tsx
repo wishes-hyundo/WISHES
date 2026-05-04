@@ -1032,12 +1032,30 @@ export default function AdminRegionOverlay({ map, listings, onClickRegion, kakao
     };
   }, [map, onClickRegion]);
 
-  // Wave 55 (사장님 명령 2026-05-04): kakaoLevel watch — level<=6 (z14+) 즉시 cleanup
-  //   Wave 54 fix 가 updateAt 호출 안 되어 무효 → 이 effect 가 React state 변경 시 발화.
+  // Wave 56 (사장님 명령 2026-05-04): polygon DOM 강제 제거 (Kakao SDK race condition 우회)
+  //   Wave 55 cleanup() 호출 후에도 polygon 잔존 = SDK 가 cleanup 후 다시 그리거나
+  //   polygonsRef 추적 외 polygon 존재. DOM 직접 강제 제거가 100% 확실.
+  //   AdminRegionOverlay 만 Kakao Polygon 사용 → daum-maps-shape-* prefix 모두 제거 안전.
   //   I-POLY-1 강제: z14+ 폴리곤 0.
   useEffect(() => {
     if (typeof kakaoLevel !== 'number') return;
-    if (kakaoLevel <= 6) cleanupRef.current();
+    if (kakaoLevel > 6) return;
+    cleanupRef.current();
+    // SDK race fix: 50ms 후 DOM 강제 hide (polygon 이 cleanup 후 다시 그려질 수 있음)
+    const forceHide = () => {
+      try {
+        document.querySelectorAll('path[id^="daum-maps-shape-"]').forEach((p) => {
+          const el = p as SVGElement;
+          el.style.fillOpacity = '0';
+          el.style.strokeOpacity = '0';
+          el.style.display = 'none';
+        });
+      } catch { /* noop */ }
+    };
+    forceHide();  // 즉시
+    const t1 = setTimeout(forceHide, 50);  // race fix
+    const t2 = setTimeout(forceHide, 200); // 추가 안전망
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [kakaoLevel]);
 
   useEffect(() => {
