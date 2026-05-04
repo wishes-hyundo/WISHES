@@ -492,6 +492,19 @@ export default function KakaoDeckOverlay({
         viewState: { target: [0, 0, 0], zoom: 0 } as any,
         layers: [scatter, clusterText, itemScatter, itemText],
       });
+      // Wave 26.12 (2026-05-04): force redraw to trigger layerManager reconcile.
+      //   diagnosis (Wave 26.11 prod): setProps alone does NOT trigger layer reconciliation
+      //   in this codepath. External manipulation (deck.setProps + deck.redraw('manual'))
+      //   produced 779382 pixels with 7 layers. Inlining the redraw('manual') call here
+      //   replicates that behavior - layers mount + canvas pixels render.
+      //   I-WEBGL-2 INVARIANT: after setProps with layers, must call redraw('manual') to
+      //   force reconcile. Otherwise deck.gl animation loop may not auto-trigger reconcile.
+      try {
+        const dk = deckRef.current as unknown as { redraw?: (reason: string) => void };
+        dk?.redraw?.('Wave 26.12 force reconcile');
+      } catch (e) {
+        _w268trace('layer-build-4c redraw error', { error: String(e) });
+      }
       _w268trace('layer-build-4 setProps DONE', { clusterData: clusterData.length, itemData: itemData.length, labelData: labelData.length });
       // Wave 26.10: query deck.gl internal state — layer count, viewport, draw state
       const dk = deckRef.current as unknown as { layerManager?: { getLayers?: () => unknown[] }, viewManager?: { getViewports?: () => unknown[] }, props?: { width?: number, height?: number } };
