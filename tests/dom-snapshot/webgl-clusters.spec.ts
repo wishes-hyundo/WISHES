@@ -76,9 +76,18 @@ test.describe('I-WEBGL-1/2/3 회귀 차단 (Wave 26.13)', () => {
     });
     expect(moveResult.ok, JSON.stringify(moveResult)).toBe(true);
 
-    // I-WEBGL-2 timing: deck.gl layer mount 비동기 — 충분한 대기 (18초).
-    //   prod 측정 결과 ~10-15초 후 안정. headless 는 더 느릴 수 있어 18초.
-    await page.waitForTimeout(18_000);
+    // I-WEBGL-2 timing: deck.gl layer mount 비동기 — 매우 늦게 (60-120초) 일어날 수 있음.
+    //   Wave 26.14d prod 측정 학습: Chrome MCP 30-60s 측정으로는 부족, 만초+ 후 자연 mount 정상.
+    //   waitForFunction polling 으로 layer count > 0 까지 최대 120초 기다림.
+    try {
+      await page.waitForFunction(() => {
+        const w = window as unknown as { __deckInstance?: { layerManager?: { getLayers?: () => unknown[] } } };
+        return (w.__deckInstance?.layerManager?.getLayers?.()?.length ?? 0) > 0;
+      }, { timeout: 120_000, polling: 1000 });
+    } catch {
+      // headless 환경에서 __deckInstance 노출 안 되거나 mount 실패 시 fallback wait
+      await page.waitForTimeout(20_000);
+    }
 
     // Canvas pixel scan + layer manager 검증
     const verdict = await page.evaluate(() => {

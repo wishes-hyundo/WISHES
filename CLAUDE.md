@@ -234,6 +234,25 @@
 - 위반 결과: deck init 완료 후 useEffect #2 가 자동 재실행 안 됨 → buildLayers 호출 안 됨 → invisible 까지 동일.
 - 코드: `src/components/map/KakaoDeckOverlay.tsx` 의 deckRef.current = deck 직후 + useEffect #2 deps.
 
+### I-BAT-1: Windows .bat 파일은 ASCII only (Wave 26.13 이전 사고 → Wave 26.15 정식 등록)
+- 동적으로 작성하는 .bat 파일 (DEPLOY_*.bat 등) 은 반드시 ASCII 인코딩
+- 한글 주석 (REM 한글) 절대 금지 — Korean Windows cmd 가 UTF-8 멀티바이트를 깨진 명령으로 해석
+- 위반 결과: `set "PATH=..."`, `copy /y "..."` 등 모든 명령 실패 → deploy 안 됨
+- 검증: `file *.bat` 결과 "ASCII text" 이어야 함. UTF-8 나오면 주석 다시 영어로
+
+### I-BAT-2: workspace mount filesystem staging 파일 trailing NULL bytes 검증 (Wave 26.14d 진단 2026-05-04)
+- `_waveXX_clean/` 는 mount filesystem (Windows 파일) 을 bash 에서 다루는 환경
+- 파일 작성 후 trailing NULL bytes (`\x00`) 가 자동 추가될 수 있음 (파일시스템 sync padding cruft)
+- `.bat` 의 `copy /y` 가 NULL bytes 까지 git commit → TypeScript compiler 가 NULL 만나서 syntax error → Vercel build Error
+- 검증: 각 staging 파일 작성 후 `python3 -c "print(open('file','rb').read().count(b'\\x00'))"` 결과 0 이어야
+- 자동화: staging 작성 직후 NULL strip 1줄:
+  ```python
+  data = open(f, 'rb').read().replace(b'\x00', b'')
+  if not data.endswith(b'\n'): data += b'\n'
+  open(f, 'wb').write(data)
+  ```
+- 모르는 상태로 deploy 시 100% build Error (Wave 26.14/14b/14c 세 번 연속 실패의 원인)
+
 ## 🚫 `/search` 절대 손대지 마라 (사장님 명령 2026-04-28)
 
 `wishes.co.kr/search` = 중개사가 사용하기 가장 편한 UI 로 13년 동안 최적화된 작업장.
