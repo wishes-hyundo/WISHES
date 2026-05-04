@@ -327,17 +327,28 @@ export function ListPanel() {
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         {sorted.length === 0 && !loading && (
-          <div className="flex h-full flex-col items-center justify-center gap-1 p-8 text-center text-neutral-400">
-            <MapPin className="size-8 opacity-50" />
+          /* Wave 60 (사장님 명령 2026-05-04 Apple 스타일): 빈 패널 미적 개선
+             기존 무미건조 텍스트 → 큰 그라데이션 아이콘 + 친절 메시지 + 충분한 여백 */
+          <div className="flex h-full flex-col items-center justify-center px-8 text-center">
             {isWideView ? (
               <>
-                <div className="text-[13px]">동 단위로 줌인하여 매물을 확인하세요</div>
-                <div className="text-[11.5px]">지도의 마커를 클릭하거나 휠로 확대해 보세요</div>
+                <div className="mb-5 rounded-2xl bg-gradient-to-br from-emerald-50 to-emerald-100 p-5">
+                  <MapPin className="size-9 text-emerald-600" strokeWidth={1.8} />
+                </div>
+                <div className="mb-2 text-[15.5px] font-semibold text-neutral-800">관심 지역을 찾아보세요</div>
+                <div className="text-[12.5px] leading-relaxed text-neutral-500">
+                  지도를 확대하거나 마커를 눌러<br/>실제 매물을 둘러볼 수 있어요
+                </div>
               </>
             ) : (
               <>
-                <div className="text-[13px]">이 영역에 매물이 없습니다</div>
-                <div className="text-[11.5px]">지도를 움직이거나 필터를 조정해 보세요</div>
+                <div className="mb-5 rounded-2xl bg-neutral-100 p-5">
+                  <MapPin className="size-9 text-neutral-400" strokeWidth={1.8} />
+                </div>
+                <div className="mb-2 text-[15.5px] font-semibold text-neutral-700">이 영역에 매물이 없어요</div>
+                <div className="text-[12.5px] leading-relaxed text-neutral-500">
+                  지도를 살짝 움직이거나<br/>필터를 다시 조정해 보세요
+                </div>
               </>
             )}
           </div>
