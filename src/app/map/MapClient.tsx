@@ -52,6 +52,10 @@ import { CopyToastOutlet } from '@/features/map-2026/components/CopyToast';
 //   Gate 패턴 (카테고리 탭 클릭 → 모달) 으로 전환됨.
 
 import KakaoDeckOverlay, { type MapItem, type MapCluster } from '@/components/map/KakaoDeckOverlay';
+// Wave 38 (2026-05-04 사장님 명령 끝까지 마무리): 직방/네모 패턴 SVG single-layer marker.
+//   Kakao CustomOverlay 415개 setMap = 146ms freeze 한계. SVG 1 layer 안 모든 cluster = 1 reflow.
+//   URL ?svg=1 시 활성 (사장님 검증). 다음 Wave 39 에서 기본 활성 + HtmlMarkerOverlay 비활성.
+import SvgMarkerLayer from '@/components/map/SvgMarkerLayer';
 // Wave 24 (2026-05-04 사장님 명령): WebGL cluster 활성 — clusterAggregation lib 으로 cluster Map 생성.
 //   HtmlMarkerOverlay (DOM) 와 병렬 렌더 — 시각 비교 검증용. Wave 26 에 DOM 비활성.
 import {
@@ -136,9 +140,20 @@ export default function MapClient() {
   const [kakaoMap, setKakaoMap] = useState<unknown>(null);
   // L-worldclass1: Kakao level 추적 → useMapClusters 에 전달
   const [kakaoLevel, setKakaoLevel] = useState<number>(5);
+  // Wave 38: ?svg=1 query 로 SvgMarkerLayer 활성 (검증 모드).
+  const [useSvg, setUseSvg] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [failReason, setFailReason] = useState<string>('');
+
+  // Wave 38: URL query parse for SVG marker toggle
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('svg') === '1') setUseSvg(true);
+    } catch { /* noop */ }
+  }, []);
 
   const setMap = useMap2026Store((s) => s.setMap);
   const setBbox = useMap2026Store((s) => s.setBbox);
@@ -615,6 +630,20 @@ export default function MapClient() {
           />
           {ready && kakaoMap ? (
             <>
+              {/* Wave 38: SvgMarkerLayer (직방/네모 패턴) — ?svg=1 query 시만 활성 */}
+              {useSvg && (
+                <SvgMarkerLayer
+                  map={kakaoMap}
+                  container={containerRef.current}
+                  listings={listings}
+                  selectedListingId={detailListingId}
+                  category={filterCategory}
+                  clusterFilterIds={clusterFilterIds}
+                  clusterFilterListings={clusterFilterListings}
+                  onClickListing={onClickListing}
+                  onClusterFilter={(ids, label) => setClusterFilter(ids, label)}
+                />
+              )}
               <KakaoDeckOverlay
                 map={kakaoMap}
                 container={containerRef.current}
