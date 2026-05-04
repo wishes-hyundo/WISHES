@@ -224,6 +224,13 @@ export default function KakaoDeckOverlay({
         const { Deck: DeckCtor, OrthographicView } = mod as typeof import('@deck.gl/core');
         deck = new DeckCtor({
           canvas,
+          // Wave 26.11 (2026-05-04): width/height 명시 필수.
+          //   diagnosis (Wave 26.10 prod): new Deck() 시 width/height 미지정 → 내부 0×0 init →
+          //   layerManager 가 layer reconcile 영구 skip → setProps({layers}) 호출해도 internal layers=0 →
+          //   canvas 픽셀 0 = silent invisible (Wave 26 / 26.2 / 26.6 / 25c 모든 회귀의 진짜 원인).
+          //   I-WEBGL-1 INVARIANT: deck.gl init 시 반드시 width/height 명시.
+          width: container.clientWidth,
+          height: container.clientHeight,
           views: [new OrthographicView()],
           controller: false,
           initialViewState: { target: [0, 0, 0], zoom: 0 } as any,
