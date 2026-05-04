@@ -170,8 +170,14 @@ export default function SvgMarkerLayer({
     const maps = kakao.maps;
     const mapInst = map as KakaoMapLike;
 
-    // Wave 41: zoom level tracking for pan-only optimization
+    // Wave 41/42: zoom-vs-pan + parent g single transform (1 setAttribute).
+    //   Wave 41 (per-g 415 setAttribute) max 94ms 효과 미미.
+    //   Wave 42: anchor lat/lng + 그 시점 px 저장. pan 시 anchor 의 새 px - 기존 px = delta.
+    //   parent g.markers transform = `translate(dx, dy)` 1번. 진짜 빠름.
     let lastLevel = -1;
+    let anchorLat = 0;
+    let anchorLng = 0;
+    let anchorPx = { x: 0, y: 0 };
 
     const render = () => {
       const svg = svgRef.current;
@@ -182,24 +188,16 @@ export default function SvgMarkerLayer({
       const level = mapInst.getLevel?.() ?? 5;
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 
-      // Wave 41: pan-only optimization. Same level + same listings -> only update transforms.
-      //   Existing g.m elements have data-lat/data-lng attributes set on rebuild.
-      //   On pan: re-project lat/lng -> new px, setAttribute transform on each g.m.
-      //   No innerHTML rebuild = no DOM allocation = much faster.
+      // Wave 42: same level pan path = parent g transform only (1 setAttribute).
       if (lastLevel === level && svg.children.length > 0) {
         const markersG = svg.firstElementChild as SVGGElement | null;
-        if (markersG && markersG.children.length > 0) {
-          let allHaveCoords = true;
-          for (let i = 0; i < markersG.children.length; i++) {
-            const g = markersG.children[i] as SVGGElement;
-            const latStr = g.getAttribute('data-lat');
-            const lngStr = g.getAttribute('data-lng');
-            if (!latStr || !lngStr) { allHaveCoords = false; break; }
-            const ll = new maps.LatLng(parseFloat(latStr), parseFloat(lngStr));
-            const p = projection.pointFromCoords(ll);
-            g.setAttribute('transform', `translate(${p.x},${p.y})`);
-          }
-          if (allHaveCoords) return;  // pan-only path complete
+        if (markersG) {
+          const ll = new maps.LatLng(anchorLat, anchorLng);
+          const p = projection.pointFromCoords(ll);
+          const dx = p.x - anchorPx.x;
+          const dy = p.y - anchorPx.y;
+          markersG.setAttribute('transform', `translate(${dx},${dy})`);
+          return;  // 1 setAttribute = 진짜 빠름
         }
       }
       lastLevel = level;
@@ -246,6 +244,18 @@ export default function SvgMarkerLayer({
           );
         }
         svg.innerHTML = `<g class="markers">${elements.join('')}</g>`;
+        // Wave 42: anchor for spider-fy mode
+        const firstSF = svg.querySelector('g.markers > g.m') as SVGGElement | null;
+        if (firstSF) {
+          const aLat = parseFloat(firstSF.getAttribute('data-lat') || '0');
+          const aLng = parseFloat(firstSF.getAttribute('data-lng') || '0');
+          if (!isNaN(aLat) && !isNaN(aLng)) {
+            anchorLat = aLat;
+            anchorLng = aLng;
+            const ap = projection.pointFromCoords(new maps.LatLng(aLat, aLng));
+            anchorPx = { x: ap.x, y: ap.y };
+          }
+        }
         return;
       }
 
@@ -294,6 +304,18 @@ export default function SvgMarkerLayer({
 
       // ★★★ 단 1번 reflow ★★★
       svg.innerHTML = `<g class="markers">${elements.join('')}</g>`;
+      // Wave 42: anchor 저장 (첫 cluster lat/lng + 그 시점 px). 다음 pan 시 delta 계산.
+      const firstG = svg.querySelector('g.markers > g.m') as SVGGElement | null;
+      if (firstG) {
+        const aLat = parseFloat(firstG.getAttribute('data-lat') || '0');
+        const aLng = parseFloat(firstG.getAttribute('data-lng') || '0');
+        if (!isNaN(aLat) && !isNaN(aLng)) {
+          anchorLat = aLat;
+          anchorLng = aLng;
+          const ap = projection.pointFromCoords(new maps.LatLng(aLat, aLng));
+          anchorPx = { x: ap.x, y: ap.y };
+        }
+      }
     };
 
     render();
