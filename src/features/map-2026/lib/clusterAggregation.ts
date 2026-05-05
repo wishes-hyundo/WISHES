@@ -69,16 +69,21 @@ export function aggregateClusters(
 ): Map<string, MapListing[]> {
   const cellSize = isClusterFilterActive ? 0 : gridSizeForLevel(level);
   const clusters = new Map<string, MapListing[]>();
+  // Wave 67b (R-C1 / I-MARKER-2): cluster_token priority — same building name -> same cluster
   if (cellSize > 0) {
     for (const l of listings) {
-      const key = `g:${Math.floor(l.lat / cellSize)}:${Math.floor(l.lng / cellSize)}`;
+      const key = l.cluster_token
+        ? `t:${l.cluster_token}`
+        : `g:${Math.floor(l.lat / cellSize)}:${Math.floor(l.lng / cellSize)}`;
       const arr = clusters.get(key);
       if (arr) arr.push(l);
       else clusters.set(key, [l]);
     }
   } else {
     for (const l of listings) {
-      const key = `c:${l.lat.toFixed(6)}:${l.lng.toFixed(6)}`;
+      const key = l.cluster_token
+        ? `t:${l.cluster_token}`
+        : `c:${l.lat.toFixed(6)}:${l.lng.toFixed(6)}`;
       const arr = clusters.get(key);
       if (arr) arr.push(l);
       else clusters.set(key, [l]);
