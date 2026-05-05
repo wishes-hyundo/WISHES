@@ -1,26 +1,9 @@
 'use client';
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Wave 79 (사장님 명령 2026-05-06): KakaoMarkerLayer
-//
-// 배경: SvgMarkerLayer (custom SVG + transform 추적) → panning 시 마커 stuck.
-//   useEffect[serverClusters] cycle 가 transform reset 반복 → 사용자 시각 마커 고정.
-//
-// 사장님 결정: 5 업체 (직방/다방/네모/피터팬) 와 같은 architecture.
-//   = Kakao native CustomOverlay (SDK 가 자동 reposition).
-//   transform 추적 코드 0. SDK 가 panning/zoom 시 매 frame 자동 갱신.
-//
-// 작동:
-//   1. props.serverClusters 받음 (Wave 78a SQL 격자 제거 + tier1 좌표 + cluster_token)
-//   2. 각 cluster 마다 1 kakao.maps.CustomOverlay 생성
-//   3. cluster_id 기반 pool reuse (같은 id = setPosition + setContent 만 update)
-//   4. 사라진 cluster_id = setMap(null) + pool 제거
-//   5. click handler: content div delegation → onClickListing / onClusterFilter
-//
-// I-MARKER-3 (TIER1): tier1_lat 우선 사용 (building_centroids 정확 좌표)
-// I-COORD-3: raw lat/lng 그대로 (마스킹 X)
-// I-PERF-1: pool reuse 로 setMap 호출 최소화 (같은 cluster 면 setMap 호출 X)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Wave 79 + 87 + 91: KakaoMarkerLayer (Apple style safe)
+//   Wave 79: kakao.maps.CustomOverlay native (5-site arch)
+//   Wave 87: tier1_lat sanity check (~500m drift skip)
+//   Wave 91: Apple style via injected stylesheet (no inline transition/will-change)
 
 import { useEffect, useRef } from 'react';
 import type { MapListing } from '@/features/map-2026/store';
@@ -66,14 +49,13 @@ export interface KakaoMarkerLayerProps {
 }
 
 const CAT_COLORS = {
-  residence: 'rgba(34, 119, 80, 0.85)',
-  retail_office: 'rgba(196, 121, 47, 0.85)',
-  land: 'rgba(140, 88, 50, 0.85)',
-  investment: 'rgba(135, 75, 200, 0.85)',
+  residence: 'rgba(34, 119, 80, 0.92)',
+  retail_office: 'rgba(196, 121, 47, 0.92)',
+  land: 'rgba(140, 88, 50, 0.92)',
+  investment: 'rgba(135, 75, 200, 0.92)',
 } as const;
-const SEL_BG = 'rgba(220, 38, 38, 0.85)';
+const SEL_BG = 'rgba(220, 38, 38, 0.92)';
 
-// Wave 86: 직방 oneroom 비례 사이즈 (큰 cluster 큰 마커 시각 hierarchy)
 function markerSize(count: number): number {
   if (count >= 1000) return 70;
   if (count >= 500) return 64;
@@ -94,22 +76,25 @@ function formatCount(n: number): string {
   return Math.floor(n / 1000) + 'K';
 }
 
+const APPLE_STYLE_ID = 'wishes-marker-apple-style';
+const APPLE_STYLE_CSS = ".wishes-marker{display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:600;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',Arial,sans-serif;letter-spacing:-0.01em;border:1.5px solid rgba(255,255,255,0.92);box-shadow:0 1px 2px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.18);transition:transform 180ms cubic-bezier(0.16,1,0.3,1),box-shadow 180ms ease-out;transform:translateZ(0);}.wishes-marker:hover{transform:scale(1.08) translateZ(0);box-shadow:0 2px 4px rgba(0,0,0,0.16),0 8px 20px rgba(0,0,0,0.22);z-index:200;}";
+
+function injectAppleStyle(): void {
+  if (typeof document === 'undefined') return;
+  if (document.getElementById(APPLE_STYLE_ID)) return;
+  const styleEl = document.createElement('style');
+  styleEl.id = APPLE_STYLE_ID;
+  styleEl.textContent = APPLE_STYLE_CSS;
+  document.head.appendChild(styleEl);
+}
+
 function makeContentHtml(it: { count: number; bg: string; ids: string; singleId: string; }): string {
   const sz = markerSize(it.count);
   const fontSize = it.count >= 100 ? 12 : 11;
   const dataAttr = it.singleId
     ? `data-single-id="${it.singleId}"`
     : `data-cluster-ids="${it.ids}"`;
-  return `<div class="wishes-marker" ${dataAttr} style="`
-    + `display:flex;align-items:center;justify-content:center;`
-    + `width:${sz}px;height:${sz}px;background:${it.bg};`
-    + `border-radius:50%;color:#fff;font-weight:700;`
-    + `font-size:${fontSize}px;cursor:pointer;`
-    + `box-shadow:0 2px 6px rgba(0,0,0,0.3);`
-    + `user-select:none;-webkit-tap-highlight-color:transparent;`
-    + `font-family:-apple-system,BlinkMacSystemFont,sans-serif;`
-    + `pointer-events:auto;`
-    + `">${formatCount(it.count)}</div>`;
+  return `<div class="wishes-marker" ${dataAttr} style="width:${sz}px;height:${sz}px;background:${it.bg};font-size:${fontSize}px;">${formatCount(it.count)}</div>`;
 }
 
 export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
@@ -117,7 +102,10 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
   const propsRef = useRef(props);
   propsRef.current = props;
 
-  // sync overlays to serverClusters
+  useEffect(() => {
+    injectAppleStyle();
+  }, []);
+
   useEffect(() => {
     if (!props.map) return;
     const win = window as unknown as { kakao?: KakaoNamespace };
@@ -128,13 +116,9 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
     const seen = new Set<string>();
     const isClusterFilterActive = !!(props.clusterFilterIds && props.clusterFilterIds.length > 0);
 
-    // serverClusters path (no cluster filter active)
     if (props.serverClusters && props.serverClusters.length > 0 && !isClusterFilterActive) {
       const cat = CAT_COLORS[props.category];
       for (const sc of props.serverClusters) {
-        // Wave 87 (사장님 명령 2026-05-06): tier1_lat sanity check.
-        //   building_centroids 데이터 오염 (cluster lat 와 매우 다른 좌표) → markers viewport 밖.
-        //   cluster centroid (sc.lat) 와 0.005도 (~500m) 이상 차이 시 tier1 무시 + sc.lat 사용.
         const t1Lat = (typeof sc.tier1_lat === 'number' && Number.isFinite(sc.tier1_lat)) ? sc.tier1_lat : null;
         const t1Lng = (typeof sc.tier1_lng === 'number' && Number.isFinite(sc.tier1_lng)) ? sc.tier1_lng : null;
         const tier1Valid = t1Lat != null && t1Lng != null
@@ -153,7 +137,6 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
 
         const existing = pool.get(key);
         if (existing) {
-          // reuse: position + content update only
           existing.setPosition(new maps.LatLng(lat, lng));
           existing.setContent(html);
         } else {
@@ -169,7 +152,6 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
         }
       }
     } else if (isClusterFilterActive && props.clusterFilterListings) {
-      // cluster filter: spider-fy each listing in filter
       const cat = CAT_COLORS[props.category];
       const list = props.clusterFilterListings.length > 0
         ? props.clusterFilterListings
@@ -198,7 +180,6 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
       }
     }
 
-    // remove unseen overlays
     for (const [key, ov] of pool.entries()) {
       if (!seen.has(key)) {
         try { ov.setMap(null); } catch { /* noop */ }
@@ -207,7 +188,6 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
     }
   }, [props.serverClusters, props.map, props.category, props.selectedListingId, props.clusterFilterIds, props.clusterFilterListings, props.listings]);
 
-  // Click handler via document delegation
   useEffect(() => {
     if (!props.map) return;
     const handler = (e: Event) => {
@@ -234,7 +214,6 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
     return () => document.removeEventListener('click', handler, true);
   }, [props.map]);
 
-  // Cleanup all overlays on unmount
   useEffect(() => {
     return () => {
       const pool = overlayPoolRef.current;
