@@ -47,7 +47,7 @@ function isValidBbox(b: { west: number; south: number; east: number; north: numb
 function buildQueryString(
   bbox: NonNullable<ReturnType<typeof useMap2026Store.getState>['bbox']>,
   filter: FilterState,
-  limit = 100000
+  limit = 50  // Wave 70 (I-ARCH-3): visible viewport list 50개
 ) {
   const p = new URLSearchParams();
   p.set('west', bbox.west.toFixed(6));
@@ -110,7 +110,7 @@ export function useViewport() {
         try {
           const authHeader = await getCachedAuthHeader();
           if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
-          const res = await fetch(`/api/listings/viewport?${qs}`, { signal: myCtrl.signal, headers: authHeader });
+          const res = await fetch(`/api/listings/page?${qs}`, { signal: myCtrl.signal, headers: authHeader });
           if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
           if (!res.ok) {
             setCategoryCounts(null);
@@ -144,7 +144,7 @@ export function useViewport() {
         const qs = buildQueryString(bbox, filter);
         const authHeader = await getCachedAuthHeader();
         if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
-        const res = await fetch(`/api/listings/viewport?${qs}`, { signal: myCtrl.signal, headers: authHeader });
+        const res = await fetch(`/api/listings/page?${qs}`, { signal: myCtrl.signal, headers: authHeader });
         if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
         if (res.status >= 400 && res.status < 500) {
           setListings([]);
