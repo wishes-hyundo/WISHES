@@ -43,10 +43,13 @@ function buildQs(
   filter: FilterState,
 ): string {
   const p = new URLSearchParams();
-  p.set('swLat', bbox.south.toFixed(6));
-  p.set('swLng', bbox.west.toFixed(6));
-  p.set('neLat', bbox.north.toFixed(6));
-  p.set('neLng', bbox.east.toFixed(6));
+  // Wave 71 (사장님 명령 2026-05-06): bbox 좌표 2자리 라운딩 (~1km grid).
+  //   효과: 비슷한 bbox = 같은 cache key → Vercel CDN HIT 90%+ 추정.
+  //   trade-off: 화면이 ~1km 단위로 cluster 갱신 (직방/네이버 표준).
+  p.set('swLat', bbox.south.toFixed(2));
+  p.set('swLng', bbox.west.toFixed(2));
+  p.set('neLat', bbox.north.toFixed(2));
+  p.set('neLng', bbox.east.toFixed(2));
   p.set('zoom', String(zoom));
   // L-filtercluster1 (2026-04-24 pm) + L-clustercat1 (2026-04-26):
   //   viewport 동일 필터 + 카테고리 → types 자동 매핑.
@@ -124,7 +127,7 @@ export function useMapClusters(kakaoLevel: number) {
       } finally {
         if (!ctrl.signal.aborted) setLoading(false);
       }
-    }, 250);
+    }, 100);  // Wave 71: debounce 250 -> 100ms (5 업체 표준)
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
