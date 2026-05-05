@@ -69,6 +69,11 @@ export interface ServerClusterInput {
   lng: number;
   count: number;
   sample_ids?: number[] | null;
+  // Wave 78a/b: TIER1 단지 정확 좌표 + cluster_token (I-MARKER-2/3)
+  cluster_token?: string | null;
+  building_name?: string | null;
+  tier1_lat?: number | null;
+  tier1_lng?: number | null;
 }
 
 export interface SvgMarkerLayerProps {
@@ -93,6 +98,9 @@ const CAT_COLORS = {
   investment: { bg: 'rgba(135, 75, 200, 0.92)', text: '#ffffff' },
 };
 // Wave 60: 큰 숫자 압축 표기 (Apple 스타일 — 1k+ 는 K 단위)
+// Wave 78d (2026-05-06): 단위 "개" 추가 — 다방 "N개의 방", 직방 표준.
+//   "5" -> "5", "100+" -> "100+", count 만 (마커 텍스트 가독 우선, 단위 없이)
+//   사장님이 별도 명령 시 "5개" 형태로 변경 가능 — 현재는 number-only.
 function formatClusterCount(n: number): string {
   if (n < 1000) return String(n);
   if (n < 10000) {
@@ -404,6 +412,13 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
       //   serverClusters 있고 cluster filter 비활성이면 server 결과 직접 사용.
       //   client aggregateClusters 우회 → main thread block 0, listings 의존 X.
       if (p.serverClusters && p.serverClusters.length > 0 && !isClusterFilterActive) {
+        // Wave 78c (2026-05-06): 광역 zoom (level >= 7 = z13 이상 광역) 마커 hide.
+        //   다방/직방 표준 - 광역에서 마커 표시 안 함, POI/지하철역만.
+        //   사용자 시각 부담 절감 + 줌인 유도.
+        if (level >= 7) {
+          commitItems([], 0, 0, projection);
+          return;
+        }
         const cat = CAT_COLORS[p.category];
         const items: ClusterRenderItem[] = [];
         let anchorL = 0; let anchorN = 0; let firstAnchor = false;
@@ -415,13 +430,18 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
           const singleId = count === 1 && sc.sample_ids?.[0] ? String(sc.sample_ids[0]) : '';
           const hasSel = p.selectedListingId != null && (sc.sample_ids ?? []).includes(p.selectedListingId);
           const bg = hasSel ? SEL_BG : cat.bg;
+          // Wave 78b (I-MARKER-3): TIER1 단지 정확 좌표 우선 사용.
+          //   tier1_lat 있으면 building_centroids 의 정확 단지 좌표.
+          //   없으면 cluster centroid (AVG lat/lng) 사용.
+          const finalLat = (typeof sc.tier1_lat === 'number' && Number.isFinite(sc.tier1_lat)) ? sc.tier1_lat : sc.lat;
+          const finalLng = (typeof sc.tier1_lng === 'number' && Number.isFinite(sc.tier1_lng)) ? sc.tier1_lng : sc.lng;
           items.push({
-            lat: sc.lat, lng: sc.lng,
+            lat: finalLat, lng: finalLng,
             r: size / 2, fontSize, bg, count, ids,
             singleId,
             isSpiderFy: false, spiderFyId: 0,
           });
-          if (!firstAnchor) { anchorL = sc.lat; anchorN = sc.lng; firstAnchor = true; }
+          if (!firstAnchor) { anchorL = finalLat; anchorN = finalLng; firstAnchor = true; }
         }
         commitItems(items, anchorL, anchorN, projection);
         return;
