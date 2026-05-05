@@ -704,16 +704,16 @@ export default function MapClient() {
                   onClusterFilter={(ids, label) => setClusterFilter(ids, label)}
                 />
               )}
+              {/* Wave 62 (사장님 명령 2026-05-04): KakaoDeckOverlay 의 deck.gl WebGL 마커 비활성.
+                   사장님 발견: SVG 마커 + WebGL indigo 마커 두 종류 동시 표시 + canvas mousemove 시
+                   pointerEvents 토글로 마커 click 가로챔.
+                   fix: items=[] clusters=[] 전달 → deck.gl 아무것도 안 그림 → SVG 마커만 보이고 클릭 작동.
+                   컴포넌트 mount 유지 (Wave 30/31 회귀 회피). */}
               <KakaoDeckOverlay
                 map={kakaoMap}
                 container={containerRef.current}
-                // Wave 26.8 DEBUG (2026-05-04): Wave 25c 모드 부활 (DOM 마커 + WebGL cluster + WebGL items 병렬).
-                //   목적: Wave 26/26.2/26.6 의 'WebGL invisible' 회귀 진짜 원인 파악 (KakaoDeckOverlay 의 console.log 캡처).
-                //   안전: HtmlMarkerOverlay 그대로 (DOM 마커 살아있음 → 사용자 영업 영향 0).
-                //   시각: DOM 그린 + WebGL 인디고 마커 동시 표시 (Wave 25c prod 통과 상태와 동일).
-                //   진단 후: invisible 원인 발견 시 Day 1 (IconLayer 가격 chip + items 풀 활성) 안전하게 진행.
-                items={webglItems}
-                clusters={webglClusters}
+                items={[]}
+                clusters={[]}
                 onClickListing={onClickListing}
               />
               {/* L-worldclass1 (2026-04-24 pm) + L-adminfit2 (2026-04-24 pm):
