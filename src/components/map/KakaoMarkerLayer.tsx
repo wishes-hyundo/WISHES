@@ -73,7 +73,7 @@ const CAT_COLORS = {
 } as const;
 const SEL_BG = 'rgba(220, 38, 38, 0.85)';
 
-// Wave 84 (사장님 명령 2026-05-06): 직방 oneroom 비례 (큰 cluster 큰 마커)
+// Wave 86: 직방 oneroom 비례 사이즈 (큰 cluster 큰 마커 시각 hierarchy)
 function markerSize(count: number): number {
   if (count >= 1000) return 70;
   if (count >= 500) return 64;
@@ -94,32 +94,21 @@ function formatCount(n: number): string {
   return Math.floor(n / 1000) + 'K';
 }
 
-// Wave 84: Apple 스타일 디자인 (subtle white border, multi-layer shadow, SF Pro)
-//   hover scale 효과는 CSS class wishes-marker:hover 로 별도 처리 (inline 따옴표 충돌 회피)
 function makeContentHtml(it: { count: number; bg: string; ids: string; singleId: string; }): string {
   const sz = markerSize(it.count);
-  let fontSize = 11;
-  if (sz >= 56) fontSize = 14;
-  else if (sz >= 48) fontSize = 13;
-  else if (sz >= 42) fontSize = 12;
-  else if (sz >= 36) fontSize = 11;
-  else fontSize = 10;
+  const fontSize = it.count >= 100 ? 12 : 11;
   const dataAttr = it.singleId
     ? `data-single-id="${it.singleId}"`
     : `data-cluster-ids="${it.ids}"`;
   return `<div class="wishes-marker" ${dataAttr} style="`
     + `display:flex;align-items:center;justify-content:center;`
     + `width:${sz}px;height:${sz}px;background:${it.bg};`
-    + `border-radius:50%;`
-    + `border:1.5px solid rgba(255,255,255,0.95);`
-    + `box-shadow:0 1px 2px rgba(0,0,0,0.06),0 2px 8px rgba(0,0,0,0.16),0 4px 16px rgba(0,0,0,0.08);`
-    + `color:#fff;font-weight:600;font-size:${fontSize}px;`
+    + `border-radius:50%;color:#fff;font-weight:700;`
+    + `font-size:${fontSize}px;cursor:pointer;`
+    + `box-shadow:0 2px 6px rgba(0,0,0,0.3);`
+    + `user-select:none;-webkit-tap-highlight-color:transparent;`
     + `font-family:-apple-system,BlinkMacSystemFont,sans-serif;`
-    + `letter-spacing:-0.01em;`
-    + `cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;`
     + `pointer-events:auto;`
-    + `transition:transform 200ms cubic-bezier(0.4,0,0.2,1),box-shadow 200ms cubic-bezier(0.4,0,0.2,1);`
-    + `will-change:transform;`
     + `">${formatCount(it.count)}</div>`;
 }
 
@@ -142,8 +131,6 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
     // serverClusters path (no cluster filter active)
     if (props.serverClusters && props.serverClusters.length > 0 && !isClusterFilterActive) {
       const cat = CAT_COLORS[props.category];
-      // Wave 85: emergency rollback - hideSmallAtWideZoom 제거 (silent fail 원인 의심)
-      //   markers 0 root cause 진단. SQL Wave 82 v2 의 dong-only path 가 이미 작은 cluster 통합.
       for (const sc of props.serverClusters) {
         const lat = (typeof sc.tier1_lat === 'number' && Number.isFinite(sc.tier1_lat)) ? sc.tier1_lat : sc.lat;
         const lng = (typeof sc.tier1_lng === 'number' && Number.isFinite(sc.tier1_lng)) ? sc.tier1_lng : sc.lng;
