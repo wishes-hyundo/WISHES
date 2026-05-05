@@ -592,22 +592,4 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
     }
     // Wave 65 (사장님 명령 2026-05-04): listings 갱신 시 pan path 우회 — CRITICAL FIX.
     //   진단: 사장님 "지도 옮기면 마커 화면에 고정". 원인:
-    //     useEffect[listings] → renderRef.current() → render() → 같은 level →
-    //     pan path 만 실행 → worker render 호출 X → 새 listings 가 commitItems
-    //     안 거쳐서 markers redraw 안 됨. 옛 markers 만 화면에 남고 transform
-    //     으로만 이동 = stuck 보임.
-    //   fix: lastLevelRef -1 으로 invalidate → render() 가 zoom 경로로 →
-    //     worker 호출 → 응답 시 commitItems → 새 markers 정확 commit.
-    //   I-PERF-3 영구 INVARIANT 후보.
-    lastLevelRef.current = -1;
-    renderRef.current();
-  }, [props.listings]);
-
-  useEffect(() => {
-    // Wave 65: category/filter 변경도 commit 필요 — pan path 우회.
-    lastLevelRef.current = -1;
-    renderRef.current();
-  }, [props.category, props.selectedListingId, props.clusterFilterIds, props.clusterFilterListings]);
-
-  return null;
-}
+    //     useEffect[listings] → r

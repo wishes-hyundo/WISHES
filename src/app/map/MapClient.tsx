@@ -17,7 +17,7 @@
 // L-urgent1 (2026-04-22): ESLint no-html-link-for-pages — <a> → <Link> 전환.
 import Link from 'next/link';
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 import { useMap2026Store, type MapListing, type PropertyCategory } from '@/features/map-2026/store';
 import { useViewport } from '@/features/map-2026/hooks/useViewport';
@@ -51,7 +51,8 @@ import { CopyToastOutlet } from '@/features/map-2026/components/CopyToast';
 //   사이드바에서 항상 노출되던 기존 배치는 "사용하기 너무 불편" 피드백으로
 //   Gate 패턴 (카테고리 탭 클릭 → 모달) 으로 전환됨.
 
-import KakaoDeckOverlay, { type MapItem, type MapCluster } from '@/components/map/KakaoDeckOverlay';
+// Wave 66 (사장님 명령 2026-05-04): KakaoDeckOverlay 영구 제거 (R-D1).
+//   import + JSX + 관련 useMemo (items / webglClusters / webglItems / onClickWebglCluster) 모두 제거.
 // Wave 38 (2026-05-04 사장님 명령 끝까지 마무리): 직방/네모 패턴 SVG single-layer marker.
 //   Kakao CustomOverlay 415개 setMap = 146ms freeze 한계. SVG 1 layer 안 모든 cluster = 1 reflow.
 //   URL ?svg=1 시 활성 (사장님 검증). 다음 Wave 39 에서 기본 활성 + HtmlMarkerOverlay 비활성.
@@ -60,20 +61,14 @@ import SvgMarkerLayer from '@/components/map/SvgMarkerLayer';
 //   SVG 50ms 한계 도달 (SVG DOM reflow 자체). Canvas 2D = 53 cluster 5ms 예상.
 //   ?canvas=1 활성 (검증), Wave 50 에서 default.
 import CanvasMarkerLayer from '@/components/map/CanvasMarkerLayer';
-// Wave 24 (2026-05-04 사장님 명령): WebGL cluster 활성 — clusterAggregation lib 으로 cluster Map 생성.
-//   HtmlMarkerOverlay (DOM) 와 병렬 렌더 — 시각 비교 검증용. Wave 26 에 DOM 비활성.
-import {
-  aggregateClusters,
-  applySpiderFy,
-  computeClusterPosition,
-} from '@/features/map-2026/lib/clusterAggregation';
-// Wave 25a (2026-05-04): WebGL cluster 도 카테고리 필터 + cross-residential 적용
-//   → DOM 마커와 카운트 일치. 'investment' 탭은 cross-cutting (필터 미적용).
-import { listingCategoryOf } from '@/features/map-2026/lib/markerTier';
+// Wave 66 (2026-05-04): clusterAggregation + listingCategoryOf imports 제거.
+//   webglClusters / webglItems useMemo 가 사용했던 함수들. KakaoDeckOverlay 제거 후 unused.
 // L-mapmarker1 (2026-04-23): 네이버·직방 스타일 HTML 마커 (Kakao CustomOverlay).
 //   KakaoDeckOverlay 의 item scatter 는 items=[] 로 비활성화 (cluster 레이어는 유지).
-import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay';
-// L-adminpoly1 (2026-04-24 pm): 축소 뷰 시/도 폴리곤 하이라이트
+// Wave 66 (사장님 명령 2026-05-04): HtmlMarkerOverlay 영구 제거 — Wave 45 미완 마무리.
+//   2-layer 중첩 (SvgMarkerLayer + HtmlMarkerOverlay) 가 마커 stuck 의 근본 원인 R-A2.
+//   import 자체 제거 = mount 가능성 0.
+// import HtmlMarkerOverlay from '@/features/map-2026/components/HtmlMarkerOverlay';
 import AdminRegionOverlay from '@/features/map-2026/components/AdminRegionOverlay';
 // L-naver-2026minimal1 (2026-04-27): IsochroneOverlay / PoiOverlay 제거 (사용자 요청).
 import MobileListSheet from '@/features/map-2026/components/MobileListSheet';
@@ -464,127 +459,9 @@ export default function MapClient() {
   //   `?listing=ID` 즉시 반영. 새로고침/공유링크에서 자동 카드 오픈.
   useListingUrlSync();
 
-  // listings → Deck 아이템 변환
-  const items: MapItem[] = useMemo(
-    () =>
-      listings.map((l) => {
-        const unified =
-          l.deal === '매매'
-            ? l.price
-            : l.deal === '전세'
-            ? l.deposit
-            : l.monthly;
-        return {
-          id: l.id,
-          lat: l.lat,
-          lng: l.lng,
-          price_unified: unified,
-          type: l.type,
-          deal: l.deal,
-          thumb_url: l.thumbnail_url,
-        };
-      }),
-    [listings]
-  );
-
-  // Wave 24 (2026-05-04): WebGL cluster ScatterplotLayer 데이터 생성.
-  //   clusterAggregation lib 의 aggregateClusters + computeClusterPosition 사용
-  //   → HtmlMarkerOverlay 가 사용하는 것과 동일 알고리즘 = 동일 cluster 결과.
-  //   병렬 렌더 모드: WebGL 마커 (인디고) + DOM 마커 (그린) 동시 표시 → 시각 비교.
-  //   Wave 25 에서 click + spider-fy 포팅, Wave 26 에 DOM 비활성.
-  const webglClusters: MapCluster[] = useMemo(() => {
-    // Wave 25c (2026-05-04): clusterFilterIds 활성 시 cluster 미표시 (spider-fy 모드).
-    //   DOM HtmlMarkerOverlay G-123 'return after spider-fy' 동작과 동일.
-    if (clusterFilterIds != null) return [];
-    if (!listings || listings.length === 0) return [];
-    // Wave 25a: 카테고리 필터 + cross-residential — DOM 마커와 동일 데이터.
-    const filtered = filterCategory === 'investment'
-      ? listings
-      : listings.filter((l) => listingCategoryOf(l) === filterCategory);
-    if (filtered.length === 0) return [];
-    const aggregated = aggregateClusters(filtered, kakaoLevel, false);
-    const out: MapCluster[] = [];
-    for (const [key, arr] of aggregated) {
-      const pos = computeClusterPosition(arr);
-      // Wave 25b (2026-05-04): cluster 안 모든 매물 ID + 다수 카테고리 — DOM 마커와 일치.
-      const allIds = arr.map((l) => l.id);
-      // 카테고리 = cluster 안 매물 majority. 'investment' 탭에선 카테고리별 다양 → majority 결과 사용.
-      const catCounts: Record<string, number> = {};
-      for (const l of arr) {
-        const c = listingCategoryOf(l);
-        catCounts[c] = (catCounts[c] ?? 0) + 1;
-      }
-      let topCat: 'residence' | 'retail_office' | 'land' | 'investment' = 'residence';
-      let topN = 0;
-      for (const [c, n] of Object.entries(catCounts)) {
-        if (n > topN) {
-          topN = n;
-          topCat = c as typeof topCat;
-        }
-      }
-      out.push({
-        cluster_id: key,
-        lat: pos.lat,
-        lng: pos.lng,
-        count: arr.length,
-        sample_ids: allIds.slice(0, 5),
-        all_ids: allIds,
-        category: topCat,
-      });
-    }
-    return out;
-  }, [listings, kakaoLevel, clusterFilterIds, filterCategory]);
-
-  // Wave 25c (2026-05-04): clusterFilterIds 활성 시 spider-fy 결과를 individual marker (MapItem) 로 변환.
-  //   DOM HtmlMarkerOverlay G-123 spider-fy 와 동일 좌표 (applySpiderFy 같은 함수).
-  //   비활성 시 [] — KakaoDeckOverlay itemScatter 비활성.
-  const webglItems: MapItem[] = useMemo(() => {
-    if (clusterFilterIds == null) return [];
-    const source: MapListing[] = clusterFilterListings && clusterFilterListings.length > 0
-      ? clusterFilterListings
-      : listings.filter((l) => clusterFilterIds.includes(l.id));
-    if (source.length === 0) return [];
-    const spiderFied = applySpiderFy(source);
-    return spiderFied.map((s) => {
-      const l = s.listing;
-      const unified =
-        l.deal === '매매'
-          ? l.price
-          : l.deal === '전세'
-          ? l.deposit
-          : l.monthly;
-      return {
-        id: l.id,
-        lat: s.displayLat,
-        lng: s.displayLng,
-        price_unified: unified,
-        type: l.type,
-        deal: l.deal,
-        thumb_url: l.thumbnail_url,
-      };
-    });
-  }, [clusterFilterIds, clusterFilterListings, listings]);
-
-  // Wave 25b (2026-05-04): WebGL cluster 클릭 핸들러.
-  //   count == 1 → 매물 detail modal. count > 1 → setClusterFilter (사이드바에 N개 매물만 표시).
-  //   DOM HtmlMarkerOverlay 와 동일 동작 (병렬 모드라 둘 다 클릭 가능).
-  const onClickWebglCluster = useCallback(
-    (cluster: MapCluster) => {
-      if (!cluster) return;
-      if (cluster.count === 1 && cluster.all_ids?.[0]) {
-        const id = cluster.all_ids[0];
-        // listings 에서 매물 찾아 detail modal
-        // openListingDetail 은 store action — selectListing + detailListingId 세팅 모두 처리.
-        useMap2026Store.getState().openListingDetail(id);
-        return;
-      }
-      const ids = cluster.all_ids ?? cluster.sample_ids ?? [];
-      if (ids.length > 0) {
-        setClusterFilter(ids, null);
-      }
-    },
-    [setClusterFilter]
-  );
+  // Wave 66 (사장님 명령 2026-05-04): items / webglClusters / webglItems / onClickWebglCluster
+  //   useMemo 4개 영구 제거 (R-D1 의 일부). KakaoDeckOverlay 가 제거됐으므로 모두 unused.
+  //   효과: render 비용 감소 + listings 변경 시 main thread blocking 감소 (특히 cluster 집계).
 
   const onClickListing = useCallback(
     (id: number) => {
@@ -729,33 +606,17 @@ export default function MapClient() {
                   onClusterFilter={(ids, label) => setClusterFilter(ids, label)}
                 />
               ))}
-              {/* Wave 62 (사장님 명령 2026-05-04): KakaoDeckOverlay 의 deck.gl WebGL 마커 비활성.
-                   사장님 발견: SVG 마커 + WebGL indigo 마커 두 종류 동시 표시 + canvas mousemove 시
-                   pointerEvents 토글로 마커 click 가로챔.
-                   fix: items=[] clusters=[] 전달 → deck.gl 아무것도 안 그림 → SVG 마커만 보이고 클릭 작동.
-                   컴포넌트 mount 유지 (Wave 30/31 회귀 회피). */}
-              <KakaoDeckOverlay
-                map={kakaoMap}
-                container={containerRef.current}
-                items={[]}
-                clusters={[]}
-                onClickListing={onClickListing}
-              />
-              {/* L-worldclass1 (2026-04-24 pm) + L-adminfit2 (2026-04-24 pm):
-                  useMapClusters 결과를 HtmlMarkerOverlay 와 AdminRegionOverlay
-                  양쪽에 공유하여 축소 뷰에서도 시/도 폴리곤 count 계산 가능. */}
-              <MapOverlaysWithClusters
-                kakaoMap={kakaoMap}
-                useSvg={useSvg}
-                kakaoLevel={kakaoLevel}
-                listings={listings}
-                selectedListingId={detailListingId}
-                category={filterCategory}
-                onClickListing={onClickListing}
-                onClusterFilter={setClusterFilter}
-                clusterFilterIds={clusterFilterIds}
-                clusterFilterListings={clusterFilterListings}
-              />
+              {/* Wave 66 (사장님 명령 2026-05-04): KakaoDeckOverlay 완전 제거 (R-D1).
+                   Wave 62 의 items=[]/clusters=[] 부분 fix 만으로는 deck.gl WebGL canvas + mousemove
+                   listener 가 mount 되어 잠재 충돌. JSX 자체 제거 = 100% 안전. */}
+              {/* Wave 66: MapOverlaysWithClusters wrapper 제거 (R-D2) +
+                   HtmlMarkerOverlay 영구 제거 (R-A2). AdminRegionOverlay 만 z13 폴리곤 zone 활성. */}
+              {kakaoLevel >= 7 && (
+                <MapErrorBoundary>
+                  <AdminRegionOverlay map={kakaoMap} listings={listings} />
+                </MapErrorBoundary>
+              )}
+              <GeoLoadingIndicator />
             </>
           ) : null}
           <SemanticZoomIndicator />
@@ -872,84 +733,10 @@ function TopRightActions() {
   );
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// L-worldclass1 (2026-04-24 pm) + L-adminfit2 (2026-04-24 pm):
-// useMapClusters 결과를 HtmlMarkerOverlay 와 AdminRegionOverlay 양쪽이
-// 공유하는 wrapper. hook 호출은 map mount 이후에만 유효하므로 조건부 subtree
-// 안에서 쓴다.
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-function MapOverlaysWithClusters(props: {
-  kakaoMap: unknown;
-  kakaoLevel: number;
-  listings: MapListing[];
-  useSvg?: boolean;
-  selectedListingId: number | null;
-  category: PropertyCategory;
-  onClickListing: (id: number) => void;
-  // L-complexlabel1 (2026-04-26): label 추가 (단지명/지역명 표시용)
-  onClusterFilter: (ids: number[] | null, label?: string | null) => void;
-  clusterFilterIds: number[] | null;
-  clusterFilterListings: MapListing[] | null;
-}) {
-  // G-114 (2026-05-04 사장님): useMapClusters 호출 제거.
-  //   HtmlMarkerOverlay 는 SERVER_CLUSTER_DISABLED=true 로 serverClusters 무시,
-  //   AdminRegionOverlay 는 serverClusters prop 선언만 하고 본문에서 사용 안 함.
-  //   /api/map/clusters fetch 가 100% wasted (분당 수십 회 무용 HTTP 요청).
-  return (
-    <>
-      {/* Wave 26 (2026-05-04 사장님 명령): DOM 마커 비활성, WebGL (KakaoDeckOverlay) only.
-          영구 freeze 해결 — HtmlMarkerOverlay 의 1068줄 DOM CustomOverlay 코드가
-          167~244ms longtask 의 원인이었음 (사장님 측정). WebGL 로 60fps 보장.
-          모든 인터랙션 (cluster click / spider-fy / individual click) 은 KakaoDeckOverlay
-          (Wave 24~25c) 가 담당. 코드 자체는 Wave 27 까지 유지 — 1주일 안정화 후 삭제.
-          롤백 필요 시: 이 분기를 false → true 로 변경 후 재배포 (1분). */}
-      {/* Wave 26.2 (2026-05-04 사장님 명령): HtmlMarkerOverlay 컴포넌트는 mount 유지 (Kakao map
-          idle/zoom event listener 등록 유지 — KakaoDeckOverlay 의 redraw 사이클 의존성 보존).
-          listings={[]} 만 전달 → bucketListings([]) → 마커 0개 생성. DOM 마커 사라지지만
-          컴포넌트 자체는 mount 상태 → Wave 26 의 회귀 (WebGL 동시 사라짐) 회피.
-          영구 freeze 해결 시도 #2.
-          롤백: listings={[]} 를 listings={props.listings} 로 변경 (1줄). */}
-      {/* Wave 26.3 (2026-05-04): props.listings 복원 - hypothesis 2 도 실패. */}
-      {/* Wave 26.7 (2026-05-04): DOM only - WebGL only 시도 (26, 26.2, 26.6) 모두 실패. */}
-      {/* Wave 31 ROLLBACK (2026-05-04): Wave 30 의 listings={[]} 가 prod 측정 결과 WebGL invisible 회귀.
-          v28 가설 (DOM trigger 끊김 → WebGL setProps reconcile 안 됨) 사실 확정.
-          listings={props.listings} 복원 = DOM + WebGL 병렬. freeze 146ms baseline 유지.
-          진짜 freeze 영구 fix = Web Worker + supercluster (Wave 32 plan). */}
-      {/* Wave 45 (2026-05-04 사장님 명령 "끝까지"): SVG 기본 모드에서 HtmlMarkerOverlay 완전 unmount.
-          - useSvg=true (default): SvgMarkerLayer + KakaoDeckOverlay self-trigger (Wave 32) 만 사용.
-            HtmlMarkerOverlay 컴포넌트 자체 unmount → listings=[] 잔여 부하 (event listener / map idle handler) 0.
-          - useSvg=false (?svg=0 비상 롤백): 옛날 모드 복원 (HtmlMarkerOverlay 마운트, listings full).
-          Wave 30/31 회귀 (WebGL invisible) 는 Wave 32 self-trigger fallback (100/500/1000/2000/5000ms 재시도) 로 해결.
-          기대: zoom freeze 60ms → 20~30ms (HtmlMarkerOverlay 잔여 부하 제거). */}
-      {!props.useSvg && (
-        <HtmlMarkerOverlay
-          map={props.kakaoMap}
-          listings={props.listings}
-          selectedListingId={props.selectedListingId}
-          category={props.category}
-          onClickListing={props.onClickListing}
-          onClusterFilter={props.onClusterFilter}
-          clusterFilterIds={props.clusterFilterIds}
-          clusterFilterListings={props.clusterFilterListings}
-        />
-      )}
-      {/* Wave 57 (사장님 명령 2026-05-04): I-POLY-1 강제 — z14+ (level<=6) 시 AdminRegionOverlay
-          자체 unmount. Wave 54/55/56 의 cleanup 시도 모두 실패 후 결정.
-          unmount = useEffect cleanup 자동 호출 + DOM 자동 제거 = 100% 보장.
-          비상 롤백: 이 조건 제거 → 항상 mount. */}
-      {props.kakaoLevel >= 7 && (
-        <MapErrorBoundary>
-          <AdminRegionOverlay
-            map={props.kakaoMap}
-            listings={props.listings}
-            kakaoLevel={props.kakaoLevel}
-          />
-        </MapErrorBoundary>
-      )}
-      <GeoLoadingIndicator />
-    </>
-  );
-}
+// Wave 66 (사장님 명령 2026-05-04): MapOverlaysWithClusters wrapper 영구 제거 (R-D2).
+//   useMapClusters 호출 이미 제거됨 (G-114). HtmlMarkerOverlay 도 제거 (R-A2).
+//   AdminRegionOverlay 는 main render 에서 직접 mount (kakaoLevel >= 7 조건).
+
 
 // L-naver-2026skel2: store 의 geoLoading 구독해서 MapLoadingIndicator 표시.
 function GeoLoadingIndicator() {

@@ -85,14 +85,13 @@ export interface MapListing {
   station_distance: number | null;
   built_year: string | null;
   building_name: string | null;
-  // L-cluster-token1 (사장님 명령 2026-05-02): 비로그인에도 단지 그룹화 가능
-  //   단지명 hash 만 노출 (이름은 비로그인에 마스킹). cluster key 로 사용.
-  cluster_token?: string | null;
-  // K-2 (사장님 명령 2026-05-02): TIER1 매물 (아파트/오피스텔/주상복합/도시형생활주택) 단지 좌표
-  //   네이버 표준 단지 마커용. 좌표 평균 X, building_centroids 의 정확 단지 좌표.
-  //   TIER1 가 아니면 null. 비로그인에도 노출 (공공 정보).
-  tier1_lat?: number | null;
-  tier1_lng?: number | null;
+  // L-buildkey1 (2026-05-02 M-1): I-MARKER-2 cluster key 우선순위 구현용.
+  //   서버 viewport API 가 응답에 추가 — 비로그인도 단지 hash 받음 (privacy 유지).
+  cluster_token: string | null;
+  // L-tier1centroid1 (2026-05-02 K-2): TIER1 매물의 정확 단지 좌표 (building_centroids).
+  //   cluster centroid 평균 좌표 대신 사용 → 좌표 마스킹 격자 패턴 회피.
+  tier1_lat: number | null;
+  tier1_lng: number | null;
   dong: string | null;
   address: string | null;
   title: string | null;
@@ -344,7 +343,24 @@ export const useMap2026Store = create<Map2026Store>()(
     setMode: (mode) => set({ mode }),
 
     filter: { ...DEFAULT_FILTER },
-    setFilter: (patch) => set((s) => ({ filter: { ...s.filter, ...patch } })),
+    // Wave 66 (R-Cs1): setFilter — 같은 값 patch 시 새 객체 반환 X.
+    //   기존: ({ filter: { ...s.filter, ...patch } }) — 매 호출마다 새 reference →
+    //     useViewport useEffect [filter] 무한 발화 + useFilterUrlSync 300ms debounce reset.
+    //   fix: shallow equal 체크 → 동일 값이면 set({}) 으로 no-op (zustand 가 reference 유지).
+    setFilter: (patch) =>
+      set((s) => {
+        let changed = false;
+        for (const k of Object.keys(patch) as (keyof FilterState)[]) {
+          const a = (s.filter as Record<string, unknown>)[k as string];
+          const b = (patch as Record<string, unknown>)[k as string];
+          // 배열은 length + element 비교
+          if (Array.isArray(a) && Array.isArray(b)) {
+            if (a.length !== b.length || a.some((v, i) => v !== b[i])) { changed = true; break; }
+          } else if (a !== b) { changed = true; break; }
+        }
+        if (!changed) return {};
+        return { filter: { ...s.filter, ...patch } };
+      }),
 
     setCategory: (category) =>
       set((s) => {
@@ -434,22 +450,11 @@ export const useMap2026Store = create<Map2026Store>()(
             try {
               const kakao = (window as unknown as { kakao?: { maps: { LatLng: new (lat: number, lng: number) => unknown } } }).kakao;
               if (kakao) {
-                // L-mapfix-2026-05-02 (사장님 명령 — "1마커 일때 클릭하면 매물표시가
-                //   안되고 다시 마커가 합쳐지고"):
-                //   가까이 줌인 (Kakao level ≤ 3, ~z17 이상) 상태에서는 panTo 가
-                //   idle event → 뷰포트 재조회 → grid clustering 재발화 → 클릭한
-                //   마커가 다른 매물과 묶여 보이는 문제 유발.
-                //   사용자가 이미 그 위치를 보고 있을 가능성이 매우 높으므로
-                //   panTo 도 skip — selectedId 만 set 하고 modal 만 띄움.
-                const curLv = typeof map.getLevel === 'function'
-                  ? Number(map.getLevel())
-                  : 5;
-                if (curLv > 3) {
-                  // 충분히 가까이 있지 않으면 중앙 정렬
-                  map.panTo(new kakao.maps.LatLng(l.lat, l.lng));
-                }
-                // L-detailcache1 (2026-04-23 p.m.): setLevel 제거 (모바일 과도 줌
-                //   → idle → listings 초기화 → 상세 패널 증발 사이클 유발).
+                // L-detailcache1 (2026-04-23 p.m.): setLevel 제거.
+                //   이전 setLevel(Math.min(curLevel, 3)) 은 모바일에서 과도 줌 →
+                //   idle 이벤트 → 뷰포트 재조회 → listings 초기화 → 상세 패널 증발
+                //   사이클을 유발. panTo 만으로 충분 (중앙 정렬 목적).
+                map.panTo(new kakao.maps.LatLng(l.lat, l.lng));
               }
             } catch { /* noop */ }
           } else if (typeof map.flyTo === 'function') {
@@ -567,8 +572,16 @@ export const useMap2026Store = create<Map2026Store>()(
       // 동일한 id 세트로 중복 호출되면 skip (연속 클릭 방지)
       const prev = get().clusterFilterIds;
       if (prev && prev.length === ids.length && prev.every((v, i) => v === ids[i])) return;
-      // ids 먼저 저장 → ListPanel/HtmlMarker 즉시 필터 반영 (listings 교집합)
-      set({ clusterFilterIds: ids, clusterFilterListings: null, clusterFilterLabel: label });
+      // Wave 66 (R-Cs5): 즉시 listings 교집합으로 hydrate — by-ids 응답 대기 중에도 ListPanel 정확 매물만 표시.
+      //   기존: clusterFilterListings = null → ListPanel 이 listings fallback (전체 보였다가 좁혀짐 깜박임).
+      //   fix: 클라이언트가 가진 listings 에서 ids 교집합 즉시 set → 응답 도착 시 더 정확한 데이터로 교체.
+      const idSet = new Set(ids);
+      const immediate = (get().listings ?? []).filter((l) => idSet.has(l.id));
+      set({
+        clusterFilterIds: ids,
+        clusterFilterListings: immediate.length > 0 ? immediate : null,
+        clusterFilterLabel: label,
+      });
       // L-clusterexact3: by-ids 로 정확한 매물 객체 hydrate (viewport limit 회피).
       //   응답 도착 시점에 여전히 같은 필터 상태일 때만 반영 (race condition 방지).
       (async () => {

@@ -1,13 +1,15 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 지도 뷰포트 변경 → /api/listings/viewport 호출
-// Wave 65 디바운스 100ms (직방/네이버 표준), AbortController 경쟁조건 방지
+// Wave 65 디바운스 100ms (직방/네이버 표준), Wave 66 race 강화 + 광역 뷰 통합
 //
 // L-vp2 (2026-04-22): 서버가 400 으로 돌려주던 "bbox 너무 큼 / 좌표 반전"
 //   상태를 클라이언트에서 선 차단.
-// Wave 65 (사장님 명령 2026-05-04 "직방/네이버 능가 X"): 두 가지 latency 줄임:
+// Wave 65 (사장님 명령 2026-05-04 "직방/네이버 능가 X"):
 //   (1) debounce 250ms → 100ms (직방 80ms, 네이버 120ms 표준)
 //   (2) getSession() 모듈 캐시 (5초) — 매 fetch 마다 Supabase 호출 안 함
-//       → 비로그인/로그인 둘 다 매 viewport 갱신 시 50-100ms 단축.
+// Wave 66 (사장님 명령 2026-05-04 "전수 root cause fix"):
+//   (3) R-Cs2: race condition 강화 — abortRef.current 직접 비교로 stale 응답 차단
+//   (4) R-B5: 광역 뷰도 abort/auth/race 일관 — 깜박임 제거
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { useEffect, useRef } from 'react';
 import { useMap2026Store, type FilterState } from '../store';
@@ -36,9 +38,6 @@ async function getCachedAuthHeader(): Promise<Record<string, string>> {
 }
 
 // L-nolimit1 (2026-04-26): bbox 가 동 단위 (≤ 0.3°) 이하일 때만 listings fetch.
-//   광역 뷰 (구/시도) 에선 마커는 serverClusters 로 충분, 카드는 의미 없음.
-//   사이드바 총합은 categoryCounts (서버 정확 집계) 으로 표시됨.
-//   동 단위 viewport 안에서는 매물 수가 자연스럽게 적어 limit 불필요.
 const MAX_VIEWPORT_DEG = 0.3;
 
 function isValidBbox(b: { west: number; south: number; east: number; north: number }): boolean {
@@ -52,11 +51,6 @@ function isValidBbox(b: { west: number; south: number; east: number; north: numb
 function buildQueryString(
   bbox: NonNullable<ReturnType<typeof useMap2026Store.getState>['bbox']>,
   filter: FilterState,
-  // L-nolimit1 (2026-04-26): limit 제거.  bbox 가 ≤ 0.3° 일 때만 listings 를
-  //   fetch 하므로 (위 isValidBbox), 동 단위 viewport 에서는 자연스럽게 매물
-  //   수가 수백~수천 단위.  넓은 viewport 에선 fetch 자체가 차단됨.
-  //   사이드바 총합은 categoryCounts (서버 정확 집계) 으로 표시.
-  //   10만 매물 추가되어도 동 단위 viewport 안에는 일부만 들어옴.
   limit = 100000
 ) {
   const p = new URLSearchParams();
@@ -101,20 +95,13 @@ export function useViewport() {
 
   useEffect(() => {
     if (!bbox) return;
-    // L-nolimit2 (2026-04-26): 광역 뷰 (>0.3°) 진입 시 listings/categoryCounts 를
-    //   명시적으로 reset.  이전 cached 값이 남아 사이드바에 stale 카드/카운트가
-    //   표시되던 문제 해결.
+
     if (!isValidBbox(bbox)) {
-      // L-widecount1 (2026-04-26): 광역 뷰에서도 categoryCounts 만 lightweight fetch.
-      //   listings 는 비우고 (큰 viewport 에서 카드는 의미 없음), 카운트만 정확히
-      //   표시하여 카테고리 탭 카운트 "0" 으로 잘못 보이는 문제 해결.
-      // L-widecount2 (2026-04-26 night): 서버 bbox cap 2° per axis + area cap 2.5 sq°.
-      //   광역 뷰 진입 시 bbox 를 1.4° (1.96 sq°) 로 클램프 — 둘 다 통과.
-      setListings([]);
+      // Wave 66 (R-B5): 광역 뷰도 abort/auth/race 통합. 사장님이 본 빈 패널 깜박임 제거.
       setLoading(false);
       const cw = (bbox.west + bbox.east) / 2;
       const ch = (bbox.south + bbox.north) / 2;
-      const halfDeg = 0.7;  // 1.4° box, 1.96 sq° (under 2.5 cap)
+      const halfDeg = 0.7;
       const clamped = {
         west: cw - halfDeg,
         east: cw + halfDeg,
@@ -122,32 +109,55 @@ export function useViewport() {
         north: ch + halfDeg,
       };
       const qs = buildQueryString(clamped, filter, 1);
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      const myCtrl = ctrl;
       (async () => {
         try {
-          const res = await fetch(`/api/listings/viewport?${qs}`);
-          if (!res.ok) { setCategoryCounts(null); return; }
+          const authHeader = await getCachedAuthHeader();
+          if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
+          const res = await fetch(`/api/listings/viewport?${qs}`, { signal: myCtrl.signal, headers: authHeader });
+          if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
+          if (!res.ok) {
+            setCategoryCounts(null);
+            setListings([]);
+            return;
+          }
           const json = await res.json();
+          if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
           setCategoryCounts(json.counts ?? null);
-        } catch { setCategoryCounts(null); }
+          // 광역 뷰는 listings 비움 (마커 zone 아님 — 폴리곤만 표시)
+          setListings([]);
+        } catch (err) {
+          if ((err as Error).name !== 'AbortError' && abortRef.current === myCtrl) {
+            setCategoryCounts(null);
+            setListings([]);
+          }
+        }
       })();
       return;
     }
 
     if (timerRef.current) clearTimeout(timerRef.current);
-    // Wave 65 (사장님 명령 2026-05-04): debounce 250ms → 100ms (직방/네이버 표준).
+    // Wave 65: debounce 250ms → 100ms (직방/네이버 표준).
     timerRef.current = setTimeout(async () => {
       abortRef.current?.abort();
       const ctrl = new AbortController();
       abortRef.current = ctrl;
+      const myCtrl = ctrl;
 
       setLoading(true);
       try {
         const qs = buildQueryString(bbox, filter);
-        // Wave 65: 모듈 캐시 (5초 TTL) — 매 fetch 마다 Supabase getSession 안 호출.
         const authHeader = await getCachedAuthHeader();
-        const res = await fetch(`/api/listings/viewport?${qs}`, { signal: ctrl.signal, headers: authHeader });
+        // Wave 66 (R-Cs2): auth fetch 사이 새 fetch 시작 시 즉시 종료
+        if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
+        const res = await fetch(`/api/listings/viewport?${qs}`, { signal: myCtrl.signal, headers: authHeader });
+        // Wave 66 (R-Cs2): 응답 도착 후에도 race 체크 (덮어쓰기 방지)
+        if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
         if (res.status >= 400 && res.status < 500) {
-          if (!ctrl.signal.aborted) setListings([]);
+          setListings([]);
           if (res.status !== 400) {
             console.warn('[useViewport] non-400 4xx', res.status);
           }
@@ -155,17 +165,16 @@ export function useViewport() {
         }
         if (!res.ok) throw new Error(`viewport ${res.status}`);
         const json = await res.json();
-        if (!ctrl.signal.aborted) {
-          setListings(json.listings ?? []);
-          // L-catcount1: 서버가 4개 카테고리 count 도 함께 반환 (옵셔널)
-          setCategoryCounts(json.counts ?? null);
-        }
+        // Wave 66 (R-Cs2): json parse 후 final race 체크
+        if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
+        setListings(json.listings ?? []);
+        setCategoryCounts(json.counts ?? null);
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           console.error('[useViewport]', err);
         }
       } finally {
-        if (!ctrl.signal.aborted) setLoading(false);
+        if (abortRef.current === myCtrl) setLoading(false);
       }
     }, 100);
 
