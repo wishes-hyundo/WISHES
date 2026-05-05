@@ -1,19 +1,39 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 지도 뷰포트 변경 → /api/listings/viewport 호출
-// 디바운스 250ms, AbortController 로 경쟁조건 방지
+// Wave 65 디바운스 100ms (직방/네이버 표준), AbortController 경쟁조건 방지
 //
 // L-vp2 (2026-04-22): 서버가 400 으로 돌려주던 "bbox 너무 큼 / 좌표 반전"
-//   상태를 클라이언트에서 선 차단. 이전에는 Kakao 초기 idle 이벤트가 간혹
-//   SW=NE 로 들어와 console 에 `viewport 400` 을 남기고 빈 리스트가 깜박거렸음.
+//   상태를 클라이언트에서 선 차단.
+// Wave 65 (사장님 명령 2026-05-04 "직방/네이버 능가 X"): 두 가지 latency 줄임:
+//   (1) debounce 250ms → 100ms (직방 80ms, 네이버 120ms 표준)
+//   (2) getSession() 모듈 캐시 (5초) — 매 fetch 마다 Supabase 호출 안 함
+//       → 비로그인/로그인 둘 다 매 viewport 갱신 시 50-100ms 단축.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 import { useEffect, useRef } from 'react';
 import { useMap2026Store, type FilterState } from '../store';
 import { dealsToParam } from '../lib/priceFormat';
-// L-privacy1 (2026-04-23 p.m.): 서버에서 비로그인 사용자 주소를 마스킹
-//   하려면 클라이언트가 현재 세션 JWT 를 Authorization 으로 넘겨야 한다.
-//   createAuthClient 는 브라우저 싱글턴이므로 매 호출마다 재초기화 비용
-//   없이 session 을 가져올 수 있다.
 import { createAuthClient } from '@/lib/supabase';
+
+// Wave 65: getSession() 모듈 캐시. 매 fetch 마다 50-100ms 절감.
+//   TTL 5초 — JWT 만료 안전 거리. 로그인 직후/로그아웃 직후 stale 감수 (5초 후 회복).
+let _sessionCache: { token: string | null; ts: number } | null = null;
+const SESSION_CACHE_TTL_MS = 5000;
+async function getCachedAuthHeader(): Promise<Record<string, string>> {
+  const now = Date.now();
+  if (_sessionCache && (now - _sessionCache.ts) < SESSION_CACHE_TTL_MS) {
+    return _sessionCache.token ? { Authorization: `Bearer ${_sessionCache.token}` } : {};
+  }
+  try {
+    const sb = createAuthClient();
+    const { data: { session } } = await sb.auth.getSession();
+    const token = session?.access_token ?? null;
+    _sessionCache = { token, ts: now };
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    _sessionCache = { token: null, ts: now };
+    return {};
+  }
+}
 
 // L-nolimit1 (2026-04-26): bbox 가 동 단위 (≤ 0.3°) 이하일 때만 listings fetch.
 //   광역 뷰 (구/시도) 에선 마커는 serverClusters 로 충분, 카드는 의미 없음.
@@ -114,6 +134,7 @@ export function useViewport() {
     }
 
     if (timerRef.current) clearTimeout(timerRef.current);
+    // Wave 65 (사장님 명령 2026-05-04): debounce 250ms → 100ms (직방/네이버 표준).
     timerRef.current = setTimeout(async () => {
       abortRef.current?.abort();
       const ctrl = new AbortController();
@@ -122,14 +143,8 @@ export function useViewport() {
       setLoading(true);
       try {
         const qs = buildQueryString(bbox, filter);
-        // L-privacy1: 세션 JWT 를 서버에 전달해 authed 판정을 받는다.
-        //   미로그인 시 access_token 이 undefined 라서 헤더 생략 → 서버 guest 처리.
-        let authHeader: Record<string, string> = {};
-        try {
-          const sb = createAuthClient();
-          const { data: { session } } = await sb.auth.getSession();
-          if (session?.access_token) authHeader = { Authorization: `Bearer ${session.access_token}` };
-        } catch { /* guest 로 폴백 */ }
+        // Wave 65: 모듈 캐시 (5초 TTL) — 매 fetch 마다 Supabase getSession 안 호출.
+        const authHeader = await getCachedAuthHeader();
         const res = await fetch(`/api/listings/viewport?${qs}`, { signal: ctrl.signal, headers: authHeader });
         if (res.status >= 400 && res.status < 500) {
           if (!ctrl.signal.aborted) setListings([]);
@@ -152,7 +167,7 @@ export function useViewport() {
       } finally {
         if (!ctrl.signal.aborted) setLoading(false);
       }
-    }, 250);
+    }, 100);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
