@@ -90,44 +90,13 @@ export function useViewport() {
     if (!bbox) return;
 
     if (!isValidBbox(bbox)) {
-      // Wave 66 (R-B5): 광역 뷰도 abort/auth/race 통합.
-      setLoading(false);
-      const cw = (bbox.west + bbox.east) / 2;
-      const ch = (bbox.south + bbox.north) / 2;
-      const halfDeg = 0.7;
-      const clamped = {
-        west: cw - halfDeg,
-        east: cw + halfDeg,
-        south: ch - halfDeg,
-        north: ch + halfDeg,
-      };
-      const qs = buildQueryString(clamped, filter, 1);
+      // Wave 73 (B2): 광역 뷰는 fetch 자체 skip. ListPanel 이 isWideView 분기로
+      //   "지도 줌인 필요" 표시 — probe fetch 1 라운드트립 (~250ms) 절약.
+      //   /api/map/clusters 는 별도 useMapClusters hook 이 이미 처리.
       abortRef.current?.abort();
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      const myCtrl = ctrl;
-      (async () => {
-        try {
-          const authHeader = await getCachedAuthHeader();
-          if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
-          const res = await fetch(`/api/listings/page?${qs}`, { signal: myCtrl.signal, headers: authHeader });
-          if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
-          if (!res.ok) {
-            setCategoryCounts(null);
-            setListings([]);
-            return;
-          }
-          const json = await res.json();
-          if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
-          setCategoryCounts(json.counts ?? null);
-          setListings([]);
-        } catch (err) {
-          if ((err as Error).name !== 'AbortError' && abortRef.current === myCtrl) {
-            setCategoryCounts(null);
-            setListings([]);
-          }
-        }
-      })();
+      setLoading(false);
+      setListings([]);
+      setCategoryCounts(null);
       return;
     }
 
