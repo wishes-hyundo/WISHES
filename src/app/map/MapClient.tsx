@@ -76,8 +76,11 @@ import MobileListSheet from '@/features/map-2026/components/MobileListSheet';
 import { MapErrorBoundary } from '@/features/map-2026/components/MapErrorBoundary';
 import MapLoadingIndicator from '@/features/map-2026/components/MapLoadingIndicator';
 // L-worldclass1 (2026-04-24 pm): 서버 사전집계 클러스터 훅
-// G-114 (2026-05-04): useMapClusters import 제거 — 결과 미사용.
-// import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
+// Wave 69 (사장님 명령 2026-05-06 재설계 / I-ARCH-1): useMapClusters 부활.
+//   /api/map/clusters server cluster API (33KB / 697ms 측정) → SvgMarkerLayer 직접 사용.
+//   기존 client aggregateClusters 우회 (worker thread 도 부담 X).
+//   payload 1.28MB → ~33KB (39배 감소).
+import { useMapClusters } from '@/features/map-2026/hooks/useMapClusters';
 
 // 서울 기본 중심
 const SEOUL = { lat: 37.4979, lng: 127.0276 };
@@ -140,6 +143,8 @@ export default function MapClient() {
   const [kakaoMap, setKakaoMap] = useState<unknown>(null);
   // L-worldclass1: Kakao level 추적 → useMapClusters 에 전달
   const [kakaoLevel, setKakaoLevel] = useState<number>(5);
+  // Wave 69 (사장님 명령 2026-05-06 재설계): server cluster fetch (debounce 250ms 내장)
+  const { clusters: serverClusters } = useMapClusters(kakaoLevel);
   // Wave 44 (2026-05-04): SVG 기본 활성 (Wave 38~43 검증 완료, 사장님 명령 옵션 A).
   //   prod 측정: zoom freeze 95ms → 0ms (warm worker), pan freeze 0ms 유지.
   //   ?svg=0 = 비상 롤백 (HtmlMarkerOverlay 옛날 모드 복원).
@@ -605,6 +610,7 @@ export default function MapClient() {
                   clusterFilterListings={clusterFilterListings}
                   onClickListing={onClickListing}
                   onClusterFilter={(ids, label) => setClusterFilter(ids, label)}
+                  serverClusters={serverClusters}
                 />
               ))}
               {/* Wave 66 (사장님 명령 2026-05-04): KakaoDeckOverlay 완전 제거 (R-D1).
