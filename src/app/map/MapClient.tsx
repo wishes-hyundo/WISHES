@@ -185,6 +185,20 @@ export default function MapClient() {
     return () => clearInterval(interval);
   }, []);
 
+  // Wave 64 (사장님 명령 2026-05-04): 로그인 상태 변경 시 setMinLevel 동적 재적용.
+  //   useAuth() 는 비동기 — map init 시점엔 _userM6 가 null 이라 setMinLevel(4) 적용 후
+  //   로그인 완료해도 cap 그대로 z16 에 머물러 사장님이 "줌 단계 더 늘려달라" 요청.
+  //   이 effect 가 user 변경 감지해서 setMinLevel(1) 으로 재호출 → z19 까지 줌인 가능.
+  useEffect(() => {
+    if (!kakaoMap) return;
+    try {
+      const m = kakaoMap as { setMinLevel?: (n: number) => void };
+      if (typeof m.setMinLevel === 'function') {
+        m.setMinLevel(_userM6 ? 1 : 4);
+      }
+    } catch { /* noop */ }
+  }, [_userM6, kakaoMap]);
+
   // Wave 58 (사장님 명령 2026-05-04): I-POLY-1 강제 root-level fix.
   //   Wave 54~57 모두 실패 (Kakao SDK setMap(null) polygon DOM 안 지움).
   //   해결: MapClient root 에 useEffect, kakaoLevel <= 6 (z14+) 시 직접 DOM remove.
@@ -283,11 +297,20 @@ export default function MapClient() {
         kakaoMapRef.current = map;
         setKakaoMap(map); // state 로도 반영 → 오버레이 조건부 마운트 트리거
 
-        // M-6: 비로그인 줌 락 — z16 까지만.
+        // Wave 64 (사장님 명령 2026-05-04): 로그인 시 줌 단계 더 깊이.
+        //   비로그인 setMinLevel(4) = z16 까지 (privacy 보호 + 수익화).
+        //   로그인 setMinLevel(1) = z19 (Kakao 표준 최대 줌) — 카카오 SDK 가
+        //   level 1 미만은 floor 처리하므로 0/-1 시도해도 의미 X.
+        //   ★ 실제 user 값이 비동기 로드되므로 init 시점 + user 변경 시 양쪽 다 호출.
+        //     아래 별도 useEffect 가 user 변경 시 동적 재호출 담당.
         try {
-          const m = map as { setMinLevel?: (n: number) => void };
+          const m = map as { setMinLevel?: (n: number) => void; setMaxLevel?: (n: number) => void };
           if (typeof m.setMinLevel === 'function') {
             m.setMinLevel(_userM6 ? 1 : 4);
+          }
+          // Wave 64: 광역 뷰 cap = 14 (전국 보기 가능)
+          if (typeof m.setMaxLevel === 'function') {
+            m.setMaxLevel(14);
           }
         } catch { /* SDK race — skip */ }
 

@@ -1,26 +1,17 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// SvgMarkerLayer.tsx — Wave 52 (2026-05-04 사장님 명령 "끝까지 무조건")
+// SvgMarkerLayer.tsx — Wave 64 (2026-05-04 사장님 명령 Apple 스타일 정밀)
 //
-// Wave 50 Canvas trace 진단 결과: commit 자체 = 2.5ms, longtask 89ms 의 86ms 가
-//   useEffect re-run 비용 (listener add/remove × 6 매 listings 변경마다).
-// Wave 51 가 Canvas 에 mount-only useEffect + propsRef 패턴 적용.
-// Wave 52 = ★ default SvgMarkerLayer 도 동일 패턴 적용 (default 사용자 혜택).
+// CEO 명령: "테두리 흰색이 있는데 이것 좀 없애고 애플 스타일로 좀 바꾸고
+//   마커 사이즈 밸런스 좀 맞춰. 그리고 로그인 했을때는 줌 단계를 더 늘려줘야지"
 //
-// 변경:
-//   1. propsRef 로 모든 dynamic prop 보관
-//   2. useEffect [map, container] = mount-only — listener / svg / worker 1번 setup
-//   3. listings 변경 = postMessage worker + render() 호출만 (no useEffect re-mount)
-//   4. category / filter 변경 = render() 호출만
+// Wave 64 변경:
+//   1. 흰색 stroke 제거 → SVG <filter> 기반 부드러운 drop shadow (Apple Maps 룩)
+//   2. 마커 사이즈 밸런스 — count 1 vs 1k 차이 22→44 (2.0x) → 22→36 (1.6x)
+//      더 작은 시각 진폭 = Apple Maps 의 절제된 시각 위계
+//   3. 색 alpha 0.85 → 0.92 (Apple Maps 풍 살짝 진한 솔리드 톤)
+//   4. 텍스트 font-weight 600 (700→600) — Apple SF Pro 의 Semibold 톤
 //
-// 보존: Wave 38~48 의 모든 최적화 (Path2D 없지만 SVG DOM reuse + element pool)
-//   - 단일 SVG element + parent g.markers
-//   - Map<key, SVGGElement> reuse (Wave 46)
-//   - Anchor refs persistent (Wave 47)
-//   - Element pool (Wave 48)
-//   - Worker offload (Wave 43)
-//   - Pan parent g translate (Wave 42)
-//
-// 예상: zoom freeze 50ms → ~5ms (commit 자체만 남음).
+// 보존: Wave 38~63 의 모든 최적화 + Wave 60 색상 + Wave 61 자동 merge
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 'use client';
@@ -83,12 +74,12 @@ export interface SvgMarkerLayerProps {
   onClusterFilter?: (ids: number[] | null, label: string | null) => void;
 }
 
-// Wave 60 (사장님 명령 2026-05-04 Apple 스타일): 색 부드러운 톤
+// Wave 64 (사장님 명령 2026-05-04 Apple 정밀): 더 진한 솔리드 톤 (0.85 → 0.92)
 const CAT_COLORS = {
-  residence: { bg: 'rgba(34, 119, 80, 0.85)', text: '#ffffff' },
-  retail_office: { bg: 'rgba(196, 121, 47, 0.85)', text: '#ffffff' },
-  land: { bg: 'rgba(140, 88, 50, 0.85)', text: '#ffffff' },
-  investment: { bg: 'rgba(135, 75, 200, 0.85)', text: '#ffffff' },
+  residence: { bg: 'rgba(34, 119, 80, 0.92)', text: '#ffffff' },
+  retail_office: { bg: 'rgba(196, 121, 47, 0.92)', text: '#ffffff' },
+  land: { bg: 'rgba(140, 88, 50, 0.92)', text: '#ffffff' },
+  investment: { bg: 'rgba(135, 75, 200, 0.92)', text: '#ffffff' },
 };
 // Wave 60: 큰 숫자 압축 표기 (Apple 스타일 — 1k+ 는 K 단위)
 function formatClusterCount(n: number): string {
@@ -99,22 +90,24 @@ function formatClusterCount(n: number): string {
   }
   return Math.round(n / 1000) + 'K';
 }
-const SEL_BG = 'rgba(220, 38, 38, 0.85)';
+const SEL_BG = 'rgba(220, 38, 38, 0.92)';
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+// Wave 64 (사장님 명령 2026-05-04): 사이즈 밸런스 — 22→36 (1.6x) Apple 절제된 위계.
+//   이전 22→44 (2.0x) 는 1 vs 1k 차이가 시각적으로 너무 컸음.
 function markerSize(count: number, level: number, isMobile: boolean): number {
   let mult = 1;
-  if (level <= 2) mult = 1.35;
-  else if (level <= 3) mult = 1.20;
-  else if (level <= 4) mult = 1.10;
-  else if (level >= 12) mult = 0.85;
+  if (level <= 2) mult = 1.30;
+  else if (level <= 3) mult = 1.15;
+  else if (level <= 4) mult = 1.08;
+  else if (level >= 12) mult = 0.88;
   let base = 22;
-  if (count >= 1000) base = 44;
-  else if (count >= 100) base = 36;
-  else if (count >= 30) base = 30;
+  if (count >= 1000) base = 36;
+  else if (count >= 100) base = 32;
+  else if (count >= 30) base = 28;
   else if (count >= 10) base = 26;
   else if (count >= 2) base = 24;
-  if (isMobile) base = Math.round(base * 0.9);
+  if (isMobile) base = Math.round(base * 0.92);
   return Math.round(base * mult);
 }
 
@@ -130,12 +123,13 @@ function createClusterG(it: ClusterRenderItem, x: number, y: number): SVGGElemen
   g.setAttribute('data-lat', String(it.lat));
   g.setAttribute('data-lng', String(it.lng));
   g.setAttribute('transform', `translate(${x},${y})`);
+  // Wave 64: drop shadow filter (Apple 스타일)
+  g.setAttribute('filter', 'url(#markerShadow)');
 
   const circle = document.createElementNS(SVG_NS, 'circle');
   circle.setAttribute('r', String(it.r));
   circle.setAttribute('fill', it.bg);
-  circle.setAttribute('stroke', 'white');
-  circle.setAttribute('stroke-width', '2');
+  // Wave 64: 흰색 stroke 제거 — Apple Maps 룩 (테두리 X, drop shadow 만)
   circle.setAttribute('style', 'pointer-events:auto;cursor:pointer');
   g.appendChild(circle);
 
@@ -143,9 +137,10 @@ function createClusterG(it: ClusterRenderItem, x: number, y: number): SVGGElemen
   text.setAttribute('y', '4');
   text.setAttribute('text-anchor', 'middle');
   text.setAttribute('font-size', String(it.fontSize));
-  text.setAttribute('font-weight', 'bold');
+  // Wave 64: SF Pro Semibold 톤 (700 → 600)
+  text.setAttribute('font-weight', '600');
   text.setAttribute('fill', 'white');
-  text.setAttribute('style', 'pointer-events:none;user-select:none');
+  text.setAttribute('style', 'pointer-events:none;user-select:none;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",sans-serif');
   text.textContent = it.isSpiderFy ? '1' : formatClusterCount(it.count);
   g.appendChild(text);
 
@@ -175,10 +170,45 @@ function keyOf(it: ClusterRenderItem): string {
   return 'c:' + it.ids;
 }
 
+// Wave 61 (사장님 명령 2026-05-04): cluster 겹침 자동 merge.
+function mergeOverlapping(
+  items: ClusterRenderItem[],
+  maps: KakaoNamespace['maps'],
+  projection: { pointFromCoords: (c: unknown) => { x: number; y: number } },
+): ClusterRenderItem[] {
+  if (!maps || items.length < 2) return items;
+  type Pos = { it: ClusterRenderItem; x: number; y: number; alive: boolean };
+  const pos: Pos[] = items.map((it) => {
+    const ll = new maps.LatLng(it.lat, it.lng);
+    const p = projection.pointFromCoords(ll);
+    return { it, x: p.x, y: p.y, alive: true };
+  });
+  for (let i = 0; i < pos.length; i++) {
+    if (!pos[i].alive) continue;
+    for (let j = i + 1; j < pos.length; j++) {
+      if (!pos[j].alive) continue;
+      if (pos[i].it.isSpiderFy || pos[j].it.isSpiderFy) continue;
+      const dx = pos[i].x - pos[j].x;
+      const dy = pos[i].y - pos[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const minDist = pos[i].it.r + pos[j].it.r + 4;
+      if (dist < minDist) {
+        const big = pos[i].it.count >= pos[j].it.count ? pos[i] : pos[j];
+        const small = pos[i].it.count >= pos[j].it.count ? pos[j] : pos[i];
+        big.it = {
+          ...big.it,
+          count: big.it.count + small.it.count,
+          ids: big.it.ids && small.it.ids ? big.it.ids + ',' + small.it.ids : big.it.ids || small.it.ids,
+          singleId: '',
+        };
+        small.alive = false;
+      }
+    }
+  }
+  return pos.filter((p) => p.alive).map((p) => p.it);
+}
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Wave 53: window.__svgDiag — phase timing instrumentation
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 function svgDiagPush(phase: string, dur: number, n?: number) {
   if (typeof window === 'undefined') return;
   const w = window as unknown as { __svgDiag?: object[] };
@@ -188,7 +218,6 @@ function svgDiagPush(phase: string, dur: number, n?: number) {
 }
 
 export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
-  // Wave 52: propsRef 로 모든 dynamic prop (useEffect re-run 회피)
   const propsRef = useRef(props);
   propsRef.current = props;
 
@@ -205,7 +234,6 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
   const anchorPxRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const renderRef = useRef<() => void>(() => {});
 
-  // Wave 52: Mount-only useEffect [map, container]
   useEffect(() => {
     if (!props.map || !props.container || typeof window === 'undefined') return;
     const container = props.container;
@@ -221,6 +249,27 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
     svg.style.zIndex = '6';
     svg.setAttribute('width', String(container.clientWidth));
     svg.setAttribute('height', String(container.clientHeight));
+
+    // Wave 64 (사장님 명령 2026-05-04 Apple 스타일): drop shadow filter <defs>.
+    //   feDropShadow dx=0 dy=1 stdDeviation=1.5 flood-opacity=0.30
+    //   = Apple Maps 의 부드럽고 살짝 떠 보이는 그림자 톤.
+    const defs = document.createElementNS(SVG_NS, 'defs');
+    const filter = document.createElementNS(SVG_NS, 'filter');
+    filter.setAttribute('id', 'markerShadow');
+    filter.setAttribute('x', '-50%');
+    filter.setAttribute('y', '-50%');
+    filter.setAttribute('width', '200%');
+    filter.setAttribute('height', '200%');
+    const feDrop = document.createElementNS(SVG_NS, 'feDropShadow');
+    feDrop.setAttribute('dx', '0');
+    feDrop.setAttribute('dy', '1');
+    feDrop.setAttribute('stdDeviation', '1.5');
+    feDrop.setAttribute('flood-color', '#000000');
+    feDrop.setAttribute('flood-opacity', '0.30');
+    filter.appendChild(feDrop);
+    defs.appendChild(filter);
+    svg.appendChild(defs);
+
     container.appendChild(svg);
     svgRef.current = svg;
 
@@ -248,7 +297,7 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
     const mapInst = map as KakaoMapLike;
 
     const commitItems = (
-      items: ClusterRenderItem[],
+      itemsRaw: ClusterRenderItem[],
       anchorL: number, anchorN: number,
       projection: { pointFromCoords: (c: unknown) => { x: number; y: number } },
     ) => {
@@ -256,6 +305,8 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
       const mg = markersGRef.current;
       if (!mg) return;
       mg.setAttribute('transform', '');
+
+      const items = mergeOverlapping(itemsRaw, maps, projection);
 
       const oldMap = clusterMapRef.current;
       const newMap = new Map<string, SVGGElement>();
@@ -289,6 +340,10 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
           }
           g.setAttribute('data-lat', String(it.lat));
           g.setAttribute('data-lng', String(it.lng));
+          // Wave 64: pool 에서 가져온 g 도 filter 적용 보장
+          if (g.getAttribute('filter') !== 'url(#markerShadow)') {
+            g.setAttribute('filter', 'url(#markerShadow)');
+          }
           updateClusterG(g, it, p.x, p.y);
           if (g.parentNode !== mg) mg.appendChild(g);
           newMap.set(key, g);
@@ -423,7 +478,6 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
       const p = propsRef.current;
 
-      // Pan path: same level → parent g translate
       if (lastLevelRef.current === level && clusterMapRef.current.size > 0) {
         const ll = new maps.LatLng(anchorLatRef.current, anchorLngRef.current);
         const pp = projection.pointFromCoords(ll);
@@ -529,9 +583,8 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
       try { workerRef.current?.terminate(); } catch { /* noop */ }
       workerRef.current = null;
     };
-  }, [props.map, props.container]);  // ★ Wave 52: mount-only
+  }, [props.map, props.container]);
 
-  // listings 변경 = worker setListings + render() 만
   useEffect(() => {
     const w = workerRef.current;
     if (w) {
@@ -540,7 +593,6 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
     renderRef.current();
   }, [props.listings]);
 
-  // category / filter 변경 = render() 만
   useEffect(() => {
     renderRef.current();
   }, [props.category, props.selectedListingId, props.clusterFilterIds, props.clusterFilterListings]);
