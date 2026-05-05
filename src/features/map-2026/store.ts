@@ -187,6 +187,10 @@ export interface Map2026Store {
   // L-catcount1 (2026-04-23 p.m.): 4개 카테고리별 카운트 (뷰포트 + 필터 기준)
   categoryCounts: Record<PropertyCategory, number> | null;
   setCategoryCounts: (c: Record<PropertyCategory, number> | null) => void;
+  // Wave 74: viewport 전체 매물 수 (page API total). page limit=50 라
+  //   listings.length 만으로는 정확한 총 카운트 X. 이 값을 ListPanel header 우선 사용.
+  viewportTotal: number | null;
+  setViewportTotal: (n: number | null) => void;
   loading: boolean;
   setLoading: (b: boolean) => void;
 
@@ -431,6 +435,8 @@ export const useMap2026Store = create<Map2026Store>()(
     setListings: (listings) => set({ listings }),
     categoryCounts: null,
     setCategoryCounts: (categoryCounts) => set({ categoryCounts }),
+    viewportTotal: null,
+    setViewportTotal: (viewportTotal) => set({ viewportTotal }),
     loading: false,
     setLoading: (loading) => set({ loading }),
 

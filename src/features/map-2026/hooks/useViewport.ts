@@ -81,6 +81,7 @@ export function useViewport() {
   const filter = useMap2026Store((s) => s.filter);
   const setListings = useMap2026Store((s) => s.setListings);
   const setCategoryCounts = useMap2026Store((s) => s.setCategoryCounts);
+  const setViewportTotal = useMap2026Store((s) => s.setViewportTotal);
   const setLoading = useMap2026Store((s) => s.setLoading);
 
   const abortRef = useRef<AbortController | null>(null);
@@ -97,6 +98,7 @@ export function useViewport() {
       setLoading(false);
       setListings([]);
       setCategoryCounts(null);
+      setViewportTotal(null);
       return;
     }
 
@@ -117,6 +119,7 @@ export function useViewport() {
         if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
         if (res.status >= 400 && res.status < 500) {
           setListings([]);
+          setViewportTotal(0);
           if (res.status !== 400) console.warn('[useViewport] non-400 4xx', res.status);
           return;
         }
@@ -125,6 +128,7 @@ export function useViewport() {
         if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
         setListings(json.listings ?? []);
         setCategoryCounts(json.counts ?? null);
+        setViewportTotal(typeof json.total === 'number' ? json.total : (json.listings?.length ?? 0));
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
           console.error('[useViewport]', err);
@@ -137,5 +141,5 @@ export function useViewport() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [bbox, filter, setListings, setCategoryCounts, setLoading]);
+  }, [bbox, filter, setListings, setCategoryCounts, setViewportTotal, setLoading]);
 }
