@@ -142,13 +142,9 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
     // serverClusters path (no cluster filter active)
     if (props.serverClusters && props.serverClusters.length > 0 && !isClusterFilterActive) {
       const cat = CAT_COLORS[props.category];
-      // Wave 84: 광역 (kakao level >= 5 = z15-) 에서 count = 1 작은 cluster hide.
-      //   사장님 의도: 광역에서 작은 1매물 dong 잡음 거슬리지 않게.
-      const mapForLevel = props.map as unknown as { getLevel?: () => number };
-      const currentLevel = (typeof mapForLevel?.getLevel === 'function') ? mapForLevel.getLevel() : 6;
-      const hideSmallAtWideZoom = currentLevel >= 5;
+      // Wave 85: emergency rollback - hideSmallAtWideZoom 제거 (silent fail 원인 의심)
+      //   markers 0 root cause 진단. SQL Wave 82 v2 의 dong-only path 가 이미 작은 cluster 통합.
       for (const sc of props.serverClusters) {
-        if (hideSmallAtWideZoom && sc.count === 1) continue;
         const lat = (typeof sc.tier1_lat === 'number' && Number.isFinite(sc.tier1_lat)) ? sc.tier1_lat : sc.lat;
         const lng = (typeof sc.tier1_lng === 'number' && Number.isFinite(sc.tier1_lng)) ? sc.tier1_lng : sc.lng;
         const ids = (sc.sample_ids ?? []).join(',');
