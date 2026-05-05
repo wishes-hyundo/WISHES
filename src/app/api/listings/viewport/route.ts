@@ -13,40 +13,7 @@ import { createServerClient } from '@/lib/supabase';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { maskAddressForPublic } from '@/lib/publicAddress';
 import { isSelfHostedImage } from '@/lib/image-policy';
-import { maskCoordinate } from '@/lib/coordinateMask';
-// L-cluster-token1 (사장님 명령 2026-05-02): 단지명 마스킹 유지 + cluster 그룹화 가능.
-//   비로그인엔 단지명 노출 X (사장님 결정). 대신 단지명 hash (cluster_token) 만 노출.
-//   같은 단지명 → 같은 token → 클라이언트 cluster key 로 그룹 가능.
-//   다른 단지명 → 다른 token → cluster 분리 (다른 단지 매물 합쳐지지 않음).
-//   단지명 자체는 알 수 없어 privacy 보호. 16자리 hash 면 충돌 확률 무시 가능.
-function buildClusterToken(
-  buildingName: string | null | undefined,
-  lat: number | null | undefined,
-  lng: number | null | undefined,
-): string | null {
-  // M-2 (사장님 명령 2026-05-02 — "완전 매물을 위치에 따라서 마커를 합치지를 못하잖아"):
-  //   좌표 hash 우선. 같은 (마스킹된) 좌표 매물 = 같은 token = 1 cluster.
-  //   M-1 의 b/c prefix 분리는 같은 좌표 매물 분리시킴 (94% 분리율) → 사장님 의도와 어긋남.
-  //   단지명은 좌표 없는 매물 fallback 으로만 사용 (거의 없음).
-  //   TIER1 단지 마커는 클라이언트 tier1_lat/lng 좌표로 별도 분기 — buildClusterToken 영향 X.
-  //   I-COORD-1: 110m 마스킹 (toFixed(3) = 0.001°) 와 정확히 일치.
-  if (lat != null && lng != null && Number.isFinite(lat) && Number.isFinite(lng)) {
-    return 'c' + lat.toFixed(3) + '_' + lng.toFixed(3);
-  }
-  // 좌표 없는 매물 fallback — 단지명 hash (FNV-1a)
-  if (buildingName) {
-    const norm = String(buildingName).replace(/\s+/g, ' ').trim();
-    if (norm) {
-      let h = 0x811c9dc5 >>> 0;
-      for (let i = 0; i < norm.length; i++) {
-        h ^= norm.charCodeAt(i);
-        h = Math.imul(h, 0x01000193) >>> 0;
-      }
-      return 'b' + h.toString(36).padStart(7, '0');
-    }
-  }
-  return null;
-}
+// G-112 (2026-05-03): maskCoordinate import 제거 — I-COORD-3 INVARIANT 준수.
 import type { DealType, MapListing } from '@/features/map-2026/store';
 
 // L-perf-2 (2026-04-29 사장님 명령): force-dynamic 제거 → Edge cache 적용 가능.
@@ -311,13 +278,14 @@ export async function GET(req: NextRequest) {
     const authHdr = req.headers.get('authorization') || '';
     const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : '';
     if (token) {
-      // L-perf-1 (2026-04-29 사장님 명령): JWT auth Promise.race timeout 200ms.
-      //   기존: supabase.auth.getUser() 가 50-400ms 가변 → viewport 응답 지연.
-      //   변경: 200ms 안에 응답 없으면 guest 폴백 (UI 영향 0 — masked address 동일).
+      // Wave 66 (사장님 명령 2026-05-04 R-S1): JWT auth timeout 200ms → 50ms.
+      //   진단: 200ms timeout 이 fast path (30-50ms) 도 race 통해 끝까지 기다림. 비로그인도 매 요청
+      //     200ms 손실. 50ms 면 fast path 통과 + slow path 는 guest 폴백 (UI 영향 0 — masked
+      //     address 동일).
       const sb = createServerClient();
       const authPromise = sb.auth.getUser(token).then(({ data, error }) => ({ user: data?.user, error }));
       const timeoutPromise = new Promise<{ user: null; error: Error }>((resolve) => {
-        setTimeout(() => resolve({ user: null, error: new Error('auth timeout') }), 200);
+        setTimeout(() => resolve({ user: null, error: new Error('auth timeout') }), 50);
       });
       const { user, error: authErr } = await Promise.race([authPromise, timeoutPromise]);
       if (!authErr && user) authed = true;
@@ -527,49 +495,6 @@ export async function GET(req: NextRequest) {
 
     const devFn = computeMedianDeviation(rows);
 
-    // K-2 (사장님 명령 2026-05-02): TIER1 매물 단지 좌표 조회 (building_centroids).
-    //   네이버 표준 — 아파트/오피스텔/주상복합/도시형생활주택 = 단지 마커.
-    //   좌표 = building_centroids 의 정확 단지 좌표 (좌표 평균 X — 격자 패턴 회피).
-    const TIER1_TYPES_VIEWPORT = ['아파트', '오피스텔', '주상복합', '도시형생활주택'];
-    // M-3 (사장님 명령 2026-05-02): 모든 매물 building_name 수집 (TIER1 제한 풀기).
-    //   격자 패턴 fix — building_centroids 에 모든 단지 정확 좌표 사용.
-    //   tier1Names 는 사각형 마커 분기용 유지, allBuildingNames 는 좌표 lookup 용.
-    const tier1Names = new Set<string>();
-    const allBuildingNames = new Set<string>();
-    for (const r of (rows ?? []) as Array<{ type?: string | null; building_name?: string | null }>) {
-      if (r.building_name) {
-        const bn = String(r.building_name).trim();
-        if (bn) {
-          allBuildingNames.add(bn);
-          if (r.type && TIER1_TYPES_VIEWPORT.includes(r.type)) {
-            tier1Names.add(bn);
-          }
-        }
-      }
-    }
-    const buildingCentroidMap = new Map<string, { lat: number; lng: number }>();
-    if (allBuildingNames.size > 0) {
-      try {
-        const centroidPromise = supabase
-          .from('building_centroids')
-          .select('building_name, dong, lat, lng, source, match_score')
-          .in('building_name', Array.from(allBuildingNames))
-          .order('match_score', { ascending: false });
-        const timeoutPromise = new Promise<{ data: null }>((resolve) => {
-          setTimeout(() => resolve({ data: null }), 1500);
-        });
-        const { data: centroids } = await Promise.race([centroidPromise, timeoutPromise]) as { data: Array<{ building_name: string; lat: number; lng: number }> | null };
-        for (const c of (centroids ?? []) as Array<{ building_name: string; lat: number; lng: number }>) {
-          const k = String(c.building_name).trim();
-          if (!buildingCentroidMap.has(k)) {
-            buildingCentroidMap.set(k, { lat: c.lat, lng: c.lng });
-          }
-        }
-      } catch {
-        // building_centroids 미구현 / 비어있음 → 폴백 (동그라미 마커, 현재 동작)
-      }
-    }
-
     const listings: MapListing[] = rows.map((r: any) => {
       const { medianPrice, deviation, comparableTier } = devFn(r);
       // L-photocount1: self-hosted 배치 카운트 우선 → 0 이면 fallback.
@@ -578,14 +503,14 @@ export async function GET(req: NextRequest) {
       const photoCount = selfHostedCountMap.get(r.id) ?? (r.thumb_url && !r.source_site ? 1 : 0);
       const daysOld = Math.max(0, (Date.now() - new Date(r.updated_at ?? r.created_at).getTime()) / 86400000);
 
-      // M-6 (사장님 명령 2026-05-02 — 직방/네이버 표준):
-      //   메인 지도 마커는 raw 정확 좌표 사용. 비로그인도 동일 (직방 API 와 동일 정책).
-      //   privacy 보호 = 메인 지도 줌 락 + 매물 detail modal 미니맵 100m 반경 원.
-      //   같은 좌표 매물 = 자동 1 cluster (직방 동작과 동일).
-      //
-      //   I-COORD-1 마스킹은 매물 detail modal 의 미니맵에만 적용, viewport API 에는 X.
-      const lat: number = r.lat as number;
-      const lng: number = r.lng as number;
+      // G-112 (2026-05-03 사장님): I-COORD-3 INVARIANT 준수 — viewport API raw 좌표.
+      //   이전 L-sec170 (2026-05-02): 비로그인 0.01° 마스킹 → 같은 dong 매물 1점 stack.
+      //   이는 G-110 marker stacking 의 근본 원인이자 I-COORD-3 ("maskCoordinate 호출 금지")
+      //   직접 위반.  I-COORD-4 의 비로그인 줌 락 (setMinLevel(4) = z16) 으로 privacy 보호하고
+      //   매물 detail modal 미니맵 100m 반경 원 (I-DETAIL-1) 으로 별도 보호.
+      //   viewport API 는 항상 raw 좌표 — 직방/네이버 표준.
+      const lat = r.lat;
+      const lng = r.lng;
 
       return {
         id: r.id,
@@ -606,19 +531,6 @@ export async function GET(req: NextRequest) {
         //   · title → 주소 마스킹된 '구 동' 형태 (지번·건물명·층 제거)
         //     title 이 없으면 dong 으로 폴백. 동이 없으면 null.
         building_name: authed ? (r.building_name ?? null) : null,
-        // K-2: TIER1 매물 단지 좌표 (네이버 표준 단지 마커용). 비로그인 노출 OK (공공 정보).
-        tier1_lat: (() => {
-          if (!r.type || !TIER1_TYPES_VIEWPORT.includes(r.type) || !r.building_name) return null;
-          const c = buildingCentroidMap.get(String(r.building_name).trim());
-          return c ? c.lat : null;
-        })(),
-        tier1_lng: (() => {
-          if (!r.type || !TIER1_TYPES_VIEWPORT.includes(r.type) || !r.building_name) return null;
-          const c = buildingCentroidMap.get(String(r.building_name).trim());
-          return c ? c.lng : null;
-        })(),
-        // L-cluster-token1: 비로그인에도 단지 그룹화 가능 (이름은 가림, hash 만)
-        cluster_token: buildClusterToken(r.building_name as string | null | undefined, lat, lng),
         dong: r.dong ?? null,
         // L-adminpoly3 (2026-04-24 pm): 행정구역 폴리곤 카운트 집계용 주소 노출.
         //   PUBLIC_LISTING_COLUMNS 화이트리스트에 있는 공개 필드.
@@ -669,9 +581,12 @@ export async function GET(req: NextRequest) {
     // L-viewport3 (2026-04-24 pm): 4개 카테고리 count 가 매 pan/zoom 마다
     //   `count: 'exact', head: true` × 4 로 돌아 체감 지연의 주 원인이었음.
     //   bbox 좌표를 3자리(≈100m)로 라운딩해 근접 이동은 동일 캐시 키 재활용.
+    // Wave 66: cache key R-S5 변경 보류 — query 와 일치 안 시키면 wrong data cache 위험.
+    //   S2 timeout 200ms 단축으로 max wait 충분히 감소. cache miss 시에도 200ms 안에 fallback.
+    //   bbox 좌표 정밀도 3 → 2 (≈1km grid) 만 완화 (cache hit 향상 + 필터 cardinality 영향 X).
     const cacheKeyBase = [
       'viewport-catcount-v1',
-      south.toFixed(3), north.toFixed(3), west.toFixed(3), east.toFixed(3),
+      south.toFixed(2), north.toFixed(2), west.toFixed(2), east.toFixed(2),
       (deals ?? []).join(','),
       minArea ?? '', maxArea ?? '',
       (purposes ?? []).join(','),
@@ -707,14 +622,15 @@ export async function GET(req: NextRequest) {
       //   또한 5초 timeout race — count 4개가 너무 오래 걸리면 listings 만 반환.
       const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T | 0> =>
         Promise.race([p, new Promise<0>((resolve) => setTimeout(() => resolve(0 as 0), ms))]);
-      // L-perf-1 (2026-04-29 사장님 명령): 카테고리 count timeout 5s → 1s.
-      //   DB 평균 27ms 라 1s 면 충분 (이미 fallback 0 처리됨).
-      //   응답 형식 동일 — 단지 max wait 시간 단축.
+      // Wave 66 (R-S2): count timeout 1000ms → 200ms.
+      //   DB 평균 27ms (count: 'planned' = estimate 빠름). 200ms 면 5x 여유 + outlier (slow query)
+      //   는 0 fallback (사이드바 카테고리 배지가 일시 0 표시되어도 viewport 매물은 정상).
+      //   기존 1s timeout = max wait 1s = 사장님 체감 "응답 늦음".
       const [r_cnt, o_cnt, l_cnt, i_cnt] = await Promise.all([
-        withTimeout(countByCategory('residence'), 1000),
-        withTimeout(countByCategory('retail_office'), 1000),
-        withTimeout(countByCategory('land'), 1000),
-        withTimeout(countByCategory('investment'), 1000),
+        withTimeout(countByCategory('residence'), 200),
+        withTimeout(countByCategory('retail_office'), 200),
+        withTimeout(countByCategory('land'), 200),
+        withTimeout(countByCategory('investment'), 200),
       ]);
       counts = {
         residence: r_cnt || 0,
