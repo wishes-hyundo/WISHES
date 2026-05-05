@@ -278,14 +278,13 @@ export async function GET(req: NextRequest) {
     const authHdr = req.headers.get('authorization') || '';
     const token = authHdr.startsWith('Bearer ') ? authHdr.slice(7) : '';
     if (token) {
-      // Wave 66 (사장님 명령 2026-05-04 R-S1): JWT auth timeout 200ms → 50ms.
-      //   진단: 200ms timeout 이 fast path (30-50ms) 도 race 통해 끝까지 기다림. 비로그인도 매 요청
-      //     200ms 손실. 50ms 면 fast path 통과 + slow path 는 guest 폴백 (UI 영향 0 — masked
-      //     address 동일).
+      // L-perf-1 (2026-04-29 사장님 명령): JWT auth Promise.race timeout 200ms.
+      //   기존: supabase.auth.getUser() 가 50-400ms 가변 → viewport 응답 지연.
+      //   변경: 200ms 안에 응답 없으면 guest 폴백 (UI 영향 0 — masked address 동일).
       const sb = createServerClient();
       const authPromise = sb.auth.getUser(token).then(({ data, error }) => ({ user: data?.user, error }));
       const timeoutPromise = new Promise<{ user: null; error: Error }>((resolve) => {
-        setTimeout(() => resolve({ user: null, error: new Error('auth timeout') }), 50);
+        setTimeout(() => resolve({ user: null, error: new Error('auth timeout') }), 50);  // Wave 67a (R-S1): 200->50ms
       });
       const { user, error: authErr } = await Promise.race([authPromise, timeoutPromise]);
       if (!authErr && user) authed = true;
@@ -581,12 +580,9 @@ export async function GET(req: NextRequest) {
     // L-viewport3 (2026-04-24 pm): 4개 카테고리 count 가 매 pan/zoom 마다
     //   `count: 'exact', head: true` × 4 로 돌아 체감 지연의 주 원인이었음.
     //   bbox 좌표를 3자리(≈100m)로 라운딩해 근접 이동은 동일 캐시 키 재활용.
-    // Wave 66: cache key R-S5 변경 보류 — query 와 일치 안 시키면 wrong data cache 위험.
-    //   S2 timeout 200ms 단축으로 max wait 충분히 감소. cache miss 시에도 200ms 안에 fallback.
-    //   bbox 좌표 정밀도 3 → 2 (≈1km grid) 만 완화 (cache hit 향상 + 필터 cardinality 영향 X).
     const cacheKeyBase = [
       'viewport-catcount-v1',
-      south.toFixed(2), north.toFixed(2), west.toFixed(2), east.toFixed(2),
+      south.toFixed(3), north.toFixed(3), west.toFixed(3), east.toFixed(3),
       (deals ?? []).join(','),
       minArea ?? '', maxArea ?? '',
       (purposes ?? []).join(','),
@@ -622,10 +618,10 @@ export async function GET(req: NextRequest) {
       //   또한 5초 timeout race — count 4개가 너무 오래 걸리면 listings 만 반환.
       const withTimeout = <T>(p: Promise<T>, ms: number): Promise<T | 0> =>
         Promise.race([p, new Promise<0>((resolve) => setTimeout(() => resolve(0 as 0), ms))]);
-      // Wave 66 (R-S2): count timeout 1000ms → 200ms.
-      //   DB 평균 27ms (count: 'planned' = estimate 빠름). 200ms 면 5x 여유 + outlier (slow query)
-      //   는 0 fallback (사이드바 카테고리 배지가 일시 0 표시되어도 viewport 매물은 정상).
-      //   기존 1s timeout = max wait 1s = 사장님 체감 "응답 늦음".
+      // L-perf-1 (2026-04-29 사장님 명령): 카테고리 count timeout 5s → 1s.
+      //   DB 평균 27ms 라 1s 면 충분 (이미 fallback 0 처리됨).
+      //   응답 형식 동일 — 단지 max wait 시간 단축.
+      // Wave 67a (R-S2): count timeout 1000->200ms (DB avg 27ms, plenty headroom)
       const [r_cnt, o_cnt, l_cnt, i_cnt] = await Promise.all([
         withTimeout(countByCategory('residence'), 200),
         withTimeout(countByCategory('retail_office'), 200),
@@ -651,7 +647,7 @@ export async function GET(req: NextRequest) {
           //   - s-maxage=60: Vercel CDN 60초 → 같은 bbox+filter 재방문 0ms
           //   - stale-while-revalidate=300: 60s 후 5분간 stale 반환 + bg 갱신
           //   - Vary: Authorization → 로그인/비로그인 각각 별도 cache (privacy 일관)
-          'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+          'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=900',  // Wave 67a: extended cache
           'Vary': 'Authorization',
         },
       }
