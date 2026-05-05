@@ -343,24 +343,23 @@ export const useMap2026Store = create<Map2026Store>()(
     setMode: (mode) => set({ mode }),
 
     filter: { ...DEFAULT_FILTER },
-    // Wave 66 (R-Cs1): setFilter — 같은 값 patch 시 새 객체 반환 X.
+    // Wave 66 (R-Cs1): setFilter — 같은 값 patch 시 set 자체 호출 X.
     //   기존: ({ filter: { ...s.filter, ...patch } }) — 매 호출마다 새 reference →
     //     useViewport useEffect [filter] 무한 발화 + useFilterUrlSync 300ms debounce reset.
-    //   fix: shallow equal 체크 → 동일 값이면 set({}) 으로 no-op (zustand 가 reference 유지).
-    setFilter: (patch) =>
-      set((s) => {
-        let changed = false;
-        for (const k of Object.keys(patch) as (keyof FilterState)[]) {
-          const a = (s.filter as Record<string, unknown>)[k as string];
-          const b = (patch as Record<string, unknown>)[k as string];
-          // 배열은 length + element 비교
-          if (Array.isArray(a) && Array.isArray(b)) {
-            if (a.length !== b.length || a.some((v, i) => v !== b[i])) { changed = true; break; }
-          } else if (a !== b) { changed = true; break; }
-        }
-        if (!changed) return {};
-        return { filter: { ...s.filter, ...patch } };
-      }),
+    //   fix: get() 으로 비교 → 동일 값이면 set 호출 X (reference 그대로).
+    setFilter: (patch) => {
+      const cur = get().filter;
+      let changed = false;
+      for (const k of Object.keys(patch) as (keyof FilterState)[]) {
+        const a = (cur as Record<string, unknown>)[k as string];
+        const b = (patch as Record<string, unknown>)[k as string];
+        if (Array.isArray(a) && Array.isArray(b)) {
+          if (a.length !== b.length || a.some((v, i) => v !== b[i])) { changed = true; break; }
+        } else if (a !== b) { changed = true; break; }
+      }
+      if (!changed) return;
+      set({ filter: { ...cur, ...patch } });
+    },
 
     setCategory: (category) =>
       set((s) => {

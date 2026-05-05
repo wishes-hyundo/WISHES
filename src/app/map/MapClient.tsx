@@ -19,7 +19,8 @@ import Link from 'next/link';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 
-import { useMap2026Store, type MapListing, type PropertyCategory } from '@/features/map-2026/store';
+// Wave 66: PropertyCategory, MapListing type imports 제거 — KakaoDeckOverlay JSX/useMemo 제거 후 unused.
+import { useMap2026Store } from '@/features/map-2026/store';
 import { useViewport } from '@/features/map-2026/hooks/useViewport';
 import { useSemanticZoom } from '@/features/map-2026/hooks/useSemanticZoom';
 import { useHeroRanking } from '@/features/map-2026/hooks/useHeroRanking';
