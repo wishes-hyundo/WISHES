@@ -28,6 +28,15 @@ export const maxDuration = 30;
 const MAX_VIEWPORT_DEG = 2.0;
 // L-sec140 (2026-04-23): per-axis cap (MAX_VIEWPORT_DEG) 위에 영역 cap 추가.
 //   서울+경기 전역 ≈ 1.5 × 0.8 ≈ 1.2 sq-deg 이므로 2.5 면 충분히 수용.
+
+// Wave 67b (R-C1 / I-MARKER-2): cluster_token hash helpers
+function _wave67b_normalize(s: string): string { return s.replace(/\s+/g, ' ').trim(); }
+function _wave67b_fnv1a(s: string): string {
+  let h = 0x811c9dc5 >>> 0;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16);
+}
+
 //   per-axis 2.0 × 2.0 = 4 sq-deg 라 4각 코너 상황을 2.5 로 차단 (전국 스캔 방지).
 const MAX_VIEWPORT_AREA_SQDEG = 2.5;
 // L-viewport1 (2026-04-23): 6000+ 매물 중 일부만 지도에 뜨던 버그 수정.
@@ -530,6 +539,12 @@ export async function GET(req: NextRequest) {
         //   · title → 주소 마스킹된 '구 동' 형태 (지번·건물명·층 제거)
         //     title 이 없으면 dong 으로 폴백. 동이 없으면 null.
         building_name: authed ? (r.building_name ?? null) : null,
+        // Wave 67b (R-C1 / I-MARKER-2): FNV-1a hash of normalized building_name.
+        //   Same building -> same token -> 1 cluster (privacy-safe: hash only, no name leak)
+        cluster_token: r.building_name ? _wave67b_fnv1a(_wave67b_normalize(r.building_name)) : null,
+        // Wave 67b (I-MARKER-3): TIER1 placeholder (full impl needs building_centroids JOIN, defer to 67c)
+        tier1_lat: null,
+        tier1_lng: null,
         dong: r.dong ?? null,
         // L-adminpoly3 (2026-04-24 pm): 행정구역 폴리곤 카운트 집계용 주소 노출.
         //   PUBLIC_LISTING_COLUMNS 화이트리스트에 있는 공개 필드.
