@@ -678,8 +678,10 @@ export default function MapClient() {
           />
           {ready && kakaoMap ? (
             <>
-              {/* Wave 49: Canvas 2D layer 우선 (?canvas=1), 그 외 SvgMarkerLayer (Wave 38~48). */}
-              {useCanvas ? (
+              {/* Wave 63 (사장님 명령 2026-05-04): z13 = polygon zone, z14+ = marker zone 분리.
+                   kakaoLevel <= 6 (z14 이상 줌인) 일 때만 마커 mount.
+                   z13 (level 7) 이상 광역 = AdminRegionOverlay 폴리곤만 표시. */}
+              {kakaoLevel <= 6 && (useCanvas ? (
                 <CanvasMarkerLayer
                   map={kakaoMap}
                   container={containerRef.current}
@@ -703,7 +705,7 @@ export default function MapClient() {
                   onClickListing={onClickListing}
                   onClusterFilter={(ids, label) => setClusterFilter(ids, label)}
                 />
-              )}
+              ))}
               {/* Wave 62 (사장님 명령 2026-05-04): KakaoDeckOverlay 의 deck.gl WebGL 마커 비활성.
                    사장님 발견: SVG 마커 + WebGL indigo 마커 두 종류 동시 표시 + canvas mousemove 시
                    pointerEvents 토글로 마커 click 가로챔.
