@@ -30,6 +30,11 @@ export interface ServerCluster {
   avg_price?: number | null;
   max_price?: number | null;
   sample_ids?: number[] | null;
+  // Wave 78a/b: TIER1 단지 좌표 + cluster_token (I-MARKER-2/3)
+  cluster_token?: string | null;
+  building_name?: string | null;
+  tier1_lat?: number | null;
+  tier1_lng?: number | null;
 }
 
 // L-naver-zoom2: 정밀 검수 후 1단계 보정 (zoom = 20 - level).  MapClient 와 동일.
