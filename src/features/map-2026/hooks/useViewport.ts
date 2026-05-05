@@ -1,23 +1,20 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 지도 뷰포트 변경 → /api/listings/viewport 호출
-// Wave 65 디바운스 100ms (직방/네이버 표준), Wave 66 race 강화 + 광역 뷰 통합
+// 지도 뷰포트 변경 -> /api/listings/viewport 호출
+// Wave 66 (사장님 명령 2026-05-04 ~ 05): debounce 100ms + getSession cache + race
 //
 // L-vp2 (2026-04-22): 서버가 400 으로 돌려주던 "bbox 너무 큼 / 좌표 반전"
 //   상태를 클라이언트에서 선 차단.
-// Wave 65 (사장님 명령 2026-05-04 "직방/네이버 능가 X"):
-//   (1) debounce 250ms → 100ms (직방 80ms, 네이버 120ms 표준)
-//   (2) getSession() 모듈 캐시 (5초) — 매 fetch 마다 Supabase 호출 안 함
-// Wave 66 (사장님 명령 2026-05-04 "전수 root cause fix"):
+// Wave 66 fix:
+//   (1) R-B1: debounce 250ms -> 100ms (직방/네이버 표준)
+//   (2) R-B2: getSession() 모듈 캐시 5초 TTL
 //   (3) R-Cs2: race condition 강화 — abortRef.current 직접 비교로 stale 응답 차단
-//   (4) R-B5: 광역 뷰도 abort/auth/race 일관 — 깜박임 제거
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//   (4) R-B5: 광역 뷰 fetch 도 abort/auth/race 통합 — 빈 패널 깜박임 제거
 import { useEffect, useRef } from 'react';
 import { useMap2026Store, type FilterState } from '../store';
 import { dealsToParam } from '../lib/priceFormat';
 import { createAuthClient } from '@/lib/supabase';
 
-// Wave 65: getSession() 모듈 캐시. 매 fetch 마다 50-100ms 절감.
-//   TTL 5초 — JWT 만료 안전 거리. 로그인 직후/로그아웃 직후 stale 감수 (5초 후 회복).
+// Wave 66 (R-B2): getSession() 모듈 캐시 — 매 fetch 마다 50-100ms 절감.
+//   TTL 5초 — JWT 만료 안전 거리.
 let _sessionCache: { token: string | null; ts: number } | null = null;
 const SESSION_CACHE_TTL_MS = 5000;
 async function getCachedAuthHeader(): Promise<Record<string, string>> {
@@ -37,7 +34,6 @@ async function getCachedAuthHeader(): Promise<Record<string, string>> {
   }
 }
 
-// L-nolimit1 (2026-04-26): bbox 가 동 단위 (≤ 0.3°) 이하일 때만 listings fetch.
 const MAX_VIEWPORT_DEG = 0.3;
 
 function isValidBbox(b: { west: number; south: number; east: number; north: number }): boolean {
@@ -59,10 +55,8 @@ function buildQueryString(
   p.set('east', bbox.east.toFixed(6));
   p.set('north', bbox.north.toFixed(6));
   p.set('limit', String(limit));
-
   p.set('category', filter.category);
   if (filter.purposes.length) p.set('purposes', filter.purposes.join(','));
-
   const deals = dealsToParam(filter.deals);
   if (deals) p.set('deals', deals);
   if (filter.minPrice != null) p.set('minPrice', String(filter.minPrice));
@@ -79,7 +73,6 @@ function buildQueryString(
   if (filter.propertyTypes.length) p.set('types', filter.propertyTypes.join(','));
   if (filter.features.length) p.set('features', filter.features.join(','));
   if (filter.hasImages) p.set('hasImages', '1');
-
   return p.toString();
 }
 
@@ -97,7 +90,7 @@ export function useViewport() {
     if (!bbox) return;
 
     if (!isValidBbox(bbox)) {
-      // Wave 66 (R-B5): 광역 뷰도 abort/auth/race 통합. 사장님이 본 빈 패널 깜박임 제거.
+      // Wave 66 (R-B5): 광역 뷰도 abort/auth/race 통합.
       setLoading(false);
       const cw = (bbox.west + bbox.east) / 2;
       const ch = (bbox.south + bbox.north) / 2;
@@ -127,7 +120,6 @@ export function useViewport() {
           const json = await res.json();
           if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
           setCategoryCounts(json.counts ?? null);
-          // 광역 뷰는 listings 비움 (마커 zone 아님 — 폴리곤만 표시)
           setListings([]);
         } catch (err) {
           if ((err as Error).name !== 'AbortError' && abortRef.current === myCtrl) {
@@ -140,7 +132,7 @@ export function useViewport() {
     }
 
     if (timerRef.current) clearTimeout(timerRef.current);
-    // Wave 65: debounce 250ms → 100ms (직방/네이버 표준).
+    // Wave 66 (R-B1): debounce 250ms -> 100ms.
     timerRef.current = setTimeout(async () => {
       abortRef.current?.abort();
       const ctrl = new AbortController();
@@ -151,21 +143,16 @@ export function useViewport() {
       try {
         const qs = buildQueryString(bbox, filter);
         const authHeader = await getCachedAuthHeader();
-        // Wave 66 (R-Cs2): auth fetch 사이 새 fetch 시작 시 즉시 종료
         if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
         const res = await fetch(`/api/listings/viewport?${qs}`, { signal: myCtrl.signal, headers: authHeader });
-        // Wave 66 (R-Cs2): 응답 도착 후에도 race 체크 (덮어쓰기 방지)
         if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
         if (res.status >= 400 && res.status < 500) {
           setListings([]);
-          if (res.status !== 400) {
-            console.warn('[useViewport] non-400 4xx', res.status);
-          }
+          if (res.status !== 400) console.warn('[useViewport] non-400 4xx', res.status);
           return;
         }
         if (!res.ok) throw new Error(`viewport ${res.status}`);
         const json = await res.json();
-        // Wave 66 (R-Cs2): json parse 후 final race 체크
         if (myCtrl.signal.aborted || abortRef.current !== myCtrl) return;
         setListings(json.listings ?? []);
         setCategoryCounts(json.counts ?? null);
