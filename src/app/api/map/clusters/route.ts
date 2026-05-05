@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
       {
         headers: {
           // CDN 5초 캐시 + 30초 SWR (Vercel edge)
-          'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=30',
+          'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=900',  // Wave 72: 5s -> 5min cache, swr 30s -> 15min
         },
       },
     );
