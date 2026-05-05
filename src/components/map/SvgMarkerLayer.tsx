@@ -530,6 +530,21 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
       const _tAfterPanCheck = performance.now();
       svgDiagPush('zoom_path_setup', _tAfterPanCheck - _t0);
 
+      // Wave 75 (사장님 명령 2026-05-06): serverClusters 있으면 worker bypass.
+      //   ROOT CAUSE: Wave 69 의 serverClusters path 가 syncRender 안에만 있어서
+      //   worker 활성 시 (모든 modern browsers) server clusters 무시됨.
+      //   결과: Worker 가 limit=50 client listings 로만 aggregation → z18 시
+      //   viewport 매물 대부분 누락 → 사장님 "마커 stuck" 의 진짜 원인.
+      //   fix: serverClusters 있고 cluster filter 비활성이면 syncRender 직접 호출
+      //   (syncRender 의 server-cluster path 활용).
+      const _isClusterFilter = !!(p.clusterFilterIds && p.clusterFilterIds.length > 0)
+        || !!(p.clusterFilterListings && p.clusterFilterListings.length > 0);
+      if (p.serverClusters && p.serverClusters.length > 0 && !_isClusterFilter) {
+        syncRender();
+        svgDiagPush('render_total', performance.now() - _t0);
+        return;
+      }
+
       if (workerRef.current) {
         reqIdRef.current += 1;
         const _tPost0 = performance.now();
