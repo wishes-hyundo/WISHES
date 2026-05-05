@@ -134,6 +134,8 @@ export function ListPanel() {
   // L-nolimit1 (2026-04-26): bbox > 0.3° 면 listings fetch 안 됨 (광역 뷰).
   //   광역 뷰에선 빈 listings 라 안내 메시지 다르게.
   const bbox = useMap2026Store((s) => s.bbox);
+  // Wave 74: viewport 전체 매물 수 (page API total). header 카운트가 50 cap 에 막히지 않게.
+  const viewportTotal = useMap2026Store((s) => s.viewportTotal);
   const isWideView = bbox && (
     (bbox.east - bbox.west > 0.3) || (bbox.north - bbox.south > 0.3)
   );
@@ -289,7 +291,13 @@ export function ListPanel() {
             if (isWideView) {
               return <span className="text-[12.5px] font-semibold text-neutral-500">지도 줌인 필요</span>;
             }
-            const total = sorted.length;
+            // Wave 74: viewport total (서버 정확 매물 수) 우선 사용.
+            //   page limit=50 라 sorted.length 만으로는 "50개" 로 cap. viewportTotal 이 진짜.
+            //   cluster filter 시는 sorted.length (필터된 매물 만) 사용.
+            const usingClusterFilter = clusterFilterIds && clusterFilterIds.length > 0;
+            const total = usingClusterFilter
+              ? sorted.length
+              : (viewportTotal ?? sorted.length);
             return (
               <>
                 <span className="text-[14px] font-bold text-neutral-900">
