@@ -57,7 +57,11 @@ import { CopyToastOutlet } from '@/features/map-2026/components/CopyToast';
 // Wave 38 (2026-05-04 사장님 명령 끝까지 마무리): 직방/네모 패턴 SVG single-layer marker.
 //   Kakao CustomOverlay 415개 setMap = 146ms freeze 한계. SVG 1 layer 안 모든 cluster = 1 reflow.
 //   URL ?svg=1 시 활성 (사장님 검증). 다음 Wave 39 에서 기본 활성 + HtmlMarkerOverlay 비활성.
-import SvgMarkerLayer from '@/components/map/SvgMarkerLayer';
+// Wave 79 (사장님 명령 2026-05-06): 5 업체 architecture 채택.
+//   SvgMarkerLayer (custom SVG + transform 추적) → panning stuck root cause.
+//   교체: KakaoMarkerLayer (kakao.maps.CustomOverlay native, SDK 자동 reposition).
+//   직방/다방/네모/피터팬 모두 동일 architecture.
+import KakaoMarkerLayer from '@/components/map/KakaoMarkerLayer';
 // Wave 49 (2026-05-04 사장님 명령 "끝까지 무조건"): Canvas 2D marker layer.
 //   SVG 50ms 한계 도달 (SVG DOM reflow 자체). Canvas 2D = 53 cluster 5ms 예상.
 //   ?canvas=1 활성 (검증), Wave 50 에서 default.
@@ -600,7 +604,7 @@ export default function MapClient() {
                   onClusterFilter={(ids, label) => setClusterFilter(ids, label)}
                 />
               ) : useSvg && (
-                <SvgMarkerLayer
+                <KakaoMarkerLayer
                   map={kakaoMap}
                   container={containerRef.current}
                   listings={listings}
