@@ -132,8 +132,16 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
     if (props.serverClusters && props.serverClusters.length > 0 && !isClusterFilterActive) {
       const cat = CAT_COLORS[props.category];
       for (const sc of props.serverClusters) {
-        const lat = (typeof sc.tier1_lat === 'number' && Number.isFinite(sc.tier1_lat)) ? sc.tier1_lat : sc.lat;
-        const lng = (typeof sc.tier1_lng === 'number' && Number.isFinite(sc.tier1_lng)) ? sc.tier1_lng : sc.lng;
+        // Wave 87 (사장님 명령 2026-05-06): tier1_lat sanity check.
+        //   building_centroids 데이터 오염 (cluster lat 와 매우 다른 좌표) → markers viewport 밖.
+        //   cluster centroid (sc.lat) 와 0.005도 (~500m) 이상 차이 시 tier1 무시 + sc.lat 사용.
+        const t1Lat = (typeof sc.tier1_lat === 'number' && Number.isFinite(sc.tier1_lat)) ? sc.tier1_lat : null;
+        const t1Lng = (typeof sc.tier1_lng === 'number' && Number.isFinite(sc.tier1_lng)) ? sc.tier1_lng : null;
+        const tier1Valid = t1Lat != null && t1Lng != null
+          && Math.abs(t1Lat - sc.lat) < 0.005
+          && Math.abs(t1Lng - sc.lng) < 0.005;
+        const lat = tier1Valid ? t1Lat! : sc.lat;
+        const lng = tier1Valid ? t1Lng! : sc.lng;
         const ids = (sc.sample_ids ?? []).join(',');
         const singleId = sc.count === 1 && sc.sample_ids?.[0] ? String(sc.sample_ids[0]) : '';
         const hasSel = props.selectedListingId != null && (sc.sample_ids ?? []).includes(props.selectedListingId);
