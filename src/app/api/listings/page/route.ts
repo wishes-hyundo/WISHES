@@ -141,7 +141,9 @@ export async function GET(req: NextRequest) {
     if (maxMonthly != null) cq = cq.lte('monthly', maxMonthly);
     if (minArea != null) cq = cq.gte('area_m2', minArea);
     if (maxArea != null) cq = cq.lte('area_m2', maxArea);
-    const { count: totalCount } = await cq;
+
+    // Wave 72 (사장님 명령 2026-05-06): count + select 병렬화 (was sequential 800ms+).
+    //   listing card data query 시작 (병렬)
 
     // listing card data (full fields, page slice)
     let q = supabase
@@ -170,7 +172,10 @@ export async function GET(req: NextRequest) {
 
     q = q.range(offset, offset + limit - 1);
 
-    const { data: rows, error } = await q;
+    // Wave 72: parallel count + select (was sequential)
+    const [countResult, dataResult] = await Promise.all([cq, q]);
+    const totalCount = countResult.count;
+    const { data: rows, error } = dataResult;
     if (error) {
       console.error('[page]', error);
       return NextResponse.json({ error: 'query failed' }, { status: 500 });
@@ -227,7 +232,7 @@ export async function GET(req: NextRequest) {
       { listings, total, hasMore, page, limit },
       {
         headers: {
-          'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=600',
+          'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=900',  // Wave 72: stronger CDN cache
           'Vary': 'Authorization',
         },
       },
