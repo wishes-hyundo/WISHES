@@ -62,6 +62,15 @@ interface KakaoNamespace {
   };
 }
 
+// Wave 69 (사장님 명령 2026-05-06 재설계): server cluster 직접 사용 (I-ARCH-1)
+export interface ServerClusterInput {
+  cluster_id: string;
+  lat: number;
+  lng: number;
+  count: number;
+  sample_ids?: number[] | null;
+}
+
 export interface SvgMarkerLayerProps {
   map: unknown;
   container: HTMLElement | null;
@@ -72,6 +81,8 @@ export interface SvgMarkerLayerProps {
   clusterFilterListings: MapListing[] | null;
   onClickListing: (id: number) => void;
   onClusterFilter?: (ids: number[] | null, label: string | null) => void;
+  // Wave 69: server cluster 우선 사용. 있으면 client aggregateClusters 우회.
+  serverClusters?: ServerClusterInput[] | null;
 }
 
 // Wave 64 (사장님 명령 2026-05-04 Apple 정밀): 더 진한 솔리드 톤 (0.85 → 0.92)
@@ -388,6 +399,34 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
         : (filterSet ? p.listings.filter((l) => filterSet.has(l.id)) : p.listings);
       const isClusterFilterActive = !!filterSet
         || !!(p.clusterFilterListings && p.clusterFilterListings.length > 0);
+
+      // Wave 69 (사장님 명령 2026-05-06 재설계 / I-ARCH-1): server cluster 우선 path.
+      //   serverClusters 있고 cluster filter 비활성이면 server 결과 직접 사용.
+      //   client aggregateClusters 우회 → main thread block 0, listings 의존 X.
+      if (p.serverClusters && p.serverClusters.length > 0 && !isClusterFilterActive) {
+        const cat = CAT_COLORS[p.category];
+        const items: ClusterRenderItem[] = [];
+        let anchorL = 0; let anchorN = 0; let firstAnchor = false;
+        for (const sc of p.serverClusters) {
+          const count = sc.count;
+          const size = markerSize(count, level, isMobile);
+          const fontSize = count >= 100 ? 12 : 11;
+          const ids = (sc.sample_ids ?? []).join(',');
+          const singleId = count === 1 && sc.sample_ids?.[0] ? String(sc.sample_ids[0]) : '';
+          const hasSel = p.selectedListingId != null && (sc.sample_ids ?? []).includes(p.selectedListingId);
+          const bg = hasSel ? SEL_BG : cat.bg;
+          items.push({
+            lat: sc.lat, lng: sc.lng,
+            r: size / 2, fontSize, bg, count, ids,
+            singleId,
+            isSpiderFy: false, spiderFyId: 0,
+          });
+          if (!firstAnchor) { anchorL = sc.lat; anchorN = sc.lng; firstAnchor = true; }
+        }
+        commitItems(items, anchorL, anchorN, projection);
+        return;
+      }
+
       const filtered = (p.category === 'investment' || isClusterFilterActive)
         ? visibleListings
         : visibleListings.filter((l) => listingCategoryOf(l) === p.category);
@@ -607,6 +646,12 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
     lastLevelRef.current = -1;
     renderRef.current();
   }, [props.category, props.selectedListingId, props.clusterFilterIds, props.clusterFilterListings]);
+
+  // Wave 69 (사장님 명령 2026-05-06): serverClusters 변경 시 re-render.
+  useEffect(() => {
+    lastLevelRef.current = -1;
+    renderRef.current();
+  }, [props.serverClusters]);
 
   return null;
 }
