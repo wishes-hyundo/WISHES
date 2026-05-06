@@ -1,9 +1,10 @@
 'use client';
 
-// Wave 79 + 87 + 91: KakaoMarkerLayer (Apple style safe)
+// Wave 79 + 87 + 91 + 96: KakaoMarkerLayer
 //   Wave 79: kakao.maps.CustomOverlay native (5-site arch)
-//   Wave 87: tier1_lat sanity check (~500m drift skip)
-//   Wave 91: Apple style via injected stylesheet (no inline transition/will-change)
+//   Wave 87: tier1_lat sanity check
+//   Wave 91: Apple style via injected stylesheet
+//   Wave 96: cluster-filter spider-fy radial spread (I-MARKER-6 fix)
 
 import { useEffect, useRef } from 'react';
 import type { MapListing } from '@/features/map-2026/store';
@@ -97,6 +98,34 @@ function makeContentHtml(it: { count: number; bg: string; ids: string; singleId:
   return `<div class="wishes-marker" ${dataAttr} style="width:${sz}px;height:${sz}px;background:${it.bg};font-size:${fontSize}px;">${formatCount(it.count)}</div>`;
 }
 
+// Wave 96: spider-fy radial spread for cluster filter (I-MARKER-6)
+//   같은 좌표 매물들을 12시 방향 N등분 원형으로 분산
+function spiderfyPositions(list: MapListing[], radiusDeg: number): Array<{ id: number; lat: number; lng: number }> {
+  const groups = new Map<string, MapListing[]>();
+  for (const l of list) {
+    const k = `${l.lat.toFixed(4)}:${l.lng.toFixed(4)}`;
+    const arr = groups.get(k) || [];
+    arr.push(l);
+    groups.set(k, arr);
+  }
+  const result: Array<{ id: number; lat: number; lng: number }> = [];
+  for (const members of groups.values()) {
+    const N = members.length;
+    if (N === 1) {
+      result.push({ id: members[0].id, lat: members[0].lat, lng: members[0].lng });
+    } else {
+      const cosLat = Math.cos(members[0].lat * Math.PI / 180) || 1;
+      members.forEach((l, idx) => {
+        const angle = (idx * 2 * Math.PI / N) - Math.PI / 2;
+        const dLat = radiusDeg * Math.sin(-angle);
+        const dLng = (radiusDeg / cosLat) * Math.cos(angle);
+        result.push({ id: l.id, lat: l.lat + dLat, lng: l.lng + dLng });
+      });
+    }
+  }
+  return result;
+}
+
 export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
   const overlayPoolRef = useRef<Map<string, KakaoCustomOverlay>>(new Map());
   const propsRef = useRef(props);
@@ -152,11 +181,17 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
         }
       }
     } else if (isClusterFilterActive && props.clusterFilterListings) {
+      // Wave 96: spider-fy 적용 (I-MARKER-6)
       const cat = CAT_COLORS[props.category];
       const list = props.clusterFilterListings.length > 0
         ? props.clusterFilterListings
         : props.listings.filter((l) => props.clusterFilterIds!.includes(l.id));
-      for (const l of list) {
+      const SPIDER_RADIUS_DEG = 0.0005; // ~55m
+      const positioned = spiderfyPositions(list, SPIDER_RADIUS_DEG);
+      const listMap = new Map(list.map((l) => [l.id, l] as const));
+      for (const p of positioned) {
+        const l = listMap.get(p.id);
+        if (!l) continue;
         const key = `f_${l.id}`;
         seen.add(key);
         const isSel = props.selectedListingId === l.id;
@@ -164,11 +199,11 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
         const html = makeContentHtml({ count: 1, bg, ids: '', singleId: String(l.id) });
         const existing = pool.get(key);
         if (existing) {
-          existing.setPosition(new maps.LatLng(l.lat, l.lng));
+          existing.setPosition(new maps.LatLng(p.lat, p.lng));
           existing.setContent(html);
         } else {
           const ov = new maps.CustomOverlay({
-            position: new maps.LatLng(l.lat, l.lng),
+            position: new maps.LatLng(p.lat, p.lng),
             content: html,
             yAnchor: 0.5,
             xAnchor: 0.5,
