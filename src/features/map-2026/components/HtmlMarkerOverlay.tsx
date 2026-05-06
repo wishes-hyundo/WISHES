@@ -751,9 +751,13 @@ export default function HtmlMarkerOverlay({
       // Wave 23: cluster 집계를 lib/clusterAggregation.aggregateClusters() 로 위임.
       //   동일 알고리즘 (cellSize > 0 → grid / cellSize == 0 → 같은 좌표).
       //   KakaoDeckOverlay (WebGL) 에서도 같은 함수 사용.
-      const aggregated = aggregateClusters(rest, level, isClusterFilterActive);
+      // Wave 100 (사장님 명령 2026-05-06): cluster click 시 마커 그대로 유지
+      //   이전 L-mapfix-2026-05-02 의도 무효 — 사장님 새 의도:
+      //   cluster click → 좌측 N매물 list 만 변경, 마커 형태 유지 (분리 X).
+      //   isClusterFilterActive 강제 false → grid cell 그대로.
+      const aggregated = aggregateClusters(rest, level, false);
       for (const [k, v] of aggregated) clusters.set(k, v);
-      const cellSize = isClusterFilterActive ? 0 : gridSizeForLevel(level);
+      const cellSize = gridSizeForLevel(level);
 
       // L-naver-2026clusterselected1 (2026-04-27): selected 판정 강화.
       //   selectedListingId 매칭 + clusterFilterIds 가 정확히 cluster 안 매물 모두 매칭.
