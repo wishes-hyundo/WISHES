@@ -767,9 +767,6 @@ export default function HtmlMarkerOverlay({
       const TIER1_TYPES = new Set<string>(['아파트', '오피스텔', '주상복합', '도시형생활주택']);
       // G-117 (2026-05-04 사장님 측정 — 167ms longtask freeze): 마커 동기 생성 batched rAF 로 분할.
       //   415 markers / batch 50 = 9 frames × ~16ms = 60fps 유지. 사용자 freeze 체감 X.
-      // Wave 28 ROLLBACK (2026-05-04): Wave 27 의 _BATCH 25 시도 prod 측정 결과 freeze 146ms → 321ms 악화.
-      //   원인: longtask API 가 여러 frame 누적 측정 (17 frames × ~19ms = 323ms). batch 더 작게 = 누적 더 큼.
-      //   _BATCH 50 으로 즉시 복원. 다음 진짜 freeze fix = Web Worker + supercluster (Wave 29).
       const _clusterArr = [...clusters.values()];
       const _renderToken = ++renderTokenRef.current;
       const _BATCH = 50;
@@ -780,6 +777,8 @@ export default function HtmlMarkerOverlay({
         for (let _i = _bIdx; _i < _end; _i++) {
           const arr = _clusterArr[_i];
         if (arr.length === 0) continue;
+        // Wave 99 (사장님 명령 2026-05-06): count=1 hide (피터팬/직방 매칭, z16 이하)
+        if (level >= 4 && arr.length < 2) continue;
         // Wave 23: centroid + jitter 를 lib/clusterAggregation.computeClusterPosition() 로 위임.
         //   I-MARKER-3 (TIER1 정확 좌표) + cluster_token hash jitter (격자 패턴 회피).
         const _pos = computeClusterPosition(arr);
