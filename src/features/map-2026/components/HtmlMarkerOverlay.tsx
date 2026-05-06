@@ -582,7 +582,8 @@ export default function HtmlMarkerOverlay({
       //   같은 좌표 매물들이 한 점에 stack 되어 시각적으로 1개로 보이는 문제.
       //   직방/네이버 표준 — cluster 클릭 시 그 안 매물 모두 펼쳐 보이게.
       //   각 매물을 individual marker 로 렌더 + 좌표 동일하면 radial jitter.
-      if (isClusterFilterActive && filtered.length > 1) {
+      // Wave 101 (사장님 명령 2026-05-06): G-123 spider-fy 비활성 — cluster click 시 마커 그대로
+      if (false && isClusterFilterActive && filtered.length > 1) {
         // Wave 23: spider-fy 좌표 계산을 lib/clusterAggregation.applySpiderFy() 로 위임.
         //   I-MARKER-6 (G-123): 같은 좌표 매물 N등분 원형 분산 (12시 방향부터).
         const _spiderResults = applySpiderFy(filtered);
