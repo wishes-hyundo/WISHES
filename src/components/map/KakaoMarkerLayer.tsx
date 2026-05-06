@@ -77,7 +77,7 @@ function formatCount(n: number): string {
 }
 
 const APPLE_STYLE_ID = 'wishes-marker-apple-style';
-const APPLE_STYLE_CSS = ".wishes-marker{display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:600;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',Arial,sans-serif;letter-spacing:-0.01em;border:1.5px solid rgba(255,255,255,0.92);box-shadow:0 1px 2px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.18);transition:transform 180ms cubic-bezier(0.16,1,0.3,1),box-shadow 180ms ease-out;transform:translateZ(0);}.wishes-marker:hover{transform:scale(1.08) translateZ(0);box-shadow:0 2px 4px rgba(0,0,0,0.16),0 8px 20px rgba(0,0,0,0.22);z-index:200;}";
+const APPLE_STYLE_CSS = ".wishes-marker{display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:600;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',Arial,sans-serif;letter-spacing:-0.01em;box-shadow:0 1px 2px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.18);transition:transform 180ms cubic-bezier(0.16,1,0.3,1),box-shadow 180ms ease-out;transform:translateZ(0);}.wishes-marker:hover{transform:scale(1.08) translateZ(0);box-shadow:0 2px 4px rgba(0,0,0,0.16),0 8px 20px rgba(0,0,0,0.22);z-index:200;}";
 
 function injectAppleStyle(): void {
   if (typeof document === 'undefined') return;
