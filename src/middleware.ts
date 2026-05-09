@@ -268,3 +268,23 @@ export function middleware(request: NextRequest) {
           refHost.endsWith('.vercel.app')
         );
   
+
+        );
+      if (!refererOk) {
+        return new NextResponse('Forbidden', { status: 403 });
+      }
+    }
+  }
+
+  if (pathname.includes('/storage/') && !pathname.startsWith('/api/')) {
+    return new NextResponse('Forbidden', { status: 403 });
+  }
+
+  return response;
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|apple-touch-icon.png|og-image.png).*)',
+  ],
+};
