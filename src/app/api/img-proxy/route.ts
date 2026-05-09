@@ -2,9 +2,6 @@
 // GET /api/img-proxy?url=ENCODED_URL[&raw=1]
 
 import { NextRequest, NextResponse } from 'next/server';
-// L-photo-pipeline (2026-04-24): 업로드 시점에 이미 중앙 워터마크가 찍히므로
-//   런타임 프록시의 우하단 로고 워터마크는 더 이상 적용하지 않는다.
-// import { applyWatermark } from '@/lib/watermark';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
 const ALLOWED_HOSTS = [
@@ -15,18 +12,19 @@ const ALLOWED_HOSTS = [
   'lh6.googleusercontent.com',
   // v2.3.3: 내부 이미지 프록시 재프록시(관리자 페이지 Referer 우회)
   'wishes-image-proxy.wishes-img.workers.dev',
+  // L-imgproxy-zigbang (2026-05-09 사장님 발견): 매물 78745 broken images.
+  //   온하우스↔직방/네모 협업 관계. 사진이 zigbang CDN 호스팅. URL 자체는
+  //   200 OK 인데 content-type=application/octet-stream 으로 응답 → 브라우저
+  //   broken image. img-proxy 거쳐서 magic bytes 로 image type 강제 추론.
+  'resource.zigbang.io',
 ];
 
-// v2.3.3: 상위 Worker 가 Referer 를 /search 경로로만 허용하므로 서버측에서 주입
 const REFERER_OVERRIDES: Record<string, string> = {
   'wishes-image-proxy.wishes-img.workers.dev': 'https://wishes.co.kr/search',
 };
 
 const CACHE_SECONDS = 86400;
 
-// L-imgproxy-fallback (2026-05-09 사장님 발견): 외부 사이트 503 / fetch 실패 시
-//   500/503 응답 -> 클라이언트에 broken image + 콘솔 에러 누적. 대신 1x1
-//   transparent PNG 200 응답으로 graceful fallback. 콘솔 깨끗 + UX 개선.
 const TRANSPARENT_PNG_1X1 = Buffer.from([
   0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
   0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52,
@@ -42,7 +40,6 @@ function _transparentFallback(reason: string): NextResponse {
     status: 200,
     headers: {
       'Content-Type': 'image/png',
-      // 짧은 cache (5min) — 외부 사이트 일시 장애일 수도
       'Cache-Control': 'public, max-age=300, s-maxage=300',
       'X-Proxied': 'fallback',
       'X-Fallback-Reason': reason,
@@ -50,10 +47,29 @@ function _transparentFallback(reason: string): NextResponse {
   });
 }
 
+// L-imgproxy-magic (2026-05-09): magic bytes 로 image type 추론.
+//   직방 CDN 등이 application/octet-stream 으로 응답하는 케이스 처리.
+//   매치 실패 시 null (진짜 이미지 아님 → transparent fallback).
+function _detectImageMagic(buf: Buffer): string | null {
+  if (!buf || buf.length < 12) return null;
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return 'image/jpeg';
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47 &&
+      buf[4] === 0x0D && buf[5] === 0x0A && buf[6] === 0x1A && buf[7] === 0x0A) return 'image/png';
+  // GIF: GIF8
+  if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return 'image/gif';
+  // WebP: RIFF....WEBP
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return 'image/webp';
+  // AVIF: ftypavif (offset 4)
+  if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70 &&
+      buf[8] === 0x61 && buf[9] === 0x76 && buf[10] === 0x69 && buf[11] === 0x66) return 'image/avif';
+  return null;
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // L-sec74 (2026-04-22): 외부 이미지 프록시 대역폭 남용 방지
-    //   5분 120회/IP cap. 이미지 heavy fetch 라 일반 API 보다 높게.
     const _ip = getClientIp(request);
     const _rl = checkRateLimit({ key: `img-proxy:ip:${_ip}`, limit: 120, windowMs: 5 * 60_000 });
     if (!_rl.ok) {
@@ -100,7 +116,6 @@ export async function GET(request: NextRequest) {
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
       console.error('[img-proxy] fetch ' + res.status + ' ' + res.statusText + ' url=' + targetUrl + ' body=' + errBody.substring(0, 200));
-      // L-imgproxy-fallback: 외부 사이트 503/404/500 -> transparent fallback
       return _transparentFallback('upstream_' + res.status);
     }
 
@@ -116,11 +131,18 @@ export async function GET(request: NextRequest) {
     const imageBuffer = Buffer.from(ab);
     const rawContentType = (res.headers.get('content-type') || 'image/jpeg').toLowerCase();
     const SAFE_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
-    const primaryType = rawContentType.split(';')[0].trim();
+    let primaryType = rawContentType.split(';')[0].trim();
+
+    // L-imgproxy-magic (2026-05-09 사장님 발견 매물 78745):
+    //   직방 CDN 일부 이미지가 application/octet-stream 으로 응답.
+    //   magic bytes 검사로 실제 image type 추론.
     if (!SAFE_IMAGE_TYPES.includes(primaryType)) {
-      // L-imgproxy-fallback: 외부 사이트가 이미지 아닌 응답 (text/html 에러 등)
-      //   → transparent fallback (XSS 차단 의도 유지하면서 콘솔 깔끔)
-      return _transparentFallback('content_type_' + primaryType.replace('/', '_'));
+      const detected = _detectImageMagic(imageBuffer);
+      if (detected) {
+        primaryType = detected;
+      } else {
+        return _transparentFallback('content_type_' + primaryType.replace('/', '_'));
+      }
     }
     const contentType = primaryType;
 
@@ -130,13 +152,8 @@ export async function GET(request: NextRequest) {
       outputBuffer = imageBuffer;
       outputType = contentType;
     } else {
-      try {
-        outputBuffer = imageBuffer;
-        outputType = contentType;
-      } catch {
-        outputBuffer = imageBuffer;
-        outputType = contentType;
-      }
+      outputBuffer = imageBuffer;
+      outputType = contentType;
     }
 
     return new NextResponse(new Uint8Array(outputBuffer), {
@@ -148,9 +165,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err) {
-
     console.error('[img-proxy] error:', err);
-    // L-imgproxy-fallback: fetch throw (timeout / DNS / network) -> transparent
     return _transparentFallback('fetch_error');
   }
 }

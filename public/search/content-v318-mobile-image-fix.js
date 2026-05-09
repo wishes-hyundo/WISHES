@@ -3,11 +3,15 @@
  *         아니라 <div style="background-image: url(...)"> 형태. v318 selector 가 놓침. */
 (function () {
   'use strict';
-  var V = 'v318-mobile-image-fix-rev6';
+  var V = 'v318-mobile-image-fix-rev7';
   var EXTERNAL_HOSTS = [
     'wishes-image-proxy.wishes-img.workers.dev',
     'pub-e16c7a50584c4db7be3571746cd80716.r2.dev',
     'd4k1brqee4emz.cloudfront.net',
+    // L-imgproxy-zigbang (2026-05-09 사장님 발견 매물 78745):
+    //   onhouse 매물의 사진이 직방 CDN 호스팅. octet-stream 응답으로
+    //   브라우저 broken image. img-proxy 거치게 변환.
+    'resource.zigbang.io',
   ];
   var PROXY_PREFIX = '/api/img-proxy?url=';
 
@@ -116,12 +120,4 @@
         attributes: true, attributeFilter: ['src', 'data-src', 'style'],
       });
       console.log('[' + V + '] 시작 — <img> + background-image 모두 self-origin 자동 변환');
-    } catch (e) { console.warn('[' + V + '] MutationObserver 실패:', e); }
-    setTimeout(fixAll, 500);
-    setTimeout(fixAll, 1500);
-    setTimeout(fixAll, 4000);
-  }
-
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
-  else start();
-})();
+    } catch (e) { console.warn('[' + V + '
