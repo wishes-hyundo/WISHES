@@ -274,13 +274,17 @@ export async function GET(request: NextRequest) {
 
           let allData: any[] = [...firstPage];
 
-          // L-search7b (2026-04-24): parallel 페이지 fetch 가 Vercel cold-start 시
-          //   Supabase 연결/rate-limit 와 상호작용하며 간헐적으로 중간 페이지가 빈
-          //   배열 반환 → 부분 데이터 (4000/6204) 로 끝나는 증상. sequential 로
-          //   전환해 각 페이지 결과를 확인 후 다음 페이지 요청. 총 시간 약간 증가
-          //   하지만 일관성 대폭 향상 (no join, 페이지당 0.3~0.6s).
+          // L-perf-step-i (2026-05-09 사장님 SOTA Phase 3): main pages chunked parallel.
+          //   사장님 호소 "Step H 후에도 1분 그대로". image batches (Step H) 단축
+          //   효과 작음 - 진짜 병목은 main listings 63 페이지 (62K 매물) sequential.
+          //   해결: chunked parallel (5개씩 동시) + page 별 retry 1회.
+          //   - chunked 라 supabase rate-limit 안전 (이전 L-search7b issue 회피)
+          //   - retry 로 cold-start 빈 페이지 issue 1회 자동 복구
+          //   - 페이지당 0.3-0.6s, 5개 동시 → chunk 당 0.6s, 13 chunks → 8초
+          //   - 이전 sequential 63 × 0.5s = 32s → 8s (4배 빠름)
           if (firstPage.length === PAGE_SIZE) {
-            for (let from = PAGE_SIZE; from < 100000; from += PAGE_SIZE) {
+            const _mainStart = Date.now();
+            const fetchPage = async (from: number, retry = 0): Promise<any[] | null> => {
               let q = supabase
                 .from('listings')
                 .select(selectFields)
@@ -289,13 +293,47 @@ export async function GET(request: NextRequest) {
               if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
               const { data: page, error: pageError } = await q;
               if (pageError) {
-                console.error('[admin/listings minimal] page ' + from + ' error', pageError);
-                break; // 에러면 중단 (이미 받은 allData 는 반환)
+                if (retry < 1) {
+                  await new Promise((r) => setTimeout(r, 200));
+                  return fetchPage(from, retry + 1);
+                }
+                console.error('[admin/listings minimal] page ' + from + ' error after retry', pageError);
+                return null;
               }
-              if (!page || page.length === 0) break;
-              allData = allData.concat(page);
-              if (page.length < PAGE_SIZE) break; // 마지막 페이지 확인
+              if (!page) return null;
+              if (page.length === 0 && retry < 1) {
+                // 빈 페이지: cold-start rate-limit 일 수 있음 - 1회 retry
+                await new Promise((r) => setTimeout(r, 200));
+                return fetchPage(from, retry + 1);
+              }
+              return page;
+            };
+
+            const CHUNK = 5; // 동시 5 페이지 (supabase 안전 margin)
+            let from = PAGE_SIZE;
+            let stop = false;
+            while (!stop && from < 100000) {
+              const offsets: number[] = [];
+              for (let c = 0; c < CHUNK && from + c * PAGE_SIZE < 100000; c++) {
+                offsets.push(from + c * PAGE_SIZE);
+              }
+              const pages = await Promise.all(offsets.map((off) => fetchPage(off)));
+              for (let i = 0; i < pages.length; i++) {
+                const page = pages[i];
+                if (!page || page.length === 0) {
+                  stop = true; // 마지막 chunk 도달
+                  break;
+                }
+                allData = allData.concat(page);
+                if (page.length < PAGE_SIZE) {
+                  stop = true; // 마지막 페이지
+                  break;
+                }
+              }
+              from += CHUNK * PAGE_SIZE;
             }
+            console.log('[admin/listings minimal] main pages fetched in ' +
+              (Date.now() - _mainStart) + 'ms (' + allData.length + ' rows, chunked parallel CHUNK=' + CHUNK + ')');
           }
 
           // L-search7 (2026-04-24): 수집된 id 로 listing_images 를 IN 쿼리 1번에 fetch.
