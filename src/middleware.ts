@@ -101,8 +101,29 @@ export function middleware(request: NextRequest) {
     //   literal 'Bearer <legacy>' 를 strip → verifyAdminAuth 의 ws_session
     //   쿠키 fallback path 가 인증 처리.
     const incomingAuth = request.headers.get('authorization') || '';
-    const strippedAuth =
+    const isLegacyLiteral =
       incomingAuth === 'Bearer <legacy>' || incomingAuth === 'bearer <legacy>';
+
+    // Step T (2026-05-10, 사장님 명령 1분 로딩 fix):
+    //   Vercel CDN docs (https://vercel.com/docs/caching/cdn-cache):
+    //   "Request doesn't contain Authorization header." 가 cacheable criteria.
+    //   /search v294 가 모든 admin fetch 에 'Bearer admin_bridge_eyJ...' 강제 합성 → BYPASS.
+    //   GET /api/admin/listings + ws_session 쿠키 있을 때 Authorization strip → CDN cache 활성.
+    //   downstream verifyAdminAuth 가 ws_session fallback 으로 인증 (adminAuth.ts:115).
+    //   POST/PUT 등 변경 method 는 strip 안 함 (CSRF 검증 별도 유지).
+    const sessionCookieValue = request.cookies.get('ws_session')?.value || '';
+    const isCacheTargetGet = (
+      request.method === 'GET' &&
+      pathname === '/api/admin/listings'
+    );
+    const hasBearerJwt = /^Bearer\s+(admin_bridge_)?eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(incomingAuth);
+    const isStepTStrip = (
+      isCacheTargetGet &&
+      Boolean(sessionCookieValue) &&
+      hasBearerJwt
+    );
+
+    const strippedAuth = isLegacyLiteral || isStepTStrip;
 
     if (request.method === 'OPTIONS') {
       const headers: Record<string, string> = {
@@ -180,7 +201,7 @@ export function middleware(request: NextRequest) {
       newReqHdrs.delete('authorization');
       newReqHdrs.delete('Authorization');
       response = NextResponse.next({ request: { headers: newReqHdrs } });
-      response.headers.set('X-Auth-Stripped', 'legacy-literal');
+      response.headers.set('X-Auth-Stripped', isLegacyLiteral ? 'legacy-literal' : 'step-t-cookie-cache');
     } else {
       response = NextResponse.next();
     }
