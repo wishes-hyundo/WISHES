@@ -216,7 +216,7 @@ export default function SearchPortalPage() {
       //   → "저장공간 부족" 토스트 무한 반복. Storage.prototype.setItem 가로채기로
       //   quota 시 자동 cleanup + 재시도. 사장님 데이터 (즐겨찾기/메모/연락처/폴더)
       //   SAFE_PRESERVE 영구 보호. 토스트 10분 throttle.
-      ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260509a'],
+      ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260509b'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
