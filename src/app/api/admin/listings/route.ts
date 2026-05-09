@@ -301,26 +301,44 @@ export async function GET(request: NextRequest) {
           // L-search7 (2026-04-24): 수집된 id 로 listing_images 를 IN 쿼리 1번에 fetch.
           //   main rows 보다 10~20배 많지만 (listing_id, url, sort_order) 3 column 만
           //   가져오므로 페이로드 작음. 각 listing 당 첫 1장만 map 으로 빠르게 선정.
+          // L-perf-step-h (2026-05-09 사장님 SOTA Phase 2): sequential -> parallel.
+          //   사장님 1분 로딩 호소. 30 batches x ~1s sequential = 30s 추가 소요.
+          //   listing_images IN 쿼리는 batch 별 독립적 (rate-limit issue 없음)
+          //   -> Promise.all 안전. 10-20s 단축 예상. race condition X (lock-free).
           let imageByListing: Record<string, string> = {};
+          const _imgStart = Date.now();
           if (allData.length > 0) {
             try {
               const listingIds = allData.map((r: any) => r.id);
-              const BATCH = 1000; // Supabase IN 쿼리도 row limit 적용되므로 1000 씩 분할
+              const BATCH = 1000;
+              const batches: number[][] = [];
               for (let i = 0; i < listingIds.length; i += BATCH) {
-                const batch = listingIds.slice(i, i + BATCH);
-                const { data: imgs } = await supabase
-                  .from('listing_images')
-                  .select('listing_id, url, sort_order')
-                  .in('listing_id', batch)
-                  .order('sort_order', { ascending: true, nullsFirst: false })
-                  .limit(100000);
-                if (imgs) {
-                  for (const im of imgs as any[]) {
-                    const lid = String(im.listing_id);
-                    if (!imageByListing[lid] && im.url) imageByListing[lid] = im.url;
-                  }
+                batches.push(listingIds.slice(i, i + BATCH));
+              }
+              const results = await Promise.all(
+                batches.map((batch) =>
+                  supabase
+                    .from('listing_images')
+                    .select('listing_id, url, sort_order')
+                    .in('listing_id', batch)
+                    .order('sort_order', { ascending: true, nullsFirst: false })
+                    .limit(100000)
+                )
+              );
+              for (const { data: imgs, error: imgErr } of results) {
+                if (imgErr) {
+                  console.error('[admin/listings] image batch error', imgErr);
+                  continue;
+                }
+                if (!imgs) continue;
+                for (const im of imgs as any[]) {
+                  const lid = String(im.listing_id);
+                  if (!imageByListing[lid] && im.url) imageByListing[lid] = im.url;
                 }
               }
+              console.log('[admin/listings minimal] images fetched in ' +
+                (Date.now() - _imgStart) + 'ms (' + batches.length + ' batches parallel, ' +
+                Object.keys(imageByListing).length + ' listings)');
             } catch (e) {
               console.error('[admin/listings] image fetch error', e);
               // 실패 시 이미지 없이 계속 — 전체 매물 수 유지가 최우선
