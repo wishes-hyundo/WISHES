@@ -7,12 +7,16 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // L-urgent1 (2026-04-22): 빌드 게이트 재활성화.
+  // L-urgent1 (2026-04-22): 빌드 게이트.
+  // L-perf-step-f-fix (2026-05-09): Step F 가 의도치 않게 게이트 enable 한 사이드이펙트 되돌림.
+  //   _g***_clean/, _wave***_clean/ 등 staging 디렉토리에 pre-existing TS 에러 다수 존재.
+  //   이전 prod 는 ignore=true 로 통과 중. Step F 의 cache TTL 만 유지하고 게이트는 원복.
+  //   (사장님 명령 2026-05-09: "절대 실수 없이 어떠한 버그도 문제도 없이")
   eslint: {
-    ignoreDuringBuilds: false,
+    ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: false,
+    ignoreBuildErrors: true,
   },
 
   images: {

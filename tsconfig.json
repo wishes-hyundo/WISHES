@@ -23,5 +23,17 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules", "wishes-v2/**", "public/admin/**", "onhouse_full_crawler.js", "gsc_full_crawler.js", "scripts/**"]
+  "exclude": [
+    "node_modules",
+    "wishes-v2/**",
+    "public/admin/**",
+    "onhouse_full_crawler.js",
+    "gsc_full_crawler.js",
+    "scripts/**",
+    "_*_fix/**",
+    "_wave*_clean/**",
+    "_*_rollback_clean/**",
+    "_*_day*_clean/**",
+    "_g*_fix/**"
+  ]
 }
