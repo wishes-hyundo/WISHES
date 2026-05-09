@@ -1,6 +1,5 @@
-/* /search content-v334 — 모달 hero 도로명주소 (v7: 단순 텍스트, 배경/테두리 X)
- * 사장님 명령 (2026-05-09):
- *   v6 chip 형태 → "배경 및 테두리 칸은 필요 없음" + h1 위 겹침 fix
+/* /search content-v334 v8 — 모달 도로명주소 (hero 외부 위치)
+ * 사장님 명령: 단순 텍스트 + 가려짐 fix → hero section 다음 sibling 으로 위치
  */
 (function () {
   'use strict';
@@ -84,7 +83,6 @@
     });
   }
 
-  // L-v334-simple (2026-05-09 사장님 명령): 배경/테두리 X, 단순 텍스트만
   function injectRoadElement(road) {
     try {
       var modal = document.getElementById('ws-detail-container');
@@ -96,42 +94,44 @@
         }
         return true;
       }
-      // 기존 v240-hero-road 빈 element 숨김 (혼란/겹침 방지)
+      // 기존 v240-hero-road 빈 element hide (혼란 방지)
       var origRoad = modal.querySelector('#v240-hero-road');
-      if (origRoad) {
-        origRoad.style.display = 'none';
-      }
+      if (origRoad) origRoad.style.display = 'none';
 
-      var h1 = modal.querySelector('.v240-hero h1');
-      if (!h1) return false;
+      // hero section 자체 찾기 (자식 아닌 외부 위치 사용)
+      var heroSection = modal.querySelector('.v240-hero');
+      if (!heroSection) return false;
 
       var div = document.createElement('div');
       div.id = INJECT_ID;
       div.textContent = '📍 ' + road;
-      // 단순 텍스트 — 배경/테두리/padding 모두 제거. h1 다음 line 정상 표시.
-      div.style.cssText = [
-        'color: #6b7280',
-        'font-size: 13px',
-        'font-weight: 500',
-        'margin: 6px 0 0 0',
-        'padding: 0',
-        'background: transparent',
-        'border: none',
-        'display: block',
-        'visibility: visible',
-        'opacity: 1',
-        'clear: both',
-        'width: auto',
-        'line-height: 1.5',
-        'letter-spacing: -0.01em',
-        'position: static',
-      ].join(' !important; ') + ' !important;';
+      // 단순 텍스트 (사장님 명령): 배경/테두리 X
+      // setProperty 로 !important 정확하게 적용
+      var styleProps = {
+        'color': '#6b7280',
+        'font-size': '13px',
+        'font-weight': '500',
+        'margin': '6px 0 12px 0',
+        'padding': '0 4px',
+        'background': 'transparent',
+        'border': 'none',
+        'display': 'block',
+        'visibility': 'visible',
+        'opacity': '1',
+        'line-height': '1.5',
+        'letter-spacing': '-0.01em',
+        'position': 'static',
+        'width': 'auto',
+      };
+      Object.keys(styleProps).forEach(function (k) {
+        div.style.setProperty(k, styleProps[k], 'important');
+      });
 
-      // h1 의 nextSibling 으로 삽입 (h1 다음 line)
-      if (h1.nextSibling) {
-        h1.parentNode.insertBefore(div, h1.nextSibling);
+      // hero section 의 다음 sibling 으로 삽입 (hero 외부, 다음 섹션 사이)
+      if (heroSection.nextSibling) {
+        heroSection.parentNode.insertBefore(div, heroSection.nextSibling);
       } else {
-        h1.parentNode.appendChild(div);
+        heroSection.parentNode.appendChild(div);
       }
       return true;
     } catch (e) {
@@ -209,5 +209,5 @@
   }
 
   try { window.WS = window.WS || {}; window.WS._v334 = { apply: applyToHero, getId: getCurrentListingId }; } catch (_) {}
-  try { console.log('[' + V + ' v7] active - simple text mode'); } catch (_) {}
+  try { console.log('[' + V + ' v8] active - outside hero position'); } catch (_) {}
 })();
