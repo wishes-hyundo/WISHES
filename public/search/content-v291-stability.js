@@ -167,11 +167,11 @@
       'html, body { overscroll-behavior-y: contain; }',
       '.ws-search-container, .ws-listings { overscroll-behavior-y: contain; }',
       /* [S7] prefers-reduced-motion: 모든 애니메이션/전환 중단 */
+      /* 2026-05-10 fix: animation-duration shorthand cascade 충돌 수정 */
       '@media (prefers-reduced-motion: reduce) {',
       '  *, *::before, *::after {',
-      '    animation-duration: 0.001ms !important;',
-      '    animation-iteration-count: 1 !important;',
-      '    transition-duration: 0.001ms !important;',
+      '    animation: none !important;',
+      '    transition: none !important;',
       '    scroll-behavior: auto !important;',
       '  }',
       '}',
