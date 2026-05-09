@@ -99,7 +99,7 @@ const nextConfig = {
         ],
       },
       {
-        source: '/api/admin/:slug*',
+        source: '/api/admin/_no_match_:slug*',
         headers: [
           { key: 'Cache-Control', value: 'private, no-store' },
         ],
