@@ -332,4 +332,24 @@ const cardStyle: React.CSSProperties = {
   boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
 };
 
-const btnPrimary: React.CSSPro
+const btnPrimary: React.CSSProperties = {
+  padding: '10px 20px',
+  background: '#2D5A27',
+  color: '#fff',
+  borderRadius: 8,
+  border: 'none',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
+
+const btnSecondary: React.CSSProperties = {
+  padding: '10px 20px',
+  background: '#f0f5f0',
+  color: '#2D5A27',
+  borderRadius: 8,
+  border: '1px solid #d5e5d5',
+  fontSize: 14,
+  fontWeight: 600,
+  cursor: 'pointer',
+};
