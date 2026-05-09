@@ -96,7 +96,7 @@ export default function SearchPortalPage() {
       if (!w.__WS_PREFETCH__) {
         const wsToken = (() => { try { return sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token') || ''; } catch { return ''; } })();
         if (wsToken) {
-          w.__WS_PREFETCH__ = adminFetch('/api/admin/listings?fields=minimal', {
+          w.__WS_PREFETCH__ = Promise.resolve(null); if (false) adminFetch('/api/admin/listings?fields=minimal', {
             headers: { Authorization: 'Bearer ' + wsToken },
             cache: 'no-cache',
           }).then((r) => r.json()).then((j) => (j && j.success && Array.isArray(j.data) ? j.data : null)).catch(() => null);
