@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
         async () => {
-          const PAGE_SIZE = 1000;
+          const PAGE_SIZE = 5000;
 
           // 1차 페이지
           let firstQ = supabase
@@ -505,7 +505,7 @@ export async function GET(request: NextRequest) {
     }
 
     let allData: any[] = [];
-    const PAGE_SIZE = 1000;
+    const PAGE_SIZE = 5000;
     let from = 0;
     let hasMore = true;
 
