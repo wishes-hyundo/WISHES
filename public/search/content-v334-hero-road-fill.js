@@ -1,7 +1,6 @@
-/* /search content-v334 — 모달 hero 도로명주소 (v6: 새 element 강제 삽입)
+/* /search content-v334 — 모달 hero 도로명주소 (v7: 단순 텍스트, 배경/테두리 X)
  * 사장님 명령 (2026-05-09):
- *   v5 inline style 도 안 보임 ("겹쳐서 가려짐") → hero h1 의 nextSibling 으로
- *   완전히 새 element 강제 삽입. CSS 영향 0, 시각 강조 background 포함.
+ *   v6 chip 형태 → "배경 및 테두리 칸은 필요 없음" + h1 위 겹침 fix
  */
 (function () {
   'use strict';
@@ -85,12 +84,11 @@
     });
   }
 
-  // L-v334-inject (2026-05-09): 새 element 강제 삽입 (CSS 영향 0)
+  // L-v334-simple (2026-05-09 사장님 명령): 배경/테두리 X, 단순 텍스트만
   function injectRoadElement(road) {
     try {
       var modal = document.getElementById('ws-detail-container');
       if (!modal) return false;
-      // 이미 injected 가 있으면 textContent 만 update
       var existing = modal.querySelector('#' + INJECT_ID);
       if (existing) {
         if ((existing.textContent || '').indexOf(road) === -1) {
@@ -98,35 +96,38 @@
         }
         return true;
       }
-      // hero h1 찾기
+      // 기존 v240-hero-road 빈 element 숨김 (혼란/겹침 방지)
+      var origRoad = modal.querySelector('#v240-hero-road');
+      if (origRoad) {
+        origRoad.style.display = 'none';
+      }
+
       var h1 = modal.querySelector('.v240-hero h1');
       if (!h1) return false;
 
       var div = document.createElement('div');
       div.id = INJECT_ID;
       div.textContent = '📍 ' + road;
-      // !important 강제 styled — CSS 우선순위 높이기
+      // 단순 텍스트 — 배경/테두리/padding 모두 제거. h1 다음 line 정상 표시.
       div.style.cssText = [
-        'color: #2F6B3A !important',
-        'font-size: 14px !important',
-        'font-weight: 600 !important',
-        'margin: 8px 0 4px 0 !important',
-        'display: block !important',
-        'visibility: visible !important',
-        'opacity: 1 !important',
-        'position: relative !important',
-        'z-index: 100 !important',
-        'clear: both !important',
-        'width: fit-content !important',
-        'padding: 4px 10px !important',
-        'background: rgba(232, 241, 234, 0.85) !important',
-        'border-radius: 8px !important',
-        'border: 1px solid #2F6B3A33 !important',
-        'line-height: 1.5 !important',
-        'letter-spacing: -0.01em !important',
-      ].join('; ');
+        'color: #6b7280',
+        'font-size: 13px',
+        'font-weight: 500',
+        'margin: 6px 0 0 0',
+        'padding: 0',
+        'background: transparent',
+        'border: none',
+        'display: block',
+        'visibility: visible',
+        'opacity: 1',
+        'clear: both',
+        'width: auto',
+        'line-height: 1.5',
+        'letter-spacing: -0.01em',
+        'position: static',
+      ].join(' !important; ') + ' !important;';
 
-      // h1 의 nextSibling 으로 삽입
+      // h1 의 nextSibling 으로 삽입 (h1 다음 line)
       if (h1.nextSibling) {
         h1.parentNode.insertBefore(div, h1.nextSibling);
       } else {
@@ -143,7 +144,6 @@
     try {
       var modal = document.getElementById('ws-detail-container');
       if (!modal) return;
-      // 이미 injected 면 skip
       if (modal.querySelector('#' + INJECT_ID)) return;
 
       var id = getCurrentListingId();
@@ -159,7 +159,7 @@
 
       fetchRoadFromKakao(id, function (kakaoRoad) {
         if (!kakaoRoad) {
-          try { console.log('[' + V + '] no road for listing ' + id + ' (db null + kakao empty)'); } catch (_) {}
+          try { console.log('[' + V + '] no road for listing ' + id); } catch (_) {}
           return;
         }
         if (injectRoadElement(kakaoRoad)) {
@@ -200,7 +200,6 @@
     setTimeout(applyToHero, 1500);
     setTimeout(applyToHero, 3500);
     setTimeout(applyToHero, 7000);
-    setTimeout(applyToHero, 15000);
   }
 
   if (document.readyState === 'loading') {
@@ -210,5 +209,5 @@
   }
 
   try { window.WS = window.WS || {}; window.WS._v334 = { apply: applyToHero, getId: getCurrentListingId }; } catch (_) {}
-  try { console.log('[' + V + ' v6] active - inject mode'); } catch (_) {}
+  try { console.log('[' + V + ' v7] active - simple text mode'); } catch (_) {}
 })();
