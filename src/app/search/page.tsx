@@ -241,6 +241,9 @@ export default function SearchPortalPage() {
       //   해결: MutationObserver 로 img.src ?w=1920 → ?w=400 자동 변환.
       //   모달 hero 사진은 원본 보존 (.v240-hero, .v240-gallery skip).
       // v336 disabled (caused React loop)
+
+      // Step T (2026-05-10): cookie-issue auto for CDN cache
+      ['ws-ext-patch-v337-cookie-issue', '/search/content-v337-cookie-issue.js?v=20260510a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
