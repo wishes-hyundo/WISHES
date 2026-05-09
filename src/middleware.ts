@@ -52,7 +52,29 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = (request.headers.get('host') ?? '').toLowerCase();
 
-  // v7 §5: wishes.me 호스트 최상위 단축 URL → /s/<code> rewrite
+  // L-listingurl-path (2026-04-29 사장님 명령): /map/<숫자> 매물 path → query rewrite.
+  //   사용자 URL 은 /map/53190 그대로 유지 (rewrite, not redirect).
+  //   page.tsx 는 ?listing=ID 로 받아 처리. 클라이언트의 useListingUrlSync 가
+  //   history.replaceState 로 다시 /map/53190 형식 URL 노출.
+  if (pathname.startsWith('/map/') && !pathname.startsWith('/map-')) {
+    const m = /^\/map\/(\d+)$/.exec(pathname);
+    if (m) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/map';
+      url.searchParams.set('listing', m[1]);
+      return NextResponse.rewrite(url);
+    }
+  }
+
+  // G-39 (2026-05-03): /legal/privacy + /legal/terms → /privacy + /terms 로 통일.
+  // 두 페이지가 다른 컨텐츠를 보여줘서 일관성 깨짐. /privacy + /terms 가 canonical.
+  if (pathname === '/legal/privacy' || pathname === '/legal/terms') {
+    const url = request.nextUrl.clone();
+    url.pathname = pathname.replace('/legal', '');
+    return NextResponse.redirect(url, 308);
+  }
+
+    // v7 §5: wishes.me 호스트 최상위 단축 URL → /s/<code> rewrite
   if (isShortUrlHost(host)) {
     const m = SHORT_CODE_PATTERN.exec(pathname);
     if (m && !SHORT_CODE_RESERVED.has(m[1].toLowerCase())) {
@@ -73,16 +95,14 @@ export function middleware(request: NextRequest) {
     // L-fix-legacy-strip (2026-04-28): /search 의 옛날 content.js + content-v260-perf.js
     //   가 'Authorization: Bearer <legacy>' literal 을 hardcode 로 보냄. 과거
     //   Chrome Extension 이 치환하던 가정인데 지금은 없음 → verifyAdminAuth 가
-    //   literal 'Bearer <legacy>' 를 그대로 받아 401.
+    //   literal '<legacy>' 를 그대로 받아 401.
     //   client-side patch (v294) 가 v260-perf 의 native fetch 를 인터셉트 못
     //   하는 케이스 (script load 순서) 가 있어 server-side 에서 일괄 처리.
     //   literal 'Bearer <legacy>' 를 strip → verifyAdminAuth 의 ws_session
     //   쿠키 fallback path 가 인증 처리.
     const incomingAuth = request.headers.get('authorization') || '';
-    let strippedAuth = false;
-    if (incomingAuth === 'Bearer <legacy>' || incomingAuth === 'bearer <legacy>') {
-      strippedAuth = true;
-    }
+    const strippedAuth =
+      incomingAuth === 'Bearer <legacy>' || incomingAuth === 'bearer <legacy>';
 
     if (request.method === 'OPTIONS') {
       const headers: Record<string, string> = {
@@ -220,10 +240,6 @@ export function middleware(request: NextRequest) {
       "frame-src 'self' https://t1.daumcdn.net https://postcode.map.daum.net https://*.daumcdn.net https://postcode.map.kakao.com",
       "script-src 'self' 'unsafe-inline' https://t1.daumcdn.net https://dapi.kakao.com https://*.daumcdn.net https://www.googletagmanager.com https://www.google-analytics.com https://wcs.naver.net https://cdn.jsdelivr.net",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net",
-      // L-imgproxy-zigbang (2026-05-09 사장님 발견): 온하우스↔직방/네모 협업
-      //   매물 사진이 resource.zigbang.io CDN 호스팅. CSP img-src 누락 시 브라우저
-      //   차단 → broken image. v318 가 /api/img-proxy 로 변환하지만 일부 src 직접
-      //   호출도 존재 → CSP 에 추가하여 양쪽 모두 통과.
       "img-src 'self' data: blob: https://*.supabase.co https://images.unsplash.com https://*.daumcdn.net https://t1.daumcdn.net https://*.kakao.com https://*.kakao.co.kr https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev https://wishes-image-proxy.wishes-img.workers.dev https://d4k1brqee4emz.cloudfront.net https://resource.zigbang.io https://basemaps.cartocdn.com https://*.basemaps.cartocdn.com https://demotiles.maplibre.org https://tiles.openfreemap.org https://*.openfreemap.org",
       "font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net",
       // L-sec143 (2026-04-23): Sentry ingest/report 도메인 추가 (L-observe1 연계).
@@ -266,9 +282,6 @@ export function middleware(request: NextRequest) {
           refHost.endsWith('.wishes.me') ||
           refHost === 'localhost' ||
           refHost.endsWith('.vercel.app')
-        );
-  
-
         );
       if (!refererOk) {
         return new NextResponse('Forbidden', { status: 403 });
