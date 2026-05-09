@@ -385,9 +385,38 @@ export async function GET(request: NextRequest) {
 
       const allData = await getCached();
 
+      // L-perf-step-c (2026-05-09 사장님 SOTA Phase 1 - server only):
+      //   ?limit=N&cursor=ID 옵션 — cursor pagination.
+      //   limit 미지정 시 기존 동작 (모든 매물 응답) 유지 — 0% 회귀 위험.
+      //   v336 client patch (다음 세션) 가 사용 시 첫 100건 즉시 표시 → 100배 ↓.
+      const limitParam = searchParams.get('limit');
+      const cursorParam = searchParams.get('cursor');
+      let pageData = allData;
+      let nextCursor: string | null = null;
+      if (limitParam && /^\d+$/.test(limitParam)) {
+        const limit = Math.min(parseInt(limitParam, 10), 1000);
+        let startIdx = 0;
+        if (cursorParam && /^\d+$/.test(cursorParam)) {
+          const idx = allData.findIndex((r: { id: number | string }) => String(r.id) === cursorParam);
+          if (idx >= 0) startIdx = idx + 1;
+        }
+        pageData = allData.slice(startIdx, startIdx + limit);
+        if (startIdx + limit < allData.length && pageData.length > 0) {
+          nextCursor = String((pageData[pageData.length - 1] as { id: number | string }).id);
+        }
+      }
+
       // ETag 기반 304 응답
       // L-crit1: scope_auth 필드 포함 — 프론트가 degrade 상태 감지 가능
-      const bodyStr = JSON.stringify({ success: true, data: allData, total: allData.length, scope, scope_auth: scopeAuth });
+      const bodyStr = JSON.stringify({
+        success: true,
+        data: pageData,
+        total: allData.length,
+        ...(nextCursor !== null ? { nextCursor } : {}),
+        ...(limitParam ? { paginated: true, returned: pageData.length } : {}),
+        scope,
+        scope_auth: scopeAuth,
+      });
       const etag = '"' + createHash('sha1').update(bodyStr).digest('hex').substring(0, 16) + '"';
       const ifNoneMatch = request.headers.get('if-none-match');
       if (ifNoneMatch === etag) {
