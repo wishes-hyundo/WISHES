@@ -58,7 +58,9 @@
   var SEARCH_FIELDS = [
     'id', 'title', 'address', 'address_detail', 'building_name',
     'ai_description', 'dong', 'gu', 'features',
-    'seo_keywords', 'seo_tags', 'source_id'
+    'seo_keywords', 'seo_tags', 'source_id',
+    // L-v292-roadsearch (2026-05-09 사장님 명령): 도로명주소 검색 가능
+    'road_address', 'building_info',
   ];
 
   function norm(v) {

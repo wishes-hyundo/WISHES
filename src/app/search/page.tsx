@@ -145,7 +145,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v280-mobile', '/search/content-v280-mobile.js?v=20260420b'],
       ['ws-ext-patch-v290-polish', '/search/content-v290-polish.js?v=20260420b'],
       ['ws-ext-patch-v291-stability', '/search/content-v291-stability.js?v=20260420a'],
-      ['ws-ext-patch-v292-global-search', '/search/content-v292-global-search.js?v=20260420a'],
+      ['ws-ext-patch-v292-global-search', '/search/content-v292-global-search.js?v=20260509a'],
       ['ws-ext-patch-v293-alert-log', '/search/content-v293-alert-log.js?v=20260420c'],
       ['ws-ext-patch-v294-scope', '/search/content-v294-scope.js?v=20260428legacy2'],
       ['ws-ext-patch-v295-detail-hydrate', '/search/content-v295-detail-hydrate.js?v=20260424d'],
