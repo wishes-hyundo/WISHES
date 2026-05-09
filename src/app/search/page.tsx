@@ -236,6 +236,11 @@ export default function SearchPortalPage() {
       //   v327 는 listing.road_address 만 사용 → DB null 매물은 원본 title (건물명) 표시.
       //   v335 가 lat/lng → Kakao reverseGeocoder fallback 으로 도로명 채움.
       ['ws-ext-patch-v335-card-road-fallback', '/search/content-v335-card-road-fallback.js?v=20260509b'],
+            // v336 (2026-05-09 사장님 SOTA Step L): 카드 썸네일 강제 ?w=400.
+      //   진단: 사장님 측정 26s finish 의 큰 부분 = img-proxy 2-6MB × 수십 장.
+      //   해결: MutationObserver 로 img.src ?w=1920 → ?w=400 자동 변환.
+      //   모달 hero 사진은 원본 보존 (.v240-hero, .v240-gallery skip).
+      ['ws-ext-patch-v336-img-thumbnail', '/search/content-v336-img-thumbnail.js?v=20260509a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
