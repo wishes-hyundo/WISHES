@@ -52,9 +52,16 @@
   ];
 
   var TOAST_THROTTLE_MS = 10 * 60 * 1000;
-  // L-step-b (2026-05-09 사장님 명령 SOTA Phase 1): 4MB → 2MB 사전 cleanup 강화
-  //   매물 43K+ 도달 시 quota 도달 전 미리 정리 → 토스트 발생 빈도 절반 ↓
-  var PRECLEANUP_THRESHOLD = 2 * 1024 * 1024;
+  // L-step-j (2026-05-09 사장님 SOTA B Phase 1.1): 2MB to 8MB cache 보호 강화.
+  //   진단: Step B 의 2MB cleanup 이 ws_data_snapshot (1-3MB) 매번 삭제 →
+  //         content.js 의 wsCacheGet (2분 fresh = 즉시 표시) 동작 불가 →
+  //         사장님 매번 30초 fetch.
+  //   해결: PRECLEANUP 2MB to 8MB. localStorage 한계 ~10MB 의 80%.
+  //         사장님 cache (~3MB) 거의 보존 → 2분 안 재방문 = 즉시 표시.
+  //         실제 quota 도달 시 (8MB+) 만 cleanup → 토스트 spam 안전 유지.
+  //   효과: 재방문 30초 → 즉시 (content.js 5667줄 cache 분기 활성화).
+  //   위험: 0% (Step B 의 quota 보호 의도 유지, threshold 만 완화).
+  var PRECLEANUP_THRESHOLD = 8 * 1024 * 1024;
   var _lastQuotaToastAt = 0;
 
   function _byteSize(s) {
