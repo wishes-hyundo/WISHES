@@ -148,3 +148,9 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err) {
+
+    console.error('[img-proxy] error:', err);
+    // L-imgproxy-fallback: fetch throw (timeout / DNS / network) -> transparent
+    return _transparentFallback('fetch_error');
+  }
+}
