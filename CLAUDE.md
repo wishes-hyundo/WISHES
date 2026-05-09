@@ -619,3 +619,31 @@
 - 진단: `window.WS._lsUsage()` / `window.WS._lsCleanup()`
 - 위반 결과: 토스트 무한 반복 → 사장님 작업 방해 + 알림 로그 spam
 - 코드: `public/search/content-v321-storage-cleanup.js`, `src/app/search/page.tsx` patches 배열
+
+### I-CDN-1: /api/admin/listings GET 의 Authorization 헤더는 Vercel CDN 차단의 단독 원인 (사장님 명령 2026-05-10 Step T)
+
+- **결함**: 사장님 매물 페이지 매 새로고침 27초. 응답에 Cache-Control + CDN-Cache-Control + Vercel-CDN-Cache-Control 모두 set 했지만 X-Vercel-Cache: BYPASS 영구.
+
+- **확정 원인 (Vercel 공식 docs)**: https://vercel.com/docs/caching/cdn-cache "Cacheable response criteria":
+  > "Request doesn't contain Authorization header."
+  Authorization request 헤더가 있으면 Vercel CDN 의 cache attempt 자체가 발생하지 않음. 응답 헤더 평가는 도달조차 못함.
+
+- **무력화된 이전 fix들 (Step Q/R/S 모두 효과 0)**:
+  - Step Q: next.config.js 의 private,no-store rule 제거 → Authorization 차단 무관
+  - Step R: Vercel-CDN-Cache-Control directive 추가 → Authorization 있으면 적용 X
+  - Step S: Vary: Authorization 제거 → cache key 분기, 진입 criteria 와 무관
+
+- **유효 fix (Step T)**:
+  1. middleware: GET /api/admin/listings + ws_session 쿠키 있을 때 Authorization 헤더 strip
+  2. content-v337 patch: 페이지 로드 시 /api/auth/cookie-issue POST → ws_session 발급 (Supabase 서명 검증)
+  3. route handler: ws_session 쿠키 fallback 로 인증 (Bearer 없어도 통과)
+  4. 결과: forwarded request 에 Authorization 없음 → cacheable criteria 모두 통과 → 두번째 새로고침 < 100ms (x-vercel-cache: HIT)
+
+- **참고**: GitHub vercel/next.js Discussion #51279 (3년 미해결) — Vercel 공식 권고 = "authentication to middleware or proxy server in front of your app, then use static rendering". Step T 가 정확히 이 패턴.
+
+- **코드 location**:
+  - src/middleware.ts (Step T strip 분기)
+  - public/search/content-v337-cookie-issue.js (cookie-issue 자동 호출)
+  - src/app/search/page.tsx patches 배열 (v337 등록)
+  - src/lib/adminAuth.ts:115-120 (ws_session fallback)
+  - src/app/api/auth/cookie-issue/route.ts (Supabase 서명 검증 + 쿠키 발급)
