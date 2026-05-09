@@ -120,4 +120,12 @@
         attributes: true, attributeFilter: ['src', 'data-src', 'style'],
       });
       console.log('[' + V + '] 시작 — <img> + background-image 모두 self-origin 자동 변환');
-    } catch (e) { console.warn('[' + V + '
+    } catch (e) { console.warn('[' + V + '] MutationObserver 실패:', e); }
+    setTimeout(fixAll, 500);
+    setTimeout(fixAll, 1500);
+    setTimeout(fixAll, 4000);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
