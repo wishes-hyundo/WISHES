@@ -52,7 +52,9 @@
   ];
 
   var TOAST_THROTTLE_MS = 10 * 60 * 1000;
-  var PRECLEANUP_THRESHOLD = 4 * 1024 * 1024;
+  // L-step-b (2026-05-09 사장님 명령 SOTA Phase 1): 4MB → 2MB 사전 cleanup 강화
+  //   매물 43K+ 도달 시 quota 도달 전 미리 정리 → 토스트 발생 빈도 절반 ↓
+  var PRECLEANUP_THRESHOLD = 2 * 1024 * 1024;
   var _lastQuotaToastAt = 0;
 
   function _byteSize(s) {
