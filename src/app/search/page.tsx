@@ -232,6 +232,10 @@ export default function SearchPortalPage() {
       //   #v240-hero-road element 에 listing.building_info['도로명주소'] 또는
       //   listing.road_address 직접 채워서 "📍 도로명" 표시.
       ['ws-ext-patch-v334-hero-road-fill', '/search/content-v334-hero-road-fill.js?v=20260509h'],
+      // v335 (2026-05-09 사장님 발견): 매물 카드 부 라인 도로명 Kakao fallback.
+      //   v327 는 listing.road_address 만 사용 → DB null 매물은 원본 title (건물명) 표시.
+      //   v335 가 lat/lng → Kakao reverseGeocoder fallback 으로 도로명 채움.
+      ['ws-ext-patch-v335-card-road-fallback', '/search/content-v335-card-road-fallback.js?v=20260509a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
@@ -328,24 +332,4 @@ const cardStyle: React.CSSProperties = {
   boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
 };
 
-const btnPrimary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#2D5A27',
-  color: '#fff',
-  borderRadius: 8,
-  border: 'none',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#f0f5f0',
-  color: '#2D5A27',
-  borderRadius: 8,
-  border: '1px solid #d5e5d5',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
+const btnPrimary: React.CSSPro
