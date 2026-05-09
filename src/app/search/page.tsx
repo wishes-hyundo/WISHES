@@ -231,7 +231,7 @@ export default function SearchPortalPage() {
       //   "도로명 주소가 구주소 뒤에 숨겨져 있음" — Kakao Geocoder API 가 못 채운
       //   #v240-hero-road element 에 listing.building_info['도로명주소'] 또는
       //   listing.road_address 직접 채워서 "📍 도로명" 표시.
-      ['ws-ext-patch-v334-hero-road-fill', '/search/content-v334-hero-road-fill.js?v=20260509a'],
+      ['ws-ext-patch-v334-hero-road-fill', '/search/content-v334-hero-road-fill.js?v=20260509b'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {

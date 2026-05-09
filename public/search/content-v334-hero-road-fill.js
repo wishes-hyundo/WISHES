@@ -1,52 +1,34 @@
 /* /search content-v334 — 모달 hero 도로명주소 직접 채우기
  *
  * 사장님 명령 (2026-05-09):
- *   매물 78954 모달: "도로명 주소가 구주소 뒤에 숨겨져 있음"
- *   기대: hero h1 아래 "📍 경기도 양주시 회천로 234" 표시
+ *   매물 78954 모달 도로명주소 안 보임. DB road_address/building_info null.
  *
- * 원인:
- *   content-v240-detail.js 가 Kakao Geocoder API 로 도로명주소 받아서
- *   #v240-hero-road element 에 채우는데 (line 195), API 실패 또는
- *   응답에 road_address 없으면 빈 상태.
- *
- *   매물 데이터 (listing.building_info['도로명주소'] 또는 listing.road_address)
- *   에 이미 도로명이 있는 케이스가 있어서 직접 채우는 게 더 신뢰 가능.
- *
- * 동작:
- *   #v240-hero-road element 가 비어있으면 (textContent.trim() === ''):
- *     1) URL ?listing=ID 또는 data-listing-id 에서 id 추출
- *     2) WS.allListings 에서 listing 찾기
- *     3) listing.building_info['도로명주소'] 또는 listing.road_address 사용
- *     4) 있으면 textContent = '📍 ' + road
+ * 동작 (2-step):
+ *   1) DB: listing.building_info['도로명주소'] 또는 listing.road_address 사용
+ *   2) DB null 인 경우: Kakao reverseGeocoder (lat,lng) → 도로명 fetch
  *
  * 안전:
- *   - 이미 채워져 있으면 (textContent 길이 > 0) skip — Kakao 결과 보존
- *   - data-v334-applied 로 1회만 시도 (반복 호출 안 함)
+ *   - 이미 채워져 있으면 skip (Kakao 결과 보존)
+ *   - data-v334-applied 로 1회만 시도
+ *   - lat/lng 캐시 (반복 호출 방지)
  */
 (function () {
   'use strict';
   var V = 'v334-hero-road-fill';
-
-  // /search 전용
   var host = location.hostname;
   if (host.indexOf('wishes.co.kr') === -1 && host !== 'localhost') return;
   if (location.pathname.indexOf('/search') !== 0) return;
 
   function getCurrentListingId() {
-    // 1) URL ?listing=ID
     try {
       var params = new URLSearchParams(location.search);
       var lid = params.get('listing');
       if (lid) return String(lid);
     } catch (_) {}
-    // 2) #ws-detail-container 의 data-listing-id
     try {
       var modal = document.getElementById('ws-detail-container');
-      if (modal && modal.dataset && modal.dataset.listingId) {
-        return String(modal.dataset.listingId);
-      }
+      if (modal && modal.dataset && modal.dataset.listingId) return String(modal.dataset.listingId);
     } catch (_) {}
-    // 3) WS.currentListing (있으면)
     try {
       if (window.WS && window.WS.currentListing && window.WS.currentListing.id) {
         return String(window.WS.currentListing.id);
@@ -55,31 +37,61 @@
     return null;
   }
 
-  function getRoadFromListing(id) {
+  function getListingById(id) {
     try {
       var arr = (window.WS && window.WS.allListings) || [];
       for (var i = 0; i < arr.length; i++) {
-        if (String(arr[i].id) !== String(id)) continue;
-        var l = arr[i];
-        var bi = l.building_info;
-        if (bi && typeof bi === 'object') {
-          var r = bi['도로명주소'];
-          if (r && String(r).trim().length > 4) return String(r).trim();
-        }
-        if (l.road_address && String(l.road_address).trim().length > 4) {
-          return String(l.road_address).trim();
-        }
-        return '';
+        if (String(arr[i].id) === String(id)) return arr[i];
       }
     } catch (_) {}
+    return null;
+  }
+
+  function getRoadFromListing(id) {
+    var l = getListingById(id);
+    if (!l) return '';
+    var bi = l.building_info;
+    if (bi && typeof bi === 'object') {
+      var r = bi['도로명주소'];
+      if (r && String(r).trim().length > 4) return String(r).trim();
+    }
+    if (l.road_address && String(l.road_address).trim().length > 4) {
+      return String(l.road_address).trim();
+    }
     return '';
+  }
+
+  // L-v334-kakao-fallback: DB road_address null 인 경우 Kakao reverseGeocoder
+  var _kakaoCache = {};
+  function fetchRoadFromKakao(id, callback) {
+    var l = getListingById(id);
+    if (!l || l.lat == null || l.lng == null) { callback(''); return; }
+    var key = l.lat + ',' + l.lng;
+    if (_kakaoCache[key] != null) { callback(_kakaoCache[key]); return; }
+    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
+      callback(''); return;
+    }
+    try {
+      var geocoder = new window.kakao.maps.services.Geocoder();
+      geocoder.coord2Address(parseFloat(l.lng), parseFloat(l.lat), function (result, status) {
+        try {
+          if (status === window.kakao.maps.services.Status.OK && result && result[0]) {
+            var road = (result[0].road_address && result[0].road_address.address_name) || '';
+            _kakaoCache[key] = road;
+            callback(road);
+          } else {
+            _kakaoCache[key] = '';
+            callback('');
+          }
+        } catch (_) { callback(''); }
+      });
+    } catch (_) { callback(''); }
   }
 
   function applyToHero() {
     try {
       var heroEl = document.getElementById('v240-hero-road');
       if (!heroEl) return;
-      // 이미 채워져 있으면 skip (Kakao 결과 또는 다른 패치)
       var current = (heroEl.textContent || '').trim();
       if (current && current.length > 2) {
         heroEl.dataset.v334Applied = '1';
@@ -91,13 +103,26 @@
       if (!id) return;
 
       var road = getRoadFromListing(id);
-      if (!road) return;
+      if (road) {
+        heroEl.textContent = '📍 ' + road;
+        heroEl.dataset.v334Applied = '1';
+        try { console.log('[' + V + '] filled (db) listing ' + id + ': ' + road); } catch (_) {}
+        return;
+      }
 
-      heroEl.textContent = '📍 ' + road;
       heroEl.dataset.v334Applied = '1';
-      try {
-        console.log('[' + V + '] filled hero-road for listing ' + id + ': ' + road);
-      } catch (_) {}
+      fetchRoadFromKakao(id, function (kakaoRoad) {
+        if (!kakaoRoad) {
+          try { console.log('[' + V + '] no road for listing ' + id + ' (db null + kakao empty)'); } catch (_) {}
+          return;
+        }
+        var el = document.getElementById('v240-hero-road');
+        if (!el) return;
+        var cur = (el.textContent || '').trim();
+        if (cur && cur.length > 2) return;
+        el.textContent = '📍 ' + kakaoRoad;
+        try { console.log('[' + V + '] filled (kakao) listing ' + id + ': ' + kakaoRoad); } catch (_) {}
+      });
     } catch (e) {
       try { console.warn('[' + V + '] error:', e); } catch (_) {}
     }
