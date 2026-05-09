@@ -10,12 +10,8 @@ const ALLOWED_HOSTS = [
   'lh4.googleusercontent.com',
   'lh5.googleusercontent.com',
   'lh6.googleusercontent.com',
-  // v2.3.3: 내부 이미지 프록시 재프록시(관리자 페이지 Referer 우회)
   'wishes-image-proxy.wishes-img.workers.dev',
-  // L-imgproxy-zigbang (2026-05-09 사장님 발견): 매물 78745 broken images.
-  //   온하우스↔직방/네모 협업 관계. 사진이 zigbang CDN 호스팅. URL 자체는
-  //   200 OK 인데 content-type=application/octet-stream 으로 응답 → 브라우저
-  //   broken image. img-proxy 거쳐서 magic bytes 로 image type 강제 추론.
+  // L-imgproxy-zigbang (2026-05-09): 온하우스/직방/네모 협업 CDN
   'resource.zigbang.io',
 ];
 
@@ -35,6 +31,7 @@ const TRANSPARENT_PNG_1X1 = Buffer.from([
   0x00, 0x01, 0x0D, 0x0A, 0x2D, 0xB4,
   0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E, 0x44, 0xAE, 0x42, 0x60, 0x82,
 ]);
+
 function _transparentFallback(reason: string): NextResponse {
   return new NextResponse(new Uint8Array(TRANSPARENT_PNG_1X1), {
     status: 200,
@@ -47,22 +44,15 @@ function _transparentFallback(reason: string): NextResponse {
   });
 }
 
-// L-imgproxy-magic (2026-05-09): magic bytes 로 image type 추론.
-//   직방 CDN 등이 application/octet-stream 으로 응답하는 케이스 처리.
-//   매치 실패 시 null (진짜 이미지 아님 → transparent fallback).
+// L-imgproxy-magic: magic bytes 로 image type 추론.
 function _detectImageMagic(buf: Buffer): string | null {
   if (!buf || buf.length < 12) return null;
-  // JPEG: FF D8 FF
   if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return 'image/jpeg';
-  // PNG: 89 50 4E 47 0D 0A 1A 0A
   if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47 &&
       buf[4] === 0x0D && buf[5] === 0x0A && buf[6] === 0x1A && buf[7] === 0x0A) return 'image/png';
-  // GIF: GIF8
   if (buf[0] === 0x47 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x38) return 'image/gif';
-  // WebP: RIFF....WEBP
   if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
       buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) return 'image/webp';
-  // AVIF: ftypavif (offset 4)
   if (buf[4] === 0x66 && buf[5] === 0x74 && buf[6] === 0x79 && buf[7] === 0x70 &&
       buf[8] === 0x61 && buf[9] === 0x76 && buf[10] === 0x69 && buf[11] === 0x66) return 'image/avif';
   return null;
@@ -80,12 +70,8 @@ export async function GET(request: NextRequest) {
     }
 
     const url = request.nextUrl.searchParams.get('url');
-    if (!url) {
-      return new NextResponse('url parameter required', { status: 400 });
-    }
-    if (url.length > 2048) {
-      return new NextResponse('url too long', { status: 413 });
-    }
+    if (!url) return new NextResponse('url parameter required', { status: 400 });
+    if (url.length > 2048) return new NextResponse('url too long', { status: 413 });
     const raw = request.nextUrl.searchParams.get('raw') === '1';
 
     let parsed: URL;
@@ -106,16 +92,35 @@ export async function GET(request: NextRequest) {
     const refererOverride = REFERER_OVERRIDES[parsed.hostname];
     if (refererOverride) headers['Referer'] = refererOverride;
 
-    const targetUrl = parsed.toString();
-    const res = await fetch(targetUrl, {
-      headers,
-      cache: 'no-store',
-      signal: AbortSignal.timeout(10_000),
-    });
+    // L-imgproxy-resize-fallback (2026-05-09 사장님 매물 78752):
+    //   CloudFront Lambda@Edge resize 함수가 큰 size (?w=1920) 처리 시 503.
+    //   작은 size (?w=720) 또는 원본은 정상. 자동 size 줄여서 retry.
+    const fetchOpts = { headers, cache: 'no-store' as const, signal: AbortSignal.timeout(10_000) };
+    let targetUrl = parsed.toString();
+    let res = await fetch(targetUrl, fetchOpts);
+
+    if (!res.ok && res.status === 503 && parsed.searchParams.has('w')) {
+      const originalW = parsed.searchParams.get('w');
+      const fallbackSizes: (string | null)[] = ['720', '400', null];
+      for (const w of fallbackSizes) {
+        const fb = new URL(parsed.toString());
+        if (w === null) fb.searchParams.delete('w');
+        else fb.searchParams.set('w', w);
+        try {
+          const r2 = await fetch(fb.toString(), fetchOpts);
+          if (r2.ok) {
+            console.log('[img-proxy] resize fallback: w=' + originalW + ' → ' + (w || 'none'));
+            res = r2;
+            targetUrl = fb.toString();
+            break;
+          }
+        } catch (_) {}
+      }
+    }
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
-      console.error('[img-proxy] fetch ' + res.status + ' ' + res.statusText + ' url=' + targetUrl + ' body=' + errBody.substring(0, 200));
+      console.error('[img-proxy] fetch ' + res.status + ' url=' + targetUrl + ' body=' + errBody.substring(0, 200));
       return _transparentFallback('upstream_' + res.status);
     }
 
@@ -133,9 +138,6 @@ export async function GET(request: NextRequest) {
     const SAFE_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
     let primaryType = rawContentType.split(';')[0].trim();
 
-    // L-imgproxy-magic (2026-05-09 사장님 발견 매물 78745):
-    //   직방 CDN 일부 이미지가 application/octet-stream 으로 응답.
-    //   magic bytes 검사로 실제 image type 추론.
     if (!SAFE_IMAGE_TYPES.includes(primaryType)) {
       const detected = _detectImageMagic(imageBuffer);
       if (detected) {
