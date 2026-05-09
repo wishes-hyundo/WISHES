@@ -1,5 +1,5 @@
-/* /search content-v334 — 모달 hero 도로명주소 직접 채우기 (v3 + Kakao load wrap)
- * 사장님 명령 (2026-05-09)
+/* /search content-v334 — 모달 hero 도로명주소 채우기 + inline style 강제 (v5)
+ * 사장님 명령 (2026-05-09): textContent 정상인데 안 보임 → inline style 강제
  */
 (function () {
   'use strict';
@@ -59,7 +59,19 @@
     return '';
   }
 
-  // L-v334-load (2026-05-09): SDK autoload=false → services 는 load() 안에서만 활성
+  // L-v334-visibility (2026-05-09): textContent 채워졌는데 CSS 결함으로 안 보임
+  //   → inline style 강제로 visibility 보장.
+  function applyStyleToRoad(el) {
+    el.style.color = '#2F6B3A';
+    el.style.fontSize = '14px';
+    el.style.fontWeight = '600';
+    el.style.marginTop = '6px';
+    el.style.display = 'block';
+    el.style.visibility = 'visible';
+    el.style.opacity = '1';
+    el.style.minHeight = '20px';
+  }
+
   var _kakaoCache = {};
   function fetchRoadFromKakao(id, callback) {
     var l = getListingById(id);
@@ -96,7 +108,10 @@
       var heroEl = document.getElementById('v240-hero-road');
       if (!heroEl) return;
       var current = (heroEl.textContent || '').trim();
+
+      // 이미 textContent 채워져 있으면 inline style 만 강제 (visibility 보장)
       if (current && current.length > 2) {
+        applyStyleToRoad(heroEl);
         heroEl.dataset.v334Applied = '1';
         return;
       }
@@ -111,6 +126,7 @@
       var road = getRoadFromListing(id);
       if (road) {
         heroEl.textContent = '📍 ' + road;
+        applyStyleToRoad(heroEl);
         heroEl.dataset.v334Applied = '1';
         try { console.log('[' + V + '] filled (db) listing ' + id + ': ' + road); } catch (_) {}
         return;
@@ -125,8 +141,10 @@
         var el = document.getElementById('v240-hero-road');
         if (!el) return;
         var cur = (el.textContent || '').trim();
-        if (cur && cur.length > 2) return;
-        el.textContent = '📍 ' + kakaoRoad;
+        if (!cur || cur.length <= 2) {
+          el.textContent = '📍 ' + kakaoRoad;
+        }
+        applyStyleToRoad(el);
         try { console.log('[' + V + '] filled (kakao) listing ' + id + ': ' + kakaoRoad); } catch (_) {}
       });
     } catch (e) {
