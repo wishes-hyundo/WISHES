@@ -28,7 +28,7 @@ export async function OPTIONS(req: NextRequest) {
 
 // L-search4 (2026-04-24): 어드민 리스트 조회는 전체 6,200+ 매물을 7페이지로
 //   paginate 하므로 vercel.json 의 기본 10s 로는 좁음. 30s 로 확장.
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 // 요청 검증 스키마
 // L-hub3: price/area/lat/lng 필드를 hub 기반으로 통일.
