@@ -701,3 +701,50 @@ test.describe('Wave 44 / I-PERF-2 — SVG layer + Worker 회귀 가드', () => {
     expect(res.status()).toBe(200);
   });
 });
+
+// Step T / I-CDN-1 (2026-05-10): Vercel CDN cache 활성화 회귀 가드.
+// /api/admin/listings GET 의 Authorization 헤더 = Vercel CDN BYPASS 단독 원인.
+// middleware strip + cookie-issue auto + content-v337 patch = 27초 → 583ms.
+test.describe('Step T / I-CDN-1 — CDN cache 활성화 회귀 가드', () => {
+  test('I-CDN-1 ① /search/content-v337-cookie-issue.js prod 배포', async ({ request }) => {
+    const res = await request.get('/search/content-v337-cookie-issue.js');
+    expect(res.status()).toBe(200);
+    const text = await res.text();
+    expect(text).toContain('Step T');
+    expect(text).toContain('cookie-issue');
+    expect(text).toContain('ws_session');
+    expect(text).toContain('access_token');
+    expect(text).toContain('I-CDN-1');
+  });
+
+  test('I-CDN-1 ② /search/content-v337-* cache 헤더 (next.config.js)', async ({ request }) => {
+    const res = await request.get('/search/content-v337-cookie-issue.js');
+    expect(res.status()).toBe(200);
+    const cacheControl = res.headers()['cache-control'] || '';
+    expect(cacheControl.length).toBeGreaterThan(0);
+  });
+
+  test('I-CDN-1 ③ /api/auth/cookie-issue POST endpoint 존재', async ({ request }) => {
+    const res = await request.post('/api/auth/cookie-issue', { data: {} });
+    expect([400, 401, 403]).toContain(res.status());
+  });
+
+  test('I-CDN-1 ④ /api/admin/listings 비인증 401 (레스폰스 정상)', async ({ request }) => {
+    const res = await request.get('/api/admin/listings?fields=minimal&scope=all');
+    expect(res.status()).toBe(401);
+    expect(res.headers()['content-type']).toContain('application/json');
+  });
+
+  test('I-CDN-1 ⑤ fake Bearer + ws_session 없음 → 401 (보안 구멍 차단)', async ({ request }) => {
+    const res = await request.get('/api/admin/listings?fields=minimal&scope=all', {
+      headers: { Authorization: 'Bearer admin_bridge_eyJfake.fakebody.fakesig' },
+    });
+    expect([400, 401, 403]).toContain(res.status());
+    expect(res.status()).not.toBe(200);
+  });
+
+  test('I-CDN-1 ⑥ /search 페이지 응답 정상 (v337 patch entry)', async ({ request }) => {
+    const res = await request.get('/search');
+    expect([200, 302, 307]).toContain(res.status());
+  });
+});
