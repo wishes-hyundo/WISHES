@@ -217,6 +217,11 @@ export default function SearchPortalPage() {
       //   quota 시 자동 cleanup + 재시도. 사장님 데이터 (즐겨찾기/메모/연락처/폴더)
       //   SAFE_PRESERVE 영구 보호. 토스트 10분 throttle.
       ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260509b'],
+      // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
+      //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
+      //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
+      //   v318 의 src 변환을 놓치는 timing/dynamic 케이스 보완.
+      ['ws-ext-patch-v332-img-onerror-retry', '/search/content-v332-img-onerror-retry.js?v=20260509a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
@@ -311,26 +316,3 @@ const cardStyle: React.CSSProperties = {
   padding: '32px 28px',
   textAlign: 'center',
   boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#2D5A27',
-  color: '#fff',
-  borderRadius: 8,
-  border: 'none',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#f0f5f0',
-  color: '#2D5A27',
-  borderRadius: 8,
-  border: '1px solid #d5e5d5',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
