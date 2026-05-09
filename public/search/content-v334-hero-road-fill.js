@@ -1,17 +1,5 @@
-/* /search content-v334 — 모달 hero 도로명주소 직접 채우기
- *
- * 사장님 명령 (2026-05-09):
- *   매물 78954 모달 도로명주소 안 보임. DB road_address/building_info null.
- *
- * 동작 (3-source):
- *   1) listing.building_info['도로명주소'] 또는 listing.road_address (DB)
- *   2) DB null → Kakao reverseGeocoder (lat,lng)
- *
- * listing id source priority:
- *   1) 모달 .v240-num.ws-copy-id 의 data-copy (가장 신뢰)
- *   2) URL ?listing=ID
- *   3) #ws-detail-container dataset.listingId
- *   4) WS.currentListing.id
+/* /search content-v334 — 모달 hero 도로명주소 직접 채우기 (v3 + Kakao load wrap)
+ * 사장님 명령 (2026-05-09)
  */
 (function () {
   'use strict';
@@ -71,30 +59,36 @@
     return '';
   }
 
+  // L-v334-load (2026-05-09): SDK autoload=false → services 는 load() 안에서만 활성
   var _kakaoCache = {};
   function fetchRoadFromKakao(id, callback) {
     var l = getListingById(id);
     if (!l || l.lat == null || l.lng == null) { callback(''); return; }
     var key = l.lat + ',' + l.lng;
     if (_kakaoCache[key] != null) { callback(_kakaoCache[key]); return; }
-    if (!window.kakao || !window.kakao.maps || !window.kakao.maps.services) {
+    if (!window.kakao || !window.kakao.maps || typeof window.kakao.maps.load !== 'function') {
       callback(''); return;
     }
-    try {
-      var geocoder = new window.kakao.maps.services.Geocoder();
-      geocoder.coord2Address(parseFloat(l.lng), parseFloat(l.lat), function (result, status) {
-        try {
-          if (status === window.kakao.maps.services.Status.OK && result && result[0]) {
-            var road = (result[0].road_address && result[0].road_address.address_name) || '';
-            _kakaoCache[key] = road;
-            callback(road);
-          } else {
-            _kakaoCache[key] = '';
-            callback('');
-          }
-        } catch (_) { callback(''); }
-      });
-    } catch (_) { callback(''); }
+    window.kakao.maps.load(function () {
+      try {
+        if (!window.kakao.maps.services || !window.kakao.maps.services.Geocoder) {
+          callback(''); return;
+        }
+        var geocoder = new window.kakao.maps.services.Geocoder();
+        geocoder.coord2Address(parseFloat(l.lng), parseFloat(l.lat), function (result, status) {
+          try {
+            if (status === window.kakao.maps.services.Status.OK && result && result[0]) {
+              var road = (result[0].road_address && result[0].road_address.address_name) || '';
+              _kakaoCache[key] = road;
+              callback(road);
+            } else {
+              _kakaoCache[key] = '';
+              callback('');
+            }
+          } catch (_) { callback(''); }
+        });
+      } catch (_) { callback(''); }
+    });
   }
 
   function applyToHero() {
