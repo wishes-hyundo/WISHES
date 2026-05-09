@@ -558,3 +558,21 @@
 
 작성: 2026-04-26
 규칙 추가: 사용자 명시 — "절대 까먹지 않게"
+
+
+## 🆕 2026-05-09 추가 INVARIANTs
+
+### I-STORAGE-1: /search localStorage quota 자동 정리 + 토스트 throttle (사장님 발견 2026-05-09)
+- 결함: 매물 30,420건 → `ws_data_snapshot` + `ws_price_snapshots` 캐시 ~9MB → 브라우저 limit 5~10MB 도달 → "저장공간이 부족합니다" 토스트 매 분마다 반복 발생
+- 원인 path: `_autoRefreshTimer` 10분 간격 → `trackChanges` → `_saveSnapshot` → `_safeSetItem` → QuotaExceededError → 토스트
+- 해결: `content-v321-storage-cleanup.js` 패치
+  1. `Storage.prototype.setItem` 가로채기 → quota 시 자동 cleanup + 재시도 (성공하면 토스트 X)
+  2. 토스트 10분 throttle (cleanup 후에도 실패한 경우만)
+  3. 페이지 로드 시 4MB+ 도달하면 사전 cleanup
+- 키 분류 (영구):
+  - `SAFE_PRESERVE` (절대 삭제 X): ws-favorites, ws-memos, ws-contacts, ws_customer_folders, ws_filter_presets, ws_dark_mode/auto, ws_customer_prefs, ws_fav_categories, ws_noti_settings, ws_token, ws_user, ws_login_time, ws_refresh_token, ws-search-history, ws_autorefresh_min, wp-pal-frecent
+  - `CLEANABLE_CACHE` (자동 정리 가능): ws_data_snapshot, ws_price_snapshots, ws_changelog, ws_alerts, ws_alert_log_v1, ws_alert_log_unread_v1
+- 매물 본 데이터는 localStorage X (DB + memory.allListings) → 정리해도 매물 영향 0
+- 진단: `window.WS._lsUsage()` / `window.WS._lsCleanup()`
+- 위반 결과: 토스트 무한 반복 → 사장님 작업 방해 + 알림 로그 spam
+- 코드: `public/search/content-v321-storage-cleanup.js`, `src/app/search/page.tsx` patches 배열

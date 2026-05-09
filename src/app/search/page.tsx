@@ -211,6 +211,12 @@ export default function SearchPortalPage() {
       // v331 (2026-04-29 사장님 보고): onhouse 모달 검정 화면 → placeholder.
       //   listing_images 0건 매물의 hero 영역 검정 → "사진 준비중" + 원본 링크.
       ['ws-ext-patch-v331-onhouse-image-placeholder', '/search/content-v331-onhouse-image-placeholder.js?v=20260429a'],
+      // v321 (2026-05-09 사장님 발견 — I-STORAGE-1): localStorage quota 자동 정리.
+      //   매물 30,420건 → ws_data_snapshot/ws_price_snapshots 캐시 ~9MB → quota 초과
+      //   → "저장공간 부족" 토스트 무한 반복. Storage.prototype.setItem 가로채기로
+      //   quota 시 자동 cleanup + 재시도. 사장님 데이터 (즐겨찾기/메모/연락처/폴더)
+      //   SAFE_PRESERVE 영구 보호. 토스트 10분 throttle.
+      ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260509a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
