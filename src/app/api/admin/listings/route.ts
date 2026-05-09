@@ -498,7 +498,7 @@ export async function GET(request: NextRequest) {
             ? 'private, max-age=30'
             : 'public, s-maxage=3600, stale-while-revalidate=86400',
           ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400', 'Vercel-CDN-Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' }),
-          'Vary': 'Accept-Encoding, Authorization',
+          'Vary': scope === 'mine' ? 'Accept-Encoding, Authorization' : 'Accept-Encoding',
         },
       });
       return response;

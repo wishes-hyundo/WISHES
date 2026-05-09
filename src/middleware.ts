@@ -190,7 +190,7 @@ export function middleware(request: NextRequest) {
       response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
       response.headers.set('Access-Control-Allow-Credentials', 'true');
     }
-    response.headers.set('Vary', 'Origin');
+    response.headers.append('Vary', 'Origin');
     // monitoring 용 — Bearer-only 경로의 CSRF 분포 파악 (여전히 soft-check).
     if (csrfStatus !== 'na') response.headers.set('X-CSRF-Check', csrfStatus);
     return response;
