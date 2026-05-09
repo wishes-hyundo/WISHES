@@ -48,6 +48,10 @@
     // 쉼표 정리: "895-14, 5층 501" → "895-14 5층 501"
     stripped = stripped.replace(/,\s+/g, ' ').replace(/\s{2,}/g, ' ').trim();
 
+    // L-v328-dup-fix (2026-05-09 사장님 발견 매물 78954):
+    //   기존 hasFullFloor regex 가 NBSP/다른 whitespace 일 때 false →
+    //   address 에 이미 "17층 2408동 1701" 있는데 v328 가 다시 추가 → 중복.
+    //   해결: 모든 part 에 stripped.indexOf 체크 강화.
     var hasFullFloor = /\d+\s*층\s*[\d]/.test(stripped);
     if (hasFullFloor) return stripped;
 
@@ -58,15 +62,15 @@
 
     var parts = [stripped];
     if (bn && bn.length > 1 && stripped.indexOf(bn) === -1) parts.push(bn);
-    // 층 — 분모 없음, "[Nf]층"
-    if (fc) parts.push(fc + '층');
+    // 층 — 분모 없음, "[Nf]층" (stripped 에 이미 있으면 push X)
+    if (fc && stripped.indexOf(fc + '층') === -1) parts.push(fc + '층');
     // 동 (가동/나동/A동/B동 등) — 호 앞에 위치 (사장님 명령 2026-04-29)
     if (bdong && bdong.length > 0 && stripped.indexOf(bdong) === -1) {
       // bdong 이 이미 '동' 으로 끝나면 그대로, 아니면 + '동'
       parts.push(/동$/.test(bdong) ? bdong : bdong + '동');
     }
-    // 호수 — '호' 글자 없음, 숫자만
-    if (ho && /^\d/.test(ho)) parts.push(ho);
+    // 호수 — '호' 글자 없음, 숫자만 (stripped 에 이미 있으면 push X)
+    if (ho && /^\d/.test(ho) && stripped.indexOf(ho) === -1) parts.push(ho);
 
     return parts.join(' ');
   }
@@ -130,7 +134,6 @@
     }
     if (hit) scheduleSweep();
   });
-
   function init() {
     try { mo.observe(document.body, { childList: true, subtree: true }); } catch (_) {}
     sweep();
