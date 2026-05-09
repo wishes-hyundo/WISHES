@@ -235,7 +235,7 @@ export default function SearchPortalPage() {
       // v335 (2026-05-09 사장님 발견): 매물 카드 부 라인 도로명 Kakao fallback.
       //   v327 는 listing.road_address 만 사용 → DB null 매물은 원본 title (건물명) 표시.
       //   v335 가 lat/lng → Kakao reverseGeocoder fallback 으로 도로명 채움.
-      ['ws-ext-patch-v335-card-road-fallback', '/search/content-v335-card-road-fallback.js?v=20260509a'],
+      ['ws-ext-patch-v335-card-road-fallback', '/search/content-v335-card-road-fallback.js?v=20260509b'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {

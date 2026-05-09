@@ -1,7 +1,5 @@
-/* /search content-v335 — 매물 카드 부 라인 도로명 Kakao fallback
- * 사장님 명령 (2026-05-09): 검색결과 매물 카드 부 라인 = 도로명주소
- *   v327 가 listing.road_address 만 사용 → DB null 매물은 원본 title (건물명) 표시
- *   v335: v327 fallback 케이스에 Kakao reverseGeocoder 사용
+/* /search content-v335 v2 — 매물 카드 부 라인 도로명 (전체 표시)
+ * 사장님 명령 (2026-05-09): "경기도 양주시 회천로 234" 전체 표시 (short X)
  */
 (function () {
   'use strict';
@@ -40,20 +38,11 @@
     });
   }
 
-  function shortenRoad(road) {
-    return road.replace(/^서울특별시\s+[가-힣]+[구군]\s+/, '')
-               .replace(/^서울\s+[가-힣]+[구군]\s+/, '')
-               .replace(/^경기도?\s+[가-힣]+[시군]\s+/, '')
-               .replace(/^인천(광역시)?\s+[가-힣]+[구군]\s+/, '')
-               .replace(/^[가-힣]+[구군]\s+/, '');
-  }
-
   function applyToCard(card) {
     try {
       var sub = card.querySelector('.ws-listing-title-sub');
       if (!sub) return;
       if (sub.dataset.v335Applied === '1') return;
-      // v327 가 이미 도로명 채웠으면 (sub.dataset.v327Mode === 'road') skip
       if (sub.dataset.v327Mode === 'road') {
         sub.dataset.v335Applied = '1';
         return;
@@ -69,7 +58,6 @@
       }
       if (!listing) return;
 
-      // 이미 DB road 있으면 v327 가 처리. 여기는 Kakao fallback.
       if (listing.road_address) return;
       var bi = listing.building_info;
       if (bi && typeof bi === 'object' && bi['도로명주소']) return;
@@ -81,7 +69,8 @@
         if (!road) return;
         var el = card.querySelector('.ws-listing-title-sub');
         if (!el) return;
-        el.textContent = shortenRoad(road);
+        // 사장님 명령 (2026-05-09): "경기도 양주시 회천로 234" 전체 표시
+        el.textContent = road;
         el.style.setProperty('color', '#6b7280', 'important');
         el.style.setProperty('font-weight', '400', 'important');
         el.title = '도로명주소: ' + road;
@@ -135,5 +124,5 @@
   }
 
   try { window.WS = window.WS || {}; window.WS._v335 = { sweep: sweep }; } catch (_) {}
-  try { console.log('[' + V + '] active'); } catch (_) {}
+  try { console.log('[' + V + ' v2] active - full road display'); } catch (_) {}
 })();
