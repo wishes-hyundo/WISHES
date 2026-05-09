@@ -1,5 +1,5 @@
-// L1 (2026-04-21): Bundle analyzer ??`ANALYZE=true npm run build` �?HTML 리포???�성.
-//   ?�제 빌드???�향 ?�음(env ?�으�?no-op pass-through).
+// L1 (2026-04-21): Bundle analyzer — `ANALYZE=true npm run build` 로 HTML 리포트 생성.
+//   실제 빌드엔 영향 없음(env 없으면 no-op pass-through).
 const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
   openAnalyzer: false,
@@ -7,14 +7,12 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // L-urgent1 (2026-04-22): 빌드 게이???�활?�화.
-  //   map-2026 merge ?�후 ?�시�??�어?�었??bypass �??�는?? ESLint 16�?+ 2�?truncation
-  //   복구 ?�료. ?�제 ?��?�?CI ?�서 즉시 ?�도�?strict 모드�??�원.
+  // L-urgent1 (2026-04-22): 빌드 게이트 재활성화.
   eslint: {
     ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
 
   images: {
@@ -27,9 +25,6 @@ const nextConfig = {
       { protocol: 'https', hostname: 'pub-e16c7a50584c4db7be3571746cd80716.r2.dev' },
       { protocol: 'https', hostname: 'd4k1brqee4emz.cloudfront.net' },
       { protocol: 'https', hostname: '*.daumcdn.net' },
-      // L-img-proxy1 (2026-04-23 p.m.): ?�롤???��?지 ?�빙??Cloudflare Worker.
-      //   DB thumb_url 5,460�?모두 ???�메?? remotePatterns ?�락 ??Next.js
-      //   Image 가 ?��? 차단??/map 카드???�진?????�던 버그.
       { protocol: 'https', hostname: 'wishes-image-proxy.wishes-img.workers.dev' },
       { protocol: 'https', hostname: '*.workers.dev' },
     ],
@@ -37,26 +32,19 @@ const nextConfig = {
 
   async redirects() {
     return [
-      // 2026-04-21: MAP 2026 promoted to canonical /map. Launch codename URL
-      // /map-2026 is preserved via 301 for bookmark / shared-link compatibility.
       {
         source: '/map-2026',
         destination: '/map',
         permanent: true,
       },
-      // L-listings-deprecate (2026-04-29 ?�장??명령): /listings ?�구 ?�기.
-      //   · /listings (index) ??/map
-      //   · /listings/:id (?�세) ??/map?listing=:id (매물카드 ?�동 ?�픈)
-      //   매물카드 URL ?�우??(f9bf3c1) ?�로 ?�일 가�??�공.
-      //   ??next.config.ts ?�도 ?�일 redirect ?��?�?빌드??.js �??�용 �?
       {
-        source: '/listings',
-        destination: '/map',
+        source: '/listings/:id(\\d+)',
+        destination: '/map?listing=:id',
         permanent: true,
       },
       {
-        source: '/listings/:id',
-        destination: '/map?listing=:id',
+        source: '/listings',
+        destination: '/map',
         permanent: true,
       },
     ];
@@ -68,6 +56,24 @@ const nextConfig = {
         source: '/_next/static/:slug*',
         headers: [
           { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
+        ],
+      },
+      // L-perf-step-f (2026-05-09 사장님 SOTA Phase 1 - 24h cache 타협안):
+      //   /search/content-v*.js patch 파일들 24시간 cache.
+      //   - cache buster (?v=20260509x) 매 push 마다 자동 bump → 새 cache key
+      //   - 24h 후 자동 갱신 → 사장님이 ?v= bump 잊어도 안전 (a957c0e4 정책 부분 준수)
+      //   - 효과: 736KB patches 첫 방문 후 24h 내 재방문 = 0 byte
+      //   - 메인 content.js 는 매 revalidate (a957c0e4 핵심 명령 보존)
+      {
+        source: '/search/content-v:slug*.js',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+        ],
+      },
+      {
+        source: '/search/styles.css',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
         ],
       },
       {
@@ -100,11 +106,6 @@ const nextConfig = {
   compress: true,
   poweredByHeader: false,
 
-  // L-clean1 (2026-04-22): ?�라?�언??console ?�책 명시.
-  //   SWC 가 ?�로?�션 빌드 ??client 번들?�서 console.log/info/debug ???�거.
-  //   console.warn / console.error ???��? ??DevTools, 추후 Sentry ?�에 ?�결.
-  //   ?�버(Node) 번들?�는 ?�향 ?�음(Vercel 로그 채널�??��? ?�과).
-  //   ??개발 중에??console.log ?�유�?�� ?�용?�도 ?�로?�션???�출?��? ?�음.
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production'
       ? { exclude: ['error', 'warn'] }
