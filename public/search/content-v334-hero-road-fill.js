@@ -3,14 +3,15 @@
  * 사장님 명령 (2026-05-09):
  *   매물 78954 모달 도로명주소 안 보임. DB road_address/building_info null.
  *
- * 동작 (2-step):
- *   1) DB: listing.building_info['도로명주소'] 또는 listing.road_address 사용
- *   2) DB null 인 경우: Kakao reverseGeocoder (lat,lng) → 도로명 fetch
+ * 동작 (3-source):
+ *   1) listing.building_info['도로명주소'] 또는 listing.road_address (DB)
+ *   2) DB null → Kakao reverseGeocoder (lat,lng)
  *
- * 안전:
- *   - 이미 채워져 있으면 skip (Kakao 결과 보존)
- *   - data-v334-applied 로 1회만 시도
- *   - lat/lng 캐시 (반복 호출 방지)
+ * listing id source priority:
+ *   1) 모달 .v240-num.ws-copy-id 의 data-copy (가장 신뢰)
+ *   2) URL ?listing=ID
+ *   3) #ws-detail-container dataset.listingId
+ *   4) WS.currentListing.id
  */
 (function () {
   'use strict';
@@ -20,6 +21,15 @@
   if (location.pathname.indexOf('/search') !== 0) return;
 
   function getCurrentListingId() {
+    try {
+      var numTag = document.querySelector('#ws-detail-container .v240-num.ws-copy-id, #ws-detail-container .ws-copy-id[data-copy]');
+      if (numTag) {
+        var copy = numTag.getAttribute('data-copy');
+        if (copy && /^\d+$/.test(copy)) return String(copy);
+        var m = (numTag.textContent || '').match(/\d{4,}/);
+        if (m) return String(m[0]);
+      }
+    } catch (_) {}
     try {
       var params = new URLSearchParams(location.search);
       var lid = params.get('listing');
@@ -61,7 +71,6 @@
     return '';
   }
 
-  // L-v334-kakao-fallback: DB road_address null 인 경우 Kakao reverseGeocoder
   var _kakaoCache = {};
   function fetchRoadFromKakao(id, callback) {
     var l = getListingById(id);
@@ -100,7 +109,10 @@
       if (heroEl.dataset.v334Applied === '1') return;
 
       var id = getCurrentListingId();
-      if (!id) return;
+      if (!id) {
+        try { console.log('[' + V + '] no listing id (waiting...)'); } catch (_) {}
+        return;
+      }
 
       var road = getRoadFromListing(id);
       if (road) {
@@ -156,6 +168,7 @@
     setTimeout(applyToHero, 1500);
     setTimeout(applyToHero, 3500);
     setTimeout(applyToHero, 7000);
+    setTimeout(applyToHero, 15000);
   }
 
   if (document.readyState === 'loading') {
@@ -164,6 +177,6 @@
     init();
   }
 
-  try { window.WS = window.WS || {}; window.WS._v334 = { apply: applyToHero }; } catch (_) {}
+  try { window.WS = window.WS || {}; window.WS._v334 = { apply: applyToHero, getId: getCurrentListingId }; } catch (_) {}
   try { console.log('[' + V + '] active'); } catch (_) {}
 })();
