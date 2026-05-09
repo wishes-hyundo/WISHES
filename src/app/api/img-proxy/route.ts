@@ -118,7 +118,9 @@ export async function GET(request: NextRequest) {
     const SAFE_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif', 'image/gif'];
     const primaryType = rawContentType.split(';')[0].trim();
     if (!SAFE_IMAGE_TYPES.includes(primaryType)) {
-      return new NextResponse('unsupported upstream content-type', { status: 415 });
+      // L-imgproxy-fallback: 외부 사이트가 이미지 아닌 응답 (text/html 에러 등)
+      //   → transparent fallback (XSS 차단 의도 유지하면서 콘솔 깔끔)
+      return _transparentFallback('content_type_' + primaryType.replace('/', '_'));
     }
     const contentType = primaryType;
 
@@ -146,8 +148,3 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err) {
-    console.error('[img-proxy] error:', err);
-    // L-imgproxy-fallback: fetch throw (timeout / DNS / network) -> transparent
-    return _transparentFallback('fetch_error');
-  }
-}
