@@ -227,6 +227,11 @@ export default function SearchPortalPage() {
       //   "..리더스가든 17층 2408동 1701 17층 2408동1701" 두 번 표기.
       //   v333 가 끝부분 중복 ("N층 NNNN동 NNNN" 두 번) 자동 제거.
       ['ws-ext-patch-v333-hero-addr-dedup', '/search/content-v333-hero-addr-dedup.js?v=20260509a'],
+      // v334 (2026-05-09 사장님 발견 매물 78954): 모달 hero 도로명 직접 채우기.
+      //   "도로명 주소가 구주소 뒤에 숨겨져 있음" — Kakao Geocoder API 가 못 채운
+      //   #v240-hero-road element 에 listing.building_info['도로명주소'] 또는
+      //   listing.road_address 직접 채워서 "📍 도로명" 표시.
+      ['ws-ext-patch-v334-hero-road-fill', '/search/content-v334-hero-road-fill.js?v=20260509a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
@@ -320,27 +325,4 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 12,
   padding: '32px 28px',
   textAlign: 'center',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#2D5A27',
-  color: '#fff',
-  borderRadius: 8,
-  border: 'none',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#f0f5f0',
-  color: '#2D5A27',
-  borderRadius: 8,
-  border: '1px solid #d5e5d5',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
+  boxShadow: 
