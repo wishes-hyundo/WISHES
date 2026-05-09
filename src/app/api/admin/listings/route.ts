@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
         async () => {
-          const PAGE_SIZE = 5000;
+          const PAGE_SIZE = 1000;
 
           // 1차 페이지
           let firstQ = supabase
@@ -482,7 +482,7 @@ export async function GET(request: NextRequest) {
             'ETag': etag,
             'Cache-Control': scope === 'mine'
               ? 'private, max-age=30'
-              : 's-maxage=1800, stale-while-revalidate=86400',
+              : 'public, s-maxage=3600, stale-while-revalidate=86400',
             ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'max-age=1800' }),
           },
         });
@@ -496,7 +496,7 @@ export async function GET(request: NextRequest) {
           // L-v7-p3: scope=mine 은 사용자별 private, all 은 기존 CDN 공격 캐시
           'Cache-Control': scope === 'mine'
             ? 'private, max-age=30'
-            : 's-maxage=1800, stale-while-revalidate=86400',
+            : 'public, s-maxage=3600, stale-while-revalidate=86400',
           ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'max-age=1800' }),
           'Vary': 'Accept-Encoding, Authorization',
         },
@@ -505,7 +505,7 @@ export async function GET(request: NextRequest) {
     }
 
     let allData: any[] = [];
-    const PAGE_SIZE = 5000;
+    const PAGE_SIZE = 1000;
     let from = 0;
     let hasMore = true;
 
