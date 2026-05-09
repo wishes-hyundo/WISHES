@@ -578,6 +578,32 @@
 - 해결: 1x1 transparent PNG 로 placeholder 배치 (코드 grep 으로 참조 위치 못 찾을 때)
 - 코드: `public/images/icon/`, `public/images/map/new/`
 - 위반 결과: 404 + 콘솔 누적 (UX 영향은 낮지만 진짜 에러 가려 시각 혼란)
+### I-IMGPROXY-2: 외부 협업 CDN 추가 시 4-layer 동시 등록 (사장님 발견 2026-05-09)
+- 외부 매물 사진 CDN (zigbang.io / cloudfront / r2 등) 추가 시 다음 4곳 모두 동시 등록 필수:
+  1. `src/app/api/img-proxy/route.ts` `ALLOWED_HOSTS` 배열 (서버 fetch 허용)
+  2. `public/search/content-v318-mobile-image-fix.js` `EXTERNAL_HOSTS` 배열 (클라이언트 자동 변환)
+  3. `src/middleware.ts` CSP `img-src` directive (브라우저 차단 X)
+  4. CSP 외 기타 헤더 (referrer-policy 등 필요 시)
+- 한 곳이라도 누락하면 broken image 또는 CSP 차단
+- 위반 결과: 매물 사진 안 보임 → 사장님 시각 결함
+
+### I-IMGPROXY-3: img-proxy 외부 503/octet-stream/415 자동 흡수 (사장님 발견 2026-05-09)
+- CloudFront Lambda@Edge 큰 size 503 → 자동 size fallback (1920 → 720 → 400 → 원본)
+- octet-stream / 비-이미지 content-type → magic bytes (FFD8FF/89504E47/RIFF...WEBP/ftypavif) 검사 후 정상 image 면 강제 변환
+- fetch timeout/DNS/network → transparent PNG 200 응답 (broken image red icon 안 보이게)
+- v332 onerror retry — `<img>` broken 시 자동 `/api/img-proxy?url=...` 로 src 교체 (1회만)
+- 위반 결과: 콘솔 broken image 에러 + 사장님 시각 결함
+- 코드: `src/app/api/img-proxy/route.ts`, `public/search/content-v332-img-onerror-retry.js`
+
+### I-PATCH-COMPLETE-1: /search 패치 파일 disk 작성 후 syntax 검증 의무 (사장님 발견 2026-05-09)
+- disk 작성 후 반드시 `node -c file.js` 통과 확인 (Linux 또는 Windows)
+- mount sync 문제로 자주 truncate → SyntaxError 로 패치 전체 로드 실패
+- 발견 사례 (2026-05-09): content-v318 line 123 truncate → 모든 image 변환 작동 X → 사장님 hero 검정
+- commit 전 Python NULL bytes strip + UTF-8 decode + node -c 모두 통과 의무
+- Vercel deploy 후 prod fetch 로 한 번 더 syntax 확인 (브라우저 콘솔)
+- 위반 결과: 클라이언트 패치 silent fail → root cause 파악 어려움 + 시간 낭비
+- 코드: `public/search/content-v*.js` 모든 패치
+
 
 ### I-STORAGE-1: /search localStorage quota 자동 정리 + 토스트 throttle (사장님 발견 2026-05-09)
 - 결함: 매물 30,420건 → `ws_data_snapshot` + `ws_price_snapshots` 캐시 ~9MB → 브라우저 limit 5~10MB 도달 → "저장공간이 부족합니다" 토스트 매 분마다 반복 발생
