@@ -562,6 +562,23 @@
 
 ## 🆕 2026-05-09 추가 INVARIANTs
 
+### I-IMGPROXY-1: /api/img-proxy 외부 사이트 실패 시 transparent fallback (사장님 발견 2026-05-09)
+- 결함: 외부 크롤링 사이트 503/500/timeout → img-proxy 가 같은 status 또는 500 forward → 클라이언트 broken image + 콘솔 에러 누적
+- 해결: `src/app/api/img-proxy/route.ts` `_transparentFallback()` — 1x1 transparent PNG 200 응답
+  1. `!res.ok` 분기 → `_transparentFallback('upstream_' + status)` (외부 503/404/500 모두 흡수)
+  2. `catch (err)` 분기 → `_transparentFallback('fetch_error')` (timeout/DNS/network 흡수)
+- 외부 책임 영역의 일시 장애를 우리 도메인의 graceful UX 로 흡수
+- Cache 5분 (단기) — 외부 사이트 복구 빠르게 반영
+- 위반 결과: 콘솔 에러 누적 + broken image red icon 표시 + 사장님 시각 혼란
+- 검증: X-Proxied: fallback 헤더 + X-Fallback-Reason 헤더로 원인 추적
+
+### I-IMG-MISSING-1: 정적 이미지 누락 시 placeholder PNG 추가 (사장님 발견 2026-05-09)
+- 결함: 매물 데이터 또는 외부 source 가 wishes.co.kr/images/... 경로를 참조하는데 파일 누락 → 404
+  - 발견: `roadmap_ico.png`, `zig_logo_01.png`, `share_button.png`
+- 해결: 1x1 transparent PNG 로 placeholder 배치 (코드 grep 으로 참조 위치 못 찾을 때)
+- 코드: `public/images/icon/`, `public/images/map/new/`
+- 위반 결과: 404 + 콘솔 누적 (UX 영향은 낮지만 진짜 에러 가려 시각 혼란)
+
 ### I-STORAGE-1: /search localStorage quota 자동 정리 + 토스트 throttle (사장님 발견 2026-05-09)
 - 결함: 매물 30,420건 → `ws_data_snapshot` + `ws_price_snapshots` 캐시 ~9MB → 브라우저 limit 5~10MB 도달 → "저장공간이 부족합니다" 토스트 매 분마다 반복 발생
 - 원인 path: `_autoRefreshTimer` 10분 간격 → `trackChanges` → `_saveSnapshot` → `_safeSetItem` → QuotaExceededError → 토스트
