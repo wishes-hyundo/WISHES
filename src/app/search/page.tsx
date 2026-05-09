@@ -240,7 +240,7 @@ export default function SearchPortalPage() {
       //   진단: 사장님 측정 26s finish 의 큰 부분 = img-proxy 2-6MB × 수십 장.
       //   해결: MutationObserver 로 img.src ?w=1920 → ?w=400 자동 변환.
       //   모달 hero 사진은 원본 보존 (.v240-hero, .v240-gallery skip).
-      ['ws-ext-patch-v336-img-thumbnail', '/search/content-v336-img-thumbnail.js?v=20260509a'],
+      // v336 disabled (caused React loop)
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
