@@ -222,6 +222,11 @@ export default function SearchPortalPage() {
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
       //   v318 의 src 변환을 놓치는 timing/dynamic 케이스 보완.
       ['ws-ext-patch-v332-img-onerror-retry', '/search/content-v332-img-onerror-retry.js?v=20260509a'],
+      // v333 (2026-05-09 사장님 발견 매물 78954): 모달 hero h1 주소 중복 제거.
+      //   v240-detail.js 가 address + address_detail 합치는데 space 차이로
+      //   "..리더스가든 17층 2408동 1701 17층 2408동1701" 두 번 표기.
+      //   v333 가 끝부분 중복 ("N층 NNNN동 NNNN" 두 번) 자동 제거.
+      ['ws-ext-patch-v333-hero-addr-dedup', '/search/content-v333-hero-addr-dedup.js?v=20260509a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
@@ -315,27 +320,4 @@ const cardStyle: React.CSSProperties = {
   borderRadius: 12,
   padding: '32px 28px',
   textAlign: 'center',
-  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-};
-
-const btnPrimary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#2D5A27',
-  color: '#fff',
-  borderRadius: 8,
-  border: 'none',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
-
-const btnSecondary: React.CSSProperties = {
-  padding: '10px 20px',
-  background: '#f0f5f0',
-  color: '#2D5A27',
-  borderRadius: 8,
-  border: '1px solid #d5e5d5',
-  fontSize: 14,
-  fontWeight: 600,
-  cursor: 'pointer',
-};
+  boxShadow: '0 2px 12px rgba(
