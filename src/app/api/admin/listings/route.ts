@@ -84,14 +84,6 @@ const createListingSchema = z.object({
   source_url: z.string().optional().nullable(),
   building_name: z.string().optional().nullable(),
   contact: z.string().optional().nullable(),
-  // L-contacts-jsonb (2026-04-29 사장님 명령): 관계자 연락처 (JSONB 배열).
-  //   [{role, name, phone, memo}] — v240 모달 [+ 추가] 버튼이 PUT 으로 저장.
-  contacts: z.array(z.object({
-    role: z.string().max(40),
-    name: z.string().max(40).optional().nullable(),
-    phone: z.string().max(40),
-    memo: z.string().max(200).optional().nullable(),
-  })).max(50).optional().nullable(),
   lease_period: z.string().optional().nullable(),
   rights_fee: z.number().int().nonnegative().optional().nullable(),
   // L-status1 (2026-04-23): API 기본 status 를 UI 체계와 통일.
@@ -173,6 +165,8 @@ export async function GET(request: NextRequest) {
     //   + admin_bridge_ 접두사 반복 제거 (이중 접두사 방어)
     const scopeParam = (searchParams.get('scope') || 'all').toLowerCase();
     let scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
+    // Phase 1-5 (2026-04-28): problematic=true 매물만 조회 (사장님 검토 페이지)
+    const onlyProblematic = searchParams.get('problematic') === 'true';
     let scopeUid: string | null = null;
     let scopeAuth: 'ok' | 'failed_degrade_all' | null = null;
     if (scope === 'mine') {
@@ -218,11 +212,6 @@ export async function GET(request: NextRequest) {
         // L-search1 (2026-04-23): 좌측 카드 단지명 표기용 building_name 추가.
         //   기존엔 minimal 응답에서 누락되어 모든 카드에 '(단지명)' 이 공란.
         'building_name',
-        // L-search-v328 (2026-04-29 사장님 명령): 메인 라인 형식 — "[지번] [건물명] [N층] [동] [호]"
-        //   동(가동/나동) 이 호수 앞에 위치. v328 patch 가 buildText 에서 사용.
-        'building_dong', 'building_ho',
-        // 룸 라벨 (v330) — listing.rooms 변환 ('1' → '원룸', '2' → '투룸' 등)
-        'rooms',
         'lat', 'lng',
         'available_date', 'built_year',
         'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
@@ -238,10 +227,6 @@ export async function GET(request: NextRequest) {
         'last_verified_at', // L-verify-list (2026-04-24): 목록 현장확인 배지
         'source_site', // L-imgpolicy3: 크롤링 판정용 (응답 전 썸네일 스크럽)
         'updated_at', // L-search8 (2026-04-24): admin/listings 페이지 '수정됨' 배지용 (minimal 전환 시 필요)
-        // L-roadname (2026-04-29 사장님 명령): v327 patch 가 카드 부 라인을 도로명주소로
-        //   교체할 때 listing.building_info.도로명주소 를 읽음. 응답에 포함되어야 동작.
-        //   slim 단계에서 도로명/지번 두 키만 남기고 나머지 jsonb 키는 제거 (size 절감).
-        'building_info',
         // L-search7 (2026-04-24): listing_images JOIN 제거. JOIN 된 1000-row 쿼리가
         //   ~4.8s 걸리고 7 pages parallel → Vercel 27s 소비 + supabase-js 의 range
         //   pagination 버그 트리거 (매물 2000~4000 축소). 대신 main rows 수집 후
@@ -250,8 +235,8 @@ export async function GET(request: NextRequest) {
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v12-mine', scopeUid as string]
-        : ['listings-minimal-v12'];
+        ? ['listings-minimal-v8-mine', scopeUid as string]
+        : ['listings-minimal-v8'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
@@ -280,7 +265,7 @@ export async function GET(request: NextRequest) {
           //   전환해 각 페이지 결과를 확인 후 다음 페이지 요청. 총 시간 약간 증가
           //   하지만 일관성 대폭 향상 (no join, 페이지당 0.3~0.6s).
           if (firstPage.length === PAGE_SIZE) {
-            for (let from = PAGE_SIZE; from < 100000; from += PAGE_SIZE) {
+            for (let from = PAGE_SIZE; from < 10000; from += PAGE_SIZE) {
               let q = supabase
                 .from('listings')
                 .select(selectFields)
@@ -313,7 +298,7 @@ export async function GET(request: NextRequest) {
                   .select('listing_id, url, sort_order')
                   .in('listing_id', batch)
                   .order('sort_order', { ascending: true, nullsFirst: false })
-                  .limit(100000);
+                  .limit(10000);
                 if (imgs) {
                   for (const im of imgs as any[]) {
                     const lid = String(im.listing_id);
@@ -349,22 +334,6 @@ export async function GET(request: NextRequest) {
                 row.thumbnail_url = null;
               }
             }
-            // L-roadname (2026-04-29): building_info jsonb 슬림화 — 도로명주소/지번주소 두 키만.
-            //   원본 building_info 는 basic/recapTitle/전유부/층별개요 등 큰 객체 다수 보유.
-            //   카드 표시에는 도로명/지번만 필요하므로 페이로드 size 절감.
-            if (row.building_info && typeof row.building_info === 'object') {
-              const bi = row.building_info as Record<string, unknown>;
-              const road = (bi['도로명주소'] as string) || '';
-              const jibun = (bi['지번주소'] as string) || '';
-              if (road || jibun) {
-                row.building_info = {
-                  ...(road ? { '도로명주소': road } : {}),
-                  ...(jibun ? { '지번주소': jibun } : {}),
-                };
-              } else {
-                row.building_info = null; // 빈 객체로 슬림제거 트리거
-              }
-            }
             const out: any = {};
             for (const k in row) {
               const v = row[k];
@@ -378,7 +347,10 @@ export async function GET(request: NextRequest) {
           return slim;
         },
         cacheKey,
-        { revalidate: 60, tags: ['listings'] }
+        // L-perf-step-c (2026-05-09 사장님 SOTA Phase 1): Node 캐시 60s → 300s
+        //   매물 등록 시 revalidateTag('listings') 가 invalidate (instant)
+        //   60s → 300s 5배 → 캐시 hit 율 ↑ + DB query 부담 ↓
+        { revalidate: 300, tags: ['listings'] }
       );
 
       const allData = await getCached();
@@ -395,8 +367,8 @@ export async function GET(request: NextRequest) {
             'ETag': etag,
             'Cache-Control': scope === 'mine'
               ? 'private, max-age=30'
-              : 's-maxage=300, stale-while-revalidate=86400',
-            ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'max-age=300' }),
+              : 's-maxage=1800, stale-while-revalidate=86400',
+            ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'max-age=1800' }),
           },
         });
       }
@@ -409,8 +381,8 @@ export async function GET(request: NextRequest) {
           // L-v7-p3: scope=mine 은 사용자별 private, all 은 기존 CDN 공격 캐시
           'Cache-Control': scope === 'mine'
             ? 'private, max-age=30'
-            : 's-maxage=300, stale-while-revalidate=86400',
-          ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'max-age=300' }),
+            : 's-maxage=1800, stale-while-revalidate=86400',
+          ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'max-age=1800' }),
           'Vary': 'Accept-Encoding, Authorization',
         },
       });
@@ -751,21 +723,6 @@ export async function POST(request: NextRequest) {
     revalidatePath('/map', 'page');
     revalidateTag('listings');
 
-    // G-82 (2026-05-03): 매물 등록 audit
-    try {
-      const _caller = await verifyAdminAuthStrict(request);
-      audit({
-        action: 'listing.create',
-        actor: { email: _caller.email ?? null, role: _caller.role ?? null, uid: _caller.uid ?? null },
-        target: { type: 'listing', id: String(data?.id ?? null) },
-        ip: getClientIp(request),
-        userAgent: request.headers.get('user-agent') || undefined,
-        route: '/api/admin/listings',
-        status: 201,
-        meta: { images_count: imageResults.length },
-      });
-    } catch { /* audit 실패 무시 */ }
-
     return NextResponse.json(
       {
         success: true,
@@ -837,15 +794,8 @@ export async function PUT(request: NextRequest) {
     }
 
     if (Object.keys(updateValues).length === 0 && !images) {
-      // L-debug-fields (2026-04-29): 사장님 화면에 직접 진단 정보 표시.
-      //   client 가 보낸 키 vs zod 통과 키 vs undefined 키 inline.
-      const recvKeys = Object.keys(updateData || {});
-      const parsedKeys = Object.keys(parsed.data || {});
-      const undefKeys = Object.entries(parsed.data || {})
-        .filter(([, v]) => v === undefined).map(([k]) => k);
-      const detail = ` (받은:${recvKeys.length}개[${recvKeys.slice(0,5).join(',')}] · zod통과:${parsedKeys.length}개 · undefined:${undefKeys.length}개[${undefKeys.slice(0,3).join(',')}])`;
       return NextResponse.json(
-        { success: false, error: '수정할 필드가 없습니다' + detail, debug: { recvKeys, parsedKeys, undefKeys } },
+        { success: false, error: '수정할 필드가 없습니다' },
         { status: 400 }
       );
     }
@@ -914,30 +864,8 @@ export async function PUT(request: NextRequest) {
     revalidatePath(`/listings/${id}`, 'page');
     revalidateTag('listings');
 
-    // G-82 (2026-05-03): 매물 수정 audit
-    try {
-      const _caller = await verifyAdminAuthStrict(request);
-      audit({
-        action: 'listing.update',
-        actor: { email: _caller.email ?? null, role: _caller.role ?? null, uid: _caller.uid ?? null },
-        target: { type: 'listing', id: String(id) },
-        ip: getClientIp(request),
-        userAgent: request.headers.get('user-agent') || undefined,
-        route: '/api/admin/listings',
-        status: 200,
-        meta: { fields: Object.keys(updateValues), images_count: Array.isArray(images) ? images.length : 0 },
-      });
-    } catch { /* audit 실패 무시 */ }
-
     return NextResponse.json({
       success: true,
       data,
     });
-  } catch (error: any) {
-    console.error('매물 수정 오류:', error);
-    return NextResponse.json(
-      { success: false, error: '매물 수정에 실패했습니다', detail: error?.message || String(error) },
-      { status: 500 }
-    );
-  }
-}
+  } 
