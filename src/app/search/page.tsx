@@ -296,21 +296,13 @@ export default function SearchPortalPage() {
   }
 
   if (state === 'nosession') {
-    return (
-      <div style={wrapStyle}>
-        <div style={cardStyle}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>🔐</div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12, color: '#2D5A27' }}>로그인이 필요합니다</h1>
-          <p style={{ color: '#666', lineHeight: 1.6, marginBottom: 24, fontSize: 14 }}>
-            중개사 포털은 승인된 직원만 이용할 수 있습니다.<br />계정으로 로그인해주세요.
-          </p>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-            <a href="/login?redirect=/search" style={{ ...btnPrimary, textDecoration: 'none', display: 'inline-block' }}>로그인</a>
-            <a href="/signup" style={{ ...btnSecondary, textDecoration: 'none', display: 'inline-block' }}>회원가입</a>
-          </div>
-        </div>
-      </div>
-    );
+    // L-perf-fix-8-2026-05-10 (사장님 명령): 모달 제거, 즉시 /login redirect.
+    //   이전: 모달 표시 → 사용자 클릭 → /login 이동 (1-2초 추가).
+    //   이후: 비로그인 검사 즉시 redirect → 로그인 페이지 바로 표시.
+    if (typeof window !== 'undefined') {
+      window.location.replace('/login?redirect=/search');
+    }
+    return null;
   }
 
   return (
