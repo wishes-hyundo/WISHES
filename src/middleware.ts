@@ -52,6 +52,17 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = (request.headers.get('host') ?? '').toLowerCase();
 
+  // L-perf-fix-10b-2026-05-10 (사장님 명령): admin-auth.html → /login server-side redirect.
+  //   public/ 정적 파일이라 next.config redirects() 통하지 않음. middleware 가 가로챔.
+  //   → 검정 배경 옛 페이지 영구 안 보임 (사용자 HTML 안 받음).
+  if (pathname === '/admin/admin-auth.html') {
+    const target = request.nextUrl.searchParams.get('target') || '/admin/';
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.search = '?redirect=' + encodeURIComponent(target);
+    return NextResponse.redirect(url, 308);
+  }
+
   // L-listingurl-path (2026-04-29 사장님 명령): /map/<숫자> 매물 path → query rewrite.
   //   사용자 URL 은 /map/53190 그대로 유지 (rewrite, not redirect).
   //   page.tsx 는 ?listing=ID 로 받아 처리. 클라이언트의 useListingUrlSync 가
