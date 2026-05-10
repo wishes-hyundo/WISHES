@@ -6,11 +6,11 @@
   "functions": {
     "src/app/api/**/*.js": {
       "maxDuration": 10,
-      "memory": 256
+      "memory": 1024
     },
     "src/app/api/**/*.ts": {
       "maxDuration": 10,
-      "memory": 256
+      "memory": 1024
     }
   },
   "headers": [
@@ -60,7 +60,8 @@
       ]
     },
     {
-      "source": "/api/admin/(.*)",
+      "source": "/api/admin/__disabled__/(.*)",
+      "_comment": "L-perf-2026-05-10 (Fix 3 사장님 명령): 원래 /api/admin/(.*) private no-store rule 비활성화. route.ts 의 Vercel-CDN-Cache-Control 가 precedence 우위라 영향 없지만 혼란 정리. cache target 이 없어진 path 로 대체 (no-op).",
       "headers": [
         {
           "key": "Cache-Control",
