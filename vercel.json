@@ -105,6 +105,10 @@
   ],
   "crons": [
     {
+      "path": "/api/cron/prewarm-listings",
+      "schedule": "*/4 * * * *"
+    },
+    {
       "path": "/api/cron/backfill-building-info?limit=25",
       "schedule": "*/15 * * * *"
     },
