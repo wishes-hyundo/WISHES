@@ -246,11 +246,13 @@ export default function SearchPortalPage() {
 
       // Step T (2026-05-10): cookie-issue auto for CDN cache
       ['ws-ext-patch-v337-cookie-issue', '/search/content-v337-cookie-issue.js?v=20260510a'],
-      // v341 / v342 (2026-05-10 사장님 발견): 매물 0건 표시 회귀 -> 즉시 disable.
-      //   v341 progressive fetch wrap 가 응답 처리 / verify 결합 문제.
-      //   v342 도 함께 disable (분리 검증 후 재활성화).
+      // v341 (2026-05-10 사장님 발견): 매물 0건 회귀 -> 보류. 단계B 에서 새 Response 방식으로 재설계 예정.
+      //   v341 progressive fetch wrap 가 v260-perf clone 과 stream tee 다중 wrap 충돌.
       // ['ws-ext-patch-v341-progressive', '/search/content-v341-progressive.js?v=20260510a'],
-      // ['ws-ext-patch-v342-modal-image-priority', '/search/content-v342-modal-image-priority.js?v=20260510a'],
+      // v342 (2026-05-10 사장님 명령 단계A): 모달 사진 우선순위 — fetch 안 건드림.
+      //   showDetail wrap 만 사용. listing.images URL 에 ?w=1200 (hero) / ?w=400 (썸네일) 추가
+      //   + 썸네일 loading=lazy + hero <link rel=preload>. 매물 목록 영향 0.
+      ['ws-ext-patch-v342-modal-image-priority', '/search/content-v342-modal-image-priority.js?v=20260510b'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
