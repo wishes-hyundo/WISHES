@@ -273,6 +273,10 @@ export default function SearchPortalPage() {
       // v346 (Fix 23 - 등록 누락 발견 2026-05-10): WS.state.perPage = 20 강제.
       //   첫 표시 매물 100건 → 20건. DOM 카드 80개 줄어 render 빠름.
       ['ws-ext-patch-v346-default-20-listings', '/search/content-v346-default-20-listings.js?v=20260510a'],
+      // v347 (Fix 35 사장님 발견 2026-05-11): 확대 모드 lightbox 1/1 회귀 fix.
+      //   v247 (lightbox) data-images 1 entry 만 사용 → 1/1. v250 (모달 갤러리) 는 .ws-thumb fallback 8장.
+      //   v347 capture phase 로 .ws-thumb 수집 → data-images attribute 강제 set → v247 가 8장 인식.
+      ['ws-ext-patch-v347-lightbox-imgs-fill', '/search/content-v347-lightbox-imgs-fill.js?v=20260511a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
