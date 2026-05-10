@@ -1,56 +1,45 @@
 /**
- * content-v347-lightbox-imgs-fill.js (2026-05-11)
+ * content-v347-lightbox-imgs-fill.js v2 (2026-05-11)
  *
- * 사장님 발견 (캡처 2): 모달 사진 클릭하여 확대 모드 진입 시 1/1 표시 + 좌/우 화살표 사라짐.
- * 모달 자체 (v250) 는 1/8 정상 — 즉 모달 갤러리 navigation 은 OK.
- * 회귀 부분 = 확대 모드 (v247 lightbox).
+ * 사장님 v1 결과: "한번에 안뜨고 한번 껐다 다시 켜면 그때 나옴"
+ *   원인: v247 (lightbox) 도 click capture phase. v347 도 click capture phase.
+ *         같은 phase 면 등록 순서대로 fire — v247 (v240-detail.js) 가 먼저 로드됨.
+ *         첫 클릭: v247 먼저 fire → 1 entry 만 읽음. v347 가 set 해도 늦음.
+ *         두번째 클릭: 첫 v347 set 이 이미 적용 → v247 8장.
  *
- * 진짜 원인:
- *   v247 line 1344: imgs = JSON.parse(mainEl.getAttribute('data-images') || '[]');
- *   data-images attribute 가 1 entry 만 가짐 (route.ts 가 listing_images 1개만 응답하므로).
- *   v250 은 fallback 으로 .ws-thumb[data-url] 사용 → 8장. v247 은 fallback X.
+ * v2 fix:
+ *   click 대신 mousedown capture 사용 (mousedown 이 click 보다 먼저 fire — browser 표준).
+ *   mousedown 시 data-images attribute 채움 → 직후 click 에서 v247 fresh attribute 읽음.
+ *   첫 클릭부터 정상 동작.
  *
- * Fix:
- *   capture phase 에서 #ws-gallery-main 클릭 가로챔.
- *   .ws-thumb[data-url] DOM 에서 모든 사진 URL 수집.
- *   data-images attribute 강제 set (v247 보다 먼저 실행).
- *   v247 가 이 fresh attribute 사용 → 모든 사진 표시.
+ * 또한 MutationObserver 로 모달 open 시 한 번 미리 채움 (안전 가드).
  *
  * 안전 가드:
- *   - capture phase = v247 의 listener 보다 먼저 실행 (v247 도 capture true)
- *   - 우리 listener 는 attribute 만 set, click 흐름 계속 (preventDefault X)
- *   - .ws-thumb 없으면 attribute set 안 함 (original v247 동작 유지)
- *   - 1 entry 매물 (사진 1장) 도 정상 (urls.length <= 1 이면 set 안 함)
- *   - 위험 매우 낮음 — DOM attribute set 만, 다른 동작 영향 0
+ *   - mousedown 만 hook, click 흐름 변경 X
+ *   - data-images attribute set 만, preventDefault X
+ *   - .ws-thumb 없으면 set 안 함 (fallback safe)
+ *   - 1 entry 매물 정상 (urls.length <= 1 이면 set 안 함)
  *
  * 검증:
- *   - 매물 112552 (사진 8장): 확대 모드 1/8 + 화살표 표시
- *   - 매물 102644 (사진 20장): 확대 모드 1/20 + 화살표 표시
- *   - 사진 1장 매물: 확대 모드 1/1 (원래 그래야 함)
+ *   - 매물 112552 (사진 8장): 첫 클릭부터 1/8 + 화살표
+ *   - 매물 102644 (사진 20장): 첫 클릭부터 1/20 + 화살표
+ *   - 사진 1장 매물: 1/1 (원래 그래야 함)
  */
 (function () {
   'use strict';
-  if (window.__WS_V347_LIGHTBOX_FIX__) return;
-  window.__WS_V347_LIGHTBOX_FIX__ = true;
+  if (window.__WS_V347_LIGHTBOX_FIX_V2__) return;
+  window.__WS_V347_LIGHTBOX_FIX_V2__ = true;
 
   var host = location.hostname;
   if (host.indexOf('wishes.co.kr') === -1 && host !== 'localhost') return;
   if (location.pathname.indexOf('/search') !== 0) return;
 
-  // Capture phase 로 v247 의 listener 보다 먼저 실행
-  document.addEventListener('click', function (ev) {
+  function fillImagesAttr(mainEl) {
+    if (!mainEl) return;
     try {
-      // v248 nav button 은 v247 가 skip — 우리도 skip
-      if (ev.target && ev.target.closest && ev.target.closest('.v248-nav-btn')) return;
-      if (ev.target && ev.target.closest && ev.target.closest('.v250-nav-btn')) return;
-
-      var m = ev.target && ev.target.closest ? ev.target.closest('#ws-gallery-main') : null;
-      if (!m) return;
-
-      // .ws-thumb[data-url] 에서 모든 사진 URL 수집 (v250 collectImgs 와 동일 logic)
-      var root = m.closest('.v240-body') || document;
+      var root = mainEl.closest('.v240-body') || document;
       var thumbs = root.querySelectorAll('.ws-thumb[data-url]');
-      if (!thumbs || thumbs.length <= 1) return; // 1장 이하면 원래 동작 유지
+      if (!thumbs || thumbs.length <= 1) return;
 
       var urls = [];
       for (var i = 0; i < thumbs.length; i++) {
@@ -59,12 +48,50 @@
       }
       if (urls.length <= 1) return;
 
-      // data-images attribute 강제 set (v247 가 이걸 사용)
-      m.setAttribute('data-images', JSON.stringify(urls));
-    } catch (e) {
-      try { console.warn('[v347-lightbox-fix]', e); } catch (_) {}
-    }
-  }, true); // capture phase
+      // Already correct? skip
+      var existing = mainEl.getAttribute('data-images') || '[]';
+      try {
+        var existingArr = JSON.parse(existing);
+        if (Array.isArray(existingArr) && existingArr.length === urls.length) {
+          // Already set with same length — likely already correct, skip
+          return;
+        }
+      } catch (_) {}
 
-  try { console.log('[v347-lightbox-fix] active'); } catch (_) {}
+      mainEl.setAttribute('data-images', JSON.stringify(urls));
+    } catch (e) {
+      try { console.warn('[v347-v2 fillImagesAttr]', e); } catch (_) {}
+    }
+  }
+
+  // 1. mousedown capture — fires BEFORE click. v247 click listener 가 fire 할 때 attribute 이미 set.
+  document.addEventListener('mousedown', function (ev) {
+    try {
+      if (ev.target && ev.target.closest && ev.target.closest('.v248-nav-btn')) return;
+      if (ev.target && ev.target.closest && ev.target.closest('.v250-nav-btn')) return;
+      var m = ev.target && ev.target.closest ? ev.target.closest('#ws-gallery-main') : null;
+      if (m) fillImagesAttr(m);
+    } catch (_) {}
+  }, true);
+
+  // 2. MutationObserver — 모달 open 시 한 번 미리 set. 안전 가드.
+  try {
+    var mo = new MutationObserver(function (mutations) {
+      for (var i = 0; i < mutations.length; i++) {
+        var added = mutations[i].addedNodes;
+        for (var j = 0; j < added.length; j++) {
+          var n = added[j];
+          if (n.nodeType !== 1) continue;
+          if (n.id === 'ws-gallery-main') { fillImagesAttr(n); continue; }
+          if (n.querySelector) {
+            var inner = n.querySelector('#ws-gallery-main');
+            if (inner) fillImagesAttr(inner);
+          }
+        }
+      }
+    });
+    mo.observe(document.body, { childList: true, subtree: true });
+  } catch (_) {}
+
+  try { console.log('[v347-v2 lightbox-fix] active (mousedown + observer)'); } catch (_) {}
 })();
