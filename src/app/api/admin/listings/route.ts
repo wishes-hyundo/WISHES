@@ -240,6 +240,10 @@ export async function GET(request: NextRequest) {
         //   효과: UUID 36 byte × 60K = 2.16 MB + JSON key = 3 MB 응답 감소.
         // 'created_by',  // 디버그 echo 제거됨 (필요 시 fields=full 로 호출).
         'last_verified_at', // L-verify-list (2026-04-24): 목록 현장확인 배지
+        // L-perf-fix-6 (2026-05-10 사장님 명령): listings.road_address 컬럼.
+        //   v335 가 listing.road_address 검사하여 Kakao API 호출 skip.
+        //   cron 으로 영구 채움 (60K 매물 / 시간당 1000건 = 2.5일).
+        'road_address',
         'source_site', // L-imgpolicy3: 크롤링 판정용 (응답 전 썸네일 스크럽)
         'updated_at', // L-search8 (2026-04-24): admin/listings 페이지 '수정됨' 배지용 (minimal 전환 시 필요)
         // L-roadname (2026-04-29 사장님 명령): v327 patch 가 카드 부 라인을 도로명주소로
