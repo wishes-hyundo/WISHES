@@ -1,7 +1,25 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-        <script src="auth-bridge.js"></script>
+    <!-- L-perf-fix-10-2026-05-10 (사장님 명령): admin-auth.html deprecated.
+         /login (깔끔한 새 페이지) 로 즉시 redirect.
+         사장님이 본 "검정 배경 옛 페이지" 영구 제거. -->
+    <script>
+      (function () {
+        try {
+          // 사용자가 admin 영역 진입 시 admin-auth.html 통과 → /login 으로 즉시 이동.
+          // ?target= 파라미터 보존 (OAuth callback 등에서 사용).
+          var sp = new URLSearchParams(location.search);
+          var target = sp.get('target') || '/admin/';
+          var redirectUrl = '/login?redirect=' + encodeURIComponent(target);
+          location.replace(redirectUrl);
+        } catch (e) {
+          // fallback: target 없이 /login
+          location.replace('/login?redirect=/admin');
+        }
+      })();
+    </script>
+    <script src="auth-bridge.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
