@@ -6,11 +6,11 @@
   "functions": {
     "src/app/api/**/*.js": {
       "maxDuration": 10,
-      "memory": 1024
+      "memory": 256
     },
     "src/app/api/**/*.ts": {
       "maxDuration": 10,
-      "memory": 1024
+      "memory": 256
     }
   },
   "headers": [
@@ -19,7 +19,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=60, s-maxage=600, stale-while-revalidate=3600"
+          "value": "public, max-age=60, s-maxage=300, stale-while-revalidate=900"
         }
       ]
     },
@@ -28,7 +28,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=60, s-maxage=600, stale-while-revalidate=3600"
+          "value": "public, max-age=60, s-maxage=300, stale-while-revalidate=900"
         }
       ]
     },
@@ -37,7 +37,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, s-maxage=600, stale-while-revalidate=3600"
+          "value": "public, s-maxage=60, stale-while-revalidate=300"
         }
       ]
     },
@@ -56,6 +56,49 @@
         {
           "key": "Cache-Control",
           "value": "private, no-store"
+        }
+      ]
+    },
+    {
+      "source": "/api/admin/((?!listings(?:$|/)).*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
+    },
+    {
+      "source": "/api/admin/listings",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=3600, stale-while-revalidate=86400"
+        },
+        {
+          "key": "CDN-Cache-Control",
+          "value": "public, s-maxage=3600, stale-while-revalidate=86400"
+        },
+        {
+          "key": "Vercel-CDN-Cache-Control",
+          "value": "public, s-maxage=3600, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
+      "source": "/api/admin/listings/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, s-maxage=300, stale-while-revalidate=3600"
+        },
+        {
+          "key": "CDN-Cache-Control",
+          "value": "public, s-maxage=300, stale-while-revalidate=3600"
+        },
+        {
+          "key": "Vercel-CDN-Cache-Control",
+          "value": "public, s-maxage=300, stale-while-revalidate=3600"
         }
       ]
     }
@@ -188,18 +231,6 @@
     {
       "path": "/api/cron/resolve-building-centroids",
       "schedule": "30 3 * * 1"
-    },
-    {
-      "path": "/api/cron/backfill-road-address",
-      "schedule": "10 * * * *"
-    },
-    {
-      "path": "/api/cron/prewarm-listings",
-      "schedule": "* * * * *"
-    },
-    {
-      "path": "/api/cron/prewarm-public-listings",
-      "schedule": "*/2 * * * *"
     }
   ]
 }
