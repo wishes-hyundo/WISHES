@@ -301,3 +301,154 @@ req = urllib.request.Request(...)
 
 알려주세요.
 ```
+
+---
+
+## 🎯 옵션 C 상세 진행 plan (사장님 명령 2026-05-11 다음 세션)
+
+### 사장님 다음 세션 첫 메시지 template
+```
+옵션 C로 진행해. 마스터 문서 docs/sessions/2026-05-11-perf-session-master.md 읽고 시작.
+```
+
+이 1줄 으로 다음 세션 Claude 가 즉시 이어감.
+
+### Step 1 — server side search endpoint 작성 (사용 X, 검증만)
+
+**파일**: `src/app/api/admin/listings/search/route.ts`
+
+```ts
+// GET /api/admin/listings/search?q=<query>&limit=200&type=...
+// - 60K 매물 안에서 server side filter (Postgres ILIKE / full-text)
+// - 응답 형태: 기존 list endpoint 와 동일 (success / data / total)
+// - cache: private no-store (사용자별 검색)
+// - 위험: query injection — escape 필수
+
+import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase';
+import { verifyAdminAuth as verifyAuth } from '@/lib/adminAuth';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 30;
+
+export async function GET(request: NextRequest) {
+  if (!(await verifyAuth(request))) {
+    return NextResponse.json({ success: false, error: '인증 실패' }, { status: 401 });
+  }
+  
+  const { searchParams } = new URL(request.url);
+  const q = (searchParams.get('q') || '').trim().slice(0, 100);
+  const limit = Math.min(parseInt(searchParams.get('limit') || '200', 10), 500);
+  const typeFilter = searchParams.get('type') || '';
+  
+  if (!q) {
+    return NextResponse.json({ success: true, data: [], total: 0, query: q });
+  }
+  
+  const supabase = createServerClient();
+  
+  // ILIKE search (case-insensitive partial match) on key fields
+  let queryBuilder = supabase
+    .from('listings_minimal_mv')  // 또는 listings (mv expose 안 되면)
+    .select(/* 같은 selectFields */)
+    .or(`title.ilike.%${q}%,address.ilike.%${q}%,building_name.ilike.%${q}%,dong.ilike.%${q}%`)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  
+  if (typeFilter) queryBuilder = queryBuilder.eq('type', typeFilter);
+  
+  const { data, error, count } = await queryBuilder;
+  
+  if (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+  
+  return NextResponse.json({
+    success: true,
+    data: data || [],
+    total: count || (data?.length || 0),
+    query: q,
+  });
+}
+```
+
+**검증** (사장님 console 명령):
+```js
+fetch('/api/admin/listings/search?q=신림동', {
+  headers: {Authorization: 'Bearer ' + (sessionStorage.getItem('ws_token') || localStorage.getItem('ws_token'))}
+}).then(r => r.json()).then(d => console.log('search:', d.total, '결과 in', /*time*/));
+```
+
+### Step 2 — content.js 검색 흐름 patch (v349)
+
+**파일**: `public/search/content-v349-server-search.js`
+
+```js
+// 사용자가 검색어 입력 → server side endpoint 호출 → 결과 표시
+// 기존 client side filter (WS.allListings) bypass
+//
+// 위험: content.js 의 search 흐름 변경 — 기존 동작 깨짐 가능
+// 안전 가드: 검색어 빈 문자열 시 client side 동작 (기존 그대로)
+//          server search endpoint fail 시 client side fallback
+
+(function () {
+  'use strict';
+  if (window.__WS_V349_SERVER_SEARCH__) return;
+  window.__WS_V349_SERVER_SEARCH__ = true;
+  
+  // ... 검색 입력 이벤트 hook
+  // 200ms debounce + server search call
+  // 결과를 WS.searchResults 에 set + renderAll
+})();
+```
+
+### Step 3 — page.tsx 에 v349 등록
+
+```tsx
+['ws-ext-patch-v349-server-search', '/search/content-v349-server-search.js?v=20260512a'],
+```
+
+### Step 4 — route.ts 의 default limit=200 적용 (안전)
+
+이번엔 검색 깨짐 위험 없음 — 검색은 server side endpoint 가 60K 모두 처리. 첫 진입은 200 매물만.
+
+```ts
+const DEFAULT_LIMIT = 200;  // 검색은 server side endpoint
+```
+
+### Step 5 — 단계별 검증
+
+각 step prod deploy 후 사장님 console 명령으로 timing + 매물 정상 확인.
+
+회귀 시 즉시 revert.
+
+---
+
+### 옵션 C 의 위험 + 회피
+
+| 위험 | 회피 |
+|---|---|
+| Search endpoint query injection | parameterized query (supabase-js .ilike) — 자동 escape |
+| 검색 흐름 patch v260-perf 충돌 | response stream 안 건드림. URL 만 변경. v341 v3 패턴 |
+| Server side search 응답 size | limit=500 cap. 평균 검색 결과 < 100 매물 |
+| 첫 fetch limit=200 + 검색 끊임 | search endpoint 작동 검증 후 적용 |
+
+### 옵션 C 예상 효과
+
+| 항목 | 이전 | 옵션 C 후 |
+|---|---|---|
+| 첫 진입 | 13-15s | **1-2초** |
+| 매물 검색 | client filter, 60K 모두 | **server filter, 60K 모두** |
+| 사장님 만족 | X | ✅ |
+
+---
+
+## ⚠️ 다음 세션 Claude 의 절대 우선순위
+
+1. 마스터 문서 읽기 (이 문서)
+2. 현재 prod 상태 확인 (`git log -1` → 3220c7e2 인지)
+3. 옵션 C step-by-step 진행 (위 detail 따라)
+4. 매 step 사장님 검증 받음 — **사장님 console 명령 으로 timing 측정**
+5. 회귀 시 즉시 revert (회귀 6번째 발생 시 stop, 사장님 결정 부탁)
+
