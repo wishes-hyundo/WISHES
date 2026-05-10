@@ -48,6 +48,10 @@
     'ws_fav_categories': 1, 'ws_noti_settings': 1,
     'ws_token': 1, 'ws_user': 1, 'ws_login_time': 1, 'ws_refresh_token': 1,
     'ws-search-history': 1, 'ws_autorefresh_min': 1, 'wp-pal-frecent': 1,
+    // L-perf-v335-cache (2026-05-10 사장님 명령 Fix 5 검증): v335 의 localStorage 영구 cache 보존.
+    //   v321 가 cleanup 시 ws_v335_road_cache 삭제 → 매번 Kakao API 503 호출 발생.
+    //   SAFE_PRESERVE 추가로 영구 보존 → cache HIT → 호출 ~0.
+    'ws_v335_road_cache': 1,
   };
   var CLEANABLE_CACHE = [
     // Step D Plan A: ws_data_snapshot 제거됨 (SAFE_PRESERVE 로 이동).
