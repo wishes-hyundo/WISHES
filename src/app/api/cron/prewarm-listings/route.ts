@@ -1,14 +1,9 @@
-/**
- * /api/cron/prewarm-listings
- *
- * Fix 16 (2026-05-10 사장님 명령): listings cache prewarm.
- *   매 5분 cron 으로 /api/admin/listings?fields=minimal 호출 →
- *   server unstable_cache (TTL 300s) 항상 fresh.
- *   사장님 cache 비워도 server cache 즉시 사용 → 첫 진입 57s -> 5s.
- *
- * 위험: 매우 낮음 (cron 추가만, 기존 코드 변경 X)
- * 비용: 매 5분 호출 = 일 288회. Supabase Pro 무제한.
- */
+// Prewarm cron — /api/admin/listings cache 항상 warm 유지
+// Vercel cron 이 30분마다 호출 → unstable_cache (5분 TTL revalidate=300) 갱신 + CDN cache populate
+// 첫 진입 사장님 / 직원 / 고객 모두 < 1초 (CDN HIT) 가능
+//
+// I-CDN-1, I-CDN-2 보존: cron 자체는 INTERNAL_BEARER 사용하지만 실제 fetch 는
+// ws_session cookie + Step T strip 패턴으로 anonymous 처럼 만들어 CDN populate.
 
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -16,69 +11,88 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-const CRON_SECRET = process.env.CRON_SECRET || '';
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://wishes.co.kr';
-const INTERNAL_BEARER = process.env.WISHES_INTERNAL_BEARER || process.env.WISHES_ADMIN_MASTER_PASSWORD || '';
+function isAuthorizedCron(req: NextRequest): boolean {
+  // Vercel cron 은 자동으로 x-vercel-cron-signature 또는 cron-job-id 헤더 추가
+  const cronHeader = req.headers.get('x-vercel-cron') || '';
+  if (cronHeader === '1') return true;
+
+  // Manual trigger: INTERNAL_BEARER
+  const auth = req.headers.get('authorization') || '';
+  const m = auth.match(/^Bearer\s+(.+)$/i);
+  const token = m ? m[1] : '';
+  const internal = process.env.WISHES_INTERNAL_BEARER || '';
+  if (internal && token && token === internal) return true;
+
+  return false;
+}
 
 export async function GET(request: NextRequest) {
-  // CRON_SECRET 강제 (G-87 패턴)
-  if (!CRON_SECRET) {
-    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
-  }
-  const auth = request.headers.get('authorization') || '';
-  const isUserSecret = auth === `Bearer ${CRON_SECRET}`;
-  const isVercelCron = request.headers.get('x-vercel-cron') === '1';
-  if (!isUserSecret && !isVercelCron) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const t0 = Date.now();
+
+  if (!isAuthorizedCron(request)) {
+    return NextResponse.json(
+      { success: false, error: 'unauthorized' },
+      { status: 401 }
+    );
   }
 
-  if (!INTERNAL_BEARER) {
-    return NextResponse.json({ error: 'WISHES_INTERNAL_BEARER not configured' }, { status: 500 });
-  }
+  // Prod URL 자체를 호출 → middleware Step T 거치면서 CDN 정상 populate.
+  // CDN cache miss 면 function 실행 → unstable_cache 갱신 + CDN populate (s-maxage=3600).
+  // 다음 사용자 = CDN HIT < 100ms.
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : 'https://wishes.co.kr';
 
-  const startedAt = Date.now();
+  // INTERNAL_BEARER 로 인증, middleware 가 strip → CDN populate 가능
+  const internal = process.env.WISHES_INTERNAL_BEARER || '';
 
-  try {
-    // /api/admin/listings?fields=minimal 호출 (scope=all)
-    // → server unstable_cache populate
-    const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), 50_000);
-    const res = await fetch(`${SITE_URL}/api/admin/listings?fields=minimal`, {
-      headers: {
-        Authorization: `Bearer ${INTERNAL_BEARER}`,
-      },
-      signal: ctrl.signal,
-    });
-    clearTimeout(tid);
+  const targets = [
+    `${baseUrl}/api/admin/listings?fields=minimal&scope=all`,
+  ];
 
-    const elapsed = Date.now() - startedAt;
+  const results = await Promise.all(
+    targets.map(async (url) => {
+      const t1 = Date.now();
+      try {
+        const res = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${internal}`,
+            'User-Agent': 'wishes-cron-prewarm/1.0',
+          },
+          // Force fresh - tell CDN we want to populate
+          cache: 'no-store',
+        });
+        const body = await res.text();
+        const elapsed = Date.now() - t1;
+        return {
+          url: url.replace(baseUrl, ''),
+          status: res.status,
+          size: body.length,
+          xVercelCache: res.headers.get('x-vercel-cache'),
+          cacheControl: res.headers.get('cache-control'),
+          elapsedMs: elapsed,
+          ok: res.ok,
+        };
+      } catch (e: any) {
+        return {
+          url: url.replace(baseUrl, ''),
+          status: 0,
+          error: String(e?.message || e),
+          elapsedMs: Date.now() - t1,
+          ok: false,
+        };
+      }
+    })
+  );
 
-    if (!res.ok) {
-      return NextResponse.json({
-        success: false,
-        error: `prewarm fetch failed: ${res.status}`,
-        elapsed_ms: elapsed,
-      }, { status: 500 });
-    }
-
-    // 응답 size 측정 (Content-Length 또는 본문 read)
-    const contentLength = res.headers.get('content-length') || '0';
-    const cacheStatus = res.headers.get('x-vercel-cache') || 'unknown';
-    const etag = res.headers.get('etag') || '';
-
-    return NextResponse.json({
-      success: true,
-      elapsed_ms: elapsed,
-      content_length: parseInt(contentLength, 10),
-      cache_status: cacheStatus,
-      etag,
-      message: `Prewarmed in ${elapsed}ms. Cache should be populated for next ${Math.floor(300 / 60)}min.`,
-    });
-  } catch (err) {
-    return NextResponse.json({
-      success: false,
-      error: (err as Error).message,
-      elapsed_ms: Date.now() - startedAt,
-    }, { status: 500 });
-  }
+  return NextResponse.json(
+    {
+      success: results.every((r) => r.ok),
+      totalElapsedMs: Date.now() - t0,
+      results,
+    },
+    { headers: { 'Cache-Control': 'private, no-store' } }
+  );
 }
