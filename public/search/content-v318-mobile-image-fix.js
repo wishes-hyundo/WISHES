@@ -12,6 +12,12 @@
     //   onhouse 매물의 사진이 직방 CDN 호스팅. octet-stream 응답으로
     //   브라우저 broken image. img-proxy 거치게 변환.
     'resource.zigbang.io',
+    // L-imgproxy-fix-2026-05-10 (사장님 발견 2,801 매물 broken 썸네일):
+    //   prod 캡처에서 CSP violation 직접 확인. DB SQL 측정 결과 4 host.
+    'img.nemoapp.kr',          // 네모 앱
+    'ic.zigbang.com',           // 직방 다른 subdomain
+    'blob.nemoapp.kr',          // 네모 blob
+    'gsc.gongsilclub.com',      // 공실클럽 자체
   ];
   var PROXY_PREFIX = '/api/img-proxy?url=';
 
