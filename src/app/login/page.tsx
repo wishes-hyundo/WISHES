@@ -31,7 +31,10 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [pageState, setPageState] = useState<'checking' | 'form' | 'redirecting'>('checking');
+  // L-perf-fix-9-2026-05-10 (사장님 명령): default state 'form' 즉시 표시.
+  //   이전: 'checking' default + Supabase getSession 3초 wait → 사장님 "확인 중..." 로딩 화면.
+  //   이후: 즉시 form 표시. session check 는 background (있으면 redirect).
+  const [pageState, setPageState] = useState<'checking' | 'form' | 'redirecting'>('form');
   const redirectedRef = useRef(false);
 
   function hardRedirect(url: string) {
@@ -275,14 +278,8 @@ function LoginForm() {
     );
   }
 
-  // 초기 세션 체크 중 (최대 3초)
-  if (pageState === 'checking') {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5' }}>
-        <div style={{ color: '#999', fontSize: 14 }}>확인 중...</div>
-      </div>
-    );
-  }
+  // L-perf-fix-9 (2026-05-10): 'checking' 화면 제거. default 'form' 이라 영구 진입 X.
+  //   ('checking' state 가 set 되는 경우 없음 - background session check 만 진행)
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f5f5f5', padding: '20px' }}>
