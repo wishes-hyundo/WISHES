@@ -257,9 +257,12 @@ export async function GET(request: NextRequest) {
       ].join(',');
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
+      // L-perf-fix-15-2026-05-10 (사장님 명령): cache key v12 -> v13 변경.
+      //   Fix 12 의 SQL UPDATE (listing_images.url ?w=1920 -> ?w=720) 후
+      //   unstable_cache 의 옛 응답 (?w=1920) 사용 가능. cache key 새로 → 강제 invalidate.
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v12-mine', scopeUid as string]
-        : ['listings-minimal-v12'];
+        ? ['listings-minimal-v13-mine', scopeUid as string]
+        : ['listings-minimal-v13'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
