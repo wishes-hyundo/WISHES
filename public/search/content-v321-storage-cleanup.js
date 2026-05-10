@@ -39,6 +39,9 @@
   if (location.pathname.indexOf('/search') !== 0) return;
 
   var SAFE_PRESERVE = {
+    // Step D Plan A (2026-05-10): ws_data_snapshot 영구 보존.
+    //   사장님 첫 진입 21초 fix — 한 번 fetch 후 snapshot 살려두면 다음 진입 즉시 표시.
+    'ws_data_snapshot': 1,
     'ws-favorites': 1, 'ws-memos': 1, 'ws-contacts': 1,
     'ws_customer_folders': 1, 'ws_filter_presets': 1,
     'ws_dark_mode': 1, 'ws_dark_auto': 1, 'ws_customer_prefs': 1,
@@ -47,7 +50,8 @@
     'ws-search-history': 1, 'ws_autorefresh_min': 1, 'wp-pal-frecent': 1,
   };
   var CLEANABLE_CACHE = [
-    'ws_data_snapshot', 'ws_price_snapshots', 'ws_changelog',
+    // Step D Plan A: ws_data_snapshot 제거됨 (SAFE_PRESERVE 로 이동).
+    'ws_price_snapshots', 'ws_changelog',
     'ws_alerts', 'ws_alert_log_v1', 'ws_alert_log_unread_v1',
   ];
 
