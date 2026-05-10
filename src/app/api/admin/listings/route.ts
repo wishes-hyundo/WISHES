@@ -408,7 +408,10 @@ export async function GET(request: NextRequest) {
                             u.indexOf('supabase.co') !== -1 ||
                             u.indexOf('r2.dev') !== -1;
               if (!isCdn) return u;
-              if (/[?&]w=\d+/.test(u)) return u; // already sized
+              // DB urls 거의 모두 ?w=1920 — 그것을 ?w=400 으로 REPLACE (skip 하면 효과 0)
+              if (/[?&]w=\d+/.test(u)) {
+                return u.replace(/([?&])w=\d+/, '$1w=400');
+              }
               return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'w=400';
             };
             row.listing_images = imgUrl ? [{ url: _resizeThumb(imgUrl) }] : [];
