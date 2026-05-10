@@ -119,7 +119,7 @@ export default function AdminPage() {
   //   체계를 전면 도입했음에도 /admin 루트는 구 화면 그대로였다 → 마스터
   //   패스워드만 알면 role='agent' 승인 체계 우회 가능한 실제 취약.
   //   L-sec153 에서 폼 자체를 제거하고, 진입 시 토큰 없으면 즉시
-  //   /admin/admin-auth.html 로 리다이렉트한다. 서버측 verifyAdminAuth
+  //   /login?redirect=/admin/ 로 리다이렉트한다. 서버측 verifyAdminAuth
   //   의 MASTER_PASSWORD 경로는 크롤러 브리지가 아직 의존하므로 별도
   //   단계(L-sec154 / Phase 3c)에서 제거 예정.
   const [password, setPassword] = useState('');
@@ -194,7 +194,7 @@ export default function AdminPage() {
     // L-sec153: 토큰 없음 → Supabase Auth 로그인 페이지로 강제 이동.
     //   과거에 여기서 마스터 패스워드 입력 폼이 나왔던 자리.
     try {
-      window.location.replace('/admin/admin-auth.html');
+      window.location.replace('/login?redirect=/admin/');
     } catch {}
   }, []);
 
@@ -460,7 +460,7 @@ export default function AdminPage() {
   const labelClass = 'block text-xs font-medium text-gray-600 mb-1';
 
   // ─── 로그인 페이지로 이동 중 (L-sec153) ───
-  // useEffect 에서 /admin/admin-auth.html 로 replace 처리됨.
+  // useEffect 에서 /login?redirect=/admin/ 로 replace 처리됨.
   // 리다이렉트가 실행되기 직전까지 표시되는 중간 상태.
   // 과거엔 이 자리에 레거시 마스터 패스워드 입력 폼(한 줄짜리)이 있었음.
   if (!isAuthenticated) {
@@ -470,7 +470,7 @@ export default function AdminPage() {
           <h1 className="text-3xl font-bold text-wishes-primary mb-2">WISHES</h1>
           <p className="text-gray-600 mb-6">관리자 로그인 페이지로 이동 중...</p>
           <a
-            href="/admin/admin-auth.html"
+            href="/login?redirect=/admin/"
             className="inline-block w-full bg-wishes-secondary text-white py-3 rounded-lg font-semibold hover:bg-wishes-primary transition"
           >
             로그인 페이지로 이동
