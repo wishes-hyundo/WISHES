@@ -224,6 +224,10 @@ export default function SearchPortalPage() {
       //   v340 와 같은 패턴, key 만 다름. 60K x 80byte = 5MB localStorage quota
       //   영구 fix. 토스트 영구 사라짐.
       ['ws-ext-patch-v343-pricesnap-idb', '/search/content-v343-pricesnap-idb.js?v=20260510a'],
+      // v345 (2026-05-10 사장님 명령 Fix 22): 매물 카드 img lazy load 강제.
+      //   100 매물 사진 동시 fetch -> 수백 MB. viewport 외 사진도 fetch.
+      //   loading=lazy 추가 -> viewport 안 매물만 fetch -> 첫 진입 빠름.
+      ['ws-ext-patch-v345-img-lazy', '/search/content-v345-img-lazy.js?v=20260510a'],
       // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
