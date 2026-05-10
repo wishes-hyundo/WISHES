@@ -339,7 +339,7 @@ export default function CommandCenterV2Page() {
             </button>
             {/* G-21 (2026-05-03): 사장님 명령 — '기존 v1' 버튼 제거. 사장님 헷갈림 방지. */}
             <a
-              href="/admin/admin-auth.html"
+              href="/login?redirect=/admin/"
               onClick={(e) => {
                 try { window.sessionStorage.clear(); window.localStorage.clear(); } catch {}
               }}
