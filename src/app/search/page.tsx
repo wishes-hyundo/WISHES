@@ -210,7 +210,8 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v330-room-label', '/search/content-v330-room-label.js?v=20260429a'],
       // v331 (2026-04-29 사장님 보고): onhouse 모달 검정 화면 → placeholder.
       //   listing_images 0건 매물의 hero 영역 검정 → "사진 준비중" + 원본 링크.
-      ['ws-ext-patch-v331-onhouse-image-placeholder', '/search/content-v331-onhouse-image-placeholder.js?v=20260429a'],
+      // L-perf-fix-14-2026-05-10 (사장님 명령): "사진 준비중" placeholder 쓸데없이 불편 → disable.
+      // ['ws-ext-patch-v331-onhouse-image-placeholder', '/search/content-v331-onhouse-image-placeholder.js?v=20260429a'],
       // v321 (2026-05-09 사장님 발견 — I-STORAGE-1): localStorage quota 자동 정리.
       //   매물 30,420건 → ws_data_snapshot/ws_price_snapshots 캐시 ~9MB → quota 초과
       //   → "저장공간 부족" 토스트 무한 반복. Storage.prototype.setItem 가로채기로
