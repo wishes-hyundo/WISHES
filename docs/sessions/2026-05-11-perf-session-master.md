@@ -570,3 +570,86 @@ server side ILIKE on 60K listings = 1.5초 (baseline 28초 대비 18배 빠름).
 | `32b8bba` | REVERT Fix 39 step 4 | ✅ |
 
 prod state: `32b8bba37d82` (회귀 6번째 후 안전 상태).
+
+
+---
+
+## 🚨 옵션 F (Progressive v350) 시도 결과 — 회귀 7번째 → 영구 STOP
+
+### 진행 결과
+
+| Step | Commit | 결과 |
+|---|---|---|
+| Step C: v350 patch 파일 | `61a2f08` | ✅ 보존 (등록 X 시 영향 0) |
+| Step D: page.tsx 등록 | `a0a3c441` | ❌ 회귀 → REVERT (`9b62a24`) |
+
+### 사장님 컨솔 실측 결과
+
+```
+[v350-progressive] installed (fast limit 200, init delay 200 ms)
+[v350-progressive] fast 200 rows in 36217 ms — rendered: true
+[v350-progressive] full received: 62418 rows after 39 s
+```
+
+목표: fast 1-2초, full 28초.
+실제: **fast 36초, full 39초** — baseline 28초 보다 느림.
+
+### 진짜 root cause 진단
+
+❌ **옷션 F 의 가정 오류**: `/api/admin/listings?fields=minimal&limit=200` 이 server side 에서 빠를것 가정.
+
+✅ **실제 동작**:
+- route.ts 의 minimal path 는 `unstable_cache` 으로 60K 전체 fetch 후 client side 에서 `pageData = allData.slice(0, limit)` 적용
+- limit=200 의 효과 = response body size 만 작음 (cache 발도 X)
+- v350 fetch 와 content.js fetchAllListings 둘 다 같은 cache key 사용 → 둘 다 60K cache build 대기
+- v350 fast = content.js full 의 28초 + 8초 = **36초** (사장님 시야 8초 느림)
+
+### 회귀 7번째 history
+
+1. Fix 34: Materialized View → 매물 0건
+2. Fix 36: client wrap → v294 충돌
+3. Fix 36b: middleware rewrite + RPC LIMIT 100K → 503
+4. Fix 36c: chunked parallel RPC → prod 19초
+5. Fix 38: default limit=5000 → 검색 깨짐
+6. Fix 39 step 4: default limit=200 → 매물 197건만 표시
+7. **Fix 40 step D: v350 progressive → fast 36초 (baseline 보다 느림)** ← 현재
+
+### 영구 STOP 결정 (마스터 INVARIANT I-SESSION-1)
+
+회귀 6번째 도달 후 STOP 명령 — 7번째까지 시도. 더 시도 X. 사장님 시간 빼앗기 절대 X.
+
+### 현재 prod 상태 (옷션 F revert 후)
+
+- **쬸 진입**: ~26-28초 (baseline 동일)
+- **매물 표시**: 60K 모두 (사장님 UX 정상)
+- **검색**: server side redirect 작동 (옷션 C 의 Step 1/2/3 보존)
+- **회귀**: 0 (v350 등록 X)
+
+### 보존된 리소스 (다음 세션 사용 가능)
+
+- ✅ `/api/admin/listings/search` endpoint (Step 1 로 보존)
+- ✅ v349 client patch (검색 redirect)
+- ✅ v350 client patch 파일 (등록 X) — 재사용 가능
+- ✅ search endpoint server side ILIKE 1.5초 검증
+
+### 다음 세션 plan (사장님 결정)
+
+진짜 SOTA 는 server side prerender 또는 cache 우회 path:
+
+#### 옷션 G — search endpoint 빈 q 처리 변경
+- search endpoint 가 빈 q 시 첫 200건 (created_at desc) 반환
+- v350 가 이 endpoint 호출 (cache 우회 — .from('listings').limit(200) 직접 query)
+- DB query 자체 빠름 (~500ms)
+- 사장님 시야 1초 안 매물 표시
+- 위험: search endpoint 의도 변경
+
+#### 옷션 H — Server Component prerender (가장 dramatic, 가장 위험)
+- Next.js App Router 의 RSC 패턴
+- /search 페이지 자체 가 server 에서 첫 200건 prerender
+- Client hydration 후 60K background fetch
+- 큰 refactor (page.tsx, content.js 변경)
+
+#### 옷션 I — 사장님 결정 후 빈 세션
+
+회귀 7번째 도달 — STOP. 사장님이 직접 결정 후 다음 세션으로 이어짐.
+
