@@ -167,6 +167,11 @@ export async function GET(request: NextRequest) {
       //   nemo CDN 가 ?w=400 무시 (실제 측정 ?w=1920 == ?w=400 동일 size).
       //   server-side sharp resize 로 width=400 강제 + webp 변환 → 30배 ↓.
       const targetW = Math.min(parseInt(parsed.searchParams.get('w') || '400', 10) || 400, 1920);
+      // Fix 33b (사장님 모달 화질 복원): width 별 quality 차등.
+      //   썸네일 (≤500px): quality 82 — 카드 작은 사진, size 우선.
+      //   중간 (501-1024px): quality 88 — 모달 갤러리 썸네일.
+      //   hero (>1024px): quality 92 — 모달 큰 화면 hero, 화질 우선.
+      const targetQuality = targetW <= 500 ? 82 : (targetW <= 1024 ? 88 : 92);
       const skipResize = imageBuffer.byteLength < 100 * 1024; // 이미 작으면 skip
       if (skipResize || contentType === 'image/gif') {
         outputBuffer = imageBuffer;
@@ -177,7 +182,7 @@ export async function GET(request: NextRequest) {
           outputBuffer = await sharp(imageBuffer)
             .rotate() // EXIF orientation
             .resize({ width: targetW, withoutEnlargement: true })
-            .webp({ quality: 82, effort: 4 })
+            .webp({ quality: targetQuality, effort: 4 })
             .toBuffer();
           outputType = 'image/webp';
           resizedTo = outputBuffer.byteLength;
