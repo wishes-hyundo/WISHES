@@ -1992,9 +1992,10 @@
             }
 
             try {
-                // 5초 타임아웃 래퍼
+                // 30초 타임아웃 래퍼 (Vercel cold start 대응)
                 var loginController = new AbortController();
-                var loginTimeout = setTimeout(function() { loginController.abort(); }, 5000);
+                // L-login-timeout (2026-05-10 사장님 발견): 5s -> 30s. Vercel cold start 5s 넘을 때 abort 회피.
+                var loginTimeout = setTimeout(function() { loginController.abort(); }, 30000);
 
                 const response = await fetch(`${CONFIG.API_BASE}/login`, {
                     method: 'POST',
