@@ -81,7 +81,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }
 
         if (!token || !userStr || !loginTime) {
-          window.location.href = '/admin/admin-auth.html';
+          window.location.href = '/login?redirect=/admin/';
           return;
         }
 
@@ -92,7 +92,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         const maxAge = keepLogin === 'true' ? 30 * 24 * 60 * 60 * 1000 : 24 * 60 * 60 * 1000;
         if (elapsed > maxAge) {
           window.sessionStorage.clear();
-          window.location.href = '/admin/admin-auth.html';
+          window.location.href = '/login?redirect=/admin/';
           return;
         }
 
@@ -117,7 +117,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           } else {
             window.sessionStorage.clear();
             try { window.localStorage.removeItem('ws_token'); } catch {}
-            window.location.href = '/admin/admin-auth.html';
+            window.location.href = '/login?redirect=/admin/';
             return;
           }
         }
@@ -181,7 +181,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         //   분기가 throw → 이 catch 가 잡아서 정상 세션 clear → admin-auth.html redirect.
         console.warn('admin layout 가드 catch:', e);
         if (!window.sessionStorage.getItem('ws_token')) {
-          window.location.href = '/admin/admin-auth.html';
+          window.location.href = '/login?redirect=/admin/';
         }
         // ws_token 있으면 그대로 진행 (이미 setIsAuthenticated 호출됐을 수도)
       } finally {
@@ -321,7 +321,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     } catch { /* noop */ }
 
     window.sessionStorage.clear();
-    window.location.href = '/admin/admin-auth.html';
+    window.location.href = '/login?redirect=/admin/';
   };
 
   const handleDeleteAccount = async () => {
@@ -339,7 +339,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         alert('회원탈퇴가 완료되었습니다.');
         window.localStorage.clear();
         window.sessionStorage.clear();
-        window.location.href = '/admin/admin-auth.html';
+        window.location.href = '/login?redirect=/admin/';
       } else {
         const err = await res.json();
         alert('탈퇴 실패: ' + (err.message || '오류가 발생했습니다.'));
