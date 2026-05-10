@@ -473,22 +473,19 @@ export async function GET(request: NextRequest) {
       //   v336 client patch (다음 세션) 가 사용 시 첫 100건 즉시 표시 → 100배 ↓.
       const limitParam = searchParams.get('limit');
       const cursorParam = searchParams.get('cursor');
-      // Fix 39 (옵션 C Step 4): default limit=200 — 검색은 v349 patch 가 server endpoint 로 redirect.
-      // 따라서 row 수 제한해도 검색 60K 모두 가능 (Fix 38 회귀 회피).
-      const DEFAULT_LIMIT = 200;
       let pageData = allData;
       let nextCursor: string | null = null;
-      const effectiveLimit = limitParam && /^\d+$/.test(limitParam)
-        ? Math.min(parseInt(limitParam, 10), 1000)
-        : DEFAULT_LIMIT;
-      let startIdx = 0;
-      if (cursorParam && /^\d+$/.test(cursorParam)) {
-        const idx = allData.findIndex((r: { id: number | string }) => String(r.id) === cursorParam);
-        if (idx >= 0) startIdx = idx + 1;
-      }
-      pageData = allData.slice(startIdx, startIdx + effectiveLimit);
-      if (startIdx + effectiveLimit < allData.length && pageData.length > 0) {
-        nextCursor = String((pageData[pageData.length - 1] as { id: number | string }).id);
+      if (limitParam && /^\d+$/.test(limitParam)) {
+        const limit = Math.min(parseInt(limitParam, 10), 1000);
+        let startIdx = 0;
+        if (cursorParam && /^\d+$/.test(cursorParam)) {
+          const idx = allData.findIndex((r: { id: number | string }) => String(r.id) === cursorParam);
+          if (idx >= 0) startIdx = idx + 1;
+        }
+        pageData = allData.slice(startIdx, startIdx + limit);
+        if (startIdx + limit < allData.length && pageData.length > 0) {
+          nextCursor = String((pageData[pageData.length - 1] as { id: number | string }).id);
+        }
       }
 
       // ETag 기반 304 응답
