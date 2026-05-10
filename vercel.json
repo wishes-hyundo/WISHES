@@ -188,6 +188,10 @@
     {
       "path": "/api/cron/resolve-building-centroids",
       "schedule": "30 3 * * 1"
+    },
+    {
+      "path": "/api/cron/backfill-road-address",
+      "schedule": "10 * * * *"
     }
   ]
 }
