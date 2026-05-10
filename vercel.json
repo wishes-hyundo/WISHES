@@ -58,50 +58,136 @@
           "value": "private, no-store"
         }
       ]
-    },
-    {
-      "source": "/api/admin/__disabled__/(.*)",
-      "_comment": "L-perf-2026-05-10 (Fix 3 사장님 명령): 원래 /api/admin/(.*) private no-store rule 비활성화. route.ts 의 Vercel-CDN-Cache-Control 가 precedence 우위라 영향 없지만 혼란 정리. cache target 이 없어진 path 로 대체 (no-op).",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "private, no-store"
-        }
-      ]
     }
   ],
   "crons": [
-    { "path": "/api/cron/backfill-building-info?limit=25", "schedule": "*/15 * * * *" },
-    { "path": "/api/cron/auto-fix-problematic", "schedule": "0 18 * * *" },
-    { "path": "/api/cron/pipa-anonymize", "schedule": "0 19 * * *" },
-    { "path": "/api/cron/integrity-audit", "schedule": "0 17 * * *" },
-    { "path": "/api/cron/geocode-missing", "schedule": "0 */6 * * *" },
-    { "path": "/api/cron/enrich-vision", "schedule": "15 */3 * * *" },
-    { "path": "/api/cron/enrich-text", "schedule": "30 */3 * * *" },
-    { "path": "/api/cron/auto-extract-options", "schedule": "0 1 * * *" },
-    { "path": "/api/cron/extract-building-units", "schedule": "0 */6 * * *" },
-    { "path": "/api/cron/auto-fix-area", "schedule": "0 */12 * * *" },
-    { "path": "/api/cron/ad-law-audit", "schedule": "0 */6 * * *" },
-    { "path": "/api/cron/price-outliers", "schedule": "30 1 * * *" },
-    { "path": "/api/cron/trust-score", "schedule": "45 1 * * *" },
-    { "path": "/api/cron/sota-recommend", "schedule": "0 0 1 * *" },
-    { "path": "/api/cron/enrich-school-zone", "schedule": "0 * * * *" },
-    { "path": "/api/cron/verify-business", "schedule": "0 4 * * 1" },
-    { "path": "/api/cron/monthly-report", "schedule": "0 0 1 * *" },
-    { "path": "/api/cron/rtms-sync", "schedule": "0 19 * * *" },
-    { "path": "/api/cron/backup-r2", "schedule": "0 17 * * 0" },
-    { "path": "/api/cron/notify-matches", "schedule": "0 22 * * *" },
-    { "path": "/api/cron/ai-hallucination-fix", "schedule": "0 5 * * 0" },
-    { "path": "/api/cron/enrich-academies", "schedule": "0 * * * *" },
-    { "path": "/api/cron/enrich-subway", "schedule": "0 * * * *" },
-    { "path": "/api/cron/enrich-land-price", "schedule": "0 13 * * 1" },
-    { "path": "/api/cron/sync-subway-stations", "schedule": "0 3 1 * *" },
-    { "path": "/api/cron/auto-regenerate-ai-desc", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/ai-governance-alert", "schedule": "30 0 * * *" },
-    { "path": "/api/cron/indexnow-ping", "schedule": "0 * * * *" },
-    { "path": "/api/cron/info-requests-digest", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/enrich-house-price", "schedule": "30 4 * * *" },
-    { "path": "/api/cron/process-paid-reports", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/resolve-building-centroids", "schedule": "30 3 * * 1" }
+    {
+      "path": "/api/cron/backfill-building-info?limit=25",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/cron/auto-fix-problematic",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/pipa-anonymize",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/integrity-audit",
+      "schedule": "0 17 * * *"
+    },
+    {
+      "path": "/api/cron/geocode-missing",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/enrich-vision",
+      "schedule": "15 */3 * * *"
+    },
+    {
+      "path": "/api/cron/enrich-text",
+      "schedule": "30 */3 * * *"
+    },
+    {
+      "path": "/api/cron/auto-extract-options",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/extract-building-units",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/auto-fix-area",
+      "schedule": "0 */12 * * *"
+    },
+    {
+      "path": "/api/cron/ad-law-audit",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "path": "/api/cron/price-outliers",
+      "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/cron/trust-score",
+      "schedule": "45 1 * * *"
+    },
+    {
+      "path": "/api/cron/sota-recommend",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/enrich-school-zone",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/verify-business",
+      "schedule": "0 4 * * 1"
+    },
+    {
+      "path": "/api/cron/monthly-report",
+      "schedule": "0 0 1 * *"
+    },
+    {
+      "path": "/api/cron/rtms-sync",
+      "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/cron/backup-r2",
+      "schedule": "0 17 * * 0"
+    },
+    {
+      "path": "/api/cron/notify-matches",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/ai-hallucination-fix",
+      "schedule": "0 5 * * 0"
+    },
+    {
+      "path": "/api/cron/enrich-academies",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/enrich-subway",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/enrich-land-price",
+      "schedule": "0 13 * * 1"
+    },
+    {
+      "path": "/api/cron/sync-subway-stations",
+      "schedule": "0 3 1 * *"
+    },
+    {
+      "path": "/api/cron/auto-regenerate-ai-desc",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/ai-governance-alert",
+      "schedule": "30 0 * * *"
+    },
+    {
+      "path": "/api/cron/indexnow-ping",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/info-requests-digest",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/enrich-house-price",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/process-paid-reports",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/resolve-building-centroids",
+      "schedule": "30 3 * * 1"
+    }
   ]
 }
