@@ -50,6 +50,14 @@ const nextConfig = {
         destination: '/map?listing=:id',
         permanent: true,
       },
+      // L-perf-fix-10b-2026-05-10 (사장님 명령): admin-auth.html → /login server-side redirect.
+      //   client-side script redirect 는 HTML 로드 후 실행 → 검정 배경 잠시 보임.
+      //   server-side 308 redirect → 사용자 HTML 안 받음 → 검정 화면 0ms.
+      {
+        source: '/admin/admin-auth.html',
+        destination: '/login?redirect=/admin/',
+        permanent: false,
+      },
     ];
   },
 
