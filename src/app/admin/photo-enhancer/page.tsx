@@ -53,7 +53,7 @@ export default function PhotoEnhancer() {
       }
     } catch {
       alert('권한 확인에 실패했습니다. 다시 로그인해주세요.');
-      router.replace('/admin/admin-auth.html');
+      router.replace('/login?redirect=/admin/');
     }
   }, [router]);
   const canvasRef = useRef<HTMLCanvasElement>(null);
