@@ -106,11 +106,31 @@ export async function GET(
       listing_videos: videos || [],
     });
 
+    // L-perf-fix-7-2026-05-10 (사장님 명령 모달 사진 속도):
+    //   listing_images.url 의 ?w=1920 -> ?w=720 변환 (CloudFront 만, 외부 host 영향 X).
+    //   사진 size 631KB -> 192KB / 2.5MB -> 68KB. 모달 진입 빠름.
+    //   v240 의 hero/thumb 모두 작은 size 사용 (사장님 화면 720px 충분).
+    //   외부 host (zigbang.io 등) 는 ?w= 무시 → 영향 없음.
+    function _resizeImageUrl(url: string, w: number = 720): string {
+      if (!url || typeof url !== 'string') return url;
+      // CloudFront 만 (Lambda@Edge resize 함수 작동)
+      if (!/d4k1brqee4emz\.cloudfront\.net/i.test(url)) return url;
+      // ?w= 또는 &w= 이미 있으면 REPLACE
+      if (/[?&]w=\d+/.test(url)) {
+        return url.replace(/([?&])w=\d+/, '$1w=' + w);
+      }
+      const sep = url.indexOf('?') >= 0 ? '&' : '?';
+      return url + sep + 'w=' + w;
+    }
+    const resizedImages = (policed.listing_images || []).map((img: any) =>
+      img && img.url ? { ...img, url: _resizeImageUrl(img.url, 720) } : img
+    );
+
     return NextResponse.json({
       success: true,
       data: {
         ...listing,
-        listing_images: policed.listing_images,
+        listing_images: resizedImages,
         listing_videos: policed.listing_videos,
         features: features?.map((f: { feature: string }) => f.feature) || [],
       },
