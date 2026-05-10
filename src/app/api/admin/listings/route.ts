@@ -471,21 +471,26 @@ export async function GET(request: NextRequest) {
       //   ?limit=N&cursor=ID 옵션 — cursor pagination.
       //   limit 미지정 시 기존 동작 (모든 매물 응답) 유지 — 0% 회귀 위험.
       //   v336 client patch (다음 세션) 가 사용 시 첫 100건 즉시 표시 → 100배 ↓.
+      // Fix 38 (사장님 명령 첫 진입 dramatic 단축):
+      //   limit 명시 X 시 default 5000 (이전: 모든 60K).
+      //   응답 6MB → 500KB (12배 ↓). 첫 진입 20s → 2-3s 예상.
+      //   사장님 검색 시 최신 5000 매물 안에서만 (60K 중 최근 등록).
       const limitParam = searchParams.get('limit');
       const cursorParam = searchParams.get('cursor');
+      const DEFAULT_LIMIT = 5000;  // Fix 38 default
       let pageData = allData;
       let nextCursor: string | null = null;
-      if (limitParam && /^\d+$/.test(limitParam)) {
-        const limit = Math.min(parseInt(limitParam, 10), 1000);
-        let startIdx = 0;
-        if (cursorParam && /^\d+$/.test(cursorParam)) {
-          const idx = allData.findIndex((r: { id: number | string }) => String(r.id) === cursorParam);
-          if (idx >= 0) startIdx = idx + 1;
-        }
-        pageData = allData.slice(startIdx, startIdx + limit);
-        if (startIdx + limit < allData.length && pageData.length > 0) {
-          nextCursor = String((pageData[pageData.length - 1] as { id: number | string }).id);
-        }
+      const effectiveLimit = limitParam && /^\d+$/.test(limitParam)
+        ? Math.min(parseInt(limitParam, 10), 10000)  // explicit limit cap up to 10000
+        : DEFAULT_LIMIT;  // no limit param → apply default
+      let startIdx = 0;
+      if (cursorParam && /^\d+$/.test(cursorParam)) {
+        const idx = allData.findIndex((r: { id: number | string }) => String(r.id) === cursorParam);
+        if (idx >= 0) startIdx = idx + 1;
+      }
+      pageData = allData.slice(startIdx, startIdx + effectiveLimit);
+      if (startIdx + effectiveLimit < allData.length && pageData.length > 0) {
+        nextCursor = String((pageData[pageData.length - 1] as { id: number | string }).id);
       }
 
       // ETag 기반 304 응답
