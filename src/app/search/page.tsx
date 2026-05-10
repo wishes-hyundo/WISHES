@@ -246,17 +246,11 @@ export default function SearchPortalPage() {
 
       // Step T (2026-05-10): cookie-issue auto for CDN cache
       ['ws-ext-patch-v337-cookie-issue', '/search/content-v337-cookie-issue.js?v=20260510a'],
-      // v341 (2026-05-10 사장님 명령 Plan B Progressive): 첫 진입 20매물 1초 안 표시.
-      //   /api/admin/listings?fields=minimal 첫 fetch -> paginated=1&limit=20 가로챔.
-      //   백그라운드 cursor 로 BG_LIMIT=1000 단위 추가 fetch -> WS.allListings.push + renderAll.
-      //   v294 (Bearer auth) 보다 OUTER 라야 함 -> 마지막 entry 로 등록.
-      ['ws-ext-patch-v341-progressive', '/search/content-v341-progressive.js?v=20260510a'],
-      // v342 (2026-05-10 사장님 명령): 상세보기 모달 사진 속도 개선.
-      //   showDetail wrap -> hero ?w=1200 + thumbnails ?w=400 (CloudFront resize).
-      //   썸네일 loading=lazy + fetchpriority=low. hero <link rel=preload>.
-      //   원본 URL data-_orig_url 보존 (썸네일 클릭 시 hero 원본 사진 표시).
-      //   v240 (showDetail wrap) 보다 OUTER 라야 함 -> 마지막 entry.
-      ['ws-ext-patch-v342-modal-image-priority', '/search/content-v342-modal-image-priority.js?v=20260510a'],
+      // v341 / v342 (2026-05-10 사장님 발견): 매물 0건 표시 회귀 -> 즉시 disable.
+      //   v341 progressive fetch wrap 가 응답 처리 / verify 결합 문제.
+      //   v342 도 함께 disable (분리 검증 후 재활성화).
+      // ['ws-ext-patch-v341-progressive', '/search/content-v341-progressive.js?v=20260510a'],
+      // ['ws-ext-patch-v342-modal-image-priority', '/search/content-v342-modal-image-priority.js?v=20260510a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
