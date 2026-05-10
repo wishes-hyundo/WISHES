@@ -223,6 +223,13 @@ export function middleware(request: NextRequest) {
       response.headers.set('Access-Control-Allow-Credentials', 'true');
     }
     response.headers.append('Vary', 'Origin');
+    // L-perf-fix-26-2026-05-10 (사장님 명령): GET /api/admin/listings 응답의 Vary 정리.
+    //   Next.js 자동 추가 'Vary: rsc, next-router-*' 가 CDN cache key 분리 → BYPASS.
+    //   GET 캐시 대상 endpoint 만 Vary = 'Accept-Encoding, Origin' 깔끔히 set.
+    //   route.ts 의 Vercel-CDN-Cache-Control 와 결합 → CDN HIT 활성화.
+    if (request.method === 'GET' && pathname === '/api/admin/listings') {
+      response.headers.set('Vary', 'Accept-Encoding, Origin');
+    }
     // monitoring 용 — Bearer-only 경로의 CSRF 분포 파악 (여전히 soft-check).
     if (csrfStatus !== 'na') response.headers.set('X-CSRF-Check', csrfStatus);
     return response;
