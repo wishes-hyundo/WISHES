@@ -99,21 +99,8 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Fix 36 (사장님 명령 옵션 2 — 2026-05-11):
-  //   GET /api/admin/listings?fields=minimal → /api/admin/listings-fast?fields=minimal rewrite.
-  //   새 endpoint 가 RPC get_admin_listings_minimal_v1 사용 (DB 측정 60K rows 6.9s vs 기존 18s).
-  //   server-side rewrite 라 client 무관. v348 patch 의 client side wrap 위험 회피.
-  //   POST/PUT 등 mutation method 는 rewrite 안 함 (기존 endpoint 그대로).
-  //   회귀 시 이 if block 만 제거.
-  if (
-    request.method === 'GET' &&
-    pathname === '/api/admin/listings' &&
-    request.nextUrl.searchParams.get('fields') === 'minimal'
-  ) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/api/admin/listings-fast';
-    return NextResponse.rewrite(url);
-  }
+  // Fix 36b REVERT (사장님 발견 회귀): listings-fast 503 (RPC prod 작동 X)
+  //   middleware rewrite 비활성. 기존 /api/admin/listings 경로 그대로.
 
   // CORS: admin API — 명시 화이트리스트만 허용
   if (pathname.startsWith('/api/admin/')) {
