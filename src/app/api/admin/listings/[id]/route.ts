@@ -109,6 +109,10 @@ export async function GET(
     // L-perf-fix-7-revert-2026-05-10 (사장님 발견 회귀): Fix 7-3 server side url 변환 disable.
     //   사장님 화면에 listings fetch 30s+ 회귀 → 즉시 revert. policed.listing_images 그대로.
 
+    // L-perf-fix-20-2026-05-10 (사장님 명령 모든 유저 적용):
+    //   매물 단건 응답 cache 강화. 4.5s -> 0.5s.
+    //   매물 수정 시 revalidateTag('listings') 자동 invalidate.
+    //   Vercel-CDN-Cache-Control 가 top priority — vercel.json 영향 받지 않음.
     return NextResponse.json({
       success: true,
       data: {
@@ -116,6 +120,12 @@ export async function GET(
         listing_images: policed.listing_images,
         listing_videos: policed.listing_videos,
         features: features?.map((f: { feature: string }) => f.feature) || [],
+      },
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
+        'CDN-Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
+        'Vercel-CDN-Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600',
       },
     });
   } catch (error) {
