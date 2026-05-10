@@ -228,6 +228,10 @@ export default function SearchPortalPage() {
       //   100 매물 사진 동시 fetch -> 수백 MB. viewport 외 사진도 fetch.
       //   loading=lazy 추가 -> viewport 안 매물만 fetch -> 첫 진입 빠름.
       ['ws-ext-patch-v345-img-lazy', '/search/content-v345-img-lazy.js?v=20260510a'],
+      // v346 (2026-05-10 사장님 명령): 첫 표시 매물 100 -> 20건.
+      //   100건 카드 렌더 = 시간 걸림. 20건만 즉시 표시 → 사장님 첫 진입 빠름.
+      //   사용자가 select 다른 값 변경 시 그대로 유지 (영구 강제 X).
+      ['ws-ext-patch-v346-default-20', '/search/content-v346-default-20-listings.js?v=20260510a'],
       // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
