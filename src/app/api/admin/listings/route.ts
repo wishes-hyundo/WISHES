@@ -210,7 +210,7 @@ export async function GET(request: NextRequest) {
       const selectFields = [
         'id', 'title', 'type', 'deal', 'status',
         'deposit', 'monthly', 'price',
-        'maintenance_fee', 'maintenance_includes',
+        'maintenance_fee', // Fix 37: maintenance_includes 제거 (1.3MB ↓, 모달 detail 만 사용 - 깨짐 X)
         'area_m2', 'area_supply_m2',
         'floor_current', 'floor_total',
         'rooms', 'bathrooms', 'direction',
