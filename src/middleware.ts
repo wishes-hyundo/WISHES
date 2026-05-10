@@ -99,8 +99,21 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Fix 36b REVERT (사장님 발견 회귀): listings-fast 503 (RPC prod 작동 X)
-  //   middleware rewrite 비활성. 기존 /api/admin/listings 경로 그대로.
+  // Fix 36c (chunked parallel RPC v2 — 사장님 명령 끝까지 해결):
+  //   v1 회귀 (PostgREST 8s timeout) → v2 chunked 5000 rows × 5 parallel × N batches.
+  //   각 chunk DB 측정 396ms (8s 안 매우 안전). 60K rows 전체 ~1-2초 예상.
+  //   server side rewrite 라 client 무관.
+  //   POST/PUT 등 mutation method 는 rewrite 안 함 (기존 endpoint 그대로).
+  //   회귀 시 이 if block 만 제거.
+  if (
+    request.method === 'GET' &&
+    pathname === '/api/admin/listings' &&
+    request.nextUrl.searchParams.get('fields') === 'minimal'
+  ) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/api/admin/listings-fast';
+    return NextResponse.rewrite(url);
+  }
 
   // CORS: admin API — 명시 화이트리스트만 허용
   if (pathname.startsWith('/api/admin/')) {
