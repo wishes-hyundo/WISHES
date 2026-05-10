@@ -250,27 +250,27 @@ export async function GET(request: NextRequest) {
         //   교체할 때 listing.building_info.도로명주소 를 읽음. 응답에 포함되어야 동작.
         //   slim 단계에서 도로명/지번 두 키만 남기고 나머지 jsonb 키는 제거 (size 절감).
         'building_info',
-        // L-search7 (2026-04-24): listing_images JOIN 제거. JOIN 된 1000-row 쿼리가
-        //   ~4.8s 걸리고 7 pages parallel → Vercel 27s 소비 + supabase-js 의 range
-        //   pagination 버그 트리거 (매물 2000~4000 축소). 대신 main rows 수집 후
-        //   ids 로 listing_images 를 별도 IN 쿼리 1번에 가져옴 (총 3-4s 예상).
+        // Fix 34: Materialized View 의 thumb_url (이미 ?w=400 replace 됨)
+        'thumb_url',
+        // L-search7 (2026-04-24): listing_images JOIN 제거 (Fix 34: view 가 LATERAL join 처리)
       ].join(',');
 
       // L-v7-p3: 사용자별 캐시 키 분리 — mine 은 uid 가 키에 포함
       // L-perf-fix-15-revert-2026-05-10 (사장님 발견 회귀): cacheKey v13 변경 후
       //   cache 비어있어서 사장님 첫 진입 30s cancelled. v12 다시 (기존 cache 활용).
+      // Fix 34 (Materialized View): cacheKey v13-mv for fresh cache after view migration
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v12-mine', scopeUid as string]
-        : ['listings-minimal-v12'];
+        ? ['listings-minimal-v13-mv-mine', scopeUid as string]
+        : ['listings-minimal-v13-mv'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
         async () => {
           const PAGE_SIZE = 1000;
 
-          // 1차 페이지
+          // 1차 페이지 (Fix 34: Materialized View 사용 - 60K rows query 18s -> 0.16s)
           let firstQ = supabase
-            .from('listings')
+            .from('listings_minimal_mv')
             .select(selectFields)
             .order('created_at', { ascending: false })
             .range(0, PAGE_SIZE - 1);
@@ -296,7 +296,7 @@ export async function GET(request: NextRequest) {
             const _mainStart = Date.now();
             const fetchPage = async (from: number, retry = 0): Promise<any[] | null> => {
               let q = supabase
-                .from('listings')
+                .from('listings_minimal_mv')
                 .select(selectFields)
                 .order('created_at', { ascending: false })
                 .range(from, from + PAGE_SIZE - 1);
@@ -353,44 +353,11 @@ export async function GET(request: NextRequest) {
           //   사장님 1분 로딩 호소. 30 batches x ~1s sequential = 30s 추가 소요.
           //   listing_images IN 쿼리는 batch 별 독립적 (rate-limit issue 없음)
           //   -> Promise.all 안전. 10-20s 단축 예상. race condition X (lock-free).
-          let imageByListing: Record<string, string> = {};
-          const _imgStart = Date.now();
-          if (allData.length > 0) {
-            try {
-              const listingIds = allData.map((r: any) => r.id);
-              const BATCH = 1000;
-              const batches: number[][] = [];
-              for (let i = 0; i < listingIds.length; i += BATCH) {
-                batches.push(listingIds.slice(i, i + BATCH));
-              }
-              const results = await Promise.all(
-                batches.map((batch) =>
-                  supabase
-                    .from('listing_images')
-                    .select('listing_id, url, sort_order')
-                    .in('listing_id', batch)
-                    .order('sort_order', { ascending: true, nullsFirst: false })
-                    .limit(100000)
-                )
-              );
-              for (const { data: imgs, error: imgErr } of results) {
-                if (imgErr) {
-                  console.error('[admin/listings] image batch error', imgErr);
-                  continue;
-                }
-                if (!imgs) continue;
-                for (const im of imgs as any[]) {
-                  const lid = String(im.listing_id);
-                  if (!imageByListing[lid] && im.url) imageByListing[lid] = im.url;
-                }
-              }
-              console.log('[admin/listings minimal] images fetched in ' +
-                (Date.now() - _imgStart) + 'ms (' + batches.length + ' batches parallel, ' +
-                Object.keys(imageByListing).length + ' listings)');
-            } catch (e) {
-              console.error('[admin/listings] image fetch error', e);
-              // 실패 시 이미지 없이 계속 — 전체 매물 수 유지가 최우선
-            }
+          // Fix 34: Materialized View 에 thumb_url 이 미리 join 됨 - 별도 query 불필요
+          // (이전: listing_images IN query × 60 batches = 1-3s, 이제 0)
+          const imageByListing: Record<string, string> = {};
+          for (const r of allData) {
+            if (r && r.thumb_url) imageByListing[String(r.id)] = r.thumb_url;
           }
 
           // 🧹 null / 빈 배열 / 빈 문자열 / false 불리언 제거로 페이로드 20~30% 감소
