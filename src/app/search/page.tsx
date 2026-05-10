@@ -246,15 +246,10 @@ export default function SearchPortalPage() {
 
       // Step T (2026-05-10): cookie-issue auto for CDN cache
       ['ws-ext-patch-v337-cookie-issue', '/search/content-v337-cookie-issue.js?v=20260510a'],
-      // v341 v2 (2026-05-10 사장님 명령 단계B): 첫 진입 20매물 1초 안 표시 (재설계).
-      //   v1 의 r.clone() 다중 충돌 → v2 는 origFetch 응답 fully consume + 새 Response 반환.
-      //   stream tee 충돌 0. content.js 의 r.json() 정상 동작.
-      //   에러 시 원본 URL fetch fallback.
-      ['ws-ext-patch-v341-progressive-v2', '/search/content-v341-progressive.js?v=20260510c'],
-      // v342 (2026-05-10 사장님 명령 단계A): 모달 사진 우선순위 — fetch 안 건드림.
-      //   showDetail wrap 만 사용. listing.images URL 에 ?w=1200 (hero) / ?w=400 (썸네일) 추가
-      //   + 썸네일 loading=lazy + hero <link rel=preload>. 매물 목록 영향 0.
-      ['ws-ext-patch-v342-modal-image-priority', '/search/content-v342-modal-image-priority.js?v=20260510b'],
+      // v341 v2 (2026-05-10 사장님 발견): 속도 효과 미체감 -> 보류, 더 정밀한 진단 후 재시도.
+      // ['ws-ext-patch-v341-progressive-v2', '/search/content-v341-progressive.js?v=20260510c'],
+      // v342 (2026-05-10 사장님 발견): 썸네일 안 보임 회귀 -> 보류. CloudFront 외 host 처리 검토 필요.
+      // ['ws-ext-patch-v342-modal-image-priority', '/search/content-v342-modal-image-priority.js?v=20260510b'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
