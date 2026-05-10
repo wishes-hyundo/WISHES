@@ -96,16 +96,22 @@
       if (listing.lat == null || listing.lng == null) return;
 
       sub.dataset.v335Applied = '1';
-      fetchRoadFromKakao(listing.lat, listing.lng, function (road) {
-        if (!road) return;
-        var el = card.querySelector('.ws-listing-title-sub');
-        if (!el) return;
-        // 사장님 명령 (2026-05-09): "경기도 양주시 회천로 234" 전체 표시
-        el.textContent = road;
+      // L-perf-fix-11-2026-05-10 (사장님 명령 coord2address 잡기):
+      //   Kakao API 호출 자체 제거. listing.address (지번주소) 즉시 표시.
+      //   도로명주소는 Fix 6 의 cron 이 5일 내 backfill → 그 후 listing.road_address.
+      //   사장님 명령 (2026-05-09 도로명 표시) vs (2026-05-10 속도) 둘 다 균형:
+      //     - cron 채워진 매물 → 도로명 표시 (이미 listing.road_address 분기에서 skip)
+      //     - cron 안 채워진 매물 → 지번주소 (listing.address) 표시 (빈 채 X)
+      //     - Kakao API 호출 0 회.
+      var el = sub;
+      var fallbackAddr = listing.address || '';
+      if (fallbackAddr) {
+        el.textContent = fallbackAddr;
         el.style.setProperty('color', '#6b7280', 'important');
         el.style.setProperty('font-weight', '400', 'important');
-        el.title = '도로명주소: ' + road;
-      });
+        el.title = '주소: ' + fallbackAddr;
+      }
+      // 옛 fetchRoadFromKakao 호출 영구 제거 (Kakao API 호출 자체 안 함)
     } catch (e) {
       try { console.warn('[' + V + '] error:', e); } catch (_) {}
     }
