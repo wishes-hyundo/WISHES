@@ -188,6 +188,47 @@
     }, 200);
   }
 
+  // Step D Plan B (2026-05-10): ws_data_snapshot 자동 shrink — 큰 text fields 제거.
+  var SNAPSHOT_REMOVE_FIELDS = [
+    'description', 'recommended_business', 'restricted_business',
+    'previous_business', 'previous_brand', 'business_type',
+    'special_notes', 'usage_approved', 'features',
+    'contacts', 'maintenance_includes', 'maintenance_excludes',
+  ];
+  function _shrinkSnapshot(s) {
+    if (!s || typeof s !== 'string') return s;
+    try {
+      var obj = JSON.parse(s);
+      if (!obj || !Array.isArray(obj.data)) return s;
+      var data = obj.data.map(function (l) {
+        if (!l || typeof l !== 'object') return l;
+        var m = {};
+        for (var k in l) {
+          if (SNAPSHOT_REMOVE_FIELDS.indexOf(k) >= 0) continue;
+          if (Object.prototype.hasOwnProperty.call(l, k)) m[k] = l[k];
+        }
+        return m;
+      });
+      return JSON.stringify({ ts: obj.ts, data: data });
+    } catch (e) { return s; }
+  }
+
+  function _shrinkExistingSnapshot() {
+    try {
+      var cur = localStorage.getItem('ws_data_snapshot');
+      if (!cur || cur.length < 1024 * 1024) return;
+      var shrunk = _shrinkSnapshot(cur);
+      if (shrunk && shrunk.length < cur.length) {
+        try {
+          localStorage.setItem('ws_data_snapshot', shrunk);
+          console.log('[ws-storage-cleanup] snapshot shrink: ' +
+            (cur.length / 1024 / 1024).toFixed(2) + 'MB → ' +
+            (shrunk.length / 1024 / 1024).toFixed(2) + 'MB');
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
   function _installLocalStorageGuard() {
     if (window.__WS_LS_GUARDED) return;
     var origSet;
@@ -197,6 +238,9 @@
     Storage.prototype.setItem = function (key, value) {
       if (this !== window.localStorage) {
         return origSet.apply(this, arguments);
+      }
+      if (key === 'ws_data_snapshot' && typeof value === 'string' && value.length > 1024 * 1024) {
+        try { value = _shrinkSnapshot(value); } catch (_) {}
       }
       try {
         return origSet.call(this, key, value);
@@ -290,6 +334,7 @@
   _installLocalStorageGuard();
   _installToastThrottle();
   _installTrackChangesGuard();
+  _shrinkExistingSnapshot();
 
   setTimeout(function () {
     try {
