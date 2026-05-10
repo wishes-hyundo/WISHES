@@ -252,8 +252,11 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v337-cookie-issue', '/search/content-v337-cookie-issue.js?v=20260510a'],
       // v341 v2 (2026-05-10 사장님 발견): 속도 효과 미체감 -> 보류, 더 정밀한 진단 후 재시도.
       // ['ws-ext-patch-v341-progressive-v2', '/search/content-v341-progressive.js?v=20260510c'],
-      // v342 (2026-05-10 사장님 발견): 썸네일 안 보임 회귀 -> 보류. CloudFront 외 host 처리 검토 필요.
-      // ['ws-ext-patch-v342-modal-image-priority', '/search/content-v342-modal-image-priority.js?v=20260510b'],
+      // v342 v3 (2026-05-10 Fix 7 사장님 명령): 모달 사진 속도 - REPLACE 방식.
+      //   v1/v2 의 skip 버그 fix: ?w=1920 -> ?w=400 (CloudFront 60% 매물).
+      //   썸네일 size 5MB -> 50KB (100배 감소). Hero 5MB -> 200KB.
+      //   showDetail wrap, 외부 host (zigbang/nemo) 영향 X.
+      ['ws-ext-patch-v342-modal-image-priority-v3', '/search/content-v342-modal-image-priority.js?v=20260510v3replace'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
