@@ -246,6 +246,11 @@ export default function SearchPortalPage() {
 
       // Step T (2026-05-10): cookie-issue auto for CDN cache
       ['ws-ext-patch-v337-cookie-issue', '/search/content-v337-cookie-issue.js?v=20260510a'],
+      // v341 (2026-05-10 사장님 명령 Plan B Progressive): 첫 진입 20매물 1초 안 표시.
+      //   /api/admin/listings?fields=minimal 첫 fetch -> paginated=1&limit=20 가로챔.
+      //   백그라운드 cursor 로 BG_LIMIT=1000 단위 추가 fetch -> WS.allListings.push + renderAll.
+      //   v294 (Bearer auth) 보다 OUTER 라야 함 -> 마지막 entry 로 등록.
+      ['ws-ext-patch-v341-progressive', '/search/content-v341-progressive.js?v=20260510a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
