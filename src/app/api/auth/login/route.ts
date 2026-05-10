@@ -56,17 +56,14 @@ export async function POST(request: NextRequest) {
       // L-login-timeout (2026-05-10 사장님 발견): signInWithPassword 가 가끔 hang.
       //   Promise.race 로 8s 안 응답 안 오면 timeout error 반환 (10s Vercel default 보다 짧게).
       //   사용자에 즉각 피드백 + Vercel 함수 stuck 회피.
-      const SIGNIN_TIMEOUT_MS = 8000;
-      const signInPromise = supabase.auth.signInWithPassword({ email, password });
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('signin_timeout_8s')), SIGNIN_TIMEOUT_MS)
-      );
-      let authData: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['data'];
-      let authError: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['error'];
+      let signInResult;
       try {
-        const result = await Promise.race([signInPromise, timeoutPromise]);
-        authData = result.data;
-        authError = result.error;
+        signInResult = await Promise.race([
+          supabase.auth.signInWithPassword({ email, password }),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('signin_timeout_8s')), 8000)
+          ),
+        ]);
       } catch (timeoutErr) {
         console.error('[login] Supabase auth timeout:', timeoutErr);
         return NextResponse.json(
@@ -74,6 +71,7 @@ export async function POST(request: NextRequest) {
           { status: 503, headers: { 'Retry-After': '5' } }
         );
       }
+      const { data: authData, error: authError } = signInResult;
 
       if (authError) {
               // Check if user exists but is not confirmed (pending approval)
@@ -126,4 +124,33 @@ export async function POST(request: NextRequest) {
             }
               userRole = adminUser.role || userRole;
               userName = adminUser.name || userName;
-              userCompany = 
+              userCompany = adminUser.company || userCompany;
+      }
+
+      // L-sec159 (2026-04-23): 응답에 status 필드 누락 버그 수정.
+      //   admin-auth.html 클라이언트는 data.user.status === 'approved' 로 분기하는데
+      //   서버가 이 필드를 빼먹어서 '승인됨' 사용자도 전원 '계정이 비활성' 오류로 튕겼음.
+      //   여기 도달했다는 것은 pending/rejected/blocked 가 아니라는 뜻이므로 'approved'.
+      return NextResponse.json({
+                success: true,
+                token: authData.session?.access_token || authData.user.id,
+                refresh_token: authData.session?.refresh_token || null,
+                expires_at: authData.session?.expires_at || null,
+                user: {
+                            id: authData.user.id,
+                            name: userName,
+                            email,
+                            role: userRole,
+                            company: userCompany,
+                            status: 'approved',
+                }
+      });
+
+    } catch (error) {
+            console.error('Login error:', error);
+            return NextResponse.json(
+                { success: false, message: '서버 오류가 발생했습니다.' },
+                { status: 500 }
+                    );
+    }
+}
