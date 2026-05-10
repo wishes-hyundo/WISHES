@@ -19,7 +19,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=60, s-maxage=300, stale-while-revalidate=900"
+          "value": "public, max-age=60, s-maxage=600, stale-while-revalidate=3600"
         }
       ]
     },
@@ -28,7 +28,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, max-age=60, s-maxage=300, stale-while-revalidate=900"
+          "value": "public, max-age=60, s-maxage=600, stale-while-revalidate=3600"
         }
       ]
     },
@@ -37,7 +37,7 @@
       "headers": [
         {
           "key": "Cache-Control",
-          "value": "public, s-maxage=60, stale-while-revalidate=300"
+          "value": "public, s-maxage=600, stale-while-revalidate=3600"
         }
       ]
     },
@@ -196,6 +196,10 @@
     {
       "path": "/api/cron/prewarm-listings",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/prewarm-public-listings",
+      "schedule": "*/2 * * * *"
     }
   ]
 }
