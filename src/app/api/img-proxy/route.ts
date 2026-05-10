@@ -13,6 +13,13 @@ const ALLOWED_HOSTS = [
   'wishes-image-proxy.wishes-img.workers.dev',
   // L-imgproxy-zigbang (2026-05-09): 온하우스/직방/네모 협업 CDN
   'resource.zigbang.io',
+  // L-imgproxy-fix-2026-05-10 (사장님 발견 2,801 매물 broken 썸네일):
+  //   사장님 prod 캡처에서 CSP violation + img-proxy 403 host_not_allowed 다수.
+  //   DB SQL 측정: 19,178 사진 (2,801 매물) 가 아래 4 host 라 broken.
+  'img.nemoapp.kr',          // 네모 앱 (11,427 사진 / 1,840 매물)
+  'ic.zigbang.com',           // 직방 다른 subdomain (6,830 사진 / 793 매물)
+  'blob.nemoapp.kr',          // 네모 blob (671 사진 / 117 매물)
+  'gsc.gongsilclub.com',      // 공실클럽 자체 사이트 (250 사진 / 51 매물)
 ];
 
 const REFERER_OVERRIDES: Record<string, string> = {
