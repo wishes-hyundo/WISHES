@@ -1,50 +1,40 @@
-// Prewarm cron — /api/admin/listings cache 항상 warm 유지
-// Vercel cron 이 30분마다 호출 → unstable_cache (5분 TTL revalidate=300) 갱신 + CDN cache populate
-// 첫 진입 사장님 / 직원 / 고객 모두 < 1초 (CDN HIT) 가능
+// Prewarm cron — /api/admin/listings unstable_cache 항상 warm 유지 (Fix 29)
 //
-// I-CDN-1, I-CDN-2 보존: cron 자체는 INTERNAL_BEARER 사용하지만 실제 fetch 는
-// ws_session cookie + Step T strip 패턴으로 anonymous 처럼 만들어 CDN populate.
+// 매 4분 호출 → unstable_cache (revalidate=300s) 미리 갱신.
+// 첫 진입 사용자 (사장님/직원/고객) function-level cache HIT → cold path 18s → ~1-2s.
+// 그 다음 사용자가 CDN populate → 이후 < 100ms (CDN HIT, Fix 28 의 효과).
+//
+// I-CDN-1, I-CDN-2 보존: cron 의 fetch 자체는 INTERNAL_BEARER 사용.
+// Authorization 있어 CDN populate X (의도). 단, route handler 의 unstable_cache
+// 는 Data Cache 라 함수 instance 간 공유. 진짜 사용자가 hit 하면 그 응답이 CDN populate.
 
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
-export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
-
-function isAuthorizedCron(req: NextRequest): boolean {
-  // Vercel cron 은 자동으로 x-vercel-cron-signature 또는 cron-job-id 헤더 추가
-  const cronHeader = req.headers.get('x-vercel-cron') || '';
-  if (cronHeader === '1') return true;
-
-  // Manual trigger: INTERNAL_BEARER
-  const auth = req.headers.get('authorization') || '';
-  const m = auth.match(/^Bearer\s+(.+)$/i);
-  const token = m ? m[1] : '';
-  const internal = process.env.WISHES_INTERNAL_BEARER || '';
-  if (internal && token && token === internal) return true;
-
-  return false;
-}
+export const maxDuration = 60;
 
 export async function GET(request: NextRequest) {
-  const t0 = Date.now();
-
-  if (!isAuthorizedCron(request)) {
-    return NextResponse.json(
-      { success: false, error: 'unauthorized' },
-      { status: 401 }
-    );
+  // 표준 cron auth — 다른 cron 들과 동일 패턴 (G-73)
+  const cronSecret = process.env.CRON_SECRET;
+  if (!cronSecret) {
+    return NextResponse.json({ error: 'CRON_SECRET not configured' }, { status: 500 });
+  }
+  const authHeader = request.headers.get('authorization') || '';
+  if (authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Prod URL 자체를 호출 → middleware Step T 거치면서 CDN 정상 populate.
-  // CDN cache miss 면 function 실행 → unstable_cache 갱신 + CDN populate (s-maxage=3600).
-  // 다음 사용자 = CDN HIT < 100ms.
+  const t0 = Date.now();
   const baseUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
     : 'https://wishes.co.kr';
 
-  // INTERNAL_BEARER 로 인증, middleware 가 strip → CDN populate 가능
+  // INTERNAL_BEARER 로 admin/listings 인증. unstable_cache (Data Cache) 갱신.
   const internal = process.env.WISHES_INTERNAL_BEARER || '';
+  if (!internal) {
+    return NextResponse.json({ error: 'WISHES_INTERNAL_BEARER not configured' }, { status: 500 });
+  }
 
   const targets = [
     `${baseUrl}/api/admin/listings?fields=minimal&scope=all`,
@@ -61,18 +51,17 @@ export async function GET(request: NextRequest) {
             'Authorization': `Bearer ${internal}`,
             'User-Agent': 'wishes-cron-prewarm/1.0',
           },
-          // Force fresh - tell CDN we want to populate
+          // 매 호출 마다 fresh - cron 목적이 cache populate 이므로 의도적으로 cache: no-store
           cache: 'no-store',
         });
         const body = await res.text();
-        const elapsed = Date.now() - t1;
         return {
           url: url.replace(baseUrl, ''),
           status: res.status,
           size: body.length,
           xVercelCache: res.headers.get('x-vercel-cache'),
           cacheControl: res.headers.get('cache-control'),
-          elapsedMs: elapsed,
+          elapsedMs: Date.now() - t1,
           ok: res.ok,
         };
       } catch (e: any) {
