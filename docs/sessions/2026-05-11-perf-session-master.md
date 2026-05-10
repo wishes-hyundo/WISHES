@@ -452,3 +452,121 @@ const DEFAULT_LIMIT = 200;  // 검색은 server side endpoint
 4. 매 step 사장님 검증 받음 — **사장님 console 명령 으로 timing 측정**
 5. 회귀 시 즉시 revert (회귀 6번째 발생 시 stop, 사장님 결정 부탁)
 
+
+
+---
+
+## 🎯 옵션 C 진행 결과 (2026-05-11 세션 2)
+
+> 사장님 명령: "옵션 C로 진행해" — 마스터 문서 읽고 진행.
+
+### 진행 단계 요약
+
+| Step | Commit | 결과 |
+|---|---|---|
+| Step 1: server search endpoint | `2af874c` | ✅ 보존 — 검증 1542ms / 6088 결과 |
+| Step 2: v349 patch 파일 | `978cc5e` | ✅ 보존 |
+| Step 3: page.tsx 등록 | `a3c2563` | ✅ 보존 — 검색 server side redirect 작동 |
+| Step 4: default limit=200 | `f768ece` | ❌ 회귀 → REVERT (`32b8bba`) |
+
+### Step 1 search endpoint 검증 결과
+
+```
+=== STEP 1 SEARCH TEST (deploy 후) ===
+time: 1542 ms | status: 200
+rows: 200 | total: 6088 | query: 신림동
+first row id: 112552 | title: 서정빌리지
+error: undefined
+```
+
+server side ILIKE on 60K listings = 1.5초 (baseline 28초 대비 18배 빠름). 검증 완벽.
+
+### Step 2/3 v349 patch 검증 결과
+
+```
+[v349-server-search] installed (debounce 200 ms, server limit 500)
+[v349-server-search] cached 62418 listings
+[v349-server-search] initial cache acquired after 19 s
+```
+
+검색 정상 + 초기화 정상. 검색 시 server endpoint 호출 redirect 작동.
+
+### Step 4 회귀 분석 — 6번째 회귀
+
+**증상**: `default limit=200` 적용 후 사장님 화면:
+- 통계 박스: 전체 197 (이전 62,418)
+- 매물 카드 list: 197건만
+- 사장님 보고: "갑자기 매물이 197건 밖에 안뜨고 진입도 느림"
+
+**원인** — design 가정 vs 실제 UX 충돌:
+- 옵션 C 의 가정: "사장님 사용 시 200건이면 충분, 검색 시 server 가 60K 처리"
+- 실제: 사장님 화면의 통계 박스 (62,418 → 197) 이 critical UX issue
+- 매물 list, scroll, 필터 모두 200 제한받음 → 사용자 입장에 매물이 사라진 것처럼 느낌
+
+**즉시 revert**: commit `32b8bba` (route.ts 의 default limit=200 제거).
+
+### 현재 prod 상태 (옵션 C 후)
+
+- 첫 진입: ~26-28초 (이전 baseline과 동일)
+- 매물 표시: 60K 모두 사장님 욕사하는 UX
+- 검색: server side redirect 작동 (Step 1/2/3 보존)
+- 첫 진입 단축 효과: 0 (Step 4 revert)
+
+### 보존된 리소스 (옵션 C 부분 success)
+
+| 리소스 | 위치 | 작동 |
+|---|---|---|
+| `/api/admin/listings/search` endpoint | `src/app/api/admin/listings/search/route.ts` | ✅ ILIKE 60K 1.5s |
+| v349 client patch | `public/search/content-v349-server-search.js` | ✅ 검색 server redirect |
+| page.tsx v349 entry | line 235 | ✅ 활성 |
+
+다음 세션에 default limit 의 alternative path 가능 시 즉시 빛 발휘.
+
+---
+
+## 🛣️ 다음 세션 plan — 진짜 SOTA Progressive (옵션 F)
+
+### 회귀 6번째 STOP 후 학습
+
+이번 세션 회귀 history:
+1. Fix 38 (default limit=5000) — 사장님 검색 깨짐 격노
+2. Step 4 (default limit=200) — 사장님 매물 사라진 것처럼 보임 (UX critical)
+
+**공통 root cause**: server side row 수 제한 → 사장님 화면 통계/list 이 줄어듬 → UX critical fail.
+
+진짜 답은 **Progressive client patch** — server 응답 자체는 60K 그대로 + client side 가 점진적 표시:
+
+### 옵션 F (다음 세션) — Progressive client patch v350
+
+기본 idea:
+- Server response 60K 그대로 (route.ts 미수정)
+- Client 가 60K 받음 (28초 baseline 동일)
+- BUT: Client 의 첫 render 는 **첫 200건만** display
+- 사용자가 scroll / 필터 / 검색 시 더 많은 매물 progressive render
+- 통계 박스는 60K 그대로 (사장님 익숙한 UX)
+
+회귀 위험:
+- v260-perf, v341 의 stream tee 충돌 (이미 학습)
+- 새 patch 가 content.js 의 render 흐름 정확히 파악해야 함
+
+### 다음 세션 첫 메시지 template
+
+```
+옵션 F (Progressive client patch v350) 로 진행해.
+마스터 문서 docs/sessions/2026-05-11-perf-session-master.md 의 "다음 세션 plan" 섹션 읽고 시작.
+회귀 6번째 도달 했으므로 절대 신중하게.
+```
+
+---
+
+## 📊 이번 세션 모든 commit (옵션 C session 2)
+
+| Commit | 내용 | 상태 |
+|---|---|---|
+| `2af874c` | Fix 39 step 1: search endpoint | ✅ 보존 |
+| `978cc5e` | Fix 39 step 2: v349 patch | ✅ 보존 |
+| `a3c2563` | Fix 39 step 3: page.tsx 등록 | ✅ 보존 |
+| `f768ece` | Fix 39 step 4: default limit=200 | ❌ |
+| `32b8bba` | REVERT Fix 39 step 4 | ✅ |
+
+prod state: `32b8bba37d82` (회귀 6번째 후 안전 상태).
