@@ -216,7 +216,7 @@ export default function SearchPortalPage() {
       //   → "저장공간 부족" 토스트 무한 반복. Storage.prototype.setItem 가로채기로
       //   quota 시 자동 cleanup + 재시도. 사장님 데이터 (즐겨찾기/메모/연락처/폴더)
       //   SAFE_PRESERVE 영구 보호. 토스트 10분 throttle.
-      ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260509j'],
+      ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260510a'],
       // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
