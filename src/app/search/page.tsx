@@ -251,6 +251,12 @@ export default function SearchPortalPage() {
       //   백그라운드 cursor 로 BG_LIMIT=1000 단위 추가 fetch -> WS.allListings.push + renderAll.
       //   v294 (Bearer auth) 보다 OUTER 라야 함 -> 마지막 entry 로 등록.
       ['ws-ext-patch-v341-progressive', '/search/content-v341-progressive.js?v=20260510a'],
+      // v342 (2026-05-10 사장님 명령): 상세보기 모달 사진 속도 개선.
+      //   showDetail wrap -> hero ?w=1200 + thumbnails ?w=400 (CloudFront resize).
+      //   썸네일 loading=lazy + fetchpriority=low. hero <link rel=preload>.
+      //   원본 URL data-_orig_url 보존 (썸네일 클릭 시 hero 원본 사진 표시).
+      //   v240 (showDetail wrap) 보다 OUTER 라야 함 -> 마지막 entry.
+      ['ws-ext-patch-v342-modal-image-priority', '/search/content-v342-modal-image-priority.js?v=20260510a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
