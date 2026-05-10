@@ -234,7 +234,11 @@ export async function GET(request: NextRequest) {
         // L-search2 (2026-04-23) rollback: listings.thumbnail_url 컬럼은
         //   이 스키마에 존재하지 않아 SELECT 전체가 42703 에러로 실패했음.
         //   listing_images 의 대표 URL 은 별도 경로로 얻는다.
-        'created_by', // L-v7-p3: scope=mine 디버그/검증용 echo
+        // L-perf-2026-05-10 (사장님 명령 응답 size 절감): created_by 제거.
+        //   scope=mine 의 query filter (.eq('created_by', uid)) 는 SELECT 안 해도 작동.
+        //   client (content.js + 14 patches) 사용 안 함 (grep 검증 완료).
+        //   효과: UUID 36 byte × 60K = 2.16 MB + JSON key = 3 MB 응답 감소.
+        // 'created_by',  // 디버그 echo 제거됨 (필요 시 fields=full 로 호출).
         'last_verified_at', // L-verify-list (2026-04-24): 목록 현장확인 배지
         'source_site', // L-imgpolicy3: 크롤링 판정용 (응답 전 썸네일 스크럽)
         'updated_at', // L-search8 (2026-04-24): admin/listings 페이지 '수정됨' 배지용 (minimal 전환 시 필요)
