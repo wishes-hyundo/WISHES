@@ -1,21 +1,12 @@
 /**
- * /api/admin/listings-fast — Fix 36 (옵션 2)
+ * /api/admin/listings-fast — Fix 36c (chunked parallel RPC)
  *
- * 사장님 명령 2026-05-11 "옵션 2 어떻게든 해결":
- *   기존 /api/admin/listings 그대로 보존 + 새 endpoint 로 RPC 사용.
- *   v348 patch (URL redirect) 가 fetch 를 이쪽으로 라우팅.
- *   회귀 시 patch 만 disable → 즉시 기존 endpoint fallback (위험 0).
+ * 사장님 회귀 분석 (2026-05-11):
+ *   v1 의 RPC 호출 1번 (LIMIT 100000) → PostgREST 8s statement_timeout 초과 → 503.
+ *   v2: 5000 rows × 12 chunks parallel. 각 chunk 396ms (DB 측정), 모두 8s timeout 안.
+ *   chunks 동시 5개 batch → memory 분산, supabase pool 안전.
  *
- * RPC: get_admin_listings_minimal_v1(p_scope_uid, p_limit, p_offset)
- *   - DB 측정: 1000 rows 94ms / 60K 6.9s
- *   - 기존 paginated query 18s 대비 2.6배 빠름
- *   - Slim building_info + thumb_url 자동 처리 (Fix 32b 효과 포함)
- *
- * 응답 형태: 기존과 100% 동일 (success / data / total / scope / scope_auth)
- *   - listing_images: thumb_url → [{url}] 변환
- *
- * Cache: 기존 endpoint 와 동일 (public, s-maxage=3600)
- *   vercel.json /api/admin/listings(.*) wildcard 에 의해 자동 적용
+ * Empty chunk 시 stop (사장님 scope=mine 일 때 보통 3,121 rows = 1 chunk 만 필요).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -27,6 +18,10 @@ import { createHash } from 'crypto';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
+
+const CHUNK_SIZE = 5000;
+const MAX_TOTAL = 200000;  // safety cap
+const PARALLEL_CHUNKS = 5;  // 5 chunks 동시 (supabase pool 안전)
 
 export async function OPTIONS() {
   return new NextResponse(null, { status: 200 });
@@ -44,7 +39,6 @@ export async function GET(request: NextRequest) {
     const supabase = createServerClient();
     const { searchParams } = new URL(request.url);
 
-    // Scope 처리 (기존 endpoint 와 동일)
     const scopeParam = (searchParams.get('scope') || 'all').toLowerCase();
     let scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
     let scopeUid: string | null = null;
@@ -73,44 +67,68 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // unstable_cache 로 Node 레벨 메모이제이션 (300s)
     const cacheKey: string[] = scope === 'mine'
-      ? ['listings-fast-mv-v1-mine', scopeUid as string]
-      : ['listings-fast-mv-v1'];
+      ? ['listings-fast-chunked-v1-mine', scopeUid as string]
+      : ['listings-fast-chunked-v1'];
 
     const getCached = unstable_cache(
       async () => {
         const _start = Date.now();
-        const { data: rpcData, error: rpcErr } = await supabase
-          .rpc('get_admin_listings_minimal_v1', {
-            p_scope_uid: scope === 'mine' ? scopeUid : null,
-            p_limit: 100000,
-            p_offset: 0,
-          });
+        const allRows: any[] = [];
+        let off = 0;
+        let stopped = false;
+        const errors: string[] = [];
 
-        if (rpcErr) {
-          console.error('[admin/listings-fast] RPC error:', rpcErr);
-          return { data: null, error: rpcErr };
+        while (!stopped && off < MAX_TOTAL) {
+          // Build batch of N chunks
+          const offsets: number[] = [];
+          for (let i = 0; i < PARALLEL_CHUNKS && off + i * CHUNK_SIZE < MAX_TOTAL; i++) {
+            offsets.push(off + i * CHUNK_SIZE);
+          }
+
+          // Parallel call
+          const results = await Promise.all(
+            offsets.map((o) =>
+              supabase.rpc('get_admin_listings_minimal_v1', {
+                p_scope_uid: scope === 'mine' ? scopeUid : null,
+                p_limit: CHUNK_SIZE,
+                p_offset: o,
+              })
+            )
+          );
+
+          for (let i = 0; i < results.length; i++) {
+            const r = results[i];
+            if (r.error) {
+              errors.push(`chunk@${offsets[i]}: ${r.error.message}`);
+              stopped = true;
+              break;
+            }
+            if (!Array.isArray(r.data) || r.data.length === 0) {
+              stopped = true;
+              break;
+            }
+            allRows.push(...r.data);
+            if (r.data.length < CHUNK_SIZE) {
+              stopped = true;
+              break;
+            }
+          }
+
+          off += PARALLEL_CHUNKS * CHUNK_SIZE;
         }
 
-        const rows = Array.isArray(rpcData) ? rpcData : [];
-        console.log('[admin/listings-fast] RPC returned', rows.length, 'rows in', (Date.now() - _start) + 'ms');
+        if (errors.length > 0 && allRows.length === 0) {
+          return { data: null, error: { message: errors.join(' | ') } };
+        }
 
-        // Slim 처리 — RPC 가 이미 building_info slim + thumb_url 처리
-        // 추가로: thumb_url -> listing_images: [{url}] 형태 변환 (기존 응답 형태 호환)
-        // null/undefined/false/empty 제거 (기존 응답과 동일)
-        const slim = rows.map((row: any) => {
+        console.log('[admin/listings-fast] chunked RPC: ' + allRows.length + ' rows in ' + (Date.now() - _start) + 'ms');
+
+        // Slim — RPC 가 이미 처리. listing_images 형태 변환 + null 제거.
+        const slim = allRows.map((row: any) => {
           if (!row || typeof row !== 'object') return null;
-
-          // thumb_url -> listing_images 형태 변환
-          if (row.thumb_url) {
-            row.listing_images = [{ url: row.thumb_url }];
-          } else {
-            row.listing_images = [];
-          }
+          row.listing_images = row.thumb_url ? [{ url: row.thumb_url }] : [];
           delete row.thumb_url;
-
-          // null/undefined/false/empty 제거 (응답 size 절감)
           const out: any = {};
           for (const k in row) {
             const v = row[k];
@@ -130,11 +148,10 @@ export async function GET(request: NextRequest) {
     const { data: allData, error: cacheErr } = await getCached();
 
     if (cacheErr || !allData) {
-      // RPC fail → 즉시 기존 endpoint 응답 형태로 빈 배열 반환 (client 가 fallback 가능)
       return NextResponse.json(
         {
           success: false,
-          error: 'RPC failed: ' + (cacheErr ? JSON.stringify(cacheErr) : 'unknown'),
+          error: 'RPC failed: ' + (cacheErr ? cacheErr.message : 'unknown'),
           data: [],
           total: 0,
           scope,
@@ -145,7 +162,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Pagination (기존 endpoint 와 동일)
     const limitParam = searchParams.get('limit');
     const cursorParam = searchParams.get('cursor');
     let pageData = allData;
@@ -171,7 +187,7 @@ export async function GET(request: NextRequest) {
       ...(limitParam ? { paginated: true, returned: pageData.length } : {}),
       scope,
       scope_auth: scopeAuth,
-      _source: 'fast-rpc',
+      _source: 'fast-chunked-rpc',
     });
 
     const etag = '"' + createHash('sha1').update(bodyStr).digest('hex').substring(0, 16) + '"';
@@ -181,9 +197,7 @@ export async function GET(request: NextRequest) {
         status: 304,
         headers: {
           'ETag': etag,
-          'Cache-Control': scope === 'mine'
-            ? 'private, max-age=30'
-            : 'public, s-maxage=3600, stale-while-revalidate=86400',
+          'Cache-Control': scope === 'mine' ? 'private, max-age=30' : 'public, s-maxage=3600, stale-while-revalidate=86400',
         },
       });
     }
@@ -193,9 +207,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json; charset=utf-8',
         'ETag': etag,
-        'Cache-Control': scope === 'mine'
-          ? 'private, max-age=30'
-          : 'public, s-maxage=3600, stale-while-revalidate=86400',
+        'Cache-Control': scope === 'mine' ? 'private, max-age=30' : 'public, s-maxage=3600, stale-while-revalidate=86400',
         'Vary': scope === 'mine' ? 'Accept-Encoding, Authorization' : 'Accept-Encoding',
       },
     });
@@ -205,6 +217,10 @@ export async function GET(request: NextRequest) {
       {
         success: false,
         error: String(e?.message || e),
+        error_detail: {
+          name: e?.name,
+          stack: e?.stack?.substring(0, 500),
+        },
         fallback_hint: 'use /api/admin/listings instead',
       },
       { status: 500 }
