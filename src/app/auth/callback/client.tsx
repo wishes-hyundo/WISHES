@@ -129,13 +129,13 @@ function AuthCallbackContent() {
       if (adminResult === 'pending') {
         setStatus('error');
         setErrorMessage('관리자 승인 대기 중입니다. 승인 후 이용 가능합니다.');
-        setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+        setTimeout(() => { window.location.href = '/login?redirect=/admin/'; }, 2500);
         return;
       }
       if (adminResult === 'rejected') {
         setStatus('error');
         setErrorMessage('가입이 거절되었습니다. 관리자에게 문의하세요.');
-        setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+        setTimeout(() => { window.location.href = '/login?redirect=/admin/'; }, 2500);
         return;
       }
       setStatus('success');
@@ -292,19 +292,19 @@ function AuthCallbackContent() {
         if (adminResult === 'pending') {
           setStatus('error');
           setErrorMessage('관리자 승인 대기 중입니다. 승인 후 이용 가능합니다.');
-          setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+          setTimeout(() => { window.location.href = '/login?redirect=/admin/'; }, 2500);
           return;
         }
         if (adminResult === 'rejected') {
           setStatus('error');
           setErrorMessage('가입이 거절되었습니다. 관리자에게 문의하세요.');
-          setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+          setTimeout(() => { window.location.href = '/login?redirect=/admin/'; }, 2500);
           return;
         }
         if (adminResult === 'error') {
           setStatus('error');
           setErrorMessage('어드민 권한 확인에 실패했습니다. 다시 시도해주세요.');
-          setTimeout(() => { window.location.href = '/admin/admin-auth.html'; }, 2500);
+          setTimeout(() => { window.location.href = '/login?redirect=/admin/'; }, 2500);
           return;
         }
         setStatus('success');
