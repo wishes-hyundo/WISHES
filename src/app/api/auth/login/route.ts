@@ -4,6 +4,14 @@ import { z } from 'zod';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 import { emailSchema } from '@/lib/schemas';
 
+// L-login-timeout (2026-05-10 사장님 발견): /api/auth/login 504 (10s default).
+//   Vercel default function timeout 10s → cold start + Supabase signInWithPassword
+//   조합 시 가끔 초과. maxDuration 30s 로 충분한 여유 확보.
+//   nodejs runtime 명시 — Edge runtime 회귀 차단 (auth flow 는 nodejs 필요).
+export const runtime = 'nodejs';
+export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
+
 const SUPERADMIN_EMAILS = ['wishes@wishes.co.kr'];
 
 // L-sec39 (2026-04-22): 로그인 입력 검증 강화.
@@ -45,11 +53,27 @@ export async function POST(request: NextRequest) {
 
       const supabase = createServerClient();
 
-      // Try to sign in with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-              email,
-              password,
-      });
+      // L-login-timeout (2026-05-10 사장님 발견): signInWithPassword 가 가끔 hang.
+      //   Promise.race 로 8s 안 응답 안 오면 timeout error 반환 (10s Vercel default 보다 짧게).
+      //   사용자에 즉각 피드백 + Vercel 함수 stuck 회피.
+      const SIGNIN_TIMEOUT_MS = 8000;
+      const signInPromise = supabase.auth.signInWithPassword({ email, password });
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('signin_timeout_8s')), SIGNIN_TIMEOUT_MS)
+      );
+      let authData: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['data'];
+      let authError: Awaited<ReturnType<typeof supabase.auth.signInWithPassword>>['error'];
+      try {
+        const result = await Promise.race([signInPromise, timeoutPromise]);
+        authData = result.data;
+        authError = result.error;
+      } catch (timeoutErr) {
+        console.error('[login] Supabase auth timeout:', timeoutErr);
+        return NextResponse.json(
+          { success: false, message: '인증 서버가 일시적으로 응답이 느립니다. 잠시 후 다시 시도해주세요.' },
+          { status: 503, headers: { 'Retry-After': '5' } }
+        );
+      }
 
       if (authError) {
               // Check if user exists but is not confirmed (pending approval)
@@ -102,36 +126,4 @@ export async function POST(request: NextRequest) {
             }
               userRole = adminUser.role || userRole;
               userName = adminUser.name || userName;
-              userCompany = adminUser.company || userCompany;
-      }
-
-      // L-sec159 (2026-04-23): 응답에 status 필드 누락 버그 수정.
-      //   admin-auth.html 클라이언트는 data.user.sta
-
-        // L-sec159 (2026-04-23): 응답에 status 필드 누락 버그 수정.
-        //   admin-auth.html 클라이언트는 data.user.status === 'approved' 로 분기하는데
-        //   서버가 이 필드를 빼먹어서 '승인됨' 사용자도 전원 '계정이 비활성' 오류로 튕겼음.
-        //   여기 도달했다는 것은 pending/rejected/blocked 가 아니라는 뜻이므로 'approved'.
-        return NextResponse.json({
-                  success: true,
-                  token: authData.session?.access_token || authData.user.id,
-                  refresh_token: authData.session?.refresh_token || null,
-                  expires_at: authData.session?.expires_at || null,
-                  user: {
-                              id: authData.user.id,
-                              name: userName,
-                              email,
-                              role: userRole,
-                              company: userCompany,
-                              status: 'approved',
-                  }
-        });
-
-    } catch (error) {
-            console.error('Login error:', error);
-            return NextResponse.json(
-                { success: false, message: '서버 오류가 발생했습니다.' },
-                { status: 500 }
-                    );
-    }
-}
+              userCompany = 
