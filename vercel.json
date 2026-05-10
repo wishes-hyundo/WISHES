@@ -195,7 +195,7 @@
     },
     {
       "path": "/api/cron/prewarm-listings",
-      "schedule": "*/5 * * * *"
+      "schedule": "* * * * *"
     }
   ]
 }
