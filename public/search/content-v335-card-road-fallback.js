@@ -8,7 +8,36 @@
   if (host.indexOf('wishes.co.kr') === -1 && host !== 'localhost') return;
   if (location.pathname.indexOf('/search') !== 0) return;
 
+  // L-perf-v335-2026-05-10 (사장님 명령 Fix 5): localStorage cache 영구.
+  //   이전: _kakaoCache 메모리만 → 페이지 새로고침 시 초기화 → 매번 60K 매물 호출 → 1.3분.
+  //   이후: localStorage 영구 cache. 같은 좌표 매물 cache HIT → 호출 ~0 회.
+  var STORAGE_KEY = 'ws_v335_road_cache';
+  var MAX_CACHE_ENTRIES = 5000; // 5000 entries × ~50 byte = ~250 KB localStorage
   var _kakaoCache = {};
+  try {
+    var raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) _kakaoCache = JSON.parse(raw) || {};
+  } catch (_) {}
+  var _saveTimer = null;
+  function _scheduleSave() {
+    if (_saveTimer) return;
+    _saveTimer = setTimeout(function () {
+      _saveTimer = null;
+      try {
+        // size 제한: 너무 크면 가장 오래된 절반 제거
+        var keys = Object.keys(_kakaoCache);
+        if (keys.length > MAX_CACHE_ENTRIES) {
+          var newCache = {};
+          for (var i = keys.length - MAX_CACHE_ENTRIES / 2; i < keys.length; i++) {
+            newCache[keys[i]] = _kakaoCache[keys[i]];
+          }
+          _kakaoCache = newCache;
+        }
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(_kakaoCache));
+      } catch (_) {}
+    }, 1000);
+  }
+
   function fetchRoadFromKakao(lat, lng, callback) {
     if (lat == null || lng == null) { callback(''); return; }
     var key = lat + ',' + lng;
@@ -27,9 +56,11 @@
             if (status === window.kakao.maps.services.Status.OK && result && result[0]) {
               var road = (result[0].road_address && result[0].road_address.address_name) || '';
               _kakaoCache[key] = road;
+              _scheduleSave();
               callback(road);
             } else {
               _kakaoCache[key] = '';
+              _scheduleSave();
               callback('');
             }
           } catch (_) { callback(''); }
