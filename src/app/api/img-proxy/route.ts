@@ -157,12 +157,36 @@ export async function GET(request: NextRequest) {
 
     let outputBuffer: Buffer;
     let outputType: string;
+    let resizedFrom = imageBuffer.byteLength;
+    let resizedTo = imageBuffer.byteLength;
     if (raw) {
       outputBuffer = imageBuffer;
       outputType = contentType;
     } else {
-      outputBuffer = imageBuffer;
-      outputType = contentType;
+      // Fix 33 (2026-05-10 사장님 발견 — 외부 host CDN ?w 무시):
+      //   nemo CDN 가 ?w=400 무시 (실제 측정 ?w=1920 == ?w=400 동일 size).
+      //   server-side sharp resize 로 width=400 강제 + webp 변환 → 30배 ↓.
+      const targetW = Math.min(parseInt(parsed.searchParams.get('w') || '400', 10) || 400, 1920);
+      const skipResize = imageBuffer.byteLength < 100 * 1024; // 이미 작으면 skip
+      if (skipResize || contentType === 'image/gif') {
+        outputBuffer = imageBuffer;
+        outputType = contentType;
+      } else {
+        try {
+          const sharp = (await import('sharp')).default;
+          outputBuffer = await sharp(imageBuffer)
+            .rotate() // EXIF orientation
+            .resize({ width: targetW, withoutEnlargement: true })
+            .webp({ quality: 82, effort: 4 })
+            .toBuffer();
+          outputType = 'image/webp';
+          resizedTo = outputBuffer.byteLength;
+        } catch (resizeErr) {
+          console.error('[img-proxy] sharp error', resizeErr);
+          outputBuffer = imageBuffer;
+          outputType = contentType;
+        }
+      }
     }
 
     return new NextResponse(new Uint8Array(outputBuffer), {
@@ -171,6 +195,8 @@ export async function GET(request: NextRequest) {
         'Content-Type': outputType,
         'Cache-Control': 'public, max-age=' + CACHE_SECONDS + ', s-maxage=' + CACHE_SECONDS,
         'X-Proxied': 'true',
+        'X-Resized-From': String(resizedFrom),
+        'X-Resized-To': String(resizedTo),
       },
     });
   } catch (err) {
