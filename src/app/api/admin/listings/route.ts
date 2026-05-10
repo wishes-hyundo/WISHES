@@ -398,7 +398,20 @@ export async function GET(request: NextRequest) {
           const slim = allData.map((row: any) => {
             // L-search7: 별도 쿼리로 가져온 이미지 매핑 → row.listing_images 주입
             const imgUrl = imageByListing[String(row.id)];
-            row.listing_images = imgUrl ? [{ url: imgUrl }] : [];
+            // Fix 32 (2026-05-10 사장님 발견 사진 size 불균일):
+            //   CloudFront / supabase 사진을 ?w=400 으로 강제. 카드 썸네일 (200px)
+            //   에 6 MB 원본 다운로드 X. 외부 host (zigbang/nemo) 는 그대로 (CDN 호환 X).
+            //   img-proxy 가 ?w param 을 CloudFront resize 로 forward — 30배 size 절감.
+            const _resizeThumb = (u: string): string => {
+              if (!u) return u;
+              const isCdn = u.indexOf('cloudfront.net') !== -1 ||
+                            u.indexOf('supabase.co') !== -1 ||
+                            u.indexOf('r2.dev') !== -1;
+              if (!isCdn) return u;
+              if (/[?&]w=\d+/.test(u)) return u; // already sized
+              return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'w=400';
+            };
+            row.listing_images = imgUrl ? [{ url: _resizeThumb(imgUrl) }] : [];
             // L-img2 (2026-04-24): admin(중개사) 포털은 preferSelfHostedImages 정책.
             //   · 자체 업로드가 있으면 그것만 노출 (저작권 안전)
             //   · 자체 업로드가 0 이면 크롤링 원본 유지 (카드 썸네일 공백 방지)
