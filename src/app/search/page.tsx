@@ -277,6 +277,10 @@ export default function SearchPortalPage() {
       //   v247 (lightbox) data-images 1 entry 만 사용 → 1/1. v250 (모달 갤러리) 는 .ws-thumb fallback 8장.
       //   v347 capture phase 로 .ws-thumb 수집 → data-images attribute 강제 set → v247 가 8장 인식.
       ['ws-ext-patch-v347-lightbox-imgs-fill', '/search/content-v347-lightbox-imgs-fill.js?v=20260511b'],
+      // v348 (Fix 36 옵션 2 사장님 명령 2026-05-11): /api/admin/listings -> /listings-fast redirect.
+      //   새 endpoint 가 RPC 사용 (DB 측정 60K rows 6.9s vs 기존 18s).
+      //   503 시 자동 fallback to 기존 endpoint. 회귀 시 이 entry 만 제거.
+      ['ws-ext-patch-v348-fast-endpoint', '/search/content-v348-fast-endpoint.js?v=20260511a'],
     ];
     for (const [id, src] of patches) {
       if (!document.getElementById(id)) {
