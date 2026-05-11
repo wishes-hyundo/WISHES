@@ -508,8 +508,8 @@ export async function GET(request: NextRequest) {
             'ETag': etag,
             'Cache-Control': scope === 'mine'
               ? 'private, max-age=30'
-              : 'public, s-maxage=3600, stale-while-revalidate=86400',
-            ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400', 'Vercel-CDN-Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' }),
+              : 'public, s-maxage=60, stale-while-revalidate=300',
+            ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300', 'Vercel-CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }),
           },
         });
       }
@@ -522,8 +522,8 @@ export async function GET(request: NextRequest) {
           // L-v7-p3: scope=mine 은 사용자별 private, all 은 기존 CDN 공격 캐시
           'Cache-Control': scope === 'mine'
             ? 'private, max-age=30'
-            : 'public, s-maxage=3600, stale-while-revalidate=86400',
-          ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400', 'Vercel-CDN-Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' }),
+            : 'public, s-maxage=60, stale-while-revalidate=300',
+          ...(scope === 'mine' ? {} : { 'CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300', 'Vercel-CDN-Cache-Control': 'public, s-maxage=60, stale-while-revalidate=300' }),
           'Vary': scope === 'mine' ? 'Accept-Encoding, Authorization' : 'Accept-Encoding',
         },
       });
