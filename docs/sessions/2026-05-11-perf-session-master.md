@@ -764,64 +764,98 @@ prod state: `32b8bba37d82` (회귀 6번째 후 안전 상태).
 
 ---
 
-## 🚨 사장님 추가 발견 (2026-05-11) — 직원 컴퓨터 매물 16건 회귀
+## 🛠️ 자동 해결 plan (사장님 명령 2026-05-11): "직원한테 부탁 X — 우리가 자동 해결"
 
-### 증상
-- 사장님 컴퓨터: 매물 62,418건 정상 표시
-- 직원 컴퓨터: 매물 **16건만 표시** ("전체" 탭에서)
-- 캡처에 매물 ID 45913, 45912 (오래된 id) 만 보임
+### 사장님 명령 정확 인용
+> "아니 고객이나 직원한테 그런걸 어떻게 부탁하냐 우리가 방법을 찾아서 스스로 해결을 해야지"
 
-### DB 확인 결과 (2026-05-11)
-```sql
-SELECT status, COUNT(*) AS total, 
-  COUNT(*) FILTER (WHERE created_by IS NOT NULL) AS with_created_by,
-  COUNT(*) FILTER (WHERE created_by IS NULL) AS no_created_by
-FROM listings GROUP BY status;
+→ 사용자 (직원/고객) 에게 캐시 비우라 부탁 절대 X.
+→ server-side / client patch 가 자동으로 해결해야.
+
+### 진짜 자동 해결 path (다음 세션 첫 step)
+
+#### A. localStorage stale 자동 무효화 (가장 가능성 큰 원인)
+
+**content.js 의 ws_data_snapshot** 이 직원 컴퓨터에서 stale 16건 캐시 가지고 있을 가능성.
+
+**자동 fix v349**:
+```js
+// public/search/content-v349-stale-snapshot-auto-invalidate.js
+(function () {
+  if (window.__WS_V349_AUTO_INVALIDATE__) return;
+  window.__WS_V349_AUTO_INVALIDATE__ = true;
+  
+  // 1. ws_data_snapshot 의 timestamp 확인 — 1시간 이상 old 면 자동 삭제
+  try {
+    var snap = localStorage.getItem('ws_data_snapshot');
+    if (snap) {
+      var obj = JSON.parse(snap);
+      var age = Date.now() - (obj._ts || 0);
+      if (age > 60 * 60 * 1000) {  // 1 hour
+        localStorage.removeItem('ws_data_snapshot');
+        try { indexedDB.deleteDatabase('wishes_cache'); } catch (_) {}
+        console.log('[v349] stale snapshot auto-invalidated');
+      }
+    }
+  } catch (_) {}
+  
+  // 2. 매물 데이터 hash 가 server 와 다르면 자동 재 fetch
+  //    server 의 ETag 헤더 확인 → mismatch 시 cache invalidate
+})();
 ```
-**결과**: 66,214 모든 매물의 `created_by = NULL`. 
 
-즉 scope=mine 으로는 0건 응답. 그런데 직원 16건 = 다른 mechanism.
+#### B. Server-side cache TTL 짧게 (보완)
 
-### 진단 가능성 (다음 세션 우선)
+`vercel.json` 의 `/api/admin/listings` 의 Cache-Control:
+- 현재: `public, s-maxage=3600` (1시간)
+- 변경: `public, s-maxage=300` (5분)
 
-1. **localStorage stale 데이터** (가장 가능성)
-   - 직원 컴퓨터의 `ws_data_snapshot` localStorage 가 오래된 16건만 캐시
-   - content.js 의 trackChanges 가 stale snapshot 사용
-   - 시크릿창 + Ctrl+F5 + localStorage 비우면 정상 될 가능성
+직원 컴퓨터의 cache 5분 만에 자동 stale → fresh fetch.
 
-2. **DB RLS 정책** (덜 가능)
-   - 직원 token 으로 listings 의 일부 row 만 보임
-   - route.ts 가 service_role 사용 시 RLS bypass — 영향 X
-   - 일반 supabase-js client 사용 시 영향
+위험: server query 더 자주 → 진짜 첫 진입 더 자주. 단 Fix 29 prewarm cron 매 4분 → 항상 warm 보장.
 
-3. **scope 결정 로직**
-   - content.js 의 "전체" 탭 클릭 시 scope=all 보내야
-   - 직원 컴퓨터에서 scope=mine 으로 보냈을 가능성
-   - mine + 직원 created_by → 빈 결과 + degrade → all → 모든 매물 정상이어야
+#### C. Service Worker 자동 무효화 (가장 SOTA)
 
-### 다음 세션 진단 plan
+`page.tsx` 의 service worker unregister 코드 — 이미 있음. 확인 후 강화.
 
-1. **즉시 사장님께 부탁** — 직원에게:
-   - 시크릿창 새로 열기
-   - Ctrl+Shift+Delete → 캐시 + cookies + localStorage 모두 삭제
-   - wishes.co.kr/login 다시 로그인
-   - /search 진입 → 매물 카운트 확인
-   
-2. **시크릿창 + 캐시 비움 후도 16건** = server side issue
-   - DB RLS 정책 확인 (supabase mcp `execute_sql`)
-   - 직원 token 으로 supabase-js client RPC 호출 vs service_role 차이
-   - route.ts 의 verifyAuth + scope 결정 로직 trace
+```tsx
+useEffect(() => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(regs => {
+      regs.forEach(r => r.unregister());
+    });
+  }
+}, []);
+```
 
-3. **시크릿창 + 캐시 비움 후 정상 (62K+)** = localStorage stale 문제
-   - 자동 캐시 무효화 mechanism 추가
-   - content-v321-storage-cleanup.js 의 ws_data_snapshot 만료 logic 강화
-   
-### 이 회귀가 옵션 C 영향?
+### 사장님 요구사항 반영 (영구 INVARIANT 후보)
 
-옵션 C 진행 시 검색은 server side. localStorage stale 영향 X.
-하지만 **첫 진입 시 매물 fetch 16건 / 62K 차이 = server side 응답 자체 문제** 가능성도. 이 경우 옵션 C 도 동일 증상 가능.
+#### I-USER-EXP-1: 사용자에게 캐시 비우기 / 강제 새로고침 부탁 X
 
-다음 세션 **순서**:
-1. 16건 회귀 진단 + fix (사장님 직원 시크릿창 검증)
-2. 그 후 옵션 C 진행
+- 모든 회귀는 자동 해결되어야
+- localStorage / sessionStorage stale 자동 무효화
+- service worker 자동 unregister
+- CDN cache 자동 expire (짧은 TTL + cron prewarm)
+- 사용자 한 일 0 — 코드가 모두 자동 해결
+
+위반 시: 직원/고객이 매번 캐시 수동 비우기 → 비즈니스 critical.
+
+### 다음 세션 step (업데이트)
+
+1. **첫 진단**: 직원 16건 회귀 server vs client 구분
+   - 우리가 직접 진단 (사장님 도움 X)
+   - DB query: 직원 token UID 매핑 + 매물 created_by 확인
+   - 또는 listings-fast endpoint 응답 다시 확인 (anonymous 401 → 직원 token 으로 다른 response?)
+
+2. **자동 fix v349 작성 + deploy** (사용자 영향 0)
+   - localStorage stale 자동 invalidate
+   - service worker 자동 unregister
+   - cache TTL 조정
+
+3. **검증 — 사장님 컴퓨터에서만**
+   - 직원 컴퓨터 검증 X 가능 (사장님이 직원에게 부탁 안 함)
+   - 사장님이 다른 디바이스 (전화 등) 에서 시크릿 모드 진입 → 16건 vs 62K 확인
+   - 또는 사장님 다른 브라우저 (Edge, Firefox) 시크릿 진입
+
+4. **그 후 옵션 C 진행** (server side search)
 
