@@ -58,6 +58,7 @@
   var pendingRender = false;
   var lastRenderTime = 0;
   var pendingRenderTimer = null;
+  var lastV354SetSize = 0;   // hotfix: v354 self-set marker
 
   function log() {
     if (!DEBUG) return;
@@ -179,6 +180,7 @@
               // page progress: update WS + throttled render
               if (!fullLoaded) {
                 window.WS.allListings = listings.slice();  // copy reference
+                lastV354SetSize = listings.length;  // hotfix self-set
                 refreshUI_throttled();
                 if (!firstRenderAt && listings.length > 0) {
                   firstRenderAt = Date.now() - t0;
@@ -189,6 +191,7 @@
               log('footer:', obj);
               if (!fullLoaded) {
                 window.WS.allListings = listings;
+                lastV354SetSize = listings.length;
                 refreshUI_now();
                 streamLoaded = true;
                 fullLoaded = true;
@@ -222,6 +225,7 @@
       // Ensure final WS state if footer didn't fire
       if (!streamLoaded && rowCount > 0 && !fullLoaded) {
         window.WS.allListings = listings;
+        lastV354SetSize = listings.length;
         refreshUI_now();
         streamLoaded = true;
         fullLoaded = true;
@@ -248,16 +252,19 @@
         return;
       }
       if (window.WS && window.WS.allListings && window.WS.allListings.length > FULL_THRESHOLD) {
-        // content.js (28초 baseline) 가 stream 보다 먼저 도착하면 abort
-        // 단, v354 가 누적 listings 를 set 한 경우는 이미 fullLoaded set 됐을 것
-        // 여기서 외부 (content.js) 로 set 된 경우만 abort
+        // HOTFIX: v354 self-set vs external set 구분
+        var curSize = window.WS.allListings.length;
+        var isLikelySelfSet = streamAbortCtrl !== null && curSize >= lastV354SetSize && curSize <= lastV354SetSize + 10;
+        if (isLikelySelfSet) {
+          log('watchForFull self-set', curSize, '~', lastV354SetSize, 'continue');
+          return;
+        }
         if (!streamLoaded) {
           fullLoaded = true;
           if (streamAbortCtrl) {
             try { streamAbortCtrl.abort(); } catch (_) {}
           }
-          log('full received externally:', window.WS.allListings.length, 'rows after',
-            probeAttempts, 's');
+          log('full received externally:', curSize, 'rows after', probeAttempts, 's (lastV354SetSize=' + lastV354SetSize + ')');
         }
         clearInterval(intv);
       } else if (probeAttempts >= probeMax) {
