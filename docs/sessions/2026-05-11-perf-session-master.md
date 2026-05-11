@@ -761,3 +761,67 @@ prod state: `32b8bba37d82` (회귀 6번째 후 안전 상태).
 
 우선순위: 사장님이 결정. 현재도 1초이므로 증가 개선 분
 
+
+---
+
+## 🚨 사장님 추가 발견 (2026-05-11) — 직원 컴퓨터 매물 16건 회귀
+
+### 증상
+- 사장님 컴퓨터: 매물 62,418건 정상 표시
+- 직원 컴퓨터: 매물 **16건만 표시** ("전체" 탭에서)
+- 캡처에 매물 ID 45913, 45912 (오래된 id) 만 보임
+
+### DB 확인 결과 (2026-05-11)
+```sql
+SELECT status, COUNT(*) AS total, 
+  COUNT(*) FILTER (WHERE created_by IS NOT NULL) AS with_created_by,
+  COUNT(*) FILTER (WHERE created_by IS NULL) AS no_created_by
+FROM listings GROUP BY status;
+```
+**결과**: 66,214 모든 매물의 `created_by = NULL`. 
+
+즉 scope=mine 으로는 0건 응답. 그런데 직원 16건 = 다른 mechanism.
+
+### 진단 가능성 (다음 세션 우선)
+
+1. **localStorage stale 데이터** (가장 가능성)
+   - 직원 컴퓨터의 `ws_data_snapshot` localStorage 가 오래된 16건만 캐시
+   - content.js 의 trackChanges 가 stale snapshot 사용
+   - 시크릿창 + Ctrl+F5 + localStorage 비우면 정상 될 가능성
+
+2. **DB RLS 정책** (덜 가능)
+   - 직원 token 으로 listings 의 일부 row 만 보임
+   - route.ts 가 service_role 사용 시 RLS bypass — 영향 X
+   - 일반 supabase-js client 사용 시 영향
+
+3. **scope 결정 로직**
+   - content.js 의 "전체" 탭 클릭 시 scope=all 보내야
+   - 직원 컴퓨터에서 scope=mine 으로 보냈을 가능성
+   - mine + 직원 created_by → 빈 결과 + degrade → all → 모든 매물 정상이어야
+
+### 다음 세션 진단 plan
+
+1. **즉시 사장님께 부탁** — 직원에게:
+   - 시크릿창 새로 열기
+   - Ctrl+Shift+Delete → 캐시 + cookies + localStorage 모두 삭제
+   - wishes.co.kr/login 다시 로그인
+   - /search 진입 → 매물 카운트 확인
+   
+2. **시크릿창 + 캐시 비움 후도 16건** = server side issue
+   - DB RLS 정책 확인 (supabase mcp `execute_sql`)
+   - 직원 token 으로 supabase-js client RPC 호출 vs service_role 차이
+   - route.ts 의 verifyAuth + scope 결정 로직 trace
+
+3. **시크릿창 + 캐시 비움 후 정상 (62K+)** = localStorage stale 문제
+   - 자동 캐시 무효화 mechanism 추가
+   - content-v321-storage-cleanup.js 의 ws_data_snapshot 만료 logic 강화
+   
+### 이 회귀가 옵션 C 영향?
+
+옵션 C 진행 시 검색은 server side. localStorage stale 영향 X.
+하지만 **첫 진입 시 매물 fetch 16건 / 62K 차이 = server side 응답 자체 문제** 가능성도. 이 경우 옵션 C 도 동일 증상 가능.
+
+다음 세션 **순서**:
+1. 16건 회귀 진단 + fix (사장님 직원 시크릿창 검증)
+2. 그 후 옵션 C 진행
+
