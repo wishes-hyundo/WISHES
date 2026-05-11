@@ -717,3 +717,15 @@
   6. 모든 commit references
   7. 다음 세션 첫 메시지 template
 - 다음 세션의 Claude 가 마스터만 읽으면 즉시 이어갈 수 있게
+
+### I-USER-EXP-1: 사용자에게 캐시 비우기 / 강제 새로고침 부탁 절대 X (사장님 명령 2026-05-11)
+
+- **사장님 정확 인용**: "아니 고객이나 직원한테 그런걸 어떻게 부탁하냐 우리가 방법을 찾아서 스스로 해결을 해야지"
+- 회귀/버그 발견 시 사용자 (직원/고객) 에게 "캐시 비우기", "Ctrl+F5", "시크릿창 사용" 등 부탁 절대 금지
+- 모든 해결은 **server-side 또는 client patch 자동**:
+  - localStorage / sessionStorage stale 자동 무효화 (timestamp + auto-expire)
+  - service worker 자동 unregister (page mount 시)
+  - CDN cache 자동 expire (짧은 TTL + cron prewarm)
+  - browser cache 자동 invalidate (cache buster query param 또는 ETag)
+- **위반 시**: 직원/고객 매번 수동 작업 → 비즈니스 critical, 사장님 격노
+- **검증**: 회귀 발견 시 → "사장님 / 다른 디바이스 / 다른 브라우저" 으로 우리가 직접 검증. 직원/고객 X.
