@@ -202,6 +202,20 @@
               // listing row
               listings.push(obj);
               rowCount++;
+              // Progressive render at thresholds (smooth UX - step 2B)
+              if (!fullLoaded) {
+                var pLen = listings.length;
+                if (pLen === 100 || pLen === 300 || pLen === 600 || pLen === 1000 ||
+                    pLen === 2000 || pLen === 3500 || pLen === 5000) {
+                  window.WS.allListings = listings.slice();
+                  lastV354SetSize = listings.length;
+                  refreshUI_throttled();
+                  if (!firstRenderAt) {
+                    firstRenderAt = Date.now() - t0;
+                    log('progressive first render at', firstRenderAt, 'ms (len', pLen, ')');
+                  }
+                }
+              }
             }
           } catch (parseErr) {
             log('JSON parse fail on line (skip):', line.substring(0, 100));
