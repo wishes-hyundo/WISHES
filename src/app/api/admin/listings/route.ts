@@ -260,8 +260,8 @@ export async function GET(request: NextRequest) {
       // L-perf-fix-15-revert-2026-05-10 (사장님 발견 회귀): cacheKey v13 변경 후
       //   cache 비어있어서 사장님 첫 진입 30s cancelled. v12 다시 (기존 cache 활용).
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v12-mine', scopeUid as string]
-        : ['listings-minimal-v12'];
+        ? ['listings-minimal-v13-mine', scopeUid as string]
+        : ['listings-minimal-v13'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
