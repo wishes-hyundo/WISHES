@@ -653,3 +653,111 @@ prod state: `32b8bba37d82` (회귀 6번째 후 안전 상태).
 
 회귀 7번째 도달 — STOP. 사장님이 직접 결정 후 다음 세션으로 이어짐.
 
+
+
+---
+
+## 🎯 옷션 K (Fast Lane endpoint + v351) — 드디어 성공 (2026-05-11)
+
+### 진단 기반 해결
+
+진짜 root cause 측정:
+- DB query (60K rows): ​**0.88초** (마스터 doc 추정 6.9초 틀림)
+- Slim JSON raw: **63 MB** (마스터 doc 추정 6 MB 틀림 — 60배)
+- 28초 = chunked main fetch (8-10s) + listing_images IN (6-10s) + slim transform + serialize + network + parse 의 합
+
+해결책 = **별도 endpoint** (cache key 다름) + **단순 .from('listings').limit(200)** (chunked pagination 제거) + **client patch**.
+
+### 진행 단계
+
+| Step | Commit | 결과 |
+|---|---|---|
+| K1: fast endpoint `/api/admin/listings/fast` | `ae5559e` | ✅ 등록 X, prod 영향 0 |
+| K2: 사장님 검증 | (컨솔 명령) | ✅ **610 ms** 응답 (db 61 / img 43 / total 160 server) |
+| K3: v351 client patch | `925ec1c` | ✅ 등록 X, prod 영향 0 |
+| K4: page.tsx 등록 | `b38f7ad` | ✅ v351 활성 |
+| K5: 최종 검증 | (컨솔 명령) | 🎉 **fast 1040 ms / full 24 s** — 성공 |
+
+### 사장님 최종 검증 결과
+
+```
+[v351-fast-prefetch] installed (endpoint /api/admin/listings/fast, init delay 200 ms)
+[v351-fast-prefetch] fast 200 rows in 1040 ms — rendered: true
+[v351-fast-prefetch] full received: 62418 rows after 24 s
+```
+
+- 첫 진입 시 매물 카드 표시 시간: **28초 → 1초** (28배 빠름)
+- 통계 박스 62,418 자동 교체: 24초 후 (사용자 인지 X)
+- 검색: server-side redirect (옷션 C v349) 작동
+- 회귀: 0
+
+### v350 (옷션 F) 와 v351 (옷션 K) 의 결정적 차이
+
+| 구성 | v350 (fail 36초) | v351 (성공 1초) |
+|---|---|---|
+| Endpoint | `/api/admin/listings?limit=200` | `/api/admin/listings/fast` |
+| Cache key | 같은 unstable_cache (`listings-minimal-v12`) | **없음 (force-dynamic)** |
+| DB query | chunked pagination (60K 다 받고 slice) | **단순 .limit(200)** |
+| 서버 시간 | 36초 (cache build 대기) | **160 ms** |
+
+### 보존된 리소스 (하나도 삭제 X)
+
+| 리소스 | 상태 |
+|---|---|
+| `/api/admin/listings/fast` endpoint | ✅ 사용 중 (v351 호출) |
+| `/api/admin/listings/search` endpoint (옷션 C) | ✅ 보존 (v349 검색 redirect) |
+| v349 client patch (검색 redirect) | ✅ 활성 |
+| v350 client patch (옷션 F) | ✅ 파일 보존 (등록 X) |
+| v351 client patch (옷션 K) | ✅ 활성 (메인) |
+
+### 현재 prod 상태 (옷션 K 성공 후)
+
+- **첫 진입 매물 표시**: **1초** (28배 개선) ✅
+- **통계 박스**: 62,418 (24초 후 자동 교체) ✅
+- **검색**: server-side 60K 안 ILIKE 1.5초 (v349) ✅
+- **모달 갤러리**: 정상 (v347 v2) ✅
+- **회귀**: 0 ✅
+
+### 세션 종합 자료
+
+회귀 history (총 7번, 모두 revert):
+1. Fix 34: Materialized View → 매물 0건
+2. Fix 36: client wrap → v294 충돌
+3. Fix 36b: middleware rewrite + RPC LIMIT 100K → 503
+4. Fix 36c: chunked parallel RPC → prod 19초
+5. Fix 38: default limit=5000 → 검색 깨짐
+6. Fix 39 step 4: default limit=200 → 매물 197건만 표시
+7. Fix 40 step D: v350 progressive → fast 36초 (cache key 충돌)
+
+승리 (옷션 K):
+- Fix 41 step K1-K4: fast endpoint + v351 prefetch → **fast 1초 / full 24초** — 성공
+
+### 진짜 root cause 도달
+
+```
+진단 없이 추측으로 수정 → 7번 회귀
+   ↓
+진단
+  - DB query: 0.88초
+  - Slim JSON: 63 MB
+  - server unstable_cache 는 60K chunked + listing_images parallel
+   ↓
+해결
+  - cache 우회
+  - .limit(200) 직접 query
+  - client 는 별도 fast fetch 후 background full fetch
+   ↓
+성공: 1초
+```
+
+### 다음 세션 plan (세부 개선, 적상적)
+
+옷션 K 성공 후도 개선 여지:
+
+#### 추가 개선 (다음 세션 선택):
+- M. listings 테이블에 `thumb_url` 컴럼 추가 → listing_images IN query 제거 (서버 5-8초 감소)
+- N. response streaming (Next.js ReadableStream) → 60K 자체 progressive
+- O. building_info SELECT 에서 제거 (1.2 MB 감소)
+
+우선순위: 사장님이 결정. 현재도 1초이므로 증가 개선 분
+
