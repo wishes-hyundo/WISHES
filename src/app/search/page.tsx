@@ -233,6 +233,7 @@ export default function SearchPortalPage() {
       //   사용자가 select 다른 값 변경 시 그대로 유지 (영구 강제 X).
       ['ws-ext-patch-v346-default-20', '/search/content-v346-default-20-listings.js?v=20260510a'],
       ['ws-ext-patch-v349-server-search', '/search/content-v349-server-search.js?v=20260511a'],
+      ['ws-ext-patch-v352-mv-prefetch', '/search/content-v352-mv-prefetch.js?v=20260511d'],
       // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
@@ -278,11 +279,6 @@ export default function SearchPortalPage() {
       //   v247 (lightbox) data-images 1 entry 만 사용 → 1/1. v250 (모달 갤러리) 는 .ws-thumb fallback 8장.
       //   v347 capture phase 로 .ws-thumb 수집 → data-images attribute 강제 set → v247 가 8장 인식.
       ['ws-ext-patch-v347-lightbox-imgs-fill', '/search/content-v347-lightbox-imgs-fill.js?v=20260511b'],
-      // v349 (Fix 39 사장님 명령 2026-05-11): ws_data_snapshot TTL 자동 무효화.
-      //   직원 컴퓨터 16건 회귀 자동 fix. v321 SAFE_PRESERVE 영구 보존 -> stale 영구.
-      //   1시간 이상 old 또는 100건 미만 자동 삭제. _ts auto injection.
-      //   모든 사용자 자동 적용 - 사용자 부탁 X (I-USER-EXP-1).
-      ['ws-ext-patch-v349-snapshot-ttl', '/search/content-v349-snapshot-ttl.js?v=20260511a'],
       // v348 disabled (Fix 36b): client wrap 이 v294 defineProperty 와 충돌 (무한 재귀 위험).
       //   server side middleware rewrite (Fix 36b) 로 대체. middleware.ts 의 if block 참고.
     ];
