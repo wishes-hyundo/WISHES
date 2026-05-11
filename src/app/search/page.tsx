@@ -232,7 +232,7 @@ export default function SearchPortalPage() {
       //   100건 카드 렌더 = 시간 걸림. 20건만 즉시 표시 → 사장님 첫 진입 빠름.
       //   사용자가 select 다른 값 변경 시 그대로 유지 (영구 강제 X).
       ['ws-ext-patch-v346-default-20', '/search/content-v346-default-20-listings.js?v=20260510a'],
-      ['ws-ext-patch-v349-server-search', '/search/content-v349-server-search.js?v=20260511a'],
+      ['ws-ext-patch-v349-server-search', '/search/content-v349-server-search.js?v=20260511z'],
       ['ws-ext-patch-v352-mv-prefetch', '/search/content-v352-mv-prefetch.js?v=20260511d'],
       // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
