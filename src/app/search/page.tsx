@@ -282,6 +282,12 @@ export default function SearchPortalPage() {
       //   v247 (lightbox) data-images 1 entry 만 사용 → 1/1. v250 (모달 갤러리) 는 .ws-thumb fallback 8장.
       //   v347 capture phase 로 .ws-thumb 수집 → data-images attribute 강제 set → v247 가 8장 인식.
       ['ws-ext-patch-v347-lightbox-imgs-fill', '/search/content-v347-lightbox-imgs-fill.js?v=20260511b'],
+      // v349-snapshot-ttl (Fix 39): ws_data_snapshot TTL 자동 무효화 (직원 16건 회귀 자동 fix).
+      //   1시간 이상 old 또는 100건 미만 자동 삭제. _ts auto injection.
+      ['ws-ext-patch-v349-snapshot-ttl', '/search/content-v349-snapshot-ttl.js?v=20260511a'],
+      // v350-mobile-ux (Fix 40): 모바일 scroll/PTR/lightbox swipe 자동 fix.
+      //   overscroll-behavior: none + touch-action: manipulation + swipe handler.
+      ['ws-ext-patch-v350-mobile-ux-fix', '/search/content-v350-mobile-ux-fix.js?v=20260511a'],
       // v348 disabled (Fix 36b): client wrap 이 v294 defineProperty 와 충돌 (무한 재귀 위험).
       //   server side middleware rewrite (Fix 36b) 로 대체. middleware.ts 의 if block 참고.
     ];
