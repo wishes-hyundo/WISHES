@@ -1,4 +1,4 @@
-→'use client';
+'use client';
 
 /**
  * /search — 중개사 포털
