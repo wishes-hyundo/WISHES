@@ -1,25 +1,11 @@
 /**
- * v363 v4 — True pagination (NO sparse array, direct DOM update)
+ * v363 v5 — True pagination + search/filter passthrough
  * 사장님 명령 2026-05-12.
  *
- * v4 변경:
- *   - sparse array 폐기 (다른 patches v328/v329/v330/v335 호환성 위해)
- *   - WS.allListings = page data (정상 array, 20개)
- *   - 직접 DOM update:
- *     - #ws-mgmt-total = total (DB 전체 카운트)
- *     - #ws-mgmt-public, #ws-mgmt-private = public/private counts (server 응답 필요)
- *     - #ws-result-count = data.length (페이지 매물 수)
- *   - 페이지네이션 UI: renderPagination wrap (temp sparse for length only, 동기)
- *
- * 회귀 회피:
- *   - sparse array 폐기 → v328/v329/v330/v335 sweep errors 해결
- *   - fetch wrap 0 → v294-scope 충돌 0
- *   - WS.allListings 정상 array → 다른 patches 안전
- *
- * 안전 가드:
- *   - loading mutex
- *   - WS 없으면 silent skip
- *   - renderPagination 호출 시 try/finally 로 원복 보장
+ * v5 변경:
+ *   - 사장님 검색/필터 사용 시 → fetchServerPage(1) 호출 시 q/type/deal 전달
+ *   - WS.state.keyword / typeTab / deal change 감지 → 자동 re-fetch
+ *   - backend page route v2 와 연동 (검색 server side)
  */
 (function () {
   'use strict';
@@ -41,7 +27,7 @@
 
   function log() {
     if (!DEBUG) return;
-    var args = ['[v363-pagination-v4]'].concat([].slice.call(arguments));
+    var args = ['[v363-pagination-v5]'].concat([].slice.call(arguments));
     try { console.log.apply(console, args); } catch (_) {}
   }
 
@@ -69,34 +55,37 @@
     return 20;
   }
 
-  function fmt(n) {
-    return (typeof n === 'number') ? n.toLocaleString() : String(n);
+  function getSearchParams() {
+    var p = {};
+    try {
+      if (window.WS && window.WS.state) {
+        var s = window.WS.state;
+        if (s.keyword && String(s.keyword).trim()) p.q = String(s.keyword).trim();
+        if (s.typeTab && s.typeTab !== '전체') p.type = s.typeTab;
+        if (s.deal && s.deal !== '전체') p.deal = s.deal;
+      }
+    } catch (_) {}
+    return p;
   }
+
+  function fmt(n) { return (typeof n === 'number') ? n.toLocaleString() : String(n); }
 
   function updateCountUI(data, total) {
     try {
-      // 검색결과 = 페이지 매물 수
       var resEl = document.getElementById('ws-result-count');
       if (resEl) resEl.textContent = String(data.length);
-      // 전체 = DB 전체
       var totalEl = document.getElementById('ws-mgmt-total');
       if (totalEl) totalEl.textContent = fmt(total);
-    } catch (e) {
-      log('updateCountUI err:', e && e.message);
-    }
+    } catch (_) {}
   }
 
   function safeRenderPagination(total) {
     if (!window.WS || typeof window.WS.renderPagination !== 'function') return;
     var orig = window.WS.allListings;
     try {
-      // Temp sparse for length-only — synchronous block
       window.WS.allListings = new Array(total);
       window.WS.renderPagination();
-    } catch (e) {
-      log('renderPagination err:', e && e.message);
-    } finally {
-      // Immediately restore (sync) — other patches see normal array
+    } catch (_) {} finally {
       window.WS.allListings = orig;
     }
   }
@@ -110,27 +99,26 @@
     var t0 = Date.now();
     try {
       var scope = getScope();
-      var url = ENDPOINT + '?page=' + pageNum + '&size=' + perPage + '&scope=' + scope + '&_ts=' + Date.now();
+      var sp = getSearchParams();
+      var url = ENDPOINT + '?page=' + pageNum + '&size=' + perPage + '&scope=' + scope;
+      for (var k in sp) {
+        url += '&' + k + '=' + encodeURIComponent(sp[k]);
+      }
+      url += '&_ts=' + Date.now();
+
       var r = await fetch(url, {
         credentials: 'include',
         headers: { 'Authorization': 'Bearer ' + getToken() },
       });
       var ms = Date.now() - t0;
-      if (!r.ok) {
-        log('page', pageNum, 'http', r.status, 'in', ms, 'ms');
-        return;
-      }
+      if (!r.ok) { log('page', pageNum, 'http', r.status, 'in', ms, 'ms'); return; }
       var j = await r.json();
-      if (!j || !j.success) {
-        log('page', pageNum, 'bad response:', j && j.error);
-        return;
-      }
+      if (!j || !j.success) { log('page', pageNum, 'bad response:', j && j.error); return; }
       var data = j.data || [];
       var total = (typeof j.total === 'number') ? j.total : (totalCount || data.length);
       totalCount = total;
       currentPage = pageNum;
 
-      // 정상 array (20개) — 다른 patches 호환
       window.WS.allListings = data.slice();
       try {
         if (window.WS.state) {
@@ -139,18 +127,11 @@
         }
       } catch (_) {}
       firstFetchDone = true;
+      log('page', pageNum, 'OK in', ms, 'ms (got', data.length, 'rows, total=' + total + ', q=' + (sp.q || '') + ')');
 
-      log('page', pageNum, 'OK in', ms, 'ms (got', data.length, 'rows, total=' + total + ', perPage=' + perPage + ')');
-
-      // 1) Render listings (normal array)
-      try {
-        if (typeof window.WS.renderAll === 'function') window.WS.renderAll();
-      } catch (e) { log('renderAll err:', e && e.message); }
-
-      // 2) Pagination UI (temp sparse for length)
+      try { if (typeof window.WS.renderAll === 'function') window.WS.renderAll(); }
+      catch (_) {}
       safeRenderPagination(total);
-
-      // 3) 카운트 elements 직접 update
       updateCountUI(data, total);
     } catch (e) {
       log('page', pageNum, 'err:', e && e.message);
@@ -168,39 +149,45 @@
       var requestedPage = parseInt(dataPage, 10);
       if (!requestedPage || requestedPage < 1) return;
       if (requestedPage === currentPage && firstFetchDone) return;
-
       e.preventDefault();
       e.stopPropagation();
-
       log('user clicked page', requestedPage);
       fetchServerPage(requestedPage);
-    } catch (err) {
-      log('onPageBtnClick err:', err && err.message);
-    }
+    } catch (_) {}
   }
 
-  function onPerPageChange() {
-    if (!firstFetchDone) return;
-    log('perPage changed → re-fetch page 1');
-    fetchServerPage(1);
-  }
-
-  function watchPerPage() {
+  function watchState() {
+    var lastKeyword = '';
+    var lastType = '';
+    var lastDeal = '';
     var lastPerPage = getPerPage();
     setInterval(function () {
-      var cur = getPerPage();
-      if (cur !== lastPerPage) {
-        lastPerPage = cur;
-        onPerPageChange();
+      if (!window.WS || !window.WS.state) return;
+      var s = window.WS.state;
+      var keyword = (s.keyword || '').toString();
+      var type = (s.typeTab || '').toString();
+      var deal = (s.deal || '').toString();
+      var perPage = getPerPage();
+      if (
+        keyword !== lastKeyword ||
+        type !== lastType ||
+        deal !== lastDeal ||
+        perPage !== lastPerPage
+      ) {
+        lastKeyword = keyword; lastType = type; lastDeal = deal; lastPerPage = perPage;
+        if (firstFetchDone) {
+          log('search/filter/perPage changed → re-fetch page 1');
+          fetchServerPage(1);
+        }
       }
-    }, 1000);
+    }, 500);
   }
 
   function init() {
     setTimeout(function () { fetchServerPage(1); }, INIT_DELAY_MS);
     document.addEventListener('click', onPageBtnClick, true);
-    setTimeout(watchPerPage, 500);
-    log('v4 installed (no sparse + direct DOM update for count elements)');
+    setTimeout(watchState, 500);
+    log('v5 installed (search/filter passthrough + page click hook)');
   }
 
   if (document.readyState === 'loading') {
