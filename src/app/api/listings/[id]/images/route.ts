@@ -201,7 +201,12 @@ export async function GET(
     if (imgRes?.error) return NextResponse.json({ success: false, error: IS_DEV ? imgRes.error.message : 'DB 조회 실패' }, { status: 500, headers: cors });
     const raw: any[] = (imgRes?.data as any[]) || [];
     let safe: any[];
-    if (parent.has_wishes_media) {
+    if (isAdminUser) {
+      // L-bug3-fix (2026-05-12): admin/중개사 view — 모든 사진 표시 (편집/관리용).
+      //   크롤링 원본 cloudfront 사진도 사장님 시야에서는 노출.
+      //   공개 view 는 이전 정책 그대로 (저작권 차단 유지).
+      safe = raw;
+    } else if (parent.has_wishes_media) {
       // 위시스 사진 ≥1장 매물 — crawled 숨김 (저작권 안전 + 차별화)
       safe = raw.filter((img: any) => img && img.source !== 'crawled');
     } else if (parent.source_site) {
