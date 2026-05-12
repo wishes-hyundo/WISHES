@@ -1,19 +1,10 @@
 // ━━━━━━━━━━━━━━━━━━━━━━
-// Admin API: GET /api/admin/listings/page
+// Admin API: GET /api/admin/listings/page (v2: search/filter)
 // ━━━━━━━━━━━━━━━━━━━━━━
-// 사장님 명령 2026-05-12. 페이지네이션 endpoint.
+// 사장님 명령 2026-05-12. 페이지네이션 + 검색/필터 지원.
 //
-// 목적:
-//   60K+ 매물 전체 한 번에 받기 (35초) → 페이지당 100개만 받기 (1-2초).
-//   첫 화면 즉시 표시, 사용자 스크롤 시 다음 page lazy load.
-//
-// params: page, size, sort, scope
+// params: page, size, sort, scope, q (keyword), type, deal
 // 응답: { success, data, page, size, total, has_more, _ms }
-//
-// 회귀 회피:
-//   - 새 endpoint → 기존 /api/admin/listings 안 건드림
-//   - listing_images join 작은 batch (100 only) → DB 안 무거움
-//   - cache 없음
 
 import { NextRequest, NextResponse } from 'next/server';
 import { adminCorsHeaders } from '@/lib/cors';
@@ -92,6 +83,12 @@ export async function GET(request: NextRequest) {
     const sort = (searchParams.get('sort') || 'latest').toLowerCase();
     const ascending = sort === 'oldest';
 
+    // ★ v2 — 검색/필터 params
+    const q = (searchParams.get('q') || '').trim();
+    const typeFilter = (searchParams.get('type') || '').trim();
+    const dealFilter = (searchParams.get('deal') || '').trim();
+    const statusFilter = (searchParams.get('status') || '').trim();
+
     const scopeParam = (searchParams.get('scope') || 'all').toLowerCase();
     let scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
     let scopeUid: string | null = null;
@@ -118,14 +115,42 @@ export async function GET(request: NextRequest) {
     const to = from + size - 1;
 
     const wantCount = page === 1;
-    let q: any = supabase
+    let q1: any = supabase
       .from('listings')
       .select(SELECT_FIELDS, wantCount ? { count: 'exact' } : undefined)
       .order('created_at', { ascending, nullsFirst: false })
       .range(from, to);
-    if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
 
-    const { data, error, count } = await q;
+    // scope filter
+    if (scope === 'mine' && scopeUid) q1 = q1.eq('created_by', scopeUid);
+
+    // ★ keyword search — address, building_name, dong OR ilike
+    if (q) {
+      const escaped = q.replace(/[%_]/g, '\\$&');
+      q1 = q1.or([
+        'address.ilike.%' + escaped + '%',
+        'address_detail.ilike.%' + escaped + '%',
+        'building_name.ilike.%' + escaped + '%',
+        'dong.ilike.%' + escaped + '%',
+      ].join(','));
+    }
+
+    // ★ type filter (원룸, 오피스텔, 아파트, ...)
+    if (typeFilter && typeFilter !== '전체') {
+      q1 = q1.eq('type', typeFilter);
+    }
+
+    // ★ deal filter (월세, 전세, 매매)
+    if (dealFilter && dealFilter !== '전체') {
+      q1 = q1.eq('deal', dealFilter);
+    }
+
+    // ★ status filter
+    if (statusFilter) {
+      q1 = q1.eq('status', statusFilter);
+    }
+
+    const { data, error, count } = await q1;
     if (error) {
       return NextResponse.json({
         success: false, error: error.message, _ms: Date.now() - _t0,
