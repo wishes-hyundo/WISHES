@@ -1,28 +1,27 @@
 /**
- * v363 — Pagination (page-based load)
+ * v363 v2 — True pagination (page button click hook)
  * 사장님 명령 2026-05-12.
  *
- * 배경:
- *   60K+ 매물 전체 fetch (35초) → 페이지당 100개만 fetch (1-2초).
- *   첫 화면 즉시 표시 → 사용자 스크롤 시 다음 page lazy load.
+ * v2 변경:
+ *   - 페이지 버튼 (.ws-page-btn data-page=N) 클릭 hook
+ *   - 사용자가 어느 페이지 클릭하든 server 에서 그 페이지만 받음 (네이버 부동산 식)
+ *   - 첫 로드: server page 1 (size = WS.state.perPage = 20) → 1초 안 표시
+ *   - WS.allListings = 받은 page 의 매물만 (매 클릭 시 교체)
+ *   - WS.state.totalListings = 67,114 (전체 카운트 표시)
  *
- * 동작:
- *   1. 페이지 진입 시: GET /api/admin/listings/page?page=1&size=100
- *      → 응답: { data: [100], total: 63286, has_more: true }
- *   2. WS.allListings = data
- *   3. WS.renderAll() → 사장님 시야 1-2초 안 매물 표시
- *   4. 사용자 스크롤 viewport 끝 가까이 → 다음 page lazy load
+ * 효과:
+ *   - 사장님 시야 1-2초 안 첫 매물 + 전체 카운트 67,114
+ *   - 페이지 버튼 1, 2, 3, ..., 3165 클릭 시 즉시 그 페이지 받기
+ *   - backend 부하 매우 낮음
  *
- * 회귀 회피 (오늘 v359/v361/v362 사고 학습):
- *   - 새 파일 → 기존 patch 안 건드림
+ * 회귀 회피:
  *   - fetch wrap 0 → v294-scope 충돌 0
- *   - setInterval 0 → backend 부하 0 (사용자 액션 시만 fetch)
- *   - 등록 안 하면 prod 영향 0
- *   - degrade: v363 fail 시 silent → 기존 흐름 (v349) 이 fallback
+ *   - setInterval 0 (perPage polling 만, 1초 — 가벼움)
+ *   - 페이지 버튼 click hook (selector .ws-page-btn 정확)
  *
  * 안전 가드:
- *   - loading mutex (concurrent fetch 회피)
- *   - has_more=false 시 더 이상 fetch 안 함
+ *   - loading mutex
+ *   - 같은 page 재클릭 시 skip
  *   - WS 없으면 silent skip
  */
 (function () {
@@ -35,20 +34,17 @@
   if (location.pathname.indexOf('/search') !== 0) return;
 
   var DEBUG = true;
-  var PAGE_SIZE = 100;
   var INIT_DELAY_MS = 100;
   var ENDPOINT = '/api/admin/listings/page';
-  var SCROLL_THRESHOLD_PX = 800;
 
   var loading = false;
   var currentPage = 0;
   var total = 0;
-  var hasMore = true;
   var firstFetchDone = false;
 
   function log() {
     if (!DEBUG) return;
-    var args = ['[v363-pagination]'].concat([].slice.call(arguments));
+    var args = ['[v363-pagination-v2]'].concat([].slice.call(arguments));
     try { console.log.apply(console, args); } catch (_) {}
   }
 
@@ -67,16 +63,25 @@
     return 'all';
   }
 
-  async function fetchPage(pageNum) {
+  function getPerPage() {
+    try {
+      if (window.WS && window.WS.state && typeof window.WS.state.perPage === 'number') {
+        return Math.max(1, Math.min(200, window.WS.state.perPage));
+      }
+    } catch (_) {}
+    return 20;
+  }
+
+  async function fetchServerPage(pageNum) {
     if (loading) return;
-    if (!hasMore && pageNum > 1) return;
     if (!window.WS) { log('WS missing, skip'); return; }
 
+    var perPage = getPerPage();
     loading = true;
     var t0 = Date.now();
     try {
       var scope = getScope();
-      var url = ENDPOINT + '?page=' + pageNum + '&size=' + PAGE_SIZE + '&scope=' + scope + '&_ts=' + Date.now();
+      var url = ENDPOINT + '?page=' + pageNum + '&size=' + perPage + '&scope=' + scope + '&_ts=' + Date.now();
       var r = await fetch(url, {
         credentials: 'include',
         headers: { 'Authorization': 'Bearer ' + getToken() },
@@ -92,41 +97,26 @@
         return;
       }
       var data = j.data || [];
-      if (pageNum === 1) {
-        window.WS.allListings = data.slice();
-        if (typeof j.total === 'number') {
-          total = j.total;
-          try {
-            if (window.WS && window.WS.state) {
-              window.WS.state.totalListings = total;
-            }
-          } catch (_) {}
-        }
-        firstFetchDone = true;
-      } else {
-        var existing = window.WS.allListings || [];
-        var existingIds = new Set();
-        for (var i = 0; i < existing.length; i++) {
-          if (existing[i] && existing[i].id !== undefined) existingIds.add(String(existing[i].id));
-        }
-        var added = 0;
-        for (var k = 0; k < data.length; k++) {
-          if (!existingIds.has(String(data[k].id))) {
-            existing.push(data[k]);
-            added++;
-          }
-        }
-        window.WS.allListings = existing;
-        log('page', pageNum, 'appended', added, 'rows (mem=' + existing.length + ')');
-      }
-      currentPage = pageNum;
-      hasMore = j.has_more === true;
-      log('page', pageNum, 'OK in', ms, 'ms (got', data.length, 'rows, total=' + total + ', has_more=' + hasMore + ')');
 
-      if (typeof window.WS.renderAll === 'function') {
-        try { window.WS.renderAll(); }
-        catch (e) { log('renderAll err:', e && e.message); }
+      window.WS.allListings = data.slice();
+      currentPage = pageNum;
+      if (typeof j.total === 'number') {
+        total = j.total;
+        try {
+          if (window.WS.state) {
+            window.WS.state.totalListings = total;
+            window.WS.state.page = pageNum;
+          }
+        } catch (_) {}
       }
+      firstFetchDone = true;
+      log('page', pageNum, 'OK in', ms, 'ms (got', data.length, 'rows, total=' + total + ', perPage=' + perPage + ')');
+
+      try {
+        if (typeof window.WS.renderAll === 'function') {
+          window.WS.renderAll();
+        }
+      } catch (e) { log('renderAll err:', e && e.message); }
     } catch (e) {
       log('page', pageNum, 'err:', e && e.message);
     } finally {
@@ -134,31 +124,48 @@
     }
   }
 
-  function onScroll() {
-    if (loading || !hasMore || !firstFetchDone) return;
+  function onPageBtnClick(e) {
     try {
-      var scrollY = window.scrollY || window.pageYOffset || 0;
-      var viewportH = window.innerHeight || 0;
-      var docH = document.documentElement.scrollHeight || 0;
-      if (docH - (scrollY + viewportH) < SCROLL_THRESHOLD_PX) {
-        fetchPage(currentPage + 1);
-      }
-    } catch (e) {
-      log('onScroll err:', e && e.message);
+      var target = e.target;
+      if (!target || !target.classList || !target.classList.contains('ws-page-btn')) return;
+      var dataPage = target.getAttribute('data-page');
+      if (!dataPage) return;
+      var requestedPage = parseInt(dataPage, 10);
+      if (!requestedPage || requestedPage < 1) return;
+      if (requestedPage === currentPage && firstFetchDone) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      log('user clicked page', requestedPage);
+      fetchServerPage(requestedPage);
+    } catch (err) {
+      log('onPageBtnClick err:', err && err.message);
     }
   }
 
+  function onPerPageChange() {
+    if (!firstFetchDone) return;
+    log('perPage changed → re-fetch page 1');
+    fetchServerPage(1);
+  }
+
+  function watchPerPage() {
+    var lastPerPage = getPerPage();
+    setInterval(function () {
+      var cur = getPerPage();
+      if (cur !== lastPerPage) {
+        lastPerPage = cur;
+        onPerPageChange();
+      }
+    }, 1000);
+  }
+
   function init() {
-    setTimeout(function () { fetchPage(1); }, INIT_DELAY_MS);
-    var scrollTimer = null;
-    window.addEventListener('scroll', function () {
-      if (scrollTimer) return;
-      scrollTimer = setTimeout(function () {
-        scrollTimer = null;
-        onScroll();
-      }, 200);
-    }, { passive: true });
-    log('installed (page size', PAGE_SIZE, ', first fetch in', INIT_DELAY_MS, 'ms)');
+    setTimeout(function () { fetchServerPage(1); }, INIT_DELAY_MS);
+    document.addEventListener('click', onPageBtnClick, true);
+    setTimeout(watchPerPage, 500);
+    log('v2 installed (page click hook + perPage change hook)');
   }
 
   if (document.readyState === 'loading') {
