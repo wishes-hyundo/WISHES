@@ -85,18 +85,46 @@
   }
 
   function onTouchMoveCapture(e) {
-    // Fix 41 (2026-05-12 사장님 발견): 페이지 위로 swipe 차단 회귀.
-    //   scrollY <= 0 조건이 사장님 환경에서 항상 true → 모든 위 swipe 차단됨.
-    //   v350 의 CSS overscroll-behavior: none 이 PTR 차단 충분 — touch handler 제거.
-    //   사진 위 horizontal swipe 차단만 유지 (lightbox/gallery 의도 보호).
+    // Fix 42 (2026-05-12 사장님 발견): CSS overscroll-behavior 작동 X.
+    //   PTR 만 정확히 차단 - closest scrollable parent scrollTop === 0 + 손가락 아래로 swipe.
+    //   page 위쪽으로 swipe (위로 scroll) 은 정상 작동.
     if (!e.touches || e.touches.length !== 1) return;
     var dy = e.touches[0].clientY - touchStartY;
     var dx = e.touches[0].clientX - touchStartX;
+
     // 큰 사진 위 수평 swipe 차단 (page scroll 방지)
     if (touchTargetIsBigImg && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
       e.preventDefault();
+      return;
     }
-    // Vertical swipe (위/아래 scroll) 차단 X — CSS overscroll-behavior 가 PTR 차단
+
+    // PTR 정확 차단: 손가락 아래로 swipe (dy > 0) + scrollable container 가 top 일 때만
+    if (dy > 5 && Math.abs(dy) > Math.abs(dx)) {
+      // closest scrollable parent 검사
+      var el = e.target;
+      var atTop = true;
+      while (el && el !== document.documentElement && el.nodeType === 1) {
+        try {
+          var cs = window.getComputedStyle(el);
+          var oy = cs.overflowY;
+          if ((oy === 'auto' || oy === 'scroll' || oy === 'overlay') && el.scrollTop > 0) {
+            atTop = false;
+            break;
+          }
+        } catch (_) {}
+        el = el.parentElement;
+      }
+      // root scroll 도 검사
+      if (atTop) {
+        var rootScroll = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
+        if (rootScroll > 0) atTop = false;
+      }
+      if (atTop) {
+        // 모든 scrollable parent + root 가 top — PTR. 차단.
+        e.preventDefault();
+        try { e.stopPropagation(); } catch (_) {}
+      }
+    }
   }
 
   function onTouchEndCapture(e) {
