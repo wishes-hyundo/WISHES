@@ -85,30 +85,18 @@
   }
 
   function onTouchMoveCapture(e) {
+    // Fix 41 (2026-05-12 사장님 발견): 페이지 위로 swipe 차단 회귀.
+    //   scrollY <= 0 조건이 사장님 환경에서 항상 true → 모든 위 swipe 차단됨.
+    //   v350 의 CSS overscroll-behavior: none 이 PTR 차단 충분 — touch handler 제거.
+    //   사진 위 horizontal swipe 차단만 유지 (lightbox/gallery 의도 보호).
     if (!e.touches || e.touches.length !== 1) return;
     var dy = e.touches[0].clientY - touchStartY;
     var dx = e.touches[0].clientX - touchStartX;
-    var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
-    var docEl = document.documentElement;
-    var scrollMax = (docEl.scrollHeight || 0) - (docEl.clientHeight || 0);
-
-    // ── pull-to-refresh 차단 ──
-    // 페이지 top (scrollY<=0) 이고 아래로 당기는 경우
-    if (scrollY <= 0 && dy > 0 && Math.abs(dy) > Math.abs(dx)) {
-      e.preventDefault();
-      try { e.stopPropagation(); } catch (_) {}
-      return;
-    }
-    // 페이지 끝 (scrollY>=max) 이고 위로 당기는 경우 (overscroll bottom 도 차단)
-    if (scrollY >= scrollMax && dy < 0 && Math.abs(dy) > Math.abs(dx)) {
-      e.preventDefault();
-      try { e.stopPropagation(); } catch (_) {}
-      return;
-    }
     // 큰 사진 위 수평 swipe 차단 (page scroll 방지)
     if (touchTargetIsBigImg && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
       e.preventDefault();
     }
+    // Vertical swipe (위/아래 scroll) 차단 X — CSS overscroll-behavior 가 PTR 차단
   }
 
   function onTouchEndCapture(e) {
