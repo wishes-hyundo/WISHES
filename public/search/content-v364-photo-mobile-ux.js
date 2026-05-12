@@ -1,21 +1,16 @@
 /**
- * v364 — Photo uniform 1200px + mobile swipe + pull-to-refresh prevention
+ * v364 v2 — Photo uniform 1200px + mobile swipe (robust) + pull-to-refresh hard block
  * 사장님 명령 2026-05-12.
  *
- * 3가지 기능 통합:
- *   A) lightbox 사진 모두 1200px 균등 (v342 의 THUMB 400 → HERO 1200 후처리)
- *   B) 모바일 swipe 제스처 (lightbox 좌/우 슬라이드로 사진 넘기기)
- *   C) 모바일 pull-to-refresh 방지 (CSS overscroll-behavior)
+ * v2 변경:
+ *   - Pull-to-refresh: CSS 만으로 부족 → touchmove preventDefault (scrollY===0 + deltaY>0)
+ *   - Lightbox swipe: selector 매칭 안 됨 → e.target IMG 큰 사진 위에서 swipe 자동 감지
+ *     (img.naturalWidth>800 또는 displayed>300 인 사진 위 swipe → 좌/우 버튼 click)
  *
  * 회귀 회피:
- *   - v342 그대로 두고 후처리만 함 (v342 결과 url 을 ?w=400 → ?w=1200 으로 변경)
  *   - 새 파일 → 기존 patch 안 건드림
- *   - fetch wrap 0, setInterval 0
- *   - MutationObserver 로 lightbox 사진 src 변경 감지 → 1200 강제
- *
- * 안전 가드:
- *   - 모든 try/catch 안전 처리
- *   - 등록 안 하면 prod 영향 0
+ *   - touchmove non-passive 가 필요 (preventDefault 위해)
+ *   - target IMG 검사 → 다른 element swipe 무관
  */
 (function () {
   'use strict';
@@ -29,45 +24,104 @@
   var DEBUG = true;
   var HERO_WIDTH = 1200;
   var SWIPE_THRESHOLD_PX = 50;
-  var SWIPE_TIME_MAX_MS = 500;
+  var SWIPE_TIME_MAX_MS = 600;
+  var BIG_IMG_MIN_WIDTH = 200;
 
   function log() {
     if (!DEBUG) return;
-    var args = ['[v364-photo-mobile]'].concat([].slice.call(arguments));
+    var args = ['[v364-photo-mobile-v2]'].concat([].slice.call(arguments));
     try { console.log.apply(console, args); } catch (_) {}
   }
 
   // ─────────────────────────────────────────────────
-  // C) pull-to-refresh 방지 (CSS overscroll-behavior)
+  // C) Pull-to-refresh HARD BLOCK
   // ─────────────────────────────────────────────────
-  function preventPullRefresh() {
-    try {
-      var styleEl = document.createElement('style');
-      styleEl.setAttribute('data-v364', 'pull-refresh');
-      styleEl.textContent = [
-        'html, body {',
-        '  overscroll-behavior-y: contain;',
-        '}',
-        '@media (max-width: 768px) {',
-        '  html, body {',
-        '    overscroll-behavior: contain;',
-        '    -webkit-overflow-scrolling: touch;',
-        '  }',
-        '}',
-      ].join('\n');
-      document.head.appendChild(styleEl);
-      log('CSS: pull-to-refresh prevented');
-    } catch (e) {
-      log('CSS err:', e && e.message);
+  var touchStartY = 0;
+  var touchStartX = 0;
+  var touchStartTime = 0;
+  var touchTargetIsImg = false;
+
+  function onTouchStart(e) {
+    if (!e.touches || e.touches.length !== 1) return;
+    touchStartY = e.touches[0].clientY;
+    touchStartX = e.touches[0].clientX;
+    touchStartTime = Date.now();
+    var t = e.target;
+    touchTargetIsImg = !!(t && t.tagName === 'IMG');
+  }
+
+  function onTouchMove(e) {
+    if (!e.touches || e.touches.length !== 1) return;
+    var dy = e.touches[0].clientY - touchStartY;
+    var dx = e.touches[0].clientX - touchStartX;
+    var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    // 페이지 top 이고 아래로 당기는 경우 → pull-to-refresh 차단
+    if (scrollY === 0 && dy > 0 && Math.abs(dy) > Math.abs(dx)) {
+      e.preventDefault();
+      return;
+    }
+    // 사진 위에서 수평 swipe — 수평 우세 시 default scroll 차단 (수직 page scroll 와 충돌 방지)
+    if (touchTargetIsImg && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
+      // 사진 위에서 수평 swipe → 페이지 scroll 안 함
+      e.preventDefault();
     }
   }
 
+  function onTouchEnd(e) {
+    if (!e.changedTouches || e.changedTouches.length !== 1) return;
+    var dt = Date.now() - touchStartTime;
+    if (dt > SWIPE_TIME_MAX_MS) return;
+    var dx = e.changedTouches[0].clientX - touchStartX;
+    var dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) < SWIPE_THRESHOLD_PX) return;
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    // 사진 위 swipe 만 처리
+    if (!touchTargetIsImg) return;
+    // 큰 사진 위에서만 (썸네일 작은 사진은 무관)
+    var target = e.target;
+    if (target && target.tagName === 'IMG') {
+      var rect = target.getBoundingClientRect();
+      if (rect.width < BIG_IMG_MIN_WIDTH) return;
+    }
+    var direction = dx < 0 ? 'next' : 'prev';
+    var btn = findNavButton(direction);
+    if (btn) {
+      try {
+        btn.click();
+        log('swipe', direction, 'clicked nav button');
+      } catch (_) {}
+    } else {
+      log('swipe', direction, 'no nav button found');
+    }
+  }
+
+  function findNavButton(direction) {
+    // 광범위 검색: button, div, span 모두 가능
+    var candidates = document.querySelectorAll('button, div, span, [role="button"]');
+    for (var i = 0; i < candidates.length; i++) {
+      var el = candidates[i];
+      if (el.offsetParent === null) continue; // 안 보이는 element skip
+      var text = (el.textContent || '').trim();
+      var aria = el.getAttribute('aria-label') || '';
+      var cls = (el.className || '').toString().toLowerCase();
+      var matchesNext = direction === 'next' && (
+        text === '›' || text === '→' || text === '>' ||
+        /next|다음/.test(aria) || /next/.test(cls)
+      );
+      var matchesPrev = direction === 'prev' && (
+        text === '‹' || text === '←' || text === '<' ||
+        /prev|이전/.test(aria) || /prev/.test(cls)
+      );
+      if (matchesNext || matchesPrev) return el;
+    }
+    return null;
+  }
+
   // ─────────────────────────────────────────────────
-  // A) 사진 모두 1200px 균등
+  // A) 사진 1200px 균등 (이전 v1 그대로)
   // ─────────────────────────────────────────────────
   function rewriteToHero(url) {
     if (!url || typeof url !== 'string') return url;
-    // ?w=400 (or 1920/etc) → ?w=1200
     if (/[?&]w=\d+/.test(url)) {
       return url.replace(/([?&]w=)\d+/, '$1' + HERO_WIDTH);
     }
@@ -84,172 +138,75 @@
         img.setAttribute('src', newSrc);
         if (img.dataset) img.dataset.v364Upgraded = '1';
       }
-    } catch (e) {}
+    } catch (_) {}
   }
 
-  function upgradeLightboxPhotos() {
-    try {
-      // 자주 사용되는 lightbox 패턴들
-      var selectors = [
-        '.ws-gallery-main img',
-        '.ws-lightbox img',
-        '.ws-modal img',
-        '.ws-detail img',
-        '[class*="lightbox" i] img',
-        '[class*="gallery" i] img',
-        '[class*="modal" i] img',
-      ];
-      for (var i = 0; i < selectors.length; i++) {
-        var imgs = document.querySelectorAll(selectors[i]);
-        for (var j = 0; j < imgs.length; j++) {
-          upgradePhotoSrc(imgs[j]);
-        }
-      }
-    } catch (e) {
-      log('upgrade photos err:', e && e.message);
-    }
-  }
-
-  // MutationObserver: lightbox 새로 열릴 때 또는 사진 변경 시 upgrade
   function watchPhotos() {
     try {
       var observer = new MutationObserver(function (mutations) {
-        var needUpgrade = false;
         for (var i = 0; i < mutations.length; i++) {
           var m = mutations[i];
           if (m.type === 'childList') {
             for (var j = 0; j < m.addedNodes.length; j++) {
               var node = m.addedNodes[j];
-              if (node.nodeType === 1) {
-                if (node.tagName === 'IMG') { upgradePhotoSrc(node); }
-                else if (node.querySelectorAll) {
-                  var inner = node.querySelectorAll('img');
-                  for (var k = 0; k < inner.length; k++) upgradePhotoSrc(inner[k]);
-                }
+              if (node.nodeType !== 1) continue;
+              if (node.tagName === 'IMG') upgradePhotoSrc(node);
+              else if (node.querySelectorAll) {
+                var inner = node.querySelectorAll('img');
+                for (var k = 0; k < inner.length; k++) upgradePhotoSrc(inner[k]);
               }
             }
           } else if (m.type === 'attributes' && m.target && m.target.tagName === 'IMG' && m.attributeName === 'src') {
-            // src 가 변경된 경우 (lightbox 다음 사진 등)
-            // 단, v364 가 set 한 src 는 다시 처리 안 함 (dataset.v364Upgraded)
             if (m.target.dataset && m.target.dataset.v364Upgraded) {
               delete m.target.dataset.v364Upgraded;
-              upgradePhotoSrc(m.target);
-            } else {
-              upgradePhotoSrc(m.target);
             }
+            upgradePhotoSrc(m.target);
           }
         }
       });
       observer.observe(document.body || document.documentElement, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['src'],
+        childList: true, subtree: true,
+        attributes: true, attributeFilter: ['src'],
       });
-      log('MutationObserver: photo upgrade');
-    } catch (e) {
-      log('observer err:', e && e.message);
-    }
+    } catch (_) {}
+  }
+
+  function upgradeAllPhotos() {
+    var imgs = document.querySelectorAll('img');
+    for (var i = 0; i < imgs.length; i++) upgradePhotoSrc(imgs[i]);
   }
 
   // ─────────────────────────────────────────────────
-  // B) 모바일 swipe 제스처 (lightbox 좌/우)
+  // CSS: pull-to-refresh CSS (보조)
   // ─────────────────────────────────────────────────
-  function findLightboxContainer() {
-    // 자주 사용되는 lightbox 컨테이너 selector
-    var selectors = [
-      '.ws-gallery-main',
-      '.ws-lightbox',
-      '.ws-photo-modal',
-      '[class*="lightbox" i]',
-      '[class*="gallery" i]',
-    ];
-    for (var i = 0; i < selectors.length; i++) {
-      var el = document.querySelector(selectors[i]);
-      if (el && el.offsetParent !== null) return el; // visible 만
-    }
-    return null;
+  function injectCSS() {
+    try {
+      var style = document.createElement('style');
+      style.setAttribute('data-v364', 'mobile-ux');
+      style.textContent = [
+        'html, body { overscroll-behavior-y: contain !important; }',
+        '@media (max-width: 768px) {',
+        '  html, body {',
+        '    overscroll-behavior: contain !important;',
+        '    -webkit-overflow-scrolling: touch;',
+        '  }',
+        '}',
+      ].join('\n');
+      document.head.appendChild(style);
+    } catch (_) {}
   }
 
-  function findNavButton(direction) {
-    // direction: 'next' | 'prev'
-    var allBtns = document.querySelectorAll('button, .ws-nav-btn, [class*="nav" i]');
-    for (var i = 0; i < allBtns.length; i++) {
-      var btn = allBtns[i];
-      var text = (btn.textContent || '').trim();
-      var aria = btn.getAttribute('aria-label') || '';
-      var cls = (btn.className || '').toLowerCase();
-      if (direction === 'next') {
-        if (text === '›' || text === '→' || /next|다음/.test(aria) || /next/.test(cls)) {
-          if (btn.offsetParent !== null) return btn;
-        }
-      } else {
-        if (text === '‹' || text === '←' || /prev|이전/.test(aria) || /prev/.test(cls)) {
-          if (btn.offsetParent !== null) return btn;
-        }
-      }
-    }
-    return null;
-  }
-
-  function attachSwipeListeners() {
-    var touchStartX = 0, touchStartY = 0, touchStartTime = 0;
-    var swipeActive = false;
-
-    document.addEventListener('touchstart', function (e) {
-      if (e.touches.length !== 1) return;
-      // lightbox 또는 사진 element 안에서만 활성화
-      var target = e.target;
-      var inLightbox = !!(target && (target.closest && (
-        target.closest('.ws-gallery-main') ||
-        target.closest('.ws-lightbox') ||
-        target.closest('.ws-photo-modal') ||
-        target.closest('[class*="lightbox" i]') ||
-        target.closest('[class*="gallery" i]')
-      )));
-      if (!inLightbox) return;
-      swipeActive = true;
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-      touchStartTime = Date.now();
-    }, { passive: true });
-
-    document.addEventListener('touchend', function (e) {
-      if (!swipeActive) return;
-      swipeActive = false;
-      if (!e.changedTouches || e.changedTouches.length !== 1) return;
-      var endX = e.changedTouches[0].clientX;
-      var endY = e.changedTouches[0].clientY;
-      var dt = Date.now() - touchStartTime;
-      if (dt > SWIPE_TIME_MAX_MS) return;
-      var dx = endX - touchStartX;
-      var dy = endY - touchStartY;
-      // 수직 보다 수평이 더 커야 swipe
-      if (Math.abs(dx) < SWIPE_THRESHOLD_PX) return;
-      if (Math.abs(dy) > Math.abs(dx)) return;
-      // 좌 → 우 = prev, 우 → 좌 = next
-      var direction = dx < 0 ? 'next' : 'prev';
-      var btn = findNavButton(direction);
-      if (btn) {
-        try {
-          btn.click();
-          log('swipe', direction, 'triggered');
-        } catch (err) {}
-      }
-    }, { passive: true });
-
-    log('mobile swipe listeners attached');
-  }
-
-  // ─────────────────────────────────────────────────
-  // init
-  // ─────────────────────────────────────────────────
   function init() {
-    preventPullRefresh();
-    upgradeLightboxPhotos();
+    injectCSS();
+    upgradeAllPhotos();
     watchPhotos();
-    attachSwipeListeners();
-    log('v364 installed (photo 1200 + mobile swipe + pull-refresh prevent)');
+    // touchstart/move/end — non-passive for preventDefault
+    try {
+      document.addEventListener('touchstart', onTouchStart, { passive: true });
+      document.addEventListener('touchmove', onTouchMove, { passive: false });
+      document.addEventListener('touchend', onTouchEnd, { passive: true });
+    } catch (_) {}
+    log('v2 installed (pull-refresh hard block + img swipe robust + photo 1200)');
   }
 
   if (document.readyState === 'loading') {
