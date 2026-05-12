@@ -1,16 +1,19 @@
 /**
- * v364 v2 — Photo uniform 1200px + mobile swipe (robust) + pull-to-refresh hard block
+ * v364 v3 — Photo 1200px + swipe + pull-to-refresh NUCLEAR block
  * 사장님 명령 2026-05-12.
  *
- * v2 변경:
- *   - Pull-to-refresh: CSS 만으로 부족 → touchmove preventDefault (scrollY===0 + deltaY>0)
- *   - Lightbox swipe: selector 매칭 안 됨 → e.target IMG 큰 사진 위에서 swipe 자동 감지
- *     (img.naturalWidth>800 또는 displayed>300 인 사진 위 swipe → 좌/우 버튼 click)
+ * v3 변경:
+ *   - Pull-to-refresh: 더 강력한 차단
+ *     • overscroll-behavior: none (vs contain)
+ *     • touch-action: pan-y manipulation
+ *     • touchmove capture: true (다른 listener 보다 먼저)
+ *     • scrollY<=0 && deltaY>0 시 preventDefault
+ *     • 이벤트 비활성화 까지
+ *   - Lightbox swipe: img target 큰 사진 위 swipe → 좌/우 버튼 click
  *
  * 회귀 회피:
- *   - 새 파일 → 기존 patch 안 건드림
- *   - touchmove non-passive 가 필요 (preventDefault 위해)
- *   - target IMG 검사 → 다른 element swipe 무관
+ *   - JS body 의 scroll 자체는 안 건드림 (페이지 정상 스크롤)
+ *   - 모바일 (≤768px) 만 적용
  */
 (function () {
   'use strict';
@@ -29,45 +32,86 @@
 
   function log() {
     if (!DEBUG) return;
-    var args = ['[v364-photo-mobile-v2]'].concat([].slice.call(arguments));
+    var args = ['[v364-photo-mobile-v3]'].concat([].slice.call(arguments));
     try { console.log.apply(console, args); } catch (_) {}
   }
 
   // ─────────────────────────────────────────────────
-  // C) Pull-to-refresh HARD BLOCK
+  // CSS — pull-to-refresh nuclear
+  // ─────────────────────────────────────────────────
+  function injectCSS() {
+    try {
+      var style = document.createElement('style');
+      style.setAttribute('data-v364', 'mobile-ux-v3');
+      style.textContent = [
+        'html, body {',
+        '  overscroll-behavior: none !important;',
+        '  overscroll-behavior-y: none !important;',
+        '}',
+        '@media (max-width: 768px) {',
+        '  html, body {',
+        '    overscroll-behavior: none !important;',
+        '    overscroll-behavior-y: none !important;',
+        '    -webkit-overflow-scrolling: touch;',
+        '    touch-action: pan-y manipulation !important;',
+        '  }',
+        '}',
+      ].join('\n');
+      document.head.appendChild(style);
+    } catch (_) {}
+  }
+
+  // ─────────────────────────────────────────────────
+  // Touch handlers — pull-to-refresh + swipe
   // ─────────────────────────────────────────────────
   var touchStartY = 0;
   var touchStartX = 0;
   var touchStartTime = 0;
   var touchTargetIsImg = false;
+  var touchTargetIsBigImg = false;
 
-  function onTouchStart(e) {
+  function onTouchStartCapture(e) {
     if (!e.touches || e.touches.length !== 1) return;
     touchStartY = e.touches[0].clientY;
     touchStartX = e.touches[0].clientX;
     touchStartTime = Date.now();
     var t = e.target;
     touchTargetIsImg = !!(t && t.tagName === 'IMG');
+    touchTargetIsBigImg = false;
+    if (touchTargetIsImg) {
+      var rect = t.getBoundingClientRect();
+      if (rect.width >= BIG_IMG_MIN_WIDTH) touchTargetIsBigImg = true;
+    }
   }
 
-  function onTouchMove(e) {
+  function onTouchMoveCapture(e) {
     if (!e.touches || e.touches.length !== 1) return;
     var dy = e.touches[0].clientY - touchStartY;
     var dx = e.touches[0].clientX - touchStartX;
     var scrollY = window.scrollY || document.documentElement.scrollTop || 0;
-    // 페이지 top 이고 아래로 당기는 경우 → pull-to-refresh 차단
-    if (scrollY === 0 && dy > 0 && Math.abs(dy) > Math.abs(dx)) {
+    var docEl = document.documentElement;
+    var scrollMax = (docEl.scrollHeight || 0) - (docEl.clientHeight || 0);
+
+    // ── pull-to-refresh 차단 ──
+    // 페이지 top (scrollY<=0) 이고 아래로 당기는 경우
+    if (scrollY <= 0 && dy > 0 && Math.abs(dy) > Math.abs(dx)) {
       e.preventDefault();
+      try { e.stopPropagation(); } catch (_) {}
       return;
     }
-    // 사진 위에서 수평 swipe — 수평 우세 시 default scroll 차단 (수직 page scroll 와 충돌 방지)
-    if (touchTargetIsImg && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
-      // 사진 위에서 수평 swipe → 페이지 scroll 안 함
+    // 페이지 끝 (scrollY>=max) 이고 위로 당기는 경우 (overscroll bottom 도 차단)
+    if (scrollY >= scrollMax && dy < 0 && Math.abs(dy) > Math.abs(dx)) {
+      e.preventDefault();
+      try { e.stopPropagation(); } catch (_) {}
+      return;
+    }
+    // 큰 사진 위 수평 swipe 차단 (page scroll 방지)
+    if (touchTargetIsBigImg && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) {
       e.preventDefault();
     }
   }
 
-  function onTouchEnd(e) {
+  function onTouchEndCapture(e) {
     if (!e.changedTouches || e.changedTouches.length !== 1) return;
     var dt = Date.now() - touchStartTime;
     if (dt > SWIPE_TIME_MAX_MS) return;
@@ -75,14 +119,7 @@
     var dy = e.changedTouches[0].clientY - touchStartY;
     if (Math.abs(dx) < SWIPE_THRESHOLD_PX) return;
     if (Math.abs(dy) > Math.abs(dx)) return;
-    // 사진 위 swipe 만 처리
-    if (!touchTargetIsImg) return;
-    // 큰 사진 위에서만 (썸네일 작은 사진은 무관)
-    var target = e.target;
-    if (target && target.tagName === 'IMG') {
-      var rect = target.getBoundingClientRect();
-      if (rect.width < BIG_IMG_MIN_WIDTH) return;
-    }
+    if (!touchTargetIsBigImg) return;
     var direction = dx < 0 ? 'next' : 'prev';
     var btn = findNavButton(direction);
     if (btn) {
@@ -90,17 +127,14 @@
         btn.click();
         log('swipe', direction, 'clicked nav button');
       } catch (_) {}
-    } else {
-      log('swipe', direction, 'no nav button found');
     }
   }
 
   function findNavButton(direction) {
-    // 광범위 검색: button, div, span 모두 가능
-    var candidates = document.querySelectorAll('button, div, span, [role="button"]');
+    var candidates = document.querySelectorAll('button, div, span, a, [role="button"]');
     for (var i = 0; i < candidates.length; i++) {
       var el = candidates[i];
-      if (el.offsetParent === null) continue; // 안 보이는 element skip
+      if (el.offsetParent === null) continue;
       var text = (el.textContent || '').trim();
       var aria = el.getAttribute('aria-label') || '';
       var cls = (el.className || '').toString().toLowerCase();
@@ -118,7 +152,7 @@
   }
 
   // ─────────────────────────────────────────────────
-  // A) 사진 1200px 균등 (이전 v1 그대로)
+  // Photo 1200 (이전 그대로)
   // ─────────────────────────────────────────────────
   function rewriteToHero(url) {
     if (!url || typeof url !== 'string') return url;
@@ -176,37 +210,19 @@
     for (var i = 0; i < imgs.length; i++) upgradePhotoSrc(imgs[i]);
   }
 
-  // ─────────────────────────────────────────────────
-  // CSS: pull-to-refresh CSS (보조)
-  // ─────────────────────────────────────────────────
-  function injectCSS() {
-    try {
-      var style = document.createElement('style');
-      style.setAttribute('data-v364', 'mobile-ux');
-      style.textContent = [
-        'html, body { overscroll-behavior-y: contain !important; }',
-        '@media (max-width: 768px) {',
-        '  html, body {',
-        '    overscroll-behavior: contain !important;',
-        '    -webkit-overflow-scrolling: touch;',
-        '  }',
-        '}',
-      ].join('\n');
-      document.head.appendChild(style);
-    } catch (_) {}
-  }
-
   function init() {
     injectCSS();
     upgradeAllPhotos();
     watchPhotos();
-    // touchstart/move/end — non-passive for preventDefault
+    // capture: true — 다른 listener 보다 먼저 실행 + preventDefault 효과 보장
     try {
-      document.addEventListener('touchstart', onTouchStart, { passive: true });
-      document.addEventListener('touchmove', onTouchMove, { passive: false });
-      document.addEventListener('touchend', onTouchEnd, { passive: true });
+      document.addEventListener('touchstart', onTouchStartCapture, { passive: true, capture: true });
+      document.addEventListener('touchmove', onTouchMoveCapture, { passive: false, capture: true });
+      document.addEventListener('touchend', onTouchEndCapture, { passive: true, capture: true });
+      // window level 도 추가 (일부 브라우저용)
+      window.addEventListener('touchmove', onTouchMoveCapture, { passive: false, capture: true });
     } catch (_) {}
-    log('v2 installed (pull-refresh hard block + img swipe robust + photo 1200)');
+    log('v3 installed (pull-refresh nuclear + img swipe robust + photo 1200)');
   }
 
   if (document.readyState === 'loading') {
