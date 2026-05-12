@@ -1,23 +1,25 @@
 /**
- * v363 v3 — True pagination + sparse array (total count + page UI 정상)
+ * v363 v4 — True pagination (NO sparse array, direct DOM update)
  * 사장님 명령 2026-05-12.
  *
- * v3 변경:
- *   - WS.allListings 를 j.total 길이 sparse array 로 (예: 67114 length)
- *   - 받은 page 데이터만 정확한 offset 위치 채움 (예: page 5 size 20 → idx 80-99)
- *   - "전체" 카운트 = WS.allListings.length = 67114 ✓
- *   - 페이지네이션 UI = 67114 / perPage = 3356 페이지 자동 생성 ✓
- *   - 페이지 클릭 시 페이지 버튼 사라지지 않음 (length 유지)
+ * v4 변경:
+ *   - sparse array 폐기 (다른 patches v328/v329/v330/v335 호환성 위해)
+ *   - WS.allListings = page data (정상 array, 20개)
+ *   - 직접 DOM update:
+ *     - #ws-mgmt-total = total (DB 전체 카운트)
+ *     - #ws-mgmt-public, #ws-mgmt-private = public/private counts (server 응답 필요)
+ *     - #ws-result-count = data.length (페이지 매물 수)
+ *   - 페이지네이션 UI: renderPagination wrap (temp sparse for length only, 동기)
  *
  * 회귀 회피:
+ *   - sparse array 폐기 → v328/v329/v330/v335 sweep errors 해결
  *   - fetch wrap 0 → v294-scope 충돌 0
- *   - setInterval 1 (perPage 폴링, 가벼움)
- *   - sparse array 는 undefined 일 수 있음 — 다른 patches 가 `if (r) ...` 확인하면 안전
+ *   - WS.allListings 정상 array → 다른 patches 안전
  *
  * 안전 가드:
  *   - loading mutex
- *   - 같은 page 재클릭 시 skip
  *   - WS 없으면 silent skip
+ *   - renderPagination 호출 시 try/finally 로 원복 보장
  */
 (function () {
   'use strict';
@@ -39,7 +41,7 @@
 
   function log() {
     if (!DEBUG) return;
-    var args = ['[v363-pagination-v3]'].concat([].slice.call(arguments));
+    var args = ['[v363-pagination-v4]'].concat([].slice.call(arguments));
     try { console.log.apply(console, args); } catch (_) {}
   }
 
@@ -67,10 +69,35 @@
     return 20;
   }
 
-  function ensureSparseArr(total) {
-    if (!Array.isArray(window.WS.allListings) || window.WS.allListings.length !== total) {
+  function fmt(n) {
+    return (typeof n === 'number') ? n.toLocaleString() : String(n);
+  }
+
+  function updateCountUI(data, total) {
+    try {
+      // 검색결과 = 페이지 매물 수
+      var resEl = document.getElementById('ws-result-count');
+      if (resEl) resEl.textContent = String(data.length);
+      // 전체 = DB 전체
+      var totalEl = document.getElementById('ws-mgmt-total');
+      if (totalEl) totalEl.textContent = fmt(total);
+    } catch (e) {
+      log('updateCountUI err:', e && e.message);
+    }
+  }
+
+  function safeRenderPagination(total) {
+    if (!window.WS || typeof window.WS.renderPagination !== 'function') return;
+    var orig = window.WS.allListings;
+    try {
+      // Temp sparse for length-only — synchronous block
       window.WS.allListings = new Array(total);
-      log('initialized sparse array length=' + total);
+      window.WS.renderPagination();
+    } catch (e) {
+      log('renderPagination err:', e && e.message);
+    } finally {
+      // Immediately restore (sync) — other patches see normal array
+      window.WS.allListings = orig;
     }
   }
 
@@ -101,17 +128,10 @@
       var data = j.data || [];
       var total = (typeof j.total === 'number') ? j.total : (totalCount || data.length);
       totalCount = total;
-
-      // Initialize sparse array (preserves total count)
-      ensureSparseArr(total);
-
-      // Insert data at correct offset
-      var offset = (pageNum - 1) * perPage;
-      for (var i = 0; i < data.length; i++) {
-        window.WS.allListings[offset + i] = data[i];
-      }
-
       currentPage = pageNum;
+
+      // 정상 array (20개) — 다른 patches 호환
+      window.WS.allListings = data.slice();
       try {
         if (window.WS.state) {
           window.WS.state.page = pageNum;
@@ -119,12 +139,19 @@
         }
       } catch (_) {}
       firstFetchDone = true;
-      log('page', pageNum, 'OK in', ms, 'ms (got', data.length, 'rows at offset', offset, ', total=' + total + ', perPage=' + perPage + ')');
 
+      log('page', pageNum, 'OK in', ms, 'ms (got', data.length, 'rows, total=' + total + ', perPage=' + perPage + ')');
+
+      // 1) Render listings (normal array)
       try {
         if (typeof window.WS.renderAll === 'function') window.WS.renderAll();
-        if (typeof window.WS.renderPagination === 'function') window.WS.renderPagination();
-      } catch (e) { log('render err:', e && e.message); }
+      } catch (e) { log('renderAll err:', e && e.message); }
+
+      // 2) Pagination UI (temp sparse for length)
+      safeRenderPagination(total);
+
+      // 3) 카운트 elements 직접 update
+      updateCountUI(data, total);
     } catch (e) {
       log('page', pageNum, 'err:', e && e.message);
     } finally {
@@ -140,35 +167,13 @@
       if (!dataPage) return;
       var requestedPage = parseInt(dataPage, 10);
       if (!requestedPage || requestedPage < 1) return;
+      if (requestedPage === currentPage && firstFetchDone) return;
 
-      // Check if memory already has this page's data
-      var perPage = getPerPage();
-      var offset = (requestedPage - 1) * perPage;
-      var memArr = window.WS && window.WS.allListings;
-      var alreadyHave = memArr && Array.isArray(memArr) && memArr[offset] !== undefined;
-      if (alreadyHave && requestedPage === currentPage) return;
+      e.preventDefault();
+      e.stopPropagation();
 
-      // Capture click — let default handler also run, but trigger our fetch if data missing
-      if (!alreadyHave) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-
-      log('user clicked page', requestedPage, alreadyHave ? '(have data)' : '(fetch needed)');
-      // Always set currentPage so subsequent renders use it
-      currentPage = requestedPage;
-      try {
-        if (window.WS.state) window.WS.state.page = requestedPage;
-      } catch (_) {}
-
-      if (!alreadyHave) {
-        fetchServerPage(requestedPage);
-      } else {
-        // re-render only
-        try {
-          if (typeof window.WS.renderAll === 'function') window.WS.renderAll();
-        } catch (err) {}
-      }
+      log('user clicked page', requestedPage);
+      fetchServerPage(requestedPage);
     } catch (err) {
       log('onPageBtnClick err:', err && err.message);
     }
@@ -176,14 +181,7 @@
 
   function onPerPageChange() {
     if (!firstFetchDone) return;
-    log('perPage changed → reset + re-fetch page 1');
-    // Reset memory (new perPage means different page boundaries)
-    try {
-      if (window.WS) {
-        window.WS.allListings = [];
-        currentPage = 0;
-      }
-    } catch (_) {}
+    log('perPage changed → re-fetch page 1');
     fetchServerPage(1);
   }
 
@@ -202,7 +200,7 @@
     setTimeout(function () { fetchServerPage(1); }, INIT_DELAY_MS);
     document.addEventListener('click', onPageBtnClick, true);
     setTimeout(watchPerPage, 500);
-    log('v3 installed (sparse array + page click hook + perPage hook)');
+    log('v4 installed (no sparse + direct DOM update for count elements)');
   }
 
   if (document.readyState === 'loading') {
