@@ -3,18 +3,17 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // 사장님 명령 2026-05-12. v361-auto-refresh 의 polling endpoint.
 //
-// 목적:
-//   매 30초마다 client 가 호출 → DB 의 listings count 만 빠르게 받기.
-//   응답 size ~50 bytes, 시간 100-300ms.
-//   /stats 는 by_type / by_status 까지 GROUP BY 라 4-5초 → polling 부적합.
+// v2 (504 fix): COUNT(exact) 가 60K+ row 에서 10초+ timeout. 
+//   → MAX(created_at) + 가장 최근 매물 id 만 받기 (인덱스 hit, 50-100ms).
+//   client 는 latest_id 를 메모리와 비교해 새 매물 감지.
 //
 // 응답:
-//   { success: true, total: 67007, scope: 'all', ts: 1234567890, _ms: 120 }
+//   { success: true, latest_id: 'xxx', latest_at: '2026-05-12T...', scope: 'all', ts: 123, _ms: 80 }
 //
 // 회귀 회피:
 //   - 새 endpoint → 기존 stats / mv / stream 안 건드림
-//   - cache 없음 (no-store) — count 매번 fresh
-//   - PostgREST count: 'exact' + head: true → COUNT(*) only
+//   - cache 없음 (no-store) — fresh
+//   - COUNT 안 함 → fast
 //
 // 보안:
 //   - verifyAdminAuth 필수
@@ -66,10 +65,12 @@ export async function GET(request: NextRequest) {
 
     let q: any = supabase
       .from('listings')
-      .select('*', { count: 'exact', head: true });
+      .select('id, created_at')
+      .order('created_at', { ascending: false, nullsFirst: false })
+      .limit(1);
     if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
 
-    const { count, error } = await q;
+    const { data, error } = await q;
     const _ms = Date.now() - _t0;
 
     if (error) {
@@ -80,9 +81,12 @@ export async function GET(request: NextRequest) {
       }, { status: 200 });
     }
 
+    const latest = (data && data[0]) ? data[0] : null;
+
     return NextResponse.json({
       success: true,
-      total: count || 0,
+      latest_id: latest ? String(latest.id) : null,
+      latest_at: latest ? latest.created_at : null,
       scope,
       ts: Date.now(),
       _ms,
