@@ -235,7 +235,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v349-server-search', '/search/content-v349-server-search.js?v=20260511za'],
       ['ws-ext-patch-v360-console-suppress', '/search/content-v360-console-suppress.js?v=20260512a'],
       ['ws-ext-patch-v363-pagination', '/search/content-v363-pagination.js?v=20260512d'],
-      ['ws-ext-patch-v364-photo-mobile', '/search/content-v364-photo-mobile-ux.js?v=20260512c'],
+      ['ws-ext-patch-v364-photo-mobile', '/search/content-v364-photo-mobile-ux.js?v=20260512d'],
       ['ws-ext-patch-v365-mobile-ui', '/search/content-v365-mobile-ui.js?v=20260512b'],
       // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
