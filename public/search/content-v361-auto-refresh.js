@@ -1,6 +1,8 @@
 /**
- * v361 — Auto refresh background poller
+ * v361 v2 — Auto refresh background poller
  * 사장님 명령 2026-05-12.
+ *
+ * v2: COUNT exact 가 504 timeout → latest_id (인덱스 hit 50-100ms) 기반 비교로 변경.
  *
  * 배경:
  *   매물 수집 진행 중일 때 직원 PC 가 페이지 안 닫고 계속 열어두면 새 매물 못 봄
@@ -8,30 +10,23 @@
  *   항상 자동으로 되는 시스템".
  *
  * 동작:
- *   - 매 30초 /api/admin/listings/latest-count 호출 (가벼움, 100-300ms)
- *   - DB total != WS.allListings.length 시 자동 fetchAllListings 재호출
+ *   - 매 30초 /api/admin/listings/latest-count 호출 (가벼움, 50-200ms 예상)
+ *   - server.latest_id 가 WS.allListings 안에 없으면 → 새 매물 → 자동 refetch
  *   - tab 비활성 시 polling 중단 (visibility API)
  *   - 진행 중 refetch 시 overlap 회피 (mutex)
  *
- * 회귀 회피 (회귀 9번 + v359/v358 RangeError 학습):
+ * 회귀 회피:
  *   - 새 파일 → 기존 patch 안 건드림
  *   - fetch wrap 0 → v294-scope 같은 wrap 충돌 없음
  *   - setInterval + plain fetch 만
  *   - WS.allListings 없으면 silent skip
  *   - tab inactive 시 polling 중단 (서버 부하 최소화)
- *   - 등록 안 하면 prod 영향 0
  *
  * 안전 가드:
  *   - refetching mutex
  *   - first poll 15초 후 (초기 로드 흐름 방해 0)
- *   - DB count < memory count 큰 차이는 skip (filter 적용 등 false positive 회피)
- *   - 잦은 호출 throttle: 마지막 refetch 후 최소 20초 간격
- *
- * 효과:
- *   - 직원 PC: 페이지 안 닫아도 30-60초 안 새 매물 자동 반영
- *   - 사장님 PC: 동일
- *   - 매물 수집 idle 시간: count diff 0 → fetch 안 함 (서버 부하 0)
- *   - 매물 수집 active 시: 매 30초 새 매물 자동 표시
+ *   - cooldown: 마지막 refetch 후 최소 20초 간격
+ *   - latest_id 매물 검색 O(N) 60K rows × every 30s = 부담 → Set 캐시
  */
 (function () {
   'use strict';
@@ -43,9 +38,9 @@
   if (location.pathname.indexOf('/search') !== 0) return;
 
   var DEBUG = true;
-  var POLL_INTERVAL_MS = 30000;       // 30초
-  var FIRST_POLL_DELAY_MS = 15000;    // 첫 polling 15초 후 (초기 로드 안 방해)
-  var REFETCH_COOLDOWN_MS = 20000;    // 마지막 refetch 후 최소 20초 간격
+  var POLL_INTERVAL_MS = 30000;
+  var FIRST_POLL_DELAY_MS = 15000;
+  var REFETCH_COOLDOWN_MS = 20000;
   var COUNT_ENDPOINT = '/api/admin/listings/latest-count';
   var ALL_ENDPOINT = '/api/admin/listings?fields=minimal';
 
@@ -53,6 +48,8 @@
   var lastRefetchAt = 0;
   var pollCount = 0;
   var refetchCount = 0;
+  var idSetCache = null;       // Set<string> of mem ids (cache, invalidated on refetch)
+  var idSetVersion = 0;        // version (allListings length 기준)
 
   function log() {
     if (!DEBUG) return;
@@ -75,14 +72,25 @@
     return 'all';
   }
 
-  async function pollDbCount() {
+  function memHasId(id) {
+    if (!window.WS || !window.WS.allListings) return false;
+    var arr = window.WS.allListings;
+    var v = arr.length;
+    if (!idSetCache || idSetVersion !== v) {
+      idSetCache = new Set();
+      for (var i = 0; i < arr.length; i++) {
+        var r = arr[i];
+        if (r && r.id !== undefined && r.id !== null) idSetCache.add(String(r.id));
+      }
+      idSetVersion = v;
+    }
+    return idSetCache.has(String(id));
+  }
+
+  async function pollLatest() {
     pollCount++;
-    if (!window.WS || !window.WS.allListings) {
-      return;
-    }
-    if (typeof document.visibilityState === 'string' && document.visibilityState === 'hidden') {
-      return;
-    }
+    if (!window.WS || !window.WS.allListings) return;
+    if (typeof document.visibilityState === 'string' && document.visibilityState === 'hidden') return;
     if (refetching) return;
 
     try {
@@ -102,21 +110,20 @@
         log('poll #' + pollCount + ' bad response:', j && j.error);
         return;
       }
-      var dbCount = j.total || 0;
-      var memCount = (window.WS.allListings || []).length || 0;
-      var diff = dbCount - memCount;
-
-      if (diff > 0) {
-        log('poll #' + pollCount + ': DB=' + dbCount, 'mem=' + memCount,
-            '+' + diff, 'new (in', fetchMs, 'ms) → refetch');
-        await refetchAll();
-      } else if (diff < -50) {
-        log('poll #' + pollCount + ': DB=' + dbCount, 'mem=' + memCount,
-            '(mem > DB, skip — 필터 적용 가능성)');
-      } else {
+      var latestId = j.latest_id;
+      if (!latestId) {
+        log('poll #' + pollCount + ': server has no latest_id (empty?)');
+        return;
+      }
+      if (memHasId(latestId)) {
         if (pollCount === 1 || pollCount % 10 === 0) {
-          log('poll #' + pollCount + ': sync OK (DB=' + dbCount + ', fetch=' + fetchMs + 'ms)');
+          log('poll #' + pollCount + ': sync OK (latest_id=' + latestId +
+              ' in mem, mem=' + window.WS.allListings.length + ', fetch=' + fetchMs + 'ms)');
         }
+      } else {
+        log('poll #' + pollCount + ': new listing detected (latest_id=' + latestId +
+            ' NOT in mem, mem=' + window.WS.allListings.length + ', fetch=' + fetchMs + 'ms) → refetch');
+        await refetchAll();
       }
     } catch (e) {
       log('poll #' + pollCount + ' err:', e && e.message);
@@ -152,16 +159,14 @@
       }
       var prevLen = (window.WS.allListings || []).length;
       window.WS.allListings = data;
+      idSetCache = null; // invalidate
+      idSetVersion = 0;
       lastRefetchAt = Date.now();
       log('refetch #' + refetchCount + ': mem ' + prevLen + ' → ' + data.length,
           '(+' + (data.length - prevLen) + ') in', Date.now() - t0, 'ms');
       if (typeof window.WS.renderAll === 'function') {
-        try {
-          window.WS.renderAll();
-          log('renderAll done');
-        } catch (e) {
-          log('renderAll err:', e && e.message);
-        }
+        try { window.WS.renderAll(); log('renderAll done'); }
+        catch (e) { log('renderAll err:', e && e.message); }
       }
     } catch (e) {
       log('refetch err:', e && e.message);
@@ -171,11 +176,11 @@
   }
 
   function init() {
-    setTimeout(pollDbCount, FIRST_POLL_DELAY_MS);
-    setInterval(pollDbCount, POLL_INTERVAL_MS);
-    log('installed (poll every', POLL_INTERVAL_MS / 1000, 's,',
-        'first poll in', FIRST_POLL_DELAY_MS / 1000, 's,',
-        'cooldown', REFETCH_COOLDOWN_MS / 1000, 's)');
+    setTimeout(pollLatest, FIRST_POLL_DELAY_MS);
+    setInterval(pollLatest, POLL_INTERVAL_MS);
+    log('v2 installed (poll every', POLL_INTERVAL_MS / 1000, 's,',
+        'first poll in', FIRST_POLL_DELAY_MS / 1000, 's, cooldown',
+        REFETCH_COOLDOWN_MS / 1000, 's, latest_id-based detection)');
   }
 
   if (document.readyState === 'loading') {
