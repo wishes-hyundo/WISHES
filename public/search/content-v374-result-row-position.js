@@ -1,9 +1,8 @@
 /**
- * v374 — 검색결과 행 영역으‍lo floating UI 이동 (JS 동적)
+ * v374 v2 — 검색결과 행으‍로 floating UI 이동 (viewport bound check 추가)
  * 사장님 명령 2026-05-14.
- * v373 이 검색 input 좌측 + 공유 아이콘 다 가림.
- * v374: scope-root + ⋮ 검색결과 행 (검색바/필터/공유 영역 이외) 으않‍child 이동.
- * JS 동적 조정 — viewport 변경 시 자동 추적.
+ * v374 v1 버그: 페이지 로딩 쓴 검색결과 행이 viewport 밖은 경우 reposition ​도 계산 자이웩 좌표 (-2606) ​.
+ * v374 v2: viewport 안 50px 이상 보일 때만 reposition. 그 외 last 위치 유지.
  */
 (function () {
   'use strict';
@@ -16,7 +15,7 @@
     var all = document.querySelectorAll('*');
     for (var i = 0; i < all.length; i++) {
       var t = (all[i].textContent || '').trim();
-      if (/^​?검색결과:\s*\d/.test(t) && all[i].children.length < 5 && (all[i].textContent || '').length < 100) {
+      if (/^검색결과:\s*\d/.test(t) && all[i].children.length < 5 && (all[i].textContent || '').length < 100) {
         return all[i];
       }
     }
@@ -28,6 +27,8 @@
     var resultEl = findResultEl();
     if (!resultEl) return;
     var rt = resultEl.getBoundingClientRect();
+    // viewport bound check — 보일 때만 reposition
+    if (rt.top < 50 || rt.top > window.innerHeight - 30) return;
     if (rt.top === 0 && rt.left === 0) return;
     var key = Math.round(rt.top) + '|' + Math.round(rt.left) + '|' + window.innerWidth;
     if (key === lastKey) return;
@@ -60,8 +61,9 @@
       new MutationObserver(reposition).observe(document.body, { childList: true, subtree: true });
     } catch (_) {}
     window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, { passive: true });
     setInterval(reposition, 1500);
-    try { console.log('[v374-result-row-position] installed'); } catch (_) {}
+    try { console.log('[v374-result-row-position v2] installed'); } catch (_) {}
   }
 
   if (document.readyState === 'loading') {
