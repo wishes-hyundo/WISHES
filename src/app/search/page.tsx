@@ -241,6 +241,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v367-mobile-clean', '/search/content-v367-mobile-clean.js?v=20260514a'],
       ['ws-ext-patch-v368-mobile-clean-v2', '/search/content-v368-mobile-clean-v2.js?v=20260514b'],
       ['ws-ext-patch-v369-badge-x-persist', '/search/content-v369-badge-x-persist.js?v=20260514c'],
+      ['ws-ext-patch-v382-lightbox-1200', '/search/content-v382-lightbox-1200.js?v=20260514a'],
       ['ws-ext-patch-v375-scope-bottom-toolbar', '/search/content-v375-scope-bottom-toolbar.js?v=20260514a'],
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
       ['ws-ext-patch-v377-expiry-into-bell', '/search/content-v377-expiry-into-bell.js?v=20260514a'],
@@ -431,6 +432,7 @@ const btnSecondary: React.CSSProperties = {
   fontWeight: 600,
   cursor: 'pointer',
 };
+
 
 
 
