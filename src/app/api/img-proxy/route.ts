@@ -111,10 +111,10 @@ export async function GET(request: NextRequest) {
     //   modal hero 는 url 에 ?w=1200 명시 + ?nocap=1 query 사용 시 우회 가능 (안전 가드).
     const nocap = request.nextUrl.searchParams.get('nocap') === '1';
     if (!nocap && parsed.hostname === 'd4k1brqee4emz.cloudfront.net' && parsed.searchParams.has('w')) {
-      const w = parseInt(parsed.searchParams.get('w') || '200', 10);
+      const w = parseInt(parsed.searchParams.get('w') || '220', 10);
       // [v379 사장님 2026-05-14: 매물 카드 더 작아도 됨 — cap 200px]
       if (w > 300) {
-        parsed.searchParams.set('w', '200');
+        parsed.searchParams.set('w', '220');
       }
     }
 
@@ -224,5 +224,6 @@ export async function GET(request: NextRequest) {
     return _transparentFallback('fetch_error');
   }
 }
+
 
 
