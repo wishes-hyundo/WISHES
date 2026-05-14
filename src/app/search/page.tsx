@@ -246,7 +246,6 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v377-expiry-into-bell', '/search/content-v377-expiry-into-bell.js?v=20260514a'],
       ['ws-ext-patch-v378-card-img-shrink', '/search/content-v378-card-img-shrink.js?v=20260514a'],
       ['ws-ext-patch-v379-modal-nocap', '/search/content-v379-modal-nocap.js?v=20260514a'],
-      ['ws-ext-patch-v380-modal-hero-1200', '/search/content-v380-modal-hero-1200.js?v=20260514a'],
       // v378 (2026-05-14 사장님 명령 - CRITICAL): 매물 모달에 다른 매물의 contacts 잘못 표시 fix.
       //   매물 A 모달 닫고 B 열 때 B 모달에 A 의 phone 표시 영업 critical 결함.
       //   root cause: v270 의 findCurrentContacts() 가 __currentListing.id 검증 안 함.
@@ -434,6 +433,7 @@ const btnSecondary: React.CSSProperties = {
   fontWeight: 600,
   cursor: 'pointer',
 };
+
 
 
 
