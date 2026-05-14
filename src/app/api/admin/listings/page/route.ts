@@ -43,16 +43,29 @@ const SELECT_FIELDS = [
 function shrinkCardImg(url?: string): string | undefined {
   if (!url) return url;
   if (!/d4k1brqee4emz\.cloudfront\.net/i.test(url)) return url;
-  // ?w=N 또는 &w=N 모두 400 으로 replace
   if (/[?&]w=\d+/.test(url)) {
-    return url.replace(/([?&])w=\d+/g, '$1w=400');
+    return url.replace(/([?&])w=\d+/g, '$1w=220');
   }
-  // ?w 없으면 append
-  return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'w=400';
+  return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'w=220';
+}
+
+// [Option C 2026-05-14]: hero_url for modal large view (?w=1200 + nocap=1)
+function buildHeroUrl(url?: string): string | undefined {
+  if (!url) return url;
+  if (!/d4k1brqee4emz\.cloudfront\.net/i.test(url)) return url;
+  let h = url;
+  if (/[?&]w=\d+/.test(h)) {
+    h = h.replace(/([?&])w=\d+/g, '$1w=1200');
+  } else {
+    h = h + (h.indexOf('?') >= 0 ? '&' : '?') + 'w=1200';
+  }
+  return '/api/img-proxy?url=' + encodeURIComponent(h) + '&nocap=1';
 }
 
 function slimRow(row: any, imgUrl?: string): any {
-  row.listing_images = imgUrl ? [{ url: shrinkCardImg(imgUrl) }] : [];
+  row.listing_images = imgUrl
+    ? [{ url: shrinkCardImg(imgUrl), hero_url: buildHeroUrl(imgUrl) }]
+    : [];
   if (row.source_site) {
     const policed = preferSelfHostedImages({
       source_site: row.source_site,
@@ -219,4 +232,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
 
