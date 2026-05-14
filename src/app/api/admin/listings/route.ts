@@ -260,8 +260,8 @@ export async function GET(request: NextRequest) {
       // L-perf-fix-15-revert-2026-05-10 (사장님 발견 회귀): cacheKey v13 변경 후
       //   cache 비어있어서 사장님 첫 진입 30s cancelled. v12 다시 (기존 cache 활용).
       const cacheKey: string[] = scope === 'mine'
-        ? ['listings-minimal-v15-mine', scopeUid as string]
-        : ['listings-minimal-v15'];
+        ? ['listings-minimal-v16-mine', scopeUid as string]
+        : ['listings-minimal-v16'];
 
       // Node 레벨 60초 캐시: 여러 edge 호출 간에도 Supabase 쿼리 재사용
       const getCached = unstable_cache(
@@ -408,13 +408,30 @@ export async function GET(request: NextRequest) {
                             u.indexOf('supabase.co') !== -1 ||
                             u.indexOf('r2.dev') !== -1;
               if (!isCdn) return u;
-              // DB urls 거의 모두 ?w=1920 — 그것을 ?w=400 으로 REPLACE (skip 하면 효과 0)
               if (/[?&]w=\d+/.test(u)) {
-                return u.replace(/([?&])w=\d+/, '$1w=400');
+                return u.replace(/([?&])w=\d+/, '$1w=220');
               }
-              return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'w=400';
+              return u + (u.indexOf('?') >= 0 ? '&' : '?') + 'w=220';
             };
-            row.listing_images = imgUrl ? [{ url: _resizeThumb(imgUrl) }] : [];
+            // [Option C 2026-05-14 사장님 명령]: thumb (작은) + hero (큰) 두 url 동시 응답
+            //   - url: 매물 카드용 ?w=220 (작음, freeze 0)
+            //   - hero_url: 모달 hero 용 /api/img-proxy?url=ENCODED?w=1200&nocap=1 (img-proxy cap 우회)
+            //   - client v381 patch 가 modal hero 의 background-image + thumb data-url 을 hero_url 로 swap
+            const _buildHeroUrl = (u: string): string => {
+              if (!u) return u;
+              const isCdn = u.indexOf('cloudfront.net') !== -1;
+              if (!isCdn) return u; // 자체 호스팅 (wishes-image-proxy) 는 원본 그대로 small
+              let heroRaw = u;
+              if (/[?&]w=\d+/.test(heroRaw)) {
+                heroRaw = heroRaw.replace(/([?&])w=\d+/, '$1w=1200');
+              } else {
+                heroRaw = heroRaw + (heroRaw.indexOf('?') >= 0 ? '&' : '?') + 'w=1200';
+              }
+              return '/api/img-proxy?url=' + encodeURIComponent(heroRaw) + '&nocap=1';
+            };
+            row.listing_images = imgUrl
+              ? [{ url: _resizeThumb(imgUrl), hero_url: _buildHeroUrl(imgUrl) }]
+              : [];
             // L-img2 (2026-04-24): admin(중개사) 포털은 preferSelfHostedImages 정책.
             //   · 자체 업로드가 있으면 그것만 노출 (저작권 안전)
             //   · 자체 업로드가 0 이면 크롤링 원본 유지 (카드 썸네일 공백 방지)
@@ -1054,4 +1071,5 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
 
