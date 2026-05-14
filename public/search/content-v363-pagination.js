@@ -187,10 +187,14 @@
       firstFetchDone = true;
       log('page', pageNum, 'v6 OK in', ms, 'ms (got', data.length, 'rows, total=' + total + ', q=' + (sp.q || '') + ')');
 
-      safeRenderPagination(total);  // uses state.page=pageNum for highlight
-      try { if (window.WS.state) window.WS.state.page = 1; } catch (_) {}  // v6: reset for renderAll slice math
+      // v8 reorder fix (2026-05-14): renderAll FIRST with state.page=1 (slice math),
+      //   then state.page=pageNum + safeRenderPagination for correct highlight + 3376 buttons.
+      //   v6/v7 had renderAll AFTER safeRenderPagination → buttons wiped by renderAll.
+      try { if (window.WS.state) window.WS.state.page = 1; } catch (_) {}
       try { if (typeof window.WS.renderAll === 'function') window.WS.renderAll(); }
       catch (_) {}
+      try { if (window.WS.state) window.WS.state.page = pageNum; } catch (_) {}
+      safeRenderPagination(total);
       updateCountUI(data, total);
     } catch (e) {
       log('page', pageNum, 'err:', e && e.message);
