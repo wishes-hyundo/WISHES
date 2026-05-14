@@ -237,6 +237,10 @@
       "schedule": "30 3 * * 1"
     },
     {
+      "path": "/api/cron/backfill-road-address",
+      "schedule": "10 * * * *"
+    },
+    {
       "path": "/api/cron/auto-private-stale-crawled?execute=1",
       "schedule": "0 18 * * *"
     }
