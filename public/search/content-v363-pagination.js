@@ -25,6 +25,10 @@
   var totalCount = 0;
   var firstFetchDone = false;
 
+  // v7: sticky search params 원칙 — legacy renderAll 이 WS.state.keyword 를
+  // clear 해도 cached 값 유지. 페이지 버튼 클릭 시 state 재읽 안 함.
+  var stickyParams = { q: '', type: '', deal: '' };
+
   function log() {
     if (!DEBUG) return;
     var args = ['[v363-pagination-v5]'].concat([].slice.call(arguments));
@@ -55,8 +59,29 @@
     return 20;
   }
 
-  function getSearchParams() {
-    var p = {};
+  // v7: read directly from DOM input element (most reliable) — falls back to WS.state, then sticky cache
+  function readQFromInput() {
+    var sels = [
+      'input[placeholder*="검색"]',
+      'input.ws-keyword',
+      '#ws-keyword',
+      'input[name="keyword"]',
+      'input[name="q"]',
+      'input[type="search"]',
+      'input.ws-search-input',
+      '.ws-search input',
+    ];
+    for (var i = 0; i < sels.length; i++) {
+      try {
+        var el = document.querySelector(sels[i]);
+        if (el && typeof el.value === 'string') return el.value.trim();
+      } catch (_) {}
+    }
+    return null;  // not found
+  }
+
+  function readCurrentParamsFromState() {
+    var p = { q: '', type: '', deal: '' };
     try {
       if (window.WS && window.WS.state) {
         var s = window.WS.state;
@@ -65,6 +90,36 @@
         if (s.deal && s.deal !== '전체') p.deal = s.deal;
       }
     } catch (_) {}
+    return p;
+  }
+
+  function refreshSticky() {
+    // v7: combine DOM input + WS.state + previous sticky (sticky wins if DOM/state empty)
+    var domQ = readQFromInput();   // null if input not found, '' if cleared, value if typed
+    var stateP = readCurrentParamsFromState();
+    // q: DOM input is source of truth IF found. Otherwise state. Otherwise keep sticky.
+    if (domQ !== null) {
+      // input element found — its value IS the user's actual search
+      stickyParams.q = domQ;
+    } else if (stateP.q) {
+      stickyParams.q = stateP.q;
+    }
+    // else: keep sticky.q as-is (don't clear from race)
+    // type/deal: rely on WS.state (legacy doesn't seem to clear these)
+    if (stateP.type) stickyParams.type = stateP.type;
+    else if (stateP.type === '' && document.querySelector('.ws-type-tab.active')) {
+      // type tab UI exists but state empty — could be '전체', keep empty
+      stickyParams.type = '';
+    }
+    if (stateP.deal) stickyParams.deal = stateP.deal;
+  }
+
+  function getSearchParams() {
+    refreshSticky();
+    var p = {};
+    if (stickyParams.q) p.q = stickyParams.q;
+    if (stickyParams.type) p.type = stickyParams.type;
+    if (stickyParams.deal) p.deal = stickyParams.deal;
     return p;
   }
 
@@ -161,28 +216,34 @@
   }
 
   function watchState() {
-    var lastKeyword = '';
-    var lastType = '';
-    var lastDeal = '';
-    var lastPerPage = getPerPage();
+    // v7: watch BOTH WS.state and DOM input directly
+    var lastTrackedQ = '';
+    var lastTrackedType = '';
+    var lastTrackedDeal = '';
+    var lastTrackedPerPage = getPerPage();
+    // Initial sync — capture current state into sticky
+    refreshSticky();
+    lastTrackedQ = stickyParams.q;
+    lastTrackedType = stickyParams.type;
+    lastTrackedDeal = stickyParams.deal;
+
     setInterval(function () {
-      if (!window.WS || !window.WS.state) return;
-      var s = window.WS.state;
-      var keyword = (s.keyword || '').toString();
-      var type = (s.typeTab || '').toString();
-      var deal = (s.deal || '').toString();
+      // refresh sticky from DOM + state
+      refreshSticky();
       var perPage = getPerPage();
-      if (
-        keyword !== lastKeyword ||
-        type !== lastType ||
-        deal !== lastDeal ||
-        perPage !== lastPerPage
-      ) {
-        lastKeyword = keyword; lastType = type; lastDeal = deal; lastPerPage = perPage;
-        if (firstFetchDone) {
-          log('search/filter/perPage changed → re-fetch page 1');
-          fetchServerPage(1);
-        }
+      var changed = (
+        stickyParams.q !== lastTrackedQ ||
+        stickyParams.type !== lastTrackedType ||
+        stickyParams.deal !== lastTrackedDeal ||
+        perPage !== lastTrackedPerPage
+      );
+      if (changed) {
+        log('v7 change: q=' + stickyParams.q + ' (was ' + lastTrackedQ + '), type=' + stickyParams.type + ', deal=' + stickyParams.deal);
+        lastTrackedQ = stickyParams.q;
+        lastTrackedType = stickyParams.type;
+        lastTrackedDeal = stickyParams.deal;
+        lastTrackedPerPage = perPage;
+        if (firstFetchDone) fetchServerPage(1);
       }
     }, 500);
   }
