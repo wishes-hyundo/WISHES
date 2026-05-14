@@ -110,9 +110,17 @@ export async function GET(request: NextRequest) {
     //   client/IDB/Vercel cache 무관 — server 가 fetch 시점에 cap.
     //   modal hero 는 url 에 ?w=1200 명시 + ?nocap=1 query 사용 시 우회 가능 (안전 가드).
     const nocap = request.nextUrl.searchParams.get('nocap') === '1';
-    if (!nocap && parsed.hostname === 'd4k1brqee4emz.cloudfront.net' && parsed.searchParams.has('w')) {
+    // [v380 사장님 2026-05-14: cap host 확장 — cloudfront + zigbang + nemo + gongsilclub]
+    const CAP_HOSTS = new Set([
+      'd4k1brqee4emz.cloudfront.net',
+      'ic.zigbang.com',
+      'resource.zigbang.io',
+      'img.nemoapp.kr',
+      'blob.nemoapp.kr',
+      'gsc.gongsilclub.com',
+    ]);
+    if (!nocap && CAP_HOSTS.has(parsed.hostname) && parsed.searchParams.has('w')) {
       const w = parseInt(parsed.searchParams.get('w') || '220', 10);
-      // [v379 사장님 2026-05-14: 매물 카드 더 작아도 됨 — cap 200px]
       if (w > 300) {
         parsed.searchParams.set('w', '220');
       }
@@ -224,6 +232,7 @@ export async function GET(request: NextRequest) {
     return _transparentFallback('fetch_error');
   }
 }
+
 
 
 
