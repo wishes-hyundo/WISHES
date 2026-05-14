@@ -249,6 +249,12 @@ export default function SearchPortalPage() {
       //   root cause: v270 의 findCurrentContacts() 가 __currentListing.id 검증 안 함.
       //   fix: setter trap + getModalListingId() + DOM MutationObserver.
       ['ws-ext-patch-v378-contact-id-strict', '/search/content-v378-contact-id-strict.js?v=20260514a'],
+      // v379 (2026-05-14 사장님 prod 검증 후): v378 만으론 부족 — v270 rendered DOM 강제 reset.
+      //   사장님 발견: 매물 A 모달 닫고 B 열 때 B 모달에 A 의 phone 그대로 잔존.
+      //   root cause: v270 의 renderContacts() 가 .v240-contacts-empty 의 outerHTML 교체 →
+      //   매물 B 모달 열어도 v270 가 호출 안 됨 (.v240-contacts-empty 없으니).
+      //   fix: modal id 변경 감지 시 .v270-contacts/.v270-ct-meta 제거 + .v240-contacts-empty 다시 추가.
+      ['ws-ext-patch-v379-modal-contacts-reset', '/search/content-v379-modal-contacts-reset.js?v=20260514a'],
             // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
