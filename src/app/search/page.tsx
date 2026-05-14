@@ -244,6 +244,11 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v375-scope-bottom-toolbar', '/search/content-v375-scope-bottom-toolbar.js?v=20260514a'],
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
       ['ws-ext-patch-v377-expiry-into-bell', '/search/content-v377-expiry-into-bell.js?v=20260514a'],
+      // v378 (2026-05-14 사장님 명령 - CRITICAL): 매물 모달에 다른 매물의 contacts 잘못 표시 fix.
+      //   매물 A 모달 닫고 B 열 때 B 모달에 A 의 phone 표시 영업 critical 결함.
+      //   root cause: v270 의 findCurrentContacts() 가 __currentListing.id 검증 안 함.
+      //   fix: setter trap + getModalListingId() + DOM MutationObserver.
+      ['ws-ext-patch-v378-contact-id-strict', '/search/content-v378-contact-id-strict.js?v=20260514a'],
             // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
