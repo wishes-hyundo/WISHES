@@ -241,6 +241,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v367-mobile-clean', '/search/content-v367-mobile-clean.js?v=20260514a'],
       ['ws-ext-patch-v368-mobile-clean-v2', '/search/content-v368-mobile-clean-v2.js?v=20260514b'],
       ['ws-ext-patch-v369-badge-x-persist', '/search/content-v369-badge-x-persist.js?v=20260514c'],
+            ['ws-ext-patch-v370-floating-quiet', '/search/content-v370-floating-quiet.js?v=20260514a'],
       // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
