@@ -103,6 +103,20 @@ export async function GET(request: NextRequest) {
     //   CloudFront Lambda@Edge resize 함수가 큰 size (?w=1920) 처리 시 503.
     //   작은 size (?w=720) 또는 원본은 정상. 자동 size 줄여서 retry.
     const fetchOpts = { headers, cache: 'no-store' as const, signal: AbortSignal.timeout(10_000) };
+
+    // [v378 server cap 2026-05-14 사장님 freeze fix]:
+    //   CloudFront image 가 ?w=1200 으로 와서 200-400KB → 매물 카드 표시 109px 인데 너무 큼.
+    //   img-proxy 단에서 ?w > 600 이면 ?w=400 으로 강제. CloudFront 작은 image 응답.
+    //   client/IDB/Vercel cache 무관 — server 가 fetch 시점에 cap.
+    //   modal hero 는 url 에 ?w=1200 명시 + ?nocap=1 query 사용 시 우회 가능 (안전 가드).
+    const nocap = request.nextUrl.searchParams.get('nocap') === '1';
+    if (!nocap && parsed.hostname === 'd4k1brqee4emz.cloudfront.net' && parsed.searchParams.has('w')) {
+      const w = parseInt(parsed.searchParams.get('w') || '400', 10);
+      if (w > 600) {
+        parsed.searchParams.set('w', '400');
+      }
+    }
+
     let targetUrl = parsed.toString();
     let res = await fetch(targetUrl, fetchOpts);
 
@@ -209,3 +223,4 @@ export async function GET(request: NextRequest) {
     return _transparentFallback('fetch_error');
   }
 }
+
