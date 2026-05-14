@@ -92,7 +92,7 @@
       };
 
       console.log('%c' + PATCH_TAG + ' installed ok · P1~P5 applied', 'background:#2D5A27;color:#fff;padding:2px 8px;border-radius:4px;font-weight:700;');
-      try { window.WS.showToast && window.WS.showToast('UI 개선 패치 v' + PATCH_VERSION + ' 적용됨', 'success'); } catch(e){}
+      // [v378-disabled 2026-05-14 사장님 명령] try { window.WS.showToast && window.WS.showToast('UI 개선 패치 v' + PATCH_VERSION + ' 적용됨', 'success'); } catch(e){}
     } catch (err) {
       console.error(PATCH_TAG + ' install failed:', err);
     }
@@ -1001,3 +1001,4 @@
   function escAttr(s) { return escText(s); }
 
 })();
+
