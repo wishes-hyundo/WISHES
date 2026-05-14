@@ -261,6 +261,11 @@ export default function SearchPortalPage() {
       //   v240-detail.js 가 modal HTML update 후 __currentListing update 전에 호출되면
       //   옛 매물의 contacts 잔존. v380 = v270/v322 완전 우회, 직접 fetch + 직접 render.
       ['ws-ext-patch-v380-contacts-fresh-render', '/search/content-v380-contacts-fresh-render.js?v=20260514a'],
+      // v381 (2026-05-14 사장님 prod 재발견 + 콘솔 진단): v380 의 modal id 추출 결함.
+      //   v380 의 querySelector('[data-listing-id]') 가 모달 안 유사매물 카드의 id 를 잘못 picked up
+      //   (예: 매물 114603 모달에 유사매물 114609 의 phone 표시).
+      //   fix v381: 모달 헤더의 '매물번호 XXX' 텍스트에서 정확 추출 + contacts container 모달 내부 한정.
+      ['ws-ext-patch-v381-modal-id-precise', '/search/content-v381-modal-id-precise.js?v=20260514a'],
             // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
