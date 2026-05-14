@@ -120,6 +120,9 @@
       currentPage = pageNum;
 
       window.WS.allListings = data.slice();
+      // v6 fix: pagination render FIRST with state.page=pageNum for correct button highlight,
+      //   THEN set state.page=1 so legacy renderAll's slice((page-1)*perPage, page*perPage)
+      //   returns items [0:20] of WS.allListings (which is server-fetched page data).
       try {
         if (window.WS.state) {
           window.WS.state.page = pageNum;
@@ -127,11 +130,12 @@
         }
       } catch (_) {}
       firstFetchDone = true;
-      log('page', pageNum, 'OK in', ms, 'ms (got', data.length, 'rows, total=' + total + ', q=' + (sp.q || '') + ')');
+      log('page', pageNum, 'v6 OK in', ms, 'ms (got', data.length, 'rows, total=' + total + ', q=' + (sp.q || '') + ')');
 
+      safeRenderPagination(total);  // uses state.page=pageNum for highlight
+      try { if (window.WS.state) window.WS.state.page = 1; } catch (_) {}  // v6: reset for renderAll slice math
       try { if (typeof window.WS.renderAll === 'function') window.WS.renderAll(); }
       catch (_) {}
-      safeRenderPagination(total);
       updateCountUI(data, total);
     } catch (e) {
       log('page', pageNum, 'err:', e && e.message);
