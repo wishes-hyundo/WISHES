@@ -256,6 +256,11 @@ export default function SearchPortalPage() {
       //   매물 B 모달 열어도 v270 가 호출 안 됨 (.v240-contacts-empty 없으니).
       //   fix: modal id 변경 감지 시 .v270-contacts/.v270-ct-meta 제거 + .v240-contacts-empty 다시 추가.
       ['ws-ext-patch-v379-modal-contacts-reset', '/search/content-v379-modal-contacts-reset.js?v=20260514a'],
+      // v380 (2026-05-14 사장님 prod 재발견): v379 도 부족 — modal id 기반 직접 fetch+render.
+      //   v270 의 findCurrentContacts() 가 window.__currentListing 보는데
+      //   v240-detail.js 가 modal HTML update 후 __currentListing update 전에 호출되면
+      //   옛 매물의 contacts 잔존. v380 = v270/v322 완전 우회, 직접 fetch + 직접 render.
+      ['ws-ext-patch-v380-contacts-fresh-render', '/search/content-v380-contacts-fresh-render.js?v=20260514a'],
             // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
