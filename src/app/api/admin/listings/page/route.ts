@@ -32,6 +32,7 @@ const SELECT_FIELDS = [
   'parking', 'elevator', 'pet', 'balcony', 'full_option', 'loan_available',
   'business_type', 'goodwill_fee', 'station_name', 'station_distance',
   'created_at', 'created_by', 'last_verified_at', 'source_site', 'updated_at',
+  'road_address', 'road_address_fetched_at',
   'building_info',
 ].join(',');
 
