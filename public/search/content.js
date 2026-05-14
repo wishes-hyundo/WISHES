@@ -5523,7 +5523,7 @@
   // ===== IndexedDB 캐시 (v2.2.1 추가) - 재로드 즉시 표시 =====
   var WS_CACHE_DB = 'wishes_cache';
   var WS_CACHE_STORE = 'listings';
-  var WS_CACHE_KEY = 'all_listings_v1';
+  var WS_CACHE_KEY = 'all_listings_v2_w400';  // v378 v2 (2026-05-14): cache invalidate — server 이제 ?w=400 응답
 
   function wsOpenDB() {
     return new Promise(function(resolve, reject) {
@@ -13678,3 +13678,4 @@
   } // end _wsBootExtension
 
 })();
+
