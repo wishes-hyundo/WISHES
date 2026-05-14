@@ -234,7 +234,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v346-default-20', '/search/content-v346-default-20-listings.js?v=20260510a'],
       ['ws-ext-patch-v349-server-search', '/search/content-v349-server-search.js?v=20260511za'],
       ['ws-ext-patch-v360-console-suppress', '/search/content-v360-console-suppress.js?v=20260512a'],
-      ['ws-ext-patch-v363-pagination', '/search/content-v363-pagination.js?v=20260514d'],
+      ['ws-ext-patch-v363-pagination', '/search/content-v363-pagination.js?v=20260514e'],
       ['ws-ext-patch-v364-photo-mobile', '/search/content-v364-photo-mobile-ux.js?v=20260512e'],
       ['ws-ext-patch-v365-mobile-ui', '/search/content-v365-mobile-ui.js?v=20260512b'],
       ['ws-ext-patch-v366-token-refresh-v2', '/search/content-v366-token-refresh-v2.js?v=20260512a'],
