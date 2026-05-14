@@ -134,14 +134,19 @@
     } catch (_) {}
   }
 
+  // v9 fix (2026-05-14): renderPagination 가 WS.filtered.length 기준으로 페이지 수 계산.
+  //   WS.allListings sparse 는 효과 X. WS.filtered 를 sparse 로 만들어야 페이지 버튼 그려짐.
   function safeRenderPagination(total) {
     if (!window.WS || typeof window.WS.renderPagination !== 'function') return;
-    var orig = window.WS.allListings;
+    var origFiltered = window.WS.filtered;
+    var origAllListings = window.WS.allListings;
     try {
-      window.WS.allListings = new Array(total);
+      window.WS.filtered = new Array(total);
+      window.WS.allListings = new Array(total);  // 안전망 (만약 다른 곳도 length 확인)
       window.WS.renderPagination();
     } catch (_) {} finally {
-      window.WS.allListings = orig;
+      window.WS.filtered = origFiltered;
+      window.WS.allListings = origAllListings;
     }
   }
 
