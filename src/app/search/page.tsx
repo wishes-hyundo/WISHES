@@ -133,7 +133,7 @@ export default function SearchPortalPage() {
     }
     const script = document.createElement('script');
     script.id = 'ws-ext-content';
-    script.src = '/search/content.js?v=20260429-bldggroup';
+    script.src = '/search/content.js?v=20260514-cachev2';
     script.async = false;
     document.body.appendChild(script);
 
@@ -428,6 +428,7 @@ const btnSecondary: React.CSSProperties = {
   fontWeight: 600,
   cursor: 'pointer',
 };
+
 
 
 
