@@ -244,6 +244,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v382-lightbox-1200', '/search/content-v382-lightbox-1200.js?v=20260514a'],
       ['ws-ext-patch-v383-lightbox-img-patch', '/search/content-v383-lightbox-img-patch.js?v=20260514a'],
       ['ws-ext-patch-v384-modal-hero-bg-patch', '/search/content-v384-modal-hero-bg-patch.js?v=20260514a'],
+      ['ws-ext-patch-v385-preload-link-patch', '/search/content-v385-preload-link-patch.js?v=20260514a'],
       ['ws-ext-patch-v375-scope-bottom-toolbar', '/search/content-v375-scope-bottom-toolbar.js?v=20260514a'],
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
       ['ws-ext-patch-v377-expiry-into-bell', '/search/content-v377-expiry-into-bell.js?v=20260514a'],
