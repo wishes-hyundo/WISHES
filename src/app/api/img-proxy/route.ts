@@ -121,11 +121,11 @@ export async function GET(request: NextRequest) {
     ]);
     if (!nocap && CAP_HOSTS.has(parsed.hostname) && parsed.searchParams.has('w')) {
       const w = parseInt(parsed.searchParams.get('w') || '220', 10);
-      // [v381b 2026-05-14: cap w>1300 — ?w=1200 hero 통과, ?w=1920 만 cap]
+      // [v381c revert 2026-05-14: cap w>300 strict (모든 큰 image cap)]
       //   modal hero 의도된 1200 은 그대로 → 선명 유지
       //   매물 카드의 ?w=1920 (DB default) 만 cap → 220 (작게)
       //   server _resizeThumb 가 만든 ?w=400 도 자연 통과
-      if (w > 1300) {
+      if (w > 300) {
         parsed.searchParams.set('w', '220');
       }
     }
@@ -236,6 +236,7 @@ export async function GET(request: NextRequest) {
     return _transparentFallback('fetch_error');
   }
 }
+
 
 
 
