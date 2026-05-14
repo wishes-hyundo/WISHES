@@ -266,6 +266,10 @@ export default function SearchPortalPage() {
       //   (예: 매물 114603 모달에 유사매물 114609 의 phone 표시).
       //   fix v381: 모달 헤더의 '매물번호 XXX' 텍스트에서 정확 추출 + contacts container 모달 내부 한정.
       ['ws-ext-patch-v381-modal-id-precise', '/search/content-v381-modal-id-precise.js?v=20260514a'],
+      // v382 (2026-05-14 사장님 prod 재발견 반복): v378~v381 모두 race condition.
+      //   v270/v322/v378/v379/v380/v381 동시 작동 → 마지막 render 누구 보장 X.
+      //   brute force: 500ms polling → modal id 의 정확한 phone DB fetch → 화면 phone 비교 → 강제 덮어쓰기.
+      ['ws-ext-patch-v382-contact-polling-enforce', '/search/content-v382-contact-polling-enforce.js?v=20260514a'],
             // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
