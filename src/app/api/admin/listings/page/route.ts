@@ -47,13 +47,9 @@ function slimRow(row: any, imgUrl?: string): any {
       row.thumbnail_url = null;
     }
   }
-  if (row.building_info && typeof row.building_info === 'object') {
-    const bi = row.building_info;
-    const newBi: any = {};
-    if (bi['도로명주소']) newBi['도로명주소'] = bi['도로명주소'];
-    if (bi['지번주소']) newBi['지번주소'] = bi['지번주소'];
-    row.building_info = newBi;
-  }
+  // L-bldg-fix (2026-05-14): building_info 슬림 로직 제거 — 도로명/지번 없는 신규 수집 매물의
+  //   building_info 가 빈 객체로 만들어져서 cleanup 에서 제거됨 → 도로명 표시 불가 회귀.
+  //   원본 building_info 그대로 전송. (응답 size 살짝 증가하지만 사용자 회귀 fix 우선)
   for (const k in row) {
     const v = row[k];
     if (v === null || v === undefined || v === '' || v === false) {
