@@ -36,8 +36,23 @@ const SELECT_FIELDS = [
   'building_info',
 ].join(',');
 
+// v378 v2 (2026-05-14 사장님 명령 - freeze fix):
+//   매물 카드 image 가 ?w=1200 으로 와서 200-400KB. 카드 표시 109px 이므로 너무 큼.
+//   server side 에서 CloudFront url 의 ?w → ?w=400 으로 shrink. size 80% 감소.
+//   modal/lightbox 는 다른 endpoint 거치므로 영향 X.
+function shrinkCardImg(url?: string): string | undefined {
+  if (!url) return url;
+  if (!/d4k1brqee4emz\.cloudfront\.net/i.test(url)) return url;
+  // ?w=N 또는 &w=N 모두 400 으로 replace
+  if (/[?&]w=\d+/.test(url)) {
+    return url.replace(/([?&])w=\d+/g, '$1w=400');
+  }
+  // ?w 없으면 append
+  return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'w=400';
+}
+
 function slimRow(row: any, imgUrl?: string): any {
-  row.listing_images = imgUrl ? [{ url: imgUrl }] : [];
+  row.listing_images = imgUrl ? [{ url: shrinkCardImg(imgUrl) }] : [];
   if (row.source_site) {
     const policed = preferSelfHostedImages({
       source_site: row.source_site,
@@ -204,3 +219,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
