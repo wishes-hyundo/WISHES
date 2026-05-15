@@ -67,6 +67,7 @@
   var BTN_HANDLERS = {
     'ws-btn-compare': prefetchSelected,
     'ws-btn-print': prefetchSelected,
+    'ws-btn-ai-briefing': prefetchSelected, // [Phase F.4] AI 브리핑도 selectedIds 사용
     'ws-btn-view-favorites': prefetchFavorites,
     'ws-btn-fav-compare': prefetchFavorites,
   };
