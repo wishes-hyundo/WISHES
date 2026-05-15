@@ -235,10 +235,12 @@ export default function SearchPortalPage() {
       // v346 (2026-05-10 사장님 명령): 첫 표시 매물 100 -> 20건.
       //   100건 카드 렌더 = 시간 걸림. 20건만 즉시 표시 → 사장님 첫 진입 빠름.
       //   사용자가 select 다른 값 변경 시 그대로 유지 (영구 강제 X).
-      ['ws-ext-patch-v346-default-20', '/search/content-v346-default-20-listings.js?v=20260510a'],
+      // [URGENT 2026-05-15] v346-default-20 disabled - perPage 20 강제가 문제
+      // ['ws-ext-patch-v346-default-20', '/search/content-v346-default-20-listings.js?v=20260510a'],
       ['ws-ext-patch-v349-server-search', '/search/content-v349-server-search.js?v=20260511za'],
       ['ws-ext-patch-v360-console-suppress', '/search/content-v360-console-suppress.js?v=20260512a'],
-      ['ws-ext-patch-v363-pagination', '/search/content-v363-pagination.js?v=20260514e'],
+      // [URGENT 2026-05-15] v363-pagination disabled - 사장님 20건만 표시 회귀 (loadData race)
+      // ['ws-ext-patch-v363-pagination', '/search/content-v363-pagination.js?v=20260514e'],
       ['ws-ext-patch-v364-photo-mobile', '/search/content-v364-photo-mobile-ux.js?v=20260514nativePTR'],
       ['ws-ext-patch-v365-mobile-ui', '/search/content-v365-mobile-ui.js?v=20260512b'],
       ['ws-ext-patch-v366-token-refresh-v2', '/search/content-v366-token-refresh-v2.js?v=20260514short'],
@@ -336,7 +338,8 @@ export default function SearchPortalPage() {
       //   img 에 loading="lazy" + decoding="async" 추가. viewport 외 사진 fetch
       //   중단 → 100MB transfer → ~10MB. 첫 진입 속도 dramatic 개선.      // v346 (Fix 23 - 등록 누락 발견 2026-05-10): WS.state.perPage = 20 강제.
       //   첫 표시 매물 100건 → 20건. DOM 카드 80개 줄어 render 빠름.
-      ['ws-ext-patch-v346-default-20-listings', '/search/content-v346-default-20-listings.js?v=20260510a'],
+      // [URGENT 2026-05-15] v346 두번째 등록도 disable — 사장님 20 강제 잔존 fix
+      // ['ws-ext-patch-v346-default-20-listings', '/search/content-v346-default-20-listings.js?v=20260510a'],
       // v347 (Fix 35 사장님 발견 2026-05-11): 확대 모드 lightbox 1/1 회귀 fix.
       //   v247 (lightbox) data-images 1 entry 만 사용 → 1/1. v250 (모달 갤러리) 는 .ws-thumb fallback 8장.
       //   v347 capture phase 로 .ws-thumb 수집 → data-images attribute 강제 set → v247 가 8장 인식.
