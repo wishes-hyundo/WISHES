@@ -214,6 +214,36 @@
     return result;
   }
 
+  // [v15] zoom 매우 가까울 때 (level <= 3) — cluster 대신 items 직접 fetch (매물 별 정확한 위치)
+  function fetchItemsAsClusters(map) {
+    if (!map) return;
+    var bounds = map.getBounds();
+    var sw = bounds.getSouthWest();
+    var ne = bounds.getNorthEast();
+    var url = ITEMS_ENDPOINT +
+      '?swLat=' + sw.getLat() + '&swLng=' + sw.getLng() +
+      '&neLat=' + ne.getLat() + '&neLng=' + ne.getLng() +
+      '&limit=200';
+    if (inflightController) {
+      try { inflightController.abort(); } catch (_) {}
+    }
+    var ctrl = new AbortController();
+    inflightController = ctrl;
+    fetch(url, { signal: ctrl.signal, credentials: 'include' })
+      .then(function (r) { if (!r.ok) throw new Error('http_' + r.status); return r.json(); })
+      .then(function (data) {
+        var items = (data && (data.items || data.data)) || [];
+        log('items', items.length, '(max zoom mode)');
+        // 매물 별 single cluster 변환
+        var asClusters = items.map(function (it) {
+          return { lat: it.lat, lng: it.lng, count: 1, sample_ids: [it.id], _item: it };
+        }).filter(function (x) { return x.lat && x.lng; });
+        renderClusters(asClusters);
+      })
+      .catch(function (e) { if (e && e.name === 'AbortError') return; })
+      .finally(function () { if (inflightController === ctrl) inflightController = null; });
+  }
+
   function fetchClusters(map) {
     if (!map) return;
     try {
@@ -221,6 +251,10 @@
       var sw = bounds.getSouthWest();
       var ne = bounds.getNorthEast();
       var zoom = map.getLevel();
+      // [v15] zoom 매우 가까울 때 — items 직접 (매물 위치 정확)
+      if (zoom <= 3) {
+        return fetchItemsAsClusters(map);
+      }
       var serverZoom = Math.max(1, Math.min(16, 16 - zoom)); // [v14] 더 큰 grid
       if (inflightController) {
         try { inflightController.abort(); } catch (_) {}
