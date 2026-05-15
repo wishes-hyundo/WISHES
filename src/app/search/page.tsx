@@ -245,13 +245,12 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v367-mobile-clean', '/search/content-v367-mobile-clean.js?v=20260514noPTR'],
       ['ws-ext-patch-v368-mobile-clean-v2', '/search/content-v368-mobile-clean-v2.js?v=20260514noPTR'],
       ['ws-ext-patch-v369-badge-x-persist', '/search/content-v369-badge-x-persist.js?v=20260514c'],
-      // [복원 2026-05-15 사장님 명령] e23e9b60 의 잘못된 edit 로 빠졌던 4개 patch 복원.
-      //   v371: 만기 badge + 종 알림 + 큰글씨 toggle default 숨김 (사장님 작업 1)
-      //   v372: 우상단 ⋮ 토글 — 숨긴 3개 다시 보이게 + "UI 개선 패치 vX.X.X 적용됨" 토스트 제거
-      //   v373: 전체/내매물 탭 + ⋮ 위치 재배치 (검색바 inline, 검색 영역 안 가림)
+      // [복원+조정 2026-05-15 사장님 명령] e23e9b60 잘못된 edit 로 빠졌던 patch 복원.
+      //   v371: 만기 badge + 종 알림 + 큰글씨 toggle default 숨김 + ⋮ 토글 SAFETY HIDE
+      //   v372: 제외 (사장님 명령 - ⋮ floating 토글이 본 페이지 가림 → 영구 제거)
+      //   v373: 전체/내매물 탭 위치 재배치 (검색바 inline)
       //   v374: viewport-fixed 좌표 보정 (CSS only)
-      ['ws-ext-patch-v371-badge-hide', '/search/content-v371-badge-hide.js?v=20260515restore'],
-      ['ws-ext-patch-v372-tools-toggle', '/search/content-v372-tools-toggle.js?v=20260515restore'],
+      ['ws-ext-patch-v371-badge-hide', '/search/content-v371-badge-hide.js?v=20260515noKebab'],
       ['ws-ext-patch-v373-layout-reposition', '/search/content-v373-layout-reposition.js?v=20260515restore'],
       ['ws-ext-patch-v374-result-row-position', '/search/content-v374-result-row-position.js?v=20260515restore'],
       ['ws-ext-patch-v382-lightbox-1200', '/search/content-v382-lightbox-1200.js?v=20260514a'],

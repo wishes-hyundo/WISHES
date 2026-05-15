@@ -24,7 +24,16 @@
     style.textContent = [
       '#ws-expiry-badge { display: none !important; }',
       'button[aria-label*="알림"] { display: none !important; }',
-      '.senior-toggle { display: none !important; }'
+      '.senior-toggle { display: none !important; }',
+      // [사장님 명령 2026-05-15] ⋮ floating toggle 영구 제거 (떠다니며 본 페이지 가림)
+      '#ws-v372-toggle { display: none !important; }',
+      '#ws-v372-toggle-btn { display: none !important; }',
+      '[data-v372-toggle] { display: none !important; }',
+      '.ws-v372-toggle, .ws-tools-toggle, .ws-floating-toggle { display: none !important; }',
+      // expanded class 도 무력화 (혹시 cache 된 v372 가 활성화 시도)
+      'body.ws-tools-expanded #ws-expiry-badge,',
+      'body.ws-tools-expanded button[aria-label*="알림"],',
+      'body.ws-tools-expanded .senior-toggle { display: none !important; }'
     ].join('\n');
     document.head.appendChild(style);
     try { console.log('[v371-badge-hide] 3 floating UI hidden'); } catch (_) {}
