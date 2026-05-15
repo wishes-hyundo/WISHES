@@ -748,6 +748,11 @@ export async function POST(request: NextRequest) {
         ...(await (async () => {
           let lat = listingData.lat ?? null;
           let lng = listingData.lng ?? null;
+          // [2026-05-15 사장님 명령] onhouse 크롤러 0,0 fallback 버그 fix:
+          //   onhouse 가 좌표 없으면 NULL 대신 0 으로 보내서 그대로 저장됐었음.
+          //   0 도 missing 으로 간주해서 geocoding fallback 으로 흘려보냄.
+          if (lat === 0) lat = null;
+          if (lng === 0) lng = null;
           // [2026-05-14 사장님 명령] 100% 정확 보장 — lat/lng 없으면 geocoding
           if ((lat == null || lng == null) && listingData.address) {
             const hit = await geocodeAddress(listingData.address);
@@ -980,7 +985,10 @@ export async function PUT(request: NextRequest) {
     // L-geocode1 (2026-04-23): 주소는 변경되는데 lat/lng 은 안 들어온 경우
     //   서버단에서 자동 지오코딩.  수정 경로에서도 좌표 누락을 원천 차단.
     if (updateValues.address &&
-        (updateValues.lat == null || updateValues.lng == null)) {
+        (updateValues.lat == null || updateValues.lng == null || updateValues.lat === 0 || updateValues.lng === 0)) {
+      // [2026-05-15] 0,0 onhouse bug — 0 도 missing 으로 간주
+      if (updateValues.lat === 0) updateValues.lat = null;
+      if (updateValues.lng === 0) updateValues.lng = null;
       const hit = await geocodeAddress(updateValues.address as string);
       if (hit) {
         updateValues.lat = hit.lat;
