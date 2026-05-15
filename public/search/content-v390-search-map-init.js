@@ -29,22 +29,34 @@
     var s = document.createElement('style');
     s.id = 'v390-apple-style';
     s.textContent = [
+      // [v9 사장님 명령] Apple Maps 앱 스타일 — 흰 글래스 캡슐 + 짙은 텍스트
       '.v390-pin{',
       '  display:flex;align-items:center;justify-content:center;',
-      '  border-radius:9999px;color:#fff;font-weight:600;',
-      '  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Pretendard Variable",sans-serif;',
+      '  border-radius:9999px;',
+      '  color:#1d1d1f;',
+      '  font-weight:600;',
+      '  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Pretendard Variable",sans-serif;',
       '  letter-spacing:-0.02em;',
-      '  box-shadow:0 4px 14px rgba(0,0,0,0.18),0 1px 3px rgba(0,0,0,0.10);',
+      '  background:rgba(255,255,255,0.95);',
+      '  backdrop-filter:blur(12px) saturate(180%);',
+      '  -webkit-backdrop-filter:blur(12px) saturate(180%);',
+      '  box-shadow:0 6px 20px rgba(0,0,0,0.15),0 1px 3px rgba(0,0,0,0.08);',
       '  cursor:pointer;user-select:none;',
-      '  transition:transform 0.2s cubic-bezier(0.4,0,0.2,1),box-shadow 0.2s ease;',
+      '  transition:transform 0.25s cubic-bezier(0.4,0,0.2,1),box-shadow 0.25s ease;',
       '  will-change:transform;',
       '}',
+      '.v390-pin .v390-dot{',
+      '  display:inline-block;width:8px;height:8px;border-radius:50%;',
+      '  background:#007AFF;margin-right:6px;',
+      '  box-shadow:0 0 0 2px rgba(0,122,255,0.15);',
+      '}',
       '.v390-pin:hover{',
-      '  transform:scale(1.12);',
-      '  box-shadow:0 6px 20px rgba(0,0,0,0.25),0 2px 6px rgba(0,0,0,0.15);',
+      '  transform:scale(1.08) translateY(-1px);',
+      '  box-shadow:0 10px 28px rgba(0,0,0,0.20),0 2px 6px rgba(0,0,0,0.12);',
       '}',
       '.v390-pin:active{',
       '  transform:scale(0.96);',
+      '  transition-duration:0.1s;',
       '}',
     ].join('\n');
     document.head.appendChild(s);
@@ -81,13 +93,13 @@
     currentMarkers = [];
   }
 
-  // 애플 스타일 — 모두 단일 톤 (사이트 브랜드 녹색), 크기만 차등
+  // [v9 사장님 명령] Apple Maps 앱 스타일 — 흰 캡슐, 도트 색만 차등
   function getStyleForCount(count) {
-    if (count >= 1000) return { size: 56, fontSize: 16, bg: '#1B4D1A' };
-    if (count >= 100)  return { size: 48, fontSize: 15, bg: '#2D5A27' };
-    if (count >= 30)   return { size: 42, fontSize: 14, bg: '#3A7D34' };
-    if (count >= 10)   return { size: 36, fontSize: 13, bg: '#4FA046' };
-    return                    { size: 30, fontSize: 12, bg: '#66BB6A' };
+    if (count >= 1000) return { padX: 14, padY: 9, fontSize: 15, dot: '#FF3B30' };
+    if (count >= 100)  return { padX: 12, padY: 8, fontSize: 14, dot: '#FF9500' };
+    if (count >= 30)   return { padX: 11, padY: 7, fontSize: 13, dot: '#34C759' };
+    if (count >= 10)   return { padX: 10, padY: 6, fontSize: 13, dot: '#007AFF' };
+    return                    { padX: 9,  padY: 5, fontSize: 12, dot: '#5856D6' };
   }
 
   function mergeNearbyCluster(clusters, projection) {
@@ -181,11 +193,14 @@
         var style = getStyleForCount(c.count);
         var pin = document.createElement('div');
         pin.className = 'v390-pin';
-        pin.style.background = style.bg;
-        pin.style.width = style.size + 'px';
-        pin.style.height = style.size + 'px';
+        pin.style.padding = style.padY + 'px ' + style.padX + 'px';
         pin.style.fontSize = style.fontSize + 'px';
-        pin.textContent = String(c.count);
+        var dot = document.createElement('span');
+        dot.className = 'v390-dot';
+        dot.style.background = style.dot;
+        // dot inset shadow handled in CSS class
+        pin.appendChild(dot);
+        pin.appendChild(document.createTextNode(String(c.count)));
         // click handler — 자동 줌인
         pin.addEventListener('click', function (ev) {
           try { ev.stopPropagation(); } catch (_) {}
