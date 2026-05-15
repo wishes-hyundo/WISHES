@@ -223,7 +223,7 @@
     var url = ITEMS_ENDPOINT +
       '?swLat=' + sw.getLat() + '&swLng=' + sw.getLng() +
       '&neLat=' + ne.getLat() + '&neLng=' + ne.getLng() +
-      '&limit=500';
+      '&limit=1000';
     if (inflightController) {
       try { inflightController.abort(); } catch (_) {}
     }
@@ -251,8 +251,8 @@
       var sw = bounds.getSouthWest();
       var ne = bounds.getNorthEast();
       var zoom = map.getLevel();
-      // [v17 사장님] zoom <= 6 까지 items 직접 (매물 위치 정확) — server cluster grid 부정확 차단
-      if (zoom <= 6) {
+      // [v18 사장님 100% 정확 보장] 모든 zoom items 사용 — cluster grid 완전 차단
+      if (true) {
         return fetchItemsAsClusters(map);
       }
       var serverZoom = Math.max(1, Math.min(16, 16 - zoom)); // [v14] 더 큰 grid
