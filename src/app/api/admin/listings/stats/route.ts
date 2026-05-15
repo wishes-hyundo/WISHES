@@ -77,16 +77,19 @@ export async function GET(request: NextRequest) {
     }
 
     // ── By status (PostgREST 단일 query 로 GROUP BY 어려움 → 병렬 count)
-    // status: open(공개) / private(비공개) / contracted(계약중) / completed(완료)
-    const statusKeys = ['open', 'private', 'contracted', 'completed'];
+    // [2026-05-15 사장님 명령 - bug fix] 영문 키 → 한국어 키 (DB 실제 값)
+    //   이전: open/private/contracted/completed → 모두 0 반환 (DB 한국어 안 매칭)
+    //   현재: 공개/비공개/계약중/거래완료 — DB 와 정확히 일치
+    const statusKeys = ['공개', '비공개', '계약중', '거래완료'];
     const statusPromises = statusKeys.map(s => {
       let q: any = supabase.from('listings').select('id', { count: 'exact', head: true }).eq('status', s);
       if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
       return q.then((r: any) => ({ status: s, count: r.count || 0, err: r.error?.message }));
     });
 
-    // ── By type (병렬)
-    const typeKeys = ['oneroom', 'officetel', 'apt', 'office', 'store', 'villa', 'land'];
+    // ── By type (병렬) — DB 가 한국어 type 사용
+    // [2026-05-15 사장님 명령 - bug fix] 영문 키 → 한국어 키
+    const typeKeys = ['원룸', '오피스텔', '아파트', '사무실', '상가', '빌라', '토지', '투룸', '쓰리룸', '주택'];
     const typePromises = typeKeys.map(t => {
       let q: any = supabase.from('listings').select('id', { count: 'exact', head: true }).eq('type', t);
       if (scope === 'mine' && scopeUid) q = q.eq('created_by', scopeUid);
