@@ -177,14 +177,6 @@ export async function POST(request: NextRequest) {
           status: updateError ? 'failed' : 'success',
         });
       } else {
-        // [2026-05-15 사장님 명령] body.ids 로 specific fix 모드일 때만 lat/lng NULL out
-        //   이유: 이미 잘못된 fallback 좌표가 박혀있어서 NULL 이 더 안전 (지도에 안 보임)
-        if (bodyIds.length > 0) {
-          await supabase
-            .from('listings')
-            .update({ lat: null, lng: null })
-            .eq('id', listing.id);
-        }
         results.push({ id: listing.id, address, lat: null, lng: null, status: 'failed' });
       }
 
