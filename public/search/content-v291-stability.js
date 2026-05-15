@@ -164,8 +164,9 @@
       '  visibility: visible !important;',
       '}',
       /* [S6] 네이티브 풀투리프레시 충돌 방지 */
-      'html, body { overscroll-behavior-y: contain; }',
-      '.ws-search-container, .ws-listings { overscroll-behavior-y: contain; }',
+      // [2026-05-14 사장님 명령] overscroll-behavior 제거 — 브라우저 native PTR 살림
+      // 'html, body { overscroll-behavior-y: contain; }',
+      // '.ws-search-container, .ws-listings { overscroll-behavior-y: contain; }',
       /* [S7] prefers-reduced-motion: 모든 애니메이션/전환 중단 */
       /* 2026-05-10 fix: animation-duration shorthand cascade 충돌 수정 */
       '@media (prefers-reduced-motion: reduce) {',
