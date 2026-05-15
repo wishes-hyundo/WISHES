@@ -239,7 +239,7 @@
     var url = ITEMS_ENDPOINT +
       '?swLat=' + sw.getLat() + '&swLng=' + sw.getLng() +
       '&neLat=' + ne.getLat() + '&neLng=' + ne.getLng() +
-      '&limit=5000';
+      '&limit=1000';
     if (inflightController) {
       try { inflightController.abort(); } catch (_) {}
     }
@@ -263,8 +263,8 @@
       var sw = bounds.getSouthWest();
       var ne = bounds.getNorthEast();
       var zoom = map.getLevel();
-      // [v18 사장님 100% 정확 보장] 모든 zoom items 사용 — cluster grid 완전 차단
-      if (true) {
+      // [v22 사장님] zoom <= 5 만 items (가까이 정확), 6+ cluster (멀리 시인성/성능)
+      if (zoom <= 5) {
         return fetchItemsAsClusters(map);
       }
       var serverZoom = Math.max(1, Math.min(16, 16 - zoom)); // [v14] 더 큰 grid
