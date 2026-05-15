@@ -117,7 +117,7 @@
     style.textContent = [
       // 브라우저 native PTR 비활성화 — 우리 가 직접 제어
       'html, body {',
-      '  overscroll-behavior-y: contain !important;',
+      '  overscroll-behavior-y: none !important;',
       '  overscroll-behavior-x: auto !important;',
       '}',
     ].join('\n');
@@ -171,11 +171,12 @@
 
   function init() {
     injectCSS();
-    injectPTRCSS();
-    // touch events — capture phase 로 다른 patches 보다 먼저 처리
-    document.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
-    document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
-    document.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
+    // [2026-05-14 사장님 명령]: v367 PTR 비활성화 — 너무 예민해서 위로 당기면 즉시 새로고침.
+    // injectPTRCSS();  // disabled — globals.css 의 overscroll-behavior:none 사용
+    // PTR touch events 모두 비활성화. 브라우저 native PTR 도 globals.css 가 막음.
+    // document.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+    // document.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+    // document.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
     log('installed (PTR threshold=' + PTR_THRESHOLD_PX + 'px, top tolerance=' + PTR_TOP_TOLERANCE_PX + 'px)');
   }
 
