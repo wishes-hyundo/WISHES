@@ -92,6 +92,11 @@
     if (!window.WS || !window.WS.allListings) return;
     if (typeof document.visibilityState === 'string' && document.visibilityState === 'hidden') return;
     if (refetching) return;
+    // [2026-05-14 사장님 명령] 사용자가 검색 중일 때 list 덮지 않도록 skip
+    if (window.WS.__searchActive) {
+      if (pollCount % 10 === 0) log('poll #' + pollCount + ' skip (__searchActive)');
+      return;
+    }
 
     try {
       var scope = getScope();
@@ -132,6 +137,11 @@
 
   async function refetchAll() {
     if (refetching) return;
+    // [2026-05-14 사장님 명령] 검색 중 refetch 차단
+    if (window.WS && window.WS.__searchActive) {
+      log('refetch skip (__searchActive)');
+      return;
+    }
     var sinceLast = Date.now() - lastRefetchAt;
     if (sinceLast < REFETCH_COOLDOWN_MS) {
       log('refetch skip (cooldown', sinceLast, 'ms <', REFETCH_COOLDOWN_MS, 'ms)');
