@@ -296,6 +296,16 @@ export async function GET(request: NextRequest) {
       q1 = q1.gte('built_year', String(v3.built_year_min));
     }
 
+    // ★ A.2.5: 가격 범위 (deposit/monthly/sale_price)
+    if (v3.min_deposit != null) q1 = q1.gte('deposit', v3.min_deposit);
+    if (v3.max_deposit != null) q1 = q1.lte('deposit', v3.max_deposit);
+    if (v3.min_monthly != null) q1 = q1.gte('monthly', v3.min_monthly);
+    if (v3.max_monthly != null) q1 = q1.lte('monthly', v3.max_monthly);
+    if (v3.min_sale != null) q1 = q1.gte('price', v3.min_sale);
+    if (v3.max_sale != null) q1 = q1.lte('price', v3.max_sale);
+    // base_price (deal-aware) 는 SQL CASE 가 필요 → PostgREST 어려움. client 처리로 위임.
+    // TODO: PostgREST stored function 으로 처리 (Phase A 후반 또는 별도 phase)
+
     const { data, error, count } = await q1;
     if (error) {
       return NextResponse.json({
