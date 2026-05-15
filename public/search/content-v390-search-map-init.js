@@ -263,8 +263,8 @@
       var sw = bounds.getSouthWest();
       var ne = bounds.getNorthEast();
       var zoom = map.getLevel();
-      // [v22 사장님] zoom <= 5 만 items (가까이 정확), 6+ cluster (멀리 시인성/성능)
-      if (zoom <= 5) {
+      // [v23 사장님] 모든 zoom cluster 사용 — 빠르게. 정확성은 클릭 popup 에서 매물 list 로 보완
+      if (false) {
         return fetchItemsAsClusters(map);
       }
       var serverZoom = Math.max(1, Math.min(16, 16 - zoom)); // [v14] 더 큰 grid
