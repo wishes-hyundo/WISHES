@@ -246,7 +246,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v384-modal-hero-bg-patch', '/search/content-v384-modal-hero-bg-patch.js?v=20260514a'],
       ['ws-ext-patch-v385-preload-link-patch', '/search/content-v385-preload-link-patch.js?v=20260514a'],
       ['ws-ext-patch-v386-cardid-hide-search', '/search/content-v386-cardid-hide-search.js?v=20260514b'],
-      ['ws-ext-patch-v387-enter-search-blur', '/search/content-v387-enter-search-blur.js?v=20260514a'],
+      ['ws-ext-patch-v387-enter-search-blur', '/search/content-v387-enter-search-blur.js?v=20260514v2'],
       ['ws-ext-patch-v388-sw-killswitch', '/search/content-v388-sw-killswitch.js?v=20260514a'],
       ['ws-ext-patch-v375-scope-bottom-toolbar', '/search/content-v375-scope-bottom-toolbar.js?v=20260514a'],
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
