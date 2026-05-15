@@ -264,6 +264,15 @@ export default function SearchPortalPage() {
       // v375-scope-bottom-toolbar removed (v294 없으니 의미 없음)
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
       ['ws-ext-patch-v377-expiry-into-bell', '/search/content-v377-expiry-into-bell.js?v=20260514a'],
+      // [복원 2026-05-15 사장님 명령] commit 79ceac40 가 잘못 제거한 4개 사진 patch 복원.
+      //   v378: 매물카드 img src 강제 ?w=400/220 (freeze fix, 200-400KB → 작게)
+      //   v379: 모달 hero/lightbox 의 img-proxy URL 에 nocap=1 (server cap 우회)
+      //   v380: 모달 hero ?w=1200 강제 (gallery navigate 시도)
+      //   v381: listing.hero_url 사용 (Option C - server 가 만든 hero_url 직접 사용)
+      ['ws-ext-patch-v378-card-img-shrink', '/search/content-v378-card-img-shrink.js?v=20260515restore'],
+      ['ws-ext-patch-v379-modal-nocap', '/search/content-v379-modal-nocap.js?v=20260515restore'],
+      ['ws-ext-patch-v380-modal-hero-1200', '/search/content-v380-modal-hero-1200.js?v=20260515restore'],
+      ['ws-ext-patch-v381-modal-hero-swap', '/search/content-v381-modal-hero-swap.js?v=20260515restore'],
       // v378 (2026-05-14 사장님 명령 - CRITICAL): 매물 모달에 다른 매물의 contacts 잘못 표시 fix.
       //   매물 A 모달 닫고 B 열 때 B 모달에 A 의 phone 표시 영업 critical 결함.
       //   root cause: v270 의 findCurrentContacts() 가 __currentListing.id 검증 안 함.
