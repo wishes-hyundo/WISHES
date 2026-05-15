@@ -148,7 +148,7 @@
       var count = c.count || c.n || (c.sample_ids ? c.sample_ids.length : 1);
       try {
         var px = projection.containerPointFromCoords(new kakao.maps.LatLng(lat, lng));
-        return { lat: lat, lng: lng, count: count, px: px.x, py: px.y, merged: false };
+        return { lat: lat, lng: lng, count: count, px: px.x, py: px.y, merged: false, sample_ids: c.sample_ids || null };
       } catch (e) { return null; }
     }).filter(Boolean);
     var result = [];
@@ -158,6 +158,7 @@
       var totalCount = cur.count;
       var sumLat = cur.lat * cur.count;
       var sumLng = cur.lng * cur.count;
+      var allIds = (cur.sample_ids || []).slice();
       for (var j = i + 1; j < pts.length; j++) {
         if (pts[j].merged) continue;
         var dx = pts[j].px - cur.px;
@@ -166,10 +167,11 @@
           totalCount += pts[j].count;
           sumLat += pts[j].lat * pts[j].count;
           sumLng += pts[j].lng * pts[j].count;
+          if (pts[j].sample_ids) allIds = allIds.concat(pts[j].sample_ids);
           pts[j].merged = true;
         }
       }
-      result.push({ lat: sumLat / totalCount, lng: sumLng / totalCount, count: totalCount });
+      result.push({ lat: sumLat / totalCount, lng: sumLng / totalCount, count: totalCount, sample_ids: allIds.length > 0 ? allIds : null });
     }
     return result;
   }
@@ -292,19 +294,55 @@
     var pos = new kakao.maps.LatLng(c.lat, c.lng);
     var curLevel = currentMap.getLevel();
     if (curLevel <= MIN_ZOOM_LEVEL) {
-      // max zoom — 매물 list popup
-      fetchItemsAt(currentMap, c.lat, c.lng, 0.0005).then(function (items) {
-        if (items && items.length > 0) {
-          showPopup(items, '이 위치 매물 ' + items.length + '건');
-        } else {
-          showPopup([], '매물 정보 없음');
-        }
-      });
+      // max zoom — sample_ids 우선 (정확한 매물), 없으면 bbox
+      if (c.sample_ids && c.sample_ids.length > 0) {
+        fetchItemsByIds(c.sample_ids).then(function (items) {
+          if (items && items.length > 0) {
+            showPopup(items, '매물 ' + items.length + '건');
+          } else {
+            // sample_ids fetch 실패 시 bbox fallback
+            fetchItemsAt(currentMap, c.lat, c.lng, 0.0001).then(function (items2) {
+              showPopup(items2 || [], '이 위치 매물 ' + (items2 ? items2.length : 0) + '건');
+            });
+          }
+        });
+      } else {
+        fetchItemsAt(currentMap, c.lat, c.lng, 0.0001).then(function (items) {
+          if (items && items.length > 0) {
+            showPopup(items, '이 위치 매물 ' + items.length + '건');
+          } else {
+            showPopup([], '매물 정보 없음');
+          }
+        });
+      }
     } else {
-      // 줌인
       var newLevel = Math.max(MIN_ZOOM_LEVEL, curLevel - 2);
       currentMap.setLevel(newLevel, { anchor: pos, animate: true });
     }
+  }
+
+  // sample_ids 의 매물 정보 가져오기 — WS.allListings 에서 우선, 없으면 server fetch
+  function fetchItemsByIds(ids) {
+    var cached = (window.WS && window.WS.allListings) || [];
+    var found = ids.map(function (id) {
+      return cached.find(function (l) { return String(l.id) === String(id); });
+    }).filter(Boolean);
+    if (found.length === ids.length) {
+      return Promise.resolve(found);
+    }
+    // missing 매물 server fetch
+    var missingIds = ids.filter(function (id) {
+      return !cached.find(function (l) { return String(l.id) === String(id); });
+    });
+    if (missingIds.length === 0) return Promise.resolve(found);
+    var url = '/api/admin/listings/batch?ids=' + missingIds.join(',');
+    return fetch(url, { credentials: 'include' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        var fetched = (d && (d.data || d.items)) || [];
+        return found.concat(fetched);
+      })
+      .catch(function () { return found; });
   }
 
   function renderClusters(clusters) {
@@ -313,7 +351,16 @@
     if (!Array.isArray(clusters) || clusters.length === 0) return;
     var projection = null;
     try { projection = currentMap.getProjection(); } catch (_) {}
-    var merged = mergeNearbyCluster(clusters, projection);
+    // [v12 사장님] max zoom (level 1) 에선 merge 안 함 - 정확한 위치 표시
+    var curLevel = currentMap.getLevel();
+    var merged = (curLevel <= 2) ? clusters.map(function(c) {
+      return {
+        lat: c.lat || c.latitude || (c.center && c.center.lat),
+        lng: c.lng || c.longitude || (c.center && c.center.lng),
+        count: c.count || c.n || (c.sample_ids ? c.sample_ids.length : 1),
+        sample_ids: c.sample_ids || null,
+      };
+    }).filter(function(x) { return x.lat && x.lng; }) : mergeNearbyCluster(clusters, projection);
     merged.forEach(function (c) {
       try {
         if (!c.lat || !c.lng) return;
