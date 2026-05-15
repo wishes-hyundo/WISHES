@@ -152,6 +152,51 @@
 
   // 서버 페이지 fetch
   // [정밀검수 fix 2026-05-15] 탭 배지 카운트 endpoint
+  // [Critical fix 2026-05-15] DOM 의 카운트 박스 + type 탭 직접 update
+  function updateDomCounts(j) {
+    try {
+      // ws-mgmt-stat: data-status-filter 별 카운트 (전체/공개/비공개/계약중/계약완료)
+      var allStat = document.querySelector('.ws-mgmt-stat[data-status-filter="all"]');
+      if (allStat) {
+        var num = allStat.querySelector('div[style*="font-size:18px"], .ws-mgmt-num');
+        if (num) num.textContent = (j.total || 0).toLocaleString();
+        // fallback: 첫 번째 div 가 숫자
+        else {
+          var divs = allStat.querySelectorAll('div');
+          if (divs[0]) divs[0].textContent = (j.total || 0).toLocaleString();
+        }
+      }
+      var statusMap = { '공개': '공개', '비공개': '비공개', '계약중': '계약중', '계약완료': '계약완료' };
+      Object.keys(statusMap).forEach(function (key) {
+        var el = document.querySelector('.ws-mgmt-stat[data-status-filter="' + key + '"]');
+        if (!el) return;
+        var n = (j.by_status && j.by_status[key]) || 0;
+        var divs = el.querySelectorAll('div');
+        if (divs[0]) divs[0].textContent = n.toLocaleString();
+      });
+
+      // ws-type-tabs: type 별 카운트
+      var typeContainer = document.getElementById('ws-type-tabs');
+      if (typeContainer && j.by_type) {
+        var typeButtons = typeContainer.querySelectorAll('.ws-type-tab[data-type]');
+        typeButtons.forEach(function (btn) {
+          var t = btn.dataset.type;
+          var count = (t === '전체') ? (j.total || 0) : (j.by_type[t] || 0);
+          var span = btn.querySelector('.ws-count');
+          if (span) span.textContent = count.toLocaleString();
+        });
+      }
+
+      // 검색결과: NNNN건 표시
+      var resultLabel = document.querySelector('[class*="검색결과"], #ws-search-result-count');
+      // 또는 page-info-text
+      var pageInfo = document.getElementById('ws-page-info-text');
+      // skip — 페이지네이션 v397 가 별도 처리
+    } catch (e) {
+      try { console.warn('[v397] updateDomCounts err:', e && e.message); } catch (_) {}
+    }
+  }
+
   async function fetchPageCounts(filterParams, scope) {
     var t = getToken();
     if (!t) return;
@@ -170,7 +215,6 @@
       var j = await r.json();
       if (!j || !j.success) return;
       try {
-        // by_type / by_status / by_deal — WS.state 에 저장 + UI 렌더 함수 호출
         if (window.WS) {
           window.WS.__counts = {
             total: j.total,
@@ -178,10 +222,11 @@
             by_status: j.by_status,
             by_deal: j.by_deal,
           };
-          // 탭 갱신 시도 (content.js 의 renderTypeTabs / updateCounts 등)
-          if (typeof window.WS.renderTypeTabs === 'function') window.WS.renderTypeTabs();
-          if (typeof window.WS.updateStatusCounts === 'function') window.WS.updateStatusCounts();
         }
+        // [Critical fix 2026-05-15] DOM 카운트 직접 update — content.js renderTypeTabs override
+        try {
+          updateDomCounts(j);
+        } catch (_) {}
         log('page-counts OK total=' + j.total);
       } catch (_) {}
     } catch (_) {}
