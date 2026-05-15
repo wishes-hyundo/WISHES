@@ -36,14 +36,16 @@
     if (document.getElementById('v350-mobile-css')) return;
     var css = [
       'html, body {',
-      '  overscroll-behavior: none !important;',
-      '  overscroll-behavior-y: none !important;',
+      // [2026-05-14 사장님 명령] overscroll-behavior 제거 — 브라우저 native PTR 살림
+      // '  overscroll-behavior: none !important;',
+      // '  overscroll-behavior-y: none !important;',
       '  overflow-x: hidden !important;',
       '  overflow-y: auto !important;',
       '}',
       '.ws-mobile-page, #ws-search-root, .ws-search-container {',
       '  touch-action: manipulation !important;',
-      '  overscroll-behavior: contain !important;',
+      // [2026-05-14 사장님 명령] overscroll-behavior 제거
+      // '  overscroll-behavior: contain !important;',
       '  overflow-y: visible !important;',
       '}',
       '/* Lightbox swipe area — pinch zoom 가능 + swipe 가능 */',
