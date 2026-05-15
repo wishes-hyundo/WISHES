@@ -279,24 +279,8 @@
       log('page', pageNum, 'OK', data.length + '/' + totalCount, '(' + (Date.now()-t0) + 'ms)');
       // 화면 재렌더 — content.js 의 renderAll 호출 시도
       try { if (window.WS && typeof window.WS.renderAll === 'function') window.WS.renderAll(); } catch (_) {}
-      // [Critical fix 2026-05-15] safeRenderPagination — sparse array 로 총 페이지 정확히
-      //   content.js renderPagination 은 allListings.length / perPage 로 페이지 계산
-      //   sparse Array(total) 사용 시 length=total 인 채로 renderPagination 호출
-      //   그 후 원래 array 복원 — UI 는 정확한 페이지 버튼, 다른 코드 영향 0
-      try {
-        if (window.WS && typeof window.WS.renderPagination === 'function') {
-          var origFiltered = window.WS.filtered;
-          var origAll = window.WS.allListings;
-          try {
-            window.WS.filtered = new Array(totalCount);
-            window.WS.allListings = new Array(totalCount);
-            window.WS.renderPagination();
-          } finally {
-            window.WS.filtered = origFiltered;
-            window.WS.allListings = origAll;
-          }
-        }
-      } catch (_) {}
+      // [Critical fix 2026-05-15] renderPagination 은 wrap 함수가 처리 (wrapRenderPagination)
+      try { if (window.WS && typeof window.WS.renderPagination === 'function') window.WS.renderPagination(); } catch (_) {}
       // [정밀검수 fix 2026-05-15] page 1 이면 탭 배지용 page-counts 도 호출
       if (pageNum === 1) {
         fetchPageCounts(filterParams, scope).catch(function () { /* silent */ });
@@ -305,6 +289,34 @@
       log('fetch err:', e && e.message);
     }
     loading = false;
+  }
+
+  // [Critical fix 2026-05-15] renderPagination wrap — 누가 호출하든 totalCount 사용
+  function wrapRenderPagination() {
+    if (!window.WS || typeof window.WS.renderPagination !== 'function') {
+      return setTimeout(wrapRenderPagination, 200);
+    }
+    if (window.WS.__v397_renderPagWrapped) return;
+    window.WS.__v397_renderPagWrapped = true;
+    var orig = window.WS.renderPagination;
+    window.WS.renderPagination = function () {
+      var total = window.__v397_totalCount || 0;
+      if (total > 0 && window.WS) {
+        // sparse filtered + allListings 으로 정확한 페이지 버튼 그림
+        var origFiltered = window.WS.filtered;
+        var origAll = window.WS.allListings;
+        try {
+          window.WS.filtered = new Array(total);
+          window.WS.allListings = new Array(total);
+          return orig.call(this);
+        } finally {
+          window.WS.filtered = origFiltered;
+          window.WS.allListings = origAll;
+        }
+      }
+      return orig.call(this);
+    };
+    log('renderPagination wrapped (sparse total)');
   }
 
   // loadData 무력화 (server pagination 모드에서만)
@@ -328,6 +340,7 @@
     }
     // server pagination 모드 — loadData 무력화 + 첫 페이지 fetch
     disableLegacyLoad();
+    wrapRenderPagination();
     // [Phase G 2026-05-15] v361 auto-refresh 차단 — __searchActive 영구 true
     try {
       if (window.WS) window.WS.__searchActive = true;
