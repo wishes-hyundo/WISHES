@@ -120,11 +120,26 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 300);
 
-    // 좌표가 없는 매물 조회 (배치 처리)
-    const { data: listings, error: fetchError } = await supabase
+    // 사장님 명령 2026-05-15: ids body 로 특정 매물만 지정 + lat=0/lng=0 도 fix
+    let bodyIds: number[] = [];
+    try {
+      const body = await request.clone().json();
+      if (Array.isArray(body?.ids)) {
+        bodyIds = body.ids.filter((x: any) => Number.isInteger(x) && x > 0).slice(0, 500);
+      }
+    } catch { /* no body — fall back to "all NULL/0 coords" */ }
+
+    // 좌표가 없는 (NULL) 또는 0 인 매물 조회
+    let query = supabase
       .from('listings')
-      .select('id, address, lat, lng')
-      .or('lat.is.null,lng.is.null')
+      .select('id, address, lat, lng');
+    if (bodyIds.length > 0) {
+      query = query.in('id', bodyIds);
+    } else {
+      // NULL 좌표 OR 0 좌표 (onhouse 크롤러 fallback 버그) 모두 잡음
+      query = query.or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0');
+    }
+    const { data: listings, error: fetchError } = await query
       .order('id', { ascending: false })
       .limit(limit);
 
