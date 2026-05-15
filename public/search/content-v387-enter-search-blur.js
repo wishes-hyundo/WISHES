@@ -152,4 +152,20 @@
     }, true);
     document.addEventListener('input', function (e) {
       var t = e.target;
-      if (!isSearchInput(t)) retur
+      if (!isSearchInput(t)) return;
+      // 입력 중에는 search active 상태 유지 (다른 patch 가 polling 으로 덮어쓰기 방지)
+      try {
+        var v = (t.value || '').trim();
+        if (v) setSearchActive(true, v);
+      } catch (_) {}
+    }, true);
+
+    try { console.log('[v387-enter-search-blur v3] installed - input/click/enter handlers'); } catch (_) {}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
