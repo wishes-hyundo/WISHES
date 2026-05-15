@@ -1,11 +1,8 @@
 /**
- * content-v342-modal-image-priority.js v3 (2026-05-10) — replace 방식
+ * content-v342-modal-image-priority.js v4 (2026-05-14) — img-proxy wrap 추가
  *
- * Fix 7-2 (사장님 명령): 모달 사진 속도 개선.
- *   v1/v2 의 _addWidthParam 가 "?w= 이미 있으면 skip" -> 효과 0% (사진 100% 가 ?w=1920).
- *   v3: ?w=1920 -> ?w=400 으로 REPLACE (skip 아님).
- *   CloudFront 60% 매물 적용 -> 썸네일 size 5MB -> 50KB (100배 감소).
- *   Hero 도 ?w=1200 (5MB -> 200KB).
+ * v3 의 raw cloudfront URL preload → 거대 image (3MB) octet-stream
+ * v4: 모든 cloudfront URL 을 img-proxy wrap (?w=1200 hero, ?w=220 thumb)
  *
  * 안전:
  *   - showDetail wrap (v240 호출 시 listing 가공)
@@ -13,17 +10,11 @@
  *   - 에러 시 원본 listing 그대로 (사용자 영향 0)
  *   - data-_orig_url 보존 (썸네일 클릭 시 hero 원본 화질 가능)
  *   - CloudFront (d4k1brqee4emz) 만 적용. 외부 host (zigbang/nemo) 는 원본 유지.
- *
- * 이전 v342 v1 회귀 원인 재분석:
- *   - 사장님 본 broken 썸네일 = img-proxy 4 host 차단 (Fix 1 로 이미 fix)
- *   - v342 v1 자체는 효과 0% (skip) 라 broken 의 원인이 아니었음
- *   - 그러나 활성화 후 broken 보였던 건 timing 문제 (v318 변환 + v342 변환 충돌 가능)
- *   - v3 는 listing 객체만 변경 + DOM 에 src 삽입 1회만 (충돌 회피)
  */
 (function () {
   'use strict';
-  if (window.__WS_V342_MODAL_IMG_V3__) return;
-  window.__WS_V342_MODAL_IMG_V3__ = true;
+  if (window.__WS_V342_MODAL_IMG_V4__) return;
+  window.__WS_V342_MODAL_IMG_V4__ = true;
 
   var host = location.hostname;
   if (host.indexOf('wishes.co.kr') === -1 && host !== 'localhost') return;
@@ -36,12 +27,19 @@
   function _setWidthParam(url, w) {
     if (!url || typeof url !== 'string') return url;
     if (!CDN_RESIZE_RE.test(url)) return url; // CloudFront 만
-    // ?w= 또는 &w= 이미 있으면 REPLACE (이전 v1/v2 의 skip 버그 fix)
     if (/[?&]w=\d+/.test(url)) {
       return url.replace(/([?&])w=\d+/, '$1w=' + w);
     }
     var sep = url.indexOf('?') >= 0 ? '&' : '?';
     return url + sep + 'w=' + w;
+  }
+
+  // [v4 신규] cloudfront URL 을 img-proxy 로 wrap
+  function _wrapImgProxy(url) {
+    if (!url || typeof url !== 'string') return url;
+    if (url.indexOf('/api/img-proxy') > -1) return url; // 이미 wrap
+    if (!CDN_RESIZE_RE.test(url)) return url; // CloudFront 만 wrap
+    return '/api/img-proxy?url=' + encodeURIComponent(url) + '&nocap=1';
   }
 
   function _processListing(listing) {
@@ -57,7 +55,8 @@
       var url = img && (img.url || img);
       if (!url) return img;
       var w = (idx === 0) ? HERO_W : THUMB_W;
-      var newUrl = _setWidthParam(url, w);
+      var sized = _setWidthParam(url, w);
+      var newUrl = _wrapImgProxy(sized); // [v4] img-proxy wrap 추가
       if (newUrl === url) return img;
       if (img && typeof img === 'object') {
         var imgClone = {};
@@ -82,12 +81,14 @@
       var first = imgs[0];
       var url = first && (first.url || first);
       if (!url) return;
+      // [v4] _processListing 가 이미 img-proxy 로 wrap 했지만 안전 보장
+      var heroUrl = _wrapImgProxy(_setWidthParam(url, HERO_W));
       var existing = document.querySelector('link[rel="preload"][data-v342-hero]');
       if (existing) existing.remove();
       var link = document.createElement('link');
       link.rel = 'preload';
       link.as = 'image';
-      link.href = url;
+      link.href = heroUrl;
       link.setAttribute('fetchpriority', 'high');
       link.setAttribute('data-v342-hero', '1');
       document.head.appendChild(link);
@@ -98,8 +99,8 @@
     if (!window.WS || typeof window.WS.showDetail !== 'function') {
       return setTimeout(_installShowDetailHook, 100);
     }
-    if (window.WS.__v342v3Hooked) return;
-    window.WS.__v342v3Hooked = true;
+    if (window.WS.__v342v4Hooked) return;
+    window.WS.__v342v4Hooked = true;
     var origShowDetail = window.WS.showDetail;
     window.WS.showDetail = function (listing) {
       try {
@@ -107,12 +108,12 @@
         _preloadHero(processed);
         return origShowDetail.call(this, processed);
       } catch (e) {
-        try { console.warn('[v342-v3] hook error', e); } catch (_) {}
+        try { console.warn('[v342-v4] hook error', e); } catch (_) {}
         return origShowDetail.call(this, listing);
       }
     };
     try {
-      console.log('[v342-v3] showDetail hook installed (HERO ' + HERO_W + 'px / THUMB ' + THUMB_W + 'px, REPLACE mode)');
+      console.log('[v342-v4] showDetail hook installed (HERO ' + HERO_W + 'px / THUMB ' + THUMB_W + 'px, IMG-PROXY WRAP mode)');
     } catch (_) {}
   }
 
