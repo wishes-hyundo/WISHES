@@ -14,7 +14,7 @@ import { applyImagePolicy } from '@/lib/image-policy';
 import { sanitizePublicListing } from '@/lib/listing-public';
 import { checkRateLimit, getClientIp } from '@/lib/rateLimit';
 
-const ITEMS_LIMIT = 500;
+const ITEMS_LIMIT = 5000; // [2026-05-14 사장님] 100% 누락 X — 500 → 5000
 
 export async function GET(request: NextRequest) {
   try {
