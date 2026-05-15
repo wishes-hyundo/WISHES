@@ -3,7 +3,8 @@ import Script from 'next/script';
 import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
 import QueryProvider from '@/components/providers/QueryProvider';
-import SeniorToggle from '@/components/SeniorToggle';
+// [사장님 명령 2026-05-15] SeniorToggle 컴포넌트 제거 (👴 큰글씨 토글 영구 사용 안 함)
+// import SeniorToggle from '@/components/SeniorToggle';
 import SpeculationRules from '@/components/SpeculationRules';
 import WebVitalsReporter from '@/components/WebVitalsReporter';
 import ServiceWorkerProvider from '@/components/providers/ServiceWorkerProvider';
@@ -198,7 +199,7 @@ export default function RootLayout({
             {children}
           </ConditionalLayout>
         </QueryProvider>
-        <SeniorToggle />
+        {/* <SeniorToggle /> — 2026-05-15 사장님 명령으로 제거 */}
         <ServiceWorkerProvider />
       </body>
     </html>
