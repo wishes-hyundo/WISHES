@@ -269,12 +269,7 @@
           deduped = window.WS._autoDedup(data.slice(), true);
         }
       } catch (_) {}
-      try {
-        window.WS.__v397_setting = true;
-        window.WS.allListings = deduped;
-      } finally {
-        window.WS.__v397_setting = false;
-      }
+      window.WS.allListings = deduped;
       try {
         if (window.WS.state) {
           window.WS.state.page = pageNum;
@@ -320,25 +315,26 @@
     try {
       if (window.WS) window.WS.__searchActive = true;
     } catch (_) {}
-    // [Critical race fix 2026-05-15] content.js loadData 가 v397 init 보다 먼저 시작했으면
-    //   이미 64K fetch 진행 중. WS.allListings reset + setter 가로채서 legacy set 무시.
+    // [Critical race fix 2026-05-15 v2] content.js loadData 차단 + 1초 후 override
+    //   Object.defineProperty 는 page freeze 야기 (다른 patch 와 충돌) → 사용 X
+    //   대신: _prefetchOnReady=false 로 loadData 호출 자체 차단 + setInterval 로 override
     try {
       if (window.WS) {
-        window.WS.__v397_setting = true;
-        window.WS.allListings = [];
-        window.WS.__v397_setting = false;
-        // setter 가로채기 — v397 만 set 가능
-        var _realAll = [];
-        Object.defineProperty(window.WS, 'allListings', {
-          configurable: true,
-          get: function () { return _realAll; },
-          set: function (val) {
-            if (window.WS.__v397_setting) { _realAll = val; }
-            else { log('legacy WS.allListings set blocked (' + (val && val.length) + ' items)'); }
-          },
-        });
+        window.WS._prefetchOnReady = false;   // content.js 의 setTimeout loadData 차단
+        window.WS._prefetchStarted = true;     // 다른 곳에서 loadData 호출 가드
+        // 정기적으로 v397 결과로 set (legacy override 시도 차단)
+        setInterval(function () {
+          try {
+            if (window.WS && window.WS.allListings && window.WS.allListings.length > 200) {
+              // legacy 가 64K 채웠음 → v397 fetch 다시
+              log('legacy detected (len=' + window.WS.allListings.length + ') → re-fetch v397');
+              lastFetchKey = ''; // force re-fetch
+              fetchServerPage(1);
+            }
+          } catch (_) {}
+        }, 1500);
       }
-    } catch (e) { log('setter wrap err:', e && e.message); }
+    } catch (_) {}
     setTimeout(function () { fetchServerPage(1); }, 100);
     // 페이지 버튼 click hook
     document.addEventListener('click', function (e) {
