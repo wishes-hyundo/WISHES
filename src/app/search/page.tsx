@@ -253,8 +253,8 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v371-badge-hide', '/search/content-v371-badge-hide.js?v=20260515noKebab'],
       // v373-layout-reposition removed (v294 없으니 위치 조정 불필요)
       // v374-result-row-position removed (v294 없으니 좌표 보정 불필요)
-      ['ws-ext-patch-v382-lightbox-1200', '/search/content-v382-lightbox-1200.js?v=20260514a'],
-      ['ws-ext-patch-v383-lightbox-img-patch', '/search/content-v383-lightbox-img-patch.js?v=20260514a'],
+      ['ws-ext-patch-v382-lightbox-1200', '/search/content-v382-lightbox-1200.js?v=20260515-workersdev'],
+      ['ws-ext-patch-v383-lightbox-img-patch', '/search/content-v383-lightbox-img-patch.js?v=20260515-workersdev'],
       ['ws-ext-patch-v384-modal-hero-bg-patch', '/search/content-v384-modal-hero-bg-patch.js?v=20260514a'],
       ['ws-ext-patch-v385-preload-link-patch', '/search/content-v385-preload-link-patch.js?v=20260514a'],
       ['ws-ext-patch-v386-cardid-hide-search', '/search/content-v386-cardid-hide-search.js?v=20260515c-nonull'],

@@ -52,20 +52,37 @@
       if (u.indexOf('nocap=1') < 0) {
         u += (u.indexOf('?') >= 0 ? '&' : '?') + 'nocap=1';
       }
-      // Replace inner ?w only if it's cloudfront (encoded)
-      if (u.indexOf(encodeURIComponent('cloudfront.net')) > -1 || u.indexOf('cloudfront.net') > -1) {
+      // [2026-05-15 사장님 명령] cloudfront 또는 workers.dev (encoded) 둘 다 ?w=1200 처리
+      var hasCdnInner = u.indexOf(encodeURIComponent('cloudfront.net')) > -1 ||
+                        u.indexOf('cloudfront.net') > -1 ||
+                        u.indexOf('workers.dev') > -1 ||
+                        u.indexOf(encodeURIComponent('workers.dev')) > -1 ||
+                        u.indexOf('.workers.dev'.replace(/\./g, '%2E')) > -1;
+      if (hasCdnInner) {
         if (/(%3[Ff]w%3[Dd])\d+/.test(u)) {
           u = u.replace(/(%3[Ff]w%3[Dd])\d+/, '$1' + '1200');
         } else if (/[?&]w=\d+/.test(u)) {
-          // raw query (some cases)
           u = u.replace(/([?&])w=\d+/, '$1w=1200');
+        } else {
+          // inner url 에 ?w 없으면 decode → 부착 → 재encode
+          try {
+            var m = u.match(/[?&]url=([^&]+)/);
+            if (m) {
+              var inner = decodeURIComponent(m[1]);
+              if (!/[?&]w=\d+/.test(inner)) {
+                inner = inner + (inner.indexOf('?') >= 0 ? '&' : '?') + 'w=1200';
+                u = u.replace(/([?&]url=)[^&]+/, '$1' + encodeURIComponent(inner));
+              }
+            }
+          } catch (_) {}
         }
       }
       return u;
     }
 
-    // Raw cloudfront → wrap + ?w=1200 + nocap=1
-    if (url.indexOf(CDN_HOST) > -1) {
+    // Raw cloudfront OR workers.dev → wrap + ?w=1200 + nocap=1
+    // [2026-05-15 사장님 명령] workers.dev 추가
+    if (url.indexOf(CDN_HOST) > -1 || url.indexOf('.workers.dev') > -1) {
       var raw = url;
       if (/[?&]w=\d+/.test(raw)) {
         raw = raw.replace(/([?&])w=\d+/, '$1w=1200');

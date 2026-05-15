@@ -27,14 +27,29 @@
       var u = url;
       // nocap 추가
       if (u.indexOf('nocap=1') < 0) u += (u.indexOf('?') >= 0 ? '&' : '?') + 'nocap=1';
-      // encoded ?w=N → 1200
+      // encoded ?w=N → 1200 (cloudfront 또는 workers.dev 모두)
       if (/(%3[Ff]w%3[Dd])\d+/.test(u)) {
         u = u.replace(/(%3[Ff]w%3[Dd])\d+/, '$1' + '1200');
+      } else if (u.indexOf('cloudfront.net') > -1 || u.indexOf('workers.dev') > -1 || u.indexOf('workers.dev'.replace(/\./g, '%2E')) > -1) {
+        // [2026-05-15 사장님 명령] inner url 에 ?w 없으면 encoded ?w=1200 부착
+        //   inner url 이 encoded 라 별도 처리 — 단순 ?w=1200 안 동작.
+        //   대신 raw url 디코드 후 ?w=1200 적용 + 재encode.
+        try {
+          var m = u.match(/[?&]url=([^&]+)/);
+          if (m) {
+            var inner = decodeURIComponent(m[1]);
+            if (!/[?&]w=\d+/.test(inner)) {
+              inner = inner + (inner.indexOf('?') >= 0 ? '&' : '?') + 'w=1200';
+              u = u.replace(/([?&]url=)[^&]+/, '$1' + encodeURIComponent(inner));
+            }
+          }
+        } catch (_) {}
       }
       return u;
     }
-    // raw cloudfront
-    if (url.indexOf('cloudfront.net') > -1) {
+    // raw cloudfront OR workers.dev (새 image proxy)
+    // [2026-05-15 사장님 명령] workers.dev 추가
+    if (url.indexOf('cloudfront.net') > -1 || url.indexOf('.workers.dev') > -1) {
       var heroRaw = url;
       if (/[?&]w=\d+/.test(heroRaw)) {
         heroRaw = heroRaw.replace(/([?&])w=\d+/g, '$1w=1200');
@@ -43,7 +58,7 @@
       }
       return '/api/img-proxy?url=' + encodeURIComponent(heroRaw) + '&nocap=1';
     }
-    // 자체 호스팅 (wishes-image-proxy) / zigbang 등 — 원본 url 그대로 (이미 작음 또는 자체 사이즈)
+    // 그 외 (zigbang/nemo 등) 원본 url 그대로
     return url;
   }
 
