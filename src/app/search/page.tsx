@@ -239,7 +239,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v365-mobile-ui', '/search/content-v365-mobile-ui.js?v=20260512b'],
       ['ws-ext-patch-v366-token-refresh-v2', '/search/content-v366-token-refresh-v2.js?v=20260512a'],
       ['ws-ext-patch-v367-mobile-clean', '/search/content-v367-mobile-clean.js?v=20260514a'],
-      ['ws-ext-patch-v368-mobile-clean-v2', '/search/content-v368-mobile-clean-v2.js?v=20260514b'],
+      ['ws-ext-patch-v368-mobile-clean-v2', '/search/content-v368-mobile-clean-v2.js?v=20260514noPTR'],
       ['ws-ext-patch-v369-badge-x-persist', '/search/content-v369-badge-x-persist.js?v=20260514c'],
       ['ws-ext-patch-v382-lightbox-1200', '/search/content-v382-lightbox-1200.js?v=20260514a'],
       ['ws-ext-patch-v383-lightbox-img-patch', '/search/content-v383-lightbox-img-patch.js?v=20260514a'],
