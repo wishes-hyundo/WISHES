@@ -279,7 +279,24 @@
       log('page', pageNum, 'OK', data.length + '/' + totalCount, '(' + (Date.now()-t0) + 'ms)');
       // 화면 재렌더 — content.js 의 renderAll 호출 시도
       try { if (window.WS && typeof window.WS.renderAll === 'function') window.WS.renderAll(); } catch (_) {}
-      try { if (window.WS && typeof window.WS.renderPagination === 'function') window.WS.renderPagination(); } catch (_) {}
+      // [Critical fix 2026-05-15] safeRenderPagination — sparse array 로 총 페이지 정확히
+      //   content.js renderPagination 은 allListings.length / perPage 로 페이지 계산
+      //   sparse Array(total) 사용 시 length=total 인 채로 renderPagination 호출
+      //   그 후 원래 array 복원 — UI 는 정확한 페이지 버튼, 다른 코드 영향 0
+      try {
+        if (window.WS && typeof window.WS.renderPagination === 'function') {
+          var origFiltered = window.WS.filtered;
+          var origAll = window.WS.allListings;
+          try {
+            window.WS.filtered = new Array(totalCount);
+            window.WS.allListings = new Array(totalCount);
+            window.WS.renderPagination();
+          } finally {
+            window.WS.filtered = origFiltered;
+            window.WS.allListings = origAll;
+          }
+        }
+      } catch (_) {}
       // [정밀검수 fix 2026-05-15] page 1 이면 탭 배지용 page-counts 도 호출
       if (pageNum === 1) {
         fetchPageCounts(filterParams, scope).catch(function () { /* silent */ });
