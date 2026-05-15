@@ -19,9 +19,9 @@
   }
 
   var DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
-  var DEFAULT_LEVEL = 8;
+  var DEFAULT_LEVEL = 11; // [v6 사장님] 더 멀리 시작 - cluster 적게
   var CLUSTER_ENDPOINT = '/api/map/clusters';
-  var DEBOUNCE_MS = 300;
+  var DEBOUNCE_MS = 500;
 
   function loadKakaoMap(callback) {
     if (window.kakao && window.kakao.maps && window.kakao.maps.load) {
@@ -61,7 +61,7 @@
       var sw = bounds.getSouthWest();
       var ne = bounds.getNorthEast();
       var zoom = map.getLevel();
-      var serverZoom = Math.max(1, Math.min(22, 22 - zoom));
+      var serverZoom = Math.max(1, Math.min(20, 20 - zoom)); // [v6 사장님] 매핑 조정 cluster 줄임
 
       if (inflightController) {
         try { inflightController.abort(); } catch (_) {}
