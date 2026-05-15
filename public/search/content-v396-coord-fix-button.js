@@ -163,26 +163,47 @@
     document.getElementById('v396-run').addEventListener('click', runFix);
   }
 
-  // 실제 fix
+  // 실제 fix — auto batch loop
   async function runFix() {
     var actBtn = document.getElementById('v396-run');
     if (actBtn) actBtn.disabled = true;
-    setLog('▶ 실제 fix 시작...');
-    try {
-      setLog('[1] 중복 좌표 fix...');
-      var d = await callApi('/api/admin/geocode-fix-duplicates', { dryRun: false, limit: 500 });
-      setLog('  ✓ ' + (d.message || '완료'));
-      setLog('  처리: ' + (d.stats?.processed || 0) + ', 업데이트: ' + (d.stats?.dbUpdated || 0));
-    } catch (e) { setLog('  ❌ ' + e.message); }
-    try {
-      setLog('[2] 도로명 fix (offset 0~200)...');
-      var r = await callApi('/api/admin/verify-road-address', { dryRun: false, limit: 200, offset: 0 });
-      setLog('  ✓ 검사: ' + (r.stats?.checked || 0) + ', 수정: ' + (r.stats?.updated || 0));
-    } catch (e) { setLog('  ❌ ' + e.message); }
-    setLog('▶ fix 완료. 페이지 새로고침 권장.');
+    setLog('▶ 전체 매물 좌표 일괄 재계산 시작...');
+    var offset = 0;
+    var totalUpdated = 0;
+    var totalProcessed = 0;
+    var totalFailed = 0;
+    var batchNum = 0;
+    var stop = false;
+    window.__v396Stop = function () { stop = true; setLog('⏸ 중지 요청'); };
+
+    while (!stop) {
+      batchNum++;
+      try {
+        setLog('[Batch ' + batchNum + '] offset ' + offset + ' 처리 중...');
+        var r = await callApi('/api/admin/geocode-all-force', { dryRun: false, limit: 100, offset: offset });
+        var s = r.stats || {};
+        totalProcessed += s.processed || 0;
+        totalUpdated += s.updated || 0;
+        totalFailed += s.geocodeFailed || 0;
+        var pct = s.totalListings ? Math.round((offset + s.processed) / s.totalListings * 100) : 0;
+        setLog('  ✓ 처리:' + s.processed + ' 수정:' + s.updated + ' 실패:' + s.geocodeFailed + ' (' + (offset + s.processed) + '/' + s.totalListings + ' = ' + pct + '%)');
+        if (!s.hasMore) {
+          setLog('▶ 모든 매물 처리 완료!');
+          break;
+        }
+        offset = s.nextOffset || (offset + 100);
+      } catch (e) {
+        setLog('  ❌ batch err: ' + e.message + ' — 30초 후 재시도');
+        await new Promise(function (r) { setTimeout(r, 30000); });
+      }
+    }
+
+    setLog('━━━━━━━━━━━━━━━━━━━');
+    setLog('총 처리: ' + totalProcessed + ', 수정: ' + totalUpdated + ', 실패: ' + totalFailed);
+    setLog('완료. 페이지 새로고침 권장.');
     if (actBtn) {
       actBtn.disabled = false;
-      actBtn.textContent = '✓ 완료 (다시 실행)';
+      actBtn.textContent = '✓ 완료';
     }
   }
 
