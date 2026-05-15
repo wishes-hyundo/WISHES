@@ -39,10 +39,10 @@
   if (location.pathname.indexOf('/search') !== 0) return;
 
   var DEBUG = true;
-  var REFRESH_INTERVAL_MS = 25 * 60 * 1000;    // 25분
+  var REFRESH_INTERVAL_MS = 10 * 60 * 1000; // [2026-05-14 사장님] 25 → 10분    // 25분
   var FIRST_CHECK_DELAY_MS = 10 * 1000;        // 10초 후 첫 체크
   var COOLDOWN_MS = 5 * 60 * 1000;             // refresh 간 최소 5분
-  var STALE_LOGIN_MIN = 30;                    // login 후 30분 지났으면 첫 즉시 refresh
+  var STALE_LOGIN_MIN = 5; // [2026-05-14 사장님] 30 → 5분                    // login 후 30분 지났으면 첫 즉시 refresh
   var ENDPOINT = '/api/auth/refresh-session';
 
   var refreshing = false;
