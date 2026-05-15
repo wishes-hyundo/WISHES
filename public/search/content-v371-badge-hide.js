@@ -22,15 +22,21 @@
     var style = document.createElement('style');
     style.id = 'ws-v371-style';
     style.textContent = [
-      '#ws-expiry-badge { display: none !important; }',
+      // [사장님 명령 2026-05-15] 만기 badge + descendants (v369 X 버튼 포함) 영구 차단
+      '#ws-expiry-badge,',
+      '#ws-expiry-badge *,',
+      '[data-v369-close] { display: none !important; visibility: hidden !important; }',
+      // 종 알림 + 큰글씨 toggle hide
       'button[aria-label*="알림"] { display: none !important; }',
       '.senior-toggle { display: none !important; }',
       // [사장님 명령 2026-05-15] ⋮ floating toggle 영구 제거 (떠다니며 본 페이지 가림)
-      '#ws-v372-toggle { display: none !important; }',
-      '#ws-v372-toggle-btn { display: none !important; }',
-      '[data-v372-toggle] { display: none !important; }',
-      '.ws-v372-toggle, .ws-tools-toggle, .ws-floating-toggle { display: none !important; }',
-      // expanded class 도 무력화 (혹시 cache 된 v372 가 활성화 시도)
+      '#ws-v372-toggle,',
+      '#ws-v372-toggle-btn,',
+      '[data-v372-toggle],',
+      '.ws-v372-toggle,',
+      '.ws-tools-toggle,',
+      '.ws-floating-toggle { display: none !important; }',
+      // expanded class 도 무력화
       'body.ws-tools-expanded #ws-expiry-badge,',
       'body.ws-tools-expanded button[aria-label*="알림"],',
       'body.ws-tools-expanded .senior-toggle { display: none !important; }'
@@ -38,9 +44,31 @@
     document.head.appendChild(style);
     try { console.log('[v371-badge-hide] 3 floating UI hidden'); } catch (_) {}
   }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', injectCSS);
-  } else {
+  // [사장님 명령 2026-05-15] JS 로 element 자체 제거 (CSS hide + DOM removal)
+  function removeBadgeElements() {
+    try {
+      var badge = document.getElementById('ws-expiry-badge');
+      if (badge) badge.remove();
+      var bells = document.querySelectorAll('button[aria-label*="알림"]');
+      bells.forEach(function (b) { try { b.remove(); } catch (_) {} });
+      var toggles = document.querySelectorAll('.senior-toggle, #ws-v372-toggle, #ws-v372-toggle-btn, [data-v372-toggle]');
+      toggles.forEach(function (t) { try { t.remove(); } catch (_) {} });
+    } catch (_) {}
+  }
+
+  function setup() {
     injectCSS();
+    removeBadgeElements();
+    // MutationObserver — 다른 patch 가 이 element 재생성 시도하면 즉시 제거
+    try {
+      var obs = new MutationObserver(function () { removeBadgeElements(); });
+      obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
+    } catch (_) {}
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setup);
+  } else {
+    setup();
   }
 })();

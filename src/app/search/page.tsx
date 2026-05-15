@@ -244,7 +244,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v366-token-refresh-v2', '/search/content-v366-token-refresh-v2.js?v=20260514short'],
       ['ws-ext-patch-v367-mobile-clean', '/search/content-v367-mobile-clean.js?v=20260514noPTR'],
       ['ws-ext-patch-v368-mobile-clean-v2', '/search/content-v368-mobile-clean-v2.js?v=20260514noPTR'],
-      ['ws-ext-patch-v369-badge-x-persist', '/search/content-v369-badge-x-persist.js?v=20260514c'],
+      // v369 removed (2026-05-15 사장님 명령 - X 버튼이 만기 badge hide 후에도 남아있어 영구 차단)
       // [복원+조정 2026-05-15 사장님 명령] e23e9b60 잘못된 edit 로 빠졌던 patch 복원.
       //   v371: 만기 badge + 종 알림 + 큰글씨 toggle default 숨김 + ⋮ 토글 SAFETY HIDE
       //   v372: 제외 (사장님 명령 - ⋮ floating 토글이 본 페이지 가림 → 영구 제거)
