@@ -176,6 +176,44 @@
     return result;
   }
 
+  // [v14] 가장 큰 cluster 위치 keep — 평균 안 함 (위치 정확성 유지하면서 합침)
+  function mergeKeepPosition(clusters, projection) {
+    var pts = clusters.map(function (c) {
+      var lat = c.lat || c.latitude || (c.center && c.center.lat);
+      var lng = c.lng || c.longitude || (c.center && c.center.lng);
+      var count = c.count || c.n || (c.sample_ids ? c.sample_ids.length : 1);
+      var px = null;
+      if (projection) {
+        try { px = projection.containerPointFromCoords(new kakao.maps.LatLng(lat, lng)); } catch (_) {}
+      }
+      return { lat: lat, lng: lng, count: count, px: px ? px.x : 0, py: px ? px.y : 0, merged: false, sample_ids: c.sample_ids || null, hasPx: !!px };
+    }).filter(function(x) { return x.lat && x.lng; });
+    if (!projection || pts.length < 2) return pts;
+    // count 내림차순 정렬 — 큰 cluster 가 anchor
+    pts.sort(function(a, b) { return b.count - a.count; });
+    var result = [];
+    for (var i = 0; i < pts.length; i++) {
+      if (pts[i].merged) continue;
+      var cur = pts[i];
+      var totalCount = cur.count;
+      var allIds = (cur.sample_ids || []).slice();
+      for (var j = i + 1; j < pts.length; j++) {
+        if (pts[j].merged) continue;
+        if (!cur.hasPx || !pts[j].hasPx) continue;
+        var dx = pts[j].px - cur.px;
+        var dy = pts[j].py - cur.py;
+        if (dx * dx + dy * dy < MERGE_DISTANCE_PX * MERGE_DISTANCE_PX) {
+          totalCount += pts[j].count;
+          if (pts[j].sample_ids) allIds = allIds.concat(pts[j].sample_ids);
+          pts[j].merged = true;
+        }
+      }
+      // [핵심] 위치는 cur (가장 큰 cluster) 의 lat/lng 그대로 — 평균 안 함
+      result.push({ lat: cur.lat, lng: cur.lng, count: totalCount, sample_ids: allIds.length > 0 ? allIds : null });
+    }
+    return result;
+  }
+
   function fetchClusters(map) {
     if (!map) return;
     try {
@@ -183,7 +221,7 @@
       var sw = bounds.getSouthWest();
       var ne = bounds.getNorthEast();
       var zoom = map.getLevel();
-      var serverZoom = Math.max(1, Math.min(18, 18 - zoom));
+      var serverZoom = Math.max(1, Math.min(16, 16 - zoom)); // [v14] 더 큰 grid
       if (inflightController) {
         try { inflightController.abort(); } catch (_) {}
       }
@@ -349,15 +387,10 @@
     if (!currentMap) return;
     clearMarkers();
     if (!Array.isArray(clusters) || clusters.length === 0) return;
-    // [v13 사장님] client merge 완전 비활성화 - 매물 정확한 위치 보존
-    var merged = clusters.map(function(c) {
-      return {
-        lat: c.lat || c.latitude || (c.center && c.center.lat),
-        lng: c.lng || c.longitude || (c.center && c.center.lng),
-        count: c.count || c.n || (c.sample_ids ? c.sample_ids.length : 1),
-        sample_ids: c.sample_ids || null,
-      };
-    }).filter(function(x) { return x.lat && x.lng; });
+    // [v14 사장님] merge 다시 — 단, 위치는 가장 큰 cluster 의 실제 위치 유지 (평균 X)
+    var projection = null;
+    try { projection = currentMap.getProjection(); } catch (_) {}
+    var merged = mergeKeepPosition(clusters, projection);
     merged.forEach(function (c) {
       try {
         if (!c.lat || !c.lng) return;
