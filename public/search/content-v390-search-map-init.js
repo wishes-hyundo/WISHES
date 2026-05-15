@@ -1,12 +1,10 @@
 /**
- * v390 v7 — /search 지도보기 (cluster 깔끔 + 빠름)
+ * v390 v8 — 애플 스타일 cluster + click 작동 fix
  * 사장님 명령 2026-05-14.
  *
- * v6 가 cluster 너무 많고 겹침 → v7:
- *   1. server zoom 매핑 18-zoom (더 큰 cluster)
- *   2. cluster size 차등화 (count 별 다른 크기)
- *   3. 가까운 cluster client-side 합치기 (50px 이내 합침)
- *   4. 큰 cluster 위에 작은 cluster z-index 우선
+ * - 테두리 제거, 부드러운 그림자, 단일 톤 색상
+ * - cluster 클릭 → 자동 줌인 + 매물 popup 가능
+ * - hover/active 부드러운 transition
  */
 (function () {
   'use strict';
@@ -16,27 +14,54 @@
   if (location.pathname.indexOf('/search') !== 0) return;
 
   function log() {
-    try { console.log.apply(console, ['[v390 v7]'].concat([].slice.call(arguments))); } catch (_) {}
+    try { console.log.apply(console, ['[v390 v8]'].concat([].slice.call(arguments))); } catch (_) {}
   }
 
   var DEFAULT_CENTER = { lat: 37.5665, lng: 126.9780 };
   var DEFAULT_LEVEL = 11;
   var CLUSTER_ENDPOINT = '/api/map/clusters';
   var DEBOUNCE_MS = 500;
-  var MERGE_DISTANCE_PX = 50; // 50px 이내 cluster 합침
+  var MERGE_DISTANCE_PX = 60;
+
+  // 애플 스타일 CSS 한 번만 inject
+  function injectAppleStyle() {
+    if (document.getElementById('v390-apple-style')) return;
+    var s = document.createElement('style');
+    s.id = 'v390-apple-style';
+    s.textContent = [
+      '.v390-pin{',
+      '  display:flex;align-items:center;justify-content:center;',
+      '  border-radius:9999px;color:#fff;font-weight:600;',
+      '  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Pretendard Variable",sans-serif;',
+      '  letter-spacing:-0.02em;',
+      '  box-shadow:0 4px 14px rgba(0,0,0,0.18),0 1px 3px rgba(0,0,0,0.10);',
+      '  cursor:pointer;user-select:none;',
+      '  transition:transform 0.2s cubic-bezier(0.4,0,0.2,1),box-shadow 0.2s ease;',
+      '  will-change:transform;',
+      '}',
+      '.v390-pin:hover{',
+      '  transform:scale(1.12);',
+      '  box-shadow:0 6px 20px rgba(0,0,0,0.25),0 2px 6px rgba(0,0,0,0.15);',
+      '}',
+      '.v390-pin:active{',
+      '  transform:scale(0.96);',
+      '}',
+    ].join('\n');
+    document.head.appendChild(s);
+  }
 
   function loadKakaoMap(callback) {
     if (window.kakao && window.kakao.maps && window.kakao.maps.load) {
       window.kakao.maps.load(callback);
       return;
     }
-    var attempts = 0;
+    var n = 0;
     var iv = setInterval(function () {
-      attempts++;
+      n++;
       if (window.kakao && window.kakao.maps && window.kakao.maps.load) {
         clearInterval(iv);
         window.kakao.maps.load(callback);
-      } else if (attempts >= 50) {
+      } else if (n >= 50) {
         clearInterval(iv);
         log('Kakao SDK timeout');
       }
@@ -56,22 +81,15 @@
     currentMarkers = [];
   }
 
-  // count 별 marker 스타일
+  // 애플 스타일 — 모두 단일 톤 (사이트 브랜드 녹색), 크기만 차등
   function getStyleForCount(count) {
-    if (count >= 1000) {
-      return { size: 56, fontSize: 16, bg: 'rgba(180,30,30,0.92)', border: '2px solid #fff' };
-    } else if (count >= 100) {
-      return { size: 48, fontSize: 15, bg: 'rgba(220,80,30,0.92)', border: '2px solid #fff' };
-    } else if (count >= 30) {
-      return { size: 40, fontSize: 14, bg: 'rgba(220,150,30,0.92)', border: '2px solid #fff' };
-    } else if (count >= 10) {
-      return { size: 36, fontSize: 13, bg: 'rgba(45,90,39,0.92)', border: '2px solid #fff' };
-    } else {
-      return { size: 30, fontSize: 12, bg: 'rgba(80,120,80,0.85)', border: '1.5px solid #fff' };
-    }
+    if (count >= 1000) return { size: 56, fontSize: 16, bg: '#1B4D1A' };
+    if (count >= 100)  return { size: 48, fontSize: 15, bg: '#2D5A27' };
+    if (count >= 30)   return { size: 42, fontSize: 14, bg: '#3A7D34' };
+    if (count >= 10)   return { size: 36, fontSize: 13, bg: '#4FA046' };
+    return                    { size: 30, fontSize: 12, bg: '#66BB6A' };
   }
 
-  // 가까운 cluster 합치기 (client-side merge)
   function mergeNearbyCluster(clusters, projection) {
     if (!projection || clusters.length < 2) return clusters;
     var pts = clusters.map(function (c) {
@@ -134,7 +152,6 @@
         .then(function (r) { if (!r.ok) throw new Error('http_' + r.status); return r.json(); })
         .then(function (data) {
           var clusters = (data && (data.clusters || data.data)) || [];
-          log('server clusters', clusters.length);
           renderClusters(clusters);
         })
         .catch(function (e) {
@@ -152,46 +169,38 @@
     clearMarkers();
     if (!Array.isArray(clusters) || clusters.length === 0) return;
 
-    // client-side merge — 화면 가까운 cluster 합치기
     var projection = null;
     try { projection = currentMap.getProjection(); } catch (_) {}
     var merged = mergeNearbyCluster(clusters, projection);
-    log('after merge:', merged.length);
+    log('clusters', clusters.length, '→ merged', merged.length);
 
     merged.forEach(function (c) {
       try {
         if (!c.lat || !c.lng) return;
         var pos = new kakao.maps.LatLng(c.lat, c.lng);
         var style = getStyleForCount(c.count);
-        var content = document.createElement('div');
-        content.style.cssText =
-          'background:' + style.bg + ';' +
-          'color:#fff;' +
-          'font-weight:700;' +
-          'font-size:' + style.fontSize + 'px;' +
-          'width:' + style.size + 'px;' +
-          'height:' + style.size + 'px;' +
-          'line-height:' + (style.size - 4) + 'px;' +
-          'border-radius:50%;' +
-          'border:' + style.border + ';' +
-          'box-shadow:0 2px 6px rgba(0,0,0,0.4);' +
-          'text-align:center;' +
-          'cursor:pointer;' +
-          'user-select:none;';
-        content.textContent = String(c.count);
+        var pin = document.createElement('div');
+        pin.className = 'v390-pin';
+        pin.style.background = style.bg;
+        pin.style.width = style.size + 'px';
+        pin.style.height = style.size + 'px';
+        pin.style.fontSize = style.fontSize + 'px';
+        pin.textContent = String(c.count);
+        // click handler — 자동 줌인
+        pin.addEventListener('click', function (ev) {
+          try { ev.stopPropagation(); } catch (_) {}
+          var newLevel = Math.max(1, currentMap.getLevel() - 2);
+          currentMap.setLevel(newLevel, { anchor: pos, animate: true });
+        }, false);
         var overlay = new kakao.maps.CustomOverlay({
-          position: pos, content: content, yAnchor: 0.5, xAnchor: 0.5,
+          position: pos, content: pin, yAnchor: 0.5, xAnchor: 0.5,
           zIndex: c.count,
+          clickable: true,
         });
         overlay.setMap(currentMap);
         currentMarkers.push(overlay);
-        content.addEventListener('click', function () {
-          var newLevel = Math.max(1, currentMap.getLevel() - 2);
-          currentMap.setLevel(newLevel, { anchor: pos });
-        });
       } catch (e) {}
     });
-    log('rendered', currentMarkers.length, 'bubbles');
   }
 
   function scheduleClusterFetch() {
@@ -205,10 +214,9 @@
 
   function renderMap() {
     var container = document.getElementById('ws-map-container');
-    if (!container) {
-      log('no ws-map-container');
-      return;
-    }
+    if (!container) return;
+
+    injectAppleStyle();
 
     var mapDiv = document.getElementById('ws-kakao-map');
     if (!mapDiv || mapDiv.children.length === 0) {
@@ -244,15 +252,8 @@
       var mapTab = document.querySelector('.ws-tab[data-view="map"].ws-tab-active, .ws-tab.ws-tab-active[data-view="map"]');
       var container = document.getElementById('ws-map-container');
       var visible = container && container.style.display !== 'none' && container.offsetParent !== null;
-      if (mapTab || visible) {
-        log('auto render — map tab active');
-        renderMap();
-      } else {
-        log('auto render skip');
-      }
-    } catch (e) {
-      log('auto render err:', e && e.message);
-    }
+      if (mapTab || visible) renderMap();
+    } catch (e) {}
   }
 
   function installInitMapWrap() {
@@ -262,14 +263,11 @@
 
     var origInitMap = typeof window.WS.initMap === 'function' ? window.WS.initMap : null;
     window.WS.initMap = function () {
-      log('WS.initMap called');
       if (origInitMap && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
         try { return origInitMap.apply(this, arguments); } catch (e) {}
       }
       setTimeout(renderMap, 100);
     };
-
-    log('initMap wrapped');
 
     setTimeout(checkAutoRender, 1500);
   }
@@ -286,7 +284,6 @@
     var btn = t.closest && t.closest('button, .ws-tab');
     if (!btn) return;
     if (btn.matches && btn.matches('[data-view="map"], .ws-tab[data-view="map"]')) {
-      log('tab clicked');
       setTimeout(renderMap, 200);
     }
   }, true);
