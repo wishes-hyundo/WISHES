@@ -35,9 +35,6 @@
 
 html {
   scroll-behavior: smooth;
-  /* [2026-05-14 사장님 명령] 모바일 native pull-to-refresh 차단 */
-  overscroll-behavior-y: none;
-  overscroll-behavior-x: none;
 }
 
 *, *::before, *::after {
@@ -45,9 +42,6 @@ html {
 }
 
 body {
-  /* [2026-05-14 사장님 명령] 모바일 native pull-to-refresh 차단 */
-  overscroll-behavior-y: none;
-  overscroll-behavior-x: none;
   font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
