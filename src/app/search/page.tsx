@@ -334,9 +334,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v342-modal-image-priority-v4', '/search/content-v342-modal-image-priority.js?v=20260514v4'],
       // v345 (Fix 22 - 등록 누락 발견 2026-05-10): MutationObserver 로 매물 카드
       //   img 에 loading="lazy" + decoding="async" 추가. viewport 외 사진 fetch
-      //   중단 → 100MB transfer → ~10MB. 첫 진입 속도 dramatic 개선.
-      ['ws-ext-patch-v345-img-lazy', '/search/content-v345-img-lazy.js?v=20260510a'],
-      // v346 (Fix 23 - 등록 누락 발견 2026-05-10): WS.state.perPage = 20 강제.
+      //   중단 → 100MB transfer → ~10MB. 첫 진입 속도 dramatic 개선.      // v346 (Fix 23 - 등록 누락 발견 2026-05-10): WS.state.perPage = 20 강제.
       //   첫 표시 매물 100건 → 20건. DOM 카드 80개 줄어 render 빠름.
       ['ws-ext-patch-v346-default-20-listings', '/search/content-v346-default-20-listings.js?v=20260510a'],
       // v347 (Fix 35 사장님 발견 2026-05-11): 확대 모드 lightbox 1/1 회귀 fix.
