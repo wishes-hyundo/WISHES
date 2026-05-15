@@ -174,9 +174,6 @@ export async function GET(request: NextRequest) {
       // sort 2차 tiebreaker
       sort2: (searchParams.get('sort2') || 'none').trim(),
     };
-    // A.1 단계: v3 param 사용 안 함 (TS 미사용 경고 회피)
-    void v3;
-
     const scopeParam = (searchParams.get('scope') || 'all').toLowerCase();
     let scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
     let scopeUid: string | null = null;
@@ -223,18 +220,24 @@ export async function GET(request: NextRequest) {
       ].join(','));
     }
 
-    // ★ type filter (원룸, 오피스텔, 아파트, ...)
-    if (typeFilter && typeFilter !== '전체') {
+    // ★ type filter — v3 다중 우선, v2 단일 fallback
+    if (v3.types.length > 0) {
+      q1 = q1.in('type', v3.types);
+    } else if (typeFilter && typeFilter !== '전체') {
       q1 = q1.eq('type', typeFilter);
     }
 
-    // ★ deal filter (월세, 전세, 매매)
-    if (dealFilter && dealFilter !== '전체') {
+    // ★ deal filter — v3 다중 우선, v2 단일 fallback
+    if (v3.deals.length > 0) {
+      q1 = q1.in('deal', v3.deals);
+    } else if (dealFilter && dealFilter !== '전체') {
       q1 = q1.eq('deal', dealFilter);
     }
 
-    // ★ status filter
-    if (statusFilter) {
+    // ★ status filter — v3 다중 우선, v2 단일 fallback
+    if (v3.statuses.length > 0) {
+      q1 = q1.in('status', v3.statuses);
+    } else if (statusFilter) {
       q1 = q1.eq('status', statusFilter);
     }
 
