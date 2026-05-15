@@ -131,13 +131,29 @@
     currentMarkers = [];
   }
 
-  function getSizeForCount(count) {
-    if (count >= 1000) return { size: 52, fontSize: 15 };
-    if (count >= 100)  return { size: 46, fontSize: 14 };
-    if (count >= 30)   return { size: 40, fontSize: 13 };
-    if (count >= 10)   return { size: 36, fontSize: 13 };
-    if (count >= 2)    return { size: 32, fontSize: 12 };
-    return                    { size: 28, fontSize: 11 }; // single
+  // [v19 사장님] zoom 따라 동적 size — 멀리 시 작게 (시각적 부담 감소, 정확성 유지)
+  function getSizeForCount(count, zoomLevel) {
+    var base;
+    if (count >= 1000) base = { size: 52, fontSize: 15 };
+    else if (count >= 100)  base = { size: 46, fontSize: 14 };
+    else if (count >= 30)   base = { size: 40, fontSize: 13 };
+    else if (count >= 10)   base = { size: 36, fontSize: 13 };
+    else if (count >= 2)    base = { size: 32, fontSize: 12 };
+    else                    base = { size: 28, fontSize: 11 };
+    // zoom 별 scale (Kakao zoom: 1=가깝 ~ 14=멀리)
+    var z = zoomLevel || 5;
+    var scale;
+    if (z <= 3) scale = 1.0;       // 가까움 - 원래 사이즈
+    else if (z <= 5) scale = 0.85;
+    else if (z <= 7) scale = 0.65;
+    else if (z <= 9) scale = 0.45;
+    else if (z <= 11) scale = 0.30;
+    else scale = 0.20;             // 전국 - 매우 작게
+    var min = 8; // 최소 8px (보이는 한도)
+    return {
+      size: Math.max(min, Math.round(base.size * scale)),
+      fontSize: Math.max(8, Math.round(base.fontSize * scale)),
+    };
   }
 
   function mergeNearbyCluster(clusters, projection) {
@@ -429,7 +445,7 @@
       try {
         if (!c.lat || !c.lng) return;
         var pos = new kakao.maps.LatLng(c.lat, c.lng);
-        var sz = getSizeForCount(c.count);
+        var sz = getSizeForCount(c.count, currentMap ? currentMap.getLevel() : 5);
         var pin = document.createElement('div');
         pin.className = 'v390-pin' + (c.count === 1 ? ' v390-single' : '');
         pin.style.width = sz.size + 'px';
