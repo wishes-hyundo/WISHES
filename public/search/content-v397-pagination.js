@@ -258,6 +258,12 @@
     }
     // server pagination 모드 — loadData 무력화 + 첫 페이지 fetch
     disableLegacyLoad();
+    // [Phase G 2026-05-15] v361 auto-refresh 차단 — __searchActive 영구 true
+    //   v361 가 30초마다 polling 해서 WS.allListings 덮어쓰는 것 방지
+    //   server pagination 모드에서는 자동 새로고침 의미 없음 (페이지 진입 시 자동 fresh)
+    try {
+      if (window.WS) window.WS.__searchActive = true;
+    } catch (_) {}
     setTimeout(function () { fetchServerPage(1); }, 100);
     // 페이지 버튼 click hook
     document.addEventListener('click', function (e) {
