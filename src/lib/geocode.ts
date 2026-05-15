@@ -95,12 +95,11 @@ export async function geocodeAddress(
     if (hit) return hit;
   }
 
-  // 3차: 동 이름 중심좌표
-  const dongMatch = address.match(/([가-힣]+동)(?:\s|$)/);
-  if (dongMatch) {
-    const hit = await kakaoAddress(dongMatch[1]);
-    if (hit) return hit;
-  }
-
+  // 3차: 동 이름 중심좌표 — [2026-05-15 사장님 명령] 제거됨
+  //   원인: 주소 매칭 실패 시 "동 이름만" 으로 fallback 하면 같은 동의 다른 매물들이
+  //         모두 같은 좌표 (동 중심) 에 표시됨. 정밀분석 결과 11,992건 (활성의 18.5%)
+  //         가 이 fallback 으로 잘못된 위치에 찍혀있었음.
+  //   대안: 정확하게 매칭 안 되면 null 반환 → 해당 매물 lat/lng 채우지 않음.
+  //         지도에 안 보이는 게 잘못된 위치에 보이는 것보다 나음.
   return null;
 }
