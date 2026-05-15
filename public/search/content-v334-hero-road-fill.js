@@ -94,9 +94,15 @@
         }
         return true;
       }
-      // 기존 v240-hero-road 빈 element hide (혼란 방지)
+      // [v9 사장님 명령] 기존 v240-hero-road element 강력 제거 — race condition 방지
+      // v240-detail.js 의 kakao geocoder callback 이 textContent set 하기 전에 element 자체 제거
       var origRoad = modal.querySelector('#v240-hero-road');
-      if (origRoad) origRoad.style.display = 'none';
+      if (origRoad) {
+        origRoad.style.cssText = 'display:none !important;visibility:hidden !important;height:0 !important;overflow:hidden !important;';
+        origRoad.textContent = '';
+        // 완전 제거 시도 (innerHTML 변경 안 일어나면)
+        try { if (origRoad.parentNode) origRoad.parentNode.removeChild(origRoad); } catch (_) {}
+      }
 
       // hero section 자체 찾기 (자식 아닌 외부 위치 사용)
       var heroSection = modal.querySelector('.v240-hero');
