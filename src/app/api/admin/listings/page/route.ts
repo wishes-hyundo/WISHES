@@ -42,7 +42,11 @@ const SELECT_FIELDS = [
 //   modal/lightbox 는 다른 endpoint 거치므로 영향 X.
 function shrinkCardImg(url?: string): string | undefined {
   if (!url) return url;
-  if (!/d4k1brqee4emz\.cloudfront\.net/i.test(url)) return url;
+  // [2026-05-15 사장님 명령] CDN host 확장: cloudfront + workers.dev (새 image proxy)
+  const isResizable = /d4k1brqee4emz\.cloudfront\.net/i.test(url) ||
+                      /wishes-image-proxy\.wishes-img\.workers\.dev/i.test(url) ||
+                      /\.workers\.dev/i.test(url);
+  if (!isResizable) return url;
   if (/[?&]w=\d+/.test(url)) {
     return url.replace(/([?&])w=\d+/g, '$1w=220');
   }
@@ -52,7 +56,11 @@ function shrinkCardImg(url?: string): string | undefined {
 // [Option C 2026-05-14]: hero_url for modal large view (?w=1200 + nocap=1)
 function buildHeroUrl(url?: string): string | undefined {
   if (!url) return url;
-  if (!/d4k1brqee4emz\.cloudfront\.net/i.test(url)) return url;
+  // [2026-05-15 사장님 명령] CDN host 확장: cloudfront + workers.dev (새 image proxy)
+  const isResizable = /d4k1brqee4emz\.cloudfront\.net/i.test(url) ||
+                      /wishes-image-proxy\.wishes-img\.workers\.dev/i.test(url) ||
+                      /\.workers\.dev/i.test(url);
+  if (!isResizable) return url;
   let h = url;
   if (/[?&]w=\d+/.test(h)) {
     h = h.replace(/([?&])w=\d+/g, '$1w=1200');

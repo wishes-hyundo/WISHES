@@ -404,9 +404,11 @@ export async function GET(request: NextRequest) {
             //   img-proxy 가 ?w param 을 CloudFront resize 로 forward — 30배 size 절감.
             const _resizeThumb = (u: string): string => {
               if (!u) return u;
+              // [2026-05-15 사장님 명령] CDN host 확장: cloudfront + supabase + r2 + workers.dev
               const isCdn = u.indexOf('cloudfront.net') !== -1 ||
                             u.indexOf('supabase.co') !== -1 ||
-                            u.indexOf('r2.dev') !== -1;
+                            u.indexOf('r2.dev') !== -1 ||
+                            u.indexOf('.workers.dev') !== -1;
               if (!isCdn) return u;
               if (/[?&]w=\d+/.test(u)) {
                 return u.replace(/([?&])w=\d+/, '$1w=220');
@@ -419,8 +421,12 @@ export async function GET(request: NextRequest) {
             //   - client v381 patch 가 modal hero 의 background-image + thumb data-url 을 hero_url 로 swap
             const _buildHeroUrl = (u: string): string => {
               if (!u) return u;
-              const isCdn = u.indexOf('cloudfront.net') !== -1;
-              if (!isCdn) return u; // 자체 호스팅 (wishes-image-proxy) 는 원본 그대로 small
+              // [2026-05-15 사장님 명령] CDN host 확장 — workers.dev 도 ?w= 지원
+              //   이전: cloudfront 만 → workers.dev 는 원본 fullsize 다운로드 (모달 느림)
+              //   현재: workers.dev 도 ?w=1200 query 부여 → resize 됨
+              const isCdn = u.indexOf('cloudfront.net') !== -1 ||
+                            u.indexOf('.workers.dev') !== -1;
+              if (!isCdn) return u;
               let heroRaw = u;
               if (/[?&]w=\d+/.test(heroRaw)) {
                 heroRaw = heroRaw.replace(/([?&])w=\d+/, '$1w=1200');

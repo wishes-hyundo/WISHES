@@ -118,6 +118,8 @@ export async function GET(request: NextRequest) {
       'img.nemoapp.kr',
       'blob.nemoapp.kr',
       'gsc.gongsilclub.com',
+      // [2026-05-15 사장님 명령] 새 image proxy 추가 (모달 1200/카드 220 작동)
+      'wishes-image-proxy.wishes-img.workers.dev',
     ]);
     if (!nocap && CAP_HOSTS.has(parsed.hostname) && parsed.searchParams.has('w')) {
       const w = parseInt(parsed.searchParams.get('w') || '220', 10);
