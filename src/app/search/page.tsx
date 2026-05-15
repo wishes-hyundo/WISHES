@@ -150,7 +150,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v290-polish', '/search/content-v290-polish.js?v=20260420b'],
       ['ws-ext-patch-v291-stability', '/search/content-v291-stability.js?v=20260514nativePTR'],
       ['ws-ext-patch-v292-global-search', '/search/content-v292-global-search.js?v=20260509a'],
-      ['ws-ext-patch-v293-alert-log', '/search/content-v293-alert-log.js?v=20260420c'],
+      // v293-alert-log removed (2026-05-15 사장님 명령 - 종 알림 잔상 영구 제거)
       ['ws-ext-patch-v294-scope', '/search/content-v294-scope.js?v=20260428legacy2'],
       ['ws-ext-patch-v295-detail-hydrate', '/search/content-v295-detail-hydrate.js?v=20260424d'],
       ['ws-ext-patch-v297-edit', '/search/content-v297-edit.js?v=20260429-reload'],

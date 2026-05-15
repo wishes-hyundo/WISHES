@@ -26,9 +26,17 @@
       '#ws-expiry-badge,',
       '#ws-expiry-badge *,',
       '[data-v369-close] { display: none !important; visibility: hidden !important; }',
-      // 종 알림 + 큰글씨 toggle hide
-      'button[aria-label*="알림"] { display: none !important; }',
+      // [사장님 명령 2026-05-15] 종 알림 영구 제거 (v293 disabled + 안전망 CSS)
+      'button[aria-label*="알림"],',
+      '#ws-alert-bell,',
+      '#ws-alert-drawer,',
+      '#ws-alert-drawer-backdrop { display: none !important; visibility: hidden !important; }',
+      // 큰글씨 toggle (SeniorToggle 컴포넌트도 layout.tsx 에서 제거됨, 안전망)
       '.senior-toggle { display: none !important; }',
+      // [사장님 명령 2026-05-15] 전체/내매물 scope tab — body 직접 자식일 때만 hide
+      //   (loading 중 floating 상태). v375 가 toolbar 안 inline 으로 옮기면
+      //   inline style display:inline-flex !important 로 보임.
+      'body > #ws-v294-scope-root { display: none !important; }',
       // [사장님 명령 2026-05-15] ⋮ floating toggle 영구 제거 (떠다니며 본 페이지 가림)
       '#ws-v372-toggle,',
       '#ws-v372-toggle-btn,',
@@ -49,10 +57,23 @@
     try {
       var badge = document.getElementById('ws-expiry-badge');
       if (badge) badge.remove();
+      var bell = document.getElementById('ws-alert-bell');
+      if (bell) bell.remove();
+      var drawer = document.getElementById('ws-alert-drawer');
+      if (drawer) drawer.remove();
+      var drawerBd = document.getElementById('ws-alert-drawer-backdrop');
+      if (drawerBd) drawerBd.remove();
       var bells = document.querySelectorAll('button[aria-label*="알림"]');
       bells.forEach(function (b) { try { b.remove(); } catch (_) {} });
       var toggles = document.querySelectorAll('.senior-toggle, #ws-v372-toggle, #ws-v372-toggle-btn, [data-v372-toggle]');
       toggles.forEach(function (t) { try { t.remove(); } catch (_) {} });
+      // [사장님 명령 2026-05-15] body 직접 자식인 floating scope tab 도 제거
+      //   (v375 가 toolbar 안으로 옮기기 전까지 floating 상태로 잠깐 보이는 것 방지)
+      var scope = document.getElementById('ws-v294-scope-root');
+      if (scope && scope.parentElement === document.body) {
+        // 아직 toolbar 안 안 들어감 → hide 강제
+        scope.style.setProperty('display', 'none', 'important');
+      }
     } catch (_) {}
   }
 
