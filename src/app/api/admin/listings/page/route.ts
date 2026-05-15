@@ -122,6 +122,61 @@ export async function GET(request: NextRequest) {
     const dealFilter = (searchParams.get('deal') || '').trim();
     const statusFilter = (searchParams.get('status') || '').trim();
 
+    // ★ v3 (2026-05-15 사장님 명령) — 추가 filter params (Phase A.1)
+    //   - 클라이언트 v397 patch 가 보내는 33개 filter
+    //   - A.1 단계: 받기만 하고 아직 SQL 적용 안 함 (안전 도입)
+    //   - A.2+ 단계에서 단계별 SQL chain 적용 예정
+    const v3 = {
+      // 다중 선택
+      types: (searchParams.get('types') || '').split(',').map(x => x.trim()).filter(Boolean),
+      deals: (searchParams.get('deals') || '').split(',').map(x => x.trim()).filter(Boolean),
+      statuses: (searchParams.get('statuses') || '').split(',').map(x => x.trim()).filter(Boolean),
+      // 카테고리
+      floor_type: (searchParams.get('floor_type') || '').trim(),
+      room_counts: (searchParams.get('room_counts') || '').split(',').map(x => x.trim()).filter(Boolean),
+      parking_min: parseInt(searchParams.get('parking_min') || '0', 10) || 0,
+      built_year_min: parseInt(searchParams.get('built_year_min') || '0', 10) || 0,
+      // 가격 범위
+      min_deposit: parseInt(searchParams.get('min_deposit') || '0', 10) || null,
+      max_deposit: parseInt(searchParams.get('max_deposit') || '0', 10) || null,
+      min_monthly: parseInt(searchParams.get('min_monthly') || '0', 10) || null,
+      max_monthly: parseInt(searchParams.get('max_monthly') || '0', 10) || null,
+      include_mgmt: searchParams.get('include_mgmt') === '1',
+      min_sale: parseInt(searchParams.get('min_sale') || '0', 10) || null,
+      max_sale: parseInt(searchParams.get('max_sale') || '0', 10) || null,
+      min_base: parseInt(searchParams.get('min_base') || '0', 10) || null,
+      max_base: parseInt(searchParams.get('max_base') || '0', 10) || null,
+      // 면적 (m² 또는 평)
+      min_area: parseFloat(searchParams.get('min_area') || '0') || null,
+      max_area: parseFloat(searchParams.get('max_area') || '0') || null,
+      area_unit: (searchParams.get('area_unit') || 'm2').trim(),
+      min_supply: parseFloat(searchParams.get('min_supply') || '0') || null,
+      max_supply: parseFloat(searchParams.get('max_supply') || '0') || null,
+      supply_unit: (searchParams.get('supply_unit') || 'm2').trim(),
+      // boolean checks
+      building_photo: searchParams.get('building_photo') === '1',
+      interior_photo: searchParams.get('interior_photo') === '1',
+      parking_available: searchParams.get('parking_available') === '1',
+      empty_now: searchParams.get('empty_now') === '1',
+      elevator: searchParams.get('elevator') === '1',
+      loan_available: searchParams.get('loan_available') === '1',
+      no_full_option: searchParams.get('no_full_option') === '1',
+      full_option_only: searchParams.get('full_option_only') === '1',
+      price_nego: searchParams.get('price_nego') === '1',
+      // 지역
+      selected_dongs: (searchParams.get('selected_dongs') || '').split('|').map(x => x.trim()).filter(Boolean),
+      selected_regions: (searchParams.get('selected_regions') || '').split('|').map(x => x.trim()).filter(Boolean),
+      // 키워드 + 건물
+      jibun_start: (searchParams.get('jibun_start') || '').trim(),
+      jibun_end: (searchParams.get('jibun_end') || '').trim(),
+      building_name: (searchParams.get('building_name') || '').trim(),
+      building_id: parseInt(searchParams.get('building_id') || '0', 10) || null,
+      // sort 2차 tiebreaker
+      sort2: (searchParams.get('sort2') || 'none').trim(),
+    };
+    // A.1 단계: v3 param 사용 안 함 (TS 미사용 경고 회피)
+    void v3;
+
     const scopeParam = (searchParams.get('scope') || 'all').toLowerCase();
     let scope: 'all' | 'mine' = scopeParam === 'mine' ? 'mine' : 'all';
     let scopeUid: string | null = null;
