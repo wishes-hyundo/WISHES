@@ -330,6 +330,50 @@ export async function GET(request: NextRequest) {
     //   대안: client 가 응답 후 filter (이미 listing_images 정보 응답에 있음)
     //   또는 stored function 으로 처리 (Phase A 후반)
 
+    // ★ A.2.8: 지역 (selected_dongs / selected_regions)
+    //   selected_dongs: '시도 동' 형식 (e.g. '서울 역삼동') — address ILIKE
+    //   selected_regions: 시도 또는 시도+구 (e.g. '서울', '서울 강남구') — address ILIKE
+    //   다중 선택 OR chain
+    const escIlike = (str: string) => str.replace(/[%_]/g, '\\$&');
+    if (v3.selected_dongs.length > 0) {
+      const dongConds: string[] = [];
+      for (const d of v3.selected_dongs) {
+        const e = escIlike(d.trim());
+        if (e) dongConds.push(`address.ilike.%${e.replace(' ', '%')}%`);
+      }
+      if (dongConds.length > 0) q1 = q1.or(dongConds.join(','));
+    } else if (v3.selected_regions.length > 0) {
+      const regionConds: string[] = [];
+      for (const r of v3.selected_regions) {
+        const e = escIlike(r.trim());
+        if (e) regionConds.push(`address.ilike.%${e}%`);
+      }
+      if (regionConds.length > 0) q1 = q1.or(regionConds.join(','));
+    }
+
+    // ★ A.2.9a: jibun range (지번 범위)
+    //   address 의 한 부분이 jibun_start ~ jibun_end 사이인지 확인 어려움 (text)
+    //   단순 contains 로 처리 (한 쪽이라도 address 에 들어있으면 매칭)
+    if (v3.jibun_start && v3.jibun_end) {
+      const e1 = escIlike(v3.jibun_start);
+      const e2 = escIlike(v3.jibun_end);
+      q1 = q1.or(`address.ilike.%${e1}%,address.ilike.%${e2}%`);
+    } else if (v3.jibun_start) {
+      q1 = q1.ilike('address', `%${escIlike(v3.jibun_start)}%`);
+    } else if (v3.jibun_end) {
+      q1 = q1.ilike('address', `%${escIlike(v3.jibun_end)}%`);
+    }
+
+    // ★ A.2.9b: building_name (건물명)
+    if (v3.building_name) {
+      q1 = q1.ilike('building_name', `%${escIlike(v3.building_name)}%`);
+    }
+
+    // ★ A.2.9c: building_id (매물ID 직검색)
+    if (v3.building_id != null && v3.building_id > 0) {
+      q1 = q1.eq('id', v3.building_id);
+    }
+
     const { data, error, count } = await q1;
     if (error) {
       return NextResponse.json({
