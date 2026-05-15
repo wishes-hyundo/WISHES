@@ -748,9 +748,31 @@ export async function POST(request: NextRequest) {
         ...(await (async () => {
           let lat = listingData.lat ?? null;
           let lng = listingData.lng ?? null;
+          // [2026-05-14 사장님 명령] 100% 정확 보장 — lat/lng 없으면 geocoding
           if ((lat == null || lng == null) && listingData.address) {
             const hit = await geocodeAddress(listingData.address);
             if (hit) { lat = hit.lat; lng = hit.lng; }
+          }
+          // [2026-05-14 사장님] 중복 좌표 검증 — 같은 lat/lng 매물 있으면 재geocoding
+          if (lat != null && lng != null && listingData.address) {
+            try {
+              const sb2 = createServerClient();
+              const { data: dup, error: dupErr } = await sb2
+                .from('listings')
+                .select('id')
+                .eq('lat', lat)
+                .eq('lng', lng)
+                .limit(1)
+                .maybeSingle();
+              if (!dupErr && dup) {
+                // 다른 매물과 좌표 충돌 → 재geocoding
+                const re = await geocodeAddress(listingData.address);
+                if (re && (re.lat !== lat || re.lng !== lng)) {
+                  lat = re.lat;
+                  lng = re.lng;
+                }
+              }
+            } catch { /* 검증 실패는 silent */ }
           }
           return { lat, lng };
         })()),
