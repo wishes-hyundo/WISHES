@@ -211,4 +211,83 @@
     }
 
     var mapDiv = document.getElementById('ws-kakao-map');
-    if (!mapDiv || mapDiv.children.length ==
+    if (!mapDiv || mapDiv.children.length === 0) {
+      container.innerHTML = '<div id="ws-kakao-map" style="width:100%;height:600px;border-radius:8px;"></div>';
+      mapDiv = document.getElementById('ws-kakao-map');
+    }
+
+    loadKakaoMap(function () {
+      try {
+        if (!currentMap) {
+          currentMap = new kakao.maps.Map(mapDiv, {
+            center: new kakao.maps.LatLng(DEFAULT_CENTER.lat, DEFAULT_CENTER.lng),
+            level: DEFAULT_LEVEL,
+          });
+          ignoreBoundsChanges = true;
+          kakao.maps.event.addListener(currentMap, 'idle', scheduleClusterFetch);
+          setTimeout(function () {
+            ignoreBoundsChanges = false;
+            fetchClusters(currentMap);
+          }, 500);
+          log('map created');
+        } else {
+          fetchClusters(currentMap);
+        }
+      } catch (e) {
+        log('renderMap err:', e && e.message);
+      }
+    });
+  }
+
+  function checkAutoRender() {
+    try {
+      var mapTab = document.querySelector('.ws-tab[data-view="map"].ws-tab-active, .ws-tab.ws-tab-active[data-view="map"]');
+      var container = document.getElementById('ws-map-container');
+      var visible = container && container.style.display !== 'none' && container.offsetParent !== null;
+      if (mapTab || visible) {
+        log('auto render — map tab active');
+        renderMap();
+      } else {
+        log('auto render skip');
+      }
+    } catch (e) {
+      log('auto render err:', e && e.message);
+    }
+  }
+
+  function installInitMapWrap() {
+    if (!window.WS) return setTimeout(installInitMapWrap, 200);
+    if (window.WS.__v390InitMapWrapped) return;
+    window.WS.__v390InitMapWrapped = true;
+
+    var origInitMap = typeof window.WS.initMap === 'function' ? window.WS.initMap : null;
+    window.WS.initMap = function () {
+      log('WS.initMap called');
+      if (origInitMap && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+        try { return origInitMap.apply(this, arguments); } catch (e) {}
+      }
+      setTimeout(renderMap, 100);
+    };
+
+    log('initMap wrapped');
+
+    setTimeout(checkAutoRender, 1500);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', installInitMapWrap);
+  } else {
+    installInitMapWrap();
+  }
+
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t) return;
+    var btn = t.closest && t.closest('button, .ws-tab');
+    if (!btn) return;
+    if (btn.matches && btn.matches('[data-view="map"], .ws-tab[data-view="map"]')) {
+      log('tab clicked');
+      setTimeout(renderMap, 200);
+    }
+  }, true);
+})();
