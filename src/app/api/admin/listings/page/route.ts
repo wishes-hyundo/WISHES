@@ -306,6 +306,30 @@ export async function GET(request: NextRequest) {
     // base_price (deal-aware) 는 SQL CASE 가 필요 → PostgREST 어려움. client 처리로 위임.
     // TODO: PostgREST stored function 으로 처리 (Phase A 후반 또는 별도 phase)
 
+    // ★ A.2.6: 면적 범위 (m² / 평 단위 변환)
+    //   1 평 = 3.30579 m² — DB 가 m² 저장하므로 평 입력시 m² 로 변환 후 비교
+    const PY_TO_M2 = 3.30579;
+    const toM2 = (val: number, unit: string) => unit === 'pyeong' ? val * PY_TO_M2 : val;
+    if (v3.min_area != null) q1 = q1.gte('area_m2', toM2(v3.min_area, v3.area_unit));
+    if (v3.max_area != null) q1 = q1.lte('area_m2', toM2(v3.max_area, v3.area_unit));
+    if (v3.min_supply != null) q1 = q1.gte('area_supply_m2', toM2(v3.min_supply, v3.supply_unit));
+    if (v3.max_supply != null) q1 = q1.lte('area_supply_m2', toM2(v3.max_supply, v3.supply_unit));
+
+    // ★ A.2.7: boolean checks
+    if (v3.parking_available) q1 = q1.eq('parking', true);
+    if (v3.empty_now) q1 = q1.eq('status', '공개'); // 현재공실 = status 공개 (사장님 정의)
+    if (v3.elevator) q1 = q1.eq('elevator', true);
+    if (v3.loan_available) q1 = q1.eq('loan_available', true);
+    if (v3.no_full_option) q1 = q1.eq('full_option', false);
+    if (v3.full_option_only) q1 = q1.eq('full_option', true);
+    if (v3.price_nego) {
+      // price_nego OR negotiable 둘 중 하나
+      q1 = q1.or('price_nego.eq.true,negotiable.eq.true');
+    }
+    // building_photo / interior_photo — listing_images EXISTS 필요 (PostgREST 어려움)
+    //   대안: client 가 응답 후 filter (이미 listing_images 정보 응답에 있음)
+    //   또는 stored function 으로 처리 (Phase A 후반)
+
     const { data, error, count } = await q1;
     if (error) {
       return NextResponse.json({
