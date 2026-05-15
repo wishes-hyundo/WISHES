@@ -44,14 +44,9 @@
       var style = document.createElement('style');
       style.setAttribute('data-v364', 'mobile-ux-v3');
       style.textContent = [
-        'html, body {',
-        '  overscroll-behavior: none !important;',
-        '  overscroll-behavior-y: none !important;',
-        '}',
+        // [2026-05-14 사장님 명령] overscroll-behavior 제거 — 브라우저 native PTR 살림
         '@media (max-width: 768px) {',
         '  html, body {',
-        '    overscroll-behavior: none !important;',
-        '    overscroll-behavior-y: none !important;',
         '    -webkit-overflow-scrolling: touch;',
         '    touch-action: pan-y manipulation !important;',
         '  }',
@@ -98,33 +93,9 @@
       return;
     }
 
-    // PTR 정확 차단: 손가락 아래로 swipe (dy > 0) + scrollable container 가 top 일 때만
-    if (dy > 5 && Math.abs(dy) > Math.abs(dx)) {
-      // closest scrollable parent 검사
-      var el = e.target;
-      var atTop = true;
-      while (el && el !== document.documentElement && el.nodeType === 1) {
-        try {
-          var cs = window.getComputedStyle(el);
-          var oy = cs.overflowY;
-          if ((oy === 'auto' || oy === 'scroll' || oy === 'overlay') && el.scrollTop > 0) {
-            atTop = false;
-            break;
-          }
-        } catch (_) {}
-        el = el.parentElement;
-      }
-      // root scroll 도 검사
-      if (atTop) {
-        var rootScroll = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
-        if (rootScroll > 0) atTop = false;
-      }
-      if (atTop) {
-        // 모든 scrollable parent + root 가 top — PTR. 차단.
-        e.preventDefault();
-        try { e.stopPropagation(); } catch (_) {}
-      }
-    }
+    // [2026-05-14 사장님 명령] PTR 강제 차단 제거 — 브라우저 native PTR 정상 작동 허용
+    // 이전: scroll top 일 때 손가락 아래로 swipe 면 e.preventDefault() → native PTR 차단
+    // 변경: native PTR 그대로 허용 (네이버/다음/직방 등 표준 동작)
   }
 
   function onTouchEndCapture(e) {
