@@ -359,7 +359,7 @@ export async function GET(request: NextRequest) {
       const dongConds: string[] = [];
       for (const d of v3.selected_dongs) {
         const e = escIlike(d.trim());
-        if (e) dongConds.push(`address.ilike.%${e.replace(' ', '%')}%`);
+        if (e) dongConds.push(`address.ilike.%${e.replace(/ /g, '%')}%`);
       }
       if (dongConds.length > 0) q1 = q1.or(dongConds.join(','));
     } else if (v3.selected_regions.length > 0) {
