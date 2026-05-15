@@ -508,7 +508,8 @@
       }
       setTimeout(renderMap, 100);
     };
-    setTimeout(checkAutoRender, 1500);
+    // [v16] auto render 제거 - 사용자 click 시에만 (페이지 freeze 방지)
+    // setTimeout(checkAutoRender, 1500);
   }
 
   if (document.readyState === 'loading') {
