@@ -32,10 +32,10 @@
   if (location.pathname.indexOf('/search') !== 0) return;
 
   var DEBUG = true;
-  var REFRESH_INTERVAL_MS = 25 * 60 * 1000;
+  var REFRESH_INTERVAL_MS = 10 * 60 * 1000; // [2026-05-14 사장님] 25 → 10분
   var FIRST_CHECK_DELAY_MS = 10 * 1000;
   var COOLDOWN_MS = 5 * 60 * 1000;
-  var STALE_LOGIN_MIN = 30;
+  var STALE_LOGIN_MIN = 5; // [2026-05-14 사장님] 30 → 5분
   var ENDPOINT = '/api/auth/refresh-session';
 
   var refreshing = false;
