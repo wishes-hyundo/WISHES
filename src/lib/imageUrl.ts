@@ -3,6 +3,24 @@
 
 const R2_BASE_URL = 'https://pub-e16c7a50584c4db7be3571746cd80716.r2.dev/';
 
+// [2026-05-14 사장님 명령]: 외부 CDN 도 img-proxy 로 강제 wrap.
+// 이전: cloudfront/zigbang URL raw 그대로 → /map /listings /home prerender 시
+// raw cloudfront fetch (?w=1920 거대 image, 2-3MB octet-stream).
+// fix: 외부 CDN host 면 /api/img-proxy 로 wrap (cap 적용 → 220px 카드 size).
+// 모달 hero / lightbox 는 v383/v384 가 ?w=1200 + nocap=1 으로 별도 처리.
+const IMG_PROXY_HOSTS = [
+  'd4k1brqee4emz.cloudfront.net',
+  'resource.zigbang.io',
+  'ic.zigbang.com',
+  'img.nemoapp.kr',
+  'blob.nemoapp.kr',
+  'gsc.gongsilclub.com',
+];
+
+function _wrapImgProxy(url: string): string {
+  return '/api/img-proxy?url=' + encodeURIComponent(url);
+}
+
 export function getWatermarkedUrl(url: string | null | undefined): string {
   if (!url) return '';
 
@@ -23,6 +41,10 @@ export function getWatermarkedUrl(url: string | null | undefined): string {
     if (parsed.pathname.startsWith('/api/images/')) {
       return '/api/wm' + parsed.pathname;
     }
+    // [2026-05-14 사장님 명령] 외부 CDN host 면 img-proxy wrap
+    if (IMG_PROXY_HOSTS.includes(parsed.hostname)) {
+      return _wrapImgProxy(url);
+    }
   } catch {
     // URL 파싱 실패 시 무시
   }
@@ -33,6 +55,11 @@ export function getWatermarkedUrl(url: string | null | undefined): string {
     return '/api/wm/' + filePath;
   }
 
-  // 외부 CDN 이미지: 직접 사용 (CSP에서 허용)
+  // 이미 img-proxy 거친 URL — 중복 wrap 방지
+  if (url.indexOf('/api/img-proxy') > -1) {
+    return url;
+  }
+
+  // 그 외 외부 URL 은 그대로
   return url;
 }
