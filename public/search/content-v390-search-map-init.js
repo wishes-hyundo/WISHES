@@ -349,18 +349,15 @@
     if (!currentMap) return;
     clearMarkers();
     if (!Array.isArray(clusters) || clusters.length === 0) return;
-    var projection = null;
-    try { projection = currentMap.getProjection(); } catch (_) {}
-    // [v12 사장님] max zoom (level 1) 에선 merge 안 함 - 정확한 위치 표시
-    var curLevel = currentMap.getLevel();
-    var merged = (curLevel <= 2) ? clusters.map(function(c) {
+    // [v13 사장님] client merge 완전 비활성화 - 매물 정확한 위치 보존
+    var merged = clusters.map(function(c) {
       return {
         lat: c.lat || c.latitude || (c.center && c.center.lat),
         lng: c.lng || c.longitude || (c.center && c.center.lng),
         count: c.count || c.n || (c.sample_ids ? c.sample_ids.length : 1),
         sample_ids: c.sample_ids || null,
       };
-    }).filter(function(x) { return x.lat && x.lng; }) : mergeNearbyCluster(clusters, projection);
+    }).filter(function(x) { return x.lat && x.lng; });
     merged.forEach(function (c) {
       try {
         if (!c.lat || !c.lng) return;
