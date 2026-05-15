@@ -264,6 +264,38 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // ★ A.2.3: room_counts (다중) — 1개/1.5개/1-2개/2개/2-3개/3개
+    //   rooms numeric column. 다중 선택은 .or() chain 으로.
+    if (v3.room_counts.length > 0) {
+      const roomConds: string[] = [];
+      for (const rc of v3.room_counts) {
+        switch (rc) {
+          case '1개': roomConds.push('rooms.eq.1'); break;
+          case '1.5개': roomConds.push('rooms.eq.1.5'); break;
+          case '1-2개': roomConds.push('and(rooms.gte.1,rooms.lte.2)'); break;
+          case '2개': roomConds.push('rooms.eq.2'); break;
+          case '2-3개': roomConds.push('and(rooms.gte.2,rooms.lte.3)'); break;
+          case '3개': roomConds.push('rooms.eq.3'); break;
+        }
+      }
+      if (roomConds.length > 0) {
+        q1 = q1.or(roomConds.join(','));
+      }
+    }
+
+    // ★ A.2.4: parking_min — parking_spaces gte N
+    if (v3.parking_min > 0) {
+      q1 = q1.gte('parking_spaces', v3.parking_min);
+    }
+
+    // ★ A.2.4b: built_year_min — built_year text 컬럼에서 4자리 추출 gte
+    //   built_year 가 text ('2020년', '2020-01-01' 등) 라서 substring 비교 사용
+    //   PostgREST 는 directly 함수 호출 불가 — 단순 lexicographic 비교는 'YYYY' 4자리에서 작동
+    //   주의: '2020년 5월' 같은 값은 '2020' 으로 시작이라 OK
+    if (v3.built_year_min > 0) {
+      q1 = q1.gte('built_year', String(v3.built_year_min));
+    }
+
     const { data, error, count } = await q1;
     if (error) {
       return NextResponse.json({
