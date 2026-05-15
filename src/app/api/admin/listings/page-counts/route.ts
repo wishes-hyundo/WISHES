@@ -77,9 +77,11 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Total (head=true)
+    //   [Critical fix 2026-05-15] default 공개+비공개만 (거래완료 제외)
     let totalQ: any = supabase
       .from('listings')
-      .select('id', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true })
+      .in('status', ['공개', '비공개']);
     if (scope === 'mine' && scopeUid) totalQ = totalQ.eq('created_by', scopeUid);
     const totalP = totalQ.then((r: any) => r.count || 0);
 

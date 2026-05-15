@@ -254,10 +254,15 @@ export async function GET(request: NextRequest) {
     }
 
     // ★ status filter — v3 다중 우선, v2 단일 fallback
+    //   [Critical fix 2026-05-15] default 로 거래완료/archived 제외 (legacy client 와 일치)
+    //   client 가 명시적으로 statuses 보낼 때는 그것 우선
     if (v3.statuses.length > 0) {
       q1 = q1.in('status', v3.statuses);
     } else if (statusFilter) {
       q1 = q1.eq('status', statusFilter);
+    } else {
+      // default: 공개 + 비공개만 (거래완료 / archived / 중복정리 제외)
+      q1 = q1.in('status', ['공개', '비공개']);
     }
 
     // ★ A.2.2: floor_type (지상/지하/반지하/옥탑/단독) — text regex

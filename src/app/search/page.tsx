@@ -248,7 +248,7 @@ export default function SearchPortalPage() {
       // [Phase F.1 2026-05-15 사장님 명령] WS.fetchListingById / fetchListingsByIds helper
       //   detail-by-id 변환의 안전 기반 (cache 우선 + fallback fetch)
       //   v397 활성 시 WS.allListings 가 page 만 가져서 .find(id) 가 miss — 이 helper 가 보완
-      ['ws-ext-patch-v399-fetch-by-id', '/search/content-v399-fetch-by-id.js?v=20260515b-autocache'],
+      ['ws-ext-patch-v399-fetch-by-id', '/search/content-v399-fetch-by-id.js?v=20260515c-csrf'],
       // [Phase F.2 2026-05-15] 모달 click 가로채기 — page 외 매물 자동 fetch + showDetail
       ['ws-ext-patch-v400-modal-prefetch', '/search/content-v400-modal-prefetch.js?v=20260515a'],
       // [Phase F.3 2026-05-15] 비교/인쇄/관심목록 button click 가로채기

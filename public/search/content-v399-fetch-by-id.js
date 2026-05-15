@@ -33,6 +33,14 @@
     catch (_) { return ''; }
   }
 
+  // [Critical fix 2026-05-15] middleware CSRF check 통과용 ws_csrf 쿠키 헤더
+  function getCsrfToken() {
+    try {
+      var m = document.cookie.match(/(?:^|;\s*)ws_csrf=([^;]+)/);
+      return m ? decodeURIComponent(m[1]) : '';
+    } catch (_) { return ''; }
+  }
+
   function findInCache(id) {
     try {
       var arr = (window.WS && window.WS.allListings) || [];
@@ -67,10 +75,16 @@
     var ctrl = new AbortController();
     var tm = setTimeout(function () { try { ctrl.abort(); } catch (_) {} }, 15000);
     try {
+      var csrf = getCsrfToken();
+      var headers = {
+        'Authorization': 'Bearer ' + t,
+        'Content-Type': 'application/json',
+      };
+      if (csrf) headers['X-CSRF-Token'] = csrf;
       var r = await fetch('/api/admin/listings/by-ids', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' },
+        headers: headers,
         body: JSON.stringify({ ids: ids }),
         signal: ctrl.signal,
       });
