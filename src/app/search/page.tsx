@@ -144,7 +144,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v270-contacts', '/search/content-v270-contacts.js?v=20260418a1'],
       ['ws-ext-patch-v280-mobile', '/search/content-v280-mobile.js?v=20260420b'],
       ['ws-ext-patch-v290-polish', '/search/content-v290-polish.js?v=20260420b'],
-      ['ws-ext-patch-v291-stability', '/search/content-v291-stability.js?v=20260510a'],
+      ['ws-ext-patch-v291-stability', '/search/content-v291-stability.js?v=20260514nativePTR'],
       ['ws-ext-patch-v292-global-search', '/search/content-v292-global-search.js?v=20260509a'],
       ['ws-ext-patch-v293-alert-log', '/search/content-v293-alert-log.js?v=20260420c'],
       ['ws-ext-patch-v294-scope', '/search/content-v294-scope.js?v=20260428legacy2'],
@@ -325,7 +325,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v349-snapshot-ttl', '/search/content-v349-snapshot-ttl.js?v=20260511a'],
       // v350-mobile-ux (Fix 40): 모바일 scroll/PTR/lightbox swipe 자동 fix.
       //   overscroll-behavior: none + touch-action: manipulation + swipe handler.
-      ['ws-ext-patch-v350-mobile-ux-fix', '/search/content-v350-mobile-ux-fix.js?v=20260511a'],
+      ['ws-ext-patch-v350-mobile-ux-fix', '/search/content-v350-mobile-ux-fix.js?v=20260514nativePTR'],
       // v348 disabled (Fix 36b): client wrap 이 v294 defineProperty 와 충돌 (무한 재귀 위험).
       //   server side middleware rewrite (Fix 36b) 로 대체. middleware.ts 의 if block 참고.
     ];
