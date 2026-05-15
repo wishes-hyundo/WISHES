@@ -257,7 +257,9 @@
   function init() {
     injectCSS();
     ensureBadgeWatched();
-    bindPTR();
+    // [2026-05-14 사장님 명령]: PTR 너무 예민 → 비활성화. 브라우저 native PTR 도
+    // globals.css 의 overscroll-behavior:none 으로 차단됨.
+    // bindPTR();  // disabled
     log('installed');
   }
 
