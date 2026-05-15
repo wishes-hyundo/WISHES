@@ -260,6 +260,8 @@
       if (!j || !j.success) { log('bad resp:', j && j.error); loading = false; return; }
       var data = j.data || [];
       totalCount = (typeof j.total === 'number') ? j.total : (totalCount || data.length);
+      // [Critical fix 2026-05-16] global var assignment for renderPagination wrap (sparse total trick)
+      window.__v397_totalCount = totalCount;
       lastFetchKey = fetchKey;
       // [Critical fix 2026-05-15] _autoDedup 적용 — legacy 와 동일 동작
       //   server 응답은 raw (중복 포함). client dedup 으로 사용자 화면 카운트 일치 (64,859).
