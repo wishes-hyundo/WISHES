@@ -241,6 +241,10 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v360-console-suppress', '/search/content-v360-console-suppress.js?v=20260512a'],
       // [URGENT 2026-05-15] v363-pagination disabled - 사장님 20건만 표시 회귀 (loadData race)
       // ['ws-ext-patch-v363-pagination', '/search/content-v363-pagination.js?v=20260514e'],
+      // [Phase E 2026-05-15 사장님 명령] v397 후속 - feature flag 기반 server pagination
+      //   /api/system-flags 의 use_server_pagination='true' 일 때만 활성
+      //   기본 'false' 이므로 legacy 모드 유지 (회귀 risk 0)
+      ['ws-ext-patch-v397-pagination', '/search/content-v397-pagination.js?v=20260515a'],
       ['ws-ext-patch-v364-photo-mobile', '/search/content-v364-photo-mobile-ux.js?v=20260514nativePTR'],
       ['ws-ext-patch-v365-mobile-ui', '/search/content-v365-mobile-ui.js?v=20260512b'],
       ['ws-ext-patch-v366-token-refresh-v2', '/search/content-v366-token-refresh-v2.js?v=20260514short'],
