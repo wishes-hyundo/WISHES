@@ -241,6 +241,29 @@ export async function GET(request: NextRequest) {
       q1 = q1.eq('status', statusFilter);
     }
 
+    // ★ A.2.2: floor_type (지상/지하/반지하/옥탑/단독) — text regex
+    if (v3.floor_type && v3.floor_type !== '전체') {
+      switch (v3.floor_type) {
+        case '지상':
+          q1 = q1.not('floor_current', 'ilike', '%지하%')
+                 .not('floor_current', 'ilike', '%반%')
+                 .not('floor_current', 'ilike', 'B%');
+          break;
+        case '지하':
+          q1 = q1.or('floor_current.ilike.%지하%,floor_current.ilike.B%');
+          break;
+        case '반지하':
+          q1 = q1.or('floor_current.ilike.%반지하%,floor_current.ilike.%반%');
+          break;
+        case '옥탑':
+          q1 = q1.or('floor_current.ilike.%옥%,floor_current.ilike.%PH%,floor_current.ilike.%penthouse%');
+          break;
+        case '단독':
+          q1 = q1.ilike('floor_current', '%단독%');
+          break;
+      }
+    }
+
     const { data, error, count } = await q1;
     if (error) {
       return NextResponse.json({
