@@ -36,7 +36,11 @@
       // [사장님 명령 2026-05-15] 전체/내매물 scope tab — body 직접 자식일 때만 hide
       //   (loading 중 floating 상태). v375 가 toolbar 안 inline 으로 옮기면
       //   inline style display:inline-flex !important 로 보임.
-      'body > #ws-v294-scope-root { display: none !important; }',
+      // [사장님 명령 2026-05-15] 전체/내매물 scope tab 영구 제거 (어디든 hide)
+      '#ws-v294-scope-root,',
+      '[id*="v294-scope"],',
+      '.ws-scope-toggle,',
+      '.ws-v294-scope { display: none !important; visibility: hidden !important; }',
       // [사장님 명령 2026-05-15] ⋮ floating toggle 영구 제거 (떠다니며 본 페이지 가림)
       '#ws-v372-toggle,',
       '#ws-v372-toggle-btn,',
@@ -67,13 +71,13 @@
       bells.forEach(function (b) { try { b.remove(); } catch (_) {} });
       var toggles = document.querySelectorAll('.senior-toggle, #ws-v372-toggle, #ws-v372-toggle-btn, [data-v372-toggle]');
       toggles.forEach(function (t) { try { t.remove(); } catch (_) {} });
-      // [사장님 명령 2026-05-15] body 직접 자식인 floating scope tab 도 제거
-      //   (v375 가 toolbar 안으로 옮기기 전까지 floating 상태로 잠깐 보이는 것 방지)
+      // [사장님 명령 2026-05-15] 전체/내매물 scope tab DOM 자체 제거 (어디든)
       var scope = document.getElementById('ws-v294-scope-root');
-      if (scope && scope.parentElement === document.body) {
-        // 아직 toolbar 안 안 들어감 → hide 강제
-        scope.style.setProperty('display', 'none', 'important');
-      }
+      if (scope) { try { scope.remove(); } catch (_) {} }
+      // v294 가 같은 ID 로 재생성 시도하는 모든 element 제거
+      document.querySelectorAll('[id*="v294-scope"]').forEach(function (el) {
+        try { el.remove(); } catch (_) {}
+      });
     } catch (_) {}
   }
 

@@ -151,7 +151,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v291-stability', '/search/content-v291-stability.js?v=20260514nativePTR'],
       ['ws-ext-patch-v292-global-search', '/search/content-v292-global-search.js?v=20260509a'],
       // v293-alert-log removed (2026-05-15 사장님 명령 - 종 알림 잔상 영구 제거)
-      ['ws-ext-patch-v294-scope', '/search/content-v294-scope.js?v=20260428legacy2'],
+      // v294-scope removed (2026-05-15 사장님 명령 - 전체/내매물 잔상 완전 제거)
       ['ws-ext-patch-v295-detail-hydrate', '/search/content-v295-detail-hydrate.js?v=20260424d'],
       ['ws-ext-patch-v297-edit', '/search/content-v297-edit.js?v=20260429-reload'],
       ['ws-ext-patch-v300-aidesc-v2', '/search/content-v300-aidesc-v2.js?v=20260427a'],
@@ -251,8 +251,8 @@ export default function SearchPortalPage() {
       //   v373: 전체/내매물 탭 위치 재배치 (검색바 inline)
       //   v374: viewport-fixed 좌표 보정 (CSS only)
       ['ws-ext-patch-v371-badge-hide', '/search/content-v371-badge-hide.js?v=20260515noKebab'],
-      ['ws-ext-patch-v373-layout-reposition', '/search/content-v373-layout-reposition.js?v=20260515restore'],
-      ['ws-ext-patch-v374-result-row-position', '/search/content-v374-result-row-position.js?v=20260515restore'],
+      // v373-layout-reposition removed (v294 없으니 위치 조정 불필요)
+      // v374-result-row-position removed (v294 없으니 좌표 보정 불필요)
       ['ws-ext-patch-v382-lightbox-1200', '/search/content-v382-lightbox-1200.js?v=20260514a'],
       ['ws-ext-patch-v383-lightbox-img-patch', '/search/content-v383-lightbox-img-patch.js?v=20260514a'],
       ['ws-ext-patch-v384-modal-hero-bg-patch', '/search/content-v384-modal-hero-bg-patch.js?v=20260514a'],
@@ -261,7 +261,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v387-enter-search-blur', '/search/content-v387-enter-search-blur.js?v=20260514v3'],
       ['ws-ext-patch-v390-search-map-init', '/search/content-v390-search-map-init.js?v=20260514v23fast'],
       ['ws-ext-patch-v392-aggressive-token-refresh', '/search/content-v392-aggressive-token-refresh.js?v=20260514a'],
-      ['ws-ext-patch-v375-scope-bottom-toolbar', '/search/content-v375-scope-bottom-toolbar.js?v=20260514a'],
+      // v375-scope-bottom-toolbar removed (v294 없으니 의미 없음)
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
       ['ws-ext-patch-v377-expiry-into-bell', '/search/content-v377-expiry-into-bell.js?v=20260514a'],
       // v378 (2026-05-14 사장님 명령 - CRITICAL): 매물 모달에 다른 매물의 contacts 잘못 표시 fix.
