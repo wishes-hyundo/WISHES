@@ -269,7 +269,12 @@
           deduped = window.WS._autoDedup(data.slice(), true);
         }
       } catch (_) {}
-      window.WS.allListings = deduped;
+      try {
+        window.WS.__v397_setting = true;
+        window.WS.allListings = deduped;
+      } finally {
+        window.WS.__v397_setting = false;
+      }
       try {
         if (window.WS.state) {
           window.WS.state.page = pageNum;
@@ -312,11 +317,28 @@
     // server pagination 모드 — loadData 무력화 + 첫 페이지 fetch
     disableLegacyLoad();
     // [Phase G 2026-05-15] v361 auto-refresh 차단 — __searchActive 영구 true
-    //   v361 가 30초마다 polling 해서 WS.allListings 덮어쓰는 것 방지
-    //   server pagination 모드에서는 자동 새로고침 의미 없음 (페이지 진입 시 자동 fresh)
     try {
       if (window.WS) window.WS.__searchActive = true;
     } catch (_) {}
+    // [Critical race fix 2026-05-15] content.js loadData 가 v397 init 보다 먼저 시작했으면
+    //   이미 64K fetch 진행 중. WS.allListings reset + setter 가로채서 legacy set 무시.
+    try {
+      if (window.WS) {
+        window.WS.__v397_setting = true;
+        window.WS.allListings = [];
+        window.WS.__v397_setting = false;
+        // setter 가로채기 — v397 만 set 가능
+        var _realAll = [];
+        Object.defineProperty(window.WS, 'allListings', {
+          configurable: true,
+          get: function () { return _realAll; },
+          set: function (val) {
+            if (window.WS.__v397_setting) { _realAll = val; }
+            else { log('legacy WS.allListings set blocked (' + (val && val.length) + ' items)'); }
+          },
+        });
+      }
+    } catch (e) { log('setter wrap err:', e && e.message); }
     setTimeout(function () { fetchServerPage(1); }, 100);
     // 페이지 버튼 click hook
     document.addEventListener('click', function (e) {

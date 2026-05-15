@@ -244,7 +244,7 @@ export default function SearchPortalPage() {
       // [Phase E 2026-05-15 사장님 명령] v397 후속 - feature flag 기반 server pagination
       //   /api/system-flags 의 use_server_pagination='true' 일 때만 활성
       //   기본 'false' 이므로 legacy 모드 유지 (회귀 risk 0)
-      ['ws-ext-patch-v397-pagination', '/search/content-v397-pagination.js?v=20260515e-domcounts'],
+      ['ws-ext-patch-v397-pagination', '/search/content-v397-pagination.js?v=20260515f-race'],
       // [Phase F.1 2026-05-15 사장님 명령] WS.fetchListingById / fetchListingsByIds helper
       //   detail-by-id 변환의 안전 기반 (cache 우선 + fallback fetch)
       //   v397 활성 시 WS.allListings 가 page 만 가져서 .find(id) 가 miss — 이 helper 가 보완
