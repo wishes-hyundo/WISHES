@@ -250,6 +250,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v390-search-map-init', '/search/content-v390-search-map-init.js?v=20260514v21nomerge'],
       ['ws-ext-patch-v392-aggressive-token-refresh', '/search/content-v392-aggressive-token-refresh.js?v=20260514a'],
       ['ws-ext-patch-v395-edit-map-picker', '/search/content-v395-edit-map-picker.js?v=20260514a'],
+      ['ws-ext-patch-v396-coord-fix-button', '/search/content-v396-coord-fix-button.js?v=20260514a'],
       ['ws-ext-patch-v375-scope-bottom-toolbar', '/search/content-v375-scope-bottom-toolbar.js?v=20260514a'],
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
       ['ws-ext-patch-v377-expiry-into-bell', '/search/content-v377-expiry-into-bell.js?v=20260514a'],
