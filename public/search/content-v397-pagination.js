@@ -151,6 +151,42 @@
   }
 
   // 서버 페이지 fetch
+  // [정밀검수 fix 2026-05-15] 탭 배지 카운트 endpoint
+  async function fetchPageCounts(filterParams, scope) {
+    var t = getToken();
+    if (!t) return;
+    try {
+      var qs = '?scope=' + scope;
+      for (var k in filterParams) {
+        if (filterParams[k] != null && filterParams[k] !== '') {
+          qs += '&' + k + '=' + encodeURIComponent(String(filterParams[k]));
+        }
+      }
+      var r = await fetch(COUNTS_ENDPOINT + qs, {
+        credentials: 'include',
+        headers: { 'Authorization': 'Bearer ' + t },
+      });
+      if (!r.ok) return;
+      var j = await r.json();
+      if (!j || !j.success) return;
+      try {
+        // by_type / by_status / by_deal — WS.state 에 저장 + UI 렌더 함수 호출
+        if (window.WS) {
+          window.WS.__counts = {
+            total: j.total,
+            by_type: j.by_type,
+            by_status: j.by_status,
+            by_deal: j.by_deal,
+          };
+          // 탭 갱신 시도 (content.js 의 renderTypeTabs / updateCounts 등)
+          if (typeof window.WS.renderTypeTabs === 'function') window.WS.renderTypeTabs();
+          if (typeof window.WS.updateStatusCounts === 'function') window.WS.updateStatusCounts();
+        }
+        log('page-counts OK total=' + j.total);
+      } catch (_) {}
+    } catch (_) {}
+  }
+
   async function fetchServerPage(pageNum) {
     if (loading) return;
     if (!window.WS) { log('WS missing'); return; }
@@ -191,6 +227,10 @@
       // 화면 재렌더 — content.js 의 renderAll 호출 시도
       try { if (window.WS && typeof window.WS.renderAll === 'function') window.WS.renderAll(); } catch (_) {}
       try { if (window.WS && typeof window.WS.renderPagination === 'function') window.WS.renderPagination(); } catch (_) {}
+      // [정밀검수 fix 2026-05-15] page 1 이면 탭 배지용 page-counts 도 호출
+      if (pageNum === 1) {
+        fetchPageCounts(filterParams, scope).catch(function () { /* silent */ });
+      }
     } catch (e) {
       log('fetch err:', e && e.message);
     }

@@ -341,10 +341,11 @@ export async function GET(request: NextRequest) {
     if (v3.loan_available) q1 = q1.eq('loan_available', true);
     if (v3.no_full_option) q1 = q1.eq('full_option', false);
     if (v3.full_option_only) q1 = q1.eq('full_option', true);
-    if (v3.price_nego) {
-      // price_nego OR negotiable 둘 중 하나
-      q1 = q1.or('price_nego.eq.true,negotiable.eq.true');
-    }
+    // ★ price_nego — [2026-05-15 정밀검수 발견] DB 컬럼 price_nego/negotiable 없음.
+    //   활성화하면 PostgREST 422 에러 → 안전하게 skip.
+    //   향후 컬럼 추가 시 활성:
+    //   if (v3.price_nego) q1 = q1.or('price_nego.eq.true,negotiable.eq.true');
+    // (현재 v3.price_nego 받기만 하고 SQL 적용 안 함 — UI 에 옵션은 있지만 데이터 없음)
     // building_photo / interior_photo — listing_images EXISTS 필요 (PostgREST 어려움)
     //   대안: client 가 응답 후 filter (이미 listing_images 정보 응답에 있음)
     //   또는 stored function 으로 처리 (Phase A 후반)
