@@ -79,13 +79,14 @@ const nextConfig = {
       {
         source: '/search/:file(content-v[A-Za-z0-9_-]+\\.js)',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+          // [2026-05-14 사장님 명령] cache 즉시 확인 — no-cache, ETag 검증으로 304 빠름
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
         ],
       },
       {
         source: '/search/styles.css',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+          { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
         ],
       },
       {
