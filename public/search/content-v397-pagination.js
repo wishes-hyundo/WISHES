@@ -216,7 +216,15 @@
       var data = j.data || [];
       totalCount = (typeof j.total === 'number') ? j.total : (totalCount || data.length);
       lastFetchKey = fetchKey;
-      window.WS.allListings = data.slice();
+      // [Critical fix 2026-05-15] _autoDedup 적용 — legacy 와 동일 동작
+      //   server 응답은 raw (중복 포함). client dedup 으로 사용자 화면 카운트 일치 (64,859).
+      var deduped = data.slice();
+      try {
+        if (window.WS && typeof window.WS._autoDedup === 'function') {
+          deduped = window.WS._autoDedup(data.slice(), true);
+        }
+      } catch (_) {}
+      window.WS.allListings = deduped;
       try {
         if (window.WS.state) {
           window.WS.state.page = pageNum;
