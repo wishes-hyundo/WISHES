@@ -86,11 +86,26 @@
 
   window.WS = window.WS || {};
 
+  function _addToCache(listing) {
+    if (!listing || !listing.id) return;
+    try {
+      if (!window.WS.allListings) window.WS.allListings = [];
+      // 이미 있으면 update (덮어쓰기)
+      var idx = window.WS.allListings.findIndex(function (x) {
+        return x && String(x.id) === String(listing.id);
+      });
+      if (idx >= 0) window.WS.allListings[idx] = listing;
+      else window.WS.allListings.push(listing);
+    } catch (_) {}
+  }
+
   window.WS.fetchListingById = async function (id) {
     if (!id) return null;
     var cached = findInCache(id);
     if (cached) return cached;
-    return await fetchSingle(id);
+    var fresh = await fetchSingle(id);
+    if (fresh) _addToCache(fresh);
+    return fresh;
   };
 
   window.WS.fetchListingsByIds = async function (ids) {
@@ -107,6 +122,7 @@
       var fetched = await fetchBulk(miss);
       for (var j = 0; j < fetched.length; j++) {
         byId[String(fetched[j].id)] = fetched[j];
+        _addToCache(fetched[j]);
       }
     }
     // 입력 순서 보존
