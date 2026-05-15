@@ -34,22 +34,22 @@
       '  border-radius:50%;color:#fff;font-weight:700;',
       '  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Pretendard Variable",sans-serif;',
       '  letter-spacing:-0.02em;',
-      '  background:#FF3B30;',
-      '  box-shadow:0 2px 8px rgba(255,59,48,0.35),0 4px 16px rgba(0,0,0,0.18);',
+      '  background:#5E5CE6;',  // [v11 사장님] Apple Indigo - 부드러움
+      '  box-shadow:0 2px 6px rgba(94,92,230,0.20),0 4px 16px rgba(0,0,0,0.10);',
       '  cursor:pointer;user-select:none;',
       '  transition:transform 0.2s cubic-bezier(0.4,0,0.2,1),box-shadow 0.2s ease;',
       '  will-change:transform;',
       '}',
       '.v390-pin.v390-single{',
-      '  background:#007AFF;',
-      '  box-shadow:0 2px 8px rgba(0,122,255,0.35),0 4px 16px rgba(0,0,0,0.18);',
+      '  background:#34C759;',
+      '  box-shadow:0 2px 6px rgba(52,199,89,0.20),0 4px 16px rgba(0,0,0,0.10);',
       '}',
       '.v390-pin:hover{',
       '  transform:scale(1.10);',
-      '  box-shadow:0 4px 14px rgba(255,59,48,0.45),0 6px 20px rgba(0,0,0,0.22);',
+      '  box-shadow:0 4px 12px rgba(94,92,230,0.30),0 6px 20px rgba(0,0,0,0.15);',
       '}',
       '.v390-pin.v390-single:hover{',
-      '  box-shadow:0 4px 14px rgba(0,122,255,0.45),0 6px 20px rgba(0,0,0,0.22);',
+      '  box-shadow:0 4px 12px rgba(52,199,89,0.30),0 6px 20px rgba(0,0,0,0.15);',
       '}',
       '.v390-pin:active{transform:scale(0.94);transition-duration:0.1s;}',
 
@@ -202,9 +202,9 @@
     } catch (e) {}
   }
 
-  // bbox 안 매물 list 가져오기 — popup 표시용
+  // bbox 안 매물 list 가져오기 — popup 표시용 (정확한 위치, 50m 이내)
   function fetchItemsAt(map, lat, lng, radius) {
-    radius = radius || 0.005; // ~500m
+    radius = radius || 0.0005; // ~50m (정확한 cluster 위치만)
     var url = ITEMS_ENDPOINT +
       '?swLat=' + (lat - radius) + '&swLng=' + (lng - radius) +
       '&neLat=' + (lat + radius) + '&neLng=' + (lng + radius) +
@@ -293,7 +293,7 @@
     var curLevel = currentMap.getLevel();
     if (curLevel <= MIN_ZOOM_LEVEL) {
       // max zoom — 매물 list popup
-      fetchItemsAt(currentMap, c.lat, c.lng, 0.003).then(function (items) {
+      fetchItemsAt(currentMap, c.lat, c.lng, 0.0005).then(function (items) {
         if (items && items.length > 0) {
           showPopup(items, '이 위치 매물 ' + items.length + '건');
         } else {
