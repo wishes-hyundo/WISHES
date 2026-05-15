@@ -264,7 +264,7 @@
       var ne = bounds.getNorthEast();
       var zoom = map.getLevel();
       // [v23 사장님] 모든 zoom cluster 사용 — 빠르게. 정확성은 클릭 popup 에서 매물 list 로 보완
-      if (false) {
+      if (zoom <= 5) {
         return fetchItemsAsClusters(map);
       }
       var serverZoom = Math.max(1, Math.min(16, 16 - zoom)); // [v14] 더 큰 grid
