@@ -291,7 +291,7 @@ export default function SearchPortalPage() {
       //   "도로명 주소가 구주소 뒤에 숨겨져 있음" — Kakao Geocoder API 가 못 채운
       //   #v240-hero-road element 에 listing.building_info['도로명주소'] 또는
       //   listing.road_address 직접 채워서 "📍 도로명" 표시.
-      ['ws-ext-patch-v334-hero-road-fill', '/search/content-v334-hero-road-fill.js?v=20260514v9remove'],
+      ['ws-ext-patch-v334-hero-road-fill', '/search/content-v334-hero-road-fill.js?v=20260515v10revert'],
       // v335 (2026-05-09 사장님 발견): 매물 카드 부 라인 도로명 Kakao fallback.
       //   v327 는 listing.road_address 만 사용 → DB null 매물은 원본 title (건물명) 표시.
       //   v335 가 lat/lng → Kakao reverseGeocoder fallback 으로 도로명 채움.
