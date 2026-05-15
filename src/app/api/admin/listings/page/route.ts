@@ -114,7 +114,26 @@ export async function GET(request: NextRequest) {
     const sizeRaw = parseInt(searchParams.get('size') || '100', 10) || 100;
     const size = Math.max(1, Math.min(200, sizeRaw));
     const sort = (searchParams.get('sort') || 'latest').toLowerCase();
-    const ascending = sort === 'oldest';
+    // ★ A.2.10: sort 옵션 확장
+    //   latest/newest = created_at DESC
+    //   oldest = created_at ASC
+    //   views = views DESC
+    //   price_low = price ASC (note: base_price deal-aware 는 stored function 으로)
+    //   price_high = price DESC
+    //   area_low/high = area_m2 ASC/DESC
+    const SORT_MAP: Record<string, { col: string; asc: boolean }> = {
+      latest: { col: 'created_at', asc: false },
+      newest: { col: 'created_at', asc: false },
+      oldest: { col: 'created_at', asc: true },
+      views: { col: 'views', asc: false },
+      price_low: { col: 'price', asc: true },
+      price_high: { col: 'price', asc: false },
+      area_low: { col: 'area_m2', asc: true },
+      area_high: { col: 'area_m2', asc: false },
+    };
+    const sortConfig = SORT_MAP[sort] || SORT_MAP.latest;
+    const ascending = sortConfig.asc;
+    const sortCol = sortConfig.col;
 
     // ★ v2 — 검색/필터 params
     const q = (searchParams.get('q') || '').trim();
@@ -203,7 +222,7 @@ export async function GET(request: NextRequest) {
     let q1: any = supabase
       .from('listings')
       .select(SELECT_FIELDS, wantCount ? { count: 'exact' } : undefined)
-      .order('created_at', { ascending, nullsFirst: false })
+      .order(sortCol, { ascending, nullsFirst: false })
       .range(from, to);
 
     // scope filter
