@@ -249,12 +249,8 @@
       .then(function (r) { if (!r.ok) throw new Error('http_' + r.status); return r.json(); })
       .then(function (data) {
         var items = (data && (data.items || data.data)) || [];
-        log('items', items.length, '(max zoom mode)');
-        // 매물 별 single cluster 변환
-        var asClusters = items.map(function (it) {
-          return { lat: it.lat, lng: it.lng, count: 1, sample_ids: [it.id], _item: it };
-        }).filter(function (x) { return x.lat && x.lng; });
-        renderClusters(asClusters);
+        log('items', items.length, '(items mode - no merge, exact position)');
+        renderItemsExact(items);
       })
       .catch(function (e) { if (e && e.name === 'AbortError') return; })
       .finally(function () { if (inflightController === ctrl) inflightController = null; });
@@ -431,6 +427,48 @@
         return found.concat(fetched);
       })
       .catch(function () { return found; });
+  }
+
+  // [v21 사장님 100% 정확] items 전용 render — merge 없음, 매물 lat/lng 그대로
+  function renderItemsExact(items) {
+    if (!currentMap) return;
+    clearMarkers();
+    if (!Array.isArray(items) || items.length === 0) return;
+    var zoomLvl = currentMap.getLevel();
+    items.forEach(function (it) {
+      try {
+        if (!it.lat || !it.lng) return;
+        var pos = new kakao.maps.LatLng(it.lat, it.lng);
+        var sz = getSizeForCount(1, zoomLvl);
+        var pin = document.createElement('div');
+        pin.className = 'v390-pin v390-single';
+        pin.style.width = sz.size + 'px';
+        pin.style.height = sz.size + 'px';
+        pin.style.fontSize = sz.fontSize + 'px';
+        pin.textContent = '1';
+        pin.addEventListener('click', function (ev) {
+          try { ev.stopPropagation(); } catch (_) {}
+          // single 매물 click → 바로 상세 모달
+          try {
+            if (window.WS && typeof window.WS.showDetail === 'function') {
+              var listing = (window.WS.allListings || []).find(function (l) { return String(l.id) === String(it.id); });
+              if (listing) window.WS.showDetail(listing);
+              else window.WS.showDetail(it);
+              return;
+            }
+          } catch (_) {}
+          // 모달 호출 실패 시 popup
+          showPopup([it], '매물 1건');
+        }, false);
+        var overlay = new kakao.maps.CustomOverlay({
+          position: pos, content: pin, yAnchor: 0.5, xAnchor: 0.5,
+          zIndex: 1, clickable: true,
+        });
+        overlay.setMap(currentMap);
+        currentMarkers.push(overlay);
+      } catch (e) {}
+    });
+    log('rendered', currentMarkers.length, 'exact items');
   }
 
   function renderClusters(clusters) {
