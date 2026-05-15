@@ -1,24 +1,11 @@
 /**
- * v387 — Enter 키 검색 트리거 + 모바일 키보드 내림
+ * v387 v2 — Enter 키 검색 + 모바일 키보드 내림 + search active flag
  * 사장님 명령 2026-05-14.
  *
- * 동작:
- *   1. 검색 input 에 Enter 누름 (데스크탑/모바일 동일)
- *   2. preventDefault — form submit / page reload 방지
- *   3. input.blur() — 모바일 가상 키보드 내림
- *   4. server search 직접 호출 — /api/admin/listings/search?q=KEYWORD
- *      ID 검색 (115050 같은 매물번호) 도 server endpoint 의 ID lookup boost 가 처리
- *   5. 결과 받으면 WS.allListings 에 set + refresh
- *   6. fail 시에도 input.blur() 는 작동 (UX 우선)
- *
- * 회귀 회피:
- *   - v349 의 keypress listener 는 capture phase 라 먼저 fire — 그건 그대로 두고
- *     v387 은 keydown listener (keypress 와 별도) 로 fallback / blur 처리
- *   - keypress 와 keydown 둘 다 e.key='Enter' — 같은 사용자 액션 한 번에 둘 다 fire
- *     중복 호출 방지 위해 lastEnterAt timestamp 로 100ms 이내 중복 skip
- *   - WS.allListings update 후 refresh / renderAll 호출 (v349 와 동일 pattern)
- *
- * 매물카드 영향 0 — listener 만 추가, DOM 변경 X.
+ * v2 변경:
+ *   - 검색 시 window.WS.__searchActive = true 설정
+ *   - v361 polling 이 이 flag 보고 list refresh skip → 검색 풀림 방지
+ *   - 사용자가 input clear / reset 시 flag 해제
  */
 (function () {
   'use strict';
@@ -45,6 +32,14 @@
       } else if (window.WS && typeof window.WS.renderAll === 'function') {
         window.WS.renderAll();
       }
+    } catch (_) {}
+  }
+
+  function setSearchActive(active, keyword) {
+    try {
+      window.WS = window.WS || {};
+      window.WS.__searchActive = !!active;
+      window.WS.__searchKeyword = active ? keyword : '';
     } catch (_) {}
   }
 
@@ -79,12 +74,22 @@
 
   function triggerSearch(keyword) {
     var kw = (keyword || '').trim();
-    if (!kw) return; // 빈 keyword 는 v349 가 cache restore 처리
+    if (!kw) {
+      // 빈 keyword — 검색 종료
+      setSearchActive(false, '');
+      return;
+    }
+    // 검색 시작 — flag 설정 (v361 polling skip)
+    setSearchActive(true, kw);
     callServerSearch(kw).then(function (results) {
-      if (!results) return;
+      if (!results) {
+        setSearchActive(false, '');
+        return;
+      }
       if (!window.WS) return;
       window.WS.allListings = results;
       refreshUI();
+      try { console.log('[v387] search', JSON.stringify(kw), '→', results.length, 'results'); } catch (_) {}
     });
   }
 
@@ -97,10 +102,8 @@
     if (e.key !== 'Enter') return;
     var t = e.target;
     if (!isSearchInput(t)) return;
-    // 100ms 이내 중복 호출 skip (keypress + keydown 둘 다 fire 가능성)
     var now = Date.now();
     if (now - lastEnterAt < 100) {
-      // 모바일 키보드 내림 + form submit 방지만
       try { e.preventDefault(); } catch (_) {}
       try { t.blur(); } catch (_) {}
       return;
@@ -109,17 +112,14 @@
 
     try { e.preventDefault(); } catch (_) {}
     try { e.stopPropagation(); } catch (_) {}
-    // 모바일 가상 키보드 내림
     try { t.blur(); } catch (_) {}
 
-    // server search 호출
     triggerSearch(t.value);
   }
 
   function init() {
-    // capture phase — 모든 다른 listener 보다 먼저 fire
     document.addEventListener('keydown', onKeyDown, true);
-    // form submit 도 잡기 (모바일에서 검색 키 → form submit 이 트리거되는 경우)
+    // form submit 도 잡기
     document.addEventListener('submit', function (e) {
       var f = e.target;
       if (!f || f.tagName !== 'FORM') return;
@@ -129,7 +129,28 @@
       try { inp.blur(); } catch (_) {}
       triggerSearch(inp.value);
     }, true);
-    try { console.log('[v387-enter-search-blur] installed'); } catch (_) {}
+
+    // 검색 reset / clear 버튼 click — search active 해제
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t) return;
+      var id = t.id || (t.closest && t.closest('button') && t.closest('button').id);
+      if (id === 'ws-btn-reset-filters' || id === 'ws-btn-reset-region' || id === 'ws-btn-clear-keyword' || id === 'ws-btn-init') {
+        setTimeout(function () { setSearchActive(false, ''); }, 50);
+      }
+    }, true);
+
+    // 초기화 버튼 (검색바 옆 X 또는 초기화 글자) 인식
+    document.addEventListener('input', function (e) {
+      var t = e.target;
+      if (!isSearchInput(t)) return;
+      // input 비워지면 search active 해제
+      if (!t.value || t.value.trim() === '') {
+        setSearchActive(false, '');
+      }
+    }, true);
+
+    try { console.log('[v387-enter-search-blur v2] installed (with __searchActive flag)'); } catch (_) {}
   }
 
   if (document.readyState === 'loading') {
