@@ -239,7 +239,7 @@
     var url = ITEMS_ENDPOINT +
       '?swLat=' + sw.getLat() + '&swLng=' + sw.getLng() +
       '&neLat=' + ne.getLat() + '&neLng=' + ne.getLng() +
-      '&limit=1000';
+      '&limit=5000';
     if (inflightController) {
       try { inflightController.abort(); } catch (_) {}
     }
