@@ -141,7 +141,7 @@ export default function SearchPortalPage() {
       // [v398 2026-05-15 사장님] auto cache reset — deploy 변경 감지 시 stale storage 자동 정리
       //   강제새로고침/시크릿모드 매번 안 해도 즉시 반영 (사장님 명령)
       //   ws_token, ws-memos, ws-contacts, ws-favorites 는 보존
-      ['ws-ext-patch-v398-auto-cache-reset', '/search/content-v398-auto-cache-reset.js?v=20260515a'],
+      ['ws-ext-patch-v398-auto-cache-reset', '/search/content-v398-auto-cache-reset.js?v=20260515b-firstclr'],
       ['ws-ext-patch', '/search/content-v230-patch.js?v=20260502'],
       ['ws-ext-patch-v240', '/search/content-v240-detail.js?v=20260420g'],
       ['ws-ext-patch-v260-perf', '/search/content-v260-perf.js?v=20260428real'],
