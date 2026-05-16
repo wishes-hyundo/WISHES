@@ -460,7 +460,8 @@
     setInterval(function () {
       try {
         var fp = buildFilterParams();
-        var fk = JSON.stringify(fp);
+        // [Step 23 fix 2026-05-16] lastFilterKey 는 stableStringify 로 set → 비교도 동일하게
+        var fk = stableStringify(fp);
         if (fk !== lastFilterKey) {
           lastFilterKey = fk;
           fetchServerPage(1);

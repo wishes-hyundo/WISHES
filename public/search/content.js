@@ -3196,8 +3196,10 @@
     if (resultCountEl) resultCountEl.textContent = filtered.length;
     // [Step 20 fix 2026-05-16] v397 모드: __v397_totalCount 사용 (정확한 totalPages)
     //   Step 18 가 filtered 를 현재 페이지 데이터(100건)로 set → 그대로 쓰면 totalPages=1 → "2/1" 깨짐
+    // [Step 24 fix 2026-05-16] filtered=0 (검색 결과 없음) 시 stale __v397_totalCount 사용 금지
+    //   → filtered=0 이면 totalForPages=0 (페이지 버튼 0개 정상)
     let totalForPages;
-    if (window.__WS_V397_PAGINATION__ && typeof window.__v397_totalCount === 'number' && window.__v397_totalCount > 0) {
+    if (window.__WS_V397_PAGINATION__ && typeof window.__v397_totalCount === 'number' && window.__v397_totalCount > 0 && filtered.length > 0) {
       totalForPages = window.__v397_totalCount;
     } else {
       totalForPages = filtered.length;
