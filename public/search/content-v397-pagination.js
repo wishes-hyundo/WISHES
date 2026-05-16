@@ -407,16 +407,22 @@
       }
     }, true);
     // filter 변경 감지 (500ms 폴링)
-    var lastFilterKey = '';
+    // [Step 7 fix 2026-05-16] 초기값을 현재 buildFilterParams 결과로 설정
+    //   이전: lastFilterKey='' + 첫 폴링에서 fk='{}' !== '' 라 항상 spurious fetchServerPage(1)
+    //   fix: 초기값을 실제 빌드 결과로 → 첫 폴링은 변경 없으면 무동작 (정상)
+    var lastFilterKey;
+    try {
+      lastFilterKey = JSON.stringify(buildFilterParams() || {});
+    } catch (_) {
+      lastFilterKey = '';
+    }
     setInterval(function () {
       try {
         var fp = buildFilterParams();
         var fk = JSON.stringify(fp);
         if (fk !== lastFilterKey) {
           lastFilterKey = fk;
-          if (Object.keys(fp).length > 0 || lastFilterKey !== '') {
-            fetchServerPage(1);
-          }
+          fetchServerPage(1);
         }
       } catch (_) {}
     }, 500);
