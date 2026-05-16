@@ -9,6 +9,10 @@
 import { NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
 
+// [Critical fix 2026-05-16] PUBLIC_FLAGS whitelist — never leak future internal/secret flags
+const PUBLIC_FLAGS = ['use_server_pagination'];
+
+
 export const runtime = 'nodejs';
 export const revalidate = 0;
 export const dynamic = 'force-dynamic';
@@ -30,6 +34,7 @@ export async function GET() {
     // 키-값 객체로 변환
     const flags: Record<string, string> = {};
     for (const row of data || []) {
+      if (PUBLIC_FLAGS.indexOf(row.name) === -1) continue; // whitelist
       flags[row.name] = row.value;
     }
 

@@ -153,24 +153,37 @@ export async function GET(request: NextRequest) {
       // 카테고리
       floor_type: (searchParams.get('floor_type') || '').trim(),
       room_counts: (searchParams.get('room_counts') || '').split(',').map(x => x.trim()).filter(Boolean),
+
+    // [Critical fix 2026-05-16] safe int/float parser - allows 0 as valid value (was || null bug)
+    const parseIntSafe = (raw: string | null): number | null => {
+      if (raw === null || raw.trim() === '') return null;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) ? n : null;
+    };
+    const parseFloatSafe = (raw: string | null): number | null => {
+      if (raw === null || raw.trim() === '') return null;
+      const n = parseFloat(raw);
+      return Number.isFinite(n) ? n : null;
+    };
+
       parking_min: parseInt(searchParams.get('parking_min') || '0', 10) || 0,
       built_year_min: parseInt(searchParams.get('built_year_min') || '0', 10) || 0,
       // 가격 범위
-      min_deposit: parseInt(searchParams.get('min_deposit') || '0', 10) || null,
-      max_deposit: parseInt(searchParams.get('max_deposit') || '0', 10) || null,
-      min_monthly: parseInt(searchParams.get('min_monthly') || '0', 10) || null,
-      max_monthly: parseInt(searchParams.get('max_monthly') || '0', 10) || null,
+      min_deposit: parseIntSafe(searchParams.get('min_deposit')),
+      max_deposit: parseIntSafe(searchParams.get('max_deposit')),
+      min_monthly: parseIntSafe(searchParams.get('min_monthly')),
+      max_monthly: parseIntSafe(searchParams.get('max_monthly')),
       include_mgmt: searchParams.get('include_mgmt') === '1',
-      min_sale: parseInt(searchParams.get('min_sale') || '0', 10) || null,
-      max_sale: parseInt(searchParams.get('max_sale') || '0', 10) || null,
-      min_base: parseInt(searchParams.get('min_base') || '0', 10) || null,
-      max_base: parseInt(searchParams.get('max_base') || '0', 10) || null,
+      min_sale: parseIntSafe(searchParams.get('min_sale')),
+      max_sale: parseIntSafe(searchParams.get('max_sale')),
+      min_base: parseIntSafe(searchParams.get('min_base')),
+      max_base: parseIntSafe(searchParams.get('max_base')),
       // 면적 (m² 또는 평)
-      min_area: parseFloat(searchParams.get('min_area') || '0') || null,
-      max_area: parseFloat(searchParams.get('max_area') || '0') || null,
+      min_area: parseFloatSafe(searchParams.get('min_area')),
+      max_area: parseFloatSafe(searchParams.get('max_area')),
       area_unit: (searchParams.get('area_unit') || 'm2').trim(),
-      min_supply: parseFloat(searchParams.get('min_supply') || '0') || null,
-      max_supply: parseFloat(searchParams.get('max_supply') || '0') || null,
+      min_supply: parseFloatSafe(searchParams.get('min_supply')),
+      max_supply: parseFloatSafe(searchParams.get('max_supply')),
       supply_unit: (searchParams.get('supply_unit') || 'm2').trim(),
       // boolean checks
       building_photo: searchParams.get('building_photo') === '1',
@@ -189,7 +202,7 @@ export async function GET(request: NextRequest) {
       jibun_start: (searchParams.get('jibun_start') || '').trim(),
       jibun_end: (searchParams.get('jibun_end') || '').trim(),
       building_name: (searchParams.get('building_name') || '').trim(),
-      building_id: parseInt(searchParams.get('building_id') || '0', 10) || null,
+      building_id: parseIntSafe(searchParams.get('building_id')),
       // sort 2차 tiebreaker
       sort2: (searchParams.get('sort2') || 'none').trim(),
     };
@@ -341,7 +354,16 @@ export async function GET(request: NextRequest) {
 
     // ★ A.2.7: boolean checks
     if (v3.parking_available) q1 = q1.eq('parking', true);
-    if (v3.empty_now) q1 = q1.eq('status', '공개'); // 현재공실 = status 공개 (사장님 정의)
+    // [Critical fix 2026-05-16] empty_now must NOT overwrite earlier status filter
+    //   if user already chose status filter (공개/비공개/거래완료), keep their choice;
+    //   empty_now only applies when no status filter set, and even then it intersects with default in()
+    if (v3.empty_now && v3.statuses.length === 0 && !statusFilter) {
+      // overwrite default ['공개','비공개'] with single '공개'
+      // since we can't unchain, rebuild was complicated — instead drop this conflict by treating empty_now as no-op when status already filtered
+      // (the default .in() above already includes 공개; empty_now only meant to TIGHTEN to just 공개)
+      // PostgREST: subsequent .eq() AFTER .in() does add as AND-eq, which would intersect to single value. That's correct intent.
+      q1 = q1.eq('status', '공개');
+    }
     if (v3.elevator) q1 = q1.eq('elevator', true);
     if (v3.loan_available) q1 = q1.eq('loan_available', true);
     if (v3.no_full_option) q1 = q1.eq('full_option', false);
