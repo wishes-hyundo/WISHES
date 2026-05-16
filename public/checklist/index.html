@@ -1132,8 +1132,6 @@ input:focus, textarea:focus, select:focus {
 
     <div class="topbar-date" id="topDate"></div>
 
-    <div class="topbar-step" id="topStep">STEP 1 / 3</div>
-
   </div>
 
 </div>
@@ -2023,7 +2021,7 @@ function updateTopBar(n){
 
   if(n==='result'){
 
-    document.getElementById('topStep').textContent='✅ 상담 완료';
+    var _ts=document.getElementById('topStep'); if(_ts) _ts.textContent='✅ 상담 완료';
 
     document.getElementById('pBar').style.width='100%';
 
@@ -2033,7 +2031,7 @@ function updateTopBar(n){
 
   const labels=['기본상담','매물조건','추가상담'];
 
-  document.getElementById('topStep').textContent='STEP '+n+' / '+TOTAL+' — '+labels[n-1];
+  var _ts=document.getElementById('topStep'); if(_ts) _ts.textContent='STEP '+n+' / '+TOTAL+' — '+labels[n-1];
 
   document.getElementById('pBar').style.width=(n/TOTAL*100)+'%';
 
