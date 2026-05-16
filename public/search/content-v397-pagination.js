@@ -41,6 +41,7 @@
   var pendingFetchPage = null;  // [Step 6 fix 2026-05-16] 진행 중 fetch 시 다음 요청 저장
   var totalCount = 0;
   var lastFetchKey = '';
+  var lastFilterKey = '';  // [Step 15 fix 2026-05-16] module 스코프 hoist (stale-check 와 filter polling 공유)
 
   function log() {
     if (!DEBUG) return;
@@ -385,6 +386,8 @@
               // legacy 가 64K 채웠음 → v397 fetch 다시
               log('legacy detected (len=' + window.WS.allListings.length + ') → re-fetch v397');
               lastFetchKey = ''; // force re-fetch
+              // [Step 15 fix 2026-05-16] filter polling spurious fetch 방지 — lastFilterKey 동기화
+              try { lastFilterKey = JSON.stringify(buildFilterParams() || {}); } catch (_) {}
               fetchServerPage(1);
             }
           } catch (_) {}
@@ -416,7 +419,7 @@
     // [Step 7 fix 2026-05-16] 초기값을 현재 buildFilterParams 결과로 설정
     //   이전: lastFilterKey='' + 첫 폴링에서 fk='{}' !== '' 라 항상 spurious fetchServerPage(1)
     //   fix: 초기값을 실제 빌드 결과로 → 첫 폴링은 변경 없으면 무동작 (정상)
-    var lastFilterKey;
+    // [Step 15 fix 2026-05-16] module 변수 사용 (재선언 X)
     try {
       lastFilterKey = JSON.stringify(buildFilterParams() || {});
     } catch (_) {
