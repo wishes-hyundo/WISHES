@@ -1686,7 +1686,7 @@ const S = {
 
 window.S = S;
 
-let cur = 1;
+var cur = 1; window.cur = 1;
 
 const TOTAL = 3;
 
@@ -1736,7 +1736,7 @@ function goPage(n){
 
   }
 
-  cur = n;
+  cur = n; window.cur = n;
       var lay=document.querySelector('.layout');if(lay)lay.style.display=(n===1||n==='1')?'':'none';
 
   document.getElementById('page-'+n).classList.add('active');
@@ -2264,29 +2264,52 @@ function resetAll(){
       const origNextPage = nextPage;
       window.nextPage = function(){
         const cur = window.cur || 1;
+        const TOTAL = 3;
+
+        // 공통 cleanup
+        document.querySelectorAll('.field-error').forEach(function(el){ el.remove(); });
+        document.querySelectorAll('.shake').forEach(function(el){ el.classList.remove('shake'); });
+
+        let valid = true;
+        let firstInvalid = null;
+
+        function fail(el){
+          valid = false;
+          if(el){
+            el.classList.add('shake');
+            if(!firstInvalid) firstInvalid = el;
+          }
+        }
+
         if(cur === 1){
+          // STEP 1: 이름 / 번호 / 거래유형
           const name = document.getElementById('cName');
           const phone = document.getElementById('cPhone');
-          const dealChips = document.querySelectorAll('.deal-chip.selected, .deal-chip.active, [class*="deal"][class*="selected"]');
-          let valid = true;
-          
-          // Clear previous errors
-          document.querySelectorAll('.field-error').forEach(function(el){ el.remove(); });
-          document.querySelectorAll('.shake').forEach(function(el){ el.classList.remove('shake'); });
-          
-          if(!name || !name.value.trim()){
-            if(name){ name.classList.add('shake'); name.focus(); }
-            valid = false;
+          if(!name || !name.value.trim()) fail(name);
+          if(!phone || !phone.value.trim()) fail(phone);
+          // 거래유형 chip 선택 확인
+          const dealOn = document.querySelectorAll('#g-dealType .deal-chip.on');
+          if(dealOn.length === 0) fail(document.getElementById('g-dealType'));
+        } else if(cur === 2){
+          // STEP 2: 매물 유형 / 1순위 지역
+          const propOn = document.querySelectorAll('#g-propType .chip.on');
+          if(propOn.length === 0) fail(document.getElementById('g-propType'));
+          const reg1 = document.getElementById('reg1');
+          if(!reg1 || !reg1.value.trim()) fail(reg1);
+        }
+        // STEP 3 은 모두 선택 — 검사 없음
+
+        if(!valid){
+          if(firstInvalid && typeof firstInvalid.focus === 'function'){
+            try{ firstInvalid.focus(); }catch(_){}
           }
-          if(!phone || !phone.value.trim()){
-            if(phone) phone.classList.add('shake');
-            valid = false;
+          if(firstInvalid && typeof firstInvalid.scrollIntoView === 'function'){
+            try{ firstInvalid.scrollIntoView({behavior:'smooth', block:'center'}); }catch(_){}
           }
-          
-          if(!valid){
-            setTimeout(function(){ document.querySelectorAll('.shake').forEach(function(el){ el.classList.remove('shake'); }); }, 600);
-            return;
-          }
+          setTimeout(function(){
+            document.querySelectorAll('.shake').forEach(function(el){ el.classList.remove('shake'); });
+          }, 600);
+          return;
         }
         origNextPage();
       };
