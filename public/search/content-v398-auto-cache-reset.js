@@ -60,9 +60,19 @@
     } catch (_) {}
 
     // 3) sessionStorage 클리어 + token 복원
+    // [Step 14 fix 2026-05-16] token 복원 실패 시 localStorage fallback (강제 로그아웃 방지)
     try {
       sessionStorage.clear();
-      if (token) sessionStorage.setItem('ws_token', token);
+      if (token) {
+        try {
+          sessionStorage.setItem('ws_token', token);
+        } catch (e1) {
+          // sessionStorage 가득 찼거나 disabled — localStorage fallback
+          try { localStorage.setItem('ws_token', token); } catch (e2) {
+            try { console.warn('[v398] token 복원 실패 (sessionStorage + localStorage 모두 실패):', e2 && e2.message); } catch (_) {}
+          }
+        }
+      }
     } catch (_) {}
 
     // 4) IndexedDB 모두 삭제
