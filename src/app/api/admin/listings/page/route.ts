@@ -280,7 +280,9 @@ export async function GET(request: NextRequest) {
     if (v3.statuses.length > 0) {
       statusInValues = v3.statuses;
       statusExplicit = true;
-    } else if (statusFilter) {
+    } else if (statusFilter && statusFilter !== '전체') {
+      // [Step 4.1 follow-up 2026-05-16] '전체' 가드 추가 (type/deal 과 일관)
+      //   client 가 status=전체 보내면 .eq('status','전체') → 0건 반환 방지
       statusEqValue = statusFilter;
       statusExplicit = true;
     } else {
