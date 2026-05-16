@@ -706,13 +706,20 @@ textarea {
   vertical-align: middle;
 }
 .chip-full {
-  background: var(--ios-fill) !important;
-  color: var(--ios-label) !important;
+  background: var(--ios-cell) !important;
+  color: var(--ios-blue) !important;
   font-weight: 500 !important;
+  box-shadow: inset 0 0 0 1.5px var(--ios-blue) !important;
 }
-.chip-full.on, .chip-full:active {
+.chip-full.on {
   background: var(--ios-blue) !important;
   color: #fff !important;
+  box-shadow: none !important;
+}
+.chip-full:active {
+  background: var(--ios-blue) !important;
+  color: #fff !important;
+  box-shadow: none !important;
 }
 
 /* ── 방문 일정 row ── */
@@ -1659,7 +1666,7 @@ input:focus, textarea:focus, select:focus {
 
         <div class="chips" id="g-opt">
 
-          <div class="chip chip-full" onclick="pickFull()">🌟 풀옵션</div>
+          <div class="chip chip-full" onclick="pickFull()">🌟 풀옵션 한 번에</div>
 
 
           <div class="chip" onclick="pick(this,'g-opt',0)">에어컨</div>
@@ -2420,7 +2427,7 @@ function resetAll(){
         }
       });
       if(!isOn){btn.classList.add('on');}else{btn.classList.remove('on');}
-      S.chips['g-opt']=[].map.call(document.querySelectorAll('#g-opt .chip.on'),function(c){return c.textContent.trim()}).filter(function(t){return t!=='🌟 풀옵션'});
+      S.chips['g-opt']=[].map.call(document.querySelectorAll('#g-opt .chip.on'),function(c){return c.textContent.trim()}).filter(function(t){return t!=='🌟 풀옵션 한 번에'});
     }
 
     /* 이력/자동저장 완전 제거 - 기존 localStorage 데이터 자동 정리 */
