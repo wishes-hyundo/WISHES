@@ -322,8 +322,22 @@
   }
 
   // loadData 무력화 (server pagination 모드에서만)
+  // [Critical fix 2026-05-16 Step 2] WS 미준비 시 retry (race condition fix)
   function disableLegacyLoad() {
-    if (!window.WS) return;
+    if (!window.WS) {
+      // window.WS 가 아직 정의 안 됨 → 100ms 마다 retry, 최대 30회 (3초)
+      var retries = 0;
+      var iv = setInterval(function () {
+        if (window.WS && typeof window.WS.loadData === 'function') {
+          clearInterval(iv);
+          disableLegacyLoad();  // 재귀 호출 (이번엔 WS ready)
+        } else if (++retries > 30) {
+          clearInterval(iv);
+          log('disableLegacyLoad: WS not ready after 3s (다른 fallback 으로 보호됨)');
+        }
+      }, 100);
+      return;
+    }
     if (window.WS.__v397_loadDataOriginal) return; // 이미 처리됨
     window.WS.__v397_loadDataOriginal = window.WS.loadData;
     window.WS.loadData = function () {
