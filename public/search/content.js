@@ -3194,7 +3194,15 @@
     // Update result count and page info
     var resultCountEl = document.getElementById('ws-result-count');
     if (resultCountEl) resultCountEl.textContent = filtered.length;
-    const totalPages = s.perPage > 0 ? Math.ceil(filtered.length / s.perPage) : 1;
+    // [Step 20 fix 2026-05-16] v397 모드: __v397_totalCount 사용 (정확한 totalPages)
+    //   Step 18 가 filtered 를 현재 페이지 데이터(100건)로 set → 그대로 쓰면 totalPages=1 → "2/1" 깨짐
+    let totalForPages;
+    if (window.__WS_V397_PAGINATION__ && typeof window.__v397_totalCount === 'number' && window.__v397_totalCount > 0) {
+      totalForPages = window.__v397_totalCount;
+    } else {
+      totalForPages = filtered.length;
+    }
+    const totalPages = s.perPage > 0 ? Math.ceil(totalForPages / s.perPage) : 1;
     var pageInfoEl = document.getElementById('ws-page-info-text');
     if (pageInfoEl) pageInfoEl.textContent = s.page + '/' + totalPages;
 
