@@ -855,6 +855,215 @@ input:focus, textarea:focus, select:focus {
   }
 }
 
+
+/* ════════════════════════════════════════
+   iOS Switch + Picker Sheet (정통 iOS 컴포넌트)
+   ════════════════════════════════════════ */
+
+/* ── iOS Switch ── */
+.ios-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  min-height: 44px;
+}
+.ios-switch-desc {
+  font-size: 0.88rem;
+  color: var(--ios-label-3);
+  flex: 1;
+  line-height: 1.3;
+}
+.ios-switch {
+  flex-shrink: 0;
+  width: 51px;
+  height: 31px;
+  background: #E9E9EA;
+  border-radius: 31px;
+  border: none;
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.25s var(--ios-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+@media (prefers-color-scheme: dark) {
+  .ios-switch { background: #39393D; }
+}
+.ios-switch:active { opacity: 0.85; }
+.ios-switch.active { background: var(--ios-green); }
+.ios-switch-thumb {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 27px; height: 27px;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15), 0 1px 2px rgba(0,0,0,0.06);
+  transition: transform 0.28s var(--ios-spring);
+}
+.ios-switch.active .ios-switch-thumb {
+  transform: translateX(20px);
+}
+
+/* ── iOS Picker Cell ── */
+.ios-picker-cell {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  background: var(--ios-cell);
+  border: none;
+  border-radius: var(--ios-r-cell);
+  font-family: var(--ios-font);
+  font-size: 0.95rem;
+  color: var(--ios-label);
+  cursor: pointer;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s var(--ios-ease), transform 0.1s var(--ios-ease);
+  min-height: 44px;
+}
+.ios-picker-cell:active {
+  background: var(--ios-fill-3);
+  transform: scale(0.995);
+}
+.ios-picker-value {
+  color: var(--ios-blue);
+  font-weight: 500;
+}
+.ios-picker-value[data-empty="선택"],
+.ios-picker-value:empty {
+  color: var(--ios-label-3);
+  font-weight: 400;
+}
+.ios-picker-chevron {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-right: 1.5px solid var(--ios-label-3);
+  border-top: 1.5px solid var(--ios-label-3);
+  transform: rotate(45deg);
+  margin-left: 6px;
+}
+
+/* ── iOS Bottom Sheet ── */
+.ios-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.ios-sheet[hidden] { display: none; }
+.ios-sheet-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  animation: ios-fade-in 0.25s var(--ios-ease) both;
+}
+@keyframes ios-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.ios-sheet-panel {
+  position: relative;
+  background: var(--ios-bg-grouped);
+  width: 100%;
+  max-width: 720px;
+  border-radius: 14px 14px 0 0;
+  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+  animation: ios-sheet-up 0.34s var(--ios-spring) both;
+  padding-bottom: env(safe-area-inset-bottom);
+  overflow: hidden;
+}
+@media (prefers-color-scheme: dark) {
+  .ios-sheet-panel { background: #1C1C1E; }
+}
+@keyframes ios-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.ios-sheet-handle {
+  width: 36px; height: 5px;
+  background: rgba(60,60,67,0.3);
+  border-radius: 3px;
+  margin: 6px auto 0;
+}
+.ios-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px 12px;
+  border-bottom: 0.33px solid var(--ios-sep);
+}
+.ios-sheet-header > span {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ios-label);
+}
+.ios-sheet-cancel {
+  background: transparent;
+  border: none;
+  color: var(--ios-blue);
+  font-size: 1rem;
+  font-family: inherit;
+  padding: 4px 0;
+  width: 48px;
+  text-align: left;
+  cursor: pointer;
+}
+.ios-sheet-cancel:active { opacity: 0.5; }
+.ios-sheet-options {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+.ios-sheet-option {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--ios-cell);
+  border: none;
+  border-bottom: 0.33px solid var(--ios-sep);
+  font-size: 1rem;
+  color: var(--ios-label);
+  text-align: left;
+  font-family: var(--ios-font);
+  cursor: pointer;
+  transition: background 0.12s var(--ios-ease);
+  position: relative;
+}
+.ios-sheet-option:first-child {
+  border-top-left-radius: var(--ios-r-cell);
+  border-top-right-radius: var(--ios-r-cell);
+}
+.ios-sheet-option:last-child {
+  border-bottom-left-radius: var(--ios-r-cell);
+  border-bottom-right-radius: var(--ios-r-cell);
+  border-bottom: none;
+}
+.ios-sheet-option:active { background: var(--ios-fill-3); }
+.ios-sheet-option.selected {
+  color: var(--ios-blue);
+  font-weight: 500;
+}
+.ios-sheet-option.selected::after {
+  content: '✓';
+  position: absolute;
+  right: 16px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--ios-blue);
+  font-weight: 600;
+}
+
+/* visit-toggle 옛 클래스 ── 기존 코드 호환 (HTML 에는 더 이상 없지만 안전) */
+.visit-toggle { display: none; }
+
 </style>
 
 </head>
@@ -962,9 +1171,12 @@ input:focus, textarea:focus, select:focus {
           <div class="date-time-row"><input type="date" id="cDate"/><input type="time" id="cTime"/></div>
         </div>
         <div class="fg">
-          <label class="flabel">방문 형태</label>
-          <div id="visitToggle" class="visit-toggle" onclick="toggleVisit(this)">
-            🏢 현장방문
+          <label class="flabel">현장방문</label>
+          <div class="ios-switch-row">
+            <span class="ios-switch-desc">현장방문 시 날짜·시간 자동 비활성</span>
+            <button type="button" id="visitToggle" class="ios-switch" onclick="toggleVisit(this)" role="switch" aria-checked="false" aria-label="현장방문 토글">
+              <span class="ios-switch-thumb"></span>
+            </button>
           </div>
         </div>
       </div>
@@ -1539,29 +1751,11 @@ input:focus, textarea:focus, select:focus {
       <div class="frow c2">
 
         <div class="fg">
-
-          <label class="flabel">거주 유형</label>
-
-          <div class="chips" id="g-house">
-
-            <div class="chip" onclick="pick(this,'g-house',1)">혼자</div>
-
-            <div class="chip" onclick="pick(this,'g-house',1)">커플·신혼</div>
-
-            <div class="chip" onclick="pick(this,'g-house',1)">3인 가족</div>
-
-            <div class="chip" onclick="pick(this,'g-house',1)">4인 가족</div>
-
-            <div class="chip" onclick="pick(this,'g-house',1)">5인+</div>
-
-            <div class="chip" onclick="pick(this,'g-house',1)">형제</div>
-
-            <div class="chip" onclick="pick(this,'g-house',1)">자매</div>
-
-            <div class="chip" onclick="pick(this,'g-house',1)">남매</div>
-
-          </div>
-
+          <label class="flabel">거주 구성원</label>
+          <button type="button" class="ios-picker-cell" id="g-house-cell" onclick="openPicker('g-house')" aria-haspopup="dialog">
+            <span class="ios-picker-value" data-empty="선택">선택</span>
+            <i class="ios-picker-chevron"></i>
+          </button>
         </div>
 
 
@@ -2423,6 +2617,7 @@ function resetAll(){
       const dateInput = document.getElementById('cDate');
       const timeInput = document.getElementById('cTime');
       const isActive = el.classList.toggle('active');
+      el.setAttribute('aria-checked', isActive ? 'true' : 'false');
       if(isActive){
         if(dateInput){ dateInput.value = ''; dateInput.disabled = true; dateInput.style.opacity = '0.4'; }
         if(timeInput){ timeInput.value = ''; timeInput.disabled = true; timeInput.style.opacity = '0.4'; }
@@ -2431,6 +2626,55 @@ function resetAll(){
         if(timeInput){ timeInput.disabled = false; timeInput.style.opacity = ''; }
       }
     }
+
+    /* ═══════════════ iOS Picker Sheet ═══════════════ */
+    window.PICKER_OPTIONS = {
+      'g-house': ['혼자','커플·신혼','3인 가족','4인 가족','5인+','형제','자매','남매']
+    };
+    window.PICKER_TITLES = {
+      'g-house': '거주 구성원'
+    };
+    var _pickerGid = null;
+    function openPicker(gid){
+      _pickerGid = gid;
+      var opts = window.PICKER_OPTIONS[gid] || [];
+      var sheet = document.getElementById('iosSheet');
+      var list = document.getElementById('iosSheetOptions');
+      var title = document.getElementById('iosSheetTitle');
+      if(!sheet || !list || !title) return;
+      title.textContent = window.PICKER_TITLES[gid] || '선택';
+      var currentVal = S.chips[gid] || '';
+      list.innerHTML = opts.map(function(o){
+        var sel = (o === currentVal) ? ' selected' : '';
+        return '<button type="button" class="ios-sheet-option' + sel + '" onclick="selectPicker(this, \'' + o.replace(/'/g, "\\'") + '\')">' + o + '</button>';
+      }).join('');
+      sheet.hidden = false;
+      document.body.style.overflow = 'hidden';
+      if(navigator.vibrate) try{ navigator.vibrate(5); }catch(_){}
+    }
+    function selectPicker(btnEl, val){
+      if(!_pickerGid) return;
+      S.chips[_pickerGid] = val;
+      var cellBtn = document.getElementById(_pickerGid + '-cell');
+      if(cellBtn){
+        var span = cellBtn.querySelector('.ios-picker-value');
+        if(span){
+          span.textContent = val;
+          span.removeAttribute('data-empty');
+        }
+      }
+      closePicker();
+    }
+    function closePicker(){
+      var sheet = document.getElementById('iosSheet');
+      if(sheet) sheet.hidden = true;
+      document.body.style.overflow = '';
+      _pickerGid = null;
+    }
+    /* ESC 키 / 백드롭으로 닫기 */
+    document.addEventListener('keydown', function(e){
+      if(e.key === 'Escape' && _pickerGid) closePicker();
+    });
 
 function sendToNaverWorks(){ if(typeof sendToNW==='function'){sendToNW();return;} alert('전송 연결을 확인해주세요.'); }
 
@@ -2460,6 +2704,21 @@ function updateBottomNavText(n){
     })()
 
     </script>
+
+
+<!-- iOS Picker Sheet -->
+<div id="iosSheet" class="ios-sheet" hidden>
+  <div class="ios-sheet-backdrop" onclick="closePicker()"></div>
+  <div class="ios-sheet-panel">
+    <div class="ios-sheet-handle"></div>
+    <div class="ios-sheet-header">
+      <button type="button" class="ios-sheet-cancel" onclick="closePicker()">취소</button>
+      <span id="iosSheetTitle">선택</span>
+      <span style="width:48px"></span>
+    </div>
+    <div class="ios-sheet-options" id="iosSheetOptions"></div>
+  </div>
+</div>
 
 </body>
 
