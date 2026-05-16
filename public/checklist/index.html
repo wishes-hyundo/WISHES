@@ -168,7 +168,14 @@ button { font-family: inherit; }
   white-space: nowrap;
 }
 .step-btn:active { background: var(--ios-fill-3); transform: scale(0.97); }
-.step-btn.active { color: var(--ios-blue); font-weight: 600; }
+.step-btn.active {
+  color: var(--ios-blue);
+  font-weight: 600;
+  background: rgba(0,122,255,0.12);
+}
+@media (prefers-color-scheme: dark) {
+  .step-btn.active { background: rgba(10,132,255,0.20); }
+}
 .step-btn.done { color: var(--ios-green); }
 .step-badge {
   display: inline-flex;
