@@ -420,7 +420,7 @@
     setTimeout(function () { fetchServerPage(1); }, 100);
     // 페이지 버튼 click hook
     document.addEventListener('click', function (e) {
-      var btn = e.target.closest && e.target.closest('.ws-pagination-btn, [data-page]');
+      var btn = e.target.closest && e.target.closest('.ws-page-btn, [data-page]');  // [Step 22 fix 2026-05-16] dead selector 정정
       if (!btn) return;
       var p = parseInt(btn.dataset.page || btn.getAttribute('data-page') || '0', 10);
       if (p > 0) {
