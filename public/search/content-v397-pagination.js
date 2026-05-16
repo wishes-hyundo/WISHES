@@ -39,6 +39,7 @@
   var flagChecked = false;
   var loading = false;
   var pendingFetchPage = null;  // [Step 6 fix 2026-05-16] 진행 중 fetch 시 다음 요청 저장
+  var pendingFilterSnap = null;  // [Step 19 fix 2026-05-16] pending 저장 시점의 filter snapshot
   var totalCount = 0;
   var lastFetchKey = '';
   var lastFilterKey = '';  // [Step 15 fix 2026-05-16] module 스코프 hoist (stale-check 와 filter polling 공유)
@@ -238,6 +239,8 @@
     if (loading) {
       // [Step 6 fix 2026-05-16] 진행 중이면 최신 요청 저장 (마지막 변경이 우선)
       pendingFetchPage = pageNum;
+      // [Step 19 fix 2026-05-16] filter snapshot 도 함께 저장 (fire 시점 filter 변경 감지용)
+      try { pendingFilterSnap = JSON.stringify(buildFilterParams() || {}); } catch (_) { pendingFilterSnap = null; }
       return;
     }
     if (!window.WS) { log('WS missing'); return; }
@@ -296,7 +299,18 @@
     // [Step 6 fix 2026-05-16] 진행 중 들어온 변경이 있으면 즉시 재실행
     if (pendingFetchPage != null) {
       var p = pendingFetchPage;
+      var snap = pendingFilterSnap;
       pendingFetchPage = null;
+      pendingFilterSnap = null;
+      // [Step 19 fix 2026-05-16] filter 변경 감지 시 page=1 로 강제 reset
+      //   pending 저장 시점 filter 와 현재 filter 가 다르면 새 filter 의 page 1 부터 봐야 함
+      try {
+        var cur = JSON.stringify(buildFilterParams() || {});
+        if (snap !== null && snap !== cur) {
+          log('pending filter changed: page reset to 1');
+          p = 1;
+        }
+      } catch (_) {}
       log('pending fetch fire:', p);
       fetchServerPage(p);
     }
