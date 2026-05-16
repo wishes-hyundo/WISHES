@@ -271,13 +271,22 @@ export async function GET(request: NextRequest) {
     // ★ status filter — v3 다중 우선, v2 단일 fallback
     //   [Critical fix 2026-05-15] default 로 거래완료/archived 제외 (legacy client 와 일치)
     //   client 가 명시적으로 statuses 보낼 때는 그것 우선
+    //   [Critical fix 2026-05-16 Step 4] status 결정만 하고 즉시 적용 X.
+    //     아래 empty_now 와 통합해서 마지막에 한 번만 적용 (이전 chain override 문제 fix)
+    //   [Step 4 v2] statusExplicit 플래그로 사용자 명시 선택 vs default 구분
+    let statusInValues: string[] | null = null;
+    let statusEqValue: string | null = null;
+    let statusExplicit = false;  // 사용자가 명시적으로 status 를 선택했는지
     if (v3.statuses.length > 0) {
-      q1 = q1.in('status', v3.statuses);
+      statusInValues = v3.statuses;
+      statusExplicit = true;
     } else if (statusFilter) {
-      q1 = q1.eq('status', statusFilter);
+      statusEqValue = statusFilter;
+      statusExplicit = true;
     } else {
       // default: 공개 + 비공개만 (거래완료 / archived / 중복정리 제외)
-      q1 = q1.in('status', ['공개', '비공개']);
+      statusInValues = ['공개', '비공개'];
+      // statusExplicit = false 유지
     }
 
     // ★ A.2.2: floor_type (지상/지하/반지하/옥탑/단독) — text regex
@@ -356,7 +365,21 @@ export async function GET(request: NextRequest) {
 
     // ★ A.2.7: boolean checks
     if (v3.parking_available) q1 = q1.eq('parking', true);
-    if (v3.empty_now) q1 = q1.eq('status', '공개'); // 현재공실 = status 공개 (사장님 정의)
+    // [Critical fix 2026-05-16 Step 4] empty_now + status 통합 적용
+    //   - 사용자가 명시적 status filter 설정 시: 그 선택 우선 (empty_now 가 override 안 함)
+    //   - 명시적 filter 없음 + empty_now=1: default '공개/비공개' 대신 '공개' 만
+    //   - 명시적 filter 없음 + empty_now=0: default 그대로
+    if (v3.empty_now && !statusExplicit) {
+      // default 인 경우만 '공개' 로 좁힘 (사용자 명시 선택은 절대 건드리지 않음)
+      statusInValues = null;
+      statusEqValue = '공개';
+    }
+    // 최종 적용 — chain 에 한 번만
+    if (statusInValues) {
+      q1 = q1.in('status', statusInValues);
+    } else if (statusEqValue) {
+      q1 = q1.eq('status', statusEqValue);
+    }
     if (v3.elevator) q1 = q1.eq('elevator', true);
     if (v3.loan_available) q1 = q1.eq('loan_available', true);
     if (v3.no_full_option) q1 = q1.eq('full_option', false);
