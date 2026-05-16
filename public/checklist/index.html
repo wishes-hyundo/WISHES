@@ -760,6 +760,101 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; padding: 10px 0
   color: var(--ios-label-3);
 }
 
+
+/* ════════════════════════════════════════
+   iOS 2차 — Animation & Interaction
+   ════════════════════════════════════════ */
+
+html { overscroll-behavior-y: contain; }
+body {
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@keyframes ios-page-push {
+  from { opacity: 0; transform: translateX(28px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.page.active {
+  animation: ios-page-push 0.42s var(--ios-spring) both;
+}
+
+@keyframes ios-fade-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+#page-result.active .summary-card {
+  animation: ios-fade-up 0.5s var(--ios-spring) both;
+}
+#page-result.active .summary-card:nth-of-type(1) { animation-delay: 0.04s; }
+#page-result.active .summary-card:nth-of-type(2) { animation-delay: 0.08s; }
+#page-result.active .summary-card:nth-of-type(3) { animation-delay: 0.12s; }
+#page-result.active .summary-card:nth-of-type(4) { animation-delay: 0.16s; }
+#page-result.active .summary-card:nth-of-type(5) { animation-delay: 0.20s; }
+#page-result.active .summary-card:nth-of-type(6) { animation-delay: 0.24s; }
+#page-result.active .summary-card:nth-of-type(7) { animation-delay: 0.28s; }
+#page-result.active .result-hero {
+  animation: ios-fade-up 0.45s var(--ios-spring) both;
+}
+.page.active > .card {
+  animation: ios-fade-up 0.42s var(--ios-spring) both;
+}
+.page.active > .card:nth-of-type(1) { animation-delay: 0.04s; }
+.page.active > .card:nth-of-type(2) { animation-delay: 0.10s; }
+.page.active > .card:nth-of-type(3) { animation-delay: 0.16s; }
+.page.active > .card:nth-of-type(4) { animation-delay: 0.22s; }
+.page.active > .card:nth-of-type(5) { animation-delay: 0.28s; }
+
+.sc-row, .prio-row {
+  transition: background 0.15s var(--ios-ease);
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+.sc-row:active, .prio-row:active { background: var(--ios-fill-3); }
+
+.chip {
+  transition:
+    background 0.2s var(--ios-spring),
+    color 0.2s var(--ios-spring),
+    transform 0.12s var(--ios-ease);
+}
+.deal-chip {
+  transition:
+    background 0.25s var(--ios-spring),
+    box-shadow 0.25s var(--ios-spring),
+    transform 0.12s var(--ios-ease);
+}
+.deal-chip:active { transform: scale(0.97); }
+.btn, .send-btn, .budget-btn, .visit-toggle, .step-btn {
+  transition:
+    opacity 0.12s var(--ios-ease),
+    transform 0.12s var(--ios-ease),
+    background 0.18s var(--ios-ease);
+}
+.progress-fill { transition: width 0.55s var(--ios-spring); }
+.star { transition: color 0.18s var(--ios-ease), transform 0.18s var(--ios-spring); }
+.star:active { transform: scale(1.25); }
+.visit-toggle:active { opacity: 0.7; }
+
+@keyframes ios-menu-up {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.edit-menu.show { animation: ios-menu-up 0.22s var(--ios-spring) both; }
+
+input:focus, textarea:focus, select:focus {
+  transition: border-color 0.18s var(--ios-ease), box-shadow 0.18s var(--ios-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page.active,
+  #page-result.active .summary-card,
+  #page-result.active .result-hero,
+  .page.active > .card,
+  .edit-menu.show {
+    animation: none !important;
+  }
+}
+
 </style>
 
 </head>
@@ -2204,6 +2299,33 @@ function resetAll(){
     });
     
 
+    /* ═══════════════ iOS 2차 — 햅틱 + PTR ═══════════════ */
+    (function(){
+      if ('vibrate' in navigator) {
+        document.addEventListener('click', function(e){
+          if (e.target.closest('.chip, .deal-chip, .visit-toggle, .btn, .star, .step-btn, .budget-btn, .send-btn')) {
+            try { navigator.vibrate(3); } catch(_){}
+          }
+        }, true);
+      }
+      var startY = 0, startX = 0;
+      document.addEventListener('touchstart', function(e){
+        if (e.touches.length !== 1) return;
+        startY = e.touches[0].clientY;
+        startX = e.touches[0].clientX;
+      }, { passive: true });
+      document.addEventListener('touchmove', function(e){
+        if (e.touches.length !== 1) return;
+        var dy = e.touches[0].clientY - startY;
+        var dx = e.touches[0].clientX - startX;
+        if (dy > 5 && Math.abs(dy) > Math.abs(dx)) {
+          var rootScroll = window.scrollY || document.documentElement.scrollTop || 0;
+          if (rootScroll <= 0) {
+            try { e.preventDefault(); } catch(_){}
+          }
+        }
+      }, { passive: false });
+    })();
 
 </script>
 
