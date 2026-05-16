@@ -376,7 +376,15 @@ export async function GET(request: NextRequest) {
       statusInValues = null;
       statusEqValue = '공개';
     }
-    // 최종 적용 — chain 에 한 번만
+    // [Step 5 fix 2026-05-16] building_id 직검색 시 status default 우회
+    //   매물 ID 직검색 = 사용자가 그 특정 매물 자체를 찾는 행위
+    //   status 가 거래완료/archived 라도 결과 표시되어야 함
+    //   단 사용자가 명시적 status 설정한 경우엔 그 선택 존중
+    if (v3.building_id != null && v3.building_id > 0 && !statusExplicit) {
+      statusInValues = null;
+      statusEqValue = null;
+    }
+    // 최종 적용 — chain 에 한 번만 (둘 다 null 이면 status 필터 없음)
     if (statusInValues) {
       q1 = q1.in('status', statusInValues);
     } else if (statusEqValue) {
