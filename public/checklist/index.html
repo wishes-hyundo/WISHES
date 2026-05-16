@@ -2401,20 +2401,14 @@ function resetAll(){
     // === 현장방문 토글 ===
     function toggleVisit(el){
       const dateInput = document.getElementById('cDate');
+      const timeInput = document.getElementById('cTime');
       const isActive = el.classList.toggle('active');
       if(isActive){
-        el.style.background = '#0B1F4B';
-        el.style.color = '#fff';
-        el.style.borderColor = '#0B1F4B';
-        dateInput.value = '';
-        dateInput.disabled = true;
-        dateInput.style.opacity = '0.4';
+        if(dateInput){ dateInput.value = ''; dateInput.disabled = true; dateInput.style.opacity = '0.4'; }
+        if(timeInput){ timeInput.value = ''; timeInput.disabled = true; timeInput.style.opacity = '0.4'; }
       } else {
-        el.style.background = '#fff';
-        el.style.color = '#333';
-        el.style.borderColor = '#ddd';
-        dateInput.disabled = false;
-        dateInput.style.opacity = '1';
+        if(dateInput){ dateInput.disabled = false; dateInput.style.opacity = ''; }
+        if(timeInput){ timeInput.disabled = false; timeInput.style.opacity = ''; }
       }
     }
 
