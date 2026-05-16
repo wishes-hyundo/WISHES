@@ -113,13 +113,26 @@
     } catch (_) {}
   }
 
+  // [Step 16 fix 2026-05-16] in-flight dedup
+  //   v400 (카드 click) + v402 (showDetail wrap) 가 같은 id 거의 동시에 fetch 시
+  //   동일 Promise 반환 → 중복 네트워크 요청 방지
+  var _inflight = {};
   window.WS.fetchListingById = async function (id) {
     if (!id) return null;
     var cached = findInCache(id);
     if (cached) return cached;
-    var fresh = await fetchSingle(id);
-    if (fresh) _addToCache(fresh);
-    return fresh;
+    var key = String(id);
+    if (_inflight[key]) return _inflight[key];  // 진행 중이면 동일 Promise 반환
+    _inflight[key] = (async function () {
+      try {
+        var fresh = await fetchSingle(id);
+        if (fresh) _addToCache(fresh);
+        return fresh;
+      } finally {
+        delete _inflight[key];  // 완료 후 cleanup
+      }
+    })();
+    return _inflight[key];
   };
 
   window.WS.fetchListingsByIds = async function (ids) {
