@@ -130,14 +130,16 @@ button { font-family: inherit; }
 
 /* ── PROGRESS ── */
 .progress-track {
-  height: 2px;
-  background: var(--ios-fill-3);
+  height: 4px;
+  background: var(--ios-fill);
   position: sticky; top: 44px; z-index: 199;
+  border-radius: 0;
 }
 .progress-fill {
-  height: 2px;
+  height: 4px;
   background: var(--ios-blue);
-  transition: width 0.5s var(--ios-spring);
+  transition: width 0.55s var(--ios-spring);
+  border-radius: 0 2px 2px 0;
 }
 
 /* ── STEP NAV (Segmented-like) ── */
