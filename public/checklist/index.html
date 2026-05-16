@@ -679,6 +679,87 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; padding: 10px 0
 #historyPanel { display: none !important; }
 
 
+
+/* ── chip 정밀 정렬 (emoji 튀어나옴 fix) ── */
+.chip {
+  line-height: 1.2 !important;
+  min-height: 38px !important;
+  padding: 9px 14px !important;
+  font-size: 0.93rem !important;
+  vertical-align: middle;
+}
+.chip-full {
+  background: var(--ios-fill) !important;
+  color: var(--ios-label) !important;
+  font-weight: 500 !important;
+}
+.chip-full.on, .chip-full:active {
+  background: var(--ios-blue) !important;
+  color: #fff !important;
+}
+
+/* ── 방문 일정 row ── */
+.date-time-row { display: flex; gap: 10px; align-items: center; }
+.date-time-row input[type=date] { flex: 1; }
+.date-time-row input[type=time] { flex: 0.7; }
+
+/* ── visit-toggle ── */
+.visit-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 16px;
+  border-radius: var(--ios-r-cell);
+  background: var(--ios-fill);
+  color: var(--ios-label);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: background 0.15s var(--ios-ease), transform 0.1s var(--ios-ease);
+  user-select: none;
+}
+.visit-toggle:active { transform: scale(0.98); }
+.visit-toggle.active {
+  background: var(--ios-blue);
+  color: #fff;
+}
+
+/* ── Edit menu (iOS Action Sheet 톤) ── */
+.edit-menu {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px); left: 0;
+  background: var(--ios-bg-elevated);
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+  padding: 6px 0;
+  min-width: 200px;
+  z-index: 100;
+  overflow: hidden;
+}
+.edit-menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.97rem;
+  color: var(--ios-label);
+  font-family: var(--ios-font);
+}
+.edit-menu button:active {
+  background: var(--ios-fill-3);
+}
+
+/* ── info-note 안의 em 톤 ── */
+.info-note em {
+  font-style: normal;
+  color: var(--ios-label-3);
+}
+
 </style>
 
 </head>
@@ -783,11 +864,11 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; padding: 10px 0
       <div class="frow c2">
         <div class="fg">
           <label class="flabel">방문 일정</label>
-          <div style="display:flex;gap:8px;align-items:center"><input type="date" id="cDate" style="flex:1"/><input type="time" id="cTime" style="flex:0.7;padding:10px 12px;border-radius:10px;border:2px solid #ddd;font-size:14px;background:#fff;color:#222"/></div>
+          <div class="date-time-row"><input type="date" id="cDate"/><input type="time" id="cTime"/></div>
         </div>
         <div class="fg">
-          <label class="flabel">&nbsp;</label>
-          <div id="visitToggle" onclick="toggleVisit(this)" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border-radius:10px;border:2px solid #ddd;background:#fff;cursor:pointer;font-size:14px;font-weight:600;transition:all .2s;margin-top:2px;">
+          <label class="flabel">방문 형태</label>
+          <div id="visitToggle" class="visit-toggle" onclick="toggleVisit(this)">
             🏢 현장방문
           </div>
         </div>
@@ -981,18 +1062,22 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; padding: 10px 0
         <span class="card-icon">🚗</span> 주차 / 반려동물
       </div>
       <div class="card-body">
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-          <div class="chips" id="g-parking" style="flex:0 0 auto">
+        <div class="fg">
+          <label class="flabel">주차</label>
+          <div class="chips" id="g-parking">
             <div class="chip" onclick="pick(this,'g-parking',1)">필요</div>
             <div class="chip" onclick="pick(this,'g-parking',1)">불필요</div>
           </div>
-          <input type="text" id="parkingNote" placeholder="차종/특이사항" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:2px solid #ddd;font-size:14px;background:#fff"/>
-          <div class="chips" id="g-petType" style="flex:0 0 auto">
+          <input type="text" id="parkingNote" class="loan-product-input" placeholder="차종 / 특이사항 (선택)"/>
+        </div>
+        <div class="fg" style="margin-top:14px">
+          <label class="flabel">반려동물</label>
+          <div class="chips" id="g-petType">
             <div class="chip" onclick="pick(this,'g-petType',1)">🐶 강아지</div>
             <div class="chip" onclick="pick(this,'g-petType',1)">🐱 고양이</div>
             <div class="chip" onclick="pick(this,'g-petType',1)">없음</div>
           </div>
-          <input type="text" id="petNote" placeholder="기타/특이사항" style="flex:1;min-width:100px;padding:10px 14px;border-radius:10px;border:2px solid #ddd;font-size:14px;background:#fff"/>
+          <input type="text" id="petNote" class="loan-product-input" placeholder="종 / 특이사항 (선택)"/>
         </div>
       </div>
     </div>
@@ -1178,7 +1263,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; padding: 10px 0
 </div>
 
 <div class="page" id="page-3">
-<div style="background:linear-gradient(135deg,#f0f4e8,#e4ecd4);border-radius:12px;padding:14px 20px;margin:0 0 20px;font-size:13px;color:#3a5a1a;display:flex;align-items:center;gap:10px"><span style="font-size:20px">💬</span><span>더 정확한 매물 추천을 위해 추가 정보를 입력해주세요 <em style="opacity:0.7">(선택사항)</em></span></div>
+<div class="info-note" style="margin-bottom:18px"><span>💬</span><span>더 정확한 매물 추천을 위해 추가 정보를 입력해주세요 <em style="opacity:0.7">(선택)</em></span></div>
 
 
 
@@ -1231,7 +1316,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; padding: 10px 0
 
         <div class="chips" id="g-opt">
 
-          <div class="chip" onclick="pickFull()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-weight:700;border:none">🌟 풀옵션</div>
+          <div class="chip chip-full" onclick="pickFull()">🌟 풀옵션</div>
 
 
           <div class="chip" onclick="pick(this,'g-opt',0)">에어컨</div>
@@ -1292,7 +1377,7 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; padding: 10px 0
 
     </div>
 
-    <div class="card-body" style="padding-bottom:6px">
+    <div class="card-body">
 
       <div class="hint" style="margin-bottom:14px">별점으로 중요도를 표시해주세요 (★ 많을수록 중요)</div>
 
@@ -1475,10 +1560,10 @@ textarea { resize: vertical; min-height: 80px; line-height: 1.5; padding: 10px 0
 
           <div class="edit-dropdown" style="position:relative;display:inline-block">
             <button class="btn btn-ghost" onclick="this.nextElementSibling.classList.toggle('show')">← 수정</button>
-            <div class="edit-menu" style="display:none;position:absolute;bottom:100%;left:0;background:#fff;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,.15);padding:8px 0;min-width:160px;z-index:100">
-              <button onclick="goPage(1);this.parentElement.classList.remove('show')" style="display:block;width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:14px">📋 기본상담 (STEP 1)</button>
-              <button onclick="goPage(2);this.parentElement.classList.remove('show')" style="display:block;width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:14px">🏠 매물조건 (STEP 2)</button>
-              <button onclick="goPage(3);this.parentElement.classList.remove('show')" style="display:block;width:100%;text-align:left;padding:10px 16px;border:none;background:none;cursor:pointer;font-size:14px">➕ 추가상담 (STEP 3)</button>
+            <div class="edit-menu">
+              <button onclick="goPage(1);this.parentElement.classList.remove('show')">기본상담 (STEP 1)</button>
+              <button onclick="goPage(2);this.parentElement.classList.remove('show')">매물조건 (STEP 2)</button>
+              <button onclick="goPage(3);this.parentElement.classList.remove('show')">추가상담 (STEP 3)</button>
             </div>
           </div>
   <button class="btn btn-send agent-only" id="resultSendBtn" onclick="sendToNaverWorks()">보내기</button>
