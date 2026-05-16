@@ -433,16 +433,24 @@ textarea {
 }
 
 /* ── STARS ── */
-.stars { display: flex; gap: 4px; }
+.stars { display: flex; gap: 2px; }
 .star {
-  font-size: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 1.7rem;
   color: var(--ios-label-4);
   cursor: pointer;
-  transition: all 0.15s var(--ios-ease);
+  transition: color 0.18s var(--ios-ease), transform 0.18s var(--ios-spring);
   line-height: 1;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 .star.on { color: var(--ios-orange); }
-.star:active { transform: scale(1.2); }
+.star:active { transform: scale(1.25); background: var(--ios-fill-3); }
 
 /* ── PRIORITY TABLE ── */
 .prio-table {
@@ -855,7 +863,6 @@ body {
     background 0.18s var(--ios-ease);
 }
 .progress-fill { transition: width 0.55s var(--ios-spring); }
-.star { transition: color 0.18s var(--ios-ease), transform 0.18s var(--ios-spring); }
 .star:active { transform: scale(1.25); }
 .visit-toggle:active { opacity: 0.7; }
 
