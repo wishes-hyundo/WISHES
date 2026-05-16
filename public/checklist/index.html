@@ -557,6 +557,14 @@ textarea {
   color: var(--ios-green);
   margin-bottom: 8px;
 }
+.result-subtitle {
+  font-size: 0.92rem;
+  color: var(--ios-label-3);
+  margin-top: 4px;
+  letter-spacing: -0.1px;
+  font-weight: 400;
+}
+
 .result-name {
   font-size: 1.85rem;
   font-weight: 700;
@@ -1831,7 +1839,7 @@ input:focus, textarea:focus, select:focus {
 
     <div class="result-name" id="rName">고객님</div>
 
-    
+    <div class="result-subtitle" id="rSubtitle"></div>
 
   </div>
 
@@ -2190,6 +2198,13 @@ function generateResult(){
   const prop = gc('g-propType');
 
   document.getElementById('rName').textContent = name+'님';
+
+  var subParts = [];
+  if(deal) subParts.push(deal);
+  if(prop && prop !== '—') subParts.push(prop);
+  if(gv('cDate')) subParts.push(gv('cDate'));
+  var subEl = document.getElementById('rSubtitle');
+  if(subEl) subEl.textContent = subParts.join(' · ');
 
 
 
