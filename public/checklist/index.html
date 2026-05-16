@@ -1993,6 +1993,7 @@ function setStar(k, v){
 /* ═══════════════ HELPERS ═══════════════ */
 
 function gv(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function _esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
 function gc(gid){ const v=S.chips[gid]; if(!v) return '—'; if(Array.isArray(v)) return v.length?v.join(', '):'—'; return v; }
 
@@ -2062,11 +2063,11 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">고객명</div><div class="sc-val"><strong>${gv('cName')||'—'}</strong></div></div>
+        <div class="sc-row"><div class="sc-key">고객명</div><div class="sc-val"><strong>${_esc(gv('cName'))||'—'}</strong></div></div>
 
-        <div class="sc-row"><div class="sc-key">연락처</div><div class="sc-val">${gv('cPhone')||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">연락처</div><div class="sc-val">${_esc(gv('cPhone'))||'—'}</div></div>
 
-        <div class="sc-row"><div class="sc-key">방문일정</div><div class="sc-val">${gv('cDate')||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">방문일정</div><div class="sc-val">${_esc(gv('cDate'))||'—'}</div></div>
 
         
 
@@ -2088,9 +2089,9 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">예산</div><div class="sc-val"><strong style="color:var(--navy)">${budget}</strong></div></div>
 
-        ${deal==='매매'?'<div class="sc-row"><div class="sc-key">대출 이용</div><div class="sc-val">'+gc('g-loan')+(gv('loanProductName')?' ('+gv('loanProductName')+')':'')+'</div></div>':''}
+        ${deal==='매매'?'<div class="sc-row"><div class="sc-key">대출 이용</div><div class="sc-val">'+gc('g-loan')+(gv('loanProductName')?' ('+_esc(gv('loanProductName'))+')':'')+'</div></div>':''}
 
-        ${deal==='전세'?'<div class="sc-row"><div class="sc-key">전세 대출</div><div class="sc-val">'+gc('g-jeonLoan')+(gv('jloanProductName')?' ('+gv('jloanProductName')+')':'')+'</div></div>':''}
+        ${deal==='전세'?'<div class="sc-row"><div class="sc-key">전세 대출</div><div class="sc-val">'+gc('g-jeonLoan')+(gv('jloanProductName')?' ('+_esc(gv('jloanProductName'))+')':'')+'</div></div>':''}
 
       </div>
 
@@ -2104,11 +2105,11 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">1순위</div><div class="sc-val">${gv('reg1')||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">1순위</div><div class="sc-val">${_esc(gv('reg1'))||'—'}</div></div>
 
-        <div class="sc-row"><div class="sc-key">2순위</div><div class="sc-val">${gv('reg2')||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">2순위</div><div class="sc-val">${_esc(gv('reg2'))||'—'}</div></div>
 
-        <div class="sc-row"><div class="sc-key">3순위</div><div class="sc-val">${gv('reg3')||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">3순위</div><div class="sc-val">${_esc(gv('reg3'))||'—'}</div></div>
 
         
 
@@ -2130,7 +2131,7 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">이동 수단</div><div class="sc-val">${gc('g-trans')}</div></div>
 
-        <div class="sc-row"><div class="sc-key">직장·학교</div><div class="sc-val">${gv('workplace')||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">직장·학교</div><div class="sc-val">${_esc(gv('workplace'))||'—'}</div></div>
 
         <div class="sc-row"><div class="sc-key">필수 시설</div><div class="sc-val">${gc('g-fac')}</div></div>
 
@@ -2172,7 +2173,7 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">희망 입주일</div><div class="sc-val">${gv('moveDate')||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">희망 입주일</div><div class="sc-val">${_esc(gv('moveDate'))||'—'}</div></div>
 
         <div class="sc-row"><div class="sc-key">입주 유연성</div><div class="sc-val">${gc('g-moveFlex')}</div></div>
         <div class="sc-row"><div class="sc-key">금일 계약</div><div class="sc-val">${gc('g-contractToday')}</div></div>
@@ -2197,7 +2198,7 @@ function generateResult(){
 
       <div class="sc-body">
 
-        ${gv('addReq')?'<div class="sc-row"><div class="sc-key">요청사항</div><div class="sc-val">'+gv('addReq')+'</div></div>':''}
+        ${gv('addReq')?'<div class="sc-row"><div class="sc-key">요청사항</div><div class="sc-val">'+_esc(gv('addReq'))+'</div></div>':''}
 
 
       </div>
