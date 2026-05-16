@@ -141,6 +141,21 @@ export async function GET(request: NextRequest) {
     const dealFilter = (searchParams.get('deal') || '').trim();
     const statusFilter = (searchParams.get('status') || '').trim();
 
+    // [Critical fix 2026-05-16 Step 3] safe int/float parsers — 0 을 valid 한 값으로 허용
+    //   이전 버그: parseInt('0', 10) || null = null  (0 이 falsy 라 무효화)
+    //   영향: min_deposit=0, min_monthly=0, min_area=0 등 silent fail
+    //   fix: null/empty 만 명시적으로 null 반환, 0 은 그대로 0 반환
+    const parseIntSafe = (raw: string | null): number | null => {
+      if (raw === null || raw.trim() === '') return null;
+      const n = parseInt(raw, 10);
+      return Number.isFinite(n) ? n : null;
+    };
+    const parseFloatSafe = (raw: string | null): number | null => {
+      if (raw === null || raw.trim() === '') return null;
+      const n = parseFloat(raw);
+      return Number.isFinite(n) ? n : null;
+    };
+
     // ★ v3 (2026-05-15 사장님 명령) — 추가 filter params (Phase A.1)
     //   - 클라이언트 v397 patch 가 보내는 33개 filter
     //   - A.1 단계: 받기만 하고 아직 SQL 적용 안 함 (안전 도입)
@@ -156,21 +171,21 @@ export async function GET(request: NextRequest) {
       parking_min: parseInt(searchParams.get('parking_min') || '0', 10) || 0,
       built_year_min: parseInt(searchParams.get('built_year_min') || '0', 10) || 0,
       // 가격 범위
-      min_deposit: parseInt(searchParams.get('min_deposit') || '0', 10) || null,
-      max_deposit: parseInt(searchParams.get('max_deposit') || '0', 10) || null,
-      min_monthly: parseInt(searchParams.get('min_monthly') || '0', 10) || null,
-      max_monthly: parseInt(searchParams.get('max_monthly') || '0', 10) || null,
+      min_deposit: parseIntSafe(searchParams.get('min_deposit')),
+      max_deposit: parseIntSafe(searchParams.get('max_deposit')),
+      min_monthly: parseIntSafe(searchParams.get('min_monthly')),
+      max_monthly: parseIntSafe(searchParams.get('max_monthly')),
       include_mgmt: searchParams.get('include_mgmt') === '1',
-      min_sale: parseInt(searchParams.get('min_sale') || '0', 10) || null,
-      max_sale: parseInt(searchParams.get('max_sale') || '0', 10) || null,
-      min_base: parseInt(searchParams.get('min_base') || '0', 10) || null,
-      max_base: parseInt(searchParams.get('max_base') || '0', 10) || null,
+      min_sale: parseIntSafe(searchParams.get('min_sale')),
+      max_sale: parseIntSafe(searchParams.get('max_sale')),
+      min_base: parseIntSafe(searchParams.get('min_base')),
+      max_base: parseIntSafe(searchParams.get('max_base')),
       // 면적 (m² 또는 평)
-      min_area: parseFloat(searchParams.get('min_area') || '0') || null,
-      max_area: parseFloat(searchParams.get('max_area') || '0') || null,
+      min_area: parseFloatSafe(searchParams.get('min_area')),
+      max_area: parseFloatSafe(searchParams.get('max_area')),
       area_unit: (searchParams.get('area_unit') || 'm2').trim(),
-      min_supply: parseFloat(searchParams.get('min_supply') || '0') || null,
-      max_supply: parseFloat(searchParams.get('max_supply') || '0') || null,
+      min_supply: parseFloatSafe(searchParams.get('min_supply')),
+      max_supply: parseFloatSafe(searchParams.get('max_supply')),
       supply_unit: (searchParams.get('supply_unit') || 'm2').trim(),
       // boolean checks
       building_photo: searchParams.get('building_photo') === '1',
@@ -189,7 +204,7 @@ export async function GET(request: NextRequest) {
       jibun_start: (searchParams.get('jibun_start') || '').trim(),
       jibun_end: (searchParams.get('jibun_end') || '').trim(),
       building_name: (searchParams.get('building_name') || '').trim(),
-      building_id: parseInt(searchParams.get('building_id') || '0', 10) || null,
+      building_id: parseIntSafe(searchParams.get('building_id')),
       // sort 2차 tiebreaker
       sort2: (searchParams.get('sort2') || 'none').trim(),
     };
