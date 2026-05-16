@@ -407,6 +407,11 @@
         //   v397 가 정확한 fetch 책임 → 다른 listener block
         e.stopImmediatePropagation();
         fetchServerPage(p);
+        // [Step 18 fix 2026-05-16] Step 17 가 block 한 scrollIntoView 보충 (UX 유지)
+        try {
+          var listingsEl = document.getElementById('ws-listings');
+          if (listingsEl) listingsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (_) {}
       }
     }, true);
     // [Step 11 fix 2026-05-16] dropdown size 변경 감지

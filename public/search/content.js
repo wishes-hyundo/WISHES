@@ -3101,9 +3101,17 @@
 
     const s = window.WS.state;
     const filtered = window.WS.filtered || [];
-    const start = (s.page - 1) * s.perPage;
-    const end = start + s.perPage;
-    const pageListings = filtered.slice(start, end);
+    // [Step 18 fix 2026-05-16] v397 server pagination 모드:
+    //   filtered 가 이미 현재 페이지 데이터 (page 2 fetch = page 2 의 100건)
+    //   slice 적용하면 page>=2 에서 빈 결과 → 빈 페이지 깜빡임 (A-1 CRITICAL)
+    let pageListings;
+    if (window.__WS_V397_PAGINATION__) {
+      pageListings = filtered;
+    } else {
+      const start = (s.page - 1) * s.perPage;
+      const end = start + s.perPage;
+      pageListings = filtered.slice(start, end);
+    }
 
     // 소재지별 그룹핑
     var groups = {};
