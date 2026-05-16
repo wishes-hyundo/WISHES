@@ -268,15 +268,11 @@
       // [Critical fix 2026-05-16] global var assignment for renderPagination wrap (sparse total trick)
       window.__v397_totalCount = totalCount;
       lastFetchKey = fetchKey;
-      // [Critical fix 2026-05-15] _autoDedup 적용 — legacy 와 동일 동작
-      //   server 응답은 raw (중복 포함). client dedup 으로 사용자 화면 카운트 일치 (64,859).
-      var deduped = data.slice();
-      try {
-        if (window.WS && typeof window.WS._autoDedup === 'function') {
-          deduped = window.WS._autoDedup(data.slice(), true);
-        }
-      } catch (_) {}
-      window.WS.allListings = deduped;
+      // [Step 8 fix 2026-05-16] client _autoDedup 제거 — 사장님 요청: 100건 = 100건 표시
+      //   이전 (5/15): server raw 100건 → client dedup → 99건 표시 (사용자 혼란)
+      //   현재: server 응답 그대로 사용 → 요청 size 만큼 정확히 표시
+      //   영향: DB 에 중복 매물 있으면 화면에 노출됨 (DB cleanup 으로 별개 처리 권장)
+      window.WS.allListings = data.slice();
       try {
         if (window.WS.state) {
           window.WS.state.page = pageNum;
