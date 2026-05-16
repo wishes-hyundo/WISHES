@@ -402,6 +402,10 @@
       var p = parseInt(btn.dataset.page || btn.getAttribute('data-page') || '0', 10);
       if (p > 0) {
         e.preventDefault();
+        // [Step 17 fix 2026-05-16] 다른 listener 도 fire 되어 stale 렌더 방지
+        //   content.js 의 page click handler 가 동일 click 으로 state.page 만 변경 + renderListings → stale slice
+        //   v397 가 정확한 fetch 책임 → 다른 listener block
+        e.stopImmediatePropagation();
         fetchServerPage(p);
       }
     }, true);
