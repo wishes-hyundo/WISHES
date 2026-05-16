@@ -2099,43 +2099,13 @@ origPropType.querySelectorAll('.chip').forEach(c=>{
 
     S.chips['g-propType'] = selected;
 
-    const isComm = selected.some(s=>s.includes('상가')||s.includes('사무실')||s.includes('창고'));
-
-    var _cc=document.getElementById('commercialCard'); if(_cc) _cc.style.display = isComm ? '' : 'none';
-
   });
 
 });
 
 
 
-/* ═══════════════ 전기차 칩 → 충전 옵션 표시 ═══════════════ */
 
-document.querySelectorAll('#g-carType .chip').forEach(c=>{
-
-  c.addEventListener('click',function(){
-
-    const evChip = [...document.querySelectorAll('#g-carType .chip')].find(x=>x.textContent.includes('전기차'));
-
-    const evBox = document.getElementById('evChargerBox');
-
-    if(evChip && evBox){
-
-      evBox.style.display = evChip.classList.contains('on') ? 'block' : 'none';
-
-      if(!evChip.classList.contains('on')){
-
-        document.querySelectorAll('#g-evCharger .chip').forEach(p=>p.classList.remove('on'));
-
-        delete S.chips['g-evCharger'];
-
-      }
-
-    }
-
-  });
-
-});
 
 
 
@@ -2169,21 +2139,7 @@ document.querySelectorAll('#g-opt .chip').forEach(c=>{
 
 
 
-/* ═══════════════ SIZE QUICK ═══════════════ */
 
-function qSize(el,label,mn,mx){
-
-  document.querySelectorAll('#g-sizeQ .chip').forEach(c=>c.classList.remove('on'));
-
-  el.classList.add('on');
-
-  document.getElementById('sMin').value = mn;
-
-  document.getElementById('sMax').value = mx;
-
-  S.sizeLabel = label;
-
-}
 
 
 
@@ -2226,12 +2182,6 @@ function generateResult(){
 
   document.getElementById('rName').textContent = name+'님';
 
-  var elDeal=document.getElementById('rDealType'); if(elDeal) elDeal.textContent = deal ? deal : '거래유형 미선택';
-
-  var elProp=document.getElementById('rPropType'); if(elProp) elProp.textContent = prop !== '—' ? prop : '매물유형 미선택';
-
-  var elDate=document.getElementById('rDate'); if(elDate) elDate.textContent = document.getElementById('visitToggle') && document.getElementById('visitToggle').classList.contains('active') ? '현장방문' : (gv('cDate') || '—');
-
 
 
   // Budget string
@@ -2259,12 +2209,6 @@ function generateResult(){
   }
 
 
-
-  // Size
-
-  const sn=gv('sMin'), sx=gv('sMax');
-
-  const sizeStr = S.sizeLabel || ((sn||sx)?(sn||'?')+' ~ '+(sx||'?')+'㎡':'—');
 
 
 
