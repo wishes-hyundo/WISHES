@@ -44,6 +44,15 @@
   var lastFetchKey = '';
   var lastFilterKey = '';  // [Step 15 fix 2026-05-16] module 스코프 hoist (stale-check 와 filter polling 공유)
 
+  // [Step 21 fix 2026-05-16] JSON.stringify 시 key 정렬 (filter snapshot 비교 안정성)
+  function stableStringify(obj) {
+    if (!obj || typeof obj !== 'object') return JSON.stringify(obj);
+    var keys = Object.keys(obj).sort();
+    var sorted = {};
+    for (var i = 0; i < keys.length; i++) sorted[keys[i]] = obj[keys[i]];
+    return JSON.stringify(sorted);
+  }
+
   function log() {
     if (!DEBUG) return;
     try { console.log.apply(console, ['[v397-pagination]'].concat([].slice.call(arguments))); } catch (_) {}
@@ -240,7 +249,7 @@
       // [Step 6 fix 2026-05-16] 진행 중이면 최신 요청 저장 (마지막 변경이 우선)
       pendingFetchPage = pageNum;
       // [Step 19 fix 2026-05-16] filter snapshot 도 함께 저장 (fire 시점 filter 변경 감지용)
-      try { pendingFilterSnap = JSON.stringify(buildFilterParams() || {}); } catch (_) { pendingFilterSnap = null; }
+      try { pendingFilterSnap = stableStringify(buildFilterParams() || {}); } catch (_) { pendingFilterSnap = null; }
       return;
     }
     if (!window.WS) { log('WS missing'); return; }
@@ -305,7 +314,7 @@
       // [Step 19 fix 2026-05-16] filter 변경 감지 시 page=1 로 강제 reset
       //   pending 저장 시점 filter 와 현재 filter 가 다르면 새 filter 의 page 1 부터 봐야 함
       try {
-        var cur = JSON.stringify(buildFilterParams() || {});
+        var cur = stableStringify(buildFilterParams() || {});
         if (snap !== null && snap !== cur) {
           log('pending filter changed: page reset to 1');
           p = 1;
@@ -401,7 +410,7 @@
               log('legacy detected (len=' + window.WS.allListings.length + ') → re-fetch v397');
               lastFetchKey = ''; // force re-fetch
               // [Step 15 fix 2026-05-16] filter polling spurious fetch 방지 — lastFilterKey 동기화
-              try { lastFilterKey = JSON.stringify(buildFilterParams() || {}); } catch (_) {}
+              try { lastFilterKey = stableStringify(buildFilterParams() || {}); } catch (_) {}
               fetchServerPage(1);
             }
           } catch (_) {}
@@ -444,7 +453,7 @@
     //   fix: 초기값을 실제 빌드 결과로 → 첫 폴링은 변경 없으면 무동작 (정상)
     // [Step 15 fix 2026-05-16] module 변수 사용 (재선언 X)
     try {
-      lastFilterKey = JSON.stringify(buildFilterParams() || {});
+      lastFilterKey = stableStringify(buildFilterParams() || {});
     } catch (_) {
       lastFilterKey = '';
     }

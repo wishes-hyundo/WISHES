@@ -256,6 +256,13 @@
   function reapplyOrder() {
     try {
       if (!window.WS || !Array.isArray(window.WS.allListings)) return;
+      // [Step 21 fix 2026-05-16] v397 server pagination 모드: 클라이언트 reorder skip
+      //   서버가 sort 책임. 클라이언트가 현재 페이지(100건)만 reorder 하면 페이지 전환 시 stale 위험.
+      if (window.__WS_V397_PAGINATION__) {
+        // v397 의 sort 변경은 fetchServerPage(1) 재호출로 처리 (server-side sort)
+        setTimeout(scanAndBadge, 400);
+        return;
+      }
       var source = state.backupAll || window.WS.allListings;
       if (!state.backupAll) state.backupAll = source.slice(); // 최초 1회 백업
       var reordered = applyFilterAndSort(state.backupAll, state.currentSort);
