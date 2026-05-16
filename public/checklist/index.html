@@ -535,6 +535,17 @@ textarea {
 }
 .btn:active { opacity: 0.6; transform: scale(0.98); }
 
+.btn-back {
+  background: transparent;
+  color: var(--ios-blue);
+  border: none;
+  padding: 12px 8px;
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: 56px;
+}
+.btn-back:active { opacity: 0.5; }
+
 .btn-ghost { background: var(--ios-fill); color: var(--ios-label); flex-shrink: 0; }
 .btn-primary { background: var(--ios-blue); color: #fff; flex: 1; }
 .btn-success { background: var(--ios-green); color: #fff; flex: 1; }
@@ -1884,7 +1895,7 @@ input:focus, textarea:focus, select:focus {
 
 <div class="bottom-nav" id="bottomNav">
 
-  <button class="btn btn-ghost" id="prevBtn" onclick="prevPage()" style="display:none">← 이전</button>
+  <button class="btn btn-back" id="prevBtn" onclick="prevPage()" style="display:none">‹ 이전</button>
 
   <button class="btn btn-primary" id="nextBtn" onclick="nextPage()">다음 단계 →</button>
 
@@ -1899,7 +1910,7 @@ input:focus, textarea:focus, select:focus {
   <button class="btn btn-outline" onclick="resetAll()">🔄 새 상담</button>
 
           <div class="edit-dropdown" style="position:relative;display:inline-block">
-            <button class="btn btn-ghost" onclick="this.nextElementSibling.classList.toggle('show')">← 수정</button>
+            <button class="btn btn-back" onclick="this.nextElementSibling.classList.toggle('show')">‹ 수정</button>
             <div class="edit-menu">
               <button onclick="goPage(1);this.parentElement.classList.remove('show')">기본상담 (STEP 1)</button>
               <button onclick="goPage(2);this.parentElement.classList.remove('show')">매물조건 (STEP 2)</button>
