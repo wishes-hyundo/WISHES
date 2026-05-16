@@ -2224,7 +2224,10 @@ function generateResult(){
 
   var subParts = [];
   if(deal) subParts.push(deal);
-  if(prop && prop !== '—') subParts.push(prop);
+  if(prop && prop !== '—') {
+    var propClean = prop.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, '').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
+    if(propClean) subParts.push(propClean);
+  }
   if(gv('cDate')) subParts.push(gv('cDate'));
   var subEl = document.getElementById('rSubtitle');
   if(subEl) subEl.textContent = subParts.join(' · ');
