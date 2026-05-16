@@ -1403,19 +1403,24 @@
     // 22. DEDUPLICATION - 소재지(지번주소)+동호수+거래유형+가격 동일 매물 중복 제거
     // address = 지번주소 전체 (예: 서울특별시 관악구 신림동 246-1)
     // address_detail = 동/호수 (예: 1층 일부(102호))
-    var seen = {};
-    filtered = filtered.filter(function(l) {
-      var addr = (l.address || '').trim();
-      var detail = (l.address_detail || '').trim();
-      var deal = (l.deal || '').trim();
-      var dep = String(l.deposit || 0);
-      var mon = String(l.monthly || 0);
-      var pr = String(l.price || 0);
-      var key = addr + '|' + detail + '|' + deal + '|' + dep + '|' + mon + '|' + pr;
-      if (seen[key]) return false;
-      seen[key] = true;
-      return true;
-    });
+    // [Step 10 fix 2026-05-16] v397 server pagination 활성 시 dedup 우회
+    //   서버가 raw 100건 정확히 반환 → client dedup 으로 100→99 발생.
+    //   서버 페이지네이션에선 dedup 이 서버 책임 (또는 무관).
+    if (!window.__WS_V397_PAGINATION__) {
+      var seen = {};
+      filtered = filtered.filter(function(l) {
+        var addr = (l.address || '').trim();
+        var detail = (l.address_detail || '').trim();
+        var deal = (l.deal || '').trim();
+        var dep = String(l.deposit || 0);
+        var mon = String(l.monthly || 0);
+        var pr = String(l.price || 0);
+        var key = addr + '|' + detail + '|' + deal + '|' + dep + '|' + mon + '|' + pr;
+        if (seen[key]) return false;
+        seen[key] = true;
+        return true;
+      });
+    }
 
     return filtered;
   }
