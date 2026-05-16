@@ -358,6 +358,14 @@
       if (len !== lastAllLen) {
         lastAllLen = len;
         console.log(TAG + ' allListings len=' + len + ' — (re)apply');
+        // [Step 13 fix 2026-05-16] v397 server pagination 모드:
+        //   reorder/backup skip (서버가 sort 책임, allListings 재할당 GC 압박 해소)
+        //   단 scanAndBadge 는 유지 (사용자 가시 'NEW'/'시간' 배지)
+        if (window.__WS_V397_PAGINATION__) {
+          setTimeout(scanAndBadge, 300);
+          setTimeout(scanAndBadge, 1200);
+          return;
+        }
         state.backupAll = (window.WS.allListings || []).slice();
         // 최초 적용 시에만 정렬/필터 (이후엔 사용자 제어)
         var reordered = applyFilterAndSort(state.backupAll, state.currentSort);
