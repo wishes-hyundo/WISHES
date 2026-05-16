@@ -1489,17 +1489,36 @@ input:focus, textarea:focus, select:focus {
 
       </div>
 
-      
-      <div class="card-body">
-        <div class="fg">
-            <div class="chip" onclick="pick(this,'g-contractPeriod',1)">1년</div>
-            <div class="chip" onclick="pick(this,'g-contractPeriod',1)">2년</div>
-            <div class="chip" onclick="pick(this,'g-contractPeriod',1)">장기 (3년+)</div>
-            <div class="chip" onclick="pick(this,'g-contractPeriod',1)">협의</div>
-          </div>
-        </div>
-      </div>
     </div>
+  </div>
+
+  <div class="card">
+
+    <div class="card-head">
+
+      <div class="card-icon">📅</div>
+
+      <div class="card-title">계약 기간</div>
+
+    </div>
+
+    <div class="card-body">
+
+      <div class="fg">
+
+        <div class="chips" id="g-contractPeriod">
+          <div class="chip" onclick="pick(this,'g-contractPeriod',1)">1년</div>
+          <div class="chip" onclick="pick(this,'g-contractPeriod',1)">2년</div>
+          <div class="chip" onclick="pick(this,'g-contractPeriod',1)">장기 (3년+)</div>
+          <div class="chip" onclick="pick(this,'g-contractPeriod',1)">협의</div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
   <div class="card">
 
     <div class="card-head">
