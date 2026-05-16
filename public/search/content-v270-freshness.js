@@ -125,6 +125,11 @@
   // ── Stage 0 : registered_date 필터 + Stage 1 정렬 ──────────────────
   function applyFilterAndSort(listings, sortKey) {
     if (!Array.isArray(listings)) return listings;
+    // [Step 9 fix 2026-05-16] v397 server pagination 활성 시 client filter/sort 우회
+    //   서버가 이미 sort + filter 책임. client cutoff 가 추가 적용되면 100→99 등 표시 감소.
+    if (window.__WS_V397_PAGINATION__) {
+      return listings.slice();
+    }
     var cutoff = parseDateLoose(CFG.registeredDateMin);
     var filtered = cutoff
       ? listings.filter(function(L) {
