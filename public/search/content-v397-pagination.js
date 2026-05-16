@@ -408,7 +408,8 @@
     document.addEventListener('change', function (e) {
       if (e.target && (e.target.id === 'ws-per-page' || e.target.id === 'ws-page-size')) {
         // perPage 가 WS.state 에 set 된 후 (handler 가 먼저 실행) fetch
-        setTimeout(function () { fetchServerPage(1); }, 0);
+        // [Step 12 fix 2026-05-16] setTimeout 0 → 50ms: content.js refresh() 끝난 후 fetch (race 완화)
+        setTimeout(function () { fetchServerPage(1); }, 50);
       }
     }, true);
     // filter 변경 감지 (500ms 폴링)
