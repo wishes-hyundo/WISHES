@@ -43,6 +43,8 @@
   var totalCount = 0;
   var lastFetchKey = '';
   var lastFilterKey = '';  // [Step 15 fix 2026-05-16] module 스코프 hoist (stale-check 와 filter polling 공유)
+  var _staleCheckTimer = null;  // [Step 25 fix 2026-05-16] OOM 방지용 timer ref
+  var _filterPollTimer = null;  // [Step 25 fix 2026-05-16] OOM 방지용 timer ref
 
   // [Step 21 fix 2026-05-16] JSON.stringify 시 key 정렬 (filter snapshot 비교 안정성)
   function stableStringify(obj) {
@@ -403,7 +405,7 @@
         window.WS._prefetchOnReady = false;   // content.js 의 setTimeout loadData 차단
         window.WS._prefetchStarted = true;     // 다른 곳에서 loadData 호출 가드
         // 정기적으로 v397 결과로 set (legacy override 시도 차단)
-        setInterval(function () {
+        _staleCheckTimer = setInterval(function () {
           try {
             if (window.WS && window.WS.allListings && window.WS.allListings.length > 200) {
               // legacy 가 64K 채웠음 → v397 fetch 다시
@@ -457,7 +459,7 @@
     } catch (_) {
       lastFilterKey = '';
     }
-    setInterval(function () {
+    _filterPollTimer = setInterval(function () {
       try {
         var fp = buildFilterParams();
         // [Step 23 fix 2026-05-16] lastFilterKey 는 stableStringify 로 set → 비교도 동일하게
@@ -468,6 +470,16 @@
         }
       } catch (_) {}
     }, 500);
+
+    // [Step 25 fix 2026-05-16] 긴급 OOM 방지 — 페이지 unload 시 setInterval cleanup
+    //   이전: timer 가 페이지 lifecycle 동안 영구 실행 → 장시간 사용 시 메모리 누적 → Out of Memory
+    //   fix: beforeunload + pagehide 양쪽 등록 (SPA navigation + 진짜 unload 모두 cover)
+    var cleanup = function () {
+      try { if (_staleCheckTimer) { clearInterval(_staleCheckTimer); _staleCheckTimer = null; } } catch (_) {}
+      try { if (_filterPollTimer) { clearInterval(_filterPollTimer); _filterPollTimer = null; } } catch (_) {}
+    };
+    try { window.addEventListener('beforeunload', cleanup); } catch (_) {}
+    try { window.addEventListener('pagehide', cleanup); } catch (_) {}
   }
 
   if (document.readyState === 'loading') {
