@@ -322,18 +322,20 @@
   }
 
   // loadData 무력화 (server pagination 모드에서만)
-  // [Critical fix 2026-05-16 Step 2] WS 미준비 시 retry (race condition fix)
+  // [Critical fix 2026-05-16 Step 2.1] WS 또는 WS.loadData 미준비 시 retry
+  //   - 이전 Step 2: !window.WS 만 체크해서 'WS 있지만 loadData 함수 아닌 상태' 놓침
+  //   - Step 2.1: typeof window.WS.loadData !== 'function' 도 함께 체크
   function disableLegacyLoad() {
-    if (!window.WS) {
-      // window.WS 가 아직 정의 안 됨 → 100ms 마다 retry, 최대 30회 (3초)
+    if (!window.WS || typeof window.WS.loadData !== 'function') {
+      // WS 또는 loadData 가 아직 준비 안 됨 → 100ms 마다 retry, 최대 30회 (3초)
       var retries = 0;
       var iv = setInterval(function () {
         if (window.WS && typeof window.WS.loadData === 'function') {
           clearInterval(iv);
-          disableLegacyLoad();  // 재귀 호출 (이번엔 WS ready)
+          disableLegacyLoad();  // 재귀 호출 (이번엔 ready)
         } else if (++retries > 30) {
           clearInterval(iv);
-          log('disableLegacyLoad: WS not ready after 3s (다른 fallback 으로 보호됨)');
+          log('disableLegacyLoad: WS/loadData not ready after 3s (다른 fallback 으로 보호됨)');
         }
       }, 100);
       return;
