@@ -939,17 +939,17 @@ input:focus, textarea:focus, select:focus {
 
         <div class="fg">
 
-          <label class="flabel">고객명 <span class="req">*</span></label>
+          <label class="flabel" for="cName">고객명 <span class="req">*</span></label>
 
-          <input type="text" id="cName" placeholder="홍길동"/>
+          <input type="text" id="cName" placeholder="홍길동" autocomplete="name"/>
 
         </div>
 
         <div class="fg">
 
-          <label class="flabel">연락처 <span class="req">*</span></label>
+          <label class="flabel" for="cPhone">연락처 <span class="req">*</span></label>
 
-          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)" maxlength="13"/>
+          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)" maxlength="13" autocomplete="tel-national"/>
 
         </div>
 
@@ -958,7 +958,7 @@ input:focus, textarea:focus, select:focus {
 
       <div class="frow c2">
         <div class="fg">
-          <label class="flabel">방문 일정</label>
+          <label class="flabel" for="cDate">방문 일정</label>
           <div class="date-time-row"><input type="date" id="cDate"/><input type="time" id="cTime"/></div>
         </div>
         <div class="fg">
@@ -1138,7 +1138,7 @@ input:focus, textarea:focus, select:focus {
       <div class="card-body">
         <div class="frow c2">
           <div class="fg">
-            <label class="flabel">희망 입주일</label>
+            <label class="flabel" for="f-moveDate">희망 입주일</label>
             <input type="date" class="finput" id="f-moveDate">
           </div>
           <div class="fg">
@@ -1253,7 +1253,7 @@ input:focus, textarea:focus, select:focus {
 
         <div class="fg">
 
-          <label class="flabel">1순위 지역 <span class="req">*</span></label>
+          <label class="flabel" for="reg1">1순위 지역 <span class="req">*</span></label>
 
           <input type="text" id="reg1" placeholder="예: 서울 마포구 상암동"/>
 
@@ -1261,7 +1261,7 @@ input:focus, textarea:focus, select:focus {
 
         <div class="fg">
 
-          <label class="flabel">2순위 지역</label>
+          <label class="flabel" for="reg2">2순위 지역</label>
 
           <input type="text" id="reg2" placeholder="대안 가능 지역"/>
 
@@ -1269,7 +1269,7 @@ input:focus, textarea:focus, select:focus {
 
         <div class="fg">
 
-          <label class="flabel">3순위 지역</label>
+          <label class="flabel" for="reg3">3순위 지역</label>
 
           <input type="text" id="reg3" placeholder="추가 대안 지역"/>
 
@@ -2314,6 +2314,26 @@ function resetAll(){
         origNextPage();
       };
     })();
+    /* ═══════════════ Enter 키로 다음 단계 ═══════════════ */
+    (function initEnterKey(){
+      document.addEventListener('keydown', function(e){
+        if (e.key !== 'Enter') return;
+        const t = e.target;
+        if (!t) return;
+        // textarea 는 Enter = 줄바꿈 → 제외
+        if (t.tagName === 'TEXTAREA') return;
+        // input 중 text/tel/number 만 — date/time/range/checkbox 제외
+        if (t.tagName !== 'INPUT') return;
+        const type = (t.type || '').toLowerCase();
+        if (['text','tel','number','search','email','url'].indexOf(type) === -1) return;
+        // 결과 페이지에서는 X
+        if (window.cur === 'result') return;
+        e.preventDefault();
+        // 다음 단계
+        if (typeof nextPage === 'function') nextPage();
+      });
+    })();
+
     
     /* Close edit dropdown when clicking outside */
     document.addEventListener('click', function(e){
