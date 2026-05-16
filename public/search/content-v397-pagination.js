@@ -38,6 +38,7 @@
   var enabled = false; // feature flag 결과
   var flagChecked = false;
   var loading = false;
+  var pendingFetchPage = null;  // [Step 6 fix 2026-05-16] 진행 중 fetch 시 다음 요청 저장
   var totalCount = 0;
   var lastFetchKey = '';
 
@@ -233,7 +234,11 @@
   }
 
   async function fetchServerPage(pageNum) {
-    if (loading) return;
+    if (loading) {
+      // [Step 6 fix 2026-05-16] 진행 중이면 최신 요청 저장 (마지막 변경이 우선)
+      pendingFetchPage = pageNum;
+      return;
+    }
     if (!window.WS) { log('WS missing'); return; }
     var perPage = getPerPage();
     var scope = getScope();
@@ -291,6 +296,13 @@
       log('fetch err:', e && e.message);
     }
     loading = false;
+    // [Step 6 fix 2026-05-16] 진행 중 들어온 변경이 있으면 즉시 재실행
+    if (pendingFetchPage != null) {
+      var p = pendingFetchPage;
+      pendingFetchPage = null;
+      log('pending fetch fire:', p);
+      fetchServerPage(p);
+    }
   }
 
   // [Critical fix 2026-05-15] renderPagination wrap — 누가 호출하든 totalCount 사용
