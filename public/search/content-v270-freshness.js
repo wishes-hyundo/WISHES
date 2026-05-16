@@ -386,6 +386,10 @@
 
   function startObserver() {
     if (state.obs) return;
+    // [Step 27 fix 2026-05-16] v397 server pagination 모드: MutationObserver skip
+    //   - reorder 도 skip 했으니 일관성 (scanAndBadge 만 setInterval 로 호출)
+    //   - 무한 mutation 발생 시 _badgeDebounce timer 누적 leak 방지
+    if (window.__WS_V397_PAGINATION__) return;
     try {
       state.obs = new MutationObserver(function(muts) {
         var needScan = false;

@@ -434,7 +434,8 @@
     } catch (_) {}
     setTimeout(function () { fetchServerPage(1); }, 100);
     // 페이지 버튼 click hook
-    document.addEventListener('click', function (e) {
+    // [Step 27 fix 2026-05-16 HIGH-3] handler 를 named ref 로 추출하여 cleanup 시 removeEventListener 가능
+    var _clickHandler = function (e) {
       var btn = e.target.closest && e.target.closest('.ws-page-btn, [data-page]');  // [Step 22 fix 2026-05-16] dead selector 정정
       if (!btn) return;
       var p = parseInt(btn.dataset.page || btn.getAttribute('data-page') || '0', 10);
@@ -451,17 +452,19 @@
           if (listingsEl) listingsEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } catch (_) {}
       }
-    }, true);
+    };
+    document.addEventListener('click', _clickHandler, true);
     // [Step 11 fix 2026-05-16] dropdown size 변경 감지
     //   content.js 의 ws-per-page change handler 는 WS.refresh() 만 호출 (fetch 안 함)
     //   → v397 가 자체 listener 등록해서 fetchServerPage(1) trigger
-    document.addEventListener('change', function (e) {
+    var _changeHandler = function (e) {
       if (e.target && (e.target.id === 'ws-per-page' || e.target.id === 'ws-page-size')) {
         // perPage 가 WS.state 에 set 된 후 (handler 가 먼저 실행) fetch
         // [Step 12 fix 2026-05-16] setTimeout 0 → 50ms: content.js refresh() 끝난 후 fetch (race 완화)
         setTimeout(function () { fetchServerPage(1); }, 50);
       }
-    }, true);
+    };
+    document.addEventListener('change', _changeHandler, true);
     // filter 변경 감지 (500ms 폴링)
     // [Step 7 fix 2026-05-16] 초기값을 현재 buildFilterParams 결과로 설정
     //   이전: lastFilterKey='' + 첫 폴링에서 fk='{}' !== '' 라 항상 spurious fetchServerPage(1)
@@ -490,6 +493,9 @@
     var cleanup = function () {
       try { if (_staleCheckTimer) { clearInterval(_staleCheckTimer); _staleCheckTimer = null; } } catch (_) {}
       try { if (_filterPollTimer) { clearInterval(_filterPollTimer); _filterPollTimer = null; } } catch (_) {}
+      // [Step 27 fix 2026-05-16 HIGH-3] listener 도 cleanup (bfcache 복원 시 중복 방지)
+      try { document.removeEventListener('click', _clickHandler, true); } catch (_) {}
+      try { document.removeEventListener('change', _changeHandler, true); } catch (_) {}
     };
     try { window.addEventListener('beforeunload', cleanup); } catch (_) {}
     try { window.addEventListener('pagehide', cleanup); } catch (_) {}
