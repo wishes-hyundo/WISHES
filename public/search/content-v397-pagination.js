@@ -275,9 +275,20 @@
         credentials: 'include',
         headers: { 'Authorization': 'Bearer ' + getToken() },
       });
-      if (!r.ok) { log('http', r.status, '(' + (Date.now()-t0) + 'ms)'); loading = false; return; }
+      if (!r.ok) {
+        log('http', r.status, '(' + (Date.now()-t0) + 'ms)');
+        // [Step 26 fix 2026-05-16] CRITICAL-1: pending 도 fire 되도록 throw → catch → 통합 finally
+        // [Step 26 fix 2026-05-16] CRITICAL-2: lastFetchKey reset → 동일 page 재시도 가능
+        lastFetchKey = '';
+        throw new Error('http ' + r.status);
+      }
       var j = await r.json();
-      if (!j || !j.success) { log('bad resp:', j && j.error); loading = false; return; }
+      if (!j || !j.success) {
+        log('bad resp:', j && j.error);
+        // [Step 26 fix 2026-05-16] CRITICAL-1/2: error path 통합 → pending fire + retry 가능
+        lastFetchKey = '';
+        throw new Error('bad resp');
+      }
       var data = j.data || [];
       totalCount = (typeof j.total === 'number') ? j.total : (totalCount || data.length);
       // [Critical fix 2026-05-16] global var assignment for renderPagination wrap (sparse total trick)
@@ -305,6 +316,8 @@
       }
     } catch (e) {
       log('fetch err:', e && e.message);
+      // [Step 26 fix 2026-05-16] CRITICAL-2: 네트워크 reject 시도 동일 page 재시도 위해 reset
+      lastFetchKey = '';
     }
     loading = false;
     // [Step 6 fix 2026-05-16] 진행 중 들어온 변경이 있으면 즉시 재실행
