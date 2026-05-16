@@ -2799,11 +2799,7 @@ function resetAll(){
 
 }
 
-    /* ========== AUTO-SAVE (localStorage) ========== */
-    const LS_KEY = 'wishes_checklist_draft';
-    
-    /* Debounce utility */
-    var _saveTimer = null;
+    /* ========== 풀옵션 chip 처리 ========== */
     function pickFull(){
       var btn=document.querySelector('#g-opt .chip[onclick="pickFull()"]');
       var isOn=btn.classList.contains('on');
@@ -2817,60 +2813,9 @@ function resetAll(){
       S.chips['g-opt']=[].map.call(document.querySelectorAll('#g-opt .chip.on'),function(c){return c.textContent.trim()}).filter(function(t){return t!=='🌟 풀옵션'});
     }
 
-    function debouncedAutoSave(){ clearTimeout(_saveTimer); _saveTimer = setTimeout(autoSave, 500); }
-
-    function autoSave(){
-      try {
-        const d = collectData();
-        localStorage.setItem(LS_KEY, JSON.stringify(d));
-      } catch(e){ /* quota exceeded or private mode */ }
-    }
-    
-    function autoRestore(){
-      try {
-        const raw = localStorage.getItem(LS_KEY);
-        if(!raw) return false;
-        const d = JSON.parse(raw);
-        if(!d || !d.cName) return false;
-        restoreState(d);
-        return true;
-      } catch(e){ return false; }
-    }
-    
-    function clearAutoSave(){
-      try { localStorage.removeItem(LS_KEY); } catch(e){}
-    }
-    
-    /* attach auto-save listeners to all form inputs */
-    (function initAutoSave(){
-      const inputs = document.querySelectorAll('input, select, textarea');
-      inputs.forEach(function(el){
-        el.addEventListener('input', debouncedAutoSave);
-        el.addEventListener('change', debouncedAutoSave);
-      });
-      /* also save on chip/star/deal clicks via MutationObserver */
-      const observer = new MutationObserver(function(){ debouncedAutoSave(); });
-      document.querySelectorAll('.chip-group, .star-group, .deal-chip, [class*=chip], [class*=star]').forEach(function(el){
-        observer.observe(el, { attributes: true, subtree: true, childList: true });
-      });
-    })();
-    
-    /* restore on load if no hash data present */
-    if(!location.hash || location.hash.length < 3){
-      autoRestore();
-    }
-    
-    /* clear auto-save when resetAll is called */
-    (function patchResetAll(){
-      const origReset = resetAll;
-      window.resetAll = function(){
-        clearAutoSave();
-        origReset();
-      };
-    })();
-
-    /* 이력 기능 완전 제거 - 기존 localStorage 데이터 자동 정리 */
+    /* 이력/자동저장 완전 제거 - 기존 localStorage 데이터 자동 정리 */
     try { localStorage.removeItem('wishes_consult_history'); } catch(_){}
+    try { localStorage.removeItem('wishes_checklist_draft'); } catch(_){}
 
     /* ========== PHONE NUMBER AUTO-FORMAT ========== */
     (function initPhoneFormat(){
