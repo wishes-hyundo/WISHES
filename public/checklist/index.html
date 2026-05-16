@@ -364,6 +364,13 @@ textarea {
 }
 .deal-chip.on .dc-label { color: var(--ios-label); font-weight: 600; }
 
+.budget-empty {
+  font-size: 0.85rem;
+  color: var(--ios-label-3);
+  padding: 8px 0;
+  font-style: normal;
+}
+
 /* ── BUDGET ── */
 .budget-field { margin-bottom: 12px; }
 .budget-label {
@@ -1365,11 +1372,7 @@ input:focus, textarea:focus, select:focus {
         </div>
       </div>
 
-      <div id="bDefault" class="info-note">
-
-        <span>ℹ️</span><span>STEP 1에서 거래 유형을 선택하면 예산 항목이 표시됩니다.</span>
-
-      </div>
+      <div id="bDefault" class="budget-empty">거래 유형을 선택하면 예산 항목이 표시됩니다</div>
 
     </div>
 
