@@ -402,6 +402,15 @@
         fetchServerPage(p);
       }
     }, true);
+    // [Step 11 fix 2026-05-16] dropdown size 변경 감지
+    //   content.js 의 ws-per-page change handler 는 WS.refresh() 만 호출 (fetch 안 함)
+    //   → v397 가 자체 listener 등록해서 fetchServerPage(1) trigger
+    document.addEventListener('change', function (e) {
+      if (e.target && (e.target.id === 'ws-per-page' || e.target.id === 'ws-page-size')) {
+        // perPage 가 WS.state 에 set 된 후 (handler 가 먼저 실행) fetch
+        setTimeout(function () { fetchServerPage(1); }, 0);
+      }
+    }, true);
     // filter 변경 감지 (500ms 폴링)
     // [Step 7 fix 2026-05-16] 초기값을 현재 buildFilterParams 결과로 설정
     //   이전: lastFilterKey='' + 첫 폴링에서 fk='{}' !== '' 라 항상 spurious fetchServerPage(1)
