@@ -2231,16 +2231,14 @@ function generateResult(){
 
   const deal = S.deal || gc('g-dealType');
 
-  const prop = gc('g-propType');
+  const propRaw = gc('g-propType');
+  const prop = propRaw === '—' ? '—' : (propRaw.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, '').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim() || '—');
 
   document.getElementById('rName').textContent = name+'님';
 
   var subParts = [];
   if(deal) subParts.push(deal);
-  if(prop && prop !== '—') {
-    var propClean = prop.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, '').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim();
-    if(propClean) subParts.push(propClean);
-  }
+  if(prop && prop !== '—') subParts.push(prop);
   if(gv('cDate')) subParts.push(gv('cDate'));
   var subEl = document.getElementById('rSubtitle');
   if(subEl) subEl.textContent = subParts.join(' · ');
@@ -2279,7 +2277,7 @@ function generateResult(){
 
     <div class="summary-card">
 
-      <div class="sc-head">👤 고객 정보</div>
+      <div class="sc-head">고객 정보</div>
 
       <div class="sc-body">
 
@@ -2299,7 +2297,7 @@ function generateResult(){
 
     <div class="summary-card">
 
-      <div class="sc-head">🏠 거래 · 매물 유형</div>
+      <div class="sc-head">거래 · 매물 유형</div>
 
       <div class="sc-body">
 
@@ -2321,7 +2319,7 @@ function generateResult(){
 
     <div class="summary-card">
 
-      <div class="sc-head">📍 희망 지역</div>
+      <div class="sc-head">희망 지역</div>
 
       <div class="sc-body">
 
@@ -2343,7 +2341,7 @@ function generateResult(){
 
     <div class="summary-card">
 
-      <div class="sc-head">🚇 교통 · 생활환경</div>
+      <div class="sc-head">교통 · 생활환경</div>
 
       <div class="sc-body">
 
@@ -2367,7 +2365,7 @@ function generateResult(){
 
     <div class="summary-card">
 
-      <div class="sc-head">⭐ 선택 우선순위</div>
+      <div class="sc-head">선택 우선순위</div>
 
       <div class="sc-body">
 
@@ -2389,7 +2387,7 @@ function generateResult(){
 
     <div class="summary-card">
 
-      <div class="sc-head">📅 입주 계획</div>
+      <div class="sc-head">입주 계획</div>
 
       <div class="sc-body">
 
@@ -2414,7 +2412,7 @@ function generateResult(){
 
     <div class="summary-card">
 
-      <div class="sc-head">📝 메모</div>
+      <div class="sc-head">메모</div>
 
       <div class="sc-body">
 
