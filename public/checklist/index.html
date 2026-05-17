@@ -8,6 +8,13 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
+<meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)"/>
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+<meta name="apple-mobile-web-app-title" content="WISHES"/>
+<meta name="format-detection" content="telephone=no"/>
+
 <title>WISHES 부동산 | 고객 상담 체크리스트</title>
 
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/leetaewook/gmarket-sans-dynamic-subset/GmarketSans.css"/>
@@ -1207,7 +1214,7 @@ input:focus, textarea:focus, select:focus {
 
           <label class="flabel" for="cName">고객명 <span class="req">*</span></label>
 
-          <input type="text" id="cName" placeholder="홍길동" autocomplete="name"/>
+          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30"/>
 
         </div>
 
@@ -1331,7 +1338,7 @@ input:focus, textarea:focus, select:focus {
 
           </div>
           <div id="loanProduct" style="display:none;margin-top:8px">
-            <input type="text" id="loanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요"/>
+            <input type="text" id="loanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50"/>
           </div>
 
         </div>
@@ -1359,7 +1366,7 @@ input:focus, textarea:focus, select:focus {
             <div class="chip" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">해당없음</div>
           </div>
           <div id="jloanProduct" style="display:none;margin-top:8px">
-            <input type="text" id="jloanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요"/>
+            <input type="text" id="jloanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50"/>
           </div>
         </div>
       </div>
@@ -1419,7 +1426,8 @@ input:focus, textarea:focus, select:focus {
     </div>
         <div class="card">
       <div class="card-head">
-        <span class="card-icon">🚗</span> 주차 / 반려동물
+        <div class="card-icon">🚗</div>
+        <div class="card-title">주차 · 반려동물</div>
       </div>
       <div class="card-body">
         <div class="fg">
@@ -1428,7 +1436,7 @@ input:focus, textarea:focus, select:focus {
             <div class="chip" onclick="pick(this,'g-parking',1)">필요</div>
             <div class="chip" onclick="pick(this,'g-parking',1)">불필요</div>
           </div>
-          <input type="text" id="parkingNote" class="loan-product-input" placeholder="차종 / 특이사항 (선택)"/>
+          <input type="text" id="parkingNote" class="loan-product-input" placeholder="차종 / 특이사항 (선택)" maxlength="50"/>
         </div>
         <div class="fg" style="margin-top:14px">
           <label class="flabel">반려동물</label>
@@ -1437,14 +1445,15 @@ input:focus, textarea:focus, select:focus {
             <div class="chip" onclick="pick(this,'g-petType',1)">🐱 고양이</div>
             <div class="chip" onclick="pick(this,'g-petType',1)">없음</div>
           </div>
-          <input type="text" id="petNote" class="loan-product-input" placeholder="종 / 특이사항 (선택)"/>
+          <input type="text" id="petNote" class="loan-product-input" placeholder="종 / 특이사항 (선택)" maxlength="50"/>
         </div>
       </div>
     </div>
 
     <div class="card">
       <div class="card-head">
-        <span class="card-icon">📋</span> 금일 계약 진행
+        <div class="card-icon">📋</div>
+        <div class="card-title">금일 계약 진행</div>
       </div>
       <div class="card-body">
         <div class="fg">
@@ -1520,7 +1529,7 @@ input:focus, textarea:focus, select:focus {
 
           <label class="flabel" for="reg1">1순위 지역 <span class="req">*</span></label>
 
-          <input type="text" id="reg1" placeholder="예: 서울 마포구 상암동"/>
+          <input type="text" id="reg1" placeholder="예: 서울 마포구 상암동" maxlength="50"/>
 
         </div>
 
@@ -1528,7 +1537,7 @@ input:focus, textarea:focus, select:focus {
 
           <label class="flabel" for="reg2">2순위 지역</label>
 
-          <input type="text" id="reg2" placeholder="대안 가능 지역"/>
+          <input type="text" id="reg2" placeholder="대안 가능 지역" maxlength="50"/>
 
         </div>
 
@@ -1536,7 +1545,7 @@ input:focus, textarea:focus, select:focus {
 
           <label class="flabel" for="reg3">3순위 지역</label>
 
-          <input type="text" id="reg3" placeholder="추가 대안 지역"/>
+          <input type="text" id="reg3" placeholder="추가 대안 지역" maxlength="50"/>
 
         </div>
 
@@ -1632,7 +1641,7 @@ input:focus, textarea:focus, select:focus {
 
         <label class="flabel">직장 · 학교 위치</label>
 
-        <input type="text" id="workplace" placeholder="예: 강남구 테헤란로, 마포구 홍대입구역"/>
+        <input type="text" id="workplace" placeholder="예: 강남구 테헤란로, 마포구 홍대입구역" maxlength="100"/>
 
       </div>
 
@@ -1855,7 +1864,7 @@ input:focus, textarea:focus, select:focus {
 
         <label class="flabel">고객 요청사항</label>
 
-        <textarea id="addReq" placeholder="예: 남향 필수, 탑층 제외, 리모델링 완료 선호, 임대인 미거주 등"></textarea>
+        <textarea id="addReq" placeholder="예: 남향 필수, 탑층 제외, 리모델링 완료 선호, 임대인 미거주 등" maxlength="500"></textarea>
 
       </div>
 
