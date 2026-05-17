@@ -1190,6 +1190,38 @@ input:-webkit-autofill:focus {
   background: var(--ios-label-3);
 }
 
+
+/* ── ㊒ Textarea 카운터 ── */
+.textarea-counter {
+  font-size: 0.78rem;
+  color: var(--ios-label-3);
+  text-align: right;
+  margin-top: 6px;
+  padding-right: 2px;
+}
+.textarea-counter .count {
+  color: var(--ios-label);
+  font-weight: 500;
+}
+.textarea-counter.warn .count {
+  color: var(--ios-orange);
+}
+
+/* ── ㊓ Chip 다중 선택 개수 배지 ── */
+.chip-count-badge {
+  margin-left: 6px;
+  padding: 1px 8px;
+  background: var(--ios-blue);
+  color: white;
+  border-radius: 50px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  vertical-align: middle;
+  display: inline-block;
+}
+
 </style>
 
 </head>
@@ -2209,6 +2241,16 @@ function pickDeal(el, val){
 
   document.getElementById('bDefault').style.display = 'none';
 
+  // ㊑ 자동 스크롤 to 예산 영역
+  setTimeout(function(){
+    var target = (val === '매매') ? document.getElementById('bBuy') :
+                 (val === '전세') ? document.getElementById('bJeon') :
+                 (val === '월세') ? document.getElementById('bMonth') : null;
+    if (target && typeof target.scrollIntoView === 'function') {
+      try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){}
+    }
+  }, 100);
+
 }
 
 
@@ -2727,16 +2769,16 @@ function resetAll(){
     })();
 
 
-    /* ═══════════ ㊊ 결과 카드 클릭 → 해당 STEP ═══════════ */
+    /* ═══════════ ㊊+㊐ 결과 카드 클릭 → 해당 STEP + 정밀 스크롤 ═══════════ */
     (function initCardJump(){
-      var CARD_STEP = {
-        '고객 정보': 1,
-        '거래 · 매물 유형': 1,
-        '희망 지역': 2,
-        '교통 · 생활환경': 2,
-        '선택 우선순위': 3,
-        '입주 계획': 3,
-        '메모': 3
+      var CARD_INFO = {
+        '고객 정보':       { step: 1, sel: '#cName' },
+        '거래 · 매물 유형': { step: 1, sel: '#g-dealType' },
+        '희망 지역':       { step: 2, sel: '#reg1' },
+        '교통 · 생활환경':  { step: 2, sel: '#g-subway' },
+        '선택 우선순위':    { step: 3, sel: '.prio-table' },
+        '입주 계획':       { step: 3, sel: '#g-house-cell' },
+        '메모':           { step: 3, sel: '#addReq' }
       };
       document.addEventListener('click', function(e){
         if (window.cur !== 'result') return;
@@ -2744,10 +2786,16 @@ function resetAll(){
         if (!card) return;
         var head = card.querySelector('.sc-head');
         if (!head) return;
-        var step = CARD_STEP[head.textContent.trim()];
-        if (step) {
+        var info = CARD_INFO[head.textContent.trim()];
+        if (info) {
           if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
-          if (typeof goPage === 'function') goPage(step);
+          if (typeof goPage === 'function') goPage(info.step);
+          setTimeout(function(){
+            var target = document.querySelector(info.sel);
+            if (target && typeof target.scrollIntoView === 'function') {
+              try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){}
+            }
+          }, 450);
         }
       });
     })();
@@ -2828,6 +2876,65 @@ function resetAll(){
           input.dispatchEvent(new Event('input', { bubbles: true }));
           toggle();
         });
+      });
+    })();
+
+
+    /* ═══════════ ㊒ Textarea 글자 카운터 ═══════════ */
+    (function initTextareaCounter(){
+      var ta = document.getElementById('addReq');
+      if (!ta) return;
+      var max = parseInt(ta.getAttribute('maxlength') || '500', 10);
+      var counter = document.createElement('div');
+      counter.className = 'textarea-counter';
+      counter.innerHTML = '<span class="count">0</span> / ' + max;
+      // textarea 뒤에 삽입
+      if (ta.parentNode) {
+        ta.parentNode.insertBefore(counter, ta.nextSibling);
+      }
+      function update() {
+        var c = counter.querySelector('.count');
+        var len = ta.value.length;
+        if (c) c.textContent = len;
+        if (len >= max * 0.9) {
+          counter.classList.add('warn');
+        } else {
+          counter.classList.remove('warn');
+        }
+      }
+      ta.addEventListener('input', update);
+      update();
+    })();
+
+    /* ═══════════ ㊓ Chip 다중 선택 개수 배지 ═══════════ */
+    (function initChipCounter(){
+      var MULTI_GROUPS = ['g-propType', 'g-fac', 'g-opt', 'g-pet'];
+      MULTI_GROUPS.forEach(function(gid){
+        var grp = document.getElementById(gid);
+        if (!grp) return;
+        var card = grp.closest('.card');
+        if (!card) return;
+        var title = card.querySelector('.card-title');
+        if (!title) return;
+        // 기존 배지 있으면 중복 X
+        if (title.querySelector('.chip-count-badge')) return;
+        var badge = document.createElement('span');
+        badge.className = 'chip-count-badge';
+        badge.style.display = 'none';
+        title.appendChild(badge);
+        function update() {
+          var count = grp.querySelectorAll('.chip.on').length;
+          if (count > 0) {
+            badge.textContent = count + '개';
+            badge.style.display = 'inline-block';
+          } else {
+            badge.style.display = 'none';
+          }
+        }
+        grp.addEventListener('click', function(){
+          setTimeout(update, 50);
+        });
+        update();
       });
     })();
 
