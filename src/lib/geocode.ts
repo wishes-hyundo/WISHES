@@ -95,12 +95,8 @@ export async function geocodeAddress(
     if (hit) return hit;
   }
 
-  // 3차: 동 이름 중심좌표
-  const dongMatch = address.match(/([가-힣]+동)(?:\s|$)/);
-  if (dongMatch) {
-    const hit = await kakaoAddress(dongMatch[1]);
-    if (hit) return hit;
-  }
-
+  // [긴급 G-1 fix 2026-05-18] 동 이름 fallback 제거
+  //   같은 동의 매물이 모두 동 중심 좌표 받게 됨 → 1,820 cluster 형성
+  //   사장님 결정: 정확한 매칭 못 하면 NULL 유지 (지도 표시 제외)
   return null;
 }

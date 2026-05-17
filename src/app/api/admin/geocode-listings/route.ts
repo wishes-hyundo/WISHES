@@ -94,13 +94,8 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
       if (hit) return hit;
     }
 
-    // 4차: 동 이름만으로 중심좌표
-    const dongMatch = address.match(/([가-힣]+동)(?:\s|$)/);
-    if (dongMatch) {
-      const hit = await kakaoAddress(dongMatch[1]);
-      if (hit) return hit;
-    }
-
+    // [긴급 G-1 fix 2026-05-18] 동 이름 fallback 제거 (batch geocode 도)
+    //   정확한 매칭 못 하면 NULL 유지 (지도 표시 제외)
     return null;
   } catch {
     return null;
