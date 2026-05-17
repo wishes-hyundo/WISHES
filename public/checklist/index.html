@@ -1222,6 +1222,48 @@ input:-webkit-autofill:focus {
   display: inline-block;
 }
 
+
+/* ── ㊔ 결과 행(sc-row) 클릭 가능 ── */
+#page-result .sc-row {
+  cursor: pointer;
+  transition: background 0.15s var(--ios-ease);
+}
+#page-result .sc-row:active {
+  background: var(--ios-fill-3);
+}
+
+
+/* ── ㊗ chip 카드 "전체 선택" 버튼 ── */
+.chip-select-all {
+  margin-left: auto;
+  padding: 3px 10px;
+  background: transparent;
+  color: var(--ios-blue);
+  border: 0.5px solid var(--ios-blue);
+  border-radius: 50px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: var(--ios-font);
+  text-transform: none;
+  letter-spacing: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s var(--ios-ease);
+}
+.chip-select-all:active {
+  background: var(--ios-blue);
+  color: white;
+}
+.card-title {
+  display: inline-flex;
+  align-items: center;
+  flex: 1;
+  gap: 6px;
+}
+.card-head {
+  align-items: center;
+}
+
 </style>
 
 </head>
@@ -2588,6 +2630,10 @@ function resetAll(){
       if(!phone) return;
       phone.addEventListener('input', function(e){
         let v = this.value.replace(/[^0-9]/g, '');
+        // ㊖ 자동 010 prefix
+        if (v.length > 0 && !v.startsWith('0')) {
+          v = '010' + v;
+        }
         if(v.length > 11) v = v.substring(0, 11);
         if(v.length > 7) v = v.substring(0,3) + '-' + v.substring(3,7) + '-' + v.substring(7);
         else if(v.length > 3) v = v.substring(0,3) + '-' + v.substring(3);
@@ -2769,7 +2815,7 @@ function resetAll(){
     })();
 
 
-    /* ═══════════ ㊊+㊐ 결과 카드 클릭 → 해당 STEP + 정밀 스크롤 ═══════════ */
+    /* ═══════════ ㊊+㊐+㊔ 결과 카드/행 클릭 → STEP + 정밀 스크롤 + input 포커스 ═══════════ */
     (function initCardJump(){
       var CARD_INFO = {
         '고객 정보':       { step: 1, sel: '#cName' },
@@ -2780,23 +2826,66 @@ function resetAll(){
         '입주 계획':       { step: 3, sel: '#g-house-cell' },
         '메모':           { step: 3, sel: '#addReq' }
       };
+      // ㊔ sc-row 별 정밀 매핑
+      var ROW_INFO = {
+        '고객명':     { step: 1, sel: '#cName', focus: true },
+        '연락처':     { step: 1, sel: '#cPhone', focus: true },
+        '방문일정':    { step: 1, sel: '#cDate', focus: true },
+        '거래 유형':   { step: 1, sel: '#g-dealType' },
+        '매물 유형':   { step: 2, sel: '#g-propType' },
+        '예산':       { step: 1, sel: '#g-dealType' },
+        '1순위':      { step: 2, sel: '#reg1', focus: true },
+        '2순위':      { step: 2, sel: '#reg2', focus: true },
+        '3순위':      { step: 2, sel: '#reg3', focus: true },
+        '지하철':     { step: 2, sel: '#g-subway' },
+        '이동 수단':   { step: 2, sel: '#g-trans' },
+        '직장·학교':   { step: 2, sel: '#workplace', focus: true },
+        '필수 시설':   { step: 3, sel: '#g-fac' },
+        '희망 옵션':   { step: 3, sel: '#g-opt' },
+        '반려동물 종류': { step: 3, sel: '#g-pet' },
+        '희망 입주일':  { step: 1, sel: '#f-moveDate', focus: true },
+        '입주 유연성':  { step: 1, sel: '#g-moveFlex' },
+        '금일 계약':   { step: 1, sel: '#g-contractToday' },
+        '계약 기간':   { step: 2, sel: '#g-contractPeriod' },
+        '거주 구성원':  { step: 3, sel: '#g-house-cell' },
+        '요청사항':    { step: 3, sel: '#addReq', focus: true }
+      };
+      function jumpTo(step, sel, doFocus) {
+        if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
+        if (typeof goPage === 'function') goPage(step);
+        setTimeout(function(){
+          var target = document.querySelector(sel);
+          if (target) {
+            if (typeof target.scrollIntoView === 'function') {
+              try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){}
+            }
+            if (doFocus && typeof target.focus === 'function') {
+              try { target.focus({ preventScroll: true }); } catch(_){}
+            }
+          }
+        }, 450);
+      }
       document.addEventListener('click', function(e){
         if (window.cur !== 'result') return;
+        // ㊔ 먼저 sc-row 매칭
+        var row = e.target.closest('#resultCards .sc-row');
+        if (row) {
+          var keyEl = row.querySelector('.sc-key');
+          var key = keyEl ? keyEl.textContent.trim() : '';
+          var rowInfo = ROW_INFO[key];
+          if (rowInfo) {
+            jumpTo(rowInfo.step, rowInfo.sel, !!rowInfo.focus);
+            e.stopPropagation();
+            return;
+          }
+        }
+        // ㊐ 카드 fallback
         var card = e.target.closest('#resultCards .summary-card');
         if (!card) return;
         var head = card.querySelector('.sc-head');
         if (!head) return;
         var info = CARD_INFO[head.textContent.trim()];
-        if (info) {
-          if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
-          if (typeof goPage === 'function') goPage(info.step);
-          setTimeout(function(){
-            var target = document.querySelector(info.sel);
-            if (target && typeof target.scrollIntoView === 'function') {
-              try { target.scrollIntoView({ behavior: 'smooth', block: 'center' }); } catch(_){}
-            }
-          }, 450);
-        }
+        if (info) jumpTo(info.step, info.sel, false);
       });
     })();
 
@@ -2938,6 +3027,53 @@ function resetAll(){
       });
     })();
 
+
+    /* ═══════════ ㊗ chip 다중 카드 "전체 선택" 버튼 ═══════════ */
+    (function initSelectAll(){
+      var MULTI_GROUPS = ['g-fac', 'g-opt'];  // chip 많은 카드
+      MULTI_GROUPS.forEach(function(gid){
+        var grp = document.getElementById(gid);
+        if (!grp) return;
+        var card = grp.closest('.card');
+        if (!card) return;
+        var title = card.querySelector('.card-title');
+        if (!title) return;
+        if (title.querySelector('.chip-select-all')) return;
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'chip-select-all';
+        btn.textContent = '전체 선택';
+        title.appendChild(btn);
+        function updateBtnText() {
+          var allChips = grp.querySelectorAll('.chip:not(.chip-full)');
+          var allOn = allChips.length > 0 && Array.from(allChips).every(function(c){ return c.classList.contains('on'); });
+          btn.textContent = allOn ? '전체 해제' : '전체 선택';
+        }
+        btn.addEventListener('click', function(e){
+          e.stopPropagation();
+          if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
+          var allChips = grp.querySelectorAll('.chip:not(.chip-full)');
+          var allOn = Array.from(allChips).every(function(c){ return c.classList.contains('on'); });
+          allChips.forEach(function(c){
+            if (allOn) c.classList.remove('on');
+            else c.classList.add('on');
+          });
+          // S.chips 갱신
+          if (typeof S !== 'undefined') {
+            S.chips[gid] = Array.from(grp.querySelectorAll('.chip.on')).map(function(c){return c.textContent.trim();});
+          }
+          updateBtnText();
+          // chip-count-badge 갱신 trigger
+          var fakeEvent = new Event('change', { bubbles: true });
+          grp.dispatchEvent(fakeEvent);
+        });
+        grp.addEventListener('click', function(){
+          setTimeout(updateBtnText, 60);
+        });
+        updateBtnText();
+      });
+    })();
+
 </script>
 
 <script>
@@ -2975,6 +3111,10 @@ function resetAll(){
 
     function formatPhone(el){
       let v = el.value.replace(/[^0-9]/g, '');
+      // ㊖ 자동 010 prefix — 0 으로 시작 안 하면 010 강제
+      if (v.length > 0 && !v.startsWith('0')) {
+        v = '010' + v;
+      }
       if(v.length > 11) v = v.slice(0, 11);
       if(v.length <= 3){
         el.value = v;
