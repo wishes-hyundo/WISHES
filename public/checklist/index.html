@@ -1143,6 +1143,53 @@ input:-webkit-autofill:focus {
   .sc-empty { color: #48484A; }
 }
 
+
+/* ── ㊊ 결과 카드 클릭 cursor ── */
+#page-result .summary-card {
+  cursor: pointer;
+  transition: background 0.15s var(--ios-ease), transform 0.1s var(--ios-ease);
+}
+#page-result .summary-card:active {
+  background: var(--ios-fill-3);
+  transform: scale(0.995);
+}
+
+/* ── ㊍ Input clear (X 버튼) ── */
+.input-wrap {
+  position: relative;
+  width: 100%;
+}
+.input-wrap input {
+  padding-right: 36px !important;
+}
+.input-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--ios-label-4);
+  border: none;
+  color: white;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: -apple-system, sans-serif;
+  font-weight: 600;
+}
+.input-wrap.has-value .input-clear {
+  display: flex;
+}
+.input-clear:active {
+  background: var(--ios-label-3);
+}
+
 </style>
 
 </head>
@@ -1235,7 +1282,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="cPhone">연락처 <span class="req">*</span></label>
 
-          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)" maxlength="13" autocomplete="tel-national"/>
+          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)" maxlength="13" autocomplete="tel-national" pattern="010-\d{4}-\d{4}"/>
 
         </div>
 
@@ -2534,6 +2581,7 @@ function resetAll(){
           const phone = document.getElementById('cPhone');
           if(!name || !name.value.trim()) fail(name);
           if(!phone || !phone.value.trim()) fail(phone);
+          else if(phone && !/^010-\d{4}-\d{4}$/.test(phone.value.trim())) fail(phone);
           // 거래유형 chip 선택 확인
           const dealOn = document.querySelectorAll('#g-dealType .deal-chip.on');
           if(dealOn.length === 0) fail(document.getElementById('g-dealType'));
@@ -2676,6 +2724,111 @@ function resetAll(){
         }
         moving = false;
       }, { passive: true });
+    })();
+
+
+    /* ═══════════ ㊊ 결과 카드 클릭 → 해당 STEP ═══════════ */
+    (function initCardJump(){
+      var CARD_STEP = {
+        '고객 정보': 1,
+        '거래 · 매물 유형': 1,
+        '희망 지역': 2,
+        '교통 · 생활환경': 2,
+        '선택 우선순위': 3,
+        '입주 계획': 3,
+        '메모': 3
+      };
+      document.addEventListener('click', function(e){
+        if (window.cur !== 'result') return;
+        var card = e.target.closest('#resultCards .summary-card');
+        if (!card) return;
+        var head = card.querySelector('.sc-head');
+        if (!head) return;
+        var step = CARD_STEP[head.textContent.trim()];
+        if (step) {
+          if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
+          if (typeof goPage === 'function') goPage(step);
+        }
+      });
+    })();
+
+    /* ═══════════ ㊋ 좌우 swipe → STEP 전환 ═══════════ */
+    (function initSwipeStep(){
+      var startX = 0, startY = 0, startT = 0, watching = false;
+      document.addEventListener('touchstart', function(e){
+        if (e.touches.length !== 1) return;
+        if (e.target.closest('input, select, textarea, .chips, .deal-chips, .ios-sheet, .ios-switch, .star, .step-nav, .budget-slider')) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        startT = Date.now();
+        watching = true;
+      }, { passive: true });
+      document.addEventListener('touchend', function(e){
+        if (!watching) return;
+        watching = false;
+        var endX = e.changedTouches[0].clientX;
+        var endY = e.changedTouches[0].clientY;
+        var dx = endX - startX;
+        var dy = endY - startY;
+        var dt = Date.now() - startT;
+        // horizontal swipe — 80px 이상 + vertical 50px 미만 + 500ms 이내
+        if (Math.abs(dx) < 80) return;
+        if (Math.abs(dy) > 50) return;
+        if (dt > 500) return;
+        if (window.cur === 'result') return;
+        var cur = window.cur || 1;
+        if (dx < 0 && cur < 3 && typeof nextPage === 'function') {
+          if (navigator.vibrate) try { navigator.vibrate(3); } catch(_){}
+          nextPage();
+        } else if (dx > 0 && cur > 1 && typeof prevPage === 'function') {
+          if (navigator.vibrate) try { navigator.vibrate(3); } catch(_){}
+          prevPage();
+        }
+      }, { passive: true });
+    })();
+
+    /* ═══════════ ㊍ Input clear (X 버튼) ═══════════ */
+    (function initInputClear(){
+      var inputs = document.querySelectorAll('input[type="text"], input[type="tel"]');
+      inputs.forEach(function(input){
+        // budget input 등 특수 input 제외
+        if (input.classList.contains('budget-input')) return;
+        if (input.classList.contains('input-clear')) return;
+        // ios-picker-cell, range 등 제외
+        var parent = input.parentNode;
+        if (!parent || parent.classList.contains('input-wrap')) return;
+        // wrap 만들기
+        var wrap = document.createElement('div');
+        wrap.className = 'input-wrap';
+        parent.insertBefore(wrap, input);
+        wrap.appendChild(input);
+        // clear 버튼
+        var clear = document.createElement('button');
+        clear.type = 'button';
+        clear.className = 'input-clear';
+        clear.setAttribute('aria-label', '입력값 지우기');
+        clear.textContent = '×';
+        wrap.appendChild(clear);
+        // toggle 표시
+        function toggle() {
+          if (input.value && input.value.length > 0) {
+            wrap.classList.add('has-value');
+          } else {
+            wrap.classList.remove('has-value');
+          }
+        }
+        input.addEventListener('input', toggle);
+        input.addEventListener('focus', toggle);
+        toggle();
+        // 클릭 시 지우기
+        clear.addEventListener('mousedown', function(e){ e.preventDefault(); });
+        clear.addEventListener('click', function(){
+          input.value = '';
+          input.focus();
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          toggle();
+        });
+      });
     })();
 
 </script>
