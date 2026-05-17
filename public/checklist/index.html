@@ -35,6 +35,18 @@
   --ios-orange: #FF9500;
   --ios-yellow: #FFCC00;
 
+  /* ㊚ Transition system tokens (round 13) */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* ㊛ Border-radius system tokens (round 13) */
+  --radius-sm: 6px;
+  --radius-btn: 10px;
+  --radius-card: 14px;
+  --radius-cell: 18px;
+  --radius-pill: 50px;
+
   /* Labels */
   --ios-label: #1C1C1E;
   --ios-label-2: #3C3C43;
@@ -1318,7 +1330,7 @@ input:-webkit-autofill:focus {
 
 <!-- ══ LAYOUT ══ -->
 
-<div class="layout">
+<div class="layout" role="main">
 
 
 
@@ -3063,8 +3075,8 @@ function resetAll(){
             S.chips[gid] = Array.from(grp.querySelectorAll('.chip.on')).map(function(c){return c.textContent.trim();});
           }
           updateBtnText();
-          // chip-count-badge 갱신 trigger
-          var fakeEvent = new Event('change', { bubbles: true });
+          // chip-count-badge 갱신 trigger — initChipCounter 가 click 을 듣고 setTimeout(update,50)
+          var fakeEvent = new Event('click', { bubbles: true });
           grp.dispatchEvent(fakeEvent);
         });
         grp.addEventListener('click', function(){
@@ -3213,7 +3225,7 @@ function updateBottomNavText(n){
           }
         });
         document.body.classList.add('agent-mode');
-      } catch(e){console.warn('Agent mode error:',e);}
+      } catch(e){/* silent */}
     })()
 
     </script>
