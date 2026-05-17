@@ -17,6 +17,7 @@
 
 <title>WISHES 부동산 | 고객 상담 체크리스트</title>
 
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23007AFF'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='-apple-system,SF Pro Display,sans-serif' font-size='20' font-weight='800' fill='white'%3EW%3C/text%3E%3C/svg%3E"/>
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/leetaewook/gmarket-sans-dynamic-subset/GmarketSans.css"/>
 
 <style>
@@ -116,7 +117,8 @@ button { font-family: inherit; }
   backdrop-filter: saturate(180%) blur(20px);
   border-bottom: 0.33px solid var(--ios-sep);
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 16px; height: 44px;
+  padding: 0 max(16px, calc((100% - 720px) / 2));
+  height: 44px;
 }
 @media (prefers-color-scheme: dark) {
   .topbar { background: rgba(28,28,30,0.78); }
@@ -133,8 +135,6 @@ button { font-family: inherit; }
 .logo-sub { display: none; }
 .topbar-right { text-align: right; }
 .topbar-date { font-size: 0.72rem; color: var(--ios-label-3); }
-.topbar-step { font-size: 0.78rem; color: var(--ios-blue); font-weight: 500; margin-top: 1px; }
-
 /* ── PROGRESS ── */
 .progress-track {
   height: 4px;
@@ -154,7 +154,7 @@ button { font-family: inherit; }
   display: flex;
   background: var(--ios-bg-elevated);
   border-bottom: 0.33px solid var(--ios-sep);
-  padding: 6px 16px;
+  padding: 6px max(16px, calc((100% - 720px) / 2));
   gap: 4px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -280,8 +280,7 @@ body > .card, body > .page {
 /* ── FORM ── */
 .frow { display: grid; gap: 14px; margin-bottom: 0; }
 .frow.c2 { grid-template-columns: 1fr 1fr; }
-.frow.c3 { grid-template-columns: 1fr 1fr 1fr; }
-.frow.c1 { grid-template-columns: 1fr; }
+.frow.frow.c1 { grid-template-columns: 1fr; }
 .fg { display: flex; flex-direction: column; gap: 6px; }
 .flabel {
   font-size: 0.82rem; font-weight: 500;
@@ -441,9 +440,6 @@ textarea {
   text-align: center;
 }
 
-.range-row { display: flex; align-items: center; gap: 10px; }
-.range-row input { flex: 1; min-width: 0; }
-.range-sep { font-weight: 400; color: var(--ios-label-3); font-size: 1rem; }
 .unit {
   background: transparent;
   color: var(--ios-label-3);
@@ -489,8 +485,6 @@ textarea {
 .prio-label { font-size: 0.97rem; font-weight: 400; color: var(--ios-label); }
 
 /* ── DIVIDER ── */
-.divider { height: 0.33px; background: var(--ios-sep); margin: 14px 0; }
-
 /* ── HINT / NOTE ── */
 .hint {
   font-size: 0.82rem;
@@ -529,7 +523,7 @@ textarea {
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   backdrop-filter: saturate(180%) blur(20px);
   border-top: 0.33px solid var(--ios-sep);
-  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  padding: 12px max(16px, calc((100% - 720px) / 2)) calc(12px + env(safe-area-inset-bottom));
   display: flex; gap: 10px;
 }
 @media (prefers-color-scheme: dark) {
@@ -560,10 +554,7 @@ textarea {
 }
 .btn-back:active { opacity: 0.5; }
 
-.btn-ghost { background: var(--ios-fill); color: var(--ios-label); flex-shrink: 0; }
 .btn-primary { background: var(--ios-blue); color: #fff; flex: 1; }
-.btn-success { background: var(--ios-green); color: #fff; flex: 1; }
-.btn-gold { background: var(--ios-fill); color: var(--ios-blue); flex-shrink: 0; }
 .btn-outline { background: transparent; color: var(--ios-red); border: none; flex-shrink: 0; }
 .btn-send {
   background: var(--ios-blue) !important;
@@ -612,8 +603,6 @@ textarea {
   color: var(--ios-label);
   line-height: 1.1;
 }
-.result-meta { font-size: 0.88rem; opacity: 0.7; display: flex; gap: 14px; flex-wrap: wrap; }
-
 /* ── SUMMARY CARD (Grouped List) ── */
 .summary-card {
   background: var(--ios-cell);
@@ -685,8 +674,7 @@ textarea {
 
 /* ── RESPONSIVE ── */
 @media (max-width: 640px) {
-  .frow.c2, .frow.c3 { grid-template-columns: 1fr; }
-  .deal-chips { display: flex; }
+  .frow.c2, .frow.deal-chips { display: flex; }
   .topbar { padding: 0 12px; }
   .layout { padding: 12px 12px 130px; }
   .step-btn { padding: 8px 8px; font-size: 0.8rem; }
@@ -704,12 +692,6 @@ textarea {
     transition-duration: 0.01ms !important;
   }
 }
-.sr-only {
-  position: absolute; width: 1px; height: 1px;
-  padding: 0; margin: -1px; overflow: hidden;
-  clip: rect(0,0,0,0); border: 0;
-}
-
 /* ── Misc cleanup ── */
 .chip { min-width: 0; min-height: 36px; padding: 8px 14px; font-size: 0.92rem; }
 .send-btn { background: var(--ios-blue); color: #fff; border: none; border-radius: var(--ios-r-btn); padding: 14px 20px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; margin-top: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; transition: opacity 0.1s, transform 0.1s; font-family: var(--ios-font); }
@@ -731,7 +713,6 @@ textarea {
 }
 .field-error { color: var(--ios-red); font-size: 0.78rem; margin-top: 4px; }
 
-.fab-send { display: none; }
 .agent-only { display: none !important; }
 .agent-mode .agent-only { display: inline-flex !important; }
 
@@ -1129,6 +1110,28 @@ input:focus, textarea:focus, select:focus {
 
 /* visit-toggle 옛 클래스 ── 기존 코드 호환 (HTML 에는 더 이상 없지만 안전) */
 .visit-toggle { display: none; }
+
+
+
+/* ── ㈏ Chrome 자동완성 색 (iOS 톤 유지) ── */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px rgba(118,118,128,0.12) inset !important;
+  -webkit-text-fill-color: var(--ios-label) !important;
+  caret-color: var(--ios-blue);
+  transition: background-color 5000s ease-in-out 0s;
+}
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 30px var(--ios-cell) inset, inset 0 0 0 1.5px var(--ios-blue) !important;
+}
+@media (prefers-color-scheme: dark) {
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: #FFFFFF !important;
+  }
+}
 
 </style>
 
