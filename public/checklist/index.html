@@ -1133,6 +1133,16 @@ input:-webkit-autofill:focus {
   }
 }
 
+
+/* ── ㊀ 결과 페이지 미입력 항목 흐릿 ── */
+.sc-empty {
+  color: var(--ios-label-4);
+  font-weight: 400;
+}
+@media (prefers-color-scheme: dark) {
+  .sc-empty { color: #48484A; }
+}
+
 </style>
 
 </head>
@@ -2090,6 +2100,12 @@ function updateStepNav(n){
 
   });
 
+  // ㊁ active 탭 자동 스크롤 (좁은 화면)
+  const activeBtn = document.querySelector('.step-btn.active');
+  if (activeBtn && typeof activeBtn.scrollIntoView === 'function') {
+    try { activeBtn.scrollIntoView({ inline: 'center', behavior: 'smooth', block: 'nearest' }); } catch(_){}
+  }
+
 }
 
 
@@ -2229,7 +2245,7 @@ function setStar(k, v){
 function gv(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
 function _esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 
-function gc(gid){ const v=S.chips[gid]; if(!v) return '—'; if(Array.isArray(v)) return v.length?v.join(', '):'—'; return v; }
+function gc(gid){ const v=S.chips[gid]; if(!v) return ''; if(Array.isArray(v)) return v.length?v.join(', '):''; return v; }
 
 function stars(k){ const n=S.stars[k]; return n?'★'.repeat(n)+'☆'.repeat(5-n):'미평가'; }
 
@@ -2240,6 +2256,7 @@ function stars(k){ const n=S.stars[k]; return n?'★'.repeat(n)+'☆'.repeat(5-n
 function generateResult(){
 
   const name = gv('cName')||'고객';
+  const EMPTY = '<span class="sc-empty">미입력</span>';
 
   const deal = S.deal || gc('g-dealType');
 
@@ -2259,7 +2276,7 @@ function generateResult(){
 
   // Budget string
 
-  let budget='—';
+  let budget=EMPTY;
 
   if(deal==='매매'){
 
@@ -2293,11 +2310,11 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">고객명</div><div class="sc-val"><strong>${_esc(gv('cName'))||'—'}</strong></div></div>
+        <div class="sc-row"><div class="sc-key">고객명</div><div class="sc-val"><strong>${_esc(gv('cName'))||EMPTY}</strong></div></div>
 
-        <div class="sc-row"><div class="sc-key">연락처</div><div class="sc-val">${_esc(gv('cPhone'))||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">연락처</div><div class="sc-val">${_esc(gv('cPhone'))||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">방문일정</div><div class="sc-val">${_esc(gv('cDate'))||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">방문일정</div><div class="sc-val">${_esc(gv('cDate'))||EMPTY}</div></div>
 
         
 
@@ -2313,7 +2330,7 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">거래 유형</div><div class="sc-val"><span class="tag tag-gold">${deal||'—'}</span></div></div>
+        <div class="sc-row"><div class="sc-key">거래 유형</div><div class="sc-val"><span class="tag tag-gold">${deal||EMPTY}</span></div></div>
 
         <div class="sc-row"><div class="sc-key">매물 유형</div><div class="sc-val"><span class="tag tag-navy">${prop}</span></div></div>
 
@@ -2335,11 +2352,11 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">1순위</div><div class="sc-val">${_esc(gv('reg1'))||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">1순위</div><div class="sc-val">${_esc(gv('reg1'))||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">2순위</div><div class="sc-val">${_esc(gv('reg2'))||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">2순위</div><div class="sc-val">${_esc(gv('reg2'))||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">3순위</div><div class="sc-val">${_esc(gv('reg3'))||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">3순위</div><div class="sc-val">${_esc(gv('reg3'))||EMPTY}</div></div>
 
         
 
@@ -2357,15 +2374,15 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">지하철</div><div class="sc-val">${gc('g-subway')}</div></div>
+        <div class="sc-row"><div class="sc-key">지하철</div><div class="sc-val">${gc('g-subway')||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">이동 수단</div><div class="sc-val">${gc('g-trans')}</div></div>
+        <div class="sc-row"><div class="sc-key">이동 수단</div><div class="sc-val">${gc('g-trans')||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">직장·학교</div><div class="sc-val">${_esc(gv('workplace'))||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">직장·학교</div><div class="sc-val">${_esc(gv('workplace'))||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">필수 시설</div><div class="sc-val">${gc('g-fac')}</div></div>
+        <div class="sc-row"><div class="sc-key">필수 시설</div><div class="sc-val">${gc('g-fac')||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">희망 옵션</div><div class="sc-val">${gc('g-opt')}</div></div>
+        <div class="sc-row"><div class="sc-key">희망 옵션</div><div class="sc-val">${gc('g-opt')||EMPTY}</div></div>
 
         ${gc('g-pet')!=='—'?'<div class="sc-row"><div class="sc-key">반려동물 종류</div><div class="sc-val">'+gc('g-pet')+'</div></div>':''}
 
@@ -2403,16 +2420,16 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">희망 입주일</div><div class="sc-val">${_esc(gv('moveDate'))||'—'}</div></div>
+        <div class="sc-row"><div class="sc-key">희망 입주일</div><div class="sc-val">${_esc(gv('moveDate'))||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">입주 유연성</div><div class="sc-val">${gc('g-moveFlex')}</div></div>
-        <div class="sc-row"><div class="sc-key">금일 계약</div><div class="sc-val">${gc('g-contractToday')}</div></div>
+        <div class="sc-row"><div class="sc-key">입주 유연성</div><div class="sc-val">${gc('g-moveFlex')||EMPTY}</div></div>
+        <div class="sc-row"><div class="sc-key">금일 계약</div><div class="sc-val">${gc('g-contractToday')||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">계약 기간</div><div class="sc-val">${gc('g-contractPeriod')}</div></div>
+        <div class="sc-row"><div class="sc-key">계약 기간</div><div class="sc-val">${gc('g-contractPeriod')||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">거주 구성원</div><div class="sc-val">${gc('g-house')}</div></div>
+        <div class="sc-row"><div class="sc-key">거주 구성원</div><div class="sc-val">${gc('g-house')||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">특별 조건</div><div class="sc-val">${gc('g-spec')}</div></div>
+        <div class="sc-row"><div class="sc-key">특별 조건</div><div class="sc-val">${gc('g-spec')||EMPTY}</div></div>
 
       </div>
 
@@ -2599,6 +2616,66 @@ function resetAll(){
           }
         }
       }, { passive: false });
+    })();
+
+
+    /* ═══════════ ㊂ Textarea 자동 높이 ═══════════ */
+    (function initAutosize(){
+      var ta = document.getElementById('addReq');
+      if (!ta) return;
+      function resize() {
+        ta.style.height = 'auto';
+        ta.style.height = Math.min(ta.scrollHeight, 400) + 'px';
+      }
+      ta.addEventListener('input', resize);
+      // 초기 1회
+      setTimeout(resize, 50);
+    })();
+
+    /* ═══════════ ㊃ Picker sheet swipe-down 닫기 ═══════════ */
+    (function initSwipeClose(){
+      var panel = document.querySelector('.ios-sheet-panel');
+      if (!panel) return;
+      var startY = 0;
+      var moveY = 0;
+      var moving = false;
+      panel.addEventListener('touchstart', function(e){
+        if (e.touches.length !== 1) return;
+        // sheet 가 hidden 아닐 때만
+        var sheet = document.getElementById('iosSheet');
+        if (!sheet || sheet.hidden) return;
+        // header / handle 만 swipe 허용 (옵션 list 는 스크롤)
+        var target = e.target;
+        if (target.closest('.ios-sheet-options')) return;
+        startY = e.touches[0].clientY;
+        moveY = startY;
+        moving = true;
+      }, { passive: true });
+      panel.addEventListener('touchmove', function(e){
+        if (!moving) return;
+        moveY = e.touches[0].clientY;
+        var dy = moveY - startY;
+        if (dy > 0) {
+          panel.style.transform = 'translateY(' + dy + 'px)';
+          panel.style.transition = 'none';
+        }
+      }, { passive: true });
+      panel.addEventListener('touchend', function(){
+        if (!moving) return;
+        var dy = moveY - startY;
+        panel.style.transition = 'transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)';
+        if (dy > 80 && typeof window.closePicker === 'function') {
+          panel.style.transform = 'translateY(100%)';
+          setTimeout(function(){
+            panel.style.transform = '';
+            panel.style.transition = '';
+            window.closePicker();
+          }, 280);
+        } else {
+          panel.style.transform = '';
+        }
+        moving = false;
+      }, { passive: true });
     })();
 
 </script>
