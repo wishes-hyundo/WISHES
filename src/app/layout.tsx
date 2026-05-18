@@ -152,9 +152,9 @@ export default function RootLayout({
             __html: `window.__KAKAO_APPKEY=${JSON.stringify(process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || '')};`,
           }}
         />
+        {/* [Step F-9 fix 2026-05-18] 하드코딩 fallback key 제거 — ENV 필수 */}
         <Script
           id="kakao-map-sdk"
-          // [Step F-9 fix 2026-05-18] 하드코딩 fallback key 제거 — ENV 필수
           src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || ''}&libraries=services,clusterer&autoload=false`}
           strategy="afterInteractive"
         />
@@ -194,4 +194,4 @@ export default function RootLayout({
               },
             }),
           }}
-        /
+      
