@@ -259,20 +259,21 @@ export async function POST(request: NextRequest) {
 
     // L-sec12: sections 배열은 20개 cap, 각 section 의 rows 는 30개 cap.
     const rawSections = Array.isArray(input.sections) ? input.sections.slice(0, MAX_SECTIONS) : [];
+    // R26 ❹ — gold 톤 → 위시스 ios-blue 톤 (사장님 명령 '13년 브랜드 색 X')
     let s = '<div style="font-family:sans-serif;max-width:700px;margin:0 auto">';
-    s += `<h2 style="color:#b8860b;border-bottom:2px solid #b8860b;padding-bottom:8px">${title}</h2>`;
+    s += `<h2 style="color:#007AFF;border-bottom:2px solid #007AFF;padding-bottom:8px">${title}</h2>`;
 
     for (const sec of rawSections) {
       if (!sec || typeof sec !== 'object') continue;
       s += '<table style="width:100%;border-collapse:collapse;margin:10px 0">';
-      s += `<tr style="background:#f5f0e1"><td colspan="2" style="padding:8px;font-weight:bold;color:#8b6914;font-size:15px">${esc(capStr(sec.title))}</td></tr>`;
+      s += `<tr style="background:#F2F2F7"><td colspan="2" style="padding:8px;font-weight:bold;color:#1C1C1E;font-size:15px">${esc(capStr(sec.title))}</td></tr>`;
       const rows = Array.isArray(sec.rows) ? sec.rows.slice(0, MAX_ROWS_PER_SECTION) : [];
       for (const row of rows) {
         if (!Array.isArray(row)) continue;
         const lbl = esc(capStr(row[0]));
         const val = esc(capStr(row[1]));
         if (!val) continue;
-        s += `<tr><td style="padding:6px 10px;border:1px solid #ddd;width:30%;background:#faf7f0;font-weight:bold">${lbl}</td><td style="padding:6px 10px;border:1px solid #ddd">${val}</td></tr>`;
+        s += `<tr><td style="padding:6px 10px;border:1px solid #E5E5EA;width:30%;background:#F9F9FB;font-weight:bold;color:#1C1C1E">${lbl}</td><td style="padding:6px 10px;border:1px solid #E5E5EA;color:#1C1C1E">${val}</td></tr>`;
       }
       s += '</table>';
     }
