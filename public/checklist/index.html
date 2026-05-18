@@ -6,8 +6,7 @@
 
 <meta charset="UTF-8"/>
 
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https://wishes.co.kr; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; img-src 'self' data: https: blob:; connect-src 'self' https://wishes.co.kr https://*.supabase.co; font-src 'self' data: https: https://cdn.jsdelivr.net https://fonts.gstatic.com; base-uri 'self'; form-action 'self';">
-  <link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="/manifest.json">
   <meta name="robots" content="noindex,nofollow,noarchive,noimageindex">
   <link rel="canonical" href="https://wishes.co.kr/checklist">
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -2419,7 +2418,12 @@ function _esc(s){ return String(s||'').replace(/[&<>"']/g, function(c){ return {
 
 function gc(gid){ const v=S.chips[gid]; if(!v) return ''; if(Array.isArray(v)) return v.length?v.join(', '):''; return v; }
 
-function stars(k){ const n=S.stars[k]; return n?'★'.repeat(n)+'☆'.repeat(5-n):'미평가'; }
+function stars(k){
+  const n = S.stars[k];
+  const label = {price:'가격', loc:'위치', size:'면적', bld:'건물', env:'환경'}[k] || '평점';
+  if(!n) return '<span aria-label="'+label+' 미평가">미평가</span>';
+  return '<span role="img" aria-label="'+label+' 별점 '+n+'점 (5점 만점)">' + '★'.repeat(n) + '☆'.repeat(5-n) + '</span>';
+}
 
 
 
