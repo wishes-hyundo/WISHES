@@ -172,7 +172,7 @@
     },
     {
       "path": "/api/cron/geocode-missing",
-      "schedule": "0 */6 * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/cron/enrich-vision",
