@@ -209,8 +209,9 @@
     if (kakao.maps.drawing) { buildMgr(); return; }
     if (_drawingLoading) return;
     _drawingLoading = true;
-    // dynamic load — drawing 만 추가
-    var appkey = 'a1c65d0ec2ecc8d2d231f8558f896e38';
+    // [Step F-9 fix 2026-05-18] 하드코딩 key 제거 — 메인 SDK 와 같은 키 재사용 (window.__KAKAO_APPKEY)
+    var appkey = (window.__KAKAO_APPKEY) || '';
+    if (!appkey) { console.warn('[map-main] KAKAO_APPKEY 없음 — drawing 모듈 로드 skip'); return; }
     var s = document.createElement('script');
     s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=' + appkey + '&autoload=false&libraries=drawing';
     s.onload = function() {
@@ -1019,10 +1020,6 @@
     // SDK 스크립트는 로드됐지만 모듈 미파싱 — kakao.maps.load 로 트리거
     kakao.maps.load(renderWishesMap);
   } else {
-    // 극히 예외적인 경우 (SDK 스크립트 자체 로드 실패) — fallback
-    var s = document.createElement('script');
-    s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=a1c65d0ec2ecc8d2d231f8558f896e38&autoload=false&libraries=services,clusterer,drawing';
-    s.onload = function() { kakao.maps.load(renderWishesMap); };
-    document.head.appendChild(s);
-  }
-})();
+    // [Step F-9 fix 2026-05-18] 하드코딩 key 제거 — window.__KAKAO_APPKEY 재사용
+    var appkey = (window.__KAKAO_APPKEY) || '';
+    if (!appkey) { console.warn('[map-main] KAKAO_APPKEY 없음 — S

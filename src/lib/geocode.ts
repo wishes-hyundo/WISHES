@@ -8,16 +8,35 @@
 
 const KAKAO_REST_API_KEY = process.env.KAKAO_REST_API_KEY;
 
+// [Step F-3 fix 2026-05-18] analyze_type=exact 명시 + address_type 검증
+//   결함: 기본 'similar' = 동/리 중심좌표 (REGION) 도 첫 결과로 받음
+//   수정: 1차 exact + address_type 검증 (REGION 거부), 2차 similar fallback
+//   효과: 동 중심좌표 제거 = fallback 1,892 의 향후 발생 차단
 async function kakaoAddress(q: string) {
   try {
-    const res = await fetch(
-      `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}`,
+    // 1차: exact (정확 매칭)
+    let res = await fetch(
+      `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&analyze_type=exact`,
+      { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
+    );
+    if (res.ok) {
+      const d = await res.json();
+      const doc = d?.documents?.[0];
+      // address_type 검증: REGION (동/리 중심) 거부, ROAD/JIBUN 만 신뢰
+      if (doc && doc.address_type !== 'REGION') {
+        return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
+      }
+    }
+    // 2차: similar (부분 매칭) — REGION 거부 유지
+    res = await fetch(
+      `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&analyze_type=similar`,
       { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
     );
     if (!res.ok) return null;
     const d = await res.json();
     const doc = d?.documents?.[0];
-    return doc ? { lat: parseFloat(doc.y), lng: parseFloat(doc.x) } : null;
+    if (!doc || doc.address_type === 'REGION') return null;
+    return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
   } catch {
     return null;
   }
@@ -63,40 +82,4 @@ function cleanAddress(raw: string): string[] {
 
   // 이상 주소 꼬리 숫자 제거
   for (const c of [...candidates]) {
-    const normalized = c.replace(/\s+\d{5,}$/, '').trim();
-    if (normalized && normalized !== c) candidates.add(normalized);
-  }
-
-  return [...candidates].filter((x) => x.length >= 3);
-}
-
-/**
- * 주소를 위도/경도로 변환.
- *   1차: 원본 + 정리 후보 주소 API
- *   2차: 키워드 API
- *   3차: 동 이름 중심좌표
- */
-export async function geocodeAddress(
-  address: string | null | undefined
-): Promise<{ lat: number; lng: number } | null> {
-  if (!address || !KAKAO_REST_API_KEY) return null;
-
-  const candidates = cleanAddress(address);
-
-  // 1차: 주소 API
-  for (const c of candidates) {
-    const hit = await kakaoAddress(c);
-    if (hit) return hit;
-  }
-
-  // 2차: 키워드 API
-  for (const c of candidates) {
-    const hit = await kakaoKeyword(c);
-    if (hit) return hit;
-  }
-
-  // [긴급 G-1 fix 2026-05-18] 동 이름 fallback 제거
-  //   같은 동의 매물이 모두 동 중심 좌표 받게 됨 → 1,820 cluster 형성
-  //   사장님 결정: 정확한 매칭 못 하면 NULL 유지 (지도 표시 제외)
-  return null;
-}
+    const normalized = c.replace(/\s+\d{5,

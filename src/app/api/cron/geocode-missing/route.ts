@@ -31,13 +31,21 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient();
 
+    // [Step F-4 fix 2026-05-18] status 확장 — 비공개 13,826건 도 backfill 대상
+    //   기존: status='공개' 만 → 비공개 매물 영영 좌표 미보유
+    //   수정: 공개 + 비공개 (거래완료/계약중 제외)
+    // [Step F-5 fix 2026-05-18] road_address NEVER 60,444건도 같이 backfill
+    //   기존: lat NULL 만 처리 → 좌표 있는데 road_address NULL 매물 영영 미보강
+    //   수정: (lat NULL) OR (road_address NULL AND fetched_at NULL) 둘 다 처리
+    //   추가: road_address + road_address_fetched_at 도 저장
     // 좌표 누락 매물 50건씩 처리 (rate limit 안전)
     const { data: targets, error } = await supabase
       .from('listings')
-      .select('id, address')
-      .or('lat.is.null,lng.is.null')
-      .eq('status', '공개')
+      .select('id, address, lat, lng, road_address')
+      .or('lat.is.null,lng.is.null,and(road_address.is.null,road_address_fetched_at.is.null)')
+      .in('status', ['공개', '비공개'])
       .not('address', 'is', null)
+      .order('road_address_fetched_at', { ascending: true, nullsFirst: true })
       .limit(50);
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -46,27 +54,8 @@ export async function GET(request: NextRequest) {
     }
 
     let geocoded = 0;
+    let roadFilled = 0;
     for (const t of targets) {
       try {
-        const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent((t as any).address)}`;
-        const r = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } });
-        const j = await r.json();
-        const doc = j?.documents?.[0];
-        if (doc?.x && doc?.y) {
-          await supabase.from('listings').update({
-            lat: parseFloat(doc.y),
-            lng: parseFloat(doc.x),
-            updated_at: new Date().toISOString(),
-          }).eq('id', (t as any).id);
-          geocoded++;
-        }
-      } catch (e) {
-        console.warn('[geocode-missing] one failed:', e);
-      }
-    }
-
-    return NextResponse.json({ success: true, geocoded, total: targets.length, ts: new Date().toISOString() });
-  } catch (e: any) {
-    return NextResponse.json({ success: false, error: e?.message || '서버 오류' }, { status: 500 });
-  }
-}
+        // [F-3 적용] analyze_type=exact + address_type 검증 (REGION 거부)
+        const tryFetch = async (mode: 'exact' | 'similar

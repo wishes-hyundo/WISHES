@@ -244,15 +244,11 @@ export default function MapClient() {
   // Kakao 지도 초기화
   useEffect(() => {
     if (!containerRef.current) return;
-    // L-mapfix-2026-05-02 (사장님 명령 — 지도 안 뜨는 증상):
-    //   Vercel env NEXT_PUBLIC_KAKAO_MAP_KEY 미설정 시 layout.tsx 의 SDK 는
-    //   fallback 키로 정상 로드되지만, MapClient 는 env 미설정 시 init 자체를
-    //   포기해서 지도 영역이 회색으로 비워짐. layout 과 동일한 fallback 으로 통일.
-    const FALLBACK_KAKAO_KEY = 'a1c65d0ec2ecc8d2d231f8558f896e38';
-    const key = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY
-      && process.env.NEXT_PUBLIC_KAKAO_MAP_KEY !== '여기에_카카오_JavaScript_앱키_입력'
-      ? process.env.NEXT_PUBLIC_KAKAO_MAP_KEY
-      : FALLBACK_KAKAO_KEY;
+    // [Step F-9 fix 2026-05-18] 하드코딩 fallback key 제거 — ENV 필수
+    //   기존: 'a1c65d0ec2ecc8d2d231f8558f896e38' 박혀 있어 repo 공개 시 도용 가능
+    //   수정: ENV 만 사용. ENV 미설정 시 지도 init 포기 (회색 화면) — 보안 우선.
+    const envKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
+    const key = envKey && envKey !== '여기에_카카오_JavaScript_앱키_입력' ? envKey : '';
     const container = containerRef.current;
     let disposed = false;
     let idleListener: (() => void) | null = null;
@@ -754,3 +750,4 @@ function GeoLoadingIndicator() {
   const loading = useMap2026Store((s) => s.geoLoading);
   return <MapLoadingIndicator show={loading} />;
 }
+                                                                                                                                                                                                                             
