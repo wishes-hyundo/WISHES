@@ -4174,28 +4174,51 @@ function updateBottomNavText(n){
     addRow('반려동물 비고', pet, 'r18-pet');
   }
 
-  /* ❸ 모바일 키보드 등장 시 bottom-nav 가림 fix — visualViewport API */
-  if(window.visualViewport){
-    var nav = function(){
-      var bn = document.getElementById('bottomNav') || document.getElementById('resultNav');
-      var visibleHeight = window.visualViewport.height;
-      var fullHeight = window.innerHeight;
-      var kbHeight = fullHeight - visibleHeight;
-      /* 키보드 등장 → 80px+ 차이 */
-      ['bottomNav','resultNav'].forEach(function(id){
-        var el = document.getElementById(id);
-        if(!el) return;
-        if(kbHeight > 80){
-          el.style.transform = 'translateY(-' + kbHeight + 'px)';
-          el.style.transition = 'transform 0.15s ease';
-        } else {
-          el.style.transform = '';
-        }
-      });
-    };
-    window.visualViewport.addEventListener('resize', nav);
-    window.visualViewport.addEventListener('scroll', nav);
+  /* ❸ 모바일 키보드 등장 시 bottom-nav 가림 fix (round 24 재설계) */
+  /*   사장님 발견: 버튼이 위로 올라오면 본문 콘텐츠 가림 → 손님 입력 못 함 */
+  /*   해결: input/textarea focus 시 버튼 숨김, blur 시 다시 표시 */
+  function hideBottomNav(){
+    ['bottomNav','resultNav'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el) return;
+      el.style.transition = 'transform 0.15s ease, opacity 0.15s ease';
+      el.style.transform = 'translateY(120%)';
+      el.style.opacity = '0';
+      el.style.pointerEvents = 'none';
+    });
   }
+  function showBottomNav(){
+    ['bottomNav','resultNav'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(!el) return;
+      el.style.transform = '';
+      el.style.opacity = '';
+      el.style.pointerEvents = '';
+    });
+  }
+  document.addEventListener('focusin', function(e){
+    var t = e.target;
+    if(!t || !t.tagName) return;
+    if(t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT'){
+      var tp = (t.type || '').toLowerCase();
+      if(t.tagName === 'INPUT' && ['checkbox','radio','button','submit','reset','hidden'].indexOf(tp) >= 0) return;
+      hideBottomNav();
+    }
+  });
+  document.addEventListener('focusout', function(){
+    setTimeout(function(){
+      var ae = document.activeElement;
+      if(!ae || !ae.tagName) { showBottomNav(); return; }
+      if(ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT'){
+        var tp = (ae.type || '').toLowerCase();
+        if(ae.tagName === 'INPUT' && ['checkbox','radio','button','submit','reset','hidden'].indexOf(tp) >= 0) {
+          showBottomNav();
+        }
+      } else {
+        showBottomNav();
+      }
+    }, 100);
+  });
 
   /* ❹ 부동산 중개업 법적 표시 — 결과 페이지 + 페이지 하단 */
   function injectLegalFooter(){
