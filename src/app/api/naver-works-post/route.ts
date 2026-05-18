@@ -93,11 +93,11 @@ export async function POST(request: NextRequest) {
       const cPhone = String(input.cPhone || '').replace(/\D/g, '');
       if (cPhone.length >= 4) {
         const t4 = cPhone.slice(-4);
-        // 간단 FNV-1a — phone 직접 노출 X (key 만 비교)
-        let h = 0x811c9dc5;
-        const s = 'wsr14:' + t4;
-        for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
-        const phoneKey = `naver-works:phone:${h.toString(16)}`;
+        // FNV-1a — phone 직접 노출 X (key 만 비교)
+        let _h = 0x811c9dc5;
+        const _s = 'wsr14:' + t4;
+        for (let i = 0; i < _s.length; i++) { _h ^= _s.charCodeAt(i); _h = (_h * 0x01000193) >>> 0; }
+        const phoneKey = 'naver-works:phone:' + _h.toString(16);
         const _phRl = checkRateLimit({ key: phoneKey, limit: 5, windowMs: 60 * 60_000 });
         if (!_phRl.ok) {
           return NextResponse.json(
@@ -184,4 +184,38 @@ export async function POST(request: NextRequest) {
 
     // ─── 3. Post to Naver Works board ───
     const postRes = await fetch(
-      `https://www.wo
+      `https://www.worksapis.com/v1.0/boards/${boardId}/posts`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title, body: s }),
+      }
+    );
+
+    const postData = await postRes.json().catch(() => ({}));
+
+    if (postRes.status === 201) {
+      return NextResponse.json(
+        { success: true, message: 'OK', postId: postData.postId || null },
+        { headers: corsHeaders }
+      );
+    } else {
+      return NextResponse.json(
+        { success: false, message: 'API error', httpCode: postRes.status, response: postData },
+        { status: 502, headers: corsHeaders }
+      );
+    }
+  } catch (err: unknown) {
+    // L-sec104 (2026-04-22): prod 에서 err.message 로 JWT / Naver Works 내부 API
+    //   응답 구조가 누출되지 않도록 generic 메시지로 치환. dev 에선 디버깅 유지.
+    const isDev = process.env.NODE_ENV !== 'production';
+    const message = isDev ? (err instanceof Error ? err.message : 'Unknown error') : 'Internal error';
+    return NextResponse.json(
+      { success: false, message },
+      { status: 500, headers: corsHeaders }
+    );
+  }
+}
