@@ -86,6 +86,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // R14 (2026-05-18): phone hash 2-key rate limit — 같은 손님 1시간 5회 cap.
+    //   IP 단독 rate limit 으론 같은 손님 도배 차단 X (IP 30회 → 손님 30번 폭탄 가능).
+    //   phone digits 끝 4자리 hash → privacy 안전 + 도배 차단 효과적.
+    try {
+      const cPhone = String(input.cPhone || '').replace(/\D/g, '');
+      if (cPhone.length >= 4) {
+        const t4 = cPhone.slice(-4);
+        // 간단 FNV-1a — phone 직접 노출 X (key 만 비교)
+        let h = 0x811c9dc5;
+        const s = 'wsr14:' + t4;
+        for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+        const phoneKey = `naver-works:phone:${h.toString(16)}`;
+        const _phRl = checkRateLimit({ key: phoneKey, limit: 5, windowMs: 60 * 60_000 });
+        if (!_phRl.ok) {
+          return NextResponse.json(
+            { success: false, message: '같은 번호로 너무 많이 전송하셨어요. 잠시 후 다시 시도해주세요.' },
+            { status: 429, headers: { ...corsHeaders, 'Retry-After': String(_phRl.retryAfterSec) } },
+          );
+        }
+      }
+    } catch { /* phone 검사 실패해도 다음 layer 로 진행 */ }
+
     // ─── Credentials from env ───
     const clientId = process.env.NW_CLIENT_ID || '';
     const clientSecret = process.env.NW_CLIENT_SECRET || '';
@@ -162,38 +184,4 @@ export async function POST(request: NextRequest) {
 
     // ─── 3. Post to Naver Works board ───
     const postRes = await fetch(
-      `https://www.worksapis.com/v1.0/boards/${boardId}/posts`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ title, body: s }),
-      }
-    );
-
-    const postData = await postRes.json().catch(() => ({}));
-
-    if (postRes.status === 201) {
-      return NextResponse.json(
-        { success: true, message: 'OK', postId: postData.postId || null },
-        { headers: corsHeaders }
-      );
-    } else {
-      return NextResponse.json(
-        { success: false, message: 'API error', httpCode: postRes.status, response: postData },
-        { status: 502, headers: corsHeaders }
-      );
-    }
-  } catch (err: unknown) {
-    // L-sec104 (2026-04-22): prod 에서 err.message 로 JWT / Naver Works 내부 API
-    //   응답 구조가 누출되지 않도록 generic 메시지로 치환. dev 에선 디버깅 유지.
-    const isDev = process.env.NODE_ENV !== 'production';
-    const message = isDev ? (err instanceof Error ? err.message : 'Unknown error') : 'Internal error';
-    return NextResponse.json(
-      { success: false, message },
-      { status: 500, headers: corsHeaders }
-    );
-  }
-}
+      `https://www.wo
