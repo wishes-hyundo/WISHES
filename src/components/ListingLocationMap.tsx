@@ -50,7 +50,9 @@ export default function ListingLocationMap({ lat, lng, address, title, authed = 
         //   - 로그인: 정확한 Marker (주소 InfoWindow 제거)
         //   - 비로그인: Circle 반경 100m 불투명 fill (대략 위치만 노출)
         // L-priv-debug (2026-04-29): 사장님 진단용 console.log
-        console.log('[ListingLocationMap] authed=' + authed + ' lat=' + lat + ' lng=' + lng);
+        // [Step M-1 fix 2026-05-18] 보안 — 비로그인 사용자에게 정확 좌표 누출 차단
+        //   F12 console 로 누구나 매물별 정확 lat/lng 추출 가능했음 (jitter 우회)
+        //   진단 필요시 사장님 본인 환경에서 임시 활성화 후 commit 제외
         if (authed) {
           // 로그인 사용자: 정확한 마커
           new kakao.maps.Marker({ position: center, map });
