@@ -1306,7 +1306,7 @@ input:-webkit-autofill:focus {
     <div style="font-size:48px;margin-bottom:8px;">⚠️</div>
     <div style="font-size:18px;font-weight:600;margin-bottom:8px;">JavaScript가 꺼져있어요</div>
     <div style="font-size:14px;">위시스 부동산 상담 체크리스트는 JavaScript가 필요합니다. 브라우저 설정에서 JavaScript를 켜주세요.</div>
-    <div style="margin-top:16px;font-size:13px;">또는 <a href="tel:02-784-3535" style="color:#1a73e8;font-weight:600;">02-784-3535</a> 로 전화 주세요.</div>
+    <div style="margin-top:16px;font-size:13px;">또는 <a href="mailto:wishes@wishes.co.kr" style="color:#1a73e8;font-weight:600;">wishes@wishes.co.kr</a> 로 메일 주세요.</div>
   </div>
 </noscript>
 <h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">위시스 부동산 상담 체크리스트</h1>
@@ -3422,7 +3422,7 @@ function updateBottomNavText(n){
       + '<div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:28px;">✓</div>'
       + '<div style="font-size:20px;font-weight:600;margin-bottom:4px;">전송 완료</div>'
       + '<div style="font-size:14px;opacity:0.95;">위시스 부동산이 곧 연락드릴게요</div>'
-      + '<div style="font-size:13px;opacity:0.85;margin-top:8px;">📞 02-784-3535</div>';
+      + '';
     page.insertBefore(banner, page.firstChild);
     /* 30초 후 새 상담 버튼 강조 */
     setTimeout(function(){
@@ -3558,7 +3558,7 @@ function updateBottomNavText(n){
         return;
       }
       if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
-      showToast({type:'error',title:'전송 실패',msg:'네트워크 확인 후 다시 시도해주세요 (02-784-3535 로 전화 가능)',duration:5000});
+      showToast({type:'error',title:'전송 실패',msg:'네트워크 확인 후 다시 시도해주세요',duration:5000});
     })
     .catch(function(e){
       IN_FLIGHT=false;
@@ -3570,7 +3570,7 @@ function updateBottomNavText(n){
         return;
       }
       if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
-      showToast({type:'error',title:'전송 실패',msg:'02-784-3535 로 전화 주세요',duration:5000});
+      showToast({type:'error',title:'전송 실패',msg:'잠시 후 다시 시도해주세요',duration:5000});
     });
   }
 
@@ -4104,7 +4104,7 @@ function updateBottomNavText(n){
       + '대표자: 전유진 · 사업자등록번호: 445-86-01981<br>'
       + '법인등록번호: 110111-7862752<br>'
       + '소재지: 서울특별시 관악구 신림로64길 23, 8층(신림동)<br>'
-      + '연락처: <a href="tel:02-784-3535" style="color:#007AFF;">02-784-3535</a>'
+      + '문의: <a href="mailto:wishes@wishes.co.kr" style="color:#007AFF;">wishes@wishes.co.kr</a>'
       + ' · <a href="/privacy" target="_blank" style="color:#007AFF;">개인정보 처리방침</a>';
     var resultPage = document.getElementById('page-result');
     if(resultPage) resultPage.appendChild(footer);
