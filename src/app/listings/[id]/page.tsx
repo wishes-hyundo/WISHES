@@ -169,10 +169,11 @@ function buildJsonLd(listing: any, id: string): Record<string, any> | null {
   }
 
   if (listing.lat && listing.lng) {
+    // [Step M-2 follow-up 2026-05-18] SSR JSON-LD 좌표 100m round (privacy)
     jsonLd['geo'] = {
       '@type': 'GeoCoordinates',
-      'latitude': listing.lat,
-      'longitude': listing.lng,
+      'latitude': Math.round(listing.lat * 1000) / 1000,
+      'longitude': Math.round(listing.lng * 1000) / 1000,
     };
   }
 

@@ -171,10 +171,12 @@ function buildJsonLd(listing: any, id: string): Record<string, any> | null {
     };
   }
   if (listing.lat && listing.lng) {
+    // [Step M-2 follow-up 2026-05-18] SSR 에선 인증 모름 → 무조건 100m round 마스킹
+    //   정확한 좌표는 client (지도 컴포넌트) 가 로그인 시 별도 fetch
     jsonLd['geo'] = {
       '@type': 'GeoCoordinates',
-      latitude: listing.lat,
-      longitude: listing.lng,
+      latitude: Math.round(listing.lat * 1000) / 1000,
+      longitude: Math.round(listing.lng * 1000) / 1000,
     };
   }
   if (priceWon > 0) {
