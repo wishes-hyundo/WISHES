@@ -2739,6 +2739,9 @@ function resetAll(){
 
   if(!confirm('새 상담을 시작합니다.\n현재 내용이 초기화됩니다. 계속하시겠습니까?')) return;
 
+  /* R29 — 새 상담 시 sent flag clear (영구 stuck 차단, round 17 ㈃ 충돌 fix) */
+  try { sessionStorage.removeItem('ws_chk_sent_session'); } catch(_){}
+
   history.replaceState(null,'',location.pathname);
 
   location.reload();
