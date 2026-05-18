@@ -6,7 +6,8 @@
 
 <meta charset="UTF-8"/>
 
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta name="robots" content="noindex,nofollow,noarchive,noimageindex">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"/>
@@ -80,6 +81,18 @@
   /* Animation */
   --ios-spring: cubic-bezier(0.32, 0.72, 0, 1);
   --ios-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/* ㉦ Reduced motion — iOS "동작 줄이기" 손님 멀미·어지러움 방지 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1368,7 +1381,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="cName">고객명 <span class="req">*</span></label>
 
-          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30"/>
+          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30"/><input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
 
         </div>
 
@@ -3291,7 +3304,7 @@ function updateBottomNavText(n){
     if(existing) existing.parentNode.removeChild(existing);
     var wrap = document.createElement('div');
     wrap.id = 'ws-toast';
-    wrap.setAttribute('role','status');
+    wrap.setAttribute('role','status'); wrap.setAttribute('aria-live','polite'); wrap.setAttribute('aria-atomic','true');
     wrap.style.cssText='position:fixed;z-index:9999;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,0.98);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:18px;padding:24px 28px;min-width:240px;max-width:80vw;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.2);opacity:0;transition:opacity 0.25s ease;';
     var icon = document.createElement('div');
     icon.style.cssText='width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;margin:0 auto 12px;';
@@ -3361,7 +3374,26 @@ function updateBottomNavText(n){
       close();
       if(typeof onConfirm==='function') onConfirm();
     };
-    function close(){ if(bd.parentNode) bd.parentNode.removeChild(bd); }
+    var prevFocus = document.activeElement;
+    var focusables = sh.querySelectorAll('button');
+    if(focusables.length) focusables[focusables.length-1].focus();
+    function trap(e){
+      if(e.key !== 'Tab') return;
+      if(focusables.length === 0) { e.preventDefault(); return; }
+      var first = focusables[0], last = focusables[focusables.length-1];
+      if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    }
+    function escapeKey(e){ if(e.key === 'Escape'){ close(); } }
+    bd.addEventListener('keydown', trap);
+    document.addEventListener('keydown', escapeKey);
+    sh.setAttribute('role','dialog');
+    sh.setAttribute('aria-modal','true');
+    function close(){
+      if(bd.parentNode) bd.parentNode.removeChild(bd);
+      document.removeEventListener('keydown', escapeKey);
+      if(prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
+    }
   }
 
   /* ─── 전송 완료 풀스크린 상태 (1순위 메인) ─── */
@@ -3482,6 +3514,7 @@ function updateBottomNavText(n){
     try{
       var fn = typeof collectData==='function' ? collectData : window.collectData;
       data = fn ? fn() : {cName:(document.getElementById('cName')||{}).value, cPhone:(document.getElementById('cPhone')||{}).value};
+      try { var hp = document.getElementById('website'); if(hp && hp.value) data.website = hp.value; } catch(_){}
     }catch(e){
       IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
       if(toast.parentNode) toast.parentNode.removeChild(toast);
