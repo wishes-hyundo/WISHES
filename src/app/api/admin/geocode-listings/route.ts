@@ -16,11 +16,8 @@ interface GeoResult {
   status: 'success' | 'failed' | 'no_address';
 }
 
-// [Step F-3 fix 2026-05-18] analyze_type=exact 명시 + address_type 검증
-//   결함: 기본 'similar' = REGION (동/리 중심) 도 첫 결과로 받음
-//   수정: 1차 exact + REGION 거부, 2차 similar fallback + REGION 거부
+// [Step F-3 fix 2026-05-18] analyze_type=exact + address_type 검증
 async function kakaoAddress(q: string) {
-  // 1차: exact
   let res = await fetch(
     `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&analyze_type=exact`,
     { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
@@ -32,7 +29,6 @@ async function kakaoAddress(q: string) {
       return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) };
     }
   }
-  // 2차: similar — REGION 여전히 거부
   res = await fetch(
     `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(q)}&analyze_type=similar`,
     { headers: { Authorization: `KakaoAK ${KAKAO_REST_API_KEY}` } }
@@ -111,9 +107,8 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
       if (hit) return hit;
     }
 
-    // [Step F-1 fix 2026-05-18] 4차 동 이름 fallback 제거
-    //   결함: "강남구 역삼동" 만으로 매칭 → 같은 동 매물 모두 동 중심 좌표 받음
-    //   사장님 결정 (2026-05-18): 정확한 매칭 못 하면 NULL 유지 (지도 표시 제외)
+    // [긴급 G-1 fix 2026-05-18] 동 이름 fallback 제거 (batch geocode 도)
+    //   정확한 매칭 못 하면 NULL 유지 (지도 표시 제외)
     return null;
   } catch {
     return null;
@@ -133,11 +128,26 @@ export async function POST(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 300);
 
-    // 좌표가 없는 매물 조회 (배치 처리)
-    const { data: listings, error: fetchError } = await supabase
+    // 사장님 명령 2026-05-15: ids body 로 특정 매물만 지정 + lat=0/lng=0 도 fix
+    let bodyIds: number[] = [];
+    try {
+      const body = await request.clone().json();
+      if (Array.isArray(body?.ids)) {
+        bodyIds = body.ids.filter((x: any) => Number.isInteger(x) && x > 0).slice(0, 500);
+      }
+    } catch { /* no body — fall back to "all NULL/0 coords" */ }
+
+    // 좌표가 없는 (NULL) 또는 0 인 매물 조회
+    let query = supabase
       .from('listings')
-      .select('id, address, lat, lng')
-      .or('lat.is.null,lng.is.null')
+      .select('id, address, lat, lng');
+    if (bodyIds.length > 0) {
+      query = query.in('id', bodyIds);
+    } else {
+      // NULL 좌표 OR 0 좌표 (onhouse 크롤러 fallback 버그) 모두 잡음
+      query = query.or('lat.is.null,lng.is.null,lat.eq.0,lng.eq.0');
+    }
+    const { data: listings, error: fetchError } = await query
       .order('id', { ascending: false })
       .limit(limit);
 
@@ -201,4 +211,27 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   // L-sec3 (2026-04-22): 인증 미보호 → verifyAdminAuth 추가
   if (!(await verifyAdminAuth(request))) {
-    return NextResponse.json({ success: false, error
+    return NextResponse.json({ success: false, error: 'UNAUTHORIZED' }, { status: 401 });
+  }
+  try {
+    const supabase = createServerClient();
+
+    const { count, error } = await supabase
+      .from('listings')
+      .select('id', { count: 'exact', head: true })
+      .or('lat.is.null,lng.is.null');
+
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      pendingCount: count || 0,
+      message: count ? `${count}개 매물의 좌표가 누락되어 있습니다` : '모든 매물에 좌표가 설정되어 있습니다',
+    });
+  } catch (error) {
+    console.error('좌표 확인 오류:', error);
+    return NextResponse.json({ success: false, error: '확인에 실패했습니다' }, { status: 500 });
+  }
+                                        }

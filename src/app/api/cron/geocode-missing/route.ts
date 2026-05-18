@@ -31,14 +31,7 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createServerClient();
 
-    // [Step F-4 fix 2026-05-18] status 확장 — 비공개 13,826건 도 backfill 대상
-    //   기존: status='공개' 만 → 비공개 매물 영영 좌표 미보유
-    //   수정: 공개 + 비공개 (거래완료/계약중 제외)
-    // [Step F-5 fix 2026-05-18] road_address NEVER 60,444건도 같이 backfill
-    //   기존: lat NULL 만 처리 → 좌표 있는데 road_address NULL 매물 영영 미보강
-    //   수정: (lat NULL) OR (road_address NULL AND fetched_at NULL) 둘 다 처리
-    //   추가: road_address + road_address_fetched_at 도 저장
-    // 좌표 누락 매물 50건씩 처리 (rate limit 안전)
+    // [Step F-4 + F-5 fix 2026-05-18] status 확장 + road_address NEVER backfill
     const { data: targets, error } = await supabase
       .from('listings')
       .select('id, address, lat, lng, road_address')
@@ -58,4 +51,39 @@ export async function GET(request: NextRequest) {
     for (const t of targets) {
       try {
         // [F-3 적용] analyze_type=exact + address_type 검증 (REGION 거부)
-        const tryFetch = async (mode: 'exact' | 'similar
+        const tryFetch = async (mode: 'exact' | 'similar') => {
+          const url = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent((t as any).address)}&analyze_type=${mode}`;
+          const r = await fetch(url, { headers: { Authorization: `KakaoAK ${KAKAO_KEY}` } });
+          if (!r.ok) return null;
+          const j = await r.json();
+          const doc = j?.documents?.[0];
+          if (!doc || doc.address_type === 'REGION') return null;
+          return doc;
+        };
+        const doc = (await tryFetch('exact')) || (await tryFetch('similar'));
+        if (!doc) continue;
+        const updateData: Record<string, unknown> = {
+          updated_at: new Date().toISOString(),
+          road_address_fetched_at: new Date().toISOString(),
+        };
+        if (doc.x && doc.y && (!(t as any).lat || !(t as any).lng)) {
+          updateData.lat = parseFloat(doc.y);
+          updateData.lng = parseFloat(doc.x);
+          geocoded++;
+        }
+        const ra = (doc.road_address && doc.road_address.address_name) || null;
+        if (ra && !(t as any).road_address) {
+          updateData.road_address = ra;
+          roadFilled++;
+        }
+        await supabase.from('listings').update(updateData).eq('id', (t as any).id);
+      } catch (e) {
+        console.warn('[geocode-missing] one failed:', e);
+      }
+    }
+
+    return NextResponse.json({ success: true, geocoded, roadFilled, total: targets.length, ts: new Date().toISOString() });
+  } catch (e: any) {
+    return NextResponse.json({ success: false, error: e?.message || '서버 오류' }, { status: 500 });
+  }
+}

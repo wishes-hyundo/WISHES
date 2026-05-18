@@ -3,7 +3,8 @@ import Script from 'next/script';
 import './globals.css';
 import { ConditionalLayout } from '@/components/ConditionalLayout';
 import QueryProvider from '@/components/providers/QueryProvider';
-import SeniorToggle from '@/components/SeniorToggle';
+// [사장님 명령 2026-05-15] SeniorToggle 컴포넌트 제거 (👴 큰글씨 토글 영구 사용 안 함)
+// import SeniorToggle from '@/components/SeniorToggle';
 import SpeculationRules from '@/components/SpeculationRules';
 import WebVitalsReporter from '@/components/WebVitalsReporter';
 import ServiceWorkerProvider from '@/components/providers/ServiceWorkerProvider';
@@ -152,7 +153,6 @@ export default function RootLayout({
             __html: `window.__KAKAO_APPKEY=${JSON.stringify(process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || '')};`,
           }}
         />
-        {/* [Step F-9 fix 2026-05-18] 하드코딩 fallback key 제거 — ENV 필수 */}
         <Script
           id="kakao-map-sdk"
           src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_KEY || ''}&libraries=services,clusterer&autoload=false`}
@@ -194,4 +194,22 @@ export default function RootLayout({
               },
             }),
           }}
-      
+        />
+      </head>
+      <body
+        suppressHydrationWarning
+        className="bg-wishes-bg text-wishes-text min-h-screen flex flex-col"
+      >
+        <SpeculationRules />
+        <WebVitalsReporter />
+        <QueryProvider>
+          <ConditionalLayout>
+            {children}
+          </ConditionalLayout>
+        </QueryProvider>
+        {/* <SeniorToggle /> — 2026-05-15 사장님 명령으로 제거 */}
+        <ServiceWorkerProvider />
+      </body>
+    </html>
+  );
+}

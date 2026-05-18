@@ -244,9 +244,7 @@ export default function MapClient() {
   // Kakao 지도 초기화
   useEffect(() => {
     if (!containerRef.current) return;
-    // [Step F-9 fix 2026-05-18] 하드코딩 fallback key 제거 — ENV 필수
-    //   기존: 'a1c65d0ec2ecc8d2d231f8558f896e38' 박혀 있어 repo 공개 시 도용 가능
-    //   수정: ENV 만 사용. ENV 미설정 시 지도 init 포기 (회색 화면) — 보안 우선.
+    // [Step F-9 fix 2026-05-18] 하드코딩 fallback key 제거 — ENV 만 사용
     const envKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
     const key = envKey && envKey !== '여기에_카카오_JavaScript_앱키_입력' ? envKey : '';
     const container = containerRef.current;
@@ -750,4 +748,3 @@ function GeoLoadingIndicator() {
   const loading = useMap2026Store((s) => s.geoLoading);
   return <MapLoadingIndicator show={loading} />;
 }
-                                                                                                                                                                                                                             

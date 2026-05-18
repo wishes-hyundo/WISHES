@@ -7,10 +7,8 @@ import { audit } from '@/lib/auditLog';
 import { geocodeAddress } from '@/lib/geocode';
 
 // [Step F-7 fix 2026-05-18] 한국 영토 좌표 범위 검증
-//   결함: lat/lng 임의값 PUT 가능 (NaN/Infinity/0/외국 좌표 통과)
-//   범위: 33°~39° N, 124°~132° E (제주~함북, 백령~독도)
 function isValidKoreaCoord(lat: number | null | undefined, lng: number | null | undefined): boolean {
-  if (lat == null || lng == null) return true; // null 허용 (지도 제외)
+  if (lat == null || lng == null) return true;
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return false;
   return lat >= 33 && lat <= 39 && lng >= 124 && lng <= 132;
 }
@@ -100,7 +98,7 @@ export async function PUT(request: NextRequest) {
       }
     }
 
-    // L-cascade1: 기존 field_sources fetch 후 broker 표시 병합
+    // L-cascade1: 기존 field_sources fetch 후 broker 표시 병합 + M-3 address 변경 감지용
     let existingRow: { field_sources?: Record<string, string>; address?: string | null; lat?: number | null; lng?: number | null } | null = null;
     if (Object.keys(newSources).length > 0 || 'address' in updateData) {
       const { data: existing } = await supabase
@@ -116,8 +114,6 @@ export async function PUT(request: NextRequest) {
     }
 
     // [Step M-3 fix 2026-05-18] address 변경 감지 시 자동 재 geocode
-    //   결함: 사용자가 주소만 변경하면 lat/lng 그대로 → stale 좌표 영구화
-    //   수정: address 변경 + lat/lng 명시적 update 없으면 → 서버가 재 geocode 후 update
     if ('address' in updateData && !('lat' in updateData) && !('lng' in updateData)) {
       const oldAddr = existingRow?.address || '';
       const newAddr = String(updateData.address || '');
@@ -129,7 +125,6 @@ export async function PUT(request: NextRequest) {
             updateData.lng = coords.lng;
             audit({ action: 'listing.auto_regeocode', actor: authz.actor, ip, target: { type: 'listing', id }, status: 200, meta: { oldAddr, newAddr, lat: coords.lat, lng: coords.lng } });
           } else {
-            // geocode 실패 → lat/lng NULL (지도 제외, 정확도 우선)
             updateData.lat = null;
             updateData.lng = null;
             audit({ action: 'listing.auto_regeocode_failed', actor: authz.actor, ip, target: { type: 'listing', id }, status: 200, meta: { oldAddr, newAddr } });
@@ -225,4 +220,92 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: authz.reason }, { status: authz.status });
     }
     if (authz.ownedIds.length === 0) {
-      audit({ action: 'listing.field_update_bulk.denied', actor: authz.actor, ip
+      audit({ action: 'listing.field_update_bulk.denied', actor: authz.actor, ip, status: 403, meta: { reason: 'no_owned_ids', requestedCount: requestedIds.length, filteredOut: authz.filteredOut.length } });
+      return NextResponse.json(
+        { error: '권한이 있는 매물이 없습니다', requested: requestedIds.length, skipped: authz.filteredOut.length },
+        { status: 403 },
+      );
+    }
+
+    const ownedSet = new Set(authz.ownedIds);
+    const results: Array<{ id: any; success?: boolean; title?: string; skipped?: boolean }> = [];
+    const errors: Array<{ id: any; error: string }> = [];
+
+    for (const item of updates) {
+      const { id, fields } = item;
+      if (typeof id !== 'number' || !Number.isInteger(id) || !fields) {
+        errors.push({ id, error: 'Missing id or fields' });
+        continue;
+      }
+      if (!ownedSet.has(id)) {
+        results.push({ id, skipped: true });
+        continue;
+      }
+
+      const updateData: Record<string, any> = {};
+      const newSources: Record<string, string> = {};
+      for (const [key, value] of Object.entries(fields)) {
+        if (ALLOWED_FIELDS.includes(key)) {
+          updateData[key] = value;
+          if (key !== 'status') {
+            newSources[key] = 'broker';
+          }
+        }
+      }
+
+      if (Object.keys(updateData).length === 0) {
+        errors.push({ id, error: 'No valid fields' });
+        continue;
+      }
+
+      if (Object.keys(newSources).length > 0) {
+        const { data: existing } = await supabase
+          .from('listings')
+          .select('field_sources')
+          .eq('id', id)
+          .single();
+        const existingFs = (existing?.field_sources as Record<string, string>) || {};
+        updateData.field_sources = { ...existingFs, ...newSources };
+      }
+
+      updateData.updated_at = new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('listings')
+        .update(updateData)
+        .eq('id', id)
+        .select('id, title')
+        .single();
+
+      if (error) {
+        errors.push({ id, error: error.message });
+      } else {
+        results.push({ id, success: true, title: (data as any)?.title });
+      }
+    }
+
+    const updated = results.filter((r) => r.success).length;
+    const skipped = results.filter((r) => r.skipped).length;
+
+    audit({
+      action: 'listing.field_update_bulk.ok',
+      actor: authz.actor,
+      ip,
+      status: 200,
+      meta: { updated, skipped, errors: errors.length },
+    });
+
+    return NextResponse.json({
+      success: true,
+      updated,
+      skipped,
+      errors,
+    });
+  } catch (err: any) {
+    console.error('POST error:', err);
+    return NextResponse.json(
+      { error: process.env.NODE_ENV !== 'production' ? err?.message : '수정 실패' },
+      { status: 500 },
+    );
+  }
+}
