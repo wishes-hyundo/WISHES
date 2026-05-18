@@ -1295,6 +1295,101 @@ input:-webkit-autofill:focus {
   align-items: center;
 }
 
+
+/* ════ R23 — UI/UX 개선 10개 ════ */
+
+/* ❹ 진행률 % 표시 */
+.progress-percent{
+  position:absolute; right:12px; top:50%; transform:translateY(-50%);
+  font-size:11px; font-weight:600; color:var(--ios-label-2);
+  font-family:var(--ios-font);
+  font-variant-numeric:tabular-nums;
+  pointer-events:none;
+}
+.progress-track{ position:relative; }
+
+/* ❺ chip 작은 화면 wrap (Galaxy S 등) */
+@media (max-width:360px){
+  .chip{ white-space:normal; min-width:0; padding:6px 10px; font-size:0.85rem; }
+  .deal-chip{ padding:8px 12px; font-size:0.9rem; }
+  .card-body{ padding-left:12px; padding-right:12px; }
+}
+
+/* ❻ 결과 hero 임팩트 강화 */
+.result-hero{
+  background:linear-gradient(135deg,#E5F4EB 0%,#D6F0FA 100%) !important;
+  text-align:center;
+  padding:32px 20px 24px !important;
+  border-radius:18px !important;
+  margin:16px;
+  position:relative;
+}
+.r23-hero-check{
+  width:64px; height:64px; border-radius:50%;
+  background:#34C759; color:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:36px; font-weight:600;
+  margin:0 auto 12px;
+  box-shadow:0 8px 24px rgba(52,199,89,0.3);
+  animation:r23HeroPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes r23HeroPop{
+  0%{ transform:scale(0); opacity:0; }
+  100%{ transform:scale(1); opacity:1; }
+}
+.r23-hero-greeting{
+  font-size:13px; color:#0F6E3E; margin-bottom:4px;
+}
+
+/* ❼ 별점 데스크탑 hover preview */
+@media (hover: hover){
+  .stars:hover .star{ color: var(--ios-label-3); transition: color 0.15s; }
+  .stars:hover .star:hover,
+  .stars:hover .star:hover ~ .star{ color: var(--ios-label-3); }
+  .stars .star:hover,
+  .stars:has(.star:hover) .star:not(:hover){ color: var(--ios-label-3); }
+  /* Forward — hover 한 별 + 이전 별까지 채워짐 (CSS 트릭) */
+  .stars{ position:relative; }
+  .stars:hover .star{ color: var(--ios-orange); }
+  .stars .star:hover ~ .star{ color: var(--ios-label-3); }
+}
+
+/* ❽ STEP 헤더 부제목 */
+.step-btn .step-sub{
+  display:block; font-size:0.65rem; color:var(--ios-label-3);
+  margin-top:2px; font-weight:400;
+}
+.step-btn.active .step-sub{ color:var(--ios-blue); opacity:0.85; }
+.step-btn.done .step-sub{ color:var(--ios-green); opacity:0.85; }
+@media (max-width:400px){
+  .step-btn .step-sub{ display:none; }
+}
+
+/* ❷ 첫 진입 시간 안내 배너 */
+.r23-intro-banner{
+  background:linear-gradient(135deg,#E5F4FF 0%,#FFE8EE 100%);
+  border-radius:12px; padding:10px 14px; margin:10px 16px 0;
+  font-size:13px; color:#1C1C1E; font-family:var(--ios-font);
+  text-align:center;
+  display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.r23-intro-banner-close{
+  background:transparent; border:none; cursor:pointer;
+  color:#8E8E93; font-size:14px; padding:2px 4px;
+  margin-left:auto;
+}
+
+/* ❾ 빈 칸 시각 강조 */
+.sc-empty{
+  color:var(--ios-label-3) !important;
+  font-style:italic; opacity:0.7;
+}
+
+/* ❿ 페이지 전환 fade */
+.page{ transition: opacity 0.22s var(--ios-ease); }
+.page:not(.active){ opacity:0; }
+.page.active{ opacity:1; }
+
 </style>
 
 </head>
@@ -1341,6 +1436,7 @@ input:-webkit-autofill:focus {
 <div class="progress-track">
 
   <div class="progress-fill" id="pBar" style="width:20%"></div>
+  <span class="progress-percent" id="pPercent" aria-hidden="true">20%</span>
 
 </div>
 
@@ -1349,9 +1445,9 @@ input:-webkit-autofill:focus {
 <!-- ══ STEP NAV ══ -->
 
 <div class="step-nav" id="stepNav">
-      <button class="step-btn active" data-step="1" onclick="goPage(1)"><span class="step-badge">1</span>기본상담</button>
-      <button class="step-btn" data-step="2" onclick="goPage(2)"><span class="step-badge">2</span>매물조건</button>
-      <button class="step-btn" data-step="3" onclick="goPage(3)"><span class="step-badge">3</span>추가상담</button>
+      <button class="step-btn active" data-step="1" onclick="goPage(1)"><span class="step-badge">1</span>기본상담<span class="step-sub">성함·연락처</span></button>
+      <button class="step-btn" data-step="2" onclick="goPage(2)"><span class="step-badge">2</span>매물조건<span class="step-sub">예산·지역</span></button>
+      <button class="step-btn" data-step="3" onclick="goPage(3)"><span class="step-badge">3</span>추가상담<span class="step-sub">시설·옵션</span></button>
     </div>
 
 
@@ -2054,9 +2150,13 @@ input:-webkit-autofill:focus {
 
   <div class="result-hero">
 
-    <div class="result-badge">✅ 상담 완료</div>
+    <div class="r23-hero-check" aria-hidden="true">✓</div>
+
+    <div class="r23-hero-greeting">전송 완료</div>
 
     <div class="result-name" id="rName">고객님</div>
+
+    <div style="font-size:14px;color:#1C1C1E;margin:6px 0 8px;">작성해 주셔서 감사합니다 🙏</div>
 
     <div class="result-subtitle" id="rSubtitle"></div>
 
@@ -4136,6 +4236,90 @@ function updateBottomNavText(n){
   else document.addEventListener('DOMContentLoaded', setupR18);
 
   console.log('[wishes-r18] SW 무한 reload fix + 6개 결함 fix 로드 완료');
+})();
+</script>
+
+<!-- ════════════ Round 23 — 10개 개선 ════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  /* ❷ 첫 진입 시 시간 안내 배너 */
+  function addIntroBanner(){
+    if(localStorage.getItem('ws_r23_intro_seen')) return;
+    if(document.getElementById('r23-intro')) return;
+    var step1 = document.getElementById('page-1');
+    if(!step1) return;
+    var b = document.createElement('div');
+    b.id = 'r23-intro';
+    b.className = 'r23-intro-banner';
+    b.setAttribute('role','note');
+    b.innerHTML = '⏱ 약 1분이면 끝나요. 편안하게 작성해주세요.'
+      + '<button type="button" class="r23-intro-banner-close" aria-label="안내 닫기">✕</button>';
+    step1.insertBefore(b, step1.firstChild);
+    b.querySelector('.r23-intro-banner-close').onclick = function(){
+      b.remove();
+      try { localStorage.setItem('ws_r23_intro_seen', '1'); } catch(_){}
+    };
+  }
+
+  /* ❶ STEP 격려 토스트 */
+  var STEP_MSGS = {
+    2: { title:'잘하셨어요!', msg:'매물 조건만 알려주시면 거의 끝이에요 👍' },
+    3: { title:'마지막 단계!', msg:'추가 정보가 더 정확한 상담을 도와줘요' }
+  };
+  var origGoPage = window.goPage;
+  if(typeof origGoPage === 'function'){
+    var lastStep = 1;
+    window.goPage = function(n){
+      var r = origGoPage.apply(this, arguments);
+      try {
+        if(typeof n === 'number' && n > lastStep && n <= 3 && STEP_MSGS[n]){
+          var m = STEP_MSGS[n];
+          if(typeof window.__wsR14==='object' && window.__wsR14.showToast){
+            window.__wsR14.showToast({type:'success', title:m.title, msg:m.msg, duration:2000});
+          }
+        }
+        if(typeof n === 'number') lastStep = n;
+      } catch(_){}
+      return r;
+    };
+  }
+
+  /* ❹ 진행률 % 동기 — pBar width 변경 시 자동 */
+  var pBar = document.getElementById('pBar');
+  var pPct = document.getElementById('pPercent');
+  if(pBar && pPct){
+    function syncPct(){
+      var w = pBar.style.width || '0';
+      var num = parseInt(w, 10);
+      if(!isNaN(num)) pPct.textContent = num + '%';
+    }
+    new MutationObserver(syncPct).observe(pBar, {attributes:true, attributeFilter:['style']});
+    syncPct();
+  }
+
+  /* ❸ 결과 페이지 이름 인사 강화 — generateResult 후 적용 */
+  /*   rName 가 "홍길동님" 으로 채워짐 → 그 옆 "감사합니다" 는 이미 hero 에 정적 */
+  /*   추가 — rName 색상 강조 */
+  var resultPage = document.getElementById('page-result');
+  if(resultPage){
+    new MutationObserver(function(){
+      if(resultPage.classList.contains('active')){
+        setTimeout(function(){
+          var rName = document.getElementById('rName');
+          if(rName){ rName.style.color = '#0F6E3E'; rName.style.fontSize = '24px'; rName.style.fontWeight = '600'; }
+        }, 50);
+      }
+    }).observe(resultPage, {attributes:true, attributeFilter:['class']});
+  }
+
+  /* ❾ 빈 칸 시각 강조 — 결과 페이지 .sc-empty 옆에 부드러운 안내 추가 (CSS 만으로 충분, JS 작업 없음) */
+
+  if(document.readyState !== 'loading') addIntroBanner();
+  else document.addEventListener('DOMContentLoaded', addIntroBanner);
+
+  console.log('[wishes-r23] 10개 UI/UX 개선 로드 완료');
 })();
 </script>
 
