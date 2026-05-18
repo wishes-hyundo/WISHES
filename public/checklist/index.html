@@ -3775,6 +3775,212 @@ function updateBottomNavText(n){
 })();
 </script>
 
+<!-- ════════════ Round 17 — 8개 fix ════════════ -->
+<script>
+(function(){
+  'use strict';
+  /* ㈂ Service Worker 등록 */
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', function(){
+      navigator.serviceWorker.register('/sw.js').catch(function(_){});
+    });
+  }
+
+  /* ㈁ 키보드 — chip/star/deal-chip 에 role/tabindex/keydown */
+  function makeKeyboardActivable(){
+    document.querySelectorAll('.chip:not([data-r17]), .deal-chip:not([data-r17])').forEach(function(el){
+      el.setAttribute('data-r17','1');
+      el.setAttribute('role', 'button');
+      el.setAttribute('tabindex', '0');
+      var txt = (el.textContent||'').trim().slice(0,30);
+      if(txt && !el.getAttribute('aria-label')) el.setAttribute('aria-label', txt);
+      el.setAttribute('aria-pressed', el.classList.contains('on') ? 'true' : 'false');
+    });
+    document.querySelectorAll('.star:not([data-r17])').forEach(function(el){
+      el.setAttribute('data-r17','1');
+      el.setAttribute('role', 'button');
+      el.setAttribute('tabindex', '0');
+      var stars = el.parentElement;
+      var k = stars && stars.getAttribute('data-k');
+      var idx = Array.prototype.indexOf.call(stars && stars.children || [], el) + 1;
+      var kLabel = {price:'가격', loc:'위치', size:'면적', bld:'건물', env:'환경'}[k] || '평점';
+      el.setAttribute('aria-label', kLabel + ' 별점 ' + idx + '점');
+    });
+  }
+  /* ㈇ ARIA radiogroup — stars / segmented control / chip group */
+  function setRadiogroups(){
+    document.querySelectorAll('.stars:not([data-r17])').forEach(function(el){
+      el.setAttribute('data-r17','1');
+      el.setAttribute('role', 'radiogroup');
+      var k = el.getAttribute('data-k');
+      el.setAttribute('aria-label', ({price:'가격', loc:'위치', size:'면적', bld:'건물', env:'환경'}[k] || '평점') + ' 별점 선택');
+    });
+    document.querySelectorAll('.chip-group:not([data-r17]), [class^="g-"]:not([data-r17]), [id^="g-"]:not([data-r17])').forEach(function(el){
+      var id = el.id || '';
+      if(!id.startsWith('g-')) return;
+      el.setAttribute('data-r17','1');
+      el.setAttribute('role', 'group');
+    });
+  }
+  /* keydown — Enter / Space → click */
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    var t = e.target;
+    if(!t || !t.classList) return;
+    if(t.classList.contains('chip') || t.classList.contains('deal-chip') || t.classList.contains('star')){
+      e.preventDefault();
+      t.click();
+      /* aria-pressed sync */
+      setTimeout(function(){
+        if(t.classList.contains('chip') || t.classList.contains('deal-chip')){
+          t.setAttribute('aria-pressed', t.classList.contains('on') ? 'true' : 'false');
+        }
+      }, 50);
+    }
+  });
+
+  /* ㈃ 새로고침 보호 — sessionStorage 에 sent flag */
+  /*   r14 의 showSuccessState 가 호출되면 동시에 sessionStorage 기록 */
+  var SENT_FLAG = 'ws_chk_sent_session';
+  /* 기존 showSuccessState wrap — round 14 IIFE 의 SENT 상태 함께 처리 */
+  /* 새로고침 시 sessionStorage 에 flag 있으면 결과 페이지 자동 표시 */
+  function checkResumeAfterReload(){
+    try {
+      var rec = JSON.parse(sessionStorage.getItem(SENT_FLAG) || 'null');
+      if(rec && rec.t && (Date.now() - rec.t) < 60*60*1000){
+        /* 1시간 안 새로고침 → 결과 페이지 표시 + 보내기 숨김 */
+        if(typeof goPage === 'function') goPage(6);
+        setTimeout(function(){
+          /* 보내기 / 수정 버튼 모두 숨김 (㈆) */
+          ['resultSendBtn','nwSendBtn'].forEach(function(id){
+            var el = document.getElementById(id); if(el) el.style.display='none';
+          });
+          var editDd = document.querySelector('#resultNav .edit-dropdown');
+          if(editDd) editDd.style.display='none';
+          /* 작은 banner 표시 */
+          var page = document.getElementById('page-result');
+          if(page && !document.getElementById('ws-resume-banner')){
+            var b = document.createElement('div');
+            b.id='ws-resume-banner';
+            b.style.cssText='background:#E5F4EB;color:#0F6E3E;border-radius:10px;padding:10px 14px;margin:0 16px 12px;font-size:13px;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;';
+            b.textContent='이미 전송한 상담입니다. 곧 연락드릴게요.';
+            page.insertBefore(b, page.firstChild);
+          }
+        }, 100);
+      }
+    } catch(_){}
+  }
+  if(document.readyState !== 'loading') setTimeout(checkResumeAfterReload, 200);
+  else document.addEventListener('DOMContentLoaded', function(){ setTimeout(checkResumeAfterReload, 200); });
+  /* showSuccessState 가 호출된 직후를 잡기 위해 page-result.active 감지 */
+  var resultPage = document.getElementById('page-result');
+  var observers = [];
+  if(resultPage){
+    var ob = new MutationObserver(function(){
+      if(resultPage.classList.contains('active')){
+        /* 보내기 버튼 disabled 가 됐는지 (즉, 전송 완료) */
+        var btn = document.getElementById('resultSendBtn');
+        if(btn && (btn.style.display === 'none' || btn.disabled)){
+          sessionStorage.setItem(SENT_FLAG, JSON.stringify({t: Date.now()}));
+          /* ㈆ 수정 버튼도 숨김 */
+          var editDd = document.querySelector('#resultNav .edit-dropdown');
+          if(editDd) editDd.style.display='none';
+        }
+      }
+    });
+    ob.observe(resultPage, {attributes:true, attributeFilter:['class'], subtree:true, childList:true});
+    observers.push(ob);
+  }
+
+  /* ㈄ phone 마스킹 toggle */
+  function attachPhoneMaskToggle(){
+    var page = document.getElementById('page-result');
+    if(!page) return;
+    page.querySelectorAll('.sc-row').forEach(function(row){
+      var k = row.querySelector('.sc-key');
+      var v = row.querySelector('.sc-val');
+      if(!k || !v) return;
+      if(k.textContent.trim() !== '연락처') return;
+      if(v.dataset.r17maskAttached) return;
+      v.dataset.r17maskAttached = '1';
+      var masked = v.textContent.trim();
+      /* original raw value from S or input */
+      var rawEl = document.getElementById('cPhone');
+      var raw = rawEl ? rawEl.value.trim() : masked;
+      if(!raw || raw === masked) return;
+      var btn = document.createElement('button');
+      btn.type='button';
+      btn.textContent = '👁';
+      btn.setAttribute('aria-label','3초 동안 전화번호 보기');
+      btn.style.cssText='background:transparent;border:none;cursor:pointer;font-size:14px;padding:2px 6px;margin-left:6px;vertical-align:middle;';
+      btn.addEventListener('click', function(){
+        v.firstChild ? (v.firstChild.nodeValue = raw + ' ') : (v.textContent = raw);
+        /* re-attach button */
+        if(!v.contains(btn)) v.appendChild(btn);
+        setTimeout(function(){
+          v.firstChild ? (v.firstChild.nodeValue = masked + ' ') : (v.textContent = masked);
+          if(!v.contains(btn)) v.appendChild(btn);
+        }, 3000);
+      });
+      v.appendChild(btn);
+    });
+  }
+  /* page-result.active 시 매번 호출 */
+  if(resultPage){
+    var ob2 = new MutationObserver(function(){
+      if(resultPage.classList.contains('active')){
+        setTimeout(attachPhoneMaskToggle, 200);
+      }
+    });
+    ob2.observe(resultPage, {attributes:true, attributeFilter:['class']});
+    observers.push(ob2);
+  }
+
+  /* ㈈ hash routing — 뒤로가기 시 STEP 단계 이동 */
+  function syncHashOnPage(n){
+    var hash = '#step-' + n;
+    if(n === 6) hash = '#sent';
+    if(location.hash !== hash){
+      history.replaceState(null, '', hash);
+    }
+  }
+  /* goPage wrap */
+  var origGoPage = window.goPage;
+  if(typeof origGoPage === 'function'){
+    window.goPage = function(n){
+      var r = origGoPage.apply(this, arguments);
+      try { syncHashOnPage(n); } catch(_){}
+      return r;
+    };
+  }
+  window.addEventListener('popstate', function(){
+    var h = location.hash;
+    if(/^#step-([123])$/.test(h)){
+      var n = parseInt(RegExp.$1, 10);
+      if(typeof origGoPage === 'function') origGoPage(n);
+    }
+  });
+
+  /* ㈅ MutationObserver disconnect on unload */
+  window.addEventListener('beforeunload', function(){
+    observers.forEach(function(o){ try { o.disconnect(); } catch(_){} });
+  });
+
+  /* DOMContentLoaded 후 키보드 + ARIA 설정 — 페이지 동적 변경에도 대응 */
+  function setupAll(){
+    makeKeyboardActivable();
+    setRadiogroups();
+  }
+  if(document.readyState !== 'loading') setupAll();
+  else document.addEventListener('DOMContentLoaded', setupAll);
+  /* 새 chip 추가될 수도 있으니 setInterval 1회 추가 */
+  setTimeout(setupAll, 500);
+  setTimeout(setupAll, 2000);
+
+  console.log('[wishes-r17] 8개 fix 로드 완료');
+})();
+</script>
+
 </body>
 
 </html>
