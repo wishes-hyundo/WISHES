@@ -439,11 +439,15 @@ export default function ListingDetailClient({ id, listing: initialListing }: Pro
       addressRegion: '서울특별시',
       addressCountry: 'KR',
     },
+    // [Step M-2 fix 2026-05-18] 비로그인 사용자에게 정확 좌표 노출 차단 (privacy)
+    //   이전: raw lat/lng → SEO 크롤러 / view-source 한 줄로 좌표 추출 가능
+    //   현재: 비로그인 = 소수점 3자리 round (~100m), 로그인 = 정확
+    //   SEO 영향: 검색엔진은 동/구 단위 매칭으로 충분 (100m 정확도)
     ...(listing.lat && listing.lng && {
       geo: {
         '@type': 'GeoCoordinates',
-        latitude: listing.lat,
-        longitude: listing.lng,
+        latitude: isLoggedIn ? listing.lat : Math.round(listing.lat * 1000) / 1000,
+        longitude: isLoggedIn ? listing.lng : Math.round(listing.lng * 1000) / 1000,
       },
     }),
     floorSize: listing.area_m2 ? {
