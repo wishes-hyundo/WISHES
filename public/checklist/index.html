@@ -33,6 +33,7 @@
 :root {
   /* iOS System Colors (Light) */
   --ios-blue: #007AFF;
+  --navy: var(--ios-blue);  /* R26 ❶ — 결과 페이지 예산 색 fallback fix */
   --ios-blue-active: #0051D5;
   --ios-green: #34C759;
   --ios-red: #FF3B30;
@@ -1484,7 +1485,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="cName">손님 성함 <span class="req">*</span></label>
 
-          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" autocapitalize="none" spellcheck="false"/><input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
+          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" autocapitalize="none" spellcheck="false" inputmode="text" lang="ko"/><input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
 
         </div>
 
@@ -1608,7 +1609,7 @@ input:-webkit-autofill:focus {
 
           </div>
           <div id="loanProduct" style="display:none;margin-top:8px">
-            <input type="text" id="loanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50"/>
+            <input type="text" id="loanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50" inputmode="text" lang="ko"/>
           </div>
 
         </div>
@@ -1636,7 +1637,7 @@ input:-webkit-autofill:focus {
             <div class="chip" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">해당없음</div>
           </div>
           <div id="jloanProduct" style="display:none;margin-top:8px">
-            <input type="text" id="jloanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50"/>
+            <input type="text" id="jloanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50" inputmode="text" lang="ko"/>
           </div>
         </div>
       </div>
@@ -1706,7 +1707,7 @@ input:-webkit-autofill:focus {
             <div class="chip" onclick="pick(this,'g-parking',1)">필요</div>
             <div class="chip" onclick="pick(this,'g-parking',1)">불필요</div>
           </div>
-          <input type="text" id="parkingNote" class="loan-product-input" placeholder="차종 / 특이사항 (선택)" maxlength="50"/>
+          <input type="text" id="parkingNote" class="loan-product-input" placeholder="차종 / 특이사항 (선택)" maxlength="50" inputmode="text" lang="ko"/>
         </div>
         <div class="fg" style="margin-top:14px">
           <label class="flabel">반려동물</label>
@@ -1715,7 +1716,7 @@ input:-webkit-autofill:focus {
             <div class="chip" onclick="pick(this,'g-petType',1)">🐱 고양이</div>
             <div class="chip" onclick="pick(this,'g-petType',1)">없음</div>
           </div>
-          <input type="text" id="petNote" class="loan-product-input" placeholder="종 / 특이사항 (선택)" maxlength="50"/>
+          <input type="text" id="petNote" class="loan-product-input" placeholder="종 / 특이사항 (선택)" maxlength="50" inputmode="text" lang="ko"/>
         </div>
       </div>
     </div>
@@ -1799,7 +1800,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="reg1">1순위 지역 <span class="req">*</span></label>
 
-          <input type="text" id="reg1" placeholder="예: 서울 마포구 상암동" maxlength="50"/>
+          <input type="text" id="reg1" placeholder="예: 서울 마포구 상암동" maxlength="50" inputmode="text" lang="ko"/>
 
         </div>
 
@@ -1807,7 +1808,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="reg2">2순위 지역</label>
 
-          <input type="text" id="reg2" placeholder="대안 가능 지역" maxlength="50"/>
+          <input type="text" id="reg2" placeholder="대안 가능 지역" maxlength="50" inputmode="text" lang="ko"/>
 
         </div>
 
@@ -1815,7 +1816,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="reg3">3순위 지역</label>
 
-          <input type="text" id="reg3" placeholder="추가 대안 지역" maxlength="50"/>
+          <input type="text" id="reg3" placeholder="추가 대안 지역" maxlength="50" inputmode="text" lang="ko"/>
 
         </div>
 
@@ -1911,7 +1912,7 @@ input:-webkit-autofill:focus {
 
         <label class="flabel">직장 · 학교 위치</label>
 
-        <input type="text" id="workplace" placeholder="예: 강남구 테헤란로, 마포구 홍대입구역" maxlength="100"/>
+        <input type="text" id="workplace" placeholder="예: 강남구 테헤란로, 마포구 홍대입구역" maxlength="100" inputmode="text" lang="ko"/>
 
       </div>
 
@@ -2134,7 +2135,7 @@ input:-webkit-autofill:focus {
 
         <label class="flabel">손님 요청사항</label>
 
-        <textarea id="addReq" placeholder="예: 남향 필수, 탑층 제외, 리모델링 완료 선호, 임대인 미거주 등" maxlength="500"></textarea>
+        <textarea id="addReq" placeholder="예: 남향 필수, 탑층 제외, 리모델링 완료 선호, 임대인 미거주 등" maxlength="500" inputmode="text" lang="ko"></textarea>
 
       </div>
 
