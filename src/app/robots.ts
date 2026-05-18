@@ -9,4 +9,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/admin/', '/checklist', '/CLAUDE_CONTEXT.md', '/CLAUDE_BOOT.md'],
       },
     ],
-    sitemap: 'https://wishes.co.kr/sitemap
+    sitemap: 'https://wishes.co.kr/sitemap.xml',
+  };
+}
