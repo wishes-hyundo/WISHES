@@ -101,6 +101,52 @@
           "value": "public, s-maxage=300, stale-while-revalidate=3600"
         }
       ]
+    },
+    {
+      "source": "/checklist",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=()"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "1; mode=block"
+        }
+      ]
+    },
+    {
+      "source": "/checklist/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=()"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
+      ]
     }
   ],
   "crons": [
@@ -231,6 +277,10 @@
     {
       "path": "/api/cron/process-paid-reports",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/resolve-building-centroids",
+      "schedule": "30 3 * * 1"
     },
     {
       "path": "/api/cron/auto-private-stale-crawled?execute=1",
