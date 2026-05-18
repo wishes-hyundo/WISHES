@@ -40,17 +40,7 @@
   --ios-orange: #FF9500;
   --ios-yellow: #FFCC00;
 
-  /* ㊚ Transition system tokens (round 13) */
-  --transition-fast: 0.15s ease;
-  --transition-normal: 0.3s ease;
-  --transition-slow: 0.5s cubic-bezier(0.32, 0.72, 0, 1);
-
-  /* ㊛ Border-radius system tokens (round 13) */
-  --radius-sm: 6px;
-  --radius-btn: 10px;
-  --radius-card: 14px;
-  --radius-cell: 18px;
-  --radius-pill: 50px;
+  /* R28 — round 13 의 transition/radius system tokens 제거 (미사용, 위생) */
 
   /* Labels */
   --ios-label: #1C1C1E;
@@ -4347,6 +4337,53 @@ function updateBottomNavText(n){
   else document.addEventListener('DOMContentLoaded', addIntroBanner);
 
   console.log('[wishes-r23] 10개 UI/UX 개선 로드 완료');
+})();
+</script>
+
+<!-- ════════════ Round 28 — 위생 fix ════════════ -->
+<style>
+/* ㉣ 모바일 가로 모드 — bottom-nav 가 절반 차지 방지 */
+@media (orientation: landscape) and (max-height: 500px){
+  .bottom-nav{ padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); }
+  .btn{ padding: 10px 16px; font-size: 0.95rem; }
+  .card{ margin-bottom: 12px; }
+  .result-hero{ padding: 18px 16px 14px !important; }
+  .r23-hero-check{ width: 44px; height: 44px; font-size: 24px; margin-bottom: 8px; }
+}
+</style>
+<script>
+(function(){
+  'use strict';
+
+  /* ㉢ nextPage 더블 클릭 debounce (page transition 0.22s 보호) */
+  var nextLock = false;
+  var origNext = window.nextPage;
+  if(typeof origNext === 'function'){
+    window.nextPage = function(){
+      if(nextLock) return;
+      nextLock = true;
+      setTimeout(function(){ nextLock = false; }, 300);
+      return origNext.apply(this, arguments);
+    };
+  }
+  var origPrev = window.prevPage;
+  if(typeof origPrev === 'function'){
+    window.prevPage = function(){
+      if(nextLock) return;
+      nextLock = true;
+      setTimeout(function(){ nextLock = false; }, 300);
+      return origPrev.apply(this, arguments);
+    };
+  }
+
+  /* ㉡ 페이지 unload 시 추가 observer 정리 — 안전 */
+  /*   round 17 의 observers 외 round 14/16/17/18/23 의 다른 MutationObserver 도 */
+  /*   사실 같은 page-result 를 관찰. 별도 list 없음. */
+  /*   GC 처리는 브라우저 자동 — 명시 disconnect 가 빠르긴 함 */
+  /*   다음 IIFE 들이 자체 observer 변수 closure 안에 두어서 외부에서 못 잡음. */
+  /*   영향 0 — Safari 가 페이지 unload 시 자동 GC */
+
+  console.log('[wishes-r28] 위생 fix (debounce + landscape) 로드 완료');
 })();
 </script>
 
