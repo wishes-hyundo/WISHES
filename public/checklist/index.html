@@ -19,7 +19,7 @@
 <meta name="apple-mobile-web-app-title" content="WISHES"/>
 <meta name="format-detection" content="telephone=no"/>
 
-<title>WISHES 부동산 | 고객 상담 체크리스트</title>
+<title>WISHES 부동산 | 손님 상담 체크리스트</title>
 
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23007AFF'/%3E%3Ctext x='16' y='23' text-anchor='middle' font-family='-apple-system,SF Pro Display,sans-serif' font-size='20' font-weight='800' fill='white'%3EW%3C/text%3E%3C/svg%3E"/>
 <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/leetaewook/gmarket-sans-dynamic-subset/GmarketSans.css"/>
@@ -1472,7 +1472,7 @@ input:-webkit-autofill:focus {
 
       <div class="card-icon">👤</div>
 
-      <div class="card-title">고객 기본 정보</div>
+      <div class="card-title">손님 기본 정보</div>
 
     </div>
 
@@ -1482,7 +1482,7 @@ input:-webkit-autofill:focus {
 
         <div class="fg">
 
-          <label class="flabel" for="cName">고객명 <span class="req">*</span></label>
+          <label class="flabel" for="cName">손님 성함 <span class="req">*</span></label>
 
           <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" autocapitalize="none" spellcheck="false"/><input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
 
@@ -1587,7 +1587,7 @@ input:-webkit-autofill:focus {
           <div class="budget-label">매매 금액</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('buyMax',-1000)">−</button>
-            <input type="text" class="budget-input" id="buyMax" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <input type="text" class="budget-input" id="buyMax" inputmode="numeric" placeholder="예: 50,000" value="" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원</span>
             <button type="button" class="budget-btn" onclick="adjBudget('buyMax',1000)">+</button>
           </div>
@@ -1622,7 +1622,7 @@ input:-webkit-autofill:focus {
           <div class="budget-label">전세 금액</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('jMax',-500)">−</button>
-            <input type="text" class="budget-input" id="jMax" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <input type="text" class="budget-input" id="jMax" inputmode="numeric" placeholder="예: 20,000" value="" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원</span>
             <button type="button" class="budget-btn" onclick="adjBudget('jMax',500)">+</button>
           </div>
@@ -1648,7 +1648,7 @@ input:-webkit-autofill:focus {
           <div class="budget-label">보증금 (만원)</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('mDep',-100)">−</button>
-            <input type="text" id="mDep" class="budget-input" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <input type="text" id="mDep" class="budget-input" inputmode="numeric" placeholder="예: 5,000" value="" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원</span>
             <button type="button" class="budget-btn" onclick="adjBudget('mDep',100)">+</button>
           </div>
@@ -1659,7 +1659,7 @@ input:-webkit-autofill:focus {
           <div class="budget-label">월세 한도 (만원/월)</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('mRent',-5)">−</button>
-            <input type="text" id="mRent" class="budget-input" inputmode="numeric" placeholder="0" value="" oninput="fmtBudget(this)"/>
+            <input type="text" id="mRent" class="budget-input" inputmode="numeric" placeholder="예: 50" value="" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원/월</span>
             <button type="button" class="budget-btn" onclick="adjBudget('mRent',5)">+</button>
           </div>
@@ -2132,7 +2132,7 @@ input:-webkit-autofill:focus {
 
       <div class="fg" style="margin-bottom:14px">
 
-        <label class="flabel">고객 요청사항</label>
+        <label class="flabel">손님 요청사항</label>
 
         <textarea id="addReq" placeholder="예: 남향 필수, 탑층 제외, 리모델링 완료 선호, 임대인 미거주 등" maxlength="500"></textarea>
 
@@ -2154,7 +2154,7 @@ input:-webkit-autofill:focus {
 
     <div class="r23-hero-greeting">전송 완료</div>
 
-    <div class="result-name" id="rName">고객님</div>
+    <div class="result-name" id="rName">손님</div>
 
     <div style="font-size:14px;color:#1C1C1E;margin:6px 0 8px;">작성해 주셔서 감사합니다 🙏</div>
 
@@ -2501,6 +2501,9 @@ function setStar(k, v){
 
   S.stars[k] = v;
 
+  /* R25 ❶ — 별점 클릭 햅틱 (chip 과 통일감) */
+  if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
+
   document.querySelectorAll('.stars[data-k="'+k+'"] .star').forEach((s,i)=>{
 
     s.classList.toggle('on', i<v);
@@ -2531,7 +2534,7 @@ function stars(k){
 
 function generateResult(){
 
-  const name = gv('cName')||'고객';
+  const name = gv('cName')||'손님';
   const EMPTY = '<span class="sc-empty">미입력</span>';
 
   const deal = S.deal || gc('g-dealType');
@@ -2582,11 +2585,11 @@ function generateResult(){
 
     <div class="summary-card">
 
-      <div class="sc-head">고객 정보</div>
+      <div class="sc-head">손님 정보</div>
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">고객명</div><div class="sc-val"><strong>${_esc(gv('cName'))||EMPTY}</strong></div></div>
+        <div class="sc-row"><div class="sc-key">손님 성함</div><div class="sc-val"><strong>${_esc(gv('cName'))||EMPTY}</strong></div></div>
 
         <div class="sc-row"><div class="sc-key">연락처</div><div class="sc-val">${_esc(gv('cPhone'))||EMPTY}</div></div>
 
@@ -2963,7 +2966,7 @@ function resetAll(){
     /* ═══════════ ㊊+㊐+㊔ 결과 카드/행 클릭 → STEP + 정밀 스크롤 + input 포커스 ═══════════ */
     (function initCardJump(){
       var CARD_INFO = {
-        '고객 정보':       { step: 1, sel: '#cName' },
+        '손님 정보':       { step: 1, sel: '#cName' },
         '거래 · 매물 유형': { step: 1, sel: '#g-dealType' },
         '희망 지역':       { step: 2, sel: '#reg1' },
         '교통 · 생활환경':  { step: 2, sel: '#g-subway' },
@@ -2973,7 +2976,7 @@ function resetAll(){
       };
       // ㊔ sc-row 별 정밀 매핑
       var ROW_INFO = {
-        '고객명':     { step: 1, sel: '#cName', focus: true },
+        '손님 성함':     { step: 1, sel: '#cName', focus: true },
         '연락처':     { step: 1, sel: '#cPhone', focus: true },
         '방문일정':    { step: 1, sel: '#cDate', focus: true },
         '거래 유형':   { step: 1, sel: '#g-dealType' },
