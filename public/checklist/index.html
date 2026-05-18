@@ -1281,6 +1281,14 @@ input:-webkit-autofill:focus {
 </head>
 
 <body>
+<noscript>
+  <div style="padding:24px;margin:20px;background:#FFF3CD;border:1px solid #FFC107;border-radius:12px;font-family:'Apple SD Gothic Neo','-apple-system',sans-serif;color:#856404;text-align:center;line-height:1.6;">
+    <div style="font-size:48px;margin-bottom:8px;">⚠️</div>
+    <div style="font-size:18px;font-weight:600;margin-bottom:8px;">JavaScript가 꺼져있어요</div>
+    <div style="font-size:14px;">위시스 부동산 상담 체크리스트는 JavaScript가 필요합니다. 브라우저 설정에서 JavaScript를 켜주세요.</div>
+    <div style="margin-top:16px;font-size:13px;">또는 <a href="tel:02-784-3535" style="color:#1a73e8;font-weight:600;">02-784-3535</a> 로 전화 주세요.</div>
+  </div>
+</noscript>
 
 
 
@@ -3244,6 +3252,381 @@ function updateBottomNavText(n){
     <div class="ios-sheet-options" id="iosSheetOptions"></div>
   </div>
 </div>
+
+<!-- ════════════ Round 14 — 도배 차단 + 결함 7개 ════════════ -->
+<script>
+(function(){
+  'use strict';
+  /* ─── Layer 0: state ─── */
+  var SENT = false;            // 한 번이라도 성공 전송 했는지
+  var IN_FLIGHT = false;       // 현재 fetch 진행 중
+  var RETRY_TIMER = null;
+  var PHONE_KEY = 'ws_chk_last_sent';        // {h: hash, t: timestamp}
+  var CONTENT_KEY = 'ws_chk_recent_content'; // [{h:hash,t:ts}, ...]
+  var PHONE_LOCK_MS = 30*60*1000;            // 30분
+  var CONTENT_LOCK_MS = 5*60*1000;           // 5분
+
+  /* ─── FNV-1a hash (16-bit hex) — privacy 안전 ─── */
+  function hash(s){
+    var h = 0x811c9dc5;
+    for(var i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=(h*0x01000193)>>>0; }
+    return h.toString(16);
+  }
+  function phoneTail4(p){
+    var d = (p||'').replace(/\D/g,'');
+    return d.length>=4 ? d.slice(-4) : '';
+  }
+  function safeGet(k){ try{ return JSON.parse(localStorage.getItem(k)||'null'); }catch(_){return null;} }
+  function safeSet(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(_){} }
+  function formHasData(){
+    var n = (document.getElementById('cName')||{}).value || '';
+    var p = (document.getElementById('cPhone')||{}).value || '';
+    return n.trim().length>0 || p.replace(/\D/g,'').length>=4;
+  }
+
+  /* ─── iOS-style toast (alert 대체) ─── */
+  function showToast(opts){
+    opts = opts || {};
+    var existing = document.getElementById('ws-toast');
+    if(existing) existing.parentNode.removeChild(existing);
+    var wrap = document.createElement('div');
+    wrap.id = 'ws-toast';
+    wrap.setAttribute('role','status');
+    wrap.style.cssText='position:fixed;z-index:9999;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,0.98);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:18px;padding:24px 28px;min-width:240px;max-width:80vw;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.2);opacity:0;transition:opacity 0.25s ease;';
+    var icon = document.createElement('div');
+    icon.style.cssText='width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;color:#fff;margin:0 auto 12px;';
+    if(opts.type==='success'){ icon.style.background='#34C759'; icon.textContent='✓'; }
+    else if(opts.type==='error'){ icon.style.background='#FF3B30'; icon.textContent='✕'; }
+    else if(opts.type==='warning'){ icon.style.background='#FF9500'; icon.textContent='!'; }
+    else { icon.style.background='#007AFF'; icon.textContent='i'; }
+    var t = document.createElement('div');
+    t.style.cssText='font-size:16px;font-weight:600;color:#1C1C1E;margin-bottom:4px;';
+    t.textContent = opts.title || '';
+    var m = document.createElement('div');
+    m.style.cssText='font-size:14px;color:#3C3C43;line-height:1.4;';
+    m.textContent = opts.msg || '';
+    wrap.appendChild(icon); wrap.appendChild(t); if(opts.msg) wrap.appendChild(m);
+    document.body.appendChild(wrap);
+    requestAnimationFrame(function(){ wrap.style.opacity='1'; });
+    var dur = opts.duration || 2500;
+    if(dur>0){
+      setTimeout(function(){
+        wrap.style.opacity='0';
+        setTimeout(function(){ if(wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 300);
+      }, dur);
+    }
+    return wrap;
+  }
+  /* legacy alert() — 결과 전송 후 swap */
+  var nativeAlert = window.alert;
+
+  /* ─── ㉧ 최종 검토 모달 (iOS 시트 스타일) ─── */
+  function showReview(summary, onConfirm){
+    var existing = document.getElementById('ws-review');
+    if(existing) existing.parentNode.removeChild(existing);
+    var bd = document.createElement('div');
+    bd.id='ws-review';
+    bd.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;animation:wsFadeIn 0.2s ease;';
+    var sh = document.createElement('div');
+    sh.style.cssText='background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:18px 20px 24px;box-shadow:0 -8px 30px rgba(0,0,0,0.15);animation:wsSlideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1);';
+    sh.innerHTML = ''
+      + '<div style="width:36px;height:5px;background:#E5E5EA;border-radius:50px;margin:0 auto 12px;"></div>'
+      + '<div style="text-align:center;font-size:17px;font-weight:600;color:#1C1C1E;margin-bottom:4px;">전송 전 확인</div>'
+      + '<div style="text-align:center;font-size:13px;color:#8E8E93;margin-bottom:16px;">아래 내용이 중개사에게 전달됩니다</div>'
+      + '<div id="ws-review-body" style="background:#F2F2F7;border-radius:14px;padding:14px 16px;margin-bottom:16px;font-size:14px;line-height:1.7;color:#1C1C1E;"></div>'
+      + '<div style="display:flex;gap:8px;">'
+      + '  <button type="button" id="ws-review-cancel" style="flex:1;padding:14px;border:none;background:#F2F2F7;color:#007AFF;border-radius:12px;font-size:16px;font-weight:500;font-family:inherit;cursor:pointer;">취소</button>'
+      + '  <button type="button" id="ws-review-ok" style="flex:1;padding:14px;border:none;background:#007AFF;color:#fff;border-radius:12px;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;">전송</button>'
+      + '</div>';
+    bd.appendChild(sh);
+    document.body.appendChild(bd);
+    // Populate summary
+    var body = document.getElementById('ws-review-body');
+    body.innerHTML='';
+    summary.forEach(function(row){
+      var line = document.createElement('div');
+      line.style.cssText='display:flex;gap:8px;';
+      var k = document.createElement('span');
+      k.style.cssText='color:#8E8E93;min-width:64px;';
+      k.textContent = row[0];
+      var v = document.createElement('span');
+      v.style.cssText='flex:1;color:#1C1C1E;font-weight:500;';
+      v.textContent = row[1];
+      line.appendChild(k); line.appendChild(v);
+      body.appendChild(line);
+    });
+    document.getElementById('ws-review-cancel').onclick = function(){ close(); };
+    bd.addEventListener('click', function(e){ if(e.target===bd) close(); });
+    document.getElementById('ws-review-ok').onclick = function(){
+      close();
+      if(typeof onConfirm==='function') onConfirm();
+    };
+    function close(){ if(bd.parentNode) bd.parentNode.removeChild(bd); }
+  }
+
+  /* ─── 전송 완료 풀스크린 상태 (1순위 메인) ─── */
+  function showSuccessState(){
+    SENT = true;
+    /* 보내기 버튼 숨김 — 다시 누를 길 영구 차단 */
+    var btns = document.querySelectorAll('#resultSendBtn, #nwSendBtn');
+    btns.forEach(function(b){ b.style.display='none'; });
+
+    /* 결과 페이지 상단에 success banner */
+    var page = document.getElementById('page-result');
+    if(!page) return;
+    if(document.getElementById('ws-sent-banner')) return;
+    var banner = document.createElement('div');
+    banner.id='ws-sent-banner';
+    banner.style.cssText='background:linear-gradient(135deg,#34C759,#30B954);color:#fff;border-radius:16px;padding:24px 20px;margin:0 16px 16px;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;box-shadow:0 8px 24px rgba(52,199,89,0.25);';
+    banner.innerHTML = ''
+      + '<div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:28px;">✓</div>'
+      + '<div style="font-size:20px;font-weight:600;margin-bottom:4px;">전송 완료</div>'
+      + '<div style="font-size:14px;opacity:0.95;">위시스 부동산이 곧 연락드릴게요</div>'
+      + '<div style="font-size:13px;opacity:0.85;margin-top:8px;">📞 02-784-3535</div>';
+    page.insertBefore(banner, page.firstChild);
+    /* 30초 후 새 상담 버튼 강조 */
+    setTimeout(function(){
+      var b = document.querySelector('[onclick="resetAll()"]');
+      if(b){ b.style.background='#007AFF'; b.style.color='#fff'; b.style.boxShadow='0 4px 16px rgba(0,122,255,0.3)'; }
+    }, 30000);
+  }
+
+  /* ─── Layer 1: validation (㉣) ─── */
+  function validate(){
+    var n = (document.getElementById('cName')||{}).value || '';
+    var p = (document.getElementById('cPhone')||{}).value || '';
+    n = n.trim();
+    var digits = p.replace(/\D/g,'');
+    if(!n){
+      showToast({type:'warning',title:'이름을 입력해주세요',msg:'STEP 1 의 손님 성함이 필요해요'});
+      if(typeof goPage==='function') goPage(1);
+      setTimeout(function(){ var el=document.getElementById('cName'); if(el) el.focus(); }, 350);
+      return false;
+    }
+    if(digits.length<10 || !/^010/.test(digits)){
+      showToast({type:'warning',title:'전화번호 확인',msg:'010 으로 시작하는 휴대폰 번호를 입력해주세요'});
+      if(typeof goPage==='function') goPage(1);
+      setTimeout(function(){ var el=document.getElementById('cPhone'); if(el) el.focus(); }, 350);
+      return false;
+    }
+    return true;
+  }
+
+  /* ─── Layer 2: phone hash dedup (30분) ─── */
+  function checkPhoneLock(){
+    var p = (document.getElementById('cPhone')||{}).value || '';
+    var t4 = phoneTail4(p);
+    if(!t4) return false;
+    var h = hash('p:'+t4);
+    var rec = safeGet(PHONE_KEY);
+    if(rec && rec.h===h && (Date.now()-rec.t)<PHONE_LOCK_MS){
+      var mins = Math.ceil((PHONE_LOCK_MS-(Date.now()-rec.t))/60000);
+      showToast({type:'info',title:'이미 전송하셨어요',msg:'위시스 부동산이 곧 연락드려요 ('+mins+'분 후 재전송 가능)', duration:4000});
+      return true;
+    }
+    return false;
+  }
+  function savePhoneLock(){
+    var p = (document.getElementById('cPhone')||{}).value || '';
+    var t4 = phoneTail4(p);
+    if(!t4) return;
+    safeSet(PHONE_KEY, {h:hash('p:'+t4), t:Date.now()});
+  }
+
+  /* ─── Layer 3: content hash dedup (5분) ─── */
+  function buildContentHash(){
+    if(typeof collectData!=='function' && typeof window.collectData!=='function') {
+      /* fallback — just hash name+phone */
+      var n = (document.getElementById('cName')||{}).value || '';
+      var p = (document.getElementById('cPhone')||{}).value || '';
+      return hash('c:'+n+':'+p);
+    }
+    try{
+      var fn = typeof collectData==='function' ? collectData : window.collectData;
+      var d = fn();
+      return hash('c:'+JSON.stringify(d));
+    }catch(_){
+      return hash('c:fallback:'+Date.now());
+    }
+  }
+  function checkContentLock(){
+    var h = buildContentHash();
+    var arr = safeGet(CONTENT_KEY) || [];
+    var now = Date.now();
+    arr = arr.filter(function(r){ return (now-r.t)<CONTENT_LOCK_MS; });
+    var hit = arr.find(function(r){ return r.h===h; });
+    if(hit){
+      var secs = Math.ceil((CONTENT_LOCK_MS-(now-hit.t))/1000);
+      showToast({type:'info',title:'같은 내용을 방금 보내셨어요',msg:secs+'초 후 다시 시도해주세요',duration:3500});
+      return true;
+    }
+    return false;
+  }
+  function saveContentLock(){
+    var h = buildContentHash();
+    var arr = safeGet(CONTENT_KEY) || [];
+    var now = Date.now();
+    arr = arr.filter(function(r){ return (now-r.t)<CONTENT_LOCK_MS; });
+    arr.push({h:h, t:now});
+    safeSet(CONTENT_KEY, arr.slice(-10));
+  }
+
+  /* ─── Layer 4: 실제 fetch (재시도 1회 포함, ㉢) ─── */
+  function actuallySend(retried){
+    if(IN_FLIGHT) return;
+    IN_FLIGHT = true;
+    var btn = document.getElementById('resultSendBtn') || document.getElementById('nwSendBtn');
+    if(btn){ btn.disabled=true; btn.style.opacity='0.5'; var orig=btn.textContent; btn.textContent='전송 중…'; btn.__orig=orig; }
+    var toast = showToast({type:'info',title:'전송 중…',msg:'잠시만요',duration:0});
+    var data;
+    try{
+      var fn = typeof collectData==='function' ? collectData : window.collectData;
+      data = fn ? fn() : {cName:(document.getElementById('cName')||{}).value, cPhone:(document.getElementById('cPhone')||{}).value};
+    }catch(e){
+      IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+      if(toast.parentNode) toast.parentNode.removeChild(toast);
+      showToast({type:'error',title:'전송 준비 실패',msg:'페이지 새로고침 후 다시 시도해주세요'});
+      return;
+    }
+    fetch('/api/naver-works-post', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(data)
+    })
+    .then(function(r){ return r.json().then(function(j){ return {status:r.status, body:j}; }); })
+    .then(function(res){
+      IN_FLIGHT=false;
+      if(toast.parentNode) toast.parentNode.removeChild(toast);
+      if(res.body && res.body.success){
+        savePhoneLock(); saveContentLock();
+        showSuccessState();
+        showToast({type:'success',title:'전송 완료!',msg:'위시스 부동산이 곧 연락드릴게요',duration:3500});
+        return;
+      }
+      /* 429 — 너무 많이 보냄 */
+      if(res.status===429){
+        if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+        showToast({type:'warning',title:'잠시 후 다시 시도',msg:'전송 요청이 너무 많아요. 1시간 후 다시 시도해주세요',duration:5000});
+        return;
+      }
+      /* 실패 — 1회 자동 재시도 */
+      if(!retried){
+        if(btn) btn.textContent='재시도 중…';
+        showToast({type:'warning',title:'잠시 후 재시도',msg:'30초 후 자동으로 다시 보낼게요',duration:3500});
+        RETRY_TIMER = setTimeout(function(){ actuallySend(true); }, 30000);
+        return;
+      }
+      if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+      showToast({type:'error',title:'전송 실패',msg:'네트워크 확인 후 다시 시도해주세요 (02-784-3535 로 전화 가능)',duration:5000});
+    })
+    .catch(function(e){
+      IN_FLIGHT=false;
+      if(toast.parentNode) toast.parentNode.removeChild(toast);
+      if(!retried){
+        if(btn) btn.textContent='재시도 중…';
+        showToast({type:'warning',title:'네트워크 오류',msg:'30초 후 자동 재시도',duration:3500});
+        RETRY_TIMER = setTimeout(function(){ actuallySend(true); }, 30000);
+        return;
+      }
+      if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+      showToast({type:'error',title:'전송 실패',msg:'02-784-3535 로 전화 주세요',duration:5000});
+    });
+  }
+
+  /* ─── 메인 entry: sendToNaverWorks override ─── */
+  function startSend(){
+    if(SENT){
+      showToast({type:'info',title:'이미 전송하셨어요',msg:'위시스 부동산이 곧 연락드려요'});
+      return;
+    }
+    if(IN_FLIGHT){
+      showToast({type:'info',title:'전송 중…',msg:'잠시만요'});
+      return;
+    }
+    if(!validate()) return;
+    if(checkPhoneLock()) return;
+    if(checkContentLock()) return;
+    /* ㉧ 최종 검토 → 전송 */
+    var name = (document.getElementById('cName')||{}).value || '';
+    var phone = (document.getElementById('cPhone')||{}).value || '';
+    var deal = (window.S && S.deal) || '';
+    var prop = (window.S && S.prop) || '';
+    var summary = [
+      ['이름', name.trim()],
+      ['전화', phone],
+    ];
+    if(deal) summary.push(['거래', deal + (prop?' / '+prop:'')]);
+    /* 지역 */
+    var r1 = (document.getElementById('reg1')||{}).value || '';
+    if(r1) summary.push(['지역', r1.trim()]);
+    showReview(summary, function(){ actuallySend(false); });
+  }
+
+  /* override globals */
+  window.sendToNaverWorks = startSend;
+  window.sendToNW = startSend; /* naver_works_integration.js의 sendToNW도 덮어씀 */
+
+  /* ─── ㉡ beforeunload 경고 ─── */
+  window.addEventListener('beforeunload', function(e){
+    if(SENT) return;          /* 전송 후엔 경고 X */
+    if(!formHasData()) return; /* 빈 form 일 땐 X */
+    e.preventDefault();
+    e.returnValue = ''; /* 모던 브라우저 표준 */
+    return '';
+  });
+  /* resetAll 호출 시엔 경고 우회 — confirm 한 상태 */
+  var _origReset = window.resetAll;
+  window.resetAll = function(){
+    if(_origReset) {
+      SENT = true; /* beforeunload 우회 */
+      var r = _origReset.apply(this, arguments);
+      if(!r) SENT = false;
+      return r;
+    }
+  };
+
+  /* ─── ㉥ Enter 키 의도치 않은 submit 차단 ─── */
+  document.addEventListener('keydown', function(e){
+    if(e.key!=='Enter') return;
+    var t = e.target;
+    if(!t || !t.tagName) return;
+    /* textarea Enter 는 줄바꿈 허용 */
+    if(t.tagName==='TEXTAREA') return;
+    /* button Enter 는 클릭 */
+    if(t.tagName==='BUTTON') return;
+    /* input 의 Enter → 다음 input 으로 focus + submit 차단 */
+    if(t.tagName==='INPUT'){
+      e.preventDefault();
+      var inputs = Array.prototype.slice.call(document.querySelectorAll('input:not([type=hidden]):not([disabled]), textarea:not([disabled])'));
+      var visibleInputs = inputs.filter(function(el){
+        if(el.offsetParent===null && el.type!=='hidden') return false;
+        var p = el.closest('.page');
+        return !p || p.classList.contains('active');
+      });
+      var i = visibleInputs.indexOf(t);
+      if(i>=0 && i<visibleInputs.length-1){
+        visibleInputs[i+1].focus();
+      } else {
+        t.blur();
+      }
+    }
+  });
+
+  /* CSS keyframes for review modal */
+  var st = document.createElement('style');
+  st.textContent = '@keyframes wsFadeIn{from{opacity:0}to{opacity:1}}@keyframes wsSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}';
+  document.head.appendChild(st);
+
+  /* expose for debug */
+  window.__wsR14 = {
+    showToast: showToast,
+    checkPhoneLock: checkPhoneLock,
+    SENT: function(){return SENT;},
+  };
+
+  console.log('[wishes-r14] 도배 차단 + 결함 7개 fix 로드 완료');
+})();
+</script>
 
 </body>
 
