@@ -6,7 +6,9 @@
 
 <meta charset="UTF-8"/>
 
-<meta name="robots" content="noindex,nofollow,noarchive,noimageindex">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' https:; script-src 'self' 'unsafe-inline' https://wishes.co.kr; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; connect-src 'self' https://wishes.co.kr https://*.supabase.co; font-src 'self' data: https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="robots" content="noindex,nofollow,noarchive,noimageindex">
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)"/>
@@ -121,6 +123,9 @@
 /* ── RESET ── */
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 html, body {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
   height: 100%;
   background: var(--ios-bg-grouped);
   color: var(--ios-label);
@@ -522,7 +527,7 @@ textarea {
   padding: 10px 12px;
   border: 0.33px solid var(--ios-sep);
   border-radius: var(--ios-r-cell);
-  font-size: 0.95rem;
+  font-size: 1rem;
   outline: none;
   background: var(--ios-cell);
   color: var(--ios-label);
@@ -1302,6 +1307,7 @@ input:-webkit-autofill:focus {
     <div style="margin-top:16px;font-size:13px;">또는 <a href="tel:02-784-3535" style="color:#1a73e8;font-weight:600;">02-784-3535</a> 로 전화 주세요.</div>
   </div>
 </noscript>
+<h1 style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">위시스 부동산 상담 체크리스트</h1>
 
 
 
@@ -1381,7 +1387,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="cName">고객명 <span class="req">*</span></label>
 
-          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30"/><input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
+          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" autocapitalize="none" spellcheck="false"/><input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
 
         </div>
 
@@ -3658,6 +3664,114 @@ function updateBottomNavText(n){
   };
 
   console.log('[wishes-r14] 도배 차단 + 결함 7개 fix 로드 완료');
+})();
+</script>
+
+<!-- ════════════ Round 16 — A급 5 + 잔여 ════════════ -->
+<script>
+(function(){
+  'use strict';
+
+  /* ⑤ Global error handler — silent fail 차단 */
+  function reportErr(label, detail){
+    try {
+      if(typeof window.__wsR14==='object' && typeof window.__wsR14.showToast==='function'){
+        /* 보내기 in-flight 중에만 사용자에게 알림 */
+      }
+      /* 콘솔 로깅은 항상 */
+      if(typeof console!=='undefined' && console.error) console.error('[r16-err]', label, detail);
+    } catch(_){}
+  }
+  window.addEventListener('error', function(e){
+    reportErr('runtime', e && (e.message || e.error));
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    reportErr('promise', e && (e.reason && e.reason.message || e.reason));
+  });
+
+  /* ④ 방문일 / 입주일 — 오늘 이후만 */
+  function setMinToday(){
+    var today = new Date();
+    var y = today.getFullYear();
+    var m = String(today.getMonth()+1).padStart(2,'0');
+    var d = String(today.getDate()).padStart(2,'0');
+    var iso = y+'-'+m+'-'+d;
+    ['cDate','f-moveDate'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el && !el.getAttribute('min')) el.setAttribute('min', iso);
+    });
+  }
+  if(document.readyState!=='loading') setMinToday();
+  else document.addEventListener('DOMContentLoaded', setMinToday);
+
+  /* ③ Offline detect — 보내기 전 인터넷 끊김 차단 */
+  /*    sendToNaverWorks 호출 시점에 navigator.onLine 검사 */
+  var origSend = window.sendToNaverWorks;
+  window.sendToNaverWorks = function(){
+    if(!navigator.onLine){
+      if(typeof window.__wsR14==='object' && window.__wsR14.showToast){
+        window.__wsR14.showToast({type:'warning', title:'인터넷 연결 확인', msg:'WiFi 또는 데이터 연결을 확인해주세요', duration:4000});
+      } else {
+        alert('인터넷 연결을 확인해주세요');
+      }
+      return;
+    }
+    if(origSend) return origSend.apply(this, arguments);
+  };
+
+  /* online 상태 복귀 시 토스트 알림 */
+  window.addEventListener('online', function(){
+    if(typeof window.__wsR14==='object' && window.__wsR14.showToast){
+      window.__wsR14.showToast({type:'success', title:'인터넷 다시 연결됨', duration:2000});
+    }
+  });
+  window.addEventListener('offline', function(){
+    if(typeof window.__wsR14==='object' && window.__wsR14.showToast){
+      window.__wsR14.showToast({type:'warning', title:'인터넷 끊김', msg:'WiFi/데이터 확인', duration:3500});
+    }
+  });
+
+  /* ② phone 마스킹 — 결과 페이지 sc-val 안의 phone 만 */
+  /*    렌더링 후 적용 (renderResult 호출 직후 한 번씩) */
+  function maskPhone(p){
+    var d = String(p||'').replace(/\D/g,'');
+    if(d.length < 8) return p;
+    if(d.length===11){ /* 010-1234-5678 */
+      return d.slice(0,3) + '-****-' + d.slice(-4);
+    }
+    if(d.length===10){
+      return d.slice(0,3) + '-***-' + d.slice(-4);
+    }
+    return p;
+  }
+  function maskResultPhone(){
+    var page = document.getElementById('page-result');
+    if(!page) return;
+    var rows = page.querySelectorAll('.sc-row');
+    rows.forEach(function(row){
+      var k = row.querySelector('.sc-key');
+      var v = row.querySelector('.sc-val');
+      if(!k || !v) return;
+      if(k.textContent.trim() === '연락처'){
+        var origText = v.textContent.trim();
+        if(/\d{4}-\d{4}$/.test(origText) || /\d{7,8}$/.test(origText.replace(/\D/g,''))){
+          v.textContent = maskPhone(origText);
+          v.title = '본인 확인 후 사장님에게는 정확한 번호가 전송됩니다';
+        }
+      }
+    });
+  }
+  /* MutationObserver — page-result 가 active 될 때 마스킹 */
+  var resultPage = document.getElementById('page-result');
+  if(resultPage){
+    new MutationObserver(function(){
+      if(resultPage.classList.contains('active')){
+        setTimeout(maskResultPhone, 100);
+      }
+    }).observe(resultPage, {attributes:true, attributeFilter:['class']});
+  }
+
+  console.log('[wishes-r16] 결함 5 (A) + 잔여 — error/offline/phone-mask/date-min 로드 완료');
 })();
 </script>
 
