@@ -4063,6 +4063,9 @@ function updateBottomNavText(n){
     if(/^#step-([123])$/.test(h)){
       var n = parseInt(RegExp.$1, 10);
       if(typeof origGoPage === 'function') origGoPage(n);
+    } else if(h === '#sent'){
+      /* R30 — 결과 페이지에서 뒤로가기 시 결과 페이지 유지 (외부로 떠남 방지) */
+      if(typeof origGoPage === 'function') origGoPage('result');
     }
   });
 
