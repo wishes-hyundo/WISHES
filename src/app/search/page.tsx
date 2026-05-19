@@ -225,32 +225,32 @@ export default function SearchPortalPage() {
       // v324 (2026-04-29 사장님 명령): 출처 뱃지 — 공실클럽=파랑G / 온하우스=빨강O.
       //   카드 주소 라인 + 모달 hero 강제 보장. content.js 의 기존 녹색/주황 뱃지
       //   자동 교체. v324b: 매물번호 옆 mini 뱃지는 중복이라 제거.
-      ['ws-ext-patch-v324-source-badge', '/search/content-v324-source-badge.js?v=20260519-step37-throttle'],
+      ['ws-ext-patch-v324-source-badge', '/search/content-v324-source-badge.js?v=20260519-step38-1s-throttle'],
       // v325 (2026-04-29 사장님 명령): 매물번호 강조 뱃지 — 카드 .ws-listing-tags
       //   첫 자식으로 "매물 {id}" 뱃지 (#2D5A27 짙은 녹색) prepend, 클릭 시 복사.
       //   기존 우측 .ws-listing-id 가 안 보인다는 보고 → 층수 앞 고정 배치.
-      ['ws-ext-patch-v325-listing-id-tag', '/search/content-v325-listing-id-tag.js?v=20260519-step37-throttle'],
+      ['ws-ext-patch-v325-listing-id-tag', '/search/content-v325-listing-id-tag.js?v=20260519-step38-1s-throttle'],
       // v326 (2026-04-29 사장님 명령): mini 출처 뱃지 cleanup-only.
       //   v324b 가 만든 cleanup 코드가 Vercel CDN edge stale 로 풀리지 않아 별개
       //   path 의 단일책임 patch 로 우회. .ws-src-badge-mini 만 제거.
-      ['ws-ext-patch-v326-cleanup-mini-badge', '/search/content-v326-cleanup-mini-badge.js?v=20260519-step37-throttle'],
+      ['ws-ext-patch-v326-cleanup-mini-badge', '/search/content-v326-cleanup-mini-badge.js?v=20260519-step38-1s-throttle'],
       // v327 (2026-04-29 사장님 명령): 카드 부 라인 = 도로명주소 (있을 때만).
       //   메인은 굵은 지번주소 그대로 / 부는 옅은 회색 도로명주소 (#6b7280).
       //   v327b: 도로명에서 시/구 prefix 제거 (메인 중복 방지).
-      ['ws-ext-patch-v327-road-address-sub', '/search/content-v327-road-address-sub.js?v=20260519-step37-throttle'],
+      ['ws-ext-patch-v327-road-address-sub', '/search/content-v327-road-address-sub.js?v=20260519-step38-1s-throttle'],
       // v328 (2026-04-29 사장님 명령): 메인 주소 라인 형식 — "(건물명)" 괄호 제거 후
       //   "[지번주소] [건물명] [층] [호]" 형식으로 재구성.
-      ['ws-ext-patch-v328-main-addr-format', '/search/content-v328-main-addr-format.js?v=20260519-step37-throttle'],
+      ['ws-ext-patch-v328-main-addr-format', '/search/content-v328-main-addr-format.js?v=20260519-step38-1s-throttle'],
       // v329 (2026-04-29 사장님 명령): 공실 라벨 정확화 — status=공개 무차별 → 
       //   available_date 기준 "공실/거주중/협의입주/YY.MM 입주/hide" 분기.
-      ['ws-ext-patch-v329-vacancy-label', '/search/content-v329-vacancy-label.js?v=20260519-step37-throttle'],
+      ['ws-ext-patch-v329-vacancy-label', '/search/content-v329-vacancy-label.js?v=20260519-step38-1s-throttle'],
       // v330 (2026-04-29 사장님 명령): 룸 라벨 — "1개 방" → "원룸/투룸/1.5룸/쓰리룸/쓰리룸+"
       //   listing.rooms 숫자 기준 변환. selectFields 에 'rooms' 포함.
-      ['ws-ext-patch-v330-room-label', '/search/content-v330-room-label.js?v=20260519-step37-throttle'],
+      ['ws-ext-patch-v330-room-label', '/search/content-v330-room-label.js?v=20260519-step38-1s-throttle'],
       // v331 (2026-04-29 사장님 보고): onhouse 모달 검정 화면 → placeholder.
       //   listing_images 0건 매물의 hero 영역 검정 → "사진 준비중" + 원본 링크.
       // L-perf-fix-14-2026-05-10 (사장님 명령): "사진 준비중" placeholder 쓸데없이 불편 → disable.
-      // ['ws-ext-patch-v331-onhouse-image-placeholder', '/search/content-v331-onhouse-image-placeholder.js?v=20260519-step37-throttle'],
+      // ['ws-ext-patch-v331-onhouse-image-placeholder', '/search/content-v331-onhouse-image-placeholder.js?v=20260519-step38-1s-throttle'],
       // v321 (2026-05-09 사장님 발견 — I-STORAGE-1): localStorage quota 자동 정리.
       //   매물 30,420건 → ws_data_snapshot/ws_price_snapshots 캐시 ~9MB → quota 초과
       //   → "저장공간 부족" 토스트 무한 반복. Storage.prototype.setItem 가로채기로
@@ -258,11 +258,13 @@ export default function SearchPortalPage() {
       //   SAFE_PRESERVE 영구 보호. 토스트 10분 throttle.
       ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260519-step32-cap1000'],
       // Step D Plan C (2026-05-10): ws_data_snapshot → IndexedDB (50MB+, 전체 62K 매물 추적).
-      ['ws-ext-patch-v340-snapshot-idb', '/search/content-v340-snapshot-idb.js?v=20260519-step37-throttle'],
+      // [Step 38 2026-05-19] disabled — IDB 무거움 (백그라운드만, 카드 기능 X)
+      // ['ws-ext-patch-v340-snapshot-idb', '/search/content-v340-snapshot-idb.js?v=20260519-step38-1s-throttle'],
       // v343 (2026-05-10 사장님 명령 Fix 4): ws_price_snapshots -> IndexedDB.
       //   v340 와 같은 패턴, key 만 다름. 60K x 80byte = 5MB localStorage quota
       //   영구 fix. 토스트 영구 사라짐.
-      ['ws-ext-patch-v343-pricesnap-idb', '/search/content-v343-pricesnap-idb.js?v=20260519-step37-throttle'],
+      // [Step 38 2026-05-19] disabled — IDB 무거움 (백그라운드만, 카드 기능 X)
+      // ['ws-ext-patch-v343-pricesnap-idb', '/search/content-v343-pricesnap-idb.js?v=20260519-step38-1s-throttle'],
       // v345 (2026-05-10 사장님 명령 Fix 22): 매물 카드 img lazy load 강제.
       //   100 매물 사진 동시 fetch -> 수백 MB. viewport 외 사진도 fetch.
       //   loading=lazy 추가 -> viewport 안 매물만 fetch -> 첫 진입 빠름.
@@ -370,7 +372,7 @@ export default function SearchPortalPage() {
       // v335 (2026-05-09 사장님 발견): 매물 카드 부 라인 도로명 Kakao fallback.
       //   v327 는 listing.road_address 만 사용 → DB null 매물은 원본 title (건물명) 표시.
       //   v335 가 lat/lng → Kakao reverseGeocoder fallback 으로 도로명 채움.
-      ['ws-ext-patch-v335-card-road-fallback', '/search/content-v335-card-road-fallback.js?v=20260519-step37-throttle'],
+      ['ws-ext-patch-v335-card-road-fallback', '/search/content-v335-card-road-fallback.js?v=20260519-step38-1s-throttle'],
             // v336 (2026-05-09 사장님 SOTA Step L): 카드 썸네일 강제 ?w=400.
       //   진단: 사장님 측정 26s finish 의 큰 부분 = img-proxy 2-6MB × 수십 장.
       //   해결: MutationObserver 로 img.src ?w=1920 → ?w=400 자동 변환.
