@@ -97,7 +97,11 @@
     t = setTimeout(function () { t = null; sweep(); }, 90);
   }
 
+  var __mo_throttle = null;
   var mo = new MutationObserver(function (mutations) {
+    // [Step 37 fix 2026-05-19 사장님 명령] throttle 250ms — Observer cascade freeze 차단
+    if (__mo_throttle) return;
+    __mo_throttle = setTimeout(function() { __mo_throttle = null; }, 250);
     var hit = false;
     for (var i = 0; i < mutations.length && !hit; i++) {
       var added = mutations[i].addedNodes;
