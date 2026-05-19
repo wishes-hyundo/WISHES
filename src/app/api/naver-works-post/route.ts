@@ -87,6 +87,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    /* ════════════════════════════════════════════════════════
+       R127 (2026-05-20) — 🚨 server-side 빈 양식 검증 (사장님 명령)
+       client 검증 우회 + 봇/curl 직접 호출 차단.
+       빈 양식이 사장님 NaverWorks 게시판에 도배되는 결함 fix.
+       ──────────────────────────────────────────────────────── */
+    {
+      const _name = typeof (input as { cName?: unknown }).cName === 'string'
+        ? (input as { cName: string }).cName.trim()
+        : '';
+      const _phone = typeof (input as { cPhone?: unknown }).cPhone === 'string'
+        ? (input as { cPhone: string }).cPhone.replace(/\D/g, '')
+        : '';
+      // 이름: 2자 이상 (한글/영문 모두)
+      if (_name.length < 2) {
+        return NextResponse.json(
+          { success: false, message: '손님 성함을 2자 이상 입력해주세요' },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      // 연락처: 010/070/0502~7/011~019 형식 (R114 phone-flex 와 동일)
+      const _phoneValid =
+        /^010\d{8}$/.test(_phone) ||
+        /^070\d{8}$/.test(_phone) ||
+        /^050[2-9]\d{7,8}$/.test(_phone) ||
+        /^01[1-9]\d{7,8}$/.test(_phone);
+      if (!_phoneValid) {
+        return NextResponse.json(
+          { success: false, message: '올바른 연락처를 입력해주세요 (010/070/0502/011~019 형식)' },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+    }
+
     /* ────────────────────────────────────────────────────────
        R61 (2026-05-19) — 🚨 사장님 명령: 조가영 손님 데이터 손실 재발 차단.
        Supabase 에 raw payload 즉시 영구 저장. forward 성공/실패 무관.
