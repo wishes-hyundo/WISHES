@@ -185,4 +185,7 @@
     new MutationObserver(function(){injectButton();}).observe(document.body,{childList:true,subtree:true});
 
   window.sendToNW = sendToNW;
+  // 🚨 R58-hotfix — checklist HTML 의 startSend() 가 collectData 를 찾도록 노출.
+  // 이전엔 IIFE 안에 갇혀 있어서 fallback {cName, cPhone} 만 전송됨 (사장님 발견 2026-05-19).
+  window.collectData = collectData;
 })();
