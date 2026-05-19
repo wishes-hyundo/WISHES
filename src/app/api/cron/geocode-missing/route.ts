@@ -10,7 +10,7 @@ import { createServerClient } from '@/lib/supabase';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 300;  // [DB-1 boost-v3] Pro plan 한도. 1000건 = 약 200s
 
 export async function GET(request: NextRequest) {
   // G-73 (2026-05-03): fail-safe — CRON_SECRET 미설정이면 500 (이전엔 무인증 통과)
@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       .in('status', ['공개', '비공개'])
       .not('address', 'is', null)
       .order('road_address_fetched_at', { ascending: true, nullsFirst: true })
-      .limit(100);  // [DB-1 boost-v2 2026-05-18] 500 → 100 (Vercel 60s timeout 안전 + 5분 schedule)
+      .limit(1000);  // [DB-1 boost-v3] maxDuration 300s 활용 — 1batch=1000건 (총 12 batch)
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     if (!targets || targets.length === 0) {
