@@ -13,6 +13,7 @@
 
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"/>
+<meta name="color-scheme" content="light dark"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
@@ -31,6 +32,10 @@
    ═══════════════════════════════════ */
 
 :root {
+  /* R57 — color-scheme 선언: 브라우저 강제 다크 변환 차단 (Samsung Internet / Chrome force-dark) */
+  color-scheme: light dark;
+  /* R57 — accent-color: 체크박스/라디오 UA 컨트롤 도 위시스 블루 */
+  accent-color: #007AFF;
   /* iOS System Colors (Light) */
   --ios-blue: #007AFF;
   --navy: var(--ios-blue);  /* R26 ❶ — 결과 페이지 예산 색 fallback fix */
