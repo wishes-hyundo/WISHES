@@ -182,7 +182,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v260-perf', '/search/content-v260-perf.js?v=20260519-step35-no-poll'],
       ['ws-ext-patch-v270-contacts', '/search/content-v270-contacts.js?v=20260418a1'],
       ['ws-ext-patch-v280-mobile', '/search/content-v280-mobile.js?v=20260420b'],
-      ['ws-ext-patch-v290-polish', '/search/content-v290-polish.js?v=20260519-step40-no-fade-timeout'],
+      ['ws-ext-patch-v290-polish', '/search/content-v290-polish.js?v=20260519-step49-restored'],
       ['ws-ext-patch-v291-stability', '/search/content-v291-stability.js?v=20260514nativePTR'],
       ['ws-ext-patch-v292-global-search', '/search/content-v292-global-search.js?v=20260519-step35-throttle'],
       // v293-alert-log removed (2026-05-15 사장님 명령 - 종 알림 잔상 영구 제거)

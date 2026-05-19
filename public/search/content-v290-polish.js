@@ -127,11 +127,11 @@
       };
       img.addEventListener('load', reveal);
       img.addEventListener('error', reveal);
-      // [Step 40 fix 2026-05-19 사장님 명령] setTimeout(reveal, 2000) 안전망 제거
-      //   원인: 매 이미지마다 setTimeout = 100매물 × 페이지전환 N번 = 1770+ 누적
-      //         → main thread freeze (사장님 보고: __V403_CALLERS v29 = 1770)
-      //   해결: load/error event listener 만 사용. (image natural load is robust)
-      //   이미 wasLoaded check 위에 있어 cached image 도 OK.
+      // [Step 49 사장님 명령 2026-05-19] Step 40 revert — image fade 안전망 복구
+      //   Step 40 가 setTimeout 안전망 제거했지만 진짜 freeze 원인은 Step 48 (v403 stack trace 캡처).
+      //   안전망 없으면 image load event 안 fire 시 영원히 opacity:0 → '이미지 준비중' 손실.
+      //   복구: 2초 안전망. v403 stack trace 캡처 제거됐으니 1770 누적도 안 됨.
+      setTimeout(reveal, 2000);
     });
   }
 
