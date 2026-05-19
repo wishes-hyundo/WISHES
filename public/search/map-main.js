@@ -1012,6 +1012,37 @@
   }
 
   // ======================== 브릿지 ========================
+  // [Step 105 fix 2026-05-19 사장님 명령] S-10 — 통합 메모리 정리 함수
+  //   사장님 장시간 사용 시 _placeMarkers / _heatmapOverlays / _myLocMarker /
+  //   _radiusCircle / _roadviewClient 누적 → OOM 위험
+  //   해결: 단일 함수로 모두 정리 + 탭 hidden 시 호출
+  function clearAllMapResources() {
+    try {
+      if (_placeMarkers && _placeMarkers.length > 0) {
+        _placeMarkers.forEach(function(m) { try { m.setMap(null); } catch(e) {} });
+        _placeMarkers = [];
+      }
+      if (_heatmapOverlays && _heatmapOverlays.length > 0) {
+        _heatmapOverlays.forEach(function(o) { try { o.setMap(null); } catch(e) {} });
+        _heatmapOverlays = [];
+      }
+      if (_myLocMarker) { try { _myLocMarker.setMap(null); } catch(e) {} _myLocMarker = null; }
+      if (_radiusCircle) { try { _radiusCircle.setMap(null); } catch(e) {} _radiusCircle = null; }
+      if (_roadviewClient) { _roadviewClient = null; }
+      if (_sharedIw) { try { _sharedIw.close(); } catch(e) {} }
+    } catch(e) {}
+  }
+  // 탭 hidden 시 자동 정리 (사장님 지도 탭 떠날 때 메모리 해제)
+  try {
+    document.addEventListener('visibilitychange', function() {
+      if (document.hidden) clearAllMapResources();
+    });
+  } catch(e) {}
+  // pagehide 도 cover (모바일/일부 브라우저)
+  try {
+    window.addEventListener('pagehide', clearAllMapResources);
+  } catch(e) {}
+
   window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'ws-map-render') {
       if (typeof kakao !== 'undefined' && kakao.maps && kakao.maps.Map) renderWishesMap();
@@ -1019,6 +1050,10 @@
     if (e.data && e.data.type === 'ws-minimap-render') {
       if (typeof kakao !== 'undefined' && kakao.maps && kakao.maps.Map) renderDetailMinimap(e.data);
       else if (typeof kakao !== 'undefined' && kakao.maps) kakao.maps.load(function() { renderDetailMinimap(e.data); });
+    }
+    // [Step 105] 외부 trigger 로 정리 가능
+    if (e.data && e.data.type === 'ws-map-clear') {
+      clearAllMapResources();
     }
   });
 
