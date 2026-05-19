@@ -242,10 +242,24 @@
   function init() {
     injectStyles();
     _attachSearchListeners();
-    // 신규 .ws-global-search 감지 (페이지 전환 등)
+    // [Step 121 fix 2026-05-19] MO callback 안 strict — ws-global-search 추가만 trigger
     try {
       var __v406_mot = null;
-      var moNew = new MutationObserver(function () {
+      var moNew = new MutationObserver(function (mutations) {
+        var hasNewInput = false;
+        for (var i = 0; i < mutations.length && !hasNewInput; i++) {
+          var added = mutations[i].addedNodes;
+          for (var j = 0; j < added.length; j++) {
+            var n = added[j];
+            if (n.nodeType !== 1) continue;
+            if ((n.matches && n.matches('.ws-global-search')) ||
+                (n.querySelector && n.querySelector('.ws-global-search'))) {
+              hasNewInput = true;
+              break;
+            }
+          }
+        }
+        if (!hasNewInput) return;
         if (__v406_mot) return;
         __v406_mot = setTimeout(function () { __v406_mot = null; _attachSearchListeners(); }, 500);
       });

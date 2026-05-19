@@ -247,10 +247,26 @@
     for (var i = 0; i < cards.length; i++) _attachCardListeners(cards[i]);
   }
   _attachAllCards();
-  // 새 카드 render 감지 (페이지 이동, refresh 등)
+  // [Step 121 fix 2026-05-19 사장님 명령] MO callback 안 strict 검사
+  //   기존: body subtree 매 DOM 변경 fire → 카드 select 변경, hover state 등 매번
+  //   수정: addedNodes 안에 ws-listing-card 추가 케이스만 trigger
   try {
     var __v404_mot = null;
-    var moNew = new MutationObserver(function () {
+    var moNew = new MutationObserver(function (mutations) {
+      var hasNewCard = false;
+      for (var i = 0; i < mutations.length && !hasNewCard; i++) {
+        var added = mutations[i].addedNodes;
+        for (var j = 0; j < added.length; j++) {
+          var n = added[j];
+          if (n.nodeType !== 1) continue;
+          if ((n.classList && n.classList.contains('ws-listing-card')) ||
+              (n.querySelector && n.querySelector('.ws-listing-card'))) {
+            hasNewCard = true;
+            break;
+          }
+        }
+      }
+      if (!hasNewCard) return;
       if (__v404_mot) return;
       __v404_mot = setTimeout(function () { __v404_mot = null; _attachAllCards(); }, 300);
     });
