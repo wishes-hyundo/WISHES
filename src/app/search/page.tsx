@@ -386,6 +386,19 @@ export default function SearchPortalPage() {
       //   server side middleware rewrite (Fix 36b) 로 대체. middleware.ts 의 if block 참고.
     ];
     for (const [id, src] of patches) {
+      // [Step 30 진단 2026-05-19] ?disable=v305,v270 등 키워드 매칭 시 skip
+      const disabled = (window as unknown as { __WS_DISABLED_PATCHES__?: Set<string> }).__WS_DISABLED_PATCHES__;
+      if (disabled && disabled.size > 0) {
+        const lowerId = id.toLowerCase();
+        let skip = false;
+        for (const d of disabled) {
+          if (lowerId.includes(d)) { skip = true; break; }
+        }
+        if (skip) {
+          console.warn('[WS-DISABLE-MODE] skip:', id);
+          continue;
+        }
+      }
       if (!document.getElementById(id)) {
         const s = document.createElement('script');
         s.id = id;
