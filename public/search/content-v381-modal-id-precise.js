@@ -14,7 +14,20 @@
   'use strict';
   var TAG = '[v381-modal-id-precise]';
   var lastModalId = null;
+  // [Step 59 fix 2026-05-19 사장님 명령] OOM 누수 #2 — fetchCache 무한 누적 cap
+  //   기존: 모달 열 때마다 fetchCache[id] = Promise+listing, 닫혀도 안 지움
+  //   수정: 50건 cap LRU (가장 오래된 entry 제거)
   var fetchCache = {};
+  var fetchCacheKeys = []; // insertion order
+  var FETCH_CACHE_MAX = 50;
+  function _cacheSet(id, val) {
+    if (!(id in fetchCache)) fetchCacheKeys.push(id);
+    fetchCache[id] = val;
+    while (fetchCacheKeys.length > FETCH_CACHE_MAX) {
+      var oldId = fetchCacheKeys.shift();
+      delete fetchCache[oldId];
+    }
+  }
 
   // ★ 핵심 — 모달 헤더의 "매물번호 XXX" 텍스트에서 id 추출
   //   - 유사매물 카드의 data-listing-id 무시
@@ -103,7 +116,7 @@
 
   function fetchContacts(id) {
     if (fetchCache[id]) return fetchCache[id];
-    fetchCache[id] = fetch('/api/admin/listings/' + encodeURIComponent(id), {
+    var p = fetch('/api/admin/listings/' + encodeURIComponent(id), {
       credentials: 'include',
       headers: { Authorization: 'Bearer <legacy>' },
       cache: 'no-cache',
@@ -125,7 +138,8 @@
       try { console.warn(TAG, 'fetch err id=' + id, err); } catch (e) {}
       return null;
     });
-    return fetchCache[id];
+    _cacheSet(id, p);
+    return p;
   }
 
   // ★ contacts container 찾기 — 모달 내부 한정

@@ -100,6 +100,10 @@
 
   window.WS = window.WS || {};
 
+  // [Step 59 fix 2026-05-19 사장님 명령] OOM 진짜 원인 #1 — _addToCache cap
+  //   기존: push 무제한, v403 가 60초마다만 500 cap 점검 → active 사용 시 그 사이 폭증
+  //   수정: 즉시 cap 500. 페이지 이동 + 모달 click 으로 5분에 250개+ 누적 차단
+  var V399_MAX_CACHE = 500;
   function _addToCache(listing) {
     if (!listing || !listing.id) return;
     try {
@@ -108,8 +112,16 @@
       var idx = window.WS.allListings.findIndex(function (x) {
         return x && String(x.id) === String(listing.id);
       });
-      if (idx >= 0) window.WS.allListings[idx] = listing;
-      else window.WS.allListings.push(listing);
+      if (idx >= 0) {
+        window.WS.allListings[idx] = listing;
+        return;
+      }
+      // [Step 59] cap 초과 시 가장 오래된 항목 (배열 끝) 제거. newest first 정렬 가정
+      while (window.WS.allListings.length >= V399_MAX_CACHE) {
+        window.WS.allListings.pop();
+      }
+      // 신규는 맨 앞에 push (newest first)
+      window.WS.allListings.unshift(listing);
     } catch (_) {}
   }
 
