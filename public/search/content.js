@@ -5813,8 +5813,12 @@
     var listings = window.WS.filtered || [];
     var validListings = listings.filter(function(l) { return l.lat && l.lng; });
 
-    var listingsPayload = JSON.stringify(validListings.map(function(l) {
-      // 관리자 페이지 - 정확한 좌표 사용 (오프셋 없음)
+    // [Step 97 fix 2026-05-19 사장님 명령] S3 — 73K JSON.stringify 폭발 제거
+    //   기존: JSON.stringify(73K map) = 50MB+ 문자열 → setAttribute('data-listings', ...)
+    //         → main thread 점유 수 초 → 지도보기 탭 클릭 시 흰 화면
+    //   수정: window 전역 객체 참조만 세팅. map-main.js 가 window.__WS_MAP_LISTINGS__ 우선 사용.
+    //   효과: stringify + setAttribute 비용 0 → 탭 전환 즉시
+    var lightListings = validListings.map(function(l) {
       var addrParts = (l.address || '').split(' ');
       var dongAddr = addrParts.length >= 3 ? addrParts.slice(0, 3).join(' ') : l.address || '';
       return {
@@ -5826,7 +5830,9 @@
         floor_current: l.floor_current || '', floor_total: l.floor_total || '',
         rooms: l.rooms || 0, parking: !!l.parking
       };
-    }));
+    });
+    // 전역 객체 참조 (stringify X) — map-main.js 는 window.__WS_MAP_LISTINGS__ 우선
+    try { window.__WS_MAP_LISTINGS__ = lightListings; } catch (_) {}
 
     // Check if map div already exists (reuse for smoother UX)
     var mapDiv = document.getElementById('ws-kakao-map');
@@ -5834,7 +5840,9 @@
       container.innerHTML = '<div id="ws-kakao-map" style="width:100%;height:500px;border-radius:8px;"></div>';
       mapDiv = document.getElementById('ws-kakao-map');
     }
-    mapDiv.setAttribute('data-listings', listingsPayload);
+    // [Step 97] data-listings 속성 setAttribute 제거 — 위 전역 참조 사용
+    // 단, map-main 의 legacy fallback 을 위해 빈 배열 마커 설정 (구버전 호환)
+    mapDiv.setAttribute('data-listings-count', String(lightListings.length));
 
     if (!window.WS._mapScriptLoaded && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
       // First time: inject the MAIN world script
