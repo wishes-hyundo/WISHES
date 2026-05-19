@@ -196,7 +196,7 @@ export async function POST(request: NextRequest) {
     // L-sec12: sections 배열은 20개 cap, 각 section 의 rows 는 30개 cap.
     const rawSections = Array.isArray(input.sections) ? input.sections.slice(0, MAX_SECTIONS) : [];
     // R26 ❹ — gold 톤 → 위시스 ios-blue 톤 (사장님 명령 "13년 브랜드 색 X")
-    let s = '<div style="font-family:sans-serif;max-width:700px;margin:0 auto">';
+    let s = '<div style="font-family:sans-serif;max-width:700px;margin:0 auto;background:#FFFFFF;color:#1C1C1E;padding:14px;border-radius:8px">';  /* R89 — NaverWorks 다크모드 가독성 (검정 배경 강제 차단) */
     s += `<h2 style="color:#007AFF;border-bottom:2px solid #007AFF;padding-bottom:8px">${title}</h2>`;
 
     for (const sec of rawSections) {
