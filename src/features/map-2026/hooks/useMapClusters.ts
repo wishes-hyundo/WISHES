@@ -51,10 +51,10 @@ function buildQs(
   // Wave 71 (사장님 명령 2026-05-06): bbox 좌표 2자리 라운딩 (~1km grid).
   //   효과: 비슷한 bbox = 같은 cache key → Vercel CDN HIT 90%+ 추정.
   //   trade-off: 화면이 ~1km 단위로 cluster 갱신 (직방/네이버 표준).
-  p.set('swLat', bbox.south.toFixed(2));
-  p.set('swLng', bbox.west.toFixed(2));
-  p.set('neLat', bbox.north.toFixed(2));
-  p.set('neLng', bbox.east.toFixed(2));
+  p.set('swLat', bbox.south.toFixed(3));
+  p.set('swLng', bbox.west.toFixed(3));
+  p.set('neLat', bbox.north.toFixed(3));
+  p.set('neLng', bbox.east.toFixed(3));
   p.set('zoom', String(zoom));
   // L-filtercluster1 (2026-04-24 pm) + L-clustercat1 (2026-04-26):
   //   viewport 동일 필터 + 카테고리 → types 자동 매핑.
