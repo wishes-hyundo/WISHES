@@ -177,18 +177,12 @@ export default function MapClient() {
   //   진단 (prod 직접 setInterval 실험): polling 으로 polygon 제거 시 100% 작동 확인.
   //   해결: setInterval 200ms, kakaoLevel <= 6 시 path[id^=daum-maps-shape-] 모두 remove.
   //   I-POLY-1 절대 보장.
+  // [Step 90 fix 2026-05-19 사장님 명령] 200ms 영구 polling 제거 — 지도 freeze 누적 원인
+  //   기존: setInterval(200ms) 가 영구 — kakaoLevel<=6 일 때 매번 document.querySelectorAll 실행
+  //         사용자가 줌인 (level 6 진입) 시 main thread 매 200ms 점유
+  //   수정: setInterval 자체 제거. Wave 58 의 kakaoLevel 변경 effect (line 213) 가 cover.
   const kakaoLevelRef = useRef(kakaoLevel);
   kakaoLevelRef.current = kakaoLevel;
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (kakaoLevelRef.current <= 6) {
-        try {
-          document.querySelectorAll('path[id^="daum-maps-shape-"]').forEach((el) => el.remove());
-        } catch { /* noop */ }
-      }
-    }, 200);
-    return () => clearInterval(interval);
-  }, []);
 
   // Wave 64 (사장님 명령 2026-05-04): 로그인 상태 변경 시 setMinLevel 동적 재적용.
   //   useAuth() 는 비동기 — map init 시점엔 _userM6 가 null 이라 setMinLevel(4) 적용 후
@@ -216,12 +210,27 @@ export default function MapClient() {
       } catch { /* noop */ }
     };
     removeAll();
-    const t1 = setTimeout(removeAll, 50);
-    const t2 = setTimeout(removeAll, 200);
-    const t3 = setTimeout(removeAll, 500);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+    // [Step 90 fix] 50/200/500ms 다중 setTimeout 축소 → 100ms 1개 (충분)
+    const t1 = setTimeout(removeAll, 100);
+    return () => { clearTimeout(t1); };
   }, [kakaoLevel]);
 
+  // [Step 90 Fix A 2026-05-19 사장님 명령] AdminRegionOverlay mount defer
+  //   GeoJSON 시군구 fetch + JSON.parse 가 main thread block 가능 (sub-agent 진단)
+  //   페이지 진입 직후 즉시 mount → freeze 누적 원인
+  //   수정: kakaoMap ready 후 800ms 지나야 mount (사용자 체감 안 됨, jank 사라짐)
+  const [adminOverlayReady, setAdminOverlayReady] = useState(false);
+  useEffect(() => {
+    if (!kakaoMap) { setAdminOverlayReady(false); return; }
+    const idleCb = (cb: () => void) =>
+      typeof (window as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback === 'function'
+        ? (window as unknown as { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(cb)
+        : setTimeout(cb, 800);
+    const id = idleCb(() => setAdminOverlayReady(true));
+    return () => {
+      try { (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(id); } catch { /* noop */ }
+    };
+  }, [kakaoMap]);
   const setMap = useMap2026Store((s) => s.setMap);
   const setBbox = useMap2026Store((s) => s.setBbox);
   const setZoom = useMap2026Store((s) => s.setZoom);
@@ -616,7 +625,7 @@ export default function MapClient() {
                    listener 가 mount 되어 잠재 충돌. JSX 자체 제거 = 100% 안전. */}
               {/* Wave 66: MapOverlaysWithClusters wrapper 제거 (R-D2) +
                    HtmlMarkerOverlay 영구 제거 (R-A2). AdminRegionOverlay 만 z13 폴리곤 zone 활성. */}
-              {kakaoLevel >= 7 && (
+              {kakaoLevel >= 7 && adminOverlayReady && (
                 <MapErrorBoundary>
                   <AdminRegionOverlay map={kakaoMap} listings={listings} />
                 </MapErrorBoundary>
