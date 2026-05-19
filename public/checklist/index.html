@@ -4109,7 +4109,7 @@ function updateBottomNavText(n){
     if(IN_FLIGHT) return;
     IN_FLIGHT = true;
     var btn = document.getElementById('resultSendBtn') || document.getElementById('nwSendBtn');
-    if(btn){ btn.disabled=true; btn.style.opacity='0.5'; var orig=btn.textContent; btn.textContent='전송 중…'; btn.__orig=orig; }
+    if(btn){ btn.disabled=true; btn.style.opacity='0.5'; btn.style.cursor='wait'; btn.setAttribute('aria-busy','true'); var orig=btn.textContent; btn.innerHTML='<span class="r74-spinner" aria-hidden="true"></span>전송 중…'; btn.__orig=orig; }
     var toast = showToast({type:'info',title:'전송 중…',msg:'잠시만요',duration:0});
     var data;
     if(capturedData){
@@ -4122,7 +4122,7 @@ function updateBottomNavText(n){
            이전 사장님 발견 (2026-05-19): collectData IIFE 갇혀 fallback {cName,cPhone}
            만 전송돼 손님 매물조건/예산/지역 등 모두 손실. 다음엔 silent X. */
         if(typeof fn !== 'function'){
-          IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+          IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';btn.style.cursor='';btn.removeAttribute('aria-busy');if(btn.__orig){btn.textContent=btn.__orig;}}
           if(toast.parentNode) toast.parentNode.removeChild(toast);
           showToast({type:'error',title:'전송 준비 실패',msg:'페이지를 새로고침 후 다시 시도해주세요 (collectData 로드 실패)', duration:8000});
           if(typeof console!=='undefined') console.error('[R60] collectData 미정의 — 전송 차단');
@@ -4131,7 +4131,7 @@ function updateBottomNavText(n){
         data = fn();
         /* R60 — sections 누락 시 전송 차단 (1+섹션 필수) */
         if(!data || !data.sections || !Array.isArray(data.sections) || data.sections.length === 0){
-          IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+          IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';btn.style.cursor='';btn.removeAttribute('aria-busy');if(btn.__orig){btn.textContent=btn.__orig;}}
           if(toast.parentNode) toast.parentNode.removeChild(toast);
           showToast({type:'error',title:'전송 준비 실패',msg:'매물 조건 데이터가 누락됐어요. 페이지 새로고침 후 다시 시도해주세요', duration:8000});
           if(typeof console!=='undefined') console.error('[R60] sections 누락', data);
@@ -4139,7 +4139,7 @@ function updateBottomNavText(n){
         }
         try { var hp = document.getElementById('website'); if(hp && hp.value) data.website = hp.value; } catch(_){}
       }catch(e){
-        IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+        IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';btn.style.cursor='';btn.removeAttribute('aria-busy');if(btn.__orig){btn.textContent=btn.__orig;}}
         if(toast.parentNode) toast.parentNode.removeChild(toast);
         showToast({type:'error',title:'전송 준비 실패',msg:'페이지 새로고침 후 다시 시도해주세요'});
         return;
@@ -4162,7 +4162,7 @@ function updateBottomNavText(n){
       }
       /* 429 — 너무 많이 보냄 */
       if(res.status===429){
-        if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+        if(btn){btn.disabled=false;btn.style.opacity='';btn.style.cursor='';btn.removeAttribute('aria-busy');if(btn.__orig){btn.textContent=btn.__orig;}}
         showToast({type:'warning',title:'잠시 후 다시 시도',msg:'전송 요청이 너무 많아요. 1시간 후 다시 시도해주세요',duration:5000});
         return;
       }
@@ -4173,7 +4173,7 @@ function updateBottomNavText(n){
         RETRY_TIMER = setTimeout(function(){ actuallySend(true, data); }, 30000);
         return;
       }
-      if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+      if(btn){btn.disabled=false;btn.style.opacity='';btn.style.cursor='';btn.removeAttribute('aria-busy');if(btn.__orig){btn.textContent=btn.__orig;}}
       showToast({type:'error',title:'전송 실패',msg:'네트워크 확인 후 다시 시도해주세요',duration:5000});
     })
     .catch(function(e){
@@ -4185,7 +4185,7 @@ function updateBottomNavText(n){
         RETRY_TIMER = setTimeout(function(){ actuallySend(true, data); }, 30000);
         return;
       }
-      if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+      if(btn){btn.disabled=false;btn.style.opacity='';btn.style.cursor='';btn.removeAttribute('aria-busy');if(btn.__orig){btn.textContent=btn.__orig;}}
       showToast({type:'error',title:'전송 실패',msg:'잠시 후 다시 시도해주세요',duration:5000});
     });
   }
@@ -5071,6 +5071,22 @@ function updateBottomNavText(n){
   font-weight: 600 !important;
   box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04) !important;
 }
+/* ─── R74 — submit btn loading spinner ─── */
+.r74-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-right: 8px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #FFFFFF;
+  border-radius: 50%;
+  animation: r74-spin 0.7s linear infinite;
+  vertical-align: middle;
+}
+@keyframes r74-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* R72 — rating-seg radio 의 selected = 다른 chip-seg 와 동일 (흰 배경 + 검정 글자) */
 .rating-seg .rating-chip.on {
   background: #FFFFFF !important;
