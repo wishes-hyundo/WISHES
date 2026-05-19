@@ -1923,6 +1923,40 @@ html, body { font-family: var(--ws-font-system); font-display: optional; }
   };
 })();
 </script>
+
+<style>/* R119-MODERN-CSS */
+/* R119: 2026 modern Web Platform — :user-invalid / :user-valid native (JS 의존 ↓) */
+input:user-invalid, textarea:user-invalid {
+  box-shadow: inset 0 0 0 1.5px var(--ios-red, #FF3B30);
+  background-image: linear-gradient(180deg, rgba(255,59,48,0.04), transparent);
+}
+input:user-valid, textarea:user-valid {
+  box-shadow: inset 0 0 0 1.5px rgba(52,199,89,0.5);
+}
+/* R119: View Transitions API (Chrome 111+, Safari 18) */
+@view-transition {
+  navigation: auto;
+}
+::view-transition-old(root), ::view-transition-new(root) {
+  animation-duration: 280ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+}
+/* R119: @starting-style for STEP entry animation (Chrome 117+) */
+@starting-style {
+  .page.active { opacity: 0; transform: translateX(20px); }
+}
+/* R119: Container Queries — robust card layout */
+.card { container-type: inline-size; }
+@container (max-width: 360px) {
+  .frow.c2, .form-row.c2 { grid-template-columns: 1fr !important; gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  @starting-style { .page.active { opacity: 1; transform: none; } }
+  ::view-transition-old(root), ::view-transition-new(root) {
+    animation-duration: 0ms;
+  }
+}
+</style>
 </head>
 
 <body>
@@ -2016,7 +2050,7 @@ html, body { font-family: var(--ws-font-system); font-display: optional; }
 
           <label class="flabel" for="cName">손님 성함 <span class="req">*</span></label>
 
-          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" minlength="2" autocapitalize="words" spellcheck="false" inputmode="text" lang="ko" aria-required="true"/>
+          <input type="text" id="cName" placeholder="예: 김민수" autocomplete="name" maxlength="30" minlength="2" autocapitalize="words" spellcheck="false" inputmode="text" lang="ko" aria-required="true"/>
 
         </div>
 
@@ -2991,7 +3025,7 @@ function pickDeal(el, val){
   document.getElementById('bDefault').style.display = 'none';
 
   /* R33 ❸ — 매매 대출 chip wrap 토글 (g-jeonLoan 은 bJeon 안이라 자동) */
-  var lr = document.getElementById('loan-row'); if(lr) lr.style.display = val==="덤매"?'block':'none';
+  var lr = document.getElementById('loan-row'); if(lr) lr.style.display = val==="매매"?'block':'none';
 
   // ㊑ 자동 스크롤 to 예산 영역
   setTimeout(function(){
@@ -4504,7 +4538,7 @@ function updateBottomNavText(n){
       return false;
     }
     if(digits.length<10 || !/^010/.test(digits)){
-      showToast({type:'warning',title:'전화번호 확인',msg:'010 으로 시작하는 휴대폰 번호를 입력해주세요'});
+      showToast({type:'warning',title:'전화번호 확인',msg:'010 으로 시작하는 11자리 번호 입력해주세요 (예: 010-1234-5678)'});
       if(typeof goPage==='function') goPage(1);
       setTimeout(function(){ var el=document.getElementById('cPhone'); if(el) el.focus(); }, 350);
       return false;
@@ -6263,6 +6297,364 @@ function updateBottomNavText(n){
       }
     }catch(_){}
   });
+})();
+</script>
+
+<script>/* R119-SLA-URGENCY-MICROCOPY */
+(function(){
+  // R119: 영업 우선순위 + 손님 next action + 친절 카피 + 부동산 추가 hint
+  if(window.__r119Applied) return;
+  window.__r119Applied = true;
+
+  /* C4: 전송 완료 페이지에 SLA / next-action 안내 추가 */
+  function addSLA(){
+    try{
+      var page6 = document.getElementById('page6') || document.getElementById('page-result');
+      if(!page6) return;
+      if(page6.querySelector('.r119-sla')) return;
+      var hour = new Date().getHours();
+      var weekend = [0,6].indexOf(new Date().getDay()) >= 0;
+      var slaText;
+      if(weekend){
+        slaText = '📞 위시스 사장님이 평일 오전 9시 첫 연락 드립니다.';
+      } else if(hour >= 9 && hour < 20){
+        slaText = '📞 위시스 사장님이 평일 09–20시 1~2시간 내 010 으로 연락 드립니다.';
+      } else if(hour >= 20 || hour < 9){
+        slaText = '📞 위시스 사장님이 다음날 오전 9시 첫 연락 드립니다.';
+      }
+      var sla = document.createElement('div');
+      sla.className = 'r119-sla';
+      sla.style.cssText = 'margin:14px 16px;padding:14px 16px;background:linear-gradient(135deg,#E5F4EB 0%,#D6F0FA 100%);border-radius:12px;color:#1C1C1E;font-size:13px;line-height:1.6;text-align:center';
+      sla.innerHTML = '<div style="font-weight:700;margin-bottom:4px;color:#007AFF">📋 다음은 어떻게 되나요?</div><div>'+slaText+'</div><div style="margin-top:6px;font-size:11px;color:#666">위시스 부동산 (13년 경력) — 다른 곳보다 빨리 매물 보여드릴 수 있도록 노력합니다</div>';
+      var hero = page6.querySelector('.r-hero, h2, .hero') || page6.firstChild;
+      if(hero && hero.parentNode){ hero.parentNode.insertBefore(sla, hero.nextSibling); }
+      else { page6.insertBefore(sla, page6.firstChild); }
+    }catch(_){}
+  }
+  // goPage 후 fire (R115 lock 안전)
+  document.addEventListener('DOMContentLoaded', addSLA);
+  addSLA();
+  // page-result class 변화 감지
+  var obs = new MutationObserver(function(){
+    if(document.querySelector('#page6.active, #page-result.active')) addSLA();
+  });
+  obs.observe(document.body, {childList:true, subtree:true, attributeFilter:['class']});
+
+  /* C3: 결정 시점 / 급함 indicator — STEP 1 마지막에 chip-seg 추가 */
+  function addUrgency(){
+    try{
+      if(document.getElementById('r119-urgency-wrap')) return;
+      // STEP 1 page1 안에 추가
+      var page1 = document.getElementById('page1');
+      if(!page1) return;
+      var wrap = document.createElement('div');
+      wrap.id = 'r119-urgency-wrap';
+      wrap.className = 'fg';
+      wrap.style.cssText = 'margin:12px 16px 0';
+      wrap.innerHTML = '<label style="font-size:12px;color:#666;margin-bottom:6px;display:block">⏰ 언제 결정하실 계획이세요? <span style="color:#999;font-weight:400">(선택)</span></label>'+
+        '<div id="g-urgency" class="chip-seg" role="radiogroup" aria-label="결정 시점" style="display:flex;flex-wrap:wrap;gap:6px">'+
+        '<button type="button" class="chip" data-v="이번주" data-r119urg="이번주">🔥 이번주</button>'+
+        '<button type="button" class="chip" data-v="2주 이내" data-r119urg="2주 이내">🚀 2주 이내</button>'+
+        '<button type="button" class="chip" data-v="1개월 이내" data-r119urg="1개월 이내">📅 1개월</button>'+
+        '<button type="button" class="chip" data-v="천천히" data-r119urg="천천히">🌿 천천히</button>'+
+        '<button type="button" class="chip" data-v="알아보는 중" data-r119urg="알아보는 중">👀 알아보는 중</button>'+
+        '</div>';
+      // STEP 1 의 마지막 fg 또는 nav 직전에 삽입
+      var nav = page1.querySelector('.bottom-nav, .nav, [data-nav]');
+      if(nav && nav.parentNode === page1){
+        page1.insertBefore(wrap, nav);
+      } else {
+        page1.appendChild(wrap);
+      }
+      // chip 클릭 handler
+      var chips = wrap.querySelectorAll('.chip');
+      chips.forEach(function(c){
+        c.addEventListener('click', function(){
+          chips.forEach(function(x){ x.classList.remove('on'); x.style.background=''; x.style.color=''; });
+          c.classList.add('on');
+          c.style.background = '#007AFF';
+          c.style.color = '#FFF';
+          try{
+            window.S = window.S || {};
+            window.S.urgency = c.getAttribute('data-r119urg');
+          }catch(_){}
+        });
+      });
+    }catch(_){}
+  }
+  setTimeout(addUrgency, 200);
+
+  /* M8: 매물 종류별 추가 hint */
+  function addPropTypeHint(){
+    try{
+      var hintEl = document.getElementById('r119-prop-hint');
+      if(!hintEl){
+        hintEl = document.createElement('div');
+        hintEl.id = 'r119-prop-hint';
+        hintEl.style.cssText = 'margin:6px 16px 0;padding:8px 12px;background:#F2F2F7;border-radius:8px;font-size:11px;color:#666;display:none';
+        var propRow = document.getElementById('g-propType');
+        if(propRow && propRow.parentNode){
+          propRow.parentNode.appendChild(hintEl);
+        } else { return; }
+      }
+      var propChips = document.querySelectorAll('#g-propType .chip');
+      propChips.forEach(function(c){
+        c.addEventListener('click', function(){
+          var v = c.getAttribute('data-v') || c.textContent.trim();
+          var hints = {
+            '아파트': '💡 평수 / 층 선호 / 주차 / 학군 등은 STEP 3 메모란에 알려주세요',
+            '오피스텔': '💡 사무용 vs 주거용 / 화장실 / 베란다 유무 — STEP 3 메모',
+            '단독': '💡 대지면적 / 마당 / 주차 가능 대수 — STEP 3 메모',
+            '다세대': '💡 전입신고 가능 여부 / 보증보험 가입 가능 매물 우선',
+            '빌라': '💡 신축 / 구축 / 엘리베이터 / 베란다 확장 — STEP 3 메모',
+            '상가': '💡 임대 용도 (음식점/사무실/소매) / 주변 유동인구',
+            '사무실': '💡 직원 수 / 입주 시점 / 주차 — STEP 3 메모',
+            '토지': '💡 용도지역 (전/답/대지) 모르시면 패스, 면적만 알려주세요',
+            '고시원': '💡 매매보다 임대 매물이 일반적입니다'
+          };
+          var hint = hints[v];
+          if(hint){
+            hintEl.textContent = hint;
+            hintEl.style.display = 'block';
+          } else {
+            hintEl.style.display = 'none';
+          }
+        });
+      });
+    }catch(_){}
+  }
+  setTimeout(addPropTypeHint, 500);
+
+  /* C2: 매물 × 거래 모순 hint (block X, 부드러운 알림) */
+  function detectIncompat(){
+    try{
+      var deal = (window.S && window.S.deal) || '';
+      var prop = (window.S && window.S.propType) || '';
+      var incompat = {
+        '토지+전세': '🏞 토지는 보통 매매로 거래합니다',
+        '토지+월세': '🏞 토지는 보통 매매로 거래합니다',
+        '고시원+매매': '🏠 고시원은 보통 월세로 거래합니다',
+        '창고+전세': '🏭 창고는 보통 월세 또는 임대로 거래합니다'
+      };
+      var key = prop + '+' + deal;
+      var msg = incompat[key];
+      var hint = document.getElementById('r119-incompat-hint');
+      if(msg){
+        if(!hint){
+          hint = document.createElement('div');
+          hint.id = 'r119-incompat-hint';
+          hint.style.cssText = 'margin:6px 16px 0;padding:10px 14px;background:#FFF4E5;border:1px solid #FFB84D;border-radius:8px;font-size:12px;color:#8B4513';
+          var propRow = document.getElementById('g-propType');
+          if(propRow && propRow.parentNode){ propRow.parentNode.appendChild(hint); }
+        }
+        hint.textContent = msg + ' (그래도 검색 가능, 사장님이 매물 알아봐 드립니다)';
+        hint.style.display = 'block';
+      } else if(hint){
+        hint.style.display = 'none';
+      }
+    }catch(_){}
+  }
+  // pick 호출 후 detect
+  if(typeof window.pick === 'function' && !window.pick.__r119){
+    var origPick = window.pick;
+    window.pick = function(){
+      var r = origPick.apply(this, arguments);
+      setTimeout(detectIncompat, 50);
+      return r;
+    };
+    window.pick.__r119 = true;
+  }
+
+  /* MAJOR-23: resetAll confirm 카피 강화 */
+  var origReset = window.resetAll;
+  if(typeof origReset === 'function' && !origReset.__r119){
+    window.resetAll = function(){
+      var ok = confirm('지금까지 입력하신 모든 내용이 삭제됩니다.\n\n새로 시작하시겠어요?');
+      if(!ok) return;
+      return origReset.apply(this, arguments);
+    };
+    window.resetAll.__r119 = true;
+  }
+
+  /* analytics: time-on-field + paste vs type + propType 변경 */
+  var fieldTimes = {};
+  document.addEventListener('focusin', function(e){
+    if(e.target.matches('input,textarea,select')){
+      fieldTimes[e.target.id || e.target.name] = Date.now();
+    }
+  });
+  document.addEventListener('focusout', function(e){
+    if(e.target.matches('input,textarea,select')){
+      var id = e.target.id || e.target.name;
+      var t0 = fieldTimes[id];
+      if(t0 && window.__r102Track){
+        var ms = Date.now() - t0;
+        if(ms > 1000 && ms < 5*60*1000){
+          window.__r102Track('field_time', {field: id, ms: ms});
+        }
+      }
+    }
+  });
+  document.addEventListener('paste', function(e){
+    var id = e.target.id || e.target.name;
+    if(id && window.__r102Track){
+      window.__r102Track('paste', {field: id});
+    }
+  });
+  // propType 변경 횟수
+  var propChangeCount = 0;
+  document.addEventListener('click', function(e){
+    if(e.target.closest && e.target.closest('#g-propType .chip')){
+      propChangeCount++;
+      if(propChangeCount >= 3 && window.__r102Track){
+        window.__r102Track('prop_change', {n: propChangeCount});
+      }
+    }
+  });
+
+  /* MAJOR-21: result page bottom-nav 시각 위계 — btn-send 강조 */
+  function emphasizeSend(){
+    try{
+      var send = document.querySelector('#resultSendBtn, .nw-send, .btn-send');
+      if(send && !send.__r119){
+        send.__r119 = true;
+        send.style.flex = '2';
+        send.style.fontWeight = '700';
+        send.style.fontSize = '15px';
+        send.style.boxShadow = '0 2px 8px rgba(0,122,255,0.25)';
+      }
+    }catch(_){}
+  }
+  setTimeout(emphasizeSend, 800);
+
+  /* MINOR-24: 미성년자 안내 (consent 옆 라인 — soft) */
+  function addMinorNotice(){
+    try{
+      if(document.getElementById('r119-minor-notice')) return;
+      var consent = document.getElementById('agreePrivacy') || document.querySelector('input[name="agree"]');
+      if(!consent) return;
+      var label = consent.closest('label, .check-line, .fg') || consent.parentNode;
+      if(!label) return;
+      var notice = document.createElement('div');
+      notice.id = 'r119-minor-notice';
+      notice.style.cssText = 'font-size:10px;color:#999;margin-top:4px;line-height:1.4';
+      notice.textContent = '※ 만 19세 미만은 보호자와 함께 상담을 권장합니다';
+      label.parentNode.insertBefore(notice, label.nextSibling);
+    }catch(_){}
+  }
+  setTimeout(addMinorNotice, 1000);
+
+  /* MAJOR-22: 가족·지인 추천 (referral) — result page 에 button 1개 */
+  function addReferralBtn(){
+    try{
+      var page6 = document.getElementById('page6') || document.getElementById('page-result');
+      if(!page6 || page6.querySelector('.r119-referral')) return;
+      if(!page6.classList.contains('active')) return;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'r119-referral';
+      btn.style.cssText = 'margin:14px 16px;padding:12px 16px;background:#FFF;border:1.5px solid #007AFF;border-radius:10px;color:#007AFF;font-size:13px;font-weight:600;width:calc(100% - 32px);cursor:pointer';
+      btn.innerHTML = '📨 가족·지인에게 위시스 추천하기';
+      btn.addEventListener('click', function(){
+        try{
+          if(navigator.share){
+            navigator.share({
+              title: '위시스 부동산 — 13년 경력 사장님이 매물 찾아드려요',
+              text: '위시스 부동산 무료 상담 양식. 사장님이 직접 매물 알아봐 주세요.',
+              url: 'https://wishes.co.kr/checklist'
+            }).catch(function(){});
+          } else {
+            // 카톡 공유 fallback (Kakao SDK 있으면)
+            var url = 'https://wishes.co.kr/checklist';
+            navigator.clipboard.writeText(url).then(function(){
+              if(typeof window.showToast === 'function'){
+                window.showToast({type:'info', title:'링크 복사됨', msg:'카톡/문자에 붙여넣어 주세요'});
+              }
+            });
+          }
+        }catch(_){}
+      });
+      page6.appendChild(btn);
+    }catch(_){}
+  }
+  setInterval(addReferralBtn, 2000);
+
+  /* MINOR-19: "더 정확한 매물" 카피 → 손님 이익 frame */
+  setTimeout(function(){
+    try{
+      document.querySelectorAll('*').forEach(function(el){
+        if(el.children.length === 0 && el.textContent === '더 정확한 매물 추천'){
+          el.textContent = '헛수고 매물 안 보여드립니다 (선택)';
+        }
+      });
+    }catch(_){}
+  }, 1200);
+})();
+</script>
+
+<script>/* R119-WEB-LOCKS */
+(function(){
+  // R119 M13: Web Locks API — 진짜 multi-tab mutex (R114 storage event 보완)
+  if(!navigator.locks) return; // older browser fallback to R114
+  var origSend = window.actuallySend;
+  if(typeof origSend !== 'function' || origSend.__r119wl) return;
+  window.actuallySend = function(){
+    var args = arguments;
+    return navigator.locks.request('ws-checklist-send', {mode:'exclusive', ifAvailable:true}, function(lock){
+      if(!lock){
+        if(typeof window.showToast === 'function'){
+          window.showToast({type:'info', title:'전송 중', msg:'다른 탭에서 전송 중이에요'});
+        }
+        return Promise.resolve(false);
+      }
+      return Promise.resolve(origSend.apply(this, args));
+    }.bind(this));
+  };
+  window.actuallySend.__r119wl = true;
+})();
+</script>
+<script>/* R119-VIEW-TRANSITIONS */
+(function(){
+  // R119 M11: View Transitions API — STEP 전환 GPU compositor 자연 morph
+  if(!document.startViewTransition) return;
+  if(window.__r119vtApplied) return;
+  window.__r119vtApplied = true;
+  var origGoPage = window.goPage;
+  if(typeof origGoPage !== 'function') return;
+  window.goPage = function(n){
+    if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+      return origGoPage.apply(this, arguments);
+    }
+    var args = arguments;
+    var ctx = this;
+    var r;
+    document.startViewTransition(function(){
+      r = origGoPage.apply(ctx, args);
+    });
+    return r;
+  };
+})();
+</script>
+
+<script>/* R119-CONSENT-DIRECT */
+(function(){
+  // R119 M14: GDPR consent visit track — polling 대신 직접 change listener
+  function attach(){
+    var box = document.querySelector('input[name="agree"], #agreePrivacy');
+    if(!box) { setTimeout(attach, 500); return; }
+    if(box.__r119) return;
+    box.__r119 = true;
+    box.addEventListener('change', function(){
+      if(box.checked && window.__r102Track){
+        window.__r102Track('visit');
+        // 기존 R117 polling interval 정리
+        try{
+          if(window.__r117ConsentInterval) clearInterval(window.__r117ConsentInterval);
+        }catch(_){}
+      }
+    });
+  }
+  attach();
 })();
 </script>
 </body>
