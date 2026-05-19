@@ -48,6 +48,26 @@ export default function SearchPortalPage() {
         (window as unknown as { __WS_LITE_MODE__?: boolean }).__WS_LITE_MODE__ = true;
         console.warn('[WS-LITE-MODE] 진단 모드 — 모든 patch 차단. 정상 사용 시 ?lite 제거.');
       }
+      // [Step 30 진단] ?disable=v305,v270 형식으로 개별 patch 차단
+      // [Step 31 fix] sessionStorage 백업 — login redirect 시 URL params 사라져도 보존
+      let disableParam = params.get('disable') || '';
+      try {
+        if (disableParam === 'clear') {
+          sessionStorage.removeItem('__WS_DISABLE_PATCHES__');
+          console.warn('[WS-DISABLE-MODE] sessionStorage cleared. 새로고침 후 정상 사용.');
+          disableParam = '';
+        } else if (disableParam) {
+          sessionStorage.setItem('__WS_DISABLE_PATCHES__', disableParam);
+        } else {
+          disableParam = sessionStorage.getItem('__WS_DISABLE_PATCHES__') || '';
+          if (disableParam) console.info('[WS-DISABLE-MODE] sessionStorage 복원:', disableParam);
+        }
+      } catch {}
+      if (disableParam) {
+        const disabledIds = new Set(disableParam.split(',').map(s => s.trim().toLowerCase()).filter(Boolean));
+        (window as unknown as { __WS_DISABLED_PATCHES__?: Set<string> }).__WS_DISABLED_PATCHES__ = disabledIds;
+        console.warn('[WS-DISABLE-MODE] 차단 patch ids:', Array.from(disabledIds));
+      }
     } catch {}
     let cancelled = false;
     const refreshAndPersist = async () => {
