@@ -1481,6 +1481,17 @@ input:-webkit-autofill:focus {
 /* ═══════════════════════════════════════════════════════════════
    R59 — 인쇄 / PDF 저장 시 강제 라이트 모드 + UI 숨김
    ═══════════════════════════════════════════════════════════════ */
+/* R65 — 모바일 가로 모드 viewport */
+@media (orientation: landscape) and (max-height: 500px) {
+  body.ws-landscape-mobile .topbar { padding: 4px 12px; }
+  body.ws-landscape-mobile .logo-mark { width: 28px; height: 28px; font-size: 14px; }
+  body.ws-landscape-mobile .step-nav { padding: 4px 0; }
+  body.ws-landscape-mobile .step-btn { font-size: 0.75rem; padding: 6px 4px; }
+  body.ws-landscape-mobile .layout { padding: 8px 12px 90px; }
+  body.ws-landscape-mobile .card-body { padding: 8px 12px; }
+  body.ws-landscape-mobile .r23-intro-banner { display: none; }
+}
+
 @media print {
   html, body, .layout, .card, .card-body, .summary-card {
     background: #FFFFFF !important;
@@ -1650,9 +1661,9 @@ input:-webkit-autofill:focus {
 <!-- ══ STEP NAV ══ -->
 
 <div class="step-nav" id="stepNav">
-      <button class="step-btn active" data-step="1" onclick="goPage(1)"><span class="step-badge">1</span>기본상담<span class="step-sub">성함·연락처</span></button>
-      <button class="step-btn" data-step="2" onclick="goPage(2)"><span class="step-badge">2</span>매물조건<span class="step-sub">예산·지역</span></button>
-      <button class="step-btn" data-step="3" onclick="goPage(3)"><span class="step-badge">3</span>추가상담<span class="step-sub">시설·옵션</span></button>
+      <button class="step-btn active" data-step="1" onclick="(window.__r64SafeGoPage||goPage)(1)"><span class="step-badge">1</span>기본상담<span class="step-sub">성함·연락처</span></button>
+      <button class="step-btn" data-step="2" onclick="(window.__r64SafeGoPage||goPage)(2)"><span class="step-badge">2</span>매물조건<span class="step-sub">예산·지역</span></button>
+      <button class="step-btn" data-step="3" onclick="(window.__r64SafeGoPage||goPage)(3)"><span class="step-badge">3</span>추가상담<span class="step-sub">시설·옵션</span></button>
     </div>
 
 
@@ -3116,6 +3127,60 @@ function resetAll(){
         origNextPage();
       };
     })();
+    /* ═══════════════ R65 — ESC 키 일관성 + content_lock cleanup ═══════════════ */
+    (function initR65Hardening(){
+      // ESC 키 — 열려있는 모든 시트/모달 닫기 (일관 동작 보장)
+      document.addEventListener('keydown', function(e){
+        if(e.key !== 'Escape' && e.key !== 'Esc') return;
+        // Picker sheet
+        var pickerBd = document.querySelector('.ios-sheet-backdrop:not([data-no-esc])');
+        if(pickerBd){ pickerBd.click(); e.preventDefault(); return; }
+        // Review modal (#ws-review)
+        var review = document.getElementById('ws-review');
+        if(review){
+          var cancel = review.querySelector('button');
+          if(cancel) cancel.click();
+          else review.remove();
+          e.preventDefault();
+          return;
+        }
+        // Edit dropdown
+        var dd = document.querySelector('.edit-dropdown.show');
+        if(dd){ dd.classList.remove('show'); e.preventDefault(); return; }
+      }, false);
+
+      // localStorage content_lock 정기 cleanup (1시간 지난 항목 제거)
+      try {
+        var CK = 'ws_chk_recent_content';
+        setInterval(function(){
+          try {
+            var raw = localStorage.getItem(CK);
+            if(!raw) return;
+            var arr = JSON.parse(raw);
+            if(!Array.isArray(arr)) return;
+            var now = Date.now();
+            var fresh = arr.filter(function(r){ return r && r.t && (now - r.t) < 5*60*1000; });
+            if(fresh.length !== arr.length){
+              localStorage.setItem(CK, JSON.stringify(fresh));
+            }
+          } catch(_){}
+        }, 60000);
+      } catch(_){}
+
+      // 가로 모드 viewport — 모바일에서 가로 시 layout 깨짐 방지
+      try {
+        var mq = window.matchMedia('(orientation: landscape) and (max-height: 500px)');
+        function applyLandscape(e){
+          var body = document.body;
+          if(e.matches){ body.classList.add('ws-landscape-mobile'); }
+          else { body.classList.remove('ws-landscape-mobile'); }
+        }
+        applyLandscape(mq);
+        if(mq.addEventListener) mq.addEventListener('change', applyLandscape);
+        else if(mq.addListener) mq.addListener(applyLandscape);
+      } catch(_){}
+    })();
+
     /* ═══════════════ R64 — step-btn 클릭 시 검증 통과한 step 만 ═══════════════ */
     (function initSafeStepNav(){
       window.__r64SafeGoPage = function(targetStep){
