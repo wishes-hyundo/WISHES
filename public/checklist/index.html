@@ -3095,7 +3095,7 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">희망 입주일</div><div class="sc-val">${_esc(gv('moveDate'))||EMPTY}</div></div>
+        <div class="sc-row"><div class="sc-key">희망 입주일</div><div class="sc-val">${_esc(gv('f-moveDate'))||EMPTY}</div></div>
 
         <div class="sc-row"><div class="sc-key">입주 유연성</div><div class="sc-val">${gc('g-moveFlex')||EMPTY}</div></div>
         <div class="sc-row"><div class="sc-key">금일 계약</div><div class="sc-val">${gc('g-contractToday')||EMPTY}</div></div>
@@ -3104,7 +3104,7 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">거주 구성원</div><div class="sc-val">${gc('g-house')||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">특별 조건</div><div class="sc-val">${gc('g-spec')||EMPTY}</div></div>
+        <!-- R86 — 특별 조건 row 제거: form 에 g-spec UI 없음 (dead UI) -->
 
       </div>
 
