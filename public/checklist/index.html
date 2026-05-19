@@ -1957,6 +1957,117 @@ input:user-valid, textarea:user-valid {
   }
 }
 </style>
+
+<style>/* R124-LAYOUT-FIX */
+/* R124 사장님 지적 — chip-seg 깔끔하게 배치 */
+
+/* 1점/2점/.../5점 rating chip — 한 행에 동일 폭 5등분 */
+.rating-seg, .chips-seg.rating-seg {
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 4px !important;
+}
+.rating-seg .chip,
+.rating-seg .rating-chip {
+  padding: 8px 0 !important;
+  text-align: center;
+  font-size: 12.5px !important;
+  min-width: 0 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 계약 기간 chip-seg — 4개 동일 폭 */
+[id="g-leaseTerm"], .chips[data-k="leaseTerm"], [aria-label*="계약 기간"], [aria-labelledby*="계약"] {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 4px !important;
+}
+
+/* 지하철 도보 거리 chip-seg — 5개 동일 폭 (한 행에 fit, 글자 줄임 X) */
+.chips[data-k="subwayWalk"], [aria-labelledby*="지하철"] {
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 4px !important;
+}
+.chips[data-k="subwayWalk"] .chip {
+  padding: 8px 4px !important;
+  font-size: 11.5px !important;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+/* 주요 이동 수단 chips — 5개 한 행 (도보 wrap 방지) */
+.chips[data-k="transport"], [aria-labelledby*="이동 수단"] {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 6px !important;
+}
+.chips[data-k="transport"] .chip {
+  flex: 1 1 auto !important;
+  min-width: 88px;
+  text-align: center;
+}
+
+/* 모든 chips-seg 일반 — 동일 폭 + wrap 안전 */
+.chips-seg {
+  display: grid !important;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+}
+@media (max-width: 480px) {
+  .chips-seg {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fit, minmax(60px, 1fr));
+  }
+}
+
+/* 배경 일관성 — body 회색 배경 + 카드 흰 배경 명확 분리 */
+body {
+  background: #F2F2F7 !important;
+}
+.page {
+  background: transparent !important;
+}
+.card {
+  background: #FFFFFF !important;
+  margin-bottom: 12px !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.03) !important;
+}
+/* card 사이 빈 공간 제거 — 일관성 */
+.card + .card {
+  margin-top: 0 !important;
+}
+
+/* 결과 페이지 (page6) 배치 균형 — 회사 정보 / 추천 버튼 / 회사 정보 박스 폭 일치 */
+#page6 .r119-referral,
+#page-result .r119-referral {
+  width: calc(100% - 32px) !important;
+  margin: 12px 16px !important;
+  padding: 12px 16px !important;
+  font-size: 13px !important;
+}
+#page6 .ws-footer-box,
+#page-result .ws-footer-box {
+  margin: 12px 16px !important;
+  padding: 12px 14px !important;
+}
+
+/* 다크모드 일관성 */
+@media (prefers-color-scheme: dark) {
+  body { background: #000 !important; }
+  .card { background: #1C1C1E !important; }
+}
+
+/* 인쇄 시 chip-seg 가독성 */
+@media print {
+  .rating-seg, .chips-seg { display: flex !important; flex-wrap: wrap !important; }
+}
+</style>
 </head>
 
 <body>
@@ -2050,7 +2161,7 @@ input:user-valid, textarea:user-valid {
 
           <label class="flabel" for="cName">손님 성함 <span class="req">*</span></label>
 
-          <input type="text" id="cName" placeholder="예: 김민수" autocomplete="name" maxlength="30" minlength="2" autocapitalize="words" spellcheck="false" inputmode="text" lang="ko" aria-required="true"/>
+          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" minlength="2" autocapitalize="words" spellcheck="false" inputmode="text" lang="ko" aria-required="true"/>
 
         </div>
 
@@ -6917,36 +7028,13 @@ body { padding-bottom: 60px; }
   if(window.__r123Applied) return;
   window.__r123Applied = true;
 
-  /* MAJOR #8: 양식 첫 화면 onboarding banner — 5분 / 필수 X / 선택 Y */
-  function addMetaBanner(){
+  /* R124: onboarding banner 제거 (사장님 명령) — 기존 "약 1분이면 끝나요" 와 중복 */
+  function removeMetaBanner(){
     try{
-      var page1 = document.getElementById('page1') || document.getElementById('page-1');
-      if(!page1 || page1.querySelector('.r123-meta-banner')) return;
-      var banner = document.createElement('div');
-      banner.className = 'r123-meta-banner';
-      banner.setAttribute('role', 'region');
-      banner.setAttribute('aria-label', '양식 안내');
-      banner.innerHTML = ''+
-        '<span class="r123-meta-icon" aria-hidden="true">✨</span>'+
-        '<div class="r123-meta-text">'+
-        '<strong>약 3~5분 소요</strong>'+
-        '<div style="font-size:11.5px;color:#444;margin-top:2px">사장님이 매물 찾기 전에 알아야 할 정보를 묻습니다</div>'+
-        '<div class="r123-meta-stats">'+
-        '  <span>📝 필수 3개</span>'+
-        '  <span>💡 선택 다수</span>'+
-        '  <span>🔒 SSL 암호화 전송</span>'+
-        '</div>'+
-        '</div>';
-      // STEP 1 카드 위에 삽입
-      var firstCard = page1.querySelector('.card');
-      if(firstCard && firstCard.parentNode){
-        firstCard.parentNode.insertBefore(banner, firstCard);
-      } else {
-        page1.insertBefore(banner, page1.firstChild);
-      }
+      document.querySelectorAll('.r123-meta-banner').forEach(function(el){ el.remove(); });
     }catch(_){}
   }
-  setTimeout(addMetaBanner, 200);
+  setInterval(removeMetaBanner, 2000);
 
   /* CRITICAL #4: a11y — chips group 에 aria-labelledby 명시 + 그룹 컨텍스트 강화 */
   function enhanceA11y(){
@@ -7039,20 +7127,13 @@ body { padding-bottom: 60px; }
   }
   setTimeout(addHelpButtons, 600);
 
-  /* MAJOR #14: 양식 제출 후 수정 path 안내 */
-  function addEditPath(){
+  /* R124: 수정 path 안내 제거 (사장님 명령) */
+  function removeEditPath(){
     try{
-      var page6 = document.getElementById('page6') || document.getElementById('page-result');
-      if(!page6 || !page6.classList.contains('active')) return;
-      if(page6.querySelector('.r123-edit-path')) return;
-      var edit = document.createElement('div');
-      edit.className = 'r123-edit-path';
-      edit.style.cssText = 'margin:14px 16px;padding:10px 14px;background:#FFF;border:1px dashed #C7C7CC;border-radius:10px;font-size:11.5px;color:#666;text-align:center;line-height:1.5';
-      edit.innerHTML = '✏️ 입력 내용을 수정하고 싶으시면 <strong style="color:#007AFF">1533-9580</strong> 으로 전화 또는 문자 주세요';
-      page6.appendChild(edit);
+      document.querySelectorAll('.r123-edit-path').forEach(function(el){ el.remove(); });
     }catch(_){}
   }
-  setInterval(addEditPath, 2000);
+  setInterval(removeEditPath, 2000);
 })();
 </script>
 </body>
