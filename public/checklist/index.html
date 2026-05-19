@@ -6632,6 +6632,195 @@ function updateBottomNavText(n){
   attach();
 })();
 </script>
+
+<style>/* R121-HELPLINE */
+#r121-helpline {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0));
+  background: rgba(242, 242, 247, 0.96);
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
+  text-align: center;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: #6C6C70;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  z-index: 9990;
+  transition: transform 220ms ease, background 220ms ease, color 220ms ease;
+}
+#r121-helpline a {
+  color: #007AFF;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) and (pointer: fine) {
+  #r121-helpline a:hover { background: rgba(0, 122, 255, 0.08); }
+}
+#r121-helpline a:active { background: rgba(0, 122, 255, 0.16); }
+#r121-helpline .r121-icon { margin-right: 4px; }
+#r121-helpline .r121-sep { margin: 0 4px; color: #C7C7CC; font-weight: 400; }
+#r121-helpline .r121-note { display: block; margin-top: 2px; font-size: 10.5px; color: #8E8E93; }
+
+/* 에러 발생 시 강조 모드 (R121 helpline.error class) */
+#r121-helpline.r121-alert {
+  background: rgba(255, 244, 229, 0.97);
+  color: #8B4513;
+  border-top-color: #FFB84D;
+  animation: r121-pulse 1.2s ease-in-out 2;
+}
+@keyframes r121-pulse {
+  0%, 100% { box-shadow: 0 -2px 0 rgba(255, 184, 77, 0); }
+  50%      { box-shadow: 0 -2px 12px rgba(255, 184, 77, 0.7); }
+}
+
+/* 양식 bottom-nav 가리지 않게 body 하단 padding */
+body { padding-bottom: 60px; }
+@supports (padding: env(safe-area-inset-bottom)) {
+  body { padding-bottom: calc(60px + env(safe-area-inset-bottom, 0)); }
+}
+/* fixed bottom-nav (전송 버튼 등) 가 r121-helpline 위로 */
+.bottom-nav, .b-nav, [data-bottom-nav], .nav.fixed {
+  bottom: calc(50px + env(safe-area-inset-bottom, 0)) !important;
+}
+
+/* 다크모드 */
+@media (prefers-color-scheme: dark) {
+  #r121-helpline {
+    background: rgba(28, 28, 30, 0.92);
+    color: #98989F;
+    border-top-color: rgba(255, 255, 255, 0.12);
+  }
+  #r121-helpline a { color: #0A84FF; }
+  #r121-helpline.r121-alert {
+    background: rgba(75, 50, 20, 0.96);
+    color: #FFD89D;
+    border-top-color: #C97B0D;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #r121-helpline { transition: none; }
+  #r121-helpline.r121-alert { animation: none; }
+}
+
+/* @media print — 인쇄 시 숨김 */
+@media print {
+  #r121-helpline { display: none !important; }
+}
+</style>
+<script>/* R121-HELPLINE */
+(function(){
+  // R121: 1533-9580 대표번호 항시 footer + 에러 시 자동 강조
+  if(window.__r121Applied) return;
+  window.__r121Applied = true;
+
+  function ensureFooter(){
+    if(document.getElementById('r121-helpline')) return;
+    var bar = document.createElement('div');
+    bar.id = 'r121-helpline';
+    bar.setAttribute('role', 'region');
+    bar.setAttribute('aria-label', '문의 연락처');
+    bar.innerHTML = ''+
+      '<span class="r121-icon" aria-hidden="true">📞</span>'+
+      '<span>도움 / 불편사항: </span>'+
+      '<a href="tel:1533-9580" data-r121-call aria-label="1533-9580 으로 전화 걸기">1533-9580</a>'+
+      '<span class="r121-sep">·</span>'+
+      '<a href="sms:15339580" data-r121-sms aria-label="1533-9580 으로 문자 보내기">문자 보내기</a>'+
+      '<span class="r121-note">전화·문자 모두 가능 / 평일 09–20시</span>';
+    document.body.appendChild(bar);
+
+    // analytics
+    bar.querySelectorAll('a').forEach(function(a){
+      a.addEventListener('click', function(){
+        try{
+          if(window.__r102Track){
+            var which = a.hasAttribute('data-r121-call') ? 'helpline_call' : 'helpline_sms';
+            window.__r102Track(which);
+          }
+        }catch(_){}
+      });
+    });
+  }
+
+  function setAlertMode(on){
+    var bar = document.getElementById('r121-helpline');
+    if(!bar) return;
+    bar.classList.toggle('r121-alert', !!on);
+    if(on){
+      // 5초 후 자동 해제
+      clearTimeout(window.__r121AlertTimer);
+      window.__r121AlertTimer = setTimeout(function(){ setAlertMode(false); }, 5000);
+    }
+  }
+
+  // showToast wrap — type warning/error 일 때 helpline 강조
+  function wrapToast(){
+    if(typeof window.showToast !== 'function') return false;
+    if(window.showToast.__r121) return true;
+    var orig = window.showToast;
+    window.showToast = function(opts){
+      try{
+        var type = (opts && opts.type) || '';
+        if(type === 'warning' || type === 'error' || type === 'danger'){
+          setAlertMode(true);
+        }
+      }catch(_){}
+      return orig.apply(this, arguments);
+    };
+    window.showToast.__r121 = true;
+    return true;
+  }
+
+  // fetch wrap — API 에러 시 자동 강조
+  function wrapFetch(){
+    if(window.fetch.__r121) return;
+    var origFetch = window.fetch;
+    window.fetch = function(){
+      var args = arguments;
+      return origFetch.apply(this, args).then(function(res){
+        try{
+          var url = args[0];
+          if(typeof url === 'string' && url.indexOf('/api/') >= 0){
+            // 5xx / 4xx 에러 → helpline 강조
+            if(res.status >= 500 || res.status === 429 || res.status === 408){
+              setAlertMode(true);
+            }
+          }
+        }catch(_){}
+        return res;
+      }).catch(function(err){
+        try{
+          // 네트워크 에러 → helpline 강조
+          setAlertMode(true);
+        }catch(_){}
+        throw err;
+      });
+    };
+    window.fetch.__r121 = true;
+  }
+
+  // global error handler — JS 에러 시 helpline 강조
+  window.addEventListener('error', function(){ setAlertMode(true); });
+  window.addEventListener('unhandledrejection', function(){ setAlertMode(true); });
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', function(){
+      ensureFooter();
+      if(!wrapToast()) setTimeout(wrapToast, 500);
+      wrapFetch();
+    });
+  } else {
+    ensureFooter();
+    if(!wrapToast()) setTimeout(wrapToast, 500);
+    wrapFetch();
+  }
+})();
+</script>
 </body>
 
 </html>
