@@ -3505,20 +3505,28 @@ function updateBottomNavText(n){
 
   /* ─── ㉧ 최종 검토 모달 (iOS 시트 스타일) ─── */
   function showReview(summary, onConfirm){
+    /* R42 — 다크 모드 색 변수 */
+    var rmDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    var rmSheetBg = rmDark ? '#1C1C1E' : '#fff';
+    var rmTextPrimary = rmDark ? '#FFF' : '#1C1C1E';
+    var rmTextSecondary = rmDark ? '#8E8E93' : '#8E8E93';
+    var rmBodyBg = rmDark ? '#2C2C2E' : '#F2F2F7';
+    var rmCancelBg = rmDark ? '#2C2C2E' : '#F2F2F7';
+    var rmHandleBg = rmDark ? '#48484A' : '#E5E5EA';
     var existing = document.getElementById('ws-review');
     if(existing) existing.parentNode.removeChild(existing);
     var bd = document.createElement('div');
     bd.id='ws-review';
     bd.style.cssText='position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;animation:wsFadeIn 0.2s ease;';
     var sh = document.createElement('div');
-    sh.style.cssText='background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:18px 20px 24px;box-shadow:0 -8px 30px rgba(0,0,0,0.15);animation:wsSlideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1);';
+    sh.style.cssText='background:'+rmSheetBg+';border-radius:20px 20px 0 0;width:100%;max-width:500px;padding:18px 20px 24px;box-shadow:0 -8px 30px rgba(0,0,0,0.15);animation:wsSlideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1);';
     sh.innerHTML = ''
-      + '<div style="width:36px;height:5px;background:#E5E5EA;border-radius:50px;margin:0 auto 12px;"></div>'
-      + '<div style="text-align:center;font-size:17px;font-weight:600;color:#1C1C1E;margin-bottom:4px;">전송 전 확인</div>'
+      + '<div style="width:36px;height:5px;background:'+rmHandleBg+';border-radius:50px;margin:0 auto 12px;"></div>'
+      + '<div style="text-align:center;font-size:17px;font-weight:600;color:'+rmTextPrimary+';margin-bottom:4px;">전송 전 확인</div>'
       + '<div style="text-align:center;font-size:13px;color:#8E8E93;margin-bottom:16px;">아래 내용이 중개사에게 전달됩니다</div>'
-      + '<div id="ws-review-body" style="background:#F2F2F7;border-radius:14px;padding:14px 16px;margin-bottom:16px;font-size:14px;line-height:1.7;color:#1C1C1E;"></div>'
+      + '<div id="ws-review-body" style="background:'+rmBodyBg+';border-radius:14px;padding:14px 16px;margin-bottom:16px;font-size:14px;line-height:1.7;color:'+rmTextPrimary+';"></div>'
       + '<div style="display:flex;gap:8px;">'
-      + '  <button type="button" id="ws-review-cancel" style="flex:1;padding:14px;border:none;background:#F2F2F7;color:#007AFF;border-radius:12px;font-size:16px;font-weight:500;font-family:inherit;cursor:pointer;">취소</button>'
+      + '  <button type="button" id="ws-review-cancel" style="flex:1;padding:14px;border:none;background:'+rmCancelBg+';color:#007AFF;border-radius:12px;font-size:16px;font-weight:500;font-family:inherit;cursor:pointer;">취소</button>'
       + '  <button type="button" id="ws-review-ok" style="flex:1;padding:14px;border:none;background:#007AFF;color:#fff;border-radius:12px;font-size:16px;font-weight:600;font-family:inherit;cursor:pointer;">전송</button>'
       + '</div>';
     bd.appendChild(sh);
@@ -4025,7 +4033,10 @@ function updateBottomNavText(n){
           if(page && !document.getElementById('ws-resume-banner')){
             var b = document.createElement('div');
             b.id='ws-resume-banner';
-            b.style.cssText='background:#E5F4EB;color:#0F6E3E;border-radius:10px;padding:10px 14px;margin:0 16px 12px;font-size:13px;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;';
+            var rmDark2 = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            var bnBg = rmDark2 ? 'rgba(52,199,89,0.18)' : '#E5F4EB';
+            var bnColor = rmDark2 ? '#9FE5BF' : '#0F6E3E';
+            b.style.cssText='background:'+bnBg+';color:'+bnColor+';border-radius:10px;padding:10px 14px;margin:0 16px 12px;font-size:13px;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;';
             b.textContent='이미 전송한 상담입니다. 곧 연락드릴게요.';
             page.insertBefore(b, page.firstChild);
           }
