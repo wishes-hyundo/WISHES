@@ -258,13 +258,11 @@ export default function SearchPortalPage() {
       //   SAFE_PRESERVE 영구 보호. 토스트 10분 throttle.
       ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260519-step32-cap1000'],
       // Step D Plan C (2026-05-10): ws_data_snapshot → IndexedDB (50MB+, 전체 62K 매물 추적).
-      // [Step 38 2026-05-19] disabled — IDB 무거움 (백그라운드만, 카드 기능 X)
-      // ['ws-ext-patch-v340-snapshot-idb', '/search/content-v340-snapshot-idb.js?v=20260519-step38-1s-throttle'],
+      ['ws-ext-patch-v340-snapshot-idb', '/search/content-v340-snapshot-idb.js?v=20260519-step43-restored'],
       // v343 (2026-05-10 사장님 명령 Fix 4): ws_price_snapshots -> IndexedDB.
       //   v340 와 같은 패턴, key 만 다름. 60K x 80byte = 5MB localStorage quota
       //   영구 fix. 토스트 영구 사라짐.
-      // [Step 38 2026-05-19] disabled — IDB 무거움 (백그라운드만, 카드 기능 X)
-      // ['ws-ext-patch-v343-pricesnap-idb', '/search/content-v343-pricesnap-idb.js?v=20260519-step38-1s-throttle'],
+      ['ws-ext-patch-v343-pricesnap-idb', '/search/content-v343-pricesnap-idb.js?v=20260519-step43-restored'],
       // v345 (2026-05-10 사장님 명령 Fix 22): 매물 카드 img lazy load 강제.
       //   100 매물 사진 동시 fetch -> 수백 MB. viewport 외 사진도 fetch.
       //   loading=lazy 추가 -> viewport 안 매물만 fetch -> 첫 진입 빠름.
@@ -294,7 +292,7 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v402-showdetail-wrap', '/search/content-v402-showdetail-wrap.js?v=20260515a'],
       // [Step 28 fix 2026-05-19] 통합 메모리 가드 — OOM 영구 해결
       //   85 patch 누적 setInterval/setTimeout 일괄 cleanup + WS.allListings cap
-      ['ws-ext-patch-v403-memory-guard', '/search/content-v403-memory-guard.js?v=20260519-step42-ratelimit'],
+      ['ws-ext-patch-v403-memory-guard', '/search/content-v403-memory-guard.js?v=20260519-step43-no-ratelimit'],
       ['ws-ext-patch-v364-photo-mobile', '/search/content-v364-photo-mobile-ux.js?v=20260514nativePTR'],
       ['ws-ext-patch-v365-mobile-ui', '/search/content-v365-mobile-ui.js?v=20260512b'],
       ['ws-ext-patch-v366-token-refresh-v2', '/search/content-v366-token-refresh-v2.js?v=20260514short'],

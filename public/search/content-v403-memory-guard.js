@@ -63,12 +63,6 @@
   };
   // [Step 39 진단 2026-05-19] setTimeout caller 통계 — 어디서 폭주하는지 추적
   const _callerStats = new Map();
-  // [Step 42 fix 2026-05-19 사장님 명령] 어떤 patch 든 setTimeout 폭주 자동 차단
-  //   동일 caller 가 1초 안에 30회 초과 등록 시 DROP (return -1)
-  //   원인: 다양한 patch (v290 외 v333, v334, WP, v381, v382 등) 의 polling 폭주
-  const _callerWindow = new Map(); // caller → [timestamps array]
-  const RATE_LIMIT_WINDOW_MS = 1000;
-  const RATE_LIMIT_MAX = 30;
   window.setTimeout = function (fn, delay) {
     const args = Array.prototype.slice.call(arguments, 2);
     // caller stack 의 첫 번째 외부 line 추출
@@ -81,21 +75,6 @@
         if (m && !m[1].includes('content-v403')) { caller = m[1].split('/').slice(-2).join('/'); break; }
       }
       _callerStats.set(caller, (_callerStats.get(caller) || 0) + 1);
-      // [Step 42] rate-limit 검사: 1초 안에 30회 초과면 DROP
-      const now = Date.now();
-      let arr = _callerWindow.get(caller);
-      if (!arr) { arr = []; _callerWindow.set(caller, arr); }
-      // 1초 이전 timestamps 제거
-      while (arr.length && arr[0] < now - RATE_LIMIT_WINDOW_MS) arr.shift();
-      if (arr.length >= RATE_LIMIT_MAX) {
-        // 폭주 감지 — drop + 로그 (10초에 1회만)
-        if (!window.__v403_lastWarn || (now - window.__v403_lastWarn) > 10000) {
-          console.warn('[v403] setTimeout rate-limit drop:', caller, '(>' + RATE_LIMIT_MAX + '/' + RATE_LIMIT_WINDOW_MS + 'ms)');
-          window.__v403_lastWarn = now;
-        }
-        return -1; // dummy id, function 안 실행됨
-      }
-      arr.push(now);
     } catch (_) {}
     const id = _origSetTimeout.apply(window, [fn, delay].concat(args));
     _timeouts.add(id);
