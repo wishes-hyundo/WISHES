@@ -2184,7 +2184,7 @@ input:-webkit-autofill:focus {
 
     <div class="result-name" id="rName">손님</div>
 
-    <div style="font-size:14px;color:#1C1C1E;margin:6px 0 8px;">작성해 주셔서 감사합니다 🙏</div>
+    <div style="font-size:14px;color:var(--ios-label);margin:6px 0 8px;">작성해 주셔서 감사합니다 🙏</div>
 
     <div class="result-subtitle" id="rSubtitle"></div>
 
@@ -3541,7 +3541,7 @@ function updateBottomNavText(n){
       k.style.cssText='color:#8E8E93;min-width:64px;';
       k.textContent = row[0];
       var v = document.createElement('span');
-      v.style.cssText='flex:1;color:#1C1C1E;font-weight:500;';
+      v.style.cssText='flex:1;color:'+rmTextPrimary+';font-weight:500;';
       v.textContent = row[1];
       line.appendChild(k); line.appendChild(v);
       body.appendChild(line);
