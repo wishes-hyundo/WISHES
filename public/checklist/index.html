@@ -519,14 +519,29 @@ textarea {
   font-size: 1.7rem;
   color: var(--ios-label-4);
   cursor: pointer;
-  transition: color 0.18s var(--ios-ease), transform 0.18s var(--ios-spring);
+  /* R63 — 사장님 명령: 즉각 표시. transition 0.18s → 0.06s */
+  transition: color 0.06s ease-out, transform 0.06s ease-out, text-shadow 0.06s ease-out;
+  will-change: color, transform;
   line-height: 1;
   border-radius: 6px;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
-.star.on { color: var(--ios-orange); }
-.star:active { transform: scale(1.25); background: var(--ios-fill-3); }
+/* R63 — 활성 별 강한 시각 (즉시 인지) */
+.star.on {
+  color: #FF9500 !important;
+  text-shadow: 0 0 8px rgba(255,149,0,0.45);
+}
+.star:active { transform: scale(1.35); }
+@media (prefers-color-scheme: dark) {
+  /* R63 — 다크모드 더 vivid + outline (force-dark 무력화) */
+  .star.on {
+    color: #FFD60A !important;
+    text-shadow:
+      0 0 14px rgba(255,214,10,0.8),
+      0 1px 3px rgba(0,0,0,0.7) !important;
+  }
+}
 
 /* ── PRIORITY TABLE ── */
 .prio-table {
@@ -1521,65 +1536,47 @@ input:-webkit-autofill:focus {
          pulse animation on click + 굵은 글자
    ═══════════════════════════════════════════════════════════════ */
 @media (prefers-color-scheme: dark) {
-  /* ═══════════════════════════════════════════════════════════════
-     R62 (2026-05-19) — 사장님 3회째 발견 fix: 다크모드 selected 안 보임
-     원인: Samsung Internet / Chrome force-dark 가 #0A84FF 를 자동 desaturate
-     해결: light mode 와 동일한 흰 배경 + 검정 글자 → force-dark 가 깨도
-           반대로 검정 배경 + 흰글자로 자동 변환되어 chip 확실히 보임
-     + 4px outline (어떤 색 변환도 두께는 보존)
-     ═══════════════════════════════════════════════════════════════ */
+  /* chip.on — 밝은 시스템 블루 + glow + 흰색 outline ring */
   .chip.on,
   .chip.on-gold,
   .chip.on-green,
   .chip.on-red {
-    /* R62 — 다크모드도 흰 배경 + 검정 글자로 통일 (force-dark 무력화) */
-    background: #FFFFFF !important;
-    color: #000000 !important;
-    font-weight: 800 !important;
-    /* 두꺼운 outline + box-shadow (시각 강조) */
-    outline: 3px solid #0A84FF !important;
-    outline-offset: -2px;
-    box-shadow: 
-      0 0 0 2px rgba(10,132,255,0.5),
-      0 4px 18px rgba(10,132,255,0.6),
-      0 2px 8px rgba(0,0,0,0.5) !important;
-    text-shadow: none !important;
-    transform: translateY(-1px);
-  }
-  .chip.on-green { outline-color: #34C759 !important; box-shadow: 0 0 0 2px rgba(48,209,88,0.5), 0 4px 18px rgba(48,209,88,0.6), 0 2px 8px rgba(0,0,0,0.5) !important; }
-  .chip.on-red { outline-color: #FF3B30 !important; box-shadow: 0 0 0 2px rgba(255,59,48,0.5), 0 4px 18px rgba(255,59,48,0.6), 0 2px 8px rgba(0,0,0,0.5) !important; }
-
-  /* deal-chip.on — 흰 배경 + 검정 글자 + 두꺼운 outline (3회 회귀 막기) */
-  .deal-chip.on {
-    background: #FFFFFF !important;
-    outline: 3px solid #0A84FF !important;
-    outline-offset: -2px;
-    box-shadow: 
-      0 0 0 2px rgba(10,132,255,0.55),
-      0 4px 20px rgba(10,132,255,0.7),
-      0 2px 8px rgba(0,0,0,0.5) !important;
-    transform: scale(1.02);
-  }
-  .deal-chip.on .dc-label {
-    color: #000000 !important;
-    font-weight: 800 !important;
-    text-shadow: none !important;
-  }
-
-  /* step-btn.active — 노란 outline (어떤 변환도 못 깸) */
-  .step-btn.active {
-    background: rgba(10,132,255,0.45) !important;
+    background: #0A84FF !important;
     color: #FFFFFF !important;
     font-weight: 700 !important;
-    outline: 2px solid #FFD60A !important;
-    outline-offset: -2px;
-    box-shadow: inset 0 0 0 2px rgba(10,132,255,0.8), 0 0 12px rgba(10,132,255,0.5) !important;
+    box-shadow: 
+      0 0 0 1.5px rgba(255,255,255,0.18),
+      0 4px 14px rgba(10,132,255,0.55),
+      0 2px 4px rgba(0,0,0,0.3) !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+  .chip.on-green { background: #30D158 !important; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.18), 0 4px 14px rgba(48,209,88,0.5), 0 2px 4px rgba(0,0,0,0.3) !important; }
+  .chip.on-red { background: #FF453A !important; box-shadow: 0 0 0 1.5px rgba(255,255,255,0.18), 0 4px 14px rgba(255,69,58,0.5), 0 2px 4px rgba(0,0,0,0.3) !important; }
+
+  /* deal-chip.on — 회색 #636366 → 밝은 시스템 블루 (사장님 핵심 불만 fix) */
+  .deal-chip.on {
+    background: #0A84FF !important;
+    box-shadow: 
+      0 0 0 1.5px rgba(255,255,255,0.22),
+      0 4px 16px rgba(10,132,255,0.55),
+      0 2px 4px rgba(0,0,0,0.35) !important;
+  }
+  .deal-chip.on .dc-label {
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  }
+
+  /* step-btn.active — 다크 모드 진한 파랑 배경에 흰글자 강조 */
+  .step-btn.active {
+    background: rgba(10,132,255,0.32) !important;
+    color: #5BB5FF !important;
+    box-shadow: inset 0 0 0 1px rgba(10,132,255,0.6);
   }
   .step-btn.active .step-badge {
-    background: #FFD60A !important;
-    color: #000000 !important;
-    font-weight: 800 !important;
-    box-shadow: 0 0 10px rgba(255,214,10,0.7);
+    background: #0A84FF !important;
+    color: #fff !important;
+    box-shadow: 0 0 8px rgba(10,132,255,0.6);
   }
 }
 
@@ -2742,22 +2739,19 @@ function setStar(k, v){
   /* R25 ❶ — 별점 클릭 햅틱 (chip 과 통일감) */
   if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
 
-  document.querySelectorAll('.stars[data-k="'+k+'"] .star').forEach((s,i)=>{
-
+  /* R63 — 사장님 명령: 즉각 표시. requestAnimationFrame 으로 paint 강제 */
+  var stars = document.querySelectorAll('.stars[data-k="'+k+'"] .star');
+  stars.forEach((s,i)=>{
     s.classList.toggle('on', i<v);
-
-    /* R56 — aria-pressed 토글 (스크린리더 상태 변화 인지) */
     s.setAttribute('aria-pressed', i<v ? 'true' : 'false');
-
-    /* R56 — pulse 효과 (마지막 클릭한 별만) */
-    if (i === v-1) {
-      s.classList.remove('star-pulse');
-      void s.offsetWidth;
-      s.classList.add('star-pulse');
-      setTimeout(function(){ try{ s.classList.remove('star-pulse'); }catch(_){} }, 400);
-    }
-
   });
+  // R63 — pulse on the last clicked star
+  if (stars[v-1]) {
+    stars[v-1].classList.remove('star-pulse');
+    void stars[v-1].offsetWidth;
+    stars[v-1].classList.add('star-pulse');
+    setTimeout(function(){ try{ stars[v-1].classList.remove('star-pulse'); }catch(_){} }, 350);
+  }
 
 }
 
