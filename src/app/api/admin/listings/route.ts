@@ -712,6 +712,41 @@ export async function POST(request: NextRequest) {
     // area_m2가 0이면 0.1로 (양수 required)
     if (!body.area_m2 || body.area_m2 <= 0) body.area_m2 = 0.1;
 
+    // [Step 58 fix 2026-05-19 사장님 명령] maintenance_fee 보조 추출 — 크롤러/normalizer 결함 방어층
+    //   배경: 온하우스 53K건 maintenance_fee 100% NULL (raw_fields 에 "관리비 / 포함항목" 데이터 존재).
+    //         크롤러가 d.maintenance_fee 채워 보내야 하지만 실측 결과 누락 케이스 발견.
+    //         backfill 로 35K건 복구 완료, 이번 단은 미래 신규 매물 보호용.
+    //   동작: maintenance_fee 누락 + body.raw_fields 에 관리비 텍스트 존재 시 자동 추출.
+    if ((body.maintenance_fee === null || body.maintenance_fee === undefined) && body.raw_fields && typeof body.raw_fields === 'object') {
+      try {
+        const rf = body.raw_fields as Record<string, unknown>;
+        const ohVal = typeof rf['관리비 / 포함항목'] === 'string' ? (rf['관리비 / 포함항목'] as string).trim() : '';
+        const gscVal = typeof rf['월관리비'] === 'string' ? (rf['월관리비'] as string).trim() : '';
+        let extracted: number | null = null;
+        if (ohVal) {
+          if (['포함', '없음', '0'].includes(ohVal) || ohVal.indexOf('포함') !== -1) extracted = 0;
+          else {
+            const m = ohVal.match(/^([0-9]+(?:\.[0-9]+)?)/);
+            if (m) {
+              const n = Math.floor(parseFloat(m[1]));
+              if (n >= 0 && n <= 5000) extracted = n; // 5000만원 초과는 sentinel/오류로 무시
+            }
+          }
+        }
+        if (extracted === null && gscVal) {
+          if (gscVal === '관리비 포함' || gscVal === '관리비 없음' || gscVal.startsWith('관리비 포함,') || gscVal.startsWith('관리비 없음,')) extracted = 0;
+          else {
+            const m2 = gscVal.match(/^([0-9]+)만원/);
+            if (m2) {
+              const n = parseInt(m2[1], 10);
+              if (n >= 0 && n <= 5000) extracted = n;
+            }
+          }
+        }
+        if (extracted !== null) body.maintenance_fee = extracted;
+      } catch { /* 추출 실패는 무시 — 원래 흐름 유지 */ }
+    }
+
     const parsed = createListingSchema.safeParse(body);
 
     if (!parsed.success) {
