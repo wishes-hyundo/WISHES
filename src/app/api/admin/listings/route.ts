@@ -924,7 +924,29 @@ export async function POST(request: NextRequest) {
 
     // JSON 경로에서 images URL 배열이 직접 전달된 경우 (기존 크롤러/edit 플로우)
     if (imageResults.length === 0 && images && images.length > 0 && data?.id) {
-      const imageInserts = images.map((url: string, index: number) => ({
+      // [Step 68 fix 2026-05-19 사장님 명령] garbage URL 차단
+      //   배경: 크롤러가 /images/icon/roadmap_ico.png 같은 사이트 내부 아이콘을
+      //         매물 사진으로 잘못 저장한 사례 13,480건 발견.
+      //         URL 이 상대경로 (/images/...) 이거나 wishes.co.kr 호스트인 경우
+      //         실제 매물 사진이 아닌 UI 아이콘이라 차단.
+      const isGarbageUrl = (u: string) => {
+        if (!u || typeof u !== 'string') return true;
+        if (u.startsWith('/')) return true;                 // 상대경로 (사이트 UI 아이콘)
+        if (u.indexOf('/images/icon/') !== -1) return true;
+        if (u.indexOf('/images/map/') !== -1) return true;
+        if (u.indexOf('share_button') !== -1) return true;
+        if (u.indexOf('zig_logo') !== -1) return true;
+        if (u.indexOf('nemo_logo') !== -1) return true;
+        if (u.indexOf('roadmap_ico') !== -1) return true;
+        if (u.indexOf('no_image') !== -1) return true;
+        return false;
+      };
+      const cleanImages = (images as string[]).filter((u) => !isGarbageUrl(u));
+      if (cleanImages.length === 0) {
+        // 모두 garbage 였으면 listing_images insert skip (placeholder 가 처리)
+        console.log('[POST /api/admin/listings] all images filtered as garbage, skip insert');
+      }
+      const imageInserts = cleanImages.map((url: string, index: number) => ({
         listing_id: data.id,
         url: url,
         alt: `${listingData.title} 이미지 ${index + 1}`,
@@ -932,15 +954,17 @@ export async function POST(request: NextRequest) {
         is_thumbnail: index === 0,
       }));
 
-      const { data: imgData, error: imgError } = await supabase
-        .from('listing_images')
-        .insert(imageInserts)
-        .select();
+      if (imageInserts.length > 0) {
+        const { data: imgData, error: imgError } = await supabase
+          .from('listing_images')
+          .insert(imageInserts)
+          .select();
 
-      if (imgError) {
-        console.error('이미지 연결 오류:', imgError);
-      } else {
-        imageResults = imgData || [];
+        if (imgError) {
+          console.error('이미지 연결 오류:', imgError);
+        } else {
+          imageResults = imgData || [];
+        }
       }
     }
 
