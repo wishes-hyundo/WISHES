@@ -1480,6 +1480,29 @@ input:-webkit-autofill:focus {
   .r81-clear-btn { width: 28px; height: 28px; right: 6px; }
 }
 
+/* R82 — skip-link (WCAG 권장: 키보드 사용자 본문 바로가기) */
+.r82-skip-link {
+  position: absolute;
+  top: -100px;
+  left: 8px;
+  z-index: 10000;
+  padding: 10px 16px;
+  background: var(--ios-blue);
+  color: #fff;
+  text-decoration: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--ios-font);
+  transition: top 0.2s ease;
+}
+.r82-skip-link:focus,
+.r82-skip-link:focus-visible {
+  top: 8px;
+  outline: 2px solid #FFD60A;
+  outline-offset: 2px;
+}
+
 /* R78 — footer 사업자 정보 (부동산 중개사법 표시) */
 .ws-footer-r78 {
   margin: 32px 16px 24px;
@@ -1719,6 +1742,7 @@ input:-webkit-autofill:focus {
 </head>
 
 <body>
+<a href="#main-content" class="r82-skip-link">본문으로 바로가기</a>
 <noscript>
   <div style="padding:24px;margin:20px;background:#FFF3CD;border:1px solid #FFC107;border-radius:12px;font-family:'Apple SD Gothic Neo','-apple-system',sans-serif;color:#856404;text-align:center;line-height:1.6;">
     <div style="font-size:48px;margin-bottom:8px;">⚠️</div>
@@ -1778,7 +1802,7 @@ input:-webkit-autofill:focus {
 
 <!-- ══ LAYOUT ══ -->
 
-<div class="layout" role="main">
+<div class="layout" role="main" id="main-content">
 
 
 
@@ -1808,7 +1832,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="cName">손님 성함 <span class="req">*</span></label>
 
-          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" autocapitalize="none" spellcheck="false" inputmode="text" lang="ko"/><input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
+          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" minlength="2" autocapitalize="none" spellcheck="false" inputmode="text" lang="ko" aria-required="true"/><input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
 
         </div>
 
@@ -1816,7 +1840,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="cPhone">연락처 <span class="req">*</span></label>
 
-          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)" maxlength="13" autocomplete="tel-national" pattern="010-\d{4}-\d{4}"/>
+          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)" maxlength="13" autocomplete="tel-national" pattern="010-\d{4}-\d{4}" aria-required="true"/>
 
         </div>
 
@@ -2123,7 +2147,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="reg1">1순위 지역 <span class="req">*</span></label>
 
-          <input type="text" id="reg1" placeholder="예: 서울 마포구 상암동" aria-label="희망 지역 1순위" autocomplete="address-line2" maxlength="50" inputmode="text" lang="ko"/>
+          <input type="text" id="reg1" placeholder="예: 서울 마포구 상암동" aria-label="희망 지역 1순위" autocomplete="address-line2" maxlength="50" inputmode="text" lang="ko" aria-required="true"/>
 
         </div>
 
