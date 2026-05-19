@@ -2987,7 +2987,7 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">손님 성함</div><div class="sc-val"><strong>${_esc(gv('cName'))||EMPTY}</strong></div></div>
 
-        <div class="sc-row"><div class="sc-key">연락처</div><div class="sc-val">${_esc(gv('cPhone'))||EMPTY}</div></div>
+        <div class="sc-row"><div class="sc-key">연락처</div><div class="sc-val">${(function(){var p=gv('cPhone');if(!p)return EMPTY;var d=p.replace(/[^0-9]/g,'');return d?('<a href="tel:'+d+'" style="color:var(--ios-blue);text-decoration:none;font-weight:600">📞 '+_esc(p)+'</a>'):_esc(p);})()}</div></div>
 
         <div class="sc-row"><div class="sc-key">방문일정</div><div class="sc-val">${(function(){var d=gv('cDate'),t=gv('cTime');if(!d&&!t)return EMPTY;return _esc((d||'')+(t?' '+t:''));})()}</div></div>
 
