@@ -138,10 +138,17 @@
   var pollInterval = null;
   function startPolling() {
     if (pollInterval) return;
+    // [Step 44 fix 2026-05-19 사장님 명령] modal open 시에만 polling 활성화
+    //   기존: 영구 500ms polling → main thread 영원히 점유 (freeze 원인)
+    //   수정: modal 닫혀있으면 즉시 return (idle), 매 호출 시 modal 체크
     pollInterval = setInterval(function () {
-      try { enforceCorrectPhone(); } catch (e) {}
+      try {
+        // modal 닫혀있으면 즉시 종료 (CPU 절약)
+        if (!document.querySelector('.v240-modal-open, [data-v240-modal-active]')) return;
+        enforceCorrectPhone();
+      } catch (e) {}
     }, 500);
-    try { console.log(TAG, 'polling started (500ms)'); } catch (e) {}
+    try { console.log(TAG, 'polling started (500ms, modal-only)'); } catch (e) {}
   }
 
   if (document.readyState === 'loading') {

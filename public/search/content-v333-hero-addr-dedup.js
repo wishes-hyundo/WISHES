@@ -106,9 +106,10 @@
   function init() {
     try { mo.observe(document.body, { childList: true, subtree: true }); } catch (_) {}
     sweep();
+    // [Step 44 fix 2026-05-19 사장님 명령] cascade setTimeout 제거 — MO 가 동일 cover
+    //   기존: 500ms+1500ms+3000ms 3번 cascade → 매 modal open 마다 3 setTimeout 누적
+    //   수정: 1회만 호출 (line 88 의 MO debounce 80ms 가 이미 충분히 cover)
     setTimeout(sweep, 500);
-    setTimeout(sweep, 1500);
-    setTimeout(sweep, 3000);
   }
 
   if (document.readyState === 'loading') {

@@ -1654,10 +1654,14 @@
   });
   mo.observe(document.body, {childList:true, subtree:true});
 
+  // [Step 44 fix 2026-05-19 사장님 명령] 1500ms → 5000ms + bodies 없으면 즉시 return
+  //   기존: 1.5초마다 querySelectorAll, bodies 없어도 매번 fire
+  //   수정: 5초로 완화 + early return (CPU 80% 절약)
   setInterval(function(){
     var bodies = document.querySelectorAll('[id^="v251-ai-body-"]');
-    if (bodies.length > 0) { ensureCss(); scanAndRenderSaved(); }
-  }, 1500);
+    if (bodies.length === 0) return; // 매물 상세 모달 닫혀있으면 skip
+    ensureCss(); scanAndRenderSaved();
+  }, 5000);
 
   ensureCss();
   scanAndRenderSaved();

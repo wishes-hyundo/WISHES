@@ -196,10 +196,10 @@
   function init() {
     try { mo.observe(document.body, { childList: true, subtree: true }); } catch (_) {}
     applyToHero();
+    // [Step 44 fix 2026-05-19 사장님 명령] cascade setTimeout 제거 — MO 가 동일 cover
+    //   기존: 500/1500/3500/7000ms 4번 cascade → 매 modal open 마다 4 setTimeout 누적
+    //   수정: 1회만 (MO debounce 100ms 가 이미 충분히 cover)
     setTimeout(applyToHero, 500);
-    setTimeout(applyToHero, 1500);
-    setTimeout(applyToHero, 3500);
-    setTimeout(applyToHero, 7000);
   }
 
   if (document.readyState === 'loading') {

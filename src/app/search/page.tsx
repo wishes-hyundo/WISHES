@@ -178,7 +178,7 @@ export default function SearchPortalPage() {
       //   ws_token, ws-memos, ws-contacts, ws-favorites 는 보존
       ['ws-ext-patch-v398-auto-cache-reset', '/search/content-v398-auto-cache-reset.js?v=20260515b-firstclr'],
       ['ws-ext-patch', '/search/content-v230-patch.js?v=20260502'],
-      ['ws-ext-patch-v240', '/search/content-v240-detail.js?v=20260420g'],
+      ['ws-ext-patch-v240', '/search/content-v240-detail.js?v=20260519-step44-ai-poll-5s'],
       ['ws-ext-patch-v260-perf', '/search/content-v260-perf.js?v=20260519-step35-no-poll'],
       ['ws-ext-patch-v270-contacts', '/search/content-v270-contacts.js?v=20260418a1'],
       ['ws-ext-patch-v280-mobile', '/search/content-v280-mobile.js?v=20260420b'],
@@ -351,7 +351,7 @@ export default function SearchPortalPage() {
       // v382 (2026-05-14 사장님 prod 재발견 반복): v378~v381 모두 race condition.
       //   v270/v322/v378/v379/v380/v381 동시 작동 → 마지막 render 누구 보장 X.
       //   brute force: 500ms polling → modal id 의 정확한 phone DB fetch → 화면 phone 비교 → 강제 덮어쓰기.
-      ['ws-ext-patch-v382-contact-polling-enforce', '/search/content-v382-contact-polling-enforce.js?v=20260514a'],
+      ['ws-ext-patch-v382-contact-polling-enforce', '/search/content-v382-contact-polling-enforce.js?v=20260519-step44-modal-gated'],
             // v332 (2026-05-09 사장님 발견 매물 78752): broken image 자동 retry.
       //   외부 사이트 503 / Lambda error / octet-stream 등 → onerror 시
       //   /api/img-proxy 경유로 자동 재시도 (transparent fallback 흡수).
@@ -361,12 +361,12 @@ export default function SearchPortalPage() {
       //   v240-detail.js 가 address + address_detail 합치는데 space 차이로
       //   "..리더스가든 17층 2408동 1701 17층 2408동1701" 두 번 표기.
       //   v333 가 끝부분 중복 ("N층 NNNN동 NNNN" 두 번) 자동 제거.
-      ['ws-ext-patch-v333-hero-addr-dedup', '/search/content-v333-hero-addr-dedup.js?v=20260509a'],
+      ['ws-ext-patch-v333-hero-addr-dedup', '/search/content-v333-hero-addr-dedup.js?v=20260519-step44-mo-only'],
       // v334 (2026-05-09 사장님 발견 매물 78954): 모달 hero 도로명 직접 채우기.
       //   "도로명 주소가 구주소 뒤에 숨겨져 있음" — Kakao Geocoder API 가 못 채운
       //   #v240-hero-road element 에 listing.building_info['도로명주소'] 또는
       //   listing.road_address 직접 채워서 "📍 도로명" 표시.
-      ['ws-ext-patch-v334-hero-road-fill', '/search/content-v334-hero-road-fill.js?v=20260515v10revert'],
+      ['ws-ext-patch-v334-hero-road-fill', '/search/content-v334-hero-road-fill.js?v=20260519-step44-mo-only'],
       // v335 (2026-05-09 사장님 발견): 매물 카드 부 라인 도로명 Kakao fallback.
       //   v327 는 listing.road_address 만 사용 → DB null 매물은 원본 title (건물명) 표시.
       //   v335 가 lat/lng → Kakao reverseGeocoder fallback 으로 도로명 채움.
