@@ -2363,6 +2363,81 @@ body {
   setTimeout(setupConsentToggle, 800);
 })();
 </script>
+
+<style>/* R131-STEP1-C */
+/* R131 — ②C: Step nav 번호 제거 + 색만 위계 */
+.step-btn .step-label,
+.step-btn .step-number {
+  display: inline !important;
+}
+/* JS 에서 ①② ③ 번호 제거 */
+
+/* ①C: 방문 일정 / 시간 input = Stepper Sheet 모양 (탭 가능한 버튼) */
+.date-time-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 8px !important;
+}
+.date-time-row input[type="date"],
+.date-time-row input[type="time"] {
+  background: rgba(255, 255, 255, 0.85) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 12px 14px !important;
+  font-size: 13px !important;
+  color: #1C1C1E !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.7) inset,
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  text-align: left !important;
+  font-weight: 600 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.date-time-row input[type="date"]::-webkit-calendar-picker-indicator,
+.date-time-row input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: none;
+  cursor: pointer;
+  opacity: 0.6;
+}
+.date-time-row input[type="date"]:focus,
+.date-time-row input[type="time"]:focus {
+  box-shadow:
+    0 0 0 0.5px rgba(0, 122, 255, 0.6) inset,
+    0 0 0 3px rgba(0, 122, 255, 0.15) !important;
+}
+</style>
+
+<script>/* R131-STEP1-C */
+(function(){
+  if(window.__r131Applied) return;
+  window.__r131Applied = true;
+
+  // ②C: Step nav 의 ① ② ③ 번호 제거
+  function removeStepNumbers(){
+    try{
+      var btns = document.querySelectorAll('.step-btn');
+      btns.forEach(function(btn){
+        var step = btn.getAttribute('data-step');
+        if(!step) return;
+        // chip 안 텍스트 노드만 정리 — badge 는 display:none 이므로 노출 X
+        // 자식 중 text node "①" / "②" / "③" 제거
+        Array.from(btn.childNodes).forEach(function(node){
+          if(node.nodeType === 3){
+            // text node — strip ① ② ③ ④ ⑤ ⑥ 등
+            node.textContent = node.textContent.replace(/[①②③④⑤⑥⑦⑧⑨⑩]/g, '').trim();
+          }
+        });
+      });
+    }catch(_){}
+  }
+  setTimeout(removeStepNumbers, 200);
+  setTimeout(removeStepNumbers, 800);  // 다른 패치가 텍스트 다시 추가하면 한번 더
+})();
+</script>
 </head>
 
 <body>
