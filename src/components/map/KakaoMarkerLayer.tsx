@@ -205,10 +205,8 @@ function mergeKakaoOverlapping(
         big.it = {
           ...big.it,
           count: big.it.count + small.it.count,
-          // [Step 109 fix 2026-05-19] sample_ids cap 20 — side panel 폭주 차단
-          sample_ids: [...big.it.sample_ids, ...small.it.sample_ids].slice(0, 20),
-          // cluster_id 도 짧게 (첫 4글자만 + count) — pool key 안정
-          cluster_id: big.it.cluster_id.slice(0, 8) + '_m' + (big.it.count + small.it.count),
+          sample_ids: [...big.it.sample_ids, ...small.it.sample_ids],
+          cluster_id: big.it.cluster_id + '|' + small.it.cluster_id,
         };
         small.alive = false;
       }
