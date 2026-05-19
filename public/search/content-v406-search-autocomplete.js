@@ -54,12 +54,10 @@
   }
 
   function uniqueByLabel(arr) {
-    // [Step 107 fix] type + label 둘 다로 dedup — addr "역삼동" vs dong "역삼동" 둘 다 유지
     var seen = {};
     return arr.filter(function (x) {
-      var k = (x.type || '') + ':' + x.label;
-      if (seen[k]) return false;
-      seen[k] = true;
+      if (seen[x.label]) return false;
+      seen[x.label] = true;
       return true;
     });
   }
@@ -68,26 +66,9 @@
     var q = (query || '').trim().toLowerCase();
     if (!q) return [];
     var results = [];
-    // [Step 107 fix 2026-05-19] 매물번호 3자리부터 prefix 추천
-    //   기존: 4-7자리 정확 매치 → 3자리에서 단절
-    //   수정: 3자리부터 prefix 또는 정확 매치 추천
-    if (/^\d{3,7}$/.test(q)) {
-      var matchedIds = [];
-      var allListings = (window.WS && Array.isArray(window.WS.allListings)) ? window.WS.allListings : [];
-      for (var __i = 0; __i < allListings.length && matchedIds.length < 3; __i++) {
-        var __l = allListings[__i];
-        if (__l && String(__l.id).indexOf(q) === 0) {
-          matchedIds.push(String(__l.id));
-        }
-      }
-      if (matchedIds.length > 0) {
-        matchedIds.forEach(function (mid) {
-          results.push({ type: 'id', label: '매물번호 ' + mid, value: mid, icon: '#' });
-        });
-      } else if (/^\d{4,7}$/.test(q)) {
-        // fallback: 4자리 이상이면 정확 매치 추천 (allListings 에 없어도 fetch 가능)
-        results.push({ type: 'id', label: '매물번호 ' + q, value: q, icon: '#' });
-      }
+    // 매물번호 (4-7자리 숫자)
+    if (/^\d{4,7}$/.test(q)) {
+      results.push({ type: 'id', label: '매물번호 ' + q, value: q, icon: '#' });
     }
     var allListings = (window.WS && Array.isArray(window.WS.allListings)) ? window.WS.allListings : [];
     var dongMatches = [];
@@ -142,9 +123,8 @@
       return '<div class="v406-empty">매칭되는 결과 없음 (페이지 1의 100매물 기준)</div>';
     }
     return items.map(function (item, i) {
-      var __cnt = (item.type === 'id') ? 0 : getResultCount(item.label);
       var count = (item.type === 'id') ? '' :
-                  '<span class="v406-count">' + __cnt + '개</span>';
+                  '<span class="v406-count">' + getResultCount(item.label) + '+개</span>';
       return '<div class="v406-item" data-idx="' + i + '" data-type="' + item.type + '" data-value="' + esc(item.value) + '">' +
                 '<span class="v406-icon">' + item.icon + '</span>' +
                 '<span class="v406-label">' + esc(item.label) + '</span>' +
@@ -214,16 +194,8 @@
     }, DEBOUNCE_MS);
   }
 
-  function handleBlur(e) {
-    // [Step 107 fix] dropdown 또는 다른 search-input 으로 focus 이동이면 hide 미루기
-    setTimeout(function () {
-      try {
-        var active = document.activeElement;
-        if (active && (active === lastInput || active.matches('.ws-global-search'))) return;
-        if (active && dropdown && dropdown.contains(active)) return;
-      } catch (_) {}
-      hideDropdown();
-    }, 200);
+  function handleBlur() {
+    setTimeout(hideDropdown, 200);
   }
 
   function handleFocus(e) {
