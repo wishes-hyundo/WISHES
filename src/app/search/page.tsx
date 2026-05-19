@@ -297,6 +297,8 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v404-card-hover-preview', '/search/content-v404-card-hover-preview.js?v=20260519-step85'],
       // [Step 86 2026-05-19 사장님 명령] C-3 활성 필터 chip + 빠른 정렬
       ['ws-ext-patch-v405-active-filter-chips', '/search/content-v405-active-filter-chips.js?v=20260519-step86'],
+      // [Step 87 2026-05-19 사장님 명령] C-2 검색 자동완성 dropdown
+      ['ws-ext-patch-v406-search-autocomplete', '/search/content-v406-search-autocomplete.js?v=20260519-step87'],
       ['ws-ext-patch-v364-photo-mobile', '/search/content-v364-photo-mobile-ux.js?v=20260514nativePTR'],
       ['ws-ext-patch-v365-mobile-ui', '/search/content-v365-mobile-ui.js?v=20260512b'],
       ['ws-ext-patch-v366-token-refresh-v2', '/search/content-v366-token-refresh-v2.js?v=20260514short'],
