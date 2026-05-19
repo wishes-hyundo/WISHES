@@ -120,15 +120,29 @@
 
   var currentMap = null;
   var currentMarkers = [];
+  // [Step 118 fix 2026-05-19 사장님 명령] overlay pool — panning 시 destroy/recreate 차단
+  //   기존: 매 idle 마다 clearMarkers (N개 setMap null) + N개 새 CustomOverlay
+  //          → 100매물 = 200 DOM operation 매번 → Kakao SDK reflow → panning freeze
+  //   수정: cluster key → overlay Map. 기존 cluster 는 position update 만, 새 것만 create.
+  //          사라진 것만 setMap(null). 매 panning 의 DOM 비용 N → diff 만.
+  var overlayPool = new Map(); // key: 'lat_lng_count', value: { overlay, pin, lastSeen }
+  var poolGeneration = 0;
   var clusterFetchTimer = null;
   var inflightController = null;
   var ignoreBoundsChanges = true;
 
   function clearMarkers() {
+    // [Step 118 fix] pool 도 같이 정리
     currentMarkers.forEach(function (m) {
       try { m.setMap(null); } catch (_) {}
     });
     currentMarkers = [];
+    if (overlayPool && overlayPool.size > 0) {
+      overlayPool.forEach(function (entry) {
+        try { entry.overlay.setMap(null); } catch (_) {}
+      });
+      overlayPool.clear();
+    }
   }
 
   // [v19 사장님] zoom 따라 동적 size — 멀리 시 작게 (시각적 부담 감소, 정확성 유지)
@@ -473,35 +487,77 @@
 
   function renderClusters(clusters) {
     if (!currentMap) return;
-    clearMarkers();
-    if (!Array.isArray(clusters) || clusters.length === 0) return;
+    if (!Array.isArray(clusters) || clusters.length === 0) {
+      // 클러스터 없으면 pool 비움
+      overlayPool.forEach(function (entry) {
+        try { entry.overlay.setMap(null); } catch (_) {}
+      });
+      overlayPool.clear();
+      currentMarkers = [];
+      return;
+    }
     // [v14 사장님] merge 다시 — 단, 위치는 가장 큰 cluster 의 실제 위치 유지 (평균 X)
     var projection = null;
     try { projection = currentMap.getProjection(); } catch (_) {}
     var merged = mergeKeepPosition(clusters, projection);
+    // [Step 118 fix] pool 재사용 — destroy/recreate 차단
+    poolGeneration++;
+    var newMarkers = [];
+    var zoom = currentMap ? currentMap.getLevel() : 5;
     merged.forEach(function (c) {
       try {
         if (!c.lat || !c.lng) return;
-        var pos = new kakao.maps.LatLng(c.lat, c.lng);
-        var sz = getSizeForCount(c.count, currentMap ? currentMap.getLevel() : 5);
-        var pin = document.createElement('div');
-        pin.className = 'v390-pin' + (c.count === 1 ? ' v390-single' : '');
-        pin.style.width = sz.size + 'px';
-        pin.style.height = sz.size + 'px';
-        pin.style.fontSize = sz.fontSize + 'px';
-        pin.textContent = String(c.count);
-        pin.addEventListener('click', function (ev) {
-          try { ev.stopPropagation(); } catch (_) {}
-          onPinClick(c);
-        }, false);
-        var overlay = new kakao.maps.CustomOverlay({
-          position: pos, content: pin, yAnchor: 0.5, xAnchor: 0.5,
-          zIndex: c.count, clickable: true,
-        });
-        overlay.setMap(currentMap);
-        currentMarkers.push(overlay);
+        // pool key: lat+lng+count (위치 또는 count 변경 시 새 entry)
+        var key = c.lat.toFixed(5) + '_' + c.lng.toFixed(5) + '_' + c.count;
+        var sz = getSizeForCount(c.count, zoom);
+        var entry = overlayPool.get(key);
+        if (entry) {
+          // 기존 overlay 재사용 — position 그대로, pin text 만 갱신 (count 같으면 동일)
+          entry.lastSeen = poolGeneration;
+          entry.cluster = c;
+          // 크기 변경 가능 (zoom 변경) — pin 만 update
+          if (entry.pin.style.width !== sz.size + 'px') {
+            entry.pin.style.width = sz.size + 'px';
+            entry.pin.style.height = sz.size + 'px';
+            entry.pin.style.fontSize = sz.fontSize + 'px';
+          }
+          newMarkers.push(entry.overlay);
+        } else {
+          // 새 overlay 생성
+          var pos = new kakao.maps.LatLng(c.lat, c.lng);
+          var pin = document.createElement('div');
+          pin.className = 'v390-pin' + (c.count === 1 ? ' v390-single' : '');
+          pin.style.width = sz.size + 'px';
+          pin.style.height = sz.size + 'px';
+          pin.style.fontSize = sz.fontSize + 'px';
+          pin.textContent = String(c.count);
+          // closure 안전 — 마지막 cluster ref 매번 갱신
+          var clusterRef = c;
+          pin.addEventListener('click', function (ev) {
+            try { ev.stopPropagation(); } catch (_) {}
+            // pool entry 에서 최신 cluster 사용
+            var liveEntry = overlayPool.get(key);
+            onPinClick(liveEntry ? liveEntry.cluster : clusterRef);
+          }, false);
+          var overlay = new kakao.maps.CustomOverlay({
+            position: pos, content: pin, yAnchor: 0.5, xAnchor: 0.5,
+            zIndex: c.count, clickable: true,
+          });
+          overlay.setMap(currentMap);
+          var newEntry = { overlay: overlay, pin: pin, lastSeen: poolGeneration, cluster: c };
+          overlayPool.set(key, newEntry);
+          newMarkers.push(overlay);
+        }
       } catch (e) {}
     });
+    // 이번 세대에 안 보이는 entry 제거 (사라진 cluster)
+    overlayPool.forEach(function (entry, key) {
+      if (entry.lastSeen !== poolGeneration) {
+        try { entry.overlay.setMap(null); } catch (_) {}
+        overlayPool.delete(key);
+      }
+    });
+    currentMarkers = newMarkers;
   }
 
   function scheduleClusterFetch() {
