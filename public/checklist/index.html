@@ -2989,7 +2989,7 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">연락처</div><div class="sc-val">${_esc(gv('cPhone'))||EMPTY}</div></div>
 
-        <div class="sc-row"><div class="sc-key">방문일정</div><div class="sc-val">${_esc(gv('cDate'))||EMPTY}</div></div>
+        <div class="sc-row"><div class="sc-key">방문일정</div><div class="sc-val">${(function(){var d=gv('cDate'),t=gv('cTime');if(!d&&!t)return EMPTY;return _esc((d||'')+(t?' '+t:''));})()}</div></div>
 
         
 
@@ -3059,7 +3059,12 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">희망 옵션</div><div class="sc-val">${gc('g-opt')||EMPTY}</div></div>
 
-        ${gc('g-pet')!=='—'?'<div class="sc-row"><div class="sc-key">반려동물 종류</div><div class="sc-val">'+gc('g-pet')+'</div></div>':''}
+        ${gc('g-pet')!=='—'?'<div class="sc-row"><div class="sc-key">반려동물 (상세)</div><div class="sc-val">'+gc('g-pet')+'</div></div>':''}
+
+        <!-- R87 — 누락된 주차/반려동물 row 추가 (사장님 발견 패턴) -->
+        <div class="sc-row"><div class="sc-key">주차</div><div class="sc-val">${gc('g-parking')||EMPTY}${gv('parkingNote')?' · '+_esc(gv('parkingNote')):''}</div></div>
+
+        <div class="sc-row"><div class="sc-key">반려동물</div><div class="sc-val">${gc('g-petType')||EMPTY}${gv('petNote')?' · '+_esc(gv('petNote')):''}</div></div>
 
       </div>
 
