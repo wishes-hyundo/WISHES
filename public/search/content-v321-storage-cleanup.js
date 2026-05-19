@@ -132,27 +132,50 @@
   }
 
   // v321b: cleanup 후 baseline 자동 재구성
+  // [Step 32 fix 2026-05-19 사장님 명령] /search freeze 원인 — 68,800건 sync write 차단
+  //   기존: WS.allListings 전체 (최대 73K) 를 동기 forEach + JSON.stringify + localStorage.setItem
+  //         → 5-10MB localStorage write → main thread 수초간 freeze → 'Out of Memory' 가짜 알람
+  //   수정: 1) 최대 1000건 cap (충분한 변화 감지), 2) requestIdleCallback 으로 idle 시 처리
+  //         3) v397 server pagination 활성 시 skip (server 가 fresh 데이터 공급)
+  var MAX_BASELINE = 1000;
   function _refillBaselineSnapshot(reason) {
     try {
       var allData = (window.WS && window.WS.allListings) || [];
       if (!Array.isArray(allData) || allData.length === 0) return false;
-      var baseline = {};
-      allData.forEach(function (item) {
-        if (!item) return;
-        var id = String(item.id || '');
-        if (!id) return;
-        baseline[id] = {
-          price: String(item.deposit || item.price || ''),
-          status: item.status || '',
-          name: item.title || item.address || '매물',
-        };
-      });
-      try { localStorage.setItem('ws_data_snapshot', JSON.stringify(baseline)); }
-      catch (e) { return false; }
+      // [Step 32] v397 server pagination 활성 시 skip (불필요한 작업)
       try {
-        console.log('[ws-storage-cleanup] baseline 재구성 (' + (reason || 'manual') +
-          '): ' + allData.length + '건 → 자동 AI 트리거 폭주 방지');
+        var flags = (window.WS && window.WS._flags) || {};
+        if (flags.use_server_pagination === 'true' || flags.use_server_pagination === true) {
+          console.log('[ws-storage-cleanup] v397 active — baseline skip (' + (reason || 'manual') + ')');
+          return true;
+        }
       } catch (_) {}
+      // [Step 32] 1000건 cap (전체가 아니라 가장 최근)
+      var capped = allData.length > MAX_BASELINE ? allData.slice(0, MAX_BASELINE) : allData;
+      var processNow = function () {
+        try {
+          var baseline = {};
+          capped.forEach(function (item) {
+            if (!item) return;
+            var id = String(item.id || '');
+            if (!id) return;
+            baseline[id] = {
+              price: String(item.deposit || item.price || ''),
+              status: item.status || '',
+              name: item.title || item.address || '매물',
+            };
+          });
+          localStorage.setItem('ws_data_snapshot', JSON.stringify(baseline));
+          console.log('[ws-storage-cleanup] baseline 재구성 (' + (reason || 'manual') +
+            '): ' + capped.length + '/' + allData.length + '건 cap ' + MAX_BASELINE);
+        } catch (_) {}
+      };
+      // [Step 32] idle 시 처리해서 main thread freeze 방지
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(processNow, { timeout: 5000 });
+      } else {
+        setTimeout(processNow, 0);
+      }
       return true;
     } catch (e) { return false; }
   }
