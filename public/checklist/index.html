@@ -2824,6 +2824,138 @@ textarea:focus {
   setTimeout(setupAutoGrow, 400);
 })();
 </script>
+
+<style>/* R134-RESULT */
+/* ⑬A: 가족·지인 추천 버튼 — Glass + tinted blue */
+.r119-referral, button.r119-referral {
+  background: rgba(0, 122, 255, 0.1) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
+  border: none !important;
+  color: #007AFF !important;
+  border-radius: 14px !important;
+  padding: 12px 16px !important;
+  font-size: 13.5px !important;
+  font-weight: 700 !important;
+  box-shadow:
+    0 0 0 0.5px rgba(0, 122, 255, 0.2) inset,
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 2px 8px rgba(0, 122, 255, 0.08) !important;
+  cursor: pointer !important;
+  transition: transform 0.15s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+.r119-referral:active, button.r119-referral:active {
+  transform: scale(0.98) !important;
+  background: rgba(0, 122, 255, 0.18) !important;
+}
+
+/* ⑭B: bottom-nav (결과 페이지) — iOS Segmented Control */
+#resultNav, .bottom-nav#resultNav {
+  background: rgba(248, 248, 253, 0.86) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
+  padding: 8px 14px calc(8px + env(safe-area-inset-bottom)) !important;
+}
+#resultNav .nav-row, #resultNav > * {
+  display: contents;
+}
+/* "새 상담" / "수정" / "보내기" 한 박스 안 segmented */
+#resultNav {
+  display: flex !important;
+  gap: 0 !important;
+}
+#resultNav > button,
+#resultNav .btn,
+#resultNav .nw-send,
+#resultNav .btn-back,
+#resultNav .btn-restart,
+#resultNav .btn-edit {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: #6C6C70 !important;
+  border-radius: 10px !important;
+  flex: 1 !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  transition: all 0.15s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+/* "보내기" 버튼 만 강조 (gradient + larger flex) */
+#resultNav .nw-send,
+#resultNav button.btn-primary,
+#resultNav button[onclick*="sendToNaverWorks"] {
+  background: linear-gradient(135deg, #007AFF, #5856D6) !important;
+  color: white !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  flex: 2 !important;
+  padding: 12px !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.45) inset,
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 4px 14px rgba(0, 122, 255, 0.35) !important;
+  position: relative !important;
+}
+/* segmented control 컨테이너 background */
+#resultNav::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: 8px;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 14px;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.04) inset;
+  z-index: -1;
+}
+#resultNav { position: relative !important; }
+</style>
+
+<script>/* R134-RESULT */
+(function(){
+  if(window.__r134Applied) return;
+  window.__r134Applied = true;
+
+  // ⑫A: "미입력" 텍스트 → "—" 변경
+  function replaceUnfilledText(){
+    try{
+      // sc-val 또는 미입력 클래스 텍스트 찾기
+      document.querySelectorAll('.sc-val, .sc-row .sc-val, [data-empty="1"]').forEach(function(el){
+        if(el.textContent.trim() === '미입력' || el.textContent.trim() === '') {
+          el.textContent = '—';
+          el.style.color = '#C7C7CC';
+          el.style.fontStyle = 'normal';
+        }
+      });
+      // 일반 .empty-state 또는 italic gray text "미입력"
+      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+      var node;
+      var nodes = [];
+      while(node = walker.nextNode()){
+        if(node.nodeValue && node.nodeValue.trim() === '미입력') nodes.push(node);
+      }
+      nodes.forEach(function(n){ n.nodeValue = '—'; });
+    }catch(_){}
+  }
+  setTimeout(replaceUnfilledText, 200);
+  // result page 가 열릴 때마다 재실행
+  var obs = new MutationObserver(function(){
+    if(document.querySelector('#page-result.active, #page6.active')){
+      replaceUnfilledText();
+    }
+  });
+  setTimeout(function(){
+    if(document.body){
+      obs.observe(document.body, {attributes:true, attributeFilter:['class'], subtree:true});
+    }
+  }, 400);
+})();
+</script>
 </head>
 
 <body>
