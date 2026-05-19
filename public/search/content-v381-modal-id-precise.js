@@ -200,12 +200,21 @@
     if (id && id !== lastModalId) {
       lastModalId = id;
       try { console.log(TAG, 'modal id (from 매물번호 text): ' + id); } catch (e) {}
-      setTimeout(function () { applyContactsToModal(id); }, 150);
+      // [Step 45 fix 2026-05-19 사장님 명령] setTimeout 제거 — observer 이미 debounce 적용
+      try { applyContactsToModal(id); } catch (e) {}
     }
   }
 
+  // [Step 45 fix 2026-05-19] observer throttle 250ms — body subtree mutation cascade 차단
+  //   기존: 매 DOM 변경마다 check() 호출 → 100매물 render = 수백 setTimeout 폭주
+  //   수정: 250ms throttle 로 차단
+  var __v381_throttle = null;
   var observer = new MutationObserver(function () {
-    try { check(); } catch (e) {}
+    if (__v381_throttle) return;
+    __v381_throttle = setTimeout(function () {
+      __v381_throttle = null;
+      try { check(); } catch (e) {}
+    }, 250);
   });
 
   function startObserver() {
