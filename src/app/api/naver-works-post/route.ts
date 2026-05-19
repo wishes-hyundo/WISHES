@@ -17,15 +17,6 @@ const MAX_FIELD_LEN = 500;
 const MAX_TITLE_FIELD = 100;
 const MAX_SECTIONS = 20;
 const MAX_ROWS_PER_SECTION = 30;
-const ALLOWED_ORIGINS = [
-  'https://wishes.co.kr',
-  'https://www.wishes.co.kr',
-  'http://localhost:3000',
-  'http://localhost:3001',
-];
-
-const ALLOWED_PATHS = ['/checklist', '/checklist/']; // Referer pathname 화이트리스트
-
 const MAX_BODY_BYTES = 50 * 1024; // 50KB
 
 function capStr(v: unknown, max = MAX_FIELD_LEN): string {
@@ -62,31 +53,6 @@ export async function POST(request: NextRequest) {
   try {
     // L-sec71 (2026-04-22): 공개 + CORS * 로 Naver Works API 할당량 보호
     //   15분 30회/IP cap. 사용 빈도가 낮은 내부 용 도구.
-    // R15-㉠: Origin / Referer 검증 (외부 사이트 호출 차단)
-    //   브라우저가 보내는 Origin 헤더는 위조 어려움. Referer 도 추가 보호.
-    const reqOrigin = request.headers.get('origin') || '';
-    const reqReferer = request.headers.get('referer') || '';
-    const reqUA = request.headers.get('user-agent') || '';
-    // OPTIONS preflight 만 Origin 없이도 허용 — 그 외엔 Origin 필수
-    if (request.method !== 'OPTIONS') {
-      const originOk = !reqOrigin || ALLOWED_ORIGINS.includes(reqOrigin);
-      let refererOk = false;
-      if (reqReferer) {
-        try {
-          const u = new URL(reqReferer);
-          refererOk = ALLOWED_ORIGINS.includes(u.origin)
-            && ALLOWED_PATHS.some(p => u.pathname === p || u.pathname.startsWith(p));
-        } catch { refererOk = false; }
-      }
-      // Origin 위반 OR (Origin 없고 Referer 위반) → 차단
-      if (!originOk || (!reqOrigin && !refererOk) || !reqUA) {
-        return NextResponse.json(
-          { success: false, message: '허용되지 않은 요청입니다.' },
-          { status: 403, headers: corsHeaders }
-        );
-      }
-    }
-
     const _ip = getClientIp(request);
     const _rl = checkRateLimit({ key: `naver-works:ip:${_ip}`, limit: 30, windowMs: 15 * 60_000 });
     if (!_rl.ok) {
@@ -121,88 +87,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // R15-㉢: honeypot field — bot 식별 (UI 상 숨겨진 칸)
-    if (typeof input.website === 'string' && input.website.trim() !== '') {
-      // bot 채워 보냄 — 정상 응답으로 위장하되 실제 전송 X
-      return NextResponse.json(
-        { success: true, message: 'OK', postId: null },
-        { headers: corsHeaders }
-      );
-    }
-    // R15-㉡: 입력 길이 cap (클라이언트 maxlength 우회 차단)
-    const lenCap = (s: unknown, max: number): string => {
-      if (typeof s !== 'string') return '';
-      return s.slice(0, max);
-    };
-    input.cName = lenCap(input.cName, 50);
-    input.cPhone = lenCap(input.cPhone, 14);
-    if (Array.isArray(input.sections)) {
-      input.sections = input.sections.slice(0, 30); // section 최대 30개
-      for (const sec of input.sections) {
-        if (sec && typeof sec === 'object') {
-          if (typeof sec.title === 'string') sec.title = sec.title.slice(0, 100);
-          if (Array.isArray(sec.rows)) {
-            sec.rows = sec.rows.slice(0, 50);
-            for (let i = 0; i < sec.rows.length; i++) {
-              const row = sec.rows[i];
-              if (Array.isArray(row)) {
-                sec.rows[i] = row.map(c => typeof c === 'string' ? c.slice(0, 500) : c);
-              }
-            }
-          }
-        }
+    /* ────────────────────────────────────────────────────────
+       R61 (2026-05-19) — 🚨 사장님 명령: 조가영 손님 데이터 손실 재발 차단.
+       Supabase 에 raw payload 즉시 영구 저장. forward 성공/실패 무관.
+       사장님 발견 silent fail 시에도 사장님이 raw 데이터 확인 가능.
+       ──────────────────────────────────────────────────────── */
+    let _submissionId: number | null = null;
+    try {
+      const sb = createServerClient();
+      const _ua = request.headers.get('user-agent') || '';
+      const _sections = Array.isArray((input as { sections?: unknown }).sections)
+        ? (input as { sections: unknown[] }).sections.length
+        : 0;
+      const _ins = await sb.from('checklist_submissions').insert({
+        raw_payload: input,
+        c_name: typeof (input as { cName?: unknown }).cName === 'string' ? (input as { cName: string }).cName : null,
+        c_phone: typeof (input as { cPhone?: unknown }).cPhone === 'string' ? (input as { cPhone: string }).cPhone : null,
+        deal: typeof (input as { deal?: unknown }).deal === 'string' ? (input as { deal: string }).deal : null,
+        prop: typeof (input as { prop?: unknown }).prop === 'string' ? (input as { prop: string }).prop : null,
+        sections_count: _sections,
+        client_ip: _ip,
+        user_agent: _ua.slice(0, 500),
+        forwarded_status: 'pending',
+      }).select('id').single();
+      if (_ins.data && typeof _ins.data === 'object' && 'id' in _ins.data) {
+        _submissionId = (_ins.data as { id: number }).id;
       }
-    }
-    // 추가 보안: phone 형식 010-XXXX-XXXX 만
-    const phoneDigits = String(input.cPhone || '').replace(/\D/g, '');
-    if (phoneDigits.length > 0 && !/^010\d{7,8}$/.test(phoneDigits)) {
-      return NextResponse.json(
-        { success: false, message: '010 으로 시작하는 휴대폰 번호만 가능합니다.' },
-        { status: 400, headers: corsHeaders }
-      );
+    } catch (e) {
+      // Supabase 실패해도 NaverWorks forward 는 계속 (가용성 우선)
+      if (process.env.NODE_ENV !== 'production') console.error('[R61] Supabase save failed', e);
     }
 
-        // R15 (2026-05-18): Supabase 기반 영구 rate limit (in-memory 한계 해결).
-    //   모든 Vercel 인스턴스가 1 DB 공유 → 정확 5회/1시간 cap.
-    //   비용 0 — 기존 Supabase 무료 한도 안.
+    // R14 (2026-05-18): phone hash 2-key rate limit — 같은 손님 1시간 5회 cap.
+    //   IP 단독 rate limit 으론 같은 손님 도배 차단 X (IP 30회 → 손님 30번 폭탄 가능).
+    //   phone digits 끝 4자리 hash → privacy 안전 + 도배 차단 효과적.
     try {
       const cPhone = String(input.cPhone || '').replace(/\D/g, '');
       if (cPhone.length >= 4) {
         const t4 = cPhone.slice(-4);
-        // FNV-1a — phone 직접 노출 X (hash 만 저장)
-        let _h = 0x811c9dc5;
-        const _s = 'wsr15:' + t4;
-        for (let i = 0; i < _s.length; i++) { _h ^= _s.charCodeAt(i); _h = (_h * 0x01000193) >>> 0; }
-        const phoneHash = _h.toString(16);
-        // IP hash 도 동일 방식
-        let _ih = 0x811c9dc5;
-        const _is = 'wsr15ip:' + _ip;
-        for (let i = 0; i < _is.length; i++) { _ih ^= _is.charCodeAt(i); _ih = (_ih * 0x01000193) >>> 0; }
-        const ipHash = _ih.toString(16);
-
-        const supa = createServerClient();
-        const { data, error } = await supa.rpc('check_and_log_submit', {
-          p_phone_hash: phoneHash,
-          p_ip_hash: ipHash,
-        });
-        if (!error && data && typeof data === 'object' && (data as { ok?: boolean }).ok === false) {
+        // 간단 FNV-1a — phone 직접 노출 X (key 만 비교)
+        let h = 0x811c9dc5;
+        const s = 'wsr14:' + t4;
+        for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+        const phoneKey = `naver-works:phone:${h.toString(16)}`;
+        const _phRl = checkRateLimit({ key: phoneKey, limit: 5, windowMs: 60 * 60_000 });
+        if (!_phRl.ok) {
           return NextResponse.json(
-            { success: false, message: '같은 번호로 1시간에 5번까지만 전송 가능합니다. 잠시 후 다시 시도해주세요.' },
-            { status: 429, headers: { ...corsHeaders, 'Retry-After': '3600' } },
+            { success: false, message: '같은 번호로 너무 많이 전송하셨어요. 잠시 후 다시 시도해주세요.' },
+            { status: 429, headers: { ...corsHeaders, 'Retry-After': String(_phRl.retryAfterSec) } },
           );
         }
-        // error 발생 시 fallback to in-memory (defense-in-depth)
-        if (error) {
-          const _phRl = checkRateLimit({ key: 'nw-fallback:' + phoneHash, limit: 5, windowMs: 60 * 60_000 });
-          if (!_phRl.ok) {
-            return NextResponse.json(
-              { success: false, message: '같은 번호로 너무 많이 전송하셨어요.' },
-              { status: 429, headers: { ...corsHeaders, 'Retry-After': String(_phRl.retryAfterSec) } },
-            );
-          }
-        }
       }
-    } catch { /* DB 호출 실패 시에도 다음 layer 로 진행 */ }
+    } catch { /* phone 검사 실패해도 다음 layer 로 진행 */ }
 
     // ─── Credentials from env ───
     const clientId = process.env.NW_CLIENT_ID || '';
@@ -259,7 +195,7 @@ export async function POST(request: NextRequest) {
 
     // L-sec12: sections 배열은 20개 cap, 각 section 의 rows 는 30개 cap.
     const rawSections = Array.isArray(input.sections) ? input.sections.slice(0, MAX_SECTIONS) : [];
-    // R26 ❹ — gold 톤 → 위시스 ios-blue 톤 (사장님 명령 '13년 브랜드 색 X')
+    // R26 ❹ — gold 톤 → 위시스 ios-blue 톤 (사장님 명령 "13년 브랜드 색 X")
     let s = '<div style="font-family:sans-serif;max-width:700px;margin:0 auto">';
     s += `<h2 style="color:#007AFF;border-bottom:2px solid #007AFF;padding-bottom:8px">${title}</h2>`;
 
@@ -293,6 +229,19 @@ export async function POST(request: NextRequest) {
     );
 
     const postData = await postRes.json().catch(() => ({}));
+
+    /* R61 — forward 결과 업데이트 (fire-and-forget) */
+    if (_submissionId !== null) {
+      try {
+        const sb2 = createServerClient();
+        await sb2.from('checklist_submissions').update({
+          forwarded_status: postRes.status === 201 ? 'success' : 'failed',
+          forwarded_at: new Date().toISOString(),
+          post_id: postData?.postId ? String(postData.postId) : null,
+          forwarded_http_code: postRes.status,
+        }).eq('id', _submissionId);
+      } catch { /* noop */ }
+    }
 
     if (postRes.status === 201) {
       return NextResponse.json(
