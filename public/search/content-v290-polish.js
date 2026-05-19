@@ -127,8 +127,11 @@
       };
       img.addEventListener('load', reveal);
       img.addEventListener('error', reveal);
-      // 안전망 2초 — load 이벤트 놓치더라도 반드시 표시
-      setTimeout(reveal, 2000);
+      // [Step 40 fix 2026-05-19 사장님 명령] setTimeout(reveal, 2000) 안전망 제거
+      //   원인: 매 이미지마다 setTimeout = 100매물 × 페이지전환 N번 = 1770+ 누적
+      //         → main thread freeze (사장님 보고: __V403_CALLERS v29 = 1770)
+      //   해결: load/error event listener 만 사용. (image natural load is robust)
+      //   이미 wasLoaded check 위에 있어 cached image 도 OK.
     });
   }
 
