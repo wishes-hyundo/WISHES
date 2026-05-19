@@ -2605,21 +2605,24 @@ function generateResult(){
   if(deal==='매매'){
 
     /* R47 — buyMin input 제거됨 (단일 max), "최대 N 만원" 표시 */
-    const mx=gvNum('buyMax');
+    /* R49 — gvNum() 은 string 반환. Number() 변환 필수 (toLocaleString 콤마) */
+    const mx=parseInt(gvNum('buyMax'),10);
 
     if(mx) budget='최대 '+mx.toLocaleString()+' 만원';
 
   }else if(deal==='전세'){
 
     /* R47 — jMin input 제거됨 (단일 max) */
-    const mx=gvNum('jMax');
+    /* R49 — Number 변환 */
+    const mx=parseInt(gvNum('jMax'),10);
 
     if(mx) budget='최대 '+mx.toLocaleString()+' 만원';
 
   }else if(deal==='월세'){
 
     /* R48 — 월세 단일 입력 시 "미정" 표시 + 천 단위 콤마 */
-    const dep=gvNum('mDep'), rent=gvNum('mRent');
+    /* R49 — Number 변환 필수 */
+    const dep=parseInt(gvNum('mDep'),10), rent=parseInt(gvNum('mRent'),10);
 
     if(dep||rent){
       var depStr = dep ? dep.toLocaleString()+'만원' : '미정';
