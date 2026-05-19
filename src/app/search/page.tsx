@@ -258,11 +258,13 @@ export default function SearchPortalPage() {
       //   SAFE_PRESERVE 영구 보호. 토스트 10분 throttle.
       ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260519-step32-cap1000'],
       // Step D Plan C (2026-05-10): ws_data_snapshot → IndexedDB (50MB+, 전체 62K 매물 추적).
-      ['ws-ext-patch-v340-snapshot-idb', '/search/content-v340-snapshot-idb.js?v=20260510a'],
+      // [Step 33 freeze fix 2026-05-19 사장님 명령] disabled — IndexedDB 무거움, listings 누적
+      // ['ws-ext-patch-v340-snapshot-idb', '/search/content-v340-snapshot-idb.js?v=20260510a'],
       // v343 (2026-05-10 사장님 명령 Fix 4): ws_price_snapshots -> IndexedDB.
       //   v340 와 같은 패턴, key 만 다름. 60K x 80byte = 5MB localStorage quota
       //   영구 fix. 토스트 영구 사라짐.
-      ['ws-ext-patch-v343-pricesnap-idb', '/search/content-v343-pricesnap-idb.js?v=20260510a'],
+      // [Step 33 freeze fix 2026-05-19 사장님 명령] disabled — IndexedDB, 가격 snapshot polling
+      // ['ws-ext-patch-v343-pricesnap-idb', '/search/content-v343-pricesnap-idb.js?v=20260510a'],
       // v345 (2026-05-10 사장님 명령 Fix 22): 매물 카드 img lazy load 강제.
       //   100 매물 사진 동시 fetch -> 수백 MB. viewport 외 사진도 fetch.
       //   loading=lazy 추가 -> viewport 안 매물만 fetch -> 첫 진입 빠름.
