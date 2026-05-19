@@ -2571,7 +2571,8 @@ function stars(k){
 
 function generateResult(){
 
-  const name = gv('cName')||'손님';
+  const cNameRaw = gv('cName');
+  const name = cNameRaw || '손님';
   const EMPTY = '<span class="sc-empty">미입력</span>';
 
   const deal = S.deal || gc('g-dealType');
@@ -2579,7 +2580,8 @@ function generateResult(){
   const propRaw = gc('g-propType');
   const prop = propRaw === '—' ? '—' : (propRaw.replace(/[\p{Extended_Pictographic}\uFE0F\u200D]/gu, '').replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ').trim() || '—');
 
-  document.getElementById('rName').textContent = name+'님';
+  /* R38 — 이름 빈 fallback 시 "손님님" 중복 방지 */
+  document.getElementById('rName').textContent = cNameRaw ? (cNameRaw+'님') : '손님';
 
   var subParts = [];
   if(deal) subParts.push(deal);
