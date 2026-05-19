@@ -3059,7 +3059,7 @@ function generateResult(){
 
         <div class="sc-row"><div class="sc-key">희망 옵션</div><div class="sc-val">${gc('g-opt')||EMPTY}</div></div>
 
-        ${gc('g-pet')!=='—'?'<div class="sc-row"><div class="sc-key">반려동물 (상세)</div><div class="sc-val">'+gc('g-pet')+'</div></div>':''}
+        ${(gc('g-pet')&&gc('g-pet')!=='—'&&gc('g-pet').trim()!=='')?'<div class="sc-row"><div class="sc-key">반려동물 (상세)</div><div class="sc-val">'+gc('g-pet')+'</div></div>':''}
 
         <!-- R87 — 누락된 주차/반려동물 row 추가 (사장님 발견 패턴) -->
         <div class="sc-row"><div class="sc-key">주차</div><div class="sc-val">${gc('g-parking')||EMPTY}${gv('parkingNote')?' · '+_esc(gv('parkingNote')):''}</div></div>
@@ -4996,8 +4996,10 @@ function updateBottomNavText(n){
     };
   }
 
-  /* ❷ 결과 페이지에 parkingNote / petNote 표시 */
+  /* ❷ 결과 페이지에 parkingNote / petNote 표시 — R88: R87 가 통합 표시하므로 비활성 (중복 방지) */
   function injectExtraResultRows(){
+    /* R88 — R87 의 결과 페이지 row 에 parkingNote/petNote 통합 → R18 동적 row 불필요 (중복) */
+    return;
     var page = document.getElementById('page-result');
     if(!page) return;
     var parking = (document.getElementById('parkingNote')||{}).value || '';
