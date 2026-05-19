@@ -23,7 +23,8 @@
   // 모바일/터치 device skip
   if ('ontouchstart' in window && navigator.maxTouchPoints > 0) return;
 
-  var HOVER_DELAY = 500;
+  // [Step 107 fix] 500→300ms 응답성 향상
+  var HOVER_DELAY = 300;
   var POPUP_WIDTH = 280;
   var hoverTimer = null;
   var currentPopup = null;
@@ -101,7 +102,17 @@
       left = rect.left - POPUP_WIDTH - 8;
     }
     if (left < 8) left = 8;
-    var top = Math.max(8, Math.min(rect.top, window.innerHeight - 280));
+    // [Step 107 fix] 실제 popup height 측정 (hardcode 280 제거)
+    var popupH = 280;
+    try {
+      var prevDisplay = popup.style.display;
+      popup.style.visibility = 'hidden';
+      popup.style.display = 'block';
+      popupH = popup.getBoundingClientRect().height || 280;
+      popup.style.visibility = '';
+      if (prevDisplay) popup.style.display = prevDisplay;
+    } catch (_) {}
+    var top = Math.max(8, Math.min(rect.top, window.innerHeight - popupH - 8));
     popup.style.left = left + 'px';
     popup.style.top = top + 'px';
   }
@@ -114,33 +125,33 @@
     }
   }
 
+  // [Step 107 fix 2026-05-19 사장님 명령] popup 재사용 + 동적 위치
+  //   기존: 매번 새 popup 생성 → opacity transition 매번 재시작 → 깜빡임
+  //   수정: popup instance 재사용. innerHTML + position 만 갱신.
   function showPopup(card, listing) {
-    removePopup();
-    var popup = document.createElement('div');
-    popup.className = 'ws-v404-hover-popup';
-    popup.style.cssText = [
-      'position:fixed',
-      'z-index:99999',
-      'background:#fff',
-      'border:1px solid #e2e2e2',
-      'border-radius:10px',
-      'box-shadow:0 8px 24px rgba(0,0,0,0.12)',
-      'padding:10px',
-      'width:' + POPUP_WIDTH + 'px',
-      'font-family:inherit',
-      'pointer-events:auto',
-      'transition:opacity 0.15s',
-      'opacity:0'
-    ].join(';');
-    popup.innerHTML = buildPopupHtml(listing);
-
-    // popup 자체 hover 유지
-    popup.addEventListener('mouseleave', removePopup);
-
-    document.body.appendChild(popup);
-    positionPopup(popup, card);
-    requestAnimationFrame(function () { popup.style.opacity = '1'; });
-    currentPopup = popup;
+    if (!currentPopup) {
+      currentPopup = document.createElement('div');
+      currentPopup.className = 'ws-v404-hover-popup';
+      currentPopup.style.cssText = [
+        'position:fixed',
+        'z-index:99999',
+        'background:#fff',
+        'border:1px solid #e2e2e2',
+        'border-radius:10px',
+        'box-shadow:0 8px 24px rgba(0,0,0,0.12)',
+        'padding:10px',
+        'width:' + POPUP_WIDTH + 'px',
+        'font-family:inherit',
+        'pointer-events:auto',
+        'transition:opacity 0.15s',
+        'opacity:1'
+      ].join(';');
+      currentPopup.addEventListener('mouseleave', removePopup);
+      document.body.appendChild(currentPopup);
+    }
+    currentPopup.innerHTML = buildPopupHtml(listing);
+    positionPopup(currentPopup, card);
+    currentPopup.style.opacity = '1';
     currentCardId = card.getAttribute('data-listing-id');
   }
 
@@ -179,6 +190,9 @@
           if (l && card.matches(':hover')) {
             showPopup(card, l);
           }
+        }).catch(function () {
+          // [Step 107 fix] fetch 실패 시 cache 제거 (다음 hover 에 재시도)
+          try { delete fetchCache[id]; } catch (_) {}
         });
       }
     }, HOVER_DELAY);
@@ -205,6 +219,10 @@
   }
 
   function handleScroll() {
+    // [Step 107 fix] popup 내부 hover 중이면 닫지 않음
+    if (currentPopup) {
+      try { if (currentPopup.matches(':hover')) return; } catch (_) {}
+    }
     removePopup();
   }
 

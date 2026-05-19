@@ -202,8 +202,9 @@
       __t = setTimeout(function () { __t = null; render(); }, 300);
     });
     try { mo.observe(document.body, { childList: true, subtree: true }); } catch (_) {}
-    // state 변경 polling (필터 클릭 후 state 만 변경된 경우 cover)
-    setInterval(render, 1500);
+    // [Step 107 fix 2026-05-19 사장님 명령] setInterval 1500ms polling 제거 — MO 만으로 충분
+    //   기존: MO + setInterval 동시 → 매 1.5초마다 getActiveFilters 호출 (CPU 부담)
+    //   수정: MO 만 — DOM 변경 시점에만 호출 (필터 click 시 DOM 갱신되므로 자연스럽게 동기화)
   }
 
   if (document.readyState === 'loading') {
