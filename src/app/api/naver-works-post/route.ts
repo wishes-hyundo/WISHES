@@ -197,7 +197,22 @@ export async function POST(request: NextRequest) {
     const rawSections = Array.isArray(input.sections) ? input.sections.slice(0, MAX_SECTIONS) : [];
     // R26 ❹ — gold 톤 → 위시스 ios-blue 톤 (사장님 명령 "13년 브랜드 색 X")
     let s = '<div style="font-family:sans-serif;max-width:700px;margin:0 auto;background:#FFFFFF;color:#1C1C1E;padding:14px;border-radius:8px">';  /* R89 — NaverWorks 다크모드 가독성 (검정 배경 강제 차단) */
-    s += `<h2 style="color:#007AFF;border-bottom:2px solid #007AFF;padding-bottom:8px">${title}</h2>`;
+    s += `<h2 style="color:#007AFF;border-bottom:2px solid #007AFF;padding-bottom:8px;margin:0 0 12px">${title}</h2>`;
+
+    /* R90 — 사장님 영업 hero block. 글 열자마자 손님 정보 한눈에. */
+    {
+      const reg1 = esc(capStr((rawSections[2] && rawSections[2].rows && rawSections[2].rows[0] && rawSections[2].rows[0][1]) || ''));
+      const phoneDigits = phone.replace(/[^0-9]/g, '');
+      const telHref = phoneDigits ? `tel:${phoneDigits}` : '';
+      s += '<div style="background:linear-gradient(135deg,#E5F4EB 0%,#D6F0FA 100%);border-radius:10px;padding:14px 16px;margin:0 0 14px;color:#1C1C1E">';
+      s += `<div style="font-size:13px;color:#6E6E73;margin-bottom:4px">손님 정보</div>`;
+      s += `<div style="font-size:18px;font-weight:700;margin-bottom:6px">${name}</div>`;
+      if (telHref) {
+        s += `<div style="font-size:16px;font-weight:600;margin-bottom:8px"><a href="${telHref}" style="color:#007AFF;text-decoration:none">📞 ${phone}</a></div>`;
+      }
+      s += `<div style="font-size:14px;color:#1C1C1E"><span style="background:#007AFF;color:#FFFFFF;padding:2px 8px;border-radius:10px;font-weight:600;margin-right:4px">${deal}</span><span style="background:#5856D6;color:#FFFFFF;padding:2px 8px;border-radius:10px;font-weight:600;margin-right:6px">${prop}</span>${reg1 ? `· ${reg1}` : ''}</div>`;
+      s += '</div>';
+    }
 
     for (const sec of rawSections) {
       if (!sec || typeof sec !== 'object') continue;
