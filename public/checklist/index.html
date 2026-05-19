@@ -4351,7 +4351,7 @@ function updateBottomNavText(n){
      ═════════════════════════════════════════════════════════════ */
   (function _r61Autosave(){
     var KEY = 'ws_chk_autosave_v1';
-    var TTL_MS = 60 * 60 * 1000; // 1시간 후 자동 만료
+    var TTL_MS = 10 * 60 * 1000; // R79b — 10분 후 자동 만료 (공용 디바이스 다른 손님 privacy)
     function snapshot(){
       try {
         // 모든 input 값 + S.deal + S.prop + S.chips + S.stars 통합 dump
@@ -4409,25 +4409,8 @@ function updateBottomNavText(n){
         var phoneEl = document.getElementById('cPhone');
         if ((nameEl && nameEl.value) || (phoneEl && phoneEl.value)) return; // 이미 입력 중
 
-        // 텍스트 input 복원
-        if (state.fields) {
-          Object.keys(state.fields).forEach(function(id){
-            var el = document.getElementById(id);
-            if (!el) return;
-            if (el.type === 'checkbox' || el.type === 'radio') {
-              el.checked = !!state.fields[id];
-            } else {
-              el.value = state.fields[id];
-            }
-          });
-        }
-        // deal chip 복원
-        if (state.deal) {
-          var dealChip = Array.from(document.querySelectorAll('.deal-chip'))
-            .find(function(b){ return b.textContent.trim().indexOf(state.deal)>=0; });
-          if(dealChip) dealChip.click();
-        }
-        // 작은 banner 안내
+        // R79b — 자동 복원 X. loadBtn.onclick 에 옮김 (privacy 보호)
+        // R79b — 자동 복원 X. "이전 내용 불러오기" 버튼 표시 (사용자 클릭 시만 복원)
         var page = document.getElementById('page-1');
         if (page && !document.getElementById('ws-r61-restore-banner')) {
           var b = document.createElement('div');
@@ -4435,10 +4418,44 @@ function updateBottomNavText(n){
           var rmDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
           var bg = rmDark ? 'rgba(0,122,255,0.18)' : '#E5F3FF';
           var col = rmDark ? '#5BB5FF' : '#004FCC';
-          b.style.cssText='background:'+bg+';color:'+col+';border-radius:10px;padding:10px 14px;margin:0 16px 12px;font-size:13px;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;';
-          b.textContent = '이전에 작성하던 내용을 복원했어요. 이어서 작성해주세요.';
+          b.style.cssText='background:'+bg+';color:'+col+';border-radius:10px;padding:12px 14px;margin:0 16px 12px;font-size:13px;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;display:flex;flex-direction:column;gap:8px;align-items:center;';
+          var msg = document.createElement('div');
+          msg.textContent = '이전에 작성하시던 내용이 있어요.';
+          var btnRow = document.createElement('div');
+          btnRow.style.cssText='display:flex;gap:8px;';
+          var loadBtn = document.createElement('button');
+          loadBtn.type='button';
+          loadBtn.textContent='불러오기';
+          loadBtn.style.cssText='background:#007AFF;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:600;cursor:pointer;min-height:32px;';
+          loadBtn.onclick = function(){
+            // 진짜 복원
+            if (state.fields) {
+              Object.keys(state.fields).forEach(function(id){
+                var el = document.getElementById(id);
+                if (!el) return;
+                if (el.type === 'checkbox' || el.type === 'radio') el.checked = !!state.fields[id];
+                else el.value = state.fields[id];
+              });
+            }
+            if (state.deal) {
+              var dealChip = Array.from(document.querySelectorAll('.deal-chip')).find(function(b){ return b.textContent.trim().indexOf(state.deal)>=0; });
+              if(dealChip) dealChip.click();
+            }
+            b.remove();
+          };
+          var cancelBtn = document.createElement('button');
+          cancelBtn.type='button';
+          cancelBtn.textContent='새로 작성';
+          cancelBtn.style.cssText='background:'+(rmDark?'#48484A':'#E5E5EA')+';color:'+col+';border:none;border-radius:8px;padding:6px 14px;font-size:13px;cursor:pointer;min-height:32px;';
+          cancelBtn.onclick = function(){
+            try { sessionStorage.removeItem(KEY); } catch(_){}
+            b.remove();
+          };
+          btnRow.appendChild(loadBtn);
+          btnRow.appendChild(cancelBtn);
+          b.appendChild(msg);
+          b.appendChild(btnRow);
           page.insertBefore(b, page.firstChild);
-          setTimeout(function(){ try { b.remove(); } catch(_){} }, 8000);
         }
       } catch(_){}
     }
