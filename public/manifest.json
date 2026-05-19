@@ -1,12 +1,12 @@
 {
-  "name": "WISHES",
+  "name": "WISHES 부동산",
   "short_name": "WISHES",
   "description": "전국 17 시도 종합부동산 중개 서비스",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f4f8f0",
-  "theme_color": "#3a7d44",
+  "background_color": "#F2F2F7",
+  "theme_color": "#007AFF",
   "orientation": "portrait-primary",
   "icons": [
     {
