@@ -2659,11 +2659,22 @@ function goPage(n){
 
 function nextPage(){
 
-  /* R85 — STEP 3 의 "✅ 상담 완료" 클릭 시 결과 페이지 표시만 (자동 전송 X).
-     R84 의 자동 전송이 사장님이 결과 검토 전에 발사 → R85 에서 제거.
-     사장님이 결과 페이지 보고 "📤 보내기" 버튼 클릭 시 NaverWorks 전송. */
-  if(cur<TOTAL) goPage(cur+1);
-  else goPage('result');
+  /* R94 — STEP 3 의 "✅ 상담 완료" 클릭 시 결과 페이지 + review modal 자동 표시.
+     사장님 / 손님이 modal 의 "확인" 클릭 시 전송 (검토 유지 + 데이터 손실 차단). */
+  if(cur<TOTAL){
+    goPage(cur+1);
+    return;
+  }
+  goPage('result');
+  /* 결과 페이지 진입 후 자동 startSend() 호출 → review modal 표시.
+     사용자가 "취소" 누르면 결과 페이지 머무름 (수동 재전송 가능). */
+  setTimeout(function(){
+    try {
+      if(typeof startSend === 'function' && !window.SENT) startSend();
+    } catch(e){
+      if(typeof console!=='undefined') console.error('[R94] startSend error', e);
+    }
+  }, 700);
 
 }
 
