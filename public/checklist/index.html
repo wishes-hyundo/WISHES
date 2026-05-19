@@ -1479,6 +1479,41 @@ input:-webkit-autofill:focus {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   R59 — 인쇄 / PDF 저장 시 강제 라이트 모드 + UI 숨김
+   ═══════════════════════════════════════════════════════════════ */
+@media print {
+  html, body, .layout, .card, .card-body, .summary-card {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    forced-color-adjust: none;
+  }
+  .topbar, .step-nav, .progress-track, .pBar,
+  .send-btn, .next-btn, .prev-btn, .visit-toggle,
+  .r23-intro-banner, #ws-toast, #ws-review, .ios-sheet-backdrop,
+  .star, .stars,
+  .chip:not(.on), .deal-chip:not(.on),
+  .chips, .chips-seg {
+    display: none !important;
+  }
+  .summary-card, .sc-row {
+    border: 1px solid #CCCCCC !important;
+    box-shadow: none !important;
+    background: #FFFFFF !important;
+    page-break-inside: avoid;
+  }
+  *, *::before, *::after {
+    color: #000000 !important;
+    text-shadow: none !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+  }
+  @page { margin: 1.5cm 1.2cm; size: A4; }
+  a[href]::after { content: " (" attr(href) ")"; font-size: 0.85em; color: #666666 !important; }
+  a[href^="#"]::after, a[href^="javascript:"]::after, a[href^="mailto:"]::after { content: ""; }
+  .result-hero { background: #F5F5F5 !important; border: 1px solid #CCCCCC !important; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
    R53 — 다크모드 selected state 강화 (사장님 발견 2026-05-19)
    문제: chip.on / deal-chip.on 색이 다크 배경과 비슷한 톤이라 
          클릭 여부 인지 어려움 (특히 모바일)
@@ -3887,7 +3922,25 @@ function updateBottomNavText(n){
     } else {
       try{
         var fn = typeof collectData==='function' ? collectData : window.collectData;
-        data = fn ? fn() : {cName:(document.getElementById('cName')||{}).value, cPhone:(document.getElementById('cPhone')||{}).value};
+        /* R60 — collectData 없으면 silent fail 금지. 사장님이 즉시 알아야 함.
+           이전 사장님 발견 (2026-05-19): collectData IIFE 갇혀 fallback {cName,cPhone}
+           만 전송돼 손님 매물조건/예산/지역 등 모두 손실. 다음엔 silent X. */
+        if(typeof fn !== 'function'){
+          IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+          if(toast.parentNode) toast.parentNode.removeChild(toast);
+          showToast({type:'error',title:'전송 준비 실패',msg:'페이지를 새로고침 후 다시 시도해주세요 (collectData 로드 실패)', duration:8000});
+          if(typeof console!=='undefined') console.error('[R60] collectData 미정의 — 전송 차단');
+          return;
+        }
+        data = fn();
+        /* R60 — sections 누락 시 전송 차단 (1+섹션 필수) */
+        if(!data || !data.sections || !Array.isArray(data.sections) || data.sections.length === 0){
+          IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+          if(toast.parentNode) toast.parentNode.removeChild(toast);
+          showToast({type:'error',title:'전송 준비 실패',msg:'매물 조건 데이터가 누락됐어요. 페이지 새로고침 후 다시 시도해주세요', duration:8000});
+          if(typeof console!=='undefined') console.error('[R60] sections 누락', data);
+          return;
+        }
         try { var hp = document.getElementById('website'); if(hp && hp.value) data.website = hp.value; } catch(_){}
       }catch(e){
         IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
