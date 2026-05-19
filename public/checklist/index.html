@@ -2298,6 +2298,10 @@ function goPage(n){
 
     updateTopBar('result');
 
+    /* R37 — STEP 3 active → done 시각 fix + picker sheet 자동 close */
+    if (typeof updateStepNav === 'function') updateStepNav('result');
+    if (typeof closePicker === 'function') try { closePicker(); } catch(_){}
+
     generateResult();
 
     
@@ -2374,6 +2378,14 @@ function updateStepNav(n){
   document.querySelectorAll('.step-btn').forEach(b=>{
 
     const s = parseInt(b.dataset.step);
+
+    /* R37 — 결과 페이지 시 모든 step done 처리 */
+    if (n === 'result' || n === 6) {
+      b.className = 'step-btn done';
+      const badge = b.querySelector('.step-badge');
+      if (badge) badge.textContent = '✓';
+      return;
+    }
 
     b.className='step-btn'+(s===n?' active':s<n?' done':'');
 
