@@ -1578,7 +1578,7 @@ input:-webkit-autofill:focus {
           <div class="budget-label">매매 금액</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('buyMax',-1000)">−</button>
-            <input type="text" class="budget-input" id="buyMax" inputmode="numeric" placeholder="예: 50,000" value="" oninput="fmtBudget(this)"/>
+            <input type="text" class="budget-input" id="buyMax" inputmode="numeric" placeholder="예: 50,000" value="" maxlength="9" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원</span>
             <button type="button" class="budget-btn" onclick="adjBudget('buyMax',1000)">+</button>
           </div>
@@ -1613,7 +1613,7 @@ input:-webkit-autofill:focus {
           <div class="budget-label">전세 금액</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('jMax',-500)">−</button>
-            <input type="text" class="budget-input" id="jMax" inputmode="numeric" placeholder="예: 20,000" value="" oninput="fmtBudget(this)"/>
+            <input type="text" class="budget-input" id="jMax" inputmode="numeric" placeholder="예: 20,000" value="" maxlength="9" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원</span>
             <button type="button" class="budget-btn" onclick="adjBudget('jMax',500)">+</button>
           </div>
@@ -1639,7 +1639,7 @@ input:-webkit-autofill:focus {
           <div class="budget-label">보증금 (만원)</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('mDep',-100)">−</button>
-            <input type="text" id="mDep" class="budget-input" inputmode="numeric" placeholder="예: 5,000" value="" oninput="fmtBudget(this)"/>
+            <input type="text" id="mDep" class="budget-input" inputmode="numeric" placeholder="예: 5,000" value="" maxlength="7" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원</span>
             <button type="button" class="budget-btn" onclick="adjBudget('mDep',100)">+</button>
           </div>
@@ -1650,7 +1650,7 @@ input:-webkit-autofill:focus {
           <div class="budget-label">월세 한도 (만원/월)</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('mRent',-5)">−</button>
-            <input type="text" id="mRent" class="budget-input" inputmode="numeric" placeholder="예: 50" value="" oninput="fmtBudget(this)"/>
+            <input type="text" id="mRent" class="budget-input" inputmode="numeric" placeholder="예: 50" value="" maxlength="5" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원/월</span>
             <button type="button" class="budget-btn" onclick="adjBudget('mRent',5)">+</button>
           </div>
@@ -3237,6 +3237,10 @@ function resetAll(){
       var raw = el.value.replace(/[^0-9]/g, '');
       if(raw === '') { el.value = ''; return; }
       var num = parseInt(raw);
+      /* R31 ❶ — 합리적 max 값 cap (사장님 알림 깨짐 방지) */
+      var CAPS = { buyMax: 10000000, jMax: 10000000, mDep: 100000, mRent: 10000 };
+      var cap = CAPS[el.id];
+      if(cap && num > cap){ num = cap; }
       el.value = num.toLocaleString();
       var slider = document.getElementById(el.id + 'Slider');
       if(slider) slider.value = num;
@@ -3613,22 +3617,27 @@ function updateBottomNavText(n){
   }
 
   /* ─── Layer 4: 실제 fetch (재시도 1회 포함, ㉢) ─── */
-  function actuallySend(retried){
+  function actuallySend(retried, capturedData){
     if(IN_FLIGHT) return;
     IN_FLIGHT = true;
     var btn = document.getElementById('resultSendBtn') || document.getElementById('nwSendBtn');
     if(btn){ btn.disabled=true; btn.style.opacity='0.5'; var orig=btn.textContent; btn.textContent='전송 중…'; btn.__orig=orig; }
     var toast = showToast({type:'info',title:'전송 중…',msg:'잠시만요',duration:0});
     var data;
-    try{
-      var fn = typeof collectData==='function' ? collectData : window.collectData;
-      data = fn ? fn() : {cName:(document.getElementById('cName')||{}).value, cPhone:(document.getElementById('cPhone')||{}).value};
-      try { var hp = document.getElementById('website'); if(hp && hp.value) data.website = hp.value; } catch(_){}
-    }catch(e){
-      IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
-      if(toast.parentNode) toast.parentNode.removeChild(toast);
-      showToast({type:'error',title:'전송 준비 실패',msg:'페이지 새로고침 후 다시 시도해주세요'});
-      return;
+    if(capturedData){
+      /* R31 ❷ — retry 시 첫 보낸 시점 data 사용 (손님 form 변경 무시) */
+      data = capturedData;
+    } else {
+      try{
+        var fn = typeof collectData==='function' ? collectData : window.collectData;
+        data = fn ? fn() : {cName:(document.getElementById('cName')||{}).value, cPhone:(document.getElementById('cPhone')||{}).value};
+        try { var hp = document.getElementById('website'); if(hp && hp.value) data.website = hp.value; } catch(_){}
+      }catch(e){
+        IN_FLIGHT=false; if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
+        if(toast.parentNode) toast.parentNode.removeChild(toast);
+        showToast({type:'error',title:'전송 준비 실패',msg:'페이지 새로고침 후 다시 시도해주세요'});
+        return;
+      }
     }
     fetch('/api/naver-works-post', {
       method:'POST',
@@ -3655,7 +3664,7 @@ function updateBottomNavText(n){
       if(!retried){
         if(btn) btn.textContent='재시도 중…';
         showToast({type:'warning',title:'잠시 후 재시도',msg:'30초 후 자동으로 다시 보낼게요',duration:3500});
-        RETRY_TIMER = setTimeout(function(){ actuallySend(true); }, 30000);
+        RETRY_TIMER = setTimeout(function(){ actuallySend(true, data); }, 30000);
         return;
       }
       if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
@@ -3667,7 +3676,7 @@ function updateBottomNavText(n){
       if(!retried){
         if(btn) btn.textContent='재시도 중…';
         showToast({type:'warning',title:'네트워크 오류',msg:'30초 후 자동 재시도',duration:3500});
-        RETRY_TIMER = setTimeout(function(){ actuallySend(true); }, 30000);
+        RETRY_TIMER = setTimeout(function(){ actuallySend(true, data); }, 30000);
         return;
       }
       if(btn){btn.disabled=false;btn.style.opacity='';if(btn.__orig)btn.textContent=btn.__orig;}
