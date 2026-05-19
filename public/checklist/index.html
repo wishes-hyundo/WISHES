@@ -1433,6 +1433,8 @@ input:-webkit-autofill:focus {
   /* ios-switch 는 시각 32×52 표준 유지 — touch area 만 확장 */
   .ios-switch { position: relative; }
   .ios-switch::before { content: ''; position: absolute; inset: -7px -2px; }
+  /* R56 — 별점 모바일 44+ */
+  .star { min-width: 44px; min-height: 44px; }
 }
 
 /* ─── R51 — banner close ✕ 버튼 invisible hit area (19×23 → 44×44) ─── */
@@ -1441,6 +1443,14 @@ input:-webkit-autofill:focus {
   min-width: 44px; min-height: 44px;
   display: inline-flex; align-items: center; justify-content: center;
 }
+
+/* ─── R56 — 별점 클릭 pulse (마지막 클릭한 별만 0.4s) ─── */
+@keyframes r56-star-pulse {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+.star.star-pulse { animation: r56-star-pulse 0.4s var(--ios-spring); }
 
 /* ─── R51 — Windows High Contrast / forced-colors 지원 ─── */
 /* ─── R54 — forced-colors 룰 light-mode 누수 hotfix ───
@@ -2678,6 +2688,17 @@ function setStar(k, v){
 
     s.classList.toggle('on', i<v);
 
+    /* R56 — aria-pressed 토글 (스크린리더 상태 변화 인지) */
+    s.setAttribute('aria-pressed', i<v ? 'true' : 'false');
+
+    /* R56 — pulse 효과 (마지막 클릭한 별만) */
+    if (i === v-1) {
+      s.classList.remove('star-pulse');
+      void s.offsetWidth;
+      s.classList.add('star-pulse');
+      setTimeout(function(){ try{ s.classList.remove('star-pulse'); }catch(_){} }, 400);
+    }
+
   });
 
 }
@@ -3636,7 +3657,7 @@ function updateBottomNavText(n){
     /* R55 — position 옵션 (top/center). step 전환 격려용 = top (chip 가림 X) */
     var pos = opts.position || 'center';
     var posCss = (pos === 'top')
-      ? 'top:calc(max(env(safe-area-inset-top,0px),0px) + 96px);transform:translate(-50%,0);padding:14px 20px;border-radius:14px;min-width:260px;max-width:90vw;'
+      ? 'top:max(env(safe-area-inset-top,0px),14px);transform:translate(-50%,0);padding:14px 20px;border-radius:14px;min-width:260px;max-width:90vw;'
       : 'top:50%;transform:translate(-50%,-50%);padding:24px 28px;border-radius:18px;min-width:240px;max-width:80vw;';
     wrap.style.cssText='position:fixed;z-index:9999;left:50%;'+posCss+'background:'+toastBg+';color:'+toastColor+';backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.2);opacity:0;transition:opacity 0.25s ease, transform 0.25s ease;';
     var icon = document.createElement('div');
@@ -3995,6 +4016,15 @@ function updateBottomNavText(n){
   var st = document.createElement('style');
   st.textContent = '@keyframes wsFadeIn{from{opacity:0}to{opacity:1}}@keyframes wsSlideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}';
   document.head.appendChild(st);
+
+  /* R56 — 별점 초기 aria-pressed=false 설정 (DOM 로드 후) */
+  function _r56InitStars(){
+    document.querySelectorAll('.star').forEach(function(s){
+      if (!s.hasAttribute('aria-pressed')) s.setAttribute('aria-pressed', 'false');
+    });
+  }
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _r56InitStars);
+  else _r56InitStars();
 
   /* expose for debug */
   window.__wsR14 = {
