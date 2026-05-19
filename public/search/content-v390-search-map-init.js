@@ -250,10 +250,13 @@
     var bounds = map.getBounds();
     var sw = bounds.getSouthWest();
     var ne = bounds.getNorthEast();
+    // [Step 122 fix 2026-05-19 사장님 명령] items mode cap 500
+    //   기존: limit=1000 + server 가 5000+ 매물 반환 시 모두 overlay 생성 → DOM 20K 노드 → freeze
+    //   수정: server fetch limit 500 + 클라이언트도 500 cap
     var url = ITEMS_ENDPOINT +
       '?swLat=' + sw.getLat() + '&swLng=' + sw.getLng() +
       '&neLat=' + ne.getLat() + '&neLng=' + ne.getLng() +
-      '&limit=1000';
+      '&limit=500';
     if (inflightController) {
       try { inflightController.abort(); } catch (_) {}
     }
@@ -448,6 +451,13 @@
     if (!currentMap) return;
     clearMarkers();
     if (!Array.isArray(items) || items.length === 0) return;
+    // [Step 122 fix 2026-05-19 사장님 명령] 500 cap — panning freeze 차단
+    //   기존: 5000 items → 5000 CustomOverlay 동시 DOM → reflow 부담
+    //   수정: 500 이상이면 슬라이스 + 사용자 안내
+    var totalItems = items.length;
+    if (items.length > 500) {
+      items = items.slice(0, 500);
+    }
     var zoomLvl = currentMap.getLevel();
     items.forEach(function (it) {
       try {
@@ -482,7 +492,25 @@
         currentMarkers.push(overlay);
       } catch (e) {}
     });
-    log('rendered', currentMarkers.length, 'exact items');
+    log('rendered', currentMarkers.length, 'exact items',
+        totalItems > 500 ? '(cap 500/' + totalItems + ' — 더 줌인 권장)' : '');
+    // [Step 122] 500 cap 시 사용자 안내 (한 번만)
+    if (totalItems > 500) {
+      try {
+        var oldToast = document.getElementById('v390-cap-toast');
+        if (oldToast) oldToast.remove();
+        var toast = document.createElement('div');
+        toast.id = 'v390-cap-toast';
+        toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:99999;pointer-events:none;opacity:0;transition:opacity 0.3s';
+        toast.textContent = '매물 ' + totalItems + '건 중 500건 표시중. 더 자세히 보려면 줌인 하세요.';
+        document.body.appendChild(toast);
+        requestAnimationFrame(function () { toast.style.opacity = '1'; });
+        setTimeout(function () {
+          toast.style.opacity = '0';
+          setTimeout(function () { try { toast.remove(); } catch(_) {} }, 300);
+        }, 3000);
+      } catch (_) {}
+    }
   }
 
   function renderClusters(clusters) {
