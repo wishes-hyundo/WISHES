@@ -107,12 +107,9 @@
     return origInfo.apply(console, arguments);
   };
 
-  // Periodic summary log (debug only — origLog 로 출력해서 자기 자신 suppress X)
-  setInterval(function () {
-    if (suppressCount > 0) {
-      origLog.call(console, '[v360-console-suppress] suppressed', suppressCount, 'noisy logs');
-    }
-  }, 10000);
-
-  origLog.call(console, '[v360-console-suppress] installed — 60K freeze prevention via console.log wrap (no fetch wrap)');
+  // [Step 72 fix 2026-05-19 사장님 명령] periodic summary 제거 — 자체 noise 완전 차단
+  //   기존: 10초마다 'suppressed N noisy logs' 출력 → 사장님 "noisy 가 계속 늘어남" 보고
+  //   수정: setInterval 자체 제거. suppressCount 는 진단용으로 window 에 노출만.
+  window.__V360_SUPPRESS_COUNT = function () { return suppressCount; };
+  origLog.call(console, '[v360-console-suppress] installed (silent mode — window.__V360_SUPPRESS_COUNT() 로 카운트 조회)');
 })();
