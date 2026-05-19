@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase';
-import { requireAdmin } from '@/lib/adminAuth';
+import { verifyAdminAuthWithContext } from '@/lib/adminAuth';
 
 /**
  * R103 (2026-05-19) — admin: checklist 이탈률 통계
@@ -12,7 +12,7 @@ import { requireAdmin } from '@/lib/adminAuth';
 
 export async function GET(request: NextRequest) {
   try {
-    const _auth = await requireAdmin(request);
+    const _auth = await verifyAdminAuthWithContext(request);
     if (!_auth.ok) {
       return NextResponse.json({ success: false, message: _auth.message || 'Unauthorized' }, { status: 401 });
     }
