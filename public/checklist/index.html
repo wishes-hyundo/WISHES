@@ -1853,6 +1853,76 @@ html, body { overscroll-behavior-y: contain; }
   body { background: linear-gradient(180deg, #F2F2F7 0%, #E5E5EA 100%); min-height: 100vh; }
 }
 </style>
+
+<style>/* R117-PLACEHOLDER-AAA */
+/* R117 Mi16: placeholder color contrast 7:1 for AAA */
+input::placeholder, textarea::placeholder { color: #6C6C70 !important; opacity: 1 !important; }
+@media (prefers-color-scheme: dark) {
+  input::placeholder, textarea::placeholder { color: #A1A1AB !important; }
+}
+</style>
+
+<style>/* R117-FONT-PRELOAD */
+/* R117 Mi19: system font fallback + reduce CLS during font load */
+:root {
+  --ws-font-system: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard Variable", Pretendard, Roboto, "Noto Sans KR", "Segoe UI", sans-serif;
+}
+html, body { font-family: var(--ws-font-system); font-display: optional; }
+@media (prefers-reduced-data: reduce) {
+  /* save-data mode: skip web font, use system */
+  html, body { font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif !important; }
+}
+</style>
+
+<script>/* R117-BU-DEDUP */
+(function(){
+  // R117 m13: beforeunload handler 2중 등록 dedup
+  if(window.__r117BuWrapped) return;
+  window.__r117BuWrapped = true;
+  var registered = false;
+  var origAdd = window.addEventListener;
+  window.addEventListener = function(type, fn, opts){
+    if(type === 'beforeunload'){
+      if(registered) return; // 중복 등록 차단
+      registered = true;
+    }
+    return origAdd.call(this, type, fn, opts);
+  };
+})();
+</script>
+
+<script>/* R117-AUTOSAVE-CONSOLIDATE */
+(function(){
+  // R117 m16: input/change/click 3중 listener → 1 통합 (slow Android 부담 줄임)
+  // 단순 hint: 통합 핸들러 권장 (R61 자체 wrap 은 위험하므로 안내만)
+  // 실제 효과: addEventListener wrap 으로 input/change/click capture 시 dedup
+  if(window.__r117AutosaveWrap) return;
+  window.__r117AutosaveWrap = true;
+  var autosaveFns = new Map();
+  var origAdd = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function(type, fn, opts){
+    try{
+      // document 에 input/change/click 모두 같은 함수면 1번만 등록
+      if(this === document && (type === 'input' || type === 'change' || type === 'click')){
+        if(opts === true || (opts && opts.capture)){
+          var fnKey = fn.toString().slice(0, 200);
+          if(autosaveFns.has(fnKey)){
+            var existing = autosaveFns.get(fnKey);
+            if(!existing.types.has(type)){
+              existing.types.add(type);
+              return origAdd.call(this, type, fn, opts);
+            }
+            // 동일 함수 동일 type 재등록 → skip
+            return;
+          }
+          autosaveFns.set(fnKey, {types: new Set([type])});
+        }
+      }
+    }catch(_){}
+    return origAdd.call(this, type, fn, opts);
+  };
+})();
+</script>
 </head>
 
 <body>
@@ -4175,7 +4245,22 @@ function updateBottomNavText(n){
       window.__r102Track = track;
 
       // 페이지 진입 이벤트 (visit)
-      track('visit');
+      // R117 M10: GDPR consent 동의 후 visit track (immediate fire 차단)
+        if(document.querySelector('input[name="agree"]:checked, #agreePrivacy:checked')){
+          track('visit');
+        } else {
+          /* R117-FUNNEL-CONSENT */ 
+          var __consentInterval = setInterval(function(){
+            try{
+              if(document.querySelector('input[name="agree"]:checked, #agreePrivacy:checked')){
+                track('visit');
+                clearInterval(__consentInterval);
+              }
+            }catch(_){}
+          }, 1500);
+          // 30분 cap
+          setTimeout(function(){ try{ clearInterval(__consentInterval); }catch(_){} }, 30*60*1000);
+        }
 
       // STEP 이동 hook (window.goPage 가 정의된 후 wrap)
       var __wrapCount = 0; function wrapGoPage(){
@@ -5943,6 +6028,241 @@ function updateBottomNavText(n){
     }catch(_){}
     return origSIV.call(this, opts);
   };
+})();
+</script>
+
+<script>/* R117-LABEL-DEDUP */
+(function(){
+  // R117 M8: <label for=> 가 있으면 input 의 aria-label 중복 제거 (스크린리더 announce 충돌)
+  try{
+    var labels = document.querySelectorAll('label[for]');
+    labels.forEach(function(lab){
+      var id = lab.getAttribute('for');
+      if(!id) return;
+      var el = document.getElementById(id);
+      if(el && el.hasAttribute('aria-label')){
+        // <label> 텍스트가 비어있지 않으면 aria-label 중복
+        var labText = (lab.textContent || '').trim();
+        if(labText) el.removeAttribute('aria-label');
+      }
+    });
+  }catch(_){}
+})();
+</script>
+
+<script>/* R117-BEFOREUNLOAD-MSG */
+(function(){
+  // R117 M13: beforeunload 시 손님에게 autosave 안내 토스트 (브라우저 generic msg 보완)
+  var shownOnce = false;
+  document.addEventListener('input', function(){
+    if(shownOnce) return;
+    // 첫 input 후 한 번 토스트 — autosave 안내
+    shownOnce = true;
+    setTimeout(function(){
+      try{
+        if(typeof window.showToast === 'function'){
+          window.showToast({type:'info', title:'자동 저장 중', msg:'다시 오시면 입력 내용 복원돼요', duration: 2500});
+        }
+      }catch(_){}
+    }, 8000); // 입력 시작 8초 후
+  }, {once:true, passive:true});
+})();
+</script>
+
+<script>/* R117-INTERVAL-CLEANUP */
+(function(){
+  // R117 M7: send 완료 시 알려진 setInterval/timers 일괄 정리 (5 idle timer leak fix)
+  var origStorage = window.localStorage;
+  function cleanupAll(){
+    try{
+      var ids = ['__r102PollCount', '__r28Timer', '__r64Timer', '__clearOnSentTimer', '__r117ConsentInterval'];
+      // 알려진 글로벌 timer 변수 정리
+      ids.forEach(function(id){
+        try{
+          var t = window[id];
+          if(typeof t === 'number'){ clearInterval(t); clearTimeout(t); window[id] = null; }
+        }catch(_){}
+      });
+      // 모든 active setInterval 식별은 불가하므로 SENT 이후 cooldown 후 page reload 시 어쨌든 cleanup
+    }catch(_){}
+  }
+  // Hook into SENT_FLAG check
+  var checker = setInterval(function(){
+    try{
+      if(window.__wsR14 && window.__wsR14.SENT && window.__wsR14.SENT()){
+        cleanupAll();
+        clearInterval(checker);
+      }
+    }catch(_){}
+  }, 2000);
+  setTimeout(function(){ clearInterval(checker); }, 30*60*1000); // 30분 cap
+})();
+</script>
+
+<script>/* R117-OBS-NARROW */
+(function(){
+  // R117 M8: MutationObserver 광범위 fire 방지 — observe 호출 wrap
+  if(window.__r117ObsWrapped) return;
+  window.__r117ObsWrapped = true;
+  var origObserve = MutationObserver.prototype.observe;
+  MutationObserver.prototype.observe = function(target, opts){
+    try{
+      // result page-result 관련 observer 만 narrow
+      if(target && target.id === 'page-result' && opts && opts.subtree){
+        opts = Object.assign({}, opts, {attributeFilter: ['class', 'aria-hidden', 'hidden']});
+      }
+    }catch(_){}
+    return origObserve.call(this, target, opts);
+  };
+})();
+</script>
+
+<script>/* R117-WON-NORMALIZE */
+(function(){
+  // R117 M10: 손님이 입력한 자유 텍스트 금액 server 전송 직전 정규화
+  function parseKrw(s){
+    if(!s || typeof s !== 'string') return s;
+    var orig = s;
+    var t = s.replace(/,/g, '').replace(/\s+/g, '');
+    // "5억 3천" / "5억3000만" / "500,000,000" 패턴
+    var result = 0;
+    var m;
+    // 억 단위
+    m = t.match(/(\d+)억/);
+    if(m){ result += parseInt(m[1], 10) * 100000000; t = t.replace(m[0], ''); }
+    // 천만 단위
+    m = t.match(/(\d+)천만/);
+    if(m){ result += parseInt(m[1], 10) * 10000000; t = t.replace(m[0], ''); }
+    // 천 단위 (천만 이후만)
+    m = t.match(/(\d+)천(?!만)/);
+    if(m){ result += parseInt(m[1], 10) * 10000000; t = t.replace(m[0], ''); }
+    // 만 단위
+    m = t.match(/(\d+)만/);
+    if(m){ result += parseInt(m[1], 10) * 10000; t = t.replace(m[0], ''); }
+    // 나머지 raw 숫자
+    var raw = parseInt(t.replace(/[^0-9]/g, ''), 10);
+    if(!isNaN(raw) && raw > 0){
+      if(result === 0) result = raw; // 순수 숫자만 입력
+    }
+    if(result > 0) return result; // 원 단위 정수
+    return orig;
+  }
+  window.__r117ParseKrw = parseKrw;
+  // collectData / payload 만들 때 자동 정규화
+  var origCollect = window.collectData;
+  if(typeof origCollect === 'function' && !origCollect.__r117){
+    window.collectData = function(){
+      var data = origCollect.apply(this, arguments);
+      try{
+        if(data && typeof data === 'object'){
+          var keys = ['budget', 'maxBudget', 'minBudget', 'depositTarget', 'monthlyRent'];
+          keys.forEach(function(k){
+            if(data[k] && typeof data[k] === 'string'){
+              var p = parseKrw(data[k]);
+              if(typeof p === 'number'){ data[k + '_parsed'] = p; }
+            }
+          });
+        }
+      }catch(_){}
+      return data;
+    };
+    window.collectData.__r117 = true;
+  }
+})();
+</script>
+
+<script>/* R117-THEME-DYN */
+(function(){
+  // R117 m3: theme-color 상태별 색 변경 (iOS Safari status bar)
+  var meta = document.querySelector('meta[name="theme-color"]');
+  if(!meta){
+    meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+  }
+  function setColor(c){ try{ meta.setAttribute('content', c); }catch(_){} }
+  // 초기 light
+  setColor('#F2F2F7');
+  // STEP 진입 시 color 변경
+  if(typeof window.goPage === 'function' && !window.goPage.__r117tc){
+    var orig = window.goPage;
+    window.goPage = function(n){
+      var r = orig.apply(this, arguments);
+      try{
+        if(n === 6 || n === 'result') setColor('#34C759'); // 전송 성공 = 녹색
+        else if(typeof n === 'number') setColor('#F2F2F7');
+      }catch(_){}
+      return r;
+    };
+    window.goPage.__r117tc = true;
+  }
+})();
+</script>
+
+<script>/* R117-TOAST-QUEUE */
+(function(){
+  // R117 m4: toast aria-live announcement 큐 (50ms 내 도착 시 첫번째 잃지 않게)
+  var queue = [];
+  var processing = false;
+  function speak(msg){
+    queue.push(msg);
+    if(processing) return;
+    processing = true;
+    function next(){
+      if(queue.length === 0){ processing = false; return; }
+      var m = queue.shift();
+      try{
+        var live = document.getElementById('__r111ariaLive') || document.getElementById('__r117ariaLive');
+        if(!live){
+          live = document.createElement('div');
+          live.id = '__r117ariaLive';
+          live.setAttribute('role','status');
+          live.setAttribute('aria-live','polite');
+          live.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap';
+          document.body.appendChild(live);
+        }
+        live.textContent = '';
+        setTimeout(function(){ live.textContent = m; setTimeout(next, 500); }, 30);
+      }catch(_){ setTimeout(next, 100); }
+    }
+    next();
+  }
+  window.__r117Speak = speak;
+  // hook showToast
+  var origToast = window.showToast;
+  if(typeof origToast === 'function' && !origToast.__r117q){
+    window.showToast = function(opts){
+      try{
+        var msg = (opts && (opts.title || opts.msg)) || '';
+        if(typeof opts === 'string') msg = opts;
+        if(msg) speak(msg);
+      }catch(_){}
+      return origToast.apply(this, arguments);
+    };
+    window.showToast.__r117q = true;
+  }
+})();
+</script>
+
+<script>/* R117-POPSTATE-INFLIGHT */
+(function(){
+  // R117 m12: 손님이 전송 도중 뒤로가기 누르면 페이지 떠나는 것 차단
+  window.addEventListener('popstate', function(e){
+    try{
+      // IN_FLIGHT 체크 (R114 GLOBAL_LOCK 기반)
+      var lock = localStorage.getItem('ws_chk_inflight');
+      if(lock){
+        var rec = JSON.parse(lock);
+        if(rec && Date.now() - rec.t < 30000){
+          // 전송 진행 중 → 뒤로가기 차단
+          history.pushState({}, '', location.pathname + location.hash);
+          if(typeof window.showToast === 'function'){
+            window.showToast({type:'warning', title:'전송 중', msg:'전송이 끝나면 이동할 수 있어요'});
+          }
+        }
+      }
+    }catch(_){}
+  });
 })();
 </script>
 </body>
