@@ -1819,14 +1819,15 @@
         _hideSearchUI();
       }
     }
+    // [Step 116 re-apply] URL polling 1000ms + hidden skip
     setInterval(function() {
+      if (typeof document !== 'undefined' && document.hidden) return;
       if (location.href !== _lastURL) {
         _lastURL = location.href;
         _checkSearchTab();
-        // URL이 바뀌었으면 새 링크에도 이벤트 재바인딩
         setTimeout(function() { _bindSearchLinks(); }, 500);
       }
-    }, 500);
+    }, 1000);
 
     // 초기 로드 시 ?tab=search 또는 /search 경로이면 데이터 프리페치 예약 (loadData 정의 후 실행)
     if (location.search.indexOf('tab=search') !== -1
@@ -5411,10 +5412,14 @@
     function _ws_releaseModalImages(modal) {
       try {
         if (!modal || modal.id !== 'ws-modal-detail') return;
-        // 모든 img src 1x1 transparent 로 대체 → browser image cache reference 해제
+        modal.dataset.wsReleased = '1';
         var imgs = modal.querySelectorAll('img');
         for (var i = 0; i < imgs.length; i++) {
           try {
+            var ss = imgs[i].getAttribute('srcset');
+            var sc = imgs[i].getAttribute('src');
+            if (ss) imgs[i].dataset.wsOrigSrcset = ss;
+            if (sc && sc.indexOf('data:image/gif') !== 0) imgs[i].dataset.wsOrigSrc = sc;
             imgs[i].removeAttribute('srcset');
             imgs[i].src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
           } catch (_) {}
@@ -5860,6 +5865,10 @@
       var mapScript = document.createElement('script');
       mapScript.id = 'ws-kakao-map-script';
       mapScript.src = chrome.runtime.getURL('map-main.js');
+      // [Step 116 re-apply] postMessage race fix
+      mapScript.onload = function () {
+        try { window.postMessage({ type: 'ws-map-render' }, '*'); } catch (_) {}
+      };
       document.body.appendChild(mapScript);
     } else {
       // Subsequent calls: use postMessage to communicate with MAIN world

@@ -114,33 +114,24 @@
     }
   }
 
+  // [Step 116 re-apply 2026-05-19 사장님 명령] popup 재사용 — 깜빡임 제거
   function showPopup(card, listing) {
-    removePopup();
-    var popup = document.createElement('div');
-    popup.className = 'ws-v404-hover-popup';
-    popup.style.cssText = [
-      'position:fixed',
-      'z-index:99999',
-      'background:#fff',
-      'border:1px solid #e2e2e2',
-      'border-radius:10px',
-      'box-shadow:0 8px 24px rgba(0,0,0,0.12)',
-      'padding:10px',
-      'width:' + POPUP_WIDTH + 'px',
-      'font-family:inherit',
-      'pointer-events:auto',
-      'transition:opacity 0.15s',
-      'opacity:0'
-    ].join(';');
-    popup.innerHTML = buildPopupHtml(listing);
-
-    // popup 자체 hover 유지
-    popup.addEventListener('mouseleave', removePopup);
-
-    document.body.appendChild(popup);
-    positionPopup(popup, card);
-    requestAnimationFrame(function () { popup.style.opacity = '1'; });
-    currentPopup = popup;
+    if (!currentPopup) {
+      currentPopup = document.createElement('div');
+      currentPopup.className = 'ws-v404-hover-popup';
+      currentPopup.style.cssText = [
+        'position:fixed','z-index:99999','background:#fff',
+        'border:1px solid #e2e2e2','border-radius:10px',
+        'box-shadow:0 8px 24px rgba(0,0,0,0.12)','padding:10px',
+        'width:' + POPUP_WIDTH + 'px','font-family:inherit',
+        'pointer-events:auto','transition:opacity 0.15s','opacity:1'
+      ].join(';');
+      currentPopup.addEventListener('mouseleave', removePopup);
+      document.body.appendChild(currentPopup);
+    }
+    currentPopup.innerHTML = buildPopupHtml(listing);
+    positionPopup(currentPopup, card);
+    currentPopup.style.opacity = '1';
     currentCardId = card.getAttribute('data-listing-id');
   }
 
@@ -171,7 +162,6 @@
       if (listing) {
         showPopup(card, listing);
       } else if (window.WS && typeof window.WS.fetchListingById === 'function') {
-        // fetch + retry
         if (!fetchCache[id]) {
           fetchCache[id] = window.WS.fetchListingById(id);
         }
@@ -179,6 +169,8 @@
           if (l && card.matches(':hover')) {
             showPopup(card, l);
           }
+        }).catch(function () {
+          try { delete fetchCache[id]; } catch (_) {}
         });
       }
     }, HOVER_DELAY);

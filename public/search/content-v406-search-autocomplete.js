@@ -66,9 +66,20 @@
     var q = (query || '').trim().toLowerCase();
     if (!q) return [];
     var results = [];
-    // 매물번호 (4-7자리 숫자)
-    if (/^\d{4,7}$/.test(q)) {
-      results.push({ type: 'id', label: '매물번호 ' + q, value: q, icon: '#' });
+    // [Step 116 re-apply] 매물번호 3자리부터 prefix 추천
+    if (/^\d{3,7}$/.test(q)) {
+      var matchedIds = [];
+      var allL = (window.WS && Array.isArray(window.WS.allListings)) ? window.WS.allListings : [];
+      for (var __i = 0; __i < allL.length && matchedIds.length < 3; __i++) {
+        if (allL[__i] && String(allL[__i].id).indexOf(q) === 0) matchedIds.push(String(allL[__i].id));
+      }
+      if (matchedIds.length > 0) {
+        matchedIds.forEach(function (mid) {
+          results.push({ type: 'id', label: '매물번호 ' + mid, value: mid, icon: '#' });
+        });
+      } else if (/^\d{4,7}$/.test(q)) {
+        results.push({ type: 'id', label: '매물번호 ' + q, value: q, icon: '#' });
+      }
     }
     var allListings = (window.WS && Array.isArray(window.WS.allListings)) ? window.WS.allListings : [];
     var dongMatches = [];
@@ -194,8 +205,15 @@
     }, DEBOUNCE_MS);
   }
 
-  function handleBlur() {
-    setTimeout(hideDropdown, 200);
+  function handleBlur(e) {
+    setTimeout(function () {
+      try {
+        var a = document.activeElement;
+        if (a && (a === lastInput || (a.matches && a.matches('.ws-global-search')))) return;
+        if (a && dropdown && dropdown.contains(a)) return;
+      } catch (_) {}
+      hideDropdown();
+    }, 200);
   }
 
   function handleFocus(e) {

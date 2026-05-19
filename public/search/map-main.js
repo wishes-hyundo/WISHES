@@ -13,6 +13,9 @@
  *  - 지도타입/오버레이/그리기/주변시설/반경검색/로드뷰/내위치/전체화면/공유/인쇄/히트맵/주소조회/축척/매물 클러스터
  */
 (function() {
+  // [Step 116 re-apply 2026-05-19] map-main guard — listener 누수 차단
+  if (window.__WS_MAP_MAIN_LOADED__) return;
+  window.__WS_MAP_MAIN_LOADED__ = true;
   // ======================== 🛣️  카카오 로드뷰 프록시 패치 ========================
   // Kakao SDK 의 `Roadview` 는 `rv.map.kakao.com/roadview-search/v2/*` 를 호출하는데
   // 이 엔드포인트는 Referer 가 map.kakao.com 이 아니면 전부 503 을 반환한다.

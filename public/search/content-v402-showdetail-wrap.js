@@ -63,16 +63,20 @@
         if (!isDetailListing(listing) && listing && listing.id && typeof window.WS.fetchListingById === 'function') {
           log('minimal listing for id', listing.id, '— background fetch + re-render');
           window.WS.fetchListingById(listing.id).then(function (full) {
-            if (full) {
+            if (!full) return;
+            try {
+              var modal = document.getElementById('ws-modal-detail');
+              if (!modal || modal.style.display === 'none') return;
+              if (modal.dataset.wsReleased === '1') return;
               try {
-                // 모달 닫혔는지 확인 (사장님이 빨리 닫았으면 re-render skip)
-                var modal = document.getElementById('ws-modal-detail');
-                if (modal && modal.style.display !== 'none') {
-                  orig.call(self, full);
-                  log('background fetch complete, modal re-rendered with full data');
+                if (window.WS && window.WS.__lastListing &&
+                    String(window.WS.__lastListing.id) !== String(listing.id)) {
+                  log('outdated, skip');
+                  return;
                 }
-              } catch (e) { log('re-render err:', e && e.message); }
-            }
+              } catch (_) {}
+              orig.call(self, full);
+            } catch (e) { log('re-render err:', e && e.message); }
           }).catch(function (err) { log('background fetch err:', err && err.message); });
         }
         return origResult;

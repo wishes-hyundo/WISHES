@@ -202,8 +202,7 @@
       __t = setTimeout(function () { __t = null; render(); }, 300);
     });
     try { mo.observe(document.body, { childList: true, subtree: true }); } catch (_) {}
-    // state 변경 polling (필터 클릭 후 state 만 변경된 경우 cover)
-    setInterval(render, 1500);
+    // [Step 116 re-apply 2026-05-19] setInterval 제거 — MO 만 (CPU 부담 ↓)
   }
 
   if (document.readyState === 'loading') {
