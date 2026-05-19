@@ -324,7 +324,7 @@ export default function SearchPortalPage() {
       //   map-main.js 는 chrome.runtime.getURL 사용 = chrome extension only.
       //   production (wishes.co.kr) 에서는 v390 만 web map provider.
       //   Step 96 → v390 disable → web 환경 map 자체 없음 → freeze.
-      ['ws-ext-patch-v390-search-map-init', '/search/content-v390-search-map-init.js?v=20260514v23fast'],
+      ['ws-ext-patch-v390-search-map-init', '/search/content-v390-search-map-init.js?v=20260519-step122-items500cap'],
       ['ws-ext-patch-v392-aggressive-token-refresh', '/search/content-v392-aggressive-token-refresh.js?v=20260514a'],
       // v375-scope-bottom-toolbar removed (v294 없으니 의미 없음)
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
