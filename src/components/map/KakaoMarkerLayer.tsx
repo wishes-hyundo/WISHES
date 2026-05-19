@@ -126,6 +126,95 @@ function spiderfyPositions(list: MapListing[], radiusDeg: number): Array<{ id: n
   return result;
 }
 
+// Kakao map projection 타입 (간단)
+interface KakaoMapLike {
+  getProjection?: () => { pointFromCoords: (c: unknown) => { x: number; y: number } };
+}
+
+// [Step 100 fix 2026-05-19 사장님 명령] D-6 cluster merge — 가까운 작은 cluster 합치기
+//   사장님 보고: 1-2개 cluster 가 화면을 가득 채움 (시각 noise)
+//   해결: 픽셀 거리 40px 이내 cluster 끼리 client-side merge.
+//   SvgMarkerLayer:193-228 의 mergeOverlapping 로직 차용 (Kakao Map projection 사용).
+type ServerClusterMerged = {
+  cluster_id: string;
+  lat: number;
+  lng: number;
+  count: number;
+  sample_ids: number[];
+  tier1_lat: number | null;
+  tier1_lng: number | null;
+};
+function mergeKakaoOverlapping(
+  clusters: ServerClusterInput[],
+  maps: KakaoNamespace['maps'],
+  map: KakaoMapLike,
+): ServerClusterMerged[] {
+  if (!maps || !map || clusters.length < 2) {
+    return clusters.map((c) => ({
+      cluster_id: c.cluster_id,
+      lat: c.lat, lng: c.lng, count: c.count,
+      sample_ids: c.sample_ids ?? [],
+      tier1_lat: typeof c.tier1_lat === 'number' ? c.tier1_lat : null,
+      tier1_lng: typeof c.tier1_lng === 'number' ? c.tier1_lng : null,
+    }));
+  }
+  const projection = (map as { getProjection?: () => { pointFromCoords: (c: unknown) => { x: number; y: number } } }).getProjection?.();
+  if (!projection) {
+    return clusters.map((c) => ({
+      cluster_id: c.cluster_id,
+      lat: c.lat, lng: c.lng, count: c.count,
+      sample_ids: c.sample_ids ?? [],
+      tier1_lat: typeof c.tier1_lat === 'number' ? c.tier1_lat : null,
+      tier1_lng: typeof c.tier1_lng === 'number' ? c.tier1_lng : null,
+    }));
+  }
+  type Pos = {
+    it: ServerClusterMerged;
+    x: number; y: number;
+    alive: boolean;
+  };
+  const pos: Pos[] = clusters.map((c) => {
+    const ll = new maps.LatLng(c.lat, c.lng);
+    const p = projection.pointFromCoords(ll as unknown);
+    const t1Lat = typeof c.tier1_lat === 'number' && Number.isFinite(c.tier1_lat) ? c.tier1_lat : null;
+    const t1Lng = typeof c.tier1_lng === 'number' && Number.isFinite(c.tier1_lng) ? c.tier1_lng : null;
+    return {
+      it: {
+        cluster_id: c.cluster_id,
+        lat: c.lat, lng: c.lng, count: c.count,
+        sample_ids: c.sample_ids ?? [],
+        tier1_lat: t1Lat,
+        tier1_lng: t1Lng,
+      },
+      x: p.x, y: p.y,
+      alive: true,
+    };
+  });
+  // 40px 이내 merge (count 큰 쪽 흡수)
+  const MERGE_DIST_PX = 40;
+  for (let i = 0; i < pos.length; i++) {
+    if (!pos[i].alive) continue;
+    for (let j = i + 1; j < pos.length; j++) {
+      if (!pos[j].alive) continue;
+      const dx = pos[i].x - pos[j].x;
+      const dy = pos[i].y - pos[j].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < MERGE_DIST_PX) {
+        const big = pos[i].it.count >= pos[j].it.count ? pos[i] : pos[j];
+        const small = pos[i].it.count >= pos[j].it.count ? pos[j] : pos[i];
+        big.it = {
+          ...big.it,
+          count: big.it.count + small.it.count,
+          sample_ids: [...big.it.sample_ids, ...small.it.sample_ids],
+          cluster_id: big.it.cluster_id + '|' + small.it.cluster_id,
+        };
+        small.alive = false;
+      }
+    }
+  }
+  return pos.filter((p) => p.alive).map((p) => p.it);
+}
+
 export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
   const overlayPoolRef = useRef<Map<string, KakaoCustomOverlay>>(new Map());
   const propsRef = useRef(props);
@@ -147,16 +236,18 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
 
     if (props.serverClusters && props.serverClusters.length > 0 && !isClusterFilterActive) {
       const cat = CAT_COLORS[props.category];
-      for (const sc of props.serverClusters) {
-        const t1Lat = (typeof sc.tier1_lat === 'number' && Number.isFinite(sc.tier1_lat)) ? sc.tier1_lat : null;
-        const t1Lng = (typeof sc.tier1_lng === 'number' && Number.isFinite(sc.tier1_lng)) ? sc.tier1_lng : null;
+      // [Step 100 fix] 작은 cluster 40px 이내 merge → 노이즈 감소
+      const mergedClusters = mergeKakaoOverlapping(props.serverClusters, maps, props.map as KakaoMapLike);
+      for (const sc of mergedClusters) {
+        const t1Lat = sc.tier1_lat;
+        const t1Lng = sc.tier1_lng;
         const tier1Valid = t1Lat != null && t1Lng != null
           && Math.abs(t1Lat - sc.lat) < 0.005
           && Math.abs(t1Lng - sc.lng) < 0.005;
         const lat = tier1Valid ? t1Lat! : sc.lat;
         const lng = tier1Valid ? t1Lng! : sc.lng;
-        const ids = (sc.sample_ids ?? []).join(',');
-        const singleId = sc.count === 1 && sc.sample_ids?.[0] ? String(sc.sample_ids[0]) : '';
+        const ids = sc.sample_ids.join(',');
+        const singleId = sc.count === 1 && sc.sample_ids[0] ? String(sc.sample_ids[0]) : '';
         const hasSel = props.selectedListingId != null && (sc.sample_ids ?? []).includes(props.selectedListingId);
         const bg = hasSel ? SEL_BG : cat;
         const html = makeContentHtml({ count: sc.count, bg, ids, singleId });
