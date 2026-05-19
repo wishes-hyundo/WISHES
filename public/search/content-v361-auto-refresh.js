@@ -38,7 +38,7 @@
   if (location.pathname.indexOf('/search') !== 0) return;
 
   var DEBUG = true;
-  var POLL_INTERVAL_MS = 120000; // [Step 73] 30s → 2min — idle 폴링 빈도 1/4
+  var POLL_INTERVAL_MS = 30000;
   var FIRST_POLL_DELAY_MS = 15000;
   var REFETCH_COOLDOWN_MS = 20000;
   var COUNT_ENDPOINT = '/api/admin/listings/latest-count';
@@ -88,8 +88,6 @@
   }
 
   async function pollLatest() {
-    // [Step 73 fix 2026-05-19] 페이지 hidden 일 때 폴링 skip (background tab CPU 절약)
-    if (typeof document !== 'undefined' && document.hidden) return;
     pollCount++;
     if (!window.WS || !window.WS.allListings) return;
     if (typeof document.visibilityState === 'string' && document.visibilityState === 'hidden') return;
@@ -139,26 +137,6 @@
 
   async function refetchAll() {
     if (refetching) return;
-    // [Step 73 fix 2026-05-19 사장님 명령] v397 server pagination 활성 시 73K refetch 차단
-    //   배경: 사장님 idle 시 30초마다 v361 polling → new listing 있으면 73K 전체 refetch
-    //        window.WS.allListings = data (73K 항목) → v399 _addToCache cap 500 우회
-    //        → 메모리 5-50MB 폭증, renderAll() 가 73K 매물 카드 다시 그리려 main thread 점유
-    //        → 가만히 둬도 freeze
-    //   수정: v397 server pagination flag 켜져 있으면 refetchAll 즉시 skip
-    //         (server pagination 이 이미 100매물씩 fresh 제공)
-    try {
-      if (window.WS && window.WS.__featureFlags && window.WS.__featureFlags.use_server_pagination === true) {
-        log('refetch skip (v397 server pagination active — 73K refetch 차단)');
-        return;
-      }
-      // 또는 localStorage feature flag 확인
-      var flagStr = '';
-      try { flagStr = localStorage.getItem('ws_feature_flags') || ''; } catch (_) {}
-      if (flagStr.indexOf('use_server_pagination') !== -1 && flagStr.indexOf('true') !== -1) {
-        log('refetch skip (v397 server pagination active — localStorage flag)');
-        return;
-      }
-    } catch (_) {}
     // [2026-05-14 사장님 명령] 검색 중 refetch 차단
     if (window.WS && window.WS.__searchActive) {
       log('refetch skip (__searchActive)');
