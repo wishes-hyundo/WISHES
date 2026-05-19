@@ -2659,9 +2659,22 @@ function goPage(n){
 
 function nextPage(){
 
-  if(cur<TOTAL) goPage(cur+1);
-
-  else goPage('result');
+  /* R84 — STEP 3 의 "✅ 상담 완료" 클릭 시 NaverWorks 자동 전송 (손님 모드 자동 전송 보장) */
+  if(cur<TOTAL){
+    goPage(cur+1);
+    return;
+  }
+  // cur === TOTAL — STEP 3 완료 시 결과 페이지 표시 + 자동 전송
+  goPage('result');
+  /* R84 — startSend() 호출. validate / phoneLock / contentLock 등 체크 후 전송 */
+  setTimeout(function(){
+    try {
+      if(typeof startSend === 'function') startSend();
+      else if(typeof sendToNaverWorks === 'function') sendToNaverWorks();
+    } catch(e){
+      if(typeof console!=='undefined') console.error('[R84] startSend error', e);
+    }
+  }, 600);
 
 }
 
