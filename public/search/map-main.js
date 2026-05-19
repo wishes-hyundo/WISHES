@@ -222,8 +222,19 @@
 
   // ======================== 매물 마커 (배치 생성) ========================
   // ⚡ 공통 마커 클릭 핸들러 팩토리 — 공유 InfoWindow 재사용, new 비용 제거
+  // [Step 98 fix 2026-05-19 사장님 명령] S5 — InfoWindow 작은 풍선 → 카드 모달 통일
+  //   기존: marker click → 자체 InfoWindow (작은 풍선) — 카드 click 의 풀 모달과 다름
+  //   수정: WS.showDetail(listing) 우선 호출 — 카드 click 과 동일한 모달
+  //   fallback: WS 없으면 기존 InfoWindow (안정성)
   function makeMarkerClickHandler(marker, listing) {
     return function() {
+      try {
+        if (window.WS && typeof window.WS.showDetail === 'function') {
+          window.WS.showDetail(listing);
+          return;
+        }
+      } catch(e) {}
+      // fallback: 기존 InfoWindow (WS 없거나 showDetail 실패 시)
       var iw = getSharedIw();
       try { iw.close(); } catch(e) {}
       iw.setContent(buildListingInfoHtml(listing));
