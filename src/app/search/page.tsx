@@ -293,12 +293,17 @@ export default function SearchPortalPage() {
       // [Step 28 fix 2026-05-19] 통합 메모리 가드 — OOM 영구 해결
       //   85 patch 누적 setInterval/setTimeout 일괄 cleanup + WS.allListings cap
       ['ws-ext-patch-v403-memory-guard', '/search/content-v403-memory-guard.js?v=20260519-step48-no-stack-trace'],
-      // [Step 85 2026-05-19 사장님 명령] C-5 카드 hover 미리보기 (desktop only)
-      ['ws-ext-patch-v404-card-hover-preview', '/search/content-v404-card-hover-preview.js?v=20260519-step85'],
-      // [Step 86 2026-05-19 사장님 명령] C-3 활성 필터 chip + 빠른 정렬
-      ['ws-ext-patch-v405-active-filter-chips', '/search/content-v405-active-filter-chips.js?v=20260519-step86'],
-      // [Step 87 2026-05-19 사장님 명령] C-2 검색 자동완성 dropdown
-      ['ws-ext-patch-v406-search-autocomplete', '/search/content-v406-search-autocomplete.js?v=20260519-step87'],
+      // [Step 119 2026-05-19 사장님 명령] v404/v405/v406 로드 비활성 — scroll/hover freeze fix
+      //   사장님이 부탁 안 한 추가 기능들 (내가 들이민 것)
+      //   patch 파일은 보존 (public/search/ 그대로). 다시 활성 원하면 주석 해제만.
+      //   freeze 진짜 원인 추정:
+      //     - v404 document.mouseover capture 가 매 마우스 이동 시 fire
+      //     - v405 MutationObserver 가 카드 스크롤 시 새 카드 render 마다 fire
+      //     - v406 input listener 가 input event 매번 dropdown 갱신
+      //   3개 동시 활성 → MO/listener cascade → main thread 점유 → scroll freeze
+      // ['ws-ext-patch-v404-card-hover-preview', '/search/content-v404-card-hover-preview.js?v=20260519-step85'],
+      // ['ws-ext-patch-v405-active-filter-chips', '/search/content-v405-active-filter-chips.js?v=20260519-step86'],
+      // ['ws-ext-patch-v406-search-autocomplete', '/search/content-v406-search-autocomplete.js?v=20260519-step87'],
       ['ws-ext-patch-v364-photo-mobile', '/search/content-v364-photo-mobile-ux.js?v=20260514nativePTR'],
       ['ws-ext-patch-v365-mobile-ui', '/search/content-v365-mobile-ui.js?v=20260512b'],
       ['ws-ext-patch-v366-token-refresh-v2', '/search/content-v366-token-refresh-v2.js?v=20260514short'],
