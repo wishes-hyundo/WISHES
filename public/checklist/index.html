@@ -3992,16 +3992,34 @@ function updateBottomNavText(n){
        <script>
     // Agent mode: press 'A' 3 times to toggle
     (function(){
+      /* R83 — default agent-mode 제거. 손님 화면에 .agent-only "보내기" 버튼 노출 차단.
+         A 키 3번 = 사장님 모드 toggle, sessionStorage 에 저장 (페이지 reload 유지) */
       try {
-        var aCount=0,aTimer=null;
-        document.addEventListener('keydown',function(e){
-          if(e.key==='a'||e.key==='A'){
-            aCount++;clearTimeout(aTimer);
-            aTimer=setTimeout(function(){aCount=0;},1000);
-            if(aCount>=3){aCount=0;document.body.classList.toggle('agent-mode');}
+        var KEY = 'ws_agent_mode';
+        // 페이지 로드 시 sessionStorage 에 사장님 모드 flag 있으면 복원
+        if (sessionStorage.getItem(KEY) === '1') {
+          document.body.classList.add('agent-mode');
+        }
+        // URL param ?agent=1 도 지원 (사장님 즉시 활성)
+        if (location.search.indexOf('agent=1') >= 0) {
+          document.body.classList.add('agent-mode');
+          try { sessionStorage.setItem(KEY, '1'); } catch(_){}
+        }
+        var aCount=0, aTimer=null;
+        document.addEventListener('keydown', function(e){
+          if(e.key==='a' || e.key==='A'){
+            aCount++; clearTimeout(aTimer);
+            aTimer = setTimeout(function(){ aCount=0; }, 1000);
+            if(aCount >= 3){
+              aCount = 0;
+              var on = document.body.classList.toggle('agent-mode');
+              try {
+                if(on) sessionStorage.setItem(KEY, '1');
+                else sessionStorage.removeItem(KEY);
+              } catch(_){}
+            }
           }
         });
-        document.body.classList.add('agent-mode');
       } catch(e){/* silent */}
     })()
 
