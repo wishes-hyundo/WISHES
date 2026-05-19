@@ -5403,12 +5403,37 @@
     _safeBtn('ws-btn-memosearch', function() { window.WS.showMemoSearch(); });
     _safeBtn('ws-btn-smart-recommend', function() { window.WS.showSmartRecommend(); });
 
+    // [Step 64 fix 2026-05-19 사장님 명령] 모달 close 시 이미지 메모리 해제
+    //   기존: modal.style.display='none' 만 — 12장 이미지 + 1200px hero 가 DOM 에 영구 잔존
+    //         → 매 모달 open 마다 8-15MB 누적 → 10번 = 80-150MB → OOM
+    //   수정: detail 모달 (이미지 갤러리 포함) 닫을 때 모든 img.src 비우기 + backgroundImage reset.
+    //         innerHTML 자체는 유지 (다음 open 시 재build 비용 절감) but image refs 해제.
+    function _ws_releaseModalImages(modal) {
+      try {
+        if (!modal || modal.id !== 'ws-modal-detail') return;
+        // 모든 img src 1x1 transparent 로 대체 → browser image cache reference 해제
+        var imgs = modal.querySelectorAll('img');
+        for (var i = 0; i < imgs.length; i++) {
+          try {
+            imgs[i].removeAttribute('srcset');
+            imgs[i].src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
+          } catch (_) {}
+        }
+        // backgroundImage 가진 element (.ws-gallery-main 등 hero) reset
+        var bgEls = modal.querySelectorAll('[style*="background-image"], .ws-gallery-main, .v240-hero');
+        for (var b = 0; b < bgEls.length; b++) {
+          try { bgEls[b].style.backgroundImage = 'none'; } catch (_) {}
+        }
+      } catch (_) {}
+    }
+
     // Modal close buttons
     document.querySelectorAll('.ws-modal-close').forEach(btn => {
       btn.addEventListener('click', function(e) {
         e.preventDefault();
         const modal = this.closest('.ws-modal');
         if (modal) {
+          _ws_releaseModalImages(modal);
           modal.style.display = 'none';
         }
       });
@@ -5418,6 +5443,7 @@
     document.querySelectorAll('.ws-modal').forEach(modal => {
       modal.addEventListener('click', function(e) {
         if (e.target === this) {
+          _ws_releaseModalImages(this);
           this.style.display = 'none';
         }
       });
@@ -5434,6 +5460,7 @@
       if (e.key === 'Escape') {
         document.querySelectorAll('.ws-modal').forEach(function(modal) {
           if (modal.style.display !== 'none') {
+            try { _ws_releaseModalImages(modal); } catch (_) {}
             modal.style.display = 'none';
           }
         });
