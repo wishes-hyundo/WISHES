@@ -6306,39 +6306,14 @@ function updateBottomNavText(n){
   if(window.__r119Applied) return;
   window.__r119Applied = true;
 
-  /* C4: 전송 완료 페이지에 SLA / next-action 안내 추가 */
-  function addSLA(){
+  /* R120: SLA 안내 박스 제거 (사장님 결정) — addSLA() no-op + 기존 노드 정리 */
+  function removeSLA(){
     try{
-      var page6 = document.getElementById('page6') || document.getElementById('page-result');
-      if(!page6) return;
-      if(page6.querySelector('.r119-sla')) return;
-      var hour = new Date().getHours();
-      var weekend = [0,6].indexOf(new Date().getDay()) >= 0;
-      var slaText;
-      if(weekend){
-        slaText = '📞 위시스 사장님이 평일 오전 9시 첫 연락 드립니다.';
-      } else if(hour >= 9 && hour < 20){
-        slaText = '📞 위시스 사장님이 평일 09–20시 1~2시간 내 010 으로 연락 드립니다.';
-      } else if(hour >= 20 || hour < 9){
-        slaText = '📞 위시스 사장님이 다음날 오전 9시 첫 연락 드립니다.';
-      }
-      var sla = document.createElement('div');
-      sla.className = 'r119-sla';
-      sla.style.cssText = 'margin:14px 16px;padding:14px 16px;background:linear-gradient(135deg,#E5F4EB 0%,#D6F0FA 100%);border-radius:12px;color:#1C1C1E;font-size:13px;line-height:1.6;text-align:center';
-      sla.innerHTML = '<div style="font-weight:700;margin-bottom:4px;color:#007AFF">📋 다음은 어떻게 되나요?</div><div>'+slaText+'</div><div style="margin-top:6px;font-size:11px;color:#666">위시스 부동산 (13년 경력) — 다른 곳보다 빨리 매물 보여드릴 수 있도록 노력합니다</div>';
-      var hero = page6.querySelector('.r-hero, h2, .hero') || page6.firstChild;
-      if(hero && hero.parentNode){ hero.parentNode.insertBefore(sla, hero.nextSibling); }
-      else { page6.insertBefore(sla, page6.firstChild); }
+      document.querySelectorAll('.r119-sla').forEach(function(el){ el.remove(); });
     }catch(_){}
   }
-  // goPage 후 fire (R115 lock 안전)
-  document.addEventListener('DOMContentLoaded', addSLA);
-  addSLA();
-  // page-result class 변화 감지
-  var obs = new MutationObserver(function(){
-    if(document.querySelector('#page6.active, #page-result.active')) addSLA();
-  });
-  obs.observe(document.body, {childList:true, subtree:true, attributeFilter:['class']});
+  removeSLA();
+  setInterval(removeSLA, 2000); // R119 가 더 이상 fire 안 함, 안전 정리만
 
   /* C3: 결정 시점 / 급함 indicator — STEP 1 마지막에 chip-seg 추가 */
   function addUrgency(){
