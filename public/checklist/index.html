@@ -1618,7 +1618,7 @@ input:-webkit-autofill:focus {
         </div>
       </div>
 
-        <div class="fg">
+        <div class="fg" id="loan-row" style="display:none">
 
           <label class="flabel">대출 이용</label>
 
@@ -2444,6 +2444,9 @@ function pickDeal(el, val){
   document.getElementById('bMonth').style.display = val==='월세'?'block':'none';
 
   document.getElementById('bDefault').style.display = 'none';
+
+  /* R33 ❸ — 매매 대출 chip wrap 토글 (g-jeonLoan 은 bJeon 안이라 자동) */
+  var lr = document.getElementById('loan-row'); if(lr) lr.style.display = val==="덤매"?'block':'none';
 
   // ㊑ 자동 스크롤 to 예산 영역
   setTimeout(function(){
@@ -4143,7 +4146,7 @@ function updateBottomNavText(n){
     if(!phoneWrap) return;
     var row = document.createElement('div');
     row.id='ws-privacy-row';
-    row.style.cssText='margin-top:10px;padding:10px 12px;background:var(--ios-fill-3);border-radius:10px;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;font-size:12px;line-height:1.5;color:var(--ios-label);';
+    row.style.cssText='margin-top:14px;padding:12px 14px;background:rgba(0,122,255,0.06);border:0.5px solid rgba(0,122,255,0.35);border-radius:12px;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;font-size:13px;line-height:1.5;color:var(--ios-label);';
     row.innerHTML = ''
       + '<label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;">'
       + '  <input type="checkbox" id="ws-privacy-agree" required style="margin-top:2px;width:18px;height:18px;flex-shrink:0;accent-color:#007AFF;">'
