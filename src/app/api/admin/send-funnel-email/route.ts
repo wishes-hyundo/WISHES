@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '@/lib/adminAuth';
+import { verifyAdminAuthWithContext } from '@/lib/adminAuth';
 import { computeFunnel, sendFunnelEmail } from '@/lib/funnel-email';
 
 /**
@@ -8,7 +8,7 @@ import { computeFunnel, sendFunnelEmail } from '@/lib/funnel-email';
  */
 export async function GET(request: NextRequest) {
   try {
-    const _auth = await requireAdmin(request);
+    const _auth = await verifyAdminAuthWithContext(request);
     if (!_auth.ok) {
       return NextResponse.json({ success: false, message: _auth.message || 'Unauthorized' }, { status: 401 });
     }
