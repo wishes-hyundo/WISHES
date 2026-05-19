@@ -87,8 +87,31 @@
     return idSetCache.has(String(id));
   }
 
+  // [Step 76 fix 2026-05-19 사장님 명령] v397 server pagination 활성 시 v361 전체 polling 정지
+  //   이전 Step 73 은 refetchAll 안에서만 체크 했는데 그게 timing 문제 야기.
+  //   안전 재구현: 각 polling tick 시작에 한번만 체크 + 한번 활성 감지하면 영구 stop (interval clear).
+  var _v397Detected = false;
+  var _pollIntervalId = null;
+  function _checkV397Active() {
+    try {
+      if (window.WS && window.WS.__featureFlags && window.WS.__featureFlags.use_server_pagination === true) return true;
+      var flagStr = '';
+      try { flagStr = localStorage.getItem('ws_feature_flags') || ''; } catch (_) {}
+      if (flagStr.indexOf('use_server_pagination') !== -1 && flagStr.indexOf('true') !== -1) return true;
+    } catch (_) {}
+    return false;
+  }
+
   async function pollLatest() {
     pollCount++;
+    // [Step 76] v397 활성이면 polling 영구 정지 — 73K refetch 위험 차단
+    if (!_v397Detected && _checkV397Active()) {
+      _v397Detected = true;
+      log('v397 server pagination active detected — v361 polling 영구 정지');
+      try { if (_pollIntervalId) { clearInterval(_pollIntervalId); _pollIntervalId = null; } } catch (_) {}
+      return;
+    }
+    if (_v397Detected) return;
     if (!window.WS || !window.WS.allListings) return;
     if (typeof document.visibilityState === 'string' && document.visibilityState === 'hidden') return;
     if (refetching) return;
@@ -187,7 +210,7 @@
 
   function init() {
     setTimeout(pollLatest, FIRST_POLL_DELAY_MS);
-    setInterval(pollLatest, POLL_INTERVAL_MS);
+    _pollIntervalId = setInterval(pollLatest, POLL_INTERVAL_MS);
     log('v2 installed (poll every', POLL_INTERVAL_MS / 1000, 's,',
         'first poll in', FIRST_POLL_DELAY_MS / 1000, 's, cooldown',
         REFETCH_COOLDOWN_MS / 1000, 's, latest_id-based detection)');

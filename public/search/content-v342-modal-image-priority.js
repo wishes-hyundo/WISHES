@@ -92,6 +92,19 @@
       link.setAttribute('fetchpriority', 'high');
       link.setAttribute('data-v342-hero', '1');
       document.head.appendChild(link);
+      // [Step 77 fix 2026-05-19 사장님 명령] 'preload not used' 콘솔 warning 차단
+      //   preload link 가 5초 안에 hero img 가 사용 안 하면 Chrome 이 경고 fire.
+      //   해결: load 이벤트 또는 5초 timeout 중 빨리 도래하는 시점에 link 제거.
+      //   preload 효과는 fetch 시작 즉시 발휘되므로 link 제거해도 fetch 자체는 진행.
+      var _removed = false;
+      var _removeLink = function () {
+        if (_removed) return;
+        _removed = true;
+        try { if (link && link.parentNode) link.parentNode.removeChild(link); } catch (_) {}
+      };
+      try { link.addEventListener('load', _removeLink, { once: true }); } catch (_) {}
+      try { link.addEventListener('error', _removeLink, { once: true }); } catch (_) {}
+      setTimeout(_removeLink, 5000);
     } catch (_) {}
   }
 

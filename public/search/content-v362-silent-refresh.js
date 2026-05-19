@@ -73,6 +73,8 @@
   }
 
   async function refreshOnce(reason) {
+    // [Step 83 fix 2026-05-19 사장님 명령] background tab 일 때 skip — CPU 절약
+    if (typeof document !== 'undefined' && document.hidden && reason === 'interval') return;
     if (refreshing) return;
     var sinceLast = Date.now() - lastRefreshAt;
     if (lastRefreshAt > 0 && sinceLast < COOLDOWN_MS) return;

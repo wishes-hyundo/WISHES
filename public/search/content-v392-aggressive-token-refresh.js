@@ -127,6 +127,8 @@
   }
 
   function checkAndRefresh(reason) {
+    // [Step 83 fix 2026-05-19 사장님 명령] background tab 일 때 interval skip
+    if (typeof document !== 'undefined' && document.hidden && reason === 'interval') return;
     var ttl = getTtlMs();
     if (ttl <= 0) {
       log('token expired (' + reason + ', ttl=' + Math.round(ttl / 1000) + 's) → refresh');

@@ -187,13 +187,24 @@
       if (!res) return;
       var currentModalId = getModalListingId();
       if (currentModalId !== modalId) {
-        try { console.warn(TAG, 'race detected, modal switched ' + modalId + ' → ' + currentModalId + ', skip'); } catch (e) {}
+        // [Step 82] race detected dedup — same pair pair 1회만
+        if (!window.__V381_RACE_WARNED) window.__V381_RACE_WARNED = new Set();
+        var raceKey = modalId + '→' + currentModalId;
+        if (!window.__V381_RACE_WARNED.has(raceKey)) {
+          window.__V381_RACE_WARNED.add(raceKey);
+          try { console.log(TAG, 'race detected, modal switched ' + modalId + ' → ' + currentModalId + ', skip (이 race 1회만 log)'); } catch (e) {}
+        }
         return;
       }
 
       var container = findContactsContainer();
       if (!container) {
-        try { console.warn(TAG, 'no container for id=' + modalId); } catch (e) {}
+        // [Step 82 fix 2026-05-19 사장님 명령] dedup per modalId — 같은 id 1회만 warn
+        if (!window.__V381_NO_CONTAINER_WARNED) window.__V381_NO_CONTAINER_WARNED = new Set();
+        if (!window.__V381_NO_CONTAINER_WARNED.has(modalId)) {
+          window.__V381_NO_CONTAINER_WARNED.add(modalId);
+          try { console.warn(TAG, 'no container for id=' + modalId + ' (이 id 에서 1회만 log)'); } catch (e) {}
+        }
         return;
       }
 
