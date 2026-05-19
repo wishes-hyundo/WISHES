@@ -61,37 +61,23 @@
     _intervals.add(id);
     return id;
   };
-  // [Step 39 진단 2026-05-19] setTimeout caller 통계 — 어디서 폭주하는지 추적
+  // [Step 48 fix 2026-05-19 사장님 명령] stack trace 캡처 제거 — 그것이 진짜 freeze 원인
+  //   기존: 매 setTimeout 마다 'new Error().stack' 생성 + 파싱 (very expensive)
+  //   500+ stack 캡처/페이지 = main thread 누적 freeze
+  //   수정: stack 캡처 제거. 단순 timeout tracking 만 유지.
+  //   __V403_CALLERS() 는 비활성 (이미 v322/v323/v381 등 진짜 범인 식별됨)
   const _callerStats = new Map();
   window.setTimeout = function (fn, delay) {
     const args = Array.prototype.slice.call(arguments, 2);
-    // caller stack 의 첫 번째 외부 line 추출
-    try {
-      const stack = new Error().stack || '';
-      const lines = stack.split('\n');
-      let caller = 'unknown';
-      for (let i = 2; i < Math.min(8, lines.length); i++) {
-        const m = lines[i].match(/at .* \((.*?:\d+):\d+\)/) || lines[i].match(/at (.*?:\d+):\d+/);
-        if (m && !m[1].includes('content-v403')) {
-          // [Step 46 진단] file 이름 + line 까지 추출 (잘리지 않게)
-          const parts = m[1].split('/');
-          const filePart = parts[parts.length - 1].split('?')[0]; // ?v=... 제거
-          caller = filePart;
-          break;
-        }
-      }
-      _callerStats.set(caller, (_callerStats.get(caller) || 0) + 1);
-    } catch (_) {}
     const id = _origSetTimeout.apply(window, [fn, delay].concat(args));
     _timeouts.add(id);
     _origSetTimeout(function () { _timeouts.delete(id); }, (typeof delay === 'number' ? delay : 0) + 100);
     return id;
   };
-  // 진단 함수: 호출자별 setTimeout 수 표시
+  // 진단 함수 (호환성 위해 stub 유지)
   window.__V403_CALLERS = function () {
-    const sorted = Array.from(_callerStats.entries()).sort((a, b) => b[1] - a[1]).slice(0, 20);
-    console.table(sorted.map(([caller, count]) => ({ caller, count })));
-    return sorted;
+    console.warn('[v403] caller stats disabled in Step 48 — used for freeze fix. Use __V403_DIAGNOSE() for current state.');
+    return [];
   };
   window.clearInterval = function (id) {
     _intervals.delete(id);
