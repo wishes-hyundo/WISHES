@@ -255,6 +255,9 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v401-bulk-prefetch', '/search/content-v401-bulk-prefetch.js?v=20260515b-aibrief'],
       // [Phase I 2026-05-15] WS.showDetail wrap — minimal listing 자동 보강 (지도 마커 click 등)
       ['ws-ext-patch-v402-showdetail-wrap', '/search/content-v402-showdetail-wrap.js?v=20260515a'],
+      // [Step 28 fix 2026-05-19] 통합 메모리 가드 — OOM 영구 해결
+      //   85 patch 누적 setInterval/setTimeout 일괄 cleanup + WS.allListings cap
+      ['ws-ext-patch-v403-memory-guard', '/search/content-v403-memory-guard.js?v=20260519a-oom-guard'],
       ['ws-ext-patch-v364-photo-mobile', '/search/content-v364-photo-mobile-ux.js?v=20260514nativePTR'],
       ['ws-ext-patch-v365-mobile-ui', '/search/content-v365-mobile-ui.js?v=20260512b'],
       ['ws-ext-patch-v366-token-refresh-v2', '/search/content-v366-token-refresh-v2.js?v=20260514short'],
