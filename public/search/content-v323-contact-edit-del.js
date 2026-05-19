@@ -328,9 +328,14 @@
   function startObserver() {
     try {
       if (typeof MutationObserver === 'undefined') return;
+      // [Step 47 fix 2026-05-19 사장님 명령] throttle 700ms — body subtree cascade 차단
+      var __v323_throttle = null;
       var observer = new MutationObserver(function () {
-        // delay 0.7초 (v270/v322 렌더 후)
-        setTimeout(bindAll, 700);
+        if (__v323_throttle) return;
+        __v323_throttle = setTimeout(function () {
+          __v323_throttle = null;
+          try { bindAll(); } catch (e) {}
+        }, 700);
       });
       observer.observe(document.body, { childList: true, subtree: true });
     } catch (e) {}

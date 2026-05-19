@@ -152,9 +152,16 @@
   function startObserver() {
     try {
       if (typeof MutationObserver === 'undefined') return;
+      // [Step 47 fix 2026-05-19 사장님 명령] throttle 600ms — body subtree cascade 차단
+      //   기존: 매 mutation 마다 setTimeout 등록 → 100매물 = 수십 setTimeout 누적
+      //   수정: 600ms throttle 안에 1개만 등록
+      var __v322_throttle = null;
       var observer = new MutationObserver(function () {
-        // 0.6초 delay (v270 가 먼저 처리할 시간 확보)
-        setTimeout(tryRender, 600);
+        if (__v322_throttle) return;
+        __v322_throttle = setTimeout(function () {
+          __v322_throttle = null;
+          try { tryRender(); } catch (e) {}
+        }, 600);
       });
       observer.observe(document.body, { childList: true, subtree: true });
     } catch (e) {}
