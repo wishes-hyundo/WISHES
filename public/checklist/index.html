@@ -2604,15 +2604,17 @@ function generateResult(){
 
   if(deal==='매매'){
 
-    const mn=gvNum('buyMin'), mx=gvNum('buyMax');
+    /* R47 — buyMin input 제거됨 (단일 max), "최대 N 만원" 표시 */
+    const mx=gvNum('buyMax');
 
-    if(mn||mx) budget=(mn||'?')+' ~ '+(mx||'?')+' 만원';
+    if(mx) budget='최대 '+mx.toLocaleString()+' 만원';
 
   }else if(deal==='전세'){
 
-    const mn=gvNum('jMin'), mx=gvNum('jMax');
+    /* R47 — jMin input 제거됨 (단일 max) */
+    const mx=gvNum('jMax');
 
-    if(mn||mx) budget=(mn||'?')+' ~ '+(mx||'?')+' 만원';
+    if(mx) budget='최대 '+mx.toLocaleString()+' 만원';
 
   }else if(deal==='월세'){
 
