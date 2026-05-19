@@ -2618,9 +2618,14 @@ function generateResult(){
 
   }else if(deal==='월세'){
 
+    /* R48 — 월세 단일 입력 시 "미정" 표시 + 천 단위 콤마 */
     const dep=gvNum('mDep'), rent=gvNum('mRent');
 
-    if(dep||rent) budget='보증금 '+(dep||'?')+'만원 / 월세 '+(rent||'?')+'만원';
+    if(dep||rent){
+      var depStr = dep ? dep.toLocaleString()+'만원' : '미정';
+      var rentStr = rent ? rent.toLocaleString()+'만원' : '미정';
+      budget = '보증금 '+depStr+' / 월세 '+rentStr;
+    }
 
   }
 
