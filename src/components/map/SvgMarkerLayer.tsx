@@ -121,7 +121,12 @@ function markerSize(count: number, level: number, isMobile: boolean): number {
   else if (level <= 4) mult = 1.08;
   else if (level >= 12) mult = 0.88;
   let base = 22;
-  if (count >= 1000) base = 36;
+  // [Step 88 fix 2026-05-19 사장님 명령] 큰 cluster 시인성 강화
+  //   기존: 22-36px (1k+ 까지). 1k 와 100 차이 4px 만으로 부족
+  //   수정: 22-50px (5k+). 카운트 단계 더 명확
+  if (count >= 5000) base = 50;
+  else if (count >= 1000) base = 42;
+  else if (count >= 500) base = 38;
   else if (count >= 100) base = 32;
   else if (count >= 30) base = 28;
   else if (count >= 10) base = 26;
@@ -149,6 +154,7 @@ function createClusterG(it: ClusterRenderItem, x: number, y: number): SVGGElemen
   circle.setAttribute('r', String(it.r));
   circle.setAttribute('fill', it.bg);
   // Wave 64: 흰색 stroke 제거 — Apple Maps 룩 (테두리 X, drop shadow 만)
+  // [Step 88 fix 2026-05-19 사장님 명령] 흰 stroke 안 좋다고 명시 — 추가 X
   circle.setAttribute('style', 'pointer-events:auto;cursor:pointer');
   g.appendChild(circle);
 
@@ -425,7 +431,8 @@ export default function SvgMarkerLayer(props: SvgMarkerLayerProps) {
         for (const sc of p.serverClusters) {
           const count = sc.count;
           const size = markerSize(count, level, isMobile);
-          const fontSize = count >= 100 ? 12 : 11;
+          // [Step 88 fix] fontSize 단계 강화
+          const fontSize = count >= 1000 ? 14 : count >= 500 ? 13 : count >= 100 ? 12 : 11;
           const ids = (sc.sample_ids ?? []).join(',');
           const singleId = count === 1 && sc.sample_ids?.[0] ? String(sc.sample_ids[0]) : '';
           const hasSel = p.selectedListingId != null && (sc.sample_ids ?? []).includes(p.selectedListingId);
