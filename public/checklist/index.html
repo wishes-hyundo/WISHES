@@ -4012,6 +4012,72 @@ function updateBottomNavText(n){
     // Agent mode: press 'A' 3 times to toggle
     /* R101 — agent-mode JS 전체 제거 (사장님 명령) */
 
+    /* ═══════════════ R102 — 이탈률 측정 silent tracking (사장님 명령) ═══════════════
+       손님 페이지 visit / STEP 진입 / 전송 이벤트 silent fetch 로 서버 기록.
+       손님 화면 표시 0. 사장님 admin endpoint 로만 조회. */
+    (function initR102Funnel(){
+      var KEY = 'ws_funnel_sid';
+      var sid;
+      try {
+        sid = sessionStorage.getItem(KEY);
+        if(!sid){
+          sid = 'fn' + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+          sessionStorage.setItem(KEY, sid);
+        }
+      } catch(_){ sid = 'fn-fallback'; }
+
+      function track(event, extra){
+        try {
+          var body = {sessionId: sid, event: event};
+          if(extra && extra.deal) body.deal = extra.deal;
+          if(extra && extra.meta) body.meta = extra.meta;
+          // silent — keepalive 로 page unload 시도 전송
+          fetch('/api/checklist-funnel', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(body),
+            keepalive: true
+          }).catch(function(){});
+        } catch(_){}
+      }
+      window.__r102Track = track;
+
+      // 페이지 진입 이벤트 (visit)
+      track('visit');
+
+      // STEP 이동 hook (window.goPage 가 정의된 후 wrap)
+      function wrapGoPage(){
+        if(typeof window.goPage !== 'function') { setTimeout(wrapGoPage, 200); return; }
+        if(window.goPage.__r102wrapped) return;
+        var orig = window.goPage;
+        window.goPage = function(n){
+          var r = orig.apply(this, arguments);
+          try {
+            var deal = (window.S && window.S.deal) || null;
+            if(n === 2) track('step1_done', {deal: deal});
+            else if(n === 3) track('step2_done', {deal: deal});
+            else if(n === 'result' || n === 6) track('step3_done', {deal: deal});
+          } catch(_){}
+          return r;
+        };
+        window.goPage.__r102wrapped = true;
+      }
+      wrapGoPage();
+
+      // 전송 완료 hook — SENT=true 감지
+      var sentCheckTimer = setInterval(function(){
+        try {
+          if(window.__wsR14 && window.__wsR14.SENT && window.__wsR14.SENT()){
+            var deal = (window.S && window.S.deal) || null;
+            track('sent', {deal: deal});
+            clearInterval(sentCheckTimer);
+          }
+        } catch(_){}
+      }, 1500);
+    })();
+
+    
+
     </script>
 
 
