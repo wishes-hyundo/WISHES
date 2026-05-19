@@ -66,6 +66,8 @@
   }
 
   function watcher() {
+    // [Step 74 fix 2026-05-19 사장님 명령] background tab 일 때 watcher skip
+    if (typeof document !== 'undefined' && document.hidden) return;
     var nowActive = !!(window.WS && window.WS.__searchActive);
     if (nowActive === lastActive) return;
     if (nowActive) {

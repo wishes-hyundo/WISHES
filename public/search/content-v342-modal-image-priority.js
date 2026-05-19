@@ -92,6 +92,14 @@
       link.setAttribute('fetchpriority', 'high');
       link.setAttribute('data-v342-hero', '1');
       document.head.appendChild(link);
+      // [Step 74 fix 2026-05-19 사장님 명령] preload not used warning 차단
+      //   5초 안에 hero img 가 preload URL 을 사용하지 않으면 link 자동 제거
+      //   (preload 효과는 이미 fetch 시작했고, 그 후에는 link 만 남아서 경고 fire)
+      setTimeout(function () {
+        try {
+          if (link && link.parentNode) link.parentNode.removeChild(link);
+        } catch (_) {}
+      }, 4000);
     } catch (_) {}
   }
 
