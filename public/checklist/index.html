@@ -1439,6 +1439,28 @@ input:-webkit-autofill:focus {
   font-style:italic; opacity:0.7;
 }
 
+/* R78 — footer 사업자 정보 (부동산 중개사법 표시) */
+.ws-footer-r78 {
+  margin: 32px 16px 24px;
+  padding: 16px 12px;
+  border-top: 1px solid var(--ios-fill-3);
+  text-align: center;
+  font-size: 11px;
+  color: var(--ios-label-3);
+  font-family: var(--ios-font);
+  line-height: 1.6;
+}
+.ws-footer-r78 .ws-footer-row { margin: 2px 0; }
+.ws-footer-r78 .ws-footer-copy { font-size: 10px; opacity: 0.7; margin-top: 4px; }
+.ws-footer-r78 a { color: var(--ios-blue); text-decoration: none; }
+.ws-footer-r78 a:hover { text-decoration: underline; }
+@media (prefers-color-scheme: dark) {
+  .ws-footer-r78 { border-top-color: rgba(255,255,255,0.08); }
+}
+@media print {
+  .ws-footer-r78 { display: none !important; }
+}
+
 /* ❿ 페이지 전환 fade */
 .page{ transition: opacity 0.22s var(--ios-ease); }
 .page:not(.active){ opacity:0; }
@@ -3183,6 +3205,34 @@ function resetAll(){
         origNextPage();
       };
     })();
+    /* ═══════════════ R78 — chip 클릭 시 aria-live 안내 (스크린리더) ═══════════════ */
+    (function initR78AriaLive(){
+      var liveEl = document.getElementById('ws-live-region');
+      if(!liveEl) return;
+      function announce(text){
+        if(!text) return;
+        liveEl.textContent = '';
+        // force reflow
+        void liveEl.offsetWidth;
+        setTimeout(function(){ liveEl.textContent = text; }, 50);
+      }
+      document.addEventListener('click', function(ev){
+        var t = ev.target;
+        if(!t || !t.closest) return;
+        var chip = t.closest('.chip, .deal-chip');
+        if(!chip) return;
+        // 잠시 후 .on 상태 변화 확인 후 announce
+        setTimeout(function(){
+          var label = chip.querySelector('.dc-label') ? chip.querySelector('.dc-label').textContent.trim() : chip.textContent.trim();
+          // ✓ marker 제거 (스크린리더 중복 안내 막기)
+          label = label.replace(/^\u2713\s*/, '');
+          var isOn = chip.classList.contains('on');
+          announce(label + (isOn ? ' 선택됨' : ' 선택 해제됨'));
+        }, 100);
+      }, true);
+      // 별점 chip-seg radio 도 동일하게 적용 됨 (.chip selector 안에 들어감)
+    })();
+
     /* ═══════════════ R69 — 이름 / 직장 등 텍스트 input 자동 trim ═══════════════ */
     (function initR69Trim(){
       function bindTrim(){
@@ -5160,6 +5210,15 @@ function updateBottomNavText(n){
 })();
 </script>
 
+  <!-- R78 — 부동산 중개사법 표시 + 접근성 landmark -->
+  <footer role="contentinfo" class="ws-footer-r78" aria-label="회사 정보">
+    <div class="ws-footer-row">주식회사 위시스부동산중개법인</div>
+    <div class="ws-footer-row"><a href="mailto:wishes@wishes.co.kr">wishes@wishes.co.kr</a> · <a href="/privacy" target="_blank" rel="noopener noreferrer">개인정보 처리방침</a></div>
+    <div class="ws-footer-row ws-footer-copy">© 2026 WISHES Real Estate. All rights reserved.</div>
+  </footer>
+
+  <!-- R78 — aria-live region (chip 클릭 시 스크린리더 안내) -->
+  <div id="ws-live-region" role="status" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;"></div>
 </body>
 
 </html>
