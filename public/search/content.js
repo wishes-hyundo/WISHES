@@ -5424,6 +5424,16 @@
         for (var b = 0; b < bgEls.length; b++) {
           try { bgEls[b].style.backgroundImage = 'none'; } catch (_) {}
         }
+        // [Step 69 fix 2026-05-19 사장님 명령] preload link 정리
+        //   모달 닫혔는데 v342/v385 preload link 가 head 에 남아있음
+        //   → 'preloaded but not used' 경고 누적 5+개
+        //   → 모달 close 시 모달 이미지용 preload (data-v342-hero, data-v385done) 제거
+        try {
+          var preloads = document.head.querySelectorAll('link[rel="preload"][as="image"][data-v342-hero], link[rel="preload"][as="image"][data-v385done], link[rel="preload"][as="image"][data-ws-modal]');
+          for (var p = 0; p < preloads.length; p++) {
+            try { preloads[p].parentNode.removeChild(preloads[p]); } catch (_) {}
+          }
+        } catch (_) {}
       } catch (_) {}
     }
 
