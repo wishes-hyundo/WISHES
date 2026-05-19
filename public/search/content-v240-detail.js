@@ -675,15 +675,26 @@
     // --- 2. HERO (주소 · 가격) ---
     // 주소 조립: L.address 에 이미 전체 주소가 포함되어 있으면 그대로 사용.
     // address 가 비어있는 경우만 dong + address_detail 로 조합.
+    // [Step 92 fix 2026-05-19 사장님 명령] hero 주소 반복 fix
+    //   기존: addrText.indexOf(detailText) === -1 만 검사 → "호" 같은 1글자 suffix 차이
+    //         때문에 addr="...10-140 1층 201" + detail="10-140 1층 201호" 가 합쳐져
+    //         "...10-140 1층 201 10-140 1층 201호" 로 반복 표시됨.
+    //   수정: 숫자/hyphen 시퀀스만 추출해서 addr 에 포함되어 있으면 detail 추가 안 함.
     var addrText = (L.address || '').trim();
     var detailText = (L.address_detail || '').trim();
     var dongText = (L.dong || '').trim();
     var fullAddr = addrText;
     if (!fullAddr) {
       fullAddr = (dongText + ' ' + detailText).trim();
-    } else if (detailText && addrText.indexOf(detailText) === -1) {
-      // address 에 detail 이 아직 포함되지 않은 경우에만 추가
-      fullAddr = addrText + ' ' + detailText;
+    } else if (detailText) {
+      var __addrDigits = addrText.replace(/[^0-9\-]/g, '');
+      var __detailDigits = detailText.replace(/[^0-9\-]/g, '');
+      // detail 의 숫자 시퀀스가 addr 안에 substring 으로 있으면 (= 같은 정보) → 합치지 X
+      var __alreadyIn = (__detailDigits.length > 0 && __addrDigits.indexOf(__detailDigits) !== -1)
+                     || (addrText.indexOf(detailText) !== -1);
+      if (!__alreadyIn) {
+        fullAddr = addrText + ' ' + detailText;
+      }
     }
     html +=
       '<section class="v240-hero">' +
