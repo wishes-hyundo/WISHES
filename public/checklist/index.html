@@ -519,29 +519,14 @@ textarea {
   font-size: 1.7rem;
   color: var(--ios-label-4);
   cursor: pointer;
-  /* R63 — 사장님 명령: 즉각 표시. transition 0.18s → 0.06s */
-  transition: color 0.06s ease-out, transform 0.06s ease-out, text-shadow 0.06s ease-out;
-  will-change: color, transform;
+  transition: color 0.18s var(--ios-ease), transform 0.18s var(--ios-spring);
   line-height: 1;
   border-radius: 6px;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
-/* R63 — 활성 별 강한 시각 (즉시 인지) */
-.star.on {
-  color: #FF9500 !important;
-  text-shadow: 0 0 8px rgba(255,149,0,0.45);
-}
-.star:active { transform: scale(1.35); }
-@media (prefers-color-scheme: dark) {
-  /* R63 — 다크모드 더 vivid + outline (force-dark 무력화) */
-  .star.on {
-    color: #FFD60A !important;
-    text-shadow:
-      0 0 14px rgba(255,214,10,0.8),
-      0 1px 3px rgba(0,0,0,0.7) !important;
-  }
-}
+.star.on { color: var(--ios-orange); }
+.star:active { transform: scale(1.25); background: var(--ios-fill-3); }
 
 /* ── PRIORITY TABLE ── */
 .prio-table {
@@ -2739,19 +2724,22 @@ function setStar(k, v){
   /* R25 ❶ — 별점 클릭 햅틱 (chip 과 통일감) */
   if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
 
-  /* R63 — 사장님 명령: 즉각 표시. requestAnimationFrame 으로 paint 강제 */
-  var stars = document.querySelectorAll('.stars[data-k="'+k+'"] .star');
-  stars.forEach((s,i)=>{
+  document.querySelectorAll('.stars[data-k="'+k+'"] .star').forEach((s,i)=>{
+
     s.classList.toggle('on', i<v);
+
+    /* R56 — aria-pressed 토글 (스크린리더 상태 변화 인지) */
     s.setAttribute('aria-pressed', i<v ? 'true' : 'false');
+
+    /* R56 — pulse 효과 (마지막 클릭한 별만) */
+    if (i === v-1) {
+      s.classList.remove('star-pulse');
+      void s.offsetWidth;
+      s.classList.add('star-pulse');
+      setTimeout(function(){ try{ s.classList.remove('star-pulse'); }catch(_){} }, 400);
+    }
+
   });
-  // R63 — pulse on the last clicked star
-  if (stars[v-1]) {
-    stars[v-1].classList.remove('star-pulse');
-    void stars[v-1].offsetWidth;
-    stars[v-1].classList.add('star-pulse');
-    setTimeout(function(){ try{ stars[v-1].classList.remove('star-pulse'); }catch(_){} }, 350);
-  }
 
 }
 
@@ -3089,6 +3077,31 @@ function resetAll(){
         // STEP 3 은 모두 선택 — 검사 없음
 
         if(!valid){
+          /* R64 — 명시적 toast 안내. shake 만으로는 사용자가 왜 안 넘어가는지 모름 */
+          var missing = [];
+          var nameEl = document.getElementById('cName');
+          var phoneEl = document.getElementById('cPhone');
+          if(cur === 1){
+            if(!nameEl || !nameEl.value.trim()) missing.push('성함');
+            if(!phoneEl || !phoneEl.value.trim()) missing.push('연락처');
+            else if(phoneEl && !/^010-\d{4}-\d{4}$/.test(phoneEl.value.trim())) missing.push('연락처 형식 (010-0000-0000)');
+            if(document.querySelectorAll('#g-dealType .deal-chip.on').length === 0) missing.push('거래 유형');
+            var agree = document.getElementById('ws-privacy-agree');
+            if(agree && !agree.checked) missing.push('개인정보 동의');
+          } else if(cur === 2){
+            if(document.querySelectorAll('#g-propType .chip.on').length === 0) missing.push('매물 유형');
+            var reg1El = document.getElementById('reg1');
+            if(!reg1El || !reg1El.value.trim()) missing.push('1순위 지역');
+          }
+          if (typeof showToast === 'function' && missing.length > 0) {
+            showToast({
+              type:'warning',
+              title:'다음을 확인해주세요',
+              msg: missing.join(', ') + ' 입력이 필요해요',
+              duration: 3500,
+              position: 'top'
+            });
+          }
           if(firstInvalid && typeof firstInvalid.focus === 'function'){
             try{ firstInvalid.focus(); }catch(_){}
           }
@@ -3103,6 +3116,47 @@ function resetAll(){
         origNextPage();
       };
     })();
+    /* ═══════════════ R64 — step-btn 클릭 시 검증 통과한 step 만 ═══════════════ */
+    (function initSafeStepNav(){
+      window.__r64SafeGoPage = function(targetStep){
+        var cur = window.cur || 1;
+        // 뒤로 가기는 항상 허용 (current 이하)
+        if(targetStep <= cur){
+          if(typeof goPage === 'function') goPage(targetStep);
+          return;
+        }
+        // 앞으로 가려면 현재 step 검증 통과해야 함
+        var nameEl = document.getElementById('cName');
+        var phoneEl = document.getElementById('cPhone');
+        var missing = [];
+        if(cur === 1){
+          if(!nameEl || !nameEl.value.trim()) missing.push('성함');
+          if(!phoneEl || !phoneEl.value.trim()) missing.push('연락처');
+          else if(phoneEl && !/^010-\d{4}-\d{4}$/.test(phoneEl.value.trim())) missing.push('연락처 형식');
+          if(document.querySelectorAll('#g-dealType .deal-chip.on').length === 0) missing.push('거래 유형');
+          var agree = document.getElementById('ws-privacy-agree');
+          if(agree && !agree.checked) missing.push('개인정보 동의');
+        } else if(cur === 2){
+          if(document.querySelectorAll('#g-propType .chip.on').length === 0) missing.push('매물 유형');
+          var reg1El = document.getElementById('reg1');
+          if(!reg1El || !reg1El.value.trim()) missing.push('1순위 지역');
+        }
+        if(missing.length > 0){
+          if(typeof showToast === 'function'){
+            showToast({
+              type:'warning',
+              title:'STEP '+cur+' 먼저 완료해주세요',
+              msg: missing.join(', ') + ' 입력 후 이동 가능',
+              duration: 3500,
+              position: 'top'
+            });
+          }
+          return;
+        }
+        if(typeof goPage === 'function') goPage(targetStep);
+      };
+    })();
+
     /* ═══════════════ Enter 키로 다음 단계 ═══════════════ */
     (function initEnterKey(){
       document.addEventListener('keydown', function(e){
