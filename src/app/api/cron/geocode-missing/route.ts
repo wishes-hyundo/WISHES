@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       .in('status', ['공개', '비공개'])
       .not('address', 'is', null)
       .order('road_address_fetched_at', { ascending: true, nullsFirst: true })
-      .limit(500);  // [DB-1 boost 2026-05-18] 50 → 500 (Kakao 30만/day quota 여유)
+      .limit(100);  // [DB-1 boost-v2 2026-05-18] 500 → 100 (Vercel 60s timeout 안전 + 5분 schedule)
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     if (!targets || targets.length === 0) {
