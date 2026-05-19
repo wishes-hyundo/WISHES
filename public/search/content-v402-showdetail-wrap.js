@@ -63,26 +63,16 @@
         if (!isDetailListing(listing) && listing && listing.id && typeof window.WS.fetchListingById === 'function') {
           log('minimal listing for id', listing.id, '— background fetch + re-render');
           window.WS.fetchListingById(listing.id).then(function (full) {
-            if (!full) return;
-            try {
-              // [Step 112 fix 2026-05-19 사장님 명령] M1+M2 race — 잘못된 매물 덮어쓰기 차단
-              //   기존: display !== 'none' 만 검사 → 사장님이 다른 매물로 전환했어도 덮음
-              //   수정: (a) 모달 닫혔는지, (b) 현재 표시 중인 매물 id 가 fetch 한 id 와 같은지 검사
-              var modal = document.getElementById('ws-modal-detail');
-              if (!modal || modal.style.display === 'none') return;
-              // 모달 release 되어있으면 (close 직후 release flag) skip
-              if (modal.dataset.wsReleased === '1') return;
-              // 현재 표시 매물 id 확인 (WS.__lastListing 또는 modal 안 매물번호 텍스트)
+            if (full) {
               try {
-                if (window.WS && window.WS.__lastListing &&
-                    String(window.WS.__lastListing.id) !== String(listing.id)) {
-                  log('background fetch outdated (current modal=' + window.WS.__lastListing.id + ', fetched=' + listing.id + '), skip');
-                  return;
+                // 모달 닫혔는지 확인 (사장님이 빨리 닫았으면 re-render skip)
+                var modal = document.getElementById('ws-modal-detail');
+                if (modal && modal.style.display !== 'none') {
+                  orig.call(self, full);
+                  log('background fetch complete, modal re-rendered with full data');
                 }
-              } catch (_) {}
-              orig.call(self, full);
-              log('background fetch complete, modal re-rendered with full data');
-            } catch (e) { log('re-render err:', e && e.message); }
+              } catch (e) { log('re-render err:', e && e.message); }
+            }
           }).catch(function (err) { log('background fetch err:', err && err.message); });
         }
         return origResult;

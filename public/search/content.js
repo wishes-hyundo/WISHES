@@ -5411,17 +5411,10 @@
     function _ws_releaseModalImages(modal) {
       try {
         if (!modal || modal.id !== 'ws-modal-detail') return;
-        // [Step 112 fix M2] release flag — v402 background fetch 와 race 차단
-        modal.dataset.wsReleased = '1';
         // 모든 img src 1x1 transparent 로 대체 → browser image cache reference 해제
-        // [Step 112 fix M3] srcset 백업 — 재오픈 시 복원 가능
         var imgs = modal.querySelectorAll('img');
         for (var i = 0; i < imgs.length; i++) {
           try {
-            var ss = imgs[i].getAttribute('srcset');
-            var sc = imgs[i].getAttribute('src');
-            if (ss) imgs[i].dataset.wsOrigSrcset = ss;
-            if (sc && sc.indexOf('data:image/gif') !== 0) imgs[i].dataset.wsOrigSrc = sc;
             imgs[i].removeAttribute('srcset');
             imgs[i].src = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==';
           } catch (_) {}

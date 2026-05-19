@@ -689,10 +689,8 @@
     } else if (detailText) {
       var __addrDigits = addrText.replace(/[^0-9\-]/g, '');
       var __detailDigits = detailText.replace(/[^0-9\-]/g, '');
-      // [Step 112 fix M4] 보수적 substring 매치 — detailDigits >= 4 일 때만 작동
-      //   기존: 1-3자리 숫자 우연히 일치하면 detail 통째 drop → 호수 누락
-      //   수정: 4자리 이상 + addr 안에 substring + 전체 text 매치 둘 다 검증
-      var __alreadyIn = (__detailDigits.length >= 4 && __addrDigits.indexOf(__detailDigits) !== -1)
+      // detail 의 숫자 시퀀스가 addr 안에 substring 으로 있으면 (= 같은 정보) → 합치지 X
+      var __alreadyIn = (__detailDigits.length > 0 && __addrDigits.indexOf(__detailDigits) !== -1)
                      || (addrText.indexOf(detailText) !== -1);
       if (!__alreadyIn) {
         fullAddr = addrText + ' ' + detailText;
