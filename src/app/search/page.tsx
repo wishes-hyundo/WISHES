@@ -179,12 +179,14 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v398-auto-cache-reset', '/search/content-v398-auto-cache-reset.js?v=20260515b-firstclr'],
       ['ws-ext-patch', '/search/content-v230-patch.js?v=20260502'],
       ['ws-ext-patch-v240', '/search/content-v240-detail.js?v=20260420g'],
-      ['ws-ext-patch-v260-perf', '/search/content-v260-perf.js?v=20260428real'],
+      // [Step 34 freeze fix 2026-05-19] disabled — 3 setInterval×60회 polling 150ms = 9초간 main thread tax
+      // ['ws-ext-patch-v260-perf', '/search/content-v260-perf.js?v=20260428real'],
       ['ws-ext-patch-v270-contacts', '/search/content-v270-contacts.js?v=20260418a1'],
       ['ws-ext-patch-v280-mobile', '/search/content-v280-mobile.js?v=20260420b'],
       ['ws-ext-patch-v290-polish', '/search/content-v290-polish.js?v=20260420b'],
       ['ws-ext-patch-v291-stability', '/search/content-v291-stability.js?v=20260514nativePTR'],
-      ['ws-ext-patch-v292-global-search', '/search/content-v292-global-search.js?v=20260509a'],
+      // [Step 34 freeze fix 2026-05-19] disabled — body subtree observer never disconnect → cascade
+      // ['ws-ext-patch-v292-global-search', '/search/content-v292-global-search.js?v=20260509a'],
       // v293-alert-log removed (2026-05-15 사장님 명령 - 종 알림 잔상 영구 제거)
       // v294-scope removed (2026-05-15 사장님 명령 - 전체/내매물 잔상 완전 제거)
       ['ws-ext-patch-v295-detail-hydrate', '/search/content-v295-detail-hydrate.js?v=20260424d'],
