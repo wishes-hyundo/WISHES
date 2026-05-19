@@ -369,13 +369,14 @@ textarea {
   color: #fff;
 }
 
-/* deal-chip → segmented control */
+/* deal-chip → 정통 iOS UISegmentedControl (round 32 강화) */
 .deal-chips {
   display: flex;
-  background: rgba(120,120,128,0.24);
+  background: rgba(120,120,128,0.16);
   border-radius: 9px;
   padding: 2px;
   gap: 0;
+  position: relative;
 }
 .deal-chip {
   flex: 1;
@@ -385,19 +386,49 @@ textarea {
   background: transparent;
   text-align: center;
   cursor: pointer;
-  transition: background 0.2s var(--ios-ease), box-shadow 0.2s var(--ios-ease);
+  transition: background 0.22s var(--ios-spring), box-shadow 0.22s var(--ios-spring), transform 0.12s var(--ios-ease);
+  position: relative;
+  z-index: 1;
+}
+/* iOS native divider — chip 사이 옅은 선 (선택 시 숨김) */
+.deal-chip + .deal-chip::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 1px;
+  background: rgba(60,60,67,0.22);
+  transition: opacity 0.18s ease;
+  z-index: 0;
+}
+.deal-chip.on + .deal-chip::before,
+.deal-chip:has(+ .deal-chip.on)::before {
+  opacity: 0;
 }
 .deal-chip .dc-icon { display: none; }
 .deal-chip .dc-label {
   font-size: 0.93rem;
   font-weight: 500;
-  color: var(--ios-label);
+  color: var(--ios-label-2);  /* 미선택: secondary text (iOS 표준) */
+  transition: color 0.18s ease;
 }
 .deal-chip.on {
-  background: var(--ios-cell);
-  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.04), 0 3px 12px rgba(0,0,0,0.12);
+  background: #fff;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04);
+  transform: scale(1.0);
 }
-.deal-chip.on .dc-label { color: var(--ios-label); font-weight: 600; }
+.deal-chip.on .dc-label {
+  color: #000;
+  font-weight: 600;
+}
+@media (prefers-color-scheme: dark) {
+  .deal-chips { background: rgba(118,118,128,0.24); }
+  .deal-chip + .deal-chip::before { background: rgba(235,235,245,0.18); }
+  .deal-chip .dc-label { color: var(--ios-label-2); }
+  .deal-chip.on { background: rgba(99,99,102,1); }
+  .deal-chip.on .dc-label { color: #fff; }
+}
 
 .budget-empty {
   font-size: 0.85rem;
