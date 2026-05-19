@@ -2558,7 +2558,7 @@ input:-webkit-autofill:focus {
               <button onclick="goPage(3);this.parentElement.classList.remove('show')">추가상담 (STEP 3)</button>
             </div>
           </div>
-  <button class="btn btn-send agent-only" id="resultSendBtn" onclick="sendToNaverWorks()">보내기</button>
+  <button class="btn btn-send" id="resultSendBtn" onclick="sendToNaverWorks()">📤 보내기</button>
 </div>
 
 
@@ -2659,22 +2659,11 @@ function goPage(n){
 
 function nextPage(){
 
-  /* R84 — STEP 3 의 "✅ 상담 완료" 클릭 시 NaverWorks 자동 전송 (손님 모드 자동 전송 보장) */
-  if(cur<TOTAL){
-    goPage(cur+1);
-    return;
-  }
-  // cur === TOTAL — STEP 3 완료 시 결과 페이지 표시 + 자동 전송
-  goPage('result');
-  /* R84 — startSend() 호출. validate / phoneLock / contentLock 등 체크 후 전송 */
-  setTimeout(function(){
-    try {
-      if(typeof startSend === 'function') startSend();
-      else if(typeof sendToNaverWorks === 'function') sendToNaverWorks();
-    } catch(e){
-      if(typeof console!=='undefined') console.error('[R84] startSend error', e);
-    }
-  }, 600);
+  /* R85 — STEP 3 의 "✅ 상담 완료" 클릭 시 결과 페이지 표시만 (자동 전송 X).
+     R84 의 자동 전송이 사장님이 결과 검토 전에 발사 → R85 에서 제거.
+     사장님이 결과 페이지 보고 "📤 보내기" 버튼 클릭 시 NaverWorks 전송. */
+  if(cur<TOTAL) goPage(cur+1);
+  else goPage('result');
 
 }
 
