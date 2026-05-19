@@ -39,6 +39,16 @@ export default function SearchPortalPage() {
 
   useEffect(() => {
     if (state !== 'ok') return;
+    // [Step 29 emergency 2026-05-19 사장님 명령] /search 응급 진단 모드
+    //   ?lite=1 → 모든 ws-ext-patch 차단 (어떤 patch 가 freeze 일으키는지 확인용)
+    //   사장님 보고: 페이지 멈춤 + 콘솔도 못 열림
+    try {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('lite') === '1' || params.get('lite') === 'true') {
+        (window as unknown as { __WS_LITE_MODE__?: boolean }).__WS_LITE_MODE__ = true;
+        console.warn('[WS-LITE-MODE] 진단 모드 — 모든 patch 차단. 정상 사용 시 ?lite 제거.');
+      }
+    } catch {}
     let cancelled = false;
     const refreshAndPersist = async () => {
       try {
@@ -137,6 +147,11 @@ export default function SearchPortalPage() {
     script.async = false;
     document.body.appendChild(script);
 
+    // [Step 29 fix 2026-05-19] lite mode 진단: ?lite=1 시 patch 로드 차단
+    if ((window as unknown as { __WS_LITE_MODE__?: boolean }).__WS_LITE_MODE__) {
+      console.warn('[WS-LITE-MODE] patches 로드 skip');
+      return;
+    }
     const patches: Array<[string, string]> = [
       // [v398 2026-05-15 사장님] auto cache reset — deploy 변경 감지 시 stale storage 자동 정리
       //   강제새로고침/시크릿모드 매번 안 해도 즉시 반영 (사장님 명령)
