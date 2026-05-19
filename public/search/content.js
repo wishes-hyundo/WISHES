@@ -5498,10 +5498,20 @@
     window.WS.renderPagination();
     window.WS._updateSelectedCount();
 
-    // If map view is active, re-render map with filtered data
+    // [Step 101 fix 2026-05-19 사장님 명령] S9 — 필터 변경 시 지도 강제 갱신
+    //   기존: mapContainer.style.display 만 검사 → 다른 visibility 방식이면 sync 안 됨
+    //   수정: (1) computed display 도 검사, (2) initMap 후 명시적 postMessage trigger
     var mapContainer = document.getElementById('ws-map-container');
-    if (mapContainer && mapContainer.style.display !== 'none') {
-      window.WS.initMap();
+    if (mapContainer) {
+      var displayStyle = mapContainer.style.display;
+      var computedDisplay = '';
+      try { computedDisplay = window.getComputedStyle(mapContainer).display; } catch (_) {}
+      var mapVisible = displayStyle !== 'none' && computedDisplay !== 'none';
+      if (mapVisible) {
+        try { window.WS.initMap(); } catch (_) {}
+        // 추가 sync trigger — map-main 이 이전 listings 캐시 사용해도 강제 재렌더
+        try { window.postMessage({ type: 'ws-map-render' }, '*'); } catch (_) {}
+      }
     }
 
     // URL 파라미터에 필터 상태 저장
