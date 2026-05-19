@@ -34,10 +34,45 @@
   if (location.pathname.indexOf('/search') !== 0) return;
 
   // v260-perf 의 60K freeze 원인 로그들
+  // [Step 67 2026-05-19 사장님 명령] 흔한 init/status info 로그 추가 — 콘솔 가독성 향상
+  //   (에러 로그는 절대 suppress 안 함. 일반 로딩 안내만 차단.)
   var SUPPRESS_PATTERNS = [
     'AI auto PASS',
     'AI cached + allListings synced',
     'AI cached + render skip',  // 변형 가능성
+    // [Step 67] 흔한 init/status 로그 (에러 X, 단순 안내)
+    '[v397-pagination] page ', // page N OK 매번 fire
+    '[v397-pagination] page-counts OK',
+    '[v397-pagination] pending fetch fire',
+    '[v397-pagination] feature flag',
+    '[v397-pagination] legacy loadData',
+    '[v397-pagination] renderPagination wrapped',
+    '[v349-server-search] cached',
+    '[v349-server-search] initial cache acquired',
+    '[v349-snapshot-ttl] active',
+    '[v379-modal-contacts-reset] modal listing change',
+    '[v379-modal-contacts-reset] reset complete',
+    '[v380-contacts-fresh-render] modal id detected',
+    '[v380-contacts-fresh-render] rendered',
+    '[v316-rawfields-fill] filled',
+    '[v316-rawfields-fill] 전용',
+    '[v317-nearby-poi] fetching',
+    '[v317-nearby-poi] rendered',
+    '[v334-hero-road-fill] injected',
+    '[v382-lightbox-1200]',
+    '[v402-showdetail-wrap] showDetail wrapped',
+    '[v342-v4] showDetail hook installed',
+    '[WP v2.6.9 perf]',
+    '[WP v2.5.3] 갤러리',
+    '[WP v2.5.3] 큰 사진',
+    '[ws-storage-cleanup] 현재',
+    '[ws-cookie-issue]',
+    '[v350-mobile-ux-fix] active',
+    '[v368-mobile-clean-v2]',
+    '[v398-cache-reset]',
+    '[v381-modal-id-precise] modal id',
+    '[v381-modal-id-precise] rendered',
+    'prefill from DB',
   ];
 
   var origLog = console.log;
