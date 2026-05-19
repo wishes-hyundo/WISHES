@@ -319,7 +319,8 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v385-preload-link-patch', '/search/content-v385-preload-link-patch.js?v=20260514a'],
       ['ws-ext-patch-v386-cardid-hide-search', '/search/content-v386-cardid-hide-search.js?v=20260515c-nonull'],
       ['ws-ext-patch-v387-enter-search-blur', '/search/content-v387-enter-search-blur.js?v=20260515-fixtrunc'],
-      ['ws-ext-patch-v390-search-map-init', '/search/content-v390-search-map-init.js?v=20260514v23fast'],
+      // [Step 96 fix 2026-05-19 사장님 명령] S1 이중 Map fix — v390 비활성화 (map-main.js 단독 작동)
+      // ['ws-ext-patch-v390-search-map-init', '/search/content-v390-search-map-init.js?v=20260514v23fast'],
       ['ws-ext-patch-v392-aggressive-token-refresh', '/search/content-v392-aggressive-token-refresh.js?v=20260514a'],
       // v375-scope-bottom-toolbar removed (v294 없으니 의미 없음)
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
