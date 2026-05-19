@@ -49,25 +49,36 @@
     var orig = window.WS.showDetail;
     window.WS.__v402_origShowDetail = orig;
 
-    window.WS.showDetail = async function (listing) {
+    // [Step 84 fix 2026-05-19 사장님 명령] 모달 perceived loading 1-2초 → <100ms
+    //   기존: minimal listing 이면 await fetchListingById 후 orig 호출 → 1-2초 blank
+    //   수정: orig 즉시 호출 (minimal data 로 모달 open) → 백그라운드 fetch → 보강된 data 로 re-render
+    //   사용자는 즉시 모달 보고, 풍부한 정보는 0.5-1초 후 자연스럽게 추가됨.
+    window.WS.showDetail = function (listing) {
+      var self = this;
       try {
-        // 이미 detail data 면 그대로 호출
-        if (isDetailListing(listing)) {
-          return orig.call(this, listing);
+        // 즉시 orig 호출 (minimal 이어도 모달 빨리 표시)
+        var origResult = orig.call(self, listing);
+
+        // detail 정보 부족하면 백그라운드 fetch + re-render
+        if (!isDetailListing(listing) && listing && listing.id && typeof window.WS.fetchListingById === 'function') {
+          log('minimal listing for id', listing.id, '— background fetch + re-render');
+          window.WS.fetchListingById(listing.id).then(function (full) {
+            if (full) {
+              try {
+                // 모달 닫혔는지 확인 (사장님이 빨리 닫았으면 re-render skip)
+                var modal = document.getElementById('ws-modal-detail');
+                if (modal && modal.style.display !== 'none') {
+                  orig.call(self, full);
+                  log('background fetch complete, modal re-rendered with full data');
+                }
+              } catch (e) { log('re-render err:', e && e.message); }
+            }
+          }).catch(function (err) { log('background fetch err:', err && err.message); });
         }
-        // minimal listing — id 만 있으면 fetch 보강
-        if (listing && listing.id && typeof window.WS.fetchListingById === 'function') {
-          log('minimal listing for id', listing.id, '— fetching detail');
-          var full = await window.WS.fetchListingById(listing.id);
-          if (full) {
-            return orig.call(this, full);
-          }
-        }
-        // fetch 실패 또는 fetchListingById 없음 → 원본 그대로
-        return orig.call(this, listing);
+        return origResult;
       } catch (err) {
         log('wrap err:', err && err.message);
-        return orig.call(this, listing);
+        return orig.call(self, listing);
       }
     };
 
