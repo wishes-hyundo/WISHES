@@ -222,7 +222,7 @@ export async function POST(request: NextRequest) {
       for (const row of rows) {
         if (!Array.isArray(row)) continue;
         const lbl = esc(capStr(row[0]));
-        const val = esc(capStr(row[1]));
+        const val = esc(capStr(row[1])).replace(/\n/g, '<br/>');  // R93 — 줄바꿈 유지
         if (!val) continue;
         s += `<tr><td style="padding:6px 10px;border:1px solid #E5E5EA;width:30%;background:#F9F9FB;font-weight:bold;color:#1C1C1E">${lbl}</td><td style="padding:6px 10px;border:1px solid #E5E5EA;color:#1C1C1E">${val}</td></tr>`;
       }
