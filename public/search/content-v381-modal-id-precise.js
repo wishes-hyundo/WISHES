@@ -21,8 +21,12 @@
   //   - 모달 root 의 명확한 매물번호 표시 element 우선
   function getModalListingId() {
     try {
+      // [Step 54 fix 2026-05-19 사장님 명령] FREEZE 진짜 원인
+      //   기존: document.querySelectorAll('*') — 5080노드 + getBoundingClientRect = layout thrash
+      //   수정: modal element 안으로 스코프 한정 (50-100노드만)
+      var modal = document.getElementById('ws-modal-detail');
       // 우선순위 1: 모달 헤더의 "매물번호 \d+" 텍스트
-      var headers = document.querySelectorAll('*');
+      var headers = modal ? modal.querySelectorAll('*') : [];
       for (var i = 0; i < headers.length; i++) {
         var el = headers[i];
         // text 가 정확히 "매물번호 \d+" 와 NEW 정도만 (다른 매물 카드 텍스트 X)
@@ -30,12 +34,8 @@
         if (t.length < 25 && /^매물번호\s+\d{4,7}(\s*NEW)?$/.test(t)) {
           var m = t.match(/(\d{4,7})/);
           if (m) {
-            // 그 element 가 modal 안인지 확인 (fixed/absolute positioning + 충분히 큰 z-index)
-            var rect = el.getBoundingClientRect();
-            // 모달 헤더는 상단에 위치하고 크기 작음
-            if (rect.top < window.innerHeight / 2 && rect.width > 50) {
-              return m[1];
-            }
+            // modal 안에서 찾았으니 무조건 valid (rect 체크 제거 — layout 비싸)
+            return m[1];
           }
         }
       }
@@ -142,7 +142,9 @@
     var empty = document.querySelector('.v240-contacts-empty');
     if (empty && empty.parentElement) return empty.parentElement;
     // 우선순위 3: "관계자 연락처" 텍스트의 부모 박스
-    var all = document.querySelectorAll('*');
+    // [Step 54 fix 2026-05-19] modal 안으로 스코프 한정 — layout thrash 차단
+    var modalRoot2 = document.getElementById('ws-modal-detail') || document;
+    var all = modalRoot2.querySelectorAll('*');
     for (var i = 0; i < all.length; i++) {
       var el = all[i];
       var t = (el.textContent || '').trim();

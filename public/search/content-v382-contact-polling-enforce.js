@@ -16,20 +16,29 @@
   var lastFetchTime = 0;
 
   function getModalListingIdFromHeader() {
-    // 모달 헤더의 "매물번호 \d+" 텍스트 추출 (유사매물 카드 무시)
+    // [Step 54 fix 2026-05-19 사장님 명령] FREEZE 진짜 근본원인
+    //   기존: document.querySelectorAll('*') — 5080노드 + 매 element 마다 textContent + getBoundingClientRect
+    //         → 500ms 폴링 × 5080노드 layout thrashing = freeze
+    //   수정: modal element 안으로 스코프 한정 (50-100노드만) + 1차 스코프 우선 검사
     try {
-      var all = document.querySelectorAll('*');
-      for (var i = 0; i < all.length; i++) {
-        var el = all[i];
-        var t = (el.textContent || '').trim();
-        if (t.length < 25 && /^매물번호\s+\d{4,7}(\s*NEW)?$/.test(t)) {
+      var modal = document.getElementById('ws-modal-detail');
+      if (!modal) return null;
+      // 헤더 영역에 있는 매물번호만 검색 (속도 빠름)
+      var headerCandidates = modal.querySelectorAll('.ws-modal-header, .v240-modal-header, h1, h2, h3, [class*="header"], [class*="title"]');
+      for (var i = 0; i < headerCandidates.length; i++) {
+        var t = (headerCandidates[i].textContent || '').trim();
+        if (t.length < 60 && /매물번호\s+\d{4,7}/.test(t)) {
           var m = t.match(/(\d{4,7})/);
-          if (m) {
-            var rect = el.getBoundingClientRect();
-            if (rect.top < window.innerHeight / 2 && rect.width > 50) {
-              return m[1];
-            }
-          }
+          if (m) return m[1];
+        }
+      }
+      // fallback: modal 안 전체 (5080 → ~100노드)
+      var inner = modal.querySelectorAll('*');
+      for (var j = 0; j < inner.length; j++) {
+        var t2 = (inner[j].textContent || '').trim();
+        if (t2.length < 25 && /^매물번호\s+\d{4,7}(\s*NEW)?$/.test(t2)) {
+          var m2 = t2.match(/(\d{4,7})/);
+          if (m2) return m2[1];
         }
       }
       return null;
@@ -108,8 +117,9 @@
     var correctPhone = res.contacts[0] && res.contacts[0].phone;
     if (!correctPhone) return;
 
-    // 화면의 phone element 들 찾기 (.v270-ct-phone, .v240-contact-phone, etc.)
-    var phoneEls = document.querySelectorAll('.v270-ct-phone, .v240-contact-phone, [data-phone]');
+    // [Step 54 fix 2026-05-19] modal 안으로 스코프 — getBoundingClientRect layout thrash 차단
+    var modalRoot = document.getElementById('ws-modal-detail') || document;
+    var phoneEls = modalRoot.querySelectorAll('.v270-ct-phone, .v240-contact-phone, [data-phone]');
     var anyMismatch = false;
     for (var i = 0; i < phoneEls.length; i++) {
       var el = phoneEls[i];
@@ -141,6 +151,7 @@
     // [Step 44 fix 2026-05-19 사장님 명령] modal open 시에만 polling 활성화
     //   기존: 영구 500ms polling → main thread 영원히 점유 (freeze 원인)
     //   수정: modal 닫혀있으면 즉시 return (idle), 매 호출 시 modal 체크
+    // [Step 54 fix 2026-05-19] 500ms → 1500ms (race-fix 충분히 빠름, CPU 1/3)
     pollInterval = setInterval(function () {
       try {
         // [Step 51 fix 2026-05-19 사장님 명령] modal 실제 selector 로 수정
@@ -152,7 +163,7 @@
         if (!m || m.style.display === 'none' || !m.offsetParent) return;
         enforceCorrectPhone();
       } catch (e) {}
-    }, 500);
+    }, 1500);
     try { console.log(TAG, 'polling started (500ms, modal-only)'); } catch (e) {}
   }
 

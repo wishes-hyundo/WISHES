@@ -244,9 +244,12 @@
       
       // Immediate enforce + setInterval lock for LOCK_MS
       enforceStats();
+      // [Step 54 fix 2026-05-19 사장님 명령] 100ms → 500ms — DOM 전체 sweep 5× 빈도 절감
+      //   enforceStats 가 querySelectorAll('div,span,p,h1...,td,th,li') 전체 노드 5080 sweep
+      //   100ms × 30초 = 300회 freeze 기여. 500ms 로도 stats lock UX 충분.
       enforcerInterval = setInterval(function () {
         enforceStats();
-      }, 100);
+      }, 500);
       
       // Auto-release after LOCK_MS
       setTimeout(releaseLock, LOCK_MS);
