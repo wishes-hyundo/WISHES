@@ -1626,7 +1626,7 @@ input:-webkit-autofill:focus {
   }
   @page { margin: 1.5cm 1.2cm; size: A4; }
   a[href]::after { content: " (" attr(href) ")"; font-size: 0.85em; color: #666666 !important; }
-  a[href^="#"]::after, a[href^="javascript:"]::after, a[href^="mailto:"]::after, a[href^="tel:"]::after { content: ""; }
+  a[href^="#"]::after, a[href^="javascript:"]::after, a[href^="mailto:"]::after { content: ""; }
   .result-hero { background: #F5F5F5 !important; border: 1px solid #CCCCCC !important; }
 }
 
@@ -3125,7 +3125,7 @@ function generateResult(){
 
       <div class="sc-body">
 
-        ${gv('addReq')?'<div class="sc-row"><div class="sc-key">요청사항</div><div class="sc-val">'+_esc(gv('addReq'))+'</div></div>':''}
+        ${gv('addReq')?'<div class="sc-row"><div class="sc-key">요청사항</div><div class="sc-val" style="white-space:pre-wrap;line-height:1.5">'+_esc(gv('addReq'))+'</div></div>':''}
 
 
       </div>
