@@ -12,6 +12,7 @@
 (function () {
   'use strict';
   var TAG = '[v380-contacts-fresh-render]';
+  var lastWarnedNoContainerId = null; // [Step 52] log 폭주 차단
   var lastModalId = null;
   var inflightFetch = null;
   var fetchCache = {}; // id -> Promise<contacts[]>
@@ -131,7 +132,11 @@
 
       var container = findContactsContainer();
       if (!container) {
-        try { console.warn(TAG, 'no container found for id=' + modalId); } catch (e) {}
+        // [Step 52] no container 폭주 차단 — 같은 id 1회만 log
+        if (lastWarnedNoContainerId !== modalId) {
+          lastWarnedNoContainerId = modalId;
+          try { console.warn(TAG, 'no container found for id=' + modalId + ' (이 id 에서 1회만 log)'); } catch (e) {}
+        }
         return;
       }
 
@@ -160,8 +165,16 @@
     }
   }
 
+  // [Step 52 fix 2026-05-19 사장님 명령] body subtree MO cascade — OOM 진짜 원인
+  //   기존: 매 DOM mutation 마다 check() 호출 → 100매물 lazy stream 시 폭주
+  //   수정: 300ms throttle (modal id 변경 detect 는 300ms 충분)
+  var __v380_throttle = null;
   var observer = new MutationObserver(function () {
-    try { check(); } catch (e) {}
+    if (__v380_throttle) return;
+    __v380_throttle = setTimeout(function () {
+      __v380_throttle = null;
+      try { check(); } catch (e) {}
+    }, 300);
   });
 
   function startObserver() {

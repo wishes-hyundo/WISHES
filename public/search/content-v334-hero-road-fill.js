@@ -200,6 +200,11 @@
     //   기존: 500/1500/3500/7000ms 4번 cascade → 매 modal open 마다 4 setTimeout 누적
     //   수정: 1회만 (MO debounce 100ms 가 이미 충분히 cover)
     setTimeout(applyToHero, 500);
+    // [Step 51 fix 2026-05-19 사장님 명령] Kakao API 슬로우 케이스 fallback 복구
+    //   Step 44 가 7000ms fallback 도 제거했었음 — Kakao 가 느린 회선/제한일 때
+    //   도로명 fetch 가 3-5초 걸리는 경우 hero h1 빈채로 남는 손실 발생.
+    //   복구: 7000ms 1회 (MO 가 일반 케이스 cover, 이건 비상용)
+    setTimeout(applyToHero, 7000);
   }
 
   if (document.readyState === 'loading') {

@@ -140,7 +140,11 @@
       var L = window.WS && window.WS.__lastListing;
       var addr = (L && L.address) ? String(L.address) : '';
       if (!ll && !addr) {
-        console.warn('[' + V + '] lat/lng + address 모두 없음 — skip');
+        // [Step 52] console.warn 폭주 차단 — 같은 modal 같은 reason 1회만
+        if (modal.dataset.v317warnedSkip !== '1') {
+          modal.dataset.v317warnedSkip = '1';
+          console.warn('[' + V + '] lat/lng + address 모두 없음 — skip (이 모달에서 1회만 log)');
+        }
         return;
       }
       // L-lid-marker (2026-04-29): 매물 ID 별 마커 — ID 변경 시 섹션 새로 갱신.
@@ -165,13 +169,23 @@
     } catch (e) { console.warn('[' + V + '] failed:', e && e.message); }
   }
 
+  // [Step 52 fix 2026-05-19 사장님 명령] body subtree MO cascade — OOM 진짜 원인
+  //   기존: lazy stream 으로 mutation 이 계속 오면 clearTimeout/setTimeout reset 무한 발생,
+  //         그리고 200ms debounce 가 영원히 reset 되어 applyAll 미실행 → console.warn 폭주
+  //   수정: 500ms 윈도우 동안 추가 schedule 차단 + applyAll 안에서 modal display 체크
   var debounceTimer = null;
   function schedule() {
-    if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(applyAll, 200);
+    if (debounceTimer) return;
+    debounceTimer = setTimeout(function () {
+      debounceTimer = null;
+      applyAll();
+    }, 500);
   }
 
+  var __v317_mo_throttle = null;
   var mo = new MutationObserver(function (muts) {
+    if (__v317_mo_throttle) return;
+    __v317_mo_throttle = setTimeout(function () { __v317_mo_throttle = null; }, 500);
     for (var i = 0; i < muts.length; i++) {
       if (muts[i].addedNodes && muts[i].addedNodes.length) { schedule(); return; }
     }
