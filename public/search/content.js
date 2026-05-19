@@ -5860,6 +5860,10 @@
       var mapScript = document.createElement('script');
       mapScript.id = 'ws-kakao-map-script';
       mapScript.src = chrome.runtime.getURL('map-main.js');
+      // [Step 109 fix 2026-05-19] postMessage race fix — map-main load 후 trigger
+      mapScript.onload = function () {
+        try { window.postMessage({ type: 'ws-map-render' }, '*'); } catch (_) {}
+      };
       document.body.appendChild(mapScript);
     } else {
       // Subsequent calls: use postMessage to communicate with MAIN world

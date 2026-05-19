@@ -13,6 +13,12 @@
  *  - 지도타입/오버레이/그리기/주변시설/반경검색/로드뷰/내위치/전체화면/공유/인쇄/히트맵/주소조회/축척/매물 클러스터
  */
 (function() {
+  // [Step 109 fix 2026-05-19 사장님 명령] A-2 critical — listener 누수 guard
+  //   IIFE 가 SPA navigation 시 재실행될 경우 visibilitychange/pagehide/message
+  //   listener N번 누적. clearAllMapResources 가 N번 실행 + renderWishesMap N번 → race.
+  //   해결: 전역 guard. 두 번째 로드 시 즉시 return.
+  if (window.__WS_MAP_MAIN_LOADED__) return;
+  window.__WS_MAP_MAIN_LOADED__ = true;
   // ======================== 🛣️  카카오 로드뷰 프록시 패치 ========================
   // Kakao SDK 의 `Roadview` 는 `rv.map.kakao.com/roadview-search/v2/*` 를 호출하는데
   // 이 엔드포인트는 Referer 가 map.kakao.com 이 아니면 전부 503 을 반환한다.

@@ -222,13 +222,27 @@ export default function MapClient() {
   const [adminOverlayReady, setAdminOverlayReady] = useState(false);
   useEffect(() => {
     if (!kakaoMap) { setAdminOverlayReady(false); return; }
-    const idleCb = (cb: () => void) =>
-      typeof (window as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback === 'function'
-        ? (window as unknown as { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(cb)
-        : setTimeout(cb, 800);
-    const id = idleCb(() => setAdminOverlayReady(true));
+    // [Step 109 fix 2026-05-19] cleanup 분기 — idleCb 가 setTimeout 인지 idleCallback 인지 추적
+    const hasIdleCallback = typeof (window as { requestIdleCallback?: unknown }).requestIdleCallback === 'function';
+    let cancelled = false;
+    let idleId = 0;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    if (hasIdleCallback) {
+      idleId = (window as unknown as { requestIdleCallback: (cb: () => void) => number }).requestIdleCallback(() => {
+        if (!cancelled) setAdminOverlayReady(true);
+      });
+    } else {
+      timeoutId = setTimeout(() => {
+        if (!cancelled) setAdminOverlayReady(true);
+      }, 800);
+    }
     return () => {
-      try { (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(id); } catch { /* noop */ }
+      cancelled = true;
+      if (hasIdleCallback && idleId) {
+        try { (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(idleId); } catch { /* noop */ }
+      } else if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, [kakaoMap]);
   const setMap = useMap2026Store((s) => s.setMap);
