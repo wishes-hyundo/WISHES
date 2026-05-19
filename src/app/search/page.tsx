@@ -256,7 +256,7 @@ export default function SearchPortalPage() {
       //   → "저장공간 부족" 토스트 무한 반복. Storage.prototype.setItem 가로채기로
       //   quota 시 자동 cleanup + 재시도. 사장님 데이터 (즐겨찾기/메모/연락처/폴더)
       //   SAFE_PRESERVE 영구 보호. 토스트 10분 throttle.
-      ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260510v335cache'],
+      ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260519-step32-cap1000'],
       // Step D Plan C (2026-05-10): ws_data_snapshot → IndexedDB (50MB+, 전체 62K 매물 추적).
       ['ws-ext-patch-v340-snapshot-idb', '/search/content-v340-snapshot-idb.js?v=20260510a'],
       // v343 (2026-05-10 사장님 명령 Fix 4): ws_price_snapshots -> IndexedDB.
