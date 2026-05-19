@@ -3565,18 +3565,10 @@ function updateBottomNavText(n){
     btns.forEach(function(b){ b.style.display='none'; });
 
     /* 결과 페이지 상단에 success banner */
+    /* R39 — showSuccessState banner 제거 (R23 hero card 와 중복) */
+    /* hero card 가 이미 "전송 완료" / "감사합니다" 표시 */
     var page = document.getElementById('page-result');
     if(!page) return;
-    if(document.getElementById('ws-sent-banner')) return;
-    var banner = document.createElement('div');
-    banner.id='ws-sent-banner';
-    banner.style.cssText='background:linear-gradient(135deg,#34C759,#30B954);color:#fff;border-radius:16px;padding:24px 20px;margin:0 16px 16px;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;box-shadow:0 8px 24px rgba(52,199,89,0.25);';
-    banner.innerHTML = ''
-      + '<div style="width:56px;height:56px;border-radius:50%;background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:28px;">✓</div>'
-      + '<div style="font-size:20px;font-weight:600;margin-bottom:4px;">전송 완료</div>'
-      + '<div style="font-size:14px;opacity:0.95;">위시스 부동산이 곧 연락드릴게요</div>'
-      + '';
-    page.insertBefore(banner, page.firstChild);
     /* 30초 후 새 상담 버튼 강조 */
     setTimeout(function(){
       var b = document.querySelector('[onclick="resetAll()"]');
