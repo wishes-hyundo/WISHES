@@ -106,8 +106,17 @@
     var addr = card.querySelector('.ws-listing-addr');
     if (addr) ensureBadgeAtFront(addr, src, false);
 
-    // (2) 우측 매물번호 옆 mini G/O — 매물번호 텍스트 앞에 prepend
-    var idEl = card.querySelector('.ws-listing-id');
+    // (2) 매물번호 옆 mini G/O 뱃지
+    // [Step 55 fix 2026-05-19 사장님 명령] B안 — v325 녹색 매물번호 뱃지 옆으로 이동
+    //   기존: .ws-listing-id (회색 매물번호 텍스트) 앞에 prepend
+    //   문제: v386 이 .ws-listing-id 를 display:none 으로 숨김 (v325 와 중복)
+    //        → mini 뱃지만 카드 하단 상세보기 아래 orphan 으로 떠다님
+    //   수정: v325 가 만든 .ws-tag-listing-id (녹색 "매물 N" 뱃지) 앞에 prepend
+    //        → 두 정보 함께 표시 + 시인성 향상
+    //   fallback: v325 비활성 환경 대비 .ws-listing-id 로도 한번 더 시도
+    var greenTag = card.querySelector('.ws-tag-listing-id');
+    var legacyId = card.querySelector('.ws-listing-id');
+    var idEl = greenTag || legacyId;
     if (idEl && (src === 'gongsilclub' || src === 'onhouse')) {
       var existingMini = idEl.previousElementSibling;
       if (!existingMini || !existingMini.classList || !existingMini.classList.contains('ws-src-badge-mini')) {
@@ -116,7 +125,8 @@
         span.dataset.src = (src === 'gongsilclub') ? 'g' : 'o';
         span.title = (src === 'gongsilclub') ? '공실클럽' : '온하우스';
         var c = (src === 'gongsilclub') ? COLOR_G : COLOR_O;
-        span.style.cssText = 'display:inline-block;width:14px;height:14px;line-height:14px;text-align:center;border-radius:3px;background:' + c + ';color:#fff;font-size:9px;font-weight:800;margin-right:4px;vertical-align:middle;';
+        // [Step 55] 녹색 뱃지 옆 자연스럽게 보이도록 크기 16px (이전 14px) + line-height 정렬
+        span.style.cssText = 'display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border-radius:3px;background:' + c + ';color:#fff;font-size:10px;font-weight:800;margin-right:4px;vertical-align:middle;';
         span.textContent = (src === 'gongsilclub') ? 'G' : 'O';
         try { idEl.parentNode.insertBefore(span, idEl); } catch (_) {}
       } else {
