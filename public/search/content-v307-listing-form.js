@@ -41,7 +41,11 @@
   // 초기 + DOM mutation 감지 (content.js 가 늦게 button 만들어도 잡음)
   attachRedirectHandler();
   try {
+    // [Step 53 fix 2026-05-19 사장님 명령] throttle 500ms — 30초 동안 폭주 차단
+    var __v307_throttle = null;
     var obs = new MutationObserver(function () {
+      if (__v307_throttle) return;
+      __v307_throttle = setTimeout(function () { __v307_throttle = null; }, 500);
       attachRedirectHandler();
     });
     obs.observe(document.body, { childList: true, subtree: true });

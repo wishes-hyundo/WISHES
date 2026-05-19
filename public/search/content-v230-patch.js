@@ -630,10 +630,12 @@
     }
 
     // 매물검색 UI 가 뒤늦게 생성될 수 있으니 observer 붙임
+    // [Step 53 fix 2026-05-19 사장님 명령] throttle 500ms — bottombar sweep 폭주 차단
+    var __v230_bb_throttle = null;
     var obs = new MutationObserver(function(muts) {
-      for (var i = 0; i < muts.length; i++) {
-        simplifyBottomBar();
-      }
+      if (__v230_bb_throttle) return;
+      __v230_bb_throttle = setTimeout(function() { __v230_bb_throttle = null; }, 500);
+      simplifyBottomBar();
     });
     obs.observe(document.body, { childList: true, subtree: true });
     simplifyBottomBar(); // 이미 있으면 즉시
@@ -911,7 +913,11 @@
 
     // m-02: 매물번호 복사 툴팁
     (function fixCopyIdTooltip() {
+      // [Step 53 fix 2026-05-19 사장님 명령] throttle 600ms — 매 mutation 마다 querySelectorAll 차단
+      var __v230_tip_throttle = null;
       var obs = new MutationObserver(function() {
+        if (__v230_tip_throttle) return;
+        __v230_tip_throttle = setTimeout(function() { __v230_tip_throttle = null; }, 600);
         document.querySelectorAll('.ws-copy-id:not([data-wp-tip])').forEach(function(el) {
           el.setAttribute('data-wp-tip', '1');
           el.setAttribute('title', '클릭하여 매물번호 복사');
@@ -925,7 +931,11 @@
 
     // m-03: 페이지 표시 위치 강조 (작은 회색 → 명시적)
     (function fixPageInfo() {
+      // [Step 53 fix 2026-05-19 사장님 명령] throttle 600ms — page-info sweep 폭주 차단
+      var __v230_pi_throttle = null;
       var obs = new MutationObserver(function() {
+        if (__v230_pi_throttle) return;
+        __v230_pi_throttle = setTimeout(function() { __v230_pi_throttle = null; }, 600);
         var t = document.getElementById('ws-page-info-text');
         if (t && !t._wpFixed) {
           t._wpFixed = true;

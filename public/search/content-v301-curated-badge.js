@@ -117,6 +117,8 @@
   }
 
   // ── MutationObserver 로 동적 카드 감시 ────────────────────────────
+  // [Step 53 fix 2026-05-19 사장님 명령] throttle 500ms — 카드 sweep 폭주 차단
+  let __v301_throttle = null;
   const mo = new MutationObserver((mutations) => {
     let dirty = false;
     for (const m of mutations) {
@@ -124,7 +126,10 @@
         dirty = true; break;
       }
     }
-    if (dirty) scanAndDecorate();
+    if (!dirty) return;
+    if (__v301_throttle) return;
+    __v301_throttle = setTimeout(() => { __v301_throttle = null; }, 500);
+    scanAndDecorate();
   });
 
   function start() {

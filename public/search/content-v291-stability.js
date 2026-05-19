@@ -88,12 +88,16 @@
   function installImgForceMO() {
     var target = document.querySelector('.ws-listings') || document.body;
     try {
+      // [Step 53 fix 2026-05-19 사장님 명령] throttle 300ms — img sweep 폭주 차단
+      var __v291_throttle = null;
       var mo = new MutationObserver(function (muts) {
         var hit = false;
         for (var i = 0; i < muts.length; i++) {
           if (muts[i].type === 'childList' && muts[i].addedNodes.length) { hit = true; break; }
         }
         if (!hit) return;
+        if (__v291_throttle) return;
+        __v291_throttle = setTimeout(function () { __v291_throttle = null; }, 300);
         try { forceImageVisible(); } catch (e) {}
       });
       mo.observe(target, { childList: true, subtree: true });

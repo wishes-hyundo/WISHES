@@ -205,7 +205,14 @@
     });
   }
 
-  var mo = new MutationObserver(function () { tryReplace(); });
+  // [Step 53 fix 2026-05-19 사장님 명령] throttle 500ms — body subtree cascade 차단
+  //   기존: 매 mutation 마다 tryReplace() (DB fetch 발생 가능) → 폭주 freeze
+  var __v270_throttle = null;
+  var mo = new MutationObserver(function () {
+    if (__v270_throttle) return;
+    __v270_throttle = setTimeout(function () { __v270_throttle = null; }, 500);
+    tryReplace();
+  });
   mo.observe(document.body, { childList: true, subtree: true });
 
   // 초기 1회 + 500ms 간격 폴링 5회 (SPA 렌더 타이밍 안전망)

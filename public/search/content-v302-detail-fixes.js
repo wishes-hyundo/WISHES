@@ -303,12 +303,17 @@
     if (modal) injectActionButtons(modal);
   }
 
+  // [Step 53 fix 2026-05-19 사장님 명령] throttle 400ms — 모달 sweep 폭주 차단
+  let __v302_throttle = null;
   const mo = new MutationObserver((muts) => {
     let dirty = false;
     for (const m of muts) {
       if (m.addedNodes && m.addedNodes.length) { dirty = true; break; }
     }
-    if (dirty) scanModals();
+    if (!dirty) return;
+    if (__v302_throttle) return;
+    __v302_throttle = setTimeout(() => { __v302_throttle = null; }, 400);
+    scanModals();
   });
 
   function start() {

@@ -119,7 +119,11 @@
 
   // v306 가 unit 섹션 inject 한 후 v308 도 button inject — DOM observe
   try {
+    // [Step 53 fix 2026-05-19 사장님 명령] throttle 400ms — 모달 inject 폭주 차단
+    let __v308_throttle = null;
     const obs = new MutationObserver(function () {
+      if (__v308_throttle) return;
+      __v308_throttle = setTimeout(function () { __v308_throttle = null; }, 400);
       if (document.querySelector('.v240-ai-modal')) {
         captureLocFromDom();
       }

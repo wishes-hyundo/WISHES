@@ -86,7 +86,14 @@
     removeBadgeElements();
     // MutationObserver — 다른 patch 가 이 element 재생성 시도하면 즉시 제거
     try {
-      var obs = new MutationObserver(function () { removeBadgeElements(); });
+      // [Step 53 fix 2026-05-19 사장님 명령] throttle 500ms — 자체 remove 가 다시 mutation
+      //   → MO 가 다시 fire → 무한 loop freeze 위험. throttle 로 차단.
+      var __v371_throttle = null;
+      var obs = new MutationObserver(function () {
+        if (__v371_throttle) return;
+        __v371_throttle = setTimeout(function () { __v371_throttle = null; }, 500);
+        removeBadgeElements();
+      });
       obs.observe(document.body || document.documentElement, { childList: true, subtree: true });
     } catch (_) {}
   }

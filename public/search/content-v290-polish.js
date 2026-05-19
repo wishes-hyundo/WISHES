@@ -186,7 +186,11 @@
   // [P1-4] 상세 모달 열림 시 body scroll lock
   // ------------------------------------------------------------------
   function bindModalScrollLock() {
+    // [Step 53 fix 2026-05-19 사장님 명령] throttle 300ms + body.style 자체 변경 self-cascade 차단
+    var __lockMO_throttle = null;
     var lockMO = new MutationObserver(function () {
+      if (__lockMO_throttle) return;
+      __lockMO_throttle = setTimeout(function () { __lockMO_throttle = null; }, 300);
       var modalOpen = !!document.querySelector('.ws-modal:not([hidden]), .ws-detail-modal.open, .ws-modal.show, [data-ws-modal-open="true"]');
       var body = document.body;
       if (modalOpen && body.style.overflow !== 'hidden') {
@@ -486,12 +490,18 @@
 
   // 렌더 재감지
   try {
+    // [Step 53 fix 2026-05-19 사장님 명령] throttle 400ms — 4 sweep 폭주 차단
+    //   기존: 매 mutation 마다 replacePlaceholders+applyImageFade+checkEmptyState+collapseBottomBar
+    //   = 100매물 render = 400 sweep 누적 → freeze
+    var __v290_throttle = null;
     var observer = new MutationObserver(function (mutations) {
       var hit = false;
       for (var i = 0; i < mutations.length; i++) {
         if (mutations[i].type === 'childList' && mutations[i].addedNodes.length) { hit = true; break; }
       }
       if (!hit) return;
+      if (__v290_throttle) return;
+      __v290_throttle = setTimeout(function () { __v290_throttle = null; }, 400);
       try {
         replacePlaceholders();
         applyImageFade();
