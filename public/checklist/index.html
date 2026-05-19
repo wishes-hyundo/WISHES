@@ -4324,7 +4324,9 @@ function updateBottomNavText(n){
     var p = (document.getElementById('cPhone')||{}).value || '';
     var t4 = phoneTail4(p);
     if(!t4) return false;
-    var h = hash('p:'+t4);
+    var n = ((document.getElementById('cName')||{}).value || '').replace(/\s+/g,'').slice(0,8);
+    var allDigits = p.replace(/\D/g,'');
+    var h = hash('p:'+n+':'+allDigits);
     var rec = safeGet(PHONE_KEY);
     if(rec && rec.h===h && (Date.now()-rec.t)<PHONE_LOCK_MS){
       var mins = Math.ceil((PHONE_LOCK_MS-(Date.now()-rec.t))/60000);
@@ -4337,7 +4339,9 @@ function updateBottomNavText(n){
     var p = (document.getElementById('cPhone')||{}).value || '';
     var t4 = phoneTail4(p);
     if(!t4) return;
-    safeSet(PHONE_KEY, {h:hash('p:'+t4), t:Date.now()});
+    var n = ((document.getElementById('cName')||{}).value || '').replace(/\s+/g,'').slice(0,8);
+    var allDigits = p.replace(/\D/g,'');
+    safeSet(PHONE_KEY, {h:hash('p:'+n+':'+allDigits), t:Date.now()});
   }
 
   /* ─── Layer 3: content hash dedup (5분) ─── */
