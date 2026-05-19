@@ -88,63 +88,12 @@
     return _origClearTimeout.call(window, id);
   };
 
-  // ───────────────────────────────────────────────────────────────
-  // [Step 65 fix 2026-05-19 사장님 명령] MutationObserver REGISTRY
-  // ───────────────────────────────────────────────────────────────
-  //   배경: 66개 patch 가 observe(document.body, {childList:true, subtree:true}) 후 disconnect 없음
-  //   → closure scope 영구, callback queue 누적, listing references retained
-  //   → page lifecycle 끝에도 GC 못 됨
-  //   해결: MutationObserver constructor wrap → 모든 instance 추적 → unload 시 일괄 disconnect
-  const _observers = new Set();
-  const _OrigMO = window.MutationObserver;
-  if (_OrigMO) {
-    function WrappedMO(cb) {
-      const inst = new _OrigMO(cb);
-      _observers.add(inst);
-      const origDisconnect = inst.disconnect.bind(inst);
-      inst.disconnect = function () {
-        _observers.delete(inst);
-        return origDisconnect();
-      };
-      return inst;
-    }
-    WrappedMO.prototype = _OrigMO.prototype;
-    window.MutationObserver = WrappedMO;
-  }
-
-  // ───────────────────────────────────────────────────────────────
-  // [Step 66 fix 2026-05-19 사장님 명령] GLOBAL ERROR DEDUP
-  // ───────────────────────────────────────────────────────────────
-  //   배경: 콘솔 31 errors 누적 — 같은 에러가 N번 반복되어 31 도달.
-  //   해결: window.onerror 에서 에러 message+filename+lineno 기준 dedup.
-  //         같은 에러는 첫 발생만 console.error 로 출력, 이후는 silent count.
-  //   디버그: window.__V403_ERRSTATS() 로 dedup 된 에러 통계 조회.
-  const _errStats = new Map();
-  const _origConsoleError = console.error.bind(console);
-  function _errKey(msg, file, line) {
-    return (msg || '?') + '|' + (file || '?') + ':' + (line || '?');
-  }
-  window.addEventListener('error', function (e) {
-    try {
-      const k = _errKey(e.message, e.filename, e.lineno);
-      const stat = _errStats.get(k);
-      if (stat) {
-        stat.count++;
-        // 두번째부터 silent (콘솔 청결)
-        try { e.preventDefault && e.preventDefault(); } catch (_) {}
-      } else {
-        _errStats.set(k, { count: 1, msg: e.message, file: e.filename, line: e.lineno });
-      }
-    } catch (_) {}
-  }, true);
-  // 진단용
-  window.__V403_ERRSTATS = function () {
-    const arr = [];
-    _errStats.forEach(function (s, k) { arr.push({ count: s.count, msg: s.msg, file: s.file, line: s.line }); });
-    arr.sort(function (a, b) { return b.count - a.count; });
-    console.table(arr.slice(0, 20));
-    return arr;
-  };
+  // [Step 70 revert 2026-05-19 사장님 명령] Step 65 MO wrap + Step 66 global error handler 둘 다 revert
+  //   증상: page load 시 응답 없음 (freeze).
+  //   추정: MutationObserver constructor 글로벌 교체가 page load timing 에서 main thread 점유 가능성
+  //         또는 글로벌 error handler 가 다른 patch 의 에러와 무한 재진입.
+  //   해결: 둘 다 제거. 콘솔 31 errors / 363 warnings 약간 늘어나지만 page 정상 작동 우선.
+  //   __V403_ERRSTATS 는 정의 안 함 (혹시 사장님이 또 호출하면 ReferenceError 그대로).
 
   // ───────────────────────────────────────────────────────────────
   // 2) AUTO CLEANUP ON UNLOAD (beforeunload + pagehide + visibility)
@@ -155,15 +104,11 @@
     _cleanupRan = true;
     const intCount = _intervals.size;
     const tmoCount = _timeouts.size;
-    const moCount = _observers.size;
     _intervals.forEach(function (id) { try { _origClearInterval.call(window, id); } catch (_) {} });
     _timeouts.forEach(function (id) { try { _origClearTimeout.call(window, id); } catch (_) {} });
-    // [Step 65] disconnect all MO (66+ patches 의 영구 observer 일괄 정리)
-    _observers.forEach(function (mo) { try { mo.disconnect(); } catch (_) {} });
     _intervals.clear();
     _timeouts.clear();
-    _observers.clear();
-    log('cleanup (' + reason + '): cleared', intCount, 'intervals,', tmoCount, 'timeouts,', moCount, 'observers');
+    log('cleanup (' + reason + '): cleared', intCount, 'intervals,', tmoCount, 'timeouts');
   }
   try { window.addEventListener('beforeunload', function () { cleanupAll('beforeunload'); }); } catch (_) {}
   try { window.addEventListener('pagehide', function () { cleanupAll('pagehide'); }); } catch (_) {}
@@ -236,7 +181,6 @@
     const info = {
       intervals: _intervals.size,
       timeouts: _timeouts.size,
-      observers: _observers.size,
       listings: (window.WS && Array.isArray(window.WS.allListings)) ? window.WS.allListings.length : 0,
       domNodes: document.querySelectorAll('*').length,
     };
