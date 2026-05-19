@@ -1443,6 +1443,43 @@ input:-webkit-autofill:focus {
   font-style:italic; opacity:0.7;
 }
 
+/* R81 — iOS native input ✕ clear button (입력값 있을 때만 표시) */
+.r81-input-wrap {
+  position: relative;
+  display: block;
+}
+.r81-input-wrap input {
+  padding-right: 36px !important;
+}
+.r81-clear-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--ios-label-3);
+  color: var(--ios-cell);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.r81-input-wrap.r81-has-value .r81-clear-btn {
+  display: inline-flex;
+}
+.r81-clear-btn:active { transform: translateY(-50%) scale(0.92); }
+@media (pointer:coarse) {
+  .r81-clear-btn { width: 28px; height: 28px; right: 6px; }
+}
+
 /* R78 — footer 사업자 정보 (부동산 중개사법 표시) */
 .ws-footer-r78 {
   margin: 32px 16px 24px;
@@ -3209,6 +3246,52 @@ function resetAll(){
         origNextPage();
       };
     })();
+    /* ═══════════════ R81 — iOS input ✕ clear button (입력값 있을 때만 표시) ═══════════════ */
+    (function initR81Clear(){
+      function attachClear(id){
+        var el = document.getElementById(id);
+        if(!el || el.__r81bound) return;
+        el.__r81bound = true;
+        var wrap = document.createElement('span');
+        wrap.className = 'r81-input-wrap';
+        el.parentNode.insertBefore(wrap, el);
+        wrap.appendChild(el);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'r81-clear-btn';
+        btn.setAttribute('aria-label', '입력 지우기');
+        btn.textContent = '✕';
+        btn.tabIndex = -1;
+        wrap.appendChild(btn);
+        function update(){
+          if(el.value && el.value.length > 0) wrap.classList.add('r81-has-value');
+          else wrap.classList.remove('r81-has-value');
+        }
+        el.addEventListener('input', update);
+        el.addEventListener('focus', update);
+        el.addEventListener('blur', function(){
+          setTimeout(function(){
+            if(document.activeElement !== btn) wrap.classList.remove('r81-has-value');
+          }, 150);
+        });
+        btn.addEventListener('mousedown', function(e){ e.preventDefault(); });
+        btn.addEventListener('click', function(e){
+          e.preventDefault();
+          el.value = '';
+          update();
+          el.dispatchEvent(new Event('input',{bubbles:true}));
+          el.focus();
+        });
+        update();
+      }
+      function bindAll(){
+        var ids = ['cName','reg1','reg2','reg3','workplace','parkingNote','petNote','loanProductName','jloanProductName','addReq'];
+        ids.forEach(attachClear);
+      }
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindAll);
+      else bindAll();
+    })();
+
     /* ═══════════════ R78 — chip 클릭 시 aria-live 안내 (스크린리더) ═══════════════ */
     (function initR78AriaLive(){
       var liveEl = document.getElementById('ws-live-region');
