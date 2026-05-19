@@ -9,7 +9,7 @@
 <link rel="manifest" href="/manifest.json">
   <meta name="robots" content="noindex,nofollow,noarchive,noimageindex">
   <link rel="canonical" href="https://wishes.co.kr/checklist">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 
 <meta name="theme-color" content="#F2F2F7" media="(prefers-color-scheme: light)"/>
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)"/>
@@ -1738,6 +1738,22 @@ input:-webkit-autofill:focus {
 
 </style>
 
+
+<script>/* R111-INTRO-TTL */
+(function(){
+  // R111 Mi22: intro_seen TTL 30일 (영구 hide 방지)
+  try{
+    var k = 'ws_r23_intro_seen';
+    var v = localStorage.getItem(k);
+    if(v){
+      var n = parseInt(v, 10);
+      if(!isNaN(n) && Date.now() - n > 30*24*60*60*1000){
+        localStorage.removeItem(k);
+      }
+    }
+  }catch(_){}
+})();
+</script>
 </head>
 
 <body>
@@ -1831,7 +1847,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="cName">손님 성함 <span class="req">*</span></label>
 
-          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" minlength="2" autocapitalize="none" spellcheck="false" inputmode="text" lang="ko" aria-required="true"/><input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>
+          <input type="text" id="cName" placeholder="홍길동" autocomplete="name" maxlength="30" minlength="2" autocapitalize="words" spellcheck="false" inputmode="text" lang="ko" aria-required="true"/>
 
         </div>
 
@@ -1839,7 +1855,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="cPhone">연락처 <span class="req">*</span></label>
 
-          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="numeric" oninput="formatPhone(this)" maxlength="13" autocomplete="tel-national" pattern="010-\d{4}-\d{4}" aria-required="true"/>
+          <input type="tel" id="cPhone" placeholder="010-0000-0000" inputmode="tel" oninput="formatPhone(this)" maxlength="13" autocomplete="tel-national" pattern="010-\d{4}-\d{4}" aria-required="true"/>
 
         </div>
 
@@ -2563,6 +2579,14 @@ input:-webkit-autofill:focus {
 
 
 <script>
+/* R111-VIBE-HELPER */
+window.__wsVibe = window.__wsVibe || function(p){
+  try{
+    if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if(navigator.vibrate) __wsVibe(p);
+  }catch(_){}
+};
+
 
 /* ═══════════════ STATE ═══════════════ */
 
@@ -2879,7 +2903,7 @@ function setStar(k, v){
   S.stars[k] = v;
 
   /* R25 ❶ — 햅틱 */
-  if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
+  if (navigator.vibrate) try { __wsVibe(5); } catch(_){}
 
   /* R68+R71 — chip-seg radio 방식. 한 번 클릭 = 즉시 selected */
   var group = document.querySelector('.rating-seg[data-k="'+k+'"]');
@@ -3511,7 +3535,7 @@ function resetAll(){
       if ('vibrate' in navigator) {
         document.addEventListener('click', function(e){
           if (e.target.closest('.chip, .deal-chip, .visit-toggle, .btn, .star, .step-btn, .budget-btn, .send-btn')) {
-            try { navigator.vibrate(3); } catch(_){}
+            try { __wsVibe(3); } catch(_){}
           }
         }, true);
       }
@@ -3631,7 +3655,7 @@ function resetAll(){
         '요청사항':    { step: 3, sel: '#addReq', focus: true }
       };
       function jumpTo(step, sel, doFocus) {
-        if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
+        if (navigator.vibrate) try { __wsVibe(5); } catch(_){}
         if (typeof goPage === 'function') goPage(step);
         setTimeout(function(){
           var target = document.querySelector(sel);
@@ -3695,10 +3719,10 @@ function resetAll(){
         if (window.cur === 'result') return;
         var cur = window.cur || 1;
         if (dx < 0 && cur < 3 && typeof nextPage === 'function') {
-          if (navigator.vibrate) try { navigator.vibrate(3); } catch(_){}
+          if (navigator.vibrate) try { __wsVibe(3); } catch(_){}
           nextPage();
         } else if (dx > 0 && cur > 1 && typeof prevPage === 'function') {
-          if (navigator.vibrate) try { navigator.vibrate(3); } catch(_){}
+          if (navigator.vibrate) try { __wsVibe(3); } catch(_){}
           prevPage();
         }
       }, { passive: true });
@@ -3831,7 +3855,7 @@ function resetAll(){
         }
         btn.addEventListener('click', function(e){
           e.stopPropagation();
-          if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
+          if (navigator.vibrate) try { __wsVibe(5); } catch(_){}
           var allChips = grp.querySelectorAll('.chip:not(.chip-full)');
           var allOn = Array.from(allChips).every(function(c){ return c.classList.contains('on'); });
           allChips.forEach(function(c){
@@ -3971,7 +3995,7 @@ function resetAll(){
       }).join('');
       sheet.hidden = false;
       document.body.style.overflow = 'hidden';
-      if(navigator.vibrate) try{ navigator.vibrate(5); }catch(_){}
+      if(navigator.vibrate) try{ __wsVibe(5); }catch(_){}
     }
     function selectPicker(btnEl, val){
       if(!_pickerGid) return;
@@ -4065,7 +4089,7 @@ function updateBottomNavText(n){
       wrapGoPage();
 
       // 전송 완료 hook — SENT=true 감지
-      var sentCheckTimer = setInterval(function(){
+      var __r102PollCount = 0; var sentCheckTimer = setInterval(function(){if(++__r102PollCount > 1200){clearInterval(sentCheckTimer);return;}
         try {
           if(window.__wsR14 && window.__wsR14.SENT && window.__wsR14.SENT()){
             var deal = (window.S && window.S.deal) || null;
@@ -5428,6 +5452,182 @@ function updateBottomNavText(n){
 
   <!-- R78 — aria-live region (chip 클릭 시 스크린리더 안내) -->
   <div id="ws-live-region" role="status" aria-live="polite" aria-atomic="true" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;"></div>
+
+<script>/* R111-POPSTATE */
+(function(){
+  // R111 M5: history.pushState for STEP changes (replaceState 만 쓰면 popstate dead)
+  if(window.__r111PopstateApplied) return;
+  window.__r111PopstateApplied = true;
+  var origGoPage = window.goPage;
+  if(typeof origGoPage === 'function' && !origGoPage.__r111){
+    window.goPage = function(n){
+      var r = origGoPage.apply(this, arguments);
+      try{
+        var hash = '#step' + (typeof n === 'number' ? n : (n==='result'?6:n));
+        history.pushState({step: n, t: Date.now()}, '', hash);
+      }catch(_){}
+      return r;
+    };
+    window.goPage.__r111 = true;
+  }
+  window.addEventListener('popstate', function(e){
+    try{
+      var st = e.state;
+      if(st && st.step != null && typeof origGoPage === 'function'){
+        origGoPage(st.step);
+      }
+    }catch(_){}
+  });
+})();
+</script>
+
+<script>/* R111-PHONE-CURSOR */
+(function(){
+  // R111 M6: cPhone cursor preservation on iOS Safari middle edits
+  var el = document.getElementById('cPhone');
+  if(!el) return;
+  el.addEventListener('input', function(e){
+    try{
+      if(el._r111Skip) return;
+      var pos = el.selectionStart;
+      var before = el.value;
+      // formatPhone will re-fire and rewrite; preserve relative position
+      setTimeout(function(){
+        try{
+          var after = el.value;
+          if(after !== before && pos != null){
+            // Count non-digits added before original cursor
+            var newPos = pos;
+            var diff = after.length - before.length;
+            if(diff > 0 && pos < after.length){
+              newPos = pos + diff;
+              if(newPos > after.length) newPos = after.length;
+            }
+            el._r111Skip = true;
+            el.setSelectionRange(newPos, newPos);
+            el._r111Skip = false;
+          }
+        }catch(_){}
+      }, 0);
+    }catch(_){}
+  }, true);
+})();
+</script>
+
+<script>/* R111-IME-TRIM */
+(function(){
+  // R111 M12: blur 시 IME composing 자모 손실 방지
+  var ids = ['cName','reg1','reg2','reg3','workplace','addReq'];
+  ids.forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var composing = false;
+    el.addEventListener('compositionstart', function(){ composing = true; });
+    el.addEventListener('compositionend', function(){
+      composing = false;
+      // composing 끝난 후에만 trim 안전
+      try{ if(el._r69TrimDeferred){ el.value = el.value.trim(); el._r69TrimDeferred = false; } }catch(_){}
+    });
+    el.addEventListener('blur', function(e){
+      if(composing || e.isComposing){
+        el._r69TrimDeferred = true;
+        e.stopImmediatePropagation();
+      }
+    }, true);
+  });
+})();
+</script>
+
+<script>/* R111-ARIA-ERR */
+(function(){
+  // R111 M9: 검증 실패 시 aria-invalid + role=alert 안내
+  var origShowToast = window.showToast;
+  if(typeof origShowToast !== 'function') return;
+  if(origShowToast.__r111) return;
+  window.showToast = function(msg, opts){
+    try{
+      // 검증 토스트는 aria-live=assertive
+      var liveRegion = document.getElementById('__r111ariaLive');
+      if(!liveRegion){
+        liveRegion = document.createElement('div');
+        liveRegion.id = '__r111ariaLive';
+        liveRegion.setAttribute('role','alert');
+        liveRegion.setAttribute('aria-live','assertive');
+        liveRegion.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap';
+        document.body.appendChild(liveRegion);
+      }
+      liveRegion.textContent = '';
+      setTimeout(function(){ liveRegion.textContent = msg || ''; }, 10);
+    }catch(_){}
+    return origShowToast.apply(this, arguments);
+  };
+  window.showToast.__r111 = true;
+  // 검증 실패 시 첫 invalid input 에 aria-invalid set
+  document.addEventListener('focusin', function(e){
+    try{
+      if(e.target.matches('input,textarea,select')){
+        e.target.removeAttribute('aria-invalid');
+      }
+    }catch(_){}
+  });
+})();
+</script>
+
+<script>/* R111-NEXTPAGE-LOCK */
+(function(){
+  // R111 M15: 더블 클릭 race 차단 (4중 wrap 어느 layer 에서든 lock 효과)
+  var __r111Lock = false;
+  function makeLockWrap(name){
+    var orig = window[name];
+    if(typeof orig !== 'function') return;
+    if(orig.__r111Lock) return;
+    window[name] = function(){
+      if(__r111Lock) return;
+      __r111Lock = true;
+      try{ return orig.apply(this, arguments); }
+      finally{ setTimeout(function(){ __r111Lock = false; }, 400); }
+    };
+    window[name].__r111Lock = true;
+  }
+  setTimeout(function(){
+    makeLockWrap('nextPage');
+    makeLockWrap('goPage');
+  }, 100);
+})();
+</script>
+
+<script>/* R111-HONEY-MOVED */
+(function(){
+  try{
+    var f = document.querySelector('form, [data-form-root], #checklistForm') || document.body;
+    var honey = document.createElement('div');
+    honey.style.cssText = 'position:absolute;left:-9999px;top:-9999px;opacity:0;pointer-events:none';
+    honey.setAttribute('aria-hidden','true');
+    honey.innerHTML = '<input type="text" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;pointer-events:none;"/>';
+    f.appendChild(honey);
+  }catch(_){}
+})();
+</script>
+
+<script>/* R111-TA-MAX */
+(function(){
+  // R111 Mi25: textarea max 도달 시 한 번 토스트 안내
+  document.addEventListener('input', function(e){
+    try{
+      var t = e.target;
+      if(t.tagName === 'TEXTAREA' && t.maxLength > 0){
+        if(t.value.length >= t.maxLength && !t._r111MaxShown){
+          t._r111MaxShown = true;
+          if(typeof window.showToast === 'function'){
+            window.showToast('최대 ' + t.maxLength + '자까지 입력 가능합니다');
+          }
+          setTimeout(function(){ t._r111MaxShown = false; }, 3000);
+        }
+      }
+    }catch(_){}
+  }, true);
+})();
+</script>
 </body>
 
 </html>
