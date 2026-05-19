@@ -196,12 +196,24 @@
   function init() {
     injectStyles();
     render();
+    // [Step 120 fix 2026-05-19] body subtree → results header parent 만 (좁힘)
+    //   기존: body subtree → 매 카드 render 마다 fire → render() 호출 → getActiveFilters JSON
+    //   수정: filters section 부모 만 observe + throttle 500ms
     var __t = null;
     var mo = new MutationObserver(function () {
       if (__t) return;
-      __t = setTimeout(function () { __t = null; render(); }, 300);
+      __t = setTimeout(function () { __t = null; render(); }, 500);
     });
-    try { mo.observe(document.body, { childList: true, subtree: true }); } catch (_) {}
+    try {
+      var moTarget = document.querySelector('.ws-results-header') ||
+                     document.querySelector('.ws-filters-section') ||
+                     document.body;
+      // body 면 subtree=false 로 (제한적)
+      var moOpts = (moTarget === document.body)
+        ? { childList: true, subtree: false }
+        : { childList: true, subtree: true };
+      mo.observe(moTarget, moOpts);
+    } catch (_) {}
     // [Step 116 re-apply 2026-05-19] setInterval 제거 — MO 만 (CPU 부담 ↓)
   }
 

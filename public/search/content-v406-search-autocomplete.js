@@ -225,18 +225,38 @@
     }
   }
 
+  // [Step 120 fix 2026-05-19] document level capture 제거 — input/focus/blur 만 .ws-global-search 에 direct attach
+  //   기존: document.addEventListener('input', true) — 모든 input event 가로채기
+  //   수정: .ws-global-search 에 직접 attach (필요한 input 만)
+  function _attachSearchListeners() {
+    var inputs = document.querySelectorAll('.ws-global-search');
+    for (var i = 0; i < inputs.length; i++) {
+      var inp = inputs[i];
+      if (inp.dataset.v406Bound) continue;
+      inp.dataset.v406Bound = '1';
+      inp.addEventListener('input', handleInput);
+      inp.addEventListener('focus', handleFocus);
+      inp.addEventListener('blur', handleBlur);
+    }
+  }
   function init() {
     injectStyles();
-    document.addEventListener('input', handleInput, true);
-    document.addEventListener('blur', handleBlur, true);
-    document.addEventListener('focus', handleFocus, true);
+    _attachSearchListeners();
+    // 신규 .ws-global-search 감지 (페이지 전환 등)
+    try {
+      var __v406_mot = null;
+      var moNew = new MutationObserver(function () {
+        if (__v406_mot) return;
+        __v406_mot = setTimeout(function () { __v406_mot = null; _attachSearchListeners(); }, 500);
+      });
+      moNew.observe(document.body, { childList: true, subtree: true });
+    } catch (_) {}
     document.addEventListener('click', function (e) {
       if (!dropdown) return;
       if (dropdown.contains(e.target)) return;
       if (e.target.matches && e.target.matches('.ws-global-search')) return;
       hideDropdown();
-    }, true);
-    // scroll 시 닫기
+    });
     window.addEventListener('scroll', hideDropdown, { passive: true });
   }
 

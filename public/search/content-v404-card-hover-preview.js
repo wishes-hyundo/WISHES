@@ -200,9 +200,63 @@
     removePopup();
   }
 
-  document.addEventListener('mouseover', handleMouseOver, true);
-  document.addEventListener('mouseout', handleMouseOut, true);
-  window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+  // [Step 120 fix 2026-05-19 사장님 명령] 근본 fix — document capture 제거
+  //   기존: document.addEventListener('mouseover', ..., true) — 매 마우스 이동 fire
+  //         × 매 카드 이동 시 closest() DOM walk → main thread 점유
+  //   수정: 카드 element 에 직접 mouseenter/mouseleave attach (delegation 제거)
+  //         새 카드가 render 될 때마다 attach. MutationObserver 로 신규 카드 감지.
+  function _attachCardListeners(card) {
+    if (!card || card.dataset.v404Bound) return;
+    card.dataset.v404Bound = '1';
+    card.addEventListener('mouseenter', function () {
+      var id = card.getAttribute('data-listing-id');
+      if (!id) return;
+      if (hoverTimer) clearTimeout(hoverTimer);
+      hoverTimer = setTimeout(function () {
+        if (!card.matches(':hover')) return;
+        var listing = getListingForCard(card);
+        if (listing) {
+          showPopup(card, listing);
+        } else if (window.WS && typeof window.WS.fetchListingById === 'function') {
+          if (!fetchCache[id]) {
+            fetchCache[id] = window.WS.fetchListingById(id);
+          }
+          fetchCache[id].then(function (l) {
+            if (l && card.matches(':hover')) showPopup(card, l);
+          }).catch(function () {
+            try { delete fetchCache[id]; } catch (_) {}
+          });
+        }
+      }, HOVER_DELAY);
+    });
+    card.addEventListener('mouseleave', function (e) {
+      if (hoverTimer) { clearTimeout(hoverTimer); hoverTimer = null; }
+      var related = e.relatedTarget;
+      if (related && related.closest) {
+        if (related.closest('.ws-v404-hover-popup')) return;
+      }
+      setTimeout(function () {
+        if (!currentPopup) return;
+        try { if (currentPopup.matches(':hover')) return; } catch (_) {}
+        removePopup();
+      }, 100);
+    });
+  }
+  function _attachAllCards() {
+    var cards = document.querySelectorAll('.ws-listing-card');
+    for (var i = 0; i < cards.length; i++) _attachCardListeners(cards[i]);
+  }
+  _attachAllCards();
+  // 새 카드 render 감지 (페이지 이동, refresh 등)
+  try {
+    var __v404_mot = null;
+    var moNew = new MutationObserver(function () {
+      if (__v404_mot) return;
+      __v404_mot = setTimeout(function () { __v404_mot = null; _attachAllCards(); }, 300);
+    });
+    moNew.observe(document.body, { childList: true, subtree: true });
+  } catch (_) {}
+  window.addEventListener('scroll', handleScroll, { passive: true });
 
   try { console.log('[v404-card-hover] installed (desktop only, popup 280px)'); } catch (_) {}
 })();
