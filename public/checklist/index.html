@@ -4087,6 +4087,123 @@ function updateBottomNavText(n){
   if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', _r56InitStars);
   else _r56InitStars();
 
+  /* ═════════════════════════════════════════════════════════════
+     R61 (2026-05-19) — 🚨 사장님 명령: 손님 입력 자동 저장 안전망
+     원인: 조가영 손님 데이터 손실 사고 — silent fail 시 복구 불가
+     해결: 입력하는 즉시 sessionStorage 에 raw form data 보존.
+           전송 성공 시 clear. 미전송 상태 새로고침 / 이탈 시 자동 복원.
+     ═════════════════════════════════════════════════════════════ */
+  (function _r61Autosave(){
+    var KEY = 'ws_chk_autosave_v1';
+    var TTL_MS = 60 * 60 * 1000; // 1시간 후 자동 만료
+    function snapshot(){
+      try {
+        // 모든 input 값 + S.deal + S.prop + S.chips + S.stars 통합 dump
+        var fields = {};
+        document.querySelectorAll('input, textarea').forEach(function(el){
+          if (el.id && el.type !== 'submit' && el.type !== 'button') {
+            if (el.type === 'checkbox' || el.type === 'radio') {
+              fields[el.id] = !!el.checked;
+            } else if (el.value) {
+              fields[el.id] = el.value;
+            }
+          }
+        });
+        var state = {
+          t: Date.now(),
+          fields: fields,
+          deal: (window.S && window.S.deal) || '',
+          prop: (window.S && window.S.prop) || '',
+          chips: (window.S && window.S.chips) || {},
+          stars: (window.S && window.S.stars) || {}
+        };
+        sessionStorage.setItem(KEY, JSON.stringify(state));
+      } catch(_){}
+    }
+    function debounced(fn, ms){
+      var t; return function(){
+        if(t) clearTimeout(t);
+        t = setTimeout(fn, ms);
+      };
+    }
+    var dSnap = debounced(snapshot, 600);
+    // 모든 input/change 이벤트에서 저장 (debounced)
+    document.addEventListener('input', dSnap, true);
+    document.addEventListener('change', dSnap, true);
+    document.addEventListener('click', function(e){
+      if(e.target && e.target.closest && e.target.closest('.chip, .deal-chip, .star')){
+        setTimeout(dSnap, 100);
+      }
+    }, true);
+
+    // 페이지 로드 시 자동 복원 (사용자 입력 중에 새로고침 / 이탈 후 다시 옴)
+    function restore(){
+      try {
+        var raw = sessionStorage.getItem(KEY);
+        if(!raw) return;
+        var state = JSON.parse(raw);
+        if(!state || !state.t) return;
+        // 1시간 이상 지났으면 무시 + 삭제
+        if (Date.now() - state.t > TTL_MS) {
+          sessionStorage.removeItem(KEY);
+          return;
+        }
+        // 빈 폼인지 확인 — 사용자가 새 폼 작성 중이면 X
+        var nameEl = document.getElementById('cName');
+        var phoneEl = document.getElementById('cPhone');
+        if ((nameEl && nameEl.value) || (phoneEl && phoneEl.value)) return; // 이미 입력 중
+
+        // 텍스트 input 복원
+        if (state.fields) {
+          Object.keys(state.fields).forEach(function(id){
+            var el = document.getElementById(id);
+            if (!el) return;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+              el.checked = !!state.fields[id];
+            } else {
+              el.value = state.fields[id];
+            }
+          });
+        }
+        // deal chip 복원
+        if (state.deal) {
+          var dealChip = Array.from(document.querySelectorAll('.deal-chip'))
+            .find(function(b){ return b.textContent.trim().indexOf(state.deal)>=0; });
+          if(dealChip) dealChip.click();
+        }
+        // 작은 banner 안내
+        var page = document.getElementById('page-1');
+        if (page && !document.getElementById('ws-r61-restore-banner')) {
+          var b = document.createElement('div');
+          b.id = 'ws-r61-restore-banner';
+          var rmDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var bg = rmDark ? 'rgba(0,122,255,0.18)' : '#E5F3FF';
+          var col = rmDark ? '#5BB5FF' : '#004FCC';
+          b.style.cssText='background:'+bg+';color:'+col+';border-radius:10px;padding:10px 14px;margin:0 16px 12px;font-size:13px;text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;';
+          b.textContent = '이전에 작성하던 내용을 복원했어요. 이어서 작성해주세요.';
+          page.insertBefore(b, page.firstChild);
+          setTimeout(function(){ try { b.remove(); } catch(_){} }, 8000);
+        }
+      } catch(_){}
+    }
+    if (document.readyState === 'loading')
+      document.addEventListener('DOMContentLoaded', function(){ setTimeout(restore, 300); });
+    else setTimeout(restore, 300);
+
+    // 전송 성공 시 자동 삭제 (R14 IIFE SENT 추적)
+    var clearOnSent = setInterval(function(){
+      try {
+        if (window.__wsR14 && window.__wsR14.SENT && window.__wsR14.SENT()) {
+          sessionStorage.removeItem(KEY);
+          clearInterval(clearOnSent);
+        }
+      } catch(_){}
+    }, 1500);
+
+    // 노출 (debug)
+    window.__wsR61 = { snapshot: snapshot, restore: restore, clear: function(){ sessionStorage.removeItem(KEY); } };
+  })();
+
   /* expose for debug */
   window.__wsR14 = {
     showToast: showToast,
