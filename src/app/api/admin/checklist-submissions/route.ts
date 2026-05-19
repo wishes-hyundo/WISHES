@@ -10,11 +10,11 @@ import { createServerClient } from '@/lib/supabase';
  * 인증: Authorization Bearer + ws_session 쿠키 (adminAuth 통과 필수)
  */
 
-import { requireAdmin } from '@/lib/adminAuth';
+import { verifyAdminAuthWithContext } from '@/lib/adminAuth';
 
 export async function GET(request: NextRequest) {
   try {
-    const _auth = await requireAdmin(request);
+    const _auth = await verifyAdminAuthWithContext(request);
     if (!_auth.ok) {
       return NextResponse.json({ success: false, message: _auth.message || 'Unauthorized' }, { status: 401 });
     }
