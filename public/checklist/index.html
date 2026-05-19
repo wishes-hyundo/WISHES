@@ -2438,6 +2438,225 @@ body {
   setTimeout(removeStepNumbers, 800);  // 다른 패치가 텍스트 다시 추가하면 한번 더
 })();
 </script>
+
+<style>/* R132-STEP2 */
+/* 매물 chip 자주 8개 + 더보기 */
+#g-propType .chip.r132-more { display: none !important; }
+#g-propType.r132-expanded .chip.r132-more { display: inline-flex !important; }
+.r132-more-toggle {
+  grid-column: 1 / -1;
+  background: rgba(0, 122, 255, 0.08) !important;
+  color: #007AFF !important;
+  border: none !important;
+  padding: 10px !important;
+  border-radius: 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 600 !important;
+  text-align: center !important;
+  cursor: pointer !important;
+  margin-top: 4px !important;
+}
+.r132-more-toggle:active { background: rgba(0, 122, 255, 0.15) !important; }
+
+/* chip-seg → iOS Segmented Control */
+.chips-seg[data-k="leaseTerm"], .chips-seg[data-k="subwayWalk"],
+.chips[data-k="leaseTerm"], .chips[data-k="subwayWalk"] {
+  background: rgba(0, 0, 0, 0.06) !important;
+  padding: 3px !important;
+  border-radius: 12px !important;
+  display: grid !important;
+  gap: 0 !important;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04) inset !important;
+}
+.chips-seg[data-k="leaseTerm"], .chips[data-k="leaseTerm"] { grid-template-columns: repeat(4, 1fr) !important; }
+.chips-seg[data-k="subwayWalk"], .chips[data-k="subwayWalk"] { grid-template-columns: repeat(5, 1fr) !important; }
+.chips-seg[data-k="leaseTerm"] .chip, .chips-seg[data-k="subwayWalk"] .chip,
+.chips[data-k="leaseTerm"] .chip, .chips[data-k="subwayWalk"] .chip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 8px 4px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  color: #6C6C70 !important;
+  text-align: center !important;
+  border-radius: 9px !important;
+  min-height: 32px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+.chips-seg[data-k="leaseTerm"] .chip.on, .chips-seg[data-k="subwayWalk"] .chip.on,
+.chips[data-k="leaseTerm"] .chip.on, .chips[data-k="subwayWalk"] .chip.on {
+  background: white !important;
+  color: #1C1C1E !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 0 0 0.5px rgba(0,0,0,0.04) !important;
+}
+
+/* 이동수단 SF Symbol */
+.chips[data-k="transport"] .chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 8px 14px !important;
+  background: rgba(0, 0, 0, 0.04) !important;
+  border: none !important;
+  border-radius: 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  color: #1C1C1E !important;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04) inset !important;
+}
+.chips[data-k="transport"] .chip.on {
+  background: linear-gradient(135deg, #007AFF, #5856D6) !important;
+  color: white !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(0, 122, 255, 0.3) !important;
+}
+.chips[data-k="transport"] .chip svg { width: 14px; height: 14px; }
+.chips[data-k="transport"] .chip.on svg { stroke: white !important; }
+
+/* 슬라이더 6px + thumb */
+.budget-slider {
+  width: 100% !important;
+  height: 6px !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  border-radius: 3px !important;
+  background: rgba(0, 0, 0, 0.08) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04) inset !important;
+}
+.budget-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  background: white;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.08) inset, 0 2px 6px rgba(0,0,0,0.15);
+  cursor: pointer;
+  margin-top: -8px;
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+.budget-slider:active::-webkit-slider-thumb {
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.08) inset, 0 4px 12px rgba(0,0,0,0.2), 0 0 0 8px rgba(0,122,255,0.15);
+  transform: scale(1.05);
+}
+.budget-slider::-moz-range-thumb {
+  width: 22px; height: 22px; background: white; border: none; border-radius: 50%;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.08) inset, 0 2px 6px rgba(0,0,0,0.15);
+  cursor: pointer;
+}
+
+/* +/- 버튼 */
+.budget-btn {
+  background: rgba(0, 0, 0, 0.06) !important;
+  border: none !important;
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  color: #1C1C1E !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: transform 0.15s, background 0.15s !important;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04) inset !important;
+}
+.budget-btn:active { transform: scale(0.94) !important; }
+/* + 버튼 강조 — onclick 안에 양수 (positive) 패턴 매칭 */
+.budget-btn[onclick*=",1)"],
+.budget-btn[onclick*=",10)"],
+.budget-btn[onclick*=",100)"],
+.budget-btn[onclick*=",500)"],
+.budget-btn[onclick*=",1000)"],
+.budget-btn[onclick*=",10000)"] {
+  background: linear-gradient(135deg, #007AFF, #5856D6) !important;
+  color: white !important;
+  box-shadow: 0 0 0 0.5px rgba(255,255,255,0.4) inset, 0 1px 0 rgba(255,255,255,0.3) inset, 0 3px 10px rgba(0,122,255,0.35) !important;
+}
+</style>
+
+<script>/* R132-STEP2 */
+(function(){
+  if(window.__r132Applied) return;
+  window.__r132Applied = true;
+
+  // 매물 chip 자주 8개 + 더보기 토글
+  function setupPropToggle(){
+    try{
+      var group = document.getElementById('g-propType');
+      if(!group) { setTimeout(setupPropToggle, 500); return; }
+      var chips = Array.from(group.querySelectorAll('.chip'));
+      if(chips.length < 9) return;
+      if(group.querySelector('.r132-more-toggle')) return;
+      chips.forEach(function(chip, i){ if(i >= 8) chip.classList.add('r132-more'); });
+      var toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'r132-more-toggle';
+      var hiddenCount = chips.length - 8;
+      toggle.textContent = '\u{1F53D} 더 보기 (' + hiddenCount + '개)';
+      toggle.addEventListener('click', function(e){
+        e.preventDefault();
+        var expanded = group.classList.toggle('r132-expanded');
+        toggle.textContent = expanded ? '\u{1F53C} 접기' : '\u{1F53D} 더 보기 (' + hiddenCount + '개)';
+      });
+      group.appendChild(toggle);
+    }catch(_){}
+  }
+  setTimeout(setupPropToggle, 300);
+
+  // 이동수단 SF Symbol
+  function setupTransportIcons(){
+    try{
+      var group = document.querySelector('.chips[data-k="transport"]');
+      if(!group) { setTimeout(setupTransportIcons, 500); return; }
+      if(group.dataset.r132 === '1') return;
+      group.dataset.r132 = '1';
+      var icons = {
+        '지하철': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="14" rx="2"></rect><line x1="4" y1="14" x2="20" y2="14"></line><circle cx="8" cy="18" r="1.5"></circle><circle cx="16" cy="18" r="1.5"></circle></svg>',
+        '버스': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"></rect><path d="M3 11h18"></path><circle cx="7" cy="20" r="1.5"></circle><circle cx="17" cy="20" r="1.5"></circle></svg>',
+        '자차': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l2-5h10l2 5"></path><rect x="3" y="13" width="18" height="6" rx="1"></rect><circle cx="7" cy="19" r="1.5"></circle><circle cx="17" cy="19" r="1.5"></circle></svg>',
+        '자전거': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="17" r="4"></circle><circle cx="18" cy="17" r="4"></circle><path d="M6 17L11 5h3l3 12"></path></svg>',
+        '도보': '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"></circle><path d="M13 6l-3 5l3 4l1 7"></path><path d="M9 12l-2 5"></path><path d="M14 9l4 2"></path></svg>'
+      };
+      Array.from(group.querySelectorAll('.chip')).forEach(function(chip){
+        var raw = chip.textContent.trim();
+        // emoji + text → text only (remove all non-Korean/non-letter chars at start)
+        var clean = raw.replace(/^[^가-힣a-zA-Z]+/, '').trim();
+        if(icons[clean]){
+          chip.innerHTML = icons[clean] + '<span>' + clean + '</span>';
+        }
+      });
+    }catch(_){}
+  }
+  setTimeout(setupTransportIcons, 400);
+
+  // 슬라이더 fill gradient
+  function setupSliderFill(){
+    document.querySelectorAll('.budget-slider').forEach(function(sl){
+      function update(){
+        try{
+          var min = parseFloat(sl.min) || 0;
+          var max = parseFloat(sl.max) || 100;
+          var val = parseFloat(sl.value) || 0;
+          var pct = ((val - min) / (max - min)) * 100;
+          sl.style.background = 'linear-gradient(90deg, #007AFF 0%, #5856D6 ' + pct + '%, rgba(0,0,0,0.08) ' + pct + '%, rgba(0,0,0,0.08) 100%)';
+        }catch(_){}
+      }
+      sl.addEventListener('input', update);
+      sl.addEventListener('change', update);
+      update();
+    });
+  }
+  setTimeout(setupSliderFill, 400);
+})();
+</script>
 </head>
 
 <body>
