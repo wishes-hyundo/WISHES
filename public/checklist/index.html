@@ -1365,6 +1365,13 @@ input:-webkit-autofill:focus {
   margin:16px;
   position:relative;
 }
+/* R75 — result-hero 다크모드 그라데이션 (다크 배경 위 부조화 fix) */
+@media (prefers-color-scheme: dark) {
+  .result-hero{
+    background:linear-gradient(135deg, rgba(52,199,89,0.18) 0%, rgba(10,132,255,0.18) 100%) !important;
+    border:1px solid rgba(255,255,255,0.08);
+  }
+}
 .r23-hero-check{
   width:64px; height:64px; border-radius:50%;
   background:#34C759; color:#fff;
@@ -3048,8 +3055,11 @@ function resetAll(){
 
   if(!confirm('새 상담을 시작합니다.\n현재 내용이 초기화됩니다. 계속하시겠습니까?')) return;
 
-  /* R29 — 새 상담 시 sent flag clear (영구 stuck 차단, round 17 ㈃ 충돌 fix) */
+  /* R29 — 새 상담 시 sent flag clear (영구 stuck 차단) */
   try { sessionStorage.removeItem('ws_chk_sent_session'); } catch(_){}
+  /* R75 — R61 autosave 도 clear (옛 손님 데이터 자동 복원 차단, 사장님 의도 보존) */
+  try { sessionStorage.removeItem('ws_chk_autosave_v1'); } catch(_){}
+  try { sessionStorage.removeItem('ws_chk_sent'); } catch(_){}
 
   history.replaceState(null,'',location.pathname);
 
