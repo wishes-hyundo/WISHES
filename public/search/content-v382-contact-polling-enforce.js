@@ -154,10 +154,11 @@
     // [Step 54 fix 2026-05-19] 500ms → 1500ms (race-fix 충분히 빠름, CPU 1/3)
     pollInterval = setInterval(function () {
       try {
-        // [Step 114 fix 2026-05-19 사장님 명령] visibility hidden 시 polling skip
-        //   사장님 idle 2시간 = 4800 tick 누적 차단
-        if (typeof document !== 'undefined' && document.hidden) return;
-        // [Step 51 fix] modal selector 정확 (prod 에서 #ws-modal-detail style.display)
+        // [Step 51 fix 2026-05-19 사장님 명령] modal 실제 selector 로 수정
+        //   Step 44 가 잘못된 selector('.v240-modal-open') 썼었음 — prod 에 존재 X
+        //   실제 prod modal: <div id="ws-modal-detail" style="display:none/flex">
+        //   따라서 매 polling 마다 modal 닫혀있다고 판정 → enforceCorrectPhone 영영 호출 X
+        //   → 전화번호 race-condition fix 가 Step 44 이후 비활성 상태였음
         var m = document.getElementById('ws-modal-detail');
         if (!m || m.style.display === 'none' || !m.offsetParent) return;
         enforceCorrectPhone();

@@ -147,7 +147,7 @@
   }
 
   function onFocus() {
-    (document.hidden ? null : checkAndRefresh('window-focus'));
+    checkAndRefresh('window-focus');
   }
 
   function init() {

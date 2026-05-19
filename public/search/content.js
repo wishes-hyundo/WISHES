@@ -1819,18 +1819,14 @@
         _hideSearchUI();
       }
     }
-    // [Step 114 fix 2026-05-19 사장님 명령] URL polling visibility + 빈도 완화
-    //   기존: 500ms 영구 polling (30분 idle = 3600 tick)
-    //   수정: 1000ms + hidden skip
     setInterval(function() {
-      if (typeof document !== 'undefined' && document.hidden) return;
       if (location.href !== _lastURL) {
         _lastURL = location.href;
         _checkSearchTab();
         // URL이 바뀌었으면 새 링크에도 이벤트 재바인딩
         setTimeout(function() { _bindSearchLinks(); }, 500);
       }
-    }, 1000);
+    }, 500);
 
     // 초기 로드 시 ?tab=search 또는 /search 경로이면 데이터 프리페치 예약 (loadData 정의 후 실행)
     if (location.search.indexOf('tab=search') !== -1

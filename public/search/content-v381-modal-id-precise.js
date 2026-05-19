@@ -136,14 +136,6 @@
       };
     }).catch(function (err) {
       try { console.warn(TAG, 'fetch err id=' + id, err); } catch (e) {}
-      // [Step 114 fix 2026-05-19] reject 시 cache 제거 — 다음 try 가능
-      try {
-        if (fetchCache[id] === p) {
-          delete fetchCache[id];
-          var ki = fetchCacheKeys.indexOf(id);
-          if (ki >= 0) fetchCacheKeys.splice(ki, 1);
-        }
-      } catch (_) {}
       return null;
     });
     _cacheSet(id, p);

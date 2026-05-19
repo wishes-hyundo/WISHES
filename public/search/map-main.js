@@ -1041,14 +1041,7 @@
   // 탭 hidden 시 자동 정리 (사장님 지도 탭 떠날 때 메모리 해제)
   try {
     document.addEventListener('visibilitychange', function() {
-      if (document.hidden) {
-        clearAllMapResources();
-      } else {
-        // [Step 114 fix 2026-05-19] visible 복귀 시 자동 re-render
-        //   기존: hidden 시 cleanup 만, visible 복귀 시 빈 지도 → 사장님 혼란
-        //   수정: visible 시 _map 있으면 renderWishesMap 재실행
-        try { if (typeof renderWishesMap === 'function' && _map) renderWishesMap(); } catch(e) {}
-      }
+      if (document.hidden) clearAllMapResources();
     });
   } catch(e) {}
   // pagehide 도 cover (모바일/일부 브라우저)
