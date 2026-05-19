@@ -5023,8 +5023,8 @@ function updateBottomNavText(n){
   align-items: center;
   justify-content: center;
 }
-/* divider — iOS native */
-.chips-seg .chip + .chip::before {
+/* R70 — divider 는 ::after, ::before 는 ✓ marker 전용 (충돌 해결) */
+.chips-seg .chip + .chip::after {
   content: '';
   position: absolute;
   left: 0;
@@ -5034,10 +5034,28 @@ function updateBottomNavText(n){
   background: rgba(60,60,67,0.22);
   transition: opacity 0.18s ease;
   z-index: 0;
+  pointer-events: none;
 }
-.chips-seg .chip.on + .chip::before,
-.chips-seg .chip:has(+ .chip.on)::before {
+.chips-seg .chip.on + .chip::after,
+.chips-seg .chip:has(+ .chip.on)::after {
   opacity: 0;
+}
+/* R70 — chip-seg selected chip 의 ✓ marker (✓ inline, divider 와 충돌 없음) */
+.chips-seg .chip.on::before,
+.chips-seg .chip.on-gold::before,
+.chips-seg .chip.on-green::before,
+.chips-seg .chip.on-red::before {
+  content: '✓\00a0' !important;
+  position: static !important;
+  width: auto !important;
+  height: auto !important;
+  background: transparent !important;
+  font-weight: 800 !important;
+  font-size: 0.95em !important;
+  color: inherit !important;
+  margin-right: 2px !important;
+  display: inline !important;
+  opacity: 1 !important;
 }
 .chips-seg .chip.on {
   background: #fff !important;
