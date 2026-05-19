@@ -2504,7 +2504,7 @@ input:-webkit-autofill:focus {
 
     <div class="result-name" id="rName">손님</div>
 
-    <div style="font-size:14px;color:var(--ios-label);margin:6px 0 8px;" id="r23HeroMsg">내용 확인 후 전송해주세요</div>
+    <div style="font-size:14px;color:var(--ios-label);margin:6px 0 8px;">작성해 주셔서 감사합니다 🙏</div>
 
     <div class="result-subtitle" id="rSubtitle"></div>
 
@@ -4186,9 +4186,12 @@ function updateBottomNavText(n){
       line.appendChild(k); line.appendChild(v);
       body.appendChild(line);
     });
+    /* R98 — confirmed flag 로 "ok" vs "취소/backdrop" 구분 */
+    var _r98Confirmed = false;
     document.getElementById('ws-review-cancel').onclick = function(){ close(); };
     bd.addEventListener('click', function(e){ if(e.target===bd) close(); });
     document.getElementById('ws-review-ok').onclick = function(){
+      _r98Confirmed = true;
       close();
       if(typeof onConfirm==='function') onConfirm();
     };
@@ -4211,17 +4214,25 @@ function updateBottomNavText(n){
       if(bd.parentNode) bd.parentNode.removeChild(bd);
       document.removeEventListener('keydown', escapeKey);
       if(prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
+      /* R98 — 취소/backdrop/ESC 로 닫힌 경우 안내 toast (사용자가 전송 안 됐음을 인지) */
+      if(!_r98Confirmed && typeof showToast === 'function') {
+        showToast({
+          type:'warning',
+          title:'아직 전송 안 됐어요',
+          msg:'📤 보내기 버튼을 다시 눌러주세요',
+          duration: 4500,
+          position: 'top'
+        });
+      }
     }
   }
 
   /* ─── 전송 완료 풀스크린 상태 (1순위 메인) ─── */
   function showSuccessState(){
-    /* R96+R97 — hero 텍스트 변경 (실제 전송 완료 후만) */
+    /* R96 — hero 텍스트 "작성 완료" → "전송 완료" 로 변경 (실제 전송 완료 후만) */
     try {
       var greet = document.getElementById('r23HeroGreeting');
       if(greet) greet.textContent = '전송 완료';
-      var msg = document.getElementById('r23HeroMsg');
-      if(msg) msg.textContent = '작성해 주셔서 감사합니다 🙏';
     } catch(_){}
 
     SENT = true;
