@@ -2956,6 +2956,184 @@ textarea:focus {
   }, 400);
 })();
 </script>
+
+<style>/* R135-BALANCE */
+/* ━━━━━ 1. Gradient 정리 — CTA 만 gradient / 나머지 단색 ━━━━━ */
+/* STEP nav 활성 → 단색 */
+.step-btn.active {
+  background: #007AFF !important;
+}
+/* 진척률 → 단색 */
+.progress-fill {
+  background: #007AFF !important;
+  box-shadow: 0 0 4px rgba(0, 122, 255, 0.3) !important;
+}
+/* chip 활성 → 단색 */
+.chip.on,
+.chips[data-k="leaseTerm"] .chip.on,
+.chips[data-k="subwayWalk"] .chip.on,
+.chips[data-k="transport"] .chip.on {
+  background: #007AFF !important;
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.25) !important;
+}
+/* segmented active 는 white (이미 적용됨) — 유지 */
+.chips-seg[data-k="leaseTerm"] .chip.on,
+.chips-seg[data-k="subwayWalk"] .chip.on {
+  background: white !important;
+  color: #1C1C1E !important;
+}
+/* + 버튼 → 단색 */
+.budget-btn[onclick*=",1)"],
+.budget-btn[onclick*=",10)"],
+.budget-btn[onclick*=",100)"],
+.budget-btn[onclick*=",500)"],
+.budget-btn[onclick*=",1000)"],
+.budget-btn[onclick*=",10000)"] {
+  background: #007AFF !important;
+}
+/* CTA (다음 단계 / 보내기) — gradient 유지 (강조) */
+.btn-primary,
+#resultNav .nw-send,
+#resultNav button[onclick*="sendToNaverWorks"] {
+  background: linear-gradient(135deg, #007AFF, #5856D6) !important;
+}
+
+/* ━━━━━ 2. radius 4단계 통일 (3 / 10 / 16) ━━━━━ */
+/* 진척률: 3px 유지 */
+/* chip-seg outer: 12 → 16px */
+.chips-seg[data-k="leaseTerm"],
+.chips-seg[data-k="subwayWalk"],
+.chips[data-k="leaseTerm"],
+.chips[data-k="subwayWalk"] {
+  border-radius: 16px !important;
+}
+/* chip-seg inner: 9 → 10px */
+.chips-seg[data-k="leaseTerm"] .chip,
+.chips-seg[data-k="subwayWalk"] .chip,
+.chips[data-k="leaseTerm"] .chip,
+.chips[data-k="subwayWalk"] .chip {
+  border-radius: 10px !important;
+}
+/* step-btn: 10px 유지 */
+/* banner: 14 → 16px */
+#progress-hint-banner, .progress-hint-banner {
+  border-radius: 16px !important;
+}
+/* 카드: 16px 유지 */
+/* CTA: 18 → 16px (통일) */
+.btn-primary {
+  border-radius: 16px !important;
+}
+.btn-back {
+  border-radius: 16px !important;
+}
+/* step-nav outer: 14 → 16px */
+.step-nav {
+  border-radius: 16px !important;
+}
+/* 입력 칸 radius: 통일 16px */
+.date-time-row input[type="date"],
+.date-time-row input[type="time"],
+textarea,
+select#cFamily, select.family-select, .fg select,
+#ws-privacy-row {
+  border-radius: 16px !important;
+}
+/* chip pill: 14 → 16px (모두 같은 둥굼) */
+.chips[data-k="transport"] .chip,
+.r119-referral, button.r119-referral {
+  border-radius: 16px !important;
+}
+
+/* ━━━━━ 3. 매물 chip 8개 4열 ━━━━━ */
+#g-propType {
+  grid-template-columns: repeat(4, 1fr) !important;
+}
+#g-propType .chip {
+  padding: 8px 2px !important;
+  font-size: 11px !important;
+  border-radius: 10px !important;
+}
+
+/* ━━━━━ 4. bottom-nav flex 1:1:1.5 ━━━━━ */
+#resultNav .nw-send,
+#resultNav button.btn-primary,
+#resultNav button[onclick*="sendToNaverWorks"] {
+  flex: 1.5 !important;
+}
+#resultNav > button:not(.nw-send):not([onclick*="sendToNaverWorks"]):not(.btn-primary) {
+  flex: 1 !important;
+  color: #1C1C1E !important;
+  font-weight: 600 !important;
+}
+
+/* ━━━━━ 5. padding 8 그리드 통일 ━━━━━ */
+/* 카드: 16px */
+.card {
+  padding: 16px !important;
+}
+/* card-head 안 padding: 0 (제목만) */
+.card-head {
+  padding: 0 0 8px !important;
+}
+/* card-body padding: 0 (card outer 가 padding) */
+.card-body {
+  padding: 0 !important;
+}
+/* input padding: 12px */
+input[type="text"],
+input[type="tel"],
+input[type="number"],
+input[type="email"] {
+  padding: 12px !important;
+}
+.date-time-row input[type="date"],
+.date-time-row input[type="time"] {
+  padding: 12px !important;
+}
+textarea {
+  padding: 12px !important;
+}
+select#cFamily, select.family-select, .fg select {
+  padding: 12px 38px 12px 12px !important;
+}
+/* chip padding: 8px */
+.chip {
+  padding: 8px 14px !important;
+}
+.chips[data-k="transport"] .chip {
+  padding: 8px 12px !important;
+}
+/* segmented inner chip: 8px */
+.chips-seg[data-k="leaseTerm"] .chip,
+.chips-seg[data-k="subwayWalk"] .chip,
+.chips[data-k="leaseTerm"] .chip,
+.chips[data-k="subwayWalk"] .chip {
+  padding: 8px 4px !important;
+}
+/* segmented outer: 4px */
+.chips-seg[data-k="leaseTerm"],
+.chips-seg[data-k="subwayWalk"],
+.chips[data-k="leaseTerm"],
+.chips[data-k="subwayWalk"] {
+  padding: 4px !important;
+}
+/* CTA padding: 16px */
+.btn-primary {
+  padding: 16px !important;
+}
+.btn-back {
+  padding: 16px !important;
+}
+/* banner padding: 12px */
+#progress-hint-banner, .progress-hint-banner {
+  padding: 12px 16px !important;
+}
+/* 동의 박스 padding: 12px */
+#ws-privacy-row {
+  padding: 12px !important;
+}
+</style>
 </head>
 
 <body>
