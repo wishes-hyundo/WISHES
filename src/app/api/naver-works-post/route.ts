@@ -191,7 +191,38 @@ export async function POST(request: NextRequest) {
     const prop = esc(capStr(input.prop, MAX_TITLE_FIELD) || '-');
     const name = esc(capStr(input.cName, MAX_TITLE_FIELD) || 'N/A');
     const phone = esc(capStr(input.cPhone, MAX_TITLE_FIELD) || '');
-    const title = `[${deal}][${prop}] ${name}${phone ? ' (' + phone + ')' : ''}`;
+
+    // R126 Q8 (사장님 결정 a): NaverWorks 게시판 영업 우선순위 emoji 자동 prepend
+    //   사장님이 200건 받았을 때 1초 안에 급한 손님 식별. 손님 화면 영향 0.
+    const _urgencyMap: Record<string, string> = {
+      '이번주': '🔥 급함',
+      '2주 이내': '🚀 2주이내',
+      '1개월 이내': '📅 1개월',
+      '천천히': '🌿 천천히',
+      '알아보는 중': '👀 알아보는중',
+    };
+    const _dealEmojiMap: Record<string, string> = {
+      '매매': '💰 매매',
+      '전세': '🏠 전세',
+      '월세': '🔑 월세',
+    };
+    const _rawSectionsForTag = Array.isArray(input.sections) ? input.sections : [];
+    const _reg1Fallback =
+      (_rawSectionsForTag[2] && _rawSectionsForTag[2].rows && _rawSectionsForTag[2].rows[0] && _rawSectionsForTag[2].rows[0][1]) || '';
+    const _emojiParts: string[] = [];
+    const _u = typeof input.urgency === 'string' ? input.urgency : '';
+    if (_u && _urgencyMap[_u]) _emojiParts.push(_urgencyMap[_u]);
+    const _dRaw = typeof input.deal === 'string' ? input.deal : '';
+    if (_dRaw && _dealEmojiMap[_dRaw]) _emojiParts.push(_dealEmojiMap[_dRaw]);
+    const _regRaw = String(typeof input.reg1 === 'string' ? input.reg1 : (_reg1Fallback || '')).trim();
+    if (_regRaw) {
+      const _regShort = _regRaw.length > 12 ? _regRaw.slice(0, 12) + '…' : _regRaw;
+      _emojiParts.push(`📍 ${esc(_regShort)}`);
+    }
+    const _emojiTag = _emojiParts.join(' · ');
+    const title = _emojiTag
+      ? `${_emojiTag} · ${name}${phone ? ' (' + phone + ')' : ''}`
+      : `[${deal}][${prop}] ${name}${phone ? ' (' + phone + ')' : ''}`;
 
     // L-sec12: sections 배열은 20개 cap, 각 section 의 rows 는 30개 cap.
     const rawSections = Array.isArray(input.sections) ? input.sections.slice(0, MAX_SECTIONS) : [];
