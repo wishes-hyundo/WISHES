@@ -516,17 +516,30 @@ textarea {
   justify-content: center;
   min-width: 40px;
   min-height: 40px;
-  font-size: 1.7rem;
-  color: var(--ios-label-4);
+  font-size: 1.85rem;
+  color: var(--ios-label-3);
   cursor: pointer;
-  transition: color 0.18s var(--ios-ease), transform 0.18s var(--ios-spring);
+  /* R67 — 즉시 변환 */
+  transition: color 0.06s ease-out, transform 0.08s ease-out;
+  will-change: color, transform;
   line-height: 1;
   border-radius: 6px;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
-.star.on { color: var(--ios-orange); }
-.star:active { transform: scale(1.25); background: var(--ios-fill-3); }
+.star.on {
+  color: #FF9500 !important;  /* iOS orange */
+  text-shadow: 0 0 8px rgba(255,149,0,0.4);
+  transform: scale(1.05);
+}
+.star:active { transform: scale(1.3); }
+@media (prefers-color-scheme: dark) {
+  .star { color: #636366; }  /* 다크 모드 비활성 회색 (☆ 가 검정 배경 위에 보이게) */
+  .star.on {
+    color: #FFD60A !important;  /* iOS 시스템 노랑 */
+    text-shadow: 0 0 12px rgba(255,214,10,0.65), 0 1px 3px rgba(0,0,0,0.7) !important;
+  }
+}
 
 /* ── PRIORITY TABLE ── */
 .prio-table {
@@ -1585,15 +1598,20 @@ input:-webkit-autofill:focus {
 .chip.on-gold::before,
 .chip.on-green::before,
 .chip.on-red::before {
-  content: '✓\00a0';
-  font-weight: 700;
+  content: '✓ ';
+  font-weight: 800;
+  font-size: 1.1em;
   color: inherit;
-  display: inline;
+  margin-right: 2px;
+  display: inline-block;
 }
 .deal-chip.on .dc-label::before {
-  content: '✓\00a0';
-  font-weight: 700;
+  content: '✓ ';
+  font-weight: 800;
+  font-size: 1.05em;
   color: inherit;
+  margin-right: 2px;
+  display: inline-block;
 }
 
 /* ─── R53 — 클릭 직후 pulse (모든 chip/buttons, 모바일에서 인지 강화) ─── */
@@ -2281,7 +2299,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">💰 가격 / 예산</div>
 
-          <div class="stars" data-k="price"><span class="star" onclick="setStar('price',1)">★</span><span class="star" onclick="setStar('price',2)">★</span><span class="star" onclick="setStar('price',3)">★</span><span class="star" onclick="setStar('price',4)">★</span><span class="star" onclick="setStar('price',5)">★</span></div>
+          <div class="stars" data-k="price"><span class="star" onclick="setStar('price',1)">☆</span><span class="star" onclick="setStar('price',2)">☆</span><span class="star" onclick="setStar('price',3)">☆</span><span class="star" onclick="setStar('price',4)">☆</span><span class="star" onclick="setStar('price',5)">☆</span></div>
 
         </div>
 
@@ -2289,7 +2307,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">📍 위치 / 교통</div>
 
-          <div class="stars" data-k="loc"><span class="star" onclick="setStar('loc',1)">★</span><span class="star" onclick="setStar('loc',2)">★</span><span class="star" onclick="setStar('loc',3)">★</span><span class="star" onclick="setStar('loc',4)">★</span><span class="star" onclick="setStar('loc',5)">★</span></div>
+          <div class="stars" data-k="loc"><span class="star" onclick="setStar('loc',1)">☆</span><span class="star" onclick="setStar('loc',2)">☆</span><span class="star" onclick="setStar('loc',3)">☆</span><span class="star" onclick="setStar('loc',4)">☆</span><span class="star" onclick="setStar('loc',5)">☆</span></div>
 
         </div>
 
@@ -2297,7 +2315,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">📐 면적 / 구조</div>
 
-          <div class="stars" data-k="size"><span class="star" onclick="setStar('size',1)">★</span><span class="star" onclick="setStar('size',2)">★</span><span class="star" onclick="setStar('size',3)">★</span><span class="star" onclick="setStar('size',4)">★</span><span class="star" onclick="setStar('size',5)">★</span></div>
+          <div class="stars" data-k="size"><span class="star" onclick="setStar('size',1)">☆</span><span class="star" onclick="setStar('size',2)">☆</span><span class="star" onclick="setStar('size',3)">☆</span><span class="star" onclick="setStar('size',4)">☆</span><span class="star" onclick="setStar('size',5)">☆</span></div>
 
         </div>
 
@@ -2305,7 +2323,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">🏗️ 건물 상태</div>
 
-          <div class="stars" data-k="bld"><span class="star" onclick="setStar('bld',1)">★</span><span class="star" onclick="setStar('bld',2)">★</span><span class="star" onclick="setStar('bld',3)">★</span><span class="star" onclick="setStar('bld',4)">★</span><span class="star" onclick="setStar('bld',5)">★</span></div>
+          <div class="stars" data-k="bld"><span class="star" onclick="setStar('bld',1)">☆</span><span class="star" onclick="setStar('bld',2)">☆</span><span class="star" onclick="setStar('bld',3)">☆</span><span class="star" onclick="setStar('bld',4)">☆</span><span class="star" onclick="setStar('bld',5)">☆</span></div>
 
         </div>
 
@@ -2313,7 +2331,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">🏫 학군 / 환경</div>
 
-          <div class="stars" data-k="env"><span class="star" onclick="setStar('env',1)">★</span><span class="star" onclick="setStar('env',2)">★</span><span class="star" onclick="setStar('env',3)">★</span><span class="star" onclick="setStar('env',4)">★</span><span class="star" onclick="setStar('env',5)">★</span></div>
+          <div class="stars" data-k="env"><span class="star" onclick="setStar('env',1)">☆</span><span class="star" onclick="setStar('env',2)">☆</span><span class="star" onclick="setStar('env',3)">☆</span><span class="star" onclick="setStar('env',4)">☆</span><span class="star" onclick="setStar('env',5)">☆</span></div>
 
         </div>
 
@@ -2755,22 +2773,22 @@ function setStar(k, v){
   /* R25 ❶ — 별점 클릭 햅틱 (chip 과 통일감) */
   if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
 
-  document.querySelectorAll('.stars[data-k="'+k+'"] .star').forEach((s,i)=>{
-
-    s.classList.toggle('on', i<v);
-
-    /* R56 — aria-pressed 토글 (스크린리더 상태 변화 인지) */
-    s.setAttribute('aria-pressed', i<v ? 'true' : 'false');
-
-    /* R56 — pulse 효과 (마지막 클릭한 별만) */
-    if (i === v-1) {
-      s.classList.remove('star-pulse');
-      void s.offsetWidth;
-      s.classList.add('star-pulse');
-      setTimeout(function(){ try{ s.classList.remove('star-pulse'); }catch(_){} }, 400);
-    }
-
+  /* R67 — 별 자체 문자를 ★(filled) ↔ ☆(empty) 로 토글.
+     force-dark 가 색을 desaturate 해도 문자 모양 자체가 다르니까 보존됨. */
+  var stars = document.querySelectorAll('.stars[data-k="'+k+'"] .star');
+  stars.forEach(function(s, i){
+    var isOn = i < v;
+    s.textContent = isOn ? '★' : '☆';
+    s.classList.toggle('on', isOn);
+    s.setAttribute('aria-pressed', isOn ? 'true' : 'false');
   });
+  // R67 — 마지막 클릭 별만 pulse
+  if (stars[v-1]) {
+    stars[v-1].classList.remove('star-pulse');
+    void stars[v-1].offsetWidth;
+    stars[v-1].classList.add('star-pulse');
+    setTimeout(function(){ try{ stars[v-1].classList.remove('star-pulse'); }catch(_){} }, 350);
+  }
 
 }
 
