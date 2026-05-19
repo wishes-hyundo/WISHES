@@ -172,7 +172,7 @@
     },
     {
       "path": "/api/cron/geocode-missing",
-      "schedule": "0 */6 * * *"
+      "schedule": "*/5 * * * *"
     },
     {
       "path": "/api/cron/enrich-vision",
@@ -287,3 +287,8 @@
       "schedule": "0 18 * * *"
     },
     {
+      "path": "/api/cron/checklist-funnel-naverworks",
+      "schedule": "0 23 * * 0"
+    }
+  ]
+}
