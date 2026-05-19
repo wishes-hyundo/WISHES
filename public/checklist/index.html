@@ -724,15 +724,10 @@ textarea {
 }
 .sc-row:last-child { border-bottom: none; }
 .sc-key {
-  /* R99 — 110 → 130px (긴 라벨 "반려동물 (상세)" 등 잘림 방지) */
-  width: 130px; min-width: 130px;
+  width: 110px; min-width: 110px;
   color: var(--ios-label);
   font-size: 0.92rem; font-weight: 400;
   padding-top: 0;
-}
-@media (max-width: 400px) {
-  /* 좁은 모바일 — wrap 허용 */
-  .sc-key { width: auto; min-width: 100px; }
 }
 .sc-val {
   flex: 1;
@@ -4024,6 +4019,15 @@ function updateBottomNavText(n){
         // 페이지 로드 시 sessionStorage 에 사장님 모드 flag 있으면 복원
         if (sessionStorage.getItem(KEY) === '1') {
           document.body.classList.add('agent-mode');
+          /* R100 — 페이지 로드 시 사장님 모드 시각 badge */
+          setTimeout(function(){
+            if(document.getElementById('ws-agent-badge')) return;
+            var badge = document.createElement('div');
+            badge.id = 'ws-agent-badge';
+            badge.textContent = '🛠 사장님 모드';
+            badge.style.cssText = 'position:fixed;top:8px;right:8px;z-index:9997;background:#FF9500;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;font-family:var(--ios-font);box-shadow:0 2px 8px rgba(255,149,0,0.4);';
+            document.body.appendChild(badge);
+          }, 100);
         }
         // URL param ?agent=1 도 지원 (사장님 즉시 활성)
         if (location.search.indexOf('agent=1') >= 0) {
@@ -4042,6 +4046,26 @@ function updateBottomNavText(n){
                 if(on) sessionStorage.setItem(KEY, '1');
                 else sessionStorage.removeItem(KEY);
               } catch(_){}
+              /* R100 — toast 안내 (사장님 모드 toggle 시각 피드백) */
+              if(typeof showToast === 'function'){
+                showToast({
+                  type: on ? 'success' : 'info',
+                  title: on ? '🛠 사장님 모드 ON' : '👤 손님 모드 ON',
+                  msg: on ? '사장님 전용 기능 활성화' : '손님 모드로 복원',
+                  duration: 2200,
+                  position: 'top'
+                });
+              }
+              /* R100 — badge 표시 / 제거 */
+              var oldBadge = document.getElementById('ws-agent-badge');
+              if(oldBadge) oldBadge.remove();
+              if(on){
+                var badge = document.createElement('div');
+                badge.id = 'ws-agent-badge';
+                badge.textContent = '🛠 사장님 모드';
+                badge.style.cssText = 'position:fixed;top:8px;right:8px;z-index:9997;background:#FF9500;color:#fff;font-size:11px;font-weight:700;padding:4px 10px;border-radius:12px;font-family:var(--ios-font);box-shadow:0 2px 8px rgba(255,149,0,0.4);';
+                document.body.appendChild(badge);
+              }
             }
           }
         });
