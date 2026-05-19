@@ -1575,7 +1575,7 @@ input:-webkit-autofill:focus {
       <div class="frow c2">
         <div class="fg">
           <label class="flabel" for="cDate">방문 일정</label>
-          <div class="date-time-row"><input type="date" id="cDate"/><input type="time" id="cTime"/></div>
+          <div class="date-time-row"><input type="date" id="cDate"/><input type="time" id="cTime" aria-label="방문 희망 시각"/></div>
         </div>
         <div class="fg">
           <label class="flabel">현장방문</label>
@@ -1660,11 +1660,11 @@ input:-webkit-autofill:focus {
           <div class="budget-label">매매 금액</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('buyMax',-10000)">−</button>
-            <input type="text" class="budget-input" id="buyMax" inputmode="numeric" placeholder="예: 50,000" value="" maxlength="9" oninput="fmtBudget(this)"/>
+            <input type="text" class="budget-input" id="buyMax" inputmode="numeric" placeholder="예: 50,000" value="" maxlength="9" aria-label="매매 금액 한도 (만원)" autocomplete="off" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원</span>
             <button type="button" class="budget-btn" onclick="adjBudget('buyMax',10000)">+</button>
           </div>
-          <input type="range" id="buyMaxSlider" class="budget-slider" min="0" max="2000000" step="10000" value="0" oninput="syncBudget(this,'buyMax')"/>
+          <input type="range" id="buyMaxSlider" class="budget-slider" aria-label="매매 금액 슬라이더" min="0" max="2000000" step="10000" value="0" oninput="syncBudget(this,'buyMax')"/>
           <div class="budget-hint">0 ~ 2,000,000 만원 (200억)</div>
         </div>
       </div>
@@ -1681,7 +1681,7 @@ input:-webkit-autofill:focus {
 
           </div>
           <div id="loanProduct" style="display:none;margin-top:8px">
-            <input type="text" id="loanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50" inputmode="text" lang="ko"/>
+            <input type="text" id="loanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50" inputmode="text" lang="ko" aria-label="매매 대출 상품명" autocomplete="off"/>
           </div>
 
         </div>
@@ -1695,11 +1695,11 @@ input:-webkit-autofill:focus {
           <div class="budget-label">전세 금액</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('jMax',-1000)">−</button>
-            <input type="text" class="budget-input" id="jMax" inputmode="numeric" placeholder="예: 20,000" value="" maxlength="9" oninput="fmtBudget(this)"/>
+            <input type="text" class="budget-input" id="jMax" inputmode="numeric" placeholder="예: 20,000" value="" maxlength="9" aria-label="전세 금액 한도 (만원)" autocomplete="off" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원</span>
             <button type="button" class="budget-btn" onclick="adjBudget('jMax',1000)">+</button>
           </div>
-          <input type="range" id="jMaxSlider" class="budget-slider" min="0" max="300000" step="1000" value="0" oninput="syncBudget(this,'jMax')"/>
+          <input type="range" id="jMaxSlider" class="budget-slider" aria-label="전세 금액 슬라이더" min="0" max="300000" step="1000" value="0" oninput="syncBudget(this,'jMax')"/>
           <div class="budget-hint">0 ~ 300,000 만원 (30억)</div>
         </div>
         <div class="budget-field" style="margin-top:12px">
@@ -1709,7 +1709,7 @@ input:-webkit-autofill:focus {
             <div class="chip" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">해당없음</div>
           </div>
           <div id="jloanProduct" style="display:none;margin-top:8px">
-            <input type="text" id="jloanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50" inputmode="text" lang="ko"/>
+            <input type="text" id="jloanProductName" class="loan-product-input" placeholder="대출 상품명을 입력하세요" maxlength="50" inputmode="text" lang="ko" aria-label="전세 대출 상품명" autocomplete="off"/>
           </div>
         </div>
       </div>
@@ -1721,22 +1721,22 @@ input:-webkit-autofill:focus {
           <div class="budget-label">보증금 (만원)</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('mDep',-500)">−</button>
-            <input type="text" id="mDep" class="budget-input" inputmode="numeric" placeholder="예: 5,000" value="" maxlength="7" oninput="fmtBudget(this)"/>
+            <input type="text" id="mDep" class="budget-input" inputmode="numeric" placeholder="예: 5,000" value="" maxlength="7" aria-label="월세 보증금 (만원)" autocomplete="off" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원</span>
             <button type="button" class="budget-btn" onclick="adjBudget('mDep',500)">+</button>
           </div>
-          <input type="range" id="mDepSlider" class="budget-slider" min="0" max="200000" step="500" value="0" oninput="syncBudget(this,'mDep')"/>
+          <input type="range" id="mDepSlider" class="budget-slider" aria-label="월세 보증금 슬라이더" min="0" max="200000" step="500" value="0" oninput="syncBudget(this,'mDep')"/>
           <div class="budget-hint">0 ~ 200,000 만원 (20억)</div>
         </div>
         <div class="budget-field" style="margin-top:12px">
           <div class="budget-label">월세 한도 (만원/월)</div>
           <div class="budget-control">
             <button type="button" class="budget-btn" onclick="adjBudget('mRent',-10)">−</button>
-            <input type="text" id="mRent" class="budget-input" inputmode="numeric" placeholder="예: 50" value="" maxlength="5" oninput="fmtBudget(this)"/>
+            <input type="text" id="mRent" class="budget-input" inputmode="numeric" placeholder="예: 50" value="" maxlength="5" aria-label="월세 월 임대료 (만원)" autocomplete="off" oninput="fmtBudget(this)"/>
             <span class="budget-unit">만원/월</span>
             <button type="button" class="budget-btn" onclick="adjBudget('mRent',10)">+</button>
           </div>
-          <input type="range" id="mRentSlider" class="budget-slider" min="0" max="1500" step="10" value="0" oninput="syncBudget(this,'mRent')"/>
+          <input type="range" id="mRentSlider" class="budget-slider" aria-label="월세 임대료 슬라이더" min="0" max="1500" step="10" value="0" oninput="syncBudget(this,'mRent')"/>
           <div class="budget-hint">0 ~ 1,500 만원/월</div>
         </div>
       </div>
@@ -1779,7 +1779,7 @@ input:-webkit-autofill:focus {
             <div class="chip" onclick="pick(this,'g-parking',1)">필요</div>
             <div class="chip" onclick="pick(this,'g-parking',1)">불필요</div>
           </div>
-          <input type="text" id="parkingNote" class="loan-product-input" placeholder="차종 / 특이사항 (선택)" maxlength="50" inputmode="text" lang="ko"/>
+          <input type="text" id="parkingNote" class="loan-product-input" placeholder="차종 / 특이사항 (선택)" aria-label="주차 관련 메모" autocomplete="off" maxlength="50" inputmode="text" lang="ko"/>
         </div>
         <div class="fg" style="margin-top:14px">
           <label class="flabel">반려동물</label>
@@ -1788,7 +1788,7 @@ input:-webkit-autofill:focus {
             <div class="chip" onclick="pick(this,'g-petType',1)">🐱 고양이</div>
             <div class="chip" onclick="pick(this,'g-petType',1)">없음</div>
           </div>
-          <input type="text" id="petNote" class="loan-product-input" placeholder="종 / 특이사항 (선택)" maxlength="50" inputmode="text" lang="ko"/>
+          <input type="text" id="petNote" class="loan-product-input" placeholder="종 / 특이사항 (선택)" aria-label="반려동물 관련 메모" autocomplete="off" maxlength="50" inputmode="text" lang="ko"/>
         </div>
       </div>
     </div>
@@ -1872,7 +1872,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="reg1">1순위 지역 <span class="req">*</span></label>
 
-          <input type="text" id="reg1" placeholder="예: 서울 마포구 상암동" maxlength="50" inputmode="text" lang="ko"/>
+          <input type="text" id="reg1" placeholder="예: 서울 마포구 상암동" aria-label="희망 지역 1순위" autocomplete="address-line2" maxlength="50" inputmode="text" lang="ko"/>
 
         </div>
 
@@ -1880,7 +1880,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="reg2">2순위 지역</label>
 
-          <input type="text" id="reg2" placeholder="대안 가능 지역" maxlength="50" inputmode="text" lang="ko"/>
+          <input type="text" id="reg2" placeholder="대안 가능 지역" aria-label="희망 지역 2순위 (대안)" autocomplete="address-line2" maxlength="50" inputmode="text" lang="ko"/>
 
         </div>
 
@@ -1888,7 +1888,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel" for="reg3">3순위 지역</label>
 
-          <input type="text" id="reg3" placeholder="추가 대안 지역" maxlength="50" inputmode="text" lang="ko"/>
+          <input type="text" id="reg3" placeholder="추가 대안 지역" aria-label="희망 지역 3순위 (추가 대안)" autocomplete="address-line2" maxlength="50" inputmode="text" lang="ko"/>
 
         </div>
 
@@ -1984,7 +1984,7 @@ input:-webkit-autofill:focus {
 
         <label class="flabel">직장 · 학교 위치</label>
 
-        <input type="text" id="workplace" placeholder="예: 강남구 테헤란로, 마포구 홍대입구역" maxlength="100" inputmode="text" lang="ko"/>
+        <input type="text" id="workplace" placeholder="예: 강남구 테헤란로, 마포구 홍대입구역" maxlength="100" inputmode="text" lang="ko" aria-label="직장 / 학교 위치" autocomplete="organization"/>
 
       </div>
 
