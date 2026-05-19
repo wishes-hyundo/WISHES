@@ -5685,25 +5685,26 @@ function updateBottomNavText(n){
 })();
 </script>
 
-<script>/* R111-NEXTPAGE-LOCK */
+<script>/* R115-NEXTPAGE-LOCK-SAFE */
 (function(){
-  // R111 M15: 더블 클릭 race 차단 (4중 wrap 어느 layer 에서든 lock 효과)
-  var __r111Lock = false;
+  // R115: M15 fix — nextPage 만 더블 클릭 차단 (goPage 는 wrap X — 내부 호출 cascade 차단 방지)
+  // 사장님 발견: 기존 M15 가 nextPage→goPage 내부 호출까지 block → STEP 다음 안 넘어감 (영업 직격타)
   function makeLockWrap(name){
     var orig = window[name];
     if(typeof orig !== 'function') return;
-    if(orig.__r111Lock) return;
+    if(orig.__r115) return;
+    var lastCall = 0;
     window[name] = function(){
-      if(__r111Lock) return;
-      __r111Lock = true;
-      try{ return orig.apply(this, arguments); }
-      finally{ setTimeout(function(){ __r111Lock = false; }, 400); }
+      var now = Date.now();
+      if(now - lastCall < 200) return; // 200ms 내 중복 호출만 차단
+      lastCall = now;
+      return orig.apply(this, arguments);
     };
-    window[name].__r111Lock = true;
+    window[name].__r115 = true;
   }
   setTimeout(function(){
     makeLockWrap('nextPage');
-    makeLockWrap('goPage');
+    // goPage 는 절대 wrap 안 함 — 내부 cascade 호출 보호
   }, 100);
 })();
 </script>
