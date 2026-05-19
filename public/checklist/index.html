@@ -414,8 +414,9 @@ textarea {
   transition: color 0.18s ease;
 }
 .deal-chip.on {
-  background: #fff;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04);
+  /* R54 — !important defense (forced-colors cascade 누수 방지) */
+  background: #fff !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04) !important;
   transform: scale(1.0);
 }
 .deal-chip.on .dc-label {
@@ -1442,20 +1443,19 @@ input:-webkit-autofill:focus {
 }
 
 /* ─── R51 — Windows High Contrast / forced-colors 지원 ─── */
+/* ─── R54 — forced-colors 룰 light-mode 누수 hotfix ───
+   Chrome 121+ 에서 system color (SelectedItem 등) 가 forced-colors 모드 외부에서도
+   cascade 영향 → bg transparent 회귀. forced-color-adjust: auto 로 두고
+   border 만 추가해 Windows 고대비에서 element 시각 분리 보장.
+   ─── */
 @media (forced-colors: active) {
   .chip, .deal-chip, .step-btn {
-    border: 1px solid CanvasText;
-    forced-color-adjust: none;
+    forced-color-adjust: auto;
+    border: 1px solid ButtonText;
   }
-  .chip.on, .deal-chip.on, .step-btn.active {
-    background: SelectedItem;
-    color: SelectedItemText;
-    border-color: SelectedItem;
-  }
-  .send-btn { border: 2px solid ButtonText; }
-  .ios-switch { border: 1px solid ButtonText; }
-  /* link/CTA 강제 색 노출 */
-  a, .send-btn { forced-color-adjust: none; }
+  /* selected state 는 forced-color-adjust:auto 가 UA 가 자동으로 SelectedItem 으로 변환 */
+  .send-btn { forced-color-adjust: auto; border: 2px solid ButtonText; }
+  .ios-switch { forced-color-adjust: auto; border: 1px solid ButtonText; }
 }
 @media (prefers-contrast: more) {
   .chip { border: 1px solid var(--ios-label); }
