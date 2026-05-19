@@ -1592,26 +1592,6 @@ input:-webkit-autofill:focus {
   }
 }
 
-/* ─── R68 — rating-seg chip-seg radio (별점 chip 방식, 5개 가로) ─── */
-.rating-seg {
-  display: flex;
-  gap: 4px;
-  width: 100%;
-}
-.rating-chip {
-  flex: 1;
-  min-width: 0;
-  font-size: 0.92rem;
-  font-weight: 500;
-  padding: 8px 4px !important;
-  cursor: pointer;
-  transition: background 0.08s ease-out, color 0.08s ease-out, transform 0.08s ease-out;
-}
-.rating-chip:active { transform: scale(0.96); }
-@media (max-width: 480px) {
-  .rating-chip { font-size: 0.85rem; padding: 6px 2px !important; }
-}
-
 /* ─── R66 — iOS ✓ checkmark prefix (모든 mode, force-dark 무력화) ───
    text content 라서 어떤 색 변환도 ✓ 문자 자체는 보존됨 */
 .chip.on::before,
@@ -2311,7 +2291,7 @@ input:-webkit-autofill:focus {
 
     <div class="card-body">
 
-      <div class="hint" style="margin-bottom:14px">중요도를 점수로 표시해주세요 (5점이 가장 중요)</div>
+      <div class="hint" style="margin-bottom:14px">별점으로 중요도를 표시해주세요 (★ 많을수록 중요)</div>
 
       <div class="prio-table">
 
@@ -2319,7 +2299,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">💰 가격 / 예산</div>
 
-          <div class="rating-seg chips chips-seg" data-k="price" role="radiogroup" aria-label="price 중요도"><button type="button" class="chip rating-chip" data-v="1" onclick="setStar('price',1)" role="radio" aria-checked="false">1점</button><button type="button" class="chip rating-chip" data-v="2" onclick="setStar('price',2)" role="radio" aria-checked="false">2점</button><button type="button" class="chip rating-chip" data-v="3" onclick="setStar('price',3)" role="radio" aria-checked="false">3점</button><button type="button" class="chip rating-chip" data-v="4" onclick="setStar('price',4)" role="radio" aria-checked="false">4점</button><button type="button" class="chip rating-chip" data-v="5" onclick="setStar('price',5)" role="radio" aria-checked="false">5점</button></div>
+          <div class="stars" data-k="price"><span class="star" onclick="setStar('price',1)">☆</span><span class="star" onclick="setStar('price',2)">☆</span><span class="star" onclick="setStar('price',3)">☆</span><span class="star" onclick="setStar('price',4)">☆</span><span class="star" onclick="setStar('price',5)">☆</span></div>
 
         </div>
 
@@ -2327,7 +2307,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">📍 위치 / 교통</div>
 
-          <div class="rating-seg chips chips-seg" data-k="loc" role="radiogroup" aria-label="loc 중요도"><button type="button" class="chip rating-chip" data-v="1" onclick="setStar('loc',1)" role="radio" aria-checked="false">1점</button><button type="button" class="chip rating-chip" data-v="2" onclick="setStar('loc',2)" role="radio" aria-checked="false">2점</button><button type="button" class="chip rating-chip" data-v="3" onclick="setStar('loc',3)" role="radio" aria-checked="false">3점</button><button type="button" class="chip rating-chip" data-v="4" onclick="setStar('loc',4)" role="radio" aria-checked="false">4점</button><button type="button" class="chip rating-chip" data-v="5" onclick="setStar('loc',5)" role="radio" aria-checked="false">5점</button></div>
+          <div class="stars" data-k="loc"><span class="star" onclick="setStar('loc',1)">☆</span><span class="star" onclick="setStar('loc',2)">☆</span><span class="star" onclick="setStar('loc',3)">☆</span><span class="star" onclick="setStar('loc',4)">☆</span><span class="star" onclick="setStar('loc',5)">☆</span></div>
 
         </div>
 
@@ -2335,7 +2315,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">📐 면적 / 구조</div>
 
-          <div class="rating-seg chips chips-seg" data-k="size" role="radiogroup" aria-label="size 중요도"><button type="button" class="chip rating-chip" data-v="1" onclick="setStar('size',1)" role="radio" aria-checked="false">1점</button><button type="button" class="chip rating-chip" data-v="2" onclick="setStar('size',2)" role="radio" aria-checked="false">2점</button><button type="button" class="chip rating-chip" data-v="3" onclick="setStar('size',3)" role="radio" aria-checked="false">3점</button><button type="button" class="chip rating-chip" data-v="4" onclick="setStar('size',4)" role="radio" aria-checked="false">4점</button><button type="button" class="chip rating-chip" data-v="5" onclick="setStar('size',5)" role="radio" aria-checked="false">5점</button></div>
+          <div class="stars" data-k="size"><span class="star" onclick="setStar('size',1)">☆</span><span class="star" onclick="setStar('size',2)">☆</span><span class="star" onclick="setStar('size',3)">☆</span><span class="star" onclick="setStar('size',4)">☆</span><span class="star" onclick="setStar('size',5)">☆</span></div>
 
         </div>
 
@@ -2343,7 +2323,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">🏗️ 건물 상태</div>
 
-          <div class="rating-seg chips chips-seg" data-k="bld" role="radiogroup" aria-label="bld 중요도"><button type="button" class="chip rating-chip" data-v="1" onclick="setStar('bld',1)" role="radio" aria-checked="false">1점</button><button type="button" class="chip rating-chip" data-v="2" onclick="setStar('bld',2)" role="radio" aria-checked="false">2점</button><button type="button" class="chip rating-chip" data-v="3" onclick="setStar('bld',3)" role="radio" aria-checked="false">3점</button><button type="button" class="chip rating-chip" data-v="4" onclick="setStar('bld',4)" role="radio" aria-checked="false">4점</button><button type="button" class="chip rating-chip" data-v="5" onclick="setStar('bld',5)" role="radio" aria-checked="false">5점</button></div>
+          <div class="stars" data-k="bld"><span class="star" onclick="setStar('bld',1)">☆</span><span class="star" onclick="setStar('bld',2)">☆</span><span class="star" onclick="setStar('bld',3)">☆</span><span class="star" onclick="setStar('bld',4)">☆</span><span class="star" onclick="setStar('bld',5)">☆</span></div>
 
         </div>
 
@@ -2351,7 +2331,7 @@ input:-webkit-autofill:focus {
 
           <div class="prio-label">🏫 학군 / 환경</div>
 
-          <div class="rating-seg chips chips-seg" data-k="env" role="radiogroup" aria-label="env 중요도"><button type="button" class="chip rating-chip" data-v="1" onclick="setStar('env',1)" role="radio" aria-checked="false">1점</button><button type="button" class="chip rating-chip" data-v="2" onclick="setStar('env',2)" role="radio" aria-checked="false">2점</button><button type="button" class="chip rating-chip" data-v="3" onclick="setStar('env',3)" role="radio" aria-checked="false">3점</button><button type="button" class="chip rating-chip" data-v="4" onclick="setStar('env',4)" role="radio" aria-checked="false">4점</button><button type="button" class="chip rating-chip" data-v="5" onclick="setStar('env',5)" role="radio" aria-checked="false">5점</button></div>
+          <div class="stars" data-k="env"><span class="star" onclick="setStar('env',1)">☆</span><span class="star" onclick="setStar('env',2)">☆</span><span class="star" onclick="setStar('env',3)">☆</span><span class="star" onclick="setStar('env',4)">☆</span><span class="star" onclick="setStar('env',5)">☆</span></div>
 
         </div>
 
@@ -2790,41 +2770,25 @@ function setStar(k, v){
 
   S.stars[k] = v;
 
-  /* R25 ❶ — 햅틱 (chip 과 통일감) */
+  /* R25 ❶ — 별점 클릭 햅틱 (chip 과 통일감) */
   if (navigator.vibrate) try { navigator.vibrate(5); } catch(_){}
 
-  /* R68 — chip-seg radio 방식 (사장님 명령): 한 번 클릭 = 즉시 selected
-     기존 별 5개 토글 방식 X (paint 지연 + 사용성 복잡). 다른 chip 들과 통일. */
-  var group = document.querySelector('.rating-seg[data-k="'+k+'"]');
-  if(!group){
-    // backward-compat: old .stars 가 있으면 ★/☆ 토글 (fallback)
-    var legacy = document.querySelectorAll('.stars[data-k="'+k+'"] .star');
-    legacy.forEach(function(s, i){
-      var isOn = i < v;
-      s.textContent = isOn ? '★' : '☆';
-      s.classList.toggle('on', isOn);
-      s.setAttribute('aria-pressed', isOn ? 'true' : 'false');
-    });
-    return;
-  }
-  var chips = group.querySelectorAll('.rating-chip');
-  chips.forEach(function(c){
-    var cv = parseInt(c.getAttribute('data-v'), 10);
-    var isSelected = cv === v;
-    c.classList.toggle('on', isSelected);
-    c.setAttribute('aria-checked', isSelected ? 'true' : 'false');
-    // R66 — inline style 강제 (force-dark 무력화)
-    if (isSelected) {
-      var _dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      c.style.setProperty('background', _dark ? '#0A84FF' : '#007AFF', 'important');
-      c.style.setProperty('color', '#FFFFFF', 'important');
-      c.style.setProperty('font-weight', '700', 'important');
-    } else {
-      c.style.removeProperty('background');
-      c.style.removeProperty('color');
-      c.style.removeProperty('font-weight');
-    }
+  /* R67 — 별 자체 문자를 ★(filled) ↔ ☆(empty) 로 토글.
+     force-dark 가 색을 desaturate 해도 문자 모양 자체가 다르니까 보존됨. */
+  var stars = document.querySelectorAll('.stars[data-k="'+k+'"] .star');
+  stars.forEach(function(s, i){
+    var isOn = i < v;
+    s.textContent = isOn ? '★' : '☆';
+    s.classList.toggle('on', isOn);
+    s.setAttribute('aria-pressed', isOn ? 'true' : 'false');
   });
+  // R67 — 마지막 클릭 별만 pulse
+  if (stars[v-1]) {
+    stars[v-1].classList.remove('star-pulse');
+    void stars[v-1].offsetWidth;
+    stars[v-1].classList.add('star-pulse');
+    setTimeout(function(){ try{ stars[v-1].classList.remove('star-pulse'); }catch(_){} }, 350);
+  }
 
 }
 
@@ -3201,6 +3165,25 @@ function resetAll(){
         origNextPage();
       };
     })();
+    /* ═══════════════ R69 — 이름 / 직장 등 텍스트 input 자동 trim ═══════════════ */
+    (function initR69Trim(){
+      function bindTrim(){
+        var ids = ['cName','reg1','reg2','reg3','workplace','parkingNote','petNote','loanProductName','jloanProductName','addReq'];
+        ids.forEach(function(id){
+          var el = document.getElementById(id);
+          if(!el || el.__r69bound) return;
+          el.__r69bound = true;
+          el.addEventListener('blur', function(){
+            var v = el.value;
+            var trimmed = v.replace(/^\s+|\s+$/g, '').replace(/\s+/g, ' ');
+            if (v !== trimmed) el.value = trimmed;
+          });
+        });
+      }
+      if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindTrim);
+      else bindTrim();
+    })();
+
     /* ═══════════════ R65 — ESC 키 일관성 + content_lock cleanup ═══════════════ */
     (function initR65Hardening(){
       // ESC 키 — 열려있는 모든 시트/모달 닫기 (일관 동작 보장)
