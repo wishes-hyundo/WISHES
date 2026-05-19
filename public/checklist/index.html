@@ -3636,7 +3636,7 @@ function updateBottomNavText(n){
     /* R55 — position 옵션 (top/center). step 전환 격려용 = top (chip 가림 X) */
     var pos = opts.position || 'center';
     var posCss = (pos === 'top')
-      ? 'top:max(env(safe-area-inset-top,0px),14px);transform:translate(-50%,0);padding:14px 20px;border-radius:14px;min-width:260px;max-width:90vw;'
+      ? 'top:calc(max(env(safe-area-inset-top,0px),0px) + 96px);transform:translate(-50%,0);padding:14px 20px;border-radius:14px;min-width:260px;max-width:90vw;'
       : 'top:50%;transform:translate(-50%,-50%);padding:24px 28px;border-radius:18px;min-width:240px;max-width:80vw;';
     wrap.style.cssText='position:fixed;z-index:9999;left:50%;'+posCss+'background:'+toastBg+';color:'+toastColor+';backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);text-align:center;font-family:"Apple SD Gothic Neo","-apple-system",sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.2);opacity:0;transition:opacity 0.25s ease, transform 0.25s ease;';
     var icon = document.createElement('div');
