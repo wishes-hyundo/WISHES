@@ -61,13 +61,32 @@
     _intervals.add(id);
     return id;
   };
+  // [Step 39 진단 2026-05-19] setTimeout caller 통계 — 어디서 폭주하는지 추적
+  const _callerStats = new Map();
   window.setTimeout = function (fn, delay) {
     const args = Array.prototype.slice.call(arguments, 2);
+    // caller stack 의 첫 번째 외부 line 추출
+    try {
+      const stack = new Error().stack || '';
+      const lines = stack.split('\n');
+      // setTimeout 호출자 line 찾기 (보통 line 3)
+      let caller = 'unknown';
+      for (let i = 2; i < Math.min(5, lines.length); i++) {
+        const m = lines[i].match(/at .* \((.*?:\d+):\d+\)/) || lines[i].match(/at (.*?:\d+):\d+/);
+        if (m && !m[1].includes('content-v403')) { caller = m[1].split('/').slice(-2).join('/'); break; }
+      }
+      _callerStats.set(caller, (_callerStats.get(caller) || 0) + 1);
+    } catch (_) {}
     const id = _origSetTimeout.apply(window, [fn, delay].concat(args));
     _timeouts.add(id);
-    // setTimeout 은 1회성, 실행 후 자동 제거
     _origSetTimeout(function () { _timeouts.delete(id); }, (typeof delay === 'number' ? delay : 0) + 100);
     return id;
+  };
+  // 진단 함수: 호출자별 setTimeout 수 표시
+  window.__V403_CALLERS = function () {
+    const sorted = Array.from(_callerStats.entries()).sort((a, b) => b[1] - a[1]).slice(0, 20);
+    console.table(sorted.map(([caller, count]) => ({ caller, count })));
+    return sorted;
   };
   window.clearInterval = function (id) {
     _intervals.delete(id);
