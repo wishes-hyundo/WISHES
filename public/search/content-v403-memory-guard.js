@@ -138,10 +138,14 @@
   function monitorDom() {
     try {
       const allNodes = document.querySelectorAll('*').length;
-      if (allNodes > 5000) {
+      // [Step 62 fix 2026-05-19 사장님 명령] 임계값 5000 → 10000
+      //   기존: 5000+ 경고 → 100매물 카드 페이지는 정상적으로 5000+ (false alarm)
+      //   수정: 10000+ 만 경고. 100매물 × ~50노드 = 5000 baseline + 모달 + UI = ~6500 expected.
+      //         10000 초과 = 진짜 누수 신호 (DOM 폭증).
+      if (allNodes > 10000) {
         _domWarnCount++;
         if (_domWarnCount <= 3) {
-          log('DOM 노드 누적 경고:', allNodes, '개 (5000+) — 정상은 1000-3000');
+          log('DOM 노드 누적 경고:', allNodes, '개 (10000+) — 진짜 누수 가능성. 100매물 기준 baseline 6500.');
         }
       } else {
         _domWarnCount = 0;

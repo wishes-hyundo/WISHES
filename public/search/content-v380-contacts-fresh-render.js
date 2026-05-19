@@ -135,7 +135,7 @@
         // [Step 52] no container 폭주 차단 — 같은 id 1회만 log
         if (lastWarnedNoContainerId !== modalId) {
           lastWarnedNoContainerId = modalId;
-          try { console.warn(TAG, 'no container found for id=' + modalId + ' (이 id 에서 1회만 log)'); } catch (e) {}
+          try { console.log(TAG, 'no container found for id=' + modalId + ' (이 id 에서 1회만 log)'); } catch (e) {}
         }
         return;
       }

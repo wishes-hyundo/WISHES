@@ -143,7 +143,7 @@
         // [Step 52] console.warn 폭주 차단 — 같은 modal 같은 reason 1회만
         if (modal.dataset.v317warnedSkip !== '1') {
           modal.dataset.v317warnedSkip = '1';
-          console.warn('[' + V + '] lat/lng + address 모두 없음 — skip (이 모달에서 1회만 log)');
+          console.log('[' + V + '] lat/lng + address 모두 없음 - skip (이 모달에서 1회만 log)');
         }
         return;
       }

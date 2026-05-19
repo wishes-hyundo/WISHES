@@ -5113,11 +5113,19 @@
     });
 
     // Filter toggle
+    // [Step 61 fix 2026-05-19 사장님 명령] defensive null guard
+    //   기존: section / this.querySelector('span') null 가능성 무시 →
+    //         'Cannot set properties of null (setting textContent)' 콘솔 32 errors 누적
+    //   수정: section + span 모두 null check 후 안전하게 진행
     _bindById('ws-filters-toggle', 'click', function() {
       const section = document.getElementById('ws-filters-section');
+      if (!section) return;
       const isHidden = section.style.display === 'none';
       section.style.display = isHidden ? '' : 'none';
-      this.querySelector('span').textContent = isHidden ? '▼ 필터 접기/펼치기' : '▶ 필터 펼치기';
+      const span = this.querySelector('span');
+      if (span) {
+        span.textContent = isHidden ? '▼ 필터 접기/펼치기' : '▶ 필터 펼치기';
+      }
     });
 
     // View mode tabs
