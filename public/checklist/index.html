@@ -724,10 +724,15 @@ textarea {
 }
 .sc-row:last-child { border-bottom: none; }
 .sc-key {
-  width: 110px; min-width: 110px;
+  /* R99 — 110 → 130px (긴 라벨 "반려동물 (상세)" 등 잘림 방지) */
+  width: 130px; min-width: 130px;
   color: var(--ios-label);
   font-size: 0.92rem; font-weight: 400;
   padding-top: 0;
+}
+@media (max-width: 400px) {
+  /* 좁은 모바일 — wrap 허용 */
+  .sc-key { width: auto; min-width: 100px; }
 }
 .sc-val {
   flex: 1;
@@ -4186,12 +4191,9 @@ function updateBottomNavText(n){
       line.appendChild(k); line.appendChild(v);
       body.appendChild(line);
     });
-    /* R98 — confirmed flag 로 "ok" vs "취소/backdrop" 구분 */
-    var _r98Confirmed = false;
     document.getElementById('ws-review-cancel').onclick = function(){ close(); };
     bd.addEventListener('click', function(e){ if(e.target===bd) close(); });
     document.getElementById('ws-review-ok').onclick = function(){
-      _r98Confirmed = true;
       close();
       if(typeof onConfirm==='function') onConfirm();
     };
@@ -4214,16 +4216,6 @@ function updateBottomNavText(n){
       if(bd.parentNode) bd.parentNode.removeChild(bd);
       document.removeEventListener('keydown', escapeKey);
       if(prevFocus && typeof prevFocus.focus === 'function') prevFocus.focus();
-      /* R98 — 취소/backdrop/ESC 로 닫힌 경우 안내 toast (사용자가 전송 안 됐음을 인지) */
-      if(!_r98Confirmed && typeof showToast === 'function') {
-        showToast({
-          type:'warning',
-          title:'아직 전송 안 됐어요',
-          msg:'📤 보내기 버튼을 다시 눌러주세요',
-          duration: 4500,
-          position: 'top'
-        });
-      }
     }
   }
 
