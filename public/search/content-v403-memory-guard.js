@@ -70,9 +70,15 @@
       const stack = new Error().stack || '';
       const lines = stack.split('\n');
       let caller = 'unknown';
-      for (let i = 2; i < Math.min(5, lines.length); i++) {
+      for (let i = 2; i < Math.min(8, lines.length); i++) {
         const m = lines[i].match(/at .* \((.*?:\d+):\d+\)/) || lines[i].match(/at (.*?:\d+):\d+/);
-        if (m && !m[1].includes('content-v403')) { caller = m[1].split('/').slice(-2).join('/'); break; }
+        if (m && !m[1].includes('content-v403')) {
+          // [Step 46 진단] file 이름 + line 까지 추출 (잘리지 않게)
+          const parts = m[1].split('/');
+          const filePart = parts[parts.length - 1].split('?')[0]; // ?v=... 제거
+          caller = filePart;
+          break;
+        }
       }
       _callerStats.set(caller, (_callerStats.get(caller) || 0) + 1);
     } catch (_) {}
