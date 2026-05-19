@@ -2500,7 +2500,7 @@ input:-webkit-autofill:focus {
 
     <div class="r23-hero-check" aria-hidden="true">✓</div>
 
-    <div class="r23-hero-greeting">전송 완료</div>
+    <div class="r23-hero-greeting" id="r23HeroGreeting">작성 완료</div>
 
     <div class="result-name" id="rName">손님</div>
 
@@ -4216,6 +4216,12 @@ function updateBottomNavText(n){
 
   /* ─── 전송 완료 풀스크린 상태 (1순위 메인) ─── */
   function showSuccessState(){
+    /* R96 — hero 텍스트 "작성 완료" → "전송 완료" 로 변경 (실제 전송 완료 후만) */
+    try {
+      var greet = document.getElementById('r23HeroGreeting');
+      if(greet) greet.textContent = '전송 완료';
+    } catch(_){}
+
     SENT = true;
     /* 보내기 버튼 숨김 — 다시 누를 길 영구 차단 */
     var btns = document.querySelectorAll('#resultSendBtn, #nwSendBtn');
