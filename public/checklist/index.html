@@ -1418,6 +1418,51 @@ input:-webkit-autofill:focus {
 .page:not(.active){ opacity:0; }
 .page.active{ opacity:1; }
 
+/* ─── R51 — WCAG 2.2 AAA 터치 타깃 44×44 (모바일 only, 데스크탑 디자인 유지) ─── */
+@media (pointer:coarse), (max-width:768px) {
+  /* step-btn — invisible hit area extension (시각은 그대로, 터치만 44+) */
+  .step-btn { min-height: 44px; padding: 10px 8px; }
+  /* chip — iOS pill 모양 유지하며 높이만 44+ */
+  .chip { min-height: 44px; padding: 10px 14px; }
+  /* deal-chip — iOS UISegmentedControl 두께 살짝 키움 */
+  .deal-chip { min-height: 44px; padding: 12px 0; }
+  /* deal-chips wrapper 가 더 두꺼워지지 않게 padding 동일 유지 */
+  /* visit-toggle, send-btn 도 안전망 */
+  .visit-toggle, .send-btn, .budget-btn { min-height: 44px; }
+  /* ios-switch 는 시각 32×52 표준 유지 — touch area 만 확장 */
+  .ios-switch { position: relative; }
+  .ios-switch::before { content: ''; position: absolute; inset: -7px -2px; }
+}
+
+/* ─── R51 — banner close ✕ 버튼 invisible hit area (19×23 → 44×44) ─── */
+.r23-intro-banner-close {
+  position: relative;
+  min-width: 44px; min-height: 44px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+/* ─── R51 — Windows High Contrast / forced-colors 지원 ─── */
+@media (forced-colors: active) {
+  .chip, .deal-chip, .step-btn {
+    border: 1px solid CanvasText;
+    forced-color-adjust: none;
+  }
+  .chip.on, .deal-chip.on, .step-btn.active {
+    background: SelectedItem;
+    color: SelectedItemText;
+    border-color: SelectedItem;
+  }
+  .send-btn { border: 2px solid ButtonText; }
+  .ios-switch { border: 1px solid ButtonText; }
+  /* link/CTA 강제 색 노출 */
+  a, .send-btn { forced-color-adjust: none; }
+}
+@media (prefers-contrast: more) {
+  .chip { border: 1px solid var(--ios-label); }
+  .chip.on { border-color: var(--ios-blue); }
+  .step-btn.active { outline: 2px solid var(--ios-blue); }
+}
+
 </style>
 
 </head>
