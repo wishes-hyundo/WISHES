@@ -1754,6 +1754,105 @@ input:-webkit-autofill:focus {
   }catch(_){}
 })();
 </script>
+
+<style>/* R114-DESKTOP-STATES */
+/* R114 M3: desktop click feedback */
+.btn:active, button:active, [role="button"]:active,
+#resultSendBtn:active, .nw-send:active, .chip:active, .stars button:active {
+  transform: scale(0.97);
+  transition: transform 80ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* R114 M4: desktop hover affordance */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover, button:hover, [role="button"]:hover {
+    filter: brightness(1.05);
+    transition: filter 120ms ease, transform 80ms ease;
+  }
+  .chip:hover {
+    background-color: rgba(0, 122, 255, 0.08);
+    border-color: rgba(0, 122, 255, 0.3);
+  }
+  .stars button:hover { transform: scale(1.08); }
+  a:hover { text-decoration: underline; }
+  /* primary CTA glow */
+  #resultSendBtn:hover, .nw-send:hover {
+    box-shadow: 0 4px 16px rgba(0, 122, 255, 0.25);
+  }
+}
+/* respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .btn:active, button:active, [role="button"]:active,
+  #resultSendBtn:active, .nw-send:active, .chip:active, .stars button:active,
+  .btn:hover, button:hover, [role="button"]:hover, .chip:hover, .stars button:hover {
+    transition: none !important;
+    transform: none !important;
+  }
+}
+</style>
+
+<style>/* R114-OVERSCROLL */
+html, body { overscroll-behavior-y: contain; }
+</style>
+
+<style>/* R114-PRINT */
+@media print {
+  /* 손님이 STEP 도중 인쇄 시 모든 STEP 보이게 */
+  .page { display: block !important; page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  /* 인쇄용 phone 마스킹 — privacy */
+  #cPhone {
+    -webkit-text-security: disc;
+    text-security: disc;
+  }
+  /* nav, footer, 광고 영역 숨김 */
+  .bottom-nav, .toast-host, .modal-host, #pwa-banner, [data-no-print] {
+    display: none !important;
+  }
+  body { background: white !important; color: black !important; }
+}
+</style>
+
+<script>/* R114-STORAGE-QUOTA */
+(function(){
+  // R114 m1: localStorage quota 시 sessionStorage 자동 fallback
+  if(window.__r114StorageWrap) return;
+  window.__r114StorageWrap = true;
+  var origSet = Storage.prototype.setItem;
+  Storage.prototype.setItem = function(k, v){
+    try{
+      return origSet.call(this, k, v);
+    }catch(e){
+      if(e && (e.name === 'QuotaExceededError' || e.code === 22)){
+        // 자체 cleanup — autosave/snapshot 키만 정리
+        try{
+          var cleanables = ['ws_autosave_draft', 'ws_chk_snapshot', 'ws_chk_funnel_buffer'];
+          var i;
+          for(i=0; i<cleanables.length; i++){ try{ localStorage.removeItem(cleanables[i]); }catch(_){} }
+          // 재시도
+          return origSet.call(this, k, v);
+        }catch(_){
+          // 그래도 실패 시 sessionStorage 로
+          try{ sessionStorage.setItem(k, v); }catch(_){}
+        }
+      }
+      throw e;
+    }
+  };
+})();
+</script>
+
+<style>/* R114-MAX-WIDTH */
+/* iPad split / 5K iMac / ultrawide → form too wide */
+@media (min-width: 768px) {
+  .page > *,
+  .page .container,
+  .page .form-wrap {
+    max-width: 560px;
+    margin-inline: auto;
+  }
+  body { background: linear-gradient(180deg, #F2F2F7 0%, #E5E5EA 100%); min-height: 100vh; }
+}
+</style>
 </head>
 
 <body>
@@ -4045,7 +4144,16 @@ function updateBottomNavText(n){
       try {
         sid = sessionStorage.getItem(KEY);
         if(!sid){
-          sid = 'fn' + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+          sid = (function(){
+            try{
+              if(window.crypto && crypto.getRandomValues){
+                var arr = new Uint32Array(2);
+                crypto.getRandomValues(arr);
+                return 'fn' + Date.now().toString(36) + arr[0].toString(36) + arr[1].toString(36);
+              }
+            }catch(_){}
+            return 'fn' + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+          })();
           sessionStorage.setItem(KEY, sid);
         }
       } catch(_){ sid = 'fn-fallback'; }
@@ -4070,8 +4178,8 @@ function updateBottomNavText(n){
       track('visit');
 
       // STEP 이동 hook (window.goPage 가 정의된 후 wrap)
-      function wrapGoPage(){
-        if(typeof window.goPage !== 'function') { setTimeout(wrapGoPage, 200); return; }
+      var __wrapCount = 0; function wrapGoPage(){
+        if(++__wrapCount > 50) return; if(typeof window.goPage !== 'function') { setTimeout(wrapGoPage, 200); return; }
         if(window.goPage.__r102wrapped) return;
         var orig = window.goPage;
         window.goPage = function(n){
@@ -5630,6 +5738,210 @@ function updateBottomNavText(n){
       }
     }catch(_){}
   }, true);
+})();
+</script>
+
+<script>/* R114-MULTITAB */
+(function(){
+  // R114 C1: 다른 탭에서 전송 완료된 경우 즉시 동기화 (multi-tab dedup)
+  try{
+    window.addEventListener('storage', function(e){
+      try{
+        if(e.key === 'ws_chk_last_sent' && e.newValue){
+          // 다른 탭에서 전송됨 → 이 탭에서도 SENT_FLAG 동기화
+          if(window.__wsR14){ window.__wsR14.SENT = function(){ return true; }; }
+          // toast 안내
+          if(typeof window.showToast === 'function'){
+            window.showToast({type:'info', title:'다른 탭에서 전송됐어요', msg:'위시스 부동산이 곧 연락드릴게요'});
+          }
+        }
+      }catch(_){}
+    });
+    // 글로벌 inflight lock (모든 탭 공유)
+    var GLOBAL_LOCK = 'ws_chk_inflight';
+    var origSend = window.actuallySend;
+    if(typeof origSend === 'function' && !origSend.__r114){
+      window.actuallySend = function(){
+        try{
+          var lock = localStorage.getItem(GLOBAL_LOCK);
+          if(lock){
+            var rec = JSON.parse(lock);
+            if(rec && Date.now() - rec.t < 30000){
+              if(typeof window.showToast === 'function'){
+                window.showToast({type:'info',title:'전송 중',msg:'다른 탭에서 전송 중이에요'});
+              }
+              return false;
+            }
+          }
+          localStorage.setItem(GLOBAL_LOCK, JSON.stringify({t:Date.now()}));
+          var r = origSend.apply(this, arguments);
+          // 30초 후 자동 해제
+          setTimeout(function(){ try{ localStorage.removeItem(GLOBAL_LOCK); }catch(_){} }, 30000);
+          return r;
+        }catch(_){ return origSend.apply(this, arguments); }
+      };
+      window.actuallySend.__r114 = true;
+    }
+  }catch(_){}
+})();
+</script>
+
+<script>/* R114-RETRY-CLEANUP */
+(function(){
+  // R114 C2: pagehide / 모바일 sleep 시 RETRY_TIMER cleanup
+  function cleanup(){
+    try{
+      if(window.RETRY_TIMER){ clearTimeout(window.RETRY_TIMER); window.RETRY_TIMER = null; }
+      // 알려진 timer 변수도 정리
+      if(window.__retryTimer){ clearTimeout(window.__retryTimer); window.__retryTimer = null; }
+    }catch(_){}
+  }
+  window.addEventListener('pagehide', cleanup);
+  window.addEventListener('beforeunload', cleanup);
+  // visibilitychange — 백그라운드 갈 때 활성 retry 만 일시정지
+  document.addEventListener('visibilitychange', function(){
+    if(document.visibilityState === 'hidden') cleanup();
+  });
+})();
+</script>
+
+<script>/* R114-PHONE-FLEX */
+(function(){
+  // R114 C3: 010 외에 070/0502/+82/011~019 손님 전화도 허용 (영업 손실 차단)
+  // 사장님 정책: 0502 / 070 / 011-019 까지 모두 진짜 손님 (대표번호 / 인터넷 / 구식 폰)
+  var origValidate = window.validatePhone || function(){};
+  if(typeof origValidate !== 'function') return;
+  // 일부 IIFE 가 phoneTail4 함수 사용. 그 함수가 010 만 보지는 않으므로 검증 함수만 wrap
+  // checkPhone 또는 _validatePhone 후크 — 가장 안전한 우회: input 받기 직전 prefix 정규화
+  var el = document.getElementById('cPhone');
+  if(!el) return;
+  function normalizeInputPhone(v){
+    if(!v) return v;
+    // +82 10-... → 010-...
+    v = v.replace(/^\+82[\s-]?(10|11|16|17|18|19|70)/, '0$1');
+    // +82 X-... 변형
+    v = v.replace(/^\+82[\s-]?/, '0');
+    // 점 separator → 하이픈
+    v = v.replace(/(\d)\.(\d)/g, '$1-$2');
+    return v;
+  }
+  el.addEventListener('paste', function(e){
+    try{
+      var paste = (e.clipboardData || window.clipboardData).getData('text');
+      var normalized = normalizeInputPhone(paste);
+      if(normalized !== paste){
+        e.preventDefault();
+        // 정규화된 값 insert
+        var start = el.selectionStart;
+        var end = el.selectionEnd;
+        var before = el.value.slice(0, start);
+        var after = el.value.slice(end);
+        el.value = before + normalized + after;
+        el.dispatchEvent(new Event('input', {bubbles:true}));
+      }
+    }catch(_){}
+  });
+  // submit 시점 마지막 검증 우회 — 더 관대한 정규식
+  if(typeof window.validatePhone === 'function' && !window.validatePhone.__r114){
+    var orig = window.validatePhone;
+    window.validatePhone = function(p){
+      if(!p) return orig.apply(this, arguments);
+      var n = String(p).replace(/[^0-9]/g, '');
+      // 010-XXXX-XXXX (11자리) — 표준
+      if(/^010\d{8}$/.test(n)) return true;
+      // 070-XXXX-XXXX (11자리) — 인터넷 전화
+      if(/^070\d{8}$/.test(n)) return true;
+      // 0502/0504/0505/0506/0507 안심번호 (11~12자리)
+      if(/^050[2-9]\d{7,8}$/.test(n)) return true;
+      // 구식 011/016/017/018/019 — 10자리 또는 11자리
+      if(/^01[1-9]\d{7,8}$/.test(n)) return true;
+      return orig.apply(this, arguments);
+    };
+    window.validatePhone.__r114 = true;
+  }
+})();
+</script>
+
+<script>/* R114-PASTE-CLEAN */
+(function(){
+  // R114 M1: NBSP / zero-width / RTL marker / emoji strip on paste
+  var ids = ['cName','reg1','reg2','reg3','workplace','addReq','cBudget'];
+  function cleanText(s){
+    if(!s) return s;
+    return s
+      .replace(/[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, '')  // zero-width, RTL
+      .replace(/\u00A0/g, ' ')  // NBSP → space
+      .replace(/^[\s\uD83C-\uDBFF\uDC00-\uDFFF\u200D\u2600-\u27BF\uFE0E\uFE0F]+|[\s\uD83C-\uDBFF\uDC00-\uDFFF\u200D\u2600-\u27BF\uFE0E\uFE0F]+$/g, '')  // leading/trailing emoji+whitespace
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  ids.forEach(function(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('paste', function(e){
+      try{
+        var paste = (e.clipboardData || window.clipboardData).getData('text');
+        var cleaned = cleanText(paste);
+        if(cleaned !== paste){
+          e.preventDefault();
+          var start = el.selectionStart;
+          var end = el.selectionEnd;
+          var before = el.value.slice(0, start);
+          var after = el.value.slice(end);
+          el.value = before + cleaned + after;
+          el.setSelectionRange(start + cleaned.length, start + cleaned.length);
+          el.dispatchEvent(new Event('input', {bubbles:true}));
+        }
+      }catch(_){}
+    });
+  });
+})();
+</script>
+
+<script>/* R114-CAPTIVE */
+(function(){
+  // R114 M2: captive portal (호텔 WiFi) HTML 응답 감지
+  var origFetch = window.fetch;
+  if(typeof origFetch !== 'function' || origFetch.__r114) return;
+  window.fetch = function(){
+    var args = arguments;
+    return origFetch.apply(this, args).then(function(res){
+      try{
+        var url = args[0];
+        if(typeof url === 'string' && url.indexOf('/api/') >= 0){
+          var ct = res.headers.get('content-type') || '';
+          if(ct.indexOf('text/html') >= 0 && res.status === 200){
+            // API endpoint 인데 HTML 받음 = captive portal
+            console.warn('[R114] captive portal detected:', url);
+            if(typeof window.showToast === 'function'){
+              window.showToast({type:'warning', title:'WiFi 로그인 필요', msg:'호텔/카페 WiFi 로그인 페이지가 가로채는 중이에요. 모바일 데이터로 전환해주세요.', duration:6000});
+            }
+            // 가짜 success 안 만들도록 reject
+            throw new Error('captive_portal_html');
+          }
+        }
+      }catch(e){ if(e.message === 'captive_portal_html') throw e; }
+      return res;
+    });
+  };
+  window.fetch.__r114 = true;
+})();
+</script>
+
+<script>/* R114-SCROLL-MOTION */
+(function(){
+  // R114 M9: scrollIntoView smooth → reduced-motion 손님에 auto
+  var origSIV = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function(opts){
+    try{
+      if(opts && opts.behavior === 'smooth'){
+        if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+          opts = Object.assign({}, opts, {behavior: 'auto'});
+        }
+      }
+    }catch(_){}
+    return origSIV.call(this, opts);
+  };
 })();
 </script>
 </body>
