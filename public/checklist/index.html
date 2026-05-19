@@ -1622,7 +1622,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel">대출 이용</label>
 
-          <div class="chips" id="g-loan">
+          <div class="chips chips-seg" id="g-loan">
 
             <div class="chip on-green" onclick="pickLoan(this,'g-loan','loanProduct')">✅ 이용 예정</div>
 
@@ -1653,7 +1653,7 @@ input:-webkit-autofill:focus {
         </div>
         <div class="budget-field" style="margin-top:12px">
           <div class="budget-label">대출 이용</div>
-          <div class="chips" id="g-jeonLoan">
+          <div class="chips chips-seg" id="g-jeonLoan">
             <div class="chip on-green" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">✅ 이용 예정</div>
             <div class="chip" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">해당없음</div>
           </div>
@@ -1707,7 +1707,7 @@ input:-webkit-autofill:focus {
           </div>
           <div class="fg">
             <label class="flabel">입주 유연성</label>
-            <div class="chips" id="g-moveFlex">
+            <div class="chips chips-seg" id="g-moveFlex">
               <div class="chip" onclick="pick(this,'g-moveFlex',1)">즉시 입주</div>
               <div class="chip" onclick="pick(this,'g-moveFlex',1)">1개월 이내</div>
               <div class="chip" onclick="pick(this,'g-moveFlex',1)">협의 가능</div>
@@ -1724,7 +1724,7 @@ input:-webkit-autofill:focus {
       <div class="card-body">
         <div class="fg">
           <label class="flabel">주차</label>
-          <div class="chips" id="g-parking">
+          <div class="chips chips-seg" id="g-parking">
             <div class="chip" onclick="pick(this,'g-parking',1)">필요</div>
             <div class="chip" onclick="pick(this,'g-parking',1)">불필요</div>
           </div>
@@ -1750,7 +1750,7 @@ input:-webkit-autofill:focus {
       <div class="card-body">
         <div class="fg">
           <label class="flabel">금일 계약 진행 가능 여부</label>
-          <div class="chips" id="g-contractToday">
+          <div class="chips chips-seg" id="g-contractToday">
             <div class="chip" onclick="pick(this,'g-contractToday',1)">✅ 가능</div>
             <div class="chip" onclick="pick(this,'g-contractToday',1)">❌ 불가</div>
             <div class="chip" onclick="pick(this,'g-contractToday',1)">협의 필요</div>
@@ -1891,7 +1891,7 @@ input:-webkit-autofill:focus {
 
           <label class="flabel">지하철 도보 거리</label>
 
-          <div class="chips" id="g-subway">
+          <div class="chips chips-seg" id="g-subway">
 
             <div class="chip" onclick="pick(this,'g-subway',1)">5분 이내</div>
 
@@ -4399,6 +4399,72 @@ function updateBottomNavText(n){
   .result-hero{ padding: 18px 16px 14px !important; }
   .r23-hero-check{ width: 44px; height: 44px; font-size: 24px; margin-bottom: 8px; }
 }
+
+/* ════ R35 — 단일 선택 chip group → iOS UISegmentedControl ════ */
+.chips-seg {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  background: rgba(120,120,128,0.16);
+  border-radius: 9px;
+  padding: 2px !important;
+  gap: 0 !important;
+  margin-top: 4px;
+  position: relative;
+}
+.chips-seg .chip {
+  flex: 1;
+  background: transparent !important;
+  border-radius: 7px !important;
+  padding: 8px 4px !important;
+  font-size: 0.88rem !important;
+  font-weight: 500 !important;
+  color: var(--ios-label-2) !important;
+  min-height: 32px !important;
+  min-width: 0 !important;
+  white-space: nowrap;
+  position: relative;
+  z-index: 1;
+  border: none;
+  transition: background 0.22s var(--ios-spring), color 0.18s ease, box-shadow 0.22s var(--ios-spring), transform 0.12s var(--ios-ease);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+/* divider — iOS native */
+.chips-seg .chip + .chip::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 1px;
+  background: rgba(60,60,67,0.22);
+  transition: opacity 0.18s ease;
+  z-index: 0;
+}
+.chips-seg .chip.on + .chip::before,
+.chips-seg .chip:has(+ .chip.on)::before {
+  opacity: 0;
+}
+.chips-seg .chip.on {
+  background: #fff !important;
+  color: #000 !important;
+  font-weight: 600 !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04) !important;
+}
+.chips-seg .chip.on-gold,
+.chips-seg .chip.on-green,
+.chips-seg .chip.on-red {
+  background: #fff !important;
+  color: #000 !important;
+}
+.chips-seg .chip:active { transform: scale(0.98); }
+@media (prefers-color-scheme: dark) {
+  .chips-seg { background: rgba(118,118,128,0.24); }
+  .chips-seg .chip + .chip::before { background: rgba(235,235,245,0.18); }
+  .chips-seg .chip.on { background: rgba(99,99,102,1) !important; color: #fff !important; }
+}
+
 </style>
 <script>
 (function(){
