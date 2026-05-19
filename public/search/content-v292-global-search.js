@@ -190,11 +190,34 @@
   }
 
   function startObserver() {
-    // [G7] SPA 재렌더 대비 — 헤더 버튼 재마운트 시 재바인딩
+    // [Step 35 fix 2026-05-19 사장님 명령] 진짜 결함 fix — bind 성공 후 disconnect
+    //   기존: bound 후에도 observer 살아있어 모든 DOM mutation 마다 callback fire
+    //   v397 페이지 전환 시 cascade → main thread freeze (사장님 보고)
+    //   수정: bound 되면 즉시 disconnect, throttle 200ms 추가
     if (STATE.observer) return;
+    if (STATE.bound) return; // 이미 bound 면 observer 불필요
+    var _throttleTimer = null;
     try {
       STATE.observer = new MutationObserver(function () {
-        if (!STATE.bound) bind();
+        // [Step 35] throttle 200ms — cascade 폭주 방지
+        if (_throttleTimer) return;
+        _throttleTimer = setTimeout(function () {
+          _throttleTimer = null;
+          if (!STATE.bound) {
+            bind();
+            // [Step 35] bound 성공 시 즉시 disconnect (메인 fix)
+            if (STATE.bound && STATE.observer) {
+              try { STATE.observer.disconnect(); } catch (e) {}
+              STATE.observer = null;
+            }
+          } else {
+            // 이미 bound 인데 observer 살아있으면 정리
+            if (STATE.observer) {
+              try { STATE.observer.disconnect(); } catch (e) {}
+              STATE.observer = null;
+            }
+          }
+        }, 200);
       });
       STATE.observer.observe(document.body, { childList: true, subtree: true });
     } catch (e) {}

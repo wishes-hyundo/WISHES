@@ -295,11 +295,14 @@
       return true;
     }
     if (!tryInstall()) {
-      var n = 0;
-      var iv = setInterval(function(){
-        n++;
-        if (tryInstall() || n > 60) clearInterval(iv);
-      }, 150);
+      // [Step 35 fix 2026-05-19 사장님 명령] 150ms × 60회 polling 제거
+      //   기존: 9초간 main thread tax (3개 polling 누적 → freeze)
+      //   수정: 단일 setTimeout 100ms 후 한 번 재시도, 그 후 포기
+      setTimeout(function() {
+        if (!tryInstall()) {
+          setTimeout(function() { tryInstall(); /* last attempt */ }, 500);
+        }
+      }, 100);
     }
   })();
 
@@ -325,11 +328,14 @@
       return true;
     }
     if (!tryInstall()) {
-      var n = 0;
-      var iv = setInterval(function(){
-        n++;
-        if (tryInstall() || n > 60) clearInterval(iv);
-      }, 150);
+      // [Step 35 fix 2026-05-19 사장님 명령] 150ms × 60회 polling 제거
+      //   기존: 9초간 main thread tax (3개 polling 누적 → freeze)
+      //   수정: 단일 setTimeout 100ms 후 한 번 재시도, 그 후 포기
+      setTimeout(function() {
+        if (!tryInstall()) {
+          setTimeout(function() { tryInstall(); /* last attempt */ }, 500);
+        }
+      }, 100);
     }
   })();
 
@@ -431,11 +437,12 @@
       return true;
     }
     if (!tryInstall()) {
-      var n = 0;
-      var iv = setInterval(function(){
-        n++;
-        if (tryInstall() || n > 80) clearInterval(iv);
-      }, 150);
+      // [Step 35 fix 2026-05-19] polling 제거
+      setTimeout(function() {
+        if (!tryInstall()) {
+          setTimeout(function() { tryInstall(); }, 500);
+        }
+      }, 100);
     }
   })();
 
