@@ -2504,7 +2504,7 @@ input:-webkit-autofill:focus {
 
     <div class="result-name" id="rName">손님</div>
 
-    <div style="font-size:14px;color:var(--ios-label);margin:6px 0 8px;">작성해 주셔서 감사합니다 🙏</div>
+    <div style="font-size:14px;color:var(--ios-label);margin:6px 0 8px;" id="r23HeroMsg">내용 확인 후 전송해주세요</div>
 
     <div class="result-subtitle" id="rSubtitle"></div>
 
@@ -4216,10 +4216,12 @@ function updateBottomNavText(n){
 
   /* ─── 전송 완료 풀스크린 상태 (1순위 메인) ─── */
   function showSuccessState(){
-    /* R96 — hero 텍스트 "작성 완료" → "전송 완료" 로 변경 (실제 전송 완료 후만) */
+    /* R96+R97 — hero 텍스트 변경 (실제 전송 완료 후만) */
     try {
       var greet = document.getElementById('r23HeroGreeting');
       if(greet) greet.textContent = '전송 완료';
+      var msg = document.getElementById('r23HeroMsg');
+      if(msg) msg.textContent = '작성해 주셔서 감사합니다 🙏';
     } catch(_){}
 
     SENT = true;
