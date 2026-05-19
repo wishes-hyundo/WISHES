@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const _auth = await verifyAdminAuthWithContext(request);
     if (!_auth.ok) {
-      return NextResponse.json({ success: false, message: _auth.message || 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ success: false, message: 'Unauthorized — 사장님 로그인 후 다시 시도하세요' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
