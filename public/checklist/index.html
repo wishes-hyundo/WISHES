@@ -2786,21 +2786,16 @@ function setStar(k, v){
     return;
   }
   var chips = group.querySelectorAll('.rating-chip');
+  /* R72 — inline style 제거, CSS 가 처리하게 함 (cascade 충돌 회피) */
   chips.forEach(function(c){
     var cv = parseInt(c.getAttribute('data-v'), 10);
     var isSelected = cv === v;
     c.classList.toggle('on', isSelected);
     c.setAttribute('aria-checked', isSelected ? 'true' : 'false');
-    if (isSelected) {
-      var _dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-      c.style.setProperty('background', _dark ? '#0A84FF' : '#007AFF', 'important');
-      c.style.setProperty('color', '#FFFFFF', 'important');
-      c.style.setProperty('font-weight', '700', 'important');
-    } else {
-      c.style.removeProperty('background');
-      c.style.removeProperty('color');
-      c.style.removeProperty('font-weight');
-    }
+    /* cleanup any leftover inline styles from prev R71 versions */
+    c.style.removeProperty('background');
+    c.style.removeProperty('color');
+    c.style.removeProperty('font-weight');
   });
 
 }
@@ -5075,6 +5070,19 @@ function updateBottomNavText(n){
   color: #000 !important;
   font-weight: 600 !important;
   box-shadow: 0 3px 8px rgba(0,0,0,0.12), 0 3px 1px rgba(0,0,0,0.04) !important;
+}
+/* R72 — rating-seg radio 의 selected = 다른 chip-seg 와 동일 (흰 배경 + 검정 글자) */
+.rating-seg .rating-chip.on {
+  background: #FFFFFF !important;
+  color: #000000 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15), 0 1px 3px rgba(0,0,0,0.08) !important;
+}
+@media (prefers-color-scheme: dark) {
+  .rating-seg .rating-chip.on {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
 }
 .chips-seg .chip.on-gold,
 .chips-seg .chip.on-green,
