@@ -2657,6 +2657,173 @@ body {
   setTimeout(setupSliderFill, 400);
 })();
 </script>
+
+<style>/* R133-STEP3 */
+/* ⑧A: 별점 chip — "N점" → 별 5개 시각 + 활성 강조 */
+.rating-seg, .chips-seg.rating-seg {
+  background: rgba(0,0,0,0.04) !important;
+  padding: 4px !important;
+  border-radius: 14px !important;
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 0 !important;
+  box-shadow: 0 0 0 0.5px rgba(0,0,0,0.04) inset !important;
+}
+.rating-seg .rating-chip, .rating-seg .chip.rating-chip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 9px 4px !important;
+  font-size: 16px !important;
+  color: rgba(0,0,0,0.18) !important;
+  text-align: center !important;
+  border-radius: 10px !important;
+  cursor: pointer !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 36px !important;
+  transition: all 0.2s cubic-bezier(0.32,0.72,0,1) !important;
+}
+.rating-seg .rating-chip.on, .rating-seg .chip.rating-chip.on {
+  color: #FFC107 !important;
+  font-weight: 700 !important;
+  transform: scale(1.05) !important;
+}
+/* JS 가 텍스트 "N점" → "★" 로 변경 */
+
+/* ⑨C: 거주 구성원 select — iOS Sheet 시각 (native select 유지) */
+select#cFamily, select.family-select, .fg select {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 12px 38px 12px 14px !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: #1C1C1E !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.7) inset,
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23007AFF' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important;
+  background-position: right 14px center !important;
+  background-size: 12px !important;
+}
+select#cFamily:focus, select.family-select:focus, .fg select:focus {
+  box-shadow:
+    0 0 0 0.5px rgba(0, 122, 255, 0.6) inset,
+    0 0 0 3px rgba(0, 122, 255, 0.15) !important;
+}
+
+/* ⑩B: textarea 자동 확장 */
+textarea {
+  min-height: 44px !important;
+  resize: none !important;
+  background: rgba(255, 255, 255, 0.85) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 11px 13px !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  color: #1C1C1E !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.7) inset,
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 8px rgba(0, 0, 0, 0.04) !important;
+  transition: min-height 0.18s cubic-bezier(0.32, 0.72, 0, 1) !important;
+  overflow: hidden !important;
+}
+textarea:focus {
+  box-shadow:
+    0 0 0 0.5px rgba(0, 122, 255, 0.6) inset,
+    0 0 0 3px rgba(0, 122, 255, 0.15) !important;
+}
+</style>
+
+<script>/* R133-STEP3 */
+(function(){
+  if(window.__r133Applied) return;
+  window.__r133Applied = true;
+
+  // ⑧A: 별점 chip 텍스트 "N점" → 별 ★ N개
+  function setupStarRatings(){
+    try{
+      var segs = document.querySelectorAll('.rating-seg, .chips-seg.rating-seg');
+      segs.forEach(function(seg){
+        if(seg.dataset.r133 === '1') return;
+        seg.dataset.r133 = '1';
+        Array.from(seg.querySelectorAll('.rating-chip, .chip.rating-chip')).forEach(function(chip){
+          var v = parseInt(chip.getAttribute('data-v') || '0', 10);
+          if(v >= 1 && v <= 5){
+            chip.textContent = '★';  // ★
+            chip.setAttribute('aria-label', v + '점');
+          }
+        });
+      });
+    }catch(_){}
+  }
+
+  // 활성 별점 = 1~N 까지 모두 빛남 (cumulative star rating)
+  function paintStars(){
+    try{
+      document.querySelectorAll('.rating-seg, .chips-seg.rating-seg').forEach(function(seg){
+        var chips = Array.from(seg.querySelectorAll('.rating-chip, .chip.rating-chip'));
+        // 최대 활성 별 (data-v 가장 큼) 찾기
+        var maxOn = 0;
+        chips.forEach(function(chip){
+          var v = parseInt(chip.getAttribute('data-v') || '0', 10);
+          if(chip.classList.contains('on') && v > maxOn) maxOn = v;
+        });
+        // 1~maxOn 까지 cumulative .on
+        chips.forEach(function(chip){
+          var v = parseInt(chip.getAttribute('data-v') || '0', 10);
+          if(v <= maxOn && maxOn > 0) chip.classList.add('on');
+          else if(v > maxOn) chip.classList.remove('on');
+        });
+      });
+    }catch(_){}
+  }
+
+  setTimeout(setupStarRatings, 300);
+  setTimeout(paintStars, 400);
+
+  // 별점 클릭 시 cumulative update
+  document.addEventListener('click', function(e){
+    var chip = e.target && e.target.closest && e.target.closest('.rating-chip, .chip.rating-chip');
+    if(!chip) return;
+    setTimeout(paintStars, 50);
+  }, true);
+
+  // ⑩B: textarea 자동 확장
+  function setupAutoGrow(){
+    var textareas = document.querySelectorAll('textarea');
+    textareas.forEach(function(ta){
+      if(ta.dataset.r133grow === '1') return;
+      ta.dataset.r133grow = '1';
+
+      function resize(){
+        ta.style.height = 'auto';
+        var newHeight = Math.min(Math.max(ta.scrollHeight, 44), 320);
+        ta.style.height = newHeight + 'px';
+      }
+      ta.addEventListener('input', resize);
+      ta.addEventListener('focus', resize);
+      resize();
+    });
+  }
+  setTimeout(setupAutoGrow, 400);
+})();
+</script>
 </head>
 
 <body>
