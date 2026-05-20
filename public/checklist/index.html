@@ -2600,11 +2600,11 @@ body {
       toggle.type = 'button';
       toggle.className = 'r132-more-toggle';
       var hiddenCount = chips.length - 8;
-      toggle.textContent = '\u{1F53D} 더 보기 (' + hiddenCount + '개)';
+      toggle.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-2px;margin-right:4px"><path d="M6 9l6 6 6-6"/></svg>더 보기 (' + hiddenCount + '개)';
       toggle.addEventListener('click', function(e){
         e.preventDefault();
         var expanded = group.classList.toggle('r132-expanded');
-        toggle.textContent = expanded ? '\u{1F53C} 접기' : '\u{1F53D} 더 보기 (' + hiddenCount + '개)';
+        toggle.innerHTML = expanded ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-2px;margin-right:4px"><path d="M6 15l6-6 6 6"/></svg>접기' : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-2px;margin-right:4px"><path d="M6 9l6 6 6-6"/></svg>더 보기 (' + hiddenCount + '개)';
       });
       group.appendChild(toggle);
     }catch(_){}
@@ -4581,7 +4581,7 @@ body > footer, .checklist-footer {
 </div>
 
 <div class="page" id="page-3">
-<div class="info-note" style="margin-bottom:18px"><span>💬</span><span>더 정확한 매물 추천을 위해 추가 정보를 입력해주세요 <em style="opacity:0.7">(선택)</em></span></div>
+<div class="info-note" style="margin-bottom:18px"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.05em;height:1.05em;vertical-align:-3px;margin-right:5px"><circle cx="12" cy="12" r="9"/><path d="M12 11.5v5"/><path d="M12 7.5h.01"/></svg></span><span>더 정확한 매물 추천을 위해 추가 정보를 입력해주세요 <em style="opacity:0.7">(선택)</em></span></div>
 
 
 
@@ -4816,7 +4816,7 @@ body > footer, .checklist-footer {
 
     <div class="result-name" id="rName">손님</div>
 
-    <div style="font-size:14px;color:var(--ios-label);margin:6px 0 8px;">작성해 주셔서 감사합니다 🙏</div>
+    <div style="font-size:14px;color:var(--ios-label);margin:6px 0 8px;">작성해 주셔서 감사합니다</div>
 
     <div class="result-subtitle" id="rSubtitle"></div>
 
@@ -4860,7 +4860,7 @@ body > footer, .checklist-footer {
 
 <div class="bottom-nav" id="resultNav" style="display:none">
 
-  <button class="btn btn-outline" onclick="resetAll()">🔄 새 상담</button>
+  <button class="btn btn-outline" onclick="resetAll()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:5px"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>새 상담</button>
 
           <div class="edit-dropdown" style="position:relative;display:inline-block">
             <button class="btn btn-back" onclick="this.nextElementSibling.classList.toggle('show')">‹ 수정</button>
@@ -4870,7 +4870,7 @@ body > footer, .checklist-footer {
               <button onclick="goPage(3);this.parentElement.classList.remove('show')">추가상담 (STEP 3)</button>
             </div>
           </div>
-  <button class="btn btn-send" id="resultSendBtn" onclick="sendToNaverWorks()">📤 보내기</button>
+  <button class="btn btn-send" id="resultSendBtn" onclick="sendToNaverWorks()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:5px"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>보내기</button>
 </div>
 
 
@@ -5012,7 +5012,7 @@ function updateTopBar(n){
 
   if(n==='result'){
 
-    var _ts=document.getElementById('topStep'); if(_ts) _ts.textContent='✅ 상담 완료';
+    var _ts=document.getElementById('topStep'); if(_ts) _ts.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:5px"><path d="M5 13l4 4L19 7"/></svg>상담 완료';
 
     document.getElementById('pBar').style.width='100%';
 
@@ -5028,7 +5028,7 @@ function updateTopBar(n){
 
   document.getElementById('prevBtn').style.display = n>1?'flex':'none';
 
-  document.getElementById('nextBtn').textContent = n===TOTAL?'✅ 상담 완료':'다음 단계 →';
+  document.getElementById('nextBtn').innerHTML = n===TOTAL?'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:5px"><path d="M5 13l4 4L19 7"/></svg>상담 완료':'다음 단계 →';
 
 }
 
@@ -7275,7 +7275,7 @@ function updateBottomNavText(n){
       if(!raw || raw === masked) return;
       var btn = document.createElement('button');
       btn.type='button';
-      btn.textContent = '👁';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.1em;height:1.1em;vertical-align:-3px"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>';
       btn.setAttribute('aria-label','3초 동안 전화번호 보기');
       btn.style.cssText='background:transparent;border:none;cursor:pointer;font-size:14px;padding:2px 6px;margin-left:6px;vertical-align:middle;';
       btn.addEventListener('click', function(){
@@ -8629,7 +8629,7 @@ function updateBottomNavText(n){
       btn.type = 'button';
       btn.className = 'r119-referral';
       btn.style.cssText = 'margin:14px 16px;padding:12px 16px;background:#FFF;border:1.5px solid #007AFF;border-radius:10px;color:#007AFF;font-size:13px;font-weight:600;width:calc(100% - 32px);cursor:pointer';
-      btn.innerHTML = '📨 가족·지인에게 위시스 추천하기';
+      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1.05em;height:1.05em;vertical-align:-2px;margin-right:5px"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>가족·지인에게 위시스 추천하기';
       btn.addEventListener('click', function(){
         try{
           if(navigator.share){
@@ -8826,7 +8826,7 @@ body { padding-bottom: 60px; }
     bar.setAttribute('role', 'region');
     bar.setAttribute('aria-label', '문의 연락처');
     bar.innerHTML = ''+
-      '<span class="r121-icon" aria-hidden="true">📞</span>'+
+      '<span class="r121-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:1em;height:1em;vertical-align:-2px;margin-right:4px"><path d="M5 3h4l2 5-3 2a14 14 0 0 0 6 6l2-3 5 2v4a2 2 0 0 1-2 2A17 17 0 0 1 3 5a2 2 0 0 1 2-2z"/></svg></span>'+
       '<span>도움 / 불편사항: </span>'+
       '<a href="tel:1533-9580" data-r121-call aria-label="1533-9580 으로 전화 걸기">1533-9580</a>'+
       '<span class="r121-sep">·</span>'+
