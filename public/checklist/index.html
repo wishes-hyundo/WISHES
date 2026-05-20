@@ -9538,6 +9538,38 @@ footer.ws-footer-r78,
   }
 }
 </style>
+
+<script>/* R157-ALL-DATE-CLICK */
+(function(){
+  if(window.__r157Applied) return;
+  window.__r157Applied = true;
+
+  function setupAllDates(){
+    try{
+      var dates = document.querySelectorAll('input[type="date"]');
+      dates.forEach(function(d){
+        if(d.dataset.r157 === '1') return;
+        d.dataset.r157 = '1';
+        d.style.cursor = 'pointer';
+        d.addEventListener('click', function(){
+          try{ if(typeof d.showPicker === 'function') d.showPicker(); }catch(_){}
+        });
+        d.addEventListener('focus', function(){
+          try{ if(typeof d.showPicker === 'function') d.showPicker(); }catch(_){}
+        });
+      });
+    }catch(_){}
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', setupAllDates);
+  } else {
+    setupAllDates();
+  }
+  setTimeout(setupAllDates, 700);
+  // STEP 전환 시 (입주일이 STEP 1 의 입주 및 계약 카드)
+  setTimeout(setupAllDates, 1500);
+})();
+</script>
 </body>
 
 </html>
