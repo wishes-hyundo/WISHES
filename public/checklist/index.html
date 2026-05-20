@@ -9304,6 +9304,67 @@ body { padding-bottom: 60px; }
   setTimeout(replaceTimeInput, 700);
 })();
 </script>
+
+<style>/* R153-DATETIME */
+/* 방문 일정 — date + time 칸 글자 안 잘리게 */
+.date-time-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 6px !important;
+}
+.date-time-row input[type="date"],
+.date-time-row select#cTime,
+#cTime {
+  min-width: 0 !important;
+  width: 100% !important;
+  font-size: 12.5px !important;
+  padding: 12px 8px !important;
+  box-sizing: border-box !important;
+  cursor: pointer !important;
+}
+#cTime {
+  padding: 12px 26px 12px 8px !important;  /* 우측 chevron 공간 */
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.date-time-row input[type="date"] {
+  cursor: pointer !important;
+}
+</style>
+
+<script>/* R153-DATETIME */
+(function(){
+  if(window.__r153Applied) return;
+  window.__r153Applied = true;
+
+  function setupDateClick(){
+    try{
+      var d = document.getElementById('cDate');
+      if(!d) { setTimeout(setupDateClick, 500); return; }
+      if(d.dataset.r153 === '1') return;
+      d.dataset.r153 = '1';
+      // 칸 전체 클릭 → 달력 picker
+      d.addEventListener('click', function(e){
+        try{
+          if(typeof d.showPicker === 'function'){
+            d.showPicker();
+          }
+        }catch(_){}
+      });
+      // focus 시에도
+      d.addEventListener('focus', function(){
+        try{ if(typeof d.showPicker === 'function') d.showPicker(); }catch(_){}
+      });
+    }catch(_){}
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', setupDateClick);
+  } else {
+    setupDateClick();
+  }
+  setTimeout(setupDateClick, 800);
+})();
+</script>
 </body>
 
 </html>
