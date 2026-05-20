@@ -9742,6 +9742,19 @@ body:has(#page-result.active) footer.ws-footer-r78 { display: none !important; }
 /* 3) 공용 footer 숨김 후 법적고지 박스가 fixed resultNav 에 안 가리게 바닥 여백 (padding=collapse 안 됨) */
 #page-result { padding-bottom: 188px !important; }
 </style>
+<style>/* R164-REFERRAL-WIDTH */
+/* R163 후속(Chrome 실측): <button> 은 폼 컨트롤이라 width:auto 를 intrinsic(내용폭)으로 해석 → 218px 로 줄어듦.
+   명시 width:560px 로 회사정보 박스(#ws-legal-footer)와 폭 정확히 일치, 중앙정렬. 모바일은 max-width:100% 로 부모폭. */
+#page-result .r119-referral,
+#page-result button.r119-referral {
+  width: 560px !important;
+  max-width: 100% !important;
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
+}
+</style>
 </body>
 
 </html>
