@@ -3685,6 +3685,127 @@ button.btn-back, button#prevBtn {
   setTimeout(run, 1000);
 })();
 </script>
+
+<style>/* R144-STAR-REBUILD */
+/* 별점 완전 재작성 — 깨끗한 별, ✓/box/확대 원천 차단 */
+.r144-stars {
+  display: inline-flex !important;
+  gap: 1px !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+.r144-star {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 3px 2px !important;
+  margin: 0 !important;
+  font-size: 27px !important;
+  line-height: 1 !important;
+  color: #E5E5EA !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent !important;
+  transition: color 0.18s ease !important;
+  transform: none !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+.r144-star.filled {
+  color: #FFB800 !important;
+}
+.r144-star::before, .r144-star::after {
+  content: none !important;
+  display: none !important;
+}
+.r144-star:active {
+  transform: none !important;
+}
+</style>
+
+<script>/* R144-STAR-REBUILD */
+(function(){
+  if(window.__r144Applied) return;
+  window.__r144Applied = true;
+
+  function rebuildStars(){
+    try{
+      var segs = document.querySelectorAll('.rating-seg');
+      if(!segs.length) { setTimeout(rebuildStars, 500); return; }
+
+      segs.forEach(function(seg){
+        if(seg.dataset.r144 === '1') return;
+        var k = seg.getAttribute('data-k');
+        if(!k) return;
+        seg.dataset.r144 = '1';
+
+        // 현재 점수 추출 (S.stars 또는 on chip)
+        var score = 0;
+        try{
+          if(window.S && window.S.stars && window.S.stars[k]) score = parseInt(window.S.stars[k], 10) || 0;
+        }catch(_){}
+        if(!score){
+          seg.querySelectorAll('.rating-chip, .chip').forEach(function(c){
+            if(c.classList.contains('on')){
+              var v = parseInt(c.getAttribute('data-v'), 10) || 0;
+              if(v > score) score = v;
+            }
+          });
+        }
+
+        // rating-seg 내용 완전 재생성 (기존 chip / ✓ / box 모두 제거)
+        seg.innerHTML = '';
+        seg.classList.add('r144-stars');
+        seg.classList.remove('chips', 'chips-seg');
+
+        for(var i = 1; i <= 5; i++){
+          var star = document.createElement('button');
+          star.type = 'button';
+          star.className = 'r144-star' + (i <= score ? ' filled' : '');
+          star.textContent = '★';  // ★
+          star.dataset.v = i;
+          star.setAttribute('aria-label', i + '점');
+          (function(val){
+            star.addEventListener('click', function(e){
+              e.preventDefault();
+              e.stopPropagation();
+              try{
+                if(typeof window.setStar === 'function') window.setStar(k, val);
+              }catch(_){}
+              // 별 다시 칠
+              Array.from(seg.querySelectorAll('.r144-star')).forEach(function(s){
+                var sv = parseInt(s.dataset.v, 10);
+                s.classList.toggle('filled', sv <= val);
+              });
+              // 햅틱
+              try{ if(window.__wsVibe) window.__wsVibe(5); }catch(_){}
+            });
+          })(i);
+          seg.appendChild(star);
+        }
+      });
+    }catch(_){}
+  }
+
+  setTimeout(rebuildStars, 350);
+  setTimeout(rebuildStars, 1000);
+  // STEP 3 진입 시 재실행
+  if(typeof window.goPage === 'function' && !window.goPage.__r144){
+    var orig = window.goPage;
+    window.goPage = function(){
+      var r = orig.apply(this, arguments);
+      setTimeout(rebuildStars, 150);
+      return r;
+    };
+    window.goPage.__r144 = true;
+  }
+})();
+</script>
 </head>
 
 <body>
