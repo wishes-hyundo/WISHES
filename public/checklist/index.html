@@ -3602,6 +3602,89 @@ button.btn-back, button#prevBtn {
   }, true);
 })();
 </script>
+
+<style>/* R142-FACILITY */
+/* 주변 시설 / 희망 옵션 chip — SF Symbol 아이콘 + 텍스트 (A 스타일) */
+#g-fac .chip, #g-opt .chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 8px 12px !important;
+  font-size: 12px !important;
+}
+#g-fac .chip svg, #g-opt .chip svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  stroke: #007AFF;
+}
+#g-fac .chip.on svg, #g-opt .chip.on svg { stroke: white !important; }
+/* 풀옵션 chip 은 아이콘 변경 X (이미 🌟) */
+</style>
+
+<script>/* R142-FACILITY */
+(function(){
+  if(window.__r142Applied) return;
+  window.__r142Applied = true;
+
+  var S = function(p){ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + p + '</svg>'; };
+
+  var facIcons = {
+    '초등학교': S('<path d="M3 9l9-5 9 5-9 5z"/><path d="M7 11v5l5 3 5-3v-5"/>'),
+    '중·고등학교': S('<path d="M3 9l9-5 9 5-9 5z"/><path d="M7 11v5l5 3 5-3v-5"/>'),
+    '학원가': S('<path d="M4 5a2 2 0 012-2h12v18H6a2 2 0 01-2-2z"/><path d="M8 3v18"/>'),
+    '대형마트': S('<path d="M3 9l1.5-4h15L21 9"/><path d="M4 9v12h16V9"/><path d="M9 14h6"/>'),
+    '병원': S('<path d="M3 21h18"/><path d="M5 21V8l7-4 7 4v13"/><path d="M12 10v6M9 13h6"/>'),
+    '공원': S('<path d="M12 2v10"/><circle cx="12" cy="15" r="6"/><path d="M12 21v1"/>'),
+    '카페·상권': S('<path d="M4 8h13v5a5 5 0 01-5 5H9a5 5 0 01-5-5z"/><path d="M17 9h2a2 2 0 010 4h-2"/><path d="M6 2v2M10 2v2M14 2v2"/>'),
+    '헬스장': S('<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>'),
+    '어린이집': S('<circle cx="12" cy="8" r="3"/><path d="M5 21v-2a5 5 0 015-5h4a5 5 0 015 5v2"/>'),
+    '편의점': S('<rect x="3" y="8" width="18" height="13" rx="1"/><path d="M3 8l2-5h14l2 5"/><path d="M9 21v-6h6v6"/>')
+  };
+
+  var optIcons = {
+    '에어컨': S('<rect x="3" y="5" width="18" height="8" rx="2"/><path d="M7 17l-1 3M12 17v3M17 17l1 3"/>'),
+    '냉장고': S('<rect x="6" y="2" width="12" height="20" rx="2"/><path d="M6 10h12"/><path d="M9 5v2M9 13v3"/>'),
+    '세탁기': S('<rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="13" r="5"/><path d="M8 7h.01"/>'),
+    '식기세척기': S('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 8h16"/><circle cx="12" cy="14" r="3"/>'),
+    '붙박이장': S('<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M12 3v18"/><path d="M9 11v2M15 11v2"/>'),
+    '엘리베이터': S('<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M9 9l-1.5 2h3z" fill="currentColor"/><path d="M15 15l-1.5-2h3z" fill="currentColor"/>'),
+    'CCTV·보안': S('<path d="M3 7l13-3 1 4-13 3z"/><path d="M5 11v4M16 8l4 2v3l-4-1"/><circle cx="8" cy="19" r="2"/>'),
+    'CCTV': S('<path d="M3 7l13-3 1 4-13 3z"/><path d="M5 11v4"/>'),
+    '엘리베이터': S('<rect x="4" y="3" width="16" height="18" rx="1"/><path d="M12 7v10"/>'),
+    '주차': S('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 17V7h4a3 3 0 010 6H9"/>'),
+    '반려동물 가능': S('<circle cx="7" cy="10" r="2"/><circle cx="17" cy="10" r="2"/><circle cx="10" cy="6" r="2"/><circle cx="14" cy="6" r="2"/><path d="M12 14c-3 0-5 2-5 4a3 3 0 003 3h4a3 3 0 003-3c0-2-2-4-5-4z"/>'),
+    '테라스·발코니': S('<path d="M3 21h18M5 21V10h14v11M9 21v-6h6v6"/>'),
+    '홈오피스': S('<rect x="2" y="4" width="20" height="13" rx="1"/><path d="M8 21h8M12 17v4"/>'),
+    '관리실': S('<path d="M3 21h18M5 21V7l7-4 7 4v14"/><path d="M10 21v-5h4v5"/>')
+  };
+
+  function applyIcons(groupId, iconMap){
+    var group = document.getElementById(groupId);
+    if(!group) return false;
+    if(group.dataset.r142 === '1') return true;
+    group.dataset.r142 = '1';
+    Array.from(group.querySelectorAll('.chip')).forEach(function(chip){
+      if(chip.classList.contains('chip-full')) return; // 풀옵션 skip
+      var raw = chip.textContent.trim();
+      var clean = raw.replace(/^[^가-힣a-zA-Z·]+/, '').trim();
+      var svg = iconMap[clean];
+      if(svg){
+        chip.innerHTML = svg + '<span>' + clean + '</span>';
+      }
+    });
+    return true;
+  }
+
+  function run(){
+    var ok1 = applyIcons('g-fac', facIcons);
+    var ok2 = applyIcons('g-opt', optIcons);
+    if(!ok1 || !ok2) setTimeout(run, 500);
+  }
+  setTimeout(run, 350);
+  setTimeout(run, 1000);
+})();
+</script>
 </head>
 
 <body>
