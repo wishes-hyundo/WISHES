@@ -4151,7 +4151,7 @@ body > footer, .checklist-footer {
         <div class="fg">
           <label class="flabel">현장방문</label>
           <div class="ios-switch-row">
-            <span class="ios-switch-desc">현장방문 시 날짜·시간 자동 비활성</span>
+            <span class="ios-switch-desc">현장방문 시 일정 자동 비활성</span>
             <button type="button" id="visitToggle" class="ios-switch" onclick="toggleVisit(this)" role="switch" aria-checked="false" aria-label="현장방문 토글">
               <span class="ios-switch-thumb"></span>
             </button>
@@ -4246,7 +4246,7 @@ body > footer, .checklist-footer {
 
           <div class="chips chips-seg" id="g-loan">
 
-            <div class="chip on-green" onclick="pickLoan(this,'g-loan','loanProduct')">✅ 이용 예정</div>
+            <div class="chip on-green" onclick="pickLoan(this,'g-loan','loanProduct')">이용 예정</div>
 
             <div class="chip" onclick="pickLoan(this,'g-loan','loanProduct')">해당없음</div>
 
@@ -4276,7 +4276,7 @@ body > footer, .checklist-footer {
         <div class="budget-field" style="margin-top:12px">
           <div class="budget-label">대출 이용</div>
           <div class="chips chips-seg" id="g-jeonLoan">
-            <div class="chip on-green" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">✅ 이용 예정</div>
+            <div class="chip on-green" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">이용 예정</div>
             <div class="chip" onclick="pickLoan(this,'g-jeonLoan','jloanProduct')">해당없음</div>
           </div>
           <div id="jloanProduct" style="display:none;margin-top:8px">
@@ -4355,8 +4355,8 @@ body > footer, .checklist-footer {
         <div class="fg" style="margin-top:14px">
           <label class="flabel">반려동물</label>
           <div class="chips chips-seg" id="g-petType">
-            <div class="chip" onclick="pick(this,'g-petType',1)">🐶 강아지</div>
-            <div class="chip" onclick="pick(this,'g-petType',1)">🐱 고양이</div>
+            <div class="chip" onclick="pick(this,'g-petType',1)">강아지</div>
+            <div class="chip" onclick="pick(this,'g-petType',1)">고양이</div>
             <div class="chip" onclick="pick(this,'g-petType',1)">없음</div>
           </div>
           <input type="text" id="petNote" class="loan-product-input" placeholder="종 / 특이사항 (선택)" aria-label="반려동물 관련 메모" autocomplete="off" maxlength="50" inputmode="text" lang="ko"/>
@@ -4373,8 +4373,8 @@ body > footer, .checklist-footer {
         <div class="fg">
           <label class="flabel">금일 계약 진행 가능 여부</label>
           <div class="chips chips-seg" id="g-contractToday">
-            <div class="chip" onclick="pick(this,'g-contractToday',1)">✅ 가능</div>
-            <div class="chip" onclick="pick(this,'g-contractToday',1)">❌ 불가</div>
+            <div class="chip" onclick="pick(this,'g-contractToday',1)">가능</div>
+            <div class="chip" onclick="pick(this,'g-contractToday',1)">불가</div>
             <div class="chip" onclick="pick(this,'g-contractToday',1)">협의 필요</div>
           </div>
         </div>
@@ -4665,15 +4665,15 @@ body > footer, .checklist-footer {
 
       <div class="fg" id="petDetailBox" style="display:none">
 
-        <label class="flabel">🐾 반려동물 종류</label>
+        <label class="flabel">반려동물 종류</label>
 
         <div class="chips" id="g-pet">
 
-          <div class="chip" onclick="pick(this,'g-pet',0)">🐶 강아지</div>
+          <div class="chip" onclick="pick(this,'g-pet',0)">강아지</div>
 
-          <div class="chip" onclick="pick(this,'g-pet',0)">🐱 고양이</div>
+          <div class="chip" onclick="pick(this,'g-pet',0)">고양이</div>
 
-          <div class="chip" onclick="pick(this,'g-pet',0)">🐾 기타</div>
+          <div class="chip" onclick="pick(this,'g-pet',0)">기타</div>
 
         </div>
 
@@ -5411,15 +5411,15 @@ function generateResult(){
 
       <div class="sc-body">
 
-        <div class="sc-row"><div class="sc-key">💰 가격·예산</div><div class="sc-val star-disp">${stars('price')}</div></div>
+        <div class="sc-row"><div class="sc-key">가격·예산</div><div class="sc-val star-disp">${stars('price')}</div></div>
 
-        <div class="sc-row"><div class="sc-key">📍 위치·교통</div><div class="sc-val star-disp">${stars('loc')}</div></div>
+        <div class="sc-row"><div class="sc-key">위치·교통</div><div class="sc-val star-disp">${stars('loc')}</div></div>
 
-        <div class="sc-row"><div class="sc-key">📐 면적·구조</div><div class="sc-val star-disp">${stars('size')}</div></div>
+        <div class="sc-row"><div class="sc-key">면적·구조</div><div class="sc-val star-disp">${stars('size')}</div></div>
 
-        <div class="sc-row"><div class="sc-key">🏗️ 건물 상태</div><div class="sc-val star-disp">${stars('bld')}</div></div>
+        <div class="sc-row"><div class="sc-key">건물 상태</div><div class="sc-val star-disp">${stars('bld')}</div></div>
 
-        <div class="sc-row"><div class="sc-key">🏫 학군·환경</div><div class="sc-val star-disp">${stars('env')}</div></div>
+        <div class="sc-row"><div class="sc-key">학군·환경</div><div class="sc-val star-disp">${stars('env')}</div></div>
 
       </div>
 
@@ -9921,6 +9921,10 @@ input[type="text"], input[type="tel"], input[type="date"], select {
 /* R169 후속: #g-subway 전용 padding 4px 규칙이 남아 컨테이너가 52px.
    #g-subway 패딩 직접 2px override → 44(칩)+4 = 48px (다른 segmented 와 일치). */
 #g-subway { padding: 2px !important; }
+</style>
+<style>/* R171-AUDIT3-FIX */
+/* 온보딩 안내 배너 제거 (사장님 명령 — 빠짐없이 정리) */
+#r23-intro, .r23-intro-banner, #progress-hint-banner, .progress-hint-banner { display: none !important; }
 </style>
 </body>
 
