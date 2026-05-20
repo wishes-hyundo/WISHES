@@ -1,85 +1,27 @@
-/**
- * Phase 2 (2026-04-28): /search-preview — Owner-only 검증 페이지
- *
- * 목적: 옛날 /search vanilla content.js 와 새 React 컴포넌트 픽셀 비교 검증.
- *      사장님 검증 OK 후 옛날 /search 와 swap.
- *
- * 접근 권한: owner / superadmin / admin / master
- *           pending / broker / partner 차단
- *
- * 사용처: 사장님 (wishes@wishes.co.kr) 또는 승인된 admin 만
- */
-
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+/**
+ * /search-preview — /search 현대식 재구축 검증 페이지 (Owner/Admin 전용)
+ *
+ * 레거시 /search (content.js + 패치 84개) → 통합 React 재구축.
+ * 각 컴포넌트를 단계별로 완성·검증 → 검증 완료 후 /search 와 swap.
+ *
+ * P2 (2026-05-20): 헤더 — iOS 26.5 Liquid Glass. 대표님 확정 디자인.
+ *   유리 헤더가 sticky 로 떠 있어 스크롤 시 뒤 콘텐츠가 비침.
+ */
+
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { SearchHeader } from '@/components/wishes/Header';
-import { ListingCard, type ListingCardProps } from '@/components/wishes/ListingCard';
+import { SearchHeader } from '@/features/search-2026/components/SearchHeader';
 
 const ALLOWED_ROLES = new Set(['owner', 'superadmin', 'admin', 'master']);
-
-type Listing = {
-  id: number;
-  type?: string;
-  deal?: string;
-  address?: string;
-  dong?: string;
-  gu?: string;
-  title?: string;
-  area_m2?: number;
-  floor_current?: number | null;
-  rooms?: number;
-  bathrooms?: number;
-  deposit?: number | null;
-  monthly?: number | null;
-  price?: number | null;
-  status?: string;
-  registered_date?: string;
-  created_at?: string;
-  is_problematic?: boolean;
-  ai_generated_fields?: string[];
-  images?: Array<{ url: string }>;
-};
-
-function formatPrice(deal?: string, deposit?: number | null, monthly?: number | null, price?: number | null): string {
-  const fmt = (n: number) => {
-    if (n >= 10000) return `${(n / 10000).toFixed(n % 10000 === 0 ? 0 : 1)}억`;
-    return `${n.toLocaleString()}만`;
-  };
-  if (deal === '월세' && deposit != null && monthly != null) {
-    return `${fmt(deposit)} / ${monthly.toLocaleString()}만`;
-  }
-  if (price != null) return fmt(price);
-  if (deposit != null) return fmt(deposit);
-  return '협의';
-}
-
-function buildSubtitle(l: Listing): string {
-  const parts: string[] = [];
-  if (l.area_m2) {
-    const pyeong = Math.round((l.area_m2 / 3.305) * 10) / 10;
-    parts.push(`${l.area_m2}㎡ (${pyeong}평)`);
-  }
-  if (l.floor_current != null) parts.push(`${l.floor_current}층`);
-  if (l.rooms != null) parts.push(`방 ${l.rooms}`);
-  if (l.bathrooms != null) parts.push(`욕실 ${l.bathrooms}`);
-  return parts.join(' · ');
-}
 
 export default function SearchPreviewPage() {
   const router = useRouter();
   const [authState, setAuthState] = useState<'loading' | 'denied' | 'ok'>('loading');
-  const [userInfo, setUserInfo] = useState<{ role?: string; email?: string }>({});
-  const [listings, setListings] = useState<Listing[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [role, setRole] = useState('');
   const [query, setQuery] = useState('');
-  const [scope, setScope] = useState<'mine' | 'all'>('all');
-  const [sortValue, setSortValue] = useState('created_desc');
-  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [favIds, setFavIds] = useState<Set<number>>(new Set());
 
-  // ── 권한 체크 ──
   useEffect(() => {
     let token = '';
     try {
@@ -92,175 +34,115 @@ export default function SearchPreviewPage() {
     fetch('/api/auth/me', { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((d) => {
-        if (!d?.success || !ALLOWED_ROLES.has(d.user?.role)) {
-          setAuthState('denied');
-          setUserInfo({ role: d?.user?.role, email: d?.user?.email });
-        } else {
+        if (d?.success && ALLOWED_ROLES.has(d.user?.role)) {
           setAuthState('ok');
-          setUserInfo({ role: d.user.role, email: d.user.email });
+          setRole(d.user.role);
+        } else {
+          setAuthState('denied');
+          setRole(d?.user?.role || 'unknown');
         }
       })
       .catch(() => setAuthState('denied'));
   }, [router]);
 
-  // ── 매물 로드 ──
-  const loadListings = useCallback(async () => {
-    if (authState !== 'ok') return;
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ limit: '30', sort: sortValue });
-      if (query) params.set('q', query);
-      const res = await fetch(`/api/listings?${params.toString()}`);
-      const data = await res.json();
-      if (Array.isArray(data?.listings)) setListings(data.listings);
-      else if (Array.isArray(data?.data)) setListings(data.data);
-      else if (Array.isArray(data)) setListings(data);
-    } catch (e) {
-      console.error('[search-preview] load error:', e);
-    } finally {
-      setLoading(false);
-    }
-  }, [authState, query, sortValue]);
+  if (authState === 'loading') {
+    return <div style={{ padding: 40, textAlign: 'center', color: '#666' }}>권한 확인 중...</div>;
+  }
 
-  useEffect(() => {
-    if (authState === 'ok') loadListings();
-  }, [authState, loadListings]);
-
-  // ── 권한 거부 화면 ──
   if (authState === 'denied') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#f5f5f5] p-5">
-        <div className="bg-white rounded-xl p-10 max-w-md text-center shadow">
-          <h1 className="text-xl font-bold mb-3" style={{ color: '#2D5A27' }}>
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#f5f5f5',
+        }}
+      >
+        <div style={{ background: '#fff', borderRadius: 14, padding: 40, textAlign: 'center' }}>
+          <h1 style={{ color: '#2D5A27', marginBottom: 12, fontSize: 18 }}>
             검증 페이지 접근 권한 없음
           </h1>
-          <p className="text-sm text-[#666] mb-4">
-            /search-preview 는 사장님(Owner) 또는 Admin 만 접근 가능합니다.
-            <br />
-            (현재 권한: <code className="bg-[#f0f0f0] px-1 rounded">{userInfo.role || 'unknown'}</code>)
+          <p style={{ fontSize: 13, color: '#666' }}>
+            /search-preview 는 Owner/Admin 전용입니다. (현재 권한: {role})
           </p>
           <button
             onClick={() => router.replace('/search')}
-            className="px-5 py-2 rounded font-semibold text-white"
-            style={{ background: '#2D5A27' }}
+            style={{
+              marginTop: 14,
+              padding: '8px 20px',
+              background: '#2D5A27',
+              color: '#fff',
+              border: 0,
+              borderRadius: 8,
+              cursor: 'pointer',
+            }}
           >
-            /search 본진으로
+            /search 로 이동
           </button>
         </div>
       </div>
     );
   }
 
-  if (authState === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-[#666]">
-        권한 확인 중...
-      </div>
-    );
-  }
+  // 스크롤 시 유리 헤더 너머로 비치는 효과 확인용 임시 콘텐츠
+  const sample = [
+    { c: 'linear-gradient(135deg,#a6c8ad,#688f70)', deal: '#34C759' },
+    { c: 'linear-gradient(135deg,#bfcce6,#8597c4)', deal: '#2D5A27' },
+    { c: 'linear-gradient(135deg,#ead4c5,#cba98c)', deal: '#34C759' },
+    { c: 'linear-gradient(135deg,#d8c8ea,#a98aca)', deal: '#2D5A27' },
+    { c: 'linear-gradient(135deg,#a6c8ad,#688f70)', deal: '#34C759' },
+    { c: 'linear-gradient(135deg,#bfcce6,#8597c4)', deal: '#2D5A27' },
+  ];
 
-  // ── 정상 화면 ──
   return (
-    <div className="min-h-screen bg-[#F0F4F0]">
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(180deg,#EDEEF0,#E7E9EC)',
+        fontFamily:
+          "-apple-system,BlinkMacSystemFont,'SF Pro Text','Pretendard','Malgun Gothic',sans-serif",
+      }}
+    >
       <SearchHeader
         query={query}
         onQueryChange={setQuery}
-        scope={scope}
-        onScopeChange={setScope}
-        sortValue={sortValue}
-        onSortChange={setSortValue}
-        alertCount={0}
-        onAlertClick={() => alert('알림 로그는 Phase 2-3 에서 구현')}
-        onRefresh={loadListings}
-        onNewListing={() => alert('매물 등록은 Phase 2-5 에서 구현 (옛날 6 Step Wizard 재현)')}
-        onLogout={() => {
-          try {
-            sessionStorage.clear();
-            localStorage.removeItem('ws_token');
-          } catch {}
-          router.replace('/login');
-        }}
-        versionLabel="v2-pixel"
+        onReset={() => setQuery('')}
+        onSearch={(v) => console.log('[search-preview] 검색:', v)}
       />
 
-      <div className="px-4 py-2 border-b border-[#ddd] bg-[#f8f8f8] flex items-center justify-between text-[12px]">
-        <span>
-          전체 <strong style={{ color: '#2D5A27' }}>{listings.length}</strong>건
-          {selectedIds.size > 0 && (
-            <span className="ml-2">
-              (선택 <strong>{selectedIds.size}</strong>건)
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="ml-2 text-[#666] underline"
-              >
-                선택 해제
-              </button>
-            </span>
-          )}
-        </span>
-        <span className="text-[#666]">
-          🔍 <code className="bg-white px-1 rounded">{userInfo.role}</code> · {userInfo.email} · Phase 2 검증
-        </span>
-      </div>
-
-      {loading && (
-        <div className="text-center py-10 text-[#666]">매물 로드 중...</div>
-      )}
-
-      {!loading && listings.length === 0 && (
-        <div className="text-center py-20 text-[#999]">
-          <div className="text-3xl mb-2">🏠</div>
-          매물이 없습니다.
+      <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ fontSize: 12, color: '#9398a0', textAlign: 'center', padding: '6px 0 10px' }}>
+          ── 헤더 재구축 검증 (P2) · 위로 스크롤하면 유리 헤더 효과 확인 ──
         </div>
-      )}
-
-      <div className="divide-y divide-[#eee]">
-        {listings.map((l) => {
-          const addr =
-            [l.gu, l.dong, l.address].filter(Boolean).join(' ') || l.address || `매물 #${l.id}`;
-          return (
-            <ListingCard
-              key={l.id}
-              id={l.id}
-              imageUrl={l.images?.[0]?.url}
-              imageCount={l.images?.length}
-              registeredAt={l.registered_date || l.created_at}
-              address={addr}
-              title={l.title}
-              subtitle={buildSubtitle(l)}
-              tags={[]}
-              deal={l.deal || '-'}
-              priceLabel={formatPrice(l.deal, l.deposit, l.monthly, l.price)}
-              status={l.status}
-              favorite={favIds.has(l.id)}
-              selected={selectedIds.has(l.id)}
-              aiGenerated={(l.ai_generated_fields?.length ?? 0) > 0}
-              problematic={!!l.is_problematic}
-              onClick={() => alert(`매물 #${l.id} 상세 — Phase 2-3 에서 구현 (DetailModal)`)}
-              onSelectChange={(sel) => {
-                setSelectedIds((prev) => {
-                  const next = new Set(prev);
-                  sel ? next.add(l.id) : next.delete(l.id);
-                  return next;
-                });
-              }}
-              onFavoriteToggle={() => {
-                setFavIds((prev) => {
-                  const next = new Set(prev);
-                  next.has(l.id) ? next.delete(l.id) : next.add(l.id);
-                  return next;
-                });
-              }}
-              onEdit={() => alert(`편집은 Phase 2-4 에서 구현 (EditSheet)`)}
-              onDetail={() => alert(`상세는 Phase 2-3 에서 구현`)}
+        {sample.concat(sample).map((s, i) => (
+          <div
+            key={i}
+            style={{
+              display: 'flex',
+              gap: 11,
+              alignItems: 'center',
+              background: '#fff',
+              borderRadius: 15,
+              padding: 11,
+              boxShadow: '0 1px 3px rgba(0,0,0,.05)',
+            }}
+          >
+            <div
+              style={{ width: 58, height: 58, borderRadius: 11, background: s.c, flex: 'none' }}
             />
-          );
-        })}
+            <div style={{ flex: 1 }}>
+              <div style={{ height: 9, width: '55%', background: '#1d1d1f', opacity: 0.82, borderRadius: 3 }} />
+              <div style={{ height: 7, width: '84%', background: '#e4e5e8', borderRadius: 3, marginTop: 8 }} />
+              <div style={{ height: 7, width: '46%', background: '#eef0f1', borderRadius: 3, marginTop: 6 }} />
+            </div>
+            <div style={{ padding: '6px 10px', background: '#EAF7EC', borderRadius: 8 }}>
+              <div style={{ height: 9, width: 36, background: s.deal, borderRadius: 3 }} />
+            </div>
+          </div>
+        ))}
       </div>
-
-      <footer className="text-center py-6 text-[11px] text-[#999]">
-        Phase 2 검증 페이지 · 옛날 /search 와 비교용 · 검증 OK 후 swap 예정
-      </footer>
     </div>
   );
 }

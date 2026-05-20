@@ -44,7 +44,7 @@ export function ConditionalLayout({ children }: { children: React.ReactNode }) {
   // the container to ~38,000px.)
   const isFullScreenMap = isMapPath;
   // 중개사 포털 관련 페이지는 헤더/푸터 없이 전체화면 렌더링
-  const isBrokerPortal = pathname === '/search' || pathname === '/login' || pathname === '/signup';
+  const isBrokerPortal = pathname === '/search' || pathname === '/search-preview' || pathname === '/login' || pathname === '/signup';
 
   if (isAdmin) {
     return <>{children}</>;
