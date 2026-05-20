@@ -3518,6 +3518,90 @@ button.btn-back, button#prevBtn {
   setTimeout(setupPrioIcons, 900);
 })();
 </script>
+
+<style>/* R141-STAR-CLEAN */
+/* 별점 — ✓ 제거 + 흰 box 제거 + 확대 제거 + 별만 깔끔 */
+.rating-seg,
+.rating-seg.chips-seg,
+.chips-seg.rating-seg {
+  background: transparent !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  display: inline-flex !important;
+  gap: 0 !important;
+  grid-template-columns: none !important;
+}
+.rating-seg .chip,
+.rating-seg .rating-chip,
+.rating-seg .chip.rating-chip,
+.rating-seg.chips-seg .chip,
+.rating-seg.chips-seg .chip.on,
+.rating-seg .chip.on,
+.rating-seg .rating-chip.on {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  transform: none !important;
+  padding: 3px 1px !important;
+  font-size: 28px !important;
+  line-height: 1 !important;
+  min-height: 0 !important;
+  transition: color 0.2s cubic-bezier(0.32, 0.72, 0, 1) !important;
+}
+/* ✓ 체크표시 완전 제거 */
+.rating-seg .chip::before,
+.rating-seg .rating-chip::before,
+.rating-seg .chip.on::before,
+.rating-seg .rating-chip.on::before,
+.rating-seg .chip::after,
+.rating-seg .rating-chip::after {
+  content: none !important;
+  display: none !important;
+}
+/* 빈 별 / 채운 별 */
+.rating-seg .rating-chip,
+.rating-seg .chip.rating-chip {
+  color: #E5E5EA !important;
+}
+.rating-seg .rating-chip.on,
+.rating-seg .chip.rating-chip.on {
+  color: #FFB800 !important;
+}
+/* 확대 효과 제거 — 부드러운 색 전환만 */
+.rating-seg .rating-chip:active,
+.rating-seg .chip.rating-chip:active {
+  transform: none !important;
+}
+</style>
+
+<script>/* R141-STAR-CLEAN */
+(function(){
+  if(window.__r141Applied) return;
+  window.__r141Applied = true;
+
+  // 별점 chip 텍스트가 "★" 아닌 다른 것 (✓ 등) 이면 정리
+  function cleanStars(){
+    try{
+      document.querySelectorAll('.rating-seg .rating-chip, .rating-seg .chip.rating-chip').forEach(function(chip){
+        var v = chip.getAttribute('data-v');
+        // textContent 에서 ✓ 제거 + ★ 만
+        if(chip.textContent.indexOf('★') < 0 || chip.textContent.trim() !== '★'){
+          chip.textContent = '★';
+        }
+      });
+    }catch(_){}
+  }
+  setTimeout(cleanStars, 400);
+  setTimeout(cleanStars, 1000);
+  // 별 클릭 후에도 정리
+  document.addEventListener('click', function(e){
+    if(e.target && e.target.closest && e.target.closest('.rating-seg')){
+      setTimeout(cleanStars, 50);
+    }
+  }, true);
+})();
+</script>
 </head>
 
 <body>
