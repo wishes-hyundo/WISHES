@@ -3902,6 +3902,71 @@ button.btn-back, button#prevBtn {
   }, 500);
 })();
 </script>
+
+<style>/* R146-COMPANY-BOX */
+/* 회사 정보 박스 (ws-legal-footer) — 빈 공간 제거 + 카드 통일 */
+#ws-legal-footer {
+  margin: 8px 16px 96px !important;
+  padding: 14px 16px !important;
+  background: rgba(255, 255, 255, 0.7) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.7) inset,
+    0 2px 8px rgba(0, 0, 0, 0.03) !important;
+  max-width: none !important;
+}
+/* 추천 버튼 — 회사 정보 박스 위에 (summary 다음) */
+#page-result .r119-referral {
+  margin: 4px 16px 8px !important;
+}
+/* 결과 페이지 하단 여백 (bottom-nav 안 가리게) */
+#page-result {
+  padding-bottom: 8px !important;
+}
+</style>
+
+<script>/* R146-COMPANY-BOX */
+(function(){
+  if(window.__r146Applied) return;
+  window.__r146Applied = true;
+
+  function fixCompanyBox(){
+    try{
+      var page = document.getElementById('page-result');
+      if(!page) return;
+
+      var legal = document.getElementById('ws-legal-footer');
+      var referral = page.querySelector('.r119-referral');
+
+      // 순서: resultCards → 추천 버튼 → 회사 정보 박스
+      if(legal && referral){
+        // referral 이 legal 뒤에 있으면 → legal 앞으로
+        if(referral.compareDocumentPosition(legal) & Node.DOCUMENT_POSITION_PRECEDING){
+          legal.parentNode.insertBefore(referral, legal);
+        }
+      }
+
+      // height:120px / 16px 빈 div 제거 (R145 에서 16px 했지만 한번 더)
+      Array.from(page.children).forEach(function(el){
+        if(el.tagName === 'DIV' && el.getAttribute('style') &&
+           /height:\s*(120px|16px)/.test(el.getAttribute('style')) &&
+           !el.id && !el.className){
+          el.remove();
+        }
+      });
+    }catch(_){}
+  }
+
+  setTimeout(fixCompanyBox, 500);
+  setTimeout(fixCompanyBox, 1300);
+  var obs = new MutationObserver(function(){
+    if(document.querySelector('#page-result.active')) fixCompanyBox();
+  });
+  setTimeout(function(){
+    if(document.body) obs.observe(document.body, {attributes:true, attributeFilter:['class'], subtree:true});
+  }, 600);
+})();
+</script>
 </head>
 
 <body>
