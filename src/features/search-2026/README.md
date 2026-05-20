@@ -14,8 +14,8 @@
 운영 `/search` 무중단. 새 구현을 `/search-preview` 에 완성 → 픽셀 검증 → swap.
 
 ## 진행 (P1~P7)
-- [x] P1 데이터 계층 — types.ts (SearchListing / SearchFilters / SearchPage)
-- [ ] P1 잔여 — React Query 훅 (useSearchListings 등), API 클라이언트
+- [x] P1 데이터 계층 — types.ts · api.ts · hooks.ts (useSearchListings / useListingDetail)
+      기준 문서: ★search_완전기능명세서.md (레거시 전 기능 parity 체크리스트)
 - [ ] P2 필터 패널 (styles.css .ws-filter-* 기준)
 - [ ] P3 매물 리스트 (가상화, .ws-listing-card 기준)
 - [ ] P4 상세 모달
