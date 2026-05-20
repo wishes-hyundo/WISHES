@@ -1,6 +1,8 @@
-/* SearchHeader — iOS 26.5 Liquid Glass 헤더 스타일
- * /search 재구축 P2. 대표님 확정 디자인(2026-05-20).
- * 정지 목업 → 실제 CSS 변환 + 반응상태(hover/focus/active) + 모바일. */
+/* SearchHeader — iOS 26.5 Liquid Glass 컴팩트 툴바 (C안)
+ * /search 재구축 P2. 대표님 확정 디자인 (2026-05-20).
+ *  - 반투명 유리 툴바 (콘텐츠 위 sticky)
+ *  - WISHES 워드마크 + 유리 검색 캡슐 + 둥근 유리 아이콘 버튼(초기화/검색)
+ */
 
 .header {
   position: sticky;
@@ -9,59 +11,59 @@
   box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 15px 17px;
-  background: rgba(255, 255, 255, 0.55);
-  -webkit-backdrop-filter: blur(34px) saturate(185%);
-  backdrop-filter: blur(34px) saturate(185%);
-  border-bottom: 0.5px solid rgba(0, 0, 0, 0.075);
+  gap: 11px;
+  padding: 13px 16px;
+  background: rgba(255, 255, 255, 0.58);
+  -webkit-backdrop-filter: blur(36px) saturate(190%);
+  backdrop-filter: blur(36px) saturate(190%);
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.07);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.95),
-    inset 0 0 0 0.5px rgba(255, 255, 255, 0.32),
-    0 10px 30px -12px rgba(0, 0, 0, 0.18);
+    inset 0 0 0 0.5px rgba(255, 255, 255, 0.3),
+    0 8px 26px -12px rgba(0, 0, 0, 0.16);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Pretendard', 'Malgun Gothic', sans-serif;
 }
-/* 유리 윗면 sheen — 위에서 들어오는 빛 */
+/* 유리 윗면 sheen */
 .header::before {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 58%);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0) 55%);
 }
 
-.title {
+/* WISHES 워드마크 */
+.brand {
   position: relative;
-  margin: 0;
+  flex: none;
   white-space: nowrap;
-  font-size: 16.5px;
-  line-height: 1;
+  font-size: 15px;
+  font-weight: 600;
+  color: #18181b;
+  letter-spacing: 0.07em;
 }
-.titleBrand { font-weight: 700; color: #1d1d1f; letter-spacing: -0.012em; }
-.titleSub { font-weight: 510; color: #9398a0; letter-spacing: -0.022em; }
 
-/* 검색 필드 — 유리 캡슐 (헤더 유리보다 또렷) */
+/* 유리 검색 캡슐 */
 .searchWrap {
   position: relative;
   flex: 1 1 auto;
-  min-width: 54px;
+  min-width: 50px;
   max-width: 520px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   box-sizing: border-box;
-  padding: 10px 13px;
+  padding: 10px 14px;
   border-radius: 13px;
-  background: rgba(255, 255, 255, 0.8);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.97), rgba(255, 255, 255, 0.62));
   box-shadow:
     inset 0 1px 1.5px rgba(255, 255, 255, 1),
-    inset 0 0 0 0.5px rgba(0, 0, 0, 0.055),
-    0 1px 2px rgba(0, 0, 0, 0.035);
-  transition: box-shadow 0.18s ease, background 0.18s ease;
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.045);
+  transition: box-shadow 0.18s ease;
 }
 .searchWrap:focus-within {
-  background: rgba(255, 255, 255, 0.96);
   box-shadow:
     inset 0 1px 1.5px rgba(255, 255, 255, 1),
     inset 0 0 0 1.5px rgba(45, 90, 39, 0.5),
@@ -80,56 +82,44 @@
   letter-spacing: -0.012em;
   color: #1d1d1f;
 }
-.searchInput::placeholder { color: #9398a0; }
+.searchInput::placeholder { color: #83878f; }
 
-/* 버튼 공통 */
-.btn {
+/* 둥근 유리 아이콘 버튼 */
+.iconBtn {
   position: relative;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  padding: 0;
   border: none;
+  border-radius: 50%;
   cursor: pointer;
-  white-space: nowrap;
-  letter-spacing: -0.012em;
-  font-family: inherit;
-  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.56));
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 1),
+    inset 0 0 0 0.5px rgba(0, 0, 0, 0.06),
+    0 1px 2px rgba(0, 0, 0, 0.05);
   transition: transform 0.12s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
-.btn:active { transform: scale(0.96); }
+.iconBtn:hover { background: linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.72)); }
+.iconBtn:active { transform: scale(0.92); }
 
-/* 초기화 — 유리 캡슐 */
-.btnReset {
-  padding: 10px 14px;
-  font-size: 13px;
-  font-weight: 510;
-  color: #43464d;
-  background: rgba(255, 255, 255, 0.64);
+/* 검색 — 그린 유리 원형 */
+.iconBtnSearch {
+  background: linear-gradient(180deg, #3a7a44, #28501f);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 1),
-    inset 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+    inset 0 1.5px 0.5px rgba(255, 255, 255, 0.42),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.18),
+    0 2px 7px -1px rgba(35, 75, 40, 0.55),
+    0 1px 2px rgba(0, 0, 0, 0.1);
 }
-.btnReset:hover { background: rgba(255, 255, 255, 0.88); }
-
-/* 검색 — 그린 강조 */
-.btnSearch {
-  padding: 10px 19px;
-  font-size: 13px;
-  font-weight: 620;
-  color: #fff;
-  background: linear-gradient(165deg, #3c8a4e 0%, #2d5a27 100%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
-    0 3px 11px -3px rgba(40, 90, 48, 0.6),
-    0 1px 2px rgba(0, 0, 0, 0.12);
-}
-.btnSearch:hover {
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.32),
-    0 4px 14px -3px rgba(40, 90, 48, 0.72),
-    0 1px 2px rgba(0, 0, 0, 0.12);
+.iconBtnSearch:hover {
+  background: linear-gradient(180deg, #418a4d, #2d5a27);
 }
 
-/* 모바일 — 좁은 화면: 검색창이 아래 줄 전체 차지 */
-@media (max-width: 560px) {
-  .header { flex-wrap: wrap; padding: 12px 14px; gap: 9px; }
-  .title { font-size: 15.5px; }
-  .searchWrap { order: 3; flex-basis: 100%; }
+@media (max-width: 480px) {
+  .header { padding: 11px 13px; gap: 9px; }
 }
