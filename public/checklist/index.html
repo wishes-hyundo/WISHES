@@ -9206,6 +9206,30 @@ body { padding-bottom: 60px; }
   setTimeout(dedupLabels, 1100);
 })();
 </script>
+
+<style>/* R150-FORCE-SHOW */
+/* 양식 카드 무조건 표시 — animation 'both' fill-mode + @starting-style 가
+   카드를 opacity:0 에 고정시키는 부작용 차단 */
+.page.active,
+.page.active > .card,
+.page.active .card,
+#page-result.active .summary-card,
+#page-result.active .result-hero {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+.page.active > .card {
+  animation-delay: 0s !important;
+}
+@starting-style {
+  .page.active,
+  .page.active > .card {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+</style>
 </body>
 
 </html>
