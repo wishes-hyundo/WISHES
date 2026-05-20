@@ -198,3 +198,13 @@
   .rowLabel { width: auto; padding-top: 0; }
   .numInput { width: 0; flex: 1; }
 }
+
+/* 모드 안내 줄 */
+.noteRow {
+  margin-top: 6px;
+  padding: 7px 10px;
+  background: #f6f7f8;
+  border-radius: 7px;
+  font-size: 11px;
+  color: #8b9097;
+}
