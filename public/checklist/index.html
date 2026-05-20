@@ -9230,6 +9230,27 @@ body { padding-bottom: 60px; }
   }
 }
 </style>
+
+<script>/* R151-TIME-30MIN */
+(function(){
+  if(window.__r151Applied) return;
+  window.__r151Applied = true;
+  function set30min(){
+    try{
+      document.querySelectorAll('input[type="time"]').forEach(function(t){
+        t.step = 1800;  // 30분 단위 (1800초)
+        t.setAttribute('step', '1800');
+      });
+    }catch(_){}
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', set30min);
+  } else {
+    set30min();
+  }
+  setTimeout(set30min, 600);
+})();
+</script>
 </body>
 
 </html>
