@@ -3,35 +3,29 @@
 /**
  * /search-preview — /search 현대식 재구축 검증 페이지
  *
- * 레거시 /search (content.js + 패치 84개) → 통합 React 재구축.
- * 각 컴포넌트를 단계별로 완성·검증 → 검증 완료 후 /search 와 swap.
+ * 레거시 /search (content.js + 패치 91개) → 통합 React 재구축.
+ * 기준 문서: ★search_완전기능명세서.md (레거시 전 기능 parity 체크리스트).
  *
- * P2 (2026-05-21): 헤더 — iOS 26.5 Liquid Glass.
- *   ViewTabs(뷰 세그먼트)를 헤더로 통합. 검색+버튼 배치 = B안.
- *   데스크탑 1줄 / 모바일 3줄 적층 반응형. 대표님 확정 디자인.
- *
- * 인증: 이 페이지는 디자인 목업(placeholder)만 표시 — 실제 매물 데이터 없음.
- *   권한 게이트 제거 (기존 게이트가 owner 도 막던 버그). 실제 인증은
- *   재구축 완료 후 /search swap 시점에 /search 자체 인증 로직 적용.
+ * P2 진행: 헤더(배포 완료) + FilterBar(필터 바 — 핵심·상세 필터·적용 칩).
+ *   목록/지도/모달/도구는 후속 단계. 인증은 swap 시점에 /search 자체 로직 적용.
  */
 
-import { useState } from 'react';
 import { SearchHeader } from '@/features/search-2026/components/SearchHeader';
+import { FilterBar } from '@/features/search-2026/components/FilterBar';
+import { useSearchStore } from '@/features/search-2026/store';
 import { type SearchView } from '@/features/search-2026/components/ViewTabs';
+import { useState } from 'react';
 
 export default function SearchPreviewPage() {
-  const [query, setQuery] = useState('');
   const [view, setView] = useState<SearchView>('search');
-
-  // 스크롤 시 유리 헤더 너머로 비치는 효과 확인용 임시 콘텐츠
-  const sample = [
-    { c: 'linear-gradient(135deg,#a6c8ad,#688f70)', deal: '#34C759' },
-    { c: 'linear-gradient(135deg,#bfcce6,#8597c4)', deal: '#2D5A27' },
-    { c: 'linear-gradient(135deg,#ead4c5,#cba98c)', deal: '#34C759' },
-    { c: 'linear-gradient(135deg,#d8c8ea,#a98aca)', deal: '#2D5A27' },
-    { c: 'linear-gradient(135deg,#a6c8ad,#688f70)', deal: '#34C759' },
-    { c: 'linear-gradient(135deg,#bfcce6,#8597c4)', deal: '#2D5A27' },
-  ];
+  const { filters } = useSearchStore();
+  const activeCount =
+    (filters.deals?.length ?? 0) +
+    (filters.types?.length ?? 0) +
+    (filters.roomCounts?.length ?? 0) +
+    (filters.options?.length ?? 0) +
+    [filters.roomShape, filters.floorType, filters.livingSize, filters.builtYearMin, filters.parkingMin]
+      .filter((v) => v != null).length;
 
   return (
     <div
@@ -43,39 +37,32 @@ export default function SearchPreviewPage() {
       }}
     >
       <SearchHeader
-        query={query}
-        onQueryChange={setQuery}
-        onReset={() => setQuery('')}
+        query={filters.q ?? ''}
+        onQueryChange={() => {}}
+        onReset={() => {}}
         onSearch={(v) => console.log('[search-preview] 검색:', v)}
         view={view}
         onViewChange={setView}
       />
+      <FilterBar />
 
       <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ fontSize: 12, color: '#9398a0', textAlign: 'center', padding: '6px 0 10px' }}>
-          ── 헤더 재구축 검증 (P2) · 현재 보기: {view} · 위로 스크롤하면 유리 헤더 효과 확인 ──
+          ── P2 검증 · 필터 바 (적용된 필터 {activeCount}개) · 목록/지도는 후속 단계 ──
         </div>
-        {Array.from({ length: 6 }, () => sample).flat().map((s, i) => (
+        {Array.from({ length: 10 }, (_, i) => (
           <div
             key={i}
             style={{
-              display: 'flex',
-              gap: 11,
-              alignItems: 'center',
-              background: '#fff',
-              borderRadius: 15,
-              padding: 11,
-              boxShadow: '0 1px 3px rgba(0,0,0,.05)',
+              display: 'flex', gap: 11, alignItems: 'center', background: '#fff',
+              borderRadius: 15, padding: 11, boxShadow: '0 1px 3px rgba(0,0,0,.05)',
             }}
           >
-            <div style={{ width: 58, height: 58, borderRadius: 11, background: s.c, flex: 'none' }} />
+            <div style={{ width: 58, height: 58, borderRadius: 11, background: '#e8ece9', flex: 'none' }} />
             <div style={{ flex: 1 }}>
               <div style={{ height: 9, width: '55%', background: '#1d1d1f', opacity: 0.82, borderRadius: 3 }} />
               <div style={{ height: 7, width: '84%', background: '#e4e5e8', borderRadius: 3, marginTop: 8 }} />
               <div style={{ height: 7, width: '46%', background: '#eef0f1', borderRadius: 3, marginTop: 6 }} />
-            </div>
-            <div style={{ padding: '6px 10px', background: '#EAF7EC', borderRadius: 8 }}>
-              <div style={{ height: 9, width: 36, background: s.deal, borderRadius: 3 }} />
             </div>
           </div>
         ))}
