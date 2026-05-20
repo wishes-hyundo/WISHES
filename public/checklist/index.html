@@ -9917,6 +9917,11 @@ input[type="text"], input[type="tel"], input[type="date"], select {
   min-height: 44px !important;
 }
 </style>
+<style>/* R170-SUBWAY-PAD */
+/* R169 후속: #g-subway 전용 padding 4px 규칙이 남아 컨테이너가 52px.
+   #g-subway 패딩 직접 2px override → 44(칩)+4 = 48px (다른 segmented 와 일치). */
+#g-subway { padding: 2px !important; }
+</style>
 </body>
 
 </html>
