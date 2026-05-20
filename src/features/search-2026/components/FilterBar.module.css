@@ -1,6 +1,6 @@
 /* FilterBar — /search 재구축 필터 바 (P2)
- * 명세서 §2. 콘텐츠 영역이므로 유리/그림자 없이 깔끔한 솔리드 면 + 정렬 우선.
- * 선택 = 브랜드 그린(#2d6a34). 헤더와 톤 통일.
+ * 통합 최종안: 압축 1줄 바 + 6칸 컬럼 그리드 상세 필터.
+ * 콘텐츠 영역 — 유리 없이 솔리드·정렬 우선. 선택 = 브랜드 그린(#2d6a34).
  */
 
 .bar {
@@ -10,36 +10,11 @@
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Pretendard', 'Malgun Gothic', sans-serif;
 }
 
+/* ── 압축 1줄 바 ── */
 .core { padding: 10px 14px; }
-.detail {
-  padding: 4px 14px 11px;
-  border-top: 1px solid #f0f0f0;
-}
+.compactRow { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.barDivider { width: 1px; height: 18px; background: rgba(0, 0, 0, 0.12); margin: 0 4px; flex: none; }
 
-/* 라벨 + 칩 한 줄 */
-.row {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  padding: 4px 0;
-}
-.rowLabel {
-  flex: none;
-  width: 58px;
-  padding-top: 5px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #8b9097;
-}
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  flex: 1;
-  min-width: 0;
-}
-
-/* 칩 */
 .chip {
   padding: 5px 11px;
   border: 1px solid rgba(0, 0, 0, 0.12);
@@ -53,44 +28,20 @@
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 .chip:hover { background: #f4f5f6; }
-.chipOn,
-.chipOn:hover {
-  background: #2d6a34;
-  border-color: #2d6a34;
-  color: #fff;
-  font-weight: 600;
+.chipOn, .chipOn:hover {
+  background: #2d6a34; border-color: #2d6a34; color: #fff; font-weight: 600;
 }
 
-/* 압축 필터 바 (2안) — 칩이 한 줄로 흐름 */
-.compactRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px;
-}
-.barDivider {
-  width: 1px;
-  height: 18px;
-  background: rgba(0, 0, 0, 0.12);
-  margin: 0 4px;
-  flex: none;
-}
-/* 상세 필터 버튼 — 압축형, 우측 정렬 */
 .detailBtn {
   margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  display: inline-flex; align-items: center; gap: 6px;
   padding: 5px 11px;
   border: 1px solid rgba(45, 106, 52, 0.4);
   border-radius: 7px;
   background: #f4f7f4;
   color: #2d6a34;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
+  font-family: inherit; font-size: 12px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
 }
 .detailBtn:hover { background: #ecf2ec; }
 .detailBtnOn { background: #2d6a34; border-color: #2d6a34; color: #fff; }
@@ -98,132 +49,113 @@
 .caret { transition: transform 0.15s ease; font-size: 10px; }
 .caretUp { transform: rotate(180deg); }
 
-/* 좁은 화면 — 상세 버튼이 다음 줄로 안 밀리게 */
-@media (max-width: 560px) {
-  .detailBtn { margin-left: 0; }
-}
+/* ── 상세 필터 패널 ── */
+.detail { padding: 4px 14px 12px; border-top: 1px solid #f0f0f0; }
 
-/* 추가필터 체크박스 */
-.checks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-  flex: 1;
-  padding-top: 3px;
+/* 6칸 컬럼 그리드 */
+.grid {
+  display: grid;
+  border: 1px solid #e2e4e6;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 11px;
 }
-.check {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 0;
+.gcol { border-right: 1px solid #eef0f1; min-width: 0; }
+.gcol:last-child { border-right: none; }
+.gcolHead {
+  padding: 6px 4px;
+  background: #f5f7f5;
+  border-bottom: 1px solid #e2e4e6;
+  font-size: 11.5px; font-weight: 700; color: #33343a;
+  text-align: center; white-space: nowrap;
+}
+.gcolBody { display: flex; flex-direction: column; max-height: 188px; overflow-y: auto; }
+.gopt {
+  display: flex; justify-content: space-between; align-items: center;
+  width: 100%;
+  padding: 5px 9px;
   border: none;
-  background: none;
-  color: #525a64;
-  font-family: inherit;
-  font-size: 11.5px;
-  cursor: pointer;
+  border-bottom: 1px solid #f3f4f5;
+  background: #fff;
+  color: #555b63;
+  font-family: inherit; font-size: 11.5px;
+  text-align: left; white-space: nowrap; cursor: pointer;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.gopt:last-child { border-bottom: none; }
+.gopt:hover { background: #eef5ef; color: #2d6a34; }
+.goptOn, .goptOn:hover { background: #2d6a34; color: #fff; font-weight: 600; }
+
+/* 추가 필터 */
+.extra { margin-bottom: 11px; }
+.extraLabel { font-size: 11px; font-weight: 600; color: #8b9097; margin-bottom: 6px; }
+.checks { display: flex; flex-wrap: wrap; gap: 7px 13px; }
+.check {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 0; border: none; background: none;
+  color: #525a64; font-family: inherit; font-size: 11.5px; cursor: pointer;
 }
 .box {
-  width: 15px;
-  height: 15px;
-  flex: none;
-  border: 1.5px solid #c4c8cc;
-  border-radius: 4px;
+  width: 15px; height: 15px; flex: none;
+  border: 1.5px solid #c4c8cc; border-radius: 4px;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 .checkOn { color: #2d6a34; font-weight: 600; }
-.checkOn .box {
-  background: #2d6a34;
-  border-color: #2d6a34;
-}
+.checkOn .box { background: #2d6a34; border-color: #2d6a34; }
 
-/* 가격·면적 범위 입력 */
-.rangeWrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex: 1;
-}
+/* 가격·면적·특이사항 */
+.ranges { display: flex; flex-direction: column; gap: 6px; }
+.rangeRow { display: flex; align-items: center; gap: 7px; }
+.rangeLabel { flex: none; width: 56px; font-size: 11.5px; font-weight: 600; color: #8b9097; }
 .numInput {
-  width: 96px;
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid rgba(0, 0, 0, 0.13);
-  border-radius: 8px;
-  background: #fff;
-  font-family: inherit;
-  font-size: 12px;
-  color: #1d1d1f;
-  text-align: right;
+  width: 100px; height: 32px; padding: 0 10px;
+  border: 1px solid rgba(0, 0, 0, 0.13); border-radius: 8px;
+  background: #fff; font-family: inherit; font-size: 12px; color: #1d1d1f; text-align: right;
 }
-.numInput:focus {
-  outline: none;
-  border-color: #2d6a34;
-  box-shadow: 0 0 0 2px rgba(45, 106, 52, 0.14);
-}
+.numInput:focus { outline: none; border-color: #2d6a34; box-shadow: 0 0 0 2px rgba(45, 106, 52, 0.14); }
 .tilde { color: #bcc0c6; font-size: 12px; }
 .unit { font-size: 11px; color: #9aa0a6; }
+.kwInput {
+  flex: 1; min-width: 0; height: 32px; padding: 0 11px;
+  border: 1px solid rgba(0, 0, 0, 0.13); border-radius: 8px;
+  background: #fff; font-family: inherit; font-size: 12px; color: #1d1d1f;
+}
+.kwInput:focus { outline: none; border-color: #2d6a34; box-shadow: 0 0 0 2px rgba(45, 106, 52, 0.14); }
 
-/* 적용 필터 칩 줄 */
+/* ── 적용 필터 칩 줄 ── */
 .applied {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 5px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
   padding: 8px 14px;
   background: #f3f8f3;
   border-top: 1px solid #e6efe6;
 }
 .appliedLabel { font-size: 11px; font-weight: 600; color: #7b8a7b; }
 .appliedChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
+  display: inline-flex; align-items: center; gap: 5px;
   padding: 3px 7px 3px 10px;
   border: 1px solid rgba(45, 106, 52, 0.25);
   border-radius: 11px;
-  background: #fff;
-  color: #27501e;
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
+  background: #fff; color: #27501e;
+  font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
 }
 .appliedChip:hover { background: #eef6ef; }
 .appliedX {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
-  border-radius: 50%;
-  background: rgba(45, 106, 52, 0.13);
-  font-size: 9px;
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px; border-radius: 50%;
+  background: rgba(45, 106, 52, 0.13); font-size: 9px;
 }
 .resetBtn {
-  margin-left: auto;
-  border: none;
-  background: none;
-  color: #9aa0a6;
-  font-family: inherit;
-  font-size: 11px;
-  text-decoration: underline;
-  cursor: pointer;
+  margin-left: auto; border: none; background: none;
+  color: #9aa0a6; font-family: inherit; font-size: 11px;
+  text-decoration: underline; cursor: pointer;
 }
 
-/* 모바일 — 라벨을 칩 위로 */
-@media (max-width: 560px) {
-  .row { flex-direction: column; align-items: stretch; gap: 4px; }
-  .rowLabel { width: auto; padding-top: 0; }
-  .numInput { width: 0; flex: 1; }
-}
-
-/* 모드 안내 줄 */
-.noteRow {
-  margin-top: 6px;
-  padding: 7px 10px;
-  background: #f6f7f8;
-  border-radius: 7px;
-  font-size: 11px;
-  color: #8b9097;
+/* ── 모바일 ── */
+@media (max-width: 640px) {
+  .detailBtn { margin-left: 0; }
+  /* 6칸 → 3칸 2줄 */
+  .grid { grid-template-columns: repeat(3, 1fr) !important; }
+  .gcol:nth-child(3n) { border-right: none; }
+  .rangeRow { flex-wrap: wrap; }
+  .numInput { width: 0; flex: 1; min-width: 70px; }
 }
