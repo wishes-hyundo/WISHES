@@ -9570,6 +9570,42 @@ footer.ws-footer-r78,
   setTimeout(setupAllDates, 1500);
 })();
 </script>
+
+<style>/* R158-OVERLAP-FIX */
+/* ━━━ footer / 추천버튼 가림 해소 — fixed nav 공간 확보 ━━━ */
+/* body 아래 여백 — fixed bottom-nav(약 60px) + helpline(약 56px) 합보다 충분히 */
+body {
+  padding-bottom: 140px !important;
+}
+/* 공통 footer margin 정리 (collapse 방지 — padding 으로) */
+footer.ws-footer-r78, .ws-footer-r78 {
+  margin-bottom: 0 !important;
+  padding-bottom: 12px !important;
+}
+/* 결과 페이지 — 추천 버튼/회사정보가 nav 에 안 가리게 */
+#page-result {
+  padding-bottom: 16px !important;
+}
+
+/* ━━━ bottom-nav / resultNav — 완전 불투명 (뒤 비침 제거) ━━━ */
+#bottomNav {
+  background: #F8F8FD !important;
+  z-index: 180 !important;
+}
+#resultNav:not([style*="none"]) {
+  background: #F8F8FD !important;
+  z-index: 180 !important;
+}
+/* helpline — nav 아래 layer */
+#r121-helpline {
+  z-index: 170 !important;
+}
+@media (prefers-color-scheme: dark) {
+  #bottomNav, #resultNav:not([style*="none"]) {
+    background: #1C1C1E !important;
+  }
+}
+</style>
 </body>
 
 </html>
