@@ -43,8 +43,10 @@
 /* 검색 필드 — 유리 캡슐 (헤더 유리보다 또렷) */
 .searchWrap {
   position: relative;
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 54px;
+  max-width: 520px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 7px;

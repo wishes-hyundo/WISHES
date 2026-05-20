@@ -49,7 +49,7 @@ export default function SearchPreviewPage() {
         <div style={{ fontSize: 12, color: '#9398a0', textAlign: 'center', padding: '6px 0 10px' }}>
           ── 헤더 재구축 검증 (P2) · 위로 스크롤하면 유리 헤더 효과 확인 ──
         </div>
-        {sample.concat(sample).map((s, i) => (
+        {Array.from({ length: 6 }, () => sample).flat().map((s, i) => (
           <div
             key={i}
             style={{
