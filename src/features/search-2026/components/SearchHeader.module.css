@@ -1,7 +1,12 @@
-/* SearchHeader — iOS 26.5 Liquid Glass 컴팩트 툴바 (C안)
- * /search 재구축 P2. 대표님 확정 디자인 (2026-05-20).
+/* SearchHeader — iOS 26.5 Liquid Glass 컴팩트 툴바
+ * /search 재구축 P2. 대표님 확정 디자인.
  *  - 반투명 유리 툴바 (콘텐츠 위 sticky)
- *  - WISHES 워드마크 + 유리 검색 캡슐 + 둥근 유리 아이콘 버튼(초기화/검색)
+ *  - WISHES 워드마크 + 뷰 세그먼트 + 유리 검색 캡슐 + 둥근 유리 버튼(초기화/검색)
+ *
+ * 배치 = B안 (대표님 확정 2026-05-21): 검색 캡슐 옆에 초기화·검색 버튼 동행.
+ *  - 데스크탑(>=768px): 1줄  →  [WISHES] [세그먼트] [검색캡슐 ↺ ⌕]
+ *  - 모바일(<768px): 3줄 적층 →  [WISHES] / [검색캡슐 ↺ ⌕] / [세그먼트]
+ *  모바일 우선(mobile-first) 작성. 320px 구형폰까지 안 깨짐.
  */
 
 .header {
@@ -10,9 +15,14 @@
   z-index: 100;
   box-sizing: border-box;
   display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 13px 16px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 9px;
+  padding: 11px 13px;
+  /* 2026 최신폰 노치/펀치홀·곡면 안전영역 */
+  padding-top: max(11px, env(safe-area-inset-top));
+  padding-left: max(13px, env(safe-area-inset-left));
+  padding-right: max(13px, env(safe-area-inset-right));
   background: rgba(255, 255, 255, 0.58);
   -webkit-backdrop-filter: blur(36px) saturate(190%);
   backdrop-filter: blur(36px) saturate(190%);
@@ -35,7 +45,9 @@
 /* WISHES 워드마크 */
 .brand {
   position: relative;
+  order: 1;
   flex: none;
+  align-self: flex-start;
   white-space: nowrap;
   font-size: 15px;
   font-weight: 600;
@@ -43,13 +55,29 @@
   letter-spacing: 0.07em;
 }
 
+/* 뷰 전환 세그먼트 래퍼 */
+.tabs {
+  position: relative;
+  order: 3;
+  display: flex;
+  min-width: 0;
+}
+
+/* 검색 캡슐 + 초기화·검색 버튼 동행 그룹 (B안) */
+.searchGroup {
+  position: relative;
+  order: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 /* 유리 검색 캡슐 */
 .searchWrap {
   position: relative;
   flex: 1 1 auto;
   min-width: 50px;
-  max-width: 520px;
-  margin: 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -120,6 +148,22 @@
   background: linear-gradient(180deg, #418a4d, #2d5a27);
 }
 
-@media (max-width: 480px) {
-  .header { padding: 11px 13px; gap: 9px; }
+/* ── 데스크탑: 1줄 인라인 (WISHES · 세그먼트 · 검색+버튼) ── */
+@media (min-width: 768px) {
+  .header {
+    flex-direction: row;
+    align-items: center;
+    gap: 11px;
+    padding: 13px 16px;
+    padding-left: max(16px, env(safe-area-inset-left));
+    padding-right: max(16px, env(safe-area-inset-right));
+  }
+  .brand { order: 1; align-self: center; }
+  .tabs { order: 2; flex: none; }
+  .searchGroup {
+    order: 3;
+    flex: 1 1 auto;
+    justify-content: flex-end;
+  }
+  .searchWrap { max-width: 520px; }
 }

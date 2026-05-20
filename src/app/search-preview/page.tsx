@@ -6,7 +6,9 @@
  * 레거시 /search (content.js + 패치 84개) → 통합 React 재구축.
  * 각 컴포넌트를 단계별로 완성·검증 → 검증 완료 후 /search 와 swap.
  *
- * P2 (2026-05-20): 헤더 — iOS 26.5 Liquid Glass. 대표님 확정 디자인.
+ * P2 (2026-05-21): 헤더 — iOS 26.5 Liquid Glass.
+ *   ViewTabs(뷰 세그먼트)를 헤더로 통합. 검색+버튼 배치 = B안.
+ *   데스크탑 1줄 / 모바일 3줄 적층 반응형. 대표님 확정 디자인.
  *
  * 인증: 이 페이지는 디자인 목업(placeholder)만 표시 — 실제 매물 데이터 없음.
  *   권한 게이트 제거 (기존 게이트가 owner 도 막던 버그). 실제 인증은
@@ -15,7 +17,7 @@
 
 import { useState } from 'react';
 import { SearchHeader } from '@/features/search-2026/components/SearchHeader';
-import { ViewTabs, type SearchView } from '@/features/search-2026/components/ViewTabs';
+import { type SearchView } from '@/features/search-2026/components/ViewTabs';
 
 export default function SearchPreviewPage() {
   const [query, setQuery] = useState('');
@@ -45,12 +47,13 @@ export default function SearchPreviewPage() {
         onQueryChange={setQuery}
         onReset={() => setQuery('')}
         onSearch={(v) => console.log('[search-preview] 검색:', v)}
+        view={view}
+        onViewChange={setView}
       />
-      <ViewTabs value={view} onChange={setView} />
 
       <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ fontSize: 12, color: '#9398a0', textAlign: 'center', padding: '6px 0 10px' }}>
-          ── 헤더 재구축 검증 (P2) · 위로 스크롤하면 유리 헤더 효과 확인 ──
+          ── 헤더 재구축 검증 (P2) · 현재 보기: {view} · 위로 스크롤하면 유리 헤더 효과 확인 ──
         </div>
         {Array.from({ length: 6 }, () => sample).flat().map((s, i) => (
           <div

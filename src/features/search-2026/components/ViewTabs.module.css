@@ -1,27 +1,38 @@
 /* ViewTabs — /search 뷰 전환 탭 (P2)
- * 대표님 확정: iOS 세그먼트 컨트롤 + 가는선 아이콘 (B안, 2026-05-20)
- * 주소검색 / 지도보기 / 전체보기 */
+ * 대표님 확정: iOS 세그먼트 컨트롤 + 가는선 아이콘 (B안)
+ * 주소검색 / 지도보기 / 전체보기
+ *
+ * SearchHeader 안에 통합 (2026-05-21). 모바일 우선:
+ *  - 모바일: 트랙 전폭, 세그먼트 3등분(flex:1)
+ *  - 데스크탑(>=768px): 트랙 내용폭(intrinsic), 세그먼트 고정폭
+ */
 
 .wrap {
-  padding: 12px 16px;
+  display: flex;
+  width: 100%;
+  min-width: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Pretendard', 'Malgun Gothic', sans-serif;
 }
 
-/* 회색 트랙 */
+/* 회색 트랙 — 모바일: 전폭 */
 .track {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
   background: #eaebed;
   border-radius: 10px;
   padding: 2.5px;
   gap: 2px;
 }
 
-/* 세그먼트 */
+/* 세그먼트 — 모바일: 3등분 */
 .seg {
   display: inline-flex;
+  flex: 1 1 0;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 7px 16px;
+  min-width: 0;
+  padding: 8px 6px;
   border: none;
   border-radius: 8px;
   background: transparent;
@@ -49,4 +60,17 @@
 
 .icon {
   flex: none;
+}
+
+/* ── 데스크탑: 내용폭 + 고정폭 세그먼트 ── */
+@media (min-width: 768px) {
+  .wrap { width: auto; }
+  .track {
+    display: inline-flex;
+    width: auto;
+  }
+  .seg {
+    flex: 0 0 auto;
+    padding: 7px 16px;
+  }
 }
