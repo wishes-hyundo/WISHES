@@ -9365,6 +9365,68 @@ body { padding-bottom: 60px; }
   setTimeout(setupDateClick, 800);
 })();
 </script>
+
+<style>/* R154-RESTORE-BANNER */
+/* 불러오기 배너 — Liquid Glass 카드 스타일 통일 */
+#ws-r61-restore-banner {
+  background: rgba(255, 255, 255, 0.85) !important;
+  -webkit-backdrop-filter: saturate(180%) blur(20px) !important;
+  backdrop-filter: saturate(180%) blur(20px) !important;
+  border-radius: 16px !important;
+  padding: 16px !important;
+  margin: 0 16px 12px !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.7) inset,
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 10px rgba(0, 0, 0, 0.04) !important;
+  color: #1C1C1E !important;
+  font-size: 13px !important;
+  gap: 12px !important;
+}
+/* 안내 문구 */
+#ws-r61-restore-banner > div:first-child {
+  font-weight: 600 !important;
+  color: #1C1C1E !important;
+}
+/* 버튼 행 */
+#ws-r61-restore-banner > div:last-child {
+  gap: 8px !important;
+  width: 100% !important;
+}
+/* 버튼 — 크기 일관 */
+#ws-r61-restore-banner button {
+  flex: 1 !important;
+  padding: 11px 16px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  border-radius: 12px !important;
+  min-height: 42px !important;
+  cursor: pointer !important;
+  border: none !important;
+}
+/* 불러오기 (파랑) */
+#ws-r61-restore-banner button:first-of-type {
+  background: linear-gradient(135deg, #007AFF, #5856D6) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 8px rgba(0,122,255,0.3) !important;
+}
+/* 새로 작성 (회색 glass) */
+#ws-r61-restore-banner button:last-of-type {
+  background: rgba(0,0,0,0.05) !important;
+  color: #1C1C1E !important;
+}
+@media (prefers-color-scheme: dark) {
+  #ws-r61-restore-banner {
+    background: rgba(28,28,30,0.85) !important;
+    color: #FFF !important;
+  }
+  #ws-r61-restore-banner > div:first-child { color: #FFF !important; }
+  #ws-r61-restore-banner button:last-of-type {
+    background: rgba(255,255,255,0.1) !important;
+    color: #FFF !important;
+  }
+}
+</style>
 </body>
 
 </html>
