@@ -15,9 +15,11 @@
 
 import { useState } from 'react';
 import { SearchHeader } from '@/features/search-2026/components/SearchHeader';
+import { ViewTabs, type SearchView } from '@/features/search-2026/components/ViewTabs';
 
 export default function SearchPreviewPage() {
   const [query, setQuery] = useState('');
+  const [view, setView] = useState<SearchView>('search');
 
   // 스크롤 시 유리 헤더 너머로 비치는 효과 확인용 임시 콘텐츠
   const sample = [
@@ -44,6 +46,7 @@ export default function SearchPreviewPage() {
         onReset={() => setQuery('')}
         onSearch={(v) => console.log('[search-preview] 검색:', v)}
       />
+      <ViewTabs value={view} onChange={setView} />
 
       <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{ fontSize: 12, color: '#9398a0', textAlign: 'center', padding: '6px 0 10px' }}>
