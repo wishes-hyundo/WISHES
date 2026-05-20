@@ -9903,6 +9903,20 @@ input[type="text"], input[type="tel"], input[type="date"], select {
   flex: 0 0 auto !important;
 }
 </style>
+<style>/* R169-HEIGHT-UNIFY */
+/* R168 후속 (Chrome 실측): segmented 컨테이너가 패딩 2~4px 때문에 52px 로 떠서
+   입력칸(48px)과 안 맞음. 컨테이너 패딩 2px 통일 + 칩 44px → 컨테이너 정확히 48px. */
+.chips-seg:not(.rating-seg), #g-trans {
+  min-height: 48px !important;
+  padding: 2px !important;
+  border: none !important;
+  box-sizing: border-box !important;
+}
+.chips-seg:not(.rating-seg) .chip, #g-trans .chip, #g-subway .chip {
+  height: 44px !important;
+  min-height: 44px !important;
+}
+</style>
 </body>
 
 </html>
