@@ -120,6 +120,7 @@
 
   var currentMap = null;
   var currentMarkers = [];
+  var renderGen = 0; // [Step128] chunked render 세대 — 줌 중복 시 옛 렌더 중단
   // [Step 118 fix 2026-05-19 사장님 명령] overlay pool — panning 시 destroy/recreate 차단
   //   기존: 매 idle 마다 clearMarkers (N개 setMap null) + N개 새 CustomOverlay
   //          → 100매물 = 200 DOM operation 매번 → Kakao SDK reflow → panning freeze
@@ -453,72 +454,79 @@
     if (!currentMap) return;
     clearMarkers();
     if (!Array.isArray(items) || items.length === 0) return;
-    // [Step 122 fix 2026-05-19 사장님 명령] 500 cap — panning freeze 차단
-    //   기존: 5000 items → 5000 CustomOverlay 동시 DOM → reflow 부담
-    //   수정: 500 이상이면 슬라이스 + 사용자 안내
+    // [Step 122] 500 cap
     var totalItems = items.length;
-    if (items.length > 500) {
-      items = items.slice(0, 500);
-    }
+    if (items.length > 500) items = items.slice(0, 500);
     var zoomLvl = currentMap.getLevel();
-    items.forEach(function (it) {
-      try {
-        if (!it.lat || !it.lng) return;
-        var pos = new kakao.maps.LatLng(it.lat, it.lng);
-        var sz = getSizeForCount(1, zoomLvl);
-        var pin = document.createElement('div');
-        pin.className = 'v390-pin v390-single';
-        pin.style.width = sz.size + 'px';
-        pin.style.height = sz.size + 'px';
-        pin.style.fontSize = sz.fontSize + 'px';
-        pin.textContent = '1';
-        pin.addEventListener('click', function (ev) {
-          try { ev.stopPropagation(); } catch (_) {}
-          // single 매물 click → 바로 상세 모달
-          try {
-            if (window.WS && typeof window.WS.showDetail === 'function') {
-              var listing = (window.WS.allListings || []).find(function (l) { return String(l.id) === String(it.id); });
-              if (listing) window.WS.showDetail(listing);
-              else { try { it.__ws_thin = true; } catch (_) {} window.WS.showDetail(it); }
-              return;
-            }
-          } catch (_) {}
-          // 모달 호출 실패 시 popup
-          showPopup([it], '매물 1건');
-        }, false);
-        var overlay = new kakao.maps.CustomOverlay({
-          position: pos, content: pin, yAnchor: 0.5, xAnchor: 0.5,
-          zIndex: 1, clickable: true,
-        });
-        overlay.setMap(currentMap);
-        currentMarkers.push(overlay);
-      } catch (e) {}
-    });
-    log('rendered', currentMarkers.length, 'exact items',
-        totalItems > 500 ? '(cap 500/' + totalItems + ' — 더 줌인 권장)' : '');
-    // [Step 122] 500 cap 시 사용자 안내 (한 번만)
-    if (totalItems > 500) {
-      try {
-        var oldToast = document.getElementById('v390-cap-toast');
-        if (oldToast) oldToast.remove();
-        var toast = document.createElement('div');
-        toast.id = 'v390-cap-toast';
-        toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:99999;pointer-events:none;opacity:0;transition:opacity 0.3s';
-        toast.textContent = '매물 ' + totalItems + '건 중 500건 표시중. 더 자세히 보려면 줌인 하세요.';
-        document.body.appendChild(toast);
-        requestAnimationFrame(function () { toast.style.opacity = '1'; });
-        setTimeout(function () {
-          toast.style.opacity = '0';
-          setTimeout(function () { try { toast.remove(); } catch(_) {} }, 300);
-        }, 3000);
-      } catch (_) {}
+    // [Step 128 fix 2026-05-20] chunked render — 500개 overlay 를 한 프레임에 동기 생성하면
+    //   메인 스레드가 막혀 hard freeze. 40개씩 rAF 로 쪼개 생성 → 매 프레임 양보 → 멈춤 없음.
+    var myGen = ++renderGen;
+    var idx = 0;
+    var CHUNK = 40;
+    function makeItemOverlay(it) {
+      if (!it.lat || !it.lng) return;
+      var pos = new kakao.maps.LatLng(it.lat, it.lng);
+      var sz = getSizeForCount(1, zoomLvl);
+      var pin = document.createElement('div');
+      pin.className = 'v390-pin v390-single';
+      pin.style.width = sz.size + 'px';
+      pin.style.height = sz.size + 'px';
+      pin.style.fontSize = sz.fontSize + 'px';
+      pin.textContent = '1';
+      pin.addEventListener('click', function (ev) {
+        try { ev.stopPropagation(); } catch (_) {}
+        try {
+          if (window.WS && typeof window.WS.showDetail === 'function') {
+            var listing = (window.WS.allListings || []).find(function (l) { return String(l.id) === String(it.id); });
+            if (listing) window.WS.showDetail(listing);
+            else { try { it.__ws_thin = true; } catch (_) {} window.WS.showDetail(it); }
+            return;
+          }
+        } catch (_) {}
+        showPopup([it], '“매물 1건”'.replace(/“|”/g,''));
+      }, false);
+      var overlay = new kakao.maps.CustomOverlay({
+        position: pos, content: pin, yAnchor: 0.5, xAnchor: 0.5,
+        zIndex: 1, clickable: true,
+      });
+      overlay.setMap(currentMap);
+      currentMarkers.push(overlay);
     }
+    function renderChunk() {
+      if (myGen !== renderGen || !currentMap) return; // 새 렌더가 시작됨 → 중단
+      var end = Math.min(idx + CHUNK, items.length);
+      for (; idx < end; idx++) {
+        try { makeItemOverlay(items[idx]); } catch (e) {}
+      }
+      if (idx < items.length) {
+        (window.requestAnimationFrame || function (f) { setTimeout(f, 16); })(renderChunk);
+        return;
+      }
+      log('rendered', currentMarkers.length, 'exact items (chunked)',
+          totalItems > 500 ? '(cap 500/' + totalItems + ')' : '');
+      if (totalItems > 500) {
+        try {
+          var oldToast = document.getElementById('v390-cap-toast');
+          if (oldToast) oldToast.remove();
+          var toast = document.createElement('div');
+          toast.id = 'v390-cap-toast';
+          toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;z-index:99999;pointer-events:none;opacity:0;transition:opacity 0.3s';
+          toast.textContent = '\ub9e4\ubb3c ' + totalItems + '\uac74 \uc911 500\uac74 \ud45c\uc2dc\uc911. \ub354 \uc790\uc138\ud788 \ubcf4\ub824\uba74 \uc90c\uc778 \ud558\uc138\uc694.';
+          document.body.appendChild(toast);
+          requestAnimationFrame(function () { toast.style.opacity = '1'; });
+          setTimeout(function () {
+            toast.style.opacity = '0';
+            setTimeout(function () { try { toast.remove(); } catch (_) {} }, 300);
+          }, 3000);
+        } catch (_) {}
+      }
+    }
+    renderChunk();
   }
 
   function renderClusters(clusters) {
     if (!currentMap) return;
     if (!Array.isArray(clusters) || clusters.length === 0) {
-      // 클러스터 없으면 pool 비움
       overlayPool.forEach(function (entry) {
         try { entry.overlay.setMap(null); } catch (_) {}
       });
@@ -526,68 +534,75 @@
       currentMarkers = [];
       return;
     }
-    // [v14 사장님] merge 다시 — 단, 위치는 가장 큰 cluster 의 실제 위치 유지 (평균 X)
     var projection = null;
     try { projection = currentMap.getProjection(); } catch (_) {}
     var merged = mergeKeepPosition(clusters, projection);
-    // [Step 118 fix] pool 재사용 — destroy/recreate 차단
     poolGeneration++;
-    var newMarkers = [];
     var zoom = currentMap ? currentMap.getLevel() : 5;
-    merged.forEach(function (c) {
-      try {
-        if (!c.lat || !c.lng) return;
-        // pool key: lat+lng+count (위치 또는 count 변경 시 새 entry)
-        var key = c.lat.toFixed(5) + '_' + c.lng.toFixed(5) + '_' + c.count;
-        var sz = getSizeForCount(c.count, zoom);
-        var entry = overlayPool.get(key);
-        if (entry) {
-          // 기존 overlay 재사용 — position 그대로, pin text 만 갱신 (count 같으면 동일)
-          entry.lastSeen = poolGeneration;
-          entry.cluster = c;
-          // 크기 변경 가능 (zoom 변경) — pin 만 update
-          if (entry.pin.style.width !== sz.size + 'px') {
-            entry.pin.style.width = sz.size + 'px';
-            entry.pin.style.height = sz.size + 'px';
-            entry.pin.style.fontSize = sz.fontSize + 'px';
-          }
-          newMarkers.push(entry.overlay);
-        } else {
-          // 새 overlay 생성
-          var pos = new kakao.maps.LatLng(c.lat, c.lng);
-          var pin = document.createElement('div');
-          pin.className = 'v390-pin' + (c.count === 1 ? ' v390-single' : '');
-          pin.style.width = sz.size + 'px';
-          pin.style.height = sz.size + 'px';
-          pin.style.fontSize = sz.fontSize + 'px';
-          pin.textContent = String(c.count);
-          // closure 안전 — 마지막 cluster ref 매번 갱신
-          var clusterRef = c;
-          pin.addEventListener('click', function (ev) {
-            try { ev.stopPropagation(); } catch (_) {}
-            // pool entry 에서 최신 cluster 사용
-            var liveEntry = overlayPool.get(key);
-            onPinClick(liveEntry ? liveEntry.cluster : clusterRef);
-          }, false);
-          var overlay = new kakao.maps.CustomOverlay({
-            position: pos, content: pin, yAnchor: 0.5, xAnchor: 0.5,
-            zIndex: c.count, clickable: true,
-          });
-          overlay.setMap(currentMap);
-          var newEntry = { overlay: overlay, pin: pin, lastSeen: poolGeneration, cluster: c };
-          overlayPool.set(key, newEntry);
-          newMarkers.push(overlay);
+    // [Step 128 fix 2026-05-20] chunked render — 새 cluster overlay 동기 대량 생성 시
+    //   메인 스레드 freeze. 40개씩 rAF 로 쪼개 생성 → 멈춤 없음.
+    var myGen = ++renderGen;
+    var newMarkers = [];
+    var cidx = 0;
+    var CHUNK = 40;
+    function makeClusterOverlay(c) {
+      if (!c.lat || !c.lng) return;
+      var key = c.lat.toFixed(5) + '_' + c.lng.toFixed(5) + '_' + c.count;
+      var sz = getSizeForCount(c.count, zoom);
+      var entry = overlayPool.get(key);
+      if (entry) {
+        entry.lastSeen = poolGeneration;
+        entry.cluster = c;
+        if (entry.pin.style.width !== sz.size + 'px') {
+          entry.pin.style.width = sz.size + 'px';
+          entry.pin.style.height = sz.size + 'px';
+          entry.pin.style.fontSize = sz.fontSize + 'px';
         }
-      } catch (e) {}
-    });
-    // 이번 세대에 안 보이는 entry 제거 (사라진 cluster)
-    overlayPool.forEach(function (entry, key) {
-      if (entry.lastSeen !== poolGeneration) {
-        try { entry.overlay.setMap(null); } catch (_) {}
-        overlayPool.delete(key);
+        newMarkers.push(entry.overlay);
+      } else {
+        var pos = new kakao.maps.LatLng(c.lat, c.lng);
+        var pin = document.createElement('div');
+        pin.className = 'v390-pin' + (c.count === 1 ? ' v390-single' : '');
+        pin.style.width = sz.size + 'px';
+        pin.style.height = sz.size + 'px';
+        pin.style.fontSize = sz.fontSize + 'px';
+        pin.textContent = String(c.count);
+        var clusterRef = c;
+        pin.addEventListener('click', function (ev) {
+          try { ev.stopPropagation(); } catch (_) {}
+          var liveEntry = overlayPool.get(key);
+          onPinClick(liveEntry ? liveEntry.cluster : clusterRef);
+        }, false);
+        var overlay = new kakao.maps.CustomOverlay({
+          position: pos, content: pin, yAnchor: 0.5, xAnchor: 0.5,
+          zIndex: c.count, clickable: true,
+        });
+        overlay.setMap(currentMap);
+        var newEntry = { overlay: overlay, pin: pin, lastSeen: poolGeneration, cluster: c };
+        overlayPool.set(key, newEntry);
+        newMarkers.push(overlay);
       }
-    });
-    currentMarkers = newMarkers;
+    }
+    function renderChunk() {
+      if (myGen !== renderGen || !currentMap) return;
+      var end = Math.min(cidx + CHUNK, merged.length);
+      for (; cidx < end; cidx++) {
+        try { makeClusterOverlay(merged[cidx]); } catch (e) {}
+      }
+      if (cidx < merged.length) {
+        (window.requestAnimationFrame || function (f) { setTimeout(f, 16); })(renderChunk);
+        return;
+      }
+      // 모든 chunk 완료 — 이번 세대에 안 보이는 stale entry 제거
+      overlayPool.forEach(function (entry, key) {
+        if (entry.lastSeen !== poolGeneration) {
+          try { entry.overlay.setMap(null); } catch (_) {}
+          overlayPool.delete(key);
+        }
+      });
+      currentMarkers = newMarkers;
+    }
+    renderChunk();
   }
 
   function scheduleClusterFetch() {
