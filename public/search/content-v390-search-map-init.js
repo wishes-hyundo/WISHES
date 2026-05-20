@@ -371,6 +371,8 @@
             if (listing) {
               window.WS.showDetail(listing);
             } else {
+              // v124: 지도 items(가벼운) 객체 표시 → v402 가 전체 재조회
+              try { it.__ws_thin = true; } catch (_) {}
               window.WS.showDetail(it);
             }
             closePopup();
@@ -477,7 +479,7 @@
             if (window.WS && typeof window.WS.showDetail === 'function') {
               var listing = (window.WS.allListings || []).find(function (l) { return String(l.id) === String(it.id); });
               if (listing) window.WS.showDetail(listing);
-              else window.WS.showDetail(it);
+              else { try { it.__ws_thin = true; } catch (_) {} window.WS.showDetail(it); }
               return;
             }
           } catch (_) {}

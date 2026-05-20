@@ -289,7 +289,7 @@ export default function SearchPortalPage() {
       // [Phase F.3 2026-05-15] 비교/인쇄/관심목록 button click 가로채기
       ['ws-ext-patch-v401-bulk-prefetch', '/search/content-v401-bulk-prefetch.js?v=20260515b-aibrief'],
       // [Phase I 2026-05-15] WS.showDetail wrap — minimal listing 자동 보강 (지도 마커 click 등)
-      ['ws-ext-patch-v402-showdetail-wrap', '/search/content-v402-showdetail-wrap.js?v=20260515a'],
+      ['ws-ext-patch-v402-showdetail-wrap', '/search/content-v402-showdetail-wrap.js?v=20260520-step124-thinfetch'],
       // [Step 28 fix 2026-05-19] 통합 메모리 가드 — OOM 영구 해결
       //   85 patch 누적 setInterval/setTimeout 일괄 cleanup + WS.allListings cap
       ['ws-ext-patch-v403-memory-guard', '/search/content-v403-memory-guard.js?v=20260519-step48-no-stack-trace'],
@@ -324,7 +324,7 @@ export default function SearchPortalPage() {
       //   map-main.js 는 chrome.runtime.getURL 사용 = chrome extension only.
       //   production (wishes.co.kr) 에서는 v390 만 web map provider.
       //   Step 96 → v390 disable → web 환경 map 자체 없음 → freeze.
-      ['ws-ext-patch-v390-search-map-init', '/search/content-v390-search-map-init.js?v=20260519-step122-items500cap'],
+      ['ws-ext-patch-v390-search-map-init', '/search/content-v390-search-map-init.js?v=20260520-step124-thintag'],
       ['ws-ext-patch-v392-aggressive-token-refresh', '/search/content-v392-aggressive-token-refresh.js?v=20260514a'],
       // v375-scope-bottom-toolbar removed (v294 없으니 의미 없음)
       ['ws-ext-patch-v376-remove-senior-toggle', '/search/content-v376-remove-senior-toggle.js?v=20260514a'],
@@ -372,7 +372,7 @@ export default function SearchPortalPage() {
       //   v240-detail.js 가 address + address_detail 합치는데 space 차이로
       //   "..리더스가든 17층 2408동 1701 17층 2408동1701" 두 번 표기.
       //   v333 가 끝부분 중복 ("N층 NNNN동 NNNN" 두 번) 자동 제거.
-      ['ws-ext-patch-v333-hero-addr-dedup', '/search/content-v333-hero-addr-dedup.js?v=20260519-step44-mo-only'],
+      ['ws-ext-patch-v333-hero-addr-dedup', '/search/content-v333-hero-addr-dedup.js?v=20260520-step124-floordedup'],
       // v334 (2026-05-09 사장님 발견 매물 78954): 모달 hero 도로명 직접 채우기.
       //   "도로명 주소가 구주소 뒤에 숨겨져 있음" — Kakao Geocoder API 가 못 채운
       //   #v240-hero-road element 에 listing.building_info['도로명주소'] 또는

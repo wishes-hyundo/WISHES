@@ -39,6 +39,16 @@
     // 공백 정규화 (NBSP → space)
     var norm = s.replace(/[  -​　]/g, ' ').replace(/\s+/g, ' ');
 
+    // v124 (2026-05-20 사장님 발견 매물 94470): 같은 "N층" 토큰 연속 반복 제거.
+    //   onhouse 크롤러 손상 — address 끝 "...3층" + address_detail "3층 3층304"
+    //   합쳐져 "...아카데미하우스Ⅱ 3층 3층 3층304". 같은 층일 때만 앞 토큰 제거 →
+    //   정상 주소(예: "1층 2층" 복층)는 영향 없음.
+    var _v124prev, _v124g = 0;
+    do {
+      _v124prev = norm;
+      norm = norm.replace(/(?<!\d)(\d+\s*층)\s+(?=\1)/, '');
+    } while (norm !== _v124prev && ++_v124g < 12);
+    norm = norm.replace(/\s+/g, ' ').trim();
     // 시도 1: "N층 [optional N동] N..." 패턴이 끝에 두 번 나타나는지
     //   매칭: 마지막 "(\d+층\s*\d+동?\s*\d+)" 두 번 연속 (사이 공백 무시)
     //   regex: /^(.*?)(\d+\s*층(?:\s*\d+\s*동)?\s*\d+)\s*\2$/

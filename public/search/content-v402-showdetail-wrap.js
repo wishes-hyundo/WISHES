@@ -34,6 +34,8 @@
 
   function isDetailListing(listing) {
     if (!listing) return false;
+    // v124 (2026-05-20): 지도 마커가 넘긴 가벼운 items 객체 → 항상 전체 재조회
+    if (listing.__ws_thin) return false;
     // detail listing 은 title 또는 description 또는 deposit/price 가 있음
     return !!(listing.title || listing.description || listing.address_detail ||
               listing.deposit !== undefined || listing.price !== undefined);
