@@ -206,8 +206,10 @@ export default function SearchPortalPage() {
       ['ws-ext-patch-v308-roadview', '/search/content-v308-roadview.js?v=20260429e'],
       ['ws-ext-patch-v310-modal-completeness', '/search/content-v310-modal-completeness.js?v=20260429a'],
       ['ws-ext-patch-v311-nearest-stations', '/search/content-v311-nearest-stations.js?v=20260429a'],
-      ['ws-ext-patch-v318-mobile-image-fix', '/search/content-v318-mobile-image-fix.js?v=20260509c'],
-      ['ws-ext-patch-v319-hero-dedup', '/search/content-v319-hero-dedup.js?v=20260429a'],
+      // [Step131 2026-05-20] Step129 검증 성급 — 모달 idle 시 freeze 재발 → 재차단:
+      //['ws-ext-patch-v318-mobile-image-fix', '/search/content-v318-mobile-image-fix.js?v=20260509c'],
+      // [Step131 2026-05-20] Step129 검증 성급 — 모달 idle 시 freeze 재발 → 재차단:
+      //['ws-ext-patch-v319-hero-dedup', '/search/content-v319-hero-dedup.js?v=20260429a'],
       // v312 (2026-04-29): 메인 모달 전유부 (.v240-info2 에 전용/공용/총면적 row) +
       //   Hero 영역 매물수정 버튼 + priceBox 밸런스 fix.
       ['ws-ext-patch-v312-main-modal-unit', '/search/content-v312-main-modal-unit.js?v=20260429bob'],
@@ -221,10 +223,12 @@ export default function SearchPortalPage() {
       //   모달 빈 셀에 자동 채움. 사장님 명령 — 본문보기엔 다 있는데 표시 X 문제 fix.
       ['ws-ext-patch-v316-rawfields-fill', '/search/content-v316-modal-rawfields-fill.js?v=20260429-lidmarker'],
       // v317 (2026-04-29): 카카오 기반 주변 시설 (지하철 + 버스정류장)
-      ['ws-ext-patch-v317-nearby-poi', '/search/content-v317-nearby-poi.js?v=20260429-addrfb'],
+      // [Step131 2026-05-20] Step129 검증 성급 — 모달 idle 시 freeze 재발 → 재차단:
+      //['ws-ext-patch-v317-nearby-poi', '/search/content-v317-nearby-poi.js?v=20260429-addrfb'],
       // v320 (2026-04-29 사장님 명령): v240 모달 [+ 추가] 핸들러 누락 fix.
       //   IIFE + try/catch + MutationObserver. UI/검색결과 영향 0.
-      ['ws-ext-patch-v320-contact-add', '/search/content-v320-contact-add.js?v=20260429-show'],
+      // [Step131 2026-05-20] Step129 검증 성급 — 모달 idle 시 freeze 재발 → 재차단:
+      //['ws-ext-patch-v320-contact-add', '/search/content-v320-contact-add.js?v=20260429-show'],
       // v322 (2026-04-29 사장님 명령): contacts 화면 미표시 fix.
       //   v270 fetchCache 우회 + DB fresh fetch 후 .v240-contacts-empty 영역 직접 렌더.
       ['ws-ext-patch-v322-contacts-render', '/search/content-v322-contacts-render.js?v=20260519-step47-throttle'],
@@ -267,7 +271,8 @@ export default function SearchPortalPage() {
       //   → "저장공간 부족" 토스트 무한 반복. Storage.prototype.setItem 가로채기로
       //   quota 시 자동 cleanup + 재시도. 사장님 데이터 (즐겨찾기/메모/연락처/폴더)
       //   SAFE_PRESERVE 영구 보호. 토스트 10분 throttle.
-      ['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260519-step32-cap1000'],
+      // [Step131 2026-05-20] Step129 검증 성급 — 모달 idle 시 freeze 재발 → 재차단:
+      //['ws-ext-patch-v321-storage-cleanup', '/search/content-v321-storage-cleanup.js?v=20260519-step32-cap1000'],
       // Step D Plan C (2026-05-10): ws_data_snapshot → IndexedDB (50MB+, 전체 62K 매물 추적).
       ['ws-ext-patch-v340-snapshot-idb', '/search/content-v340-snapshot-idb.js?v=20260519-step43-restored'],
       // v343 (2026-05-10 사장님 명령 Fix 4): ws_price_snapshots -> IndexedDB.
