@@ -170,6 +170,10 @@ export async function GET(request: NextRequest) {
       room_counts: (searchParams.get('room_counts') || '').split(',').map(x => x.trim()).filter(Boolean),
       parking_min: parseInt(searchParams.get('parking_min') || '0', 10) || 0,
       built_year_min: parseInt(searchParams.get('built_year_min') || '0', 10) || 0,
+      built_year_max: parseInt(searchParams.get('built_year_max') || '0', 10) || 0,
+      room_shape: (searchParams.get('room_shape') || '').trim(),
+      bathrooms_min: parseInt(searchParams.get('bathrooms_min') || '0', 10) || 0,
+      pet_ok: searchParams.get('pet_ok') === '1',
       // 가격 범위
       min_deposit: parseIntSafe(searchParams.get('min_deposit')),
       max_deposit: parseIntSafe(searchParams.get('max_deposit')),
@@ -326,6 +330,8 @@ export async function GET(request: NextRequest) {
           case '2개': roomConds.push('rooms.eq.2'); break;
           case '2-3개': roomConds.push('and(rooms.gte.2,rooms.lte.3)'); break;
           case '3개': roomConds.push('rooms.eq.3'); break;
+          case '3개 이상': roomConds.push('rooms.gte.3'); break;
+          case '4개 이상': roomConds.push('rooms.gte.4'); break;
         }
       }
       if (roomConds.length > 0) {
@@ -344,6 +350,21 @@ export async function GET(request: NextRequest) {
     //   주의: '2020년 5월' 같은 값은 '2020' 으로 시작이라 OK
     if (v3.built_year_min > 0) {
       q1 = q1.gte('built_year', String(v3.built_year_min));
+    }
+
+    // ★ built_year_max — 준공 N년 이전(구축). built_year text 라 lexicographic < (max+1)
+    if (v3.built_year_max > 0) {
+      q1 = q1.lt('built_year', String(v3.built_year_max + 1));
+    }
+
+    // ★ room_shape (룸형태) — entrance_type 텍스트 컬럼 (오픈형/분리형/복층형/원룸원거실/세미분리/전층사용/일부층사용)
+    if (v3.room_shape && v3.room_shape !== '전체') {
+      q1 = q1.eq('entrance_type', v3.room_shape);
+    }
+
+    // ★ bathrooms_min — 욕실 N개 이상
+    if (v3.bathrooms_min > 0) {
+      q1 = q1.gte('bathrooms', v3.bathrooms_min);
     }
 
     // ★ A.2.5: 가격 범위 (deposit/monthly/sale_price)
@@ -392,6 +413,7 @@ export async function GET(request: NextRequest) {
     }
     if (v3.elevator) q1 = q1.eq('elevator', true);
     if (v3.loan_available) q1 = q1.eq('loan_available', true);
+    if (v3.pet_ok) q1 = q1.eq('pet', true);
     if (v3.no_full_option) q1 = q1.eq('full_option', false);
     if (v3.full_option_only) q1 = q1.eq('full_option', true);
     // ★ price_nego — [2026-05-15 정밀검수 발견] DB 컬럼 price_nego/negotiable 없음.

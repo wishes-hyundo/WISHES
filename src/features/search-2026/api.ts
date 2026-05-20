@@ -36,6 +36,9 @@ export function buildListingsParams(
   if (filters.floorType && filters.floorType !== '전체') p.set('floor_type', filters.floorType);
   if (filters.parkingMin) p.set('parking_min', String(filters.parkingMin));
   if (filters.builtYearMin) p.set('built_year_min', String(filters.builtYearMin));
+  if (filters.builtYearMax) p.set('built_year_max', String(filters.builtYearMax));
+  if (filters.roomShape && filters.roomShape !== '전체') p.set('room_shape', filters.roomShape);
+  if (filters.bathroomsMin) p.set('bathrooms_min', String(filters.bathroomsMin));
 
   // 가격 범위 (0 도 유효값 — null/undefined 만 제외)
   const num = (k: string, v?: number) => { if (v != null) p.set(k, String(v)); };
@@ -54,7 +57,7 @@ export function buildListingsParams(
   // 추가필터 boolean (명세서 §2-4 — API 지원분만 직렬화)
   const API_OPTS = new Set([
     'building_photo', 'interior_photo', 'parking_available', 'empty_now',
-    'elevator', 'loan_available', 'no_full_option', 'full_option_only', 'price_nego',
+    'elevator', 'loan_available', 'no_full_option', 'full_option_only', 'price_nego', 'pet_ok',
   ]);
   for (const opt of filters.options || []) {
     if (API_OPTS.has(opt)) p.set(opt, '1');

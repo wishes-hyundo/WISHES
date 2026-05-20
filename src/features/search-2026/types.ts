@@ -71,7 +71,8 @@ export interface SearchFilters {
   roomShape?: string;              // 룸형태 단일 (오픈형·분리형·복층형·원룸원거실·세미분리형)
   floorType?: string;              // 층구분 단일 (지상·지하·반지하·옥탑·단독)
   builtYearMin?: number;           // 준공년도 (해당 연도 이후)
-  livingSize?: string;             // 거실크기 (대·중·소) — API 미지원, 클라 보조필터
+  builtYearMax?: number;           // 준공년도 (해당 연도 이전 — 구축 검색)
+  bathroomsMin?: number;           // 욕실 N개 이상
   parkingMin?: number;             // 주차대수 (N대 이상)
   minDeposit?: number; maxDeposit?: number;
   minMonthly?: number; maxMonthly?: number;
@@ -96,7 +97,7 @@ export type SearchOptionKey =
   | 'building_photo' | 'interior_photo' | 'video' | 'short_term'
   | 'parking_available' | 'empty_now' | 'balcony'
   | 'no_full_option' | 'full_option_only' | 'elevator'
-  | 'price_nego' | 'loan_available';
+  | 'price_nego' | 'loan_available' | 'pet_ok';
 
 /** 정렬 (명세서 §3-1 — /api/admin/listings/page SORT_MAP 과 동일) */
 export type SearchSort =
@@ -124,11 +125,12 @@ export const FILTER_OPTIONS = {
   types: ['전체', '원룸', '오피스텔', '아파트', '사무실', '상가', '빌라', '토지'],
   deals: ['전체', '월세', '전세', '전월세', '매매'],
   statuses: ['공개', '비공개', '계약중', '계약완료'],
-  roomCounts: ['전체', '1개', '1.5개', '1-2개', '2개', '2-3개', '3개'],
-  roomShapes: ['전체', '오픈형', '분리형', '복층형', '원룸원거실', '세미분리형'],
+  roomCounts: ['전체', '1개', '1.5개', '1-2개', '2개', '2-3개', '3개', '3개 이상', '4개 이상'],
+  roomShapes: ['전체', '오픈형', '분리형', '복층형', '원룸원거실', '세미분리', '전층사용', '일부층사용'],
   floorTypes: ['전체', '지상', '지하', '반지하', '옥탑', '단독'],
   builtYears: [2026, 2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018, 2015, 2010, 2005, 2000],
-  livingSizes: ['전체', '거실(대)', '거실(중)', '거실(소)'],
+  builtYearsBefore: [2000, 1990],
+  bathrooms: ['전체', '1개 이상', '2개 이상', '3개 이상'],
   parkingMins: [1, 2, 3, 4, 5],
   sorts: [
     { key: 'latest', label: '최신순' },
@@ -151,6 +153,7 @@ export const FILTER_OPTIONS = {
     { key: 'elevator', label: 'E/V' },
     { key: 'price_nego', label: '금액네고' },
     { key: 'loan_available', label: '전세대출가능' },
+    { key: 'pet_ok', label: '반려동물 가능' },
   ],
 } as const;
 

@@ -3,11 +3,14 @@
 /**
  * FilterBar — /search 재구축 필터 바 (P2)
  *
- * 명세서 §2 기준. 계층형(progressive disclosure):
- *   · 핵심 필터(거래유형·매물종류)는 항상 노출
- *   · 상세 필터(방·룸형태·층·준공·거실·주차·추가필터·가격·면적)는 펼침
- *   · 적용 중인 필터는 칩으로 요약, 칩 ✕ 로 개별 해제
- * 상태: useSearchStore (Zustand). 옵션 값: FILTER_OPTIONS (types.ts 단일 출처).
+ * 명세서 §2 기준 + 데이터 실측 보강(2026-05-21):
+ *   · 방 갯수 — 4~6개 매물(402건) 검색용 '3개 이상'·'4개 이상' 추가
+ *   · 준공년도 — 2000년 이전 매물(23,842건) 검색용 '이전' 칩 추가
+ *   · 룸형태 — 실제 DB값(전층사용·일부층사용 포함)으로 정정 + 서버 적용
+ *   · 욕실 — 신규 (욕실 2개+ 1,671건)
+ *   · 반려동물 가능 — 신규 추가필터 (pet=true 2,990건)
+ * 모든 옵션은 서버 /api/admin/listings/page 가 실제 SQL로 거른다.
+ * 상태: useSearchStore. 옵션 값: FILTER_OPTIONS (types.ts 단일 출처).
  */
 
 import { FILTER_OPTIONS, type SearchFilters, type SearchOptionKey } from '../types';
@@ -60,8 +63,6 @@ export function FilterBar() {
     value: t, label: t,
     active: t === '전체' ? !filters.types?.length : !!filters.types?.includes(t),
   }));
-  const pickDeal = (v: string) => (v === '전체' ? setFilter('deals', undefined) : toggleValue('deals', v));
-  const pickType = (v: string) => (v === '전체' ? setFilter('types', undefined) : toggleValue('types', v));
 
   // ── 상세 필터 ──
   const roomChips = FILTER_OPTIONS.roomCounts.map((r) => ({
@@ -74,15 +75,29 @@ export function FilterBar() {
   const floorChips = FILTER_OPTIONS.floorTypes.map((f) => ({
     value: f, label: f, active: f === '전체' ? !filters.floorType : filters.floorType === f,
   }));
-  const livingChips = FILTER_OPTIONS.livingSizes.map((l) => ({
-    value: l, label: l, active: l === '전체' ? !filters.livingSize : filters.livingSize === l,
-  }));
+  // 준공년도 — '이후'(min) + '이전'(max) 통합 단일선택
   const yearChips = [
-    { value: '0', label: '전체', active: !filters.builtYearMin },
+    { value: 'all', label: '전체', active: !filters.builtYearMin && !filters.builtYearMax },
     ...FILTER_OPTIONS.builtYears.map((y) => ({
-      value: String(y), label: `${y}~`, active: filters.builtYearMin === y,
+      value: `min:${y}`, label: `${y}~`, active: filters.builtYearMin === y,
+    })),
+    ...FILTER_OPTIONS.builtYearsBefore.map((y) => ({
+      value: `max:${y}`, label: `~${y}`, active: filters.builtYearMax === y - 1,
     })),
   ];
+  const pickYear = (v: string) => {
+    if (v === 'all') { setFilter('builtYearMin', undefined); setFilter('builtYearMax', undefined); return; }
+    if (v.startsWith('min:')) {
+      setFilter('builtYearMin', Number(v.slice(4))); setFilter('builtYearMax', undefined);
+    } else {
+      setFilter('builtYearMax', Number(v.slice(4)) - 1); setFilter('builtYearMin', undefined);
+    }
+  };
+  // 욕실 — N개 이상
+  const bathChips = FILTER_OPTIONS.bathrooms.map((b, i) => ({
+    value: String(i), label: b,
+    active: i === 0 ? !filters.bathroomsMin : filters.bathroomsMin === i,
+  }));
   const parkChips = [
     { value: '0', label: '전체', active: !filters.parkingMin },
     ...FILTER_OPTIONS.parkingMins.map((n) => ({
@@ -102,8 +117,9 @@ export function FilterBar() {
   filters.roomCounts?.forEach((r) => applied.push({ key: `room-${r}`, label: `방 ${r}`, remove: () => toggleValue('roomCounts', r) }));
   if (filters.roomShape) applied.push({ key: 'shape', label: filters.roomShape, remove: () => setFilter('roomShape', undefined) });
   if (filters.floorType) applied.push({ key: 'floor', label: filters.floorType, remove: () => setFilter('floorType', undefined) });
-  if (filters.livingSize) applied.push({ key: 'living', label: filters.livingSize, remove: () => setFilter('livingSize', undefined) });
-  if (filters.builtYearMin) applied.push({ key: 'year', label: `${filters.builtYearMin}년 이후`, remove: () => setFilter('builtYearMin', undefined) });
+  if (filters.builtYearMin) applied.push({ key: 'ymin', label: `${filters.builtYearMin}년 이후`, remove: () => setFilter('builtYearMin', undefined) });
+  if (filters.builtYearMax) applied.push({ key: 'ymax', label: `${filters.builtYearMax + 1}년 이전`, remove: () => setFilter('builtYearMax', undefined) });
+  if (filters.bathroomsMin) applied.push({ key: 'bath', label: `욕실 ${filters.bathroomsMin}개 이상`, remove: () => setFilter('bathroomsMin', undefined) });
   if (filters.parkingMin) applied.push({ key: 'park', label: `주차 ${filters.parkingMin}대+`, remove: () => setFilter('parkingMin', undefined) });
   filters.options?.forEach((o) => {
     const opt = FILTER_OPTIONS.options.find((x) => x.key === o);
@@ -113,11 +129,11 @@ export function FilterBar() {
   return (
     <div className={styles.bar}>
       <div className={styles.core}>
-        <ChipRow label="거래유형" chips={dealChips} onPick={pickDeal} />
-        <ChipRow label="매물종류" chips={typeChips} onPick={pickType} />
+        <ChipRow label="거래유형" chips={dealChips} onPick={(v) => (v === '전체' ? setFilter('deals', undefined) : toggleValue('deals', v))} />
+        <ChipRow label="매물종류" chips={typeChips} onPick={(v) => (v === '전체' ? setFilter('types', undefined) : toggleValue('types', v))} />
         <button type="button" className={styles.detailToggle} onClick={toggleDetail}>
           <span>상세 필터</span>
-          <span className={styles.detailHint}>방 · 층 · 준공 · 면적 · 주차 외</span>
+          <span className={styles.detailHint}>방 · 룸형태 · 층 · 준공 · 욕실 · 주차 · 가격 · 면적</span>
           <span className={detailOpen ? `${styles.caret} ${styles.caretUp}` : styles.caret} aria-hidden="true">▾</span>
         </button>
       </div>
@@ -127,8 +143,8 @@ export function FilterBar() {
           <ChipRow label="방 갯수" chips={roomChips} onPick={(v) => (v === '전체' ? setFilter('roomCounts', undefined) : toggleValue('roomCounts', v))} />
           <ChipRow label="룸형태" chips={shapeChips} onPick={pickSingle('roomShape', '전체')} />
           <ChipRow label="층구분" chips={floorChips} onPick={pickSingle('floorType', '전체')} />
-          <ChipRow label="준공년도" chips={yearChips} onPick={pickNum('builtYearMin')} />
-          <ChipRow label="거실크기" chips={livingChips} onPick={pickSingle('livingSize', '전체')} />
+          <ChipRow label="준공년도" chips={yearChips} onPick={pickYear} />
+          <ChipRow label="욕실" chips={bathChips} onPick={pickNum('bathroomsMin')} />
           <ChipRow label="주차대수" chips={parkChips} onPick={pickNum('parkingMin')} />
 
           <div className={styles.row}>
