@@ -452,6 +452,25 @@ export default function SearchPortalPage() {
         s.src = src;
         s.async = false;
         s.defer = false;
+        // [Step127 2026-05-20] 패치 로드 프로파일러 — cold-load freeze 지점 자동 측정.
+        //   각 패치 script 의 onload 시각 기록 → 콘솔 [WS-PROF] 로그.
+        //   멈추면 마지막 [WS-PROF] 다음 패치가 범인. window.__WS_PROF__ 에도 축적.
+        try {
+          const _t0 = (performance && performance.now) ? performance.now() : Date.now();
+          (window as unknown as { __WS_PROF__?: unknown[] }).__WS_PROF__ =
+            (window as unknown as { __WS_PROF__?: unknown[] }).__WS_PROF__ || [];
+          s.addEventListener('load', () => {
+            try {
+              const _t1 = (performance && performance.now) ? performance.now() : Date.now();
+              const rec = { id, ms: Math.round(_t1 - _t0), at: Math.round(_t1) };
+              (window as unknown as { __WS_PROF__: unknown[] }).__WS_PROF__.push(rec);
+              console.log('[WS-PROF]', id, rec.ms + 'ms', '@' + rec.at);
+            } catch (e) {}
+          });
+          s.addEventListener('error', () => {
+            try { console.warn('[WS-PROF] LOAD-ERROR', id); } catch (e) {}
+          });
+        } catch (e) {}
         document.body.appendChild(s);
       }
     }
