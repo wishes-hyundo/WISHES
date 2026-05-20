@@ -9930,6 +9930,41 @@ input[type="text"], input[type="tel"], input[type="date"], select {
 /* 현장방문 안내문 등 한글 텍스트가 단어 중간("비활/성")에서 갈라지지 않게 — 띄어쓰기 단위 줄바꿈 */
 .ios-switch-desc { word-break: keep-all !important; }
 </style>
+<style>/* R174-SEGMENT-UNIFY */
+/* 거래유형 컨테이너 구조 통일 (62px+12/16패딩 → 48px+2px, 다른 segmented 와 동일 — 여백 과다 해소) */
+#g-dealType {
+  padding: 2px !important;
+  min-height: 48px !important;
+  gap: 0 !important;
+}
+#g-dealType .deal-chip {
+  flex: 1 1 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  min-height: 44px !important;
+  height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+}
+
+/* segmented margin-top 4px 제거 — 옆 날짜칸과 수직 정렬 (입주 및 계약 균형) */
+.chips-seg:not(.rating-seg), #g-dealType { margin-top: 0 !important; }
+
+/* 선택 상태 전체 통일 — 흰색 배경 + 진한 글자 + 은은한 그림자(번지는 광 제거) */
+#g-dealType .deal-chip.on,
+.chips-seg .chip.on, .chips-seg .chip.on-gold, .chips-seg .chip.on-green, .chips-seg .chip.on-red,
+#g-subway .chip.on, #g-trans .chip.on {
+  background: #FFFFFF !important;
+  color: #1C1C1E !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.28) !important;
+  border-radius: 8px !important;
+}
+#g-dealType .deal-chip.on .dc-label,
+.chips-seg .chip.on .dc-label { color: #1C1C1E !important; }
+.chips-seg .chip.on svg, #g-subway .chip.on svg, #g-trans .chip.on svg { stroke: #1C1C1E !important; }
+</style>
 </body>
 
 </html>
