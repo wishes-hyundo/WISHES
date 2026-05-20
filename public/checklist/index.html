@@ -9876,6 +9876,33 @@ input[type="date"], #cTime, select#cTime {
   margin-right: auto !important;
 }
 </style>
+<style>/* R168-AUDIT2-FIX */
+/* 2차 재검수 3건 수정 (Chrome 실측 기반) */
+
+/* A — 입력칸·날짜칸·segmented 높이 48px 완전 통일 */
+input[type="text"], input[type="tel"], input[type="date"], select {
+  height: 48px !important;
+  min-height: 48px !important;
+  box-sizing: border-box !important;
+}
+.chips-seg:not(.rating-seg) { min-height: 48px !important; }
+.chips-seg:not(.rating-seg) .chip { height: 48px !important; min-height: 48px !important; }
+
+/* B — "지하철 도보 거리" 칩이 상자를 꽉 채우게 (#g-subway 전용 규칙 override) */
+#g-subway { min-height: 48px !important; }
+#g-subway .chip {
+  height: 48px !important; min-height: 48px !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+}
+/* 이동수단(#g-trans)도 48px 통일 */
+#g-trans { min-height: 48px !important; }
+#g-trans .chip { height: 48px !important; min-height: 48px !important; }
+
+/* C — resultNav "새 상담" 작은 보조 버튼 (flex:1 → 0 0 auto, 보내기만 강조) */
+#resultNav > button:not(.nw-send):not([onclick*="sendToNaverWorks"]):not(.btn-primary) {
+  flex: 0 0 auto !important;
+}
+</style>
 </body>
 
 </html>
