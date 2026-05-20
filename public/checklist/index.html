@@ -9866,6 +9866,16 @@ input[type="date"], #cTime, select#cTime {
 }
 #g-trans .chip.on svg { stroke: #007AFF !important; }
 </style>
+<style>/* R167-RESULT-WIDTH */
+/* R165 #11 보강 (Chrome 실측): 좁은 화면에서 히어로(639)·요약카드(671)·회사정보(560) 폭 제각각.
+   히어로 + 요약카드도 560px 상한 + 중앙정렬 → 결과 페이지 전 요소 폭 완전 통일. */
+#page-result .result-hero,
+#page-result #resultCards .summary-card {
+  max-width: 560px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+}
+</style>
 </body>
 
 </html>
