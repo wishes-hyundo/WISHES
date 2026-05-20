@@ -61,28 +61,47 @@
   font-weight: 600;
 }
 
-/* 상세 필터 토글 버튼 */
-.detailToggle {
-  margin-top: 7px;
-  width: 100%;
+/* 압축 필터 바 (2안) — 칩이 한 줄로 흐름 */
+.compactRow {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
-  gap: 7px;
-  padding: 8px;
-  border: 1px dashed rgba(45, 106, 52, 0.42);
-  border-radius: 8px;
+  gap: 5px;
+}
+.barDivider {
+  width: 1px;
+  height: 18px;
+  background: rgba(0, 0, 0, 0.12);
+  margin: 0 4px;
+  flex: none;
+}
+/* 상세 필터 버튼 — 압축형, 우측 정렬 */
+.detailBtn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid rgba(45, 106, 52, 0.4);
+  border-radius: 7px;
   background: #f4f7f4;
   color: #2d6a34;
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
 }
-.detailToggle:hover { background: #ecf2ec; }
-.detailHint { font-weight: 400; color: #7a857a; font-size: 11px; }
-.caret { transition: transform 0.15s ease; }
+.detailBtn:hover { background: #ecf2ec; }
+.detailBtnOn { background: #2d6a34; border-color: #2d6a34; color: #fff; }
+.detailBtnIco { font-size: 11px; }
+.caret { transition: transform 0.15s ease; font-size: 10px; }
 .caretUp { transform: rotate(180deg); }
+
+/* 좁은 화면 — 상세 버튼이 다음 줄로 안 밀리게 */
+@media (max-width: 560px) {
+  .detailBtn { margin-left: 0; }
+}
 
 /* 추가필터 체크박스 */
 .checks {

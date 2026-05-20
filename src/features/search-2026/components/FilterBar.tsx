@@ -76,6 +76,17 @@ export function FilterBar() {
   const { filters, detailOpen, setFilter, toggleValue, toggleDetail, reset } = useSearchStore();
   const mode = deriveMode(filters.types);
 
+  // 상세 필터에 적용된 항목 수 (버튼 뱃지용)
+  const detailCount =
+    (filters.roomCounts?.length ?? 0) +
+    (filters.options?.length ?? 0) +
+    [filters.roomShape, filters.floorType, filters.builtYearMin, filters.builtYearMax,
+     filters.bathroomsMin, filters.parkingMin,
+     filters.minBase, filters.maxBase, filters.minDeposit, filters.maxDeposit,
+     filters.minMonthly, filters.maxMonthly, filters.minSale, filters.maxSale,
+     filters.minArea, filters.maxArea, filters.minSupply, filters.maxSupply]
+      .filter((v) => v != null).length;
+
   // 거래유형별 가격 칸 노출 판정
   const deals = filters.deals ?? [];
   const showRange = (r: RangeDef) => !r.deals || deals.length === 0 || r.deals.some((d) => deals.includes(d));
@@ -157,15 +168,26 @@ export function FilterBar() {
   return (
     <div className={styles.bar}>
       <div className={styles.core}>
-        <ChipRow label="거래유형" chips={dealChips} onPick={(v) => (v === '전체' ? setFilter('deals', undefined) : toggleValue('deals', v))} />
-        <ChipRow label="매물종류" chips={typeChips} onPick={(v) => (v === '전체' ? setFilter('types', undefined) : toggleValue('types', v))} />
-        <button type="button" className={styles.detailToggle} onClick={toggleDetail}>
-          <span>상세 필터</span>
-          <span className={styles.detailHint}>
-            {mode === 'land' ? '면적 중심' : mode === 'commercial' ? '상업용' : '방 · 룸형태 · 층 · 준공 · 욕실 · 주차 · 가격 · 면적'}
-          </span>
-          <span className={detailOpen ? `${styles.caret} ${styles.caretUp}` : styles.caret} aria-hidden="true">▾</span>
-        </button>
+        <div className={styles.compactRow}>
+          {dealChips.filter((c) => c.value !== '전체').map((c) => (
+            <button key={`d-${c.value}`} type="button"
+              className={c.active ? `${styles.chip} ${styles.chipOn}` : styles.chip}
+              onClick={() => toggleValue('deals', c.value)}>{c.label}</button>
+          ))}
+          <span className={styles.barDivider} aria-hidden="true" />
+          {typeChips.filter((c) => c.value !== '전체').map((c) => (
+            <button key={`t-${c.value}`} type="button"
+              className={c.active ? `${styles.chip} ${styles.chipOn}` : styles.chip}
+              onClick={() => toggleValue('types', c.value)}>{c.label}</button>
+          ))}
+          <button type="button"
+            className={detailOpen ? `${styles.detailBtn} ${styles.detailBtnOn}` : styles.detailBtn}
+            onClick={toggleDetail}>
+            <span className={styles.detailBtnIco} aria-hidden="true">☰</span>
+            상세 필터{detailCount > 0 ? ` (${detailCount})` : ''}
+            <span className={detailOpen ? `${styles.caret} ${styles.caretUp}` : styles.caret} aria-hidden="true">▾</span>
+          </button>
+        </div>
       </div>
 
       {detailOpen && (

@@ -17,7 +17,7 @@ import { type SearchView } from '@/features/search-2026/components/ViewTabs';
 import { useState } from 'react';
 
 export default function SearchPreviewPage() {
-  const [view, setView] = useState<SearchView>('search');
+  const [view, setView] = useState<SearchView>('split');
   const { filters } = useSearchStore();
   const activeCount =
     (filters.deals?.length ?? 0) +
