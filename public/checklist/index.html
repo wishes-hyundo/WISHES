@@ -9926,6 +9926,10 @@ input[type="text"], input[type="tel"], input[type="date"], select {
 /* 온보딩 안내 배너 제거 (사장님 명령 — 빠짐없이 정리) */
 #r23-intro, .r23-intro-banner, #progress-hint-banner, .progress-hint-banner { display: none !important; }
 </style>
+<style>/* R172-WORDBREAK */
+/* 현장방문 안내문 등 한글 텍스트가 단어 중간("비활/성")에서 갈라지지 않게 — 띄어쓰기 단위 줄바꿈 */
+.ios-switch-desc { word-break: keep-all !important; }
+</style>
 </body>
 
 </html>
