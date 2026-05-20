@@ -9606,6 +9606,86 @@ footer.ws-footer-r78, .ws-footer-r78 {
   }
 }
 </style>
+
+<style>/* R159-FINAL-LAYOUT */
+/* ━━━━━ footer / nav 가림 확실 해소 ━━━━━ */
+/* helpline — 맨 아래 */
+#r121-helpline {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important; right: 0 !important;
+  z-index: 200 !important;
+}
+/* bottomNav (다음 단계) — helpline 위 */
+#bottomNav {
+  position: fixed !important;
+  bottom: 54px !important;
+  left: 0 !important; right: 0 !important;
+  z-index: 190 !important;
+}
+/* resultNav (새상담/수정/보내기) — R134 의 position:relative 를 fixed 로 강제 */
+#resultNav:not([style*="none"]) {
+  position: fixed !important;
+  bottom: 54px !important;
+  left: 0 !important; right: 0 !important;
+  z-index: 190 !important;
+}
+/* 페이지 콘텐츠 하단 여백 — fixed nav(54+60) + helpline(54) 만큼 */
+body {
+  padding-bottom: 150px !important;
+}
+footer.ws-footer-r78, .ws-footer-r78 {
+  margin-bottom: 0 !important;
+}
+
+/* ━━━━━ 밸런스 1 — 입주일 칸 vs 입주 유연성 높이 통일 ━━━━━ */
+.frow.c2 input[type="date"],
+.frow.c2 .chips-seg,
+.frow.c2 .chips {
+  min-height: 46px !important;
+}
+.frow.c2 .chips-seg,
+.frow.c2 .chips {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* ━━━━━ 밸런스 2 — 입주 유연성 chip 글자 ━━━━━ */
+[id*="moveFlex" i] .chip,
+.chips[data-k="moveFlex"] .chip {
+  font-size: 11px !important;
+  padding: 8px 4px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* ━━━━━ 밸런스 3 — 차종/종 특이사항 빈칸 배경 연하게 ━━━━━ */
+.loan-product-input,
+input[placeholder*="특이사항"] {
+  background: rgba(0, 0, 0, 0.025) !important;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.04) inset !important;
+}
+
+/* ━━━━━ 밸런스 4 — 슬라이더 thumb 안 파란 dot ━━━━━ */
+.budget-slider::-webkit-slider-thumb {
+  background: radial-gradient(circle at center, #007AFF 0 5px, #FFFFFF 5px) !important;
+}
+.budget-slider::-moz-range-thumb {
+  background: radial-gradient(circle at center, #007AFF 0 5px, #FFFFFF 5px) !important;
+}
+
+/* ━━━━━ 밸런스 5 — 카드 제목 dot 모두 #007AFF 단색 ━━━━━ */
+.card,
+.card:nth-of-type(1), .card:nth-of-type(2), .card:nth-of-type(3),
+.card:nth-of-type(4), .card:nth-of-type(5), .card:nth-of-type(6),
+.card:nth-of-type(7), .card:nth-of-type(8), .card:nth-of-type(9) {
+  --card-dot: #007AFF !important;
+}
+.card-title::before {
+  background: #007AFF !important;
+}
+</style>
 </body>
 
 </html>
