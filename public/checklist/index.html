@@ -2861,8 +2861,14 @@ textarea:focus {
 }
 /* "새 상담" / "수정" / "보내기" 한 박스 안 segmented */
 #resultNav {
-  display: flex !important;
   gap: 0 !important;
+}
+/* R138: resultNav 는 결과 페이지에서만 보임 — inline display:none 일 때 강제 숨김 */
+#resultNav[style*="none"] {
+  display: none !important;
+}
+#resultNav:not([style*="none"]) {
+  display: flex !important;
 }
 #resultNav > button,
 #resultNav .btn,
