@@ -12,7 +12,9 @@ import { getClientIp, checkRateLimit } from '@/lib/rateLimit';
 
 const ALLOWED_EVENTS = new Set([
   'visit', 'step1_done', 'step2_done', 'step3_done',
-  'sent', 'review_open', 'review_cancel', 'review_confirm'
+  'sent', 'review_open', 'review_cancel', 'review_confirm',
+  // R175 — 클라이언트 세부 분석 이벤트 (누락 → 400 콘솔 에러 유발하던 것)
+  'field_time', 'paste', 'prop_change', 'helpline_call', 'helpline_sms'
 ]);
 
 const corsHeaders = {
