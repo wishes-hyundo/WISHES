@@ -161,6 +161,17 @@ export default function SearchPortalPage() {
       } catch {}
       return;
     }
+    // [v407 2026-05-20 근본통합 1단계] 공유 MutationObserver 허브 —
+    //   content.js / 모든 패치보다 먼저 실행되어야 함 (observer 65개 → 1개 통합).
+    if (!document.getElementById('ws-ext-hub')) {
+      const hub = document.createElement('script');
+      hub.id = 'ws-ext-hub';
+      hub.src = '/search/content-v407-observer-hub.js?v=20260520-step125';
+      hub.async = false;
+      hub.defer = false;
+      document.body.appendChild(hub);
+    }
+
     const script = document.createElement('script');
     script.id = 'ws-ext-content';
     script.src = '/search/content.js?v=20260514-cachev2';
