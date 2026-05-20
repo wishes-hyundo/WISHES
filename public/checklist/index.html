@@ -8815,6 +8815,47 @@ body { padding-bottom: 60px; }
   setTimeout(fixHelpButtons, 2000);  // 안전 재실행
 })();
 </script>
+
+<script>/* R143-DEDUP-LABEL */
+(function(){
+  if(window.__r143Applied) return;
+  window.__r143Applied = true;
+
+  function dedupLabels(){
+    try{
+      var removeTexts = ['거주 구성원', '금일 계약 진행 가능 여부', '손님 요청사항'];
+      document.querySelectorAll('.flabel').forEach(function(lab){
+        var t = lab.textContent.trim();
+        // req 표시(*) 제거 후 비교
+        var clean = t.replace(/\s*\*\s*$/, '').replace(/\s*\(선택\)\s*$/, '').trim();
+        if(removeTexts.indexOf(clean) >= 0 && !lab.dataset.r143){
+          lab.dataset.r143 = '1';
+          lab.style.display = 'none';
+        }
+      });
+
+      // 거주 구성원 select 첫 option / 안내 텍스트 → "몇 분이 함께 사시나요?"
+      var famSelect = document.getElementById('cFamily') ||
+                      document.querySelector('select[id*="family" i], select[id*="Family"]');
+      if(famSelect && famSelect.options && famSelect.options.length){
+        var first = famSelect.options[0];
+        if(first && (first.value === '' || first.textContent.trim() === '선택')){
+          first.textContent = '몇 분이 함께 사시나요?';
+        }
+      }
+      // sheet picker 형태면 — 거주 구성원 영역의 "선택" placeholder div
+      var famRows = document.querySelectorAll('[id*="family" i], .family-picker, [data-field="family"]');
+      famRows.forEach(function(el){
+        if(el.tagName === 'DIV' && el.textContent.trim() === '선택'){
+          el.textContent = '몇 분이 함께 사시나요?';
+        }
+      });
+    }catch(_){}
+  }
+  setTimeout(dedupLabels, 400);
+  setTimeout(dedupLabels, 1100);
+})();
+</script>
 </body>
 
 </html>
