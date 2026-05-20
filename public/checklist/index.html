@@ -9703,6 +9703,17 @@ footer.ws-footer-r78,
 body { padding-bottom: 176px !important; }
 footer.ws-footer-r78, .ws-footer-r78 { margin-bottom: 0 !important; }
 </style>
+<style>/* R162-FOOTER-PADDING-REAL */
+/* R161 진단 후속(Chrome 실측 2026-05-20): body 는 height:854px + box-sizing:border-box 라
+   padding-bottom 이 box 안에 흡수됨 → scrollHeight 미반영 → R155~R161 전부 무효.
+   footer 는 height:auto 이므로 footer 자체에 padding-bottom 을 주면 box 가 실제로 커지고
+   scrollHeight 에 반영됨 → footer 텍스트가 fixed bottomNav(~131px) + helpline 위로 올라옴.
+   전 페이지(STEP1~6 + 결과) 공통 footer 적용. */
+footer.ws-footer-r78, .ws-footer-r78 {
+  padding-bottom: 168px !important;
+  margin-bottom: 0 !important;
+}
+</style>
 </body>
 
 </html>
