@@ -8367,6 +8367,68 @@ body { padding-bottom: 60px; }
   setInterval(removeEditPath, 2000);
 })();
 </script>
+
+<script>/* R137-HELP-FIX */
+(function(){
+  if(window.__r137Applied) return;
+  window.__r137Applied = true;
+
+  function fixHelpButtons(){
+    try{
+      // 1) 모든 잘못 붙은 R123 도움말 버튼 + tooltip 제거
+      document.querySelectorAll('.r123-help-btn, .r123-help-tooltip').forEach(function(el){
+        el.remove();
+      });
+
+      // 2) 정확한 input 에만 도움말 재부착 (label 의 for 속성 → input id 기반)
+      var helpMap = {
+        'cName':  '실명을 입력해주세요. 가명으로는 정확한 매물 추천이 어려워요.',
+        'cPhone': '010, 070, 0502(안심번호), 011~019 모두 사용 가능합니다.'
+      };
+      // 예산/보증금 input id 확인 — 실제 budget input
+      // (id 는 buyMax/jMax/mDep/mRent 등 — label for 로 정확 매칭)
+
+      Object.keys(helpMap).forEach(function(inputId){
+        var input = document.getElementById(inputId);
+        if(!input) return;
+        // 해당 input 의 label (for=inputId)
+        var label = document.querySelector('label[for="' + inputId + '"]');
+        if(!label) return;
+        if(label.querySelector('.r123-help-btn')) return;
+
+        var helpText = helpMap[inputId];
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'r123-help-btn';
+        btn.textContent = '?';
+        btn.setAttribute('aria-label', '도움말');
+        btn.setAttribute('aria-expanded', 'false');
+
+        var tooltip = document.createElement('div');
+        tooltip.className = 'r123-help-tooltip';
+        tooltip.setAttribute('role', 'tooltip');
+        tooltip.textContent = helpText;
+
+        btn.addEventListener('click', function(e){
+          e.preventDefault();
+          var show = !tooltip.classList.contains('show');
+          tooltip.classList.toggle('show', show);
+          btn.setAttribute('aria-expanded', show ? 'true' : 'false');
+        });
+
+        label.appendChild(btn);
+        if(label.parentNode){
+          label.parentNode.insertBefore(tooltip, label.nextSibling);
+        }
+      });
+    }catch(_){}
+  }
+
+  // R123 (800ms) 이후 실행
+  setTimeout(fixHelpButtons, 1100);
+  setTimeout(fixHelpButtons, 2000);  // 안전 재실행
+})();
+</script>
 </body>
 
 </html>
