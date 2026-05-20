@@ -9714,6 +9714,34 @@ footer.ws-footer-r78, .ws-footer-r78 {
   margin-bottom: 0 !important;
 }
 </style>
+<style>/* R163-RESULT-LAYOUT */
+/* 결과 페이지 정밀 정렬 (Chrome 실측 2026-05-20):
+   요약카드 560px중앙 / 추천버튼 560px좌측치우침 / 회사정보박스 656px → 폭 제각각 + 회사정보 중복.
+   사장님 지적: "사업자 정보(이메일·개인정보 처리방침)가 두 번 반복, 칸 폭 균일하게". */
+
+/* 1) 추천 버튼 + 법적고지 박스 폭을 요약 카드(560px)에 통일 + 중앙정렬 */
+#page-result .r119-referral,
+#page-result button.r119-referral,
+#page-result #ws-legal-footer,
+#ws-legal-footer {
+  max-width: 560px !important;
+  width: auto !important;
+  display: block !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  box-sizing: border-box !important;
+}
+#page-result #ws-legal-footer, #ws-legal-footer {
+  margin-top: 16px !important;
+  margin-bottom: 0 !important;
+}
+
+/* 2) 결과 페이지에서 중복 공용 footer 숨김 — 법적고지 박스에 회사명·이메일·개인정보 처리방침 전부 포함 */
+body:has(#page-result.active) footer.ws-footer-r78 { display: none !important; }
+
+/* 3) 공용 footer 숨김 후 법적고지 박스가 fixed resultNav 에 안 가리게 바닥 여백 (padding=collapse 안 됨) */
+#page-result { padding-bottom: 188px !important; }
+</style>
 </body>
 
 </html>
