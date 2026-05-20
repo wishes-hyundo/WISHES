@@ -3806,6 +3806,102 @@ button.btn-back, button#prevBtn {
   }
 })();
 </script>
+
+<style>/* R145-RESULT-LAYOUT */
+/* 결과 페이지 배치 정리 — 빈 공간 축소 + 간격 일관 */
+#page-result {
+  padding-bottom: 20px !important;
+}
+/* height:120px 빈 div 축소 */
+#page-result > div[style*="120px"],
+#page-result > div[style*="height:120px"],
+#page-result > div[style*="height: 120px"] {
+  height: 16px !important;
+}
+
+/* result-hero 간격 */
+#page-result .result-hero {
+  padding: 24px 16px 16px !important;
+}
+
+/* summary-card 간격 일관 */
+#page-result .summary-card {
+  margin: 0 16px 12px !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.7) inset,
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 10px rgba(0, 0, 0, 0.04) !important;
+  overflow: hidden !important;
+}
+
+/* 회사 정보 박스 — 전체 폭 카드 통일 */
+#page-result .ws-footer-box,
+#page-result .company-info,
+#page-result [class*="footer-box"] {
+  margin: 0 16px 12px !important;
+  padding: 14px 16px !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-radius: 16px !important;
+  box-shadow:
+    0 0 0 0.5px rgba(255, 255, 255, 0.7) inset,
+    0 2px 10px rgba(0, 0, 0, 0.04) !important;
+  width: auto !important;
+}
+
+/* 가족·지인 추천 버튼 — 폭 통일 */
+#page-result .r119-referral,
+.r119-referral {
+  margin: 4px 16px 12px !important;
+  width: calc(100% - 32px) !important;
+  box-sizing: border-box !important;
+}
+</style>
+
+<script>/* R145-RESULT-LAYOUT */
+(function(){
+  if(window.__r145Applied) return;
+  window.__r145Applied = true;
+
+  function fixResultLayout(){
+    try{
+      var page = document.getElementById('page-result');
+      if(!page) return;
+
+      // height:120px 빈 div 축소
+      Array.from(page.children).forEach(function(el){
+        if(el.tagName === 'DIV' && el.getAttribute('style') &&
+           /height:\s*120px/.test(el.getAttribute('style'))){
+          el.style.height = '16px';
+        }
+      });
+
+      // 추천 버튼이 빈 div 뒤에 있으면 → resultCards 다음으로 이동
+      var referral = page.querySelector('.r119-referral');
+      var spacer = Array.from(page.children).find(function(el){
+        return el.tagName === 'DIV' && el.getAttribute('style') &&
+               /height/.test(el.getAttribute('style')) &&
+               el.offsetHeight < 40;
+      });
+      if(referral && spacer && referral.compareDocumentPosition(spacer) & Node.DOCUMENT_POSITION_PRECEDING){
+        // referral 이 spacer 뒤 → spacer 앞으로 이동
+        page.insertBefore(referral, spacer);
+      }
+    }catch(_){}
+  }
+
+  setTimeout(fixResultLayout, 400);
+  setTimeout(fixResultLayout, 1200);
+  // result page 열릴 때 재실행
+  var obs = new MutationObserver(function(){
+    if(document.querySelector('#page-result.active')) fixResultLayout();
+  });
+  setTimeout(function(){
+    if(document.body) obs.observe(document.body, {attributes:true, attributeFilter:['class'], subtree:true});
+  }, 500);
+})();
+</script>
 </head>
 
 <body>
