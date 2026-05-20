@@ -93,38 +93,42 @@ export function FilterBar() {
   }));
 
   // ── 그리드 컬럼용 옵션 ──
-  const roomOpts: Opt[] = FILTER_OPTIONS.roomCounts.map((r) => ({
-    value: r, label: r, active: r === '전체' ? !filters.roomCounts?.length : !!filters.roomCounts?.includes(r),
+  const roomOpts: Opt[] = FILTER_OPTIONS.roomCounts.filter((r) => r !== '전체').map((r) => ({
+    value: r, label: r, active: !!filters.roomCounts?.includes(r),
   }));
-  const shapeOpts: Opt[] = FILTER_OPTIONS.roomShapes.map((s) => ({
-    value: s, label: s, active: s === '전체' ? !filters.roomShape : filters.roomShape === s,
+  const shapeOpts: Opt[] = FILTER_OPTIONS.roomShapes.filter((s) => s !== '전체').map((s) => ({
+    value: s, label: s, active: filters.roomShape === s,
   }));
-  const floorOpts: Opt[] = FILTER_OPTIONS.floorTypes.map((f) => ({
-    value: f, label: f, active: f === '전체' ? !filters.floorType : filters.floorType === f,
+  const floorOpts: Opt[] = FILTER_OPTIONS.floorTypes.filter((f) => f !== '전체').map((f) => ({
+    value: f, label: f, active: filters.floorType === f,
   }));
   const yearOpts: Opt[] = [
-    { value: 'all', label: '전체', active: !filters.builtYearMin && !filters.builtYearMax },
     ...FILTER_OPTIONS.builtYears.map((y) => ({ value: `min:${y}`, label: `${y}~`, active: filters.builtYearMin === y })),
     ...FILTER_OPTIONS.builtYearsBefore.map((y) => ({ value: `max:${y}`, label: `~${y}`, active: filters.builtYearMax === y - 1 })),
   ];
-  const bathOpts: Opt[] = FILTER_OPTIONS.bathrooms.map((b, i) => ({
-    value: String(i), label: b, active: i === 0 ? !filters.bathroomsMin : filters.bathroomsMin === i,
+  const bathOpts: Opt[] = FILTER_OPTIONS.bathrooms
+    .map((b, i) => ({ value: String(i), label: b, active: filters.bathroomsMin === i }))
+    .filter((o) => o.value !== '0');
+  const parkOpts: Opt[] = FILTER_OPTIONS.parkingMins.map((n) => ({
+    value: String(n), label: `${n}대 이상`, active: filters.parkingMin === n,
   }));
-  const parkOpts: Opt[] = [
-    { value: '0', label: '전체', active: !filters.parkingMin },
-    ...FILTER_OPTIONS.parkingMins.map((n) => ({ value: String(n), label: `${n}대 이상`, active: filters.parkingMin === n })),
-  ];
 
   const pickRoom = (v: string) => (v === '전체' ? setFilter('roomCounts', undefined) : toggleValue('roomCounts', v));
-  const pickShape = (v: string) => setFilter('roomShape', v === '전체' ? undefined : v);
-  const pickFloor = (v: string) => setFilter('floorType', v === '전체' ? undefined : v);
+  const pickShape = (v: string) => setFilter('roomShape', filters.roomShape === v ? undefined : v);
+  const pickFloor = (v: string) => setFilter('floorType', filters.floorType === v ? undefined : v);
   const pickYear = (v: string) => {
-    if (v === 'all') { setFilter('builtYearMin', undefined); setFilter('builtYearMax', undefined); return; }
-    if (v.startsWith('min:')) { setFilter('builtYearMin', Number(v.slice(4))); setFilter('builtYearMax', undefined); }
-    else { setFilter('builtYearMax', Number(v.slice(4)) - 1); setFilter('builtYearMin', undefined); }
+    if (v.startsWith('min:')) {
+      const y = Number(v.slice(4));
+      setFilter('builtYearMin', filters.builtYearMin === y ? undefined : y);
+      setFilter('builtYearMax', undefined);
+    } else {
+      const y = Number(v.slice(4)) - 1;
+      setFilter('builtYearMax', filters.builtYearMax === y ? undefined : y);
+      setFilter('builtYearMin', undefined);
+    }
   };
-  const pickBath = (v: string) => setFilter('bathroomsMin', v === '0' ? undefined : Number(v));
-  const pickPark = (v: string) => setFilter('parkingMin', v === '0' ? undefined : Number(v));
+  const pickBath = (v: string) => setFilter('bathroomsMin', filters.bathroomsMin === Number(v) ? undefined : Number(v));
+  const pickPark = (v: string) => setFilter('parkingMin', filters.parkingMin === Number(v) ? undefined : Number(v));
 
   // 모드별 컬럼 구성
   const showRooms = mode === 'residential' || mode === 'all';
