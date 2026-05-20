@@ -9695,6 +9695,14 @@ footer.ws-footer-r78,
   margin-bottom: 132px !important;
 }
 </style>
+<style>/* R161-FOOTER-PADDING */
+/* 진단(2026-05-20 Chrome 실측): footer margin-bottom 132px 가 margin-collapse 로
+   scrollHeight 에 미반영 → R155~R160 전부 무효. footer 가 fixed bottomNav+helpline 뒤에 완전히 가림.
+   해결: body padding-bottom 으로 실제 스크롤 공간 확보 (padding 은 collapse 안 됨, 항상 scrollHeight 반영).
+   전 페이지(STEP1~6 + 결과) 공통 적용. */
+body { padding-bottom: 176px !important; }
+footer.ws-footer-r78, .ws-footer-r78 { margin-bottom: 0 !important; }
+</style>
 </body>
 
 </html>
