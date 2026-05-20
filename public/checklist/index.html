@@ -9831,6 +9831,41 @@ input[type="date"], #cTime, select#cTime {
   margin-right: 0 !important;
 }
 </style>
+<style>/* R166-TRANSPORT-FIX */
+/* R165 transport 선택자 오류 정정 (Chrome 실측): 컨테이너 id 는 g-trans */
+#g-trans {
+  display: grid !important;
+  grid-template-columns: repeat(5, 1fr) !important;
+  gap: 0 !important;
+  border: 0.5px solid rgba(60,60,67,0.2) !important;
+  border-radius: 10px !important;
+  overflow: hidden !important;
+  background: var(--ios-fill-3, #F2F2F7) !important;
+  min-height: 46px !important;
+  padding: 0 !important;
+}
+#g-trans .chip {
+  flex: none !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  border-left: 0.5px solid rgba(60,60,67,0.2) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 46px !important;
+}
+#g-trans .chip:first-child { border-left: none !important; }
+#g-trans .chip.on {
+  background: #FFFFFF !important;
+  color: #007AFF !important;
+  border-radius: 8px !important;
+  box-shadow: 0 0 0 1.5px #007AFF inset !important;
+}
+#g-trans .chip.on svg { stroke: #007AFF !important; }
+</style>
 </body>
 
 </html>
