@@ -9251,6 +9251,59 @@ body { padding-bottom: 60px; }
   setTimeout(set30min, 600);
 })();
 </script>
+
+<script>/* R152-TIME-SELECT */
+(function(){
+  if(window.__r152Applied) return;
+  window.__r152Applied = true;
+
+  function replaceTimeInput(){
+    try{
+      var input = document.getElementById('cTime');
+      if(!input) { setTimeout(replaceTimeInput, 500); return; }
+      if(input.tagName === 'SELECT') return;  // 이미 교체됨
+
+      var sel = document.createElement('select');
+      sel.id = 'cTime';
+      sel.setAttribute('aria-label', '방문 희망 시각');
+      sel.className = input.className || '';
+
+      // 첫 옵션 (안내)
+      var opt0 = document.createElement('option');
+      opt0.value = '';
+      opt0.textContent = '시간 선택';
+      sel.appendChild(opt0);
+
+      // 09:00 ~ 20:00, 30분 간격
+      for(var h = 9; h <= 20; h++){
+        var mins = (h === 20) ? [0] : [0, 30];
+        mins.forEach(function(m){
+          var hh = (h < 10 ? '0' : '') + h;
+          var mm = (m < 10 ? '0' : '') + m;
+          var ampm = h < 12 ? '오전' : '오후';
+          var h12 = h <= 12 ? h : h - 12;
+          var o = document.createElement('option');
+          o.value = hh + ':' + mm;  // 24h value (기존 데이터 호환)
+          o.textContent = ampm + ' ' + h12 + ':' + mm;
+          sel.appendChild(o);
+        });
+      }
+
+      // 기존 값 유지
+      if(input.value) sel.value = input.value;
+
+      input.parentNode.replaceChild(sel, input);
+    }catch(_){}
+  }
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', replaceTimeInput);
+  } else {
+    replaceTimeInput();
+  }
+  setTimeout(replaceTimeInput, 700);
+})();
+</script>
 </body>
 
 </html>
