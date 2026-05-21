@@ -63,7 +63,7 @@ const STYLE_CSS = `
   position:relative;cursor:pointer;
   transition:transform .18s cubic-bezier(.16,1,.3,1);
 }
-.scl-pin img{display:block;width:100%;height:100%;}
+.scl-pin img{display:block;width:100%;height:100%;opacity:.78;}
 .scl-pinimg{transform-origin:50% 98%;}
 .scl-pinimg img{filter:drop-shadow(0 2px 3px rgba(12,40,24,.34));}
 .scl-pinimg:hover{transform:scale(1.10);z-index:400;}

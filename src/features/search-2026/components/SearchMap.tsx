@@ -129,7 +129,7 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
         setKakaoMap(map);
 
         try {
-          map.setMinLevel?.(3);
+          map.setMinLevel?.(1);  // SW-7: 최대 줌까지 허용
           map.setMaxLevel?.(14);
         } catch { /* SDK race — skip */ }
 
