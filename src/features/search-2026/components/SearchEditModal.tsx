@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import type { SearchListing } from '../types';
 import styles from './SearchEditModal.module.css';
+import { SearchPhotoManager } from './SearchPhotoManager';
 
 export interface SearchEditModalProps {
   listing: SearchListing;
@@ -117,6 +118,7 @@ export function SearchEditModal({ listing, onClose, onSaved }: SearchEditModalPr
           <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">✕</button>
         </div>
         <div className={styles.body}>
+          <SearchPhotoManager listingId={listing.id} />
           <div className={styles.grid}>
             {FIELDS.map((f) => (
               <div key={f.key} className={`${styles.field} ${f.full ? styles.full : ''}`}>

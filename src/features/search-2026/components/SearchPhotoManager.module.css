@@ -1,0 +1,47 @@
+/* SearchPhotoManager — 매물 사진 관리 (SW-5b) · iOS 26.5 글래스 */
+.wrap {
+  border: 0.5px solid rgba(20, 40, 26, 0.14);
+  border-radius: 14px;
+  padding: 12px;
+  background: rgba(244, 248, 244, 0.7);
+  margin-bottom: 14px;
+}
+.head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.label { font-size: 12px; font-weight: 700; color: #2c3a31; flex: 1; }
+.uploadBtn {
+  height: 28px; padding: 0 12px;
+  border: 0.5px solid #2c7a4b; border-radius: 8px;
+  background: #2c7a4b; color: #fff;
+  font-family: inherit; font-size: 11.5px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+.uploadBtn:disabled { opacity: 0.45; cursor: default; }
+.note { font-size: 11.5px; color: #8a988e; margin: 6px 2px; }
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
+}
+.cell {
+  position: relative; border-radius: 10px; overflow: hidden;
+  background: #e9efe9; aspect-ratio: 4 / 3;
+}
+.thumb { width: 100%; height: 100%; object-fit: cover; display: block; }
+.badge {
+  position: absolute; top: 5px; left: 5px;
+  background: rgba(44, 122, 75, 0.92); color: #fff;
+  font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 999px;
+}
+.cellBar {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; gap: 1px;
+  background: rgba(14, 26, 18, 0.42);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.iconBtn {
+  flex: 1; height: 24px; border: none; background: transparent;
+  color: #fff; font-size: 11px; cursor: pointer; font-family: inherit;
+}
+.iconBtn:disabled { opacity: 0.35; cursor: default; }
+.iconBtn:active:not(:disabled) { background: rgba(255, 255, 255, 0.18); }
+.del { color: #ff9b8e; }
+.err { font-size: 11.5px; color: #c0392b; margin: 8px 2px 0; }
