@@ -75,8 +75,9 @@ const STYLE_CSS = `
 .scl-count{
   position:absolute;inset:0;
   display:flex;align-items:center;justify-content:center;
-  color:#14532d;font-weight:700;letter-spacing:-.5px;
+  color:#ffffff;font-weight:700;letter-spacing:-.5px;
   font-family:-apple-system,BlinkMacSystemFont,'SF Pro Rounded','Pretendard',sans-serif;
+  text-shadow:0 1px 2px rgba(12,40,24,.55),0 0 3px rgba(12,40,24,.40);
   user-select:none;pointer-events:none;
 }
 `;
