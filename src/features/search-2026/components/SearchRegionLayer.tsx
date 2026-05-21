@@ -20,9 +20,13 @@ import { useEffect, useRef, useState } from 'react';
 export type RegionTier = 'sido' | 'sigungu' | 'dong';
 
 const COUNT_ZOOM: Record<RegionTier, number> = { sido: 7, sigungu: 9, dong: 12 };
+// 2026-05-22: 정적 간소화 GeoJSON — 토폴로지 보존 간소화(mapshaper).
+//   기존 /api/geo/* 는 KOSTAT 원본(시도 7.5MB·시군구 18MB)을 그대로 프록시 →
+//   파싱·폴리곤 변환에 메인스레드 멈춤. 정적 간소화본(346KB·801KB, 96%↓)으로
+//   교체 — 지도 표시 정밀도는 동일, 버벅임 제거. CDN 캐시.
 const GEO_URL: Record<'sido' | 'sigungu', string> = {
-  sido: '/api/geo/sido',
-  sigungu: '/api/geo/sigungu',
+  sido: '/geo/sido.json',
+  sigungu: '/geo/sigungu.json',
 };
 
 interface GeoFeature {
