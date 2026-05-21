@@ -1,19 +1,16 @@
 'use client';
 
 /**
- * SearchClusterLayer — /search 지도 마커 (P5 · 애플지도 풍선 핀)
+ * SearchClusterLayer — /search 지도 마커 (P5 · 애플지도 풍선 핀, SVG)
  *
- * 대표님 확정: 단일 정체성 = 애플지도 둥근 풍선 핀. 클러스터도 핀.
- *   · 클러스터(2개 이상) — 풍선 핀, head 안에 개수 숫자. head 크기 = 개수 비례.
+ * 대표님 확정: 애플지도 둥근 풍선 핀. 원 + 삼각형 붙이기(X) — 매끈한 물방울.
+ *   SVG path 로 head→tip 이 하나로 이어지는 진짜 teardrop 을 그린다.
+ *
+ *   · 클러스터(2개 이상) — 풍선 핀, head 안에 개수 숫자. 크기 = 개수 비례.
  *   · 개별 매물(1개)      — 풍선 핀, head 안에 흰 점.
- *   · 줌 적응 — 서버 클러스터 단위(시→구→동→건물)가 줌마다 바뀌고,
- *     머지 후 핀이 재배치·재크기. 개수는 클러스터 핀에 항상 표시.
- *
- * 설계:
- *   · head = 원(글로스·그림자 정상), tail = 아래 삼각형. 회전 안 씀 → 그림자/광택 정상.
- *   · 핀 tip(삼각형 꼭짓점)이 좌표에 앵커 (yAnchor 1.0).
- *   · 겹침 제거 머지 — head 반지름 기준, 닿기 직전까지만.
- *   · /map 의 KakaoMarkerLayer 는 손대지 않음.
+ *   · 줌 적응 — 서버 클러스터 단위가 줌마다 바뀌고 머지 후 재배치·재크기.
+ *   · SVG → 매끈한 곡선 + radialGradient 광택 + feDropShadow 부드러운 그림자.
+ *   · 핀 tip 이 좌표에 앵커. /map 의 KakaoMarkerLayer 는 손대지 않음.
  */
 
 import { useEffect, useRef } from 'react';
@@ -34,15 +31,17 @@ export interface SearchClusterLayerProps {
   onSelectListing?: (id: number) => void;
 }
 
-// ── head(원) 지름 — 개수 비례 단계 ───────────────────────────
-function headDiameter(count: number): number {
-  if (count <= 1) return 32;
-  if (count < 10) return 38;
-  if (count < 50) return 44;
-  if (count < 200) return 50;
-  if (count < 1000) return 56;
-  return 62;
+// ── 핀 픽셀 폭 — 개수 비례 단계 ──────────────────────────────
+function pinWidth(count: number): number {
+  if (count <= 1) return 36;
+  if (count < 10) return 42;
+  if (count < 50) return 48;
+  if (count < 200) return 54;
+  if (count < 1000) return 60;
+  return 68;
 }
+const PIN_RATIO = 138 / 120;  // viewBox 높이/폭
+const TIP_YANCHOR = 126 / 138; // tip(y=118) — viewBox(-8..130) 내 비율 ≈ 0.913
 
 function formatCount(n: number): string {
   if (n < 1000) return String(n);
@@ -53,56 +52,43 @@ function formatCount(n: number): string {
   return Math.floor(n / 1000) + 'K';
 }
 
-// 핀 기하 — head 지름에서 tail·컨테이너 치수 산출
-function pinGeometry(headD: number) {
-  const tailHalf = Math.round(headD * 0.21);   // 삼각형 밑변 절반
-  const tailH = Math.round(headD * 0.44);      // 삼각형 높이
-  const overlap = Math.round(headD * 0.30);    // head 안으로 파묻히는 양
-  const tailTop = headD - overlap;
-  const containerH = tailTop + tailH;
-  return { tailHalf, tailH, tailTop, containerH };
+// 매끈한 물방울 핀 SVG — head(반지름36, 중심 50,48) + tip(50,118) 한 경로.
+function pinSvg(count: number, single: boolean): string {
+  const label = formatCount(count);
+  const fs = label.length >= 4 ? 22 : label.length === 3 ? 26 : 30;
+  const inner = single
+    ? '<circle cx="50" cy="48" r="12.5" fill="#ffffff"/>'
+    : `<text x="50" y="49.5" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Pretendard',sans-serif" font-weight="600" font-size="${fs}" letter-spacing="-1" fill="#ffffff">${label}</text>`;
+  return (
+    '<svg viewBox="-10 -8 120 138" xmlns="http://www.w3.org/2000/svg">' +
+    '<defs>' +
+    '<radialGradient id="wg" cx="37%" cy="29%" r="80%">' +
+    '<stop offset="0%" stop-color="#66b87b"/>' +
+    '<stop offset="56%" stop-color="#3d8c55"/>' +
+    '<stop offset="100%" stop-color="#296a3e"/>' +
+    '</radialGradient>' +
+    '<filter id="ws" x="-55%" y="-40%" width="210%" height="195%">' +
+    '<feDropShadow dx="0" dy="3.5" stdDeviation="3.4" flood-color="#0e2818" flood-opacity="0.44"/>' +
+    '</filter>' +
+    '</defs>' +
+    '<path d="M50,118 C39,96 14,74 14,48 A36,36 0 1,1 86,48 C86,74 61,96 50,118 Z" fill="url(#wg)" filter="url(#ws)"/>' +
+    inner +
+    '</svg>'
+  );
 }
 
-// ── 애플 풍선 핀 스타일 (주입 1회) ───────────────────────────
+// ── 스타일 (주입 1회) ────────────────────────────────────────
 const STYLE_ID = 'wishes-search-pin-style';
 const STYLE_CSS = `
 .scl-pin{
   position:relative;cursor:pointer;
-  transform-origin:50% 100%;
+  transform-origin:50% 91%;
   transition:transform .18s cubic-bezier(.16,1,.3,1);
 }
-.scl-pin:hover{transform:scale(1.07);z-index:400;}
+.scl-pin:hover{transform:scale(1.08);z-index:400;}
 .scl-pin:active{transform:scale(0.96);}
-.scl-tail{
-  position:absolute;left:50%;width:0;height:0;
-  transform:translateX(-50%);
-  border-style:solid;
-  border-color:#2f7a47 transparent transparent transparent;
-  z-index:1;
-}
-.scl-head{
-  position:absolute;left:0;top:0;z-index:2;
-  border-radius:50%;
-  display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle at 38% 30%,#5cab70,#2f7a47 78%);
-  box-shadow:
-    inset 0 1.5px 1.5px rgba(255,255,255,0.42),
-    inset 0 -6px 10px rgba(16,44,26,0.26),
-    0 4px 11px rgba(16,44,26,0.32),
-    0 1px 3px rgba(16,44,26,0.22);
-}
-.scl-num{
-  color:#fff;font-weight:600;letter-spacing:-0.02em;
-  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Pretendard',sans-serif;
-  text-shadow:0 0.5px 2px rgba(12,34,18,0.5);
-  pointer-events:none;
-}
-.scl-dot{
-  border-radius:50%;
-  background:radial-gradient(circle at 38% 32%,#ffffff,#dde8e0);
-  box-shadow:inset 0 -1px 2px rgba(16,44,26,0.22);
-  pointer-events:none;
-}
+.scl-pin svg{display:block;width:100%;height:100%;overflow:visible;}
+.scl-pin text{user-select:none;}
 `;
 
 function injectStyle(): void {
@@ -128,7 +114,6 @@ interface KakaoMapLike {
 }
 
 // ── 겹침 제거 머지 ───────────────────────────────────────────
-//   픽셀 투영 후 head 가 닿기 직전(반지름 합)까지만 허용. 다단계 반복.
 type MNode = {
   count: number; ids: number[];
   lat: number; lng: number;
@@ -147,7 +132,8 @@ function mergeClusters(
       count: c.count, ids: c.sample_ids ?? [], lat: c.lat, lng: c.lng,
     }));
   }
-  const radiusOf = (count: number) => headDiameter(count) / 2 + 3;
+  // head 원의 화면 반지름 ≈ pinWidth * 0.30 (viewBox 상 head 지름 72/120)
+  const radiusOf = (count: number) => pinWidth(count) * 0.30 + 3;
 
   const nodes: MNode[] = clusters.map((c) => {
     const t1Lat = typeof c.tier1_lat === 'number' && Number.isFinite(c.tier1_lat) ? c.tier1_lat : null;
@@ -217,52 +203,26 @@ export function SearchClusterLayer({ map, clusters, onSelectListing }: SearchClu
 
     for (const m of merged) {
       const single = m.count <= 1;
-      const headD = headDiameter(m.count);
-      const geo = pinGeometry(headD);
+      const w = pinWidth(m.count);
 
       const el = document.createElement('div');
       el.className = 'scl-pin';
-      el.style.width = `${headD}px`;
-      el.style.height = `${geo.containerH}px`;
-
-      const tail = document.createElement('div');
-      tail.className = 'scl-tail';
-      tail.style.top = `${geo.tailTop}px`;
-      tail.style.borderLeftWidth = `${geo.tailHalf}px`;
-      tail.style.borderRightWidth = `${geo.tailHalf}px`;
-      tail.style.borderTopWidth = `${geo.tailH}px`;
-
-      const head = document.createElement('div');
-      head.className = 'scl-head';
-      head.style.width = `${headD}px`;
-      head.style.height = `${headD}px`;
+      el.style.width = `${w}px`;
+      el.style.height = `${Math.round(w * PIN_RATIO)}px`;
+      el.innerHTML = pinSvg(m.count, single);
 
       if (single) {
-        const dot = document.createElement('div');
-        dot.className = 'scl-dot';
-        const ds = Math.round(headD * 0.34);
-        dot.style.width = `${ds}px`;
-        dot.style.height = `${ds}px`;
-        head.appendChild(dot);
         el.dataset.singleId = String(m.ids[0] ?? '');
       } else {
-        const num = document.createElement('span');
-        num.className = 'scl-num';
-        num.style.fontSize = `${Math.min(15, Math.max(11, Math.round(headD * 0.30)))}px`;
-        num.textContent = formatCount(m.count);
-        head.appendChild(num);
         el.dataset.clusterLat = String(m.lat);
         el.dataset.clusterLng = String(m.lng);
       }
-
-      el.appendChild(tail);
-      el.appendChild(head);
 
       const ov = new maps.CustomOverlay({
         position: new maps.LatLng(m.lat, m.lng),
         content: el,
         xAnchor: 0.5,
-        yAnchor: 1.0,
+        yAnchor: TIP_YANCHOR,
         zIndex: single ? 90 : 100,
       });
       ov.setMap(map);
@@ -275,7 +235,7 @@ export function SearchClusterLayer({ map, clusters, onSelectListing }: SearchClu
     const handler = (e: Event) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      const pin = target.closest('.scl-pin') as HTMLElement | null;
+      const pin = (target.closest && target.closest('.scl-pin')) as HTMLElement | null;
       if (!pin) return;
       e.stopPropagation();
       if (pin.dataset.singleId) {
