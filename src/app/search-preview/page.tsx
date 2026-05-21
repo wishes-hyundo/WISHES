@@ -13,6 +13,7 @@ import { useState } from 'react';
 import { SearchHeader } from '@/features/search-2026/components/SearchHeader';
 import { FilterBar } from '@/features/search-2026/components/FilterBar';
 import { ResultsSplit } from '@/features/search-2026/components/ResultsSplit';
+import { SearchFilterChips } from '@/features/search-2026/components/SearchFilterChips';
 import { useSearchStore } from '@/features/search-2026/store';
 import { useSearchListings } from '@/features/search-2026/hooks';
 import { type SearchView } from '@/features/search-2026/components/ViewTabs';
@@ -69,6 +70,7 @@ export default function SearchPreviewPage() {
         onViewChange={setView}
       />
       <FilterBar />
+      <SearchFilterChips />
       <ResultsSplit
         listings={listings}
         total={total}
