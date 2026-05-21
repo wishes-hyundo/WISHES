@@ -21,6 +21,7 @@ import { SearchActionBar } from './SearchActionBar';
 import { SearchCompareModal } from './SearchCompareModal';
 import { SearchFavoritesModal } from './SearchFavoritesModal';
 import { SearchBriefingModal } from './SearchBriefingModal';
+import { SearchEditModal } from './SearchEditModal';
 import styles from './ResultsSplit.module.css';
 
 export interface ResultsSplitProps {
@@ -46,6 +47,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   const [favMap, setFavMap] = useState<Map<number, SearchListing>>(() => new Map());
   const [favOpen, setFavOpen] = useState(false);
   const [briefingOpen, setBriefingOpen] = useState(false);
+  const [editListing, setEditListing] = useState<SearchListing | null>(null);
   // 관심목록 영속화 (localStorage) — 하이드레이션 안전: 마운트 후 로드
   useEffect(() => {
     try {
@@ -157,6 +159,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         onClose={closeDetail}
         pool={flatListings}
         onOpenListing={openListing}
+        onEdit={(l) => setEditListing(l)}
       />
 
       <SearchActionBar
@@ -185,6 +188,12 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         <SearchBriefingModal
           listings={selectedListings}
           onClose={() => setBriefingOpen(false)}
+        />
+      )}
+      {editListing && (
+        <SearchEditModal
+          listing={editListing}
+          onClose={() => setEditListing(null)}
         />
       )}
       {favOpen && (

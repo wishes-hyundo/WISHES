@@ -23,6 +23,8 @@ export interface SearchDetailModalProps {
   pool?: SearchListing[];
   /** 유사매물 클릭 시 해당 매물로 모달 전환 */
   onOpenListing?: (l: SearchListing) => void;
+  /** 매물 수정 진입 */
+  onEdit?: (l: SearchListing) => void;
 }
 
 const DEAL_TONE: Record<string, string> = {
@@ -84,7 +86,7 @@ function fmtDate(v: unknown): string {
 }
 
 export function SearchDetailModal({
-  listing, id, onClose, pool, onOpenListing,
+  listing, id, onClose, pool, onOpenListing, onEdit,
 }: SearchDetailModalProps) {
   const [fav, setFav] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -374,6 +376,13 @@ export function SearchDetailModal({
           </button>
           {agentOpen && (
             <div className={styles.agentBody}>
+              {onEdit && (
+                <button
+                  type="button"
+                  className={styles.editBtn}
+                  onClick={() => onEdit(l)}
+                >✏️ 매물 수정</button>
+              )}
               <div className={styles.subHead}>등록 · 확인 이력</div>
               {[
                 ['최초 등록', fmtDate(l.created_at)],
