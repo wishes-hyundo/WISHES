@@ -40,8 +40,8 @@ function pinWidth(count: number): number {
   if (count < 1000) return 60;
   return 68;
 }
-const PIN_RATIO = 138 / 120;  // viewBox 높이/폭
-const TIP_YANCHOR = 126 / 138; // tip(y=118) — viewBox(-8..130) 내 비율 ≈ 0.913
+const PIN_RATIO = 142 / 124;  // viewBox 높이/폭
+const TIP_YANCHOR = 128 / 142; // tip(y=118) — viewBox(-10..132) 내 비율 ≈ 0.901
 
 function formatCount(n: number): string {
   if (n < 1000) return String(n);
@@ -52,26 +52,44 @@ function formatCount(n: number): string {
   return Math.floor(n / 1000) + 'K';
 }
 
-// 매끈한 물방울 핀 SVG — head(반지름36, 중심 50,48) + tip(50,118) 한 경로.
+// 리퀴드 글래스 물방울 핀 SVG (iOS 26 스타일, 2026-05-21 재디자인)
+//   head(반지름36, 중심 50,48) + tip(50,118) 한 경로. viewBox/경로 불변
+//   → PIN_RATIO·TIP_YANCHOR·radiusOf 상수 그대로 유효.
+//   마감: 수직 루미넌스 그라디언트 + 좌상단 글래스 광택 + 위→아래
+//   페이드되는 림 라이트(하드 테두리 X) + 부드러운 확산 그림자.
 function pinSvg(count: number, single: boolean): string {
   const label = formatCount(count);
-  const fs = label.length >= 4 ? 22 : label.length === 3 ? 26 : 30;
+  const fs = label.length >= 4 ? 23 : label.length === 3 ? 27 : 31;
   const inner = single
-    ? '<circle cx="50" cy="48" r="12.5" fill="#ffffff"/>'
-    : `<text x="50" y="49.5" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Text','Pretendard',sans-serif" font-weight="600" font-size="${fs}" letter-spacing="-1" fill="#ffffff">${label}</text>`;
+    ? '<circle cx="50" cy="48" r="13" fill="#ffffff"/>' +
+      '<circle cx="50" cy="48" r="5.4" fill="#1f9a55"/>'
+    : `<text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Display','Pretendard',sans-serif" font-weight="640" font-size="${fs}" letter-spacing="-1.4" fill="#ffffff">${label}</text>`;
+  const D = 'M50,118 C39,96 14,74 14,48 A36,36 0 1,1 86,48 C86,74 61,96 50,118 Z';
   return (
-    '<svg viewBox="-10 -8 120 138" xmlns="http://www.w3.org/2000/svg">' +
+    '<svg viewBox="-12 -10 124 142" xmlns="http://www.w3.org/2000/svg">' +
     '<defs>' +
-    '<radialGradient id="wg" cx="37%" cy="29%" r="80%">' +
-    '<stop offset="0%" stop-color="#66b87b"/>' +
-    '<stop offset="56%" stop-color="#3d8c55"/>' +
-    '<stop offset="100%" stop-color="#296a3e"/>' +
+    '<linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0%" stop-color="#62cf8a"/>' +
+    '<stop offset="48%" stop-color="#2ba75b"/>' +
+    '<stop offset="100%" stop-color="#138049"/>' +
+    '</linearGradient>' +
+    '<linearGradient id="wr" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.92"/>' +
+    '<stop offset="50%" stop-color="#ffffff" stop-opacity="0.14"/>' +
+    '<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>' +
+    '</linearGradient>' +
+    '<radialGradient id="wh" cx="37%" cy="26%" r="60%">' +
+    '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>' +
+    '<stop offset="55%" stop-color="#ffffff" stop-opacity="0.16"/>' +
+    '<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>' +
     '</radialGradient>' +
-    '<filter id="ws" x="-55%" y="-40%" width="210%" height="195%">' +
-    '<feDropShadow dx="0" dy="3.5" stdDeviation="3.4" flood-color="#0e2818" flood-opacity="0.44"/>' +
+    '<filter id="ws" x="-65%" y="-50%" width="230%" height="220%">' +
+    '<feDropShadow dx="0" dy="4" stdDeviation="4.5" flood-color="#0a2c19" flood-opacity="0.30"/>' +
     '</filter>' +
     '</defs>' +
-    '<path d="M50,118 C39,96 14,74 14,48 A36,36 0 1,1 86,48 C86,74 61,96 50,118 Z" fill="url(#wg)" filter="url(#ws)"/>' +
+    `<path d="${D}" fill="url(#wg)" filter="url(#ws)"/>` +
+    '<ellipse cx="39" cy="35" rx="24.5" ry="16.5" fill="url(#wh)"/>' +
+    `<path d="${D}" fill="none" stroke="url(#wr)" stroke-width="1.5"/>` +
     inner +
     '</svg>'
   );
