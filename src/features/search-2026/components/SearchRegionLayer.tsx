@@ -392,69 +392,40 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, tier, active, loadKey]);
 
-  // 지도 중심 키 — 강조 폴리곤 갱신 트리거
-  const centerKey = bbox
-    ? `${((bbox.south + bbox.north) / 2).toFixed(3)},${((bbox.west + bbox.east) / 2).toFixed(3)}`
-    : '';
-
-  // ── Effect 2 — 현재 구역 강조 폴리곤 ─────────────────────────
-  //   네이버·피터팬 방식: 중심(또는 동 tier 버블 hover)이 속한 구역 1개를
-  //   반투명 칠. 시·도/시·군·구는 정부 GeoJSON, 동은 VWorld 법정동 정적.
+  // ── Effect 2 — 강조 폴리곤 (구역 버블 hover 시 그 구역만) ──
+  //   2026-05-21 수정: 기존엔 지도 "중심"이 속한 구역을 칠해서, 팬할 때마다
+  //   강조 구역이 따라다녔다(대표님 지적). 이제 버블에 마우스를 올린 그 구역
+  //   하나만 그 구역의 실제 경계에 칠한다 — 좌표 고정, 팬해도 안 따라옴.
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
     const maps = win.kakao?.maps;
     if (!maps) return;
 
-    let disposed = false;
     const clearH = () => {
       for (const p of highlightRef.current) { try { p.setMap(null); } catch { /* noop */ } }
       highlightRef.current = [];
     };
     clearH();
-    if (!active || !bbox) return () => { disposed = true; clearH(); };
+    if (!active || !hoverPolys) return () => clearH();
 
-    const drawHL = (polys: Poly[]) => {
-      for (const poly of polys) {
-        const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
-        const kp = new maps.Polygon({
-          path,
-          strokeWeight: 2.4,
-          strokeColor: '#2f7a47',
-          strokeOpacity: 0.95,
-          strokeStyle: 'solid',
-          fillColor: '#3f8a55',
-          fillOpacity: 0.16,
-          zIndex: 3,
-        });
-        kp.setMap(map);
-        highlightRef.current.push(kp);
-      }
-    };
-
-    const cLat = (bbox.south + bbox.north) / 2;
-    const cLng = (bbox.west + bbox.east) / 2;
-
-    if (tier === 'dong') {
-      // 버블 hover 시 그 법정동, 아니면 지도 중심이 속한 법정동
-      if (hoverPolys) { drawHL(hoverPolys); return () => { disposed = true; clearH(); }; }
-      if (dongFeats) {
-        const hit = dongFeats.find((f) => featureContains(featurePolys(f), cLng, cLat));
-        if (hit) drawHL(featurePolys(hit));
-      }
-      return () => { disposed = true; clearH(); };
+    for (const poly of hoverPolys) {
+      const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
+      const kp = new maps.Polygon({
+        path,
+        strokeWeight: 2.4,
+        strokeColor: '#2f7a47',
+        strokeOpacity: 0.95,
+        strokeStyle: 'solid',
+        fillColor: '#3f8a55',
+        fillOpacity: 0.16,
+        zIndex: 3,
+      });
+      kp.setMap(map);
+      highlightRef.current.push(kp);
     }
-
-    (async () => {
-      const geo = await loadGeo(tier === 'sido' ? 'sido' : 'sigungu');
-      if (disposed || !geo || !active) return;
-      const hit = geo.features.find((f) => featureContains(featurePolys(f), cLng, cLat));
-      if (!hit || disposed) return;
-      drawHL(featurePolys(hit));
-    })();
-
-    return () => { disposed = true; clearH(); };
-  }, [map, tier, active, centerKey, dongFeats, hoverPolys]);
+    return () => clearH();
+  }, [map, active, hoverPolys]);
 
   // ── Effect 2b — 동 tier 법정동 경계선 (전 구역 옅은 외곽선) ──
   //   다방·네이버처럼 viewport 안 모든 법정동의 경계를 옅게 그림 →
@@ -532,11 +503,10 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       el.innerHTML =
         `<span class="srl-rcount">${fmtCount(d.count)}</span>` +
         `<span class="srl-rname">${d.name}</span>`;
-      if (tier === 'dong') {
-        const hp = d.polys;
-        el.addEventListener('mouseenter', () => setHoverPolys(hp));
-        el.addEventListener('mouseleave', () => setHoverPolys(null));
-      }
+      // 구역 버블 hover -> 그 구역 경계 강조 (sido/sigungu/dong 공통)
+      const hp = d.polys;
+      el.addEventListener('mouseenter', () => setHoverPolys(hp));
+      el.addEventListener('mouseleave', () => setHoverPolys(null));
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         const m = map as KakaoMapLike;

@@ -40,7 +40,7 @@ const PIN_XANCHOR = 0.502;
 const PIN_TIP_YANCHOR = 0.9805;
 
 function pinWidth(count: number): number {
-  if (count <= 1) return 38;
+  if (count <= 1) return 30;  // SW-7: 최대확대 핀 — 크기 축소
   if (count < 10) return 44;
   if (count < 50) return 50;
   if (count < 200) return 56;
