@@ -393,11 +393,15 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       if (collide) continue;
       placed.push({ x, y });
 
-      // 폴리곤 (구멍 포함, 정밀 경계)
-      for (const poly of d.polys) {
+      // 폴리곤 — 한 구역이 여러 조각(MultiPolygon)이어도 한 덩어리로 다룸.
+      //   ① union 부스러기(주 조각의 8% 미만) 는 버림 → "조각난" 모습 제거
+      //   ② hover 는 그 구역의 모든 조각을 함께 강조 (한 동 = 한 단위)
+      let maxArea = 0;
+      for (const poly of d.polys) maxArea = Math.max(maxArea, ringBboxArea(poly[0]));
+      const drawPolys = d.polys.filter((poly) => ringBboxArea(poly[0]) >= maxArea * 0.08);
+      const group: KakaoPolygon[] = [];
+      for (const poly of (drawPolys.length > 0 ? drawPolys : d.polys)) {
         const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
-        // 한국 부동산 지도 표준: 채움 없이 가는 회색 경계선만.
-        //   채움은 hover 한 구역 하나만 옅은 녹색 (네이버·호갱노노 패턴).
         const kp = new maps.Polygon({
           path,
           strokeWeight: 1.2,
@@ -410,14 +414,16 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
         });
         kp.setMap(map);
         polysRef.current.push(kp);
-        maps.event.addListener(kp, 'mouseover', () => {
-          try { kp.setOptions?.({ fillOpacity: 0.17, strokeColor: '#2f7a47', strokeWeight: 2.4 }); }
-          catch { /* noop */ }
-        });
-        maps.event.addListener(kp, 'mouseout', () => {
-          try { kp.setOptions?.({ fillOpacity: 0.05, strokeColor: '#aab0b8', strokeWeight: 1.2 }); }
-          catch { /* noop */ }
-        });
+        group.push(kp);
+      }
+      const setGroup = (fillOpacity: number, strokeColor: string, strokeWeight: number) => {
+        for (const g of group) {
+          try { g.setOptions?.({ fillOpacity, strokeColor, strokeWeight }); } catch { /* noop */ }
+        }
+      };
+      for (const kp of group) {
+        maps.event.addListener(kp, 'mouseover', () => setGroup(0.17, '#2f7a47', 2.4));
+        maps.event.addListener(kp, 'mouseout', () => setGroup(0.05, '#aab0b8', 1.2));
         maps.event.addListener(kp, 'click', (e) => {
           const m = map as KakaoMapLike;
           const ll = e?.latLng;
