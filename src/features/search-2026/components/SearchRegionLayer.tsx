@@ -345,8 +345,11 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       features.forEach((f, fi) => {
         const polys = fpolys[fi];
         const count = counts.get(fi) ?? 0;
+        // 매물 0건 구역은 폴리곤·버블 모두 생략 — 빈 폴리곤 시각 노이즈 제거.
+        //   "폴리곤이 보이면 그 구역에 매물이 있다" 가 일관 규칙.
+        if (count <= 0) return;
 
-        const baseFill = count > 0 ? 0.20 : 0.05;
+        const baseFill = 0.20;
         for (const poly of polys) {
           const path = poly.map((ring) =>
             ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
