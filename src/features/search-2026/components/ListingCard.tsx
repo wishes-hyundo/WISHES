@@ -104,6 +104,7 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
             {listing.deal || '거래'}
           </span>
           <span className={styles.addr}>{addr}</span>
+          <span className={styles.listingNo}>매물 {listing.id}</span>
         </div>
         {sub && <div className={styles.sub}>{sub}</div>}
         <div className={styles.tags}>
@@ -119,7 +120,6 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
       </div>
 
       <div className={styles.priceCol}>
-        <span className={styles.listingNo}>매물 {listing.id}</span>
         {lines.length === 1 ? (
           <span className={styles.price}>{lines[0].value}</span>
         ) : (
