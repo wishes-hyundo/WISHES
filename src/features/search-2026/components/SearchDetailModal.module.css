@@ -20,7 +20,9 @@
   width: 100%;
   max-width: 720px;
   max-height: 92vh;
-  background: #ffffff;
+  background: rgba(250, 252, 249, 0.78);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border-radius: 24px;
   overflow: hidden;
   display: flex;
@@ -162,7 +164,7 @@
 .maint { font-size: 12.5px; color: #6b7b70; margin-top: 8px; }
 
 .section { padding: 18px; }
-.section + .section { border-top: 8px solid #f1f4f1; }
+.section + .section { border-top: 8px solid rgba(20, 40, 26, 0.05); }
 .secTitle {
   font-size: 14px;
   font-weight: 700;
@@ -178,7 +180,7 @@
   border-radius: 12px;
   overflow: hidden;
 }
-.cell { background: #fff; padding: 11px 13px; }
+.cell { background: rgba(255, 255, 255, 0.62); padding: 11px 13px; }
 .cellLabel { font-size: 11.5px; color: #8a988e; margin-bottom: 3px; }
 .cellValue { font-size: 14px; font-weight: 600; color: #26342b; letter-spacing: -0.01em; }
 
