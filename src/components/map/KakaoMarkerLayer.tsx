@@ -49,13 +49,14 @@ export interface KakaoMarkerLayerProps {
   serverClusters?: ServerClusterInput[] | null;
 }
 
-const CAT_COLORS = {
-  residence: 'rgba(34, 119, 80, 0.92)',
-  retail_office: 'rgba(196, 121, 47, 0.92)',
-  land: 'rgba(140, 88, 50, 0.92)',
-  investment: 'rgba(135, 75, 200, 0.92)',
+// 2026-05-22: 글라스 카테고리 마커 (대표님 확정) — 카테고리별 색 유지, 글라스 스타일.
+const CAT_MARKER = {
+  residence: '/map-marker-residence.png',
+  retail_office: '/map-marker-retail.png',
+  land: '/map-marker-land.png',
+  investment: '/map-marker-investment.png',
 } as const;
-const SEL_BG = 'rgba(220, 38, 38, 0.92)';
+const SEL_MARKER = '/map-marker-selected.png';
 
 function markerSize(count: number): number {
   if (count >= 1000) return 70;
@@ -78,7 +79,7 @@ function formatCount(n: number): string {
 }
 
 const APPLE_STYLE_ID = 'wishes-marker-apple-style';
-const APPLE_STYLE_CSS = ".wishes-marker{display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:600;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;pointer-events:auto;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text','Helvetica Neue',Arial,sans-serif;letter-spacing:-0.01em;box-shadow:0 1px 2px rgba(0,0,0,0.12),0 4px 12px rgba(0,0,0,0.18);transition:transform 180ms cubic-bezier(0.16,1,0.3,1),box-shadow 180ms ease-out;transform:translateZ(0);}.wishes-marker:hover{transform:scale(1.08) translateZ(0);box-shadow:0 2px 4px rgba(0,0,0,0.16),0 8px 20px rgba(0,0,0,0.22);z-index:200;}";
+const APPLE_STYLE_CSS = ".wishes-marker{position:relative;cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;pointer-events:auto;transition:transform 180ms cubic-bezier(0.16,1,0.3,1);transform:translateZ(0);}.wishes-marker img{display:block;width:100%;height:100%;filter:drop-shadow(0 2px 4px rgba(12,40,24,0.30));}.wishes-marker:hover{transform:scale(1.08) translateZ(0);z-index:200;}.wm-count{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;letter-spacing:-0.02em;text-shadow:0 1px 2px rgba(12,40,24,0.55),0 0 3px rgba(12,40,24,0.40);pointer-events:none;font-family:-apple-system,BlinkMacSystemFont,'SF Pro Rounded','SF Pro Display','Pretendard',sans-serif;}";
 
 function injectAppleStyle(): void {
   if (typeof document === 'undefined') return;
@@ -89,13 +90,16 @@ function injectAppleStyle(): void {
   document.head.appendChild(styleEl);
 }
 
-function makeContentHtml(it: { count: number; bg: string; ids: string; singleId: string; }): string {
+function makeContentHtml(it: { count: number; src: string; ids: string; singleId: string; }): string {
   const sz = markerSize(it.count);
-  const fontSize = it.count >= 100 ? 12 : 11;
+  const fontSize = Math.max(11, Math.round(sz * 0.34));
   const dataAttr = it.singleId
     ? `data-single-id="${it.singleId}"`
     : `data-cluster-ids="${it.ids}"`;
-  return `<div class="wishes-marker" ${dataAttr} style="width:${sz}px;height:${sz}px;background:${it.bg};font-size:${fontSize}px;">${formatCount(it.count)}</div>`;
+  return `<div class="wishes-marker" ${dataAttr} style="width:${sz}px;height:${sz}px;">`
+    + `<img src="${it.src}" alt="" draggable="false"/>`
+    + `<span class="wm-count" style="font-size:${fontSize}px;">${formatCount(it.count)}</span>`
+    + `</div>`;
 }
 
 // Wave 96: spider-fy radial spread for cluster filter (I-MARKER-6)
@@ -235,7 +239,7 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
     const isClusterFilterActive = !!(props.clusterFilterIds && props.clusterFilterIds.length > 0);
 
     if (props.serverClusters && props.serverClusters.length > 0 && !isClusterFilterActive) {
-      const cat = CAT_COLORS[props.category];
+      const catMarker = CAT_MARKER[props.category];
       // [Step 100 fix] 작은 cluster 40px 이내 merge → 노이즈 감소
       const mergedClusters = mergeKakaoOverlapping(props.serverClusters, maps, props.map as KakaoMapLike);
       for (const sc of mergedClusters) {
@@ -249,8 +253,8 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
         const ids = sc.sample_ids.join(',');
         const singleId = sc.count === 1 && sc.sample_ids[0] ? String(sc.sample_ids[0]) : '';
         const hasSel = props.selectedListingId != null && (sc.sample_ids ?? []).includes(props.selectedListingId);
-        const bg = hasSel ? SEL_BG : cat;
-        const html = makeContentHtml({ count: sc.count, bg, ids, singleId });
+        const src = hasSel ? SEL_MARKER : catMarker;
+        const html = makeContentHtml({ count: sc.count, src, ids, singleId });
 
         const key = sc.cluster_id;
         seen.add(key);
@@ -273,7 +277,7 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
       }
     } else if (isClusterFilterActive && props.clusterFilterListings) {
       // Wave 96: spider-fy 적용 (I-MARKER-6)
-      const cat = CAT_COLORS[props.category];
+      const catMarker = CAT_MARKER[props.category];
       const list = props.clusterFilterListings.length > 0
         ? props.clusterFilterListings
         : props.listings.filter((l) => props.clusterFilterIds!.includes(l.id));
@@ -286,8 +290,8 @@ export default function KakaoMarkerLayer(props: KakaoMarkerLayerProps) {
         const key = `f_${l.id}`;
         seen.add(key);
         const isSel = props.selectedListingId === l.id;
-        const bg = isSel ? SEL_BG : cat;
-        const html = makeContentHtml({ count: 1, bg, ids: '', singleId: String(l.id) });
+        const src = isSel ? SEL_MARKER : catMarker;
+        const html = makeContentHtml({ count: 1, src, ids: '', singleId: String(l.id) });
         const existing = pool.get(key);
         if (existing) {
           existing.setPosition(new maps.LatLng(p.lat, p.lng));
