@@ -15,7 +15,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import KakaoMarkerLayer, { type ServerClusterInput } from '@/components/map/KakaoMarkerLayer';
+import { SearchClusterLayer, type SearchCluster } from './SearchClusterLayer';
 import styles from './SearchMap.module.css';
 
 // 서울 기본 중심 (MapClient 와 동일)
@@ -84,7 +84,7 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
   const [bbox, setBbox] = useState<Bbox | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [clusters, setClusters] = useState<ServerClusterInput[]>([]);
+  const [clusters, setClusters] = useState<SearchCluster[]>([]);
 
   // -- 카카오 지도 초기화 --
   useEffect(() => {
@@ -228,16 +228,10 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
     <div className={styles.mapRoot}>
       <div ref={containerRef} className={styles.canvas} />
       {ready && kakaoMap ? (
-        <KakaoMarkerLayer
+        <SearchClusterLayer
           map={kakaoMap}
-          container={containerRef.current}
-          listings={[]}
-          selectedListingId={null}
-          category="residence"
-          clusterFilterIds={null}
-          clusterFilterListings={null}
-          onClickListing={onClickListing}
-          serverClusters={clusters}
+          clusters={clusters}
+          onSelectListing={onClickListing}
         />
       ) : (
         <div className={styles.loading}>지도 불러오는 중…</div>
