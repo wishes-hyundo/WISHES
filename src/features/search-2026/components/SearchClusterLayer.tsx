@@ -61,37 +61,41 @@ const STYLE_CSS = `
   font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Pretendard',sans-serif;
   font-weight:600;letter-spacing:-0.02em;
   -webkit-tap-highlight-color:transparent;user-select:none;
-  background:linear-gradient(158deg,rgba(132,186,150,0.60),rgba(56,108,74,0.66));
-  -webkit-backdrop-filter:blur(11px) saturate(1.5);
-  backdrop-filter:blur(11px) saturate(1.5);
+  background:
+    radial-gradient(54% 40% at 33% 23%,rgba(255,255,255,0.92),rgba(255,255,255,0) 64%),
+    linear-gradient(168deg,rgba(150,200,166,0.50) 0%,rgba(60,116,80,0.67) 100%);
+  -webkit-backdrop-filter:blur(6px) saturate(1.55);
+  backdrop-filter:blur(6px) saturate(1.55);
   box-shadow:
-    inset 0 1.6px 1.4px rgba(255,255,255,0.62),
-    inset 0 -8px 13px rgba(24,52,33,0.22),
-    0 2px 7px rgba(24,52,33,0.10),
-    0 10px 24px rgba(24,52,33,0.15);
-  text-shadow:0 0.5px 1.6px rgba(18,42,26,0.38);
+    inset 0 1px 1.5px rgba(255,255,255,0.50),
+    inset 0 -9px 15px rgba(20,48,30,0.26),
+    0 2px 6px rgba(20,48,30,0.10),
+    0 9px 22px rgba(20,48,30,0.16);
+  text-shadow:0 0.5px 2px rgba(14,38,22,0.46);
   transition:transform .2s cubic-bezier(.16,1,.3,1),box-shadow .2s ease-out;
   transform:translateZ(0);
 }
 .scl-marker:hover{
   transform:scale(1.06) translateZ(0);
   box-shadow:
-    inset 0 1.6px 1.4px rgba(255,255,255,0.68),
-    inset 0 -8px 13px rgba(24,52,33,0.22),
-    0 3px 9px rgba(24,52,33,0.14),
-    0 14px 30px rgba(24,52,33,0.19);
+    inset 0 1px 1.5px rgba(255,255,255,0.58),
+    inset 0 -9px 15px rgba(20,48,30,0.26),
+    0 3px 9px rgba(20,48,30,0.15),
+    0 14px 30px rgba(20,48,30,0.20);
   z-index:300;
 }
 .scl-marker:active{transform:scale(0.97) translateZ(0);}
 .scl-dot{
   width:15px;height:15px;border-radius:999px;cursor:pointer;
-  background:linear-gradient(158deg,rgba(132,186,150,0.72),rgba(56,108,74,0.80));
-  -webkit-backdrop-filter:blur(6px) saturate(1.4);
-  backdrop-filter:blur(6px) saturate(1.4);
+  background:
+    radial-gradient(62% 50% at 34% 26%,rgba(255,255,255,0.95),rgba(255,255,255,0) 68%),
+    linear-gradient(165deg,rgba(150,200,166,0.62),rgba(60,116,80,0.82));
+  -webkit-backdrop-filter:blur(4px) saturate(1.5);
+  backdrop-filter:blur(4px) saturate(1.5);
   box-shadow:
-    inset 0 1.2px 1px rgba(255,255,255,0.66),
-    0 1px 4px rgba(24,52,33,0.20),
-    0 4px 11px rgba(24,52,33,0.18);
+    inset 0 1px 1px rgba(255,255,255,0.55),
+    0 1px 4px rgba(20,48,30,0.22),
+    0 4px 11px rgba(20,48,30,0.20);
   transition:transform .16s cubic-bezier(.16,1,.3,1);
   transform:translateZ(0);
 }
