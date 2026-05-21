@@ -377,7 +377,6 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     // 개수 큰 구역 우선 — 라벨이 겹치면 작은 쪽은 폴리곤·버블 모두 생략
     const cand = [...fdata].sort((a, b) => b.count - a.count);
     const placed: Array<{ x: number; y: number }> = [];
-    const BASE_FILL = 0.20;
 
     for (const d of cand) {
       let x: number, y: number;
@@ -397,23 +396,27 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       // 폴리곤 (구멍 포함, 정밀 경계)
       for (const poly of d.polys) {
         const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
+        // 한국 부동산 지도 표준: 채움 없이 가는 회색 경계선만.
+        //   채움은 hover 한 구역 하나만 옅은 녹색 (네이버·호갱노노 패턴).
         const kp = new maps.Polygon({
           path,
-          strokeWeight: 1.6,
-          strokeColor: '#3a6b48',
-          strokeOpacity: 0.62,
+          strokeWeight: 1.2,
+          strokeColor: '#aab0b8',
+          strokeOpacity: 0.7,
           strokeStyle: 'solid',
-          fillColor: '#5a9e6e',
-          fillOpacity: BASE_FILL,
+          fillColor: '#3f8a55',
+          fillOpacity: 0.05,
           zIndex: 1,
         });
         kp.setMap(map);
         polysRef.current.push(kp);
         maps.event.addListener(kp, 'mouseover', () => {
-          try { kp.setOptions?.({ fillOpacity: 0.46, strokeWeight: 2.6 }); } catch { /* noop */ }
+          try { kp.setOptions?.({ fillOpacity: 0.17, strokeColor: '#2f7a47', strokeWeight: 2.4 }); }
+          catch { /* noop */ }
         });
         maps.event.addListener(kp, 'mouseout', () => {
-          try { kp.setOptions?.({ fillOpacity: BASE_FILL, strokeWeight: 1.6 }); } catch { /* noop */ }
+          try { kp.setOptions?.({ fillOpacity: 0.05, strokeColor: '#aab0b8', strokeWeight: 1.2 }); }
+          catch { /* noop */ }
         });
         maps.event.addListener(kp, 'click', (e) => {
           const m = map as KakaoMapLike;
