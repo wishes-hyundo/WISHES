@@ -30,6 +30,8 @@ const MOCK: SearchListing[] = [
   { id: 119498, deal: '월세', type: '원룸', address: '서울 관악구 신림동 1640-21', area_m2: 23.1, floor_current: 3, floor_total: 5, rooms: 1, deposit: 1000, monthly: 55, built_year: '1998년', maintenance_fee: 5, maintenance_includes: ['수도'], source_site: 'gongsilclub', available_date: '즉시', address_detail: '302호' },
   { id: 119455, deal: '전세', type: '오피스텔', address: '서울 송파구 문정동 643-1', area_m2: 44.5, floor_current: 9, floor_total: 18, rooms: 1, deposit: 27000, maintenance_fee: 11, maintenance_includes: ['수도', '인터넷'], building_name: '문정역테라타워', elevator: true, parking_spaces: 1, built_year: '2017년', full_option: true, source_site: 'onhouse', available_date: '2027-01-10', address_detail: '914호' },
   { id: 119401, deal: '매매', type: '토지', address: '경기 용인시 처인구 이동읍 천리 산32', area_m2: 661, price: 41000, maintenance_fee: 0, source_site: null },
+  { id: 119388, deal: '전세', type: '오피스텔', address: '서울 강남구 논현동 12-3', address_detail: '1402호', area_m2: 41, floor_current: 14, floor_total: 20, rooms: 1, deposit: 33000, maintenance_fee: 11, maintenance_includes: ['수도', '인터넷'], building_name: '논현팰리스', elevator: true, parking_spaces: 1, built_year: '2016년', source_site: 'gongsilclub', available_date: '즉시입주' },
+  { id: 119389, deal: '월세', type: '오피스텔', address: '서울 강남구 논현동 12-3', address_detail: '1402호', area_m2: 41, floor_current: 14, floor_total: 20, rooms: 1, deposit: 2000, monthly: 130, maintenance_fee: 11, building_name: '논현팰리스', elevator: true, parking_spaces: 1, built_year: '2016년', source_site: 'gongsilclub', available_date: '즉시입주' },
 ];
 
 export default function SearchPreviewPage() {

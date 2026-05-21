@@ -77,3 +77,40 @@ export function priceLines(l: SearchListing): { deal: string; value: string }[] 
 
   return out.length ? out : [{ deal, value: formatPrice(l) }];
 }
+
+
+/**
+ * 복합거래 병합 — 같은 주소·동호수인데 거래유형만 다른 별도 행들을
+ * 한 매물로 합친다. 실측: 66,232 유닛 중 2,148곳이 복합거래(전세 행 + 월세 행 등).
+ * address_detail 이 있을 때만 병합(같은 유닛임을 확신할 수 있을 때).
+ * 표시 순서는 보존.
+ */
+export function mergeUnitDeals(listings: SearchListing[]): SearchListing[] {
+  const groups = new Map<string, SearchListing[]>();
+  const order: string[] = [];
+  for (const l of listings) {
+    const detail = String(l.address_detail ?? '').trim();
+    const key = detail ? `${String(l.address ?? '').trim()}|${detail}` : `__solo_${l.id}`;
+    if (!groups.has(key)) { groups.set(key, []); order.push(key); }
+    groups.get(key)!.push(l);
+  }
+  const out: SearchListing[] = [];
+  for (const key of order) {
+    const grp = groups.get(key)!;
+    if (grp.length === 1 || new Set(grp.map((g) => g.deal)).size <= 1) {
+      out.push(...grp);
+      continue;
+    }
+    const base: SearchListing = { ...grp[0] };
+    for (const g of grp) {
+      if (g.deal === '매매' && g.price != null && base.deal !== '매매') base.price = g.price;
+      if (g.deal === '전세' && g.deposit != null && base.deal !== '전세') base.deposit_jeonse = g.deposit;
+      if ((g.deal === '월세' || g.deal === '전월세') && g.monthly != null && base.deal !== '월세' && base.deal !== '전월세') {
+        base.monthly_alt = g.monthly;
+        base.deposit_alt = g.deposit ?? null;
+      }
+    }
+    out.push(base);
+  }
+  return out;
+}

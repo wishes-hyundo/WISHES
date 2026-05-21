@@ -8,8 +8,9 @@
  * 지도는 카카오맵 클러스터 통합 예정 — 현재는 스타일 플레이스홀더.
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { FILTER_OPTIONS, type SearchListing } from '../types';
+import { mergeUnitDeals } from '../format';
 import { ListingCard } from './ListingCard';
 import styles from './ResultsSplit.module.css';
 
@@ -20,6 +21,7 @@ export interface ResultsSplitProps {
 
 export function ResultsSplit({ listings, total }: ResultsSplitProps) {
   const [sort, setSort] = useState('latest');
+  const merged = useMemo(() => mergeUnitDeals(listings), [listings]);
 
   return (
     <div className={styles.split}>
@@ -41,7 +43,7 @@ export function ResultsSplit({ listings, total }: ResultsSplitProps) {
         </div>
 
         <div className={styles.cards}>
-          {listings.map((l) => (
+          {merged.map((l) => (
             <ListingCard key={l.id} listing={l} />
           ))}
         </div>
