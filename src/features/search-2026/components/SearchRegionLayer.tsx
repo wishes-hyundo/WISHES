@@ -3,16 +3,15 @@
 /**
  * SearchRegionLayer — /search 행정구역 폴리곤 + 개수 (P5 줌 1~3단계)
  *
- * 줌 단계별 표기 시스템의 광역~동 단계.
- *   1단계 시·도  — /api/geo/sido
- *   2단계 시·군·구 — /api/geo/sigungu
- *   3단계 읍·면·동 — /api/geo/dong
+ *   1단계 시·도  — /api/geo/sido    (전체 GeoJSON)
+ *   2단계 시·군·구 — /api/geo/sigungu (전체 GeoJSON)
+ *   3단계 읍·면·동 — /api/geo/legaldong/sigungu/{code} (viewport 시군구만 청크 lazy-load)
  *
  * 설계:
  *   · map-2026 store 비의존 — /search 전용 자체완결.
- *   · 행정구역 GeoJSON 폴리곤(구멍 포함) + 5분위 초플레스 fill.
+ *   · 동 GeoJSON 통본은 34MB → viewport 에 걸친 시군구의 동 청크(~44KB)만 로드.
+ *   · 폴리곤(구멍 포함) + 5분위 초플레스. polylabel 라벨배치 + 버블 겹침 제거.
  *   · 개수 = /api/map/clusters 를 point-in-polygon 으로 구역 배분.
- *   · 라벨 위치 = polylabel(pole of inaccessibility) — 항상 폴리곤 내부, 겹침 없음.
  *   · /map 의 AdminRegionOverlay 는 손대지 않음.
  */
 
@@ -20,12 +19,10 @@ import { useEffect, useRef, useState } from 'react';
 
 export type RegionTier = 'sido' | 'sigungu' | 'dong';
 
-const COUNT_ZOOM: Record<RegionTier, number> = { sido: 7, sigungu: 9, dong: 11 };
-
-const GEO_URL: Record<RegionTier, string> = {
+const COUNT_ZOOM: Record<RegionTier, number> = { sido: 7, sigungu: 9, dong: 14 };
+const GEO_URL: Record<'sido' | 'sigungu', string> = {
   sido: '/api/geo/sido',
   sigungu: '/api/geo/sigungu',
-  dong: '/api/geo/dong',
 };
 
 interface GeoFeature {
@@ -36,15 +33,15 @@ interface GeoFeature {
     | { type: 'MultiPolygon'; coordinates: number[][][][] };
 }
 interface GeoCollection { type: 'FeatureCollection'; features: GeoFeature[] }
+export interface RegionBbox { west: number; south: number; east: number; north: number }
 
-// 한 폴리곤 = ring 배열 (ring[0]=외곽, 나머지=구멍). 좌표는 [lng,lat].
 type Ring = number[][];
 type Poly = Ring[];
 
 // ── GeoJSON 캐시 ─────────────────────────────────────────────
-const geoCache: Partial<Record<RegionTier, GeoCollection>> = {};
-const geoPending: Partial<Record<RegionTier, Promise<GeoCollection | null>>> = {};
-async function loadGeo(tier: RegionTier): Promise<GeoCollection | null> {
+const geoCache: Partial<Record<'sido' | 'sigungu', GeoCollection>> = {};
+const geoPending: Partial<Record<'sido' | 'sigungu', Promise<GeoCollection | null>>> = {};
+async function loadGeo(tier: 'sido' | 'sigungu'): Promise<GeoCollection | null> {
   if (geoCache[tier]) return geoCache[tier]!;
   if (geoPending[tier]) return geoPending[tier]!;
   const p = fetch(GEO_URL[tier])
@@ -56,10 +53,39 @@ async function loadGeo(tier: RegionTier): Promise<GeoCollection | null> {
   return p;
 }
 
+// 동 청크 — 시군구 code 별 lazy-load + 캐시
+const dongChunkCache = new Map<string, GeoCollection>();
+const dongChunkPending = new Map<string, Promise<GeoCollection | null>>();
+async function loadDongChunk(code: string): Promise<GeoCollection | null> {
+  if (!/^\d{5}$/.test(code)) return null;
+  if (dongChunkCache.has(code)) return dongChunkCache.get(code)!;
+  if (dongChunkPending.has(code)) return dongChunkPending.get(code)!;
+  const p = fetch(`/api/geo/legaldong/sigungu/${code}`)
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => { if (j) dongChunkCache.set(code, j as GeoCollection); return (j as GeoCollection) ?? null; })
+    .catch(() => null)
+    .finally(() => { dongChunkPending.delete(code); });
+  dongChunkPending.set(code, p);
+  return p;
+}
+
 // ── 기하 ─────────────────────────────────────────────────────
 function featurePolys(f: GeoFeature): Poly[] {
   if (f.geometry.type === 'Polygon') return [f.geometry.coordinates];
   return f.geometry.coordinates;
+}
+function featureBbox(f: GeoFeature): [number, number, number, number] {
+  let mnx = Infinity, mny = Infinity, mxx = -Infinity, mxy = -Infinity;
+  for (const poly of featurePolys(f)) {
+    for (const [x, y] of poly[0]) {
+      if (x < mnx) mnx = x; if (x > mxx) mxx = x;
+      if (y < mny) mny = y; if (y > mxy) mxy = y;
+    }
+  }
+  return [mnx, mny, mxx, mxy];
+}
+function bboxHit(b: [number, number, number, number], v: RegionBbox): boolean {
+  return !(b[2] < v.west || b[0] > v.east || b[3] < v.south || b[1] > v.north);
 }
 function ringBboxArea(ring: Ring): number {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -91,7 +117,7 @@ function featureContains(polys: Poly[], lng: number, lat: number): boolean {
   return false;
 }
 
-// polylabel — 폴리곤 내부에서 모든 변으로부터 가장 먼 점 (라벨 최적 위치)
+// polylabel — 폴리곤 내부에서 모든 변으로부터 가장 먼 점
 function segDist2(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   let dx = bx - ax, dy = by - ay;
   if (dx !== 0 || dy !== 0) {
@@ -136,7 +162,7 @@ function polylabel(poly: Poly): { lat: number; lng: number } {
   let best = mk((minX + maxX) / 2, (minY + maxY) / 2, 0);
   const precision = cell / 60;
   let guard = 0;
-  while (queue.length && guard < 12000) {
+  while (queue.length && guard < 14000) {
     guard++;
     queue.sort((a, b) => a.max - b.max);
     const c = queue.pop()!;
@@ -151,14 +177,12 @@ function polylabel(poly: Poly): { lat: number; lng: number } {
 
 // ── 5분위 초플레스 ───────────────────────────────────────────
 const CHORO = ['#e4efe1', '#c1dbaf', '#8dbf80', '#56985e', '#2d6e42'];
-// 0 = 매물 없음(연함), 1~4 = 비영(非零) 구역 순위 분위
 function choroClass(count: number, nonzeroSorted: number[]): number {
   if (count <= 0 || nonzeroSorted.length === 0) return 0;
   const rank = nonzeroSorted.findIndex((v) => v >= count);
   const r = rank < 0 ? nonzeroSorted.length - 1 : rank;
   return Math.min(4, 1 + Math.floor((r / Math.max(1, nonzeroSorted.length)) * 4));
 }
-
 function fmtCount(n: number): string {
   if (n >= 10000) {
     const v = (n / 10000).toFixed(1);
@@ -214,8 +238,8 @@ export interface SearchRegionLayerProps {
   map: unknown;
   tier: RegionTier;
   active: boolean;
-  /** 현재 카카오 줌 레벨 — 버블 겹침 재배치 트리거 */
   level: number;
+  bbox: RegionBbox | null;
 }
 
 interface FeatureDatum {
@@ -224,14 +248,19 @@ interface FeatureDatum {
   name: string;
 }
 
-export function SearchRegionLayer({ map, tier, active, level }: SearchRegionLayerProps) {
+export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegionLayerProps) {
   const polysRef = useRef<KakaoPolygon[]>([]);
   const bubblesRef = useRef<KakaoOverlay[]>([]);
   const [fdata, setFdata] = useState<FeatureDatum[] | null>(null);
 
   useEffect(() => { injectStyle(); }, []);
 
-  // ── Effect 1 — 폴리곤 그리기 + 구역 데이터 산출 (tier/active 변경 시) ──
+  // 동 tier 는 viewport 변경 시 청크 재로드 — 거친 bbox 키 (≈10km 셀)
+  const loadKey = tier === 'dong' && bbox
+    ? `d:${bbox.west.toFixed(1)},${bbox.south.toFixed(1)},${bbox.east.toFixed(1)},${bbox.north.toFixed(1)}`
+    : tier;
+
+  // ── Effect 1 — 폴리곤 + 구역 데이터 ──────────────────────────
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
@@ -244,20 +273,46 @@ export function SearchRegionLayer({ map, tier, active, level }: SearchRegionLaye
       polysRef.current = [];
     };
 
-    if (!active) { clearPolys(); setFdata(null); return () => { disposed = true; }; }
+    if (!active || (tier === 'dong' && !bbox)) {
+      clearPolys(); setFdata(null);
+      return () => { disposed = true; };
+    }
 
     (async () => {
-      const geo = await loadGeo(tier);
-      if (disposed || !geo || !active) return;
+      // 1) features — tier 별
+      let features: GeoFeature[];
+      if (tier === 'dong') {
+        const sigGeo = await loadGeo('sigungu');
+        if (disposed || !sigGeo || !active || !bbox) return;
+        const codes: string[] = [];
+        for (const f of sigGeo.features) {
+          const code = String(f.properties.code ?? '');
+          if (!/^\d{5}$/.test(code)) continue;
+          if (bboxHit(featureBbox(f), bbox)) codes.push(code);
+        }
+        const chunks = await Promise.all(codes.slice(0, 16).map(loadDongChunk));
+        if (disposed || !active) return;
+        features = [];
+        for (const ch of chunks) if (ch?.features) features.push(...ch.features);
+      } else {
+        const geo = await loadGeo(tier);
+        if (disposed || !geo || !active) return;
+        features = geo.features;
+      }
+      if (disposed || !active || features.length === 0) { if (!disposed) setFdata([]); return; }
 
+      // 2) 개수 — tier 별 클러스터 fetch
       const counts = new Map<number, number>();
       try {
-        const res = await fetch('/api/map/clusters?swLat=32.9&swLng=124.5&neLat=38.8&neLng=131.0&zoom=' + COUNT_ZOOM[tier]);
+        const url = tier === 'dong' && bbox
+          ? `/api/map/clusters?swLat=${bbox.south.toFixed(3)}&swLng=${bbox.west.toFixed(3)}&neLat=${bbox.north.toFixed(3)}&neLng=${bbox.east.toFixed(3)}&zoom=${COUNT_ZOOM.dong}`
+          : `/api/map/clusters?swLat=32.9&swLng=124.5&neLat=38.8&neLng=131.0&zoom=${COUNT_ZOOM[tier]}`;
+        const res = await fetch(url);
         if (res.ok) {
           const json = await res.json();
           const clusters: Array<{ lat: number; lng: number; count: number }> =
             Array.isArray(json?.data) ? json.data : [];
-          const polysByIdx = geo.features.map(featurePolys);
+          const polysByIdx = features.map(featurePolys);
           for (const c of clusters) {
             for (let fi = 0; fi < polysByIdx.length; fi++) {
               if (featureContains(polysByIdx[fi], c.lng, c.lat)) {
@@ -270,11 +325,12 @@ export function SearchRegionLayer({ map, tier, active, level }: SearchRegionLaye
       } catch { /* 개수 실패해도 폴리곤은 그림 */ }
       if (disposed || !active) return;
 
+      // 3) 그리기
       const nonzero = [...counts.values()].filter((v) => v > 0).sort((a, b) => a - b);
       clearPolys();
       const fds: FeatureDatum[] = [];
 
-      geo.features.forEach((f, fi) => {
+      features.forEach((f, fi) => {
         const polys = featurePolys(f);
         const count = counts.get(fi) ?? 0;
         const cls = choroClass(count, nonzero);
@@ -312,9 +368,10 @@ export function SearchRegionLayer({ map, tier, active, level }: SearchRegionLaye
     })();
 
     return () => { disposed = true; clearPolys(); };
-  }, [map, tier, active]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, tier, active, loadKey]);
 
-  // ── Effect 2 — 개수 버블 (겹침 제거, 줌 변경 시 재배치) ──────────
+  // ── Effect 2 — 개수 버블 (겹침 제거, 줌 변경 시 재배치) ──────
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
@@ -331,7 +388,6 @@ export function SearchRegionLayer({ map, tier, active, level }: SearchRegionLaye
     const proj = (map as { getProjection?: () => { pointFromCoords: (c: unknown) => { x: number; y: number } } })
       .getProjection?.();
 
-    // 개수 큰 구역 우선 — 겹치면 작은 쪽 생략
     const cand = fdata.filter((d) => d.count > 0).sort((a, b) => b.count - a.count);
     const placed: Array<{ x: number; y: number }> = [];
 
@@ -381,7 +437,6 @@ export function SearchRegionLayer({ map, tier, active, level }: SearchRegionLaye
     return () => clearBubbles();
   }, [map, tier, active, fdata, level]);
 
-  // 언마운트 정리
   useEffect(() => {
     return () => {
       for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
