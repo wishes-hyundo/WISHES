@@ -5,7 +5,7 @@
  *
  * 통합 최종안의 핵심 레이아웃. 데스크탑은 좌(목록)·우(지도) 분할,
  * 모바일은 목록 전폭(지도는 토글 — 후속). iOS 앱 톤.
- * 지도는 카카오맵 클러스터 통합 예정 — 현재는 스타일 플레이스홀더.
+ * 지도는 SearchMap (카카오맵 + 서버 클러스터) 실통합 — P5 완료.
  */
 
 import { useMemo, useState } from 'react';
@@ -13,6 +13,7 @@ import { FILTER_OPTIONS, type SearchListing } from '../types';
 import { groupByLocation, mergeUnitDeals } from '../format';
 import { ListingCard } from './ListingCard';
 import { ListingGroup } from './ListingGroup';
+import { SearchMap } from './SearchMap';
 import styles from './ResultsSplit.module.css';
 
 export interface ResultsSplitProps {
@@ -56,14 +57,7 @@ export function ResultsSplit({ listings, total }: ResultsSplitProps) {
 
       <div className={styles.mapCol}>
         <div className={styles.map}>
-          <div className={styles.mapGridLine} style={{ top: '24%' }} />
-          <div className={styles.mapGridLine} style={{ top: '62%' }} />
-          <div className={styles.mapRoad} />
-          <div className={styles.cluster} style={{ left: '22%', top: '30%', width: 44, height: 44 }}>128</div>
-          <div className={styles.cluster} style={{ left: '58%', top: '46%', width: 34, height: 34 }}>45</div>
-          <div className={styles.cluster} style={{ left: '38%', top: '70%', width: 28, height: 28 }}>9</div>
-          <div className={styles.cluster} style={{ left: '70%', top: '74%', width: 38, height: 38 }}>73</div>
-          <div className={styles.mapNote}>지도 — 카카오맵 클러스터 통합 예정 (다음 단계)</div>
+          <SearchMap />
         </div>
       </div>
     </div>
