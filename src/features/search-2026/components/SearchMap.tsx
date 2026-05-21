@@ -16,6 +16,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SearchClusterLayer, type SearchCluster } from './SearchClusterLayer';
+import { SearchRegionLayer } from './SearchRegionLayer';
 import styles from './SearchMap.module.css';
 
 // 서울 기본 중심 (MapClient 와 동일)
@@ -80,7 +81,7 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const kakaoMapRef = useRef<unknown>(null);
   const [kakaoMap, setKakaoMap] = useState<unknown>(null);
-  const [kakaoLevel, setKakaoLevel] = useState<number>(7);
+  const [kakaoLevel, setKakaoLevel] = useState<number>(12);
   const [bbox, setBbox] = useState<Bbox | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -121,7 +122,7 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
 
         const map = new kakao.maps.Map(container, {
           center: new kakao.maps.LatLng(SEOUL.lat, SEOUL.lng),
-          level: 7,
+          level: 12,
         });
         mapInst = map;
         kakaoMapRef.current = map;
@@ -228,11 +229,18 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
     <div className={styles.mapRoot}>
       <div ref={containerRef} className={styles.canvas} />
       {ready && kakaoMap ? (
-        <SearchClusterLayer
-          map={kakaoMap}
-          clusters={clusters}
-          onSelectListing={onClickListing}
-        />
+        <>
+          {/* 줌 1단계 — 시·도 폴리곤 + 개수 (level >= 10) */}
+          <SearchRegionLayer map={kakaoMap} tier="sido" active={kakaoLevel >= 10} />
+          {/* 클러스터·개별 핀 — 좁은 줌 (level < 10) */}
+          {kakaoLevel < 10 && (
+            <SearchClusterLayer
+              map={kakaoMap}
+              clusters={clusters}
+              onSelectListing={onClickListing}
+            />
+          )}
+        </>
       ) : (
         <div className={styles.loading}>지도 불러오는 중…</div>
       )}
