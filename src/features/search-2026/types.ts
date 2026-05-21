@@ -69,6 +69,7 @@ export interface SearchListing {
  */
 export interface SearchFilters {
   q?: string;                      // 통합 검색어 (주소·건물명·동·매물번호)
+  keyword?: string;                // 특이사항 키워드 (설명·특이사항 등 텍스트)
   regions?: string[];              // 선택 시/도+구  예: "서울 강남구"
   dongs?: string[];                // 선택 동       예: "강남구 역삼동"
   types?: string[];                // 매물종류 다중 (원룸·오피스텔·아파트·사무실·상가·빌라·토지)

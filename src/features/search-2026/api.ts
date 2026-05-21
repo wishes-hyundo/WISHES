@@ -24,7 +24,8 @@ export function buildListingsParams(
   if (filters.sort2 && filters.sort2 !== 'none') p.set('sort2', filters.sort2);
   p.set('scope', filters.scope === 'mine' ? 'mine' : 'all');
 
-  if (filters.q?.trim()) p.set('q', filters.q.trim());
+  const qVal = [filters.q, filters.keyword].map((x) => x?.trim()).filter(Boolean).join(' ');
+  if (qVal) p.set('q', qVal);
 
   // 다중 선택
   if (filters.types?.length) p.set('types', filters.types.join(','));
