@@ -19,6 +19,10 @@ export interface SearchDetailModalProps {
   listing?: SearchListing | null;
   id?: number | null;
   onClose: () => void;
+  /** 유사매물 풀 (목록) */
+  pool?: SearchListing[];
+  /** 유사매물 클릭 시 해당 매물로 모달 전환 */
+  onOpenListing?: (l: SearchListing) => void;
 }
 
 const DEAL_TONE: Record<string, string> = {
@@ -67,7 +71,9 @@ function boolText(v: unknown): string {
   return String(v).trim();
 }
 
-export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalProps) {
+export function SearchDetailModal({
+  listing, id, onClose, pool, onOpenListing,
+}: SearchDetailModalProps) {
   const [fav, setFav] = useState(false);
   const [copied, setCopied] = useState(false);
   const open = listing != null || id != null;
@@ -194,6 +200,30 @@ export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalPro
   const descRaw = l['description'] ?? l['detail_description'] ?? l['특이사항'] ?? l['memo'];
   const desc = descRaw ? String(descRaw).trim() : '';
 
+  // 비슷한 매물 — 종류·거래·동·면적·가격 근접도 스코어 상위 5건
+  const similar: SearchListing[] = (() => {
+    if (!pool || pool.length === 0) return [];
+    const tA = l.area_m2 ?? 0;
+    const tP = l.price ?? l.deposit ?? 0;
+    return pool
+      .filter((c) => c.id !== l.id)
+      .map((c) => {
+        let sc = 0;
+        if (c.type && c.type === l.type) sc += 3;
+        if (c.deal && c.deal === l.deal) sc += 2;
+        if (c.dong && c.dong === l.dong) sc += 2;
+        const cA = c.area_m2 ?? 0;
+        if (tA && cA && Math.abs(cA - tA) / tA <= 0.35) sc += 2;
+        const cP = c.price ?? c.deposit ?? 0;
+        if (tP && cP && Math.abs(cP - tP) / tP <= 0.4) sc += 2;
+        return { c, sc };
+      })
+      .filter((x) => x.sc > 0)
+      .sort((a, b) => b.sc - a.sc)
+      .slice(0, 5)
+      .map((x) => x.c);
+  })();
+
   const gridSection = (title: string, cells: Cell[]) => {
     if (cells.length === 0) return null;
     return (
@@ -278,6 +308,26 @@ export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalPro
             <p className={styles.desc}>{fullAddr(l)}</p>
             {road && <p className={styles.empty} style={{ marginTop: 4 }}>{road}</p>}
           </div>
+
+          {similar.length > 0 && (
+            <div className={styles.section}>
+              <h2 className={styles.secTitle}>비슷한 매물</h2>
+              <div className={styles.simList}>
+                {similar.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className={styles.simRow}
+                    onClick={() => onOpenListing?.(s)}
+                  >
+                    <span className={styles.simAddr}>{s.address ?? s.title ?? `매물 ${s.id}`}</span>
+                    <span className={styles.simMeta}>{[s.type, s.deal].filter(Boolean).join(" · ")}</span>
+                    <span className={styles.simPrice}>{priceLines(s).map((p) => p.value).join(" / ")}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className={styles.actionBar}>

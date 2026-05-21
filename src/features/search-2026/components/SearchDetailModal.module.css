@@ -233,3 +233,32 @@
 }
 .actBtnPrimary { background: #2c7a4b; color: #ffffff; border-color: #2c7a4b; }
 .actBtn:active { transform: scale(0.98); }
+
+/* 비슷한 매물 (P6 SW-3) */
+.simList { display: flex; flex-direction: column; }
+.simRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 10px 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+.simRow + .simRow { border-top: 0.5px solid rgba(20, 40, 26, 0.07); }
+.simRow:active { opacity: 0.6; }
+.simAddr {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #26342b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.simMeta { font-size: 11.5px; color: #8a988e; flex: none; }
+.simPrice { font-size: 13px; font-weight: 800; color: #1c2a22; flex: none; letter-spacing: -0.02em; }

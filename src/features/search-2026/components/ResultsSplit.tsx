@@ -136,7 +136,13 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         </div>
       </div>
 
-      <SearchDetailModal listing={detailListing} id={detailId} onClose={closeDetail} />
+      <SearchDetailModal
+        listing={detailListing}
+        id={detailId}
+        onClose={closeDetail}
+        pool={flatListings}
+        onOpenListing={openListing}
+      />
 
       <SearchActionBar
         selected={selectedListings}
