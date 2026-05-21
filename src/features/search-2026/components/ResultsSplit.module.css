@@ -34,6 +34,15 @@
   background-position: right 10px center;
 }
 .sortSel:focus { outline: none; border-color: #2d6a34; box-shadow: 0 0 0 3px rgba(45, 106, 52, 0.12); }
+.headRight { display: flex; align-items: center; gap: 7px; }
+.newBtn {
+  height: 27px; padding: 0 12px;
+  border: 0.5px solid #2d6a34; border-radius: 8px;
+  background: #2d6a34; color: #fff;
+  font-family: inherit; font-size: 11.5px; font-weight: 700;
+  cursor: pointer; white-space: nowrap;
+}
+.newBtn:active { transform: scale(0.97); }
 .cards { position: relative; width: 100%; }
 .vrow { position: absolute; top: 0; left: 0; width: 100%; padding-bottom: 7px; box-sizing: border-box; }
 .loadingMore { text-align: center; font-size: 12px; color: #8b9097; padding: 14px 0 4px; letter-spacing: -0.01em; }

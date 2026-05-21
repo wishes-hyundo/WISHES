@@ -22,6 +22,7 @@ import { SearchCompareModal } from './SearchCompareModal';
 import { SearchFavoritesModal } from './SearchFavoritesModal';
 import { SearchBriefingModal } from './SearchBriefingModal';
 import { SearchEditModal } from './SearchEditModal';
+import { SearchCreateModal } from './SearchCreateModal';
 import styles from './ResultsSplit.module.css';
 
 export interface ResultsSplitProps {
@@ -48,6 +49,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   const [favOpen, setFavOpen] = useState(false);
   const [briefingOpen, setBriefingOpen] = useState(false);
   const [editListing, setEditListing] = useState<SearchListing | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
   // 관심목록 영속화 (localStorage) — 하이드레이션 안전: 마운트 후 로드
   useEffect(() => {
     try {
@@ -101,16 +103,23 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
           <span className={styles.count}>
             검색결과 <strong>{total.toLocaleString()}</strong>건
           </span>
-          <select
-            className={styles.sortSel}
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            aria-label="정렬"
-          >
-            {FILTER_OPTIONS.sorts.map((s) => (
-              <option key={s.key} value={s.key}>{s.label}</option>
-            ))}
-          </select>
+          <div className={styles.headRight}>
+            <button
+              type="button"
+              className={styles.newBtn}
+              onClick={() => setCreateOpen(true)}
+            >+ 매물 등록</button>
+            <select
+              className={styles.sortSel}
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              aria-label="정렬"
+            >
+              {FILTER_OPTIONS.sorts.map((s) => (
+                <option key={s.key} value={s.key}>{s.label}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div ref={listRef} className={styles.cards} style={{ height: virt.getTotalSize() }}>
@@ -195,6 +204,9 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
           listing={editListing}
           onClose={() => setEditListing(null)}
         />
+      )}
+      {createOpen && (
+        <SearchCreateModal onClose={() => setCreateOpen(false)} />
       )}
       {favOpen && (
         <SearchFavoritesModal
