@@ -150,3 +150,23 @@
   font-size: 13.5px; font-weight: 700; color: #2d6a34;
   letter-spacing: -0.015em; white-space: nowrap;
 }
+
+/* 다중 선택 체크박스 (P6) */
+.selChk {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
+  background: rgba(20, 30, 24, 0.34);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #fff;
+  cursor: pointer;
+  z-index: 2;
+}
+.selChkOn { background: #2c7a4b; border-color: #2c7a4b; }

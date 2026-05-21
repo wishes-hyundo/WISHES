@@ -17,6 +17,7 @@ import { ListingCard } from './ListingCard';
 import { ListingGroup } from './ListingGroup';
 import { SearchMap } from './SearchMap';
 import { SearchDetailModal } from './SearchDetailModal';
+import { SearchActionBar } from './SearchActionBar';
 import styles from './ResultsSplit.module.css';
 
 export interface ResultsSplitProps {
@@ -37,6 +38,12 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   const openListing = (l: SearchListing) => { setDetailListing(l); setDetailId(null); };
   const openById = (mid: number) => { setDetailId(mid); setDetailListing(null); };
   const closeDetail = () => { setDetailListing(null); setDetailId(null); };
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  const toggleSelect = (id: number) => setSelectedIds((prev) => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   const virt = useWindowVirtualizer({
     count: groups.length,
@@ -54,6 +61,14 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
       onLoadMore?.();
     }
   }, [vItems, groups.length, hasMore, loadingMore, onLoadMore]);
+
+  const flatListings = useMemo(() => groups.flatMap((g) => g.listings), [groups]);
+  const selectedListings = flatListings.filter((l) => selectedIds.has(l.id));
+  const allSelected = flatListings.length > 0
+    && selectedListings.length === flatListings.length;
+  const toggleAll = () => setSelectedIds(
+    allSelected ? new Set() : new Set(flatListings.map((l) => l.id)),
+  );
 
   return (
     <div className={styles.split}>
@@ -87,9 +102,19 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
                 style={{ transform: `translateY(${vi.start - scrollMargin}px)` }}
               >
                 {g.listings.length === 1 ? (
-                  <ListingCard listing={g.listings[0]} onClick={openListing} />
+                  <ListingCard
+                    listing={g.listings[0]}
+                    onClick={openListing}
+                    selected={selectedIds.has(g.listings[0].id)}
+                    onToggleSelect={toggleSelect}
+                  />
                 ) : (
-                  <ListingGroup group={g} onCardClick={openListing} />
+                  <ListingGroup
+                    group={g}
+                    onCardClick={openListing}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                  />
                 )}
               </div>
             );
@@ -105,6 +130,14 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
       </div>
 
       <SearchDetailModal listing={detailListing} id={detailId} onClose={closeDetail} />
+
+      <SearchActionBar
+        selected={selectedListings}
+        totalVisible={total}
+        allSelected={allSelected}
+        onToggleAll={toggleAll}
+        onClear={() => setSelectedIds(new Set())}
+      />
     </div>
   );
 }

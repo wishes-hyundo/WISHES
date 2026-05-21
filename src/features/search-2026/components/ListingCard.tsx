@@ -16,6 +16,8 @@ import styles from './ListingCard.module.css';
 export interface ListingCardProps {
   listing: SearchListing;
   onClick?: (listing: SearchListing) => void;
+  selected?: boolean;
+  onToggleSelect?: (id: number) => void;
 }
 
 const DEAL_TONE: Record<string, string> = {
@@ -67,7 +69,7 @@ function moveIn(l: SearchListing): { text: string; urgent: boolean } | null {
   return { text: v.length > 9 ? v.slice(0, 9) : v, urgent: false };
 }
 
-export function ListingCard({ listing, onClick }: ListingCardProps) {
+export function ListingCard({ listing, onClick, selected, onToggleSelect }: ListingCardProps) {
   const thumb = listing.listing_images?.[0]?.url || listing.thumbnail_url || null;
   const addr = fullAddr(listing);
   const srcLetter = sourceLetter(listing.source_site);
@@ -97,6 +99,14 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
           <span className={styles.thumbEmpty} aria-hidden="true">🏠</span>
         )}
         {srcLetter && <span className={styles.srcDot} aria-hidden="true">{srcLetter}</span>}
+        {onToggleSelect && (
+          <span
+            className={`${styles.selChk} ${selected ? styles.selChkOn : ''}`}
+            role="checkbox"
+            aria-checked={!!selected}
+            onClick={(e) => { e.stopPropagation(); onToggleSelect(listing.id); }}
+          >{selected ? '\u2713' : ''}</span>
+        )}
       </div>
 
       <div className={styles.body}>

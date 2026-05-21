@@ -16,9 +16,13 @@ import styles from './ListingGroup.module.css';
 export function ListingGroup({
   group,
   onCardClick,
+  selectedIds,
+  onToggleSelect,
 }: {
   group: LocationGroup;
   onCardClick?: (listing: SearchListing) => void;
+  selectedIds?: Set<number>;
+  onToggleSelect?: (id: number) => void;
 }) {
   const [open, setOpen] = useState(true);
   return (
@@ -36,7 +40,13 @@ export function ListingGroup({
       {open && (
         <div className={styles.cards}>
           {group.listings.map((l) => (
-            <ListingCard key={l.id} listing={l} onClick={onCardClick} />
+            <ListingCard
+              key={l.id}
+              listing={l}
+              onClick={onCardClick}
+              selected={selectedIds?.has(l.id)}
+              onToggleSelect={onToggleSelect}
+            />
           ))}
         </div>
       )}

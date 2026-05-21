@@ -10,7 +10,7 @@
 }
 
 /* 목록 컬럼 */
-.listCol { flex: 1 1 44%; min-width: 340px; display: flex; flex-direction: column; gap: 7px; }
+.listCol { flex: 1 1 44%; min-width: 340px; display: flex; flex-direction: column; gap: 7px; padding-bottom: 66px; }
 .resultHead {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 4px;
