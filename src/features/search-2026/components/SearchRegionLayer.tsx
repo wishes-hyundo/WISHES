@@ -19,7 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 
 export type RegionTier = 'sido' | 'sigungu' | 'dong';
 
-const COUNT_ZOOM: Record<RegionTier, number> = { sido: 7, sigungu: 9, dong: 14 };
+const COUNT_ZOOM: Record<RegionTier, number> = { sido: 7, sigungu: 9, dong: 12 };
 const GEO_URL: Record<'sido' | 'sigungu', string> = {
   sido: '/api/geo/sido',
   sigungu: '/api/geo/sigungu',
@@ -95,6 +95,25 @@ function ringBboxArea(ring: Ring): number {
   }
   return (maxX - minX) * (maxY - minY);
 }
+// 저비용 라벨점 — 가장 큰 ring 정점 평균(샘플링). 구·동은 대체로 볼록 → 충분.
+function cheapCentroid(poly: Poly): { lat: number; lng: number } {
+  let best = poly[0], bestLen = 0;
+  for (const r of poly) if (r.length > bestLen) { bestLen = r.length; best = r; }
+  const step = Math.max(1, Math.floor(best.length / 48));
+  let sx = 0, sy = 0, n = 0;
+  for (let i = 0; i < best.length; i += step) { sx += best[i][0]; sy += best[i][1]; n++; }
+  return { lng: sx / Math.max(1, n), lat: sy / Math.max(1, n) };
+}
+// ring 점 솎기 — 동 폴리곤 렌더 비용 절감
+function decimateRing(ring: Ring, keepEvery: number): Ring {
+  if (keepEvery <= 1 || ring.length <= 16) return ring;
+  const out: Ring = [];
+  for (let i = 0; i < ring.length; i += keepEvery) out.push(ring[i]);
+  const last = ring[ring.length - 1];
+  if (out[out.length - 1] !== last) out.push(last);
+  return out;
+}
+
 function inRing(lng: number, lat: number, ring: Ring): boolean {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -299,9 +318,17 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
         if (disposed || !geo || !active) return;
         features = geo.features;
       }
+      // 동 tier — viewport 에 걸친 동만 (폴리곤 수 제한, freeze 방지)
+      if (tier === 'dong' && bbox) {
+        features = features.filter((f) => bboxHit(featureBbox(f), bbox));
+      }
       if (disposed || !active || features.length === 0) { if (!disposed) setFdata([]); return; }
 
-      // 2) 개수 — tier 별 클러스터 fetch
+      // feature bbox 사전계산 (개수 집계 prefilter용)
+      const fbboxes = features.map(featureBbox);
+      const fpolys = features.map(featurePolys);
+
+      // 2) 개수 — tier 별 클러스터 fetch + bbox prefilter point-in-polygon
       const counts = new Map<number, number>();
       try {
         const url = tier === 'dong' && bbox
@@ -312,10 +339,11 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
           const json = await res.json();
           const clusters: Array<{ lat: number; lng: number; count: number }> =
             Array.isArray(json?.data) ? json.data : [];
-          const polysByIdx = features.map(featurePolys);
           for (const c of clusters) {
-            for (let fi = 0; fi < polysByIdx.length; fi++) {
-              if (featureContains(polysByIdx[fi], c.lng, c.lat)) {
+            for (let fi = 0; fi < features.length; fi++) {
+              const b = fbboxes[fi];
+              if (c.lng < b[0] || c.lng > b[2] || c.lat < b[1] || c.lat > b[3]) continue;
+              if (featureContains(fpolys[fi], c.lng, c.lat)) {
                 counts.set(fi, (counts.get(fi) ?? 0) + c.count);
                 break;
               }
@@ -329,14 +357,16 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       const nonzero = [...counts.values()].filter((v) => v > 0).sort((a, b) => a - b);
       clearPolys();
       const fds: FeatureDatum[] = [];
+      const keepEvery = tier === 'dong' ? 3 : 1;
 
       features.forEach((f, fi) => {
-        const polys = featurePolys(f);
+        const polys = fpolys[fi];
         const count = counts.get(fi) ?? 0;
         const cls = choroClass(count, nonzero);
 
         for (const poly of polys) {
-          const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
+          const path = poly.map((ring) =>
+            decimateRing(ring, keepEvery).map(([lng, lat]) => new maps.LatLng(lat, lng)));
           const kp = new maps.Polygon({
             path,
             strokeWeight: 1.5,
@@ -356,8 +386,10 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
           const a = ringBboxArea(p[0]);
           if (a > bigArea) { bigArea = a; big = p; }
         }
+        // 라벨점 — 시도만 polylabel(C자형 경기 대응), 구·동은 저비용 centroid
+        const label = tier === 'sido' ? polylabel(big) : cheapCentroid(big);
         fds.push({
-          label: polylabel(big),
+          label,
           count,
           name: shortName(String(f.properties.name ?? '')),
         });
