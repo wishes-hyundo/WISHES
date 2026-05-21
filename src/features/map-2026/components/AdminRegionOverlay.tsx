@@ -29,8 +29,10 @@ import { kakaoFlyTo } from '@/features/map-2026/lib/cinematicMotion';
 //   정밀 GeoJSON (48 pts/feat) 자체로도 충분히 깔끔 → fill 만 stack 으로도 매끄러움.
 // import { union as turfUnion, featureCollection as turfFC } from '@turf/turf';
 
-const SIDO_GEOJSON_URL    = '/api/geo/sido';
-const SIGUNGU_GEOJSON_URL = '/api/geo/sigungu';
+// 2026-05-22: 정적 간소화 GeoJSON (mapshaper 토폴로지 보존, 시도 346KB·시군구 801KB).
+//   기존 /api/geo/* 는 KOSTAT 원본 7.5MB+18MB 프록시 → 파싱 멈춤. /search 와 동일 교체.
+const SIDO_GEOJSON_URL    = '/geo/sido.json';
+const SIGUNGU_GEOJSON_URL = '/geo/sigungu.json';
 const DONG_GEOJSON_URL    = '/api/geo/dong';
 
 interface GeoFeature {

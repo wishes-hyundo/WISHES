@@ -48,13 +48,17 @@ function buildQs(
   filter: FilterState,
 ): string {
   const p = new URLSearchParams();
-  // Wave 71 (사장님 명령 2026-05-06): bbox 좌표 2자리 라운딩 (~1km grid).
-  //   효과: 비슷한 bbox = 같은 cache key → Vercel CDN HIT 90%+ 추정.
-  //   trade-off: 화면이 ~1km 단위로 cluster 갱신 (직방/네이버 표준).
-  p.set('swLat', bbox.south.toFixed(3));
-  p.set('swLng', bbox.west.toFixed(3));
-  p.set('neLat', bbox.north.toFixed(3));
-  p.set('neLng', bbox.east.toFixed(3));
+  // 2026-05-22: bbox 를 줌별 격자에 스냅 (서버 rpc quantizeKey 와 동일 정밀도).
+  //   기존 toFixed(3) 은 매 픽셀 팬마다 URL 이 미세하게 달라져 CDN 캐시 미적중.
+  //   격자 스냅 → 같은 셀 안 팬은 동일 URL → Vercel edge 캐시 적중 → 즉시 응답.
+  const _prec = zoom >= 15 ? 4 : zoom >= 12 ? 3 : zoom >= 9 ? 2 : 1;
+  const _step = Math.pow(10, -_prec);
+  const _fl = (v: number) => Math.floor(v / _step) * _step;
+  const _cl = (v: number) => Math.ceil(v / _step) * _step;
+  p.set('swLat', _fl(bbox.south).toFixed(_prec));
+  p.set('swLng', _fl(bbox.west).toFixed(_prec));
+  p.set('neLat', _cl(bbox.north).toFixed(_prec));
+  p.set('neLng', _cl(bbox.east).toFixed(_prec));
   p.set('zoom', String(zoom));
   // L-filtercluster1 (2026-04-24 pm) + L-clustercat1 (2026-04-26):
   //   viewport 동일 필터 + 카테고리 → types 자동 매핑.
