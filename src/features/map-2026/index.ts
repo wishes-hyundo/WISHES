@@ -20,10 +20,6 @@ export { useViewport } from './hooks/useViewport';
 export { useSemanticZoom, zoomToMode } from './hooks/useSemanticZoom';
 export { useHeroRanking } from './hooks/useHeroRanking';
 
-export { buildLayers } from './layers';
-export { buildHexLayer } from './layers/hexLayer';
-export { buildScatterLayer } from './layers/scatterLayer';
-export { buildIsochroneLayer } from './layers/isochroneLayer';
 
 export { NlSearchBar } from './components/NlSearchBar';
 export { SmartChips } from './components/SmartChips';
