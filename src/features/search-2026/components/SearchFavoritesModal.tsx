@@ -7,7 +7,7 @@
  * iOS 26.5 글래스. 기준: ★search_완전기능명세서.md §5-1.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { SearchListing } from '../types';
 import { displayAddress, priceLines } from '../format';
 import styles from './SearchFavoritesModal.module.css';
@@ -19,8 +19,23 @@ export interface SearchFavoritesModalProps {
 }
 
 export function SearchFavoritesModal({ listings, onClose, onRemove }: SearchFavoritesModalProps) {
+  // L-2: 다른 모달과 동일한 포커스 트랩·autofocus.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      if (e.key === 'Tab' && panelRef.current) {
+        const f = panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+        const items = (Array.from(f) as HTMLElement[]).filter((el) => !el.hasAttribute('disabled'));
+        if (items.length === 0) return;
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -31,11 +46,18 @@ export function SearchFavoritesModal({ listings, onClose, onRemove }: SearchFavo
   }, [onClose]);
 
   return (
-    <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.backdrop} onClick={onClose}>
+      <div
+        ref={panelRef}
+        className={styles.panel}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="관심 목록"
+      >
         <div className={styles.head}>
           <h2 className={styles.title}>관심 목록 {listings.length}건</h2>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">✕</button>
+          <button ref={closeRef} type="button" className={styles.close} onClick={onClose} aria-label="닫기">✕</button>
         </div>
         {listings.length === 0 ? (
           <p className={styles.empty}>담긴 관심 매물이 없습니다.<br />매물을 선택하고 ‘관심+’ 를 눌러보세요.</p>

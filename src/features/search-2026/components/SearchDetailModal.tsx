@@ -104,6 +104,8 @@ export function SearchDetailModal({
   const closeRef = useRef<HTMLButtonElement>(null);
   const [agentOpen, setAgentOpen] = useState(false);
   const [memo, setMemo] = useState('');
+  // MA-3: 메모 저장 디바운스 — 글자마다 localStorage 쓰기 방지.
+  const memoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [memoTags, setMemoTags] = useState<string[]>([]);
   const open = listing != null || id != null;
   const activeId = listing?.id ?? id ?? null;
@@ -481,10 +483,25 @@ export function SearchDetailModal({
                   const v = e.target.value;
                   setMemo(v);
                   if (activeId != null) {
+                    if (memoSaveTimer.current) clearTimeout(memoSaveTimer.current);
+                    memoSaveTimer.current = setTimeout(() => {
+                      try {
+                        localStorage.setItem(
+                          `wishes-memo-${activeId}`,
+                          JSON.stringify({ memo: v, tags: memoTags }),
+                        );
+                      } catch { /* noop */ }
+                    }, 350);
+                  }
+                }}
+                onBlur={() => {
+                  // 디바운스 대기 중 닫힘 대비 — 즉시 flush.
+                  if (memoSaveTimer.current) { clearTimeout(memoSaveTimer.current); memoSaveTimer.current = null; }
+                  if (activeId != null) {
                     try {
                       localStorage.setItem(
                         `wishes-memo-${activeId}`,
-                        JSON.stringify({ memo: v, tags: memoTags }),
+                        JSON.stringify({ memo, tags: memoTags }),
                       );
                     } catch { /* noop */ }
                   }

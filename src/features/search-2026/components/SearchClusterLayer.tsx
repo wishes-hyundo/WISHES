@@ -94,7 +94,10 @@ interface KakaoLatLng { /* opaque */ }
 interface KakaoProjection { pointFromCoords: (c: unknown) => { x: number; y: number } }
 interface KakaoMapsNs {
   LatLng: new (lat: number, lng: number) => KakaoLatLng;
-  CustomOverlay: new (opts: Record<string, unknown>) => { setMap: (m: unknown) => void };
+  CustomOverlay: new (opts: Record<string, unknown>) => {
+    setMap: (m: unknown) => void;
+    setPosition: (p: unknown) => void;
+  };
 }
 interface KakaoMapLike {
   getProjection?: () => KakaoProjection;
@@ -170,7 +173,9 @@ function mergeClusters(
 }
 
 export function SearchClusterLayer({ map, clusters, onSelectListing }: SearchClusterLayerProps) {
-  const overlaysRef = useRef<Array<{ setMap: (m: unknown) => void }>>([]);
+  // MA-1: 오버레이 키풀 — clusters 갱신 시 전체 teardown 대신 재사용 → 깜빡임 제거.
+  type PoolEntry = { ov: { setMap: (m: unknown) => void; setPosition: (p: unknown) => void }; el: HTMLDivElement };
+  const overlaysRef = useRef<Map<string, PoolEntry>>(new Map());
   const cbRef = useRef(onSelectListing);
   cbRef.current = onSelectListing;
 
@@ -182,26 +187,30 @@ export function SearchClusterLayer({ map, clusters, onSelectListing }: SearchClu
     const maps = win.kakao?.maps;
     if (!maps) return;
 
-    for (const ov of overlaysRef.current) {
-      try { ov.setMap(null); } catch { /* noop */ }
-    }
-    overlaysRef.current = [];
-
     const merged = mergeClusters(clusters, maps, map as KakaoMapLike);
+    const pool = overlaysRef.current;
+    const seen = new Set<string>();
 
     for (const m of merged) {
       const single = m.count <= 1;
-      const el = document.createElement('div');
+      // 좌표+종류 기반 키 — 같은 자리 같은 종류면 재사용. 동좌표 중복은 #n 으로 분리.
+      const baseKey = `${m.lat.toFixed(5)}_${m.lng.toFixed(5)}_${single ? 's' : 'c'}`;
+      let key = baseKey; let dup = 1;
+      while (seen.has(key)) key = `${baseKey}#${dup++}`;
+      seen.add(key);
+
+      const w = single ? pinWidth(1) : pinWidth(m.count);
+      const entry = pool.get(key);
+      const el = entry ? entry.el : document.createElement('div');
 
       if (single) {
-        const w = pinWidth(1);
         el.className = 'scl-pin scl-pinimg';
         el.style.width = `${w}px`;
         el.style.height = `${Math.round(w * PIN_RATIO)}px`;
         el.innerHTML = `<img src="${PIN_IMG}" alt="" draggable="false"/>`;
         el.dataset.singleId = String(m.ids[0] ?? '');
+        delete el.dataset.clusterLat; delete el.dataset.clusterLng;
       } else {
-        const w = pinWidth(m.count);
         const label = formatCount(m.count);
         const fs = label.length >= 4
           ? Math.round(w * 0.27)
@@ -214,17 +223,29 @@ export function SearchClusterLayer({ map, clusters, onSelectListing }: SearchClu
           `<span class="scl-count" style="font-size:${fs}px">${label}</span>`;
         el.dataset.clusterLat = String(m.lat);
         el.dataset.clusterLng = String(m.lng);
+        delete el.dataset.singleId;
       }
 
-      const ov = new maps.CustomOverlay({
-        position: new maps.LatLng(m.lat, m.lng),
-        content: el,
-        xAnchor: single ? PIN_XANCHOR : 0.5,
-        yAnchor: single ? PIN_TIP_YANCHOR : 0.5,
-        zIndex: single ? 90 : 100,
-      });
-      ov.setMap(map);
-      overlaysRef.current.push(ov);
+      if (entry) {
+        try { entry.ov.setPosition(new maps.LatLng(m.lat, m.lng)); } catch { /* noop */ }
+      } else {
+        const ov = new maps.CustomOverlay({
+          position: new maps.LatLng(m.lat, m.lng),
+          content: el,
+          xAnchor: single ? PIN_XANCHOR : 0.5,
+          yAnchor: single ? PIN_TIP_YANCHOR : 0.5,
+          zIndex: single ? 90 : 100,
+        });
+        ov.setMap(map);
+        pool.set(key, { ov, el });
+      }
+    }
+    // 이번 렌더에 없는 오버레이만 제거
+    for (const [k, e] of pool) {
+      if (!seen.has(k)) {
+        try { e.ov.setMap(null); } catch { /* noop */ }
+        pool.delete(k);
+      }
     }
   }, [clusters, map]);
 
@@ -261,11 +282,12 @@ export function SearchClusterLayer({ map, clusters, onSelectListing }: SearchClu
   }, [map]);
 
   useEffect(() => {
+    const pool = overlaysRef.current;
     return () => {
-      for (const ov of overlaysRef.current) {
-        try { ov.setMap(null); } catch { /* noop */ }
+      for (const e of pool.values()) {
+        try { e.ov.setMap(null); } catch { /* noop */ }
       }
-      overlaysRef.current = [];
+      pool.clear();
     };
   }, []);
 

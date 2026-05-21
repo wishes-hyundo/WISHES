@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSearchStore } from '../store';
-import { FILTER_OPTIONS, type SearchListing } from '../types';
+import { FILTER_OPTIONS, type SearchListing, type SearchSort } from '../types';
 import { groupByLocation, mergeUnitDeals } from '../format';
 import { ListingCard } from './ListingCard';
 import { ListingGroup } from './ListingGroup';
@@ -131,7 +131,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
             <select
               className={styles.sortSel}
               value={sortVal}
-              onChange={(e) => setFilter('sort', e.target.value)}
+              onChange={(e) => setFilter('sort', e.target.value as SearchSort)}
               aria-label="정렬"
             >
               {FILTER_OPTIONS.sorts.map((s) => (
@@ -250,7 +250,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         <SearchEditModal
           listing={editListing}
           onClose={() => setEditListing(null)}
-          onSaved={() => invalidateListings()}
+          onSaved={() => { invalidateListings(); closeDetail(); }}
         />
       )}
       {createOpen && (

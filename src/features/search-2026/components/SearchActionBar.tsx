@@ -144,6 +144,7 @@ export function SearchActionBar({
         type="button"
         className={styles.act}
         onClick={onOpenFav}
+        aria-label={favCount > 0 ? `관심목록 ${favCount}건` : '관심목록'}
       >♡ 관심목록{favCount > 0 ? ` ${favCount}` : ''}</button>
       <button
         type="button"

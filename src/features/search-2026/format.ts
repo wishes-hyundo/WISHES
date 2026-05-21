@@ -70,10 +70,17 @@ export function formatArea(l: SearchListing): string {
   return `${m2}㎡ (${py}평)`;
 }
 
+/** 층 값 정규화 — "undefined"/"null"/"NaN"/빈문자 등 비정상값은 제외 (L-1) */
+function floorVal(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s || s === 'undefined' || s === 'null' || s === 'NaN') return null;
+  return s;
+}
 /** 층 — "3 / 12층" */
 export function formatFloor(l: SearchListing): string {
-  const cur = l.floor_current;
-  const tot = l.floor_total;
+  const cur = floorVal(l.floor_current);
+  const tot = floorVal(l.floor_total);
   if (cur == null && tot == null) return '';
   if (tot != null) return `${cur ?? '-'} / ${tot}층`;
   return `${cur}층`;
