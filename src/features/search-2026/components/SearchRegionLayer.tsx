@@ -202,16 +202,27 @@ function shortName(name: string): string {
 const STYLE_ID = 'wishes-search-region-style';
 const STYLE_CSS = `
 .srl-bubble{
-  display:flex;flex-direction:column;align-items:center;
-  padding:5px 13px;border-radius:14px;cursor:pointer;
-  background:rgba(255,255,255,0.97);
-  box-shadow:0 3px 10px rgba(16,40,24,0.24),0 0 0 0.5px rgba(16,40,24,0.07);
+  position:relative;
+  display:flex;align-items:center;gap:5px;
+  padding:4px 10px 4px 4px;border-radius:999px;cursor:pointer;
+  background:#ffffff;white-space:nowrap;
+  box-shadow:0 3px 9px rgba(16,40,24,0.26),0 0 0 0.5px rgba(16,40,24,0.10);
   font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Pretendard',sans-serif;
   transition:transform .16s cubic-bezier(.16,1,.3,1);
 }
-.srl-bubble:hover{transform:scale(1.07);}
-.srl-rname{font-size:11px;font-weight:500;color:#5a6b60;letter-spacing:-0.01em;line-height:1.2;}
-.srl-rcount{font-size:14.5px;font-weight:700;color:#235b34;letter-spacing:-0.02em;line-height:1.25;}
+.srl-bubble:hover{transform:scale(1.06);z-index:50;}
+.srl-bubble::after{
+  content:'';position:absolute;left:50%;bottom:-4px;
+  width:8px;height:8px;background:#ffffff;
+  transform:translateX(-50%) rotate(45deg);
+}
+.srl-rcount{
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(150deg,#3c8a54,#2c6e42);
+  color:#fff;font-size:12px;font-weight:700;letter-spacing:-0.02em;
+  border-radius:999px;padding:3px 8px;
+}
+.srl-rname{font-size:12px;font-weight:600;color:#2c3a31;letter-spacing:-0.01em;padding-right:3px;}
 `;
 function injectStyle(): void {
   if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return;
@@ -249,11 +260,9 @@ interface FeatureDatum {
   label: { lat: number; lng: number };
   count: number;
   name: string;
-  polys: Poly[];
 }
 
 export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegionLayerProps) {
-  const polysRef = useRef<KakaoPolygon[]>([]);
   const bubblesRef = useRef<KakaoOverlay[]>([]);
   const [fdata, setFdata] = useState<FeatureDatum[] | null>(null);
 
@@ -264,7 +273,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     ? `d:${bbox.west.toFixed(1)},${bbox.south.toFixed(1)},${bbox.east.toFixed(1)},${bbox.north.toFixed(1)}`
     : tier;
 
-  // ── Effect 1 — 구역 데이터 산출 (폴리곤·버블은 Effect 2 가 함께 그림) ──
+  // ── Effect 1 — 구역 데이터(라벨점 + 개수) 산출 ────────────────
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
@@ -277,7 +286,6 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     }
 
     (async () => {
-      // 1) features — tier 별
       let features: GeoFeature[];
       if (tier === 'dong') {
         const sigGeo = await loadGeo('sigungu');
@@ -305,7 +313,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       const fbboxes = features.map(featureBbox);
       const fpolys = features.map(featurePolys);
 
-      // 2) 개수 — 클러스터 fetch + bbox prefilter point-in-polygon
+      // 개수 — 클러스터 fetch + bbox prefilter point-in-polygon
       const counts = new Map<number, number>();
       try {
         const url = tier === 'dong' && bbox
@@ -330,7 +338,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       } catch { /* 개수 실패 무시 */ }
       if (disposed || !active) return;
 
-      // 3) 매물 있는 구역만 데이터화 (그리기는 Effect 2)
+      // 매물 있는 구역만 — 라벨점은 폴리곤 안쪽(polylabel/centroid)
       const fds: FeatureDatum[] = [];
       features.forEach((f, fi) => {
         const count = counts.get(fi) ?? 0;
@@ -342,7 +350,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
           if (a > bigArea) { bigArea = a; big = p; }
         }
         const label = tier === 'sido' ? polylabel(big) : cheapCentroid(big);
-        fds.push({ label, count, name: shortName(String(f.properties.name ?? '')), polys });
+        fds.push({ label, count, name: shortName(String(f.properties.name ?? '')) });
       });
 
       if (disposed) return;
@@ -353,28 +361,24 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, tier, active, loadKey]);
 
-  // ── Effect 2 — 폴리곤 + 버블 함께 그림 (겹침 제거 생존분만) ──────
-  //   핵심: 폴리곤과 버블을 한 세트로. 버블이 겹쳐 생략되면 폴리곤도 생략 →
-  //   "내용 없는 빈 폴리곤" 이 생기지 않음. 줌 변경 시 재배치.
+  // ── Effect 2 — 개수 버블만 (다방식: 폴리곤 없음). 겹침 제거 + 줌 재배치 ──
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
     const maps = win.kakao?.maps;
     if (!maps) return;
 
-    const clearAll = () => {
-      for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+    const clearBubbles = () => {
       for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
-      polysRef.current = [];
       bubblesRef.current = [];
     };
-    clearAll();
-    if (!active || !fdata) return () => clearAll();
+    clearBubbles();
+    if (!active || !fdata) return () => clearBubbles();
 
     const proj = (map as { getProjection?: () => { pointFromCoords: (c: unknown) => { x: number; y: number } } })
       .getProjection?.();
 
-    // 개수 큰 구역 우선 — 라벨이 겹치면 작은 쪽은 폴리곤·버블 모두 생략
+    // 개수 큰 구역 우선 — 라벨이 겹치면 작은 쪽 생략
     const cand = [...fdata].sort((a, b) => b.count - a.count);
     const placed: Array<{ x: number; y: number }> = [];
 
@@ -388,60 +392,17 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       }
       let collide = false;
       for (const q of placed) {
-        if (Math.abs(q.x - x) < 66 && Math.abs(q.y - y) < 42) { collide = true; break; }
+        if (Math.abs(q.x - x) < 88 && Math.abs(q.y - y) < 30) { collide = true; break; }
       }
       if (collide) continue;
       placed.push({ x, y });
 
-      // 폴리곤 — 한 구역이 여러 조각(MultiPolygon)이어도 한 덩어리로 다룸.
-      //   ① union 부스러기(주 조각의 8% 미만) 는 버림 → "조각난" 모습 제거
-      //   ② hover 는 그 구역의 모든 조각을 함께 강조 (한 동 = 한 단위)
-      let maxArea = 0;
-      for (const poly of d.polys) maxArea = Math.max(maxArea, ringBboxArea(poly[0]));
-      const drawPolys = d.polys.filter((poly) => ringBboxArea(poly[0]) >= maxArea * 0.08);
-      const group: KakaoPolygon[] = [];
-      for (const poly of (drawPolys.length > 0 ? drawPolys : d.polys)) {
-        const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
-        const kp = new maps.Polygon({
-          path,
-          strokeWeight: 1.2,
-          strokeColor: '#aab0b8',
-          strokeOpacity: 0.7,
-          strokeStyle: 'solid',
-          fillColor: '#3f8a55',
-          fillOpacity: 0.05,
-          zIndex: 1,
-        });
-        kp.setMap(map);
-        polysRef.current.push(kp);
-        group.push(kp);
-      }
-      const setGroup = (fillOpacity: number, strokeColor: string, strokeWeight: number) => {
-        for (const g of group) {
-          try { g.setOptions?.({ fillOpacity, strokeColor, strokeWeight }); } catch { /* noop */ }
-        }
-      };
-      for (const kp of group) {
-        maps.event.addListener(kp, 'mouseover', () => setGroup(0.17, '#2f7a47', 2.4));
-        maps.event.addListener(kp, 'mouseout', () => setGroup(0.05, '#aab0b8', 1.2));
-        maps.event.addListener(kp, 'click', (e) => {
-          const m = map as KakaoMapLike;
-          const ll = e?.latLng;
-          if (m.setLevel && m.getLevel && ll) {
-            const next = Math.max(1, (m.getLevel() ?? 10) - 3);
-            try { m.setLevel(next, { anchor: ll, animate: true }); }
-            catch { try { m.setLevel(next); } catch { /* noop */ } }
-          }
-        });
-      }
-
-      // 개수 버블
       const lp = d.label;
       const el = document.createElement('div');
       el.className = 'srl-bubble';
       el.innerHTML =
-        `<span class="srl-rname">${d.name}</span>` +
-        `<span class="srl-rcount">${fmtCount(d.count)}</span>`;
+        `<span class="srl-rcount">${fmtCount(d.count)}</span>` +
+        `<span class="srl-rname">${d.name}</span>`;
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         const m = map as KakaoMapLike;
@@ -457,21 +418,19 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
         position: new maps.LatLng(lp.lat, lp.lng),
         content: el,
         xAnchor: 0.5,
-        yAnchor: 0.5,
+        yAnchor: 1.0,
         zIndex: 5,
       });
       ov.setMap(map);
       bubblesRef.current.push(ov);
     }
 
-    return () => clearAll();
+    return () => clearBubbles();
   }, [map, tier, active, fdata, level]);
 
   useEffect(() => {
     return () => {
-      for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
       for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
-      polysRef.current = [];
       bubblesRef.current = [];
     };
   }, []);
