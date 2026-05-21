@@ -3,8 +3,9 @@
 /**
  * ListingCard — /search 재구축 매물 카드 (P3)
  *
- * iOS 앱 톤의 깔끔한 가로형 카드 — 썸네일 · 거래유형 · 주소 · 정보 · 태그 · 가격.
- * 명세서 §3-6 기준. 중개사 도구(상태변경·수정·삭제·다중선택)는 P6 후속.
+ * iOS 앱 톤 + 정보 밀도. 중개사가 한눈에 핵심을 보도록:
+ *   거래유형 · 주소 · 가격 · 면적/층/종류/준공 · 관리비(포함내역) · 주차·반려동물·옵션.
+ * 조밀하게 — 한 화면에 더 많은 매물. 명세서 §3-6.
  */
 
 import type { SearchListing } from '../types';
@@ -23,17 +24,38 @@ const DEAL_TONE: Record<string, string> = {
   전월세: styles.dealMonthly,
 };
 
+function builtYearText(l: SearchListing): string {
+  const m = String(l.built_year ?? '').match(/\d{4}/);
+  return m ? `${m[0]}년` : '';
+}
+
+/** 관리비 — 금액 + 포함 내역 한 줄 */
+function maintenanceText(l: SearchListing): string {
+  const fee = l.maintenance_fee;
+  if (fee == null || fee <= 0) return '관리비 없음';
+  let t = `관리비 ${fee.toLocaleString()}만`;
+  const inc = l.maintenance_includes;
+  if (Array.isArray(inc) && inc.length) t += ` · ${inc.join('·')} 포함`;
+  return t;
+}
+
 export function ListingCard({ listing, onClick }: ListingCardProps) {
   const thumb = listing.listing_images?.[0]?.url || listing.thumbnail_url || null;
   const addr = listing.address || listing.title || '주소 미상';
-  const sub = [formatArea(listing), formatFloor(listing), listing.type]
+  const sub = [formatArea(listing), formatFloor(listing), listing.type, builtYearText(listing)]
     .filter(Boolean)
     .join(' · ');
+
   const tags: string[] = [];
-  if (listing.rooms != null) tags.push(`방 ${listing.rooms}`);
-  if (listing.parking) tags.push('주차');
+  if (listing.parking_spaces != null && listing.parking_spaces > 0) tags.push(`주차 ${listing.parking_spaces}대`);
+  else if (listing.parking) tags.push('주차 가능');
+  if (listing.pet) tags.push('반려동물');
+  if (listing.full_option) tags.push('풀옵션');
   if (listing.elevator) tags.push('E/V');
+  if (listing.balcony) tags.push('발코니');
   if (listing.building_name) tags.push(String(listing.building_name));
+
+  const noMaint = listing.maintenance_fee == null || listing.maintenance_fee <= 0;
 
   return (
     <button type="button" className={styles.card} onClick={() => onClick?.(listing.id)}>
@@ -46,24 +68,23 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
       </div>
 
       <div className={styles.body}>
-        <span className={`${styles.deal} ${DEAL_TONE[listing.deal || ''] || ''}`}>
-          {listing.deal || '거래'}
-        </span>
-        <div className={styles.addr}>{addr}</div>
+        <div className={styles.topRow}>
+          <span className={`${styles.deal} ${DEAL_TONE[listing.deal || ''] || ''}`}>
+            {listing.deal || '거래'}
+          </span>
+          <span className={styles.addr}>{addr}</span>
+          <span className={styles.price}>{formatPrice(listing)}</span>
+        </div>
         {sub && <div className={styles.sub}>{sub}</div>}
+        <div className={`${styles.maint} ${noMaint ? styles.maintNone : ''}`}>
+          {maintenanceText(listing)}
+        </div>
         {tags.length > 0 && (
           <div className={styles.tags}>
-            {tags.slice(0, 4).map((t, i) => (
+            {tags.slice(0, 6).map((t, i) => (
               <span key={i} className={styles.tag}>{t}</span>
             ))}
           </div>
-        )}
-      </div>
-
-      <div className={styles.priceCol}>
-        <span className={styles.price}>{formatPrice(listing)}</span>
-        {listing.maintenance_fee != null && listing.maintenance_fee > 0 && (
-          <span className={styles.maint}>관리 {listing.maintenance_fee.toLocaleString()}만</span>
         )}
       </div>
     </button>

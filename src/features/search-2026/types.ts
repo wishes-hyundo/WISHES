@@ -31,6 +31,9 @@ export interface SearchListing {
   monthly?: number | null;
   price?: number | null;
   maintenance_fee?: number | null;
+  maintenance_includes?: string[] | null;  // 관리비 포함 항목 (수도·인터넷 등)
+  parking_spaces?: number | null;
+  options?: string | string[] | null;       // 옵션·특징
   parking?: string | null;
   elevator?: boolean | string | null;
   pet?: boolean | string | null;
