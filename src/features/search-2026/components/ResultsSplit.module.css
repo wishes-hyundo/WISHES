@@ -1,0 +1,84 @@
+/* ResultsSplit — 목록 + 지도 분할 (P3) · iOS 앱 톤 */
+
+.split {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  align-items: flex-start;
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Pretendard', 'Malgun Gothic', sans-serif;
+}
+
+/* 목록 컬럼 */
+.listCol { flex: 1 1 56%; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
+.resultHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 2px 4px 0;
+}
+.count { font-size: 13px; color: #6b7178; letter-spacing: -0.01em; }
+.count strong { color: #2d6a34; font-size: 15px; font-weight: 700; }
+.sortSel {
+  height: 32px;
+  padding: 0 28px 0 11px;
+  border: 0.5px solid rgba(0, 0, 0, 0.14);
+  border-radius: 9px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 12.5px;
+  color: #1d1d1f;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%2383878f' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+}
+.sortSel:focus { outline: none; border-color: #2d6a34; box-shadow: 0 0 0 3px rgba(45, 106, 52, 0.12); }
+.cards { display: flex; flex-direction: column; gap: 9px; }
+
+/* 지도 컬럼 — 데스크탑에서 스크롤 시 고정 */
+.mapCol {
+  flex: 1 1 44%;
+  position: sticky;
+  top: 12px;
+  height: calc(100vh - 24px);
+  min-height: 420px;
+}
+.map {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(160deg, #e9efe9, #e3e9e6);
+  border: 0.5px solid rgba(0, 0, 0, 0.07);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+.mapGridLine { position: absolute; left: -10%; width: 130%; height: 8px; background: rgba(0, 0, 0, 0.045); transform: rotate(-6deg); }
+.mapRoad { position: absolute; left: 32%; top: 0; width: 9px; height: 100%; background: rgba(0, 0, 0, 0.045); }
+.cluster {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(45, 106, 52, 0.92);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+}
+.mapNote {
+  position: absolute;
+  left: 50%; bottom: 16px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  color: #6b7570;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 5px 12px;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+
+/* 모바일 — 목록 전폭, 지도 숨김(토글 후속) */
+@media (max-width: 860px) {
+  .mapCol { display: none; }
+  .listCol { flex-basis: 100%; }
+}
