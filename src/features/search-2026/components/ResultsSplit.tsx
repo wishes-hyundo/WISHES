@@ -10,8 +10,9 @@
 
 import { useMemo, useState } from 'react';
 import { FILTER_OPTIONS, type SearchListing } from '../types';
-import { mergeUnitDeals } from '../format';
+import { groupByLocation, mergeUnitDeals } from '../format';
 import { ListingCard } from './ListingCard';
+import { ListingGroup } from './ListingGroup';
 import styles from './ResultsSplit.module.css';
 
 export interface ResultsSplitProps {
@@ -21,7 +22,7 @@ export interface ResultsSplitProps {
 
 export function ResultsSplit({ listings, total }: ResultsSplitProps) {
   const [sort, setSort] = useState('latest');
-  const merged = useMemo(() => mergeUnitDeals(listings), [listings]);
+  const groups = useMemo(() => groupByLocation(mergeUnitDeals(listings)), [listings]);
 
   return (
     <div className={styles.split}>
@@ -43,9 +44,13 @@ export function ResultsSplit({ listings, total }: ResultsSplitProps) {
         </div>
 
         <div className={styles.cards}>
-          {merged.map((l) => (
-            <ListingCard key={l.id} listing={l} />
-          ))}
+          {groups.map((g) =>
+            g.listings.length === 1 ? (
+              <ListingCard key={g.key} listing={g.listings[0]} />
+            ) : (
+              <ListingGroup key={g.key} group={g} />
+            ),
+          )}
         </div>
       </div>
 

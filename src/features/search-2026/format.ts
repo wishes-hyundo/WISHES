@@ -114,3 +114,91 @@ export function mergeUnitDeals(listings: SearchListing[]): SearchListing[] {
   }
   return out;
 }
+
+/* ── 소재지 그룹핑 (P3 §3-2) ────────────────────────────────
+ * 기준(대표님 확정 2026-05-21, 데이터 분석 기반):
+ *  같은 시/도+구+동 안에서 — ① 지번이 동일하거나, ② 건물명이 동일하면
+ *  (필지가 달라도) 한 묶음. union-find 로 ①②를 모두 연결 → 전이 그룹.
+ *  개수 제한 없음. 큰 건물(오피스텔·지산)은 수십~백 건도 한 그룹이 정상.
+ * ───────────────────────────────────────────────────────── */
+
+export interface LocationGroup {
+  key: string;
+  label: string;          // 소재지 표기 (시도+구+동 + 지번/건물명)
+  listings: SearchListing[];
+}
+
+/** address 에서 동까지의 앞부분(시도+구+동) */
+function regionPrefix(l: SearchListing): string {
+  const addr = String(l.address ?? '').trim();
+  const dong = String(l.dong ?? '').trim();
+  if (dong && addr.includes(dong)) {
+    return addr.slice(0, addr.indexOf(dong) + dong.length).trim();
+  }
+  return dong || addr;
+}
+
+/** 동 이후 첫 번지 토큰 = 지번 (예: 1547-8) */
+function jibunOf(l: SearchListing): string | null {
+  const addr = String(l.address ?? '').trim();
+  const dong = String(l.dong ?? '').trim();
+  const rest = dong && addr.includes(dong) ? addr.slice(addr.indexOf(dong) + dong.length) : addr;
+  const m = rest.match(/(\d+(?:-\d+)?)/);
+  return m ? m[1] : null;
+}
+
+function bldgKey(l: SearchListing): string | null {
+  const b = String(l.building_name ?? '').replace(/\s+/g, '').trim();
+  return b.length >= 2 ? b : null;
+}
+
+/**
+ * 매물 목록을 소재지 단위로 묶는다. 표시 순서(첫 등장)는 보존.
+ * 1건짜리 그룹도 그대로 1개 그룹으로 반환(렌더 측에서 단일 카드 처리).
+ */
+export function groupByLocation(listings: SearchListing[]): LocationGroup[] {
+  const n = listings.length;
+  const parent = Array.from({ length: n }, (_, i) => i);
+  const find = (x: number): number => {
+    let r = x;
+    while (parent[r] !== r) r = parent[r];
+    while (parent[x] !== r) { const nx = parent[x]; parent[x] = r; x = nx; }
+    return r;
+  };
+  const union = (a: number, b: number) => {
+    const ra = find(a), rb = find(b);
+    if (ra !== rb) parent[ra] = rb;
+  };
+
+  const jSeen = new Map<string, number>();
+  const bSeen = new Map<string, number>();
+  listings.forEach((l, i) => {
+    const region = regionPrefix(l);
+    const j = jibunOf(l);
+    if (j) {
+      const k = `${region}|J|${j}`;
+      if (jSeen.has(k)) union(i, jSeen.get(k)!); else jSeen.set(k, i);
+    }
+    const b = bldgKey(l);
+    if (b) {
+      const k = `${region}|B|${b}`;
+      if (bSeen.has(k)) union(i, bSeen.get(k)!); else bSeen.set(k, i);
+    }
+  });
+
+  const buckets = new Map<number, SearchListing[]>();
+  const order: number[] = [];
+  listings.forEach((l, i) => {
+    const r = find(i);
+    if (!buckets.has(r)) { buckets.set(r, []); order.push(r); }
+    buckets.get(r)!.push(l);
+  });
+
+  return order.map((r) => {
+    const arr = buckets.get(r)!;
+    const head = arr[0];
+    const region = regionPrefix(head);
+    const tail = bldgKey(head) ? String(head.building_name).trim() : (jibunOf(head) ?? '');
+    return { key: `g${r}`, label: [region, tail].filter(Boolean).join(' '), listings: arr };
+  });
+}

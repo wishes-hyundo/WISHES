@@ -32,6 +32,8 @@ const MOCK: SearchListing[] = [
   { id: 119401, deal: '매매', type: '토지', address: '경기 용인시 처인구 이동읍 천리 산32', area_m2: 661, price: 41000, maintenance_fee: 0, source_site: null },
   { id: 119388, deal: '전세', type: '오피스텔', address: '서울 강남구 논현동 12-3', address_detail: '1402호', area_m2: 41, floor_current: 14, floor_total: 20, rooms: 1, deposit: 33000, maintenance_fee: 11, maintenance_includes: ['수도', '인터넷'], building_name: '논현팰리스', elevator: true, parking_spaces: 1, built_year: '2016년', source_site: 'gongsilclub', available_date: '즉시입주' },
   { id: 119389, deal: '월세', type: '오피스텔', address: '서울 강남구 논현동 12-3', address_detail: '1402호', area_m2: 41, floor_current: 14, floor_total: 20, rooms: 1, deposit: 2000, monthly: 130, maintenance_fee: 11, building_name: '논현팰리스', elevator: true, parking_spaces: 1, built_year: '2016년', source_site: 'gongsilclub', available_date: '즉시입주' },
+  { id: 119793, deal: '월세', type: '원룸', address: '서울 노원구 공릉동 621-6 JHCITY HOUSE', address_detail: '402호', area_m2: 36.1, floor_current: 4, floor_total: 6, rooms: 1, deposit: 1000, monthly: 48, maintenance_fee: 7, maintenance_includes: ['수도', '인터넷'], building_name: 'JHCITY HOUSE', elevator: true, parking_spaces: 1, built_year: '2021년', source_site: 'gongsilclub', available_date: '즉시입주' },
+  { id: 119791, deal: '전세', type: '원룸', address: '서울 노원구 공릉동 621-6 JHCITY HOUSE', address_detail: '705호', area_m2: 42.0, floor_current: 7, floor_total: 6, rooms: 1, deposit: 17000, maintenance_fee: 7, maintenance_includes: ['수도', '인터넷'], building_name: 'JHCITY HOUSE', elevator: true, parking_spaces: 1, built_year: '2021년', source_site: 'onhouse', available_date: '2026-08-20' },
 ];
 
 export default function SearchPreviewPage() {

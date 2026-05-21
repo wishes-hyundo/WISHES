@@ -81,6 +81,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.road {
+  font-size: 11px;
+  color: #aab0b6;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .sub {
   font-size: 11.5px;
   color: #8b9097;

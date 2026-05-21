@@ -71,6 +71,7 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
   const thumb = listing.listing_images?.[0]?.url || listing.thumbnail_url || null;
   const addr = fullAddr(listing);
   const srcLetter = sourceLetter(listing.source_site);
+  const road = String(listing.road_address ?? '').trim();
   const sub = [formatArea(listing), formatFloor(listing), listing.type, builtYearText(listing)]
     .filter(Boolean)
     .join(' · ');
@@ -105,6 +106,7 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
           </span>
           <span className={styles.addr}>{addr}</span>
         </div>
+        {road && <div className={styles.road}>{road}</div>}
         {sub && <div className={styles.sub}>{sub}</div>}
         <div className={styles.tags}>
           {mv && (
