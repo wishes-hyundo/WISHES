@@ -1,16 +1,16 @@
 'use client';
 
 /**
- * SearchClusterLayer — /search 지도 마커 (P5 · 애플지도 풍선 핀, SVG)
+ * SearchClusterLayer — /search 지도 마커 (P5 / SW-7)
  *
- * 대표님 확정: 애플지도 둥근 풍선 핀. 원 + 삼각형 붙이기(X) — 매끈한 물방울.
- *   SVG path 로 head→tip 이 하나로 이어지는 진짜 teardrop 을 그린다.
+ * 대표님 확정 (2026-05-21): 마커는 대표님이 보내주신 글라스 그린 이미지를
+ *   그대로 사용. 형태·색·재질 손대지 않고 회색 배경만 떼어 PNG 로 마스킹.
  *
- *   · 클러스터(2개 이상) — 풍선 핀, head 안에 개수 숫자. 크기 = 개수 비례.
- *   · 개별 매물(1개)      — 풍선 핀, head 안에 흰 점.
- *   · 줌 적응 — 서버 클러스터 단위가 줌마다 바뀌고 머지 후 재배치·재크기.
- *   · SVG → 매끈한 곡선 + radialGradient 광택 + feDropShadow 부드러운 그림자.
- *   · 핀 tip 이 좌표에 앵커. /map 의 KakaoMarkerLayer 는 손대지 않음.
+ *   · 개별 매물(1개) — 글라스 핀 (logo1779371164). 최대 확대 단계.
+ *   · 클러스터(2개+) — 핀 머리(bulb)를 원형으로 도려낸 글라스 동그라미 + 개수.
+ *   · 동그라미 = 핀과 완전히 같은 색·재질 (같은 이미지에서 추출).
+ *   · 핀 tip 이 좌표에 앵커. 동그라미는 중심 앵커.
+ *   · /map 은 KakaoMarkerLayer 가 담당 — 여기서 손대지 않음.
  */
 
 import { useEffect, useRef } from 'react';
@@ -31,17 +31,22 @@ export interface SearchClusterLayerProps {
   onSelectListing?: (id: number) => void;
 }
 
-// ── 핀 픽셀 폭 — 개수 비례 단계 ──────────────────────────────
+// 마커 에셋 (public/)
+const PIN_IMG = '/search-marker-pin.png';
+const CIRCLE_IMG = '/search-marker-circle.png';
+// 핀 PNG 240x308 — tip 앵커 (회색 배경 제거 후 측정값)
+const PIN_RATIO = 308 / 240;
+const PIN_XANCHOR = 0.502;
+const PIN_TIP_YANCHOR = 0.9805;
+
 function pinWidth(count: number): number {
-  if (count <= 1) return 36;
-  if (count < 10) return 42;
-  if (count < 50) return 48;
-  if (count < 200) return 54;
-  if (count < 1000) return 60;
-  return 68;
+  if (count <= 1) return 38;
+  if (count < 10) return 44;
+  if (count < 50) return 50;
+  if (count < 200) return 56;
+  if (count < 1000) return 62;
+  return 70;
 }
-const PIN_RATIO = 152 / 134;  // viewBox 높이/폭
-const TIP_YANCHOR = 117 / 152; // tip(y=104) — viewBox(-13..139) 내 비율 ≈ 0.770
 
 function formatCount(n: number): string {
   if (n < 1000) return String(n);
@@ -52,59 +57,28 @@ function formatCount(n: number): string {
   return Math.floor(n / 1000) + 'K';
 }
 
-// 애플지도 스타일 둥근 풍선 핀 (2026-05-21 재디자인)
-//   플럼프한 둥근 헤드(반지름40,중심50,44) + 짧은 꼬리(끝50,104).
-//   불투명 바디 + 넓고 은은한 글래스 면발광 + 살짝의 톱 림라이트.
-//   싼티 방지: 그라디언트 대비 약하게, 광택은 넓고 부드럽게, 그림자
-//   는 옅게 떠 있는 느낌. 귀엽고 러블리하게 둥글둥글.
-function pinSvg(count: number, single: boolean): string {
-  const label = formatCount(count);
-  const fs = label.length >= 4 ? 22 : label.length === 3 ? 26 : 30;
-  const inner = single
-    ? '<circle cx="50" cy="44" r="12.5" fill="#ffffff"/>' +
-      '<circle cx="50" cy="44" r="4.9" fill="#1d9355"/>'
-    : `<text x="50" y="45.5" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Rounded','SF Pro Display','Pretendard',sans-serif" font-weight="640" font-size="${fs}" letter-spacing="-1.2" fill="#ffffff">${label}</text>`;
-  const D = 'M50,104 C36,84 14,73 14,44 A40,40 0 1,1 86,44 C86,73 64,84 50,104 Z';
-  return (
-    '<svg viewBox="-17 -13 134 152" xmlns="http://www.w3.org/2000/svg">' +
-    '<defs>' +
-    '<linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">' +
-    '<stop offset="0%" stop-color="#39b074"/>' +
-    '<stop offset="100%" stop-color="#1c9255"/>' +
-    '</linearGradient>' +
-    '<radialGradient id="wh" cx="50%" cy="31%" r="62%">' +
-    '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.40"/>' +
-    '<stop offset="62%" stop-color="#ffffff" stop-opacity="0.06"/>' +
-    '<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>' +
-    '</radialGradient>' +
-    '<linearGradient id="wr" x1="0" y1="0" x2="0" y2="1">' +
-    '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>' +
-    '<stop offset="44%" stop-color="#ffffff" stop-opacity="0"/>' +
-    '</linearGradient>' +
-    '<filter id="ws" x="-70%" y="-55%" width="240%" height="235%">' +
-    '<feDropShadow dx="0" dy="3.5" stdDeviation="4" flood-color="#0c3a22" flood-opacity="0.26"/>' +
-    '</filter>' +
-    '</defs>' +
-    `<path d="${D}" fill="url(#wg)" filter="url(#ws)"/>` +
-    '<ellipse cx="50" cy="40" rx="32" ry="25" fill="url(#wh)"/>' +
-    `<path d="${D}" fill="none" stroke="url(#wr)" stroke-width="1.4"/>` +
-    inner +
-    '</svg>'
-  );
-}
-
-// ── 스타일 (주입 1회) ────────────────────────────────────────
 const STYLE_ID = 'wishes-search-pin-style';
 const STYLE_CSS = `
 .scl-pin{
   position:relative;cursor:pointer;
-  transform-origin:50% 91%;
   transition:transform .18s cubic-bezier(.16,1,.3,1);
 }
-.scl-pin:hover{transform:scale(1.08);z-index:400;}
-.scl-pin:active{transform:scale(0.96);}
-.scl-pin svg{display:block;width:100%;height:100%;overflow:visible;}
-.scl-pin text{user-select:none;}
+.scl-pin img{display:block;width:100%;height:100%;}
+.scl-pinimg{transform-origin:50% 98%;}
+.scl-pinimg img{filter:drop-shadow(0 2px 3px rgba(12,40,24,.34));}
+.scl-pinimg:hover{transform:scale(1.10);z-index:400;}
+.scl-pinimg:active{transform:scale(0.96);}
+.scl-circle{transform-origin:50% 50%;}
+.scl-circle img{filter:drop-shadow(0 2px 4px rgba(12,40,24,.30));}
+.scl-circle:hover{transform:scale(1.08);z-index:400;}
+.scl-circle:active{transform:scale(0.96);}
+.scl-count{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  color:#14532d;font-weight:700;letter-spacing:-.5px;
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Rounded','Pretendard',sans-serif;
+  user-select:none;pointer-events:none;
+}
 `;
 
 function injectStyle(): void {
@@ -115,7 +89,6 @@ function injectStyle(): void {
   document.head.appendChild(el);
 }
 
-// ── Kakao 타입 (최소) ────────────────────────────────────────
 interface KakaoLatLng { /* opaque */ }
 interface KakaoProjection { pointFromCoords: (c: unknown) => { x: number; y: number } }
 interface KakaoMapsNs {
@@ -129,7 +102,6 @@ interface KakaoMapLike {
   panTo?: (latlng: unknown) => void;
 }
 
-// ── 겹침 제거 머지 ───────────────────────────────────────────
 type MNode = {
   count: number; ids: number[];
   lat: number; lng: number;
@@ -148,8 +120,7 @@ function mergeClusters(
       count: c.count, ids: c.sample_ids ?? [], lat: c.lat, lng: c.lng,
     }));
   }
-  // head 원의 화면 반지름 ≈ pinWidth * 0.30 (viewBox 상 head 지름 72/120)
-  const radiusOf = (count: number) => pinWidth(count) * 0.30 + 3;
+  const radiusOf = (count: number) => pinWidth(count) * 0.5 + 2;
 
   const nodes: MNode[] = clusters.map((c) => {
     const t1Lat = typeof c.tier1_lat === 'number' && Number.isFinite(c.tier1_lat) ? c.tier1_lat : null;
@@ -219,17 +190,27 @@ export function SearchClusterLayer({ map, clusters, onSelectListing }: SearchClu
 
     for (const m of merged) {
       const single = m.count <= 1;
-      const w = pinWidth(m.count);
-
       const el = document.createElement('div');
-      el.className = 'scl-pin';
-      el.style.width = `${w}px`;
-      el.style.height = `${Math.round(w * PIN_RATIO)}px`;
-      el.innerHTML = pinSvg(m.count, single);
 
       if (single) {
+        const w = pinWidth(1);
+        el.className = 'scl-pin scl-pinimg';
+        el.style.width = `${w}px`;
+        el.style.height = `${Math.round(w * PIN_RATIO)}px`;
+        el.innerHTML = `<img src="${PIN_IMG}" alt="" draggable="false"/>`;
         el.dataset.singleId = String(m.ids[0] ?? '');
       } else {
+        const w = pinWidth(m.count);
+        const label = formatCount(m.count);
+        const fs = label.length >= 4
+          ? Math.round(w * 0.27)
+          : label.length === 3 ? Math.round(w * 0.34) : Math.round(w * 0.42);
+        el.className = 'scl-pin scl-circle';
+        el.style.width = `${w}px`;
+        el.style.height = `${w}px`;
+        el.innerHTML =
+          `<img src="${CIRCLE_IMG}" alt="" draggable="false"/>` +
+          `<span class="scl-count" style="font-size:${fs}px">${label}</span>`;
         el.dataset.clusterLat = String(m.lat);
         el.dataset.clusterLng = String(m.lng);
       }
@@ -237,8 +218,8 @@ export function SearchClusterLayer({ map, clusters, onSelectListing }: SearchClu
       const ov = new maps.CustomOverlay({
         position: new maps.LatLng(m.lat, m.lng),
         content: el,
-        xAnchor: 0.5,
-        yAnchor: TIP_YANCHOR,
+        xAnchor: single ? PIN_XANCHOR : 0.5,
+        yAnchor: single ? PIN_TIP_YANCHOR : 0.5,
         zIndex: single ? 90 : 100,
       });
       ov.setMap(map);
