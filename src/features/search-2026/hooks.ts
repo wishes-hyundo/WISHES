@@ -23,6 +23,9 @@ export function useSearchListings(filters: SearchFilters, perPage: number = DEFA
       fetchSearchListings(filters, pageParam as number, perPage, signal),
     initialPageParam: 1,
     getNextPageParam: (last: SearchPage) => (last.hasMore ? last.page + 1 : undefined),
+    // 인증 실패(401/403)는 재시도 무의미 — 미인증 시 즉시 mock 폴백.
+    retry: (count, err) =>
+      !/\b40[13]\b/.test(String((err as Error)?.message ?? '')) && count < 2,
   });
 
   const listings: SearchListing[] = (query.data?.pages ?? []).flatMap((p) => p.listings);
