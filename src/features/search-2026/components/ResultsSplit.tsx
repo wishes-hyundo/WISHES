@@ -46,6 +46,21 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   const [favMap, setFavMap] = useState<Map<number, SearchListing>>(() => new Map());
   const [favOpen, setFavOpen] = useState(false);
   const [briefingOpen, setBriefingOpen] = useState(false);
+  // 관심목록 영속화 (localStorage) — 하이드레이션 안전: 마운트 후 로드
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('wishes-search-favs');
+      if (raw) {
+        const arr = JSON.parse(raw) as Array<[number, SearchListing]>;
+        if (Array.isArray(arr) && arr.length) setFavMap(new Map(arr));
+      }
+    } catch { /* noop */ }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem('wishes-search-favs', JSON.stringify([...favMap.entries()]));
+    } catch { /* noop */ }
+  }, [favMap]);
   const toggleSelect = (id: number) => setSelectedIds((prev) => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
