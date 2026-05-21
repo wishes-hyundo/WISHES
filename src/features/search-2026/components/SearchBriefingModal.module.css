@@ -1,0 +1,89 @@
+/* SearchBriefingModal — AI 매물 브리핑 (P6-3) · iOS 26.5 글래스 */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(14, 26, 18, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: abIn 0.18s ease both;
+}
+@keyframes abIn { from { opacity: 0 } to { opacity: 1 } }
+.panel {
+  width: 100%;
+  max-width: 620px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(250, 252, 249, 0.93);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(12, 30, 18, 0.30);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Pretendard', sans-serif;
+  animation: apIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes apIn { from { opacity: 0; transform: translateY(16px) scale(0.98) } to { opacity: 1; transform: none } }
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 14px 14px 18px;
+  border-bottom: 0.5px solid rgba(20, 40, 26, 0.12);
+  flex: none;
+}
+.title { font-size: 16px; font-weight: 700; color: #1c2a22; margin: 0; letter-spacing: -0.02em; }
+.badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #e8f2ea;
+  color: #2c7a4b;
+}
+.spacer { flex: 1; }
+.close {
+  width: 34px; height: 34px; border-radius: 999px; border: none;
+  background: #eef2ee; color: #2c3a31; font-size: 16px; cursor: pointer;
+}
+.close:active { transform: scale(0.92); }
+.scroll { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 14px; }
+.loading { padding: 56px 18px; text-align: center; font-size: 13.5px; color: #6b7b70; }
+.dot { animation: blink 1.2s infinite; }
+@keyframes blink { 0%,100% { opacity: 0.25 } 50% { opacity: 1 } }
+.bcard {
+  background: rgba(255, 255, 255, 0.72);
+  border: 0.5px solid rgba(20, 40, 26, 0.10);
+  border-radius: 14px;
+  padding: 14px 15px;
+}
+.bcard + .bcard { margin-top: 10px; }
+.bhi {
+  font-size: 13px;
+  font-weight: 700;
+  color: #2c7a4b;
+  letter-spacing: -0.01em;
+  margin-bottom: 4px;
+}
+.baddr { font-size: 14.5px; font-weight: 700; color: #1c2a22; letter-spacing: -0.02em; }
+.bsummary { font-size: 13px; line-height: 1.62; color: #3a4a3f; margin-top: 7px; }
+.pros { margin-top: 9px; display: flex; flex-direction: column; gap: 4px; }
+.pro { font-size: 12.5px; color: #2c5a3c; }
+.pro::before { content: '✓ '; font-weight: 800; }
+.con { font-size: 12.5px; color: #9a6a1a; margin-top: 4px; }
+.con::before { content: '· '; }
+.brec {
+  display: inline-block;
+  margin-top: 9px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #4a5a4f;
+  background: #eef2ee;
+  border-radius: 999px;
+  padding: 4px 10px;
+}

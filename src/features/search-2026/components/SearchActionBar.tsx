@@ -21,6 +21,7 @@ export interface SearchActionBarProps {
   onAddFav: () => void;
   onOpenFav: () => void;
   favCount: number;
+  onBriefing: () => void;
 }
 
 function csvCell(v: unknown): string {
@@ -94,7 +95,7 @@ function printRows(rows: SearchListing[]): void {
 
 export function SearchActionBar({
   selected, totalVisible, allSelected, onToggleAll, onClear, onCompare,
-  onAddFav, onOpenFav, favCount,
+  onAddFav, onOpenFav, favCount, onBriefing,
 }: SearchActionBarProps) {
   const n = selected.length;
   return (
@@ -112,6 +113,12 @@ export function SearchActionBar({
         <button type="button" className={styles.clear} onClick={onClear}>해제</button>
       )}
       <span className={styles.spacer} />
+      <button
+        type="button"
+        className={styles.act}
+        disabled={n === 0}
+        onClick={onBriefing}
+      >✨ AI 브리핑</button>
       <button
         type="button"
         className={styles.act}

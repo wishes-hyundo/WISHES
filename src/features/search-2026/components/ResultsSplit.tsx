@@ -20,6 +20,7 @@ import { SearchDetailModal } from './SearchDetailModal';
 import { SearchActionBar } from './SearchActionBar';
 import { SearchCompareModal } from './SearchCompareModal';
 import { SearchFavoritesModal } from './SearchFavoritesModal';
+import { SearchBriefingModal } from './SearchBriefingModal';
 import styles from './ResultsSplit.module.css';
 
 export interface ResultsSplitProps {
@@ -44,6 +45,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   const [compareOpen, setCompareOpen] = useState(false);
   const [favMap, setFavMap] = useState<Map<number, SearchListing>>(() => new Map());
   const [favOpen, setFavOpen] = useState(false);
+  const [briefingOpen, setBriefingOpen] = useState(false);
   const toggleSelect = (id: number) => setSelectedIds((prev) => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -150,11 +152,18 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
           return m;
         })}
         onOpenFav={() => setFavOpen(true)}
+        onBriefing={() => setBriefingOpen(true)}
       />
       {compareOpen && (
         <SearchCompareModal
           listings={selectedListings}
           onClose={() => setCompareOpen(false)}
+        />
+      )}
+      {briefingOpen && (
+        <SearchBriefingModal
+          listings={selectedListings}
+          onClose={() => setBriefingOpen(false)}
         />
       )}
       {favOpen && (
