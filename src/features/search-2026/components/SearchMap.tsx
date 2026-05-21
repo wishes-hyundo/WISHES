@@ -27,6 +27,25 @@ function levelToZoom(level: number): number {
   return Math.max(0, 20 - level);
 }
 
+// 줌별 bbox 양자화 grid (2026-05-22 perf).
+//   기존엔 매 픽셀 팬마다 bbox 가 toFixed(3) 로 미세하게 바뀌어 요청 URL 이
+//   전부 달라짐 → CDN/브라우저 캐시가 거의 안 맞고 매번 DB 왕복(평균 0.4초).
+//   서버 rpc 캐시(quantizeKey)와 동일한 정밀도 단계로 bbox 를 격자에 스냅 →
+//   같은 셀 안 팬은 동일 URL → CDN edge 캐시 적중 → 즉시 응답.
+function bboxPrecision(zoom: number): number {
+  return zoom >= 15 ? 4 : zoom >= 12 ? 3 : zoom >= 9 ? 2 : 1;
+}
+function snapBbox(b: Bbox, zoom: number): Bbox {
+  const step = Math.pow(10, -bboxPrecision(zoom));
+  const fl = (v: number) => Math.floor(v / step) * step;
+  const cl = (v: number) => Math.ceil(v / step) * step;
+  return { west: fl(b.west), south: fl(b.south), east: cl(b.east), north: cl(b.north) };
+}
+function sameBbox(a: Bbox | null, b: Bbox): boolean {
+  return !!a && a.west === b.west && a.south === b.south
+    && a.east === b.east && a.north === b.north;
+}
+
 interface Bbox {
   west: number;
   south: number;
@@ -86,6 +105,8 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [clusters, setClusters] = useState<SearchCluster[]>([]);
+  // 클러스터 응답 메모리 캐시 (양자화 URL 키) — 재방문 시 네트워크 0
+  const clusterCacheRef = useRef<Map<string, SearchCluster[]>>(new Map());
 
   // -- 카카오 지도 초기화 --
   useEffect(() => {
@@ -138,13 +159,15 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
           const b = map.getBounds();
           const sw = b.getSouthWest();
           const ne = b.getNorthEast();
-          setBbox({
-            west: sw.getLng(),
-            south: sw.getLat(),
-            east: ne.getLng(),
-            north: ne.getLat(),
-          });
-          setKakaoLevel(map.getLevel());
+          const lvl = map.getLevel();
+          const raw: Bbox = {
+            west: sw.getLng(), south: sw.getLat(),
+            east: ne.getLng(), north: ne.getLat(),
+          };
+          const snapped = snapBbox(raw, levelToZoom(lvl));
+          setKakaoLevel(lvl);
+          // 같은 격자 셀 안에서의 팬 → 동일 bbox 객체 유지 → fetch effect 미발화
+          setBbox((prev) => (sameBbox(prev, snapped) ? prev : snapped));
         };
         kakao.maps.event.addListener(map, 'idle', sync);
         sync(); // 초기 1회 강제 호출
@@ -178,24 +201,40 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
     ) return;
     if (bbox.east <= bbox.west || bbox.north <= bbox.south) return;
 
+    // bbox 는 이미 격자에 스냅됨 → toFixed(precision) 으로 안정적 URL.
+    const zoom = levelToZoom(kakaoLevel);
+    const prec = bboxPrecision(zoom);
+    const p = new URLSearchParams();
+    p.set('swLat', bbox.south.toFixed(prec));
+    p.set('swLng', bbox.west.toFixed(prec));
+    p.set('neLat', bbox.north.toFixed(prec));
+    p.set('neLng', bbox.east.toFixed(prec));
+    p.set('zoom', String(zoom));
+    const qs = p.toString();
+
+    // 메모리 캐시 적중 → 즉시 렌더, 네트워크 요청 자체를 건너뜀
+    const memo = clusterCacheRef.current.get(qs);
+    if (memo) { setClusters(memo); return; }
+
     const ctrl = new AbortController();
     const timer = setTimeout(async () => {
       try {
-        const zoom = levelToZoom(kakaoLevel);
-        const p = new URLSearchParams();
-        p.set('swLat', bbox.south.toFixed(3));
-        p.set('swLng', bbox.west.toFixed(3));
-        p.set('neLat', bbox.north.toFixed(3));
-        p.set('neLng', bbox.east.toFixed(3));
-        p.set('zoom', String(zoom));
-        const res = await fetch(`/api/map/clusters?${p.toString()}`, { signal: ctrl.signal });
+        const res = await fetch(`/api/map/clusters?${qs}`, { signal: ctrl.signal });
         if (!res.ok) {
           if (!ctrl.signal.aborted) setClusters([]);
           return;
         }
         const json = await res.json();
         if (!ctrl.signal.aborted) {
-          setClusters(Array.isArray(json?.data) ? json.data : []);
+          const data: SearchCluster[] = Array.isArray(json?.data) ? json.data : [];
+          setClusters(data);
+          // LRU 캐시 저장 (최대 80개, 초과 시 가장 오래된 것 제거)
+          const cache = clusterCacheRef.current;
+          cache.set(qs, data);
+          if (cache.size > 80) {
+            const oldest = cache.keys().next().value;
+            if (oldest !== undefined) cache.delete(oldest);
+          }
         }
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {
