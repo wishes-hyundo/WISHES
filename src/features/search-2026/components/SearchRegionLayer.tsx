@@ -240,12 +240,13 @@ function injectStyle(): void {
 
 // ── Kakao 타입 ───────────────────────────────────────────────
 interface KakaoLatLng { /* opaque */ }
-interface KakaoPolygon { setMap: (m: unknown) => void }
+interface KakaoPolygon { setMap: (m: unknown) => void; setOptions?: (o: Record<string, unknown>) => void }
 interface KakaoOverlay { setMap: (m: unknown) => void }
 interface KakaoMapsNs {
   LatLng: new (lat: number, lng: number) => KakaoLatLng;
   Polygon: new (opts: Record<string, unknown>) => KakaoPolygon;
   CustomOverlay: new (opts: Record<string, unknown>) => KakaoOverlay;
+  event: { addListener: (t: unknown, type: string, cb: (e?: { latLng?: unknown }) => void) => void };
 }
 interface KakaoMapLike {
   getLevel?: () => number;
@@ -364,6 +365,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
         const count = counts.get(fi) ?? 0;
         const cls = choroClass(count, nonzero);
 
+        const baseFill = count > 0 ? 0.52 : 0.16;
         for (const poly of polys) {
           const path = poly.map((ring) =>
             decimateRing(ring, keepEvery).map(([lng, lat]) => new maps.LatLng(lat, lng)));
@@ -374,11 +376,30 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
             strokeOpacity: 0.55,
             strokeStyle: 'solid',
             fillColor: CHORO[cls],
-            fillOpacity: count > 0 ? 0.52 : 0.16,
+            fillOpacity: baseFill,
             zIndex: 1,
           });
           kp.setMap(map);
           polysRef.current.push(kp);
+          // hover 하이라이트 — 커서 밑 구역 강조 (네이버·호갱노노 패턴)
+          maps.event.addListener(kp, 'mouseover', () => {
+            try { kp.setOptions?.({ fillOpacity: Math.min(0.82, baseFill + 0.26), strokeWeight: 2.5 }); }
+            catch { /* noop */ }
+          });
+          maps.event.addListener(kp, 'mouseout', () => {
+            try { kp.setOptions?.({ fillOpacity: baseFill, strokeWeight: 1.5 }); }
+            catch { /* noop */ }
+          });
+          // 폴리곤 클릭 = 그 지점으로 줌인
+          maps.event.addListener(kp, 'click', (e) => {
+            const m = map as KakaoMapLike;
+            const ll = e?.latLng;
+            if (m.setLevel && m.getLevel && ll) {
+              const next = Math.max(1, (m.getLevel() ?? 10) - 3);
+              try { m.setLevel(next, { anchor: ll, animate: true }); }
+              catch { try { m.setLevel(next); } catch { /* noop */ } }
+            }
+          });
         }
 
         let big = polys[0], bigArea = 0;
