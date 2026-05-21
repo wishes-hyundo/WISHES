@@ -62,10 +62,6 @@ import { CopyToastOutlet } from '@/features/map-2026/components/CopyToast';
 //   교체: KakaoMarkerLayer (kakao.maps.CustomOverlay native, SDK 자동 reposition).
 //   직방/다방/네모/피터팬 모두 동일 architecture.
 import KakaoMarkerLayer from '@/components/map/KakaoMarkerLayer';
-// Wave 49 (2026-05-04 사장님 명령 "끝까지 무조건"): Canvas 2D marker layer.
-//   SVG 50ms 한계 도달 (SVG DOM reflow 자체). Canvas 2D = 53 cluster 5ms 예상.
-//   ?canvas=1 활성 (검증), Wave 50 에서 default.
-import CanvasMarkerLayer from '@/components/map/CanvasMarkerLayer';
 // Wave 66 (2026-05-04): clusterAggregation + listingCategoryOf imports 제거.
 //   webglClusters / webglItems useMemo 가 사용했던 함수들. KakaoDeckOverlay 제거 후 unused.
 // L-mapmarker1 (2026-04-23): 네이버·직방 스타일 HTML 마커 (Kakao CustomOverlay).
@@ -149,28 +145,9 @@ export default function MapClient() {
   const [kakaoLevel, setKakaoLevel] = useState<number>(5);
   // Wave 69 (사장님 명령 2026-05-06 재설계): server cluster fetch (debounce 250ms 내장)
   const { clusters: serverClusters } = useMapClusters(kakaoLevel);
-  // Wave 44 (2026-05-04): SVG 기본 활성 (Wave 38~43 검증 완료, 사장님 명령 옵션 A).
-  //   prod 측정: zoom freeze 95ms → 0ms (warm worker), pan freeze 0ms 유지.
-  //   ?svg=0 = 비상 롤백 (HtmlMarkerOverlay 옛날 모드 복원).
-  //   I-PERF-2 영구 INVARIANT 로 보존.
-  const [useSvg, setUseSvg] = useState(true);
-  // Wave 49 (2026-05-04): Canvas 2D layer 검증 토글 (?canvas=1).
-  //   true 시 SvgMarkerLayer 비활성 + CanvasMarkerLayer 활성. SVG 코드 비상 롤백용 보존.
-  const [useCanvas, setUseCanvas] = useState(false);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [failReason, setFailReason] = useState<string>('');
-
-  // Wave 44: URL query opt-out (?svg=0 시 옛날 HtmlMarkerOverlay 모드).
-  // Wave 49: ?canvas=1 시 Canvas 2D layer 활성 (검증 모드).
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('svg') === '0') setUseSvg(false);
-      if (params.get('canvas') === '1') setUseCanvas(true);
-    } catch { /* noop */ }
-  }, []);
 
   // Wave 59 (사장님 명령 2026-05-04): polling 기반 polygon 강제 제거.
   //   Wave 54~58 모두 실패 (Kakao SDK setMap(null) DOM 안 지움 + useEffect [kakaoLevel] 발화 안 함).
@@ -594,19 +571,7 @@ export default function MapClient() {
               {/* Wave 63 (사장님 명령 2026-05-04): z13 = polygon zone, z14+ = marker zone 분리.
                    kakaoLevel <= 6 (z14 이상 줌인) 일 때만 마커 mount.
                    z13 (level 7) 이상 광역 = AdminRegionOverlay 폴리곤만 표시. */}
-              {kakaoLevel <= 6 && (useCanvas ? (
-                <CanvasMarkerLayer
-                  map={kakaoMap}
-                  container={containerRef.current}
-                  listings={listings}
-                  selectedListingId={detailListingId}
-                  category={filterCategory}
-                  clusterFilterIds={clusterFilterIds}
-                  clusterFilterListings={clusterFilterListings}
-                  onClickListing={onClickListing}
-                  onClusterFilter={(ids, label) => setClusterFilter(ids, label)}
-                />
-              ) : useSvg && (
+              {kakaoLevel <= 6 && (
                 <KakaoMarkerLayer
                   map={kakaoMap}
                   container={containerRef.current}
@@ -619,7 +584,7 @@ export default function MapClient() {
                   onClusterFilter={(ids, label) => setClusterFilter(ids, label)}
                   serverClusters={serverClusters}
                 />
-              ))}
+              )}
               {/* Wave 66 (사장님 명령 2026-05-04): KakaoDeckOverlay 완전 제거 (R-D1).
                    Wave 62 의 items=[]/clusters=[] 부분 fix 만으로는 deck.gl WebGL canvas + mousemove
                    listener 가 mount 되어 잠재 충돌. JSX 자체 제거 = 100% 안전. */}
