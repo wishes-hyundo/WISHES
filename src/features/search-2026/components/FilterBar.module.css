@@ -1,161 +1,181 @@
 /* FilterBar — /search 재구축 필터 바 (P2)
- * 통합 최종안: 압축 1줄 바 + 6칸 컬럼 그리드 상세 필터.
- * 콘텐츠 영역 — 유리 없이 솔리드·정렬 우선. 선택 = 브랜드 그린(#2d6a34).
+ * 통합 최종안: 압축 1줄 바 + 6칸 컬럼 그리드.
+ * 마감 기준 — iOS 26.5: 부드러운 모서리, 헤어라인 구분선, 은은한 깊이,
+ * 편안한 여백. 구조·밀도는 유지하고 finish 만 iOS 톤으로. 선택 = 브랜드 그린.
  */
 
 .bar {
   box-sizing: border-box;
   background: #fff;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.07);
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Pretendard', 'Malgun Gothic', sans-serif;
 }
 
 /* ── 압축 1줄 바 ── */
-.core { padding: 10px 14px; }
-.compactRow { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
-.barDivider { width: 1px; height: 18px; background: rgba(0, 0, 0, 0.12); margin: 0 4px; flex: none; }
+.core { padding: 12px 16px; }
+.compactRow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.barDivider { width: 1px; height: 16px; background: rgba(0, 0, 0, 0.1); margin: 0 5px; flex: none; }
 
 .chip {
-  padding: 5px 11px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 7px;
+  padding: 6px 13px;
+  border: 0.5px solid rgba(0, 0, 0, 0.13);
+  border-radius: 9px;
   background: #fff;
-  color: #525a64;
+  color: #4a5159;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
+  letter-spacing: -0.01em;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
 }
-.chip:hover { background: #f4f5f6; }
+.chip:hover { background: #f5f6f7; }
 .chipOn, .chipOn:hover {
-  background: #2d6a34; border-color: #2d6a34; color: #fff; font-weight: 600;
+  background: #2d6a34;
+  border-color: #2d6a34;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px -1px rgba(45, 106, 52, 0.45);
 }
 
 .detailBtn {
   margin-left: auto;
   display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 11px;
-  border: 1px solid rgba(45, 106, 52, 0.4);
-  border-radius: 7px;
-  background: #f4f7f4;
+  padding: 6px 13px;
+  border: 0.5px solid rgba(45, 106, 52, 0.38);
+  border-radius: 9px;
+  background: #f3f7f3;
   color: #2d6a34;
-  font-family: inherit; font-size: 12px; font-weight: 600;
+  font-family: inherit; font-size: 12.5px; font-weight: 600;
+  letter-spacing: -0.01em;
   cursor: pointer; white-space: nowrap;
+  transition: background 0.14s ease;
 }
-.detailBtn:hover { background: #ecf2ec; }
-.detailBtnOn { background: #2d6a34; border-color: #2d6a34; color: #fff; }
+.detailBtn:hover { background: #eaf1ea; }
+.detailBtnOn {
+  background: #2d6a34; border-color: #2d6a34; color: #fff;
+  box-shadow: 0 1px 3px -1px rgba(45, 106, 52, 0.45);
+}
 .detailBtnIco { font-size: 11px; }
-.caret { transition: transform 0.15s ease; font-size: 10px; }
+.caret { transition: transform 0.18s ease; font-size: 10px; }
 .caretUp { transform: rotate(180deg); }
 
 /* ── 상세 필터 패널 ── */
-.detail { padding: 4px 14px 12px; border-top: 1px solid #f0f0f0; }
+.detail { padding: 6px 16px 15px; border-top: 0.5px solid rgba(0, 0, 0, 0.055); }
 
-/* 6칸 컬럼 그리드 */
+/* 6칸 컬럼 그리드 — 부드러운 카드 */
 .grid {
   display: grid;
-  border: 1px solid #e2e4e6;
-  border-radius: 8px;
+  background: #fff;
+  border: 0.5px solid rgba(0, 0, 0, 0.08);
+  border-radius: 14px;
   overflow: hidden;
-  margin-bottom: 11px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.045);
+  margin-bottom: 13px;
 }
-.gcol { border-right: 1px solid #eef0f1; min-width: 0; }
+.gcol { border-right: 0.5px solid rgba(0, 0, 0, 0.05); min-width: 0; }
 .gcol:last-child { border-right: none; }
 .gcolHead {
-  padding: 6px 4px;
-  background: #f5f7f5;
-  border-bottom: 1px solid #e2e4e6;
-  font-size: 11.5px; font-weight: 700; color: #33343a;
+  padding: 8px 4px;
+  background: #fafafb;
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.06);
+  font-size: 11.5px; font-weight: 600; color: #6b7178;
+  letter-spacing: 0.01em;
   text-align: center; white-space: nowrap;
 }
-.gcolBody { display: flex; flex-direction: column; max-height: 188px; overflow-y: auto; }
+.gcolBody { display: flex; flex-direction: column; max-height: 196px; overflow-y: auto; padding: 3px; }
 .gopt {
   display: flex; justify-content: space-between; align-items: center;
   width: 100%;
-  padding: 5px 9px;
+  padding: 7px 9px;
   border: none;
-  border-bottom: 1px solid #f3f4f5;
-  background: #fff;
-  color: #555b63;
-  font-family: inherit; font-size: 11.5px;
+  border-radius: 7px;
+  background: transparent;
+  color: #50565d;
+  font-family: inherit; font-size: 12px;
+  letter-spacing: -0.01em;
   text-align: left; white-space: nowrap; cursor: pointer;
-  transition: background 0.1s ease, color 0.1s ease;
+  transition: background 0.12s ease, color 0.12s ease;
 }
-.gopt:last-child { border-bottom: none; }
-.gopt:hover { background: #eef5ef; color: #2d6a34; }
-.goptOn, .goptOn:hover { background: #2d6a34; color: #fff; font-weight: 600; }
+.gopt:hover { background: #f1f5f1; color: #2d6a34; }
+.goptOn, .goptOn:hover {
+  background: #2d6a34; color: #fff; font-weight: 600;
+  box-shadow: 0 1px 2px -1px rgba(45, 106, 52, 0.5);
+}
 
 /* 추가 필터 */
-.extra { margin-bottom: 11px; }
-.extraLabel { font-size: 11px; font-weight: 600; color: #8b9097; margin-bottom: 6px; }
-.checks { display: flex; flex-wrap: wrap; gap: 7px 13px; }
+.extra { margin-bottom: 13px; }
+.extraLabel { font-size: 11.5px; font-weight: 600; color: #8b9097; margin-bottom: 8px; }
+.checks { display: flex; flex-wrap: wrap; gap: 9px 15px; }
 .check {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 2px 0; border: none; background: none;
-  color: #525a64; font-family: inherit; font-size: 11.5px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 0; border: none; background: none;
+  color: #50565d; font-family: inherit; font-size: 12px;
+  letter-spacing: -0.01em; cursor: pointer;
 }
 .box {
-  width: 15px; height: 15px; flex: none;
-  border: 1.5px solid #c4c8cc; border-radius: 4px;
-  transition: background 0.12s ease, border-color 0.12s ease;
+  width: 17px; height: 17px; flex: none;
+  border: 1.5px solid #cdd0d4; border-radius: 5px;
+  transition: background 0.14s ease, border-color 0.14s ease;
 }
 .checkOn { color: #2d6a34; font-weight: 600; }
 .checkOn .box { background: #2d6a34; border-color: #2d6a34; }
 
 /* 가격·면적·특이사항 */
-.ranges { display: flex; flex-direction: column; gap: 6px; }
-.rangeRow { display: flex; align-items: center; gap: 7px; }
-.rangeLabel { flex: none; width: 56px; font-size: 11.5px; font-weight: 600; color: #8b9097; }
+.ranges { display: flex; flex-direction: column; gap: 8px; }
+.rangeRow { display: flex; align-items: center; gap: 8px; }
+.rangeLabel { flex: none; width: 58px; font-size: 11.5px; font-weight: 600; color: #8b9097; }
 .numInput {
-  width: 100px; height: 32px; padding: 0 10px;
-  border: 1px solid rgba(0, 0, 0, 0.13); border-radius: 8px;
-  background: #fff; font-family: inherit; font-size: 12px; color: #1d1d1f; text-align: right;
+  width: 104px; height: 34px; padding: 0 11px;
+  border: 0.5px solid rgba(0, 0, 0, 0.14); border-radius: 10px;
+  background: #fff; font-family: inherit; font-size: 12.5px; color: #1d1d1f; text-align: right;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
-.numInput:focus { outline: none; border-color: #2d6a34; box-shadow: 0 0 0 2px rgba(45, 106, 52, 0.14); }
-.tilde { color: #bcc0c6; font-size: 12px; }
+.numInput:focus { outline: none; border-color: #2d6a34; box-shadow: 0 0 0 3px rgba(45, 106, 52, 0.12); }
+.tilde { color: #c2c6cb; font-size: 12px; }
 .unit { font-size: 11px; color: #9aa0a6; }
 .kwInput {
-  flex: 1; min-width: 0; height: 32px; padding: 0 11px;
-  border: 1px solid rgba(0, 0, 0, 0.13); border-radius: 8px;
-  background: #fff; font-family: inherit; font-size: 12px; color: #1d1d1f;
+  flex: 1; min-width: 0; height: 34px; padding: 0 12px;
+  border: 0.5px solid rgba(0, 0, 0, 0.14); border-radius: 10px;
+  background: #fff; font-family: inherit; font-size: 12.5px; color: #1d1d1f;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
-.kwInput:focus { outline: none; border-color: #2d6a34; box-shadow: 0 0 0 2px rgba(45, 106, 52, 0.14); }
+.kwInput:focus { outline: none; border-color: #2d6a34; box-shadow: 0 0 0 3px rgba(45, 106, 52, 0.12); }
 
 /* ── 적용 필터 칩 줄 ── */
 .applied {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 5px;
-  padding: 8px 14px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 9px 16px;
   background: #f3f8f3;
-  border-top: 1px solid #e6efe6;
+  border-top: 0.5px solid rgba(45, 106, 52, 0.12);
 }
 .appliedLabel { font-size: 11px; font-weight: 600; color: #7b8a7b; }
 .appliedChip {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 7px 3px 10px;
-  border: 1px solid rgba(45, 106, 52, 0.25);
-  border-radius: 11px;
+  padding: 4px 7px 4px 11px;
+  border: 0.5px solid rgba(45, 106, 52, 0.28);
+  border-radius: 13px;
   background: #fff; color: #27501e;
-  font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
+  font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer;
+  transition: background 0.12s ease;
 }
 .appliedChip:hover { background: #eef6ef; }
 .appliedX {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 15px; height: 15px; border-radius: 50%;
-  background: rgba(45, 106, 52, 0.13); font-size: 9px;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: rgba(45, 106, 52, 0.12); font-size: 9px;
 }
 .resetBtn {
   margin-left: auto; border: none; background: none;
-  color: #9aa0a6; font-family: inherit; font-size: 11px;
+  color: #9aa0a6; font-family: inherit; font-size: 11.5px;
   text-decoration: underline; cursor: pointer;
 }
 
 /* ── 모바일 ── */
 @media (max-width: 640px) {
   .detailBtn { margin-left: 0; }
-  /* 6칸 → 3칸 2줄 */
   .grid { grid-template-columns: repeat(3, 1fr) !important; }
   .gcol:nth-child(3n) { border-right: none; }
   .rangeRow { flex-wrap: wrap; }
-  .numInput { width: 0; flex: 1; min-width: 70px; }
+  .numInput { width: 0; flex: 1; min-width: 76px; }
 }
