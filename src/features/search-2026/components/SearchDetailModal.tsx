@@ -4,9 +4,9 @@
  * SearchDetailModal — /search 매물 상세 모달 (P4)
  *
  * iOS 26.5 앱 스타일. 모바일=하단 바텀시트 / 데스크탑=센터 모달.
- * 닫기 3방법(✕·배경·ESC) + body 스크롤 잠금.
- * 목록 카드 클릭 → listing 객체 직접 / 지도 마커 클릭 → id 로 단건 조회.
- * 기준: ★search_완전기능명세서.md §4.
+ * 레거시 상세 페이지 구조 참조: 갤러리 → HERO → 거래정보 → 매물 정보 →
+ * 시설·옵션 → 상세설명 → 위치 → 하단 고정 전화/문자 문의 바.
+ * 닫기 3방법(✕·배경·ESC). 기준: ★search_완전기능명세서.md §4.
  */
 
 import { useEffect, useState } from 'react';
@@ -16,9 +16,7 @@ import { formatArea, formatFloor, priceLines } from '../format';
 import styles from './SearchDetailModal.module.css';
 
 export interface SearchDetailModalProps {
-  /** 목록 카드에서 — 이미 가진 매물 객체 */
   listing?: SearchListing | null;
-  /** 지도 마커에서 — id 로 단건 조회 */
   id?: number | null;
   onClose: () => void;
 }
@@ -29,6 +27,8 @@ const DEAL_TONE: Record<string, string> = {
   월세: styles.dealMonthly,
   전월세: styles.dealMonthly,
 };
+
+type Cell = { label: string; value: string };
 
 function fullAddr(l: SearchListing): string {
   const base = String(l.address || l.title || '주소 미상').trim();
@@ -61,12 +61,17 @@ function moveInText(l: SearchListing): string {
   return v;
 }
 
+function boolText(v: unknown): string {
+  if (v === true) return '가능';
+  if (v == null || v === false || v === '') return '';
+  return String(v).trim();
+}
+
 export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalProps) {
   const [fav, setFav] = useState(false);
   const [copied, setCopied] = useState(false);
   const open = listing != null || id != null;
 
-  // listing 객체가 있으면 조회 안 함. id 만 있으면 단건 조회.
   const detail = useListingDetail(listing ? null : id ?? null);
 
   useEffect(() => {
@@ -85,7 +90,6 @@ export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalPro
 
   const l: SearchListing | null = listing ?? detail.data ?? null;
 
-  // 헤더 (로딩/에러 상태에서도 동일)
   const header = (numId: number | null) => (
     <div className={styles.head}>
       {numId != null ? (
@@ -114,7 +118,6 @@ export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalPro
     </div>
   );
 
-  // 로딩 / 에러 — id 조회 중
   if (!l) {
     return (
       <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
@@ -135,44 +138,52 @@ export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalPro
     .map((im) => im?.url || im?.hero_url)
     .filter(Boolean) as string[];
   const hero = images[0] || l.thumbnail_url || null;
-
   const lines = priceLines(l);
   const road = String(l.road_address ?? '').trim();
   const status = String(l.status ?? '').trim();
 
-  const cells: Array<{ label: string; value: string }> = [];
-  const push = (label: string, value: string | number | null | undefined) => {
+  const mk = (label: string, value: string | number | null | undefined): Cell | null => {
     const v = value == null ? '' : String(value).trim();
-    if (v) cells.push({ label, value: v });
+    return v ? { label, value: v } : null;
   };
-  push('매물종류', l.type);
-  push('면적', formatArea(l));
-  push('층', formatFloor(l));
-  push(
-    '방/욕실',
-    [
-      l.rooms != null ? `방 ${l.rooms}` : '',
-      l.bathrooms != null ? `욕실 ${l.bathrooms}` : '',
-    ].filter(Boolean).join(' · '),
-  );
-  push('방향', l.direction);
-  push('준공', builtYear(l));
-  push(
-    '주차',
-    l.parking_spaces != null && l.parking_spaces > 0
-      ? `${l.parking_spaces}대`
-      : l.parking ? '가능' : '',
-  );
-  push('입주가능', moveInText(l));
-  push('건물명', l.building_name);
-  push('업종', l.business_type);
+  const compact = (arr: Array<Cell | null>): Cell[] => arr.filter((c): c is Cell => c != null);
 
+  // 거래 정보
+  const dealCells = compact([
+    mk('거래유형', l.deal),
+    mk('관리비', l.maintenance_fee != null && l.maintenance_fee > 0
+      ? `${l.maintenance_fee.toLocaleString()}만원` : '없음'),
+    mk('관리비 포함', Array.isArray(l.maintenance_includes) && l.maintenance_includes.length
+      ? l.maintenance_includes.join(' · ') : ''),
+    mk('입주가능', moveInText(l)),
+    mk('융자금', boolText(l.loan_available)),
+    mk('권리금', l.goodwill_fee != null && l.goodwill_fee > 0
+      ? `${l.goodwill_fee.toLocaleString()}만원` : ''),
+    mk('업종', l.business_type),
+  ]);
+
+  // 매물 정보
+  const propCells = compact([
+    mk('매물종류', l.type),
+    mk('전용면적', formatArea(l)),
+    mk('공급면적', l.area_supply_m2 ? `${l.area_supply_m2}㎡` : ''),
+    mk('층', formatFloor(l)),
+    mk('방 수', l.rooms != null ? `${l.rooms}개` : ''),
+    mk('욕실 수', l.bathrooms != null ? `${l.bathrooms}개` : ''),
+    mk('방향', l.direction),
+    mk('사용승인', builtYear(l)),
+    mk('건물명', l.building_name),
+    mk('동/호', [l.building_dong, l.building_ho].filter(Boolean).join(' ') || l.address_detail),
+  ]);
+
+  // 시설 · 옵션 칩
   const chips: string[] = [];
   if (l.elevator) chips.push('엘리베이터');
+  if (l.parking_spaces != null && l.parking_spaces > 0) chips.push(`주차 ${l.parking_spaces}대`);
+  else if (l.parking) chips.push('주차 가능');
   if (l.full_option) chips.push('풀옵션');
   if (l.pet) chips.push('반려동물');
   if (l.balcony) chips.push('발코니');
-  if (l.loan_available) chips.push('대출가능');
   const opts = l.options;
   if (Array.isArray(opts)) {
     opts.forEach((o) => { const s = String(o).trim(); if (s) chips.push(s); });
@@ -182,6 +193,24 @@ export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalPro
 
   const descRaw = l['description'] ?? l['detail_description'] ?? l['특이사항'] ?? l['memo'];
   const desc = descRaw ? String(descRaw).trim() : '';
+
+  const gridSection = (title: string, cells: Cell[]) => {
+    if (cells.length === 0) return null;
+    return (
+      <div className={styles.section}>
+        <h2 className={styles.secTitle}>{title}</h2>
+        <div className={styles.grid}>
+          {cells.map((c, i) => (
+            <div key={i} className={styles.cell}>
+              <div className={styles.cellLabel}>{c.label}</div>
+              <div className={styles.cellValue}>{c.value}</div>
+            </div>
+          ))}
+          {cells.length % 2 === 1 && <div className={styles.cell} />}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
@@ -225,22 +254,12 @@ export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalPro
             <div className={styles.maint}>{maintText(l)}</div>
           </div>
 
-          <div className={styles.section}>
-            <h2 className={styles.secTitle}>기본 정보</h2>
-            <div className={styles.grid}>
-              {cells.map((c, i) => (
-                <div key={i} className={styles.cell}>
-                  <div className={styles.cellLabel}>{c.label}</div>
-                  <div className={styles.cellValue}>{c.value}</div>
-                </div>
-              ))}
-              {cells.length % 2 === 1 && <div className={styles.cell} />}
-            </div>
-          </div>
+          {gridSection('거래 정보', dealCells)}
+          {gridSection('매물 정보', propCells)}
 
           {chips.length > 0 && (
             <div className={styles.section}>
-              <h2 className={styles.secTitle}>옵션 · 특징</h2>
+              <h2 className={styles.secTitle}>시설 · 옵션</h2>
               <div className={styles.chips}>
                 {chips.map((c, i) => <span key={i} className={styles.chip}>{c}</span>)}
               </div>
@@ -253,6 +272,17 @@ export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalPro
               ? <p className={styles.desc}>{desc}</p>
               : <p className={styles.empty}>등록된 상세 설명이 없습니다.</p>}
           </div>
+
+          <div className={styles.section}>
+            <h2 className={styles.secTitle}>위치</h2>
+            <p className={styles.desc}>{fullAddr(l)}</p>
+            {road && <p className={styles.empty} style={{ marginTop: 4 }}>{road}</p>}
+          </div>
+        </div>
+
+        <div className={styles.actionBar}>
+          <button type="button" className={styles.actBtn}>📞 전화문의</button>
+          <button type="button" className={`${styles.actBtn} ${styles.actBtnPrimary}`}>💬 문자문의</button>
         </div>
       </div>
     </div>

@@ -96,9 +96,10 @@
 .fav.on { background: #ffe9ec; color: #e0395a; }
 
 .scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .gallery {
@@ -201,3 +202,34 @@
   word-break: break-word;
 }
 .empty { font-size: 13px; color: #9aa89e; }
+
+/* ── 하단 고정 액션 바 (전화/문자 문의) ── */
+.actionBar {
+  flex: none;
+  display: flex;
+  gap: 9px;
+  padding: 11px 16px calc(11px + env(safe-area-inset-bottom, 0px));
+  border-top: 0.5px solid rgba(20, 40, 26, 0.12);
+  background: rgba(252, 253, 251, 0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.actBtn {
+  flex: 1;
+  height: 48px;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  border: 1.5px solid #2c7a4b;
+  background: transparent;
+  color: #2c7a4b;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: transform 0.12s;
+}
+.actBtnPrimary { background: #2c7a4b; color: #ffffff; border-color: #2c7a4b; }
+.actBtn:active { transform: scale(0.98); }
