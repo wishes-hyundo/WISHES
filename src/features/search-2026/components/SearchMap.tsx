@@ -201,6 +201,22 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
     };
   }, []);
 
+  // -- 컨테이너 리사이즈 시 카카오맵 relayout (5차 감사) --
+  //   분할↔지도 뷰 전환·창 크기 변경으로 지도 칸 폭이 바뀌면 카카오는 스스로
+  //   재배치하지 않아 타일이 어긋난다. ResizeObserver 로 감지해 relayout 호출.
+  useEffect(() => {
+    if (!kakaoMap || !containerRef.current) return;
+    const m = kakaoMap as { relayout?: () => void };
+    if (typeof m.relayout !== 'function') return;
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => { try { m.relayout!(); } catch { /* noop */ } });
+    });
+    ro.observe(containerRef.current);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, [kakaoMap]);
+
   // -- 서버 클러스터 fetch --
   //   bbox/level 변경 시 debounce 120ms -> /api/map/clusters. AbortController 로
   //   경쟁 차단. 실패 시 안전하게 [] (지도 패널 블록 방지).
