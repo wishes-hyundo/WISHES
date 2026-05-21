@@ -41,6 +41,7 @@ export interface SearchListing {
   full_option?: boolean | string | null;
   loan_available?: boolean | string | null;
   available_date?: string | null;
+  available_from?: string | null;
   built_year?: string | null;
   business_type?: string | null;
   goodwill_fee?: number | null;
