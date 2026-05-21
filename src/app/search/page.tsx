@@ -163,6 +163,7 @@ export default function SearchPortalPage() {
       <FilterBar />
       <SearchFilterChips />
       <ResultsSplit
+        view={view}
         listings={listings}
         total={total}
         onLoadMore={() => { void fetchNextPage(); }}

@@ -25,6 +25,7 @@ import { SearchFavoritesModal } from './SearchFavoritesModal';
 import { SearchBriefingModal } from './SearchBriefingModal';
 import { SearchEditModal } from './SearchEditModal';
 import { SearchCreateModal } from './SearchCreateModal';
+import { type SearchView } from './ViewTabs';
 import styles from './ResultsSplit.module.css';
 
 // C-5: 관심목록 localStorage 키를 로그인 사용자별로 분리 — 공용 PC 섞임 방지.
@@ -45,9 +46,11 @@ export interface ResultsSplitProps {
   onLoadMore?: () => void;
   hasMore?: boolean;
   loadingMore?: boolean;
+  /** 헤더 뷰탭 — 'map' 이면 목록 숨기고 지도 전체. */
+  view?: SearchView;
 }
 
-export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore }: ResultsSplitProps) {
+export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore, view = 'split' }: ResultsSplitProps) {
   // C-3: 정렬을 store filters.sort 로 — 선택 시 useSearchListings 가 재조회.
   const sortVal = useSearchStore((st) => st.filters.sort) ?? 'latest';
   const setFilter = useSearchStore((st) => st.setFilter);
@@ -117,7 +120,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
 
   return (
     <div className={styles.split}>
-      <div className={styles.listCol}>
+      <div className={styles.listCol} style={view === 'map' ? { display: 'none' } : undefined}>
         <div className={styles.resultHead}>
           <span className={styles.count}>
             검색결과 <strong>{total.toLocaleString()}</strong>건
@@ -193,7 +196,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         {loadingMore && <div className={styles.loadingMore}>매물 더 불러오는 중…</div>}
       </div>
 
-      <div className={styles.mapCol}>
+      <div className={styles.mapCol} style={view === 'map' ? { flexBasis: '100%', flexGrow: 1 } : undefined}>
         <div className={styles.map}>
           <SearchMap onSelectListing={openById} />
         </div>

@@ -77,6 +77,7 @@ export default function SearchPreviewPage() {
       <FilterBar />
       <SearchFilterChips />
       <ResultsSplit
+        view={view}
         listings={listings}
         total={total}
         onLoadMore={useReal ? () => { void fetchNextPage(); } : undefined}
