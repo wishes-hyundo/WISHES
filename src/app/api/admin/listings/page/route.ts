@@ -250,13 +250,25 @@ export async function GET(request: NextRequest) {
     // ★ keyword search — address, building_name, dong OR ilike
     if (q) {
       const escaped = q.replace(/[%_]/g, '\\$&');
-      q1 = q1.or([
+      const qConds = [
         'address.ilike.%' + escaped + '%',
         'road_address.ilike.%' + escaped + '%',
         'address_detail.ilike.%' + escaped + '%',
         'building_name.ilike.%' + escaped + '%',
         'dong.ilike.%' + escaped + '%',
-      ].join(','));
+        'title.ilike.%' + escaped + '%',
+        'description.ilike.%' + escaped + '%',
+        'special_notes.ilike.%' + escaped + '%',
+        'business_type.ilike.%' + escaped + '%',
+        'previous_business.ilike.%' + escaped + '%',
+        'options.ilike.%' + escaped + '%',
+      ];
+      // 매물번호 — q 가 순수 숫자(또는 W-숫자)면 id 정확 매치 추가
+      const qTrim = q.trim();
+      if (/^[Ww]?-?\d{1,9}$/.test(qTrim)) {
+        qConds.push('id.eq.' + qTrim.replace(/[^0-9]/g, ''));
+      }
+      q1 = q1.or(qConds.join(','));
     }
 
     // ★ type filter — v3 다중 우선, v2 단일 fallback
