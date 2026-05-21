@@ -5,16 +5,21 @@
  *
  * iOS 26.5 앱 스타일. 모바일=하단 바텀시트 / 데스크탑=센터 모달.
  * 닫기 3방법(✕·배경·ESC) + body 스크롤 잠금.
- * 기준: ★search_완전기능명세서.md §4 (갤러리·HERO·정보 섹션).
+ * 목록 카드 클릭 → listing 객체 직접 / 지도 마커 클릭 → id 로 단건 조회.
+ * 기준: ★search_완전기능명세서.md §4.
  */
 
 import { useEffect, useState } from 'react';
 import type { SearchListing } from '../types';
+import { useListingDetail } from '../hooks';
 import { formatArea, formatFloor, priceLines } from '../format';
 import styles from './SearchDetailModal.module.css';
 
 export interface SearchDetailModalProps {
-  listing: SearchListing | null;
+  /** 목록 카드에서 — 이미 가진 매물 객체 */
+  listing?: SearchListing | null;
+  /** 지도 마커에서 — id 로 단건 조회 */
+  id?: number | null;
   onClose: () => void;
 }
 
@@ -56,12 +61,16 @@ function moveInText(l: SearchListing): string {
   return v;
 }
 
-export function SearchDetailModal({ listing, onClose }: SearchDetailModalProps) {
+export function SearchDetailModal({ listing, id, onClose }: SearchDetailModalProps) {
   const [fav, setFav] = useState(false);
   const [copied, setCopied] = useState(false);
+  const open = listing != null || id != null;
+
+  // listing 객체가 있으면 조회 안 함. id 만 있으면 단건 조회.
+  const detail = useListingDetail(listing ? null : id ?? null);
 
   useEffect(() => {
-    if (!listing) return;
+    if (!open) return;
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
@@ -70,10 +79,57 @@ export function SearchDetailModal({ listing, onClose }: SearchDetailModalProps) 
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [listing, onClose]);
+  }, [open, onClose]);
 
-  if (!listing) return null;
-  const l = listing;
+  if (!open) return null;
+
+  const l: SearchListing | null = listing ?? detail.data ?? null;
+
+  // 헤더 (로딩/에러 상태에서도 동일)
+  const header = (numId: number | null) => (
+    <div className={styles.head}>
+      {numId != null ? (
+        <button
+          type="button"
+          className={styles.no}
+          onClick={() => {
+            try {
+              navigator.clipboard?.writeText(String(numId));
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1400);
+            } catch { /* noop */ }
+          }}
+        >
+          매물 {numId} {copied ? '✓ 복사됨' : '⧉'}
+        </button>
+      ) : <span />}
+      <span className={styles.headSpacer} />
+      <button
+        type="button"
+        className={`${styles.iconBtn} ${styles.fav} ${fav ? styles.on : ''}`}
+        onClick={() => setFav((v) => !v)}
+        aria-label="관심"
+      >{fav ? '♥' : '♡'}</button>
+      <button type="button" className={styles.iconBtn} onClick={onClose} aria-label="닫기">✕</button>
+    </div>
+  );
+
+  // 로딩 / 에러 — id 조회 중
+  if (!l) {
+    return (
+      <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
+        <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.grip} aria-hidden="true" />
+          {header(id ?? null)}
+          <div className={styles.scroll}>
+            <p className={styles.empty} style={{ padding: '56px 18px', textAlign: 'center' }}>
+              {detail.isError ? '매물 정보를 불러오지 못했습니다.' : '불러오는 중…'}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const images = (l.listing_images ?? [])
     .map((im) => im?.url || im?.hero_url)
@@ -127,31 +183,11 @@ export function SearchDetailModal({ listing, onClose }: SearchDetailModalProps) 
   const descRaw = l['description'] ?? l['detail_description'] ?? l['특이사항'] ?? l['memo'];
   const desc = descRaw ? String(descRaw).trim() : '';
 
-  const copyNo = () => {
-    try {
-      navigator.clipboard?.writeText(String(l.id));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1400);
-    } catch { /* noop */ }
-  };
-
   return (
     <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
       <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
         <div className={styles.grip} aria-hidden="true" />
-        <div className={styles.head}>
-          <button type="button" className={styles.no} onClick={copyNo}>
-            매물 {l.id} {copied ? '✓ 복사됨' : '⧉'}
-          </button>
-          <span className={styles.headSpacer} />
-          <button
-            type="button"
-            className={`${styles.iconBtn} ${styles.fav} ${fav ? styles.on : ''}`}
-            onClick={() => setFav((v) => !v)}
-            aria-label="관심"
-          >{fav ? '♥' : '♡'}</button>
-          <button type="button" className={styles.iconBtn} onClick={onClose} aria-label="닫기">✕</button>
-        </div>
+        {header(l.id)}
 
         <div className={styles.scroll}>
           <div className={styles.gallery}>

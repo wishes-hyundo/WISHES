@@ -32,7 +32,11 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   const [sort, setSort] = useState('latest');
   const groups = useMemo(() => groupByLocation(mergeUnitDeals(listings)), [listings]);
   const listRef = useRef<HTMLDivElement>(null);
-  const [detail, setDetail] = useState<SearchListing | null>(null);
+  const [detailListing, setDetailListing] = useState<SearchListing | null>(null);
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const openListing = (l: SearchListing) => { setDetailListing(l); setDetailId(null); };
+  const openById = (mid: number) => { setDetailId(mid); setDetailListing(null); };
+  const closeDetail = () => { setDetailListing(null); setDetailId(null); };
 
   const virt = useWindowVirtualizer({
     count: groups.length,
@@ -83,9 +87,9 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
                 style={{ transform: `translateY(${vi.start - scrollMargin}px)` }}
               >
                 {g.listings.length === 1 ? (
-                  <ListingCard listing={g.listings[0]} onClick={setDetail} />
+                  <ListingCard listing={g.listings[0]} onClick={openListing} />
                 ) : (
-                  <ListingGroup group={g} onCardClick={setDetail} />
+                  <ListingGroup group={g} onCardClick={openListing} />
                 )}
               </div>
             );
@@ -96,11 +100,11 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
 
       <div className={styles.mapCol}>
         <div className={styles.map}>
-          <SearchMap />
+          <SearchMap onSelectListing={openById} />
         </div>
       </div>
 
-      <SearchDetailModal listing={detail} onClose={() => setDetail(null)} />
+      <SearchDetailModal listing={detailListing} id={detailId} onClose={closeDetail} />
     </div>
   );
 }
