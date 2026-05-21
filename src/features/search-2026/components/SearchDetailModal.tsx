@@ -71,12 +71,28 @@ function boolText(v: unknown): string {
   return String(v).trim();
 }
 
+const MEMO_TAGS = [
+  '✅즉시입주', '🔑열쇠보관', '📞연락완료', '👀현장확인필요',
+  '💰가격협의가능', '🔨수리필요', '⭐추천매물', '🚫계약불가',
+  '📸사진촬영필요', '🏗️리모델링', '👤집주인직거래', '📋서류확인중',
+];
+
+function fmtDate(v: unknown): string {
+  const t = String(v ?? '').trim();
+  if (!t) return '';
+  return t.slice(0, 16).replace('T', ' ');
+}
+
 export function SearchDetailModal({
   listing, id, onClose, pool, onOpenListing,
 }: SearchDetailModalProps) {
   const [fav, setFav] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [memo, setMemo] = useState('');
+  const [memoTags, setMemoTags] = useState<string[]>([]);
   const open = listing != null || id != null;
+  const activeId = listing?.id ?? id ?? null;
 
   const detail = useListingDetail(listing ? null : id ?? null);
 
@@ -91,6 +107,25 @@ export function SearchDetailModal({
       document.body.style.overflow = prev;
     };
   }, [open, onClose]);
+
+  // 매물별 중개사 메모 — localStorage 로드 (매물 전환 시 갱신)
+  useEffect(() => {
+    if (activeId == null) return;
+    try {
+      const raw = localStorage.getItem(`wishes-memo-${activeId}`);
+      if (raw) {
+        const o = JSON.parse(raw) as { memo?: string; tags?: string[] };
+        setMemo(o.memo ?? '');
+        setMemoTags(Array.isArray(o.tags) ? o.tags : []);
+      } else {
+        setMemo('');
+        setMemoTags([]);
+      }
+    } catch {
+      setMemo('');
+      setMemoTags([]);
+    }
+  }, [activeId]);
 
   if (!open) return null;
 
@@ -326,6 +361,91 @@ export function SearchDetailModal({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          <button
+            type="button"
+            className={styles.agentToggle}
+            onClick={() => setAgentOpen((v) => !v)}
+            aria-expanded={agentOpen}
+          >
+            🔒 중개사 전용 정보 <span style={{ opacity: 0.6 }}>{agentOpen ? '▲' : '▼'}</span>
+          </button>
+          {agentOpen && (
+            <div className={styles.agentBody}>
+              <div className={styles.subHead}>등록 · 확인 이력</div>
+              {[
+                ['최초 등록', fmtDate(l.created_at)],
+                ['최종 확인', fmtDate(l.last_verified_at)],
+                ['최종 수정', fmtDate(l.updated_at)],
+                ['등록자', String(l.created_by ?? '')],
+              ].filter((r) => r[1]).map((r) => (
+                <div key={r[0]} className={styles.histRow}>
+                  <span className={styles.histLabel}>{r[0]}</span>
+                  <span className={styles.histVal}>{r[1]}</span>
+                </div>
+              ))}
+
+              <div className={styles.subHead}>매물 메모</div>
+              <div className={styles.memoTags}>
+                {MEMO_TAGS.map((tag) => {
+                  const on = memoTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      className={`${styles.memoTag} ${on ? styles.memoTagOn : ''}`}
+                      onClick={() => {
+                        const next = on
+                          ? memoTags.filter((t) => t !== tag)
+                          : [...memoTags, tag];
+                        setMemoTags(next);
+                        if (activeId != null) {
+                          try {
+                            localStorage.setItem(
+                              `wishes-memo-${activeId}`,
+                              JSON.stringify({ memo, tags: next }),
+                            );
+                          } catch { /* noop */ }
+                        }
+                      }}
+                    >{tag}</button>
+                  );
+                })}
+              </div>
+              <textarea
+                className={styles.memoBox}
+                placeholder="이 매물에 대한 메모 (자동 저장)"
+                value={memo}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setMemo(v);
+                  if (activeId != null) {
+                    try {
+                      localStorage.setItem(
+                        `wishes-memo-${activeId}`,
+                        JSON.stringify({ memo: v, tags: memoTags }),
+                      );
+                    } catch { /* noop */ }
+                  }
+                }}
+              />
+
+              <div className={styles.subHead}>원본 데이터</div>
+              {[
+                ['출처', String(l.source_site ?? '자체 매물')],
+                ['매물 DB ID', String(l.id)],
+                ['원본 URL', String(l['source_url'] ?? l['url'] ?? l['original_url'] ?? '')],
+              ].filter((r) => r[1]).map((r) => (
+                <div key={r[0]} className={styles.histRow}>
+                  <span className={styles.histLabel}>{r[0]}</span>
+                  <span className={styles.histVal}>{r[1]}</span>
+                </div>
+              ))}
+              <p className={styles.empty} style={{ padding: '10px 0 2px' }}>
+                관계자 연락처 관리는 매물 수정에서 제공됩니다.
+              </p>
             </div>
           )}
         </div>
